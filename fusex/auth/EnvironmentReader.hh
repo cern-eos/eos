@@ -95,8 +95,6 @@ public:
   //----------------------------------------------------------------------------
   FutureEnvironment stageRequest(pid_t pid);
 
-  // *all* responses will be faked if there's at least one injection active
-
   //----------------------------------------------------------------------------
   //! Inject fake data into this class. _All_ responses will be faked if there's
   //! at least one injection active. Used in testing.

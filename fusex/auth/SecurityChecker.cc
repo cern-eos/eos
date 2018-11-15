@@ -21,32 +21,52 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/Logging.hh"
 #include "SecurityChecker.hh"
+#include "ScopedFsUidSetter.hh"
+#include "FileDescriptor.hh"
+#include "Utils.hh"
+#include "common/Logging.hh"
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <iostream>
 
-void SecurityChecker::inject(const std::string& path, uid_t uid, mode_t mode,
-                             time_t mtime)
+//------------------------------------------------------------------------------
+// Inject the given fake data. Once an injection is active, _all_ returned
+// data is faked.
+//------------------------------------------------------------------------------
+void SecurityChecker::inject(const JailIdentifier& jail,
+  const std::string& path, uid_t uid, mode_t mode, time_t mtime)
 {
   std::lock_guard<std::mutex> lock(mtx);
   useInjectedData = true;
   injections[path] = InjectedData(uid, mode, mtime);
 }
 
-SecurityChecker::Info SecurityChecker::lookupInjected(const std::string& path,
-    uid_t uid)
+//------------------------------------------------------------------------------
+// Same as lookup, but only serve simulated data.
+//------------------------------------------------------------------------------
+SecurityChecker::Info SecurityChecker::lookupInjected(
+  const JailIdentifier& jail, const std::string& path, uid_t uid)
 {
   std::lock_guard<std::mutex> lock(mtx);
   auto it = injections.find(path);
 
   if (it == injections.end()) return {};
 
-  return validate(it->second.uid, it->second.mode, uid, it->second.mtime);
+  if(!checkPermissions(it->second.uid, it->second.mode, uid)) {
+    return Info(CredentialState::kBadPermissions, -1);
+  }
+
+  return Info(CredentialState::kOk, it->second.mtime);
 }
 
+//------------------------------------------------------------------------------
+// We have a file with the given uid and mode, and we're "expectedUid".
+// Should we be able to read it? Enforce strict permissions on mode, as it's
+// a credential file - only _we_ should be able to read it and no-one else.
+//------------------------------------------------------------------------------
 bool SecurityChecker::checkPermissions(uid_t uid, mode_t mode,
-                                       uid_t expectedUid)
+  uid_t expectedUid)
 {
   if (uid != expectedUid) {
     return false;
@@ -65,26 +85,14 @@ bool SecurityChecker::checkPermissions(uid_t uid, mode_t mode,
   return true;
 }
 
-SecurityChecker::Info SecurityChecker::validate(uid_t uid, mode_t mode,
-    uid_t expectedUid, time_t mtime)
+//------------------------------------------------------------------------------
+// Lookup given path in the context of our local jail.
+//------------------------------------------------------------------------------
+SecurityChecker::Info SecurityChecker::lookupLocalJail(const std::string& path,
+  uid_t uid)
 {
-  if (!checkPermissions(uid, mode, expectedUid)) {
-    return Info(CredentialState::kBadPermissions, -1);
-  }
-
-  return Info(CredentialState::kOk, mtime);
-}
-
-SecurityChecker::Info SecurityChecker::lookup(const std::string& path,
-    uid_t uid)
-{
-  if (path.empty()) return {};
-
-  if (useInjectedData) {
-    return lookupInjected(path, uid);
-  }
-
   std::string resolvedPath;
+
   // is "path" a symlink?
   char buffer[1024];
   const ssize_t retsize = readlink(path.c_str(), buffer, 1023);
@@ -102,13 +110,133 @@ SecurityChecker::Info SecurityChecker::lookup(const std::string& path,
     return {};
   }
 
-  SecurityChecker::Info info = validate(filestat.st_uid, filestat.st_mode, uid,
-                                        filestat.st_mtime);
-
-  if (info.state == CredentialState::kBadPermissions) {
-    eos_static_alert("Uid %d is asking to use credentials '%s', but permission check failed!",
-                     uid, path.c_str());
+  if(!checkPermissions(filestat.st_uid, filestat.st_mode, uid)) {
+    eos_static_alert("Uid %d is asking to use credentials '%s', but file "
+      "belongs to uid %d! Refusing.", uid, path.c_str(), filestat.st_uid);
+    return Info(CredentialState::kBadPermissions, -1);
   }
 
-  return info;
+  return Info(CredentialState::kOk, filestat.st_mtime);
+}
+
+//------------------------------------------------------------------------------
+// Things have gotten serious - interpret given path in the context of a
+// different jail, and return entire contents.
+//------------------------------------------------------------------------------
+SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
+  const JailInformation& jail, const std::string& path, uid_t uid, gid_t gid)
+{
+  //----------------------------------------------------------------------------
+  // First, let's open the jail as root.
+  //----------------------------------------------------------------------------
+  std::string jailPath = SSTR("/proc/" << jail.pid << "/root");
+  FileDescriptor jailfd(open(jailPath.c_str(), O_DIRECTORY | O_RDONLY));
+
+  if(!jailfd.ok()) {
+    eos_static_alert("Opening jail '%s' failed", jailPath.c_str());
+    return Info(CredentialState::kCannotStat, -1);
+  }
+
+  //----------------------------------------------------------------------------
+  // Reset my fsuid, fsgid to user-provided ones.
+  //----------------------------------------------------------------------------
+#ifdef __linux__
+  ScopedFsUidSetter uidSetter(uid, gid);
+  if(!uidSetter.IsOk()) {
+    eos_static_alert("Setting uid,gid to %d,%d failed", uid, gid);
+    return Info(CredentialState::kCannotStat, -1);
+  }
+#endif
+
+  //----------------------------------------------------------------------------
+  // User-space lookup of path - this could be avoided if the linux kernel
+  // supported openat with AT_THIS_ROOT ...
+  //----------------------------------------------------------------------------
+  std::vector<std::string> splitPath = split(path, "/");
+
+  if(splitPath[0] != "") {
+    //--------------------------------------------------------------------------
+    // User is attempting to open a relative path ?! No.
+    //--------------------------------------------------------------------------
+    return Info(CredentialState::kCannotStat, -1);
+  }
+
+  FileDescriptor current = std::move(jailfd);
+
+  for(size_t i = 1; i < splitPath.size() - 1; i++) {
+    FileDescriptor next(openat(current.getFD(), splitPath[i].c_str(),
+      O_DIRECTORY | O_NOFOLLOW | O_RDONLY));
+
+    if(!next.ok()) {
+      return Info(CredentialState::kCannotStat, -1);
+    }
+
+    current = std::move(next);
+  }
+
+  //----------------------------------------------------------------------------
+  // We survived, up to the last chunk. Now try to read file contents.
+  //----------------------------------------------------------------------------
+  FileDescriptor fileFd(openat(current.getFD(), splitPath.back().c_str(),
+    O_NOFOLLOW | O_RDONLY));
+
+  if(!fileFd.ok()) {
+    return Info(CredentialState::kCannotStat, -1);
+  }
+
+  //----------------------------------------------------------------------------
+  // First stat the fd, make sure file permissions are OK.
+  //----------------------------------------------------------------------------
+  struct stat filestat;
+  if (::fstat(fileFd.getFD(), &filestat) != 0) {
+    return Info(CredentialState::kCannotStat, -1);
+  }
+
+  if(!checkPermissions(filestat.st_uid, filestat.st_mode, uid)) {
+    return Info(CredentialState::kBadPermissions, -1);
+  }
+
+  //----------------------------------------------------------------------------
+  // All is good, try to read contents.
+  //----------------------------------------------------------------------------
+  std::string contents;
+  if(!readFile(fileFd.getFD(), contents)) {
+    return Info::CannotStat();
+  }
+
+  //----------------------------------------------------------------------------
+  // We have the contents, return.
+  //----------------------------------------------------------------------------
+  return Info::WithContents(filestat.st_mtime, contents);
+}
+
+//------------------------------------------------------------------------------
+// Lookup given path.
+//------------------------------------------------------------------------------
+SecurityChecker::Info SecurityChecker::lookup(const JailInformation& jail,
+  const std::string& path, uid_t uid, gid_t gid)
+{
+  //----------------------------------------------------------------------------
+  // Simulation?
+  //----------------------------------------------------------------------------
+  if (useInjectedData) {
+    return lookupInjected(jail.id, path, uid);
+  }
+
+  //----------------------------------------------------------------------------
+  // Nope, real thing.
+  //----------------------------------------------------------------------------
+  if (path.empty()) {
+    return {};
+  }
+
+  //----------------------------------------------------------------------------
+  // Is the request towards our local jail? If so, use fast path, no need to
+  // go through heavyweight remote-jail lookup.
+  //----------------------------------------------------------------------------
+  if(jail.sameJailAsThisPid) {
+    return lookupLocalJail(path, uid);
+  }
+
+  return lookupNonLocalJail(jail, path, uid, gid);
 }

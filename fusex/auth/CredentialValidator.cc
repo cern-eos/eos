@@ -32,9 +32,9 @@ CredentialValidator::CredentialValidator(SecurityChecker &chk)
 
 //------------------------------------------------------------------------------
 // Validate the given set of UserCredentials, promote into TrustedCredentials,
-// if possible
+// if possible. Return true if promotion succeeded.
 //------------------------------------------------------------------------------
-CredentialState CredentialValidator::validate(const JailInformation &jail,
+bool CredentialValidator::validate(const JailInformation &jail,
   const UserCredentials &uc, TrustedCredentials &out)
 {
   if(uc.type == CredentialType::INVALID) {
@@ -49,28 +49,45 @@ CredentialState CredentialValidator::validate(const JailInformation &jail,
   if(uc.type == CredentialType::KRK5 || uc.type == CredentialType::SSS ||
     uc.type == CredentialType::NOBODY) {
     out.initialize(uc, 0);
-    return CredentialState::kOk;
+    return true;
   }
 
   //----------------------------------------------------------------------------
   // Only KRB5, X509 remaining. Test credential file permissions.
   //----------------------------------------------------------------------------
-  SecurityChecker::Info info = checker.lookup(uc.fname, uc.uid);
+  SecurityChecker::Info info = checker.lookup(jail, uc.fname, uc.uid, uc.gid);
 
-  if(info.state != CredentialState::kOk) {
-    return info.state;
+  //----------------------------------------------------------------------------
+  // Three cases:
+  //----------------------------------------------------------------------------
+  switch(info.state) {
+    case CredentialState::kCannotStat:
+    case CredentialState::kBadPermissions: {
+      //------------------------------------------------------------------------
+      // Credential file cannot be used.
+      //------------------------------------------------------------------------
+      return false;
+    }
+    case CredentialState::kOk: {
+      //------------------------------------------------------------------------
+      // Credential file is OK, and the SecurityChecker determined the path
+      // can be used as-is - no need for copying.
+      //------------------------------------------------------------------------
+      out.initialize(uc, info.mtime);
+      return true;
+    }
+    case CredentialState::kOkWithContents: {
+      //------------------------------------------------------------------------
+      // Credential file is OK, but is not safe to pass onto XrdCl. We should
+      // copy it onto our own credential store, and use that when building
+      // XrdCl params.
+      //
+      // TODO!
+      //------------------------------------------------------------------------
+      out.initialize(uc, info.mtime);
+      return true;
+    }
   }
-
-  // TODO: replace below logline with something more generic,
-  // ie UserCredentials::describe, or something, and move out of this class
-  eos_static_info("Using credential file '%s' for uid %d",
-                  uc.fname.c_str(), uc.uid);
-
-  //----------------------------------------------------------------------------
-  // We've made it, fill out TrustedCredentials.
-  //----------------------------------------------------------------------------
-  out.initialize(uc, info.mtime);
-  return info.state;
 }
 
 //------------------------------------------------------------------------------
@@ -100,7 +117,7 @@ bool CredentialValidator::checkValidity(const JailInformation& jail,
   //----------------------------------------------------------------------------
   // KRB5, X509: Check underlying file, ensure contents have not changed.
   //----------------------------------------------------------------------------
-  SecurityChecker::Info info = checker.lookup(uc.fname, uc.uid);
+  SecurityChecker::Info info = checker.lookup(jail, uc.fname, uc.uid, uc.gid);
 
   if(info.state != CredentialState::kOk) {
     //--------------------------------------------------------------------------

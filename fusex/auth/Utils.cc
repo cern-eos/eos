@@ -22,7 +22,36 @@
  ************************************************************************/
 
 #include <sys/stat.h>
+#include <unistd.h>
 #include "Utils.hh"
+
+bool readFile(int fd, std::string& contents)
+{
+  bool retvalue = true;
+  std::ostringstream ss;
+  const int BUFFER_SIZE = 1024;
+  char buffer[BUFFER_SIZE];
+
+  while(true) {
+    ssize_t bytesRead = ::read(fd, buffer, BUFFER_SIZE);
+
+    if (bytesRead > 0) {
+      ss.write(buffer, bytesRead);
+    }
+
+    if(bytesRead < 0) {
+      retvalue = false;
+      break;
+    }
+
+    if(bytesRead != BUFFER_SIZE) {
+      break;
+    }
+  }
+
+  contents = ss.str();
+  return retvalue;
+}
 
 bool readFile(const std::string& path, std::string& contents)
 {

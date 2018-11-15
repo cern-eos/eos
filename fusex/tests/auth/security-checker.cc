@@ -26,24 +26,27 @@
 
 TEST(SecurityChecker, BasicSanity)
 {
+  JailInformation localJail;
+  localJail.sameJailAsThisPid = true;
+
   SecurityChecker checker;
-  checker.inject("/tmp/ayy/lmao", 1337, 0455, 42);
-  ASSERT_EQ(checker.lookup("/tmp/aaa", 1000),
+  checker.inject(localJail.id, "/tmp/ayy/lmao", 1337, 0455, 42);
+  ASSERT_EQ(checker.lookup(localJail, "/tmp/aaa", 1000, 1000),
             SecurityChecker::Info(CredentialState::kCannotStat, -1));
-  ASSERT_EQ(checker.lookup("/tmp/ayy/lmao", 1000),
+  ASSERT_EQ(checker.lookup(localJail, "/tmp/ayy/lmao", 1000, 1000),
             SecurityChecker::Info(CredentialState::kBadPermissions, -1));
-  ASSERT_EQ(checker.lookup("/tmp/ayy/lmao", 1337),
+  ASSERT_EQ(checker.lookup(localJail, "/tmp/ayy/lmao", 1337, 1000),
             SecurityChecker::Info(CredentialState::kBadPermissions, -1));
-  checker.inject("/tmp/123", 1234, 0400, 42);
-  ASSERT_EQ(checker.lookup("/tmp/123", 1000),
+  checker.inject(localJail.id, "/tmp/123", 1234, 0400, 42);
+  ASSERT_EQ(checker.lookup(localJail, "/tmp/123", 1000, 1000),
             SecurityChecker::Info(CredentialState::kBadPermissions, -1));
-  ASSERT_EQ(checker.lookup("/tmp/123", 1234),
+  ASSERT_EQ(checker.lookup(localJail, "/tmp/123", 1234, 1000),
             SecurityChecker::Info(CredentialState::kOk, 42));
-  ASSERT_EQ(checker.lookup("/tmp/234", 1234),
+  ASSERT_EQ(checker.lookup(localJail, "/tmp/234", 1234, 1000),
             SecurityChecker::Info(CredentialState::kCannotStat, -1));
-  checker.inject("/tmp/123", 1111, 0700, 37);
-  ASSERT_EQ(checker.lookup("/tmp/123", 1111),
+  checker.inject(localJail.id, "/tmp/123", 1111, 0700, 37);
+  ASSERT_EQ(checker.lookup(localJail, "/tmp/123", 1111, 1000),
             SecurityChecker::Info(CredentialState::kOk, 37));
-  ASSERT_EQ(checker.lookup("/tmp/123", 1112),
+  ASSERT_EQ(checker.lookup(localJail, "/tmp/123", 1112, 1000),
             SecurityChecker::Info(CredentialState::kBadPermissions, -1));
 }

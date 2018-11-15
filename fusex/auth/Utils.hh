@@ -111,6 +111,7 @@ inline bool startswith(const std::string& str, const std::string& prefix)
   return true;
 }
 
+bool readFile(int fd, std::string& ret);
 bool readFile(const std::string& path, std::string& ret);
 bool writeFile(const std::string& path, const std::string &contents);
 

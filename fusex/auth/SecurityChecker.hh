@@ -24,6 +24,7 @@
 #ifndef __SECURITY_CHECKER__HH__
 #define __SECURITY_CHECKER__HH__
 
+#include "JailIdentifier.hh"
 #include <mutex>
 #include <atomic>
 #include <map>
@@ -44,14 +45,17 @@
 // If there's at least one injection, we completely ignore the filesystem
 // and only serve injected data.
 //
-// TODO(gbitzes): Decide if we need to keep mtime in here.. would be cleaner
-// if we didn't.
+// NOTE: The SecurityChecker will return the entire file contents if it cannot
+// guarantee containment within the given jail by XrdCl. You are supposed to
+// copy the file contents into a separate file store, and use that in such
+// case.
 //------------------------------------------------------------------------------
 
 enum class CredentialState {
   kCannotStat = 0,
   kBadPermissions = 1,
-  kOk = 2
+  kOk = 2,
+  kOkWithContents = 3
 };
 
 class SecurityChecker
@@ -63,6 +67,36 @@ public:
   struct Info {
     CredentialState state;
     time_t mtime;
+    std::string contents;
+
+    static Info Ok(time_t mtime) {
+      Info ret;
+      ret.state = CredentialState::kOk;
+      ret.mtime = mtime;
+      return ret;
+    }
+
+    static Info BadPermissions() {
+      Info ret;
+      ret.state = CredentialState::kBadPermissions;
+      ret.mtime = -1;
+      return ret;
+    }
+
+    static Info CannotStat() {
+      Info ret;
+      ret.state = CredentialState::kCannotStat;
+      ret.mtime = -1;
+      return ret;
+    }
+
+    static Info WithContents(time_t mtime, const std::string &contents) {
+      Info ret;
+      ret.state = CredentialState::kOkWithContents;
+      ret.mtime = mtime;
+      ret.contents = contents;
+      return ret;
+   }
 
     Info() : state(CredentialState::kCannotStat), mtime(-1) { }
 
@@ -70,16 +104,50 @@ public:
 
     bool operator==(const Info& other) const
     {
-      return state == other.state && mtime == other.mtime;
+      return state == other.state &&
+             mtime == other.mtime &&
+             contents == other.contents;
     }
   };
 
-  void inject(const std::string& path, uid_t uid, mode_t mode, time_t mtime);
-  Info lookup(const std::string& path, uid_t uid);
+  //----------------------------------------------------------------------------
+  // Inject the given fake data. Once an injection is active, _all_ returned
+  // data is faked.
+  //----------------------------------------------------------------------------
+  void inject(const JailIdentifier& jail, const std::string& path, uid_t uid,
+    mode_t mode, time_t mtime);
+
+  //----------------------------------------------------------------------------
+  // Lookup given path, interpreted in the context of the given jail.
+  //----------------------------------------------------------------------------
+  Info lookup(const JailInformation& jail, const std::string& path, uid_t uid,
+    gid_t gid);
+
 private:
-  Info lookupInjected(const std::string& path, uid_t uid);
-  bool checkPermissions(uid_t uid, mode_t mode, uid_t expectedUid);
-  Info validate(uid_t uid, mode_t mode, uid_t expectedUid, time_t mtime);
+  //----------------------------------------------------------------------------
+  // We have a file with the given uid and mode, and we're "expectedUid".
+  // Should we be able to read it? Enforce strict permissions on mode, as it's
+  // a credential file - only _we_ should be able to read it and no-one else.
+  //----------------------------------------------------------------------------
+  static bool checkPermissions(uid_t uid, mode_t mode, uid_t expectedUid);
+
+  //----------------------------------------------------------------------------
+  // Same as lookup, but only serve simulated data.
+  //----------------------------------------------------------------------------
+  Info lookupInjected(const JailIdentifier& jail, const std::string& path,
+    uid_t uid);
+
+  //----------------------------------------------------------------------------
+  // Lookup given path in the context of our local jail.
+  //----------------------------------------------------------------------------
+  Info lookupLocalJail(const std::string& path, uid_t uid);
+
+  //----------------------------------------------------------------------------
+  // Things have gotten serious - interpret given path in the context of a
+  // different jail.
+  //----------------------------------------------------------------------------
+  Info lookupNonLocalJail(const JailInformation& jail, const std::string& path,
+    uid_t uid, gid_t gid);
 
   std::mutex mtx;
   std::atomic<bool> useInjectedData{false};
@@ -92,6 +160,11 @@ private:
     InjectedData() { }
 
     InjectedData(uid_t u, mode_t md, time_t mt) : uid(u), mode(md), mtime(mt) { }
+  };
+
+  struct InjectedRequest {
+    JailIdentifier jail;
+    std::string path;
   };
 
   std::map<std::string, InjectedData> injections;

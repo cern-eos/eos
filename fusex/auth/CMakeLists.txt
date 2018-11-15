@@ -30,11 +30,13 @@ add_library(
   CredentialValidator.cc           CredentialValidator.hh
   DirectoryIterator.cc             DirectoryIterator.hh
   EnvironmentReader.cc             EnvironmentReader.hh
+                                   FileDescriptor.hh
   JailIdentifier.cc                JailIdentifier.hh
   LoginIdentifier.cc               LoginIdentifier.hh
   ProcessCache.cc                  ProcessCache.hh
   ProcessInfo.cc                   ProcessInfo.hh
   RmInfo.cc                        RmInfo.hh
+                                   ScopedFsUidSetter.hh
   SecurityChecker.cc               SecurityChecker.hh
   UnixAuthenticator.cc             UnixAuthenticator.hh
                                    UserCredentials.hh

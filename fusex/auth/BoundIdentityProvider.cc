@@ -241,7 +241,7 @@ BoundIdentityProvider::userCredsToBoundIdentity(const JailInformation& jail,
   //----------------------------------------------------------------------------
   TrustedCredentials tc;
 
-  if (validator.validate(jail, creds, tc) != CredentialState::kOk) {
+  if (!validator.validate(jail, creds, tc)) {
     //--------------------------------------------------------------------------
     // Nope, these UserCredentials are unusable.
     //--------------------------------------------------------------------------

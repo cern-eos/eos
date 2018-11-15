@@ -1,11 +1,11 @@
-// ----------------------------------------------------------------------
-// File: CredentialValidator.hh
+//----------------------------------------------------------------------
+// File: ScopedfsUidSetter.hh
 // Author: Georgios Bitzes - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2018 CERN/Switzerland                                  *
+ * Copyright (C) 2011 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,47 +21,85 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef FUSEX_CREDENTIAL_VALIDATOR_HH
-#define FUSEX_CREDENTIAL_VALIDATOR_HH
+#ifndef EOS_FUSEX_SCOPED_FS_UID_SETTER_HH
+#define EOS_FUSEX_SCOPED_FS_UID_SETTER_HH
 
-#include "SecurityChecker.hh"
-#include "UserCredentials.hh"
+#ifdef __linux__
 
-class TrustedCredentials;
+#include "common/Logging.hh"
+#include <sys/fsuid.h>
 
 //------------------------------------------------------------------------------
-// This class validates UserCredentials objects, and promotes those that
-// pass the test into TrustedCredentials.
-//
-// UserCredentials is built from user-provided data, and thus cannot be
-// trusted before validation checks.
+//! Scoped fsuid and fsgid setter, restoring original values on destruction
 //------------------------------------------------------------------------------
-class CredentialValidator {
+class ScopedFsUidSetter {
 public:
   //----------------------------------------------------------------------------
-  // Constructor - dependency injection of SecurityChecker
+  //! Constructor
   //----------------------------------------------------------------------------
-  CredentialValidator(SecurityChecker &chk);
+	ScopedFsUidSetter(uid_t fsuid_, gid_t fsgid_)
+	: fsuid(fsuid_), fsgid(fsgid_)
+	{
+		ok = true;
+    prevFsuid = -1;
+    prevFsgid = -1;
+
+    //--------------------------------------------------------------------------
+    //! Set fsuid
+    //--------------------------------------------------------------------------
+		if(fsuid >= 0) {
+			prevFsuid = setfsuid(fsuid);
+
+			if(setfsuid(fsuid) != fsuid) {
+        eos_static_crit("Unable to set fsuid to %d!", fsuid);
+				ok = false;
+				return;
+			}
+		}
+
+    //--------------------------------------------------------------------------
+    //! Set fsgid
+    //--------------------------------------------------------------------------
+		if(fsgid >= 0) {
+      prevFsgid = setfsgid(fsgid);
+
+			if(setfsgid(fsgid) != fsgid) {
+        eos_static_crit("Unable to set fsuid to %d!", fsgid);
+        ok = false;
+				return;
+			}
+		}
+	}
 
   //----------------------------------------------------------------------------
-  // Validate the given set of UserCredentials, promote into TrustedCredentials,
-  // if possible. Return true if promotion succeeded.
+  //! Destructor
   //----------------------------------------------------------------------------
-  bool validate(const JailInformation &jail,
-    const UserCredentials &uc, TrustedCredentials &out);
+	~ScopedFsUidSetter() {
+		if(prevFsuid >= 0) {
+			int retcode = setfsuid(prevFsuid);
+      eos_static_debug("Restored fsuid from %d to %d", retcode, prevFsuid);
+		}
 
-  //----------------------------------------------------------------------------
-  // Is the given TrustedCredentials object still valid? Reasons for
-  // invalidation:
-  //
-  // - The underlying credential file on disk has changed.
-  // - Reconnection
-  //----------------------------------------------------------------------------
-  bool checkValidity(const JailInformation &jail, TrustedCredentials &out);
+		if(prevFsgid >= 0) {
+			int retcode = setfsgid(prevFsgid);
+      eos_static_debug("Restored fsgid from %d to %d", retcode, prevFsgid);
+		}
+	}
+
+	bool IsOk() const {
+		return ok;
+	}
 
 private:
-  SecurityChecker &checker;
+	int fsuid;
+	int fsgid;
 
+	int prevFsuid;
+  int prevFsgid;
+
+  bool ok;
 };
+
+#endif
 
 #endif
