@@ -29,6 +29,7 @@ Bug
 Improvements
 ------------
 
+* [EOS-3095] Fail all write access even from localhost in MGM while booting - properly tag RO/WR access in proto buf requests
 * [EOS-3091] allow to ban eosxd clients (=> EPERM)
 * [EOS-3047] add defaulting routing to recycle command
 * Refactor fsctl includes into functions
