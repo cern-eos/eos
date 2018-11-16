@@ -69,7 +69,7 @@ set(COMMON_UT_SRCS
   common/SymKeysTests.cc
   common/ThreadPoolTest.cc
   common/RWMutexTest.cc
-  common/StringConversionTests.cc)
+  common/StringConversionTests.cc
   common/LoggingTests.cc
   common/LoggingTestsUtils.cc)
 
