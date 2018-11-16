@@ -87,11 +87,16 @@ bool readFile(const std::string& path, std::string& contents)
   return retvalue;
 }
 
-bool writeFile(const std::string& path, const std::string& contents)
+bool writeFile600(const std::string& path, const std::string& contents)
 {
   FILE *out = fopen(path.c_str(), "wb");
 
   if(!out) {
+    return false;
+  }
+
+  if(fchmod(fileno(out), S_IRUSR | S_IWUSR) != 0) {
+    fclose(out);
     return false;
   }
 

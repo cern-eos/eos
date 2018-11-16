@@ -45,7 +45,7 @@ TEST(FileReadWrite, BasicSanity) {
   ASSERT_EQ(system("rm -rf /tmp/eos-fusex-unit-tests/"), 0);
   ASSERT_EQ(system("mkdir /tmp/eos-fusex-unit-tests/"), 0);
 
-  ASSERT_TRUE(writeFile("/tmp/eos-fusex-unit-tests/pickles", "chicken chicken chicken chicken"));
+  ASSERT_TRUE(writeFile600("/tmp/eos-fusex-unit-tests/pickles", "chicken chicken chicken chicken"));
 
   std::string contents;
   ASSERT_TRUE(readFile("/tmp/eos-fusex-unit-tests/pickles", contents));

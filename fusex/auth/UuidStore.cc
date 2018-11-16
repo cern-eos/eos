@@ -83,7 +83,7 @@ std::string UuidStore::put(const std::string &contents) {
   std::string path = SSTR(repository << "/" << "eos-fusex-uuid-store-"
     << generateUuid());
 
-  if(!writeFile(path, contents)) {
+  if(!writeFile600(path, contents)) {
     eos_static_crit("UuidStore: Could not write path: %s", path.c_str());
     return "";
   }
