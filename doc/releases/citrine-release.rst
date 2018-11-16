@@ -23,17 +23,27 @@ This release is based on XRootD V4 and IPV6 enabled.
 Bug
 ---
 
-* [EOS-3092] Don't require an sss keytable for a fuse mount if 'sss' is not configured as THE auth protocol to use
+* [EOS-2172] - eosxd aborted, apparently due to diskcache missing xattr
+* [EOS-2865] - Lost some mount points
+* [EOS-3090] - Encoding problems in TPC/Draining
 * [EOS-3069] Use logical quota in prop find requests (displayed by CERNBOX client)
+* [EOS-3092] Don't require an sss keytable for a fuse mount if 'sss' is not configured as THE auth protocol to use
 
 Improvements
 ------------
 
-* [EOS-3095] Fail all write access even from localhost in MGM while booting - properly tag RO/WR access in proto buf requests
+* [EOS-3095] Fail all write access even from localhost in MGM while booting -
+  properly tag RO/WR access in proto buf requests
 * [EOS-3091] allow to ban eosxd clients (=> EPERM)
 * [EOS-3047] add defaulting routing to recycle command
 * Refactor fsctl includes into functions
 * enable eosxd authentication in docker container
+
+New Feature
+-----------
+
+* [EOS-3094] - Access to eos in a container
+
 
 ``v4.4.11 Citrine``
 ===================
