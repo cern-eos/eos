@@ -28,7 +28,6 @@
 #include "fst/io/FileIo.hh"
 #include "fst/io/local/FsIo.hh"
 #include "fst/io/xrd/XrdIo.hh"
-#include "fst/io/kinetic/KineticIo.hh"
 #ifdef RADOS_FOUND
 #include "fst/io/rados/RadosIo.hh"
 #endif
@@ -80,14 +79,6 @@ public:
       return static_cast<FileIo*>(new FsIo(path));
     } else if (ioType == LayoutId::kXrdCl) {
       return static_cast<FileIo*>(new XrdIo(path));
-    } else if (ioType == LayoutId::kKinetic) {
-      FileIo* kio = NULL;
-      try {
-        kio = static_cast<FileIo*>((FileIo*)new KineticIo(path));
-      } catch (const std::exception& e) {
-        eos_static_err("Failed constructing kinetic io object: %s", e.what());
-      }
-      return kio;
     } else if (ioType == LayoutId::kRados) {
 #ifdef RADOS_FOUND
       return static_cast<FileIo*>(new RadosIo(path));

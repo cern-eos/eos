@@ -97,7 +97,6 @@ public:
     kLocal = 0x0,
     kXrdCl = 0x1,
     kRados = 0x2,
-    kKinetic = 0x3,
     kDavix = 0x4
   };
 
@@ -108,10 +107,6 @@ public:
 
     if (spath.beginswith("root:")) {
       return kXrdCl;
-    }
-
-    if (spath.beginswith("kinetic:")) {
-      return kKinetic;
     }
 
     //! Definition of predefined block sizes

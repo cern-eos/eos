@@ -29,9 +29,6 @@ option(FUSEXCLIENT "Build FUSEX client" OFF)
 option(CLIENT "Build only client packages" OFF)
 option(BUILD_XRDCL_RAIN_PLUGIN "Enable XrdCl RAIN plugin" OFF)
 option(BUILD_TESTS "Build CppUnit tests" OFF)
-
-set(KINETICIO_URL "http://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/noarch/kineticio-1.3-devel.tar.gz")
-set(KINETICIO_URL_MD5 "ae1a538939ee26984d4e20f96bedb2c2")
 set(EOS_RPATH "/usr/lib64/;/lib64/")
 
 if(NOT PACKAGEONLY)
@@ -58,7 +55,6 @@ if(NOT PACKAGEONLY)
   find_package(ZMQ REQUIRED)
   find_package(krb5 REQUIRED)
   find_package(Sphinx)
-  find_package(kineticio COMPONENTS headers)
   find_package(SparseHash REQUIRED)
   find_package(libevent REQUIRED)
   find_package(jsoncpp REQUIRED)
@@ -77,25 +73,6 @@ if(NOT PACKAGEONLY)
     set(CMAKE_INSTALL_RPATH "${EOS_PROTOBUF_RPATH}")
   else ()
     find_package(Protobuf REQUIRED)
-  endif()
-
-  if(EXISTS "${CMAKE_SOURCE_DIR}/kineticio-dist.tgz" )
-    set(KINETICIO_URL "${CMAKE_SOURCE_DIR}/kineticio-dist.tgz" )
-  endif()
-  #if kinetic headers cannot be found, provide them to allow compiling
-  if(NOT KINETICIO_FOUND)
-    include(ExternalProject)
-    ExternalProject_add(
-            kineticio-devel
-            PREFIX vendor
-            URL ${KINETICIO_URL}
-            URL_MD5 ${KINETICIO_URL_MD5}
-            CONFIGURE_COMMAND ""
-            BUILD_COMMAND ""
-            INSTALL_COMMAND "")
-    ExternalProject_Get_Property(kineticio-devel SOURCE_DIR)
-    set(KINETICIO_INCLUDE_DIR ${SOURCE_DIR})
-    set(KINETICIO_INCLUDE_DIRS ${KINETICIO_INCLUDE_DIR})
   endif()
 
   # The server build also requires

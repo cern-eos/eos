@@ -73,7 +73,6 @@ add_library(
   commands/com_health.cc
   commands/com_info.cc
   commands/com_io.cc
-  commands/com_kinetic.cc
   commands/com_json.cc
   commands/com_license.cc
   commands/com_ls.cc

@@ -21,18 +21,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
-#include "fst/io/kinetic/KineticIo.hh"
 #include "fst/storage/FileSystem.hh"
 #include "common/SymKeys.hh"
 
-/*----------------------------------------------------------------------------*/
-
 EOSFSTNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Communicator
+//------------------------------------------------------------------------------
 void
 Storage::Communicator()
 {
@@ -49,7 +47,6 @@ Storage::Communicator()
   std::string watch_gateway_rate = "gw.rate";
   std::string watch_gateway_ntx = "gw.ntx";
   std::string watch_error_simulation = "error.simulation";
-  std::string watch_kinetic_reload = "kinetic.reload";
   std::string watch_regex = ".*";
   bool ok = true;
   ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_id,
@@ -76,8 +73,6 @@ Storage::Communicator()
         XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
   ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",
         watch_error_simulation,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_kinetic_reload,
         XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
   ok &= gOFS.ObjectNotifier.SubscribesToSubjectRegex("communicator", watch_regex,
         XrdMqSharedObjectChangeNotifier::kMqSubjectCreation);
@@ -334,65 +329,6 @@ Storage::Communicator()
             }
 
             gOFS.ObjectManager.HashMutex.UnLockRead();
-          }
-
-          if (key == "kinetic.reload") {
-            bool do_reload = false;
-            gOFS.ObjectManager.HashMutex.LockRead();
-            XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(), "hash");
-
-            if (hash) {
-              // retrieve new keys
-              std::string space = hash->Get("kinetic.reload");
-              eos_static_info("cmd=set kinetic.reload=%s", space.c_str());
-              std::string kinetic_cluster_key = "kinetic.cluster.";
-              kinetic_cluster_key += space;
-              std::string kinetic_location_key = "kinetic.location.";
-              kinetic_location_key += space;
-              std::string kinetic_security_key = "kinetic.security.";
-              kinetic_security_key += space;
-              // base64 decode new keys
-              XrdOucString k_cluster_64 = hash->Get(kinetic_cluster_key.c_str()).c_str();
-              XrdOucString k_location_64 = hash->Get(kinetic_location_key.c_str()).c_str();
-              XrdOucString k_security_64 = hash->Get(kinetic_security_key.c_str()).c_str();
-              XrdOucString k_cluster;
-              XrdOucString k_location;
-              XrdOucString k_security;
-              eos::common::SymKey::DeBase64(k_cluster_64, k_cluster);
-              eos::common::SymKey::DeBase64(k_location_64, k_location);
-              eos::common::SymKey::DeBase64(k_security_64, k_security);
-
-              if (k_cluster.length() && k_location.length() && k_security.length()) {
-                eos_static_info("msg=\"reloading kinetic configuration\" space=%s",
-                                space.c_str());
-                eos_static_debug("\n%s", k_cluster.c_str());
-                eos_static_debug("\n%s", k_location.c_str());
-                eos_static_debug("'\n%s", k_security.c_str());
-                // store the decoded json strings in the environment
-                setenv("KINETIC_DRIVE_LOCATION", k_location.c_str(), 1);
-                setenv("KINETIC_DRIVE_SECURITY", k_security.c_str(), 1);
-                setenv("KINETIC_CLUSTER_DEFINITION", k_cluster.c_str(), 1);
-                do_reload = true;
-                // Not used without kinetic support - avoid compile warning
-                (void) do_reload;
-              }
-            }
-
-            gOFS.ObjectManager.HashMutex.UnLockRead();
-
-            if (do_reload) {
-              try {
-                KineticLib::access()->reloadConfiguration();
-
-                for (auto fs_it = mFsVect.cbegin(); fs_it != mFsVect.cend();
-                     fs_it++) {
-                  (*fs_it)->condReloadFileIo("kinetic");
-                }
-              } catch (const std::exception& e) {
-                eos_static_crit("msg=\"reload of kinetic configuration failed\" exception=\"%s\"",
-                                e.what());
-              }
-            }
           }
         } else {
           mFsMutex.LockRead();

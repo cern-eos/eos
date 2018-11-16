@@ -44,7 +44,6 @@ include_directories(
   ${XFS_INCLUDE_DIRS}
   ${JSONC_INCLUDE_DIR}
   ${DAVIX_INCLUDE_DIRS}
-  ${KINETICIO_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}/layout/gf-complete/include
   ${CMAKE_CURRENT_SOURCE_DIR}/layout/jerasure/include
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
@@ -146,7 +145,6 @@ add_library(EosFstIo-Objects OBJECT
   # File IO interface
   io/FileIo.hh
   io/local/FsIo.cc               io/local/FsIo.hh
-  io/kinetic/KineticIo.cc        io/kinetic/KineticIo.hh
   ${DAVIX_SRC}                   ${DAVIX_HDR}
   #  io/rados/RadosIo.cc         io/rados/RadosIo.hh
   io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
@@ -208,11 +206,6 @@ install(TARGETS EosFstIo
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
-if(NOT PACKAGEONLY AND NOT KINETICIO_FOUND)
-  add_dependencies(EosFstIo kineticio-devel)
-endif()
-
-
 #-------------------------------------------------------------------------------
 # EosFstIo-Static library
 #-------------------------------------------------------------------------------
@@ -243,10 +236,6 @@ target_compile_definitions(EosFstIo-Static PRIVATE
 
 set_target_properties(EosFstIo-Static PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
-
-if (NOT PACKAGEONLY AND NOT KINETICIO_FOUND)
-  add_dependencies(EosFstIo-Static kineticio-devel)
-endif()
 
 #-------------------------------------------------------------------------------
 # eoscp executable

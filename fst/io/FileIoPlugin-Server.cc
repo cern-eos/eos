@@ -26,7 +26,6 @@
 #include <fst/storage/FileSystem.hh>
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/io/FileIoPluginCommon.hh"
-#include "fst/io/kinetic/KineticIo.hh"
 #include "fst/io/local/LocalIo.hh"
 #include "fst/io/rados/RadosIo.hh"
 
@@ -52,14 +51,6 @@ FileIoPlugin::GetIoObject(std::string path,
     return static_cast<FileIo*>(new LocalIo(path, file, client));
   } else if (ioType == LayoutId::kXrdCl) {
     return static_cast<FileIo*>(new XrdIo(path));
-  } else if (ioType == LayoutId::kKinetic) {
-    FileIo* kio = NULL;
-    try {
-      kio = static_cast<FileIo*>((FileIo*)new KineticIo(path));
-    } catch (const std::exception& e) {
-      eos_static_err("Failed constructing kinetic io object: %s", e.what());
-    }
-    return kio;
   } else if (ioType == LayoutId::kRados) {
     return static_cast<FileIo*>(new RadosIo(path));
   } else if (ioType == LayoutId::kDavix) {
@@ -68,8 +59,8 @@ FileIoPlugin::GetIoObject(std::string path,
 
     // Attempt to retrieve S3 credentials from the filesystem
     if (file) {
-      FileSystem *fileSystem =
-          gOFS.Storage->GetFileSystemById(file->getFileSystemId());
+      FileSystem* fileSystem =
+        gOFS.Storage->GetFileSystemById(file->getFileSystemId());
       s3credentials = fileSystem->GetString("s3credentials");
     }
 
