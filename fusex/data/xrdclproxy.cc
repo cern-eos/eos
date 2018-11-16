@@ -1071,6 +1071,9 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
       } else {
         mBuffer->resize(0);
       }
+    } else {
+      // if the chunk failed for whatever reason, we have to remove if from the ChunkRMap
+      mProxy->ChunkRMap().erase((uint64_t)this);
     }
 
     mDone = true;
