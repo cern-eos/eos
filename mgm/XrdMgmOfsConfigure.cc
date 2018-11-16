@@ -649,7 +649,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           if ((!(val = Config.GetWord())) ||
               (strcmp("true", val) && strcmp("false", val) &&
                strcmp("1", val) && strcmp("0", val))) {
-            Eroute.Emsg("Config", "argument for tapeawaregc.defaultspace.enable illegal or missing. "
+            Eroute.Emsg("Config",
+                        "argument for tapeawaregc.defaultspace.enable illegal or missing. "
                         "Must be <true>, <false>, <1> or <0>!");
           } else {
             if ((!strcmp("true", val) || (!strcmp("1", val)))) {
@@ -657,7 +658,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             }
           }
 
-          Eroute.Say("=====> mgmofs.tapeawaregc.defaultspace.enable : ", mTapeAwareGcDefaultSpaceEnable ? "true" : "false");
+          Eroute.Say("=====> mgmofs.tapeawaregc.defaultspace.enable : ",
+                     mTapeAwareGcDefaultSpaceEnable ? "true" : "false");
         }
 
         if (!strcmp("authorize", var)) {
@@ -1931,7 +1933,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   mDrainEngine.Start();
 
   // Only if configured to do so, enable the tape aware garbage collector
-  if(mTapeAwareGcDefaultSpaceEnable) {
+  if (mTapeAwareGcDefaultSpaceEnable) {
     mTapeAwareGc.enable();
   }
 
@@ -1993,6 +1995,7 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("Eosxd::ext::ENDFLUSH", 0, 0, 0);
   MgmStats.Add("Eosxd::ext::CREATELNK", 0, 0, 0);
   MgmStats.Add("Eosxd::ext::DELETELNK", 0, 0, 0);
+  MgmStats.Add("Eosxd::int::AuthRevocation", 0, 0, 0);
   MgmStats.Add("Eosxd::int::BcConfig", 0, 0, 0);
   MgmStats.Add("Eosxd::int::BcDropAll", 0, 0, 0);
   MgmStats.Add("Eosxd::int::BcMD", 0, 0, 0);

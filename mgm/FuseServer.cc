@@ -264,10 +264,17 @@ FuseServer::Clients::Dispatch(const std::string identity,
     cfg.set_dentrymessaging(true);
     BroadcastConfig(identity, cfg);
   } else {
-    // revoke LEASES by cap
-    for (auto it = caps_to_revoke.begin(); it != caps_to_revoke.end(); ++it) {
-      eos::common::RWMutexWriteLock lLock(gOFS->zMQ->gFuseServer.Cap());
-      gOFS->zMQ->gFuseServer.Cap().Remove(*it);
+    if (caps_to_revoke.size()) {
+      gOFS->MgmStats.Add("Eosxd::int::AuthRevocation", 0, 0, caps_to_revoke.size());
+      EXEC_TIMING_BEGIN("Eosxd::int::AuthRevocation");
+
+      // revoke LEASES by cap
+      for (auto it = caps_to_revoke.begin(); it != caps_to_revoke.end(); ++it) {
+        eos::common::RWMutexWriteLock lLock(gOFS->zMQ->gFuseServer.Cap());
+        gOFS->zMQ->gFuseServer.Cap().Remove(*it);
+      }
+
+      EXEC_TIMING_END("Eosxd::int::AuthRevocation");
     }
   }
 
