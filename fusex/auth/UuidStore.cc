@@ -29,13 +29,13 @@
 #include <uuid/uuid.h>
 #include <sys/stat.h>
 
-//------------------------------------------------------------------------------
-//! Constructor.
-//------------------------------------------------------------------------------
-UuidStore::UuidStore(const std::string& repository_,
-  std::chrono::milliseconds timeoutDuration_)
-: repository(chopTrailingSlashes(repository_)),
-  timeoutDuration(timeoutDuration_) {
+
+//----------------------------------------------------------------------------
+//! Constructor. Provide the repository, that is the directory to use
+//! on the physical filesystem.
+//----------------------------------------------------------------------------
+UuidStore::UuidStore(const std::string& repository_)
+: repository(chopTrailingSlashes(repository_)) {
 
   struct stat repostat;
   if (::stat(repository.c_str(), &repostat) != 0) {
@@ -46,27 +46,28 @@ UuidStore::UuidStore(const std::string& repository_,
     THROW("Repository path is not a directory: " << repository);
   }
 
-  cleanupThread.reset(&UuidStore::runCleanupThread, this);
+  initialCleanup();
 }
 
 //------------------------------------------------------------------------------
-//! Cleanup thread loop
+//! Unlink leftover credential files from previous runs - if eosxd crashes,
+//! this can happen. Only unlink files matching our prefix, so that in case
+//! of misconfiguration we don't wipe out important files.
 //------------------------------------------------------------------------------
-void UuidStore::runCleanupThread(ThreadAssistant &assistant) {
-  while(!assistant.terminationRequested()) {
-    assistant.wait_for(timeoutDuration);
-    singleCleanupLoop(assistant);
-  }
-}
-
-//------------------------------------------------------------------------------
-//! Single cleanup loop
-//------------------------------------------------------------------------------
-void UuidStore::singleCleanupLoop(ThreadAssistant &assistant) {
+void UuidStore::initialCleanup() {
   DirectoryIterator iterator(repository);
 
-  while(iterator.next()) {
-    // TODO LOL
+  struct dirent* current = nullptr;
+  while(current = iterator.next()) {
+
+    if(startswith(current->d_name, "eos-fusex-uuid-store-")) {
+      if(unlink(SSTR(repository << "/" << current->d_name).c_str()) != 0) {
+        eos_static_crit("UuidStore:: Could not delete %s during initial cleanup, errno %d", current->d_name, errno);
+      }
+    }
+    else {
+      eos_static_crit("Found file in credential store with suspicious filename, should not be there: %s. Not unlinking.", current->d_name);
+    }
   }
 
   if(!iterator.ok()) {
@@ -79,7 +80,7 @@ void UuidStore::singleCleanupLoop(ThreadAssistant &assistant) {
 //! path on which the contents were stored.
 //------------------------------------------------------------------------------
 std::string UuidStore::put(const std::string &contents) {
-  std::string path = SSTR(repository << "/" << "eos-fusex-store-"
+  std::string path = SSTR(repository << "/" << "eos-fusex-uuid-store-"
     << generateUuid());
 
   if(!writeFile(path, contents)) {

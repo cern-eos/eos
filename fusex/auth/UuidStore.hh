@@ -30,18 +30,17 @@
 #include <chrono>
 
 //------------------------------------------------------------------------------
-//! A filesystem-backed store, with configurable, automatic file purging.
-//! Every write is assigned to a specific UUID - contents are not meant
-//! to persist after process restart.
+//! A filesystem-backed store - every write is assigned to a specific UUID.
+//! Contents are not meant to persist after process restart, and in fact will
+//! be cleared out explicitly.
 //------------------------------------------------------------------------------
 class UuidStore {
 public:
   //----------------------------------------------------------------------------
-  //! Constructor. Provide the repository (directory on the physical
-  //! filesystem), as well as the timeout duration for automatic purging.
+  //! Constructor. Provide the repository, that is the directory to use
+  //! on the physical filesystem.
   //----------------------------------------------------------------------------
-  UuidStore(const std::string& repository,
-   std::chrono::milliseconds timeoutDuration);
+  UuidStore(const std::string& repository);
 
   //----------------------------------------------------------------------------
   //! Store the given contents inside the store. Returns the full filesystem
@@ -49,25 +48,20 @@ public:
   //----------------------------------------------------------------------------
   std::string put(const std::string &contents);
 
+  //----------------------------------------------------------------------------
+  //! Unlink leftover credential files from previous runs - if eosxd crashes,
+  //! this can happen. Only unlink files matching our prefix, so that in case
+  //! of misconfiguration we don't wipe out important files.
+  //----------------------------------------------------------------------------
+  void initialCleanup();
+
 private:
   //----------------------------------------------------------------------------
   //! Make uuid
   //----------------------------------------------------------------------------
   static std::string generateUuid();
 
-  //----------------------------------------------------------------------------
-  //! Cleanup thread loop
-  //----------------------------------------------------------------------------
-  void runCleanupThread(ThreadAssistant &assistant);
-
-  //----------------------------------------------------------------------------
-  //! Single cleanup loop
-  //----------------------------------------------------------------------------
-  void singleCleanupLoop(ThreadAssistant &assistant);
-
   std::string repository;
-  std::chrono::milliseconds timeoutDuration;
-  AssistedThread cleanupThread;
 };
 
 #endif

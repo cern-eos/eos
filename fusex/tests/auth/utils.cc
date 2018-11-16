@@ -79,14 +79,20 @@ TEST(UuidStore, BasicSanity) {
   ASSERT_EQ(system("rm -rf /tmp/eos-fusex-unit-tests/"), 0);
   ASSERT_EQ(system("mkdir /tmp/eos-fusex-unit-tests/"), 0);
 
-  UuidStore store("/tmp/eos-fusex-unit-tests/",
-  std::chrono::milliseconds(100));
+  ASSERT_EQ(system("touch /tmp/eos-fusex-unit-tests/random-file"), 0);
+  ASSERT_EQ(system("touch /tmp/eos-fusex-unit-tests/eos-fusex-uuid-store-asdf"), 0);
+
+  UuidStore store("/tmp/eos-fusex-unit-tests/");
+
+  // ensure files starting with "eos-fusex-uuid-store-" were cleared out, but not
+  // any others
+  struct stat repostat;
+  ASSERT_EQ(::stat("/tmp/eos-fusex-unit-tests/random-file", &repostat), 0);
+  ASSERT_EQ(::stat("/tmp/eos-fusex-unit-tests/eos-fusex-uuid-store-asdf", &repostat), -1);
 
   std::string path = store.put("pickles");
   std::cout << path << std::endl;
   std::string contents;
   ASSERT_TRUE(readFile(path, contents));
   ASSERT_EQ(contents, "pickles");
-
-  // TODO: test expiration
 }

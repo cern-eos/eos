@@ -120,9 +120,7 @@ CredentialValidator* AuthenticationGroup::credentialValidator() {
 //------------------------------------------------------------------------------
 UuidStore* AuthenticationGroup::uuidStore() {
   if(!uuidStorePtr) {
-    uuidStorePtr.reset(
-      new UuidStore(config.credentialStore,
-        std::chrono::hours(6)));
+    uuidStorePtr.reset(new UuidStore(config.credentialStore));
   }
 
   return uuidStorePtr.get();
