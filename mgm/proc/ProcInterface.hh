@@ -86,6 +86,11 @@ public:
   static bool IsProcAccess(const char* path);
 
   //----------------------------------------------------------------------------
+  //! Check if a proto proc command contains a 'write' action on the instance
+  //----------------------------------------------------------------------------
+  static bool ProtoIsWriteAccess(const char* path, const char* info);
+
+  //----------------------------------------------------------------------------
   //! Check if a proc command contains a 'write' action on the instance
   //!
   //! @param path input arguments for proc command

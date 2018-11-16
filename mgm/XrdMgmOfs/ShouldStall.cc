@@ -52,6 +52,8 @@ XrdMgmOfs::ShouldStall(const char* function,
   if (stall) {
     if ((vid.uid > 3)) {
       if (Access::gBannedUsers.count(vid.uid)) {
+        smsg = "operate - you are banned in this instance - contact an administrator";
+
         // fuse clients don't get stalled by a booted namespace, they get EACCES
         if (vid.app == "fuse") {
           return true;
@@ -59,8 +61,9 @@ XrdMgmOfs::ShouldStall(const char* function,
 
         // BANNED USER
         stalltime = 300;
-        smsg = "you are banned in this instance - contact an administrator";
       } else if (Access::gBannedGroups.count(vid.gid)) {
+        smsg = "operate - your group is banned in this instance - contact an administrator";
+
         // fuse clients don't get stalled by a booted namespace, they get EACCES
         if (vid.app == "fuse") {
           return true;
@@ -68,8 +71,9 @@ XrdMgmOfs::ShouldStall(const char* function,
 
         // BANNED GROUP
         stalltime = 300;
-        smsg = "your group is banned in this instance - contact an administrator";
       } else if (Access::gBannedHosts.count(vid.host)) {
+        smsg = "operate - your client host is banned in this instance - contact an administrator";
+
         // fuse clients don't get stalled by a booted namespace, they get EACCES
         if (vid.app == "fuse") {
           return true;
@@ -77,8 +81,9 @@ XrdMgmOfs::ShouldStall(const char* function,
 
         // BANNED HOST
         stalltime = 300;
-        smsg = "your client host is banned in this instance - contact an administrator";
       } else if (Access::gBannedDomains.count(vid.domain)) {
+        smsg = "operate - your client domain is banned in this instance - contact an administrator";
+
         // fuse clients don't get stalled by a booted namespace, they get EACCES
         if (vid.app == "fuse") {
           return true;
@@ -86,7 +91,6 @@ XrdMgmOfs::ShouldStall(const char* function,
 
         // BANNED DOMAINS
         stalltime = 300;
-        smsg = "your client domain is banned in this instance - contact an administrator";
       } else if (Access::gStallRules.size() && (Access::gStallGlobal)) {
         // GLOBAL STALL
         stalltime = atoi(Access::gStallRules[std::string("*")].c_str());
@@ -167,21 +171,31 @@ XrdMgmOfs::ShouldStall(const char* function,
         gOFS->MgmStats.Add("Stall", vid.uid, vid.gid, 1);
         return true;
       }
-    } else if (Access::gStallRules.size() &&
-               Access::gStallRules.count(std::string("*")) &&
-               (vid.host != "localhost.localdomain") &&
-               (vid.host != "localhost")) {
-      // admin/root is only stalled for global stalls not,
-      // for write-only or read-only stalls
-      stalltime = atoi(Access::gStallRules[std::string("*")].c_str());
-      stallmsg = "Attention: you are currently hold in this instance and each"
-                 " request is stalled for ";
-      stallmsg += (int) stalltime;
-      stallmsg += " seconds ...";
-      eos_static_info("info=\"stalling access to\" uid=%u gid=%u host=%s",
-                      vid.uid, vid.gid, vid.host.c_str());
-      gOFS->MgmStats.Add("Stall", vid.uid, vid.gid, 1);
-      return true;
+    } else {
+      if (Access::gStallRules.size() &&
+          Access::gStallRules.count(std::string("*"))) {
+        if ((vid.host != "localhost.localdomain") &&
+            (vid.host != "localhost")) {
+          // admin/root is only stalled for global stalls not,
+          // for write-only or read-only stalls
+          stalltime = atoi(Access::gStallRules[std::string("*")].c_str());
+          stallmsg = "Attention: you are currently hold in this instance and each"
+                     " request is stalled for ";
+          stallmsg += (int) stalltime;
+          stallmsg += " seconds ...";
+          eos_static_info("info=\"stalling access to\" uid=%u gid=%u host=%s",
+                          vid.uid, vid.gid, vid.host.c_str());
+          gOFS->MgmStats.Add("Stall", vid.uid, vid.gid, 1);
+          return true;
+        } else {
+          // localhost does not get stalled but receives an error during boot when trying to write
+          if (IS_ACCESSMODE_W) {
+            stalltime = 0 ;
+            stallmsg = "do modifications - writing is currently stalled on the instance";
+            return true;
+          }
+        }
+      }
     }
   }
 

@@ -211,6 +211,75 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
   return cmd;
 }
 
+//----------------------------------------------------------------------------
+// Inspect protobuf request if this modifies the namespace
+//----------------------------------------------------------------------------
+bool
+ProcInterface::ProtoIsWriteAccess(const char* path, const char* opaque)
+{
+  using eos::console::RequestProto;
+  std::unique_ptr<IProcCommand> cmd;
+  std::ostringstream oss;
+  std::string raw_pb;
+  XrdOucEnv env(opaque);
+  const char* b64data = env.Get("mgm.cmd.proto");
+
+  if (!eos::common::SymKey::Base64Decode(b64data, raw_pb)) {
+    oss << "error: failed to base64decode request";
+    eos_static_err("%s", oss.str().c_str());
+    return false;
+  }
+
+  eos::console::RequestProto req;
+
+  if (!req.ParseFromString(raw_pb)) {
+    oss << "error: failed to deserialize ProtocolBuffer object: "
+        << raw_pb;
+    eos_static_err("%s", oss.str().c_str());
+    return false;
+  }
+
+  // Log the type of command that we received
+  std::string json_out;
+  (void) google::protobuf::util::MessageToJsonString(req, &json_out);
+  eos_static_info("cmd_proto=%s", json_out.c_str());
+
+  switch (req.command_case()) {
+  case RequestProto::kAcl:
+    return true;
+    break;
+
+  case RequestProto::kNs:
+    return false;
+    break;
+
+  case RequestProto::kFind:
+    return false;
+    break;
+
+  case RequestProto::kFs:
+    return false;
+    break;
+
+  case RequestProto::kRm:
+    return true;
+    break;
+
+  case RequestProto::kStagerRm:
+    return true;
+    break;
+
+  case RequestProto::kRoute:
+    return false;
+    break;
+
+  default:
+    break;
+  }
+
+  return true;
+}
+
 //------------------------------------------------------------------------------
 // Check if a path indicates a proc command
 //------------------------------------------------------------------------------
@@ -235,9 +304,10 @@ ProcInterface::IsWriteAccess(const char* path, const char* info)
 
   XrdOucEnv procEnv(ininfo.c_str());
 
-  // @todo (esindril): review this and do it in a smart way
+  // Filter protobuf requests
+  // @TODO: avoid parsing proto buf requests twice (here and later when running the request)
   if (procEnv.Get("mgm.cmd.proto")) {
-    return false;
+    return ProtoIsWriteAccess(inpath.c_str(), ininfo.c_str());
   }
 
   XrdOucString cmd = procEnv.Get("mgm.cmd");
@@ -248,9 +318,11 @@ ProcInterface::IsWriteAccess(const char* path, const char* info)
        ((subcmd == "adjustreplica") ||
         (subcmd == "drop") ||
         (subcmd == "layout") ||
+        (subcmd == "touch") ||
         (subcmd == "verify") ||
         (subcmd == "version") ||
         (subcmd == "versions") ||
+        (subcmd == "move") ||
         (subcmd == "rename"))) ||
       ((cmd == "attr") &&
        ((subcmd == "set") ||
