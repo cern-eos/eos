@@ -76,6 +76,14 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Get space layout size factor
+  //----------------------------------------------------------------------------
+  double GetLayoutSizeFactor()
+  {
+    return mLayoutSizeFactor;
+  }
+
+  //----------------------------------------------------------------------------
   //! Check user and/or group quota. If both are present, they both have to be
   //! fullfilled.
   //!
@@ -349,6 +357,7 @@ public:
   //! @param path path
   //! @param max_bytes max bytes value
   //! @param free_bytes free bytes value
+  //! @param logical request to return the layout corrected quota values
   //!
   //----------------------------------------------------------------------------
   static void GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t& vid,
@@ -356,7 +365,8 @@ public:
                                  long long& max_bytes,
                                  long long& free_bytes,
                                  long long& max_files,
-                                 long long& free_files);
+                                 long long& free_files,
+                                 bool logical = false);
 
 
   //----------------------------------------------------------------------------

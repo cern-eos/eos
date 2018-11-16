@@ -1362,7 +1362,8 @@ Quota::GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t& vid,
                           long long& max_bytes,
                           long long& free_bytes,
                           long long& max_files,
-                          long long& free_files)
+                          long long& free_files,
+                          bool logical)
 {
   // Check for sys.auth='*'
   eos::common::Mapping::VirtualIdentity_t m_vid = vid;
@@ -1454,6 +1455,11 @@ Quota::GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t& vid,
 
     if (max_bytes_prj > max_bytes) {
       max_bytes = max_bytes_prj;
+    }
+
+    if (logical && space->GetLayoutSizeFactor()) {
+      free_bytes /= space->GetLayoutSizeFactor();
+      max_bytes /= space->GetLayoutSizeFactor();
     }
   }
 }

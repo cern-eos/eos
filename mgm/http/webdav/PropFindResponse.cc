@@ -172,7 +172,7 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest* request)
     // Stat the resource and all child resources
     XrdMgmOfsDirectory directory;
     int listrc = directory.open(request->GetUrl().c_str(), *mVirtualIdentity,
-                                 (const char*) 0);
+                                (const char*) 0);
     responseNode = BuildResponseNode(request->GetUrl().c_str(),
                                      request->GetUrl(true).c_str());
 
@@ -458,7 +458,7 @@ PropFindResponse::BuildResponseNode(const std::string& url,
     long long maxfiles = 0;
     long long freefiles = 0;
     Quota::GetIndividualQuota(*mVirtualIdentity, path.c_str(), maxbytes, freebytes,
-                              maxfiles, freefiles);
+                              maxfiles, freefiles, true);
 
     if (mRequestPropertyTypes & PropertyTypes::QUOTA_AVAIL) {
       std::string sQuotaAvail;
