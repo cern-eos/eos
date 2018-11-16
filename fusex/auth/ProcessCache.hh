@@ -35,7 +35,7 @@ class ProcessCacheEntry
 public:
 
   ProcessCacheEntry(const ProcessInfo& pinfo, const JailInformation& jinfo,
-    const BoundIdentity& boundid, uid_t userid, gid_t groupid)
+    std::shared_ptr<const BoundIdentity> boundid, uid_t userid, gid_t groupid)
     : processInfo(pinfo), jailInfo(jinfo), boundIdentity(boundid) { }
 
   const ProcessInfo& getProcessInfo() const
@@ -43,19 +43,19 @@ public:
     return processInfo;
   }
 
-  const BoundIdentity& getBoundIdentity() const
+  const BoundIdentity* getBoundIdentity() const
   {
-    return boundIdentity;
+    return boundIdentity.get();
   }
 
   std::string getXrdLogin() const
   {
-    return boundIdentity.getLogin().getStringID();
+    return boundIdentity->getLogin().getStringID();
   }
 
   std::string getXrdCreds() const
   {
-    return boundIdentity.getCreds()->toXrdParams();
+    return boundIdentity->getCreds()->toXrdParams();
   }
 
   Jiffies getStartTime() const
@@ -75,7 +75,7 @@ public:
 
   bool filledCredentials() const
   {
-    return boundIdentity.getCreds() && (!boundIdentity.getCreds()->empty());
+    return boundIdentity->getCreds() && (!boundIdentity->getCreds()->empty());
   }
 
   std::string getExe() const {
@@ -85,7 +85,7 @@ public:
 private:
   ProcessInfo processInfo;
   JailInformation jailInfo;
-  BoundIdentity boundIdentity;
+  std::shared_ptr<const BoundIdentity> boundIdentity;
 };
 
 using ProcessSnapshot = std::shared_ptr<const ProcessCacheEntry>;

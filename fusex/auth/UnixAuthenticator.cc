@@ -36,9 +36,8 @@ std::shared_ptr<const BoundIdentity> UnixAuthenticator::createIdentity(
   LoginIdentifier login(uid, gid, pid, getUnixConnectionCounter(uid, gid,
                         reconnect));
 
-  std::shared_ptr<TrustedCredentials> trustedCreds(new TrustedCredentials());
   return std::shared_ptr<const BoundIdentity>(new BoundIdentity(login,
-           trustedCreds));
+    TrustedCredentials()));
 }
 
 //------------------------------------------------------------------------------

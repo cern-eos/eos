@@ -89,6 +89,8 @@ bool CredentialValidator::validate(const JailInformation &jail,
       return true;
     }
   }
+
+  THROW("should never reach here");
 }
 
 //------------------------------------------------------------------------------
@@ -99,7 +101,7 @@ bool CredentialValidator::validate(const JailInformation &jail,
 // - Reconnection
 //------------------------------------------------------------------------------
 bool CredentialValidator::checkValidity(const JailInformation& jail,
-  TrustedCredentials &tc) {
+  const TrustedCredentials &tc) {
 
   if(!tc.valid()) {
     return false;

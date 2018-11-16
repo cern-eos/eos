@@ -94,6 +94,17 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  // Copy constructor.
+  //----------------------------------------------------------------------------
+  TrustedCredentials(const TrustedCredentials& other) {
+    uc = other.uc;
+    initialized = other.initialized;
+    invalidated = other.invalidated.load();
+    mtime = other.mtime;
+    interceptedPath = other.interceptedPath;
+  }
+
+  //----------------------------------------------------------------------------
   // Clear contents.
   //----------------------------------------------------------------------------
   void clear() {
@@ -189,7 +200,7 @@ public:
     return ss.str();
   }
 
-  void invalidate()
+  void invalidate() const
   {
     invalidated = true;
   }
@@ -236,7 +247,7 @@ private:
   UserCredentials uc;
 
   bool initialized;
-  std::atomic<bool> invalidated;
+  mutable std::atomic<bool> invalidated;
   time_t mtime;
   std::string interceptedPath;
 };
@@ -249,12 +260,8 @@ public:
 
   BoundIdentity() { }
 
-  BoundIdentity(const LoginIdentifier& login_,
-                const std::shared_ptr<TrustedCredentials>& creds_)
+  BoundIdentity(const LoginIdentifier& login_, const TrustedCredentials& creds_)
     : login(login_), creds(creds_) { }
-
-  BoundIdentity(const std::shared_ptr<const BoundIdentity>& identity)
-    : login(identity->getLogin()), creds(identity->getCreds()) { }
 
   LoginIdentifier& getLogin()
   {
@@ -266,19 +273,19 @@ public:
     return login;
   }
 
-  std::shared_ptr<TrustedCredentials>& getCreds()
+  TrustedCredentials* getCreds()
   {
-    return creds;
+    return &creds;
   }
 
-  const std::shared_ptr<TrustedCredentials>& getCreds() const
+  const TrustedCredentials* getCreds() const
   {
-    return creds;
+    return &creds;
   }
 
 private:
   LoginIdentifier login;
-  std::shared_ptr<TrustedCredentials> creds;
+  TrustedCredentials creds;
 };
 
 // A class to read and parse environment values

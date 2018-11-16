@@ -126,8 +126,14 @@ public:
   //----------------------------------------------------------------------------
   JailInformation resolve(pid_t pid);
 
+  //----------------------------------------------------------------------------
+  // Resolve a given pid_t to JailInformation - if an error is encountered,
+  // return _my_ jail.
+  //----------------------------------------------------------------------------
+  JailInformation resolveOrReturnMyJail(pid_t pid);
+
 private:
-  JailIdentifier myJail;
+  JailInformation myJail;
 };
 
 #endif

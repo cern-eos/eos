@@ -111,7 +111,7 @@ EosFuse::~EosFuse()
 /* -------------------------------------------------------------------------- */
 static void
 /* -------------------------------------------------------------------------- */
-chmod_to_400_or_die(const std::string& path)
+chmod_to_700_or_die(const std::string& path)
 /* -------------------------------------------------------------------------- */
 {
   if (path.empty()) {
@@ -968,10 +968,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     // make the cache directories private to root
-    chmod_to_400_or_die(config.mdcachedir);
-    chmod_to_400_or_die(cconfig.journal);
-    chmod_to_400_or_die(cconfig.location);
-    chmod_to_400_or_die(config.auth.credentialStore);
+    chmod_to_700_or_die(config.mdcachedir);
+    chmod_to_700_or_die(cconfig.journal);
+    chmod_to_700_or_die(cconfig.location);
+    chmod_to_700_or_die(config.auth.credentialStore);
     cconfig.total_file_cache_size = root["cache"]["size-mb"].asUInt64() * 1024 *
                                     1024;
     cconfig.total_file_cache_inodes = root["cache"]["size-ino"].asUInt64();

@@ -233,7 +233,7 @@ BoundIdentityProvider::userCredsToBoundIdentity(const JailInformation& jail,
     //--------------------------------------------------------------------------
     // Item is in the cache, and reconnection was not requested. Still valid?
     //--------------------------------------------------------------------------
-    if (validator.checkValidity(jail, *cached->getCreds().get())) {
+    if (validator.checkValidity(jail, *cached->getCreds())) {
       return cached;
     }
   }
@@ -255,9 +255,7 @@ BoundIdentityProvider::userCredsToBoundIdentity(const JailInformation& jail,
   // We made it, the crowd goes wild, allocate a new connection
   //----------------------------------------------------------------------------
   LoginIdentifier login(connectionCounter++);
-  std::shared_ptr<TrustedCredentials> tc2(new TrustedCredentials(tc.getUC(),
-                                          tc.getMTime(), tc.getIntercepted())); // fix this madness
-  std::unique_ptr<BoundIdentity> bdi(new BoundIdentity(login, tc2));
+  std::unique_ptr<BoundIdentity> bdi(new BoundIdentity(login, tc));
   registerSSS(*bdi);
 
   //----------------------------------------------------------------------------

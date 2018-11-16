@@ -216,7 +216,7 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
       // in the meantime, check.
       //------------------------------------------------------------------------
       if (boundIdentityProvider.checkValidity(jailInfo,
-        entry->getBoundIdentity())) {
+        *entry->getBoundIdentity())) {
         return entry;
       }
     }
@@ -244,7 +244,7 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
   ProcessSnapshot result;
   cache.store(cacheKey,
     std::unique_ptr<ProcessCacheEntry>( new ProcessCacheEntry(processInfo,
-      jailInfo, *bdi.get(), uid, gid)),
+      jailInfo, bdi, uid, gid)),
     result);
 
   //----------------------------------------------------------------------------

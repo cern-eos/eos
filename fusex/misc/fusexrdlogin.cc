@@ -71,8 +71,8 @@ int fusexrdlogin::loginurl(XrdCl::URL& url,
   std::string username = "nobody";
 
   if (snapshot) {
-    username = snapshot->getBoundIdentity().getLogin().getStringID();
-    snapshot->getBoundIdentity().getCreds()->toXrdParams(paramsMap);
+    username = snapshot->getBoundIdentity()->getLogin().getStringID();
+    snapshot->getBoundIdentity()->getCreds()->toXrdParams(paramsMap);
   }
 
   url.SetUserName(username);
@@ -117,7 +117,7 @@ std::string fusexrdlogin::environment(fuse_req_t req)
   XrdCl::URL::ParamsMap paramsMap;
 
   if (snapshot) {
-    snapshot->getBoundIdentity().getCreds()->toXrdParams(paramsMap);
+    snapshot->getBoundIdentity()->getCreds()->toXrdParams(paramsMap);
   }
 
   if (paramsMap["xrd.k5ccname"] != "") {

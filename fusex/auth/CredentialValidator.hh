@@ -58,7 +58,8 @@ public:
   // - The underlying credential file on disk has changed.
   // - Reconnection
   //----------------------------------------------------------------------------
-  bool checkValidity(const JailInformation &jail, TrustedCredentials &out);
+  bool checkValidity(const JailInformation &jail,
+    const TrustedCredentials &out);
 
 private:
   SecurityChecker &checker;

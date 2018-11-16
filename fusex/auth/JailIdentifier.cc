@@ -23,6 +23,7 @@
 
 #include "JailIdentifier.hh"
 #include "Utils.hh"
+#include "common/Logging.hh"
 #include <sys/stat.h>
 #include <string.h>
 #include <unistd.h>
@@ -31,7 +32,7 @@
 // Constructor
 //------------------------------------------------------------------------------
 JailResolver::JailResolver() {
-  myJail = resolveIdentifier(getpid());
+  myJail = resolve(getpid());
 }
 
 //------------------------------------------------------------------------------
@@ -96,5 +97,22 @@ bool JailIdentifier::operator==(const JailIdentifier &other) const {
 //------------------------------------------------------------------------------
 JailInformation JailResolver::resolve(pid_t pid) {
   JailIdentifier id = resolveIdentifier(pid);
-  return { id, pid, (id == myJail) };
+  return { id, pid, (id == myJail.id) };
+}
+
+//------------------------------------------------------------------------------
+// Resolve a given pid_t to JailInformation - if an error is encountered,
+// return _my_ jail.
+//------------------------------------------------------------------------------
+JailInformation JailResolver::resolveOrReturnMyJail(pid_t pid) {
+  JailInformation jailInfo = resolve(pid);
+  if(!jailInfo.id.ok()) {
+    //--------------------------------------------------------------------------
+    // Couldn't retrieve jail of this pid.. bad. Assume our jail.
+    //--------------------------------------------------------------------------
+    eos_static_notice("Could not retrieve jail information for pid=%d", pid);
+    return myJail;
+  }
+
+  return jailInfo;
 }
