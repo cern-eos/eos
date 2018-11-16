@@ -37,6 +37,7 @@
 #include <atomic>
 #include <time.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 class CredentialConfig
 {
@@ -94,14 +95,16 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  // Copy constructor.
+  // Destructor
   //----------------------------------------------------------------------------
-  TrustedCredentials(const TrustedCredentials& other) {
-    uc = other.uc;
-    initialized = other.initialized;
-    invalidated = other.invalidated.load();
-    mtime = other.mtime;
-    interceptedPath = other.interceptedPath;
+  ~TrustedCredentials() {
+    if(!interceptedPath.empty()) {
+      if(unlink(interceptedPath.c_str()) != 0) {
+        int myerrno = errno;
+        eos_static_crit("Unable to unlink intercepted-path: %s, errno: %d",
+          interceptedPath.c_str(), myerrno);
+      }
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -259,9 +262,6 @@ class BoundIdentity
 public:
 
   BoundIdentity() { }
-
-  BoundIdentity(const LoginIdentifier& login_, const TrustedCredentials& creds_)
-    : login(login_), creds(creds_) { }
 
   LoginIdentifier& getLogin()
   {

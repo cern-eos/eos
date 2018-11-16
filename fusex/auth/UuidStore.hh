@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: ContentAddressableStore.hh
+// File: UuidStore.hh
 // Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef FUSEX_CONTENT_ADDRESSABLE_STORE_HH
-#define FUSEX_CONTENT_ADDRESSABLE_STORE_HH
+#ifndef FUSEX_UUID_STORE_HH
+#define FUSEX_UUID_STORE_HH
 
 #include "common/AssistedThread.hh"
 
@@ -30,21 +30,18 @@
 #include <chrono>
 
 //------------------------------------------------------------------------------
-//! A filesystem-backed content-addressable store, with configurable, automatic
-//! file purging.
+//! A filesystem-backed store, with configurable, automatic file purging.
+//! Every write is assigned to a specific UUID - contents are not meant
+//! to persist after process restart.
 //------------------------------------------------------------------------------
-class ContentAddressableStore {
+class UuidStore {
 public:
   //----------------------------------------------------------------------------
   //! Constructor. Provide the repository (directory on the physical
   //! filesystem), as well as the timeout duration for automatic purging.
-  //!
-  //! "Fake" means nothing is actually stored on the filesystem, we're running
-  //! tests.
   //----------------------------------------------------------------------------
-  ContentAddressableStore(const std::string& repository,
-   std::chrono::milliseconds timeoutDuration,
-   bool fake = false);
+  UuidStore(const std::string& repository,
+   std::chrono::milliseconds timeoutDuration);
 
   //----------------------------------------------------------------------------
   //! Store the given contents inside the store. Returns the full filesystem
@@ -53,6 +50,11 @@ public:
   std::string put(const std::string &contents);
 
 private:
+  //----------------------------------------------------------------------------
+  //! Make uuid
+  //----------------------------------------------------------------------------
+  static std::string generateUuid();
+
   //----------------------------------------------------------------------------
   //! Cleanup thread loop
   //----------------------------------------------------------------------------
@@ -63,14 +65,8 @@ private:
   //----------------------------------------------------------------------------
   void singleCleanupLoop(ThreadAssistant &assistant);
 
-  //----------------------------------------------------------------------------
-  //! Form path for given contents
-  //----------------------------------------------------------------------------
-  std::string formPath(const std::string &contents);
-
   std::string repository;
   std::chrono::milliseconds timeoutDuration;
-  bool fake;
   AssistedThread cleanupThread;
 };
 

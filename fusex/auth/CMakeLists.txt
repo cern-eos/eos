@@ -26,7 +26,6 @@ add_library(
   AuthenticationGroup.cc           AuthenticationGroup.hh
   BoundIdentityProvider.cc         BoundIdentityProvider.hh
                                    CredentialCache.hh
-  ContentAddressableStore.cc       ContentAddressableStore.hh
   CredentialFinder.cc              CredentialFinder.hh
   CredentialValidator.cc           CredentialValidator.hh
   DirectoryIterator.cc             DirectoryIterator.hh
@@ -42,4 +41,5 @@ add_library(
   UnixAuthenticator.cc             UnixAuthenticator.hh
                                    UserCredentials.hh
   Utils.cc                         Utils.hh
+  UuidStore.cc                     UuidStore.hh
 )

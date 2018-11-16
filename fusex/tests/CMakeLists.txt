@@ -61,7 +61,6 @@ set(LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH
 set(COMPILE_FLAGS_FOR_TEST_EXECUTABLES "${EOSXD_COMPILE_FLAGS} -fPIC")
 
 add_executable(eos-fusex-tests
-  auth/cas.cc
   auth/credential-finder.cc
   auth/environment-reader.cc
   auth/login-identifier.cc

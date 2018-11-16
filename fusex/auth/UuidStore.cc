@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: ContentAddressableStore.cc
+// File: UuidStore.cc
 // Author: Georgios Bitzes - CERN
 //------------------------------------------------------------------------------
 
@@ -21,40 +21,38 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "ContentAddressableStore.hh"
+#include "UuidStore.hh"
 #include "DirectoryIterator.hh"
 #include "Utils.hh"
 #include "common/SymKeys.hh"
 #include "common/Logging.hh"
+#include <uuid/uuid.h>
 #include <sys/stat.h>
 
 //------------------------------------------------------------------------------
 //! Constructor.
 //------------------------------------------------------------------------------
-ContentAddressableStore::ContentAddressableStore(const std::string& repository_,
-  std::chrono::milliseconds timeoutDuration_, bool fake_)
+UuidStore::UuidStore(const std::string& repository_,
+  std::chrono::milliseconds timeoutDuration_)
 : repository(chopTrailingSlashes(repository_)),
-  timeoutDuration(timeoutDuration_),
-  fake(fake_) {
+  timeoutDuration(timeoutDuration_) {
 
-  if(!fake) {
-    struct stat repostat;
-    if (::stat(repository.c_str(), &repostat) != 0) {
-      THROW("Cannot stat content-addressable-store repository: " << repository);
-    }
-
-    if(!S_ISDIR(repostat.st_mode)) {
-      THROW("Repository path is not a directory: " << repository);
-    }
-
-    cleanupThread.reset(&ContentAddressableStore::runCleanupThread, this);
+  struct stat repostat;
+  if (::stat(repository.c_str(), &repostat) != 0) {
+    THROW("Cannot stat uuid-store repository: " << repository);
   }
+
+  if(!S_ISDIR(repostat.st_mode)) {
+    THROW("Repository path is not a directory: " << repository);
+  }
+
+  cleanupThread.reset(&UuidStore::runCleanupThread, this);
 }
 
 //------------------------------------------------------------------------------
 //! Cleanup thread loop
 //------------------------------------------------------------------------------
-void ContentAddressableStore::runCleanupThread(ThreadAssistant &assistant) {
+void UuidStore::runCleanupThread(ThreadAssistant &assistant) {
   while(!assistant.terminationRequested()) {
     assistant.wait_for(timeoutDuration);
     singleCleanupLoop(assistant);
@@ -64,7 +62,7 @@ void ContentAddressableStore::runCleanupThread(ThreadAssistant &assistant) {
 //------------------------------------------------------------------------------
 //! Single cleanup loop
 //------------------------------------------------------------------------------
-void ContentAddressableStore::singleCleanupLoop(ThreadAssistant &assistant) {
+void UuidStore::singleCleanupLoop(ThreadAssistant &assistant) {
   DirectoryIterator iterator(repository);
 
   while(iterator.next()) {
@@ -72,7 +70,7 @@ void ContentAddressableStore::singleCleanupLoop(ThreadAssistant &assistant) {
   }
 
   if(!iterator.ok()) {
-    eos_static_crit("ContentAddressableStore:: Cleanup thread encountered an error while iterating over the repository: %s", iterator.err().c_str());
+    eos_static_crit("UuidStore:: Cleanup thread encountered an error while iterating over the repository: %s", iterator.err().c_str());
   }
 }
 
@@ -80,11 +78,12 @@ void ContentAddressableStore::singleCleanupLoop(ThreadAssistant &assistant) {
 //! Store the given contents inside the store. Returns the full filesystem
 //! path on which the contents were stored.
 //------------------------------------------------------------------------------
-std::string ContentAddressableStore::put(const std::string &contents) {
-  std::string path = formPath(contents);
+std::string UuidStore::put(const std::string &contents) {
+  std::string path = SSTR(repository << "/" << "eos-fusex-store-"
+    << generateUuid());
 
-  if(!fake && !writeFile(path, contents)) {
-    eos_static_crit("ContentAddressableStore: Could not write path: %s", path.c_str());
+  if(!writeFile(path, contents)) {
+    eos_static_crit("UuidStore: Could not write path: %s", path.c_str());
     return "";
   }
 
@@ -92,11 +91,14 @@ std::string ContentAddressableStore::put(const std::string &contents) {
 }
 
 //------------------------------------------------------------------------------
-//! Form path for given contents
+//! Make uuid
 //------------------------------------------------------------------------------
-std::string ContentAddressableStore::formPath(const std::string &contents) {
-  return SSTR(
-    repository << "/" << "eos-fusex-store-" << eos::common::SymKey::Sha256(contents)
-  );
-}
+std::string UuidStore::generateUuid() {
+  char buffer[64];
 
+  uuid_t uuid;
+  uuid_generate_random(uuid);
+  uuid_unparse(uuid, buffer);
+
+  return std::string(buffer);
+}

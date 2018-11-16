@@ -28,7 +28,7 @@ class TrustedCredentials;
 class SecurityChecker;
 class UserCredentials;
 class JailInformation;
-class ContentAddressableStore;
+class UuidStore;
 
 //------------------------------------------------------------------------------
 // This class validates UserCredentials objects, and promotes those that
@@ -42,7 +42,7 @@ public:
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  CredentialValidator(SecurityChecker &chk, ContentAddressableStore &cas);
+  CredentialValidator(SecurityChecker &chk, UuidStore &credentialStore);
 
   //----------------------------------------------------------------------------
   // Validate the given set of UserCredentials, promote into TrustedCredentials,
@@ -63,7 +63,7 @@ public:
 
 private:
   SecurityChecker &checker;
-  ContentAddressableStore &contentAddressableStore;
+  UuidStore &credentialStore;
 };
 
 #endif

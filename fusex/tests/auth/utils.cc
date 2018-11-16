@@ -23,6 +23,7 @@
 
 #include "auth/Utils.hh"
 #include "auth/JailIdentifier.hh"
+#include "auth/UuidStore.hh"
 #include "common/SymKeys.hh"
 #include <gtest/gtest.h>
 
@@ -72,4 +73,20 @@ TEST(JailIdentifier, IdentifyMyself) {
   ASSERT_EQ(ji.id, id);
   ASSERT_EQ(ji.pid, getpid());
   ASSERT_TRUE(ji.sameJailAsThisPid);
+}
+
+TEST(UuidStore, BasicSanity) {
+  ASSERT_EQ(system("rm -rf /tmp/eos-fusex-unit-tests/"), 0);
+  ASSERT_EQ(system("mkdir /tmp/eos-fusex-unit-tests/"), 0);
+
+  UuidStore store("/tmp/eos-fusex-unit-tests/",
+  std::chrono::milliseconds(100));
+
+  std::string path = store.put("pickles");
+  std::cout << path << std::endl;
+  std::string contents;
+  ASSERT_TRUE(readFile(path, contents));
+  ASSERT_EQ(contents, "pickles");
+
+  // TODO: test expiration
 }

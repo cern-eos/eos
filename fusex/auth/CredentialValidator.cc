@@ -23,14 +23,14 @@
 
 #include "CredentialValidator.hh"
 #include "CredentialFinder.hh"
-#include "ContentAddressableStore.hh"
+#include "UuidStore.hh"
 
 //----------------------------------------------------------------------------
 // Constructor - dependency injection of SecurityChecker
 //----------------------------------------------------------------------------
 CredentialValidator::CredentialValidator(SecurityChecker &chk,
-  ContentAddressableStore &cas)
-: checker(chk), contentAddressableStore(cas) { }
+  UuidStore &store)
+: checker(chk), credentialStore(store) { }
 
 //------------------------------------------------------------------------------
 // Validate the given set of UserCredentials, promote into TrustedCredentials,
@@ -84,7 +84,7 @@ bool CredentialValidator::validate(const JailInformation &jail,
       // copy it onto our own credential store, and use that when building
       // XrdCl params.
       //------------------------------------------------------------------------
-      std::string casPath = contentAddressableStore.put(info.contents);
+      std::string casPath = credentialStore.put(info.contents);
       out.initialize(uc, info.mtime, casPath);
       return true;
     }

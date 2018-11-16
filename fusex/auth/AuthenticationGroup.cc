@@ -109,22 +109,22 @@ EnvironmentReader* AuthenticationGroup::environmentReader() {
 CredentialValidator* AuthenticationGroup::credentialValidator() {
   if(!credentialValidatorPtr) {
     credentialValidatorPtr.reset(new CredentialValidator(*securityChecker(),
-      *contentAddressableStore()));
+      *uuidStore()));
   }
 
   return credentialValidatorPtr.get();
 }
 
 //------------------------------------------------------------------------------
-// Retrieve content addressable store, lazy initialize
+// Retrieve uuid store, lazy initialize
 //------------------------------------------------------------------------------
-ContentAddressableStore* AuthenticationGroup::contentAddressableStore() {
-  if(!contentAddressableStorePtr) {
-    contentAddressableStorePtr.reset(
-      new ContentAddressableStore(config.credentialStore, std::chrono::hours(6),
-        false));
+UuidStore* AuthenticationGroup::uuidStore() {
+  if(!uuidStorePtr) {
+    uuidStorePtr.reset(
+      new UuidStore(config.credentialStore,
+        std::chrono::hours(6)));
   }
 
-  return contentAddressableStorePtr.get();
+  return uuidStorePtr.get();
 }
 

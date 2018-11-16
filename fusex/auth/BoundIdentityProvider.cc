@@ -242,9 +242,8 @@ BoundIdentityProvider::userCredsToBoundIdentity(const JailInformation& jail,
   // Alright, we have a cache miss. Can we promote UserCredentials into
   // TrustedCredentials?
   //----------------------------------------------------------------------------
-  TrustedCredentials tc;
-
-  if (!validator.validate(jail, creds, tc)) {
+  std::unique_ptr<BoundIdentity> bdi(new BoundIdentity());
+  if (!validator.validate(jail, creds, *bdi->getCreds())) {
     //--------------------------------------------------------------------------
     // Nope, these UserCredentials are unusable.
     //--------------------------------------------------------------------------
@@ -254,8 +253,7 @@ BoundIdentityProvider::userCredsToBoundIdentity(const JailInformation& jail,
   //----------------------------------------------------------------------------
   // We made it, the crowd goes wild, allocate a new connection
   //----------------------------------------------------------------------------
-  LoginIdentifier login(connectionCounter++);
-  std::unique_ptr<BoundIdentity> bdi(new BoundIdentity(login, tc));
+  bdi->getLogin() = LoginIdentifier(connectionCounter++);
   registerSSS(*bdi);
 
   //----------------------------------------------------------------------------

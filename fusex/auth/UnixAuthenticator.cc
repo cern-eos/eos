@@ -33,11 +33,11 @@
 std::shared_ptr<const BoundIdentity> UnixAuthenticator::createIdentity(
   pid_t pid, uid_t uid, gid_t gid, bool reconnect)
 {
-  LoginIdentifier login(uid, gid, pid, getUnixConnectionCounter(uid, gid,
-                        reconnect));
+  std::shared_ptr<BoundIdentity> bdi(new BoundIdentity());
+  bdi->getLogin() = LoginIdentifier(uid, gid, pid,
+    getUnixConnectionCounter(uid, gid, reconnect));
 
-  return std::shared_ptr<const BoundIdentity>(new BoundIdentity(login,
-    TrustedCredentials()));
+  return bdi;
 }
 
 //------------------------------------------------------------------------------

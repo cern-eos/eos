@@ -26,7 +26,7 @@
 
 #include "CredentialFinder.hh"
 #include "CredentialValidator.hh"
-#include "ContentAddressableStore.hh"
+#include "UuidStore.hh"
 
 class ProcessCache;
 class BoundIdentityProvider;
@@ -35,7 +35,7 @@ class JailResolver;
 class SecurityChecker;
 class EnvironmentReader;
 class CredentialValidator;
-class ContentAddressableStore;
+class UuidStore;
 
 //------------------------------------------------------------------------------
 // Utility class to manage ownership of all classes involved in the
@@ -85,9 +85,9 @@ public:
   CredentialValidator* credentialValidator();
 
   //----------------------------------------------------------------------------
-  // Retrieve content addressable store, lazy initialize
+  // Retrieve uuid store, lazy initialize
   //----------------------------------------------------------------------------
-  ContentAddressableStore* contentAddressableStore();
+  UuidStore* uuidStore();
 
 private:
   CredentialConfig config;
@@ -97,7 +97,7 @@ private:
   std::unique_ptr<JailResolver> jailResolverPtr;
   std::unique_ptr<ProcessInfoProvider> processInfoProviderPtr;
   std::unique_ptr<CredentialValidator> credentialValidatorPtr;
-  std::unique_ptr<ContentAddressableStore> contentAddressableStorePtr;
+  std::unique_ptr<UuidStore> uuidStorePtr;
   std::unique_ptr<BoundIdentityProvider> boundIdentityProviderPtr;
   std::unique_ptr<ProcessCache> processCachePtr;
 };
