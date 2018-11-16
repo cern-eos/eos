@@ -24,11 +24,13 @@ Bug
 ---
 
 * [EOS-3092] Don't require an sss keytable for a fuse mount if 'sss' is not configured as THE auth protocol to use
+* [EOS-3069] Use logical quota in prop find requests (displayed by CERNBOX client)
 
 Improvements
 ------------
 
 * [EOS-3091] allow to ban eosxd clients (=> EPERM)
+* [EOS-3047] add defaulting routing to recycle command
 * Refactor fsctl includes into functions
 * enable eosxd authentication in docker container
 
