@@ -1361,3 +1361,39 @@ bool CheckMgmOnline(const std::string& uri)
   XrdCl::XRootDStatus status = fs.Ping(timeout);
   return status.IsOK();
 }
+
+//------------------------------------------------------------------------------
+// Guess a default 'route' e.g. home directory
+//------------------------------------------------------------------------------
+
+std::string DefaultRoute()
+{
+  std::string default_route = "";
+
+  // add a default 'route' for the command
+  if (getenv("EOSHOME")) {
+    default_route = getenv("EOSHOME");
+  } else {
+    char default_home[4096];
+    std::string username;
+
+    if (getenv("EOSUSER")) {
+      username = getenv("EOSUSER");
+    }
+
+    if (getenv("USER")) {
+      username = getenv("USER");
+    }
+
+    if (username.length()) {
+      snprintf(default_home, sizeof(default_home), "/eos/user/%s/%s/",
+               username.substr(0, 1).c_str(), username.c_str());
+      fprintf(stderr,
+              "# pre-configuring default route to %s\n# -use $EOSHOME variable to override\n",
+              default_home);
+      default_route = default_home;
+    }
+  }
+
+  return default_route;
+}

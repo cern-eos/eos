@@ -41,6 +41,7 @@ com_recycle(char* arg1)
   bool translateids = false;
   bool globaloption = false;
   XrdOucString subcmd = subtokenizer.GetToken();
+  std::string default_route;
 
   if (wants_help(arg1)) {
     goto com_recycle_usage;
@@ -139,8 +140,14 @@ com_recycle(char* arg1)
     }
   }
 
+  default_route = DefaultRoute().c_str();
   in += "&mgm.subcmd=";
   in += subcmd;
+
+  if (default_route.length()) {
+    in += "&eos.route=";
+    in += default_route.c_str();
+  }
 
   if (options.size()) {
     in += "&mgm.option=";

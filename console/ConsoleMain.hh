@@ -24,7 +24,6 @@
 #pragma once
 #include "XrdOuc/XrdOucString.hh"
 
-
 #include <string>
 #include <vector>
 #include <math.h>
@@ -152,3 +151,10 @@ bool Path2ContainerDenominator(XrdOucString& path, unsigned long long& id);
 //! @return true if MGM is online, otherwise false
 //------------------------------------------------------------------------------
 bool CheckMgmOnline(const std::string& uri);
+
+
+//------------------------------------------------------------------------------
+//! Compute a default homedirectory or take it from the environment
+//! @return guessed home path
+//------------------------------------------------------------------------------
+std::string DefaultRoute();

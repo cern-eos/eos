@@ -48,29 +48,7 @@ com_quota(char* arg1)
     XrdOucString in = "mgm.cmd=quota&mgm.subcmd=lsuser";
 
     if (subcommand == "") {
-      if (getenv("EOSHOME")) {
-        subcommand = getenv("EOSHOME");
-      } else {
-        char default_home[4096];
-        std::string username;
-
-        if (getenv("EOSUSER")) {
-          username = getenv("EOSUSER");
-        }
-
-        if (getenv("USER")) {
-          username = getenv("USER");
-        }
-
-        if (username.length()) {
-          snprintf(default_home, sizeof(default_home), "/eos/user/%s/%s/",
-                   username.substr(0, 1).c_str(), username.c_str());
-          fprintf(stderr,
-                  "# pre-configuring quota query directory to %s\n# -use $EOSHOME variable to override\n# -add query directory to ask for quota in a particular namespace branch e.g. eos quota /eos/mydir/ \n",
-                  default_home);
-          subcommand = default_home;
-        }
-      }
+      subcommand = DefaultRoute().c_str();
     }
 
     if (subcommand.beginswith("/")) {
