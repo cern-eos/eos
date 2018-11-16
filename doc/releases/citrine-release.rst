@@ -15,6 +15,23 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.4.12 Citrine``
+===================
+
+2018-11-16
+
+Bug
+---
+
+* [EOS-3092] Don't require an sss keytable for a fuse mount if 'sss' is not configured as THE auth protocol to use
+
+Improvements
+------------
+
+* [EOS-3091] allow to ban eosxd clients (=> EPERM)
+* Refactor fsctl includes into functions
+* enable eosxd authentication in docker container
+
 ``v4.4.11 Citrine``
 ===================
 
@@ -46,7 +63,6 @@ Bug
 Improvements
 ------------
 
-* [EOS-3091] allow to ban eosxd clients (=> EPERM)
 * [EOS-3073] auto-scale IO buffers according to available client memory
 * [EOS-3072] add number of open files to the eosxd statistics output
 * [EOS-3027] allow 'fusex evict' without calling abort handler by default e.g.
