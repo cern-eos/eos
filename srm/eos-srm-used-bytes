@@ -11,7 +11,7 @@ if [ -n "$cache" ]; then
     exit;
 fi
     
-export `eos -b root://${EOS_FUSE_MGM_ALIAS-eosdev.cern.ch//}// quota ls -m -p $dirpath | grep "gid=ALL"`
+export `eos -b -r 3 4 root://${EOS_FUSE_MGM_ALIAS-eosdev.cern.ch//}// quota ls -m -p $dirpath | grep "gid=ALL"`
 
 val=$usedlogicalbytes
 
@@ -20,7 +20,3 @@ test -z $val && val=0
 echo $val > /var/tmp/$path.tmp
 mv /var/tmp/$path.tmp /var/tmp/$path 2>/dev/null
 echo $val
-
-
-
-
