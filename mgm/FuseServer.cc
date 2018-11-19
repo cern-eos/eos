@@ -3023,7 +3023,6 @@ FuseServer::HandleMD(const std::string& id,
           op = UPDATE;
           // dir update
           fmd = gOFS->eosFileService->getFileMD(fid);
-          pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
 
           if (EOS_LOGS_DEBUG) eos_debug("updating %s => %s ",
                                           fmd->getName().c_str(),
@@ -3106,10 +3105,9 @@ FuseServer::HandleMD(const std::string& id,
         } else if (strncmp(md.target().c_str(), "////hlnk",
                            8) == 0) {   /* creation of a hard link */
           uint64_t tgt_md_ino = atoll(md.target().c_str() + 8);
-          pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
 
           if (pcmd->findContainer(
-                md.name())) { /* name check protected by eosViewRWMutex above */
+                md.name())) {
             return EEXIST;
           }
 
@@ -3166,6 +3164,11 @@ FuseServer::HandleMD(const std::string& id,
             eos_err("name=%s atomic path is forbidden as a filename",
                     md.name().c_str());
             return EPERM;
+          }
+
+          if (pcmd->findContainer(
+                md.name())) {
+            return EEXIST;
           }
 
           unsigned long layoutId = 0;
