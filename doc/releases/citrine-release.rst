@@ -26,6 +26,11 @@ Bug
 
 * [EOS-3101] - fix EEXIST logic in FuseServer open to race condition and remove double parent lookup
 
+Improvements
+------------
+
+* NS: Add metadata-entries-in-flight to NS cache information
+
 
 ``v4.4.12 Citrine``
 ===================
