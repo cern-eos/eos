@@ -55,7 +55,7 @@ namespace {
     return capability;
   }
 
-  bool constructFileDeleteData(int fid,
+  bool constructFileDeleteData(unsigned long long fid,
                                XrdOucString& idData,
                                XrdOucErrInfo& error) {
     std::shared_ptr<eos::IFileMD> fmd;
