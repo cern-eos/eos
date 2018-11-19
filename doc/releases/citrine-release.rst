@@ -15,6 +15,18 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.4.13 Citrine``
+===================
+
+2018-11-19
+
+Bug
+---
+
+* [EOS-3101] - fix EEXIST logic in FuseServer open to race condition and remove double parent lookup
+
+
 ``v4.4.12 Citrine``
 ===================
 
