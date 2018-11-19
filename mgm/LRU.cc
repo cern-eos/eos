@@ -87,7 +87,7 @@ LRU::LRUr(ThreadAssistant& assistant) noexcept
     return;
   }
 
-  std::this_thread::sleep_for(std::chrono::seconds(10));
+  assistant.wait_for(std::chrono::seconds(10));
   eos_static_info("msg=\"async LRU thread started\"");
 
   while (!assistant.terminationRequested()) {
@@ -211,7 +211,7 @@ LRU::LRUr(ThreadAssistant& assistant) noexcept
     for (size_t i = 0 ; i < snoozeloop; i++) {
       // Sleep one minuted in 5 seconds intervals
       for (int j = 0; j < 12; ++j) {
-        std::this_thread::sleep_for(std::chrono::seconds(5));
+        assistant.wait_for(std::chrono::seconds(5));
 
         if (assistant.terminationRequested()) {
           return;

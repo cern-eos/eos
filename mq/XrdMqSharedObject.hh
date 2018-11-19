@@ -1056,7 +1056,7 @@ private:
   AssistedThread mDispatchThread; ///< Dispatching change thread
 
   //----------------------------------------------------------------------------
-  //! Loop ran by thread dispathcing change notifications
+  //! Loop ran by thread dispatching change notifications
   //!
   //! @param assistant executing thread
   //----------------------------------------------------------------------------

@@ -50,9 +50,7 @@ PluginManager::PluginManager()
 PluginManager::~PluginManager()
 {
   // Just in case it wasn't called earlier
-  std::cerr << __FUNCTION__ << "msg=\"begin destructor\"" << std::endl;
   Shutdown();
-  std::cerr << __FUNCTION__ << "msg=\"end destructor\"" << std::endl;
 }
 
 //------------------------------------------------------------------------------

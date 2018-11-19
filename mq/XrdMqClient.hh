@@ -166,12 +166,6 @@ public:
     return (*this).SendMessage(msg);
   }
 
-  // XrdMqMessage* operator >> (XrdMqMessage* msg)
-  // {
-  //   msg = (*this).RecvMessage();
-  //   return msg;
-  // }
-
   //----------------------------------------------------------------------------
   //! Response handler class to clean-up asynchronous callbacks which are
   //! ignored.

@@ -441,7 +441,7 @@ TransferEngine::Scheduler(ThreadAssistant& assistant) noexcept
 {
   eos_static_info("running transfer scheduler");
   size_t loopsleep = 500000;
-  std::this_thread::sleep_for(std::chrono::seconds(10));
+  assistant.wait_for(std::chrono::seconds(10));
   size_t gwpos = 0;
   double pacifier = 1;
 

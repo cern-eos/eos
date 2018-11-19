@@ -87,7 +87,7 @@ XrdMqMessaging::Listen(ThreadAssistant& assistant) noexcept
     }
 
     if (new_msg == nullptr) {
-      std::this_thread::sleep_for(std::chrono::seconds(1));
+      assistant.wait_for(std::chrono::seconds(1));
     }
   }
 }
