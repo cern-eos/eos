@@ -132,7 +132,7 @@ public:
   //! Method implementing the specific behavior of the command executed by the
   //! asynchronous thread - used only for protobuf commands
   //----------------------------------------------------------------------------
-  virtual eos::console::ReplyProto ProcessRequest() override
+  virtual eos::console::ReplyProto ProcessRequest() noexcept override
   {
     // Default behavior for old (raw) style commands
     return eos::console::ReplyProto();
@@ -146,6 +146,16 @@ public:
   {
     lStdOut += stdOut;
     lStdErr += stdErr;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Add stdout, stderr to an external stdout, stderr variable
+  //----------------------------------------------------------------------------
+  void
+  AddOutput(std::string& lStdOut, std::string& lStdErr)
+  {
+    lStdOut += stdOut.c_str();
+    lStdErr += stdErr.c_str();
   }
 
   //----------------------------------------------------------------------------

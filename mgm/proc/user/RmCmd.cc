@@ -32,7 +32,7 @@
 EOSMGMNAMESPACE_BEGIN
 
 eos::console::ReplyProto
-eos::mgm::RmCmd::ProcessRequest()
+eos::mgm::RmCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
   std::ostringstream outStream;

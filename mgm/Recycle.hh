@@ -153,7 +153,7 @@ public:
    * @param global show files of all users as root
    * @param date filter recycle bin for given date <year> or <year>/<month> or <year>/<month>/<day>
    */
-  static void Print(XrdOucString& stdOut, XrdOucString& stdErr,
+  static void Print(std::string& stdOut, std::string& stdErr,
                     eos::common::Mapping::VirtualIdentity_t& vid, bool monitoring,
                     bool transalteids, bool details,
                     std::string date = "",
@@ -168,7 +168,7 @@ public:
    * @param monitoring selects monitoring key-value output format
    * @param translateids selects to display uid/gid as number or string
    */
-  static void PrintOld(XrdOucString& stdOut, XrdOucString& stdErr,
+  static void PrintOld(std::string& stdOut, std::string& stdErr,
                        eos::common::Mapping::VirtualIdentity_t& vid, bool monitoring,
                        bool transalteids, bool details);
 
@@ -178,12 +178,13 @@ public:
    * @param stdErr where to print
    * @param vid of the client
    * @param key (==inode) to undelete
-   * @param option can be --force-original-name or -f
+   * @param force_orig_name flag to force restore to the original name
+   * @param restore_versions flag to restore all versions
    * @return 0 if done, otherwise errno
    */
-  static int Restore(XrdOucString& stdOut, XrdOucString& stdErr,
+  static int Restore(std::string& stdOut, std::string& stdErr,
                      eos::common::Mapping::VirtualIdentity_t& vid, const char* key,
-                     XrdOucString& options);
+                     bool force_orig_name, bool restore_versions);
 
   /**
    * purge all files in the recycle bin with new uid:<uid>/<date> structure
@@ -193,32 +194,23 @@ public:
    * @PARAM date can be empty, <year> or <year>/<month> or <year>/<month>/<day>
    * @return 0 if done, otherwise errno
    */
-  static int Purge(XrdOucString& stdOut, XrdOucString& stdErr,
+  static int Purge(std::string& stdOut, std::string& stdErr,
                    eos::common::Mapping::VirtualIdentity_t& vid,
                    std::string date = "",
                    bool global = false);
-
-  /**
-   * purge all files in the recycle bin
-   * @param stdOut where to print
-   * @param stdErr where to print
-   * @return 0 if done, otherwise errno
-   */
-  static int PurgeOld(XrdOucString& stdOut, XrdOucString& stdErr,
-                      eos::common::Mapping::VirtualIdentity_t& vid);
 
   /**
    * configure the recycle bin
    * @param stdOut where to print
    * @param stdErr where to print
    * @param vid of the client
-   * @arg configuration value
-   * @option configuration type
+   * @param arg configuration key/op
+   * @param option configuration value
    * @return 0 if done, otherwise errno
    */
-  static int Config(XrdOucString& stdOut, XrdOucString& stdErr,
-                    eos::common::Mapping::VirtualIdentity_t& vid, const char* arg,
-                    XrdOucString& options);
+  static int Config(std::string& stdOut, std::string& stdErr,
+                    eos::common::Mapping::VirtualIdentity_t& vid,
+                    const std::string& key, const std::string& value);
 
   /**
    * set the wake-up flag in the recycle thread to look at modified recycle bin settings

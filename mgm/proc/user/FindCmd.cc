@@ -721,7 +721,7 @@ private:
 // asynchronous thread
 //------------------------------------------------------------------------------
 eos::console::ReplyProto
-eos::mgm::FindCmd::ProcessRequest()
+eos::mgm::FindCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
 

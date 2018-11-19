@@ -42,7 +42,7 @@ XrdSysSemaphore eos::mgm::FsCmd::mSemaphore{5};
 // asynchronous thread
 //------------------------------------------------------------------------------
 eos::console::ReplyProto
-eos::mgm::FsCmd::ProcessRequest()
+eos::mgm::FsCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
   eos::console::FsProto fs = mReqProto.fs();

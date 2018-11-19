@@ -39,7 +39,7 @@ EOSMGMNAMESPACE_BEGIN
 // Process request
 //------------------------------------------------------------------------------
 eos::console::ReplyProto
-AclCmd::ProcessRequest()
+AclCmd::ProcessRequest() noexcept
 {
   using eos::console::AclProto;
   eos::console::ReplyProto reply;

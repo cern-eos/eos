@@ -1,6 +1,5 @@
 //------------------------------------------------------------------------------
-// File: RmCmd.hh
-// Author: Jozsef Makai - CERN
+//! @file RecycleCmd.hh
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -21,16 +20,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
 #pragma once
-
-#include "mgm/proc/IProcCommand.hh"
 #include "mgm/Namespace.hh"
-#include "proto/ConsoleRequest.pb.h"
+#include "proto/Recycle.pb.h"
+#include "mgm/proc/ProcCommand.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
-class RmCmd : public IProcCommand
+//------------------------------------------------------------------------------
+//! Class RecycleCmd - class handling recycle commands
+//------------------------------------------------------------------------------
+class RecycleCmd: public IProcCommand
 {
 public:
   //----------------------------------------------------------------------------
@@ -39,14 +39,15 @@ public:
   //! @param req client ProtocolBuffer request
   //! @param vid client virtual identity
   //----------------------------------------------------------------------------
-  RmCmd(eos::console::RequestProto&& req,
-        eos::common::Mapping::VirtualIdentity& vid):
-    IProcCommand(std::move(req), vid, true) {}
+  explicit RecycleCmd(eos::console::RequestProto&& req,
+                      eos::common::Mapping::VirtualIdentity& vid):
+    IProcCommand(std::move(req), vid, true)
+  {}
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~RmCmd() override = default;
+  virtual ~RecycleCmd() = default;
 
   //----------------------------------------------------------------------------
   //! Method implementing the specific behaviour of the command executed by the

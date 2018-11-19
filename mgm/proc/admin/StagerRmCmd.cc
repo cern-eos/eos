@@ -32,39 +32,47 @@
 EOSMGMNAMESPACE_BEGIN
 
 eos::console::ReplyProto
-eos::mgm::StagerRmCmd::ProcessRequest() {
+eos::mgm::StagerRmCmd::ProcessRequest() noexcept
+{
   eos::console::ReplyProto reply;
   std::ostringstream errStream;
   retc = 0;
-
   const auto& stagerRm = mReqProto.stagerrm();
-
   XrdOucErrInfo errInfo;
   eos::common::Mapping::VirtualIdentity root_vid;
   eos::common::Mapping::Root(root_vid);
+
   for (auto i = 0; i < stagerRm.file_size(); i++) {
     const auto& file = stagerRm.file(i);
-
     XrdOucString path;
+
     switch (file.File_case()) {
     case eos::console::StagerRmProto::FileProto::kPath:
       path = file.path().c_str();
-      if(0 == path.length()) {
+
+      if (0 == path.length()) {
         errStream << "error: Received an empty string path" << std::endl;
         retc = EINVAL;
         continue;
       }
+
       break;
+
     case eos::console::StagerRmProto::FileProto::kFid:
       GetPathFromFid(path, file.fid(), "error: ");
-      if(0 == path.length()) {
-        errStream << "error: Received an unknown fid: value=" << file.fid() << std::endl;
+
+      if (0 == path.length()) {
+        errStream << "error: Received an unknown fid: value=" << file.fid() <<
+                  std::endl;
         retc = EINVAL;
         continue;
       }
+
       break;
+
     default:
-      errStream << "error: Received a file with neither a path nor an fid" << std::endl;
+      errStream << "error: Received a file with neither a path nor an fid" <<
+                std::endl;
       retc = EINVAL;
       continue;
       break;
@@ -73,6 +81,7 @@ eos::mgm::StagerRmCmd::ProcessRequest() {
     // check that we have the correct permission
     eos::common::Path cPath(path.c_str());
     errInfo.clear();
+
     if (gOFS->_access(cPath.GetParentPath(), P_OK, errInfo, mVid, "") != 0) {
       errStream << "error: you don't have 'p' acl flag permission on path '"
                 << cPath.GetParentPath() << "'" << std::endl;
@@ -83,8 +92,10 @@ eos::mgm::StagerRmCmd::ProcessRequest() {
     // check if this file exists
     XrdSfsFileExistence file_exists;
     errInfo.clear();
+
     if (gOFS->_exists(path.c_str(), file_exists, errInfo, mVid, nullptr)) {
-      errStream << "error: unable to run exists on path '" << path << "'" << std::endl;
+      errStream << "error: unable to run exists on path '" << path << "'" <<
+                std::endl;
       retc = errno;
       continue;
     }
@@ -100,8 +111,11 @@ eos::mgm::StagerRmCmd::ProcessRequest() {
     }
 
     struct stat buf;
-    if (gOFS->_stat(path.c_str(), &buf, errInfo, mVid, nullptr, nullptr, false) != 0) {
-      errStream << "error: unable to run stat for replicas on path '" << path << "'" << std::endl;
+
+    if (gOFS->_stat(path.c_str(), &buf, errInfo, mVid, nullptr, nullptr,
+                    false) != 0) {
+      errStream << "error: unable to run stat for replicas on path '" << path << "'"
+                << std::endl;
       retc = EINVAL;
       continue;
     }
@@ -114,14 +128,17 @@ eos::mgm::StagerRmCmd::ProcessRequest() {
     }
 
     errInfo.clear();
+
     if (gOFS->_dropallstripes(path.c_str(), errInfo, root_vid, false) != 0) {
       eos_static_err("Could not delete all replicas of %s. Reason: %s",
                      path.c_str(), errInfo.getErrText());
-      errStream << "error: could not delete all replicas of '" << path << "'" << std::endl;
+      errStream << "error: could not delete all replicas of '" << path << "'" <<
+                std::endl;
       retc = SFS_ERROR;
     } else {
       // reset the retrieves counter in case of success
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+
       try {
         auto fmd = gOFS->eosView->getFile(path.c_str());
         fmd->setAttribute(eos::common::RETRIEVES_ATTR_NAME, "0");
@@ -135,7 +152,8 @@ eos::mgm::StagerRmCmd::ProcessRequest() {
 
   reply.set_retc(retc);
   reply.set_std_err(errStream.str());
-  reply.set_std_out(retc == 0 ? "success: removed all replicas for all given files" : "");
+  reply.set_std_out(retc == 0 ?
+                    "success: removed all replicas for all given files" : "");
   return reply;
 }
 

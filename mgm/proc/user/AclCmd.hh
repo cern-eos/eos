@@ -58,7 +58,7 @@ public:
   //! Method implementing the specific behvior of the command executed by the
   //! asynchronous thread
   //----------------------------------------------------------------------------
-  eos::console::ReplyProto ProcessRequest() override;
+  eos::console::ReplyProto ProcessRequest() noexcept override;
 
   //----------------------------------------------------------------------------
   //! Generate rule map from the string representation of the acls. If there
@@ -105,14 +105,16 @@ public:
   //----------------------------------------------------------------------------
   //! Return mAddRule result after GetRuleBitmask call.
   //----------------------------------------------------------------------------
-  unsigned short GetAddRule() {
+  unsigned short GetAddRule()
+  {
     return mAddRule;
   }
 
   //----------------------------------------------------------------------------
   //! Return mRmRule result after GetRuleBitmask call.
   //----------------------------------------------------------------------------
-  unsigned short GetRmRule() {
+  unsigned short GetRmRule()
+  {
     return mRmRule;
   }
 

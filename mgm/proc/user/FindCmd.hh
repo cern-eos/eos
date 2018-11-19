@@ -26,8 +26,9 @@
 #include "mgm/Namespace.hh"
 #include "proto/ConsoleRequest.pb.h"
 
-namespace eos {
-  class IFileMD;
+namespace eos
+{
+class IFileMD;
 }
 
 EOSMGMNAMESPACE_BEGIN
@@ -49,18 +50,18 @@ public:
   //----------------------------------------------------------------------------
   virtual ~FindCmd() = default;
 
-  eos::console::ReplyProto ProcessRequest() override;
-  void PrintFileInfoMinusM(const std::string &path, XrdOucErrInfo &errInfo);
-  void ProcessAtomicFilePurge(std::ofstream &ss, const std::string &fspath,
-    eos::IFileMD &fmd);
+  eos::console::ReplyProto ProcessRequest() noexcept override;
+  void PrintFileInfoMinusM(const std::string& path, XrdOucErrInfo& errInfo);
+  void ProcessAtomicFilePurge(std::ofstream& ss, const std::string& fspath,
+                              eos::IFileMD& fmd);
 
-  void ModifyLayoutStripes(std::ofstream &ss,
-    const eos::console::FindProto &req, const std::string &fspath);
+  void ModifyLayoutStripes(std::ofstream& ss,
+                           const eos::console::FindProto& req, const std::string& fspath);
 
-  void PurgeVersions(std::ofstream &ss, int64_t maxVersion,
-    const std::string &dirpath);
+  void PurgeVersions(std::ofstream& ss, int64_t maxVersion,
+                     const std::string& dirpath);
 
-  void printPath(std::ofstream &ss, const std::string& path, bool url);
+  void printPath(std::ofstream& ss, const std::string& path, bool url);
 };
 
 EOSMGMNAMESPACE_END

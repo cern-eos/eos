@@ -24,9 +24,10 @@
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/FindCmd.hh"
 #include "mgm/proc/user/RmCmd.hh"
+#include "mgm/proc/user/RouteCmd.hh"
+#include "mgm/proc/user/RecycleCmd.hh"
 #include "mgm/proc/admin/FsCmd.hh"
 #include "mgm/proc/admin/NsCmd.hh"
-#include "mgm/proc/user/RouteCmd.hh"
 #include "mgm/proc/admin/StagerRmCmd.hh"
 #include <google/protobuf/util/json_util.h>
 
@@ -203,6 +204,10 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
     cmd.reset(new RouteCmd(std::move(req), vid));
     break;
 
+  case RequestProto::kRecycle:
+    cmd.reset(new RecycleCmd(std::move(req), vid));
+    break;
+
   default:
     eos_static_err("error: unknown request type");
     break;
@@ -249,6 +254,18 @@ ProcInterface::ProtoIsWriteAccess(const char* path, const char* opaque)
     return true;
     break;
 
+  case RequestProto::kRm:
+    return true;
+    break;
+
+  case RequestProto::kStagerRm:
+    return true;
+    break;
+
+  case RequestProto::kRecycle:
+    return true;
+    break;
+
   case RequestProto::kNs:
     return false;
     break;
@@ -259,14 +276,6 @@ ProcInterface::ProtoIsWriteAccess(const char* path, const char* opaque)
 
   case RequestProto::kFs:
     return false;
-    break;
-
-  case RequestProto::kRm:
-    return true;
-    break;
-
-  case RequestProto::kStagerRm:
-    return true;
     break;
 
   case RequestProto::kRoute:

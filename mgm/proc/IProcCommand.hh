@@ -172,7 +172,7 @@ public:
   //----------------------------------------------------------------------------
   //! Method implementing the specific behavior of the command executed
   //----------------------------------------------------------------------------
-  virtual eos::console::ReplyProto ProcessRequest() = 0;
+  virtual eos::console::ReplyProto ProcessRequest() noexcept = 0;
 
   //----------------------------------------------------------------------------
   //! Lauch command asynchronously, creating the corresponding promise and

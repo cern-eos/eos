@@ -112,7 +112,7 @@ add_library(
   proc/user/Mkdir.cc
   proc/user/Motd.cc
   proc/user/Quota.cc
-  proc/user/Recycle.cc
+  proc/user/RecycleCmd.cc
   proc/user/Rm.cc
   proc/user/RmCmd.cc
   proc/user/Rmdir.cc

@@ -33,7 +33,7 @@ EOSMGMNAMESPACE_BEGIN
 // Method implementing the specific behavior of the command
 //------------------------------------------------------------------------------
 eos::console::ReplyProto
-RouteCmd::ProcessRequest()
+RouteCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
   eos::console::RouteProto route = mReqProto.route();

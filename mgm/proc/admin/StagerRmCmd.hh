@@ -40,8 +40,8 @@ public:
   //! @param vid client virtual identity
   //----------------------------------------------------------------------------
   StagerRmCmd(eos::console::RequestProto&& req,
-  eos::common::Mapping::VirtualIdentity& vid):
-  IProcCommand(std::move(req), vid, true) {}
+              eos::common::Mapping::VirtualIdentity& vid):
+    IProcCommand(std::move(req), vid, true) {}
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -52,7 +52,7 @@ public:
   //! Method implementing the specific behaviour of the command executed by the
   //! asynchronous thread
   //----------------------------------------------------------------------------
-  eos::console::ReplyProto ProcessRequest() override;
+  eos::console::ReplyProto ProcessRequest() noexcept override;
 };
 
 EOSMGMNAMESPACE_END

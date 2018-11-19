@@ -9,6 +9,7 @@ import "Fs.proto";
 import "Rm.proto";
 import "StagerRm.proto";
 import "Route.proto";
+import "Recycle.proto";
 
 //------------------------------------------------------------------------------
 // Request message sent to the server
@@ -34,7 +35,8 @@ message RequestProto {
     RmProto rm             = 7;
     StagerRmProto stagerRm = 8;
     RouteProto route       = 9;
+    RecycleProto recycle   = 10;
   }
 
-  string Comment = 10;
+  string Comment = 30;
 }

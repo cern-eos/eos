@@ -64,6 +64,7 @@ set_target_properties(EosFstProto-Objects PROPERTIES
 #-------------------------------------------------------------------------------
 # Generate protobol buffer object for the CLI
 #-------------------------------------------------------------------------------
+PROTOBUF_GENERATE_CPP(RECY_SRCS RECY_HDRS common/cli_proto/Recycle.proto)
 PROTOBUF_GENERATE_CPP(ACL_SRCS ACL_HDRS common/cli_proto/Acl.proto)
 PROTOBUF_GENERATE_CPP(NS_SRCS NS_HDRS common/cli_proto/Ns.proto)
 PROTOBUF_GENERATE_CPP(DRAIN_SRCS DRAIN_HDRS common/cli_proto/Drain.proto)
@@ -76,12 +77,12 @@ PROTOBUF_GENERATE_CPP(REQ_SRCS REQ_HDRS common/cli_proto/ConsoleRequest.proto)
 PROTOBUF_GENERATE_CPP(REP_SRCS REP_HDRS common/cli_proto/ConsoleReply.proto)
 
 set(CLI_PROTO_SRCS
-  ${NS_SRCS} ${ACL_SRCS} ${DRAIN_SRCS} ${FIND_SRCS} ${REQ_SRCS} ${REP_SRCS}
-  ${FS_SRCS} ${RM_SRCS} ${STAGER_RM_SRCS} ${ROUTE_SRCS})
+  ${RECY_SRCS} ${NS_SRCS} ${ACL_SRCS} ${DRAIN_SRCS} ${FIND_SRCS} ${REQ_SRCS}
+  ${REP_SRCS} ${FS_SRCS} ${RM_SRCS} ${STAGER_RM_SRCS} ${ROUTE_SRCS})
 
 set(CLI_PROTO_HDRS
-  ${NS_HDRS} ${ACL_HDRS} ${DRAIN_HDRS} ${FIND_HDRS} ${REQ_HDRS} ${REP_HDRS}
-  ${FS_HDRS} ${RM_HDRS} ${STAGER_RM_HDRS} ${ROUTE_HDRS})
+  ${RECY_HDRS} ${NS_HDRS} ${ACL_HDRS} ${DRAIN_HDRS} ${FIND_HDRS} ${REQ_HDRS}
+  ${REP_HDRS} ${FS_HDRS} ${RM_HDRS} ${STAGER_RM_HDRS} ${ROUTE_HDRS})
 
 set_source_files_properties(
   ${CLI_PROTO_SRCS} ${CLI_PROTO_HDRS}

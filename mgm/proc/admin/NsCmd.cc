@@ -49,7 +49,7 @@ EOSMGMNAMESPACE_BEGIN
 // asynchronous thread
 //------------------------------------------------------------------------------
 eos::console::ReplyProto
-NsCmd::ProcessRequest()
+NsCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
   eos::console::NsProto ns = mReqProto.ns();
@@ -411,7 +411,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
           << std::endl
           << "ALL      Container cache occupancy        " << containerCacheStats.occupancy
           << std::endl
-          << "ALL      In-flight ContainerMD            " << containerCacheStats.inFlight <<
+          << "ALL      In-flight ContainerMD            " << containerCacheStats.inFlight
+          <<
           std::endl
           << line << std::endl;
     }
