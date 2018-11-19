@@ -405,10 +405,14 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
           std::endl
           << "ALL      File cache occupancy             " << fileCacheStats.occupancy <<
           std::endl
+          << "ALL      In-flight FileMD                 " << fileCacheStats.inFlight <<
+          std::endl
           << "ALL      Container cache max num          " << containerCacheStats.maxNum
           << std::endl
           << "ALL      Container cache occupancy        " << containerCacheStats.occupancy
           << std::endl
+          << "ALL      In-flight ContainerMD            " << containerCacheStats.inFlight <<
+          std::endl
           << line << std::endl;
     }
 

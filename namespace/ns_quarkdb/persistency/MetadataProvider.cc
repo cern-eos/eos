@@ -270,6 +270,9 @@ CacheStatistics MetadataProvider::getFileMDCacheStats()
   stats.enabled = true;
   stats.occupancy = mFileCache.size();
   stats.maxNum = mFileCache.get_max_num();
+
+  std::lock_guard<std::mutex> lock(mMutex);
+  stats.inFlight = mInFlightFiles.size();
   return stats;
 }
 
@@ -282,6 +285,9 @@ CacheStatistics MetadataProvider::getContainerMDCacheStats()
   stats.enabled = true;
   stats.occupancy = mContainerCache.size();
   stats.maxNum = mContainerCache.get_max_num();
+
+  std::lock_guard<std::mutex> lock(mMutex);
+  stats.inFlight = mInFlightContainers.size();
   return stats;
 }
 
