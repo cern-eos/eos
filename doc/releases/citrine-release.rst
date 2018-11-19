@@ -15,6 +15,16 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.4.14 Citrine``
+===================
+
+2018-11-20
+
+Bug
+---
+
+* [EOS-3110] - fix recovery OpenAsync procedures to stop on fatal (non retryable errors)
+
 
 ``v4.4.13 Citrine``
 ===================
