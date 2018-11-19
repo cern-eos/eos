@@ -929,6 +929,12 @@ data::datax::recover_ropen(fuse_req_t req)
       }
     }
 
+    if (status.IsFatal()) {
+      // error useless to retry
+      eos_crit("recover-ropen failed errno=%d", XrdCl::Proxy::status2errno(status));
+      return XrdCl::Proxy::status2errno(status);
+    }
+
     eos_warning("recover reopening file for read");
     XrdCl::OpenFlags::Flags targetFlags = XrdCl::OpenFlags::Read;
     XrdCl::Access::Mode mode = XrdCl::Access::UR | XrdCl::Access::UX;
@@ -1019,6 +1025,12 @@ data::datax::recover_ropen(fuse_req_t req)
       break;
     }
 
+    if (status.IsFatal()) {
+      // error useless to retry
+      eos_crit("recover-ropen failed errno=%d", XrdCl::Proxy::status2errno(status));
+      return XrdCl::Proxy::status2errno(status);
+    }
+
     break;
   }
 
@@ -1066,6 +1078,12 @@ data::datax::try_ropen(fuse_req_t req, XrdCl::Proxy*& proxy,
       if (!EosFuse::Instance().Config().recovery.read_open_noserver) { // might be disabled
         return ENETUNREACH;
       }
+    }
+
+    if (status.IsFatal()) {
+      // error useless to retry
+      eos_crit("recover read-open errno=%d", XrdCl::Proxy::status2errno(status));
+      return XrdCl::Proxy::status2errno(status);
     }
 
     eos_warning("recover reopening file for read");
@@ -1208,18 +1226,11 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy*& proxy,
       }
     }
 
-    if (status.errNo == kXR_NoSpace) {
-      eos_crit("recover write-open-nospace queue=%d", proxy->WriteQueue().size());
-      proxy->WriteQueue().clear();
-      proxy->ChunkMap().clear();
-      return ENOSPC;
-    }
-
-    if (status.errNo == kXR_overQuota) {
-      eos_crit("recover write-open-noquota queue=%d", proxy->WriteQueue().size());
-      proxy->WriteQueue().clear();
-      proxy->ChunkMap().clear();
-      return EDQUOT;
+    if (status.IsFatal()) {
+      // error useless to retry
+      eos_crit("recover write-open-fatal queue=%d errno=%d",
+               proxy->WriteQueue().size(), XrdCl::Proxy::status2errno(status));
+      return XrdCl::Proxy::status2errno(status);
     }
 
     eos_warning("recover reopening file for writing");
@@ -1277,6 +1288,13 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy*& proxy,
       break;
     }
 
+    if (status.IsFatal()) {
+      // error useless to retry
+      eos_crit("recover write-open-fatal errno=%d",
+               XrdCl::Proxy::status2errno(status));
+      return XrdCl::Proxy::status2errno(status);
+    }
+
     break;
   }
 
@@ -1323,18 +1341,13 @@ data::datax::recover_write(fuse_req_t req)
   // check if we have a problem with the open
   XrdCl::XRootDStatus status = proxy->WaitOpen();
 
-  if (status.errNo == kXR_NoSpace) {
-    eos_crit("recover write-open-nospace queue=%d", proxy->WriteQueue().size());
+  if (status.IsFatal()) {
+    // error useless to retry
     proxy->WriteQueue().clear();
     proxy->ChunkMap().clear();
-    return ENOSPC;
-  }
-
-  if (status.errNo == kXR_overQuota) {
-    eos_crit("recover write-open-noquota queue=%d", proxy->WriteQueue().size());
-    proxy->WriteQueue().clear();
-    proxy->ChunkMap().clear();
-    return EDQUOT;
+    eos_crit("recover write-open-fatal queue=%d errno=%d",
+             proxy->WriteQueue().size(), XrdCl::Proxy::status2errno(status));
+    return XrdCl::Proxy::status2errno(status);
   }
 
   // try to open this file for reading
