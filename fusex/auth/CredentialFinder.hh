@@ -313,13 +313,4 @@ private:
   std::vector<std::string> contents;
 };
 
-class CredentialFinder
-{
-public:
-  static std::string locateKerberosTicket(const Environment& env);
-  static std::string locateX509Proxy(const Environment& env);
-  static std::string locateSss(const Environment& env);
-  static std::string getSssEndorsement(const Environment& env);
-};
-
 #endif

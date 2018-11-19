@@ -62,30 +62,3 @@ std::vector<std::string> Environment::getAll() const
 {
   return contents;
 }
-
-std::string CredentialFinder::locateKerberosTicket(const Environment& env)
-{
-  std::string krb5ccname = env.get("KRB5CCNAME");
-  const std::string prefix = "FILE:";
-
-  if (startswith(krb5ccname, prefix)) {
-    krb5ccname = krb5ccname.substr(prefix.size());
-  }
-
-  return krb5ccname;
-}
-
-std::string CredentialFinder::locateX509Proxy(const Environment& env)
-{
-  return env.get("X509_USER_PROXY");
-}
-
-std::string CredentialFinder::locateSss(const Environment& env)
-{
-  return env.get("XrdSecSSSKT");
-}
-
-std::string CredentialFinder::getSssEndorsement(const Environment& env)
-{
-  return env.get("XrdSecsssENDORSEMENT");
-}

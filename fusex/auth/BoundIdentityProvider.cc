@@ -47,15 +47,20 @@ std::shared_ptr<const BoundIdentity>
 BoundIdentityProvider::krb5EnvToBoundIdentity(const JailInformation& jail,
   const Environment& env, uid_t uid, gid_t gid, bool reconnect)
 {
-  std::string path = CredentialFinder::locateKerberosTicket(env);
+  std::string path = env.get("KRB5CCNAME");
+  const std::string prefix = "FILE:";
 
-  if (path.empty()) {
+  if(path.empty() || !startswith(path, prefix)) {
     //--------------------------------------------------------------------------
-    // Early exit, no need to go through the trouble
-    // of userCredsToBoundIdentity.
+    // Explicitly disallow any credential type other than FILE: for now.
     //--------------------------------------------------------------------------
     return {};
   }
+
+  //----------------------------------------------------------------------------
+  // Drop FILE:
+  //----------------------------------------------------------------------------
+  path = path.substr(prefix.size());
 
   return userCredsToBoundIdentity(jail,
            UserCredentials::MakeKrb5(jail.id, path, uid, gid), reconnect);
@@ -69,7 +74,7 @@ std::shared_ptr<const BoundIdentity>
 BoundIdentityProvider::x509EnvToBoundIdentity(const JailInformation& jail,
   const Environment& env, uid_t uid, gid_t gid, bool reconnect)
 {
-  std::string path = CredentialFinder::locateX509Proxy(env);
+  std::string path = env.get("X509_USER_PROXY");
 
   if (path.empty()) {
     //--------------------------------------------------------------------------
@@ -91,7 +96,7 @@ std::shared_ptr<const BoundIdentity>
 BoundIdentityProvider::sssEnvToBoundIdentity(const JailInformation& jail,
   const Environment& env, uid_t uid, gid_t gid, bool reconnect)
 {
-  std::string endorsement = CredentialFinder::getSssEndorsement(env);
+  std::string endorsement = env.get("XrdSecsssENDORSEMENT");
   return userCredsToBoundIdentity(jail,
            UserCredentials::MakeSSS(endorsement, uid, gid), reconnect);
 }
