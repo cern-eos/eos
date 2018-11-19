@@ -151,7 +151,7 @@ public:
     return kInitOK;
   }
 
-  void ReNewBrokerXrdClientReceiver(int i);
+  void ReNewBrokerXrdClientReceiver(int i, ThreadAssistant* assistant = nullptr);
 
   void CheckBrokerXrdClientReceiver(int i);
 

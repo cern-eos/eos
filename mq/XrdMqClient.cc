@@ -417,7 +417,7 @@ XrdMqClient::RecvMessage(ThreadAssistant* assistant)
 
     while (!file->Stat(true, stinfo, timeout).IsOK()) {
       fprintf(stderr, "XrdMqClient::RecvMessage => Stat failed\n");
-      ReNewBrokerXrdClientReceiver(0);
+      ReNewBrokerXrdClientReceiver(0, assistant);
       file = GetBrokerXrdClientReceiver(0);
 
       if (assistant) {
@@ -517,7 +517,7 @@ XrdMqClient::GetBrokerXrdClientReceiver(int i)
 // ReNewBrokerXrdClientReceiver
 //------------------------------------------------------------------------------
 void
-XrdMqClient::ReNewBrokerXrdClientReceiver(int i)
+XrdMqClient::ReNewBrokerXrdClientReceiver(int i, ThreadAssistant* assistant)
 {
   auto old_file = kBrokerXrdClientReceiver.Find(GetBrokerId(i).c_str());
 
@@ -529,7 +529,7 @@ XrdMqClient::ReNewBrokerXrdClientReceiver(int i)
 
   kBrokerXrdClientReceiver.Del(GetBrokerId(i).c_str());
 
-  do {
+  while (true) {
     auto file = new XrdCl::File();
     XrdOucString rhostport;
     uint16_t timeout = (getenv("EOS_FST_OP_TIMEOUT") ?
@@ -546,7 +546,11 @@ XrdMqClient::ReNewBrokerXrdClientReceiver(int i)
       fprintf(stderr, "XrdMqClient::Reopening of new alias failed ...\n");
       std::this_thread::sleep_for(std::chrono::seconds(2));
     }
-  } while (true);
+
+    if (assistant && assistant->terminationRequested()) {
+      break;
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
