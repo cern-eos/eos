@@ -23,7 +23,7 @@
 
 #include "common/Mapping.hh"
 #include "common/FileId.hh"
-#include "common/FileFsPath.hh"
+#include "common/FsFilePath.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
 #include "common/SecEntity.hh"
@@ -1917,7 +1917,7 @@ XrdMgmOfsFile::open(const char* inpath,
 
     try {
       fmd->getCTime(ctime);
-      eos::common::FileFsPath::StorePhysicalPath(filesystem->GetId(), fmd, path);
+      eos::common::FsFilePath::StorePhysicalPath(filesystem->GetId(), fmd, path);
       gOFS->eosView->updateFileStore(fmd.get());
     } catch (eos::MDException& e) {
       errno = e.getErrno();
@@ -1934,10 +1934,10 @@ XrdMgmOfsFile::open(const char* inpath,
 
   // Retrieve logical path if present
   bool hasLogicalPath =
-      eos::common::FileFsPath::HasLogicalPath(filesystem->GetId(), fmd);
+      eos::common::FsFilePath::HasLogicalPath(filesystem->GetId(), fmd);
   if (hasLogicalPath) {
     XrdOucString lpath;
-    eos::common::FileFsPath::GetPhysicalPath(filesystem->GetId(),
+    eos::common::FsFilePath::GetPhysicalPath(filesystem->GetId(),
                                              fmd, lpath);
     capability += "&mgm.lpath=";
     capability += lpath.c_str();

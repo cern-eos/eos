@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: FileFsPath.hh
+// File: FsFilePath.hh
 // Author: Mihai Patrascoiu - CERN
 // ----------------------------------------------------------------------
 
@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSCOMMON_FILEFSPATH_HH__
-#define __EOSCOMMON_FILEFSPATH_HH__
+#ifndef __EOSCOMMON_FSFILEPATH_HH__
+#define __EOSCOMMON_FSFILEPATH_HH__
 
 /*----------------------------------------------------------------------------*/
 #include "common/FileId.hh"
@@ -40,12 +40,12 @@ EOSCOMMONNAMESPACE_BEGIN
 
 
 //------------------------------------------------------------------------------
-//! Class to handle a file's filesystem path.
+//! Class which handles file paths on a given filesystem.
 //! Provides conversion functions to a file's physical path on a filesystem
 //! based on file id or other metadata attributes.
 //------------------------------------------------------------------------------
 
-class FileFsPath
+class FsFilePath
 {
 public:
 

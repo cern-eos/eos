@@ -32,7 +32,7 @@
 #include "fst/http/HttpServer.hh"
 #include "common/PasswordHandler.hh"
 #include "common/FileId.hh"
-#include "common/FileFsPath.hh"
+#include "common/FsFilePath.hh"
 #include "common/FileSystem.hh"
 #include "common/Path.hh"
 #include "common/Statfs.hh"
@@ -1268,7 +1268,7 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
     }
 
     if (logicalpath) {
-      eos::common::FileFsPath::BuildPhysicalPath(localprefix, logicalpath,
+      eos::common::FsFilePath::BuildPhysicalPath(localprefix, logicalpath,
                                                  fstPath);
     } else {
       eos::common::FileId::FidPrefix2FullPath(hexfid, localprefix, fstPath);

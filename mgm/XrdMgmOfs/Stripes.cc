@@ -300,7 +300,7 @@ XrdMgmOfs::_verifystripe(const char* path,
     lid = fmd->getLayoutId();
     cid = fmd->getContainerId();
     if (fmd->hasAttribute("sys.eos.lpath")) {
-      eos::common::FileFsPath::GetPhysicalPath(fsid, fmd, lpath);
+      eos::common::FsFilePath::GetPhysicalPath(fsid, fmd, lpath);
     }
   } catch (eos::MDException& e) {
     fmd.reset();
@@ -449,7 +449,7 @@ XrdMgmOfs::_dropstripe(const char* path,
       }
 
       fmd->removeLocation(fsid);
-      eos::common::FileFsPath::RemovePhysicalPath(fsid, fmd);
+      eos::common::FsFilePath::RemovePhysicalPath(fsid, fmd);
       gOFS->eosView->updateFileStore(fmd.get());
       eos_debug("removing/unlinking location %u", fsid);
     }
@@ -560,7 +560,7 @@ XrdMgmOfs::_dropallstripes(const char* path,
         }
 
         fmd->removeLocation(location);
-        eos::common::FileFsPath::RemovePhysicalPath(location, fmd);
+        eos::common::FsFilePath::RemovePhysicalPath(location, fmd);
         eos_debug("removing/unlinking location %u", location);
       }
     }
@@ -833,7 +833,7 @@ XrdMgmOfs::_replicatestripe(const std::shared_ptr<eos::IFileMD>& fmd,
   bool source_uselpath = fmd->hasAttribute("sys.eos.lpath");
 
   if (source_uselpath) {
-    eos::common::FileFsPath::GetPhysicalPath(source_snapshot.mId, fmd,
+    eos::common::FsFilePath::GetPhysicalPath(source_snapshot.mId, fmd,
                                              source_lpath);
   }
 
@@ -844,7 +844,7 @@ XrdMgmOfs::_replicatestripe(const std::shared_ptr<eos::IFileMD>& fmd,
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     std::shared_ptr<eos::IFileMD> fmdPtr(fmd);
 
-    eos::common::FileFsPath::StorePhysicalPath(target_snapshot.mId, fmdPtr,
+    eos::common::FsFilePath::StorePhysicalPath(target_snapshot.mId, fmdPtr,
                                                path);
     gOFS->eosView->updateFileStore(fmd.get());
   }

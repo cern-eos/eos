@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: FileFsPathTests.cc
+// File: FsFilePathTests.cc
 // Author: Mihai Patrascoiu <mihai.patrascoiu@cern.ch>
 //------------------------------------------------------------------------------
 
@@ -23,7 +23,7 @@
 
 #include "gtest/gtest.h"
 #include "Namespace.hh"
-#include "common/FileFsPath.hh"
+#include "common/FsFilePath.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_in_memory/FileMD.hh"
 
@@ -34,7 +34,7 @@ using namespace eos::common;
 //------------------------------------------------------------------------------
 // Test input validation
 //------------------------------------------------------------------------------
-TEST(FileFsPath, InputValidation)
+TEST(FsFilePath, InputValidation)
 {
   std::shared_ptr<eos::IFileMDSvc> fileSvc = 0;
   std::shared_ptr<eos::IFileMD> emptyFmd = 0,
@@ -43,23 +43,23 @@ TEST(FileFsPath, InputValidation)
   int rc;
 
   // Empty file metadata
-  rc = FileFsPath::GetPhysicalPath(1, emptyFmd, path);
+  rc = FsFilePath::GetPhysicalPath(1, emptyFmd, path);
   ASSERT_STREQ(path.c_str(), "");
   ASSERT_EQ(rc, -1);
 
   // No extended attribute present
   FileId::FidPrefix2FullPath(FileId::Fid2Hex(1).c_str(), "/prefix/", fidPath);
   fidPath.erasefromstart(8);
-  FileFsPath::GetPhysicalPath(1, fmd, path);
+  FsFilePath::GetPhysicalPath(1, fmd, path);
   ASSERT_STREQ(path.c_str(), fidPath.c_str());
 
   // Empty local prefix
-  rc = FileFsPath::GetFullPhysicalPath(1, fmd, 0, path);
+  rc = FsFilePath::GetFullPhysicalPath(1, fmd, 0, path);
   ASSERT_STREQ(path.c_str(), "");
   ASSERT_EQ(rc, -1);
 
   // Empty file metadata
-  rc = FileFsPath::GetFullPhysicalPath(1, emptyFmd, "/prefix/", path);
+  rc = FsFilePath::GetFullPhysicalPath(1, emptyFmd, "/prefix/", path);
   ASSERT_STREQ(path.c_str(), "");
   ASSERT_EQ(rc, -1);
 }
@@ -67,7 +67,7 @@ TEST(FileFsPath, InputValidation)
 //------------------------------------------------------------------------------
 // Test logical path storage and retrieval
 //------------------------------------------------------------------------------
-TEST(FileFsPath, LogicalPath)
+TEST(FsFilePath, LogicalPath)
 {
   std::shared_ptr<eos::IFileMDSvc> fileSvc = 0;
   std::shared_ptr<eos::IFileMD> fmd =
@@ -75,49 +75,49 @@ TEST(FileFsPath, LogicalPath)
   XrdOucString path, fidPath;
 
   // No logical path
-  ASSERT_FALSE(FileFsPath::HasLogicalPath(1, fmd));
+  ASSERT_FALSE(FsFilePath::HasLogicalPath(1, fmd));
 
   // Single logical path
-  FileFsPath::StorePhysicalPath(1, fmd, "path1");
-  FileFsPath::GetPhysicalPath(1, fmd, path);
-  ASSERT_TRUE(FileFsPath::HasLogicalPath(1, fmd));
+  FsFilePath::StorePhysicalPath(1, fmd, "path1");
+  FsFilePath::GetPhysicalPath(1, fmd, path);
+  ASSERT_TRUE(FsFilePath::HasLogicalPath(1, fmd));
   ASSERT_STREQ(path.c_str(), "path1");
 
   // Overwrite logical path
-  FileFsPath::StorePhysicalPath(1, fmd, "path2");
-  FileFsPath::GetPhysicalPath(1, fmd, path);
+  FsFilePath::StorePhysicalPath(1, fmd, "path2");
+  FsFilePath::GetPhysicalPath(1, fmd, path);
   ASSERT_STREQ(path.c_str(), "path2");
 
   // Retrieve physical path from fid
   FileId::FidPrefix2FullPath(FileId::Fid2Hex(1).c_str(), "/prefix/", fidPath);
   fidPath.erasefromstart(8);
-  FileFsPath::GetPhysicalPath(2, fmd, path);
+  FsFilePath::GetPhysicalPath(2, fmd, path);
   ASSERT_STREQ(path.c_str(), fidPath.c_str());
 
   // Multiple logical paths
-  FileFsPath::StorePhysicalPath(1, fmd, "path1");
-  FileFsPath::StorePhysicalPath(2, fmd, "path2");
-  FileFsPath::StorePhysicalPath(3, fmd, "path3");
-  FileFsPath::StorePhysicalPath(3, fmd, "path3");
-  ASSERT_TRUE(FileFsPath::HasLogicalPath(1, fmd) &&
-              FileFsPath::HasLogicalPath(2, fmd) &&
-              FileFsPath::HasLogicalPath(3, fmd));
-  FileFsPath::GetPhysicalPath(1, fmd, path);
+  FsFilePath::StorePhysicalPath(1, fmd, "path1");
+  FsFilePath::StorePhysicalPath(2, fmd, "path2");
+  FsFilePath::StorePhysicalPath(3, fmd, "path3");
+  FsFilePath::StorePhysicalPath(3, fmd, "path3");
+  ASSERT_TRUE(FsFilePath::HasLogicalPath(1, fmd) &&
+              FsFilePath::HasLogicalPath(2, fmd) &&
+              FsFilePath::HasLogicalPath(3, fmd));
+  FsFilePath::GetPhysicalPath(1, fmd, path);
   ASSERT_STREQ(path.c_str(), "path1");
-  FileFsPath::GetPhysicalPath(2, fmd, path);
+  FsFilePath::GetPhysicalPath(2, fmd, path);
   ASSERT_STREQ(path.c_str(), "path2");
-  FileFsPath::GetPhysicalPath(3, fmd, path);
+  FsFilePath::GetPhysicalPath(3, fmd, path);
   ASSERT_STREQ(path.c_str(), "path3");
 
   // Retrieve full path
-  FileFsPath::GetFullPhysicalPath(1, fmd, "/prefix/", path);
+  FsFilePath::GetFullPhysicalPath(1, fmd, "/prefix/", path);
   ASSERT_STREQ(path.c_str(), "/prefix/path1");
 }
 
 //------------------------------------------------------------------------------
 // Test logical path removal
 //------------------------------------------------------------------------------
-TEST(FileFsPath, LogicalPathRemoval)
+TEST(FsFilePath, LogicalPathRemoval)
 {
   std::shared_ptr<eos::IFileMDSvc> fileSvc = 0;
   std::shared_ptr<eos::IFileMD> fmd =
@@ -129,56 +129,56 @@ TEST(FileFsPath, LogicalPathRemoval)
   fidPath.erasefromstart(8);
 
   // Store single logical path
-  FileFsPath::StorePhysicalPath(1, fmd, "path1");
-  ASSERT_TRUE(FileFsPath::HasLogicalPath(1, fmd));
-  FileFsPath::GetPhysicalPath(1, fmd, path);
+  FsFilePath::StorePhysicalPath(1, fmd, "path1");
+  ASSERT_TRUE(FsFilePath::HasLogicalPath(1, fmd));
+  FsFilePath::GetPhysicalPath(1, fmd, path);
   ASSERT_STREQ(path.c_str(), "path1");
 
   // Remove single logical path
-  FileFsPath::RemovePhysicalPath(1, fmd);
-  ASSERT_FALSE(FileFsPath::HasLogicalPath(1, fmd));
-  FileFsPath::GetPhysicalPath(1, fmd, path);
+  FsFilePath::RemovePhysicalPath(1, fmd);
+  ASSERT_FALSE(FsFilePath::HasLogicalPath(1, fmd));
+  FsFilePath::GetPhysicalPath(1, fmd, path);
   ASSERT_STREQ(path.c_str(), fidPath.c_str());
   ASSERT_FALSE(fmd->hasAttribute("sys.eos.lpath"));
 
   // Attempt removal on empty logical path mapping
-  FileFsPath::RemovePhysicalPath(1, fmd);
-  FileFsPath::GetPhysicalPath(1, fmd, path);
+  FsFilePath::RemovePhysicalPath(1, fmd);
+  FsFilePath::GetPhysicalPath(1, fmd, path);
   ASSERT_STREQ(path.c_str(), fidPath.c_str());
   ASSERT_FALSE(fmd->hasAttribute("sys.eos.lpath"));
 
   // Attempt removal of nonexistent logical path
-  FileFsPath::StorePhysicalPath(1, fmd, "path1");
-  FileFsPath::RemovePhysicalPath(2, fmd);
-  FileFsPath::GetPhysicalPath(2, fmd, path);
+  FsFilePath::StorePhysicalPath(1, fmd, "path1");
+  FsFilePath::RemovePhysicalPath(2, fmd);
+  FsFilePath::GetPhysicalPath(2, fmd, path);
   ASSERT_STREQ(path.c_str(), fidPath.c_str());
   ASSERT_TRUE(fmd->hasAttribute("sys.eos.lpath"));
-  ASSERT_FALSE(FileFsPath::HasLogicalPath(2, fmd));
+  ASSERT_FALSE(FsFilePath::HasLogicalPath(2, fmd));
 
   // Store multiple logical paths
-  FileFsPath::StorePhysicalPath(1, fmd, "path1");
-  FileFsPath::StorePhysicalPath(2, fmd, "path2");
-  FileFsPath::StorePhysicalPath(3, fmd, "path3");
+  FsFilePath::StorePhysicalPath(1, fmd, "path1");
+  FsFilePath::StorePhysicalPath(2, fmd, "path2");
+  FsFilePath::StorePhysicalPath(3, fmd, "path3");
 
   // Remove logical paths one by one
-  FileFsPath::GetPhysicalPath(2, fmd, path);
+  FsFilePath::GetPhysicalPath(2, fmd, path);
   ASSERT_STREQ(path.c_str(), "path2");
-  FileFsPath::RemovePhysicalPath(2, fmd);
-  FileFsPath::GetPhysicalPath(2, fmd, path);
+  FsFilePath::RemovePhysicalPath(2, fmd);
+  FsFilePath::GetPhysicalPath(2, fmd, path);
   ASSERT_STREQ(path.c_str(), fidPath.c_str());
   ASSERT_TRUE(fmd->hasAttribute("sys.eos.lpath"));
 
-  FileFsPath::GetPhysicalPath(3, fmd, path);
+  FsFilePath::GetPhysicalPath(3, fmd, path);
   ASSERT_STREQ(path.c_str(), "path3");
-  FileFsPath::RemovePhysicalPath(3, fmd);
-  FileFsPath::GetPhysicalPath(3, fmd, path);
+  FsFilePath::RemovePhysicalPath(3, fmd);
+  FsFilePath::GetPhysicalPath(3, fmd, path);
   ASSERT_STREQ(path.c_str(), fidPath.c_str());
   ASSERT_TRUE(fmd->hasAttribute("sys.eos.lpath"));
 
-  FileFsPath::GetPhysicalPath(1, fmd, path);
+  FsFilePath::GetPhysicalPath(1, fmd, path);
   ASSERT_STREQ(path.c_str(), "path1");
-  FileFsPath::RemovePhysicalPath(1, fmd);
-  FileFsPath::GetPhysicalPath(1, fmd, path);
+  FsFilePath::RemovePhysicalPath(1, fmd);
+  FsFilePath::GetPhysicalPath(1, fmd, path);
   ASSERT_STREQ(path.c_str(), fidPath.c_str());
   ASSERT_FALSE(fmd->hasAttribute("sys.eos.lpath"));
 }
@@ -186,7 +186,7 @@ TEST(FileFsPath, LogicalPathRemoval)
 //------------------------------------------------------------------------------
 // Test path-from-fid generation
 //------------------------------------------------------------------------------
-TEST(FileFsPath, PathFromFid)
+TEST(FsFilePath, PathFromFid)
 {
   std::shared_ptr<eos::IFileMDSvc> fileSvc = 0;
   std::shared_ptr<eos::IFileMD> fmd =
@@ -196,33 +196,33 @@ TEST(FileFsPath, PathFromFid)
   // Path from fid
   FileId::FidPrefix2FullPath(FileId::Fid2Hex(1).c_str(), "/prefix/", expected);
   expected.erasefromstart(8);
-  FileFsPath::GetPhysicalPath(1, fmd, path);
+  FsFilePath::GetPhysicalPath(1, fmd, path);
   ASSERT_STREQ(path.c_str(), expected.c_str());
 
   // Full path from fid
   FileId::FidPrefix2FullPath(FileId::Fid2Hex(1).c_str(), "/prefix/", expected);
-  FileFsPath::GetFullPhysicalPath(1, fmd, "/prefix/", path);
+  FsFilePath::GetFullPhysicalPath(1, fmd, "/prefix/", path);
   ASSERT_STREQ(path.c_str(), expected.c_str());
 }
 
 //------------------------------------------------------------------------------
 // Test building of physical path
 //------------------------------------------------------------------------------
-TEST(FileFsPath, BuildPath)
+TEST(FsFilePath, BuildPath)
 {
   XrdOucString path = "initial";
   XrdOucString expected = "/prefix/sufix";
 
-  FileFsPath::BuildPhysicalPath("/prefix", "sufix", path);
+  FsFilePath::BuildPhysicalPath("/prefix", "sufix", path);
   ASSERT_STREQ(path.c_str(), expected.c_str());
 
-  FileFsPath::BuildPhysicalPath("/prefix/", "sufix", path);
+  FsFilePath::BuildPhysicalPath("/prefix/", "sufix", path);
   ASSERT_STREQ(path.c_str(), expected.c_str());
 
-  FileFsPath::BuildPhysicalPath("/prefix", "/sufix", path);
+  FsFilePath::BuildPhysicalPath("/prefix", "/sufix", path);
   ASSERT_STREQ(path.c_str(), expected.c_str());
 
-  FileFsPath::BuildPhysicalPath("/prefix/", "/sufix", path);
+  FsFilePath::BuildPhysicalPath("/prefix/", "/sufix", path);
   ASSERT_STREQ(path.c_str(), expected.c_str());
 }
 

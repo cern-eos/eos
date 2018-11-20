@@ -31,7 +31,7 @@
 #include "mgm/TableFormatter/TableCell.hh"
 #include "common/Path.hh"
 #include "common/LayoutId.hh"
-#include "common/FileFsPath.hh"
+#include "common/FsFilePath.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/Prefetcher.hh"
@@ -494,7 +494,7 @@ ProcCommand::FileInfo(const char* path)
               XrdOucString fullpath;
 
               if ((option.find("-fullpath")) != STR_NPOS) {
-                eos::common::FileFsPath::GetFullPhysicalPath(filesystem->GetId(),
+                eos::common::FsFilePath::GetFullPhysicalPath(filesystem->GetId(),
                     fmd_copy, filesystem->GetPath().c_str(), fullpath);
               }
 
