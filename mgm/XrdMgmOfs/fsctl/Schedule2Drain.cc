@@ -84,7 +84,7 @@ namespace {
   XrdOucString constructSourceCapability(unsigned long lid, unsigned long long cid,
                                         const char* path, unsigned long long fid,
                                         int drain_fsid, const char* localprefix,
-                                        int fsid,const char* hostport) {
+                                        int fsid, const char* hostport) {
     XrdOucString capability = "mgm.access=read";
 
     capability += constructCapability(lid, cid, path, fid,

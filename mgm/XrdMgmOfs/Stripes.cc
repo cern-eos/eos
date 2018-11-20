@@ -27,6 +27,202 @@
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
+//----------------------------------------------------------------------------
+// Utility functions to help with capability string generation
+//----------------------------------------------------------------------------
+namespace {
+  // Build general transfer capability string
+  XrdOucString constructCapability(unsigned long lid, unsigned long long cid,
+                                   const char* path, unsigned long long fid,
+                                   const char* localprefix, int fsid,
+                                   bool dropsource, int drain_fsid,
+                                   bool uselpath, const char* lpath) {
+    XrdOucString capability = "";
+    XrdOucString safepath = path;
+    while (safepath.replace("&", "#AND#")) {}
+
+    capability += "&mgm.lid=";
+    capability += std::to_string(lid).c_str();
+    capability += "&mgm.cid=";
+    capability += std::to_string(cid).c_str();
+    capability += "&mgm.ruid=1";
+    capability += "&mgm.rgid=1";
+    capability += "&mgm.uid=1";
+    capability += "&mgm.gid=1";
+    capability += "&mgm.path=";
+    capability += safepath.c_str();
+    capability += "&mgm.manager=";
+    capability += gOFS->ManagerId.c_str();
+    capability += "&mgm.fid=";
+    capability += eos::common::FileId::Fid2Hex(fid).c_str();
+    capability += "&mgm.sec=";
+    capability += eos::common::SecEntity::ToKey(0, "eos/replication").c_str();
+    capability += "&mgm.localprefix=";
+    capability += localprefix;
+    capability += "&mgm.fsid=";
+    capability += fsid;
+
+    if (dropsource) {
+      capability += "&mgm.drainfsid=";
+      capability += drain_fsid;
+    }
+
+    if (uselpath) {
+      capability += "&mgm.lpath=";
+      capability += lpath;
+    }
+
+    return capability;
+  }
+
+  // Build source specific capability string
+  XrdOucString constructSourceCapability(unsigned long lid, unsigned long long cid,
+                                         const char* path, unsigned long long fid,
+                                         const char* localprefix, int fsid,
+                                         const char* hostport, bool dropsource,
+                                         int drain_fsid, bool uselpath,
+                                         const char* lpath) {
+   XrdOucString capability = "mgm.access=read";
+
+   capability += constructCapability(lid, cid, path, fid, localprefix, fsid,
+                                     dropsource, drain_fsid, uselpath, lpath);
+   capability += "&mgm.sourcehostport=";
+   capability += hostport;
+
+    return capability;
+  }
+
+  // Build target specific capability string
+  XrdOucString constructTargetCapability(unsigned long lid, unsigned long long cid,
+                                         const char* path, unsigned long long fid,
+                                         const char* localprefix, int fsid,
+                                         const char* hostport, bool dropsource,
+                                         int drain_fsid, bool uselpath,
+                                         const char* lpath,
+                                         unsigned long long size,
+                                         unsigned long source_lid,
+                                         uid_t source_uid,
+                                         gid_t source_gid) {
+    XrdOucString capability = "mgm.access=write";
+
+    capability += constructCapability(lid, cid, path, fid, localprefix, fsid,
+                                      dropsource, drain_fsid, uselpath, lpath);
+    capability += "&mgm.targethostport=";
+    capability += hostport;
+    capability += "&mgm.bookingsize=";
+    capability += std::to_string(size).c_str();
+    capability += "&mgm.source.lid=";
+    capability += std::to_string(source_lid).c_str();
+    capability += "&mgm.source.ruid=";
+    capability += std::to_string(source_uid).c_str();
+    capability += "&mgm.source.rgid=";
+    capability += std::to_string(source_gid).c_str();
+
+    return capability;
+  }
+
+  int issueFullCapability(XrdOucString source_cap, XrdOucString target_cap,
+                          unsigned long long capValidity,
+                          const char* source_hostport,
+                          const char* target_hostport,
+                          unsigned long long fid,
+                          XrdOucString& full_capability,
+                          XrdOucErrInfo& error) {
+    XrdOucEnv insourcecap_env(source_cap.c_str());
+    XrdOucEnv intargetcap_env(target_cap.c_str());
+    XrdOucEnv* sourcecap_env = 0;
+    XrdOucEnv* targetcap_env = 0;
+    eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
+
+    int rc = gCapabilityEngine.Create(&insourcecap_env, sourcecap_env,
+                                      symkey, capValidity);
+    if (rc) {
+      error.setErrInfo(rc, "source");
+      return rc;
+    }
+
+    rc = gCapabilityEngine.Create(&intargetcap_env, targetcap_env,
+                                  symkey, capValidity);
+    if (rc) {
+      error.setErrInfo(rc, "target");
+      return rc;
+    }
+
+    XrdOucString hexfid;
+    eos::common::FileId::Fid2Hex(fid, hexfid);
+
+    int caplen = 0;
+    source_cap = sourcecap_env->Env(caplen);
+    target_cap = targetcap_env->Env(caplen);
+
+    source_cap.replace("cap.sym", "source.cap.sym");
+    source_cap.replace("cap.msg", "source.cap.msg");
+    source_cap += "&source.url=root://";
+    source_cap += source_hostport;
+    source_cap += "//replicate:";
+    source_cap += hexfid.c_str();
+
+    target_cap.replace("cap.sym", "target.cap.sym");
+    target_cap.replace("cap.msg", "target.cap.msg");
+    target_cap += "&target.url=root://";
+    target_cap += target_hostport;
+    target_cap += "//replicate:";
+    target_cap += hexfid.c_str();
+
+    full_capability = source_cap;
+    full_capability += target_cap;
+
+    if (sourcecap_env) { delete sourcecap_env; }
+    if (targetcap_env) { delete targetcap_env; }
+
+    return 0;
+  }
+
+  // Build Verify capability string
+  XrdOucString constructVerifyCapability(unsigned long lid, unsigned long long cid,
+                                         const char* path, unsigned long long fid,
+                                         const char* localprefix, int fsid,
+                                         bool has_usertag, const char* usertag,
+                                         bool has_lpath, const char* lpath,
+                                         XrdOucString option) {
+    XrdOucString capability = "";
+    XrdOucString safepath = path;
+    while (safepath.replace("&", "#AND#")) {}
+
+    capability += "&mgm.access=verify";
+    capability += "&mgm.lid=";
+    capability += std::to_string(lid).c_str();
+    capability += "&mgm.cid=";
+    capability += std::to_string(cid).c_str();
+    capability += "&mgm.path=";
+    capability += safepath.c_str();
+    capability += "&mgm.manager=";
+    capability += gOFS->ManagerId.c_str();
+    capability += "&mgm.fid=";
+    capability += eos::common::FileId::Fid2Hex(fid).c_str();
+    capability += "&mgm.localprefix=";
+    capability += localprefix;
+    capability += "&mgm.fsid=";
+    capability += fsid;
+
+    if (has_usertag) {
+      capability += "&mgm.container=";
+      capability += usertag;
+    }
+
+    if (has_lpath) {
+      capability += "&mgm.lpath=";
+      capability += lpath;
+    }
+
+    if (option.length()) {
+      capability += option;
+    }
+
+    return capability;
+  }
+}
+
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_verifystripe(const char* path,
@@ -57,10 +253,11 @@ XrdMgmOfs::_verifystripe(const char* path,
   errno = 0;
   unsigned long long fid = 0;
   unsigned long long cid = 0;
-  int lid = 0;
+  unsigned long lid = 0;
   eos::IContainerMD::XAttrMap attrmap;
   gOFS->MgmStats.Add("VerifyStripe", vid.uid, vid.gid, 1);
-  eos_debug("verify");
+  eos_debug("verify for path=%s fsid=%lu", path, fsid);
+
   eos::common::Path cPath(path);
   XrdOucString lpath;
   std::string attr_path;
@@ -113,7 +310,7 @@ XrdMgmOfs::_verifystripe(const char* path,
   }
 
   if (!errno) {
-    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
     eos::mgm::FileSystem* verifyfilesystem = 0;
 
     if (FsView::gFsView.mIdView.count(fsid)) {
@@ -127,50 +324,26 @@ XrdMgmOfs::_verifystripe(const char* path,
                   fmd->getName().c_str());
     }
 
+    // Prepare user tag data
+    const char* usertag = 0;
+    bool has_usertag = attrmap.count("user.tag");
+    if (has_usertag) {
+      usertag = attrmap["user.tag"].c_str();
+    }
+
+    // Build capability string
+    XrdOucString capability =
+        constructVerifyCapability(lid, cid, path, fid,
+                                  verifyfilesystem->GetPath().c_str(),
+                                  verifyfilesystem->GetId(),
+                                  has_usertag, usertag,
+                                  (lpath.length() != 0), lpath.c_str(),
+                                  option);
+
     XrdOucString receiver = verifyfilesystem->GetQueue().c_str();
-    XrdOucString opaquestring = "";
-    // build the opaquestring contents
-    opaquestring += "&mgm.localprefix=";
-    opaquestring += verifyfilesystem->GetPath().c_str();
-    opaquestring += "&mgm.fid=";
-    XrdOucString hexfid;
-    eos::common::FileId::Fid2Hex(fid, hexfid);
-    opaquestring += hexfid;
-    opaquestring += "&mgm.manager=";
-    opaquestring += gOFS->ManagerId.c_str();
-    opaquestring += "&mgm.access=verify";
-    opaquestring += "&mgm.fsid=";
-    opaquestring += (int) verifyfilesystem->GetId();
-
-    if (attrmap.count("user.tag")) {
-      opaquestring += "&mgm.container=";
-      opaquestring += attrmap["user.tag"].c_str();
-    }
-
-    if (lpath.length()) {
-      opaquestring += "&mgm.lpath=";
-      opaquestring += lpath.c_str();
-    }
-
-    XrdOucString sizestring = "";
-    opaquestring += "&mgm.cid=";
-    opaquestring += eos::common::StringConversion::GetSizeString(sizestring, cid);
-    opaquestring += "&mgm.path=";
-    XrdOucString safepath = path;
-
-    while (safepath.replace("&", "#AND#")) {}
-
-    opaquestring += safepath;
-    opaquestring += "&mgm.lid=";
-    opaquestring += lid;
-
-    if (option.length()) {
-      opaquestring += option;
-    }
-
-    XrdMqMessage message("verifycation");
+    XrdMqMessage message("verification");
     XrdOucString msgbody = "mgm.cmd=verify";
-    msgbody += opaquestring;
+    msgbody += capability;
     message.SetBody(msgbody.c_str());
 
     if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
@@ -649,192 +822,78 @@ XrdMgmOfs::_replicatestripe(const std::shared_ptr<eos::IFileMD> &fmd,
                 fmd->getName().c_str());
   }
 
-  // snapshot the filesystems
+  // Snapshot the filesystems
   eos::common::FileSystem::fs_snapshot source_snapshot;
   eos::common::FileSystem::fs_snapshot target_snapshot;
   sourcefilesystem->SnapShotFileSystem(source_snapshot);
   targetfilesystem->SnapShotFileSystem(target_snapshot);
 
-  // build the source capability contents
-  XrdOucString source_capability = "";
-  XrdOucString sizestring;
-  source_capability += "mgm.access=read";
-  source_capability += "&mgm.lid=";
-  source_capability += std::to_string(src_lid).c_str();
-  // make's it a plain replica
-  source_capability += "&mgm.cid=";
-  source_capability += std::to_string(cid).c_str();
-  source_capability += "&mgm.ruid=";
-  source_capability += (int) 1;
-  source_capability += "&mgm.rgid=";
-  source_capability += (int) 1;
-  source_capability += "&mgm.uid=";
-  source_capability += (int) 1;
-  source_capability += "&mgm.gid=";
-  source_capability += (int) 1;
-  source_capability += "&mgm.path=";
-  XrdOucString safepath = path;
+  // Check if source filesystem uses logical path
+  XrdOucString source_lpath = "";
+  bool source_uselpath = fmd->hasAttribute("sys.eos.lpath");
 
-  while (safepath.replace("&", "#AND#")) {}
-
-  source_capability += safepath;
-  source_capability += "&mgm.manager=";
-  source_capability += gOFS->ManagerId.c_str();
-  source_capability += "&mgm.fid=";
-  XrdOucString hexfid;
-  eos::common::FileId::Fid2Hex(fid, hexfid);
-  source_capability += hexfid;
-  source_capability += "&mgm.sec=";
-  source_capability += eos::common::SecEntity::ToKey(0,
-                       "eos/replication").c_str();
-
-  // this is a move of a replica
-  if (dropsource) {
-    source_capability += "&mgm.drainfsid=";
-    source_capability += (int) source_snapshot.mId;
-  }
-
-  // build the source_capability contents
-  source_capability += "&mgm.localprefix=";
-  source_capability += source_snapshot.mPath.c_str();
-  source_capability += "&mgm.fsid=";
-  source_capability += (int) source_snapshot.mId;
-  source_capability += "&mgm.sourcehostport=";
-  source_capability += source_snapshot.mHostPort.c_str();
-  // check logical path attribute
-  if (fmd->hasAttribute("sys.eos.lpath")) {
-    XrdOucString lpath;
+  if (source_uselpath) {
     std::shared_ptr<eos::IFileMD> fmdPtr(fmd);
-    eos::common::FileFsPath::GetPhysicalPath(source_snapshot.mId, fmdPtr, lpath);
-
-    source_capability += "&mgm.lpath=";
-    source_capability += lpath.c_str();
+    eos::common::FileFsPath::GetPhysicalPath(source_snapshot.mId, fmdPtr,
+                                             source_lpath);
   }
 
-  // build the target capability contents
-  XrdOucString target_capability = "";
-  target_capability += "mgm.access=write";
-  target_capability += "&mgm.lid=";
-  target_capability += std::to_string(dst_lid).c_str();
-  // make's it a plain replica
-  target_capability += "&mgm.cid=";
-  target_capability += std::to_string(cid).c_str();
-  target_capability += "&mgm.ruid=";
-  target_capability += (int) 1;
-  target_capability += "&mgm.rgid=";
-  target_capability += (int) 1;
-  target_capability += "&mgm.uid=";
-  target_capability += (int) 1;
-  target_capability += "&mgm.gid=";
-  target_capability += (int) 1;
-  target_capability += "&mgm.path=";
-  target_capability += safepath;
-  target_capability += "&mgm.manager=";
-  target_capability += gOFS->ManagerId.c_str();
-  target_capability += "&mgm.fid=";
-  target_capability += hexfid;
-  target_capability += "&mgm.sec=";
-  target_capability += eos::common::SecEntity::ToKey(0,
-                       "eos/replication").c_str();
-  target_capability += "&mgm.source.lid=";
-  target_capability += eos::common::StringConversion::GetSizeString(sizestring,
-                       (unsigned long long) lid);
-  target_capability += "&mgm.source.ruid=";
-  target_capability += eos::common::StringConversion::GetSizeString(sizestring,
-                       (unsigned long long) uid);
-  target_capability += "&mgm.source.rgid=";
-  target_capability += eos::common::StringConversion::GetSizeString(sizestring,
-                       (unsigned long long) gid);
-  // this is a move of a replica
-  if (dropsource) {
-    target_capability += "&mgm.drainfsid=";
-    target_capability += (int) source_snapshot.mId;
-  }
-  target_capability += "&mgm.localprefix=";
-  target_capability += target_snapshot.mPath.c_str();
-  target_capability += "&mgm.fsid=";
-  target_capability += (int) target_snapshot.mId;
-  target_capability += "&mgm.targethostport=";
-  target_capability += target_snapshot.mHostPort.c_str();
-  target_capability += "&mgm.bookingsize=";
-  target_capability += eos::common::StringConversion::GetSizeString(sizestring,
-                       size);
-  // check if target filesystem uses logical path setting
-  if (target_snapshot.mLogicalPath == "1") {
+  // Check if target filesystem uses logical path setting
+  bool target_uselpath = (target_snapshot.mLogicalPath == "1");
+
+  if (target_uselpath) {
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     eos::common::FileFsPath::StorePhysicalPath(target_snapshot.mId, fmd, path);
     gOFS->eosView->updateFileStore(fmd.get());
-
-    target_capability += "&mgm.lpath=";
-    target_capability += path;
   }
 
-  // issue transfer capability environments
-  XrdOucEnv insource_capability(source_capability.c_str());
-  XrdOucEnv intarget_capability(target_capability.c_str());
-  XrdOucEnv* source_capabilityenv = 0;
-  XrdOucEnv* target_capabilityenv = 0;
-  XrdOucString fullcapability = "";
-  eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
-  int caprc = 0;
+  // Construct capability strings
+  XrdOucString source_capability =
+      constructSourceCapability(src_lid, cid, path, fid,
+                                source_snapshot.mPath.c_str(),
+                                source_snapshot.mId,
+                                source_snapshot.mHostPort.c_str(),
+                                dropsource, source_snapshot.mId,
+                                source_uselpath, source_lpath.c_str());
 
-  if ((caprc = gCapabilityEngine.Create(&insource_capability,
-                                        source_capabilityenv,
-                                        symkey, mCapabilityValidity)) ||
-      (caprc = gCapabilityEngine.Create(&intarget_capability, target_capabilityenv,
-                                        symkey, mCapabilityValidity))) {
-    eos_err("unable to create source/target capability - errno=%u", caprc);
-    errno = caprc;
+  XrdOucString target_capability =
+      constructTargetCapability(dst_lid, cid, path, fid,
+                                target_snapshot.mPath.c_str(),
+                                target_snapshot.mId,
+                                target_snapshot.mHostPort.c_str(),
+                                dropsource, source_snapshot.mId,
+                                target_uselpath, path, size, lid, uid, gid);
+
+  // Issue full capability string
+  XrdOucErrInfo capError;
+  XrdOucString full_capability = "";
+  int rc = issueFullCapability(source_capability, target_capability,
+                               mCapabilityValidity,
+                               source_snapshot.mHostPort.c_str(),
+                               target_snapshot.mHostPort.c_str(),
+                               fid, full_capability, capError);
+
+  if (rc) {
+    std::ostringstream errstream;
+    errstream << "create " << capError.getErrText() << " capability [EADV]";
+
+    eos_err("unable to create %s capability - ec=%d",
+            capError.getErrText(), capError.getErrInfo());
+    return Emsg(epname, error, rc, errstream.str().c_str());
+  }
+
+  // Schedule file transfer
+  std::unique_ptr<eos::common::TransferJob>
+      txjob(new eos::common::TransferJob(full_capability.c_str()));
+
+  if (targetfilesystem->GetExternQueue()->Add(txjob.get())) {
+    eos_info("info=\"submitted transfer job\" fxid=%llx job=%s",
+             fid, full_capability.c_str());
   } else {
-    errno = 0;
-    int caplen = 0;
-    XrdOucString source_cap = source_capabilityenv->Env(caplen);
-    XrdOucString target_cap = target_capabilityenv->Env(caplen);
-    source_cap.replace("cap.sym", "source.cap.sym");
-    target_cap.replace("cap.sym", "target.cap.sym");
-    source_cap.replace("cap.msg", "source.cap.msg");
-    target_cap.replace("cap.msg", "target.cap.msg");
-    source_cap += "&source.url=root://";
-    source_cap += source_snapshot.mHostPort.c_str();
-    source_cap += "//replicate:";
-    source_cap += hexfid;
-    target_cap += "&target.url=root://";
-    target_cap += target_snapshot.mHostPort.c_str();
-    target_cap += "//replicate:";
-    target_cap += hexfid;
-    fullcapability += source_cap;
-    fullcapability += target_cap;
-    eos::common::TransferJob* txjob = new eos::common::TransferJob(
-      fullcapability.c_str());
-
-    if (!txjob) {
-      eos_err("Couldn't create transfer job to replicate stripe of %s", path);
-      errno = ENOMEM;
-    } else {
-      bool sub = targetfilesystem->GetExternQueue()->Add(txjob);
-      eos_info("info=\"submitted transfer job\" subretc=%d fxid=%s fid=%llu cap=%s\n",
-               sub, hexfid.c_str(), fid, fullcapability.c_str());
-
-      if (!sub) {
-        errno = ENXIO;
-      } else {
-        errno = 0;
-      }
-
-      delete txjob;
-    }
-  }
-
-  if (source_capabilityenv) {
-    delete source_capabilityenv;
-  }
-
-  if (target_capabilityenv) {
-    delete target_capabilityenv;
-  }
-
-  if (errno) {
-    return Emsg(epname, error, errno, "replicate stripe", fmd->getName().c_str());
+    eos_err("msg=\"failed to submit transfer job\" fxid=%llx job=%s",
+            fid, full_capability.c_str());
+    return Emsg(epname, error, ENXIO, "replicate stripe - failed to submit job",
+               fmd->getName().c_str());
   }
 
   return SFS_OK;
