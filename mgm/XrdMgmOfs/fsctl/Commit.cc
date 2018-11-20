@@ -263,9 +263,7 @@ XrdMgmOfs::Commit(const char* path,
         return Emsg(epname, error, errno, "commit filesize change", emsg.c_str());
       }
 
-      if (fmd) {
-        gOFS->mTapeAwareGc.fileReplicaCommitted(cgi["path"], *fmd);
-      }
+      gOFS->mTapeAwareGc.fileReplicaCommitted(cgi["path"], *fmd);
     }
 
     {
