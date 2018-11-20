@@ -32,6 +32,7 @@ add_library(
   EnvironmentReader.cc             EnvironmentReader.hh
                                    FileDescriptor.hh
   JailIdentifier.cc                JailIdentifier.hh
+  Logbook.cc                       Logbook.hh
   LoginIdentifier.cc               LoginIdentifier.hh
   ProcessCache.cc                  ProcessCache.hh
   ProcessInfo.cc                   ProcessInfo.hh

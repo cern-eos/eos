@@ -63,6 +63,7 @@ set(COMPILE_FLAGS_FOR_TEST_EXECUTABLES "${EOSXD_COMPILE_FLAGS} -fPIC")
 add_executable(eos-fusex-tests
   auth/credential-finder.cc
   auth/environment-reader.cc
+  auth/logbook.cc
   auth/login-identifier.cc
   auth/process-cache.cc
   auth/process-info.cc
