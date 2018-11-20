@@ -35,7 +35,7 @@ class ProcessCacheEntry
 public:
 
   ProcessCacheEntry(const ProcessInfo& pinfo, const JailInformation& jinfo,
-    std::shared_ptr<const BoundIdentity> boundid, uid_t userid, gid_t groupid)
+    std::shared_ptr<const BoundIdentity> boundid)
     : processInfo(pinfo), jailInfo(jinfo), boundIdentity(boundid) { }
 
   const ProcessInfo& getProcessInfo() const
