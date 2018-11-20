@@ -72,7 +72,7 @@ public:
   //! from the file's extended attributes metadata.
   //----------------------------------------------------------------------------
   static bool HasLogicalPath(unsigned long fsid,
-                             std::shared_ptr<eos::IFileMD> &fmd)
+                             const std::shared_ptr<eos::IFileMD>& fmd)
   {
     XrdOucString attributeString;
     bool hasLogicalPath = false;
@@ -101,7 +101,7 @@ public:
   //! from the file id.
   //----------------------------------------------------------------------------
   static int GetPhysicalPath(unsigned long fsid,
-                             std::shared_ptr<eos::IFileMD> &fmd,
+                             const std::shared_ptr<eos::IFileMD>& fmd,
                              XrdOucString& physicalPath)
   {
     if (!fmd) {
@@ -131,7 +131,7 @@ public:
   //! from file metadata together with a given local prefix.
   //----------------------------------------------------------------------------
   static int GetFullPhysicalPath(unsigned long fsid,
-                                 std::shared_ptr<eos::IFileMD> &fmd,
+                                 const std::shared_ptr<eos::IFileMD>& fmd,
                                  const char* localprefix,
                                  XrdOucString& fullPhysicalPath)
   {
@@ -159,7 +159,7 @@ public:
   //! in a thread-safe context.
   //----------------------------------------------------------------------------
   static void StorePhysicalPath(unsigned long fsid,
-                                const std::shared_ptr<eos::IFileMD> &fmd,
+                                std::shared_ptr<eos::IFileMD>& fmd,
                                 std::string physicalPath)
   {
     std::string attributeString = "";
@@ -182,7 +182,7 @@ public:
   //! in a thread-safe context.
   //----------------------------------------------------------------------------
   static void RemovePhysicalPath(unsigned long fsid,
-                                 const std::shared_ptr<eos::IFileMD> &fmd)
+                                 std::shared_ptr<eos::IFileMD>& fmd)
   {
     if (fmd->hasAttribute("sys.eos.lpath")) {
       std::string attributeString = fmd->getAttribute("sys.eos.lpath");
@@ -227,7 +227,7 @@ private:
       if (pos != STR_NPOS) {
         // Extract filesystem id
         stoken.keep(0, pos);
-        fsid = atol(stoken.c_str());
+        fsid = (unsigned long) atol(stoken.c_str());
 
         // Extract physical path
         physicalPath = token + pos + 1;
@@ -246,8 +246,8 @@ private:
   //----------------------------------------------------------------------------
   //! Convert a FilesystemId <-> PhysicalPath mapping into an attribute string
   //----------------------------------------------------------------------------
-  static std::string fsPathMapToAttributeString(
-      std::map<unsigned long, std::string> map)
+  static std::string
+  fsPathMapToAttributeString(std::map<unsigned long, std::string> map)
   {
     std::string attributeString = "";
 
@@ -264,7 +264,8 @@ private:
   //----------------------------------------------------------------------------
   //! Append FilesystemId <-> PhysicalPath pair to the attribute string
   //----------------------------------------------------------------------------
-  static void appendPair(unsigned long fsid, std::string& physicalPath,
+  static void appendPair(unsigned long fsid,
+                         std::string& physicalPath,
                          std::string& attributeString)
   {
     std::string pair = to_string(fsid);

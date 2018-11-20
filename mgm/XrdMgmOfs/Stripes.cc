@@ -740,7 +740,7 @@ XrdMgmOfs::_replicatestripe(const char* path,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_replicatestripe(const std::shared_ptr<eos::IFileMD> &fmd,
+XrdMgmOfs::_replicatestripe(const std::shared_ptr<eos::IFileMD>& fmd,
                             const char* path,
                             XrdOucErrInfo& error,
                             eos::common::Mapping::VirtualIdentity& vid,
@@ -833,8 +833,7 @@ XrdMgmOfs::_replicatestripe(const std::shared_ptr<eos::IFileMD> &fmd,
   bool source_uselpath = fmd->hasAttribute("sys.eos.lpath");
 
   if (source_uselpath) {
-    std::shared_ptr<eos::IFileMD> fmdPtr(fmd);
-    eos::common::FileFsPath::GetPhysicalPath(source_snapshot.mId, fmdPtr,
+    eos::common::FileFsPath::GetPhysicalPath(source_snapshot.mId, fmd,
                                              source_lpath);
   }
 
@@ -843,7 +842,10 @@ XrdMgmOfs::_replicatestripe(const std::shared_ptr<eos::IFileMD> &fmd,
 
   if (target_uselpath) {
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-    eos::common::FileFsPath::StorePhysicalPath(target_snapshot.mId, fmd, path);
+    std::shared_ptr<eos::IFileMD> fmdPtr(fmd);
+
+    eos::common::FileFsPath::StorePhysicalPath(target_snapshot.mId, fmdPtr,
+                                               path);
     gOFS->eosView->updateFileStore(fmd.get());
   }
 
