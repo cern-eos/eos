@@ -44,8 +44,7 @@ class CredentialConfig
 public:
 
   CredentialConfig() : use_user_krb5cc(false), use_user_gsiproxy(false),
-    use_user_sss(false),
-    use_unsafe_krk5(false), tryKrb5First(false), fallback2nobody(false),
+    use_user_sss(false), tryKrb5First(false), fallback2nobody(false),
     fuse_shared(false),
     environ_deadlock_timeout(100), forknoexec_heuristic(true) { }
 
@@ -55,8 +54,6 @@ public:
   bool use_user_gsiproxy;
   //! Indicates if user sss file should be used for authentication
   bool use_user_sss;
-  //! Indicates if in memory krb5 tickets can be used without any safety check
-  bool use_unsafe_krk5;
   //! Indicates if Krb5 should be tried before Gsi
   bool tryKrb5First;
   //! Indicates if unix authentication (as nobody) should be used as a fallback
