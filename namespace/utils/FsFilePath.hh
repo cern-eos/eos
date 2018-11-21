@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSCOMMON_FSFILEPATH_HH__
-#define __EOSCOMMON_FSFILEPATH_HH__
+#ifndef EOS_NS_FSFILEPATH_HH
+#define EOS_NS_FSFILEPATH_HH
 
 /*----------------------------------------------------------------------------*/
 #include "common/FileId.hh"
@@ -37,8 +37,7 @@
 #include <map>
 #include <string>
 
-EOSCOMMONNAMESPACE_BEGIN
-
+EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Class which handles file paths on a given filesystem.
@@ -101,9 +100,9 @@ public:
       map = attributeStringToFsPathMap(attributeString.c_str());
       physicalPath = map[fsid].c_str();
     } else {
-      std::string hexstring = eos::common::FileId::Fid2Hex(fmd->getId());
-      eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(), "path",
-                                              physicalPath);
+      using eos::common::FileId;
+      FileId::FidPrefix2FullPath(FileId::Fid2Hex(fmd->getId()).c_str(),
+                                 "path", physicalPath);
       physicalPath.erase(0, 5);
     }
 
@@ -282,6 +281,6 @@ private:
 
 };
 
-EOSCOMMONNAMESPACE_END
+EOSNSNAMESPACE_END
 
-#endif
+#endif // EOS_NS_FSFILEPATH_HH

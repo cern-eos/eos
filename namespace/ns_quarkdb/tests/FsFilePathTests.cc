@@ -21,24 +21,31 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
+#include "TestUtils.hh"
 #include "Namespace.hh"
-#include "common/FsFilePath.hh"
+#include "MockFileMDSvc.hh"
+#include "common/FileId.hh"
+#include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMD.hh"
-#include "namespace/ns_in_memory/FileMD.hh"
+#include "namespace/interface/IContainerMD.hh"
+#include "namespace/ns_quarkdb/FileMD.hh"
+#include "namespace/utils/FsFilePath.hh"
 
-EOSCOMMONTESTING_BEGIN
+EOSNSTESTING_BEGIN
 
-using namespace eos::common;
+class FsFilePathTests : public eos::ns::testing::NsTestsFixture {};
 
 //------------------------------------------------------------------------------
 // Test input validation
 //------------------------------------------------------------------------------
-TEST(FsFilePath, InputValidation)
+TEST_F(FsFilePathTests, InputValidation)
 {
-  std::shared_ptr<eos::IFileMDSvc> fileSvc = 0;
-  std::shared_ptr<eos::IFileMD> emptyFmd = 0,
-      fmd = std::make_shared<eos::FileMD>(1, fileSvc.get());
+  std::shared_ptr<eos::IFileMD> fmd = view()->createFile("/file.txt");
+  ASSERT_EQ(fmd->getId(), 1);
+
+  std::string hexstring = eos::common::FileId::Fid2Hex(fmd->getId());
+  std::shared_ptr<eos::IFileMD> emptyFmd = 0;
   XrdOucString fidPath, path = "initial";
   int rc;
 
@@ -48,7 +55,8 @@ TEST(FsFilePath, InputValidation)
   ASSERT_EQ(rc, -1);
 
   // No extended attribute present
-  FileId::FidPrefix2FullPath(FileId::Fid2Hex(1).c_str(), "/prefix/", fidPath);
+  eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(), "/prefix/",
+                                          fidPath);
   fidPath.erasefromstart(8);
   FsFilePath::GetPhysicalPath(1, fmd, path);
   ASSERT_STREQ(path.c_str(), fidPath.c_str());
@@ -67,11 +75,12 @@ TEST(FsFilePath, InputValidation)
 //------------------------------------------------------------------------------
 // Test logical path storage and retrieval
 //------------------------------------------------------------------------------
-TEST(FsFilePath, LogicalPath)
+TEST_F(FsFilePathTests, LogicalPath)
 {
-  std::shared_ptr<eos::IFileMDSvc> fileSvc = 0;
-  std::shared_ptr<eos::IFileMD> fmd =
-      std::make_shared<eos::FileMD>(1, fileSvc.get());
+  std::shared_ptr<eos::IFileMD> fmd = view()->createFile("/file.txt");
+  ASSERT_EQ(fmd->getId(), 1);
+
+  std::string hexstring = eos::common::FileId::Fid2Hex(fmd->getId());
   XrdOucString path, fidPath;
 
   // No logical path
@@ -89,7 +98,8 @@ TEST(FsFilePath, LogicalPath)
   ASSERT_STREQ(path.c_str(), "path2");
 
   // Retrieve physical path from fid
-  FileId::FidPrefix2FullPath(FileId::Fid2Hex(1).c_str(), "/prefix/", fidPath);
+  eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(), "/prefix/",
+                                          fidPath);
   fidPath.erasefromstart(8);
   FsFilePath::GetPhysicalPath(2, fmd, path);
   ASSERT_STREQ(path.c_str(), fidPath.c_str());
@@ -117,15 +127,17 @@ TEST(FsFilePath, LogicalPath)
 //------------------------------------------------------------------------------
 // Test logical path removal
 //------------------------------------------------------------------------------
-TEST(FsFilePath, LogicalPathRemoval)
+TEST_F(FsFilePathTests, LogicalPathRemoval)
 {
-  std::shared_ptr<eos::IFileMDSvc> fileSvc = 0;
-  std::shared_ptr<eos::IFileMD> fmd =
-      std::make_shared<eos::FileMD>(1, fileSvc.get());
+  std::shared_ptr<eos::IFileMD> fmd = view()->createFile("/file.txt");
+  ASSERT_EQ(fmd->getId(), 1);
+
+  std::string hexstring = eos::common::FileId::Fid2Hex(fmd->getId());
   XrdOucString path, fidPath;
 
   // Generate path from fid
-  FileId::FidPrefix2FullPath(FileId::Fid2Hex(1).c_str(), "/prefix/", fidPath);
+  eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(), "/prefix/",
+                                          fidPath);
   fidPath.erasefromstart(8);
 
   // Store single logical path
@@ -186,23 +198,26 @@ TEST(FsFilePath, LogicalPathRemoval)
 //------------------------------------------------------------------------------
 // Test path-from-fid generation
 //------------------------------------------------------------------------------
-TEST(FsFilePath, PathFromFid)
+TEST_F(FsFilePathTests, PathFromFid)
 {
-  std::shared_ptr<eos::IFileMDSvc> fileSvc = 0;
-  std::shared_ptr<eos::IFileMD> fmd =
-      std::make_shared<eos::FileMD>(1, fileSvc.get());
+  std::shared_ptr<eos::IFileMD> fmd = view()->createFile("/file.txt");
+  ASSERT_EQ(fmd->getId(), 1);
+
+  std::string hexstring = eos::common::FileId::Fid2Hex(fmd->getId()).c_str();
   XrdOucString path, expected;
 
   // Path from fid
-  FileId::FidPrefix2FullPath(FileId::Fid2Hex(1).c_str(), "/prefix/", expected);
+  eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(), "/prefix/",
+                                          expected);
   expected.erasefromstart(8);
   FsFilePath::GetPhysicalPath(1, fmd, path);
   ASSERT_STREQ(path.c_str(), expected.c_str());
 
   // Full path from fid
-  FileId::FidPrefix2FullPath(FileId::Fid2Hex(1).c_str(), "/prefix/", expected);
+  eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(), "/prefix/",
+                                          expected);
   FsFilePath::GetFullPhysicalPath(1, fmd, "/prefix/", path);
   ASSERT_STREQ(path.c_str(), expected.c_str());
 }
 
-EOSCOMMONTESTING_END
+EOSNSTESTING_END

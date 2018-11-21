@@ -266,8 +266,7 @@
         fmd->setSize(size);
         fmd->addLocation(fsid);
         fmd->setLayoutId(layoutId);
-        eos::common::FsFilePath::StorePhysicalPath(fsid, fmd,
-                                                   lpathSuffix.c_str());
+        eos::FsFilePath::StorePhysicalPath(fsid, fmd, lpathSuffix.c_str());
         gOFS->eosView->updateFileStore(fmd.get());
 
         cmd->setMTimeNow();

@@ -37,6 +37,7 @@ add_executable(
   ContainerMDSvcTest.cc
   FileMDSvcTest.cc
   FileSystemViewTest.cc
+  FsFilePathTests.cc
   HierarchicalViewTest.cc
   Main.cc
   MetadataTests.cc

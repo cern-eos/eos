@@ -32,12 +32,12 @@
 #include "common/Path.hh"
 #include "common/LayoutId.hh"
 #include "common/SecEntity.hh"
-#include "common/FsFilePath.hh"
+#include "namespace/Resolver.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/utils/Checksum.hh"
-#include "namespace/Resolver.hh"
+#include "namespace/utils/FsFilePath.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
 #include <math.h>
 #include <memory>
@@ -742,7 +742,7 @@ ProcCommand::File()
 
                 if (do_rm) {
                   fmd->removeLocation(fsid);
-                  eos::common::FsFilePath::RemovePhysicalPath(fsid, fmd);
+                  eos::FsFilePath::RemovePhysicalPath(fsid, fmd);
                 }
               }
 
@@ -1779,9 +1779,9 @@ ProcCommand::File()
               stdOut += "mgm.fstpath";
               stdOut += i;
               stdOut += "=";
-              eos::common::FsFilePath::GetFullPhysicalPath(*lociter, fmd,
-                                                           filesystem->GetPath().c_str(),
-                                                           fullpath);
+              eos::FsFilePath::GetFullPhysicalPath(*lociter, fmd,
+                                                   filesystem->GetPath().c_str(),
+                                                   fullpath);
               stdOut += fullpath;
               stdOut += "&";
             } else {

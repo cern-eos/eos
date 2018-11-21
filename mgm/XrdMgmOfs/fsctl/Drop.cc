@@ -22,13 +22,13 @@
  ************************************************************************/
 
 #include "common/Logging.hh"
-#include "common/FsFilePath.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IQuota.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
+#include "namespace/utils/FsFilePath.hh"
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Macros.hh"
@@ -112,7 +112,7 @@ XrdMgmOfs::Drop(const char* path,
 
           if (fmd->hasUnlinkedLocation(id)) {
             fmd->removeLocation(id);
-            eos::common::FsFilePath::RemovePhysicalPath(id, fmd);
+            eos::FsFilePath::RemovePhysicalPath(id, fmd);
             updatestore = true;
           }
 

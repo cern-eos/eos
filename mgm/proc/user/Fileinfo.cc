@@ -31,13 +31,13 @@
 #include "mgm/TableFormatter/TableCell.hh"
 #include "common/Path.hh"
 #include "common/LayoutId.hh"
-#include "common/FsFilePath.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/Resolver.hh"
 #include "namespace/utils/Etag.hh"
 #include "namespace/utils/Checksum.hh"
+#include "namespace/utils/FsFilePath.hh"
 #include <json/json.h>
 
 EOSMGMNAMESPACE_BEGIN
@@ -494,8 +494,9 @@ ProcCommand::FileInfo(const char* path)
               XrdOucString fullpath;
 
               if ((option.find("-fullpath")) != STR_NPOS) {
-                eos::common::FsFilePath::GetFullPhysicalPath(filesystem->GetId(),
-                    fmd_copy, filesystem->GetPath().c_str(), fullpath);
+                FsFilePath::GetFullPhysicalPath(filesystem->GetId(), fmd_copy,
+                                                filesystem->GetPath().c_str(),
+                                                fullpath);
               }
 
               if (!Monitoring) {
