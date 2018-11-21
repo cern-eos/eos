@@ -52,6 +52,15 @@ BoundIdentityProvider::krb5EnvToBoundIdentity(const JailInformation& jail,
   std::string path = env.get("KRB5CCNAME");
 
   //----------------------------------------------------------------------------
+  // Kerberos keyring?
+  //----------------------------------------------------------------------------
+  if(startswith(path, "KEYRING")) {
+    LOGBOOK_INSERT(scope, "Found kerberos keyring: " << path << ", need to validate");
+    return userCredsToBoundIdentity(jail,
+      UserCredentials::MakeKrk5(path, uid, gid), reconnect, scope);
+  }
+
+  //----------------------------------------------------------------------------
   // Drop FILE:, if exists
   //----------------------------------------------------------------------------
   const std::string prefix = "FILE:";

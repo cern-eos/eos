@@ -24,6 +24,8 @@
 #ifndef FUSEX_CREDENTIAL_VALIDATOR_HH
 #define FUSEX_CREDENTIAL_VALIDATOR_HH
 
+#include <string>
+
 class TrustedCredentials;
 class SecurityChecker;
 class UserCredentials;
@@ -62,6 +64,11 @@ public:
   //----------------------------------------------------------------------------
   bool checkValidity(const JailInformation &jail,
     const TrustedCredentials &out);
+
+  //----------------------------------------------------------------------------
+  // Should the given keyring be usable by this uid?
+  //----------------------------------------------------------------------------
+  bool checkKeyringUID(const std::string &keyring, uid_t uid);
 
 private:
   SecurityChecker &checker;

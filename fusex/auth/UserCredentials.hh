@@ -240,6 +240,7 @@ struct UserCredentials {
         break;
       }
       case CredentialType::KRK5: {
+        ss << ": " << keyring << " for uid=" << uid << ", gid=" << gid;
         break;
       }
       case CredentialType::SSS: {
