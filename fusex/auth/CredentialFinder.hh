@@ -299,7 +299,7 @@ public:
   //----------------------------------------------------------------------------
   std::string describe() const {
     std::stringstream ss;
-    ss << "Login identifier: " << login.getStringID() << std::endl;
+    ss << "Login identifier: " << login.describe() << std::endl;
     ss << creds.describe();
     return ss.str();
   }

@@ -61,6 +61,12 @@ public:
     return stringId == other.stringId;
   }
 
+  //----------------------------------------------------------------------------
+  // Describe object as string - different than getStringID, as we also print
+  // the connectionID, if any
+  //----------------------------------------------------------------------------
+  std::string describe() const;
+
 private:
   uint64_t connId;
   std::string stringId;

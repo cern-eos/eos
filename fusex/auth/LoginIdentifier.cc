@@ -83,6 +83,18 @@ LoginIdentifier::LoginIdentifier(uint64_t connId_) : connId(connId_)
   stringId = encode('A', connId);
 }
 
+//----------------------------------------------------------------------------
+// Describe object as string - different than getStringID, as we also print
+// the connectionID, if any
+//----------------------------------------------------------------------------
+std::string LoginIdentifier::describe() const {
+  if(connId == 0) {
+    return stringId;
+  }
+
+  return SSTR(stringId << " - " << connId);
+}
+
 // Extracted from the old AuthIdManager::mapUser function
 // TODO(gbitzes): Truncating the output from base64 encode seems.. bad? review
 

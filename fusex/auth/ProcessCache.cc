@@ -222,7 +222,7 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
   ProcessSnapshot entry = cache.retrieve(cacheKey);
 
   if(entry && reconnect) {
-    LOGBOOK_INSERT(logbook, "Found cached entry in ProcessCache (" << entry->getBoundIdentity()->getLogin().getStringID() << "), but reconnecting as requested");
+    LOGBOOK_INSERT(logbook, "Found cached entry in ProcessCache (" << entry->getBoundIdentity()->getLogin().describe() << "), but reconnecting as requested");
   }
 
   if (entry && !reconnect) {

@@ -50,22 +50,25 @@ BoundIdentityProvider::krb5EnvToBoundIdentity(const JailInformation& jail,
   LogbookScope &scope)
 {
   std::string path = env.get("KRB5CCNAME");
-  const std::string prefix = "FILE:";
 
-  if(path.empty() || !startswith(path, prefix)) {
+  //----------------------------------------------------------------------------
+  // Drop FILE:, if exists
+  //----------------------------------------------------------------------------
+  const std::string prefix = "FILE:";
+  if(startswith(path, prefix)) {
+    path = path.substr(prefix.size());
+  }
+
+  if(path.empty()) {
     //--------------------------------------------------------------------------
-    // Explicitly disallow any credential type other than FILE: for now.
+    // Early exit, no need to go through the trouble
+    // of userCredsToBoundIdentity.
     //--------------------------------------------------------------------------
     LOGBOOK_INSERT(scope, "Invalid KRB5CCNAME (size: " << path.size() << ")");
     return {};
   }
 
-  //----------------------------------------------------------------------------
-  // Drop FILE:
-  //----------------------------------------------------------------------------
-  path = path.substr(prefix.size());
   LOGBOOK_INSERT(scope, "Found KRB5CCNAME: " << path << ", need to validate");
-
   return userCredsToBoundIdentity(jail,
            UserCredentials::MakeKrb5(jail.id, path, uid, gid), reconnect,
            scope);
@@ -247,7 +250,7 @@ BoundIdentityProvider::userCredsToBoundIdentity(const JailInformation& jail,
   // Invalidate result if asked to reconnect
   //----------------------------------------------------------------------------
   if (cached && reconnect) {
-    LOGBOOK_INSERT(subscope, "Cache entry UserCredentials -> BoundIdentity already exists (" << cached->getLogin().getStringID() << ") - invalidating");
+    LOGBOOK_INSERT(subscope, "Cache entry UserCredentials -> BoundIdentity already exists (" << cached->getLogin().describe() << ") - invalidating");
     credentialCache.invalidate(creds);
     cached->getCreds()->invalidate();
     cached = {};
