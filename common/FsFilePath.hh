@@ -27,6 +27,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/FileId.hh"
 #include "common/Logging.hh"
+#include "common/StringConversion.hh"
 /*----------------------------------------------------------------------------*/
 #include "namespace/interface/IFileMD.hh"
 /*----------------------------------------------------------------------------*/
@@ -48,24 +49,6 @@ EOSCOMMONNAMESPACE_BEGIN
 class FsFilePath
 {
 public:
-
-  //----------------------------------------------------------------------------
-  //! Builds the complete physical path for a file given a local filesystem
-  //! prefix and the file path suffix.
-  //----------------------------------------------------------------------------
-  static void BuildPhysicalPath(const char* localPrefix,
-                                const char* pathSuffix,
-                                XrdOucString& physicalPath)
-  {
-    XrdOucString slocalPrefix = localPrefix;
-    if (!slocalPrefix.endswith("/")) {
-      slocalPrefix += "/";
-    }
-
-    physicalPath = slocalPrefix;
-    physicalPath += pathSuffix;
-    physicalPath.replace("//", "/", strlen(localPrefix) - 1);
-  }
 
   //----------------------------------------------------------------------------
   //! Checks whether a file has a logical path mapping for a given filesystem
@@ -118,8 +101,9 @@ public:
       map = attributeStringToFsPathMap(attributeString.c_str());
       physicalPath = map[fsid].c_str();
     } else {
-      FileId::FidPrefix2FullPath(FileId::Fid2Hex(fmd->getId()).c_str(), "path",
-                                 physicalPath);
+      std::string hexstring = eos::common::FileId::Fid2Hex(fmd->getId());
+      eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(), "path",
+                                              physicalPath);
       physicalPath.erase(0, 5);
     }
 
@@ -147,7 +131,9 @@ public:
       return -1;
     }
 
-    BuildPhysicalPath(localprefix, physicalPath.c_str(), fullPhysicalPath);
+    using eos::common::StringConversion;
+    fullPhysicalPath = StringConversion::BuildPhysicalPath(localprefix,
+                                                           physicalPath.c_str());
     return 0;
   }
 
@@ -160,7 +146,7 @@ public:
   //----------------------------------------------------------------------------
   static void StorePhysicalPath(unsigned long fsid,
                                 std::shared_ptr<eos::IFileMD>& fmd,
-                                std::string physicalPath)
+                                const std::string physicalPath)
   {
     std::string attributeString = "";
 
@@ -247,14 +233,14 @@ private:
   //! Convert a FilesystemId <-> PhysicalPath mapping into an attribute string
   //----------------------------------------------------------------------------
   static std::string
-  fsPathMapToAttributeString(std::map<unsigned long, std::string> map)
+  fsPathMapToAttributeString(const std::map<unsigned long, std::string> map)
   {
     std::string attributeString = "";
 
-    for (auto it = map.begin(); it != map.end(); ++it) {
-      attributeString += std::to_string(it->first);
+    for (auto& pair: map) {
+      attributeString += std::to_string(pair.first);
       attributeString += "|";
-      attributeString += it->second;
+      attributeString += pair.second;
       attributeString += "&";
     }
 
@@ -265,7 +251,7 @@ private:
   //! Append FilesystemId <-> PhysicalPath pair to the attribute string
   //----------------------------------------------------------------------------
   static void appendPair(unsigned long fsid,
-                         std::string& physicalPath,
+                         const std::string physicalPath,
                          std::string& attributeString)
   {
     std::string pair = to_string(fsid);

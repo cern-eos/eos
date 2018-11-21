@@ -488,6 +488,19 @@ public:
 
   // ---------------------------------------------------------------------------
   /**
+   * Builds the physical path of a file on a filesystem,
+   * given that filesystem's local prefix and the file path suffix.
+   *
+   * @param localprefix the filesystem local prefix
+   * @param pathsuffix the file path suffix
+   * @return the file physical path
+   */
+  // ---------------------------------------------------------------------------
+  static XrdOucString
+  BuildPhysicalPath(const char* localprefix, const char* pathsuffix);
+
+  // ---------------------------------------------------------------------------
+  /**
    * Check if a string is a hexadecimal number
    *
    * @param hexstring - hexadecimal string

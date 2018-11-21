@@ -34,7 +34,7 @@
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/FmdDbMap.hh"
 #include "common/Path.hh"
-#include "common/FsFilePath.hh"
+#include "common/StringConversion.hh"
 /*----------------------------------------------------------------------------*/
 
 extern eos::fst::XrdFstOss* XrdOfsOss;
@@ -101,10 +101,8 @@ Storage::Verify()
     XrdOucString fstPath = "";
 
     if (verifyfile->lPath.length()) {
-
-      eos::common::FsFilePath::BuildPhysicalPath(verifyfile->localPrefix.c_str(),
-                                                 verifyfile->lPath.c_str(),
-                                                 fstPath);
+      fstPath = eos::common::StringConversion::BuildPhysicalPath(
+                     verifyfile->localPrefix.c_str(), verifyfile->lPath.c_str());
     } else {
       eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(),
                                               verifyfile->localPrefix.c_str(),

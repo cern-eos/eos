@@ -24,9 +24,9 @@
 #include <cinttypes>
 #include "common/Constants.hh"
 #include "common/Path.hh"
-#include "common/FsFilePath.hh"
 #include "common/http/OwnCloud.hh"
 #include "common/StringTokenizer.hh"
+#include "common/StringConversion.hh"
 #include "common/SecEntity.hh"
 #include "common/xrootd-ssi-protobuf-interface/eos_cta/include/CtaFrontendApi.hpp"
 #include "fst/FmdDbMap.hh"
@@ -2994,8 +2994,8 @@ XrdFstOfsFile::ProcessMixedOpaque()
 
   // Generate fst path
   if (mCapOpaque->Get("mgm.lpath")) {
-    eos::common::FsFilePath::BuildPhysicalPath(mLocalPrefix.c_str(),
-                             mCapOpaque->Get("mgm.lpath"), mFstPath);
+    mFstPath = eos::common::StringConversion::BuildPhysicalPath(
+                            mLocalPrefix.c_str(), mCapOpaque->Get("mgm.lpath"));
   } else {
     FileId::FidPrefix2FullPath(FileId::Fid2Hex(mFileId).c_str(),
                                mLocalPrefix.c_str(), mFstPath);

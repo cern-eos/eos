@@ -205,25 +205,4 @@ TEST(FsFilePath, PathFromFid)
   ASSERT_STREQ(path.c_str(), expected.c_str());
 }
 
-//------------------------------------------------------------------------------
-// Test building of physical path
-//------------------------------------------------------------------------------
-TEST(FsFilePath, BuildPath)
-{
-  XrdOucString path = "initial";
-  XrdOucString expected = "/prefix/sufix";
-
-  FsFilePath::BuildPhysicalPath("/prefix", "sufix", path);
-  ASSERT_STREQ(path.c_str(), expected.c_str());
-
-  FsFilePath::BuildPhysicalPath("/prefix/", "sufix", path);
-  ASSERT_STREQ(path.c_str(), expected.c_str());
-
-  FsFilePath::BuildPhysicalPath("/prefix", "/sufix", path);
-  ASSERT_STREQ(path.c_str(), expected.c_str());
-
-  FsFilePath::BuildPhysicalPath("/prefix/", "/sufix", path);
-  ASSERT_STREQ(path.c_str(), expected.c_str());
-}
-
 EOSCOMMONTESTING_END

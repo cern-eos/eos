@@ -877,6 +877,27 @@ StringConversion::CreateUrl(const char* protocol, const char* hostport,
 }
 
 //------------------------------------------------------------------------------
+// Builds the physical path of a file on a filesystem,
+// given that filesystem's local prefix and the file path suffix.
+//------------------------------------------------------------------------------
+XrdOucString
+StringConversion::BuildPhysicalPath(const char *localprefix,
+                                    const char *pathsuffix)
+{
+  XrdOucString physicalPath = localprefix;
+  int lprefixLen = physicalPath.length();
+
+  if (!physicalPath.endswith("/")) {
+    physicalPath += "/";
+  }
+
+  physicalPath += pathsuffix;
+  physicalPath.replace("//", "/", lprefixLen - 1);
+
+  return physicalPath;
+}
+
+//------------------------------------------------------------------------------
 // Check if string is hex number
 //------------------------------------------------------------------------------
 bool

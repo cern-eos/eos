@@ -44,4 +44,18 @@ TEST(StringConversion, Seal_Unseal_Operation)
                StringConversion::UnsealXrdOpaque(expected).c_str());
 }
 
+TEST(StringConversion, BuildPhysicalPath)
+{
+  XrdOucString expected = "/prefix/suffix";
+
+  ASSERT_STREQ(StringConversion::BuildPhysicalPath("/prefix", "suffix").c_str(),
+               expected.c_str());
+  ASSERT_STREQ(StringConversion::BuildPhysicalPath("/prefix/", "suffix").c_str(),
+               expected.c_str());
+  ASSERT_STREQ(StringConversion::BuildPhysicalPath("/prefix", "/suffix").c_str(),
+               expected.c_str());
+  ASSERT_STREQ(StringConversion::BuildPhysicalPath("/prefix/", "/suffix").c_str(),
+               expected.c_str());
+}
+
 EOSCOMMONTESTING_END
