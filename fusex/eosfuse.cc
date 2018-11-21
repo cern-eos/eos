@@ -4172,6 +4172,45 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
                              ctx->uid, ctx->gid, true, logbook);
               value = logbook.toString();
             }
+
+            if(key == "eos.reconnectparent") {
+              const struct fuse_ctx* ctx = fuse_req_ctx(req);
+              ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
+                             ctx->uid, ctx->gid, false);
+
+              pid_t ppid = snapshot->getProcessInfo().getParentId();
+
+              Logbook logbook(true);
+              ProcessSnapshot snapshotParent =
+                fusexrdlogin::processCache->retrieve(ppid,
+                             ctx->uid, ctx->gid, true, logbook);
+              value = logbook.toString();
+            }
+
+            if(key == "eos.identity") {
+              const struct fuse_ctx* ctx = fuse_req_ctx(req);
+              ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
+                             ctx->uid, ctx->gid, false);
+              if(snapshot) {
+                value = snapshot->getBoundIdentity()->describe();
+              }
+            }
+
+            if(key == "eos.identityparent") {
+              const struct fuse_ctx* ctx = fuse_req_ctx(req);
+              ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
+                             ctx->uid, ctx->gid, false);
+              pid_t ppid = snapshot->getProcessInfo().getParentId();
+
+              ProcessSnapshot snapshotParent =
+                fusexrdlogin::processCache->retrieve(
+                  ppid, ctx->uid, ctx->gid, false);
+
+              if(snapshotParent) {
+                value = snapshotParent->getBoundIdentity()->describe();
+              }
+            }
+
           } else {
             if (S_ISDIR(md->mode())) {
               // retrieve the appropriate cap of this inode
