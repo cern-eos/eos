@@ -250,6 +250,14 @@ public:
       size_t write_open_noserver_retrywindow;
     } recovery_t;
 
+    typedef struct fuzzing {
+      size_t open_async_submit;
+      size_t open_async_return;
+      size_t read_async_return;
+      bool open_async_submit_fatal;
+      bool open_async_return_fatal;
+    } fuzzing_t;
+
     typedef struct inlining {
       uint64_t max_size;
       std::string default_compressor;
@@ -258,6 +266,7 @@ public:
     recovery_t recovery;
     options_t options;
     inlining_t inliner;
+    fuzzing_t fuzzing;
 
     CredentialConfig auth;
   } cfg_t;
@@ -292,7 +301,7 @@ public:
     }
 
     snprintf(s, 1024,
-             "rc=%02d uid=%05d gid=%05d pid=%05d ino=%016lx fh=%08lx name=%s",
+             "rc=%02d uid=%05d gid=%05d pid=%05d ino=%#lx fh=%#lx name=%s",
              rc,
              id.uid,
              id.gid,

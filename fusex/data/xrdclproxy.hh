@@ -135,6 +135,48 @@ static int XtoErrno(int xerr)
 
 namespace XrdCl
 {
+
+// ---------------------------------------------------------------------- //
+class Fuzzing
+{
+public:
+
+  Fuzzing()
+  {
+  }
+
+  static void Configure(size_t _open_async_submit_scaler,
+                        size_t _open_async_return_scaler,
+                        bool _open_async_submit_fatal,
+                        bool _open_async_return_fatal,
+                        size_t _read_async_return_scaler)
+  {
+    open_async_submit_scaler = _open_async_submit_scaler;
+    open_async_return_scaler = _open_async_return_scaler;
+    open_async_submit_fatal = _open_async_submit_fatal;
+    open_async_return_fatal = _open_async_return_fatal;
+    read_async_return_scaler = _read_async_return_scaler;
+  }
+
+  XRootDStatus OpenAsyncSubmitFuzz();
+  XRootDStatus OpenAsyncResponseFuzz();
+  bool ReadAsyncResponseFuzz();
+
+  static int errors[22];
+  static size_t non_fatal_errors;
+  static size_t fatal_errors;
+
+private:
+  static size_t open_async_submit_scaler;
+  static size_t open_async_submit_counter;
+  static size_t open_async_return_scaler;
+  static size_t open_async_return_counter;
+  static size_t read_async_return_scaler;
+  static size_t read_async_return_counter;
+  static bool open_async_submit_fatal;
+  static bool open_async_return_fatal;
+};
+
 // ---------------------------------------------------------------------- //
 typedef std::shared_ptr<std::vector<char>> shared_buffer;
 // ---------------------------------------------------------------------- //
@@ -1096,6 +1138,11 @@ public:
   static ssize_t
   sChunkTimeout; // time after we move an inflight chunk out of a proxy object into the static map
 
+  Fuzzing& fuzzing()
+  {
+    return mFuzzing;
+  }
+
 private:
   OPEN_STATE open_state;
   struct timespec open_state_time;
@@ -1107,6 +1154,8 @@ private:
   XrdSysCondVar XReadAsyncCond;
   chunk_map XWriteAsyncChunks;
   chunk_rmap XReadAsyncChunks;
+
+  Fuzzing mFuzzing;
 
   // this static map will take over chunks where we don't see callbacks in a reasonable time
   static chunk_vector sTimeoutWriteAsyncChunks;

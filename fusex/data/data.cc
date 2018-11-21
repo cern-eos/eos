@@ -303,7 +303,7 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
       // truncate the journal
       if (mFile->journal()->reset()) {
         char msg[1024];
-        snprintf(msg, sizeof(msg), "journal reset failed - ino=%08lx", id());
+        snprintf(msg, sizeof(msg), "journal reset failed - ino=%#lx", id());
         throw std::runtime_error(msg);
       }
 
@@ -312,8 +312,7 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
   }
 
   // check if the open failed
-  XrdCl::Proxy* proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(
-                          req) : mFile->xrdiorw(req);
+  XrdCl::Proxy* proxy = mFile->has_xrdiorw(req) ? mFile->xrdiorw(req) : 0;
 
   if (proxy) {
     if (proxy->stateTS() == XrdCl::Proxy::FAILED) {
@@ -341,7 +340,7 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
           // truncate the journal
           if (mFile->journal()->reset()) {
             char msg[1024];
-            snprintf(msg, sizeof(msg), "journal reset failed - ino=%08lx", id());
+            snprintf(msg, sizeof(msg), "journal reset failed - ino=%#lx", id());
             throw std::runtime_error(msg);
           }
 
@@ -367,7 +366,7 @@ data::datax::journalflush(fuse_req_t req)
 
   // we have to push the journal now
   if (!status.IsOK()) {
-    eos_err("async journal-cache-wait-open failed - ino=%08lx", id());
+    eos_err("async journal-cache-wait-open failed - ino=%#lx", id());
     errno = XrdCl::Proxy::status2errno(status);
     return errno;
   }
@@ -376,7 +375,7 @@ data::datax::journalflush(fuse_req_t req)
   cachesyncer cachesync(*((XrdCl::File*)mFile->xrdiorw(req)));
 
   if ((mFile->journal())->remote_sync(cachesync)) {
-    eos_err("async journal-cache-sync failed - ino=%08lx", id());
+    eos_err("async journal-cache-sync failed - ino=%#lx", id());
     return EREMOTEIO;
   }
 
@@ -396,7 +395,7 @@ data::datax::journalflush(std::string cid)
 
   // we have to push the journal now
   if (!status.IsOK()) {
-    eos_err("async journal-cache-wait-open failed - ino=%08lx", id());
+    eos_err("async journal-cache-wait-open failed - ino=%#lx", id());
     errno = XrdCl::Proxy::status2errno(status);
     return errno;
   }
@@ -406,7 +405,7 @@ data::datax::journalflush(std::string cid)
     cachesyncer cachesync(*((XrdCl::File*)mFile->xrdiorw(cid)));
 
     if ((mFile->journal())->remote_sync(cachesync)) {
-      eos_err("async journal-cache-sync failed - ino=%08lx", id());
+      eos_err("async journal-cache-sync failed - ino=%#lx", id());
       return EREMOTEIO;
     }
   }
@@ -426,7 +425,7 @@ data::datax::journalflush_async(std::string cid)
 
   // we have to push the journal now
   if (!mFile->xrdiorw(cid)->WaitOpen().IsOK()) {
-    eos_err("async journal-cache-wait-open failed - ino=%08lx", id());
+    eos_err("async journal-cache-wait-open failed - ino=%#lx", id());
     return -1;
   }
 
@@ -434,7 +433,7 @@ data::datax::journalflush_async(std::string cid)
     eos_info("syncing cache asynchronously");
 
     if ((mFile->journal())->remote_sync_async(mFile->xrdiorw(cid))) {
-      eos_err("async journal-cache-sync-async failed - ino=%08lx", id());
+      eos_err("async journal-cache-sync-async failed - ino=%#lx", id());
       return -1;
     }
   }
@@ -569,13 +568,13 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 
   if (bcache < 0) {
     char msg[1024];
-    snprintf(msg, sizeof(msg), "attach to cache failed - ino=%08lx", id());
+    snprintf(msg, sizeof(msg), "attach to cache failed - ino=%#lx", id());
     throw std::runtime_error(msg);
   }
 
   if (jcache < 0) {
     char msg[1024];
-    snprintf(msg, sizeof(msg), "attach to journal failed - ino=%08lx", id());
+    snprintf(msg, sizeof(msg), "attach to journal failed - ino=%#lx", id());
     throw std::runtime_error(msg);
   }
 
@@ -904,11 +903,12 @@ int
 data::datax::recover_ropen(fuse_req_t req)
 /* -------------------------------------------------------------------------- */
 {
-  XrdCl::Proxy* proxy = mFile->xrdioro(req);
+  XrdCl::Proxy* proxy = 0;
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts, true);
 
   while (1) {
+    proxy = mFile->xrdioro(req);
     mRecoveryStack.push_back(eos_silent("hint='recover read-open'"));
     eos_warning("recover read-open [%d]",
                 EosFuse::Instance().Config().recovery.read_open);
@@ -947,7 +947,7 @@ data::datax::recover_ropen(fuse_req_t req)
     XrdCl::URL::ParamsMap new_cgi = newurl.GetParams();
     std::string last_host = lasturl.GetHostName();
 
-    if ((lasturl.GetHostName() != newurl.GetHostName()) ||
+    if ((lasturl.GetHostName() != newurl.GetHostName()) &&
         (lasturl.GetPort() != newurl.GetPort())) {
       eos_warning("applying exclusion list: tried=%s,%s", last_host.c_str(),
                   new_cgi["tried"].c_str());
@@ -978,11 +978,13 @@ data::datax::recover_ropen(fuse_req_t req)
     proxy->detach();
     // save the error status of the previous proxy object
     status = proxy->opening_state();
-    // once all callbacks are there, this object can destroy itself since we don't track it anymore
-    proxy->flag_selfdestructionTS();
 
+    // once all callbacks are there, this object can destroy itself since we don't track it anymore
     if (!proxy->IsWaitWrite() && !proxy->IsOpening() && !proxy->IsClosing()) {
+      proxy->flag_selfdestructionTS();
       proxy->CheckSelfDestruction();
+    } else {
+      proxy->flag_selfdestructionTS();
     }
 
     if (newproxy->stateTS() == XrdCl::Proxy::OPENED) { // that worked !
@@ -1120,12 +1122,15 @@ data::datax::try_ropen(fuse_req_t req, XrdCl::Proxy*& proxy,
     }
 
     newproxy->inherit_attached(proxy);
-    // once all callbacks are there, this object can destroy itself since we don't track it anymore
-    proxy->flag_selfdestructionTS();
-    proxy->detach();
 
+    // once all callbacks are there, this object can destroy itself since we don't track it anymore
     if (!proxy->IsWaitWrite() && !proxy->IsOpening() && !proxy->IsClosing()) {
+      proxy->flag_selfdestructionTS();
+      proxy->detach();
       proxy->CheckSelfDestruction();
+    } else {
+      proxy->flag_selfdestructionTS();
+      proxy->detach();
     }
 
     // replace the proxy object
@@ -2450,7 +2455,7 @@ data::dmap::ioflush(ThreadAssistant& assistant)
       }
 
       for (auto it = data.begin(); it != data.end(); ++it) {
-        eos_static_info("dbmap-in %08lx => %lx", (*it)->id(), &(*it));
+        eos_static_info("dbmap-in %#lx => %lx", (*it)->id(), &(*it));
       }
 
       for (auto it = data.begin(); it != data.end(); ++it) {
@@ -2480,7 +2485,7 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                 }
 
                 if (fit->second->IsOpen()) {
-                  eos_static_info("flushing journal for req=%s id=%08lx", fit->first.c_str(),
+                  eos_static_info("flushing journal for req=%s id=%#lx", fit->first.c_str(),
                                   (*it)->id());
                   // flush the journal using an asynchronous thread pool
                   (*it)->journalflush_async(fit->first);

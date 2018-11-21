@@ -154,7 +154,7 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
 metad::shared_md
 metad::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
 {
-  eos_static_info("ino=%#llx name=%s", parent, name);
+  eos_static_info("ino=%#lx name=%s", parent, name);
   // --------------------------------------------------
   // STEP 1 : retrieve the required parent MD
   // --------------------------------------------------
@@ -261,11 +261,11 @@ metad::forget(fuse_req_t req, fuse_ino_t ino, int nlookup)
   }
 
   if (EOS_LOGS_DEBUG) {
-    eos_static_debug("count=%d(-%d) - ino=%016x", md->lookup_is(), nlookup, ino);
+    eos_static_debug("count=%d(-%d) - ino=%#lx", md->lookup_is(), nlookup, ino);
   }
 
   if (!md->lookup_dec(nlookup)) {
-    eos_static_debug("count=%d(-%d) - ino=%016x", md->lookup_is(), nlookup, ino);
+    eos_static_debug("count=%d(-%d) - ino=%#lx", md->lookup_is(), nlookup, ino);
     return EAGAIN;
   }
 
@@ -277,23 +277,23 @@ metad::forget(fuse_req_t req, fuse_ino_t ino, int nlookup)
 
   if (has_flush(ino)) {
     stat.inodes_stacked_inc();
-    eos_static_debug("flush - ino=%016x", ino);
+    eos_static_debug("flush - ino=%#lx", ino);
     return 0;
   }
 
   if (pmd->cap_count()) {
     stat.inodes_stacked_inc();
-    eos_static_debug("caps %d - ino=%016x", pmd->cap_count(), ino);
+    eos_static_debug("caps %d - ino=%#lx", pmd->cap_count(), ino);
     return 0;
   }
 
   if (pmd->opendir_is()) {
     stat.inodes_stacked_inc();
-    eos_static_debug("opendir %d - ino=%016x", pmd->opendir_is(), ino);
+    eos_static_debug("opendir %d - ino=%#lx", pmd->opendir_is(), ino);
     return 0;
   }
 
-  eos_static_debug("delete md object - ino=%016x name=%s", ino,
+  eos_static_debug("delete md object - ino=%#lx name=%s", ino,
                    md->name().c_str());
 
   if (mdmap.eraseTS(ino)) {
@@ -409,16 +409,15 @@ metad::mdx::dump()
 {
   char sout[16384];
   snprintf(sout, sizeof(sout),
-           "ino=%016lx dev=%08x mode=%#o nlink=%d uid=%05d gid=%05d rdev=%08x "
+           "ino=%#lx dev=%#lx mode=%#o nlink=%d uid=%05d gid=%05d rdev=%#lx "
            "size=%llu bsize=%u blocks=%llu atime=%lu.%lu mtime=%lu.%lu ctime=%lu.%lu",
            (unsigned long) id(), 0, (unsigned int) mode(), (unsigned int) nlink(),
-           (int) uid(), (int) gid(), 0,
+           (int) uid(), (int) gid(), (unsigned long)0,
            (unsigned long long) size(), (unsigned int) 4096,
            (unsigned long long) size() / 512,
            (unsigned long) atime(), (unsigned long) atime_ns(),
            (unsigned long) mtime(), (unsigned long) mtime_ns(),
-           (unsigned long) ctime(),
-           (unsigned long) ctime_ns());
+           (unsigned long) ctime(), (unsigned long) ctime_ns());
   return sout;
 }
 
@@ -428,13 +427,13 @@ metad::mdx::dump(struct fuse_entry_param& e)
 {
   char sout[16384];
   snprintf(sout, sizeof(sout),
-           "ino=%016lx dev=%08x mode=%08x nlink=%08x uid=%05d gid=%05d rdev=%08x "
+           "ino=%#lx dev=%#lx mode=%#lx nlink=%#lx uid=%05d gid=%05d rdev=%#lx "
            "size=%llu bsize=%u blocks=%llu atime=%lu.%lu mtime=%lu.%lu ctime=%lu.%lu "
-           "attr-timeout=%llu entry-timeout=%llu",
-           (unsigned long) e.attr.st_ino, (unsigned int) e.attr.st_dev,
-           (unsigned int) e.attr.st_mode, (unsigned int) e.attr.st_nlink,
-           (int) e.attr.st_uid, (int) e.attr.st_gid, (unsigned int) e.attr.st_rdev,
-           (unsigned long long) e.attr.st_size, (unsigned int) e.attr.st_blksize,
+           "attr-timeout=%lu entry-timeout=%lu",
+           (unsigned long) e.attr.st_ino, (unsigned long) e.attr.st_dev,
+           (unsigned long) e.attr.st_mode, (unsigned int) e.attr.st_nlink,
+           (int) e.attr.st_uid, (int) e.attr.st_gid, (unsigned long) e.attr.st_rdev,
+           (unsigned long long) e.attr.st_size, (unsigned long) e.attr.st_blksize,
            (unsigned long long) e.attr.st_blocks,
            (unsigned long) e.attr.ATIMESPEC.tv_sec,
            (unsigned long) e.attr.ATIMESPEC.tv_nsec,
@@ -442,8 +441,8 @@ metad::mdx::dump(struct fuse_entry_param& e)
            (unsigned long) e.attr.MTIMESPEC.tv_nsec,
            (unsigned long) e.attr.CTIMESPEC.tv_sec,
            (unsigned long) e.attr.CTIMESPEC.tv_nsec,
-           (unsigned long long) e.attr_timeout,
-           (unsigned long long) e.entry_timeout);
+           (unsigned long) e.attr_timeout,
+           (unsigned long) e.entry_timeout);
   return sout;
 }
 
@@ -459,7 +458,7 @@ metad::map_children_to_local(shared_md pmd)
   // we always merge remote contents, for changes our cap will be dropped
   for (auto map = pmd->children().begin(); map != pmd->children().end(); ++map) {
     if (EOS_LOGS_DEBUG) {
-      eos_static_debug("translate %s [%lx]",
+      eos_static_debug("translate %s [%#lx]",
                        eos::common::StringConversion::EncodeInvalidUTF8(map->first).c_str(),
                        map->second);
     }
@@ -499,7 +498,7 @@ metad::map_children_to_local(shared_md pmd)
   if (EOS_LOGS_DEBUG) {
     for (auto map = pmd->local_children().begin();
          map != pmd->local_children().end(); ++map) {
-      eos_static_debug("listing: %s [%lx]", map->first.c_str(), map->second);
+      eos_static_debug("listing: %s [%#lx]", map->first.c_str(), map->second);
     }
   }
 
@@ -525,7 +524,7 @@ metad::wait_deleted(fuse_req_t req,
 
         if (mdqueue.count(md->id())) {
           mdflush.UnLock();
-          eos_static_notice("waiting for deletion entry to be synced upstream ino=%lx",
+          eos_static_notice("waiting for deletion entry to be synced upstream ino=%#lx",
                             md->id());
           std::this_thread::sleep_for(std::chrono::microseconds(500));
         } else {
@@ -565,7 +564,7 @@ metad::get(fuse_req_t req,
            const char* name,
            bool readdir)
 {
-  eos_static_info("ino=%#llx pino=%#lx name=%s listing=%d", ino,
+  eos_static_info("ino=%#lx pino=%#lx name=%s listing=%d", ino,
                   pmd ? pmd->id() : 0, name, listing);
   shared_md md;
 
@@ -603,7 +602,7 @@ metad::get(fuse_req_t req,
       eos_static_info("returning cap entry");
       return md;
     } else {
-      eos_static_info("pmd=%#x cap-cnt=%d", pmd ? pmd->id() : 0,
+      eos_static_info("pmd=%#lx cap-cnt=%d", pmd ? pmd->id() : 0,
                       pmd ? pmd->cap_count() : 0);
       uint64_t md_pid = 0;
       mode_t md_mode = 0;
@@ -797,7 +796,7 @@ metad::get(fuse_req_t req,
         if (!pmd->local_children().count(
               eos::common::StringConversion::EncodeInvalidUTF8(md->name())) &&
             !md->deleted()) {
-          eos_static_info("attaching %s [%lx] to %s [%lx]",
+          eos_static_info("attaching %s [%#lx] to %s [%#lx]",
                           eos::common::StringConversion::EncodeInvalidUTF8(md->name()).c_str(), md->id(),
                           pmd->name().c_str(), pmd->id());
           // persist this hierarchical dependency
@@ -868,7 +867,7 @@ metad::wait_flush(fuse_req_t req, metad::shared_md md)
     }
   }
 
-  eos_static_info("waited for sync rc=%d bw=%lx", md->err(),
+  eos_static_info("waited for sync rc=%d bw=%#lx", md->err(),
                   inomap.backward(md->id()));
 
   if (!inomap.backward(md->id())) {
@@ -916,7 +915,7 @@ metad::update(fuse_req_t req, shared_md md, std::string authid,
   flushentry fe(md->id(), authid, localstore ? mdx::LSTORE : mdx::UPDATE, req);
   mdqueue[md->id()]++;
   mdflushqueue.push_back(fe);
-  eos_static_info("added ino=%lx flushentry=%s queue-size=%u local-store=%d",
+  eos_static_info("added ino=%#lx flushentry=%s queue-size=%u local-store=%d",
                   md->id(), flushentry::dump(fe).c_str(), mdqueue.size(), localstore);
   mdflush.Signal();
   mdflush.UnLock();
@@ -1004,7 +1003,7 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
 
     if (mdqueue.count(pmd->id())) {
       mdflush.UnLock();
-      eos_static_info("waiting for parent directory to be synced upstream parent-ino= %lx ino=%lx",
+      eos_static_info("waiting for parent directory to be synced upstream parent-ino= %#lx ino=%#lx",
                       md->id(), pmd->id());
       std::this_thread::sleep_for(std::chrono::microseconds(500));
     } else {
@@ -1697,7 +1696,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
           (!md->cap_count())) {
         // don't wipe capp'ed meta-data, local state has to be used, since we get remote-invalidated in case we are out-of-date
         if ((cont.md_().clock() >= md->clock())) {
-          eos_static_info("overwriting clock MD %lx => %lx", md->clock(),
+          eos_static_info("overwriting clock MD %#lx => %#lx", md->clock(),
                           cont.md_().clock());
           size_t local_size = md->size();
           uint64_t local_mtime = md->mtime();
@@ -1772,7 +1771,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
                   // if we have a cap for the parent of a file, we don't need to get an
                   // update, we receive it via an asynchronous broadcast
                   if (EOS_LOGS_DEBUG)
-                    eos_static_debug("skipping md for file child local-ino=%016x remote-ino=%016lx",
+                    eos_static_debug("skipping md for file child local-ino=%#lx remote-ino=%016lx",
                                      ino, map->first);
 
                   // but eventually refresh the cap
@@ -1787,7 +1786,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
                 } else {
                   if (pmd && pmd->id() && pmd->cap_count()) {
                     if (EOS_LOGS_DEBUG)
-                      eos_static_debug("skipping md for dir child local-ino=%016x remote-ino=%016lx",
+                      eos_static_debug("skipping md for dir child local-ino=%#lx remote-ino=%016lx",
                                        ino, map->first);
 
                     // but eventually refresh the cap
@@ -1810,7 +1809,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
             pmd = md;
 
             if (EOS_LOGS_DEBUG) {
-              eos_static_debug("lock pmd ino=%016x", pmd->id());
+              eos_static_debug("lock pmd ino=%#lx", pmd->id());
             }
           }
 
@@ -2008,7 +2007,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
       if (EOS_LOGS_DEBUG)
         for (auto map = pmd->local_children().begin();
              map != pmd->local_children().end(); ++map) {
-          eos_static_debug("listing: %s [%lx]", map->first.c_str(), map->second);
+          eos_static_debug("listing: %s [%#lx]", map->first.c_str(), map->second);
         }
 
       // now flag as a complete listing
@@ -2183,7 +2182,7 @@ metad::mdcflush(ThreadAssistant& assistant)
                 stat.inodes_deleted_dec();
 
                 if (EOS_LOGS_DEBUG) {
-                  eos_static_debug("count=%d(-%d) - ino=%016x", md->lookup_is(), 1, ino);
+                  eos_static_debug("count=%d(-%d) - ino=%#lx", md->lookup_is(), 1, ino);
                 }
 
                 XrdSysMutexHelper mLock(md->Locker());
@@ -2200,12 +2199,12 @@ metad::mdcflush(ThreadAssistant& assistant)
             shared_md pmd;
 
             if (EOS_LOGS_DEBUG) {
-              eos_static_debug("delete md object - ino=%016x", removeentry);
+              eos_static_debug("delete md object - ino=%#lx", removeentry);
             }
 
             {
               if (EOS_LOGS_DEBUG) {
-                eos_static_debug("calling forget function %016x", removeentry);
+                eos_static_debug("calling forget function %#lx", removeentry);
               }
 
               forget(0, removeentry, 0);
@@ -2259,14 +2258,14 @@ metad::mdstackfree(ThreadAssistant& assistant)
         // if the parent is gone, we can remove the child
         if ((!mdmap.count(it->second->pid())) &&
             (!S_ISDIR(it->second->mode()) || it->second->deleted())) {
-          eos_static_warning("removing orphaned inode from mdmap ino=%016x path=%s",
+          eos_static_warning("removing orphaned inode from mdmap ino=%#lx path=%s",
                              it->first, it->second->fullpath().c_str());
           it = mdmap.erase(it);
           stat.inodes_dec();
         } else {
           if (it->second->deleted()) {
             if (!has_flush(it->first)) {
-              eos_static_warning("removing deleted inode from mdmap ino=%016x path=%s",
+              eos_static_warning("removing deleted inode from mdmap ino=%#lx path=%s",
                                  it->first, it->second->fullpath().c_str());
               it = mdmap.erase(it);
               stat.inodes_dec();
@@ -2505,7 +2504,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
               std::string authid = rsp.dentry_().authid();
               std::string name = rsp.dentry_().name();
               uint64_t ino = inomap.forward(md_ino);
-              eos_static_notice("dentry: remote-ino=%lx ino=%lx clientid=%s authid=%s name=%s",
+              eos_static_notice("dentry: remote-ino=%#lx ino=%#lx clientid=%s authid=%s name=%s",
                                 md_ino, ino, rsp.lease_().clientid().c_str(), authid.c_str(), name.c_str());
 
               if (EosFuse::Instance().Config().options.md_kernelcache) {
@@ -2517,7 +2516,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
               uint64_t md_ino = rsp.lease_().md_ino();
               std::string authid = rsp.lease_().authid();
               uint64_t ino = inomap.forward(md_ino);
-              eos_static_notice("lease: remote-ino=%lx ino=%lx clientid=%s authid=%s",
+              eos_static_notice("lease: remote-ino=%#lx ino=%#lx clientid=%s authid=%s",
                                 md_ino, ino, rsp.lease_().clientid().c_str(), authid.c_str());
               shared_md check_md;
 
@@ -2530,7 +2529,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
                   if (mdqueue.count(ino)) {
                     mdflush.UnLock();
-                    eos_static_info("lease: delaying cap-release remote-ino=%lx ino=%lx clientid=%s authid=%s",
+                    eos_static_info("lease: delaying cap-release remote-ino=%#lx ino=%#lx clientid=%s authid=%s",
                                     md_ino, ino, rsp.lease_().clientid().c_str(), authid.c_str());
                     std::this_thread::sleep_for(std::chrono::milliseconds(25));
 
@@ -2573,12 +2572,12 @@ metad::mdcommunicate(ThreadAssistant& assistant)
               std::string clientid = rsp.cap_().clientid();
               uint64_t ino = inomap.forward(rsp.cap_().id());
               cap::shared_cap cap = EosFuse::Instance().caps.get(ino, clientid);
-              eos_static_notice("cap-update: cap-id=%lx %s", rsp.cap_().id(),
+              eos_static_notice("cap-update: cap-id=%#lx %s", rsp.cap_().id(),
                                 cap->dump().c_str());
 
               if (cap->id()) {
                 EosFuse::Instance().caps.update_quota(cap, rsp.cap_()._quota());
-                eos_static_notice("cap-update: cap-id=%lx %s", rsp.cap_().id(),
+                eos_static_notice("cap-update: cap-id=%#lx %s", rsp.cap_().id(),
                                   cap->dump().c_str());
               }
             }
@@ -2589,7 +2588,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
               uint64_t md_ino = rsp.md_().md_ino();
               std::string authid = rsp.md_().authid();
               uint64_t ino = inomap.forward(md_ino);
-              eos_static_notice("md-update: remote-ino=%lx ino=%lx authid=%s",
+              eos_static_notice("md-update: remote-ino=%#lx ino=%#lx authid=%s",
                                 md_ino, ino, authid.c_str());
               // we get this when a file update/flush appeared
               shared_md md;
@@ -2613,13 +2612,13 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
                 // verify that this record is newer than
                 if (rsp.md_().clock() >= md->clock()) {
-                  eos_static_info("overwriting clock MD %lx => %lx", md->clock(),
+                  eos_static_info("overwriting clock MD %#lx => %#lx", md->clock(),
                                   rsp.md_().clock());
                   *md = rsp.md_();
                   md->set_creator(false);
                   md->set_bc_time(time(NULL));
                 } else {
-                  eos_static_warning("keeping clock MD %lx => %lx", md->clock(),
+                  eos_static_warning("keeping clock MD %#lx => %#lx", md->clock(),
                                      rsp.md_().clock());
                 }
 
@@ -2649,14 +2648,14 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
                   EosFuse::instance().caps.book_inode(cap);
                 } else {
-                  eos_static_err("missing quota node for pino=%16x and clientid=%s",
-                                 pino, md->clientid().c_str());
+                  eos_static_debug("missing quota node for pino=%#lx and clientid=%s",
+                                   pino, md->clientid().c_str());
                 }
 
                 // possibly invalidate kernel cache
                 if (EosFuse::Instance().Config().options.md_kernelcache ||
                     EosFuse::Instance().Config().options.data_kernelcache) {
-                  eos_static_info("invalidate data cache for ino=%016lx", ino);
+                  eos_static_info("invalidate data cache for ino=%#lx", ino);
                   kernelcache::inval_inode(ino, S_ISDIR(mode) ? false : true);
                   kernelcache::inval_entry(pino, name);
                 }
@@ -2664,7 +2663,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                 if (S_ISREG(mode)) {
                   // invalidate local disk cache
                   EosFuse::Instance().datas.invalidate_cache(ino);
-                  eos_static_info("invalidate local disk cache for ino=%016lx", ino);
+                  eos_static_info("invalidate local disk cache for ino=%#lx", ino);
                 }
               } else {
                 // new file
@@ -2699,8 +2698,8 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                     EosFuse::Instance().caps.book_volume(cap, md_size);
                     EosFuse::instance().caps.book_inode(cap);
                   } else {
-                    eos_static_err("missing quota node for pino=%16x and clientid=%s",
-                                   pino, md->clientid().c_str());
+                    eos_static_debug("missing quota node for pino=%#llx and clientid=%s",
+                                     pino, md->clientid().c_str());
                   }
 
                   // possibly invalidate kernel cache for parent

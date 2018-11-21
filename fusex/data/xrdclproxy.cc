@@ -385,11 +385,17 @@ XrdCl::Proxy::OpenAsync(const std::string& url,
               state());
   }
 
-  XrdCl::XRootDStatus status = Open(url.c_str(),
-                                    flags,
-                                    mode,
-                                    &XOpenAsyncHandler,
-                                    timeout);
+  XrdCl::XRootDStatus status;
+  status = fuzzing().OpenAsyncSubmitFuzz();
+
+  if (!status.IsOK()) {
+  } else {
+    status = Open(url.c_str(),
+                  flags,
+                  mode,
+                  &XOpenAsyncHandler,
+                  timeout);
+  }
 
   if (status.IsOK()) {
     set_state(OPENING);
@@ -414,6 +420,12 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(
   eos_static_debug("");
   {
     XrdSysCondVarHelper openLock(proxy()->OpenCondVar());
+    XRootDStatus fuzzingstatus = proxy()->fuzzing().OpenAsyncResponseFuzz();
+
+    if (!fuzzingstatus.IsOK()) {
+      eos_static_debug("fuzzing open response");
+      *status = fuzzingstatus;
+    }
 
     if (status->IsOK()) {
       proxy()->set_state(OPENED);
@@ -1044,11 +1056,13 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("");
+  bool erase_chunk = false;
   {
     XrdSysCondVarHelper lLock(ReadCondVar());
     mStatus = *status;
+    bool fuzzing = proxy()->fuzzing().ReadAsyncResponseFuzz();
 
-    if (status->IsOK()) {
+    if (!fuzzing && status->IsOK()) {
       XrdCl::ChunkInfo* chunk = 0;
 
       if (response) {
@@ -1072,8 +1086,16 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
         mBuffer->resize(0);
       }
     } else {
-      // if the chunk failed for whatever reason, we have to remove if from the ChunkRMap
-      mProxy->ChunkRMap().erase((uint64_t)this);
+      if (status->IsOK()) {
+        mBuffer->resize(0);
+
+        if (response) {
+          delete response;
+        }
+      }
+
+      // if the chunk failed for whatever reason, we have to remove if from the ChunkRMap using its offset
+      erase_chunk = true;
     }
 
     mDone = true;
@@ -1086,9 +1108,23 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
     return;
   }
 
+  if (erase_chunk) {
+    read_handler
+    myhandler; // we have to keep a self reference, otherwise we delete ourselfs when removing from the map
+    {
+      XrdSysCondVarHelper lLock(proxy()->ReadCondVar());
+
+      if (proxy()->ChunkRMap().count((uint64_t)this->offset())) {
+        myhandler = proxy()->ChunkRMap()[(uint64_t)this->offset()];
+      }
+
+      proxy()->ChunkRMap().erase((uint64_t)this->offset());
+    }
+  }
+
   {
-    if (!mProxy->HasReadsInFlight()) {
-      mProxy->CheckSelfDestruction();
+    if (!proxy()->HasReadsInFlight()) {
+      proxy()->CheckSelfDestruction();
     }
   }
 }
@@ -1271,7 +1307,106 @@ void
 XrdCl::Proxy::CheckSelfDestruction()
 {
   if (should_selfdestroy()) {
-    eos_debug("self-destruction");
+    eos_debug("self-destruction %llx", this);
     delete this;
   }
+}
+
+
+/* -------------------------------------------------------------------------- */
+int XrdCl::Fuzzing::errors[22] = { 101, 102, 103, 104, 105, 106, 107, 108, 109,
+                                   201, 202, 203, 204, 205, 206, 207,
+                                   301, 302, 303, 304, 305, 306
+                                 };
+/* -------------------------------------------------------------------------- */
+
+size_t XrdCl::Fuzzing::non_fatal_errors = 9;
+/* -------------------------------------------------------------------------- */
+size_t XrdCl::Fuzzing::fatal_errors = 13;
+/* -------------------------------------------------------------------------- */
+size_t XrdCl::Fuzzing::open_async_submit_scaler = 0;
+size_t XrdCl::Fuzzing::open_async_submit_counter = 0;
+size_t XrdCl::Fuzzing::open_async_return_scaler = 0;
+size_t XrdCl::Fuzzing::open_async_return_counter = 0;
+size_t XrdCl::Fuzzing::read_async_return_scaler = 0;
+size_t XrdCl::Fuzzing::read_async_return_counter = 0;
+bool XrdCl::Fuzzing::open_async_submit_fatal = false;
+bool XrdCl::Fuzzing::open_async_return_fatal = false;
+
+/* -------------------------------------------------------------------------- */
+XrdCl::XRootDStatus
+/* -------------------------------------------------------------------------- */
+XrdCl::Fuzzing::OpenAsyncSubmitFuzz()
+{
+  if (open_async_submit_scaler) {
+    if (!(open_async_submit_counter++ % open_async_submit_scaler)) {
+      size_t random_error = rand() % (non_fatal_errors + (open_async_submit_fatal ?
+                                      fatal_errors : 0));
+      eos_static_debug("fuzzing error %d", errors[random_error]);
+
+      if (random_error < non_fatal_errors) {
+        XrdCl::XRootDStatus status(XrdCl::stError, errors[random_error], 0);
+        return status;
+      } else {
+        XrdCl::XRootDStatus status(XrdCl::stFatal, errors[random_error], 0);
+        return status;
+      }
+    }
+  }
+
+  //  size_t open_async_submit_counter;
+  XRootDStatus status(XrdCl::stOK,
+                      0,
+                      0,
+                      "open submitted"
+                     );
+  return status;
+}
+
+
+/* -------------------------------------------------------------------------- */
+XrdCl::XRootDStatus
+/* -------------------------------------------------------------------------- */
+XrdCl::Fuzzing::OpenAsyncResponseFuzz()
+{
+  if (open_async_return_scaler) {
+    if (!(open_async_return_counter++ % open_async_return_scaler)) {
+      size_t random_error = rand() % (non_fatal_errors + (open_async_return_fatal ?
+                                      fatal_errors : 0));
+      eos_static_debug("fuzzing error %d", errors[random_error]);
+
+      if (random_error < non_fatal_errors) {
+        XrdCl::XRootDStatus status(XrdCl::stError, errors[random_error], 0);
+        return status;
+      } else {
+        XrdCl::XRootDStatus status(XrdCl::stFatal, errors[random_error], 0);
+        return status;
+      }
+    }
+  }
+
+  eos_static_debug("fuzzing OK");
+  //  size_t open_async_return_counter
+  XRootDStatus status(XrdCl::stOK,
+                      0,
+                      0,
+                      "open successful"
+                     );
+  return status;
+}
+
+/* -------------------------------------------------------------------------- */
+bool
+/* -------------------------------------------------------------------------- */
+XrdCl::Fuzzing::ReadAsyncResponseFuzz()
+{
+  if (read_async_return_scaler) {
+    if (!(read_async_return_counter++ % read_async_return_scaler)) {
+      eos_static_debug("fuzzing error");
+      return true;
+    }
+  }
+
+  eos_static_debug("fuzzing OK");
+  return false;
 }

@@ -69,6 +69,13 @@ This
   "inline" : {
     "max-size" : 0,
     "default-compressor" : "none",
+  }, 
+  "fuzzing" : {
+    "open-async-submit" : 0,
+    "open-async-return" : 0, 
+    "open-async-submit-fatal" : 0, 
+    "open-async-return-fatal" : 0, 
+    "read-async-submit" : 0
   }
 }
 ```

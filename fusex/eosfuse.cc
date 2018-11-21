@@ -577,6 +577,23 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       root["recovery"]["write-open-noserver-retrywindow"] = 86400;
     }
 
+    // fuzzing settings
+    if (!root["fuzzing"].isMember("open-async-submit")) {
+      root["fuzzing"]["open-async-submit"] = 0;
+    }
+
+    if (!root["fuzzing"].isMember("open-async-return")) {
+      root["fuzzing"]["open-async-return"] = 0;
+    }
+
+    if (!root["fuzzing"].isMember("open-async-submit-fatal")) {
+      root["fuzzing"]["open-async-submit-fatal"] = 0;
+    }
+
+    if (!root["fuzzing"].isMember("open-async-return-fatal")) {
+      root["fuzzing"]["open-async-return-fatal"] = 0;
+    }
+
     const Json::Value jname = root["name"];
     config.name = root["name"].asString();
     config.hostport = root["hostport"].asString();
@@ -642,6 +659,18 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       root["recovery"]["write-open-noserver"].asInt();
     config.recovery.write_open_noserver_retrywindow =
       root["recovery"]["write-open-noserver-retrywindow"].asInt();
+    config.fuzzing.open_async_submit = root["fuzzing"]["open-async-submit"].asInt();
+    config.fuzzing.open_async_return = root["fuzzing"]["open-async-return"].asInt();
+    config.fuzzing.read_async_return = root["fuzzing"]["read-async-return"].asInt();
+    config.fuzzing.open_async_submit_fatal = (bool)
+        root["fuzzing"]["open-async-submit-fatal"].asInt();
+    config.fuzzing.open_async_return_fatal = (bool)
+        root["fuzzing"]["open-async-return-fatal"].asInt();
+    XrdCl::Fuzzing::Configure(config.fuzzing.open_async_submit,
+                              config.fuzzing.open_async_return,
+                              config.fuzzing.open_async_submit_fatal,
+                              config.fuzzing.open_async_return_fatal,
+                              config.fuzzing.read_async_return);
     config.mdcachehost = root["mdcachehost"].asString();
     config.mdcacheport = root["mdcacheport"].asInt();
     config.mdcachedir = root["mdcachedir"].asString();
@@ -1375,6 +1404,12 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                        config.inliner.max_size ? 1 : 0,
                        config.inliner.max_size,
                        config.inliner.default_compressor.c_str());
+    eos_static_warning("fuzzing                := open-async-submit:%lu(fatal:%lu) open-async-return:%lu(fatal:%lu) read-async-return:%lu",
+                       config.fuzzing.open_async_submit,
+                       config.fuzzing.open_async_submit_fatal,
+                       config.fuzzing.open_async_return,
+                       config.fuzzing.open_async_return_fatal,
+                       config.fuzzing.read_async_return);
     std::string xrdcl_option_string;
     std::string xrdcl_option_loglevel;
 
@@ -2338,7 +2373,7 @@ EBADF  Invalid directory stream descriptor fi->fh
 
         pmd->Locker().UnLock();
         // refresh the listing
-        eos_static_debug("refresh listing int=%16lx", ino);
+        eos_static_debug("refresh listing int=%#lx", ino);
         rc = listdir(req, ino, pmd);
         pmd->Locker().Lock();
       } while ((!rc) && (pmd->type() != pmd->MDLS));
@@ -2373,7 +2408,7 @@ EBADF  Invalid directory stream descriptor fi->fh
       // at offset=0 add the '.' directory
       std::string bname = ".";
       fuse_ino_t cino = pmd_id;
-      eos_static_debug("list: %08x %s", cino, bname.c_str());
+      eos_static_debug("list: %#lx %s", cino, bname.c_str());
       mode_t mode = pmd_mode;
       struct stat stbuf;
       memset(&stbuf, 0, sizeof(struct stat));
@@ -2381,7 +2416,7 @@ EBADF  Invalid directory stream descriptor fi->fh
       stbuf.st_mode = mode;
       size_t a_size = fuse_add_direntry(req, b_ptr, size - b_size,
                                         bname.c_str(), &stbuf, ++off);
-      eos_static_info("name=%s ino=%08lx mode=%08x bytes=%u/%u",
+      eos_static_info("name=%s ino=%08lx mode=%#lx bytes=%u/%u",
                       bname.c_str(), cino, mode, a_size, size - b_size);
       b_ptr += a_size;
       b_size += a_size;
@@ -2399,14 +2434,14 @@ EBADF  Invalid directory stream descriptor fi->fh
           mode = ppmd->mode();
         }
         std::string bname = "..";
-        eos_static_debug("list: %08x %s", cino, bname.c_str());
+        eos_static_debug("list: %#lx %s", cino, bname.c_str());
         struct stat stbuf;
         memset(&stbuf, 0, sizeof(struct stat));
         stbuf.st_ino = cino;
         stbuf.st_mode = mode;
         size_t a_size = fuse_add_direntry(req, b_ptr, size - b_size,
                                           bname.c_str(), &stbuf, ++off);
-        eos_static_info("name=%s ino=%08lx mode=%08x bytes=%u/%u",
+        eos_static_info("name=%s ino=%08lx mode=%#lx bytes=%u/%u",
                         bname.c_str(), cino, mode, a_size, size - b_size);
         b_ptr += a_size;
         b_size += a_size;
@@ -2432,7 +2467,7 @@ EBADF  Invalid directory stream descriptor fi->fh
       std::string bname = eos::common::StringConversion::DecodeInvalidUTF8(it->first);
       fuse_ino_t cino = it->second;
       metad::shared_md cmd = Instance().mds.get(req, cino, "", 0, 0, 0, true);
-      eos_static_debug("list: %08x %s (d=%d)", cino, it->first.c_str(),
+      eos_static_debug("list: %#lx %s (d=%d)", cino, it->first.c_str(),
                        cmd->deleted());
 
       if (strncmp(bname.c_str(), "...eos.ino...",

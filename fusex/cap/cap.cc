@@ -392,12 +392,12 @@ cap::refresh(fuse_req_t req, shared_cap cap)
           //XrdSysMutexHelper mLock(cap->Locker());
           // check if the cap received matches what we think about local mapping
           if (cap->id() == id) {
-            eos_static_debug("correct cap received for inode=%08x", cap->id());
+            eos_static_debug("correct cap received for inode=%#lx", cap->id());
             // great
             *cap = it->cap_();
             cap->set_id(id);
           } else {
-            eos_static_debug("wrong cap received for inode=%08x", cap->id());
+            eos_static_debug("wrong cap received for inode=%#lx", cap->id());
             // that is a fatal logical error
             rc = ENXIO;
           }
