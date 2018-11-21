@@ -21,13 +21,35 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Logging.hh"
+#include "common/Path.hh"
+#include "namespace/interface/IView.hh"
+#include "namespace/interface/IQuota.hh"
+#include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/utils/FsFilePath.hh"
+#include "mgm/Stat.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/Macros.hh"
+#include "mgm/FsView.hh"
+#include "mgm/Policy.hh"
 
-// -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
-// transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
+#include <XrdOuc/XrdOucEnv.hh>
 
+//----------------------------------------------------------------------------
+// Handle file importation into the namespace operation
+//----------------------------------------------------------------------------
+int
+XrdMgmOfs::Import(const char* path,
+                  const char* ininfo,
+                  XrdOucEnv& env,
+                  XrdOucErrInfo& error,
+                  eos::common::LogId& ThreadLogId,
+                  eos::common::Mapping::VirtualIdentity& vid,
+                  const XrdSecEntity* client)
 {
+  static const char* epname = "Import";
+
   REQUIRE_SSS_OR_LOCAL_AUTH;
   ACCESSMODE_W;
   MAYSTALL;
@@ -39,7 +61,7 @@
   char* alogid = env.Get("mgm.logid");
 
   if (alogid) {
-    ThreadLogId.SetLogId(alogid, tident);
+    ThreadLogId.SetLogId(alogid, error.getErrUser());
   }
 
   if (!id) {

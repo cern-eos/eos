@@ -291,6 +291,9 @@ XrdMgmOfs::FSctl(const int cmd,
     } else if (execmd == "getfmd") {
       return XrdMgmOfs::Getfmd(path, ininfo, env, error, ThreadLogId, vid,
                                client);
+    } else if (execmd == "import") {
+      return XrdMgmOfs::Import(path, ininfo, env, error, ThreadLogId, vid,
+                               client);
     } else if (execmd == "is_master") {
       return XrdMgmOfs::IsMaster(path, ininfo, env, error, ThreadLogId, vid,
                                  client);
