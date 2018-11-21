@@ -65,6 +65,15 @@ std::string Logbook::toString() const {
 }
 
 //------------------------------------------------------------------------------
+// Empty constructor
+//------------------------------------------------------------------------------
+LogbookScope::LogbookScope() : logbook(nullptr), indentationLevel(false) {
+
+}
+
+
+
+//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 LogbookScope::LogbookScope(Logbook *lb, const std::string &header,
@@ -83,6 +92,10 @@ LogbookScope::LogbookScope(Logbook *lb, const std::string &header,
 // Get a new sub-scope
 //----------------------------------------------------------------------------
 LogbookScope LogbookScope::makeScope(const std::string &header) {
+  if(!logbook) {
+    return LogbookScope();
+  }
+
   return LogbookScope(logbook, header, indentationLevel+2);
 }
 
@@ -90,18 +103,24 @@ LogbookScope LogbookScope::makeScope(const std::string &header) {
 // Record message into the log, under the given scope
 //----------------------------------------------------------------------------
 void LogbookScope::insert(const std::string &msg) {
-  std::stringstream ss;
-  for(size_t i = 0; i < indentationLevel+2; i++) {
-    ss << " ";
-  }
+  if(logbook) {
+    std::stringstream ss;
+    for(size_t i = 0; i < indentationLevel+2; i++) {
+      ss << " ";
+    }
 
-  ss << msg;
-  logbook->insert(ss.str());
+    ss << msg;
+    logbook->insert(ss.str());
+  }
 }
 
 //----------------------------------------------------------------------------
 // Check if activated
 //----------------------------------------------------------------------------
 bool LogbookScope::active() const {
+  if(!logbook) {
+    return false;
+  }
+
   return logbook->active();
 }

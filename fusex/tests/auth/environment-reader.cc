@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "gtest/gtest.h"
 #include "auth/EnvironmentReader.hh"
+#include "gtest/gtest.h"
 
 TEST(EnvironmentReader, BasicSanity)
 {

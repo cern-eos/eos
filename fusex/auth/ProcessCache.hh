@@ -30,6 +30,8 @@
 #include "BoundIdentityProvider.hh"
 #include "common/ShardedCache.hh"
 
+class Logbook;
+
 class ProcessCacheEntry
 {
 public:
@@ -108,6 +110,13 @@ public:
     ProcessInfoProvider &pip, JailResolver &jr);
 
   //----------------------------------------------------------------------------
+  // Major retrieve function, called by the rest of eosxd - using
+  // custom logbook.
+  //----------------------------------------------------------------------------
+  ProcessSnapshot retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect,
+    Logbook &logbook);
+
+  //----------------------------------------------------------------------------
   // Major retrieve function, called by the rest of eosxd.
   //----------------------------------------------------------------------------
   ProcessSnapshot retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect);
@@ -118,7 +127,7 @@ private:
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity>
   discoverBoundIdentity(const JailInformation &jail, const ProcessInfo&
-    processInfo, uid_t uid, gid_t gid, bool reconnect);
+    processInfo, uid_t uid, gid_t gid, bool reconnect, Logbook &logbook);
 
   CredentialConfig credConfig;
 

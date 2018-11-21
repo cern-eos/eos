@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "ProcessCache.hh"
+#include "Logbook.hh"
 
 thread_local bool execveAlarm {
   false
@@ -56,7 +57,8 @@ ProcessCache::ProcessCache(const CredentialConfig &conf,
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
 ProcessCache::discoverBoundIdentity(const JailInformation& jail,
-  const ProcessInfo& processInfo, uid_t uid, gid_t gid, bool reconnect)
+  const ProcessInfo& processInfo, uid_t uid, gid_t gid, bool reconnect,
+  Logbook &logbook)
 {
   std::shared_ptr<const BoundIdentity> output;
 
@@ -65,8 +67,11 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
   //----------------------------------------------------------------------------
   if (!credConfig.use_user_krb5cc && !credConfig.use_user_gsiproxy &&
       !credConfig.use_user_sss) {
+
+    LogbookScope scope = logbook.makeScope("krb5, x509, and SSS disabled - "
+      "falling back to UNIX");
     return boundIdentityProvider.unixAuth(processInfo.getPid(), uid, gid,
-      reconnect);
+      reconnect, scope);
   }
 
   //----------------------------------------------------------------------------
@@ -96,12 +101,19 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
     checkParentFirst = true;
   }
 
+  LOGBOOK_INSERT(logbook, "execveAlarm = " << execveAlarm <<
+    ", PF_FORKNOEXEC = " << (processInfo.getFlags() & PF_FORKNOEXEC) <<
+    ", checkParentFirst = " << checkParentFirst);
+
+  LogbookScope scope = logbook.makeScope("Attempting to discover bound identity "
+    "based on environment variables");
+
   //----------------------------------------------------------------------------
   // Check parent?
   //----------------------------------------------------------------------------
   if(checkParentFirst && processInfo.getParentId() != 1) {
     output = boundIdentityProvider.pidEnvironmentToBoundIdentity(jail,
-      processInfo.getParentId(), uid, gid, reconnect);
+      processInfo.getParentId(), uid, gid, reconnect, scope);
 
     if(output) {
       return output;
@@ -119,7 +131,7 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
   //----------------------------------------------------------------------------
   if (!execveAlarm) {
     output = boundIdentityProvider.pidEnvironmentToBoundIdentity(jail,
-      processInfo.getPid(), uid, gid, reconnect);
+      processInfo.getPid(), uid, gid, reconnect, scope);
 
     if(output) {
       return output;
@@ -131,7 +143,7 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
   //----------------------------------------------------------------------------
   if(!checkParentFirst && processInfo.getParentId() != 1) {
     output = boundIdentityProvider.pidEnvironmentToBoundIdentity(jail,
-      processInfo.getParentId(), uid, gid, reconnect);
+      processInfo.getParentId(), uid, gid, reconnect, scope);
 
     if(output) {
       return output;
@@ -142,7 +154,7 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
   // Nothing yet.. try global binding from eosfusebind...
   //----------------------------------------------------------------------------
   output = boundIdentityProvider.globalBindingToBoundIdentity(jail, uid, gid,
-    reconnect);
+    reconnect, scope);
 
   if(output) {
     return output;
@@ -152,7 +164,7 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
   // What about default paths, ie /tmp/krb5cc_<uid>?
   //----------------------------------------------------------------------------
   output = boundIdentityProvider.defaultPathsToBoundIdentity(jail, uid, gid,
-    reconnect);
+    reconnect, scope);
 
   if(output) {
     return output;
@@ -162,7 +174,7 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
   // No credentials found at all.. fallback to unix authentication.
   //----------------------------------------------------------------------------
   return boundIdentityProvider.unixAuth(processInfo.getPid(), uid, gid,
-    reconnect);
+    reconnect, scope);
 }
 
 //------------------------------------------------------------------------------
@@ -171,8 +183,20 @@ ProcessCache::discoverBoundIdentity(const JailInformation& jail,
 ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
                                        bool reconnect)
 {
-  eos_static_debug("ProcessCache::retrieve with pid, uid, gid, reconnect => %d, %d, %d, %d",
-                   pid, uid, gid, reconnect);
+  Logbook disabled(false);
+  return retrieve(pid, uid, gid, reconnect, disabled);
+}
+
+//----------------------------------------------------------------------------
+// Major retrieve function, called by the rest of eosxd - using
+// custom logbook.
+//----------------------------------------------------------------------------
+ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
+  bool reconnect, Logbook &logbook)
+{
+  LOGBOOK_INSERT(logbook, "===== Retrieve process snapshot for pid=" << pid << ", uid=" << uid
+    << ", gid=" << gid << ", reconnect=" << reconnect << " =====");
+  LogbookScope scope(logbook.makeScope(SSTR("/proc/" << pid << "/root lookup")));
 
   //----------------------------------------------------------------------------
   // Retrieve information about the jail in which this pid lives in. Is it the
@@ -185,7 +209,10 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
     //--------------------------------------------------------------------------
     eos_static_notice("Could not retrieve jail information for pid=%d", pid);
     jailInfo = myJail;
+    LOGBOOK_INSERT(scope, "WARNING: Could not retrieve jail information for pid=" << pid << ", subsituting with my jail");
   }
+
+  LOGBOOK_INSERT(scope, jailInfo.describe());
 
   //----------------------------------------------------------------------------
   // First, let's check the cache. Major retrieve function, called by the rest
@@ -193,6 +220,10 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
   //----------------------------------------------------------------------------
   ProcessCacheKey cacheKey(pid, uid, gid);
   ProcessSnapshot entry = cache.retrieve(cacheKey);
+
+  if(entry && reconnect) {
+    LOGBOOK_INSERT(logbook, "Found cached entry in ProcessCache (" << entry->getBoundIdentity()->getLogin().getStringID() << "), but reconnecting as requested");
+  }
 
   if (entry && !reconnect) {
     //--------------------------------------------------------------------------
@@ -239,7 +270,11 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
   // the cache for future requests.
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> bdi = discoverBoundIdentity(jailInfo,
-    processInfo, uid, gid, reconnect);
+    processInfo, uid, gid, reconnect, logbook);
+
+  LOGBOOK_INSERT(logbook, "");
+  LOGBOOK_INSERT(logbook, "===== BOUND IDENTITY: =====");
+  LOGBOOK_INSERT(logbook, bdi->describe());
 
   ProcessSnapshot result;
   cache.store(cacheKey,

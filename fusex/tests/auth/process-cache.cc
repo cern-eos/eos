@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "test-utils.hh"
 #include "auth/ProcessCache.hh"
+#include "test-utils.hh"
 #include <gtest/gtest.h>
 
 TEST_F(UnixAuthF, BasicSanity)

@@ -24,6 +24,7 @@
 #include "CredentialValidator.hh"
 #include "CredentialFinder.hh"
 #include "UuidStore.hh"
+#include "Logbook.hh"
 
 //----------------------------------------------------------------------------
 // Constructor - dependency injection of SecurityChecker
@@ -37,7 +38,7 @@ CredentialValidator::CredentialValidator(SecurityChecker &chk,
 // if possible. Return true if promotion succeeded.
 //------------------------------------------------------------------------------
 bool CredentialValidator::validate(const JailInformation &jail,
-  const UserCredentials &uc, TrustedCredentials &out)
+  const UserCredentials &uc, TrustedCredentials &out, LogbookScope &scope)
 {
   if(uc.type == CredentialType::INVALID) {
     THROW("invalid credentials provided to CredentialValidator");
@@ -50,6 +51,8 @@ bool CredentialValidator::validate(const JailInformation &jail,
   //----------------------------------------------------------------------------
   if(uc.type == CredentialType::KRK5 || uc.type == CredentialType::SSS ||
     uc.type == CredentialType::NOBODY) {
+
+    LOGBOOK_INSERT(scope, "Credential type does not need validation - accepting");
     out.initialize(uc, 0, "");
     return true;
   }
@@ -68,6 +71,7 @@ bool CredentialValidator::validate(const JailInformation &jail,
       //------------------------------------------------------------------------
       // Credential file cannot be used.
       //------------------------------------------------------------------------
+      LOGBOOK_INSERT(scope, "Credential file has bad permissions");
       return false;
     }
     case CredentialState::kOk: {
@@ -75,6 +79,7 @@ bool CredentialValidator::validate(const JailInformation &jail,
       // Credential file is OK, and the SecurityChecker determined the path
       // can be used as-is - no need for copying.
       //------------------------------------------------------------------------
+      LOGBOOK_INSERT(scope, "Credential file is OK - using as-is");
       out.initialize(uc, info.mtime, "");
       return true;
     }
@@ -85,6 +90,7 @@ bool CredentialValidator::validate(const JailInformation &jail,
       // XrdCl params.
       //------------------------------------------------------------------------
       std::string casPath = credentialStore.put(info.contents);
+      LOGBOOK_INSERT(scope, "Credential file must be copied - path: " << casPath);
       out.initialize(uc, info.mtime, casPath);
       return true;
     }

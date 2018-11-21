@@ -59,7 +59,21 @@ std::string JailIdentifier::describe() const {
   	return SSTR("Jail resolution failed: errno=" << errc << ", " << error);
   }
 
-  return SSTR("Jail identifier: " << st_dev << "," << st_ino);
+  return SSTR("jail identifier: st_dev=" << st_dev << ", ino=" << st_ino);
+}
+
+
+//------------------------------------------------------------------------------
+// Describe a JailInformation object
+//------------------------------------------------------------------------------
+std::string JailInformation::describe() const {
+  std::string idDescr = id.describe();
+
+  if(sameJailAsThisPid) {
+    return SSTR(idDescr << " -- same jail as eosxd");
+  }
+
+  return SSTR(idDescr << " -- DIFFERENT jail than eosxd!");
 }
 
 //----------------------------------------------------------------------------

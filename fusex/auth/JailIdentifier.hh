@@ -104,6 +104,8 @@ struct JailInformation {
   JailIdentifier id;
   pid_t pid;
   bool sameJailAsThisPid;
+
+  std::string describe() const;
 };
 
 //------------------------------------------------------------------------------

@@ -246,6 +246,17 @@ public:
     return !initialized;
   }
 
+  //----------------------------------------------------------------------------
+  // Describe object as string
+  //----------------------------------------------------------------------------
+  std::string describe() const {
+    std::stringstream ss;
+    ss << uc.describe() << std::endl;
+    ss << "mtime: " << mtime << std::endl;
+    ss << "intercepted path: " << interceptedPath << std::endl;
+    return ss.str();
+  }
+
 private:
   UserCredentials uc;
 
@@ -281,6 +292,16 @@ public:
   const TrustedCredentials* getCreds() const
   {
     return &creds;
+  }
+
+  //----------------------------------------------------------------------------
+  // Describe object as string
+  //----------------------------------------------------------------------------
+  std::string describe() const {
+    std::stringstream ss;
+    ss << "Login identifier: " << login.getStringID() << std::endl;
+    ss << creds.describe();
+    return ss.str();
   }
 
 private:

@@ -29,6 +29,7 @@ class SecurityChecker;
 class UserCredentials;
 class JailInformation;
 class UuidStore;
+class LogbookScope;
 
 //------------------------------------------------------------------------------
 // This class validates UserCredentials objects, and promotes those that
@@ -49,7 +50,8 @@ public:
   // if possible. Return true if promotion succeeded.
   //----------------------------------------------------------------------------
   bool validate(const JailInformation &jail,
-    const UserCredentials &uc, TrustedCredentials &out);
+    const UserCredentials &uc, TrustedCredentials &out,
+    LogbookScope &scope);
 
   //----------------------------------------------------------------------------
   // Is the given TrustedCredentials object still valid? Reasons for

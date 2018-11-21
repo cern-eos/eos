@@ -38,6 +38,7 @@
 class SecurityChecker;
 class EnvironmentReader;
 class CredentialValidator;
+class LogbookScope;
 
 class BoundIdentityProvider
 {
@@ -54,7 +55,7 @@ public:
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> environmentToBoundIdentity(
     const JailInformation& jail, const Environment& env, uid_t uid,
-    gid_t gid, bool reconnect);
+    gid_t gid, bool reconnect, LogbookScope &scope);
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of environment variables
@@ -62,7 +63,7 @@ public:
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> pidEnvironmentToBoundIdentity(
     const JailInformation& jail, pid_t pid, uid_t uid, gid_t gid,
-    bool reconnect);
+    bool reconnect, LogbookScope &logbook);
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of default paths, such
@@ -71,7 +72,7 @@ public:
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity>
   defaultPathsToBoundIdentity(const JailInformation& jail, uid_t uid,
-    gid_t gid, bool reconnect);
+    gid_t gid, bool reconnect, LogbookScope &scope);
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of the global eosfusebind
@@ -79,7 +80,7 @@ public:
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity>
   globalBindingToBoundIdentity(const JailInformation& jail, uid_t uid,
-    gid_t gid, bool reconnect);
+    gid_t gid, bool reconnect, LogbookScope &scope);
 
   void setCredentialConfig(const CredentialConfig& conf)
   {
@@ -98,7 +99,7 @@ public:
   // matter)
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> unixAuth(pid_t pid, uid_t uid, gid_t gid,
-    bool reconnect);
+    bool reconnect, LogbookScope &scope);
 
 private:
   SecurityChecker& securityChecker;
@@ -116,7 +117,7 @@ private:
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> krb5EnvToBoundIdentity(
     const JailInformation& jail, const Environment& env, uid_t uid, gid_t gid,
-    bool reconnect);
+    bool reconnect, LogbookScope &scope);
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of X509 environment
@@ -124,7 +125,7 @@ private:
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> x509EnvToBoundIdentity(
     const JailInformation& jail, const Environment& env, uid_t uid, gid_t gid,
-    bool reconnect);
+    bool reconnect, LogbookScope &scope);
 
   //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of SSS environment
@@ -132,7 +133,7 @@ private:
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> sssEnvToBoundIdentity(
     const JailInformation& jail, const Environment& env, uid_t uid, gid_t gid,
-    bool reconnect);
+    bool reconnect, LogbookScope &scope);
 
   //----------------------------------------------------------------------------
   // Given a set of user-provided, non-trusted UserCredentials, attempt to
@@ -142,7 +143,8 @@ private:
   // If such a thing is not possible, return nullptr.
   //----------------------------------------------------------------------------
   std::shared_ptr<const BoundIdentity> userCredsToBoundIdentity(
-    const JailInformation& jail, const UserCredentials &creds, bool reconnect);
+    const JailInformation& jail, const UserCredentials &creds, bool reconnect,
+    LogbookScope &scope);
 
   //----------------------------------------------------------------------------
   // Register SSS credentials

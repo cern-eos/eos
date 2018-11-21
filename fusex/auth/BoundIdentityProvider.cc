@@ -25,6 +25,7 @@
 #include "BoundIdentityProvider.hh"
 #include "EnvironmentReader.hh"
 #include "CredentialValidator.hh"
+#include "Logbook.hh"
 #include <sys/stat.h>
 
 //------------------------------------------------------------------------------
@@ -45,7 +46,8 @@ BoundIdentityProvider::BoundIdentityProvider(SecurityChecker& checker,
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
 BoundIdentityProvider::krb5EnvToBoundIdentity(const JailInformation& jail,
-  const Environment& env, uid_t uid, gid_t gid, bool reconnect)
+  const Environment& env, uid_t uid, gid_t gid, bool reconnect,
+  LogbookScope &scope)
 {
   std::string path = env.get("KRB5CCNAME");
   const std::string prefix = "FILE:";
@@ -54,6 +56,7 @@ BoundIdentityProvider::krb5EnvToBoundIdentity(const JailInformation& jail,
     //--------------------------------------------------------------------------
     // Explicitly disallow any credential type other than FILE: for now.
     //--------------------------------------------------------------------------
+    LOGBOOK_INSERT(scope, "Invalid KRB5CCNAME (size: " << path.size() << ")");
     return {};
   }
 
@@ -61,9 +64,11 @@ BoundIdentityProvider::krb5EnvToBoundIdentity(const JailInformation& jail,
   // Drop FILE:
   //----------------------------------------------------------------------------
   path = path.substr(prefix.size());
+  LOGBOOK_INSERT(scope, "Found KRB5CCNAME: " << path << ", need to validate");
 
   return userCredsToBoundIdentity(jail,
-           UserCredentials::MakeKrb5(jail.id, path, uid, gid), reconnect);
+           UserCredentials::MakeKrb5(jail.id, path, uid, gid), reconnect,
+           scope);
 }
 
 //------------------------------------------------------------------------------
@@ -72,7 +77,8 @@ BoundIdentityProvider::krb5EnvToBoundIdentity(const JailInformation& jail,
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
 BoundIdentityProvider::x509EnvToBoundIdentity(const JailInformation& jail,
-  const Environment& env, uid_t uid, gid_t gid, bool reconnect)
+  const Environment& env, uid_t uid, gid_t gid, bool reconnect,
+  LogbookScope &scope)
 {
   std::string path = env.get("X509_USER_PROXY");
 
@@ -81,11 +87,14 @@ BoundIdentityProvider::x509EnvToBoundIdentity(const JailInformation& jail,
     // Early exit, no need to go through the trouble
     // of userCredsToBoundIdentity.
     //--------------------------------------------------------------------------
+    LOGBOOK_INSERT(scope, "Invalid X509_USER_PROXY (size: " << path.size() << ")");
     return {};
   }
 
+  LOGBOOK_INSERT(scope, "Found X509_USER_PROXY: " << path << ", need to validate");
   return userCredsToBoundIdentity(jail,
-           UserCredentials::MakeX509(jail.id, path, uid, gid), reconnect);
+           UserCredentials::MakeX509(jail.id, path, uid, gid), reconnect,
+           scope);
 }
 
 //------------------------------------------------------------------------------
@@ -94,11 +103,14 @@ BoundIdentityProvider::x509EnvToBoundIdentity(const JailInformation& jail,
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
 BoundIdentityProvider::sssEnvToBoundIdentity(const JailInformation& jail,
-  const Environment& env, uid_t uid, gid_t gid, bool reconnect)
+  const Environment& env, uid_t uid, gid_t gid, bool reconnect,
+  LogbookScope &scope)
 {
   std::string endorsement = env.get("XrdSecsssENDORSEMENT");
+  LOGBOOK_INSERT(scope, "Found SSS endorsement of size " << endorsement.size());
   return userCredsToBoundIdentity(jail,
-           UserCredentials::MakeSSS(endorsement, uid, gid), reconnect);
+           UserCredentials::MakeSSS(endorsement, uid, gid), reconnect,
+           scope);
 }
 
 //------------------------------------------------------------------------------
@@ -107,7 +119,8 @@ BoundIdentityProvider::sssEnvToBoundIdentity(const JailInformation& jail,
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
 BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
-  const Environment& env, uid_t uid, gid_t gid, bool reconnect)
+  const Environment& env, uid_t uid, gid_t gid, bool reconnect,
+  LogbookScope &scope)
 {
   std::shared_ptr<const BoundIdentity> output;
 
@@ -115,7 +128,7 @@ BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
   // Always use SSS if available.
   //----------------------------------------------------------------------------
   if (credConfig.use_user_sss) {
-    output = sssEnvToBoundIdentity(jail, env, uid, gid, reconnect);
+    output = sssEnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
 
     if (output) {
       return output;
@@ -126,7 +139,7 @@ BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
   // No SSS.. should we try KRB5 first, or second?
   //----------------------------------------------------------------------------
   if (credConfig.tryKrb5First) {
-    output = krb5EnvToBoundIdentity(jail, env, uid, gid, reconnect);
+    output = krb5EnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
 
     if (output) {
       return output;
@@ -135,7 +148,7 @@ BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
     //--------------------------------------------------------------------------
     // No krb5.. what about x509..
     //--------------------------------------------------------------------------
-    output = x509EnvToBoundIdentity(jail, env, uid, gid, reconnect);
+    output = x509EnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
 
     if (output) {
       return output;
@@ -150,7 +163,7 @@ BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
   //----------------------------------------------------------------------------
   // No SSS, and we should try krb5 second.
   //----------------------------------------------------------------------------
-  output = x509EnvToBoundIdentity(jail, env, uid, gid, reconnect);
+  output = x509EnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
 
   if (output) {
     return output;
@@ -159,7 +172,7 @@ BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
   //--------------------------------------------------------------------------
   // No x509.. what about krb5..
   //--------------------------------------------------------------------------
-  output = krb5EnvToBoundIdentity(jail, env, uid, gid, reconnect);
+  output = krb5EnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
 
   if (output) {
     return output;
@@ -218,8 +231,13 @@ void BoundIdentityProvider::registerSSS(const BoundIdentity& bdi)
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
 BoundIdentityProvider::userCredsToBoundIdentity(const JailInformation& jail,
-  const UserCredentials& creds, bool reconnect)
+  const UserCredentials& creds, bool reconnect, LogbookScope &scope)
 {
+  //----------------------------------------------------------------------------
+  // Make a proper LogbookScope, and pretty-print UserCredentials
+  //----------------------------------------------------------------------------
+  LogbookScope subscope(scope.makeScope("Attempt to translate UserCredentials -> BoundIdentity"));
+
   //----------------------------------------------------------------------------
   // First check: Is the item in the cache?
   //----------------------------------------------------------------------------
@@ -229,6 +247,7 @@ BoundIdentityProvider::userCredsToBoundIdentity(const JailInformation& jail,
   // Invalidate result if asked to reconnect
   //----------------------------------------------------------------------------
   if (cached && reconnect) {
+    LOGBOOK_INSERT(subscope, "Cache entry UserCredentials -> BoundIdentity already exists (" << cached->getLogin().getStringID() << ") - invalidating");
     credentialCache.invalidate(creds);
     cached->getCreds()->invalidate();
     cached = {};
@@ -248,7 +267,7 @@ BoundIdentityProvider::userCredsToBoundIdentity(const JailInformation& jail,
   // TrustedCredentials?
   //----------------------------------------------------------------------------
   std::unique_ptr<BoundIdentity> bdi(new BoundIdentity());
-  if (!validator.validate(jail, creds, *bdi->getCreds())) {
+  if (!validator.validate(jail, creds, *bdi->getCreds(), subscope)) {
     //--------------------------------------------------------------------------
     // Nope, these UserCredentials are unusable.
     //--------------------------------------------------------------------------
@@ -274,8 +293,11 @@ BoundIdentityProvider::userCredsToBoundIdentity(const JailInformation& jail,
 // matter)
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
-BoundIdentityProvider::unixAuth(pid_t pid, uid_t uid, gid_t gid, bool reconnect)
+BoundIdentityProvider::unixAuth(pid_t pid, uid_t uid, gid_t gid,
+  bool reconnect, LogbookScope &scope)
 {
+  LOGBOOK_INSERT(scope, "Producing UNIX identity out of pid=" << pid <<
+    ", uid=" << uid << ", gid=" << gid);
   return unixAuthenticator.createIdentity(pid, uid, gid, reconnect);
 }
 
@@ -286,14 +308,20 @@ BoundIdentityProvider::unixAuth(pid_t pid, uid_t uid, gid_t gid, bool reconnect)
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
 BoundIdentityProvider::defaultPathsToBoundIdentity(const JailInformation& jail,
-  uid_t uid, gid_t gid, bool reconnect)
+  uid_t uid, gid_t gid, bool reconnect, LogbookScope &scope)
 {
   // Pretend as if the environment of the process simply contained the default values,
   // and follow the usual code path.
   Environment defaultEnv;
   defaultEnv.push_back("KRB5CCNAME=FILE:/tmp/krb5cc_" + std::to_string(uid));
   defaultEnv.push_back("X509_USER_PROXY=/tmp/x509up_u" + std::to_string(uid));
-  return environmentToBoundIdentity(jail, defaultEnv, uid, gid, reconnect);
+
+  LogbookScope subscope(scope.makeScope(
+    SSTR("Attempting to produce BoundIdentity out of default paths for uid="
+      << uid)));
+
+  return environmentToBoundIdentity(jail, defaultEnv, uid, gid, reconnect,
+    subscope);
 }
 
 //------------------------------------------------------------------------------
@@ -302,7 +330,7 @@ BoundIdentityProvider::defaultPathsToBoundIdentity(const JailInformation& jail,
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
 BoundIdentityProvider::globalBindingToBoundIdentity(const JailInformation& jail,
-  uid_t uid, gid_t gid, bool reconnect)
+  uid_t uid, gid_t gid, bool reconnect, LogbookScope &scope)
 {
   // Pretend as if the environment of the process simply contained the eosfusebind
   // global bindings, and follow the usual code path.
@@ -311,7 +339,13 @@ BoundIdentityProvider::globalBindingToBoundIdentity(const JailInformation& jail,
                             << ".krb5"));
   defaultEnv.push_back(SSTR("X509_USER_PROXY=/var/run/eosd/credentials/uid" << uid
                             << ".x509"));
-  return environmentToBoundIdentity(jail, defaultEnv, uid, gid, reconnect);
+
+  LogbookScope subscope(scope.makeScope(
+    SSTR("Attempting to produce BoundIdentity out of eosfusebind " <<
+      "global binding for uid=" << uid)));
+
+  return environmentToBoundIdentity(jail, defaultEnv, uid, gid, reconnect,
+    subscope);
 }
 
 //------------------------------------------------------------------------------
@@ -320,8 +354,13 @@ BoundIdentityProvider::globalBindingToBoundIdentity(const JailInformation& jail,
 //------------------------------------------------------------------------------
 std::shared_ptr<const BoundIdentity>
 BoundIdentityProvider::pidEnvironmentToBoundIdentity(
-  const JailInformation &jail, pid_t pid, uid_t uid, gid_t gid, bool reconnect)
+  const JailInformation &jail, pid_t pid, uid_t uid, gid_t gid,
+  bool reconnect, LogbookScope &scope)
 {
+
+  LogbookScope subscope(scope.makeScope(
+    SSTR("Attempting to produce BoundIdentity out of process environment, pid=" << pid)));
+
   // First, let's read the environment to build up a UserCredentials object.
   Environment processEnv;
   FutureEnvironment response = environmentReader.stageRequest(pid);
@@ -330,10 +369,16 @@ BoundIdentityProvider::pidEnvironmentToBoundIdentity(
         std::chrono::milliseconds(credConfig.environ_deadlock_timeout))) {
     eos_static_info("Timeout when retrieving environment for pid %d (uid %d) - we're doing an execve!",
                     pid, uid);
+    LOGBOOK_INSERT(subscope,
+      "FAILED in retrieving environment variables for pid=" << pid << ": TIMEOUT");
     return {};
   }
 
-  return environmentToBoundIdentity(jail, response.get(), uid, gid, reconnect);
+  LOGBOOK_INSERT(subscope, "Succeeded in retrieving environment "
+    "variables for pid=" << pid);
+
+  return environmentToBoundIdentity(jail, response.get(), uid, gid,
+    reconnect, subscope);
 }
 
 //------------------------------------------------------------------------------

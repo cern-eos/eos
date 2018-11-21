@@ -78,6 +78,7 @@ extern "C" { /* this 'extern "C"' brace will eventually end up in the .h file, t
 #include "common/LinuxMemConsumption.hh"
 #include "common/LinuxStat.hh"
 #include "common/StringConversion.hh"
+#include "auth/Logbook.hh"
 #include "md/md.hh"
 #include "md/kernelcache.hh"
 #include "kv/kv.hh"
@@ -4162,6 +4163,14 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
                          Instance().Config().hostport.c_str());
                 value = qline;
               }
+            }
+
+            if(key == "eos.reconnect") {
+              Logbook logbook(true);
+              const struct fuse_ctx* ctx = fuse_req_ctx(req);
+              ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
+                             ctx->uid, ctx->gid, true, logbook);
+              value = logbook.toString();
             }
           } else {
             if (S_ISDIR(md->mode())) {

@@ -25,6 +25,7 @@
 #define EOS_FUSEX_USER_CREDENTIALS_HH
 
 #include "JailIdentifier.hh"
+#include <sstream>
 #include <sys/types.h>
 
 //------------------------------------------------------------------------------
@@ -43,6 +44,32 @@ enum class CredentialType : std::uint32_t {
   NOBODY,
   INVALID
 };
+
+//------------------------------------------------------------------------------
+// Convert CredentialType to string
+//------------------------------------------------------------------------------
+inline std::string credentialTypeAsString(CredentialType type) {
+  switch(type) {
+    case CredentialType::KRB5: {
+      return "krb5";
+    }
+    case CredentialType::KRK5: {
+      return "krk5";
+    }
+    case CredentialType::X509: {
+      return "x509";
+    }
+    case CredentialType::SSS: {
+      return "sss";
+    }
+    case CredentialType::NOBODY: {
+      return "nobody";
+    }
+    case CredentialType::INVALID: {
+      return "invadid";
+    }
+  }
+}
 
 //------------------------------------------------------------------------------
 // This class stores information about an instance of user credentials. The
@@ -196,6 +223,38 @@ struct UserCredentials {
     }
 
     return gid < src.gid;
+  }
+
+  //----------------------------------------------------------------------------
+  // Describe contents
+  //----------------------------------------------------------------------------
+  std::string describe() const {
+    std::stringstream ss;
+    ss << credentialTypeAsString(type);;
+
+    switch(type) {
+      case CredentialType::KRB5:
+      case CredentialType::X509: {
+        ss << ": " << fname << " for uid=" << uid << ", gid=" << gid <<
+          ", under " << jail.describe();
+        break;
+      }
+      case CredentialType::KRK5: {
+        break;
+      }
+      case CredentialType::SSS: {
+        ss << " with endorsement of size " << endorsement.size() <<
+          ", for uid=" << uid << ", gid=" << gid;
+        break;
+      }
+      case CredentialType::NOBODY:
+      case CredentialType::INVALID: {
+        break;
+        // null
+      }
+    }
+
+    return ss.str();
   }
 
 private:
