@@ -242,6 +242,10 @@ XrdMgmOfsFile::open(const char* inpath,
       if (application == "fuse") {
         isFuse = true;
       }
+
+      if (application.beginswith("fuse::")) {
+        isFuse = true;
+      }
     }
 
     if ((val = openOpaque->Get("xrd.appname"))) {
