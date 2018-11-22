@@ -1223,8 +1223,11 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
     md->set_name(newname);
     md->set_pid(p2md->id());
     md->set_md_pino(p2md->md_ino());
-    p1md->get_todelete()[oldname] = 0; //md->id(); // make it known as deleted
-    p2md->get_todelete().erase(newname); // the new target is not deleted anymore
+    p1md->get_todelete()[eos::common::StringConversion::EncodeInvalidUTF8(
+                           oldname)] = 0; //md->id(); // make it known as deleted
+    p2md->get_todelete().erase(eos::common::StringConversion::EncodeInvalidUTF8(
+                                 newname)); // the new target is not deleted anymore
+    p2md->local_enoent().erase(newname); // remove a possible enoent entry
     md->setop_update();
     p1md->setop_update();
     p2md->setop_update();
@@ -1245,6 +1248,7 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
                            md->name())] = md->id(); // make it known as deleted
     p2md->get_todelete().erase(eos::common::StringConversion::EncodeInvalidUTF8(
                                  newname)); // the new target is not deleted anymore
+    p2md->local_enoent().erase(newname); // remove a possible enoent entry
     md->set_name(newname);
     md->setop_update();
     p1md->setop_update();
