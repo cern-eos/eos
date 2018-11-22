@@ -1152,6 +1152,11 @@ FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
         continue;
       }
 
+      // skip same source
+      if (cap->clientuuid() == md.clientuuid()) {
+        continue;
+      }
+
       if (cap->id()) {
         bccaps.push_back(cap);
       }
@@ -1328,6 +1333,11 @@ FuseServer::Caps::BroadcastMD(const eos::fusex::md& md,
 
       // skip identical client mounts, the have it anyway!
       if (cap->clientuuid() == refcap->clientuuid()) {
+        continue;
+      }
+
+      // skip same source
+      if (cap->clientuuid() == md.clientuuid()) {
         continue;
       }
 
