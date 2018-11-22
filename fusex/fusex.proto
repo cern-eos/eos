@@ -201,6 +201,8 @@ message lock {
 message config {
   fixed32 hbrate = 1; //< heartbeat interval for this client
   bool dentrymessaging = 2; //< enables dentry invalidation by extra message
+  bool writesizeflush = 3; //< allows clients to use writesize flush interval ~= infinite
+  string serverversion = 4; //< software version of the server
 }
 
 message response {

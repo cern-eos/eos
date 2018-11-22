@@ -262,6 +262,9 @@ FuseServer::Clients::Dispatch(const std::string identity,
     eos::fusex::config cfg;
     cfg.set_hbrate(mHeartBeatInterval);
     cfg.set_dentrymessaging(true);
+    cfg.set_writesizeflush(true);
+    cfg.set_serverversion(std::string(VERSION) + std::string("::") + std::string(
+                            RELEASE));
     BroadcastConfig(identity, cfg);
   } else {
     if (caps_to_revoke.size()) {
@@ -1005,6 +1008,9 @@ FuseServer::Clients::SetHeartbeatInterval(int interval)
       eos::fusex::config cfg;
       cfg.set_hbrate(interval);
       cfg.set_dentrymessaging(true);
+      cfg.set_writesizeflush(true);
+      cfg.set_serverversion(std::string(VERSION) + std::string("::") + std::string(
+                              RELEASE));
       BroadcastConfig(id, cfg);
     }
   }
