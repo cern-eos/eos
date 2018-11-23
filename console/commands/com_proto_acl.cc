@@ -365,29 +365,36 @@ int com_acl(char* arg)
 //------------------------------------------------------------------------------
 void com_acl_help()
 {
-  std::cerr << "Usage: eos acl [-l|--list] [-R|--recursive]";
-  std::cerr << "[--sys|--user] <rule> <path>" << std::endl;
-  std::cerr << std::endl;
-  std::cerr << "    --help         Print help" << std::endl;
-  std::cerr << "-R, --recursive    Apply on directories recursively"
-            << std::endl;
-  std::cerr << "-l, --list         List ACL rules" << std::endl;
-  std::cerr << "    --user           Handle/list user.acl rules on directory"
-            << std::endl;
-  std::cerr << "    --sys            Handle/list sys.acl rules on directory"
-            << std::endl;
-  std::cerr << "<rule> is created based on chmod rules. " << std::endl;
-  std::cerr <<
-            "Every rule begins with [u|g|egroup] followed with : and identifier."
-            << std::endl;
-  std::cerr <<  std::endl;
-  std::cerr << "Afterwards can be:" << std::endl;
-  std::cerr << "= for setting new permission ." << std::endl;
-  std::cerr << ": for modification of existing permission." << std::endl;
-  std::cerr << std::endl;
-  std::cerr << "This is followed by the rule definition." << std::endl;
-  std::cerr << "Every ACL flag can be added with + or removed with -, or in case"
-            << std::endl;
-  std::cerr << "of setting new ACL permission just enter the ACL flag." <<
-            std::endl;
+  std::ostringstream oss;
+  oss
+      << "Usage: eos acl [-l|--list] [-R|--recursive] "
+      << "[--sys|--user] <rule> <path>" << std::endl
+      << "  atomically set and modify ACLs for the given directory path" << std::endl
+      << std::endl
+      << "  -h, --help      : print help message" << std::endl
+      << "  -R, --recursive : apply to directories recursively" << std::endl
+      << "  -l, --list      : list ACL rules" << std::endl
+      << "      --user      : handle/list user.acl rules on directory" << std::endl
+      << "      --sys       : handle/list sys.acl rules on directory" << std::endl
+      << std::endl
+      << "  <rule> is created similarly to chmod rules. Every rule begins with"
+      << std::endl
+      << "    [u|g|egroup] followed by \":\" or \"=\" and an identifier."
+      << std::endl
+      << "    \":\" is used to for modifying permissions while" << std::endl
+      << "    \"=\" is used for setting/overwriting permissions." << std::endl
+      << "    When modifying permissions every ACL flag can be added with" <<
+      std::endl
+      << "    \"+\" or removed with \"-\"." << std::endl
+      << std::endl
+      << "Examples:" << std::endl
+      << "  acl --user u:1001=rwx /eos/dev/" << std::endl
+      << "    Set ACLs for user id 1001 to rwx" << std::endl
+      << "  acl --user u:1001:-w /eos/dev" << std::endl
+      << "    Remove \'w\' flag for user id 1001" << std::endl
+      << "  acl --user u:1001:+m /eos/dev" << std::endl
+      << "    Add change mode permission flag for user id 1001" << std::endl
+      << "  acl --user u:1010= /eos/dev" << std::endl
+      << "    Remove all ACls for user id 1001" << std::endl;
+  std::cerr << oss.str() << std::endl;
 }
