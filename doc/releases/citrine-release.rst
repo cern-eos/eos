@@ -23,23 +23,30 @@ This release is based on XRootD V4 and IPV6 enabled.
 Bug
 ---
 
-* [EOS-3110] - fix recovery OpenAsync procedures to stop on fatal (non retryable errors)
-* [EOS-3112] - add XrdCl fuzzing
-* [EOS-3114] - file cache corruption
-* [EOS-3116] - zlib selftest failed
-* [EOS-3089] - inflight buffer exceeded
-* [EOS-2576] - add support for client DN formatted according to RFC2253
-* avoid ping-pong notifications from FuseServer (responsible for previous 3 bugs)
+* [EOS-3089] -  inflight-buffer exceeds maximum number of buffers in flight
+* [EOS-3110] - Looping Open in EOSXD
+* [EOS-3114] - corrupted file cache on eosxd in SWAN
+* [EOS-3116] - FUSEX-4.4.13 - 'zlib' selftest failure on SLC6
+* [EOS-3117] - FUSEX logs "missing quota node for pino=" (and "high rate error messages suppressed")
+* [EOS-3121] - MQ: Heap-use-after-free on XrdMqOfsFile::close
+* [EOS-3120] - Add eosxd support for persistent kerberos keyrings
+* [EOS-3123] - Parsing issue with "eos recycle -m"
+* [EOS-3125] - git clone fails with "fatal: remote-curl: fetch attempted without a local repo"
 
 
+New Feature
+-----------
 
-Improvements
-------------
+* [EOS-3126] - FUSE: ability to tag traffic with custom tag
 
-* [EOS-3108] - move recycle command to protobuf implementation
-* [EOS-3126] - allow to tag traffic for individual FUSE client types
-* add support for kerberos key rings
-* add support for authentication logbook/tracing facility 
+
+Improvement
+-----------
+
+* [EOS-3108] - Move recycle command to protobuf implementation
+* [EOS-3119] - Make eosxd auth subsystem more debuggable for users
+* [EOS-3120] - Add eosxd support for persistent kerberos keyrings
+* [EOS-3122] - Add XrdCl fuzzing
 * improve shutdown behaviour of server
 * move all pthread to std::thread
 
