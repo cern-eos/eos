@@ -195,6 +195,16 @@ EOS_TEST_GSMLOCKTIME=3600
 EOS_TEST_TESTTIMESLICE=300;
 
 #-------------------------------------------------------------------------------
+# QuarkDB Configuration
+#-------------------------------------------------------------------------------
+
+# QuarkDB Hostport
+# EOS_QUARKDB_HOSTPORT=localhost:9999
+
+# QuarkDB Password
+# EOS_QUARKDB_PASSWD=password_must_be_atleast_32_characters
+
+#-------------------------------------------------------------------------------
 # Global Vstl Configuration
 #-------------------------------------------------------------------------------
 

@@ -49,11 +49,19 @@ NsTestsFixture::NsTestsFixture()
   RequestBuilder::OverrideNumberOfFileBuckets(128);
   RequestBuilder::OverrideNumberOfContainerBuckets(128);
   srandom(time(nullptr));
+
+  // Connection parameters
+  std::string qdb_hostport = getenv("EOS_QUARKDB_HOSTPORT") ?
+                             getenv("EOS_QUARKDB_HOSTPORT") : "localhost:9999";
+
+  std::string qdb_passwd = getenv("EOS_QUARKDB_PASSWD") ?
+                           getenv("EOS_QUARKDB_PASSWD") : "";
+
   testconfig = {
-    {"qdb_cluster", "localhost:9999"},
+    {"qdb_cluster", qdb_hostport},
     {"qdb_flusher_md", "tests_md"},
     {"qdb_flusher_quota", "tests_quota"},
-    {"qdb_password", "turtles_turtles_turtles_turtles_turtles"}
+    {"qdb_password", qdb_passwd }
   };
   guard.reset(new eos::ns::testing::FlushAllOnConstruction(getContactDetails()));
 }
