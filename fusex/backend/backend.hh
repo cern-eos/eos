@@ -118,5 +118,7 @@ private:
                             uint16_t timeout = 0,
                             bool noretry = false);
 
+  std::string get_appname();
+
 };
 #endif /* FUSE_BACKEND_HH_ */

@@ -601,6 +601,18 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.localmountdir = root["localmountdir"].asString();
     config.statfilesuffix = root["statfilesuffix"].asString();
     config.statfilepath = root["statfilepath"].asString();
+    config.appname = "fuse";
+
+    if (root["appname"].asString().length()) {
+      if (root["appname"].asString().find("&") == std::string::npos) {
+        config.appname += "::";
+        config.appname += root["appname"].asString();
+      } else {
+        fprintf(stderr, "error: appname cannot contain '&' character!\n");
+        exit(EINVAL);
+      }
+    }
+
     config.options.debug = root["options"]["debug"].asInt();
     config.options.debuglevel = root["options"]["debuglevel"].asInt();
     config.options.enable_backtrace = root["options"]["backtrace"].asInt();
@@ -1642,6 +1654,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                "All        iops                := %d\n"
                "All        instance-url        := %s\n"
                "All        client-uuid         := %s\n"
+               "All        server-version      := %s\n"
                "# -----------------------------------------------------------------------------------------------------------\n",
                osstat.threads,
                eos::common::StringConversion::GetReadableSizeString(s1, osstat.vsize, "b"),
@@ -1672,7 +1685,8 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                this->getFuseStat().GetTotalAvg5("wbytes") / 1000.0 / 1000.0,
                (int)this->getFuseStat().GetTotalAvg5(":sum"),
                EosFuse::Instance().config.hostport.c_str(),
-               EosFuse::instance().config.clientuuid.c_str()
+               EosFuse::Instance().config.clientuuid.c_str(),
+               EosFuse::Instance().mds.server_version().c_str()
               );
     }
     sout += ino_stat;
@@ -3776,20 +3790,22 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
             // flush size updates every 5 seconds
             time_t now = time(NULL);
 
-            if (Instance().Config().options.write_size_flush_interval) {
-              if (io->next_size_flush.load() && (io->next_size_flush.load() < now)) {
-                if (io->cap_->valid()) {
-                  Instance().mds.update(req, io->md, io->authid());
-                }
+            if (Instance().mds.should_flush_write_size()) {
+              if (Instance().Config().options.write_size_flush_interval) {
+                if (io->next_size_flush.load() && (io->next_size_flush.load() < now)) {
+                  if (io->cap_->valid()) {
+                    Instance().mds.update(req, io->md, io->authid());
+                  }
 
-                io->next_size_flush.store(now +
-                                          Instance().Config().options.write_size_flush_interval,
-                                          std::memory_order_seq_cst);
-              } else {
-                if (!io->next_size_flush.load()) {
                   io->next_size_flush.store(now +
                                             Instance().Config().options.write_size_flush_interval,
                                             std::memory_order_seq_cst);
+                } else {
+                  if (!io->next_size_flush.load()) {
+                    io->next_size_flush.store(now +
+                                              Instance().Config().options.write_size_flush_interval,
+                                              std::memory_order_seq_cst);
+                  }
                 }
               }
             }
@@ -4200,52 +4216,49 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
               }
             }
 
-            if(key == "eos.reconnect") {
+            if (key == "eos.reconnect") {
               Logbook logbook(true);
               const struct fuse_ctx* ctx = fuse_req_ctx(req);
               ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
-                             ctx->uid, ctx->gid, true, logbook);
+                                         ctx->uid, ctx->gid, true, logbook);
               value = logbook.toString();
             }
 
-            if(key == "eos.reconnectparent") {
+            if (key == "eos.reconnectparent") {
               const struct fuse_ctx* ctx = fuse_req_ctx(req);
               ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
-                             ctx->uid, ctx->gid, false);
-
+                                         ctx->uid, ctx->gid, false);
               pid_t ppid = snapshot->getProcessInfo().getParentId();
-
               Logbook logbook(true);
               ProcessSnapshot snapshotParent =
                 fusexrdlogin::processCache->retrieve(ppid,
-                             ctx->uid, ctx->gid, true, logbook);
+                                                     ctx->uid, ctx->gid, true, logbook);
               value = logbook.toString();
             }
 
-            if(key == "eos.identity") {
+            if (key == "eos.identity") {
               const struct fuse_ctx* ctx = fuse_req_ctx(req);
               ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
-                             ctx->uid, ctx->gid, false);
-              if(snapshot) {
+                                         ctx->uid, ctx->gid, false);
+
+              if (snapshot) {
                 value = snapshot->getBoundIdentity()->describe();
               }
             }
 
-            if(key == "eos.identityparent") {
+            if (key == "eos.identityparent") {
               const struct fuse_ctx* ctx = fuse_req_ctx(req);
               ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
-                             ctx->uid, ctx->gid, false);
+                                         ctx->uid, ctx->gid, false);
               pid_t ppid = snapshot->getProcessInfo().getParentId();
-
               ProcessSnapshot snapshotParent =
                 fusexrdlogin::processCache->retrieve(
                   ppid, ctx->uid, ctx->gid, false);
 
-              if(snapshotParent) {
+              if (snapshotParent) {
                 value = snapshotParent->getBoundIdentity()->describe();
               }
             }
-
           } else {
             if (S_ISDIR(md->mode())) {
               // retrieve the appropriate cap of this inode

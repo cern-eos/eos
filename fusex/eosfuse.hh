@@ -204,6 +204,7 @@ public:
     std::string clienthost;
     std::string clientuuid;
     std::string ssskeytab;
+    std::string appname;
 
     typedef struct options {
       int debug;

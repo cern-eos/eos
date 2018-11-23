@@ -25,6 +25,7 @@ This
   "mdcachedir" : "/var/cache/eos/fusex/md",
   "mdzmqtarget" : "tcp://localhost:1100",
   "mdzmqidentity" : "eosxd",
+  "appname" : "", 
   "options" : {
     "debug" : 1,
     "debuglevel" : 4,

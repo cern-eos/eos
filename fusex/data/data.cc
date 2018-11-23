@@ -2393,7 +2393,17 @@ data::datax::set_remote(const std::string& hostport,
     remoteurl += basename;
   }
 
-  remoteurl += "&eos.app=fuse&mgm.mtime=0&mgm.fusex=1&eos.bookingsize=0";
+  std::string appname;
+
+  if (EosFuse::Instance().mds.supports_appname()) {
+    appname =  EosFuse::Instance().Config().appname;
+  } else {
+    appname = "fuse";
+  }
+
+  remoteurl += "&eos.app=";
+  remoteurl += appname;
+  remoteurl += "&mgm.mtime=0&mgm.fusex=1&eos.bookingsize=0";
   XrdCl::URL url(remoteurl);
   XrdCl::URL::ParamsMap query = url.GetParams();
   fusexrdlogin::loginurl(url, query, req, md_ino);

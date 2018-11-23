@@ -778,6 +778,24 @@ public:
     return local_ino;
   }
 
+  bool should_flush_write_size()
+  {
+    XrdSysMutexHelper cLock(ConfigMutex);
+    return writesizeflush;
+  }
+
+  std::string server_version()
+  {
+    XrdSysMutexHelper cLock(ConfigMutex);
+    return serverversion;
+  }
+
+  bool supports_appname()
+  {
+    XrdSysMutexHelper cLock(ConfigMutex);
+    return appname;
+  }
+
 private:
 
   // Lock _two_ md objects in the given order.
@@ -821,7 +839,13 @@ private:
   pmap mdmap;
   vmap inomap;
   mdstat stat;
+
+  // broadcasted config
+  XrdSysMutex ConfigMutex;
   bool dentrymessaging;
+  bool writesizeflush;
+  bool appname;
+  std::string serverversion;
 
   InodeGenerator next_ino;
 

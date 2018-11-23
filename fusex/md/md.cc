@@ -83,6 +83,9 @@ metad::init(backend* _mdbackend)
   update(req, mdmap[1], "", true);
   next_ino.init(EosFuse::Instance().getKV());
   dentrymessaging = false;
+  writesizeflush = false;
+  appname = false;
+  serverversion = "<unkown>";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -410,7 +413,7 @@ metad::mdx::dump()
   char sout[16384];
   snprintf(sout, sizeof(sout),
            "ino=%#lx dev=%#lx mode=%#o nlink=%d uid=%05d gid=%05d rdev=%#lx "
-           "size=%llu bsize=%u blocks=%llu atime=%lu.%lu mtime=%lu.%lu ctime=%lu.%lu",
+           "size=%llu bsize=%lu blocks=%llu atime=%lu.%lu mtime=%lu.%lu ctime=%lu.%lu",
            (unsigned long) id(), 0, (unsigned int) mode(), (unsigned int) nlink(),
            (int) uid(), (int) gid(), (unsigned long)0,
            (unsigned long long) size(), (unsigned int) 4096,
@@ -428,7 +431,7 @@ metad::mdx::dump(struct fuse_entry_param& e)
   char sout[16384];
   snprintf(sout, sizeof(sout),
            "ino=%#lx dev=%#lx mode=%#lx nlink=%#lx uid=%05d gid=%05d rdev=%#lx "
-           "size=%llu bsize=%u blocks=%llu atime=%lu.%lu mtime=%lu.%lu ctime=%lu.%lu "
+           "size=%llu bsize=%lu blocks=%llu atime=%lu.%lu mtime=%lu.%lu ctime=%lu.%lu "
            "attr-timeout=%lu entry-timeout=%lu",
            (unsigned long) e.attr.st_ino, (unsigned long) e.attr.st_dev,
            (unsigned long) e.attr.st_mode, (unsigned int) e.attr.st_nlink,
@@ -2495,11 +2498,21 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
             if (rsp.type() == rsp.CONFIG) {
               if (rsp.config_().hbrate()) {
-                eos_static_notice("MGM asked us to set our heartbeat interval to %d seconds and %s dentry-messaging",
+                eos_static_notice("MGM asked us to set our heartbeat interval to %d seconds, %s dentry-messaging, %s writesizeflush, %s appname and server-version=%s",
                                   rsp.config_().hbrate(),
-                                  rsp.config_().dentrymessaging() ? "enable" : "disable");
+                                  rsp.config_().dentrymessaging() ? "enable" : "disable",
+                                  rsp.config_().writesizeflush() ?  "enable" : "disable",
+                                  rsp.config_().appname() ? "accepts" : "rejects",
+                                  rsp.config_().serverversion().c_str());
                 interval = (int) rsp.config_().hbrate();
+                XrdSysMutexHelper cLock(EosFuse::Instance().mds.ConfigMutex);
                 EosFuse::Instance().mds.dentrymessaging = rsp.config_().dentrymessaging();
+                EosFuse::Instance().mds.writesizeflush = rsp.config_().writesizeflush();
+                EosFuse::Instance().mds.appname = rsp.config_().appname();
+
+                if (rsp.config_().serverversion().length()) {
+                  EosFuse::Instance().mds.serverversion = rsp.config_().serverversion();
+                }
               }
             }
 
@@ -2661,7 +2674,6 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                     EosFuse::Instance().Config().options.data_kernelcache) {
                   eos_static_info("invalidate data cache for ino=%#lx", ino);
                   kernelcache::inval_inode(ino, S_ISDIR(mode) ? false : true);
-                  kernelcache::inval_entry(pino, name);
                 }
 
                 if (S_ISREG(mode)) {
@@ -2710,6 +2722,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                   if (EosFuse::Instance().Config().options.md_kernelcache) {
                     eos_static_info("invalidate md cache for ino=%016lx", pino);
                     kernelcache::inval_inode(pino, false);
+                    pmd->local_enoent().erase(md->name());
                   }
                 } else {
                   eos_static_err("missing parent mapping pino=%16x for ino%16x",

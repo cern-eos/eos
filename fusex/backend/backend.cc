@@ -430,7 +430,7 @@ backend::rmRf(fuse_req_t req, eos::fusex::md* md)
     query["mgm.cid"] = cap::capx::getclientid(req);
   }
 
-  query["eos.app"] = "fuse";
+  query["eos.app"] = get_appname();
 
   if (req) {
     fusexrdlogin::loginurl(url, query, req, 0);
@@ -474,7 +474,7 @@ backend::putMD(const fuse_id& id, eos::fusex::md* md, std::string authid,
   url.SetPath("/dummy");
   XrdCl::URL::ParamsMap query;
   fusexrdlogin::loginurl(url, query, id.uid, id.gid, id.pid, 0);
-  query["eos.app"] = "fuse";
+  query["eos.app"] = get_appname();
   url.SetParams(query);
   // temporary add the authid to be used for that request
   md->set_authid(authid);
@@ -773,7 +773,7 @@ backend::getURL(fuse_req_t req, const std::string& path, std::string op,
     query["mgm.cid"] = cap::capx::getclientid(req);
   }
 
-  query["eos.app"] = "fuse";
+  query["eos.app"] = get_appname();
 
   if (authid.length()) {
     query["mgm.authid"] = authid;
@@ -805,14 +805,13 @@ backend::getURL(fuse_req_t req, uint64_t inode, const std::string& name,
     hexinode;
   query["mgm.op"] = op;
   query["mgm.uuid"] = clientuuid;
-  query["eos.app"] = "fuse";
+  query["eos.app"] = get_appname();
 
   if (authid.length()) {
     query["mgm.authid"] = authid;
   }
 
   query["mgm.cid"] = cap::capx::getclientid(req);
-  query["eos.app"] = "fuse";
   fusexrdlogin::loginurl(url, query, req, inode);
   url.SetParams(query);
   return url.GetURL();
@@ -839,14 +838,13 @@ backend::getURL(fuse_req_t req, uint64_t inode, uint64_t clock, std::string op,
     hexinode;
   query["mgm.op"] = op;
   query["mgm.uuid"] = clientuuid;
-  query["eos.app"] = "fuse";
+  query["eos.app"] = get_appname();
 
   if (authid.length()) {
     query["mgm.authid"] = authid;
   }
 
   query["mgm.cid"] = cap::capx::getclientid(req);
-  query["eos.app"] = "fuse";
   fusexrdlogin::loginurl(url, query, req, inode);
   url.SetParams(query);
   return url.GetURL();
@@ -865,7 +863,7 @@ backend::statvfs(fuse_req_t req,
   XrdCl::URL::ParamsMap query;
   std::string sclock;
   query["mgm.pcmd"] = "statvfs";
-  query["eos.app"] = "fuse";
+  query["eos.app"] = get_appname();
   query["path"] = "/";
   fusexrdlogin::loginurl(url, query, req, 0);
   url.SetParams(query);
@@ -1003,4 +1001,16 @@ backend::Query(XrdCl::URL& url, XrdCl::QueryCode::Code query_code,
     std::this_thread::sleep_for(std::chrono::seconds(5));
     fs.reset(new XrdCl::FileSystem(url));
   } while (1);
+}
+
+/* -------------------------------------------------------------------------- */
+std::string
+/* -------------------------------------------------------------------------- */
+backend::get_appname()
+{
+  if (EosFuse::Instance().mds.supports_appname()) {
+    return EosFuse::Instance().Config().appname;
+  } else {
+    return "fuse";
+  }
 }
