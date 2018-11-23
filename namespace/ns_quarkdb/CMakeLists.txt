@@ -43,6 +43,8 @@ add_library(
   EosNsQuarkdb MODULE
   NsQuarkdbPlugin.cc     NsQuarkdbPlugin.hh)
 
+add_dependencies(EosNsQuarkdb EosProtobuf)
+
 target_link_libraries(
   EosNsQuarkdb
   EosNsCommon
