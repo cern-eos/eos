@@ -44,6 +44,7 @@ Improvement
 -----------
 
 * [EOS-3108] - Move recycle command to protobuf implementation
+* [eos-3113] - Don't stall mount when no read-ahead buffer is available
 * [EOS-3119] - Make eosxd auth subsystem more debuggable for users
 * [EOS-3120] - Add eosxd support for persistent kerberos keyrings
 * [EOS-3122] - Add XrdCl fuzzing

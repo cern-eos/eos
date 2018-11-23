@@ -209,7 +209,7 @@ public:
     max_inflight_size = _max_inflight_size;
   }
 
-  shared_buffer get_buffer(size_t size)
+  shared_buffer get_buffer(size_t size, bool blocking = true)
   {
     // make sure, we don't have more buffers in flight than max_inflight_size
     do {
@@ -238,6 +238,11 @@ public:
       }
 
       cnt++;
+
+      if (!blocking) {
+        // we don't wait for free buffers
+        return nullptr;
+      }
     } while (1);
 
     XrdSysMutexHelper lLock(this);
@@ -819,30 +824,47 @@ public:
     ReadAsyncHandler(ReadAsyncHandler* other) : mAsyncCond(0)
     {
       mProxy = other->proxy();
-      *mBuffer = other->vbuffer();
+
+      if (other->valid()) {
+        *mBuffer = other->vbuffer();
+      }
+
       roffset = other->offset();
       mDone = false;
       mEOF = false;
     }
 
-    ReadAsyncHandler(Proxy* file, off_t off, uint32_t size) : mProxy(file),
+    ReadAsyncHandler(Proxy* file, off_t off, uint32_t size,
+                     bool blocking = true) : mProxy(file),
       mAsyncCond(0)
     {
-      mBuffer = sRaBufferManager.get_buffer(size);
-      mBuffer->resize(size);
+      mBuffer = sRaBufferManager.get_buffer(size, blocking);
+
+      if (valid()) {
+        mBuffer->resize(size);
+      }
+
       roffset = off;
       mDone = false;
       mEOF = false;
       mProxy = file;
-      eos_static_debug("----: creating chunk offset=%ld size=%u addr=%lx", off, size,
-                       this);
+
+      if (valid()) {
+        eos_static_debug("----: creating chunk offset=%ld size=%u addr=%lx", off, size,
+                         this);
+      }
     }
 
     virtual ~ReadAsyncHandler()
     {
-      eos_static_debug("----: releasing chunk offset=%d size=%u addr=%lx", roffset,
-                       mBuffer->size(), this);
-      sRaBufferManager.put_buffer(mBuffer);
+      if (valid()) {
+        eos_static_debug("----: releasing chunk offset=%d size=%u addr=%lx", roffset,
+                         mBuffer->size(), this);
+      }
+
+      if (valid()) {
+        sRaBufferManager.put_buffer(mBuffer);
+      }
     }
 
     char* buffer()
@@ -870,6 +892,11 @@ public:
       return mBuffer->size();
     }
 
+    bool valid()
+    {
+      // check for an allocated buffer
+      return (mBuffer ? true : false);
+    }
     bool matches(off_t off, uint32_t size,
                  off_t& match_offset, uint32_t& match_size)
     {
@@ -992,7 +1019,8 @@ public:
 
   // ---------------------------------------------------------------------- //
 
-  read_handler ReadAsyncPrepare(off_t offset, uint32_t size);
+  read_handler ReadAsyncPrepare(off_t offset, uint32_t size,
+                                bool blocking = true);
 
 
   // ---------------------------------------------------------------------- //

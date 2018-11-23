@@ -720,9 +720,20 @@ data::datax::prefetch(fuse_req_t req, bool lock)
       XrdCl::XRootDStatus status;
       size_t prefetch_size = std::min((size_t) file_size,
                                       (size_t) mFile->file()->prefetch_size());
-      // send an async read request
-      mPrefetchHandler = proxy->ReadAsyncPrepare(0, prefetch_size);
-      status = proxy->PreReadAsync(0, prefetch_size, mPrefetchHandler, 0);
+      // try to send an async read request
+      mPrefetchHandler = proxy->ReadAsyncPrepare(0, prefetch_size, false);
+
+      if (mPrefetchHandler->valid()) {
+        status = proxy->PreReadAsync(0, prefetch_size, mPrefetchHandler, 0);
+      } else {
+        // no free IO buffer
+        XrdCl::XRootDStatus newstatus(XrdCl::stFatal,
+                                      0,
+                                      XrdCl::errOSError,
+                                      "no free read-ahead buffer"
+                                     );
+        status = newstatus;
+      }
 
       if (!status.IsOK()) {
         eos_err("pre-fetch failed error=%s", status.ToStr().c_str());

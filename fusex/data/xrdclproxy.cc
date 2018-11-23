@@ -282,6 +282,13 @@ XrdCl::Proxy::Read(uint64_t offset,
           ReadCondVar().UnLock();
           XrdCl::Proxy::read_handler rahread = ReadAsyncPrepare(mReadAheadPosition,
                                                XReadAheadNom);
+
+          if (!rahread->valid()) {
+            ReadCondVar().Lock();
+            // no buffer available
+            break;
+          }
+
           XRootDStatus rstatus = PreReadAsync(mReadAheadPosition, XReadAheadNom,
                                               rahread, timeout);
 
@@ -1132,14 +1139,21 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
 /* -------------------------------------------------------------------------- */
 XrdCl::Proxy::read_handler
 /* -------------------------------------------------------------------------- */
-XrdCl::Proxy::ReadAsyncPrepare(off_t offset, uint32_t size)
+XrdCl::Proxy::ReadAsyncPrepare(off_t offset, uint32_t size, bool blocking)
 /* -------------------------------------------------------------------------- */
 {
   eos_debug("");
-  read_handler src = std::make_shared<ReadAsyncHandler>(this, offset, size);
+  read_handler src = std::make_shared<ReadAsyncHandler>(this, offset, size,
+                     blocking);
+
+  if (!src->valid()) {
+    // check if an IO buffer was allocated
+    return src;
+  }
 
   if (EOS_LOGS_DEBUG) {
-    eos_static_debug("handler %x request %lu/%lu\n", &(*src), offset, size);
+    eos_static_debug("handler %x request %lu/%lu non-blocking\n", &(*src), offset,
+                     size);
   }
 
   XrdSysCondVarHelper lLock(ReadCondVar());
