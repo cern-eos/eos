@@ -1845,7 +1845,7 @@ private:
            eos::common::LogId& ThreadLogId,
            eos::common::Mapping::VirtualIdentity& vid,
            const XrdSecEntity* client);
-  
+
   //----------------------------------------------------------------------------
   //! Resolve symbolic link
   //----------------------------------------------------------------------------

@@ -37,6 +37,7 @@
 #include "namespace/common/QuotaNodeCore.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Etag.hh"
+#include "namespace/utils/Attributes.hh"
 #include "namespace/PermissionHandler.hh"
 #include "namespace/Resolver.hh"
 #include "TestUtils.hh"
@@ -734,6 +735,56 @@ TEST_F(NamespaceExplorerF, ExpansionDecider) {
   ASSERT_FALSE(explorer.fetch(item));
   ASSERT_FALSE(explorer.fetch(item));
   ASSERT_FALSE(explorer.fetch(item));
+}
+
+TEST_F(VariousTests, LinkedExtendedAttributes) {
+  IContainerMDPtr cont1 = view()->createContainer("/eos/dir1", true);
+  IContainerMDPtr cont2 = view()->createContainer("/eos/dir1/dir2", true);
+
+  cont1->setAttribute("sys.chickens", "yes");
+  cont1->setAttribute("user.qwerty", "asdf");
+
+  cont2->setAttribute("sys.chickens", "no");
+  cont2->setAttribute("sys.attr.link", "/eos/dir4");
+
+  eos::IContainerMD::XAttrMap out;
+  eos::listAttributes(view(), cont1.get(), out, false);
+  ASSERT_EQ(out.size(), 2u);
+  ASSERT_EQ(out["sys.chickens"], "yes");
+  ASSERT_EQ(out["user.qwerty"], "asdf");
+
+  eos::listAttributes(view(), cont2.get(), out, false);
+  ASSERT_EQ(out.size(), 2u);
+  ASSERT_EQ(out["sys.chickens"], "no");
+  ASSERT_EQ(out["sys.attr.link"], "/eos/dir4 - not found");
+
+  cont2->setAttribute("sys.attr.link", "/eos/dir1");
+
+  eos::listAttributes(view(), cont2.get(), out, false);
+  ASSERT_EQ(out.size(), 3u);
+  ASSERT_EQ(out["sys.chickens"], "no");
+  ASSERT_EQ(out["sys.attr.link"], "/eos/dir1");
+  ASSERT_EQ(out["user.qwerty"], "asdf");
+
+  eos::listAttributes(view(), cont2.get(), out, true);
+  ASSERT_EQ(out.size(), 3u);
+  ASSERT_EQ(out["sys.chickens"], "no");
+  ASSERT_EQ(out["sys.attr.link"], "/eos/dir1");
+  ASSERT_EQ(out["user.qwerty"], "asdf");
+
+  cont2->removeAttribute("sys.chickens");
+  eos::listAttributes(view(), cont2.get(), out, false);
+  ASSERT_EQ(out.size(), 3u);
+  ASSERT_EQ(out["sys.chickens"], "yes");
+  ASSERT_EQ(out["sys.attr.link"], "/eos/dir1");
+  ASSERT_EQ(out["user.qwerty"], "asdf");
+
+  eos::listAttributes(view(), cont2.get(), out, true);
+  ASSERT_EQ(out.size(), 3u);
+
+  ASSERT_EQ(out["sys.link.chickens"], "yes");
+  ASSERT_EQ(out["sys.attr.link"], "/eos/dir1");
+  ASSERT_EQ(out["user.qwerty"], "asdf");
 }
 
 TEST(OctalParsing, BasicSanity) {

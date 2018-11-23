@@ -71,6 +71,7 @@
 #include "namespace/utils/Stat.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Etag.hh"
+#include "namespace/utils/Attributes.hh"
 #include <XrdVersion.hh>
 #include <XrdOss/XrdOss.hh>
 #include <XrdOuc/XrdOucBuffer.hh>
