@@ -13,7 +13,7 @@ The configuration file for a named instance is ```/etc/eos/fuse.<name>.conf```.
 
 You can select a named instance adding ```'-ofsname=<name>'``` to the argument list.
 
-This 
+This
 
 ```
 {
@@ -25,7 +25,7 @@ This
   "mdcachedir" : "/var/cache/eos/fusex/md",
   "mdzmqtarget" : "tcp://localhost:1100",
   "mdzmqidentity" : "eosxd",
-  "appname" : "", 
+  "appname" : "",
   "options" : {
     "debug" : 1,
     "debuglevel" : 4,
@@ -33,8 +33,8 @@ This
     "libfusethreads" : 0,
     "md-kernelcache" : 1,
     "md-kernelcache.enoent.timeout" : 0,
-    "md-backend.timeout" : 86400, 
-    "md-backend.put.timeout" : 120, 
+    "md-backend.timeout" : 86400,
+    "md-backend.put.timeout" : 120,
     "data-kernelcache" : 1,
     "mkdir-is-sync" : 1,
     "create-is-sync" : 1,
@@ -43,10 +43,10 @@ This
     "rmdir-is-sync" : 0,
     "global-flush" : 0,
     "flush-wait-open" : 1,
-    "global-locking" : 1, 
+    "global-locking" : 1,
     "fd-limit" : 524288,
-    "no-fsync" : [ ".db", ".db-journal", ".sqlite", ".sqlite-journal", ".db3", ".db3-journal", "*.o" ], 
-    "overlay-mode" : 000, 
+    "no-fsync" : [ ".db", ".db-journal", ".sqlite", ".sqlite-journal", ".db3", ".db3-journal", "*.o" ],
+    "overlay-mode" : 000,
     "rm-rf-protect-levels" : 1,
     "rm-rf-bulk" : 1,
     "show-tree-size" : 0,
@@ -64,18 +64,18 @@ This
     "gsi-first" : 0,
     "sss" : 0,
     "ssskeytab" : "/etc/eos/fuse.sss.keytab"
-    "environ-deadlock-timeout" : 100, 
+    "environ-deadlock-timeout" : 100,
     "forknoexec-heuristic" : 1
   },
   "inline" : {
     "max-size" : 0,
     "default-compressor" : "none",
-  }, 
+  },
   "fuzzing" : {
     "open-async-submit" : 0,
-    "open-async-return" : 0, 
-    "open-async-submit-fatal" : 0, 
-    "open-async-return-fatal" : 0, 
+    "open-async-return" : 0,
+    "open-async-submit-fatal" : 0,
+    "open-async-return-fatal" : 0,
     "read-async-submit" : 0
   }
 }
@@ -87,16 +87,16 @@ You also need to define a local cache directory (location) where small files are
   "cache" : {
     "type" : "disk",
     "size-mb" : 1000,
-    "size-ino" : 65536, 
-    "clean-threshold" : 85.0, 
+    "size-ino" : 65536,
+    "clean-threshold" : 85.0,
     "location" : "/var/cache/eos/fusex/cache/",
     "journal" : "/var/cache/eos/fusex/journal/",
     "read-ahead-strategy" : "static",
     "read-ahead-bytes-nominal" : 262144,
     "read-ahead-bytes-max" : 2097152,
     "read-ahead-blocks-max" : 16,
-    "max-read-ahead-buffer" : 1073741824, 
-    "max-write-buffer" : 1073741824 
+    "max-read-ahead-buffer" : 1073741824,
+    "max-write-buffer" : 1073741824
   }
 
 ```
@@ -137,29 +137,29 @@ The recovery settings are defined in the following section:
 Configuration default values and avoiding configuration files
 -------------------------------------------------------------
 
-Every configuration value has a corresponding default value .  
+Every configuration value has a corresponding default value .
 As explained the configuration file name is taken from the fsname option given on the command line:
 
 ```
-root> eosxd -ofsname=foo loads /etc/eos/fuse.foo.conf                                      
-root> eosxd              loads /etc/eos/fuse.conf                                          
+root> eosxd -ofsname=foo loads /etc/eos/fuse.foo.conf
+root> eosxd              loads /etc/eos/fuse.conf
 
-user> eosxd -ofsname=foo loads $HOME/.eos/fuse.foo.conf                                    
+user> eosxd -ofsname=foo loads $HOME/.eos/fuse.foo.conf
 ```
 
 One can avoid to use configuration files if the defaults are fine providing the remote host and remote mount directory via the fsname:
 
-```                                                                
-root> eosxd -ofsname=eos.cern.ch:/eos/ $HOME/eos # mounts the /eos/ directory from eos.cern.ch shared under $HOME/eos/                                                                            
+```
+root> eosxd -ofsname=eos.cern.ch:/eos/ $HOME/eos # mounts the /eos/ directory from eos.cern.ch shared under $HOME/eos/
 
-user> eosxd -ofsname=user@eos.cern.ch:/eos/user/u/user/ $home/eos # mounts /eos/user/u/user from eos.cern.ch private under $HOME/eos/                                                              
+user> eosxd -ofsname=user@eos.cern.ch:/eos/user/u/user/ $home/eos # mounts /eos/user/u/user from eos.cern.ch private under $HOME/eos/
 ```
 
 If this is a user-private mount the syntax 'foo@cern.ch' should be used to distinguish private \
-mounts of individual users in the 'df' output                                                         
+mounts of individual users in the 'df' output
 
-Please note, that root mounts are by default shared mounts with kerberos configuration, user mounts are private mounts with kerberos configuration                                      
- 
+Please note, that root mounts are by default shared mounts with kerberos configuration, user mounts are private mounts with kerberos configuration
+
 Statistics File
 ---------------
 
@@ -169,41 +169,41 @@ The *stat* file contains rate and execution average time counting.
 bash> cat /var/log/eos/fusex/fuse.stats
 ALL      Execution Time                   0.00 +- 0.00
 # -----------------------------------------------------------------------------------------------------------
-who      command                          sum             5s     1min     5min       1h exec(ms) +- sigma(ms) 
+who      command                          sum             5s     1min     5min       1h exec(ms) +- sigma(ms)
 # -----------------------------------------------------------------------------------------------------------
-ALL        :sum                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        access                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        create                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        flush                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        forget                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        fsync                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        getattr                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        getxattr                                    0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        listxattr                                   0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        lookup                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        mkdir                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        mknod                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        open                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        opendir                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        read                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        readdir                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        readlink                                    0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        release                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        releasedir                                  0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        removexattr                                 0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        rename                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        rm                                          0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        rmdir                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        setattr                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        setattr:chmod                               0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        setattr:chown                               0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        setattr:truncate                            0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        setattr:utimes                              0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        setxattr                                    0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        statfs                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        symlink                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        unlink                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
-ALL        write                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-      
+ALL        :sum                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        access                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        create                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        flush                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        forget                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        fsync                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        getattr                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        getxattr                                    0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        listxattr                                   0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        lookup                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        mkdir                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        mknod                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        open                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        opendir                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        read                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        readdir                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        readlink                                    0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        release                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        releasedir                                  0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        removexattr                                 0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        rename                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        rm                                          0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        rmdir                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        setattr                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        setattr:chmod                               0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        setattr:chown                               0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        setattr:truncate                            0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        setattr:utimes                              0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        setxattr                                    0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        statfs                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        symlink                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        unlink                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+ALL        write                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-
 # -----------------------------------------------------------------------------------------------------------
 ALL        inodes              := 1
 ALL        inodes-todelete     := 0
@@ -242,13 +242,13 @@ mount -t fuse eosxd /eos/
 umount -f /eos/
 
 # run the default mount in foreground mode
-eosxd -f 
+eosxd -f
 
 # run the default mount to a different mount directory from the JSON configuration
 eosxd -f /other/
 
 # run the default mount in background mode
-eosxd 
+eosxd
 
 # mount without configuration files and default values
 mount -t fuse -ofsname=eos.cern.ch:/eos/scratch /eos/scratch
@@ -273,8 +273,8 @@ Use these authentication directives in the config file:
     "sss" : 1
   }
 ```
-The mount daemon uses /etc/fuse/fuse.sss.keytab as default keytab when running as a shared mount. The user mount default is $HOME/.eos/fuse.sss.keytab. Unlike Kerberos it is not possible in XRootD to use different keytabs for individual users. If you want to create a 'trusted' mount mapping local users to their local username, you have to create an sss keytab entry for user **anybody** and group **anygroup**. Otherwise you can create an sss keytab for a given application user. 
-The mount also supports to forward sss endorsements, which are forwarded to the server. These endorsement can be used server-side to define an ACL entry by key e.g. sys.acl="k:9c2bd333-5331-4095-8fcd-28726404742f:rwx". This would provide access to all sss clients having this key in their environment even if the mapped sss user/group wouldn't have access. 
+The mount daemon uses /etc/fuse/fuse.sss.keytab as default keytab when running as a shared mount. The user mount default is $HOME/.eos/fuse.sss.keytab. Unlike Kerberos it is not possible in XRootD to use different keytabs for individual users. If you want to create a 'trusted' mount mapping local users to their local username, you have to create an sss keytab entry for user **anybody** and group **anygroup**. Otherwise you can create an sss keytab for a given application user.
+The mount also supports to forward sss endorsements, which are forwarded to the server. These endorsement can be used server-side to define an ACL entry by key e.g. sys.acl="k:9c2bd333-5331-4095-8fcd-28726404742f:rwx". This would provide access to all sss clients having this key in their environment even if the mapped sss user/group wouldn't have access.
 
 
 AUTOFS Configuration
@@ -305,7 +305,7 @@ To run as an export gateway one needs to configure 'stable inodes'. In the confi
 # WebServer, NFS etc...
 eosxd -ofsname=gw@eos.cern.ch:/eos/user/ /eos/user/
 
-# CIFS(Samba) 
+# CIFS(Samba)
 eosxd -ofsname=smb@eos.cern.ch:/eos/user/ /eos/user/
 ```
 
@@ -353,6 +353,29 @@ To drop all capabilities on a mount do as root
 Show all hidden system attributes on a given path
 ```
 # getfattr -d -m - <path>
+```
+
+Inspect which set of credentials have been assigned to the calling process:
+```
+getfattr --only-values -n eos.identity <any-path>
+```
+
+Inspect which set of credentials have been assigned to the parent of the calling process,
+in this case this would be the shell:
+```
+getfattr --only-values -n eos.identityparent <any-path>
+```
+
+Invalidate current set of credentials assigned to the calling process, and reconnect
+while printing a detailed log of what's happening:
+```
+getfattr --only-values -n eos.reconnect <any-path>
+```
+
+Invalidate current set of credentials assigned to the parent of the calling process
+(in this case, the shell), and reconnect while printing a detailed log of what's happening.
+```
+getfattr --only-values -n eos.reconnectparent <any-path>
 ```
 
 Reset the statis counters on a mount as root
