@@ -24,6 +24,14 @@ Bug
 ---
 
 * [EOS-3110] - fix recovery OpenAsync procedures to stop on fatal (non retryable errors)
+* [EOS-3114] - file cache corruption
+* [EOS-3116] - zlib selftest failed
+* [EOS-3089] - inflight buffer exceeded
+
+Improvements
+------------
+
+* [EOS-3126] - allow to tag traffic for individual FUSE client types
 
 
 ``v4.4.13 Citrine``
