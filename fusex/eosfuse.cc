@@ -133,6 +133,7 @@ EosFuse::UsageGet()
 {
   std::string usage = "usage CLI   : eosxd get <key> [<path>]\n";
   usage +=            "\n";
+  <<< <<< < Updated upstream
   usage +=
     "                     eos.btime <path>           : show inode birth time\n";
   usage +=

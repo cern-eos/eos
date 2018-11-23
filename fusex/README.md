@@ -313,6 +313,47 @@ eosxd -ofsname=smb@eos.cern.ch:/eos/user/ /eos/user/
 Client Interaction with a FUSE mount
 ------------------------------------
 
+eosxd provides a command line interface to interact with mounts (see eosxd -h):
+
+```
+usage CLI   : eosxd get <key> [<path>]
+
+                     eos.btime <path>           : show inode birth time
+                     eos.name <path>            : show EOS instance name for given path
+                     eos.md_ino <path>          : show inode number valid on MGM 
+                     eos.hostport <path>        : show MGM connection host + port for given path
+                     eos.mgmurl <path>          : show MGM URL for a given path
+                     eos.stats <path>           : show mount statistics
+                     eos.stacktrace <path>      : test thread stack trace functionality
+                     eos.quota <path>           : show user quota information for a given path
+                     eos.reconnect <path>       : reconnect and dump the connection credentials
+                     eos.reconnectparent <path> : reconnect parent process and dump the connection credentials
+                     eos.identity <path>        : show credential assignment of the calling process
+                     eos.identityparent <path>  : show credential assignment of the executing shell
+
+ as root             system.eos.md  <path>      : dump meta data for given path
+                     system.eos.cap <path>      : dump cap for given path
+                     system.eos.caps <path>     : dump all caps
+                     system.eos.vmap <path>     : dump virtual inode translation table
+
+usage CLI   : eosxd set <key> <value> [<path>]
+
+ as root             system.eos.debug <level>   : set debug level with <level>=notice|info|debug
+                     system.eos.dropcap <path>  : drop capability of the given path
+                     system.eos.dropcaps <path> : drop call capabilities for given mount
+                     system.eos.resetstat <path>: reset the statistic counters
+                     system.eos.log <mode>      : make log file public or private with <mode>=public|private
+
+usage FS    : eosxd -ofsname=<host><remote-path> <mnt-path>
+                     eosxd -ofsname=<config-name> <mnt-path>
+                        with configuration file /etc/eos/fuse.<config-name>.conf
+                     mount -t fuse eosxd -ofsname=<host><remote-path> <mnt-path>
+                     mount -t fuse eosxd -ofsname=<config-name> <mnt-path>
+
+```
+
+The CLI uses the following extended attribute interfaces internally:
+
 To change the log configuration do as root:
 ```
 # setfattr -n system.eos.debug -v info <path>
@@ -382,6 +423,29 @@ Reset the statis counters on a mount as root
 
 # setfattr -n system.eos.resetstat <any-path>
 
+Virtual extended attributes on a FUSE mount
+-------------------------------------------
+
+Display instance name
+```
+# getfattr --only-values -n eos.name /eos/
+```
+
+Display MGM hostname+port
+```
+# getfattr --only-values -n eos.hostport /eos/
+```
+
+Display MGM url
+```
+# getfattr --only-values -n eos.mgmurl /eos/
+```
+
+Display Quota Information for a given path
+```
+# getfattr --only-values -n eos.quota <path>
+```
+
 Server Interaction with a FUSE mount
 ------------------------------------
 
@@ -412,25 +476,3 @@ examples:
            fusex caps -p ^/eos/caps/                                 :  show all caps in subtree /eos/caps
 
 
-Virtual extended attributes on a FUSE mount
--------------------------------------------
-
-Display instance name
-```
-# getfattr --only-values -n eos.name /eos/
-```
-
-Display MGM hostname+port
-```
-# getfattr --only-values -n eos.hostport /eos/
-```
-
-Display MGM url
-```
-# getfattr --only-values -n eos.mgmurl /eos/
-```
-
-Display Quota Information for a given path
-```
-# getfattr --only-values -n eos.quota <path>
-```
