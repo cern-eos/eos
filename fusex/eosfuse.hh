@@ -61,6 +61,11 @@ public:
   EosFuse();
   virtual ~EosFuse();
 
+  std::string UsageGet();
+  std::string UsageSet();
+  std::string UsageMount();
+  std::string UsageHelp();
+
   int run(int argc, char* argv[], void* userdata);
 
   static void umounthandler(int sig, siginfo_t* si, void* unused);
@@ -338,6 +343,8 @@ public:
 
   void TrackMgm(const std::string& lasturl);
 
+  stringTS statsout;
+
 protected:
 
 private:
@@ -367,11 +374,13 @@ private:
   }
 
   eos::common::LinuxTotalMem meminfo;
+  XrdSysMutex statsoutmutex;
 
   static EosFuse* sEosFuse;
 
   struct fuse_session* fusesession;
   struct fuse_chan* fusechan;
+
 
   AssistedThread tDumpStatistic;
   AssistedThread tStatCirculate;

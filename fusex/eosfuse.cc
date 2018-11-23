@@ -126,6 +126,99 @@ chmod_to_700_or_die(const std::string& path)
   }
 }
 
+/* -------------------------------------------------------------------------- */
+std::string
+/* -------------------------------------------------------------------------- */
+EosFuse::UsageGet()
+{
+  std::string usage = "usage CLI   : eosxd get <key> [<path>]\n";
+  usage +=            "\n";
+  usage +=
+    "                     eos.btime <path>           : show inode birth time\n";
+  usage +=
+    "                     eos.name <path>            : show EOS instance name for given path\n";
+  usage +=
+    "                     eos.md_ino <path>          : show inode number valid on MGM \n";
+  usage +=
+    "                     eos.hostport <path>        : show MGM connection host + port for given path\n";
+  usage +=
+    "                     eos.mgmurl <path>          : show MGM URL for a given path\n";
+  usage +=
+    "                     eos.stats <path>           : show mount statistics\n";
+  usage +=
+    "                     eos.stacktrace <path>      : test thread stack trace functionality\n";
+  usage +=
+    "                     eos.quota <path>           : show user quota information for a given path\n";
+  usage +=
+    "                     eos.reconnect <path>       : reconnect and dump the connection credentials\n";
+  usage +=
+    "                     eos.reconnectparent <path> : reconnect parent process and dump the connection credentials\n";
+  usage +=
+    "                     eos.identity <path>        : show credential assignment of the calling process\n";
+  usage +=
+    "                     eos.identityparent <path>  : show credential assignment of the executing shell\n";
+  usage +=            "\n";
+  usage +=
+    " as root             system.eos.md  <path>      : dump meta data for given path\n";
+  usage +=
+    "                     system.eos.cap <path>      : dump cap for given path\n";
+  usage +=
+    "                     system.eos.caps <path>     : dump all caps\n";
+  usage +=
+    "                     system.eos.vmap <path>     : dump virtual inode translation table\n";
+  usage +=            "\n";
+  return usage;
+}
+
+/* -------------------------------------------------------------------------- */
+std::string
+/* -------------------------------------------------------------------------- */
+EosFuse::UsageSet()
+{
+  std::string usage = "usage CLI   : eosxd set <key> <value> [<path>]\n";
+  usage +=            "\n";
+  usage +=
+    " as root             system.eos.debug <level>   : set debug level with <level>=notice|info|debug\n";
+  usage +=
+    "                     system.eos.dropcap <path>  : drop capability of the given path\n";
+  usage +=
+    "                     system.eos.dropcaps <path> : drop call capabilities for given mount\n";
+  usage +=
+    "                     system.eos.resetstat <path>: reset the statistic counters\n";
+  usage +=
+    "                     system.eos.log <mode>      : make log file public or private with <mode>=public|private\n";
+  usage +=            "\n";
+  return usage;
+}
+
+/* -------------------------------------------------------------------------- */
+std::string
+/* -------------------------------------------------------------------------- */
+EosFuse::UsageMount()
+{
+  std::string usage =
+    "usage FS    : eosxd -ofsname=<host><remote-path> <mnt-path>\n";
+  usage +=
+    "                     eosxd -ofsname=<config-name> <mnt-path>\n";
+  usage +=
+    "                        with configuration file /etc/eos/fuse.<config-name>.conf\n";
+  usage +=
+    "                     mount -t fuse eosxd -ofsname=<host><remote-path> <mnt-path>\n";
+  usage +=
+    "                     mount -t fuse eosxd -ofsname=<config-name> <mnt-path>\n";
+  usage +=            "\n";
+  return usage;
+}
+
+/* -------------------------------------------------------------------------- */
+std::string
+/* -------------------------------------------------------------------------- */
+EosFuse::UsageHelp()
+{
+  std::string usage =
+    "usage HELP  : eosxd [-h|--help|help]           : get help\n";
+  return usage;
+}
 
 /* -------------------------------------------------------------------------- */
 int
@@ -144,10 +237,59 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   // check the fsname to choose the right JSON config file
   std::string fsname = "";
 
+  if (argc == 1) {
+    fprintf(stderr, "%s%s%s%s", UsageGet().c_str(), UsageSet().c_str(),
+            UsageMount().c_str(), UsageHelp().c_str());
+    exit(0);
+  }
+
   for (int i = 0; i < argc; i++) {
     std::string option = argv[i];
     size_t npos;
     size_t epos;
+
+    if ((option == "-h") ||
+        (option == "help") ||
+        (option == "--help")) {
+      fprintf(stderr, "%s%s%s%s", UsageGet().c_str(), UsageSet().c_str(),
+              UsageMount().c_str(), UsageHelp().c_str());
+      exit(0);
+    }
+
+    if (option == "get") {
+      if ((i + 1) >= argc) {
+        fprintf(stderr, "%s\n", UsageGet().c_str());
+        exit(-1);
+      }
+
+      std::string tag = argv[i + 1];
+      std::string path = ((i + 2) >= argc) ? get_current_dir_name() : argv[i + 2];
+      std::string systemline = "getfattr --absolute-names --only-values -n ";
+      systemline += tag;
+      systemline += " ";
+      systemline += path;
+      int rc = system(systemline.c_str());
+      exit(WEXITSTATUS(rc));
+    }
+
+    if (option == "set") {
+      if ((i + 2) >= argc) {
+        fprintf(stderr, "%s\n", UsageSet().c_str());
+        exit(-1);
+      }
+
+      std::string tag = argv[i + 1];
+      std::string value = argv[i + 2];
+      std::string path = ((i + 3) >= argc) ? get_current_dir_name() : argv[i + 3];
+      std::string systemline = "setfattr -n ";
+      systemline += tag;
+      systemline += " -v ";
+      systemline += value;
+      systemline += " ";
+      systemline += path;
+      int rc = system(systemline.c_str());
+      exit(WEXITSTATUS(rc));
+    }
 
     if ((npos = option.find("fsname=")) != std::string::npos) {
       epos = option.find(",", npos);
@@ -1692,6 +1834,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
     sout += ino_stat;
     std::ofstream dumpfile(EosFuse::Instance().config.statfilepath);
     dumpfile << sout;
+    this->statsout.set(sout);
     assistant.wait_for(std::chrono::seconds(1));
   }
 }
@@ -4153,59 +4296,51 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
 
       if (key == "eos.name") {
         value = Instance().Config().name;
-      }
-      else if (key == "eos.hostport") {
+      } else if (key == "eos.hostport") {
         value = Instance().Config().hostport;
-      }
-      else if (key == "eos.stacktrace") {
+      } else if (key == "eos.stacktrace") {
         value = getStacktrace();
-      }
-      else if (key == "eos.mgmurl") {
+      } else if (key == "eos.mgmurl") {
         std::string mgmurl = "root://";
         mgmurl += Instance().Config().hostport;
         value = mgmurl;
-      }
-      else if (key == "eos.reconnect") {
+      } else if (key == "eos.reconnect") {
         Logbook logbook(true);
         const struct fuse_ctx* ctx = fuse_req_ctx(req);
         ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
-         ctx->uid, ctx->gid, true, logbook);
+                                   ctx->uid, ctx->gid, true, logbook);
         value = logbook.toString();
-      }
-      else if (key == "eos.reconnectparent") {
+      } else if (key == "eos.reconnectparent") {
         const struct fuse_ctx* ctx = fuse_req_ctx(req);
         ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
-         ctx->uid, ctx->gid, false);
+                                   ctx->uid, ctx->gid, false);
         pid_t ppid = snapshot->getProcessInfo().getParentId();
         Logbook logbook(true);
         ProcessSnapshot snapshotParent =
-        fusexrdlogin::processCache->retrieve(ppid,
-         ctx->uid, ctx->gid, true, logbook);
+          fusexrdlogin::processCache->retrieve(ppid,
+                                               ctx->uid, ctx->gid, true, logbook);
         value = logbook.toString();
-      }
-      else if (key == "eos.identity") {
+      } else if (key == "eos.identity") {
         const struct fuse_ctx* ctx = fuse_req_ctx(req);
         ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
-         ctx->uid, ctx->gid, false);
+                                   ctx->uid, ctx->gid, false);
 
         if (snapshot) {
           value = snapshot->getBoundIdentity()->describe();
         }
-      }
-      else if (key == "eos.identityparent") {
+      } else if (key == "eos.identityparent") {
         const struct fuse_ctx* ctx = fuse_req_ctx(req);
         ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
-         ctx->uid, ctx->gid, false);
+                                   ctx->uid, ctx->gid, false);
         pid_t ppid = snapshot->getProcessInfo().getParentId();
         ProcessSnapshot snapshotParent =
-        fusexrdlogin::processCache->retrieve(
-          ppid, ctx->uid, ctx->gid, false);
+          fusexrdlogin::processCache->retrieve(
+            ppid, ctx->uid, ctx->gid, false);
 
         if (snapshotParent) {
           value = snapshotParent->getBoundIdentity()->describe();
         }
-      }
-      else if (!rc) {
+      } else if (!rc) {
         md = Instance().mds.get(req, ino);
         XrdSysMutexHelper mLock(md->Locker());
 
@@ -4251,7 +4386,6 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
                 value = qline;
               }
             }
-
           } else {
             if (S_ISDIR(md->mode())) {
               // retrieve the appropriate cap of this inode
