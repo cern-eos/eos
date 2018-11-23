@@ -4151,7 +4151,61 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
 #endif
       }
 
-      if (!rc) {
+      if (key == "eos.name") {
+        value = Instance().Config().name;
+      }
+      else if (key == "eos.hostport") {
+        value = Instance().Config().hostport;
+      }
+      else if (key == "eos.stacktrace") {
+        value = getStacktrace();
+      }
+      else if (key == "eos.mgmurl") {
+        std::string mgmurl = "root://";
+        mgmurl += Instance().Config().hostport;
+        value = mgmurl;
+      }
+      else if (key == "eos.reconnect") {
+        Logbook logbook(true);
+        const struct fuse_ctx* ctx = fuse_req_ctx(req);
+        ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
+         ctx->uid, ctx->gid, true, logbook);
+        value = logbook.toString();
+      }
+      else if (key == "eos.reconnectparent") {
+        const struct fuse_ctx* ctx = fuse_req_ctx(req);
+        ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
+         ctx->uid, ctx->gid, false);
+        pid_t ppid = snapshot->getProcessInfo().getParentId();
+        Logbook logbook(true);
+        ProcessSnapshot snapshotParent =
+        fusexrdlogin::processCache->retrieve(ppid,
+         ctx->uid, ctx->gid, true, logbook);
+        value = logbook.toString();
+      }
+      else if (key == "eos.identity") {
+        const struct fuse_ctx* ctx = fuse_req_ctx(req);
+        ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
+         ctx->uid, ctx->gid, false);
+
+        if (snapshot) {
+          value = snapshot->getBoundIdentity()->describe();
+        }
+      }
+      else if (key == "eos.identityparent") {
+        const struct fuse_ctx* ctx = fuse_req_ctx(req);
+        ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
+         ctx->uid, ctx->gid, false);
+        pid_t ppid = snapshot->getProcessInfo().getParentId();
+        ProcessSnapshot snapshotParent =
+        fusexrdlogin::processCache->retrieve(
+          ppid, ctx->uid, ctx->gid, false);
+
+        if (snapshotParent) {
+          value = snapshotParent->getBoundIdentity()->describe();
+        }
+      }
+      else if (!rc) {
         md = Instance().mds.get(req, ino);
         XrdSysMutexHelper mLock(md->Locker());
 
@@ -4172,24 +4226,6 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
               snprintf(btime, sizeof(btime), "%lu.%lu", md->btime(), md->btime_ns());
               value = btime;
               ;
-            }
-
-            if (key == "eos.name") {
-              value = Instance().Config().name;
-            }
-
-            if (key == "eos.hostport") {
-              value = Instance().Config().hostport;
-            }
-
-            if (key == "eos.stacktrace") {
-              value = getStacktrace();
-            }
-
-            if (key == "eos.mgmurl") {
-              std::string mgmurl = "root://";
-              mgmurl += Instance().Config().hostport;
-              value = mgmurl;
             }
 
             if (key == "eos.quota") {
@@ -4216,49 +4252,6 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
               }
             }
 
-            if (key == "eos.reconnect") {
-              Logbook logbook(true);
-              const struct fuse_ctx* ctx = fuse_req_ctx(req);
-              ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
-                                         ctx->uid, ctx->gid, true, logbook);
-              value = logbook.toString();
-            }
-
-            if (key == "eos.reconnectparent") {
-              const struct fuse_ctx* ctx = fuse_req_ctx(req);
-              ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
-                                         ctx->uid, ctx->gid, false);
-              pid_t ppid = snapshot->getProcessInfo().getParentId();
-              Logbook logbook(true);
-              ProcessSnapshot snapshotParent =
-                fusexrdlogin::processCache->retrieve(ppid,
-                                                     ctx->uid, ctx->gid, true, logbook);
-              value = logbook.toString();
-            }
-
-            if (key == "eos.identity") {
-              const struct fuse_ctx* ctx = fuse_req_ctx(req);
-              ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
-                                         ctx->uid, ctx->gid, false);
-
-              if (snapshot) {
-                value = snapshot->getBoundIdentity()->describe();
-              }
-            }
-
-            if (key == "eos.identityparent") {
-              const struct fuse_ctx* ctx = fuse_req_ctx(req);
-              ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
-                                         ctx->uid, ctx->gid, false);
-              pid_t ppid = snapshot->getProcessInfo().getParentId();
-              ProcessSnapshot snapshotParent =
-                fusexrdlogin::processCache->retrieve(
-                  ppid, ctx->uid, ctx->gid, false);
-
-              if (snapshotParent) {
-                value = snapshotParent->getBoundIdentity()->describe();
-              }
-            }
           } else {
             if (S_ISDIR(md->mode())) {
               // retrieve the appropriate cap of this inode
