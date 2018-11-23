@@ -134,38 +134,38 @@ EosFuse::UsageGet()
   std::string usage = "usage CLI   : eosxd get <key> [<path>]\n";
   usage +=            "\n";
   usage +=
-    "                     eos.btime <path>           : show inode birth time\n";
+    "                     eos.btime <path>                   : show inode birth time\n";
   usage +=
-    "                     eos.name <path>            : show EOS instance name for given path\n";
+    "                     eos.name <path>                    : show EOS instance name for given path\n";
   usage +=
-    "                     eos.md_ino <path>          : show inode number valid on MGM \n";
+    "                     eos.md_ino <path>                  : show inode number valid on MGM \n";
   usage +=
-    "                     eos.hostport <path>        : show MGM connection host + port for given path\n";
+    "                     eos.hostport <path>                : show MGM connection host + port for given path\n";
   usage +=
-    "                     eos.mgmurl <path>          : show MGM URL for a given path\n";
+    "                     eos.mgmurl <path>                  : show MGM URL for a given path\n";
   usage +=
-    "                     eos.stats <path>           : show mount statistics\n";
+    "                     eos.stats <path>                   : show mount statistics\n";
   usage +=
-    "                     eos.stacktrace <path>      : test thread stack trace functionality\n";
+    "                     eos.stacktrace <path>              : test thread stack trace functionality\n";
   usage +=
-    "                     eos.quota <path>           : show user quota information for a given path\n";
+    "                     eos.quota <path>                   : show user quota information for a given path\n";
   usage +=
-    "                     eos.reconnect <path>       : reconnect and dump the connection credentials\n";
+    "                     eos.reconnect <mount>              : reconnect and dump the connection credentials\n";
   usage +=
-    "                     eos.reconnectparent <path> : reconnect parent process and dump the connection credentials\n";
+    "                     eos.reconnectparent <mount>        : reconnect parent process and dump the connection credentials\n";
   usage +=
-    "                     eos.identity <path>        : show credential assignment of the calling process\n";
+    "                     eos.identity <mount>               : show credential assignment of the calling process\n";
   usage +=
-    "                     eos.identityparent <path>  : show credential assignment of the executing shell\n";
+    "                     eos.identityparent <mount>         : show credential assignment of the executing shell\n";
   usage +=            "\n";
   usage +=
-    " as root             system.eos.md  <path>      : dump meta data for given path\n";
+    " as root             system.eos.md  <path>              : dump meta data for given path\n";
   usage +=
-    "                     system.eos.cap <path>      : dump cap for given path\n";
+    "                     system.eos.cap <path>              : dump cap for given path\n";
   usage +=
-    "                     system.eos.caps <path>     : dump all caps\n";
+    "                     system.eos.caps <mount>            : dump all caps\n";
   usage +=
-    "                     system.eos.vmap <path>     : dump virtual inode translation table\n";
+    "                     system.eos.vmap <mount>            : dump virtual inode translation table\n";
   usage +=            "\n";
   return usage;
 }
@@ -178,15 +178,15 @@ EosFuse::UsageSet()
   std::string usage = "usage CLI   : eosxd set <key> <value> [<path>]\n";
   usage +=            "\n";
   usage +=
-    " as root             system.eos.debug <level>   : set debug level with <level>=notice|info|debug\n";
+    " as root             system.eos.debug <level> <mount>   : set debug level with <level>=notice|info|debug\n";
   usage +=
-    "                     system.eos.dropcap <path>  : drop capability of the given path\n";
+    "                     system.eos.dropcap - <mount>       : drop capability of the given path\n";
   usage +=
-    "                     system.eos.dropcaps <path> : drop call capabilities for given mount\n";
+    "                     system.eos.dropcaps - <mount>      : drop call capabilities for given mount\n";
   usage +=
-    "                     system.eos.resetstat <path>: reset the statistic counters\n";
+    "                     system.eos.resetstat - <mount>     : reset the statistic counters\n";
   usage +=
-    "                     system.eos.log <mode>      : make log file public or private with <mode>=public|private\n";
+    "                     system.eos.log <mode> <mount>      : make log file public or private with <mode>=public|private\n";
   usage +=            "\n";
   return usage;
 }
@@ -216,7 +216,7 @@ std::string
 EosFuse::UsageHelp()
 {
   std::string usage =
-    "usage HELP  : eosxd [-h|--help|help]           : get help\n";
+    "usage HELP  : eosxd [-h|--help|help]                    : get help\n";
   return usage;
 }
 
