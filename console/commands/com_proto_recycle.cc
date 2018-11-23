@@ -115,11 +115,13 @@ RecycleHelper::ParseCommand(const char* arg)
   option = tokenizer.GetToken();
   std::string cmd = (option ? option : "");
 
-  if ((cmd == "ls") || cmd.empty()) {
+  if ((cmd == "ls") || cmd.empty() || (cmd == "-m")) {
     eos::console::RecycleProto_LsProto* ls = recycle->mutable_ls();
 
     if (cmd.empty()) {
       ls->set_all(true);
+    } else if (cmd == "-m") {
+      ls->set_monitorfmt(true);
     } else {
       ls->set_fulldetails(true);
 
@@ -292,9 +294,10 @@ void com_recycle_help()
   std::ostringstream oss;
   oss << "Usage: recycle [ls|purge|restore|config ...]" << std::endl
       << "    provides recycle bin functionality" << std::endl
-      << "  recycle" << std::endl
+      << "  recycle [-m]" << std::endl
       << "    print status of recycle bin and config status if executed by root"
       << std::endl
+      << "    -m     : display info in monitoring format" << std::endl
       << std::endl
       << "  recycle ls [-g|<date>] [-m] [-n]" << std::endl
       << "    list files in the recycle bin" << std::endl
