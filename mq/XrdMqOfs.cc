@@ -245,7 +245,6 @@ XrdMqOfsFile::close()
       mMsgOut->RetrieveMessages();
       gMqFS->mQueueOut.erase(mQueueName);
       delete mMsgOut;
-      mMsgOut->DeletionSem.Post();
     }
 
     mMsgOut = nullptr;
