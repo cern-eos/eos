@@ -24,15 +24,24 @@ Bug
 ---
 
 * [EOS-3110] - fix recovery OpenAsync procedures to stop on fatal (non retryable errors)
+* [EOS-3112] - add XrdCl fuzzing
 * [EOS-3114] - file cache corruption
 * [EOS-3116] - zlib selftest failed
 * [EOS-3089] - inflight buffer exceeded
+* [EOS-2576] - add support for client DN formatted according to RFC2253
+* avoid ping-pong notifications from FuseServer (responsible for previous 3 bugs)
+
+
 
 Improvements
 ------------
 
+* [EOS-3108] - move recycle command to protobuf implementation
 * [EOS-3126] - allow to tag traffic for individual FUSE client types
-
+* add support for kerberos key rings
+* add support for authentication logbook/tracing facility 
+* improve shutdown behaviour of server
+* move all pthread to std::thread
 
 ``v4.4.13 Citrine``
 ===================
