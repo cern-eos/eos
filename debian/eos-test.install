@@ -6,6 +6,7 @@ usr/sbin/eos-instance-test-ci
 usr/sbin/eos-io-test
 usr/sbin/eos-io-tool
 usr/sbin/eos-oc-test
+usr/sbin/eos-ns-quarkdb-tests
 usr/sbin/eos-rain-test
 usr/sbin/eoscp-rain-test
 usr/sbin/fusex-benchmark
