@@ -263,7 +263,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
 
       std::string tag = argv[i + 1];
+#ifndef __APPLE__
       std::string path = ((i + 2) >= argc) ? get_current_dir_name() : argv[i + 2];
+#else
+      std::string path = ((i + 2) >= argc) ? getenv("PWD") : argv[i + 2];
+#endif
       std::string systemline = "getfattr --absolute-names --only-values -n ";
       systemline += tag;
       systemline += " ";
@@ -280,7 +284,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
       std::string tag = argv[i + 1];
       std::string value = argv[i + 2];
+#ifndef __APPLE__
       std::string path = ((i + 3) >= argc) ? get_current_dir_name() : argv[i + 3];
+#else
+      std::string path = ((i + 3) >= argc) ? getenv("PWD") : argv[i + 3];
+#endif
       std::string systemline = "setfattr -n ";
       systemline += tag;
       systemline += " -v ";
