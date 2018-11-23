@@ -38,7 +38,7 @@ New Feature
 -----------
 
 * [EOS-3126] - FUSE: ability to tag traffic with custom tag
-
+* [EOS-3128] - eosxd usability
 
 Improvement
 -----------
