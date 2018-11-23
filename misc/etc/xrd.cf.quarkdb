@@ -1,0 +1,17 @@
+xrd.port 9999
+xrd.protocol redis:9999 libXrdQuarkDB.so
+
+redis.mode raft
+redis.database /var/quarkdb/node-1
+
+#----------------------------------------------------------
+# $EOS_QUARKDB_HOSTPORT environment variable must be set
+# with the same value used for redis.myself
+#----------------------------------------------------------
+redis.myself localhost:9999
+
+#----------------------------------------------------------
+# $EOS_QUARKDB_PASSWD environment variable must be set
+# with the same value used for redis.password
+#----------------------------------------------------------
+#redis.password password_must_be_atleast_32_characters

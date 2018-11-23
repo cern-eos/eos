@@ -52,6 +52,11 @@ target_link_libraries(
   EosNsCommon-Static
   ${CMAKE_THREAD_LIBS_INIT})
 
+install(
+  TARGETS
+  eos-ns-quarkdb-tests
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
+
 #-------------------------------------------------------------------------------
 # eosnsbench executable
 #-------------------------------------------------------------------------------
