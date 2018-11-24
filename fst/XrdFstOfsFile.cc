@@ -1731,7 +1731,7 @@ XrdFstOfsFile::close()
         eventType = "closer";
       }
 
-      if (mSyncEventOnClose) {
+      if (mSyncEventOnClose && mEventWorkflow != common::RETRIEVE_WRITTEN_WORKFLOW_NAME) {
         std::string decodedAttributes;
         eos::common::SymKey::Base64Decode(mEventAttributes.c_str(), decodedAttributes);
         std::map<std::string, std::string> attributes;
