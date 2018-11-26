@@ -1064,12 +1064,6 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
 {
   eos_static_debug("");
   bool erase_chunk = false;
-  bool signal_chunk = false;
-
-  if (!proxy()) {
-    return;
-  }
-
   {
     XrdSysCondVarHelper lLock(ReadCondVar());
     mStatus = *status;
@@ -1113,33 +1107,31 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
 
     mDone = true;
     delete status;
-    signal_chunk = true;
+    mProxy->dec_read_chunks_in_flight();
+    ReadCondVar().Signal();
+  }
+
+  if (!proxy()) {
+    return;
   }
 
   read_handler
   myhandler; // we have to keep a self reference, otherwise we delete ourselfs when removing from the map
-  int in_flight = 0;
 
-  if (erase_chunk || signal_chunk) {
-    XrdSysCondVarHelper lLock(proxy()->ReadCondVar());
+  if (erase_chunk) {
+    {
+      XrdSysCondVarHelper lLock(proxy()->ReadCondVar());
 
-    if (erase_chunk) {
       if (proxy()->ChunkRMap().count((uint64_t)this->offset())) {
         myhandler = proxy()->ChunkRMap()[(uint64_t)this->offset()];
       }
 
       proxy()->ChunkRMap().erase((uint64_t)this->offset());
     }
-
-    if (signal_chunk) {
-      in_flight = (proxy()->read_chunks_in_flight() - 1);
-      proxy()->dec_read_chunks_in_flight();
-      ReadCondVar().Signal();
-    }
   }
 
   {
-    if (!in_flight) {
+    if (!proxy()->HasReadsInFlight()) {
       proxy()->CheckSelfDestruction();
     }
   }
