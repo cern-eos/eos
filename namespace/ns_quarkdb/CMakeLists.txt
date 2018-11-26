@@ -34,8 +34,6 @@ include_directories(
 
 add_subdirectory(tests)
 
-add_dependencies(EosNsQuarkdb-Objects EosProtobuf)
-
 #-------------------------------------------------------------------------------
 # EosNsQuarkdb library
 #-------------------------------------------------------------------------------
