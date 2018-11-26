@@ -152,11 +152,12 @@ if (Linux)
   target_link_libraries(
     EosNsCommon-Static PUBLIC
     EosCrc32c-Static
-    EosProtobuf
+    EosProtobuf-Static
+    fmt
     qclient
     rocksdb
     ${FOLLY_LIBRARIES}
-    ${Z_LIBRARY_STATIC} fmt)
+    ${Z_LIBRARY_STATIC})
 
   set_target_properties(
     EosNsCommon-Static
