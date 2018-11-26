@@ -32,7 +32,7 @@ Bug
 * [EOS-3120] - Add eosxd support for persistent kerberos keyrings
 * [EOS-3123] - Parsing issue with "eos recycle -m"
 * [EOS-3125] - git clone fails with "fatal: remote-curl: fetch attempted without a local repo"
-
+* [EOS-3134] - fix journalcache memory leak
 
 New Feature
 -----------
