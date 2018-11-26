@@ -32,6 +32,8 @@ include_directories(
 add_library(
   EosConsoleTests SHARED
   ${CMAKE_SOURCE_DIR}/fst/Fmd.cc
+  ${CMAKE_SOURCE_DIR}/mgm/TableFormatter/TableFormatterBase.cc
+  $<TARGET_OBJECTS:EosCliProto-Objects>
   $<TARGET_OBJECTS:EosConsoleCommands-Objects>)
 
 target_link_libraries(

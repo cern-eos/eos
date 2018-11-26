@@ -30,7 +30,7 @@
 #include <vector>
 #include <unordered_map>
 #include "HealthMockData.hh"
-#include "../commands/HealthCommand.hh"
+#include "console/commands/HealthCommand.hh"
 #include "MgmExecuteTest.hh"
 
 using FSInfoVec     = std::vector<FSInfo>;

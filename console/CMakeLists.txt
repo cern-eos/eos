@@ -114,6 +114,7 @@ add_library(
   commands/com_proto_recycle.cc
   commands/com_stagerrm.cc)
 
+add_dependencies(EosConsoleCommands-Objects EosCliProto-Objects)
 add_dependencies(EosConsoleCommands-Objects EosFstProto-Objects)
 
 target_compile_definitions(
