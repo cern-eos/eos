@@ -23,7 +23,7 @@ This release is based on XRootD V4 and IPV6 enabled.
 Bug
 ---
 
-* [EOS-3089] -  inflight-buffer exceeds maximum number of buffers in flight
+* [EOS-3089] - Inflight-buffer exceeds maximum number of buffers in flight
 * [EOS-3110] - Looping Open in EOSXD
 * [EOS-3114] - corrupted file cache on eosxd in SWAN
 * [EOS-3116] - FUSEX-4.4.13 - 'zlib' selftest failure on SLC6
@@ -43,7 +43,7 @@ New Feature
 Improvement
 -----------
 
-* [EOS-3108] - Move recycle command to protobuf implementation
+* [EOS-3108] - Move recycle command to protobuf implementation - keep server support for 'old' clients
 * [eos-3113] - Don't stall mount when no read-ahead buffer is available
 * [EOS-3119] - Make eosxd auth subsystem more debuggable for users
 * [EOS-3120] - Add eosxd support for persistent kerberos keyrings
