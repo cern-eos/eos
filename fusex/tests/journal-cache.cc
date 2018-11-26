@@ -108,7 +108,7 @@ TEST(JournalCache, BasicSanity)
     tmp.reserve(size);
     auto chunks = jc.get_chunks(offset, size);
 
-    for (auto chunk : chunks) {
+    for (auto &chunk : chunks) {
       tmp += std::string(reinterpret_cast<const char*>(chunk.buff), chunk.size);
     }
 

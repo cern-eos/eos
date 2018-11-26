@@ -250,7 +250,7 @@ void journalcache::process_intersection(interval_tree<uint64_t, const void*>&
   update.offset = offset_for_update(itr->value, low - itr->low);
   update.size = high - low;
   update.buff = static_cast<const char*>(to_wrt->value) + (low - to_wrt->low);
-  updates.push_back(update);
+  updates.push_back(std::move(update));
   // update the 'to write' intervals
   uint64_t wrtlow = to_wrt->low;
   uint64_t wrthigh = to_wrt->high;
@@ -526,7 +526,7 @@ std::vector<journalcache::chunk_t> journalcache::get_chunks(off_t offset,
       return ret;
     }
 
-    ret.push_back(chunk_t(off, count, buffer.release()));
+    ret.push_back(chunk_t(off, count, std::move(buffer)));
   }
 
   return ret;

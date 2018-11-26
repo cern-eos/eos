@@ -51,11 +51,18 @@ public:
 
     chunk_t() : offset(0), size(0), buff(0) { }
 
+    /* constructor - no ownership of underlying buffer */
     chunk_t(off_t offset, size_t size, const void* buff) : offset(offset),
       size(size), buff(buff) { }
 
+    /* constructor - with ownership of underlying buffer */
+    chunk_t(off_t offset, size_t size, std::unique_ptr<char[]> buff) :
+    offset(offset), size(size), buffOwnership(std::move(buff)),
+    buff( (const void*) buffOwnership.get()) {}
+
     off_t offset;
     size_t size;
+    std::unique_ptr<char[]> buffOwnership;
     const void* buff;
 
     bool operator<(const chunk_t& u) const
