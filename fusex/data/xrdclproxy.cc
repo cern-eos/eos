@@ -1123,20 +1123,19 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
   if (erase_chunk || signal_chunk) {
     XrdSysCondVarHelper lLock(proxy()->ReadCondVar());
 
-    if (proxy()->ChunkRMap()[(uint64_t)this->offset()]) {
-      myhandler = proxy()->ChunkRMap()[(uint64_t)this->offset()];
+    if (erase_chunk) {
+      if (proxy()->ChunkRMap().count((uint64_t)this->offset())) {
+        myhandler = proxy()->ChunkRMap()[(uint64_t)this->offset()];
+      }
+
+      proxy()->ChunkRMap().erase((uint64_t)this->offset());
     }
 
     if (signal_chunk) {
       in_flight = (proxy()->read_chunks_in_flight() - 1);
       proxy()->dec_read_chunks_in_flight();
+      ReadCondVar().Signal();
     }
-
-    if (erase_chunk) {
-      proxy()->ChunkRMap().erase((uint64_t)this->offset());
-    }
-
-    ReadCondVar().Signal();
   }
 
   {
@@ -1170,8 +1169,6 @@ XrdCl::Proxy::ReadAsyncPrepare(off_t offset, uint32_t size, bool blocking)
 
   if (!ChunkRMap().count(src->offset())) {
     inc_read_chunks_in_flight();
-    eos_static_crit("duplicated read-ahead request offset=lu size=%lu request-offset=%lu request-size=%lu",
-                    offset, ChunkRMap()[offset]->size(), offset, size);
   }
 
   ChunkRMap()[(uint64_t) src->offset()] = src;
