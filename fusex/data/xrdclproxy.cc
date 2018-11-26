@@ -1115,9 +1115,10 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
     return;
   }
 
+  read_handler
+  myhandler; // we have to keep a self reference, otherwise we delete ourselfs when removing from the map
+
   if (erase_chunk) {
-    read_handler
-    myhandler; // we have to keep a self reference, otherwise we delete ourselfs when removing from the map
     {
       XrdSysCondVarHelper lLock(proxy()->ReadCondVar());
 
