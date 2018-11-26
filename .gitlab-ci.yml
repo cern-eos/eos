@@ -406,7 +406,7 @@ namespace_unit_test:
     - chown -R daemon:daemon /var/lib/quarkdb
     - cp ../misc/etc/xrd.cf.quarkdb xrd.cf.quarkdb
     - echo redis.password $EOS_QUARKDB_PASSWD >> xrd.cf.quarkdb
-    - xrootd -c xrd.cf.quarkdb -Rdaemon -l > /dev/null 2>&1 &
+    - xrootd -c xrd.cf.quarkdb -Rdaemon > /dev/null 2>&1 &
     - ./namespace/ns_quarkdb/tests/eos-ns-quarkdb-tests || true
   cache:
     key: "$CI_BUILD_NAME-$CI_BUILD_REF_NAME"
