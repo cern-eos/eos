@@ -706,7 +706,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
               if (oss_out.tellp() > 1 * 1024 * 1024 * 1024) {
                 retc = E2BIG;
                 oss_out << "... (truncated after 1G of output)" << std::endl;
-                std_out = oss_out.str();
+                std_out += oss_out.str();
                 std_err += "warning: list too long - truncated after 1GB of output!\n";
                 return;
               }
@@ -719,7 +719,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
             if ((vid.uid) && (!vid.sudoer) && (count > 100000)) {
               retc = E2BIG;
               oss_out << "... (truncated)" << std::endl;
-              std_out = oss_out.str();
+              std_out += oss_out.str();
               std_err += "warning: list too long - truncated after 100000 entries!\n";
               return;
             }
@@ -786,7 +786,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
     }
   }
 
-  std_out = oss_out.str();
+  std_out += oss_out.str();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -966,7 +966,7 @@ Recycle::PrintOld(std::string& std_out, std::string& std_err,
                 if (oss_out.tellp() > 1 * 1024 * 1024 * 1024) {
                   retc = E2BIG;
                   oss_out << "... (truncated after 1G of output)" << std::endl;
-                  std_out = oss_out.str();
+                  std_out += oss_out.str();
                   std_err += "warning: list too long - truncated after 1GB of output!\n";
                   return;
                 }
@@ -979,7 +979,7 @@ Recycle::PrintOld(std::string& std_out, std::string& std_err,
               if ((vid.uid) && (!vid.sudoer) && (count > 100000)) {
                 retc = E2BIG;
                 oss_out << "... (truncated)" << std::endl;
-                std_out = oss_out.str();
+                std_out += oss_out.str();
                 std_err += "warning: list too long - truncated after 100000 entries!\n";
                 return;
               }
@@ -990,7 +990,7 @@ Recycle::PrintOld(std::string& std_out, std::string& std_err,
     }
   }
 
-  std_out = oss_out.str();
+  std_out += oss_out.str();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1203,6 +1203,85 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
   }
 
   return retc;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+Recycle::PurgeOld(std::string& std_out, std::string& std_err,
+                  eos::common::Mapping::VirtualIdentity_t& vid)
+{
+  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::Mapping::Root(rootvid);
+  XrdMgmOfsDirectory dirl;
+  char sdir[4096];
+  snprintf(sdir, sizeof(sdir) - 1, "%s/%u/%u/", Recycle::gRecyclingPrefix.c_str(),
+           (unsigned int) vid.gid, (unsigned int) vid.uid);
+  int retc = dirl.open(sdir, vid, "");
+
+  if (retc) {
+    std_out = "success: nothing has been purged in the old recycle bin!\n";
+    return 0;
+  }
+
+  const char* dname;
+  int nfiles_deleted = 0;
+  int nbulk_deleted = 0;
+
+  while ((dname = dirl.nextEntry())) {
+    std::string sdname = dname;
+
+    if ((sdname == ".") || (sdname == "..")) {
+      continue;
+    }
+
+    std::string pathname = sdir;
+    pathname += dname;
+    struct stat buf;
+    XrdOucErrInfo lError;
+
+    if (!gOFS->_stat(pathname.c_str(), &buf, lError, vid, "")) {
+      // execute a proc command
+      ProcCommand Cmd;
+      XrdOucString info;
+
+      if (S_ISDIR(buf.st_mode)) {
+        // we need recursive deletion
+        info = "mgm.cmd=rm&mgm.option=r&mgm.path=";
+      } else {
+        info = "mgm.cmd=rm&mgm.path=";
+      }
+
+      info += pathname.c_str();
+      int result = Cmd.open("/proc/user", info.c_str(), rootvid, &lError);
+      Cmd.AddOutput(std_out, std_err);
+
+      if (*std_out.rbegin() != '\n') {
+        std_out += "\n";
+      }
+
+      if (*std_err.rbegin() != '\n') {
+        std_err += "\n";
+      }
+
+      Cmd.close();
+
+      if (!result) {
+        if (S_ISDIR(buf.st_mode)) {
+          nbulk_deleted++;
+        } else {
+          nfiles_deleted++;
+        }
+      }
+    }
+  }
+
+  dirl.close();
+  std_out += "success: purged ";
+  std_out += (int) nbulk_deleted;
+  std_out += " bulk deletions and ";
+  std_out += (int) nfiles_deleted;
+  std_out += " individual files from the old recycle bin!\n";
+  return 0;
 }
 
 /*----------------------------------------------------------------------------*/

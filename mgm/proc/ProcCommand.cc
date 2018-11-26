@@ -350,6 +350,9 @@ ProcCommand::open(const char* inpath, const char* info,
       mDoSort = false;
     } else if (mCmd == "chmod") {
       Chmod();
+    } else if (mCmd == "recycle") {
+      Recycle();
+      mDoSort = false;
     } else {
       // Command not implemented
       stdErr += "errro: no such user command '";

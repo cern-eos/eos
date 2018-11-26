@@ -140,70 +140,72 @@ public:
 
   /**
    * print the recycle bin contents
-   * @param stdOut where to print
-   * @param stdErr where to print
+   * @param std_out where to print
+   * @param std_err where to print
    * @param vid of the client
    * @param monitoring selects monitoring key-value output format
    * @param translateids selects to display uid/gid as number or string
    * @param global show files of all users as root
    * @param date filter recycle bin for given date <year> or <year>/<month> or <year>/<month>/<day>
    */
-  static void Print(std::string& stdOut, std::string& stdErr,
+  static void Print(std::string& std_out, std::string& std_err,
                     eos::common::Mapping::VirtualIdentity_t& vid, bool monitoring,
                     bool transalteids, bool details,
                     std::string date = "",
-                    bool global = false
-                   );
+                    bool global = false);
 
   /**
    * print the recycle bin contents
-   * @param stdOut where to print
-   * @param stdErr where to print
+   * @param std_out where to print
+   * @param std_err where to print
    * @param vid of the client
    * @param monitoring selects monitoring key-value output format
    * @param translateids selects to display uid/gid as number or string
    */
-  static void PrintOld(std::string& stdOut, std::string& stdErr,
+  static void PrintOld(std::string& std_out, std::string& std_err,
                        eos::common::Mapping::VirtualIdentity_t& vid, bool monitoring,
                        bool transalteids, bool details);
 
   /**
    * undo a deletion
-   * @param stdOut where to print
-   * @param stdErr where to print
+   * @param std_out where to print
+   * @param std_err where to print
    * @param vid of the client
    * @param key (==inode) to undelete
    * @param force_orig_name flag to force restore to the original name
    * @param restore_versions flag to restore all versions
    * @return 0 if done, otherwise errno
    */
-  static int Restore(std::string& stdOut, std::string& stdErr,
+  static int Restore(std::string& std_out, std::string& std_err,
                      eos::common::Mapping::VirtualIdentity_t& vid, const char* key,
                      bool force_orig_name, bool restore_versions);
 
+  static int PurgeOld(std::string& std_out, std::string& std_err,
+                      eos::common::Mapping::VirtualIdentity_t& vid);
+
   /**
    * purge all files in the recycle bin with new uid:<uid>/<date> structure
-   * @param stdOut where to print
-   * @param stdErr where to print
+   * @param std_out where to print
+   * @param std_err where to print
    * @param vid of the client
    * @PARAM date can be empty, <year> or <year>/<month> or <year>/<month>/<day>
    * @return 0 if done, otherwise errno
    */
-  static int Purge(std::string& stdOut, std::string& stdErr,
+  static int Purge(std::string& std_out, std::string& std_err,
                    eos::common::Mapping::VirtualIdentity_t& vid,
                    std::string date = "",
                    bool global = false);
 
   /**
    * configure the recycle bin
-   * @param stdOut where to print
-   * @param stdErr where to print
+   * @param std_out where to print
+   * @param std_err where to print
    * @param vid of the client
    * @param arg configuration key/op
    * @param option configuration value
    * @return 0 if done, otherwise errno
    */
-  static int Config(std::string& stdOut, std::string& stdErr,
+  static int Config(std::string& std_out, std::string& std_err,
                     eos::common::Mapping::VirtualIdentity_t& vid,
                     const std::string& key, const std::string& value);
 
