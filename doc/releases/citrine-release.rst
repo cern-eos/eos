@@ -50,6 +50,7 @@ Improvement
 * [EOS-3122] - Add XrdCl fuzzing
 * improve shutdown behaviour of server
 * move all pthread to std::thread
+* FST no longer sends proto events for sync::closew if file comes from a tape server retrieve operation
 
 ``v4.4.13 Citrine``
 ===================
