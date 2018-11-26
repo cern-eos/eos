@@ -33,7 +33,7 @@ install(
 
 install(
   FILES xrd.cf.fst xrd.cf.mgm xrd.cf.mq xrd.cf.sync xrd.cf.fed xrd.cf.prefix
-	xrd.cf.global-mq fuse.conf fuse.conf.eos xrd.cf.auth xrd.cf.quarkdb
+	xrd.cf.global-mq xrd.cf.auth xrd.cf.quarkdb fuse.conf fuse.conf.eos
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/)
 
 install(

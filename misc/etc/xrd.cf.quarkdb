@@ -2,7 +2,7 @@ xrd.port 9999
 xrd.protocol redis:9999 libXrdQuarkDB.so
 
 redis.mode raft
-redis.database /var/quarkdb/node-1
+redis.database /var/lib/quarkdb/node-1
 
 #----------------------------------------------------------
 # $EOS_QUARKDB_HOSTPORT environment variable must be set

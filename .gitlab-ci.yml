@@ -376,6 +376,47 @@ unit_test:
     - docker-cc7
 
 
+namespace_unit_test:
+  stage: test
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities ccache epel-release cppunit-devel centos-release-scl
+    - yum install --nogpg -y devtoolset-6 devtoolset-6-libasan-devel
+    - git submodule update --init --recursive
+    - mkdir build
+    - cd build
+    - cmake3 .. -DPACKAGEONLY=1
+    - make srpm
+    - cd ..
+    - source gitlab-ci/export_buildtype.sh 24 build/SRPMS
+    - if [ "$BUILD_TYPE" == "commit" ]; then source gitlab-ci/setup_ccache.sh; else export CCACHE_DISABLE=1; fi
+    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
+    - yum-builddep --nogpgcheck -y --setopt="cern*.exclude=xrootd*" build/SRPMS/*
+    - rm -rf build
+    - mkdir build
+    - cd build
+    - scl enable devtoolset-6 "CXXFLAGS='-fsanitize=address' cmake3 .. -DBUILD_TESTS=1"
+    - make eos-ns-quarkdb-tests -j 4
+    - ccache -s
+    - echo -e '[quarkdb]\nname=QuarkDB\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/quarkdb/tag/el7/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' >> /etc/yum.repos.d/quarkdb.repo
+    - yum install -y quarkdb
+    - export EOS_QUARKDB_HOSTPORT=localhost:9999
+    - export EOS_QUARKDB_PASSWD=password_must_be_atleast_32_characters
+    - quarkdb-create --path /var/lib/quarkdb/node-1 --clusterID ns-test --nodes $EOS_QUARKDB_HOSTPORT
+    - chown -R daemon:daemon /var/lib/quarkdb
+    - cp ../misc/etc/xrd.cf.quarkdb xrd.cf.quarkdb
+    - echo redis.password $EOS_QUARKDB_PASSWD >> xrd.cf.quarkdb
+    - xrootd -c xrd.cf.quarkdb -Rdaemon -l > /dev/null 2>&1 &
+    - ./namespace/ns_quarkdb/tests/eos-ns-quarkdb-tests || true
+  cache:
+    key: "$CI_BUILD_NAME-$CI_BUILD_REF_NAME"
+    paths:
+      - ccache/
+  dependencies: []
+  tags:
+    - docker-cc7
+
+
 system_test:
   stage: test
   <<: *system_test_template_definition

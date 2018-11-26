@@ -20,6 +20,9 @@ in the QuarkDB config file.
 The QuarkDB library can be installed from:
 http://storage-ci.web.cern.ch/storage-ci/quarkdb/tag/el7/x86_64/
 
+Some setup is necessary before running for the first time.
+A complete documentation can be found [here][1].
+
 QuarkDB runs in a similar fashion to other XRootD plugins: `xroot -c config.file`
 
 ### The QuarkDB config file
@@ -46,10 +49,12 @@ make eos-ns-quarkdb-tests -j4
 
 # Install, setup and run QuarkDB
 yum install -y quarkdb
-mkdir /var/quarkdb
-chown -R daemon:daemon /var/quarkdb
+quarkdb-create --path /var/lib/quarkdb/node-1 --clusterID ns-test --nodes $EOS_QUARKDB_HOSTPORT
+chown -R daemon:daemon /var/lib/quarkdb
 xrootd -n quarkdb -c xrd.cf.quarkdb -l /var/log/quarkdb/xrdlog.quarkdb -Rdaemon &
 
 # Run tests
 ./namespace/ns_quarkdb/tests/eos-ns-quarkdb-tests
 ```
+
+[1]: http://quarkdb.web.cern.ch/quarkdb/docs/master/CONFIGURATION.html
