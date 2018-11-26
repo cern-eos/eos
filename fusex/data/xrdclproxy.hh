@@ -222,8 +222,6 @@ public:
           break;
         }
       }
-      // we wait that the situation relaxes
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
       if (!(cnt % 1000)) {
         if (inflight_size >= max_inflight_size) {
@@ -237,36 +235,51 @@ public:
         }
       }
 
-      cnt++;
-
       if (!blocking) {
         // we don't wait for free buffers
         return nullptr;
       }
+
+      cnt++;
+      // we wait that the situation relaxes
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
     } while (1);
 
     XrdSysMutexHelper lLock(this);
     size_t cap_size = size;
     inflight_buffers++;
+    shared_buffer buffer;
 
     if (!queue.size() || (size < buffersize)) {
       inflight_size += cap_size;
-      return std::make_shared<std::vector<char>>(cap_size, 0);
+      buffer = std::make_shared<std::vector<char>>(cap_size, 0);
     } else {
-      shared_buffer buffer = queue.front();
+      buffer = queue.front();
       queued_size -= buffer->capacity();
       buffer->resize(cap_size);
       buffer->reserve(cap_size);
       inflight_size += buffer->capacity();
       queue.pop();
-      return buffer;
     }
+
+    if (EOS_LOGS_DEBUG) {
+      eos_static_debug("get-buffer %lx size %lu", (uint64_t)(&((*buffer)[0])),
+                       buffer->capacity());
+    }
+
+    return buffer;
   }
 
   void put_buffer(shared_buffer buffer)
   {
     XrdSysMutexHelper lLock(this);
     inflight_size -= buffer->capacity();
+
+    if (EOS_LOGS_DEBUG) {
+      eos_static_debug("put-buffer %lx size %lu", (uint64_t)(&((*buffer)[0])),
+                       buffer->capacity());
+    }
+
     inflight_buffers--;
 
     if ((queue.size() == max) || (buffer->capacity() < buffersize)) {
@@ -611,6 +624,7 @@ public:
     mReadAheadPosition = 0;
     mTotalBytes = 0;
     mTotalReadAheadHitBytes = 0;
+    mTotalReadAheadBytes = 0;
     mAttached = 0;
     mTimeout = 0;
     mSelfDestruction.store(false, std::memory_order_seq_cst);

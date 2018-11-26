@@ -281,7 +281,7 @@ XrdCl::Proxy::Read(uint64_t offset,
         if (!ChunkRMap().count(mReadAheadPosition)) {
           ReadCondVar().UnLock();
           XrdCl::Proxy::read_handler rahread = ReadAsyncPrepare(mReadAheadPosition,
-                                               XReadAheadNom);
+                                               XReadAheadNom, false);
 
           if (!rahread->valid()) {
             ReadCondVar().Lock();
