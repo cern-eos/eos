@@ -34,7 +34,7 @@ include_directories(
   ${PROTOBUF_INCLUDE_DIRS}
   ${JSONCPP_INCLUDE_DIR}
   ${HIREDIS_INCLUDE_DIR}
-  ${ZMQ_INCLUDE_DIR}
+  ${ZMQ_INCLUDE_DIRS}
   ${LIBEVENT_INCLUDE_DIRS}
   ${BZ2_INCLUDE_DIRS}
   ${RICHACL_INCLUDE_DIRS}
@@ -124,10 +124,8 @@ add_library(eosxd-objects OBJECT
   data/xrdclproxy.cc data/xrdclproxy.hh
   data/dircleaner.cc data/dircleaner.hh
   backend/backend.cc backend/backend.hh
-  ../common/ShellCmd.cc
-  ../common/ShellCmd.hh
-  ../common/ShellExecutor.cc
-  ../common/ShellExecutor.hh
+  ${CMAKE_SOURCE_DIR}/common/ShellCmd.cc
+  ${CMAKE_SOURCE_DIR}/common/ShellExecutor.cc
   submount/SubMount.cc submount/SubMount.hh
   ${PROTO_SRC} ${PROTO_HEADER})
 

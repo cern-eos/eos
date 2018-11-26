@@ -35,7 +35,7 @@ include_directories(
   ${PROTOBUF_INCLUDE_DIRS}
   ${JSONCPP_INCLUDE_DIR}
   ${HIREDIS_INCLUDE_DIR}
-  ${ZMQ_INCLUDE_DIR}
+  ${ZMQ_INCLUDE_DIRS}
   ${LIBEVENT_INCLUDE_DIRS}
   ${RICHACL_INCLUDE_DIRS}
 )
@@ -55,7 +55,8 @@ set(LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH
   ${LIBEVENT_LIBRARIES}
   ${LIBRARIES_IF_ROCKSDB_WAS_FOUND}
   ${RICHACL_LIBRARIES}
-  eosCommonServer eosCommon
+  ${ZMQ_LIBRARIES}
+  eosCommon
 )
 
 set(COMPILE_FLAGS_FOR_TEST_EXECUTABLES "${EOSXD_COMPILE_FLAGS} -fPIC")
@@ -93,12 +94,12 @@ add_executable(eos-fusex-stress-tests
   stress/xrdcl-proxy.cc
   ${CMAKE_SOURCE_DIR}/fusex/data/xrdclproxy.cc
   ${CMAKE_SOURCE_DIR}/fusex/data/xrdclproxy.hh
-)
+  ${CMAKE_SOURCE_DIR}/common/ShellCmd.cc
+  ${CMAKE_SOURCE_DIR}/common/ShellExecutor.cc)
 
 target_link_libraries(
   eos-fusex-stress-tests
-  ${LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH}
-)
+  ${LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH})
 
 set_target_properties(
   eos-fusex-stress-tests
