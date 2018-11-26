@@ -32,9 +32,7 @@ include_directories(
  ${XROOTD_INCLUDE_DIR}
  ${FOLLY_INCLUDE_DIRS})
 
-if(BUILD_TESTS)
-  add_subdirectory(tests)
-endif(BUILD_TESTS)
+add_subdirectory(tests)
 
 #-------------------------------------------------------------------------------
 # EosNsQuarkdb library

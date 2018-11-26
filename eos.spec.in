@@ -95,6 +95,7 @@ BuildRequires: hiredis, hiredis-devel
 BuildRequires: jemalloc, jemalloc-devel
 BuildRequires: glibc-headers
 BuildRequires: binutils-devel
+BuildRequires: cppunit-devel
 BuildRequires: help2man
 
 %if %{?_with_server:1}%{!?_with_server:0}

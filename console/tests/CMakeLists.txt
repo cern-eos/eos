@@ -26,7 +26,6 @@ include_directories(
   ${OPENSSL_INCLUDE_DIRS}
   ${CPPUNIT_INCLUDE_DIRS})
 
-add_definitions(-DBUILD_TESTS)
 #-------------------------------------------------------------------------------
 # EosConsoleTests library
 #-------------------------------------------------------------------------------

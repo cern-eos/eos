@@ -41,7 +41,7 @@ A simple setup from build to running the tests is provided as guidance.
 # Build executable
 mkdir build
 cd build/
-cmake3 ../ -DBUILD_TESTS=1
+cmake3 ../
 make eos-ns-quarkdb-tests -j4
 
 # Install, setup and run QuarkDB

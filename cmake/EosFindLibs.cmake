@@ -28,7 +28,6 @@ option(PACKAGEONLY "Build without dependencies" OFF)
 option(FUSEXCLIENT "Build FUSEX client" OFF)
 option(CLIENT "Build only client packages" OFF)
 option(BUILD_XRDCL_RAIN_PLUGIN "Enable XrdCl RAIN plugin" OFF)
-option(BUILD_TESTS "Build CppUnit tests" OFF)
 set(EOS_RPATH "/usr/lib64/;/lib64/")
 
 if(NOT PACKAGEONLY)
@@ -80,13 +79,8 @@ if(NOT PACKAGEONLY)
     find_package(eosfolly REQUIRED)
     find_package(davix)
     find_package(ldap REQUIRED)
-    if (BUILD_TESTS)
-      # @todo (esindril): Completely drop cppunit once everything is moved
-      # to gtest
-      find_package(CPPUnit REQUIRED)
-    else()
-      find_package(CPPUnit)
-    endif()
+    # @TODO (esindril): Completely drop cppunit once everything is moved to gtest
+    find_package(CPPUnit REQUIRED)
     find_package(microhttpd)
     if (NOT MICROHTTPD_FOUND)
       message ("Notice: MicroHttpd not found, no httpd access available")
