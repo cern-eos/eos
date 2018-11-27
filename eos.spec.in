@@ -135,8 +135,10 @@ BuildRequires: centos-release-scl
 %if 0%{distribution} == 6 || 0%{distribution} == 7
 BuildRequires: devtoolset-6
 BuildRequires: devtoolset-6-binutils-devel
+BuildRequires: devtoolset-6-libasan-devel
 %else
 BuildRequires: binutils-devel
+BuildRequires: libasan
 %endif
 
 %if %{?_with_asan:1}%{!?_with_asan:0}
