@@ -15,6 +15,19 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.4.14 Citrine``
+===================
+
+2018-11-27
+
+Bug
+---
+
+* CONSOLE: Add fallback to old style recycle command for old servers
+* MGM: Fix possible memory leak in capability generation
+
+
 ``v4.4.14 Citrine``
 ===================
 
@@ -51,6 +64,7 @@ Improvement
 * improve shutdown behaviour of server
 * move all pthread to std::thread
 * FST no longer sends proto events for sync::closew if file comes from a tape server retrieve operation
+
 
 ``v4.4.13 Citrine``
 ===================
