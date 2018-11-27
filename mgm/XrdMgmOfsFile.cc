@@ -501,6 +501,21 @@ XrdMgmOfsFile::open(const char* inpath,
           } else {
             fmd = gOFS->eosView->getFile(cPath.GetPath());
           }
+
+          if (fmd) {
+            uint64_t dmd_id = fmd->getContainerId();
+
+            // if fmd is resolved via a symbolic link, we have to find the 'real' parent directory
+            if (dmd_id != dmd->getId()) {
+              // retrieve the 'real' parent
+              try {
+                dmd = gOFS->eosDirectoryService->getContainerMD(dmd_id);
+              } catch (eos::MDException& e) {
+                // this looks like corruption, but will return in ENOENT for the parent
+                dmd = 0;
+              }
+            }
+          }
         } catch (eos::MDException& e) {
           fmd.reset();
         }
