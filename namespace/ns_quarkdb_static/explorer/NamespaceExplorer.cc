@@ -19,6 +19,7 @@
 #include "namespace/ns_quarkdb_static/explorer/NamespaceExplorer.hh"
 #include "namespace/utils/PathProcessor.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
+#include "namespace/utils/Attributes.hh"
 #include "common/Assert.hh"
 #include <memory>
 #include <numeric>
@@ -175,6 +176,10 @@ NamespaceExplorer::NamespaceExplorer(const std::string& pth,
                                      qclient::QClient& qclient)
   : path(pth), options(opts), qcl(qclient)
 {
+  if(options.populateLinkedAttributes && !opts.view) {
+    throw_mdexception(EINVAL, "NamespaceExplorer: asked to populate linked attrs, but view not provided");
+  }
+
   std::vector<std::string> pathParts;
   eos::PathProcessor::splitPath(pathParts, path);
   // This part is synchronous by necessity.
@@ -277,6 +282,76 @@ std::string NamespaceExplorer::buildDfsPath()
 }
 
 //------------------------------------------------------------------------------
+// Handle linked attributes
+//------------------------------------------------------------------------------
+void NamespaceExplorer::handleLinkedAttrs(NamespaceItem& result) {
+  result.attrs.clear();
+  if(!options.populateLinkedAttributes) return;
+
+  //----------------------------------------------------------------------------
+  // Retrieve reference to linked attribute map
+  //----------------------------------------------------------------------------
+  google::protobuf::Map<std::string, std::string> const* attrMap = nullptr;
+
+  if(result.isFile) {
+    attrMap = &result.fileMd.xattrs();
+  }
+  else {
+    attrMap = &result.containerMd.xattrs();
+  }
+
+  //----------------------------------------------------------------------------
+  // Do we even have linked attrs?
+  //----------------------------------------------------------------------------
+  auto link = attrMap->find("sys.attr.link");
+  if(link == attrMap->end()) {
+    //--------------------------------------------------------------------------
+    // Nope, take fast path
+    //--------------------------------------------------------------------------
+    return;
+  }
+
+  //----------------------------------------------------------------------------
+  // Copy stuff, unfortunately
+  //----------------------------------------------------------------------------
+  result.attrs = {attrMap->begin(), attrMap->end() };
+
+  //----------------------------------------------------------------------------
+  // Cached entry exists?
+  //----------------------------------------------------------------------------
+  auto cached = cachedAttrs.find(link->second);
+  if(cached != cachedAttrs.end()) {
+    //--------------------------------------------------------------------------
+    // Cache hit
+    //--------------------------------------------------------------------------
+    populateLinkedAttributes(cached->second, result.attrs, options.prefixLinks);
+    return;
+  }
+
+  //----------------------------------------------------------------------------
+  // Cache miss
+  //----------------------------------------------------------------------------
+  eos::IContainerMD::XAttrMap toStoreIntoCache;
+
+  try {
+    FileOrContainerMD item = options.view->getItem(link->second, true).get();
+
+    if(item.file) {
+      toStoreIntoCache = item.file->getAttributes();
+    }
+    else {
+      toStoreIntoCache = item.container->getAttributes();
+    }
+  }
+  catch(eos::MDException &e) {
+    // toStoreIntoCache remains empty
+  }
+
+  cachedAttrs[link->second] = toStoreIntoCache;
+  populateLinkedAttributes(toStoreIntoCache, result.attrs, options.prefixLinks);
+}
+
+//------------------------------------------------------------------------------
 // Fetch children under current path
 //------------------------------------------------------------------------------
 bool NamespaceExplorer::fetch(NamespaceItem& item)
@@ -303,6 +378,7 @@ bool NamespaceExplorer::fetch(NamespaceItem& item)
       item.isFile = false;
       item.fullPath = buildDfsPath();
       item.containerMd = dfsPath.back()->getContainerInfo();
+      handleLinkedAttrs(item);
       return true;
     }
 
@@ -310,6 +386,7 @@ bool NamespaceExplorer::fetch(NamespaceItem& item)
     if (dfsPath.back()->fetchChild(item.fileMd)) {
       item.isFile = true;
       item.fullPath = buildDfsPath() + item.fileMd.name();
+      handleLinkedAttrs(item);
       return true;
     }
 

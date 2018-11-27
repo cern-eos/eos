@@ -41,6 +41,8 @@ class QClient;
 
 EOSNSNAMESPACE_BEGIN
 
+class IView;
+
 class ExpansionDecider {
 public:
   //----------------------------------------------------------------------------
@@ -53,13 +55,26 @@ public:
 struct ExplorationOptions {
   int depthLimit;
   std::shared_ptr<ExpansionDecider> expansionDecider;
+  bool populateLinkedAttributes = false;
+  bool prefixLinks = false; // only relevant if populateLinkedAttributes is true
+
+  //----------------------------------------------------------------------------
+  // You must supply the view if populateLinkedAttributes = true
+  //----------------------------------------------------------------------------
+  eos::IView *view = nullptr;
 };
 
 struct NamespaceItem {
   // A simple string for now, we can extend this later.
   std::string fullPath;
 
+  //----------------------------------------------------------------------------
+  //! Extended attributes map: Only filled out if populateLinkedAttributes was
+  //! set.
+  //----------------------------------------------------------------------------
+  eos::IContainerMD::XAttrMap attrs;
   bool isFile;
+
   // Only one of these are actually filled out.
   eos::ns::FileMdProto fileMd;
   eos::ns::ContainerMdProto containerMd;
@@ -160,6 +175,14 @@ private:
   std::string buildStaticPath();
   std::string buildDfsPath();
 
+  //----------------------------------------------------------------------------
+  // Handle linked attributes
+  //----------------------------------------------------------------------------
+  void handleLinkedAttrs(NamespaceItem& result);
+
+  //----------------------------------------------------------------------------
+  // Retrieve linked container for  Handle linked attributes
+  //----------------------------------------------------------------------------
   std::string path;
   ExplorationOptions options;
   qclient::QClient& qcl;
@@ -170,6 +193,7 @@ private:
   bool searchOnFileEnded = false;
 
   std::vector<std::unique_ptr<SearchNode>> dfsPath;
+  std::map<std::string, eos::IContainerMD::XAttrMap> cachedAttrs;
 };
 
 EOSNSNAMESPACE_END

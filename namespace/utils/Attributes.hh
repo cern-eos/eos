@@ -24,6 +24,7 @@
 #ifndef EOS_NS_ATTRIBUTES_HH
 #define EOS_NS_ATTRIBUTES_HH
 
+#include "namespace/interface/IView.hh"
 #include "common/StringUtils.hh"
 #include "common/Logging.hh"
 #include <iostream>
@@ -33,34 +34,42 @@ EOSNSNAMESPACE_BEGIN
 auto constexpr kAttrLinkKey = "sys.attr.link";
 
 //------------------------------------------------------------------------------
+// Populate 'out' map with attributes found in linkedAttrs. Do not override
+// existing values.
+//------------------------------------------------------------------------------
+inline void populateLinkedAttributes(const eos::IContainerMD::XAttrMap& linkedAttrs,
+ eos::IContainerMD::XAttrMap& out, bool prefixLinks) {
+
+  for(auto it = linkedAttrs.begin(); it != linkedAttrs.end(); it++) {
+    //------------------------------------------------------------------------
+    // Populate any linked extended attributes which don't exist yet
+    //------------------------------------------------------------------------
+    if(out.find(it->first) == out.end()) {
+      std::string key;
+      if(prefixLinks && common::startsWith(it->first, "sys.")) {
+        key = SSTR("sys.link." << it->first.substr(4));
+      }
+      else {
+        key = it->first;
+      }
+
+      out[key] = it->second;
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 // Fill out the given map with any extended attributes found in given container,
 // but DO NOT override existing values.
 //------------------------------------------------------------------------------
-void populateLinkedAttributes(IView *view, eos::IContainerMD::XAttrMap& out, bool prefixLinks) {
+inline void populateLinkedAttributes(IView *view, eos::IContainerMD::XAttrMap& out, bool prefixLinks) {
   try {
     auto linkedPath = out.find(kAttrLinkKey);
     if(linkedPath == out.end() || linkedPath->second.empty()) return;
 
     IContainerMDPtr dh = view->getContainer(linkedPath->second);
     if(!dh) return;
-    eos::IFileMD::XAttrMap xattrs = dh->getAttributes(); // TODO: copy is stupid?
-
-    for(auto it = xattrs.begin(); it != xattrs.end(); it++) {
-      //------------------------------------------------------------------------
-      // Populate any linked extended attributes which don't exist yet
-      //------------------------------------------------------------------------
-      if(out.find(it->first) == out.end()) {
-        std::string key;
-        if(prefixLinks && common::startsWith(it->first, "sys.")) {
-          key = SSTR("sys.link." << it->first.substr(4));
-        }
-        else {
-          key = it->first;
-        }
-
-        out[key] = it->second;
-      }
-    }
+    populateLinkedAttributes(dh->getAttributes(), out, prefixLinks);
   } catch (eos::MDException& e) {
     //--------------------------------------------------------------------------
     // Link does not exist, or is not a directory
@@ -79,12 +88,44 @@ void populateLinkedAttributes(IView *view, eos::IContainerMD::XAttrMap& out, boo
 //
 // Target is specified as IContainerMD.
 //------------------------------------------------------------------------------
-void listAttributes(IView *view, IContainerMD *target, eos::IContainerMD::XAttrMap& out, bool prefixLinks = false) {
+inline void listAttributes(IView *view, IContainerMD *target, eos::IContainerMD::XAttrMap& out, bool prefixLinks = false) {
   out.clear();
   out = target->getAttributes();
   populateLinkedAttributes(view, out, prefixLinks);
 }
 
+//------------------------------------------------------------------------------
+// Retrieve list of extended attributes, including linked ones.
+//
+// If the same attribute exists in both the target, and the link, the most
+// specific one wins, ie the one on the target itself.
+//
+// Target is specified as IFileMD.
+//------------------------------------------------------------------------------
+inline void listAttributes(IView *view, IFileMD *target, eos::IContainerMD::XAttrMap& out, bool prefixLinks = false) {
+  out.clear();
+  out = target->getAttributes();
+  populateLinkedAttributes(view, out, prefixLinks);
+}
+
+//------------------------------------------------------------------------------
+// Retrieve list of extended attributes, including linked ones.
+//
+// If the same attribute exists in both the target, and the link, the most
+// specific one wins, ie the one on the target itself.
+//
+// Target is specified as FileOrContainerMD.
+//------------------------------------------------------------------------------
+inline void listAttributes(IView *view, FileOrContainerMD target, eos::IContainerMD::XAttrMap& out, bool prefixLinks = false) {
+  out.clear();
+
+  if(target.file) {
+    listAttributes(view, target.file.get(), out, prefixLinks);
+  }
+  else if(target.container) {
+    listAttributes(view, target.container.get(), out, prefixLinks);
+  }
+}
 
 EOSNSNAMESPACE_END
 

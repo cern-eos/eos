@@ -673,6 +673,67 @@ TEST_F(NamespaceExplorerF, BasicSanity) {
   ASSERT_FALSE(explorer2.fetch(item));
 }
 
+TEST_F(NamespaceExplorerF, LinkedAttributes) {
+  std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
+  ASSERT_EQ(root->getId(), 1);
+  root->setAttribute("sys.chickens", "no");
+  root->setAttribute("sys.qwerty", "asdf");
+  containerSvc()->updateStore(root.get());
+
+  std::shared_ptr<eos::IFileMD> file1 = view()->createFile("/my-file.txt", true);
+  ASSERT_EQ(file1->getId(), 1);
+  file1->setAttribute("sys.chickens", "yes");
+  file1->setAttribute("sys.attr.link", "/some-file");
+  fileSvc()->updateStore(file1.get());
+
+  mdFlusher()->synchronize();
+
+  // Find on single file - weird, but possible
+  ExplorationOptions options;
+  options.depthLimit = 999;
+  options.populateLinkedAttributes = true;
+
+  // attrs asked, but view not provided
+  ASSERT_THROW(eos::NamespaceExplorer("/", options, qcl()), eos::MDException);
+  options.view = view();
+
+  eos::NamespaceExplorer explorer("/", options, qcl());
+
+  NamespaceItem item;
+  ASSERT_TRUE(explorer.fetch(item));
+  ASSERT_FALSE(item.isFile);
+  ASSERT_EQ(item.fullPath, "/");
+
+  ASSERT_TRUE(explorer.fetch(item));
+  ASSERT_TRUE(item.isFile);
+  ASSERT_EQ(item.fullPath, "/my-file.txt");
+  std::map<std::string, std::string> predictedAttrs {
+    {"sys.chickens", "yes" },
+    {"sys.attr.link", "/some-file"}
+  };
+  ASSERT_EQ(item.attrs, predictedAttrs);
+
+
+  file1->setAttribute("sys.attr.link", "/");
+  fileSvc()->updateStore(file1.get());
+  mdFlusher()->synchronize();
+
+  eos::NamespaceExplorer explorer2("/", options, qcl());
+  ASSERT_TRUE(explorer2.fetch(item));
+  ASSERT_FALSE(item.isFile);
+  ASSERT_EQ(item.fullPath, "/");
+
+  ASSERT_TRUE(explorer2.fetch(item));
+  ASSERT_TRUE(item.isFile);
+  ASSERT_EQ(item.fullPath, "/my-file.txt");
+  predictedAttrs = {
+    {"sys.chickens", "yes" },
+    {"sys.attr.link", "/"},
+    {"sys.qwerty", "asdf"},
+  };
+  ASSERT_EQ(item.attrs, predictedAttrs);
+}
+
 class ContainerFilter : public eos::ExpansionDecider {
 public:
 
