@@ -347,9 +347,10 @@ unit_test:
   stage: test
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
+    - yum install --nogpg -y yum-plugin-priorities createrepo
+    - createrepo cc7_artifacts/
     - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
-    - echo -e "[eos-artifacts]\nname=EOS artifacts\nbaseurl=file://${PWD}/cc7_artifacts\ngpgcheck=0\nenabled=1\npriority=1" >> /etc/yum.repos.d/eos-artifacts.repo
-    - yum install --nogpg -y yum-plugin-priorities
+    - echo -e '[eos-artifacts]\nname=EOS artifacts\nbaseurl=file://'${PWD}'/cc7_artifacts\ngpgcheck=0\nenabled=1\npriority=1' >> /etc/yum.repos.d/eos-artifacts.repo
     - yum install --nogpg -y eos-client eos-server eos-test
     - eos-unit-tests || true
     - eos-fst-unit-tests || true
@@ -367,11 +368,12 @@ namespace_unit_test:
   stage: test
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
+    - yum install --nogpg -y yum-plugin-priorities createrepo
+    - createrepo cc7_artifacts/
     - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
-    - echo -e "[eos-artifacts]\nname=EOS artifacts\nbaseurl=file://${PWD}/cc7_artifacts\ngpgcheck=0\nenabled=1\npriority=1" >> /etc/yum.repos.d/eos-artifacts.repo
+    - echo -e '[eos-artifacts]\nname=EOS artifacts\nbaseurl=file://'${PWD}'/cc7_artifacts\ngpgcheck=0\nenabled=1\npriority=1' >> /etc/yum.repos.d/eos-artifacts.repo
     - echo -e '[quarkdb]\nname=QuarkDB\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/quarkdb/tag/el7/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' >> /etc/yum.repos.d/quarkdb.repo
-    - yum install --nogpg -y yum-plugin-priorities quarkdb
-    - yum install --nogpg -y eos-client eos-server eos-test
+    - yum install --nogpg -y eos-client eos-server eos-test quarkdb
     - export EOS_QUARKDB_HOSTPORT=localhost:9999
     - export EOS_QUARKDB_PASSWD=password_must_be_atleast_32_characters
     - quarkdb-create --path /var/lib/quarkdb/node-1 --clusterID ns-test --nodes $EOS_QUARKDB_HOSTPORT
