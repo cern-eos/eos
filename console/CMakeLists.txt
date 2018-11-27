@@ -88,7 +88,6 @@ add_library(
   commands/com_quit.cc
   commands/com_quota.cc
   commands/com_reconnect.cc
-  commands/com_rm.cc
   commands/com_rmdir.cc
   commands/com_role.cc
   commands/com_rtlog.cc
@@ -107,9 +106,13 @@ add_library(
   commands/com_who.cc
   commands/com_proto_acl.cc
   commands/com_proto_fs.cc
+  #@todo (esindril) drop com_rm when we drop beryl_aquamarine
+  commands/com_rm.cc
   commands/com_proto_rm.cc
   commands/com_proto_ns.cc
   commands/com_proto_route.cc
+  #@todo (esindril) drop com_recycle when we drop beryl_aquamarine
+  commands/com_recycle.cc
   commands/com_proto_recycle.cc
   commands/com_stagerrm.cc)
 

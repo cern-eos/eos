@@ -94,7 +94,7 @@ extern int com_pwd(char*);
 extern int com_quit(char*);
 extern int com_quota(char*);
 extern int com_reconnect(char*);
-extern int com_recycle(char*);
+extern int com_protorecycle(char*);
 extern int com_rm(char*);
 extern int com_route(char*);
 extern int com_protorm(char*);
@@ -165,7 +165,7 @@ COMMAND commands[] = {
   { (char*) "quit", com_quit, (char*) "Exit from EOS console"},
   { (char*) "quota", com_quota, (char*) "Quota System configuration"},
   { (char*) "reconnect", com_reconnect, (char*) "Forces a re-authentication of the shell"},
-  { (char*) "recycle", com_recycle, (char*) "Recycle Bin Functionality"},
+  { (char*) "recycle", com_protorecycle, (char*) "Recycle Bin Functionality"},
   { (char*) "rmdir", com_rmdir, (char*) "Remove a directory"},
   { (char*) "rm", com_protorm, (char*) "Remove a file"},
   { (char*) "role", com_role, (char*) "Set the client role"},
@@ -582,7 +582,7 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
   } else {
     std::string errmsg;
     errmsg = status.GetErrorMessage();
-    fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo, errmsg.c_str());
+    //fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo, errmsg.c_str());
   }
 
   return nullptr;

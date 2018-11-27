@@ -25,6 +25,7 @@
 #include "console/ConsoleMain.hh"
 #include "console/commands/ICmdHelper.hh"
 
+extern int com_recycle(char*);
 void com_recycle_help();
 
 //------------------------------------------------------------------------------
@@ -266,7 +267,7 @@ RecycleHelper::ParseCommand(const char* arg)
 //------------------------------------------------------------------------------
 // Recycle command entrypoint
 //------------------------------------------------------------------------------
-int com_recycle(char* arg)
+int com_protorecycle(char* arg)
 {
   if (wants_help(arg)) {
     com_recycle_help();
@@ -282,7 +283,18 @@ int com_recycle(char* arg)
     return EINVAL;
   }
 
-  global_retc = recycle.Execute();
+  global_retc = recycle.Execute(false);
+
+  // Fallback for aquamarine server when dealing with new proto commands
+  if (global_retc != 0) {
+    if ((recycle.GetError().find("no such user command") != std::string::npos) ||
+        (global_retc == EIO)) {
+      global_retc = com_recycle(arg);
+    } else {
+      std::cerr << recycle.GetError() << std::endl;
+    }
+  }
+
   return global_retc;
 }
 
