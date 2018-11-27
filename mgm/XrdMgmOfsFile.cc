@@ -2276,16 +2276,17 @@ XrdMgmOfsFile::open(const char* inpath,
   // Encrypt capability
   // ---------------------------------------------------------------------------
   XrdOucEnv incapability(capability.c_str());
-  XrdOucEnv* capabilityenv = 0;
   eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
   eos_debug("capability=%s\n", capability.c_str());
   int caprc = 0;
 
-  if ((caprc = gCapabilityEngine.Create(&incapability, capabilityenv, symkey,
+  XrdOucEnv* capabilityenvRaw = nullptr;
+  if ((caprc = gCapabilityEngine.Create(&incapability, capabilityenvRaw, symkey,
                                         gOFS->mCapabilityValidity))) {
     return Emsg(epname, error, caprc, "sign capability", path);
   }
 
+  std::unique_ptr<XrdOucEnv> capabilityenv(capabilityenvRaw);
   int caplen = 0;
 
   if (isPio) {
@@ -2440,7 +2441,6 @@ XrdMgmOfsFile::open(const char* inpath,
 
   eos_info("info=\"redirection\" hostport=%s:%d", predirectionhost.c_str(),
            ecode);
-  delete capabilityenv;
 
   if (attrmap.count("sys.force.atime")) {
     // -------------------------------------------------------------------------
