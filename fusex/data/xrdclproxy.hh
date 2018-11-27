@@ -1137,6 +1137,17 @@ public:
     return mUrl;
   }
 
+  OpenFlags::Flags flags()
+  {
+    return mFlags;
+  }
+
+
+  Access::Mode mode()
+  {
+    return mMode;
+  }
+
   void flag_selfdestructionTS()
   {
     mSelfDestruction.store(true, std::memory_order_seq_cst);

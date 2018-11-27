@@ -2587,8 +2587,17 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                       // retry the open
                       eos_static_warning("re-issuing OpenAsync request after timeout - ino:%16lx err-code:%d",
                                          (*it)->id(), status.code);
-                      fit->second->ReOpenAsync();
+                      // to recover this errors XRootD requires new XrdCl::File object ... sigh ...
+                      XrdCl::Proxy* newproxy = new XrdCl::Proxy();
+                      newproxy->OpenAsync(fit->second->url(), fit->second->flags(),
+                                          fit->second->mode(), 0);
+                      newproxy->inherit_attached(fit->second);
+                      delete (fit->second);
+                      map[fit->first] = newproxy;
                       continue;
+                    } else {
+                      eos_static_warning("giving up OpenAsync request - ino:%16lx err-code:%d",
+                                         (*it)->id(), status.code);
                     }
 
                     // ---------------------------------------------------------
