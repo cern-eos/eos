@@ -104,8 +104,7 @@ XrdMgmOfs::_access(const char *path,
   std::string attr_path = cPath.GetPath();
   // ---------------------------------------------------------------------------
 
-  eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath());
-  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, cPath.GetPath());
+  eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath());
 
   eos::common::RWMutexReadLock viewReadLock;
   if (lock) {
@@ -296,8 +295,7 @@ XrdMgmOfs::acc_access(const char* path,
   bool x_ok = false;
   bool d_ok = false;
   // ---------------------------------------------------------------------------
-  eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath());
-  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, cPath.GetPath());
+  eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath());
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
   // check for existing file

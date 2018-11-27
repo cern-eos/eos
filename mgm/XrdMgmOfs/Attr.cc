@@ -68,62 +68,20 @@ XrdMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
   gOFS->MgmStats.Add("AttrLs", vid.uid, vid.gid, 1);
   eos::common::RWMutexReadLock ns_rd_lock;
   errno = 0;
-  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, path);
+
+  eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path);
 
   if (take_lock) {
     ns_rd_lock.Grab(gOFS->eosViewRWMutex);
   }
 
   try {
-    dh = gOFS->eosView->getContainer(path);
-    map = dh->getAttributes();
+    eos::FileOrContainerMD item = gOFS->eosView->getItem(path).get();
+    listAttributes(gOFS->eosView, item, map, links);
   } catch (eos::MDException& e) {
-    dh.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
               e.getMessage().str().c_str());
-  }
-
-  if (!dh) {
-    std::shared_ptr<eos::IFileMD> fmd;
-
-    try {
-      fmd = gOFS->eosView->getFile(path);
-      map = fmd->getAttributes();
-      errno = 0;
-    } catch (eos::MDException& e) {
-      fmd.reset();
-      errno = e.getErrno();
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-                e.getMessage().str().c_str());
-    }
-  }
-
-  // check for attribute references
-  if (map.count("sys.attr.link")) {
-    try {
-      dh = gOFS->eosView->getContainer(map["sys.attr.link"]);
-      eos::IFileMD::XAttrMap xattrs = dh->getAttributes();
-
-      for (const auto& elem : xattrs) {
-        XrdOucString key = elem.first.c_str();
-
-        if (links) {
-          key.replace("sys.", "sys.link.");
-        }
-
-        if (!map.count(elem.first)) {
-          map[key.c_str()] = elem.second;
-        }
-      }
-    } catch (eos::MDException& e) {
-      dh.reset();
-      std::string msg = map["sys.attr.link"];
-      msg += " - not found";
-      map["sys.attr.link"] = msg;
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-                e.getMessage().str().c_str());
-    }
   }
 
   EXEC_TIMING_END("AttrLs");
@@ -138,7 +96,7 @@ XrdMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
 
 //------------------------------------------------------------------------------
 // Set an extended attribute for a given file/directory - high-level API.
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int
 XrdMgmOfs::attr_set(const char* inpath, XrdOucErrInfo& error,
                     const XrdSecEntity* client, const char* ininfo,
@@ -462,8 +420,6 @@ static bool attrGetInternal(T& md, std::string key, std::string& rvalue)
                    e.getErrno(), e.getMessage().str().c_str());
     return false;
   }
-
-  nsLock.Release();
 
   //----------------------------------------------------------------------------
   // We have the linked container, lookup.
