@@ -1233,7 +1233,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg)
                   b64encode = true;
                 }
 
-                if (gOFS->_attr_get(cfmd->getId(), key, value)) {
+                if (gOFS->_attr_get(*cfmd, key, value)) {
                   if (b64encode) {
                     unbase64 = value.c_str();
                     eos::common::SymKey::Base64(unbase64, base64);
@@ -1277,7 +1277,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg)
                   b64encode = true;
                 }
 
-                if (gOFS->_attr_get(ccmd->getId(), key, value)) {
+                if (gOFS->_attr_get(*ccmd, key, value)) {
                   if (b64encode) {
                     unbase64 = value.c_str();
                     eos::common::SymKey::Base64(unbase64, base64);

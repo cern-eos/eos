@@ -790,17 +790,6 @@ public:
                 const char* key, XrdOucString& value, bool take_lock = true);
 
   //----------------------------------------------------------------------------
-  //! Get extended attribute for a given inode - low-level API.
-  //!
-  //! @param id inode of a file/directory entry
-  //! @param key key to get
-  //! @param rvalue value returned
-  //!
-  //! @return true if it exists, otherwise false
-  //----------------------------------------------------------------------------
-  bool _attr_get(uint64_t id, std::string key, std::string& rvalue);
-
-  //----------------------------------------------------------------------------
   //! Remove an extended attribute for a given entry - high-level API.
   //! See _attr_rem for details.
   //!
