@@ -35,6 +35,8 @@
 class fusexrdlogin
 {
 public:
+  static std::string fillExeName(const std::string& exename);
+
   static int loginurl(XrdCl::URL& url, XrdCl::URL::ParamsMap& query,
                       fuse_req_t req,
                       fuse_ino_t ino,

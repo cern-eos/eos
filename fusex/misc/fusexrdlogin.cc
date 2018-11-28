@@ -28,6 +28,7 @@
 #include "common/SymKeys.hh"
 #include "misc/FuseId.hh"
 #include <algorithm>
+#include <regex>
 #ifdef __APPLE__
 #define ECHRNG 44
 #endif
@@ -40,6 +41,30 @@ void fusexrdlogin::initializeProcessCache(const CredentialConfig& config)
   authGroup.reset(new AuthenticationGroup(config));
   processCache = authGroup->processCache();
 }
+
+std::string fusexrdlogin::fillExeName(const std::string& execname)
+{
+  auto base_name = [](std::string const & path) {
+    return path.substr(path.find_last_of("/\\") + 1);
+  };
+  std::regex safeReg("[/\\w.]+");
+  std::string exe = execname;
+
+  if (execname.length() > 32) {
+    exe = base_name(execname);
+  }
+
+  if (std::regex_match(exe, safeReg)) {
+    return exe;
+  } else {
+    std::string base64_string = "base64";
+    std::string base64in = exe;
+    SymKey::Base64(base64in, base64_string);
+    return base64_string;
+  }
+}
+
+
 
 int fusexrdlogin::loginurl(XrdCl::URL& url,
                            XrdCl::URL::ParamsMap& paramsMap,
@@ -73,6 +98,10 @@ int fusexrdlogin::loginurl(XrdCl::URL& url,
   if (snapshot) {
     username = snapshot->getBoundIdentity()->getLogin().getStringID();
     snapshot->getBoundIdentity()->getCreds()->toXrdParams(paramsMap);
+    paramsMap["fuse.exe"] = fillExeName(snapshot->getExe());
+    paramsMap["fuse.pid"] = std::to_string(id.pid);
+    paramsMap["fuse.uid"] = std::to_string(id.uid);
+    paramsMap["fuse.gid"] = std::to_string(id.gid);
   }
 
   url.SetUserName(username);
