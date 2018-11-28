@@ -151,19 +151,23 @@ BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
   // No SSS.. should we try KRB5 first, or second?
   //----------------------------------------------------------------------------
   if (credConfig.tryKrb5First) {
-    output = krb5EnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
+    if(credConfig.use_user_krb5cc) {
+      output = krb5EnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
 
-    if (output) {
-      return output;
+      if (output) {
+        return output;
+      }
     }
 
     //--------------------------------------------------------------------------
     // No krb5.. what about x509..
     //--------------------------------------------------------------------------
-    output = x509EnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
+    if(credConfig.use_user_gsiproxy) {
+      output = x509EnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
 
-    if (output) {
-      return output;
+      if (output) {
+        return output;
+      }
     }
 
     //--------------------------------------------------------------------------
@@ -175,19 +179,23 @@ BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
   //----------------------------------------------------------------------------
   // No SSS, and we should try krb5 second.
   //----------------------------------------------------------------------------
-  output = x509EnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
+  if(credConfig.use_user_gsiproxy) {
+    output = x509EnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
 
-  if (output) {
-    return output;
+    if (output) {
+      return output;
+    }
   }
 
   //--------------------------------------------------------------------------
   // No x509.. what about krb5..
   //--------------------------------------------------------------------------
-  output = krb5EnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
+  if(credConfig.use_user_krb5cc) {
+    output = krb5EnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
 
-  if (output) {
-    return output;
+    if (output) {
+      return output;
+    }
   }
 
   //--------------------------------------------------------------------------
