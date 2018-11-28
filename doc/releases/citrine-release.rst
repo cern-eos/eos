@@ -15,8 +15,26 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.4.16 Citrine``
+===================
 
-``v4.4.14 Citrine``
+2018-11-28
+
+Bug
+---
+
+* [EOS-3137] - Add additional permission check when following a symbolic link in XrdOfsFile::open
+* [EOS-3139] - eos chown -r uid:gid follows links
+* [EOS-3144] - Cannot auth with unix with fusex
+* [EOS-3145] - FUSEX: repeated WARN messages about "doing XOFF"
+
+Improvement
+-----------
+
+* [EOS-3050] - Add calling process ID and process name possibly to each client and server side log-entry for FUSE
+* [EOS-3096] - Show mount point in 'fusex ls'
+
+``v4.4.15 Citrine``
 ===================
 
 2018-11-27
