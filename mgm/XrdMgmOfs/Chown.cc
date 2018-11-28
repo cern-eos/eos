@@ -34,7 +34,8 @@ XrdMgmOfs::_chown(const char* path,
                   gid_t gid,
                   XrdOucErrInfo& error,
                   eos::common::Mapping::VirtualIdentity& vid,
-                  const char* ininfo)
+                  const char* ininfo,
+                  bool nodereference)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief change the owner of a file or directory
@@ -45,6 +46,7 @@ XrdMgmOfs::_chown(const char* path,
  * @param error error object
  * @param vid virtual identity of the client
  * @param ininfo CGI
+ * @param specify if we shouldn't follow symlinks
  * @return SFS_OK on success otherwise SFS_ERROR
  *
  * Chown has only an internal implementation because XRootD does not support
@@ -70,12 +72,12 @@ XrdMgmOfs::_chown(const char* path,
   try {
     eos::IContainerMD::XAttrMap attrmap;
     eos::common::Path cPath(path);
-    cmd = gOFS->eosView->getContainer(path);
+    cmd = gOFS->eosView->getContainer(path, !nodereference);
     eos::common::Path pPath(gOFS->eosView->getUri(cmd.get()).c_str());
     eos::IContainerMD::XAttrMap::const_iterator it;
     // ACL and permission check
     Acl acl(pPath.GetParentPath(), error, vid, attrmap, false);
-    cmd = gOFS->eosView->getContainer(path);
+    cmd = gOFS->eosView->getContainer(path, !nodereference);
 
     if (((vid.uid) && (!eos::common::Mapping::HasUid(3, vid) &&
                        !eos::common::Mapping::HasGid(4, vid)) &&
@@ -109,16 +111,23 @@ XrdMgmOfs::_chown(const char* path,
     try {
       // Try as a file
       eos::common::Path cPath(path);
+      eos_static_info("try as a file");
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
-      // Translate to path without symlinks
-      std::string uri_cmd = eosView->getUri(cmd.get());
-      cmd = eosView->getContainer(uri_cmd);
+
+      if (!nodereference) {
+        // Translate to path without symlinks
+        std::string uri_cmd = eosView->getUri(cmd.get());
+        cmd = eosView->getContainer(uri_cmd);
+      }
+
       eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
 
       if ((vid.uid) && (!vid.sudoer) && (vid.uid != 3) && (vid.gid != 4)) {
         errno = EPERM;
       } else {
-        fmd = gOFS->eosView->getFile(path);
+        eos_info("dereference %d\n", nodereference);
+        fmd = gOFS->eosView->getFile(path, !nodereference);
+        eos_info("dereference %d\n", nodereference);
 
         // Subtract the file
         if (ns_quota) {

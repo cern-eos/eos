@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "XrdOuc/XrdOucEnv.hh"
+#include "common/Path.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Access.hh"
 #include "mgm/Macros.hh"
@@ -39,6 +40,8 @@ ProcCommand::Chown()
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
   spath = path;
+  bool nodereference = (option.find("h") != STR_NPOS) ? true : false;
+  bool singlefile = false;
 
   if ((!spath.length()) || (!owner.length())) {
     stdErr = "error: you have to provide a path and the owner to set!\n";
@@ -49,16 +52,25 @@ ProcCommand::Chown()
     std::map<std::string, std::set<std::string> >::const_iterator foundit;
     std::set<std::string>::const_iterator fileit;
 
-    if (option == "r") {
+    if ((option.find("r") != STR_NPOS)) {
       if (gOFS->_find(spath.c_str(), *mError, stdErr, *pVid, found)) {
         stdErr += "error: unable to search in path";
         retc = errno;
       }
     } else {
-      // the single dir case
-      (void) found[spath.c_str()].size();
-      //          found_dirs->resize(1);
-      //          (*found_dirs)[0].push_back(spath.c_str());
+      struct stat buf;
+
+      if (!gOFS->_stat(spath.c_str(), &buf, *mError, *pVid, 0, 0, false)) {
+        if (S_ISDIR(buf.st_mode)) {
+          (void) found[spath.c_str()].size();
+        } else {
+          eos::common::Path cPath(spath.c_str());
+          found[cPath.GetParentPath()].insert(cPath.GetName());
+          singlefile = true;
+        }
+      } else {
+        (void) found[spath.c_str()].size();
+      }
     }
 
     std::string uid = owner.c_str();
@@ -117,29 +129,38 @@ ProcCommand::Chown()
     }
 
     if (!failure) {
-      // for directories
-      for (foundit = found.begin(); foundit != found.end(); foundit++) {
-        if (gOFS->_chown(foundit->first.c_str(), uidt, gidt, *mError, *pVid,
-                         (char*) 0)) {
-          stdErr += "error: unable to chown of directory ";
-          stdErr += foundit->first.c_str();
-          stdErr += "\n";
-          retc = errno;
-        } else {
-          stdOut += "success: owner of directory ";
-          stdOut += foundit->first.c_str();
-          stdOut += " is now ";
-          stdOut += "uid=";
-          stdOut += uid.c_str();
+      if (!singlefile) {
+        // for directories
+        for (foundit = found.begin(); foundit != found.end(); foundit++) {
+          std::string dirname = foundit->first;
+          size_t linkpos = (dirname.find(" -> "));
 
-          if (!pVid->uid) {
-            if (gidt) {
-              stdOut += " gid=";
-              stdOut += gid.c_str();
-            }
+          if (linkpos != std::string::npos) {
+            dirname = foundit->first.substr(0, linkpos);
           }
 
-          stdOut += "\n";
+          if (gOFS->_chown(dirname.c_str(), uidt, gidt, *mError, *pVid,
+                           (char*) 0, nodereference)) {
+            stdErr += "error: unable to chown of directory ";
+            stdErr += dirname.c_str();
+            stdErr += "\n";
+            retc = errno;
+          } else {
+            stdOut += "success: owner of directory ";
+            stdOut += dirname.c_str();
+            stdOut += " is now ";
+            stdOut += "uid=";
+            stdOut += uid.c_str();
+
+            if (!pVid->uid) {
+              if (gidt) {
+                stdOut += " gid=";
+                stdOut += gid.c_str();
+              }
+            }
+
+            stdOut += "\n";
+          }
         }
       }
 
@@ -148,9 +169,17 @@ ProcCommand::Chown()
         for (fileit = foundit->second.begin(); fileit != foundit->second.end();
              fileit++) {
           std::string fpath = foundit->first;
-          fpath += *fileit;
+          std::string filename = *fileit;
+          size_t linkpos = (filename.find(" -> "));
 
-          if (gOFS->_chown(fpath.c_str(), uidt, gidt, *mError, *pVid, (char*) 0)) {
+          if (linkpos != std::string::npos) {
+            filename = filename.substr(0, linkpos);
+          }
+
+          fpath += filename;
+
+          if (gOFS->_chown(fpath.c_str(), uidt, gidt, *mError, *pVid, (char*) 0,
+                           nodereference)) {
             stdErr += "error: unable to chown of file ";
             stdErr += fpath.c_str();
             stdErr += "\n";

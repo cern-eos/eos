@@ -32,22 +32,36 @@ com_chown(char* arg1)
 {
   eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
-  XrdOucString owner = subtokenizer.GetToken();
+  XrdOucString owner;
   XrdOucString option = "";
   XrdOucString in = "mgm.cmd=chown";
   XrdOucString arg = "";
+  bool bypasshelp = false;
 
-  if (owner.beginswith("-")) {
-    option = owner;
-    option.erase(0, 1);
-    owner = subtokenizer.GetToken();
-    in += "&mgm.chown.option=";
-    in += option;
+  while ((owner = subtokenizer.GetToken()).length() && owner.length()) {
+    if (owner.beginswith("-")) {
+      XrdOucString loption = owner;
+
+      if (loption == "--nodereference") {
+        loption = "h";
+      }
+
+      loption.erase(0, 1);
+      option += loption;
+      bypasshelp = true;
+    } else {
+      break;
+    }
   }
 
   XrdOucString path = subtokenizer.GetToken();
 
-  if (wants_help(arg1)) {
+  if (option.length()) {
+    in += "&mgm.chown.option=";
+    in += option;
+  }
+
+  if (!bypasshelp && wants_help(arg1)) {
     goto com_chown_usage;
   }
 
@@ -63,7 +77,8 @@ com_chown(char* arg1)
   global_retc = output_result(client_command(in));
   return (0);
 com_chown_usage:
-  fprintf(stdout, "Usage: chown [-r] <owner>[:<group>] <path>\n");
+  fprintf(stdout,
+          "Usage: chown [-r] [-h --nodereference] <owner>[:<group>] <path>\n");
   fprintf(stdout, "       chown [-r] :<group> <path>\n");
   fprintf(stdout,
           "'[eos] chown ..' provides the change owner interface of EOS.\n");
@@ -71,7 +86,7 @@ com_chown_usage:
           "<path> is the file/directory to modify, <owner> has to be a user id or user name. <group> is optional and has to be a group id or group name.\n");
   fprintf(stdout, "To modify only the group use :<group> as identifier!\n");
   fprintf(stdout,
-          "Remark: EOS does access control on directory level - the '-r' option only applies to directories! It is not possible to set uid!=0 and gid=0!\n\n");
+          "Remark: if you use the -r -h option and path points to a link the owner of the link parent will also be updated!");
   fprintf(stdout, "Options:\n");
   fprintf(stdout, "                  -r : recursive\n");
   global_retc = EINVAL;

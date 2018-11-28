@@ -263,7 +263,8 @@ public:
              gid_t gid,
              XrdOucErrInfo& out_error,
              eos::common::Mapping::VirtualIdentity& vid,
-             const char* opaque = 0);
+             const char* opaque = 0,
+             bool nodereference = false);
 
   // ---------------------------------------------------------------------------
   // checksum by client
@@ -1748,13 +1749,13 @@ private:
   //! Stat a file or directory.
   //! Will redirect to the RW master.
   //----------------------------------------------------------------------------
-  int FuseStat(const char *path,
-               const char *ininfo,
-               XrdOucEnv &env,
-               XrdOucErrInfo &error,
-               eos::common::LogId &ThreadLogId,
-               eos::common::Mapping::VirtualIdentity &vid,
-               const XrdSecEntity *client);
+  int FuseStat(const char* path,
+               const char* ininfo,
+               XrdOucEnv& env,
+               XrdOucErrInfo& error,
+               eos::common::LogId& ThreadLogId,
+               eos::common::Mapping::VirtualIdentity& vid,
+               const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
   //! Fuse extension.
@@ -1906,12 +1907,12 @@ private:
   //! Virtual filesystem stat
   //----------------------------------------------------------------------------
   int Statvfs(const char* path,
-             const char* ininfo,
-             XrdOucEnv& env,
-             XrdOucErrInfo& error,
-             eos::common::LogId& ThreadLogId,
-             eos::common::Mapping::VirtualIdentity& vid,
-             const XrdSecEntity* client);
+              const char* ininfo,
+              XrdOucEnv& env,
+              XrdOucErrInfo& error,
+              eos::common::LogId& ThreadLogId,
+              eos::common::Mapping::VirtualIdentity& vid,
+              const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
   //! Create symbolic link
