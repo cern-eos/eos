@@ -1884,9 +1884,10 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
 
     while (mFile->xrdiorw(req)->HasTooManyWritesInFlight()) {
       if (!cnt % 1000) {
-        eos_warning("doing XOFF");
+        eos_debug("doing XOFF");
       }
 
+      EosFuse::instance().datas.set_xoff();
       mXoff = true;
       std::string msg;
 

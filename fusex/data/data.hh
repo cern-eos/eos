@@ -399,9 +399,21 @@ public:
     return datamap.size();
   }
 
+  void set_xoff()
+  {
+    xoffCounter.fetch_add(1, std::memory_order_seq_cst);
+  }
+
+  uint64_t get_xoff()
+  {
+    return xoffCounter.load();
+  }
+
+
 
 private:
   dmap datamap;
+  std::atomic<uint64_t>  xoffCounter;
 };
 
 #endif /* FUSE_DATA_HH_ */

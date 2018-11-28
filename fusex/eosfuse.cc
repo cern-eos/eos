@@ -1802,6 +1802,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                "All        read--mb/s          := %.02f\n"
                "All        write-mb/s          := %.02f\n"
                "All        iops                := %d\n"
+               "All        xoffs               := %llu\n"
                "All        instance-url        := %s\n"
                "All        client-uuid         := %s\n"
                "All        server-version      := %s\n"
@@ -1834,6 +1835,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                this->getFuseStat().GetTotalAvg5("rbytes") / 1000.0 / 1000.0,
                this->getFuseStat().GetTotalAvg5("wbytes") / 1000.0 / 1000.0,
                (int)this->getFuseStat().GetTotalAvg5(":sum"),
+               Instance().datas.get_xoff(),
                EosFuse::Instance().config.hostport.c_str(),
                EosFuse::Instance().config.clientuuid.c_str(),
                EosFuse::Instance().mds.server_version().c_str()
