@@ -2420,6 +2420,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
   hb.mutable_heartbeat_()->set_starttime(time(NULL));
   hb.mutable_heartbeat_()->set_leasetime(
     EosFuse::Instance().Config().options.leasetime);
+  hb.mutable_heartbeat_()->set_mount(EosFuse::Instance().Config().localmountdir);
   hb.set_type(hb.HEARTBEAT);
   eos::fusex::response rsp;
   size_t cnt = 0;

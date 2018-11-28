@@ -492,7 +492,7 @@ FuseServer::Clients::Print(std::string& out, std::string options,
     if (!monitoring) {
       if (!options.length() || (options.find("l") != std::string::npos))
         snprintf(formatline, sizeof(formatline),
-                 "client : %-8s %32s %-8s %-8s %s %.02f %.02f %36s caps=%lu fds=%u\n",
+                 "client : %-8s %32s %-8s %-8s %s %.02f %.02f %36s caps=%lu fds=%u mount=%s\n",
                  it->second.heartbeat().name().c_str(),
                  it->second.heartbeat().host().c_str(),
                  it->second.heartbeat().version().c_str(),
@@ -504,7 +504,8 @@ FuseServer::Clients::Print(std::string& out, std::string options,
                  it->second.heartbeat().delta() * 1000,
                  it->second.heartbeat().uuid().c_str(),
                  clientcaps[it->second.heartbeat().uuid()],
-                 it->second.statistics().open_files()
+                 it->second.statistics().open_files(),
+                 it->second.heartbeat().mount().c_str()
                 );
 
       out += formatline;

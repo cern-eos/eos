@@ -114,7 +114,7 @@ message heartbeat {
   map<string, fixed32> authrevocation = 12; // < map of authids to revoke - pair of authid/unused
   fixed32 leasetime = 13; 
   bool shutdown = 14;
-
+  string mount = 15; //< client mount path
 }
 
 message statistics {
@@ -183,7 +183,7 @@ message dentry {
 
   Type type = 1; 
   fixed64 md_ino = 2; //< inode number
-  string name = 3; //< entry name to delete
+  bytes name = 3; //< entry name to delete
   string clientid = 4; //< clientid
   string authid = 5; //< authid
 }
