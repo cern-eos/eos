@@ -178,7 +178,7 @@ XrdMgmOfs::rename(const char* old_name,
     return SFS_ERROR;
   }
 
-  return _rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN, false,
+  return _rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN, true,
                  false, overwrite);
 }
 
@@ -424,7 +424,7 @@ XrdMgmOfs::_rename(const char* old_name,
       if (renameDir) {
         rdir = dir->findContainer(oPath.GetName());
 
-        if(rdir && !eos::isSafeToRename(gOFS->eosView, rdir.get(), newdir.get())) {
+        if (rdir && !eos::isSafeToRename(gOFS->eosView, rdir.get(), newdir.get())) {
           errno = EINVAL;
           return Emsg(epname, error, EINVAL, "rename - old path is subpath of new path");
         }
@@ -573,17 +573,25 @@ XrdMgmOfs::_rename(const char* old_name,
           if (nP == oP) {
             // Rename within a container
             eosView->renameContainer(rdir.get(), nPath.GetName());
-            rdir->setMTimeNow();
-            rdir->notifyMTimeChange(gOFS->eosDirectoryService);
+
+            if (updateCTime) {
+              rdir->setCTimeNow();
+            }
+
+            dir->setMTimeNow();
+            dir->notifyMTimeChange(gOFS->eosDirectoryService);
             eosView->updateContainerStore(rdir.get());
+            eosView->updateContainerStore(dir.get());
             gOFS->FuseXCastContainer(rdir->getIdentifier());
             gOFS->FuseXCastContainer(rdir->getParentIdentifier());
           } else {
             // Do the check once again, because we're paranoid
-            if(!eos::isSafeToRename(gOFS->eosView, rdir.get(), newdir.get())) {
-              eos_static_crit("%s", SSTR("Unsafe rename of container " << rdir->getId() << " -> " << newdir->getId() << " was prevented at the last resort check"));
+            if (!eos::isSafeToRename(gOFS->eosView, rdir.get(), newdir.get())) {
+              eos_static_crit("%s", SSTR("Unsafe rename of container " << rdir->getId() <<
+                                         " -> " << newdir->getId() << " was prevented at the last resort check"));
               errno = EINVAL;
-              return Emsg(epname, error, EINVAL, "rename - old path is subpath of new path - caught by last resort check, quotanodes may have become inconsistent");
+              return Emsg(epname, error, EINVAL,
+                          "rename - old path is subpath of new path - caught by last resort check, quotanodes may have become inconsistent");
             }
 
             // Remove from one container to another one
