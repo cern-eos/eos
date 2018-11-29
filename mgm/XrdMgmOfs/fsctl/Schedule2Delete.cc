@@ -26,6 +26,7 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IFsView.hh"
+#include "namespace/utils/FsFilePath.hh"
 #include "authz/XrdCapability.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mgm/Stat.hh"
@@ -40,14 +41,15 @@
 // Utility function of sending message declared in anonymous namespace
 //----------------------------------------------------------------------------
 namespace {
-  const char* delete_message = "msg.cmd=drop";
+  const char* delete_message = "mgm.cmd=drop";
 
-  XrdOucString constructCapability(int fsid, const char* localprefix) {
+  XrdOucString constructCapability(unsigned long fsid,
+                                   const char* localprefix) {
     XrdOucString capability = "&mgm.access=delete";
     capability += "&mgm.manager=";
     capability += gOFS->ManagerId.c_str();
     capability += "&mgm.fsid=";
-    capability += fsid;
+    capability += std::to_string(fsid).c_str();
     capability += "&mgm.localprefix=";
     capability += localprefix;
     capability += "&mgm.fids=";
@@ -55,7 +57,8 @@ namespace {
     return capability;
   }
 
-  bool constructFileDeleteData(unsigned long long fid,
+  bool constructFileDeleteData(unsigned long fsid,
+                               unsigned long long fid,
                                XrdOucString& idData,
                                XrdOucErrInfo& error) {
     std::shared_ptr<eos::IFileMD> fmd;
@@ -71,11 +74,12 @@ namespace {
     // IDs within the list follow the pattern -- hexfid[:lpath:ctime]
     idData = eos::common::FileId::Fid2Hex(fid).c_str();
 
-    if (fmd->hasAttribute("logicalpath")) {
+    if (fmd->hasAttribute("sys.eos.lpath")) {
       eos::IFileMD::ctime_t ctime;
+      XrdOucString lpath;
       char buff[64];
 
-      std::string lpath = fmd->getAttribute("logicalpath");
+      eos::FsFilePath::GetPhysicalPath(fsid, fmd, lpath);
       fmd->getCTime(ctime);
       sprintf(buff, "%ld", ctime.tv_sec);
 
@@ -239,7 +243,7 @@ XrdMgmOfs::Schedule2Delete(const char* path,
             break;
           }
 
-          capability = constructCapability(fs->GetId(), fs->GetPath().c_str());
+          capability = constructCapability(fsid, fs->GetPath().c_str());
           receiver = fs->GetQueue().c_str();
         }
       }
@@ -247,7 +251,7 @@ XrdMgmOfs::Schedule2Delete(const char* path,
       // Construct file deletion data
       XrdOucString idData = "";
       XrdOucErrInfo idDataErr;
-      if (constructFileDeleteData(fid, idData, idDataErr)) {
+      if (constructFileDeleteData(fsid, fid, idData, idDataErr)) {
         idlist += idData.c_str();
 
         ndeleted++;
