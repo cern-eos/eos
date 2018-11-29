@@ -179,7 +179,7 @@ message lease {
 }
 
 message dentry {
-  enum Type { ADD = 0; REMOVE = 1; }
+  enum Type { ADD = 0; REMOVE = 1;}
 
   Type type = 1; 
   fixed64 md_ino = 2; //< inode number
@@ -188,6 +188,9 @@ message dentry {
   string authid = 5; //< authid
 }
 
+message refresh {
+  fixed64 md_ino = 1; //< inode number
+}
 
 message lock {
   enum Type { RDLCK = 0; WRLCK = 1; UNLCK = 2; }
@@ -207,7 +210,7 @@ message config {
 }
 
 message response {
-  enum Type { EVICT = 0; ACK = 1; LEASE = 2; LOCK = 3; MD = 4; DROPCAPS = 5; CONFIG = 6; NONE = 7; CAP = 8; DENTRY = 9;}
+  enum Type { EVICT = 0; ACK = 1; LEASE = 2; LOCK = 3; MD = 4; DROPCAPS = 5; CONFIG = 6; NONE = 7; CAP = 8; DENTRY = 9; REFRESH = 10; }
 
   // Identifies which field is filled in.
   Type type = 1;
@@ -220,4 +223,5 @@ message response {
   config config_ = 7;
   cap cap_ = 8;
   dentry dentry_ = 9;
+  refresh refresh_ = 10;
 }

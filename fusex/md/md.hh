@@ -284,6 +284,21 @@ public:
       inline_size = inlinesize;
     }
 
+    void force_refresh()
+    {
+      refresh = true;
+    }
+
+    bool needs_refresh() const
+    {
+      return refresh;
+    }
+
+    void clear_refresh()
+    {
+      refresh = false;
+    }
+
   private:
     XrdSysMutex mLock;
     XrdSysCondVar mSync;

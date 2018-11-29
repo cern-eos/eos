@@ -601,7 +601,7 @@ metad::get(fuse_req_t req,
       return md;
     }
 
-    if (pmd && (pmd->cap_count() || pmd->creator())) {
+    if (pmd && (pmd->cap_count() || pmd->creator()) && !pmd->needs_refresh()) {
       eos_static_info("returning cap entry");
       return md;
     } else {
@@ -613,7 +613,7 @@ metad::get(fuse_req_t req,
         XrdSysMutexHelper mLock(md->Locker());
 
         if (((!listing) || (listing && md->type() == md->MDLS)) && md->md_ino() &&
-            md->cap_count()) {
+            md->cap_count() && !md->needs_refresh()) {
           eos_static_info("returning cap entry via parent lookup cap-count=%d",
                           md->cap_count());
 
@@ -1368,6 +1368,9 @@ metad::dump_md(shared_md md, bool lock)
   jsonstring += "\ncap-cnt: ";
   jsonstring += capcnt;
   jsonstring += "\n";
+  jsonstring += "\nrefresh: ";
+  jsonstring += md->needs_refresh() ? "true" : "false";
+  jsonstring += "\n";
 
   if (lock) {
     md->Locker().UnLock();
@@ -1734,6 +1737,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
 
     md->set_pid(p_ino);
     md->set_id(ino);
+    md->clear_refresh();
     eos_static_info("store local pino=%016lx for %016lx", md->pid(), md->id());
     inomap.insert(md_ino, ino);
     update(req, md, "", true);
@@ -1832,6 +1836,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
             uint64_t local_mtime = md->mtime();
             uint64_t local_mtime_ns = md->mtime_ns();
             md->CopyFrom(map->second);
+            md->clear_refresh();
 
             if (EosFuse::Instance().datas.has(ino, true)) {
               // see if this file is open for write, because in that case
@@ -1937,6 +1942,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
 
         *md = map->second;
         md->clear_capability();
+        md->clear_refresh();
 
         if ((!pmd) && (map->first == cont.ref_inode_())) {
           pmd = md;
@@ -2522,11 +2528,43 @@ metad::mdcommunicate(ThreadAssistant& assistant)
               std::string authid = rsp.dentry_().authid();
               std::string name = rsp.dentry_().name();
               uint64_t ino = inomap.forward(md_ino);
-              eos_static_notice("dentry: remote-ino=%#lx ino=%#lx clientid=%s authid=%s name=%s",
-                                md_ino, ino, rsp.lease_().clientid().c_str(), authid.c_str(), name.c_str());
+
+              if (rsp.dentry_().type() == rsp.dentry_().ADD) {
+              } else if (rsp.dentry_().type() == rsp.dentry_().REMOVE) {
+                eos_static_notice("remove-dentry: remote-ino=%#lx ino=%#lx clientid=%s authid=%s name=%s type=%s",
+                                  md_ino, ino, rsp.lease_().clientid().c_str(), authid.c_str(), name.c_str(),
+                                  rsp.dentry_().type()
+                                 );
+
+                // remove directory entry
+                if (EosFuse::Instance().Config().options.md_kernelcache) {
+                  kernelcache::inval_entry(ino, name);
+                }
+              }
+            }
+
+            if (rsp.type() == rsp.REFRESH) {
+              uint64_t md_ino = rsp.refresh_().md_ino();
+              uint64_t ino = inomap.forward(md_ino);
+              mode_t mode = 0;
+              eos_static_notice("refresh-dentry: remote-ino=%#lx ino=%#lx",
+                                md_ino, ino);
+              shared_md md;
+
+              // force meta data refresh
+              if (ino && mdmap.retrieveTS(ino, md)) {
+                XrdSysMutexHelper mLock(md->Locker());
+                md->force_refresh();
+                mode = md->mode();
+              }
+
+              if (EOS_LOGS_DEBUG) {
+                eos_static_debug("%s", dump_md(md).c_str());
+              }
 
               if (EosFuse::Instance().Config().options.md_kernelcache) {
-                kernelcache::inval_entry(ino, name);
+                eos_static_info("invalidate metadata cache for ino=%#lx", ino);
+                kernelcache::inval_inode(ino, S_ISDIR(mode) ? false : true);
               }
             }
 
@@ -2570,6 +2608,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
                 // invalidate children
                 if (md && md->id()) {
+                  // force an update of the metadata with next access
                   eos_static_info("md=%16x", md->id());
                   cleanup(md);
 

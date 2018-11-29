@@ -1889,8 +1889,21 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       if (pcap->errc()) {
         rc = pcap->errc();
       } else {
-        md->convert(e, pcap->lifetime());
-        eos_static_info("%s", md->dump(e).c_str());
+        if (md->needs_refresh()) {
+          md->Locker().UnLock();
+          std::string authid = pcap->authid();
+          md = Instance().mds.get(req, ino);
+          md->Locker().Lock();
+
+          if (!md->id() || (md->deleted() && !md->lookup_is())) {
+            rc = md->deleted() ? ENOENT : md->err();
+          }
+        }
+
+        if (!rc) {
+          md->convert(e, pcap->lifetime());
+          eos_static_info("%s", md->dump(e).c_str());
+        }
       }
     }
   } else {
