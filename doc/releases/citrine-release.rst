@@ -15,6 +15,23 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.4.17 Citrine``
+===================
+
+2018-11-29
+
+Bug
+---
+
+* [EOS-3151] - fix OpenAsync in async flush thread in case of recovery 
+
+Improvement
+-----------
+
+* Support REFRESH callback to force an update individual metadata records, not only bulk by directory
+
+
 ``v4.4.16 Citrine``
 ===================
 
