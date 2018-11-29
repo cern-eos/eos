@@ -62,7 +62,8 @@ public:
   }
 
   int Trigger(const std::string& event, std::string workflow,
-              eos::common::Mapping::VirtualIdentity& vid, std::string& errorMessage);
+              eos::common::Mapping::VirtualIdentity& vid,
+              const char * const ininfo, std::string& errorMessage);
 
   std::string getCGICloseW(std::string workflow,
                            const eos::common::Mapping::VirtualIdentity& vid);

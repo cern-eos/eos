@@ -1463,7 +1463,7 @@ XrdMgmOfsFile::open(const char* inpath,
       workflow.SetFile(path, fmd->getId());
       std::string errorMsg;
 
-      if ((stalltime = workflow.Trigger("open", "enonet", vid, errorMsg)) > 0) {
+      if ((stalltime = workflow.Trigger("open", "enonet", vid, ininfo, errorMsg)) > 0) {
         eos_info("msg=\"triggered ENOENT workflow\" path=%s", path);
         return gOFS->Stall(error, stalltime, ""
                            "File is currently unavailable - triggered workflow!");
@@ -2394,7 +2394,7 @@ XrdMgmOfsFile::open(const char* inpath,
                         openOpaque->Get("eos.workflow") : "default";
     std::string errorMsg;
     auto ret_wfe = workflow.Trigger("sync::create", std::string{workflowType}, vid,
-                                    errorMsg);
+                                    ininfo, errorMsg);
 
     if (ret_wfe < 0 && errno == ENOKEY) {
       eos_info("msg=\"no workflow defined for sync::create\"");

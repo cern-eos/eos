@@ -286,7 +286,7 @@ XrdMgmOfs::_rem(const char* path,
         workflow.Init(&attrmap, path, fid);
         errno = 0;
         gOFS->eosViewRWMutex.UnLockWrite();
-        auto ret_wfe = workflow.Trigger("sync::delete", "default", vid, errMsg);
+        auto ret_wfe = workflow.Trigger("sync::delete", "default", vid, ininfo, errMsg);
 
         if (ret_wfe < 0 && errno == ENOKEY) {
           eos_info("msg=\"no workflow defined for delete\"");

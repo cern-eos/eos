@@ -38,7 +38,8 @@ EOSMGMNAMESPACE_BEGIN
 
 int
 Workflow::Trigger(const std::string& event, std::string workflow,
-                  eos::common::Mapping::VirtualIdentity& vid, std::string& errorMessage)
+                  eos::common::Mapping::VirtualIdentity& vid,
+                  const char * const ininfo, std::string& errorMessage)
 {
   errno = 0;
 

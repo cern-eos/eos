@@ -194,7 +194,7 @@ XrdMgmOfs::Event(const char* path,
     }
 
     // Trigger the specified event
-    int rc = workflow.Trigger(event, aworkflow, localVid, decodedErrMessage);
+    const int rc = workflow.Trigger(event, aworkflow, localVid, ininfo, decodedErrMessage);
 
     if (rc == -1) {
       int envlen = 0;
