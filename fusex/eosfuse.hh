@@ -345,6 +345,23 @@ public:
 
   stringTS statsout;
 
+  int truncateLogFile()
+  {
+    fflush(fstderr);
+    return ftruncate(fileno(fstderr), (off_t)0);
+  }
+
+  size_t sizeLogFile()
+  {
+    struct stat buf;
+
+    if (!fstat(fileno(fstderr), &buf)) {
+      return buf.st_size;
+    } else {
+      return 0;
+    }
+  }
+
 protected:
 
 private:
@@ -362,6 +379,8 @@ private:
 
   std::unique_ptr<kv> mKV;
   Stat fusestat;
+
+  FILE* fstderr;
 
   Stat& getFuseStat()
   {

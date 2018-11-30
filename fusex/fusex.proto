@@ -136,6 +136,14 @@ message statistics {
   float wr_rate_60_mb = 16; //< write rate in 1m window in mb/s
   fixed64 nio = 17; //< total number of io's
   float iops_60 = 18; //< average ios in 1m window
+  float wr_buf_mb = 19; //< write buffer in use
+  float ra_buf_mb = 20; //< read-ahead buffer in use
+  fixed64 xoff = 21; //< xoff conditions counter
+  fixed64 raxoff = 22; //< read-ahead buffer xoff
+  fixed64 ranobuf = 23; //< read-ahead buffer no buffer available
+  fixed32 pid = 24; //< process ID of eosxd
+  fixed64 logfilesize = 25; //< size of log file
+  fixed64 wrnobuf = 26; //< write buffer no buffer available
 }
 
 message container {

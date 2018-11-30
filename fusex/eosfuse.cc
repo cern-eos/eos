@@ -1305,8 +1305,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
     }
 
-    FILE* fstderr;
-
     // Open log file
     if (getuid()) {
       char logfile[1024];
@@ -1783,10 +1781,15 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                "ALL        threads             := %llu\n"
                "ALL        visze               := %s\n"
                "All        rss                 := %s\n"
+               "All        pid                 := %d\n"
+               "All        log-size            := %lu\n"
                "All        wr-buf-inflight     := %s\n"
                "All        wr-buf-queued       := %s\n"
+               "All        wr-nobuff           := %lu\n"
                "All        ra-buf-inflight     := %s\n"
                "All        ra-buf-queued       := %s\n"
+               "All        ra-xoff             := %lu\n"
+               "All        ra-nobuff           := %lu\n"
                "All        rd-buf-inflight     := %s\n"
                "All        rd-buf-queued       := %s\n"
                "All        version             := %s\n"
@@ -1810,14 +1813,19 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                osstat.threads,
                eos::common::StringConversion::GetReadableSizeString(s1, osstat.vsize, "b"),
                eos::common::StringConversion::GetReadableSizeString(s2, osstat.rss, "b"),
+               getpid(),
+               this->sizeLogFile(),
                eos::common::StringConversion::GetReadableSizeString(s3,
                    XrdCl::Proxy::sWrBufferManager.inflight(), "b"),
                eos::common::StringConversion::GetReadableSizeString(s4,
                    XrdCl::Proxy::sWrBufferManager.queued(), "b"),
+               XrdCl::Proxy::sWrBufferManager.nobuf(),
                eos::common::StringConversion::GetReadableSizeString(s5,
                    XrdCl::Proxy::sRaBufferManager.inflight(), "b"),
                eos::common::StringConversion::GetReadableSizeString(s6,
                    XrdCl::Proxy::sRaBufferManager.queued(), "b"),
+               XrdCl::Proxy::sRaBufferManager.xoff(),
+               XrdCl::Proxy::sRaBufferManager.nobuf(),
                eos::common::StringConversion::GetReadableSizeString(s7,
                    data::datax::sBufferManager.inflight(), "b"),
                eos::common::StringConversion::GetReadableSizeString(s8,
@@ -4386,6 +4394,10 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
               ;
             }
 
+            if (key == "eos.stats") {
+              value = Instance().statsout.get();
+            }
+
             if (key == "eos.quota") {
               pcap = Instance().caps.acquire(req, ino,
                                              R_OK);
@@ -5374,6 +5386,14 @@ EosFuse::getHbStat(eos::fusex::statistics& hbs)
   hbs.set_wr_rate_60_mb(getFuseStat().GetTotalAvg60("wbytes") / 1000.0 / 1000.0);
   hbs.set_nio(getFuseStat().GetOps());
   hbs.set_iops_60(getFuseStat().GetTotalAvg60(":sum"));
+  hbs.set_wr_buf_mb(XrdCl::Proxy::sWrBufferManager.inflight() / 1000.0 / 1000.0);
+  hbs.set_ra_buf_mb(XrdCl::Proxy::sRaBufferManager.inflight() / 1000.0 / 1000.0);
+  hbs.set_xoff(Instance().datas.get_xoff());
+  hbs.set_raxoff(XrdCl::Proxy::sRaBufferManager.xoff());
+  hbs.set_ranobuf(XrdCl::Proxy::sRaBufferManager.nobuf());
+  hbs.set_pid(getpid());
+  hbs.set_logfilesize(sizeLogFile());
+  hbs.set_wrnobuf(XrdCl::Proxy::sWrBufferManager.nobuf());
 }
 
 /* -------------------------------------------------------------------------- */

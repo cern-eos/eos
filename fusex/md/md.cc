@@ -2487,14 +2487,19 @@ metad::mdcommunicate(ThreadAssistant& assistant)
               eos_static_crit("evicted from MD server - reason: %s",
                               rsp.evict_().reason().c_str());
 
-              // suicide
-              if (rsp.evict_().reason().find("abort") != std::string::npos) {
-                kill(getpid(), SIGABRT);
+              if (rsp.evict_().reason().find("log2big") != std::string::npos) {
+                // we were asked to truncate our logfile
+                EosFuse::Instance().truncateLogFile();
               } else {
-                kill(getpid(), SIGTERM);
-              }
+                // suicide
+                if (rsp.evict_().reason().find("abort") != std::string::npos) {
+                  kill(getpid(), SIGABRT);
+                } else {
+                  kill(getpid(), SIGTERM);
+                }
 
-              pause();
+                pause();
+              }
             }
 
             if (rsp.type() == rsp.DROPCAPS) {

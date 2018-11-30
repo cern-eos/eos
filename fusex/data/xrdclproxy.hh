@@ -196,6 +196,8 @@ public:
     queued_size = 0;
     inflight_size = 0;
     inflight_buffers = 0;
+    xoff_cnt = 0;
+    nobuf_cnt = 0;
     max_inflight_size = _max_inflight_size;
   }
 
@@ -221,26 +223,27 @@ public:
             (inflight_buffers < 16384)) { // avoid to trigger XRootD SID exhaustion
           break;
         }
-      }
 
-      if (!(cnt % 1000)) {
-        if (inflight_size >= max_inflight_size) {
-          eos_static_warning("inflight-buffer exceeds maximum number of bytes [%ld/%ld]",
-                             inflight_size, max_inflight_size);
+        if (!(cnt % 1000)) {
+          if (inflight_size >= max_inflight_size) {
+            eos_static_info("inflight-buffer exceeds maximum number of bytes [%ld/%ld]",
+                            inflight_size, max_inflight_size);
+          }
+
+          if (inflight_buffers >= 16384) {
+            eos_static_info("inflight-buffer exceeds maximum number of buffers in flight [%ld/%ld]",
+                            inflight_buffers, 16384);
+          }
         }
 
-        if (inflight_buffers >= 16384) {
-          eos_static_warning("inflight-buffer exceeds maximum number of buffers in flight [%ld/%ld]",
-                             inflight_buffers, 16384);
+        if (!blocking) {
+          nobuf_cnt++;
+          // we don't wait for free buffers
+          return nullptr;
         }
       }
-
-      if (!blocking) {
-        // we don't wait for free buffers
-        return nullptr;
-      }
-
       cnt++;
+      xoff_cnt++;
       // we wait that the situation relaxes
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
     } while (1);
@@ -306,6 +309,18 @@ public:
     return inflight_size;
   }
 
+  const size_t xoff()
+  {
+    XrdSysMutexHelper lLock(this);
+    return xoff_cnt;
+  }
+
+  const size_t nobuf()
+  {
+    XrdSysMutexHelper lLock(this);
+    return nobuf_cnt;
+  }
+
 private:
   std::queue<shared_buffer> queue;
   size_t max;
@@ -314,6 +329,8 @@ private:
   size_t inflight_size;
   size_t inflight_buffers;
   size_t max_inflight_size;
+  size_t xoff_cnt;
+  size_t nobuf_cnt;
 };
 
 
