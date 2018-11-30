@@ -78,8 +78,8 @@ CommitHelper::check_filesystem(eos::common::Mapping::VirtualIdentity_t& vid,
                    " mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d oc-max=%d "
                    "oc-uuid=%s",
                    (fs ? eos::common::FileSystem::GetConfigStatusAsString(
-                                    fs->GetConfigStatus())
-                       : "deleted"),
+                      fs->GetConfigStatus())
+                    : "deleted"),
                    cgi["path"].c_str(),
                    cgi["size"].c_str(),
                    cgi["fid"].c_str(),
@@ -90,7 +90,6 @@ CommitHelper::check_filesystem(eos::common::Mapping::VirtualIdentity_t& vid,
                    cgi["mtimensec"].c_str(),
                    option["occhunk"], params["oc_n"],
                    params["oc_max"], cgi["oc_uuid"].c_str());
-
     emsg = "commit file metadata - "
            "filesystem is in non-operational state [EIO]";
     return EIO;
@@ -602,6 +601,7 @@ CommitHelper::commit_fmd(eos::common::Mapping::VirtualIdentity_t& vid,
       // triggered outside the fusex client network e.g. xrdcp etc.
       if (!option["fusex"]) {
         gOFS->FuseXCastContainer(cmd->getIdentifier());
+        gOFS->FuseXCastRefresh(cmd->getIdentifier(), cmd->getParentIdentifier());
       }
 
       cmd->notifyMTimeChange(gOFS->eosDirectoryService);

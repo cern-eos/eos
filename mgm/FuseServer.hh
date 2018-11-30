@@ -192,8 +192,21 @@ public:
                           const eos::fusex::md& md,
                           const std::string& name);
 
+    int BroadcastRefresh(uint64_t
+                         inode,
+                         const eos::fusex::md& md,
+                         uint64_t
+                         parent_inode); // broad cast triggered by fuse network
+
+
     int BroadcastReleaseFromExternal(uint64_t
                                      inode); // broad cast triggered non-fuse network
+
+
+    int BroadcastRefreshFromExternal(uint64_t
+                                     inode,
+                                     uint64_t
+                                     parent_inode); // broad cast triggered non-fuse network
 
     int BroadcastDeletionFromExternal(uint64_t inode,
                                       const std::string& name);
@@ -365,6 +378,11 @@ public:
                     const std::string& uuid,
                     const std::string& clientid,
                     const std::string& name);
+
+    // refresh entry
+    int RefreshEntry(uint64_t id,
+                     const std::string& uuid,
+                     const std::string& clientid);
 
     // send MD after update
     int SendMD(const eos::fusex::md& md,

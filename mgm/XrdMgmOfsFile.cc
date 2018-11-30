@@ -872,10 +872,11 @@ XrdMgmOfsFile::open(const char* inpath,
             cmd->notifyMTimeChange(gOFS->eosDirectoryService);
             gOFS->eosView->updateContainerStore(cmd.get());
             eos::ContainerIdentifier cmd_id = cmd->getIdentifier();
-            eos::ContainerIdentifier pcmd_id = cmd->getParentIdentifier();
+            eos::ContainerIdentifier cmd_pid = cmd->getParentIdentifier();
             lock.Release();
             gOFS->FuseXCastContainer(cmd_id);
-            gOFS->FuseXCastContainer(pcmd_id);
+            gOFS->FuseXCastContainer(cmd_pid);
+            gOFS->FuseXCastRefresh(cmd_id, cmd_pid);
           } catch (eos::MDException& e) {
             fmd.reset();
             errno = e.getErrno();
@@ -1126,6 +1127,7 @@ XrdMgmOfsFile::open(const char* inpath,
         gOFS->FuseXCastFile(fmd_id);
         gOFS->FuseXCastContainer(cmd_id);
         gOFS->FuseXCastContainer(pcmd_id);
+        gOFS->FuseXCastRefresh(cmd_id, pcmd_id);
       } catch (eos::MDException& e) {
         errno = e.getErrno();
         std::string errmsg = e.getMessage().str();
@@ -2294,8 +2296,8 @@ XrdMgmOfsFile::open(const char* inpath,
   eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
   eos_debug("capability=%s\n", capability.c_str());
   int caprc = 0;
-
   XrdOucEnv* capabilityenvRaw = nullptr;
+
   if ((caprc = gCapabilityEngine.Create(&incapability, capabilityenvRaw, symkey,
                                         gOFS->mCapabilityValidity))) {
     return Emsg(epname, error, caprc, "sign capability", path);

@@ -165,7 +165,9 @@ XrdMgmOfs::_chmod(const char* path,
 
           eosView->updateContainerStore(pcmd.get());
           eos::ContainerIdentifier pcmd_id = pcmd->getIdentifier();
+          eos::ContainerIdentifier pcmd_pid = pcmd->getParentIdentifier();
           eos::ContainerIdentifier cmd_id;
+          eos::ContainerIdentifier cmd_pid;
           eos::FileIdentifier f_id;
 
           if (cmd) {
@@ -175,6 +177,7 @@ XrdMgmOfs::_chmod(const char* path,
             // store the in-memory modification time for this directory
             eosView->updateContainerStore(cmd.get());
             cmd_id = cmd->getIdentifier();
+            cmd_pid = cmd->getParentIdentifier();
           }
 
           if (fmd) {
@@ -187,9 +190,11 @@ XrdMgmOfs::_chmod(const char* path,
 
           lock.Release();
           gOFS->FuseXCastContainer(pcmd_id);
+          gOFS->FuseXCastRefresh(pcmd_id, pcmd_pid);
 
           if (cmd) {
             gOFS->FuseXCastContainer(cmd_id);
+            gOFS->FuseXCastRefresh(cmd_id, cmd_pid);
           }
 
           if (fmd) {

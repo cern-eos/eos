@@ -492,7 +492,7 @@ FuseServer::Clients::Print(std::string& out, std::string options,
     if (!monitoring) {
       if (!options.length() || (options.find("l") != std::string::npos))
         snprintf(formatline, sizeof(formatline),
-                 "client : %-8s %32s %-8s %-8s %s %.02f %.02f %36s caps=%lu fds=%u mount=%s\n",
+                 "client : %-8s %32s %-8s %-8s %s %.02f %.02f %36s p=%lu caps=%lu fds=%u mount=%s\n",
                  it->second.heartbeat().name().c_str(),
                  it->second.heartbeat().host().c_str(),
                  it->second.heartbeat().version().c_str(),
@@ -503,6 +503,7 @@ FuseServer::Clients::Print(std::string& out, std::string options,
                    (int64_t) it->second.heartbeat().clock_ns()) * 1.0 / 1000000000.0),
                  it->second.heartbeat().delta() * 1000,
                  it->second.heartbeat().uuid().c_str(),
+                 it->second.heartbeat().pid(),
                  clientcaps[it->second.heartbeat().uuid()],
                  it->second.statistics().open_files(),
                  it->second.heartbeat().mount().c_str()
@@ -522,15 +523,22 @@ FuseServer::Clients::Print(std::string& out, std::string options,
                  "......   free-ram     : %.03f GB\n"
                  "......   vsize        : %.03f GB\n"
                  "......   rsize        : %.03f GB\n"
+                 "......   wr-buf-mb    : %.00f MB\n"
+                 "......   ra-buf-mb     :%.00f MB\n"
                  "......   load1        : %.02f\n"
                  "......   leasetime    : %u s\n"
                  "......   open-files   : %u\n"
+                 "......   logfile-size : %lu\n"
                  "......   rbytes       : %lu\n"
                  "......   wbytes       : %lu\n"
                  "......   n-op         : %lu\n"
                  "......   rd60         : %.02f MB/s\n"
                  "......   wr60         : %.02f MB/s\n"
-                 "......   iops60       : %.02f \n",
+                 "......   iops60       : %.02f \n"
+                 "......   xoff         : %lu\n"
+                 "......   ra-xoff      : %lu\n"
+                 "......   ra-nobuf     : %lu\n"
+                 "......   wr-nobuf     : %lu\n",
                  it->second.statistics().inodes(),
                  it->second.statistics().inodes_todelete(),
                  it->second.statistics().inodes_backlog(),
@@ -541,15 +549,22 @@ FuseServer::Clients::Print(std::string& out, std::string options,
                  it->second.statistics().free_ram_mb() / 1024.0,
                  it->second.statistics().vsize_mb() / 1024.0,
                  it->second.statistics().rss_mb() / 1024.0,
+                 it->second.statistics().wr_buf_mb(),
+                 it->second.statistics().ra_buf_mb(),
                  it->second.statistics().load1(),
                  it->second.heartbeat().leasetime() ? it->second.heartbeat().leasetime() : 300,
                  it->second.statistics().open_files(),
+                 it->second.statistics().logfilesize(),
                  it->second.statistics().rbytes(),
                  it->second.statistics().wbytes(),
                  it->second.statistics().nio(),
                  it->second.statistics().rd_rate_60_mb(),
                  it->second.statistics().wr_rate_60_mb(),
-                 it->second.statistics().iops_60()
+                 it->second.statistics().iops_60(),
+                 it->second.statistics().xoff(),
+                 it->second.statistics().raxoff(),
+                 it->second.statistics().ranobuf(),
+                 it->second.statistics().wrnobuf()
                 );
         out += formatline;
       }
@@ -802,6 +817,38 @@ FuseServer::Clients::DeleteEntry(uint64_t md_ino,
                   uuid.c_str(), clientid.c_str(), md_ino, name.c_str());
   gOFS->zMQ->mTask->reply(id, rspstream);
   EXEC_TIMING_END("Eosxd::int::DeleteEntry");
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+int
+FuseServer::Clients::RefreshEntry(uint64_t md_ino,
+                                  const std::string& uuid,
+                                  const std::string& clientid
+                                 )
+{
+  gOFS->MgmStats.Add("Eosxd::int::RefreshEntry", 0, 0, 1);
+  EXEC_TIMING_BEGIN("Eosxd::int::RefreshEntry");
+  // prepare release cap message
+  eos::fusex::response rsp;
+  rsp.set_type(rsp.REFRESH);
+  rsp.mutable_refresh_()->set_md_ino(md_ino);
+  std::string rspstream;
+  rsp.SerializeToString(&rspstream);
+  eos::common::RWMutexReadLock lLock(*this);
+
+  if (!mUUIDView.count(uuid)) {
+    return ENOENT;
+  }
+
+  std::string id = mUUIDView[uuid];
+  lLock.Release();
+  eos_static_info("msg=\"asking dentry refresh\" uuid=%s clientid=%s id=%lx",
+                  uuid.c_str(), clientid.c_str(), md_ino);
+  gOFS->zMQ->mTask->reply(id, rspstream);
+  EXEC_TIMING_END("Eosxd::int::RefreshEntry");
   return 0;
 }
 
@@ -1119,6 +1166,51 @@ FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
   return 0;
 }
 
+/*----------------------------------------------------------------------------*/
+int
+FuseServer::Caps::BroadcastRefreshFromExternal(uint64_t id, uint64_t pid)
+/*----------------------------------------------------------------------------*/
+{
+  gOFS->MgmStats.Add("Eosxd::int::BcRefreshExt", 0, 0, 1);
+  EXEC_TIMING_BEGIN("Eosxd::int::BcRefreshExt");
+  // broad-cast refresh for a given inode
+  eos::common::RWMutexReadLock lLock(*this);
+  eos_static_info("id=%lx pid=%lx",
+                  id,
+                  pid);
+  std::vector<shared_cap> bccaps;
+
+  if (mInodeCaps.count(pid)) {
+    for (auto it = mInodeCaps[pid].begin();
+         it != mInodeCaps[pid].end(); ++it) {
+      shared_cap cap;
+
+      // loop over all caps for that inode
+      if (mCaps.count(*it)) {
+        cap = mCaps[*it];
+      } else {
+        continue;
+      }
+
+      if (cap->id()) {
+        bccaps.push_back(cap);
+      }
+    }
+  }
+
+  lLock.Release();
+
+  for (auto it : bccaps) {
+    gOFS->zMQ->gFuseServer.Client().RefreshEntry((uint64_t) id,
+        it->clientuuid(),
+        it->clientid());
+    errno = 0 ; // seems that ZMQ function might set errno
+  }
+
+  EXEC_TIMING_END("Eosxd::int::BcRefreshExt");
+  return 0;
+}
+
 int
 FuseServer::Caps::BroadcastRelease(const eos::fusex::md& md)
 {
@@ -1232,9 +1324,11 @@ FuseServer::Caps::BroadcastDeletionFromExternal(uint64_t id,
   return 0;
 }
 
+/*----------------------------------------------------------------------------*/
 int
 FuseServer::Caps::BroadcastDeletion(uint64_t id, const eos::fusex::md& md,
                                     const std::string& name)
+/*----------------------------------------------------------------------------*/
 {
   gOFS->MgmStats.Add("Eosxd::int::BcDeletion", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::BcDeletion");
@@ -1286,6 +1380,60 @@ FuseServer::Caps::BroadcastDeletion(uint64_t id, const eos::fusex::md& md,
   EXEC_TIMING_END("Eosxd::int::BcDeletion");
   return 0;
 }
+
+/*----------------------------------------------------------------------------*/
+int
+FuseServer::Caps::BroadcastRefresh(uint64_t inode,
+                                   const eos::fusex::md& md,
+                                   uint64_t parent_inode)
+/*----------------------------------------------------------------------------*/
+{
+  gOFS->MgmStats.Add("Eosxd::int::BcRefresh", 0, 0, 1);
+  EXEC_TIMING_BEGIN("Eosxd::int::BcRefresh");
+  FuseServer::Caps::shared_cap refcap = Get(md.authid());
+  eos::common::RWMutexReadLock lLock(*this);
+  eos_static_info("id=%lx parent=%lx",
+                  inode,
+                  parent_inode);
+  std::vector<shared_cap> bccaps;
+
+  if (mInodeCaps.count(parent_inode)) {
+    for (auto it = mInodeCaps[parent_inode].begin();
+         it != mInodeCaps[parent_inode].end(); ++it) {
+      shared_cap cap;
+
+      // loop over all caps for that inode
+      if (mCaps.count(*it)) {
+        cap = mCaps[*it];
+      } else {
+        continue;
+      }
+
+      // skip identical client mounts!
+      if (cap->clientuuid() == refcap->clientuuid()) {
+        continue;
+      }
+
+      if (cap->id()) {
+        bccaps.push_back(cap);
+      }
+    }
+  }
+
+  lLock.Release();
+
+  for (auto it : bccaps) {
+    gOFS->zMQ->gFuseServer.Client().RefreshEntry((uint64_t) inode,
+        it->clientuuid(),
+        it->clientid()
+                                                );
+    errno = 0;
+  }
+
+  EXEC_TIMING_END("Eosxd::int::BcRefresh");
+  return 0;
+}
+
 
 int
 FuseServer::Caps::BroadcastCap(shared_cap cap)
@@ -2997,6 +3145,7 @@ FuseServer::HandleMD(const std::string& id,
         case CREATE:
         case RENAME:
           Cap().BroadcastRelease(md);
+          Cap().BroadcastRefresh(md.md_ino(), md, md.md_pino());
           break;
         }
       } catch (eos::MDException& e) {
@@ -3536,6 +3685,7 @@ FuseServer::HandleMD(const std::string& id,
         resp.SerializeToString(response);
         Cap().BroadcastRelease(md);
         Cap().BroadcastDeletion(pcmd->getId(), md, cmd->getName());
+        Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId());
         Cap().Delete(md.md_ino());
         EXEC_TIMING_END("Eosxd::ext::RMDIR");
         return 0;
@@ -3636,6 +3786,7 @@ FuseServer::HandleMD(const std::string& id,
         resp.SerializeToString(response);
         Cap().BroadcastRelease(md);
         Cap().BroadcastDeletion(pcmd->getId(), md, md.name());
+        Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId());
         Cap().Delete(md.md_ino());
         EXEC_TIMING_END("Eosxd::ext::DELETE");
         return 0;
@@ -3658,6 +3809,7 @@ FuseServer::HandleMD(const std::string& id,
         resp.SerializeToString(response);
         Cap().BroadcastRelease(md);
         Cap().BroadcastDeletion(pcmd->getId(), md, md.name());
+        Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId());
         Cap().Delete(md.md_ino());
         EXEC_TIMING_END("Eosxd::ext::DELETELNK");
         return 0;

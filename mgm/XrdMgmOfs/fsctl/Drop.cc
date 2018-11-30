@@ -47,28 +47,21 @@ XrdMgmOfs::Drop(const char* path,
                 const XrdSecEntity* client)
 {
   static const char* epname = "Drop";
-
   REQUIRE_SSS_OR_LOCAL_AUTH;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-
   EXEC_TIMING_BEGIN("Drop");
-
   int envlen;
   eos_thread_info("drop request for %s", env.Env(envlen));
-
   char* afid = env.Get("mgm.fid");
   char* afsid = env.Get("mgm.fsid");
 
-  if (afid && afsid)
-  {
+  if (afid && afsid) {
     unsigned long fsid = strtoul(afsid, 0, 10);
-
     std::shared_ptr<eos::IContainerMD> container;
     std::shared_ptr<eos::IFileMD> fmd;
     eos::IQuotaNode* ns_quota = nullptr;
-
     eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
 
     try {
@@ -80,7 +73,7 @@ XrdMgmOfs::Drop(const char* path,
     if (fmd) {
       try {
         container =
-            gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+          gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
       } catch (eos::MDException& e) {}
 
       if (container) {
@@ -94,7 +87,6 @@ XrdMgmOfs::Drop(const char* path,
       try {
         std::vector<unsigned int> drop_fsid;
         bool updatestore = false;
-
         // If mgm.dropall flag is set then it means we got a deleteOnClose
         // at the gateway node and we need to delete all replicas
         char* drop_all = env.Get("mgm.dropall");
@@ -149,16 +141,17 @@ XrdMgmOfs::Drop(const char* path,
             gOFS->eosView->updateContainerStore(container.get());
             container->notifyMTimeChange(gOFS->eosDirectoryService);
             eos::ContainerIdentifier container_id = container->getIdentifier();
+            eos::ContainerIdentifier container_pid = container->getParentIdentifier();
             wlock.Release();
             gOFS->FuseXCastContainer(container_id);
+            gOFS->FuseXCastRefresh(container_id, container_pid);
           }
         }
       } catch (...) {
         eos_thread_warning("no meta record exists anymore for fid=%s", afid);
       }
     }
-  } else
-  {
+  } else {
     eos_thread_err("drop message does not contain all meta information: %s",
                    env.Env(envlen));
     return Emsg(epname, error, EIO, "drop replica [EIO]",

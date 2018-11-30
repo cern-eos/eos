@@ -320,6 +320,8 @@ XrdMgmOfs::_rem(const char* path,
           eosView->updateContainerStore(container.get());
           gOFS->FuseXCastContainer(container->getIdentifier());
           gOFS->FuseXCastDeletion(container->getIdentifier(), fmd->getName());
+          gOFS->FuseXCastRefresh(container->getIdentifier(),
+                                 container->getParentIdentifier());
         }
       }
 

@@ -1029,6 +1029,18 @@ XrdMgmOfs::FuseXCastDeletion(eos::ContainerIdentifier id,
 }
 
 
+//------------------------------------------------------------------------------
+// Cast a refresh message to all fusex clients about a refresh of an entry
+//------------------------------------------------------------------------------
+void
+XrdMgmOfs::FuseXCastRefresh(eos::ContainerIdentifier id,
+                            eos::ContainerIdentifier parentid)
+{
+  gOFS->zMQ->gFuseServer.Cap().BroadcastRefreshFromExternal(
+    id.getUnderlyingUInt64(), parentid.getUnderlyingUInt64());
+}
+
+
 
 //----------------------------------------------------------------------------
 // Check if name space is booted

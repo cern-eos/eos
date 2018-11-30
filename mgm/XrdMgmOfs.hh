@@ -1515,6 +1515,16 @@ public:
   void FuseXCastDeletion(eos::ContainerIdentifier id,
                          const std::string& name);
 
+
+  //----------------------------------------------------------------------------
+  //! Cast a refresh message to all fusex clients regarding a meta data refresh
+  //!
+  //! @param id container identifier
+  //!
+  //----------------------------------------------------------------------------
+  void FuseXCastRefresh(eos::ContainerIdentifier id,
+                        eos::ContainerIdentifier parentid);
+
   //----------------------------------------------------------------------------
   //! Setup /eos/<instance>/proc files
   //----------------------------------------------------------------------------

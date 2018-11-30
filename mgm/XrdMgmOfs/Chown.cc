@@ -99,6 +99,7 @@ XrdMgmOfs::_chown(const char* path,
       cmd->setCTimeNow();
       eosView->updateContainerStore(cmd.get());
       gOFS->FuseXCastContainer(cmd->getIdentifier());
+      gOFS->FuseXCastRefresh(cmd->getIdentifier(), cmd->getParentIdentifier());
       errno = 0;
     }
   } catch (eos::MDException& e) {
@@ -151,6 +152,7 @@ XrdMgmOfs::_chown(const char* path,
 
         fmd->setCTimeNow();
         eosView->updateFileStore(fmd.get());
+        // TODO: add the FuseX notification
       }
     } catch (eos::MDException& e) {
       errno = e.getErrno();

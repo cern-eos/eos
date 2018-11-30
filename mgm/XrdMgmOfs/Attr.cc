@@ -68,7 +68,6 @@ XrdMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
   gOFS->MgmStats.Add("AttrLs", vid.uid, vid.gid, 1);
   eos::common::RWMutexReadLock ns_rd_lock;
   errno = 0;
-
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path);
 
   if (take_lock) {
@@ -195,12 +194,14 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
       eosView->updateContainerStore(dh.get());
       eos::ContainerIdentifier d_id = dh->getIdentifier();
+      eos::ContainerIdentifier d_pid = dh->getParentIdentifier();
 
       if (take_lock) {
         ns_wr_lock.Release();
       }
 
       gOFS->FuseXCastContainer(d_id);
+      gOFS->FuseXCastRefresh(d_id, d_pid);
       errno = 0;
     }
   } catch (eos::MDException& e) {
@@ -513,8 +514,10 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
           dh->removeAttribute(key);
           eosView->updateContainerStore(dh.get());
           eos::ContainerIdentifier d_id = dh->getIdentifier();
+          eos::ContainerIdentifier d_pid = dh->getParentIdentifier();
           lock.Release();
           gOFS->FuseXCastContainer(d_id);
+          gOFS->FuseXCastRefresh(d_id, d_pid);
         } else {
           errno = ENODATA;
         }

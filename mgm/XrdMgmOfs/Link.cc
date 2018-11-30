@@ -231,8 +231,10 @@ XrdMgmOfs::_symlink(const char* source_name,
       dir->notifyMTimeChange(gOFS->eosDirectoryService);
       eosView->updateContainerStore(dir.get());
       eos::ContainerIdentifier dir_id = dir->getIdentifier();
+      eos::ContainerIdentifier dir_pid = dir->getParentIdentifier();
       lock.Release();
       gOFS->FuseXCastContainer(dir_id);
+      gOFS->FuseXCastRefresh(dir_id, dir_pid);
     } catch (eos::MDException& e) {
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());

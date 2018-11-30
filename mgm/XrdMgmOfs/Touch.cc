@@ -103,6 +103,7 @@ XrdMgmOfs::_touch(const char* path,
 
     gOFS->eosView->updateContainerStore(cmd.get());
     gOFS->FuseXCastContainer(cmd->getIdentifier());
+    gOFS->FuseXCastRefresh(cmd->getIdentifier(), cmd->getParentIdentifier());
     errno = 0;
   } catch (eos::MDException& e) {
     errno = e.getErrno();

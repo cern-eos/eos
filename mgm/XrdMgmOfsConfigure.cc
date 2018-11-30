@@ -2000,6 +2000,8 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("Eosxd::int::BcConfig", 0, 0, 0);
   MgmStats.Add("Eosxd::int::BcDropAll", 0, 0, 0);
   MgmStats.Add("Eosxd::int::BcMD", 0, 0, 0);
+  MgmStats.Add("Eosxd::int::BcRefresh", 0, 0, 0);
+  MgmStats.Add("Eosxd::int::BcRefreshExt", 0, 0, 0);
   MgmStats.Add("Eosxd::int::BcRelease", 0, 0, 0);
   MgmStats.Add("Eosxd::int::BcReleaseExt", 0, 0, 0);
   MgmStats.Add("Eosxd::int::BcDeletion", 0, 0, 0);
@@ -2010,6 +2012,7 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("Eosxd::int::FillFileMD", 0, 0, 0);
   MgmStats.Add("Eosxd::int::Heartbeat", 0, 0, 0);
   MgmStats.Add("Eosxd::int::MonitorCaps", 0, 0, 0);
+  MgmStats.Add("Eosxd::int::RefreshEntry", 0, 0, 0);
   MgmStats.Add("Eosxd::int::ReleaseCap", 0, 0, 0);
   MgmStats.Add("Eosxd::int::SendCAP", 0, 0, 0);
   MgmStats.Add("Eosxd::int::SendMD", 0, 0, 0);

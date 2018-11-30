@@ -358,9 +358,11 @@ XrdMgmOfs::_mkdir(const char* path,
           newdir->notifyMTimeChange(gOFS->eosDirectoryService);
           eos::ContainerIdentifier nd_id = newdir->getIdentifier();
           eos::ContainerIdentifier d_id = dir->getIdentifier();
+          eos::ContainerIdentifier d_pid = dir->getParentIdentifier();
           lock.Release();
           gOFS->FuseXCastContainer(nd_id);
           gOFS->FuseXCastContainer(d_id);
+          gOFS->FuseXCastRefresh(d_id, d_pid);
         } catch (eos::MDException& e) {
           errno = e.getErrno();
           eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
@@ -422,9 +424,11 @@ XrdMgmOfs::_mkdir(const char* path,
     dir->notifyMTimeChange(gOFS->eosDirectoryService);
     eos::ContainerIdentifier nd_id = newdir->getIdentifier();
     eos::ContainerIdentifier d_id = dir->getIdentifier();
+    eos::ContainerIdentifier d_pid = dir->getParentIdentifier();
     lock.Release();
     gOFS->FuseXCastContainer(nd_id);
     gOFS->FuseXCastContainer(d_id);
+    gOFS->FuseXCastRefresh(d_id, d_pid);
   } catch (eos::MDException& e) {
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
