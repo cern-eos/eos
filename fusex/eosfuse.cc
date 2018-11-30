@@ -856,7 +856,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.auth.forknoexec_heuristic = root["auth"]["forknoexec-heuristic"].asInt();
 
     if (config.auth.environ_deadlock_timeout <= 0) {
-      config.auth.environ_deadlock_timeout = 100;
+      config.auth.environ_deadlock_timeout = 500;
     }
 
     config.inliner.max_size = root["inline"]["max-size"].asInt();

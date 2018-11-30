@@ -382,12 +382,11 @@ BoundIdentityProvider::pidEnvironmentToBoundIdentity(
     SSTR("Attempting to produce BoundIdentity out of process environment, pid=" << pid)));
 
   // First, let's read the environment to build up a UserCredentials object.
-  Environment processEnv;
   FutureEnvironment response = environmentReader.stageRequest(pid);
 
   if (!response.waitUntilDeadline(
         std::chrono::milliseconds(credConfig.environ_deadlock_timeout))) {
-    eos_static_info("Timeout when retrieving environment for pid %d (uid %d) - we're doing an execve!",
+    eos_static_warning("Timeout when retrieving environment for pid %d (uid %d) - we're doing an execve!",
                     pid, uid);
     LOGBOOK_INSERT(subscope,
       "FAILED in retrieving environment variables for pid=" << pid << ": TIMEOUT");
