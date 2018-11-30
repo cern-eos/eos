@@ -78,14 +78,14 @@ class EnvironmentReader
 {
 public:
   //----------------------------------------------------------------------------
+  //! Constructor - launch a thread pool with the specified number of threads
+  //----------------------------------------------------------------------------
+  EnvironmentReader(size_t threads);
+
+  //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   ~EnvironmentReader();
-
-  //----------------------------------------------------------------------------
-  //! Start the threadpool with the specified number of threads
-  //----------------------------------------------------------------------------
-  void launchWorkers(size_t threads);
 
   //----------------------------------------------------------------------------
   //! Request to retrieve the environmnet variables for the given pid.

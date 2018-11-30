@@ -23,6 +23,24 @@
 
 #include "EnvironmentReader.hh"
 
+//------------------------------------------------------------------------------
+//! Constructor - launch a thread pool with the specified number of threads
+//------------------------------------------------------------------------------
+EnvironmentReader::EnvironmentReader(size_t nthreads) {
+  //----------------------------------------------------------------------------
+  // Start up our thread pool.
+  //----------------------------------------------------------------------------
+  for (size_t i = 0; i < nthreads; i++) {
+    threads.emplace_back(&EnvironmentReader::worker, this);
+  }
+
+  //----------------------------------------------------------------------------
+  // Wait until all threads have been properly spawned - this allows us to
+  // assume all threads are active in the destructor.
+  //----------------------------------------------------------------------------
+  while (threadsAlive != nthreads);
+}
+
 void EnvironmentReader::inject(pid_t pid, const Environment& env,
                                std::chrono::milliseconds artificialDelay)
 {
@@ -70,22 +88,6 @@ EnvironmentReader::~EnvironmentReader()
   for (size_t i = 0; i < threads.size(); i++) {
     threads[i].join();
   }
-}
-
-void EnvironmentReader::launchWorkers(size_t nthreads)
-{
-  //----------------------------------------------------------------------------
-  // Start up our thread pool.
-  //----------------------------------------------------------------------------
-  for (size_t i = 0; i < nthreads; i++) {
-    threads.emplace_back(&EnvironmentReader::worker, this);
-  }
-
-  //----------------------------------------------------------------------------
-  // Wait until all threads have been properly spawned - this allows us to
-  // assume all threads are active in the destructor.
-  //----------------------------------------------------------------------------
-  while (threadsAlive != nthreads);
 }
 
 //------------------------------------------------------------------------------

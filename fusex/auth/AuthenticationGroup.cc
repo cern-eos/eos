@@ -96,8 +96,7 @@ SecurityChecker* AuthenticationGroup::securityChecker() {
 //------------------------------------------------------------------------------
 EnvironmentReader* AuthenticationGroup::environmentReader() {
   if(!environmentReaderPtr) {
-    environmentReaderPtr.reset(new EnvironmentReader());
-    environmentReaderPtr->launchWorkers(3);
+    environmentReaderPtr.reset(new EnvironmentReader(10));
   }
 
   return environmentReaderPtr.get();

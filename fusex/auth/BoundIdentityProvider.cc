@@ -389,7 +389,7 @@ BoundIdentityProvider::pidEnvironmentToBoundIdentity(
     eos_static_warning("Timeout when retrieving environment for pid %d (uid %d) - we're doing an execve!",
                     pid, uid);
     LOGBOOK_INSERT(subscope,
-      "FAILED in retrieving environment variables for pid=" << pid << ": TIMEOUT");
+      "FAILED in retrieving environment variables for pid=" << pid << ": TIMEOUT after " << credConfig.environ_deadlock_timeout << " ms");
     return {};
   }
 

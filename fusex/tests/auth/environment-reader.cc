@@ -26,8 +26,7 @@
 
 TEST(EnvironmentReader, BasicSanity)
 {
-  EnvironmentReader reader;
-  reader.launchWorkers(3);
+  EnvironmentReader reader(3);
   Environment env1;
   env1.fromVector({"KEY1=VALUE1", "KEY2=VALUE2", "KEY3=VALUE3", "KEY4=VALUE4"});
   Environment env2;
@@ -85,8 +84,7 @@ static void issueRequests(EnvironmentReader& reader, size_t from, size_t until)
 
 TEST(EnvironmentReader, HeavyLoad)
 {
-  EnvironmentReader reader;
-  reader.launchWorkers(30);
+  EnvironmentReader reader(30);
   inject(reader, 0, 10000);
   // 10 threads * 2, 1000 requests each
   const size_t nthreads = 10;
