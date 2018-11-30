@@ -191,7 +191,11 @@ com_fusex_usage:
   fprintf(stdout,
           "                                                              <uuid> -  uuid of the client to evict\n");
   fprintf(stdout,
-          "                                                            <reason> -  optional text shown to the client why he has been evicted - if the reason contains the keywoard 'abort' the abort handler will be called on client side (might create a stack trace/core)\n");
+          "                                                            <reason> -  optional text shown to the client why he has been evicted\n");
+  fprintf(stdout,
+          "                                                                     - if the reason contains the keywoard 'abort' the abort handler will be called on client side (might create a stack trace/core)\n");
+  fprintf(stdout,
+          "                                                                     - if reason contains the keyword 'log2big' the client will effectily not be evicted, but will truncate his logfile to 0\n");
   fprintf(stdout, "\n");
   fprintf(stdout,
           "       fusex dropcaps <uuid>                                         :  advice a client to drop all caps\n");
