@@ -382,7 +382,7 @@ BoundIdentityProvider::pidEnvironmentToBoundIdentity(
     SSTR("Attempting to produce BoundIdentity out of process environment, pid=" << pid)));
 
   // First, let's read the environment to build up a UserCredentials object.
-  FutureEnvironment response = environmentReader.stageRequest(pid);
+  FutureEnvironment response = environmentReader.stageRequest(pid, uid);
 
   if (!response.waitUntilDeadline(
         std::chrono::milliseconds(credConfig.environ_deadlock_timeout))) {

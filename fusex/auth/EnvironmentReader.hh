@@ -93,7 +93,7 @@ public:
   //! Returns a FutureEnvironment object, which _might_ be kernel-deadlocked,
   //! and must be waited-for with a timeout.
   //----------------------------------------------------------------------------
-  FutureEnvironment stageRequest(pid_t pid);
+  FutureEnvironment stageRequest(pid_t pid, uid_t uid = -1);
 
   //----------------------------------------------------------------------------
   //! Inject fake data into this class. _All_ responses will be faked if there's
@@ -126,6 +126,7 @@ private:
   //----------------------------------------------------------------------------
   struct QueuedRequest {
     pid_t pid;
+    uid_t uid;
     std::promise<Environment> promise;
   };
 

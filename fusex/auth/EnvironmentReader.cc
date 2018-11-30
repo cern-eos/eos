@@ -140,11 +140,8 @@ void EnvironmentReader::worker()
         std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
 
       if (duration.count() > 5) {
-        eos_static_warning("Reading /proc/%d/environ took %dms", request.pid,
-                           duration.count());
-      } else {
-        eos_static_debug("Reading /proc/%d/environ took %dms", request.pid,
-                         duration.count());
+        eos_static_warning("Reading /proc/%d/environ took %dms (uid=%d)", request.pid,
+                           duration.count(), request.uid);
       }
 
       //------------------------------------------------------------------------
@@ -182,10 +179,10 @@ void EnvironmentReader::worker()
 // Returns a FutureEnvironment object, which _might_ be kernel-deadlocked,
 // and must be waited-for with a timeout.
 //------------------------------------------------------------------------------
-FutureEnvironment EnvironmentReader::stageRequest(pid_t pid)
+FutureEnvironment EnvironmentReader::stageRequest(pid_t pid, uid_t uid)
 {
   std::unique_lock<std::mutex> lock(mtx);
-  eos_static_debug("Staging request to read environment of pid %d", pid);
+  eos_static_debug("Staging request to read environment of pid %d for %d", pid, uid);
 
   //----------------------------------------------------------------------------
   //! Check: Is this request already pending? If so, give back the same
@@ -204,6 +201,7 @@ FutureEnvironment EnvironmentReader::stageRequest(pid_t pid)
   QueuedRequest request;
   FutureEnvironment response;
   request.pid = pid;
+  request.uid = uid;
   response.contents = request.promise.get_future();
   response.queuedSince = std::chrono::high_resolution_clock::now();
   pendingRequests[pid] = response;
