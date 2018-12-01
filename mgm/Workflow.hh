@@ -87,7 +87,7 @@ public:
   }
 
   int Create(eos::common::Mapping::VirtualIdentity& vid,
-             std::string& errorMessage);
+             const char * const ininfo, std::string& errorMessage);
 
   bool Attach(const char* path);
 

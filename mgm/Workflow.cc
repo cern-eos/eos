@@ -65,7 +65,7 @@ Workflow::Trigger(const std::string& event, std::string workflow,
       mEvent = event;
       mWorkflow = workflow;
       mAction = (*mAttr)[key];
-      int retc = Create(vid, errorMessage);
+      int retc = Create(vid, ininfo, errorMessage);
 
       if (!retc) {
         if ((workflow == "enonet")) {
@@ -93,7 +93,7 @@ Workflow::Trigger(const std::string& event, std::string workflow,
       mEvent = event;
       mWorkflow = workflow;
       mAction = (*mAttr)[key];
-      int retc = Create(vid, errorMessage);
+      int retc = Create(vid, ininfo, errorMessage);
 
       if (retc != 0) {
         return retc;
@@ -204,7 +204,7 @@ Workflow::Attach(const char* path)
 /*----------------------------------------------------------------------------*/
 int
 Workflow::Create(eos::common::Mapping::VirtualIdentity& vid,
-                 std::string& errorMessage)
+                 const char * const ininfo, std::string& errorMessage)
 {
   int retc = 0;
   WFE::Job job(mFid, vid, errorMessage);
