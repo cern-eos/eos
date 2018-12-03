@@ -50,6 +50,13 @@ Group: Applications/File
 
 Source: %{name}-%{version}-@CPACK_PACKAGE_RELEASE@.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
+
+# Add EPEL repository explicitly which holds many of the other dependencies
+%if 0%{?rhel} >= 6
+BuildRequires: epel-release
+Requires: epel-release
+%endif
+
 %if %{?fedora:1}%{!?fedora:0}
 BuildRequires: cmake >= 3.3
 %define cmake_cmd cmake
