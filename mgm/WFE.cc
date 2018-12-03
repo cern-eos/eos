@@ -1912,6 +1912,9 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
             onlyTapeCopy = fmd->hasLocation(TAPE_FS_ID) && fmd->getLocations().size() == 1;
           }
 
+          XrdOucEnv opaque(ininfo);
+          const char * const opaqueCtaArchiveFileId = opaque.Get("cta_archive_file_id");
+
           if(event == "archived") {
             eos_static_err("The archived message for file %s is asynchronous when it should be synchronous."
                            " Ignoring request", fullPath.c_str());
@@ -1920,7 +1923,10 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
                            fullPath.c_str());
           } else if (onlyTapeCopy) {
             eos_static_info("File %s already has a tape copy. Ignoring request.",
-                            fullPath.c_str());
+              fullPath.c_str());
+          } else if (nullptr == opaqueCtaArchiveFileId) {
+            eos_static_err("The opaque data of the archived message for file %s does not contain cta_archive_file_id."
+                           " Ignoring request.", fullPath.c_str());
           } else {
             XrdOucErrInfo errInfo;
             eos::common::Mapping::VirtualIdentity root_vid;
