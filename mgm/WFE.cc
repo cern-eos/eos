@@ -1901,10 +1901,14 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
             return sendResult;
           }
         } else if (event == "sync::archived" || event == "archived") {
-          bool hasCTA_ArchiveFileId = false;
+          std::string xattrCtaArchiveFileId;
+          bool hasXattrCtaArchiveFileId = false;
           {
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-            hasCTA_ArchiveFileId = fmd->hasAttribute("CTA_ArchiveFileId");
+            hasXattrCtaArchiveFileId = fmd->hasAttribute("CTA_ArchiveFileId");
+          }
+          if(hasXattrCtaArchiveFileId) {
+            xattrCtaArchiveFileId = fmd->getAttribute("CTA_ArchiveFileId");
           }
           bool onlyTapeCopy = false;
           {
@@ -1923,10 +1927,21 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
                            fullPath.c_str());
           } else if (onlyTapeCopy) {
             eos_static_info("File %s already has a tape copy. Ignoring request.",
-              fullPath.c_str());
+                            fullPath.c_str());
+          } else if(!hasXattrCtaArchiveFileId) {
+            eos_static_err("File %s does not have a CTA_ArchiveFileId attribute. Ignoring request.",
+                           fullPath.c_str());
+          } else if(xattrCtaArchiveFileId.empty()) {
+            eos_static_err("The CTA_ArchiveFileId attribute of file %s is an empty string. Ignoring request.",
+                           fullPath.c_str());
           } else if (nullptr == opaqueCtaArchiveFileId) {
             eos_static_err("The opaque data of the archived message for file %s does not contain cta_archive_file_id."
                            " Ignoring request.", fullPath.c_str());
+          } else if (xattrCtaArchiveFileId != opaqueCtaArchiveFileId) {
+            eos_static_err("The CTA_ArchiveFileId attribute of file %s does not match cta_archive_file_id in the"
+                           " opaque data of the archived message. xattrCtaArchiveFileId=%s opaqueCtaArchiveFileId=%s."
+                           " Ignoring request.",
+                           fullPath.c_str(), xattrCtaArchiveFileId.c_str(), opaqueCtaArchiveFileId);
           } else {
             XrdOucErrInfo errInfo;
             eos::common::Mapping::VirtualIdentity root_vid;
