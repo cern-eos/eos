@@ -52,9 +52,9 @@ ProcCommand::Debug()
       stdErr = "error: debug level node can only contain one wildcard character (*) !";
       retc = EINVAL;
     } else {
-
       // always check debug level exists first
       int debugval = g_logging.GetPriorityByString(debuglevel.c_str());
+
       if (debugval < 0) {
         stdErr = "error: debug level ";
         stdErr += debuglevel;
@@ -65,7 +65,6 @@ ProcCommand::Debug()
             (debugnode == gOFS->MgmOfsQueue)) {
           // this is for us!
           int debugval = g_logging.GetPriorityByString(debuglevel.c_str());
-
           g_logging.SetLogPriority(debugval);
           stdOut = "success: debug level is now <";
           stdOut += debuglevel.c_str();
@@ -89,7 +88,6 @@ ProcCommand::Debug()
           } else {
             gOFS->ObjectManager.SetDebug(false);
           }
-          
         }
 
         if (debugnode == "*") {
@@ -111,19 +109,15 @@ ProcCommand::Debug()
           }
 
           debugnode = "/eos/*/mgm";
-
-          if (!Messaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
-            stdErr += "error: could not send debug level to nodes mgm.nodename=";
-            stdErr += debugnode;
-            retc = EINVAL;
-          } else {
-            stdOut += "success: switched to mgm.debuglevel=";
-            stdOut += debuglevel;
-            stdOut += " on nodes mgm.nodename=";
-            stdOut += debugnode;
-            eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s",
-                       debuglevel.c_str(), debugnode.c_str());
-          }
+          // Ignore return value as we've already set the loglevel for the
+          // current instance. We're doing this only for the slave.
+          (void) Messaging::gMessageClient.SendMessage(message, debugnode.c_str());
+          stdOut += "success: switched to mgm.debuglevel=";
+          stdOut += debuglevel;
+          stdOut += " on nodes mgm.nodename=";
+          stdOut += debugnode;
+          eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s",
+                     debuglevel.c_str(), debugnode.c_str());
         } else {
           if (debugnode != "") {
             // send to the specified list
