@@ -52,11 +52,11 @@ Source: %{name}-%{version}-@CPACK_PACKAGE_RELEASE@.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
 # Add EPEL repository explicitly which holds many of the other dependencies
-%if 0%{?rhel} == 6
+%if 0%{?distribution} == 6
 BuildRequires: sl-release-scl
 Requires: sl-release-scl
 %else
-%if 0%{?rhel} >= 7
+%if 0%{?distribution} >= 7
 BuildRequires: epel-release
 Requires: epel-release
 %endif
