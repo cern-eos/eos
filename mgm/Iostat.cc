@@ -440,7 +440,7 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
       delete newmessage;
     }
 
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    assistant.wait_for(std::chrono::seconds(1));
   }
 }
 
@@ -1457,7 +1457,7 @@ Iostat::Circulate(ThreadAssistant& assistant) noexcept
     }
 
     sc++;
-    std::this_thread::sleep_for(std::chrono::milliseconds(512));
+    assistant.wait_for(std::chrono::milliseconds(512));
     Mutex.Lock();
     google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, IostatAvg> >::iterator
     tit;

@@ -160,7 +160,7 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
   gOFS->WaitUntilNamespaceIsBooted();
 
   while (!assistant.terminationRequested()) {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    assistant.wait_for(std::chrono::seconds(1));
     eos_static_debug("Started consistency checker thread");
     ClearLog();
     Log(false, "started check");
@@ -172,7 +172,7 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
 
       if (!IsMaster) {
         for (int i = 0; i < 60; ++i) {
-          std::this_thread::sleep_for(std::chrono::seconds(1));
+          assistant.wait_for(std::chrono::seconds(1));
 
           if (assistant.terminationRequested()) {
             return;
@@ -477,7 +477,7 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
 
     while (count < mInterval * 60) {
       count += timeout_sec;
-      std::this_thread::sleep_for(std::chrono::seconds(timeout_sec));
+      assistant.wait_for(std::chrono::seconds(timeout_sec));
 
       if (assistant.terminationRequested()) {
         return;

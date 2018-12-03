@@ -250,7 +250,7 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
     // If there is a master then wait a bit
     if (!GetMasterId().empty()) {
       std::chrono::milliseconds wait_ms(sLeaseTimeout.count() / 2);
-      std::this_thread::sleep_for(wait_ms);
+      assistant.wait_for(wait_ms);
     }
   }
 

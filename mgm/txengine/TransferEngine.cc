@@ -476,15 +476,15 @@ TransferEngine::Scheduler(ThreadAssistant& assistant) noexcept
             }
 
             if (no_gw) {
-              XrdSysThread::SetCancelOn();
               eos_static_info("msg=\"no gw available to run transfer\"");
 
               for (size_t i = 0; i < 60; i++) {
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-                XrdSysThread::CancelPoint();
-              }
+                assistant.wait_for(std::chrono::seconds(1));
 
-              XrdSysThread::SetCancelOff();
+                if (assistant.terminationRequested()) {
+                  return;
+                }
+              }
             }
           }
 
@@ -626,7 +626,7 @@ TransferEngine::Scheduler(ThreadAssistant& assistant) noexcept
     }
 
     for (size_t i = 0; i < pacifier * loopsleep / 100000; i++) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      assistant.wait_for(std::chrono::milliseconds(100));
 
       if (assistant.terminationRequested()) {
         return;
@@ -641,7 +641,7 @@ TransferEngine::Watch(ThreadAssistant& assistant) noexcept
 {
   eos_static_info("running transfer watch");
   size_t loopsleep = 2000000;
-  std::this_thread::sleep_for(std::chrono::seconds(10));
+  assistant.wait_for(std::chrono::seconds(10));
 
   while (!assistant.terminationRequested()) {
     {
@@ -658,10 +658,9 @@ TransferEngine::Watch(ThreadAssistant& assistant) noexcept
         //  }
       }
     }
-    XrdSysThread::SetCancelOn();
 
     for (size_t i = 0; i < loopsleep / 100000; i++) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      assistant.wait_for(std::chrono::milliseconds(100));
 
       if (assistant.terminationRequested()) {
         return;

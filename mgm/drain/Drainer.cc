@@ -394,7 +394,7 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
     }
 
     FsView::gFsView.ViewMutex.UnLockRead();
-    std::this_thread::sleep_for(std::chrono::seconds(10));
+    assistant.wait_for(std::chrono::seconds(10));
   }
 }
 

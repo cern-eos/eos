@@ -225,6 +225,7 @@ XrdMgmOfs::OrderlyShutdown()
     return;
   }
 
+  auto start_ts = std::chrono::steady_clock::now();
   mDoneOrderlyShutdown = true;
   {
     eos_warning("%s", "msg=\"set stall rule of all ns operations\"");
@@ -419,7 +420,10 @@ XrdMgmOfs::OrderlyShutdown()
     mMaster.reset();
   }
 
-  eos_warning("%s", "msg=\"finished orderly shutdown\"");
+  auto end_ts = std::chrono::steady_clock::now();
+  eos_warning("msg=\"finished orderly shutdown in %llu seconds\"",
+              std::chrono::duration_cast<std::chrono::seconds>
+              (end_ts - start_ts).count());
 }
 
 //------------------------------------------------------------------------------
@@ -933,7 +937,7 @@ XrdMgmOfs::StartArchiveSubmitter(ThreadAssistant& assistant) noexcept
         }
       }
     }
-    std::this_thread::sleep_for(std::chrono::seconds(5));
+    assistant.wait_for(std::chrono::seconds(5));
   }
 
   eos_warning("%s", "msg=\"shutdown archive submitter\"");

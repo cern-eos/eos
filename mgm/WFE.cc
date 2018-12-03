@@ -277,7 +277,7 @@ WFE::WFEr(ThreadAssistant& assistant) noexcept
     size_t snoozeloop = snoozetime * 10;
 
     for (size_t i = 0; i < snoozeloop; i++) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      assistant.wait_for(std::chrono::milliseconds(100));
 
       if (assistant.terminationRequested()) {
         break;
@@ -1597,7 +1597,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg)
           for (const auto& attribute : CollectAttributes(fullPath))
           {
             google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
-                attribute.second);
+            attribute.second);
             notification->mutable_file()->mutable_xattr()->insert(attr);
           }
         };
@@ -1844,6 +1844,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg)
               notification->mutable_file()->mutable_cks()->set_type(
                 eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()));
               eos::appendChecksumOnStringAsHex(fmd.get(), checksum);
+
               if (fmd->hasAttribute("CTA_ArchiveFileId")) {
                 ctaArchiveFileId = fmd->getAttribute("CTA_ArchiveFileId");
               }
@@ -1863,14 +1864,14 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg)
             reportStream << "eosQuery://" << gOFS->HostName
                          << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
                          << "&mgm.logid=cta&mgm.event=sync::archived&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0"
-                            "&cta_archive_file_id=" << ctaArchiveFileId;
+                         "&cta_archive_file_id=" << ctaArchiveFileId;
             notification->mutable_transport()->set_report_url(reportStream.str());
             std::ostringstream errorReportStream;
             errorReportStream << "eosQuery://" << gOFS->HostName
                               << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
                               << "&mgm.logid=cta&mgm.event=" << ARCHIVE_FAILED_WORKFLOW_NAME
                               << "&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0"
-                                 "&cta_archive_file_id=" << ctaArchiveFileId
+                              "&cta_archive_file_id=" << ctaArchiveFileId
                               << "&mgm.errmsg=";
             notification->mutable_transport()->set_error_report_url(
               errorReportStream.str());
@@ -1905,14 +1906,13 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg)
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
             hasCTA_ArchiveFileId = fmd->hasAttribute("CTA_ArchiveFileId");
           }
-
           bool onlyTapeCopy = false;
           {
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
             onlyTapeCopy = fmd->hasLocation(TAPE_FS_ID) && fmd->getLocations().size() == 1;
           }
 
-          if(!hasCTA_ArchiveFileId) {
+          if (!hasCTA_ArchiveFileId) {
             eos_static_warning("File %s does not have a CTA_ArchiveFileId attribute. Ignoring request.",
                                fullPath.c_str());
           } else if (onlyTapeCopy) {
@@ -2034,7 +2034,8 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
 
   config.set("request_timeout", "120");
   // Instantiate service object only once, static is thread-safe
-  static XrdSsiPbServiceType service(gOFS->ProtoWFEndPoint, gOFS->ProtoWFResource, config);
+  static XrdSsiPbServiceType service(gOFS->ProtoWFEndPoint, gOFS->ProtoWFResource,
+                                     config);
   cta::xrd::Response response;
 
   // Send the request
@@ -2056,8 +2057,8 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
 
   // Handle the response
   int retval = EPROTO;
-  switch (response.type())
-  {
+
+  switch (response.type()) {
   case cta::xrd::Response::RSP_SUCCESS: {
     // Set all attributes for file from response
     eos::common::Mapping::VirtualIdentity rootvid;
@@ -2080,11 +2081,20 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
   }
 
   // CTA Frontend error; return operation cancelled
-  case cta::xrd::Response::RSP_ERR_CTA:       retval = ECANCELED; break;
+  case cta::xrd::Response::RSP_ERR_CTA:
+    retval = ECANCELED;
+    break;
+
   // User error; return operation not permitted
-  case cta::xrd::Response::RSP_ERR_USER:      retval = EPERM; break;
+  case cta::xrd::Response::RSP_ERR_USER:
+    retval = EPERM;
+    break;
+
   // Error in Google Protocol buffers; return protocol error
-  case cta::xrd::Response::RSP_ERR_PROTOBUF:  retval = EPROTO; break;
+  case cta::xrd::Response::RSP_ERR_PROTOBUF:
+    retval = EPROTO;
+    break;
+
   // Response type was not set or was set to an unknown value; return not a data message
   case cta::xrd::Response::RSP_INVALID:
   default:
@@ -2099,7 +2109,6 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
     { cta::xrd::Response::RSP_ERR_PROTOBUF, "RSP_ERR_PROTOBUF" },
     { cta::xrd::Response::RSP_INVALID,      "RSP_INVALID" }
   };
-
   eos_static_err("%s for file %s. Reason: %s", errorEnumMap.at(response.type()),
                  fullPath.c_str(), response.message_txt().c_str());
   retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(retval);

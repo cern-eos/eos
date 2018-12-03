@@ -438,8 +438,6 @@ FuseServer::MonitorCaps() noexcept
       gOFS->MgmStats.Add("Eosxd::int::MonitorCaps", 0, 0, 1);
     }
   }
-
-  return ;
 }
 
 //------------------------------------------------------------------------------
@@ -1889,7 +1887,6 @@ FuseServer::Flush::hasFlush(uint64_t id)
 
     std::this_thread::sleep_for(std::chrono::milliseconds(delay));
     delay *= 2;
-    ;
   }
 
   return true;
