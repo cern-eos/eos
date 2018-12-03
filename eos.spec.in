@@ -56,7 +56,7 @@ BuildRoot: %{_tmppath}/%{name}-root
 BuildRequires: sl-release-scl
 Requires: sl-release-scl
 %else
-%if 0%{?distribution} >= 7
+%if 0%{?distribution} == 7
 BuildRequires: epel-release
 Requires: epel-release
 %endif
