@@ -44,7 +44,7 @@ std::string getStacktrace()
 #else
 std::string getStacktrace()
 {
-  if (getenv("EOS_DISABLE_BACKWARD_STACKTRACE")) {
+  if (!getenv("EOS_ENABLE_BACKWARD_STACKTRACE")) {
     return "backward disabled";
   }
 
@@ -68,7 +68,7 @@ void handleSignal(int sig, siginfo_t* si, void* ctx)
 #else
 void handleSignal(int sig, siginfo_t* si, void* ctx)
 {
-  if (getenv("EOS_DISABLE_BACKWARD_STACKTRACE")) {
+  if (!getenv("EOS_ENABLE_BACKWARD_STACKTRACE")) {
     return;
   }
 
