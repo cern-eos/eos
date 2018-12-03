@@ -305,7 +305,7 @@ ProcCommand::Space()
     }
 
     if ((!option.length()) || (option == "egroup")) {
-      Egroup::Reset();
+      gOFS->EgroupRefresh->Reset();
       stdOut += "\ninfo: clear cached EGroup information ...";
     }
 

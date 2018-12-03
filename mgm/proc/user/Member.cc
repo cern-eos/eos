@@ -34,10 +34,10 @@ ProcCommand::Member()
 
   if (smember.length()) {
     std::string egroup = smember.c_str();
-    std::string rs = Egroup::DumpMember(vid.uid_string,  egroup);
+    std::string rs = gOFS->EgroupRefresh->DumpMember(vid.uid_string,  egroup);
     stdOut += rs.c_str();
   } else {
-    std::string rs = Egroup::DumpMembers();
+    std::string rs = gOFS->EgroupRefresh->DumpMembers();
     stdOut += rs.c_str();
   }
 

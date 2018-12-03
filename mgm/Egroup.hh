@@ -27,6 +27,7 @@
 #include "mgm/Namespace.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "common/AssistedThread.hh"
+#include <qclient/WaitableQueue.hh>
 #include <sys/types.h>
 #include <string>
 #include <deque>
@@ -66,75 +67,78 @@ private:
   /// async refresh thread
   AssistedThread mThread;
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Synchronous refresh function doing an LDAP query for a given Egroup/user
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void DoRefresh(std::string& egroupname, std::string& username);
 
-public:
   /// static mutex protecting static Egroup objects
-  static XrdSysMutex Mutex;
+  XrdSysMutex Mutex;
 
   /// static map indicating egroup memebership for egroup/username pairs
-  static std::map < std::string, std::map <std::string, bool > > Map;
+  std::map < std::string, std::map <std::string, bool > > Map;
 
   /// static map storing the validity of egroup/username pairs in Map
-  static std::map < std::string, std::map <std::string, time_t > > LifeTime;
+  std::map < std::string, std::map <std::string, time_t > > LifeTime;
 
-  // ---------------------------------------------------------------------------
+  /// thred-safe queue keeping track of pending refresh requests
+  qclient::WaitableQueue<std::pair<std::string, std::string>, 500> PendingQueue;
+
+public:
+  //----------------------------------------------------------------------------
   // Constructor
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   Egroup();
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Destructor
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
 
   virtual ~Egroup();
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Reset all stored information
-  // ---------------------------------------------------------------------------
-  static void Reset()
+  //----------------------------------------------------------------------------
+  void Reset()
   {
     XrdSysMutexHelper mLock(Mutex);
     Map.clear();
     LifeTime.clear();
   }
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Start function to execute the asynchronous Egroup fetch thread
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   bool Start();
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Stop function to terminate the asynchronous Egroup fetch thread
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void Stop();
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // static function to check if username is member in egroupname
-  // ---------------------------------------------------------------------------
-  static bool Member(std::string& username, std::string& egroupname);
+  //----------------------------------------------------------------------------
+  bool Member(std::string& username, std::string& egroupname);
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // static function to display info for username in egroupname
-  // ---------------------------------------------------------------------------
-  static std::string DumpMember(std::string& username, std::string& egroupname);
+  //----------------------------------------------------------------------------
+  std::string DumpMember(std::string& username, std::string& egroupname);
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // static function to display all stored information
-  // ---------------------------------------------------------------------------
-  static std::string DumpMembers();
+  //----------------------------------------------------------------------------
+  std::string DumpMembers();
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // static function to schedule an asynchronous refresh for egroup/username
-  // ---------------------------------------------------------------------------
-  static void AsyncRefresh(std::string& egroupname, std::string& username);
+  //----------------------------------------------------------------------------
+  void AsyncRefresh(std::string& egroupname, std::string& username);
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // asynchronous thread loop doing egroup/username fetching
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void Refresh(ThreadAssistant& assistant) noexcept;
 };
 

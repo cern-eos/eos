@@ -192,7 +192,7 @@ Acl::Set(std::string sysacl, std::string useracl,
           continue;
         }
 
-        egroupmatch = Egroup::Member(username, entry[1]);
+        egroupmatch = gOFS->EgroupRefresh->Member(username, entry[1]);
         mHasEgroup = egroupmatch;
       }
 

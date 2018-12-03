@@ -22,18 +22,11 @@
  ************************************************************************/
 
 #include "mgm/Egroup.hh"
-#include <qclient/WaitableQueue.hh>
 #include "common/Logging.hh"
 #include <ldap.h>
 
 
 EOSMGMNAMESPACE_BEGIN
-
-XrdSysMutex Egroup::Mutex;
-std::map < std::string, std::map < std::string, bool > > Egroup::Map;
-std::map < std::string, std::map < std::string, time_t > > Egroup::LifeTime;
-static qclient::WaitableQueue<std::pair<std::string, std::string>, 500>
-PendingQueue;
 
 /*----------------------------------------------------------------------------*/
 /**
