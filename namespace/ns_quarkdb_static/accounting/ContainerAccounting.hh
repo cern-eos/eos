@@ -26,6 +26,7 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "common/RWMutex.hh"
+#include "common/AssistedThread.hh"
 #include <mutex>
 #include <thread>
 #include <vector>
@@ -49,7 +50,7 @@ public:
   //! @param update_interval interval in seconds when updates are propagated
   //----------------------------------------------------------------------------
   QuarkContainerAccounting(IContainerMDSvc* svc, eos::common::RWMutex* ns_mutex,
-                      int32_t update_interval = 5);
+                           int32_t update_interval = 5);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -60,7 +61,8 @@ public:
   //! Delete copy/move constructor and assignment operators
   //----------------------------------------------------------------------------
   QuarkContainerAccounting(const QuarkContainerAccounting& other) = delete;
-  QuarkContainerAccounting& operator=(const QuarkContainerAccounting& other) = delete;
+  QuarkContainerAccounting& operator=(const QuarkContainerAccounting& other) =
+    delete;
   QuarkContainerAccounting(QuarkContainerAccounting&& other) = delete;
   QuarkContainerAccounting& operator=(QuarkContainerAccounting&& other) = delete;
 
@@ -114,12 +116,22 @@ public:
   void QueueForUpdate(IContainerMD::id_t pid, int64_t dsize);
 
   //----------------------------------------------------------------------------
-  //! Propagate updates in the hierarchical structure. Method ran by the
-  //! asynchronous thread.
+  //! Propagate updates in the hierarchical structure
+  //!
+  //! @param assistant thread doing the propagation or null by default if the
+  //!        update should be done in the calling thread.
   //----------------------------------------------------------------------------
-  void PropagateUpdates();
+  void PropagateUpdates(ThreadAssistant* assistant = nullptr);
 
 private:
+
+  //----------------------------------------------------------------------------
+  //! Propagate updates in the hierarchical structure. Method ran by the
+  //! asynchronous thread.
+  //!
+  //! @param assistant thread doing the propagation
+  //----------------------------------------------------------------------------
+  void AssistedPropagateUpdates(ThreadAssistant& assistant) noexcept;
 
   //! Update structure containing the nodes that need an update. We try to
   //! optimise the number of updates to the backend by computing the final
@@ -135,7 +147,7 @@ private:
   std::mutex mMutexBatch; ///< Mutex protecting access to the updates batch
   uint8_t mAccumulateIndx; ///< Index of the batch accumulating updates
   uint8_t mCommitIndx; ///< Index o the batch committing updates
-  std::thread mThread; ///< Thread updating the namespace
+  AssistedThread mThread; ///< Thread updating the namespace
   std::atomic<bool> mShutdown; ///< Flag to shutdown the async thread
   uint32_t mUpdateIntervalSec; ///< Interval in seconds when updates are pushed
   IContainerMDSvc* mContainerMDSvc; ///< container MD service

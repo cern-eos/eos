@@ -35,7 +35,7 @@ QuarkContainerAccounting::QuarkContainerAccounting(IContainerMDSvc* svc,
 
   // If update interval is 0 then we disable async updates
   if (mUpdateIntervalSec) {
-    mThread = std::thread(&QuarkContainerAccounting::PropagateUpdates, this);
+    mThread.reset(&QuarkContainerAccounting::AssistedPropagateUpdates, this);
   }
 }
 
@@ -127,13 +127,23 @@ QuarkContainerAccounting::QueueForUpdate(IContainerMD::id_t id, int64_t dsize)
 }
 
 //------------------------------------------------------------------------------
-// Propagate updates in the hierarchical structure. Method ran by the
+// Propagate updates in the hierarchical structure. Method ran by an
 // asynchronous thread.
 //------------------------------------------------------------------------------
 void
-QuarkContainerAccounting::PropagateUpdates()
+QuarkContainerAccounting::AssistedPropagateUpdates(ThreadAssistant& assistant)
+noexcept
 {
-  while (true) {
+  PropagateUpdates(&assistant);
+}
+
+//------------------------------------------------------------------------------
+// Propagate updates in the hierarchical structure
+//------------------------------------------------------------------------------
+void
+QuarkContainerAccounting::PropagateUpdates(ThreadAssistant* assistant)
+{
+  while ((assistant && !assistant->terminationRequested()) || (!assistant)) {
     if (mShutdown) {
       break;
     }
@@ -165,7 +175,11 @@ QuarkContainerAccounting::PropagateUpdates()
     batch.mMap.clear();
 
     if (mUpdateIntervalSec) {
-      std::this_thread::sleep_for(std::chrono::seconds(mUpdateIntervalSec));
+      if (assistant) {
+        assistant->wait_for(std::chrono::seconds(mUpdateIntervalSec));
+      } else {
+        std::this_thread::sleep_for(std::chrono::seconds(mUpdateIntervalSec));
+      }
     } else {
       break;
     }

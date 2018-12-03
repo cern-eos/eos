@@ -26,8 +26,8 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 QuarkSyncTimeAccounting::QuarkSyncTimeAccounting(IContainerMDSvc* svc,
-                                       eos::common::RWMutex* ns_mutex,
-                                       uint32_t update_interval):
+    eos::common::RWMutex* ns_mutex,
+    uint32_t update_interval):
   mAccumulateIndx(0), mCommitIndx(1), mShutdown(false),
   mUpdateIntervalSec(update_interval), mContainerMDSvc(svc),
   gNsRwMutex(ns_mutex)
@@ -36,7 +36,7 @@ QuarkSyncTimeAccounting::QuarkSyncTimeAccounting(IContainerMDSvc* svc,
 
   // Enable updates if update interval is not 0
   if (mUpdateIntervalSec) {
-    mThread = std::thread(&QuarkSyncTimeAccounting::PropagateUpdates, this);
+    mThread.reset(&QuarkSyncTimeAccounting::AssistedPropagateUpdates, this);
   }
 }
 
@@ -89,12 +89,23 @@ QuarkSyncTimeAccounting::QueueForUpdate(IContainerMD::id_t id)
 }
 
 //------------------------------------------------------------------------------
+// Propagate updates in the hierarchical structure. Method ran by an
+// asynchronous thread.
+//------------------------------------------------------------------------------
+void
+QuarkSyncTimeAccounting::AssistedPropagateUpdates(ThreadAssistant& assistant)
+noexcept
+{
+  PropagateUpdates(&assistant);
+}
+
+//------------------------------------------------------------------------------
 // Propagate the sync time
 //------------------------------------------------------------------------------
 void
-QuarkSyncTimeAccounting::PropagateUpdates()
+QuarkSyncTimeAccounting::PropagateUpdates(ThreadAssistant* assistant)
 {
-  while (true) {
+  while ((assistant && !assistant->terminationRequested()) || (!assistant)) {
     if (mShutdown) {
       break;
     }
@@ -143,10 +154,10 @@ QuarkSyncTimeAccounting::PropagateUpdates()
             break;
           }
 
-	  // If there was a temporary ETAG this has not to be removed
-	  if (cont->hasAttribute("sys.tmp.etag")) {
-	    cont->removeAttribute("sys.tmp.etag");
-	  }
+          // If there was a temporary ETAG this has not to be removed
+          if (cont->hasAttribute("sys.tmp.etag")) {
+            cont->removeAttribute("sys.tmp.etag");
+          }
 
           if (deepness == 0u) {
             cont->getMTime(mtime);
@@ -172,7 +183,11 @@ QuarkSyncTimeAccounting::PropagateUpdates()
     mBatch[mCommitIndx].Clean();
 
     if (mUpdateIntervalSec) {
-      std::this_thread::sleep_for(std::chrono::seconds(mUpdateIntervalSec));
+      if (assistant) {
+        assistant->wait_for(std::chrono::seconds(mUpdateIntervalSec));
+      } else {
+        std::this_thread::sleep_for(std::chrono::seconds(mUpdateIntervalSec));
+      }
     } else {
       break;
     }
