@@ -185,7 +185,7 @@ public:
       DoIt(false, errorMsg);
     }
 
-    int  DoIt(bool issync, std::string& errorMsg);
+    int  DoIt(bool issync, std::string& errorMsg, const char * const ininfo = nullptr);
 
     //! @brief This method is used for communicating proto event requests
     //! @param jobPtr pointer to the job of the event

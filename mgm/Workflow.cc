@@ -213,7 +213,7 @@ Workflow::Create(eos::common::Mapping::VirtualIdentity& vid,
   if (job.IsSync(mEvent)) {
     if (WfeEnabled()) {
       job.AddAction(mAction, mEvent, t, mWorkflow, "r");
-      return job.DoIt(true, errorMessage);
+      return job.DoIt(true, errorMessage, ininfo);
     }
   } else {
     if (WfeRecordingEnabled()) {

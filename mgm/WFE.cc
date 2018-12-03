@@ -699,7 +699,7 @@ WFE::Job::Delete(std::string queue, std::string fromDay)
 
 /*----------------------------------------------------------------------------*/
 int
-WFE::Job::DoIt(bool issync, std::string& errorMsg)
+WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief execute a workflow
