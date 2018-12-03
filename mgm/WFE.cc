@@ -1922,9 +1922,6 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
           if(event == "archived") {
             eos_static_err("The archived message for file %s is asynchronous when it should be synchronous."
                            " Ignoring request", fullPath.c_str());
-          } else if(!hasCTA_ArchiveFileId) {
-            eos_static_err("File %s does not have a CTA_ArchiveFileId attribute. Ignoring request.",
-                           fullPath.c_str());
           } else if (onlyTapeCopy) {
             eos_static_info("File %s already has a tape copy. Ignoring request.",
                             fullPath.c_str());
