@@ -1816,90 +1816,11 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
           gAsyncCommunicationPool.PushTask<void>(sendRequestAsyncReduced);
           return SFS_OK;
         } else if (event == "sync::closew" || event == "closew") {
-          if (mActions[0].mWorkflow == RETRIEVE_WRITTEN_WORKFLOW_NAME) {
-            // reset the retrieves counter and error message in case the retrieved file has been written to disk
-            try {
-              eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-              fmd->setAttribute(RETRIEVES_ATTR_NAME, "0");
-              fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, "");
-              gOFS->eosView->updateFileStore(fmd.get());
-            } catch (eos::MDException& ex) {
-              eos_static_err("Could not reset retrieves counter and error attribute for file %s.",
-                             fullPath.c_str());
-            }
-
-            MoveWithResults(SFS_OK);
-            return SFS_OK;
-          } else {
-            collectAttributes();
-            std::string checksum;
-            std::string ctaArchiveFileId = "none";
-            {
-              eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-              notification->mutable_file()->mutable_owner()->set_username(GetUserName(
-                    fmd->getCUid()));
-              notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(
-                    fmd->getCGid()));
-              notification->mutable_file()->set_size(fmd->getSize());
-              notification->mutable_file()->mutable_cks()->set_type(
-                eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()));
-              eos::appendChecksumOnStringAsHex(fmd.get(), checksum);
-
-              if (fmd->hasAttribute("CTA_ArchiveFileId")) {
-                ctaArchiveFileId = fmd->getAttribute("CTA_ArchiveFileId");
-              }
-            }
-            notification->mutable_file()->mutable_cks()->set_value(checksum);
-            notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
-            notification->mutable_wf()->mutable_instance()->set_name(
-              gOFS->MgmOfsInstanceName.c_str());
-            notification->mutable_file()->set_lpath(fullPath);
-            notification->mutable_file()->set_fid(mFid);
-            auto fxidString = StringConversion::FastUnsignedToAsciiHex(mFid);
-            std::ostringstream srcStream;
-            srcStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:"
-                      << fxidString;
-            notification->mutable_wf()->mutable_instance()->set_url(srcStream.str());
-            std::ostringstream reportStream;
-            reportStream << "eosQuery://" << gOFS->HostName
-                         << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
-                         << "&mgm.logid=cta&mgm.event=sync::archived&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0"
-                         "&cta_archive_file_id=" << ctaArchiveFileId;
-            notification->mutable_transport()->set_report_url(reportStream.str());
-            std::ostringstream errorReportStream;
-            errorReportStream << "eosQuery://" << gOFS->HostName
-                              << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
-                              << "&mgm.logid=cta&mgm.event=" << ARCHIVE_FAILED_WORKFLOW_NAME
-                              << "&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0"
-                              "&cta_archive_file_id=" << ctaArchiveFileId
-                              << "&mgm.errmsg=";
-            notification->mutable_transport()->set_error_report_url(
-              errorReportStream.str());
-            auto sendResult = SendProtoWFRequest(this, fullPath, request, errorMsg,
-                                                 !IsSync(event));
-
-            if (sendResult != 0) {
-              // Create human readable timestamp with the error message
-              auto time = std::chrono::system_clock::to_time_t(
-                            std::chrono::system_clock::now());
-              std::string ctime = std::ctime(&time);
-
-              if (errorMsg.empty()) {
-                errorMsg = "Closew handshake failed";
-              }
-
-              std::string errorMsgAttr = ctime.substr(0, ctime.length() - 1) + " -> " +
-                                         errorMsg;
-              eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-
-              try {
-                fmd->setAttribute(ARCHIVE_ERROR_ATTR_NAME, errorMsgAttr);
-                gOFS->eosView->updateFileStore(fmd.get());
-              } catch (eos::MDException& ex) {}
-            }
-
-            return sendResult;
-          }
+          eos_static_err("Received a %s event for file %s and the method is proto."
+                         " The MGM does not handle closew or sync::closew events when the method is proto."
+                         " Ignoring request", event.c_str(), fullPath.c_str());
+          MoveWithResults(SFS_ERROR);
+          return SFS_ERROR;
         } else if (event == "sync::archived" || event == "archived") {
           std::string xattrCtaArchiveFileId;
           bool hasXattrCtaArchiveFileId = false;
