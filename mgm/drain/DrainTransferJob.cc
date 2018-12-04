@@ -24,6 +24,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
 #include "mgm/GeoTreeEngine.hh"
+#include "mgm/Stat.hh"
 #include "authz/XrdCapability.hh"
 #include "common/SecEntity.hh"
 #include "common/LayoutId.hh"
@@ -51,20 +52,23 @@ void DrainTransferJob::ReportError(const std::string& error)
 void
 DrainTransferJob::DoIt()
 {
+  using eos::common::LayoutId;
+  gOFS->MgmStats.Add("DrainCentralStarted", 0, 0, 1);
   eos_debug("running drain job fsid_src=%i, fsid_dst=%i, fid=%llu",
             mFsIdSource, mFsIdTarget, mFileId);
-  using eos::common::LayoutId;
   mStatus = Status::Running;
   FileDrainInfo fdrain;
 
   try {
     fdrain = GetFileInfo();
   } catch (const eos::MDException& e) {
+    gOFS->MgmStats.Add("DrainCentralFailed", 0, 0, 1);
     ReportError(std::string(e.what()));
     return;
   }
 
   if (!SelectDstFs(fdrain)) {
+    gOFS->MgmStats.Add("DrainCentralFailed", 0, 0, 1);
     ReportError("msg=\"failed to select destination file system\"");
     return;
   }
@@ -122,7 +126,10 @@ DrainTransferJob::DoIt()
   }
 
   if (mStatus != Status::OK) {
+    gOFS->MgmStats.Add("DrainCentralFailed", 0, 0, 1);
     mStatus = Status::Failed;
+  } else {
+    gOFS->MgmStats.Add("DrainCentralSuccessful", 0, 0, 1);
   }
 
   return;

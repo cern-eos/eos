@@ -2083,6 +2083,9 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("Rename", 0, 0, 0);
   MgmStats.Add("RmDir", 0, 0, 0);
   MgmStats.Add("Rm", 0, 0, 0);
+  MgmStats.Add("DrainCentralStarted", 0, 0, 0);
+  MgmStats.Add("DrainCentralSuccessful", 0, 0, 0);
+  MgmStats.Add("DrainCentralFailed", 0, 0, 0);
   MgmStats.Add("Schedule2Drain", 0, 0, 0);
   MgmStats.Add("Schedule2Balance", 0, 0, 0);
   MgmStats.Add("SchedulingFailedBalance", 0, 0, 0);
