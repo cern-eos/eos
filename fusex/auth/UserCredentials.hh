@@ -25,6 +25,7 @@
 #define EOS_FUSEX_USER_CREDENTIALS_HH
 
 #include "JailIdentifier.hh"
+#include "Utils.hh"
 #include <sstream>
 #include <sys/types.h>
 
@@ -69,6 +70,8 @@ inline std::string credentialTypeAsString(CredentialType type) {
       return "invadid";
     }
   }
+
+  THROW("should never reach here");
 }
 
 //------------------------------------------------------------------------------
