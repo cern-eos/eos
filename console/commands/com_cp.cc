@@ -130,6 +130,7 @@ int run_eos_command(const char* cmdline, std::vector<XrdOucString>& result);
 int run_command(const char* cmdline, std::vector<XrdOucString>& result);
 const char* absolute_path(const char* path);
 bool is_dir(const char* path, Protocol protocol, struct stat* buf = NULL);
+XrdOucString process_symlink(XrdOucString path);
 const char* setup_s3_environment(XrdOucString path, XrdOucString opaque);
 const char* eos_roles_opaque();
 int do_stat(const char* path, Protocol protocol, struct stat& buf);
@@ -362,7 +363,7 @@ com_cp(char* argin)
         cmdtext = "ls -l";
         cmdtext += (protocol == Protocol::EOS) ? "F " : "p ";
         cmdtext += basepath.c_str();
-        cmdtext += " | awk 'NF == 9 {print $9}' | egrep \"";
+        cmdtext += " | awk '{out=$9; for (i=10; i<=NF; i++) {out=out\" \"$i}; print out}' | egrep \"";
         cmdtext += match.c_str();
         cmdtext += "\"";
       } else if (source.endswith("/")) {
@@ -425,6 +426,11 @@ com_cp(char* argin)
     }
 
     for (auto& file: files) {
+      // Check if path expansion discovered a symlink
+      if (file.find(" -> ") != STR_NPOS) {
+        file = process_symlink(file.c_str());
+      }
+
       if (wildcard) {
         file.insert(basepath.c_str(), 0);
         source_find_list.emplace_back(file.c_str());
@@ -1306,6 +1312,23 @@ const char* absolute_path(const char* path)
 
   spath += trailing_slash.c_str();
   return strdup(spath.c_str());
+}
+
+/**
+ * Given a symlink path of the following format 'link -> target',
+ * will return the name of the 'link'.
+ * @param path the path to check
+ * @return path the processed symlink name
+ */
+XrdOucString process_symlink(XrdOucString path)
+{
+  int pos = path.find(" -> ");
+
+  if (pos != STR_NPOS) {
+    path.erase(pos);
+  }
+
+  return path;
 }
 
 /**
