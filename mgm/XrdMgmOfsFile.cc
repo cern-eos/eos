@@ -2397,7 +2397,7 @@ XrdMgmOfsFile::open(const char* inpath,
                                     ininfo, errorMsg);
 
     if (ret_wfe < 0 && errno == ENOKEY) {
-      eos_info("msg=\"no workflow defined for sync::create\"");
+      eos_debug("msg=\"no workflow defined for sync::create\"");
     } else {
       eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
 
