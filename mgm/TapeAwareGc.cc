@@ -202,7 +202,7 @@ TapeAwareGc::getSpaceConfigMinNbFreeBytes(const std::string &name) noexcept
 {
   try {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    const auto spaceItor = FsView::gFsView.mSpaceView.find("default");
+    const auto spaceItor = FsView::gFsView.mSpaceView.find(name);
 
     if (FsView::gFsView.mSpaceView.end() == spaceItor) return 0;
 
