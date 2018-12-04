@@ -163,6 +163,18 @@ Egroup::Status Egroup::isMemberUncached(const std::string &username,
 }
 
 //------------------------------------------------------------------------------
+// Store entry into the cache
+//------------------------------------------------------------------------------
+void Egroup::storeIntoCache(const std::string& username,
+  const std::string& egroupname, bool isMember,
+  std::chrono::steady_clock::time_point timestamp) {
+
+  XrdSysMutexHelper helper(Mutex);
+  Map[egroupname][username] = isMember;
+  LifeTime[egroupname][username] = timestamp;
+}
+
+//------------------------------------------------------------------------------
 // Fetch cached value. Returns false if there's no such cached value.
 //------------------------------------------------------------------------------
 bool Egroup::fetchCached(const std::string& username,
@@ -239,10 +251,7 @@ Egroup::Member(const std::string& username, const std::string& egroupname)
                       username.c_str(), egroupname.c_str(),
                       now + kCacheDuration);
 
-    Mutex.Lock();
-    Map[egroupname][username] = isMember;
-    LifeTime[egroupname][username] = now + kCacheDuration;
-    Mutex.UnLock();
+    storeIntoCache(username, egroupname, isMember, now+kCacheDuration);
     return isMember;
   } else {
     // just ask for asynchronous refresh
@@ -251,23 +260,18 @@ Egroup::Member(const std::string& username, const std::string& egroupname)
   }
 }
 
-/*----------------------------------------------------------------------------*/
-void
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Asynchronous refresh loop
- *
- * The looping thread takes Egroup requests and run's LDAP queries pushing
- * results into the Egroup membership map and updates the lifetime of the
- * resolved entry.
- */
-/*----------------------------------------------------------------------------*/
-Egroup::Refresh(ThreadAssistant& assistant) noexcept
+//------------------------------------------------------------------------------
+// Asynchronous refresh loop.
+//
+// The looping thread takes Egroup requests and run's LDAP queries pushing
+// results into the Egroup membership map and updates the lifetime of the
+// resolved entry.
+//------------------------------------------------------------------------------
+void Egroup::Refresh(ThreadAssistant& assistant) noexcept
 {
   eos_static_info("msg=\"async egroup fetch thread started\"");
-  // infinite loop waiting to run refresh requests
-  auto iterator = PendingQueue.begin();
 
+  auto iterator = PendingQueue.begin();
   while (!assistant.terminationRequested()) {
     std::pair<std::string, std::string>* resolve = iterator.getItemBlockOrNull();
 
@@ -331,10 +335,7 @@ Egroup::DoRefresh(const std::string& egroupname, const std::string& username)
                       username.c_str(), egroupname.c_str(),
                       now + kCacheDuration);
 
-    Mutex.Lock();
-    Map[egroupname][username] = isMember;
-    LifeTime[egroupname][username] = now + kCacheDuration;
-    Mutex.UnLock();
+    storeIntoCache(username, egroupname, isMember, now+kCacheDuration);
   } else {
     Mutex.Lock();
 

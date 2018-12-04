@@ -71,6 +71,7 @@ public:
   struct CachedEntry {
     bool isMember;
     std::chrono::steady_clock::time_point timestamp;
+    // timestamp at which this result was retrieved
   };
 
   //----------------------------------------------------------------------------
@@ -123,6 +124,13 @@ public:
 
 private:
   const std::chrono::seconds kCacheDuration { 1800 };
+
+  //----------------------------------------------------------------------------
+  // Store entry into the cache
+  //----------------------------------------------------------------------------
+  void storeIntoCache(const std::string& username,
+    const std::string& egroupname, bool isMember,
+    std::chrono::steady_clock::time_point timestamp);
 
   /// async refresh thread
   AssistedThread mThread;
