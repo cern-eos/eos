@@ -23,13 +23,24 @@
 
 #include "mgm/Egroup.hh"
 #include "common/Logging.hh"
+#include "common/DBG.hh"
 #include <ldap.h>
+#include <memory>
 
+//------------------------------------------------------------------------------
+// Delete the LDAP object
+//------------------------------------------------------------------------------
+static void ldap_uninitialize(LDAP *ld) {
+  if(ld != nullptr) {
+    ldap_unbind_ext(ld, NULL, NULL);
+  }
+}
 
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Constructor - launch asynchronous refresh thread
+// Constructor - launch asynchronous refresh thread
+//------------------------------------------------------------------------------
 Egroup::Egroup()
 {
   PendingQueue.setBlockingMode(true);
@@ -50,7 +61,105 @@ Egroup::~Egroup()
 //------------------------------------------------------------------------------
 Egroup::Status Egroup::isMemberUncached(const std::string &username,
   const std::string &egroupname) {
-  // TODO
+
+  // run the LDAP query
+  LDAP* ld = nullptr;
+
+  //----------------------------------------------------------------------------
+  // Initialize the LDAP context.
+  //----------------------------------------------------------------------------
+  ldap_initialize(&ld, "ldap://xldap");
+  std::unique_ptr<LDAP, decltype(ldap_uninitialize)*> ldOwnership(
+    ld, ldap_uninitialize);
+
+  if(ld == nullptr) {
+    eos_static_crit("Could not initialize ldap context");
+    return Status::kError;
+  }
+
+  int version = LDAP_VERSION3;
+  if(ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &version) !=
+     LDAP_OPT_SUCCESS) {
+    eos_static_crit("Failure when calling ldap_set_option");
+    return Status::kError;
+  }
+
+  //----------------------------------------------------------------------------
+  // These hardcoded values are CERN specific... we should pass them through
+  // the configuration, or something.
+  //----------------------------------------------------------------------------
+  std::string sbase = "CN=";
+  sbase += username;
+  sbase += ",OU=Users,Ou=Organic Units,DC=cern,DC=ch";
+
+  // the LDAP attribute (recursive search)
+  std::string attr = "cn";
+  // the LDAP filter
+  std::string filter;
+  filter = "(memberOf:1.2.840.113556.1.4.1941:=CN=";
+  filter += egroupname;
+  filter += ",OU=e-groups,OU=Workgroups,DC=cern,DC=ch)";
+
+  char* attrs[2];
+  attrs[0] = (char*) attr.c_str();
+  attrs[1] = NULL;
+
+  LDAPMessage* res = nullptr;
+  struct timeval timeout;
+  timeout.tv_sec = 10;
+  timeout.tv_usec = 0;
+
+  std::string match = username;
+  eos_static_debug("base=%s attr=%s filter=%s match=%s\n", sbase.c_str(),
+                   attr.c_str(), filter.c_str(), match.c_str());
+
+  int rc = ldap_search_ext_s(ld, sbase.c_str(), LDAP_SCOPE_SUBTREE,
+                                 filter.c_str(),
+                                 attrs, 0, NULL, NULL,
+                                 &timeout, LDAP_NO_LIMIT, &res);
+
+  std::unique_ptr<LDAPMessage, decltype(ldap_msgfree)*> resOwnership(res, ldap_msgfree);
+
+  if(res == nullptr || rc != LDAP_SUCCESS) {
+    eos_static_warning("Having trouble connecting to ldap server, user=%s, e-group=%s",
+      username.c_str(), egroupname.c_str());
+    return Status::kError;
+  }
+
+  if(ldap_count_entries(ld, res) == 0) {
+    return Status::kNotMember;
+  }
+
+  //----------------------------------------------------------------------------
+  // We have a response from the server, check if we're member of given egroup
+  //----------------------------------------------------------------------------
+  bool isMember = false;
+  for(LDAPMessage *e = ldap_first_entry(ld, res); e != nullptr;
+    e = ldap_next_entry(ld, e)) {
+
+    struct berval** v = ldap_get_values_len(ld, e, attr.c_str());
+    if (v != nullptr) {
+      int n = ldap_count_values_len(v);
+      int j;
+
+      for (j = 0; j < n; j++) {
+        std::string result = v[ j ]->bv_val;
+        eos_static_info("result=%d %s\n", n, result.c_str());
+
+        if ((result.find(match)) != std::string::npos) {
+          isMember = true;
+        }
+      }
+
+      ldap_value_free_len(v);
+    }
+  }
+
+  if(isMember) {
+    return Status::kMember;
+  }
+
+  return Status::kNotMember;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -94,82 +203,7 @@ Egroup::Member(const std::string& username, const std::string& egroupname)
   // run the command not in the locked section !!!
 
   if (!iscached) {
-    eos_static_info("msg=\"lookup\" user=\"%s\" e-group=\"%s\"", username.c_str(),
-                    egroupname.c_str());
-    // run the LDAP query
-    LDAP* ld = NULL;
-    int version = LDAP_VERSION3;
-    // currently hard coded to server name 'lxadp'
-    ldap_initialize(&ld, "ldap://xldap");
-
-    if (ld == NULL) {
-      fprintf(stderr, "error: failed to initialize LDAP\n");
-    } else {
-      (void) ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &version);
-      // the LDAP base
-      std::string sbase = "CN=";
-      sbase += username;
-      sbase += ",OU=Users,Ou=Organic Units,DC=cern,DC=ch";
-      // the LDAP attribute (recursive search)
-      std::string attr = "cn";
-      // the LDAP filter
-      std::string filter;
-      filter = "(memberOf:1.2.840.113556.1.4.1941:=CN=";
-      filter += egroupname;
-      filter += ",OU=e-groups,OU=Workgroups,DC=cern,DC=ch)";
-      char* attrs[2];
-      attrs[0] = (char*) attr.c_str();
-      attrs[1] = NULL;
-      LDAPMessage* res = NULL;
-      struct timeval timeout;
-      timeout.tv_sec = 10;
-      timeout.tv_usec = 0;
-      std::string match = username;
-      eos_static_debug("base=%s attr=%s filter=%s match=%s\n", sbase.c_str(),
-                       attr.c_str(), filter.c_str(), match.c_str());
-      int rc = ldap_search_ext_s(ld, sbase.c_str(), LDAP_SCOPE_SUBTREE,
-                                 filter.c_str(),
-                                 attrs, 0, NULL, NULL,
-                                 &timeout, LDAP_NO_LIMIT, &res);
-
-      if ((rc == LDAP_SUCCESS) && (ldap_count_entries(ld, res) != 0)) {
-        LDAPMessage* e = NULL;
-
-        for (e = ldap_first_entry(ld, res); e != NULL; e = ldap_next_entry(ld, e)) {
-          struct berval** v = ldap_get_values_len(ld, e, attr.c_str());
-
-          if (v != NULL) {
-            int n = ldap_count_values_len(v);
-            int j;
-
-            for (j = 0; j < n; j++) {
-              std::string result = v[ j ]->bv_val;
-              eos_static_info("result=%d %s\n", n, result.c_str());
-
-              if ((result.find(match)) != std::string::npos) {
-                isMember = true;
-              }
-            }
-
-            ldap_value_free_len(v);
-          }
-        }
-      } else {
-        if (rc != LDAP_SUCCESS) {
-          eos_static_warning("member=false user=\"%s\" e-group=\"%s\" "
-                             "cachetime=<stale-information> "
-                             "msg=\"ldap query failed or timed out\"",
-                             username.c_str(),
-                             egroupname.c_str());
-        }
-      }
-
-      ldap_msgfree(res);
-
-      if (ld != NULL) {
-        ldap_unbind_ext(ld, NULL, NULL);
-      }
-    }
+    isMember = (isMemberUncached(username, egroupname) == Status::kMember);
 
     if (isMember)
       eos_static_info("member=true user=\"%s\" e-group=\"%s\" cachetime=%lu",
@@ -249,7 +283,6 @@ Egroup::DoRefresh(const std::string& egroupname, const std::string& username)
 {
   Mutex.Lock();
   time_t now = time(NULL);
-  bool isMember = false;
 
   if (Map.count(egroupname)) {
     if (Map[egroupname].count(username)) {
@@ -266,72 +299,10 @@ Egroup::DoRefresh(const std::string& egroupname, const std::string& username)
   Mutex.UnLock();
   eos_static_info("msg=\"async-lookup\" user=\"%s\" e-group=\"%s\"",
                   username.c_str(), egroupname.c_str());
-  // run the LDAP query
-  LDAP* ld = NULL;
-  int version = LDAP_VERSION3;
-  // currently hard coded to server name 'xldap'
-  ldap_initialize(&ld, "ldap://xldap");
-  bool keepCached = true;
 
-  if (ld == NULL) {
-    fprintf(stderr, "error: failed to initialize LDAP\n");
-  } else {
-    (void) ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &version);
-    // the LDAP base
-    std::string sbase = "CN=";
-    sbase += username;
-    sbase += ",OU=Users,Ou=Organic Units,DC=cern,DC=ch";
-    // the LDAP attribute (recursive search)
-    std::string attr = "cn";
-    // the LDAP filter
-    std::string filter;
-    filter = "(memberOf:1.2.840.113556.1.4.1941:=CN=";
-    filter += egroupname;
-    filter += ",OU=e-groups,OU=Workgroups,DC=cern,DC=ch)";
-    char* attrs[2];
-    attrs[0] = (char*) attr.c_str();
-    attrs[1] = NULL;
-    LDAPMessage* res = NULL;
-    struct timeval timeout;
-    timeout.tv_sec = 10;
-    timeout.tv_usec = 0;
-    std::string match = username;
-    eos_static_debug("base=%s attr=%s filter=%s match=%s\n", sbase.c_str(),
-                     attr.c_str(), filter.c_str(), match.c_str());
-    int rc = ldap_search_ext_s(ld, sbase.c_str(), LDAP_SCOPE_SUBTREE,
-                               filter.c_str(), attrs, 0, NULL, NULL,
-                               &timeout, LDAP_NO_LIMIT, &res);
-
-    if ((rc == LDAP_SUCCESS) && (ldap_count_entries(ld, res) != 0)) {
-      LDAPMessage* e = NULL;
-      keepCached = false;
-
-      for (e = ldap_first_entry(ld, res); e != NULL; e = ldap_next_entry(ld, e)) {
-        struct berval** v = ldap_get_values_len(ld, e, attr.c_str());
-
-        if (v != NULL) {
-          int n = ldap_count_values_len(v);
-          int j;
-
-          for (j = 0; j < n; j++) {
-            std::string result = v[ j ]->bv_val;
-
-            if ((result.find(match)) != std::string::npos) {
-              isMember = true;
-            }
-          }
-
-          ldap_value_free_len(v);
-        }
-      }
-    }
-
-    ldap_msgfree(res);
-
-    if (ld != NULL) {
-      ldap_unbind_ext(ld, NULL, NULL);
-    }
-  }
+  Status status = isMemberUncached(username, egroupname);
+  bool keepCached = (status != Status::kError);
+  bool isMember = (status == Status::kMember);
 
   if (!keepCached) {
     if (isMember)
