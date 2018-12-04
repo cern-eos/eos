@@ -47,13 +47,13 @@ TEST(Timing, LsFormat)
 
 TEST(SteadyClock, FakeTests) {
   eos::common::SteadyClock sc(true);
-  ASSERT_EQ(sc.now(), std::chrono::steady_clock::time_point());
+  ASSERT_EQ(sc.getTime(), std::chrono::steady_clock::time_point());
 
   std::chrono::steady_clock::time_point startOfTime;
   startOfTime += std::chrono::seconds(5);
 
   sc.advance(std::chrono::seconds(5));
-  ASSERT_EQ(sc.now(), startOfTime);
+  ASSERT_EQ(sc.getTime(), startOfTime);
 }
 
 EOSCOMMONTESTING_END

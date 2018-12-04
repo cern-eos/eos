@@ -39,9 +39,20 @@ public:
   SteadyClock(bool fake_) : fake(fake_) {}
 
   //----------------------------------------------------------------------------
+  //! Static now function - it's also possible to pass a nullptr
+  //----------------------------------------------------------------------------
+  static std::chrono::steady_clock::time_point now(SteadyClock *clock) {
+    if(clock == nullptr) {
+      return std::chrono::steady_clock::now();
+    }
+
+    return clock->getTime();
+  }
+
+  //----------------------------------------------------------------------------
   //! Get current time.
   //----------------------------------------------------------------------------
-  std::chrono::steady_clock::time_point now() const {
+  std::chrono::steady_clock::time_point getTime() const {
     if(fake) {
       std::lock_guard<std::mutex> lock(mtx);
       return fakeTimepoint;

@@ -26,6 +26,7 @@
 
 #include "mgm/Namespace.hh"
 #include "common/AssistedThread.hh"
+#include "common/SteadyClock.hh"
 #include <qclient/WaitableQueue.hh>
 #include "XrdSys/XrdSysPthread.hh"
 #include <sys/types.h>
@@ -77,7 +78,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  Egroup();
+  Egroup(eos::common::SteadyClock *clock = nullptr);
 
   //----------------------------------------------------------------------------
   //! Destructor - join asynchronous refresh thread
@@ -124,9 +125,10 @@ public:
 
 private:
   const std::chrono::seconds kCacheDuration { 1800 };
+  eos::common::SteadyClock *clock = nullptr;
 
   //----------------------------------------------------------------------------
-  // Store entry into the cache
+  //! Store entry into the cache
   //----------------------------------------------------------------------------
   void storeIntoCache(const std::string& username,
     const std::string& egroupname, bool isMember,
@@ -136,7 +138,7 @@ private:
   AssistedThread mThread;
 
   //----------------------------------------------------------------------------
-  // Synchronous refresh function doing an LDAP query for a given Egroup/user
+  //! Synchronous refresh function doing an LDAP query for a given Egroup/user
   //----------------------------------------------------------------------------
   void DoRefresh(const std::string& egroupname, const std::string& username);
 

@@ -41,7 +41,7 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor - launch asynchronous refresh thread
 //------------------------------------------------------------------------------
-Egroup::Egroup()
+Egroup::Egroup(common::SteadyClock *clock_) : clock(clock_)
 {
   PendingQueue.setBlockingMode(true);
   mThread.reset(&Egroup::Refresh, this);
@@ -212,7 +212,7 @@ Egroup::Member(const std::string& username, const std::string& egroupname)
 {
   Mutex.Lock();
 
-  std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+  std::chrono::steady_clock::time_point now = common::SteadyClock::now(clock);
   bool iscached = false;
   bool member = false;
   bool isMember = false;
@@ -303,7 +303,7 @@ void
 Egroup::DoRefresh(const std::string& egroupname, const std::string& username)
 {
   Mutex.Lock();
-  std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+  std::chrono::steady_clock::time_point now = common::SteadyClock::now(clock);
 
   if (Map.count(egroupname)) {
     if (Map[egroupname].count(username)) {
@@ -381,7 +381,7 @@ Egroup::DumpMember(const std::string& username, const std::string& egroupname)
   XrdSysMutexHelper lLock(Mutex);
   bool member = false;
   std::chrono::seconds lifetime;
-  std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+  std::chrono::steady_clock::time_point now = common::SteadyClock::now(clock);
 
   if (Map.count(egroupname)) {
     if (Map[egroupname].count(username)) {
@@ -421,7 +421,7 @@ Egroup::DumpMembers()
 /*----------------------------------------------------------------------------*/
 {
   XrdSysMutexHelper lLock(Mutex);
-  std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+  std::chrono::steady_clock::time_point now = common::SteadyClock::now(clock);
   std::string rs;
   std::map < std::string, std::map <std::string, bool > >::iterator it;
 
