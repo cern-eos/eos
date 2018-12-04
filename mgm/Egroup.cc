@@ -23,6 +23,7 @@
 
 #include "mgm/Egroup.hh"
 #include "common/Logging.hh"
+#include "common/StringUtils.hh"
 #include "common/DBG.hh"
 #include <ldap.h>
 #include <memory>
@@ -197,6 +198,18 @@ bool Egroup::fetchCached(const std::string& username,
   return true;
 }
 
+//------------------------------------------------------------------------------
+// Check if cache entry is stale
+//------------------------------------------------------------------------------
+bool Egroup::isStale(const CachedEntry &entry) const {
+  std::chrono::steady_clock::time_point now = common::SteadyClock::now(clock);
+  if(entry.timestamp + kCacheDuration < now) {
+    return true;
+  }
+
+  return false;
+}
+
 /*----------------------------------------------------------------------------*/
 bool
 Egroup::Member(const std::string& username, const std::string& egroupname)
@@ -210,54 +223,37 @@ Egroup::Member(const std::string& username, const std::string& egroupname)
  */
 /*----------------------------------------------------------------------------*/
 {
-  Mutex.Lock();
-
-  std::chrono::steady_clock::time_point now = common::SteadyClock::now(clock);
-  bool iscached = false;
-  bool member = false;
-  bool isMember = false;
-
-  if (Map.count(egroupname)) {
-    if (Map[egroupname].count(username)) {
-      member = Map[egroupname][username];
-      std::chrono::seconds age = std::chrono::duration_cast<std::chrono::seconds>(
-        now - LifeTime[egroupname][username]);
-
-      // we know that user, it has a cached entry which is not too old
-      if (LifeTime[egroupname].count(username) &&
-          (LifeTime[egroupname][username] > now) && (age < kCacheDuration)) {
-        // that is ok, we can return member or not member from the cache
-        Mutex.UnLock();
-        return member;
-      } else {
-        // we have already an entry, we just schedule an asynchronous update
-        iscached = true;
-      }
+  CachedEntry entry;
+  if(fetchCached(username, egroupname, entry)) {
+    //--------------------------------------------------------------------------
+    // Cache hit - do we need to schedule an asynchronous refresh?
+    //--------------------------------------------------------------------------
+    if(isStale(entry)) {
+      scheduleRefresh(username, egroupname);
     }
+
+    return entry.isMember;
   }
 
-  Mutex.UnLock();
-  // run the command not in the locked section !!!
+  //----------------------------------------------------------------------------
+  // Cache miss, need to talk to LDAP server
+  //----------------------------------------------------------------------------
+  Status status = isMemberUncached(username, egroupname);
+  bool isMember = (status == Status::kMember);
+  std::chrono::steady_clock::time_point now = common::SteadyClock::now(clock);
 
-  if (!iscached) {
-    isMember = (isMemberUncached(username, egroupname) == Status::kMember);
+  uint64_t expiration = common::SteadyClock::secondsSinceEpoch(
+    now+kCacheDuration).count();
 
-    if (isMember)
-      eos_static_info("member=true user=\"%s\" e-group=\"%s\" cachetime=%lu",
-                      username.c_str(), egroupname.c_str(),
-                      now + kCacheDuration);
-    else
-      eos_static_info("member=false user=\"%s\" e-group=\"%s\" cachetime=%lu",
-                      username.c_str(), egroupname.c_str(),
-                      now + kCacheDuration);
+  eos_static_info("member=%s user=\"%s\" e-group=\"%s\" expiration=%lu",
+    common::boolToString(isMember).c_str(), username.c_str(),
+    egroupname.c_str(), expiration);
 
-    storeIntoCache(username, egroupname, isMember, now+kCacheDuration);
-    return isMember;
-  } else {
-    // just ask for asynchronous refresh
-    AsyncRefresh(egroupname, username);
-    return member;
-  }
+  //----------------------------------------------------------------------------
+  // Store into the cache
+  //----------------------------------------------------------------------------
+  storeIntoCache(username, egroupname, isMember, now);
+  return isMember;
 }
 
 //------------------------------------------------------------------------------
@@ -280,7 +276,7 @@ void Egroup::Refresh(ThreadAssistant& assistant) noexcept
     }
 
     if (!resolve->first.empty()) {
-      DoRefresh(resolve->first, resolve->second);
+      DoRefresh(resolve->second, resolve->first);
     }
 
     iterator.next();
@@ -290,8 +286,8 @@ void Egroup::Refresh(ThreadAssistant& assistant) noexcept
 //------------------------------------------------------------------------------
 // Pushes an egroup/user resolution request into the asynchronous queue
 //------------------------------------------------------------------------------
-void Egroup::AsyncRefresh(const std::string& egroupname,
-  const std::string& username)
+void Egroup::scheduleRefresh(const std::string& username,
+  const std::string& egroupname)
 {
   PendingQueue.emplace_back(std::make_pair(egroupname, username));
 }
@@ -299,68 +295,31 @@ void Egroup::AsyncRefresh(const std::string& egroupname,
 //------------------------------------------------------------------------------
 // Run a synchronous LDAP query for Egroup/username and update the cache
 //------------------------------------------------------------------------------
-void
-Egroup::DoRefresh(const std::string& egroupname, const std::string& username)
+void Egroup::DoRefresh(const std::string& username,
+  const std::string& egroupname)
 {
-  Mutex.Lock();
-  std::chrono::steady_clock::time_point now = common::SteadyClock::now(clock);
-
-  if (Map.count(egroupname)) {
-    if (Map[egroupname].count(username)) {
-      // we know that user
-      if (LifeTime[egroupname].count(username) &&
-          (LifeTime[egroupname][username] > now)) {
-        // we don't update, we have already a fresh value
-        Mutex.UnLock();
-        return;
-      }
-    }
-  }
-
-  Mutex.UnLock();
   eos_static_info("msg=\"async-lookup\" user=\"%s\" e-group=\"%s\"",
                   username.c_str(), egroupname.c_str());
 
   Status status = isMemberUncached(username, egroupname);
-  bool keepCached = (status != Status::kError);
-  bool isMember = (status == Status::kMember);
 
-  if (!keepCached) {
-    if (isMember)
-      eos_static_info("member=true user=\"%s\" e-group=\"%s\" cachetime=%lu",
-                      username.c_str(), egroupname.c_str(),
-                      now + kCacheDuration);
-    else
-      eos_static_info("member=false user=\"%s\" e-group=\"%s\" cachetime=%lu",
-                      username.c_str(), egroupname.c_str(),
-                      now + kCacheDuration);
-
-    storeIntoCache(username, egroupname, isMember, now+kCacheDuration);
-  } else {
-    Mutex.Lock();
-
-    if (Map.count(egroupname) && Map[egroupname].count(username)) {
-      isMember = Map[egroupname][username];
-    } else {
-      isMember = false;
-    }
-
-    Mutex.UnLock();
-
-    if (isMember) {
-      eos_static_warning("member=true user=\"%s\" e-group=\"%s\" "
-                         "cachetime=<stale-information>",
-                         username.c_str(),
-                         egroupname.c_str());
-    } else {
-      eos_static_warning("member=false user=\"%s\" e-group=\"%s\" "
-                         "cachetime=<stale-information>",
-                         username.c_str(),
-                         egroupname.c_str());
-    }
+  if(status == Status::kError) {
+    eos_static_err("Could not do asynchronous refresh for egroup membership for username=%s, e-group=%s",
+      username.c_str(), egroupname.c_str());
+    return;
   }
 
-  return;
+  bool isMember = (status == Status::kMember);
+  std::chrono::steady_clock::time_point now = common::SteadyClock::now(clock);
+  uint64_t expiration = common::SteadyClock::secondsSinceEpoch(
+    now+kCacheDuration).count();
+
+
+  eos_static_info("member=%s user=\"%s\" e-group=\"%s\" expiration=%lu",
+    common::boolToString(isMember).c_str(), username.c_str(),
+    egroupname.c_str(), expiration);
+
+  storeIntoCache(username, egroupname, isMember, now);
 }
 
 /*----------------------------------------------------------------------------*/

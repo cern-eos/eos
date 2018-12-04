@@ -70,4 +70,14 @@ static inline void trim(std::string& s)
   rtrim(s);
 }
 
+//------------------------------------------------------------------------------
+//! Bool to string
+//------------------------------------------------------------------------------
+static inline std::string boolToString(bool b) {
+  if(b) {
+    return "true";
+  }
+  return "false";
+}
+
 EOSCOMMONNAMESPACE_END

@@ -71,6 +71,16 @@ public:
     fakeTimepoint += duration;
   }
 
+  //----------------------------------------------------------------------------
+  //! Utility function to convert a time_point to seconds since epoch
+  //----------------------------------------------------------------------------
+  static std::chrono::seconds secondsSinceEpoch(
+    std::chrono::steady_clock::time_point point) {
+
+    return std::chrono::duration_cast<std::chrono::seconds>(
+      point.time_since_epoch());
+  }
+
 private:
   bool fake;
   mutable std::mutex mtx;

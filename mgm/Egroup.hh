@@ -109,7 +109,8 @@ public:
   //----------------------------------------------------------------------------
   // static function to schedule an asynchronous refresh for egroup/username
   //----------------------------------------------------------------------------
-  void AsyncRefresh(const std::string& egroupname, const std::string& username);
+  void scheduleRefresh(const std::string& username,
+    const std::string& egroupname);
 
   //----------------------------------------------------------------------------
   // asynchronous thread loop doing egroup/username fetching
@@ -138,9 +139,14 @@ private:
   AssistedThread mThread;
 
   //----------------------------------------------------------------------------
+  //! Check if cache entry is stale
+  //----------------------------------------------------------------------------
+  bool isStale(const CachedEntry &entry) const;
+
+  //----------------------------------------------------------------------------
   //! Synchronous refresh function doing an LDAP query for a given Egroup/user
   //----------------------------------------------------------------------------
-  void DoRefresh(const std::string& egroupname, const std::string& username);
+  void DoRefresh(const std::string& username, const std::string& egroupname);
 
   /// mutex protecting static Egroup objects
   XrdSysMutex Mutex;
