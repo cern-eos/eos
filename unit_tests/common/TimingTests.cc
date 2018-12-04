@@ -24,6 +24,7 @@
 #include "gtest/gtest.h"
 #include "Namespace.hh"
 #include "common/Timing.hh"
+#include "common/SteadyClock.hh"
 
 EOSCOMMONTESTING_BEGIN
 
@@ -42,6 +43,17 @@ TEST(Timing, LsFormat)
   output = Timing::ToLsFormat(tm);
   // Should contain only the year at the end
   ASSERT_TRUE(output.find(':') == std::string::npos);
+}
+
+TEST(SteadyClock, FakeTests) {
+  eos::common::SteadyClock sc(true);
+  ASSERT_EQ(sc.now(), std::chrono::steady_clock::time_point());
+
+  std::chrono::steady_clock::time_point startOfTime;
+  startOfTime += std::chrono::seconds(5);
+
+  sc.advance(std::chrono::seconds(5));
+  ASSERT_EQ(sc.now(), startOfTime);
 }
 
 EOSCOMMONTESTING_END
