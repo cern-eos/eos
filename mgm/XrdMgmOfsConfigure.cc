@@ -1825,11 +1825,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     eos_warning("msg=\"cannot start httpd daemon\"");
   }
 
-  // start the Egroup fetching
-  if (!gOFS->EgroupRefresh->Start()) {
-    eos_warning("msg=\"cannot start egroup thread\"");
-  }
-
   // start the LRU daemon
   if (!LRUd.Start()) {
     eos_warning("msg=\"cannot start LRU thread\"");

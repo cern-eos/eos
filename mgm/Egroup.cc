@@ -28,61 +28,34 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Constructor
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//! Constructor - launch asynchronous refresh thread
 Egroup::Egroup()
-{}
-
-bool
-/*----------------------------------------------------------------------------*/
-Egroup::Start()
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Asynchronous thread start function
- */
-/*----------------------------------------------------------------------------*/
 {
-  // run an asynchronous refresh thread
   PendingQueue.setBlockingMode(true);
   mThread.reset(&Egroup::Refresh, this);
-  return true;
 }
 
-void
-/*----------------------------------------------------------------------------*/
-Egroup::Stop()
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Asynchronous thread stop function
- *
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Destructor - join asynchronous refresh thread
+//------------------------------------------------------------------------------
+Egroup::~Egroup()
 {
-  // cancel the asynchronous resfresh thread
   PendingQueue.setBlockingMode(false);
   mThread.join();
 }
 
-/*----------------------------------------------------------------------------*/
-Egroup::~Egroup()
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Destructor
- *
- * We are cancelling and joining the asynchronous prefetch thread here.
- */
-/*----------------------------------------------------------------------------*/
-{
-  // cancel the asynchronous resfresh thread
-  Stop();
+//------------------------------------------------------------------------------
+// Main LDAP lookup function - bypasses the cache, hits the LDAP server.
+//------------------------------------------------------------------------------
+Egroup::Status Egroup::isMemberUncached(const std::string &username,
+  const std::string &egroupname) {
+  // TODO
 }
 
 /*----------------------------------------------------------------------------*/
 bool
-Egroup::Member(std::string& username, std::string& egroupname)
+Egroup::Member(const std::string& username, const std::string& egroupname)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Member
@@ -252,7 +225,7 @@ Egroup::Refresh(ThreadAssistant& assistant) noexcept
 }
 
 void
-Egroup::AsyncRefresh(std::string& egroupname, std::string& username)
+Egroup::AsyncRefresh(const std::string& egroupname, const std::string& username)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Pushes an Egroup/user resolution request into the asynchronous queue
@@ -265,7 +238,7 @@ Egroup::AsyncRefresh(std::string& egroupname, std::string& username)
 
 /*----------------------------------------------------------------------------*/
 void
-Egroup::DoRefresh(std::string& egroupname, std::string& username)
+Egroup::DoRefresh(const std::string& egroupname, const std::string& username)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Run a synchronous LDAP query for Egroup/username and update the Map
@@ -403,7 +376,7 @@ Egroup::DoRefresh(std::string& egroupname, std::string& username)
 
 /*----------------------------------------------------------------------------*/
 std::string
-Egroup::DumpMember(std::string& username, std::string& egroupname)
+Egroup::DumpMember(const std::string& username, const std::string& egroupname)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief DumpMember
@@ -486,6 +459,15 @@ Egroup::DumpMembers()
   }
 
   return rs;
+}
+
+//------------------------------------------------------------------------------
+// Reset all stored information
+//------------------------------------------------------------------------------
+void Egroup::Reset() {
+  XrdSysMutexHelper mLock(Mutex);
+  Map.clear();
+  LifeTime.clear();
 }
 
 EOSMGMNAMESPACE_END
