@@ -1776,11 +1776,14 @@ XrdFstOfsFile::close()
         capOpaqueFile += mEventWorkflow.c_str();
       }
 
-      eos_info("msg=\"notify\" event=\"%s\" workflow=\"%s\"", eventType.c_str(),
-               mEventWorkflow.c_str());
-      rc = gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"),
-                            mCapOpaque->Get("mgm.manager"), capOpaqueFile, nullptr, 30, mSyncEventOnClose,
-                            false);
+      // Only notify the MGM of the event if it is neither close or sync::close
+      if(!mEventOnClose && !mSyncEventOnClose) {
+        eos_info("msg=\"notify\" event=\"%s\" workflow=\"%s\"", eventType.c_str(),
+                 mEventWorkflow.c_str());
+        rc = gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"),
+                              mCapOpaque->Get("mgm.manager"), capOpaqueFile, nullptr, 30, mSyncEventOnClose,
+                              false);
+      }
     }
   }
 
