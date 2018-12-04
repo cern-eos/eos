@@ -162,6 +162,29 @@ Egroup::Status Egroup::isMemberUncached(const std::string &username,
   return Status::kNotMember;
 }
 
+//------------------------------------------------------------------------------
+// Fetch cached value. Returns false if there's no such cached value.
+//------------------------------------------------------------------------------
+bool Egroup::fetchCached(const std::string& username,
+  const std::string& egroupname, Egroup::CachedEntry &out) {
+
+  XrdSysMutexHelper helper(Mutex);
+
+  auto it = Map.find(egroupname);
+  if(it == Map.end()) {
+    return false;
+  }
+
+  auto it2 = it->second.find(username);
+  if(it2 == it->second.end()) {
+    return false;
+  }
+
+  out.isMember = it2->second;
+  out.timestamp = LifeTime[egroupname][username];
+  return true;
+}
+
 /*----------------------------------------------------------------------------*/
 bool
 Egroup::Member(const std::string& username, const std::string& egroupname)
@@ -176,7 +199,8 @@ Egroup::Member(const std::string& username, const std::string& egroupname)
 /*----------------------------------------------------------------------------*/
 {
   Mutex.Lock();
-  time_t now = time(NULL);
+
+  std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
   bool iscached = false;
   bool member = false;
   bool isMember = false;
@@ -184,11 +208,12 @@ Egroup::Member(const std::string& username, const std::string& egroupname)
   if (Map.count(egroupname)) {
     if (Map[egroupname].count(username)) {
       member = Map[egroupname][username];
-      time_t age = labs(LifeTime[egroupname][username] - now);
+      std::chrono::seconds age = std::chrono::duration_cast<std::chrono::seconds>(
+        now - LifeTime[egroupname][username]);
 
       // we know that user, it has a cached entry which is not too old
       if (LifeTime[egroupname].count(username) &&
-          (LifeTime[egroupname][username] > now) && (age < EOSEGROUPCACHETIME)) {
+          (LifeTime[egroupname][username] > now) && (age < kCacheDuration)) {
         // that is ok, we can return member or not member from the cache
         Mutex.UnLock();
         return member;
@@ -208,15 +233,15 @@ Egroup::Member(const std::string& username, const std::string& egroupname)
     if (isMember)
       eos_static_info("member=true user=\"%s\" e-group=\"%s\" cachetime=%lu",
                       username.c_str(), egroupname.c_str(),
-                      now + EOSEGROUPCACHETIME);
+                      now + kCacheDuration);
     else
       eos_static_info("member=false user=\"%s\" e-group=\"%s\" cachetime=%lu",
                       username.c_str(), egroupname.c_str(),
-                      now + EOSEGROUPCACHETIME);
+                      now + kCacheDuration);
 
     Mutex.Lock();
     Map[egroupname][username] = isMember;
-    LifeTime[egroupname][username] = now + EOSEGROUPCACHETIME;
+    LifeTime[egroupname][username] = now + kCacheDuration;
     Mutex.UnLock();
     return isMember;
   } else {
@@ -258,31 +283,23 @@ Egroup::Refresh(ThreadAssistant& assistant) noexcept
   }
 }
 
-void
-Egroup::AsyncRefresh(const std::string& egroupname, const std::string& username)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Pushes an Egroup/user resolution request into the asynchronous queue
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Pushes an egroup/user resolution request into the asynchronous queue
+//------------------------------------------------------------------------------
+void Egroup::AsyncRefresh(const std::string& egroupname,
+  const std::string& username)
 {
-  // push a egroup/username pair into the async refresh queue
   PendingQueue.emplace_back(std::make_pair(egroupname, username));
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Run a synchronous LDAP query for Egroup/username and update the cache
+//------------------------------------------------------------------------------
 void
 Egroup::DoRefresh(const std::string& egroupname, const std::string& username)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Run a synchronous LDAP query for Egroup/username and update the Map
- *
- * The asynchronous thread uses this function to update the Egroup Map.
- */
-/*----------------------------------------------------------------------------*/
 {
   Mutex.Lock();
-  time_t now = time(NULL);
+  std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
   if (Map.count(egroupname)) {
     if (Map[egroupname].count(username)) {
@@ -308,15 +325,15 @@ Egroup::DoRefresh(const std::string& egroupname, const std::string& username)
     if (isMember)
       eos_static_info("member=true user=\"%s\" e-group=\"%s\" cachetime=%lu",
                       username.c_str(), egroupname.c_str(),
-                      now + EOSEGROUPCACHETIME);
+                      now + kCacheDuration);
     else
       eos_static_info("member=false user=\"%s\" e-group=\"%s\" cachetime=%lu",
                       username.c_str(), egroupname.c_str(),
-                      now + EOSEGROUPCACHETIME);
+                      now + kCacheDuration);
 
     Mutex.Lock();
     Map[egroupname][username] = isMember;
-    LifeTime[egroupname][username] = now + EOSEGROUPCACHETIME;
+    LifeTime[egroupname][username] = now + kCacheDuration;
     Mutex.UnLock();
   } else {
     Mutex.Lock();
@@ -362,13 +379,14 @@ Egroup::DumpMember(const std::string& username, const std::string& egroupname)
   Member(username, egroupname);
   XrdSysMutexHelper lLock(Mutex);
   bool member = false;
-  time_t timetolive = 0;
-  time_t now = time(NULL);
+  std::chrono::seconds lifetime;
+  std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
   if (Map.count(egroupname)) {
     if (Map[egroupname].count(username)) {
       member = Map[egroupname][username];
-      timetolive = labs(LifeTime[egroupname][username] - now);
+      lifetime = std::chrono::duration_cast<std::chrono::seconds>(
+        now - LifeTime[egroupname][username]);
     }
   }
 
@@ -385,7 +403,7 @@ Egroup::DumpMember(const std::string& username, const std::string& egroupname)
   }
 
   rs += " lifetime=";
-  rs += std::to_string((long long)timetolive);
+  rs += std::to_string(lifetime.count());
   return rs;
 }
 
@@ -402,8 +420,7 @@ Egroup::DumpMembers()
 /*----------------------------------------------------------------------------*/
 {
   XrdSysMutexHelper lLock(Mutex);
-  time_t timetolive = 0;
-  time_t now = time(NULL);
+  std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
   std::string rs;
   std::map < std::string, std::map <std::string, bool > >::iterator it;
 
@@ -422,9 +439,10 @@ Egroup::DumpMembers()
         rs += " member=false";
       }
 
-      timetolive = labs(LifeTime[it->first][uit->first] - now);
+      std::chrono::seconds lifetime = std::chrono::duration_cast<std::chrono::seconds>(
+        now - LifeTime[it->first][uit->first]);
       rs += " lifetime=";
-      rs += std::to_string((long long)timetolive);
+      rs += std::to_string(lifetime.count());
       rs += "\n";
     }
   }

@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <string>
 #include <map>
+#include <chrono>
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -41,8 +42,6 @@
  */
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
-
-#define EOSEGROUPCACHETIME 1800
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -67,6 +66,11 @@ public:
     kMember,
     kNotMember,
     kError
+  };
+
+  struct CachedEntry {
+    bool isMember;
+    std::chrono::steady_clock::time_point timestamp;
   };
 
   //----------------------------------------------------------------------------
@@ -110,7 +114,16 @@ public:
   //----------------------------------------------------------------------------
   void Refresh(ThreadAssistant& assistant) noexcept;
 
+  //----------------------------------------------------------------------------
+  // Fetch cached value, and fills variable out if a result is found.
+  // Return false if item does not exist in cache.
+  //----------------------------------------------------------------------------
+  bool fetchCached(const std::string& username,
+    const std::string& egroupname, CachedEntry &out);
+
 private:
+  const std::chrono::seconds kCacheDuration { 1800 };
+
   /// async refresh thread
   AssistedThread mThread;
 
@@ -126,7 +139,7 @@ private:
   std::map < std::string, std::map <std::string, bool > > Map;
 
   /// map storing the validity of egroup/username pairs in Map
-  std::map < std::string, std::map <std::string, time_t > > LifeTime;
+  std::map < std::string, std::map <std::string, std::chrono::steady_clock::time_point > > LifeTime;
 
   /// thred-safe queue keeping track of pending refresh requests
   qclient::WaitableQueue<std::pair<std::string, std::string>, 500> PendingQueue;
