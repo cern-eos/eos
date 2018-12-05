@@ -2604,7 +2604,6 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
       // case FileSystem::kDrainStalling:
       // case FileSystem::kDrained:
       // case FileSystem::kDrainExpired:
-      // case FileSystem::kDrainLostFiles:
       if (ftIdx) {
         unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Draining);
       }

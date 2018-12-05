@@ -230,7 +230,7 @@ public:
     kDrained = 4,
     kDrainStalling = 5,
     kDrainExpired = 6,
-    kDrainLostFiles = 7
+    kDrainFailed = 7
   };
 
   //! Values describing if a filesystem is online or offline

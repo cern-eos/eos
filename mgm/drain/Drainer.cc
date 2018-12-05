@@ -72,7 +72,7 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs,
 {
   using eos::common::FileSystem;
   FileSystem::fsid_t src_fsid = fs->GetId();
-  eos_info("start draining fsid=%d", src_fsid);
+  eos_info("msg=\"start draining\" fsid=%d", src_fsid);
   FileSystem::fs_snapshot_t src_snapshot;
   fs->SnapShotFileSystem(src_snapshot);
 
@@ -139,7 +139,8 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs,
   }
 
   // Start the drain
-  std::shared_ptr<DrainFs> dfs(new DrainFs(mThreadPool, src_fsid, dst_fsid));
+  std::shared_ptr<DrainFs> dfs(new DrainFs(mThreadPool, gOFS->eosFsView,
+                               src_fsid, dst_fsid));
   auto future = std::async(std::launch::async, &DrainFs::DoIt, dfs);
   dfs->SetFuture(std::move(future));
   mDrainFs[src_snapshot.mHostPort].emplace(dfs);
@@ -271,7 +272,7 @@ Drainer::GetDrainStatus(unsigned int fsid, XrdOucString& out, XrdOucString& err)
     auto job_vect_it = (*it)->GetFailedJobs().cbegin();
 
     if (job_vect_it != (*it)->GetFailedJobs().cend()) {
-      out += "List of Files failed to be drained:\n\n";
+      out += "List of files failed to be drained:\n\n";
 
       while (job_vect_it != (*it)->GetFailedJobs().cend()) {
         PrintJobsTable(table_jobs, (*job_vect_it).get());

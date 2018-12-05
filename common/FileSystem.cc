@@ -241,8 +241,8 @@ FileSystem::GetDrainStatusAsString(int status)
     return "expired";
   }
 
-  if (status == kDrainLostFiles) {
-    return "lostfiles";
+  if (status == kDrainFailed) {
+    return "failed";
   }
 
   return "unknown";
@@ -410,8 +410,8 @@ FileSystem::GetDrainStatusFromString(const char* ss)
     return kDrainExpired;
   }
 
-  if (!strcmp(ss, "lostfiles")) {
-    return kDrainLostFiles;
+  if (!strcmp(ss, "failed")) {
+    return kDrainFailed;
   }
 
   return kNoDrain;

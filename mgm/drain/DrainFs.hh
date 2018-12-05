@@ -25,6 +25,7 @@
 #include "mgm/Namespace.hh"
 #include "mgm/FileSystem.hh"
 #include "mgm/drain/DrainTransferJob.hh"
+#include "namespace/interface/IFsView.hh"
 #include "common/Logging.hh"
 #include <thread>
 #include <future>
@@ -47,18 +48,19 @@ class DrainFs: public eos::common::LogId
 {
 public:
   //----------------------------------------------------------------------------
-  //! State of the drain job
+  //! State of file system drain operation
   //----------------------------------------------------------------------------
-  enum class State {Done, Expired, Failed, Running, Stopped};
+  enum class State {Done, Expired, Failed, Running, Stopped, Rerun};
 
   //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param thread_pool drain thread pool to use for jobs
+  //! @param fs_view file system view
   //! @param src_fsid filesystem id to drain
   //! @param dst_fsid file system where to drain
   //----------------------------------------------------------------------------
-  DrainFs(eos::common::ThreadPool& thread_pool,
+  DrainFs(eos::common::ThreadPool& thread_pool, eos::IFsView* fs_view,
           eos::common::FileSystem::fsid_t src_fsid,
           eos::common::FileSystem::fsid_t dst_fsid = 0);
 
@@ -141,11 +143,6 @@ private:
   void GetSpaceConfiguration(const std::string& space);
 
   //---------------------------------------------------------------------------
-  //! Clean up when draining is completed
-  //---------------------------------------------------------------------------
-  void CompleteDrain();
-
-  //---------------------------------------------------------------------------
   //! Prepare the file system for drain i.e. delay the start by the configured
   //! amount of timem, set the status
   //!
@@ -175,12 +172,28 @@ private:
   State UpdateProgress();
 
   //----------------------------------------------------------------------------
+  //! Handle running jobs
+  //----------------------------------------------------------------------------
+  void HandleRunningJobs();
+
+  //----------------------------------------------------------------------------
   //! Stop draining
   //---------------------------------------------------------------------------
   void Stop();
 
+  //----------------------------------------------------------------------------
+  //! Mark file system drain as failed
+  //----------------------------------------------------------------------------
+  void FailedDrain();
+
+  //---------------------------------------------------------------------------
+  //! Mark file system drain as successful
+  //---------------------------------------------------------------------------
+  void SuccessfulDrain();
+
   constexpr static std::chrono::seconds sRefreshTimeout {60};
   constexpr static std::chrono::seconds sStallTimeout {600};
+  eos::IFsView* mNsFsView; ///< File system view
   eos::common::FileSystem::fsid_t mFsId; ///< Drain source fsid
   eos::common::FileSystem::fsid_t mTargetFsId; /// Drain target fsid
   eos::common::FileSystem::eDrainStatus mStatus;
@@ -199,10 +212,8 @@ private:
   eos::common::ThreadPool& mThreadPool;
   std::future<State> mFuture;
   uint64_t mTotalFiles; ///< Total number of files to drain
-  uint64_t mLastNumToDrain; ///< Last number of drain jobs recorded
-  uint64_t mLastNumFailed; ///< Last number of failed drain jobs
-  //! Last timestamp when a refresh of failed transfers was performed
-  std::chrono::time_point<std::chrono::steady_clock> mLastRefreshTime;
+  uint64_t mPending; ///< Current num. of pending files to drain
+  uint64_t mLastPending; ///< Previous num. of pending files to drain
   //! Last timestamp when drain progress was recorded
   std::chrono::time_point<std::chrono::steady_clock> mLastProgressTime;
   //! Last timestamp when drain status was updated
