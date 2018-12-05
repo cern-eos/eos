@@ -1993,7 +1993,16 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
     }
 
     if (pcap->errc()) {
-      rc = pcap->errc();
+      // don't fail chown not changing the owner,
+      if ((op & FUSE_SET_ATTR_UID) && (md->uid() == (unsigned int) attr->st_uid)) {
+        rc = 0;
+      } else {
+        if ((op & FUSE_SET_ATTR_GID) && (md->uid() == (unsigned int) attr->st_gid)) {
+          rc = 0;
+        } else {
+          rc = pcap->errc();
+        }
+      }
     } else {
       if (op & FUSE_SET_ATTR_MODE) {
         /*
