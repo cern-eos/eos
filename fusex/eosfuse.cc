@@ -3678,203 +3678,213 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 /* -------------------------------------------------------------------------- */
 {
   eos::common::Timing timing(__func__);
-  COMMONTIMING("_start_", &timing);
-  Track::Monitor mon(__func__, Instance().Tracker(), parent, true);
+  fuse_ino_t pino = 0;
+  {
+    COMMONTIMING("_start_", &timing);
+    Track::Monitor mon(__func__, Instance().Tracker(), parent, true);
 
-  if (fi) {
-    eos_static_debug("flags=%x", fi->flags);
-  }
-
-  ADD_FUSE_STAT(__func__, req);
-  EXEC_TIMING_BEGIN(__func__);
-  int rc = 0;
-  fuse_id id(req);
-  // do a parent check
-  cap::shared_cap pcap = Instance().caps.acquire(req, parent,
-                         S_IFDIR | W_OK, true);
-  struct fuse_entry_param e;
-  XrdSysMutexHelper capLock(pcap->Locker());
-
-  if (pcap->errc()) {
-    rc = pcap->errc();
-  } else {
-    capLock.UnLock();
-    {
-      if (!Instance().caps.has_quota(pcap, 1024 * 1024)) {
-        rc = EDQUOT;
-      }
+    if (fi) {
+      eos_static_debug("flags=%x", fi->flags);
     }
 
-    if (!rc) {
-      metad::shared_md md;
-      metad::shared_md pmd;
-      md = Instance().mds.lookup(req, parent, name);
-      pmd = Instance().mds.get(req, parent, pcap->authid());
+    ADD_FUSE_STAT(__func__, req);
+    EXEC_TIMING_BEGIN(__func__);
+    int rc = 0;
+    fuse_id id(req);
+    // do a parent check
+    cap::shared_cap pcap = Instance().caps.acquire(req, parent,
+                           S_IFDIR | W_OK, true);
+    struct fuse_entry_param e;
+    XrdSysMutexHelper capLock(pcap->Locker());
+
+    if (pcap->errc()) {
+      rc = pcap->errc();
+    } else {
+      capLock.UnLock();
       {
-        uint64_t del_ino = 0;
-        // logic avoiding a create/unlink/create sync/async race
-        {
-          XrdSysMutexHelper pLock(pmd->Locker());
-          auto it = pmd->get_todelete().find(
-                      eos::common::StringConversion::EncodeInvalidUTF8(name));
-
-          if ((it != pmd->get_todelete().end()) && it->second) {
-            del_ino = it->second;
-          }
-        }
-
-        if (del_ino) {
-          Instance().mds.wait_deleted(req, del_ino);
+        if (!Instance().caps.has_quota(pcap, 1024 * 1024)) {
+          rc = EDQUOT;
         }
       }
-      XrdSysMutexHelper mLock(md->Locker());
 
-      if (md->id() && !md->deleted()) {
-        rc = EEXIST;
-      } else {
-        if (md->deleted()) {
-          // we need to wait that this entry is really gone
-          Instance().mds.wait_flush(req, md);
-        }
-
-        md->set_err(0);
-        md->set_mode(mode | (S_ISFIFO(mode) ? S_IFIFO : S_IFREG));
-        md->set_fullpath(pmd->fullpath() + "/" + name);
-
-        if (S_ISFIFO(mode)) {
-          (*md->mutable_attr())[k_fifo] = "";
-        }
-
-        struct timespec ts;
-
-        eos::common::Timing::GetTimeSpec(ts);
-
-        md->set_name(name);
-
-        md->set_atime(ts.tv_sec);
-
-        md->set_atime_ns(ts.tv_nsec);
-
-        md->set_mtime(ts.tv_sec);
-
-        md->set_mtime_ns(ts.tv_nsec);
-
-        md->set_ctime(ts.tv_sec);
-
-        md->set_ctime_ns(ts.tv_nsec);
-
-        md->set_btime(ts.tv_sec);
-
-        md->set_btime_ns(ts.tv_nsec);
-
-        // need to update the parent mtime
-        md->set_pmtime(ts.tv_sec);
-
-        md->set_pmtime_ns(ts.tv_nsec);
-
-        md->set_uid(pcap->uid());
-
-        md->set_gid(pcap->gid());
-
-        md->set_id(Instance().mds.insert(req, md, pcap->authid()));
-
-        md->set_nlink(1);
-
-        md->set_creator(true);
-
-        // avoid lock-order violation
+      if (!rc) {
+        metad::shared_md md;
+        metad::shared_md pmd;
+        md = Instance().mds.lookup(req, parent, name);
+        pmd = Instance().mds.get(req, parent, pcap->authid());
         {
-          mLock.UnLock();
-          XrdSysMutexHelper mLockParent(pmd->Locker());
-          pmd->set_mtime(ts.tv_sec);
-          pmd->set_mtime_ns(ts.tv_nsec);
+          uint64_t del_ino = 0;
+          // logic avoiding a create/unlink/create sync/async race
+          {
+            XrdSysMutexHelper pLock(pmd->Locker());
+            auto it = pmd->get_todelete().find(
+                        eos::common::StringConversion::EncodeInvalidUTF8(name));
 
-          // get file inline size from parent attribute
-          if (pmd->attr().count("sys.file.inline.maxsize")) {
-            auto maxsize = (*pmd->mutable_attr())["sys.file.inline.maxsize"];
-            md->set_inlinesize(strtoull(maxsize.c_str(), 0, 10));
+            if ((it != pmd->get_todelete().end()) && it->second) {
+              del_ino = it->second;
+            }
           }
 
-          mLockParent.UnLock();
-          mLock.Lock(&md->Locker());
+          if (del_ino) {
+            Instance().mds.wait_deleted(req, del_ino);
+          }
         }
+        XrdSysMutexHelper mLock(md->Locker());
 
-        if ((Instance().Config().options.create_is_sync) ||
-            (fi && fi->flags & O_EXCL)) {
-          md->set_type(md->EXCL);
-          rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
-          md->set_type(md->MD);
+        if (md->id() && !md->deleted()) {
+          rc = EEXIST;
         } else {
-          Instance().mds.add(req, pmd, md, pcap->authid());
-        }
+          if (md->deleted()) {
+            // we need to wait that this entry is really gone
+            Instance().mds.wait_flush(req, md);
+          }
 
-        memset(&e, 0, sizeof(e));
+          md->set_err(0);
+          md->set_mode(mode | (S_ISFIFO(mode) ? S_IFIFO : S_IFREG));
+          md->set_fullpath(pmd->fullpath() + "/" + name);
 
-        if (!rc) {
-          Instance().caps.book_inode(pcap);
-          md->convert(e, pcap->lifetime());
-          md->lookup_inc();
+          if (S_ISFIFO(mode)) {
+            (*md->mutable_attr())[k_fifo] = "";
+          }
 
-          if (fi) {
-            // -----------------------------------------------------------------------
-            // FUSE caches the file for reads on the same filedescriptor in the buffer
-            // cache, but the pages are released once this filedescriptor is released.
-            fi->keep_cache = Instance().Config().options.data_kernelcache;
+          struct timespec ts;
 
-            if ((fi->flags & O_DIRECT) ||
-                (fi->flags & O_SYNC)) {
-              fi->direct_io = 1;
-            } else {
-              fi->direct_io = 0;
+          eos::common::Timing::GetTimeSpec(ts);
+
+          md->set_name(name);
+
+          md->set_atime(ts.tv_sec);
+
+          md->set_atime_ns(ts.tv_nsec);
+
+          md->set_mtime(ts.tv_sec);
+
+          md->set_mtime_ns(ts.tv_nsec);
+
+          md->set_ctime(ts.tv_sec);
+
+          md->set_ctime_ns(ts.tv_nsec);
+
+          md->set_btime(ts.tv_sec);
+
+          md->set_btime_ns(ts.tv_nsec);
+
+          // need to update the parent mtime
+          md->set_pmtime(ts.tv_sec);
+
+          md->set_pmtime_ns(ts.tv_nsec);
+
+          md->set_uid(pcap->uid());
+
+          md->set_gid(pcap->gid());
+
+          md->set_id(Instance().mds.insert(req, md, pcap->authid()));
+
+          md->set_nlink(1);
+
+          md->set_creator(true);
+
+          // avoid lock-order violation
+          {
+            mLock.UnLock();
+            XrdSysMutexHelper mLockParent(pmd->Locker());
+            pmd->set_mtime(ts.tv_sec);
+            pmd->set_mtime_ns(ts.tv_nsec);
+
+            // get file inline size from parent attribute
+            if (pmd->attr().count("sys.file.inline.maxsize")) {
+              auto maxsize = (*pmd->mutable_attr())["sys.file.inline.maxsize"];
+              md->set_inlinesize(strtoull(maxsize.c_str(), 0, 10));
             }
 
-            std::string md_name = md->name();
-            uint64_t md_ino = md->md_ino();
-            uint64_t md_pino = md->md_pino();
-            std::string cookie = md->Cookie();
-            mLock.UnLock();
-            data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(),
-                                md), md, true);
-            io->set_authid(pcap->authid());
-            io->set_maxfilesize(pcap->max_file_size());
-            io->cap_ = pcap;
-            // attach a datapool object
-            fi->fh = (uint64_t) io;
-            io->ioctx()->set_remote(Instance().Config().hostport,
-                                    md_name,
-                                    md_ino,
-                                    md_pino,
-                                    req,
-                                    true);
-            io->ioctx()->attach(req, cookie, fi->flags);
+            mLockParent.UnLock();
+            mLock.Lock(&md->Locker());
           }
 
-          pmd->local_enoent().erase(name);
-        }
+          if ((Instance().Config().options.create_is_sync) ||
+              (fi && fi->flags & O_EXCL)) {
+            md->set_type(md->EXCL);
+            rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
+            md->set_type(md->MD);
+          } else {
+            Instance().mds.add(req, pmd, md, pcap->authid());
+          }
 
-        eos_static_info("%s", md->dump(e).c_str());
+          memset(&e, 0, sizeof(e));
+
+          if (!rc) {
+            Instance().caps.book_inode(pcap);
+            md->convert(e, pcap->lifetime());
+            md->lookup_inc();
+
+            if (fi) {
+              // -----------------------------------------------------------------------
+              // FUSE caches the file for reads on the same filedescriptor in the buffer
+              // cache, but the pages are released once this filedescriptor is released.
+              fi->keep_cache = Instance().Config().options.data_kernelcache;
+
+              if ((fi->flags & O_DIRECT) ||
+                  (fi->flags & O_SYNC)) {
+                fi->direct_io = 1;
+              } else {
+                fi->direct_io = 0;
+              }
+
+              std::string md_name = md->name();
+              uint64_t md_ino = md->md_ino();
+              uint64_t md_pino = md->md_pino();
+              std::string cookie = md->Cookie();
+              mLock.UnLock();
+              data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(),
+                                  md), md, true);
+              io->set_authid(pcap->authid());
+              io->set_maxfilesize(pcap->max_file_size());
+              io->cap_ = pcap;
+              // attach a datapool object
+              fi->fh = (uint64_t) io;
+              io->ioctx()->set_remote(Instance().Config().hostport,
+                                      md_name,
+                                      md_ino,
+                                      md_pino,
+                                      req,
+                                      true);
+              io->ioctx()->attach(req, cookie, fi->flags);
+            }
+
+            pmd->local_enoent().erase(name);
+            pino = pmd->id();
+          }
+
+          eos_static_info("%s", md->dump(e).c_str());
+        }
       }
     }
-  }
 
-  if (rc) {
-    fuse_reply_err(req, rc);
-  } else {
-    if (fi)
-      // create
-    {
-      fuse_reply_create(req, &e, fi);
-    } else
-      // mknod
-    {
-      fuse_reply_entry(req, &e);
+    if (rc) {
+      fuse_reply_err(req, rc);
+    } else {
+      if (fi)
+        // create
+      {
+        fuse_reply_create(req, &e, fi);
+      } else
+        // mknod
+      {
+        fuse_reply_entry(req, &e);
+      }
     }
+
+    EXEC_TIMING_END(__func__);
+    COMMONTIMING("_stop_", &timing);
+    eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
+                      dump(id, parent, 0, rc).c_str());
   }
 
-  EXEC_TIMING_END(__func__);
-  COMMONTIMING("_stop_", &timing);
-  eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
-                    dump(id, parent, 0, rc).c_str());
+  // after creating a file we assign a new mtime to our parent directory
+  if (pino && EosFuse::Instance().Config().options.md_kernelcache) {
+    // now the mtime is wrong 'on-top' of use
+    kernelcache::inval_inode(pino, false);
+  }
 }
 
 void
