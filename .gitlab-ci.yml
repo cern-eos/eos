@@ -365,8 +365,8 @@ unit_test:
     - scl enable devtoolset-6 "CXXFLAGS='-fsanitize=address' cmake3 .. -DBUILD_TESTS=1"
     - make eos-unit-tests eos-fst-unit-tests -j 4
     - ccache -s
-    - ./unit_tests/eos-unit-tests || true
-    - ./unit_tests/eos-fst-unit-tests || true
+    - ./unit_tests/eos-unit-tests
+    - ./unit_tests/eos-fst-unit-tests
   cache:
     key: "$CI_BUILD_NAME-$CI_BUILD_REF_NAME"
     paths:
