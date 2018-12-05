@@ -153,6 +153,13 @@ public:
   //----------------------------------------------------------------------------
   size_t getPendingQueueSize() const;
 
+  //----------------------------------------------------------------------------
+  //! Synchronous refresh function doing an LDAP query for a given Egroup/user.
+  //! If the pair exists in the cache, it is ignored and replaced.
+  //----------------------------------------------------------------------------
+  CachedEntry refresh(const std::string& username,
+    const std::string& egroupname);
+
 private:
   const std::chrono::seconds kCacheDuration { 1800 };
   eos::common::SteadyClock *clock = nullptr;
@@ -171,11 +178,6 @@ private:
   //! Check if cache entry is stale
   //----------------------------------------------------------------------------
   bool isStale(const CachedEntry &entry) const;
-
-  //----------------------------------------------------------------------------
-  //! Synchronous refresh function doing an LDAP query for a given Egroup/user
-  //----------------------------------------------------------------------------
-  void DoRefresh(const std::string& username, const std::string& egroupname);
 
   //----------------------------------------------------------------------------
   //! Asynchronous thread loop doing egroup/username fetching

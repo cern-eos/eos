@@ -32,21 +32,51 @@ com_member(char* arg1)
 {
   eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
-  XrdOucString egroup = subtokenizer.GetToken();
+
+  XrdOucString option = "";
+  bool update = false;
+  XrdOucString egroup = "";
   XrdOucString in = "";
 
-  if (wants_help(egroup.c_str()) || !egroup.length()) {
+  do {
+    option = subtokenizer.GetToken();
+
+    if(!option.length()) {
+      break;
+    }
+
+    if(option == "--help" || option == "-h") {
+      goto com_member_usage;
+    }
+
+    if(option == "--update") {
+      update = true;
+      continue;
+    }
+
+    egroup = option;
+  } while(option.length());
+
+  std::cout << "egroup: " << egroup << std::endl;
+
+  if(!egroup.length()) {
     goto com_member_usage;
   }
 
   in = "mgm.cmd=member";
   in += "&mgm.egroup=";
   in += egroup;
+
+  if(update) {
+    in += "&mgm.egroupupdate=true";
+  }
+
   global_retc = output_result(client_command(in));
   return (0);
 com_member_usage:
   fprintf(stdout,
-          "usage: member [<egroup>]                                :  show the (cached) information about egroup membership\n");
+          "usage: member [--update] [<egroup>]                                :  show the (cached) information about egroup membership\n"
+          "                      --update : Refresh cached egroup information\n");
   global_retc = 0;
   return (0);
 }

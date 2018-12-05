@@ -303,7 +303,7 @@ void Egroup::Refresh(ThreadAssistant& assistant) noexcept
     }
 
     if (!resolve->first.empty()) {
-      DoRefresh(resolve->first, resolve->second);
+      refresh(resolve->first, resolve->second);
     }
 
     iterator.next();
@@ -323,7 +323,7 @@ void Egroup::scheduleRefresh(const std::string& username,
 //------------------------------------------------------------------------------
 // Run a synchronous LDAP query for Egroup/username and update the cache
 //------------------------------------------------------------------------------
-void Egroup::DoRefresh(const std::string& username,
+Egroup::CachedEntry Egroup::refresh(const std::string& username,
   const std::string& egroupname)
 {
   eos_static_info("msg=\"async-lookup\" user=\"%s\" e-group=\"%s\"",
@@ -334,7 +334,7 @@ void Egroup::DoRefresh(const std::string& username,
   if(status == Status::kError) {
     eos_static_err("Could not do asynchronous refresh for egroup membership for username=%s, e-group=%s",
       username.c_str(), egroupname.c_str());
-    return;
+    return CachedEntry(false, {});
   }
 
   bool isMember = (status == Status::kMember);
@@ -347,6 +347,7 @@ void Egroup::DoRefresh(const std::string& username,
     egroupname.c_str(), expiration);
 
   storeIntoCache(username, egroupname, isMember, now);
+  return CachedEntry(isMember, now);
 }
 
 //------------------------------------------------------------------------------

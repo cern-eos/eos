@@ -125,3 +125,25 @@ TEST(Egroup, BasicSanity) {
     "egroup=groovy-users user=user3 member=true lifetime=-10101\n");
 }
 
+TEST(Egroup, ExplicitRefresh) {
+  SteadyClock clock(true);
+  Egroup egroup(&clock);
+
+  egroup.inject("user1", "awesome-users", Egroup::Status::kNotMember);
+
+  ASSERT_EQ(egroup.DumpMember("user1", "awesome-users"),
+    "egroup=awesome-users user=user1 member=false lifetime=1800");
+
+  clock.advance(std::chrono::seconds(10));
+
+  ASSERT_EQ(egroup.DumpMember("user1", "awesome-users"),
+    "egroup=awesome-users user=user1 member=false lifetime=1790");
+
+  egroup.inject("user1", "awesome-users", Egroup::Status::kMember);
+
+  clock.advance(std::chrono::seconds(10));
+
+  ASSERT_EQ(egroup.DumpMember("user1", "awesome-users"),
+    "egroup=awesome-users user=user1 member=false lifetime=1780");
+}
+

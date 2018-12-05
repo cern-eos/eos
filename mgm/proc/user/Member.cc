@@ -31,9 +31,15 @@ int
 ProcCommand::Member()
 {
   XrdOucString smember = pOpaque->Get("mgm.egroup");
+  XrdOucString update = pOpaque->Get("mgm.egroupupdate");
 
   if (smember.length()) {
     std::string egroup = smember.c_str();
+
+    if(update == "true") {
+      gOFS->EgroupRefresh->refresh(vid.uid_string, egroup);
+    }
+
     std::string rs = gOFS->EgroupRefresh->DumpMember(vid.uid_string,  egroup);
     stdOut += rs.c_str();
   } else {
