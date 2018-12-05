@@ -72,7 +72,14 @@ public:
   struct CachedEntry {
     bool isMember;
     std::chrono::steady_clock::time_point timestamp;
-    // timestamp at which this result was retrieved
+
+    //--------------------------------------------------------------------------
+    //! Constructors
+    //--------------------------------------------------------------------------
+    CachedEntry(bool member, std::chrono::steady_clock::time_point ts)
+    : isMember(member), timestamp(ts) {}
+
+    CachedEntry() : isMember(false) {}
   };
 
   //----------------------------------------------------------------------------
@@ -113,11 +120,6 @@ public:
     const std::string& egroupname);
 
   //----------------------------------------------------------------------------
-  // asynchronous thread loop doing egroup/username fetching
-  //----------------------------------------------------------------------------
-  void Refresh(ThreadAssistant& assistant) noexcept;
-
-  //----------------------------------------------------------------------------
   // Fetch cached value, and fills variable out if a result is found.
   // Return false if item does not exist in cache.
   //----------------------------------------------------------------------------
@@ -148,14 +150,16 @@ private:
   //----------------------------------------------------------------------------
   void DoRefresh(const std::string& username, const std::string& egroupname);
 
+  //----------------------------------------------------------------------------
+  //! Asynchronous thread loop doing egroup/username fetching
+  //----------------------------------------------------------------------------
+  void Refresh(ThreadAssistant& assistant) noexcept;
+
   /// mutex protecting static Egroup objects
   XrdSysMutex Mutex;
 
   /// map indicating egroup memebership for egroup/username pairs
-  std::map < std::string, std::map <std::string, bool > > Map;
-
-  /// map storing the validity of egroup/username pairs in Map
-  std::map < std::string, std::map <std::string, std::chrono::steady_clock::time_point > > LifeTime;
+  std::map<std::string, std::map<std::string, CachedEntry>> cache;
 
   /// thred-safe queue keeping track of pending refresh requests
   qclient::WaitableQueue<std::pair<std::string, std::string>, 500> PendingQueue;
