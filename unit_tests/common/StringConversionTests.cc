@@ -28,7 +28,7 @@ EOSCOMMONTESTING_BEGIN
 
 using namespace eos::common;
 
-TEST(StringConversion, Seal_Unseal_Opeation)
+TEST(StringConversion, Seal_Unseal_Operation)
 {
   std::string input = "/eos/dev/pic_and_poc";
   ASSERT_TRUE(input == StringConversion::SealXrdOpaque(input));
