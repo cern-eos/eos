@@ -102,10 +102,11 @@ public:
     typedef std::string clientid_t;
     typedef std::pair<uint64_t, authid_t> ino_authid_t;
     typedef std::set<authid_t> authid_set_t;
+    typedef std::map<uint64_t, authid_set_t> ino_map_t;
     typedef std::set<uint64_t> ino_set_t;
     typedef std::map<uint64_t, authid_set_t> notify_set_t; // inode=>set(authid_t)
     typedef std::map<clientid_t, authid_set_t> client_set_t;
-    typedef std::map<clientid_t, ino_set_t> client_ino_set_t;
+    typedef std::map<clientid_t, ino_map_t> client_ino_map_t;
 
 
     ssize_t ncaps()
@@ -174,6 +175,16 @@ public:
           mInodeCaps.erase(cap->id());
         }
 
+        mClientInoCaps[cap->clientid()][cap->id()].erase(cap->authid());
+
+        if (!mClientInoCaps[cap->clientid()][cap->id()].size()) {
+          mClientInoCaps[cap->clientid()].erase(cap->id());
+
+          if (!mClientInoCaps[cap->clientid()].size()) {
+            mClientInoCaps.erase(cap->clientid());
+          }
+        }
+
         return true;
       } else {
         return false;
@@ -182,6 +193,7 @@ public:
 
     int Delete(uint64_t id);
 
+    shared_cap GetTS(authid_t id);
     shared_cap Get(authid_t id);
 
     int BroadcastCap(shared_cap cap);
@@ -239,7 +251,7 @@ public:
       return mClientCaps;
     }
 
-    client_ino_set_t& ClientInoCaps()
+    client_ino_map_t& ClientInoCaps()
     {
       return mClientInoCaps;
     }
@@ -252,7 +264,7 @@ public:
     // clientid=>list of authid
     client_set_t mClientCaps;
     // clientid=>list of inodes
-    client_ino_set_t mClientInoCaps;
+    client_ino_map_t mClientInoCaps;
     // inode=>authid_t
     notify_set_t mInodeCaps;
   };

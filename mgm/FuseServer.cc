@@ -229,7 +229,7 @@ FuseServer::Clients::Dispatch(const std::string identity,
     auto map = hb.mutable_authextension();
 
     for (auto it = map->begin(); it != map->end(); ++it) {
-      Caps::shared_cap cap = gOFS->zMQ->gFuseServer.Cap().Get(it->first);
+      Caps::shared_cap cap = gOFS->zMQ->gFuseServer.Cap().GetTS(it->first);
 
       if (cap && cap->vtime()) {
         eos_static_info("cap-extension: authid=%s vtime:= %u => %u",
@@ -244,7 +244,7 @@ FuseServer::Clients::Dispatch(const std::string identity,
     auto map = hb.mutable_authrevocation();
 
     for (auto it = map->begin(); it != map->end(); ++it) {
-      Caps::shared_cap cap = gOFS->zMQ->gFuseServer.Cap().Get(it->first);
+      Caps::shared_cap cap = gOFS->zMQ->gFuseServer.Cap().GetTS(it->first);
 
       if (cap) {
         caps_to_revoke.insert(cap);
@@ -969,7 +969,7 @@ FuseServer::Caps::Store(const eos::fusex::cap& ecap,
   }
 
   mClientCaps[ecap.clientid()].insert(ecap.authid());
-  mClientInoCaps[ecap.clientid()].insert(ecap.id());
+  mClientInoCaps[ecap.clientid()][ecap.id()].insert(ecap.authid());
   shared_cap cap = std::make_shared<capx>();
   *cap = ecap;
   cap->set_vid(vid);
@@ -1016,7 +1016,7 @@ FuseServer::Caps::Imply(uint64_t md_ino,
     mTimeOrderedCap.insert(std::pair<time_t, authid_t>(implied_cap->vtime(),
                            implied_authid));
     mClientCaps[cap->clientid()].insert(implied_authid);
-    mClientInoCaps[cap->clientid()].insert(md_ino);
+    mClientInoCaps[cap->clientid()][cap->id()].insert(implied_authid);
     mCaps[implied_authid] = implied_cap;
     mInodeCaps[md_ino].insert(implied_authid);
   }
@@ -1028,6 +1028,16 @@ FuseServer::Caps::Imply(uint64_t md_ino,
 //------------------------------------------------------------------------------
 FuseServer::Caps::shared_cap
 FuseServer::Caps::Get(FuseServer::Caps::authid_t id)
+{
+  if (mCaps.count(id)) {
+    return mCaps[id];
+  } else {
+    return std::make_shared<capx>();
+  }
+}
+
+FuseServer::Caps::shared_cap
+FuseServer::Caps::GetTS(FuseServer::Caps::authid_t id)
 {
   eos::common::RWMutexWriteLock lLock(*this);
 
@@ -1359,6 +1369,11 @@ FuseServer::Caps::BroadcastDeletion(uint64_t id, const eos::fusex::md& md,
         continue;
       }
 
+      // skip same source
+      if (cap->clientuuid() == md.clientuuid()) {
+        continue;
+      }
+
       if (cap->id()) {
         bccaps.push_back(cap);
       }
@@ -1409,6 +1424,11 @@ FuseServer::Caps::BroadcastRefresh(uint64_t inode,
 
       // skip identical client mounts!
       if (cap->clientuuid() == refcap->clientuuid()) {
+        continue;
+      }
+
+      // skip same source
+      if (cap->clientuuid() == md.clientuuid()) {
         continue;
       }
 
@@ -2179,6 +2199,9 @@ FuseServer::FillContainerCAP(uint64_t id,
 {
   gOFS->MgmStats.Add("Eosxd::int::FillContainerCAP", vid.uid, vid.gid, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::FillContainerCAP");
+  Caps::authid_set_t duplicated_caps;
+  eos_info("ino=%#lx client=%s only-once=%d", id, dir.clientid().c_str(),
+           issue_only_one);
 
   if (issue_only_one) {
     if (EOS_LOGS_DEBUG) {
@@ -2192,6 +2215,18 @@ FuseServer::FillContainerCAP(uint64_t id,
     if (Cap().ClientInoCaps().count(dir.clientid())) {
       if (Cap().ClientInoCaps()[dir.clientid()].count(id)) {
         return true;
+      }
+    }
+  } else {
+    // avoid to pile-up caps for the same client, delete previous ones
+    eos::common::RWMutexReadLock lLock(Cap());
+
+    if (Cap().ClientInoCaps()[dir.clientid()].count(id)) {
+      for (auto it = Cap().ClientInoCaps()[dir.clientid()][id].begin();
+           it != Cap().ClientInoCaps()[dir.clientid()][id].end(); ++it) {
+        if (*it != reuse_uuid) {
+          duplicated_caps.insert(*it);
+        }
       }
     }
   }
@@ -2428,6 +2463,17 @@ FuseServer::FillContainerCAP(uint64_t id,
   }
   EXEC_TIMING_END("Eosxd::int::FillContainerCAP");
   Cap().Store(dir.capability(), &vid);
+
+  if (duplicated_caps.size()) {
+    eos::common::RWMutexWriteLock lLock(Cap());
+
+    for (auto it = duplicated_caps.begin(); it != duplicated_caps.end(); ++it) {
+      eos_static_crit("removing duplicated cap %s\n", it->c_str());
+      Caps::shared_cap cap = Cap().Get(*it);
+      Cap().Remove(cap);
+    }
+  }
+
   return true;
 }
 
@@ -2439,7 +2485,7 @@ FuseServer::ValidateCAP(const eos::fusex::md& md, mode_t mode,
                         eos::common::Mapping::VirtualIdentity& vid)
 {
   errno = 0 ;
-  FuseServer::Caps::shared_cap cap = Cap().Get(md.authid());
+  FuseServer::Caps::shared_cap cap = Cap().GetTS(md.authid());
 
   // no cap - go away
   if (!cap->id()) {
@@ -2483,7 +2529,7 @@ FuseServer::ValidateCAP(const eos::fusex::md& md, mode_t mode,
 uint64_t
 FuseServer::InodeFromCAP(const eos::fusex::md& md)
 {
-  FuseServer::Caps::shared_cap cap = Cap().Get(md.authid());
+  FuseServer::Caps::shared_cap cap = Cap().GetTS(md.authid());
 
   // no cap - go away
   if (!cap) {
@@ -3387,7 +3433,7 @@ FuseServer::HandleMD(const std::string& id,
           fmd->setLayoutId(layoutId);
           md_ino = eos::common::FileId::FidToInode(fmd->getId());
           pcmd->addFile(fmd.get());
-          eos_info("ino=%lx pino=%lx md-ino=%lx create-file", (long) md.md_ino(),
+          eos_info("ino=%lx pino=%lx md-ino=%lx create-file", (long) md_ino,
                    (long) md.md_pino(), md_ino);
         }
 
