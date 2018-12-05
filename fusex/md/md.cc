@@ -2536,14 +2536,27 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
               if (rsp.dentry_().type() == rsp.dentry_().ADD) {
               } else if (rsp.dentry_().type() == rsp.dentry_().REMOVE) {
-                eos_static_notice("remove-dentry: remote-ino=%#lx ino=%#lx clientid=%s authid=%s name=%s type=%s",
-                                  md_ino, ino, rsp.lease_().clientid().c_str(), authid.c_str(), name.c_str(),
-                                  rsp.dentry_().type()
-                                 );
+                eos_static_notice("remove-dentry: remote-ino=%#lx ino=%#lx clientid=%s authid=%s name=%s",
+                                  md_ino, ino, rsp.lease_().clientid().c_str(), authid.c_str(), name.c_str());
 
                 // remove directory entry
                 if (EosFuse::Instance().Config().options.md_kernelcache) {
                   kernelcache::inval_entry(ino, name);
+                }
+
+                shared_md pmd;
+
+                if (ino && mdmap.retrieveTS(ino, pmd)) {
+                  XrdSysMutexHelper mLock(pmd->Locker());
+
+                  if (pmd->local_children().count(
+                        eos::common::StringConversion::EncodeInvalidUTF8(name))) {
+                    pmd->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(
+                                                  name));
+                    pmd->get_todelete().erase(eos::common::StringConversion::EncodeInvalidUTF8(
+                                                name));
+                    pmd->set_nchildren(pmd->nchildren() - 1);
+                  }
                 }
               }
             }
@@ -2658,9 +2671,12 @@ metad::mdcommunicate(ThreadAssistant& assistant)
               uint64_t pino = 0;
               mode_t mode = 0;
               std::string md_clientid;
+              std::string old_name;
 
               // MD update logic
               if (ino) {
+                eos_static_notice("md-update: (existing) remote-ino=%#lx ino=%#lx authid=%s",
+                                  md_ino, ino, authid.c_str());
                 mdmap.retrieveOrCreateTS(ino, md);
 
                 // updated file MD
@@ -2671,6 +2687,13 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                 md->Locker().Lock();
                 bookingsize = rsp.md_().size() - md->size();
                 md_clientid = rsp.md_().clientid();
+                eos_static_info("md-update: %s %s", md->name().c_str(),
+                                  rsp.md_().name().c_str());
+
+                // check if this implies a rename
+                if (md->name() != rsp.md_().name()) {
+                  old_name = rsp.md_().name();
+                }
 
                 // verify that this record is newer than
                 if (rsp.md_().clock() >= md->clock()) {
@@ -2721,12 +2744,21 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                   kernelcache::inval_inode(ino, S_ISDIR(mode) ? false : true);
                 }
 
+                if (EosFuse::Instance().Config().options.md_kernelcache && old_name.length()) {
+                  eos_static_info("invalidate previous name for ino=%#lx old-name=%s", ino,
+                                  old_name.c_str());
+                  kernelcache::inval_entry(pino, old_name.c_str());
+                  kernelcache::inval_inode(pino, false);
+                }
+
                 if (S_ISREG(mode)) {
                   // invalidate local disk cache
                   EosFuse::Instance().datas.invalidate_cache(ino);
                   eos_static_info("invalidate local disk cache for ino=%#lx", ino);
                 }
               } else {
+                eos_static_info("md-update: (new) remote-ino=%#lx ino=%#lx authid=%s",
+                                  md_ino, ino, authid.c_str());
                 // new file
                 md = std::make_shared<mdx>();
                 *md = rsp.md_();
@@ -2766,6 +2798,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                   // possibly invalidate kernel cache for parent
                   if (EosFuse::Instance().Config().options.md_kernelcache) {
                     eos_static_info("invalidate md cache for ino=%016lx", pino);
+                    kernelcache::inval_entry(pino, md->name());
                     kernelcache::inval_inode(pino, false);
                     pmd->local_enoent().erase(md->name());
                   }
