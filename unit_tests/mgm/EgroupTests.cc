@@ -145,5 +145,10 @@ TEST(Egroup, ExplicitRefresh) {
 
   ASSERT_EQ(egroup.DumpMember("user1", "awesome-users"),
     "egroup=awesome-users user=user1 member=false lifetime=1780");
+
+  egroup.refresh("user1", "awesome-users");
+
+  ASSERT_EQ(egroup.DumpMember("user1", "awesome-users"),
+    "egroup=awesome-users user=user1 member=true lifetime=1800");
 }
 
