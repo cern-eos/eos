@@ -33,6 +33,7 @@
 #include <string>
 #include <map>
 #include <chrono>
+#include <shared_mutex>
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -48,18 +49,22 @@ EOSMGMNAMESPACE_BEGIN
 /**
  * @brief Class implementing EGROUP support
  *
- * Provides static functions to check egroup membership's by
- * username/egroup name.\n
- * The Egroup object mantains a thread which is serving async
- * Egroup membership update requests. \n
- * The application has to generate a single Egroup object and should use the
- * static Egroup::Member function to check Egroup membership.\n\n
- * The problem here is that the calling function in the MGM
- * has a read lock durign the Egroup::Member call and the
- * refreshing of Egroup permissions should be done if possible asynchronous to
- * avoid mutex starvation.
  */
 /*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+//! Class implementing EGROUP support.
+//!
+//! Provides functionality for checking egroup membership by username / egroup
+//! name.
+//!
+//! The Egroup object maintains a thread which is serving async Egroup
+//! membership update requests.
+//!
+//! The problem here is that the calling function in the MGM has a read lock
+//! during the Egroup::Member call and the refreshing of Egroup permissions
+//! should be done if possible asynchronously to avoid mutex starvation.
+//------------------------------------------------------------------------------
 class Egroup
 {
 public:
@@ -178,7 +183,7 @@ private:
   void Refresh(ThreadAssistant& assistant) noexcept;
 
   /// mutex protecting static Egroup objects
-  XrdSysMutex Mutex;
+  std::shared_timed_mutex mutex;
 
   /// map indicating egroup memebership for egroup/username pairs
   std::map<std::string, std::map<std::string, CachedEntry>> cache;

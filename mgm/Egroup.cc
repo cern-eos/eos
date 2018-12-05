@@ -194,7 +194,7 @@ void Egroup::storeIntoCache(const std::string& username,
   const std::string& egroupname, bool isMember,
   std::chrono::steady_clock::time_point timestamp) {
 
-  XrdSysMutexHelper helper(Mutex);
+  std::unique_lock<std::shared_timed_mutex> lock(mutex);
   cache[egroupname][username] = CachedEntry(isMember, timestamp);
 }
 
@@ -204,7 +204,7 @@ void Egroup::storeIntoCache(const std::string& username,
 bool Egroup::fetchCached(const std::string& username,
   const std::string& egroupname, Egroup::CachedEntry &out) {
 
-  XrdSysMutexHelper helper(Mutex);
+  std::shared_lock<std::shared_timed_mutex> lock(mutex);
 
   auto it = cache.find(egroupname);
   if(it == cache.end()) {
@@ -384,7 +384,7 @@ Egroup::DumpMembers()
   std::chrono::steady_clock::time_point now = common::SteadyClock::now(clock);
   std::stringstream ss;
 
-  XrdSysMutexHelper lLock(Mutex);
+  std::shared_lock<std::shared_timed_mutex> lock(mutex);
 
   for(auto it = cache.begin(); it != cache.end(); it++) {
     for(auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {
@@ -406,7 +406,7 @@ Egroup::DumpMembers()
 // Reset all stored information
 //------------------------------------------------------------------------------
 void Egroup::Reset() {
-  XrdSysMutexHelper mLock(Mutex);
+  std::unique_lock<std::shared_timed_mutex> lock(mutex);
   cache.clear();
 }
 
