@@ -89,7 +89,6 @@ TransferEngine::Stop(bool store)
   }
 
   mRunning = false;
-  eos_static_info("Stop transfer engine");
   return 0;
 }
 

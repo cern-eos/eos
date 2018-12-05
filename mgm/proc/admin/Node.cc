@@ -379,13 +379,14 @@ ProcCommand::Node()
                 fs = FsView::gFsView.mIdView[*it];
 
                 if (fs) {
-                  // check the allowed strings
+                  // Check the allowed strings
                   if ((eos::common::FileSystem::GetConfigStatusFromString(
                          value.c_str()) != eos::common::FileSystem::kUnknown)) {
                     fs->SetString(key.c_str(), value.c_str());
 
                     if (value == "off") {
-                      // we have to remove the errc here, otherwise we cannot terminate drainjobs on file systems with errc set
+                      // We have to remove the errc here, otherwise we cannot terminate
+                      // drainjobs on file systems with errc set
                       fs->SetString("errc", "0");
                     }
 
