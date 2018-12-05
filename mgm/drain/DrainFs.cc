@@ -215,7 +215,8 @@ DrainFs::SuccessfulDrain()
         // If drain done and the system is not shutting down then set the
         // file system to "empty" state
         fs->SetLongLong("stat.drainprogress", 100, false);
-        fs->SetConfigStatus(eos::common::FileSystem::kEmpty);
+        static_cast<eos::common::FileSystem*>(fs)->SetString("configstatus",
+            "empty");
         fs->CloseTransaction();
         FsView::gFsView.StoreFsConfig(fs);
       } else {
