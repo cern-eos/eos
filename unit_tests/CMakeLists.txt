@@ -52,8 +52,9 @@ set(CONSOLE_UT_SRCS
 set(MGM_UT_SRCS
   mgm/AccessTests.cc
   mgm/AclCmdTests.cc
-  mgm/HttpTests.cc
+  mgm/EgroupTests.cc
   mgm/FsViewTests.cc
+  mgm/HttpTests.cc
   mgm/LockTrackerTests.cc
   mgm/ProcFsTests.cc
   mgm/RoutingTests.cc

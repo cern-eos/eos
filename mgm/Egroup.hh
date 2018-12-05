@@ -98,9 +98,16 @@ public:
   void Reset();
 
   //----------------------------------------------------------------------------
-  // Method to check if username is member in egroupname
+  // Major query method - uses cache
   //----------------------------------------------------------------------------
-  bool Member(const std::string& username, const std::string& egroupname);
+  CachedEntry query(const std::string& username, const std::string& egroupname);
+
+  //----------------------------------------------------------------------------
+  // Convenience function, method to check if username is member in egroupname
+  //----------------------------------------------------------------------------
+  bool Member(const std::string& username, const std::string& egroupname) {
+    return query(username, egroupname).isMember;
+  }
 
   //----------------------------------------------------------------------------
   // Display information about this specific username / groupname pair
@@ -125,6 +132,21 @@ public:
   //----------------------------------------------------------------------------
   bool fetchCached(const std::string& username,
     const std::string& egroupname, CachedEntry &out);
+
+  //----------------------------------------------------------------------------
+  // Inject item into the fake LDAP server. If injections are active, any time
+  // this class tries to contact the LDAP server, it will serve injected data
+  // instead.
+  //
+  // Simulates response of "isMemberUncached" function.
+  //----------------------------------------------------------------------------
+  void inject(const std::string &username, const std::string &egroupname,
+    Status status);
+
+  //----------------------------------------------------------------------------
+  // Return number of asynchronous refresh requests currently pending
+  //----------------------------------------------------------------------------
+  size_t getPendingQueueSize() const;
 
 private:
   const std::chrono::seconds kCacheDuration { 1800 };
@@ -163,6 +185,9 @@ private:
 
   /// thred-safe queue keeping track of pending refresh requests
   qclient::WaitableQueue<std::pair<std::string, std::string>, 500> PendingQueue;
+
+  /// injections to simulate LDAP server responses - different than the cache
+  std::map<std::string, std::map<std::string, Status>> injections;
 
   //----------------------------------------------------------------------------
   //! Main LDAP lookup function - bypasses the cache, hits the LDAP server.

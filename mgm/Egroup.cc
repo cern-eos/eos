@@ -57,11 +57,35 @@ Egroup::~Egroup()
   mThread.join();
 }
 
+//----------------------------------------------------------------------------
+// Return number of asynchronous refresh requests currently pending
+//----------------------------------------------------------------------------
+size_t Egroup::getPendingQueueSize() const {
+  return PendingQueue.size();
+}
+
 //------------------------------------------------------------------------------
 // Main LDAP lookup function - bypasses the cache, hits the LDAP server.
 //------------------------------------------------------------------------------
 Egroup::Status Egroup::isMemberUncached(const std::string &username,
   const std::string &egroupname) {
+
+  //----------------------------------------------------------------------------
+  // Serving real, or simulated data?
+  //----------------------------------------------------------------------------
+  if(!injections.empty()) {
+    auto it = injections.find(egroupname);
+    if(it == injections.end()) {
+      return Status::kNotMember;
+    }
+
+    auto it2 = it->second.find(username);
+    if(it2 == it->second.end()) {
+      return Status::kNotMember;
+    }
+
+    return it2->second;
+  }
 
   // run the LDAP query
   LDAP* ld = nullptr;
@@ -208,18 +232,23 @@ bool Egroup::isStale(const CachedEntry &entry) const {
   return false;
 }
 
-/*----------------------------------------------------------------------------*/
-bool
-Egroup::Member(const std::string& username, const std::string& egroupname)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Member
- * @param username name of the user to check Egroup membership
- * @param egroupname name of Egroup where to look for membership
- *
- * @return true if member otherwise false
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Inject item into the fake LDAP server. If injections are active, any time
+// this class tries to contact the LDAP server, it will serve injected data
+// instead.
+//
+// Simulates response of "isMemberUncached" function.
+//------------------------------------------------------------------------------
+void Egroup::inject(const std::string &username, const std::string &egroupname,
+    Status status) {
+  injections[egroupname][username] = status;
+}
+
+//------------------------------------------------------------------------------
+// Major query method - uses cache
+//------------------------------------------------------------------------------
+Egroup::CachedEntry Egroup::query(const std::string& username,
+  const std::string& egroupname)
 {
   CachedEntry entry;
   if(fetchCached(username, egroupname, entry)) {
@@ -230,7 +259,7 @@ Egroup::Member(const std::string& username, const std::string& egroupname)
       scheduleRefresh(username, egroupname);
     }
 
-    return entry.isMember;
+    return entry;
   }
 
   //----------------------------------------------------------------------------
@@ -251,7 +280,7 @@ Egroup::Member(const std::string& username, const std::string& egroupname)
   // Store into the cache
   //----------------------------------------------------------------------------
   storeIntoCache(username, egroupname, isMember, now);
-  return isMember;
+  return CachedEntry(isMember, now);
 }
 
 //------------------------------------------------------------------------------
@@ -274,10 +303,11 @@ void Egroup::Refresh(ThreadAssistant& assistant) noexcept
     }
 
     if (!resolve->first.empty()) {
-      DoRefresh(resolve->second, resolve->first);
+      DoRefresh(resolve->first, resolve->second);
     }
 
     iterator.next();
+    PendingQueue.pop_front();
   }
 }
 
@@ -287,7 +317,7 @@ void Egroup::Refresh(ThreadAssistant& assistant) noexcept
 void Egroup::scheduleRefresh(const std::string& username,
   const std::string& egroupname)
 {
-  PendingQueue.emplace_back(std::make_pair(egroupname, username));
+  PendingQueue.emplace_back(std::make_pair(username, egroupname));
 }
 
 //------------------------------------------------------------------------------
@@ -312,7 +342,6 @@ void Egroup::DoRefresh(const std::string& username,
   uint64_t expiration = common::SteadyClock::secondsSinceEpoch(
     now+kCacheDuration).count();
 
-
   eos_static_info("member=%s user=\"%s\" e-group=\"%s\" expiration=%lu",
     common::boolToString(isMember).c_str(), username.c_str(),
     egroupname.c_str(), expiration);
@@ -331,16 +360,12 @@ std::string
 Egroup::DumpMember(const std::string& username, const std::string& egroupname)
 {
   // trigger refresh
-  (void) Member(username, egroupname);
-
+  CachedEntry entry = query(username, egroupname);
   std::chrono::steady_clock::time_point now = common::SteadyClock::now(clock);
   std::chrono::seconds lifetime;
 
-  CachedEntry entry;
-  if(fetchCached(username, egroupname, entry)) {
-    lifetime = std::chrono::duration_cast<std::chrono::seconds>(
-      (entry.timestamp + kCacheDuration) - now);
-  }
+  lifetime = std::chrono::duration_cast<std::chrono::seconds>(
+    entry.timestamp + kCacheDuration - now);
 
   std::stringstream ss;
   ss << "egroup=" << egroupname;
