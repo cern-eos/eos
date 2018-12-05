@@ -2394,8 +2394,10 @@ XrdMqSharedObjectChangeNotifier::Stop()
   });
   // We now need to signal to the SomListener thread to unblock it
   {
-    XrdSysMutexHelper lock(SOM->mSubjectsMutex);
-    SOM->SubjectsSem.Post();
+    if (SOM) {
+      XrdSysMutexHelper lock(SOM->mSubjectsMutex);
+      SOM->SubjectsSem.Post();
+    }
   }
   stop_objnotifier.join();
   return true;
