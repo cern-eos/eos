@@ -42,7 +42,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 HierarchicalView::HierarchicalView()
   : pContainerSvc(nullptr), pFileSvc(nullptr),
-    pQuotaStats(new QuotaStats()), pRoot(nullptr)
+    pQuotaStats(new QuarkQuotaStats()), pRoot(nullptr)
 {
   pExecutor.reset(new folly::IOThreadPoolExecutor(8));
 }
@@ -74,7 +74,7 @@ HierarchicalView::configure(const std::map<std::string, std::string>& config)
   }
 
   delete pQuotaStats;
-  pQuotaStats = new QuotaStats();
+  pQuotaStats = new QuarkQuotaStats();
   pQuotaStats->configure(config);
 }
 

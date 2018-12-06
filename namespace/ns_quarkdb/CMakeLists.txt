@@ -56,7 +56,6 @@ add_library(
   persistency/Serialization.cc           persistency/Serialization.hh
   persistency/UnifiedInodeProvider.cc    persistency/UnifiedInodeProvider.hh
   views/HierarchicalView.cc              views/HierarchicalView.hh
-  accounting/QuotaStats.cc               accounting/QuotaStats.hh
 )
 
 set_target_properties(

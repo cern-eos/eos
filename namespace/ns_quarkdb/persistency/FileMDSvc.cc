@@ -20,7 +20,7 @@
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
-#include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
+#include "namespace/ns_quarkdb_static/accounting/QuotaStats.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb_static/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"

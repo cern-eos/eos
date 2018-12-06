@@ -156,6 +156,7 @@ public:
 private:
   friend class IQuotaNode;
   friend class QuotaNode;
+  friend class QuarkQuotaNode;
 
   std::map<uid_t, UsageInfo> mUserInfo;
   std::map<gid_t, UsageInfo> mGroupInfo;
