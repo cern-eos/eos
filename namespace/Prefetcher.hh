@@ -125,6 +125,17 @@ public:
       IFileMD::id_t id);
 
   //----------------------------------------------------------------------------
+  //! Prefetch inode metadata, automatically detect if it's a file or directory
+  //----------------------------------------------------------------------------
+  static void prefetchInodeAndWait(IView* view, uint64_t ino);
+
+  //----------------------------------------------------------------------------
+  //! Prefetch inode metadata with all children (if any), automatically detect
+  //! if it's a file or directory
+  //----------------------------------------------------------------------------
+  static void prefetchInodeWithChildrenAndWait(IView* view, uint64_t ino);
+
+  //----------------------------------------------------------------------------
   //! Prefetch FileList for the given filesystem ID
   //----------------------------------------------------------------------------
   static void prefetchFilesystemFileListAndWait(IView* view, IFsView* fsview,

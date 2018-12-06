@@ -27,6 +27,7 @@
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/Prefetcher.hh"
+#include "common/FileId.hh"
 
 EOSNSNAMESPACE_BEGIN
 
@@ -251,6 +252,41 @@ void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView* view,
   }
 
   prefetcher.wait();
+}
+
+//------------------------------------------------------------------------------
+// Prefetch inode metadata, automatically detect if it's a file or directory
+//------------------------------------------------------------------------------
+void Prefetcher::prefetchInodeAndWait(IView* view, uint64_t ino)
+{
+  if(view->inMemory() || ino == 0) {
+    return;
+  }
+
+  if(eos::common::FileId::IsFileInode(ino)) {
+    prefetchFileMDAndWait(view, eos::common::FileId::InodeToFid(ino));
+  }
+  else {
+    prefetchContainerMDAndWait(view, ino);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Prefetch inode metadata with all children (if any), automatically detect if
+// it's a file or directory
+//------------------------------------------------------------------------------
+void Prefetcher::prefetchInodeWithChildrenAndWait(IView* view, uint64_t ino)
+{
+  if(view->inMemory() || ino == 0) {
+    return;
+  }
+
+  if(eos::common::FileId::IsFileInode(ino)) {
+    prefetchFileMDAndWait(view, eos::common::FileId::InodeToFid(ino));
+  }
+  else {
+    prefetchContainerMDWithChildrenAndWait(view, ino);
+  }
 }
 
 //------------------------------------------------------------------------------

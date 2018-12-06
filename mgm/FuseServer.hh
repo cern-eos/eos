@@ -596,6 +596,8 @@ public:
                std::string* response = 0,
                uint64_t* clock = 0);
 
+  void prefetchMD(const eos::fusex::md& md);
+
 
   void
   MonitorCaps() noexcept;

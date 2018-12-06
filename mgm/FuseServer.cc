@@ -2639,6 +2639,17 @@ FuseServer::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
   }
 }
 
+/*----------------------------------------------------------------------------*/
+void
+FuseServer::prefetchMD(const eos::fusex::md& md)
+{
+  if(md.operation() == md.GET) {
+    Prefetcher::prefetchInodeAndWait(gOFS->eosView, md.md_ino());
+  }
+  else if(md.operation() == md.LS) {
+    Prefetcher::prefetchInodeWithChildrenAndWait(gOFS->eosView, md.md_ino());
+  }
+}
 
 /*----------------------------------------------------------------------------*/
 int
@@ -2707,6 +2718,11 @@ FuseServer::HandleMD(const std::string& id,
     return 0;
   }
 
+  // depending on the operation, prefetch into the namespace cache all
+  // metadata entries we'll need to service this request, _before_ acquiring
+  // the global namespace lock.
+  prefetchMD(md);
+
   if ((md.operation() == md.GET) || (md.operation() == md.LS)) {
     if (clock) {
       *clock = 0 ;
@@ -2732,12 +2748,8 @@ FuseServer::HandleMD(const std::string& id,
       if (md.operation() == md.LS) {
         gOFS->MgmStats.Add("Eosxd::ext::LS", vid.uid, vid.gid, 1);
         (*parent)[md.md_ino()].set_operation(md.LS);
-        eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
-            (IContainerMD::id_t)md.md_ino());
       } else {
         gOFS->MgmStats.Add("Eosxd::ext::GET", vid.uid, vid.gid, 1);
-        eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView,
-            (IContainerMD::id_t)md.md_ino());
       }
 
       size_t n_attached = 1;
@@ -2847,7 +2859,6 @@ FuseServer::HandleMD(const std::string& id,
     } else {
       EXEC_TIMING_BEGIN("Eosxd::ext::GET");
       eos_info("ino=%lx get-file/link", (long) md.md_ino());
-      Prefetcher::prefetchFileMDAndWait(gOFS->eosView, (IFileMD::id_t)md.md_ino());
       cont.set_type(cont.MD);
       cont.set_ref_inode_(md.md_ino());
       FillFileMD(md.md_ino(), (*cont.mutable_md_()), vid);
