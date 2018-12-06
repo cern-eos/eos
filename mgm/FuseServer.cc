@@ -939,6 +939,7 @@ void
 FuseServer::Clients::HandleStatistics(const std::string identity,
                                       const eos::fusex::statistics& stats)
 {
+  eos::common::RWMutexWriteLock lLock(*this);
   (this->map())[identity].statistics() = stats;
 
   if (EOS_LOGS_DEBUG) {
