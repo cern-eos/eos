@@ -1805,7 +1805,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                "All        read--mb/s          := %.02f\n"
                "All        write-mb/s          := %.02f\n"
                "All        iops                := %d\n"
-               "All        xoffs               := %llu\n"
+               "All        xoffs               := %lu\n"
                "All        instance-url        := %s\n"
                "All        client-uuid         := %s\n"
                "All        server-version      := %s\n"
@@ -1994,10 +1994,10 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
 
     if (pcap->errc()) {
       // don't fail chown not changing the owner,
-      if ((op & FUSE_SET_ATTR_UID) && (md->uid() == (unsigned int) attr->st_uid)) {
+      if ((op & FUSE_SET_ATTR_UID) && (md->uid() == (int) attr->st_uid)) {
         rc = 0;
       } else {
-        if ((op & FUSE_SET_ATTR_GID) && (md->uid() == (unsigned int) attr->st_gid)) {
+        if ((op & FUSE_SET_ATTR_GID) && (md->uid() == (int) attr->st_gid)) {
           rc = 0;
         } else {
           rc = pcap->errc();
