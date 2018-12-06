@@ -604,6 +604,13 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 
       mFile->xrdiorw(freq)->attach();
     }
+    // when someone attaches a writer, we have to drop all the read-ahead buffers because we might get stale information in readers
+    for (auto fit = mFile->get_xrdioro().begin();
+	 fit != mFile->get_xrdioro().end(); ++fit) {
+      if (fit->second->IsOpen()) {
+	fit->second->DropReadAhead();
+      }
+    }
   } else {
     if (!mFile->has_xrdioro(freq) || mFile->xrdioro(freq)->IsClosing() ||
         mFile->xrdioro(freq)->IsClosed()) {
@@ -641,6 +648,10 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
       WaitOpen();
       mFile->xrdioro(freq)->OpenAsync(mRemoteUrlRO.c_str(), targetFlags, mode, 0);
     } else {
+      if (mFile->has_xrdiorw(freq)) {
+	// we have to drop all existing read-ahead buffers to avoid reading outdated buffers
+	mFile->xrdioro(freq)->DropReadAhead();
+      }
       mFile->xrdioro(freq)->attach();
     }
   }
