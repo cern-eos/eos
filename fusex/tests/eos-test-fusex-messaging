@@ -1,0 +1,209 @@
+#!/bin/bash
+
+USAGE="usage: eos-test-fusex-messaging <mnt1-prefix> [<mnt2-prefix> <mgm-url> <mgm-prefix>]"
+
+[[ -z "$1" ]] && echo $USAGE  && exit -1
+[[ -z "$2" ]] && echo $USAGE && exit -1
+[[ -z "$3" ]] && echo $USAGE && exit -1
+
+
+mnt1=$1
+mnt2=$2
+period=${3-250000};
+
+mtime1=0;
+mtime2=0;
+mtime3=0;
+mtime4=0;
+oldcontent="";
+
+function changed() {
+  mtime3=`stat -c %y $mnt1/$1`;
+  mtime4=`stat -c %y $mnt2/$1`; 
+
+  if [ "$mtime1" = "$mtime3" ]; then
+      echo "changed: failed $2 $mtime1 $mtime3";
+      exit $2;
+  fi
+
+  if [ "$mtime2" = "$mtime4" ]; then
+      echo "changed: failed $2 $mtime2 $mtime4";
+      exit $2;
+  fi
+}
+
+function unchanged() {
+  mtime3=`stat -c %y $mnt1/$1`;
+  mtime4=`stat -c %y $mnt2/$1`; 
+
+  if [ "$mtime1" != "$mtime3" ]; then
+      echo "changed: failed $2 $mtime1 $mtime3";
+      exit $2;
+  fi
+
+  if [ "$mtime2" != "$mtime4" ]; then
+      echo "changed: failed $2 $mtime2 $mtime4";
+      exit $2;
+  fi
+}
+
+function compare() {
+  mtime1=`stat -c %y $mnt1/$1`;
+  mtime2=`stat -c %y $mnt2/$1`; 
+
+  echo "mnt1:$mtime1"
+  echo "mnt2:$mtime2"
+
+  if [ "$mtime1" != "$mtime2" ]; then
+      echo "compare: failed $2"
+      exit $2;
+  fi
+}
+
+function content() {
+  oldcontent=`cat $1`; 
+  echo content:$1: $oldcontent;
+}
+
+function content_compare() {
+  newcontent=`cat $1`;
+  echo compare: $oldcontent $newcontent
+  if [ "$oldcontent" != "$newcontent" ]; then
+      echo $oldcontent $newcontent
+      echo "content: content propagation faild $2"
+      exit $2;
+  fi
+  echo $oldcontent $newcontent
+}
+  
+
+
+set -e
+echo --------------------
+echo touch of a directory
+echo --------------------
+if [ ! -d $mnt1/mtime ]; then
+  mkdir -p $mnt1/mtime
+  usleep $period 
+  compare "mtime" 1
+fi
+touch $mnt1/mtime
+usleep $period 
+compare "mtime" 2
+touch $mnt2/mtime
+usleep $period 
+compare "mtime" 3
+usleep $period
+echo ALL OK
+echo --------------------
+echo touch of a file
+echo --------------------
+touch $mnt1/mtime/file
+usleep $period 
+compare "mtime" 4
+compare "mtime/file" 4
+touch $mnt1/mtime/file
+usleep $period 
+changed "mtime/file" 5
+compare "mtime/file" 5
+compare "mtime" 5
+touch $mnt1/mtime/file
+usleep $period 
+unchanged "mtime" 6
+compare "mtime/file" 6
+compare "mtime" 6
+echo ALL OK
+echo --------------------
+echo add a file
+echo --------------------
+ls $mnt2/mtime/ > /dev/null
+touch $mnt1/mtime/newfile > /dev/null 
+usleep $period
+test -f $mnt2/mtime/newfile || exit 7
+echo ALL OK
+
+echo --------------------
+echo remove a file
+echo --------------------
+ls $mnt2/mtime > /dev/null
+rm -f $mnt1/mtime/newfile
+usleep $period
+test -e $mnt2/mtime/newfile && exit 8
+test -e $mnt2/mtime/newfile && exit 8
+echo ALL OK
+
+echo --------------------
+echo update a file
+echo --------------------
+echo create client 2
+touch $mnt2/mtime/newfile
+usleep $period
+echo cache client 2
+cat  $mnt2/mtime/newfile  >& /dev/null
+echo overwrite client 1.1
+now=`date +%s.%N`
+echo now: $now
+echo $now > $mnt1/mtime/newfile
+content "$mnt1/mtime/newfile"
+usleep $period
+content_compare "$mnt1/mtime/newfile" 9
+content_compare "$mnt2/mtime/newfile" 9
+echo overwrite client 1.2
+now=`date +%s.%N`
+echo now: $now
+echo $now > $mnt1/mtime/newfile
+content "$mnt1/mtime/newfile"
+usleep $period
+echo compare 1
+content_compare "$mnt1/mtime/newfile" 10
+echo compare 2
+content_compare "$mnt2/mtime/newfile" 10
+echo ovewrite client 1.3
+now=`date +%s.%N`
+echo now: $now
+echo $now > $mnt1/mtime/newfile
+content "$mnt1/mtime/newfile"
+usleep $period
+content_compare "$mnt1/mtime/newfile" 11
+content_compare "$mnt2/mtime/newfile" 11
+echo ALL OK
+echo --------------------
+echo atomic replace
+echo --------------------
+
+for name in `seq 1 10`; do 
+date +%s.%N > $mnt1/mtime/.newfile
+mv -f $mnt1/mtime/.newfile $mnt1/mtime/newfile
+usleep $period
+content "$mnt1/mtime/newfile"
+content_compare "$mnt2/mtime/newfile"
+
+compare "mtime/newfile" 12
+compare "mtime" 13
+done
+echo ALL OK
+
+if [ "$4" != "" ]; then
+echo --------------------
+echo external changes
+echo --------------------
+
+eos $i file touch $5/mtime/external
+usleep $period
+compare "mtime" 14
+compare "mtime/external" 15
+eos $4 mv $5/mtime/external $5/mtime/external.mv
+usleep $period
+compare "mtime" 16
+compare "mtime/external.mv" 17
+eos $4 rm $5/mtime/external.mv
+usleep $period
+compare "mtime" 17
+if [ -e "$5/mtime/external.mv" ]; then
+    exit 18;
+fi
+if [ -e "$5/mtime/external.mv" ]; then 
+    exit 19;
+fi 
+echo ALL OK
+fi
