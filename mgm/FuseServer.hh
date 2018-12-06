@@ -437,6 +437,9 @@ public:
       return mQuotaCheckInterval;
     }
 
+    // to defer an operation based on client versions
+    bool DeferClient(std::string clienversion, std::string minimum_allowed_version);
+
   private:
     // lookup client full id to heart beat
     client_map_t mMap;

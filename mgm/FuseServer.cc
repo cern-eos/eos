@@ -839,13 +839,23 @@ FuseServer::Clients::RefreshEntry(uint64_t md_ino,
 
   if (!mUUIDView.count(uuid)) {
     return ENOENT;
-  }
+  } 
 
   std::string id = mUUIDView[uuid];
-  lLock.Release();
-  eos_static_info("msg=\"asking dentry refresh\" uuid=%s clientid=%s id=%lx",
-                  uuid.c_str(), clientid.c_str(), md_ino);
-  gOFS->zMQ->mTask->reply(id, rspstream);
+  
+  eos_static_info("client=%s\n", map()[id].heartbeat().version().c_str());
+
+  if (DeferClient(map()[id].heartbeat().version(), "4.4.18")) {
+    // dont' send refresh to client version < 4.4.18 (4.4.17 deadlocks, others ignore)
+    eos_static_info("suppressing refresh to client '%s' version='%s'", 
+		    clientid.c_str(), map()[id].heartbeat().version().c_str());
+  } else {
+    std::string id = mUUIDView[uuid];
+    lLock.Release();
+    eos_static_info("msg=\"asking dentry refresh\" uuid=%s clientid=%s id=%lx",
+		    uuid.c_str(), clientid.c_str(), md_ino);
+    gOFS->zMQ->mTask->reply(id, rspstream);
+  }
   EXEC_TIMING_END("Eosxd::int::RefreshEntry");
   return 0;
 }
@@ -945,6 +955,36 @@ FuseServer::Clients::HandleStatistics(const std::string identity,
   if (EOS_LOGS_DEBUG) {
     eos_static_debug("");
   }
+}
+
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+bool 
+FuseServer::Clients::DeferClient(std::string clientversion, std::string allowversion)
+{
+  std::vector<std::string> v1;
+  std::vector<std::string> v2;
+  eos::common::StringConversion::Tokenize(clientversion, v1, ".");
+  eos::common::StringConversion::Tokenize(allowversion,  v2, ".");
+  unsigned long client_v = 0;
+  unsigned long allowd_v = 0;
+
+  if (v1.size() == v2.size()) {
+    for (size_t i = 0; i != v1.size(); i++) {
+      if (i!=0) {
+	client_v *= 1000;
+	allowd_v *= 1000;
+      }
+      client_v += strtoul(v1[i].c_str(),0,10);
+      allowd_v += strtoul(v2[i].c_str(),0,10);
+    }
+  }
+  if (EOS_LOGS_DEBUG) {
+    eos_static_debug("client-v:%lu allowd-v:%lu (%s/%s)", client_v, allowd_v, clientversion.c_str(), allowversion.c_str());
+  }
+
+  return (client_v < allowd_v);
 }
 
 //------------------------------------------------------------------------------
@@ -2469,7 +2509,7 @@ FuseServer::FillContainerCAP(uint64_t id,
     eos::common::RWMutexWriteLock lLock(Cap());
 
     for (auto it = duplicated_caps.begin(); it != duplicated_caps.end(); ++it) {
-      eos_static_crit("removing duplicated cap %s\n", it->c_str());
+      eos_static_debug("removing duplicated cap %s\n", it->c_str());
       Caps::shared_cap cap = Cap().Get(*it);
       Cap().Remove(cap);
     }
