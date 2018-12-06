@@ -94,7 +94,7 @@ ZMQ::Task::run() noexcept
 }
 
 //------------------------------------------------------------------------------
-//  Reply to a client identifier which a pice of data
+//  Reply to a client identifier with a piece of data
 //------------------------------------------------------------------------------
 void
 ZMQ::Task::reply(const std::string& id, const std::string& data)
