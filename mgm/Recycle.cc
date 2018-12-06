@@ -1442,7 +1442,7 @@ Recycle::Config(std::string& std_out, std::string& std_err,
   }
 
   if (key == "--remove-bin") {
-    if (!value.empty()) {
+    if (value.empty()) {
       std_err = "error: missing subtree argument\n";
       return EINVAL;
     }

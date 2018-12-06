@@ -90,7 +90,7 @@ RecycleCmd::ProcessRequest() noexcept
       retc = Recycle::Config(std_out, std_err, mVid, "--add-bin",
                              config.subtree());
     } else if (config.op() == eos::console::RecycleProto_ConfigProto::RM_BIN) {
-      retc = Recycle::Config(std_out, std_err, mVid, "--rm-bin",
+      retc = Recycle::Config(std_out, std_err, mVid, "--remove-bin",
                              config.subtree());
     } else if (config.op() == eos::console::RecycleProto_ConfigProto::LIFETIME) {
       retc = Recycle::Config(std_out, std_err, mVid, "--lifetime",
