@@ -376,6 +376,22 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   xrdcl_options.push_back("RequestTimeout");
   xrdcl_options.push_back("StreamTimeout");
   xrdcl_options.push_back("RedirectLimit");
+
+  std::string mountpoint;
+  
+  for (int i = 1; i < argc; ++i) {
+    std::string opt = argv[i];
+    std::string opt0 = argv[i - 1];
+    
+    if ((opt[0] != '-') && (opt0 != "-o")) {
+      mountpoint = opt;
+    }
+    
+    if (opt == "-f") {
+      config.options.foreground = 1;
+    }
+  }
+
   {
     // parse JSON configuration
     Json::Value root;
@@ -454,9 +470,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
 
       size_t pos_colon;
-
+      std::string remotemount;
       if ((pos_colon = fsname.find(":")) != std::string::npos) {
-        std::string remotemount = fsname.substr(pos_colon + 1);
+        remotemount = fsname.substr(pos_colon + 1);
         fsname.erase(pos_colon);
         root["remotemountdir"] = remotemount;
         fprintf(stderr, "# extracted remote mount dir from fsname is '%s'\n",
@@ -471,6 +487,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     // apply some default settings for undefined entries.
     {
       if (!root.isMember("name")) {
+	XrdOucString id = mountpoint.c_str();
+	while (id.replace("/","::")) {}
+	fsname += id.c_str();
         root["name"] = fsname;
       }
 
@@ -744,7 +763,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       root["fuzzing"]["open-async-return-fatal"] = 0;
     }
 
-    const Json::Value jname = root["name"];
     config.name = root["name"].asString();
     config.hostport = root["hostport"].asString();
     config.remotemountdir = root["remotemountdir"].asString();
@@ -1181,21 +1199,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
   }
   {
-    std::string mountpoint;
-
-    for (int i = 1; i < argc; ++i) {
-      std::string opt = argv[i];
-      std::string opt0 = argv[i - 1];
-
-      if ((opt[0] != '-') && (opt0 != "-o")) {
-        mountpoint = opt;
-      }
-
-      if (opt == "-f") {
-        config.options.foreground = 1;
-      }
-    }
-
     if (!mountpoint.length()) {
       // we allow to take the mountpoint from the json file if it is not given on the command line
       fuse_opt_add_arg(&args, config.localmountdir.c_str());
@@ -1892,14 +1895,16 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       fuse_ino_t cap_ino = S_ISDIR(md->mode()) ? ino : md->pid();
       cap::shared_cap pcap = Instance().caps.acquire(req, cap_ino ? cap_ino : 1,
                              S_IFDIR | X_OK | R_OK);
-      XrdSysMutexHelper capLock(pcap->Locker());
+      pcap->Locker().Lock();
 
       if (pcap->errc()) {
         rc = pcap->errc();
+	pcap->Locker().UnLock();
       } else {
         if (md->needs_refresh()) {
           md->Locker().UnLock();
           std::string authid = pcap->authid();
+	  pcap->Locker().UnLock();
           md = Instance().mds.get(req, ino);
           md->Locker().Lock();
 
