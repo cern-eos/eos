@@ -1731,7 +1731,8 @@ XrdFstOfsFile::close()
         eventType = "closer";
       }
 
-      if (mSyncEventOnClose && mEventWorkflow != common::RETRIEVE_WRITTEN_WORKFLOW_NAME) {
+      if (mSyncEventOnClose &&
+          mEventWorkflow != common::RETRIEVE_WRITTEN_WORKFLOW_NAME) {
         std::string decodedAttributes;
         eos::common::SymKey::Base64Decode(mEventAttributes.c_str(), decodedAttributes);
         std::map<std::string, std::string> attributes;
@@ -1777,7 +1778,7 @@ XrdFstOfsFile::close()
       }
 
       // Only notify the MGM of the event if it is neither close or sync::close
-      if(!mEventOnClose && !mSyncEventOnClose) {
+      if (!mEventOnClose && !mSyncEventOnClose) {
         eos_info("msg=\"notify\" event=\"%s\" workflow=\"%s\"", eventType.c_str(),
                  mEventWorkflow.c_str());
         rc = gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"),
@@ -1909,8 +1910,8 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
              static_cast<unsigned long long>(fileOffset),
              static_cast<unsigned long long>(buffer_size),
              FName(), mCapOpaque ? mCapOpaque->Env(envlen) : FName());
-    hasReadError =
-      true; // used to understand if a reconstruction of a RAIN file worked
+    // Used to understand if a reconstruction of a RAIN file worked
+    hasReadError = true;
   }
 
   eos_debug("rc=%d offset=%lu size=%llu", rc, fileOffset,
@@ -2099,26 +2100,24 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
 
   int rc = layOut->Write(fileOffset, const_cast<char*>(buffer), buffer_size);
 
-  //  EPNAME("write");
-  if ((rc < 0) && isCreation && (error.getErrInfo() == EREMOTEIO)) {
-    if (eos::common::LayoutId::GetLayoutType(mLid) ==
-        eos::common::LayoutId::kReplica) {
-      // If we see a remote IO error, we don't fail, we just call a repair
-      // action afterwards (only for replica layouts!)
-      repairOnClose = true;
-      rc = buffer_size;
-    }
+  // If we see a remote IO error, we don't fail, we just call repair afterwards,
+  // only for replica layouts
+  if ((rc < 0) && isCreation &&
+      (layOut->GetErrObj()->getErrInfo() == EREMOTEIO) &&
+      (eos::common::LayoutId::GetLayoutType(mLid) ==
+       eos::common::LayoutId::kReplica)) {
+    repairOnClose = true;
+    rc = buffer_size;
   }
 
   // Evt. add checksum
-  if ((rc > 0) && (mCheckSum)) {
-    XrdSysMutexHelper cLock(ChecksumMutex);
-    mCheckSum->Add(buffer,
-                   static_cast<size_t>(rc),
-                   static_cast<off_t>(fileOffset));
-  }
-
   if (rc > 0) {
+    if (mCheckSum) {
+      XrdSysMutexHelper cLock(ChecksumMutex);
+      mCheckSum->Add(buffer, static_cast<size_t>(rc),
+                     static_cast<off_t>(fileOffset));
+    }
+
     if (static_cast<unsigned long long>(fileOffset + buffer_size) >
         static_cast<unsigned long long>(maxOffsetWritten)) {
       maxOffsetWritten = (fileOffset + buffer_size);
@@ -2134,7 +2133,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
 
     if (!hasWriteError || EOS_LOGS_DEBUG) {
       eos_crit("block-write error=%d offset=%llu len=%llu file=%s",
-               error.getErrInfo(),
+               layOut->GetErrObj()->getErrInfo(),
                static_cast<unsigned long long>(fileOffset),
                static_cast<unsigned long long>(buffer_size),
                FName(), mCapOpaque ? mCapOpaque->Env(envlen) : FName());
@@ -3283,14 +3282,14 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd,
   notification->mutable_file()->set_fid(fmd.fid());
   auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(
                       fmd.fid());
-
   std::string ctaArchiveFileId = "none";
+
   for (const auto& attrPair : xattrs) {
     google::protobuf::MapPair<std::string, std::string> attr(attrPair.first,
         attrPair.second);
     notification->mutable_file()->mutable_xattr()->insert(attr);
 
-    if(attrPair.first == "CTA_ArchiveFileId") {
+    if (attrPair.first == "CTA_ArchiveFileId") {
       ctaArchiveFileId = attrPair.second;
     }
   }
@@ -3303,18 +3302,17 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd,
   reportStream << "eosQuery://" << managerName
                << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
                << "&mgm.logid=cta&mgm.event=sync::archived&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0"
-                  "&cta_archive_file_id=" << ctaArchiveFileId;
+               "&cta_archive_file_id=" << ctaArchiveFileId;
   notification->mutable_transport()->set_report_url(reportStream.str());
   std::ostringstream errorReportStream;
   errorReportStream << "eosQuery://" << managerName
                     << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
                     << "&mgm.logid=cta&mgm.event=" << ARCHIVE_FAILED_WORKFLOW_NAME
                     << "&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0"
-                       "&cta_archive_file_id=" << ctaArchiveFileId
+                    "&cta_archive_file_id=" << ctaArchiveFileId
                     << "&mgm.errmsg=";
   notification->mutable_transport()->set_error_report_url(
     errorReportStream.str());
-
   // Communication with service
   std::string endPoint;
   std::string resource;
@@ -3351,9 +3349,9 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd,
     auto timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>
                      (receivedAt - sentAt);
     eos_static_info("SSI Protobuf time for sync::closew=%ld", timeSpent.count());
-  } catch (std::runtime_error& error) {
+  } catch (std::runtime_error& err) {
     eos_static_err("Could not send request to outside service. Reason: %s",
-                   error.what());
+                   err.what());
     return ENOTCONN;
   }
 

@@ -320,10 +320,8 @@ ReplicaParLayout::Write(XrdSfsFileOffset offset,
                         const char* buffer,
                         XrdSfsXferSize length)
 {
-  int64_t rc;
-
-  for (unsigned int i = 0; i < mReplicaFile.size(); i++) {
-    rc = mReplicaFile[i]->fileWriteAsync(offset, buffer, length, mTimeout);
+  for (unsigned int i = 0; i < mReplicaFile.size(); ++i) {
+    int64_t rc = mReplicaFile[i]->fileWriteAsync(offset, buffer, length, mTimeout);
 
     if (rc != length) {
       XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
@@ -334,6 +332,8 @@ ReplicaParLayout::Write(XrdSfsFileOffset offset,
 
       if (i != 0) {
         errno = EREMOTEIO;
+      } else {
+        errno = EIO;
       }
 
       // show only the first write error as an error to broadcast upstream
@@ -368,6 +368,8 @@ ReplicaParLayout::Truncate(XrdSfsFileOffset offset)
     if (rc != SFS_OK) {
       if (i != 0) {
         errno = EREMOTEIO;
+      } else {
+        errno = EIO;
       }
 
       XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
@@ -423,6 +425,8 @@ ReplicaParLayout::Sync()
     if (rc != SFS_OK) {
       if (i != 0) {
         errno = EREMOTEIO;
+      } else {
+        errno = EIO;
       }
 
       eos_err("error=failed to sync replica %i", i);
@@ -456,6 +460,8 @@ ReplicaParLayout::Remove()
 
       if (i != 0) {
         errno = EREMOTEIO;
+      } else {
+        errno = EIO;
       }
 
       eos_err("error=failed to remove replica %i", i);
@@ -487,6 +493,8 @@ ReplicaParLayout::Close()
       if (rc_close != SFS_OK) {
         if (i != 0) {
           errno = EREMOTEIO;
+        } else {
+          errno = EIO;
         }
 
         eos_err("error=failed to close replica %s", mReplicaUrl[i].c_str());
