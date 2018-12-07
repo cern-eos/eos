@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "namespace/ns_quarkdb_static/explorer/NamespaceExplorer.hh"
+#include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
 #include "namespace/utils/PathProcessor.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/utils/Attributes.hh"

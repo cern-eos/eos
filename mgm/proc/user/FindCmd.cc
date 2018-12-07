@@ -32,7 +32,7 @@
 #include "namespace/utils/Stat.hh"
 #include "namespace/utils/BalanceCalculator.hh"
 #include "namespace/utils/Checksum.hh"
-#include "namespace/ns_quarkdb_static/explorer/NamespaceExplorer.hh"
+#include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 

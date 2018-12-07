@@ -23,7 +23,7 @@
 
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
-#include "namespace/ns_quarkdb_static/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/tests/TestUtils.hh"
 #include <gtest/gtest.h>
 #include <memory>

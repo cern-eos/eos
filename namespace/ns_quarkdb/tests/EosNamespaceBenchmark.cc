@@ -51,7 +51,7 @@ bootNamespace(const std::map<std::string, std::string>& config)
 {
   eos::IContainerMDSvc* contSvc = new eos::QuarkContainerMDSvc();
   eos::IFileMDSvc* fileSvc = new eos::QuarkFileMDSvc();
-  eos::IView* view = new eos::HierarchicalView();
+  eos::IView* view = new eos::QuarkHierarchicalView();
   fileSvc->configure(config);
   contSvc->configure(config);
   fileSvc->setContMDService(contSvc);

@@ -18,9 +18,9 @@
 
 #include "namespace/ns_quarkdb/NsQuarkdbPlugin.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
-#include "namespace/ns_quarkdb_static/accounting/ContainerAccounting.hh"
-#include "namespace/ns_quarkdb_static/accounting/FileSystemView.hh"
-#include "namespace/ns_quarkdb_static/accounting/SyncTimeAccounting.hh"
+#include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
+#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
+#include "namespace/ns_quarkdb/accounting/SyncTimeAccounting.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
@@ -160,7 +160,7 @@ NsQuarkdbPlugin::DestroyFileMDSvc(void* obj)
 void*
 NsQuarkdbPlugin::CreateHierarchicalView(PF_PlatformServices* /*services*/)
 {
-  return new HierarchicalView();
+  return new QuarkHierarchicalView();
 }
 
 //------------------------------------------------------------------------------
@@ -173,7 +173,7 @@ NsQuarkdbPlugin::DestroyHierarchicalView(void* obj)
     return -1;
   }
 
-  delete static_cast<HierarchicalView*>(obj);
+  delete static_cast<QuarkHierarchicalView*>(obj);
   return 0;
 }
 

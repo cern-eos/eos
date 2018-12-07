@@ -32,7 +32,7 @@
 
 // Hack to expose all members of FileSystemView to this test unit
 #define private public
-#include "namespace/ns_quarkdb_static/accounting/FileSystemView.hh"
+#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #undef private
 
 class FileMDSvcF : public eos::ns::testing::NsTestsFixture {};

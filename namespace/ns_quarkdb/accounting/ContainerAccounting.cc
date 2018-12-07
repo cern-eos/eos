@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "namespace/ns_quarkdb_static/accounting/ContainerAccounting.hh"
+#include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
 #include <iostream>
 #include <chrono>
 

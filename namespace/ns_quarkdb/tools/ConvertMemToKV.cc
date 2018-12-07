@@ -21,7 +21,7 @@
 #include "common/Parallel.hh"
 #include "namespace/Constants.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogConstants.hh"
-#include "namespace/ns_quarkdb_static/accounting/FileSystemView.hh"
+#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/utils/StringConvertion.hh"

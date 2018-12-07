@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "namespace/ns_quarkdb_static/accounting/FileSystemView.hh"
-#include "namespace/ns_quarkdb_static/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb/ConfigurationParser.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"

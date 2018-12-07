@@ -74,15 +74,15 @@ add_library(
   utils/Etag.cc                       utils/Etag.hh
 
   # non-loadable classes used in QDB namespace
-  ns_quarkdb_static/accounting/ContainerAccounting.cc     ns_quarkdb_static/accounting/ContainerAccounting.hh
-  ns_quarkdb_static/accounting/SyncTimeAccounting.cc      ns_quarkdb_static/accounting/SyncTimeAccounting.hh
-  ns_quarkdb_static/accounting/FileSystemHandler.cc       ns_quarkdb_static/accounting/FileSystemHandler.hh
-  ns_quarkdb_static/accounting/FileSystemView.cc          ns_quarkdb_static/accounting/FileSystemView.hh
-  ns_quarkdb_static/accounting/QuotaStats.cc              ns_quarkdb_static/accounting/QuotaStats.hh
-                                                          ns_quarkdb_static/accounting/SetChangeList.hh
+  ns_quarkdb/accounting/ContainerAccounting.cc            ns_quarkdb/accounting/ContainerAccounting.hh
+  ns_quarkdb/accounting/SyncTimeAccounting.cc             ns_quarkdb/accounting/SyncTimeAccounting.hh
+  ns_quarkdb/accounting/FileSystemHandler.cc              ns_quarkdb/accounting/FileSystemHandler.hh
+  ns_quarkdb/accounting/FileSystemView.cc                 ns_quarkdb/accounting/FileSystemView.hh
+  ns_quarkdb/accounting/QuotaStats.cc                     ns_quarkdb/accounting/QuotaStats.hh
+                                                          ns_quarkdb/accounting/SetChangeList.hh
 
-  ns_quarkdb_static/explorer/NamespaceExplorer.cc         ns_quarkdb_static/explorer/NamespaceExplorer.hh
-  ns_quarkdb_static/flusher/MetadataFlusher.cc            ns_quarkdb_static/flusher/MetadataFlusher.hh
+  ns_quarkdb/explorer/NamespaceExplorer.cc                ns_quarkdb/explorer/NamespaceExplorer.hh
+  ns_quarkdb/flusher/MetadataFlusher.cc                   ns_quarkdb/flusher/MetadataFlusher.hh
 
   ns_quarkdb/persistency/NextInodeProvider.cc             ns_quarkdb/persistency/NextInodeProvider.hh
   ns_quarkdb/persistency/Serialization.cc                 ns_quarkdb/persistency/Serialization.hh

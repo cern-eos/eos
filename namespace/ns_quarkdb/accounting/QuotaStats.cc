@@ -21,8 +21,8 @@
 // @brief User quota accounting
 //------------------------------------------------------------------------------
 
-#include "namespace/ns_quarkdb_static/accounting/QuotaStats.hh"
-#include "namespace/ns_quarkdb_static/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/ns_quarkdb/ConfigurationParser.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"

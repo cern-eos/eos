@@ -28,7 +28,7 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
-#include "namespace/ns_quarkdb_static/accounting/QuotaStats.hh"
+#include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
 
 #ifdef __clang__
 #pragma clang diagnostic ignored "-Wunused-private-field"
@@ -39,18 +39,18 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Implementation of the hierarchical namespace
 //------------------------------------------------------------------------------
-class HierarchicalView : public IView
+class QuarkHierarchicalView : public IView
 {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  HierarchicalView();
+  QuarkHierarchicalView();
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~HierarchicalView();
+  virtual ~QuarkHierarchicalView();
 
   //----------------------------------------------------------------------------
   //! Specify a pointer to the underlying container service

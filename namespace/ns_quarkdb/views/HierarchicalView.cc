@@ -40,7 +40,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-HierarchicalView::HierarchicalView()
+QuarkHierarchicalView::QuarkHierarchicalView()
   : pContainerSvc(nullptr), pFileSvc(nullptr),
     pQuotaStats(new QuarkQuotaStats()), pRoot(nullptr)
 {
@@ -50,7 +50,7 @@ HierarchicalView::HierarchicalView()
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-HierarchicalView::~HierarchicalView()
+QuarkHierarchicalView::~QuarkHierarchicalView()
 {
   delete pQuotaStats;
 }
@@ -59,7 +59,7 @@ HierarchicalView::~HierarchicalView()
 // Configure the view
 //------------------------------------------------------------------------------
 void
-HierarchicalView::configure(const std::map<std::string, std::string>& config)
+QuarkHierarchicalView::configure(const std::map<std::string, std::string>& config)
 {
   if (pContainerSvc == nullptr) {
     MDException e(EINVAL);
@@ -82,7 +82,7 @@ HierarchicalView::configure(const std::map<std::string, std::string>& config)
 // Initialize the view
 //------------------------------------------------------------------------------
 void
-HierarchicalView::initialize()
+QuarkHierarchicalView::initialize()
 {
   initialize1();
   initialize2();
@@ -90,7 +90,7 @@ HierarchicalView::initialize()
 }
 
 void
-HierarchicalView::initialize1()
+QuarkHierarchicalView::initialize1()
 {
   pContainerSvc->initialize();
 
@@ -116,7 +116,7 @@ HierarchicalView::initialize1()
 // Initialize phase 2
 //------------------------------------------------------------------------------
 void
-HierarchicalView::initialize2()
+QuarkHierarchicalView::initialize2()
 {
   pFileSvc->initialize();
 }
@@ -125,7 +125,7 @@ HierarchicalView::initialize2()
 // Initialize phase 3
 //------------------------------------------------------------------------------
 void
-HierarchicalView::initialize3()
+QuarkHierarchicalView::initialize3()
 {
   //--------------------------------------------------------------------------
   // Scan all the files to reattach them to containers - THIS SHOULD NOT
@@ -139,7 +139,7 @@ HierarchicalView::initialize3()
 // Finalize the view
 //------------------------------------------------------------------------------
 void
-HierarchicalView::finalize()
+QuarkHierarchicalView::finalize()
 {
   pContainerSvc->finalize();
   pFileSvc->finalize();
@@ -177,7 +177,7 @@ static folly::Future<IContainerMDPtr> extractContainerMD(FileOrContainerMD ptr)
 // Lookup a given path.
 //------------------------------------------------------------------------------
 folly::Future<FileOrContainerMD>
-HierarchicalView::getItem(const std::string& uri, bool follow)
+QuarkHierarchicalView::getItem(const std::string& uri, bool follow)
 {
   //----------------------------------------------------------------------------
   // Build our deque of pending chunks...
@@ -203,7 +203,7 @@ static FileOrContainerMD toFileOrContainerMD(IContainerMDPtr ptr)
 // Lookup a given path - deferred function.
 //------------------------------------------------------------------------------
 folly::Future<FileOrContainerMD>
-HierarchicalView::getPathDeferred(folly::Future<FileOrContainerMD> fut,
+QuarkHierarchicalView::getPathDeferred(folly::Future<FileOrContainerMD> fut,
                                   std::deque<std::string> pendingChunks,
                                   bool follow, size_t expendedEffort)
 {
@@ -215,7 +215,7 @@ HierarchicalView::getPathDeferred(folly::Future<FileOrContainerMD> fut,
   // request is completed.
   //----------------------------------------------------------------------------
   return fut.via(pExecutor.get())
-         .then(std::bind(&HierarchicalView::getPathInternal, this, _1, pendingChunks,
+         .then(std::bind(&QuarkHierarchicalView::getPathInternal, this, _1, pendingChunks,
                          follow, expendedEffort));
 }
 
@@ -223,7 +223,7 @@ HierarchicalView::getPathDeferred(folly::Future<FileOrContainerMD> fut,
 // Lookup a given path - deferred function.
 //------------------------------------------------------------------------------
 folly::Future<FileOrContainerMD>
-HierarchicalView::getPathDeferred(folly::Future<IContainerMDPtr> fut,
+QuarkHierarchicalView::getPathDeferred(folly::Future<IContainerMDPtr> fut,
                                   std::deque<std::string> pendingChunks,
                                   bool follow, size_t expendedEffort)
 {
@@ -232,7 +232,7 @@ HierarchicalView::getPathDeferred(folly::Future<IContainerMDPtr> fut,
   //----------------------------------------------------------------------------
   return fut.via(pExecutor.get())
          .then(toFileOrContainerMD)
-         .then(std::bind(&HierarchicalView::getPathInternal, this, _1, pendingChunks,
+         .then(std::bind(&QuarkHierarchicalView::getPathInternal, this, _1, pendingChunks,
                          follow, expendedEffort));
 }
 
@@ -240,7 +240,7 @@ HierarchicalView::getPathDeferred(folly::Future<IContainerMDPtr> fut,
 // Lookup a given path - internal function.
 //------------------------------------------------------------------------------
 folly::Future<FileOrContainerMD>
-HierarchicalView::getPathInternal(FileOrContainerMD state,
+QuarkHierarchicalView::getPathInternal(FileOrContainerMD state,
                                   std::deque<std::string> pendingChunks,
                                   bool follow, size_t expendedEffort)
 {
@@ -394,7 +394,7 @@ HierarchicalView::getPathInternal(FileOrContainerMD state,
 // Retrieve a file for given uri, asynchronously
 //------------------------------------------------------------------------------
 folly::Future<IFileMDPtr>
-HierarchicalView::getFileFut(const std::string& uri, bool follow)
+QuarkHierarchicalView::getFileFut(const std::string& uri, bool follow)
 {
   return getItem(uri, follow).then(extractFileMD);
 }
@@ -403,7 +403,7 @@ HierarchicalView::getFileFut(const std::string& uri, bool follow)
 // Retrieve a file for given uri
 //------------------------------------------------------------------------------
 std::shared_ptr<IFileMD>
-HierarchicalView::getFile(const std::string& uri, bool follow,
+QuarkHierarchicalView::getFile(const std::string& uri, bool follow,
                           size_t* link_depths)
 {
   return getFileFut(uri, follow).get();
@@ -413,7 +413,7 @@ HierarchicalView::getFile(const std::string& uri, bool follow,
 // Create a file for given uri
 //------------------------------------------------------------------------------
 std::shared_ptr<IFileMD>
-HierarchicalView::createFile(const std::string& uri, uid_t uid, gid_t gid)
+QuarkHierarchicalView::createFile(const std::string& uri, uid_t uid, gid_t gid)
 {
   if (uri == "/") {
     throw_mdexception(EEXIST, "File exists");
@@ -465,7 +465,7 @@ HierarchicalView::createFile(const std::string& uri, uid_t uid, gid_t gid)
 //! Create a link for given uri
 //------------------------------------------------------------------------
 void
-HierarchicalView::createLink(const std::string& uri, const std::string& linkuri,
+QuarkHierarchicalView::createLink(const std::string& uri, const std::string& linkuri,
                              uid_t uid, gid_t gid)
 {
   std::shared_ptr<IFileMD> file = createFile(uri, uid, gid);
@@ -481,7 +481,7 @@ HierarchicalView::createLink(const std::string& uri, const std::string& linkuri,
 // Remove link
 //------------------------------------------------------------------------------
 void
-HierarchicalView::removeLink(const std::string& uri)
+QuarkHierarchicalView::removeLink(const std::string& uri)
 {
   return unlinkFile(uri);
 }
@@ -490,7 +490,7 @@ HierarchicalView::removeLink(const std::string& uri)
 // Unlink the file for given uri
 //------------------------------------------------------------------------------
 void
-HierarchicalView::unlinkFile(const std::string& uri)
+QuarkHierarchicalView::unlinkFile(const std::string& uri)
 {
   std::deque<std::string> chunks;
   eos::PathProcessor::insertChunksIntoDeque(chunks, uri);
@@ -519,7 +519,7 @@ HierarchicalView::unlinkFile(const std::string& uri)
 // Unlink the file - this is only used for testing
 //------------------------------------------------------------------------------
 void
-HierarchicalView::unlinkFile(eos::IFileMD* file)
+QuarkHierarchicalView::unlinkFile(eos::IFileMD* file)
 {
   std::shared_ptr<IContainerMD> cont =
     pContainerSvc->getContainerMD(file->getContainerId());
@@ -533,7 +533,7 @@ HierarchicalView::unlinkFile(eos::IFileMD* file)
 // Remove the file
 //------------------------------------------------------------------------------
 void
-HierarchicalView::removeFile(IFileMD* file)
+QuarkHierarchicalView::removeFile(IFileMD* file)
 {
   // Check if the file can be removed
   if (file->getNumLocation() != 0 || file->getNumUnlinkedLocation() != 0) {
@@ -556,7 +556,7 @@ HierarchicalView::removeFile(IFileMD* file)
 // Get a container (directory) asynchronously
 //------------------------------------------------------------------------------
 folly::Future<IContainerMDPtr>
-HierarchicalView::getContainerFut(const std::string& uri, bool follow)
+QuarkHierarchicalView::getContainerFut(const std::string& uri, bool follow)
 {
   if (uri == "/") {
     return std::shared_ptr<IContainerMD> {pContainerSvc->getContainerMD(1)};
@@ -569,7 +569,7 @@ HierarchicalView::getContainerFut(const std::string& uri, bool follow)
 // Get a container (directory)
 //------------------------------------------------------------------------------
 IContainerMDPtr
-HierarchicalView::getContainer(const std::string& uri, bool follow,
+QuarkHierarchicalView::getContainer(const std::string& uri, bool follow,
                                size_t* link_depth)
 {
   return getContainerFut(uri, follow).get();
@@ -581,7 +581,7 @@ HierarchicalView::getContainer(const std::string& uri, bool follow,
 class UpdateStoreGuard
 {
 public:
-  UpdateStoreGuard(eos::HierarchicalView* v) : view(v) {}
+  UpdateStoreGuard(eos::QuarkHierarchicalView* v) : view(v) {}
 
   ~UpdateStoreGuard()
   {
@@ -596,7 +596,7 @@ public:
   }
 
 private:
-  eos::HierarchicalView* view;
+  eos::QuarkHierarchicalView* view;
   std::set<IContainerMDPtr> ptrs;
 };
 
@@ -604,7 +604,7 @@ private:
 // Create container - method eventually consistent
 //------------------------------------------------------------------------------
 std::shared_ptr<IContainerMD>
-HierarchicalView::createContainer(const std::string& uri, bool createParents)
+QuarkHierarchicalView::createContainer(const std::string& uri, bool createParents)
 {
   // Split the path
   if (uri == "/") {
@@ -676,7 +676,7 @@ HierarchicalView::createContainer(const std::string& uri, bool createParents)
 // Lookup a given path, expect a container there.
 //------------------------------------------------------------------------------
 folly::Future<IContainerMDPtr>
-HierarchicalView::getPathExpectContainer(const std::deque<std::string>& chunks)
+QuarkHierarchicalView::getPathExpectContainer(const std::deque<std::string>& chunks)
 {
   if (chunks.size() == 0u) {
     return pRoot;
@@ -690,7 +690,7 @@ HierarchicalView::getPathExpectContainer(const std::deque<std::string>& chunks)
 // Remove container
 //------------------------------------------------------------------------------
 void
-HierarchicalView::removeContainer(const std::string& uri)
+QuarkHierarchicalView::removeContainer(const std::string& uri)
 {
   // Find the container
   if (uri == "/") {
@@ -732,7 +732,7 @@ HierarchicalView::removeContainer(const std::string& uri)
 // Get uri for the container
 //------------------------------------------------------------------------------
 std::string
-HierarchicalView::getUri(const IContainerMD* container) const
+QuarkHierarchicalView::getUri(const IContainerMD* container) const
 {
   // Check the input
   if (container == nullptr) {
@@ -748,7 +748,7 @@ HierarchicalView::getUri(const IContainerMD* container) const
 // Get uri for the container - asynchronous version
 //------------------------------------------------------------------------------
 folly::Future<std::string>
-HierarchicalView::getUriFut(const IContainerMD* container) const
+QuarkHierarchicalView::getUriFut(const IContainerMD* container) const
 {
   return folly::via(pExecutor.get()).then([this, container]() {
     return this->getUri(container);
@@ -759,7 +759,7 @@ HierarchicalView::getUriFut(const IContainerMD* container) const
 // Get uri for container id
 //------------------------------------------------------------------------------
 std::string
-HierarchicalView::getUri(const IContainerMD::id_t cid) const
+QuarkHierarchicalView::getUri(const IContainerMD::id_t cid) const
 {
   // Gather the uri elements
   std::vector<std::string> elements;
@@ -787,7 +787,7 @@ HierarchicalView::getUri(const IContainerMD::id_t cid) const
 // Get uri for the container - asynchronous version
 //------------------------------------------------------------------------------
 folly::Future<std::string>
-HierarchicalView::getUriFut(const IFileMD* file) const
+QuarkHierarchicalView::getUriFut(const IFileMD* file) const
 {
   return folly::via(pExecutor.get()).then([this, file]() {
     return this->getUri(file);
@@ -798,7 +798,7 @@ HierarchicalView::getUriFut(const IFileMD* file) const
 // Get uri for the file
 //------------------------------------------------------------------------------
 std::string
-HierarchicalView::getUri(const IFileMD* file) const
+QuarkHierarchicalView::getUri(const IFileMD* file) const
 {
   // Check the input
   if (file == nullptr) {
@@ -817,7 +817,7 @@ HierarchicalView::getUri(const IFileMD* file) const
 //------------------------------------------------------------------------
 // Get real path translating existing symlink
 //------------------------------------------------------------------------
-std::string HierarchicalView::getRealPath(const std::string& uri)
+std::string QuarkHierarchicalView::getRealPath(const std::string& uri)
 {
   if (uri == "/") {
     MDException e(ENOENT);
@@ -849,7 +849,7 @@ std::string HierarchicalView::getRealPath(const std::string& uri)
 // Get quota node id concerning given container
 //------------------------------------------------------------------------------
 IQuotaNode*
-HierarchicalView::getQuotaNode(const IContainerMD* container, bool search)
+QuarkHierarchicalView::getQuotaNode(const IContainerMD* container, bool search)
 {
   // Initial sanity check
   if (container == nullptr) {
@@ -895,7 +895,7 @@ HierarchicalView::getQuotaNode(const IContainerMD* container, bool search)
 // Register the container to be a quota node
 //------------------------------------------------------------------------------
 IQuotaNode*
-HierarchicalView::registerQuotaNode(IContainerMD* container)
+QuarkHierarchicalView::registerQuotaNode(IContainerMD* container)
 {
   // Initial sanity check
   if (container == nullptr) {
@@ -926,7 +926,7 @@ HierarchicalView::registerQuotaNode(IContainerMD* container)
 // Remove the quota node
 //------------------------------------------------------------------------------
 void
-HierarchicalView::removeQuotaNode(IContainerMD* container)
+QuarkHierarchicalView::removeQuotaNode(IContainerMD* container)
 {
   // Sanity checks
   if (container == nullptr) {
@@ -976,7 +976,7 @@ HierarchicalView::removeQuotaNode(IContainerMD* container)
 // Rename container
 //------------------------------------------------------------------------------
 void
-HierarchicalView::renameContainer(IContainerMD* container,
+QuarkHierarchicalView::renameContainer(IContainerMD* container,
                                   const std::string& newName)
 {
   if (container == nullptr) {
@@ -1028,7 +1028,7 @@ HierarchicalView::renameContainer(IContainerMD* container,
 // Rename file
 //------------------------------------------------------------------------------
 void
-HierarchicalView::renameFile(IFileMD* file, const std::string& newName)
+QuarkHierarchicalView::renameFile(IFileMD* file, const std::string& newName)
 {
   if (file == nullptr) {
     MDException ex;

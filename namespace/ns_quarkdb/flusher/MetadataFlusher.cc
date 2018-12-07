@@ -23,7 +23,7 @@
 #include <memory>
 #include <qclient/BackgroundFlusher.hh>
 #include <qclient/RocksDBPersistency.hh>
-#include "namespace/ns_quarkdb_static/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "common/Logging.hh"
 #include <iostream>
