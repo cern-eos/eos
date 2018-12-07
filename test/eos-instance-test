@@ -960,7 +960,8 @@ runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp -p /etc/passwd /eos/$E
 runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp -p /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/* /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp2
 runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp -r /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp3
 runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp /tmp/passwd.ln /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/passwd.eoscp3
-runtest "### Symlink-S " unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/passwd.eoscp.ln /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/passwd.eoscp3
+# @todo(mpatras) this needs to be review
+runtest "### Symlink-S " unix 2 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/passwd.eoscp.ln /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/passwd.eoscp3
 runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/passwd.eoscp.ln /tmp/
 runtest "### Cleanup   " unix 0 "" shell rm /tmp/passwd.ln /tmp/passwd.eoscp.2 /tmp/passwd.eoscp.ln
 runtest "### Cleanup   " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp
