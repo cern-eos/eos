@@ -45,14 +45,17 @@ class HierarchicalViewF : public eos::ns::testing::NsTestsFixture {};
 
 TEST_F(HierarchicalViewF, LoadTest)
 {
-  std::shared_ptr<eos::IContainerMD> cont1 = view()->createContainer("/test/embed/embed1", true);
-  std::shared_ptr<eos::IContainerMD> cont2 = view()->createContainer("/test/embed/embed2", true);
-  std::shared_ptr<eos::IContainerMD> cont3 = view()->createContainer("/test/embed/embed3", true);
-  std::shared_ptr<eos::IContainerMD> cont4 = view()->createContainer("/test/embed/embed4", true);
+  std::shared_ptr<eos::IContainerMD> cont1 =
+    view()->createContainer("/test/embed/embed1", true);
+  std::shared_ptr<eos::IContainerMD> cont2 =
+    view()->createContainer("/test/embed/embed2", true);
+  std::shared_ptr<eos::IContainerMD> cont3 =
+    view()->createContainer("/test/embed/embed3", true);
+  std::shared_ptr<eos::IContainerMD> cont4 =
+    view()->createContainer("/test/embed/embed4", true);
   std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
   std::shared_ptr<eos::IContainerMD> test = view()->getContainer("/test");
   std::shared_ptr<eos::IContainerMD> embed = view()->getContainer("/test/embed");
-
   ASSERT_THROW(embed->setName("with/slashes"), eos::MDException);
   ASSERT_TRUE(root != nullptr);
   ASSERT_TRUE(root->getId() == root->getParentId());
@@ -78,8 +81,8 @@ TEST_F(HierarchicalViewF, LoadTest)
   view()->createFile("/test/embed/embed1/file1");
   view()->createFile("/test/embed/embed1/file2");
   view()->createFile("/test/embed/embed1/file3");
-  std::shared_ptr<eos::IFileMD> fileR = view()->createFile("/test/embed/embed1/fileR");
-
+  std::shared_ptr<eos::IFileMD> fileR =
+    view()->createFile("/test/embed/embed1/fileR");
   ASSERT_THROW(fileR->setName("has/slashes"), eos::MDException);
   ASSERT_TRUE(view()->getFile("/test/embed/file1"));
   ASSERT_TRUE(view()->getFile("/test/embed/file2"));
@@ -104,15 +107,18 @@ TEST_F(HierarchicalViewF, LoadTest)
   ASSERT_THROW(view()->renameContainer(root.get(), "rename"),
                eos::MDException);
   // Test the "reverse" lookup
-  std::shared_ptr<eos::IFileMD> file = view()->getFile("/test/embed/embed1/file3");
-  std::shared_ptr<eos::IContainerMD> container = view()->getContainer("/test/embed/embed1");
+  std::shared_ptr<eos::IFileMD> file =
+    view()->getFile("/test/embed/embed1/file3");
+  std::shared_ptr<eos::IContainerMD> container =
+    view()->getContainer("/test/embed/embed1");
   ASSERT_EQ(view()->getUri(container.get()), "/test/embed/embed1/");
   ASSERT_EQ(view()->getUriFut(container.get()).get(), "/test/embed/embed1/");
   ASSERT_EQ(view()->getUri(file.get()), "/test/embed/embed1/file3");
   ASSERT_EQ(view()->getUriFut(file.get()).get(), "/test/embed/embed1/file3");
   ASSERT_THROW(view()->getUri((eos::IFileMD*)nullptr), eos::MDException);
   ASSERT_THROW(view()->getUriFut((eos::IFileMD*)nullptr).get(), eos::MDException);
-  std::shared_ptr<eos::IFileMD> toBeDeleted = view()->getFile("/test/embed/embed1/file2");
+  std::shared_ptr<eos::IFileMD> toBeDeleted =
+    view()->getFile("/test/embed/embed1/file2");
   toBeDeleted->addLocation(12);
   // This should not succeed since the file should have a replica
   ASSERT_THROW(view()->removeFile(toBeDeleted.get()), eos::MDException);
@@ -130,9 +136,7 @@ TEST_F(HierarchicalViewF, LoadTest)
   toBeDeleted->clearUnlinkedLocations();
   view()->removeFile(toBeDeleted.get());
   ASSERT_THROW(fileSvc()->getFileMD(id), eos::MDException);
-
   shut_down_everything();
-
   ASSERT_TRUE(view()->getContainer("/"));
   ASSERT_TRUE(view()->getContainer("/test"));
   ASSERT_TRUE(view()->getContainer("/test/embed"));
@@ -143,15 +147,15 @@ TEST_F(HierarchicalViewF, LoadTest)
   ASSERT_TRUE(view()->getFile("/test/embed/embed1/file3"));
   view()->getContainer("/test/embed/embed4.renamed");
   view()->getFile("/test/embed/embed1/fileR.renamed");
-
   // Cleanup
   // Unlink files - need to do it in this order since the unlink removes the
   // file from the container and then getFile by path won't work anymore
   std::shared_ptr<eos::IFileMD> file1 = view()->getFile("/test/embed/file1");
   std::shared_ptr<eos::IFileMD> file2 = view()->getFile("/test/embed/file2");
-  std::shared_ptr<eos::IFileMD> file11 = view()->getFile("/test/embed/embed1/file1");
-  std::shared_ptr<eos::IFileMD> file13 = view()->getFile("/test/embed/embed1/file3");
-
+  std::shared_ptr<eos::IFileMD> file11 =
+    view()->getFile("/test/embed/embed1/file1");
+  std::shared_ptr<eos::IFileMD> file13 =
+    view()->getFile("/test/embed/embed1/file3");
   view()->unlinkFile("/test/embed/file1");
   view()->unlinkFile("/test/embed/file2");
   view()->unlinkFile("/test/embed/embed1/file1");
@@ -221,10 +225,8 @@ TEST_F(HierarchicalViewF, ZeroSizedFilenames)
   eos::IContainerMDPtr cont1 = view()->createContainer("/test/dir1", true);
   eos::IContainerMDPtr cont2 = view()->createContainer("/dir2", true);
   eos::IFileMDPtr file1 = view()->createFile("/file1", true);
-
   file1->setName("");
   ASSERT_THROW(cont1->addFile(file1.get()), eos::MDException);
-
   cont2->setName("");
   ASSERT_THROW(cont1->addContainer(cont2.get()), eos::MDException);
 }
@@ -232,33 +234,28 @@ TEST_F(HierarchicalViewF, ZeroSizedFilenames)
 //------------------------------------------------------------------------------
 // Test namespace resolver based on (path, cid, cxid)
 //------------------------------------------------------------------------------
-TEST_F(HierarchicalViewF, Resolver) {
+TEST_F(HierarchicalViewF, Resolver)
+{
   // Make a lot of containers
-  for(size_t i = 0; i < 50; i++) {
+  for (size_t i = 0; i < 50; i++) {
     view()->createContainer(SSTR("/dir" << i), true);
   }
 
   eos::ContainerSpecificationProto spec;
   ASSERT_THROW(eos::Resolver::resolveContainer(view(), spec), eos::MDException);
-
   spec.set_path("/dir49");
   eos::IContainerMDPtr cont = eos::Resolver::resolveContainer(view(), spec);
   ASSERT_EQ(cont->getName(), "dir49");
-
   spec.set_cid("48");
   cont = eos::Resolver::resolveContainer(view(), spec);
   ASSERT_EQ(cont->getName(), "dir46");
-
   spec.set_cxid("30");
   cont = eos::Resolver::resolveContainer(view(), spec);
   ASSERT_EQ(cont->getName(), "dir46");
-
   spec.set_path("/chicken");
   ASSERT_THROW(eos::Resolver::resolveContainer(view(), spec), eos::MDException);
-
   spec.set_cid("chicken chicken");
   ASSERT_THROW(eos::Resolver::resolveContainer(view(), spec), eos::MDException);
-
   spec.set_cxid("chicken");
   ASSERT_THROW(eos::Resolver::resolveContainer(view(), spec), eos::MDException);
 }
@@ -268,7 +265,6 @@ TEST_F(HierarchicalViewF, QuotaTest)
   srandom(time(nullptr));
   // Initialize the system
   setSizeMapper(mapSize);
-
   // Create some structures, insert quota nodes and test their correctness
   std::shared_ptr<eos::IContainerMD> cont1{
     view()->createContainer("/test/embed/embed1", true)};
@@ -314,8 +310,10 @@ TEST_F(HierarchicalViewF, QuotaTest)
   std::string path3 = "/test/embed/embed3/";
   createFiles(path3, view(), &users3, &groups3);
   // Verify correctness
-  eos::IQuotaNode* node1 = view()->getQuotaNode(view()->getContainer(path1).get());
-  eos::IQuotaNode* node2 = view()->getQuotaNode(view()->getContainer(path2).get());
+  eos::IQuotaNode* node1 = view()->getQuotaNode(view()->getContainer(
+                             path1).get());
+  eos::IQuotaNode* node2 = view()->getQuotaNode(view()->getContainer(
+                             path2).get());
 
   for (int i = 1; i <= 10; ++i) {
     ASSERT_EQ(node1->getPhysicalSpaceByUser(i), users1[i].physicalSpace);
@@ -328,9 +326,9 @@ TEST_F(HierarchicalViewF, QuotaTest)
 
   for (int i = 1; i <= 3; ++i) {
     ASSERT_EQ(node1->getPhysicalSpaceByGroup(i),
-                groups1[i].physicalSpace);
+              groups1[i].physicalSpace);
     ASSERT_EQ(node2->getPhysicalSpaceByGroup(i),
-                groups2[i].physicalSpace);
+              groups2[i].physicalSpace);
     ASSERT_EQ(node1->getUsedSpaceByGroup(i), groups1[i].space);
     ASSERT_EQ(node2->getUsedSpaceByGroup(i), groups2[i].space);
     ASSERT_EQ(node1->getNumFilesByGroup(i), groups1[i].files);
@@ -370,20 +368,20 @@ TEST_F(HierarchicalViewF, QuotaTest)
 
   for (int i = 1; i <= 10; ++i) {
     ASSERT_EQ(parentNode->getPhysicalSpaceByUser(i),
-                users1[i].physicalSpace + users2[i].physicalSpace);
+              users1[i].physicalSpace + users2[i].physicalSpace);
     ASSERT_EQ(parentNode->getUsedSpaceByUser(i),
-                users1[i].space + users2[i].space);
+              users1[i].space + users2[i].space);
     ASSERT_EQ(parentNode->getNumFilesByUser(i),
-                users1[i].files + users2[i].files);
+              users1[i].files + users2[i].files);
   }
 
   for (int i = 1; i <= 3; ++i) {
     ASSERT_EQ(parentNode->getPhysicalSpaceByGroup(i),
-                groups1[i].physicalSpace + groups2[i].physicalSpace);
+              groups1[i].physicalSpace + groups2[i].physicalSpace);
     ASSERT_EQ(parentNode->getUsedSpaceByGroup(i),
-                groups1[i].space + groups2[i].space);
+              groups1[i].space + groups2[i].space);
     ASSERT_EQ(parentNode->getNumFilesByGroup(i),
-                groups1[i].files + groups2[i].files);
+              groups1[i].files + groups2[i].files);
   }
 
   view()->removeQuotaNode(view()->getContainer(path3).get());
@@ -392,30 +390,34 @@ TEST_F(HierarchicalViewF, QuotaTest)
 
   for (int i = 1; i <= 10; ++i) {
     ASSERT_EQ(parentNode->getPhysicalSpaceByUser(i),
-                users1[i].physicalSpace + users2[i].physicalSpace +
-                users3[i].physicalSpace);
+              users1[i].physicalSpace + users2[i].physicalSpace +
+              users3[i].physicalSpace);
     ASSERT_EQ(parentNode->getUsedSpaceByUser(i),
-                users1[i].space + users2[i].space + users3[i].space);
+              users1[i].space + users2[i].space + users3[i].space);
     ASSERT_EQ(parentNode->getNumFilesByUser(i),
-                users1[i].files + users2[i].files + users3[i].files);
+              users1[i].files + users2[i].files + users3[i].files);
   }
 
   for (int i = 1; i <= 3; ++i) {
     ASSERT_EQ(parentNode->getPhysicalSpaceByGroup(i),
-                groups1[i].physicalSpace + groups2[i].physicalSpace +
-                groups3[i].physicalSpace);
+              groups1[i].physicalSpace + groups2[i].physicalSpace +
+              groups3[i].physicalSpace);
     ASSERT_EQ(parentNode->getUsedSpaceByGroup(i),
-                groups1[i].space + groups2[i].space + groups3[i].space);
+              groups1[i].space + groups2[i].space + groups3[i].space);
     ASSERT_EQ(parentNode->getNumFilesByGroup(i),
-                groups1[i].files + groups2[i].files + groups3[i].files);
+              groups1[i].files + groups2[i].files + groups3[i].files);
   }
 
   // Clean up
   // Remove all the quota nodes
-  ASSERT_THROW(view()->removeQuotaNode(view()->getContainer(path1).get()), eos::MDException);
-  ASSERT_THROW(view()->removeQuotaNode(view()->getContainer(path2).get()), eos::MDException);
-  ASSERT_THROW(view()->removeQuotaNode(view()->getContainer(path3).get()), eos::MDException);
-  ASSERT_THROW(view()->removeQuotaNode(view()->getContainer("/test/embed").get()), eos::MDException);
+  ASSERT_THROW(view()->removeQuotaNode(view()->getContainer(path1).get()),
+               eos::MDException);
+  ASSERT_THROW(view()->removeQuotaNode(view()->getContainer(path2).get()),
+               eos::MDException);
+  ASSERT_THROW(view()->removeQuotaNode(view()->getContainer(path3).get()),
+               eos::MDException);
+  ASSERT_THROW(view()->removeQuotaNode(view()->getContainer("/test/embed").get()),
+               eos::MDException);
   view()->removeQuotaNode(cont5.get());
   // Remove all the files
   std::list<std::string> paths{path1, path2, path3};
@@ -440,11 +442,16 @@ TEST_F(HierarchicalViewF, QuotaTest)
 
 TEST_F(HierarchicalViewF, LostContainerTest)
 {
-  std::shared_ptr<eos::IContainerMD> cont1 = view()->createContainer("/test/embed/embed1", true);
-  std::shared_ptr<eos::IContainerMD> cont2 = view()->createContainer("/test/embed/embed2", true);
-  std::shared_ptr<eos::IContainerMD> cont3 = view()->createContainer("/test/embed/embed3", true);
-  std::shared_ptr<eos::IContainerMD> cont4 = view()->createContainer("/test/embed/embed1/embedembed", true);
-  std::shared_ptr<eos::IContainerMD> cont5 = view()->createContainer("/test/embed/embed3.conflict", true);
+  std::shared_ptr<eos::IContainerMD> cont1 =
+    view()->createContainer("/test/embed/embed1", true);
+  std::shared_ptr<eos::IContainerMD> cont2 =
+    view()->createContainer("/test/embed/embed2", true);
+  std::shared_ptr<eos::IContainerMD> cont3 =
+    view()->createContainer("/test/embed/embed3", true);
+  std::shared_ptr<eos::IContainerMD> cont4 =
+    view()->createContainer("/test/embed/embed1/embedembed", true);
+  std::shared_ptr<eos::IContainerMD> cont5 =
+    view()->createContainer("/test/embed/embed3.conflict", true);
 
   // Create some files
   for (int i = 0; i < 1000; ++i) {
@@ -523,14 +530,16 @@ TEST_F(HierarchicalViewF, LostContainerTest)
 
 TEST_F(HierarchicalViewF, RenameDirectoryAsSubdirOfItself)
 {
-  std::shared_ptr<eos::IContainerMD> cont1 = view()->createContainer("/eos/dev/my-dir", true);
-  std::shared_ptr<eos::IContainerMD> cont2 = view()->createContainer("/eos/dev/my-dir/subdir1", true);
-  std::shared_ptr<eos::IContainerMD> cont3 = view()->createContainer("/eos/dev/my-dir/subdir1/subdir2", true);
-
+  std::shared_ptr<eos::IContainerMD> cont1 =
+    view()->createContainer("/eos/dev/my-dir", true);
+  std::shared_ptr<eos::IContainerMD> cont2 =
+    view()->createContainer("/eos/dev/my-dir/subdir1", true);
+  std::shared_ptr<eos::IContainerMD> cont3 =
+    view()->createContainer("/eos/dev/my-dir/subdir1/subdir2", true);
   ASSERT_TRUE(eos::isSafeToRename(view(), cont3.get(), cont1.get()));
   ASSERT_FALSE(eos::isSafeToRename(view(), cont1.get(), cont3.get()));
-
-  ASSERT_TRUE(eos::isSafeToRename(view(), cont2.get(), cont1.get())); // non-sensical to do, but safe (no-op)
+  ASSERT_TRUE(eos::isSafeToRename(view(), cont2.get(),
+                                  cont1.get())); // non-sensical to do, but safe (no-op)
   ASSERT_FALSE(eos::isSafeToRename(view(), cont1.get(), cont2.get()));
 }
 
@@ -539,14 +548,13 @@ TEST_F(HierarchicalViewF, AddFileWithConflicts)
   eos::IContainerMDPtr cont1 = view()->createContainer("/test/dir1", true);
   view()->createContainer("/test/dir1/dir2", true);
   eos::IContainerMDPtr cont2 = view()->createContainer("/dir1", true);
-
   eos::IFileMDPtr file1 = view()->createFile("/test/dir1/file1", true);
   eos::IFileMDPtr file2 = view()->createFile("/file1", true);
-
-  ASSERT_THROW(cont1->addFile(file2.get()), eos::MDException); // conflicts with file
+  ASSERT_THROW(cont1->addFile(file2.get()),
+               eos::MDException); // conflicts with file
   file2->setName("dir2");
-  ASSERT_THROW(cont1->addFile(file2.get()), eos::MDException); // conflicts with directory
-
+  ASSERT_THROW(cont1->addFile(file2.get()),
+               eos::MDException); // conflicts with directory
   cont1->addFile(file1.get()); // conflicts with itself, thus, no conflict
 }
 
@@ -555,11 +563,11 @@ TEST_F(HierarchicalViewF, AddContainerWithConflicts)
   eos::IContainerMDPtr cont1 = view()->createContainer("/test/", true);
   eos::IContainerMDPtr cont4 = view()->createContainer("/test/dir1", true);
   eos::IContainerMDPtr cont2 = view()->createContainer("/dir1", true);
-  ASSERT_THROW(cont1->addContainer(cont2.get()), eos::MDException); // conflicts with container
-
+  ASSERT_THROW(cont1->addContainer(cont2.get()),
+               eos::MDException); // conflicts with container
   view()->createFile("/test/file1", true);
   eos::IContainerMDPtr cont3 = view()->createContainer("/file1", true);
-  ASSERT_THROW(cont1->addContainer(cont3.get()), eos::MDException); // conflicts with file
-
+  ASSERT_THROW(cont1->addContainer(cont3.get()),
+               eos::MDException); // conflicts with file
   cont1->addContainer(cont4.get()); // conflicts with itself, thus, no conflict
 }
