@@ -919,8 +919,8 @@ runtest "### Ownership " unix 0 "" eos chown -r bin "/eos/$EOS_TEST_INSTANCE/tes
 runtest "### Ownership " unix 0 "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/ | grep -w bin | wc -l | grep -w 3"
 runtest "### Ownership " unix 0 "" eos chown -r -h bin "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/"
 runtest "### Ownership " unix 0 "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/ | grep -w bin | wc -l | grep -w 5"
-runtest "### Rmdir     " unix 0 "" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/
-runtest "### Rmdir     " unix 0 "EOSROLE='-r 99 99'" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/
+runtest "### Rmdir     " unix 0 "" eos rm -rf /eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/
+runtest "### Rmdir     " unix 0 "EOSROLE='-r 99 99'" eos rm -rf /eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/
 
 # ------------------------------------------------------------------------------
 categorie="tag"
