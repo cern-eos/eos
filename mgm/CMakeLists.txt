@@ -62,6 +62,7 @@ target_sources(EosMgmProto-Objects PUBLIC
 #-------------------------------------------------------------------------------
 add_library(
   XrdEosMgm-Objects OBJECT
+  auth/AccessChecker.cc                                   auth/AccessChecker.hh
   Access.cc
   IConfigEngine.cc
   FileConfigEngine.cc

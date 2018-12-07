@@ -23,6 +23,11 @@
 
 #include "gtest/gtest.h"
 #include "mgm/Access.hh"
+#include "mgm/Acl.hh"
+#include "mgm/auth/AccessChecker.hh"
+#include "namespace/ns_quarkdb/ContainerMD.hh"
+
+using namespace eos;
 
 //------------------------------------------------------------------------------
 // Test basic access functionality
@@ -51,4 +56,63 @@ TEST(Access, SetRule)
   ASSERT_TRUE(Access::gStallRules.count(old_stall.mType) == 0);
   ASSERT_TRUE(Access::gStallComment.count(old_stall.mType) == 0);
   ASSERT_EQ(old_stall.mIsGlobal, Access::gStallGlobal);
+}
+
+IContainerMDPtr makeContainer(uid_t uid, gid_t gid, int mode) {
+  IContainerMDPtr cont(new eos::QuarkContainerMD());
+  cont->setCUid(uid);
+  cont->setCGid(gid);
+  cont->setMode(mode);
+  return cont;
+}
+
+eos::common::Mapping::VirtualIdentity_t makeIdentity(uid_t uid, gid_t gid) {
+  eos::common::Mapping::VirtualIdentity_t vid;
+  vid.uid = uid;
+  vid.gid = gid;
+  return vid;
+}
+
+TEST(AccessChecker, UserRWX) {
+  IContainerMDPtr cont = makeContainer(1234, 9999,
+    S_IFDIR | S_IRWXU);
+
+  // No access for "other"
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), R_OK, makeIdentity(3333, 3333)));
+
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), W_OK, makeIdentity(3333, 3333)));
+
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), X_OK, makeIdentity(3333, 3333)));
+
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(3333, 3333)));
+
+  // No access for "group"
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), R_OK, makeIdentity(3333, 9999)));
+
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), W_OK, makeIdentity(3333, 9999)));
+
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), X_OK, makeIdentity(3333, 9999)));
+
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(3333, 9999)));
+
+  // Allow access for user
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), R_OK, makeIdentity(1234, 8888)));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), W_OK, makeIdentity(1234, 8888)));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), X_OK, makeIdentity(1234, 8888)));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(1234, 8888)));
 }
