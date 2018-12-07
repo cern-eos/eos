@@ -21,7 +21,7 @@
 //! @breif HierarchicalView tests
 //------------------------------------------------------------------------------
 #include "namespace/interface/IContainerMD.hh"
-#include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
+#include "namespace/ns_quarkdb_static/accounting/QuotaStats.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"

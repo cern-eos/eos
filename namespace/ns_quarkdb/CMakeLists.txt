@@ -51,10 +51,7 @@ add_library(
   persistency/FileMDSvc.cc               persistency/FileMDSvc.hh
   persistency/MetadataFetcher.cc         persistency/MetadataFetcher.hh
   persistency/MetadataProvider.cc        persistency/MetadataProvider.hh
-  persistency/NextInodeProvider.cc       persistency/NextInodeProvider.hh
   persistency/RequestBuilder.cc          persistency/RequestBuilder.hh
-  persistency/Serialization.cc           persistency/Serialization.hh
-  persistency/UnifiedInodeProvider.cc    persistency/UnifiedInodeProvider.hh
   views/HierarchicalView.cc              views/HierarchicalView.hh
 )
 
@@ -123,6 +120,7 @@ if (Linux)
 
   target_link_libraries(
     EosNsQuarkdb-Static
+    EosCrc32c-Static
     EosNsCommon-Static
     EosProtobuf
     eosCommon-Static
@@ -181,8 +179,8 @@ target_link_libraries(eos-dump-proto-md
 add_executable(eos-ns-convert-to-locality-hashes tools/EosConvertToLocalityHashes.cc)
 
 target_link_libraries(eos-ns-convert-to-locality-hashes
-  EosCrc32c-Static
   EosNsQuarkdb-Static
+  EosCrc32c-Static
   ${PROTOBUF_LIBRARY})
 
 install(TARGETS eos-ns-convert eos-dump-proto-md eos-ns-convert-to-locality-hashes

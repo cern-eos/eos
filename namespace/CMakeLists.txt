@@ -83,7 +83,9 @@ add_library(
 
   ns_quarkdb_static/explorer/NamespaceExplorer.cc         ns_quarkdb_static/explorer/NamespaceExplorer.hh
   ns_quarkdb_static/flusher/MetadataFlusher.cc            ns_quarkdb_static/flusher/MetadataFlusher.hh
-
+  ns_quarkdb/persistency/NextInodeProvider.cc             ns_quarkdb/persistency/NextInodeProvider.hh
+  ns_quarkdb/persistency/Serialization.cc                 ns_quarkdb/persistency/Serialization.hh
+  ns_quarkdb/persistency/UnifiedInodeProvider.cc          ns_quarkdb/persistency/UnifiedInodeProvider.hh
 )
 
 add_dependencies(EosNsCommon-Objects EosCliProto-Objects)
@@ -103,6 +105,7 @@ target_include_directories(
 
 target_link_libraries(
   EosNsCommon PUBLIC
+  EosCrc32c-Static
   EosProtobuf
   qclient
   ${Z_LIBRARY} fmt)
@@ -132,6 +135,7 @@ if (Linux)
 
   target_link_libraries(
     EosNsCommon-Static PUBLIC
+    EosCrc32c-Static
     EosProtobuf
     ${Z_LIBRARY_STATIC} fmt)
 

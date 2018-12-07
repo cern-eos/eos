@@ -24,10 +24,8 @@
 #ifndef EOS_NS_DATA_HELPER_HH
 #define EOS_NS_DATA_HELPER_HH
 
-#include <zlib.h>
 #include <stdint.h>
-#include "common/crc32c/crc32c.h"
-#include "namespace/MDException.hh"
+#include <string>
 
 namespace eos
 {
@@ -37,42 +35,27 @@ public:
   //----------------------------------------------------------------------------
   //! Compute crc32 checksum out of a buffer
   //----------------------------------------------------------------------------
-  static uint32_t computeCRC32(void* buffer, uint32_t len)
-  {
-    return crc32(crc32(0L, Z_NULL, 0), (const Bytef*)buffer, len);
-  }
+  static uint32_t computeCRC32(void* buffer, uint32_t len);
 
   //----------------------------------------------------------------------------
   //! Update a crc32 checksum
   //----------------------------------------------------------------------------
-  static uint32_t updateCRC32(uint32_t crc, void* buffer, uint32_t len)
-  {
-    return crc32(crc, (const Bytef*)buffer, len);
-  }
+  static uint32_t updateCRC32(uint32_t crc, void* buffer, uint32_t len);
 
   //----------------------------------------------------------------------------
   //! Compute crc32c checksum out of a buffer
   //----------------------------------------------------------------------------
-  static uint32_t computeCRC32C(void* buffer, uint32_t len)
-  {
-    return checksum::crc32c(checksum::crc32cInit(), (const Bytef*)buffer, len);
-  }
+  static uint32_t computeCRC32C(void* buffer, uint32_t len);
 
   //----------------------------------------------------------------------------
   //! Update a crc32c checksum
   //----------------------------------------------------------------------------
-  static uint32_t updateCRC32C(uint32_t crc, void* buffer, uint32_t len)
-  {
-    return checksum::crc32c(crc, (const Bytef*)buffer, len);
-  }
+  static uint32_t updateCRC32C(uint32_t crc, void* buffer, uint32_t len);
 
   //----------------------------------------------------------------------------
   //! Finalize crc32c checksum
   //----------------------------------------------------------------------------
-  static uint32_t finalizeCRC32C(uint32_t crc)
-  {
-    return checksum::crc32cFinish(crc);
-  }
+  static uint32_t finalizeCRC32C(uint32_t crc);
 
   //----------------------------------------------------------------------------
   //! Copy file ownership information
