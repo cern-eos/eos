@@ -901,7 +901,7 @@ runtest "### Chmod     " unix 0 "" eos chmod 700 /eos/$EOS_TEST_INSTANCE/test/in
 runtest "### Symlink-S " unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/passwd
 runtest "### Chown     " unix 0 "" eos chown -h 99:99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/passwd"
 runtest "### Download  " unix 0 "EOSROLE='-r 0 0'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/passwd" - 
-runtest "### Download  " unix 0 "EOSROLE='-r 0 0'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/passwd"- 
+runtest "### Download  " unix 0 "EOSROLE='-r 0 0'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/passwd" - 
 runtest "### Download  " unix 1 "EOSROLE='-r 99 99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/passwd" - 
 runtest "### Download  " unix 1 "EOSROLE='-r 99 99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/passwd" -
 runtest "### Rm        " unix 0 "" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/passwd
@@ -920,7 +920,7 @@ runtest "### Ownership " unix 0 "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test/inst
 runtest "### Ownership " unix 0 "" eos chown -r -h bin "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/"
 runtest "### Ownership " unix 0 "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/ | grep -w bin | wc -l | grep -w 5"
 runtest "### Rmdir     " unix 0 "" eos rm -rf /eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/
-runtest "### Rmdir     " unix 0 "EOSROLE='-r 99 99'" eos rm -rf /eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/
+runtest "### Rmdir     " unix 0 "" eos rm -rf /eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/
 
 # ------------------------------------------------------------------------------
 categorie="tag"
