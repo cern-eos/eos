@@ -112,6 +112,11 @@ def format_cmd_help(cmd):
 				   stderr=subprocess.PIPE).communicate()
     sys.stdout.flush()
 
+    # Some commands print to stdout, others to stderr
+    # Process stderr when stdout is empty
+    if not out:
+	out = __
+
     # The first line usually contains the command, so we remove it
     if out.startswith(cmd):
 	out = out[len(cmd) + 4:]
