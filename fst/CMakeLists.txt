@@ -358,6 +358,7 @@ target_link_libraries(XrdEosFst PRIVATE
   eosCommon
   eosCommonServer
   EosFstIo-Static
+  EosNsCommon
   eosCapability-Static
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
@@ -375,6 +376,7 @@ target_link_libraries(XrdEosFst PRIVATE
 target_link_libraries(XrdEosFst-Static PUBLIC
   eosCommonServer
   EosFstIo
+  EosNsCommon-Static
   eosCapability-Static
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
