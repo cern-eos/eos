@@ -1895,12 +1895,14 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       fuse_ino_t cap_ino = S_ISDIR(md->mode()) ? ino : md->pid();
       cap::shared_cap pcap = Instance().caps.acquire(req, cap_ino ? cap_ino : 1,
                              S_IFDIR | X_OK | R_OK);
+      double cap_lifetime=0;
       pcap->Locker().Lock();
 
       if (pcap->errc()) {
         rc = pcap->errc();
 	pcap->Locker().UnLock();
       } else {
+	cap_lifetime = pcap->lifetime();
         if (md->needs_refresh()) {
           md->Locker().UnLock();
           std::string authid = pcap->authid();
@@ -1910,11 +1912,13 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
 
           if (!md->id() || (md->deleted() && !md->lookup_is())) {
             rc = md->deleted() ? ENOENT : md->err();
-          }
-        }
+          }	
+        } else {
+	  pcap->Locker().UnLock();
+	}
 
         if (!rc) {
-          md->convert(e, pcap->lifetime());
+          md->convert(e, cap_lifetime);
           eos_static_info("%s", md->dump(e).c_str());
         }
       }
