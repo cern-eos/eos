@@ -44,7 +44,7 @@ class MetadataProvider;
 //------------------------------------------------------------------------------
 //! Container metadata service based on Redis
 //------------------------------------------------------------------------------
-class ContainerMDSvc : public IContainerMDSvc
+class QuarkContainerMDSvc : public IContainerMDSvc
 {
   friend QuarkContainerMD;
 
@@ -52,12 +52,12 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  ContainerMDSvc();
+  QuarkContainerMDSvc();
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~ContainerMDSvc();
+  virtual ~QuarkContainerMDSvc();
 
   //----------------------------------------------------------------------------
   //! Initialize the container service

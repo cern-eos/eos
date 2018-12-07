@@ -85,8 +85,8 @@ void NsTestsFixture::initServices()
     return;
   }
 
-  containerSvcPtr.reset(new eos::ContainerMDSvc());
-  fileSvcPtr.reset(new eos::FileMDSvc());
+  containerSvcPtr.reset(new eos::QuarkContainerMDSvc());
+  fileSvcPtr.reset(new eos::QuarkFileMDSvc());
   viewPtr.reset(new eos::HierarchicalView());
   fsViewPtr.reset(new eos::QuarkFileSystemView());
   fileSvcPtr->setContMDService(containerSvcPtr.get());

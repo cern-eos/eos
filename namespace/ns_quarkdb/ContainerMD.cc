@@ -72,7 +72,7 @@ void QuarkContainerMD::setServices(IFileMDSvc* file_svc, IContainerMDSvc* cont_s
   eos_assert(file_svc != nullptr && cont_svc != nullptr);
   pFileSvc = file_svc;
   pContSvc = cont_svc;
-  ContainerMDSvc* impl_cont_svc = dynamic_cast<ContainerMDSvc*>(cont_svc);
+  QuarkContainerMDSvc* impl_cont_svc = dynamic_cast<QuarkContainerMDSvc*>(cont_svc);
 
   if (!impl_cont_svc) {
     MDException e(EFAULT);

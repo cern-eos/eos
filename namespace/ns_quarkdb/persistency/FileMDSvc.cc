@@ -33,19 +33,19 @@
 
 EOSNSNAMESPACE_BEGIN
 
-std::chrono::seconds FileMDSvc::sFlushInterval(5);
+std::chrono::seconds QuarkFileMDSvc::sFlushInterval(5);
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileMDSvc::FileMDSvc()
+QuarkFileMDSvc::QuarkFileMDSvc()
   : pQuotaStats(nullptr), pContSvc(nullptr), pFlusher(nullptr), pQcl(nullptr),
     mMetaMap(), mNumFiles(0ull) {}
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-FileMDSvc::~FileMDSvc()
+QuarkFileMDSvc::~QuarkFileMDSvc()
 {
   if (pFlusher) {
     pFlusher->synchronize();
@@ -56,7 +56,7 @@ FileMDSvc::~FileMDSvc()
 // Configure the file service
 //------------------------------------------------------------------------------
 void
-FileMDSvc::configure(const std::map<std::string, std::string>& config)
+QuarkFileMDSvc::configure(const std::map<std::string, std::string>& config)
 {
   std::string qdb_cluster;
   std::string qdb_flusher_id;
@@ -78,9 +78,9 @@ FileMDSvc::configure(const std::map<std::string, std::string>& config)
     mUnifiedInodeProvider.configure(mMetaMap);
     pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails);
     mMetadataProvider.reset(new MetadataProvider(contactDetails, pContSvc, this));
-    static_cast<ContainerMDSvc*>(pContSvc)->setMetadataProvider
+    static_cast<QuarkContainerMDSvc*>(pContSvc)->setMetadataProvider
     (mMetadataProvider.get());
-    static_cast<ContainerMDSvc*>(pContSvc)->setInodeProvider
+    static_cast<QuarkContainerMDSvc*>(pContSvc)->setInodeProvider
     (&mUnifiedInodeProvider);
   }
 
@@ -94,7 +94,7 @@ FileMDSvc::configure(const std::map<std::string, std::string>& config)
 // Initialize the file service
 //------------------------------------------------------------------------------
 void
-FileMDSvc::initialize()
+QuarkFileMDSvc::initialize()
 {
   if (pContSvc == nullptr) {
     MDException e(EINVAL);
@@ -119,7 +119,7 @@ FileMDSvc::initialize()
 // ids bigger than the max file id.
 //------------------------------------------------------------------------------
 void
-FileMDSvc::SafetyCheck()
+QuarkFileMDSvc::SafetyCheck()
 {
   std::string blob;
   IFileMD::id_t free_id = getFirstFreeId();
@@ -153,7 +153,7 @@ FileMDSvc::SafetyCheck()
 // Get the file metadata information for the given file id - asynchronous API.
 //------------------------------------------------------------------------------
 folly::Future<IFileMDPtr>
-FileMDSvc::getFileMDFut(IFileMD::id_t id)
+QuarkFileMDSvc::getFileMDFut(IFileMD::id_t id)
 {
   return mMetadataProvider->retrieveFileMD(FileIdentifier(id));
 }
@@ -162,7 +162,7 @@ FileMDSvc::getFileMDFut(IFileMD::id_t id)
 // Get the file metadata information for the given file id
 //------------------------------------------------------------------------------
 std::shared_ptr<IFileMD>
-FileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
+QuarkFileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
 {
   IFileMDPtr file = mMetadataProvider->retrieveFileMD(FileIdentifier(id)).get();
 
@@ -177,7 +177,7 @@ FileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
 //! Check if a FileMD with a given identifier exists
 //------------------------------------------------------------------------------
 folly::Future<bool>
-FileMDSvc::hasFileMD(const eos::FileIdentifier id)
+QuarkFileMDSvc::hasFileMD(const eos::FileIdentifier id)
 {
   return mMetadataProvider->hasFileMD(id);
 }
@@ -186,7 +186,7 @@ FileMDSvc::hasFileMD(const eos::FileIdentifier id)
 // Create new file metadata object
 //------------------------------------------------------------------------------
 std::shared_ptr<IFileMD>
-FileMDSvc::createFile()
+QuarkFileMDSvc::createFile()
 {
   uint64_t free_id = mUnifiedInodeProvider.reserveFileId();
   std::shared_ptr<IFileMD> file{new QuarkFileMD(free_id, this)};
@@ -201,7 +201,7 @@ FileMDSvc::createFile()
 // Update backend store and notify all the listeners
 //------------------------------------------------------------------------------
 void
-FileMDSvc::updateStore(IFileMD* obj)
+QuarkFileMDSvc::updateStore(IFileMD* obj)
 {
   pFlusher->execute(RequestBuilder::writeFileProto(obj));
 
@@ -215,7 +215,7 @@ FileMDSvc::updateStore(IFileMD* obj)
 // Remove object from the store
 //------------------------------------------------------------------------------
 void
-FileMDSvc::removeFile(IFileMD* obj)
+QuarkFileMDSvc::removeFile(IFileMD* obj)
 {
   std::string sid = stringify(obj->getId());
   pFlusher->execute(RequestBuilder::deleteFileProto(FileIdentifier(
@@ -234,7 +234,7 @@ FileMDSvc::removeFile(IFileMD* obj)
 // Get number of files
 //------------------------------------------------------------------------------
 uint64_t
-FileMDSvc::getNumFiles()
+QuarkFileMDSvc::getNumFiles()
 {
   return mNumFiles.load();
 }
@@ -243,7 +243,7 @@ FileMDSvc::getNumFiles()
 // Attach a broken file to lost+found
 //------------------------------------------------------------------------------
 void
-FileMDSvc::attachBroken(const std::string& parent, IFileMD* file)
+QuarkFileMDSvc::attachBroken(const std::string& parent, IFileMD* file)
 {
   std::ostringstream s1, s2;
   std::shared_ptr<IContainerMD> parentCont =
@@ -264,7 +264,7 @@ FileMDSvc::attachBroken(const std::string& parent, IFileMD* file)
 // Add file listener
 //------------------------------------------------------------------------------
 void
-FileMDSvc::addChangeListener(IFileMDChangeListener* listener)
+QuarkFileMDSvc::addChangeListener(IFileMDChangeListener* listener)
 {
   pListeners.push_back(listener);
 }
@@ -273,7 +273,7 @@ FileMDSvc::addChangeListener(IFileMDChangeListener* listener)
 // Notify the listeners about the change
 //------------------------------------------------------------------------------
 void
-FileMDSvc::notifyListeners(IFileMDChangeListener::Event* event)
+QuarkFileMDSvc::notifyListeners(IFileMDChangeListener::Event* event)
 {
   for (const auto& elem : pListeners) {
     elem->fileMDChanged(event);
@@ -284,9 +284,9 @@ FileMDSvc::notifyListeners(IFileMDChangeListener::Event* event)
 // Set container service
 //------------------------------------------------------------------------------
 void
-FileMDSvc::setContMDService(IContainerMDSvc* cont_svc)
+QuarkFileMDSvc::setContMDService(IContainerMDSvc* cont_svc)
 {
-  ContainerMDSvc* impl_cont_svc = dynamic_cast<eos::ContainerMDSvc*>(cont_svc);
+  QuarkContainerMDSvc* impl_cont_svc = dynamic_cast<eos::QuarkContainerMDSvc*>(cont_svc);
 
   if (!impl_cont_svc) {
     MDException e(EFAULT);
@@ -301,7 +301,7 @@ FileMDSvc::setContMDService(IContainerMDSvc* cont_svc)
 // Get first free file id
 //------------------------------------------------------------------------------
 IFileMD::id_t
-FileMDSvc::getFirstFreeId()
+QuarkFileMDSvc::getFirstFreeId()
 {
   return mUnifiedInodeProvider.getFirstFreeFileId();
 }
@@ -309,7 +309,7 @@ FileMDSvc::getFirstFreeId()
 //------------------------------------------------------------------------------
 //! Retrieve MD cache statistics.
 //------------------------------------------------------------------------------
-CacheStatistics FileMDSvc::getCacheStatistics()
+CacheStatistics QuarkFileMDSvc::getCacheStatistics()
 {
   return mMetadataProvider->getFileMDCacheStats();
 }

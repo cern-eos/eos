@@ -486,7 +486,7 @@ public:
   setFileMDSvc(IFileMDSvc* fileMDSvc) override
   {
     std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-    pFileMDSvc = static_cast<FileMDSvc*>(fileMDSvc);
+    pFileMDSvc = static_cast<QuarkFileMDSvc*>(fileMDSvc);
   }
 
   //----------------------------------------------------------------------------

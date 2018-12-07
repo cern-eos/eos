@@ -36,14 +36,14 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ContainerMDSvc::ContainerMDSvc()
+QuarkContainerMDSvc::QuarkContainerMDSvc()
   : pQuotaStats(nullptr), pFileSvc(nullptr), pQcl(nullptr), pFlusher(nullptr),
     mMetaMap(), mNumConts(0ull) {}
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-ContainerMDSvc::~ContainerMDSvc()
+QuarkContainerMDSvc::~QuarkContainerMDSvc()
 {
   if (pFlusher) {
     pFlusher->synchronize();
@@ -54,7 +54,7 @@ ContainerMDSvc::~ContainerMDSvc()
 // Configure the container service
 //------------------------------------------------------------------------------
 void
-ContainerMDSvc::configure(const std::map<std::string, std::string>& config)
+QuarkContainerMDSvc::configure(const std::map<std::string, std::string>& config)
 {
   std::string qdb_cluster;
   std::string qdb_flusher_id;
@@ -90,7 +90,7 @@ ContainerMDSvc::configure(const std::map<std::string, std::string>& config)
 // Initialize the container service
 //------------------------------------------------------------------------------
 void
-ContainerMDSvc::initialize()
+QuarkContainerMDSvc::initialize()
 {
   if (pFileSvc == nullptr) {
     MDException e(EINVAL);
@@ -134,7 +134,7 @@ ContainerMDSvc::initialize()
 // with ids bigger than the max container id.
 //------------------------------------------------------------------------------
 void
-ContainerMDSvc::SafetyCheck()
+QuarkContainerMDSvc::SafetyCheck()
 {
   std::string blob;
   IContainerMD::id_t free_id = getFirstFreeId();
@@ -169,7 +169,7 @@ ContainerMDSvc::SafetyCheck()
 // Asynchronously get the container metadata information for the given ID
 //------------------------------------------------------------------------------
 folly::Future<IContainerMDPtr>
-ContainerMDSvc::getContainerMDFut(IContainerMD::id_t id)
+QuarkContainerMDSvc::getContainerMDFut(IContainerMD::id_t id)
 {
   //----------------------------------------------------------------------------
   // Short-circuit for container zero, avoid a pointless roundtrip by failing
@@ -188,7 +188,7 @@ ContainerMDSvc::getContainerMDFut(IContainerMD::id_t id)
 // Get the container metadata information
 //------------------------------------------------------------------------------
 IContainerMDPtr
-ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
+QuarkContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
 {
   IContainerMDPtr container = getContainerMDFut(id).get();
 
@@ -203,7 +203,7 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
 // Create a new container metadata object
 //----------------------------------------------------------------------------
 std::shared_ptr<IContainerMD>
-ContainerMDSvc::createContainer()
+QuarkContainerMDSvc::createContainer()
 {
   uint64_t free_id = mUnifiedInodeProvider->reserveContainerId();
   std::shared_ptr<IContainerMD> cont
@@ -217,7 +217,7 @@ ContainerMDSvc::createContainer()
 // Update backend store and notify listeners
 //----------------------------------------------------------------------------
 void
-ContainerMDSvc::updateStore(IContainerMD* obj)
+QuarkContainerMDSvc::updateStore(IContainerMD* obj)
 {
   pFlusher->execute(RequestBuilder::writeContainerProto(obj));
 }
@@ -226,7 +226,7 @@ ContainerMDSvc::updateStore(IContainerMD* obj)
 // Remove object from the store assuming it's already empty
 //----------------------------------------------------------------------------
 void
-ContainerMDSvc::removeContainer(IContainerMD* obj)
+QuarkContainerMDSvc::removeContainer(IContainerMD* obj)
 {
   // Protection in case the container is not empty
   if ((obj->getNumFiles() != 0) || (obj->getNumContainers() != 0)) {
@@ -256,7 +256,7 @@ ContainerMDSvc::removeContainer(IContainerMD* obj)
 // Add change listener
 //------------------------------------------------------------------------------
 void
-ContainerMDSvc::addChangeListener(IContainerMDChangeListener* listener)
+QuarkContainerMDSvc::addChangeListener(IContainerMDChangeListener* listener)
 {
   pListeners.push_back(listener);
 }
@@ -265,7 +265,7 @@ ContainerMDSvc::addChangeListener(IContainerMDChangeListener* listener)
 // Create container in parent
 //------------------------------------------------------------------------------
 std::shared_ptr<IContainerMD>
-ContainerMDSvc::createInParent(const std::string& name, IContainerMD* parent)
+QuarkContainerMDSvc::createInParent(const std::string& name, IContainerMD* parent)
 {
   std::shared_ptr<IContainerMD> container = createContainer();
   container->setName(name);
@@ -279,7 +279,7 @@ ContainerMDSvc::createInParent(const std::string& name, IContainerMD* parent)
 // Get the lost+found container, create if necessary
 //----------------------------------------------------------------------------
 std::shared_ptr<IContainerMD>
-ContainerMDSvc::getLostFound()
+QuarkContainerMDSvc::getLostFound()
 {
   // Get root
   std::shared_ptr<IContainerMD> root;
@@ -306,7 +306,7 @@ ContainerMDSvc::getLostFound()
 // Get the orphans / name conflicts container
 //----------------------------------------------------------------------------
 std::shared_ptr<IContainerMD>
-ContainerMDSvc::getLostFoundContainer(const std::string& name)
+QuarkContainerMDSvc::getLostFoundContainer(const std::string& name)
 {
   std::shared_ptr<IContainerMD> lostFound = getLostFound();
 
@@ -327,7 +327,7 @@ ContainerMDSvc::getLostFoundContainer(const std::string& name)
 // Get number of containers which is sum(hlen(hash_i)) for i=0,128k
 //------------------------------------------------------------------------------
 uint64_t
-ContainerMDSvc::getNumContainers()
+QuarkContainerMDSvc::getNumContainers()
 {
   return mNumConts.load();
 }
@@ -336,7 +336,7 @@ ContainerMDSvc::getNumContainers()
 // Notify the listeners about the change
 //------------------------------------------------------------------------------
 void
-ContainerMDSvc::notifyListeners(IContainerMD* obj,
+QuarkContainerMDSvc::notifyListeners(IContainerMD* obj,
                                 IContainerMDChangeListener::Action a)
 {
   for (const auto& elem : pListeners) {
@@ -348,7 +348,7 @@ ContainerMDSvc::notifyListeners(IContainerMD* obj,
 // Get first free container id
 //------------------------------------------------------------------------------
 IContainerMD::id_t
-ContainerMDSvc::getFirstFreeId()
+QuarkContainerMDSvc::getFirstFreeId()
 {
   return mUnifiedInodeProvider->getFirstFreeContainerId();
 }
@@ -357,7 +357,7 @@ ContainerMDSvc::getFirstFreeId()
 //! Retrieve MD cache statistics.
 //------------------------------------------------------------------------------
 CacheStatistics
-ContainerMDSvc::getCacheStatistics()
+QuarkContainerMDSvc::getCacheStatistics()
 {
   return mMetadataProvider->getContainerMDCacheStats();
 }

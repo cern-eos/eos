@@ -49,8 +49,8 @@ mapSize(const eos::IFileMD* /*file*/)
 eos::IView*
 bootNamespace(const std::map<std::string, std::string>& config)
 {
-  eos::IContainerMDSvc* contSvc = new eos::ContainerMDSvc();
-  eos::IFileMDSvc* fileSvc = new eos::FileMDSvc();
+  eos::IContainerMDSvc* contSvc = new eos::QuarkContainerMDSvc();
+  eos::IFileMDSvc* fileSvc = new eos::QuarkFileMDSvc();
   eos::IView* view = new eos::HierarchicalView();
   fileSvc->configure(config);
   contSvc->configure(config);

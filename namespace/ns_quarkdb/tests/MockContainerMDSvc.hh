@@ -29,7 +29,7 @@ EOSNSTESTING_BEGIN
 //------------------------------------------------------------------------------
 //! Class MockContainerMDSvc
 //------------------------------------------------------------------------------
-class MockContainerMDSvc: public ContainerMDSvc
+class MockContainerMDSvc: public QuarkContainerMDSvc
 {
 public:
   MOCK_METHOD0(initialize, void());

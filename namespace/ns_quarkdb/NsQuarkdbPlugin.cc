@@ -111,7 +111,7 @@ void*
 NsQuarkdbPlugin::CreateContainerMDSvc(PF_PlatformServices* /*services*/)
 {
   if (pContMDSvc == nullptr) {
-    pContMDSvc = new ContainerMDSvc();
+    pContMDSvc = new QuarkContainerMDSvc();
   }
 
   return pContMDSvc;
@@ -127,7 +127,7 @@ NsQuarkdbPlugin::DestroyContainerMDSvc(void* obj)
     return -1;
   }
 
-  delete static_cast<ContainerMDSvc*>(obj);
+  delete static_cast<QuarkContainerMDSvc*>(obj);
   return 0;
 }
 
@@ -137,7 +137,7 @@ NsQuarkdbPlugin::DestroyContainerMDSvc(void* obj)
 void*
 NsQuarkdbPlugin::CreateFileMDSvc(PF_PlatformServices* /*services*/)
 {
-  return new FileMDSvc();
+  return new QuarkFileMDSvc();
 }
 
 //------------------------------------------------------------------------------
@@ -150,7 +150,7 @@ NsQuarkdbPlugin::DestroyFileMDSvc(void* obj)
     return -1;
   }
 
-  delete static_cast<FileMDSvc*>(obj);
+  delete static_cast<QuarkFileMDSvc*>(obj);
   return 0;
 }
 
