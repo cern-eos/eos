@@ -240,9 +240,6 @@ target_link_libraries(
   eosCommon
   eosCommonServer
   EosNsCommon
-  # @todo (esindril) Move the fetcher and flusher functionality in the
-  # libEosNsCommon and don't link with the whole EosNsQuarkdb libary
-  EosNsQuarkdb-Shared
   eosCapability-Static
   bfd
   ${FOLLY_LIBRARIES}
@@ -305,9 +302,7 @@ if(Linux)
 
   target_link_libraries(
     XrdEosMgm-Static PUBLIC
-    # @todo (esindril) Move the fetcher and flusher functionality in the
-    # libEosNsCommon and don't link with the whole EosNsQuarkdb libary
-    EosNsQuarkdb-Shared
+    EosNsCommon-Static
     eosCommonServer
     eosCapability-Static
     ${FOLLY_LIBRARIES}

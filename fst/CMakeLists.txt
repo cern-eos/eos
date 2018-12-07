@@ -359,7 +359,6 @@ target_link_libraries(XrdEosFst PRIVATE
   eosCommonServer
   EosFstIo-Static
   eosCapability-Static
-  EosNsQuarkdb-Shared
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
@@ -377,7 +376,6 @@ target_link_libraries(XrdEosFst-Static PUBLIC
   eosCommonServer
   EosFstIo
   eosCapability-Static
-  EosNsQuarkdb-Shared
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
