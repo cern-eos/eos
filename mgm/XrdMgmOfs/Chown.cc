@@ -112,7 +112,6 @@ XrdMgmOfs::_chown(const char* path,
     try {
       // Try as a file
       eos::common::Path cPath(path);
-      eos_static_info("try as a file");
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
 
       if (!nodereference) {
