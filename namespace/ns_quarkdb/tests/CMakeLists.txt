@@ -28,7 +28,9 @@ include_directories(
 )
 
 #-------------------------------------------------------------------------------
-# ProtoBuf representation tests
+# QuarkDB namespace unit tests
+#
+# Note: These tests require a running QuarkDB instance
 #-------------------------------------------------------------------------------
 add_executable(
   eos-ns-quarkdb-tests
@@ -41,8 +43,7 @@ add_executable(
   NextInodeProviderTest.cc
   OtherTests.cc
   TestUtils.cc
-  VariousTests.cc
-)
+  VariousTests.cc)
 
 target_link_libraries(
   eos-ns-quarkdb-tests
@@ -66,7 +67,10 @@ target_compile_options(
   eosnsbench
   PUBLIC -DFILE_OFFSET_BITS=64)
 
-target_link_libraries(eosnsbench EosNsCommon-Static eosCommon-Static)
+target_link_libraries(
+  eosnsbench
+  EosNsCommon-Static
+  eosCommon-Static)
 
 install(
   TARGETS

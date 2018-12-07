@@ -115,6 +115,20 @@ endif ()
 set(EOS_CXX_DEFINE "-DEOSCITRINE -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\"")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EOS_CXX_DEFINE} ${CPP_VERSION} -msse4.2 -Wall -Wno-error=parentheses")
 
+# Set Address Sanitizer flag
+if (ASAN)
+  include(CheckCXXCompilerFlag)
+  set(CMAKE_REQUIRED_FLAGS "-fsanitize=address")
+  check_cxx_compiler_flag(-fsanitize=address HAVE_FLAG_ASAN)
+  unset(CMAKE_REQUIRED_FLAGS)
+
+  if (NOT HAVE_FLAG_ASAN)
+    message(FATAL_ERROR "A compiler with '-fsanitize=address' support is required.")
+  endif()
+
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
+endif()
+
 # Temporary fix for clang 3.4 compile errors
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 3.5)

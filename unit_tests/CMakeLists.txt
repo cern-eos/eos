@@ -74,16 +74,30 @@ set(COMMON_UT_SRCS
   common/LoggingTests.cc
   common/LoggingTestsUtils.cc)
 
-set(FST_UT_SRCS  #fst/XrdFstOssFileTest.cc
+set(FST_UT_SRCS
+  #fst/XrdFstOssFileTest.cc
   fst/XrdFstOfsFileTest.cc
   fst/HealthTest.cc)
 
-set(UT_SRCS ${MQ_UT_SRCS} ${CONSOLE_UT_SRCS} ${MGM_UT_SRCS} ${COMMON_UT_SRCS})
-add_executable(eos-unit-tests ${UT_SRCS}
-  $<TARGET_OBJECTS:EosConsoleCommands-Objects>)
+#-------------------------------------------------------------------------------
+# unit tests source files
+#-------------------------------------------------------------------------------
+set(UT_SRCS
+  ${MQ_UT_SRCS}
+  ${CONSOLE_UT_SRCS}
+  ${MGM_UT_SRCS}
+  ${COMMON_UT_SRCS})
 
-set(UT_FST_SRCS ${FST_UT_SRCS})
-add_executable(eos-fst-unit-tests ${UT_FST_SRCS})
+set(UT_FST_SRCS
+  ${FST_UT_SRCS})
+
+#-------------------------------------------------------------------------------
+# eos-unit-tests executable
+#-------------------------------------------------------------------------------
+add_executable(
+  eos-unit-tests
+  ${UT_SRCS}
+  $<TARGET_OBJECTS:EosConsoleCommands-Objects>)
 
 target_link_libraries(
   eos-unit-tests
@@ -96,21 +110,14 @@ target_link_libraries(
   ${READLINE_LIBRARY}
   ${XROOTD_SERVER_LIBRARY})
 
-set_target_properties(
-  eos-unit-tests PROPERTIES
-  INSTALL_RPATH "${EOS_UT_RPATH}"
-  SKIP_RPATH FALSE
-  SKIP_BUILD_RPATH  FALSE
-  BUILD_WITH_INSTALL_RPATH TRUE
-  INSTALL_RPATH_USE_LINK_PATH TRUE)
+install(TARGETS
+  eos-unit-tests
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
-set_target_properties(
-  eos-fst-unit-tests PROPERTIES
-  INSTALL_RPATH "${EOS_UT_RPATH}"
-  SKIP_RPATH FALSE
-  SKIP_BUILD_RPATH  FALSE
-  BUILD_WITH_INSTALL_RPATH TRUE
-  INSTALL_RPATH_USE_LINK_PATH TRUE)
+#-------------------------------------------------------------------------------
+# eos-fst-unit-tests executable
+#-------------------------------------------------------------------------------
+add_executable(eos-fst-unit-tests ${UT_FST_SRCS})
 
 target_link_libraries(
   eos-fst-unit-tests
@@ -121,5 +128,5 @@ target_link_libraries(
   XrdEosFst-Static)
 
 install(TARGETS
-  eos-unit-tests eos-fst-unit-tests
+  eos-fst-unit-tests
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
