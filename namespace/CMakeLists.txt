@@ -83,19 +83,22 @@ add_library(
 
   ns_quarkdb_static/explorer/NamespaceExplorer.cc         ns_quarkdb_static/explorer/NamespaceExplorer.hh
   ns_quarkdb_static/flusher/MetadataFlusher.cc            ns_quarkdb_static/flusher/MetadataFlusher.hh
+
   ns_quarkdb/persistency/NextInodeProvider.cc             ns_quarkdb/persistency/NextInodeProvider.hh
   ns_quarkdb/persistency/Serialization.cc                 ns_quarkdb/persistency/Serialization.hh
   ns_quarkdb/persistency/UnifiedInodeProvider.cc          ns_quarkdb/persistency/UnifiedInodeProvider.hh
-
   ns_quarkdb/persistency/ContainerMDSvc.cc                ns_quarkdb/persistency/ContainerMDSvc.hh
   ns_quarkdb/persistency/FileMDSvc.cc                     ns_quarkdb/persistency/FileMDSvc.hh
   ns_quarkdb/persistency/MetadataFetcher.cc               ns_quarkdb/persistency/MetadataFetcher.hh
   ns_quarkdb/persistency/MetadataProvider.cc              ns_quarkdb/persistency/MetadataProvider.hh
   ns_quarkdb/persistency/RequestBuilder.cc                ns_quarkdb/persistency/RequestBuilder.hh
 
+  ns_quarkdb/views/HierarchicalView.cc                    ns_quarkdb/views/HierarchicalView.hh
+
   ns_quarkdb/BackendClient.cc                             ns_quarkdb/BackendClient.hh
   ns_quarkdb/ContainerMD.cc                               ns_quarkdb/ContainerMD.hh
   ns_quarkdb/FileMD.cc                                    ns_quarkdb/FileMD.hh
+                                                          ns_quarkdb/LRU.hh
 
 )
 
@@ -119,6 +122,8 @@ target_link_libraries(
   EosCrc32c-Static
   EosProtobuf
   qclient
+  rocksdb
+  ${FOLLY_LIBRARIES}
   ${Z_LIBRARY} fmt)
 
 set_target_properties(
@@ -148,6 +153,9 @@ if (Linux)
     EosNsCommon-Static PUBLIC
     EosCrc32c-Static
     EosProtobuf
+    qclient
+    rocksdb
+    ${FOLLY_LIBRARIES}
     ${Z_LIBRARY_STATIC} fmt)
 
   set_target_properties(

@@ -442,7 +442,7 @@ target_link_libraries(eos-adler32 PRIVATE
 target_link_libraries(eos-scan-fs PRIVATE
   eosCommonServer
   EosFstIo
-  EosNsQuarkdb-Static
+  EosNsCommon-Static
   ${GLIBC_RT_LIBRARY}
   ${XROOTD_CL_LIBRARY}
   ${DAVIX_LIBRARIES}

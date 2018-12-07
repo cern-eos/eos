@@ -48,7 +48,7 @@ target_link_libraries(
   eos-ns-quarkdb-tests
   gtest
   gmock_main
-  EosNsQuarkdb-Static
+  EosNsCommon-Static
   ${CMAKE_THREAD_LIBS_INIT})
 
 #-------------------------------------------------------------------------------
@@ -60,7 +60,7 @@ target_compile_options(
   eosnsbench
   PUBLIC -DFILE_OFFSET_BITS=64)
 
-target_link_libraries(eosnsbench EosNsQuarkdb-Static eosCommon-Static)
+target_link_libraries(eosnsbench EosNsCommon-Static eosCommon-Static)
 
 install(
   TARGETS

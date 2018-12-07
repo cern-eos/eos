@@ -37,27 +37,10 @@ if(BUILD_TESTS)
 endif(BUILD_TESTS)
 
 #-------------------------------------------------------------------------------
-# EosNsQuarkdb-Objects library
-#-------------------------------------------------------------------------------
-add_library(
-  EosNsQuarkdb-Objects OBJECT
-
-  LRU.hh
-
-  views/HierarchicalView.cc              views/HierarchicalView.hh
-)
-
-set_target_properties(
-  EosNsQuarkdb-Objects
-  PROPERTIES
-  POSITION_INDEPENDENT_CODE True)
-
-#-------------------------------------------------------------------------------
 # EosNsQuarkdb library
 #-------------------------------------------------------------------------------
 add_library(
   EosNsQuarkdb MODULE
-  $<TARGET_OBJECTS:EosNsQuarkdb-Objects>
   NsQuarkdbPlugin.cc     NsQuarkdbPlugin.hh)
 
 target_link_libraries(
@@ -75,74 +58,6 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${GLIBC_RT_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
-
-add_library(
-  EosNsQuarkdb-Shared SHARED
-  $<TARGET_OBJECTS:EosNsQuarkdb-Objects>)
-
-target_link_libraries(
-  EosNsQuarkdb-Shared PUBLIC
-  EosProtobuf
-  EosNsCommon
-  EosCrc32c-Static
-  qclient
-  rocksdb
-  ${FOLLY_LIBRARIES}
-  ${Z_LIBRARY}
-  ${BZ2_LIBRARY}
-  ${UUID_LIBRARIES}
-  ${XROOTD_UTILS_LIBRARY}
-  ${GLIBC_RT_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT})
-
-set_target_properties(
-  EosNsQuarkdb-Shared PROPERTIES
-  VERSION ${VERSION}
-  SOVERSION ${VERSION_MAJOR}
-  MACOSX_RPATH TRUE)
-
-#-------------------------------------------------------------------------------
-# EosNsQuarkdb-Static library
-#-------------------------------------------------------------------------------
-if (Linux)
-  add_library(
-    EosNsQuarkdb-Static STATIC
-    $<TARGET_OBJECTS:EosNsQuarkdb-Objects>
-    NsQuarkdbPlugin.cc     NsQuarkdbPlugin.hh)
-
-  target_link_libraries(
-    EosNsQuarkdb-Static
-    EosCrc32c-Static
-    EosNsCommon-Static
-    EosProtobuf
-    eosCommon-Static
-    EosCrc32c-Static
-    qclient
-    rocksdb
-    ${FOLLY_LIBRARIES}
-    ${BZ2_LIBRARY}
-    ${UUID_LIBRARIES}
-    ${Z_LIBRARY_STATIC}
-    ${XROOTD_UTILS_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT})
-
-  set_target_properties(
-    EosNsQuarkdb-Static
-    PROPERTIES
-    POSITION_INDEPENDENT_CODE True)
-
-  install(
-    TARGETS EosNsQuarkdb-Static
-    LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
-endif()
-
-install(
-  TARGETS EosNsQuarkdb EosNsQuarkdb-Shared
-  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
 #-------------------------------------------------------------------------------
 # eos_convert_mem_to_kv executable
@@ -165,13 +80,13 @@ add_executable(eos-dump-proto-md tools/EosDumpProtoMd.cc)
 
 target_link_libraries(eos-dump-proto-md
   EosCrc32c-Static
-  EosNsQuarkdb-Static
+  EosNsCommon-Static
   ${PROTOBUF_LIBRARY})
 
 add_executable(eos-ns-convert-to-locality-hashes tools/EosConvertToLocalityHashes.cc)
 
 target_link_libraries(eos-ns-convert-to-locality-hashes
-  EosNsQuarkdb-Static
+  EosNsCommon-Static
   EosCrc32c-Static
   ${PROTOBUF_LIBRARY})
 

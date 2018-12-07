@@ -91,6 +91,7 @@ target_link_libraries(
   gmock
   XrdEosMgm-Static
   EosFstIo-Static
+  EosNsCommon-Static
   ${READLINE_LIBRARY}
   ${XROOTD_SERVER_LIBRARY})
 
@@ -114,7 +115,8 @@ target_link_libraries(
   eos-fst-unit-tests
   gtest_main
   gmock
-  XrdEosFst-Static)
+  XrdEosFst-Static
+  EosNsCommon-Static)
 
 install(TARGETS
   eos-unit-tests eos-fst-unit-tests
