@@ -672,7 +672,7 @@ public:
     res.isdir = !item.isFile;
 
     if (item.isFile) {
-      eos::FileMD* fmd = new eos::FileMD();
+      eos::QuarkFileMD* fmd = new eos::QuarkFileMD();
       fmd->initialize(std::move(item.fileMd));
       res.fileMD.reset(fmd);
     } else {

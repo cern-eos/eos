@@ -472,7 +472,7 @@ TEST_F(VariousTests, EtagFormatting) {
   mtime.tv_nsec = 0;
   file1->setCTime(mtime);
 
-  eos::FileMD *file1f = reinterpret_cast<FileMD*>(file1.get());
+  eos::QuarkFileMD *file1f = reinterpret_cast<QuarkFileMD*>(file1.get());
   file1f->mFile.set_id(4697755903ull);
 
   // File has no checksum, using inode + modification time.

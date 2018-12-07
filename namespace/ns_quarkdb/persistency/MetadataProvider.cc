@@ -249,7 +249,7 @@ MetadataProvider::processIncomingFileMdProto(FileIdentifier id,
   // Things look sane?
   eos_assert(proto.id() == id.getUnderlyingUInt64());
   // Yep, construct FileMD object..
-  FileMD* fileMD = new FileMD(0, mFileSvc);
+  QuarkFileMD* fileMD = new QuarkFileMD(0, mFileSvc);
   fileMD->initialize(std::move(proto));
   // Drop inFlightFiles future..
   auto it = mInFlightFiles.find(id);

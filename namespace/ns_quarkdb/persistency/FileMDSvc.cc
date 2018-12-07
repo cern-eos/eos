@@ -189,7 +189,7 @@ std::shared_ptr<IFileMD>
 FileMDSvc::createFile()
 {
   uint64_t free_id = mUnifiedInodeProvider.reserveFileId();
-  std::shared_ptr<IFileMD> file{new FileMD(free_id, this)};
+  std::shared_ptr<IFileMD> file{new QuarkFileMD(free_id, this)};
   mMetadataProvider->insertFileMD(file->getIdentifier(), file);
   IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::Created);
   notifyListeners(&e);

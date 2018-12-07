@@ -142,7 +142,7 @@ std::string DumpProto(qclient::QClient* qcl, uint64_t id, bool is_file)
 
   if (is_file) {
     eos::ns::FileMdProto fileProto = eos::MetadataFetcher::getFileFromId(*qcl, eos::FileIdentifier(id)).get();
-    eos::FileMD fmd(0, nullptr);
+    eos::QuarkFileMD fmd(0, nullptr);
     fmd.initialize(std::move(fileProto));
     fmd.getEnv(output, false);
   } else {

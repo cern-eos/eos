@@ -43,7 +43,7 @@ class IContainerMD;
 //------------------------------------------------------------------------------
 //! Class holding the metadata information concerning a single file
 //------------------------------------------------------------------------------
-class FileMD : public IFileMD
+class QuarkFileMD : public IFileMD
 {
   friend class FileSystemView;
 
@@ -51,32 +51,32 @@ public:
   //----------------------------------------------------------------------------
   //! Empty constructor
   //----------------------------------------------------------------------------
-  FileMD();
+  QuarkFileMD();
 
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  FileMD(IFileMD::id_t id, IFileMDSvc* fileMDSvc);
+  QuarkFileMD(IFileMD::id_t id, IFileMDSvc* fileMDSvc);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~FileMD() {};
+  virtual ~QuarkFileMD() {};
 
   //----------------------------------------------------------------------------
   //! Copy constructor
   //----------------------------------------------------------------------------
-  FileMD(const FileMD& other);
+  QuarkFileMD(const QuarkFileMD& other);
 
   //----------------------------------------------------------------------------
   //! Virtual copy constructor
   //----------------------------------------------------------------------------
-  virtual FileMD* clone() const override;
+  virtual QuarkFileMD* clone() const override;
 
   //----------------------------------------------------------------------------
   //! Assignment operator
   //----------------------------------------------------------------------------
-  FileMD& operator=(const FileMD& other);
+  QuarkFileMD& operator=(const QuarkFileMD& other);
 
   //----------------------------------------------------------------------------
   //! Get creation time

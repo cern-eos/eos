@@ -86,6 +86,13 @@ add_library(
   ns_quarkdb/persistency/NextInodeProvider.cc             ns_quarkdb/persistency/NextInodeProvider.hh
   ns_quarkdb/persistency/Serialization.cc                 ns_quarkdb/persistency/Serialization.hh
   ns_quarkdb/persistency/UnifiedInodeProvider.cc          ns_quarkdb/persistency/UnifiedInodeProvider.hh
+
+  ns_quarkdb/persistency/MetadataFetcher.cc               ns_quarkdb/persistency/MetadataFetcher.hh
+  ns_quarkdb/persistency/MetadataProvider.cc              ns_quarkdb/persistency/MetadataProvider.hh
+  ns_quarkdb/persistency/RequestBuilder.cc                ns_quarkdb/persistency/RequestBuilder.hh
+
+  ns_quarkdb/FileMD.cc                                    ns_quarkdb/FileMD.hh
+
 )
 
 add_dependencies(EosNsCommon-Objects EosCliProto-Objects)

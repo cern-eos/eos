@@ -33,7 +33,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Empty constructor
 //------------------------------------------------------------------------------
-FileMD::FileMD()
+QuarkFileMD::QuarkFileMD()
 {
   pFileMDSvc = nullptr;
 }
@@ -41,7 +41,7 @@ FileMD::FileMD()
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileMD::FileMD(IFileMD::id_t id, IFileMDSvc* fileMDSvc):
+QuarkFileMD::QuarkFileMD(IFileMD::id_t id, IFileMDSvc* fileMDSvc):
   pFileMDSvc(fileMDSvc), mClock(1)
 {
   mFile.set_id(id);
@@ -50,17 +50,17 @@ FileMD::FileMD(IFileMD::id_t id, IFileMDSvc* fileMDSvc):
 //------------------------------------------------------------------------------
 // Virtual copy constructor
 //------------------------------------------------------------------------------
-FileMD*
-FileMD::clone() const
+QuarkFileMD*
+QuarkFileMD::clone() const
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-  return new FileMD(*this);
+  return new QuarkFileMD(*this);
 }
 
 //------------------------------------------------------------------------------
 // Copy constructor
 //------------------------------------------------------------------------------
-FileMD::FileMD(const FileMD& other)
+QuarkFileMD::QuarkFileMD(const QuarkFileMD& other)
 {
   *this = other;
 }
@@ -68,8 +68,8 @@ FileMD::FileMD(const FileMD& other)
 //------------------------------------------------------------------------------
 // Assignment operator
 //------------------------------------------------------------------------------
-FileMD&
-FileMD::operator = (const FileMD& other)
+QuarkFileMD&
+QuarkFileMD::operator = (const QuarkFileMD& other)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   mFile = other.mFile;
@@ -81,7 +81,7 @@ FileMD::operator = (const FileMD& other)
 //------------------------------------------------------------------------------
 // Set name
 //------------------------------------------------------------------------------
-void FileMD::setName(const std::string& name)
+void QuarkFileMD::setName(const std::string& name)
 {
   if(name.find('/') != std::string::npos) {
     eos_static_crit("Detected slashes in filename: %s", eos::common::getStacktrace().c_str());
@@ -96,7 +96,7 @@ void FileMD::setName(const std::string& name)
 // Add location
 //------------------------------------------------------------------------------
 void
-FileMD::addLocation(location_t location)
+QuarkFileMD::addLocation(location_t location)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
 
@@ -115,7 +115,7 @@ FileMD::addLocation(location_t location)
 // Remove location that was previously unlinked
 //------------------------------------------------------------------------------
 void
-FileMD::removeLocation(location_t location)
+QuarkFileMD::removeLocation(location_t location)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
 
@@ -136,7 +136,7 @@ FileMD::removeLocation(location_t location)
 // Remove all locations that were previously unlinked
 //------------------------------------------------------------------------------
 void
-FileMD::removeAllLocations()
+QuarkFileMD::removeAllLocations()
 {
   while (true) {
     std::unique_lock<std::shared_timed_mutex> lock(mMutex);
@@ -156,7 +156,7 @@ FileMD::removeAllLocations()
 // Unlink location
 //------------------------------------------------------------------------------
 void
-FileMD::unlinkLocation(location_t location)
+QuarkFileMD::unlinkLocation(location_t location)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
 
@@ -178,7 +178,7 @@ FileMD::unlinkLocation(location_t location)
 // Unlink all locations
 //------------------------------------------------------------------------------
 void
-FileMD::unlinkAllLocations()
+QuarkFileMD::unlinkAllLocations()
 {
   while (true) {
     std::unique_lock<std::shared_timed_mutex> lock(mMutex);
@@ -198,7 +198,7 @@ FileMD::unlinkAllLocations()
 //  Env Representation
 //------------------------------------------------------------------------
 void
-FileMD::getEnv(std::string& env, bool escapeAnd)
+QuarkFileMD::getEnv(std::string& env, bool escapeAnd)
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   env = "";
@@ -262,7 +262,7 @@ FileMD::getEnv(std::string& env, bool escapeAnd)
 // Serialize the object to a std::string buffer
 //------------------------------------------------------------------------------
 void
-FileMD::serialize(eos::Buffer& buffer)
+QuarkFileMD::serialize(eos::Buffer& buffer)
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
 
@@ -305,7 +305,7 @@ FileMD::serialize(eos::Buffer& buffer)
 // Initialize from protobuf contents
 //------------------------------------------------------------------------------
 void
-FileMD::initialize(eos::ns::FileMdProto&& proto)
+QuarkFileMD::initialize(eos::ns::FileMdProto&& proto)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   mFile = std::move(proto);
@@ -315,7 +315,7 @@ FileMD::initialize(eos::ns::FileMdProto&& proto)
 // Deserialize from buffer
 //------------------------------------------------------------------------------
 void
-FileMD::deserialize(const eos::Buffer& buffer)
+QuarkFileMD::deserialize(const eos::Buffer& buffer)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   Serialization::deserializeFile(buffer, mFile);
@@ -325,7 +325,7 @@ FileMD::deserialize(const eos::Buffer& buffer)
 // Set size - 48 bytes will be used
 //------------------------------------------------------------------------------
 void
-FileMD::setSize(uint64_t size)
+QuarkFileMD::setSize(uint64_t size)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   int64_t sizeChange = (size & 0x0000ffffffffffff) - mFile.size();
@@ -340,7 +340,7 @@ FileMD::setSize(uint64_t size)
 // Get creation time, no lock
 //------------------------------------------------------------------------------
 void
-FileMD::getCTimeNoLock(ctime_t& ctime) const
+QuarkFileMD::getCTimeNoLock(ctime_t& ctime) const
 {
   (void) memcpy(&ctime, mFile.ctime().data(), sizeof(ctime_t));
 }
@@ -349,7 +349,7 @@ FileMD::getCTimeNoLock(ctime_t& ctime) const
 // Get creation time
 //------------------------------------------------------------------------------
 void
-FileMD::getCTime(ctime_t& ctime) const
+QuarkFileMD::getCTime(ctime_t& ctime) const
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   getCTimeNoLock(ctime);
@@ -359,7 +359,7 @@ FileMD::getCTime(ctime_t& ctime) const
 // Set creation time
 //------------------------------------------------------------------------------
 void
-FileMD::setCTime(ctime_t ctime)
+QuarkFileMD::setCTime(ctime_t ctime)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   mFile.set_ctime(&ctime, sizeof(ctime));
@@ -369,7 +369,7 @@ FileMD::setCTime(ctime_t ctime)
 // Set creation time to now
 //----------------------------------------------------------------------------
 void
-FileMD::setCTimeNow()
+QuarkFileMD::setCTimeNow()
 {
   struct timespec tnow;
 #ifdef __APPLE__
@@ -387,7 +387,7 @@ FileMD::setCTimeNow()
 // Get modification time, no locks
 //------------------------------------------------------------------------------
 void
-FileMD::getMTimeNoLock(ctime_t& mtime) const
+QuarkFileMD::getMTimeNoLock(ctime_t& mtime) const
 {
   (void) memcpy(&mtime, mFile.mtime().data(), sizeof(ctime_t));
 }
@@ -396,7 +396,7 @@ FileMD::getMTimeNoLock(ctime_t& mtime) const
 // Get modification time
 //------------------------------------------------------------------------------
 void
-FileMD::getMTime(ctime_t& mtime) const
+QuarkFileMD::getMTime(ctime_t& mtime) const
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   getMTimeNoLock(mtime);
@@ -406,7 +406,7 @@ FileMD::getMTime(ctime_t& mtime) const
 // Set modification time
 //------------------------------------------------------------------------------
 void
-FileMD::setMTime(ctime_t mtime)
+QuarkFileMD::setMTime(ctime_t mtime)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   mFile.set_mtime(&mtime, sizeof(mtime));
@@ -416,7 +416,7 @@ FileMD::setMTime(ctime_t mtime)
 // Set modification time to now
 //------------------------------------------------------------------------------
 void
-FileMD::setMTimeNow()
+QuarkFileMD::setMTimeNow()
 {
   struct timespec tnow;
 #ifdef __APPLE__
@@ -434,7 +434,7 @@ FileMD::setMTimeNow()
 // Get map copy of the extended attributes
 //------------------------------------------------------------------------------
 eos::IFileMD::XAttrMap
-FileMD::getAttributes() const
+QuarkFileMD::getAttributes() const
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   std::map<std::string, std::string> xattrs;
@@ -447,7 +447,7 @@ FileMD::getAttributes() const
 }
 
 bool
-FileMD::hasUnlinkedLocation(IFileMD::location_t location)
+QuarkFileMD::hasUnlinkedLocation(IFileMD::location_t location)
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
 

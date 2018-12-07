@@ -43,7 +43,7 @@ TEST(NsQuarkdb, FileMd)
   MockFileMDSvc file_svc;
   EXPECT_CALL(file_svc, notifyListeners(_)).WillRepeatedly(Return());
   eos::IFileMD::id_t id = 12345;
-  eos::FileMD file(id, (eos::IFileMDSvc*)&file_svc);
+  eos::QuarkFileMD file(id, (eos::IFileMDSvc*)&file_svc);
   file.setName("ns_test_file");
   eos::IContainerMD::id_t cont_id = 9876;
   uint64_t size = 4 * 1024 * 1024;
@@ -77,7 +77,7 @@ TEST(NsQuarkdb, FileMd)
   eos::Buffer buffer;
   file.serialize(buffer);
   // Deserialize
-  eos::FileMD rfile(0, (eos::IFileMDSvc*)&file_svc);
+  eos::QuarkFileMD rfile(0, (eos::IFileMDSvc*)&file_svc);
   rfile.deserialize(buffer);
   std::string orig_rep, new_rep;
   file.getEnv(orig_rep);

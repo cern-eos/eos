@@ -80,7 +80,7 @@ void
 QuarkFileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
 {
   std::string key, val;
-  FileMD* file = static_cast<FileMD*>(e->file);
+  QuarkFileMD* file = static_cast<QuarkFileMD*>(e->file);
   qclient::QSet fs_set;
 
   switch (e->action) {

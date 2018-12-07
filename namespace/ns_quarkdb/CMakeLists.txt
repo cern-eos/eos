@@ -42,16 +42,12 @@ endif(BUILD_TESTS)
 add_library(
   EosNsQuarkdb-Objects OBJECT
 
-  FileMD.cc              FileMD.hh
   ContainerMD.cc         ContainerMD.hh
   BackendClient.cc       BackendClient.hh
   LRU.hh
 
   persistency/ContainerMDSvc.cc          persistency/ContainerMDSvc.hh
   persistency/FileMDSvc.cc               persistency/FileMDSvc.hh
-  persistency/MetadataFetcher.cc         persistency/MetadataFetcher.hh
-  persistency/MetadataProvider.cc        persistency/MetadataProvider.hh
-  persistency/RequestBuilder.cc          persistency/RequestBuilder.hh
   views/HierarchicalView.cc              views/HierarchicalView.hh
 )
 
