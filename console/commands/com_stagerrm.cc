@@ -118,7 +118,8 @@ void com_stagerrm_help() {
   oss << "Usage: stagerrm <path>|fid:<fid-dec>]|fxid:<fid-hex> [<path>|fid:<fid-dec>]|fxid:<fid-hex>] ..."
       << std::endl
       << "       Removes all disk replicas of the given files separated by space"
-      << "       This command required write and p acl flag permission"
+      << std::endl
+      << "       This command requires write and p acl flag permission"
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }

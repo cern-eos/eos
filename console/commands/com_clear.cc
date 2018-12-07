@@ -30,7 +30,8 @@
 /* Clear the terminal screen */
 int
 com_clear (char *arg) {
-  if (!strcmp(arg,"-h") || (!strcmp(arg,"--help"))) {
+  if (!strcmp(arg, "-h") || !strcmp(arg, "--help") ||
+      !strcmp(arg, "\"-h\"") || !strcmp(arg, "\"--help\"")) {
     fprintf(stdout,"Usage: clear\n");
     fprintf(stdout,"'[eos] clear' is equivalent to the interactive shell command to clear the screen.\n");
     return (0);
