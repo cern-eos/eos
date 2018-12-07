@@ -539,7 +539,7 @@ TEST_F(VariousTests, EtagFormattingContainer) {
   mtime.tv_nsec = 97343404;
   cont1->setTMTime(mtime);
 
-  eos::ContainerMD *cont1c = reinterpret_cast<ContainerMD*>(cont1.get());
+  eos::QuarkContainerMD *cont1c = reinterpret_cast<QuarkContainerMD*>(cont1.get());
   cont1c->mCont.set_id(5734137);
 
   std::string outcome;

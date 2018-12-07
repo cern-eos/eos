@@ -224,7 +224,7 @@ MetadataProvider::processIncomingContainerMD(ContainerIdentifier id,
   // Things look sane?
   eos_assert(proto.id() == id.getUnderlyingUInt64());
   // Yep, construct ContainerMD object..
-  ContainerMD* containerMD = new ContainerMD(0, mFileSvc, mContSvc);
+  QuarkContainerMD* containerMD = new QuarkContainerMD(0, mFileSvc, mContSvc);
   containerMD->initialize(std::move(proto), std::move(fileMap),
                           std::move(containerMap));
   // Drop inFlightContainers future..

@@ -101,7 +101,7 @@ TEST(NsQuarkdb, ContainerMd)
   EXPECT_CALL(file_svc, notifyListeners(_)).WillRepeatedly(Return());
   EXPECT_CALL(cont_svc, notifyListeners(_, _)).WillRepeatedly(Return());
   eos::IContainerMD::id_t id = 98765;
-  eos::ContainerMD cont(id, (eos::IFileMDSvc*)&file_svc,
+  eos::QuarkContainerMD cont(id, (eos::IFileMDSvc*)&file_svc,
                         (eos::IContainerMDSvc*)&cont_svc);
   cont.setName("ns_test_cont");
   eos::IContainerMD::id_t parent_id = 34567;
@@ -135,7 +135,7 @@ TEST(NsQuarkdb, ContainerMd)
   eos::Buffer buffer;
   cont.serialize(buffer);
   // Deserialize
-  eos::ContainerMD rcont(0, (eos::IFileMDSvc*)&file_svc,
+  eos::QuarkContainerMD rcont(0, (eos::IFileMDSvc*)&file_svc,
                          (eos::IContainerMDSvc*)&cont_svc);
   rcont.deserialize(buffer);
   ASSERT_EQ(cont.getId(), rcont.getId());

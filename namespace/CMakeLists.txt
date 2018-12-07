@@ -91,6 +91,7 @@ add_library(
   ns_quarkdb/persistency/MetadataProvider.cc              ns_quarkdb/persistency/MetadataProvider.hh
   ns_quarkdb/persistency/RequestBuilder.cc                ns_quarkdb/persistency/RequestBuilder.hh
 
+  ns_quarkdb/ContainerMD.cc                               ns_quarkdb/ContainerMD.hh
   ns_quarkdb/FileMD.cc                                    ns_quarkdb/FileMD.hh
 
 )

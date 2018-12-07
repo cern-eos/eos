@@ -676,7 +676,7 @@ public:
       fmd->initialize(std::move(item.fileMd));
       res.fileMD.reset(fmd);
     } else {
-      eos::ContainerMD* cmd = new eos::ContainerMD();
+      eos::QuarkContainerMD* cmd = new eos::QuarkContainerMD();
       cmd->initializeWithoutChildren(std::move(item.containerMd));
       res.containerMD.reset(cmd);
     }

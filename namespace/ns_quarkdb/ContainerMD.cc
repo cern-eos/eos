@@ -39,7 +39,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ContainerMD::ContainerMD(ContainerMD::id_t id, IFileMDSvc* file_svc,
+QuarkContainerMD::QuarkContainerMD(IContainerMD::id_t id, IFileMDSvc* file_svc,
                          IContainerMDSvc* cont_svc)
   : IContainerMD(),
     pFilesKey(stringify(id) + constants::sMapFilesSuffix),
@@ -66,7 +66,7 @@ ContainerMD::ContainerMD(ContainerMD::id_t id, IFileMDSvc* file_svc,
 //------------------------------------------------------------------------------
 // Set namespace services
 //------------------------------------------------------------------------------
-void ContainerMD::setServices(IFileMDSvc* file_svc, IContainerMDSvc* cont_svc)
+void QuarkContainerMD::setServices(IFileMDSvc* file_svc, IContainerMDSvc* cont_svc)
 {
   eos_assert(pFileSvc == nullptr && pContSvc == nullptr);
   eos_assert(file_svc != nullptr && cont_svc != nullptr);
@@ -87,16 +87,16 @@ void ContainerMD::setServices(IFileMDSvc* file_svc, IContainerMDSvc* cont_svc)
 //------------------------------------------------------------------------------
 // Virtual copy constructor
 //------------------------------------------------------------------------------
-ContainerMD*
-ContainerMD::clone() const
+QuarkContainerMD*
+QuarkContainerMD::clone() const
 {
-  return new ContainerMD(*this);
+  return new QuarkContainerMD(*this);
 }
 
 //------------------------------------------------------------------------------
 // Copy constructor
 //------------------------------------------------------------------------------
-ContainerMD::ContainerMD(const ContainerMD& other)
+QuarkContainerMD::QuarkContainerMD(const QuarkContainerMD& other)
 {
   *this = other;
 }
@@ -104,7 +104,7 @@ ContainerMD::ContainerMD(const ContainerMD& other)
 //------------------------------------------------------------------------------
 // Assignment operator
 //------------------------------------------------------------------------------
-ContainerMD& ContainerMD::operator= (const ContainerMD& other)
+QuarkContainerMD& QuarkContainerMD::operator= (const QuarkContainerMD& other)
 {
   mCont    = other.mCont;
   pContSvc = other.pContSvc;
@@ -153,7 +153,7 @@ static IContainerMDPtr extractContainerMD(FileOrContainerMD ptr)
 // Find item
 //------------------------------------------------------------------------------
 folly::Future<FileOrContainerMD>
-ContainerMD::findItem(const std::string& name)
+QuarkContainerMD::findItem(const std::string& name)
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   // We're looking for "name". Look inside subcontainer map to check if there's
@@ -207,7 +207,7 @@ ContainerMD::findItem(const std::string& name)
 // Remove container
 //------------------------------------------------------------------------------
 void
-ContainerMD::removeContainer(const std::string& name)
+QuarkContainerMD::removeContainer(const std::string& name)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   auto it = mSubcontainers->find(name);
@@ -228,7 +228,7 @@ ContainerMD::removeContainer(const std::string& name)
 // Add container
 //------------------------------------------------------------------------------
 void
-ContainerMD::addContainer(IContainerMD* container)
+QuarkContainerMD::addContainer(IContainerMD* container)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
 
@@ -269,7 +269,7 @@ ContainerMD::addContainer(IContainerMD* container)
 // Find file, asynchronous API
 //------------------------------------------------------------------------------
 folly::Future<IFileMDPtr>
-ContainerMD::findFileFut(const std::string& name)
+QuarkContainerMD::findFileFut(const std::string& name)
 {
   return this->findItem(name).then(extractFileMD);
 }
@@ -278,7 +278,7 @@ ContainerMD::findFileFut(const std::string& name)
 // Find file
 //------------------------------------------------------------------------------
 std::shared_ptr<IFileMD>
-ContainerMD::findFile(const std::string& name)
+QuarkContainerMD::findFile(const std::string& name)
 {
   return this->findItem(name).get().file;
 }
@@ -287,7 +287,7 @@ ContainerMD::findFile(const std::string& name)
 // Find subcontainer, asynchronous API
 //------------------------------------------------------------------------------
 folly::Future<IContainerMDPtr>
-ContainerMD::findContainerFut(const std::string& name)
+QuarkContainerMD::findContainerFut(const std::string& name)
 {
   return this->findItem(name).then(extractContainerMD);
 }
@@ -296,7 +296,7 @@ ContainerMD::findContainerFut(const std::string& name)
 // Find subcontainer
 //------------------------------------------------------------------------------
 std::shared_ptr<IContainerMD>
-ContainerMD::findContainer(const std::string& name)
+QuarkContainerMD::findContainer(const std::string& name)
 {
   return this->findItem(name).get().container;
 }
@@ -305,7 +305,7 @@ ContainerMD::findContainer(const std::string& name)
 // Add file
 //------------------------------------------------------------------------------
 void
-ContainerMD::addFile(IFileMD* file)
+QuarkContainerMD::addFile(IFileMD* file)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
 
@@ -350,7 +350,7 @@ ContainerMD::addFile(IFileMD* file)
 // Remove file
 //------------------------------------------------------------------------------
 void
-ContainerMD::removeFile(const std::string& name)
+QuarkContainerMD::removeFile(const std::string& name)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   auto iter = mFiles->find(name);
@@ -380,7 +380,7 @@ ContainerMD::removeFile(const std::string& name)
 // Get number of files
 //------------------------------------------------------------------------------
 size_t
-ContainerMD::getNumFiles()
+QuarkContainerMD::getNumFiles()
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   return mFiles->size();
@@ -390,7 +390,7 @@ ContainerMD::getNumFiles()
 // Get number of containers
 //----------------------------------------------------------------------------
 size_t
-ContainerMD::getNumContainers()
+QuarkContainerMD::getNumContainers()
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   return mSubcontainers->size();
@@ -400,7 +400,7 @@ ContainerMD::getNumContainers()
 // Check the access permissions
 //------------------------------------------------------------------------------
 bool
-ContainerMD::access(uid_t uid, gid_t gid, int flags)
+QuarkContainerMD::access(uid_t uid, gid_t gid, int flags)
 {
   // root can do everything
   if (uid == 0) {
@@ -438,7 +438,7 @@ ContainerMD::access(uid_t uid, gid_t gid, int flags)
 // Set name
 //------------------------------------------------------------------------------
 void
-ContainerMD::setName(const std::string& name)
+QuarkContainerMD::setName(const std::string& name)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
 
@@ -464,7 +464,7 @@ ContainerMD::setName(const std::string& name)
 // Set creation time
 //------------------------------------------------------------------------------
 void
-ContainerMD::setCTime(ctime_t ctime)
+QuarkContainerMD::setCTime(ctime_t ctime)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   mCont.set_ctime(&ctime, sizeof(ctime));
@@ -474,7 +474,7 @@ ContainerMD::setCTime(ctime_t ctime)
 // Set creation time to now
 //------------------------------------------------------------------------------
 void
-ContainerMD::setCTimeNow()
+QuarkContainerMD::setCTimeNow()
 {
   struct timespec tnow;
 #ifdef __APPLE__
@@ -492,7 +492,7 @@ ContainerMD::setCTimeNow()
 // Get creation time
 //------------------------------------------------------------------------------
 void
-ContainerMD::getCTime(ctime_t& ctime) const
+QuarkContainerMD::getCTime(ctime_t& ctime) const
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   getCTimeNoLock(ctime);
@@ -502,7 +502,7 @@ ContainerMD::getCTime(ctime_t& ctime) const
 // Get creation time, no locks
 //------------------------------------------------------------------------------
 void
-ContainerMD::getCTimeNoLock(ctime_t& ctime) const
+QuarkContainerMD::getCTimeNoLock(ctime_t& ctime) const
 {
   (void) memcpy(&ctime, mCont.ctime().data(), sizeof(ctime));
 }
@@ -511,7 +511,7 @@ ContainerMD::getCTimeNoLock(ctime_t& ctime) const
 // Set modification time
 //------------------------------------------------------------------------------
 void
-ContainerMD::setMTime(mtime_t mtime)
+QuarkContainerMD::setMTime(mtime_t mtime)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   mCont.set_mtime(&mtime, sizeof(mtime));
@@ -521,7 +521,7 @@ ContainerMD::setMTime(mtime_t mtime)
 // Set creation time to now
 //------------------------------------------------------------------------------
 void
-ContainerMD::setMTimeNow()
+QuarkContainerMD::setMTimeNow()
 {
   struct timespec tnow;
 #ifdef __APPLE__
@@ -539,7 +539,7 @@ ContainerMD::setMTimeNow()
 // Get modification time
 //------------------------------------------------------------------------------
 void
-ContainerMD::getMTime(mtime_t& mtime) const
+QuarkContainerMD::getMTime(mtime_t& mtime) const
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   getMTimeNoLock(mtime);
@@ -549,7 +549,7 @@ ContainerMD::getMTime(mtime_t& mtime) const
 // Get modification time, no lock
 //------------------------------------------------------------------------------
 void
-ContainerMD::getMTimeNoLock(mtime_t& mtime) const
+QuarkContainerMD::getMTimeNoLock(mtime_t& mtime) const
 {
   (void) memcpy(&mtime, mCont.mtime().data(), sizeof(mtime));
 }
@@ -558,7 +558,7 @@ ContainerMD::getMTimeNoLock(mtime_t& mtime) const
 // Set propagated modification time (if newer)
 //------------------------------------------------------------------------------
 bool
-ContainerMD::setTMTime(tmtime_t tmtime)
+QuarkContainerMD::setTMTime(tmtime_t tmtime)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   tmtime_t tmt;
@@ -579,7 +579,7 @@ ContainerMD::setTMTime(tmtime_t tmtime)
 // Set propagated modification time to now
 //------------------------------------------------------------------------------
 void
-ContainerMD::setTMTimeNow()
+QuarkContainerMD::setTMTimeNow()
 {
   tmtime_t tmtime = {0};
 #ifdef __APPLE__
@@ -597,7 +597,7 @@ ContainerMD::setTMTimeNow()
 // Get propagated modification time, no locks
 //------------------------------------------------------------------------------
 void
-ContainerMD::getTMTimeNoLock(tmtime_t& tmtime)
+QuarkContainerMD::getTMTimeNoLock(tmtime_t& tmtime)
 {
   (void) memcpy(&tmtime, mCont.stime().data(), sizeof(tmtime));
 }
@@ -606,7 +606,7 @@ ContainerMD::getTMTimeNoLock(tmtime_t& tmtime)
 // Get propagated modification time
 //------------------------------------------------------------------------------
 void
-ContainerMD::getTMTime(tmtime_t& tmtime)
+QuarkContainerMD::getTMTime(tmtime_t& tmtime)
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   getTMTimeNoLock(tmtime);
@@ -616,7 +616,7 @@ ContainerMD::getTMTime(tmtime_t& tmtime)
 // Trigger an mtime change event
 //------------------------------------------------------------------------------
 void
-ContainerMD::notifyMTimeChange(IContainerMDSvc* containerMDSvc)
+QuarkContainerMD::notifyMTimeChange(IContainerMDSvc* containerMDSvc)
 {
   containerMDSvc->notifyListeners(this,
                                   IContainerMDChangeListener::MTimeChange);
@@ -626,7 +626,7 @@ ContainerMD::notifyMTimeChange(IContainerMDSvc* containerMDSvc)
 // Update tree size
 //------------------------------------------------------------------------------
 uint64_t
-ContainerMD::updateTreeSize(int64_t delta)
+QuarkContainerMD::updateTreeSize(int64_t delta)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   uint64_t sz = mCont.tree_size();
@@ -646,7 +646,7 @@ ContainerMD::updateTreeSize(int64_t delta)
 // Get the attribute
 //------------------------------------------------------------------------------
 std::string
-ContainerMD::getAttribute(const std::string& name) const
+QuarkContainerMD::getAttribute(const std::string& name) const
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   auto it = mCont.xattrs().find(name);
@@ -664,7 +664,7 @@ ContainerMD::getAttribute(const std::string& name) const
 // Remove attribute
 //------------------------------------------------------------------------------
 void
-ContainerMD::removeAttribute(const std::string& name)
+QuarkContainerMD::removeAttribute(const std::string& name)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   auto it = mCont.xattrs().find(name);
@@ -678,7 +678,7 @@ ContainerMD::removeAttribute(const std::string& name)
 // Serialize the object to a buffer
 //------------------------------------------------------------------------------
 void
-ContainerMD::serialize(Buffer& buffer)
+QuarkContainerMD::serialize(Buffer& buffer)
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   // Align the buffer to 4 bytes to efficiently compute the checksum
@@ -713,7 +713,7 @@ ContainerMD::serialize(Buffer& buffer)
 // Load children
 //------------------------------------------------------------------------------
 void
-ContainerMD::loadChildren()
+QuarkContainerMD::loadChildren()
 {
   // Requires lock be taken outside.
   // Rebuild the file and subcontainer keys
@@ -736,7 +736,7 @@ ContainerMD::loadChildren()
 // Deserialize from buffer
 //------------------------------------------------------------------------------
 void
-ContainerMD::deserialize(Buffer& buffer)
+QuarkContainerMD::deserialize(Buffer& buffer)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   Serialization::deserializeContainer(buffer, mCont);
@@ -747,7 +747,7 @@ ContainerMD::deserialize(Buffer& buffer)
 // Initialize, inject children
 //------------------------------------------------------------------------------
 void
-ContainerMD::initialize(eos::ns::ContainerMdProto&& proto,
+QuarkContainerMD::initialize(eos::ns::ContainerMdProto&& proto,
                         IContainerMD::FileMap&& fileMap, IContainerMD::ContainerMap&& containerMap)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
@@ -763,7 +763,7 @@ ContainerMD::initialize(eos::ns::ContainerMdProto&& proto,
 // Initialize from a ContainerMdProto object, without loading children maps.
 //------------------------------------------------------------------------------
 void
-ContainerMD::initializeWithoutChildren(eos::ns::ContainerMdProto&& proto)
+QuarkContainerMD::initializeWithoutChildren(eos::ns::ContainerMdProto&& proto)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   mCont = std::move(proto);
@@ -773,7 +773,7 @@ ContainerMD::initializeWithoutChildren(eos::ns::ContainerMdProto&& proto)
 // Get map copy of the extended attributes
 //------------------------------------------------------------------------------
 eos::IFileMD::XAttrMap
-ContainerMD::getAttributes() const
+QuarkContainerMD::getAttributes() const
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   XAttrMap xattrs;
@@ -789,7 +789,7 @@ ContainerMD::getAttributes() const
 // Get env representation of the container object
 //------------------------------------------------------------------------------
 void
-ContainerMD::getEnv(std::string& env, bool escapeAnd)
+QuarkContainerMD::getEnv(std::string& env, bool escapeAnd)
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   env.clear();

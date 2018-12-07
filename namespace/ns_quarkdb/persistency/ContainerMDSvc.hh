@@ -38,7 +38,7 @@
 
 EOSNSNAMESPACE_BEGIN
 
-class ContainerMD;
+class QuarkContainerMD;
 class MetadataProvider;
 
 //------------------------------------------------------------------------------
@@ -46,7 +46,7 @@ class MetadataProvider;
 //------------------------------------------------------------------------------
 class ContainerMDSvc : public IContainerMDSvc
 {
-  friend ContainerMD;
+  friend QuarkContainerMD;
 
 public:
   //----------------------------------------------------------------------------

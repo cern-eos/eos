@@ -207,7 +207,7 @@ ContainerMDSvc::createContainer()
 {
   uint64_t free_id = mUnifiedInodeProvider->reserveContainerId();
   std::shared_ptr<IContainerMD> cont
-  (new ContainerMD(free_id, pFileSvc, static_cast<IContainerMDSvc*>(this)));
+  (new QuarkContainerMD(free_id, pFileSvc, static_cast<IContainerMDSvc*>(this)));
   ++mNumConts;
   mMetadataProvider->insertContainerMD(cont->getIdentifier(), cont);
   return cont;

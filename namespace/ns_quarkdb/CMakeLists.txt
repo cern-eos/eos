@@ -42,7 +42,6 @@ endif(BUILD_TESTS)
 add_library(
   EosNsQuarkdb-Objects OBJECT
 
-  ContainerMD.cc         ContainerMD.hh
   BackendClient.cc       BackendClient.hh
   LRU.hh
 

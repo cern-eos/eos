@@ -44,40 +44,40 @@ class IFileMDSvc;
 //------------------------------------------------------------------------------
 //! Class holding the metadata information concerning a single container
 //------------------------------------------------------------------------------
-class ContainerMD : public IContainerMD
+class QuarkContainerMD : public IContainerMD
 {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  ContainerMD(IContainerMD::id_t id, IFileMDSvc* file_svc,
+  QuarkContainerMD(IContainerMD::id_t id, IFileMDSvc* file_svc,
               IContainerMDSvc* cont_svc);
 
   //----------------------------------------------------------------------------
   //! Constructor used for testing and dump command
   //----------------------------------------------------------------------------
-  ContainerMD(): pContSvc(nullptr), pFileSvc(nullptr), pFlusher(nullptr),
+  QuarkContainerMD(): pContSvc(nullptr), pFileSvc(nullptr), pFlusher(nullptr),
     pQcl(nullptr), mClock(1) {}
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~ContainerMD() {};
+  virtual ~QuarkContainerMD() {};
 
   //----------------------------------------------------------------------------
   //! Copy constructor
   //----------------------------------------------------------------------------
-  ContainerMD(const ContainerMD& other);
+  QuarkContainerMD(const QuarkContainerMD& other);
 
   //----------------------------------------------------------------------------
   //! Virtual copy constructor
   //----------------------------------------------------------------------------
-  virtual ContainerMD* clone() const override;
+  virtual QuarkContainerMD* clone() const override;
 
   //----------------------------------------------------------------------------
   //! Assignment operator
   //----------------------------------------------------------------------------
-  ContainerMD& operator=(const ContainerMD& other);
+  QuarkContainerMD& operator=(const QuarkContainerMD& other);
 
   //----------------------------------------------------------------------------
   //! Set services

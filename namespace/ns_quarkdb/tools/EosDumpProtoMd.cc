@@ -147,7 +147,7 @@ std::string DumpProto(qclient::QClient* qcl, uint64_t id, bool is_file)
     fmd.getEnv(output, false);
   } else {
     eos::ns::ContainerMdProto containerProto = eos::MetadataFetcher::getContainerFromId(*qcl, eos::ContainerIdentifier(id)).get();
-    eos::ContainerMD cmd;
+    eos::QuarkContainerMD cmd;
     cmd.initializeWithoutChildren(std::move(containerProto));
     cmd.getEnv(output, false);
   }
