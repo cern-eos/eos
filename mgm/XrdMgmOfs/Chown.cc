@@ -126,9 +126,9 @@ XrdMgmOfs::_chown(const char* path,
       if ((vid.uid) && (!vid.sudoer) && (vid.uid != 3) && (vid.gid != 4)) {
         errno = EPERM;
       } else {
-        eos_info("dereference %d\n", nodereference);
+        eos_info("dereference %d", nodereference);
         fmd = gOFS->eosView->getFile(path, !nodereference);
-        eos_info("dereference %d\n", nodereference);
+        eos_info("dereference %d", nodereference);
 
         // Subtract the file
         if (ns_quota) {
