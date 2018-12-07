@@ -23,7 +23,7 @@ transfer
     -s              : print transfer summary
     --group         : list all transfers in this group
     --sync          : follow the transfer in interactive mode (like interactive third party 'cp')
-    <id> : id of the transfer to list
+    <id>            : id of the transfer to list
   transfer enable
     : start the transfer engine (you have to be root to do that)
   transfer disable

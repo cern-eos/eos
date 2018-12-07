@@ -11,4 +11,5 @@ archive
     transfers [all|put|get|purge|job_uuid] : show status of running jobs
     list [<path>]                          : show status of archived directories in subtree
     kill <job_uuid>                        : kill transfer
+    delete <path>                          : delete files from tape, keeping the ones on disk
     help [--help|-h]                       : display help message

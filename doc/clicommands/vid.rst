@@ -3,7 +3,7 @@ vid
 
 .. code-block:: text
 
-  usage: vid ls [-u] [-g] [-s] [-U] [-G] [-g] [-a] [-l] [-n]                                          : list configured policies
+  usage: vid ls [-u] [-g] [-s] [-U] [-G] [-g] [-a] [-l] [-n] : list configured policies
     -u : show only user role mappings
     -g : show only group role mappings
     -s : show list of sudoers

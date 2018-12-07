@@ -27,8 +27,10 @@ space
     space config <space-name> space.lru.interval=<sec>            : configure the default lru scan interval
     space config <space-name> space.headroom=<size>               : configure the default disk headroom if not defined on a filesystem (see fs for details)
     space config <space-name> space.scaninterval=<sec>            : configure the default scan interval if not defined on a filesystem (see fs for details)
+    space config <space-name> space.scanrate=<MB/S>               : configure the default scan rate if not defined on a filesystem (see fs for details)
     space config <space-name> space.drainperiod=<sec>             : configure the default drain  period if not defined on a filesystem (see fs for details)
     space config <space-name> space.graceperiod=<sec>             : configure the default grace  period if not defined on a filesystem (see fs for details)
+    space config <space-name> space.tapeawaregc.minbytesfree=<#>  : configure the minimum number of free bytes a space should have before the tape aware GC kicks in [ default=0 ]
     space config <space-name> space.autorepair=on|off             : enable auto-repair of faulty replica's/files (the converter has to be enabled too)
     => size can be given also like 10T, 20G, 2P ... without space before the unit
     space config <space-name> space.geo.access.policy.write.exact=on|off   : if 'on' use exact matching geo replica (if available) , 'off' uses weighting [ for write case ]

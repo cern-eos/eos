@@ -44,7 +44,7 @@ attr
     sys.forced.nstripes=<n>               : enforces to use <n> stripes[<n>= 1..16]
     sys.forced.blocksize=<w>              : enforces to use a blocksize of <w> - <w> can be 4k,64k,128k,256k or 1M
     sys.forced.placementpolicy=<policy>[:geotag] : enforces to use replica/stripe placement policy <policy> [<policy>={scattered|hybrid:<geotag>|gathered:<geotag>}]
-    sys.forced.nouserplacementpolicy=1           : disables user defined replica/stripe placement policy
+    sys.forced.nouserplacementpolicy=1    : disables user defined replica/stripe placement policy
     sys.forced.nouserlayout=1             : disables the user settings with user.forced.<xxx>
     sys.forced.nofsselection=1            : disables user defined filesystem selection with environment variables for reads
     sys.forced.bookingsize=<bytes>        : set's the number of bytes which get for each new created replica
@@ -87,7 +87,7 @@ attr
     e.g.: sys.acl='z:!d' => 'z' is a rule for every user besides root e.g. nobody can delete here'b
     sys.acl='z:i' => directory becomes immutable
     sys.eval.useracl                      : enables the evaluation of user acls if key is defined
-    sys.mask                              : masks all chmod requests with the given mask for directories - if defined the ACL bit fobidding 'chmod' requests is deactivated and the mask applied
+    sys.mask                              : masks all unix access permissions with a given mask .e.g sys.mask=775 disables writing to others
     sys.owner.auth=<owner-auth-list>      : set's additional owner on a directory - open/create + mkdir commands will use the owner id for operations if the client is part of the owner authentication list
     sys.owner.auth=*                      : every person with write permission will be mapped to the owner uid/gid pair of the parent directory and quota will be accounted on the owner uid/gid pair
     => <owner-auth-list> = <auth1>:<name1>,<auth2>:<name2  e.g. krb5:nobody,gsi:DN=...
@@ -109,7 +109,7 @@ attr
     user.forced.nstripes=<n>               : s.a.
     user.forced.blocksize=<w>              : s.a.
     user.forced.placementpolicy=<policy>[:geotag] : s.a.
-    user.forced.nouserplacementpolicy=1           : s.a.
+    user.forced.nouserplacementpolicy=1            : s.a.
     user.forced.nouserlayout=1             : s.a.
     user.forced.nofsselection=1            : s.a.
     user.forced.atomic=1                   : s.a.

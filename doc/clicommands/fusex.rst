@@ -10,6 +10,8 @@ fusex
     fuxex evict <uuid> [<reason>]                                 :  evict a fuse client
     <uuid> -  uuid of the client to evict
     <reason> -  optional text shown to the client why he has been evicted
+    - if the reason contains the keywoard 'abort' the abort handler will be called on client side (might create a stack trace/core)
+    - if reason contains the keyword 'log2big' the client will effectily not be evicted, but will truncate his logfile to 0
     fusex dropcaps <uuid>                                         :  advice a client to drop all caps
     fusex droplocks <inode> <pid>                                 :  advice a client to drop for a given (hexadecimal) inode and process id
     fusex caps [-t | -i | -p [<regexp>] ]                         :  print caps

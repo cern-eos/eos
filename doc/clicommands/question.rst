@@ -3,4 +3,4 @@
 
 .. code-block:: text
 
-  ? :                    Synonym for `help'
+  ? :                    Synonym for 'help'

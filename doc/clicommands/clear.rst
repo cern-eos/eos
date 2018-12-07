@@ -3,4 +3,5 @@ clear
 
 .. code-block:: text
 
-  [3;J[H[2J
+  clear
+  '[eos] clear' is equivalent to the interactive shell command to clear the screen.
