@@ -118,95 +118,88 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
 }
 
 //------------------------------------------------------------------------------
-//! Turn a ContainerMDPtr into FileOrContainerMD.
+// Turn a ContainerMDPtr into FileOrContainerMD.
 //------------------------------------------------------------------------------
-static FileOrContainerMD wrapContainerMD(IContainerMDPtr ptr) {
+static FileOrContainerMD wrapContainerMD(IContainerMDPtr ptr)
+{
   return FileOrContainerMD {nullptr, ptr};
 }
 
 //------------------------------------------------------------------------------
-//! Turn a FileMDPtr into FileOrContainerMD.
+// Turn a FileMDPtr into FileOrContainerMD.
 //------------------------------------------------------------------------------
-static FileOrContainerMD wrapFileMD(IFileMDPtr ptr) {
+static FileOrContainerMD wrapFileMD(IFileMDPtr ptr)
+{
   return FileOrContainerMD {ptr, nullptr};
 }
 
 //------------------------------------------------------------------------------
-//! Extract FileMDPtr out of FileOrContainerMD.
+// Extract FileMDPtr out of FileOrContainerMD.
 //------------------------------------------------------------------------------
-static IFileMDPtr extractFileMD(FileOrContainerMD ptr) {
+static IFileMDPtr extractFileMD(FileOrContainerMD ptr)
+{
   return ptr.file;
 }
 
 //------------------------------------------------------------------------------
-//! Extract ContainerMDPtr out of FileOrContainerMD.
+// Extract ContainerMDPtr out of FileOrContainerMD.
 //------------------------------------------------------------------------------
-static IContainerMDPtr extractContainerMD(FileOrContainerMD ptr) {
+static IContainerMDPtr extractContainerMD(FileOrContainerMD ptr)
+{
   return ptr.container;
 }
 
 //------------------------------------------------------------------------------
-//! Find item
+// Find item
 //------------------------------------------------------------------------------
 folly::Future<FileOrContainerMD>
 ContainerMD::findItem(const std::string& name)
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-
-  //----------------------------------------------------------------------------
   // We're looking for "name". Look inside subcontainer map to check if there's
   // a container with such name.
-  //----------------------------------------------------------------------------
   auto iter = mSubcontainers->find(name);
-  if(iter != mSubcontainers->end()) {
-    //--------------------------------------------------------------------------
+
+  if (iter != mSubcontainers->end()) {
     // We have a hit, this is a ContainerMD. Retrieve result asynchronously
     // from container service.
-    //--------------------------------------------------------------------------
     ContainerIdentifier target(iter->second);
     lock.unlock();
-
-    folly::Future<FileOrContainerMD> fut = pContSvc->getContainerMDFut(target.getUnderlyingUInt64())
-    .then(wrapContainerMD)
-    .onError([this, name](const folly::exception_wrapper &e) {
-      //------------------------------------------------------------------------
+    folly::Future<FileOrContainerMD> fut = pContSvc->getContainerMDFut(
+        target.getUnderlyingUInt64())
+                                           .then(wrapContainerMD)
+    .onError([this, name](const folly::exception_wrapper & e) {
       // Should not happen...
-      //------------------------------------------------------------------------
-      eos_static_crit("Exception occurred while looking up container with name %s in subcontainer with id %llu: %s", name.c_str(), getId(), e.what());
+      eos_static_crit("Exception occurred while looking up container with "
+                      "name %s in subcontainer with id %llu: %s", name.c_str(),
+                      getId(), e.what());
       return FileOrContainerMD {};
     });
-
     return fut;
   }
 
-  //----------------------------------------------------------------------------
   // This is not a ContainerMD.. maybe it's a FileMD?
-  //----------------------------------------------------------------------------
   auto iter2 = mFiles->find(name);
+
   if (iter2 != mFiles->end()) {
-    //--------------------------------------------------------------------------
     // We have a hit, this is a FileMD. Retrieve result asynchronously
     // from file service.
-    //--------------------------------------------------------------------------
     FileIdentifier target(iter2->second);
     lock.unlock();
-
-    folly::Future<FileOrContainerMD> fut = pFileSvc->getFileMDFut(target.getUnderlyingUInt64())
-    .then(wrapFileMD)
-    .onError([this, name](const folly::exception_wrapper &e) {
-      //------------------------------------------------------------------------
+    folly::Future<FileOrContainerMD> fut = pFileSvc->getFileMDFut(
+        target.getUnderlyingUInt64())
+                                           .then(wrapFileMD)
+    .onError([this, name](const folly::exception_wrapper & e) {
       // Should not happen...
-      //------------------------------------------------------------------------
-      eos_static_crit("Exception occurred while looking up file with name %s in subcontainer with id %llu: %s", name.c_str(), getId(), e.what());
+      eos_static_crit("Exception occurred while looking up file with name %s "
+                      "in subcontainer with id %llu: %s", name.c_str(), getId(),
+                      e.what());
       return FileOrContainerMD {};
     });
-
     return fut;
   }
 
-  //----------------------------------------------------------------------------
   // Nope, "name" doesn't exist in this container.
-  //----------------------------------------------------------------------------
   return FileOrContainerMD {};
 }
 
@@ -247,23 +240,27 @@ ContainerMD::addContainer(IContainerMD* container)
   }
 
   auto containerConflict = mSubcontainers->find(container->getName());
-  if(containerConflict != mSubcontainers->end() && containerConflict->second != container->getId()) {
+
+  if (containerConflict != mSubcontainers->end() &&
+      containerConflict->second != container->getId()) {
     eos_static_crit(eos::common::getStacktrace().c_str());
-    throw_mdexception(EEXIST, "Attempted to add container with name " << container->getName() <<
-                      " while a different subcontainer exists already there.");
+    throw_mdexception(EEXIST, "Attempted to add container with name "
+                      << container->getName()
+                      << " while a different subcontainer exists already there.");
   }
 
   auto fileConflict = mFiles->find(container->getName());
-  if(fileConflict != mFiles->end()) {
+
+  if (fileConflict != mFiles->end()) {
     eos_static_crit(eos::common::getStacktrace().c_str());
-    throw_mdexception(EEXIST, "Attempted to add container with name " << container->getName() <<
-                      " while a file exists already there.");
+    throw_mdexception(EEXIST, "Attempted to add container with name "
+                      << container->getName()
+                      << " while a file exists already there.");
   }
 
   container->setParentId(mCont.id());
   auto ret = mSubcontainers->insert(std::make_pair(container->getName(),
                                     container->getId()));
-
   // Add to new container to KV backend
   pFlusher->hset(pDirsKey, container->getName(), stringify(container->getId()));
 }
@@ -320,16 +317,20 @@ ContainerMD::addFile(IFileMD* file)
   }
 
   auto containerConflict = mSubcontainers->find(file->getName());
-  if(containerConflict != mSubcontainers->end()) {
+
+  if (containerConflict != mSubcontainers->end()) {
     eos_static_crit(eos::common::getStacktrace().c_str());
-    throw_mdexception(EEXIST, "Attempted to add file with name " << file->getName() <<
+    throw_mdexception(EEXIST,
+                      "Attempted to add file with name " << file->getName() <<
                       " while a subcontainer exists already there.");
   }
 
   auto fileConflict = mFiles->find(file->getName());
-  if(fileConflict != mFiles->end() && fileConflict->second != file->getId()) {
+
+  if (fileConflict != mFiles->end() && fileConflict->second != file->getId()) {
     eos_static_crit(eos::common::getStacktrace().c_str());
-    throw_mdexception(EEXIST, "Attempted to add file with name " << file->getName() <<
+    throw_mdexception(EEXIST,
+                      "Attempted to add file with name " << file->getName() <<
                       " while a different file exists already there.");
   }
 
@@ -440,8 +441,10 @@ void
 ContainerMD::setName(const std::string& name)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-  if(mCont.id() != 1 && name.find('/') != std::string::npos) {
-    eos_static_crit("Detected slashes in container name: %s", eos::common::getStacktrace().c_str());
+
+  if (mCont.id() != 1 && name.find('/') != std::string::npos) {
+    eos_static_crit("Detected slashes in container name: %s",
+                    eos::common::getStacktrace().c_str());
     throw_mdexception(EINVAL, "Bug, detected slashes in container name: " << name);
   }
 
