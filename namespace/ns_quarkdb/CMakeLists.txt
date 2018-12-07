@@ -59,6 +59,12 @@ target_link_libraries(
   ${GLIBC_RT_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
+install(
+  TARGETS EosNsQuarkdb
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+
 #-------------------------------------------------------------------------------
 # eos_convert_mem_to_kv executable
 #-------------------------------------------------------------------------------
