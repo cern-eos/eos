@@ -40,6 +40,7 @@ journalcache::journalcache(fuse_ino_t ino) : ino(ino), cachesize(0),
 {
 }
 
+
 journalcache::~journalcache()
 {
   if (fd > 0) {
@@ -47,7 +48,11 @@ journalcache::~journalcache()
     int rc = close(fd);
 
     if (rc) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wterminate"
       throw std::logic_error("journalcache::~journalcache fd close failed");
+#pragma GCC diagnostic pop
+
     }
 
     journal.clear();
