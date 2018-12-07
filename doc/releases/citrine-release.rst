@@ -16,6 +16,35 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.4.18 Citrine``
+===================
+
+2018-12-07
+
+Bug
+----
+
+* [EOS-2636] - VERY high negative cache value = 1987040
+* [EOS-2969] - central drain/config: "eos fs config XYZ configstatus=drain" hangs
+* [EOS-2974] - EOS new NS (EOSPPS) sudden memory increase → OOM
+* [EOS-3129] - Error following symlink while "eos cp"
+* [EOS-3162] - File reported successfully written despites IO errors
+* [EOS-3163] - FuseServer confuses file ID with inode when prefetching under lock
+* [EOS-3168] - "eos recycle config --remove-bin" not working anymore
+* [EOS-3170] - Data race in FuseServer when handling client statistics
+
+Improvement
+-----------
+
+* [EOS-2923] - Improve and rationalize Egroup class
+* [EOS-2968] - central drain/config: skip/ignore attempts to set the same configstatus twice (instead of hanging)
+* [EOS-3037] - RFE: draining - randomize order for to-be-drained files on a filesystem
+* [EOS-3138] - RPM packaging: depend on the EPEL repo definitions
+* [EOS-3153] - Reduce MGM shutdown time
+* [EOS-3155] - Write mtime multi-client propagation testsuite
+* [EOS-3166] - Allow chown always if the owner does not change
+
+
 ``v4.4.17 Citrine``
 ===================
 
@@ -24,7 +53,7 @@ This release is based on XRootD V4 and IPV6 enabled.
 Bug
 ---
 
-* [EOS-3151] - fix OpenAsync in async flush thread in case of recovery 
+* [EOS-3151] - fix OpenAsync in async flush thread in case of recovery
 
 Improvement
 -----------
