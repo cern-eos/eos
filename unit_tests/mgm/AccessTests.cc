@@ -116,3 +116,111 @@ TEST(AccessChecker, UserRWX) {
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
     cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(1234, 8888)));
 }
+
+TEST(AccessChecker, rwxrwxrx) {
+  IContainerMDPtr cont = makeContainer(1234, 9999,
+    S_IFDIR | S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+
+  // rwx for user
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), R_OK, makeIdentity(1234, 8888)));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), W_OK, makeIdentity(1234, 8888)));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), X_OK, makeIdentity(1234, 8888)));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(1234, 8888)));
+
+  // rwx for group
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), R_OK, makeIdentity(3333, 9999)));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), W_OK, makeIdentity(3333, 9999)));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), X_OK, makeIdentity(3333, 9999)));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(3333, 9999)));
+
+  // rx for other
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), R_OK, makeIdentity(3333, 3333)));
+
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), W_OK, makeIdentity(3333, 3333)));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), X_OK, makeIdentity(3333, 3333)));
+
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(3333, 3333)));
+
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), R_OK | W_OK, makeIdentity(3333, 3333)));
+
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), X_OK | W_OK, makeIdentity(3333, 3333)));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), R_OK | X_OK, makeIdentity(3333, 3333)));
+}
+
+TEST(AccessChecker, WithAclUserRWX) {
+  IContainerMDPtr cont = makeContainer(5555, 9999,
+    S_IFDIR | S_IRWXU);
+
+  // no access for other
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), R_OK, makeIdentity(1234, 8888)));
+
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), W_OK, makeIdentity(1234, 8888)));
+
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), X_OK, makeIdentity(1234, 8888)));
+
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(
+    cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(1234, 8888)));
+
+  // .. unless we have an acl
+  eos::common::Mapping::VirtualIdentity_t vid1 = makeIdentity(1234, 8888);
+  vid1.gid_list = { 8888 };
+
+  eos::mgm::Acl acl("u:1234:rwx", "", vid1, true);
+  ASSERT_TRUE(acl.HasAcl());
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), acl, R_OK, makeIdentity(1234, 8888)));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), acl, W_OK, makeIdentity(1234, 8888)));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), acl, X_OK, makeIdentity(1234, 8888)));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), acl, R_OK | W_OK | X_OK, makeIdentity(1234, 8888)));
+
+  // try a group acl ...
+  vid1.gid_list = { 8888 };
+
+  eos::mgm::Acl acl2("g:8888:rwx", "", vid1, true);
+  ASSERT_TRUE(acl.HasAcl());
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), acl, R_OK, makeIdentity(1234, 8888)));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), acl, W_OK, makeIdentity(1234, 8888)));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), acl, X_OK, makeIdentity(1234, 8888)));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), acl, R_OK | W_OK | X_OK, makeIdentity(1234, 8888)));
+}

@@ -973,7 +973,7 @@ void HierarchicalView::renameFile(IFileMD* file, const std::string& newName)
 //------------------------------------------------------------------------------
 // Get parent container of a file
 //------------------------------------------------------------------------------
-folly::Future<IContainerMDPtr> QuarkHierarchicalView::getParentContainer(
+folly::Future<IContainerMDPtr> HierarchicalView::getParentContainer(
   IFileMD *file)
 {
   IContainerMD::id_t parentId = file->getContainerId();

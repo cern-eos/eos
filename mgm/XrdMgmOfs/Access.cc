@@ -149,42 +149,15 @@ XrdMgmOfs::_access(const char *path,
       attr_path = pPath.GetParentPath();
     }
 
-    permok = dh->access(vid.uid, vid.gid, mode);
     // ACL and permission check
     Acl acl(attr_path.c_str(), error, vid, attrmap, false);
     eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
 
-    if (vid.uid && !acl.IsMutable() && (mode & W_OK)) {
-      eos_debug("msg=\"access\" errno=EPERM reason=\"immutable\"");
+    if(!AccessChecker::checkContainer(dh.get(), acl, mode, vid)) {
       errno = EPERM;
       return Emsg(epname, error, EPERM, "access", path);
-    }
-
-    if (!permok) {
-      // browse permission by ACL
-      if (acl.HasAcl()) {
-        permok = true;
-
-        if ((mode & W_OK) && (!acl.CanWrite())) {
-          permok = false;
-        }
-
-        if (mode & R_OK) {
-          if (!acl.CanRead() &&
-              (!dh->access(vid.uid, vid.gid, R_OK))) {
-            permok = false;
-          }
-        }
-
-        if (mode & X_OK) {
-          if ((!acl.CanBrowse()) &&
-              (!dh->access(vid.uid, vid.gid, X_OK))) {
-            permok = false;
-          }
-        }
-      }
     }
 
     if (fh && (mode & X_OK) && flags) {
@@ -209,10 +182,6 @@ XrdMgmOfs::_access(const char *path,
       }
     }
 
-    // Check prepare permissions when mode requires
-    if (permok && (mode & P_OK) && ((acl.HasAcl() && !acl.CanPrepare()) || !acl.HasAcl())) {
-      permok = false;
-    }
   } catch (eos::MDException& e) {
     dh.reset();
     errno = e.getErrno();

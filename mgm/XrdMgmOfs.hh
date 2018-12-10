@@ -109,6 +109,7 @@
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/drain/Drainer.hh"
 #include "mgm/TapeAwareGc.hh"
+#include "mgm/auth/AccessChecker.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include <google/sparse_hash_map>

@@ -46,8 +46,6 @@ public:
   static bool checkContainer(IContainerMD *cont, const Acl &acl, int mode,
     const eos::common::Mapping::VirtualIdentity &vid);
 
-
-
 };
 
 EOSMGMNAMESPACE_END
