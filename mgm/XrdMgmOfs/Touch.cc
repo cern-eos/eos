@@ -53,6 +53,7 @@ XrdMgmOfs::_touch(const char* path,
   // Perform the actual deletion
   errno = 0;
   std::shared_ptr<eos::IFileMD> fmd;
+  bool existedAlready = false;
 
   if (_access(path, W_OK, error, vid, ininfo)) {
     return SFS_ERROR;
@@ -63,6 +64,7 @@ XrdMgmOfs::_touch(const char* path,
 
   try {
     fmd = gOFS->eosView->getFile(path);
+    existedAlready = true;
     errno = 0;
   } catch (eos::MDException& e) {
     errno = e.getErrno();
@@ -91,14 +93,16 @@ XrdMgmOfs::_touch(const char* path,
     cmd->notifyMTimeChange(gOFS->eosDirectoryService);
 
     // Check if there is any quota node to be updated
-    try {
-      eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
+    if(!existedAlready) {
+      try {
+        eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
 
-      if (ns_quota) {
-        ns_quota->addFile(fmd.get());
+        if (ns_quota) {
+          ns_quota->addFile(fmd.get());
+        }
+      } catch (const eos::MDException& eq) {
+        // no quota node
       }
-    } catch (const eos::MDException& eq) {
-      // no quota node
     }
 
     gOFS->eosView->updateContainerStore(cmd.get());
