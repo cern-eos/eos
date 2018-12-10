@@ -26,6 +26,7 @@
 #include "mgm/Acl.hh"
 #include "mgm/auth/AccessChecker.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
+#include "namespace/ns_quarkdb/FileMD.hh"
 
 using namespace eos;
 
@@ -224,3 +225,92 @@ TEST(AccessChecker, WithAclUserRWX) {
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
     cont.get(), acl, R_OK | W_OK | X_OK, makeIdentity(1234, 8888)));
 }
+
+IFileMDPtr makeFile(uid_t uid, gid_t gid, int mode) {
+  IFileMDPtr file(new eos::QuarkFileMD());
+  file->setCUid(uid);
+  file->setCGid(gid);
+  file->setFlags(mode);
+  return file;
+}
+
+TEST(AccessChecker, FileUserRWX) {
+  IFileMDPtr file = makeFile(5555, 9999, S_IRWXU);
+
+  ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), X_OK,
+    makeIdentity(5555, 1111)));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), R_OK | X_OK,
+    makeIdentity(5555, 1111)));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), W_OK | X_OK,
+    makeIdentity(5555, 1111)));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), R_OK | W_OK | X_OK,
+    makeIdentity(5555, 1111)));
+
+  // different uid than the file in question
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK,
+    makeIdentity(9999, 1111)));
+
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), R_OK | X_OK,
+    makeIdentity(9999, 1111)));
+
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), W_OK | X_OK,
+    makeIdentity(9999, 1111)));
+
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), R_OK | W_OK | X_OK,
+    makeIdentity(9999, 1111)));
+
+  // different uid, same gid, still deny
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK,
+    makeIdentity(9999, 9999)));
+
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), R_OK | X_OK,
+    makeIdentity(9999, 9999)));
+
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), W_OK | X_OK,
+    makeIdentity(9999, 9999)));
+
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), R_OK | W_OK | X_OK,
+    makeIdentity(9999, 9999)));
+}
+
+TEST(AccessChecker, FileGroupRWX) {
+  // file only allows group access
+  IFileMDPtr file = makeFile(5555, 9999, S_IRWXG);
+
+  // file has same uid, and group as file - allow
+  ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), X_OK,
+    makeIdentity(5555, 9999)));
+
+  // file has same uid - deny
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK,
+    makeIdentity(5555, 8888)));
+
+  // others - deny
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK,
+    makeIdentity(1111, 2222)));
+}
+
+TEST(AccessChecker, FileOtherRWX) {
+  // file only allows group access - weird, but possible
+  IFileMDPtr file = makeFile(5555, 9999, S_IRWXO);
+
+  // file has same uid/gid, deny
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK,
+    makeIdentity(5555, 9999)));
+
+  // file has same uid, deny
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK,
+    makeIdentity(5555, 8888)));
+
+  // file has same gid, deny
+  ASSERT_FALSE(mgm::AccessChecker::checkFile(file.get(), X_OK,
+    makeIdentity(6666, 9999)));
+
+  // different uid, different gid, grant
+  ASSERT_TRUE(mgm::AccessChecker::checkFile(file.get(), X_OK,
+    makeIdentity(2222, 3333)));
+}
+

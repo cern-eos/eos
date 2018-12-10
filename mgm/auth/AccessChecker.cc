@@ -23,6 +23,8 @@
 
 #include "mgm/auth/AccessChecker.hh"
 #include "mgm/Acl.hh"
+#include "namespace/interface/IFileMD.hh"
+#include <sys/stat.h>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -102,10 +104,54 @@ bool AccessChecker::checkContainer(IContainerMD *cont, const Acl &acl,
   	return false;
   }
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // We survived Acl check, grant.
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Check access to the given file. The parent directory of the file
+// needs to be checked separately!
+//------------------------------------------------------------------------------
+bool AccessChecker::checkFile(IFileMD *file, int mode,
+  const eos::common::Mapping::VirtualIdentity &vid)
+{
+  //----------------------------------------------------------------------------
+  // We only check browse permissions for files, for now.
+  //----------------------------------------------------------------------------
+  if( !(mode & X_OK) ) {
+    return true;
+  }
+
+  //----------------------------------------------------------------------------
+  // root can do anything
+  //----------------------------------------------------------------------------
+  if(vid.uid == 0) {
+    return true;
+  }
+
+  uint16_t flags = file->getFlags();
+  uid_t uid = file->getCUid();
+  gid_t gid = file->getCGid();
+
+  // both uid and gid match? return OR-match
+  if(vid.uid == uid && vid.gid == gid) {
+    return (flags & S_IXUSR) || (flags & S_IXGRP);
+  }
+
+  // user check
+  if(vid.uid == uid) {
+    return (flags & S_IXUSR);
+  }
+
+  // group check
+  if(vid.gid == gid) {
+    return (flags & S_IXGRP);
+  }
+
+  // other check
+  return (flags & S_IXOTH);
 }
 
 EOSMGMNAMESPACE_END

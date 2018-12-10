@@ -160,26 +160,9 @@ XrdMgmOfs::_access(const char *path,
       return Emsg(epname, error, EPERM, "access", path);
     }
 
-    if (fh && (mode & X_OK) && flags) {
-      // the execution permission is taken from the flags definition of a file
-      permok = false;
-
-      if (vid.uid == fuid) {
-        // user check
-        if (flags & S_IXUSR) {
-          permok = true;
-        } else if (vid.gid == fgid) {
-          // group check
-          if (flags & S_IXGRP) {
-            permok = true;
-          } else {
-            // other check
-            if (flags & S_IXOTH) {
-              permok = true;
-            }
-          }
-        }
-      }
+    if(fh && !AccessChecker::checkFile(fh.get(), mode, vid)) {
+      errno = EPERM;
+      return Emsg(epname, error, EPERM, "access", path);
     }
 
   } catch (eos::MDException& e) {
