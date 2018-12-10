@@ -356,7 +356,7 @@ QuarkDBConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
 bool
 QuarkDBConfigEngine::AutoSave()
 {
-  if (mConfigFile.length()) {
+  if (gOFS->mMaster->IsMaster() && mAutosave && mConfigFile.length()) {
     XrdOucString envstring = "mgm.config.file=";
     envstring += mConfigFile;
     envstring += "&mgm.config.force=1";
