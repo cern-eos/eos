@@ -609,10 +609,22 @@ com_cp(char* argin)
     case Protocol::XROOT:
     case Protocol::LOCAL:
       if (!do_stat(source.name.c_str(), source.protocol, buf)) {
-        copysize += buf.st_size;
-        source.size = (unsigned long long) buf.st_size;
+        // For symbolic links, EOS stat returns the size of the link.
+        // Ignore the size attribute in this case
+        if (source.protocol != Protocol::LOCAL && !S_ISREG(buf.st_mode)) {
+          source.size = 0;
 
-        // store the a/m-time
+          if (debug || !silent) {
+            fprintf(stderr,
+                    "warning: disable size check for path=%s [EOS symbolic link]\n",
+                    source.name.c_str());
+          }
+        } else {
+          copysize += buf.st_size;
+          source.size = (unsigned long long) buf.st_size;
+        }
+
+        // Store the a/m-time
         source.atime.tv_sec = buf.st_atime;
         source.mtime.tv_sec = buf.st_mtime;
 
@@ -688,8 +700,11 @@ com_cp(char* argin)
       source.size = 0;
       source.atime.tv_sec = source.mtime.tv_sec = 0;
 
-      fprintf(stderr, "warning: disabling size check for path=%s [protocol=%s]\n",
-              source.name.c_str(), protocol_to_string(source.protocol));
+      if (debug || !silent) {
+        fprintf(stderr,
+                "warning: disabling size check for path=%s [protocol=%s]\n",
+                source.name.c_str(), protocol_to_string(source.protocol));
+      }
 
       statok = true;
       break;
@@ -925,8 +940,7 @@ com_cp(char* argin)
       safename.erase(qpos);
     }
 
-    if ((source.protocol != Protocol::EOS) ||
-        (source.protocol != Protocol::LOCAL)) {
+    if (source.protocol != Protocol::LOCAL) {
       XrdOucString sprot, hostport;
       const char* url = eos::common::StringConversion::ParseUrl(safename.c_str(),
                                                                 sprot, hostport);
