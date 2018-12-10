@@ -1074,6 +1074,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     cconfig.max_inflight_write_buffer_size =
       root["cache"]["max-write-buffer"].asInt();
 
+
     // set defaults for journal and file-start cache
     if (geteuid()) {
       if (!cconfig.location.length()) {
@@ -1102,6 +1103,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       if (!root["cache"]["clean-threshold"].asString().length()) {
         root["cache"]["clean-threshold"] = 85.0;
       }
+
+      if (!root["cache"]["file-cache-max-kb"].asString().length()) {
+	root["cache"]["file-cache-max-kb"]= 256;
+      }
     } else {
       if (!cconfig.location.length()) {
         cconfig.location = "/var/cache/eos/fusex/cache/";
@@ -1125,6 +1130,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       if (!root["cache"]["clean-threshold"].asString().length()) {
         root["cache"]["clean-threshold"] = 85.0;
       }
+
+      if (!root["cache"]["file-cache-max-kb"].asString().length()) {
+	root["cache"]["file-cache-max-kb"]= 256;
+      }
+
     }
 
     if (cconfig.location == "OFF") {
