@@ -1069,4 +1069,14 @@ QuarkHierarchicalView::renameFile(IFileMD* file, const std::string& newName)
   updateFileStore(file);
 }
 
+//------------------------------------------------------------------------------
+// Get parent container of a file
+//------------------------------------------------------------------------------
+folly::Future<IContainerMDPtr> QuarkHierarchicalView::getParentContainer(
+  IFileMD *file)
+{
+  IContainerMD::id_t parentId = file->getContainerId();
+  return pContainerSvc->getContainerMDFut(parentId);
+}
+
 EOSNSNAMESPACE_END

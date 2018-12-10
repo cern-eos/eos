@@ -467,7 +467,9 @@ TEST_F(HierarchicalViewF, LostContainerTest)
     s5 << "/test/embed/embed3.conflict/file" << i;
     std::ostringstream s6;
     s6 << "/test/embed/embed2/conflict_file" << i;
-    view()->createFile(s1.str());
+    eos::IFileMDPtr embed1F = view()->createFile(s1.str());
+    ASSERT_EQ(view()->getParentContainer(embed1F.get()).get(), cont1);
+
     view()->createFile(s2.str());
     view()->createFile(s3.str());
     view()->createFile(s4.str());

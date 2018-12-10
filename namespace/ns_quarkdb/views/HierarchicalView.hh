@@ -291,6 +291,12 @@ public:
     return false;
   }
 
+  //----------------------------------------------------------------------------
+  //! Get parent container of a file
+  //----------------------------------------------------------------------------
+  virtual folly::Future<IContainerMDPtr> getParentContainer(
+    IFileMD *file);
+
 private:
   //----------------------------------------------------------------------------
   //! Lookup a given path - internal function.

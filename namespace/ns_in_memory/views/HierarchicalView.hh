@@ -289,6 +289,12 @@ public:
     return true;
   }
 
+  //----------------------------------------------------------------------------
+  //! Get parent container of a file
+  //----------------------------------------------------------------------------
+  virtual folly::Future<IContainerMDPtr> getParentContainer(
+    IFileMD *file);
+
 private:
   std::shared_ptr<IContainerMD> findLastContainer(
     std::vector<char*>& elements, size_t end, size_t& index,
