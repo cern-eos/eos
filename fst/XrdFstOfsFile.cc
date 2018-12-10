@@ -1557,7 +1557,7 @@ XrdFstOfsFile::close()
         // to unlink it again
         XrdOucString hexstring = "";
         eos::common::FileId::Fid2Hex(mFileId, hexstring);
-        XrdOucErrInfo error;
+        XrdOucErrInfo error; // TBD Should be renamed so it does not shadow XrdSfsFile::error
         XrdOucString capOpaqueString = "/?mgm.pcmd=drop";
         XrdOucString OpaqueString = "";
         OpaqueString += "&mgm.fsid=";
@@ -1741,14 +1741,16 @@ XrdFstOfsFile::close()
             eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS,
             eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR, nullptr);
         std::string errMsgBackFromWfEndpoint;
-        rc = NotifyProtoWfEndPointClosew(fMd->mProtoFmd, mEventOwner, mEventOwnerGroup,
-                                         mEventRequestor, mEventRequestorGroup,
-                                         mEventInstance, mCapOpaque->Get("mgm.path"),
-                                         mCapOpaque->Get("mgm.manager"), attributes,
-                                         errMsgBackFromWfEndpoint);
+        const int notifyRc = NotifyProtoWfEndPointClosew(fMd->mProtoFmd, mEventOwner, mEventOwnerGroup,
+                                                         mEventRequestor, mEventRequestorGroup,
+                                                         mEventInstance, mCapOpaque->Get("mgm.path"),
+                                                         mCapOpaque->Get("mgm.manager"), attributes,
+                                                         errMsgBackFromWfEndpoint);
 
-        if (rc == SFS_OK) {
-          return rc;
+        if (0 == notifyRc) {
+          this->error.setErrCode(0);
+          eos_info("Return code rc=%i errc=%d", SFS_OK, error.getErrInfo());
+          return SFS_OK;
         } else {
           if (SendArchiveFailedToManager(fMd->mProtoFmd.fid(),
                                          errMsgBackFromWfEndpoint)) {
@@ -1756,7 +1758,9 @@ XrdFstOfsFile::close()
                      errMsgBackFromWfEndpoint.c_str());
           }
 
-          return ECANCELED;
+          this->error.setErrCode(EIO);
+          eos_info("Return code rc=i errc=%d", SFS_ERROR, this->error.getErrInfo());
+          return SFS_ERROR;
         }
       }
 
@@ -3364,7 +3368,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd,
 
   switch (response.type()) {
   case cta::xrd::Response::RSP_SUCCESS:
-    return SFS_OK;
+    return 0;
 
   case cta::xrd::Response::RSP_ERR_CTA:
   case cta::xrd::Response::RSP_ERR_USER:
