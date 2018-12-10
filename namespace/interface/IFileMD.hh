@@ -134,13 +134,6 @@ public:
   virtual const Buffer getChecksum() const = 0;
 
   //----------------------------------------------------------------------------
-  //! Compare checksums
-  //! WARNING: you have to supply enough bytes to compare with the checksum
-  //! stored in the object!
-  //----------------------------------------------------------------------------
-  virtual bool checksumMatch(const void* checksum) const = 0;
-
-  //----------------------------------------------------------------------------
   //! Set checksum
   //----------------------------------------------------------------------------
   virtual void setChecksum(const Buffer& checksum) = 0;

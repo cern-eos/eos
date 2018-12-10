@@ -175,21 +175,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Compare checksums
-  //!
-  //! @param checksum checksum value to compare with
-  //! @warning You need to supply enough bytes to compare with the checksum
-  //!          stored in the object
-  //----------------------------------------------------------------------------
-  bool
-  checksumMatch(const void* checksum) const override
-  {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return !memcmp(checksum, (void*)mFile.checksum().data(),
-                   mFile.checksum().size());
-  }
-
-  //----------------------------------------------------------------------------
   //! Set checksum
   //----------------------------------------------------------------------------
   void

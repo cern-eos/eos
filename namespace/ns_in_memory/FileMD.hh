@@ -189,16 +189,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Compare checksums
-  //! WARNING: you have to supply enough bytes to compare with the checksum
-  //! stored in the object!
-  //----------------------------------------------------------------------------
-  bool checksumMatch(const void* checksum) const override
-  {
-    return !memcmp(checksum, pChecksum.getDataPtr(), pChecksum.getSize());
-  }
-
-  //----------------------------------------------------------------------------
   //! Set checksum
   //----------------------------------------------------------------------------
   void setChecksum(const Buffer& checksum) override
