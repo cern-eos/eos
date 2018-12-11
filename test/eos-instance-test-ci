@@ -1,10 +1,18 @@
 #!/bin/bash
 
+echo "Running MQ tests"
+eos-mq-tests eos-mq-test.eoscluster.cern.ch
+
+if [[ $? -ne 0 ]]; then
+    echo "error: failed mq tests"
+    exit 1
+fi
+
 echo "Running drain test ..."
 eos-drain-test localhost
 
 if [[ $? -ne 0 ]]; then
-    echo "Failed drain test"
+    echo "error: failed drain test"
     exit 1
 fi
 
