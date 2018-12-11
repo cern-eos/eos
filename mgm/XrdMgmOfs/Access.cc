@@ -165,6 +165,8 @@ XrdMgmOfs::_access(const char *path,
       return Emsg(epname, error, EPERM, "access", path);
     }
 
+    permok = true;
+
   } catch (eos::MDException& e) {
     dh.reset();
     errno = e.getErrno();

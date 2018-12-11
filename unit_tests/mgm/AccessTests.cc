@@ -226,6 +226,27 @@ TEST(AccessChecker, WithAclUserRWX) {
     cont.get(), acl, R_OK | W_OK | X_OK, makeIdentity(1234, 8888)));
 }
 
+TEST(AccessChecker, WithPrepare) {
+  IContainerMDPtr cont = makeContainer(19229, 9999,
+    S_IFDIR | S_IRWXU);
+
+  eos::common::Mapping::VirtualIdentity_t vid1 = makeIdentity(19229, 1489);
+  vid1.gid_list = {1489};
+
+  eos::mgm::Acl acl("u:19227:rwx+d,u:19229:rwx+dp,u:19230:rwx+dp", "", vid1, true);
+  ASSERT_TRUE(acl.HasAcl());
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), acl, P_OK, vid1));
+
+  // no prepare flag for uid 19229
+  acl = eos::mgm::Acl("u:19227:rwx+d,u:19229:rwx+d,u:19230:rwx+dp", "", vid1, true);
+  ASSERT_TRUE(acl.HasAcl());
+
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(
+    cont.get(), acl, P_OK, vid1));
+}
+
 IFileMDPtr makeFile(uid_t uid, gid_t gid, int mode) {
   IFileMDPtr file(new eos::QuarkFileMD());
   file->setCUid(uid);
