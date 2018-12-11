@@ -26,6 +26,10 @@
 # then pass the "--with server" flag to the rpmbuild command
 %bcond_without server
 
+# By default we build without AddressSanitizer. To enable it,
+# pass the "--with asan" flag to the rpmbuild command
+%bcond_without asan
+
 # Define minimum required dependency for XRootD
 %define xrootd_version 1:4.8.2
 %define major_version @CPACK_PACKAGE_VERSION_MAJOR@
@@ -133,6 +137,14 @@ BuildRequires: devtoolset-6
 BuildRequires: devtoolset-6-binutils-devel
 %else
 BuildRequires: binutils-devel
+%endif
+
+%if %{?_with_asan:1}%{!?_with_asan:0}
+%if 0%{distribution} == 6 || 0%{distribution} == 7
+BuildRequires: devtoolset-6-libasan-devel
+%else
+BuildRequires: libasan
+%endif
 %endif
 
 %if %{use_systemd}
