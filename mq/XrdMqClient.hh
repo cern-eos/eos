@@ -31,6 +31,7 @@
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "common/AssistedThread.hh"
+#include "common/Logging.hh"
 #include "mq/XrdMqMessage.hh"
 
 class XrdMqMessage;
@@ -38,7 +39,7 @@ class XrdMqMessage;
 //------------------------------------------------------------------------------
 //! Class XrdMqClient
 //------------------------------------------------------------------------------
-class XrdMqClient
+class XrdMqClient: public eos::common::LogId
 {
 public:
 

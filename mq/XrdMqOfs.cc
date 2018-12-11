@@ -1148,7 +1148,7 @@ XrdMqOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
   // update broker time
   mh.GetTime(mh.kBrokerTime_sec, mh.kBrokerTime_nsec);
   // dump it
-  //  mh.Print();
+  //mh.Print();
   // encode the new values
   mh.Encode();
   // replace the old header with the new one .... that's ugly :-(
@@ -1288,7 +1288,8 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
       for (auto it = mQueueOut.begin(); it != mQueueOut.end(); ++it) {
         XrdMqMessageOut* msg_out = it->second;
 
-        // fprintf(stderr,"%s <=> %s\n", sendername.c_str(), it->first.c_str());
+        // fprintf(stderr,"current queue name: %s <=> sender :%s\n",
+        //        it->first.c_str(), sendername.c_str());
         // If this would be a loop back message we continue
         if (sendername == it->first) {
           // avoid feedback to the same queue
@@ -1398,8 +1399,6 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
           }
 
           ZTRACE(fsctl, "Adding Message to Queuename: " << msg_out->QueueName.c_str());
-          // fprintf(stderr, "%s adding message %llu\n",
-          // msg_out->QueueName.c_str(), (unsigned long long)Matches.message);
           msg_out->mMsgQueue.push_back(Matches.message);
           Matches.message->AddRefs(1);
         }

@@ -163,7 +163,10 @@ XrdMqClient::Subscribe(const char* queue)
 
     if (!file || !file->Open(url->c_str(), flags_xrdcl).IsOK()) {
       // Open failed
+      eos_err("msg=\"failed to subscribe to url: %s\"", url->c_str());
       continue;
+    } else {
+      eos_info("msg=\"successfully subscribed to url: %s\"", url->c_str());
     }
   }
 
@@ -273,7 +276,7 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
     std::unique_ptr<XrdCl::FileSystem> fs {new XrdCl::FileSystem(url)};
 
     if (!fs) {
-      fprintf(stderr, "error=failed to get new FS object");
+      eos_err("msg=\"failed to get new fs object\" url=%s", url.GetURL().c_str());
       XrdMqMessage::Eroute.Emsg("SendMessage", EINVAL, "no broker available");
       continue;
     }
@@ -295,6 +298,7 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
 
     // We continue until any of the brokers accepts the message
     if (!rc) {
+      eos_err("msg=\"failed to send message\" msg=\"%s\"", message.c_str());
       XrdMqMessage::Eroute.Emsg("SendMessage", status.errNo,
                                 status.GetErrorMessage().c_str());
     }
@@ -543,7 +547,8 @@ XrdMqClient::ReNewBrokerXrdClientReceiver(int i, ThreadAssistant* assistant)
       break;
     } else {
       delete file;
-      fprintf(stderr, "XrdMqClient::Reopening of new alias failed ...\n");
+      eos_err("msg=\"reopening new alias failed\" url=%s, err_msg=\"%s\"",
+              url.c_str(), status.ToString().c_str());
       std::this_thread::sleep_for(std::chrono::seconds(2));
     }
 
