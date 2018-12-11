@@ -216,7 +216,6 @@ The EOS server installation containing MGM, FST & MQ service.
 
 %files -n eos-server
 %defattr(-, root, root, -)
-%{_bindir}/xrdmqdumper
 %{_bindir}/eos-ns-convert
 %{_bindir}/eos-ns-convert-to-locality-hashes
 %{_bindir}/eos-dump-proto-md
@@ -731,6 +730,8 @@ Contains an instance and fuse test script and some test executables and test arc
 
 %files -n eos-test
 %defattr(-, root, root, -)
+%{_bindir}/eos-mq-dumper
+%{_bindir}/eos-mq-feeder
 %{_sbindir}/eos-instance-test
 %{_sbindir}/eos-instance-test-ci
 %{_sbindir}/eos-rain-test

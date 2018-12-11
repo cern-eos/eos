@@ -100,8 +100,8 @@ endif ()
 # Other executables
 #-------------------------------------------------------------------------------
 add_executable(xrdmqclienttest   tests/XrdMqClientTest.cc)
-add_executable(xrdmqdumper       tests/XrdMqQueueDumper.cc)
-add_executable(xrdmqfeeder       tests/XrdMqQueueFeeder.cc)
+add_executable(eos-mq-dumper       tests/XrdMqQueueDumper.cc)
+add_executable(eos-mq-feeder       tests/XrdMqQueueFeeder.cc)
 add_executable(xrdmqinjection    tests/XrdMqQueueInjection.cc)
 add_executable(xrdmqclientmaster tests/XrdMqClientMaster.cc)
 add_executable(xrdmqclientworker tests/XrdMqClientWorker.cc)
@@ -118,8 +118,8 @@ set(XRDMQ_OTHER_LINK_LIBRARIES
   ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(xrdmqclienttest PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
-target_link_libraries(xrdmqdumper PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
-target_link_libraries(xrdmqfeeder PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(eos-mq-dumper PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(eos-mq-feeder PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
 target_link_libraries(xrdmqinjection PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
 target_link_libraries(xrdmqclientmaster PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
 target_link_libraries(xrdmqclientworker PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
@@ -129,7 +129,7 @@ target_link_libraries(xrdmqsharedobjectqueueclient PRIVATE ${XRDMQ_OTHER_LINK_LI
 target_link_libraries(xrdmqsharedobjectbroadcastclient PRIVATE ${XRDMQ_OTHER_LINK_LIBRARIES})
 
 install(
-  TARGETS XrdMqClient xrdmqdumper
+  TARGETS XrdMqClient eos-mq-feeder eos-mq-dumper
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

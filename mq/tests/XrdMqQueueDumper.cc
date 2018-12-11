@@ -21,81 +21,90 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#define TRACE_debug 0xffff
 #include "mq/XrdMqClient.hh"
-#include "mq/XrdMqTiming.hh"
-#include "XrdSys/XrdSysLogger.hh"
-#include "XrdSys/XrdSysTimer.hh"
 #include <stdio.h>
-
+#include <chrono>
 
 int main(int argc, char* argv[])
 {
-  XrdMqClient mqc;
-  long long maxdumps = 0;
-  long long dumped = 0;
+  uint64_t max_dumps = 0ull;
+  uint64_t max_timeout = 0ull;
+  uint64_t ms_sleep = 1000;
   bool debug = false;
-  long long sleeper = 10000;
-  // we need that to have a sys logger object
-  XrdMqMessage message("");
-  message.Configure(0);
+  std::chrono::time_point<std::chrono::steady_clock> deadline;
 
-  if ((argc < 2) || (argc > 5)) {
-    fprintf(stderr,
-            "usage: QueueDumper <brokerurl>/<queue> [n dumps] [sleep between grab] [debug]\n");
+  if ((argc < 2) || (argc > 6)) {
+    std::cerr << "Usage: " << argv[0] << " <broker_url>/<queue> num_dumps "
+              << " sleep_between_dumps_ms max_timeout_sec debug" << std::endl;
     exit(-1);
   }
 
   if (argc >= 3) {
-    maxdumps = strtoll(argv[2], 0, 10);
+    max_dumps = std::stoll(argv[2]);
   }
 
   if (argc >= 4) {
-    sleeper = strtoll(argv[3], 0, 10);
+    ms_sleep = std::stoll(argv[3]);
   }
 
   if (argc >= 5) {
-    debug = (strtoll(argv[4], 0, 10)) ? true : false;
+    max_timeout = std::stoull(argv[4]);
+
+    if (max_timeout) {
+      deadline = std::chrono::steady_clock::now() +
+                 std::chrono::seconds(max_timeout);
+    }
+  }
+
+  if (argc >= 6) {
+    debug = std::stoll(argv[5]) ? true : false;
   }
 
   XrdOucString broker = argv[1];
 
   if (!broker.beginswith("root://")) {
-    fprintf(stderr,
-            "error: <borkerurl> has to be like root://host[:port]/<queue>\n");
+    std::cerr << "error: <borkerurl> must have the following format "
+              << "root://host[:port]/<queue>" << std::endl;
     exit(-1);
   }
 
+  XrdMqClient mqc;
+
   if (!mqc.AddBroker(broker.c_str())) {
-    fprintf(stderr, "error: failed to add broker %s\n", broker.c_str());
+    std::cerr << "error: failed to add broker " << broker.c_str() << std::endl;
     exit(-1);
   }
 
   mqc.Subscribe();
+  XrdMqMessage message("");
+  message.Configure(0); // Creates a logger object for the message
+  uint64_t dumped = 0ull;
 
-  while (1) {
-    XrdMqMessage* newmessage = mqc.RecvMessage();
+  while (true) {
+    std::unique_ptr<XrdMqMessage> new_msg {mqc.RecvMessage()};
 
-    if (newmessage) {
-      dumped ++;
+    if (new_msg) {
+      ++dumped;
 
       if (!debug) {
-        fprintf(stdout, "%s\n", newmessage->GetBody());
+        std::cout << "info: msg #" << dumped << " contents: "
+                  << new_msg->GetBody() << std::endl;
       } else {
-        fprintf(stdout, "n: %lli / %lli size: %u\n", dumped, maxdumps,
-                (unsigned int)strlen(newmessage->GetBody()));
+        std::cout << "info: " << dumped << "/" << max_dumps << ", msg size:"
+                  << strlen(new_msg->GetBody()) << std::endl;
       }
-
-      fflush(stdout);
-      delete newmessage;
     } else {
-      XrdSysTimer mySleeper;
-      mySleeper.Wait(sleeper / 1000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(ms_sleep));
     }
 
-    // we exit after maxdumps messages
-    if (maxdumps && (dumped >= maxdumps)) {
+    // Exit after max_dumps messages
+    if (max_dumps && (dumped >= max_dumps)) {
       exit(0);
+    }
+
+    // Exist if deadline given and expired
+    if (max_timeout && (std::chrono::steady_clock::now() > deadline)) {
+      exit(ETIME);
     }
   }
 }

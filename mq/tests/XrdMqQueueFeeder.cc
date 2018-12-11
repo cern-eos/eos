@@ -21,48 +21,47 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#define TRACE_debug 0xffff
 #include "mq/XrdMqClient.hh"
-#include "XrdSys/XrdSysTimer.hh"
 #include <stdio.h>
-
+#include <chrono>
 
 int main(int argc, char* argv[])
 {
-  XrdMqClient mqc;
-  long long maxfeeds = 0;
-  long long feeded = 0;
-  long long sleeper = 0;
-  long long size = 10;
+  uint64_t max_feeds = 0ull;
+  uint64_t num_feeds = 0ull;
+  uint64_t ms_sleep = 0ull;
+  uint64_t msg_size = 10;
 
   if ((argc < 2) || (argc > 5)) {
-    fprintf(stderr,
-            "usage: QueueFeeder <brokerurl>/<queue> [n feed] [sleep in mus after feed] [message size]\n");
+    std::cerr << "Usage: " << argv[0] << " <broker_url>/<queue> num_feeds "
+              << " ms_sleep_between_feeds msg_size" << std::endl;
     exit(-1);
   }
 
   if (argc >= 3) {
-    maxfeeds = strtoll(argv[2], 0, 10);
+    max_feeds = std::stoll(argv[2]);
   }
 
   if (argc >= 4) {
-    sleeper = strtoll(argv[3], 0, 10);
+    ms_sleep = strtoll(argv[3], 0, 10);
   }
 
   if (argc >= 5) {
-    size = strtoll(argv[4], 0, 10);
+    msg_size = strtoll(argv[4], 0, 10);
   }
 
   XrdOucString broker = argv[1];
 
   if (!broker.beginswith("root://")) {
-    fprintf(stderr,
-            "error: <borkerurl> has to be like root://host[:port]/<queue>\n");
+    std::cerr << "error: <borkerurl> must have the following format "
+              << "root://host[:port]/<queue>" << std::endl;
     exit(-1);
   }
 
+  XrdMqClient mqc;
+
   if (!mqc.AddBroker(broker.c_str())) {
-    fprintf(stderr, "error: failed to add broker %s\n", broker.c_str());
+    std::cerr << "error: failed to add broker " << broker.c_str() << std::endl;
     exit(-1);
   }
 
@@ -70,47 +69,52 @@ int main(int argc, char* argv[])
   int apos = broker.find("//");
 
   if (apos == STR_NPOS) {
-    fprintf(stderr,
-            "error: <brokerurl> has to be like root://host[:port]/<queue>\n");
+    std::cerr << "error: <borkerurl> must have the following format "
+              << "root://host[:port]/<queue>" << std::endl;
     exit(-1);
   }
 
   int bpos = broker.find("/", apos + 2);
 
   if (bpos == STR_NPOS) {
-    fprintf(stderr,
-            "error: <brokerurl> has to be like root://host[:port]/<queue>\n");
+    std::cerr << "error: <borkerurl> must have the following format "
+              << "root://host[:port]/<queue>" << std::endl;
     exit(-1);
   }
 
   queue.erase(0, bpos + 1);
-  fprintf(stdout, "=> feeding into %s\n", queue.c_str());
+  std::cout << "info: feeding into queue: " << queue.c_str() << std::endl;
   mqc.SetDefaultReceiverQueue(queue.c_str());
   XrdMqMessage message("HelloDumper");
-  message.Configure(0);
-  XrdOucString body = "";
+  message.Configure(0); // Creates a logger object for the message
+  std::string body;
+  uint64_t successful_feeds = 0ull;
 
-  for (long long i = 0; i < size; i++) {
+  for (uint64_t i = 0; i < msg_size; ++i) {
     body += "a";
   }
 
-  while (1) {
+  while (true) {
     message.NewId();
-    message.kMessageHeader.kDescription = "Hello Dumper";
-    message.kMessageHeader.kDescription += (int)feeded;
+    message.kMessageHeader.kDescription = "Hello Dumper ";
+    message.kMessageHeader.kDescription += (int)num_feeds;
     message.SetBody(body.c_str());
-    feeded ++;
+    ++num_feeds;
 
     if (!(mqc << message)) {
-      fprintf(stderr, "error: failed to send message\n");
+      std::cerr << "error: failed to send msg #" << num_feeds  << std::endl;
+    } else {
+      std::cout << "info: feeding msg #" << num_feeds << std::endl;
+      ++successful_feeds;
     }
 
-    // we exit after maxfeeds messages
-    if (maxfeeds && (feeded >= maxfeeds)) {
+    // Exit after max_feeds messages
+    if (max_feeds && (num_feeds >= max_feeds)) {
+      std::cout << "info: successfully sent " << successful_feeds
+                << "/" << num_feeds << " feeds" << std::endl;
       exit(0);
     }
 
-    XrdSysTimer mySleeper;
-    mySleeper.Wait(sleeper / 1000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(ms_sleep));
   }
 }
