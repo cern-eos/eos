@@ -234,6 +234,7 @@ XrdMgmOfs::OrderlyShutdown()
   }
   eos_warning("%s", "msg=\"disable configuration engine autosave\"");
   ConfEngine->SetAutoSave(false);
+  FsView::gFsView.SetConfigEngine(nullptr);
   eos_warning("%s", "msg=\"stop routing\"");
 
   if (mRouting) {
@@ -821,9 +822,9 @@ XrdMgmOfs::Emsg(const char* pfx,
   if ((ecode == EIDRM) || (ecode == ENODATA)) {
     eos_debug("Unable to %s %s; %s", op, target, etext);
   } else {
-    if ((!strcmp(op, "stat")) || ( ((!strcmp(pfx, "attr_get")) ||
-                                    (!strcmp(pfx, "attr_ls")) ||
-				    (!strcmp(pfx, "FuseX"))) && (ecode == ENOENT))) {
+    if ((!strcmp(op, "stat")) || (((!strcmp(pfx, "attr_get")) ||
+                                   (!strcmp(pfx, "attr_ls")) ||
+                                   (!strcmp(pfx, "FuseX"))) && (ecode == ENOENT))) {
       eos_debug("Unable to %s %s; %s", op, target, etext);
     } else {
       eos_err("Unable to %s %s; %s", op, target, etext);

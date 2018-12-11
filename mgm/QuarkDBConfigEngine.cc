@@ -23,6 +23,7 @@
 
 #include "mgm/QuarkDBConfigEngine.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/IMaster.hh"
 #include "mq/XrdMqSharedObject.hh"
 #include "common/GlobalConfig.hh"
 #include "qclient/QScanner.hh"
