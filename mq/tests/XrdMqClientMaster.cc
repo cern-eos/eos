@@ -1,11 +1,10 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: XrdMqClientMaster.cc
-// Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------o
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,99 +20,83 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#define TRACE_debug 0xffff
 #include "mq/XrdMqClient.hh"
 #include "mq/XrdMqTiming.hh"
-#include "XrdSys/XrdSysLogger.hh"
-#include "XrdSys/XrdSysError.hh"
 #include <stdio.h>
-
-//#define CRYPTO
+#include <chrono>
 
 int main(int argc, char* argv[])
 {
-  XrdMqMessage::Configure("");
-#ifdef CRYPTO
+  uint64_t num_loops = 1000;
 
-  if (!XrdMqMessage::Configure("xrd.mqclient.cf")) {
-    fprintf(stderr, "error: cannot open client configuration file "
-            "xrd.mqclient.cf\n");
-    exit(-1);
+  if (argc == 2) {
+    num_loops = std::stoi(argv[1]);
   }
 
-#endif
   XrdMqClient mqc;
 
-  //if (mqc.AddBroker("root://lxbra0301.cern.ch:1097//eos/lxbra0301.cern.ch/master",
-  //                  true, true)) {
-  if (mqc.AddBroker("root://localhost:1097//eos/localhost/master", true, true)) {
-    printf("Added localhost ..\n");
-  } else {
-    printf("Adding localhost failed 1st time \n");
+  if (!mqc.AddBroker("root://localhost:1097//eos/localhost/master", true, true)) {
+    std::cerr << "error: failed to add broker" << std::endl;
+    exit(-1);
   }
 
   mqc.Subscribe();
   mqc.SetDefaultReceiverQueue("/eos/*/worker");
-  XrdMqMessage message("HelloWorker");
-#ifdef CRYPTO
-  message.Sign();
-#else
+  XrdMqMessage message("Hello Worker");
+  message.Configure();
   message.Encode();
-#endif
   message.Print();
   XrdMqTiming mq("send");
   TIMING("START", &mq);
-  int n = 1000;
-
-  if (argc == 2) {
-    printf("%s %s\n", argv[0], argv[1]);
-    n = atoi(argv[1]);
-    printf("n is %d\n", n);
-  }
 
   do {
-    for (int i = 0; i < n; i++) {
+    for (uint64_t i = 0; i < num_loops; ++i) {
       message.NewId();
-      message.kMessageHeader.kDescription = "Hello Worker Test";
-      message.kMessageHeader.kDescription += i;
+      message.kMessageHeader.kDescription = "Hello Worker Test ";
+      message.kMessageHeader.kDescription += (int)i;
       (mqc << message);
 
       for (int j = 0; j < 10; j++) {
-        XrdMqMessage* newmessage = mqc.RecvMessage();
+        std::unique_ptr<XrdMqMessage> new_msg {mqc.RecvMessage()};
 
-        if (!newmessage) {
+        if (new_msg == nullptr) {
+          std::this_thread::sleep_for(std::chrono::seconds(2));
           continue;
         }
 
-        if ((newmessage->kMessageHeader.kType == XrdMqMessageHeader::kStatusMessage) ||
-            (newmessage->kMessageHeader.kType == XrdMqMessageHeader::kQueryMessage)) {
-          XrdAdvisoryMqMessage* advisorymessage =
-            XrdAdvisoryMqMessage::Create(newmessage->GetMessageBuffer());
-          delete advisorymessage;
-          // advisorymessage->Print();
+        if ((new_msg->kMessageHeader.kType == XrdMqMessageHeader::kStatusMessage) ||
+            (new_msg->kMessageHeader.kType == XrdMqMessageHeader::kQueryMessage)) {
+          std::unique_ptr<XrdAdvisoryMqMessage> adv_msg {
+            XrdAdvisoryMqMessage::Create(new_msg->GetMessageBuffer())};
+          // adv_msg->Print();
         } else {
-          // newmessage->Print();
+          new_msg->Print();
+
+          if (new_msg->kMessageHeader.kDescription != "Hello Master Test") {
+            std::terminate();
+          }
         }
 
-        if (newmessage) {
-          delete newmessage;
-        }
+        do {
+          new_msg.reset(mqc.RecvFromInternalBuffer());
 
-        while ((newmessage = mqc.RecvFromInternalBuffer())) {
-          if ((newmessage->kMessageHeader.kType == XrdMqMessageHeader::kStatusMessage) ||
-              (newmessage->kMessageHeader.kType == XrdMqMessageHeader::kQueryMessage)) {
-            XrdAdvisoryMqMessage* advisorymessage =
-              XrdAdvisoryMqMessage::Create(newmessage->GetMessageBuffer());
-            // advisorymessage->Print();
-            delete advisorymessage;
+          if (new_msg == nullptr) {
+            break;
           } else {
-            // newmessage->Print();
-          }
+            if ((new_msg->kMessageHeader.kType == XrdMqMessageHeader::kStatusMessage) ||
+                (new_msg->kMessageHeader.kType == XrdMqMessageHeader::kQueryMessage)) {
+              std::unique_ptr<XrdAdvisoryMqMessage> adv_msg {
+                XrdAdvisoryMqMessage::Create(new_msg->GetMessageBuffer())};
+              // adv_msg->Print();
+            } else {
+              new_msg->Print();
 
-          if (newmessage) {
-            delete newmessage;
+              if (new_msg->kMessageHeader.kDescription != "Hello Master Test") {
+                std::terminate();
+              }
+            }
           }
-        }
+        } while (true);
       }
     }
   } while (true);

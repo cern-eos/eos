@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#define TRACE_debug 0xffff
 #include "mq/XrdMqClient.hh"
 #include "mq/XrdMqTiming.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -29,54 +28,45 @@
 
 int main(int argc, char* argv[])
 {
-  printf("Starting up ...\n");
+  uint64_t num_loops = 1000;
+
+  if (argc == 2) {
+    num_loops = std::stoi(argv[1]);
+  }
+
   XrdMqMessage::Logger = new XrdSysLogger();
   XrdMqMessage::Eroute.logger(XrdMqMessage::Logger);
   XrdMqClient mqc;
-  printf("Created broker ...\n");
+  std::string broker_url = "root://localhost:1097//xmessage/";
 
-  if (mqc.AddBroker("root://localhost:1097//xmessage/")) {
-    printf("Added localhost ..\n");
-  } else {
-    printf("Adding localhost failed 1st time \n");
+  if (!mqc.AddBroker(broker_url.c_str())) {
+    std::cerr << "error: failed to add broker " << broker_url << std::endl;
+    exit(-1);
   }
 
   if (mqc.AddBroker("root://localhost:1097//xmessage/")) {
-    printf("Added localhsot 2nd time \n");
-  } else {
-    printf("Adding localhost failed 2nd time as expected\n");
+    std::cerr << "error: added twice the same broker " << broker_url << std::endl;
+    exit(-1);
   }
 
   mqc.Subscribe();
   mqc.SetDefaultReceiverQueue("/xmessage/*");
   XrdMqMessage message("TestMessage");
   message.Print();
-  message.Print();
-  printf("Decode %d \n", message.Decode());
-  message.Print();
   XrdMqTiming mq("send");
   TIMING("START", &mq);
-  int n = 1000;
 
-  if (argc == 2) {
-    printf("%s %s\n", argv[0], argv[1]);
-    n = atoi(argv[1]);
-    printf("n is %d\n", n);
-  }
-
-  for (int i = 0; i < n; i++) {
+  for (uint64_t i = 0; i < num_loops; ++i) {
     message.NewId();
     message.kMessageHeader.kDescription = "Test";
-    message.kMessageHeader.kDescription += i;
+    message.kMessageHeader.kDescription += (int)i;
     (mqc << message);
-    XrdMqMessage* newmessage = mqc.RecvMessage();
+    std::unique_ptr<XrdMqMessage> newmessage {mqc.RecvMessage()};
 
     if (newmessage) {
-      if (i == 0)  {
+      if (i == 0ull)  {
         newmessage->Print();
       }
-
-      delete newmessage;
     }
   }
 
