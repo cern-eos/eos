@@ -862,10 +862,12 @@ metad::wait_flush(fuse_req_t req, metad::shared_md md)
 
   while (1) {
     if (md->WaitSync(1)) {
-      if (md->getop() != md->NONE) {
-        continue;
+      if ( (md->getop() != md->NONE) ) {
+        if (has_flush(md->id())) {
+          // if a deletion was issued, OP state is md->RM not md->NONE hence we would never leave this loop                                        
+          continue;
+	}
       }
-
       break;
     }
   }
