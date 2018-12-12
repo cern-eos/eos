@@ -549,7 +549,12 @@ XrdMqClient::ReNewBrokerXrdClientReceiver(int i, ThreadAssistant* assistant)
       delete file;
       eos_err("msg=\"reopening new alias failed\" url=%s, err_msg=\"%s\"",
               url.c_str(), status.ToString().c_str());
-      std::this_thread::sleep_for(std::chrono::seconds(2));
+
+      if (assistant) {
+        assistant->wait_for(std::chrono::seconds(2));
+      } else {
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+      }
     }
 
     if (assistant && assistant->terminationRequested()) {

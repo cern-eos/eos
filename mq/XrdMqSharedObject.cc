@@ -2165,6 +2165,11 @@ noexcept
 
   while (!assistant.terminationRequested()) {
     SOM->SubjectsSem.Wait();
+
+    if (assistant.terminationRequested()) {
+      break;
+    }
+
     // we always take a lock to take something from the queue and then release it
     WatchMutex.Lock();
     SOM->mSubjectsMutex.Lock();

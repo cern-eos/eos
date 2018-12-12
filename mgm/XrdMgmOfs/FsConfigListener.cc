@@ -84,6 +84,11 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
   // Thread listening on filesystem errors and configuration changes
   while (!assistant.terminationRequested()) {
     gOFS->ObjectNotifier.tlSubscriber->mSubjSem.Wait();
+
+    if (assistant.terminationRequested()) {
+      break;
+    }
+
     // we always take a lock to take something from the queue and then release it
     gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
 

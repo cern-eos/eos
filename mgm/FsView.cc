@@ -2203,7 +2203,7 @@ FsView::Clear()
   }
 
   {
-    // Remove all mappins
+    // Remove all mappings
     eos::common::RWMutexWriteLock wr_map_lock(MapMutex);
     Fs2UuidMap.clear();
     Uuid2FsMap.clear();
