@@ -3001,7 +3001,9 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
           sh = GetObject(subjectlist[s].c_str(), type.c_str());
 
           if (!sh) {
-            error = "update: subject does not exist (FATAL!)";
+            error = "update: subject ";
+            error += subjectlist[s].c_str();
+            error += " does not exist (FATAL!)";
             return false;
           }
 
