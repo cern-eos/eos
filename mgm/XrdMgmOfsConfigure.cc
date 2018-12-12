@@ -1785,7 +1785,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // ApplyMasterConfig otherwise any update that comes will be the only one
   // recorded in the config file. This leads to a corruption of the
   // default.eoscf in which it only holds a few entries.
-  FsView::gFsView.SetConfigEngine(ConfEngine);
+  if (getenv("EOS_USE_QDB_MASTER") == 0) {
+    FsView::gFsView.SetConfigEngine(ConfEngine);
+  }
+
   eos_info("starting statistics thread");
 
   if ((XrdSysThread::Run(&mStatsTid, XrdMgmOfs::StartMgmStats,
