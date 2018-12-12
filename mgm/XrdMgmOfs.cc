@@ -333,13 +333,9 @@ XrdMgmOfs::OrderlyShutdown()
   subscriber = ObjectNotifier.GetSubscriberFromCatalog("fsconfiglistener", false);
 
   if (subscriber) {
-    for (int i = 0; i < 2; ++i) {
-      {
-        XrdSysMutexHelper lock(subscriber->mSubjMtx);
-        subscriber->mSubjSem.Post();
-      }
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    XrdSysMutexHelper lock(subscriber->mSubjMtx);
+    subscriber->mSubjSem.Post();
   }
 
   stop_fsconfiglistener.join();

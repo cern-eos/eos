@@ -192,7 +192,7 @@ void
 QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
 {
   static bool one_off = true;
-  bool old_is_master;
+  bool new_is_master = false;
   std::string old_master;
   eos_notice("%s", "msg=\"set up booting stall rule\"");
   Access::StallInfo old_stall;
@@ -213,30 +213,29 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
 
   // Loop updating the master status
   while (!assistant.terminationRequested()) {
-    old_is_master = mIsMaster;
     old_master = GetMasterId();
-    mIsMaster = AcquireLeaseWitDelay();
+    new_is_master = AcquireLeaseWitDelay();
     UpdateMasterId(GetLeaseHolder());
     eos_info("old_is_master=%s, is_master=%s, old_master_id=%s, master_id=%s",
-             old_is_master ? "true" : "false",
              mIsMaster.load() ? "true" : "false",
+             new_is_master ? "true" : "false",
              old_master.c_str(), GetMasterId().c_str());
 
     // Run one-off after boot
     if (one_off) {
       one_off = false;
-      mIsMaster ? SlaveToMaster() : MasterToSlave();
+      new_is_master ? SlaveToMaster() : MasterToSlave();
       eos_notice("%s", "msg=\"remove booting stall rule\"");
       Access::SetStallRule(old_stall, new_stall);
     } else {
       // There was a master-slave transition
-      if (old_is_master != mIsMaster) {
-        old_is_master ? MasterToSlave() : SlaveToMaster();
+      if (mIsMaster != new_is_master) {
+        mIsMaster ? MasterToSlave() : SlaveToMaster();
       } else {
         std::string new_master_id = GetMasterId();
 
         // Update new master if we released the lease on purpose
-        if (!mIsMaster && (new_master_id == mIdentity)) {
+        if (!new_is_master && (new_master_id == mIdentity)) {
           new_master_id.clear();
         }
 
@@ -264,13 +263,16 @@ void
 QdbMaster::SlaveToMaster()
 {
   eos_info("%s", "msg=\"slave to master transition\"");
+  mIsMaster = true;
   std::string std_out, std_err;
   // We are the master and we broadcast every configuration change
   gOFS->ObjectManager.EnableBroadCast(true);
-  // if (!ApplyMasterConfig(std_out, std_err, Transition::kSlaveToMaster)) {
-  //   eos_err("msg=\"failed to apply master configuration\"");
-  //   std::abort(); // @todo(esindril): may take a different action ?!
-  // }
+
+  if (!ApplyMasterConfig(std_out, std_err, Transition::kSlaveToMaster)) {
+    eos_err("msg=\"failed to apply master configuration\"");
+    std::abort(); // @todo(esindril): may take a different action ?!
+  }
+
   // Notify all the nodes about the new master identity
   FsView::gFsView.BroadcastMasterId(GetMasterId());
   Quota::LoadNodes();
@@ -286,6 +288,7 @@ void
 QdbMaster::MasterToSlave()
 {
   eos_info("%s", "msg=\"master to slave transition\"");
+  mIsMaster = false;
   // We are the slave and we just listen and don't broad cast anything
   gOFS->ObjectManager.EnableBroadCast(false);
   std::string new_master_id = GetMasterId();
