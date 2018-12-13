@@ -9,7 +9,7 @@ Importing files
 EOS can use multiple protocols when communicating with a storage device.
 Most commonly, the data is stored on local disks. However, data can also be
 stored on an external storage system, such as an S3, WebDAV or XRootD endpoint.
-More information can be found `here <configuration/logicalpath>`__.
+More information can be found `here <logicalpath.html>`__.
 
 Importing files works with any underlying storage device
 as file importation is a filesystem operation.
@@ -56,7 +56,7 @@ Once registered, make sure the filesystem is online:
 Filesystem set-up
 +++++++++++++++++
 
-Although not mandatory, configuring the filesystem to use `logicalpath <configuration/logicalpath>`__
+Although not mandatory, configuring the filesystem to use `logicalpath <logicalpath.html>`__
 will be needed in most cases.
 
 .. code-block:: bash
@@ -101,7 +101,7 @@ Import procedure
 ----------------
 
 The import procedure is triggered via the `fs import start` admin command,
-which is documented `here <clicommands/fs>`__.
+which is documented `here <../clicommands/fs.html>`__.
 
 It offers the option to start an import procedure
 or to check the status of an ongoing import.
