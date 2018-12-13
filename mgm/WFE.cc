@@ -1827,9 +1827,9 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
           {
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
             hasXattrCtaArchiveFileId = fmd->hasAttribute("CTA_ArchiveFileId");
-          }
-          if(hasXattrCtaArchiveFileId) {
-            xattrCtaArchiveFileId = fmd->getAttribute("CTA_ArchiveFileId");
+            if (hasXattrCtaArchiveFileId) {
+              xattrCtaArchiveFileId = fmd->getAttribute("CTA_ArchiveFileId");
+            }
           }
           bool onlyTapeCopy = false;
           {
