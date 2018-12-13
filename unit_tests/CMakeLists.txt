@@ -124,7 +124,6 @@ target_link_libraries(
   gtest_main
   gmock
   eosCommon-Static
-  EosNsCommon-Static
   XrdEosFst-Static)
 
 install(TARGETS
