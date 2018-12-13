@@ -461,6 +461,11 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
   eos::common::FileSystem::fs_snapshot source_snapshot;
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
   eos::common::FileSystem* source_fs = FsView::gFsView.mIdView[mFsIdSource];
+
+  if (source_fs == nullptr) {
+    return false;
+  }
+
   source_fs->SnapShotFileSystem(source_snapshot);
   FsGroup* group = FsView::gFsView.mGroupView[source_snapshot.mGroup];
   // Check other replicas for the file
