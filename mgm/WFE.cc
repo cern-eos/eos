@@ -1560,14 +1560,13 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
         }
       } else if (method == "proto") {
         auto event = mActions[0].mEvent;
-        std::shared_ptr<eos::IFileMD> fmd;
         std::shared_ptr<eos::IContainerMD> cmd;
         std::string fullPath;
 
         try {
           eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFid);
           eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-          fmd = gOFS->eosFileService->getFileMD(mFid);
+          auto fmd = gOFS->eosFileService->getFileMD(mFid);
           fullPath = gOFS->eosView->getUri(fmd.get());
           cmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
         } catch (eos::MDException& e) {
@@ -1622,12 +1621,13 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
           }
 
           auto retrieveCntr = 0ul;
-          decltype(fmd->getCUid()) cuid = 99;
-          decltype(fmd->getCGid()) cgid = 99;
+          uid_t cuid = 99;
+          gid_t cgid = 99;
 
           if (!onDisk) {
             eos::common::RWMutexWriteLock lock;
             lock.Grab(gOFS->eosViewRWMutex);
+            auto fmd = gOFS->eosFileService->getFileMD(mFid);
 
             try {
               if (fmd->hasAttribute(RETRIEVES_ATTR_NAME)) {
@@ -1716,6 +1716,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
               std::string errorMsgAttr = ctime.substr(0, ctime.length() - 1) + " -> " +
                                          errorMsg;
               eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+              auto fmd = gOFS->eosFileService->getFileMD(mFid);
 
               try {
                 // Set counter to 0 in case of failure so it can be retried
@@ -1732,6 +1733,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
           {
             eos::common::RWMutexWriteLock lock;
             lock.Grab(gOFS->eosViewRWMutex);
+            auto fmd = gOFS->eosFileService->getFileMD(mFid);
 
             try {
               if (fmd->hasAttribute(RETRIEVES_ATTR_NAME)) {
@@ -1762,10 +1764,11 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
           // optimization for reduced memory IO during write lock
           if (retrieveCntr == 1) {
             collectAttributes();
-            decltype(fmd->getCUid()) cuid = 99;
-            decltype(fmd->getCGid()) cgid = 99;
+            uid_t cuid = 99;
+            gid_t cgid = 99;
             {
               eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+              auto fmd = gOFS->eosFileService->getFileMD(mFid);
               cuid = fmd->getCUid();
               cgid = fmd->getCGid();
             }
@@ -1785,10 +1788,11 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
           }
         } else if (event == "sync::create" || event == "create") {
           collectAttributes();
-          decltype(fmd->getCUid()) cuid = 99;
-          decltype(fmd->getCGid()) cgid = 99;
+          uid_t cuid = 99;
+          gid_t cgid = 99;
           {
             eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+            auto fmd = gOFS->eosFileService->getFileMD(mFid);
             cuid = fmd->getCUid();
             cgid = fmd->getCGid();
           }
@@ -1826,6 +1830,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
           bool hasXattrCtaArchiveFileId = false;
           {
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+            auto fmd = gOFS->eosFileService->getFileMD(mFid);
             hasXattrCtaArchiveFileId = fmd->hasAttribute("CTA_ArchiveFileId");
             if (hasXattrCtaArchiveFileId) {
               xattrCtaArchiveFileId = fmd->getAttribute("CTA_ArchiveFileId");
@@ -1834,6 +1839,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
           bool onlyTapeCopy = false;
           {
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+            auto fmd = gOFS->eosFileService->getFileMD(mFid);
             onlyTapeCopy = fmd->hasLocation(TAPE_FS_ID) && fmd->getLocations().size() == 1;
           }
 
@@ -1866,6 +1872,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
             eos::common::Mapping::Root(root_vid);
             {
               eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+              auto fmd = gOFS->eosFileService->getFileMD(mFid);
               fmd->addLocation(TAPE_FS_ID);
               // Reset the error message
               fmd->setAttribute(ARCHIVE_ERROR_ATTR_NAME, "");
@@ -1899,6 +1906,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
         } else if (event == RETRIEVE_FAILED_WORKFLOW_NAME) {
           try {
             eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+            auto fmd = gOFS->eosFileService->getFileMD(mFid);
             fmd->setAttribute(RETRIEVES_ATTR_NAME, "0");
             fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, mErrorMesssage);
             gOFS->eosView->updateFileStore(fmd.get());
@@ -1914,6 +1922,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
         } else if (event == ARCHIVE_FAILED_WORKFLOW_NAME) {
           try {
             eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+            auto fmd = gOFS->eosFileService->getFileMD(mFid);
             fmd->setAttribute(ARCHIVE_ERROR_ATTR_NAME, mErrorMesssage);
             gOFS->eosView->updateFileStore(fmd.get());
           } catch (eos::MDException& ex) {
