@@ -194,6 +194,9 @@ public:
     //! @return SFS_OK if success
     int HandleProtoMethodEvents(std::string& errorMsg, const char * const ininfo = nullptr);
 
+    //int HandleProtoMethodPrepareEvent(std::string &errorMsg, const char *const ininfo);
+    int HandleProtoMethodPrepareEvent(const std::string &fullPath, cta::xrd::Request &request, std::string& errorMsg);
+
     //! @brief This method is used for communicating proto event requests
     //! @param jobPtr pointer to the job of the event
     //! @param fullPath path of the file which trigered the event
