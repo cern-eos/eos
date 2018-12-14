@@ -47,14 +47,15 @@ set_target_properties(XrdMqClient-Objects PROPERTIES
 add_library(XrdMqClient SHARED $<TARGET_OBJECTS:XrdMqClient-Objects>)
 
 set(XRD_MQ_CLIENT_LIBS
-  eosCommon
   ${UUID_LIBRARIES}
   ${NCURSES_LIBRARIES}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY})
 
-target_link_libraries(XrdMqClient PUBLIC ${XRD_MQ_CLIENT_LIBS})
+target_link_libraries(XrdMqClient PUBLIC
+  eosCommon
+  ${XRD_MQ_CLIENT_LIBS})
 
 set_target_properties(
   XrdMqClient PROPERTIES
@@ -64,7 +65,9 @@ set_target_properties(
 
 add_library(XrdMqClient-Static STATIC $<TARGET_OBJECTS:XrdMqClient-Objects>)
 
-target_link_libraries(XrdMqClient-Static PUBLIC ${XRD_MQ_CLIENT_LIBS})
+target_link_libraries(XrdMqClient-Static PUBLIC
+  eosCommon-Static
+  ${XRD_MQ_CLIENT_LIBS})
 
 set_target_properties(
   XrdMqClient-Static PROPERTIES
