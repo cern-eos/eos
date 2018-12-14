@@ -185,13 +185,21 @@ public:
       DoIt(false, errorMsg);
     }
 
+    //! @ininfo original opaque information of the URL that triggered the event
     int  DoIt(bool issync, std::string& errorMsg, const char * const ininfo = nullptr);
+
+    //! @brief Handles "proto" method events
+    //! @param errorMsg out parameter giving the text of any error
+    //! @ininfo original opaque information of the URL that triggered the event
+    //! @return SFS_OK if success
+    int handleProtoMethodEvents(std::string& errorMsg, const char * const ininfo = nullptr);
 
     //! @brief This method is used for communicating proto event requests
     //! @param jobPtr pointer to the job of the event
     //! @param fullPath path of the file which trigered the event
     //! @param request the protobuf request object
     //! @param retry should retry the request
+    //! @param errorMsg out parameter giving the text of any error response
     //! @return whether it was successful or not
     static int SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
                                   const cta::xrd::Request& request, std::string& errorMsg,
