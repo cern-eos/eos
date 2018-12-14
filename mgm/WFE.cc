@@ -1626,58 +1626,17 @@ int WFE::Job::HandleProtoMethodEvents(std::string &errorMsg, const char * const 
     mVid.uid));
   notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(
     mVid.gid));
-  auto collectAttributes = [&notification, &fullPath] {
-    for (const auto& attribute : CollectAttributes(fullPath))
-    {
-      google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
-        attribute.second);
-      notification->mutable_file()->mutable_xattr()->insert(attr);
-    }
-  };
 
   if (event == "sync::prepare" || event == "prepare") {
     return HandleProtoMethodPrepareEvent(fullPath, request, errorMsg);
   } else if (event == "sync::abort_prepare" || event == "abort_prepare") {
     return HandleProtoMethodAbortPrepareEvent(fullPath, request, errorMsg);
   } else if (event == "sync::create" || event == "create") {
-    collectAttributes();
-    uid_t cuid = 99;
-    gid_t cgid = 99;
-    {
-      eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-      auto fmd = gOFS->eosFileService->getFileMD(mFid);
-      cuid = fmd->getCUid();
-      cgid = fmd->getCGid();
-    }
-    notification->mutable_file()->mutable_owner()->set_username(GetUserName(
-      cuid));
-    notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(
-      cgid));
-    notification->mutable_wf()->set_event(cta::eos::Workflow::CREATE);
-    notification->mutable_wf()->mutable_instance()->set_name(
-      gOFS->MgmOfsInstanceName.c_str());
-    notification->mutable_file()->set_lpath(fullPath);
-    notification->mutable_file()->set_fid(mFid);
-    return SendProtoWFRequest(this, fullPath, request, errorMsg);
+    return HandleProtoMethodCreateEvent(fullPath, request, errorMsg);
   } else if (event == "sync::delete" || event == "delete") {
-    collectAttributes();
-    notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
-    notification->mutable_wf()->mutable_instance()->set_name(
-      gOFS->MgmOfsInstanceName.c_str());
-    notification->mutable_file()->set_lpath(fullPath);
-    notification->mutable_file()->set_fid(mFid);
-    auto sendRequestAsync = [fullPath, request, &errorMsg](Job jobCopy) {
-      SendProtoWFRequest(&jobCopy, fullPath, request, errorMsg);
-    };
-    auto sendRequestAsyncReduced = std::bind(sendRequestAsync, *this);
-    gAsyncCommunicationPool.PushTask<void>(sendRequestAsyncReduced);
-    return SFS_OK;
+    return HandleProtoMethodDeleteEvent(fullPath, request, errorMsg);
   } else if (event == "sync::closew" || event == "closew") {
-    eos_static_err("Received a %s event for file %s and the method is proto."
-                   " The MGM does not handle closew or sync::closew events when the method is proto."
-                   " Ignoring request", event.c_str(), fullPath.c_str());
-    MoveWithResults(SFS_ERROR);
-    return SFS_ERROR;
+    return HandleProtoMethodCloseEvent(event, fullPath);
   } else if (event == "sync::archived" || event == "archived") {
     std::string xattrCtaArchiveFileId;
     bool hasXattrCtaArchiveFileId = false;
@@ -1997,6 +1956,70 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string &fullPath, cta::x
     MoveWithResults(SFS_OK);
     return SFS_OK;
   }
+}
+
+int
+WFE::Job::HandleProtoMethodCreateEvent(const std::string &fullPath, cta::xrd::Request &request,
+  std::string &errorMsg)
+{
+  auto notification = request.mutable_notification();
+  for (const auto& attribute : CollectAttributes(fullPath))
+  {
+    google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
+      attribute.second);
+    notification->mutable_file()->mutable_xattr()->insert(attr);
+  }
+  uid_t cuid = 99;
+  gid_t cgid = 99;
+  {
+    eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+    auto fmd = gOFS->eosFileService->getFileMD(mFid);
+    cuid = fmd->getCUid();
+    cgid = fmd->getCGid();
+  }
+  notification->mutable_file()->mutable_owner()->set_username(GetUserName(
+    cuid));
+  notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(
+    cgid));
+  notification->mutable_wf()->set_event(cta::eos::Workflow::CREATE);
+  notification->mutable_wf()->mutable_instance()->set_name(
+    gOFS->MgmOfsInstanceName.c_str());
+  notification->mutable_file()->set_lpath(fullPath);
+  notification->mutable_file()->set_fid(mFid);
+  return SendProtoWFRequest(this, fullPath, request, errorMsg);
+}
+
+int
+WFE::Job::HandleProtoMethodDeleteEvent(const std::string &fullPath, cta::xrd::Request &request,
+  std::string &errorMsg)
+{
+  auto notification = request.mutable_notification();
+  for (const auto& attribute : CollectAttributes(fullPath))
+  {
+    google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
+      attribute.second);
+    notification->mutable_file()->mutable_xattr()->insert(attr);
+  }
+  notification->mutable_wf()->set_event(cta::eos::Workflow::DELETE);
+  notification->mutable_wf()->mutable_instance()->set_name(
+    gOFS->MgmOfsInstanceName.c_str());
+  notification->mutable_file()->set_lpath(fullPath);
+  notification->mutable_file()->set_fid(mFid);
+  auto sendRequestAsync = [fullPath, request, &errorMsg](Job jobCopy) {
+    SendProtoWFRequest(&jobCopy, fullPath, request, errorMsg);
+  };
+  auto sendRequestAsyncReduced = std::bind(sendRequestAsync, *this);
+  gAsyncCommunicationPool.PushTask<void>(sendRequestAsyncReduced);
+  return SFS_OK;
+}
+
+int
+WFE::Job::HandleProtoMethodCloseEvent(const std::string &event, const std::string &fullPath) {
+  eos_static_err("Received a %s event for file %s and the method is proto."
+                 " The MGM does not handle closew or sync::closew events when the method is proto."
+                 " Ignoring request", event.c_str(), fullPath.c_str());
+  MoveWithResults(SFS_ERROR);
+  return SFS_ERROR;
 }
 
 int
