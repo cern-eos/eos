@@ -1639,38 +1639,10 @@ int WFE::Job::HandleProtoMethodEvents(std::string &errorMsg, const char * const 
     return HandleProtoMethodCloseEvent(event, fullPath);
   } else if (event == "sync::archived" || event == "archived") {
     return HandleProtoMethodArchivedEvent(event, fullPath, ininfo);
-    std::string xattrCtaArchiveFileId;
   } else if (event == RETRIEVE_FAILED_WORKFLOW_NAME) {
-    try {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-      auto fmd = gOFS->eosFileService->getFileMD(mFid);
-      fmd->setAttribute(RETRIEVES_ATTR_NAME, "0");
-      fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, mErrorMesssage);
-      gOFS->eosView->updateFileStore(fmd.get());
-    } catch (eos::MDException& ex) {
-      eos_static_err("Could not reset retrieves counter and set retrieve error attribute for file %s.",
-        fullPath.c_str());
-      MoveWithResults(SFS_ERROR);
-      return SFS_ERROR;
-    }
-
-    MoveWithResults(SFS_OK);
-    return SFS_OK;
+    return HandleProtoMethodRetrieveFailedEvent(fullPath);
   } else if (event == ARCHIVE_FAILED_WORKFLOW_NAME) {
-    try {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-      auto fmd = gOFS->eosFileService->getFileMD(mFid);
-      fmd->setAttribute(ARCHIVE_ERROR_ATTR_NAME, mErrorMesssage);
-      gOFS->eosView->updateFileStore(fmd.get());
-    } catch (eos::MDException& ex) {
-      eos_static_err("Could not set archive error attribute for file %s.",
-        fullPath.c_str());
-      MoveWithResults(SFS_ERROR);
-      return SFS_ERROR;
-    }
-
-    MoveWithResults(SFS_OK);
-    return SFS_OK;
+    return HandleProtoMethodArchiveFailedEvent(fullPath);
   } else {
     eos_static_err("Unknown event %s for proto workflow", event.c_str());
     MoveWithResults(SFS_ERROR);
@@ -2025,6 +1997,45 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string &event, const std::st
       MoveToRetry(fullPath);
       return EAGAIN;
     }
+  }
+
+  MoveWithResults(SFS_OK);
+  return SFS_OK;
+}
+
+int
+WFE::Job::HandleProtoMethodRetrieveFailedEvent(const std::string &fullPath)
+{
+  try {
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+    auto fmd = gOFS->eosFileService->getFileMD(mFid);
+    fmd->setAttribute(RETRIEVES_ATTR_NAME, "0");
+    fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, mErrorMesssage);
+    gOFS->eosView->updateFileStore(fmd.get());
+  } catch (eos::MDException& ex) {
+    eos_static_err("Could not reset retrieves counter and set retrieve error attribute for file %s.",
+      fullPath.c_str());
+    MoveWithResults(SFS_ERROR);
+    return SFS_ERROR;
+  }
+
+  MoveWithResults(SFS_OK);
+  return SFS_OK;
+}
+
+int
+WFE::Job::HandleProtoMethodArchiveFailedEvent(const std::string &fullPath)
+{
+  try {
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+    auto fmd = gOFS->eosFileService->getFileMD(mFid);
+    fmd->setAttribute(ARCHIVE_ERROR_ATTR_NAME, mErrorMesssage);
+    gOFS->eosView->updateFileStore(fmd.get());
+  } catch (eos::MDException& ex) {
+    eos_static_err("Could not set archive error attribute for file %s.",
+      fullPath.c_str());
+    MoveWithResults(SFS_ERROR);
+    return SFS_ERROR;
   }
 
   MoveWithResults(SFS_OK);

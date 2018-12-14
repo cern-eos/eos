@@ -233,6 +233,14 @@ public:
     int HandleProtoMethodArchivedEvent(const std::string &event, const std::string &fullPath,
       const char * const ininfo);
 
+    //! @brief Handles a "proto" method "retrieve_failed" event
+    //! @param fullPath the full path of the file
+    int HandleProtoMethodRetrieveFailedEvent(const std::string &fullPath);
+
+    //! @brief Handles a "proto" method "archive_failed" event
+    //! @param fullPath the full path of the file
+    int HandleProtoMethodArchiveFailedEvent(const std::string &fullPath);
+
     //! @brief This method is used for communicating proto event requests
     //! @param jobPtr pointer to the job of the event
     //! @param fullPath path of the file which trigered the event
