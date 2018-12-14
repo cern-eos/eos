@@ -192,7 +192,7 @@ public:
     //! @param errorMsg out parameter giving the text of any error
     //! @ininfo original opaque information of the URL that triggered the event
     //! @return SFS_OK if success
-    int handleProtoMethodEvents(std::string& errorMsg, const char * const ininfo = nullptr);
+    int HandleProtoMethodEvents(std::string& errorMsg, const char * const ininfo = nullptr);
 
     //! @brief This method is used for communicating proto event requests
     //! @param jobPtr pointer to the job of the event

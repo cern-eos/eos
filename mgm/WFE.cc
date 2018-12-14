@@ -1559,7 +1559,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
           Move(mActions[0].mQueue, "g", storetime);
         }
       } else if (method == "proto") {
-        return handleProtoMethodEvents(errorMsg, ininfo);
+        return HandleProtoMethodEvents(errorMsg, ininfo);
       } else {
         storetime = 0;
         eos_static_err("msg=\"moving unknown workflow\" job=\"%s\"",
@@ -1592,7 +1592,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
  * @return SFS_OK if success
  */
 /*----------------------------------------------------------------------------*/
-int WFE::Job::handleProtoMethodEvents(std::string &errorMsg, const char * const ininfo) {
+int WFE::Job::HandleProtoMethodEvents(std::string &errorMsg, const char * const ininfo) {
   const auto event = mActions[0].mEvent;
   std::shared_ptr<eos::IContainerMD> cmd;
   std::string fullPath;
