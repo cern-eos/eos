@@ -192,7 +192,7 @@ public:
     //! @param errorMsg out parameter giving the text of any error
     //! @ininfo original opaque information of the URL that triggered the event
     //! @return SFS_OK if success
-    int HandleProtoMethodEvents(std::string& errorMsg, const char * const ininfo = nullptr);
+    int HandleProtoMethodEvents(std::string& errorMsg, const char * const ininfo);
 
     //! @brief Handles a "proto" method "prepare" event
     //! @param fullPath the full path of the file
