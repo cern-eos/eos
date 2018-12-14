@@ -2167,6 +2167,7 @@ noexcept
     SOM->SubjectsSem.Wait();
 
     if (assistant.terminationRequested()) {
+      eos_static_notice("%s", "msg=\"exiting SOM listener thread\"");
       break;
     }
 
@@ -2394,17 +2395,24 @@ XrdMqSharedObjectChangeNotifier::Start()
 bool
 XrdMqSharedObjectChangeNotifier::Stop()
 {
+  auto start = std::chrono::steady_clock::now();
   auto stop_objnotifier = std::thread([&]() {
     mDispatchThread.join();
   });
   // We now need to signal to the SomListener thread to unblock it
   {
     if (SOM) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
       XrdSysMutexHelper lock(SOM->mSubjectsMutex);
       SOM->SubjectsSem.Post();
     }
   }
   stop_objnotifier.join();
+  auto end = std::chrono::steady_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>
+                  (end - start);
+  eos_static_notice("msg=\"SOM listener shutdown duration: %llu millisec",
+                    duration.count());
   return true;
 }
 
