@@ -201,10 +201,9 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
   // @todo (esindril) handle case when config contains stall rules
 
   // Wait for the namespace to boot and the config to load
-  while (((gOFS->mInitialized != gOFS->kBooted) ||
-          (mConfigLoaded == false)) &&
+  while ((gOFS->mInitialized != gOFS->kBooted) &&
          !assistant.terminationRequested()) {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    assistant.wait_for(std::chrono::seconds(1));
     eos_info("msg=\"waiting for namespace boot and config load\" "
              "mInitialized=%s mConfigLoaded=%s",
              gOFS->gNameSpaceState[gOFS->mInitialized.load()],
@@ -252,8 +251,6 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
       assistant.wait_for(wait_ms);
     }
   }
-
-  eos_notice("%s", "msg=\"supervisor thread joined\"");
 }
 
 //------------------------------------------------------------------------------
