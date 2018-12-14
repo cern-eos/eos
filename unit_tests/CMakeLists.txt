@@ -103,10 +103,7 @@ target_link_libraries(
   eos-unit-tests
   gtest_main
   gmock
-  eosCommon-Static
   XrdEosMgm-Static
-  EosFstIo-Static
-  EosNsCommon-Static
   ${READLINE_LIBRARY}
   ${XROOTD_SERVER_LIBRARY})
 
