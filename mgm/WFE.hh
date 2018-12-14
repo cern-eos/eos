@@ -200,6 +200,10 @@ public:
     //! @param errorMsg out parameter giving the text of any error response
     int HandleProtoMethodPrepareEvent(const std::string &fullPath, cta::xrd::Request &request, std::string& errorMsg);
 
+    //! @brief Handles a "proto" method "abort_prepare" event
+    int HandleProtoMethodAbortPrepareEvent(const std::string &fullPath, cta::xrd::Request &request,
+      std::string &errorMsg);
+
     //! @brief This method is used for communicating proto event requests
     //! @param jobPtr pointer to the job of the event
     //! @param fullPath path of the file which trigered the event

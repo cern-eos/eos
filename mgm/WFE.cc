@@ -1638,63 +1638,7 @@ int WFE::Job::HandleProtoMethodEvents(std::string &errorMsg, const char * const 
   if (event == "sync::prepare" || event == "prepare") {
     return HandleProtoMethodPrepareEvent(fullPath, request, errorMsg);
   } else if (event == "sync::abort_prepare" || event == "abort_prepare") {
-    auto retrieveCntr = 0;
-    {
-      eos::common::RWMutexWriteLock lock;
-      lock.Grab(gOFS->eosViewRWMutex);
-      auto fmd = gOFS->eosFileService->getFileMD(mFid);
-
-      try {
-        if (fmd->hasAttribute(RETRIEVES_ATTR_NAME)) {
-          retrieveCntr = std::stoi(fmd->getAttribute(RETRIEVES_ATTR_NAME));
-        }
-      } catch (...) {
-        lock.Release();
-        eos_static_err("Could not determine ongoing retrieves for file %s. Check the %s extended attribute",
-          fullPath.c_str(), RETRIEVES_ATTR_NAME);
-        MoveWithResults(EAGAIN);
-        return EAGAIN;
-      }
-
-      try {
-        if (retrieveCntr > 0) {
-          fmd->setAttribute(RETRIEVES_ATTR_NAME, std::to_string(retrieveCntr - 1));
-          gOFS->eosView->updateFileStore(fmd.get());
-        }
-      } catch (eos::MDException& ex) {
-        lock.Release();
-        eos_static_err("Could not write attribute %s for file %s. Not doing the retrieve.",
-          RETRIEVES_ATTR_NAME, fullPath.c_str());
-        MoveWithResults(EAGAIN);
-        return EAGAIN;
-      }
-    }
-
-    // optimization for reduced memory IO during write lock
-    if (retrieveCntr == 1) {
-      collectAttributes();
-      uid_t cuid = 99;
-      gid_t cgid = 99;
-      {
-        eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
-        auto fmd = gOFS->eosFileService->getFileMD(mFid);
-        cuid = fmd->getCUid();
-        cgid = fmd->getCGid();
-      }
-      notification->mutable_file()->mutable_owner()->set_username(GetUserName(cuid));
-      notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(
-        cgid));
-      notification->mutable_wf()->set_event(cta::eos::Workflow::ABORT_PREPARE);
-      notification->mutable_file()->set_lpath(fullPath);
-      notification->mutable_wf()->mutable_instance()->set_name(
-        gOFS->MgmOfsInstanceName.c_str());
-      notification->mutable_file()->set_fid(mFid);
-      return SendProtoWFRequest(this, fullPath, request, errorMsg);
-    } else {
-      // retrieve counter hasn't reached 0 yet, we just return OK
-      MoveWithResults(SFS_OK);
-      return SFS_OK;
-    }
+    return HandleProtoMethodAbortPrepareEvent(fullPath, request, errorMsg);
   } else if (event == "sync::create" || event == "create") {
     collectAttributes();
     uid_t cuid = 99;
@@ -1984,6 +1928,74 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string &fullPath, cta::xrd::R
     }
 
     return sendResult;
+  }
+}
+
+int
+WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string &fullPath, cta::xrd::Request &request,
+  std::string &errorMsg) {
+  auto retrieveCntr = 0;
+  {
+    eos::common::RWMutexWriteLock lock;
+    lock.Grab(gOFS->eosViewRWMutex);
+    auto fmd = gOFS->eosFileService->getFileMD(mFid);
+
+    try {
+      if (fmd->hasAttribute(RETRIEVES_ATTR_NAME)) {
+        retrieveCntr = std::stoi(fmd->getAttribute(RETRIEVES_ATTR_NAME));
+      }
+    } catch (...) {
+      lock.Release();
+      eos_static_err("Could not determine ongoing retrieves for file %s. Check the %s extended attribute",
+        fullPath.c_str(), RETRIEVES_ATTR_NAME);
+      MoveWithResults(EAGAIN);
+      return EAGAIN;
+    }
+
+    try {
+      if (retrieveCntr > 0) {
+        fmd->setAttribute(RETRIEVES_ATTR_NAME, std::to_string(retrieveCntr - 1));
+        gOFS->eosView->updateFileStore(fmd.get());
+      }
+    } catch (eos::MDException& ex) {
+      lock.Release();
+      eos_static_err("Could not write attribute %s for file %s. Not doing the retrieve.",
+        RETRIEVES_ATTR_NAME, fullPath.c_str());
+      MoveWithResults(EAGAIN);
+      return EAGAIN;
+    }
+  }
+
+  // optimization for reduced memory IO during write lock
+  if (retrieveCntr == 1) {
+    auto notification = request.mutable_notification();
+    for (const auto& attribute : CollectAttributes(fullPath))
+    {
+      google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
+        attribute.second);
+      notification->mutable_file()->mutable_xattr()->insert(attr);
+    }
+    uid_t cuid = 99;
+    gid_t cgid = 99;
+    {
+      eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+      auto fmd = gOFS->eosFileService->getFileMD(mFid);
+      cuid = fmd->getCUid();
+      cgid = fmd->getCGid();
+    }
+    notification->mutable_file()->mutable_owner()->set_username(GetUserName(cuid));
+    notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(
+      cgid));
+    notification->mutable_wf()->set_event(cta::eos::Workflow::ABORT_PREPARE);
+    notification->mutable_file()->set_lpath(fullPath);
+    notification->mutable_wf()->mutable_instance()->set_name(
+      gOFS->MgmOfsInstanceName.c_str());
+    notification->mutable_file()->set_fid(mFid);
+    return SendProtoWFRequest(this, fullPath, request, errorMsg);
+  } else {
+    // retrieve counter hasn't reached 0 yet, we just return OK
+    MoveWithResults(SFS_OK);
+    return SFS_OK;
   }
 }
 
