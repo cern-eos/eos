@@ -35,14 +35,15 @@
 //! on the physical filesystem.
 //----------------------------------------------------------------------------
 UuidStore::UuidStore(const std::string& repository_)
-: repository(chopTrailingSlashes(repository_)) {
-
+  : repository(chopTrailingSlashes(repository_))
+{
   struct stat repostat;
+
   if (::stat(repository.c_str(), &repostat) != 0) {
     THROW("Cannot stat uuid-store repository: " << repository);
   }
 
-  if(!S_ISDIR(repostat.st_mode)) {
+  if (!S_ISDIR(repostat.st_mode)) {
     THROW("Repository path is not a directory: " << repository);
   }
 
@@ -54,24 +55,26 @@ UuidStore::UuidStore(const std::string& repository_)
 //! this can happen. Only unlink files matching our prefix, so that in case
 //! of misconfiguration we don't wipe out important files.
 //------------------------------------------------------------------------------
-void UuidStore::initialCleanup() {
+void UuidStore::initialCleanup()
+{
   DirectoryIterator iterator(repository);
-
   struct dirent* current = nullptr;
-  while(current = iterator.next()) {
 
-    if(startswith(current->d_name, "eos-fusex-uuid-store-")) {
-      if(unlink(SSTR(repository << "/" << current->d_name).c_str()) != 0) {
-        eos_static_crit("UuidStore:: Could not delete %s during initial cleanup, errno %d", current->d_name, errno);
+  while ((current = iterator.next())) {
+    if (startswith(current->d_name, "eos-fusex-uuid-store-")) {
+      if (unlink(SSTR(repository << "/" << current->d_name).c_str()) != 0) {
+        eos_static_crit("UuidStore:: Could not delete %s during initial cleanup, errno %d",
+                        current->d_name, errno);
       }
-    }
-    else {
-      eos_static_crit("Found file in credential store with suspicious filename, should not be there: %s. Not unlinking.", current->d_name);
+    } else {
+      eos_static_crit("Found file in credential store with suspicious filename, should not be there: %s. Not unlinking.",
+                      current->d_name);
     }
   }
 
-  if(!iterator.ok()) {
-    eos_static_crit("UuidStore:: Cleanup thread encountered an error while iterating over the repository: %s", iterator.err().c_str());
+  if (!iterator.ok()) {
+    eos_static_crit("UuidStore:: Cleanup thread encountered an error while iterating over the repository: %s",
+                    iterator.err().c_str());
   }
 }
 
@@ -79,11 +82,12 @@ void UuidStore::initialCleanup() {
 //! Store the given contents inside the store. Returns the full filesystem
 //! path on which the contents were stored.
 //------------------------------------------------------------------------------
-std::string UuidStore::put(const std::string &contents) {
+std::string UuidStore::put(const std::string& contents)
+{
   std::string path = SSTR(repository << "/" << "eos-fusex-uuid-store-"
-    << generateUuid());
+                          << generateUuid());
 
-  if(!writeFile600(path, contents)) {
+  if (!writeFile600(path, contents)) {
     eos_static_crit("UuidStore: Could not write path: %s", path.c_str());
     return "";
   }
@@ -94,12 +98,11 @@ std::string UuidStore::put(const std::string &contents) {
 //------------------------------------------------------------------------------
 //! Make uuid
 //------------------------------------------------------------------------------
-std::string UuidStore::generateUuid() {
+std::string UuidStore::generateUuid()
+{
   char buffer[64];
-
   uuid_t uuid;
   uuid_generate_random(uuid);
   uuid_unparse(uuid, buffer);
-
   return std::string(buffer);
 }

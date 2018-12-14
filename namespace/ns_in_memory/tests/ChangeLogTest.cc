@@ -76,7 +76,8 @@ public:
   virtual void initialize() {}
   virtual void configure(const std::map<std::string, std::string>& config) {}
   virtual void finalize() {}
-  virtual folly::Future<std::shared_ptr<eos::IFileMD>> getFileMDFut(eos::IFileMD::id_t id)
+  virtual folly::Future<std::shared_ptr<eos::IFileMD>> getFileMDFut(
+        eos::IFileMD::id_t id)
   {
     return folly::makeFuture(getFileMD(id));
   }
@@ -163,7 +164,7 @@ void checkFileMD(eos::FileMD& fileMetadata, unsigned i)
 {
   std::ostringstream o;
   o << "filename_" << i;
-  uint32_t checkSum = i * 423;
+  //uint32_t checkSum = i * 423;
   eos::IFileMD::ctime_t time;
   eos::FileMD localMD = fileMetadata;
   localMD.getCTime(time);

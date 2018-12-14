@@ -69,12 +69,12 @@ XrdMgmOfs::access(const char* inpath,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_access(const char *path,
-		   int mode,
-		   XrdOucErrInfo &error,
-		   eos::common::Mapping::VirtualIdentity &vid,
-		   const char *info,
-		   bool lock)
+XrdMgmOfs::_access(const char* path,
+                   int mode,
+                   XrdOucErrInfo& error,
+                   eos::common::Mapping::VirtualIdentity& vid,
+                   const char* info,
+                   bool lock)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief check access permissions for file/directories
@@ -98,15 +98,11 @@ XrdMgmOfs::_access(const char *path,
   std::shared_ptr<eos::IContainerMD> dh;
   std::shared_ptr<eos::IFileMD> fh;
   bool permok = false;
-  uint16_t flags = 0;
-  uid_t fuid = 99;
-  gid_t fgid = 99;
   std::string attr_path = cPath.GetPath();
   // ---------------------------------------------------------------------------
-
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath());
-
   eos::common::RWMutexReadLock viewReadLock;
+
   if (lock) {
     viewReadLock.Grab(gOFS->eosViewRWMutex);
   }
@@ -114,9 +110,6 @@ XrdMgmOfs::_access(const char *path,
   // check for existing file
   try {
     fh = gOFS->eosView->getFile(cPath.GetPath());
-    flags = fh->getFlags();
-    fuid = fh->getCUid();
-    fgid = fh->getCGid();
   } catch (eos::MDException& e) {
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
               e.getMessage().str().c_str());
@@ -155,18 +148,17 @@ XrdMgmOfs::_access(const char *path,
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
 
-    if(!AccessChecker::checkContainer(dh.get(), acl, mode, vid)) {
+    if (!AccessChecker::checkContainer(dh.get(), acl, mode, vid)) {
       errno = EPERM;
       return Emsg(epname, error, EPERM, "access", path);
     }
 
-    if(fh && !AccessChecker::checkFile(fh.get(), mode, vid)) {
+    if (fh && !AccessChecker::checkFile(fh.get(), mode, vid)) {
       errno = EPERM;
       return Emsg(epname, error, EPERM, "access", path);
     }
 
     permok = true;
-
   } catch (eos::MDException& e) {
     dh.reset();
     errno = e.getErrno();

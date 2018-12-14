@@ -40,7 +40,7 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 QuarkContainerMD::QuarkContainerMD(IContainerMD::id_t id, IFileMDSvc* file_svc,
-                         IContainerMDSvc* cont_svc)
+                                   IContainerMDSvc* cont_svc)
   : IContainerMD(),
     pFilesKey(stringify(id) + constants::sMapFilesSuffix),
     pDirsKey(stringify(id) + constants::sMapDirsSuffix), mClock(1)
@@ -66,13 +66,15 @@ QuarkContainerMD::QuarkContainerMD(IContainerMD::id_t id, IFileMDSvc* file_svc,
 //------------------------------------------------------------------------------
 // Set namespace services
 //------------------------------------------------------------------------------
-void QuarkContainerMD::setServices(IFileMDSvc* file_svc, IContainerMDSvc* cont_svc)
+void QuarkContainerMD::setServices(IFileMDSvc* file_svc,
+                                   IContainerMDSvc* cont_svc)
 {
   eos_assert(pFileSvc == nullptr && pContSvc == nullptr);
   eos_assert(file_svc != nullptr && cont_svc != nullptr);
   pFileSvc = file_svc;
   pContSvc = cont_svc;
-  QuarkContainerMDSvc* impl_cont_svc = dynamic_cast<QuarkContainerMDSvc*>(cont_svc);
+  QuarkContainerMDSvc* impl_cont_svc = dynamic_cast<QuarkContainerMDSvc*>
+                                       (cont_svc);
 
   if (!impl_cont_svc) {
     MDException e(EFAULT);
@@ -259,8 +261,8 @@ QuarkContainerMD::addContainer(IContainerMD* container)
   }
 
   container->setParentId(mCont.id());
-  auto ret = mSubcontainers->insert(std::make_pair(container->getName(),
-                                    container->getId()));
+  (void) mSubcontainers->insert(std::make_pair(container->getName(),
+                                container->getId()));
   // Add to new container to KV backend
   pFlusher->hset(pDirsKey, container->getName(), stringify(container->getId()));
 }
@@ -748,7 +750,7 @@ QuarkContainerMD::deserialize(Buffer& buffer)
 //------------------------------------------------------------------------------
 void
 QuarkContainerMD::initialize(eos::ns::ContainerMdProto&& proto,
-                        IContainerMD::FileMap&& fileMap, IContainerMD::ContainerMap&& containerMap)
+                             IContainerMD::FileMap&& fileMap, IContainerMD::ContainerMap&& containerMap)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   mCont = std::move(proto);
