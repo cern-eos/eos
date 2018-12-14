@@ -1593,7 +1593,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
  */
 /*----------------------------------------------------------------------------*/
 int WFE::Job::handleProtoMethodEvents(std::string &errorMsg, const char * const ininfo) {
-  auto event = mActions[0].mEvent;
+  const auto event = mActions[0].mEvent;
   std::shared_ptr<eos::IContainerMD> cmd;
   std::string fullPath;
 
