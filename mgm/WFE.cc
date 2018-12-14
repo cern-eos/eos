@@ -1638,83 +1638,8 @@ int WFE::Job::HandleProtoMethodEvents(std::string &errorMsg, const char * const 
   } else if (event == "sync::closew" || event == "closew") {
     return HandleProtoMethodCloseEvent(event, fullPath);
   } else if (event == "sync::archived" || event == "archived") {
+    return HandleProtoMethodArchivedEvent(event, fullPath, ininfo);
     std::string xattrCtaArchiveFileId;
-    bool hasXattrCtaArchiveFileId = false;
-    {
-      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-      auto fmd = gOFS->eosFileService->getFileMD(mFid);
-      hasXattrCtaArchiveFileId = fmd->hasAttribute("CTA_ArchiveFileId");
-      if (hasXattrCtaArchiveFileId) {
-        xattrCtaArchiveFileId = fmd->getAttribute("CTA_ArchiveFileId");
-      }
-    }
-    bool onlyTapeCopy = false;
-    {
-      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-      auto fmd = gOFS->eosFileService->getFileMD(mFid);
-      onlyTapeCopy = fmd->hasLocation(TAPE_FS_ID) && fmd->getLocations().size() == 1;
-    }
-
-    XrdOucEnv opaque(ininfo);
-    const char * const opaqueCtaArchiveFileId = opaque.Get("cta_archive_file_id");
-
-    if(event == "archived") {
-      eos_static_err("The archived message for file %s is asynchronous when it should be synchronous."
-                     " Ignoring request", fullPath.c_str());
-    } else if (onlyTapeCopy) {
-      eos_static_info("File %s already has a tape copy. Ignoring request.",
-        fullPath.c_str());
-    } else if(!hasXattrCtaArchiveFileId) {
-      eos_static_err("File %s does not have a CTA_ArchiveFileId attribute. Ignoring request.",
-        fullPath.c_str());
-    } else if(xattrCtaArchiveFileId.empty()) {
-      eos_static_err("The CTA_ArchiveFileId attribute of file %s is an empty string. Ignoring request.",
-        fullPath.c_str());
-    } else if (nullptr == opaqueCtaArchiveFileId) {
-      eos_static_err("The opaque data of the archived message for file %s does not contain cta_archive_file_id."
-                     " Ignoring request.", fullPath.c_str());
-    } else if (xattrCtaArchiveFileId != opaqueCtaArchiveFileId) {
-      eos_static_err("The CTA_ArchiveFileId attribute of file %s does not match cta_archive_file_id in the"
-                     " opaque data of the archived message. xattrCtaArchiveFileId=%s opaqueCtaArchiveFileId=%s."
-                     " Ignoring request.",
-        fullPath.c_str(), xattrCtaArchiveFileId.c_str(), opaqueCtaArchiveFileId);
-    } else {
-      XrdOucErrInfo errInfo;
-      eos::common::Mapping::VirtualIdentity root_vid;
-      eos::common::Mapping::Root(root_vid);
-      {
-        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-        auto fmd = gOFS->eosFileService->getFileMD(mFid);
-        fmd->addLocation(TAPE_FS_ID);
-        // Reset the error message
-        fmd->setAttribute(ARCHIVE_ERROR_ATTR_NAME, "");
-        gOFS->eosView->updateFileStore(fmd.get());
-      }
-      bool dropAllStripes = true;
-      IContainerMD::XAttrMap parentDirAttributes;
-
-      if (gOFS->_attr_ls(eos::common::Path{fullPath.c_str()} .GetParentPath(),
-        errInfo, root_vid, nullptr, parentDirAttributes, true, true) == 0) {
-        for (const auto& attrPair : parentDirAttributes) {
-          if (attrPair.first == "sys.wfe.archived.dropdiskreplicas" &&
-              attrPair.second == "0") {
-            dropAllStripes = false;
-          }
-        }
-      }
-      errInfo.clear();
-
-      if (dropAllStripes &&
-          gOFS->_dropallstripes(fullPath.c_str(), errInfo, root_vid, false) != 0) {
-        eos_static_err("Could not delete all file replicas of %s. Reason: %s",
-          fullPath.c_str(), errInfo.getErrText());
-        MoveToRetry(fullPath);
-        return EAGAIN;
-      }
-    }
-
-    MoveWithResults(SFS_OK);
-    return SFS_OK;
   } else if (event == RETRIEVE_FAILED_WORKFLOW_NAME) {
     try {
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
@@ -2014,12 +1939,96 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string &fullPath, cta::xrd::Re
 }
 
 int
-WFE::Job::HandleProtoMethodCloseEvent(const std::string &event, const std::string &fullPath) {
+WFE::Job::HandleProtoMethodCloseEvent(const std::string &event, const std::string &fullPath)
+{
   eos_static_err("Received a %s event for file %s and the method is proto."
                  " The MGM does not handle closew or sync::closew events when the method is proto."
                  " Ignoring request", event.c_str(), fullPath.c_str());
   MoveWithResults(SFS_ERROR);
   return SFS_ERROR;
+}
+
+int
+WFE::Job::HandleProtoMethodArchivedEvent(const std::string &event, const std::string &fullPath,
+  const char * const ininfo)
+{
+  std::string xattrCtaArchiveFileId;
+  bool hasXattrCtaArchiveFileId = false;
+  {
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    auto fmd = gOFS->eosFileService->getFileMD(mFid);
+    hasXattrCtaArchiveFileId = fmd->hasAttribute("CTA_ArchiveFileId");
+    if (hasXattrCtaArchiveFileId) {
+      xattrCtaArchiveFileId = fmd->getAttribute("CTA_ArchiveFileId");
+    }
+  }
+  bool onlyTapeCopy = false;
+  {
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    auto fmd = gOFS->eosFileService->getFileMD(mFid);
+    onlyTapeCopy = fmd->hasLocation(TAPE_FS_ID) && fmd->getLocations().size() == 1;
+  }
+
+  XrdOucEnv opaque(ininfo);
+  const char * const opaqueCtaArchiveFileId = opaque.Get("cta_archive_file_id");
+
+  if(event == "archived") {
+    eos_static_err("The archived message for file %s is asynchronous when it should be synchronous."
+                   " Ignoring request", fullPath.c_str());
+  } else if (onlyTapeCopy) {
+    eos_static_info("File %s already has a tape copy. Ignoring request.",
+      fullPath.c_str());
+  } else if(!hasXattrCtaArchiveFileId) {
+    eos_static_err("File %s does not have a CTA_ArchiveFileId attribute. Ignoring request.",
+      fullPath.c_str());
+  } else if(xattrCtaArchiveFileId.empty()) {
+    eos_static_err("The CTA_ArchiveFileId attribute of file %s is an empty string. Ignoring request.",
+      fullPath.c_str());
+  } else if (nullptr == opaqueCtaArchiveFileId) {
+    eos_static_err("The opaque data of the archived message for file %s does not contain cta_archive_file_id."
+                   " Ignoring request.", fullPath.c_str());
+  } else if (xattrCtaArchiveFileId != opaqueCtaArchiveFileId) {
+    eos_static_err("The CTA_ArchiveFileId attribute of file %s does not match cta_archive_file_id in the"
+                   " opaque data of the archived message. xattrCtaArchiveFileId=%s opaqueCtaArchiveFileId=%s."
+                   " Ignoring request.",
+      fullPath.c_str(), xattrCtaArchiveFileId.c_str(), opaqueCtaArchiveFileId);
+  } else {
+    XrdOucErrInfo errInfo;
+    eos::common::Mapping::VirtualIdentity root_vid;
+    eos::common::Mapping::Root(root_vid);
+    {
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+      auto fmd = gOFS->eosFileService->getFileMD(mFid);
+      fmd->addLocation(TAPE_FS_ID);
+      // Reset the error message
+      fmd->setAttribute(ARCHIVE_ERROR_ATTR_NAME, "");
+      gOFS->eosView->updateFileStore(fmd.get());
+    }
+    bool dropAllStripes = true;
+    IContainerMD::XAttrMap parentDirAttributes;
+
+    if (gOFS->_attr_ls(eos::common::Path{fullPath.c_str()} .GetParentPath(),
+      errInfo, root_vid, nullptr, parentDirAttributes, true, true) == 0) {
+      for (const auto& attrPair : parentDirAttributes) {
+        if (attrPair.first == "sys.wfe.archived.dropdiskreplicas" &&
+            attrPair.second == "0") {
+          dropAllStripes = false;
+        }
+      }
+    }
+    errInfo.clear();
+
+    if (dropAllStripes &&
+        gOFS->_dropallstripes(fullPath.c_str(), errInfo, root_vid, false) != 0) {
+      eos_static_err("Could not delete all file replicas of %s. Reason: %s",
+        fullPath.c_str(), errInfo.getErrText());
+      MoveToRetry(fullPath);
+      return EAGAIN;
+    }
+  }
+
+  MoveWithResults(SFS_OK);
+  return SFS_OK;
 }
 
 int

@@ -226,6 +226,13 @@ public:
     //! @param fullPath the full path of the file
     int HandleProtoMethodCloseEvent(const std::string &event, const std::string &fullPath);
 
+    //! @brief Handles a "proto" method "archived" event
+    //! @param event the precise name of the event
+    //! @param fullPath the full path of the file
+    //! @ininfo original opaque information of the URL that triggered the event
+    int HandleProtoMethodArchivedEvent(const std::string &event, const std::string &fullPath,
+      const char * const ininfo);
+
     //! @brief This method is used for communicating proto event requests
     //! @param jobPtr pointer to the job of the event
     //! @param fullPath path of the file which trigered the event
