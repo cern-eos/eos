@@ -89,6 +89,9 @@ public:
   int Create(eos::common::Mapping::VirtualIdentity& vid,
              const char * const ininfo, std::string& errorMessage);
 
+  int ExceptionThrowingCreate(eos::common::Mapping::VirtualIdentity& vid,
+    const char * const ininfo, std::string& errorMessage);
+
   bool Attach(const char* path);
 
   bool Delete();

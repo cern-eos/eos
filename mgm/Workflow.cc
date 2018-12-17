@@ -206,6 +206,24 @@ int
 Workflow::Create(eos::common::Mapping::VirtualIdentity& vid,
                  const char * const ininfo, std::string& errorMessage)
 {
+  try {
+    return ExceptionThrowingCreate(vid, ininfo, errorMessage);
+  } catch(std::exception &se) {
+    errorMessage = se.what();
+  } catch(...) {
+    errorMessage = "Caught an unknown exception";
+  }
+
+  // Reaching here means that an exception was thrown
+  eos_static_err("msg =\"Caught an unexpected exception: %s\"", errorMessage.c_str());
+  return ECANCELED;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+Workflow::ExceptionThrowingCreate(eos::common::Mapping::VirtualIdentity& vid,
+  const char * const ininfo, std::string& errorMessage)
+{
   int retc = 0;
   WFE::Job job(mFid, vid, errorMessage);
   time_t t = time(nullptr);
