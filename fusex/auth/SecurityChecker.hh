@@ -65,7 +65,10 @@ class SecurityChecker
 {
 public:
 
-  SecurityChecker() { }
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  SecurityChecker(bool ignoreJails);
 
   struct Info {
     CredentialState state;
@@ -175,6 +178,7 @@ private:
   };
 
   std::map<std::string, InjectedData> injections;
+  bool ignoreJails;
 };
 
 #endif

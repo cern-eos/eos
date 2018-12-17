@@ -31,6 +31,11 @@
 #include <iostream>
 
 //------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+SecurityChecker::SecurityChecker(bool ij) : ignoreJails(ij) {}
+
+//------------------------------------------------------------------------------
 // Inject the given fake data. Once an injection is active, _all_ returned
 // data is faked.
 //------------------------------------------------------------------------------
@@ -167,7 +172,9 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
     //--------------------------------------------------------------------------
     // ".." in path? Disallow for now.
     //--------------------------------------------------------------------------
-    return Info(CredentialState::kCannotStat, -1);
+    if(splitPath[i] == "..") {
+      return Info(CredentialState::kCannotStat, -1);
+    }
 
     FileDescriptor next(openat(current.getFD(), splitPath[i].c_str(),
       O_DIRECTORY | O_NOFOLLOW | O_RDONLY));
@@ -238,8 +245,11 @@ SecurityChecker::Info SecurityChecker::lookup(const JailInformation& jail,
   //----------------------------------------------------------------------------
   // Is the request towards our local jail? If so, use fast path, no need to
   // go through heavyweight remote-jail lookup.
+  //
+  // Also, if ignoreJails is set to true we ignore containerization completely,
+  // and treat all paths relative to the host.
   //----------------------------------------------------------------------------
-  if(jail.sameJailAsThisPid) {
+  if(jail.sameJailAsThisPid || ignoreJails) {
     return lookupLocalJail(path, uid);
   }
 

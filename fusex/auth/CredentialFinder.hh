@@ -46,7 +46,8 @@ public:
   CredentialConfig() : use_user_krb5cc(false), use_user_gsiproxy(false),
     use_user_sss(false), tryKrb5First(false), fallback2nobody(false),
     fuse_shared(false),
-    environ_deadlock_timeout(500), forknoexec_heuristic(true) { }
+    environ_deadlock_timeout(500), forknoexec_heuristic(true),
+    ignore_containerization(false) { }
 
   //! Indicates if user krb5cc file should be used for authentication
   bool use_user_krb5cc;
@@ -67,6 +68,8 @@ public:
   bool forknoexec_heuristic;
   //! Credential store
   std::string credentialStore;
+  //! Ignore containerization
+  bool ignore_containerization;
 };
 
 //------------------------------------------------------------------------------

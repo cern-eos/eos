@@ -378,15 +378,15 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   xrdcl_options.push_back("RedirectLimit");
 
   std::string mountpoint;
-  
+
   for (int i = 1; i < argc; ++i) {
     std::string opt = argv[i];
     std::string opt0 = argv[i - 1];
-    
+
     if ((opt[0] != '-') && (opt0 != "-o")) {
       mountpoint = opt;
     }
-    
+
     if (opt == "-f") {
       config.options.foreground = 1;
     }
@@ -591,6 +591,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
       if (!root["auth"].isMember("sss")) {
         root["auth"]["sss"] = 0;
+      }
+
+      if (!root["auth"].isMember("ignore-containerization")) {
+        root["auth"]["ignore-containerization"] = 0;
       }
 
       if (!root["auth"].isMember("credential-store")) {
@@ -859,6 +863,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.mqname = config.mqidentity;
     config.auth.fuse_shared = root["auth"]["shared-mount"].asInt();
     config.auth.use_user_krb5cc = root["auth"]["krb5"].asInt();
+    config.auth.ignore_containerization = root["auth"]["ignore-containerization"].asInt();
     config.auth.use_user_gsiproxy = root["auth"]["gsi"].asInt();
     config.auth.use_user_sss = root["auth"]["sss"].asInt();
     config.auth.credentialStore = root["auth"]["credential-store"].asString();
@@ -1922,7 +1927,7 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
 
           if (!md->id() || (md->deleted() && !md->lookup_is())) {
             rc = md->deleted() ? ENOENT : md->err();
-          }	
+          }
         } else {
 	  pcap->Locker().UnLock();
 	}

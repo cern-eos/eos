@@ -85,7 +85,8 @@ JailResolver* AuthenticationGroup::jailResolver() {
 //------------------------------------------------------------------------------
 SecurityChecker* AuthenticationGroup::securityChecker() {
   if(!securityCheckerPtr) {
-    securityCheckerPtr.reset(new SecurityChecker());
+    securityCheckerPtr.reset(new SecurityChecker(
+      config.ignore_containerization));
   }
 
   return securityCheckerPtr.get();
