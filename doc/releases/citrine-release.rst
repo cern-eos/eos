@@ -16,6 +16,28 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.4.19 Citrine``
+===================
+
+2018-12-18
+
+Bug
+----
+
+* FUSEX: fix race/dead-lock condition when create and delete are racing
+
+Improvements
+------------
+
+* FUSEX: Put 256k as file start cache size
+* FUSEX: Add ignore-containerization flag
+* MGM: Refactor and add unit tests to the Access method
+* UNIT_TEST: Add quarkdb unit tests to the Gitlab pipeline
+* MGM/MQ: Various improvements and fixes to the QuarkDB master-slave setup
+* MGM: Various improvements and refactoring of the WFE functionality related
+       to CTA.
+
+
 ``v4.4.18 Citrine``
 ===================
 
