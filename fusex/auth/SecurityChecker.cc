@@ -164,6 +164,11 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
   FileDescriptor current = std::move(jailfd);
 
   for(size_t i = 1; i < splitPath.size() - 1; i++) {
+    //--------------------------------------------------------------------------
+    // ".." in path? Disallow for now.
+    //--------------------------------------------------------------------------
+    return Info(CredentialState::kCannotStat, -1);
+
     FileDescriptor next(openat(current.getFD(), splitPath[i].c_str(),
       O_DIRECTORY | O_NOFOLLOW | O_RDONLY));
 
