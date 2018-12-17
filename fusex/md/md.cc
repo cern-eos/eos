@@ -2822,7 +2822,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
         // leave the loop to send a heartbeat after the given interval
         if ((eos::common::Timing::GetCoarseAgeInNs(&ts,
-             0) >= (interval * 1000000000))) {
+             0) >= (interval * 1000000000ll))) {
           break;
         }
       } while (1);
