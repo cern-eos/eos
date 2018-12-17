@@ -201,19 +201,21 @@ uint64_t
 TapeAwareGc::getSpaceConfigMinNbFreeBytes(const std::string &name) noexcept
 {
   try {
-    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    const auto spaceItor = FsView::gFsView.mSpaceView.find(name);
+    std::string valueStr;
+    {
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      const auto spaceItor = FsView::gFsView.mSpaceView.find(name);
+      if (FsView::gFsView.mSpaceView.end() == spaceItor) return 0;
+      if (nullptr == spaceItor->second) return 0;
+      const auto &space = *(spaceItor->second);
+      valueStr = space.GetConfigMember("tapeawaregc.minfreebytes");
+    }
 
-    if (FsView::gFsView.mSpaceView.end() == spaceItor) return 0;
-
-    if (nullptr == spaceItor->second) return 0;
-
-    const auto &space = *(spaceItor->second);
-    const auto minFreeBytesStr = space.GetConfigMember("tapeawaregc.minfreebytes");
-
-    if (minFreeBytesStr.empty()) return 0;
-
-    return toUint64(minFreeBytesStr);
+    if(valueStr.empty()) {
+     return 0;
+    } else {
+      return toUint64(valueStr);
+    }
   } catch(...) {
     return 0;
   }
