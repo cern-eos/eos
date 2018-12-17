@@ -526,6 +526,8 @@ com_space_usage:
   fprintf(stdout,
           "       space config <space-name> space.graceperiod=<sec>             : configure the default grace  period if not defined on a filesystem (see fs for details)\n");
   fprintf(stdout,
+          "       space config <space-name> space.filearchivedgc=on|off         : enable/disable the 'file archived' garbage collector [ default=on ]\n");
+  fprintf(stdout,
           "       space config <space-name> space.tapeawaregc.minbytesfree=<#>  : configure the minimum number of free bytes a space should have before the tape aware GC kicks in [ default=0 ]\n");
   fprintf(stdout,
           "       space config <space-name> space.autorepair=on|off             : enable auto-repair of faulty replica's/files (the converter has to be enabled too)\n");

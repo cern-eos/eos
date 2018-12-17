@@ -245,6 +245,13 @@ public:
                                   const cta::xrd::Request& request, std::string& errorMsg,
                                   bool retry = false);
 
+    //! @brief Returns true if the 'file archived' garbage collector should be
+    //! enabled
+    //! @param space name of the space in which to look for the value of the
+    //! corresponding configuration variable
+    //! @return true if the 'file archived' garbage collector should be enabled
+    bool GetFileArchivedGCEnabled(const std::string &space);
+
     // -------------------------------------------------------------------------
     // persistency related methods
     // -------------------------------------------------------------------------

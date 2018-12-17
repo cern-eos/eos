@@ -1967,7 +1967,6 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string &event, const std::st
                    " Ignoring request.",
       fullPath.c_str(), xattrCtaArchiveFileId.c_str(), opaqueCtaArchiveFileId);
   } else {
-    XrdOucErrInfo errInfo;
     eos::common::Mapping::VirtualIdentity root_vid;
     eos::common::Mapping::Root(root_vid);
     {
@@ -1978,31 +1977,56 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string &event, const std::st
       fmd->setAttribute(ARCHIVE_ERROR_ATTR_NAME, "");
       gOFS->eosView->updateFileStore(fmd.get());
     }
-    bool dropAllStripes = true;
-    IContainerMD::XAttrMap parentDirAttributes;
 
-    if (gOFS->_attr_ls(eos::common::Path{fullPath.c_str()} .GetParentPath(),
-      errInfo, root_vid, nullptr, parentDirAttributes, true, true) == 0) {
-      for (const auto& attrPair : parentDirAttributes) {
-        if (attrPair.first == "sys.wfe.archived.dropdiskreplicas" &&
-            attrPair.second == "0") {
-          dropAllStripes = false;
+    if(GetFileArchivedGCEnabled("default")) {
+      bool dropAllStripes = true;
+      IContainerMD::XAttrMap parentDirAttributes;
+      XrdOucErrInfo errInfo;
+      if (gOFS->_attr_ls(eos::common::Path{fullPath.c_str()}.GetParentPath(),
+        errInfo, root_vid, nullptr, parentDirAttributes, true, true) == 0) {
+        for (const auto &attrPair : parentDirAttributes) {
+          if (attrPair.first == "sys.wfe.archived.dropdiskreplicas" &&
+              attrPair.second == "0") {
+            dropAllStripes = false;
+          }
         }
       }
-    }
-    errInfo.clear();
+      errInfo.clear();
 
-    if (dropAllStripes &&
-        gOFS->_dropallstripes(fullPath.c_str(), errInfo, root_vid, false) != 0) {
-      eos_static_err("Could not delete all file replicas of %s. Reason: %s",
-        fullPath.c_str(), errInfo.getErrText());
-      MoveToRetry(fullPath);
-      return EAGAIN;
+      if (dropAllStripes &&
+          gOFS->_dropallstripes(fullPath.c_str(), errInfo, root_vid, false) != 0) {
+        eos_static_err("Could not delete all file replicas of %s. Reason: %s",
+          fullPath.c_str(), errInfo.getErrText());
+        MoveToRetry(fullPath);
+        return EAGAIN;
+      }
     }
   }
 
   MoveWithResults(SFS_OK);
   return SFS_OK;
+}
+
+bool
+WFE::Job::GetFileArchivedGCEnabled(const std::string &space) {
+  std::string valueStr;
+
+  try {
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    const auto spaceItor = FsView::gFsView.mSpaceView.find(space);
+    if (FsView::gFsView.mSpaceView.end() == spaceItor) return false;
+    if (nullptr == spaceItor->second) return false;
+    const auto &space = *(spaceItor->second);
+    valueStr = space.GetConfigMember("filearchivedgc");
+  } catch(...) {
+    return false;
+  }
+
+  if (valueStr.empty()) {
+    return false;
+  } else {
+    return valueStr == "on";
+  }
 }
 
 int

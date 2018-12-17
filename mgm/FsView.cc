@@ -988,6 +988,11 @@ FsSpace::FsSpace(const char* name)
       SetConfigMember("wfe.ntx", "1", true, "/eos/*/mgm");
     }
 
+    // Enable the 'file archived' garbage collector by default
+    if (GetConfigMember("filearchivedgc").empty()) {
+      SetConfigMember("filearchivedgc", "on", true, "/eos/*/mgm");
+    }
+
     // Set the default minimum number of free bytes for the tape aware garbage
     // collector
     if (GetConfigMember("tapeawaregc.minfreebytes").empty()) {

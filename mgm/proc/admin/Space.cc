@@ -497,13 +497,15 @@ ProcCommand::Space()
                 (key == "geobalancer.threshold") ||
                 (key == "geo.access.policy.read.exact") ||
                 (key == "geo.access.policy.write.exact") ||
+                (key == "filearchivedgc") ||
                 (key == "tapeawaregc.minfreebytes") ||
                 (key == "balancer.threshold")) {
               if ((key == "balancer") || (key == "converter") ||
                   (key == "autorepair") || (key == "lru") ||
                   (key == "groupbalancer") || (key == "geobalancer") ||
                   (key == "geo.access.policy.read.exact") ||
-                  (key == "geo.access.policy.write.exact")) {
+                  (key == "geo.access.policy.write.exact") ||
+                  (key == "filearchivedgc")) {
                 if ((value != "on") && (value != "off")) {
                   retc = EINVAL;
                   stdErr = "error: value has to either on or off";
@@ -574,6 +576,14 @@ ProcCommand::Space()
                         stdOut += "success: scheduler skips overloaded eth-out nodes!";
                       } else {
                         stdOut += "success: scheduler does not skip overloaded eth-out nodes!";
+                      }
+                    }
+
+                    if (key == "filearchivedgc") {
+                      if (value == "on") {
+                        stdOut += "success: 'file archived' garbage collector is enabled";
+                      } else {
+                        stdOut += "success: 'file archived' garbage collector is disabled";
                       }
                     }
                   }
