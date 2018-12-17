@@ -196,30 +196,23 @@ public:
 
     //! @brief Handles a "proto" method "prepare" event
     //! @param fullPath the full path of the file
-    //! @param request the request message to be sent to the "proto" end point
     //! @param errorMsg out parameter giving the text of any error response
-    int HandleProtoMethodPrepareEvent(const std::string &fullPath, cta::xrd::Request &request, std::string& errorMsg);
+    int HandleProtoMethodPrepareEvent(const std::string &fullPath, std::string& errorMsg);
 
     //! @brief Handles a "proto" method "abort_prepare" event
     //! @param fullPath the full path of the file
-    //! @param request the request message to be sent to the "proto" end point
     //! @param errorMsg out parameter giving the text of any error response
-    int HandleProtoMethodAbortPrepareEvent(const std::string &fullPath, cta::xrd::Request &request,
-      std::string &errorMsg);
+    int HandleProtoMethodAbortPrepareEvent(const std::string &fullPath, std::string &errorMsg);
 
     //! @brief Handles a "proto" method "create" event
     //! @param fullPath the full path of the file
-    //! @param request the request message to be sent to the "proto" end point
     //! @param errorMsg out parameter giving the text of any error response
-    int HandleProtoMethodCreateEvent(const std::string &fullPath, cta::xrd::Request &request,
-      std::string &errorMsg);
+    int HandleProtoMethodCreateEvent(const std::string &fullPath, std::string &errorMsg);
 
     //! @brief Handles a "proto" method "delete" event
     //! @param fullPath the full path of the file
-    //! @param request the request message to be sent to the "proto" end point
     //! @param errorMsg out parameter giving the text of any error response
-    int HandleProtoMethodDeleteEvent(const std::string &fullPath, cta::xrd::Request &request,
-      std::string &errorMsg);
+    int HandleProtoMethodDeleteEvent(const std::string &fullPath, std::string &errorMsg);
 
     //! @brief Handles a "proto" method "close" event
     //! @param event the precise name of the event

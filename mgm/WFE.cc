@@ -1620,21 +1620,15 @@ int WFE::Job::HandleProtoMethodEvents(std::string &errorMsg, const char * const 
       eventUpperCase.c_str(),
       fullPath.c_str(), gOFS->ProtoWFEndPoint.c_str());
   }
-  cta::xrd::Request request;
-  auto notification = request.mutable_notification();
-  notification->mutable_cli()->mutable_user()->set_username(GetUserName(
-    mVid.uid));
-  notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(
-    mVid.gid));
 
   if (event == "sync::prepare" || event == "prepare") {
-    return HandleProtoMethodPrepareEvent(fullPath, request, errorMsg);
+    return HandleProtoMethodPrepareEvent(fullPath, errorMsg);
   } else if (event == "sync::abort_prepare" || event == "abort_prepare") {
-    return HandleProtoMethodAbortPrepareEvent(fullPath, request, errorMsg);
+    return HandleProtoMethodAbortPrepareEvent(fullPath, errorMsg);
   } else if (event == "sync::create" || event == "create") {
-    return HandleProtoMethodCreateEvent(fullPath, request, errorMsg);
+    return HandleProtoMethodCreateEvent(fullPath, errorMsg);
   } else if (event == "sync::delete" || event == "delete") {
-    return HandleProtoMethodDeleteEvent(fullPath, request, errorMsg);
+    return HandleProtoMethodDeleteEvent(fullPath, errorMsg);
   } else if (event == "sync::closew" || event == "closew") {
     return HandleProtoMethodCloseEvent(event, fullPath);
   } else if (event == "sync::archived" || event == "archived") {
@@ -1651,8 +1645,7 @@ int WFE::Job::HandleProtoMethodEvents(std::string &errorMsg, const char * const 
 }
 
 int
-WFE::Job::HandleProtoMethodPrepareEvent(const std::string &fullPath, cta::xrd::Request &request,
-  std::string& errorMsg) {
+WFE::Job::HandleProtoMethodPrepareEvent(const std::string &fullPath, std::string& errorMsg) {
   struct stat buf;
   XrdOucErrInfo errInfo;
   bool onDisk;
@@ -1729,7 +1722,10 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string &fullPath, cta::xrd::R
     MoveWithResults(SFS_OK);
     return SFS_OK;
   } else {
+    cta::xrd::Request request;
     auto notification = request.mutable_notification();
+    notification->mutable_cli()->mutable_user()->set_username(GetUserName(mVid.uid));
+    notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(mVid.gid));
     for (const auto& attribute : CollectAttributes(fullPath))
     {
       google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
@@ -1788,8 +1784,7 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string &fullPath, cta::xrd::R
 }
 
 int
-WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string &fullPath, cta::xrd::Request &request,
-  std::string &errorMsg) {
+WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string &fullPath, std::string &errorMsg) {
   auto retrieveCntr = 0;
   {
     eos::common::RWMutexWriteLock lock;
@@ -1824,7 +1819,10 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string &fullPath, cta::x
 
   // optimization for reduced memory IO during write lock
   if (retrieveCntr == 1) {
+    cta::xrd::Request request;
     auto notification = request.mutable_notification();
+    notification->mutable_cli()->mutable_user()->set_username(GetUserName(mVid.uid));
+    notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(mVid.gid));
     for (const auto& attribute : CollectAttributes(fullPath))
     {
       google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
@@ -1856,10 +1854,12 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string &fullPath, cta::x
 }
 
 int
-WFE::Job::HandleProtoMethodCreateEvent(const std::string &fullPath, cta::xrd::Request &request,
-  std::string &errorMsg)
+WFE::Job::HandleProtoMethodCreateEvent(const std::string &fullPath, std::string &errorMsg)
 {
+  cta::xrd::Request request;
   auto notification = request.mutable_notification();
+  notification->mutable_cli()->mutable_user()->set_username(GetUserName(mVid.uid));
+  notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(mVid.gid));
   for (const auto& attribute : CollectAttributes(fullPath))
   {
     google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
@@ -1887,10 +1887,12 @@ WFE::Job::HandleProtoMethodCreateEvent(const std::string &fullPath, cta::xrd::Re
 }
 
 int
-WFE::Job::HandleProtoMethodDeleteEvent(const std::string &fullPath, cta::xrd::Request &request,
-  std::string &errorMsg)
+WFE::Job::HandleProtoMethodDeleteEvent(const std::string &fullPath, std::string &errorMsg)
 {
+  cta::xrd::Request request;
   auto notification = request.mutable_notification();
+  notification->mutable_cli()->mutable_user()->set_username(GetUserName(mVid.uid));
+  notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(mVid.gid));
   for (const auto& attribute : CollectAttributes(fullPath))
   {
     google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
