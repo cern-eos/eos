@@ -1594,7 +1594,6 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char * const ininfo)
 /*----------------------------------------------------------------------------*/
 int WFE::Job::HandleProtoMethodEvents(std::string &errorMsg, const char * const ininfo) {
   const auto event = mActions[0].mEvent;
-  std::shared_ptr<eos::IContainerMD> cmd;
   std::string fullPath;
 
   try {
@@ -1602,7 +1601,6 @@ int WFE::Job::HandleProtoMethodEvents(std::string &errorMsg, const char * const 
     eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
     fullPath = gOFS->eosView->getUri(fmd.get());
-    cmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
   } catch (eos::MDException& e) {
     eos_static_err("Could not get metadata for file %u. Reason: %s", mFid,
       e.getMessage().str().c_str());
@@ -1610,16 +1608,18 @@ int WFE::Job::HandleProtoMethodEvents(std::string &errorMsg, const char * const 
     return ENOENT;
   }
 
-  auto eventUpperCase = event;
-  std::transform(eventUpperCase.begin(), eventUpperCase.end(),
-    eventUpperCase.begin(),
-    [](unsigned char c) {
-      return std::toupper(c);
-    }
-  );
-  eos_static_info("%s %s %s %s", mActions[0].mWorkflow.c_str(),
-    eventUpperCase.c_str(),
-    fullPath.c_str(), gOFS->ProtoWFEndPoint.c_str());
+  {
+    auto eventUpperCase = event;
+    std::transform(eventUpperCase.begin(), eventUpperCase.end(),
+      eventUpperCase.begin(),
+      [](unsigned char c) {
+        return std::toupper(c);
+      }
+    );
+    eos_static_info("%s %s %s %s", mActions[0].mWorkflow.c_str(),
+      eventUpperCase.c_str(),
+      fullPath.c_str(), gOFS->ProtoWFEndPoint.c_str());
+  }
   cta::xrd::Request request;
   auto notification = request.mutable_notification();
   notification->mutable_cli()->mutable_user()->set_username(GetUserName(
