@@ -101,3 +101,43 @@ TEST(UserCredentialFactory, BothKrb5AndX509) {
   ASSERT_EQ(searchOrder[1], UserCredentials::MakeX509(id, "/tmp/my-x509-creds", 8, 9));
   ASSERT_EQ(searchOrder[2], UserCredentials::MakeKrb5(id, "/tmp/my-krb5-creds", 8, 9));
 }
+
+TEST(UserCredentialFactory, JustKrb5) {
+  CredentialConfig config;
+  config.use_user_krb5cc = true;
+  config.use_user_gsiproxy = false;
+  config.use_user_sss = false;
+
+  Environment env;
+  env.push_back("KRB5CCNAME=FILE:/tmp/my-krb5-creds");
+  env.push_back("X509_USER_PROXY=/tmp/my-x509-creds");
+
+  JailIdentifier id = JailIdentifier::Make(5, 3);
+  UserCredentialFactory factory(config);
+
+  SearchOrder searchOrder;
+  factory.addFromEnv(id, env, 12, 14, searchOrder);
+
+  ASSERT_EQ(searchOrder.size(), 1u);
+  ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrb5(id, "/tmp/my-krb5-creds", 12, 14));
+}
+
+TEST(UserCredentialFactory, JustKrk5) {
+  CredentialConfig config;
+  config.use_user_krb5cc = true;
+  config.use_user_gsiproxy = false;
+  config.use_user_sss = false;
+
+  Environment env;
+  env.push_back("KRB5CCNAME=KEYRING:my-keyring");
+  env.push_back("X509_USER_PROXY=/tmp/my-x509-creds");
+
+  JailIdentifier id = JailIdentifier::Make(5, 3);
+  UserCredentialFactory factory(config);
+
+  SearchOrder searchOrder;
+  factory.addFromEnv(id, env, 19, 15, searchOrder);
+
+  ASSERT_EQ(searchOrder.size(), 1u);
+  ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrk5("KEYRING:my-keyring", 19, 15));
+}
