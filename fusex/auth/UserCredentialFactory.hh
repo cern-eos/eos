@@ -1,0 +1,74 @@
+// ----------------------------------------------------------------------
+// File: UserCredentialFactory.hh
+// Author: Georgios Bitzes - CERN
+// ----------------------------------------------------------------------
+
+/************************************************************************
+ * EOS - the CERN Disk Storage System                                   *
+ * Copyright (C) 2011 CERN/Switzerland                                  *
+ *                                                                      *
+ * This program is free software: you can redistribute it and/or modify *
+ * it under the terms of the GNU General Public License as published by *
+ * the Free Software Foundation, either version 3 of the License, or    *
+ * (at your option) any later version.                                  *
+ *                                                                      *
+ * This program is distributed in the hope that it will be useful,      *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+ * GNU General Public License for more details.                         *
+ *                                                                      *
+ * You should have received a copy of the GNU General Public License    *
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+ ************************************************************************/
+
+#ifndef EOS_FUSEX_USER_CREDENTIAL_FACTORY_HH
+#define EOS_FUSEX_USER_CREDENTIAL_FACTORY_HH
+
+#include "CredentialFinder.hh"
+#include <vector>
+
+class UserCredentials;
+class LogbookScope;
+
+//------------------------------------------------------------------------------
+//! SearchOrder is simply a vector of UserCredentials.
+//------------------------------------------------------------------------------
+using SearchOrder = std::vector<UserCredentials>;
+
+//------------------------------------------------------------------------------
+//! This class knows how to translate credential strings into SearchOrder.
+//! (ie krb:/tmp/my-path,defaults) -> SearchOrder object
+//------------------------------------------------------------------------------
+class UserCredentialFactory {
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  UserCredentialFactory(const CredentialConfig &config);
+
+  //----------------------------------------------------------------------------
+  //! Parse a string, convert into SearchOrder
+  //----------------------------------------------------------------------------
+  SearchOrder parse(LogbookScope &scope, const std::string &str,
+    const JailIdentifier &jail);
+
+  //----------------------------------------------------------------------------
+  //! Given a single entry of the search path, try to parse and fill out a
+  //! single UserCredentials object
+  //----------------------------------------------------------------------------
+  bool parseSingle(LogbookScope &scope, const std::string &str,
+    const JailIdentifier &id, const Environment& env, uid_t uid, gid_t gid,
+    SearchOrder &out);
+
+private:
+  //----------------------------------------------------------------------------
+  //! Append defaults into given SearchOrder
+  //----------------------------------------------------------------------------
+  void addDefaults(const JailIdentifier &id, const Environment& env, uid_t uid,
+    gid_t gid, SearchOrder &out);
+
+  CredentialConfig config;
+};
+
+
+#endif

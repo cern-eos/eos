@@ -25,6 +25,7 @@
 #include "AuthenticationGroup.hh"
 #include "ProcessCache.hh"
 #include "ProcessInfo.hh"
+#include "UserCredentialFactory.hh"
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -32,6 +33,11 @@
 AuthenticationGroup::AuthenticationGroup(const CredentialConfig &config_)
 : config(config_) {
 }
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+AuthenticationGroup::~AuthenticationGroup() {}
 
 //------------------------------------------------------------------------------
 // Retrieve process cache, lazy initialize
@@ -124,5 +130,16 @@ UuidStore* AuthenticationGroup::uuidStore() {
   }
 
   return uuidStorePtr.get();
+}
+
+//------------------------------------------------------------------------------
+// Retrieve user credential factory, lazy initialize
+//------------------------------------------------------------------------------
+UserCredentialFactory* AuthenticationGroup::userCredentialFactory() {
+  if(!userCredentialFactoryPtr) {
+    userCredentialFactoryPtr.reset(new UserCredentialFactory(config));
+  }
+
+  return userCredentialFactoryPtr.get();
 }
 

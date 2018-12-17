@@ -36,6 +36,7 @@ class SecurityChecker;
 class EnvironmentReader;
 class CredentialValidator;
 class UuidStore;
+class UserCredentialFactory;
 
 //------------------------------------------------------------------------------
 // Utility class to manage ownership of all classes involved in the
@@ -48,6 +49,11 @@ public:
   // Constructor
   //----------------------------------------------------------------------------
   AuthenticationGroup(const CredentialConfig &config);
+
+  //----------------------------------------------------------------------------
+  // Destructor
+  //----------------------------------------------------------------------------
+  ~AuthenticationGroup();
 
   //----------------------------------------------------------------------------
   // Retrieve process cache, lazy initialize
@@ -89,6 +95,11 @@ public:
   //----------------------------------------------------------------------------
   UuidStore* uuidStore();
 
+  //----------------------------------------------------------------------------
+  // Retrieve user credential factory, lazy initialize
+  //----------------------------------------------------------------------------
+  UserCredentialFactory* userCredentialFactory();
+
 private:
   CredentialConfig config;
 
@@ -100,6 +111,7 @@ private:
   std::unique_ptr<UuidStore> uuidStorePtr;
   std::unique_ptr<BoundIdentityProvider> boundIdentityProviderPtr;
   std::unique_ptr<ProcessCache> processCachePtr;
+  std::unique_ptr<UserCredentialFactory> userCredentialFactoryPtr;
 };
 
 

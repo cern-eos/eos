@@ -40,6 +40,7 @@ add_library(
                                    ScopedFsUidSetter.hh
   SecurityChecker.cc               SecurityChecker.hh
   UnixAuthenticator.cc             UnixAuthenticator.hh
+  UserCredentialFactory.cc         UserCredentialFactory.hh
                                    UserCredentials.hh
   Utils.cc                         Utils.hh
   UuidStore.cc                     UuidStore.hh
