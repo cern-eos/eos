@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "auth/ProcessCache.hh"
+#include "auth/UserCredentialFactory.hh"
 #include "test-utils.hh"
 #include <gtest/gtest.h>
 
@@ -64,4 +65,39 @@ TEST_F(Krb5AuthF, UnixFallback)
   ASSERT_EQ(snapshot->getXrdLogin(), LoginIdentifier(1000, 1000, 1234,
             0).getStringID());
   ASSERT_EQ(snapshot->getXrdCreds(), "xrd.wantprot=unix");
+}
+
+TEST(UserCredentialFactory, BothKrb5AndX509) {
+  CredentialConfig config;
+  config.use_user_krb5cc = true;
+  config.use_user_gsiproxy = true;
+  config.tryKrb5First = true;
+  config.use_user_sss = true;
+
+  Environment env;
+  env.push_back("KRB5CCNAME=/tmp/my-krb5-creds");
+  env.push_back("X509_USER_PROXY=/tmp/my-x509-creds");
+
+  JailIdentifier id = JailIdentifier::Make(5, 3);
+  UserCredentialFactory factory(config);
+
+  SearchOrder searchOrder;
+  factory.addFromEnv(id, env, 9, 8, searchOrder);
+
+  ASSERT_EQ(searchOrder.size(), 3u);
+  ASSERT_EQ(searchOrder[0], UserCredentials::MakeSSS("", 9, 8));
+  ASSERT_EQ(searchOrder[1], UserCredentials::MakeKrb5(id, "/tmp/my-krb5-creds", 9, 8));
+  ASSERT_EQ(searchOrder[2], UserCredentials::MakeX509(id, "/tmp/my-x509-creds", 9, 8));
+
+  // Now swap krb5 <-> x509 order
+  config.tryKrb5First = false;
+  factory = UserCredentialFactory(config);
+
+  searchOrder.clear();
+  factory.addFromEnv(id, env, 8, 9, searchOrder);
+
+  ASSERT_EQ(searchOrder.size(), 3u);
+  ASSERT_EQ(searchOrder[0], UserCredentials::MakeSSS("", 8, 9));
+  ASSERT_EQ(searchOrder[1], UserCredentials::MakeX509(id, "/tmp/my-x509-creds", 8, 9));
+  ASSERT_EQ(searchOrder[2], UserCredentials::MakeKrb5(id, "/tmp/my-krb5-creds", 8, 9));
 }

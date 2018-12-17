@@ -25,8 +25,6 @@
 #define EOS_FUSEX_AUTHENTICATION_GROUP_HH
 
 #include "CredentialFinder.hh"
-#include "CredentialValidator.hh"
-#include "UuidStore.hh"
 
 class ProcessCache;
 class BoundIdentityProvider;

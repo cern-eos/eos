@@ -26,6 +26,9 @@
 #include "ProcessCache.hh"
 #include "ProcessInfo.hh"
 #include "UserCredentialFactory.hh"
+#include "CredentialFinder.hh"
+#include "CredentialValidator.hh"
+#include "UuidStore.hh"
 
 //------------------------------------------------------------------------------
 // Constructor

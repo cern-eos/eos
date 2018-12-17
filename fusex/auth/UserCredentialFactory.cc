@@ -40,12 +40,103 @@ SearchOrder UserCredentialFactory::parse(LogbookScope &scope,
 }
 
 //------------------------------------------------------------------------------
-// Append defaults into given SearchOrder
+//! Append krb5 UserCredentials built from Environment, if KRB5CCNAME
+//! is defined.
 //------------------------------------------------------------------------------
-void UserCredentialFactory::addDefaults(const JailIdentifier &id,
+void UserCredentialFactory::addKrb5FromEnv(const JailIdentifier &id,
   const Environment& env, uid_t uid, gid_t gid, SearchOrder &out)
 {
+  if(!config.use_user_krb5cc) {
+    return;
+  }
 
+  std::string path = env.get("KRB5CCNAME");
+
+  //--------------------------------------------------------------------------
+  // Kerberos keyring?
+  //--------------------------------------------------------------------------
+  if(startswith(path, "KEYRING")) {
+    out.emplace_back(UserCredentials::MakeKrk5(path, uid, gid));
+    return;
+  }
+
+  //----------------------------------------------------------------------------
+  // Drop FILE:, if exists
+  //----------------------------------------------------------------------------
+  const std::string prefix = "FILE:";
+  if(startswith(path, prefix)) {
+    path = path.substr(prefix.size());
+  }
+
+  if(path.empty()) {
+    //--------------------------------------------------------------------------
+    // Early exit, nothing to add to search order.
+    //--------------------------------------------------------------------------
+    return;
+  }
+
+  out.emplace_back(UserCredentials::MakeKrb5(id, path, uid, gid));
+  return;
+}
+
+//------------------------------------------------------------------------------
+// Append UserCredentials object built from X509_USER_PROXY
+//------------------------------------------------------------------------------
+void UserCredentialFactory::addx509FromEnv(const JailIdentifier &id,
+  const Environment& env, uid_t uid, gid_t gid, SearchOrder &out)
+{
+  if(!config.use_user_gsiproxy) {
+    return;
+  }
+
+  std::string path = env.get("X509_USER_PROXY");
+
+  if (path.empty()) {
+    //--------------------------------------------------------------------------
+    // Early exit, nothing to add to search order.
+    //--------------------------------------------------------------------------
+    return;
+  }
+
+  out.emplace_back(UserCredentials::MakeX509(id, path, uid, gid));
+  return;
+}
+
+//------------------------------------------------------------------------------
+// Populate SearchOrder with entries given in environment variables.
+//------------------------------------------------------------------------------
+void UserCredentialFactory::addFromEnv(const JailIdentifier &id,
+  const Environment& env, uid_t uid, gid_t gid, SearchOrder &searchOrder)
+{
+  //----------------------------------------------------------------------------
+  // Using SSS? If so, add first.
+  //----------------------------------------------------------------------------
+  if(config.use_user_sss) {
+    std::string endorsement = env.get("XrdSecsssENDORSEMENT");
+    searchOrder.emplace_back(
+      UserCredentials::MakeSSS(endorsement, uid, gid));
+  }
+
+  //----------------------------------------------------------------------------
+  // Add krb5, x509 derived from environment variables
+  //----------------------------------------------------------------------------
+  addKrb5AndX509FromEnv(id, env, uid, gid, searchOrder);
+}
+
+//------------------------------------------------------------------------------
+//! Append UserCredentials object built from krb5, and x509 env variables
+//------------------------------------------------------------------------------
+void UserCredentialFactory::addKrb5AndX509FromEnv(const JailIdentifier &id,
+  const Environment &env, uid_t uid, gid_t gid, SearchOrder &out)
+{
+  if(config.tryKrb5First) {
+    addKrb5FromEnv(id, env, uid, gid, out);
+    addx509FromEnv(id, env, uid, gid, out);
+  }
+  else {
+    addx509FromEnv(id, env, uid, gid, out);
+    addKrb5FromEnv(id, env, uid, gid, out);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -60,7 +151,7 @@ bool UserCredentialFactory::parseSingle(LogbookScope &scope, const std::string &
   // Defaults?
   //----------------------------------------------------------------------------
   if(str == "defaults") {
-    addDefaults(id, env, uid, gid, out);
+    addFromEnv(id, env, uid, gid, out);
     return true;
   }
 

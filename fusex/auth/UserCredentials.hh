@@ -229,6 +229,20 @@ struct UserCredentials {
   }
 
   //----------------------------------------------------------------------------
+  // Equality operator
+  //----------------------------------------------------------------------------
+  bool operator==(const UserCredentials& src) const
+  {
+    return type        ==   src.type        &&
+           jail        ==   src.jail        &&
+           fname       ==   src.fname       &&
+           keyring     ==   src.keyring     &&
+           endorsement ==   src.endorsement &&
+           uid         ==   src.uid         &&
+           gid         ==   src.gid;
+  }
+
+  //----------------------------------------------------------------------------
   // Describe contents
   //----------------------------------------------------------------------------
   std::string describe() const {

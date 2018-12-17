@@ -60,12 +60,31 @@ public:
     const JailIdentifier &id, const Environment& env, uid_t uid, gid_t gid,
     SearchOrder &out);
 
-private:
   //----------------------------------------------------------------------------
   //! Append defaults into given SearchOrder
   //----------------------------------------------------------------------------
-  void addDefaults(const JailIdentifier &id, const Environment& env, uid_t uid,
+  void addFromEnv(const JailIdentifier &id, const Environment& env, uid_t uid,
     gid_t gid, SearchOrder &out);
+
+private:
+
+  //----------------------------------------------------------------------------
+  //! Append UserCredentials object built from KRB5CCNAME
+  //----------------------------------------------------------------------------
+  void addKrb5FromEnv(const JailIdentifier &id, const Environment& env,
+    uid_t uid, gid_t gid, SearchOrder &out);
+
+  //----------------------------------------------------------------------------
+  //! Append UserCredentials object built from X509_USER_PROXY
+  //----------------------------------------------------------------------------
+  void addx509FromEnv(const JailIdentifier &id, const Environment& env,
+    uid_t uid, gid_t gid, SearchOrder &out);
+
+  //----------------------------------------------------------------------------
+  //! Append UserCredentials object built from krb5, and x509 env variables
+  //----------------------------------------------------------------------------
+  void addKrb5AndX509FromEnv(const JailIdentifier &id, const Environment &env,
+    uid_t uid, gid_t gid, SearchOrder &out);
 
   CredentialConfig config;
 };
