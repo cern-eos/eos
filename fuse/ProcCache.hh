@@ -261,7 +261,7 @@ public:
     return true;
   }
 
-  const std::vector<std::string>&
+  std::vector<std::string>
   GetArgsVec() const
   {
     eos::common::RWMutexReadLock lock(pMutex);
