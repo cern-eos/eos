@@ -4244,7 +4244,7 @@ filesystem::is_toplevel_rm(int pid, const char* local_dir)
   auto entry = std::make_pair(psstime, false);
   // Try to print the command triggering the unlink
   std::ostringstream oss;
-  const auto& cmdv = gProcCache(pid).GetArgsVec(pid);
+  auto cmdv = gProcCache(pid).GetArgsVec(pid);
   std::string cmd = gProcCache(pid).GetArgsStr(pid);
   std::set<std::string> rm_entries;
   std::set<std::string> rm_opt; // rm command options (long and short)
