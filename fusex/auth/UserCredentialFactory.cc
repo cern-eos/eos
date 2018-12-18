@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "UserCredentialFactory.hh"
+#include "Logbook.hh"
 #include "Utils.hh"
 
 //------------------------------------------------------------------------------
@@ -31,14 +32,28 @@ UserCredentialFactory::UserCredentialFactory(const CredentialConfig &conf) :
   config(conf) {}
 
 //------------------------------------------------------------------------------
-// Parse a string, convert into SearchOrder
+// Generate SearchOrder from environment variables, while taking into account
+// EOS_FUSE_CREDS.
 //------------------------------------------------------------------------------
 SearchOrder UserCredentialFactory::parse(LogbookScope &scope,
-  const std::string &str, const JailIdentifier &jail) {
+  const JailIdentifier& id, const Environment &env, uid_t uid, gid_t gid)
+{
+  SearchOrder retval;
 
-  THROW("NYI");
+  std::string credString = env.get("EOS_FUSE_CREDS");
+  if(credString.empty()) {
+    // Use defaults.
+    parseSingle(scope, "defaults", id, env, uid, gid, retval);
+    return retval;
+  }
+
+  std::vector<std::string> parts = split(credString, ",");
+  for(auto it = parts.begin(); it != parts.end(); it++) {
+    parseSingle(scope, *it, id, env, uid, gid, retval);
+  }
+
+  return retval;
 }
-
 
 //------------------------------------------------------------------------------
 // Append krb5 UserCredentials built from KRB5CCNAME-equivalent string.
@@ -184,5 +199,6 @@ bool UserCredentialFactory::parseSingle(LogbookScope &scope,
   //----------------------------------------------------------------------------
   // Cannot parse given string
   //----------------------------------------------------------------------------
+  LOGBOOK_INSERT(scope, "Cannot understand this part of EOS_FUSE_CREDS, skipping: " << str);
   return false;
 }

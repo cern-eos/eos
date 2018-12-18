@@ -49,8 +49,8 @@ public:
   //----------------------------------------------------------------------------
   //! Parse a string, convert into SearchOrder
   //----------------------------------------------------------------------------
-  SearchOrder parse(LogbookScope &scope, const std::string &str,
-    const JailIdentifier &jail);
+  SearchOrder parse(LogbookScope &scope, const JailIdentifier& id,
+    const Environment &env, uid_t uid, gid_t gid);
 
   //----------------------------------------------------------------------------
   //! Given a single entry of the search path, try to parse and fill out a

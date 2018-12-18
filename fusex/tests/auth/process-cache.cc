@@ -206,3 +206,32 @@ TEST(UserCredentialFactory, ParseSingleX509) {
   ASSERT_EQ(searchOrder.size(), 1u);
   ASSERT_EQ(searchOrder[0], UserCredentials::MakeX509(id, "/tmp/my-gsi-creds", 200, 201));
 }
+
+TEST(UserCredentialFactory, ParseEnv) {
+  CredentialConfig config;
+  config.use_user_krb5cc = true;
+
+  JailIdentifier id = JailIdentifier::Make(2, 3);
+  UserCredentialFactory factory(config);
+
+  Environment env;
+  env.push_back("KRB5CCNAME=/tmp-krbccname");
+  env.push_back("EOS_FUSE_CREDS=krb:/tmp/first,krb:/tmp/second,defaults");
+
+  LogbookScope empty;
+  SearchOrder searchOrder = factory.parse(empty, id, env, 100, 100);
+
+  ASSERT_EQ(searchOrder.size(), 3u);
+  ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrb5(id, "/tmp/first", 100, 100));
+  ASSERT_EQ(searchOrder[1], UserCredentials::MakeKrb5(id, "/tmp/second", 100, 100));
+  ASSERT_EQ(searchOrder[2], UserCredentials::MakeKrb5(id, "/tmp-krbccname", 100, 100));
+
+  env = {};
+  env.push_back("KRB5CCNAME=/tmp-krbccname");
+  env.push_back("EOS_FUSE_CREDS=krb:/tmp/first,krb:/tmp/second");
+  searchOrder = factory.parse(empty, id, env, 100, 100);
+
+  ASSERT_EQ(searchOrder.size(), 2u);
+  ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrb5(id, "/tmp/first", 100, 100));
+  ASSERT_EQ(searchOrder[1], UserCredentials::MakeKrb5(id, "/tmp/second", 100, 100));
+}
