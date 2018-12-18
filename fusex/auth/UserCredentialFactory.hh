@@ -63,10 +63,22 @@ public:
   //----------------------------------------------------------------------------
   //! Append defaults into given SearchOrder
   //----------------------------------------------------------------------------
-  void addFromEnv(const JailIdentifier &id, const Environment& env, uid_t uid,
-    gid_t gid, SearchOrder &out);
+  void addDefaultsFromEnv(const JailIdentifier &id, const Environment& env,
+    uid_t uid, gid_t gid, SearchOrder &out);
 
 private:
+
+  //----------------------------------------------------------------------------
+  //! Append krb5 UserCredentials built from X509_USER_PROXY-equivalent string.
+  //----------------------------------------------------------------------------
+  void addx509(const JailIdentifier &id, const std::string& path, uid_t uid,
+    gid_t gid, SearchOrder &out);
+
+  //----------------------------------------------------------------------------
+  //! Append krb5 UserCredentials built from KRB5CCNAME-equivalent string.
+  //----------------------------------------------------------------------------
+  void addKrb5(const JailIdentifier &id, std::string path, uid_t uid,
+    gid_t gid, SearchOrder &out);
 
   //----------------------------------------------------------------------------
   //! Append UserCredentials object built from KRB5CCNAME

@@ -23,6 +23,7 @@
 
 #include "auth/ProcessCache.hh"
 #include "auth/UserCredentialFactory.hh"
+#include "auth/Logbook.hh"
 #include "test-utils.hh"
 #include <gtest/gtest.h>
 
@@ -81,8 +82,9 @@ TEST(UserCredentialFactory, BothKrb5AndX509) {
   JailIdentifier id = JailIdentifier::Make(5, 3);
   UserCredentialFactory factory(config);
 
+  LogbookScope empty;
   SearchOrder searchOrder;
-  factory.addFromEnv(id, env, 9, 8, searchOrder);
+  ASSERT_TRUE(factory.parseSingle(empty, "defaults", id, env, 9, 8, searchOrder));
 
   ASSERT_EQ(searchOrder.size(), 3u);
   ASSERT_EQ(searchOrder[0], UserCredentials::MakeSSS("", 9, 8));
@@ -94,7 +96,8 @@ TEST(UserCredentialFactory, BothKrb5AndX509) {
   factory = UserCredentialFactory(config);
 
   searchOrder.clear();
-  factory.addFromEnv(id, env, 8, 9, searchOrder);
+  ASSERT_TRUE(factory.parseSingle(empty, "defaults", id, env, 8, 9, searchOrder));
+  // factory.addDefaultsFromEnv(id, env, 8, 9, searchOrder);
 
   ASSERT_EQ(searchOrder.size(), 3u);
   ASSERT_EQ(searchOrder[0], UserCredentials::MakeSSS("", 8, 9));
@@ -115,8 +118,9 @@ TEST(UserCredentialFactory, JustKrb5) {
   JailIdentifier id = JailIdentifier::Make(5, 3);
   UserCredentialFactory factory(config);
 
+  LogbookScope empty;
   SearchOrder searchOrder;
-  factory.addFromEnv(id, env, 12, 14, searchOrder);
+  ASSERT_TRUE(factory.parseSingle(empty, "defaults", id, env, 12, 14, searchOrder));
 
   ASSERT_EQ(searchOrder.size(), 1u);
   ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrb5(id, "/tmp/my-krb5-creds", 12, 14));
@@ -135,9 +139,54 @@ TEST(UserCredentialFactory, JustKrk5) {
   JailIdentifier id = JailIdentifier::Make(5, 3);
   UserCredentialFactory factory(config);
 
+  LogbookScope empty;
   SearchOrder searchOrder;
-  factory.addFromEnv(id, env, 19, 15, searchOrder);
+  ASSERT_TRUE(factory.parseSingle(empty, "defaults", id, env, 19, 15, searchOrder));
 
   ASSERT_EQ(searchOrder.size(), 1u);
   ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrk5("KEYRING:my-keyring", 19, 15));
+}
+
+TEST(UserCredentialFactory, ParseSingleKrb5) {
+  CredentialConfig config;
+  config.use_user_krb5cc = true;
+
+  JailIdentifier id = JailIdentifier::Make(2, 3);
+  UserCredentialFactory factory(config);
+
+  Environment env;
+  LogbookScope empty;
+  SearchOrder searchOrder;
+
+  ASSERT_TRUE(factory.parseSingle(empty, "krb:FILE:/some-file", id, env, 100, 101, searchOrder));
+  ASSERT_EQ(searchOrder.size(), 1u);
+  ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrb5(id, "/some-file", 100, 101));
+
+  searchOrder.clear();
+  ASSERT_TRUE(factory.parseSingle(empty, "krb:/some-file-2", id, env, 100, 101, searchOrder));
+  ASSERT_EQ(searchOrder.size(), 1u);
+  ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrb5(id, "/some-file-2", 100, 101));
+
+  config.use_user_krb5cc = false;
+  factory = UserCredentialFactory(config);
+
+  searchOrder.clear();
+  ASSERT_TRUE(factory.parseSingle(empty, "krb:FILE:/some-file", id, env, 100, 101, searchOrder));
+  ASSERT_EQ(searchOrder.size(), 0u);
+}
+
+TEST(UserCredentialFactory, ParseSingleKrk5) {
+  CredentialConfig config;
+  config.use_user_krb5cc = true;
+
+  JailIdentifier id = JailIdentifier::Make(2, 3);
+  UserCredentialFactory factory(config);
+
+  Environment env;
+  LogbookScope empty;
+  SearchOrder searchOrder;
+  ASSERT_TRUE(factory.parseSingle(empty, "krb:KEYRING:my-keyring", id, env, 100, 100, searchOrder));
+
+  ASSERT_EQ(searchOrder.size(), 1u);
+  ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrk5("KEYRING:my-keyring", 100, 100));
 }
