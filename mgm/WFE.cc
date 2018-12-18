@@ -2009,21 +2009,22 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string &event, const std::st
 
 bool
 WFE::Job::GetFileArchivedGCEnabled(const std::string &space) {
+  const bool defaultValue = true; // The default value of filearchivedgc is 'on'
   std::string valueStr;
 
   try {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     const auto spaceItor = FsView::gFsView.mSpaceView.find(space);
-    if (FsView::gFsView.mSpaceView.end() == spaceItor) return false;
-    if (nullptr == spaceItor->second) return false;
+    if (FsView::gFsView.mSpaceView.end() == spaceItor) return defaultValue;
+    if (nullptr == spaceItor->second) return defaultValue;
     const auto &space = *(spaceItor->second);
     valueStr = space.GetConfigMember("filearchivedgc");
   } catch(...) {
-    return false;
+    return defaultValue;
   }
 
   if (valueStr.empty()) {
-    return false;
+    return defaultValue;
   } else {
     return valueStr == "on";
   }
