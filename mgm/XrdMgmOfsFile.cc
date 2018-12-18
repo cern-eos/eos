@@ -1909,14 +1909,11 @@ XrdMgmOfsFile::open(const char* inpath,
     capability += "&mgm.zerosize=1";
   }
 
-  // Create file using logical path
+  // Store logical path for main replica
   if (isCreation && filesystem->GetString("logicalpath") == "1") {
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-    eos::IFileMD::ctime_t ctime;
-    char buff[64];
 
     try {
-      fmd->getCTime(ctime);
       eos::FsFilePath::StorePhysicalPath(filesystem->GetId(), fmd, path);
       gOFS->eosView->updateFileStore(fmd.get());
     } catch (eos::MDException& e) {
@@ -1926,20 +1923,11 @@ XrdMgmOfsFile::open(const char* inpath,
                 e.getErrno(), e.getMessage().str().c_str());
       return Emsg(epname, error, errno, "open file", errmsg.c_str());
     }
-
-    sprintf(buff, "%ld", ctime.tv_sec);
-    capability += "&mgm.ctime=";
-    capability += buff;
   }
 
-  // Retrieve logical path if present
-  bool hasLogicalPath = eos::FsFilePath::HasLogicalPath(filesystem->GetId(), fmd);
-  if (hasLogicalPath) {
-    XrdOucString lpath;
-    eos::FsFilePath::GetPhysicalPath(filesystem->GetId(), fmd, lpath);
-    capability += "&mgm.lpath=";
-    capability += lpath.c_str();
-  }
+  // Check for logical path setting
+  bool uselPath = eos::FsFilePath::HasLogicalPath(filesystem->GetId(), fmd);
+  eos::common::FileSystem::fsid_t lPathFs = (uselPath) ? filesystem->GetId() : 0;
 
   // Add the store flag for RAIN reconstruct jobs
   if (isPioReconstruct) {
@@ -2237,6 +2225,24 @@ XrdMgmOfsFile::open(const char* inpath,
         }
       }
 
+      // If needed, associate logical path with replica filesystem
+      if (isCreation && repfilesystem->GetString("logicalpath") == "1") {
+        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+
+        try {
+          eos::FsFilePath::StorePhysicalPath(repfilesystem->GetId(), fmd, path);
+          gOFS->eosView->updateFileStore(fmd.get());
+          lPathFs = repfilesystem->GetId();
+          uselPath = true;
+        } catch (eos::MDException &e) {
+          errno = e.getErrno();
+          std::string errmsg = e.getMessage().str();
+          eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                    e.getErrno(), e.getMessage().str().c_str());
+          return Emsg(epname, error, errno, "open file", errmsg.c_str());
+        }
+      }
+
       capability += "&mgm.url";
       capability += (int) i;
       capability += "=root://";
@@ -2319,6 +2325,36 @@ XrdMgmOfsFile::open(const char* inpath,
       infolog += ",";
       infolog += (int) repfilesystem->GetId();
       infolog += ") ";
+    }
+  }
+
+  // Add logical path information after processing all replicas
+  if (uselPath) {
+    XrdOucString lpath = "";
+    eos::FsFilePath::GetPhysicalPath(lPathFs, fmd, lpath);
+
+    capability += "&mgm.lpath=";
+    capability += lpath.c_str();
+
+    // Retrieve creation time
+    if (isCreation) {
+      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+      eos::IFileMD::ctime_t ctime;
+      char buff[64];
+
+      try {
+        fmd->getCTime(ctime);
+      } catch (eos::MDException &e) {
+        errno = e.getErrno();
+        std::string errmsg = e.getMessage().str();
+        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                  e.getErrno(), e.getMessage().str().c_str());
+        return Emsg(epname, error, errno, "open file", errmsg.c_str());
+      }
+
+      sprintf(buff, "%ld", ctime.tv_sec);
+      capability += "&mgm.ctime=";
+      capability += buff;
     }
   }
 
@@ -2553,7 +2589,7 @@ XrdMgmOfsFile::close()
  * @return SFS_OK
  *
  * The close on the MGM is called only for files opened using the 'proc' e.g.
- * EOS shell comamnds. By construction failures can happen only during the open
+ * EOS shell commands. By construction failures can happen only during the open
  * of a 'proc' file e.g. the close always succeeds!
  */
 /*----------------------------------------------------------------------------*/

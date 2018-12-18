@@ -2992,8 +2992,16 @@ XrdFstOfsFile::ProcessMixedOpaque()
 
   mFsId = atoi(sfsid);
 
-  // Generate fst path
+  // Check for logical path
+  bool uselPath = false;
   if (mCapOpaque->Get("mgm.lpath")) {
+    eos::common::RWMutexReadLock lock(gOFS.Storage->mFsMutex);
+    uselPath =
+        gOFS.Storage->mFileSystemsMap[mFsId]->GetString("logicalpath") == "1";
+  }
+
+  // Generate fst path
+  if (uselPath) {
     mFstPath = eos::common::StringConversion::BuildPhysicalPath(
                             mLocalPrefix.c_str(), mCapOpaque->Get("mgm.lpath"));
   } else {
