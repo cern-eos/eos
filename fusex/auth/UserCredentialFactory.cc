@@ -172,10 +172,14 @@ bool UserCredentialFactory::parseSingle(LogbookScope &scope,
     return true;
   }
 
-
   //----------------------------------------------------------------------------
-  // KRB?
+  // X509?
   //----------------------------------------------------------------------------
+  const std::string x509Prefix = "x509:";
+  if(startswith(str, x509Prefix)) {
+    addx509(id, str.substr(x509Prefix.size()), uid, gid, out);
+    return true;
+  }
 
   //----------------------------------------------------------------------------
   // Cannot parse given string

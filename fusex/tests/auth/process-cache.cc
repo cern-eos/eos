@@ -190,3 +190,19 @@ TEST(UserCredentialFactory, ParseSingleKrk5) {
   ASSERT_EQ(searchOrder.size(), 1u);
   ASSERT_EQ(searchOrder[0], UserCredentials::MakeKrk5("KEYRING:my-keyring", 100, 100));
 }
+
+TEST(UserCredentialFactory, ParseSingleX509) {
+  CredentialConfig config;
+  config.use_user_gsiproxy = true;
+
+  JailIdentifier id = JailIdentifier::Make(2, 3);
+  UserCredentialFactory factory(config);
+
+  Environment env;
+  LogbookScope empty;
+  SearchOrder searchOrder;
+  ASSERT_TRUE(factory.parseSingle(empty, "x509:/tmp/my-gsi-creds", id, env, 200, 201, searchOrder));
+
+  ASSERT_EQ(searchOrder.size(), 1u);
+  ASSERT_EQ(searchOrder[0], UserCredentials::MakeX509(id, "/tmp/my-gsi-creds", 200, 201));
+}
