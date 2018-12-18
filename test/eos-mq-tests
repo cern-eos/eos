@@ -12,6 +12,8 @@ echo "Running MQ feeder-dumper test"
 eos-mq-dumper root://${MQ_HOST}:1097//eos/test_fd 10 1000 20&
 PID_DUMPER=$!
 
+sleep 1
+
 # Start feeder process
 eos-mq-feeder root://${MQ_HOST}:1097//eos/test_fd 10 500
 
