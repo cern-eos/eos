@@ -1382,7 +1382,7 @@ const char* eos_roles_opaque()
   if (user_role.length() && group_role.length()) {
     XrdOucString roles = "eos.ruid=";
     roles += user_role;
-    roles += "&eos.guid=";
+    roles += "&eos.rgid=";
     roles += group_role;
 
     return strdup(roles.c_str());
