@@ -28,5 +28,3 @@ To configure only HTTP remove the **http.cert** **http.key** and **http.cafile**
 Clients are mapped to 'nobody' if https mapping is not enabled (``vid enable https``), the client cannot get mapped according to the grid certificate (using the gridmapfile ``/etc/grid-security/grid-mapfile`` or the **remote-user** header is not present (http). When the **remote-user** header is used in combination with http, the client machine has to be added as a gateway for https. (``vid add gateway [::ffff:188.184.116.37] https``). The mapping is NOT done by the XrdHttp plug-in.
 
 XrdHttp is currently supported only on the MGM and runs in parallel to the default libmicrohttpd implementation.
-
-To understand the name of the gateway, the easiest is to run a command against the MGM and copy paste the name ``[:: ... ]`` from the log output. The vid mapping has to use the unified string representation for IPV4/IPV6 addresses used by XRootD.
