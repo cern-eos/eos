@@ -58,17 +58,6 @@ target_sources(EosMgmProto-Objects PUBLIC
   ${FUSEX_SRCS} ${FUSEX_HDRS})
 
 #-------------------------------------------------------------------------------
-# EosMgmHttp library
-#-------------------------------------------------------------------------------
-
-add_library(
-  EosMgmHttp-Objects OBJECT
-  http/xrdhttp/EosMgmHttpHandler.hh
-  http/xrdhttp/EosMgmHttpHandler.cc
-)
-
-
-#-------------------------------------------------------------------------------
 # XrdEosMgm-Objects library
 #-------------------------------------------------------------------------------
 add_library(
@@ -231,26 +220,10 @@ set_target_properties(
   PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-set_target_properties(
-  EosMgmHttp-Objects
-  PROPERTIES
-  POSITION_INDEPENDENT_CODE TRUE)
-
 add_library(XrdEosMgm MODULE
   $<TARGET_OBJECTS:EosAuthProto-Objects>
   $<TARGET_OBJECTS:XrdEosMgm-Objects>
   $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>)
-
-add_library(EosMgmHttp MODULE
-  $<TARGET_OBJECTS:EosMgmHttp-Objects>
-)
-
-target_link_libraries(
-  EosMgmHttp PUBLIC
-  XrdHttpUtils
-  eosCommon
-  eosCommonServer
-)
 
 target_compile_definitions(
   XrdEosMgm PUBLIC
@@ -288,12 +261,6 @@ target_link_libraries(
 
 install(
   TARGETS XrdEosMgm
-  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
-
-install(
-  TARGETS EosMgmHttp
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

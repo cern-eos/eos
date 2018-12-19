@@ -315,6 +315,7 @@ HttpServer::HttpRedirect(const std::string& url,
                          int port,
                          bool cookie)
 {
+  eos_static_info("info=redirecting");
   HttpResponse* response = new PlainHttpResponse();
   response->SetResponseCode(HttpResponse::ResponseCodes::TEMPORARY_REDIRECT);
   std::string host = hostCGI;
@@ -330,14 +331,12 @@ HttpServer::HttpRedirect(const std::string& url,
   eos_static_debug("host=%s", host.c_str());
   eos_static_debug("cgi=%s", cgi.c_str());
   std::string redirect;
-  std::string location;
   redirect = "http://";
   redirect += host;
   char sport[16];
   snprintf(sport, sizeof(sport) - 1, ":%d", port);
   redirect += sport;
   redirect += url;
-  location = redirect;
   EncodeURI(cgi); // encode '+' '/' '='
 
   if (cookie) {
@@ -358,7 +357,6 @@ HttpServer::HttpRedirect(const std::string& url,
   redirect = "/internal_redirect/" + redirect.substr(7);
   response->AddHeader("X-Accel-Redirect", redirect);
   response->AddHeader("X-Sendfile", redirect);
-  eos_static_info("info=redirecting location=%s", location.c_str());
   return response;
 }
 

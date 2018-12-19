@@ -59,11 +59,9 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
   eos::common::HttpResponse* response = 0;
   request->AddEosApp();
 
-  if (EOS_LOGS_DEBUG) {
-    for (auto it = request->GetHeaders().begin(); it != request->GetHeaders().end();
-	 ++it) {
-      eos_static_debug("header:%s => %s", it->first.c_str(), it->second.c_str());
-    }
+  for (auto it = request->GetHeaders().begin(); it != request->GetHeaders().end();
+       ++it) {
+    eos_static_info("header:%s => %s", it->first.c_str(), it->second.c_str());
   }
 
   int meth = ParseMethodString(request->GetMethod());
