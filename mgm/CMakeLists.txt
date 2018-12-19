@@ -67,8 +67,6 @@ add_library(
   http/xrdhttp/EosMgmHttpHandler.cc
 )
 
-add_dependencies(EosMgmHttp-Objects EosAuthProto-Objects)
-
 
 #-------------------------------------------------------------------------------
 # XrdEosMgm-Objects library
@@ -246,7 +244,6 @@ add_library(XrdEosMgm MODULE
 add_library(EosMgmHttp MODULE
   $<TARGET_OBJECTS:EosMgmHttp-Objects>
 )
-
 
 target_link_libraries(
   EosMgmHttp PUBLIC
