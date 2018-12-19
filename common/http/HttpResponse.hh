@@ -88,9 +88,9 @@ public:
 
 public:
   typedef std::map<std::string, std::string> HeaderMap;
+  HeaderMap    mResponseHeaders;       //!< the response headers to be filled
 
 protected:
-  HeaderMap    mResponseHeaders;       //!< the response headers to be filled
   std::string  mResponseBody;          //!< the response body to be created
   int          mResponseCode;          //!< the response code to be determined
 
@@ -195,6 +195,13 @@ public:
    */
   std::string
   ToString ();
+
+  /** 
+   * @return response code string
+   */
+  std::string
+  GetResponseCodeDescription(); 
+
 
 };
 

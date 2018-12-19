@@ -32,6 +32,7 @@
 
 #include "mgm/Namespace.hh"
 #include "common/http/HttpServer.hh"
+#include "common/http/ProtocolHandler.hh"
 #include "common/Mapping.hh"
 #include <map>
 #include <string>
@@ -68,6 +69,25 @@ public:
           size_t*                upload_data_size,
           void**                 ptr);
 
+  
+
+  /**
+   * HTTP object handler function on MGM called by XrdHttp 
+   *
+   * @return see implementation
+   */
+
+  virtual std::unique_ptr<eos::common::ProtocolHandler>
+  XrdHttpHandler(std::string& method, 
+		 std::string& uri,
+		 std::map<std::string,std::string>& headers, 
+		 std::string& query, 
+		 std::map<std::string,std::string>& cookies, 
+		 std::string& body,
+		 const XrdSecEntity& client
+		 );
+
+		 
   /**
    * HTTP complete handler function on MGM
    *

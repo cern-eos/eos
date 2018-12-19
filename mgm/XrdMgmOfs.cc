@@ -197,6 +197,8 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
     mFusexPort = strtol(getenv("EOS_MGM_FUSEX_PORT"), 0, 10);
   }
 
+  setenv("EOSMGMOFS", std::to_string((unsigned long long)this).c_str(),1);
+
   eos::common::LogId::SetSingleShotLogId();
   mZmqContext = new zmq::context_t(1);
   IoStats.reset(new eos::mgm::Iostat());

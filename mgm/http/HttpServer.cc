@@ -25,8 +25,11 @@
 #include "mgm/http/ProtocolHandlerFactory.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Stat.hh"
+#include "mgm/Macros.hh"
+#include "common/SecEntity.hh"
 #include "common/StringTokenizer.hh"
 #include "XrdNet/XrdNetAddr.hh"
+
 #include <netdb.h>
 
 EOSMGMNAMESPACE_BEGIN
@@ -49,10 +52,7 @@ HttpServer::Handler(void* cls,
   std::map<std::string, std::string> headers;
 
   // Wait for the namespace to boot
-  while (gOFS->mInitialized != gOFS->kBooted) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    XrdSysThread::CancelPoint();
-  }
+  WAIT_BOOT;
 
   // If this is the first call, create an appropriate protocol handler based
   // on the headers and store it in *ptr. We should only return MHD_YES here
@@ -193,6 +193,7 @@ HttpServer::Handler(void* cls,
 
 #endif
 
+
 /*----------------------------------------------------------------------------*/
 void
 HttpServer::CompleteHandler(void*                              cls,
@@ -224,6 +225,63 @@ HttpServer::CompleteHandler(void*                              cls,
 
   eos_static_info("msg=\"http connection disconnect\" reason=\"Request %s\" ",
                   scode.c_str());
+}
+
+
+//------------------------------------------------------------------------------
+
+std::unique_ptr<eos::common::ProtocolHandler>
+HttpServer::XrdHttpHandler(std::string& method,
+			   std::string& uri,
+			   std::map<std::string,std::string>& headers,
+			   std::string& query,
+			   std::map<std::string,std::string>& cookies,
+			   std::string& body, 
+			   const XrdSecEntity& client)
+{
+  WAIT_BOOT;
+
+
+  headers["client-real-ip"] = "NOIPLOOKUP";
+  headers["client-real-host"] = client.host;
+  if (client.moninfo && strlen(client.moninfo)) {
+    headers["ssl_client_s_dn"] = client.moninfo;
+    headers["x-real-ip"] = client.host;
+  }
+
+  eos::common::Mapping::VirtualIdentity* vid = Authenticate(headers);
+  eos_static_info("request=%s client-real-ip=%s client-real-host=%s vid.uid=%s vid.gid=%s vid.host=%s vid.dn=%s vid.tident=%s\n",
+		  method.c_str(), headers["client-real-ip"].c_str(), headers["client-real-host"].c_str(),
+		  vid->uid_string.c_str(), vid->gid_string.c_str(), vid->host.c_str(),
+		  vid->dn.c_str(),vid->tident.c_str());
+
+  ProtocolHandlerFactory factory = ProtocolHandlerFactory();
+  std::unique_ptr<eos::common::ProtocolHandler> handler ( factory.CreateProtocolHandler(method, headers, vid) );
+
+  if (!handler) {
+    eos_static_err("msg=\"no matching protocol for request method %s\"",
+		   method);
+    return 0;
+  }
+  
+  size_t bodySize = body.length();
+  
+  // Retrieve the protocol handler stored in *ptr
+  std::unique_ptr<eos::common::HttpRequest> request ( new eos::common::HttpRequest(
+										   headers, method, uri,
+										   query.c_str() ? query : "",
+										   body, &bodySize, cookies) );
+  if (EOS_LOGS_DEBUG) {
+    eos_static_debug("\n\n%s\n%s\n", request->ToString().c_str(),
+		     request->GetBody().c_str());
+  }
+
+  handler->HandleRequest(request.get());
+  
+  if (EOS_LOGS_DEBUG) {
+    eos_static_debug("method=%s uri='%s' %s (warning this is not the mapped identity)",method.c_str(), uri.c_str(), eos::common::SecEntity::ToString(&client,"xrdhttp").c_str());
+  }
+  return handler;
 }
 
 //------------------------------------------------------------------------------

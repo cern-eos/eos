@@ -141,6 +141,7 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest* request)
   XrdOucErrInfo error;
   struct stat statInfo;
   std::string etag;
+
   memset(&statInfo, 0, sizeof(struct stat));
   // TODO: the status should be chcked ?!
   (void) gOFS->_stat(request->GetUrl().c_str(), &statInfo, error,
