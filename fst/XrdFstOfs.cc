@@ -1281,6 +1281,40 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
   }
 
   eos_info("fstpath=%s", fstPath.c_str());
+
+  // Gather extra opaque info for IO object construction
+  std::string sFstPath = fstPath.c_str();
+  std::string s3credentials =
+      gOFS.Storage->GetFileSystemById(fsid)->GetString("s3credentials");
+
+  if (!s3credentials.empty()) {
+    sFstPath += "?s3credentials=" + s3credentials;
+  }
+
+  // Construct IO object
+  std::unique_ptr<FileIo> io(eos::fst::FileIoPlugin::GetIoObject(
+      sFstPath.c_str()));
+
+  if (!io) {
+    return gOFS.Emsg(epname, error, EINVAL, "open - no IO plug-in available",
+                     sFstPath.c_str());
+  }
+
+  // Prevent a scheduled delete from erasing a newer file with the same lpath
+  if (logicalpath) {
+    io->attrGet("user.eos.ctime", stime);
+    long ioctime = atol(stime.c_str());
+
+    // File is newer and should not be deleted
+    if (ioctime > delctime) {
+      eos_info("fstpath=%s -- won't delete newer version", fstPath.c_str());
+      return SFS_OK;
+    } else if (ioctime == 0) {
+      eos_notice("could not retrieve creation time for file %s fstpath=%s "
+                 "fsid=%lu fid=%llu", path, fstPath.c_str(), fsid, fid);
+    }
+  }
+
   int rc = 0;
   errno = 0; // If file not found this will be ENOENT
   struct stat sbd;
@@ -1293,42 +1327,7 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
     // get the size before deletion
     XrdOfs::stat(fstPath.c_str(), &sbd, error, client, 0);
     rc = XrdOfs::rem(fstPath.c_str(), error, client, 0);
-
-    if (rc) {
-      eos_info("rc=%i, errno=%i", rc, errno);
-    }
   } else {
-    // Check for additional opaque info to create remote IO object
-    std::string sFstPath = fstPath.c_str();
-    std::string s3credentials =
-      gOFS.Storage->GetFileSystemById(fsid)->GetString("s3credentials");
-
-    if (!s3credentials.empty()) {
-      sFstPath += "?s3credentials=" + s3credentials;
-    }
-
-    std::unique_ptr<FileIo> io(eos::fst::FileIoPlugin::GetIoObject(
-                                 sFstPath.c_str()));
-
-    if (!io) {
-      return gOFS.Emsg(epname, error, EINVAL, "open - no IO plug-in avaialble",
-                       sFstPath.c_str());
-    }
-
-    // Prevent a scheduled delete from erasing a newer file with the same lpath
-    if (logicalpath) {
-      io->attrGet("user.eos.ctime", stime);
-      long ioctime = atol(stime.c_str());
-
-      // File is newer and should not be deleted
-      if (ioctime > delctime) {
-        return SFS_OK;
-      } else if (ioctime == 0) {
-        eos_notice("could not retrieve creation time for file %s fstpath=%s "
-                    "fsid=%lu id=%llu", path, fstPath.c_str(), fsid, fid);
-      }
-    }
-
     // Get the size before deletion
     io->fileStat(&sbd);
     rc = io->fileRemove();
@@ -1339,6 +1338,8 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
   (void) gOFS.Storage->CloseTransaction(fsid, fid);
 
   if (rc) {
+    eos_info("rc=%i, errno=%i", rc, errno);
+
     if (errno == ENOENT) {
       // Ignore error if a file to be deleted doesn't exist
       if (ignoreifnotexist) {
