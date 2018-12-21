@@ -44,8 +44,6 @@
 XrdSysMutex eos::mgm::WFE::gSchedulerMutex;
 XrdScheduler* eos::mgm::WFE::gScheduler;
 
-eos::common::ThreadPool eos::mgm::WFE::gAsyncCommunicationPool(1, 10, 2, 5, 5);
-
 /*----------------------------------------------------------------------------*/
 extern XrdSysError gMgmOfsEroute;
 extern XrdOucTrace gMgmOfsTrace;
@@ -1904,12 +1902,14 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string &fullPath, std::string 
     gOFS->MgmOfsInstanceName.c_str());
   notification->mutable_file()->set_lpath(fullPath);
   notification->mutable_file()->set_fid(mFid);
-  auto sendRequestAsync = [fullPath, request, &errorMsg](Job jobCopy) {
-    SendProtoWFRequest(&jobCopy, fullPath, request, errorMsg);
-  };
-  auto sendRequestAsyncReduced = std::bind(sendRequestAsync, *this);
-  gAsyncCommunicationPool.PushTask<void>(sendRequestAsyncReduced);
-  return SFS_OK;
+
+  const int sendRc = SendProtoWFRequest(this, fullPath, request, errorMsg);
+  if(SFS_OK != sendRc) {
+    eos_static_err("msg=\"Failed to notify protocol buffer endpoint about the deletion of file %s: %s\" sendRc=%d",
+                   fullPath.c_str(), errorMsg.c_str(), sendRc);
+  }
+
+  return SFS_OK; // Ignore any failure in notifying the protocol buffer endpoint
 }
 
 int

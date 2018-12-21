@@ -381,9 +381,6 @@ public:
 
   /// singleton object of a scheduler
   static XrdScheduler* gScheduler;
-
-  /// pool executing asynchronous communications in workflow
-  static eos::common::ThreadPool gAsyncCommunicationPool;
 };
 
 EOSMGMNAMESPACE_END
