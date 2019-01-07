@@ -184,7 +184,8 @@ build_cc7:
     paths:
     - cc7_artifacts/
   tags:
-    - docker-cc7
+    - docker
+    - cc7
 
 build_cc7_asan:
   stage: build:rpm
