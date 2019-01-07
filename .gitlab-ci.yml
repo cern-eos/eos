@@ -150,7 +150,8 @@ build_slc6:
     paths:
     - slc6_artifacts/
   tags:
-    - docker-slc6
+    - docker
+    - slc6
 
 
 build_cc7:
