@@ -51,6 +51,7 @@ cd grpc
 export CPPFLAGS="-Wno-error=class-memaccess"
 %endif
 %if 0%{?rhel} == 6
+configure --prefix /usr
 make -j 4 
 %else
 %make_build
