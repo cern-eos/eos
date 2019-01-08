@@ -103,6 +103,10 @@ before_script:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
     paths:
     - ccache/
+  artifacts:
+    expire_in: 1 day
+    paths:
+    - ${EOS_ARCH}/
   allow_failure: true
 
 
@@ -222,13 +226,14 @@ build_cc7_asan:
 #    - asan
 
 
-build_fedora28:
-  image: fedora:28
+build_fedora_stable:
+  image: fedora:29
   <<: *fedora_template_definition
   variables:
-    EOS_ARCH: fc-28
+    EOS_ARCH: fc-29
   tags:
-    - docker-fc28
+    - docker
+    - fedora_stable
 
 
 build_fedora_rawhide:
@@ -236,10 +241,6 @@ build_fedora_rawhide:
   <<: *fedora_template_definition
   variables:
     EOS_ARCH: fc-rawhide
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - fc-rawhide_artifacts/
   tags:
     - docker-fc_rawhide
 
@@ -249,10 +250,6 @@ build_ubuntu_artful:
   <<: *ubuntu_template_definition
   variables:
     EOS_ARCH: artful
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - artful/
   tags:
     - docker
     - ubuntu
@@ -263,10 +260,6 @@ build_ubuntu_bionic:
   <<: *ubuntu_template_definition
   variables:
     EOS_ARCH: bionic
-  artifacts:
-    expire_in: 1 day
-    paths:
-    - bionic/
   tags:
     - docker
     - ubuntu
@@ -427,7 +420,7 @@ namespace_unit_test:
   dependencies:
     - build_cc7_asan
   tags:
-    - docker
+   - docker
 
 
 system_test:
@@ -445,7 +438,6 @@ ubuntu_system_test:
   stage: test
   <<: *ubuntu_system_test_template_definition
   tags:
-    - ubuntu
     - shell-with-docker
   allow_failure: true
   dependencies:
@@ -511,7 +503,7 @@ publish_koji_slc6:
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
     - koji build eos6 slc6_artifacts/SRPMS/*.src.rpm
   tags:
-    - docker-slc6
+    - docker
   dependencies:
     - build_slc6
   only:
