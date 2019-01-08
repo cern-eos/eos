@@ -47,7 +47,7 @@ git submodule update --init --recursive
 %build
 cd grpc
 %if %{?fedora}%{!?fedora:0} >= 19
-export CPPFLAGS="-Wno-error=class-memaccess,tautological-compare"
+export CPPFLAGS="-Wno-error=class-memaccess -Wno-error=tautological-compare"
 %endif
 %if 0%{?rhel} == 6
 make -j 4 
