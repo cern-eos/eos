@@ -1,6 +1,6 @@
 Summary: gRPC, A high performance, open-source universal RPC framework
 Name: grpc
-Version: 1.13.1
+Version: 1.17.2
 Release: 1%{?dist}
 License: BSD
 URL: http://www.grpc.io/
@@ -42,16 +42,14 @@ Static libraries for gRPC.
 rm -rf grpc
 git clone https://github.com/grpc/grpc
 cd grpc
+git checkout -b v%{version}
 git submodule update --init --recursive
-git checkout v%{version}
-git checkout -b v1.13.1
 %build
 cd grpc
 %if %{?fedora}%{!?fedora:0} >= 19
 export CPPFLAGS="-Wno-error=class-memaccess"
 %endif
 %if 0%{?rhel} == 6
-configure --prefix /usr
 make -j 4 
 %else
 %make_build
