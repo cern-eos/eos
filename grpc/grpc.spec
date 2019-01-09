@@ -1,3 +1,8 @@
+%if 0%{?rhel} == 7
+  # CentOS 7 would force ".el7.centos" or ".el7.cern", we want to avoid that.
+  %define dist .el7
+%endif
+
 Summary: gRPC, A high performance, open-source universal RPC framework
 Name: grpc
 Version: 1.15.0
