@@ -2009,7 +2009,7 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string &event, const std::st
 
 bool
 WFE::Job::GetFileArchivedGCEnabled(const std::string &space) {
-  const bool defaultValue = true; // The default value of filearchivedgc is 'on'
+  const bool defaultValue = false; // The default value of filearchivedgc is 'false'
   std::string valueStr;
 
   try {
