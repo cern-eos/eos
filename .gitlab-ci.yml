@@ -450,7 +450,7 @@ system_test_with_quarkdb:
   stage: test
   <<: *system_test_template_definition
   tags:
-    - xrootd-shell
+    - shell-with-docker
   allow_failure: true
   dependencies:
     - clone_docker
