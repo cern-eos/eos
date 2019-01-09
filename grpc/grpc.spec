@@ -65,8 +65,8 @@ export CPPFLAGS="-Wno-error=class-memaccess -Wno-error=tautological-compare -Wno
 export HAS_SYSTEM_PROTOBUF=false
 %endif
 %if 0%{?rhel} == 6
-# Fix SLC6 build which fails due to "m4" directory not existing
-mkdir third_party/protobuf/m4 || true
+# Fix for SLC6 compilation and autotools
+mkdir third_party/protobuf/third_party/googletest/m4
 make -j 4 
 %else
 %make_build
