@@ -1,5 +1,14 @@
 %if 0%{?rhel} == 7
-  # CentOS 7 would force ".el7.centos" or ".el7.cern", we want to avoid that.
+  # CentOS 7 can use ".el7.centos" or ".el7.cern", we want to avoid that.
+  # NOTE: if the ".cern/centos" part is kept then the compilation with fail
+  # due to the way makefile foreach function is used in the grpc project.
+  # The single command line that is executed during include-header_cxx will
+  # be to long and you will get the following error:
+  #
+  # [INSTALL] Installing public C++ headers
+  # make: execvp: /bin/sh: Argument list too long
+  # make: *** [install-headers_cxx] Error 127
+  # Makefile:3005: recipe for target 'install-headers_cxx' failed
   %define dist .el7
 %endif
 
@@ -56,6 +65,8 @@ export CPPFLAGS="-Wno-error=class-memaccess -Wno-error=tautological-compare -Wno
 export HAS_SYSTEM_PROTOBUF=false
 %endif
 %if 0%{?rhel} == 6
+# Fix SLC6 build which fails due to "m4" directory not existing
+mkdir third_party/protobuf/m4 || true
 make -j 4 
 %else
 %make_build
