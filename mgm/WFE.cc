@@ -1915,11 +1915,32 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string &fullPath, std::string 
 int
 WFE::Job::HandleProtoMethodCloseEvent(const std::string &event, const std::string &fullPath)
 {
-  eos_static_err("Received a %s event for file %s and the method is proto."
-                 " The MGM does not handle closew or sync::closew events when the method is proto."
-                 " Ignoring request", event.c_str(), fullPath.c_str());
-  MoveWithResults(SFS_ERROR);
-  return SFS_ERROR;
+  if (mActions[0].mWorkflow == RETRIEVE_WRITTEN_WORKFLOW_NAME) resetRetreiveCounterAndErrorMsg(fullPath);
+
+  MoveWithResults(SFS_OK);
+  return SFS_OK;
+}
+
+void
+WFE::Job::resetRetreiveCounterAndErrorMsg(const std::string &fullPath) {
+  std::string errorMsg;
+
+  try {
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+    auto fmd = gOFS->eosFileService->getFileMD(mFid);
+    fmd->setAttribute(RETRIEVES_ATTR_NAME, "0");
+    fmd->setAttribute(RETRIEVES_ERROR_ATTR_NAME, "");
+    gOFS->eosView->updateFileStore(fmd.get());
+
+    return;
+  } catch (std::exception &se) {
+    errorMsg = se.what();
+  } catch (...) {
+    errorMsg = "Caught an unknown exception";
+  }
+
+  // Reaching this point means an exception was thrown and caught
+  eos_static_err("Could not reset retrieves counter and error attribute for file %s: %s", fullPath.c_str(), errorMsg.c_str());
 }
 
 int

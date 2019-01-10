@@ -234,6 +234,11 @@ public:
     //! @param fullPath the full path of the file
     int HandleProtoMethodArchiveFailedEvent(const std::string &fullPath);
 
+    //! @brief Resets the extended attribute sys.retrieves to 0 and the extended
+    //! attribute sys.retrieve.error to an empty string
+    //! @param fullPath the full path of the file
+    void resetRetreiveCounterAndErrorMsg(const std::string &fullPath);
+
     //! @brief This method is used for communicating proto event requests
     //! @param jobPtr pointer to the job of the event
     //! @param fullPath path of the file which trigered the event
