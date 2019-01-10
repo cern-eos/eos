@@ -355,7 +355,7 @@ ProcCommand::open(const char* inpath, const char* info,
       mDoSort = false;
     } else {
       // Command not implemented
-      stdErr += "errro: no such user command '";
+      stdErr += "error: no such user command '";
       stdErr += mCmd;
       stdErr += "'";
       retc = ENOTSUP;
@@ -549,7 +549,8 @@ ProcCommand::MakeResult()
           line = sline.c_str();
           std::map <std::string , std::string> map;
           eos::common::StringConversion::GetKeyValueMap(line.c_str(), map, "=", " ");
-          // these values violate the JSON hierarchy and have to be rewritten
+
+          // These values violate the JSON hierarchy and have to be rewritten
           eos::common::StringConversion::ReplaceMapKey(map, "cfg.balancer",
               "cfg.balancer.status");
           eos::common::StringConversion::ReplaceMapKey(map, "cfg.geotagbalancer",
@@ -598,6 +599,15 @@ ProcCommand::MakeResult()
             for (int i = 1; i < (int)token.size(); i++) {
               jep = &((*jep)[token[i]]);
             }
+
+            // Unquote value
+            std::stringstream quoted_ss(value);
+            quoted_ss >> std::quoted(value);
+
+            // Seal value
+            XrdOucString svalue = value.c_str();
+            XrdMqMessage::Seal(svalue);
+            value = svalue.c_str();
 
             if (errno || (!val && (conv  == it->second.c_str())) ||
                 ((conv - it->second.c_str()) != (long long)it->second.length())) {

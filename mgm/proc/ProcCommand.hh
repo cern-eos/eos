@@ -23,6 +23,7 @@
 #pragma once
 #include "mgm/Namespace.hh"
 #include "IProcCommand.hh"
+#include <iomanip>
 #include <json/json.h>
 
 EOSMGMNAMESPACE_BEGIN
