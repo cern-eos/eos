@@ -168,17 +168,18 @@ QuarkDBConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
 bool
 QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
 {
+  using namespace std::chrono;
+  auto start = steady_clock::now();
   const char* name = env.Get("mgm.config.file");
   bool force = (bool)env.Get("mgm.config.force");
   const char* comment = env.Get("mgm.config.comment");
-  eos_notice("saving config name=%s comment=%s force=%d", name, comment, force);
 
   if (!name) {
     if (mConfigFile.length()) {
       name = mConfigFile.c_str();
       force = true;
     } else {
-      err = "error: you have to specify a configuration  name";
+      err = "error: you have to specify a configuration name";
       return false;
     }
   }
@@ -228,6 +229,10 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
 
   mChangelog->AddEntry("saved config", name, changeLogValue.str());
   mConfigFile = name;
+  auto end = steady_clock::now();
+  auto duration = end - start;
+  eos_notice("msg=\"saved config\" name=\"%s\" comment=\"%s\" force=%d duration=\"%llu ms\"",
+             name, comment, force, duration_cast<milliseconds>(duration).count());
   return true;
 }
 
