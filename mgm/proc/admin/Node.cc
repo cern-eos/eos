@@ -167,13 +167,28 @@ ProcCommand::Node()
           tident.erase(0, addpos + 1);
         }
       }
+      // If EOS_SKIP_SSS_HOSTNAME_MATCH env variable is set then we skip
+      // the check below as this currently breaks the Kubernetes setup.
+      bool skip_hostname_match = false;
+
+      if (getenv("EOS_SKIP_SSS_HOSTNAME_MATCH")) {
+        skip_hostname_match = true;
+      }
+
       eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
 
-      if ((pVid->uid != 0) && ((pVid->prot != "sss") ||
-                               tident.compare(0, tident.length(), rnodename, 0, tident.length()))) {
+      if ((pVid->prot == "sss") && (pVid->uid == 0)) {
+        if (!skip_hostname_match &&
+            tident.compare(0, tident.length(), rnodename, 0, tident.length())) {
+          stdErr += "error: nodes can only be configured as 'root' or from the node itself them using sss protocol\n";
+          retc = EPERM;
+        }
+      } else {
         stdErr += "error: nodes can only be configured as 'root' or from the node itself them using sss protocol\n";
         retc = EPERM;
-      } else {
+      }
+
+      if (retc == SFS_OK) {
         if (!FsView::gFsView.mNodeView.count(nodename)) {
           stdOut = "info: creating node '";
           stdOut += nodename.c_str();
