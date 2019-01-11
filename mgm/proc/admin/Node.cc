@@ -177,14 +177,18 @@ ProcCommand::Node()
 
       eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
 
-      if ((pVid->prot == "sss") && (pVid->uid == 0)) {
-        if (!skip_hostname_match &&
-            tident.compare(0, tident.length(), rnodename, 0, tident.length())) {
-          stdErr += "error: nodes can only be configured as 'root' or from the node itself them using sss protocol\n";
-          retc = EPERM;
+      if ((pVid->uid == 0) || (pVid->prot == "sss")) {
+        if (pVid->prot == "sss") {
+          if (!skip_hostname_match &&
+              tident.compare(0, tident.length(), rnodename, 0, tident.length())) {
+            stdErr += "error: nodes can only be configured as 'root' or by "
+                      "connecting from the node itself using the sss protocol\n";
+            retc = EPERM;
+          }
         }
       } else {
-        stdErr += "error: nodes can only be configured as 'root' or from the node itself them using sss protocol\n";
+        stdErr += "error: nodes can only be configured as 'root' or by "
+                  "connecting from the node itself using the sss protocol\n";
         retc = EPERM;
       }
 
@@ -194,8 +198,8 @@ ProcCommand::Node()
           stdOut += nodename.c_str();
           stdOut += "'";
 
-          //            stdErr="error: no such node '"; stdErr += nodename.c_str(); stdErr += "'";
-          //retc = ENOENT;
+          // stdErr="error: no such node '"; stdErr += nodename.c_str(); stdErr += "'";
+          // retc = ENOENT;
 
           if (!FsView::gFsView.RegisterNode(nodename.c_str())) {
             stdErr = "error: cannot register node <";
