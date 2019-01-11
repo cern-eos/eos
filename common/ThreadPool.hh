@@ -64,9 +64,10 @@ public:
                       unsigned int samplingNumber = 12,
                       unsigned int averageWaitingJobsPerNewThread = 10,
                       const std::string& identifier = "default"):
-    mId(identifier)
+    mThreadsMin(threadsMin),
+    mThreadsMax(threadsMin > threadsMax ? threadsMin : threadsMax),
+    mPoolSize(0ul), mId(identifier)
   {
-    threadsMax = threadsMin > threadsMax ? threadsMin : threadsMax;
     auto threadPoolFunc = [this] {
       std::pair<bool, std::shared_ptr<std::function<void(void)>>> task;
       bool toContinue = true;
@@ -83,17 +84,18 @@ public:
       } while (toContinue);
     };
 
-    for (auto i = 0u; i < std::max(threadsMin, 1u); i++) {
+    for (auto i = 0u; i < std::max(mThreadsMin.load(), 1u); ++i) {
       mThreadPool.emplace_back(
         std::async(std::launch::async, threadPoolFunc)
       );
     }
 
-    mThreadCount += threadsMin;
+    mPoolSize = mThreadPool.size();
+    mThreadCount += mThreadsMin;
 
-    if (threadsMax > threadsMin) {
-      auto maintainerThreadFunc = [this, threadPoolFunc, threadsMin, threadsMax,
-      samplingInterval, samplingNumber, averageWaitingJobsPerNewThread] {
+    if (mThreadsMax > mThreadsMin) {
+      auto maintainerThreadFunc = [this, threadPoolFunc, samplingInterval,
+      samplingNumber, averageWaitingJobsPerNewThread] {
         auto rounds = 0u, sumQueueSize = 0u;
         auto signalFuture = mMaintainerSignal.get_future();
 
@@ -128,7 +130,7 @@ public:
               auto threadsToAdd =
                 std::min((unsigned int) floor(averageQueueSize /
                                               averageWaitingJobsPerNewThread),
-                         threadsMax - mThreadCount);
+                         mThreadsMax - mThreadCount);
 
               for (auto i = 0u; i < threadsToAdd; i++) {
                 mThreadPool.emplace_back(
@@ -139,7 +141,8 @@ public:
               mThreadCount += threadsToAdd;
             } else {
               unsigned int threadsToRemove =
-                mThreadCount - std::max((unsigned int) floor(averageQueueSize), threadsMin);
+                mThreadCount - std::max((unsigned int) floor(averageQueueSize),
+                                        mThreadsMin.load());
 
               // Push in fake tasks for each threads to be stopped so threads can wake up and
               // notice that they should terminate. Termination is signalled with false.
@@ -155,6 +158,8 @@ public:
             sumQueueSize = 0u;
             rounds = 0u;
           }
+
+          mPoolSize = mThreadPool.size();
         }
       };
       mMaintainerThread.reset(new std::thread(maintainerThreadFunc));
@@ -231,8 +236,50 @@ public:
   {
     std::ostringstream oss;
     oss <<  "id=" << mId << ", queue_size=" << mTasks.size()
-        << ",thread_pool_size=" << mThreadPool.size();
+        << ",thread_pool_size=" << mPoolSize;
     return oss.str();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set min number of threads. If the new minimum is greater than the current
+  //! max value then this one is also updated.
+  //!
+  //! @param num new min number of threads
+  //----------------------------------------------------------------------------
+  void SetThreadsMin(unsigned int num)
+  {
+    mThreadsMin = num;
+
+    if (mThreadsMax < num) {
+      mThreadsMax = num;
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set max number of threads. If the new maximum is smaller than the current
+  //! min value then this one is also updated.
+  //!
+  //! @param num new max number of threads > 0
+  //----------------------------------------------------------------------------
+  void SetThreadsMax(unsigned int num)
+  {
+    if (num == 0) {
+      return;
+    }
+
+    mThreadsMax = num;
+
+    if (mThreadsMin > num) {
+      mThreadsMin = num;
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get size of thread pool
+  //----------------------------------------------------------------------------
+  unsigned int GetSize()
+  {
+    return mPoolSize;
   }
 
   // Disable copy/move constructors and assignment operators
@@ -248,6 +295,7 @@ private:
   std::unique_ptr<std::thread> mMaintainerThread;
   std::promise<void> mMaintainerSignal;
   std::atomic_uint mThreadCount {0};
+  std::atomic_uint mThreadsMin, mThreadsMax, mPoolSize;
   std::string mId; ///< Thread pool identifier
 };
 
