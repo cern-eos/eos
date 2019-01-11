@@ -260,6 +260,10 @@ eos() {
     echo eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >& $EOSLASTLOG; eval $XROOTSYS/bin/eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >> $EOSCERTLOG 2>&1
 }
 
+eosj() {
+    echo eos -j -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >& $EOSLASTLOG; eval $XROOTSYS/bin/eos -j -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >> $EOSCERTLOG 2>&1
+}
+
 tpc1() {
     src=$1
     dst=$2
@@ -764,21 +768,22 @@ runtest "### Attr Rm   " unix 1 "" eos attr rm user.attr.test "/eos/$EOS_TEST_IN
 #----------------------------------------------------------------------------
 # Test JSON output for attributes
 #----------------------------------------------------------------------------
-runtest "### Attr Set  " unix 0 "" eos attr set user.attr.json=value "/eos/$EOS_TEST_INSTANCE/test/file"
-runtest "### Attr Set  " unix 0 "" eos attr set user.attr.json2=2ndvalue "/eos/$EOS_TEST_INSTANCE/test/file"
-runtest "### Attr Set  " unix 0 "" eos attr set user.attr.json3=3 "/eos/$EOS_TEST_INSTANCE/test/file"
-runtest "### Attr Set  " unix 0 "" eos attr set user.attr.json4=value\"quote "/eos/$EOS_TEST_INSTANCE/test/file"
-runtest "### Attr Set  " unix 0 "" eos attr set user.attr.json5=value1\&value2\&value3 "/eos/$EOS_TEST_INSTANCE/test/file"
-runtest "### Attr Get  " unix 0 "" eos -j attr get user.attr.json "/eos/$EOS_TEST_INSTANCE/test/file" | jq -r -e '.attr.get[].user.attr.json | select(. == "value")'
-runtest "### Attr Get  " unix 0 "" eos -j attr get user.attr.json2 "/eos/$EOS_TEST_INSTANCE/test/file" | jq -r -e '.attr.get[].user.attr.json2 | select(. == "2ndvalue")'
-runtest "### Attr Get  " unix 0 "" eos -j attr get user.attr.json3 "/eos/$EOS_TEST_INSTANCE/test/file" | jq -r -e '.attr.get[].user.attr.json3 | select(. == "3")'
-runtest "### Attr Get  " unix 0 "" eos -j attr get user.attr.json4 "/eos/$EOS_TEST_INSTANCE/test/file" | jq -r -e '.attr.get[].user.attr.json4 | select(. == "value\"quote")'
-runtest "### Attr Get  " unix 0 "" eos -j attr get user.attr.json5 "/eos/$EOS_TEST_INSTANCE/test/file" | jq -r -e '.attr.get[].user.attr.json5 | select(. == "value1&value2&value3")'
-runtest "### Attr Get  " unix 1 "" eos -j attr get user.attr.json5 "/eos/$EOS_TEST_INSTANCE/test/file" | jq -r -e '.attr.get[].user.attr.json5 | select(. == "nullvalues")'
+runtest "### Attr Set  " unix 0 "" eos attr set user.attr.json='value' "/eos/$EOS_TEST_INSTANCE/test/file"
+runtest "### Attr Set  " unix 0 "" eos attr set user.attr.json2='2ndvalue' "/eos/$EOS_TEST_INSTANCE/test/file"
+runtest "### Attr Set  " unix 0 "" eos attr set user.attr.json3='3' "/eos/$EOS_TEST_INSTANCE/test/file"
+runtest "### Attr Set  " unix 0 "" eos attr set user.attr.json4='value\"quote' "/eos/$EOS_TEST_INSTANCE/test/file"
+runtest "### Attr Set  " unix 0 "" eos attr set user.attr.json5='value1\&value2\&value3' "/eos/$EOS_TEST_INSTANCE/test/file"
+runtest "### Attr Get  " unix 0 "" eosj attr get user.attr.json "/eos/$EOS_TEST_INSTANCE/test/file | jq -r '.attr.get[].user.attr.json' | grep -w 'value'"
+runtest "### Attr Get  " unix 0 "" eosj attr get user.attr.json2 "/eos/$EOS_TEST_INSTANCE/test/file | jq -r '.attr.get[].user.attr.json2' | grep -w '2ndvalue'"
+runtest "### Attr Get  " unix 0 "" eosj attr get user.attr.json3 "/eos/$EOS_TEST_INSTANCE/test/file | jq -r '.attr.get[].user.attr.json3' | grep -w '3'"
+runtest "### Attr Get  " unix 0 "" eosj attr get user.attr.json4 "/eos/$EOS_TEST_INSTANCE/test/file | jq -r '.attr.get[].user.attr.json4' | grep -w 'value\"quote'"
+runtest "### Attr Get  " unix 0 "" eosj attr get user.attr.json5 "/eos/$EOS_TEST_INSTANCE/test/file | jq -r '.attr.get[].user.attr.json5' | grep -w 'value1\&value2\&value3'"
+runtest "### Attr Ls   " unix 1 "" eosj attr ls "/eos/$EOS_TEST_INSTANCE/test/file | jq -r '.attr.ls[].user.attr.json5' | grep -w 'nullvalues'"
 runtest "### Attr Rm   " unix 0 "" eos attr rm user.attr.json "/eos/$EOS_TEST_INSTANCE/test/file"
 runtest "### Attr Rm   " unix 0 "" eos attr rm user.attr.json2 "/eos/$EOS_TEST_INSTANCE/test/file"
 runtest "### Attr Rm   " unix 0 "" eos attr rm user.attr.json3 "/eos/$EOS_TEST_INSTANCE/test/file"
 runtest "### Attr Rm   " unix 0 "" eos attr rm user.attr.json4 "/eos/$EOS_TEST_INSTANCE/test/file"
+runtest "### Attr Rm   " unix 0 "" eos attr rm user.attr.json5 "/eos/$EOS_TEST_INSTANCE/test/file"
 runtest "### Rm        " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/file"
 
 ################################################################################
