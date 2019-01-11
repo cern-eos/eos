@@ -100,7 +100,6 @@ add_library(EosProtobuf SHARED
   $<TARGET_OBJECTS:EosCliProto-Objects>)
 
 target_link_libraries(EosProtobuf PUBLIC
-  eosCommon
   ${PROTOBUF_LIBRARIES})
 
 set_target_properties(EosProtobuf PROPERTIES
@@ -114,7 +113,6 @@ add_library(EosProtobuf-Static STATIC
   $<TARGET_OBJECTS:EosCliProto-Objects>)
 
 target_link_libraries(EosProtobuf-Static PRIVATE
-  eosCommon-Static
   ${PROTOBUF_LIBARIES})
 
 install(

@@ -86,6 +86,7 @@ add_executable(eos-dump-proto-md tools/EosDumpProtoMd.cc)
 
 target_link_libraries(eos-dump-proto-md
   EosCrc32c-Static
+  eosCommon
   EosNsCommon-Static
   ${PROTOBUF_LIBRARY})
 
@@ -93,6 +94,7 @@ add_executable(eos-ns-convert-to-locality-hashes tools/EosConvertToLocalityHashe
 
 target_link_libraries(eos-ns-convert-to-locality-hashes
   EosNsCommon-Static
+  eosCommon-Static
   EosCrc32c-Static
   ${PROTOBUF_LIBRARY})
 
