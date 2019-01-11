@@ -213,58 +213,57 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
     target_lid = LayoutId::SetBlockChecksum(target_lid, LayoutId::kNone);
   }
 
-  // First try with the original source
-  if (mTriedSrcs.find(mFsIdSource) == mTriedSrcs.end()) {
-    mTriedSrcs.insert(mFsIdSource);
-    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-    auto it = FsView::gFsView.mIdView.find(mFsIdSource);
+  if (eos::common::LayoutId::GetLayoutType(fdrain.mProto.layout_id()) <=
+      eos::common::LayoutId::kReplica) {
+    bool found = false;
 
-    if (it == FsView::gFsView.mIdView.end()) {
-      ReportError(SSTR("msg=\"fsid=" << mFsIdSource << " no longer in the list"));
-      return url_src;
-    }
+    for (const auto id : fdrain.mProto.locations()) {
+      // First try copying from a location different from the current draining
+      // file system
+      if ((id != mFsIdSource) && (mTriedSrcs.find(id) == mTriedSrcs.end())) {
+        mTriedSrcs.insert(id);
+        eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+        auto it = FsView::gFsView.mIdView.find(id);
 
-    it->second->SnapShotFileSystem(src_snapshot);
-  } else {
-    eos_debug("run transfer using different replica if possible");
+        if (it != FsView::gFsView.mIdView.end()) {
+          it->second->SnapShotFileSystem(src_snapshot);
 
-    if (eos::common::LayoutId::GetLayoutType(fdrain.mProto.layout_id()) <=
-        eos::common::LayoutId::kReplica) {
-      // Pick up a new location as the source of the drain
-      bool found = false;
-
-      for (const auto id : fdrain.mProto.locations()) {
-        if (mTriedSrcs.find(id) == mTriedSrcs.end()) {
-          eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-          auto it = FsView::gFsView.mIdView.find(id);
-
-          if (it != FsView::gFsView.mIdView.end()) {
-            auto fs = FsView::gFsView.mIdView[id];
-            fs->SnapShotFileSystem(src_snapshot);
-            mTriedSrcs.insert(id);
-
-            if (src_snapshot.mConfigStatus >= eos::common::FileSystem::kRO) {
-              found = true;
-              break;
-            }
+          if (src_snapshot.mConfigStatus >= eos::common::FileSystem::kRO) {
+            found = true;
+            break;
           }
         }
       }
+    }
 
-      if (!found) {
-        ReportError(SSTR("msg=\"fid=" << fdrain.mProto.id() <<
-                         " no more replicas available\""));
+    // If nothing found and we didn't try the current file system give it a go
+    if (!found && (mTriedSrcs.find(mFsIdSource) == mTriedSrcs.end())) {
+      found = true;
+      mTriedSrcs.insert(mFsIdSource);
+      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+      auto it = FsView::gFsView.mIdView.find(mFsIdSource);
+
+      if (it == FsView::gFsView.mIdView.end()) {
+        ReportError(SSTR("msg=\"fsid=" << mFsIdSource << " no longer in the list"));
         return url_src;
       }
+
+      it->second->SnapShotFileSystem(src_snapshot);
+    }
+
+    if (!found) {
+      ReportError(SSTR("msg=\"fid=" << fdrain.mProto.id() <<
+                       " no more replicas available\""));
+      return url_src;
+    }
+  } else {
+    // For RAIN layouts we trigger a reconstruction only once
+    if (mRainReconstruct) {
+      ReportError(SSTR("msg=\"fid=" << fdrain.mProto.id()
+                       << " rain reconstruct already failed\""));
+      return url_src;
     } else {
-      // For RAIN layouts we trigger a reconstruction only once
-      if (mRainReconstruct) {
-        ReportError(SSTR("msg=\"fid=" << fdrain.mProto.id()
-                         << " rain reconstruct already failed\""));
-        return url_src;
-      } else {
-        mRainReconstruct = true;
-      }
+      mRainReconstruct = true;
     }
   }
 
