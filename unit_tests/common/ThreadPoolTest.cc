@@ -29,21 +29,21 @@ using namespace eos::common;
 TEST(ThreadPoolTest, PoolSizeTest)
 {
   ThreadPool pool(3, 3);
-
   std::vector<std::future<std::thread::id>> futures;
-  for(int i = 0; i < 10; i++) {
-    auto future = pool.PushTask<std::thread::id>(
-      [] {
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
-        return std::this_thread::get_id();
-      }
-    );
 
+  for (int i = 0; i < 10; i++) {
+    auto future = pool.PushTask<std::thread::id>(
+    [] {
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+      return std::this_thread::get_id();
+    }
+                  );
     futures.emplace_back(std::move(future));
   }
 
   std::set<std::thread::id> threadIds;
-  for(auto&& future : futures) {
+
+  for (auto && future : futures) {
     threadIds.insert(future.get());
   }
 
@@ -54,46 +54,74 @@ TEST(ThreadPoolTest, PoolSizeTest)
 TEST(ThreadPoolTest, ScaleUpAndDownTest)
 {
   ThreadPool pool(2, 4, 2, 1, 1);
-
   std::vector<std::future<std::thread::id>> futures;
-  for(int i = 0; i < 500; i++) {
-    auto future = pool.PushTask<std::thread::id>(
-      [] {
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
-        return std::this_thread::get_id();
-      }
-    );
 
+  for (int i = 0; i < 500; i++) {
+    auto future = pool.PushTask<std::thread::id>(
+    [] {
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+      return std::this_thread::get_id();
+    }
+                  );
     futures.emplace_back(std::move(future));
   }
 
   std::set<std::thread::id> threadIds;
-  for(auto&& future : futures) {
+
+  for (auto && future : futures) {
     threadIds.insert(future.get());
   }
 
   // Check if we have scaled up to 4 threads
   ASSERT_EQ(4, threadIds.size());
-
   std::this_thread::sleep_for(std::chrono::seconds(2));
   futures.clear();
   threadIds.clear();
 
-  for(int i = 0; i < 10; i++) {
+  for (int i = 0; i < 10; i++) {
     auto future = pool.PushTask<std::thread::id>(
-      [] {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        return std::this_thread::get_id();
-      }
-    );
-
+    [] {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      return std::this_thread::get_id();
+    }
+                  );
     futures.emplace_back(std::move(future));
   }
 
-  for(auto&& future : futures) {
+  for (auto && future : futures) {
     threadIds.insert(future.get());
   }
 
   // Check if we have scaled down to 2 threads
   ASSERT_EQ(2, threadIds.size());
+}
+
+// Test dynamically scalling the min/max size of the thread pool
+TEST(ThreadPoolTest, MaxMinDynamicScalling)
+{
+  ThreadPool pool(2, 4, 2, 1, 1);
+  std::vector<std::future<std::thread::id>> futures;
+
+  for (int i = 0; i < 1000; i++) {
+    auto future = pool.PushTask<std::thread::id>(
+    [] {
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+      return std::this_thread::get_id();
+    }
+                  );
+    futures.emplace_back(std::move(future));
+  }
+
+  std::this_thread::sleep_for(std::chrono::seconds(3));
+  // Check if we have scaled up to 4 threads
+  ASSERT_EQ(4, pool.GetSize());
+  // Update the max number of threads
+  pool.SetThreadsMax(6);
+  std::this_thread::sleep_for(std::chrono::seconds(3));
+  // Check if we have scaled up to 6 threads
+  ASSERT_EQ(6, pool.GetSize());
+  // Update the max number of threads
+  pool.SetThreadsMax(2);
+  std::this_thread::sleep_for(std::chrono::seconds(3));
+  ASSERT_EQ(2, pool.GetSize());
 }
