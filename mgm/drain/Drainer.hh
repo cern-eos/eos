@@ -95,6 +95,26 @@ public:
   //----------------------------------------------------------------------------
   bool StopFsDrain(eos::mgm::FileSystem* fs, std::string& err);
 
+  //----------------------------------------------------------------------------
+  //! Set max size of thread pool used for draining
+  //!
+  //! @param max max value
+  //----------------------------------------------------------------------------
+  void SetMaxThreadPoolSize(uint64_t max)
+  {
+    mThreadPool.SetMaxThreads(max);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get thread pool info
+  //!
+  //! @return string summary for the thread pool
+  //----------------------------------------------------------------------------
+  std::string GetThreadPoolInfo() const
+  {
+    return mThreadPool.GetInfo();
+  }
+
   // @todo (esindril): to review
 
   //----------------------------------------------------------------------------

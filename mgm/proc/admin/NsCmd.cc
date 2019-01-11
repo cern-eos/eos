@@ -69,6 +69,8 @@ NsCmd::ProcessRequest() noexcept
     CacheSubcmd(ns.cache(), reply);
   } else if (subcmd == eos::console::NsProto::kQuota) {
     QuotaSizeSubcmd(ns.quota(), reply);
+  } else if (subcmd == eos::console::NsProto::kDrain) {
+    DrainSizeSubcmd(ns.drain(), reply);
   } else {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: not supported");
@@ -452,6 +454,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << std::endl
         << "ALL      uptime                           "
         << (int)(time(NULL) - gOFS->mStartTime) << std::endl
+        << line << std::endl
+        << " ALL     drain info                       "
+        << gOFS->mDrainEngine.GetThreadPoolInfo() << std::endl
         << line << std::endl;
   }
 
@@ -839,4 +844,16 @@ NsCmd::BreadthFirstSearchContainers(eos::IContainerMD* cont,
   depth.resize(num_levels);
   return depth;
 }
+
+//------------------------------------------------------------------------------
+// Update the maximum size of the thread pool used for drain jobs
+//------------------------------------------------------------------------------
+void
+NsCmd::DrainSizeSubcmd(const eos::console::NsProto_DrainSizeProto& drain,
+                       eos::console::ReplyProto& reply)
+{
+  gOFS->mDrainEngine.SetMaxThreadPoolSize(drain.max_num());
+  reply.set_retc(0);
+}
+
 EOSMGMNAMESPACE_END

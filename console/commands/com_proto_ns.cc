@@ -339,6 +339,28 @@ NsHelper::ParseCommand(const char* arg)
     } else {
       return false;
     }
+  } else if (cmd == "max_drain_threads") {
+    using eos::console::NsProto_DrainSizeProto;
+    NsProto_DrainSizeProto* drain_sz = ns->mutable_drain();
+
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    } else {
+      soption = option;
+      uint64_t max_num_threads {0ull};
+
+      try {
+        max_num_threads = std::stoull(soption);
+
+        if (max_num_threads < 4) {
+          max_num_threads = 4;
+        }
+      } catch (const std::exception& e) {
+        return false;
+      }
+
+      drain_sz->set_max_num(max_num_threads);
+    }
   } else if (cmd == "") {
     eos::console::NsProto_StatProto* stat = ns->mutable_stat();
     stat->set_summary(true);
@@ -445,6 +467,10 @@ void com_ns_help()
       << "    -f         : control the file cache" << std::endl
       << "    <max_num>  : max number of entries" << std::endl
       << "    <max_size> : max size of the cache - not implemented yet"
+      << std::endl
+      << std::endl
+      << "  ns max_drain_threads <num>" << std::endl
+      << "    set the max number of threads in the drain pool, default 400, minimum 4"
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }

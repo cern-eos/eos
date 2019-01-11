@@ -232,11 +232,14 @@ public:
   //----------------------------------------------------------------------------
   //! Get thread pool information
   //----------------------------------------------------------------------------
-  std::string GetInfo()
+  std::string GetInfo() const
   {
     std::ostringstream oss;
-    oss <<  "id=" << mId << ", queue_size=" << mTasks.size()
-        << ",thread_pool_size=" << mPoolSize;
+    oss <<  "id=" << mId
+        << ", thread_pool_min=" << mThreadsMin
+        << ", thread_pool_max=" << mThreadsMax
+        << ", thread_pool_size=" << mPoolSize
+        << ", queue_size=" << mTasks.size();
     return oss.str();
   }
 
@@ -246,7 +249,7 @@ public:
   //!
   //! @param num new min number of threads
   //----------------------------------------------------------------------------
-  void SetThreadsMin(unsigned int num)
+  void SetMinThreads(unsigned int num)
   {
     mThreadsMin = num;
 
@@ -261,7 +264,7 @@ public:
   //!
   //! @param num new max number of threads > 0
   //----------------------------------------------------------------------------
-  void SetThreadsMax(unsigned int num)
+  void SetMaxThreads(unsigned int num)
   {
     if (num == 0) {
       return;

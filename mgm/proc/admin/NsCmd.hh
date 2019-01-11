@@ -122,6 +122,15 @@ private:
                    eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
+  //! Update the maximum size of the thread pool used for drain jobs
+  //!
+  //! @param drain drain subcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void DrainSizeSubcmd(const eos::console::NsProto_DrainSizeProto& drain,
+                       eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
   //! Do a breadth first search of all the subcontainers under the given
   //! container
   //!

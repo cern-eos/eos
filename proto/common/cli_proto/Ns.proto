@@ -80,6 +80,10 @@ message NsProto {
     uint64 max_size = 3;
   }
 
+  message DrainSizeProto {
+    uint64 max_num = 1;
+  }
+
   oneof subcmd {
     StatProto stat       = 1;
     MutexProto mutex     = 2;
@@ -88,5 +92,6 @@ message NsProto {
     TreeSizeProto tree   = 5;
     CacheProto cache     = 6;
     QuotaSizeProto quota = 7;
+    DrainSizeProto drain = 8;
   }
 }

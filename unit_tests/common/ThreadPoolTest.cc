@@ -116,12 +116,12 @@ TEST(ThreadPoolTest, MaxMinDynamicScalling)
   // Check if we have scaled up to 4 threads
   ASSERT_EQ(4, pool.GetSize());
   // Update the max number of threads
-  pool.SetThreadsMax(6);
+  pool.SetMaxThreads(6);
   std::this_thread::sleep_for(std::chrono::seconds(3));
   // Check if we have scaled up to 6 threads
   ASSERT_EQ(6, pool.GetSize());
   // Update the max number of threads
-  pool.SetThreadsMax(2);
+  pool.SetMaxThreads(2);
   std::this_thread::sleep_for(std::chrono::seconds(3));
   ASSERT_EQ(2, pool.GetSize());
 }

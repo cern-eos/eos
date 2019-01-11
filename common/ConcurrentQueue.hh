@@ -43,7 +43,7 @@ public:
   ConcurrentQueue();
   ~ConcurrentQueue();
 
-  size_t size();
+  size_t size() const;
   void push(Data& data);
   bool push_size(Data& data, size_t max_size);
   bool empty();
@@ -53,7 +53,7 @@ public:
 
 private:
   std::queue<Data> queue;
-  pthread_mutex_t mutex;
+  mutable pthread_mutex_t mutex;
   pthread_cond_t cond;
 };
 
@@ -85,7 +85,7 @@ ConcurrentQueue<Data>::~ConcurrentQueue()
 //------------------------------------------------------------------------------
 template <typename Data>
 size_t
-ConcurrentQueue<Data>::size()
+ConcurrentQueue<Data>::size() const
 {
   size_t size = 0;
   pthread_mutex_lock(&mutex);
