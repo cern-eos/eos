@@ -178,17 +178,17 @@ ProcCommand::Node()
       eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
 
       if ((pVid->uid == 0) || (pVid->prot == "sss")) {
-        if (pVid->prot == "sss") {
+        if ((pVid->prot == "sss") && (pVid->uid != 0)) {
           if (!skip_hostname_match &&
               tident.compare(0, tident.length(), rnodename, 0, tident.length())) {
             stdErr += "error: nodes can only be configured as 'root' or by "
-                      "connecting from the node itself using the sss protocol\n";
+                      "connecting from the node itself using the sss protocol(1)\n";
             retc = EPERM;
           }
         }
       } else {
         stdErr += "error: nodes can only be configured as 'root' or by "
-                  "connecting from the node itself using the sss protocol\n";
+                  "connecting from the node itself using the sss protocol(2)\n";
         retc = EPERM;
       }
 
