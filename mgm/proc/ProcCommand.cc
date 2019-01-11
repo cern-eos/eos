@@ -520,116 +520,20 @@ ProcCommand::MakeResult()
     if (mJsonFormat) {
       if (!stdJson.length()) {
         Json::Value json;
-        Json::Value jsonresult;
         json["errormsg"] = stdErr.c_str();
-        std::stringstream ss;
-        ss << retc;
-        json["retc"] = ss.str();
-        ss.str(stdOut.c_str());
-        std::string line;
+        json["retc"] = std::to_string(retc);
 
-        do {
-          Json::Value jsonentry;
-          line.clear();
-
-          if (!std::getline(ss, line)) {
-            break;
-          }
-
-          if (!line.length()) {
-            continue;
-          }
-
-          XrdOucString sline = line.c_str();
-
-          while (sline.replace("<n>", "n")) {}
-
-          while (sline.replace("?configstatus@rw", "_rw")) {}
-
-          line = sline.c_str();
-          std::map <std::string , std::string> map;
-          eos::common::StringConversion::GetKeyValueMap(line.c_str(), map, "=", " ");
-
-          // These values violate the JSON hierarchy and have to be rewritten
-          eos::common::StringConversion::ReplaceMapKey(map, "cfg.balancer",
-              "cfg.balancer.status");
-          eos::common::StringConversion::ReplaceMapKey(map, "cfg.geotagbalancer",
-              "cfg.geotagbalancer.status");
-          eos::common::StringConversion::ReplaceMapKey(map, "cfg.geobalancer",
-              "cfg.geobalancer.status");
-          eos::common::StringConversion::ReplaceMapKey(map, "cfg.groupbalancer",
-              "cfg.groupbalancer.status");
-          eos::common::StringConversion::ReplaceMapKey(map, "cfg.wfe", "cfg.wfe.status");
-          eos::common::StringConversion::ReplaceMapKey(map, "cfg.lru", "cfg.lru.status");
-          eos::common::StringConversion::ReplaceMapKey(map, "stat.health",
-              "stat.health.status");
-          eos::common::StringConversion::ReplaceMapKey(map, "balancer",
-              "balancer.status");
-          eos::common::StringConversion::ReplaceMapKey(map, "converter",
-              "converter.status");
-          eos::common::StringConversion::ReplaceMapKey(map, "geotagbalancer",
-              "geotagbalancer.status");
-          eos::common::StringConversion::ReplaceMapKey(map, "geobalancer",
-              "geobalancer.status");
-          eos::common::StringConversion::ReplaceMapKey(map, "groupbalancer",
-              "groupbalancer.status");
-
-          for (auto it = map.begin(); it != map.end(); ++it) {
-            std::vector<std::string> token;
-            eos::common::StringConversion::Tokenize(it->first, token, ".");
-            char* conv;
-            double val;
-            errno = 0;
-            val = strtod(it->second.c_str(), &conv);
-            std::string value;
-
-            if (it->second.length()) {
-              value = it->second.c_str();
-            } else {
-              value = "NULL";
-              continue;
-            }
-
-            if (token.empty()) {
-              continue;
-            }
-
-            auto* jep = &(jsonentry[token[0]]);
-
-            for (int i = 1; i < (int)token.size(); i++) {
-              jep = &((*jep)[token[i]]);
-            }
-
-            // Unquote value
-            std::stringstream quoted_ss(value);
-            quoted_ss >> std::quoted(value);
-
-            // Seal value
-            XrdOucString svalue = value.c_str();
-            XrdMqMessage::Seal(svalue);
-            value = svalue.c_str();
-
-            if (errno || (!val && (conv  == it->second.c_str())) ||
-                ((conv - it->second.c_str()) != (long long)it->second.length())) {
-              // non numeric
-              (*jep) = value;
-            } else {
-              // numeric
-              (*jep) = val;
-            }
-          }
-
-          jsonresult.append(jsonentry);
-        } while (1);
+        Json::Value jsonOut =
+            IProcCommand::ConvertOutputToJsonFormat(stdOut.c_str());
 
         if (mCmd.length()) {
           if (mSubCmd.length()) {
-            json[mCmd.c_str()][mSubCmd.c_str()] = jsonresult;
+            json[mCmd.c_str()][mSubCmd.c_str()] = jsonOut;
           } else {
-            json[mCmd.c_str()] = jsonresult;
+            json[mCmd.c_str()] = jsonOut;
           }
         } else {
-          json["result"] = jsonresult;
+          json["result"] = jsonOut;
         }
 
         std::stringstream r;

@@ -42,9 +42,9 @@ EOSMGMNAMESPACE_BEGIN
 //! A proc command is identified by a user requesting to read a path like
 //! '/proc/user' or '/proc/admin'. These two options specify either user or
 //! admin commands. Admin commands can only be executed if a VID indicates
-//! membership in the admin group, root or in same cases 'sss' authenticated
+//! membership in the admin group, root or in some cases 'sss' authenticated
 //! clients. A proc command is usually referenced with the tag 'mgm.cmd'.
-//! In some cases there a sub commands defined by 'mgm.subcmd'.
+//! In some cases there are sub commands defined by 'mgm.subcmd'.
 //! Proc commands are executed in the 'open' function and the results
 //! are provided as stdOut,stdErr and a return code which is assembled in an
 //! opaque output stream with 3 keys indicating the three return objects.
@@ -77,7 +77,7 @@ public:
                  const char* path = 0, const char* opaque = 0);
 
   //----------------------------------------------------------------------------
-  //! Check if a path is requesting a proc commmand
+  //! Check if a path is requesting a proc command
   //!
   //! @param path input path for a proc command
   //!

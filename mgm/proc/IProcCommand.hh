@@ -27,6 +27,7 @@
 #include "proto/ConsoleReply.pb.h"
 #include "proto/ConsoleRequest.pb.h"
 #include "XrdSfs/XrdSfsInterface.hh"
+#include "json/json.h"
 #include <future>
 #include <sstream>
 
@@ -95,7 +96,7 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Open a proc command e.g. call the appropriate user or admin commmand and
+  //! Open a proc command e.g. call the appropriate user or admin command and
   //! store the output in a resultstream of in case of find in temporary output
   //! files.
   //!
@@ -215,13 +216,13 @@ protected:
                       const std::string& err_msg);
 
   //----------------------------------------------------------------------------
-  //! Format console reply as json output
+  //! Format console output string as json.
   //!
-  //! @param reply console command reply object
-  //! @param oss outputs string stream
+  //! @param stdOut console output string
+  //!
+  //! @return jsonOut json formatted output
   //----------------------------------------------------------------------------
-  static void ConvertToJsonFormat(eos::console::ReplyProto& reply,
-                                  std::ostringstream& oss);
+  static Json::Value ConvertOutputToJsonFormat(std::string stdOut);
 
   //----------------------------------------------------------------------------
   //! Check if operation forbidden

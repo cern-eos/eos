@@ -344,7 +344,7 @@ private:
   std::vector<ArchDirStatus> ArchiveGetDirs(const std::string& root) const;
 
   //----------------------------------------------------------------------------
-  //! Update the status of the archived directories depending on the infomation
+  //! Update the status of the archived directories depending on the information
   //! that we got from the archiver daemon. All ongoing transfers will be in
   //! status "transferring" while the rest will display the status of the
   //! archive.
@@ -363,7 +363,7 @@ private:
   //! "find -d --fileinfo /dir/" for directories or
   //! "find -f --fileinfo /dir/ for files.
   //!
-  //! @param arch_dir EOS directory beeing archived
+  //! @param arch_dir EOS directory being archived
   //! @param arch_ofs local archive file stream object
   //! @param num number of entries added
   //! @param is_file if true add file entries to the archive, otherwise

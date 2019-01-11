@@ -28,7 +28,6 @@
 #include "mgm/Access.hh"
 #include "mgm/Macros.hh"
 #include "namespace/interface/IView.hh"
-#include "json/json.h"
 #include <google/protobuf/util/json_util.h>
 
 EOSMGMNAMESPACE_BEGIN
@@ -81,7 +80,14 @@ IProcCommand::open(const char* path, const char* info,
       std::ostringstream oss;
 
       if (mReqProto.format() == eos::console::RequestProto::JSON) {
-        ConvertToJsonFormat(reply, oss);
+        Json::Value json;
+        json["result"] = ConvertOutputToJsonFormat(reply.std_out());
+        json["errormsg"] = reply.std_err();
+        json["retc"] = std::to_string(reply.retc());
+
+        oss << "mgm.proc.stdout=" << json
+            << "&mgm.proc.stderr=" << reply.std_err()
+            << "&mgm.proc.retc=" << reply.retc();
       } else if (mReqProto.format() == eos::console::RequestProto::FUSE) {
         // @todo (esindril) This format should be dropped and the client should
         // just parse the stdout response. For example the FST dumpmd should do
@@ -260,23 +266,18 @@ IProcCommand::CloseTemporaryOutputFiles()
 }
 
 //------------------------------------------------------------------------------
-// Format input string as json
+// Format console output string as json
 //------------------------------------------------------------------------------
-void
-IProcCommand::ConvertToJsonFormat(eos::console::ReplyProto& reply,
-                                  std::ostringstream& oss)
+Json::Value
+IProcCommand::ConvertOutputToJsonFormat(std::string stdOut)
 {
-  Json::Value json;
-  Json::Value jsonresult;
-  json["errormsg"] = reply.std_err();
+  Json::Value jsonOut;
   std::stringstream ss;
-  ss << reply.retc();
-  json["retc"] = ss.str();
-  ss.str(reply.std_out());
-  std::string line;
+  ss.str(stdOut);
 
   do {
-    Json::Value jsonentry;
+    Json::Value jsonEntry;
+    std::string line;
     line.clear();
 
     if (!std::getline(ss, line)) {
@@ -296,6 +297,7 @@ IProcCommand::ConvertToJsonFormat(eos::console::ReplyProto& reply,
     line = sline.c_str();
     std::map <std::string , std::string> map;
     eos::common::StringConversion::GetKeyValueMap(line.c_str(), map, "=", " ");
+
     // These values violate the JSON hierarchy and have to be rewritten
     eos::common::StringConversion::ReplaceMapKey(map, "cfg.balancer",
         "cfg.balancer.status");
@@ -340,11 +342,20 @@ IProcCommand::ConvertToJsonFormat(eos::console::ReplyProto& reply,
         continue;
       }
 
-      auto* jep = &(jsonentry[token[0]]);
+      auto* jep = &(jsonEntry[token[0]]);
 
       for (int i = 1; i < (int)token.size(); i++) {
         jep = &((*jep)[token[i]]);
       }
+
+      // Unquote value
+      std::stringstream quoted_ss(value);
+      quoted_ss >> std::quoted(value);
+
+      // Seal value
+      XrdOucString svalue = value.c_str();
+      XrdMqMessage::Seal(svalue);
+      value = svalue.c_str();
 
       if (errno || (!val && (conv  == it->second.c_str())) ||
           ((conv - it->second.c_str()) != (long long)it->second.length())) {
@@ -356,13 +367,10 @@ IProcCommand::ConvertToJsonFormat(eos::console::ReplyProto& reply,
       }
     }
 
-    jsonresult.append(jsonentry);
+    jsonOut.append(jsonEntry);
   } while (true);
 
-  json["result"] = jsonresult;
-  oss << "mgm.proc.stdout=" << json
-      << "&mgm.proc.stderr=" << reply.std_err()
-      << "&mgm.proc.retc=" << reply.retc();
+  return jsonOut;
 }
 
 //------------------------------------------------------------------------------
