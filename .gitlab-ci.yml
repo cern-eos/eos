@@ -468,7 +468,7 @@ stress_test:
     - docker exec -i eos-mgm-test hammer-runner.py --strict-exit-code 1 --gitlab --url eos-mgm-test.eoscluster.cern.ch//eos/dockertest/hammer/ --protocols xroot --threads 1 2 10 100 --operations write stat read delete --runs 3 --nfiles 10000
     - sudo ./eos-docker/scripts/shutdown_services.sh
   tags:
-    - docker_node
+    - shell-with-docker
   dependencies:
     - clone_docker
   allow_failure: true
