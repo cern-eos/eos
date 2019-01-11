@@ -736,7 +736,7 @@ esac
 Summary: The EOS test package
 Group: Applications/File
 
-Requires: cadaver bc davix
+Requires: cadaver bc davix jq
 
 %description -n eos-test
 Contains an instance and fuse test script and some test executables and test archives.

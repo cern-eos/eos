@@ -25,7 +25,7 @@ Description: The new EOS fuse client bundle
 
 Package: eos-test
 Architecture: any
-Depends: ${shlibs:Depends}, cadaver, bc, davix
+Depends: ${shlibs:Depends}, cadaver, bc, davix, jq
 Description: The EOS test package
 
 

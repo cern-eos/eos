@@ -761,6 +761,24 @@ runtest "### Attr Get  " unix 1 "" eos attr get user.attr.bar "/eos/$EOS_TEST_IN
 runtest "### Attr Ls   " unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/file | grep foo"
 runtest "### Attr Rm   " unix 0 "" eos attr rm user.attr.test "/eos/$EOS_TEST_INSTANCE/test/file"
 runtest "### Attr Rm   " unix 1 "" eos attr rm user.attr.test "/eos/$EOS_TEST_INSTANCE/test/file"
+#----------------------------------------------------------------------------
+# Test JSON output for attributes
+#----------------------------------------------------------------------------
+runtest "### Attr Set  " unix 0 "" eos attr set user.attr.json=value "/eos/$EOS_TEST_INSTANCE/test/file"
+runtest "### Attr Set  " unix 0 "" eos attr set user.attr.json2=2ndvalue "/eos/$EOS_TEST_INSTANCE/test/file"
+runtest "### Attr Set  " unix 0 "" eos attr set user.attr.json3=3 "/eos/$EOS_TEST_INSTANCE/test/file"
+runtest "### Attr Set  " unix 0 "" eos attr set user.attr.json4=value\"quote "/eos/$EOS_TEST_INSTANCE/test/file"
+runtest "### Attr Set  " unix 0 "" eos attr set user.attr.json5=value1\&value2\&value3 "/eos/$EOS_TEST_INSTANCE/test/file"
+runtest "### Attr Get  " unix 0 "" eos -j attr get user.attr.json "/eos/$EOS_TEST_INSTANCE/test/file" | jq -r -e '.attr.get[].user.attr.json | select(. == "value")'
+runtest "### Attr Get  " unix 0 "" eos -j attr get user.attr.json2 "/eos/$EOS_TEST_INSTANCE/test/file" | jq -r -e '.attr.get[].user.attr.json2 | select(. == "2ndvalue")'
+runtest "### Attr Get  " unix 0 "" eos -j attr get user.attr.json3 "/eos/$EOS_TEST_INSTANCE/test/file" | jq -r -e '.attr.get[].user.attr.json3 | select(. == "3")'
+runtest "### Attr Get  " unix 0 "" eos -j attr get user.attr.json4 "/eos/$EOS_TEST_INSTANCE/test/file" | jq -r -e '.attr.get[].user.attr.json4 | select(. == "value\"quote")'
+runtest "### Attr Get  " unix 0 "" eos -j attr get user.attr.json5 "/eos/$EOS_TEST_INSTANCE/test/file" | jq -r -e '.attr.get[].user.attr.json5 | select(. == "value1&value2&value3")'
+runtest "### Attr Get  " unix 1 "" eos -j attr get user.attr.json5 "/eos/$EOS_TEST_INSTANCE/test/file" | jq -r -e '.attr.get[].user.attr.json5 | select(. == "nullvalues")'
+runtest "### Attr Rm   " unix 0 "" eos attr rm user.attr.json "/eos/$EOS_TEST_INSTANCE/test/file"
+runtest "### Attr Rm   " unix 0 "" eos attr rm user.attr.json2 "/eos/$EOS_TEST_INSTANCE/test/file"
+runtest "### Attr Rm   " unix 0 "" eos attr rm user.attr.json3 "/eos/$EOS_TEST_INSTANCE/test/file"
+runtest "### Attr Rm   " unix 0 "" eos attr rm user.attr.json4 "/eos/$EOS_TEST_INSTANCE/test/file"
 runtest "### Rm        " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/file"
 
 ################################################################################
