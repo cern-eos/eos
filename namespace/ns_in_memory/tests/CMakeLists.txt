@@ -56,7 +56,10 @@ set_target_properties(
 # ns-benchmark executables
 #-------------------------------------------------------------------------------
 add_executable(ns-benchmark NSBenchmark.cc)
-target_link_libraries(ns-benchmark PRIVATE EosNsInMemory-Static ${FOLLY_LIBRARIES})
+target_link_libraries(ns-benchmark PRIVATE
+  EosNsInMemory-Static
+  ${GLIBC_RT_LIBRARY}
+  ${FOLLY_LIBRARIES})
 
 add_executable(eosnsbench_mem EosNamespaceBenchmark.cc)
 target_link_libraries(eosnsbench_mem eosCommon-Static EosNsInMemory-Static ${FOLLY_LIBRARIES})
