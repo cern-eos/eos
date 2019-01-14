@@ -368,7 +368,7 @@ void com_acl_help()
   std::ostringstream oss;
   oss
       << "Usage: eos acl [-l|--list] [-R|--recursive] "
-      << "[--sys|--user] <rule> <path>" << std::endl
+      << "[--sys|--user] [<rule>] <path>" << std::endl
       << "  atomically set and modify ACLs for the given directory path" << std::endl
       << std::endl
       << "  -h, --help      : print help message" << std::endl
