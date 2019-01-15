@@ -3384,6 +3384,11 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
     rc = p2cap->errc();
   }
 
+  if (!Instance().caps.share_quotanode(p1cap, p2cap)) {
+    // cross-quota node move
+    rc = EXDEV;
+  }
+
   if (!rc) {
     metad::shared_md md;
     metad::shared_md p1md;

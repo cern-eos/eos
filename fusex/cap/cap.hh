@@ -214,6 +214,12 @@ public:
                      bool lock = false
                     );
 
+  bool share_quotanode(shared_cap cap1, shared_cap cap2) 
+  {
+    return ( cap1->_quota().quota_inode() == cap2->_quota().quota_inode() );
+  }
+
+
   void book_inode(shared_cap cap)
   {
     shared_quota q = quotamap.get(cap);
