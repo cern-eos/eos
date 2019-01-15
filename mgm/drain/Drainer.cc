@@ -402,6 +402,9 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
   for (const auto& node_elem : mDrainFs) {
     for (const auto& fs_elem : node_elem.second) {
       fs_elem->SignalStop();
+    }
+
+    for (const auto& fs_elem : node_elem.second) {
       fs_elem->Stop();
     }
   }
