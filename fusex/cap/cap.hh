@@ -161,41 +161,6 @@ public:
   };
 
   //----------------------------------------------------------------------------
-
-  class forgotten
-  {
-    // used to remove caps which point forgotten directory inodes
-  public:
-
-    forgotten() { }
-
-    virtual ~forgotten() { }
-
-    void add(fuse_ino_t ino)
-    {
-      XrdSysMutexHelper mLock(mLocker);
-      mUnlinkedInodes.insert(ino);
-    }
-
-    bool has(fuse_ino_t ino)
-    {
-      XrdSysMutexHelper mLock(mLocker);
-      return mUnlinkedInodes.count(ino);
-    }
-
-    void clear()
-    {
-      XrdSysMutexHelper mLock(mLocker);
-      mUnlinkedInodes.clear();
-    }
-
-  private:
-    XrdSysMutex mLocker;
-    std::set<fuse_ino_t> mUnlinkedInodes;
-  };
-
-
-  //----------------------------------------------------------------------------
   cap();
 
   virtual ~cap();
@@ -312,11 +277,6 @@ public:
   typedef std::map<std::string, size_t> extension_map_t;
   typedef std::set<std::string> revocation_set_t;;
 
-  extension_map_t& get_extensionmap()
-  {
-    return extensionmap;
-  }
-
   size_t size()
   {
     XrdSysMutexHelper mLock(capmap);
@@ -328,8 +288,6 @@ public:
     return revocationset;
   }
 
-  forgotten forgetlist;
-
 private:
 
   cmap capmap;
@@ -338,10 +296,6 @@ private:
 
   backend* mdbackend;
   metad* mds;
-
-  XrdSysMutex extensionLock;
-  extension_map_t extensionmap; // map containing all authids to extend
-  // with their lifetime increment to be sent by the heartbeat
 
   XrdSysMutex revocationLock;
   revocation_set_t revocationset; // set containing all authids to revoke

@@ -30,8 +30,6 @@
 #include "common/Logging.hh"
 #include "common/Timing.hh"
 
-#define CAP_EXTENSION_TIME 180
-
 /* -------------------------------------------------------------------------- */
 cap::cap()
 /* -------------------------------------------------------------------------- */
@@ -528,37 +526,12 @@ cap::capflush(ThreadAssistant& assistant)
       for (auto it = capmap.begin(); it != capmap.end(); ++it) {
         XrdSysMutexHelper cLock(it->second->Locker());
 
-        if (forgetlist.has(it->second->id())) {
-          eos_static_debug("remove %s - deleted", it->second->dump().c_str());
-          capdelmap[it->first] = it->second;
-          continue;
-        }
-
         // make a list of caps to timeout
         if (!it->second->valid(false)) {
           capdelmap[it->first] = it->second;
           eos_static_debug("expire %s", it->second->dump().c_str());
           mds->decrease_cap(it->second->id());
           capdelinodes.insert(it->second->id());
-        } else {
-          if (0) {
-            // don't do automatic cap extension for the time being
-            time_t vtime = it->second->vtime();
-            time_t utime = it->second->used();
-            time_t period = vtime - utime;
-
-            if ((period < 90) && (period > 15)) {
-              // if cap was used during last 90 seconds, we automatically ask
-              // for an extension of CAP_EXTENSION_TIME
-              XrdSysMutexHelper eLock(extensionLock);
-              extensionmap[it->second->authid()] = CAP_EXTENSION_TIME;
-              it->second->set_vtime(vtime + CAP_EXTENSION_TIME);
-              eos_static_info("authid=%s vtime=%lu extended-vtime=%lu",
-                              it->second->authid().c_str(),
-                              vtime,
-                              it->second->vtime());
-            }
-          }
         }
       }
 
@@ -567,7 +540,6 @@ cap::capflush(ThreadAssistant& assistant)
         capmap.erase(it->first);
       }
 
-      forgetlist.clear();
       capmap.UnLock();
 
       for (auto it = capdelinodes.begin(); it != capdelinodes.end(); ++it) {

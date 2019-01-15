@@ -2842,18 +2842,6 @@ metad::mdcommunicate(ThreadAssistant& assistant)
       }
 
       {
-        // add caps to be extended
-        XrdSysMutexHelper eLock(EosFuse::Instance().getCap().get_extensionLock());
-        auto map = hb.mutable_heartbeat_()->mutable_authextension();
-        cap::extension_map_t extmap = EosFuse::Instance().getCap().get_extensionmap();
-
-        for (auto it = extmap.begin(); it != extmap.end(); ++it) {
-          (*map)[it->first] = it->second;
-          eos_static_info("cap-extension: authid=%s delta=%u", it->first.c_str(),
-                          it->second);
-          ;
-        }
-
         // add caps to be revoked
         XrdSysMutexHelper rLock(EosFuse::Instance().getCap().get_revocationLock());
         // clear the hb map

@@ -225,21 +225,6 @@ FuseServer::Clients::Dispatch(const std::string identity,
   (this->uuidview())[hb.uuid()] = identity;
   lLock.Release();
   {
-    // apply lifetime extensions requested by the client
-    auto map = hb.mutable_authextension();
-
-    for (auto it = map->begin(); it != map->end(); ++it) {
-      Caps::shared_cap cap = gOFS->zMQ->gFuseServer.Cap().GetTS(it->first);
-
-      if (cap && cap->vtime()) {
-        eos_static_info("cap-extension: authid=%s vtime:= %u => %u",
-                        it->first.c_str(),
-                        cap->vtime(), cap->vtime() + it->second);
-        cap->set_vtime(cap->vtime() + it->second);
-      }
-    }
-  }
-  {
     // apply auth revocation requested by the client
     auto map = hb.mutable_authrevocation();
 
