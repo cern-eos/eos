@@ -92,7 +92,7 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
   std::string nodequeue = advmsg->kQueue.c_str();
   FsView::gFsView.ViewMutex.LockRead(); // =========| LockRead
 
-  if (!FsView::gFsView.mNodeView.count(nodequeue)) {
+  if (FsView::gFsView.mNodeView.count(nodequeue) == 0) {
     // Rare case where a node is not yet known
     FsView::gFsView.ViewMutex.UnLockRead(); // |========= UnLockRead
     // register the node to the global view and config

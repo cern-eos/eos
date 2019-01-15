@@ -1583,6 +1583,8 @@ FsView::Register(FileSystem* fs, bool registerInGeoTreeEngine)
            it != mNodeView[snapshot.mQueue]->end(); ++it) {
         if (FsView::gFsView.mIdView[*it]->GetQueuePath() == snapshot.mQueuePath) {
           // This queuepath already exists, we cannot register
+          eos_err("msg=\"queuepath already registered\" qpath=%s",
+                  snapshot.mQueuePath.c_str());
           return false;
         }
       }
@@ -1873,7 +1875,7 @@ FsView::UnRegister(FileSystem* fs, bool unregisterInGeoTreeEngine)
       node->erase(snapshot.mId);
       eos_debug("unregister node %s from node view", node->GetMember("name").c_str());
 
-      if (!node->size()) {
+      if (node->size() == 0) {
         mNodeView.erase(snapshot.mQueue);
         delete node;
       }
@@ -2939,7 +2941,7 @@ FsView::PrintNodes(std::string& out, const std::string& table_format,
 
   TableFormatterBase table;
 
-  for (auto it = mNodeView.begin(); it != mNodeView.end(); it++) {
+  for (auto it = mNodeView.begin(); it != mNodeView.end(); ++it) {
     it->second->Print(table, table_format, table_mq_format, outdepth);
   }
 

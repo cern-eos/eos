@@ -68,7 +68,6 @@ Balancer::Balance(ThreadAssistant& assistant) noexcept
   // Loop forever until cancelled
   while (!assistant.terminationRequested()) {
     bool IsSpaceBalancing = true;
-    bool IsMaster = true;
     double SpaceDifferenceThreshold = 0;
     std::string SpaceNodeTransfers = "";
     std::string SpaceNodeTransferRate = "";
@@ -99,7 +98,6 @@ Balancer::Balance(ThreadAssistant& assistant) noexcept
       IsSpaceBalancing = false;
     }
 
-    IsMaster = gOFS->mMaster->IsMaster();
     SpaceNodeThreshold = FsView::gFsView.mSpaceView[mSpaceName.c_str()]->\
                          GetConfigMember("balancer.threshold");
     SpaceDifferenceThreshold = strtod(SpaceNodeThreshold.c_str(), 0);
@@ -108,7 +106,7 @@ Balancer::Balance(ThreadAssistant& assistant) noexcept
     SpaceNodeTransferRate = FsView::gFsView.mSpaceView[mSpaceName.c_str()]->\
                             GetConfigMember("balancer.node.rate");
 
-    if (IsMaster && IsSpaceBalancing) {
+    if (gOFS->mMaster->IsMaster() && IsSpaceBalancing) {
       size_t total_files; // number of files currently in transfer
       auto set_fsgrps = FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()];
 
@@ -162,26 +160,28 @@ Balancer::Balance(ThreadAssistant& assistant) noexcept
             FileSystem* fs = FsView::gFsView.mIdView[*fsit];
 
             if (fs) {
-              FsNode* node = FsView::gFsView.mNodeView[fs->GetQueue()];
+              if (FsView::gFsView.mNodeView.count(fs->GetQueue())) {
+                FsNode* node = FsView::gFsView.mNodeView[fs->GetQueue()];
 
-              if (node) {
-                // Broadcast the rate & stream configuration if changed
-                if (node->GetConfigMember("stat.balance.ntx") !=
-                    SpaceNodeTransfers) {
-                  node->SetConfigMember("stat.balance.ntx", SpaceNodeTransfers,
-                                        false, "", true);
-                }
+                if (node) {
+                  // Broadcast the rate & stream configuration if changed
+                  if (node->GetConfigMember("stat.balance.ntx") !=
+                      SpaceNodeTransfers) {
+                    node->SetConfigMember("stat.balance.ntx", SpaceNodeTransfers,
+                                          false, "", true);
+                  }
 
-                if (node->GetConfigMember("stat.balance.rate") !=
-                    SpaceNodeTransferRate) {
-                  node->SetConfigMember("stat.balance.rate", SpaceNodeTransferRate,
-                                        false, "", true);
-                }
+                  if (node->GetConfigMember("stat.balance.rate") !=
+                      SpaceNodeTransferRate) {
+                    node->SetConfigMember("stat.balance.rate", SpaceNodeTransferRate,
+                                          false, "", true);
+                  }
 
-                if (node->GetConfigMember("stat.balance.threshold") !=
-                    SpaceNodeThreshold) {
-                  node->SetConfigMember("stat.balance.threshold", SpaceNodeThreshold,
-                                        false, "", true);
+                  if (node->GetConfigMember("stat.balance.threshold") !=
+                      SpaceNodeThreshold) {
+                    node->SetConfigMember("stat.balance.threshold", SpaceNodeThreshold,
+                                          false, "", true);
+                  }
                 }
               }
 

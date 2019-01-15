@@ -204,10 +204,8 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
   while ((gOFS->mInitialized != gOFS->kBooted) &&
          !assistant.terminationRequested()) {
     assistant.wait_for(std::chrono::seconds(1));
-    eos_info("msg=\"waiting for namespace boot and config load\" "
-             "mInitialized=%s mConfigLoaded=%s",
-             gOFS->gNameSpaceState[gOFS->mInitialized.load()],
-             mConfigLoaded ? "true" : "false");
+    eos_info("msg=\"waiting for namespace boot\" mInitialized=%s",
+             gOFS->gNameSpaceState[gOFS->mInitialized.load()]);
   }
 
   // Loop updating the master status

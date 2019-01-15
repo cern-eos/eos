@@ -647,14 +647,13 @@ TransferEngine::Watch(ThreadAssistant& assistant) noexcept
       eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
       eos::common::RWMutexReadLock gwlock(FsView::gFsView.GwMutex);
       // publish the number of queued transfers
-      std::set<std::string>::const_iterator it;
 
-      for (it = FsView::gFsView.mGwNodes.begin();
-           it != FsView::gFsView.mGwNodes.end(); it++) {
-        //  if (FsView::gFsView.mNodeView.count(*it)) {
-        size_t size = FsView::gFsView.mNodeView[*it]->mGwQueue->Size();
-        FsView::gFsView.mNodeView[*it]->SetInQueue(size);
-        //  }
+      for (auto it = FsView::gFsView.mGwNodes.begin();
+           it != FsView::gFsView.mGwNodes.end(); ++it) {
+        if (FsView::gFsView.mNodeView.count(*it)) {
+          size_t size = FsView::gFsView.mNodeView[*it]->mGwQueue->Size();
+          FsView::gFsView.mNodeView[*it]->SetInQueue(size);
+        }
       }
     }
 

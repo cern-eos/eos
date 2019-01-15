@@ -202,18 +202,20 @@ DrainJob::SetSpaceNode()
         fs = FsView::gFsView.mIdView[*git];
 
         if (fs) {
-          FsNode* node = FsView::gFsView.mNodeView[fs->GetQueue()];
+          if (FsView::gFsView.mNodeView.count(fs->GetQueue())) {
+            FsNode* node = FsView::gFsView.mNodeView[fs->GetQueue()];
 
-          if (node) {
-            // broadcast the rate & stream configuration if changed
-            if (node->GetConfigMember("stat.drain.ntx") != SpaceNodeTransfers) {
-              node->SetConfigMember("stat.drain.ntx",
-                                    SpaceNodeTransfers, false, "", true);
-            }
+            if (node) {
+              // broadcast the rate & stream configuration if changed
+              if (node->GetConfigMember("stat.drain.ntx") != SpaceNodeTransfers) {
+                node->SetConfigMember("stat.drain.ntx",
+                                      SpaceNodeTransfers, false, "", true);
+              }
 
-            if (node->GetConfigMember("stat.drain.rate") != SpaceNodeTransferRate) {
-              node->SetConfigMember("stat.drain.rate",
-                                    SpaceNodeTransferRate, false, "", true);
+              if (node->GetConfigMember("stat.drain.rate") != SpaceNodeTransferRate) {
+                node->SetConfigMember("stat.drain.rate",
+                                      SpaceNodeTransferRate, false, "", true);
+              }
             }
           }
         }
