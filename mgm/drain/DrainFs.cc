@@ -218,7 +218,10 @@ DrainFs::SuccessfulDrain()
         static_cast<eos::common::FileSystem*>(fs)->SetString("configstatus",
             "empty");
         fs->CloseTransaction();
-        FsView::gFsView.StoreFsConfig(fs);
+
+	// we don't store anymore an 'empty' configuration state 
+	// 'empty' is only set at the end of a drain job
+        // !!! FsView::gFsView.StoreFsConfig(fs);
       } else {
         fs->CloseTransaction();
       }

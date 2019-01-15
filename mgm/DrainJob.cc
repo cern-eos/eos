@@ -615,7 +615,10 @@ nofilestodrain:
       // if the system is not shutting down
       //--------------------------------------------------------------------------
       static_cast<eos::common::FileSystem*>(fs)->SetString("configstatus", "empty");
-      FsView::gFsView.StoreFsConfig(fs);
+
+      // don't store anymore the 'empty' state into the configuration file
+      // 'empty' is only set at the end of a drain
+      // !!! FsView::gFsView.StoreFsConfig(fs);
       fs->SetLongLong("stat.drainprogress", 100);
     }
   }
