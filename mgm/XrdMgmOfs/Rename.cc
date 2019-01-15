@@ -247,6 +247,8 @@ XrdMgmOfs::_rename(const char* old_name,
   bool renameDir = false;
   bool renameVersion = false;
   bool findOk = false;
+  bool quotaMove = false;
+
   XrdSfsFileExistence file_exists;
 
   if (_exists(old_name, file_exists, error, vid, infoN)) {
@@ -343,9 +345,26 @@ XrdMgmOfs::_rename(const char* old_name,
   std::map<std::string, std::set<std::string> > found;
 
   if (renameDir) {
+    {
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+      // figure out if this is a move within the same quota node
+      eos::IContainerMD::id_t q1;
+      eos::IContainerMD::id_t q2;
+      long long avail_files, avail_bytes;
+      Quota::QuotaByPath(oPath.GetParentPath(), 0, 0, avail_files, avail_bytes, q1);
+      Quota::QuotaByPath(nPath.GetParentPath(), 0, 0, avail_files, avail_bytes, q2);
+      if (q1 != q2) {
+	quotaMove = true;
+      }
+    }
+
+    if (EOS_LOGS_DEBUG) {
+      eos_debug("quotaMove = %d", quotaMove);
+    }
+
     // For directory renaming which move into a different directory, we build
-    // the list of files which we are moving
-    if (oP != nP) {
+    // the list of files which we are moving if they move between quota nodes
+    if ( (oP != nP) && quotaMove ) {
       XrdOucString stdErr;
 
       if (!gOFS->_find(oPath.GetFullPath().c_str(), error, stdErr, vid, found)) {
