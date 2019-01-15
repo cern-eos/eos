@@ -577,15 +577,22 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
     if (reply) {
       reply->assign(out.c_str());
     }
-
-    return CommandEnv;
   } else {
     std::string errmsg;
-    errmsg = status.GetErrorMessage();
-    //fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo, errmsg.c_str());
+    std::ostringstream oss;
+    oss << "mgm.proc.stdout=&"
+        << "mgm.proc.stderr=" << "error: errc=" << status.GetShellCode()
+        << " msg=\"" << status.ToString() << "\"&"
+        << "mgm.proc.retc=" << status.GetShellCode();
+    CommandEnv = new XrdOucEnv(oss.str().c_str());
+
+    // Save the reply string from the server
+    if (reply) {
+      reply->assign(oss.str().c_str());
+    }
   }
 
-  return nullptr;
+  return CommandEnv;
 }
 
 //------------------------------------------------------------------------------
