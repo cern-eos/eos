@@ -465,7 +465,7 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
             mQdbCluster += " ";
           }
 
-          Eroute.Say("=====> mgmofs.qdbcluster : ", mQdbCluster.c_str());
+          Eroute.Say("=====> mq.qdbcluster : ", mQdbCluster.c_str());
           mQdbContactDetails.members.parse(mQdbCluster);
         }
 
@@ -477,7 +477,7 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
           // Trim whitespace at the end
           mQdbPassword.erase(mQdbPassword.find_last_not_of(" \t\n\r\f\v") + 1);
           std::string pwlen = std::to_string(mQdbPassword.size());
-          Eroute.Say("=====> mgmofs.qdbpassword length : ", pwlen.c_str());
+          Eroute.Say("=====> mq.qdbpassword length : ", pwlen.c_str());
           mQdbContactDetails.password = mQdbPassword;
         }
 
@@ -494,7 +494,7 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
           }
 
           std::string pwlen = std::to_string(mQdbPassword.size());
-          Eroute.Say("=====> mgmofs.qdbpassword length : ", pwlen.c_str());
+          Eroute.Say("=====> mq.qdbpassword length : ", pwlen.c_str());
           mQdbContactDetails.password = mQdbPassword;
         }
       }
