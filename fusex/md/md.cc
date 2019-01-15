@@ -2863,8 +2863,8 @@ metad::mdcommunicate(ThreadAssistant& assistant)
           }
         }
 
-        eos_static_debug("cap-extension: map-size=%u cap-revocation: map-size=%u",
-                         extmap.size(), revocationset.size());
+        eos_static_debug("cap-revocation: map-size=%u",
+                         revocationset.size());
       }
 
       std::string hbstream;

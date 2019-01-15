@@ -264,17 +264,11 @@ public:
 
   void capflush(ThreadAssistant& assistant); // thread removing capabilities
 
-  XrdSysMutex& get_extensionLock()
-  {
-    return extensionLock;
-  }
-
   XrdSysMutex& get_revocationLock()
   {
     return revocationLock;
   }
 
-  typedef std::map<std::string, size_t> extension_map_t;
   typedef std::set<std::string> revocation_set_t;;
 
   size_t size()
