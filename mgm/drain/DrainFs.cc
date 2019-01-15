@@ -259,28 +259,32 @@ DrainFs::Stop()
 {
   // Wait for any ongoing transfers
   while (!mJobsRunning.empty()) {
+    auto sz_begin = mJobsRunning.size();
     auto it = mJobsRunning.begin();
 
-    if ((*it)->GetStatus() != DrainTransferJob::Status::OK) {
-      mJobsFailed.push_back(*it);
+    if ((*it)->GetStatus() != DrainTransferJob::Status::Running) {
+      mJobsRunning.erase(it);
     }
 
-    mJobsRunning.erase(it);
-  }
+    auto sz_end = mJobsRunning.size();
 
-  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-
-  if (FsView::gFsView.mIdView.count(mFsId)) {
-    FileSystem* fs  = FsView::gFsView.mIdView[mFsId];
-
-    if (fs) {
-      mStatus = eos::common::FileSystem::kNoDrain;
-      fs->OpenTransaction();
-      fs->SetDrainStatus(eos::common::FileSystem::kNoDrain, false);
-      fs->CloseTransaction();
-      FsView::gFsView.StoreFsConfig(fs);
+    // If no progress then wait one second
+    if ((sz_end != 0) && (sz_begin == sz_end)) {
+      std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   }
+
+  // eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+  // if (FsView::gFsView.mIdView.count(mFsId)) {
+  //   FileSystem* fs  = FsView::gFsView.mIdView[mFsId];
+  //   if (fs) {
+  //     mStatus = eos::common::FileSystem::kNoDrain;
+  //     fs->OpenTransaction();
+  //     fs->SetDrainStatus(eos::common::FileSystem::kNoDrain, false);
+  //     fs->CloseTransaction();
+  //     FsView::gFsView.StoreFsConfig(fs);
+  //   }
+  // }
 }
 
 //------------------------------------------------------------------------------

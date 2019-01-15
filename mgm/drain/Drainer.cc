@@ -397,6 +397,14 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
     FsView::gFsView.ViewMutex.UnLockRead();
     assistant.wait_for(std::chrono::seconds(10));
   }
+
+  // Stop each file system drain operation
+  for (const auto& node_elem : mDrainFs) {
+    for (const auto& fs_elem : node_elem.second) {
+      fs_elem->SignalStop();
+      fs_elem->Stop();
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
