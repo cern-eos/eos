@@ -2079,7 +2079,10 @@ Quota::GetQuotaInfo(SpaceQuota* squota, uid_t uid, gid_t gid,
   long long maxbytes = 0;
   freebytes_user = freebytes_group = freebytes_project = 0;
   maxbytes_user = maxbytes_group = maxbytes_project = 0;
-  squota->Refresh();
+
+  squota->UpdateFromQuotaNode(uid, gid, squota->GetQuota(SpaceQuota::kGroupBytesTarget, Quota::gProjectId)
+                      ? true : false);
+
   maxbytes_user  = squota->GetQuota(SpaceQuota::kUserBytesTarget, uid);
   maxbytes_group = squota->GetQuota(SpaceQuota::kGroupBytesTarget, gid);
   maxbytes_project = squota->GetQuota(SpaceQuota::kGroupBytesTarget,
