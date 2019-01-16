@@ -1277,9 +1277,9 @@ Recycle::PurgeOld(std::string& std_out, std::string& std_err,
 
   dirl.close();
   std_out += "success: purged ";
-  std_out += (int) nbulk_deleted;
+  std_out += std::to_string(nbulk_deleted);
   std_out += " bulk deletions and ";
-  std_out += (int) nfiles_deleted;
+  std_out += std::to_string(nfiles_deleted);
   std_out += " individual files from the old recycle bin!\n";
   return 0;
 }
@@ -1397,9 +1397,9 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
   }
 
   std_out += "success: purged ";
-  std_out += (int) nbulk_deleted;
+  std_out += std::to_string(nbulk_deleted);
   std_out += " bulk deletions and ";
-  std_out += (int) nfiles_deleted;
+  std_out += std::to_string(nfiles_deleted);
   std_out += " individual files from the recycle bin!";
   return 0;
 }
