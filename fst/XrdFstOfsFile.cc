@@ -247,12 +247,6 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
   }
 
-  if ((mRainReconstruct && (mTpcFlag == kTpcSrcCanDo)) ||
-      (mTpcFlag == kTpcSrcSetup)) {
-    eos_info("kTpcSrcSetup return SFS_OK");
-    return SFS_OK;
-  }
-
   if ((open_mode & (SFS_O_WRONLY | SFS_O_RDWR | SFS_O_CREAT | SFS_O_TRUNC))) {
     isRW = true;
   }
@@ -331,6 +325,12 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   layOut->SetLogId(logId, client, tident);
   errno = 0;
+
+  if ((mRainReconstruct && (mTpcFlag == kTpcSrcCanDo)) ||
+      (mTpcFlag == kTpcSrcSetup)) {
+    eos_info("msg=kTpcSrcSetup return SFS_OK");
+    return SFS_OK;
+  }
 
   if ((retc = layOut->GetFileIo()->fileExists())) {
     // We have to distinguish if an Exists call fails or return ENOENT, otherwise
@@ -1557,7 +1557,8 @@ XrdFstOfsFile::close()
         // to unlink it again
         XrdOucString hexstring = "";
         eos::common::FileId::Fid2Hex(mFileId, hexstring);
-        XrdOucErrInfo error; // TBD Should be renamed so it does not shadow XrdSfsFile::error
+        XrdOucErrInfo
+        error; // TBD Should be renamed so it does not shadow XrdSfsFile::error
         XrdOucString capOpaqueString = "/?mgm.pcmd=drop";
         XrdOucString OpaqueString = "";
         OpaqueString += "&mgm.fsid=";
@@ -1741,11 +1742,12 @@ XrdFstOfsFile::close()
             eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS,
             eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR, nullptr);
         std::string errMsgBackFromWfEndpoint;
-        const int notifyRc = NotifyProtoWfEndPointClosew(fMd->mProtoFmd, mEventOwner, mEventOwnerGroup,
-                                                         mEventRequestor, mEventRequestorGroup,
-                                                         mEventInstance, mCapOpaque->Get("mgm.path"),
-                                                         mCapOpaque->Get("mgm.manager"), attributes,
-                                                         errMsgBackFromWfEndpoint);
+        const int notifyRc = NotifyProtoWfEndPointClosew(fMd->mProtoFmd, mEventOwner,
+                             mEventOwnerGroup,
+                             mEventRequestor, mEventRequestorGroup,
+                             mEventInstance, mCapOpaque->Get("mgm.path"),
+                             mCapOpaque->Get("mgm.manager"), attributes,
+                             errMsgBackFromWfEndpoint);
 
         if (0 == notifyRc) {
           this->error.setErrCode(0);
