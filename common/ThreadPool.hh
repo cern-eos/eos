@@ -132,13 +132,17 @@ public:
                                               averageWaitingJobsPerNewThread),
                          mThreadsMax - mThreadCount);
 
-              for (auto i = 0u; i < threadsToAdd; i++) {
-                mThreadPool.emplace_back(
-                  std::async(std::launch::async, threadPoolFunc)
-                );
-              }
+              try {
+                for (auto i = 0u; i < threadsToAdd; i++) {
+                  mThreadPool.emplace_back(std::async(std::launch::async,
+                                                      threadPoolFunc));
+                }
 
-              mThreadCount += threadsToAdd;
+                mThreadCount += threadsToAdd;
+              } catch (const std::system_error& e) {
+                std::cerr << "error: std::async couldn't start a new thread "
+                          << "and threw an exception: " << e.what() << std::endl;
+              }
             } else {
               unsigned int threadsToRemove =
                 mThreadCount - std::max((unsigned int) floor(averageQueueSize),
