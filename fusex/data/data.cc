@@ -2607,6 +2607,28 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                       map[fit->first] = newproxy;
                       continue;
                     } else {
+		      if (status.errNo == kXR_noserver) {
+			int tret = 0;
+                        if (!(tret = (*it)->TryRecovery(0, true))) {
+                          (*it)->recoverystack().push_back(
+                            eos_static_silent("hint='success TryRecovery'"));
+                          int jret = 0;
+
+                          if ((jret = (*it)->journalflush(fit->first))) {
+                            eos_static_err("ino:%16lx recovery failed", (*it)->id());
+                            (*it)->recoverystack().push_back(
+                              eos_static_silent("errno='%d' hint='failed journalflush'", jret));
+                          } else {
+                            (*it)->recoverystack().push_back(
+                              eos_static_silent("hint='success journalflush'"));
+			    continue;
+                          }
+                        } else {
+                          (*it)->recoverystack().push_back(
+                            eos_static_silent("errno='%d' hint='failed TryRecovery", tret));
+                        }
+		      }
+
                       eos_static_warning("giving up OpenAsync request - ino:%16lx err-code:%d",
                                          (*it)->id(), status.code);
                     }
