@@ -76,6 +76,7 @@ public:
       lock_remote = true;
       cap_count_reset();
       refresh = false;
+      rmrf = false;
       inline_size = 0;
     }
 
@@ -299,6 +300,21 @@ public:
       refresh = false;
     }
 
+    void set_rmrf()
+    {
+      rmrf = true;
+    }
+
+    bool get_rmrf() const
+    {
+      return rmrf;
+    }
+
+    void unset_rmrf()
+    {
+      rmrf = false;
+    }
+
   private:
     XrdSysMutex mLock;
     XrdSysCondVar mSync;
@@ -308,6 +324,7 @@ public:
     std::atomic<int> opendir_cnt;
     bool lock_remote;
     bool refresh;
+    bool rmrf;
     uint64_t inline_size;
     std::vector<struct flock> locktable;
     std::map<std::string, uint64_t> todelete;

@@ -488,7 +488,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     {
       if (!root.isMember("name")) {
 	XrdOucString id = mountpoint.c_str();
-	while (id.replace("/","::")) {}
+	while (id.replace("/","-")) {}
 	fsname += id.c_str();
         root["name"] = fsname;
       }
@@ -2464,6 +2464,9 @@ EosFuse::listdir(fuse_req_t req, fuse_ino_t ino, metad::shared_md& md)
     std::string authid = pcap->authid();
     cLock.UnLock();
     md = Instance().mds.get(req, ino, authid, true);
+    if (!md->pid()) {
+      rc = ENOENT;
+    }
   }
 
   return rc;
@@ -2480,67 +2483,102 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   eos_static_debug("");
   EXEC_TIMING_BEGIN(__func__);
   ADD_FUSE_STAT(__func__, req);
-  Track::Monitor mon(__func__, Instance().Tracker(), ino);
+
+  fuse_ino_t pino = 0;
+  std::string name;
   int rc = 0;
   fuse_id id(req);
   metad::shared_md md;
+  bool do_listdir = true;
 
-  if (isRecursiveRm(req, true, true) &&
-      Instance().Config().options.rm_rf_bulk) {
-    md = Instance().mds.get(req, ino);
-
-    if (md && md->attr().count("sys.recycle")) {
-      eos_static_warning("Running recursive rm (pid = %d)", fuse_req_ctx(req)->pid);
-      // bulk rm only when a recycle bin is configured
-      {
-        XrdSysMutexHelper mLock(md->Locker());
-
-        if (!md->id() || md->deleted()) {
-          rc = md->deleted() ? ENOENT : md->err();
-        } else {
-          rc = Instance().mds.rmrf(req, md);
-        }
+  {
+    Track::Monitor mon(__func__, Instance().Tracker(), ino);
+    
+    if (isRecursiveRm(req, true, true) &&
+	Instance().Config().options.rm_rf_bulk) {
+      md = Instance().mds.get(req, ino);
+      
+      if (md && md->attr().count("sys.recycle")) {
+	do_listdir = false;
+	eos_static_warning("Running recursive rm (pid = %d)", fuse_req_ctx(req)->pid);
+	// bulk rm only when a recycle bin is configured
+	{
+	  XrdSysMutexHelper mLock(md->Locker());
+	  name = md->name();
+	  
+	  if (!md->id() || md->deleted()) {
+	    rc = md->deleted() ? ENOENT : md->err();
+	  } else {
+	    if (!md->get_rmrf()) {
+	      rc = Instance().mds.rmrf(req, md);
+	    }
+	  }
+	  if (!rc) {
+	    if (!md->get_rmrf()) {
+	      if ( EOS_LOGS_DEBUG ) {
+		eos_static_warning("rm-rf marks for deletion");
+	      }
+	      md->set_rmrf();
+	    }
+	  } else {
+	    md->unset_rmrf();
+	  }
+	}
+	
+	if (EOS_LOGS_DEBUG) {
+	  eos_static_debug("rm-rf gave retc=%d", rc);
+	}
+	
+	if (!rc) {
+	  
+	  metad::shared_md pmd = Instance().mds.getlocal(req, md->pid());
+	  
+	  if (pmd) {
+	    pmd->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(name));
+	    pmd->mutable_children()->erase(eos::common::StringConversion::EncodeInvalidUTF8(name));
+	    pino = pmd->id();
+	  }
+	  
+	  rc = 0;
+	  if (EOS_LOGS_DEBUG) {
+	    eos_static_debug("rm-rf returns 0");
+	  }
+	}
       }
-
-      if (!rc) {
-        // invalide this directory
-        Instance().mds.cleanup(md);
-        metad::shared_md pmd = Instance().mds.getlocal(req, md->pid());
-
-        if (pmd) {
-          pmd->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(
-                                        md->name()));
-          pmd->mutable_children()->erase(eos::common::StringConversion::EncodeInvalidUTF8(
-                                           md->name()));
-        }
+    }
+    
+    if (do_listdir) {
+      rc = listdir(req, ino, md);
+    }
+    
+    if (!rc) {
+      XrdSysMutexHelper mLock(md->Locker());
+      
+      if (!md->id() || md->deleted()) {
+	rc = md->deleted() ? ENOENT : md->err();
+      } else {
+	eos_static_info("%s", md->dump().c_str());
+	
+	if (isRecursiveRm(req) &&
+	    Instance().mds.calculateDepth(md) <=
+	    Instance().Config().options.rm_rf_protect_levels) {
+	  eos_static_warning("Blocking recursive rm (pid = %d)", fuse_req_ctx(req)->pid);
+	  rc = EPERM; // you shall not pass, muahahahahah
+	} else {
+	  auto md_fh = new opendir_t;
+	  md_fh->md = md;
+	  md->opendir_inc();
+	  // fh contains a dummy 0 pointer
+	  eos_static_debug("adding ino=%08lx p-ino=%08lx", md->id(), md->pid());
+	  fi->fh = (unsigned long) md_fh;
+	}
       }
     }
   }
-
-  rc = listdir(req, ino, md);
-
-  if (!rc) {
-    XrdSysMutexHelper mLock(md->Locker());
-
-    if (!md->id() || md->deleted()) {
-      rc = md->deleted() ? ENOENT : md->err();
-    } else {
-      eos_static_info("%s", md->dump().c_str());
-
-      if (isRecursiveRm(req) &&
-          Instance().mds.calculateDepth(md) <=
-          Instance().Config().options.rm_rf_protect_levels) {
-        eos_static_warning("Blocking recursive rm (pid = %d)", fuse_req_ctx(req)->pid);
-        rc = EPERM; // you shall not pass, muahahahahah
-      } else {
-        auto md_fh = new opendir_t;
-        md_fh->md = md;
-        md->opendir_inc();
-        // fh contains a dummy 0 pointer
-        eos_static_debug("adding ino=%08lx p-ino=%08lx", md->id(), md->pid());
-        fi->fh = (unsigned long) md_fh;
-      }
-    }
+  
+  // rm-rf might need to tell the kernel cache  that this directory is gone
+  if (pino && EosFuse::Instance().Config().options.md_kernelcache) {
+    kernelcache::inval_entry(pino, name.c_str());
   }
 
   if (rc) {
@@ -4321,6 +4359,7 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
   // realtime
   {
     static std::string s_md = "system.eos.md";
+    static std::string s_refresh = "system.eos.refreshls";
     static std::string s_cap = "system.eos.cap";
     static std::string s_ls_caps = "system.eos.caps";
     static std::string s_ls_vmap = "system.eos.vmap";
@@ -4332,6 +4371,15 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
       md = Instance().mds.get(req, ino, pcap->authid());
       {
         value = Instance().mds.dump_md(md);
+      }
+    }
+
+    if (key.substr(0, s_refresh.length()) == s_refresh) {
+      local_getxattr = true;
+      metad::shared_md md;
+      md->set_type(md->MD);
+      {
+        value = "info: force refresh for next listing";
       }
     }
 
