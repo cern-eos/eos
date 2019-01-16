@@ -212,8 +212,17 @@ data::datax::flush(fuse_req_t req)
 {
   eos_info("");
   XrdSysMutexHelper lLock(mLock);
-  return flush_nolock(req,
-                      EosFuse::Instance().Config().options.flush_wait_open ? true : false, false);
+
+  bool flush_wait_open = false;
+  if (mFlags & O_CREAT) {
+    flush_wait_open = (EosFuse::Instance().Config().options.flush_wait_open == 
+		       EosFuse::Instance().Config().options.kWAIT_FLUSH_ON_CREATE) ? true : false;
+  } else {
+    flush_wait_open = (EosFuse::Instance().Config().options.flush_wait_open != 
+		       EosFuse::Instance().Config().options.kWAIT_FLUSH_NEVER) ? true: false;
+  }
+
+  return flush_nolock(req, flush_wait_open, false);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2607,6 +2616,9 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                       map[fit->first] = newproxy;
                       continue;
                     } else {
+
+		      eos_static_warning("OpenAsync failed with kXR_noserver - trying recovery - ino:%16lx err-code:%d", (*it)->id(), status.code);
+					 
 		      if (status.errNo == kXR_noserver) {
 			int tret = 0;
                         if (!(tret = (*it)->TryRecovery(0, true))) {

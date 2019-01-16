@@ -211,7 +211,7 @@ public:
     std::string ssskeytab;
     std::string appname;
 
-    typedef struct options {
+    typedef struct options {      
       int debug;
       int debuglevel;
       int libfusethreads;
@@ -228,7 +228,16 @@ public:
       int rename_is_sync;
       int rmdir_is_sync;
       int global_flush;
+
+
       int flush_wait_open;
+      enum eFLUSH_WAIT_OPEN {
+	kWAIT_FLUSH_NEVER = 0,     // if a file is updated/created - flush will not wait to open it
+	kWAIT_FLUSH_ON_UPDATE = 1, // if a file is updated - flush will wait to open it 
+	kWAIT_FLUSH_ON_CREATE = 2  // if a file is created - flush will wait to open it
+      };
+
+
       int global_locking;
       uint64_t fdlimit;
       int rm_rf_protect_levels;
