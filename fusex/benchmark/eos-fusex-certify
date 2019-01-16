@@ -303,6 +303,18 @@ rmdir newdir || exit 11;
 ) || exit 11
 fi
 
+
+if [ "$1" = "12" ]; then
+time (
+echo "===================================================================="
+echo "012 ... rm-rf eternal loop test"
+mkdir 012-eos-rmrf-test
+cd 012-eos-rmrf-test
+for name in `seq 1 100`; do mkdir name; rm -rf name; stat name 2>/dev/null  && echo exit 12;  done
+) || exit 12
+fi
+
+
 echo "===================================================================="
 echo "... :-) passed !"
 echo "===================================================================="
