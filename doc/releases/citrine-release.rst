@@ -16,6 +16,30 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.4.20 Citrine``
+===================
+
+2019-01-17
+
+Bug
+----
+
+* [EOS-3202] - Instance degradation due to client concurrancy and quota refresh
+* MGM: Improve drain source selection by giving priority to replicas of files on other
+  file systems rather than the one currently being drained.
+* [EOS-3198] - Json output from the httpd interface escapes redundant double
+  quotes on values of attr queries
+* [EOS-1733] - eosd segfault in unlink around "fileystem::is_toplevel()"
+
+Improvement
+------------
+
+* [EOS-3197] - Improve directory rename/move inside the same quota node
+* MGM: Add command to control the number of threads used in the central draining:
+  eos ns max_drain_thread <num>
+* MGM: Add support for ACLs for single files
+
+
 ``v4.4.19 Citrine``
 ===================
 
