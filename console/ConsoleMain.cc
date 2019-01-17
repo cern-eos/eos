@@ -696,7 +696,6 @@ usage()
 int
 Run(int argc, char* argv[])
 {
-  bool checked_mgm = false;
   char* line, *s;
   serveruri = (char*) "root://localhost";
   // Enable fork handlers for XrdCl
@@ -842,13 +841,6 @@ Run(int argc, char* argv[])
       serveruri = argv[argindex];
       argindex++;
       in1 = argv[argindex];
-      checked_mgm = true;
-
-      if (!CheckMgmOnline(serveruri.c_str())) {
-        std::cerr << "error: MGM " << serveruri.c_str()
-                  << " not online/reachable" << std::endl;
-        exit(ENONET);
-      }
     }
 
     if (in1.length()) {
@@ -956,15 +948,6 @@ Run(int argc, char* argv[])
           exit(global_retc);
         }
       }
-    }
-  }
-
-  // Make sure to check the MGM is reachable
-  if (!checked_mgm) {
-    if (!CheckMgmOnline(serveruri.c_str())) {
-      std::cerr << "error: MGM " << serveruri.c_str()
-                << " not online/reachable" << std::endl;
-      exit(ENONET);
     }
   }
 
@@ -1136,6 +1119,12 @@ Run(int argc, char* argv[])
 int
 execute_line(char* line)
 {
+  if (!CheckMgmOnline(serveruri.c_str())) {
+    std::cerr << "error: MGM " << serveruri.c_str()
+              << " not online/reachable" << std::endl;
+    exit(ENONET);
+  }
+
   std::string comment;
   std::string line_without_comment = parse_comment(line, comment);
 
