@@ -49,7 +49,10 @@ public:
   //! Returns whether to expand the given container, or ignore it.
   //! Useful to filter out certain parts of the namespace tree.
   //----------------------------------------------------------------------------
-  virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto &containerMd) = 0;
+  virtual bool shouldExpandContainer(
+    const eos::ns::ContainerMdProto &containerMd,
+    const eos::IContainerMD::XAttrMap &linkedAttrs) = 0;
+
 };
 
 struct ExplorationOptions {
@@ -141,6 +144,8 @@ private:
 
   std::deque<std::unique_ptr<SearchNode>> children; // expanded containers
   bool childrenLoaded = false;
+
+  eos::IContainerMD::XAttrMap attrs;
 
   // @todo (gbitzes): Replace this mess with a nice iterator object which
   // provides all children of a container, fully asynchronous with prefetching.

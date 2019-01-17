@@ -642,8 +642,8 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
 class QuotaNodeFilter : public ExpansionDecider
 {
 public:
-  virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto& proto)
-  override
+  virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto& proto,
+    const eos::IContainerMD::XAttrMap &attrs) override
   {
     if ((proto.flags() & eos::QUOTA_NODE_FLAG) == 0) {
       return true; // not a quota node, continue

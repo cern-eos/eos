@@ -84,8 +84,13 @@ void SearchNode::stageFileMds()
 //------------------------------------------------------------------------------
 std::unique_ptr<SearchNode> SearchNode::expand()
 {
+  NamespaceItem nodeItem;
+  nodeItem.isFile = false;
+  nodeItem.containerMd = getContainerInfo();
+  explorer.handleLinkedAttrs(nodeItem);
+
   ExpansionDecider *decider = explorer.options.expansionDecider.get();
-  if(decider && !decider->shouldExpandContainer(getContainerInfo())) {
+  if(decider && !decider->shouldExpandContainer(getContainerInfo(), nodeItem.attrs)) {
     return {}; // nope, this node is being filtered out
   }
 

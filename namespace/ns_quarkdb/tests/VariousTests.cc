@@ -737,7 +737,9 @@ TEST_F(NamespaceExplorerF, LinkedAttributes) {
 class ContainerFilter : public eos::ExpansionDecider {
 public:
 
-  virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto &proto) override {
+  virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto &proto,
+    const eos::IContainerMD::XAttrMap &attrs) override {
+
     if(proto.name() == "d4") {
       std::cerr << "INFO: Filtering out encountered container with name d4." << std::endl;
       return false;
