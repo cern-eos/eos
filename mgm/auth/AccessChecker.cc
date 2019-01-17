@@ -28,6 +28,27 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+//----------------------------------------------------------------------------
+// Check access to the given container - linked attributes are necessary
+// to construct the Acl object.
+//
+// All information required to make a decision are passed to this function.
+//----------------------------------------------------------------------------
+bool AccessChecker::checkContainer(IContainerMD *cont,
+  const eos::IContainerMD::XAttrMap &linkedAttrs, int mode,
+  const eos::common::Mapping::VirtualIdentity &vid)
+{
+  //----------------------------------------------------------------------------
+  // Construct Acl object
+  //----------------------------------------------------------------------------
+  Acl acl(linkedAttrs, vid);
+
+  //----------------------------------------------------------------------------
+  // Delegate to method taking receiving acl object instead of linked xattrs
+  //----------------------------------------------------------------------------
+  return checkContainer(cont, acl, mode, vid);
+}
+
 //------------------------------------------------------------------------------
 // Check access to the given container - all information required to make
 // a decision are passed to this function, no external information should

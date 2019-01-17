@@ -207,6 +207,22 @@ TEST(AccessChecker, WithAclUserRWX) {
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(
     cont.get(), acl, R_OK | W_OK | X_OK, makeIdentity(1234, 8888)));
 
+  // .. try passing the extended attributes, instead of the Acl object
+  eos::IContainerMD::XAttrMap xattrmap;
+  xattrmap["sys.acl"] = "u:1234:rwx";
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), xattrmap, R_OK, vid1));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), xattrmap, W_OK, vid1));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), xattrmap, X_OK, vid1));
+
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(
+    cont.get(), xattrmap, R_OK | W_OK | X_OK, vid1));
+
   // try a group acl ...
   vid1.gid_list = { 8888 };
 
