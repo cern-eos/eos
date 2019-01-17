@@ -495,6 +495,14 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
             XrdOucString& stdOut, XrdOucString& stdErr,
             eos::common::Mapping::VirtualIdentity& vid_in)
 {
+  // If EOS_SKIP_SSS_HOSTNAME_MATCH env variable is set then we skip
+  // the check below as this currently breaks the Kubernetes setup.
+  bool skip_hostname_match = false;
+
+  if (getenv("EOS_SKIP_SSS_HOSTNAME_MATCH")) {
+    skip_hostname_match = true;
+  }
+
   int retc = 0;
   const std::string vid_hostname = vid_in.host;
   eos::common::FileSystem::fsid_t fsid = atoi(sfsid.c_str());
@@ -1065,7 +1073,7 @@ proc_sort_groups_by_priority(FsView& fs_view, const std::string& space,
   // without any file systems i.e highest priority
   std::list<std::string> ret_grps(set_grps.begin(), set_grps.end());
 
-  for (auto&& grp : grps) {
+  for (auto && grp : grps) {
     ret_grps.push_back(grp->mName);
   }
 
@@ -1109,7 +1117,7 @@ int proc_mv_grp_space(FsView& fs_view, const std::string& src,
   if (!failed_fs.empty()) {
     oss << "warning: the following file systems could not be moved ";
 
-    for (auto&& elem : failed_fs) {
+    for (auto && elem : failed_fs) {
       oss << elem << " ";
     }
 
@@ -1173,7 +1181,7 @@ int proc_mv_space_space(FsView& fs_view, const std::string& src,
   if (!failed_fs.empty()) {
     oss << "warning: the following file systems could not be moved ";
 
-    for (auto&& elem : failed_fs) {
+    for (auto && elem : failed_fs) {
       oss << elem << " ";
     }
 
