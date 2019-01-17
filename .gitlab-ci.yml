@@ -486,6 +486,8 @@ system_test_qdb_xrd_testing:
   <<: *system_test_template_definition
   variables:
     EOS_IMG_NAME: "eos:xrd_testing_"
+  only:
+    - branches
   tags:
     - shell-with-docker
   dependencies:
