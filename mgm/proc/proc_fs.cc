@@ -284,14 +284,6 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
                eos::common::Mapping::VirtualIdentity& vid_in,
                const std::string& statusComment)
 {
-  // If EOS_SKIP_SSS_HOSTNAME_MATCH env variable is set then we skip
-  // the check below as this currently breaks the Kubernetes setup.
-  bool skip_hostname_match = false;
-
-  if (getenv("EOS_SKIP_SSS_HOSTNAME_MATCH")) {
-    skip_hostname_match = true;
-  }
-
   int retc = 0;
   const std::string vid_hostname = vid_in.host;
   eos::common::FileSystem::fsid_t fsid = 0;
@@ -368,6 +360,14 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
           nodename.erase(dpos);
         }
 
+        // If EOS_SKIP_SSS_HOSTNAME_MATCH env variable is set then we skip
+        // the check below as this currently breaks the Kubernetes setup.
+        bool skip_hostname_match = false;
+        
+        if (getenv("EOS_SKIP_SSS_HOSTNAME_MATCH")) {
+          skip_hostname_match = true;
+        }
+        
         if ((vid_in.uid == 0) || (vid_in.prot == "sss")) {
           if ((vid_in.prot == "sss") && (vid_in.uid != 0)) {
             if (!skip_hostname_match &&
@@ -495,14 +495,6 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
             XrdOucString& stdOut, XrdOucString& stdErr,
             eos::common::Mapping::VirtualIdentity& vid_in)
 {
-  // If EOS_SKIP_SSS_HOSTNAME_MATCH env variable is set then we skip
-  // the check below as this currently breaks the Kubernetes setup.
-  bool skip_hostname_match = false;
-
-  if (getenv("EOS_SKIP_SSS_HOSTNAME_MATCH")) {
-    skip_hostname_match = true;
-  }
-
   int retc = 0;
   const std::string vid_hostname = vid_in.host;
   eos::common::FileSystem::fsid_t fsid = atoi(sfsid.c_str());
@@ -524,6 +516,14 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
       rnodename.erase(dpos);
     }
 
+    // If EOS_SKIP_SSS_HOSTNAME_MATCH env variable is set then we skip
+    // the check below as this currently breaks the Kubernetes setup.
+    bool skip_hostname_match = false;
+    
+    if (getenv("EOS_SKIP_SSS_HOSTNAME_MATCH")) {
+      skip_hostname_match = true;
+    }
+    
     // ========> ViewMutex WRITELOCK
     FsView::gFsView.ViewMutex.LockWrite();
 
@@ -1241,6 +1241,14 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
 
     if ((dpos = nodename.find('.')) != std::string::npos) {
       nodename.erase(dpos);
+    }
+
+    // If EOS_SKIP_SSS_HOSTNAME_MATCH env variable is set then we skip
+    // the check below as this currently breaks the Kubernetes setup.
+    bool skip_hostname_match = false;
+
+    if (getenv("EOS_SKIP_SSS_HOSTNAME_MATCH")) {
+      skip_hostname_match = true;
     }
 
     if ((vid_in.uid == 0) || (vid_in.prot == "sss")) {
