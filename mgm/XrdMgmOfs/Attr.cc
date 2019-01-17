@@ -58,7 +58,7 @@ XrdMgmOfs::attr_ls(const char* inpath,
 //------------------------------------------------------------------------------
 int
 XrdMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
-                    eos::common::Mapping::VirtualIdentity& vid,
+                    const eos::common::Mapping::VirtualIdentity& vid,
                     const char* info, eos::IContainerMD::XAttrMap& map,
                     bool take_lock, bool links)
 {

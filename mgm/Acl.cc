@@ -32,7 +32,7 @@ EOSMGMNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 Acl::Acl(std::string sysacl, std::string useracl,
-         eos::common::Mapping::VirtualIdentity& vid, bool allowUserAcl)
+         const eos::common::Mapping::VirtualIdentity& vid, bool allowUserAcl)
 {
   Set(sysacl, useracl, vid, allowUserAcl);
 }
@@ -49,7 +49,7 @@ Acl::Acl(std::string sysacl, std::string useracl,
 //------------------------------------------------------------------------------
 
 Acl::Acl(const eos::IContainerMD::XAttrMap& attrmap,
-         eos::common::Mapping::VirtualIdentity& vid)
+         const eos::common::Mapping::VirtualIdentity& vid)
 {
   // define the acl rules from the attributes
   SetFromAttrMap(attrmap, vid);
@@ -59,7 +59,7 @@ Acl::Acl(const eos::IContainerMD::XAttrMap& attrmap,
 // Constructor by path
 //------------------------------------------------------------------------------
 Acl::Acl(const char* path, XrdOucErrInfo& error,
-         eos::common::Mapping::VirtualIdentity& vid,
+         const eos::common::Mapping::VirtualIdentity& vid,
          eos::IContainerMD::XAttrMap& attrmap, bool lockNs)
 {
   gOFS->_attr_ls(path, error, vid, 0, attrmap, lockNs);
@@ -72,7 +72,7 @@ Acl::Acl(const char* path, XrdOucErrInfo& error,
 //------------------------------------------------------------------------------
 void
 Acl::SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
-                    eos::common::Mapping::VirtualIdentity& vid, eos::IFileMD::XAttrMap *attrmapF)
+                    const eos::common::Mapping::VirtualIdentity& vid, eos::IFileMD::XAttrMap *attrmapF)
 {
   bool evalUseracl;
   std::string useracl = "";
@@ -100,7 +100,7 @@ Acl::SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
 //------------------------------------------------------------------------------
 void
 Acl::Set(std::string sysacl, std::string useracl,
-         eos::common::Mapping::VirtualIdentity& vid, bool allowUserAcl)
+         const eos::common::Mapping::VirtualIdentity& vid, bool allowUserAcl)
 {
   std::string acl = "";
 

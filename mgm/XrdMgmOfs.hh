@@ -695,7 +695,7 @@ public:
   //! @return SFS_OK if success otherwise SFS_ERROR
   //----------------------------------------------------------------------------
   int _attr_ls(const char* path, XrdOucErrInfo& out_error,
-               eos::common::Mapping::VirtualIdentity& vid,
+               const eos::common::Mapping::VirtualIdentity& vid,
                const char* opaque, eos::IContainerMD::XAttrMap& map,
                bool take_lock = true, bool links = false);
 
