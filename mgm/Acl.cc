@@ -48,7 +48,7 @@ Acl::Acl(std::string sysacl, std::string useracl,
 //!
 //------------------------------------------------------------------------------
 
-Acl::Acl(eos::IContainerMD::XAttrMap& attrmap,
+Acl::Acl(const eos::IContainerMD::XAttrMap& attrmap,
          eos::common::Mapping::VirtualIdentity& vid)
 {
   // define the acl rules from the attributes
@@ -71,7 +71,7 @@ Acl::Acl(const char* path, XrdOucErrInfo& error,
 // Set Acls by interpreting the attribute map
 //------------------------------------------------------------------------------
 void
-Acl::SetFromAttrMap(eos::IContainerMD::XAttrMap& attrmap,
+Acl::SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
                     eos::common::Mapping::VirtualIdentity& vid, eos::IFileMD::XAttrMap *attrmapF)
 {
   bool evalUseracl;
@@ -81,12 +81,18 @@ Acl::SetFromAttrMap(eos::IContainerMD::XAttrMap& attrmap,
       evalUseracl = true;
       useracl = (*attrmapF)["user.acl"];
   } else {
-      evalUseracl = attrmap.count("user.acl") > 0;
-      if (evalUseracl) useracl = attrmap["user.acl"];
+    auto it = attrmap.find("user.acl");
+    evalUseracl = (it != attrmap.end());
+    if (evalUseracl) useracl = it->second;
   }
 
-  Set(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
-          useracl, vid, evalUseracl);
+  std::string sysAcl;
+  auto it = attrmap.find("sys.acl");
+  if(it != attrmap.end()) {
+    sysAcl = it->second;
+  }
+
+  Set(sysAcl, useracl, vid, evalUseracl);
 }
 
 //------------------------------------------------------------------------------

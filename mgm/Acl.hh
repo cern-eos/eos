@@ -111,7 +111,7 @@ public:
   /*---------------------------------------------------------------------------*/
   //! Constructor from XAttrMap
   /*---------------------------------------------------------------------------*/
-  Acl(eos::IContainerMD::XAttrMap& xattrmap,
+  Acl(const eos::IContainerMD::XAttrMap& xattrmap,
       eos::common::Mapping::VirtualIdentity& vid);
 
   //----------------------------------------------------------------------------
@@ -136,7 +136,7 @@ public:
   //----------------------------------------------------------------------------
   // Set Acls by interpreting the attribute map
   //----------------------------------------------------------------------------
-  void SetFromAttrMap(eos::IContainerMD::XAttrMap& attrmap,
+  void SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
     eos::common::Mapping::VirtualIdentity& vid, eos::IFileMD::XAttrMap *attrmapF = NULL);
 
   //----------------------------------------------------------------------------
