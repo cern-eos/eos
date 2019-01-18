@@ -74,6 +74,22 @@ If you want to configure the size of the recycle bin you run
 
 The size has to be atleast 100G !
 
+
+Define the inode size of the recycle bin 
+++++++++++++++++++++++++++++++++++++++++
+
+If you want to configure the number of inodes in the recycle bin you run 
+**recycle config --inodes <value>[K|M|G]**:
+
+.. code-block:: bash
+
+   EOS Console [root://localhost] |/eos/> recycle config --inodes 1M
+
+<value> can be a number or suffixed with K (1000), M (1.000.0000) or G (1.000.000.000).
+
+It is not mandatory to define the number of inodes to use a recycle bin.
+
+
 Define an optional threshold ratio
 ++++++++++++++++++++++++++++++++++
 
