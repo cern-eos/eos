@@ -308,13 +308,18 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
   std::ostringstream src_cap;
 
   if (mRainReconstruct) {
+    url_src.SetPath(eos::common::StringConversion::curl_escaped(fdrain.mFullPath));
     url_src.SetHostName(gOFS->MgmOfsAlias.c_str());
     url_src.SetPort(gOFS->ManagerPort);
     src_cap << output_cap->Env(cap_len)
             << "&mgm.logid=" << log_id
             << "&eos.pio.action=reconstruct"
-            << "&eos.pio.recfs=" << mFsIdSource;
+            << "&eos.pio.recfs=" << mFsIdSource
+            << "&eos.encodepath=curl";
   } else {
+    std::ostringstream oss_path;
+    oss_path << "/replicate:" << eos::common::FileId::Fid2Hex(mFileId);
+    url_src.SetPath(oss_path.str());
     url_src.SetHostName(src_snapshot.mHost.c_str());
     url_src.SetPort(stoi(src_snapshot.mPort));
     src_cap << output_cap->Env(cap_len)
@@ -323,12 +328,9 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
             << "//replicate:" << eos::common::FileId::Fid2Hex(mFileId);
   }
 
+  url_src.SetParams(src_cap.str());
   url_src.SetProtocol("root");
   url_src.SetUserName("daemon");
-  url_src.SetParams(src_cap.str());
-  std::ostringstream oss_path;
-  oss_path << "/replicate:" << eos::common::FileId::Fid2Hex(mFileId);
-  url_src.SetPath(oss_path.str());
   delete output_cap;
   return url_src;
 }
