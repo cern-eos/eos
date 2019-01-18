@@ -138,7 +138,7 @@ ProcCommand::Attr()
               if (key == "user.acl") {
                 XrdOucString evalacl;
 
-                // If someone wants to set a user.acl and the tag sys.eval.useracl
+               // If someone wants to set a user.acl and the tag sys.eval.useracl
                 // is not there, we return an error ...
                 if ((pVid->uid != 0) && gOFS->_attr_get(foundit->first.c_str(),
                                                         *mError, *pVid,
@@ -153,6 +153,7 @@ ProcCommand::Attr()
 
               // Check if the origin exists and is a directory
               if (key == "sys.attr.link") {
+		eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
                 try {
                   auto cmd = gOFS->eosView->getContainer(val.c_str());
                 } catch (eos::MDException& e) {
