@@ -501,6 +501,18 @@ public:
     return XOpenState;
   }
 
+  bool opening_state_should_retry() {
+    if ( (opening_state().code != XrdCl::errConnectionError) &&
+	 (opening_state().code != XrdCl::errSocketTimeout) &&
+	 (opening_state().code != XrdCl::errOperationExpired) &&
+	 (opening_state().code != XrdCl::errSocketDisconnected) &&
+	 (opening_state().errNo != kXR_noserver) && 
+	 (opening_state().errNo != kXR_FSError) &&
+	 (opening_state().errNo != kXR_IOError) )
+      return false;
+    return true;
+  }
+
   void set_state(OPEN_STATE newstate, XRootDStatus* xs = 0)
   {
     // lock XOpenAsyncCond from outside
