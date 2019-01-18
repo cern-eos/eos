@@ -887,6 +887,21 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
     }
 
     XrdCl::Proxy* proxy = mFile->xrdiorw(req);
+    
+    if ( proxy->opening_state().IsError() ) {
+      if (
+	  (proxy->opening_state().code != XrdCl::errConnectionError) &&
+	  (proxy->opening_state().code != XrdCl::errSocketTimeout) &&
+	  (proxy->opening_state().code != XrdCl::errOperationExpired) &&
+	  (proxy->opening_state().code != XrdCl::errSocketDisconnected) &&
+	  (proxy->opening_state().errNo != kXR_noserver) ) {
+	eos_err("unrecoverable error - code=%d errNo=%d", 
+		proxy->opening_state().code,
+		proxy->opening_state().errNo);
+	return EREMOTEIO;
+      }
+    }
+
 
     switch (proxy->stateTS()) {
     case XrdCl::Proxy::FAILED:
@@ -894,6 +909,11 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
     case XrdCl::Proxy::WAITWRITE:
     default:
       eos_crit("triggering write recovery state = %d", proxy->stateTS());
+      eos_crit("opening-state %d %d write-state %d %d",
+	       proxy->opening_state().IsError(),
+	       proxy->opening_state().IsFatal(),
+	       proxy->write_state().IsError(),
+	       proxy->write_state().IsFatal());
       return recover_write(req);
       eos_crit("default action");
     }
@@ -910,6 +930,20 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
     }
 
     XrdCl::Proxy* proxy = mFile->xrdioro(req);
+
+    if ( proxy->opening_state().IsError() ) {
+      if (
+	  (proxy->opening_state().code != XrdCl::errConnectionError) &&
+	  (proxy->opening_state().code != XrdCl::errSocketTimeout) &&
+	  (proxy->opening_state().code != XrdCl::errOperationExpired) &&
+	  (proxy->opening_state().code != XrdCl::errSocketDisconnected) &&
+	  (proxy->opening_state().errNo != kXR_noserver) ) {
+	eos_err("unrecoverable error - code=%d errNo=%d", 
+		proxy->opening_state().code,
+		proxy->opening_state().errNo);
+	return EREMOTEIO;
+      }
+    }
 
     switch (proxy->stateTS()) {
     case XrdCl::Proxy::FAILED:
