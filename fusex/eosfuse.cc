@@ -2464,7 +2464,7 @@ EosFuse::listdir(fuse_req_t req, fuse_ino_t ino, metad::shared_md& md)
     std::string authid = pcap->authid();
     cLock.UnLock();
     md = Instance().mds.get(req, ino, authid, true);
-    if (!md->pid()) {
+    if (!md->pid() && (md->id()!=1)) {
       rc = ENOENT;
     }
   }
