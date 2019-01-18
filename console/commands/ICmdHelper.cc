@@ -31,7 +31,7 @@
 int
 ICmdHelper::Execute(bool printError)
 {
-  int retc = this->ExecuteWithoutPrint();
+  int retc = ExecuteWithoutPrint();
 
   if (retc) {
     if (printError && mMgmExec.GetError().length()) {
@@ -43,15 +43,19 @@ ICmdHelper::Execute(bool printError)
         TextHighlight(mMgmExec.GetResult());
       }
 
-      std::cout << this->GetResult();
+      std::cout << GetResult();
     }
   }
 
   return retc;
 }
 
+//------------------------------------------------------------------------------
+// Execute command without displaying the result
+//------------------------------------------------------------------------------
 int
-ICmdHelper::ExecuteWithoutPrint() {
+ICmdHelper::ExecuteWithoutPrint()
+{
   if (!mReq.command_case()) {
     std::cerr << "error: generic request object not populated with command"
               << std::endl;
@@ -67,14 +71,17 @@ ICmdHelper::ExecuteWithoutPrint() {
 
   std::string cmd = "mgm.cmd.proto=";
   cmd += b64buff;
-  if (getenv("EOS_ROUTE"))
-  {
+
+  if (getenv("EOS_ROUTE")) {
     XrdOucString route = getenv("EOS_ROUTE");
-    while(route.replace("&","#AND#")){}
+
+    while (route.replace("&", "#AND#")) {}
+
     cmd += "&eos.route=";
     cmd += route.c_str();
     unsetenv("EOS_ROUTE");
   }
+
   return mMgmExec.ExecuteCommand(cmd.c_str(), mIsAdmin);
 }
 
@@ -108,6 +115,9 @@ ICmdHelper::TextHighlight(std::string& text)
   }
 }
 
+//------------------------------------------------------------------------------
+// Method used for user confirmation of the specified command
+//------------------------------------------------------------------------------
 bool
 ICmdHelper::ConfirmOperation()
 {
@@ -121,7 +131,6 @@ ICmdHelper::ConfirmOperation()
 
   out << "Confirm operation by typing => " << confirmation << std::endl;
   out << "                            => ";
-
   std::string userInput;
   std::cout << out.str();
   getline(std::cin, userInput);
@@ -135,14 +144,12 @@ ICmdHelper::ConfirmOperation()
   }
 }
 
-bool
-ICmdHelper::NeedsConfirmation()
-{
-  return mNeedsConfirmation;
-}
-
+//------------------------------------------------------------------------------
+// Get command output string
+//------------------------------------------------------------------------------
 std::string
-ICmdHelper::GetResult() {
+ICmdHelper::GetResult()
+{
   // Add new line if necessary
   std::string out = mMgmExec.GetResult();
 
@@ -153,7 +160,11 @@ ICmdHelper::GetResult() {
   return out;
 }
 
+//------------------------------------------------------------------------------
+// Get command error string
+//------------------------------------------------------------------------------
 std::string
-ICmdHelper::GetError() {
+ICmdHelper::GetError()
+{
   return mMgmExec.GetError();
 }

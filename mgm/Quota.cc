@@ -1544,7 +1544,7 @@ Quota::SetQuotaForTag(const std::string& qpath,
                       long id, unsigned long long value)
 {
   unsigned long spaceq_type = SpaceQuota::GetTagFromString(quota_stag);
-  // Make sure the quta node exists
+  // Make sure the quota node exists
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
   SpaceQuota* squota = GetSpaceQuota(qpath);
 
@@ -2079,10 +2079,9 @@ Quota::GetQuotaInfo(SpaceQuota* squota, uid_t uid, gid_t gid,
   long long maxbytes = 0;
   freebytes_user = freebytes_group = freebytes_project = 0;
   maxbytes_user = maxbytes_group = maxbytes_project = 0;
-
-  squota->UpdateFromQuotaNode(uid, gid, squota->GetQuota(SpaceQuota::kGroupBytesTarget, Quota::gProjectId)
-                      ? true : false);
-
+  squota->UpdateFromQuotaNode(uid, gid,
+                              squota->GetQuota(SpaceQuota::kGroupBytesTarget, Quota::gProjectId)
+                              ? true : false);
   maxbytes_user  = squota->GetQuota(SpaceQuota::kUserBytesTarget, uid);
   maxbytes_group = squota->GetQuota(SpaceQuota::kGroupBytesTarget, gid);
   maxbytes_project = squota->GetQuota(SpaceQuota::kGroupBytesTarget,

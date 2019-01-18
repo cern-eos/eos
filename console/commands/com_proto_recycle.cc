@@ -254,6 +254,41 @@ RecycleHelper::ParseCommand(const char* arg)
       }
 
       config->set_ratio(ratio);
+    } else if (soption == "--size") {
+      config->set_op(eos::console::RecycleProto::ConfigProto::SIZE);
+
+      if (!(option = tokenizer.GetToken())) {
+        return false;
+      }
+
+      soption = option;
+      std::set<char> units {'K', 'M', 'G'};
+      uint64_t size = eos::common::StringConversion::GetSizeFromString(soption);
+
+      if (errno) {
+        std::cerr << "error: specified size could not be converted" << std::endl;
+        return false;
+      }
+
+      config->set_size(size);
+    } else if (soption == "--inodes") {
+      config->set_op(eos::console::RecycleProto::ConfigProto::INODES);
+
+      if (!(option = tokenizer.GetToken())) {
+        return false;
+      }
+
+      soption = option;
+      std::set<char> units {'K', 'M', 'G'};
+      uint64_t size = eos::common::StringConversion::GetSizeFromString(soption);
+
+      if (errno) {
+        std::cerr << "error: specified number of inodes could not be converted"
+                  << std::endl;
+        return false;
+      }
+
+      config->set_size(size);
     } else {
       return false;
     }
@@ -350,6 +385,17 @@ void com_recycle_help()
       << std::endl
       << "    be recycled if more than 80% of the volume/inodes quota is used. The"
       << std::endl
-      << "    low watermark is by default 10% below the given ratio." << std::endl;
+      << "    low watermark is by default 10% below the given ratio."
+      << std::endl
+      << std::endl
+      << "  recycle config --size <value>[K|M|G]" << std::endl
+      << "    configure the quota for the maximum size of the recycle bin. "
+      << std::endl
+      << "    If no unit is set explicitly then we assume bytes." << std::endl
+      << std::endl
+      << "  recycle config --inodes <value>[K|M|G]" << std::endl
+      << "    configure the quota for the maximum number of inodes in the recycle"
+      << std::endl
+      << "    bin." << std::endl;
   std::cerr << oss.str() << std::endl;
 }

@@ -71,14 +71,33 @@ public:
   //----------------------------------------------------------------------------
   int Execute(bool printError = true);
 
+  //----------------------------------------------------------------------------
+  //! Execute command without displaying the result
+  //!
+  //! @return command return code
+  //----------------------------------------------------------------------------
   int ExecuteWithoutPrint();
 
+  //----------------------------------------------------------------------------
+  //! Get command output string
+  //----------------------------------------------------------------------------
   std::string GetResult();
 
+  //----------------------------------------------------------------------------
+  //! Get command error string
+  //----------------------------------------------------------------------------
   std::string GetError();
 
-  bool NeedsConfirmation();
+  inline bool NeedsConfirmation()
+  {
+    return mNeedsConfirmation;
+  }
 
+  //------------------------------------------------------------------------------
+  //! Method used for user confirmation of the specified command
+  //!
+  //! @return true if operation confirmed, otherwise false
+  //------------------------------------------------------------------------------
   bool ConfirmOperation();
 
 protected:
@@ -94,5 +113,6 @@ protected:
   bool mIsAdmin; ///< If true execute as admin, otherwise as user
   bool mHighlight; ///< If true apply text highlighting to output
   bool mIsSilent; ///< If true execute command but don't display anything
-  bool mNeedsConfirmation {false}; ///< If true it requires a strong user confirmation before executing the command
+  //! If true it requires a strong user confirmation before executing the command
+  bool mNeedsConfirmation {false};
 };

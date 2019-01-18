@@ -27,12 +27,15 @@ message RecycleProto {
      RM_BIN   = 1;
      LIFETIME = 2;
      RATIO    = 3;
+     SIZE     = 4;
+     INODES   = 5;
     }
 
     OpType op         = 1;
     string Subtree    = 2;
     int32 LifetimeSec = 3;
     float Ratio       = 4;
+    uint64 Size       = 5; // Use by either SIZE or INODES
   }
 
   oneof subcmd {

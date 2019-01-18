@@ -22,6 +22,7 @@
 
 #include "RecycleCmd.hh"
 #include "mgm/Recycle.hh"
+#include "mgm/Quota.hh"
 #include "mgm/XrdMgmOfs.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -83,8 +84,16 @@ RecycleCmd::ProcessRequest() noexcept
       reply.set_std_out(std_out.c_str());
     }
   } else if (subcmd == RecycleProto::kConfig) {
+    using eos::mgm::Quota;
     int retc = 0;
     const eos::console::RecycleProto_ConfigProto& config = recycle.config();
+
+    if (mVid.uid != 0) {
+      reply.set_std_err("error: you need to be root to configure the recycle bin"
+                        " and/or recycle policies");
+      reply.set_retc(EPERM);
+      return reply;
+    }
 
     if (config.op() == eos::console::RecycleProto_ConfigProto::ADD_BIN) {
       retc = Recycle::Config(std_out, std_err, mVid, "--add-bin",
@@ -98,6 +107,26 @@ RecycleCmd::ProcessRequest() noexcept
     } else if (config.op() == eos::console::RecycleProto_ConfigProto::RATIO) {
       retc = Recycle::Config(std_out, std_err, mVid, "--ratio",
                              std::to_string(config.ratio()));
+    } else if (config.op() == eos::console::RecycleProto_ConfigProto::SIZE) {
+      std::string msg;
+
+      if (!Quota::SetQuotaTypeForId(Recycle::gRecyclingPrefix, Quota::gProjectId,
+                                    Quota::IdT::kGid, Quota::Type::kVolume, config.size(),
+                                    msg, retc)) {
+        reply.set_std_err(msg);
+        reply.set_retc(retc);
+        return reply;
+      }
+    } else if (config.op() == eos::console::RecycleProto_ConfigProto::INODES) {
+      std::string msg;
+
+      if (!Quota::SetQuotaTypeForId(Recycle::gRecyclingPrefix, Quota::gProjectId,
+                                    Quota::IdT::kGid, Quota::Type::kInode, config.size(),
+                                    msg, retc)) {
+        reply.set_std_err(msg);
+        reply.set_retc(retc);
+        return reply;
+      }
     }
 
     reply.set_retc(retc);

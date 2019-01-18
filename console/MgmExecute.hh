@@ -37,8 +37,8 @@ public:
   //----------------------------------------------------------------------------
   struct ExecutionOutcome {
     ExecutionOutcome() : result(""), error(""), errc(0) {}
-    ExecutionOutcome(const std::string &res, const std::string &err = "", int c = 0)
-    : result(res), error(err), errc(c) {}
+    ExecutionOutcome(const std::string& res, const std::string& err = "", int c = 0)
+      : result(res), error(err), errc(c) {}
 
     std::string result;  ///< String holding the result
     std::string error;   ///< String holding the error message
@@ -48,7 +48,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  MgmExecute() {}
+  MgmExecute() = default;
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -93,7 +93,8 @@ public:
   //! Inject simulated data. After calling this function, ALL responses from
   //! this class will be simulated, and there's no turning back.
   //----------------------------------------------------------------------------
-  void InjectSimulated(const std::string &command, const ExecutionOutcome &outcome)
+  void InjectSimulated(const std::string& command,
+                       const ExecutionOutcome& outcome)
   {
     mSimulationMode = true;
     mSimulatedData.emplace(FakeEntry{command, outcome});
@@ -103,7 +104,7 @@ public:
   //! Check whether simulation was successful, ie we received the exact
   //! commands in the specified order.
   //----------------------------------------------------------------------------
-  bool CheckSimulationSuccessful(std::string &message)
+  bool CheckSimulationSuccessful(std::string& message)
   {
     message = mSimulationErrors;
     return mSimulatedData.empty() && mSimulationErrors.empty();
