@@ -310,7 +310,7 @@ echo "===================================================================="
 echo "012 ... rm-rf eternal loop test"
 mkdir 012-eos-rmrf-test
 cd 012-eos-rmrf-test
-for name in `seq 1 100`; do mkdir name; rm -rf name; stat name 2>/dev/null  && echo exit 12;  done
+for name in `seq 1 100`; do mkdir name; rm -rf name; stat name 2>/dev/null  && exit 12;  done; exit 0;
 ) || exit 12
 fi
 
