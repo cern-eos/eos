@@ -686,6 +686,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       root["options"]["write-size-flush-interval"] = 5;
     }
 
+    if (!root["options"].isMember("submounts")) {
+      root["options"]["submounts"] = 0;
+    }
+
     // xrdcl default options
     XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
     XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionWindow", 10);
@@ -831,6 +835,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.options.nocache_graceperiod =
       root["options"]["nocache-graceperiod"].asInt();
     config.options.leasetime = root["options"]["leasetime"].asInt();
+
+    config.options.submounts = root["options"]["submounts"].asInt();
+
     config.recovery.read = root["recovery"]["read"].asInt();
     config.recovery.read_open = root["recovery"]["read-open"].asInt();
     config.recovery.read_open_noserver =
@@ -1282,18 +1289,18 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   if (fuse_daemonize(config.options.foreground) != -1) {
 #ifndef __APPLE__
 
-    /* disabled for the time being, since not used
-    eos::common::ShellCmd cmd("echo eos::common::ShellCmd init 2>&1");
-    eos::common::cmd_status st = cmd.wait(5);
-    int rc = st.exit_code;
-
-    if (rc) {
-      fprintf(stderr,
-              "error: failed to run shell command\n");
-      exit(-1);
+    
+    if (config.options.submounts) {
+      eos::common::ShellCmd cmd("echo eos::common::ShellCmd init 2>&1");
+      eos::common::cmd_status st = cmd.wait(5);
+      int rc = st.exit_code;
+      
+      if (rc) {
+	fprintf(stderr,
+		"error: failed to run shell command\n");
+	exit(-1);
+      }
     }
-
-    */
 
     if (!geteuid()) {
       // change the priority of this process to maximum
@@ -1528,7 +1535,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       eos_static_warning("sss-keytabfile         := %s", config.ssskeytab.c_str());
     }
 
-    eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d",
+    eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d",
                        config.options.enable_backtrace,
                        config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
@@ -1554,7 +1561,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                        config.options.rm_rf_protect_levels,
                        config.options.rm_rf_bulk,
                        config.options.leasetime,
-                       config.options.write_size_flush_interval
+                       config.options.write_size_flush_interval,
+		       config.options.submounts
                       );
     eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d rh-blocks:%d max-rh-buffer=%lu max-wr-buffer=%lu tot-size=%ld tot-ino=%ld dc-loc:%s jc-loc:%s clean-thrs:%02f%%%",
                        cconfig.read_ahead_strategy.c_str(),
@@ -1644,7 +1652,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     tMetaStackFree.join();
     tMetaCommunicate.join();
     tCapFlush.join();
-    Mounter().terminate();
+
+    if (Instance().Config().options.submounts) {
+      Mounter().terminate();
+    }
 
     // remove the session and channel object after all threads are joined
     if (fusesession) {
@@ -1673,6 +1684,10 @@ void
 EosFuse::umounthandler(int sig, siginfo_t* si, void* ctx)
 /* -------------------------------------------------------------------------- */
 {
+  if (Instance().Config().options.submounts) {
+    Instance().Mounter().terminate();  
+  }
+
   eos::common::handleSignal(sig, si, ctx);
   std::string systemline = "fusermount -u -z ";
   systemline += EosFuse::Instance().Config().localmountdir;
@@ -1684,6 +1699,7 @@ EosFuse::umounthandler(int sig, siginfo_t* si, void* ctx)
   signal(SIGSEGV, SIG_DFL);
   signal(SIGABRT, SIG_DFL);
   signal(SIGTERM, SIG_DFL);
+
   kill(getpid(), sig);
 }
 
@@ -5106,25 +5122,27 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
     }
   }
 
-  if (target.substr(0, 6) == "mount:") {
-    std::string env;
-
-    // if not shared, set the caller credentials
-    if (0) {
+  if (Instance().Config().options.submounts) {
+    if (target.substr(0, 6) == "mount:") {
+      std::string env;
+      
+      // if not shared, set the caller credentials
+      if (0) {
       env = fusexrdlogin::environment(req);
+      }
+      
+      std::string localpath = Instance().Prefix(Instance().mds.calculateLocalPath(
+										  md));
+      rc = Instance().Mounter().mount(target, localpath, env);
     }
-
-    std::string localpath = Instance().Prefix(Instance().mds.calculateLocalPath(
+    
+    if (target.substr(0, 11) == "squashfuse:") {
+      std::string env;
+      //    env = fusexrdlogin::environment(req);
+      std::string localpath = Instance().Prefix(Instance().mds.calculateLocalPath(
                               md));
-    rc = Instance().Mounter().mount(target, localpath, env);
-  }
-
-  if (target.substr(0, 11) == "squashfuse:") {
-    std::string env;
-    //    env = fusexrdlogin::environment(req);
-    std::string localpath = Instance().Prefix(Instance().mds.calculateLocalPath(
-                              md));
-    rc = Instance().Mounter().squashfuse(target, localpath, env);
+      rc = Instance().Mounter().squashfuse(target, localpath, env);
+    }
   }
 
   if (!rc) {

@@ -56,7 +56,9 @@ This
     "no-link" : 0,
     "nocache-graceperiod" : 5
     "leasetime" : 300,
-    "write-size-flush-interval" : 5
+    "write-size-flush-interval" : 5,
+    "submounts" : 0
+   
   },
   "auth" : {
     "shared-mount" : 1,

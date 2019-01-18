@@ -251,6 +251,7 @@ public:
       uint32_t nocache_graceperiod;
       int leasetime;
       int write_size_flush_interval;
+      int submounts;
       std::vector<std::string> no_fsync_suffixes;
     } options_t;
 
