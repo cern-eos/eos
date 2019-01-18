@@ -326,7 +326,9 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
   url_src.SetProtocol("root");
   url_src.SetUserName("daemon");
   url_src.SetParams(src_cap.str());
-  url_src.SetPath(fdrain.mFullPath);
+  std::ostringstream oss_path;
+  oss_path << "/replicate:" << eos::common::FileId::Fid2Hex(mFileId);
+  url_src.SetPath(oss_path.str());
   delete output_cap;
   return url_src;
 }
