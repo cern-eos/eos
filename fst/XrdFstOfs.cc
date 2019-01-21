@@ -416,6 +416,24 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     eos::fst::Config::gConfig.StartDate = out.c_str();
   }
 
+  //check for EOS_GEOTAG limits
+  if (getenv("EOS_GEOTAG")) {
+      const int maxTagSize = 8;
+      char * nodeGeoTagTmp = getenv("EOS_GEOTAG");
+      //copy to a different string as strtok is modifying the pointed string
+      char nodeGeoTag [strlen(nodeGeoTagTmp)];
+      strcpy(nodeGeoTag,nodeGeoTagTmp);
+      char *gtag = strtok(nodeGeoTag, "::"); 
+      while(gtag != NULL) 
+      { 
+         if (strlen(gtag) > maxTagSize) {
+             Eroute.Emsg("Config", "EOS_GEOTAG var contains a tag longer than the 8 chars maximum allowed:",gtag);
+             NoGo = 1;
+         }
+         gtag = strtok(NULL, "::"); 
+      }
+  }
+
   eos::fst::Config::gConfig.FstMetaLogDir = "/var/tmp/eos/md/";
   eos::fst::Config::gConfig.FstAuthDir = "/var/eos/auth/";
   setenv("XrdClientEUSER", "daemon", 1);
@@ -591,7 +609,10 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     Config.Close();
     close(cfgFD);
   }
-
+  
+  if (NoGo) {
+      return 1;
+  }
   if (eos::fst::Config::gConfig.autoBoot) {
     Eroute.Say("=====> fstofs.autoboot : true");
   } else {
