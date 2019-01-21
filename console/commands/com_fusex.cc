@@ -178,13 +178,16 @@ com_fusex(char* arg1)
   return (0);
 com_fusex_usage:
   fprintf(stdout,
-          "usage: fusex ls [-l] [-f]                         :  print statistics about eosxd fuse clients\n");
+          "usage: fusex ls [-l] [-f] [-m]                     :  print statistics about eosxd fuse clients\n");
   fprintf(stdout,
           "                [no option]                                          -  break down by client host [default]\n");
   fprintf(stdout,
           "                -l                                                   -  break down by client host and show statistics \n");
   fprintf(stdout,
           "                -f                                                   -  show ongoing flush locks\n");
+
+  fprintf(stdout,
+          "                -m                                                   -  show monitoring output format\n");
   fprintf(stdout, "\n");
   fprintf(stdout,
           "       fuxex evict <uuid> [<reason>]                                 :  evict a fuse client\n");
