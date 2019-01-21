@@ -392,11 +392,12 @@ bool NamespaceExplorer::fetch(NamespaceItem& item)
         item.expansionFilteredOut = !options.expansionDecider->shouldExpandContainer(item.containerMd, item.attrs);
       }
 
+      dfsPath.back()->expansionFilteredOut = item.expansionFilteredOut;
       return true;
     }
 
     // Does the top node have any pending file children?
-    if (dfsPath.back()->fetchChild(item.fileMd)) {
+    if (!dfsPath.back()->expansionFilteredOut && dfsPath.back()->fetchChild(item.fileMd)) {
       item.isFile = true;
       item.fullPath = buildDfsPath() + item.fileMd.name();
       item.expansionFilteredOut = false;

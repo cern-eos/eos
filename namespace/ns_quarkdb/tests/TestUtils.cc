@@ -221,6 +221,7 @@ void NsTestsFixture::populateDummyData1()
   view()->createFile("/eos/d1/f5", true);
   view()->createFile("/eos/d2/d3-2/my-file", true);
   view()->createContainer("/eos/d2/d4/1/2/3/4/5/6/7/", true);
+  view()->createFile("/eos/d2/d4/adsf", true);
   view()->createFile("/eos/d2/asdf1", true);
   view()->createFile("/eos/d2/asdf2", true);
   view()->createFile("/eos/d2/asdf3", true);

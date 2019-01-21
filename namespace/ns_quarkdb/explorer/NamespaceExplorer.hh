@@ -126,6 +126,7 @@ public:
   }
 
   eos::ns::ContainerMdProto& getContainerInfo();
+  bool expansionFilteredOut = false;
 
 private:
   NamespaceExplorer &explorer;

@@ -659,6 +659,10 @@ TEST_F(NamespaceExplorerF, BasicSanity) {
   ASSERT_FALSE(item.isFile);
   ASSERT_EQ(item.fullPath, "/eos/d2/d4/");
 
+  ASSERT_TRUE(explorer2.fetch(item));
+  ASSERT_TRUE(item.isFile);
+  ASSERT_EQ(item.fullPath, "/eos/d2/d4/adsf");
+
   std::stringstream path;
   path << "/eos/d2/d4/";
   for(size_t i = 1; i <= 7; i++) {
