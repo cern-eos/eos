@@ -16,6 +16,26 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.4.21 Citrine``
+===================
+
+2019-01-21
+
+Bug
+----
+
+* [EOS-3203] - recycle config --size
+* [EOS-3204] - CLI: "eos acl" is broken
+* [EOS-3205] - Problem with the draining of zero size file
+* [EOS-3209] - central draining fails on paths containing question marks ('?')
+
+
+Improvement
+------------
+
+* [EOS-2678] - converter/groupbalancer "recycles" files found in recycle-enabled directories
+
+
 ``v4.4.20 Citrine``
 ===================
 
