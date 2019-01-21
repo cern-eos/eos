@@ -410,17 +410,16 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
                << "&mgm.fsid=" << dst_snapshot.mId
                << "&mgm.sourcehostport=" << dst_snapshot.mHostPort.c_str()
                << "&mgm.bookingsize=" << fdrain.mProto.size()
-               << "&eos.app=drainer&eos.targetsize=" << fdrain.mProto.size();
+               << "&eos.app=drainer&mgm.targetsize=" << fdrain.mProto.size();
 
     if (!fdrain.mProto.checksum().empty()) {
-      dst_params << "&eos.checksum=";
+      dst_params << "&mgm.checksum=";
       uint32_t xs_len = LayoutId::GetChecksumLen(lid);
       uint32_t data_len = fdrain.mProto.checksum().size();
 
       for (auto i = 0u; i < data_len; ++i) {
         dst_params <<
                    eos::common::StringConversion::char_to_hex(fdrain.mProto.checksum()[i]);
-        ++i;
       }
 
       // Pad with zeros if necessary
