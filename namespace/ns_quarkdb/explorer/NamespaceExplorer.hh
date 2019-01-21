@@ -77,6 +77,7 @@ struct NamespaceItem {
   //----------------------------------------------------------------------------
   eos::IContainerMD::XAttrMap attrs;
   bool isFile;
+  bool expansionFilteredOut;
 
   // Only one of these are actually filled out.
   eos::ns::FileMdProto fileMd;

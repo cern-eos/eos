@@ -384,6 +384,14 @@ bool NamespaceExplorer::fetch(NamespaceItem& item)
       item.fullPath = buildDfsPath();
       item.containerMd = dfsPath.back()->getContainerInfo();
       handleLinkedAttrs(item);
+
+      if(!options.expansionDecider) {
+        item.expansionFilteredOut = false;
+      }
+      else {
+        item.expansionFilteredOut = !options.expansionDecider->shouldExpandContainer(item.containerMd, item.attrs);
+      }
+
       return true;
     }
 
@@ -391,6 +399,7 @@ bool NamespaceExplorer::fetch(NamespaceItem& item)
     if (dfsPath.back()->fetchChild(item.fileMd)) {
       item.isFile = true;
       item.fullPath = buildDfsPath() + item.fileMd.name();
+      item.expansionFilteredOut = false;
       handleLinkedAttrs(item);
       return true;
     }

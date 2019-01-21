@@ -762,38 +762,46 @@ TEST_F(NamespaceExplorerF, ExpansionDecider) {
   ASSERT_TRUE(explorer.fetch(item));
   ASSERT_FALSE(item.isFile);
   ASSERT_EQ(item.fullPath, "/eos/d2/");
+  ASSERT_FALSE(item.expansionFilteredOut);
 
   for(size_t i = 1; i <= 3; i++) {
     ASSERT_TRUE(explorer.fetch(item));
     ASSERT_TRUE(item.isFile);
     ASSERT_EQ(item.fullPath, SSTR("/eos/d2/asdf" << i));
+    ASSERT_FALSE(item.expansionFilteredOut);
   }
 
   ASSERT_TRUE(explorer.fetch(item));
   ASSERT_TRUE(item.isFile);
   ASSERT_EQ(item.fullPath, "/eos/d2/b");
+  ASSERT_FALSE(item.expansionFilteredOut);
 
   for(size_t i = 1; i <= 6; i++) {
     ASSERT_TRUE(explorer.fetch(item));
     ASSERT_TRUE(item.isFile);
     ASSERT_EQ(item.fullPath, SSTR("/eos/d2/zzzzz" << i));
+    ASSERT_FALSE(item.expansionFilteredOut);
   }
 
   ASSERT_TRUE(explorer.fetch(item));
   ASSERT_FALSE(item.isFile);
   ASSERT_EQ(item.fullPath, "/eos/d2/d3-1/");
+  ASSERT_FALSE(item.expansionFilteredOut);
 
   ASSERT_TRUE(explorer.fetch(item));
   ASSERT_FALSE(item.isFile);
   ASSERT_EQ(item.fullPath, "/eos/d2/d3-2/");
+  ASSERT_FALSE(item.expansionFilteredOut);
 
   ASSERT_TRUE(explorer.fetch(item));
   ASSERT_TRUE(item.isFile);
   ASSERT_EQ(item.fullPath, "/eos/d2/d3-2/my-file");
+  ASSERT_FALSE(item.expansionFilteredOut);
 
   ASSERT_TRUE(explorer.fetch(item));
   ASSERT_FALSE(item.isFile);
   ASSERT_EQ(item.fullPath, "/eos/d2/d4/");
+  ASSERT_TRUE(item.expansionFilteredOut);
 
   ASSERT_FALSE(explorer.fetch(item));
   ASSERT_FALSE(explorer.fetch(item));
