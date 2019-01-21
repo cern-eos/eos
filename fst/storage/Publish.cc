@@ -146,7 +146,7 @@ static std::string getEosVersion()
 }
 
 //------------------------------------------------------------------------------
-// Retrieve node geotag
+// Retrieve node geotag - must be maximum 8 characters
 //------------------------------------------------------------------------------
 static std::string getGeotag()
 {
@@ -154,7 +154,7 @@ static std::string getGeotag()
     return getenv("EOS_GEOTAG");
   }
 
-  return "geotagdefault";
+  return "dfgeotag";
 }
 
 //------------------------------------------------------------------------------
@@ -280,7 +280,7 @@ Storage::Publish(ThreadAssistant& assistant)
   }
 
   XrdOucString lNodeGeoTag = (getenv("EOS_GEOTAG") ?
-                              getenv("EOS_GEOTAG") : "geotagdefault");
+                              getenv("EOS_GEOTAG") : "dfgeotag");
   unsigned long long netspeed = getNetspeed(tmp_name);
   eos_static_info("publishing:networkspeed=%.02f GB/s",
                   1.0 * netspeed / 1000000000.0);
