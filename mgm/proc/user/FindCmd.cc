@@ -28,6 +28,7 @@
 #include "mgm/Acl.hh"
 #include "mgm/Stat.hh"
 #include "mgm/FsView.hh"
+#include "mgm/auth/AccessChecker.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/utils/Stat.hh"
 #include "namespace/utils/BalanceCalculator.hh"
@@ -524,6 +525,7 @@ eos::mgm::FindCmd::printPath(std::ofstream& ss, const std::string& path,
 struct FindResult {
   std::string path;
   bool isdir;
+  bool expansionFilteredOut;
 
   std::shared_ptr<eos::IContainerMD> containerMD;
   std::shared_ptr<eos::IFileMD> fileMD;
@@ -564,6 +566,26 @@ struct FindResult {
 };
 
 //------------------------------------------------------------------------------
+// Filter-out directories which we have no permission to access
+//------------------------------------------------------------------------------
+class PermissionFilter : public ExpansionDecider
+{
+public:
+  PermissionFilter(const eos::common::Mapping::VirtualIdentity& v) : vid(v) {}
+
+  virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto& proto,
+    const eos::IContainerMD::XAttrMap &attrs) override {
+
+    eos::QuarkContainerMD cmd;
+    cmd.initializeWithoutChildren(eos::ns::ContainerMdProto(proto));
+    return AccessChecker::checkContainer(&cmd, attrs, R_OK | X_OK, vid);
+  }
+
+private:
+  const eos::common::Mapping::VirtualIdentity& vid;
+};
+
+//------------------------------------------------------------------------------
 // Find result provider class
 //------------------------------------------------------------------------------
 class FindResultProvider
@@ -573,10 +595,15 @@ public:
   //----------------------------------------------------------------------------
   // QDB: Initialize NamespaceExplorer
   //----------------------------------------------------------------------------
-  FindResultProvider(qclient::QClient* qc, const std::string& target)
-    : qcl(qc), path(target)
+  FindResultProvider(qclient::QClient* qc, const std::string& target,
+    const eos::common::Mapping::VirtualIdentity &v)
+    : qcl(qc), path(target), vid(v)
   {
     ExplorationOptions options;
+    options.populateLinkedAttributes = true;
+    options.expansionDecider.reset(new PermissionFilter(vid));
+    options.view = gOFS->eosView;
+
     explorer.reset(new NamespaceExplorer(path, options, *qcl));
   }
 
@@ -619,6 +646,8 @@ public:
 
   bool nextInMemory(FindResult& res)
   {
+    res.expansionFilteredOut = false;
+
     // Search not started yet?
     if (!inMemStarted) {
       dirIterator = found->begin();
@@ -670,6 +699,7 @@ public:
 
     res.path = item.fullPath;
     res.isdir = !item.isFile;
+    res.expansionFilteredOut = item.expansionFilteredOut;
 
     if (item.isFile) {
       eos::QuarkFileMD* fmd = new eos::QuarkFileMD();
@@ -714,6 +744,7 @@ private:
   qclient::QClient* qcl = nullptr;
   std::string path;
   std::unique_ptr<NamespaceExplorer> explorer;
+  eos::common::Mapping::VirtualIdentity vid;
 };
 
 //------------------------------------------------------------------------------
@@ -831,7 +862,8 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
   } else {
     findResultProvider.reset(new FindResultProvider(
                                eos::BackendClient::getInstance(gOFS->mQdbContactDetails, "find"),
-                               findRequest.path()
+                               findRequest.path(),
+                               mVid
                              ));
   }
 
@@ -844,6 +876,13 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
 
     while (findResultProvider->next(findResult)) {
       if (findResult.isdir) {
+
+        if(findResult.expansionFilteredOut) {
+          ofstderrStream << "error: no permissions to read directory ";
+          ofstderrStream << findResult.path;
+          ofstderrStream << std::endl;
+        }
+
         if (!findRequest.files() && !nodirs) {
           if (!printcounter) {
             printPath(ofstdoutStream, findResult.path, printxurl);
