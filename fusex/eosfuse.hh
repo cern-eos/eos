@@ -216,6 +216,7 @@ public:
       int debuglevel;
       int libfusethreads;
       int foreground;
+      int automounted;
       int md_kernelcache;
       int enable_backtrace;
       double md_kernelcache_enoent_timeout;

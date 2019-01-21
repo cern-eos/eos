@@ -79,4 +79,4 @@ done
 
 echo ${options[@]}
 
-eosxd ${options[@]} >& /dev/null < /dev/zero
+eosxd ${options[@]} -oautofs >& /dev/null < /dev/zero

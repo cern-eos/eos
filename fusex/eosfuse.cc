@@ -379,6 +379,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
   std::string mountpoint;
 
+  config.options.foreground = 0;
+  config.options.automounted = 0;
+
   for (int i = 1; i < argc; ++i) {
     std::string opt = argv[i];
     std::string opt0 = argv[i - 1];
@@ -1277,9 +1280,35 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
   int debug;
 
-  if (fuse_parse_cmdline(&args, &local_mount_dir, NULL, &debug) == -1) {
-    exit(errno ? errno : -1);
+
+  {
+    // C-style fuse configuration optionss
+    struct eosxd_options {
+    int autofs;
+    };
+    
+    struct eosxd_options fuse_opts;
+    fuse_opts.autofs = 0;
+
+#define OPTION(t, p)				\
+  { t, offsetof(struct eosxd_options, p), 1 }
+
+    static struct fuse_opt eosxd_options_spec[] = {
+      OPTION("autofs",     autofs),
+      FUSE_OPT_END
+    };
+
+    if (fuse_opt_parse(&args, &fuse_opts, eosxd_options_spec, NULL) == -1) {
+      exit(errno ? errno : -1);
+    }
+
+    if (fuse_parse_cmdline(&args, &local_mount_dir, NULL, &debug) == -1) {
+      exit(errno ? errno : -1);
+    }
+
+    config.options.automounted = fuse_opts.autofs;
   }
+
 
   if ((fusechan = fuse_mount(local_mount_dir, &args)) == NULL) {
     fprintf(stderr, "error: fuse_mount failed\n");
@@ -1843,6 +1872,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                "All        instance-url        := %s\n"
                "All        client-uuid         := %s\n"
                "All        server-version      := %s\n"
+	       "All        automounted         := %d\n"
                "# -----------------------------------------------------------------------------------------------------------\n",
                osstat.threads,
                eos::common::StringConversion::GetReadableSizeString(s1, osstat.vsize, "b"),
@@ -1880,7 +1910,8 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                Instance().datas.get_xoff(),
                EosFuse::Instance().config.hostport.c_str(),
                EosFuse::Instance().config.clientuuid.c_str(),
-               EosFuse::Instance().mds.server_version().c_str()
+               EosFuse::Instance().mds.server_version().c_str(),
+	       EosFuse::Instance().Config().options.automounted
               );
     }
     sout += ino_stat;

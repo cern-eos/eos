@@ -115,7 +115,8 @@ message heartbeat {
   fixed32 leasetime = 13; 
   bool shutdown = 14;
   string mount = 15; //< client mount path
-}
+  bool automounted = 16; //< indicate if autofs mount or not  
+}    
 
 message statistics {
   fixed64 inodes = 1; //< client inodes
