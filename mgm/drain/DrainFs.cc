@@ -156,6 +156,11 @@ DrainFs::DoIt()
     state = State::Stopped;
   }
 
+  if (state == State::Rerun) {
+    DrainFs::FailedDrain();
+    state = State::Failed;
+  }
+
   eos_notice("msg=\"finished draining\" fsid=%d state=%i", mFsId, state);
   return state;
 }
@@ -218,9 +223,8 @@ DrainFs::SuccessfulDrain()
         static_cast<eos::common::FileSystem*>(fs)->SetString("configstatus",
             "empty");
         fs->CloseTransaction();
-
-	// we don't store anymore an 'empty' configuration state 
-	// 'empty' is only set at the end of a drain job
+        // we don't store anymore an 'empty' configuration state
+        // 'empty' is only set at the end of a drain job
         // !!! FsView::gFsView.StoreFsConfig(fs);
       } else {
         fs->CloseTransaction();

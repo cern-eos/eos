@@ -157,6 +157,15 @@ private:
   //----------------------------------------------------------------------------
   bool SelectDstFs(const FileDrainInfo& fdrain);
 
+  //----------------------------------------------------------------------------
+  //! Drain 0-size file
+  //!
+  //! @param fdrain file to drain metadata info
+  //!
+  //! @return drain status
+  //----------------------------------------------------------------------------
+  Status DrainZeroSizeFile(const FileDrainInfo& fdrain);
+
   eos::common::FileId::fileid_t mFileId; ///< File id to transfer
   ///! Source and destination file system
   eos::common::FileSystem::fsid_t mFsIdSource, mFsIdTarget;

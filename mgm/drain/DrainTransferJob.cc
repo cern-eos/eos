@@ -73,6 +73,21 @@ DrainTransferJob::DoIt()
     return;
   }
 
+  // Special case when deadling with 0-size replica files
+  if ((fdrain.mProto.size() == 0) &&
+      (LayoutId::GetLayoutType(fdrain.mProto.layout_id()) ==
+       LayoutId::kReplica)) {
+    mStatus = DrainZeroSizeFile(fdrain);
+
+    if (mStatus == Status::OK) {
+      gOFS->MgmStats.Add("DrainCentralSuccessful", 0, 0, 1);
+    } else {
+      gOFS->MgmStats.Add("DrainCentralFailed", 0, 0, 1);
+    }
+
+    return;
+  }
+
   while (true) {
     // Prepare the TPC copy job
     std::string log_id = LogId::GenerateLogId();
@@ -518,6 +533,33 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
   // Return only one fs now
   mFsIdTarget = new_repl[0];
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Drain 0-size file
+//------------------------------------------------------------------------------
+DrainTransferJob::Status
+DrainTransferJob::DrainZeroSizeFile(const FileDrainInfo& fdrain)
+{
+  eos::common::RWMutexWriteLock wr_lock(gOFS->eosViewRWMutex);
+  auto file = gOFS->eosFileService->getFileMD(fdrain.mProto.id());
+
+  if (file == nullptr) {
+    return Status::Failed;
+  }
+
+  // We already have excess replicas just drop the current one
+  if (file->getNumLocation() >
+      eos::common::LayoutId::GetStripeNumber(fdrain.mProto.layout_id())) {
+    file->unlinkLocation(mFsIdSource);
+  } else {
+    // Add the new location and remove the old one
+    file->unlinkLocation(mFsIdSource);
+    file->addLocation(mFsIdTarget);
+  }
+
+  gOFS->eosFileService->updateStore(file.get());
+  return Status::OK;
 }
 
 EOSMGMNAMESPACE_END
