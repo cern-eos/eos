@@ -286,7 +286,7 @@ public:
 
     bool
     Dispatch(const std::string identity, eos::fusex::heartbeat& hb);
-    void Print(std::string& out, std::string options = "", bool monitoring = false);
+    void Print(std::string& out, std::string options = "");
     void HandleStatistics(const std::string identity,
                           const eos::fusex::statistics& stats);
 
@@ -326,6 +326,22 @@ public:
         mState = s;
       }
 
+      void tag_opstime() {
+	eos::common::Timing::GetTimeSpec(ops_time, true);
+      }
+
+      bool validate_opstime ( const struct timespec &ref_time, uint64_t age ) const {
+	// return true if the last operations time is older than age compared to ref_time
+	if (eos::common::Timing::GetCoarseAgeInNs(&ops_time, &ref_time) / 1000000000.0 > age) {
+	  return true;
+	} else {
+	  return false;
+	}
+      }
+
+      uint64_t get_opstime_sec() const { return ops_time.tv_sec; }
+      uint64_t get_opstime_nsec() const { return ops_time.tv_nsec; }
+
       inline status_t state() const
       {
         return mState;
@@ -334,6 +350,8 @@ public:
     private:
       eos::fusex::heartbeat heartbeat_;
       eos::fusex::statistics statistics_;
+      struct timespec ops_time;
+
       status_t mState;
 
       // inode, pid lock map
@@ -584,7 +602,7 @@ public:
     return mFlushs;
   }
 
-  void Print(std::string& out, std::string options = "", bool monitoring = false);
+  void Print(std::string& out, std::string options = "");
 
   int FillContainerMD(uint64_t id, eos::fusex::md& dir,
                       eos::common::Mapping::VirtualIdentity& vid);

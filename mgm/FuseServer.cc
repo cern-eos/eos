@@ -429,13 +429,13 @@ FuseServer::MonitorCaps() noexcept
 //
 //------------------------------------------------------------------------------
 void
-FuseServer::Print(std::string& out, std::string options, bool monitoring)
+FuseServer::Print(std::string& out, std::string options)
 {
   if (
       (options.find("m") != std::string::npos) || 
       (options.find("l") != std::string::npos) ||
       !options.length()) {
-    Client().Print(out, options, monitoring);
+    Client().Print(out, options);
   }
 
   if (options.find("f") != std::string::npos) {
@@ -449,8 +449,7 @@ FuseServer::Print(std::string& out, std::string options, bool monitoring)
 //
 //------------------------------------------------------------------------------
 void
-FuseServer::Clients::Print(std::string& out, std::string options,
-                           bool monitoring)
+FuseServer::Clients::Print(std::string& out, std::string options)
 {
   struct timespec tsnow;
   eos::common::Timing::GetTimeSpec(tsnow);
@@ -513,216 +512,212 @@ FuseServer::Clients::Print(std::string& out, std::string options,
       idle = "act";
     }
 
-    if (!monitoring) {
-      if (!options.length() || (options.find("l") != std::string::npos)) {
-        snprintf(formatline, sizeof(formatline),
-                 "client : %-8s %32s %-8s %-8s %s %.02f %.02f %36s p=%u caps=%lu fds=%u %s %s mount=%s \n",
-                 it->second.heartbeat().name().c_str(),
-                 it->second.heartbeat().host().c_str(),
-                 it->second.heartbeat().version().c_str(),
-                 it->second.status[it->second.state()],
-                 eos::common::Timing::utctime(it->second.heartbeat().starttime()).c_str(),
-                 tsnow.tv_sec - it->second.heartbeat().clock() +
-                 (((int64_t) tsnow.tv_nsec -
-                   (int64_t) it->second.heartbeat().clock_ns()) * 1.0 / 1000000000.0),
-                 it->second.heartbeat().delta() * 1000,
-                 it->second.heartbeat().uuid().c_str(),
-                 it->second.heartbeat().pid(),
-                 clientcaps[it->second.heartbeat().uuid()],
-                 it->second.statistics().open_files(),
+    if (!options.length() || (options.find("l") != std::string::npos)) {
+      snprintf(formatline, sizeof(formatline),
+	       "client : %-8s %32s %-8s %-8s %s %.02f %.02f %36s p=%u caps=%lu fds=%u %s %s mount=%s \n",
+	       it->second.heartbeat().name().c_str(),
+	       it->second.heartbeat().host().c_str(),
+	       it->second.heartbeat().version().c_str(),
+	       it->second.status[it->second.state()],
+	       eos::common::Timing::utctime(it->second.heartbeat().starttime()).c_str(),
+	       tsnow.tv_sec - it->second.heartbeat().clock() +
+	       (((int64_t) tsnow.tv_nsec -
+		 (int64_t) it->second.heartbeat().clock_ns()) * 1.0 / 1000000000.0),
+	       it->second.heartbeat().delta() * 1000,
+	       it->second.heartbeat().uuid().c_str(),
+	       it->second.heartbeat().pid(),
+	       clientcaps[it->second.heartbeat().uuid()],
+	       it->second.statistics().open_files(),
 		 it->second.heartbeat().automounted()?"autofs":"static",
-		 idle.c_str(),
-                 it->second.heartbeat().mount().c_str()
-		 );
+	       idle.c_str(),
+	       it->second.heartbeat().mount().c_str()
+	       );
 	out += formatline;
+    }
+    
+    if (options.find("l") != std::string::npos) {
+      snprintf(formatline, sizeof(formatline),
+	       "......   ino          : %ld\n"
+	       "......   ino-to-del   : %ld\n"
+	       "......   ino-backlog  : %ld\n"
+	       "......   ino-ever     : %ld\n"
+	       "......   ino-ever-del : %ld\n"
+	       "......   threads      : %d\n"
+	       "......   total-ram    : %.03f GB\n"
+	       "......   free-ram     : %.03f GB\n"
+	       "......   vsize        : %.03f GB\n"
+	       "......   rsize        : %.03f GB\n"
+	       "......   wr-buf-mb    : %.00f MB\n"
+	       "......   ra-buf-mb     :%.00f MB\n"
+	       "......   load1        : %.02f\n"
+	       "......   leasetime    : %u s\n"
+	       "......   open-files   : %u\n"
+	       "......   logfile-size : %lu\n"
+	       "......   rbytes       : %lu\n"
+	       "......   wbytes       : %lu\n"
+	       "......   n-op         : %lu\n"
+	       "......   rd60         : %.02f MB/s\n"
+	       "......   wr60         : %.02f MB/s\n"
+	       "......   iops60       : %.02f \n"
+	       "......   xoff         : %lu\n"
+	       "......   ra-xoff      : %lu\n"
+	       "......   ra-nobuf     : %lu\n"
+	       "......   wr-nobuf     : %lu\n"
+	       "......   idle         : %ld\n",
+	       it->second.statistics().inodes(),
+	       it->second.statistics().inodes_todelete(),
+	       it->second.statistics().inodes_backlog(),
+	       it->second.statistics().inodes_ever(),
+	       it->second.statistics().inodes_ever_deleted(),
+	       it->second.statistics().threads(),
+	       it->second.statistics().total_ram_mb() / 1024.0,
+	       it->second.statistics().free_ram_mb() / 1024.0,
+	       it->second.statistics().vsize_mb() / 1024.0,
+	       it->second.statistics().rss_mb() / 1024.0,
+	       it->second.statistics().wr_buf_mb(),
+	       it->second.statistics().ra_buf_mb(),
+	       it->second.statistics().load1(),
+	       it->second.heartbeat().leasetime() ? it->second.heartbeat().leasetime() : 300,
+	       it->second.statistics().open_files(),
+	       it->second.statistics().logfilesize(),
+	       it->second.statistics().rbytes(),
+	       it->second.statistics().wbytes(),
+	       it->second.statistics().nio(),
+	       it->second.statistics().rd_rate_60_mb(),
+	       it->second.statistics().wr_rate_60_mb(),
+	       it->second.statistics().iops_60(),
+	       it->second.statistics().xoff(),
+	       it->second.statistics().raxoff(),
+	       it->second.statistics().ranobuf(),
+	       it->second.statistics().wrnobuf(),
+	       idletime
+	       );
+      out += formatline;
+    }
+    
+    if (options.find("m") != std::string::npos) {
+      snprintf(formatline, sizeof(formatline),
+	       "client=%s host%s version=%s state=%s time=\"%s\" tof=%.02f delta=%.02f uuid=%s pid=%u caps=%lu fds=%u type=%s mount=\"%s\" "
+	       "ino=%ld "
+	       "ino-to-del=%ld "
+	       "ino-backlog=%ld "
+	       "ino-ever=%ld "
+	       "ino-ever-del=%ld "
+	       "threads=%d "
+	       "total-ram-gb=%.03f "
+	       "free-ram-gb=%.03f "
+	       "vsize-gb=%.03f "
+	       "rsize-gb=%.03f "
+	       "wr-buf-mb=%.00f "
+	       "ra-buf-mb=%.00f "
+	       "load1=%.02f "
+	       "leasetime=%u "
+	       "open-files=%u "
+	       "logfile-size=%lu "
+	       "rbytes=%lu "
+	       "wbytes=%lu "
+	       "n-op=%lu "
+	       "rd60-rate-mb=%.02f "
+	       "wr60-rate-mb=%.02f "
+	       "iops60=%.02f "
+	       "xoff=%lu "
+	       "ra-xoff=%lu "
+	       "ra-nobuf=%lu "
+	       "wr-nobuf=%lu\n"
+	       "idle=%lu\n",
+	       it->second.heartbeat().name().c_str(),
+	       it->second.heartbeat().host().c_str(),
+	       it->second.heartbeat().version().c_str(),
+	       it->second.status[it->second.state()],
+	       eos::common::Timing::utctime(it->second.heartbeat().starttime()).c_str(),
+	       tsnow.tv_sec - it->second.heartbeat().clock() +
+	       (((int64_t) tsnow.tv_nsec -
+		 (int64_t) it->second.heartbeat().clock_ns()) * 1.0 / 1000000000.0),
+	       it->second.heartbeat().delta() * 1000,
+	       it->second.heartbeat().uuid().c_str(),
+	       it->second.heartbeat().pid(),
+	       clientcaps[it->second.heartbeat().uuid()],
+	       it->second.statistics().open_files(),
+	       it->second.heartbeat().automounted()?"autofs":"static",
+	       it->second.heartbeat().mount().c_str(),
+	       it->second.statistics().inodes(),
+	       it->second.statistics().inodes_todelete(),
+	       it->second.statistics().inodes_backlog(),
+	       it->second.statistics().inodes_ever(),
+	       it->second.statistics().inodes_ever_deleted(),
+	       it->second.statistics().threads(),
+	       it->second.statistics().total_ram_mb() / 1024.0,
+	       it->second.statistics().free_ram_mb() / 1024.0,
+	       it->second.statistics().vsize_mb() / 1024.0,
+	       it->second.statistics().rss_mb() / 1024.0,
+	       it->second.statistics().wr_buf_mb(),
+	       it->second.statistics().ra_buf_mb(),
+	       it->second.statistics().load1(),
+	       it->second.heartbeat().leasetime() ? it->second.heartbeat().leasetime() : 300,
+	       it->second.statistics().open_files(),
+	       it->second.statistics().logfilesize(),
+	       it->second.statistics().rbytes(),
+	       it->second.statistics().wbytes(),
+	       it->second.statistics().nio(),
+	       it->second.statistics().rd_rate_60_mb(),
+	       it->second.statistics().wr_rate_60_mb(),
+	       it->second.statistics().iops_60(),
+	       it->second.statistics().xoff(),
+	       it->second.statistics().raxoff(),
+	       it->second.statistics().ranobuf(),
+	       it->second.statistics().wrnobuf(),
+	       idle
+	       );
+      out += formatline;
+    }
+    
+    std::map<uint64_t, std::set < pid_t>> rlocks;
+    std::map<uint64_t, std::set < pid_t>> wlocks;
+    gOFS->zMQ->gFuseServer.Locks().lsLocks(it->second.heartbeat().uuid(), rlocks,
+					   wlocks);
+    
+    for (auto rit = rlocks.begin(); rit != rlocks.end(); ++rit) {
+      if (rit->second.size()) {
+	snprintf(formatline, sizeof(formatline), "      t:rlock i:%016lx p:",
+		 rit->first);
+	out += formatline;
+	std::string pidlocks;
+	
+	for (auto pit = rit->second.begin(); pit != rit->second.end(); ++pit) {
+	  if (pidlocks.length()) {
+	    pidlocks += ",";
+	  }
+	  
+	  char spid[16];
+	  snprintf(spid, sizeof(spid), "%u", *pit);
+	  pidlocks += spid;
+	}
+	
+	out += pidlocks;
+	out += "\n";
       }
-
-      if (options.find("l") != std::string::npos) {
-        snprintf(formatline, sizeof(formatline),
-                 "......   ino          : %ld\n"
-                 "......   ino-to-del   : %ld\n"
-                 "......   ino-backlog  : %ld\n"
-                 "......   ino-ever     : %ld\n"
-                 "......   ino-ever-del : %ld\n"
-                 "......   threads      : %d\n"
-                 "......   total-ram    : %.03f GB\n"
-                 "......   free-ram     : %.03f GB\n"
-                 "......   vsize        : %.03f GB\n"
-                 "......   rsize        : %.03f GB\n"
-                 "......   wr-buf-mb    : %.00f MB\n"
-                 "......   ra-buf-mb     :%.00f MB\n"
-                 "......   load1        : %.02f\n"
-                 "......   leasetime    : %u s\n"
-                 "......   open-files   : %u\n"
-                 "......   logfile-size : %lu\n"
-                 "......   rbytes       : %lu\n"
-                 "......   wbytes       : %lu\n"
-                 "......   n-op         : %lu\n"
-                 "......   rd60         : %.02f MB/s\n"
-                 "......   wr60         : %.02f MB/s\n"
-                 "......   iops60       : %.02f \n"
-                 "......   xoff         : %lu\n"
-                 "......   ra-xoff      : %lu\n"
-                 "......   ra-nobuf     : %lu\n"
-                 "......   wr-nobuf     : %lu\n"
-		 "......   idle         : %ld\n",
-                 it->second.statistics().inodes(),
-                 it->second.statistics().inodes_todelete(),
-                 it->second.statistics().inodes_backlog(),
-                 it->second.statistics().inodes_ever(),
-                 it->second.statistics().inodes_ever_deleted(),
-                 it->second.statistics().threads(),
-                 it->second.statistics().total_ram_mb() / 1024.0,
-                 it->second.statistics().free_ram_mb() / 1024.0,
-                 it->second.statistics().vsize_mb() / 1024.0,
-                 it->second.statistics().rss_mb() / 1024.0,
-                 it->second.statistics().wr_buf_mb(),
-                 it->second.statistics().ra_buf_mb(),
-                 it->second.statistics().load1(),
-                 it->second.heartbeat().leasetime() ? it->second.heartbeat().leasetime() : 300,
-                 it->second.statistics().open_files(),
-                 it->second.statistics().logfilesize(),
-                 it->second.statistics().rbytes(),
-                 it->second.statistics().wbytes(),
-                 it->second.statistics().nio(),
-                 it->second.statistics().rd_rate_60_mb(),
-                 it->second.statistics().wr_rate_60_mb(),
-                 it->second.statistics().iops_60(),
-                 it->second.statistics().xoff(),
-                 it->second.statistics().raxoff(),
-                 it->second.statistics().ranobuf(),
-                 it->second.statistics().wrnobuf(),
-		 idletime
-                );
-        out += formatline;
+    }
+    
+    for (auto wit = wlocks.begin(); wit != wlocks.end(); ++wit) {
+      if (wit->second.size()) {
+	snprintf(formatline, sizeof(formatline), "      t:wlock i:%016lx p:",
+		 wit->first);
+	out += formatline;
+	std::string pidlocks;
+	
+	for (auto pit = wit->second.begin(); pit != wit->second.end(); ++pit) {
+	  if (pidlocks.length()) {
+	    pidlocks += ",";
+	  }
+	  
+	  char spid[16];
+	  snprintf(spid, sizeof(spid), "%u", *pit);
+	  pidlocks += spid;
+	}
+	
+	out += pidlocks;
+	out += "\n";
       }
-      
-      if (options.find("m") != std::string::npos) {
-        snprintf(formatline, sizeof(formatline),
-                 "client=%s host%s version=%s state=%s time=\"%s\" tof=%.02f delta=%.02f uuid=%s pid=%u caps=%lu fds=%u type=%s mount=\"%s\" "
-                 "ino=%ld "
-                 "ino-to-del=%ld "
-                 "ino-backlog=%ld "
-                 "ino-ever=%ld "
-                 "ino-ever-del=%ld "
-                 "threads=%d "
-                 "total-ram-gb=%.03f "
-                 "free-ram-gb=%.03f "
-                 "vsize-gb=%.03f "
-                 "rsize-gb=%.03f "
-                 "wr-buf-mb=%.00f "
-                 "ra-buf-mb=%.00f "
-                 "load1=%.02f "
-                 "leasetime=%u "
-                 "open-files=%u "
-                 "logfile-size=%lu "
-                 "rbytes=%lu "
-                 "wbytes=%lu "
-                 "n-op=%lu "
-                 "rd60-rate-mb=%.02f "
-                 "wr60-rate-mb=%.02f "
-                 "iops60=%.02f "
-                 "xoff=%lu "
-                 "ra-xoff=%lu "
-                 "ra-nobuf=%lu "
-                 "wr-nobuf=%lu\n"
-		 "idle=%lu\n",
-                 it->second.heartbeat().name().c_str(),
-                 it->second.heartbeat().host().c_str(),
-                 it->second.heartbeat().version().c_str(),
-                 it->second.status[it->second.state()],
-                 eos::common::Timing::utctime(it->second.heartbeat().starttime()).c_str(),
-                 tsnow.tv_sec - it->second.heartbeat().clock() +
-                 (((int64_t) tsnow.tv_nsec -
-                   (int64_t) it->second.heartbeat().clock_ns()) * 1.0 / 1000000000.0),
-                 it->second.heartbeat().delta() * 1000,
-                 it->second.heartbeat().uuid().c_str(),
-                 it->second.heartbeat().pid(),
-                 clientcaps[it->second.heartbeat().uuid()],
-                 it->second.statistics().open_files(),
-		 it->second.heartbeat().automounted()?"autofs":"static",
-                 it->second.heartbeat().mount().c_str(),
-                 it->second.statistics().inodes(),
-                 it->second.statistics().inodes_todelete(),
-                 it->second.statistics().inodes_backlog(),
-                 it->second.statistics().inodes_ever(),
-                 it->second.statistics().inodes_ever_deleted(),
-                 it->second.statistics().threads(),
-                 it->second.statistics().total_ram_mb() / 1024.0,
-                 it->second.statistics().free_ram_mb() / 1024.0,
-                 it->second.statistics().vsize_mb() / 1024.0,
-                 it->second.statistics().rss_mb() / 1024.0,
-                 it->second.statistics().wr_buf_mb(),
-                 it->second.statistics().ra_buf_mb(),
-                 it->second.statistics().load1(),
-                 it->second.heartbeat().leasetime() ? it->second.heartbeat().leasetime() : 300,
-                 it->second.statistics().open_files(),
-                 it->second.statistics().logfilesize(),
-                 it->second.statistics().rbytes(),
-                 it->second.statistics().wbytes(),
-                 it->second.statistics().nio(),
-                 it->second.statistics().rd_rate_60_mb(),
-                 it->second.statistics().wr_rate_60_mb(),
-                 it->second.statistics().iops_60(),
-                 it->second.statistics().xoff(),
-                 it->second.statistics().raxoff(),
-                 it->second.statistics().ranobuf(),
-                 it->second.statistics().wrnobuf(),
-		 idle
-		 );
-        out += formatline;
-      }
-
-      std::map<uint64_t, std::set < pid_t>> rlocks;
-      std::map<uint64_t, std::set < pid_t>> wlocks;
-      gOFS->zMQ->gFuseServer.Locks().lsLocks(it->second.heartbeat().uuid(), rlocks,
-                                             wlocks);
-
-      for (auto rit = rlocks.begin(); rit != rlocks.end(); ++rit) {
-        if (rit->second.size()) {
-          snprintf(formatline, sizeof(formatline), "      t:rlock i:%016lx p:",
-                   rit->first);
-          out += formatline;
-          std::string pidlocks;
-
-          for (auto pit = rit->second.begin(); pit != rit->second.end(); ++pit) {
-            if (pidlocks.length()) {
-              pidlocks += ",";
-            }
-
-            char spid[16];
-            snprintf(spid, sizeof(spid), "%u", *pit);
-            pidlocks += spid;
-          }
-
-          out += pidlocks;
-          out += "\n";
-        }
-      }
-
-      for (auto wit = wlocks.begin(); wit != wlocks.end(); ++wit) {
-        if (wit->second.size()) {
-          snprintf(formatline, sizeof(formatline), "      t:wlock i:%016lx p:",
-                   wit->first);
-          out += formatline;
-          std::string pidlocks;
-
-          for (auto pit = wit->second.begin(); pit != wit->second.end(); ++pit) {
-            if (pidlocks.length()) {
-              pidlocks += ",";
-            }
-
-            char spid[16];
-            snprintf(spid, sizeof(spid), "%u", *pit);
-            pidlocks += spid;
-          }
-
-          out += pidlocks;
-          out += "\n";
-        }
-      }
-    } else {
-      snprintf(formatline, sizeof(formatline) - 1, "_");
     }
   }
 }
