@@ -211,9 +211,9 @@ build_cc7_xrd_testing:
     - rpmbuild --rebuild --with=server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
     - if [ "$BUILD_TYPE" == "tag" ]; then gpg --allow-secret-key-import --import /keys/stci-debian-repo.sec; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
-    - mkdir cc7_artifacts
-    - cp -R build/SRPMS cc7_artifacts
-    - cp -R build/RPMS cc7_artifacts
+    - mkdir cc7_artifacts_xrd_testing
+    - cp -R build/SRPMS cc7_artifacts_xrd_testing
+    - cp -R build/RPMS cc7_artifacts_xrd_testing
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
     paths:
