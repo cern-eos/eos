@@ -332,7 +332,7 @@ cc7_docker_image_xrd_testing:
   tags:
     - docker-image-build
   script:
-    - ""
+    - sed -i 's/cc7_artifacts/cc7_artifacts_xrd_testing/g' eos-docker/Dockerfile
   variables:
     TO: gitlab-registry.cern.ch/dss/eos:xrd_testing_${CI_PIPELINE_ID}
     DOCKER_FILE: eos-docker/Dockerfile
