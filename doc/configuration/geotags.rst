@@ -19,7 +19,8 @@ Storage Node Tagging
    # The EOS host geo location tag used to sort hosts into geographical (rack) locations 
    export EOS_GEOTAG="CERN::513::1"
 
-.. highlight:: Each portion of the GeoTag string must be delimited by "::" and have a maximun length of 8 characters
+.. warning::
+   Each portion of the GeoTag string must be delimited by "::" and have a maximun length of 8 characters
 
 Client Tagging
 --------------
