@@ -35,7 +35,7 @@ ProcCommand::Fusex()
       std::string option = pOpaque->Get("mgm.option") ? pOpaque->Get("mgm.option") :
                            "";
       std::string out;
-      gOFS->zMQ->gFuseServer.Print(out, option, false);
+      gOFS->zMQ->gFuseServer.Print(out, option);
       stdOut += out.c_str();
       retc = 0;
     } else if (mSubCmd == "conf") {
