@@ -221,7 +221,7 @@ build_cc7_xrd_testing:
   artifacts:
     expire_in: 1 day
     paths:
-    - cc7_artifacts/
+    - cc7_artifacts_xrd_testing/
   tags:
     - docker_node
     - cc7
