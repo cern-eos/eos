@@ -469,16 +469,54 @@ FuseServer::Clients::Print(std::string& out, std::string options,
       }
     }
   }
+  
+  struct timespec now_time;
+  eos::common::Timing::GetTimeSpec(now_time, true);
+
   eos::common::RWMutexReadLock lLock(*this);
 
   for (auto it = this->map().begin(); it != this->map().end(); ++it) {
     char formatline[4096];
 
-    if (!monitoring) {
+    bool t5min_idle, t1h_idle, t1d_idle, t1w_idle; 
+    t5min_idle = t1h_idle = t1d_idle = t1w_idle = false;
+    int64_t idletime = (it->second.get_opstime_sec())? (now_time.tv_sec - it->second.get_opstime_sec()): -1;
+    if (idletime >=300) {
+      t5min_idle = it->second.validate_opstime( now_time, 300);
+      t1h_idle = it->second.validate_opstime( now_time, 3600);
+      t1d_idle = it->second.validate_opstime( now_time, 86400);
+      t1w_idle = it->second.validate_opstime( now_time, 7*86400);
+    }
 
+    std::string idle;
+
+    // preset the idle string
+    if (idletime > 300) {
+      if (t1w_idle) {
+	idle = ">1w";
+      } else {
+	if (t1d_idle) {
+	  idle = ">1d";
+	} else {
+	  if (t1h_idle) {
+	    idle = ">1h";
+	  } else {
+	    if (t5min_idle) {
+	      idle = ">5m";
+	    } else {
+	      idle = "act";
+	    }
+	  }
+	}
+      }
+    } else {
+      idle = "act";
+    }
+
+    if (!monitoring) {
       if (!options.length() || (options.find("l") != std::string::npos)) {
         snprintf(formatline, sizeof(formatline),
-                 "client : %-8s %32s %-8s %-8s %s %.02f %.02f %36s p=%u caps=%lu fds=%u %s mount=%s\n",
+                 "client : %-8s %32s %-8s %-8s %s %.02f %.02f %36s p=%u caps=%lu fds=%u %s %s mount=%s \n",
                  it->second.heartbeat().name().c_str(),
                  it->second.heartbeat().host().c_str(),
                  it->second.heartbeat().version().c_str(),
@@ -493,6 +531,7 @@ FuseServer::Clients::Print(std::string& out, std::string options,
                  clientcaps[it->second.heartbeat().uuid()],
                  it->second.statistics().open_files(),
 		 it->second.heartbeat().automounted()?"autofs":"static",
+		 idle.c_str(),
                  it->second.heartbeat().mount().c_str()
 		 );
 	out += formatline;
@@ -525,7 +564,8 @@ FuseServer::Clients::Print(std::string& out, std::string options,
                  "......   xoff         : %lu\n"
                  "......   ra-xoff      : %lu\n"
                  "......   ra-nobuf     : %lu\n"
-                 "......   wr-nobuf     : %lu\n",
+                 "......   wr-nobuf     : %lu\n"
+		 "......   idle         : %ld\n",
                  it->second.statistics().inodes(),
                  it->second.statistics().inodes_todelete(),
                  it->second.statistics().inodes_backlog(),
@@ -551,7 +591,8 @@ FuseServer::Clients::Print(std::string& out, std::string options,
                  it->second.statistics().xoff(),
                  it->second.statistics().raxoff(),
                  it->second.statistics().ranobuf(),
-                 it->second.statistics().wrnobuf()
+                 it->second.statistics().wrnobuf(),
+		 idletime
                 );
         out += formatline;
       }
@@ -584,7 +625,8 @@ FuseServer::Clients::Print(std::string& out, std::string options,
                  "xoff=%lu "
                  "ra-xoff=%lu "
                  "ra-nobuf=%lu "
-                 "wr-nobuf=%lu\n",
+                 "wr-nobuf=%lu\n"
+		 "idle=%lu\n",
                  it->second.heartbeat().name().c_str(),
                  it->second.heartbeat().host().c_str(),
                  it->second.heartbeat().version().c_str(),
@@ -625,7 +667,8 @@ FuseServer::Clients::Print(std::string& out, std::string options,
                  it->second.statistics().xoff(),
                  it->second.statistics().raxoff(),
                  it->second.statistics().ranobuf(),
-                 it->second.statistics().wrnobuf()
+                 it->second.statistics().wrnobuf(),
+		 idle
 		 );
         out += formatline;
       }
@@ -1013,7 +1056,15 @@ FuseServer::Clients::HandleStatistics(const std::string identity,
                                       const eos::fusex::statistics& stats)
 {
   eos::common::RWMutexWriteLock lLock(*this);
+  uint64_t previous_ops = (this->map())[identity].statistics().nio();
   (this->map())[identity].statistics() = stats;
+
+  // update the last ops time whenever the operations counter changes
+  // this is very rough and only precise to the interval of statistic updates
+  if ( !previous_ops || 
+       ((this->map())[identity].statistics().nio() != previous_ops) ) {
+    (this->map())[identity].tag_opstime();
+  }
 
   if (EOS_LOGS_DEBUG) {
     eos_static_debug("");
