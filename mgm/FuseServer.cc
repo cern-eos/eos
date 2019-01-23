@@ -222,6 +222,12 @@ FuseServer::Clients::Dispatch(const std::string identity,
   }
 
   (this->map())[identity].heartbeat() = hb;
+
+  // tag first ops time
+  if (!this->map()[identity].get_opstime_sec()) {
+    this->map()[identity].tag_opstime();
+  }
+
   (this->uuidview())[hb.uuid()] = identity;
   lLock.Release();
   {
@@ -752,7 +758,7 @@ FuseServer::Clients::Evict(std::string& uuid, std::string reason, std::vector<st
 {
   if ( (uuid == "static") ||
        (uuid == "autofs") ) {
-    std::vector<std::string> evict_uuids;
+    std::vector<std::pair<std::string,std::string>> evict_uuids;
     // evict static or autofs clients with criteria
     if (reason.substr(0,4) == "mem:") {
       // evict according to memory footprint
@@ -767,15 +773,20 @@ FuseServer::Clients::Evict(std::string& uuid, std::string reason, std::vector<st
 	    continue;
 
 	  if (it->second.statistics().rss_mb() > memory_condition) {
-	    evict_uuids.push_back(it->second.heartbeat().uuid());
+	    std::string memreason = "consuming "; 
+	    memreason += std::to_string(it->second.statistics().rss_mb());
+	    memreason += " MB of resident memory";
+	    evict_uuids.push_back( std::pair<std::string,std::string> (it->second.heartbeat().uuid(), 
+								       memreason));
 	  }
 	}
       }
 
+      int retc=0;
       for (auto it : evict_uuids) {
-	
+	retc |= Evict(it.first, it.second, evicted_out);
       }
-
+      return retc;
     } else if (reason.substr(0,5) == "idle:") {
       // evict according to idle time
       int64_t idle_condition = strtoull(reason.substr(5).c_str(), 0, 10);
@@ -793,14 +804,19 @@ FuseServer::Clients::Evict(std::string& uuid, std::string reason, std::vector<st
 
 	  int64_t idletime = (it->second.get_opstime_sec())? (now_time.tv_sec - it->second.get_opstime_sec()): -1;
 	  if ( idletime > idle_condition) {
-	    evict_uuids.push_back(it->second.heartbeat().uuid());
+	    std::string idlereason = "longer than "; 
+	    idlereason += std::to_string(idletime);
+	    idlereason += " seconds idle";
+	    
+	    evict_uuids.push_back( std::pair<std::string,std::string> (it->second.heartbeat().uuid(), 
+								       idlereason));
 	  }
 	}
       }
 
       int retc=0;
       for (auto it : evict_uuids) {
-	retc |= Evict(it, reason, evicted_out);
+	retc |= Evict(it.first, it.second, evicted_out);
       }
       return retc;
     }
@@ -826,6 +842,9 @@ FuseServer::Clients::Evict(std::string& uuid, std::string reason, std::vector<st
       out += uuid; 
       out += " name=";
       out += id;
+      out += " reason='";
+      out += reason;
+      out += "'";
       evicted_out->push_back(out);
     }
 
