@@ -3206,6 +3206,7 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
   // and decrypt the open and capability opaque info
   if ((mTpcFlag == kTpcNone) ||
       (mTpcFlag == kTpcDstSetup) ||
+      (mTpcFlag == kTpcSrcSetup) ||
       (mTpcFlag == kTpcSrcCanDo)) {
     mOpenOpaque.reset(new XrdOucEnv(opaque.c_str()));
     XrdOucEnv* ptr_opaque {nullptr};
@@ -3213,7 +3214,7 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
     mCapOpaque.reset(ptr_opaque);
 
     if (caprc) {
-      // If we just miss the key, better stall thec lient
+      // If we just miss the key, better stall the client
       if (caprc == ENOKEY) {
         eos_err("msg=\"FST still misses the required capability key\"");
         return gOFS.Stall(error, 10, "FST still misses the required capability key");
