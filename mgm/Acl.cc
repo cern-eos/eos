@@ -325,6 +325,7 @@ Acl::Set(std::string sysacl, std::string useracl,
             } else {
               if (!mCanWriteOnce) {
                 mCanWrite = !deny;
+		mCanUpdate = !deny;
               }
             }
 
