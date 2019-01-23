@@ -73,6 +73,16 @@ print_test () {
     echo "-------------------------------------------------------------------------------"
 }
 
+# Executes a <query> in a loop until the result matches the <expected> result
+# or <timeout> is reached. Each iteration will sleep for <sleep_time> seconds.
+# A <description> may also be printed in verbose mode.
+#
+# Arguments:
+# ${1} = <query>
+# ${2} = <expected>
+# ${3} = <timeout>
+# ${4} = <sleep_time>
+# ${5} = <description>
 wait_result () {
     [[ ${VERBOSE} != false ]] && echo "Waiting ${3} seconds for ${5}"
     sleep 2
@@ -99,6 +109,8 @@ clean_up () {
                  --s3alternate --retry 1 ${PATHS[1]}eos/dockertest/${SPACE[1]}/upload/${i}.dat &> /dev/null &
         davix-rm --s3accesskey ${EOS_FST_S3_ACCESS_KEY} --s3secretkey ${EOS_FST_S3_SECRET_KEY} \
                  --s3alternate --retry 1 ${PATHS[1]}eos/dockertest/${SPACE[1]}/upload/.${i}.dat.xattr &> /dev/null &
+        davix-rm --s3accesskey ${EOS_FST_S3_ACCESS_KEY} --s3secretkey ${EOS_FST_S3_SECRET_KEY} \
+                 --s3alternate --retry 1 ${PATHS[1]}eos/${SPACE[1]}/extfiles/${i}.dat &> /dev/null &
     done
 
     # Remove all EOS files and directories
@@ -145,6 +157,9 @@ for arg in "${@:2}"; do
     elif [[ ${arg} == "--only-cleanup" ]]; then
         clean_up
         exit 0
+    else
+        echo "Unrecognized argument: ${arg}"
+        exit 1
     fi
 done
 
@@ -311,7 +326,7 @@ fi
 
 QUERY="davix-ls --s3accesskey ${EOS_FST_S3_ACCESS_KEY} --s3secretkey ${EOS_FST_S3_SECRET_KEY} \
                 --s3alternate --retry 1 ${PATHS[1]}eos/${SPACE[1]}/extfiles/ 2> /dev/null | grep .dat | wc -l"
-wait_result "${QUERY}" 0 300 30 "external storage replica drop"
+wait_result "${QUERY}" 0 360 30 "external storage replica drop"
 EXT_RESULT=$(eval "${QUERY}")
 
 ${VERBOSE} && echo "EOS_RESULT=${EOS_RESULT} EXT_RESULT=${EXT_RESULT}"
