@@ -3597,7 +3597,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   int mode = R_OK;
 
   if (fi->flags & (O_RDWR | O_WRONLY)) {
-    mode = W_OK;
+    mode = U_OK;
   }
 
   {
@@ -3628,7 +3628,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       } else {
         uint64_t pquota = 0;
 
-        if (mode == W_OK) {
+        if (mode == U_OK) {
           if (!(pquota = Instance().caps.has_quota(pcap, 1024 * 1024))) {
             rc = EDQUOT;
           }
@@ -3645,7 +3645,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
           md->convert(e, pcap->lifetime());
           mLock.UnLock();
           data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(),
-                              md), md, (mode == W_OK));
+                              md), md, (mode == U_OK));
           capLock.Lock(&pcap->Locker());
           io->set_authid(pcap->authid());
 
@@ -3664,7 +3664,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
                                   md_ino,
                                   md_pino,
                                   req,
-                                  (mode == W_OK));
+                                  (mode == U_OK));
           bool outdated = (io->ioctx()->attach(req, cookie, fi->flags) == EKEYEXPIRED);
           fi->keep_cache = outdated ? 0 : Instance().Config().options.data_kernelcache;
 
