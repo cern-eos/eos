@@ -27,6 +27,33 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+TEST(MgmExecute, ResponseParsingFull)
+{
+  MgmExecute exec;
+  ASSERT_EQ(exec.process("mgm.proc.stdout=123&mgm.proc.stderr=345&mgm.proc.retc=3"), 3);
+  ASSERT_EQ(exec.GetResult(), "123");
+  ASSERT_EQ(exec.GetError(), "345");
+  ASSERT_EQ(exec.GetErrc(), 3);
+}
+
+TEST(MgmExecute, ResponseParsingStdoutAndErrc)
+{
+  MgmExecute exec;
+  ASSERT_EQ(exec.process("mgm.proc.stdout=123&mgm.proc.retc=999"), 999);
+  ASSERT_EQ(exec.GetResult(), "123");
+  ASSERT_EQ(exec.GetError(), "");
+  ASSERT_EQ(exec.GetErrc(), 999);
+}
+
+TEST(MgmExecute, ResponseParsingPlain)
+{
+  MgmExecute exec;
+  ASSERT_EQ(exec.process("aaaaaaa"), 0);
+  ASSERT_EQ(exec.GetResult(), "aaaaaaa");
+  ASSERT_EQ(exec.GetError(), "");
+  ASSERT_EQ(exec.GetErrc(), 0);
+}
+
 TEST(MgmExecute, SimpleSimulation)
 {
   // Note: This only tests the faking capabilities of MgmExecute.

@@ -45,21 +45,33 @@ int MgmExecute::process(const std::string& response)
     elem.second = response.find(elem.first);
   }
 
-  if (tags[0].second == -1) {
+  if (tags[0].second == std::string::npos) {
     // This is a "FUSE" format response that only contains the stdout without
     // error message or return code
     mOutcome.result = response;
     return mOutcome.errc;
   }
 
-  // Parse stdout
-  mOutcome.result = response.substr(tags[0].first.length(),
-                            tags[1].second - tags[1].first.length() + 1);
-  rstdout = mOutcome.result.c_str();
+  // Parse stdout.
+  if(tags[0].second != std::string::npos) {
+    if(tags[1].second != std::string::npos) {
+      mOutcome.result = response.substr(tags[0].first.length(),
+                                tags[1].second - tags[1].first.length() + 1);
+      rstdout = mOutcome.result.c_str();
+    }
+    else {
+      mOutcome.result = response.substr(tags[0].first.length(),
+                                tags[2].second - tags[2].first.length() - 1);
+      rstdout = mOutcome.result.c_str();
+    }
+  }
+
   // Parse stderr
-  mOutcome.error = response.substr(tags[1].second + tags[1].first.length(),
-                           tags[2].second - (tags[1].second + tags[1].first.length()));
-  rstderr = mOutcome.error.c_str();
+  if(tags[1].second != std::string::npos) {
+    mOutcome.error = response.substr(tags[1].second + tags[1].first.length(),
+                             tags[2].second - (tags[1].second + tags[1].first.length()));
+    rstderr = mOutcome.error.c_str();
+  }
 
   // Parse return code
   try {

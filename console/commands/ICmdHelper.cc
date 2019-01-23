@@ -33,18 +33,16 @@ ICmdHelper::Execute(bool printError)
 {
   int retc = ExecuteWithoutPrint();
 
-  if (retc) {
-    if (printError && mMgmExec.GetError().length()) {
-      std::cerr << mMgmExec.GetError() << std::endl;
+  if (!mIsSilent && !mMgmExec.GetResult().empty()) {
+    if (mHighlight) {
+      TextHighlight(mMgmExec.GetResult());
     }
-  } else {
-    if (!mIsSilent && !mMgmExec.GetResult().empty()) {
-      if (mHighlight) {
-        TextHighlight(mMgmExec.GetResult());
-      }
 
-      std::cout << GetResult();
-    }
+    std::cout << GetResult();
+  }
+
+  if(printError && !mMgmExec.GetError().empty()) {
+    std::cerr << GetError();
   }
 
   return retc;

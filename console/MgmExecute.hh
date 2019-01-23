@@ -110,7 +110,6 @@ public:
     return mSimulatedData.empty() && mSimulationErrors.empty();
   }
 
-private:
   //----------------------------------------------------------------------------
   //! Command to process the server response
   //!
@@ -119,6 +118,8 @@ private:
   //! @return 0 if successful, otherwise error code
   //----------------------------------------------------------------------------
   int process(const std::string& reply);
+
+private:
 
   ExecutionOutcome mOutcome; ///< Stores outcome of last operation
 
