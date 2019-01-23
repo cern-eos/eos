@@ -45,7 +45,7 @@ int MgmExecute::process(const std::string& response)
     elem.second = response.find(elem.first);
   }
 
-  if (tags[0].second == std::string::npos) {
+  if (tags[0].second == std::string::npos && tags[1].second == std::string::npos) {
     // This is a "FUSE" format response that only contains the stdout without
     // error message or return code
     mOutcome.result = response;

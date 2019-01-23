@@ -45,6 +45,15 @@ TEST(MgmExecute, ResponseParsingStdoutAndErrc)
   ASSERT_EQ(exec.GetErrc(), 999);
 }
 
+TEST(MgmExecute, ResponseParsingStderrAndErrc)
+{
+  MgmExecute exec;
+  ASSERT_EQ(exec.process("&mgm.proc.stderr=this is stderr&mgm.proc.retc=2"), 2);
+  ASSERT_EQ(exec.GetResult(), "");
+  ASSERT_EQ(exec.GetError(), "this is stderr");
+  ASSERT_EQ(exec.GetErrc(), 2);
+}
+
 TEST(MgmExecute, ResponseParsingPlain)
 {
   MgmExecute exec;
