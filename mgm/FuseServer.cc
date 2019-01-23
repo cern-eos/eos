@@ -623,7 +623,7 @@ FuseServer::Clients::Print(std::string& out, std::string options)
 	       "ra-xoff=%lu "
 	       "ra-nobuf=%lu "
 	       "wr-nobuf=%lu\n"
-	       "idle=%lu\n",
+	       "idle=%ld\n",
 	       it->second.heartbeat().name().c_str(),
 	       it->second.heartbeat().host().c_str(),
 	       it->second.heartbeat().version().c_str(),
