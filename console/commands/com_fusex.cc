@@ -200,6 +200,10 @@ com_fusex_usage:
   fprintf(stdout,
           "                                                                     - if reason contains the keyword 'log2big' the client will effectily not be evicted, but will truncate his logfile to 0\n");
   fprintf(stdout, "\n");
+
+  fprintf(stdout,
+          "       fusex evict static|autofs mem:<size-in-mb>|idle:<seconds>     :  evict all autofs or static mounts which have a resident memory footprint larger than <size-in-mb> or are idle longer than <seconds>\n");
+  fprintf(stdout, "\n");
   fprintf(stdout,
           "       fusex dropcaps <uuid>                                         :  advice a client to drop all caps\n");
   fprintf(stdout, "\n");

@@ -596,76 +596,77 @@ FuseServer::Clients::Print(std::string& out, std::string options)
 
     if (options.find("m") != std::string::npos) {
       snprintf(formatline, sizeof(formatline),
-               "client=%s host%s version=%s state=%s time=\"%s\" tof=%.02f delta=%.02f uuid=%s pid=%u caps=%lu fds=%u type=%s mount=\"%s\" "
-               "ino=%ld "
-               "ino-to-del=%ld "
-               "ino-backlog=%ld "
-               "ino-ever=%ld "
-               "ino-ever-del=%ld "
-               "threads=%d "
-               "total-ram-gb=%.03f "
-               "free-ram-gb=%.03f "
-               "vsize-gb=%.03f "
-               "rsize-gb=%.03f "
-               "wr-buf-mb=%.00f "
-               "ra-buf-mb=%.00f "
-               "load1=%.02f "
-               "leasetime=%u "
-               "open-files=%u "
-               "logfile-size=%lu "
-               "rbytes=%lu "
-               "wbytes=%lu "
-               "n-op=%lu "
-               "rd60-rate-mb=%.02f "
-               "wr60-rate-mb=%.02f "
-               "iops60=%.02f "
-               "xoff=%lu "
-               "ra-xoff=%lu "
-               "ra-nobuf=%lu "
-               "wr-nobuf=%lu\n"
-               "idle=%s\n",
-               it->second.heartbeat().name().c_str(),
-               it->second.heartbeat().host().c_str(),
-               it->second.heartbeat().version().c_str(),
-               it->second.status[it->second.state()],
-               eos::common::Timing::utctime(it->second.heartbeat().starttime()).c_str(),
-               tsnow.tv_sec - it->second.heartbeat().clock() +
-               (((int64_t) tsnow.tv_nsec -
-                 (int64_t) it->second.heartbeat().clock_ns()) * 1.0 / 1000000000.0),
-               it->second.heartbeat().delta() * 1000,
-               it->second.heartbeat().uuid().c_str(),
-               it->second.heartbeat().pid(),
-               clientcaps[it->second.heartbeat().uuid()],
-               it->second.statistics().open_files(),
-               it->second.heartbeat().automounted() ? "autofs" : "static",
-               it->second.heartbeat().mount().c_str(),
-               it->second.statistics().inodes(),
-               it->second.statistics().inodes_todelete(),
-               it->second.statistics().inodes_backlog(),
-               it->second.statistics().inodes_ever(),
-               it->second.statistics().inodes_ever_deleted(),
-               it->second.statistics().threads(),
-               it->second.statistics().total_ram_mb() / 1024.0,
-               it->second.statistics().free_ram_mb() / 1024.0,
-               it->second.statistics().vsize_mb() / 1024.0,
-               it->second.statistics().rss_mb() / 1024.0,
-               it->second.statistics().wr_buf_mb(),
-               it->second.statistics().ra_buf_mb(),
-               it->second.statistics().load1(),
-               it->second.heartbeat().leasetime() ? it->second.heartbeat().leasetime() : 300,
-               it->second.statistics().open_files(),
-               it->second.statistics().logfilesize(),
-               it->second.statistics().rbytes(),
-               it->second.statistics().wbytes(),
-               it->second.statistics().nio(),
-               it->second.statistics().rd_rate_60_mb(),
-               it->second.statistics().wr_rate_60_mb(),
-               it->second.statistics().iops_60(),
-               it->second.statistics().xoff(),
-               it->second.statistics().raxoff(),
-               it->second.statistics().ranobuf(),
-               it->second.statistics().wrnobuf(),
-               idle.c_str());
+	       "client=%s host%s version=%s state=%s time=\"%s\" tof=%.02f delta=%.02f uuid=%s pid=%u caps=%lu fds=%u type=%s mount=\"%s\" "
+	       "ino=%ld "
+	       "ino-to-del=%ld "
+	       "ino-backlog=%ld "
+	       "ino-ever=%ld "
+	       "ino-ever-del=%ld "
+	       "threads=%d "
+	       "total-ram-gb=%.03f "
+	       "free-ram-gb=%.03f "
+	       "vsize-gb=%.03f "
+	       "rsize-gb=%.03f "
+	       "wr-buf-mb=%.00f "
+	       "ra-buf-mb=%.00f "
+	       "load1=%.02f "
+	       "leasetime=%u "
+	       "open-files=%u "
+	       "logfile-size=%lu "
+	       "rbytes=%lu "
+	       "wbytes=%lu "
+	       "n-op=%lu "
+	       "rd60-rate-mb=%.02f "
+	       "wr60-rate-mb=%.02f "
+	       "iops60=%.02f "
+	       "xoff=%lu "
+	       "ra-xoff=%lu "
+	       "ra-nobuf=%lu "
+	       "wr-nobuf=%lu\n"
+	       "idle=%lu\n",
+	       it->second.heartbeat().name().c_str(),
+	       it->second.heartbeat().host().c_str(),
+	       it->second.heartbeat().version().c_str(),
+	       it->second.status[it->second.state()],
+	       eos::common::Timing::utctime(it->second.heartbeat().starttime()).c_str(),
+	       tsnow.tv_sec - it->second.heartbeat().clock() +
+	       (((int64_t) tsnow.tv_nsec -
+		 (int64_t) it->second.heartbeat().clock_ns()) * 1.0 / 1000000000.0),
+	       it->second.heartbeat().delta() * 1000,
+	       it->second.heartbeat().uuid().c_str(),
+	       it->second.heartbeat().pid(),
+	       clientcaps[it->second.heartbeat().uuid()],
+	       it->second.statistics().open_files(),
+	       it->second.heartbeat().automounted()?"autofs":"static",
+	       it->second.heartbeat().mount().c_str(),
+	       it->second.statistics().inodes(),
+	       it->second.statistics().inodes_todelete(),
+	       it->second.statistics().inodes_backlog(),
+	       it->second.statistics().inodes_ever(),
+	       it->second.statistics().inodes_ever_deleted(),
+	       it->second.statistics().threads(),
+	       it->second.statistics().total_ram_mb() / 1024.0,
+	       it->second.statistics().free_ram_mb() / 1024.0,
+	       it->second.statistics().vsize_mb() / 1024.0,
+	       it->second.statistics().rss_mb() / 1024.0,
+	       it->second.statistics().wr_buf_mb(),
+	       it->second.statistics().ra_buf_mb(),
+	       it->second.statistics().load1(),
+	       it->second.heartbeat().leasetime() ? it->second.heartbeat().leasetime() : 300,
+	       it->second.statistics().open_files(),
+	       it->second.statistics().logfilesize(),
+	       it->second.statistics().rbytes(),
+	       it->second.statistics().wbytes(),
+	       it->second.statistics().nio(),
+	       it->second.statistics().rd_rate_60_mb(),
+	       it->second.statistics().wr_rate_60_mb(),
+	       it->second.statistics().iops_60(),
+	       it->second.statistics().xoff(),
+	       it->second.statistics().raxoff(),
+	       it->second.statistics().ranobuf(),
+	       it->second.statistics().wrnobuf(),
+	       idletime
+	       );
       out += formatline;
     }
 
@@ -747,26 +748,91 @@ FuseServer::Clients::leasetime(const std::string& uuid)
 //
 //------------------------------------------------------------------------------
 int
-FuseServer::Clients::Evict(std::string& uuid, std::string reason)
+FuseServer::Clients::Evict(std::string& uuid, std::string reason, std::vector<std::string>* evicted_out)
 {
-  // prepare eviction message
-  eos::fusex::response rsp;
-  rsp.set_type(rsp.EVICT);
-  rsp.mutable_evict_()->set_reason(reason);
-  std::string rspstream;
-  rsp.SerializeToString(&rspstream);
-  eos::common::RWMutexReadLock lLock(*this);
+  if ( (uuid == "static") ||
+       (uuid == "autofs") ) {
+    std::vector<std::string> evict_uuids;
+    // evict static or autofs clients with criteria
+    if (reason.substr(0,4) == "mem:") {
+      // evict according to memory footprint
+      uint64_t memory_condition = strtoull(reason.substr(4).c_str(), 0, 10);
+      if (memory_condition) {
+	eos::common::RWMutexReadLock lLock(*this);
+	for (auto it = this->map().begin(); it != this->map().end(); ++it) {
 
-  if (!mUUIDView.count(uuid)) {
-    return ENOENT;
+	  if ( ( uuid == "static" ) && (it->second.heartbeat().automounted()) )
+	    continue;
+	  if ( ( uuid == "autofs" ) && (!it->second.heartbeat().automounted()) )
+	    continue;
+
+	  if (it->second.statistics().rss_mb() > memory_condition) {
+	    evict_uuids.push_back(it->second.heartbeat().uuid());
+	  }
+	}
+      }
+
+      for (auto it : evict_uuids) {
+	
+      }
+
+    } else if (reason.substr(0,5) == "idle:") {
+      // evict according to idle time
+      int64_t idle_condition = strtoull(reason.substr(5).c_str(), 0, 10);
+      if (idle_condition) {
+	struct timespec now_time;
+	eos::common::Timing::GetTimeSpec(now_time, true);
+	
+	eos::common::RWMutexReadLock lLock(*this);
+	for (auto it = this->map().begin(); it != this->map().end(); ++it) {
+
+	  if ( ( uuid == "static" ) && (it->second.heartbeat().automounted()) )
+	    continue;
+	  if ( ( uuid == "autofs" ) && (!it->second.heartbeat().automounted()) )
+	    continue;
+
+	  int64_t idletime = (it->second.get_opstime_sec())? (now_time.tv_sec - it->second.get_opstime_sec()): -1;
+	  if ( idletime > idle_condition) {
+	    evict_uuids.push_back(it->second.heartbeat().uuid());
+	  }
+	}
+      }
+
+      int retc=0;
+      for (auto it : evict_uuids) {
+	retc |= Evict(it, reason, evicted_out);
+      }
+      return retc;
+    }
+  } else {
+    // prepare eviction message for a client by uuid
+    eos::fusex::response rsp;
+    rsp.set_type(rsp.EVICT);
+    rsp.mutable_evict_()->set_reason(reason);
+    std::string rspstream;
+    rsp.SerializeToString(&rspstream);
+    eos::common::RWMutexReadLock lLock(*this);
+    
+    if (!mUUIDView.count(uuid)) {
+      return ENOENT;
+    }
+    
+    std::string id = mUUIDView[uuid];
+    lLock.Release();
+    eos_static_info("msg=\"evicting client\" uuid=%s name=%s",
+		    uuid.c_str(), id.c_str());
+    if (evicted_out) {
+      std::string out = "uuid=";
+      out += uuid; 
+      out += " name=";
+      out += id;
+      evicted_out->push_back(out);
+    }
+
+    gOFS->zMQ->mTask->reply(id, rspstream);
+    return 0;
   }
-
-  std::string id = mUUIDView[uuid];
-  lLock.Release();
-  eos_static_info("msg=\"evicting client\" uuid=%s name=%s",
-                  uuid.c_str(), id.c_str());
-  gOFS->zMQ->mTask->reply(id, rspstream);
-  return 0;
+  return EINVAL;
 }
 
 //------------------------------------------------------------------------------

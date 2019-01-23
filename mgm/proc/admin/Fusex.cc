@@ -93,15 +93,29 @@ ProcCommand::Fusex()
       eos::common::SymKey::DeBase64(reason64, reason);
       s_reason = reason.c_str();
 
-      if (gOFS->zMQ->gFuseServer.Client().Evict(uuid, s_reason) == ENOENT) {
+      std::vector<std::string> evicted_out;
+
+      if (gOFS->zMQ->gFuseServer.Client().Evict(uuid, s_reason , &evicted_out ) == ENOENT) {
         stdErr += "error: no such client '";
         stdErr += uuid.c_str();
         retc = ENOENT;
         stdErr += "'";
       } else {
-        stdOut += "info: evicted client '";
-        stdOut += uuid.c_str();
-        stdOut += "'";
+	if (evicted_out.size() == 1) {
+	  stdOut += "info: evicted client '";
+	  stdOut += evicted_out[0].c_str();
+	  stdOut += "'";
+	} else {
+	  if (evicted_out.size() == 0) {
+	    stdOut += "info: no client has been evicted!";
+	  } else {
+	    stdOut += "info: evicted clients:\n";
+	    for (auto it : evicted_out) {
+	      stdOut += it.c_str();
+	      stdOut += "\n";
+	    }
+	  }
+	}
         retc = 0;
       }
     } else if (mSubCmd == "dropcaps") {

@@ -396,7 +396,7 @@ public:
     }
 
     // evict a client by force
-    int Evict(std::string& uuid, std::string reason);
+    int Evict(std::string& uuid, std::string reason, std::vector<std::string>* evicted_out=0);
 
     // release CAPs
     int ReleaseCAP(uint64_t id,
