@@ -904,9 +904,13 @@ public:
         eos_static_debug("----: releasing chunk offset=%d size=%u addr=%lx", roffset,
                          mBuffer->size(), this);
       }
+      release_buffer();
+    }
 
+    void release_buffer() {
       if (valid()) {
         sRaBufferManager.put_buffer(mBuffer);
+	mBuffer = 0;
       }
     }
 

@@ -1063,7 +1063,6 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("");
-  bool erase_chunk = false;
   {
     XrdSysCondVarHelper lLock(ReadCondVar());
     mStatus = *status;
@@ -1100,9 +1099,8 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
           delete response;
         }
       }
-
-      // if the chunk failed for whatever reason, we have to remove if from the ChunkRMap using its offset
-      erase_chunk = true;
+      // we free the buffer, so it get's back to the buffer handler;
+      release_buffer();
     }
 
     mDone = true;
@@ -1113,21 +1111,6 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
 
   if (!proxy()) {
     return;
-  }
-
-  read_handler
-  myhandler; // we have to keep a self reference, otherwise we delete ourselfs when removing from the map
-
-  if (erase_chunk) {
-    {
-      XrdSysCondVarHelper lLock(proxy()->ReadCondVar());
-
-      if (proxy()->ChunkRMap().count((uint64_t)this->offset())) {
-        myhandler = proxy()->ChunkRMap()[(uint64_t)this->offset()];
-      }
-
-      proxy()->ChunkRMap().erase((uint64_t)this->offset());
-    }
   }
 
   {
@@ -1220,7 +1203,7 @@ XrdCl::Proxy::WaitRead(read_handler handler)
       // move the pending chunk to the static map
       // in principle this is not supposed to happen
       XrdSysMutexHelper chunkLock(sTimeoutAsyncChunksMutex);
-      eos_err("discarding %d chunks  in-flight for writing", ChunkMap().size());
+      eos_err("discarding %d chunks  in-flight for reading", ChunkMap().size());
 
       for (auto it = ChunkRMap().begin(); it != ChunkRMap().end(); ++it) {
         it->second->disable();
