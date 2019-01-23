@@ -54,6 +54,24 @@ TEST(MgmExecute, ResponseParsingStderrAndErrc)
   ASSERT_EQ(exec.GetErrc(), 2);
 }
 
+TEST(MgmExecute, ResponseParsingEmptyStdout)
+{
+  MgmExecute exec;
+  ASSERT_EQ(exec.process("mgm.proc.stdout=&mgm.proc.stderr=345&mgm.proc.retc=3"), 3);
+  ASSERT_EQ(exec.GetResult(), "");
+  ASSERT_EQ(exec.GetError(), "345");
+  ASSERT_EQ(exec.GetErrc(), 3);
+}
+
+TEST(MgmExecute, ResponseParsingEmptyStderr)
+{
+  MgmExecute exec;
+  ASSERT_EQ(exec.process("mgm.proc.stdout=123&mgm.proc.stderr=&mgm.proc.retc=3"), 3);
+  ASSERT_EQ(exec.GetResult(), "123");
+  ASSERT_EQ(exec.GetError(), "");
+  ASSERT_EQ(exec.GetErrc(), 3);
+}
+
 TEST(MgmExecute, ResponseParsingPlain)
 {
   MgmExecute exec;
