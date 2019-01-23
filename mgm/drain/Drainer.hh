@@ -67,7 +67,7 @@ public:
   void Start();
 
   //----------------------------------------------------------------------------
-  //! Stop running thread
+  //! Stop running thread and implicitly all running drain jobs
   //----------------------------------------------------------------------------
   void Stop();
 
@@ -118,13 +118,13 @@ public:
   // @todo (esindril): to review
 
   //----------------------------------------------------------------------------
-  //! Get draining status (global or specific to a fsid)
+  //! Get draining status (global or specific to a fsid) - NOT USED
   //!
   //! @param env
   //! @param out
   //! @param err
   //----------------------------------------------------------------------------
-  bool GetDrainStatus(unsigned int fsId, XrdOucString&, XrdOucString&);
+  bool GetDrainStatusOutput(unsigned int fsId, XrdOucString&, XrdOucString&);
 
   //----------------------------------------------------------------------------
   //!
@@ -157,6 +157,11 @@ private:
   //! Handle queued draining requests
   //----------------------------------------------------------------------------
   void HandleQueued();
+
+  //----------------------------------------------------------------------------
+  //! Stop all drain file system jobs
+  //----------------------------------------------------------------------------
+  void StopDrainFs();
 
   AssistedThread mThread; ///< Thread updating the drain configuration
   //! Contains per space the max allowed fs draining per node

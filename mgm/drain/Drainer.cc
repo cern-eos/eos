@@ -46,7 +46,7 @@ void Drainer::Start()
 }
 
 //------------------------------------------------------------------------------
-// Stop running thread
+// Stop running thread and implicitly all running drain jobs
 //------------------------------------------------------------------------------
 void
 Drainer::Stop()
@@ -99,7 +99,7 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs,
     }
   }
 
-  XrdSysMutexHelper scop_lock(mDrainMutex);
+  XrdSysMutexHelper scope_lock(mDrainMutex);
   auto it_drainfs = mDrainFs.find(src_snapshot.mHostPort);
 
   if (it_drainfs != mDrainFs.end()) {
@@ -197,7 +197,8 @@ Drainer::StopFsDrain(eos::mgm::FileSystem* fs, std::string& err)
 // Get draining status
 //------------------------------------------------------------------------------
 bool
-Drainer::GetDrainStatus(unsigned int fsid, XrdOucString& out, XrdOucString& err)
+Drainer::GetDrainStatusOutput(unsigned int fsid, XrdOucString& out,
+                              XrdOucString& err)
 {
   if (mDrainFs.size() == 0) {
     out += "info: there are no ongoing drain activities";
@@ -238,7 +239,7 @@ Drainer::GetDrainStatus(unsigned int fsid, XrdOucString& out, XrdOucString& err)
     auto it_drainfs = mDrainFs.find(drain_snapshot.mHostPort);
 
     if (it_drainfs == mDrainFs.end()) {
-      err = "error: file system is not draining";
+      err = "error: node has no ongoing draining";
       return false;
     }
 
@@ -334,6 +335,7 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
 
     while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
       if (assistant.terminationRequested()) {
+        StopDrainFs();
         return;
       }
     }
@@ -352,15 +354,19 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
       mCfgMap[space.first] = max_drain_fs;
     }
 
-    // Clean up finished or stopped file system drains
-    for (auto& pair : mDrainFs) {
-      auto& set_fs = pair.second;
+    {
+      // Clean up finished or stopped file system drains
+      XrdSysMutexHelper scope_lock(mDrainMutex);
 
-      for (auto it = set_fs.begin(); it != set_fs.end(); /*empty*/) {
-        if (!(*it)->IsRunning()) {
-          it = set_fs.erase(it);
-        } else {
-          ++it;
+      for (auto& pair : mDrainFs) {
+        auto& set_fs = pair.second;
+
+        for (auto it = set_fs.begin(); it != set_fs.end(); /*empty*/) {
+          if (!(*it)->IsRunning()) {
+            it = set_fs.erase(it);
+          } else {
+            ++it;
+          }
         }
       }
     }
@@ -398,7 +404,18 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
     assistant.wait_for(std::chrono::seconds(10));
   }
 
+  StopDrainFs();
+}
+
+//------------------------------------------------------------------------------
+// Stop all drain file system jobs
+//------------------------------------------------------------------------------
+void
+Drainer::StopDrainFs()
+{
   // Stop each file system drain operation
+  XrdSysMutexHelper scope_lock(mDrainMutex);
+
   for (const auto& node_elem : mDrainFs) {
     for (const auto& fs_elem : node_elem.second) {
       fs_elem->SignalStop();
