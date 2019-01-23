@@ -392,11 +392,13 @@ Acl::Set(std::string sysacl, std::string useracl,
     if (denials['w']) {
       mCanWrite = false;
       eos_static_debug("deny w");
+    } else if (mCanWrite) {         /* if mCanWrite, grant mCanUpdate implicitely *unless* 'u' is denied */
+      mCanUpdate = true;            /* this could be reverted a few lines further down were 'u' denied */
     }
 
     if (denials['d']) {
       mCanNotDelete = true;
-      eos_static_debug("deny w");
+      eos_static_debug("deny d");
     }
 
     if (denials['u']) {
