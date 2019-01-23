@@ -455,7 +455,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << "ALL      uptime                           "
         << (int)(time(NULL) - gOFS->mStartTime) << std::endl
         << line << std::endl
-        << "ALL     drain info                       "
+        << "ALL      drain info                       "
         << gOFS->mDrainEngine.GetThreadPoolInfo() << std::endl
         << line << std::endl;
   }
