@@ -16,6 +16,20 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.4.22 Citrine``
+===================
+
+2019-01-24
+
+Bug
+----
+
+* [EOS-3231] - Update is not anymore implicit in ACL:w permissions
+* [EOS-3215] - drainstatus not reseted when disk put back to rw
+* [EOS-3227] - Missing eosarch python module
+* [EOS-3230] - CmdHelper does not always print error stream as provided by the MGM
+
+
 ``v4.4.21 Citrine``
 ===================
 
