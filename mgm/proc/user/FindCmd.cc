@@ -757,10 +757,9 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
   eos::console::ReplyProto reply;
 
   if (!OpenTemporaryOutputFiles()) {
-    std::ostringstream error;
-    error << "error: cannot write find result files on MGM" << std::endl;
     reply.set_retc(EIO);
-    reply.set_std_err(error.str());
+    reply.set_std_err(SSTR(
+      "error: cannot write find result files on MGM" << std::endl));
     return reply;
   }
 
@@ -811,11 +810,8 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
   XrdSfsFileExistence file_exists;
 
   if ((gOFS->_exists(spath.c_str(), file_exists, errInfo, mVid, nullptr))) {
-    std::ostringstream error;
-    error << "error: failed to run exists on '" << spath << "'";
-    ofstderrStream << error.str();
+    ofstderrStream << "error: failed to run exists on '" << spath << "'" << std::endl;
     reply.set_retc(errno);
-    reply.set_std_err(error.str());
     return reply;
   } else {
     if (file_exists == XrdSfsFileExistIsFile) {
@@ -824,11 +820,8 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
     }
 
     if (file_exists == XrdSfsFileExistNo) {
-      std::ostringstream error;
-      error << "error: no such file or directory";
-      ofstderrStream << error.str();
+      ofstderrStream << "error: no such file or directory" << std::endl;
       reply.set_retc(ENOENT);
-      reply.set_std_err(error.str());
       return reply;
     }
   }
@@ -846,12 +839,8 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
                     attributevalue.length() ? attributevalue.c_str() : nullptr,
                     nofiles, 0, true, finddepth,
                     filematch.length() ? filematch.c_str() : nullptr)) {
-      std::ostringstream error;
-      error << stdErr;
-      error << "error: unable to run find in directory";
-      ofstderrStream << error.str();
+      ofstderrStream << "error: unable to run find in directory" << std::endl;
       reply.set_retc(errno);
-      reply.set_std_err(error.str());
       return reply;
     } else {
       if (stdErr.length()) {
@@ -879,8 +868,7 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
 
         if(findResult.expansionFilteredOut) {
           ofstderrStream << "error: no permissions to read directory ";
-          ofstderrStream << findResult.path;
-          ofstderrStream << std::endl;
+          ofstderrStream << findResult.path << std::endl;
         }
 
         if (!findRequest.files() && !nodirs) {
@@ -1087,10 +1075,9 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
   }
 
   if (!CloseTemporaryOutputFiles()) {
-    std::ostringstream error;
-    error << "error: cannot save find result files on MGM" << std::endl;
     reply.set_retc(EIO);
-    reply.set_std_err(error.str());
+    reply.set_std_err(
+      SSTR("error: cannot save find result files on MGM" << std::endl));
     return reply;
   }
 
