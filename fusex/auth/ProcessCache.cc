@@ -207,7 +207,7 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
     //--------------------------------------------------------------------------
     // Couldn't retrieve jail of this pid.. bad. Assume our jail.
     //--------------------------------------------------------------------------
-    eos_static_notice("Could not retrieve jail information for pid=%d", pid);
+    eos_static_notice("Could not retrieve jail information for pid=%d: %s", pid, jailInfo.id.describe().c_str());
     jailInfo = myJail;
     LOGBOOK_INSERT(scope, "WARNING: Could not retrieve jail information for pid=" << pid << ", subsituting with my jail");
   }
