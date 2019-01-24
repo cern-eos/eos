@@ -194,7 +194,7 @@ XrdMgmOfs::_stat(const char* path,
     buf->st_gid = fmd->getCGid();
     buf->st_rdev = 0; /* device type (if inode device) */
     buf->st_blksize = 512;
-    buf->st_blocks = Quota::MapSizeCB(fmd.get()) / 512; // including layout factor
+    buf->st_blocks = (Quota::MapSizeCB(fmd.get())+512) / 512; // including layout factor
     eos::IFileMD::ctime_t atime;
     // adding also nanosecond to stat struct
     fmd->getCTime(atime);
