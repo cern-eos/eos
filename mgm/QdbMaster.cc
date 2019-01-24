@@ -258,7 +258,6 @@ void
 QdbMaster::SlaveToMaster()
 {
   eos_info("%s", "msg=\"slave to master transition\"");
-  mIsMaster = true;
   std::string std_out, std_err;
   // We are the master and we broadcast every configuration change
   gOFS->ObjectManager.EnableBroadCast(true);
@@ -273,6 +272,7 @@ QdbMaster::SlaveToMaster()
   Quota::LoadNodes();
   EnableNsCaching();
   WFE::MoveFromRBackToQ();
+  mIsMaster = true;
   Access::SetSlaveToMasterRules();
 }
 
