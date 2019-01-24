@@ -41,8 +41,8 @@ ICmdHelper::Execute(bool printError)
     std::cout << GetResult();
   }
 
-  if(printError && !mMgmExec.GetError().empty()) {
-    std::cerr << GetError();
+  if (printError && !mMgmExec.GetError().empty()) {
+    std::cerr << GetError() << std::endl;
   }
 
   return retc;
