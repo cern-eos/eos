@@ -59,7 +59,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   mFusexIsUnlinked(false),
   closed(false), opened(false), mHasWrite(false), hasWriteError(false),
   hasReadError(false), isRW(false), mIsTpcDst(false), mIsDevNull(false),
-  isCreation(false), isReplication(false), mIsInjection(false),
+  isCreation(false), forceCreation(false), isReplication(false), mIsInjection(false),
   mRainReconstruct(false), deleteOnClose(false), repairOnClose(false),
   commitReconstruction(false), mEventOnClose(false), mEventWorkflow(""),
   mSyncEventOnClose(false),
@@ -331,40 +331,50 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   }
 
   layOut->SetLogId(logId, client, tident);
+
+  // Check file existence
   errno = 0;
+  retc = layOut->GetFileIo()->fileExists();
+  bool file_exists = (retc == 0);
 
-  if ((retc = layOut->GetFileIo()->fileExists())) {
-    // We have to distinguish if an Exists call fails or return ENOENT, otherwise
-    // we might trigger an automatic clean-up of a file !!!
-    if (errno != ENOENT) {
-      delete fMd;
-      return gOFS.Emsg(epname, error, EIO, "open - unable to check for existance"
-                       " of file ", mCapOpaque->Env(envlen));
-    }
+  // Distinguish if the fileExists() call failed or returned ENOENT.
+  // Otherwise, we might trigger an automatic clean-up of a file !!!
+  if (!file_exists && (errno != ENOENT)) {
+    delete fMd;
+    return gOFS.Emsg(epname, error, EIO, "open - unable to check file existence",
+                     mCapOpaque->Env(envlen));
+  }
 
-    if (isRW || (mCapOpaque->Get("mgm.zerosize"))) {
-      // File does not exist, keep the create flag for writers and readers with 0-size at MGM
+  // Enter creation setup if file doesn't exist
+  // or the MGM set the creation opaque flag
+  if (!file_exists || forceCreation) {
+    if (forceCreation || isRW || (mCapOpaque->Get("mgm.zerosize"))) {
+      // File does not exist, keep the create flag for writers
+      // and readers with 0-size at MGM
       isCreation = true;
       openSize = 0;
       // Used to indicate if a file was written in the meanwhile by someone else
       updateStat.st_mtime = 0;
-      open_mode |= SFS_O_CREAT;
-      create_mode |= SFS_O_MKPTH;
-      eos_debug("adding creation flag because of %d %d", retc, errno);
+
+      if (!file_exists) {
+        open_mode |= SFS_O_CREAT;
+        create_mode |= SFS_O_MKPTH;
+        eos_debug("adding creation flag -- file doesn't exist retc=%d errno=%d",
+                  retc, errno);
+      }
     } else {
       // The open will fail but the client will get a recoverable error,
       // therefore it will try to read again from the other replicas.
       eos_warning("open for read, local file does not exists");
-      return gOFS.Emsg(epname, error, ENOENT, "open, file does not exist ",
+      return gOFS.Emsg(epname, error, ENOENT, "open - file does not exist ",
                        mCapOpaque->Env(envlen));
     }
-  } else {
-    eos_debug("removing creation flag because of %d %d", retc, errno);
+  }
 
+  if (file_exists && (open_mode & SFS_O_CREAT)) {
     // Remove the creat flag
-    if (open_mode & SFS_O_CREAT) {
-      open_mode -= SFS_O_CREAT;
-    }
+    eos_debug("removing creation flag because file exists errno=%d", errno);
+    open_mode -= SFS_O_CREAT;
   }
 
   // Capability access distinction
@@ -2998,6 +3008,11 @@ XrdFstOfsFile::ProcessMixedOpaque()
     eos::common::RWMutexReadLock lock(gOFS.Storage->mFsMutex);
     uselPath =
         gOFS.Storage->mFileSystemsMap[mFsId]->GetString("logicalpath") == "1";
+  }
+
+  // Check for forced creation flag
+  if (mCapOpaque->Get("mgm.iscreation")) {
+    forceCreation = true;
   }
 
   // Generate fst path

@@ -2353,6 +2353,7 @@ XrdMgmOfsFile::open(const char* inpath,
       }
 
       sprintf(buff, "%ld", ctime.tv_sec);
+      capability += "&mgm.iscreation=1";
       capability += "&mgm.ctime=";
       capability += buff;
     }

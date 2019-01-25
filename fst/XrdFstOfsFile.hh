@@ -364,6 +364,7 @@ protected:
   bool mIsTpcDst; ///< If true this is a TPC destination, otherwise a source
   bool mIsDevNull; ///< If true file act as a sink i.e. /dev/null
   bool isCreation; //! indicator that a new file is created
+  bool forceCreation; //! indicator that creation flow should be followed
   bool isReplication; //! indicator that the opened file is a replica transfer
   //! Indicate that the opened file is a file injection where the size and
   //! checksum must match
