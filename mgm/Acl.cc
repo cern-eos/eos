@@ -458,6 +458,7 @@ Acl::IsValid(const std::string& value, XrdOucErrInfo& error, bool is_sys_acl,
   regexErrorCode = regcomp(&regex, regexString.c_str(), REG_EXTENDED);
 
   if (regexErrorCode) {
+    eos_static_debug("regcomp regexErrorCode=%d regex '%s'", regexErrorCode, regexString.c_str());      // the setErrInfo below does not always produce a visible result
     error.setErrInfo(2, "failed to compile regex");
     regfree(&regex);
     return false;
