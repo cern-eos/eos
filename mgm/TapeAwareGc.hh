@@ -28,7 +28,6 @@
 #include "mgm/Namespace.hh"
 #include "mgm/TapeAwareGcCachedValue.hh"
 #include "mgm/TapeAwareGcLru.hh"
-#include "namespace/interface/Identifiers.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "proto/ConsoleRequest.pb.h"
 
@@ -244,7 +243,7 @@ private:
   //! \param fid The file identifier
   //! \return stagerrm result
   //----------------------------------------------------------------------------
-  console::ReplyProto stagerrmAsRoot(const FileIdentifier fid);
+  console::ReplyProto stagerrmAsRoot(const IFileMD::id_t fid);
 
   //----------------------------------------------------------------------------
   //! Return the preamble to be placed at the beginning of every log message
@@ -253,7 +252,7 @@ private:
   //! @param fid EOS file identifier
   //----------------------------------------------------------------------------
   static std::string createLogPreamble(const std::string &path,
-    const FileIdentifier fid);
+    const IFileMD::id_t fid);
 
   //----------------------------------------------------------------------------
   //! Returns the integer representation of the specified string or zero if the

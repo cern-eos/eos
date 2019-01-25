@@ -126,7 +126,7 @@ TapeAwareGc::fileOpened(const std::string &path, const IFileMD &fmd) noexcept
     // tape storage
     if(!fmd.hasAttribute("CTA_ArchiveFileId")) return;
 
-    const auto fid = fmd.getIdentifier();
+    const auto fid = fmd.getId();
     const std::string preamble = createLogPreamble(path, fid);
     eos_static_info(preamble.c_str());
 
@@ -155,7 +155,7 @@ TapeAwareGc::fileReplicaCommitted(const std::string &path, const IFileMD &fmd) n
   if(!m_enabled) return;
 
   try {
-    const auto fid = fmd.getIdentifier();
+    const auto fid = fmd.getId();
     const std::string preamble = createLogPreamble(path, fid);
     eos_static_info(preamble.c_str());
 
@@ -282,7 +282,7 @@ TapeAwareGc::garbageCollect() noexcept
       return false;
     }
 
-    FileIdentifier fid;
+    IFileMD::id_t fid;
 
     {
       std::lock_guard<std::mutex> lruQueueLock(m_lruQueueMutex);
@@ -293,7 +293,7 @@ TapeAwareGc::garbageCollect() noexcept
     const auto result = stagerrmAsRoot(fid);
 
     std::ostringstream preamble;
-    preamble << "fxid=" << std::hex << fid.getUnderlyingUInt64();
+    preamble << "fxid=" << std::hex << fid;
 
     if(0 == result.retc()) {
       std::ostringstream msg;
@@ -309,9 +309,9 @@ TapeAwareGc::garbageCollect() noexcept
       }
 
       // Prefetch before taking lock because metadata may not be in memory
-      Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid.getUnderlyingUInt64());
+      Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
       common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-      const auto fmd = gOFS->eosFileService->getFileMD(fid.getUnderlyingUInt64());
+      const auto fmd = gOFS->eosFileService->getFileMD(fid);
 
       if(nullptr != fmd && 0 != fmd->getContainerId()) {
         std::ostringstream msg;
@@ -342,7 +342,7 @@ TapeAwareGc::garbageCollect() noexcept
 // Execute stagerrm as user root
 //----------------------------------------------------------------------------
 console::ReplyProto
-TapeAwareGc::stagerrmAsRoot(const FileIdentifier fid)
+TapeAwareGc::stagerrmAsRoot(const IFileMD::id_t fid)
 {
   eos::common::Mapping::VirtualIdentity rootVid;
   eos::common::Mapping::Root(rootVid);
@@ -350,7 +350,7 @@ TapeAwareGc::stagerrmAsRoot(const FileIdentifier fid)
   eos::console::RequestProto req;
   eos::console::StagerRmProto* stagerRm = req.mutable_stagerrm();
   auto file = stagerRm->add_file();
-  file->set_fid(fid.getUnderlyingUInt64());
+  file->set_fid(fid);
 
   StagerRmCmd cmd(std::move(req), rootVid);
   return cmd.ProcessRequest();
@@ -360,12 +360,11 @@ TapeAwareGc::stagerrmAsRoot(const FileIdentifier fid)
 // Return the preamble to be placed at the beginning of every log message
 //----------------------------------------------------------------------------
 std::string
-TapeAwareGc::createLogPreamble(const std::string &path, const FileIdentifier fid)
+TapeAwareGc::createLogPreamble(const std::string &path, const IFileMD::id_t fid)
 {
   std::ostringstream preamble;
 
-  preamble << "fxid=" << std::hex << fid.getUnderlyingUInt64() <<
-    " path=\"" << path << "\"";
+  preamble << "fxid=" << std::hex << fid << " path=\"" << path << "\"";
 
   return preamble.str();
 }

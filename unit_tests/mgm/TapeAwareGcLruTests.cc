@@ -78,10 +78,9 @@ TEST_F(TapeAwareGcLruTest, fids_1_2_3_4_5)
   using namespace eos;
   using namespace eos::mgm;
 
-  const std::list<FileIdentifier> fidsIn = {FileIdentifier(1),
-    FileIdentifier(2), FileIdentifier(3), FileIdentifier(4), FileIdentifier(5)};
+  const std::list<IFileMD::id_t> fidsIn = {1, 2, 3, 4, 5};
 
-  const std::list<FileIdentifier> fidsOut = fidsIn;
+  const std::list<IFileMD::id_t> fidsOut = fidsIn;
 
   const TapeAwareGcLru::FidQueue::size_type maxQueueSize = fidsOut.size();
   TapeAwareGcLru lru(maxQueueSize);
@@ -108,12 +107,9 @@ TEST_F(TapeAwareGcLruTest, fids_1_2_3_4_5_2)
   using namespace eos;
   using namespace eos::mgm;
 
-  const std::list<FileIdentifier> fidsIn = {FileIdentifier(1),
-    FileIdentifier(2), FileIdentifier(3), FileIdentifier(4), FileIdentifier(5),
-    FileIdentifier(2)};
+  const std::list<IFileMD::id_t> fidsIn = {1, 2, 3, 4, 5, 2};
 
-  const std::list<FileIdentifier> fidsOut = {FileIdentifier(1),
-    FileIdentifier(3), FileIdentifier(4), FileIdentifier(5), FileIdentifier(2)};
+  const std::list<IFileMD::id_t> fidsOut = {1, 3, 4, 5, 2};
 
   const TapeAwareGcLru::FidQueue::size_type maxQueueSize = fidsOut.size();
   TapeAwareGcLru lru(maxQueueSize);
@@ -147,19 +143,19 @@ TEST_F(TapeAwareGcLruTest, exceed_maxQueueSize_max_size_1)
   ASSERT_EQ(0, lru.size());
   ASSERT_FALSE(lru.maxQueueSizeExceeded());
 
-  lru.fileAccessed(FileIdentifier(1));
+  lru.fileAccessed(1);
 
   ASSERT_FALSE(lru.empty());
   ASSERT_EQ(1, lru.size());
   ASSERT_FALSE(lru.maxQueueSizeExceeded());
 
-  lru.fileAccessed(FileIdentifier(2));
+  lru.fileAccessed(2);
 
   ASSERT_FALSE(lru.empty());
   ASSERT_EQ(1, lru.size());
   ASSERT_TRUE(lru.maxQueueSizeExceeded());
 
-  ASSERT_EQ(FileIdentifier(1), lru.getAndPopFidOfLeastUsedFile());
+  ASSERT_EQ(1, lru.getAndPopFidOfLeastUsedFile());
 
   ASSERT_TRUE(lru.empty());
   ASSERT_EQ(0, lru.size());
@@ -173,11 +169,9 @@ TEST_F(TapeAwareGcLruTest, exceed_maxQueueSize_5_fids_vs_max_size_2)
 {
   using namespace eos;
   using namespace eos::mgm;
-  const std::list<FileIdentifier> fidsIn = {FileIdentifier(1),
-    FileIdentifier(2), FileIdentifier(3), FileIdentifier(4), FileIdentifier(5)};
+  const std::list<IFileMD::id_t> fidsIn = {1, 2, 3, 4, 5};
 
-  const std::list<FileIdentifier> fidsOut = {FileIdentifier(1),
-    FileIdentifier(2)};
+  const std::list<IFileMD::id_t> fidsOut = {1, 2};
 
   const TapeAwareGcLru::FidQueue::size_type maxQueueSize = fidsOut.size();
   TapeAwareGcLru lru(maxQueueSize);
@@ -191,8 +185,8 @@ TEST_F(TapeAwareGcLruTest, exceed_maxQueueSize_5_fids_vs_max_size_2)
 
     ASSERT_FALSE(lru.empty());
 
-    if(fid.getUnderlyingUInt64() <= maxQueueSize) {
-      ASSERT_EQ(fid.getUnderlyingUInt64(), lru.size());
+    if(fid <= maxQueueSize) {
+      ASSERT_EQ(fid, lru.size());
       ASSERT_FALSE(lru.maxQueueSizeExceeded());
     } else {
       ASSERT_EQ(maxQueueSize, lru.size());

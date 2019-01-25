@@ -19,25 +19,25 @@ TapeAwareGcLru::TapeAwareGcLru(const FidQueue::size_type maxQueueSize):
 //------------------------------------------------------------------------------
 //! Notify the queue a file has been accessed
 //------------------------------------------------------------------------------
-void TapeAwareGcLru::fileAccessed(const FileIdentifier fid)
+void TapeAwareGcLru::fileAccessed(const IFileMD::id_t fid)
 {
-  const auto &mapEntry = mFidToQueueEntry.find(fid);
+  const auto mapEntry = mFidToQueueEntry.find(fid);
 
   // If a new file has been accessed
   if(mFidToQueueEntry.end() == mapEntry) {
     newFileHasBeenAccessed(fid);
   } else {
-    queuedFileHasBeenAccessed(fid, mapEntry->second);
+    queuedFileHasBeenAccessed(fid, mapEntry.value());
   }
 }
 
 //------------------------------------------------------------------------------
 // Handle the fact a new file has been accessed
 //------------------------------------------------------------------------------
-void TapeAwareGcLru::newFileHasBeenAccessed(const FileIdentifier fid) {
+void TapeAwareGcLru::newFileHasBeenAccessed(const IFileMD::id_t fid) {
   // Ignore the new file if the maximum queue size has been reached
   // IMPORTANT: This should be a rare situation
-  if(mQueue.size() == mMaxQueueSize) {
+  if(mFidToQueueEntry.size() == mMaxQueueSize) {
     mMaxQueueSizeExceeded = true;
   } else {
     // Add file to the front of the LRU queue
@@ -49,7 +49,7 @@ void TapeAwareGcLru::newFileHasBeenAccessed(const FileIdentifier fid) {
 //------------------------------------------------------------------------------
 // Handle the fact that a file already in the queue has been accessed
 //------------------------------------------------------------------------------
-void TapeAwareGcLru::queuedFileHasBeenAccessed(const FileIdentifier fid,
+void TapeAwareGcLru::queuedFileHasBeenAccessed(const IFileMD::id_t fid,
   FidQueue::iterator &queueItor) {
   // Erase the existing file from the LRU queue
   mQueue.erase(queueItor);
@@ -72,13 +72,13 @@ bool TapeAwareGcLru::empty() const
 //------------------------------------------------------------------------------
 TapeAwareGcLru::FidQueue::size_type TapeAwareGcLru::size() const
 {
-  return mQueue.size();
+  return mFidToQueueEntry.size();
 }
 
 //------------------------------------------------------------------------------
 //! Pop and return the identifier of the least used file
 //------------------------------------------------------------------------------
-FileIdentifier TapeAwareGcLru::getAndPopFidOfLeastUsedFile()
+IFileMD::id_t TapeAwareGcLru::getAndPopFidOfLeastUsedFile()
 {
   if(mQueue.empty()) {
     throw QueueIsEmpty(std::string(__FUNCTION__) +
@@ -86,10 +86,10 @@ FileIdentifier TapeAwareGcLru::getAndPopFidOfLeastUsedFile()
   } else {
     mMaxQueueSizeExceeded = false;
 
-    const auto lruFile = mQueue.back();
+    const auto lruFid = mQueue.back();
     mQueue.pop_back();
-    mFidToQueueEntry.erase(lruFile);
-    return lruFile;
+    mFidToQueueEntry.erase(lruFid);
+    return lruFid;
   }
 }
 

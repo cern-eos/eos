@@ -24,8 +24,10 @@
 #ifndef __EOSMGM_TAPEAWAREGCLRU_HH__
 #define __EOSMGM_TAPEAWAREGCLRU_HH__
 
+#include "common/Murmur3.hh"
+#include "common/hopscotch_map.hh"
 #include "mgm/Namespace.hh"
-#include "namespace/interface/Identifiers.hh"
+#include "namespace/interface/IFileMD.hh"
 
 #include <list>
 #include <stdint.h>
@@ -50,7 +52,7 @@ public:
   //----------------------------------------------------------------------------
   //! Data type for storing a queue of file identifiers
   //----------------------------------------------------------------------------
-  typedef std::list<FileIdentifier> FidQueue;
+  typedef std::list<IFileMD::id_t> FidQueue;
 
   //----------------------------------------------------------------------------
   //! Exception thrown when maxQueueSize has been incorrectly set to zero.
@@ -74,7 +76,7 @@ public:
   //!
   //! @param fid The file identifier
   //----------------------------------------------------------------------------
-  void fileAccessed(const FileIdentifier fid);
+  void fileAccessed(const IFileMD::id_t fid);
 
   //----------------------------------------------------------------------------
   //! @return true if the queue is empty
@@ -100,7 +102,7 @@ public:
   //!
   //! @throw QueueIsEmpty if the queue is empty
   //----------------------------------------------------------------------------
-  FileIdentifier getAndPopFidOfLeastUsedFile();
+  IFileMD::id_t getAndPopFidOfLeastUsedFile();
 
   //----------------------------------------------------------------------------
   //! @return True if the maximum queue size has been exceeded
@@ -127,29 +129,23 @@ private:
   //----------------------------------------------------------------------------
   FidQueue mQueue;
 
-  //--------------------------------------------------------------------------
-  // ! Hash functor for FileIdentifier
-  //--------------------------------------------------------------------------
-  struct FileIdentifierHash
-  {
-    std::size_t operator()(const FileIdentifier &fid) const noexcept
-    {
-      return std::hash<uint64_t>{}(fid.getUnderlyingUInt64());
-    }
-  };
+  //----------------------------------------------------------------------------
+  //! Data type for a map from file ID to entry within the LRU queue
+  //----------------------------------------------------------------------------
+  typedef tsl::hopscotch_map < IFileMD::id_t, FidQueue::iterator,
+    Murmur3::MurmurHasher<IFileMD::id_t> > FidToQueueEntryMap;
 
   //----------------------------------------------------------------------------
   //! Map from file ID to entry within the LRU queue
   //----------------------------------------------------------------------------
-  std::unordered_map<FileIdentifier, FidQueue::iterator, FileIdentifierHash>
-    mFidToQueueEntry;
+  FidToQueueEntryMap mFidToQueueEntry;
 
   //----------------------------------------------------------------------------
   //! Handle the fact a new file has been accessed
   //!
   //! @param fid The file identifier
   //----------------------------------------------------------------------------
-  void newFileHasBeenAccessed(const FileIdentifier fid);
+  void newFileHasBeenAccessed(const IFileMD::id_t fid);
 
   //----------------------------------------------------------------------------
   //! Handle the fact that a file already in the queue has been accessed
@@ -157,7 +153,7 @@ private:
   //! @param fid The file identifier
   //! @param queueItor The queue entry
   //----------------------------------------------------------------------------
-  void queuedFileHasBeenAccessed(const FileIdentifier fid, FidQueue::iterator &queueItor);
+  void queuedFileHasBeenAccessed(const IFileMD::id_t fid, FidQueue::iterator &queueItor);
 };
 
 EOSMGMNAMESPACE_END
