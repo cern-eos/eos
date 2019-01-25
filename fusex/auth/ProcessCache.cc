@@ -199,6 +199,16 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
   LogbookScope scope(logbook.makeScope(SSTR("/proc/" << pid << "/root lookup")));
 
   //----------------------------------------------------------------------------
+  // Warn if pid <= 0, something is wrong
+  //----------------------------------------------------------------------------
+  if(pid <= 0) {
+    std::ostringstream ss;
+    ss << "Received invalid pid: " << pid << " - eosxd running in different pid namespace?";
+    eos_static_notice(ss.str().c_str());
+    LOGBOOK_INSERT(scope, ss.str());
+  }
+
+  //----------------------------------------------------------------------------
   // Retrieve information about the jail in which this pid lives in. Is it the
   // same as ours?
   //----------------------------------------------------------------------------
