@@ -485,7 +485,7 @@ public:
     return entry->second->GetFsUidGid(uid, gid);
   }
 
-  const std::vector<std::string>&
+  std::vector<std::string>
   GetArgsVec(int pid)
   {
     static std::vector<std::string> dummy;
