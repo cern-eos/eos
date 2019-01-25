@@ -9,4 +9,5 @@ Install
    quickstart/docker_image
    quickstart/uboxed	      
    quickstart/install
+   quickstart/ubuntu
    
