@@ -24,6 +24,7 @@ Install EOS client via apt
 .. code-block:: text
 
    curl -sL http://storage-ci.web.cern.ch/storage-ci/storageci.key | sudo apt-key add -
+   sudo apt update
    sudo apt install eos-client eos-fusex
 
 In case EOS access as filesystem is wanted, EOS-FUSEX needs then to be
