@@ -1731,9 +1731,9 @@ EosFuse::umounthandler(int sig, siginfo_t* si, void* ctx)
 
 #ifndef __APPLE__
   pid_t thread_pid = syscall(SYS_gettid);
-  pthread_kill(thread_pid, sig);
+  kill(thread_pid, sig);
 #else
- kill(getpid() sig)
+  kill(getpid(), sig)
 #endif
 }
 
