@@ -4620,14 +4620,13 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
 #ifdef RICHACL_FOUND
 
               if (key == s_racl) {
-                  struct richacl *a;
-                  if ( map.count("user.acl") > 0 && map["user.acl"].length() > 0 &&
-                       (!S_ISDIR(md->mode()) || map.count("sys.eval.useracl") > 0) ) {
+                  struct richacl *a = NULL;
+                  if ( map.count("user.acl") > 0 && map["user.acl"].length() > 0 ) {
                     const char* eosacl = map["user.acl"].c_str();
                     eos_static_debug("eosacl '%s'", eosacl);
-                    a = eos2racl(eosacl, md);
-                  } else
-                    a = NULL;
+                    if (!S_ISDIR(md->mode()) || map.count("sys.eval.useracl") > 0) 
+                        a = eos2racl(eosacl, md);
+                  }
 
                   metad::shared_md pmd = Instance().mds.getlocal(req, md->pid());
                   if (pmd != NULL) {
