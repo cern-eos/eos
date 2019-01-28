@@ -1733,7 +1733,7 @@ EosFuse::umounthandler(int sig, siginfo_t* si, void* ctx)
   pid_t thread_pid = syscall(SYS_gettid);
   kill(thread_pid, sig);
 #else
-  kill(getpid(), sig)
+  kill(getpid(), sig);
 #endif
 }
 
