@@ -204,3 +204,22 @@ TEST_F(TapeAwareGcLruTest, exceed_maxQueueSize_5_fids_vs_max_size_2)
 
   ASSERT_TRUE(lru.empty());
 }
+
+//------------------------------------------------------------------------------
+// Test
+//------------------------------------------------------------------------------
+TEST_F(TapeAwareGcLruTest, DISABLED_performance_500000_files) {
+  using namespace eos;
+  using namespace eos::mgm;
+
+  const TapeAwareGcLru::FidQueue::size_type maxQueueSize = 500000;
+  TapeAwareGcLru lru(maxQueueSize);
+
+  for(TapeAwareGcLru::FidQueue::size_type fid = 0; fid < maxQueueSize; fid++) {
+    const auto start = std::chrono::high_resolution_clock::now();
+    lru.fileAccessed(fid);
+    const auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end - start;
+    std::cout << "Time elapsed for fid " << fid << " = " << elapsed.count() << " seconds" << std::endl;
+  }
+}
