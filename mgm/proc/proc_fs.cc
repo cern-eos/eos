@@ -464,7 +464,25 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
 
           fs->SetString(key.c_str(), value.c_str());
           FsView::gFsView.StoreFsConfig(fs);
-        } else {
+        } else if (key == "forcegeotag") {
+          const int maxTagSize = 8;
+          char nodeGeoTag [value.size()];
+          strcpy(nodeGeoTag,value.c_str());
+          char *gtag = strtok(nodeGeoTag, "::");
+          while(gtag != NULL)
+          {
+            if (strlen(gtag) > maxTagSize) {
+              stdErr += "error: the forcegeotag value contains a tag longer than the 8 chars maximum allowed";
+              retc= EINVAL;
+              return retc;
+            }
+            gtag = strtok(NULL, "::");
+          }
+
+          fs->SetString(key.c_str(), value.c_str());
+          FsView::gFsView.StoreFsConfig(fs);
+
+	} else {
           // Other proxy* key set
           fs->SetString(key.c_str(), value.c_str());
           FsView::gFsView.StoreFsConfig(fs);
