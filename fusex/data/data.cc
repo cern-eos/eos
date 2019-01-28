@@ -1988,8 +1988,8 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
           errno = XrdCl::Proxy::status2errno(status);
           eos_err("pseudo-sync remote-io failed msg=\"%s\"", status.ToString().c_str());
           mRecoveryStack.push_back(
-            eos_silent("status='%s' errno='%d' hint='failed TryRecovery'", tret,
-                       status.ToString().c_str()));
+            eos_silent("status='%s' errno='%d' hint='failed TryRecovery'",
+                       status.ToString().c_str(), tret));
           return -1;
         } else {
           mRecoveryStack.push_back(eos_silent("status='%s' hint='success TryRecovery'",
