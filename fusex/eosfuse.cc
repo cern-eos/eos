@@ -1729,7 +1729,12 @@ EosFuse::umounthandler(int sig, siginfo_t* si, void* ctx)
   signal(SIGABRT, SIG_DFL);
   signal(SIGTERM, SIG_DFL);
 
-  kill(getpid(), sig);
+#ifndef __APPLE__
+  pid_t thread_pid = syscall(SYS_gettid);
+  pthread_kill(thread_pid, sig);
+#else
+ kill(getpid() sig)
+#endif
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1762,6 +1767,9 @@ EosFuse::init(void* userdata, struct fuse_conn_info* conn)
       char msg[1024];
       snprintf(msg, sizeof(msg), "failed to install SEGV handler");
       throw std::runtime_error(msg);
+    }
+    if (EosFuse::instance().config.options.enable_backtrace == 2) {
+      setenv("EOS_ENABLE_BACKWARD_STACKTRACE","1",1);
     }
   }
 
