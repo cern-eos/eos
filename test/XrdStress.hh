@@ -74,7 +74,7 @@ class XrdStress
 
 
     //--------------------------------------------------------------------------
-    //! Genering function to start running tests
+    //! Entry function to start running tests
     //--------------------------------------------------------------------------
     void RunTest();
 
@@ -95,7 +95,7 @@ class XrdStress
     std::vector<double>      avgRdRate;    ///< avg read rate per child
     std::vector<double>      avgWrRate;    ///< avg write rate per child
     std::vector<double>      avgOpen;      ///< avg open operations per child
-    std::vector<pthread_t>   vectChilds;   ///< vector of childs
+    std::vector<pthread_t>   vectChilds;   ///< vector of children
     std::vector<std::string> vectFilename; ///< vector of all files used
 
 
@@ -112,17 +112,27 @@ class XrdStress
 
 
     //--------------------------------------------------------------------------
+    //! Wait for a process to finish and evaluate the return code
+    //!
+    //! @param pid process id
+    //!
+    //! @return rc return code of process
+    //--------------------------------------------------------------------------
+    int WaitProcess(pid_t pid);
+
+
+    //--------------------------------------------------------------------------
     //! Wait for all threads to finish
     //--------------------------------------------------------------------------
     void WaitThreads();
 
 
     //--------------------------------------------------------------------------
-    //! Start thread excuting a particular function
+    //! Start thread executing a particular function
     //!
     //! @param thread thread to be started
     //! @param func function to be executed by the thread
-    //! @param arg aguments to the function
+    //! @param arg arguments to the function
     //!
     //! @return 0 if successful, errno otherwise
     //!
@@ -162,7 +172,7 @@ class XrdStress
     //!
     //! @param arg pointer to child info structure passed around
     //!
-    //! @return pointer to updated child info stucture
+    //! @return pointer to updated child info structure
     //!
     //--------------------------------------------------------------------------
     static void* RdProc( void* arg );
@@ -173,7 +183,7 @@ class XrdStress
     //!
     //! @param arg pointer to child info structure passed around
     //!
-    //! @return pointer to updated child info stucture
+    //! @return pointer to updated child info structure
     //!
     //--------------------------------------------------------------------------
     static void* WrProc( void* arg );
@@ -184,7 +194,7 @@ class XrdStress
     //!
     //! @param arg pointer to child info structure passed around
     //!
-    //! @return pointer to updated child info stucture
+    //! @return pointer to updated child info structure
     //!
     //--------------------------------------------------------------------------
     static void* RdWrProc( void* arg );

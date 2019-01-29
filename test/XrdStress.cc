@@ -202,6 +202,7 @@ XrdStress::RunTestProcesses()
 {
   // Use pipes to send back information to parent
   int** pipefd = (int**) calloc(numChilds, sizeof(int*));
+  int rc = 0;      // return code of all children
 
   for (unsigned int i = 0; i < numChilds; i++) {
     pipefd[i] = (int*) calloc(2, sizeof(int));
@@ -257,7 +258,7 @@ XrdStress::RunTestProcesses()
     int sz = read(pipefd[i][0], readbuffer, sizeof(readbuffer));
 
     if (sz < 0) {
-      waitpid(cpid[i], NULL, 0);   //wait child process
+      rc |= WaitProcess(cpid[i]);  //wait child process
       close(pipefd[i][0]);         //close reading end
       continue;
     }
@@ -280,7 +281,7 @@ XrdStress::RunTestProcesses()
       ss >> avgOpen[i];
     }
 
-    waitpid(cpid[i], NULL, 0);   //wait child process
+    rc |= WaitProcess(cpid[i]);  //wait child process
     close(pipefd[i][0]);         //close reading end
   }
 
@@ -292,6 +293,36 @@ XrdStress::RunTestProcesses()
   free(pipefd);
   free(cpid);
   ComputeStatistics();
+
+  if (rc != 0) {
+    exit(EXIT_FAILURE);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Wait for a process to finish
+//------------------------------------------------------------------------------
+int
+XrdStress::WaitProcess(pid_t pid)
+{
+  int status, rc = 0;
+
+  if (waitpid(pid, &status, 0) != -1) {
+    if (WIFEXITED(status)) {
+      rc = WEXITSTATUS(status);
+      if (rc != 0) {
+        fprintf(stderr, "error=child process (%d) returned error code: %d\n", pid, rc);
+      }
+    } else {
+      fprintf(stderr, "error=child process (%d) exited abnormally\n", pid);
+      exit(EXIT_FAILURE);
+    }
+  } else {
+    fprintf(stderr, "error=error while waiting for process: %d\n", pid);
+    exit(EXIT_FAILURE);
+  }
+
+  return rc;
 }
 
 //------------------------------------------------------------------------------
@@ -441,7 +472,7 @@ XrdStress::RdProc(void* arg)
     struct stat buf;
 
     if (XrdPosixXrootd::Stat(urlFile.c_str(), &buf)) {
-      fprintf(stderr, "error=failed stat on file: %s.\n", urlFile.c_str());
+      fprintf(stderr, "error=failed stat on file: %s\n", urlFile.c_str());
       delete[] buffer;
       free(arg);
       exit(1);
@@ -453,7 +484,7 @@ XrdStress::RdProc(void* arg)
                                        kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or);
 
     if (fdWrite < 0) {
-      fprintf(stderr, "error=error while opening read file: %s.\n", urlFile.c_str());
+      fprintf(stderr, "error=error while opening read file: %s\n", urlFile.c_str());
       delete[] buffer;
       free(arg);
       exit(1);
@@ -576,7 +607,7 @@ XrdStress::WrProc(void* arg)
                                        kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or);
 
     if (fdWrite < 0) {
-      fprintf(stderr,  "error=error while opening write file.\n ");
+      fprintf(stderr, "error=error while opening write file: %s\n", urlFile.c_str());
       delete[] buffer;
       free(arg);
       exit(1);
@@ -718,7 +749,7 @@ int main(int argc, char* argv[])
 
     case 'd': { //directory path
       path = optarg;
-      // Check path to see if it extsts
+      // Check path to see if it exists
       XrdCl::URL url(path);
 
       if (!url.IsValid()) {
@@ -731,7 +762,7 @@ int main(int argc, char* argv[])
       XrdCl::Status st = fs.Stat(url.GetPath(), buff);
 
       if (!st.IsOK()) {
-        std::cout << "The path requested does not exists. Xrootd::stat failed." <<
+        std::cout << "The path requested does not exists. XRootd::stat failed." <<
                   std::endl
                   << usage << std::endl;
         exit(1);
@@ -798,7 +829,7 @@ int main(int argc, char* argv[])
 
     case 'p': { //run with processes or threads
       process_mode = true;
-      std::cout << "Don't forget to set XRD_RUNFORKHANDLER=1 in procees mode"
+      std::cout << "Don't forget to set XRD_RUNFORKHANDLER=1 in process mode"
                 << std::endl;
       break;
     }
@@ -806,7 +837,6 @@ int main(int argc, char* argv[])
     case ':': {
       std::cout << usage << std::endl;
       exit(1);
-      break;
     }
     }
   }
@@ -845,4 +875,6 @@ int main(int argc, char* argv[])
                                   process_mode, concurrent_mode);
   test->RunTest();
   delete test;
+
+  return 0;
 }
