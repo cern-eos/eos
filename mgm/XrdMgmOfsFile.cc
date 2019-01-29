@@ -637,6 +637,8 @@ XrdMgmOfsFile::open(const char* inpath,
     eos::IFileMD::XAttrMap attrmapF;
     gOFS->_attr_ls(cPath.GetPath(), error, vid, 0, attrmapF, false);
     acl.SetFromAttrMap(attrmap, vid, &attrmapF);
+eos_debug("error %d attrmap sys %d user %d attrmapF sys %d user %d", error.getErrInfo(), attrmap.count("sys.acl"),
+attrmap.count("user.acl"), attrmapF.count("sys.acl"), attrmapF.count("user.acl"));
     eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.HasEgroup(),
@@ -644,15 +646,25 @@ XrdMgmOfsFile::open(const char* inpath,
              acl.IsMutable());
 
     if (acl.HasAcl()) {
+eos_debug("uid %d sudoer %d isRW %d CanNotRead %d CanNotWrite %d",
+vid.uid, vid.sudoer, isRW, acl.CanNotRead(), acl.CanNotWrite());
+      if ( (vid.uid != 0) && (!vid.sudoer) && (isRW ? acl.CanNotWrite() : acl.CanNotRead()) ) {  
+        eos_debug("uid %d sudoer %d isRW %d CanNotRead %d CanNotWrite %d",
+               vid.uid, vid.sudoer, isRW, acl.CanNotRead(), acl.CanNotWrite());
+        errno = EPERM;
+        gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
+        return Emsg(epname, error, errno, "open file - forbidden by ACL", path);
+      }
+
       if (isRW) {
         // write case
-        if ((!acl.CanWrite()) && (!acl.CanWriteOnce())) {
+        if ( !(acl.CanWrite() || acl.CanWriteOnce()) ) {
           // we have to check the standard permissions
           stdpermcheck = true;
         }
       } else {
         // read case
-        if ((!acl.CanRead())) {
+        if ( !acl.CanRead() ) {
           // we have to check the standard permissions
           stdpermcheck = true;
         }
@@ -668,8 +680,10 @@ XrdMgmOfsFile::open(const char* inpath,
       return Emsg(epname, error, errno, "open file - directory immutable", path);
     }
 
+    int taccess = -1;
     if ((!isSharedFile || isRW) && stdpermcheck
-        && (!dmd->access(vid.uid, vid.gid, (isRW) ? W_OK | X_OK : R_OK | X_OK))) {
+        && (!(taccess = dmd->access(vid.uid, vid.gid, (isRW) ? W_OK | X_OK : R_OK | X_OK))) ) {
+      eos_debug("fCUid %d dCUid %d uid %d isSharedFile %d isRW %d stdpermcheck %d access %d", fmd?fmd->getCUid():0, dmd->getCUid(), vid.uid, isSharedFile, isRW, stdpermcheck, taccess);
       if (!((vid.uid == DAEMONUID) && (isPioReconstruct))) {
         // we don't apply this permission check for reconstruction jobs issued via the daemon account
         errno = EPERM;
@@ -677,6 +691,7 @@ XrdMgmOfsFile::open(const char* inpath,
         return Emsg(epname, error, errno, "open file", path);
       }
     }
+eos_debug("coucou");
 
     if (sticky_owner) {
       eos_info("msg=\"client acting as directory owner\" path=\"%s\" uid=\"%u=>%u\" gid=\"%u=>%u\"",
@@ -753,6 +768,7 @@ XrdMgmOfsFile::open(const char* inpath,
                   "you have to be a priviledged user for updates");
     }
 
+eos_debug("coucou");
     if (!isInjection && (open_mode & SFS_O_TRUNC) && fmd) {
       // check if this directory is write-once for the mapped user
       if (acl.HasAcl()) {
@@ -799,6 +815,7 @@ XrdMgmOfsFile::open(const char* inpath,
 
       gOFS->MgmStats.Add("OpenWriteTruncate", vid.uid, vid.gid, 1);
     } else {
+eos_debug("coucou");
       if (!(fmd) && ((open_flag & O_CREAT))) {
         gOFS->MgmStats.Add("OpenWriteCreate", vid.uid, vid.gid, 1);
       } else {
@@ -956,6 +973,7 @@ XrdMgmOfsFile::open(const char* inpath,
       gOFS->MgmStats.Add("OpenRead", vid.uid, vid.gid, 1);
     }
   }
+eos_debug("coucou");
 
   // ---------------------------------------------------------------------------
   // flush synchronization logic, don't open a file which is currently flushing
@@ -1043,6 +1061,7 @@ XrdMgmOfsFile::open(const char* inpath,
   if (openOpaque->Get("eos.etag")) {
     ext_etag = openOpaque->Get("eos.etag");
   }
+eos_debug("coucou");
 
   if (openOpaque->Get("eos.xattr")) {
     int envlen;
@@ -1144,6 +1163,7 @@ XrdMgmOfsFile::open(const char* inpath,
     }
   }
 
+eos_debug("coucou");
   // 0-size files can be read from the MGM if this is not FUSE access!
   if (!isRW && !isFuse && !fmd->getSize()) {
     isZeroSizeFile = true;
@@ -1215,6 +1235,7 @@ XrdMgmOfsFile::open(const char* inpath,
     }
   }
 
+eos_debug("coucou");
   if (attrmap.count("sys.forced.minsize")) {
     minimumsize = strtoull(attrmap["sys.forced.minsize"].c_str(), 0, 10);
   }

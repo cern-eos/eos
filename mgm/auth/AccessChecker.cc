@@ -101,7 +101,12 @@ bool AccessChecker::checkContainer(IContainerMD *cont, const Acl &acl,
   // Basic check denied us access... let's see if we can recover through Acls
   //----------------------------------------------------------------------------
 
-  if ((mode & W_OK) && (!acl.CanWrite() && !cont->access(vid.uid, vid.gid, W_OK) )) {
+  //if ((mode & W_OK) && (!acl.CanWrite() && !cont->access(vid.uid, vid.gid, W_OK) ))
+  if ( (mode & W_OK) &&
+       ( acl.CanNotWrite() || 
+         ( !acl.CanWrite() && !cont->access(vid.uid, vid.gid, W_OK) )
+       )
+     ) {
     //--------------------------------------------------------------------------
     // Asking for write permission, and neither basic check, nor Acls grant us
     // write. Deny.
@@ -109,7 +114,12 @@ bool AccessChecker::checkContainer(IContainerMD *cont, const Acl &acl,
   	return false;
   }
 
-  if ((mode & R_OK) && (!acl.CanRead() && !cont->access(vid.uid, vid.gid, R_OK) )) {
+  // if ((mode & R_OK) && (!acl.CanRead() && !cont->access(vid.uid, vid.gid, R_OK) ))
+  if ( (mode & R_OK) &&
+       ( acl.CanNotRead() ||
+         ( !acl.CanRead() && !cont->access(vid.uid, vid.gid, R_OK) )
+       )
+     ) {
     //--------------------------------------------------------------------------
     // Asking for read permission, and neither basic check, nor Acls grant us
     // read. Deny.
@@ -117,7 +127,12 @@ bool AccessChecker::checkContainer(IContainerMD *cont, const Acl &acl,
   	return false;
   }
 
-  if ((mode & X_OK) && (!acl.CanBrowse() && !cont->access(vid.uid, vid.gid, X_OK) )) {
+  // if ((mode & X_OK) && (!acl.CanBrowse() && !cont->access(vid.uid, vid.gid, X_OK) ))
+  if ( (mode & X_OK) &&
+       ( acl.CanNotBrowse() ||
+         ( !acl.CanBrowse() && !cont->access(vid.uid, vid.gid, X_OK) )
+        )
+     ) {
     //--------------------------------------------------------------------------
     // Asking for browse permission, and neither basic check, nor Acls grant us
     // browse. Deny.
