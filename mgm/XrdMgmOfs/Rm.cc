@@ -225,6 +225,7 @@ XrdMgmOfs::_rem(const char* path,
                     "remove existing file - you are write-once user");
       }
 
+eos_debug("vid.uid %d vid.gid %d CanotDelete %d CUid %d", vid.uid, vid.gid, acl.CanNotDelete(), fmd->getCUid());
       // if there is a !d policy we cannot delete files which we don't own
       if (((vid.uid) && (vid.uid != 3) && (vid.gid != 4) && (acl.CanNotDelete())) &&
           ((fmd->getCUid() != vid.uid))) {

@@ -367,6 +367,12 @@ runtest () {
           return
         fi
 
+        redir=$EOS_TEST_REDIRECTOR
+        if [ "$1" = H ]; then
+          EOS_TEST_REDIRECTOR=$EOS_TEST_FULL_REDIRECTOR
+          shift
+        fi
+
         START=$(date +%s.%N)
         echo $testcnt | awk '{printf("%04d ",$1);}'
         echo -n `date +"%x %X"` "$1"
@@ -425,6 +431,7 @@ runtest () {
           echo "                         in $DIFF seconds"
         fi
         echo "--------------------------------------------------------------------------------------------------------------------"
+        EOS_TEST_REDIRECTOR=$redir
     fi
 }
 ################################################################################
@@ -897,24 +904,70 @@ runtest "### Chmod     " unix 0 "" eos chmod 755 /eos/$EOS_TEST_INSTANCE/test/in
 runtest "### Attr      " unix 0 "" eos attr rm sys.acl /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Attr      " unix 0 "" eos attr set sys.eval.useracl=1 /eos/$EOS_TEST_INSTANCE/test/instancetest/
 
-runtest "### Attr      " unix 0 "" eos attr set user.acl=u:nobody:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest "### Rm        " unix 0 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
-runtest "### Update    " unix 0 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"
-runtest "### Attr      " unix 0 "" eos attr set user.acl=u:nobody:rx /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest "### Update    " unix 1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"
-runtest "### Attr      " unix 0 "" eos attr set user.acl=u:nobody:rwx\!u /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest "### Update    " unix 1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"
+# "runtest H" with sss-auth secures "not sudoer" and group list contains 99 where needed... without H the former fails, with unix-auth the latter (gids=[2] hence hasAcl=0)
+# ACL impact: no ACL or user neither granted nor denied -> dir mode bits 
+# ACL denials: override except for u/d for file owner
 
-runtest "### Attr      " unix 0 "" eos attr set user.acl=u:1:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest
-runtest "### Chown     " unix 0 "" eos chown 99:99 "/eos/$EOS_TEST_INSTANCE/test/instancetest"
-runtest "### Update    " unix 0 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"     # should work still the owner
-runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp -a "$TESTSYSFILE1K" /eos/dockertest/test/instancetest/file.1k
+runtest   "### Attr      " unix 0 "" eos debug debug '\*'
+runtest   "### Chown     " unix 0 "" eos chown daemon /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest   "### Chown     " unix 0 "" eos chown daemon /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
+# most frequent case, file/dir without ACL mode bits decide
+runtest   "### Chmod     " unix 0 "" eos chmod 777 /eos/$EOS_TEST_INSTANCE/test/instancetest
+runtest H "### Update    " sss  0 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # no ACL, dir mode bits allow (o=rw)
+runtest   "### Chmod     " unix 0 "" eos chmod 755 /eos/$EOS_TEST_INSTANCE/test/instancetest
+runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # fail: no ACL, dir mode bits deny
+runtest   "### Chmod     " unix 0 "" eos chmod 775 /eos/$EOS_TEST_INSTANCE/test/instancetest
+runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # fail: no ACL, dir mode bits deny (g=rw but not group)
+runtest   "### Chown     " unix 0 "" eos chown 2:99 /eos/$EOS_TEST_INSTANCE/test/instancetest
+runtest H "### Update    " sss  0 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # no ACL, dir mode bits allow (g=rw same group)
+runtest   "### Chown     " unix 0 "" eos chown 99:2 /eos/$EOS_TEST_INSTANCE/test/instancetest
+runtest H "### Update    " sss  0 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # no ACL, dir mode bits allow (u=rw same user)
 
+runtest   "### Chown     " unix 0 "" eos chown 2:2 /eos/$EOS_TEST_INSTANCE/test/instancetest
+runtest H "### Rm        " sss  1 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k     # fail: dir not owned, no ACL
+runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:nobody:rwx!d /eos/$EOS_TEST_INSTANCE/test/instancetest
+runtest H "### Rm        " sss  1 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k     # fail: dir not owned, ACL denies delete
+runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:nobody:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest
+runtest   "### Chown     " unix 0 "" eos chown root /eos/$EOS_TEST_INSTANCE/test/instancetest/
+
+# dir not owned
+runtest H "### Rm        " sss  0 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k     # dir not owned, but ACL allows write
+runtest H "### Upload    " sss  0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"  # ACL allows write, new file owned
+runtest H "### Update    " sss  0 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # dir not owned, ACL allows write
+runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:nobody:rx /eos/$EOS_TEST_INSTANCE/test/instancetest
+runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # fail: dir not owned, ACL does not grant write
+runtest   "### Chown     " unix 0 "" eos chown root /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
+runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # fail: not owner, ACL allows rx only
+runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:nobody:rwx\!u /eos/$EOS_TEST_INSTANCE/test/instancetest
+runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # fail: not owner, ACL allows RW but denies update
+
+runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:1:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest
+runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # fail: not owner, not in ACL
+
+runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:99:rwx!d /eos/$EOS_TEST_INSTANCE/test/instancetest
+runtest H "### Rm        " sss  1 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k             # fail: dir not owned, ACL denies delete
+
+# dir owned
+runtest   "### Chown     " unix 0 "" eos chown 99:99 "/eos/$EOS_TEST_INSTANCE/test/instancetest"
+runtest H "### Update    " sss  0 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"   # dir owned
+runtest H "### Upload    " sss  0 "EOSROLE='-r 99 99'" eos cp -a "$TESTSYSFILE1K" /eos/dockertest/test/instancetest/file.1k # dir owned
+runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:nobody:r!wx /eos/$EOS_TEST_INSTANCE/test/instancetest
+runtest H "### Update    " sss  1 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"     # should fail explicit denial
+runtest H "### Upload    " sss  1 "EOSROLE='-r 99 99'" eos cp -a "$TESTSYSFILE1K" /eos/dockertest/test/instancetest/file.1k   # should fail explicit denial
+runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:99:rwx!d /eos/$EOS_TEST_INSTANCE/test/instancetest
+runtest   "### Chown     " unix 0 "" eos chown 99:99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k"                    # make sure file owned
+sleep 1
+runtest H "### Rm        " sss  0 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k             # ACL denies delete but file owned
+sleep 1
+
+#cleanup
+runtest "### Attr      " unix 0 "" eos debug info '\*'
+runtest "### Rm        " unix 2 "" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
 runtest "### Attr      " unix 0 "" eos attr set user.acl=u:nobody:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest
 runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
 runtest "### Attr      " unix 0 "" eos attr rm user.acl /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Chown     " unix 0 "" eos chown 0:0 "/eos/$EOS_TEST_INSTANCE/test/instancetest"
+#exit
 
 # ------------------------------------------------------------------------------
 categorie="symlink"

@@ -87,8 +87,9 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //! Default Constructor
   //----------------------------------------------------------------------------
   Acl():
-    mCanRead(false), mCanWrite(false), mCanWriteOnce(false), mCanUpdate(false), mCanNotUpdate(false),
-    mCanBrowse(false), mCanChmod(false), mCanChown(false), mCanNotDelete(false),
+    mCanRead(false), mCanNotRead(false), mCanWrite(false), mCanNotWrite(false), mCanWriteOnce(false),
+    mCanUpdate(false), mCanNotUpdate(false), mCanBrowse(false), mCanNotBrowse(false),
+    mCanChmod(false), mCanChown(false), mCanNotDelete(false),
     mCanNotChmod(false), mCanDelete(false), mCanSetQuota(false), mHasAcl(false),
     mHasEgroup(false), mIsMutable(false), mCanArchive(false), mCanPrepare(false)
   {}
@@ -163,9 +164,19 @@ public:         // [+] prevents '+' interpreted as "one or more"
     return mCanRead;
   }
 
+  inline bool CanNotRead() const
+  {
+    return mCanNotRead;
+  }
+
   inline bool CanWrite() const
   {
     return mCanWrite;
+  }
+
+  inline bool CanNotWrite() const
+  {
+    return mCanNotWrite;
   }
 
   inline bool CanWriteOnce() const
@@ -186,6 +197,11 @@ public:         // [+] prevents '+' interpreted as "one or more"
   inline bool CanBrowse() const
   {
     return mCanBrowse;
+  }
+
+  inline bool CanNotBrowse() const
+  {
+    return mCanNotBrowse;
   }
 
   inline bool CanChmod() const
@@ -254,11 +270,14 @@ public:         // [+] prevents '+' interpreted as "one or more"
 
 private:
   bool mCanRead; ///< acl allows read access
+  bool mCanNotRead; ///< acl denies read access
   bool mCanWrite; ///< acl allows write access
+  bool mCanNotWrite; ///< acl denies write access
   bool mCanWriteOnce; ///< acl allows write-once access (creation, no delete)
   bool mCanUpdate; ///< acl allows update of files
   bool mCanNotUpdate; ///< acl denies update of files
   bool mCanBrowse; ///< acl allows browsing
+  bool mCanNotBrowse; ///< acl allows browsing
   bool mCanChmod; ///< acl allows mode change
   bool mCanChown; ///< acl allows chown change
   bool mCanNotDelete; ///< acl forbids deletion

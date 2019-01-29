@@ -2484,7 +2484,7 @@ FuseServer::FillContainerCAP(uint64_t id,
   dir.mutable_capability()->set_id(id);
 
   if (EOS_LOGS_DEBUG) {
-    eos_debug("container-id=%llx", id);
+    eos_debug("container-id=%#llx", id);
   }
 
   struct timespec ts;
@@ -2585,14 +2585,20 @@ FuseServer::FillContainerCAP(uint64_t id,
       if (acl.IsMutable()) {
         if (acl.CanRead()) {
           mode |= R_OK;
+        } else if (acl.CanNotRead()) {  /* denials override mode bits */
+          mode &= ~R_OK;
         }
 
         if (acl.CanWrite() || acl.CanWriteOnce()) {
           mode |= W_OK | SA_OK | D_OK | M_OK;
+        } else if (acl.CanNotWrite()) { /* denials override mode bits */
+          mode &= ~(W_OK | SA_OK | D_OK | M_OK);
         }
 
         if (acl.CanBrowse()) {
           mode |= X_OK;
+        } else if (acl.CanNotBrowse()) {/* denials override mode bits */
+          mode &= ~X_OK;
         }
 
         if (acl.CanNotChmod()) {
