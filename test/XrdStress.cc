@@ -480,11 +480,12 @@ XrdStress::RdProc(void* arg)
 
     sizeReadFile = buf.st_size;
     count_open++;
-    int fdWrite = XrdPosixXrootd::Open(urlFile.c_str(), O_RDONLY,
+    int fdRead = XrdPosixXrootd::Open(urlFile.c_str(), O_RDONLY,
                                        kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or);
 
-    if (fdWrite < 0) {
-      fprintf(stderr, "error=error while opening read file: %s\n", urlFile.c_str());
+    if (fdRead < 0) {
+      fprintf(stderr, "error=error while opening for read file=%s errno=%d\n",
+              urlFile.c_str(), errno);
       delete[] buffer;
       free(arg);
       exit(1);
@@ -496,12 +497,12 @@ XrdStress::RdProc(void* arg)
     size_t lastRead = sizeReadFile % pxt->sizeBlock;
 
     for (unsigned long long i = 0 ; i < noBlocks ; i++) {
-      XrdPosixXrootd::Pread(fdWrite, buffer, pxt->sizeBlock, offset);
+      XrdPosixXrootd::Pread(fdRead, buffer, pxt->sizeBlock, offset);
       offset += pxt->sizeBlock;
     }
 
     if (lastRead) {
-      XrdPosixXrootd::Pread(fdWrite, buffer, lastRead, offset);
+      XrdPosixXrootd::Pread(fdRead, buffer, lastRead, offset);
       offset += lastRead;
     }
 
@@ -541,7 +542,7 @@ XrdStress::RdProc(void* arg)
       }
     }
 
-    XrdPosixXrootd::Close(fdWrite);
+    XrdPosixXrootd::Close(fdRead);
   }
 
   delete[] buffer;
@@ -607,7 +608,8 @@ XrdStress::WrProc(void* arg)
                                        kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or);
 
     if (fdWrite < 0) {
-      fprintf(stderr, "error=error while opening write file: %s\n", urlFile.c_str());
+      fprintf(stderr, "error=error while opening for write file=%s errno=%d\n",
+              urlFile.c_str(), errno);
       delete[] buffer;
       free(arg);
       exit(1);
@@ -762,8 +764,8 @@ int main(int argc, char* argv[])
       XrdCl::Status st = fs.Stat(url.GetPath(), buff);
 
       if (!st.IsOK()) {
-        std::cout << "The path requested does not exists. XRootd::stat failed." <<
-                  std::endl
+        std::cout << "The path requested does not exists. XRootd::stat failed."
+                  << std::endl
                   << usage << std::endl;
         exit(1);
       }
