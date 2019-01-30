@@ -145,6 +145,7 @@ message statistics {
   fixed32 pid = 24; //< process ID of eosxd
   fixed64 logfilesize = 25; //< size of log file
   fixed64 wrnobuf = 26; //< write buffer no buffer available
+  float blockedms = 27; //< max time in ms an inode tracking mutex is held in a lock
 }
 
 message container {

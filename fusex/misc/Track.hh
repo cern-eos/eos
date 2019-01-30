@@ -45,8 +45,9 @@ public:
 
     RWMutex mInUse;
     XrdSysMutex mlocker;
-    size_t openr;
-    size_t openw;
+    std::atomic<size_t> openr;
+    std::atomic<size_t> openw;
+    std::atomic<uint64_t> attachtime;
   } meta_t;
 
   Track() { }
@@ -67,6 +68,26 @@ public:
     iNodes.erase(ino);
   }
 
+  double blocked_ms() {
+    // return's the time of the longest blocked mutex
+    double max_blocked = 0;
+    // get current time
+    auto now = std::chrono::steady_clock::now();
+
+    XrdSysMutexHelper l(iMutex);
+    for ( auto it : iNodes ) {
+      if (it.second->openr || it.second->openw) {
+	// get duration since first lock
+	double is_blocked = std::chrono::duration_cast<std::chrono::milliseconds>
+	  (now.time_since_epoch()).count() - it.second->attachtime;
+	if (is_blocked > max_blocked) {
+	  max_blocked = is_blocked;
+	}
+      }
+    }
+    return max_blocked;
+  }
+
   std::shared_ptr<meta_t>
   Attach(unsigned long long ino, bool exclusive = false)
   {
@@ -81,20 +102,22 @@ public:
       m = iNodes[ino];
     }
 
+    if (!m->openr && !m->openw) {
+      // track first attach time
+      m->attachtime = std::chrono::duration_cast<std::chrono::milliseconds>
+	(std::chrono::steady_clock::now().time_since_epoch()).count();
+    }
     if (exclusive) {
       m->mInUse.LockWrite();
+      m->openw++;
     } else {
       m->mInUse.LockRead();
+      m->openr++;
     }
 
     return m;
   }
 
-  void
-  Detach(std::shared_ptr<meta_t> m)
-  {
-    m->mInUse.UnLockRead();
-  }
 
   class Monitor
   {
@@ -128,8 +151,10 @@ public:
 
         if (exclusive) {
           me->mInUse.UnLockWrite();
+	  me->openw--;
         } else {
           me->mInUse.UnLockRead();
+	  me->openr--;
         }
 
         eos_static_debug("unlocked  caller=%s self=%lld in=%llu exclusive=%d", caller,

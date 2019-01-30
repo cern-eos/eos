@@ -1881,6 +1881,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                "All        client-uuid         := %s\n"
                "All        server-version      := %s\n"
 	       "All        automounted         := %d\n"
+	       "All        max-inode-lock-ms   := %.02f\n"
                "# -----------------------------------------------------------------------------------------------------------\n",
                osstat.threads,
                eos::common::StringConversion::GetReadableSizeString(s1, osstat.vsize, "b"),
@@ -1919,7 +1920,8 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                EosFuse::Instance().config.hostport.c_str(),
                EosFuse::Instance().config.clientuuid.c_str(),
                EosFuse::Instance().mds.server_version().c_str(),
-	       EosFuse::Instance().Config().options.automounted
+	       EosFuse::Instance().Config().options.automounted,
+	       this->Tracker().blocked_ms()
               );
     }
     sout += ino_stat;
@@ -2969,6 +2971,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
   Track::Monitor mon(__func__, Instance().Tracker(), parent, true);
+
   int rc = 0;
   fuse_id id(req);
   struct fuse_entry_param e;
