@@ -116,7 +116,12 @@ DrainFs::DoIt()
   }
 
   do { // Loop to drain the files
-    ntried++;
+    // If this is not the first attempt then reset the counters
+    if (++ntried != 1) {
+      mTotalFiles = mNsFsView->getNumFilesOnFs(mFsId);
+      mPending = mTotalFiles;
+    }
+
     eos_debug("msg=\"drain attempt %i\\%i\" fsid=%llu", ntried,
               mMaxRetries.load(), mFsId);
 
