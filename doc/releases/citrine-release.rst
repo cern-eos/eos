@@ -16,6 +16,23 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.4.23 Citrine``
+===================
+
+2019-01-30
+
+Bug
+----
+
+FUSE: Stop returning reference to temporary
+
+Improvement
+-----------
+
+FUSEX: When the unmount handler catches a signal, re-throw in the same thread
+  so that abort handler print a meaningful trace
+
+
 ``v4.4.22 Citrine``
 ===================
 
