@@ -213,7 +213,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get uri for the file - asynchronous version
   //----------------------------------------------------------------------------
-  virtual folly::Future<std::string> getUriFut(const IFileMD* file) const = 0;
+  virtual folly::Future<std::string> getUriFut(FileIdentifier id) const = 0;
 
   //----------------------------------------------------------------------------
   //! Get real path translating existing symlink

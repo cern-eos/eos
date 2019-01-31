@@ -787,10 +787,10 @@ QuarkHierarchicalView::getUri(const IContainerMD::id_t cid) const
 // Get uri for the container - asynchronous version
 //------------------------------------------------------------------------------
 folly::Future<std::string>
-QuarkHierarchicalView::getUriFut(const IFileMD* file) const
+QuarkHierarchicalView::getUriFut(FileIdentifier id) const
 {
-  return folly::via(pExecutor.get()).then([this, file]() {
-    return this->getUri(file);
+  return folly::via(pExecutor.get()).then([this, id]() {
+    return this->getUri(pFileSvc->getFileMD(id.getUnderlyingUInt64()).get());
   });
 }
 

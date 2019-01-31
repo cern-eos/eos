@@ -114,9 +114,9 @@ TEST_F(HierarchicalViewF, LoadTest)
   ASSERT_EQ(view()->getUri(container.get()), "/test/embed/embed1/");
   ASSERT_EQ(view()->getUriFut(container->getIdentifier()).get(), "/test/embed/embed1/");
   ASSERT_EQ(view()->getUri(file.get()), "/test/embed/embed1/file3");
-  ASSERT_EQ(view()->getUriFut(file.get()).get(), "/test/embed/embed1/file3");
+  ASSERT_EQ(view()->getUriFut(file->getIdentifier()).get(), "/test/embed/embed1/file3");
   ASSERT_THROW(view()->getUri((eos::IFileMD*)nullptr), eos::MDException);
-  ASSERT_THROW(view()->getUriFut((eos::IFileMD*)nullptr).get(), eos::MDException);
+  ASSERT_THROW(view()->getUriFut(eos::FileIdentifier(9999999)).get(), eos::MDException);
   std::shared_ptr<eos::IFileMD> toBeDeleted =
     view()->getFile("/test/embed/embed1/file2");
   toBeDeleted->addLocation(12);

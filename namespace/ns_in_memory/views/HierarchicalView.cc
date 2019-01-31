@@ -718,10 +718,10 @@ folly::Future<std::string> HierarchicalView::getUriFut(ContainerIdentifier id)
 //---------------------------------------------------------------------------
 // Get uri for the file
 //---------------------------------------------------------------------------
-folly::Future<std::string> HierarchicalView::getUriFut(const IFileMD* file)
+folly::Future<std::string> HierarchicalView::getUriFut(FileIdentifier id)
 const
 {
-  return folly::makeFuture<std::string>(getUri(file));
+  return folly::makeFuture<std::string>(getUri(pFileSvc->getFileMD(id.getUnderlyingUInt64()).get()));
 }
 
 //----------------------------------------------------------------------------

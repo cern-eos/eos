@@ -65,7 +65,11 @@ void Prefetcher::stageFileMDWithParents(IFileMD::id_t id)
 
   folly::Future<IFileMDPtr> fut = pFileMDSvc->getFileMDFut(id);
   mUris.emplace_back(fut.then([this](IFileMDPtr result) {
-    return this->pView->getUriFut(result.get());
+    if(result) {
+      return this->pView->getUriFut(result->getIdentifier());
+    }
+
+    return folly::makeFuture<std::string>("");
   }));
 }
 
