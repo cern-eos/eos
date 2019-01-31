@@ -127,8 +127,10 @@ DrainTransferJob::DoIt()
       XrdCl::XRootDStatus tpc_st = cpy.Run(0);
 
       if (!tpc_st.IsOK()) {
-        eos_err("%s", SSTR("tpc_err=" << tpc_st.ToStr() << " logid=" <<
-                           log_id).c_str());
+        eos_err("%s", SSTR("src=" << url_src.GetLocation().c_str() <<
+                           " dst=" << url_dst.GetLocation().c_str() <<
+                           " logid=" << log_id <<
+                           " tpc_err=" << tpc_st.ToStr()).c_str());
       } else {
         eos_info("msg=\"drain successful\" logid=%s", log_id.c_str());
         mStatus = Status::OK;
