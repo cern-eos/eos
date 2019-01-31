@@ -906,7 +906,10 @@ XrdMgmOfsFile::open(const char* inpath,
       }
 
       if (acl.HasAcl()) {
-        if (!acl.CanUpdate()) {
+        eos_debug("CanUpdate %d CanNotUpdate %d stdpermcheck %d file uid/gid = %d/%d",
+                    acl.CanUpdate(), acl.CanNotUpdate(), stdpermcheck, fmd->getCUid(), fmd->getCGid());
+
+        if (acl.CanNotUpdate()) {
           // the ACL has !u set - we don't allow to do file updates
           gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1);
           return Emsg(epname, error, EPERM, "update file - fobidden by ACL",

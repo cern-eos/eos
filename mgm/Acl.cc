@@ -124,6 +124,7 @@ Acl::Set(std::string sysacl, std::string useracl,
   mCanWrite = false;
   mCanWriteOnce = false;
   mCanUpdate = false;
+  mCanNotUpdate = false;
   mCanBrowse = false;
   mCanChmod = false;
   mCanNotChmod = false;
@@ -403,6 +404,7 @@ Acl::Set(std::string sysacl, std::string useracl,
 
     if (denials['u']) {
       mCanUpdate = false;
+      mCanNotUpdate = true;
       eos_static_debug("deny u");
     }
 
@@ -413,9 +415,9 @@ Acl::Set(std::string sysacl, std::string useracl,
 
     if (EOS_LOGS_DEBUG) {
       eos_static_debug(
-        "mCanRead %d mCanWrite %d mCanWriteOnce %d mCanUpdate %d mCanBrowse %d mCanChmod %d mCanChown %d mCanNotDelete %d"
+        "mCanRead %d mCanWrite %d mCanWriteOnce %d mCanUpdate %d mCanNotUpdate %d mCanBrowse %d mCanChmod %d mCanChown %d mCanNotDelete %d"
         "mCanNotChmod %d mCanDelete %d mCanSetQuota %d mHasAcl %d mHasEgroup %d mIsMutable %d mCanArchive %d mCanPrepare %d",
-        mCanRead, mCanWrite, mCanWriteOnce, mCanUpdate, mCanBrowse, mCanChmod,
+        mCanRead, mCanWrite, mCanWriteOnce, mCanUpdate, mCanNotUpdate, mCanBrowse, mCanChmod,
         mCanChown, mCanNotDelete,
         mCanNotChmod, mCanDelete, mCanSetQuota, mHasAcl, mHasEgroup, mIsMutable,
         mCanArchive, mCanPrepare);

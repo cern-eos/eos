@@ -87,7 +87,7 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //! Default Constructor
   //----------------------------------------------------------------------------
   Acl():
-    mCanRead(false), mCanWrite(false), mCanWriteOnce(false), mCanUpdate(false),
+    mCanRead(false), mCanWrite(false), mCanWriteOnce(false), mCanUpdate(false), mCanNotUpdate(false),
     mCanBrowse(false), mCanChmod(false), mCanChown(false), mCanNotDelete(false),
     mCanNotChmod(false), mCanDelete(false), mCanSetQuota(false), mHasAcl(false),
     mHasEgroup(false), mIsMutable(false), mCanArchive(false), mCanPrepare(false)
@@ -178,6 +178,11 @@ public:         // [+] prevents '+' interpreted as "one or more"
     return mCanUpdate;
   }
 
+  inline bool CanNotUpdate() const
+  {
+    return mCanNotUpdate;
+  }
+
   inline bool CanBrowse() const
   {
     return mCanBrowse;
@@ -252,6 +257,7 @@ private:
   bool mCanWrite; ///< acl allows write access
   bool mCanWriteOnce; ///< acl allows write-once access (creation, no delete)
   bool mCanUpdate; ///< acl allows update of files
+  bool mCanNotUpdate; ///< acl denies update of files
   bool mCanBrowse; ///< acl allows browsing
   bool mCanChmod; ///< acl allows mode change
   bool mCanChown; ///< acl allows chown change
