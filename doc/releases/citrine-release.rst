@@ -19,17 +19,18 @@ This release is based on XRootD V4 and IPV6 enabled.
 ``v4.4.23 Citrine``
 ===================
 
-2019-01-30
+2019-01-31
 
 Bug
 ----
 
-FUSE: Stop returning reference to temporary
+* [EOS-3231] - Update is not anymore implicit in ACL:w permissions - non-fuse fix
+* FUSE: Stop returning reference to temporary
 
 Improvement
 -----------
 
-FUSEX: When the unmount handler catches a signal, re-throw in the same thread
+* FUSEX: When the unmount handler catches a signal, re-throw in the same thread
   so that abort handler print a meaningful trace
 
 
