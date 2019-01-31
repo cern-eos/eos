@@ -81,7 +81,11 @@ void Prefetcher::stageContainerMDWithParents(IContainerMD::id_t id)
 
   folly::Future<IContainerMDPtr> fut = pContainerMDSvc->getContainerMDFut(id);
   mUris.emplace_back(fut.then([this](IContainerMDPtr result) {
-    return this->pView->getUriFut(result.get());
+    if(result) {
+      return this->pView->getUriFut(result->getIdentifier());
+    }
+
+    return folly::makeFuture<std::string>("");
   }));
 }
 

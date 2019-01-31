@@ -198,7 +198,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get uri for the container - asynchronous version
   //----------------------------------------------------------------------------
-  virtual folly::Future<std::string> getUriFut(const IContainerMD* container) const = 0;
+  virtual folly::Future<std::string> getUriFut(ContainerIdentifier id) const = 0;
 
   //----------------------------------------------------------------------------
   //! Get uri for container id

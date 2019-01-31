@@ -112,7 +112,7 @@ TEST_F(HierarchicalViewF, LoadTest)
   std::shared_ptr<eos::IContainerMD> container =
     view()->getContainer("/test/embed/embed1");
   ASSERT_EQ(view()->getUri(container.get()), "/test/embed/embed1/");
-  ASSERT_EQ(view()->getUriFut(container.get()).get(), "/test/embed/embed1/");
+  ASSERT_EQ(view()->getUriFut(container->getIdentifier()).get(), "/test/embed/embed1/");
   ASSERT_EQ(view()->getUri(file.get()), "/test/embed/embed1/file3");
   ASSERT_EQ(view()->getUriFut(file.get()).get(), "/test/embed/embed1/file3");
   ASSERT_THROW(view()->getUri((eos::IFileMD*)nullptr), eos::MDException);

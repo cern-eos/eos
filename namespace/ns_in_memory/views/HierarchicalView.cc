@@ -709,10 +709,10 @@ std::string HierarchicalView::getUri(const IContainerMD* container) const
 //----------------------------------------------------------------------------
 // Get uri for the container - asynchronous version
 //----------------------------------------------------------------------------
-folly::Future<std::string> HierarchicalView::getUriFut(const IContainerMD*
-    container) const
+folly::Future<std::string> HierarchicalView::getUriFut(ContainerIdentifier id)
+  const
 {
-  return folly::makeFuture<std::string>(getUri(container));
+  return folly::makeFuture<std::string>(getUri(id.getUnderlyingUInt64()));
 }
 
 //---------------------------------------------------------------------------
