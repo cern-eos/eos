@@ -81,14 +81,14 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
       XrdOucString stallmsg="";                                                \
       int stalltime=0;                                                         \
       if (gOFS->ShouldStall(__FUNCTION__,__AccessMode__, vid, stalltime, stallmsg)) { \
-        if (stalltime) {                           \
-    return gOFS->Stall(error,stalltime, stallmsg.c_str());         \
-  } else {                     \
-   return gOFS->Emsg("maystall", error, EPERM, stallmsg.c_str(), "");    \
-  }                      \
+        if (stalltime) {                                                       \
+          return gOFS->Stall(error,stalltime, stallmsg.c_str());               \
+        } else {                                                               \
+          return gOFS->Emsg("maystall", error, EPERM, stallmsg.c_str(), "");   \
+        }                                                                      \
       }                                                                        \
-    }                                                                          \
-  }
+  }                                                                            \
+}
 
 //------------------------------------------------------------------------------
 //! Redirect Macro

@@ -258,13 +258,16 @@ void
 QdbMaster::SlaveToMaster()
 {
   eos_info("%s", "msg=\"slave to master transition\"");
+  Access::StallInfo old_stall; // to be discarded
+  Access::StallInfo new_stall("*", "5", "slave->master transition", true);
+  Access::SetStallRule(new_stall, old_stall);
   std::string std_out, std_err;
   // We are the master and we broadcast every configuration change
   gOFS->ObjectManager.EnableBroadCast(true);
 
   if (!ApplyMasterConfig(std_out, std_err, Transition::kSlaveToMaster)) {
     eos_err("msg=\"failed to apply master configuration\"");
-    std::abort(); // @todo(esindril): may take a different action ?!
+    std::abort();
   }
 
   // Notify all the nodes about the new master identity
@@ -273,6 +276,7 @@ QdbMaster::SlaveToMaster()
   EnableNsCaching();
   WFE::MoveFromRBackToQ();
   mIsMaster = true;
+  Access::RemoveStallRule("*");
   Access::SetSlaveToMasterRules();
 }
 
@@ -284,15 +288,18 @@ QdbMaster::MasterToSlave()
 {
   eos_info("%s", "msg=\"master to slave transition\"");
   mIsMaster = false;
-  // We are the slave and we just listen and don't broad cast anything
+  Access::StallInfo old_stall; // to be discarded
+  Access::StallInfo new_stall("*", "5", "master->slave transition", true);
+  // We are the slave, we just listen and don't broadcast anything
   gOFS->ObjectManager.EnableBroadCast(false);
   std::string new_master_id = GetMasterId();
 
-  if (!mIsMaster && (new_master_id == mIdentity)) {
+  if (new_master_id == mIdentity) {
     new_master_id.clear();
   }
 
   DisableNsCaching();
+  Access::RemoveStallRule("*");
   Access::SetMasterToSlaveRules(new_master_id);
 }
 
@@ -502,6 +509,9 @@ QdbMaster::DisableNsCaching()
   map_cfg[constants::sMaxNumCacheDirs] = "0";
   gOFS->eosFileService->configure(map_cfg);
   gOFS->eosDirectoryService->configure(map_cfg);
+  // @todo(esindril): disabling caching and dropping all values can lead to
+  // crashes in the folly threads that have pointers for the files/containers
+  // in the cache
 }
 
 //------------------------------------------------------------------------------

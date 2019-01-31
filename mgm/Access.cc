@@ -563,10 +563,10 @@ Access::SetMasterToSlaveRules(const std::string& other_master_id)
 
   if (other_master_id.empty()) {
     // No master - remove redirections and put a stall for writes
-    eos_static_info("%s", "msg=\"no master, add stall for writes\"");
+    eos_static_info("%s", "msg=\"no master, add global stall\"");
     Access::gRedirectionRules.erase(std::string("w:*"));
     Access::gRedirectionRules.erase(std::string("ENOENT:*"));
-    Access::gStallRules[std::string("w:*")] = "60";
+    Access::gStallRules[std::string("*")] = "60";
     Access::gStallWrite = true;
   } else {
     // We're the slave and there is a master - set redirection to him
@@ -579,6 +579,16 @@ Access::SetMasterToSlaveRules(const std::string& other_master_id)
     Access::gStallRules.erase(std::string("w:*"));
     Access::gStallWrite = false;
   }
+}
+
+//------------------------------------------------------------------------------
+// Remove stall rule specified by key
+//------------------------------------------------------------------------------
+void
+Access::RemoveStallRule(const std::string& key)
+{
+  eos::common::RWMutexWriteLock wr_lock(Access::gAccessMutex);
+  Access::gStallRules.erase(key);
 }
 
 EOSMGMNAMESPACE_END

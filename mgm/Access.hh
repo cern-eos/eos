@@ -223,6 +223,14 @@ public:
   //! @param other_master_id newly assigned master identity <hostname>:<port>
   //----------------------------------------------------------------------------
   static void SetMasterToSlaveRules(const std::string& other_master_id);
+
+  //----------------------------------------------------------------------------
+  //! Remove stall rule specified by key
+  //!
+  //! @param key stall rule key
+  //----------------------------------------------------------------------------
+  static void RemoveStallRule(const std::string& key);
+
 };
 
 EOSMGMNAMESPACE_END
