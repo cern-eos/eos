@@ -1149,7 +1149,6 @@ XrdFstOfsFile::close()
         }
       }
 
-      eos_info("calling verifychecksum");
       checksumerror = verifychecksum();
       targetsizeerror = (mTargetSize) ? (mTargetSize != (off_t) maxOffsetWritten) :
                         false;
