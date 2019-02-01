@@ -26,7 +26,7 @@
 #include "common/Mapping.hh"
 #include "mgm/Vid.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/IConfigEngine.hh"
+#include "mgm/config/IConfigEngine.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

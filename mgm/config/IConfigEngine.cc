@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/IConfigEngine.hh"
+#include "mgm/config/IConfigEngine.hh"
 #include "common/Mapping.hh"
 #include "mgm/Access.hh"
 #include "mgm/FsView.hh"

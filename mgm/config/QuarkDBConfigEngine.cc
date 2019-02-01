@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/QuarkDBConfigEngine.hh"
+#include "mgm/config/QuarkDBConfigEngine.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/IMaster.hh"
 #include "mq/XrdMqSharedObject.hh"

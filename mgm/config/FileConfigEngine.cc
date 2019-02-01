@@ -22,7 +22,7 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "mgm/FileConfigEngine.hh"
+#include "mgm/config/FileConfigEngine.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Master.hh"
 #include "mq/XrdMqMessage.hh"

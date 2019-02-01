@@ -24,7 +24,7 @@
 #ifndef __EOSMGM_QUARKDBCONFIGENGINE__HH__
 #define __EOSMGM_QUARKDBCONFIGENGINE__HH__
 
-#include "mgm/IConfigEngine.hh"
+#include "mgm/config/IConfigEngine.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/QHash.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/QSet.hh"

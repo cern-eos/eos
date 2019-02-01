@@ -24,7 +24,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
-#include "mgm/IConfigEngine.hh"
+#include "mgm/config/IConfigEngine.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

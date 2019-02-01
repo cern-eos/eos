@@ -26,7 +26,7 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/FileSystem.hh"
-#include "mgm/IConfigEngine.hh"
+#include "mgm/config/IConfigEngine.hh"
 #include "common/RWMutex.hh"
 #include "common/SymKeys.hh"
 #include "common/Logging.hh"

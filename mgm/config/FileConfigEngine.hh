@@ -24,7 +24,7 @@
 #ifndef __EOSMGM_FILECONFIGENGINE__HH__
 #define __EOSMGM_FILECONFIGENGINE__HH__
 
-#include "mgm/IConfigEngine.hh"
+#include "mgm/config/IConfigEngine.hh"
 #include "common/DbMap.hh"
 #include <sys/stat.h>
 #include <mutex>

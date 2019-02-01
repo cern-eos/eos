@@ -22,7 +22,7 @@
 
 #include "RouteCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/IConfigEngine.hh"
+#include "mgm/config/IConfigEngine.hh"
 #include "mgm/RouteEndpoint.hh"
 #include "mgm/PathRouting.hh"
 #include <sstream>
