@@ -576,6 +576,7 @@ Access::SetMasterToSlaveRules(const std::string& other_master_id)
     Access::gRedirectionRules[std::string("w:*")] = host.c_str();
     Access::gRedirectionRules[std::string("ENOENT:*")] = host.c_str();
     // Remove write stall
+    Access::gStallRules.erase(std::string("*"));
     Access::gStallRules.erase(std::string("w:*"));
     Access::gStallWrite = false;
   }

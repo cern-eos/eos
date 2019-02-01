@@ -70,8 +70,8 @@ public:
   //! @param value    entry key
   //! @param comment  entry value
   //----------------------------------------------------------------------------
-  virtual void AddEntry(const std::string &action, const std::string &key,
-    const std::string &value) = 0;
+  virtual void AddEntry(const std::string& action, const std::string& key,
+                        const std::string& value) = 0;
 
   //----------------------------------------------------------------------------
   //! Get tail of the changelog
@@ -151,8 +151,12 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool Tail(unsigned int nlines, XrdOucString& tail) {
-    if(!mChangelog) return false;
+  bool Tail(unsigned int nlines, XrdOucString& tail)
+  {
+    if (!mChangelog) {
+      return false;
+    }
+
     return mChangelog->Tail(nlines, tail);
   }
 
@@ -161,10 +165,13 @@ public:
   //!
   //! @param env environment holding info about the configuration to be loaded
   //! @param err string holding any errors
+  //! @param apply_stall_redirect if true then skip applying stall and redirect
+  //!        rules from the configuration
   //!
   //! @return true if loaded successfully, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool LoadConfig(XrdOucEnv& env, XrdOucString& err) = 0;
+  virtual bool LoadConfig(XrdOucEnv& env, XrdOucString& err,
+                          bool apply_stall_redirect = false) = 0;
 
   //----------------------------------------------------------------------------
   //! Save configuration to specified destination
@@ -251,10 +258,12 @@ public:
   //! corresponding objects about the new values
   //!
   //! @param err object collecting any possible errors
+  //! @param apply_stall_redirect if true then skip applying stall and redirect
+  //!        rules from the configuration
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool ApplyConfig(XrdOucString& err);
+  bool ApplyConfig(XrdOucString& err, bool apply_stall_redirect = false);
 
   //----------------------------------------------------------------------------
   //! Parse configuration from the input given as a string and add it to the
@@ -279,8 +288,10 @@ public:
 
   //----------------------------------------------------------------------------
   //! Reset the current configuration
+  //!
+  //! @param apply_stall_redirect
   //----------------------------------------------------------------------------
-  void ResetConfig();
+  void ResetConfig(bool apply_stall_redirect = true);
 
   //----------------------------------------------------------------------------
   //! Set the autosave mode
@@ -298,8 +309,9 @@ public:
     return mAutosave;
   }
 
-  static std::string formFullKey(const char* prefix, const char* key) {
-    if(prefix) {
+  static std::string formFullKey(const char* prefix, const char* key)
+  {
+    if (prefix) {
       return SSTR(prefix << ":" << key);
     }
 
@@ -309,7 +321,7 @@ public:
   //----------------------------------------------------------------------------
   //! Check if config key matches filter options as given in opt
   //----------------------------------------------------------------------------
-  static bool CheckFilterMatch(XrdOucString &option, const std::string& key);
+  static bool CheckFilterMatch(XrdOucString& option, const std::string& key);
 
 protected:
   //! Helper struct for passing information in/out of XrdOucHash callbacks

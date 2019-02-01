@@ -202,18 +202,20 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val, void* arg)
 // Check if config key matches filter options as given in opt
 //------------------------------------------------------------------------------
 bool
-IConfigEngine::CheckFilterMatch(XrdOucString &option, const std::string& key)
+IConfigEngine::CheckFilterMatch(XrdOucString& option, const std::string& key)
 {
-  if (((option.find("v") != STR_NPOS) && (eos::common::startsWith(key, "vid:"))) ||
-     ((option.find("f") != STR_NPOS) &&  (eos::common::startsWith(key, "fs:")))  ||
-     ((option.find("q") != STR_NPOS) &&  (eos::common::startsWith(key, "quota:"))) ||
-     ((option.find("p") != STR_NPOS) &&  (eos::common::startsWith(key, "policy:"))) ||
-     ((option.find("c") != STR_NPOS) && (eos::common::startsWith(key, "comment-"))) ||
-     ((option.find("g") != STR_NPOS) && (eos::common::startsWith(key, "global:"))) ||
-     ((option.find("m") != STR_NPOS) && (eos::common::startsWith(key, "map:"))) ||
-     ((option.find("r") != STR_NPOS) && (eos::common::startsWith(key, "route:"))) ||
-     ((option.find("s") != STR_NPOS) && (eos::common::startsWith(key, "geosched:"))) ) {
-
+  if (((option.find("v") != STR_NPOS) &&
+       (eos::common::startsWith(key, "vid:"))) ||
+      ((option.find("f") != STR_NPOS) && (eos::common::startsWith(key, "fs:")))  ||
+      ((option.find("q") != STR_NPOS) && (eos::common::startsWith(key, "quota:"))) ||
+      ((option.find("p") != STR_NPOS) && (eos::common::startsWith(key, "policy:"))) ||
+      ((option.find("c") != STR_NPOS) &&
+       (eos::common::startsWith(key, "comment-"))) ||
+      ((option.find("g") != STR_NPOS) && (eos::common::startsWith(key, "global:"))) ||
+      ((option.find("m") != STR_NPOS) && (eos::common::startsWith(key, "map:"))) ||
+      ((option.find("r") != STR_NPOS) && (eos::common::startsWith(key, "route:"))) ||
+      ((option.find("s") != STR_NPOS) &&
+       (eos::common::startsWith(key, "geosched:")))) {
     return true;
   }
 
@@ -265,7 +267,7 @@ IConfigEngine::DeleteConfigByMatch(const char* key, XrdOucString* val,
 // Apply a given configuration definition
 //------------------------------------------------------------------------------
 bool
-IConfigEngine::ApplyConfig(XrdOucString& err)
+IConfigEngine::ApplyConfig(XrdOucString& err, bool apply_stall_redirect)
 {
   err = "";
   // Cleanup quota map
@@ -278,7 +280,7 @@ IConfigEngine::ApplyConfig(XrdOucString& err)
     eos::common::Mapping::gVirtualGidMap.clear();
     eos::common::Mapping::gAllowedTidentMatches.clear();
   }
-  Access::Reset();
+  Access::Reset(!apply_stall_redirect);
   {
     eos::common::RWMutexWriteLock wr_view_lock(eos::mgm::FsView::gFsView.ViewMutex);
     XrdSysMutexHelper lock(mMutex);
@@ -288,7 +290,7 @@ IConfigEngine::ApplyConfig(XrdOucString& err)
     // Enable the defaults in FsSpace
     FsSpace::gDisableDefaults = false;
   }
-  Access::ApplyAccessConfig();
+  Access::ApplyAccessConfig(apply_stall_redirect);
   gOFS->FsCheck.ApplyFsckConfig();
   gOFS->IoStats->ApplyIostatConfig();
   gTransferEngine.ApplyTransferEngineConfig();
@@ -510,7 +512,7 @@ IConfigEngine::DumpConfig(XrdOucString& out, XrdOucEnv& filter)
 // Reset the configuration
 //------------------------------------------------------------------------------
 void
-IConfigEngine::ResetConfig()
+IConfigEngine::ResetConfig(bool apply_stall_redirect)
 {
   mChangelog->AddEntry("reset config", "", "");
   mConfigFile = "";
@@ -523,7 +525,7 @@ IConfigEngine::ResetConfig()
     eos::common::Mapping::gVirtualGidMap.clear();
     eos::common::Mapping::gAllowedTidentMatches.clear();
   }
-  Access::Reset();
+  Access::Reset(!apply_stall_redirect);
   gOFS->ResetPathMap();
   gOFS->mRouting->Clear();
   FsView::gFsView.Reset();

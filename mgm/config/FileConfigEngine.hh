@@ -112,10 +112,14 @@ public:
   //!
   //! @param env environment holding info about the configuration to be loaded
   //! @param err string holding any errors
+  //! @param skip_stall_redirect if true then skip applying stall and redirect
+  //!        rules from the configuration
   //!
   //! @return true if loaded successfully, otherwise false
   //----------------------------------------------------------------------------
-  bool LoadConfig(XrdOucEnv& env, XrdOucString& err);
+  bool LoadConfig(XrdOucEnv& env, XrdOucString& err,
+                  bool skip_stall_redirect = false) override;
+
 
   //----------------------------------------------------------------------------
   //! Save configuration to specified destination

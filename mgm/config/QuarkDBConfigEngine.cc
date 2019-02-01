@@ -131,7 +131,8 @@ QuarkDBConfigEngine::QuarkDBConfigEngine(const QdbContactDetails&
 // Load a given configuration file
 //------------------------------------------------------------------------------
 bool
-QuarkDBConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
+QuarkDBConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err,
+                                bool apply_stall_redirect)
 {
   const char* name = env.Get("mgm.config.file");
   eos_notice("loading name=%s ", name);
@@ -141,7 +142,7 @@ QuarkDBConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
     return false;
   }
 
-  ResetConfig();
+  ResetConfig(apply_stall_redirect);
   std::string hash_key = formConfigHashKey(name);
   eos_notice("HASH KEY NAME => %s", hash_key.c_str());
   qclient::QHash q_hash(*mQcl, hash_key);
@@ -150,7 +151,7 @@ QuarkDBConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
     return false;
   }
 
-  if (!ApplyConfig(err))   {
+  if (!ApplyConfig(err, apply_stall_redirect))   {
     mChangelog->AddEntry("loaded config", name, SSTR("with failure : " << err));
     return false;
   } else {

@@ -132,7 +132,8 @@ FileConfigEngine::SetConfigDir(const char* config_dir)
 // Load a given configuration file
 //------------------------------------------------------------------------------
 bool
-FileConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
+FileConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err,
+                             bool skip_stall_redirect)
 {
   const char* name = env.Get("mgm.config.file");
   eos_notice("loading name=%s ", name);

@@ -270,13 +270,22 @@ QdbMaster::SlaveToMaster()
     std::abort();
   }
 
+  std::thread stall_thread([&]() {
+    eos_info("%s", "msg=\"stall thread sleeping for 10 seconds\"");
+    std::this_thread::sleep_for(std::chrono::seconds(10));
+
+    if (mIsMaster) {
+      eos_info("%s", "msg=\"stall thread removing global stall\"");
+      Access::RemoveStallRule("*");
+    }
+  });
+  stall_thread.detach();
   // Notify all the nodes about the new master identity
   FsView::gFsView.BroadcastMasterId(GetMasterId());
   Quota::LoadNodes();
   EnableNsCaching();
   WFE::MoveFromRBackToQ();
   mIsMaster = true;
-  Access::RemoveStallRule("*");
   Access::SetSlaveToMasterRules();
 }
 
@@ -290,6 +299,7 @@ QdbMaster::MasterToSlave()
   mIsMaster = false;
   Access::StallInfo old_stall; // to be discarded
   Access::StallInfo new_stall("*", "5", "master->slave transition", true);
+  Access::SetStallRule(new_stall, old_stall);
   // We are the slave, we just listen and don't broadcast anything
   gOFS->ObjectManager.EnableBroadCast(false);
   std::string new_master_id = GetMasterId();
@@ -299,7 +309,6 @@ QdbMaster::MasterToSlave()
   }
 
   DisableNsCaching();
-  Access::RemoveStallRule("*");
   Access::SetMasterToSlaveRules(new_master_id);
 }
 
@@ -320,7 +329,7 @@ QdbMaster::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
     XrdOucEnv configenv(configloader.c_str());
     XrdOucString stdErr = "";
 
-    if (!gOFS->ConfEngine->LoadConfig(configenv, stdErr)) {
+    if (!gOFS->ConfEngine->LoadConfig(configenv, stdErr, false)) {
       eos_crit("msg=\"failed config autoload\" config=\"%s\" err=\"%s\"",
                gOFS->MgmConfigAutoLoad.c_str(), stdErr.c_str());
     } else {
