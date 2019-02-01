@@ -909,7 +909,7 @@ runtest "### Update    " unix 1 "" append "/eos/$EOS_TEST_INSTANCE/test/instance
 runtest "### Attr      " unix 0 "" eos attr set user.acl=u:1:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest
 runtest "### Chown     " unix 0 "" eos chown 99:99 "/eos/$EOS_TEST_INSTANCE/test/instancetest"
 runtest "### Update    " unix 0 "" append "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"     # should work still the owner
-#### fails bug in eoscp ("file size mismatch"):runtest "### Upload    " unix 0 "" eos -r 99 99 cp -a "$TESTSYSFILE1K" /eos/dockertest/test/instancetest/file.1k
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp -a "$TESTSYSFILE1K" /eos/dockertest/test/instancetest/file.1k
 
 runtest "### Attr      " unix 0 "" eos attr set user.acl=u:nobody:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest
 runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"

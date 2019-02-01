@@ -1033,8 +1033,11 @@ com_cp(char* argin)
       struct stat buf;
 
       if (!do_stat(target_path.c_str(), target.protocol, buf)) {
-        if ((!source.size) || (buf.st_size == (off_t) source.size)) {
-
+        if ( (!source.size) ||
+             ( buf.st_size == (off_t) ( append ? target_stat.st_size + source.size : (off_t) source.size )
+             )
+           )
+        {
           // Preserve creation and modification timestamps
           if ((preserve) && (source.atime.tv_sec > 0) && (source.mtime.tv_sec > 0)) {
             bool updateok;
