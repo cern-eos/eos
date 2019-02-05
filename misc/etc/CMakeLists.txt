@@ -41,6 +41,10 @@ install(
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/)
 
 install(
+  FILES bash_completion.d/eos
+  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/bash_completion.d/)
+
+install(
   FILES cron.d/eos-logs cron.d/eos-reports cron.d/eos-config
   DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/cron.d/)
 

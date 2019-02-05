@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+
+_eos_comp()
+{
+  COMPREPLY=( $(compgen -W "$1" -- "${word}") )
+  if [[ ${#COMPREPLY[@]} == 1 && ${COMPREPLY[0]} == "--"*"=" ]] ; then
+    compopt -o nospace
+  fi
+}
+
+_eos_help_only()
+{
+    _eos_comp "--help"
+}
+
+_eos_access() {
+  _eos_comp "allow ban ls rm set --help"
+}
+
+_eos_attr() {
+  _eos_comp "fold get link ls rm set unlink --help"
+}
+
+_eos_accounting() {
+  _eos_comp "config report --help"
+}
+
+_eos_attr_ls() {
+  if [[ ${word} == -* ]] ; then
+    _eos_comp "-l --help"
+  elif [[ ${prev} == /* ]] ; then
+    COMPREPLY=() # Path exist
+  elif [[ ${word} == /* ]] ; then
+    _eos_dirs_complete
+  else
+    COMPREPLY=( / )
+    [[ ${COMPREPLY[0]} = */ ]] && compopt -o nospace
+  fi
+}
+
+_eos_cp()
+{
+  if [[ ${word} == /* ]] ; then
+   _eos_files_complete
+  else
+    COMPREPLY=( / )
+    [[ ${COMPREPLY[0]} = */ ]] && compopt -o nospace
+  fi
+}
+
+_eos_fileinfo()
+{
+  if [[ ${prev} == /* ]] ; then
+    COMPREPLY=() # Path exist
+  elif [[ ${word} == /* ]] ; then
+    _eos_files_complete
+  else
+    COMPREPLY=( / )
+    [[ ${COMPREPLY[0]} = */ ]] && compopt -o nospace
+  fi
+}
+
+_eos_find()
+{
+  if [[ ${word} == -* ]] ; then
+      _eos_comp "-name --xurl --childcound --purge --count -s -d -f -0 -1 -m --nrep --nunlink --size --fileinfo --online --hosts --partition --fid --fs --checksum --ctime --mtime --uid --gid --help "
+  else
+    _eos_files_complete
+  fi
+}
+
+_eos_fs()
+{
+    _eos_comp "add boot config dropdeletion dropghosts dropfiles dumpmd ls mv rm status --help"
+}
+
+_eos_fsck()
+{
+    _eos_comp "disable enable repair stat --help"
+}
+
+_eos_fsck_repair()
+{
+    _eos_comp "--checksum --checksum-commit --resync --unlink-unregistered --unlink-orphans --adjust-replicas --adjust-replicas-nodrop --drop-missing-replicas --unlink-zero-replicas --replace-damaged-replicas --all --help"
+}
+
+_eos_fsck_report()
+{
+    _eos_comp "-a -h -i -l --error --json  --help"
+}
+
+_eos_ls()
+{
+  if [[ ${prev} == /* ]] ; then
+    COMPREPLY=() # Path exist
+  elif [[ ${word} == /* ]] ; then
+    _eos_dirs_complete
+  else
+    COMPREPLY=( / )
+    [[ ${COMPREPLY[0]} = */ ]] && compopt -o nospace
+  fi
+}
+
+_eos_dirs_complete()
+{
+  local lastDir=${word%/*}/
+  local OLDIFS="$IFS" ; local IFS=$'\n'
+  opts=$(for x in $(eos ls -l "${lastDir}" | grep -E '^(d|l)' | awk '{print $NF}'); do echo "${lastDir}${x}/" ; done)
+  IFS="$OLDIFS"
+  COMPREPLY=( $(compgen -W "${opts}" -- "${word}") )
+  [[ ${COMPREPLY[0]} = */ ]] && compopt -o nospace -o dirnames
+  return 0
+}
+
+_eos_files_complete()
+{
+  local lastDir=${word%/*}/
+  local OLDIFS="$IFS" ; local IFS=$'\n'
+  opts=$(for x in $(eos ls "${lastDir}"); do echo "${lastDir}${x}/" ; done)
+  IFS="$OLDIFS"
+  COMPREPLY=( $(compgen -W "${opts}" -- "${word}") )
+  [[ ${COMPREPLY[0]} = */ ]] && compopt -o nospace -o filenames
+  return 0
+}
+
+_eos()
+{
+  [ -z "${EOS_MGM_URL}" ] && return
+
+  COMPREPLY=()
+
+  compopt +o default
+
+  local word="${COMP_WORDS[COMP_CWORD]}"
+  local prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+  case "${COMP_CWORD}" in
+    1)
+      # Quick and dirty
+      COMPREPLY=($(compgen -W "$(eos -b help | awk '/^[a-z]/{print $1}')" -- "${word}"))
+      ;;
+    2)
+      local command="${COMP_WORDS[1]}"
+      eval "_eos_$command" 2> /dev/null
+      ;;
+    *)
+      local command="${COMP_WORDS[1]}"
+      local subcommand="${COMP_WORDS[2]}"
+      eval "_eos_${command}_${subcommand}" 2> /dev/null && return
+      eval "_eos_$command" 2> /dev/null
+      ;;
+  esac
+}
+
+complete -F _eos eos
