@@ -167,11 +167,11 @@ Setup MGM with namespace in QuarkDB
 
 To integrate the MGM service with the **QuarkDB** cluster we need to make several modifications to the default configuration file ``/etc/xrd.cf.mgm``.
 
-  * Update the **mgm.nslib** directive to load the namespace in QuarkDB implementation:
+  * Update the **mgmofs.nslib** directive to load the namespace in QuarkDB implementation:
 
     .. code-block:: bash
 
-       mgm.nslib /usr/lib64/libEosNsQuarkdb.so
+       mgmofs.nslib /usr/lib64/libEosNsQuarkdb.so
 
   * List the endpoints of the QuarkDB cluster which are used by the MGM daemon to connect to the back-end service:
 
