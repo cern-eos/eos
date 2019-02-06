@@ -40,8 +40,6 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-XrdOucHash<XrdOucString> IConfigEngine::sConfigDefinitions;
-
 //------------------------------------------------------------------------------
 //                       **** ICfgEngineChangelog ****
 //------------------------------------------------------------------------------

@@ -338,7 +338,7 @@ protected:
   XrdOucString mConfigFile; ///< Currently loaded configuration
 
   //! Configuration definitions currently in memory
-  static XrdOucHash<XrdOucString> sConfigDefinitions;
+  XrdOucHash<XrdOucString> sConfigDefinitions;
 
   //----------------------------------------------------------------------------
   //! Insert comment
