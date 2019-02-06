@@ -221,47 +221,6 @@ IConfigEngine::CheckFilterMatch(XrdOucString& option, const std::string& key)
 }
 
 //------------------------------------------------------------------------------
-// XrdOucHash callback function to print a configuration value
-//------------------------------------------------------------------------------
-int
-IConfigEngine::PrintEachConfig(const char* key, XrdOucString* val, void* arg)
-{
-  if (arg == NULL) {
-    eos_static_info("%s => %s", key, val->c_str());
-  } else {
-    eos_static_debug("%s => %s", key, val->c_str());
-    XrdOucString* outstring = reinterpret_cast<struct PrintInfo*>(arg)->out;
-    XrdOucString option = reinterpret_cast<struct PrintInfo*>(arg)->option;
-    XrdOucString skey = key;
-
-    if (CheckFilterMatch(option, key)) {
-      *outstring += key;
-      *outstring += " => ";
-      *outstring += val->c_str();
-      *outstring += "\n";
-    }
-  }
-
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-// XrddOucHash callback function to delete a configuration value by match
-//------------------------------------------------------------------------------
-int
-IConfigEngine::DeleteConfigByMatch(const char* key, XrdOucString* val,
-                                   void* arg)
-{
-  XrdOucString* match = reinterpret_cast<XrdOucString*>(arg);
-
-  if (strncmp(key, match->c_str(), match->length()) == 0) {
-    return -1;
-  }
-
-  return 0;
-}
-
-//------------------------------------------------------------------------------
 // Apply a given configuration definition
 //------------------------------------------------------------------------------
 bool
@@ -284,7 +243,12 @@ IConfigEngine::ApplyConfig(XrdOucString& err, bool apply_stall_redirect)
     XrdSysMutexHelper lock(mMutex);
     // Disable the defaults in FsSpace
     FsSpace::gDisableDefaults = true;
-    sConfigDefinitions.Apply(ApplyEachConfig, &err);
+
+    for(auto it = sConfigDefinitions.begin(); it != sConfigDefinitions.end(); it++) {
+      XrdOucString val(it->second.c_str());
+      ApplyEachConfig(it->first.c_str(), &val, &err);
+    }
+
     // Enable the defaults in FsSpace
     FsSpace::gDisableDefaults = false;
   }
@@ -389,7 +353,16 @@ IConfigEngine::DeleteConfigValueByMatch(const char* prefix, const char* match)
   smatch += ":";
   smatch += match;
   XrdSysMutexHelper lock(mMutex);
-  sConfigDefinitions.Apply(DeleteConfigByMatch, &smatch);
+
+  auto it = sConfigDefinitions.begin();
+  while(it != sConfigDefinitions.end()) {
+    if(strncmp(it->first.c_str(), smatch.c_str(), smatch.length()) == 0) {
+      it = sConfigDefinitions.erase(it);
+    }
+    else {
+      it++;
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -403,7 +376,7 @@ IConfigEngine::ParseConfig(XrdOucString& inconfig, XrdOucString& err)
   std::string s;
   std::istringstream streamconfig(inconfig.c_str());
   XrdSysMutexHelper lock(mMutex);
-  sConfigDefinitions.Purge();
+  sConfigDefinitions.clear();
 
   while ((getline(streamconfig, s, '\n'))) {
     line_num++;
@@ -428,7 +401,7 @@ IConfigEngine::ParseConfig(XrdOucString& inconfig, XrdOucString& err)
       // Add entry only if key and value are not empty
       if (key.length() && value.length()) {
         eos_notice("setting config key=%s value=%s", key.c_str(), value.c_str());
-        sConfigDefinitions.Add(key.c_str(), new XrdOucString(value.c_str()));
+        sConfigDefinitions[key.c_str()] = value.c_str();
       } else {
         eos_notice("skipping empty config key=%s value=%s", key.c_str(), value.c_str());
       }
@@ -495,7 +468,20 @@ IConfigEngine::DumpConfig(XrdOucString& out, XrdOucEnv& filter)
 
   if (name == 0) {
     XrdSysMutexHelper lock(mMutex);
-    sConfigDefinitions.Apply(PrintEachConfig, &pinfo);
+
+    for(auto it = sConfigDefinitions.begin(); it != sConfigDefinitions.end(); it++) {
+      std::string key = it->first;
+      std::string val = it->second;
+
+      eos_static_debug("%s => %s", key.c_str(), val.c_str());
+
+      if (CheckFilterMatch(pinfo.option, key)) {
+        out += key.c_str();
+        out += " => ";
+        out += val.c_str();
+        out += "\n";
+      }
+    }
 
     while (out.replace("&", " ")) {}
   } else {
@@ -530,7 +516,7 @@ IConfigEngine::ResetConfig(bool apply_stall_redirect)
   eos::common::GlobalConfig::gConfig.Reset();
   {
     XrdSysMutexHelper lock(mMutex);
-    sConfigDefinitions.Purge();
+    sConfigDefinitions.clear();
   }
   // Load all the quota nodes from the namespace
   Quota::LoadNodes();
@@ -545,7 +531,6 @@ IConfigEngine::InsertComment(const char* comment)
   if (comment) {
     // Store comments as "<unix-tst> <date> <comment>"
     XrdOucString esccomment = comment;
-    XrdOucString configkey = "";
     time_t now = time(0);
     char timestamp[1024];
     sprintf(timestamp, "%lu", now);
@@ -560,11 +545,10 @@ IConfigEngine::InsertComment(const char* comment)
     esccomment.insert(stime.c_str(), 0);
     esccomment.insert("\"", 0);
     esccomment.append("\"");
-    configkey += "comment-";
-    configkey += timestamp;
-    configkey += ":";
+
+    std::string configkey = SSTR("comment-" << timestamp << ":");
     XrdSysMutexHelper lock(mMutex);
-    sConfigDefinitions.Add(configkey.c_str(), new XrdOucString(esccomment.c_str()));
+    sConfigDefinitions[configkey] = esccomment.c_str();
   }
 }
 

@@ -612,12 +612,11 @@ FileConfigEngine::SetConfigValue(const char* prefix, const char* key,
     mChangelog->AddEntry("set config", formFullKey(prefix, key), val);
   }
 
-  XrdOucString configname = formFullKey(prefix, key).c_str();
+  std::string configname = formFullKey(prefix, key);
   eos_static_debug("%s => %s", key, val);
-  XrdOucString* sdef = new XrdOucString(val);
   {
     XrdSysMutexHelper lock(mMutex);
-    sConfigDefinitions.Rep(configname.c_str(), sdef);
+    sConfigDefinitions[configname] = val;
   }
 
   if (mBroadcast && gOFS->mMaster->IsMaster()) {
@@ -646,7 +645,7 @@ void
 FileConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
                                     bool tochangelog)
 {
-  XrdOucString configname = formFullKey(prefix, key).c_str();
+  std::string configname = formFullKey(prefix, key);
 
   if (mBroadcast && gOFS->mMaster->IsMaster()) {
     eos_static_info("Deleting %s", configname.c_str());
@@ -664,7 +663,7 @@ FileConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
 
   {
     XrdSysMutexHelper lock(mMutex);
-    sConfigDefinitions.Del(configname.c_str());
+    sConfigDefinitions.erase(configname);
   }
 
   if (tochangelog) {

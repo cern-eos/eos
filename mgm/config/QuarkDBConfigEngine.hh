@@ -85,21 +85,6 @@ class QuarkDBConfigEngine : public IConfigEngine
 {
 public:
   //----------------------------------------------------------------------------
-  //! XrdOucHash callback function to add to the hash all the configuration
-  //! values.
-  //!
-  //! @param key configuration key
-  //! @param val configuration value
-  //! @param arg match pattern
-  //!
-  //! @return < 0 - the hash table item is deleted
-  //!         = 0 - the next hash table item is processed
-  //!         > 0 - processing stops and the hash table item is returned
-  //----------------------------------------------------------------------------
-  static int
-  SetConfigToQuarkDBHash(const char* key, XrdOucString* def, void* Arg);
-
-  //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param configdir

@@ -209,7 +209,9 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
 
   {
     XrdSysMutexHelper lock(mMutex);
-    sConfigDefinitions.Apply(SetConfigToQuarkDBHash, &q_hash);
+    for(auto it = sConfigDefinitions.begin(); it != sConfigDefinitions.end(); it++) {
+      q_hash.hset(it->first, it->second);
+    }
   }
 
   // Adding  timestamp
@@ -318,18 +320,18 @@ QuarkDBConfigEngine::PullFromQuarkDB(qclient::QHash& hash, XrdOucString& err)
 {
   err = "";
   mMutex.Lock();
-  sConfigDefinitions.Purge();
+  sConfigDefinitions.clear();
 
   for (auto it = hash.getIterator(); it.valid(); it.next()) {
-    XrdOucString key = it.getKey().c_str();
+    std::string key = it.getKey();
 
     if (key == "timestamp") {
       continue;
     }
 
-    XrdOucString value = it.getValue().c_str();
+    std::string value = it.getValue();
     eos_notice("setting config key=%s value=%s", key.c_str(), value.c_str());
-    sConfigDefinitions.Add(key.c_str(), new XrdOucString(value.c_str()));
+    sConfigDefinitions[key] = value;
   }
 
   mMutex.UnLock();
@@ -388,12 +390,11 @@ void
 QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
                                     const char* val, bool not_bcast)
 {
-  XrdOucString configname = formFullKey(prefix, key).c_str();
+  std::string configname = formFullKey(prefix, key);
   eos_debug("%s => %s", key, val);
-  XrdOucString* sdef = new XrdOucString(val);
   {
     XrdSysMutexHelper lock(mMutex);
-    sConfigDefinitions.Rep(configname.c_str(), sdef);
+    sConfigDefinitions[configname] = val;
   }
 
   // In case the change is not coming from a broacast we can can broadcast it
@@ -441,7 +442,7 @@ void
 QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
                                        bool not_bcast)
 {
-  XrdOucString configname = formFullKey(prefix, key).c_str();
+  std::string configname = formFullKey(prefix, key);
 
   // In case the change is not coming from a broacast we can can broadcast it
   if (mBroadcast && not_bcast) {
@@ -460,7 +461,7 @@ QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
 
   {
     XrdSysMutexHelper lock(mMutex);
-    sConfigDefinitions.Del(configname.c_str());
+    sConfigDefinitions.erase(configname);
   }
 
   // In case is not coming from a broadcast we can add it to the changelog
@@ -570,7 +571,11 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
       }
 
       mMutex.Lock();
-      sConfigDefinitions.Apply(SetConfigToQuarkDBHash, &q_hash);
+
+      for(auto it = sConfigDefinitions.begin(); it != sConfigDefinitions.end(); it++) {
+        q_hash.hset(it->first, it->second);
+      }
+
       mMutex.UnLock();
       // Adding key for timestamp
       XrdOucString stime;
@@ -588,19 +593,6 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
   }
 
   return false;
-}
-
-//------------------------------------------------------------------------------
-// XrdOucHash callback function to add to the hash all the config values
-//------------------------------------------------------------------------------
-int
-QuarkDBConfigEngine::SetConfigToQuarkDBHash(const char* key, XrdOucString* def,
-    void* arg)
-{
-  eos_static_debug("%s => %s", key, def->c_str());
-  qclient::QHash* hash = reinterpret_cast<qclient::QHash*>(arg);
-  hash->hset(key, std::string(def->c_str()));
-  return 0;
 }
 
 //------------------------------------------------------------------------------

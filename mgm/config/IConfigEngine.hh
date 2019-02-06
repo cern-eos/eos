@@ -108,32 +108,6 @@ public:
   static int ApplyEachConfig(const char* key, XrdOucString* val, void* arg);
 
   //----------------------------------------------------------------------------
-  //! XrdOucHash callback function to print a configuration value
-  //!
-  //! @param key configuration key
-  //! @param val configuration value
-  //! @param arg match pattern
-  //!
-  //! @return < 0 - the hash table item is deleted
-  //!         = 0 - the next hash table item is processed
-  //!         > 0 - processing stops and the hash table item is returned
-  //----------------------------------------------------------------------------
-  static int PrintEachConfig(const char* key, XrdOucString* val, void* arg);
-
-  //----------------------------------------------------------------------------
-  //! XrddOucHash callback function to delete a configuration value by match
-  //!
-  //! @param key configuration key
-  //! @param val configuration value
-  //! @param arg match pattern
-  //!
-  //! @return < 0 - the hash table item is deleted
-  //!         = 0 - the next hash table item is processed
-  //!         > 0 - processing stops and the hash table item is returned
-  //----------------------------------------------------------------------------
-  static int DeleteConfigByMatch(const char* key, XrdOucString* def, void* arg);
-
-  //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   IConfigEngine();
@@ -338,7 +312,7 @@ protected:
   XrdOucString mConfigFile; ///< Currently loaded configuration
 
   //! Configuration definitions currently in memory
-  XrdOucHash<XrdOucString> sConfigDefinitions;
+  std::map<std::string, std::string> sConfigDefinitions;
 
   //----------------------------------------------------------------------------
   //! Insert comment
