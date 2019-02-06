@@ -195,6 +195,11 @@ public:
   }
 
 private:
+  //----------------------------------------------------------------------------
+  // Store configuration into given keyname
+  //----------------------------------------------------------------------------
+  void storeIntoQuarkDB(const std::string &keyname);
+
   QdbContactDetails mQdbContactDetails;
   qclient::QClient* mQcl;
   const std::string kConfigurationHashKeyPrefix = "eos-config";

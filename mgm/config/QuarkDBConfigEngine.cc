@@ -25,6 +25,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/IMaster.hh"
 #include "mq/XrdMqSharedObject.hh"
+#include <qclient/ResponseParsing.hh>
 #include "common/GlobalConfig.hh"
 #include "qclient/QScanner.hh"
 #include <ctime>
@@ -209,15 +210,9 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
 
   {
     XrdSysMutexHelper lock(mMutex);
-    for(auto it = sConfigDefinitions.begin(); it != sConfigDefinitions.end(); it++) {
-      q_hash.hset(it->first, it->second);
-    }
+    storeIntoQuarkDB(hash_key);
   }
 
-  // Adding  timestamp
-  XrdOucString stime;
-  getTimeStamp(stime);
-  q_hash.hset("timestamp", stime.c_str());
   std::ostringstream changeLogValue;
 
   if (force) {
@@ -571,16 +566,8 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
       }
 
       mMutex.Lock();
-
-      for(auto it = sConfigDefinitions.begin(); it != sConfigDefinitions.end(); it++) {
-        q_hash.hset(it->first, it->second);
-      }
-
+      storeIntoQuarkDB(hash_key);
       mMutex.UnLock();
-      // Adding key for timestamp
-      XrdOucString stime;
-      getTimeStamp(stime);
-      q_hash.hset("timestamp", stime.c_str());
       mChangelog->AddEntry("exported config", name.c_str(), "successfully");
       mConfigFile = name.c_str();
       return true;
@@ -593,6 +580,29 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
   }
 
   return false;
+}
+
+//------------------------------------------------------------------------------
+// Store configuration into given keyname
+//------------------------------------------------------------------------------
+void QuarkDBConfigEngine::storeIntoQuarkDB(const std::string &keyname) {
+  std::vector<std::future<qclient::redisReplyPtr>> replies;
+
+  for(auto it = sConfigDefinitions.begin(); it != sConfigDefinitions.end(); it++) {
+    replies.emplace_back(mQcl->exec("hset", keyname, it->first, it->second));
+  }
+
+  XrdOucString stime;
+  getTimeStamp(stime);
+  replies.emplace_back(mQcl->exec("hset", keyname, "timestamp", std::string(stime.c_str())));
+
+  for(size_t i = 0; i < replies.size(); i++) {
+    qclient::IntegerParser parser(replies[i].get());
+
+    if(!parser.ok() || parser.value() != 1) {
+      eos_static_crit("Unexpected response from QDB when storing configuration value: ERR=%s, value=d", parser.err().c_str(), parser.value());
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
