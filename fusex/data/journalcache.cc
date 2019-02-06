@@ -36,7 +36,7 @@ std::string journalcache::sLocation;
 size_t journalcache::sMaxSize = 128 * 1024 * 1024ll; // TODO Some dummy default
 
 journalcache::journalcache(fuse_ino_t ino) : ino(ino), cachesize(0),
-  truncatesize(-1), fd(-1), nbAttached(0), nbFlushed(0)
+					     truncatesize(-1), fd(-1), nbAttached(0), nbFlushed(0), max_offset(0)
 {
 }
 

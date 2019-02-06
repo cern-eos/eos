@@ -1855,7 +1855,7 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
         }
 
 	if (mFile->journal()) {
-	  eos_err("offset=%ld count=%lu journal-max-%lu\n", offset, count, mFile->journal()->get_max_offset());
+	  eos_info("offset=%ld count=%lu journal-max=%lu\n", offset, count, mFile->journal()->get_max_offset());
 	  // check if there is a chunk in the journal which extends the file size, 
 	  // so we have to extend the read
 	  if (mFile->journal()->get_max_offset() > (off_t)( offset + br + bytesRead ) ) {
