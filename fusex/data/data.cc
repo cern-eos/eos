@@ -1826,18 +1826,25 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
       std::vector<journalcache::chunk_t> chunks;
 
       if (mFile->journal()) {
-        jr = 0;
         // retrieve all journal chunks matching our range
-        chunks = ((mFile->journal()))->get_chunks(offset + br + jr, count - br - jr);
+        chunks = ((mFile->journal()))->get_chunks(offset + br, count - br);
+
+	bool first_matching_chunk = true;
 
         for (auto it = chunks.begin(); it != chunks.end(); ++it) {
           eos_err("offset=%ld count=%lu overlay-chunk offset=%ld size=%lu\n", offset,
                   count, it->offset, it->size);
           // overlay journal contents again over the remote contents
-          ssize_t ljr = mFile->journal()->pread((char*) buf + br + jr +
-                                                (it->offset - offset - br - jr), it->size, it->offset);
+          ssize_t ljr = mFile->journal()->pread((char*) buf + br +
+                                                (it->offset - offset - br ), it->size, it->offset);
 
           if (ljr >= 0) {
+	    if (first_matching_chunk) {
+	      // initialize the remaing unwritten buffer with zero's the first time we have a match since results could be sparse
+	      memset( (char*) buf + br + bytesRead, 0, count-br-bytesRead);
+	      first_matching_chunk = false;
+	    }
+
             // check if the journal contents extends the remote read
             ssize_t chunkread = it->offset + it->size - offset - br;
 
@@ -1846,9 +1853,24 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
             }
           }
         }
+
+	if (mFile->journal()) {
+	  eos_err("offset=%ld count=%lu journal-max-%lu\n", offset, count, mFile->journal()->get_max_offset());
+	  // check if there is a chunk in the journal which extends the file size, 
+	  // so we have to extend the read
+	  if (mFile->journal()->get_max_offset() > (off_t)( offset + br + bytesRead ) ) {
+	    if ( mFile->journal()->get_max_offset() > (off_t)( offset  + count )) {
+	      // the last journal entry extends over the requested range, we got all bytes
+	      bytesRead = count;
+	    } else {
+	      //  this should not be required, because logically we cannot get here
+	      bytesRead = mFile->journal()->get_max_offset() - offset;
+	    }
+	  }
+	}
       }
 
-      return (br + jr + bytesRead);
+      return (br + bytesRead);
     } else {
       mLock.UnLock();
       errno = EREMOTEIO;
@@ -2210,16 +2232,15 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
       std::vector<journalcache::chunk_t> chunks;
 
       if (mFile->journal()) {
-        jr = 0;
         // retrieve all journal chunks matching our range
-        chunks = ((mFile->journal()))->get_chunks(offset + br + jr, count - br - jr);
+        chunks = ((mFile->journal()))->get_chunks(offset + br , count - br);
 
         for (auto it = chunks.begin(); it != chunks.end(); ++it) {
           eos_info("offset=%ld count=%lu overlay-chunk offset=%ld size=%lu", offset,
                    count, it->offset, it->size);
           // overlay journal contents again over the remote contents
-          ssize_t ljr = mFile->journal()->pread((char*) buf + br + jr +
-                                                (it->offset - offset - br - jr), it->size, it->offset);
+          ssize_t ljr = mFile->journal()->pread((char*) buf + br +
+                                                (it->offset - offset - br ), it->size, it->offset);
 
           if (ljr >= 0) {
             // check if the journal contents extends the remote read
@@ -2230,9 +2251,24 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
             }
           }
         }
+
+	if (mFile->journal()) {
+	  eos_err("offset=%ld count=%lu journal-max-%lu\n", offset, count, mFile->journal()->get_max_offset());
+	  // check if there is a chunk in the journal which extends the file size, 
+	  // so we have to extend the read
+	  if (mFile->journal()->get_max_offset() > (off_t)( offset + br + bytesRead ) ) {
+	    if ( mFile->journal()->get_max_offset() > (off_t)( offset  + count )) {
+	      // the last journal entry extends over the requested range, we got all bytes
+	      bytesRead = count;
+	    } else {
+	      //  this should not be required, because logically we cannot get here
+	      bytesRead = mFile->journal()->get_max_offset() - offset;
+	    }
+	  }
+	}
       }
 
-      return (br + jr + bytesRead);
+      return (br + bytesRead);
     } else {
       errno = XrdCl::Proxy::status2errno(status);
       eos_err("sync remote-io failed msg=\"%s\"", status.ToString().c_str());

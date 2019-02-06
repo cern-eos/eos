@@ -357,6 +357,9 @@ ssize_t journalcache::pwrite(const void* buf, size_t count, off_t offset)
     truncatesize = offset + count;
   }
 
+  if ( (offset + count) > max_offset) {
+    max_offset = offset + count;
+  }
   return count;
 }
 
@@ -367,6 +370,7 @@ int journalcache::truncate(off_t offset, bool invalidate)
 
   if (offset) {
     truncatesize = offset;
+    max_offset = offset;
   } else {
     // distinguish cache invalidation from 0 truncation
     if (invalidate) {
@@ -375,6 +379,7 @@ int journalcache::truncate(off_t offset, bool invalidate)
       truncatesize = 0;
     }
 
+    max_offset = 0;
     journal.clear();
     cachesize = 0;
     ::ftruncate(fd, 0);
@@ -392,6 +397,13 @@ size_t journalcache::size()
 {
   return cachesize;
 }
+
+off_t journalcache::get_max_offset()
+{
+  read_lock lck(clck);
+  return max_offset;
+}
+
 
 int journalcache::init(const cacheconfig& config)
 {
@@ -507,6 +519,7 @@ int journalcache::reset()
   journal.clear();
   int retc = ::ftruncate(fd, 0);
   cachesize = 0;
+  max_offset = 0;
   truncatesize = -1;
   clck.broadcast();
   return retc;

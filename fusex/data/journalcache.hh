@@ -88,6 +88,8 @@ public:
 
   size_t size();
 
+  off_t get_max_offset();
+
   ssize_t get_truncatesize()
   {
     XrdSysMutexHelper lck(mtx);
@@ -158,6 +160,7 @@ private:
   fuse_ino_t ino;
   size_t cachesize;
   ssize_t truncatesize;
+  off_t max_offset;
   int fd;
   // the value is the offset in the cache file
   interval_tree<uint64_t, uint64_t> journal;
