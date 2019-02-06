@@ -41,7 +41,7 @@ implementation and the configuration engine:
 
 .. code-block:: bash
 
-  mgmofs.qdbcluter eos-mgm-1.cern.ch:7777 eos-mgm-2.cern.ch:7777 eos-mgm-3.cern.ch:7777
+  mgmofs.qdbcluster eos-mgm-1.cern.ch:7777 eos-mgm-2.cern.ch:7777 eos-mgm-3.cern.ch:7777
   mgmofs.qdbpassword_file /etc/eos.keytab
 
 Start the MGM and use the ``eos config export <path_to_config_file>`` to export the
