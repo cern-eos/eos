@@ -330,6 +330,7 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
     return;
   }
 
+  uint64_t timeout_ns = 100 * 1e6; // 100ms
   // Execute only once at boot time
   {
     while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
@@ -362,7 +363,6 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
 
   while (!assistant.terminationRequested()) {
     assistant.wait_for(std::chrono::seconds(10));
-    uint64_t timeout_ns = 100 * 1e6; // 100ms
 
     while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
       if (assistant.terminationRequested()) {
