@@ -36,15 +36,6 @@
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// Return the single instance of this class
-//------------------------------------------------------------------------------
-TapeAwareGc &
-TapeAwareGc::instance() {
-  static TapeAwareGc s_instance;
-  return s_instance;
-}
-
-//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 TapeAwareGc::TapeAwareGc():

@@ -183,7 +183,6 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
   mFusexPort(1100),
   mTapeAwareGcDefaultSpaceEnable(false),
-  mTapeAwareGc(TapeAwareGc::instance()),
   mJeMallocHandler(new eos::common::JeMallocHandler()),
   mDoneOrderlyShutdown(false)
 {
