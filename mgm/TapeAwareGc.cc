@@ -108,7 +108,7 @@ TapeAwareGc::workerThreadEntryPoint() noexcept
   }
 
   do {
-    while(!m_stop && garbageCollect()) {};
+    while(!m_stop && tryToGarbageCollectASingleFile()) {};
   } while(!m_stop.waitForTrue(std::chrono::seconds(10)));
 }
 
@@ -258,10 +258,10 @@ TapeAwareGc::getSpaceNbFreeBytes(const std::string &name)
 }
 
 //------------------------------------------------------------------------------
-// Garage collect
+// Try to garage collect a single file if necessary and possible
 //------------------------------------------------------------------------------
 bool
-TapeAwareGc::garbageCollect() noexcept
+TapeAwareGc::tryToGarbageCollectASingleFile() noexcept
 {
   try {
     bool defaultSpaceMinFreeBytesHasChanged = false;

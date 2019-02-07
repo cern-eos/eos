@@ -231,11 +231,11 @@ private:
   static uint64_t getSpaceNbFreeBytes(const std::string &name);
 
   //----------------------------------------------------------------------------
-  //! Garbage collect
+  //! Try to garbage collect a single file if necessary and possible
   //!
-  //! \return True if a file was garabage collected
+  //! \return True if a file was garbage collected
   //----------------------------------------------------------------------------
-  bool garbageCollect() noexcept;
+  bool tryToGarbageCollectASingleFile() noexcept;
 
   //----------------------------------------------------------------------------
   //! Execute stagerrm as user root
