@@ -105,7 +105,7 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs,
   if (it_drainfs != mDrainFs.end()) {
     // Check if the fs is already draining for this node
     auto it = std::find_if(it_drainfs->second.begin(), it_drainfs->second.end(),
-    [src_fsid](const shared_ptr<DrainFs>& elem) {
+    [src_fsid](const shared_ptr<DrainFs>& elem) -> bool {
       return (elem->GetFsId() == src_fsid);
     });
 
@@ -154,7 +154,7 @@ bool
 Drainer::StopFsDrain(eos::mgm::FileSystem* fs, std::string& err)
 {
   eos::common::FileSystem::fsid_t fsid = fs->GetId();
-  eos_notice("stop draining fsid=%d ", fsid);
+  eos_notice("msg=\"stop draining\" fsid=%d ", fsid);
   eos::common::FileSystem::fs_snapshot_t drain_snapshot;
   fs->SnapShotFileSystem(drain_snapshot);
   XrdSysMutexHelper scop_lock(mDrainMutex);
@@ -167,7 +167,7 @@ Drainer::StopFsDrain(eos::mgm::FileSystem* fs, std::string& err)
 
   // Check if the fs is draining
   auto it = std::find_if(it_drainfs->second.begin(), it_drainfs->second.end(),
-  [fsid](const shared_ptr<DrainFs>& elem) {
+  [fsid](const shared_ptr<DrainFs>& elem) -> bool {
     return (elem->GetFsId() == fsid);
   });
 
@@ -330,7 +330,38 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
     return;
   }
 
+  // Execute only once at boot time
+  {
+    while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
+      if (assistant.terminationRequested()) {
+        StopDrainFs();
+        return;
+      }
+    }
+
+    for (auto it_fs = FsView::gFsView.mIdView.begin();
+         it_fs != FsView::gFsView.mIdView.end(); it_fs++) {
+      eos::common::FileSystem::fs_snapshot_t drain_snapshot;
+      it_fs->second->SnapShotFileSystem(drain_snapshot, false);
+      FileSystem::fsstatus_t confstatus = it_fs->second->GetConfigStatus();
+      FileSystem::fsstatus_t drainstatus = it_fs->second->GetDrainStatus();
+
+      if (confstatus == eos::common::FileSystem::kRO) {
+        if (drainstatus != eos::common::FileSystem::kNoDrain &&
+            drainstatus !=  eos::common::FileSystem::kDrained) {
+          std::string err;
+
+          if (!StartFsDrain(it_fs->second, 0, err)) {
+            eos_notice("Failed to start the drain for fs %d: %s", it_fs->first,
+                       err.c_str());
+          }
+        }
+      }
+    }
+  }
+
   while (!assistant.terminationRequested()) {
+    assistant.wait_for(std::chrono::seconds(10));
     uint64_t timeout_ns = 100 * 1e6; // 100ms
 
     while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
@@ -373,35 +404,6 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
 
     // Process pending drain jobs
     HandleQueued();
-    // Execute only once at boot time
-    static bool run_once = true;
-
-    if (run_once) {
-      for (auto it_fs = FsView::gFsView.mIdView.begin();
-           it_fs != FsView::gFsView.mIdView.end(); it_fs++) {
-        eos::common::FileSystem::fs_snapshot_t drain_snapshot;
-        it_fs->second->SnapShotFileSystem(drain_snapshot, false);
-        FileSystem::fsstatus_t confstatus = it_fs->second->GetConfigStatus();
-        FileSystem::fsstatus_t drainstatus = it_fs->second->GetDrainStatus();
-
-        if (confstatus == eos::common::FileSystem::kRO) {
-          if (drainstatus != eos::common::FileSystem::kNoDrain &&
-              drainstatus !=  eos::common::FileSystem::kDrained) {
-            std::string err;
-
-            if (!StartFsDrain(it_fs->second, 0, err)) {
-              eos_notice("Failed to start the drain for fs %d: %s", it_fs->first,
-                         err.c_str());
-            }
-          }
-        }
-      }
-
-      run_once = false;
-    }
-
-    FsView::gFsView.ViewMutex.UnLockRead();
-    assistant.wait_for(std::chrono::seconds(10));
   }
 
   StopDrainFs();
@@ -451,14 +453,13 @@ Drainer::HandleQueued()
   std::string msg;
   ListPendingT lst;
   {
-    XrdSysMutex scop_lock(mDrainMutex);
+    XrdSysMutex scope_lock(mDrainMutex);
     std::swap(lst, mPending);
   }
 
   while (!lst.empty()) {
     auto pair = lst.front();
     lst.pop_front();
-    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
     auto it = FsView::gFsView.mIdView.find(pair.first);
 
     if (it != FsView::gFsView.mIdView.end()) {

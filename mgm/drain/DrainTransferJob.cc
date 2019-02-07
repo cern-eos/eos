@@ -88,67 +88,63 @@ DrainTransferJob::DoIt()
     return;
   }
 
-  while (true) {
-    // Prepare the TPC copy job
-    std::string log_id = LogId::GenerateLogId();
-    XrdCl::URL url_src = BuildTpcSrc(fdrain, log_id);
-    XrdCl::URL url_dst = BuildTpcDst(fdrain, log_id);
+  // Prepare the TPC copy job
+  std::string log_id = LogId::GenerateLogId();
+  XrdCl::URL url_src = BuildTpcSrc(fdrain, log_id);
+  XrdCl::URL url_dst = BuildTpcDst(fdrain, log_id);
 
-    if (!url_src.IsValid() || !url_dst.IsValid()) {
-      break;
-    }
-
-    XrdCl::PropertyList properties;
-    properties.Set("force", true);
-    properties.Set("posc", false);
-    properties.Set("coerce", false);
-    properties.Set("source", url_src);
-    properties.Set("target", url_dst);
-    properties.Set("sourceLimit", (uint16_t) 1);
-    properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
-    properties.Set("parallelChunks", (uint8_t) 1);
-    properties.Set("tpcTimeout",  900);
-
-    // Non-empty files run with TPC only
-    if (fdrain.mProto.size()) {
-      properties.Set("thirdParty", "only");
-    }
-
-    // Create the process job
-    XrdCl::PropertyList result;
-    XrdCl::CopyProcess cpy;
-    cpy.AddJob(properties, &result);
-    XrdCl::XRootDStatus prepare_st = cpy.Prepare();
-    eos_info("[tpc]: %s => %s logid=%s prepare_msg=%s",
-             url_src.GetLocation().c_str(), url_dst.GetLocation().c_str(),
-             log_id.c_str(), prepare_st.ToStr().c_str());
-
-    if (prepare_st.IsOK()) {
-      XrdCl::XRootDStatus tpc_st = cpy.Run(0);
-
-      if (!tpc_st.IsOK()) {
-        eos_err("%s", SSTR("src=" << url_src.GetLocation().c_str() <<
-                           " dst=" << url_dst.GetLocation().c_str() <<
-                           " logid=" << log_id <<
-                           " tpc_err=" << tpc_st.ToStr()).c_str());
-      } else {
-        eos_info("msg=\"drain successful\" logid=%s", log_id.c_str());
-        mStatus = Status::OK;
-        break;
-      }
-    } else {
-      eos_err("%s", SSTR("msg=\"prepare drain failed\" logid="
-                         << log_id.c_str()).c_str());
-    }
-  }
-
-  if (mStatus != Status::OK) {
+  if (!url_src.IsValid() || !url_dst.IsValid()) {
     gOFS->MgmStats.Add("DrainCentralFailed", 0, 0, 1);
-    mStatus = Status::Failed;
-  } else {
-    gOFS->MgmStats.Add("DrainCentralSuccessful", 0, 0, 1);
+    ReportError("msg=\"srd/dst url not valid\"");
+    return;
   }
 
+  XrdCl::PropertyList properties;
+  properties.Set("force", true);
+  properties.Set("posc", false);
+  properties.Set("coerce", false);
+  properties.Set("source", url_src);
+  properties.Set("target", url_dst);
+  properties.Set("sourceLimit", (uint16_t) 1);
+  properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
+  properties.Set("parallelChunks", (uint8_t) 1);
+  properties.Set("tpcTimeout",  900);
+
+  // Non-empty files run with TPC only
+  if (fdrain.mProto.size()) {
+    properties.Set("thirdParty", "only");
+  }
+
+  // Create the process job
+  XrdCl::PropertyList result;
+  XrdCl::CopyProcess cpy;
+  cpy.AddJob(properties, &result);
+  XrdCl::XRootDStatus prepare_st = cpy.Prepare();
+  eos_info("[tpc]: %s => %s logid=%s prepare_msg=%s",
+           url_src.GetLocation().c_str(), url_dst.GetLocation().c_str(),
+           log_id.c_str(), prepare_st.ToStr().c_str());
+
+  if (prepare_st.IsOK()) {
+    XrdCl::XRootDStatus tpc_st = cpy.Run(0);
+
+    if (!tpc_st.IsOK()) {
+      eos_err("%s", SSTR("src=" << url_src.GetLocation().c_str() <<
+                         " dst=" << url_dst.GetLocation().c_str() <<
+                         " logid=" << log_id <<
+                         " tpc_err=" << tpc_st.ToStr()).c_str());
+    } else {
+      gOFS->MgmStats.Add("DrainCentralSuccessful", 0, 0, 1);
+      eos_info("msg=\"drain successful\" logid=%s", log_id.c_str());
+      mStatus = Status::OK;
+      return;
+    }
+  } else {
+    eos_err("%s", SSTR("msg=\"prepare drain failed\" logid="
+                       << log_id.c_str()).c_str());
+  }
+
+  gOFS->MgmStats.Add("DrainCentralFailed", 0, 0, 1);
+  mStatus = Status::Failed;
   return;
 }
 
