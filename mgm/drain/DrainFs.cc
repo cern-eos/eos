@@ -355,7 +355,7 @@ DrainFs::PrepareFs()
     }
     std::this_thread::sleep_for(seconds(1));
 
-    if (mDrainStop.load()) {
+    if (mDrainStop) {
       ResetCounters();
       return false;
     }

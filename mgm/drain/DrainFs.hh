@@ -111,7 +111,7 @@ public:
   //!
   //! @param future future object
   //----------------------------------------------------------------------------
-  inline void SetFuture(std::future<State> future)
+  inline void SetFuture(std::future<State>&& future)
   {
     std::swap(mFuture, future);
   }
@@ -123,8 +123,8 @@ public:
   //----------------------------------------------------------------------------
   inline bool IsRunning() const
   {
-    return (mFuture.wait_for(std::chrono::seconds(0)) !=
-            std::future_status::ready);
+    return (mFuture.valid() && (mFuture.wait_for(std::chrono::seconds(0)) !=
+                                std::future_status::ready));
   }
 
   //----------------------------------------------------------------------------
