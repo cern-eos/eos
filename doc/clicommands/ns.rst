@@ -50,3 +50,5 @@ ns
     -f         : control the file cache
     <max_num>  : max number of entries
     <max_size> : max size of the cache - not implemented yet
+    ns max_drain_threads <num>
+    set the max number of threads in the drain pool, default 400, minimum 4

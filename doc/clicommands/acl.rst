@@ -3,7 +3,7 @@ acl
 
 .. code-block:: text
 
-  eos acl [-l|--list] [-R|--recursive] [--sys|--user] <rule> <path>
+  eos acl [-l|--list] [-R|--recursive] [--sys|--user] [<rule>] <path>
     atomically set and modify ACLs for the given directory path
 .. code-block:: text
 

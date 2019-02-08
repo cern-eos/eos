@@ -14,4 +14,5 @@ Using EOS
    using/reports
    using/systemd
    using/tpc
+   using/fusex
 

@@ -35,3 +35,9 @@ recycle
     configure the volume/inode keep ratio. E.g: 0.8 means files will only
     be recycled if more than 80% of the volume/inodes quota is used. The
     low watermark is by default 10% below the given ratio.
+    recycle config --size <value>[K|M|G]
+    configure the quota for the maximum size of the recycle bin.
+    If no unit is set explicitly then we assume bytes.
+    recycle config --inodes <value>[K|M|G]
+    configure the quota for the maximum number of inodes in the recycle
+    bin.
