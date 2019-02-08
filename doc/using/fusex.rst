@@ -14,15 +14,105 @@ eosxd statistics file
 eosxd writes out a statistics file with an update rate of 1Hz into the fusex log directory ```/var/log/eos/fusex/fuse.<instancename>-<mountdir>.stats```.
 
 
+Here is an example: 
+
+.. code-block:: bash
+
+
+   ALL     Execution Time                   5.06 +- 16.69 = 5.01s (1270 ops)
+   # -----------------------------------------------------------------------------------------------------------------------
+   who     command                          sum             5s     1min     5min       1h exec(ms) +- sigma(ms)  = cumul(s)  
+   # -----------------------------------------------------------------------------------------------------------------------
+   ALL     :sum                                     1271     0.00     0.05     0.01     0.00     -NA- +- -NA-       = 0.00      
+   ALL     access                                      4     0.00     0.00     0.00     0.00  1.82825 +- 1.64279    = 0.01      
+   ALL     create                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     flush                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     forget                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     fsync                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     getattr                                    17     0.00     0.02     0.00     0.00  1.91859 +- 6.93590    = 0.03      
+   ALL     getxattr                                   58     0.00     0.03     0.01     0.00  2.42547 +- 18.15372   = 0.14      
+   ALL     link                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     listxattr                                   0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     lookup                                    342     0.00     0.00     0.00     0.00  0.78381 +- 3.70048    = 0.27      
+   ALL     mkdir                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     mknod                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     open                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     opendir                                   215     0.00     0.00     0.00     0.00 20.56853 +- 26.64452   = 4.42      
+   ALL     read                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     readdir                                   416     0.00     0.00     0.00     0.00  0.05781 +- 0.07550    = 0.02      
+   ALL     readlink                                    1     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     release                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     releasedir                                215     0.00     0.00     0.00     0.00  0.00896 +- 0.00425    = 0.00      
+   ALL     removexattr                                 0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     rename                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     rm                                          0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     rmdir                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     setattr                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     setattr:chmod                               0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     setattr:chown                               0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     setattr:truncate                            0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     setattr:utimes                              0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     setxattr                                    1     0.00     0.00     0.00     0.00  0.08500 +- -NA-       = 0.00      
+   ALL     statfs                                      2     0.00     0.00     0.00     0.00 57.74450 +- 48.80550   = 0.12      
+   ALL     symlink                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     unlink                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     write                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   # -----------------------------------------------------------------------------------------------------------
+   ALL        inodes              := 375
+   ALL        inodes stack        := 0
+   ALL        inodes-todelete     := 0
+   ALL        inodes-backlog      := 0
+   ALL        inodes-ever         := 3051
+   ALL        inodes-ever-deleted := 0
+   ALL        inodes-open         := 0
+   ALL        inodes-vmap         := 3051
+   ALL        inodes-caps         := 1
+   # -----------------------------------------------------------------------------------------------------------
+   ALL        threads             := 32
+   ALL        visze               := 517.10 Mb
+   ALL        rss                 := 35.63 Mb
+   ALL        pid                 := 1689
+   ALL        log-size            := 409384
+   ALL        wr-buf-inflight     := 0 b
+   ALL        wr-buf-queued       := 0 b
+   ALL        wr-nobuff           := 0
+   ALL        ra-buf-inflight     := 0 b
+   ALL        ra-buf-queued       := 0 b
+   ALL        ra-xoff             := 0
+   ALL        ra-nobuff           := 0
+   ALL        rd-buf-inflight     := 0 b
+   ALL        rd-buf-queued       := 0 b
+   ALL        version             := 4.4.17
+   ALL        fuseversion         := 28
+   ALL        starttime           := 1549548272
+   ALL        uptime              := 66989
+   ALL        total-mem           := 8201658368
+   ALL        free-mem            := 149671936
+   ALL        load                := 1313970496
+   ALL        total-rbytes        := 0
+   ALL        total-wbytes        := 0
+   ALL        total-io-ops        := 1270
+   ALL        read--mb/s          := 0.00
+   ALL        write-mb/s          := 0.00
+   ALL        iops                := 0
+   ALL        xoffs               := 0
+   ALL        instance-url        := myhost.cern.ch:1094
+   ALL        client-uuid         := 4af8154c-2ae1-11e9-8e32-02163e009ce2
+   ALL        server-version      := 4.4.17
+   ALL        automounted         := 0
+   ALL        max-inode-lock-ms   := 0.00
+   # -----------------------------------------------------------------------------------------------------------
+
+
 The first block contains global averages/sums for total IO time and IO operations:
 
 .. epigraph::
 
-   ======= ================================ =============   ===== ========== ===========
+   ======= ================================ =============   ================ ===========
    tag     description                      avg/dev in ms   cumulative time  sum IOPS
    ======= ================================ =============   ================ ===========
    ALL     Execution Time                   4.80 +- 15.56   4.87s            (1267 ops)
-   ======= ================================ =============   ===== ========== ===========
+   ======= ================================ =============   ================ ===========
 
 The second block contains counts for each filesystem operation the average rates in a 5s,1min,5min and 1h window, the average execution time and standard deviation for a given filesystem operation and cumulative seconds spent in each operation.
 
@@ -125,95 +215,10 @@ The statistics file can be printed by any user on request by running:
 .. code-block:: bash
 
    eosxd get eos.stats <mount-point>
-
-   eosxd set system.eos.resetstat - /eos/
-
-   ALL     Execution Time                   5.06 +- 16.69 = 5.01s (1270 ops)
-   # -----------------------------------------------------------------------------------------------------------------------
-   who     command                          sum             5s     1min     5min       1h exec(ms) +- sigma(ms)  = cumul(s)  
-   # -----------------------------------------------------------------------------------------------------------------------
-   ALL     :sum                                     1271     0.00     0.05     0.01     0.00     -NA- +- -NA-       = 0.00      
-   ALL     access                                      4     0.00     0.00     0.00     0.00  1.82825 +- 1.64279    = 0.01      
-   ALL     create                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     flush                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     forget                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     fsync                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     getattr                                    17     0.00     0.02     0.00     0.00  1.91859 +- 6.93590    = 0.03      
-   ALL     getxattr                                   58     0.00     0.03     0.01     0.00  2.42547 +- 18.15372   = 0.14      
-   ALL     link                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     listxattr                                   0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     lookup                                    342     0.00     0.00     0.00     0.00  0.78381 +- 3.70048    = 0.27      
-   ALL     mkdir                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     mknod                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     open                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     opendir                                   215     0.00     0.00     0.00     0.00 20.56853 +- 26.64452   = 4.42      
-   ALL     read                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     readdir                                   416     0.00     0.00     0.00     0.00  0.05781 +- 0.07550    = 0.02      
-   ALL     readlink                                    1     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     release                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     releasedir                                215     0.00     0.00     0.00     0.00  0.00896 +- 0.00425    = 0.00      
-   ALL     removexattr                                 0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     rename                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     rm                                          0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     rmdir                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     setattr                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     setattr:chmod                               0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     setattr:chown                               0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     setattr:truncate                            0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     setattr:utimes                              0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     setxattr                                    1     0.00     0.00     0.00     0.00  0.08500 +- -NA-       = 0.00      
-   ALL     statfs                                      2     0.00     0.00     0.00     0.00 57.74450 +- 48.80550   = 0.12      
-   ALL     symlink                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     unlink                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     write                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   # -----------------------------------------------------------------------------------------------------------
-   ALL        inodes              := 375
-   ALL        inodes stack        := 0
-   ALL        inodes-todelete     := 0
-   ALL        inodes-backlog      := 0
-   ALL        inodes-ever         := 3051
-   ALL        inodes-ever-deleted := 0
-   ALL        inodes-open         := 0
-   ALL        inodes-vmap         := 3051
-   ALL        inodes-caps         := 1
-   # -----------------------------------------------------------------------------------------------------------
-   ALL        threads             := 32
-   ALL        visze               := 517.10 Mb
-   ALL        rss                 := 35.63 Mb
-   ALL        pid                 := 1689
-   ALL        log-size            := 409384
-   ALL        wr-buf-inflight     := 0 b
-   ALL        wr-buf-queued       := 0 b
-   ALL        wr-nobuff           := 0
-   ALL        ra-buf-inflight     := 0 b
-   ALL        ra-buf-queued       := 0 b
-   ALL        ra-xoff             := 0
-   ALL        ra-nobuff           := 0
-   ALL        rd-buf-inflight     := 0 b
-   ALL        rd-buf-queued       := 0 b
-   ALL        version             := 4.4.17
-   ALL        fuseversion         := 28
-   ALL        starttime           := 1549548272
-   ALL        uptime              := 66989
-   ALL        total-mem           := 8201658368
-   ALL        free-mem            := 149671936
-   ALL        load                := 1313970496
-   ALL        total-rbytes        := 0
-   ALL        total-wbytes        := 0
-   ALL        total-io-ops        := 1270
-   ALL        read--mb/s          := 0.00
-   ALL        write-mb/s          := 0.00
-   ALL        iops                := 0
-   ALL        xoffs               := 0
-   ALL        instance-url        := myhost.cern.ch:1094
-   ALL        client-uuid         := 4af8154c-2ae1-11e9-8e32-02163e009ce2
-   ALL        server-version      := 4.4.17
-   ALL        automounted         := 0
-   ALL        max-inode-lock-ms   := 0.00
-   # -----------------------------------------------------------------------------------------------------------
-
-
+   ...
+  
 The statistics file counter can be reset by running as root:
 
 .. code-block:: bash
 
+   eosxd set system.eos.resetstat - /eos/
