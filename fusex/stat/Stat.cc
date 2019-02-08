@@ -669,12 +669,12 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
   sum_ops = ops;
 
   if (!monitoring) {
-    sprintf(outline, "%-8s %-32s %3.02f +- %3.02f = %.02fs (%lu ops)\n", "ALL",
+    sprintf(outline, "%-7s %-32s %3.02f +- %3.02f = %.02fs (%lu ops)\n", "ALL",
             "Execution Time", avg,
             sig, cumulative, ops);
     out += outline;
     out += "# -----------------------------------------------------------------------------------------------------------------------\n";
-    sprintf(outline, "%-8s %-32s %-9s %8s %8s %8s %8s %-8s +- %-10s = %-10s", "who",
+    sprintf(outline, "%-7s %-32s %-9s %8s %8s %8s %8s %-8s +- %-10s = %-10s", "who",
             "command", "sum", "5s", "1min", "5min", "1h", "exec(ms)", "sigma(ms)",
             "cumul(s)");
     out += outline;
