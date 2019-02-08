@@ -474,14 +474,21 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 {
   XrdSysMutexHelper lLock(mLock);
   bool isRW = false;
-
+  bool add_O_SYNC = false;
+  bool add_O_CREAT = false;
+  
   if (mFlags & O_SYNC) {
     // preserve the sync flag
-    mFlags = flags;
-    mFlags |= O_SYNC;
-  } else {
-    mFlags = flags;
+    add_O_SYNC = true;
   }
+  if (mFlags & O_CREAT) { 
+    // preserve the creat flag
+    add_O_CREAT = true;
+  }
+
+  mFlags = flags;
+  if (add_O_SYNC) mFlags |= O_SYNC;
+  if (add_O_CREAT) mFlags |= O_CREAT;
 
   // check for file inlining only for the first attach call
   if ((!inline_buffer) && (EosFuse::Instance().Config().inliner.max_size ||
