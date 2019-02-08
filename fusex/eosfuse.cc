@@ -3619,18 +3619,14 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     if (!md->id() || md->deleted()) {
       rc = md->deleted() ? ENOENT : md->err();
     } else {
-      fuse_ino_t tino = md->pid();
-      if (!S_ISDIR(md->mode())) {
-        if (md->attr().count("user.acl"))       /* file with own ACL */
-          tino = md->id();
-      } else {
-        // do a parent check
-        mode |= (md->mode() & S_IFDIR);
-      }
-      cap::shared_cap pcap = Instance().caps.acquire(req, tino, mode);
+      fuse_ino_t cap_ino = md->pid();
+      if (md->attr().count("user.acl"))       /* file with own ACL */
+	cap_ino = md->id();
+      cap::shared_cap pcap = Instance().caps.acquire(req, cap_ino, mode);
+
       XrdSysMutexHelper capLock(pcap->Locker());
       if (EOS_LOGS_DEBUG) {
-        eos_static_debug("id=%#lx tino=%#lx mode=%#o", md->id(), tino, mode);
+        eos_static_debug("id=%#lx cap-ino=%#lx mode=%#o", md->id(), cap_ino, mode);
         if ((!S_ISDIR(md->mode())) && md->attr().count("user.acl")) eos_static_debug("file cap %s", pcap->dump().c_str());
       }
 
