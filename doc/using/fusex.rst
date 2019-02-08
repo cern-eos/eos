@@ -22,7 +22,7 @@ The first block contains global averages/sums for total IO time and IO operation
    tag     description                      avg/dev in ms   cumulative time  sum IOPS
    ======= ================================ =============   ================ ===========
    ALL     Execution Time                   4.80 +- 15.56 = 4.87s             (1267 ops)
-
+   ======= ================================ =============   ===== ========== ===========
 
 The second block contains counts for each filesystem operation the average rates in a 5s,1min,5min and 1h window, the average execution time and standard deviation for a given filesystem operation and cumulative seconds spent in each operation.
 
@@ -66,16 +66,16 @@ The second block contains counts for each filesystem operation the average rates
    ALL     symlink                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
    ALL     unlink                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
    ALL     write                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-
+   ======= ================================ =============== ====== ======= =========== ====== ======= ============ =============
 
 The third block displays inode related counts, which are explained inline.
 
 
 .. epigraph::
 
-   ========== ====================== =============== =====================================================================
+   ========== ====================== =============== ===========================================================================
    who        counter name           value           description
-   ========== ====================== =============== =====================================================================
+   ========== ====================== =============== ===========================================================================
    ALL        inodes              := 375           # currently in-memory known-inodes
    ALL        inodes stack        := 0             # inodes which could be forgotten, but needed to be kept on the stack
    ALL        inodes-todelete     := 0             # inodes which still have to be deleted upstream
@@ -94,7 +94,7 @@ The third block displays inode related counts, which are explained inline.
    ALL        wr-buf-queued       := 0 b           # write buffer allocated and kept on the queue for future reuse in writing
    ALL        wr-nobuff           := 0             # counter how often a 'no available buffer' condition was hit in writing
    ALL        ra-buf-inflight     := 0 b           # read-ahead buffer allocated with data in-flight in read-ahead
-   ALL        ra-buf-queued       := 0 b           # read-ahead buffer allocated and kept on the queue for future reuse in read-head
+   ALL        ra-buf-queued       := 0 b           # read-ahead buffer allocated and kept on the queue for future reuse in ra
    ALL        ra-xoff             := 0             # counter how often we needed to wait for an available read-ahead buffer
    ALL        ra-nobuff           := 0             # counter how often a 'no available buffer' condition was hit in read-ahead
    ALL        rd-buf-inflight     := 0 b           # read buffer allocated with data in-flight for reading
@@ -118,6 +118,7 @@ The third block displays inode related counts, which are explained inline.
    ALL        server-version      := 4.4.17        # server version where this client is connected
    ALL        automounted         := 0             # indicates if the mount is done via autofs
    ALL        max-inode-lock-ms   := 0.00          # maximum time any thread in the thread pool is stuck in ms
+   ========== ====================== =============== ===========================================================================
 
 The statistics file can be printed by any user on request by running:
 
