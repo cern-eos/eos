@@ -450,7 +450,10 @@ public:
   static int status2errno(const XRootDStatus& status)
   {
     if (!status.errNo) {
-      return 0;
+      if (status.IsOK())
+	return 0;
+      else
+	return EPROTO;
     }
 
     if (status.errNo < kXR_ArgInvalid) {
