@@ -167,6 +167,7 @@ private:
     //! The flag
     //--------------------------------------------------------------------------
     bool m_flag;
+
   }; // class BlockingFlag
 
 
@@ -264,6 +265,12 @@ private:
   //! collecting disk replicas.
   //----------------------------------------------------------------------------
   TapeAwareGcCachedValue<uint64_t> m_cachedDefaultSpaceMinFreeBytes;
+
+  //----------------------------------------------------------------------------
+  //! Counter that is incremented each time a file is successfully garabage
+  //! collected.
+  //----------------------------------------------------------------------------
+  uint64_t m_nbGarbageCollectedFiles;
 };
 
 EOSMGMNAMESPACE_END

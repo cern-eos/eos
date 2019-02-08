@@ -43,7 +43,8 @@ TapeAwareGc::TapeAwareGc():
   m_cachedDefaultSpaceMinFreeBytes(
     0, // Initial value
     TapeAwareGc::getDefaultSpaceMinNbFreeBytes, // Value getter
-    10) // Maximum age of cached value in seconds
+    10), // Maximum age of cached value in seconds
+  m_nbGarbageCollectedFiles(0)
 {
 }
 
@@ -64,7 +65,6 @@ TapeAwareGc::~TapeAwareGc()
     eos_static_err("msg=\"Caught an unknown exception\"");
   }
 }
-
 
 //------------------------------------------------------------------------------
 // Enable the GC
@@ -99,7 +99,9 @@ TapeAwareGc::workerThreadEntryPoint() noexcept
   }
 
   do {
-    while(!m_stop && tryToGarbageCollectASingleFile()) {};
+    while(!m_stop && tryToGarbageCollectASingleFile()) {
+      m_nbGarbageCollectedFiles++;
+    };
   } while(!m_stop.waitForTrue(std::chrono::seconds(10)));
 }
 
