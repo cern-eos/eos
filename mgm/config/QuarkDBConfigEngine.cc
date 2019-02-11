@@ -191,28 +191,15 @@ QuarkDBConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
   std::string hash_key = formConfigHashKey(name);
   qclient::QHash q_hash(*mQcl, hash_key);
 
-  if (q_hash.hlen() > 0) {
-    if (force) {
-      // Create backup
-      std::string hash_key_backup = formBackupConfigHashKey(name, time(NULL));
-      // Backup hash
-      mQcl->exec("hclone", hash_key, hash_key_backup).get();
-      // Clear
-      mQcl->exec("del", hash_key).get();
-    } else {
-      errno = EEXIST;
-      err = "error: a configuration with name \"";
-      err += name;
-      err += "\" exists already!";
-      return false;
-    }
+  if (q_hash.hlen() > 0 && !force) {
+    errno = EEXIST;
+    err = "error: a configuration with name \"";
+    err += name;
+    err += "\" exists already!";
+    return false;
   }
 
-  {
-    XrdSysMutexHelper lock(mMutex);
-    storeIntoQuarkDB(hash_key);
-  }
-
+  storeIntoQuarkDB(name);
   std::ostringstream changeLogValue;
 
   if (force) {
@@ -548,26 +535,15 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
       std::string hash_key = formConfigHashKey(name.c_str());
       qclient::QHash q_hash(*mQcl, hash_key);
 
-      if (q_hash.hlen() > 0) {
-        if (force) {
-          // Create backup
-          std::string hash_key_backup = formBackupConfigHashKey(name.c_str(), time(NULL));
-          // Backup hash
-          mQcl->exec("hclone", hash_key, hash_key_backup);
-          // Clear
-          mQcl->exec("del", hash_key);
-        } else {
-          errno = EEXIST;
-          err = "error: a configuration with name \"";
-          err += name.c_str();
-          err += "\" exists already on QuarkDB!";
-          return false;
-        }
+      if (q_hash.hlen() > 0 && !force) {
+        errno = EEXIST;
+        err = "error: a configuration with name \"";
+        err += name.c_str();
+        err += "\" exists already on QuarkDB!";
+        return false;
       }
 
-      mMutex.Lock();
-      storeIntoQuarkDB(hash_key);
-      mMutex.UnLock();
+      storeIntoQuarkDB(name);
       mChangelog->AddEntry("exported config", name.c_str(), "successfully");
       mConfigFile = name.c_str();
       return true;
@@ -585,8 +561,19 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
 //------------------------------------------------------------------------------
 // Store configuration into given keyname
 //------------------------------------------------------------------------------
-void QuarkDBConfigEngine::storeIntoQuarkDB(const std::string &keyname) {
+void QuarkDBConfigEngine::storeIntoQuarkDB(const std::string &name) {
+  // Create backup
+  std::string hash_key_backup = formBackupConfigHashKey(name.c_str(), time(NULL));
+  std::string keyname = formConfigHashKey(name);
+
+  // Backup hash
+  mQcl->exec("hclone", keyname, hash_key_backup);
+  // Clear
+  mQcl->exec("del", keyname);
+
   std::vector<std::future<qclient::redisReplyPtr>> replies;
+
+  XrdSysMutexHelper lock(mMutex);
 
   for(auto it = sConfigDefinitions.begin(); it != sConfigDefinitions.end(); it++) {
     replies.emplace_back(mQcl->exec("hset", keyname, it->first, it->second));

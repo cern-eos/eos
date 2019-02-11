@@ -275,14 +275,6 @@ public:
     mAutosave = val;
   }
 
-  //----------------------------------------------------------------------------
-  //! Get the autosave mode
-  //----------------------------------------------------------------------------
-  bool GetAutoSave()
-  {
-    return mAutosave;
-  }
-
   static std::string formFullKey(const char* prefix, const char* key)
   {
     if (prefix) {

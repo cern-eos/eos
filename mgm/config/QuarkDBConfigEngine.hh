@@ -196,9 +196,9 @@ public:
 
 private:
   //----------------------------------------------------------------------------
-  // Store configuration into given keyname
+  // Store configuration into given name
   //----------------------------------------------------------------------------
-  void storeIntoQuarkDB(const std::string &keyname);
+  void storeIntoQuarkDB(const std::string &name);
 
   QdbContactDetails mQdbContactDetails;
   qclient::QClient* mQcl;
