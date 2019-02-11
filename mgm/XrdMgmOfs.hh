@@ -1295,6 +1295,11 @@ public:
   void WaitUntilNamespaceIsBooted(ThreadAssistant& assistant);
 
   //----------------------------------------------------------------------------
+  //! Set up global config
+  //----------------------------------------------------------------------------
+  void SetupGlobalConfig();
+
+  //----------------------------------------------------------------------------
   // Configuration variables
   //----------------------------------------------------------------------------
   char* ConfigFN; ///< name of the configuration file

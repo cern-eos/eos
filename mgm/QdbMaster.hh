@@ -178,9 +178,11 @@ private:
   //----------------------------------------------------------------------------
   //! Try to acquire lease
   //!
+  //! @param validity_msec validity in milliseconds of the lease
+  //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool AcquireLease();
+  bool AcquireLease(uint64_t validity_msec = 0ull);
 
   //----------------------------------------------------------------------------
   //! Try to acquire lease with delay. If the mAcquireDelay timestamp is set
@@ -222,6 +224,7 @@ private:
   //----------------------------------------------------------------------------
   void EnableNsCaching();
 
+  std::atomic<bool> mOneOff; ///< Flag to mark that supervisor ran once
   std::string mIdentity; ///< MGM identity hostname:port
   mutable std::mutex mMutexId; ///< Mutex for the master identity
   std::string mMasterIdentity; ///< Current master host

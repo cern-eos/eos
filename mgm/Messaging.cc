@@ -99,15 +99,14 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
     // =========| LockWrite
     eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
 
-    if (FsView::gFsView.RegisterNode(advmsg->kQueue.c_str())) {
+    if (FsView::gFsView.RegisterNode(nodequeue.c_str())) {
       std::string nodeconfigname =
         eos::common::GlobalConfig::gConfig.QueuePrefixName(
-          gOFS->NodeConfigQueuePrefix.c_str(),
-          advmsg->kQueue.c_str());
+          gOFS->NodeConfigQueuePrefix.c_str(), nodequeue.c_str());
 
       if (!eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str())) {
         if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(nodeconfigname.c_str(),
-            advmsg->kQueue.c_str())) {
+            nodequeue.c_str())) {
           eos_static_crit("cannot add node config queue %s", nodeconfigname.c_str());
         }
       }
@@ -130,9 +129,9 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
         }
       }
 
-      eos_static_info("Setting heart beat to %llu for node queue=%s\n",
-                      (unsigned long long) advmsg->kMessageHeader.kSenderTime_sec,
-                      nodequeue.c_str());
+      eos_info("msg=\"setting heart beat to %llu for node queue=%s\"",
+               (unsigned long long) advmsg->kMessageHeader.kSenderTime_sec,
+               nodequeue.c_str());
       FsView::gFsView.mNodeView[nodequeue]->SetHeartBeat(
         advmsg->kMessageHeader.kSenderTime_sec);
 
@@ -165,9 +164,9 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
         }
       }
 
-      eos_static_debug("Setting heart beat to %llu for node queue=%s\n",
-                       (unsigned long long) advmsg->kMessageHeader.kSenderTime_sec,
-                       nodequeue.c_str());
+      eos_debug("msg=\"setting heart beat to %llu for nodequeue=%s\"",
+                (unsigned long long) advmsg->kMessageHeader.kSenderTime_sec,
+                nodequeue.c_str());
       FsView::gFsView.mNodeView[nodequeue]->SetHeartBeat(
         advmsg->kMessageHeader.kSenderTime_sec);
 

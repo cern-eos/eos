@@ -40,7 +40,7 @@ std::chrono::milliseconds QdbMaster::sLeaseTimeout {10000};
 //------------------------------------------------------------------------------
 QdbMaster::QdbMaster(const eos::QdbContactDetails& qdb_info,
                      const std::string& host_port):
-  mIdentity(host_port), mMasterIdentity(),
+  mOneOff(true), mIdentity(host_port), mMasterIdentity(),
   mIsMaster(false),  mConfigLoaded(false),
   mAcquireDelay(0)
 {
@@ -182,6 +182,12 @@ QdbMaster::BootNamespace()
   }
 
   gOFS->SetupProcFiles();
+
+  while (mOneOff) {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    eos_info("msg=\"wait for the supervisor to run once\"");
+  }
+
   return true;
 }
 
@@ -191,7 +197,6 @@ QdbMaster::BootNamespace()
 void
 QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
 {
-  static bool one_off = true;
   bool new_is_master = false;
   std::string old_master;
   eos_notice("%s", "msg=\"set up booting stall rule\"");
@@ -219,11 +224,23 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
              old_master.c_str(), GetMasterId().c_str());
 
     // Run one-off after boot
-    if (one_off) {
-      one_off = false;
-      new_is_master ? SlaveToMaster() : MasterToSlave();
+    if (mOneOff) {
+      if (new_is_master) {
+        // Increase the lease validity if we're the master
+        if (!AcquireLease(20000)) {
+          eos_err("msg=\"failed to renew lease during transition\"");
+          continue;
+        }
+
+        SlaveToMaster();
+      } else {
+        MasterToSlave();
+      }
+
       eos_notice("%s", "msg=\"remove booting stall rule\"");
-      Access::SetStallRule(old_stall, new_stall);
+      Access::StallInfo dummy_stall;
+      Access::SetStallRule(old_stall, dummy_stall);
+      mOneOff = false;
     } else {
       // There was a master-slave transition
       if (mIsMaster != new_is_master) {
@@ -280,11 +297,11 @@ QdbMaster::SlaveToMaster()
     }
   });
   stall_thread.detach();
-  // Notify all the nodes about the new master identity
-  FsView::gFsView.BroadcastMasterId(GetMasterId());
   Quota::LoadNodes();
   EnableNsCaching();
   WFE::MoveFromRBackToQ();
+  // Notify all the nodes about the new master identity
+  FsView::gFsView.BroadcastMasterId(GetMasterId());
   mIsMaster = true;
   Access::SetSlaveToMasterRules();
 }
@@ -319,6 +336,8 @@ bool
 QdbMaster::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
                              Transition::Type transitiontype)
 {
+  static std::mutex sequential_mutex;
+  std::unique_lock<std::mutex> lock(sequential_mutex);
   eos::mgm::FsView::gFsView.SetConfigEngine(nullptr);
   gOFS->ConfEngine->SetConfigDir(gOFS->MgmConfigDir.c_str());
 
@@ -339,6 +358,8 @@ QdbMaster::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
     }
   }
 
+  gOFS->SetupGlobalConfig();
+
   if (mConfigLoaded) {
     eos::mgm::FsView::gFsView.SetConfigEngine(gOFS->ConfEngine);
   }
@@ -350,11 +371,14 @@ QdbMaster::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
 // Try to acquire lease
 //------------------------------------------------------------------------------
 bool
-QdbMaster::AcquireLease()
+QdbMaster::AcquireLease(uint64_t validity_msec)
 {
+  using eos::common::StringConversion;
+  std::string stimeout = (validity_msec ? StringConversion::stringify(
+                            validity_msec) :
+                          StringConversion::stringify(sLeaseTimeout.count()));
   std::future<qclient::redisReplyPtr> f =
-    mQcl->exec("lease-acquire", sLeaseKey, mIdentity,
-               eos::common::StringConversion::stringify(sLeaseTimeout.count()));
+    mQcl->exec("lease-acquire", sLeaseKey, mIdentity, stimeout);
   qclient::redisReplyPtr reply = f.get();
 
   if (reply == nullptr) {

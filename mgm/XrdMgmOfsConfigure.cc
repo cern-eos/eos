@@ -1371,26 +1371,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // set the object manager to listener only
   ObjectManager.EnableBroadCast(false);
   // setup the modifications which the fs listener thread is waiting for
-  ObjectManager.SetDebug(false);
-
-  if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(MgmConfigQueue.c_str(),
-      "/eos/*/mgm")) {
-    eos_crit("Cannot add global config queue %s\n", MgmConfigQueue.c_str());
-  }
-
-  if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(AllConfigQueue.c_str(),
-      "/eos/*")) {
-    eos_crit("Cannot add global config queue %s\n", AllConfigQueue.c_str());
-  }
-
-  if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(FstConfigQueue.c_str(),
-      "/eos/*/fst")) {
-    eos_crit("Cannot add global config queue %s\n", FstConfigQueue.c_str());
-  }
-
-  std::string out;
-  eos::common::GlobalConfig::gConfig.PrintBroadCastMap(out);
-  fprintf(stderr, "%s", out.c_str());
+  ObjectManager.SetDebug(true);
+  SetupGlobalConfig();
 
   // Eventually autoload a configuration
   if (getenv("EOS_AUTOLOAD_CONFIG")) {
@@ -1735,14 +1717,17 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
 
     zMQ->ServeFuse();
+    ObjectManager.SetAutoReplyQueueDerive(true);
     ObjectManager.CreateSharedHash("/eos/*", "/eos/*/fst");
     XrdOucString dumperfile = MgmMetaLogDir;
     dumperfile += "/so.mgm.dump.";
     dumperfile += ManagerId;
     ObjectManager.StartDumper(dumperfile.c_str());
-    ObjectManager.SetAutoReplyQueueDerive(true);
   }
 
+  // This sleep is needed otherwise nodes/fs do not register properly
+  // with the MGM. ??!!??
+  std::this_thread::sleep_for(std::chrono::seconds(2));
   // Hook to the appropiate config file
   std::string stdOut;
   std::string stdErr;
@@ -1810,8 +1795,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       NoGo = 1;
     }
   }
-
-  std::this_thread::sleep_for(std::chrono::seconds(1));
 
   if (!ObjectNotifier.Start()) {
     eos_crit("error starting the shared object change notifier");
@@ -2230,4 +2213,30 @@ XrdMgmOfs::SetupProcFiles()
     fmd->setSize(4096);
     eosView->updateFileStore(fmd.get());
   }
+}
+
+//------------------------------------------------------------------------------
+// Set up global config
+//------------------------------------------------------------------------------
+void
+XrdMgmOfs::SetupGlobalConfig()
+{
+  if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(MgmConfigQueue.c_str(),
+      "/eos/*/mgm")) {
+    eos_crit("Cannot add global config queue %s\n", MgmConfigQueue.c_str());
+  }
+
+  if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(AllConfigQueue.c_str(),
+      "/eos/*")) {
+    eos_crit("Cannot add global config queue %s\n", AllConfigQueue.c_str());
+  }
+
+  if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(FstConfigQueue.c_str(),
+      "/eos/*/fst")) {
+    eos_crit("Cannot add global config queue %s\n", FstConfigQueue.c_str());
+  }
+
+  std::string out;
+  eos::common::GlobalConfig::gConfig.PrintBroadCastMap(out);
+  fprintf(stderr, "%s", out.c_str());
 }
