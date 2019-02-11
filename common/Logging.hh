@@ -90,6 +90,13 @@ EOSCOMMONNAMESPACE_BEGIN
                                             (LOG_INFO), __VA_ARGS__);        \
       }
 
+#define eos_err_lite(...)                                                   \
+  if ((LOG_MASK(LOG_ERR) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
+    eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, \
+                                            this->logId, vid, this->cident,  \
+                                            (LOG_ERR), __VA_ARGS__);        \
+      }
+
 //------------------------------------------------------------------------------
 //! Log Macros usable in objects inheriting from the logId Class
 //------------------------------------------------------------------------------
