@@ -2259,18 +2259,16 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
           }
         }
 
-	if (mFile->journal()) {
-	  eos_err("offset=%ld count=%lu journal-max-%lu\n", offset, count, mFile->journal()->get_max_offset());
-	  // check if there is a chunk in the journal which extends the file size, 
-	  // so we have to extend the read
-	  if (mFile->journal()->get_max_offset() > (off_t)( offset + br + bytesRead ) ) {
-	    if ( mFile->journal()->get_max_offset() > (off_t)( offset  + count )) {
-	      // the last journal entry extends over the requested range, we got all bytes
-	      bytesRead = count;
-	    } else {
-	      //  this should not be required, because logically we cannot get here
-	      bytesRead = mFile->journal()->get_max_offset() - offset;
-	    }
+	eos_info("offset=%ld count=%lu journal-max-%lu\n", offset, count, mFile->journal()->get_max_offset());
+	// check if there is a chunk in the journal which extends the file size, 
+	// so we have to extend the read
+	if (mFile->journal()->get_max_offset() > (off_t)( offset + br + bytesRead ) ) {
+	  if ( mFile->journal()->get_max_offset() > (off_t)( offset  + count )) {
+	    // the last journal entry extends over the requested range, we got all bytes
+	    bytesRead = count;
+	  } else {
+	    //  this should not be required, because logically we cannot get here
+	    bytesRead = mFile->journal()->get_max_offset() - offset;
 	  }
 	}
       }
