@@ -1862,7 +1862,7 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
         }
 
 	if (mFile->journal()) {
-	  eos_info("offset=%ld count=%lu journal-max=%lu\n", offset, count, mFile->journal()->get_max_offset());
+	  eos_info("offset=%ld count=%lu journal-max=%ld\n", offset, count, mFile->journal()->get_max_offset());
 	  // check if there is a chunk in the journal which extends the file size, 
 	  // so we have to extend the read
 	  if (mFile->journal()->get_max_offset() > (off_t)( offset + br + bytesRead ) ) {
@@ -1875,6 +1875,14 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
 	    }
 	  }
 	}
+      }
+
+      eos_info("count=%lu read-bytes=%lu", count, br + bytesRead);
+      
+      if ( (size_t)(br + bytesRead)  > count) {
+	return count; 
+      } else {
+	return (br + bytesRead);
       }
 
       return (br + bytesRead);
@@ -2259,7 +2267,7 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
           }
         }
 
-	eos_info("offset=%ld count=%lu journal-max-%lu\n", offset, count, mFile->journal()->get_max_offset());
+	eos_info("offset=%ld count=%lu bytes-read=%lu journal-max=%ld\n", offset, count, bytesRead, mFile->journal()->get_max_offset());
 	// check if there is a chunk in the journal which extends the file size, 
 	// so we have to extend the read
 	if (mFile->journal()->get_max_offset() > (off_t)( offset + br + bytesRead ) ) {
@@ -2273,7 +2281,13 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
 	}
       }
 
-      return (br + bytesRead);
+      eos_info("count=%lu read-bytes=%lu", count, br + bytesRead);
+      
+      if ( (size_t)(br + bytesRead)  > count) {
+	return count; 
+      } else {
+	return (br + bytesRead);
+      }
     } else {
       errno = XrdCl::Proxy::status2errno(status);
       eos_err("sync remote-io failed msg=\"%s\"", status.ToString().c_str());
