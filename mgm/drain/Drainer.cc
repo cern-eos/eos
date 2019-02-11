@@ -359,6 +359,8 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
         }
       }
     }
+
+    FsView::gFsView.ViewMutex.UnLockRead();
   }
 
   while (!assistant.terminationRequested()) {
@@ -404,6 +406,7 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
 
     // Process pending drain jobs
     HandleQueued();
+    FsView::gFsView.ViewMutex.UnLockRead();
   }
 
   StopDrainFs();
