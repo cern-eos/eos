@@ -2366,7 +2366,9 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
                 eos::common::Timing::GetTimeSpec(tsnow);
                 md->set_mtime(tsnow.tv_sec);
                 md->set_mtime_ns(tsnow.tv_nsec);
-              }
+              } else {
+		Instance().datas.release(req, md->id());
+	      }
             }
 
             if (!rc) {
