@@ -1,0 +1,52 @@
+#!/bin/bash
+
+USAGE="usage: eos-test-fusex-producer-consumer <mnt1-prefix> <mnt2-prefix> [<repetitions=100>]"
+
+[[ -z "$1" ]] && echo $USAGE  && exit -1
+[[ -z "$2" ]] && echo $USAGE && exit -1
+
+
+mnt1=$1/test-producer-consumer
+mnt2=$2/test-producer-consumer
+repetitions=${3-100};
+ 
+mkdir -p $mnt1/
+
+for size in 4096 110592 883260 803 8787 13752 13725 18614 15623 27795 30983 30983 22254; do 
+  echo $name $size;
+  dd if=/dev/urandom of=$mnt1/file.$size bs=$size count=1
+done
+
+ls -la $mnt1/
+cd $1
+unlink $mnt1/.stop >& /dev/null
+tar cvzf ball.tgz test-producer-consumer
+(
+    for loop in `seq 1 $repetitions`; do 
+	tar xvzf ball.tgz >& /dev/null
+    done;
+    echo touching stop
+    touch "$mnt1/.stop"
+    exit
+) &
+
+echo "Start testing ..."
+
+let stop=0; 
+while [ $stop -eq 0 ]; do 
+  for name in `find $mnt2 -type f`; do
+     cat $name >& /dev/null;
+  done
+  if [ -e "$mnt2/.stop" ]; then
+      echo leaving
+      let stop=1;
+  fi
+done
+
+echo "Stop testing ..."
+unlink $mnt1/.stop >& /dev/null
+
+
+
+
+
