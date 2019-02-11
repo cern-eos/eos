@@ -16,6 +16,25 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.4.24 Citrine``
+===================
+
+2019-02-11
+
+Bug
+----
+
+* [EOS-3240] - EOSBACKUP crash related somehow to ThreadPool
+* FUSEX: fix logical error in read overlay logic - fixes EOS-3253
+* FUSEX: fix datamap entry leak whenever a file is truncated by name and not via file descriptor
+* FUSEX: fix ugly kernel deadlock appearing in consumer-producer workloads
+
+Improvement
+------------
+
+* FUSEX: reduce the default wr/ra buffer to 256 MB if ram>=2G otherwise ram/8
+
+
 ``v4.4.23 Citrine``
 ===================
 
