@@ -2799,6 +2799,8 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                                      pino, md->clientid().c_str());
                   }
 
+		  md->Locker().UnLock();
+
                   // possibly invalidate kernel cache for parent
                   if (EosFuse::Instance().Config().options.md_kernelcache) {
                     eos_static_info("invalidate md cache for ino=%016lx", pino);
@@ -2810,9 +2812,8 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                   eos_static_err("missing parent mapping pino=%16x for ino%16x",
                                  md_pino,
                                  md_ino);
+		  md->Locker().UnLock();
                 }
-
-                md->Locker().UnLock();
               }
             }
           } else {
