@@ -1371,7 +1371,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // set the object manager to listener only
   ObjectManager.EnableBroadCast(false);
   // setup the modifications which the fs listener thread is waiting for
-  ObjectManager.SetDebug(true);
+  ObjectManager.SetDebug(false);
   SetupGlobalConfig();
 
   // Eventually autoload a configuration
