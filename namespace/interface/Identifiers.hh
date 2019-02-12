@@ -146,6 +146,82 @@ private:
   uint64_t val;
 };
 
+//------------------------------------------------------------------------------
+//! FileOrContainerIdentifier class - holds either FileIdentifer, or
+//! ContainerIdentifier, but not both.
+//!
+//! It can also be empty.
+//------------------------------------------------------------------------------
+class FileOrContainerIdentifier {
+public:
+  //----------------------------------------------------------------------------
+  //! Empty.
+  //----------------------------------------------------------------------------
+  FileOrContainerIdentifier() : val(0), isEmpty(true), file(false) {}
+
+  //----------------------------------------------------------------------------
+  //! Has a file
+  //----------------------------------------------------------------------------
+  FileOrContainerIdentifier(FileIdentifier file) :
+    val(file.getUnderlyingUInt64()), isEmpty(false), file(true) {}
+
+  //----------------------------------------------------------------------------
+  //! Has a container
+  //----------------------------------------------------------------------------
+  FileOrContainerIdentifier(ContainerIdentifier cont) :
+    val(cont.getUnderlyingUInt64()), isEmpty(false), file(false) {}
+
+  //----------------------------------------------------------------------------
+  //! Is it empty?
+  //----------------------------------------------------------------------------
+  bool empty() const {
+    return isEmpty;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Is it a file?
+  //----------------------------------------------------------------------------
+  bool isFile() const {
+    return !isEmpty && file;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Is it a container?
+  //----------------------------------------------------------------------------
+  bool isContainer() const {
+    return !isEmpty && !file;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get FileIdentifier - if empty, or this actually points to a container,
+  //! FileIdentifier(0) is returned
+  //----------------------------------------------------------------------------
+  FileIdentifier toFileIdentifier() const {
+    if(isEmpty || !file) {
+      return FileIdentifier(0);
+    }
+
+    return FileIdentifier(val);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get ContainerIdentifier - if empty, or this actually points to a file,
+  //! ContainerIdentifier(0) is returned
+  //----------------------------------------------------------------------------
+  ContainerIdentifier toContainerIdentifier() const {
+    if(isEmpty || file) {
+      return ContainerIdentifier(0);
+    }
+
+    return ContainerIdentifier(val);
+  }
+
+private:
+  uint64_t val;
+  bool isEmpty;
+  bool file;
+};
+
 EOSNSNAMESPACE_END
 
 namespace Murmur3 {

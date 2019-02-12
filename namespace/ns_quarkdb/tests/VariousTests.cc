@@ -1023,3 +1023,29 @@ TEST(Resolver, FidParsing) {
   str = "ino:80000000000003e7"; // fid: 999, new encoding
   ASSERT_EQ(FileIdentifier(999), Resolver::retrieveFileIdentifier(str));
 }
+
+TEST(FileOrContainerIdentifier, BasicSanity) {
+  FileOrContainerIdentifier empty;
+  ASSERT_TRUE(empty.empty());
+  ASSERT_FALSE(empty.isFile());
+  ASSERT_FALSE(empty.isContainer());
+
+  ASSERT_EQ(empty.toFileIdentifier(), FileIdentifier(0));
+  ASSERT_EQ(empty.toContainerIdentifier(), ContainerIdentifier(0));
+
+  FileOrContainerIdentifier file(FileIdentifier(111));
+  ASSERT_FALSE(file.empty());
+  ASSERT_TRUE(file.isFile());
+  ASSERT_FALSE(file.isContainer());
+
+  ASSERT_EQ(file.toFileIdentifier(), FileIdentifier(111));
+  ASSERT_EQ(file.toContainerIdentifier(), ContainerIdentifier(0));
+
+  FileOrContainerIdentifier container(ContainerIdentifier(222));
+  ASSERT_FALSE(container.empty());
+  ASSERT_FALSE(container.isFile());
+  ASSERT_TRUE(container.isContainer());
+
+  ASSERT_EQ(container.toFileIdentifier(), FileIdentifier(0));
+  ASSERT_EQ(container.toContainerIdentifier(), ContainerIdentifier(222));
+}
