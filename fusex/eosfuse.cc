@@ -2626,6 +2626,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
 	} else {
 	  auto md_fh = new opendir_t;
 	  md_fh->md = md;
+	  md_fh->next_offset = 0;
 	  md->opendir_inc();
 	  // fh contains a dummy 0 pointer
 	  eos_static_debug("adding ino=%08lx p-ino=%08lx", md->id(), md->pid());
@@ -2767,7 +2768,12 @@ EBADF  Invalid directory stream descriptor fi->fh
     }
 
     off_t i_offset = 2;
+    bool is_seek = false;
+    if (off != md->next_offset) {
+      is_seek = true;
+    }
 
+    
     // add regular children
     for (; it != pmd_children.end(); ++it) {
       if (off > i_offset) {
@@ -2777,9 +2783,12 @@ EBADF  Invalid directory stream descriptor fi->fh
         i_offset++;
       }
 
-      // skip entries we have shown already
-      if (md->readdir_items.count(it->first)) {
-        continue;
+      // if there was any seek, we don't skip entries
+      if (!is_seek) {
+	// skip entries we have shown already
+	if (md->readdir_items.count(it->first)) {
+	  continue;
+	}
       }
 
       std::string bname = eos::common::StringConversion::DecodeInvalidUTF8(it->first);
@@ -2827,6 +2836,10 @@ EBADF  Invalid directory stream descriptor fi->fh
       stbuf.st_mode = mode;
       size_t a_size = fuse_add_direntry(req, b_ptr, size - b_size,
                                         bname.c_str(), &stbuf, ++off);
+
+      // store latest offset
+      md->next_offset = off;
+
       eos_static_info("name=%s id=%#lx ino=%#lx mode=%#o bytes=%u/%u",
                       bname.c_str(), cino, stbuf.st_ino, mode, a_size, size - b_size);
 

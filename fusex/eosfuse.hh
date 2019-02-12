@@ -332,6 +332,7 @@ public:
   typedef struct opendir_fh {
     metad::shared_md md;
     std::set<std::string> readdir_items;
+    off_t next_offset;
     XrdSysMutex items_lock;
   } opendir_t;
 
