@@ -302,6 +302,7 @@ QdbMaster::SlaveToMaster()
   WFE::MoveFromRBackToQ();
   // Notify all the nodes about the new master identity
   FsView::gFsView.BroadcastMasterId(GetMasterId());
+  gOFS->mDrainEngine.Start();
   mIsMaster = true;
   Access::SetSlaveToMasterRules();
 }
@@ -327,6 +328,7 @@ QdbMaster::MasterToSlave()
 
   DisableNsCaching();
   Access::SetMasterToSlaveRules(new_master_id);
+  gOFS->mDrainEngine.Stop();
 }
 
 //------------------------------------------------------------------------------

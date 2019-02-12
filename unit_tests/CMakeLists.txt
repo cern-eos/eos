@@ -72,7 +72,8 @@ set(COMMON_UT_SRCS
   common/RWMutexTest.cc
   common/StringConversionTests.cc
   common/LoggingTests.cc
-  common/LoggingTestsUtils.cc)
+  common/LoggingTestsUtils.cc
+  common/XrdConnPoolTests.cc)
 
 set(FST_UT_SRCS
   #fst/XrdFstOssFileTest.cc

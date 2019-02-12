@@ -76,6 +76,7 @@ set(EOSCOMMON_SRCS
   StringTokenizer.cc
   CommentLog.cc
   XrdErrorMap.cc
+  XrdConnPool.cc  XrdConnPool.hh
   JeMallocHandler.cc
   plugin_manager/Plugin.hh
   plugin_manager/PluginManager.cc
