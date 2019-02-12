@@ -950,6 +950,9 @@ public:
     bool matches(off_t off, uint32_t size,
                  off_t& match_offset, uint32_t& match_size)
     {
+      if (!mBuffer)
+	return false;
+
       if ((off >= roffset) &&
           (off < ((off_t)(roffset + mBuffer->size())))) {
         match_offset = off;
