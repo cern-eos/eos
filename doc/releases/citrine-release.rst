@@ -19,7 +19,9 @@ This release is based on XRootD V4 and IPV6 enabled.
 ``v4.4.25 Citrine``
 ===================
 
-2019-
+2019-02-12
+
+* [EOS-3152] - FUSEX: crash below data::datax::peek_pread
 
 
 ``v4.4.24 Citrine``
