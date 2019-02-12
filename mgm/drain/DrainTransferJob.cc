@@ -99,6 +99,11 @@ DrainTransferJob::DoIt()
     return;
   }
 
+  // If enabled use xrootd connection pool to avoid bottelnecks on the
+  // same physical connection
+  eos::common::XrdConnIdHelper src_id_helper(gOFS->mXrdConnPool, url_src);
+  eos::common::XrdConnIdHelper dst_id_helper(gOFS->mXrdConnPool, url_dst);
+  // Populate the properties map of the transfer
   XrdCl::PropertyList properties;
   properties.Set("force", true);
   properties.Set("posc", false);
@@ -120,8 +125,9 @@ DrainTransferJob::DoIt()
   XrdCl::CopyProcess cpy;
   cpy.AddJob(properties, &result);
   XrdCl::XRootDStatus prepare_st = cpy.Prepare();
-  eos_info("[tpc]: %s => %s logid=%s prepare_msg=%s",
-           url_src.GetLocation().c_str(), url_dst.GetLocation().c_str(),
+  eos_info("[tpc]: id=%s url=%s => id=%s url=%s logid=%s prepare_msg=%s",
+           url_src.GetHostId().c_str(), url_src.GetLocation().c_str(),
+           url_dst.GetHostId().c_str(), url_dst.GetLocation().c_str(),
            log_id.c_str(), prepare_st.ToStr().c_str());
 
   if (prepare_st.IsOK()) {

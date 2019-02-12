@@ -105,6 +105,7 @@
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
 #include "common/AssistedThread.hh"
+#include "common/XrdConnPool.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/drain/Drainer.hh"
@@ -1610,6 +1611,7 @@ public:
   int mFusexPort; ///< port of the FUSEX brocasz MQZ, default 1100
   bool mTapeAwareGcDefaultSpaceEnable; ///< Flag to mark if tape aware garbage collection should be enabled
   TapeAwareGc& mTapeAwareGc; ///< Tape aware garbage collector
+  eos::common::XrdConnPool mXrdConnPool; ///< XRD connection pool
 
 private:
   std::map<std::string, XrdMgmOfsDirectory*>
