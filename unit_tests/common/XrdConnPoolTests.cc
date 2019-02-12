@@ -36,6 +36,11 @@ TEST(XrdConnPool, DefaultDisabled)
   eos::common::XrdConnPool pool;
   ASSERT_EQ(pool.AssignConnection(url), 0);
   ASSERT_EQ(url.GetURL(), surl);
+  // No id should be allocated and the url should stay the same
+  eos::common::XrdConnIdHelper id_helper(pool, url);
+  ASSERT_EQ(id_helper.GetId(), 0);
+  ASSERT_FALSE(id_helper.HasNewConnection());
+  ASSERT_EQ(url.GetURL(), surl);
 }
 
 TEST(XrdConnPool, EvenDistribuion)
@@ -94,6 +99,7 @@ TEST(XrdConnPool, ConnIdHelper)
   // Each gets the same id since it's released at the end of each loop
   for (uint32_t i = 0; i < max_size; ++i) {
     XrdConnIdHelper id_helper(pool, url);
+    ASSERT_TRUE(id_helper.HasNewConnection());
     ASSERT_EQ(id_helper.GetId(), 1);
   }
 
