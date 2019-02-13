@@ -284,6 +284,56 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Convert a timespec string representation to timespec.
+  //! (Timespec string: tv_sec.tv_nsec)
+  //!
+  //! Returns 0 for successful conversion, -1 otherwise
+  //!
+  //! Note: the function resets the value of errno
+  //----------------------------------------------------------------------------
+  static int
+  TimespecString_to_Timespec(std::string tsString, struct timespec &ts)
+  {
+    size_t pos = tsString.find(".");
+    const char *nptr = tsString.c_str();
+    char *endptr = NULL;
+    errno = 0;
+
+    if (pos == std::string::npos) {
+      ts.tv_sec = strtoull(nptr, &endptr, 10);
+      ts.tv_nsec = 0;
+    } else {
+      nptr = tsString.substr(0, pos).c_str();
+      ts.tv_sec = strtoull(nptr, &endptr, 10);
+      ts.tv_nsec = strtoull(tsString.substr(pos + 1, 9).c_str(), 0, 10);
+    }
+
+    // Failed conversion or no digits found
+    if ((errno != 0) || (nptr == endptr)) {
+      return -1;
+    }
+
+    return 0;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Convert a timespec string representation to nanoseconds.
+  //! (Timespec string: tv_sec.tv_nsec)
+  //!
+  //! Returns time in nanoseconds if successful, -1 otherwise
+  //!
+  //! Note: the function resets the value of errno
+  //----------------------------------------------------------------------------
+  static long long
+  TimespecString_to_Ns(std::string tsString)
+  {
+    struct timespec ts;
+    int rc = TimespecString_to_Timespec(tsString, ts);
+
+    return (rc == 0) ? (ts.tv_sec * 1000000000 + ts.tv_nsec) : -1;
+  }
+
+  //----------------------------------------------------------------------------
   //! Time Conversion Function for timestamp time strings
   //----------------------------------------------------------------------------
   static std::string

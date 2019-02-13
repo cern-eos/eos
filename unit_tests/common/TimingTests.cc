@@ -45,6 +45,67 @@ TEST(Timing, LsFormat)
   ASSERT_TRUE(output.find(':') == std::string::npos);
 }
 
+TEST(Timing, TimespecStringToTimespec)
+{
+  using namespace eos::common;
+  struct timespec ts;
+  int rc;
+
+  // Extract timespec from predefined timespec string
+  rc = Timing::TimespecString_to_Timespec("1550061572.9528439045", ts);
+  ASSERT_EQ(rc, 0);
+  ASSERT_EQ(ts.tv_sec, 1550061572);
+  ASSERT_EQ(ts.tv_nsec, 952843904);
+
+  rc = Timing::TimespecString_to_Timespec("1550061572", ts);
+  ASSERT_EQ(rc, 0);
+  ASSERT_EQ(ts.tv_sec, 1550061572);
+  ASSERT_EQ(ts.tv_nsec, 0);
+
+  // Convert current time into timespec string
+  // Extract timespec from previously generated string
+  struct timespec now;
+  char buff[64];
+
+  Timing::GetTimeSpec(now);
+  sprintf(buff, "%ld.%ld", now.tv_sec, now.tv_nsec);
+
+  Timing::TimespecString_to_Timespec(buff, ts);
+  ASSERT_EQ(ts.tv_sec, now.tv_sec);
+  ASSERT_EQ(ts.tv_nsec, now.tv_nsec);
+
+  // Invalid strings
+  ASSERT_EQ(Timing::TimespecString_to_Timespec("no digits", ts), -1);
+  ASSERT_EQ(Timing::TimespecString_to_Timespec("...", ts), -1);
+}
+
+TEST(Timing, TimespecStringToNs)
+{
+  using namespace eos::common;
+  long long nanoseconds;
+
+  // Extract nanoseconds from predefined timespec string
+  nanoseconds = Timing::TimespecString_to_Ns("1550061572.9528439045");
+  ASSERT_EQ(nanoseconds, 1550061572952843904ULL);
+  nanoseconds = Timing::TimespecString_to_Ns("1550061572");
+  ASSERT_EQ(nanoseconds, 1550061572000000000ULL);
+
+  // Convert current time into timespec string
+  // Extract nanoseconds from previously generated string
+  struct timespec now;
+  char buff[64];
+
+  Timing::GetTimeSpec(now);
+  sprintf(buff, "%ld.%ld", now.tv_sec, now.tv_nsec);
+
+  nanoseconds = Timing::TimespecString_to_Ns(buff);
+  ASSERT_EQ(nanoseconds, Timing::GetAgeInNs(0LL, &now));
+
+  // Invalid strings
+  ASSERT_EQ(Timing::TimespecString_to_Ns("no digits"), -1);
+  ASSERT_EQ(Timing::TimespecString_to_Ns("..."), -1);
+}
+
 TEST(SteadyClock, FakeTests)
 {
   eos::common::SteadyClock sc(true);
