@@ -2379,6 +2379,7 @@ XrdFstOfsFile::DoTpcTransfer()
   int64_t rbytes = 0;
   int64_t wbytes = 0;
   off_t offset = 0;
+  constexpr uint64_t eight_gb = 8 * (2 ^ 30);
   std::unique_ptr< std::vector<char> > buffer(
     new std::vector<char>(tpcIO.GetBlockSize()));
   eos_info("msg=\"tpc pull\" ");
@@ -2408,6 +2409,10 @@ XrdFstOfsFile::DoTpcTransfer()
       // Write the buffer out through the local object
       wbytes = write(offset, &((*buffer)[0]), rbytes);
       eos_debug("msg=\"tpc write\" wbytes=%llu", wbytes);
+
+      if (offset / eight_gb != (offset + rbytes) /  eight_gb) {
+        eos_info("msg=\"tcp write\" offset=%llu", offset);
+      }
 
       if (rbytes != wbytes) {
         (void) tpcIO.fileClose();
