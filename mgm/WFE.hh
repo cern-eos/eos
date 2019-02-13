@@ -129,7 +129,7 @@ public:
         XrdOucString tst;
         mWhen = eos::common::StringConversion::GetSizeString(tst,
                 (unsigned long long) when);
-        mDay = eos::common::Timing::UnixTimstamp_to_Day(when);
+        mDay = eos::common::Timing::UnixTimestamp_to_Day(when);
       }
 
       Action(std::string a, std::string e, time_t when, std::string savedOnDay,

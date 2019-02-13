@@ -488,8 +488,8 @@ PropFindResponse::BuildResponseNode(const std::string& url,
   }
 
   if (creationDate) {
-    std::string cd = eos::common::Timing::UnixTimstamp_to_ISO8601(
-                       statInfo.st_ctim.tv_sec);
+    std::string cd = eos::common::Timing::UnixTimestamp_to_ISO8601(
+        statInfo.st_ctim.tv_sec);
     SetValue(creationDate, cd.c_str());
     propFound->append_node(creationDate);
   }

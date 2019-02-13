@@ -36,7 +36,7 @@ TEST(Timing, LsFormat)
   struct tm* tm = gmtime_r(&now, &utc);
   std::string output;
   output = Timing::ToLsFormat(tm);
-  // Shoud contain the hour:minute
+  // Should contain the hour:minute
   ASSERT_TRUE(output.find(':') != std::string::npos);
   // 1 year ago
   tm->tm_year--;
@@ -45,7 +45,8 @@ TEST(Timing, LsFormat)
   ASSERT_TRUE(output.find(':') == std::string::npos);
 }
 
-TEST(SteadyClock, FakeTests) {
+TEST(SteadyClock, FakeTests)
+{
   eos::common::SteadyClock sc(true);
   ASSERT_EQ(sc.getTime(), std::chrono::steady_clock::time_point());
 

@@ -171,14 +171,14 @@ WFE::WFEr(ThreadAssistant& assistant) noexcept
       {
         // today
         time_t when = time(NULL);
-        std::string day = eos::common::Timing::UnixTimstamp_to_Day(when);
+        std::string day = eos::common::Timing::UnixTimestamp_to_Day(when);
         queries[0] += day;
         queries[0] += "/q/";
         queries[1] += day;
         queries[1] += "/e/";
         //yesterday
         when -= (24 * 3600);
-        day = eos::common::Timing::UnixTimstamp_to_Day(when);
+        day = eos::common::Timing::UnixTimestamp_to_Day(when);
         queries[2] += day;
         queries[2] += "/q/";
         queries[3] += day;
@@ -2210,12 +2210,12 @@ WFE::MoveFromRBackToQ()
   {
     // today
     time_t when = time(nullptr);
-    std::string day = eos::common::Timing::UnixTimstamp_to_Day(when);
+    std::string day = eos::common::Timing::UnixTimestamp_to_Day(when);
     queries[0] += day;
     queries[0] += "/r/";
     //yesterday
     when -= (24 * 3600);
-    day = eos::common::Timing::UnixTimstamp_to_Day(when);
+    day = eos::common::Timing::UnixTimestamp_to_Day(when);
     queries[1] += day;
     queries[1] += "/r/";
   }

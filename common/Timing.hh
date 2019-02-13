@@ -80,7 +80,7 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Get time elapsed between the two tags in miliseconds
+  //! Get time elapsed between the two tags in milliseconds
   //----------------------------------------------------------------------------
   float
   GetTagTimelapse(const std::string& tagBegin, const std::string& tagEnd)
@@ -258,10 +258,36 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Wrapper Function to hide difference between Apple and Linux
+  //----------------------------------------------------------------------------
+  static void
+  GetTimeSpec(struct timespec& ts, bool coarse = false)
+  {
+#ifdef __APPLE__
+    struct timeval tv;
+    gettimeofday(&tv, 0);
+    ts.tv_sec = tv.tv_sec;
+    ts.tv_nsec = tv.tv_usec * 1000;
+#else
+
+    if (coarse) {
+#ifdef CLOCK_REALTIME_COARSE
+      _clock_gettime(CLOCK_REALTIME_COARSE, &ts);
+#else
+      _clock_gettime(CLOCK_REALTIME, &ts);
+#endif
+    } else {
+      _clock_gettime(CLOCK_REALTIME, &ts);
+    }
+
+#endif
+  }
+
+  //----------------------------------------------------------------------------
   //! Time Conversion Function for timestamp time strings
   //----------------------------------------------------------------------------
   static std::string
-  UnixTimstamp_to_Day(time_t when)
+  UnixTimestamp_to_Day(time_t when)
   {
     struct tm* now = localtime(&when);
     std::string year;
@@ -290,36 +316,10 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Wrapper Function to hide difference between Apple and Linux
-  //----------------------------------------------------------------------------
-  static void
-  GetTimeSpec(struct timespec& ts, bool coarse = false)
-  {
-#ifdef __APPLE__
-    struct timeval tv;
-    gettimeofday(&tv, 0);
-    ts.tv_sec = tv.tv_sec;
-    ts.tv_nsec = tv.tv_usec * 1000;
-#else
-
-    if (coarse) {
-#ifdef CLOCK_REALTIME_COARSE
-      _clock_gettime(CLOCK_REALTIME_COARSE, &ts);
-#else
-      _clock_gettime(CLOCK_REALTIME, &ts);
-#endif
-    } else {
-      _clock_gettime(CLOCK_REALTIME, &ts);
-    }
-
-#endif
-  }
-
-  //----------------------------------------------------------------------------
   //! Time Conversion Function for ISO8601 time strings
   //----------------------------------------------------------------------------
   static std::string
-  UnixTimstamp_to_ISO8601(time_t now)
+  UnixTimestamp_to_ISO8601(time_t now)
   {
     struct tm* utctime;
     char str[21];

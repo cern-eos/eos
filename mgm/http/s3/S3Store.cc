@@ -179,7 +179,7 @@ S3Store::ListBuckets(const std::string& id)
         result += *it;
         result += "</Name>";
         result += "<CreationDate>";
-        result += eos::common::Timing::UnixTimstamp_to_ISO8601(buf.st_ctime);
+        result += eos::common::Timing::UnixTimestamp_to_ISO8601(buf.st_ctime);
         result += "</CreationDate>";
         result += "</Bucket>";
       } else {
@@ -367,7 +367,7 @@ S3Store::ListBucket(const std::string& bucket, const std::string& query)
           entry += "<LastModified>";
           eos::IFileMD::ctime_t mtime;
           fmd->getMTime(mtime);
-          entry += Timing::UnixTimstamp_to_ISO8601(mtime.tv_sec);
+          entry += Timing::UnixTimestamp_to_ISO8601(mtime.tv_sec);
           entry += "</LastModified>";
           entry += "<ETag>\"";
 
@@ -419,7 +419,7 @@ S3Store::ListBucket(const std::string& bucket, const std::string& query)
             entry += "<LastModified>";
             eos::IContainerMD::ctime_t mtime;
             cmd->getMTime(mtime);
-            entry += Timing::UnixTimstamp_to_ISO8601(mtime.tv_sec);
+            entry += Timing::UnixTimestamp_to_ISO8601(mtime.tv_sec);
             entry += "</LastModified>";
             entry += "<ETag>";
             entry += "</ETag>";
@@ -532,7 +532,7 @@ S3Store::HeadBucket(const std::string& id,
     response->AddHeader("ETag",
                         StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino));
     response->AddHeader("Last-Modified",
-                        Timing::UnixTimstamp_to_ISO8601(buf.st_mtime));
+                        Timing::UnixTimestamp_to_ISO8601(buf.st_mtime));
     response->AddHeader("Date", date);
     response->AddHeader("Connection", "Keep-Alive");
     response->AddHeader("Server", gOFS->HostName);
@@ -616,7 +616,7 @@ S3Store::HeadObject(const std::string& id,
     response->AddHeader("Content-Length",
                         StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_size));
     response->AddHeader("Last-Modified",
-                        Timing::UnixTimstamp_to_ISO8601(buf.st_mtime));
+                        Timing::UnixTimestamp_to_ISO8601(buf.st_mtime));
     response->AddHeader("Date", date);
     response->AddHeader("Content-Type", HttpResponse::ContentType(path));
     response->AddHeader("Connection", "close");
