@@ -13,6 +13,10 @@ service Eos {
 
         // Replies to MD requests with a stream 
 	rpc MD (MDRequest) returns (stream MDResponse) {}
+
+	// Replies to a insert
+	rpc ContainerInsert (ContainerInsertRequest) returns (InsertReply) {}	
+	rpc FileInsert (FileInsertRequest) returns (InsertReply) {}	
 }
 
 message PingRequest {
@@ -22,6 +26,21 @@ message PingRequest {
 
 message PingReply {
 	string message = 1;
+}
+
+message ContainerInsertRequest {
+	repeated ContainerMdProto container = 1;
+	string authkey = 2;
+}
+
+message FileInsertRequest {
+	repeated FileMdProto files = 1;
+	string authkey = 2;
+}
+
+message InsertReply {
+	repeated string message = 1;
+	repeated uint32 retc = 2;
 }
 
 message Time {
