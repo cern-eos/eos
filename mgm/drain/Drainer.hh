@@ -163,6 +163,7 @@ private:
   //----------------------------------------------------------------------------
   void StopDrainFs();
 
+  std::atomic<bool> mIsRunning; ///< Mark if drainer is running
   AssistedThread mThread; ///< Thread updating the drain configuration
   //! Contains per space the max allowed fs draining per node
   std::map<std::string, int> mCfgMap;

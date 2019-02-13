@@ -34,6 +34,7 @@ EOSMGMNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 Drainer::Drainer():
+  mIsRunning(false),
   mThreadPool(std::thread::hardware_concurrency(), 400, 10, 6, 5)
 {}
 
@@ -42,7 +43,10 @@ Drainer::Drainer():
 //------------------------------------------------------------------------------
 void Drainer::Start()
 {
-  mThread.reset(&Drainer::Drain, this);
+  if (!mIsRunning)  {
+    mIsRunning = true;
+    mThread.reset(&Drainer::Drain, this);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -52,6 +56,7 @@ void
 Drainer::Stop()
 {
   mThread.join();
+  mIsRunning = false;
 }
 
 //------------------------------------------------------------------------------
@@ -183,9 +188,7 @@ Drainer::StopFsDrain(eos::mgm::FileSystem* fs, std::string& err)
       (void) mPending.erase(it_pending);
     }
 
-    fs->OpenTransaction();
-    fs->SetDrainStatus(FileSystem::kNoDrain);
-    fs->CloseTransaction();
+    fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
   } else {
     (*it)->SignalStop();
   }
@@ -347,14 +350,15 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
       FileSystem::fsstatus_t confstatus = it_fs->second->GetConfigStatus();
       FileSystem::fsstatus_t drainstatus = it_fs->second->GetDrainStatus();
 
+      // @todo (esindril) review these conditions
       if (confstatus == eos::common::FileSystem::kRO) {
         if (drainstatus != eos::common::FileSystem::kNoDrain &&
             drainstatus !=  eos::common::FileSystem::kDrained) {
           std::string err;
 
           if (!StartFsDrain(it_fs->second, 0, err)) {
-            eos_notice("Failed to start the drain for fs %d: %s", it_fs->first,
-                       err.c_str());
+            eos_notice("msg=\"failed to start the drain for fs %d: %s\"",
+                       it_fs->first, err.c_str());
           }
         }
       }
@@ -418,18 +422,26 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
 void
 Drainer::StopDrainFs()
 {
+  eos_notice("%s", "msg=\"stop all drain jobs\"");
   // Stop each file system drain operation
   XrdSysMutexHelper scope_lock(mDrainMutex);
 
-  for (const auto& node_elem : mDrainFs) {
+  for (auto& node_elem : mDrainFs) {
     for (const auto& fs_elem : node_elem.second) {
       fs_elem->SignalStop();
     }
 
     for (const auto& fs_elem : node_elem.second) {
-      fs_elem->Stop();
+      while (fs_elem->IsRunning()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      }
     }
+
+    node_elem.second.clear();
   }
+
+  mDrainFs.clear();
+  mPending.clear();
 }
 
 //------------------------------------------------------------------------------
