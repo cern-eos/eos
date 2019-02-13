@@ -1911,8 +1911,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // if there is no FST sending update
   gGeoTreeEngine.forceRefresh();
   gGeoTreeEngine.StartUpdater();
+
   // Start the drain engine
-  mDrainEngine.Start();
+  if (mIsCentralDrain) {
+    mDrainEngine.Start();
+  }
 
   // Only if configured to do so, enable the tape aware garbage collector
   if (mTapeAwareGcDefaultSpaceEnable) {
