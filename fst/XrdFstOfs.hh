@@ -80,7 +80,7 @@ class XrdFstOfs : public XrdOfs, public eos::common::LogId
   friend class RaidMetaLayout;
 
 public:
-  static std::atomic<bool> sShutdown; ///< True if shutdown procedure is running
+  std::atomic<bool> sShutdown; ///< True if shutdown procedure is running
 
   //----------------------------------------------------------------------------
   //! FST shutdown procedure

@@ -52,7 +52,6 @@ private:
   XrdSysMutex mSlotsMutex;
   XrdSysMutex mCallbackMutex;
 
-  XrdSysCondVar mJobTerminateCondition;
   XrdSysCondVar* mJobEndCallback;
 
 public:
@@ -99,8 +98,7 @@ public:
     XrdSysMutexHelper lock_jobs(mJobsRunningMutex);
     mJobsRunning--;
     mJobsDone++;
-    // signal threads waiting for a job to finish
-    mJobTerminateCondition.Signal();
+
     // signal a call-back condition variable
     {
       XrdSysMutexHelper lock_cb(mCallbackMutex);
@@ -114,23 +112,15 @@ public:
   size_t
   GetRunning()
   {
-    size_t nrun = 0;
-    {
-      XrdSysMutexHelper lock(mJobsRunningMutex);
-      nrun = mJobsRunning;
-    }
-    return nrun;
+    XrdSysMutexHelper lock(mJobsRunningMutex);
+    return mJobsRunning;
   }
 
   unsigned long long
   GetDone()
   {
-    size_t ndone = 0;
-    {
-      XrdSysMutexHelper lock(mJobsRunningMutex);
-      ndone = mJobsDone;
-    }
-    return ndone;
+    XrdSysMutexHelper lock(mJobsRunningMutex);
+    return mJobsDone;
   }
 
   size_t

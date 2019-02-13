@@ -52,12 +52,8 @@ TransferQueue::~TransferQueue() { }
 size_t
 TransferQueue::GetBandwidth()
 {
-  size_t bw = 0;
-  {
-    XrdSysMutexHelper lock(mBandwidthMutex);
-    bw = bandwidth;
-  }
-  return bw;
+  XrdSysMutexHelper lock(mBandwidthMutex);
+  return bandwidth;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -72,12 +68,8 @@ TransferQueue::SetBandwidth(size_t band)
 size_t
 TransferQueue::GetSlots()
 {
-  size_t n = 0;
-  {
-    XrdSysMutexHelper lock(mSlotsMutex);
-    n = nslots;
-  }
-  return n;
+  XrdSysMutexHelper lock(mSlotsMutex);
+  return nslots;
 }
 
 /* ------------------------------------------------------------------------- */

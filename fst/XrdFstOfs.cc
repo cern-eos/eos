@@ -69,7 +69,6 @@
 
 // The global OFS handle
 eos::fst::XrdFstOfs eos::fst::gOFS;
-std::atomic<bool> eos::fst::XrdFstOfs::sShutdown {false};
 
 extern XrdSysError OfsEroute;
 extern XrdOss* XrdOfsOss;
@@ -211,7 +210,7 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
 {
   static XrdSysMutex ShutDownMutex;
   ShutDownMutex.Lock(); // this handler goes only one-shot .. sorry !
-  sShutdown = true;
+  gOFS.sShutdown = true;
   pid_t watchdog;
   pid_t ppid = getpid();
 
@@ -274,7 +273,7 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
   pid_t watchdog;
   static XrdSysMutex grace_shutdown_mtx;
   grace_shutdown_mtx.Lock();
-  sShutdown = true;
+  gOFS.sShutdown = true;
   const char* swait = getenv("EOS_GRACEFUL_SHUTDOWN_TIMEOUT");
   std::int64_t wait = (swait ? std::strtol(swait, nullptr, 10) : 390);
   pid_t ppid = getpid();
