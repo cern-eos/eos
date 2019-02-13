@@ -1291,23 +1291,23 @@ runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/eos
 ################################################################################
 # FST tests with plain and raid layouts
 ################################################################################
-runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/dev/test/fst/plain"
-runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/dev/test/fst/plain"
-runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/dev/test/fst/raiddp"
-runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/dev/test/fst/raiddp"
-runtest "### Attr      " unix 0 "" eos attr set sys.forced.layout=plain "/eos/dev/test/fst/plain"
-runtest "### Attr      " unix 0 "" eos attr set sys.forced.checksum=adler "/eos/dev/test/fst/plain"
-runtest "### Attr      " unix 0 "" eos attr set sys.forced.nstripes=1 "/eos/dev/test/fst/plain"
-runtest "### Attr      " unix 0 "" eos attr set sys.forced.space=default "/eos/dev/test/fst/plain"
-runtest "### Attr      " unix 0 "" eos attr set default=raiddp "/eos/dev/test/fst/raiddp"
+runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/fst/plain"
+runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/fst/plain"
+runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/fst/raiddp"
+runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/fst/raiddp"
+runtest "### Attr      " unix 0 "" eos attr set sys.forced.layout=plain "/eos/$EOS_TEST_INSTANCE/test/fst/plain"
+runtest "### Attr      " unix 0 "" eos attr set sys.forced.checksum=adler "/eos/$EOS_TEST_INSTANCE/test/fst/plain"
+runtest "### Attr      " unix 0 "" eos attr set sys.forced.nstripes=1 "/eos/$EOS_TEST_INSTANCE/test/fst/plain"
+runtest "### Attr      " unix 0 "" eos attr set sys.forced.space=default "/eos/$EOS_TEST_INSTANCE/test/fst/plain"
+runtest "### Attr      " unix 0 "" eos attr set default=raiddp "/eos/$EOS_TEST_INSTANCE/test/fst/raiddp"
 
 TMP_FILE_32MB=mktemp
 dd if=/dev/zero count=32 bs=1M | tr '\000' '\001' > $TMP_FILE_32MB
-xrdcp -f -d 1 $TMP_FILE_32MB root://$EOS_TEST_REDIRECTOR//eos/dev/test/fst/plain/file32MB.dat
-xrdcp -f -d 1 $TMP_FILE_32MB root://$EOS_TEST_REDIRECTOR//eos/dev/test/fst/raiddp/file32MB.dat
+xrdcp -f -d 1 $TMP_FILE_32MB root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/fst/plain/file32MB.dat
+xrdcp -f -d 1 $TMP_FILE_32MB root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/fst/raiddp/file32MB.dat
 
 runtest "### Fst       " unix 0 "" eos-fst-test
-runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/dev/test/fst"
+runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/fst"
 
 ################################################################################
 # OTHER TESTS
