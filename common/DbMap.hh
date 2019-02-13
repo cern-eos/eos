@@ -144,11 +144,7 @@ public:
   typedef DbMapTypes::TlogentryVec TlogentryVec;
   typedef std::pair<Tkey, Tval> Tkeyval;
   typedef typename TDbMapInterface::Option Toption;
-#ifdef EOS_STDMAP_DBMAP
-  typedef std::map<Tkey, Tval> Tmap;
-#else
   typedef ::google::dense_hash_map<Tkey, Tval> Tmap;
-#endif
   typedef std::vector<Tkeyval> Tlist;
 
 private:
@@ -669,16 +665,12 @@ public:
       gInitialized = true;
     }
 
-#ifndef EOS_STDMAP_DBMAP
-
     try {
       pMap.set_empty_key("\x01");
       pMap.set_deleted_key("\x02");
       pSetSeqMap.set_empty_key("\x01");
       pSetSeqMap.set_deleted_key("\x02");
     } catch (const std::length_error& e) {}
-
-#endif
   }
 
   //----------------------------------------------------------------------------
