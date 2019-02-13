@@ -98,6 +98,13 @@ public:
 
     return 0;
   }
+
+  static std::unique_ptr<CheckSum>
+  GetChecksumObjectPtr(unsigned int layoutid, bool blockchecksum = false)
+  {
+    return std::unique_ptr<CheckSum>(GetChecksumObject(layoutid, blockchecksum));
+  }
+
 };
 
 EOSFSTNAMESPACE_END

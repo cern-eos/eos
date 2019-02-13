@@ -903,15 +903,14 @@ FmdDbMapHandler::ResyncDisk(const char* path,
           int checksumtype = LayoutId::GetChecksumFromEnv(env);
           LayoutId::layoutid_t layoutid =
             LayoutId::GetId(LayoutId::kPlain, checksumtype);
-          eos::fst::CheckSum* checksum =
-            eos::fst::ChecksumPlugins::GetChecksumObject(layoutid, false);
+
+          std::unique_ptr<CheckSum> checksum =
+            eos::fst::ChecksumPlugins::GetChecksumObjectPtr(layoutid, false);
 
           if (checksum) {
             if (checksum->SetBinChecksum(checksumVal, checksumLen)) {
               diskchecksum = checksum->GetHexChecksum();
             }
-
-            delete checksum;
           }
         }
 

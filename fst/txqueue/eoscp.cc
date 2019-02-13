@@ -145,7 +145,7 @@ int kXS = 0;
 off_t offsetXS = 0;
 bool computeXS = false;
 std::string xsString = "";
-eos::fst::CheckSum* xsObj = NULL;
+std::unique_ptr<eos::fst::CheckSum> xsObj;
 
 
 //..............................................................................
@@ -617,7 +617,7 @@ main(int argc, char* argv[])
         layoutId = LayoutId::GetId(layout, LayoutId::kCRC32C);
       }
 
-      xsObj = eos::fst::ChecksumPlugins::GetChecksumObject(layoutId);
+      xsObj = eos::fst::ChecksumPlugins::GetChecksumObjectPtr(layoutId);
 
       if (xsObj) {
         xsObj->Reset();
@@ -2247,10 +2247,6 @@ main(int argc, char* argv[])
 
   if (summary) {
     print_summary(src_location, dst_location, totalbytes);
-  }
-
-  if (computeXS && xsObj) {
-    delete xsObj;
   }
 
   //............................................................................

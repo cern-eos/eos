@@ -34,8 +34,8 @@ main (int argc, char* argv[])
     exit(-1);
   }
 
-  eos::fst::CheckSum *normalXS;
-  normalXS = eos::fst::ChecksumPlugins::GetChecksumObject(eos::common::LayoutId::kAdler);
+  std::unique_ptr<eos::fst::CheckSum> normalXS =
+    eos::fst::ChecksumPlugins::GetChecksumObjectPtr(eos::common::LayoutId::kAdler);
   if (normalXS)
   {
     XrdOucString path = (argv[1]) ? argv[1] : "";
@@ -45,8 +45,8 @@ main (int argc, char* argv[])
     {
       fprintf(stderr,"error: unable to scan file path=%s\n", argv[1]);
       exit(-1);
-    } 
-    else 
+    }
+    else
     {
       fprintf(stdout, "path=%s size=%llu time=%.02f adler32=%s\n", argv[1], scansize, scantime, normalXS->GetHexChecksum());
       exit(0);

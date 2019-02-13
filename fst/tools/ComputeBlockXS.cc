@@ -80,8 +80,8 @@ main(int argc, const char* argv[])
     eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain,
                                  eos::common::LayoutId::kNone, 0,
                                  blockSizeSymbol, checksumType);
-  eos::fst::CheckSum* checksum = eos::fst::ChecksumPlugins::GetChecksumObject(
-                                   layoutid, true);
+  std::unique_ptr<eos::fst::CheckSum> checksum =
+    eos::fst::ChecksumPlugins::GetChecksumObjectPtr(layoutid, true);
 
   if (!checksum) {
     fprintf(stderr, "error: failed to get checksum object for file %s",

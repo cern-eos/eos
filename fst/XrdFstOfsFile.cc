@@ -63,7 +63,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   commitReconstruction(false), mEventOnClose(false), mEventWorkflow(""),
   mSyncEventOnClose(false),
   mIsOCchunk(false), writeErrorFlag(false), mTpcFlag(kTpcNone),
-  fMd(nullptr), mCheckSum(nullptr), layOut(nullptr), maxOffsetWritten(0),
+  fMd(nullptr), layOut(nullptr), maxOffsetWritten(0),
   openSize(0), closeSize(0),
   mTpcThreadStatus(EINVAL), mTpcState(kTpcIdle), mTpcRetc(0)
 {
@@ -2937,7 +2937,7 @@ XrdFstOfsFile::ProcessMixedOpaque()
 
   // Call the checksum factory function with the selected layout
   if (opaqueCheckSum != "ignore") {
-    mCheckSum.reset(eos::fst::ChecksumPlugins::GetChecksumObject(mLid));
+    mCheckSum = eos::fst::ChecksumPlugins::GetChecksumObjectPtr(mLid);
     eos_debug("checksum requested %d %u", mCheckSum.get(), mLid);
   }
 

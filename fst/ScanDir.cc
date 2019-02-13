@@ -790,17 +790,17 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
   struct timezone tz;
   struct timeval opentime;
   struct timeval currenttime;
-  eos::fst::CheckSum* normalXS, *blockXS;
+  eos::fst::CheckSum* blockXS;
   scansize = 0;
   scantime = 0;
   filePath = io->GetPath();
   fileXSPath = filePath + ".xsmap";
-  normalXS = eos::fst::ChecksumPlugins::GetChecksumObject(layoutid);
+  std::unique_ptr<eos::fst::CheckSum> normalXS =
+    eos::fst::ChecksumPlugins::GetChecksumObjectPtr(layoutid);
   gettimeofday(&opentime, &tz);
   struct stat current_stat;
 
   if (io->fileStat(&current_stat)) {
-    delete normalXS;
     return false;
   }
 
@@ -826,10 +826,6 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
       if (blockXS) {
         blockXS->CloseMap();
         delete blockXS;
-      }
-
-      if (normalXS) {
-        delete normalXS;
       }
 
       return false;
@@ -948,9 +944,7 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
     delete blockXS;
   }
 
-  if (normalXS) {
-    delete normalXS;
-  }
+  normalXS.reset();
 
   if (bgThread) {
     XrdSysThread::CancelPoint();

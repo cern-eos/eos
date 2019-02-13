@@ -167,8 +167,9 @@ Storage::Verify()
       fMd->mProtoFmd.set_size(statinfo.st_size);
       fMd->mProtoFmd.set_lid(verifyfile->lId);
       fMd->mProtoFmd.set_cid(verifyfile->cId);
-      CheckSum* checksummer = ChecksumPlugins::GetChecksumObject(
-                                fMd->mProtoFmd.lid());
+      std::unique_ptr<CheckSum> checksummer =
+        ChecksumPlugins::GetChecksumObjectPtr(fMd->mProtoFmd.lid());
+
       unsigned long long scansize = 0;
       float scantime = 0; // is ms
       eos::fst::CheckSum::ReadCallBack::callback_data_t cbd;
@@ -313,10 +314,6 @@ Storage::Verify()
             }
           }
         }
-      }
-
-      if (checksummer) {
-        delete checksummer;
       }
 
       if (fMd) {

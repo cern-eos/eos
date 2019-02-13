@@ -1661,13 +1661,12 @@ XrdFstOfs::GetKeytabChecksum(const std::string& kt_path) const
     size_t nread = ::read(fd, buffer, sizeof(buffer));
 
     if (nread > 0) {
-      CheckSum* KeyCKS = ChecksumPlugins::GetChecksumObject(
-                           eos::common::LayoutId::kAdler);
+      std::unique_ptr<CheckSum> KeyCKS =
+        ChecksumPlugins::GetChecksumObjectPtr(eos::common::LayoutId::kAdler);
 
       if (KeyCKS) {
         KeyCKS->Add(buffer, nread, 0);
         kt_cks = KeyCKS->GetHexChecksum();
-        delete KeyCKS;
       }
     }
 

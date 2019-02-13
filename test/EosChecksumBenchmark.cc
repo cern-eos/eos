@@ -110,8 +110,8 @@ int main(int argc, char* argv[])
       for (size_t bs = 0; bs < blocksize.size(); bs++) {
         for (size_t i = 0; i < checksumnames.size(); i++) {
           eos_static_info("benchmarking checksum algorithm %s", checksumnames[i].c_str());
-          eos::fst::CheckSum* checksum = eos::fst::ChecksumPlugins::GetChecksumObject(
-                                           checksumids[i]);
+          std::unique_ptr<eos::fst::CheckSum> checksum =
+            eos::fst::ChecksumPlugins::GetChecksumObjectPtr(checksumids[i]);
 
           if (!checksum) {
             eos_static_err("failed to get checksum algorithm %s", checksumnames[i].c_str());
@@ -135,7 +135,6 @@ int main(int argc, char* argv[])
             eos_static_info("checksum( %-10s ) = %s realtime=%.02f [ms] blocksize=%s rate=%.02f",
                             checksumnames[i].c_str(), checksum->GetHexChecksum(), tm.RealTime(),
                             sizestring.c_str(), MEMORYBUFFERSIZE / tm.RealTime() / 1000.0);
-            delete checksum;
           }
         }
       }
