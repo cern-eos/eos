@@ -188,7 +188,7 @@ DrainFs::HandleRunningJobs()
     }
   }
 
-  if (mJobsRunning.size() > mMaxJobs.load()) {
+  if (mJobsRunning.size() > mMaxJobs) {
     std::this_thread::sleep_for(seconds(1));
   }
 }
@@ -321,7 +321,7 @@ DrainFs::PrepareFs()
     }
 
     mStatus = eos::common::FileSystem::kDrainPrepare;
-    fs->SetDrainStatus(mStatus, false);
+    fs->SetDrainStatus(mStatus);
     fs->SetLongLong("stat.drain.failed", 0, false);
     mDrainPeriod = seconds(fs->GetLongLong("drainperiod"));
     eos::common::FileSystem::fs_snapshot_t drain_snapshot;
@@ -534,7 +534,6 @@ DrainFs::ResetCounters()
       fs->SetLongLong("stat.drainprogress", 0, false);
       fs->SetLongLong("stat.drainretry", 0, false);
       fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
-      FsView::gFsView.StoreFsConfig(fs);
     }
   }
 

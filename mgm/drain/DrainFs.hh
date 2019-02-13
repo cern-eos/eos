@@ -127,11 +127,6 @@ public:
                                 std::future_status::ready));
   }
 
-  //----------------------------------------------------------------------------
-  //! Stop draining
-  //----------------------------------------------------------------------------
-  void Stop();
-
 private:
   //----------------------------------------------------------------------------
   //! Reset drain counters and status
@@ -190,6 +185,12 @@ private:
   //! Mark file system drain as successful
   //---------------------------------------------------------------------------
   void SuccessfulDrain();
+
+  //----------------------------------------------------------------------------
+  //! Stop draining - must be called by the same thread supervising the
+  //! draining.
+  //----------------------------------------------------------------------------
+  void Stop();
 
   constexpr static std::chrono::seconds sRefreshTimeout {60};
   constexpr static std::chrono::seconds sStallTimeout {600};
