@@ -1010,32 +1010,6 @@ XrdMgmOfsFile::open(const char* inpath,
   std::string ext_etag;
   std::map<std::string, std::string>  ext_xattr_map;
 
-  if (openOpaque->Get("eos.ctime")) {
-    std::string str_ctime = openOpaque->Get("eos.ctime");
-    size_t pos = str_ctime.find('.');
-
-    if (pos == std::string::npos) {
-      ext_ctime_sec = strtoull(str_ctime.c_str(), 0, 10);
-      ext_ctime_nsec = 0;
-    } else {
-      ext_ctime_sec = strtoull(str_ctime.substr(0, pos).c_str(), 0, 10);
-      ext_ctime_nsec = strtoull(str_ctime.substr(pos + 1).c_str(), 0, 10);
-    }
-  }
-
-  if (openOpaque->Get("eos.mtime")) {
-    std::string str_mtime = openOpaque->Get("eos.mtime");
-    size_t pos = str_mtime.find('.');
-
-    if (pos == std::string::npos) {
-      ext_mtime_sec = strtoull(str_mtime.c_str(), 0, 10);
-      ext_mtime_nsec = 0;
-    } else {
-      ext_mtime_sec = strtoull(str_mtime.substr(0, pos).c_str(), 0, 10);
-      ext_mtime_nsec = strtoull(str_mtime.substr(pos + 1).c_str(), 0, 10);
-    }
-  }
-
   if (openOpaque->Get("eos.etag")) {
     ext_etag = openOpaque->Get("eos.etag");
   }
@@ -1079,24 +1053,30 @@ XrdMgmOfsFile::open(const char* inpath,
       // Set the layout and commit new meta data
       fmd->setLayoutId(layoutId);
 
-      // if specified set an external modification/creation time
-      if (ext_mtime_sec) {
+      // Set modification time
+      fmd->setMTimeNow();
+
+      // If specified set an external modification time
+      if (openOpaque->Get("eos.mtime")) {
         eos::IFileMD::ctime_t mtime;
-        mtime.tv_sec = ext_mtime_sec;
-        mtime.tv_nsec = ext_mtime_nsec;
-        fmd->setMTime(mtime);
-      } else {
-        fmd->setMTimeNow();
+        int retc = eos::common::Timing::TimespecString_to_Timespec(
+                                        openOpaque->Get("eos.mtime"), mtime);
+        if (!retc) {
+          fmd->setMTime(mtime);
+        }
       }
 
-      if (ext_ctime_sec) {
+      // If specified set an external creation time
+      if (openOpaque->Get("eos.ctime")) {
         eos::IFileMD::ctime_t ctime;
-        ctime.tv_sec = ext_ctime_sec;
-        ctime.tv_nsec = ext_ctime_nsec;
-        fmd->setCTime(ctime);
+        int retc = eos::common::Timing::TimespecString_to_Timespec(
+                                        openOpaque->Get("eos.ctime"), ctime);
+        if (!retc) {
+          fmd->setCTime(ctime);
+        }
       }
 
-      // if specified set an external temporary ETAG
+      // If specified set an external temporary ETAG
       if (ext_etag.length()) {
         fmd->setAttribute("sys.tmp.etag", ext_etag);
       }
