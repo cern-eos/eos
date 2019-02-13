@@ -64,6 +64,9 @@ public:
   std::string Md(const std::string& path, uint64_t id = 0, uint64_t ino = 0,
                  bool list = false);
 
+  int FileInsert(const std::vector<std::string>& paths);
+  int ContainerInsert(const std::vector<std::string>& paths);
+
   void set_ssl(bool onoff)
   {
     mSSL = onoff;

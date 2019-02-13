@@ -47,6 +47,11 @@ using eos::rpc::PingRequest;
 using eos::rpc::PingReply;
 using eos::rpc::MDRequest;
 using eos::rpc::MDResponse;
+using eos::rpc::FileInsertRequest;
+using eos::rpc::ContainerInsertRequest;
+using eos::rpc::InsertReply;
+using eos::rpc::ContainerMdProto;
+using eos::rpc::FileMdProto;
 
 std::string GrpcClient::Ping(const std::string& payload)
 {
@@ -149,6 +154,101 @@ GrpcClient::Md(const std::string& path,
 
   return responsestring;
 }
+
+int 
+GrpcClient::FileInsert(const std::vector<std::string>& paths)
+{
+  FileInsertRequest request;
+  for (auto it : paths ) {
+    FileMdProto* files = request.add_files();
+    files->set_path(it);
+  }
+
+  request.set_authkey(token());
+  InsertReply reply;
+  ClientContext context;
+  // The producer-consumer queue we use to communicate asynchronously with the
+  // gRPC runtime.
+  CompletionQueue cq;
+  Status status;
+  std::unique_ptr<ClientAsyncResponseReader<InsertReply> > rpc(
+    stub_->AsyncFileInsert(&context, request, &cq));
+  // Request that, upon completion of the RPC, "reply" be updated with the
+  // server's response; "status" with the indication of whether the operation
+  // was successful. Tag the request with the integer 1.
+  rpc->Finish(&reply, &status, (void*) 1);
+  void* got_tag;
+  bool ok = false;
+  // Block until the next result is available in the completion queue "cq".
+  // The return value of Next should always be checked. This return value
+  // tells us whether there is any kind of event or the cq_ is shutting down.
+  GPR_ASSERT(cq.Next(&got_tag, &ok));
+  // Verify that the result from "cq" corresponds, by its tag, our previous
+  // request.
+  GPR_ASSERT(got_tag == (void*) 1);
+  // ... and that the request was completed successfully. Note that "ok"
+  // corresponds solely to the request for updates introduced by Finish().
+  GPR_ASSERT(ok);
+
+  // Act upon the status of the actual RPC.
+  int retc = 0;
+  if (status.ok()) {
+    for (auto it : reply.retc()) {
+      retc |= it;
+    }
+    return retc;
+  } else {
+    return -1;
+  }
+}
+
+int 
+GrpcClient::ContainerInsert(const std::vector<std::string>& paths)
+{
+  ContainerInsertRequest request;
+  for (auto it : paths ) {
+    ContainerMdProto* container = request.add_container();
+    container->set_path(it);
+  }
+
+  request.set_authkey(token());
+  InsertReply reply;
+  ClientContext context;
+  // The producer-consumer queue we use to communicate asynchronously with the
+  // gRPC runtime.
+  CompletionQueue cq;
+  Status status;
+  std::unique_ptr<ClientAsyncResponseReader<InsertReply> > rpc(
+    stub_->AsyncContainerInsert(&context, request, &cq));
+  // Request that, upon completion of the RPC, "reply" be updated with the
+  // server's response; "status" with the indication of whether the operation
+  // was successful. Tag the request with the integer 1.
+  rpc->Finish(&reply, &status, (void*) 1);
+  void* got_tag;
+  bool ok = false;
+  // Block until the next result is available in the completion queue "cq".
+  // The return value of Next should always be checked. This return value
+  // tells us whether there is any kind of event or the cq_ is shutting down.
+  GPR_ASSERT(cq.Next(&got_tag, &ok));
+  // Verify that the result from "cq" corresponds, by its tag, our previous
+  // request.
+  GPR_ASSERT(got_tag == (void*) 1);
+  // ... and that the request was completed successfully. Note that "ok"
+  // corresponds solely to the request for updates introduced by Finish().
+  GPR_ASSERT(ok);
+
+  // Act upon the status of the actual RPC.
+  int retc = 0;
+  if (status.ok()) {
+    for (auto it : reply.retc()) {
+      retc |= it;
+    }
+    return retc;
+  } else {
+    return -1;
+  }
+}
+
 
 std::unique_ptr<GrpcClient>
 GrpcClient::Create(std::string endpoint,
