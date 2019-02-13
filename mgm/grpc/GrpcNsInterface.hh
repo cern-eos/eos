@@ -61,6 +61,18 @@ public:
                                grpc::ServerWriter<eos::rpc::MDResponse>* writer,
                                const eos::rpc::MDRequest* request);
 
+  static grpc::Status FileInsert(eos::common::Mapping::VirtualIdentity_t& vid, 
+				 eos::rpc::InsertReply* reply,
+				 const eos::rpc::FileInsertRequest* request);
+				 
+
+
+  static grpc::Status ContainerInsert(eos::common::Mapping::VirtualIdentity_t& vid, 
+				      eos::rpc::InsertReply* reply,
+				      const eos::rpc::ContainerInsertRequest* request);
+
+
+
   static bool Access(eos::common::Mapping::VirtualIdentity_t& vid, int mode,
                      std::shared_ptr<eos::IContainerMD> cmd);
 

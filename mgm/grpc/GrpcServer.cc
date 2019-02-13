@@ -47,6 +47,9 @@ using grpc::Status;
 using eos::rpc::Eos;
 using eos::rpc::PingRequest;
 using eos::rpc::PingReply;
+using eos::rpc::FileInsertRequest;
+using eos::rpc::ContainerInsertRequest;
+using eos::rpc::InsertReply;
 
 class RequestServiceImpl final : public Eos::Service
 {
@@ -61,6 +64,28 @@ class RequestServiceImpl final : public Eos::Service
     GrpcServer::Vid(context, &vid, request->authkey());
     reply->set_message(request->message());
     return Status::OK;
+  }
+
+  Status FileInsert(ServerContext* context, const eos::rpc::FileInsertRequest* request,
+		    eos::rpc::InsertReply* reply) override
+  {
+    eos_static_info("grpc::fileinsert from client peer=%s ip=%s DN=%s token=%s",
+                    context->peer().c_str(), GrpcServer::IP(context).c_str(),
+                    GrpcServer::DN(context).c_str(), request->authkey().c_str());
+    eos::common::Mapping::VirtualIdentity_t vid;
+    GrpcServer::Vid(context, &vid, request->authkey());
+    return GrpcNsInterface::FileInsert(vid, reply, request);
+  }
+
+  Status ContainerInsert(ServerContext* context, const eos::rpc::ContainerInsertRequest* request,
+			 eos::rpc::InsertReply* reply) override
+  {
+    eos_static_info("grpc::containerinsert from client peer=%s ip=%s DN=%s token=%s",
+                    context->peer().c_str(), GrpcServer::IP(context).c_str(),
+                    GrpcServer::DN(context).c_str(), request->authkey().c_str());
+    eos::common::Mapping::VirtualIdentity_t vid;
+    GrpcServer::Vid(context, &vid, request->authkey());
+    return GrpcNsInterface::ContainerInsert(vid, reply, request);
   }
 
   Status MD(ServerContext* context, const eos::rpc::MDRequest* request,
