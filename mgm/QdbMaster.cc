@@ -302,7 +302,6 @@ QdbMaster::SlaveToMaster()
   WFE::MoveFromRBackToQ();
   // Notify all the nodes about the new master identity
   FsView::gFsView.BroadcastMasterId(GetMasterId());
-  gOFS->mDrainEngine.Start();
   mIsMaster = true;
   Access::SetSlaveToMasterRules();
 }
@@ -340,6 +339,8 @@ QdbMaster::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
 {
   static std::mutex sequential_mutex;
   std::unique_lock<std::mutex> lock(sequential_mutex);
+  gOFS->mDrainEngine.Stop();
+  gOFS->mDrainEngine.Start();
   eos::mgm::FsView::gFsView.SetConfigEngine(nullptr);
   gOFS->ConfEngine->SetConfigDir(gOFS->MgmConfigDir.c_str());
 
