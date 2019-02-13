@@ -122,8 +122,8 @@ DrainFs::DoIt()
       mPending = mTotalFiles;
     }
 
-    eos_debug("msg=\"drain attempt %i\\%i\" fsid=%llu", ntried,
-              mMaxRetries.load(), mFsId);
+    eos_info("msg=\"drain attempt %i\\%i\" fsid=%llu", ntried,
+             mMaxRetries.load(), mFsId);
 
     for (auto it_fids = mNsFsView->getStreamingFileList(mFsId);
          it_fids && it_fids->valid(); /* no progress */) {

@@ -142,7 +142,8 @@ DrainTransferJob::DoIt()
                            " tpc_err=" << tpc_st.ToStr()).c_str());
       } else {
         gOFS->MgmStats.Add("DrainCentralSuccessful", 0, 0, 1);
-        eos_info("msg=\"drain successful\" logid=%s", log_id.c_str());
+        eos_info("msg=\"drain successful\" logid=%s fxid=%s",
+                 log_id.c_str(), eos::common::FileId::Fid2Hex(mFileId));
         mStatus = Status::OK;
         return;
       }
@@ -250,7 +251,7 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
         if (it != FsView::gFsView.mIdView.end()) {
           it->second->SnapShotFileSystem(src_snapshot);
 
-          if (src_snapshot.mConfigStatus >= eos::common::FileSystem::kRO) {
+          if (src_snapshot.mConfigStatus >= eos::common::FileSystem::kDrain) {
             found = true;
             break;
           }
@@ -274,14 +275,14 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
     }
 
     if (!found) {
-      ReportError(SSTR("msg=\"fid=" << fdrain.mProto.id() <<
-                       " no more replicas available\""));
+      ReportError(SSTR("msg=\"fxid=" << eos::common::Fid2Hex(fdrain.mProto.id())
+                       << " no more replicas available\""));
       return url_src;
     }
   } else {
     // For RAIN layouts we trigger a reconstruction only once
     if (mRainReconstruct) {
-      ReportError(SSTR("msg=\"fid=" << fdrain.mProto.id()
+      ReportError(SSTR("msg=\"fxid=" << eos::common::Fid2Hex(fdrain.mProto.id())
                        << " rain reconstruct already failed\""));
       return url_src;
     } else {
