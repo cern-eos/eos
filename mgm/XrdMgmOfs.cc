@@ -170,7 +170,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mInitialized(kDown), mFileInitTime(0), mTotalInitTime(time(nullptr)),
   mStartTime(time(nullptr)), Shutdown(false),
   mBootFileId(0), mBootContainerId(0), IsRedirect(true), IsStall(true),
-  mAuthorize(false), mAuthLib(""), IssueCapability(false), MgmRedirector(false),
+  mAuthorize(false), mAuthLib(""), MgmRedirector(false),
   ErrorLog(true), eosDirectoryService(0), eosFileService(0), eosView(0),
   eosFsView(0), eosContainerAccounting(0), eosSyncTimeAccounting(0),
   mStatsTid(0), mFrontendPort(0), mNumAuthThreads(0),

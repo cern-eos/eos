@@ -263,7 +263,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
   XrdOucString role = "server";
   pthread_t tid = 0;
-  IssueCapability = false;
   MgmRedirector = false;
   // set short timeouts in the new XrdCl class
   XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
@@ -517,27 +516,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           } else {
             Eroute.Say("=====> mgmofs.targetport: ", val, "");
             MgmOfsTargetPort = val;
-          }
-        }
-
-        if (!strcmp("capability", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config",
-                        "argument 2 for capability missing. Can be true/lazy/1 or false/0");
-            NoGo = 1;
-          } else {
-            if ((!(strcmp(val, "true"))) || (!(strcmp(val, "1")))
-                || (!(strcmp(val, "lazy")))) {
-              IssueCapability = true;
-            } else {
-              if ((!(strcmp(val, "false"))) || (!(strcmp(val, "0")))) {
-                IssueCapability = false;
-              } else {
-                Eroute.Emsg("Config",
-                            "argument 2 for capbility invalid. Can be <true>/1 or <false>/0");
-                NoGo = 1;
-              }
-            }
           }
         }
 
