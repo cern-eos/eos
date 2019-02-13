@@ -369,6 +369,10 @@ FileSystem::GetConfigStatusFromString(const char* ss)
     return kRW;
   }
 
+  if (!strcmp(ss, "down")) {
+    return kDown;
+  }
+
   return kUnknown;
 }
 
