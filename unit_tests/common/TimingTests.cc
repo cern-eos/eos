@@ -75,6 +75,9 @@ TEST(Timing, TimespecStringToTimespec)
   ASSERT_EQ(ts.tv_nsec, now.tv_nsec);
 
   // Invalid strings
+  std::string empty;
+  ASSERT_EQ(Timing::TimespecString_to_Timespec(empty, ts), -1);
+  ASSERT_EQ(Timing::TimespecString_to_Timespec("", ts), -1);
   ASSERT_EQ(Timing::TimespecString_to_Timespec("no digits", ts), -1);
   ASSERT_EQ(Timing::TimespecString_to_Timespec("...", ts), -1);
 }
@@ -102,6 +105,9 @@ TEST(Timing, TimespecStringToNs)
   ASSERT_EQ(nanoseconds, Timing::GetAgeInNs(0LL, &now));
 
   // Invalid strings
+  std::string empty;
+  ASSERT_EQ(Timing::TimespecString_to_Ns(empty), -1);
+  ASSERT_EQ(Timing::TimespecString_to_Ns(""), -1);
   ASSERT_EQ(Timing::TimespecString_to_Ns("no digits"), -1);
   ASSERT_EQ(Timing::TimespecString_to_Ns("..."), -1);
 }
