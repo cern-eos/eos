@@ -463,7 +463,13 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
             Eroute.Emsg("Config", "argument 2 for metalog missing");
             NoGo = 1;
           } else {
-            eos::fst::Config::gConfig.FstMetaLogDir = val;
+            if (strlen(val)) {
+              eos::fst::Config::gConfig.FstMetaLogDir = val;
+
+              if (val[strlen(val) - 1] != '/') {
+                eos::fst::Config::gConfig.FstMetaLogDir += '/';
+              }
+            }
           }
         }
 
@@ -857,11 +863,9 @@ XrdFstOfs::CallManager(XrdOucErrInfo* error, const char* path,
   std::string opaque = capOpaqueFile.c_str();
   // Get XrdCl::FileSystem object
   // !!! WATCH OUT: GOTO ANCHOR !!!
-
   std::unique_ptr<XrdCl::FileSystem> fs;
   std::unique_ptr<XrdCl::Buffer> response;
   XrdCl::Buffer* responseRaw = nullptr;
-
 again:
   fs.reset(new XrdCl::FileSystem(url));
 
@@ -878,7 +882,6 @@ again:
 
   arg.FromString(opaque);
   status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, responseRaw, timeout);
-
   response.reset(responseRaw);
   responseRaw = nullptr;
 
