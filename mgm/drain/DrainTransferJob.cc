@@ -275,14 +275,16 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
     }
 
     if (!found) {
-      ReportError(SSTR("msg=\"fxid=" << eos::common::Fid2Hex(fdrain.mProto.id())
+      ReportError(SSTR("msg=\"fxid=" << eos::common::FileId::Fid2Hex(
+                         fdrain.mProto.id())
                        << " no more replicas available\""));
       return url_src;
     }
   } else {
     // For RAIN layouts we trigger a reconstruction only once
     if (mRainReconstruct) {
-      ReportError(SSTR("msg=\"fxid=" << eos::common::Fid2Hex(fdrain.mProto.id())
+      ReportError(SSTR("msg=\"fxid=" << eos::common::FileId::Fid2Hex(
+                         fdrain.mProto.id())
                        << " rain reconstruct already failed\""));
       return url_src;
     } else {
