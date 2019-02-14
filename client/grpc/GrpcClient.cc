@@ -180,6 +180,8 @@ GrpcClient::FileInsert(const std::vector<std::string>& paths)
     file->mutable_ctime()->set_n_sec(tsnow.tv_nsec);
     file->mutable_mtime()->set_sec(tsnow.tv_sec);
     file->mutable_mtime()->set_n_sec(tsnow.tv_nsec);
+    file->mutable_locations()->Add(65535);
+
     auto map = file->mutable_xattrs();
     (*map)["sys.acl"] = "u:100:rwx";
     (*map)["sys.cta.id"] = "fake";
