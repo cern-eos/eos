@@ -66,10 +66,10 @@ void com_fs_help()
       << std::endl
       << "  Options:" << std::endl
       << "  fs add [-m|--manual <fsid>] <uuid> <node-queue>|<host>[:<port>] "
-      << "<mountpoint> [<schedgroup>] [<status>]" << std::endl
+      << "<mountpoint> [<space>] [<status>]" << std::endl
       << "    add and assign a filesystem based on the unique identifier of the disk <uuid>"
       << std::endl
-      << "    -m|--manual  : add with user specified <fsid> and <schedgroup>"
+      << "    -m|--manual  : add with user specified <fsid> and <space>"
       << std::endl
       << "    <fsid>       : numeric filesystem id 1...65535" << std::endl
       << "    <uuid>       : unique string identifying current filesystem" <<
@@ -82,9 +82,9 @@ void com_fs_help()
       << "    <port>       : FST XRootD port number [usually 1095]" << std::endl
       << "    <mountponit> : local path of the mounted filesystem e.g /data/" <<
       std::endl
-      << "    <schedgroup> : scheduling group in which to insert filesystem, if nothing "
+      << "    <space>      : space in which to insert the filesystem, if nothing is "
       << std::endl
-      << "                   is specified then \"default\" scheduling group is used"
+      << "                   specified then space \"default\" is used"
       << std::endl
       << "    <status>     : set filesystem status after insertion e.g off|rw|ro etc."
       << std::endl
