@@ -1649,6 +1649,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         return 1;
       }
     }
+
+    if (NsInQDB) {
+      SetupProcFiles();
+    }
   }
 
   // Set also the archiver ZMQ endpoint were client requests are sent

@@ -181,8 +181,6 @@ QdbMaster::BootNamespace()
     eos_err("msg=\"failed to grab /proc/self/stat information\"");
   }
 
-  gOFS->SetupProcFiles();
-
   while (mOneOff) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
     eos_info("msg=\"wait for the supervisor to run once\"");
