@@ -472,25 +472,21 @@ SymKey::DeBase64(std::string& in, std::string& out)
 bool
 SymKey::ZBase64(std::string& in, std::string& out)
 {
-
   char desthex[9];
-  sprintf(desthex,"%08lx", in.size());
-  
+  sprintf(desthex, "%08lx", in.size());
   std::vector<char> destbuffer;
   destbuffer.resize(in.size() + 128);
   destbuffer.reserve(in.size() + 128);
-
-  uLongf destLen = destbuffer.size()-8;
-
+  uLongf destLen = destbuffer.size() - 8;
   sprintf(&(destbuffer[0]), "%08lx", in.size());
 
-  if (compress((Bytef *)&(destbuffer[8]), &destLen, (const Bytef *)in.c_str(), in.size()))
-  {
+  if (compress((Bytef*) & (destbuffer[8]), &destLen, (const Bytef*)in.c_str(),
+               in.size())) {
     return false;
   }
 
   XrdOucString sout;
-  bool done = Base64Encode((char*) &(destbuffer[0]), destLen+8, sout);
+  bool done = Base64Encode((char*) & (destbuffer[0]), destLen + 8, sout);
 
   if (done) {
     out = "zbase64:";
@@ -517,28 +513,30 @@ SymKey::ZDeBase64(std::string& in, std::string& out)
   char* valout = 0;
   size_t valout_len = 0;
   eos::common::SymKey::Base64Decode(in64, valout, valout_len);
+
   if (valout) {
     // first 8 bytes are the length of the decompressed data in hext
     std::string desthex;
-    desthex.assign(valout,8);
+    desthex.assign(valout, 8);
     // now decompress the b64 buffer
     unsigned long destLen = strtoul(desthex.c_str(), 0, 16);
     std::vector<char> destbuffer;
     destbuffer.reserve(destLen);
     destbuffer.resize(destLen);
-    uLongf dstLen=destbuffer.size();
-    
-    if (uncompress ((Bytef *) &(destbuffer[0]), &dstLen, (const Bytef *)valout+8, valout_len-8))
-    {
+    uLongf dstLen = destbuffer.size();
+
+    if (uncompress((Bytef*) & (destbuffer[0]), &dstLen, (const Bytef*)valout + 8,
+                   valout_len - 8)) {
       free(valout);
       return false;
     } else {
       free(valout);
-      if ( dstLen == destLen) {
-	out.assign(&(destbuffer[0]), dstLen);
-	return true;
+
+      if (dstLen == destLen) {
+        out.assign(&(destbuffer[0]), dstLen);
+        return true;
       } else {
-	return false;
+        return false;
       }
     }
   }
@@ -601,7 +599,7 @@ SymKeyStore::SetKey(const char* inkey, time_t invalidity)
     return 0;
   }
 
-  Mutex.Lock();
+  std::unique_lock<std::mutex> scope_lock(mMutex);
   SymKey* key = SymKey::Create(inkey, invalidity);
   free((void*) inkey);
 
@@ -622,7 +620,6 @@ SymKeyStore::SetKey(const char* inkey, time_t invalidity)
             invalidity ? (invalidity + EOSCOMMONSYMKEYS_DELETIONOFFSET) : 0);
   // point the current key to last added
   currentKey = key;
-  Mutex.UnLock();
   return key;
 }
 
@@ -632,10 +629,9 @@ SymKeyStore::SetKey(const char* inkey, time_t invalidity)
 SymKey*
 SymKeyStore::GetKey(const char* inkeydigest64)
 {
-  Mutex.Lock();
+  std::unique_lock<std::mutex> scope_lock(mMutex);
   SymKey* key = Store.Find(inkeydigest64);
   // if it exists we remove it add it with the new validity time
-  Mutex.UnLock();
   return key;
 }
 

@@ -38,6 +38,7 @@
 #include <openssl/sha.h>
 #include <time.h>
 #include <string.h>
+#include <mutex>
 #define EOSCOMMONSYMKEYS_GRACEPERIOD 5
 #define EOSCOMMONSYMKEYS_DELETIONOFFSET 60
 
@@ -293,7 +294,7 @@ public:
 class SymKeyStore
 {
 private:
-  XrdSysMutex Mutex;
+  std::mutex mMutex;
   XrdOucHash<SymKey> Store;
   SymKey* currentKey;
 public:
@@ -305,7 +306,11 @@ public:
   //-----------------------------------------------------------------------------
   //! Destructor
   //-----------------------------------------------------------------------------
-  ~SymKeyStore() = default;
+  ~SymKeyStore()
+  {
+    std::unique_lock<std::mutex> scope_lock(mMutex);
+    Store.Purge();
+  }
 
   //-----------------------------------------------------------------------------
   //! Set a binary key and it's validity
