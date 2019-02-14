@@ -28,6 +28,7 @@
 #include <mutex>
 #include <map>
 #include <atomic>
+#include "common/AssistedThread.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -111,15 +112,13 @@ public:
 
   //----------------------------------------------------------------------------
   //! Method starting the health monitoring thread
-  //!
-  //! @return true if thread started succesfully, otherwise false
   //----------------------------------------------------------------------------
-  bool Monitor();
+  void Monitor();
 
   //----------------------------------------------------------------------------
   //! Loop run by the monitoring thread to keep updated the disk health info.
   //----------------------------------------------------------------------------
-  void Measure();
+  void Measure(ThreadAssistant &assistant);
 
   //----------------------------------------------------------------------------
   //! Get disk health information for a specific device. If no measurements
@@ -134,7 +133,7 @@ public:
 private:
   ///< Trigger update thread without waiting for the whole interval to elapse
   std::atomic<bool> mSkip;
-  pthread_t mTid; ///< Monitoring thread id
+  AssistedThread monitoringThread; ///< Monitoring thread
   unsigned int mIntervalMin; ///< Minutes interval when monitoring thread runs
   DiskHealth mDiskHealth; ///< Objecting collecting disk health information
 };

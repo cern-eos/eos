@@ -250,21 +250,10 @@ std::string DiskHealth::smartctl(const char* device)
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-// Static helper function for starting the health monitoring thread
-//------------------------------------------------------------------------------
-void*
-Health::StartHealthThread(void* pp)
-{
-  Health* health = (Health*) pp;
-  health->Measure();
-  return 0;
-}
-
-//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 Health::Health(unsigned int ival_minutes):
-  mSkip(false), mTid(0), mIntervalMin(ival_minutes)
+  mSkip(false), mIntervalMin(ival_minutes)
 {
   if (mIntervalMin == 0) {
     mIntervalMin = 1;
@@ -276,41 +265,30 @@ Health::Health(unsigned int ival_minutes):
 //------------------------------------------------------------------------------
 Health::~Health()
 {
-  if (mTid) {
-    XrdSysThread::Cancel(mTid);
-    XrdSysThread::Join(mTid, 0);
-    mTid = 0;
-  }
 }
 
 //------------------------------------------------------------------------------
 // Method starting the health monitoring thread
 //------------------------------------------------------------------------------
-bool
+void
 Health::Monitor()
 {
-  if (XrdSysThread::Run(&mTid, Health::StartHealthThread,
-                        static_cast<void*>(this),
-                        XRDSYSTHREAD_HOLD, "Health-Monitor")) {
-    return false;
-  } else {
-    return true;
-  }
+  monitoringThread.reset(&Health::Measure, this);
+  monitoringThread.setName("Health-Monitor");
 }
 
 //------------------------------------------------------------------------------
 // Loop run by the monitoring thread to keep updated the disk health info.
 //------------------------------------------------------------------------------
 void
-Health::Measure()
+Health::Measure(ThreadAssistant &assistant)
 {
-  while (1) {
-    XrdSysThread::SetCancelOff();
+  while(!assistant.terminationRequested()) {
     mDiskHealth.Measure();
-    XrdSysThread::SetCancelOn();
 
     for (unsigned int i = 0; i < mIntervalMin; i++) {
-      sleep(60);
+      if(assistant.terminationRequested()) return;
+      assistant.wait_for(std::chrono::seconds(60));
 
       if (mSkip) {
         mSkip = false;
