@@ -796,11 +796,11 @@ com_file(char* arg1)
     int envlen = 0;
     XrdOucEnv* newresult = new XrdOucEnv(result->Env(envlen));
     delete result;
-
     XrdOucString checksumattribute = "NOTREQUIRED";
     bool consistencyerror = false;
 
     if (envlen) {
+      XrdOucString ns_path = newresult->Get("mgm.nspath");
       XrdOucString checksumtype = newresult->Get("mgm.checksumtype");
       XrdOucString checksum = newresult->Get("mgm.checksum");
       XrdOucString size = newresult->Get("mgm.size");
@@ -808,7 +808,7 @@ com_file(char* arg1)
       if ((option.find("%silent") == STR_NPOS) && (!silent)) {
         fprintf(stdout, "path=\"%s\" fxid=\"%4s\" size=\"%s\" nrep=\"%s\" "
                 "checksumtype=\"%s\" checksum=\"%s\"\n",
-                path.c_str(), newresult->Get("mgm.fid0"),
+                ns_path.c_str(), newresult->Get("mgm.fid0"),
                 size.c_str(), newresult->Get("mgm.nrep"),
                 checksumtype.c_str(), newresult->Get("mgm.checksum"));
       }
@@ -855,7 +855,6 @@ com_file(char* arg1)
 
           XrdOucString bs = newresult->Get(repbootstat.c_str());
           bool down = (bs != "booted");
-
           int retc = 0;
           int oldsilent = silent;
           struct eos::fst::Fmd fmd;
@@ -1027,7 +1026,7 @@ com_file(char* arg1)
       }
 
       if (consistencyerror) {
-	      global_retc = EFAULT;
+        global_retc = EFAULT;
       }
 
       delete newresult;

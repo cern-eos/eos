@@ -50,7 +50,8 @@ ProcCommand::File()
   XrdOucString spathid = pOpaque->Get("mgm.file.id");
 
   if (spathid.length()) {
-    GetPathFromFid(spath, std::strtoull(spathid.c_str(), nullptr, 10), "Cannot get fid");
+    GetPathFromFid(spath, std::strtoull(spathid.c_str(), nullptr, 10),
+                   "Cannot get fid");
   } else {
     spath = pOpaque->Get("mgm.path");
   }
@@ -87,7 +88,6 @@ ProcCommand::File()
 
       unsigned long fsid = (sfsid.length()) ? strtoul(sfsid.c_str(), 0, 10) : 0;
       unsigned long fid = (spathid.length()) ? strtoul(spathid.c_str(), 0, 10) : 0;
-
 
       if (gOFS->_dropstripe(spath.c_str(), fid, *mError, *pVid, fsid, forceRemove)) {
         stdErr += "error: unable to drop stripe";
@@ -138,8 +138,8 @@ ProcCommand::File()
 
           if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
             WAIT_BOOT;
-            unsigned long long fid = Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
-
+            unsigned long long fid = Resolver::retrieveFileIdentifier(
+                                       spath).getUnderlyingUInt64();
             // reference by fid+fsid
             //-------------------------------------------
             gOFS->eosViewRWMutex.LockWrite();
@@ -266,7 +266,8 @@ ProcCommand::File()
 
         if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
           WAIT_BOOT;
-          unsigned long long fid = Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
+          unsigned long long fid = Resolver::retrieveFileIdentifier(
+                                     spath).getUnderlyingUInt64();
 
           // -------------------------------------------------------------------
           // reference by fid+fsid
@@ -288,7 +289,6 @@ ProcCommand::File()
           // -------------------------------------------------------------------
           // reference by path
           // -------------------------------------------------------------------
-
           try {
             fmd = gOFS->eosView->getFile(spath.c_str());
           } catch (eos::MDException& e) {
@@ -474,8 +474,8 @@ ProcCommand::File()
       } else {
         XrdOucString httppath = "http://";
         httppath += gOFS->HostName;
-	httppath += ":";
-	httppath += gOFS->mHttpdPort;
+        httppath += ":";
+        httppath += gOFS->mHttpdPort;
         httppath += "/";
         size_t qpos = sharepath.find("?");
         std::string httpunenc = sharepath;
@@ -587,8 +587,8 @@ ProcCommand::File()
         //-------------------------------------------
         // reference by fid+fsid
         //-------------------------------------------
-        unsigned long long fid = Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
-
+        unsigned long long fid = Resolver::retrieveFileIdentifier(
+                                   spath).getUnderlyingUInt64();
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         std::shared_ptr<eos::IFileMD> fmd;
 
@@ -1240,8 +1240,8 @@ ProcCommand::File()
         // Reference by fid+fsid
         if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
           WAIT_BOOT;
-
-          unsigned long long fid = Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
+          unsigned long long fid = Resolver::retrieveFileIdentifier(
+                                     spath).getUnderlyingUInt64();
 
           try {
             fmd = gOFS->eosFileService->getFileMD(fid);
@@ -1685,18 +1685,20 @@ ProcCommand::File()
       } else {
         std::shared_ptr<eos::IFileMD> fmd;
         //-------------------------------------------
+        std::string ns_path {};
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
         try {
           if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
             WAIT_BOOT;
-            unsigned long long fid = Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
-
+            unsigned long long fid = Resolver::retrieveFileIdentifier(
+                                       spath).getUnderlyingUInt64();
             // reference by fid+fsid
             //-------------------------------------------
             fmd = gOFS->eosFileService->getFileMD(fid);
           } else {
             fmd = gOFS->eosView->getFile(spath.c_str());
+            ns_path = spath.c_str();
           }
         } catch (eos::MDException& e) {
           errno = e.getErrno();
@@ -1710,6 +1712,15 @@ ProcCommand::File()
         if (!fmd) {
           retc = errno;
         } else {
+          if (ns_path.empty()) {
+            try {
+              ns_path = gOFS->eosView->getUri(fmd.get());
+            } catch (const eos::MDException& e) {
+              // File is no longer attached to a cointainer put only the name
+              ns_path = fmd->getName();
+            }
+          }
+
           XrdOucString sizestring;
           eos::IFileMD::LocationVector::const_iterator lociter;
           int i = 0;
@@ -1727,7 +1738,6 @@ ProcCommand::File()
           stdOut += "&";
           stdOut += "mgm.checksum=";
           eos::appendChecksumOnStringAsHex(fmd.get(), stdOut, 0x00, SHA_DIGEST_LENGTH);
-
           stdOut += "&";
           stdOut += "mgm.stripes=";
           stdOut += (int)(eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
@@ -1781,6 +1791,9 @@ ProcCommand::File()
                                                       filesystem->GetPath().c_str(),
                                                       fullpath);
               stdOut += fullpath;
+              stdOut += "&";
+              stdOut += "mgm.nspath=";
+              stdOut += ns_path.c_str();
               stdOut += "&";
             } else {
               stdOut += "NA&";
