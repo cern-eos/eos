@@ -376,7 +376,45 @@ GrpcNsInterface::FileInsert(eos::common::Mapping::VirtualIdentity_t& vid,
 			    const eos::rpc::FileInsertRequest* request)
 
 {
-  reply->add_retc(0);
+  std::shared_ptr<eos::IFileMD> newfile;
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  
+  for (auto it : request->files()) {
+    eos_static_info("creating %s", it.path().c_str());
+    try {
+      newfile = gOFS->eosView->createFile(it.path(), it.uid(), it.gid());
+      
+      eos::IFileMD::ctime_t ctime;
+      eos::IFileMD::ctime_t mtime;
+      ctime.tv_sec  = it.ctime().sec();
+      ctime.tv_nsec = it.ctime().n_sec();
+      mtime.tv_sec  = it.mtime().sec();
+      mtime.tv_nsec = it.mtime().n_sec();
+      
+      newfile->setFlags(it.flags());
+      newfile->setCTime(ctime);
+      newfile->setMTime(mtime);
+      newfile->setCUid(it.uid());
+      newfile->setCGid(it.gid());
+      newfile->setLayoutId(it.layout_id());
+      newfile->setChecksum(it.checksum().value().c_str(), it.checksum().value().size());
+
+      for (auto attrit : it.xattrs()) {
+	newfile->setAttribute(attrit.first, attrit.second);
+      }    
+
+      for (auto locit : it.locations() ) {
+	newfile->addLocation(locit);
+      }
+
+      gOFS->eosView->updateFileStore(newfile.get());
+      reply->add_retc(0);
+    } catch (eos::MDException& e) {
+      eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+		       e.getErrno(), e.getMessage().str().c_str());
+      reply->add_retc(-1);
+    }
+  }
   return grpc::Status::OK;
 }
 
@@ -394,6 +432,29 @@ GrpcNsInterface::ContainerInsert(eos::common::Mapping::VirtualIdentity_t& vid,
     eos_static_info("creating %s", it.path().c_str());
     try {
       newdir = gOFS->eosView->createContainer(it.path());
+      
+      eos::IContainerMD::ctime_t ctime;
+      eos::IContainerMD::ctime_t mtime;
+      eos::IContainerMD::ctime_t stime;
+      ctime.tv_sec  = it.ctime().sec();
+      ctime.tv_nsec = it.ctime().n_sec();
+      mtime.tv_sec  = it.mtime().sec();
+      mtime.tv_nsec = it.mtime().n_sec();
+      stime.tv_sec  = it.stime().sec();
+      stime.tv_nsec = it.stime().n_sec();
+      
+      newdir->setFlags(it.flags());
+      newdir->setCTime(ctime);
+      newdir->setMTime(mtime);
+      newdir->setTMTime(stime);
+      newdir->setCUid(it.uid());
+      newdir->setCGid(it.gid());
+      newdir->setMode(it.mode() | S_IFDIR);
+
+      for (auto attrit : it.xattrs()) {
+	newdir->setAttribute(attrit.first, attrit.second);
+      }    
+
       gOFS->eosView->updateContainerStore(newdir.get());
       reply->add_retc(0);
     } catch (eos::MDException& e) {

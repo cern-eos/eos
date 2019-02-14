@@ -25,10 +25,13 @@
 #include "GrpcClient.hh"
 #include "proto/Rpc.grpc.pb.h"
 #include "common/StringConversion.hh"
+#include "common/Timing.hh"
 /*----------------------------------------------------------------------------*/
 #include <grpcpp/grpcpp.h>
 #include <grpc/support/log.h>
 #include <google/protobuf/util/json_util.h>
+/*----------------------------------------------------------------------------*/
+#include <sys/stat.h>
 /*----------------------------------------------------------------------------*/
 
 EOSCLIENTNAMESPACE_BEGIN
@@ -159,9 +162,27 @@ int
 GrpcClient::FileInsert(const std::vector<std::string>& paths)
 {
   FileInsertRequest request;
+  size_t cnt=0;
   for (auto it : paths ) {
-    FileMdProto* files = request.add_files();
-    files->set_path(it);
+    struct timespec tsnow;
+    eos::common::Timing::GetTimeSpec(tsnow);
+
+    cnt++;
+    FileMdProto* file = request.add_files();
+    file->set_path(it);
+    file->set_uid(2);
+    file->set_gid(2);
+    file->set_size(cnt);
+    file->set_layout_id(0x00100002);
+    file->mutable_checksum()->set_value("\0\0\0\1",4);
+    file->set_flags(0);
+    file->mutable_ctime()->set_sec(tsnow.tv_sec);
+    file->mutable_ctime()->set_n_sec(tsnow.tv_nsec);
+    file->mutable_mtime()->set_sec(tsnow.tv_sec);
+    file->mutable_mtime()->set_n_sec(tsnow.tv_nsec);
+    auto map = file->mutable_xattrs();
+    (*map)["sys.acl"] = "u:100:rwx";
+    (*map)["sys.cta.id"] = "fake";
   }
 
   request.set_authkey(token());
@@ -207,8 +228,24 @@ GrpcClient::ContainerInsert(const std::vector<std::string>& paths)
 {
   ContainerInsertRequest request;
   for (auto it : paths ) {
+    struct timespec tsnow;
+    eos::common::Timing::GetTimeSpec(tsnow);
+
     ContainerMdProto* container = request.add_container();
     container->set_path(it);
+    container->set_uid(2);
+    container->set_gid(2);
+    container->set_mode(S_IFDIR | S_IRWXU);
+    container->mutable_ctime()->set_sec(tsnow.tv_sec);
+    container->mutable_ctime()->set_n_sec(tsnow.tv_nsec);
+    container->mutable_mtime()->set_sec(tsnow.tv_sec);
+    container->mutable_mtime()->set_n_sec(tsnow.tv_nsec);
+    auto map = container->mutable_xattrs();
+    (*map)["sys.acl"] = "u:100:rwx";
+    (*map)["sys.forced.checksum"] = "adler";
+    (*map)["sys.forced.space"] = "default";
+    (*map)["sys.forced.nstripes"] = "1";
+    (*map)["sys.forced.layout"] = "replica";
   }
 
   request.set_authkey(token());
