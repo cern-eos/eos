@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Constants.hh"
 #include "common/Mapping.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
@@ -28,6 +29,7 @@
 #include "common/SecEntity.hh"
 #include "common/StackTrace.hh"
 #include "common/ParseUtils.hh"
+#include "common/Timing.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -51,7 +53,6 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
-#include "common/Constants.hh"
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -1003,10 +1004,6 @@ XrdMgmOfsFile::open(const char* inpath,
   // get placement policy
   Policy::GetPlctPolicy(path, attrmap, vid, *openOpaque, plctplcy, targetgeotag);
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-  unsigned long long ext_mtime_sec = 0;
-  unsigned long long ext_mtime_nsec = 0;
-  unsigned long long ext_ctime_sec = 0;
-  unsigned long long ext_ctime_nsec = 0;
   std::string ext_etag;
   std::map<std::string, std::string>  ext_xattr_map;
 
@@ -2332,7 +2329,7 @@ XrdMgmOfsFile::open(const char* inpath,
         return Emsg(epname, error, errno, "open file", errmsg.c_str());
       }
 
-      sprintf(buff, "%ld", ctime.tv_sec);
+      sprintf(buff, "%ld.%ld", ctime.tv_sec, ctime.tv_nsec);
       capability += "&mgm.iscreation=1";
       capability += "&mgm.ctime=";
       capability += buff;

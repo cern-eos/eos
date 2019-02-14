@@ -40,6 +40,7 @@
 #include "common/eos_cta_pb/EosCtaAlertHandler.hh"
 #include "common/Constants.hh"
 #include "common/StringConversion.hh"
+#include "common/Timing.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
@@ -1236,13 +1237,13 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
 {
   EPNAME("rem");
   XrdOucString fstPath = "";
-  long delctime = 0;
   const char* localprefix = 0;
-  const char* logicalpath = 0;
+  const char* lPath = 0;
   const char* hexfid = 0;
   const char* sfsid = 0;
-  std::string stime;
-  eos_debug("");
+
+  // Retrieve logical path, if one is used
+  lPath = capOpaque->Get("mgm.lpath");
 
   if ((!fstpath) && (!fsid) && (!fid)) {
     // Standard deletion brings all information via the opaque info
@@ -1261,14 +1262,9 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
                        "open - no file system id in capability", path);
     }
 
-    if ((logicalpath = capOpaque->Get("mgm.lpath"))) {
-      stime = capOpaque->Get("mgm.ctime");
-      delctime = atol(stime.c_str());
-    }
-
-    if (logicalpath) {
+    if (lPath) {
       fstPath = eos::common::StringConversion::BuildPhysicalPath(localprefix,
-                                                                 logicalpath);
+                                                                 lPath);
     } else {
       eos::common::FileId::FidPrefix2FullPath(hexfid, localprefix, fstPath);
     }
@@ -1301,15 +1297,29 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
   }
 
   // Prevent a scheduled delete from erasing a newer file with the same lpath
-  if (logicalpath) {
+  if (lPath) {
+    std::string stime = capOpaque->Get("mgm.ctime") ?
+                        capOpaque->Get("mgm.ctime") : "";
+
+    // Retrieve creation time from MGM
+    long long delctime = eos::common::Timing::TimespecString_to_Ns(stime);
+
+    if (delctime == -1) {
+      eos_err("could not parse creation time sent from MGM fstpath=%s "
+              "mgm.ctime=%s", fstPath.c_str(), stime.c_str());
+      return gOFS.Emsg(epname, error, errno, "delete file -- ctime parse error",
+                       fstPath.c_str());
+    }
+
+    // Retrieve creation time from file extended attributes
     io->attrGet("user.eos.ctime", stime);
-    long ioctime = atol(stime.c_str());
+    long long ioctime = eos::common::Timing::TimespecString_to_Ns(stime);
 
     // File is newer and should not be deleted
     if (ioctime > delctime) {
       eos_info("fstpath=%s -- won't delete newer version", fstPath.c_str());
       return SFS_OK;
-    } else if (ioctime == 0) {
+    } else if (ioctime == -1) {
       eos_notice("could not retrieve creation time for file %s fstpath=%s "
                  "fsid=%lu fid=%llu", path, fstPath.c_str(), fsid, fid);
     }

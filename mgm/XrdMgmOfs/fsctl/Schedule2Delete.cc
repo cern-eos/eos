@@ -81,7 +81,7 @@ namespace {
 
       eos::FsFilePath::GetPhysicalPath(fsid, fmd, lpath);
       fmd->getCTime(ctime);
-      sprintf(buff, "%ld", ctime.tv_sec);
+      sprintf(buff, "%ld.%ld", ctime.tv_sec, ctime.tv_nsec);
 
       idData += ":";
       idData += lpath.c_str();
