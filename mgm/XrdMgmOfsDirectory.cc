@@ -21,9 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "XrdOuc/XrdOucEnv.hh"
-/*----------------------------------------------------------------------------*/
 #include "mgm/XrdMgmOfsDirectory.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfsTrace.hh"
 #include "mgm/XrdMgmOfsSecurity.hh"
@@ -31,14 +30,10 @@
 #include "mgm/Access.hh"
 #include "mgm/Acl.hh"
 #include "common/Path.hh"
-/*----------------------------------------------------------------------------*/
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/interface/ContainerIterators.hh"
-/*----------------------------------------------------------------------------*/
-
-/*----------------------------------------------------------------------------*/
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -49,14 +44,9 @@
 #endif
 
 
-/*----------------------------------------------------------------------------*/
-
-/******************************************************************************/
-/******************************************************************************/
-/* MGM Directory Interface                                                    */
-/******************************************************************************/
-/******************************************************************************/
-
+//------------------------------------------------------------------------------
+//! MGM Directory Interface
+//------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -65,28 +55,17 @@ XrdMgmOfsDirectory::XrdMgmOfsDirectory(char* user, int MonID):
   XrdSfsDirectory(user, MonID)
 {
   dirName = "";
-  dh.reset();
-  d_pnt = &dirent_full.d_entry;
   eos::common::Mapping::Nobody(vid);
   eos::common::LogId();
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Open a directory object with bouncing/mapping & namespace mapping
+//------------------------------------------------------------------------------
 int
 XrdMgmOfsDirectory::open(const char* inpath,
                          const XrdSecEntity* client,
                          const char* ininfo)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief open a directory object with bouncing/mapping & namespace mapping
- *
- * @param inpath directory path to open
- * @param client XRootD authentication object
- * @param ininfo CGI
- *
- * @return SFS_OK otherwise SFS_ERROR
- */
-/*----------------------------------------------------------------------------*/
 {
   static const char* epname = "opendir";
   const char* tident = error.getErrUser();
@@ -105,25 +84,14 @@ XrdMgmOfsDirectory::open(const char* inpath,
   return _open(path, vid, ininfo);
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Open a directory by vid
+//------------------------------------------------------------------------------
 int
 XrdMgmOfsDirectory::open(const char* inpath,
                          eos::common::Mapping::VirtualIdentity& vid,
                          const char* ininfo)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief open a directory object with bouncing & namespace mapping
- *
- * @param dir_path directory path to open
- * @param vid EOS virtual identity
- * @param info CGI
- *
- * @return SFS_OK otherwise SFS_ERROR
- *
- * We create during the open the full directory listing which then is retrieved
- * via nextEntry() and cleaned up with close().
- */
-/*----------------------------------------------------------------------------*/
+
 {
   static const char* epname = "opendir";
   NAMESPACEMAP;
@@ -136,25 +104,13 @@ XrdMgmOfsDirectory::open(const char* inpath,
   return _open(path, vid, ininfo);
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Open a directory - low-level interface
+//------------------------------------------------------------------------------
 int
 XrdMgmOfsDirectory::_open(const char* dir_path,
                           eos::common::Mapping::VirtualIdentity& vid,
                           const char* info)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief open a directory object (without bouncing/mapping)
- *
- * @param dir_path directory path to open
- * @param vid EOS virtual identity
- * @param info CGI
- *
- * @return SFS_OK otherwise SFS_ERROR
- *
- * We create during the open the full directory listing which then is retrieved
- * via nextEntry() and cleaned up with close().
- */
-/*----------------------------------------------------------------------------*/
 {
   static const char* epname = "opendir";
   XrdOucEnv Open_Env(info);
@@ -172,7 +128,8 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
   bool permok = false;
   eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
       cPath.GetPath());
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  std::shared_ptr<eos::IContainerMD> dh;
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
   try {
@@ -184,16 +141,12 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
       eos::common::Mapping::VirtualIdentity rootvid;
       eos::common::Mapping::Root(rootvid);
       // ACL and permission check
-      Acl acl(cPath.GetPath(),
-              error,
-              vid,
-              attrmap,
-              false);
-      eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d",
-               acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
+      Acl acl(cPath.GetPath(), error, vid, attrmap, false);
+      eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d", acl.HasAcl(),
+               acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
                acl.CanBrowse(), acl.HasEgroup());
 
-      // browse permission by ACL
+      // Browse permission by ACL
       if (acl.HasAcl()) {
         if (acl.CanBrowse()) {
           permok = true;
@@ -205,6 +158,8 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
       // Add all the files and subdirectories
       gOFS->MgmStats.Add("OpenDir-Entry", vid.uid, vid.gid,
                          dh->getNumContainers() + dh->getNumFiles());
+      std::unique_lock<std::mutex> scope_lock(mDirLsMutex);
+      dh_list.clear();
 
       // Collect all file names
       for (auto it = eos::FileMapIterator(dh); it.valid(); it.next()) {
@@ -222,6 +177,8 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
       if (strcmp(dir_path, "/")) {
         dh_list.insert("..");
       }
+
+      dh_it = dh_list.begin();
     }
   } catch (eos::MDException& e) {
     dh.reset();
@@ -230,19 +187,14 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
               e.getErrno(), e.getMessage().str().c_str());
   }
 
-  // check permissions
-
-  if (dh) {
-    eos_debug("msg=\"access\" uid=%d gid=%d retc=%d mode=%o",
-              vid.uid, vid.gid, (dh->access(vid.uid, vid.gid, R_OK | X_OK)),
-              dh->getMode());
+  // Verify that this object is not already associated with an open directory
+  if (dh == nullptr) {
+    return Emsg(epname, error, errno, "open directory", cPath.GetPath());
   }
 
-  // Verify that this object is not already associated with an open directory
-  //
-  if (!dh)
-    return Emsg(epname, error, errno,
-                "open directory", cPath.GetPath());
+  eos_debug("msg=\"access\" uid=%d gid=%d retc=%d mode=%o",
+            vid.uid, vid.gid, (dh->access(vid.uid, vid.gid, R_OK | X_OK)),
+            dh->getMode());
 
   if (!permok) {
     errno = EPERM;
@@ -251,55 +203,38 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
   }
 
   dirName = dir_path;
-  // Set up values for this directory object
-  //
-  dh_it = dh_list.begin();
   EXEC_TIMING_END("OpenDir");
   return SFS_OK;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Red the next directory entry
+//------------------------------------------------------------------------------
 const char*
 XrdMgmOfsDirectory::nextEntry()
-/*----------------------------------------------------------------------------*/
-/*
- * @brief read the next directory entry
- *
- * @return name of the next directory entry
- *
- * Upon success, returns the contents of the next directory entry as
- * a null terminated string. Returns a null pointer upon EOF or an
- * error. To differentiate the two cases, getErrorInfo will return
- * 0 upon EOF and an actual error code (i.e., not 0) on error.
- */
-/*----------------------------------------------------------------------------*/
 {
-  if (dh_it == dh_list.end()) {
-    // no more entry
+  std::unique_lock<std::mutex> scope_lock(mDirLsMutex);
+
+  if (dh_list.empty() || dh_it == dh_list.end()) {
+    // No more entries
     return (const char*) 0;
   }
 
-  auto tmp_it = dh_it;
-  dh_it++;
-  return tmp_it->c_str();
+  const char* name = dh_it->c_str();
+  ++dh_it;
+  return name;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Close a directory object
+//------------------------------------------------------------------------------
 int
 XrdMgmOfsDirectory::close()
-/*----------------------------------------------------------------------------*/
-/*
- * @brief close a directory object
- *
- * @return SFS_OK
- */
-/*----------------------------------------------------------------------------*/
 {
-  //  static const char *epname = "closedir";
+  std::unique_lock<std::mutex> scope_lock(mDirLsMutex);
   dh_list.clear();
   return SFS_OK;
 }
-
 
 /*----------------------------------------------------------------------------*/
 int

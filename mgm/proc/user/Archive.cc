@@ -632,7 +632,7 @@ ProcCommand::ArchiveGetDirs(const std::string& root) const
   eos::common::Mapping::VirtualIdentity_t root_ident;
   eos::common::Mapping::Root(root_ident);
   std::vector<ArchDirStatus> dirs;
-  XrdMgmOfsDirectory proc_dir = XrdMgmOfsDirectory();
+  XrdMgmOfsDirectory proc_dir;
   int retc = proc_dir._open(gOFS->MgmProcArchivePath.c_str(),
                             root_ident, static_cast<const char*>(0));
 

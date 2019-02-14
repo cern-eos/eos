@@ -1,7 +1,8 @@
-// ----------------------------------------------------------------------
-// File: XrdMgmOfsDirectory.hh
-// Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file XrdMgmOfsDirectory.hh
+//! @author Andreas-Joachim Peters - CERN
+//! @brief XRootD OFS plugin class implementing directory handling of EOS
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,30 +22,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
-/**
- * @file   XrdMgmOfsDirectory.hh
- *
- * @brief  XRootD OFS plugin class implementing directory handling of EOS
- *
- */
-/*----------------------------------------------------------------------------*/
-
-#ifndef __EOSMGM_MGMOFSDIRECTORY__HH__
-#define __EOSMGM_MGMOFSDIRECTORY__HH__
-
-/*----------------------------------------------------------------------------*/
+#pragma once
 #include "common/Logging.hh"
 #include "common/Mapping.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
-/*----------------------------------------------------------------------------*/
 #include <dirent.h>
 #include <string>
 #include <set>
-/*----------------------------------------------------------------------------*/
+#include <mutex>
 
 //! Forward declaration
 namespace eos
@@ -52,38 +39,61 @@ namespace eos
 class IContainerMD;
 };
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 //! Class implementing directories and operations
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 class XrdMgmOfsDirectory : public XrdSfsDirectory, public eos::common::LogId
 {
 public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  XrdMgmOfsDirectory(char* user = 0, int MonID = 0);
 
-  // ---------------------------------------------------------------------------
-  // open a directory
-  // ---------------------------------------------------------------------------
-  int open (const char *dirName,
-            const XrdSecClientName *client = 0,
-            const char *opaque = 0);
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~XrdMgmOfsDirectory() = default;
 
-  // ---------------------------------------------------------------------------
-  // open a directory by vid
-  // ---------------------------------------------------------------------------
-  int open (const char *dirName,
-            eos::common::Mapping::VirtualIdentity &vid,
-            const char *opaque = 0);
+  //----------------------------------------------------------------------------
+  //! Open a directory object with bouncing/mapping & namespace mapping
+  //!
+  //! @param inpath directory path to open
+  //! @param client XRootD authentication object
+  //! @param ininfo CGI
+  //!
+  //! @return SFS_OK otherwise SFS_ERROR
+  //!
+  //! @note We create during the open the full directory listing which then is
+  //! retrieved via nextEntry() and cleaned up with close().
+  //----------------------------------------------------------------------------
+  int open(const char* dirName, const XrdSecClientName* client = 0,
+           const char* opaque = 0);
 
-  // ---------------------------------------------------------------------------
-  // open a directory by vid
-  // ---------------------------------------------------------------------------
-  int _open (const char *dirName,
-            eos::common::Mapping::VirtualIdentity &vid,
-            const char *opaque = 0);
+  //----------------------------------------------------------------------------
+  //! Open a directory by vid
+  //----------------------------------------------------------------------------
+  int open(const char* dirName, eos::common::Mapping::VirtualIdentity& vid,
+           const char* opaque = 0);
 
+  //----------------------------------------------------------------------------
+  //! Open a directory by vid
+  //----------------------------------------------------------------------------
+  int _open(const char* dirName,
+            eos::common::Mapping::VirtualIdentity& vid,
+            const char* opaque = 0);
+
+  //----------------------------------------------------------------------------
+  //! @brief Read the next directory entry
+  //!
+  //! @return name of the next directory entry
+  //!
+  //! Upon success, returns the contents of the next directory entry as
+  //! a null terminated string. Returns a null pointer upon EOF or an
+  //! error. To differentiate the two cases, getErrorInfo will return
+  //! 0 upon EOF and an actual error code (i.e., not 0) on error.
   // ---------------------------------------------------------------------------
-  // return entry of an open directory
-  // ---------------------------------------------------------------------------
-  const char *nextEntry ();
+  const char* nextEntry();
 
   //----------------------------------------------------------------------------
   //! Create an error message
@@ -99,53 +109,32 @@ public:
   //!This routines prints also an error message into the EOS log if it was not
   //! due to a stat call or the error codes EIDRM or ENODATA
   //----------------------------------------------------------------------------
-  int Emsg (const char* pfx,
-            XrdOucErrInfo& einfo,
-            int ecode,
-            const char* op,
-            const char* target = "");
+  int Emsg(const char* pfx,
+           XrdOucErrInfo& einfo,
+           int ecode,
+           const char* op,
+           const char* target = "");
 
-  // ---------------------------------------------------------------------------
-  // close an open directory
-  // ---------------------------------------------------------------------------
-  int close ();
+  //----------------------------------------------------------------------------
+  //! @brief Close a directory object
+  //!
+  //! return SFS_OK
+  //!---------------------------------------------------------------------------
+  int close();
 
   // ---------------------------------------------------------------------------
   //! return name of an open directory
   // ---------------------------------------------------------------------------
-
-  const char *
-  FName ()
+  const char*
+  FName()
   {
-    return (const char *) dirName.c_str ();
+    return dirName.c_str();
   }
 
-  // ---------------------------------------------------------------------------
-  //! Constructor
-  // ---------------------------------------------------------------------------
-  XrdMgmOfsDirectory (char *user = 0, int MonID = 0);
-
-  // ---------------------------------------------------------------------------
-  //! Destructor
-  // ---------------------------------------------------------------------------
-  ~XrdMgmOfsDirectory () {};
-
 private:
-
-  struct
-  {
-    struct dirent d_entry;
-    char pad[MAXNAMLEN]; // This is only required for Solaris!
-  } dirent_full;
-
-  struct dirent *d_pnt;
   std::string dirName;
   eos::common::Mapping::VirtualIdentity vid;
-
-  std::shared_ptr<eos::IContainerMD> dh;
   std::set<std::string> dh_list;
   std::set<std::string>::const_iterator dh_it;
+  std::mutex mDirLsMutex; ///< Mutex protecting access to dh_list
 };
-
-
-#endif

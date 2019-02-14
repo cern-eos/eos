@@ -368,6 +368,7 @@ Converter::Convert(ThreadAssistant& assistant) noexcept
 
       if (!FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
         FsView::gFsView.ViewMutex.UnLockRead();
+        IsSpaceConverter = false;
         break;
       }
 
@@ -385,7 +386,7 @@ Converter::Convert(ThreadAssistant& assistant) noexcept
     IsMaster = gOFS->mMaster->IsMaster();
 
     if (IsMaster && IsSpaceConverter) {
-      if (!lConversionFidMap.size()) {
+      if (lConversionFidMap.size() == 0) {
         XrdMgmOfsDirectory dir;
         int listrc = 0;
         // fill the conversion queue with the existing entries
