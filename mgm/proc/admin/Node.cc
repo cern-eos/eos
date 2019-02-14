@@ -344,6 +344,12 @@ ProcCommand::Node()
               stdErr += "'";
             }
           }
+          
+          // Delete also the entry from the configuration
+          eos_info("msg=\"delete from configuration\" node_name=%s",
+                   nodeconfigname.c_str());
+          gOFS->ConfEngine->DeleteConfigValueByMatch("global", nodeconfigname.c_str());
+          gOFS->ConfEngine->AutoSave();
         }
       }
     } else {
