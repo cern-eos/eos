@@ -2239,7 +2239,7 @@ XrdFstOfsFile::TpcValid()
 int
 XrdFstOfsFile::sync()
 {
-  static const int cbWaitTime = 1800;
+  static const int cbWaitTime = 3600;
 
   // TPC transfer
   if (mTpcFlag == kTpcDstSetup) {
