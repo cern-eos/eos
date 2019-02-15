@@ -160,6 +160,7 @@ add_library(
   XrdMgmOfs/fsctl/Xattr.cc
   DrainJob.cc
   Balancer.cc
+  CommandMap.cc
   FileSystem.cc
   drain/DrainFs.cc
   drain/DrainTransferJob.cc

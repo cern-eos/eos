@@ -94,13 +94,6 @@ class Health
 {
 public:
   //----------------------------------------------------------------------------
-  //! Static helper function for starting the health monitoring thread
-  //!
-  //! @param pp pointer to a Health object
-  //----------------------------------------------------------------------------
-  static void* StartHealthThread(void* pp);
-
-  //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   Health(unsigned int ival_minutes = 15);

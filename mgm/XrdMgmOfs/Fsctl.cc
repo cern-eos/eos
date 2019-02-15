@@ -264,89 +264,123 @@ XrdMgmOfs::FSctl(const int cmd,
   }
 
   if (scmd) {
-    if (execmd == "access") {
-      return XrdMgmOfs::Access(path, ininfo, env, error, ThreadLogId, vid,
-                               client);
-    } else if (execmd == "adjustreplica") {
-      return XrdMgmOfs::AdjustReplica(path, ininfo, env, error, ThreadLogId, vid,
-                                      client);
-    } else if (execmd == "checksum") {
-      return XrdMgmOfs::Checksum(path, ininfo, env, error, ThreadLogId, vid,
+    FsctlCommand command = lookupFsctl(execmd.c_str());
+
+    switch(command) {
+      case FsctlCommand::access: {
+        return XrdMgmOfs::Access(path, ininfo, env, error, ThreadLogId, vid,
                                  client);
-    } else if (execmd == "chmod") {
-      return XrdMgmOfs::Chmod(path, ininfo, env, error, ThreadLogId, vid,
-                              client);
-    } else if (execmd == "chown") {
-      return XrdMgmOfs::Chown(path, ininfo, env, error, ThreadLogId, vid,
-                              client);
-    } else if (execmd == "commit") {
-      return XrdMgmOfs::Commit(path, ininfo, env, error, ThreadLogId, vid,
-                               client);
-    } else if (execmd == "drop") {
-      return XrdMgmOfs::Drop(path, ininfo, env, error, ThreadLogId, vid,
-                             client);
-    } else if (execmd == "event") {
-      return XrdMgmOfs::Event(path, ininfo, env, error, ThreadLogId, vid,
-                              client);
-    } else if (execmd == "getfmd") {
-      return XrdMgmOfs::Getfmd(path, ininfo, env, error, ThreadLogId, vid,
-                               client);
-    } else if (execmd == "is_master") {
-      return XrdMgmOfs::IsMaster(path, ininfo, env, error, ThreadLogId, vid,
-                                 client);
-    } else if (execmd == "mastersignalbounce") {
-      return XrdMgmOfs::MasterSignalBounce(path, ininfo, env, error, ThreadLogId,
-                                           vid, client);
-    } else if (execmd == "mastersignalreload") {
-      return XrdMgmOfs::MasterSignalReload(path, ininfo, env, error, ThreadLogId,
-                                           vid, client);
-    } else if (execmd == "mkdir") {
-      return XrdMgmOfs::Mkdir(path, ininfo, env, error, ThreadLogId, vid,
-                              client);
-    } else if (execmd == "open") {
-      return XrdMgmOfs::Open(path, ininfo, env, error, ThreadLogId, vid,
-                             client);
-    } else if (execmd == "readlink") {
-      return XrdMgmOfs::Readlink(path, ininfo, env, error, ThreadLogId, vid,
-                                 client);
-    } else if (execmd == "redirect") {
-      return XrdMgmOfs::Redirect(path, ininfo, env, error, ThreadLogId, vid,
-                                 client);
-    } else if (execmd == "rewrite") {
-      return XrdMgmOfs::Rewrite(path, ininfo, env, error, ThreadLogId, vid,
-                                client);
-    } else if (execmd == "schedule2balance") {
-      return XrdMgmOfs::Schedule2Balance(path, ininfo, env, error, ThreadLogId, vid,
-                                         client);
-    } else if (execmd == "schedule2delete") {
-      return XrdMgmOfs::Schedule2Delete(path, ininfo, env, error, ThreadLogId, vid,
+      }
+      case FsctlCommand::adjustreplica: {
+        return XrdMgmOfs::AdjustReplica(path, ininfo, env, error, ThreadLogId, vid,
                                         client);
-    } else if (execmd == "schedule2drain") {
-      return XrdMgmOfs::Schedule2Drain(path, ininfo, env, error, ThreadLogId, vid,
-                                       client);
-    } else if (execmd == "stat") {
-      return XrdMgmOfs::FuseStat(path, ininfo, env, error, ThreadLogId, vid,
-                                 client);
-    } else if (execmd == "statvfs") {
-      return XrdMgmOfs::Statvfs(path, ininfo, env, error, ThreadLogId, vid,
+      }
+      case FsctlCommand::checksum: {
+        return XrdMgmOfs::Checksum(path, ininfo, env, error, ThreadLogId, vid,
+                                   client);
+      }
+      case FsctlCommand::chmod: {
+        return XrdMgmOfs::Chmod(path, ininfo, env, error, ThreadLogId, vid,
                                 client);
-    } else if (execmd == "symlink") {
-      return XrdMgmOfs::Symlink(path, ininfo, env, error, ThreadLogId, vid,
-                                client);
-    } else if (execmd == "txstate") {
-      return XrdMgmOfs::Txstate(path, ininfo, env, error, ThreadLogId, vid,
-                                client);
-    } else if (execmd == "utimes") {
-      return XrdMgmOfs::Utimes(path, ininfo, env, error, ThreadLogId, vid,
-                               client);
-    } else if (execmd == "version") {
-      return XrdMgmOfs::Version(path, ininfo, env, error, ThreadLogId, vid,
-                                client);
-    } else if (execmd == "xattr") {
-      return XrdMgmOfs::Xattr(path, ininfo, env, error, ThreadLogId, vid,
+      }
+      case FsctlCommand::chown: {
+        return XrdMgmOfs::Chown(path, ininfo, env, error, ThreadLogId, vid,
                               client);
-    } else {
-      eos_thread_err("No implementation for %s", execmd.c_str());
+      }
+      case FsctlCommand::commit: {
+        return XrdMgmOfs::Commit(path, ininfo, env, error, ThreadLogId, vid,
+                               client);
+      }
+      case FsctlCommand::drop: {
+        return XrdMgmOfs::Drop(path, ininfo, env, error, ThreadLogId, vid,
+                             client);
+      }
+      case FsctlCommand::event: {
+        return XrdMgmOfs::Event(path, ininfo, env, error, ThreadLogId, vid,
+                              client);
+      }
+      case FsctlCommand::getfmd: {
+        return XrdMgmOfs::Getfmd(path, ininfo, env, error, ThreadLogId, vid,
+                               client);
+      }
+      case FsctlCommand::is_master: {
+        return XrdMgmOfs::IsMaster(path, ininfo, env, error, ThreadLogId, vid,
+                                 client);
+
+      }
+      case FsctlCommand::mastersignalbounce: {
+        return XrdMgmOfs::MasterSignalBounce(path, ininfo, env, error, ThreadLogId,
+                                           vid, client);
+
+      }
+      case FsctlCommand::mastersignalreload: {
+        return XrdMgmOfs::MasterSignalReload(path, ininfo, env, error, ThreadLogId,
+                                           vid, client);
+      }
+      case FsctlCommand::mkdir: {
+        return XrdMgmOfs::Mkdir(path, ininfo, env, error, ThreadLogId, vid,
+                              client);
+
+      }
+      case FsctlCommand::open: {
+        return XrdMgmOfs::Open(path, ininfo, env, error, ThreadLogId, vid,
+                             client);
+      }
+      case FsctlCommand::readlink: {
+        return XrdMgmOfs::Readlink(path, ininfo, env, error, ThreadLogId, vid,
+                                 client);
+      }
+      case FsctlCommand::redirect: {
+        return XrdMgmOfs::Redirect(path, ininfo, env, error, ThreadLogId, vid,
+                                 client);
+      }
+      case FsctlCommand::rewrite: {
+        return XrdMgmOfs::Rewrite(path, ininfo, env, error, ThreadLogId, vid,
+                                client);
+      }
+      case FsctlCommand::schedule2balance: {
+        return XrdMgmOfs::Schedule2Balance(path, ininfo, env, error, ThreadLogId, vid,
+                                         client);
+      }
+      case FsctlCommand::schedule2delete: {
+        return XrdMgmOfs::Schedule2Delete(path, ininfo, env, error, ThreadLogId, vid,
+                                        client);
+      }
+      case FsctlCommand::schedule2drain: {
+        return XrdMgmOfs::Schedule2Drain(path, ininfo, env, error, ThreadLogId, vid,
+                                       client);
+      }
+      case FsctlCommand::stat: {
+        return XrdMgmOfs::FuseStat(path, ininfo, env, error, ThreadLogId, vid,
+                                 client);
+      }
+      case FsctlCommand::statvfs: {
+        return XrdMgmOfs::Statvfs(path, ininfo, env, error, ThreadLogId, vid,
+                                client);
+      }
+      case FsctlCommand::symlink: {
+        return XrdMgmOfs::Symlink(path, ininfo, env, error, ThreadLogId, vid,
+                                client);
+      }
+      case FsctlCommand::txstate: {
+        return XrdMgmOfs::Txstate(path, ininfo, env, error, ThreadLogId, vid,
+                                client);
+      }
+      case FsctlCommand::utimes: {
+        return XrdMgmOfs::Utimes(path, ininfo, env, error, ThreadLogId, vid,
+                               client);
+      }
+      case FsctlCommand::version: {
+        return XrdMgmOfs::Version(path, ininfo, env, error, ThreadLogId, vid,
+                                client);
+      }
+      case FsctlCommand::xattr: {
+        return XrdMgmOfs::Xattr(path, ininfo, env, error, ThreadLogId, vid,
+                              client);
+      }
+      case FsctlCommand::INVALID: {
+        eos_thread_err("No implementation for %s", execmd.c_str());
+      }
     }
   }
 
