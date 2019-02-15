@@ -376,6 +376,12 @@ GrpcNsInterface::FileInsert(eos::common::Mapping::VirtualIdentity_t& vid,
 			    const eos::rpc::FileInsertRequest* request)
 
 {
+  if (!vid.sudoer) {
+    // block every one who is not a sudoer
+    reply->add_retc(EPERM);
+    return grpc::Status::OK;
+  }
+
   std::shared_ptr<eos::IFileMD> newfile;
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   
@@ -425,6 +431,12 @@ GrpcNsInterface::ContainerInsert(eos::common::Mapping::VirtualIdentity_t& vid,
 			     const eos::rpc::ContainerInsertRequest* request)
 			    
 {
+  if (!vid.sudoer) {
+    // block every one who is not a sudoer
+    reply->add_retc(EPERM);
+    return grpc::Status::OK;
+  }
+
   std::shared_ptr<eos::IContainerMD> newdir;
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   
@@ -460,7 +472,7 @@ GrpcNsInterface::ContainerInsert(eos::common::Mapping::VirtualIdentity_t& vid,
     } catch (eos::MDException& e) {
       eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
 		       e.getErrno(), e.getMessage().str().c_str());
-      reply->add_retc(-1);
+      reply->add_retc(e.getErrno());
     }
   }
   return grpc::Status::OK;
