@@ -158,6 +158,7 @@ DrainFs::DoIt()
 
   if (mDrainStop) {
     Stop();
+    ResetCounters();
     state = State::Stopped;
   }
 

@@ -275,9 +275,8 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
     }
 
     if (!found) {
-      ReportError(SSTR("msg=\"fxid=" << eos::common::FileId::Fid2Hex(
-                         fdrain.mProto.id())
-                       << " no more replicas available\""));
+      ReportError(SSTR("msg=\"no more replicas available\" " << "fxid="
+                       << eos::common::FileId::Fid2Hex(fdrain.mProto.id())));
       return url_src;
     }
   } else {
