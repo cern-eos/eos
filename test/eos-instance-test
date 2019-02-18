@@ -1306,7 +1306,7 @@ dd if=/dev/zero count=32 bs=1M status=none | tr '\000' '\001' > $TMP_FILE_32MB
 xrdcp -f $TMP_FILE_32MB root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/fst/plain/file32MB.dat >> $EOSCERTLOG 2>&1
 xrdcp -f $TMP_FILE_32MB root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/fst/raiddp/file32MB.dat >> $EOSCERTLOG 2>&1
 
-runtest "### Fst       " unix 0 "" eos-fst-test
+runtest "### Fst       " unix 0 "" eos-fst-test -v -n $EOS_TEST_INSTANCE
 runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/fst"
 runtest "### Cleanup   " unix 2 "" shell rm "$TMP_FILE_32MB"
 
