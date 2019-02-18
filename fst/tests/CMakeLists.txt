@@ -29,10 +29,11 @@ include_directories(
   ${CMAKE_BINARY_DIR}/namespace/ns_quarkdb)  # for the generated protobuf
 
 add_executable(
-  eos-fst-test main.cc
+  eos-fst-test
+  main.cc
   TestEnv.cc
-  MonitorVarPartitionTest.cc
   FstFileTest.cc
+  MonitorVarPartitionTest.cc
   ${CMAKE_SOURCE_DIR}/common/FileSystem.cc
   ${CMAKE_SOURCE_DIR}/common/TransferQueue.cc
   ${CMAKE_SOURCE_DIR}/common/TransferJob.cc
@@ -44,6 +45,8 @@ add_executable(
 
 target_link_libraries(
   eos-fst-test PRIVATE
+  gtest
+  gmock_main
   EosFstIo-Static
   ${XROOTD_SERVER_LIBRARY})
 

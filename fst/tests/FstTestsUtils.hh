@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// File: MonitorVarPartitionTest.hh
-// Author: Jozsef Makai <jmakai@cern.ch>
+// File: FstTestsUtils.hh
+// Author: Mihai Patrascoiu <mihai.patrascoiu@cern.ch>
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -21,15 +21,56 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_MONITORVARPARTITIONTEST_HH
-#define EOS_MONITORVARPARTITIONTEST_HH
+#ifndef __EOSFST_TESTS_FSTTESTSUTILS_HH__
+#define __EOSFST_TESTS_FSTTESTSUTILS_HH__
 
+#include <string>
+
+#include "gtest/gtest.h"
 #include "Namespace.hh"
+#include "TestEnv.hh"
 
 EOSFSTTEST_NAMESPACE_BEGIN
 
-void VarPartitionMonitoringTest();
+//------------------------------------------------------------------------------
+//! Global Environment class
+//------------------------------------------------------------------------------
+class FstTestsEnv : public ::testing::Environment
+{
+public:
+  static std::string instanceName;
+  static bool verbose;
+};
+
+//------------------------------------------------------------------------------
+//! Logging class
+//------------------------------------------------------------------------------
+class GTest_Logger
+{
+public:
+  GTest_Logger(bool enabled) : enabled(enabled) {}
+  bool isEnabled() { return this->enabled; }
+
+  template<typename T> GTest_Logger& operator<<(T const& t)
+  {
+    if (enabled) { std::cout << t; }
+    return *this;
+  }
+
+  GTest_Logger& operator<<(std::ostream& (*manipulator)(std::ostream&))
+  {
+    if (enabled) { std::cout << manipulator; }
+    return *this;
+  }
+
+private:
+  bool enabled;
+};
+
+// Macro to print GTest similar output
+// Uses the GTest_Logger mLogger variable available in the FstFileTest fixtures
+#define GLOG if (mLogger.isEnabled()) { std::cout << "[ INFO     ] "; } mLogger
 
 EOSFSTTEST_NAMESPACE_END
 
-#endif //EOS_MONITORVARPARTITIONTEST_HH
+#endif //__EOSFST_TESTS_FSTTESTSUTILS_HH__
