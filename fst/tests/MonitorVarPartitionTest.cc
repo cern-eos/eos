@@ -21,15 +21,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "MonitorVarPartitionTest.hh"
-
-#include "fst/storage/MonitorVarPartition.hh"
+#include <string>
 #include <thread>
+#include "gtest/gtest.h"
+
+#include "Namespace.hh"
+#include "FstTestsUtils.hh"
+#include "common/RWMutex.hh"
+#include "common/FileSystem.hh"
+#include "fst/storage/MonitorVarPartition.hh"
 
 EOSFSTTEST_NAMESPACE_BEGIN
 
 using fsstatus_t = eos::common::FileSystem::eConfigStatus;
 
+//------------------------------------------------------------------------------
+//! Mock class implementing only relevant methods related to unit testing
+//------------------------------------------------------------------------------
 struct MockFileSystem {
   fsstatus_t status;
 
@@ -37,8 +45,8 @@ struct MockFileSystem {
 
   void SetString(const std::string& key, const std::string& val)
   {
-    this->status = (fsstatus_t)eos::common::FileSystem::GetConfigStatusFromString(
-                     val.c_str());
+    this->status = (fsstatus_t)
+        eos::common::FileSystem::GetConfigStatusFromString(val.c_str());
   }
 
   fsstatus_t GetConfigStatus(bool cached = false)
@@ -49,108 +57,137 @@ struct MockFileSystem {
 
 using VarMonitorT = eos::fst::MonitorVarPartition<std::vector<MockFileSystem*>>;
 
-class TestContext
+//------------------------------------------------------------------------------
+//! Class MonitorVarPartitionTest
+//------------------------------------------------------------------------------
+class MonitorVarPartitionTest : public ::testing::Test
 {
 public:
+  static constexpr std::int32_t mMonitorInterval = 1;
+  std::ofstream fill;
+  VarMonitorT monitor;
+  GTest_Logger mLogger;
+  std::thread monitor_thread;
   eos::common::RWMutex mFsMutex;
   std::vector<MockFileSystem*> fsVector;
-  VarMonitorT monitor;
-  std::thread monitor_thread;
-  std::ofstream fill;
-  static constexpr std::int32_t mMonitorInterval = 1;
 
-  static void StartFstPartitionMonitor(TestContext* storage)
+  //----------------------------------------------------------------------------
+  //! Method starting the monitoring thread
+  //----------------------------------------------------------------------------
+  static void StartFstPartitionMonitor(MonitorVarPartitionTest* storage)
   {
     storage->monitor.Monitor(storage->fsVector, storage->mFsMutex);
   }
 
-  TestContext() : monitor(10., TestContext::mMonitorInterval, "/mnt/var_test/")
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  MonitorVarPartitionTest():
+      monitor(10.0, MonitorVarPartitionTest::mMonitorInterval, "/mnt/var_test/"),
+      mLogger(FstTestsEnv::verbose)
+  {}
+
+  virtual void SetUp() override
   {
-    // Init partition
+    // Initialize partition
     system("mkdir -p /mnt/var_test");
     system("mount -t tmpfs -o size=100m tmpfs /mnt/var_test/");
-    // Add few fileSystems in vector
+
+    // Add few fileSystems in the vector
     this->fsVector.push_back(new MockFileSystem());
     this->fsVector.push_back(new MockFileSystem());
     this->fsVector.push_back(new MockFileSystem());
     this->fsVector.push_back(new MockFileSystem());
     fill.open("/mnt/var_test/fill.temp");
-    // Start monitoring.
-    this->monitor_thread = std::thread(TestContext::StartFstPartitionMonitor, this);
+
+    // Start monitoring
+    this->monitor_thread =
+        std::thread(MonitorVarPartitionTest::StartFstPartitionMonitor, this);
   }
 
-  virtual ~TestContext()
+  virtual void TearDown() override
   {
-    // Cleaning
+    // Clean resources
     delete this->fsVector[0];
     delete this->fsVector[1];
     delete this->fsVector[2];
     delete this->fsVector[3];
-    // Terminate monitoring
+
+    // Stop monitoring
     this->monitor.StopMonitoring();
     this->monitor_thread.join();
+
     system("umount /mnt/var_test/");
     system("rmdir /mnt/var_test/");
   }
 };
 
-void
-VarPartitionMonitoringTest()
+//------------------------------------------------------------------------------
+// MonitorVarPartition Test
+//------------------------------------------------------------------------------
+TEST_F(MonitorVarPartitionTest, MonitorVarPartition)
 {
-  TestContext context;
   // Fill partition to more than 90%
+  GLOG << "Filling partition to 90%" << std::endl;
   std::string megabyte_line(1024 * 1024, 'a');
-
-  for (int i = 0; i < 91; ++i) {
-    context.fill << megabyte_line << std::endl;
+  for (int i = 1; i <= 90; i++) {
+    fill << megabyte_line << std::endl;
   }
 
   // Wait and check
-  usleep(TestContext::mMonitorInterval * 1000 * 1000);
-  context.mFsMutex.LockRead();
+  usleep(mMonitorInterval * 1000 * 1000);
+  mFsMutex.LockRead();
 
-  for (auto fs = context.fsVector.begin(); fs != context.fsVector.end(); ++fs) {
-    assert(eos::common::FileSystem::kRO == (*fs)->GetConfigStatus());
+  for (auto fs = fsVector.begin(); fs != fsVector.end(); ++fs) {
+    ASSERT_EQ((*fs)->GetConfigStatus(), eos::common::FileSystem::kRO);
   }
 
-  context.mFsMutex.UnLockRead();
-  // Setting status of filesystems to RW.
-  context.mFsMutex.LockWrite();
+  mFsMutex.UnLockRead();
 
-  for (auto fs = context.fsVector.begin(); fs != context.fsVector.end(); ++fs) {
-    (*fs)->SetString("configstatus", "rw");
-  }
-
-  context.mFsMutex.UnLockWrite();
-  // Check if status is returned to readonly
-  usleep(context.mMonitorInterval * 1000 * 1000);
-  context.mFsMutex.LockRead();
-
-  for (auto fs = context.fsVector.begin(); fs != context.fsVector.end(); ++fs) {
-    assert(eos::common::FileSystem::kRO == (*fs)->GetConfigStatus());
-  }
-
-  context.mFsMutex.UnLockRead();
-  // Close and delete file,
-  context.fill.close();
-  system("rm -f /mnt/var_test/fill.temp");
   // Setting status of filesystems to RW
-  context.mFsMutex.LockWrite();
+  GLOG << "Setting status to RW -- should revert to RO" << std::endl;
+  mFsMutex.LockWrite();
 
-  for (auto fs = context.fsVector.begin(); fs != context.fsVector.end(); ++fs) {
+  for (auto fs = fsVector.begin(); fs != fsVector.end(); ++fs) {
     (*fs)->SetString("configstatus", "rw");
   }
 
-  context.mFsMutex.UnLockWrite();
-  // Check if status is returned to readonly
-  usleep(TestContext::mMonitorInterval * 1000 * 1000);
-  context.mFsMutex.LockRead();
+  mFsMutex.UnLockWrite();
 
-  for (auto fs = context.fsVector.begin(); fs != context.fsVector.end(); ++fs) {
-    assert(eos::common::FileSystem::kRW == (*fs)->GetConfigStatus());
+  // Check if status has returned to read-only
+  usleep(mMonitorInterval * 1000 * 1000);
+  mFsMutex.LockRead();
+
+  for (auto fs = fsVector.begin(); fs != fsVector.end(); ++fs) {
+    ASSERT_EQ((*fs)->GetConfigStatus(), eos::common::FileSystem::kRO);
   }
 
-  context.mFsMutex.UnLockRead();
+  mFsMutex.UnLockRead();
+
+  // Close and delete file
+  GLOG << "Deleting file: /mnt/var_test/fill.temp" << std::endl;
+  fill.close();
+  system("rm /mnt/var_test/fill.temp");
+
+  // Setting status of filesystems to RW
+  GLOG << "Setting status to RW -- should stay at RW" << std::endl;
+  mFsMutex.LockWrite();
+
+  for (auto fs = fsVector.begin(); fs != fsVector.end(); ++fs) {
+    (*fs)->SetString("configstatus", "rw");
+  }
+
+  mFsMutex.UnLockWrite();
+
+  // Check if status remains as read/write
+  usleep(mMonitorInterval * 1000 * 1000);
+  mFsMutex.LockRead();
+
+  for (auto fs = fsVector.begin(); fs != fsVector.end(); ++fs) {
+    ASSERT_EQ((*fs)->GetConfigStatus(), eos::common::FileSystem::kRW);
+  }
+
+  mFsMutex.UnLockRead();
 }
 
 EOSFSTTEST_NAMESPACE_END
