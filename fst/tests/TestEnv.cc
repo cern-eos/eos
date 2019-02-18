@@ -36,20 +36,25 @@ EOSFSTTEST_NAMESPACE_BEGIN
 // File file32MB.dat is created as follows:
 // dd if=/dev/zero count=32 bs=1M | tr '\000' '\001' > /eos/dev/test/fst/plain/file32MB.dat
 //
-// And the "plain" directory need to have the following xattrs:
+// The "plain" directory needs to have the following xattrs:
 //   sys.forced.checksum="adler"
 //   sys.forced.layout="plain"
 //   sys.forced.nstripes="1"
 //   sys.forced.space="default"
 //
+// The "raiddp" directory needs to have the following xattrs:
+//   default=raiddp
+//
 //------------------------------------------------------------------------------
-TestEnv::TestEnv()
+TestEnv::TestEnv(std::string instance)
 {
+  std::string pathPrefix = "/eos/" + instance + "/test/fst/";
+
   mMapParam.insert(std::make_pair("server", "localhost"));
-  mMapParam.insert(std::make_pair("dummy_file", "/eos/dev/test/fst/plain/dummy.dat"));
-  mMapParam.insert(std::make_pair("plain_file", "/eos/dev/test/fst/plain/file32MB.dat"));
-  mMapParam.insert(std::make_pair("raiddp_file", "/eos/dev/test/fst/raiddp/file32MB.dat"));
-  mMapParam.insert(std::make_pair("reeds_file", "/eos/dev/test/fst/raid6/file32MB.dat"));
+  mMapParam.insert(std::make_pair("dummy_file", pathPrefix + "plain/dummy.dat"));
+  mMapParam.insert(std::make_pair("plain_file", pathPrefix + "plain/file32MB.dat"));
+  mMapParam.insert(std::make_pair("raiddp_file", pathPrefix + "raiddp/file32MB.dat"));
+  mMapParam.insert(std::make_pair("reeds_file", pathPrefix + "raid6/file32MB.dat"));
   mMapParam.insert(std::make_pair("file_size", "33554432")); // 32MB
 
   // ReadV sequences used for testing
