@@ -601,8 +601,8 @@ runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/insta
 runtest "### UploadCks " unix 1 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k" "-ODeos.checksum=00000000"
 runtest "### FileInfo  " unix 1 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k -m | grep nrep=0"
 runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k"
-runtest "### Attr      "  unix 0 "" eos attr rm sys.forced.checksum /eos/$EOS_TEST_INSTANCE/test/instancetest/
-runtest "### UploadSz  "  unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k" "-ODeos.targetsize=1024"
+runtest "### Attr      " unix 0 "" eos attr rm sys.forced.checksum /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### UploadSz  " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k" "-ODeos.targetsize=1024"
 runtest "### FileInfo  " unix 0 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k -m | grep nrep=1"
 runtest "### UploadSz  " unix 1 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k" "-ODeos.targetsize=1000"
 runtest "### FileInfo  " unix 1 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k -m | grep nrep=0"
@@ -739,10 +739,10 @@ runtest "### Find       " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE
 runtest "### Stress Rp  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 50 -s 1KB -n stress -j 10 -c"
 runtest "### Stress Rpp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 50 -s 1KB -n stress -j 10 -c -p"
 runtest "### Cleanup    " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress/*"
-runtest "### Ls        " unix 0 "" eos ls "/eos/$EOS_TEST_INSTANCE/test | grep [a-z] | wc -l | grep -w 2"
-runtest "### Ls        " unix 0 "" eos ls -l "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 2"
-runtest "### Ls        " unix 0 "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 4"
-runtest "### Find      " unix 0 "" eos find -d "/eos/$EOS_TEST_INSTANCE/test | grep eos | wc -l | grep -w 3"
+runtest "### Ls         " unix 0 "" eos ls "/eos/$EOS_TEST_INSTANCE/test | grep [a-z] | wc -l | grep -w 2"
+runtest "### Ls         " unix 0 "" eos ls -l "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 2"
+runtest "### Ls         " unix 0 "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 4"
+runtest "### Find       " unix 0 "" eos find -d "/eos/$EOS_TEST_INSTANCE/test | grep eos | wc -l | grep -w 3"
 
 ################################################################################
 # ATTRIBUTES
@@ -1172,14 +1172,14 @@ runtest "### S3 Attr      " unix 0 "" eos attr set sys.s3.id.s3user="0123456789"
 runtest "### S3 Attr      " unix 0 "" eos attr set sys.s3.path.test="/eos/$EOS_TEST_INSTANCE/test/instancetest/s3.dir" /eos/$EOS_TEST_INSTANCE/proc
 
 # ------------------------------------------------------------------------------
-runtest "### S3 List      " unix 0 "" davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:8000/test/
-runtest "### S3 Upload    " unix 0 "" davix-put --s3accesskey s3user --s3secretkey 0123456789 --s3alternate $TESTSYSFILE50M s3://$EOS_TEST_REDIRECTOR:8000/test/file.50m
-runtest "### S3 List      " unix 0 "" davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:8000/test
-runtest "### S3 Download  " unix 0 "" davix-get --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:8000/test/file.50m file.50m
-runtest "### S3 Rm        " unix 0 "" davix-rm  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:8000/test/file.50m
-runtest "### S3 List      " unix 0 "" davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:8000/test/
-runtest "### S3 Download  " unix 1 "" davix-get --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:8000/test/file.50m
-runtest "### S3 List      " unix 1 "" davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:8000/otherdir/
+runtest "### S3 List      " unix 0 "" shell davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:8000/test/
+runtest "### S3 Upload    " unix 0 "" shell davix-put --s3accesskey s3user --s3secretkey 0123456789 --s3alternate $TESTSYSFILE50M s3://$EOS_TEST_REDIRECTOR:8000/test/file.50m
+runtest "### S3 List      " unix 0 "" shell davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:8000/test
+runtest "### S3 Download  " unix 0 "" shell davix-get --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:8000/test/file.50m file.50m
+runtest "### S3 Rm        " unix 0 "" shell davix-rm  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:8000/test/file.50m
+runtest "### S3 List      " unix 0 "" shell davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:8000/test/
+runtest "### S3 Download  " unix 1 "" shell davix-get --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:8000/test/file.50m
+runtest "### S3 List      " unix 1 "" shell davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://$EOS_TEST_REDIRECTOR:8000/otherdir/
 
 #----------------------------------------------------------------------------
 # Clean up the files created in S3 tests
@@ -1301,13 +1301,14 @@ runtest "### Attr      " unix 0 "" eos attr set sys.forced.nstripes=1 "/eos/$EOS
 runtest "### Attr      " unix 0 "" eos attr set sys.forced.space=default "/eos/$EOS_TEST_INSTANCE/test/fst/plain"
 runtest "### Attr      " unix 0 "" eos attr set default=raiddp "/eos/$EOS_TEST_INSTANCE/test/fst/raiddp"
 
-TMP_FILE_32MB=mktemp
-dd if=/dev/zero count=32 bs=1M | tr '\000' '\001' > $TMP_FILE_32MB
-xrdcp -f -d 1 $TMP_FILE_32MB root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/fst/plain/file32MB.dat
-xrdcp -f -d 1 $TMP_FILE_32MB root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/fst/raiddp/file32MB.dat
+TMP_FILE_32MB=/tmp/file32MB.dat
+dd if=/dev/zero count=32 bs=1M status=none | tr '\000' '\001' > $TMP_FILE_32MB
+xrdcp -f $TMP_FILE_32MB root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/fst/plain/file32MB.dat >> $EOSCERTLOG 2>&1
+xrdcp -f $TMP_FILE_32MB root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/fst/raiddp/file32MB.dat >> $EOSCERTLOG 2>&1
 
 runtest "### Fst       " unix 0 "" eos-fst-test
 runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/fst"
+runtest "### Cleanup   " unix 2 "" shell rm "$TMP_FILE_32MB"
 
 ################################################################################
 # OTHER TESTS
