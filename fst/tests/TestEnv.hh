@@ -22,6 +22,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#ifndef __EOSFST_TESTS_TESTENV__HH__
+#define __EOSFST_TESTS_TESTENV__HH__
+
 /*----------------------------------------------------------------------------*/
 #include <map>
 #include <string>
@@ -77,3 +80,5 @@ class TestEnv
 };
 
 EOSFSTTEST_NAMESPACE_END
+
+#endif // __EOSFST_TESTS_TESTENV__HH__
