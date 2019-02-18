@@ -69,7 +69,7 @@ message FileMdProto {
 	repeated uint32 locations = 13;
 	repeated uint32 unlink_locations = 14;
 	map<string, bytes> xattrs = 15;
-	string path = 16;
+	bytes path = 16;
 }
 
 message ContainerMdProto {
@@ -85,7 +85,7 @@ message ContainerMdProto {
 	Time mtime = 10; // modification time
 	Time stime = 11; // sync time
 	map<string, bytes> xattrs = 12;
-	string path = 13;
+	bytes path = 13;
 }
 
 
