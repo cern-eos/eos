@@ -1344,13 +1344,14 @@ runtest "### Attr      " unix 0 "" eos attr set sys.forced.nstripes=1 "/eos/dev/
 runtest "### Attr      " unix 0 "" eos attr set sys.forced.space=default "/eos/dev/test/fst/plain"
 runtest "### Attr      " unix 0 "" eos attr set default=raiddp "/eos/dev/test/fst/raiddp"
 
-TMP_FILE_32MB=mktemp
-dd if=/dev/zero count=32 bs=1M | tr '\000' '\001' > $TMP_FILE_32MB
-xrdcp -f -d 1 $TMP_FILE_32MB root://$EOS_TEST_REDIRECTOR//eos/dev/test/fst/plain/file32MB.dat
-xrdcp -f -d 1 $TMP_FILE_32MB root://$EOS_TEST_REDIRECTOR//eos/dev/test/fst/raiddp/file32MB.dat
+TMP_FILE_32MB=/tmp/file32MB.dat
+dd if=/dev/zero count=32 bs=1M status=none | tr '\000' '\001' > $TMP_FILE_32MB
+xrdcp -f $TMP_FILE_32MB root://$EOS_TEST_REDIRECTOR//eos/dev/test/fst/plain/file32MB.dat >> $EOSCERTLOG 2>&1
+xrdcp -f $TMP_FILE_32MB root://$EOS_TEST_REDIRECTOR//eos/dev/test/fst/raiddp/file32MB.dat >> $EOSCERTLOG 2>&1
 
 runtest "### Fst       " unix 0 "" eos-fst-test
 runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/dev/test/fst"
+runtest "### Cleanup   " unix 2 "" shell rm "$TMP_FILE_32MB"
 
 ################################################################################
 # OTHER TESTS
