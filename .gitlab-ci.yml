@@ -441,10 +441,12 @@ k8s-unit-test:
     - git clone https://gitlab.cern.ch/faluchet/eos-on-k8s.git; cd eos-on-k8s
     # - all_yaml=(eos-storage-*.yaml); for i in ${all_yaml[@]}; do sed -i 's%gitlab-registry.cern.ch/dss/eos.*%gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG}%g' $i; done
     - all_yaml=(eos-storage-*.yaml); for i in ${all_yaml[@]}; do sed -i 's%gitlab-registry.cern.ch/dss/eos.*%gitlab-registry.cern.ch/dss/eos:4.4.24%g' $i; done
-    - ./create-all.sh "${CI_JOB_NAME}-${CI_COMMIT_TAG}"
+    # - ./create-all.sh "${CI_JOB_NAME}-${CI_COMMIT_TAG}"
+    - ./create-all.sh "$x{CI_JOB_ID}x"
     - kubectl exec -it $(kubectl get pods --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-unit-tests # || true
     - kubectl exec -it $(kubectl get pods --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-fst-unit-tests # || true
-    - ./delete-all.sh "${CI_JOB_NAME}-${CI_COMMIT_TAG}"
+    # - ./delete-all.sh "${CI_JOB_NAME}-${CI_COMMIT_TAG}"
+    - ./delete-all.sh "x${CI_JOB_ID}x"
   dependencies:
     - cc7_docker_image_commit
   allow_failure: true
