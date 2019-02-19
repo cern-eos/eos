@@ -85,6 +85,7 @@ export TESTSYSFILE0K=$EOS_TEST_TESTSYS/file.0K
 export TESTSYSFILE1K=$EOS_TEST_TESTSYS/file.1K
 export TESTSYSFILE1M=$EOS_TEST_TESTSYS/file.1M
 export TESTSYSFILE50M=$EOS_TEST_TESTSYS/file.50M
+export TESTFSTFILE32M=$EOS_TEST_TESTSYS/file.32M
 export EOSLOGBOOK=/var/log/eos/mgm/logbook.log
 
 ################################################################################
@@ -128,6 +129,13 @@ fi
 CKS50M=`eos-adler32 $TESTSYSFILE50M | awk '{print $4'} | sed s/adler32=//`
 echo "adler32 (50M) = $CKS50M"
 
+if [ ! -e $TESTFSTFILE32M ]; then
+echo "#######################################"
+echo "### Creating FST Test Pattern File 32M"
+echo "#######################################"
+dd if=/dev/zero bs=1M count=32 | tr '\000' '\001' > $TESTFSTFILE32M
+fi
+
 export EOS_TEST_RAIN_DIR=$EOS_TEST_TESTSYS/rain
 
 if [ ! -d $EOS_TEST_RAIN_DIR ]; then
@@ -139,6 +147,7 @@ mkdir -p $EOS_TEST_RAIN_DIR
 dd if=/dev/urandom of=$EOS_TEST_RAIN_DIR/file1.rain bs=1552K count=1
 dd if=/dev/urandom of=$EOS_TEST_RAIN_DIR/file2.rain bs=18227K count=1
 dd if=/dev/urandom of=$EOS_TEST_RAIN_DIR/file3.rain bs=1M count=34
+
 echo "############################################"
 echo "### Creating Files and Patterns for IO Test"
 echo "############################################"
@@ -151,6 +160,7 @@ cp $EOS_TEST_RAIN_DIR/file3.rain $EOS_TEST_RAIN_DIR/file3.io
  echo "1589248 20971520"; echo "20971520 20973568"; echo "20972544 20975616 ";
  echo "20972544 20976640"; echo "20976640 35651584") >> $EOS_TEST_RAIN_DIR/file3.io.pattern
 fi
+
 fi
 
 ################################################################################
@@ -1300,15 +1310,10 @@ runtest "### Attr      " unix 0 "" eos attr set sys.forced.checksum=adler "/eos/
 runtest "### Attr      " unix 0 "" eos attr set sys.forced.nstripes=1 "/eos/$EOS_TEST_INSTANCE/test/fst/plain"
 runtest "### Attr      " unix 0 "" eos attr set sys.forced.space=default "/eos/$EOS_TEST_INSTANCE/test/fst/plain"
 runtest "### Attr      " unix 0 "" eos attr set default=raiddp "/eos/$EOS_TEST_INSTANCE/test/fst/raiddp"
-
-TMP_FILE_32MB=/tmp/file32MB.dat
-dd if=/dev/zero count=32 bs=1M status=none | tr '\000' '\001' > $TMP_FILE_32MB
-xrdcp -f $TMP_FILE_32MB root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/fst/plain/file32MB.dat >> $EOSCERTLOG 2>&1
-xrdcp -f $TMP_FILE_32MB root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/fst/raiddp/file32MB.dat >> $EOSCERTLOG 2>&1
-
-runtest "### Fst       " unix 0 "" eos-fst-test -v -n $EOS_TEST_INSTANCE
+runtest "### Upload    " unix 0 "" upload "$TESTFSTFILE32M" "/eos/$EOS_TEST_INSTANCE/test/fst/plain/file32MB.dat"
+runtest "### Upload    " unix 0 "" upload "$TESTFSTFILE32M" "/eos/$EOS_TEST_INSTANCE/test/fst/raiddp/file32MB.dat"
+runtest "### Fst       " unix 0 "" shell eos-fst-test -v -n $EOS_TEST_INSTANCE
 runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/fst"
-runtest "### Cleanup   " unix 2 "" shell rm "$TMP_FILE_32MB"
 
 ################################################################################
 # OTHER TESTS
