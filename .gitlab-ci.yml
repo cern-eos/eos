@@ -225,6 +225,10 @@ build_cc7_xrd_testing:
   tags:
     - docker_node
     - cc7
+  only:
+    - branches
+  except:
+    - xdc
   allow_failure: true
 
 
@@ -343,6 +347,7 @@ cc7_docker_image_xrd_testing:
     - branches
   except:
     - beryl_aquamarine
+    - xdc
     - tags
   allow_failure: true
 
@@ -488,6 +493,8 @@ system_test_qdb_xrd_testing:
     EOS_IMG_NAME: "eos:xrd_testing_"
   only:
     - branches
+  except:
+    - xdc
   tags:
     - shell-with-docker
   dependencies:
@@ -511,6 +518,10 @@ system_test:
 ubuntu_system_test:
   stage: test
   <<: *ubuntu_system_test_template_definition
+  only:
+    - branches
+  except:
+    - xdc
   tags:
     - shell-with-docker
   allow_failure: true
