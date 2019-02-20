@@ -29,6 +29,7 @@
 #include "common/FileSystem.hh"
 #include "common/RWMutex.hh"
 #include "common/AssistedThread.hh"
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "fst/Load.hh"
 #include "fst/Health.hh"
 #include "fst/txqueue/TransferMultiplexer.hh"
@@ -214,7 +215,7 @@ private:
   //----------------------------------------------------------------------------
   void Supervisor();
   void Communicator(ThreadAssistant &assistant);
-  void QdbCommunicator(ThreadAssistant &assistant);
+  void QdbCommunicator(QdbContactDetails contactDetails, ThreadAssistant &assistant);
   void Scrub();
   void Trim();
   void Remover();
@@ -378,6 +379,7 @@ private:
 
 private:
   AssistedThread mCommunicatorThread;
+  AssistedThread mQdbCommunicatorThread;
 };
 
 EOSFSTNAMESPACE_END

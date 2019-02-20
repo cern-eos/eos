@@ -379,6 +379,7 @@ public:
   XrdOucString eoscpTransferLog; ///< eoscp.log full path
   const char* mHostName; ///< FST hostname
   QdbContactDetails mQdbContactDetails; ///< QDB contact details
+  bool mMqOnQdb; ///< Are we using QDB as an MQ?
   int mHttpdPort; ///< listening port of the http server
 private:
   HttpServer* mHttpd; ///< Embedded http server

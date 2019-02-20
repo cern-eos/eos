@@ -115,6 +115,7 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 XrdFstOfs::XrdFstOfs() :
   eos::common::LogId(), mHostName(NULL), mHttpd(0),
+  mMqOnQdb(false),
   Simulate_IO_read_error(false), Simulate_IO_write_error(false),
   Simulate_XS_read_error(false), Simulate_XS_write_error(false),
   Simulate_FMD_open_error(false)
@@ -529,6 +530,24 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
           std::string pwlen = std::to_string(mQdbContactDetails.password.size());
           Eroute.Say("=====> fstofs.qdbpassword length : ", pwlen.c_str());
+        }
+
+        if(!strcmp("mq_implementation", var)) {
+          std::string value;
+
+          while ((val = Config.GetWord())) {
+            value += val;
+          }
+
+          if(value == "qdb") {
+            mMqOnQdb = true;
+          }
+          else {
+            Eroute.Emsg("Config", "unrecognized value for mq_implementation");
+            NoGo = 1;
+          }
+
+          Eroute.Say("=====> fstofs.mq_implementation : ", value.c_str());
         }
       }
     }

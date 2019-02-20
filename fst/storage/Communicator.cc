@@ -436,10 +436,11 @@ Storage::Communicator(ThreadAssistant &assistant)
 // QdbCommunicator
 //------------------------------------------------------------------------------
 void
-Storage::QdbCommunicator(ThreadAssistant &assistant)
+Storage::QdbCommunicator(QdbContactDetails contactDetails, ThreadAssistant &assistant)
 {
-
-
+  while(!assistant.terminationRequested()) {
+    assistant.wait_for(std::chrono::seconds(1));
+  }
 }
 
 EOSFSTNAMESPACE_END
