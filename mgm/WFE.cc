@@ -2094,10 +2094,13 @@ int
 WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
                              const cta::xrd::Request& request, std::string& errorMsg, bool retry)
 {
+  const std::string &event = jobPtr->mActions[0].mEvent;
+
   if (gOFS->ProtoWFEndPoint.empty() || gOFS->ProtoWFResource.empty()) {
-    eos_static_err(
-      "You are running proto wf jobs without specifying mgmofs.protowfendpoint or mgmofs.protowfresource in the MGM config file."
-    );
+    eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
+                   "msg=\"You are running proto wf jobs without specifying mgmofs.protowfendpoint or "
+                   "mgmofs.protowfresource in the MGM config file.\"",
+                   gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(), event.c_str());
     jobPtr->MoveWithResults(ENOTCONN);
     return ENOTCONN;
   }
@@ -2118,16 +2121,19 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
 
   // Send the request
   try {
-    auto sentAt = std::chrono::steady_clock::now();
+    const auto sentAt = std::chrono::steady_clock::now();
     service.Send(request, response);
-    auto receivedAt = std::chrono::steady_clock::now();
-    auto timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>
-                     (receivedAt - sentAt);
-    eos_static_info("SSI Protobuf time for %s=%ld",
-                    jobPtr->mActions[0].mEvent.c_str(), timeSpent.count());
+    const auto receivedAt = std::chrono::steady_clock::now();
+    const auto timeSpentMilliseconds = std::chrono::duration_cast<std::chrono::milliseconds> (receivedAt - sentAt);
+    eos_static_info("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" timeSpentMs=%ld "
+                    "msg=\"Sent SSI protocol buffer request\"",
+                    gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(), event.c_str(),
+                    timeSpentMilliseconds.count());
   } catch (std::runtime_error& error) {
-    eos_static_err("Could not send request to outside service. Reason: %s",
-                   error.what());
+    eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
+      "msg=\"Could not send SSI protocol buffer request to outside service.\" reason=\"%s\"",
+      gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(), event.c_str(),
+      error.what());
     errorMsg = error.what();
     retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(ENOTCONN);
     return ENOTCONN;
@@ -2148,9 +2154,10 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
 
       if (gOFS->_attr_set(fullPath.c_str(), errInfo, rootvid,
                           nullptr, attrPair.first.c_str(), attrPair.second.c_str()) != 0) {
-        eos_static_err("Could not set attribute %s with value %s for file %s. Reason: %s",
-                       attrPair.first.c_str(), attrPair.second.c_str(), fullPath.c_str(),
-                       errInfo.getErrText());
+        eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
+                       "msg=\"Could not set attribute\" attrName=\"%s\" attrValue=\"%s\" reason=\"%s\"",
+                       gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(), event.c_str(),
+                       attrPair.first.c_str(), attrPair.second.c_str(), errInfo.getErrText());
       }
     }
 
@@ -2177,7 +2184,10 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
   case cta::xrd::Response::RSP_INVALID:
   default:
     retval = EBADMSG;
-    eos_static_err("Response:\n%s", response.DebugString().c_str());
+    eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
+                   "msg=\"Invalid or unknown response\" response=\"%s\"",
+                   gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(), event.c_str(),
+                   response.DebugString().c_str());
   }
 
   const std::map<decltype(cta::xrd::Response::RSP_ERR_CTA), const char*>
@@ -2187,8 +2197,10 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
     { cta::xrd::Response::RSP_ERR_PROTOBUF, "RSP_ERR_PROTOBUF" },
     { cta::xrd::Response::RSP_INVALID,      "RSP_INVALID" }
   };
-  eos_static_err("%s for file %s. Reason: %s", errorEnumMap.at(response.type()),
-                 fullPath.c_str(), response.message_txt().c_str());
+  eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
+                 "msg=\"Received an error response\" response=\"%s\" reason=\"%s\"",
+                 gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(), event.c_str(),
+                 errorEnumMap.at(response.type()), response.message_txt().c_str());
   retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(retval);
   errorMsg = response.message_txt();
   return retval;
