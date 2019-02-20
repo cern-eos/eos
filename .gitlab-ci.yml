@@ -543,6 +543,9 @@ ubuntu_system_test:
   allow_failure: true
   dependencies:
     - clone_docker
+  only:
+    - dev
+    - master
   retry: 1
 
 
