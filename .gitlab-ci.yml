@@ -636,6 +636,19 @@ rpm_testing_artifacts:
   retry: 2
 
 
+rpm_xdc_artifacts:
+  stage: publish
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y sudo sssd-client createrepo
+    - sudo -u stci -H ./gitlab-ci/store_artifacts_xdc.sh "citrine-xdc" "commit" /eos/project/s/storage-ci/www/eos
+  tags:
+    - docker_node
+  only:
+    - xdc
+  retry: 2
+
+
 rpm_stable_artifacts:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
