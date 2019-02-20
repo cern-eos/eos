@@ -28,6 +28,7 @@
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
 #include "common/RWMutex.hh"
+#include "common/AssistedThread.hh"
 #include "fst/Load.hh"
 #include "fst/Health.hh"
 #include "fst/txqueue/TransferMultiplexer.hh"
@@ -212,7 +213,8 @@ private:
   //! Worker threads implementation
   //----------------------------------------------------------------------------
   void Supervisor();
-  void Communicator();
+  void Communicator(ThreadAssistant &assistant);
+  void QdbCommunicator(ThreadAssistant &assistant);
   void Scrub();
   void Trim();
   void Remover();
@@ -373,6 +375,9 @@ private:
   //! Check if node is active i.e. the stat.active
   //----------------------------------------------------------------------------
   bool IsNodeActive() const;
+
+private:
+  AssistedThread mCommunicatorThread;
 };
 
 EOSFSTNAMESPACE_END

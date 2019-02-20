@@ -32,7 +32,7 @@ EOSFSTNAMESPACE_BEGIN
 // Communicator
 //------------------------------------------------------------------------------
 void
-Storage::Communicator()
+Storage::Communicator(ThreadAssistant &assistant)
 {
   eos_static_info("Communicator activated ...");
   std::string watch_id = "id";
@@ -430,6 +430,16 @@ Storage::Communicator()
   }
 
   XrdSysThread::SetCancelOn();
+}
+
+//------------------------------------------------------------------------------
+// QdbCommunicator
+//------------------------------------------------------------------------------
+void
+Storage::QdbCommunicator(ThreadAssistant &assistant)
+{
+
+
 }
 
 EOSFSTNAMESPACE_END
