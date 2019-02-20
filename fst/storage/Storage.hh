@@ -379,7 +379,10 @@ private:
 
 private:
   AssistedThread mCommunicatorThread;
+<<<<<<< HEAD
   AssistedThread mQdbCommunicatorThread;
+=======
+>>>>>>> FST: Move communicator thread to AssistedThread
 };
 
 EOSFSTNAMESPACE_END
