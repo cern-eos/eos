@@ -193,7 +193,7 @@ Group: Applications/File
 Requires: xrootd >= %{xrootd_version}
 Requires: xrootd-client >= %{xrootd_version}
 Requires: xrootd-private-devel >= %{xrootd_version}
-Requires: eos-client
+Requires: eos-client = @CPACK_PACKAGE_VERSION@
 Requires: libmicrohttpd >= 0.9.38
 Requires: acl
 Requires: gdb
