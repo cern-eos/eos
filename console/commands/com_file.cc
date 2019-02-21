@@ -36,6 +36,8 @@
 #define ECOMM 70
 #endif
 
+void com_fileinfo_help();
+
 //------------------------------------------------------------------------------
 //! Convert an FST env representation to an Fmd struct
 //!
@@ -248,13 +250,14 @@ GetRemoteFmdFromLocalDb(const char* manager, const char* shexfid,
   return 0;
 }
 
-
-/* Get file information */
+//------------------------------------------------------------------------------
+// Fileinfo command entry point
+//------------------------------------------------------------------------------
 int
-com_fileinfo(char* arg1)
-{
+com_fileinfo(char* arg1) {
   XrdOucString savearg = arg1;
-  // split subcommands
+
+  // Split subcommands
   eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString path = subtokenizer.GetToken();
@@ -274,70 +277,68 @@ com_fileinfo(char* arg1)
     }
   } while (1);
 
-  XrdOucString in = "mgm.cmd=fileinfo&";
-
   if (wants_help(savearg.c_str())) {
-    goto com_fileinfo_usage;
+    com_fileinfo_help();
+    return 0;
   }
 
-  if (!path.length()) {
-    goto com_fileinfo_usage;
-  } else {
-    if (path.beginswith("-")) {
-      goto com_fileinfo_usage;
-    }
-
-    if ((!path.beginswith("fid:")) && (!path.beginswith("fxid:")) &&
-        (!path.beginswith("pid:")) && (!path.beginswith("pxid:")) &&
-        (!path.beginswith("inode:"))) {
-      path = abspath(path.c_str());
-    }
-
-    in += "mgm.path=";
-    in += path;
-
-    if (option.length()) {
-      in += "&mgm.file.info.option=";
-      in += option;
-    }
-
-    if ((option.find("silent") == STR_NPOS)) {
-      global_retc = output_result(client_command(in));
-    }
-
-    return (0);
+  if (!path.length() || path.beginswith("-")) {
+    com_fileinfo_help();
+    global_retc = EINVAL;
+    return EINVAL;
   }
 
-com_fileinfo_usage:
-  fprintf(stdout,
-          "usage: fileinfo <path> [--path] [--fxid] [--fid] [--size] [--checksum] [--fullpath] [-m] [--silent] [--env] :  print file information for <path>\n");
-  fprintf(stdout,
-          "       fileinfo fxid:<fid-hex>                                           :  print file information for fid <fid-hex>\n");
-  fprintf(stdout,
-          "       fileinfo fid:<fid-dec>                                            :  print file information for fid <fid-dec>\n");
-  fprintf(stdout,
-          "       fileinfo inode:<fid-dec>                                          :  print file information for inode (decimal)>\n");
-  fprintf(stdout,
-          "                                                                 --path  :  selects to add the path information to the output\n");
-  fprintf(stdout,
-          "                                                                 --fxid  :  selects to add the hex file id information to the output\n");
-  fprintf(stdout,
-          "                                                                 --fid   :  selects to add the base10 file id information to the output\n");
-  fprintf(stdout,
-          "                                                                 --size  :  selects to add the size information to the output\n");
-  fprintf(stdout,
-          "                                                              --checksum :  selects to add the checksum information to the output\n");
-  fprintf(stdout,
-          "                                                              --fullpath :  selects to add the full path information to each replica\n");
-  fprintf(stdout,
-          "                                                              --proxy    :  selects to add the proxy information if any\n");
-  fprintf(stdout,
-          "                                                                  -m     :  print single line in monitoring format\n");
-  fprintf(stdout,
-          "                                                                  --env  :  print in OucEnv format\n");
-  fprintf(stdout,
-          "                                                                  -s     :  silent - used to run as internal command\n");
+  if ((!path.beginswith("fid:")) && (!path.beginswith("fxid:")) &&
+      (!path.beginswith("pid:")) && (!path.beginswith("pxid:")) &&
+      (!path.beginswith("inode:"))) {
+    path = abspath(path.c_str());
+  }
+
+  XrdOucString in = "mgm.cmd=fileinfo&";
+  in += "mgm.path=";
+  in += path;
+
+  if (option.length()) {
+    in += "&mgm.file.info.option=";
+    in += option;
+  }
+
+  if ((option.find("silent") == STR_NPOS)) {
+    global_retc = output_result(client_command(in));
+  }
+
   return (0);
+}
+
+//------------------------------------------------------------------------------
+// Fileinfo help message
+//------------------------------------------------------------------------------
+void com_fileinfo_help()
+{
+  std::ostringstream oss;
+
+  oss << "Usage: fileinfo <identifier> [--path] [--fid] [--fxid] [--size] [--checksum] [--fullpath] [--proxy] [-m] [--env] [-s|--silent]"
+      << std::endl
+      << "    Prints file information for specified <identifier>" << std::endl
+      << "        <identifier> = <path>|fid:<fid-dec>|fxid:<fid-hex>|inode:<inode-dec>"
+      << std::endl
+      << "Options:" << std::endl
+      << "        --path                        :  filters output to show path field" << std::endl
+      << "        --fid                         :  filters output to show fid field" << std::endl
+      << "        --fxid                        :  filters output to show fxid field" << std::endl
+      << "        --size                        :  filters output to show size field" << std::endl
+      << "        --checksum                    :  filters output to show checksum field" << std::endl
+      << "        --fullpath                    :  adds physical path information to the output" << std::endl
+      << "        --proxy                       :  adds proxy information to the output" << std::endl
+      << "        -m                            :  prints single-line information in monitoring format" << std::endl
+      << "        --env                         :  prints information in OucEnv format" << std::endl
+      << "   -s | --silent                      :  silent - used to run as internal command" << std::endl
+      << std::endl
+      << "Remarks:" <<std::endl
+      << "        Filters stack up and apply only to normal display mode." << std::endl
+      << "        Command also supports JSON output." << std::endl;
+
+  std::cout << oss.str() << std::endl;
 }
 
 int
