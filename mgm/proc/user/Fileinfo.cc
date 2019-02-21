@@ -53,13 +53,11 @@ ProcCommand::Fileinfo()
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
   struct stat buf;
-  unsigned long long id = 0;
+  unsigned long long fid = 0;
 
-  if ((!spath.beginswith("inode:")) &&
-      (!spath.beginswith("fid:")) &&
-      (!spath.beginswith("fxid:")) &&
-      (!spath.beginswith("pid:")) &&
-      (!spath.beginswith("pxid:"))) {
+  if ((!spath.beginswith("fid:")) && (!spath.beginswith("fxid:")) &&
+      (!spath.beginswith("pid:")) && (!spath.beginswith("pxid:")) &&
+      (!spath.beginswith("inode:"))) {
     if (gOFS->_stat(path, &buf, *mError, *pVid, (char*) 0, (std::string*)0,
                     false)) {
       stdErr = "error: cannot stat '";
@@ -70,41 +68,39 @@ ProcCommand::Fileinfo()
     }
 
     if (S_ISDIR(buf.st_mode)) {
-      id = buf.st_ino;
+      fid = buf.st_ino;
     } else {
-      id = eos::common::FileId::InodeToFid(buf.st_ino);
+      fid = eos::common::FileId::InodeToFid(buf.st_ino);
     }
   } else {
-    XrdOucString sid = spath;
+    XrdOucString sfid = spath;
 
-    if ((sid.replace("inode:", ""))) {
-      id = strtoull(sid.c_str(), 0, 10);
+    if ((sfid.replace("inode:", ""))) {
+      fid = strtoull(sfid.c_str(), 0, 10);
 
-      if (eos::common::FileId::IsFileInode(id)) {
+      if (eos::common::FileId::IsFileInode(fid)) {
         buf.st_mode = S_IFREG;
+        fid = eos::common::FileId::InodeToFid(fid);
         spath = "fid:";
-        id = eos::common::FileId::InodeToFid(id);
-        spath += eos::common::StringConversion::GetSizeString(sid, id);
+        spath += eos::common::StringConversion::GetSizeString(sfid, fid);
         path = spath.c_str();
       } else {
         buf.st_mode = S_IFDIR;
         spath.replace("inode:", "pid:");
         path = spath.c_str();
       }
-    } else {
-      if (spath.beginswith("f")) {
-        buf.st_mode = S_IFREG;
-      } else {
-        buf.st_mode = S_IFDIR;
-      }
+    } else { // one of fid, fxid, pid, pxid
+      buf.st_mode = (sfid.beginswith("f")) ? S_IFREG : S_IFDIR;
+      sfid.replace('p', 'f', 0, 1);
+      fid = Resolver::retrieveFileIdentifier(sfid).getUnderlyingUInt64();
     }
   }
 
   if (mJsonFormat) {
     if (S_ISDIR(buf.st_mode)) {
-      return DirJSON(id, 0);
+      return DirJSON(fid, 0);
     } else {
-      return FileJSON(id, 0);
+      return FileJSON(fid, 0);
     }
   } else {
     if (S_ISDIR(buf.st_mode)) {
@@ -180,6 +176,8 @@ ProcCommand::FileInfo(const char* path)
       XrdOucString hexpidstring;
       bool Monitoring = false;
       bool Envformat = false;
+      bool outputFilter = false;
+
       eos::common::FileId::Fid2Hex(fmd_copy->getId(), hexfidstring);
       eos::common::FileId::Fid2Hex(fmd_copy->getContainerId(), hexpidstring);
 
@@ -201,79 +199,52 @@ ProcCommand::FileInfo(const char* path)
         stdOut += cPath.GetParentPath();
         stdOut += "\n";
       } else {
-        if ((option.find("-path")) != STR_NPOS) {
-          if (!Monitoring) {
+        // Filter output according to requested filters
+        // Note: filters affect only non-monitoring output
+        if (!Monitoring) {
+          if ((option.find("-path")) != STR_NPOS) {
             stdOut += "path:   ";
             stdOut += spath;
             stdOut += "\n";
-          } else {
-            stdOut += "path=";
-            stdOut += spath;
-            stdOut += " ";
           }
-        }
 
-        if ((option.find("-fxid")) != STR_NPOS) {
-          if (!Monitoring) {
+          if ((option.find("-fxid")) != STR_NPOS) {
             stdOut += "fxid:   ";
             stdOut += hexfidstring;
             stdOut += "\n";
-          } else {
-            stdOut += "fxid=";
-            stdOut += hexfidstring;
-            stdOut += " ";
           }
-        }
 
-        if ((option.find("-fid")) != STR_NPOS) {
-          char fid[32];
-          snprintf(fid, 32, "%llu", (unsigned long long) fmd_copy->getId());
-
-          if (!Monitoring) {
+          if ((option.find("-fid")) != STR_NPOS) {
+            char fid[32];
+            snprintf(fid, 32, "%llu", (unsigned long long) fmd_copy->getId());
             stdOut += "fid:    ";
             stdOut += fid;
             stdOut += "\n";
-          } else {
-            stdOut += "fid=";
-            stdOut += fid;
-            stdOut += " ";
           }
-        }
 
-        if ((option.find("-size")) != STR_NPOS) {
-          if (!Monitoring) {
+          if ((option.find("-size")) != STR_NPOS) {
             stdOut += "size:   ";
             stdOut += eos::common::StringConversion::GetSizeString(sizestring,
                       (unsigned long long) fmd_copy->getSize());
             stdOut += "\n";
-          } else {
-            stdOut += "size=";
-            stdOut += eos::common::StringConversion::GetSizeString(sizestring,
-                      (unsigned long long) fmd_copy->getSize());
-            stdOut += " ";
           }
-        }
 
-        if ((option.find("-checksum")) != STR_NPOS) {
-          if (!Monitoring) {
+          if ((option.find("-checksum")) != STR_NPOS) {
             stdOut += "xstype: ";
             stdOut += eos::common::LayoutId::GetChecksumString(fmd_copy->getLayoutId());
             stdOut += "\n";
             stdOut += "xs:     ";
             eos::appendChecksumOnStringAsHex(fmd_copy.get(), stdOut);
             stdOut += "\n";
-          } else {
-            stdOut += "xstype=";
-            stdOut += eos::common::LayoutId::GetChecksumString(fmd_copy->getLayoutId());
-            stdOut += " ";
-            stdOut += "xs=";
-            eos::appendChecksumOnStringAsHex(fmd_copy.get(), stdOut);
-            stdOut += " ";
           }
+
+          // Mark filter flag if out is not empty
+          outputFilter = (stdOut.length() != 0);
         }
 
-        if (Monitoring || (!(option.length())) || (option == "--fullpath") ||
-            (option == "--proxy") || (option == "-m")) {
+        if (Monitoring || !outputFilter) {
+          bool showFullpath = (option.find("-fullpath") != STR_NPOS);
+          bool showProxygroup = (option.find("-proxy") != STR_NPOS);
           char ctimestring[4096];
           char mtimestring[4096];
           eos::IFileMD::ctime_t mtime;
@@ -350,7 +321,7 @@ ProcCommand::FileInfo(const char* path)
             stdOut += "    ETAGs: ";
             stdOut += etag.c_str();
             stdOut += "\n";
-            stdOut + "Layout: ";
+            stdOut += "Layout: ";
             stdOut += eos::common::LayoutId::GetLayoutTypeString(fmd_copy->getLayoutId());
             stdOut += " Stripes: ";
             stdOut += (int)(eos::common::LayoutId::GetStripeNumber(fmd_copy->getLayoutId())
@@ -411,7 +382,7 @@ ProcCommand::FileInfo(const char* path)
             stdOut += " ";
             stdOut += "ino=";
             stdOut += eos::common::StringConversion::GetSizeString(sizestring,
-                      (unsigned long long) eos::common::FileId::FidToInode(fmd_copy->getId()));
+                          eos::common::FileId::FidToInode(fmd_copy->getId()));
             stdOut += " ";
             stdOut += "pid=";
             stdOut += eos::common::StringConversion::GetSizeString(sizestring,
@@ -439,8 +410,8 @@ ProcCommand::FileInfo(const char* path)
             stdOut += "layout=";
             stdOut += eos::common::LayoutId::GetLayoutTypeString(fmd_copy->getLayoutId());
             stdOut += " nstripes=";
-            stdOut += (int)(eos::common::LayoutId::GetStripeNumber(fmd_copy->getLayoutId())
-                            + 1);
+            stdOut += (int) (eos::common::LayoutId::GetStripeNumber(fmd_copy->getLayoutId())
+                             + 1);
             stdOut += " ";
             stdOut += "lid=";
             XrdOucString hexlidstring;
@@ -459,7 +430,6 @@ ProcCommand::FileInfo(const char* path)
           std::vector<std::string> firewalleps;
           std::vector<unsigned int> unavailfs;
           std::vector<unsigned int> replacedfs;
-          std::vector<unsigned int>::const_iterator sfs;
           size_t fsIndex;
           Scheduler::AccessArguments acsargs;
           int i = 0;
@@ -480,7 +450,7 @@ ProcCommand::FileInfo(const char* path)
             XrdOucString location = "";
             location += (int) * lociter;
             XrdOucString si = "";
-            si += (int) i;
+            si += i;
             eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
             eos::common::FileSystem* filesystem = 0;
 
@@ -493,7 +463,7 @@ ProcCommand::FileInfo(const char* path)
               // replicas
               XrdOucString fullpath;
 
-              if ((option.find("-fullpath")) != STR_NPOS) {
+              if (showFullpath) {
                 eos::common::FileId::FidPrefix2FullPath(
                   hexfidstring.c_str(), filesystem->GetPath().c_str(), fullpath);
               }
@@ -502,7 +472,7 @@ ProcCommand::FileInfo(const char* path)
                 std::string format =
                   "header=1|key=host:width=24:format=s|key=schedgroup:width=16:format=s|key=path:width=16:format=s|key=stat.boot:width=10:format=s|key=configstatus:width=14:format=s|key=drainstatus:width=12:format=s|key=stat.active:width=8:format=s|key=stat.geotag:width=24:format=s";
 
-                if ((option.find("-proxy")) != STR_NPOS) {
+                if (showProxygroup) {
                   format += "|key=proxygroup:width=24:format=s";
                 }
 
@@ -516,7 +486,7 @@ ProcCommand::FileInfo(const char* path)
                   std::copy(table_mq_header.begin(), table_mq_header.end(),
                             std::back_inserter(table_mq_header_temp));
 
-                  if ((option.find("-fullpath")) != STR_NPOS) {
+                  if (showFullpath) {
                     table_mq_header_temp.push_back(std::make_tuple("physical location", 18, "s"));
                   }
 
@@ -538,7 +508,7 @@ ProcCommand::FileInfo(const char* path)
                         table_mq_data_temp.back().push_back(cell);
                       }
 
-                      if ((option.find("-fullpath")) != STR_NPOS) {
+                      if (showFullpath) {
                         table_mq_data_temp.back().push_back(TableCell(fullpath.c_str(), "s"));
                       }
                     }
@@ -605,7 +575,7 @@ ProcCommand::FileInfo(const char* path)
                 stdOut += location.c_str();
                 stdOut += " ";
 
-                if ((option.find("-fullpath")) != STR_NPOS) {
+                if (showFullpath) {
                   stdOut += "fullpath=";
                   stdOut += fullpath;
                   stdOut += " ";
@@ -644,6 +614,7 @@ ProcCommand::FileInfo(const char* path)
       }
     }
   }
+
   return SFS_OK;
 }
 
@@ -673,7 +644,7 @@ ProcCommand::DirInfo(const char* path)
         fid = strtoull(spath.c_str(), 0, 16);
       }
 
-      // reference by fid+fsid
+      // reference by pid+pxid
       //-------------------------------------------
       viewReadLock.Grab(gOFS->eosViewRWMutex);
 
@@ -720,6 +691,7 @@ ProcCommand::DirInfo(const char* path)
       XrdOucString hexfidstring;
       XrdOucString hexpidstring;
       bool Monitoring = false;
+      bool outputFilter = false;
       eos::common::FileId::Fid2Hex(dmd_copy->getId(), hexfidstring);
       eos::common::FileId::Fid2Hex(dmd_copy->getParentId(), hexpidstring);
 
@@ -727,61 +699,41 @@ ProcCommand::DirInfo(const char* path)
         Monitoring = true;
       }
 
-      if ((option.find("-path")) != STR_NPOS) {
-        if (!Monitoring) {
+      // Filter output according to requested filters
+      // Note: filters affect only non-monitoring output
+      if (!Monitoring) {
+        if ((option.find("-path")) != STR_NPOS) {
           stdOut += "path:   ";
           stdOut += spath;
           stdOut += "\n";
-        } else {
-          stdOut += "path=";
-          stdOut += spath;
-          stdOut += " ";
         }
-      }
 
-      if ((option.find("-fxid")) != STR_NPOS) {
-        if (!Monitoring) {
+        if ((option.find("-fxid")) != STR_NPOS) {
           stdOut += "fxid:   ";
           stdOut += hexfidstring;
           stdOut += "\n";
-        } else {
-          stdOut += "fxid=";
-          stdOut += hexfidstring;
-          stdOut += " ";
         }
-      }
 
-      if ((option.find("-fid")) != STR_NPOS) {
-        char fid[32];
-        snprintf(fid, 32, "%llu", (unsigned long long) dmd_copy->getId());
-
-        if (!Monitoring) {
+        if ((option.find("-fid")) != STR_NPOS) {
+          char fid[32];
+          snprintf(fid, 32, "%llu", (unsigned long long) dmd_copy->getId());
           stdOut += "fid:    ";
           stdOut += fid;
           stdOut += "\n";
-        } else {
-          stdOut += "fid=";
-          stdOut += fid;
-          stdOut += " ";
         }
-      }
 
-      if ((option.find("-size")) != STR_NPOS) {
-        if (!Monitoring) {
+        if ((option.find("-size")) != STR_NPOS) {
           stdOut += "size:   ";
           stdOut += eos::common::StringConversion::GetSizeString(sizestring,
                     (unsigned long long)(num_containers + num_files));
           stdOut += "\n";
-        } else {
-          stdOut += "size=";
-          stdOut += eos::common::StringConversion::GetSizeString(sizestring,
-                    (unsigned long long)(num_containers + num_files));
-          stdOut += " ";
         }
+
+        outputFilter = ((stdOut.length() != 0) ||
+                        (option.find("-checksum") != STR_NPOS));
       }
 
-      if (Monitoring || (!(option.length())) || (option == "--fullpath") ||
-          (option == "-m")) {
+      if (Monitoring || !outputFilter) {
         char ctimestring[4096];
         char mtimestring[4096];
         char tmtimestring[4096];
@@ -791,11 +743,6 @@ ProcCommand::DirInfo(const char* path)
         dmd_copy->getCTime(ctime);
         dmd_copy->getMTime(mtime);
         dmd_copy->getTMTime(tmtime);
-        //fprintf(stderr,"%lli.%lli %lli.%lli %lli.%lli\n",
-        //fprintf(stderr,"%llu.%llu %llu.%llu %llu.%llu\n", (unsigned long long)ctime.tv_sec,
-        //        (unsigned long long)ctime.tv_nsec, (unsigned long long)mtime.tv_sec,
-        //        (unsigned long long)mtime.tv_nsec, (unsigned long long)tmtime.tv_sec,
-        //        (unsigned long long)tmtime.tv_sec);
         time_t filectime = (time_t) ctime.tv_sec;
         time_t filemtime = (time_t) mtime.tv_sec;
         time_t filetmtime = (time_t) tmtime.tv_sec;
@@ -957,6 +904,7 @@ ProcCommand::DirInfo(const char* path)
       }
     }
   }
+
   return SFS_OK;
 }
 
@@ -966,12 +914,15 @@ ProcCommand::DirInfo(const char* path)
 int
 ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 {
-  std::string fullpath;
   eos::IFileMD::ctime_t ctime;
   eos::IFileMD::ctime_t mtime;
   eos_static_debug("fid=%llu", fid);
+
   Json::Value json;
-  json["id"] = (Json::Value::UInt64)fid;
+  json["id"] = (Json::Value::UInt64) fid;
+
+  XrdOucString hexstring;
+  eos::common::FileId::Fid2Hex(fid, hexstring);
 
   try {
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
@@ -982,7 +933,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     }
 
     std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(fid);
-    fullpath = gOFS->eosView->getUri(fmd.get());
+    std::string path = gOFS->eosView->getUri(fmd.get());
     std::shared_ptr<eos::IFileMD> fmd_copy(fmd->clone());
     fmd.reset();
     viewReadLock.Release();
@@ -990,6 +941,9 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     //--------------------------------------------------------------------------
     fmd_copy->getCTime(ctime);
     fmd_copy->getMTime(mtime);
+    unsigned long long nlink = (fmd_copy->isLink()) ? 1 : fmd_copy->getNumLocation();
+
+    json["fxid"] = hexstring.c_str();
     json["inode"] = (Json::Value::UInt64) eos::common::FileId::FidToInode(fid);
     json["ctime"] = (Json::Value::UInt64) ctime.tv_sec;
     json["ctime_ns"] = (Json::Value::UInt64) ctime.tv_nsec;
@@ -1001,8 +955,12 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["uid"] = fmd_copy->getCUid();
     json["gid"] = fmd_copy->getCGid();
     json["mode"] = fmd_copy->getFlags();
-    json["nlink"] = 1;
+    json["nlink"] = (Json::Value::UInt64) nlink;
     json["name"] = fmd_copy->getName();
+    json["path"] = path;
+    json["layout"] = eos::common::LayoutId::GetLayoutTypeString(fmd_copy->getLayoutId());
+    json["nstripes"] = (int) (eos::common::LayoutId::GetStripeNumber(fmd_copy->getLayoutId())
+                              + 1);
 
     if (fmd_copy->isLink()) {
       json["target"] = fmd_copy->getLink();
@@ -1020,7 +978,6 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     }
 
     Json::Value jsonfsids;
-    std::set<std::string> fsHosts;
     eos::IFileMD::LocationVector loc_vect = fmd_copy->getLocations();
 
     // Get host name for the fs ids
@@ -1037,12 +994,16 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
         eos::common::FileSystem::fs_snapshot_t fs;
 
         if (filesystem->SnapShotFileSystem(fs, true)) {
-          jsonfsinfo["host"] = fs.mHost;
+          XrdOucString physicalpath;
+          eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(), fs.mPath.c_str(),
+                                                  physicalpath);
           jsonfsinfo["fsid"] = fs.mId;
-          jsonfsinfo["mountpoint"] = fs.mPath;
           jsonfsinfo["geotag"] = fs.mGeoTag;
+          jsonfsinfo["host"] = fs.mHost;
+          jsonfsinfo["mountpoint"] = fs.mPath;
+          jsonfsinfo["physicalpath"] = physicalpath.c_str();
+          jsonfsinfo["schedgroup"] = fs.mGroup;
           jsonfsinfo["status"] = eos::common::FileSystem::GetStatusAsString(fs.mStatus);
-          fsHosts.insert(fs.mHost);
           jsonfsids.append(jsonfsinfo);
         }
       }
@@ -1054,10 +1015,10 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     std::string cks;
     eos::appendChecksumOnStringAsHex(fmd_copy.get(), cks);
     json["checksumvalue"] = cks;
+
     std::string etag;
     eos::calculateEtag(fmd_copy.get(), etag);
     json["etag"] = etag;
-    json["path"] = fullpath;
   } catch (eos::MDException& e) {
     errno = e.getErrno();
     eos_static_debug("caught exception %d %s\n", e.getErrno(),
@@ -1084,13 +1045,13 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 int
 ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 {
-  std::string fullpath;
   eos::IFileMD::ctime_t ctime;
   eos::IFileMD::ctime_t mtime;
   eos::IFileMD::ctime_t tmtime;
   eos_static_debug("fid=%llu", fid);
+
   Json::Value json;
-  json["id"] = (Json::Value::UInt64)fid;
+  json["id"] = (Json::Value::UInt64) fid;
 
   try {
     eos::common::RWMutexReadLock viewReadLock;
@@ -1101,7 +1062,7 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 
     std::shared_ptr<eos::IContainerMD> cmd =
       gOFS->eosDirectoryService->getContainerMD(fid);
-    fullpath = gOFS->eosView->getUri(cmd.get());
+    std::string path = gOFS->eosView->getUri(cmd.get());
     cmd->getCTime(ctime);
     cmd->getMTime(mtime);
     cmd->getTMTime(tmtime);
@@ -1120,6 +1081,7 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["mode"] = cmd->getFlags();
     json["nlink"] = 1;
     json["name"] = cmd->getName();
+    json["path"] = path;
     json["nndirectories"] = (int)cmd->getNumContainers();
     json["nfiles"] = (int)cmd->getNumFiles();
     Json::Value chld;
@@ -1160,9 +1122,7 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 
     std::string etag;
     eos::calculateEtag(cmd_copy.get(), etag);
-
     json["etag"] = etag;
-    json["path"] = fullpath;
   } catch (eos::MDException& e) {
     errno = e.getErrno();
     eos_static_debug("caught exception %d %s\n", e.getErrno(),
