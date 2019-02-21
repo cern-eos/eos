@@ -77,8 +77,17 @@ typedef struct {
   char* doc; /* Documentation for this function.  */
 } COMMAND;
 
-// Help filter function
-extern int wants_help(const char* arg1);
+//------------------------------------------------------------------------------
+//! Help flag filter function.
+//! Given a line containing command arguments, search for help keywords
+//! to determine whether help message should be displayed.
+//!
+//! @param args_line the arguments line which to filter
+//!
+//! @return true if help messaged should be displayed, false otherwise
+//------------------------------------------------------------------------------
+extern bool wants_help(const char* args_line);
+
 extern COMMAND commands[];
 extern int done;
 

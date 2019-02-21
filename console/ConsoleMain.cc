@@ -294,11 +294,11 @@ abspath(const char* in)
 //------------------------------------------------------------------------------
 // Help flag filter
 //------------------------------------------------------------------------------
-int
-wants_help(const char* arg1)
+bool
+wants_help(const char* args_line)
 {
   XrdOucString allargs = " ";
-  allargs += arg1;
+  allargs += args_line;
   allargs += " ";
 
   if ((allargs.find(" help ") != STR_NPOS) ||
@@ -308,10 +308,10 @@ wants_help(const char* arg1)
       (allargs.find(" \"-h\" ") != STR_NPOS) ||
       (allargs.find(" --help ") != STR_NPOS) ||
       (allargs.find(" \"--help\" ") != STR_NPOS)) {
-    return 1;
+    return true;
   }
 
-  return 0;
+  return false;
 }
 
 //------------------------------------------------------------------------------
@@ -1119,7 +1119,8 @@ Run(int argc, char* argv[])
 int
 execute_line(char* line)
 {
-  if (!CheckMgmOnline(serveruri.c_str())) {
+  // Check MGM availability for non-help commands
+  if (!wants_help(line) && !CheckMgmOnline(serveruri.c_str())) {
     std::cerr << "error: MGM " << serveruri.c_str()
               << " not online/reachable" << std::endl;
     exit(ENONET);
