@@ -459,16 +459,16 @@ export EOS_PSS_PATH=/
 #export EOS_TEST_INSTANCE="dev"
 
 # MGM host redirector
-export EOS_TEST_REDIRECTOR=localhost
+#export EOS_TEST_REDIRECTOR=localhost
 
 # local test output directory
-export EOS_TEST_TESTSYS=/tmp/eos-instance-test/
+#export EOS_TEST_TESTSYS=/tmp/eos-instance-test
 
 # time to lock re-sending of SMS for consecutively failing tests
-export EOS_TEST_GSMLOCKTIME=3600
+#export EOS_TEST_GSMLOCKTIME=3600
 
 # max. time given to the test to finish
-export EOS_TEST_TESTTIMESLICE=300;
+#export EOS_TEST_TESTTIMESLICE=600
 
 # ------------------------------------------------------------------
 # Global Vstl Configuration

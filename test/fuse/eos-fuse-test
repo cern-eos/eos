@@ -39,7 +39,7 @@ export EOS_TEST_REDIRECTOR=localhost
 export EOS_TEST_FULL_REDIRECTOR=`hostname -f`
 export EOS_TEST_FUSESYS=/tmp/eos-fuse-test
 export EOS_TEST_GSMLOCKTIME=3600
-export EOS_TEST_TESTTIMESLICE=600;
+export EOS_TEST_TESTTIMESLICE=600
 
 firsttest=$1
 lasttest=$2

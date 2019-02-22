@@ -183,16 +183,16 @@ EOS_PSS_PATH=/
 #EOS_TEST_INSTANCE="dev"
 
 # MGM host redirector
-EOS_TEST_REDIRECTOR=localhost
+#EOS_TEST_REDIRECTOR=localhost
 
 # Local test output directory
-EOS_TEST_TESTSYS=/tmp/eos-instance-test/
+#EOS_TEST_TESTSYS=/tmp/eos-instance-test
 
 # Time to lock re-sending of SMS for consecutively failing tests
-EOS_TEST_GSMLOCKTIME=3600
+#EOS_TEST_GSMLOCKTIME=3600
 
 # Max. time given to the test to finish
-EOS_TEST_TESTTIMESLICE=300;
+#EOS_TEST_TESTTIMESLICE=600
 
 #-------------------------------------------------------------------------------
 # QuarkDB Configuration
