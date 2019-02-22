@@ -302,13 +302,19 @@ DavixIo::fileOpen(
 
   if (flags & SFS_O_CREAT) {
     pflags |= (O_CREAT | O_RDWR);
+  } else if (flags & SFS_O_TRUNC) {
+    // Perform file replacement for truncate flag
+    fileRemove();
+    pflags = (O_CREAT | O_RDWR);
   }
 
   if ((flags & SFS_O_RDWR) || (flags & SFS_O_WRONLY)) {
     pflags |= (O_RDWR);
   }
 
-  if (!mIsS3) {
+  // Attempt directory creation if create flag is set
+  // and dealing with non-S3 access
+  if ((flags & SFS_O_CREAT) && !mIsS3) {
     DavixIo lParent(mParent.c_str());
 
     // create at least the direct parent path
@@ -320,12 +326,6 @@ DavixIo::fileOpen(
                 mParent.c_str());
         return -1;
       }
-    }
-  } else {
-    // allow file replacement for truncate open on S3 protocol
-    if ((flags & SFS_O_TRUNC)) {
-      fileRemove();
-      pflags = (O_CREAT | O_RDWR);
     }
   }
 
