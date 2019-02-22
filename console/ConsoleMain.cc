@@ -1119,13 +1119,6 @@ Run(int argc, char* argv[])
 int
 execute_line(char* line)
 {
-  // Check MGM availability for non-help commands
-  if (!wants_help(line) && !CheckMgmOnline(serveruri.c_str())) {
-    std::cerr << "error: MGM " << serveruri.c_str()
-              << " not online/reachable" << std::endl;
-    exit(ENONET);
-  }
-
   std::string comment;
   std::string line_without_comment = parse_comment(line, comment);
 
@@ -1155,9 +1148,19 @@ execute_line(char* line)
     return (-1);
   }
 
+  // Extract arguments string from full command line
   line_without_comment = line_without_comment.substr(tokens.begin()->size());
   eos::common::trim(line_without_comment);
   std::string args = line_without_comment;
+
+  // Check MGM availability
+  if (RequiresMgm(command->name, args) &&
+      !CheckMgmOnline(serveruri.c_str())) {
+    std::cerr << "error: MGM " << serveruri.c_str()
+              << " not online/reachable" << std::endl;
+    exit(ENONET);
+  }
+
   return ((*(command->func))((char*)args.c_str()));
 }
 
@@ -1337,6 +1340,22 @@ bool Path2ContainerDenominator(XrdOucString& input, unsigned long long& id)
   }
 
   return false;
+}
+
+//------------------------------------------------------------------------------
+// Check whether the given command performs an MGM call
+//------------------------------------------------------------------------------
+bool RequiresMgm(const std::string& name, const std::string& args)
+{
+  if ((name == "clear") || (name == "console") || (name == "cp") ||
+      (name == "exit") || (name == "help") || (name == "json") ||
+      (name == "pwd") || (name == "quit") || (name == "role") ||
+      (name == "silent") || (name == "timing") || (name == "?") ||
+      (name == ".q")) {
+    return false;
+  }
+
+  return !wants_help(args.c_str());
 }
 
 //------------------------------------------------------------------------------

@@ -153,9 +153,20 @@ bool Path2ContainerDenominator(XrdOucString& path);
 bool Path2ContainerDenominator(XrdOucString& path, unsigned long long& id);
 
 //------------------------------------------------------------------------------
+//! Check whether the given command performs an MGM call
+//!
+//! @param name command name
+//!
+//! @param args arguments string
+//!
+//! @return true if remote command, false otherwise
+//------------------------------------------------------------------------------
+bool RequiresMgm(const std::string& name, const std::string& args);
+
+//------------------------------------------------------------------------------
 //! Check if MGM is online and reachable
 //!
-//! @url uri where to connect to the MGM
+//! @param uri where to connect to the MGM
 //!
 //! @return true if MGM is online, otherwise false
 //------------------------------------------------------------------------------
@@ -163,7 +174,8 @@ bool CheckMgmOnline(const std::string& uri);
 
 
 //------------------------------------------------------------------------------
-//! Compute a default homedirectory or take it from the environment
+//! Compute a default home directory or take it from the environment.
+//!
 //! @return guessed home path
 //------------------------------------------------------------------------------
 std::string DefaultRoute();
