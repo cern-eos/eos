@@ -192,6 +192,8 @@ ConverterJob::DoIt()
     url_dst.SetUserName("root");
     url_dst.SetParams(cgi);
     url_dst.SetPath(target);
+    eos::common::XrdConnIdHelper src_id_helper(gOFS->mXrdConnPool, url_src);
+    eos::common::XrdConnIdHelper dst_id_helper(gOFS->mXrdConnPool, url_dst);
     properties.Set("source", url_src);
     properties.Set("target", url_dst);
     properties.Set("sourceLimit", (uint16_t) 1);
