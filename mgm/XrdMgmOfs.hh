@@ -113,6 +113,7 @@
 #include "mgm/auth/AccessChecker.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
+#include "mgm/FuseNotificationGuard.hh"
 #include <google/sparse_hash_map>
 #include <chrono>
 #include <mutex>

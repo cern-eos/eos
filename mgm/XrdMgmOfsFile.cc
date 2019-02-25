@@ -648,7 +648,7 @@ attrmap.count("user.acl"), attrmapF.count("sys.acl"), attrmapF.count("user.acl")
     if (acl.HasAcl()) {
 eos_debug("uid %d sudoer %d isRW %d CanNotRead %d CanNotWrite %d",
 vid.uid, vid.sudoer, isRW, acl.CanNotRead(), acl.CanNotWrite());
-      if ( (vid.uid != 0) && (!vid.sudoer) && (isRW ? acl.CanNotWrite() : acl.CanNotRead()) ) {  
+      if ( (vid.uid != 0) && (!vid.sudoer) && (isRW ? acl.CanNotWrite() : acl.CanNotRead()) ) {
         eos_debug("uid %d sudoer %d isRW %d CanNotRead %d CanNotWrite %d",
                vid.uid, vid.sudoer, isRW, acl.CanNotRead(), acl.CanNotWrite());
         errno = EPERM;
@@ -691,7 +691,6 @@ vid.uid, vid.sudoer, isRW, acl.CanNotRead(), acl.CanNotWrite());
         return Emsg(epname, error, errno, "open file", path);
       }
     }
-eos_debug("coucou");
 
     if (sticky_owner) {
       eos_info("msg=\"client acting as directory owner\" path=\"%s\" uid=\"%u=>%u\" gid=\"%u=>%u\"",
@@ -768,7 +767,6 @@ eos_debug("coucou");
                   "you have to be a priviledged user for updates");
     }
 
-eos_debug("coucou");
     if (!isInjection && (open_mode & SFS_O_TRUNC) && fmd) {
       // check if this directory is write-once for the mapped user
       if (acl.HasAcl()) {
@@ -815,7 +813,6 @@ eos_debug("coucou");
 
       gOFS->MgmStats.Add("OpenWriteTruncate", vid.uid, vid.gid, 1);
     } else {
-eos_debug("coucou");
       if (!(fmd) && ((open_flag & O_CREAT))) {
         gOFS->MgmStats.Add("OpenWriteCreate", vid.uid, vid.gid, 1);
       } else {
@@ -973,7 +970,6 @@ eos_debug("coucou");
       gOFS->MgmStats.Add("OpenRead", vid.uid, vid.gid, 1);
     }
   }
-eos_debug("coucou");
 
   // ---------------------------------------------------------------------------
   // flush synchronization logic, don't open a file which is currently flushing
@@ -1061,7 +1057,6 @@ eos_debug("coucou");
   if (openOpaque->Get("eos.etag")) {
     ext_etag = openOpaque->Get("eos.etag");
   }
-eos_debug("coucou");
 
   if (openOpaque->Get("eos.xattr")) {
     int envlen;
@@ -1163,7 +1158,6 @@ eos_debug("coucou");
     }
   }
 
-eos_debug("coucou");
   // 0-size files can be read from the MGM if this is not FUSE access!
   if (!isRW && !isFuse && !fmd->getSize()) {
     isZeroSizeFile = true;
@@ -1235,7 +1229,6 @@ eos_debug("coucou");
     }
   }
 
-eos_debug("coucou");
   if (attrmap.count("sys.forced.minsize")) {
     minimumsize = strtoull(attrmap["sys.forced.minsize"].c_str(), 0, 10);
   }

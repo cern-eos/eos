@@ -177,6 +177,7 @@ add_library(
   GeoBalancer.cc
   Features.cc
   ZMQ.cc
+  FuseNotificationGuard.cc FuseNotificationGuard.hh
   FuseServer.cc FuseServer.hh
   fuse-locks/LockTracker.cc   fuse-locks/LockTracker.hh
   Master.cc
