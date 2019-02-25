@@ -241,9 +241,9 @@ public:
           // we don't wait for free buffers
           return nullptr;
         }
+	xoff_cnt++;
       }
       cnt++;
-      xoff_cnt++;
       // we wait that the situation relaxes
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
     } while (1);
