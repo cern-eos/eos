@@ -28,6 +28,7 @@
 #include "namespace/interface/Identifiers.hh"
 #include <map>
 #include <unordered_set>
+#include <shared_mutex>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -71,40 +72,32 @@ public:
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  uint64_t getUsedSpaceByUser(uid_t uid) {
-    auto it = mUserInfo.find(uid);
-
-    if(it == mUserInfo.end()) {
-      return 0;
-    }
-
-    return it->second.space;
-  }
+  uint64_t getUsedSpaceByUser(uid_t uid) const;
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given group
   //----------------------------------------------------------------------------
-  uint64_t getUsedSpaceByGroup(gid_t gid);
+  uint64_t getUsedSpaceByGroup(gid_t gid) const;
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  uint64_t getPhysicalSpaceByUser(uid_t uid);
+  uint64_t getPhysicalSpaceByUser(uid_t uid) const;
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given group
   //----------------------------------------------------------------------------
-  uint64_t getPhysicalSpaceByGroup(gid_t gid);
+  uint64_t getPhysicalSpaceByGroup(gid_t gid) const;
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  uint64_t getNumFilesByUser(uid_t uid);
+  uint64_t getNumFilesByUser(uid_t uid) const;
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given group
   //----------------------------------------------------------------------------
-  uint64_t getNumFilesByGroup(gid_t gid);
+  uint64_t getNumFilesByGroup(gid_t gid) const;
 
   //----------------------------------------------------------------------------
   //! Account a new file.
@@ -127,15 +120,7 @@ public:
   //!
   //! @return set of uids
   //----------------------------------------------------------------------------
-  std::unordered_set<uint64_t> getUids() {
-    std::unordered_set<uint64_t> uids;
-
-    for (auto it = mUserInfo.begin(); it != mUserInfo.end(); ++it) {
-      uids.insert(it->first);
-    }
-
-    return uids;
-  }
+  std::unordered_set<uint64_t> getUids() const;
 
   //----------------------------------------------------------------------------
   //! Get the set of gids for which information is stored in the current quota
@@ -143,20 +128,19 @@ public:
   //!
   //! @return set of gids
   //----------------------------------------------------------------------------
-  std::unordered_set<uint64_t> getGids() {
-    std::unordered_set<uint64_t> gids;
+  std::unordered_set<uint64_t> getGids() const;
 
-    for (auto it = mGroupInfo.begin(); it != mGroupInfo.end(); ++it) {
-      gids.insert(it->first);
-    }
-
-    return gids;
-  }
+  //----------------------------------------------------------------------------
+  //! operator=
+  //----------------------------------------------------------------------------
+  QuotaNodeCore& operator=(const QuotaNodeCore&);
 
 private:
   friend class IQuotaNode;
   friend class QuotaNode;
   friend class QuarkQuotaNode;
+
+  mutable std::shared_timed_mutex mtx;
 
   std::map<uid_t, UsageInfo> mUserInfo;
   std::map<gid_t, UsageInfo> mGroupInfo;
