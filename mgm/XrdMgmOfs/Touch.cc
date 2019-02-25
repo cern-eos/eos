@@ -106,12 +106,12 @@ XrdMgmOfs::_touch(const char* path,
 
     gOFS->eosView->updateContainerStore(cmd.get());
 
-    FuseNotificationGuard fuseNotifier;
+    FuseNotificationGuard fuseNotifier(gOFS);
     fuseNotifier.castFile(fmd->getIdentifier());
     fuseNotifier.castContainer(cmd->getIdentifier());
     fuseNotifier.castRefresh(cmd->getIdentifier(), cmd->getParentIdentifier());
 
-    lock.release();
+    lock.Release();
 
     errno = 0;
   } catch (eos::MDException& e) {
