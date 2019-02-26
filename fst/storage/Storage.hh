@@ -214,8 +214,9 @@ private:
   //! Worker threads implementation
   //----------------------------------------------------------------------------
   void Supervisor();
-  void Communicator(ThreadAssistant &assistant);
-  void QdbCommunicator(QdbContactDetails contactDetails, ThreadAssistant &assistant);
+  void Communicator(ThreadAssistant& assistant);
+  void QdbCommunicator(QdbContactDetails contactDetails,
+                       ThreadAssistant& assistant);
   void Scrub();
   void Trim();
   void Remover();
@@ -379,10 +380,7 @@ private:
 
 private:
   AssistedThread mCommunicatorThread;
-<<<<<<< HEAD
   AssistedThread mQdbCommunicatorThread;
-=======
->>>>>>> FST: Move communicator thread to AssistedThread
 };
 
 EOSFSTNAMESPACE_END
