@@ -55,7 +55,7 @@ XrdMgmOfs::ShouldStall(const char* function,
         smsg = "operate - you are banned in this instance - contact an administrator";
 
         // fuse clients don't get stalled by a booted namespace, they get EACCES
-        if (vid.app == "fuse") {
+        if (vid.app.substr(0,4) == "fuse") {
           return true;
         }
 
@@ -65,7 +65,7 @@ XrdMgmOfs::ShouldStall(const char* function,
         smsg = "operate - your group is banned in this instance - contact an administrator";
 
         // fuse clients don't get stalled by a booted namespace, they get EACCES
-        if (vid.app == "fuse") {
+        if (vid.app.substr(0,4) == "fuse") {
           return true;
         }
 
@@ -75,7 +75,7 @@ XrdMgmOfs::ShouldStall(const char* function,
         smsg = "operate - your client host is banned in this instance - contact an administrator";
 
         // fuse clients don't get stalled by a booted namespace, they get EACCES
-        if (vid.app == "fuse") {
+        if (vid.app.substr(0,4) == "fuse") {
           return true;
         }
 
@@ -85,7 +85,7 @@ XrdMgmOfs::ShouldStall(const char* function,
         smsg = "operate - your client domain is banned in this instance - contact an administrator";
 
         // fuse clients don't get stalled by a booted namespace, they get EACCES
-        if (vid.app == "fuse") {
+        if (vid.app.substr(0,4) == "fuse") {
           return true;
         }
 
@@ -161,6 +161,10 @@ XrdMgmOfs::ShouldStall(const char* function,
       }
 
       if (stalltime) {
+	// add random offset between 0 and 5 to stalltime
+	int random_stall = rand() % 6;
+	stalltime += random_stall;
+	
         stallmsg = "Attention: you are currently hold in this instance and each"
                    " request is stalled for ";
         stallmsg += (int) stalltime;
