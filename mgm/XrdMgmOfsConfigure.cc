@@ -2041,6 +2041,7 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("OpenWriteCreate", 0, 0, 0);
   MgmStats.Add("OpenWriteTruncate", 0, 0, 0);
   MgmStats.Add("OpenWrite", 0, 0, 0);
+  MgmStats.Add("Prepare", 0, 0, 0);
   MgmStats.Add("ReadLink", 0, 0, 0);
   MgmStats.Add("Recycle", 0, 0, 0);
   MgmStats.Add("ReplicaFailedSize", 0, 0, 0);

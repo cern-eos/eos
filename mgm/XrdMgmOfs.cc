@@ -594,16 +594,17 @@ int
 XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                    const XrdSecEntity* client)
 {
+  EXEC_TIMING_BEGIN("Prepare");
+
   static const char* epname = "prepare";
   const char* tident = error.getErrUser();
   eos::common::Mapping::VirtualIdentity vid;
-  EXEC_TIMING_BEGIN("IdMap");
+
   XrdOucTList* pptr = pargs.paths;
   XrdOucTList* optr = pargs.oinfo;
   std::string info;
   info = (optr ? (optr->text ? optr->text : "") : "");
   eos::common::Mapping::IdMap(client, info.c_str(), tident, vid);
-  EXEC_TIMING_END("IdMap");
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   ACCESSMODE_W;
   MAYSTALL;
@@ -612,6 +613,9 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     const char* ininfo = "";
     MAYREDIRECT;
   }
+
+  gOFS->MgmStats.Add("Prepare", vid.uid, vid.gid, 1);
+
   std::string cmd = "mgm.pcmd=event";
   int retc = SFS_OK;
   std::list<std::pair<char**, char**>> pathsWithPrepare;
@@ -759,6 +763,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     }
   }
 
+  EXEC_TIMING_END("Prepare");
   return retc;
 }
 
