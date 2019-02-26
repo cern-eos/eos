@@ -571,6 +571,7 @@ Requires: xrootd-client >= %{xrootd_version}
 Requires: eos-client = @CPACK_PACKAGE_VERSION@
 Requires: fuse
 Requires: jemalloc
+Requires: attr
 %if %{use_richacl}
 Requires: librichacl, richacl >= 1.12
 %endif
