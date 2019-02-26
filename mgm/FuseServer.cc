@@ -1102,7 +1102,7 @@ FuseServer::Clients::SendMD(const eos::fusex::md& md,
   lLock.Release();
   std::string id = mUUIDView[uuid];
   eos_static_info("msg=\"sending md update\" uuid=%s clientid=%s id=%lx",
-                  uuid.c_str(), clientid.c_str(), md.md_ino());
+                  uuid.c_str(), clientid.c_str(), md_ino);
   gOFS->zMQ->mTask->reply(id, rspstream);
   EXEC_TIMING_END("Eosxd::int::SendMD");
   return 0;
@@ -3395,10 +3395,14 @@ FuseServer::HandleMD(const std::string& id,
         cmd->setMode(md.mode() | sgid_mode);
         eos::IContainerMD::ctime_t ctime;
         eos::IContainerMD::ctime_t mtime;
+	eos::IContainerMD::ctime_t pmtime;
         ctime.tv_sec = md.ctime();
         ctime.tv_nsec = md.ctime_ns();
         mtime.tv_sec = md.mtime();
         mtime.tv_nsec = md.mtime_ns();
+	pmtime.tv_sec = mtime.tv_sec;
+	pmtime.tv_nsec = mtime.tv_nsec;
+
         cmd->setCTime(ctime);
         cmd->setMTime(mtime);
 
@@ -3434,7 +3438,6 @@ FuseServer::HandleMD(const std::string& id,
 
         if (op != UPDATE && md.pmtime()) {
           // store the new modification time for the parent
-          eos::IContainerMD::ctime_t pmtime;
           pmtime.tv_sec = md.pmtime();
           pmtime.tv_nsec = md.pmtime_ns();
           pcmd->setMTime(pmtime);
@@ -3451,6 +3454,8 @@ FuseServer::HandleMD(const std::string& id,
         resp.mutable_ack_()->set_transactionid(md.reqid());
         resp.mutable_ack_()->set_md_ino(md_ino);
         resp.SerializeToString(response);
+
+	uint64_t clock = 0;
 
         switch (op) {
         case MOVE:
@@ -3472,11 +3477,12 @@ FuseServer::HandleMD(const std::string& id,
 
         // broadcast this update around
         switch (op) {
+        case CREATE:
+	  Cap().BroadcastMD(md,md_ino, md.md_pino(), clock, pmtime);
+	  break;
         case MOVE:
           Cap().BroadcastRelease(mv_md);
-
         case UPDATE:
-        case CREATE:
         case RENAME:
           Cap().BroadcastRelease(md);
           Cap().BroadcastRefresh(md.md_ino(), md, md.md_pino());
