@@ -170,8 +170,8 @@ XrdMgmOfs::ShouldStall(const char* function,
         stallmsg += (int) stalltime;
         stallmsg += " seconds ... ";
         stallmsg += smsg.c_str();
-        eos_static_info("info=\"stalling access to\" uid=%u gid=%u host=%s",
-                        vid.uid, vid.gid, vid.host.c_str());
+        eos_static_info("info=\"stalling access to\" uid=%u gid=%u host=%s stall=%d",
+                        vid.uid, vid.gid, vid.host.c_str(), stalltime);
         gOFS->MgmStats.Add("Stall", vid.uid, vid.gid, 1);
         return true;
       }
