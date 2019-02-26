@@ -1649,6 +1649,10 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string &fullPath, std::string
   bool onDisk;
   bool onTape;
 
+
+  EXEC_TIMING_BEGIN("Proto::Prepare");
+  gOFS->MgmStats.Add("Proto::Prepare", 0, 0, 1);
+
   // Check if we have a disk replica and if not, whether it's on tape
   if (gOFS->_stat(fullPath.c_str(), &buf, errInfo, mVid, nullptr, nullptr,
     false) == 0) {
@@ -1777,12 +1781,16 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string &fullPath, std::string
       } catch (eos::MDException& ex) {}
     }
 
+    EXEC_TIMING_END("Proto::Prepare");
     return sendResult;
   }
 }
 
 int
 WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string &fullPath, std::string &errorMsg) {
+  EXEC_TIMING_BEGIN("Proto::Prepare::Abort");
+  gOFS->MgmStats.Add("Proto::Prepare::Abort", 0, 0, 1);
+
   auto retrieveCntr = 0;
   {
     eos::common::RWMutexWriteLock lock;
@@ -1843,7 +1851,9 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string &fullPath, std::s
     notification->mutable_wf()->mutable_instance()->set_name(
       gOFS->MgmOfsInstanceName.c_str());
     notification->mutable_file()->set_fid(mFid);
-    return SendProtoWFRequest(this, fullPath, request, errorMsg);
+    auto s_ret = SendProtoWFRequest(this, fullPath, request, errorMsg);
+    EXEC_TIMING_END("Proto::Prepare::Abort");
+    return s_ret;
   } else {
     // retrieve counter hasn't reached 0 yet, we just return OK
     MoveWithResults(SFS_OK);
@@ -1854,6 +1864,9 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string &fullPath, std::s
 int
 WFE::Job::HandleProtoMethodCreateEvent(const std::string &fullPath, std::string &errorMsg)
 {
+  EXEC_TIMING_BEGIN("Proto::Create");
+  gOFS->MgmStats.Add("Proto::Create", 0, 0, 1);
+
   cta::xrd::Request request;
   auto notification = request.mutable_notification();
   notification->mutable_cli()->mutable_user()->set_username(GetUserName(mVid.uid));
@@ -1881,12 +1894,17 @@ WFE::Job::HandleProtoMethodCreateEvent(const std::string &fullPath, std::string 
     gOFS->MgmOfsInstanceName.c_str());
   notification->mutable_file()->set_lpath(fullPath);
   notification->mutable_file()->set_fid(mFid);
-  return SendProtoWFRequest(this, fullPath, request, errorMsg);
+  auto s_ret = SendProtoWFRequest(this, fullPath, request, errorMsg);
+  EXEC_TIMING_END("Proto::Create");
+  return s_ret;
 }
 
 int
 WFE::Job::HandleProtoMethodDeleteEvent(const std::string &fullPath, std::string &errorMsg)
 {
+  EXEC_TIMING_BEGIN("Proto::Delete");
+  gOFS->MgmStats.Add("Proto::Delete", 0, 0, 1);
+
   cta::xrd::Request request;
   auto notification = request.mutable_notification();
   notification->mutable_cli()->mutable_user()->set_username(GetUserName(mVid.uid));
@@ -1909,15 +1927,20 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string &fullPath, std::string 
                    fullPath.c_str(), errorMsg.c_str(), sendRc);
   }
 
+  EXEC_TIMING_END("Proto::Delete");
   return SFS_OK; // Ignore any failure in notifying the protocol buffer endpoint
 }
 
 int
 WFE::Job::HandleProtoMethodCloseEvent(const std::string &event, const std::string &fullPath)
 {
+  EXEC_TIMING_BEGIN("Proto::Close");
+  gOFS->MgmStats.Add("Proto::Close", 0, 0, 1);
+
   if (mActions[0].mWorkflow == RETRIEVE_WRITTEN_WORKFLOW_NAME) resetRetreiveCounterAndErrorMsg(fullPath);
 
   MoveWithResults(SFS_OK);
+  EXEC_TIMING_END("Proto::Close");
   return SFS_OK;
 }
 
@@ -1947,6 +1970,9 @@ int
 WFE::Job::HandleProtoMethodArchivedEvent(const std::string &event, const std::string &fullPath,
   const char * const ininfo)
 {
+  EXEC_TIMING_BEGIN("Proto::Archive");
+  gOFS->MgmStats.Add("Proto::Archive", 0, 0, 1);
+
   std::string xattrCtaArchiveFileId;
   bool hasXattrCtaArchiveFileId = false;
   {
@@ -2025,6 +2051,7 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string &event, const std::st
   }
 
   MoveWithResults(SFS_OK);
+  EXEC_TIMING_END("Proto::Archive");
   return SFS_OK;
 }
 
@@ -2054,6 +2081,9 @@ WFE::Job::GetFileArchivedGCEnabled(const std::string &space) {
 int
 WFE::Job::HandleProtoMethodRetrieveFailedEvent(const std::string &fullPath)
 {
+  EXEC_TIMING_BEGIN("Proto::Retrieve::Failed");
+  gOFS->MgmStats.Add("Proto::Retrieve::Failed", 0, 0, 1);
+
   try {
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
@@ -2068,12 +2098,16 @@ WFE::Job::HandleProtoMethodRetrieveFailedEvent(const std::string &fullPath)
   }
 
   MoveWithResults(SFS_OK);
+  EXEC_TIMING_END("Proto::Retrieve::Failed");
   return SFS_OK;
 }
 
 int
 WFE::Job::HandleProtoMethodArchiveFailedEvent(const std::string &fullPath)
 {
+  EXEC_TIMING_BEGIN("Proto::Archive::Failed");
+  gOFS->MgmStats.Add("Proto::Archive::Failed", 0, 0, 1);
+
   try {
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
@@ -2087,6 +2121,7 @@ WFE::Job::HandleProtoMethodArchiveFailedEvent(const std::string &fullPath)
   }
 
   MoveWithResults(SFS_OK);
+  EXEC_TIMING_END("Proto::Archive::Failed");
   return SFS_OK;
 }
 
@@ -2095,6 +2130,11 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
                              const cta::xrd::Request& request, std::string& errorMsg, bool retry)
 {
   const std::string &event = jobPtr->mActions[0].mEvent;
+
+  std::string exec_tag = "Proto::Send::"; exec_tag += event;
+
+  EXEC_TIMING_BEGIN(exec_tag.c_str());
+  gOFS->MgmStats.Add(exec_tag.c_str(), 0, 0, 1);
 
   if (gOFS->ProtoWFEndPoint.empty() || gOFS->ProtoWFResource.empty()) {
     eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
@@ -2162,6 +2202,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
     }
 
     jobPtr->MoveWithResults(SFS_OK);
+    EXEC_TIMING_END(exec_tag.c_str());
     return SFS_OK;
   }
 
