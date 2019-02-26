@@ -61,7 +61,7 @@ class RequestServiceImpl final : public Eos::Service
                     context->peer().c_str(), GrpcServer::IP(context).c_str(),
                     GrpcServer::DN(context).c_str(), request->authkey().c_str());
     eos::common::Mapping::VirtualIdentity_t vid;
-    GrpcServer::Vid(context, &vid, request->authkey());
+    GrpcServer::Vid(context, vid, request->authkey());
     reply->set_message(request->message());
     return Status::OK;
   }
@@ -73,7 +73,7 @@ class RequestServiceImpl final : public Eos::Service
                     context->peer().c_str(), GrpcServer::IP(context).c_str(),
                     GrpcServer::DN(context).c_str(), request->authkey().c_str());
     eos::common::Mapping::VirtualIdentity_t vid;
-    GrpcServer::Vid(context, &vid, request->authkey());
+    GrpcServer::Vid(context, vid, request->authkey());
     return GrpcNsInterface::FileInsert(vid, reply, request);
   }
 
@@ -84,7 +84,7 @@ class RequestServiceImpl final : public Eos::Service
                     context->peer().c_str(), GrpcServer::IP(context).c_str(),
                     GrpcServer::DN(context).c_str(), request->authkey().c_str());
     eos::common::Mapping::VirtualIdentity_t vid;
-    GrpcServer::Vid(context, &vid, request->authkey());
+    GrpcServer::Vid(context, vid, request->authkey());
     return GrpcNsInterface::ContainerInsert(vid, reply, request);
   }
 
@@ -95,7 +95,7 @@ class RequestServiceImpl final : public Eos::Service
                     context->peer().c_str(), GrpcServer::IP(context).c_str(),
                     GrpcServer::DN(context).c_str(), request->authkey().c_str());
     eos::common::Mapping::VirtualIdentity_t vid;
-    GrpcServer::Vid(context, &vid, request->authkey());
+    GrpcServer::Vid(context, vid, request->authkey());
 
     switch (request->type()) {
     case eos::rpc::FILE:
@@ -193,7 +193,7 @@ std::string GrpcServer::IP(grpc::ServerContext* context, std::string* id,
 /* return VID for a given call */
 void
 GrpcServer::Vid(grpc::ServerContext* context,
-                eos::common::Mapping::VirtualIdentity_t* vid,
+                eos::common::Mapping::VirtualIdentity_t& vid,
                 const std::string& authkey)
 {
   XrdSecEntity client("grpc");
@@ -212,8 +212,7 @@ GrpcServer::Vid(grpc::ServerContext* context,
     client.endorsements = const_cast<char*>(authkey.c_str());
   }
 
-  vid = new eos::common::Mapping::VirtualIdentity();
-  eos::common::Mapping::IdMap(&client, "eos.app=grpc", client.tident, *vid, true);
+  eos::common::Mapping::IdMap(&client, "eos.app=grpc", client.tident, vid, true);
 }
 
 //#endif
