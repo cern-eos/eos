@@ -1194,7 +1194,11 @@ public:
 
   bool should_selfdestroy()
   {
-    return mSelfDestruction.load();
+    bool destroy = mSelfDestruction.load();
+    if (destroy) {
+      mSelfDestruction.store(false, std::memory_order_seq_cst);
+    }
+    return destroy;;
   }
 
   int read_chunks_in_flight()
