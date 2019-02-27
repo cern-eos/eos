@@ -27,13 +27,13 @@
 #include "mgm/Namespace.hh"
 #include "common/AssistedThread.hh"
 #include "common/SteadyClock.hh"
+#include "common/RWMutex.hh"
 #include <qclient/WaitableQueue.hh>
 #include "XrdSys/XrdSysPthread.hh"
 #include <sys/types.h>
 #include <string>
 #include <map>
 #include <chrono>
-#include <shared_mutex>
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -82,7 +82,7 @@ public:
     //! Constructors
     //--------------------------------------------------------------------------
     CachedEntry(bool member, std::chrono::steady_clock::time_point ts)
-    : isMember(member), timestamp(ts) {}
+      : isMember(member), timestamp(ts) {}
 
     CachedEntry() : isMember(false) {}
   };
@@ -90,7 +90,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  Egroup(eos::common::SteadyClock *clock = nullptr);
+  Egroup(eos::common::SteadyClock* clock = nullptr);
 
   //----------------------------------------------------------------------------
   //! Destructor - join asynchronous refresh thread
@@ -110,7 +110,8 @@ public:
   //----------------------------------------------------------------------------
   // Convenience function, method to check if username is member in egroupname
   //----------------------------------------------------------------------------
-  bool Member(const std::string& username, const std::string& egroupname) {
+  bool Member(const std::string& username, const std::string& egroupname)
+  {
     return query(username, egroupname).isMember;
   }
 
@@ -118,7 +119,7 @@ public:
   // Display information about this specific username / groupname pair
   //----------------------------------------------------------------------------
   std::string DumpMember(const std::string& username,
-    const std::string& egroupname);
+                         const std::string& egroupname);
 
   //----------------------------------------------------------------------------
   // Display all cached information
@@ -129,14 +130,14 @@ public:
   // static function to schedule an asynchronous refresh for egroup/username
   //----------------------------------------------------------------------------
   void scheduleRefresh(const std::string& username,
-    const std::string& egroupname);
+                       const std::string& egroupname);
 
   //----------------------------------------------------------------------------
   // Fetch cached value, and fills variable out if a result is found.
   // Return false if item does not exist in cache.
   //----------------------------------------------------------------------------
   bool fetchCached(const std::string& username,
-    const std::string& egroupname, CachedEntry &out);
+                   const std::string& egroupname, CachedEntry& out);
 
   //----------------------------------------------------------------------------
   // Inject item into the fake LDAP server. If injections are active, any time
@@ -145,8 +146,8 @@ public:
   //
   // Simulates response of "isMemberUncached" function.
   //----------------------------------------------------------------------------
-  void inject(const std::string &username, const std::string &egroupname,
-    Status status);
+  void inject(const std::string& username, const std::string& egroupname,
+              Status status);
 
   //----------------------------------------------------------------------------
   // Return number of asynchronous refresh requests currently pending
@@ -158,18 +159,21 @@ public:
   //! If the pair exists in the cache, it is ignored and replaced.
   //----------------------------------------------------------------------------
   CachedEntry refresh(const std::string& username,
-    const std::string& egroupname);
+                      const std::string& egroupname);
 
 private:
-  const std::chrono::seconds kCacheDuration { 1800 };
-  eos::common::SteadyClock *clock = nullptr;
+  const std::chrono::seconds kCacheDuration
+  {
+    1800
+  };
+  eos::common::SteadyClock* clock = nullptr;
 
   //----------------------------------------------------------------------------
   //! Store entry into the cache
   //----------------------------------------------------------------------------
   void storeIntoCache(const std::string& username,
-    const std::string& egroupname, bool isMember,
-    std::chrono::steady_clock::time_point timestamp);
+                      const std::string& egroupname, bool isMember,
+                      std::chrono::steady_clock::time_point timestamp);
 
   /// async refresh thread
   AssistedThread mThread;
@@ -177,7 +181,7 @@ private:
   //----------------------------------------------------------------------------
   //! Check if cache entry is stale
   //----------------------------------------------------------------------------
-  bool isStale(const CachedEntry &entry) const;
+  bool isStale(const CachedEntry& entry) const;
 
   //----------------------------------------------------------------------------
   //! Asynchronous thread loop doing egroup/username fetching
@@ -185,7 +189,7 @@ private:
   void Refresh(ThreadAssistant& assistant) noexcept;
 
   /// mutex protecting static Egroup objects
-  std::shared_timed_mutex mutex;
+  eos::common::RWMutex mMutex;
 
   /// map indicating egroup memebership for egroup/username pairs
   std::map<std::string, std::map<std::string, CachedEntry>> cache;
@@ -199,8 +203,8 @@ private:
   //----------------------------------------------------------------------------
   //! Main LDAP lookup function - bypasses the cache, hits the LDAP server.
   //----------------------------------------------------------------------------
-  Status isMemberUncached(const std::string &username,
-    const std::string &egroupname);
+  Status isMemberUncached(const std::string& username,
+                          const std::string& egroupname);
 
 public:
 

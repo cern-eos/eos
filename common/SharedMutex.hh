@@ -23,7 +23,8 @@
 #pragma once
 #include "common/Namespace.hh"
 #include "common/IRWMutex.hh"
-#include <shared_mutex>
+#pragma message "WARNING: We are using a copy of the shared mutex to enable the condition variable implementation!!!"
+#include "misc/shared_mutex"
 
 EOSCOMMONNAMESPACE_BEGIN
 

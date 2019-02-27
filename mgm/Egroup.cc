@@ -31,8 +31,9 @@
 //------------------------------------------------------------------------------
 // Delete the LDAP object
 //------------------------------------------------------------------------------
-static void ldap_uninitialize(LDAP *ld) {
-  if(ld != nullptr) {
+static void ldap_uninitialize(LDAP* ld)
+{
+  if (ld != nullptr) {
     ldap_unbind_ext(ld, NULL, NULL);
   }
 }
@@ -42,7 +43,7 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor - launch asynchronous refresh thread
 //------------------------------------------------------------------------------
-Egroup::Egroup(common::SteadyClock *clock_) : clock(clock_)
+Egroup::Egroup(common::SteadyClock* clock_) : clock(clock_)
 {
   PendingQueue.setBlockingMode(true);
   mThread.reset(&Egroup::Refresh, this);
@@ -60,27 +61,30 @@ Egroup::~Egroup()
 //----------------------------------------------------------------------------
 // Return number of asynchronous refresh requests currently pending
 //----------------------------------------------------------------------------
-size_t Egroup::getPendingQueueSize() const {
+size_t Egroup::getPendingQueueSize() const
+{
   return PendingQueue.size();
 }
 
 //------------------------------------------------------------------------------
 // Main LDAP lookup function - bypasses the cache, hits the LDAP server.
 //------------------------------------------------------------------------------
-Egroup::Status Egroup::isMemberUncached(const std::string &username,
-  const std::string &egroupname) {
-
+Egroup::Status Egroup::isMemberUncached(const std::string& username,
+                                        const std::string& egroupname)
+{
   //----------------------------------------------------------------------------
   // Serving real, or simulated data?
   //----------------------------------------------------------------------------
-  if(!injections.empty()) {
+  if (!injections.empty()) {
     auto it = injections.find(egroupname);
-    if(it == injections.end()) {
+
+    if (it == injections.end()) {
       return Status::kNotMember;
     }
 
     auto it2 = it->second.find(username);
-    if(it2 == it->second.end()) {
+
+    if (it2 == it->second.end()) {
       return Status::kNotMember;
     }
 
@@ -89,7 +93,6 @@ Egroup::Status Egroup::isMemberUncached(const std::string &username,
 
   // run the LDAP query
   LDAP* ld = nullptr;
-
   //----------------------------------------------------------------------------
   // Initialize the LDAP context.
   //----------------------------------------------------------------------------
@@ -97,14 +100,15 @@ Egroup::Status Egroup::isMemberUncached(const std::string &username,
   std::unique_ptr<LDAP, decltype(ldap_uninitialize)*> ldOwnership(
     ld, ldap_uninitialize);
 
-  if(ld == nullptr) {
+  if (ld == nullptr) {
     eos_static_crit("Could not initialize ldap context");
     return Status::kError;
   }
 
   int version = LDAP_VERSION3;
-  if(ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &version) !=
-     LDAP_OPT_SUCCESS) {
+
+  if (ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &version) !=
+      LDAP_OPT_SUCCESS) {
     eos_static_crit("Failure when calling ldap_set_option");
     return Status::kError;
   }
@@ -116,7 +120,6 @@ Egroup::Status Egroup::isMemberUncached(const std::string &username,
   std::string sbase = "CN=";
   sbase += username;
   sbase += ",OU=Users,Ou=Organic Units,DC=cern,DC=ch";
-
   // the LDAP attribute (recursive search)
   std::string attr = "cn";
   // the LDAP filter
@@ -124,34 +127,30 @@ Egroup::Status Egroup::isMemberUncached(const std::string &username,
   filter = "(memberOf:1.2.840.113556.1.4.1941:=CN=";
   filter += egroupname;
   filter += ",OU=e-groups,OU=Workgroups,DC=cern,DC=ch)";
-
   char* attrs[2];
   attrs[0] = (char*) attr.c_str();
   attrs[1] = NULL;
-
   LDAPMessage* res = nullptr;
   struct timeval timeout;
   timeout.tv_sec = 10;
   timeout.tv_usec = 0;
-
   std::string match = username;
   eos_static_debug("base=%s attr=%s filter=%s match=%s\n", sbase.c_str(),
                    attr.c_str(), filter.c_str(), match.c_str());
-
   int rc = ldap_search_ext_s(ld, sbase.c_str(), LDAP_SCOPE_SUBTREE,
-                                 filter.c_str(),
-                                 attrs, 0, NULL, NULL,
-                                 &timeout, LDAP_NO_LIMIT, &res);
+                             filter.c_str(),
+                             attrs, 0, NULL, NULL,
+                             &timeout, LDAP_NO_LIMIT, &res);
+  std::unique_ptr<LDAPMessage, decltype(ldap_msgfree)*> resOwnership(res,
+      ldap_msgfree);
 
-  std::unique_ptr<LDAPMessage, decltype(ldap_msgfree)*> resOwnership(res, ldap_msgfree);
-
-  if(res == nullptr || rc != LDAP_SUCCESS) {
+  if (res == nullptr || rc != LDAP_SUCCESS) {
     eos_static_warning("Having trouble connecting to ldap server, user=%s, e-group=%s",
-      username.c_str(), egroupname.c_str());
+                       username.c_str(), egroupname.c_str());
     return Status::kError;
   }
 
-  if(ldap_count_entries(ld, res) == 0) {
+  if (ldap_count_entries(ld, res) == 0) {
     return Status::kNotMember;
   }
 
@@ -159,10 +158,11 @@ Egroup::Status Egroup::isMemberUncached(const std::string &username,
   // We have a response from the server, check if we're member of given egroup
   //----------------------------------------------------------------------------
   bool isMember = false;
-  for(LDAPMessage *e = ldap_first_entry(ld, res); e != nullptr;
-    e = ldap_next_entry(ld, e)) {
 
+  for (LDAPMessage* e = ldap_first_entry(ld, res); e != nullptr;
+       e = ldap_next_entry(ld, e)) {
     struct berval** v = ldap_get_values_len(ld, e, attr.c_str());
+
     if (v != nullptr) {
       int n = ldap_count_values_len(v);
       int j;
@@ -180,7 +180,7 @@ Egroup::Status Egroup::isMemberUncached(const std::string &username,
     }
   }
 
-  if(isMember) {
+  if (isMember) {
     return Status::kMember;
   }
 
@@ -191,10 +191,10 @@ Egroup::Status Egroup::isMemberUncached(const std::string &username,
 // Store entry into the cache
 //------------------------------------------------------------------------------
 void Egroup::storeIntoCache(const std::string& username,
-  const std::string& egroupname, bool isMember,
-  std::chrono::steady_clock::time_point timestamp) {
-
-  std::unique_lock<std::shared_timed_mutex> lock(mutex);
+                            const std::string& egroupname, bool isMember,
+                            std::chrono::steady_clock::time_point timestamp)
+{
+  eos::common::RWMutexWriteLock wr_lock(mMutex);
   cache[egroupname][username] = CachedEntry(isMember, timestamp);
 }
 
@@ -202,17 +202,18 @@ void Egroup::storeIntoCache(const std::string& username,
 // Fetch cached value. Returns false if there's no such cached value.
 //------------------------------------------------------------------------------
 bool Egroup::fetchCached(const std::string& username,
-  const std::string& egroupname, Egroup::CachedEntry &out) {
-
-  std::shared_lock<std::shared_timed_mutex> lock(mutex);
-
+                         const std::string& egroupname, Egroup::CachedEntry& out)
+{
+  eos::common::RWMutexReadLock rd_lock(mMutex);
   auto it = cache.find(egroupname);
-  if(it == cache.end()) {
+
+  if (it == cache.end()) {
     return false;
   }
 
   auto it2 = it->second.find(username);
-  if(it2 == it->second.end()) {
+
+  if (it2 == it->second.end()) {
     return false;
   }
 
@@ -223,9 +224,11 @@ bool Egroup::fetchCached(const std::string& username,
 //------------------------------------------------------------------------------
 // Check if cache entry is stale
 //------------------------------------------------------------------------------
-bool Egroup::isStale(const CachedEntry &entry) const {
+bool Egroup::isStale(const CachedEntry& entry) const
+{
   std::chrono::steady_clock::time_point now = common::SteadyClock::now(clock);
-  if(entry.timestamp + kCacheDuration < now) {
+
+  if (entry.timestamp + kCacheDuration < now) {
     return true;
   }
 
@@ -239,8 +242,9 @@ bool Egroup::isStale(const CachedEntry &entry) const {
 //
 // Simulates response of "isMemberUncached" function.
 //------------------------------------------------------------------------------
-void Egroup::inject(const std::string &username, const std::string &egroupname,
-    Status status) {
+void Egroup::inject(const std::string& username, const std::string& egroupname,
+                    Status status)
+{
   injections[egroupname][username] = status;
 }
 
@@ -248,14 +252,15 @@ void Egroup::inject(const std::string &username, const std::string &egroupname,
 // Major query method - uses cache
 //------------------------------------------------------------------------------
 Egroup::CachedEntry Egroup::query(const std::string& username,
-  const std::string& egroupname)
+                                  const std::string& egroupname)
 {
   CachedEntry entry;
-  if(fetchCached(username, egroupname, entry)) {
+
+  if (fetchCached(username, egroupname, entry)) {
     //--------------------------------------------------------------------------
     // Cache hit - do we need to schedule an asynchronous refresh?
     //--------------------------------------------------------------------------
-    if(isStale(entry)) {
+    if (isStale(entry)) {
       scheduleRefresh(username, egroupname);
     }
 
@@ -268,14 +273,11 @@ Egroup::CachedEntry Egroup::query(const std::string& username,
   Status status = isMemberUncached(username, egroupname);
   bool isMember = (status == Status::kMember);
   std::chrono::steady_clock::time_point now = common::SteadyClock::now(clock);
-
   uint64_t expiration = common::SteadyClock::secondsSinceEpoch(
-    now+kCacheDuration).count();
-
+                          now + kCacheDuration).count();
   eos_static_info("member=%s user=\"%s\" e-group=\"%s\" expiration=%lu",
-    common::boolToString(isMember).c_str(), username.c_str(),
-    egroupname.c_str(), expiration);
-
+                  common::boolToString(isMember).c_str(), username.c_str(),
+                  egroupname.c_str(), expiration);
   //----------------------------------------------------------------------------
   // Store into the cache
   //----------------------------------------------------------------------------
@@ -293,8 +295,8 @@ Egroup::CachedEntry Egroup::query(const std::string& username,
 void Egroup::Refresh(ThreadAssistant& assistant) noexcept
 {
   eos_static_info("msg=\"async egroup fetch thread started\"");
-
   auto iterator = PendingQueue.begin();
+
   while (!assistant.terminationRequested()) {
     std::pair<std::string, std::string>* resolve = iterator.getItemBlockOrNull();
 
@@ -315,7 +317,7 @@ void Egroup::Refresh(ThreadAssistant& assistant) noexcept
 // Pushes an egroup/user resolution request into the asynchronous queue
 //------------------------------------------------------------------------------
 void Egroup::scheduleRefresh(const std::string& username,
-  const std::string& egroupname)
+                             const std::string& egroupname)
 {
   PendingQueue.emplace_back(std::make_pair(username, egroupname));
 }
@@ -324,28 +326,25 @@ void Egroup::scheduleRefresh(const std::string& username,
 // Run a synchronous LDAP query for Egroup/username and update the cache
 //------------------------------------------------------------------------------
 Egroup::CachedEntry Egroup::refresh(const std::string& username,
-  const std::string& egroupname)
+                                    const std::string& egroupname)
 {
   eos_static_info("msg=\"async-lookup\" user=\"%s\" e-group=\"%s\"",
                   username.c_str(), egroupname.c_str());
-
   Status status = isMemberUncached(username, egroupname);
 
-  if(status == Status::kError) {
+  if (status == Status::kError) {
     eos_static_err("Could not do asynchronous refresh for egroup membership for username=%s, e-group=%s",
-      username.c_str(), egroupname.c_str());
+                   username.c_str(), egroupname.c_str());
     return CachedEntry(false, {});
   }
 
   bool isMember = (status == Status::kMember);
   std::chrono::steady_clock::time_point now = common::SteadyClock::now(clock);
   uint64_t expiration = common::SteadyClock::secondsSinceEpoch(
-    now+kCacheDuration).count();
-
+                          now + kCacheDuration).count();
   eos_static_info("member=%s user=\"%s\" e-group=\"%s\" expiration=%lu",
-    common::boolToString(isMember).c_str(), username.c_str(),
-    egroupname.c_str(), expiration);
-
+                  common::boolToString(isMember).c_str(), username.c_str(),
+                  egroupname.c_str(), expiration);
   storeIntoCache(username, egroupname, isMember, now);
   return CachedEntry(isMember, now);
 }
@@ -364,10 +363,8 @@ Egroup::DumpMember(const std::string& username, const std::string& egroupname)
   CachedEntry entry = query(username, egroupname);
   std::chrono::steady_clock::time_point now = common::SteadyClock::now(clock);
   std::chrono::seconds lifetime;
-
   lifetime = std::chrono::duration_cast<std::chrono::seconds>(
-    entry.timestamp + kCacheDuration - now);
-
+               entry.timestamp + kCacheDuration - now);
   std::stringstream ss;
   ss << "egroup=" << egroupname;
   ss << " user=" << username;
@@ -384,18 +381,15 @@ Egroup::DumpMembers()
 {
   std::chrono::steady_clock::time_point now = common::SteadyClock::now(clock);
   std::stringstream ss;
+  eos::common::RWMutexReadLock rd_lock(mMutex);
 
-  std::shared_lock<std::shared_timed_mutex> lock(mutex);
-
-  for(auto it = cache.begin(); it != cache.end(); it++) {
-    for(auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {
+  for (auto it = cache.begin(); it != cache.end(); it++) {
+    for (auto it2 = it->second.begin(); it2 != it->second.end(); it2++) {
       ss << "egroup=" << it->first;
       ss << " user=" << it2->first;
       ss << " member=" << common::boolToString(it2->second.isMember);
-
-      std::chrono::seconds lifetime = std::chrono::duration_cast<
-        std::chrono::seconds>((it2->second.timestamp + kCacheDuration) - now);
-
+      std::chrono::seconds lifetime = std::chrono::duration_cast <
+                                      std::chrono::seconds > ((it2->second.timestamp + kCacheDuration) - now);
       ss << " lifetime=" << std::to_string(lifetime.count()) << std::endl;
     }
   }
@@ -406,8 +400,9 @@ Egroup::DumpMembers()
 //------------------------------------------------------------------------------
 // Reset all stored information
 //------------------------------------------------------------------------------
-void Egroup::Reset() {
-  std::unique_lock<std::shared_timed_mutex> lock(mutex);
+void Egroup::Reset()
+{
+  eos::common::RWMutexWriteLock wr_lock(mMutex);
   cache.clear();
 }
 
