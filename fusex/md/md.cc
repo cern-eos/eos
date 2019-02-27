@@ -676,8 +676,6 @@ metad::get(fuse_req_t req,
     // set ourselfs as parent of root since we might mount
     // a remote directory != '/'
     md->set_pid(1);
-    // don't mark this as a listing request, this is heavy if we need to refresh 
-    listing = false;
   } else if (!ino)
     // -------------------------------------------------------------------------
     // CASE 2: by remote parent inode + name
