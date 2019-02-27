@@ -225,6 +225,15 @@ DavixIo::SetErrno(int errcode, Davix::DavixError** err, bool free_error)
     errno = EACCES;
     break;
 
+  case Davix::StatusCode::WebDavPropertiesParsingError:
+    errno = EFAULT;
+    break;
+
+  case Davix::StatusCode::ConnectionProblem:
+  case Davix::StatusCode::SSLError:
+    errno = ENETUNREACH;
+    break;
+
   case Davix::StatusCode::IsADirectory:
     errno = EISDIR;
     break;
