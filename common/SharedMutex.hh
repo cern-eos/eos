@@ -23,8 +23,13 @@
 #pragma once
 #include "common/Namespace.hh"
 #include "common/IRWMutex.hh"
+
+#ifdef __APPLE__
+#include <shared_mutex>
+#else
 #pragma message "WARNING: We are using a copy of the shared mutex to enable the condition variable implementation!!!"
 #include "misc/shared_mutex"
+#endif
 
 EOSCOMMONNAMESPACE_BEGIN
 
