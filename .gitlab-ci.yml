@@ -347,6 +347,25 @@ cc7_docker_image_xrd_testing:
   allow_failure: true
 
 
+cc7_docker_image_with_forwardable_key_commit:
+  stage: build:dockerimage
+  tags:
+    - docker-image-build
+  script:
+    - ""
+  variables:
+    TO: gitlab-registry.cern.ch/dss/eos:fwdk_${CI_PIPELINE_ID}
+    DOCKER_FILE: eos-docker/Dockerfile_forwardable-key
+  dependencies:
+    - build_cc7
+    - clone_docker
+  only:
+    - branches
+  except:
+    - beryl_aquamarine
+    - tags
+
+
 cc7_docker_image_commit:
   stage: build:dockerimage
   tags:
@@ -440,7 +459,7 @@ k8s_unit_test:
     - rm -rf eos-on-k8s
     - git clone https://gitlab.cern.ch/faluchet/eos-on-k8s.git; cd eos-on-k8s
     # - all_yaml=(eos-storage-*.yaml); for i in ${all_yaml[@]}; do sed -i 's%gitlab-registry.cern.ch/dss/eos.*%gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG}%g' $i; done
-    - all_yaml=(eos-storage-*.yaml); for i in ${all_yaml[@]}; do sed -i 's%gitlab-registry.cern.ch/dss/eos.*%gitlab-registry.cern.ch/dss/eos:4.4.24%g' $i; done
+    - all_yaml=(eos-storage-*.yaml); for i in ${all_yaml[@]}; do sed -i 's%gitlab-registry.cern.ch/dss/eos.*%gitlab-registry.cern.ch/dss/eos:fwdk_${CI_PIPELINE_ID}%g' $i; done
     # - ./create-all.sh "${CI_JOB_NAME}-${CI_COMMIT_TAG}"
     - ./create-all.sh "x${CI_JOB_ID}x" # Namespaces should start and end with alphanumeric character
     - kubectl exec -it $(kubectl get pods --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-unit-tests # || true
