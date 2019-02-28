@@ -116,6 +116,8 @@ message heartbeat {
   bool shutdown = 14;
   string mount = 15; //< client mount path
   bool automounted = 16; //< indicate if autofs mount or not  
+  string log = 17; //< client logs
+  string trace = 18; //< client stacktrace
 }    
 
 message statistics {

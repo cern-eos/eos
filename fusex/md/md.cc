@@ -30,6 +30,7 @@
 #include "misc/MacOSXHelper.hh"
 #include "misc/longstring.hh"
 #include "common/Logging.hh"
+#include "common/StackTrace.hh"
 #include "common/StringConversion.hh"
 #include <iostream>
 #include <sstream>
@@ -2416,6 +2417,9 @@ metad::calculateLocalPath(shared_md md)
 void
 metad::mdcommunicate(ThreadAssistant& assistant)
 {
+  std::string sendlog = "";
+  std::string stacktrace = "";
+
   eos::fusex::container hb;
   hb.mutable_heartbeat_()->set_name(zmq_name);
   hb.mutable_heartbeat_()->set_host(zmq_clienthost);
@@ -2486,22 +2490,73 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
           if (rsp.ParseFromString(s)) {
             if (rsp.type() == rsp.EVICT) {
-              eos_static_crit("evicted from MD server - reason: %s",
+              eos_static_crit("evict message from MD server - instruction: %s",
                               rsp.evict_().reason().c_str());
 
-              if (rsp.evict_().reason().find("log2big") != std::string::npos) {
-                // we were asked to truncate our logfile
-                EosFuse::Instance().truncateLogFile();
-              } else {
-                // suicide
-                if (rsp.evict_().reason().find("abort") != std::string::npos) {
-                  kill(getpid(), SIGABRT);
-                } else {
-                  kill(getpid(), SIGTERM);
-                }
+	      if (rsp.evict_().reason().find("setlog") != std::string::npos) {
+		if (rsp.evict_().reason().find("debug") != std::string::npos) {
+		  eos::common::Logging::GetInstance().SetLogPriority(LOG_DEBUG);
+		}
+		if (rsp.evict_().reason().find("info") != std::string::npos) {
+		  eos::common::Logging::GetInstance().SetLogPriority(LOG_INFO);
+		}
+		if (rsp.evict_().reason().find("error") != std::string::npos) {
+		  eos::common::Logging::GetInstance().SetLogPriority(LOG_ERR);
+		}
+		if (rsp.evict_().reason().find("notice") != std::string::npos) {
+		  eos::common::Logging::GetInstance().SetLogPriority(LOG_NOTICE); 
+		}
+		if (rsp.evict_().reason().find("crit") != std::string::npos) {
+		  eos::common::Logging::GetInstance().SetLogPriority(LOG_CRIT); 
+		}
+	      } else  {
+		if (rsp.evict_().reason().find("stacktrace") != std::string::npos) {
+		  std::string stacktrace_file = EosFuse::Instance().Config().logfilepath;
+		  stacktrace_file += ".strace";
+		  eos::common::StackTrace::GdbTrace("/usr/bin/eosxd", getpid(), "thread apply all bt", stacktrace_file.c_str(), &stacktrace);
+		  hb.mutable_heartbeat_()->set_trace(stacktrace);
+		} else {
+		  if (rsp.evict_().reason().find("sendlog") != std::string::npos) {
+		    sendlog = "";
+		    int logtagindex = eos::common::Logging::GetInstance().GetPriorityByString("debug");
+		    for (int j = 0; j <= logtagindex; j++) {
+		      for (int i = 1; i <= 512; i++) {
+			std::string logline;
+			eos::common::Logging::GetInstance().gMutex.Lock();
+			const char* log = eos::common::Logging::GetInstance().gLogMemory[j][
+												(eos::common::Logging::GetInstance().gLogCircularIndex[j] - i +
+												 eos::common::Logging::GetInstance().gCircularIndexSize) %
+												eos::common::Logging::GetInstance().gCircularIndexSize].c_str();
+			if (log) {
+			  logline = log;
+			}
 
-                pause();
-              }
+			eos::common::Logging::GetInstance().gMutex.UnLock();
+			
+			if (logline.length()) {
+			  sendlog += logline;
+			  sendlog += "\n";
+			}
+		      }
+		    }
+		    hb.mutable_heartbeat_()->set_log(sendlog);
+		  } else {
+		    if (rsp.evict_().reason().find("log2big") != std::string::npos) {
+		      // we were asked to truncate our logfile
+		      EosFuse::Instance().truncateLogFile();
+		    } else {
+		      // suicide
+		      if (rsp.evict_().reason().find("abort") != std::string::npos) {
+			kill(getpid(), SIGABRT);
+		      } else {
+			kill(getpid(), SIGTERM);
+		      }
+		      
+		      pause();
+		    }
+		  }
+		}
+	      }
             }
 
             if (rsp.type() == rsp.DROPCAPS) {
@@ -2834,6 +2889,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
       eos::common::Timing::GetTimeSpec(tsnow);
       hb.mutable_heartbeat_()->set_clock(tsnow.tv_sec);
       hb.mutable_heartbeat_()->set_clock_ns(tsnow.tv_nsec);
+
       if (!(cnt % (60 / interval))) {
         // we send a statistics update every 60 heartbeats
         EosFuse::Instance().getHbStat((*hb.mutable_statistics_()));
@@ -2871,6 +2927,9 @@ metad::mdcommunicate(ThreadAssistant& assistant)
       std::string hbstream;
       hb.SerializeToString(&hbstream);
       z_socket->send(hbstream.c_str(), hbstream.length());
+      hb.mutable_heartbeat_()->clear_log();
+      hb.mutable_heartbeat_()->clear_trace();
+
     } catch (std::exception& e) {
       eos_static_err("catched exception %s", e.what());
     }

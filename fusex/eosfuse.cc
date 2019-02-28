@@ -1318,7 +1318,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   if (fuse_daemonize(config.options.foreground) != -1) {
 #ifndef __APPLE__
 
-    
+    eos::common::ShellCmd cmd("echo eos::common::ShellCmd init 2>&1");
+    eos::common::cmd_status st = cmd.wait(5);
+
     if (config.options.submounts) {
       eos::common::ShellCmd cmd("echo eos::common::ShellCmd init 2>&1");
       eos::common::cmd_status st = cmd.wait(5);
