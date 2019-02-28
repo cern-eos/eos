@@ -104,6 +104,18 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Duplicate all logging information to SYSLOG
 # export EOS_LOG_SYSLOG=0 ( set 1 or true to enable)
 
+# Enable the use of xrootd connection pool i.e. create/share different physical
+# connections for transfers to the same destination xrootd server. By default
+# this is disabled.
+# This applies both in context of the MGM server when it comes to TPC jobs and
+# also on the FST server for FST to FST transfers.
+# export EOS_XRD_USE_CONNECTION_POOL=1
+
+# When xrootd connection pool is enabled, one can control the maximum number
+# of physical connection that can be established with the destination server.
+# The min value is 1 and the max 1024. By default this 1024.
+# export EOS_XRD_CONNECTION_POOL_SIZE=1024
+
 # ------------------------------------------------------------------
 # FST Configuration
 # ------------------------------------------------------------------

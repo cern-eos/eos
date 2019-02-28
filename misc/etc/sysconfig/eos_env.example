@@ -99,8 +99,20 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # EOS_USE_SHARED_MUTEX=1
 
 # By default statvfs reports the total space if the path deepness is < 4
-# If you want to report only quota accouting you can define 
+# If you want to report only quota accouting you can define
 # EOS_MGM_STATVFS_ONLY_QUOTA=1
+
+# Enable the use of xrootd connection pool i.e. create/share different physical
+# connections for transfers to the same destination xrootd server. By default
+# this is disabled.
+# This applies both in context of the MGM server when it comes to TPC jobs and
+# also on the FST server for FST to FST transfers.
+# EOS_XRD_USE_CONNECTION_POOL=1
+
+# When xrootd connection pool is enabled, one can control the maximum number
+# of physical connection that can be established with the destination server.
+# The min value is 1 and the max 1024. By default this 1024.
+# EOS_XRD_CONNECTION_POOL_SIZE=1024
 
 #-------------------------------------------------------------------------------
 # FST Configuration
