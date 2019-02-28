@@ -38,6 +38,7 @@
 #include "XrdMgmOfs.hh"
 #include "mgm/ZMQ.hh"
 #include "mgm/Stat.hh"
+#include "common/CommentLog.hh"
 #include "common/Path.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -219,6 +220,16 @@ FuseServer::Clients::Dispatch(const std::string identity,
     eos_static_warning("delayed heartbeat from client=%s - delay=%.02f - dropping heartbeat",
                        identity.c_str(), heartbeat_delay);
     return rc;
+  }
+
+  if (hb.log().size()) {
+    gOFS->mFusexLogTraces->Add(time(NULL), hb.host().c_str(), hb.uuid().c_str(), hb.version().c_str(), std::string( hb.host() + ":" + hb.mount() ).c_str() ,hb.log().c_str(),0);
+    hb.clear_log();
+  }
+
+  if (hb.trace().size()) {
+    gOFS->mFusexStackTraces->Add(time(NULL), hb.host().c_str(), hb.uuid().c_str(), hb.version().c_str(), std::string( hb.host() + ":" + hb.mount() ).c_str() ,hb.trace().c_str(),0);
+    hb.clear_trace();
   }
 
   (this->map())[identity].heartbeat() = hb;

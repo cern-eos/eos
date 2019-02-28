@@ -1267,7 +1267,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   ConfEngine->SetAutoSave(true);
   // Create comment log to save all proc commands executed with a comment
-  mCommentLog = new eos::common::CommentLog("/var/log/eos/mgm/logbook.log");
+  mCommentLog.reset(new eos::common::CommentLog("/var/log/eos/mgm/logbook.log"));
 
   if (mCommentLog && mCommentLog->IsValid()) {
     Eroute.Say("=====> comment log in /var/log/eos/mgm/logbook.log");
@@ -1276,6 +1276,25 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                 "/var/log/eos/mgm/logbook.log");
     NoGo = 1;
   }
+
+  mFusexStackTraces.reset(new eos::common::CommentLog("/var/log/eos/mgm/eosxd-stacktraces.log"));
+  if (mFusexStackTraces && mFusexStackTraces->IsValid()) {
+    Eroute.Say("=====> eosxd stacktraces log in /var/log/eos/mgm/eosxd-stacktraces.log");
+  } else {
+    Eroute.Emsg("Config", "Cannot create/open the eosxd stacktraces log file "
+                "/var/log/eos/mgm/eosxd-stacktraces.log");
+    NoGo = 1;
+  }
+
+  mFusexLogTraces.reset(new eos::common::CommentLog("/var/log/eos/mgm/eosxd-logtraces.log"));
+  if (mFusexLogTraces && mFusexLogTraces->IsValid()) {
+    Eroute.Say("=====> eosxd logtraces log in /var/log/eos/mgm/eosxd-logtraces.log");
+  } else {
+    Eroute.Emsg("Config", "Cannot create/open the eosxd logtraces log file "
+                "/var/log/eos/mgm/eosxd-logtraces.log");
+    NoGo = 1;
+  }
+
 
   // Save MGM alias if configured
   if (getenv("EOS_MGM_ALIAS")) {

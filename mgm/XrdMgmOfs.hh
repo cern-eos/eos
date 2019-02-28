@@ -1558,7 +1558,10 @@ public:
 
   //! Class implementing comment log: mgm writes all proc commands with a
   //! comment into /var/log/eos/comments.log
-  eos::common::CommentLog* mCommentLog;
+  std::unique_ptr<eos::common::CommentLog> mCommentLog;
+
+  std::unique_ptr<eos::common::CommentLog> mFusexStackTraces;
+  std::unique_ptr<eos::common::CommentLog> mFusexLogTraces;
 
   //! Class checking the filesystem
   std::unique_ptr<Fsck> FsckPtr;

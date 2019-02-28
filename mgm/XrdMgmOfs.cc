@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/CommentLog.hh"
 #include "common/Constants.hh"
 #include "common/Mapping.hh"
 #include "common/FileId.hh"
@@ -176,7 +177,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   eosFsView(0), eosContainerAccounting(0), eosSyncTimeAccounting(0),
   mStatsTid(0), mFrontendPort(0), mNumAuthThreads(0),
   zMQ(nullptr), Authorization(0), MgmStatsPtr(new eos::mgm::Stat()),
-  MgmStats(*MgmStatsPtr), mCommentLog(nullptr), FsckPtr(new eos::mgm::Fsck()),
+  MgmStats(*MgmStatsPtr), FsckPtr(new eos::mgm::Fsck()),
   FsCheck(*FsckPtr), mMaster(nullptr), mRouting(new eos::mgm::PathRouting()),
   mIsCentralDrain(false), LRUPtr(new eos::mgm::LRU()), LRUd(*LRUPtr),
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr), UTF8(false), mFstGwHost(""),
