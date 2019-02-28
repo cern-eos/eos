@@ -194,11 +194,19 @@ com_fusex_usage:
   fprintf(stdout,
           "                                                              <uuid> -  uuid of the client to evict\n");
   fprintf(stdout,
-          "                                                            <reason> -  optional text shown to the client why he has been evicted\n");
+          "                                                            <reason> -  optional text shown to the client why he has been evicted or an instruction for an action to the client\n");
   fprintf(stdout,
           "                                                                     - if the reason contains the keywoard 'abort' the abort handler will be called on client side (might create a stack trace/core)\n");
   fprintf(stdout,
           "                                                                     - if reason contains the keyword 'log2big' the client will effectily not be evicted, but will truncate his logfile to 0\n");
+
+  fprintf(stdout,                           
+	  "                                                                     - if reason contains the keyword 'setlog' and 'debug','notice', 'error', 'crit', 'info', 'warning' the log level of the targeted mount is changed accordingly .e.g evict <uuid> \"setlog error\"\n");
+  
+  fprintf(stdout, 
+	  "                                                                     - if reason contains the keyword 'stacktrace' the client will send a self-stacktrace with the next heartbeat message and it will be stored in /var/log/eos/mgm/eosxd-stacktraces.log e.g. evict <uuid> stacktrace\n");
+  fprintf(stdout, 
+	  "                                                                     - if reason contains the keyword 'sendlog' the client will send max. the last 512 lines of each log level and the log will be stored in /var/log/eos/mgm/eosxd-logtraces.log e.g. evict <uuid> sendlog\n");
   fprintf(stdout, "\n");
 
   fprintf(stdout,
