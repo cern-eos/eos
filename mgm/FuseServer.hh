@@ -284,6 +284,8 @@ public:
 
     virtual ~Clients() = default;
 
+    void ClientStats(size_t& nclients, size_t& active_clients, size_t& locked_clients );
+
     bool
     Dispatch(const std::string identity, eos::fusex::heartbeat& hb);
     void Print(std::string& out, std::string options = "");

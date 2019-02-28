@@ -111,6 +111,34 @@ FuseServer::dump_message(const google::protobuf::Message& message)
   return jsonstring;
 }
 
+
+//------------------------------------------------------------------------------
+// Retrieve global eosxd client statistics
+//------------------------------------------------------------------------------
+void 
+FuseServer::Clients::ClientStats(size_t& nclients, size_t& active_clients, size_t& locked_clients )
+{
+  nclients = 0;
+  active_clients = 0 ;
+  locked_clients = 0;
+
+  struct timespec now_time;
+  eos::common::Timing::GetTimeSpec(now_time, true);
+
+  eos::common::RWMutexReadLock lLock(*this);
+  for (auto it = this->map().begin(); it != this->map().end(); ++it) {    
+    nclients++;
+    if ( it->second.statistics().blockedms() > (5*1000*60) ) {
+      locked_clients++;
+    }
+    int64_t idletime = (it->second.get_opstime_sec()) ? (now_time.tv_sec -
+							 it->second.get_opstime_sec()) : -1;
+    if (idletime <= 300) {
+      active_clients++;
+    }
+  }
+}
+
 //------------------------------------------------------------------------------
 // Monitor heart beat
 //------------------------------------------------------------------------------
