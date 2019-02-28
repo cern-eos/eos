@@ -28,6 +28,7 @@
 #define __EOSCOMMON__STACKTRACE__HH
 
 #include "common/ShellCmd.hh"
+#include "common/StringConversion.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -41,7 +42,7 @@ public:
   //----------------------------------------------------------------------------
   //! Create a readable back trace using gdb
   //----------------------------------------------------------------------------
-  static void GdbTrace(const char* executable, pid_t pid, const char* what)
+  static void GdbTrace(const char* executable, pid_t pid, const char* what, const char* file = "/var/eos/md/stacktrace", std::string* ret_dump=0)
   {
     fprintf(stderr, "#########################################################"
             "################\n");
@@ -49,32 +50,35 @@ public:
             (unsigned int) pid, what);
     fprintf(stderr, "#########################################################"
             "################\n");
-    XrdOucString systemline;
-    // If the shared libraries loaded by the executable have been changed GDB
-    // can run wild, therefore we limit the virtual memory to 10GB and put a
-    // timeout of 2 minutes to produce a stack strace.
-    systemline = "ulimit -v 10000000000; eossh-timeout -t 120 -i 10 gdb --quiet ";
-    systemline += executable;
-    systemline += " -p ";
-    systemline += (int) pid;
-    systemline += " <<< ";
-    systemline += "\"";
-    systemline += what;
-    systemline += "\" 2> /dev/null";
-    systemline += "| awk '{if ($2 == \"quit\") {on=0} else { if (on ==1) "
-                  "{print}; if ($1 == \"(gdb)\") {on=1;};} }' 2>&1 > "
-                  "/var/eos/md/stacktrace";
-    // TODO (esindril): Review this - is it called twice?
-    system(systemline.c_str());
-    eos::common::ShellCmd shelltrace(systemline.c_str());
+
+    XrdOucString  gdbline="ulimit -v 10000000000; gdb --quiet "; 
+    gdbline += executable; 
+    gdbline += " -p ";
+    gdbline += (int) pid;
+    gdbline += " <<< ";
+    gdbline += "\"";
+    gdbline += what;
+    gdbline += "\" >&" ;
+    gdbline += file;
+
+    eos::common::ShellCmd shelltrace(gdbline.c_str());
     shelltrace.wait(120);
+    std::string cat = "cat "; 
+    cat += file;
     std::string gdbdump = StringConversion::StringFromShellCmd
-                          ("cat /var/eos/md/stacktrace");
+      (cat.c_str());
+
+    if (ret_dump) {
+      *ret_dump = gdbdump;
+    }
+
     fprintf(stderr, "%s\n", gdbdump.c_str());
 
     if (!strcmp("thread apply all bt", what)) {
-      // We can extract the signal thread from all thread back traces
-      GdbSignaledTrace(gdbdump);
+      if (!ret_dump) {
+	// We can extract the signal thread from all thread back traces
+	GdbSignaledTrace(gdbdump);
+      }
     }
   }
 
