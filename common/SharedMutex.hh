@@ -28,12 +28,10 @@
 #include <shared_mutex>
 #else
 #pragma message "WARNING: We are using a copy of the shared mutex to enable the condition variable implementation!!!"
-#include "misc/shared_mutex"
+#include "common/shared_mutex"
 #endif
 
 EOSCOMMONNAMESPACE_BEGIN
-
-
 
 //------------------------------------------------------------------------------
 //! Class SharedMutex - wrapper around std::shared_timed_mutex
@@ -110,7 +108,7 @@ public:
   int TimedWrLock(uint64_t timeout_ns) override;
 
 private:
-  std::shared_timed_mutex mSharedMutex;
+  eos::common::shared_timed_mutex mSharedMutex;
 };
 
 EOSCOMMONNAMESPACE_END
