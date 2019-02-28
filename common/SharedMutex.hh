@@ -108,7 +108,11 @@ public:
   int TimedWrLock(uint64_t timeout_ns) override;
 
 private:
+#ifdef __APPLE__
+  std::shared_timed_mutex mSharedMutex;
+#else
   eos::common::shared_timed_mutex mSharedMutex;
+#endif
 };
 
 EOSCOMMONNAMESPACE_END
