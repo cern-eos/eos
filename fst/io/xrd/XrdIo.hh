@@ -28,6 +28,7 @@
 #include "fst/io/FileIo.hh"
 #include "fst/io/SimpleHandler.hh"
 #include "common/FileMap.hh"
+#include "common/XrdConnPool.hh"
 #include "XrdCl/XrdClFile.hh"
 #include <queue>
 
@@ -164,9 +165,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //!
-  //! @param handle to logical file
-  //! @param client security entity
-  //! @param error error information
+  //! @param path path or URI for the file
   //----------------------------------------------------------------------------
   XrdIo(std::string path);
 
@@ -535,15 +534,7 @@ public:
   virtual int ftsClose(FileIo::FtsHandle* fts_handle);
 
 private:
-  //! Connection pool handling to avoid using the same connection between two
-  //! FSTs during the replication stage. Since then the operations on that
-  //! connection link are serialized and this can lead to long delays for any
-  //! file operations.
-  static uint32_t sConnectionPoolMaxSize; ///< Connection pool max size
-  static XrdSysMutex sConnectionPoolMutex; ///< Mutex for connection pool
-  //! Connection pool map
-  static std::map<std::string, std::map<int, size_t> > sConnectionPool;
-
+  static eos::common::XrdConnPool mXrdConnPool; ///< Xrd connection pool
   bool mDoReadahead; ///< mark if readahead is enabled
   const uint32_t mNumRdAheadBlocks; ///< no. of blocks used for readahead
   const uint64_t mDefaultBlocksize;
@@ -560,22 +551,9 @@ private:
   bool mAttrDirty; ///< mark if local attr modfied and not committed
   bool mAttrSync; ///< mark if attributes are updated synchronously
   XrdCl::URL mTargetUrl; ///< URL used to avoid physical connection sharing
-  size_t mConnectionId; ///< Connection id for current IO object
+  ///< RAAI helper for connection ids
+  std::unique_ptr<eos::common::XrdConnIdHelper> mXrdIdHelper;
 
-  //----------------------------------------------------------------------------
-  //! Assign a connection from the connection pool if required
-  //----------------------------------------------------------------------------
-  void AssignConnection();
-
-  //----------------------------------------------------------------------------
-  //! Return a connection back to the pool if required
-  //----------------------------------------------------------------------------
-  void DropConnection();
-
-  //----------------------------------------------------------------------------
-  //! Dump current state of connection pool
-  //----------------------------------------------------------------------------
-  void DumpConnectionPool();
 
   //----------------------------------------------------------------------------
   //! Method used to prefetch the next block using the readahead mechanism
