@@ -330,8 +330,13 @@ public:
   }
 
   typedef struct opendir_fh {
+    opendir_fh() {
+      pmd_mtime.tv_sec = pmd_mtime.tv_nsec = 0;
+    }
     metad::shared_md md;
     std::set<std::string> readdir_items;
+    std::map<std::string, uint64_t> pmd_children;
+    struct timespec pmd_mtime;
     off_t next_offset;
     XrdSysMutex items_lock;
   } opendir_t;

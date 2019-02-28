@@ -2523,8 +2523,13 @@ EosFuse::listdir(fuse_req_t req, fuse_ino_t ino, metad::shared_md& md)
     std::string authid = pcap->authid();
     cLock.UnLock();
     md = Instance().mds.get(req, ino, authid, true);
+
     if (!md->pid() && (md->id()!=1)) {
-      rc = ENOENT;
+      if (md->err()) {
+	rc = md->err();
+      } else {
+	rc = ENOENT;
+      }
     }
   }
 
@@ -2665,8 +2670,10 @@ EBADF  Invalid directory stream descriptor fi->fh
 {
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
-  EXEC_TIMING_BEGIN(__func__);
   ADD_FUSE_STAT(__func__, req);
+  
+  EXEC_TIMING_BEGIN(__func__);
+  
   int rc = 0;
   fuse_id id(req);
 
@@ -2677,7 +2684,6 @@ EBADF  Invalid directory stream descriptor fi->fh
     // get the shared pointer from the open file descriptor
     opendir_t* md = (opendir_t*) fi->fh;
     metad::shared_md pmd = md->md;
-    std::map<std::string, uint64_t> pmd_children;
     mode_t pmd_mode;
     uint64_t pmd_id;
     {
@@ -2699,27 +2705,38 @@ EBADF  Invalid directory stream descriptor fi->fh
 
       pmd_mode = pmd->mode();
       pmd_id = pmd->id();
-      auto pmap = pmd->local_children();
-      auto it = pmap.begin();
+      if ( md->pmd_children.size() != pmd->local_children().size() ||
+	   ( (md->pmd_mtime.tv_sec != (int64_t)pmd->mtime()) || 
+	     (md->pmd_mtime.tv_nsec != (int64_t)pmd->mtime_ns()) ) ) {
+	auto pmap = pmd->local_children();
+	auto it = pmap.begin();
 
-      for (; it != pmap.end(); ++it) {
-        pmd_children[eos::common::StringConversion::EncodeInvalidUTF8(
-                       it->first)] = it->second;
+	// make a copy of the listing for subsequent readdir operations
+	eos_static_debug("copying children map");
+	md->pmd_children.clear();
+	for (; it != pmap.end(); ++it) {
+	  md->pmd_children[eos::common::StringConversion::EncodeInvalidUTF8(
+									it->first)] = it->second;
+	}
+	md->pmd_mtime.tv_sec = pmd->mtime();
+	md->pmd_mtime.tv_nsec = pmd->mtime_ns();
       }
 
-      if (!pmd_children.size()) {
+      if (!md->pmd_children.size()) {
         if (EOS_LOGS_DEBUG) {
           eos_static_debug("%s", Instance().mds.dump_md(pmd, false).c_str());
         }
       }
     }
+
     // only one readdir at a time
     XrdSysMutexHelper lLock(md->items_lock);
-    auto it = pmd_children.begin();
-    eos_static_info("off=%lu size-%lu", off, pmd_children.size());
+    auto it = md->pmd_children.begin();
+    eos_static_info("off=%lu size-%lu", off, md->pmd_children.size());
     char b[size];
     char* b_ptr = b;
     off_t b_size = 0;
+
 
     // the root directory adds only '.', all other add '.' and '..' for off=0
     if (off == 0) {
@@ -2773,9 +2790,8 @@ EBADF  Invalid directory stream descriptor fi->fh
       is_seek = true;
     }
 
-    
     // add regular children
-    for (; it != pmd_children.end(); ++it) {
+    for (; it != md->pmd_children.end(); ++it) {
       if (off > i_offset) {
         i_offset++;
         continue;
@@ -2865,7 +2881,7 @@ EBADF  Invalid directory stream descriptor fi->fh
   EXEC_TIMING_END(__func__);
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
-                    dump(id, ino, 0, rc).c_str());
+		    dump(id, ino, 0, rc).c_str());
 }
 
 /* -------------------------------------------------------------------------- */
