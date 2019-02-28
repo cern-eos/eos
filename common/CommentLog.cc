@@ -105,7 +105,7 @@ CommentLog::Add (time_t t, const char* cmd, const char* subcmd, const char* args
   out += "# ==============================================================\n";
   out += "# ";
   out += asctime(timeinfo);
-  out.erase(out.length() - 1);
+  out.erase(out.length() - 1, 1);
   out += " ";
   out += comment;
   out += "\n";
@@ -147,7 +147,7 @@ CommentLog::Add (time_t t, const char* cmd, const char* subcmd, const char* args
   {
     out += "\n";
   }
-  if ((::write(mFd, out.c_str(), out.length() + 1)) < 0)
+  if ((::write(mFd, out.c_str(), out.length())) < 0)
   {
     return false;
   }
