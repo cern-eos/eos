@@ -2506,6 +2506,9 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 		if (rsp.evict_().reason().find("notice") != std::string::npos) {
 		  eos::common::Logging::GetInstance().SetLogPriority(LOG_NOTICE); 
 		}
+		if (rsp.evict_().reason().find("warning") != std::string::npos) {
+		  eos::common::Logging::GetInstance().SetLogPriority(LOG_WARNING); 
+		}
 		if (rsp.evict_().reason().find("crit") != std::string::npos) {
 		  eos::common::Logging::GetInstance().SetLogPriority(LOG_CRIT); 
 		}

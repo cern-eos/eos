@@ -1320,17 +1320,13 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
     eos::common::ShellCmd cmd("echo eos::common::ShellCmd init 2>&1");
     eos::common::cmd_status st = cmd.wait(5);
-
-    if (config.options.submounts) {
-      eos::common::ShellCmd cmd("echo eos::common::ShellCmd init 2>&1");
-      eos::common::cmd_status st = cmd.wait(5);
-      int rc = st.exit_code;
-      
-      if (rc) {
-	fprintf(stderr,
-		"error: failed to run shell command\n");
-	exit(-1);
-      }
+    
+    int rc = st.exit_code;
+    
+    if (rc) {
+      fprintf(stderr,
+	      "error: failed to run shell command\n");
+      exit(-1);
     }
 
     if (!geteuid()) {
