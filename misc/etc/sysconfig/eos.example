@@ -149,6 +149,16 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Set the connection pool size for FST=>FST connections (default is 64 - range 1 to 1024)
 # EOS_FST_XRDIO_CONNECTION_POOL_SIZE=64
 
+# If variable defined then enable the use of xrootd connection pool i.e.
+# create/share different physical connections for queries done from the FST
+# to the MGM in the CallManager method. By default this is disabled.
+# EOS_FST_CALL_MANAGER_XRD_POOL=1
+
+# If CallManager xrootd connection pool is enabled one can set the maxium size
+# of the pool of connections. The min value is 1, the max value is 32. By default
+# the value is 10.
+# EOS_FST_CALL_MANAGER_XRD_POOL_SIZE=10
+
 # ------------------------------------------------------------------
 # FUSE Configuration
 # ------------------------------------------------------------------

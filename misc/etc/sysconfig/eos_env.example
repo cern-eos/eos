@@ -102,9 +102,9 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # If you want to report only quota accouting you can define
 # EOS_MGM_STATVFS_ONLY_QUOTA=1
 
-# Enable the use of xrootd connection pool i.e. create/share different physical
-# connections for transfers to the same destination xrootd server. By default
-# this is disabled.
+# If variable defined then enable the use of xrootd connection pool i.e.
+# create/share different physical connections for transfers to the same
+# destination xrootd server. By default this is disabled.
 # This applies both in context of the MGM server when it comes to TPC jobs and
 # also on the FST server for FST to FST transfers.
 # EOS_XRD_USE_CONNECTION_POOL=1
@@ -132,6 +132,16 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 
 # Disable fast boot and always do a full resync when a fs is booting
 # EOS_FST_NO_FAST_BOOT=0 (default off)
+
+# If variable defined then enable the use of xrootd connection pool i.e.
+# create/share different physical connections for queries done from the FST
+# to the MGM in the CallManager method. By default this is disabled.
+# EOS_FST_CALL_MANAGER_XRD_POOL=1
+
+# If CallManager xrootd connection pool is enabled one can set the maxium size
+# of the pool of connections. The min value is 1, the max value is 32. By default
+# the value is 10.
+# EOS_FST_CALL_MANAGER_XRD_POOL_SIZE=10
 
 #-------------------------------------------------------------------------------
 # HTTPD Configuration
