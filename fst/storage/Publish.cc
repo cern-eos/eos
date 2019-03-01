@@ -40,7 +40,7 @@ constexpr std::chrono::seconds Storage::sConsistencyTimeout;
 // Publish
 //------------------------------------------------------------------------------
 void
-Storage::Publish()
+Storage::Publish(ThreadAssistant &assistant)
 {
   eos_static_info("Publisher activated ...");
   struct timeval tv1, tv2;
@@ -477,7 +477,7 @@ Storage::Publish()
       eos_static_warning("Publisher cycle exceeded %d millisecons - took %d milliseconds",
                          lReportIntervalMilliSeconds, lCycleDuration);
     } else {
-      std::this_thread::sleep_for(std::chrono::seconds(lSleepTime / 1000));
+      assistant.wait_for(std::chrono::seconds(lSleepTime / 1000));
     }
   }
 

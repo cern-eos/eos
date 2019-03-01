@@ -203,7 +203,6 @@ private:
   static void* StartFsReport(void* pp);
   static void* StartFsErrorReport(void* pp);
   static void* StartFsVerify(void* pp);
-  static void* StartFsPublisher(void* pp);
   static void* StartFsBalancer(void* pp);
   static void* StartFsDrainer(void* pp);
   static void* StartFsCleaner(void* pp);
@@ -223,7 +222,7 @@ private:
   void Report();
   void ErrorReport();
   void Verify();
-  void Publish();
+  void Publish(ThreadAssistant &assistant);
   void Balancer();
   void Drainer();
   void Cleaner();
@@ -381,6 +380,9 @@ private:
 private:
   AssistedThread mCommunicatorThread;
   AssistedThread mQdbCommunicatorThread;
+
+  AssistedThread mPublisherThread;
+  AssistedThread mQdbPublisherThread;
 };
 
 EOSFSTNAMESPACE_END
