@@ -38,15 +38,6 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 
-// -----------------------------------------------------------------------------
-// Note: the defines after have to be in agreements with the defins in XrdMqOfs.cc
-//       but we don't want to create a link in the code between the two
-// -----------------------------------------------------------------------------
-// existance indicates that this node is to be treated as a slave
-#define EOSMGMMASTER_SUBSYS_RW_LOCKFILE "/var/eos/eos.mgm.rw"
-// existance indicates that the local MQ should redirect to the remote MQ
-#define EOSMQMASTER_SUBSYS_REMOTE_LOCKFILE "/var/eos/eos.mq.remote.up"
-
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
@@ -1699,46 +1690,6 @@ Master::~Master()
     delete fDevNullErr;
     fDevNullErr = nullptr;
   }
-}
-
-//------------------------------------------------------------------------------
-// Create status file
-//------------------------------------------------------------------------------
-bool
-Master::CreateStatusFile(const char* path)
-{
-  struct stat buf;
-
-  if (::stat(path, &buf)) {
-    int fd = 0;
-
-    if ((fd = ::creat(path, S_IRWXU | S_IRGRP | S_IROTH)) == -1) {
-      MasterLog(eos_static_err("failed to create %s errno=%d", path, errno));
-      return false;
-    }
-
-    close(fd);
-  }
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
-// Remove status file
-//------------------------------------------------------------------------------
-bool
-Master::RemoveStatusFile(const char* path)
-{
-  struct stat buf;
-
-  if (!::stat(path, &buf)) {
-    if (::unlink(path)) {
-      MasterLog(eos_static_err("failed to unlink %s errno=%d", path, errno));
-      return false;
-    }
-  }
-
-  return true;
 }
 
 //------------------------------------------------------------------------------

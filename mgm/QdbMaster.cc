@@ -198,6 +198,7 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
   bool new_is_master = false;
   std::string old_master;
   eos_notice("%s", "msg=\"set up booting stall rule\"");
+  RemoveStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE);
   Access::StallInfo old_stall;
   Access::StallInfo new_stall("*", "100", "namespace is booting", true);
   Access::SetStallRule(new_stall, old_stall);
@@ -264,6 +265,8 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
       assistant.wait_for(wait_ms);
     }
   }
+
+  RemoveStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE);
 }
 
 //------------------------------------------------------------------------------
@@ -302,6 +305,7 @@ QdbMaster::SlaveToMaster()
   FsView::gFsView.BroadcastMasterId(GetMasterId());
   mIsMaster = true;
   Access::SetSlaveToMasterRules();
+  CreateStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE);
 }
 
 //------------------------------------------------------------------------------
@@ -311,6 +315,7 @@ void
 QdbMaster::MasterToSlave()
 {
   eos_info("%s", "msg=\"master to slave transition\"");
+  RemoveStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE);
   mIsMaster = false;
   Access::StallInfo old_stall; // to be discarded
   Access::StallInfo new_stall("*", "5", "master->slave transition", true);

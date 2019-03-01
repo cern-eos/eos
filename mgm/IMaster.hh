@@ -22,6 +22,18 @@
 #pragma once
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+//------------------------------------------------------------------------------
+//! @note: the defines after have to be in agreements with the defins in
+//! XrdMqOfs.cc but we don't want to create a link in the code between the two
+//------------------------------------------------------------------------------
+//! Existance indicates that this node is to be treated as a master
+#define EOSMGMMASTER_SUBSYS_RW_LOCKFILE "/var/eos/eos.mgm.rw"
+//! Existance indicates that the local MQ should redirect to the remote MQ
+#define EOSMQMASTER_SUBSYS_REMOTE_LOCKFILE "/var/eos/eos.mq.remote.up"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -140,6 +152,50 @@ public:
       mLog += log;
       mLog += '\n';
     }
+  }
+
+  //------------------------------------------------------------------------------
+  //! Create status file
+  //!
+  //! @param path path to file to be created if it doesn't exist already
+  //------------------------------------------------------------------------------
+  bool CreateStatusFile(const char* path)
+  {
+    struct stat buf;
+
+    if (::stat(path, &buf)) {
+      int fd = 0;
+
+      if ((fd = ::creat(path, S_IRWXU | S_IRGRP | S_IROTH)) == -1) {
+        MasterLog(eos_static_err("msg=\"failed to create %s\" errno=%d", path,
+                                 errno));
+        return false;
+      }
+
+      close(fd);
+    }
+
+    return true;
+  }
+
+  //------------------------------------------------------------------------------
+  //! Remove status file
+  //!
+  //! @param path path to file to be unlinked
+  //------------------------------------------------------------------------------
+  bool RemoveStatusFile(const char* path)
+  {
+    struct stat buf;
+
+    if (!::stat(path, &buf)) {
+      if (::unlink(path)) {
+        MasterLog(eos_static_err("msg=\"failed to unlink %s\" errno=%d", path,
+                                 errno));
+        return false;
+      }
+    }
+
+    return true;
   }
 
   //----------------------------------------------------------------------------
