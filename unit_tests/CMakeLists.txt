@@ -77,8 +77,10 @@ set(COMMON_UT_SRCS
 
 set(FST_UT_SRCS
   #fst/XrdFstOssFileTest.cc
+  fst/HealthTest.cc
+  fst/UtilsTest.cc
   fst/XrdFstOfsFileTest.cc
-  fst/HealthTest.cc)
+)
 
 #-------------------------------------------------------------------------------
 # unit tests source files

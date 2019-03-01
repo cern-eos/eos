@@ -313,6 +313,9 @@ set(XRDEOSFST_SRCS
   txqueue/TransferJob.cc
   txqueue/TransferQueue.cc
 
+  # Utils
+  utils/OpenFileTracker.cc
+
   # File metadata interface
   Fmd.cc               Fmd.hh
   FmdDbMap.cc          FmdDbMap.hh
