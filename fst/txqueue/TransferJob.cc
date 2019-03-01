@@ -301,8 +301,9 @@ TransferJob::DoIt()
   //   - stagein
   //   - stageout
   mDoItThread = XrdSysThread::ID();
-  std::string fileName = "/var/eos/auth/", sTmp,
-              strBand; // script name for the transfer script
+  std::string sTmp, strBand;
+  std::string fileName =
+      eos::fst::Config::gConfig.FstAuthDir.c_str(); // script name for the transfer script
   std::string fileStageName = fileName;
   std::stringstream command, ss, commando, so;
   std::string uuid = NewUuid();

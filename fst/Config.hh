@@ -38,6 +38,7 @@ class Config
 public:
   bool autoBoot; // -> indicates if the node tries to boot automatically or waits for a boot message from a master
   XrdOucString FstMetaLogDir; //  Directory containing the meta data log files
+  XrdOucString FstAuthDir; // Directory needed for file transfers among FSTs
   XrdOucString FstOfsBrokerUrl; // Url of the message broker
   XrdOucString
   FstDefaultReceiverQueue; // Queue where we are sending to by default
