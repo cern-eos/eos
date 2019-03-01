@@ -28,5 +28,6 @@ fstofs.broker root://localhost:1097//eos/
 fstofs.autoboot true
 fstofs.quotainterval 10
 fstofs.metalog /var/eos/md/
+#fstofs.authdir /var/eos/auth/
 #fstofs.trace client
 ###########################################################

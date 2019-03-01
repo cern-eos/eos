@@ -421,6 +421,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   }
 
   eos::fst::Config::gConfig.FstMetaLogDir = "/var/tmp/eos/md/";
+  eos::fst::Config::gConfig.FstAuthDir = "/var/eos/auth/";
   setenv("XrdClientEUSER", "daemon", 1);
   // Set short timeout resolution, connection window, connection retry and
   // stream error window
@@ -494,6 +495,21 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
               if (val[strlen(val) - 1] != '/') {
                 eos::fst::Config::gConfig.FstMetaLogDir += '/';
+              }
+            }
+          }
+        }
+
+        if (!strcmp("authdir", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument 2 for authdir missing");
+            NoGo = 1;
+          } else {
+            if (strlen(val)) {
+              eos::fst::Config::gConfig.FstAuthDir = val;
+
+              if (val[strlen(val) - 1] != '/') {
+                eos::fst::Config::gConfig.FstAuthDir += '/';
               }
             }
           }
@@ -612,7 +628,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     if (pos2 != STR_NPOS) {
       eos::fst::Config::gConfig.FstQueue.erase(0, pos2 + 1);
     } else {
-      Eroute.Emsg("Config", "cannot determin my queue name: ",
+      Eroute.Emsg("Config", "cannot determine my queue name: ",
                   eos::fst::Config::gConfig.FstQueue.c_str());
       return 1;
     }
@@ -650,7 +666,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   }
 
   Eroute.Say("=====> eoscp-log : ", eoscpTransferLog.c_str());
-  // Compute checkusm of the keytab file
+  // Compute checksum of the keytab file
   std::string kt_cks = GetKeytabChecksum("/etc/eos.keytab");
   eos::fst::Config::gConfig.KeyTabAdler = kt_cks.c_str();
   // Create the messaging object(recv thread)
@@ -671,7 +687,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   ObjectManager.mEnableQueue = true;
   ObjectManager.SetAutoReplyQueue("/eos/*/mgm");
   ObjectManager.SetDebug(false);
-  // create the specific listener class
+  // Create the specific listener class
   Messaging = new eos::fst::Messaging(
     eos::fst::Config::gConfig.FstOfsBrokerUrl.c_str(),
     eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str(),
@@ -689,6 +705,31 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     Eroute.Emsg("Config", "cannot create messaging object(thread)");
     NoGo = 1;
     return NoGo;
+  }
+
+  // Setup auth dir
+  {
+    XrdOucString scmd = "mkdir -p ";
+    scmd += eos::fst::Config::gConfig.FstAuthDir;
+    scmd += " ; chown -R daemon ";
+    scmd += eos::fst::Config::gConfig.FstAuthDir;
+    scmd += " ; chmod 700 ";
+    scmd += eos::fst::Config::gConfig.FstAuthDir;
+    int src = system(scmd.c_str());
+
+    if (src) {
+      eos_err("%s returned %d", scmd.c_str(), src);
+    }
+
+    if (access(eos::fst::Config::gConfig.FstAuthDir.c_str(),
+               R_OK | W_OK | X_OK)) {
+      Eroute.Emsg("Config", "cannot access the auth directory for r/w: ",
+                  eos::fst::Config::gConfig.FstAuthDir.c_str());
+      return 1;
+    }
+
+    Eroute.Say("=====> fstofs.authdir : ",
+               eos::fst::Config::gConfig.FstAuthDir.c_str());
   }
 
   // Attach Storage to the meta log dir
@@ -710,7 +751,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     eos_crit("error starting the shared object change notifier");
   }
 
-  eos_notice("sending broadcast's ...");
+  eos_notice("sending broadcasts ...");
   // Create a wildcard broadcast
   XrdMqSharedHash* hash = 0;
   XrdMqSharedQueue* queue = 0;
