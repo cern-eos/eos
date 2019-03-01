@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "common/Logging.hh"
+#include "namespace/Resolver.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/utils/Checksum.hh"
@@ -53,10 +54,26 @@ XrdMgmOfs::Checksum(const char* path,
   std::shared_ptr<eos::IFileMD> fmd;
   int retc = 0;
 
+  bool fuse_readable = env.Get("mgm.option")? (std::string(env.Get("mgm.option"))=="fuse")?true:false:false;
+  
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+
+  XrdOucString spath = path;
+  unsigned long byfid = eos::Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
+
   try {
-    fmd = gOFS->eosView->getFile(path);
-    eos::appendChecksumOnStringAsHex(fmd.get(), checksum, 0x00, SHA_DIGEST_LENGTH);
+    if (byfid) {
+      fmd = gOFS->eosFileService->getFileMD(byfid);
+    } else {
+      fmd = gOFS->eosView->getFile(path);
+    }
+    size_t xs_length = SHA_DIGEST_LENGTH;
+
+    if (fuse_readable) {
+      xs_length = eos::common::LayoutId:: GetChecksumLen(fmd->getLayoutId());
+    }
+
+    eos::appendChecksumOnStringAsHex(fmd.get(), checksum, 0x00, xs_length);
   } catch (eos::MDException& e) {
     eos_thread_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                      e.getErrno(), e.getMessage().str().c_str());

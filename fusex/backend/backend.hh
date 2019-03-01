@@ -89,6 +89,10 @@ public:
              std::vector<eos::fusex::container>& cont
             );
 
+  int getChecksum(fuse_req_t req, 
+		  uint64_t inode,
+		  std::string& checksum);
+
   void set_clientuuid(std::string& s)
   {
     clientuuid = s;

@@ -4591,6 +4591,10 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
               ;
             }
 
+	    if (key == "eos.checksum") {
+	      rc = Instance().mdbackend.getChecksum(req, md->md_ino(), value);
+	    }
+
             if (key == "eos.stats") {
               value = Instance().statsout.get();
             }

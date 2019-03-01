@@ -322,6 +322,7 @@ eosxd provides a command line interface to interact with mounts (see eosxd -h):
 usage CLI   : eosxd get <key> [<path>]
 
                      eos.btime <path>                   : show inode birth time
+		     eos.checksum <path>                : show path checksum if defined
                      eos.name <path>                    : show EOS instance name for given path
                      eos.md_ino <path>                  : show inode number valid on MGM 
                      eos.hostport <path>                : show MGM connection host + port for given path
@@ -449,6 +450,11 @@ Display MGM url
 Display Quota Information for a given path
 ```
 # getfattr --only-values -n eos.quota <path>
+```
+
+Display Checksum value for a given path
+```
+# getfattr --only-values -n eos.checksum <path>
 ```
 
 Server Interaction with a FUSE mount

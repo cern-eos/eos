@@ -943,6 +943,81 @@ backend::statvfs(fuse_req_t req,
   return errno;
 }
 
+
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+backend::getChecksum(fuse_req_t req,
+			uint64_t inode, 
+			std::string& checksum_return)
+/* -------------------------------------------------------------------------- */
+{
+  fuse_id id(req);
+  XrdCl::URL url("root://" + hostport);
+  std::string path = "ino:";
+  char sino[64];
+  snprintf(sino, sizeof(sino), "%lx", inode);
+  path += sino;
+  url.SetPath("/");
+  XrdCl::URL::ParamsMap query;
+  fusexrdlogin::loginurl(url, query, id.uid, id.gid, id.pid, 0);
+  query["eos.app"] = get_appname();
+  query["mgm.pcmd"] = "checksum";
+  query["eos.lfn"] = path;
+  query["mgm.option"] = "fuse";
+  url.SetParams(query);
+  std::string sarg = url.GetPathWithParams();
+  XrdCl::Buffer arg;
+  arg.FromString(sarg);
+  XrdCl::Buffer* response = 0;
+  
+  eos_static_debug("query: url=%s", url.GetURL().c_str());
+
+  XrdCl::XRootDStatus status = Query(url, XrdCl::QueryCode::OpaqueFile, arg,
+                                     response, put_timeout);
+  eos_static_info("sync-response");
+  eos_static_debug("response-size=%d",
+                   response ? response->GetSize() : 0);
+
+  if (status.IsOK()) {
+    if (response && response->GetBuffer()) {
+      std::string checksum_response;
+      checksum_response.assign(response->GetBuffer(), response->GetSize());
+      eos_static_debug("response=%s", checksum_response.c_str());
+      char checksum[1023];
+      int retc=0;
+      size_t items = sscanf(checksum_response.c_str(), "checksum: %1023s retc=%i", checksum, &retc);
+      if (items != 2) {
+	delete response;
+	return ENODATA;
+      } else {
+	if (retc) {
+	  delete response;
+	  return ENODATA;
+	} else {
+	  checksum_return = checksum;
+	}
+      }
+    }
+    if (response) 
+      delete response;
+
+    return 0;
+  } else {
+    eos_static_err("query resulted in error for ino=%lx url=%s rc=%d", inode,
+                   url.GetURL().c_str(),
+		   (status.code == XrdCl::errErrorResponse)?mapErrCode(status.errNo):EIO);
+
+    if (status.code == XrdCl::errErrorResponse) {
+      return mapErrCode(status.errNo);
+    } else {
+      return EIO;
+    }
+  }
+}
+
+
+
 /* -------------------------------------------------------------------------- */
 XrdCl::XRootDStatus
 /* -------------------------------------------------------------------------- */
