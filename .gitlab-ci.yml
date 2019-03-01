@@ -364,6 +364,7 @@ cc7_docker_image_with_forwardable_key_commit:
   except:
     - beryl_aquamarine
     - tags
+  when: manual
 
 
 cc7_docker_image_commit:
