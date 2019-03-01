@@ -21,8 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "fst/utils/OpenFileTracker.hh"
+#define __STDC_FORMAT_MACROS
 #include <inttypes.h>
+
+#include "fst/utils/OpenFileTracker.hh"
 #include "common/Assert.hh"
 
 EOSFSTNAMESPACE_BEGIN
