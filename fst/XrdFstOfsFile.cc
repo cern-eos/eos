@@ -1347,7 +1347,8 @@ XrdFstOfsFile::close()
             }
 
             rc = gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"),
-                                  mCapOpaque->Get("mgm.manager"), capOpaqueFile);
+                                  mCapOpaque->Get("mgm.manager"), capOpaqueFile,
+                                  nullptr, 0, true);
 
             if (rc) {
               if ((error.getErrInfo() == EIDRM) || (error.getErrInfo() == EBADE) ||
@@ -1755,7 +1756,8 @@ XrdFstOfsFile::close()
         } else {
           if (SendArchiveFailedToManager(fMd->mProtoFmd.fid(),
                                          errMsgBackFromWfEndpoint)) {
-            eos_crit("msg=\"Failed to send archive failed event to manager\" errMsgBackFromWfEndpoint=\"%s\"",
+            eos_crit("msg=\"Failed to send archive failed event to manager\" "
+                     "errMsgBackFromWfEndpoint=\"%s\"",
                      errMsgBackFromWfEndpoint.c_str());
           }
 
@@ -1785,8 +1787,8 @@ XrdFstOfsFile::close()
       eos_info("msg=\"notify\" event=\"%s\" workflow=\"%s\"", eventType.c_str(),
                mEventWorkflow.c_str());
       rc = gOFS.CallManager(&error, mCapOpaque->Get("mgm.path"),
-                            mCapOpaque->Get("mgm.manager"), capOpaqueFile, nullptr, 30, mSyncEventOnClose,
-                            false);
+                            mCapOpaque->Get("mgm.manager"), capOpaqueFile,
+                            nullptr, 30, mSyncEventOnClose, false);
     }
   }
 

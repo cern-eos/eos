@@ -28,6 +28,7 @@
 #include "fst/Config.hh"
 #include "fst/Fmd.hh"
 #include "common/Logging.hh"
+#include "common/XrdConnPool.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
 #include "XrdOfs/XrdOfs.hh"
@@ -302,7 +303,7 @@ public:
                   XrdOucString& capOpaqueFile,
                   XrdOucString* return_result = 0,
                   unsigned short timeout = 0,
-                  bool linkPerThread = false,
+                  bool use_xrd_conn_pool = false,
                   bool retry = true);
 
   //----------------------------------------------------------------------------
@@ -382,6 +383,8 @@ public:
   bool mMqOnQdb; ///< Are we using QDB as an MQ?
   int mHttpdPort; ///< listening port of the http server
 private:
+  //! Xrd connection pool for interaction with the MGM, used from CallManager
+  std::unique_ptr<eos::common::XrdConnPool> mMgmXrdPool;
   HttpServer* mHttpd; ///< Embedded http server
   bool Simulate_IO_read_error; ///< simulate an IO error on read
   bool Simulate_IO_write_error; ///< simulate an IO error on write

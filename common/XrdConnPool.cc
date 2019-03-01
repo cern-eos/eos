@@ -33,7 +33,7 @@ EOSCOMMONNAMESPACE_BEGIN
 XrdConnPool::XrdConnPool(bool is_enabled, uint32_t max_size):
   mIsEnabled(is_enabled), mMaxSize(max_size)
 {
-  if (getenv("EOS_XRD_USE_CONNECTION_POOL")) {
+  if (!mIsEnabled && getenv("EOS_XRD_USE_CONNECTION_POOL")) {
     mIsEnabled = true;
 
     if (getenv("EOS_XRD_CONNECTION_POOL_SIZE")) {

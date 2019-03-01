@@ -114,8 +114,8 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 XrdFstOfs::XrdFstOfs() :
-  eos::common::LogId(), mHostName(NULL), mHttpd(0),
-  mMqOnQdb(false),
+  eos::common::LogId(), mHostName(NULL), mMqOnQdb(false),
+  mHttpd(0),
   Simulate_IO_read_error(false), Simulate_IO_write_error(false),
   Simulate_XS_read_error(false), Simulate_XS_write_error(false),
   Simulate_FMD_open_error(false)
@@ -144,6 +144,31 @@ XrdFstOfs::XrdFstOfs() :
   gOFS.WOpenFid.set_deleted_key(0);
   gOFS.WNoDeleteOnCloseFid.clear_deleted_key();
   gOFS.WNoDeleteOnCloseFid.set_deleted_key(0);
+
+  if (getenv("EOS_FST_CALL_MANAGER_XRD_POOL")) {
+    int max_size = 10;
+    const char* csize {nullptr};
+
+    if ((csize = getenv("EOS_FST_CALL_MANAGER_XRD_POOL_SIZE"))) {
+      try {
+        max_size = std::stoi(csize);
+
+        if (max_size < 1) {
+          max_size = 1;
+        }
+
+        if (max_size > 32) {
+          max_size = 32;
+        }
+      } catch (...) {
+        // ignore
+      }
+    }
+
+    mMgmXrdPool.reset(new eos::common::XrdConnPool(true, max_size));
+    fprintf(stderr, "Config Enabled CallManager xrootd connection pool with "
+            "size=%i\n", max_size);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -532,17 +557,16 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           Eroute.Say("=====> fstofs.qdbpassword length : ", pwlen.c_str());
         }
 
-        if(!strcmp("mq_implementation", var)) {
+        if (!strcmp("mq_implementation", var)) {
           std::string value;
 
           while ((val = Config.GetWord())) {
             value += val;
           }
 
-          if(value == "qdb") {
+          if (value == "qdb") {
             mMqOnQdb = true;
-          }
-          else {
+          } else {
             Eroute.Emsg("Config", "unrecognized value for mq_implementation");
             NoGo = 1;
           }
@@ -842,7 +866,7 @@ int
 XrdFstOfs::CallManager(XrdOucErrInfo* error, const char* path,
                        const char* manager, XrdOucString& capOpaqueFile,
                        XrdOucString* return_result, unsigned short timeout,
-                       bool linkPerThread, bool retry)
+                       bool use_xrd_conn_pool, bool retry)
 {
   EPNAME("CallManager");
   int rc = SFS_OK;
@@ -850,14 +874,6 @@ XrdFstOfs::CallManager(XrdOucErrInfo* error, const char* path,
   XrdCl::Buffer arg;
   XrdCl::XRootDStatus status;
   XrdOucString address = "root://";
-
-  if (linkPerThread) {
-    std::ostringstream tidStr;
-    tidStr << std::this_thread::get_id();
-    address += tidStr.str().c_str();
-    address += "@";
-  }
-
   XrdOucString lManager;
   size_t tried = 0;
 
@@ -876,6 +892,20 @@ XrdFstOfs::CallManager(XrdOucErrInfo* error, const char* path,
   if (!url.IsValid()) {
     eos_err("error=URL is not valid: %s", address.c_str());
     return EINVAL;
+  }
+
+  // Use xrd connection pool if is requested by the caller and this is
+  // is allowed globally.
+  std::unique_ptr<eos::common::XrdConnIdHelper> conn_helper;
+
+  if (use_xrd_conn_pool) {
+    if (getenv("EOS_FST_CALL_MANAGER_XRD_POOL")) {
+      conn_helper.reset(new eos::common::XrdConnIdHelper(*mMgmXrdPool, url));
+
+      if (conn_helper->HasNewConnection()) {
+        eos_info("msg=\"using url=%s\"", url.GetURL().c_str());
+      }
+    }
   }
 
   // Request sss authentication on the MGM side
