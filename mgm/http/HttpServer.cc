@@ -372,13 +372,31 @@ HttpServer::Authenticate(std::map<std::string, std::string>& headers)
   }
 
   XrdSecEntity client(headers.count("x-real-ip") ? "https" : "http");
-  std::string remotehost = "";
 
   if (headers.count("x-real-ip")) {
-    // translate a proxied host name
-    remotehost = const_cast<char*>(headers["x-real-ip"].c_str());
+    // Translate a proxied host name
+    std::string real_ip = headers["x-real-ip"];
+
+    if (real_ip.empty()) {
+      eos_static_err("msg=\"x-real-ip header is empty\"");
+      return NULL;
+    }
+
+    // XrdNetAddr deals properly with IPv6 addresses only if they use the
+    // bracket format [ipv6_addr][:<port>]
+    if (real_ip.find('.') == std::string::npos) {
+      // We can safely assume this is an IPv6 address now
+      if (real_ip[0] != '[') {
+        std::ostringstream oss;
+        oss << '[' << real_ip << ']';
+        real_ip = oss.str();
+      }
+    }
+
+    std::string remotehost = real_ip;
     XrdNetAddr netaddr;
-    netaddr.Set(headers["x-real-ip"].c_str());
+    netaddr.Set(real_ip.c_str());
+    // Try to convert IP to corresponding [host] name
     const char* name = netaddr.Name();
 
     if (name) {
