@@ -835,7 +835,10 @@ main(int argc, char* argv[])
     src_location.push_back(std::make_pair(address, file_path));
 
     if (verbose || debug) {
-      if (i == 0) { fprintf(stdout, "[eoscp] "); }
+      if (i == 0) {
+        fprintf(stdout, "[eoscp] ");
+      }
+
       fprintf(stdout, "src<%d>=%s ", i, location.c_str());
     }
   }
@@ -977,6 +980,13 @@ main(int argc, char* argv[])
 
             XrdOucEnv* openOpaque = new XrdOucEnv(stringOpaque.c_str());
             char* opaque_info = (char*) strstr(origResponse.c_str(), "&mgm.logid");
+
+            if (opaque_info == nullptr) {
+              fprintf(stderr, "error: failed to parse opaque information from "
+                      "PIO request.\n");
+              exit(-EINVAL);
+            }
+
             opaqueInfo = opaque_info;
 
             //..................................................................
