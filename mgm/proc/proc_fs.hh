@@ -73,7 +73,7 @@ int proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
 //------------------------------------------------------------------------------
 //! Set filesystem configuration parameter
 //!
-//! @param identifier filesystem identifier (can be id, uuid or hostname)
+//! @param identifier filesystem identifier (can be id, uuid)
 //! @param key parameter identifier
 //! @param value parameter value
 //! @param stdOut normal output string

@@ -36,11 +36,7 @@ message FsProto {
   message ConfigProto {
     string Key = 1;
     string Value = 2;
-    oneof id {
-      uint64 Fsid = 3;
-      string Uuid = 4;
-      string HostPortPath = 5;
-    }
+    uint64 Fsid = 3;
   }
 
   message DropDeletionProto {

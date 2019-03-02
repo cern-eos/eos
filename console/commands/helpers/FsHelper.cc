@@ -229,26 +229,20 @@ FsHelper::ParseCommand(const char* arg)
       return false;
     } else {
       soption = option;
+      // Parse <fsid>
+      bool not_numeric = (soption.find_first_not_of("0123456789") !=
+                          std::string::npos);
 
-      // Parse <host>:<port><path> identifier
-      if ((soption.find(':') != std::string::npos) &&
-          (soption.find('/') != std::string::npos)) {
-        config->set_hostportpath(soption);
+      if (not_numeric) {
+        std::cerr << "error: fsid needs to be numeric" << std::endl;
+        return false;
       } else {
-        // Parse <fsid> or <uuid>
-        bool isUuid =
-          soption.find_first_not_of("0123456789") != std::string::npos;
-
-        if (isUuid) {
-          config->set_uuid(soption);
-        } else {
-          try {
-            uint64_t fsid = std::stoull(soption);
-            config->set_fsid(fsid);
-          } catch (const std::exception& e) {
-            std::cerr << "error: fsid needs to be numeric" << std::endl;
-            return false;
-          }
+        try {
+          uint64_t fsid = std::stoull(soption);
+          config->set_fsid(fsid);
+        } catch (const std::exception& e) {
+          std::cerr << "error: fsid needs to be numeric" << std::endl;
+          return false;
         }
       }
 
@@ -542,7 +536,8 @@ FsHelper::ParseCommand(const char* arg)
 
           oss << "/fst" << mountpoint;
           rm->set_nodequeue(oss.str());
-        } else {
+        }
+        else {
           // This needs to be an fsid
           try {
             uint64_t fsid = std::stoull(soption);

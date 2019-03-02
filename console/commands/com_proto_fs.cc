@@ -111,7 +111,7 @@ void com_fs_help()
       << "    <targetid>   : id of the target filesystem" << std::endl
       << std::endl
       << std::endl
-      << "  fs config <fsid>|<uuid>|<host>:<port> <key>=<value>" << std::endl
+      << "  fs config <fsid> <key>=<value>" << std::endl
       << "    configure the filesystem parameter, where <key> and <value> can be:" <<
       std::endl
       << "    configstatus=rw|wo|ro|drain|draindead|off|empty [--comment \"<comment>\"]"
