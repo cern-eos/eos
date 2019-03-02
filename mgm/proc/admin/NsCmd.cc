@@ -298,8 +298,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
   size_t eosxd_nclients = 0;
   size_t eosxd_active_clients = 0;
   size_t eosxd_locked_clients = 0;
-
-  gOFS->zMQ->gFuseServer.Client().ClientStats(eosxd_nclients, eosxd_active_clients, eosxd_locked_clients);
+  gOFS->zMQ->gFuseServer.Client().ClientStats(eosxd_nclients,
+      eosxd_active_clients, eosxd_locked_clients);
 
   if (stat.monitor()) {
     oss << "uid=all gid=all ns.total.files=" << f << std::endl
@@ -338,12 +338,11 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << "uid=all gid=all ns.fusex.caps=" << gOFS->zMQ->gFuseServer.Cap().ncaps() <<
         std::endl
         << "uid=all gid=all ns.fusex.clients=" <<
-	eosxd_nclients << std::endl 
+        eosxd_nclients << std::endl
         << "uid=all gid=all ns.fusex.activeclients=" <<
-	eosxd_active_clients << std::endl 
+        eosxd_active_clients << std::endl
         << "uid=all gid=all ns.fusex.lockedclients=" <<
-      eosxd_locked_clients << std::endl ;
-
+        eosxd_locked_clients << std::endl ;
 
     if (pstat.vsize > gOFS->LinuxStatsStartup.vsize) {
       oss << "uid=all gid=all ns.memory.growth=" << (unsigned long long)
@@ -354,8 +353,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
     }
 
     oss << "uid=all gid=all ns.uptime="
-        << (int)(time(NULL) - gOFS->mStartTime)
-        << std::endl;
+        << (int)(time(NULL) - gOFS->mStartTime) << std::endl
+        << "uid=all gid=all "
+        << gOFS->mDrainEngine.GetThreadPoolInfo() << std::endl;
   } else {
     std::string line = "# ------------------------------------------------------"
                        "------------------------------";

@@ -245,11 +245,11 @@ public:
   std::string GetInfo() const
   {
     std::ostringstream oss;
-    oss <<  "id=" << mId
-        << ", thread_pool_min=" << mThreadsMin
-        << ", thread_pool_max=" << mThreadsMax
-        << ", thread_pool_size=" << mPoolSize
-        << ", queue_size=" << mTasks.size();
+    oss <<  "thread_pool=" << mId
+        << " min=" << mThreadsMin
+        << " max=" << mThreadsMax
+        << " size=" << mPoolSize
+        << " queue_size=" << mTasks.size();
     return oss.str();
   }
 
