@@ -36,7 +36,8 @@ EOSFSTNAMESPACE_BEGIN
 //! Class to track which files are open at any given moment, on a
 //! filesystem-basis.
 //!
-//! Thread-safe.
+//! Thread-safe. To track both "open-for-read" and "open-for-write" files,
+//! use two different objects.
 //------------------------------------------------------------------------------
 class OpenFileTracker {
 public:
@@ -64,9 +65,31 @@ public:
   bool isOpen(eos::common::FileSystem::fsid_t fsid, uint64_t fid) const;
 
   //----------------------------------------------------------------------------
+  //! Checks if there's _any_ operation currently in progress
+  //----------------------------------------------------------------------------
+  bool isAnyOpen() const;
+
+  //----------------------------------------------------------------------------
   //! Checks if the given file ID, on the given filesystem ID, is currently open
   //----------------------------------------------------------------------------
   int32_t getUseCount(eos::common::FileSystem::fsid_t fsid, uint64_t fid) const;
+
+  //----------------------------------------------------------------------------
+  //! Get open file IDs of a filesystem, sorted by usecount
+  //----------------------------------------------------------------------------
+  std::map<size_t, std::set<uint64_t>> getSortedByUsecount(
+    eos::common::FileSystem::fsid_t fsid) const;
+
+  //----------------------------------------------------------------------------
+  //! Get top hot files on current filesystem
+  //----------------------------------------------------------------------------
+  // struct HotEntry {
+  //   eos::common::FileSystem::fsid_t fsid;
+  //   uint64_t fid;
+  //   size_t uses;
+  // };
+
+  // std::vector<HotEntry> getHotFiles(eos::common::FileSystem::fsid_t fsid, size_t maxEntries) const;
 
 private:
   mutable std::shared_timed_mutex mMutex;

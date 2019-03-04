@@ -68,6 +68,12 @@ void OpenFileTracker::down(eos::common::FileSystem::fsid_t fsid, uint64_t fid) {
   if(fidit->second == 1) {
     // Last use, remove from map
     fsit->second.erase(fidit);
+
+    // Also remove fs from top-level map?
+    if(fsit->second.empty()) {
+      mContents.erase(fsit);
+    }
+
     return;
   }
 
@@ -106,5 +112,73 @@ int32_t OpenFileTracker::getUseCount(eos::common::FileSystem::fsid_t fsid, uint6
 
   return fidit->second;
 }
+
+//------------------------------------------------------------------------------
+// Checks if there's _any_ operation currently in progress
+//------------------------------------------------------------------------------
+bool OpenFileTracker::isAnyOpen() const {
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+  return ! mContents.empty();
+}
+
+//----------------------------------------------------------------------------
+// Get open file IDs of a filesystem, sorted by usecount
+//----------------------------------------------------------------------------
+std::map<size_t, std::set<uint64_t>> OpenFileTracker::getSortedByUsecount(
+  eos::common::FileSystem::fsid_t fsid) const {
+
+  std::map<size_t, std::set<uint64_t>> contentsSortedByUsecount;
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+
+  auto fsit = mContents.find(fsid);
+  if(fsit == mContents.end()) {
+    // Filesystem has no open files
+    return {};
+  }
+
+  for(auto it = fsit->second.begin(); it != fsit->second.end(); it++) {
+    contentsSortedByUsecount[it->second].insert(it->first);
+    std::cout << "inserting: " << it->second << " -> " << it->first << std::endl;
+  }
+
+  return contentsSortedByUsecount;
+}
+
+//------------------------------------------------------------------------------
+// Get top hot files on current filesystem
+//------------------------------------------------------------------------------
+// std::vector<OpenFileTracker::HotEntry> OpenFileTracker::getHotFiles(
+//   eos::common::FileSystem::fsid_t fsid, size_t maxEntries) const {
+
+//   std::map<size_t, std::set<uint64_t>> contentsSortedByUsecount;
+
+//   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+
+//   auto fsit = mContents.find(fsid);
+//   if(fsit == mContents.end()) {
+//     // Filesystem has no open files
+//     return {};
+//   }
+
+//   for(auto it = fsit->second.begin(); it != fsit->second.end(); it++) {
+//     contentsSortedByUsecount[it->second].insert(it->first);
+//   }
+
+//   lock.unlock();
+
+//   // std::vector<HotEntry> results;
+//   // for(auto it = contentsSortedByUsecount.rbegin(); it != contentsSortedByUsecount.rend(); it++) {
+
+//   //   for(auto it2 =  )
+
+
+//   //   if(results.size() <= maxEntries) {
+//   //     break;
+//   //   }
+
+
+//   // }
+// }
+
 
 EOSFSTNAMESPACE_END
