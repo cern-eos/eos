@@ -16,7 +16,7 @@ before_script:
     - sudo ./eos-docker/scripts/shutdown_services.sh
     - ./eos-docker/scripts/remove_unused_images.sh
     - docker pull gitlab-registry.cern.ch/dss/${EOS_IMG_NAME}${CI_COMMIT_TAG-$CI_PIPELINE_ID}
-    - if [[ "$CI_JOB_NAME" == system_test_qdb* ]]; then sudo ./eos-docker/scripts/start_services.sh -q -i gitlab-registry.cern.ch/dss/${EOS_IMG_NAME}${CI_COMMIT_TAG-$CI_PIPELINE_ID}; else sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/${EOS_IMG_NAME}${CI_COMMIT_TAG-$CI_PIPELINE_ID}; fi
+    - if [ "$CI_JOB_NAME" == system_test_qdb* ]; then sudo ./eos-docker/scripts/start_services.sh -q -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}; else sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:${CI_COMMIT_TAG-$CI_PIPELINE_ID}; fi
     - docker exec -i eos-mgm-test /bin/bash -c 'eos vid enable krb5;'
     - docker exec -i eos-mgm-test eos-instance-test-ci
     - docker exec -i eos-client-test git clone https://gitlab.cern.ch/dss/eosclient-tests.git
@@ -364,7 +364,7 @@ cc7_docker_image_with_forwardable_key_commit:
   except:
     - beryl_aquamarine
     - tags
-  when: manual
+  # when: manual
 
 
 cc7_docker_image_commit:
@@ -454,25 +454,24 @@ prod_docker_image_tag:
 
 k8s_unit_test:
   stage: test
-  variables:
-    IMAGE_TAG: "fwdk_${CI_PIPELINE_ID}"
-    NAMESPACE: "x${CI_JOB_NAME}x${CI_PIPELINE_ID}x" # Namespaces should start and end with alphanumeric character
   script:
+    - export IMAGE_TAG="fwdk_${CI_PIPELINE_ID}"
+    - export NAMESPACE=$(echo ${CI_JOB_NAME}-${CI_PIPELINE_ID} | tr _ -) # a DNS-1123 label must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character
     - cd /home/gitlab-runner
     - . coe-cluster-config/env_st-gitlab-k8s-00.sh
-    - kubectl config view
+    - kubectl config view; echo "IMAGE_TAG = $IMAGE_TAG"; echo "NAMESPACE = $NAMESPACE"
     - rm -rf eos-on-k8s
     - git clone https://gitlab.cern.ch/faluchet/eos-on-k8s.git; cd eos-on-k8s
     - all_yaml=(eos-storage-*.yaml); for i in ${all_yaml[@]}; do sed -i "s%gitlab-registry.cern.ch/dss/eos.*%gitlab-registry.cern.ch/dss/eos:${IMAGE_TAG}%g" $i; done
-    - ./create-all.sh ${NAMESPACE} 
-    - kubectl exec -it $(kubectl get pods --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-unit-tests # || true
-    - kubectl exec -it $(kubectl get pods --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-fst-unit-tests # || true
+    - ./create-all.sh ${NAMESPACE}
+    - kubectl exec $(kubectl get pods --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-unit-tests
+    - kubectl exec $(kubectl get pods --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-fst-unit-tests
     - ./delete-all.sh ${NAMESPACE}
   allow_failure: true
-  when: manual
   tags:
     - shell-with-docker
     - k8s_node
+  # when: manual
 
     
 unit_test:
