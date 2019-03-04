@@ -27,6 +27,7 @@
 #include "fst/Namespace.hh"
 #include "fst/Config.hh"
 #include "fst/Fmd.hh"
+#include "fst/utils/OpenFileTracker.hh"
 #include "common/Logging.hh"
 #include "common/XrdConnPool.hh"
 #include "mq/XrdMqMessaging.hh"
@@ -350,9 +351,9 @@ public:
   google::sparse_hash_map<eos::common::FileSystem::fsid_t,
          google::sparse_hash_map<unsigned long long,
          unsigned int> > WOpenFid;
-  google::sparse_hash_map<eos::common::FileSystem::fsid_t,
-         google::sparse_hash_map<unsigned long long,
-         unsigned int> > ROpenFid;
+
+  eos::fst::OpenFileTracker openedForReading;
+
   //! Map to forbid deleteOnClose for creates if 1+X open had a successful close
   google::sparse_hash_map<eos::common::FileSystem::fsid_t,
          google::sparse_hash_map<unsigned long long,

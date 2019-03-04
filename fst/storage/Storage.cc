@@ -406,8 +406,6 @@ Storage::Boot(FileSystem* fs)
 
   {
     XrdSysMutexHelper scope_lock(gOFS.OpenFidMutex);
-    gOFS.ROpenFid[fsid].clear_deleted_key();
-    gOFS.ROpenFid[fsid].set_deleted_key(0);
     gOFS.WOpenFid[fsid].clear_deleted_key();
     gOFS.WOpenFid[fsid].set_deleted_key(0);
     gOFS.WNoDeleteOnCloseFid[fsid].clear_deleted_key();

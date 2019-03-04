@@ -138,8 +138,6 @@ XrdFstOfs::XrdFstOfs() :
   }
 
   // Initialize the google sparse hash maps
-  gOFS.ROpenFid.clear_deleted_key();
-  gOFS.ROpenFid.set_deleted_key(0);
   gOFS.WOpenFid.clear_deleted_key();
   gOFS.WOpenFid.set_deleted_key(0);
   gOFS.WNoDeleteOnCloseFid.clear_deleted_key();
@@ -1680,13 +1678,7 @@ XrdFstOfs::WaitForOngoingIO(std::chrono::seconds timeout)
       }
 
       if (all_done) {
-        for (auto it = ROpenFid.begin(); it != ROpenFid.end(); ++it) {
-          if (it->second.size() != 0) {
-            all_done = false;
-            eos_info("waiting for read IO operations to finish");
-            break;
-          }
-        }
+        all_done = ! openedForReading.isAnyOpen();
       }
 
       if (all_done) {

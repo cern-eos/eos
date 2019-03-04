@@ -634,7 +634,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     if (isRW) {
       gOFS.WOpenFid[mFsId][mFileId]++;
     } else {
-      gOFS.ROpenFid[mFsId][mFileId]++;
+      gOFS.openedForReading.up(mFsId, mFileId);
     }
   } else {
     // If we have local errors in open we don't disable the filesystem -
@@ -1473,7 +1473,7 @@ XrdFstOfsFile::close()
 
         gOFS.WOpenFid[fMd->mProtoFmd.fsid()][fMd->mProtoFmd.fid()]--;
       } else {
-        gOFS.ROpenFid[fMd->mProtoFmd.fsid()][fMd->mProtoFmd.fid()]--;
+        gOFS.openedForReading.down(fMd->mProtoFmd.fsid(), fMd->mProtoFmd.fid());
       }
 
       if (gOFS.WOpenFid[fMd->mProtoFmd.fsid()][fMd->mProtoFmd.fid()] <= 0) {
@@ -1482,11 +1482,6 @@ XrdFstOfsFile::close()
         // When the last writer is gone we can remove the prohibiting entry
         gOFS.WNoDeleteOnCloseFid[fMd->mProtoFmd.fsid()].erase(fMd->mProtoFmd.fid());
         gOFS.WNoDeleteOnCloseFid[fMd->mProtoFmd.fsid()].resize(0);
-      }
-
-      if (gOFS.ROpenFid[fMd->mProtoFmd.fsid()][fMd->mProtoFmd.fid()] <= 0) {
-        gOFS.ROpenFid[fMd->mProtoFmd.fsid()].erase(fMd->mProtoFmd.fid());
-        gOFS.ROpenFid[fMd->mProtoFmd.fsid()].resize(0);
       }
     }
 

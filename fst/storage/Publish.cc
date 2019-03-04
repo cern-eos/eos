@@ -171,17 +171,9 @@ Storage::Publish(ThreadAssistant &assistant)
           XrdOucString r_open_hotfiles;
           XrdOucString w_open_hotfiles;
           {
-            std::map<unsigned int, std::set<unsigned long long>> Rhotfiles;
             std::map<unsigned int, std::set<unsigned long long>> Whotfiles;
             {
               XrdSysMutexHelper fLock(gOFS.OpenFidMutex);
-
-              if (gOFS.ROpenFid.count(fsid)) {
-                for (auto it = gOFS.ROpenFid[fsid].begin(); it != gOFS.ROpenFid[fsid].end();
-                     ++it) {
-                  Rhotfiles[it->second].insert(it->first);
-                }
-              }
 
               if (gOFS.WOpenFid.count(fsid)) {
                 for (auto it = gOFS.WOpenFid[fsid].begin(); it != gOFS.WOpenFid[fsid].end();
@@ -190,26 +182,21 @@ Storage::Publish(ThreadAssistant &assistant)
                 }
               }
             }
-            size_t cnt = 0;
 
-            for (auto it = Rhotfiles.rbegin(); it != Rhotfiles.rend(); ++it) {
+            std::vector<eos::fst::OpenFileTracker::HotEntry> hotEntriesRead;
+            hotEntriesRead = gOFS.openedForReading.getHotFiles(fsid, 10);
+
+            for(auto it = hotEntriesRead.begin(); it != hotEntriesRead.end(); ++it) {
               XrdOucString hexfid;
+              eos::common::FileId::Fid2Hex(it->fid, hexfid);
 
-              for (auto fit = it->second.begin(); fit != it->second.end(); ++fit) {
-                eos::common::FileId::Fid2Hex(*fit, hexfid);
-                r_open_hotfiles += (int) it->first;
-                r_open_hotfiles += ":";
-                r_open_hotfiles += hexfid.c_str();
-                r_open_hotfiles += " ";
-                ++cnt;
-
-                if (cnt == 10) {
-                  break;
-                }
-              }
+              r_open_hotfiles += (int) it->uses;
+              r_open_hotfiles += ":";
+              r_open_hotfiles += hexfid.c_str();
+              r_open_hotfiles += " ";
             }
 
-            cnt = 0;
+            size_t cnt = 0;
 
             for (auto it = Whotfiles.rbegin(); it != Whotfiles.rend(); ++it) {
               XrdOucString hexfid;
@@ -319,7 +306,7 @@ Storage::Publish(ThreadAssistant &assistant)
           long long w_open = 0;
           {
             XrdSysMutexHelper fLock(gOFS.OpenFidMutex);
-            r_open = (long long) gOFS.ROpenFid[fsid].size();
+            r_open = (long long) gOFS.openedForReading.getOpenOnFilesystem(fsid);
             w_open = (long long) gOFS.WOpenFid[fsid].size();
           }
           success &= mFsVect[i]->SetLongLong("stat.ropen", r_open);
