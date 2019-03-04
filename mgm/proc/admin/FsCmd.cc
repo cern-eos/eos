@@ -264,25 +264,7 @@ FsCmd::Config(const eos::console::FsProto::ConfigProto& configProto)
 {
   auto key = configProto.key();
   auto value = configProto.value();
-  std::string identifier;
-
-  switch (configProto.id_case()) {
-  case eos::console::FsProto::ConfigProto::kHostPortPath:
-    identifier = configProto.hostportpath();
-    break;
-
-  case eos::console::FsProto::ConfigProto::kUuid:
-    identifier = configProto.uuid();
-    break;
-
-  case eos::console::FsProto::ConfigProto::kFsid:
-    identifier = std::to_string(configProto.fsid());
-    break;
-
-  default:
-    break;
-  }
-
+  std::string identifier = std::to_string(configProto.fsid());
   XrdOucString outLocal, errLocal;
   retc = proc_fs_config(identifier, key, value, outLocal, errLocal,
                         mVid, mComment.c_str());
