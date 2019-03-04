@@ -246,8 +246,31 @@ ConverterJob::DoIt()
                      mFid);
     }
   }
-  eos_static_info("msg=\"stop tpc job\" fxid=%016x layout=%s",
-                  mFid, mConversionLayout.c_str());
+
+  // ---------------------------------------------------------------------------
+  // check if the new file has all fragments according to the layout
+  // ---------------------------------------------------------------------------
+  {
+    eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
+    try {
+      fmd = gOFS->eosView->getFile(mProcPath);
+      if ( (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())+1) != fmd->getNumLocation()) {
+	success = false;
+	eos_static_err("[tpc] failing conversion for wrong stripe number : path=%s n-layout-stripes=%u n-stripes=%u",
+		       mProcPath.c_str(), 
+		       eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())+1,
+		       fmd->getNumLocation());
+      }
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      eos_static_err("path=%s errno=%d msg=\"%s\"\n",
+                     mProcPath.c_str(), e.getErrno(), e.getMessage().str().c_str());
+      success = false;
+    }
+  }
+
+  eos_static_info("msg=\"stop tpc job\" fxid=%016x layout=%s success=%d",
+                  mFid, mConversionLayout.c_str(), success);
   {
     // We can only call-back to the Converter object if it wasn't destroyed/
     // recreated in the mean-while.
