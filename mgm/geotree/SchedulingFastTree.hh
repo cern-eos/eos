@@ -1697,8 +1697,10 @@ public:
         }
 
         _mTotalSpace += pNodes[childNode].fsData.totalSpace;
-        _mFillRatio += pNodes[childNode].fsData.fillRatio *
-                       pNodes[childNode].fsData.totalSpace;
+        //_mFillRatio += pNodes[childNode].fsData.fillRatio *
+        //               pNodes[childNode].fsData.totalSpace;
+        _mFillRatio += pNodes[childNode].fsData.fillRatio;
+
         count++;
         // Not a good idea to propagate the availability as we want to be able
         // to make a branch as unavailable regardless of the status of the leaves
@@ -1710,8 +1712,8 @@ public:
       }
     }
 
-    if (_mTotalSpace) {
-      _mFillRatio /= _mTotalSpace;
+    if (count) {
+      _mFillRatio /= count;
     }
 
     // testing the count is irrelevant but makes coverity happy
