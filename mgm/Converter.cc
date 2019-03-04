@@ -223,9 +223,7 @@ ConverterJob::DoIt()
     success = false;
   }
 
-  // ---------------------------------------------------------------------------
-  // check if the file is still the same on source side
-  // ---------------------------------------------------------------------------
+  // Check if the file is still the same on source side
   {
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mFid);
     eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
@@ -241,34 +239,33 @@ ConverterJob::DoIt()
     }
 
     if (sourceChecksum != sourceAfterChecksum) {
+      eos_static_err("fid=%016x conversion failed since file was modified", mFid);
       success = false;
-      eos_static_err("fid=%016x conversion failed since file was modified",
-                     mFid);
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // check if the new file has all fragments according to the layout
-  // ---------------------------------------------------------------------------
+  // Check if the new file has all fragments according to the layout
   {
     eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
+
     try {
       fmd = gOFS->eosView->getFile(mProcPath);
-      if ( (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())+1) != fmd->getNumLocation()) {
-	success = false;
-	eos_static_err("[tpc] failing conversion for wrong stripe number : path=%s n-layout-stripes=%u n-stripes=%u",
-		       mProcPath.c_str(), 
-		       eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())+1,
-		       fmd->getNumLocation());
+
+      if ((eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1) !=
+          fmd->getNumLocation()) {
+        eos_static_err("[tpc] failing conversion for wrong stripe number : "
+                       "path=%s n-layout-stripes=%u n-stripes=%u",
+                       mProcPath.c_str(),
+                       eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1,
+                       fmd->getNumLocation());
+        success = false;
       }
     } catch (eos::MDException& e) {
-      errno = e.getErrno();
       eos_static_err("path=%s errno=%d msg=\"%s\"\n",
                      mProcPath.c_str(), e.getErrno(), e.getMessage().str().c_str());
+      errno = e.getErrno();
       success = false;
     }
   }
-
   eos_static_info("msg=\"stop tpc job\" fxid=%016x layout=%s success=%d",
                   mFid, mConversionLayout.c_str(), success);
   {
