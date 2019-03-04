@@ -16,6 +16,56 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.4.26 Citrine``
+===================
+
+2019-03-04
+
+Bug
+----
+
+* [EOS-3246] - IPv6 addresses parsing broken
+* [EOS-3256] - Add XRootD connection pool to the MGM
+* [EOS-3257] - interactive 'eos' CLI aborts around eos::common::SymKeyStore::~SymKeyStore()
+* [EOS-3261] - EOSBACKUP locked up
+* [EOS-3263] - eosxd does not support seekdir/telldir
+* [EOS-3265] - Node config values never removed
+* [EOS-3266] - First MGM boot on clean namespace does not setup "/", "/eos", etc if EOS_USE_QDB_MASTER is set
+* [EOS-3267] - Dump files on CERN FSTs goes into a file named /var/eos/mdso.fst.dump.lxfsre10b04.cern.ch:109
+* [EOS-3276] - Inconsistent behavior (and doc) for "eos fs config" and "eos node config"
+* [EOS-3296] - eoscp crash while copying 'opaque_info' data
+* [EOS-3299] - Workaround for XRootD TPC bug in Converter which leads to data loss.
+               This is not a definitive fix.
+* [EOS-3280] - Logrotate rpm dependency missing for eos-server package
+* [EOS-3303] - Implement InheritChildren method for the QuarkContainerMD which otherwise
+               crashes the MGM for commands like "eos --json fileinfo /path/to/dir/".
+
+Improvement
+------------
+
+* [EOS-3249] - Add "flag" file for master status
+* [EOS-3251] - Expose Central drain thread pool status in monitoring format
+* [EOS-3269] - path display in `eos file check`output
+* [EOS-3295] - Allow MGMs to retrieve stacktraces and log files from eosxd at runtime
+
+Note
+-----
+
+Starting with this version one can control the xrootd pool of physical connections
+by using the following two env variables:
+EOS_XRD_USE_CONNECTION_POOL - enable the xrootd connection pool
+EOS_XRD_CONNECTION_POOL_SIZE - max number of unique phisical connection
+towards a particular host.
+This can be use in the MGM daemon to control connection pool for TPC transfers
+used in the Converter and the Central Draining, but also on the FST side for
+FST to FST transfers.
+
+The following two env variables that proided similar functionality only on the
+FST side are now obsolete:
+EOS_FST_XRDIO_USE_CONNECTION_POOL
+EOS_FST_XRDIO_CONNECTION_POOL_SIZE
+
+
 ``v4.4.25 Citrine``
 ===================
 
