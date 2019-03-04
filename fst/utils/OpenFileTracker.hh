@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: OpenFileCounter.hh
+// File: OpenFileTracker.hh
 // Author: Georgios Bitzes - CERN
 // ----------------------------------------------------------------------
 
@@ -21,10 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_FST_UTILS_OPENFILECOUNTER
-#define EOS_FST_UTILS_OPENFILECOUNTER
-
-#pragma once
+#ifndef EOS_FST_UTILS_OPENFILETRACKER_H
+#define EOS_FST_UTILS_OPENFILETRACKER_H
 
 #include "fst/Namespace.hh"
 #include "common/FileSystem.hh"
@@ -73,6 +71,11 @@ public:
   //! Checks if the given file ID, on the given filesystem ID, is currently open
   //----------------------------------------------------------------------------
   int32_t getUseCount(eos::common::FileSystem::fsid_t fsid, uint64_t fid) const;
+
+  //----------------------------------------------------------------------------
+  //! Get number of distinct open files by filesystem
+  //----------------------------------------------------------------------------
+  int32_t getOpenOnFilesystem(eos::common::FileSystem::fsid_t fsid) const;
 
   //----------------------------------------------------------------------------
   //! Get open file IDs of a filesystem, sorted by usecount

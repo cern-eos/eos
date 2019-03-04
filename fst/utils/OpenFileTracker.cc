@@ -143,6 +143,20 @@ std::map<size_t, std::set<uint64_t>> OpenFileTracker::getSortedByUsecount(
   return contentsSortedByUsecount;
 }
 
+//----------------------------------------------------------------------------
+// Get number of distinct open files by filesystem
+//----------------------------------------------------------------------------
+int32_t OpenFileTracker::getOpenOnFilesystem(eos::common::FileSystem::fsid_t fsid) const {
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+
+  auto fsit = mContents.find(fsid);
+  if(fsit == mContents.end()) {
+    return 0;
+  }
+
+  return fsit->second.size();
+}
+
 //------------------------------------------------------------------------------
 // Get top hot files on current filesystem
 //------------------------------------------------------------------------------

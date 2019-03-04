@@ -37,11 +37,16 @@ TEST(OpenFileTracker, BasicSanity) {
   ASSERT_TRUE(oft.isOpen(1, 99));
   ASSERT_EQ(oft.getUseCount(1, 99), 1);
 
+  ASSERT_EQ(oft.getOpenOnFilesystem(1), 1);
+  ASSERT_EQ(oft.getOpenOnFilesystem(2), 0);
+
   oft.down(1, 99);
   ASSERT_FALSE(oft.isOpen(1, 99));
   ASSERT_EQ(oft.getUseCount(1, 99), 0);
   ASSERT_FALSE(oft.isAnyOpen());
 
+  ASSERT_EQ(oft.getOpenOnFilesystem(1), 0);
+  ASSERT_EQ(oft.getOpenOnFilesystem(2), 0);
 
   oft.up(2, 100); // fsid=2, fid=100
   ASSERT_TRUE(oft.isAnyOpen());
@@ -51,6 +56,10 @@ TEST(OpenFileTracker, BasicSanity) {
   oft.up(3, 101);
 
   oft.up(9, 102); // fsid=9, fid=102
+
+  ASSERT_EQ(oft.getOpenOnFilesystem(2), 1);
+  ASSERT_EQ(oft.getOpenOnFilesystem(3), 1);
+  ASSERT_EQ(oft.getOpenOnFilesystem(9), 1);
 
   ASSERT_FALSE(oft.isOpen(2, 101));
   ASSERT_TRUE(oft.isOpen(2, 100));
@@ -72,6 +81,8 @@ TEST(OpenFileTracker, BasicSanity) {
   ASSERT_EQ(oft.getUseCount(3, 101), 0);
   ASSERT_FALSE(oft.isOpen(3, 101));
 
+  ASSERT_EQ(oft.getOpenOnFilesystem(3), 0);
+
   // invalid operation, as (3, 101) is already at 0
   // prints error in the log
   oft.down(3, 101);
@@ -91,16 +102,26 @@ TEST(OpenFileTracker, SortedByUseCount) {
   oft.up(3, 101);
   oft.up(3, 101);
 
+  ASSERT_EQ(oft.getOpenOnFilesystem(3), 1);
+
   oft.up(3, 102);
   oft.up(3, 102);
+
+  ASSERT_EQ(oft.getOpenOnFilesystem(3), 2);
 
   oft.up(3, 103);
 
+  ASSERT_EQ(oft.getOpenOnFilesystem(3), 3);
+
   oft.up(3, 104);
   oft.up(3, 104);
   oft.up(3, 104);
 
+  ASSERT_EQ(oft.getOpenOnFilesystem(3), 4);
+
   oft.up(3, 105);
+
+  ASSERT_EQ(oft.getOpenOnFilesystem(3), 5);
 
   sorted = oft.getSortedByUsecount(3);
   ASSERT_EQ(sorted.size(), 3);
