@@ -83,13 +83,26 @@ public:
   //----------------------------------------------------------------------------
   //! Get top hot files on current filesystem
   //----------------------------------------------------------------------------
-  // struct HotEntry {
-  //   eos::common::FileSystem::fsid_t fsid;
-  //   uint64_t fid;
-  //   size_t uses;
-  // };
+  struct HotEntry {
+    HotEntry(eos::common::FileSystem::fsid_t fs, uint64_t f, size_t u)
+    : fsid(fs), fid(f), uses(u) {}
 
-  // std::vector<HotEntry> getHotFiles(eos::common::FileSystem::fsid_t fsid, size_t maxEntries) const;
+    HotEntry() {}
+
+    bool operator==(const HotEntry &other) const {
+      return fsid == other.fsid && fid == other.fid && uses == other.uses;
+    }
+
+    bool operator!=(const HotEntry &other) const {
+      return !(*this == other);
+    }
+
+    eos::common::FileSystem::fsid_t fsid;
+    uint64_t fid;
+    size_t uses;
+  };
+
+  std::vector<HotEntry> getHotFiles(eos::common::FileSystem::fsid_t fsid, size_t maxEntries) const;
 
 private:
   mutable std::shared_timed_mutex mMutex;

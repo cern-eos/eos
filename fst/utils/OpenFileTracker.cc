@@ -138,7 +138,6 @@ std::map<size_t, std::set<uint64_t>> OpenFileTracker::getSortedByUsecount(
 
   for(auto it = fsit->second.begin(); it != fsit->second.end(); it++) {
     contentsSortedByUsecount[it->second].insert(it->first);
-    std::cout << "inserting: " << it->second << " -> " << it->first << std::endl;
   }
 
   return contentsSortedByUsecount;
@@ -147,38 +146,24 @@ std::map<size_t, std::set<uint64_t>> OpenFileTracker::getSortedByUsecount(
 //------------------------------------------------------------------------------
 // Get top hot files on current filesystem
 //------------------------------------------------------------------------------
-// std::vector<OpenFileTracker::HotEntry> OpenFileTracker::getHotFiles(
-//   eos::common::FileSystem::fsid_t fsid, size_t maxEntries) const {
+std::vector<OpenFileTracker::HotEntry> OpenFileTracker::getHotFiles(
+  eos::common::FileSystem::fsid_t fsid, size_t maxEntries) const {
 
-//   std::map<size_t, std::set<uint64_t>> contentsSortedByUsecount;
+  auto sorted = getSortedByUsecount(fsid);
+  std::vector<HotEntry> results;
 
-//   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+  for(auto it = sorted.rbegin(); it != sorted.rend(); it++) {
+    for(auto it2 =  it->second.begin(); it2 != it->second.end(); it2++) {
+      if(results.size() >= maxEntries) {
+        goto done;
+      }
 
-//   auto fsit = mContents.find(fsid);
-//   if(fsit == mContents.end()) {
-//     // Filesystem has no open files
-//     return {};
-//   }
+      results.emplace_back(fsid, *it2, it->first);
+    }
+  }
 
-//   for(auto it = fsit->second.begin(); it != fsit->second.end(); it++) {
-//     contentsSortedByUsecount[it->second].insert(it->first);
-//   }
-
-//   lock.unlock();
-
-//   // std::vector<HotEntry> results;
-//   // for(auto it = contentsSortedByUsecount.rbegin(); it != contentsSortedByUsecount.rend(); it++) {
-
-//   //   for(auto it2 =  )
-
-
-//   //   if(results.size() <= maxEntries) {
-//   //     break;
-//   //   }
-
-
-//   // }
-// }
-
+done:
+  return results;
+}
 
 EOSFSTNAMESPACE_END

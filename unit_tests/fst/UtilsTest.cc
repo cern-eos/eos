@@ -124,4 +124,99 @@ TEST(OpenFileTracker, SortedByUseCount) {
 
   contents = {100};
   ASSERT_EQ(sorted[5], contents);
+
+  auto hotFiles = oft.getHotFiles(3, 1);
+  ASSERT_EQ(hotFiles.size(), 1u);
+
+  eos::fst::OpenFileTracker::HotEntry entry;
+  entry = {3, 100, 5};
+  ASSERT_EQ(hotFiles[0], entry);
+
+  hotFiles = oft.getHotFiles(3, 2);
+  ASSERT_EQ(hotFiles.size(), 2u);
+
+  entry = {3, 100, 5};
+  ASSERT_EQ(hotFiles[0], entry);
+
+  entry = {3, 101, 3};
+  ASSERT_EQ(hotFiles[1], entry);
+
+  hotFiles = oft.getHotFiles(3, 3);
+  ASSERT_EQ(hotFiles.size(), 3u);
+
+  entry = {3, 100, 5};
+  ASSERT_EQ(hotFiles[0], entry);
+
+  entry = {3, 101, 3};
+  ASSERT_EQ(hotFiles[1], entry);
+
+  entry = {3, 104, 3};
+  ASSERT_EQ(hotFiles[2], entry);
+
+  hotFiles = oft.getHotFiles(3, 4);
+  ASSERT_EQ(hotFiles.size(), 4u);
+
+  entry = {3, 100, 5};
+  ASSERT_EQ(hotFiles[0], entry);
+
+  entry = {3, 101, 3};
+  ASSERT_EQ(hotFiles[1], entry);
+
+  entry = {3, 104, 3};
+  ASSERT_EQ(hotFiles[2], entry);
+  ASSERT_NE(hotFiles[3], entry);
+
+  entry = {3, 102, 2};
+  ASSERT_EQ(hotFiles[3], entry);
+
+  hotFiles = oft.getHotFiles(3, 5);
+  ASSERT_EQ(hotFiles.size(), 5u);
+
+  entry = {3, 100, 5};
+  ASSERT_EQ(hotFiles[0], entry);
+
+  entry = {3, 101, 3};
+  ASSERT_EQ(hotFiles[1], entry);
+
+  entry = {3, 104, 3};
+  ASSERT_EQ(hotFiles[2], entry);
+  ASSERT_NE(hotFiles[3], entry);
+
+  entry = {3, 102, 2};
+  ASSERT_EQ(hotFiles[3], entry);
+
+  entry = {3, 103, 1};
+  ASSERT_EQ(hotFiles[4], entry);
+
+  hotFiles = oft.getHotFiles(3, 6);
+  ASSERT_EQ(hotFiles.size(), 6u);
+
+  entry = {3, 100, 5};
+  ASSERT_EQ(hotFiles[0], entry);
+
+  entry = {3, 101, 3};
+  ASSERT_EQ(hotFiles[1], entry);
+
+  entry = {3, 104, 3};
+  ASSERT_EQ(hotFiles[2], entry);
+  ASSERT_NE(hotFiles[3], entry);
+
+  entry = {3, 102, 2};
+  ASSERT_EQ(hotFiles[3], entry);
+
+  entry = {3, 103, 1};
+  ASSERT_EQ(hotFiles[4], entry);
+
+  entry = {3, 105, 1};
+  ASSERT_EQ(hotFiles[5], entry);
+
+  // Only have 6 items in total
+  auto hotFiles2 = oft.getHotFiles(3, 7);
+  ASSERT_EQ(hotFiles, hotFiles2);
+
+  hotFiles2 = oft.getHotFiles(3, 1000000);
+  ASSERT_EQ(hotFiles, hotFiles2);
+
+  auto hotFiles3 = oft.getHotFiles(3, 0);
+  ASSERT_TRUE(hotFiles3.empty());
 }
