@@ -32,6 +32,7 @@
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/Prefetcher.hh"
+#include "namespace/utils/FsFilePath.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -47,7 +48,7 @@ void DrainTransferJob::ReportError(const std::string& error)
 }
 
 //------------------------------------------------------------------------------
-// Execute a thrid-party transfer
+// Execute a third-party transfer
 //------------------------------------------------------------------------------
 void
 DrainTransferJob::DoIt()
@@ -156,8 +157,13 @@ DrainTransferJob::GetFileInfo() const
       fdrain.mFullPath = gOFS->eosView->getUri(fmd.get());
       auto xs = fmd->getChecksum();
       fdrain.mProto.set_checksum(xs.getDataPtr(), xs.getSize());
-      auto vect_locations = fmd->getLocations();
 
+      if (fmd->hasAttribute("sys.eos.lpath")) {
+        (*fdrain.mProto.mutable_xattrs())["sys.eos.lpath"] =
+            fmd->getAttribute("sys.eos.lpath");
+      }
+
+      auto vect_locations = fmd->getLocations();
       for (const auto loc : vect_locations) {
         fdrain.mProto.add_locations(loc);
       }
@@ -184,7 +190,7 @@ DrainTransferJob::GetFileInfo() const
     }
 
     if (dir_uri.empty()) {
-      oss << "msg\"no parent container id=" << fdrain.mProto.cont_id() << "\"";
+      oss << "msg=\"no parent container id=" << fdrain.mProto.cont_id() << "\"";
       throw_mdexception(ENOENT, oss.str());
     }
 
@@ -271,6 +277,14 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
   // Construct the source URL
   std::ostringstream src_params;
 
+  // Retrieve logicalpath
+  XrdOucString lPath;
+  auto it = fdrain.mProto.xattrs().find("sys.eos.lpath");
+  if (it != fdrain.mProto.xattrs().end()) {
+    eos::FsFilePath::GetPhysicalPath(src_snapshot.mId, fdrain.mProto.id(),
+                                     it->second.c_str(), lPath);
+  }
+
   if (mRainReconstruct) {
     src_params << "&mgm.path=" << StringConversion::SealXrdOpaque(fdrain.mFullPath)
                << "&mgm.manager=" << gOFS->ManagerId.c_str()
@@ -287,8 +301,14 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
                << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
                << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, "eos/draining")
                << "&mgm.localprefix=" << src_snapshot.mPath.c_str()
-               << "&mgm.fsid=" << src_snapshot.mId
-               << "&mgm.sourcehostport=" << src_snapshot.mHostPort.c_str()
+               << "&mgm.fsid=" << src_snapshot.mId;
+
+    if (lPath.length()) {
+      src_params << "&mgm.lpath="
+                 << StringConversion::SealXrdOpaque(lPath.c_str());
+    }
+
+    src_params << "&mgm.sourcehostport=" << src_snapshot.mHostPort.c_str()
                << "&eos.app=drainer&eos.ruid=0&eos.rgid=0";
   }
 
@@ -366,6 +386,9 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
 
   std::ostringstream dst_params;
 
+  // Check for logical path setting
+  bool uselPath = (dst_snapshot.mLogicalPath == "1");
+
   if (mRainReconstruct) {
     dst_params << "mgm.access=write"
                << "&mgm.ruid=1&mgm.rgid=1&mgm.uid=1&mgm.gid=1&mgm.fid=0"
@@ -383,14 +406,20 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
                << "&mgm.source.rgid=" << fdrain.mProto.gid()
                << "&mgm.cid=" << fdrain.mProto.cont_id()
                << "&mgm.ruid=1&mgm.rgid=1&mgm.uid=1&mgm.gid=1"
-               << "&mgm.path=" << StringConversion::SealXrdOpaque(fdrain.mFullPath.c_str())
+               << "&mgm.path=" << StringConversion::SealXrdOpaque(fdrain.mFullPath)
                << "&mgm.manager=" << gOFS->ManagerId.c_str()
                << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
                << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, "eos/draining").c_str()
                << "&mgm.drainfsid=" << mFsIdSource
                << "&mgm.localprefix=" << dst_snapshot.mPath.c_str()
-               << "&mgm.fsid=" << dst_snapshot.mId
-               << "&mgm.sourcehostport=" << dst_snapshot.mHostPort.c_str()
+               << "&mgm.fsid=" << dst_snapshot.mId;
+
+    if (uselPath) {
+      dst_params << "&mgm.lpath="
+                 << StringConversion::SealXrdOpaque(fdrain.mFullPath);
+    }
+
+    dst_params << "&mgm.sourcehostport=" << dst_snapshot.mHostPort.c_str()
                << "&mgm.bookingsize=" << fdrain.mProto.size()
                << "&eos.app=drainer&eos.targetsize=" << fdrain.mProto.size();
 
@@ -446,7 +475,7 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
 }
 
 //------------------------------------------------------------------------------
-// Select destiantion file system for current transfer
+// Select destination file system for current transfer
 //------------------------------------------------------------------------------
 bool
 DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
