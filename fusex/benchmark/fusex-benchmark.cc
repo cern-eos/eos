@@ -20,6 +20,8 @@
 #define LOOP_12 10
 #define LOOP_13 10
 #define LOOP_14 100
+#define LOOP_15 100
+#define LOOP_16 100
 
 int main(int argc, char* argv[])
 {
@@ -560,6 +562,76 @@ int main(int argc, char* argv[])
 
     COMMONTIMING("rename-circular-loop", &tm);
   }
+
+  // ------------------------------------------------------------------------ //
+  testno = 15;
+
+  if ((testno >= test_start) && (testno <= test_stop)) {
+    fprintf(stderr, ">>> test %04d\n", testno);
+
+    for (size_t i = 0; i < LOOP_15; i++) {
+      snprintf(name, sizeof(name), "test-same");
+      int fd = creat(name, S_IRWXU);
+
+      if (fd > 0) {
+        close(fd);
+      } else {
+        fprintf(stderr, "[test=%03d] creat failed i=%lu\n", testno, i);
+        exit(testno);
+      }
+
+      if (unlink(name)) {
+        fprintf(stderr, "[test=%03d] unlink failed i=%lu\n", testno, i);
+        exit(testno);
+      }
+
+      if (symlink("../test",name)) {
+	fprintf(stderr, "[test=%03d] symlink failed i=%lu errno=%d\n", testno, i, errno);
+        exit(testno);
+      }
+
+      if (unlink(name)) {
+        fprintf(stderr, "[test=%03d] unlink failed i=%lu\n", testno, i);
+        exit(testno);
+      }
+    }
+
+    COMMONTIMING("create-symlink-loop", &tm);
+  }
+
+  // ------------------------------------------------------------------------ //
+  testno = 16;
+
+  if ((testno >= test_start) && (testno <= test_stop)) {
+    fprintf(stderr, ">>> test %04d\n", testno);
+
+    for (size_t i = 0; i < LOOP_16; i++) {
+      snprintf(name, sizeof(name), "test-same");
+
+      if (mkdir(name, S_IRWXU)) {
+        fprintf(stderr, "[test=%03d] mkdir failed i=%lu errno=%d\n", testno, i, errno);
+        exit(testno);
+      }
+
+      if (rmdir(name)) {
+        fprintf(stderr, "[test=%03d] unlink failed i=%lu\n", testno, i);
+        exit(testno);
+      }
+
+      if (symlink("../test",name)) {
+	fprintf(stderr, "[test=%03d] symlink failed i=%lu errno=%d\n", testno, i, errno);
+        exit(testno);
+      }
+
+      if (unlink(name)) {
+        fprintf(stderr, "[test=%03d] unlink failed i=%lu\n", testno, i);
+        exit(testno);
+      }
+    }
+
+    COMMONTIMING("mkdir-symlink-loop", &tm);
+  }
+
 
   tm.Print();
   fprintf(stdout, "realtime = %.02f", tm.RealTime());
