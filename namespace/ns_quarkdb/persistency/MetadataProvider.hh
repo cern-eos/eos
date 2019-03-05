@@ -99,9 +99,23 @@ public:
   CacheStatistics getContainerMDCacheStats();
 
 private:
+  //----------------------------------------------------------------------------
+  //! Pick shard based on FileIdentifier
+  //----------------------------------------------------------------------------
+  MetadataProviderShard* pickShard(FileIdentifier id);
+
+  //----------------------------------------------------------------------------
+  //! Pick shard based on ContainerIdentifier
+  //----------------------------------------------------------------------------
+  MetadataProviderShard* pickShard(ContainerIdentifier id);
+
+
+  static constexpr size_t kShards = 16;
+
   std::unique_ptr<folly::Executor> mExecutor;
-  qclient::QClient *mQcl;
-  std::unique_ptr<MetadataProviderShard> mShard;
+
+  std::vector<qclient::QClient*> mQcl;
+  std::vector<std::unique_ptr<MetadataProviderShard>> mShards;
 };
 
 EOSNSNAMESPACE_END

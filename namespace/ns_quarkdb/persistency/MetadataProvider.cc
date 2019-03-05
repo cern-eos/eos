@@ -35,9 +35,11 @@ MetadataProvider::MetadataProvider(const QdbContactDetails& contactDetails,
                                    IContainerMDSvc* contsvc, IFileMDSvc* filesvc)
 {
   mExecutor.reset(new folly::IOThreadPoolExecutor(16));
-  mQcl = eos::BackendClient::getInstance(contactDetails, SSTR("md-provider-" << 0));
-  mShard.reset(new MetadataProviderShard(mQcl, contsvc, filesvc,
-    mExecutor.get()));
+
+  for(size_t i = 0; i < kShards; i++) {
+    mQcl.emplace_back(eos::BackendClient::getInstance(contactDetails, SSTR("md-provider-" << i)));
+    mShards.emplace_back(new MetadataProviderShard(mQcl.back(), contsvc, filesvc, mExecutor.get()));
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -46,7 +48,7 @@ MetadataProvider::MetadataProvider(const QdbContactDetails& contactDetails,
 folly::Future<IContainerMDPtr>
 MetadataProvider::retrieveContainerMD(ContainerIdentifier id)
 {
-  return mShard->retrieveContainerMD(id);
+  return pickShard(id)->retrieveContainerMD(id);
 }
 
 //------------------------------------------------------------------------------
@@ -55,7 +57,7 @@ MetadataProvider::retrieveContainerMD(ContainerIdentifier id)
 folly::Future<IFileMDPtr>
 MetadataProvider::retrieveFileMD(FileIdentifier id)
 {
-  return mShard->retrieveFileMD(id);
+  return pickShard(id)->retrieveFileMD(id);
 }
 
 //----------------------------------------------------------------------------
@@ -64,7 +66,7 @@ MetadataProvider::retrieveFileMD(FileIdentifier id)
 folly::Future<bool>
 MetadataProvider::hasFileMD(FileIdentifier id)
 {
-  return mShard->hasFileMD(id);
+  return pickShard(id)->hasFileMD(id);
 }
 
 //------------------------------------------------------------------------------
@@ -73,7 +75,7 @@ MetadataProvider::hasFileMD(FileIdentifier id)
 void
 MetadataProvider::insertFileMD(FileIdentifier id, IFileMDPtr item)
 {
-  return mShard->insertFileMD(id, item);
+  return pickShard(id)->insertFileMD(id, item);
 }
 
 //------------------------------------------------------------------------------
@@ -83,7 +85,7 @@ void
 MetadataProvider::insertContainerMD(ContainerIdentifier id,
                                     IContainerMDPtr item)
 {
-  return mShard->insertContainerMD(id, item);
+  return pickShard(id)->insertContainerMD(id, item);
 }
 
 //------------------------------------------------------------------------------
@@ -91,7 +93,10 @@ MetadataProvider::insertContainerMD(ContainerIdentifier id,
 //------------------------------------------------------------------------------
 void MetadataProvider::setFileMDCacheNum(uint64_t max_num)
 {
-  return mShard->setFileMDCacheNum(max_num);
+  uint64_t max_num_per_shard = max_num / kShards;
+  for(size_t i = 0; i < mShards.size(); i++) {
+    mShards[i]->setFileMDCacheNum(max_num);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -99,7 +104,19 @@ void MetadataProvider::setFileMDCacheNum(uint64_t max_num)
 //------------------------------------------------------------------------------
 void MetadataProvider::setContainerMDCacheNum(uint64_t max_num)
 {
-  return mShard->setContainerMDCacheNum(max_num);
+  uint64_t max_num_per_shard = max_num / kShards;
+  for(size_t i = 0; i < mShards.size(); i++) {
+    mShards[i]->setContainerMDCacheNum(max_num);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Add a CacheStatistics object into another
+//------------------------------------------------------------------------------
+void aggregateStatistics(CacheStatistics &global, const CacheStatistics local) {
+  global.occupancy += local.occupancy;
+  global.maxNum += local.maxNum;
+  global.inFlight += local.inFlight;
 }
 
 //------------------------------------------------------------------------------
@@ -107,7 +124,14 @@ void MetadataProvider::setContainerMDCacheNum(uint64_t max_num)
 //------------------------------------------------------------------------------
 CacheStatistics MetadataProvider::getFileMDCacheStats()
 {
-  return mShard->getFileMDCacheStats();
+  CacheStatistics globalStats;
+  globalStats.enabled = true;
+
+  for(size_t i = 0; i < mShards.size(); i++) {
+    aggregateStatistics(globalStats, mShards[i]->getFileMDCacheStats());
+  }
+
+  return globalStats;
 }
 
 //------------------------------------------------------------------------------
@@ -115,7 +139,29 @@ CacheStatistics MetadataProvider::getFileMDCacheStats()
 //------------------------------------------------------------------------------
 CacheStatistics MetadataProvider::getContainerMDCacheStats()
 {
-  return mShard->getContainerMDCacheStats();
+  CacheStatistics globalStats;
+  globalStats.enabled = true;
+
+  for(size_t i = 0; i < mShards.size(); i++) {
+    aggregateStatistics(globalStats, mShards[i]->getContainerMDCacheStats());
+  }
+
+  return globalStats;
 }
+
+//------------------------------------------------------------------------------
+//! Pick shard based on FileIdentifier
+//------------------------------------------------------------------------------
+MetadataProviderShard* MetadataProvider::pickShard(FileIdentifier id) {
+  return (mShards[id.getUnderlyingUInt64() % kShards]).get();
+}
+
+//------------------------------------------------------------------------------
+//! Pick shard based on ContainerIdentifier
+//------------------------------------------------------------------------------
+MetadataProviderShard* MetadataProvider::pickShard(ContainerIdentifier id) {
+  return (mShards[id.getUnderlyingUInt64() % kShards]).get();
+}
+
 
 EOSNSNAMESPACE_END
