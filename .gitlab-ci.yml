@@ -376,7 +376,6 @@ ubuntu_docker_image_commit:
   variables:
     TO: gitlab-registry.cern.ch/dss/eos:ubuntu_client_${CI_PIPELINE_ID}
     DOCKER_FILE: eos-docker/ubuntu_client/Dockerfile
-    NO_CACHE: 1
   only:
     - dev
     - master
