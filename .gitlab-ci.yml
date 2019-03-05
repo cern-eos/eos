@@ -11,6 +11,7 @@ before_script:
   - echo "Exporting BRANCH=${BRANCH}"
 
 
+
 .system_test_template: &system_test_template_definition
   script:
     - sudo ./eos-docker/scripts/shutdown_services.sh
@@ -347,26 +348,6 @@ cc7_docker_image_xrd_testing:
   allow_failure: true
 
 
-cc7_docker_image_with_forwardable_key_commit:
-  stage: build:dockerimage
-  tags:
-    - docker-image-build
-  script:
-    - ""
-  variables:
-    TO: gitlab-registry.cern.ch/dss/eos:fwdk_${CI_PIPELINE_ID}
-    DOCKER_FILE: eos-docker/Dockerfile_forwardable-key
-  dependencies:
-    - build_cc7
-    - clone_docker
-  only:
-    - branches
-  except:
-    - beryl_aquamarine
-    - tags
-  # when: manual
-
-
 cc7_docker_image_commit:
   stage: build:dockerimage
   tags:
@@ -451,28 +432,6 @@ prod_docker_image_tag:
   only:
     - tags
 
-
-k8s_unit_test:
-  stage: test
-  script:
-    - export IMAGE_TAG="fwdk_${CI_PIPELINE_ID}"
-    - export NAMESPACE=$(echo ${CI_JOB_NAME}-${CI_PIPELINE_ID} | tr _ -) # a DNS-1123 label must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character
-    - cd /home/gitlab-runner
-    - . coe-cluster-config/env_st-gitlab-k8s-00.sh
-    - kubectl config view; echo "IMAGE_TAG = $IMAGE_TAG"; echo "NAMESPACE = $NAMESPACE"
-    - rm -rf eos-on-k8s
-    - git clone https://gitlab.cern.ch/faluchet/eos-on-k8s.git; cd eos-on-k8s
-    - all_yaml=(eos-storage-*.yaml); for i in ${all_yaml[@]}; do sed -i "s%gitlab-registry.cern.ch/dss/eos.*%gitlab-registry.cern.ch/dss/eos:${IMAGE_TAG}%g" $i; done
-    - ./create-all.sh ${NAMESPACE}
-    - kubectl exec $(kubectl get pods --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-unit-tests
-    - kubectl exec $(kubectl get pods --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-fst-unit-tests
-    - ./delete-all.sh ${NAMESPACE}
-  allow_failure: true
-  tags:
-    - shell-with-docker
-    - k8s_node
-  # when: manual
-
     
 unit_test:
   stage: test
@@ -493,6 +452,28 @@ unit_test:
     - build_cc7_asan
   tags:
     - docker_node
+
+
+# @todo must use asan build
+k8s_unit_test:
+  stage: test
+  script:
+    - export IMAGE_TAG="${CI_PIPELINE_ID}"
+    - export NAMESPACE=$(echo ${CI_JOB_NAME}-${CI_PIPELINE_ID} | tr _ -) # a DNS-1123 label must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character
+    - cd /home/gitlab-runner
+    - . coe-cluster-config/env_st-gitlab-k8s-00.sh
+    - kubectl config view; echo "IMAGE_TAG = $IMAGE_TAG"; echo "NAMESPACE = $NAMESPACE"
+    - rm -rf eos-on-k8s
+    - git clone https://gitlab.cern.ch/faluchet/eos-on-k8s.git; cd eos-on-k8s
+    - all_yaml=(eos-storage-*.yaml); for i in ${all_yaml[@]}; do sed -i "s%gitlab-registry.cern.ch/dss/eos.*%gitlab-registry.cern.ch/dss/eos:${IMAGE_TAG}%g" $i; done
+    - ./create-all.sh ${NAMESPACE}
+    - kubectl exec $(kubectl get pods --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-unit-tests
+    - kubectl exec $(kubectl get pods --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-fst-unit-tests
+    - ./delete-all.sh ${NAMESPACE}
+  allow_failure: true
+  tags:
+    - shell-with-docker
+    - k8s_node
 
 
 namespace_unit_test:
