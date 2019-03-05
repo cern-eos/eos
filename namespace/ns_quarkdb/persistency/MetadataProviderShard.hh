@@ -1,6 +1,6 @@
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2016 CERN/Switzerland                                  *
+ * Copyright (C) 2019 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -25,8 +25,12 @@
 #include "namespace/interface/Identifiers.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IContainerMD.hh"
-#include "namespace/ns_quarkdb/persistency/MetadataProviderShard.hh"
 #include "namespace/Namespace.hh"
+#include "namespace/ns_quarkdb/LRU.hh"
+#include "namespace/interface/Misc.hh"
+#include "namespace/ns_quarkdb/FileMD.hh"
+#include "namespace/ns_quarkdb/ContainerMD.hh"
+#include <qclient/QClient.hh>
 #include <folly/futures/Future.h>
 #include <folly/futures/FutureSplitter.h>
 
@@ -44,14 +48,14 @@ class QdbContactDetails;
 //------------------------------------------------------------------------------
 //! Class MetadataProvider
 //------------------------------------------------------------------------------
-class MetadataProvider
+class MetadataProviderShard
 {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  MetadataProvider(const QdbContactDetails& contactDetails, IContainerMDSvc* contsvc,
-                   IFileMDSvc* filemvc);
+  MetadataProviderShard(const QdbContactDetails& contactDetails,
+    IContainerMDSvc* contsvc, IFileMDSvc* filemvc);
 
   //----------------------------------------------------------------------------
   //! Retrieve ContainerMD by ID
@@ -99,7 +103,45 @@ public:
   CacheStatistics getContainerMDCacheStats();
 
 private:
-  std::unique_ptr<MetadataProviderShard> mShard;
+  //----------------------------------------------------------------------------
+  //! Turn an incoming FileMDProto into FileMD, removing from the inFlight
+  //! staging area, and inserting into the cache
+  //----------------------------------------------------------------------------
+  IFileMDPtr processIncomingFileMdProto(FileIdentifier id,
+                                        eos::ns::FileMdProto proto);
+
+  //----------------------------------------------------------------------------
+  //! Turn a (ContainerMDProto, FileMap, ContainerMap) triplet into a
+  //! ContainerMDPtr and insert into the cache
+  //----------------------------------------------------------------------------
+  IContainerMDPtr processIncomingContainerMD(ContainerIdentifier id,
+      std::tuple <
+      eos::ns::ContainerMdProto,
+      IContainerMD::FileMap,
+      IContainerMD::ContainerMap
+      > tup);
+
+  //----------------------------------------------------------------------------
+  //! Pick a qclient out of the pool for the given file
+  //----------------------------------------------------------------------------
+  qclient::QClient& pickQcl(FileIdentifier id);
+
+  //----------------------------------------------------------------------------
+  //! Pick a qclient out of the pool for the given container
+  //----------------------------------------------------------------------------
+  qclient::QClient& pickQcl(ContainerIdentifier id);
+
+  static constexpr size_t kQClientPoolSize = 8;
+  std::vector<qclient::QClient*> mQclPool;
+  IContainerMDSvc* mContSvc;
+  IFileMDSvc* mFileSvc;
+  std::mutex mMutex;
+  std::map<ContainerIdentifier,
+      folly::FutureSplitter<IContainerMDPtr>> mInFlightContainers;
+  std::map<FileIdentifier, folly::FutureSplitter<IFileMDPtr>> mInFlightFiles;
+  LRU<ContainerIdentifier, IContainerMD> mContainerCache;
+  LRU<FileIdentifier, IFileMD> mFileCache;
+  std::unique_ptr<folly::Executor> mExecutor;
 };
 
 EOSNSNAMESPACE_END

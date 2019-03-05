@@ -90,6 +90,7 @@ add_library(
   ns_quarkdb/persistency/ContainerMDSvc.cc                ns_quarkdb/persistency/ContainerMDSvc.hh
   ns_quarkdb/persistency/FileMDSvc.cc                     ns_quarkdb/persistency/FileMDSvc.hh
   ns_quarkdb/persistency/MetadataFetcher.cc               ns_quarkdb/persistency/MetadataFetcher.hh
+  ns_quarkdb/persistency/MetadataProviderShard.cc         ns_quarkdb/persistency/MetadataProviderShard.hh
   ns_quarkdb/persistency/MetadataProvider.cc              ns_quarkdb/persistency/MetadataProvider.hh
   ns_quarkdb/persistency/RequestBuilder.cc                ns_quarkdb/persistency/RequestBuilder.hh
 
