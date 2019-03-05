@@ -185,16 +185,7 @@ FileSystem::CleanTransactions()
                                                 fstPath);
         unsigned long long fileid = eos::common::FileId::Hex2Fid(hexfid.c_str());
         // we allow to keep files open for 1 week
-        bool isOpen = false;
-        {
-          XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
-
-          if (gOFS.WOpenFid[GetId()].count(fileid)) {
-            if (gOFS.WOpenFid[GetId()][fileid] > 0) {
-              isOpen = true;
-            }
-          }
-        }
+        bool isOpen = gOFS.openedForWriting.isOpen(GetId(), fileid);
 
         if ((buf.st_mtime < (time(NULL) - (7 * 86400))) && (!isOpen)) {
           FmdHelper* fMd = 0;

@@ -171,18 +171,6 @@ Storage::Publish(ThreadAssistant &assistant)
           XrdOucString r_open_hotfiles;
           XrdOucString w_open_hotfiles;
           {
-            std::map<unsigned int, std::set<unsigned long long>> Whotfiles;
-            {
-              XrdSysMutexHelper fLock(gOFS.OpenFidMutex);
-
-              if (gOFS.WOpenFid.count(fsid)) {
-                for (auto it = gOFS.WOpenFid[fsid].begin(); it != gOFS.WOpenFid[fsid].end();
-                     ++it) {
-                  Whotfiles[it->second].insert(it->first);
-                }
-              }
-            }
-
             std::vector<eos::fst::OpenFileTracker::HotEntry> hotEntriesRead;
             hotEntriesRead = gOFS.openedForReading.getHotFiles(fsid, 10);
 
@@ -196,23 +184,17 @@ Storage::Publish(ThreadAssistant &assistant)
               r_open_hotfiles += " ";
             }
 
-            size_t cnt = 0;
+            std::vector<eos::fst::OpenFileTracker::HotEntry> hotEntriesWrite;
+            hotEntriesWrite = gOFS.openedForWriting.getHotFiles(fsid, 10);
 
-            for (auto it = Whotfiles.rbegin(); it != Whotfiles.rend(); ++it) {
+            for(auto it = hotEntriesWrite.begin(); it != hotEntriesWrite.end(); ++it) {
               XrdOucString hexfid;
+              eos::common::FileId::Fid2Hex(it->fid, hexfid);
 
-              for (auto fit = it->second.begin(); fit != it->second.end(); ++fit) {
-                eos::common::FileId::Fid2Hex(*fit, hexfid);
-                w_open_hotfiles += (int) it->first;
-                w_open_hotfiles += ":";
-                w_open_hotfiles += hexfid.c_str();
-                w_open_hotfiles += " ";
-                ++cnt;
-
-                if (cnt == 10) {
-                  break;
-                }
-              }
+              w_open_hotfiles += (int) it->uses;
+              w_open_hotfiles += ":";
+              w_open_hotfiles += hexfid.c_str();
+              w_open_hotfiles += " ";
             }
           }
           // Retrieve Statistics from the local db
@@ -302,13 +284,9 @@ Storage::Publish(ThreadAssistant &assistant)
             success &= mFsVect[i]->SetLongLong("stat.health.redundancy_factor",
                                                strtoll(health["redundancy_factor"].c_str(), 0, 10));
           }
-          long long r_open = 0;
-          long long w_open = 0;
-          {
-            XrdSysMutexHelper fLock(gOFS.OpenFidMutex);
-            r_open = (long long) gOFS.openedForReading.getOpenOnFilesystem(fsid);
-            w_open = (long long) gOFS.WOpenFid[fsid].size();
-          }
+          long long r_open = (long long) gOFS.openedForReading.getOpenOnFilesystem(fsid);
+          long long w_open = (long long) gOFS.openedForWriting.getOpenOnFilesystem(fsid);
+
           success &= mFsVect[i]->SetLongLong("stat.ropen", r_open);
           success &= mFsVect[i]->SetLongLong("stat.wopen", w_open);
           success &= mFsVect[i]->SetLongLong("stat.statfs.freebytes",

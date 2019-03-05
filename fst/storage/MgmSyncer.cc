@@ -90,17 +90,7 @@ Storage::MgmSyncer()
         continue;
       }
 
-      bool isopenforwrite = false;
-      {
-        // Check if someone is still writing on that file
-        XrdSysMutexHelper scope_lock(gOFS.OpenFidMutex);
-
-        if (gOFS.WOpenFid[fmd.fsid()].count(fmd.fid())) {
-          if (gOFS.WOpenFid[fmd.fsid()][fmd.fid()] > 0) {
-            isopenforwrite = true;
-          }
-        }
-      }
+      bool isopenforwrite = gOFS.openedForWriting.isOpen(fmd.fsid(), fmd.fid());
 
       if (!isopenforwrite) {
         // now do the consistency check

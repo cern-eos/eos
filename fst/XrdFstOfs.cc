@@ -138,8 +138,6 @@ XrdFstOfs::XrdFstOfs() :
   }
 
   // Initialize the google sparse hash maps
-  gOFS.WOpenFid.clear_deleted_key();
-  gOFS.WOpenFid.set_deleted_key(0);
   gOFS.WNoDeleteOnCloseFid.clear_deleted_key();
   gOFS.WNoDeleteOnCloseFid.set_deleted_key(0);
 
@@ -1207,12 +1205,8 @@ XrdFstOfs::SendFsck(XrdMqMessage* message)
 
           for (fit = icit->second.begin(); fit != icit->second.end(); fit++) {
             // Don't report files which are currently write-open
-            XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
-
-            if (gOFS.WOpenFid[fsid].count(*fit)) {
-              if (gOFS.WOpenFid[fsid][*fit] > 0) {
-                continue;
-              }
+            if (gOFS.openedForWriting.isOpen(fsid, *fit)) {
+              continue;
             }
 
             // loop over all fids
@@ -1669,13 +1663,7 @@ XrdFstOfs::WaitForOngoingIO(std::chrono::seconds timeout)
     {
       XrdSysMutexHelper scope_lock(OpenFidMutex);
 
-      for (auto it = WOpenFid.begin(); it != WOpenFid.end(); ++it) {
-        if (it->second.size() != 0) {
-          all_done = false;
-          eos_info("waiting for write IO operations to finish");
-          break;
-        }
-      }
+      all_done = ! openedForWriting.isAnyOpen();
 
       if (all_done) {
         all_done = ! openedForReading.isAnyOpen();

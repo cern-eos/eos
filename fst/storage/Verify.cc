@@ -61,26 +61,21 @@ Storage::Verify()
       eos_static_debug("got %llu\n", (unsigned long long) verifyfile);
       mVerifications.pop();
       mRunningVerify = verifyfile;
-      {
-        XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
 
-        if (gOFS.WOpenFid[verifyfile->fsId].count(verifyfile->fId)) {
-          if (gOFS.WOpenFid[verifyfile->fsId][verifyfile->fId] > 0) {
-            time_t now = time(NULL);
+      if(gOFS.openedForWriting.isOpen(verifyfile->fsId, verifyfile->fId)) {
+        time_t now = time(NULL);
 
-            if (open_w_out[verifyfile->fId] < now) {
-              eos_static_warning("file is currently opened for writing id=%x on "
-                                 "fs=%u - skipping verification", verifyfile->fId,
-                                 verifyfile->fsId);
-              // Spit this message out only once pre minute
-              open_w_out[verifyfile->fId] = now + 60;
-            }
-
-            mVerifications.push(verifyfile);
-            mVerifyMutex.UnLock();
-            continue;
-          }
+        if (open_w_out[verifyfile->fId] < now) {
+          eos_static_warning("file is currently opened for writing id=%x on "
+                              "fs=%u - skipping verification", verifyfile->fId,
+                              verifyfile->fsId);
+          // Spit this message out only once pre minute
+          open_w_out[verifyfile->fId] = now + 60;
         }
+
+        mVerifications.push(verifyfile);
+        mVerifyMutex.UnLock();
+        continue;
       }
     } else {
       eos_static_debug("got nothing");

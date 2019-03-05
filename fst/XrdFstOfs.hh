@@ -348,10 +348,7 @@ public:
   eos::fst::Storage* Storage; ///< Meta data & filesytem store object
   XrdSysMutex OpenFidMutex;
 
-  google::sparse_hash_map<eos::common::FileSystem::fsid_t,
-         google::sparse_hash_map<unsigned long long,
-         unsigned int> > WOpenFid;
-
+  eos::fst::OpenFileTracker openedForWriting;
   eos::fst::OpenFileTracker openedForReading;
 
   //! Map to forbid deleteOnClose for creates if 1+X open had a successful close
