@@ -30,7 +30,6 @@
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "common/Assert.hh"
 #include <functional>
-#include <folly/executors/IOThreadPoolExecutor.h>
 
 using std::placeholders::_1;
 
@@ -40,10 +39,10 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 MetadataProviderShard::MetadataProviderShard(const QdbContactDetails& contactDetails,
-                                   IContainerMDSvc* contsvc, IFileMDSvc* filesvc)
+  IContainerMDSvc* contsvc, IFileMDSvc* filesvc, folly::Executor *exec)
   : mContSvc(contsvc), mFileSvc(filesvc), mContainerCache(3e6), mFileCache(3e7)
 {
-  mExecutor.reset(new folly::IOThreadPoolExecutor(16));
+  mExecutor = exec;
 
   for (size_t i = 0; i < kQClientPoolSize; i++) {
     mQclPool.emplace_back(eos::BackendClient::getInstance
@@ -95,7 +94,7 @@ MetadataProviderShard::retrieveContainerMD(ContainerIdentifier id)
     MetadataFetcher::getSubContainers(pickQcl(id), id);
   folly::Future<IContainerMDPtr> fut =
     folly::collect(protoFut, fileMapFut, containerMapFut)
-    .via(mExecutor.get())
+    .via(mExecutor)
     .then(std::bind(&MetadataProviderShard::processIncomingContainerMD, this, id, _1))
   .onError([this, id](const folly::exception_wrapper & e) {
     // If the operation failed, clear the in-flight cache.
@@ -144,7 +143,7 @@ MetadataProviderShard::retrieveFileMD(FileIdentifier id)
 
   // Nope, need to fetch, and insert into the in-flight staging area.
   folly::Future<IFileMDPtr> fut = MetadataFetcher::getFileFromId(pickQcl(id), id)
-                                  .via(mExecutor.get())
+                                  .via(mExecutor)
                                   .then(std::bind(&MetadataProviderShard::processIncomingFileMdProto, this, id, _1))
   .onError([this, id](const folly::exception_wrapper & e) {
     // If the operation failed, clear the in-flight cache.

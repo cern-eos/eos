@@ -55,7 +55,7 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   MetadataProviderShard(const QdbContactDetails& contactDetails,
-    IContainerMDSvc* contsvc, IFileMDSvc* filemvc);
+    IContainerMDSvc* contsvc, IFileMDSvc* filemvc, folly::Executor *exec);
 
   //----------------------------------------------------------------------------
   //! Retrieve ContainerMD by ID
@@ -133,15 +133,15 @@ private:
 
   static constexpr size_t kQClientPoolSize = 8;
   std::vector<qclient::QClient*> mQclPool;
-  IContainerMDSvc* mContSvc;
-  IFileMDSvc* mFileSvc;
+  IContainerMDSvc* mContSvc; // no ownership
+  IFileMDSvc* mFileSvc; // no ownership
   std::mutex mMutex;
   std::map<ContainerIdentifier,
       folly::FutureSplitter<IContainerMDPtr>> mInFlightContainers;
   std::map<FileIdentifier, folly::FutureSplitter<IFileMDPtr>> mInFlightFiles;
   LRU<ContainerIdentifier, IContainerMD> mContainerCache;
   LRU<FileIdentifier, IFileMD> mFileCache;
-  std::unique_ptr<folly::Executor> mExecutor;
+  folly::Executor *mExecutor; // no ownership
 };
 
 EOSNSNAMESPACE_END

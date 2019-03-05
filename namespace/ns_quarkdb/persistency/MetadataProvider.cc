@@ -24,6 +24,7 @@
 #include "MetadataProvider.hh"
 #include "MetadataProviderShard.hh"
 #include <folly/Executor.h>
+#include <folly/executors/IOThreadPoolExecutor.h>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -33,7 +34,9 @@ EOSNSNAMESPACE_BEGIN
 MetadataProvider::MetadataProvider(const QdbContactDetails& contactDetails,
                                    IContainerMDSvc* contsvc, IFileMDSvc* filesvc)
 {
-  mShard.reset(new MetadataProviderShard(contactDetails, contsvc, filesvc));
+  mExecutor.reset(new folly::IOThreadPoolExecutor(16));
+  mShard.reset(new MetadataProviderShard(contactDetails, contsvc, filesvc,
+    mExecutor.get()));
 }
 
 //------------------------------------------------------------------------------

@@ -99,6 +99,7 @@ public:
   CacheStatistics getContainerMDCacheStats();
 
 private:
+  std::unique_ptr<folly::Executor> mExecutor;
   std::unique_ptr<MetadataProviderShard> mShard;
 };
 
