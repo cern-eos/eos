@@ -5290,9 +5290,23 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
     if (md->id() && !md->deleted()) {
       rc = EEXIST;
     } else {
-      if (md->deleted()) {
-        // we need to wait that this entry is really gone
-        Instance().mds.wait_flush(req, md);
+
+      {
+	uint64_t del_ino = 0;
+	// logic avoiding a create/unlink/create sync/async race
+	{
+	  XrdSysMutexHelper pLock(pmd->Locker());
+	  auto it = pmd->get_todelete().find(
+					     eos::common::StringConversion::EncodeInvalidUTF8(name));
+	  
+	  if ((it != pmd->get_todelete().end()) && it->second) {
+	    del_ino = it->second;
+	  }
+	}
+	
+	if (del_ino) {
+	  Instance().mds.wait_deleted(req, del_ino);
+	}
       }
 
       md->set_mode(S_IRWXU | S_IRWXG | S_IRWXO | S_IFLNK);
@@ -5379,9 +5393,22 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
     if (md->id() && !md->deleted()) {
       rc = EEXIST;
     } else {
-      if (md->deleted()) {
-        // we need to wait that this entry is really gone
-        Instance().mds.wait_flush(req, md);
+      {
+	uint64_t del_ino = 0;
+	// logic avoiding a create/unlink/create sync/async race
+	{
+	  XrdSysMutexHelper pLock(pmd->Locker());
+	  auto it = pmd->get_todelete().find(
+					     eos::common::StringConversion::EncodeInvalidUTF8(newname));
+	  
+	  if ((it != pmd->get_todelete().end()) && it->second) {
+	    del_ino = it->second;
+	  }
+	}
+	
+	if (del_ino) {
+	  Instance().mds.wait_deleted(req, del_ino);
+	}
       }
 
       tmd = Instance().mds.get(req, ino, pcap->authid()); /* link target */
