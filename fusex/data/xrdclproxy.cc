@@ -1220,7 +1220,10 @@ XrdCl::Proxy::WaitRead(read_handler handler)
     }
   }
 
-  eos_debug(" [..] read-size=%lu", handler->vbuffer().size());
+  if (handler->valid()) {
+    eos_debug(" [..] read-size=%lu", handler->vbuffer().size());
+  }
+
   return handler->Status();
 }
 
