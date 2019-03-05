@@ -5270,7 +5270,7 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
   eos_static_debug("");
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
-  Track::Monitor mon(__func__, Instance().Tracker(), parent);
+  Track::Monitor mon(__func__, Instance().Tracker(), parent, true);
   int rc = 0;
   fuse_id id(req);
   struct fuse_entry_param e;
@@ -5358,7 +5358,7 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
 
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
-  Track::Monitor mon(__func__, Instance().Tracker(), parent);
+  Track::Monitor mon(__func__, Instance().Tracker(), parent, true);
   int rc = 0;
   fuse_id id(req);
   struct fuse_entry_param e;
