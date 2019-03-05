@@ -29,6 +29,7 @@
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFsView.hh"
+#include "namespace/utils/FsFilePath.hh"
 #include "authz/XrdCapability.hh"
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -45,16 +46,14 @@ namespace {
   XrdOucString constructCapability(unsigned long lid, unsigned long long cid,
                                    const char* path, unsigned long long fid,
                                    int drain_fsid, const char* localprefix,
-                                   int fsid) {
-    using eos::common::StringConversion;
+                                   int fsid, bool uselpath,
+                                   const char* lpath) {
     XrdOucString capability = "";
-    XrdOucString sizestring;
 
     capability += "&mgm.lid=";
-    capability += StringConversion::GetSizeString(sizestring,
-                                                  (unsigned long long) lid);
+    capability += std::to_string(lid).c_str();
     capability += "&mgm.cid=";
-    capability += StringConversion::GetSizeString(sizestring, cid);
+    capability += std::to_string(cid).c_str();
     capability += "&mgm.ruid=1";
     capability += "&mgm.rgid=1";
     capability += "&mgm.uid=1";
@@ -74,6 +73,11 @@ namespace {
     capability += "&mgm.fsid=";
     capability += fsid;
 
+    if (uselpath) {
+      capability += "&mgm.lpath=";
+      capability += lpath;
+    }
+
     return capability;
   }
 
@@ -81,11 +85,12 @@ namespace {
   XrdOucString constructSourceCapability(unsigned long lid, unsigned long long cid,
                                          const char* path, unsigned long long fid,
                                          int drain_fsid, const char* localprefix,
-                                         int fsid,const char* hostport) {
+                                         int fsid, const char* hostport,
+                                         bool uselpath, const char* lpath) {
     XrdOucString capability = "mgm.access=read";
 
-    capability += constructCapability(lid, cid, path, fid,
-                                      drain_fsid, localprefix, fsid);
+    capability += constructCapability(lid, cid, path, fid, drain_fsid,
+                                      localprefix, fsid, uselpath, lpath);
     capability += "&mgm.sourcehostport=";
     capability += hostport;
 
@@ -97,29 +102,25 @@ namespace {
                                          const char* path, unsigned long long fid,
                                          int drain_fsid, const char* localprefix,
                                          int fsid, const char* hostport,
+                                         bool uselpath, const char* lpath,
                                          unsigned long long size,
                                          unsigned long source_lid,
                                          uid_t source_uid,
                                          gid_t source_gid) {
-    using eos::common::StringConversion;
-    XrdOucString sizestring;
-
     XrdOucString capability = "mgm.access=write";
-    capability += constructCapability(lid, cid, path, fid,
-                                      drain_fsid, localprefix, fsid);
+
+    capability += constructCapability(lid, cid, path, fid, drain_fsid,
+                                      localprefix, fsid, uselpath, lpath);
     capability += "&mgm.targethostport=";
     capability += hostport;
     capability += "&mgm.bookingsize=";
-    capability += StringConversion::GetSizeString(sizestring, size);
+    capability += std::to_string(size).c_str();
     capability += "&mgm.source.lid=";
-    capability += StringConversion::GetSizeString(sizestring,
-                                                  (unsigned long long) source_lid);
+    capability += std::to_string(source_lid).c_str();
     capability += "&mgm.source.ruid=";
-    capability += StringConversion::GetSizeString(sizestring,
-                                                  (unsigned long long) source_uid);
+    capability += std::to_string(source_uid).c_str();
     capability += "&mgm.source.rgid=";
-    capability += StringConversion::GetSizeString(sizestring,
-                                                  (unsigned long long) source_gid);
+    capability += std::to_string(source_gid).c_str();
 
     return capability;
   }
@@ -470,18 +471,32 @@ XrdMgmOfs::Schedule2Balance(const char* path,
         target_lid = LayoutId::SetBlockChecksum(target_lid, LayoutId::kNone);
       }
 
+      // Check if source filesystem uses logical path
+      XrdOucString source_lpath = "";
+      bool source_uselpath = fmd->hasAttribute("sys.eos.lpath");
+
+      if (source_uselpath) {
+        eos::FsFilePath::GetPhysicalPath(source_snapshot.mId, fmd,
+                                         source_lpath);
+      }
+
+      // Check if target filesystem uses logical path
+      bool target_uselpath = (target_snapshot.mLogicalPath == "1");
+
       // Construct capability strings
       XrdOucString source_capability =
           constructSourceCapability(target_lid, cid, fullpath.c_str(), fid,
                                     source_fsid, source_snapshot.mPath.c_str(),
                                     source_snapshot.mId,
-                                    source_snapshot.mHostPort.c_str());
+                                    source_snapshot.mHostPort.c_str(),
+                                    source_uselpath, source_lpath.c_str());
 
       XrdOucString target_capability =
           constructTargetCapability(target_lid, cid, fullpath.c_str(), fid,
                                     source_fsid, target_snapshot.mPath.c_str(),
                                     target_snapshot.mId,
                                     target_snapshot.mHostPort.c_str(),
+                                    target_uselpath, fullpath.c_str(),
                                     size, lid, uid, gid);
 
       // Issue full capability string

@@ -30,6 +30,7 @@
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFsView.hh"
+#include "namespace/utils/FsFilePath.hh"
 #include "authz/XrdCapability.hh"
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -46,18 +47,16 @@
 namespace {
   // Build general transfer capability string
   XrdOucString constructCapability(unsigned long lid, unsigned long long cid,
-                                  const char* path, unsigned long long fid,
-                                  int drain_fsid, const char* localprefix,
-                                  int fsid) {
-    using eos::common::StringConversion;
+                                   const char* path, unsigned long long fid,
+                                   int drain_fsid, const char* localprefix,
+                                   int fsid, bool uselpath,
+                                   const char* lpath) {
     XrdOucString capability = "";
-    XrdOucString sizestring;
 
     capability += "&mgm.lid=";
-    capability += StringConversion::GetSizeString(sizestring,
-                                                  (unsigned long long) lid);
+    capability += std::to_string(lid).c_str();
     capability += "&mgm.cid=";
-    capability += StringConversion::GetSizeString(sizestring, cid);
+    capability += std::to_string(cid).c_str();
     capability += "&mgm.ruid=1";
     capability += "&mgm.rgid=1";
     capability += "&mgm.uid=1";
@@ -77,18 +76,24 @@ namespace {
     capability += "&mgm.fsid=";
     capability += fsid;
 
+    if (uselpath) {
+      capability += "&mgm.lpath=";
+      capability += lpath;
+    }
+
     return capability;
   }
 
   // Build source specific capability string
   XrdOucString constructSourceCapability(unsigned long lid, unsigned long long cid,
-                                        const char* path, unsigned long long fid,
-                                        int drain_fsid, const char* localprefix,
-                                        int fsid, const char* hostport) {
+                                         const char* path, unsigned long long fid,
+                                         int drain_fsid, const char* localprefix,
+                                         int fsid, const char* hostport,
+                                         bool uselpath, const char* lpath) {
     XrdOucString capability = "mgm.access=read";
 
-    capability += constructCapability(lid, cid, path, fid,
-                                      drain_fsid, localprefix, fsid);
+    capability += constructCapability(lid, cid, path, fid, drain_fsid,
+                                      localprefix, fsid, uselpath, lpath);
     capability += "&mgm.sourcehostport=";
     capability += hostport;
 
@@ -97,32 +102,28 @@ namespace {
 
   // Build target specific capability string
   XrdOucString constructTargetCapability(unsigned long lid, unsigned long long cid,
-                                        const char* path, unsigned long long fid,
-                                        int drain_fsid, const char* localprefix,
-                                        int fsid, const char* hostport,
-                                        unsigned long long size,
-                                        unsigned long source_lid,
-                                        uid_t source_uid,
-                                        gid_t source_gid) {
-    using eos::common::StringConversion;
-    XrdOucString sizestring;
-
+                                         const char* path, unsigned long long fid,
+                                         int drain_fsid, const char* localprefix,
+                                         int fsid, const char* hostport,
+                                         bool uselpath, const char* lpath,
+                                         unsigned long long size,
+                                         unsigned long source_lid,
+                                         uid_t source_uid,
+                                         gid_t source_gid) {
     XrdOucString capability = "mgm.access=write";
-    capability += constructCapability(lid, cid, path, fid,
-                                      drain_fsid, localprefix, fsid);
+
+    capability += constructCapability(lid, cid, path, fid, drain_fsid,
+                                      localprefix, fsid, uselpath, lpath);
     capability += "&mgm.targethostport=";
     capability += hostport;
     capability += "&mgm.bookingsize=";
-    capability += StringConversion::GetSizeString(sizestring, size);
+    capability += std::to_string(size).c_str();
     capability += "&mgm.source.lid=";
-    capability += StringConversion::GetSizeString(sizestring,
-                                                  (unsigned long long) source_lid);
+    capability += std::to_string(source_lid).c_str();
     capability += "&mgm.source.ruid=";
-    capability += StringConversion::GetSizeString(sizestring,
-                                                  (unsigned long long) source_uid);
+    capability += std::to_string(source_uid).c_str();
     capability += "&mgm.source.rgid=";
-    capability += StringConversion::GetSizeString(sizestring,
-                                                  (unsigned long long) source_gid);
+    capability += std::to_string(source_gid).c_str();
 
     return capability;
   }
@@ -549,7 +550,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
     if (!size) {
       // This is a zero size file
       // We move the location by adding it to the static move map
-      eos_thread_info("cmd=schedule2drain msg=zero-move fid=%llx source_fs=%u "
+      eos_thread_info("cmd=schedule2drain msg=zero-move fxid=%llx source_fs=%u "
                       "target_fs=%u", fid, source_fsid, target_fsid);
 
       XrdSysMutexHelper zLock(sZeroMoveMutex);
@@ -559,7 +560,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
 
     if (fullpath.find(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) != std::string::npos) {
       // Drop a left-over atomic file instead of draining
-      eos_thread_info("cmd=schedule2drain msg=zero-move fid=%llx source_fs=%u "
+      eos_thread_info("cmd=schedule2drain msg=zero-move fxid=%llx source_fs=%u "
                       "target_fs=%u", fid, source_fsid, target_fsid);
 
       XrdSysMutexHelper zLock(sZeroMoveMutex);
@@ -649,11 +650,11 @@ XrdMgmOfs::Schedule2Drain(const char* path,
         continue;
       }
 
-      replica_source_fs->SnapShotFileSystem(replica_source_snapshot);
-
-      eos_thread_info("subcmd=scheduling fid=%llx "
+      eos_thread_info("subcmd=scheduling fxid=%llx "
                       "drain_fsid=%u replica_source_fsid=%u target_fsid=%u",
                       fid, source_fsid, replica_fsid, target_fsid);
+
+      replica_source_fs->SnapShotFileSystem(replica_source_snapshot);
 
       unsigned long target_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
 
@@ -662,19 +663,33 @@ XrdMgmOfs::Schedule2Drain(const char* path,
         target_lid = LayoutId::SetBlockChecksum(target_lid, LayoutId::kNone);
       }
 
+      // Check if source filesystem uses logical path
+      XrdOucString source_lpath = "";
+      bool source_uselpath = fmd->hasAttribute("sys.eos.lpath");
+
+      if (source_uselpath) {
+        eos::FsFilePath::GetPhysicalPath(replica_source_snapshot.mId, fmd,
+                                         source_lpath);
+      }
+
+      // Check if target filesystem uses logical path
+      bool target_uselpath = (target_snapshot.mLogicalPath == "1");
+
       // Construct capability strings
       XrdOucString replica_source_capability =
           constructSourceCapability(target_lid, cid, fullpath.c_str(),
                                     fid, source_fsid,
                                     replica_source_snapshot.mPath.c_str(),
                                     replica_source_snapshot.mId,
-                                    replica_source_snapshot.mHostPort.c_str());
+                                    replica_source_snapshot.mHostPort.c_str(),
+                                    source_uselpath, source_lpath.c_str());
 
       XrdOucString target_capability =
           constructTargetCapability(target_lid, cid, fullpath.c_str(), fid,
                                     source_fsid, target_snapshot.mPath.c_str(),
                                     target_snapshot.mId,
                                     target_snapshot.mHostPort.c_str(),
+                                    target_uselpath, fullpath.c_str(),
                                     size, lid, uid, gid);
 
       // Issue full capability string
@@ -705,7 +720,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
         txjob(new eos::common::TransferJob(full_capability.c_str()));
 
     if (target_fs->GetDrainQueue()->Add(txjob.get())) {
-      eos_thread_info("cmd=schedule2drain msg=queued fid=%llx source_fs=%u "
+      eos_thread_info("cmd=schedule2drain msg=queued fxid=%llx source_fs=%u "
                       "target_fs=%u", fid, source_fsid, target_fsid);
       eos_thread_debug("cmd=schedule2drain job=%s", full_capability.c_str());
 
