@@ -553,7 +553,7 @@ private:
   XrdCl::URL mTargetUrl; ///< URL used to avoid physical connection sharing
   ///< RAAI helper for connection ids
   std::unique_ptr<eos::common::XrdConnIdHelper> mXrdIdHelper;
-
+  XrdCl::XRootDStatus mWriteStatus;
 
   //----------------------------------------------------------------------------
   //! Method used to prefetch the next block using the readahead mechanism

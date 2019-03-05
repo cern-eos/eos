@@ -174,6 +174,9 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
   std::string lOpaque;
   XrdOucEnv open_opaque(mOpaque.c_str());
 
+  XrdCl::XRootDStatus okstatus;
+  mWriteStatus = okstatus;
+
   // Decide if readahead is used and the block size
   if ((val = open_opaque.Get("fst.readahead")) &&
       (strncmp(val, "true", 4) == 0)) {
@@ -690,6 +693,11 @@ XrdIo::fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
     return SFS_ERROR;
   }
 
+  if (!mWriteStatus.IsOK()) {
+    // if there was any async write error, we always return it again
+    return SFS_ERROR;
+  }
+
   ChunkHandler* handler = mMetaHandler->Register(offset, length, (char*)buffer,
                           true);
 
@@ -706,6 +714,8 @@ XrdIo::fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
                                handler, timeout);
 
   if (!status.IsOK()) {
+    // remember write failures 'forever'
+    mWriteStatus = status;
     mMetaHandler->HandleResponse(&status, handler);
     return SFS_ERROR;
   }
@@ -869,6 +879,9 @@ XrdIo::fileClose(uint16_t timeout)
     errno = EIO;
     return SFS_ERROR;
   }
+
+  XrdCl::XRootDStatus okstatus;
+  mWriteStatus = okstatus;
 
   bool async_ok = true;
   mIsOpen = false;
