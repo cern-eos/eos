@@ -2318,7 +2318,8 @@ XrdFstOfsFile::DoTpcTransfer()
     XrdSysMutexHelper scope_lock(mTpcJobMutex);
     mTpcState = kTpcDone;
     mTpcRetc = EFAULT;
-    mTpcInfo.Reply(SFS_ERROR, EFAULT, "sync - TPC open failed");
+    mTpcInfo.Reply(SFS_ERROR, EFAULT,
+                   SSTR("sync - TPC open failed for src_url=" << src_url).c_str());
     return 0;
   }
 
@@ -2328,8 +2329,9 @@ XrdFstOfsFile::DoTpcTransfer()
     XrdSysMutexHelper scope_lock(mTpcJobMutex);
     mTpcState = kTpcDone;
     mTpcRetc = ECONNABORTED;
-    mTpcInfo.Reply(SFS_ERROR, ECONNABORTED, "sync - TPC session closed by "
-                   "disconnect");
+    mTpcInfo.Reply(SFS_ERROR, ECONNABORTED,
+                   SSTR("sync - TPC session closed by disconnect src_url="
+                        << src_url).c_str());
     return 0;
   }
 
@@ -2358,7 +2360,9 @@ XrdFstOfsFile::DoTpcTransfer()
       XrdSysMutexHelper scope_lock(mTpcJobMutex);
       mTpcState = kTpcDone;
       mTpcRetc = EIO;
-      mTpcInfo.Reply(SFS_ERROR, EIO, "sync - TPC remote read failed");
+      mTpcInfo.Reply(SFS_ERROR, EIO,
+                     SSTR("sync - TPC remote read failed src_url="
+                          << src_url).c_str());
       return 0;
     }
 
@@ -2398,7 +2402,8 @@ XrdFstOfsFile::DoTpcTransfer()
   } while (rbytes > 0);
 
   // Close the remote file
-  eos_info("done tpc transfer, close remote file and exit");
+  eos_info("msg=\"done tpc transfer, close remote file\" src_url=%s",
+           src_url.c_str());
   XrdCl::XRootDStatus st = tpcIO.fileClose();
   XrdSysMutexHelper scope_lock(mTpcJobMutex);
   mTpcState = kTpcDone;
