@@ -51,36 +51,72 @@ public:
 
   //----------------------------------------------------------------------------
   //! Checks whether a file has a logical path mapping for a given filesystem
-  //! from the file's extended attributes metadata.
+  //! from the file's logical path extended attribute string.
+  //----------------------------------------------------------------------------
+  static bool HasLogicalPath(unsigned long fsid,
+                             const char* attributeString)
+  {
+    XrdOucString sAttributeString = attributeString;
+
+    // Check if filesystem id appears in attribute string
+    std::string fsIdentifier = std::to_string(fsid);
+    fsIdentifier += "|";
+    int pos = sAttributeString.find(fsIdentifier.c_str());
+
+    return ((pos != STR_NPOS) &&
+            ((pos == 0) || (sAttributeString[pos - 1] == '&')));
+  }
+
+  //----------------------------------------------------------------------------
+  //! Checks whether a file has a logical path mapping for a given filesystem
+  //! from the file's extended attributes.
   //----------------------------------------------------------------------------
   static bool HasLogicalPath(unsigned long fsid,
                              const std::shared_ptr<eos::IFileMD>& fmd)
   {
-    XrdOucString attributeString;
-    bool hasLogicalPath = false;
-
     if (fmd->hasAttribute("sys.eos.lpath")) {
-      attributeString = fmd->getAttribute("sys.eos.lpath").c_str();
-
-      // Check if filesystem id appears in attribute string
-      std::string fsIdentifier = std::to_string(fsid);
-      fsIdentifier += "|";
-      int pos = attributeString.find(fsIdentifier.c_str());
-
-      if ((pos != STR_NPOS) &&
-          ((pos == 0) || (attributeString[pos - 1] == '&'))) {
-        hasLogicalPath = true;
-      }
+      return HasLogicalPath(fsid, fmd->getAttribute("sys.eos.lpath").c_str());
     }
 
-    return hasLogicalPath;
+    return false;
   }
 
   //----------------------------------------------------------------------------
+  //! Constructs file physical path for a given filesystem from file's
+  //! file id and logical path extended attribute string.
+  //! It will search the extended attribute string for a logical path mapping.
+  //! If none are found, it returns the path obtained from the file id.
+  //----------------------------------------------------------------------------
+  static int GetPhysicalPath(unsigned long fsid,
+                             unsigned long long fid,
+                             const char* attributeString,
+                             XrdOucString &physicalPath)
+  {
+    if (!attributeString) {
+      physicalPath = "";
+      return -1;
+    }
+
+    if (HasLogicalPath(fsid, attributeString)) {
+      std::map<unsigned long, std::string> map =
+          attributeStringToFsPathMap(attributeString);
+
+      physicalPath = map[fsid].c_str();
+    } else {
+      using eos::common::FileId;
+      FileId::FidPrefix2FullPath(FileId::Fid2Hex(fid).c_str(),
+                                 "path", physicalPath);
+      physicalPath.erase(0, 5);
+    }
+
+    return 0;
+  }
+
+
+  //----------------------------------------------------------------------------
   //! Constructs file physical path for a given filesystem from file metadata.
-  //! It will search through the extended attributes in search of a
-  //! logical path mapping. If none are found, it returns the path obtained
-  //! from the file id.
+  //! It will search through the extended attributes for a logical path mapping.
+  //! If none are found, it returns the path obtained from the file id.
   //----------------------------------------------------------------------------
   static int GetPhysicalPath(unsigned long fsid,
                              const std::shared_ptr<eos::IFileMD>& fmd,
@@ -91,23 +127,45 @@ public:
       return -1;
     }
 
-    bool hasLogicalPath = HasLogicalPath(fsid, fmd);
-
-    if (hasLogicalPath) {
-      std::map<unsigned long, std::string> map;
-      std::string attributeString = fmd->getAttribute("sys.eos.lpath");
-
-      map = attributeStringToFsPathMap(attributeString.c_str());
-      physicalPath = map[fsid].c_str();
-    } else {
-      using eos::common::FileId;
-      FileId::FidPrefix2FullPath(FileId::Fid2Hex(fmd->getId()).c_str(),
-                                 "path", physicalPath);
-      physicalPath.erase(0, 5);
+    XrdOucString attributeString = "";
+    if (fmd->hasAttribute("sys.eos.lpath")) {
+      attributeString = fmd->getAttribute("sys.eos.lpath").c_str();
     }
+
+    return GetPhysicalPath(fsid, fmd->getId(),
+                           attributeString.c_str(), physicalPath);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Constructs complete file physical path for a given filesystem
+  //! from file's id, logical path extended attribute string
+  //! and a given local prefix.
+  //----------------------------------------------------------------------------
+  static int GetFullPhysicalPath(unsigned long fsid,
+                                 unsigned long long fid,
+                                 const char* attributeString,
+                                 const char* localprefix,
+                                 XrdOucString& fullPhysicalPath)
+  {
+    if (!attributeString || !localprefix) {
+      fullPhysicalPath = "";
+      return -1;
+    }
+
+    XrdOucString physicalPath;
+    int rc = GetPhysicalPath(fsid, fid, attributeString, physicalPath);
+    if (rc) {
+      fullPhysicalPath = "";
+      return -1;
+    }
+
+    using eos::common::StringConversion;
+    fullPhysicalPath = StringConversion::BuildPhysicalPath(localprefix,
+                                                           physicalPath.c_str());
 
     return 0;
   }
+
 
   //----------------------------------------------------------------------------
   //! Constructs complete file physical path for a given filesystem
@@ -118,22 +176,18 @@ public:
                                  const char* localprefix,
                                  XrdOucString& fullPhysicalPath)
   {
-    if (!localprefix) {
+    if (!fmd || !localprefix) {
       fullPhysicalPath = "";
       return -1;
     }
 
-    XrdOucString physicalPath;
-    int rc = GetPhysicalPath(fsid, fmd, physicalPath);
-    if (rc) {
-      fullPhysicalPath = "";
-      return -1;
+    XrdOucString attributeString = "";
+    if (fmd->hasAttribute("sys.eos.lpath")) {
+      attributeString = fmd->getAttribute("sys.eos.lpath").c_str();
     }
 
-    using eos::common::StringConversion;
-    fullPhysicalPath = StringConversion::BuildPhysicalPath(localprefix,
-                                                           physicalPath.c_str());
-    return 0;
+    return GetFullPhysicalPath(fsid, fmd->getId(), attributeString.c_str(),
+                               localprefix, fullPhysicalPath);
   }
 
   //----------------------------------------------------------------------------

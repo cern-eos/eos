@@ -37,9 +37,42 @@ EOSNSTESTING_BEGIN
 class FsFilePathTests : public eos::ns::testing::NsTestsFixture {};
 
 //------------------------------------------------------------------------------
-// Test input validation
+// Test input validation using attribute string
 //------------------------------------------------------------------------------
-TEST_F(FsFilePathTests, InputValidation)
+TEST_F(FsFilePathTests, InputValidationAttrString)
+{
+  unsigned long long fid = 1;
+  std::string hexstring = eos::common::FileId::Fid2Hex(fid);
+  XrdOucString fidPath, path = "initial";
+  int rc;
+
+  // Null attribute string
+  rc = FsFilePath::GetPhysicalPath(1, fid, 0, path);
+  ASSERT_STREQ(path.c_str(), "");
+  ASSERT_EQ(rc, -1);
+
+  // No extended attribute present
+  eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(), "/prefix/",
+                                          fidPath);
+  fidPath.erasefromstart(8);
+  FsFilePath::GetPhysicalPath(1, fid, "", path);
+  ASSERT_STREQ(path.c_str(), fidPath.c_str());
+
+  // Null local prefix
+  rc = FsFilePath::GetFullPhysicalPath(1, fid, "", 0, path);
+  ASSERT_STREQ(path.c_str(), "");
+  ASSERT_EQ(rc, -1);
+
+  // Null attribute string
+  rc = FsFilePath::GetFullPhysicalPath(1, fid, 0, "/prefix/", path);
+  ASSERT_STREQ(path.c_str(), "");
+  ASSERT_EQ(rc, -1);
+}
+
+//------------------------------------------------------------------------------
+// Test input validation using FMD
+//------------------------------------------------------------------------------
+TEST_F(FsFilePathTests, InputValidationFMD)
 {
   std::shared_ptr<eos::IFileMD> fmd = view()->createFile("/file.txt");
   ASSERT_EQ(fmd->getId(), 1);
@@ -49,7 +82,7 @@ TEST_F(FsFilePathTests, InputValidation)
   XrdOucString fidPath, path = "initial";
   int rc;
 
-  // Empty file metadata
+  // Null file metadata
   rc = FsFilePath::GetPhysicalPath(1, emptyFmd, path);
   ASSERT_STREQ(path.c_str(), "");
   ASSERT_EQ(rc, -1);
@@ -61,12 +94,12 @@ TEST_F(FsFilePathTests, InputValidation)
   FsFilePath::GetPhysicalPath(1, fmd, path);
   ASSERT_STREQ(path.c_str(), fidPath.c_str());
 
-  // Empty local prefix
+  // Null local prefix
   rc = FsFilePath::GetFullPhysicalPath(1, fmd, 0, path);
   ASSERT_STREQ(path.c_str(), "");
   ASSERT_EQ(rc, -1);
 
-  // Empty file metadata
+  // Null file metadata
   rc = FsFilePath::GetFullPhysicalPath(1, emptyFmd, "/prefix/", path);
   ASSERT_STREQ(path.c_str(), "");
   ASSERT_EQ(rc, -1);
