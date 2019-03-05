@@ -190,6 +190,7 @@ Drainer::StopFsDrain(eos::mgm::FileSystem* fs, std::string& err)
     }
 
     fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
+    FsView::gFsView.StoreFsConfig(fs);
   } else {
     (*it)->SignalStop();
   }

@@ -535,6 +535,7 @@ DrainFs::ResetCounters()
       fs->SetLongLong("stat.drainprogress", 0, false);
       fs->SetLongLong("stat.drainretry", 0, false);
       fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
+      FsView::gFsView.StoreFsConfig(fs);
     }
   }
 
