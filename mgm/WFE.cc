@@ -2125,6 +2125,31 @@ WFE::Job::HandleProtoMethodArchiveFailedEvent(const std::string &fullPath)
   return SFS_OK;
 }
 
+//------------------------------------------------------------------------------
+// Translate a cta ResponseType to std::string
+//------------------------------------------------------------------------------
+static std::string ctaResponseCodeToString(cta::xrd::Response::ResponseType rt) {
+  switch(rt) {
+    case cta::xrd::Response::RSP_ERR_CTA: {
+      return "RSP_ERR_CTA";
+    }
+    case cta::xrd::Response::RSP_ERR_USER: {
+      return "RSP_ERR_USER";
+    }
+    case cta::xrd::Response::RSP_ERR_PROTOBUF: {
+      return "RSP_ERR_PROTOBUF";
+    }
+    case cta::xrd::Response::RSP_INVALID: {
+      return "RSP_INVALID";
+    }
+    default: {
+      return "";
+    }
+  }
+
+  return "";
+}
+
 int
 WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
                              const cta::xrd::Request& request, std::string& errorMsg, bool retry)
@@ -2231,17 +2256,10 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
                    response.DebugString().c_str());
   }
 
-  const std::map<decltype(cta::xrd::Response::RSP_ERR_CTA), const char*>
-  errorEnumMap = {
-    { cta::xrd::Response::RSP_ERR_CTA,      "RSP_ERR_CTA" },
-    { cta::xrd::Response::RSP_ERR_USER,     "RSP_ERR_USER" },
-    { cta::xrd::Response::RSP_ERR_PROTOBUF, "RSP_ERR_PROTOBUF" },
-    { cta::xrd::Response::RSP_INVALID,      "RSP_INVALID" }
-  };
   eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
                  "msg=\"Received an error response\" response=\"%s\" reason=\"%s\"",
                  gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(), event.c_str(),
-                 errorEnumMap.at(response.type()), response.message_txt().c_str());
+                 ctaResponseCodeToString(response.type()).c_str(), response.message_txt().c_str());
   retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(retval);
   errorMsg = response.message_txt();
   return retval;

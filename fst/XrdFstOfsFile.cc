@@ -3220,6 +3220,31 @@ XrdFstOfsFile::ExtractLogId(const char* opaque) const
 }
 
 //------------------------------------------------------------------------------
+// Translate a cta ResponseType to std::string
+//------------------------------------------------------------------------------
+static std::string ctaResponseCodeToString(cta::xrd::Response::ResponseType rt) {
+  switch(rt) {
+    case cta::xrd::Response::RSP_ERR_CTA: {
+      return "RSP_ERR_CTA";
+    }
+    case cta::xrd::Response::RSP_ERR_USER: {
+      return "RSP_ERR_USER";
+    }
+    case cta::xrd::Response::RSP_ERR_PROTOBUF: {
+      return "RSP_ERR_PROTOBUF";
+    }
+    case cta::xrd::Response::RSP_INVALID: {
+      return "RSP_INVALID";
+    }
+    default: {
+      return "";
+    }
+  }
+
+  return "";
+}
+
+//------------------------------------------------------------------------------
 // Notify the workflow protobuf endpoint of closew event
 //------------------------------------------------------------------------------
 int
@@ -3320,13 +3345,6 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd,
     return ENOTCONN;
   }
 
-  static std::map<decltype(cta::xrd::Response::RSP_ERR_CTA), const char*>
-  errorEnumMap;
-  errorEnumMap[cta::xrd::Response::RSP_ERR_CTA] = "RSP_ERR_CTA";
-  errorEnumMap[cta::xrd::Response::RSP_ERR_USER] = "RSP_ERR_USER";
-  errorEnumMap[cta::xrd::Response::RSP_ERR_PROTOBUF] = "RSP_ERR_PROTOBUF";
-  errorEnumMap[cta::xrd::Response::RSP_INVALID] = "RSP_INVALID";
-
   switch (response.type()) {
   case cta::xrd::Response::RSP_SUCCESS:
     return 0;
@@ -3336,7 +3354,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd,
   case cta::xrd::Response::RSP_ERR_PROTOBUF:
   case cta::xrd::Response::RSP_INVALID:
     errMsgBack = response.message_txt();
-    eos_static_err("%s for file %s. Reason: %s", errorEnumMap[response.type()],
+    eos_static_err("%s for file %s. Reason: %s", ctaResponseCodeToString(response.type()).c_str(),
                    fullPath.c_str(), response.message_txt().c_str());
     return EPROTO;
 
