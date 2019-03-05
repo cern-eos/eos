@@ -839,14 +839,6 @@ XrdMgmOfs::_replicatestripe(const std::shared_ptr<eos::IFileMD>& fmd,
   // Check if target filesystem uses logical path setting
   bool target_uselpath = (target_snapshot.mLogicalPath == "1");
 
-  if (target_uselpath) {
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-    std::shared_ptr<eos::IFileMD> fmdPtr(fmd);
-
-    eos::FsFilePath::StorePhysicalPath(target_snapshot.mId, fmdPtr, path);
-    gOFS->eosView->updateFileStore(fmd.get());
-  }
-
   // Construct capability strings
   XrdOucString source_capability =
       constructSourceCapability(src_lid, cid, path, fid,

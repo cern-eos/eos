@@ -56,13 +56,12 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   writeDelete(false), mRainSize(0), mNsPath(""), mLocalPrefix(""),
   mRedirectManager(""), mSecString(""), mTpcKey(""), mEtag(""), mFileId(0),
   mFsId(0), mLid(0), mCid(0), mForcedMtime(1), mForcedMtime_ms(0), mFusex(false),
-  mFusexIsUnlinked(false),
-  closed(false), opened(false), mHasWrite(false), hasWriteError(false),
-  hasReadError(false), isRW(false), mIsTpcDst(false), mIsDevNull(false),
-  isCreation(false), forceCreation(false), isReplication(false), mIsInjection(false),
-  mRainReconstruct(false), deleteOnClose(false), repairOnClose(false),
-  commitReconstruction(false), mEventOnClose(false), mEventWorkflow(""),
-  mSyncEventOnClose(false),
+  mFusexIsUnlinked(false), closed(false), opened(false), mHasWrite(false),
+  hasWriteError(false), hasReadError(false), isRW(false), mUselPath(false),
+  mIsTpcDst(false), mIsDevNull(false), isCreation(false), forceCreation(false),
+  isReplication(false), mIsInjection(false), mRainReconstruct(false),
+  deleteOnClose(false), repairOnClose(false), commitReconstruction(false),
+  mEventOnClose(false), mEventWorkflow(""), mSyncEventOnClose(false),
   mIsOCchunk(false), writeErrorFlag(false), mTpcFlag(kTpcNone),
   fMd(nullptr), mCheckSum(nullptr), layOut(nullptr), maxOffsetWritten(0),
   openSize(0), closeSize(0),
@@ -626,7 +625,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       }
 
       // Set the eos creation time attribute
-      if (mCapOpaque->Get("mgm.lpath") && mCapOpaque->Get("mgm.ctime")) {
+      if (mUselPath && mCapOpaque->Get("mgm.ctime")) {
         if (io->attrSet("user.eos.ctime", mCapOpaque->Get("mgm.ctime"))) {
           eos_err("unable to set extended attribute <eos.ctime> errno=%d", errno);
         }
@@ -1197,13 +1196,13 @@ XrdFstOfsFile::close()
       // ---- add error simulation for checksum errors on read
       if ((!isRW) && gOFS.Simulate_XS_read_error) {
         checksumerror = true;
-        eos_warning("simlating checksum errors on read");
+        eos_warning("simulating checksum errors on read");
       }
 
       // ---- add error simulation for checksum errors on write
       if (isRW && gOFS.Simulate_XS_write_error) {
         checksumerror = true;
-        eos_warning("simlating checksum errors on write");
+        eos_warning("simulating checksum errors on write");
       }
 
       if (isRW && (checksumerror || targetsizeerror || minimumsizeerror)) {
@@ -1272,7 +1271,7 @@ XrdFstOfsFile::close()
             // Set the container id
             fMd->mProtoFmd.set_cid(mCid);
 
-            // For replicat's set the original uid/gid/lid values
+            // For replicas set the original uid/gid/lid values
             if (mCapOpaque->Get("mgm.source.lid")) {
               fMd->mProtoFmd.set_lid(strtoul(mCapOpaque->Get("mgm.source.lid"), 0, 10));
             }
@@ -1288,7 +1287,7 @@ XrdFstOfsFile::close()
             // Commit local
             try {
               if (!gFmdDbMapHandler.Commit(fMd)) {
-                eos_err("unabel to commit meta data to local database");
+                eos_err("unable to commit meta data to local database");
                 (void) gOFS.Emsg(epname, this->error, EIO, "close - unable to "
                                  "commit meta data", mNsPath.c_str());
               }
@@ -1319,6 +1318,19 @@ XrdFstOfsFile::close()
             capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString,
                              (mForcedMtime != 1) ? mForcedMtime_ms : (unsigned long long)
                              fMd->mProtoFmd.mtime_ns());
+
+            if (mUselPath) {
+              // Extract logical path from full fstpath
+              XrdOucString lPath = mFstPath;
+              lPath.keep(mLocalPrefix.length());
+              // Make sure it starts with '/'
+              if (!lPath.beginswith("/")) {
+                lPath.insert("/", 0);
+              }
+
+              capOpaqueFile += "&mgm.lpath=";
+              capOpaqueFile += lPath;
+            }
 
             if (mFusex) {
               capOpaqueFile += "&mgm.fusex=1";
@@ -2936,13 +2948,14 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
 
 //----------------------------------------------------------------------------
 // Process mixed opaque information - decisions that need to be taken based
-// on both the ecrypted and un-encrypted opaque info
+// on both the encrypted and un-encrypted opaque info
 //----------------------------------------------------------------------------
 int
 XrdFstOfsFile::ProcessMixedOpaque()
 {
   EPNAME("open");
   using eos::common::FileId;
+  XrdOucString lPath;
   // Handle checksum request
   std::string opaqueCheckSum;
   char* val = nullptr;
@@ -2973,7 +2986,7 @@ XrdFstOfsFile::ProcessMixedOpaque()
 
   if (mOpenOpaque->Get("mgm.replicaindex")) {
     XrdOucString replicafsidtag = "mgm.fsid";
-    replicafsidtag += (int) atoi(mOpenOpaque->Get("mgm.replicaindex"));
+    replicafsidtag += atoi(mOpenOpaque->Get("mgm.replicaindex"));
 
     if (mCapOpaque->Get(replicafsidtag.c_str())) {
       sfsid = mCapOpaque->Get(replicafsidtag.c_str());
@@ -3002,12 +3015,21 @@ XrdFstOfsFile::ProcessMixedOpaque()
 
   mFsId = atoi(sfsid);
 
-  // Check for logical path
-  bool uselPath = false;
+  // Handle standard logical path
   if (mCapOpaque->Get("mgm.lpath")) {
-    eos::common::RWMutexReadLock lock(gOFS.Storage->mFsMutex);
-    uselPath =
-        gOFS.Storage->mFileSystemsMap[mFsId]->GetString("logicalpath") == "1";
+    mUselPath = true;
+    lPath = mCapOpaque->Get("mgm.lpath");
+  }
+
+  // For multi-replica layouts, each replica will have an lpath[id] field
+  if (mCapOpaque->Get("mgm.multireplica") &&
+      mOpenOpaque->Get("mgm.replicaindex")) {
+    XrdOucString replicalpathtag = "mgm.lpath";
+    replicalpathtag += atoi(mOpenOpaque->Get("mgm.replicaindex"));
+
+    if ((mUselPath = (mCapOpaque->Get(replicalpathtag.c_str()) != 0))) {
+      lPath = mCapOpaque->Get(replicalpathtag.c_str());
+    }
   }
 
   // Check for forced creation flag
@@ -3016,9 +3038,9 @@ XrdFstOfsFile::ProcessMixedOpaque()
   }
 
   // Generate fst path
-  if (uselPath) {
+  if (mUselPath) {
     mFstPath = eos::common::StringConversion::BuildPhysicalPath(
-                            mLocalPrefix.c_str(), mCapOpaque->Get("mgm.lpath"));
+                            mLocalPrefix.c_str(), lPath.c_str());
   } else {
     FileId::FidPrefix2FullPath(FileId::Fid2Hex(mFileId).c_str(),
                                mLocalPrefix.c_str(), mFstPath);

@@ -1852,6 +1852,8 @@ XrdMgmOfsFile::open(const char* inpath,
   capability += "&mgm.bookingsize=";
   capability += eos::common::StringConversion::GetSizeString(sizestring,
                 bookingsize);
+  capability += "&mgm.fsid=";
+  capability += (int) filesystem->GetId();
 
   if (minimumsize) {
     capability += "&mgm.minsize=";
@@ -1872,12 +1874,6 @@ XrdMgmOfsFile::open(const char* inpath,
                   targetsize);
   }
 
-  if (eos::common::LayoutId::GetLayoutType(layoutId) ==
-      eos::common::LayoutId::kPlain) {
-    capability += "&mgm.fsid=";
-    capability += (int) filesystem->GetId();
-  }
-
   if (isRepairRead) {
     capability += "&mgm.repairread=1";
   }
@@ -1886,25 +1882,34 @@ XrdMgmOfsFile::open(const char* inpath,
     capability += "&mgm.zerosize=1";
   }
 
-  // Store logical path for main replica
-  if (isCreation && filesystem->GetString("logicalpath") == "1") {
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  // Handle logical path
+  bool uselPath;
+  XrdOucString lPath = "";
 
-    try {
-      eos::FsFilePath::StorePhysicalPath(filesystem->GetId(), fmd, path);
-      gOFS->eosView->updateFileStore(fmd.get());
-    } catch (eos::MDException& e) {
-      errno = e.getErrno();
-      std::string errmsg = e.getMessage().str();
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                e.getErrno(), e.getMessage().str().c_str());
-      return Emsg(epname, error, errno, "open file", errmsg.c_str());
-    }
+  if ((uselPath = eos::FsFilePath::HasLogicalPath(filesystem->GetId(), fmd))) {
+    eos::FsFilePath::GetPhysicalPath(filesystem->GetId(), fmd, lPath);
+  } else if (isCreation && filesystem->GetString("logicalpath") == "1") {
+    uselPath = true;
+    lPath = path;
   }
 
-  // Check for logical path setting
-  bool uselPath = eos::FsFilePath::HasLogicalPath(filesystem->GetId(), fmd);
-  eos::common::FileSystem::fsid_t lPathFs = (uselPath) ? filesystem->GetId() : 0;
+  if (uselPath) {
+    capability += "&mgm.lpath=";
+    capability += lPath.c_str();
+
+    // Retrieve creation time
+    if (isCreation) {
+      eos::IFileMD::ctime_t ctime;
+      char buff[64];
+
+      fmd->getCTime(ctime);
+      sprintf(buff, "%ld.%ld", ctime.tv_sec, ctime.tv_nsec);
+
+      capability += "&mgm.iscreation=1";
+      capability += "&mgm.ctime=";
+      capability += buff;
+    }
+  }
 
   // Add the store flag for RAIN reconstruct jobs
   if (isPioReconstruct) {
@@ -1926,10 +1931,9 @@ XrdMgmOfsFile::open(const char* inpath,
        eos::common::LayoutId::kArchive) ||
       (eos::common::LayoutId::GetLayoutType(layoutId) ==
        eos::common::LayoutId::kRaid6)) {
-    capability += "&mgm.fsid=";
-    capability += (int) filesystem->GetId();
     eos::mgm::FileSystem* repfilesystem = 0;
     replacedfs.resize(selectedfs.size());
+    capability += "&mgm.mutlireplica=true";
 
     // -------------------------------------------------------------------------
     // if replacement has been specified try to get new locations for reco.
@@ -2202,24 +2206,7 @@ XrdMgmOfsFile::open(const char* inpath,
         }
       }
 
-      // If needed, associate logical path with replica filesystem
-      if (isCreation && repfilesystem->GetString("logicalpath") == "1") {
-        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-
-        try {
-          eos::FsFilePath::StorePhysicalPath(repfilesystem->GetId(), fmd, path);
-          gOFS->eosView->updateFileStore(fmd.get());
-          lPathFs = repfilesystem->GetId();
-          uselPath = true;
-        } catch (eos::MDException &e) {
-          errno = e.getErrno();
-          std::string errmsg = e.getMessage().str();
-          eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                    e.getErrno(), e.getMessage().str().c_str());
-          return Emsg(epname, error, errno, "open file", errmsg.c_str());
-        }
-      }
-
+      // Add replica URL
       capability += "&mgm.url";
       capability += (int) i;
       capability += "=root://";
@@ -2257,12 +2244,14 @@ XrdMgmOfsFile::open(const char* inpath,
       capability += ":";
       capability += replicaport;
       capability += "//";
-      // add replica fsid
+
+      // Add replica fsid
       capability += "&mgm.fsid";
       capability += (int) i;
       capability += "=";
       capability += (int) repfilesystem->GetId();
 
+      // Add replica fsprefix
       if ((proxys.size() > i) && !proxys[i].empty()) {
         std::string fsprefix = repfilesystem->GetPath();
 
@@ -2274,6 +2263,21 @@ XrdMgmOfsFile::open(const char* inpath,
           s.replace(":", "#COL#");
           capability += s;
         }
+      }
+
+      // Handle logical path for replica
+      if ((uselPath = eos::FsFilePath::HasLogicalPath(repfilesystem->GetId(), fmd))) {
+        eos::FsFilePath::GetPhysicalPath(repfilesystem->GetId(), fmd, lPath);
+      } else if (isCreation && repfilesystem->GetString("logicalpath") == "1") {
+        uselPath = true;
+        lPath = path;
+      }
+
+      if (uselPath) {
+        capability += "&mgm.lpath";
+        capability += (int) i;
+        capability += "=";
+        capability += lPath.c_str();
       }
 
       if (isPio) {
@@ -2302,37 +2306,6 @@ XrdMgmOfsFile::open(const char* inpath,
       infolog += ",";
       infolog += (int) repfilesystem->GetId();
       infolog += ") ";
-    }
-  }
-
-  // Add logical path information after processing all replicas
-  if (uselPath) {
-    XrdOucString lpath = "";
-    eos::FsFilePath::GetPhysicalPath(lPathFs, fmd, lpath);
-
-    capability += "&mgm.lpath=";
-    capability += lpath.c_str();
-
-    // Retrieve creation time
-    if (isCreation) {
-      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-      eos::IFileMD::ctime_t ctime;
-      char buff[64];
-
-      try {
-        fmd->getCTime(ctime);
-      } catch (eos::MDException &e) {
-        errno = e.getErrno();
-        std::string errmsg = e.getMessage().str();
-        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                  e.getErrno(), e.getMessage().str().c_str());
-        return Emsg(epname, error, errno, "open file", errmsg.c_str());
-      }
-
-      sprintf(buff, "%ld.%ld", ctime.tv_sec, ctime.tv_nsec);
-      capability += "&mgm.iscreation=1";
-      capability += "&mgm.ctime=";
-      capability += buff;
     }
   }
 

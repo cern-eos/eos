@@ -353,14 +353,15 @@ protected:
   unsigned long long mCid; //! container id
   unsigned long long mForcedMtime;
   unsigned long long mForcedMtime_ms;
-  bool mFusex; //! indicator that we are commiting from a fusex client
+  bool mFusex; //! indicator that we are committing from a fusex client
   bool mFusexIsUnlinked; //! indicator for an already unlinked file
   bool closed; //! indicator the file is closed
   bool opened; //! indicator that file is opened
   bool mHasWrite; //! indicator that file was written/modified
-  bool hasWriteError;// indicator for write errros to avoid message flooding
+  bool hasWriteError;//! indicator for write errors to avoid message flooding
   bool hasReadError; //! indicator if a RAIN file could be reconstructed or not
   bool isRW; //! indicator that file is opened for rw
+  bool mUselPath; //! indicator that file is stored using logical path
   bool mIsTpcDst; ///< If true this is a TPC destination, otherwise a source
   bool mIsDevNull; ///< If true file act as a sink i.e. /dev/null
   bool isCreation; //! indicator that a new file is created
@@ -372,7 +373,7 @@ protected:
   bool mRainReconstruct; ///< indicator that the opened file is in a RAIN reconstruction process
   bool deleteOnClose; ///< indicator that the file has to be cleaned on close
   bool repairOnClose; ///< indicator that the file should get repaired on close
-  //! Indicator that this FST has to commmit after reconstruction
+  //! Indicator that this FST has to commit after reconstruction
   //! * if the reconstructed piece is not existing on disk we commit anyway
   //! since it is a creation.
   //! * if it does exist maybe from a previous movement where the replica was

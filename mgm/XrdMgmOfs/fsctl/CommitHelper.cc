@@ -29,6 +29,7 @@
 #include "common/LayoutId.hh"
 #include "namespace/interface/IQuota.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/utils/FsFilePath.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -129,6 +130,10 @@ CommitHelper::grab_cgi(XrdOucEnv& env, CommitHelper::cgi_t& cgi)
     cgi["mtimensec"] = env.Get("mgm.mtime_ns");
   }
 
+  if (env.Get("mgm.lpath")) {
+    cgi["lpath"] = env.Get("mgm.lpath");
+  }
+
   if (env.Get("mgm.logid")) {
     cgi["logid"] = env.Get("mgm.logid");
   }
@@ -185,15 +190,24 @@ CommitHelper::log_info(eos::common::Mapping::VirtualIdentity_t& vid,
                        CommitHelper::option_t& option,
                        CommitHelper::param_t& params)
 {
+  XrdOucString fstpath;
+
+  if (cgi["lpath"].length()) {
+    fstpath = cgi["lpath"].c_str();
+  } else {
+    eos::common::FileId::FidPrefix2FullPath(cgi["fid"].c_str(), "/", fstpath);
+  }
+
   if (cgi["checksum"].length()) {
     eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%s "
-                    "checksum=%s mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d "
-                    "oc-max=%d oc-uuid=%s",
+                    "fstpath=%s checksum=%s mtime=%s mtime.nsec=%s "
+                    "oc-chunk=%d oc-n=%d oc-max=%d oc-uuid=%s",
                     cgi["path"].c_str(),
                     cgi["size"].c_str(),
                     cgi["fid"].c_str(),
                     cgi["fsid"].c_str(),
                     cgi["dropfsid"].c_str(),
+                    fstpath.c_str(),
                     cgi["checksum"].c_str(),
                     cgi["mtime"].c_str(),
                     cgi["mtimensec"].c_str(),
@@ -203,13 +217,14 @@ CommitHelper::log_info(eos::common::Mapping::VirtualIdentity_t& vid,
                     cgi["ocuuid"].c_str());
   } else {
     eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%s "
-                    "mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d "
+                    "fstpath=%s mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d "
                     "oc-max=%d oc-uuid=%s",
                     cgi["path"].c_str(),
                     cgi["size"].c_str(),
                     cgi["fid"].c_str(),
                     cgi["fsid"].c_str(),
                     cgi["dropfsid"].c_str(),
+                    fstpath.c_str(),
                     cgi["mtime"].c_str(),
                     cgi["mtimensec"].c_str(),
                     option["occhunk"],
@@ -484,6 +499,11 @@ CommitHelper::handle_location(eos::common::Mapping::VirtualIdentity_t& vid,
   // is something in the deletion list
   if (fmd->getNumUnlinkedLocation()) {
     fmd->removeLocation(fsid);
+  }
+
+  // Register logical path location
+  if (cgi["lpath"].length()) {
+    eos::FsFilePath::StorePhysicalPath(fsid, fmd, cgi["lpath"]);
   }
 
   if (cgi["dropfsid"].length()) {
