@@ -100,6 +100,7 @@ public:
 
 private:
   std::unique_ptr<folly::Executor> mExecutor;
+  qclient::QClient *mQcl;
   std::unique_ptr<MetadataProviderShard> mShard;
 };
 

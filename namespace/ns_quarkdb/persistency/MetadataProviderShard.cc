@@ -38,16 +38,12 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-MetadataProviderShard::MetadataProviderShard(const QdbContactDetails& contactDetails,
+MetadataProviderShard::MetadataProviderShard(qclient::QClient *qcl,
   IContainerMDSvc* contsvc, IFileMDSvc* filesvc, folly::Executor *exec)
   : mContSvc(contsvc), mFileSvc(filesvc), mContainerCache(3e6), mFileCache(3e7)
 {
   mExecutor = exec;
-
-  for (size_t i = 0; i < kQClientPoolSize; i++) {
-    mQclPool.emplace_back(eos::BackendClient::getInstance
-                          (contactDetails, SSTR("md-provider-" << i)));
-  }
+  mQcl = qcl;
 }
 
 //------------------------------------------------------------------------------
@@ -87,11 +83,11 @@ MetadataProviderShard::retrieveContainerMD(ContainerIdentifier id)
   // Nope, need to fetch, and insert into the in-flight staging area. Merge
   // three asynchronous operations into one.
   folly::Future<eos::ns::ContainerMdProto> protoFut =
-    MetadataFetcher::getContainerFromId(pickQcl(id), id);
+    MetadataFetcher::getContainerFromId(*mQcl, id);
   folly::Future<IContainerMD::FileMap> fileMapFut =
-    MetadataFetcher::getFilesInContainer(pickQcl(id), id);
+    MetadataFetcher::getFilesInContainer(*mQcl, id);
   folly::Future<IContainerMD::ContainerMap> containerMapFut =
-    MetadataFetcher::getSubContainers(pickQcl(id), id);
+    MetadataFetcher::getSubContainers(*mQcl, id);
   folly::Future<IContainerMDPtr> fut =
     folly::collect(protoFut, fileMapFut, containerMapFut)
     .via(mExecutor)
@@ -142,7 +138,7 @@ MetadataProviderShard::retrieveFileMD(FileIdentifier id)
   }
 
   // Nope, need to fetch, and insert into the in-flight staging area.
-  folly::Future<IFileMDPtr> fut = MetadataFetcher::getFileFromId(pickQcl(id), id)
+  folly::Future<IFileMDPtr> fut = MetadataFetcher::getFileFromId(*mQcl, id)
                                   .via(mExecutor)
                                   .then(std::bind(&MetadataProviderShard::processIncomingFileMdProto, this, id, _1))
   .onError([this, id](const folly::exception_wrapper & e) {
@@ -161,7 +157,7 @@ MetadataProviderShard::retrieveFileMD(FileIdentifier id)
 folly::Future<bool>
 MetadataProviderShard::hasFileMD(FileIdentifier id)
 {
-  return MetadataFetcher::doesFileMdExist(pickQcl(id), id);
+  return MetadataFetcher::doesFileMdExist(*mQcl, id);
 }
 
 //------------------------------------------------------------------------------
@@ -288,22 +284,6 @@ CacheStatistics MetadataProviderShard::getContainerMDCacheStats()
   std::lock_guard<std::mutex> lock(mMutex);
   stats.inFlight = mInFlightContainers.size();
   return stats;
-}
-
-//------------------------------------------------------------------------------
-// Pick a qclient out of the pool for the given file.
-//------------------------------------------------------------------------------
-qclient::QClient& MetadataProviderShard::pickQcl(FileIdentifier id)
-{
-  return *(mQclPool[id.getUnderlyingUInt64() % kQClientPoolSize]);
-}
-
-//------------------------------------------------------------------------------
-// Pick a qclient out of the pool for the given container.
-//------------------------------------------------------------------------------
-qclient::QClient& MetadataProviderShard::pickQcl(ContainerIdentifier id)
-{
-  return *(mQclPool[id.getUnderlyingUInt64() % kQClientPoolSize]);
 }
 
 EOSNSNAMESPACE_END

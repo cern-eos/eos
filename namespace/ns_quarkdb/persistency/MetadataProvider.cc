@@ -35,7 +35,8 @@ MetadataProvider::MetadataProvider(const QdbContactDetails& contactDetails,
                                    IContainerMDSvc* contsvc, IFileMDSvc* filesvc)
 {
   mExecutor.reset(new folly::IOThreadPoolExecutor(16));
-  mShard.reset(new MetadataProviderShard(contactDetails, contsvc, filesvc,
+  mQcl = eos::BackendClient::getInstance(contactDetails, SSTR("md-provider-" << 0));
+  mShard.reset(new MetadataProviderShard(mQcl, contsvc, filesvc,
     mExecutor.get()));
 }
 

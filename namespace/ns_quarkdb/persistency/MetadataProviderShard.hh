@@ -54,7 +54,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  MetadataProviderShard(const QdbContactDetails& contactDetails,
+  MetadataProviderShard(qclient::QClient *qcl,
     IContainerMDSvc* contsvc, IFileMDSvc* filemvc, folly::Executor *exec);
 
   //----------------------------------------------------------------------------
@@ -121,18 +121,7 @@ private:
       IContainerMD::ContainerMap
       > tup);
 
-  //----------------------------------------------------------------------------
-  //! Pick a qclient out of the pool for the given file
-  //----------------------------------------------------------------------------
-  qclient::QClient& pickQcl(FileIdentifier id);
-
-  //----------------------------------------------------------------------------
-  //! Pick a qclient out of the pool for the given container
-  //----------------------------------------------------------------------------
-  qclient::QClient& pickQcl(ContainerIdentifier id);
-
-  static constexpr size_t kQClientPoolSize = 8;
-  std::vector<qclient::QClient*> mQclPool;
+  qclient::QClient *mQcl; // no ownership
   IContainerMDSvc* mContSvc; // no ownership
   IFileMDSvc* mFileSvc; // no ownership
   std::mutex mMutex;
