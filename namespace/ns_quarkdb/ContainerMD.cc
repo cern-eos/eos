@@ -120,6 +120,19 @@ QuarkContainerMD& QuarkContainerMD::operator= (const QuarkContainerMD& other)
 }
 
 //------------------------------------------------------------------------------
+// Children inheritance
+//------------------------------------------------------------------------------
+void
+QuarkContainerMD::InheritChildren(const IContainerMD& other)
+{
+  QuarkContainerMD& otherContainer =
+    dynamic_cast<QuarkContainerMD&>(const_cast<IContainerMD&>(other));
+  mFiles.get() = otherContainer.mFiles.get();
+  mSubcontainers.get() = otherContainer.mSubcontainers.get();
+  setTreeSize(otherContainer.getTreeSize());
+}
+
+//------------------------------------------------------------------------------
 // Turn a ContainerMDPtr into FileOrContainerMD.
 //------------------------------------------------------------------------------
 static FileOrContainerMD wrapContainerMD(IContainerMDPtr ptr)

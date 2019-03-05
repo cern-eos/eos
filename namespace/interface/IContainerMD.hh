@@ -103,10 +103,7 @@ public:
   //----------------------------------------------------------------------------
   //! Virtual copy constructor
   //----------------------------------------------------------------------------
-  virtual void InheritChildren(const IContainerMD& other)
-  {
-    return;
-  }
+  virtual void InheritChildren(const IContainerMD& other) = 0;
 
   //----------------------------------------------------------------------------
   //! Add container
@@ -193,7 +190,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get parent identifier
   //----------------------------------------------------------------------------
-  virtual ContainerIdentifier getParentIdentifier() const {
+  virtual ContainerIdentifier getParentIdentifier() const
+  {
     return ContainerIdentifier(getParentId());
   }
 
@@ -394,7 +392,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get locality hint for this container.
   //----------------------------------------------------------------------------
-  virtual std::string getLocalityHint() const {
+  virtual std::string getLocalityHint() const
+  {
     return LocalityHint::build(ContainerIdentifier(getParentId()), getName());
   }
 

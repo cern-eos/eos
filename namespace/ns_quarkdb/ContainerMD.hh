@@ -51,7 +51,7 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   QuarkContainerMD(IContainerMD::id_t id, IFileMDSvc* file_svc,
-              IContainerMDSvc* cont_svc);
+                   IContainerMDSvc* cont_svc);
 
   //----------------------------------------------------------------------------
   //! Constructor used for testing and dump command
@@ -73,6 +73,11 @@ public:
   //! Virtual copy constructor
   //----------------------------------------------------------------------------
   virtual QuarkContainerMD* clone() const override;
+
+  //----------------------------------------------------------------------------
+  //! Virtual copy constructor
+  //----------------------------------------------------------------------------
+  void InheritChildren(const IContainerMD& other) override;
 
   //----------------------------------------------------------------------------
   //! Assignment operator
