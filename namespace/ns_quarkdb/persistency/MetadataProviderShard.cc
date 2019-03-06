@@ -40,7 +40,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 MetadataProviderShard::MetadataProviderShard(qclient::QClient *qcl,
   IContainerMDSvc* contsvc, IFileMDSvc* filesvc, folly::Executor *exec)
-  : mContSvc(contsvc), mFileSvc(filesvc), mContainerCache(3e6), mFileCache(3e7)
+  : mContSvc(contsvc), mFileSvc(filesvc), mContainerCache(3e5), mFileCache(3e6)
 {
   mExecutor = exec;
   mQcl = qcl;
