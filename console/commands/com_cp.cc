@@ -41,7 +41,8 @@ com_cp_usage()
   fprintf(stdout,
           "Usage: cp [--async] [--atomic] [--rate=<rate>] [--streams=<n>] [--depth=<d>] [--checksum] [--no-overwrite|-k] [--preserve|-p] [--recursive|-r|-R] [-s|--silent] [-a] [-n] [-S] [-d] <src> <dst>\n");
   fprintf(stdout, "'[eos] cp ..' provides copy functionality to EOS.\n");
-  fprintf(stdout, "          <src>|<dst> can be root://<host>/<path>, a local path /tmp/../ or an eos path /eos/ in the connected instance\n");
+  fprintf(stdout,
+          "          <src>|<dst> can be root://<host>/<path>, a local path /tmp/../ or an eos path /eos/ in the connected instance\n");
   fprintf(stdout, "Options:\n");
   fprintf(stdout,
           "       --async         : run an asynchronous transfer via a gateway server (see 'transfer submit --sync' for the full options)\n");
@@ -51,7 +52,8 @@ com_cp_usage()
   fprintf(stdout, "       --streams       : use <#> parallel streams\n");
   fprintf(stdout, "       --depth         : depth for recursive copy\n");
   fprintf(stdout, "       --checksum      : output the checksums\n");
-  fprintf(stdout, "       -a              : append to the target, don't truncate\n");
+  fprintf(stdout,
+          "       -a              : append to the target, don't truncate\n");
   fprintf(stdout, "       -p              : create destination directory\n");
   fprintf(stdout, "       -n              : hide progress bar\n");
   fprintf(stdout, "       -S              : print summary\n");
@@ -115,14 +117,14 @@ enum Protocol {
 };
 
 struct File_t {
-    XrdOucString name;
-    XrdOucString opaque;
-    Protocol protocol;
-    timespec atime;
-    timespec mtime;
-    unsigned long long size;
+  XrdOucString name;
+  XrdOucString opaque;
+  Protocol protocol;
+  timespec atime;
+  timespec mtime;
+  unsigned long long size;
 
-    File_t() : name(""), opaque(""), protocol(Protocol::UNKNOWN), size(0) { }
+  File_t() : name(""), opaque(""), protocol(Protocol::UNKNOWN), size(0) { }
 };
 
 /* Helper functions */
@@ -168,13 +170,11 @@ com_cp(char* argin)
   struct timezone tz;
   int files_copied = 0;
   int retc = 0;
-
-
   // Check if this is an 'async' command
   XrdOucString sarg = argin;
+
   if ((sarg.find("--async")) != STR_NPOS) {
     char fullcmd[4096];
-
     sarg.replace("--async", "submit --sync");
     snprintf(fullcmd, sizeof(fullcmd) - 1, "%s", sarg.c_str());
     return com_transfer(fullcmd);
@@ -183,12 +183,12 @@ com_cp(char* argin)
   // ----------------------------------------------------------------------------
   // Parse arguments
   // ----------------------------------------------------------------------------
-
   eos::common::StringTokenizer subtokenizer(argin);
   subtokenizer.GetLine();
 
   do {
     XrdOucString option = subtokenizer.GetToken();
+
     if (!option.length()) {
       break;
     }
@@ -224,9 +224,10 @@ com_cp(char* argin)
       atomic = "&eos.atomic=1";
     } else if (option.beginswith("--depth=")) {
       option.replace("--depth=", "");
+
       try {
         depth = std::stoul(option.c_str());
-      } catch(...) {
+      } catch (...) {
         fprintf(stderr, "error: invalid value for <depth>=%s", option.c_str());
         return com_cp_usage();
       }
@@ -259,6 +260,7 @@ com_cp(char* argin)
     nextarg = lastarg;
     lastarg = subtokenizer.GetToken();
   }
+
   target.name = nextarg;
 
   if (!target.name.length()) {
@@ -295,6 +297,7 @@ com_cp(char* argin)
 
     // Identify protocol
     protocol = get_protocol(source.c_str());
+
     if (protocol == Protocol::UNKNOWN) {
       fprintf(stderr, "warning: %s -- protocol not recognized. Skipping path..",
               source.c_str());
@@ -316,7 +319,8 @@ com_cp(char* argin)
     if ((protocol != Protocol::EOS) && (protocol != Protocol::LOCAL)) {
       XrdOucString sprot, hostport;
       filepath = eos::common::StringConversion::ParseUrl(source.c_str(),
-                                                         sprot, hostport);
+                 sprot, hostport);
+
       if (!filepath) {
         fprintf(stderr, "error: cannot process file=%s [protocol=%s]\n",
                 source.c_str(), protocol_to_string(protocol));
@@ -332,7 +336,7 @@ com_cp(char* argin)
 
       if ((protocol != Protocol::EOS) && (protocol != Protocol::LOCAL)) {
         fprintf(stderr, "error: %s -- path expansion not implemented for %s protocol."
-                        " Skipping path..\n", source.c_str(), protocol_to_string(protocol));
+                " Skipping path..\n", source.c_str(), protocol_to_string(protocol));
         continue;
       }
 
@@ -340,30 +344,38 @@ com_cp(char* argin)
       if (source.find("*") != STR_NPOS) {
         // Will use 'ls -lF' combined with grep to identify matches
         // ls -l[F|p] <path> | awk 'NF == 9 {print $9}' [ | egrep "<match>" ]
-
         // Note: eos::common::Path removes trailing '/'!
         XrdOucString basename = cPath.GetName();
-        if (source.endswith("/")) { basename.append("/"); }
+
+        if (source.endswith("/")) {
+          basename.append("/");
+        }
 
         // Wildcards are supported only in the basename
         if (basename.find("*") == STR_NPOS) {
           fprintf(stderr, "warning: %s -- wildcards not supported outside basename."
-                          " Skipping path..\n", source.c_str());
+                  " Skipping path..\n", source.c_str());
           continue;
         }
 
         XrdOucString match = basename.c_str();
         wildcard = true;
 
-        if (!match.beginswith("*")) { match.insert("^", 0); }
-        if (!match.endswith("*"))   { match.append("$");    }
-        match.replace("*", ".*");
+        if (!match.beginswith("*")) {
+          match.insert("^", 0);
+        }
 
+        if (!match.endswith("*"))   {
+          match.append("$");
+        }
+
+        match.replace("*", ".*");
         // Construct command text
         cmdtext = "ls -l";
         cmdtext += (protocol == Protocol::EOS) ? "F " : "p ";
         cmdtext += basepath.c_str();
-        cmdtext += " | awk '{out=$9; for (i=10; i<=NF; i++) {out=out\" \"$i}; print out}' | egrep \"";
+        cmdtext +=
+          " | awk '{out=$9; for (i=10; i<=NF; i++) {out=out\" \"$i}; print out}' | egrep \"";
         cmdtext += match.c_str();
         cmdtext += "\"";
       } else if (source.endswith("/")) {
@@ -372,9 +384,8 @@ com_cp(char* argin)
         // Will use 'find' to identify files
         // local file: find <path> [-maxdepth <depth>] -follow -type f
         // eos file:   find -f [--maxdepth <depth>] <path>
-
         if (!recursive) {
-          fprintf(stderr,"warning: omitting directory %s\n", source.c_str());
+          fprintf(stderr, "warning: omitting directory %s\n", source.c_str());
           continue;
         }
 
@@ -383,17 +394,20 @@ com_cp(char* argin)
         ss.clear();
         ss << std::quoted(source.c_str());
         source = ss.str().c_str();
-
         // Capture only last directory
         // This will end up appended to the target
-
         std::string smaxdepth = " ";
+
         if (depth != 0) {
           smaxdepth = " -maxdepth ";
           smaxdepth += std::to_string(depth);
           smaxdepth += " ";
-          if (protocol == Protocol::EOS) { smaxdepth.insert(1, "-"); }
+
+          if (protocol == Protocol::EOS) {
+            smaxdepth.insert(1, "-");
+          }
         }
+
         cmdtext = "find ";
 
         if (protocol == Protocol::EOS) {
@@ -416,6 +430,7 @@ com_cp(char* argin)
       int rc = (protocol == Protocol::EOS)  ?
                run_eos_command(cmdtext.c_str(), files) :
                run_command(cmdtext.c_str(), files);
+
       if (rc && !files.size()) {
         fprintf(stderr, "warning: could not expand source: %s\n", source.c_str());
         global_retc = rc;
@@ -425,7 +440,7 @@ com_cp(char* argin)
       files.emplace_back(source.c_str());
     }
 
-    for (auto& file: files) {
+    for (auto& file : files) {
       // Check if path expansion discovered a symlink
       if (file.find(" -> ") != STR_NPOS) {
         file = process_symlink(file.c_str());
@@ -445,7 +460,6 @@ com_cp(char* argin)
       source_file.name = file.c_str();
       source_file.opaque = source_opaque.c_str();
       source_file.protocol = protocol;
-
       source_list.emplace_back(source_file);
       source_basepath_list.emplace_back(basepath.c_str());
     }
@@ -461,13 +475,14 @@ com_cp(char* argin)
   // --------------------------------------------------------------------------
   // Process target path
   // --------------------------------------------------------------------------
-
   bool target_exists;
   struct stat target_stat;
   target.protocol = get_protocol(target.name.c_str());
 
   // Make sure executable to reach target exists
-  if (check_protocol_tool(target.name.c_str())) { return -1; }
+  if (check_protocol_tool(target.name.c_str())) {
+    return -1;
+  }
 
   // Handle opaque information for target
   if (target.protocol != Protocol::LOCAL) {
@@ -496,7 +511,7 @@ com_cp(char* argin)
     target_is_dir = is_dir(target.name.c_str(), target.protocol, &target_stat);
 
     // If multiple source files target must be a directory
-    if (source_list.size() > 1 ) {
+    if (source_list.size() > 1) {
       // Target doesn't exist, mark it as directory
       if (!target_exists) {
         target_is_dir = true;
@@ -524,7 +539,7 @@ com_cp(char* argin)
     if (target_is_dir && !target_exists) {
       if (!makeparent) {
         fprintf(stderr, "error: target must be created. Please try with "
-                        "create flag '-p' or see 'eos cp --help' for more info.\n");
+                "create flag '-p' or see 'eos cp --help' for more info.\n");
         global_retc = EINVAL;
         return -1;
       }
@@ -544,13 +559,17 @@ com_cp(char* argin)
         }
 
         std::string cmdtext = "mkdir -p ";
-        if (target.protocol == Protocol::LOCAL) { cmdtext += "--mode 755 "; }
-        cmdtext += mktarget.c_str();
 
+        if (target.protocol == Protocol::LOCAL) {
+          cmdtext += "--mode 755 ";
+        }
+
+        cmdtext += mktarget.c_str();
         std::vector<XrdOucString> tmp;
         int rc = (target.protocol == Protocol::EOS) ?
                  run_eos_command(cmdtext.c_str(), tmp) :
                  run_command(cmdtext.c_str(), tmp);
+
         if (rc) {
           fprintf(stderr, "error: failed to create target directory : %s\n",
                   mktarget.c_str());
@@ -569,14 +588,21 @@ com_cp(char* argin)
   if ((target.protocol == Protocol::AS3) ||
       (target.protocol == Protocol::S3)) {
     const char* url = setup_s3_environment(target.name, target.opaque);
-    if (url == NULL) { return -1; }
+
+    if (url == NULL) {
+      return -1;
+    }
+
     target.name = url;
   }
 
   // Expand '/eos/' shortcut for EOS protocol
   if ((target.protocol == Protocol::EOS) &&
       (target.name.beginswith("/eos/"))) {
-    if (!serveruri.endswith("/")) { target.name.insert("/", 0); }
+    if (!serveruri.endswith("/")) {
+      target.name.insert("/", 0);
+    }
+
     target.name.insert(serveruri.c_str(), 0);
   }
 
@@ -589,15 +615,13 @@ com_cp(char* argin)
   // --------------------------------------------------------------------------
   // Compute size for each source path
   // --------------------------------------------------------------------------
-
   // As needed, check whether tools to access these protocols can be found
   bool s3_tool = false;
   bool http_tool = false;
   bool gsiftp_tool = false;
 
-  for (auto& source: source_list) {
+  for (auto& source : source_list) {
     bool statok = false;
-
     struct stat buf;
     source.atime.tv_nsec = source.mtime.tv_nsec = 0;
 
@@ -627,24 +651,29 @@ com_cp(char* argin)
         // Store the a/m-time
         source.atime.tv_sec = buf.st_atime;
         source.mtime.tv_sec = buf.st_mtime;
-
         statok = true;
       }
+
       break;
 
     // ------------------------------------------
     // S3 file
     // ------------------------------------------
     case Protocol::AS3:
-    case Protocol::S3:
-    {
+    case Protocol::S3: {
       if (!s3_tool) {
-        if (check_protocol_tool(source.name.c_str())) { return -1; }
+        if (check_protocol_tool(source.name.c_str())) {
+          return -1;
+        }
+
         s3_tool = true;
       }
 
       const char* url = setup_s3_environment(source.name, source.opaque);
-      if (url == NULL) { return -1; }
+
+      if (url == NULL) {
+        return -1;
+      }
 
       XrdOucString s3env = "env S3_ACCESS_KEY_ID=";
       s3env += getenv("S3_ACCESS_KEY_ID");
@@ -652,7 +681,6 @@ com_cp(char* argin)
       s3env += getenv("S3_HOSTNAME");
       s3env += " S3_SECRET_ACCESS_KEY=";
       s3env += getenv("S3_SECRET_ACCESS_KEY");
-
       // Execute 's3' command to retrieve size
       XrdOucString cmdtext = "bash -c \"";
       cmdtext += s3env;
@@ -669,7 +697,7 @@ com_cp(char* argin)
 
       if ((!size) || (size == LLONG_MAX)) {
         fprintf(stderr, "error: path=%s cannot obtain size of S3 source file "
-                        "or file size is 0!\n", source.name.c_str());
+                "or file size is 0!\n", source.name.c_str());
         global_retc = EIO;
         return -1;
       }
@@ -677,7 +705,6 @@ com_cp(char* argin)
       copysize += size;
       source.size = (unsigned long long) size;
       source.atime.tv_sec = source.mtime.tv_sec = 0;
-
       statok = true;
       break;
     }
@@ -690,10 +717,16 @@ com_cp(char* argin)
     case Protocol::HTTPS:
       if ((source.protocol == Protocol::HTTP ||
            source.protocol == Protocol::HTTPS) && (!http_tool)) {
-        if (check_protocol_tool(source.name.c_str())) { return -1; }
+        if (check_protocol_tool(source.name.c_str())) {
+          return -1;
+        }
+
         http_tool = true;
       } else if ((source.protocol == Protocol::GSIFTP) && (!gsiftp_tool)) {
-        if (check_protocol_tool(source.name.c_str())) { return -1; }
+        if (check_protocol_tool(source.name.c_str())) {
+          return -1;
+        }
+
         gsiftp_tool = true;
       }
 
@@ -735,18 +768,15 @@ com_cp(char* argin)
 
   // Mark start timestamp
   gettimeofday(&start_time, &tz);
-
   // --------------------------------------------------------------------------
   // Create 'eoscp' command for each source path
   // and effectively perform the copy operation
   // --------------------------------------------------------------------------
-
   int file_idx = -1;
   retc = 0;
 
-  for (auto& source: source_list) {
+  for (auto& source : source_list) {
     XrdOucString dest = target.name.c_str();
-
     // Processed target path + original target opaque info
     XrdOucString target_path = "";
     // Temporary file upload flag
@@ -777,7 +807,8 @@ com_cp(char* argin)
 
     // Check that source and destination are different
     if (!strcmp(source.name.c_str(), dest.c_str())) {
-      fprintf(stderr, "warning: source and target are the same path=%s. Skipping path..\n",
+      fprintf(stderr,
+              "warning: source and target are the same path=%s. Skipping path..\n",
               source.name.c_str());
       continue;
     }
@@ -800,7 +831,7 @@ com_cp(char* argin)
 
           if (!do_stat(dest.c_str(), target.protocol, tmp)) {
             fprintf(stderr, "warning: target=%s exists, but --no-overwrite "
-                            "flag specified\n", dest.c_str());
+                    "flag specified\n", dest.c_str());
             retc |= EEXIST;
             continue;
           }
@@ -811,15 +842,13 @@ com_cp(char* argin)
       if ((target.protocol == Protocol::EOS) ||
           (target.protocol == Protocol::XROOT)) {
         char opaque[1024];
-        const char *roles = eos_roles_opaque();
-
+        const char* roles = eos_roles_opaque();
         snprintf(opaque, sizeof(opaque) - 1,
                  "%ceos.targetsize=%llu&eos.bookingsize=%llu&eos.app=eoscp%s%s%s",
                  (target.opaque.length()) ? '&' : '?',
                  source.size, source.size, atomic.c_str(),
                  (roles) ? "&" : "",
                  (roles) ? roles : "");
-
         dest.append(opaque);
       }
 
@@ -834,7 +863,7 @@ com_cp(char* argin)
 
         if (tmp_fd == -1) {
           fprintf(stderr, "error: failed to create temporary file "
-                          "while preparing copy for path=%s [protocol=%s]\n",
+                  "while preparing copy for path=%s [protocol=%s]\n",
                   dest.c_str(), protocol_to_string(target.protocol));
           global_retc = errno;
           return -1;
@@ -853,7 +882,10 @@ com_cp(char* argin)
     // Expand '/eos/' shortcut for EOS protocol
     if ((source.protocol == Protocol::EOS) &&
         (source.name.beginswith("/eos/"))) {
-      if (!serveruri.endswith("/")) { source.name.insert("/", 0); }
+      if (!serveruri.endswith("/")) {
+        source.name.insert("/", 0);
+      }
+
       source.name.insert(serveruri.c_str(), 0);
     }
 
@@ -871,8 +903,8 @@ com_cp(char* argin)
     //------------------------------------
     // Prepare STDIN and STDOUT pipes
     //------------------------------------
-
-    XrdOucString transfersize = ""; // used for STDIN pipes to specify the target size to eoscp
+    XrdOucString transfersize =
+      ""; // used for STDIN pipes to specify the target size to eoscp
     XrdOucString cmdtext = "";
     bool rstdin = false;
     bool rstdout = false;
@@ -880,25 +912,32 @@ com_cp(char* argin)
     if ((source.protocol == Protocol::EOS) ||
         (source.protocol == Protocol::XROOT)) {
       const char* roles = eos_roles_opaque();
-
       source.name += (source.opaque.length())  ?  "&"  :  "?";
       source.name += "eos.app=eoscp";
       source.name += (roles)  ?  "&"  :  "";
       source.name += (roles)  ?  roles  : "";
-    }
-    else if ((source.protocol != Protocol::LOCAL) &&
-             (source.protocol != Protocol::UNKNOWN)) {
+    } else if ((source.protocol != Protocol::LOCAL) &&
+               (source.protocol != Protocol::UNKNOWN)) {
       bool old_noprogress = noprogress;
       noprogress = true;
-
       XrdOucString safesource = source.name.c_str();
-      while (safesource.replace("'", "\\'")) {}
-      safesource.replace("as3:", "", 0, 3);
 
+      while (safesource.replace("'", "\\'")) {}
+
+      safesource.replace("as3:", "", 0, 3);
       XrdOucString tool = "";
-      if (source.protocol == Protocol::HTTP)    { tool = "curl "; }
-      if (source.protocol == Protocol::HTTPS)   { tool = "curl -k "; }
-      if (source.protocol == Protocol::GSIFTP)  { tool = "globus-url-copy "; }
+
+      if (source.protocol == Protocol::HTTP)    {
+        tool = "curl ";
+      }
+
+      if (source.protocol == Protocol::HTTPS)   {
+        tool = "curl -k ";
+      }
+
+      if (source.protocol == Protocol::GSIFTP)  {
+        tool = "globus-url-copy ";
+      }
 
       if ((source.protocol == Protocol::AS3) ||
           (source.protocol == Protocol::S3)) {
@@ -910,9 +949,12 @@ com_cp(char* argin)
       cmdtext += "$'";
       cmdtext += safesource;
       cmdtext += "'";
-      if (source.protocol == Protocol::GSIFTP) { cmdtext += " -"; }
-      cmdtext += " | ";
 
+      if (source.protocol == Protocol::GSIFTP) {
+        cmdtext += " -";
+      }
+
+      cmdtext += " | ";
       rstdin = true;
     }
 
@@ -933,9 +975,9 @@ com_cp(char* argin)
     //------------------------------------
     // Prepare eoscp transaction name
     //------------------------------------
-
     XrdOucString safename = source.name.c_str();
     int qpos = safename.rfind("?");
+
     if (qpos != STR_NPOS) {
       safename.erase(qpos);
     }
@@ -943,26 +985,47 @@ com_cp(char* argin)
     if (source.protocol != Protocol::LOCAL) {
       XrdOucString sprot, hostport;
       const char* url = eos::common::StringConversion::ParseUrl(safename.c_str(),
-                                                                sprot, hostport);
-      if (url) { safename = url; }
+                        sprot, hostport);
+
+      if (url) {
+        safename = url;
+      }
     }
 
     safename = eos::common::Path(safename.c_str()).GetName();;
+
     while (safename.replace("&", "#AND#")) {}
+
     while (safename.replace("'", "\\'")) {}
 
     //------------------------------------
     // Construct 'eoscp' command
     //------------------------------------
-
     cmdtext += "eoscp ";
 
-    if (append)                 { cmdtext += "-a "; }
-    if (!summary)               { cmdtext += "-s "; }
-    if (makeparent)             { cmdtext += "-p "; }
-    if (noprogress)             { cmdtext += "-n "; }
-    if (nooverwrite)            { cmdtext += "-x "; }
-    if (transfersize.length())  { cmdtext += "-T "; }
+    if (append)                 {
+      cmdtext += "-a ";
+    }
+
+    if (!summary)               {
+      cmdtext += "-s ";
+    }
+
+    if (makeparent)             {
+      cmdtext += "-p ";
+    }
+
+    if (noprogress)             {
+      cmdtext += "-n ";
+    }
+
+    if (nooverwrite)            {
+      cmdtext += "-x ";
+    }
+
+    if (transfersize.length())  {
+      cmdtext += "-T ";
+    }
 
     cmdtext += transfersize;
     cmdtext += "-N $'";
@@ -973,6 +1036,7 @@ com_cp(char* argin)
       cmdtext += "- ";
     } else {
       XrdOucString safesource = source.name.c_str();
+
       while (safesource.replace("'", "\\'")) {}
 
       cmdtext += "$'";
@@ -984,6 +1048,7 @@ com_cp(char* argin)
       cmdtext += "-";
     } else {
       XrdOucString safedest = dest.c_str();
+
       while (safedest.replace("'", "\\'")) {}
 
       cmdtext += "$'";
@@ -996,7 +1061,6 @@ com_cp(char* argin)
       // s3 can upload via STDIN
       XrdOucString s3dest = dest.c_str();
       s3dest.replace("as3:", "", 0, 3);
-
       cmdtext += " | s3 put ";
       cmdtext += s3dest.c_str();
       cmdtext += " contentLength=";
@@ -1029,35 +1093,31 @@ com_cp(char* argin)
     if (((target.protocol == Protocol::EOS)    ||
          (target.protocol == Protocol::XROOT)  ||
          (target.protocol == Protocol::LOCAL)) && (!target_is_stdout)) {
-
       struct stat buf;
 
       if (!do_stat(target_path.c_str(), target.protocol, buf)) {
-        if ( (!source.size) ||
-             ( buf.st_size == (off_t) ( append ? target_stat.st_size + source.size : (off_t) source.size )
-             )
-           )
-        {
+        if ((!source.size) ||
+            (buf.st_size == (off_t)(append ? target_stat.st_size + source.size :
+                                    (off_t) source.size)
+            )
+           ) {
           // Preserve creation and modification timestamps
           if ((preserve) && (source.atime.tv_sec > 0) && (source.mtime.tv_sec > 0)) {
             bool updateok;
 
             if (target.protocol == Protocol::LOCAL) {
               struct timeval times[2];
-
               times[0].tv_sec = source.atime.tv_sec;
               times[0].tv_usec = source.atime.tv_nsec / 1000;
               times[1].tv_sec = source.mtime.tv_sec;
               times[1].tv_usec = source.mtime.tv_nsec / 1000;
-
               updateok = (utimes(target_path.c_str(), times) == 0);
             } else {
               char update[1024];
-              const char *roles = eos_roles_opaque();
-
+              const char* roles = eos_roles_opaque();
               sprintf(update, "%ceos.app=eoscp%s%s&mgm.pcmd=utimes"
-                              "&tv1_sec=%llu&tv1_nsec=%llu"
-                              "&tv2_sec=%llu&tv2_nsec=%llu",
+                      "&tv1_sec=%llu&tv1_nsec=%llu"
+                      "&tv2_sec=%llu&tv2_nsec=%llu",
                       (target.opaque.length()) ? '&' : '?',
                       (roles) ? "&" : "",
                       (roles) ? roles : "",
@@ -1065,21 +1125,18 @@ com_cp(char* argin)
                       (unsigned long long) source.atime.tv_nsec,
                       (unsigned long long) source.mtime.tv_sec,
                       (unsigned long long) source.mtime.tv_nsec);
-
               XrdOucString request = target_path.c_str();
               request += update;
-
               char value[4096];
               value[0] = 0;
               long long update_rc = XrdPosixXrootd::QueryOpaque(request.c_str(),
-                                                                value, 4096);
+                                    value, 4096);
               updateok = (update_rc >= 0);
 
               // Parse the stat output
               if (updateok) {
                 char tag[1024];
                 int tmp_retc;
-
                 int items = sscanf(value, "%1023s retc=%d", tag, &tmp_retc);
                 updateok = ((items == 2) && (strcmp(tag, "utimes:") == 0));
               }
@@ -1087,8 +1144,8 @@ com_cp(char* argin)
 
             if (!updateok) {
               fprintf(stderr, "warning: creation/modification time "
-                              "could not be preserved for path=%s\n",
-                              target_path.c_str());
+                      "could not be preserved for path=%s\n",
+                      target_path.c_str());
             }
           }
 
@@ -1100,7 +1157,7 @@ com_cp(char* argin)
 
             if (!url.IsValid()) {
               fprintf(stderr, "error: invalid file system URL=%s "
-                              "[attempting checksum]\n",
+                      "[attempting checksum]\n",
                       url.GetURL().c_str());
               global_retc = EINVAL;
               return -1;
@@ -1110,7 +1167,7 @@ com_cp(char* argin)
 
             if (!fs) {
               fprintf(stderr, "error: failed to get new FS object "
-                              "[attempting checksum]\n");
+                      "[attempting checksum]\n");
               global_retc = EINVAL;
               return -1;
             }
@@ -1118,13 +1175,19 @@ com_cp(char* argin)
             XrdCl::Buffer arg;
             XrdCl::Buffer* response = nullptr;
             XrdCl::XRootDStatus status;
-            arg.FromString(dest.c_str());
+            std::string query_path = dest.c_str();
+            std::string::size_type pos = query_path.rfind("//");
+
+            if (pos != std::string::npos) {
+              query_path.erase(0, pos + 1);
+            }
+
+            arg.FromString(query_path);
             status = fs->Query(XrdCl::QueryCode::Checksum, arg, response);
 
             if (status.IsOK()) {
               XrdOucString xsum = response->GetBuffer();
               xsum.replace("eos ", "");
-
               fprintf(stdout, "path=%s size=%llu checksum=%s\n",
                       source.name.c_str(), source.size, xsum.c_str());
             } else {
@@ -1138,7 +1201,7 @@ com_cp(char* argin)
         } else {
           XrdOucString ssize1, ssize2;
           fprintf(stderr, "error: file size difference between source and target file "
-                          "source=%s [%s] target=%s [%s]\n",
+                  "source=%s [%s] target=%s [%s]\n",
                   source.name.c_str(),
                   eos::common::StringConversion::GetReadableSizeString(ssize1,
                       source.size, "B"),
@@ -1161,7 +1224,10 @@ com_cp(char* argin)
         cmdtext += dest.c_str();
         cmdtext += " ";
         cmdtext += target_path.c_str();
-        if (silent || noprogress) { cmdtext += " >& /dev/null"; }
+
+        if (silent || noprogress) {
+          cmdtext += " >& /dev/null";
+        }
 
         if (debug) {
           fprintf(stderr, "[eos-cp] running: %s\n", cmdtext.c_str());
@@ -1199,12 +1265,12 @@ com_cp(char* argin)
   gettimeofday(&end_time, &tz);
 
   if (debug || !silent) {
-    float time_elapsed = (float) (((end_time.tv_sec - start_time.tv_sec) * 1000000 +
-                                   (end_time.tv_usec - start_time.tv_usec)) / 1000000.0);
+    float time_elapsed = (float)(((end_time.tv_sec - start_time.tv_sec) * 1000000 +
+                                  (end_time.tv_usec - start_time.tv_usec)) / 1000000.0);
     unsigned long long copyrate = (copiedsize / time_elapsed);
     XrdOucString ssize1, ssize2;
-
-    fprintf(stderr, "%s[eos-cp] copied %d/%d files and %s in %.02f seconds with %s\n",
+    fprintf(stderr,
+            "%s[eos-cp] copied %d/%d files and %s in %.02f seconds with %s\n",
             (retc) ? "#WARNING " : "",
             files_copied,
             (int) source_list.size(),
@@ -1242,7 +1308,6 @@ int run_eos_command(const char* cmdline, std::vector<XrdOucString>& result)
   }
 
   cmd += cmdline;
-
   return run_command(cmd.c_str(), result);
 }
 
@@ -1266,6 +1331,7 @@ int run_command(const char* cmdline, std::vector<XrdOucString>& result)
 
   while (fgets(line, sizeof(line), fp)) {
     int size = strlen(line);
+
     if (line[size - 1] == '\n') {
       line[size - 1] = '\0';
     }
@@ -1289,11 +1355,14 @@ int run_command(const char* cmdline, std::vector<XrdOucString>& result)
 const char* absolute_path(const char* path)
 {
   Protocol protocol = get_protocol(path);
+
   if (protocol != Protocol::EOS && protocol != Protocol::LOCAL) {
     return path;
   }
 
-  if (strcmp(path, "-") == 0) { return path; }
+  if (strcmp(path, "-") == 0) {
+    return path;
+  }
 
   XrdOucString spath = path;
 
@@ -1319,6 +1388,7 @@ const char* absolute_path(const char* path)
   // Note: eos::common::Path expects an absolute path!
   // Note: eos::common::Path removes trailing '/'!
   std::string trailing_slash = "";
+
   if ((spath.endswith("/")) && (!spath.endswith("/./")) &&
       (!spath.endswith("/../"))) {
     trailing_slash = "/";
@@ -1326,7 +1396,6 @@ const char* absolute_path(const char* path)
 
   // Sanitize '.' and '..' entries
   spath = eos::common::Path(spath.c_str()).GetFullPath().c_str();
-
   spath += trailing_slash.c_str();
   return strdup(spath.c_str());
 }
@@ -1387,7 +1456,6 @@ const char* eos_roles_opaque()
     roles += user_role;
     roles += "&eos.rgid=";
     roles += group_role;
-
     return strdup(roles.c_str());
   }
 
@@ -1447,7 +1515,8 @@ const char* setup_s3_environment(XrdOucString path, XrdOucString opaque)
 {
   XrdOucString sprot, hostport;
   XrdOucString url = eos::common::StringConversion::ParseUrl(path.c_str(),
-                                                             sprot, hostport);
+                     sprot, hostport);
+
   if (!url.length()) {
     fprintf(stderr, "error: could not parse S3 url=%s", path.c_str());
     global_retc = EINVAL;
@@ -1458,8 +1527,13 @@ const char* setup_s3_environment(XrdOucString path, XrdOucString opaque)
     XrdOucEnv env(opaque.c_str());
 
     // Extract opaque S3 tags if present
-    if (env.Get("s3.id"))  { setenv("S3_ACCESS_KEY_ID", env.Get("s3.id"), 1);      }
-    if (env.Get("s3.key")) { setenv("S3_SECRET_ACCESS_KEY", env.Get("s3.key"), 1); }
+    if (env.Get("s3.id"))  {
+      setenv("S3_ACCESS_KEY_ID", env.Get("s3.id"), 1);
+    }
+
+    if (env.Get("s3.key")) {
+      setenv("S3_SECRET_ACCESS_KEY", env.Get("s3.key"), 1);
+    }
   }
 
   if (hostport.length()) {
@@ -1480,9 +1554,9 @@ const char* setup_s3_environment(XrdOucString path, XrdOucString opaque)
       (!getenv("S3_SECRET_ACCESS_KEY"))) {
     fprintf(stderr, "error: S3 environment not set up for %s\n", path.c_str());
     fprintf(stderr, "You have to set the following environment variables: "
-                    "S3_ACCESS_KEY_ID or S3_ACCESS_ID\n"
-                    "S3_SECRET_ACCESS_KEY or S3_ACCESS_KEY\n"
-                    "S3_HOSTNAME (or use path with URI)");
+            "S3_ACCESS_KEY_ID or S3_ACCESS_ID\n"
+            "S3_SECRET_ACCESS_KEY or S3_ACCESS_KEY\n"
+            "S3_HOSTNAME (or use path with URI)");
     global_retc = EINVAL;
     return 0;
   }
@@ -1512,10 +1586,12 @@ int check_protocol_tool(const char* path)
 
   sprintf(cmd, "which %s >& /dev/null", tool.c_str());
   int rc = system(cmd);
+
   if (WEXITSTATUS(rc)) {
     fprintf(stderr, "error: %s executable not found in PATH\n", tool.c_str());
+
     if (tool == "s3") {
-      fprintf (stderr," error: please install S3 executable from libs3\n");
+      fprintf(stderr, " error: please install S3 executable from libs3\n");
     }
 
     global_retc = WEXITSTATUS(rc);
@@ -1558,14 +1634,23 @@ Protocol get_protocol(XrdOucString path)
  */
 const char* protocol_to_string(Protocol protocol)
 {
-  if      (protocol == Protocol::EOS)       { return "eos";    }
-  else if (protocol == Protocol::HTTP)      { return "http";   }
-  else if (protocol == Protocol::HTTPS)     { return "https";  }
-  else if (protocol == Protocol::GSIFTP)    { return "gsiftp"; }
-  else if (protocol == Protocol::XROOT)     { return "root";   }
-  else if (protocol == Protocol::AS3)       { return "as3";    }
-  else if (protocol == Protocol::S3)        { return "s3";     }
-  else if (protocol == Protocol::LOCAL)     { return "local";  }
+  if (protocol == Protocol::EOS)       {
+    return "eos";
+  } else if (protocol == Protocol::HTTP)      {
+    return "http";
+  } else if (protocol == Protocol::HTTPS)     {
+    return "https";
+  } else if (protocol == Protocol::GSIFTP)    {
+    return "gsiftp";
+  } else if (protocol == Protocol::XROOT)     {
+    return "root";
+  } else if (protocol == Protocol::AS3)       {
+    return "as3";
+  } else if (protocol == Protocol::S3)        {
+    return "s3";
+  } else if (protocol == Protocol::LOCAL)     {
+    return "local";
+  }
 
   return "unknown";
 }
