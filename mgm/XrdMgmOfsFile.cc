@@ -1882,33 +1882,30 @@ XrdMgmOfsFile::open(const char* inpath,
     capability += "&mgm.zerosize=1";
   }
 
-  // Handle logical path
-  bool uselPath;
-  XrdOucString lPath = "";
-
-  if ((uselPath = eos::FsFilePath::HasLogicalPath(filesystem->GetId(), fmd))) {
-    eos::FsFilePath::GetPhysicalPath(filesystem->GetId(), fmd, lPath);
-  } else if (isCreation && filesystem->GetString("logicalpath") == "1") {
-    uselPath = true;
-    lPath = path;
+  // Store logical path for chosen filesystem
+  if (isCreation && filesystem->GetString("logicalpath") == "1") {
+    try {
+      eos::FsFilePath::StorePhysicalPath(filesystem->GetId(), fmd, path);
+      gOFS->eosView->updateFileStore(fmd.get());
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      std::string errmsg = e.getMessage().str();
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                e.getErrno(), e.getMessage().str().c_str());
+      return Emsg(epname, error, errno, "open file", errmsg.c_str());
+    }
   }
 
-  if (uselPath) {
+  bool haslPath = false;
+
+  // Add logical path info
+  if (eos::FsFilePath::HasLogicalPath(filesystem->GetId(), fmd)) {
+    XrdOucString lPath;
+    eos::FsFilePath::GetPhysicalPath(filesystem->GetId(), fmd, lPath);
+
     capability += "&mgm.lpath=";
     capability += lPath.c_str();
-
-    // Retrieve creation time
-    if (isCreation) {
-      eos::IFileMD::ctime_t ctime;
-      char buff[64];
-
-      fmd->getCTime(ctime);
-      sprintf(buff, "%ld.%ld", ctime.tv_sec, ctime.tv_nsec);
-
-      capability += "&mgm.iscreation=1";
-      capability += "&mgm.ctime=";
-      capability += buff;
-    }
+    haslPath = true;
   }
 
   // Add the store flag for RAIN reconstruct jobs
@@ -1933,7 +1930,7 @@ XrdMgmOfsFile::open(const char* inpath,
        eos::common::LayoutId::kRaid6)) {
     eos::mgm::FileSystem* repfilesystem = 0;
     replacedfs.resize(selectedfs.size());
-    capability += "&mgm.mutlireplica=true";
+    capability += "&mgm.multireplica=true";
 
     // -------------------------------------------------------------------------
     // if replacement has been specified try to get new locations for reco.
@@ -2265,19 +2262,30 @@ XrdMgmOfsFile::open(const char* inpath,
         }
       }
 
-      // Handle logical path for replica
-      if ((uselPath = eos::FsFilePath::HasLogicalPath(repfilesystem->GetId(), fmd))) {
-        eos::FsFilePath::GetPhysicalPath(repfilesystem->GetId(), fmd, lPath);
-      } else if (isCreation && repfilesystem->GetString("logicalpath") == "1") {
-        uselPath = true;
-        lPath = path;
+      // Store logical path for replica filesystem
+      if (isCreation && repfilesystem->GetString("logicalpath") == "1") {
+        try {
+          eos::FsFilePath::StorePhysicalPath(repfilesystem->GetId(), fmd, path);
+          gOFS->eosView->updateFileStore(fmd.get());
+        } catch (eos::MDException& e) {
+          errno = e.getErrno();
+          std::string errmsg = e.getMessage().str();
+          eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                    e.getErrno(), e.getMessage().str().c_str());
+          return Emsg(epname, error, errno, "open file", errmsg.c_str());
+        }
       }
 
-      if (uselPath) {
+      // Add replica logical path info
+      if (eos::FsFilePath::HasLogicalPath(repfilesystem->GetId(), fmd)) {
+        XrdOucString lPath;
+        eos::FsFilePath::GetPhysicalPath(repfilesystem->GetId(), fmd, lPath);
+
         capability += "&mgm.lpath";
         capability += (int) i;
         capability += "=";
         capability += lPath.c_str();
+        haslPath = true;
       }
 
       if (isPio) {
@@ -2307,6 +2315,20 @@ XrdMgmOfsFile::open(const char* inpath,
       infolog += (int) repfilesystem->GetId();
       infolog += ") ";
     }
+  }
+
+  // Send the creation time if dealing with file creation
+  // and at least one replica uses logical path
+  if (isCreation && haslPath) {
+    eos::IFileMD::ctime_t ctime;
+    char buff[64];
+
+    fmd->getCTime(ctime);
+    sprintf(buff, "%ld.%ld", ctime.tv_sec, ctime.tv_nsec);
+
+    capability += "&mgm.iscreation=1";
+    capability += "&mgm.ctime=";
+    capability += buff;
   }
 
   // ---------------------------------------------------------------------------

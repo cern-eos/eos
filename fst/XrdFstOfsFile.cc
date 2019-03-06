@@ -371,7 +371,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   }
 
   if (file_exists && (open_mode & SFS_O_CREAT)) {
-    // Remove the creat flag
+    // Remove the create flag
     eos_debug("removing creation flag because file exists errno=%d", errno);
     open_mode -= SFS_O_CREAT;
   }
@@ -625,7 +625,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       }
 
       // Set the eos creation time attribute
-      if (mUselPath && mCapOpaque->Get("mgm.ctime")) {
+      if (mUselPath && isCreation && mCapOpaque->Get("mgm.ctime")) {
         if (io->attrSet("user.eos.ctime", mCapOpaque->Get("mgm.ctime"))) {
           eos_err("unable to set extended attribute <eos.ctime> errno=%d", errno);
         }
