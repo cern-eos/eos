@@ -541,6 +541,7 @@ LRU::ConvertMatch(const char* dir,
                   map["sys.lru.convert.match"].c_str());
   std::map < std::string, std::string> lMatchMap;
   std::map < std::string, time_t> lMatchAgeMap;
+  std::map < std::string, ssize_t> lMatchSizeMap;
   time_t now = time(NULL);
 
   if (!StringConversion::GetKeyValueMap(map["sys.lru.convert.match"].c_str(),
@@ -553,19 +554,62 @@ LRU::ConvertMatch(const char* dir,
   }
 
   for (auto it = lMatchMap.begin(); it != lMatchMap.end(); it++) {
-    time_t t = eos::common::StringConversion::GetSizeFromString(it->second.c_str());
+    std::string time_tag;
+    std::string size_tag;
+
+    eos::common::StringConversion::SplitKeyValue(it->second, time_tag, size_tag);
+    if (time_tag.empty())
+    {
+      time_tag = it->second;
+    }
+
+
+    bool size_smaller = false;
+    bool size_larger  = false;
+    size_t size_limit = 0;
+
+    if (size_tag.length()) {
+      if (size_tag.substr(0,1) == "<") {
+	size_smaller = true;
+      } 
+      if (size_tag.substr(0,1) == ">") {
+	size_larger = true;
+      }
+
+      size_tag.erase(0,1);
+
+      if (!size_smaller && !size_larger) {
+	eos_static_err("msg=\"LRU match attribute has illegal size\" "
+		       " match=\"%s\", size=\"%s\"",
+		       it->first.c_str(), 
+		       size_tag.c_str());
+      } else {
+	size_limit = eos::common::StringConversion::GetSizeFromString(size_tag.c_str());
+      }
+    }
+
+    eos_static_info("time-tag=%s size-tag=%s <%d >%d limit=%lu", time_tag.c_str(), size_tag.c_str(), size_smaller, size_larger, size_limit);
+
+
+    time_t t = eos::common::StringConversion::GetSizeFromString(time_tag.c_str());
 
     if (errno) {
       eos_static_err("msg=\"LRU match attribute has illegal age\" "
                      "match=\"%s\", age=\"%s\"",
                      it->first.c_str(),
-                     it->second.c_str());
+                     time_tag.c_str());
     } else {
       std::string conv_attr = "sys.conversion.";
       conv_attr += it->first;
 
       if (map.count(conv_attr)) {
         lMatchAgeMap[it->first] = t;
+	if (size_smaller) {
+	  lMatchSizeMap[it->first] = -size_limit;
+	} 
+	if (size_larger) {
+	  lMatchSizeMap[it->first] = +size_limit;
+	}
         eos_static_info("rule=\"%s %u\"", it->first.c_str(), t);
       } else {
         eos_static_err("msg=\"LRU match attribute has no conversion "
@@ -621,10 +665,33 @@ LRU::ConvertMatch(const char* dir,
               unsigned long long lid = strtoll(map[conv_attr].c_str(), 0, 16);
 
               if (fmd->getLayoutId() == lid) {
-                eos_static_debug("msg=\"skipping conversion - file has already"
+                eos_static_debug("msg=\"skipping conversion - file has already "
                                  "the desired target layout\" fid=%llu", fmd->getId());
                 continue;
               }
+
+	      if (lMatchSizeMap.count(mit->first)) {
+		if (lMatchSizeMap[mit->first] < 0) {
+		  // check that this file is smaller as the required size
+		  if ((ssize_t)fmd->getSize() >= (-lMatchSizeMap[mit->first])) {
+		    eos_static_debug("msg=\"skipping conversion - file is larger than required\" fid=%llu", fmd->getId());
+		    continue;
+		  } else {
+		    eos_static_info("msg=\"converting according to age+size specification\" path='%s' fid=%llu required-size < %ld size=%ld layout:%08x :=> %08x", fullpath.c_str(), fmd->getId(), -lMatchSizeMap[mit->first], (ssize_t)fmd->getSize(), lid, fmd->getLayoutId());
+		  }
+		}
+		if (lMatchSizeMap[mit->first] > 0) {
+		  // check that this file is larger than the required size
+		  if ((ssize_t)fmd->getSize() <= lMatchSizeMap[mit->first]) {
+		    eos_static_debug("msg=\"skipping conversion - file is smaller than required\" fid=%llu", fmd->getId());
+		    continue;
+		  } else {
+		    eos_static_info("msg=\"converting according to age+size specification\" path='%s' fid=%llu required-size > %ld size=%ld layout:%08x :=> %08x", fullpath.c_str(), fmd->getId(), lMatchSizeMap[mit->first], (ssize_t)fmd->getSize(), lid, fmd->getLayoutId());
+		  }
+		}
+	      } else {
+		eos_static_info("msg=\"converting according to age specification\" path='%s' fid=%llu layout:%08x :=> %08x", fullpath.c_str(), fmd->getId(), lid, fmd->getLayoutId());
+	      }
 
               // This entry can be converted
               eos_static_notice("msg=\"convert expired file\" path=\"%s\" "

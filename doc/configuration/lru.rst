@@ -18,6 +18,7 @@ so called LRU policies.
    Automatic time based cleanup of empty directories                                     ctime
    Time based LRU cache with expiration time settings                                    ctime
    Automatic time based layout conversion if a file reaches a defined age                ctime
+   Automatic size based layout conversion if a file fullfills a given size rule          size
    Automatic time based layout conversion if a file has not been used for specified time mtime
    ===================================================================================== =====================
 
@@ -120,10 +121,22 @@ It is an unformation in case, the file is matched for conversion but it is not c
    # same thing specifying a placement policy for the replicas/stripeseos> 
    attr set sys.conversion.*=20640542|gathered:site1::rack2 /eos/dev/instance/convert/                                
 
-
 The hex layout ID contains also the checksum and blocksize settings. The best is
 to create a file with the desired layout and get the hex layout ID using 
 **eos** **file** **info** **<path>**.
+
+Automatic size based restriction for time based conversion
+``````````````````````````````````````````````````````````
+This policy addition allows TO restrict the time based layout conversion to certain filesizes
+.. code-block:: bash
+
+   # convert all files smaller than 128m in size [ with units E,e,P,p,T,t,G,g,M,m,K,k ]
+   eos attr set sys.lru.convert.match="*:1w:<1M"
+
+   # convert all files bigger than 1G in size
+   eos attr set sys.lru.convert.match="*:>1w:1G"
+
+
 
 Automatic time based layout conversion if a file has not been used for specified time
 `````````````````````````````````````````````````````````````````````````````````````
