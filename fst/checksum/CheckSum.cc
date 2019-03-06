@@ -38,8 +38,13 @@
 #include <fcntl.h>
 #include <thread>
 #include "common/XattrCompat.hh"
-#ifndef __APPLE__
+
+
+#ifdef __APPLE__
+#define SYSGETTID (std::hash<std::thread::id>()(std::this_thread::get_id()))
+#else
 #include <sys/syscall.h>
+#define SYSGETTID (syscall(SYS_gettid))
 #endif
 
 EOSFSTNAMESPACE_BEGIN
@@ -54,7 +59,7 @@ static void
 sigbus_hdl(int sig, siginfo_t* siginfo, void* ptr)
 {
   // jump to the saved program state to catch SIGBUS caused by illegal mmapped memory access
-  siglongjmp(sj_env[syscall(SYS_gettid) % 65536] , 1);
+  siglongjmp(sj_env[ SYSGETTID % 65536] , 1);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -690,7 +695,7 @@ CheckSum::SetXSMap(off_t offset)
   int len = 0;
   const char* cks = GetBinChecksum(len);
 
-  if (!sigsetjmp(sj_env[syscall(SYS_gettid) % 65536], 1)) {
+  if (!sigsetjmp(sj_env[ SYSGETTID % 65536], 1)) {
     for (int i = 0; i < len; i++) {
       ChecksumMap[i + mapoffset] = cks[i];
     }
@@ -720,7 +725,7 @@ CheckSum::VerifyXSMap(off_t offset)
   int len = 0;
   const char* cks = GetBinChecksum(len);
 
-  if (!sigsetjmp(sj_env[syscall(SYS_gettid) % 65536], 1)) {
+  if (!sigsetjmp(sj_env[ SYSGETTID % 65536], 1)) {
     for (int i = 0; i < len; i++) {
       //    fprintf(stderr,"Compare %llu %llu\n", ChecksumMap[i+mapoffset], cks[i]);
       if ((ChecksumMap[i + mapoffset]) && ((ChecksumMap[i + mapoffset] != cks[i]))) {
@@ -767,7 +772,7 @@ CheckSum::AddBlockSumHoles(int fd)
       size_t nblocks = ChecksumMapSize / len;
       bool iszero;
 
-      if (!sigsetjmp(sj_env[syscall(SYS_gettid) % 65536], 1)) {
+      if (!sigsetjmp(sj_env[ SYSGETTID % 65536], 1)) {
         for (size_t i = 0; i < nblocks; i++) {
           iszero = true;
 
