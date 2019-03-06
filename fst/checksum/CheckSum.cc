@@ -38,20 +38,21 @@
 #include <fcntl.h>
 #include <thread>
 #include "common/XattrCompat.hh"
+#include "syscall.h"
 
 EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 // Static variable + sig handler to deal with SIGBUS error
 /*----------------------------------------------------------------------------*/
-static sigjmp_buf sj_env;
+static sigjmp_buf sj_env[65536];
 
 /*----------------------------------------------------------------------------*/
 static void
 sigbus_hdl(int sig, siginfo_t* siginfo, void* ptr)
 {
   // jump to the saved program state to catch SIGBUS caused by illegal mmapped memory access
-  siglongjmp(sj_env, 1);
+  siglongjmp(sj_env[syscall(SYS_gettid) % 65536] , 1);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -687,7 +688,7 @@ CheckSum::SetXSMap(off_t offset)
   int len = 0;
   const char* cks = GetBinChecksum(len);
 
-  if (!sigsetjmp(sj_env, 1)) {
+  if (!sigsetjmp(sj_env[syscall(SYS_gettid) % 65536], 1)) {
     for (int i = 0; i < len; i++) {
       ChecksumMap[i + mapoffset] = cks[i];
     }
@@ -717,7 +718,7 @@ CheckSum::VerifyXSMap(off_t offset)
   int len = 0;
   const char* cks = GetBinChecksum(len);
 
-  if (!sigsetjmp(sj_env, 1)) {
+  if (!sigsetjmp(sj_env[syscall(SYS_gettid) % 65536], 1)) {
     for (int i = 0; i < len; i++) {
       //    fprintf(stderr,"Compare %llu %llu\n", ChecksumMap[i+mapoffset], cks[i]);
       if ((ChecksumMap[i + mapoffset]) && ((ChecksumMap[i + mapoffset] != cks[i]))) {
@@ -764,7 +765,7 @@ CheckSum::AddBlockSumHoles(int fd)
       size_t nblocks = ChecksumMapSize / len;
       bool iszero;
 
-      if (!sigsetjmp(sj_env, 1)) {
+      if (!sigsetjmp(sj_env[syscall(SYS_gettid) % 65536], 1)) {
 	for (size_t i = 0; i < nblocks; i++) {
 	  iszero = true;
 
