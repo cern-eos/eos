@@ -9,8 +9,11 @@ MQ_HOST=$1
 echo "Running MQ feeder-dumper test"
 
 # Start dumper process
-eos-mq-dumper root://${MQ_HOST}:1097//eos/test_fd 10 1000 20&
+eos-mq-dumper root://${MQ_HOST}:1097//eos/test_fd 10 1000 20 &
 PID_DUMPER=$!
+
+# Allow the dumper to start fully
+sleep 1
 
 # Start feeder process
 eos-mq-feeder root://${MQ_HOST}:1097//eos/test_fd 10 500
@@ -28,4 +31,3 @@ if [[ $? -ne 0 ]]; then
 fi
 
 exit 0
-
