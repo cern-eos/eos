@@ -191,6 +191,7 @@ CommitHelper::log_info(eos::common::Mapping::VirtualIdentity_t& vid,
                        CommitHelper::param_t& params)
 {
   XrdOucString fstpath;
+  ostringstream ss;
 
   if (cgi["lpath"].length()) {
     fstpath = cgi["lpath"].c_str();
@@ -198,40 +199,25 @@ CommitHelper::log_info(eos::common::Mapping::VirtualIdentity_t& vid,
     eos::common::FileId::FidPrefix2FullPath(cgi["fid"].c_str(), "/", fstpath);
   }
 
+  ss << "path=" << cgi["path"]
+     << " size=" << cgi["size"]
+     << " fid="  << cgi["fid"]
+     << " fsid=" << cgi["fsid"]
+     << " dropfsid=" << cgi["dropfsid"]
+     << " fstpath=" << fstpath.c_str();
+
   if (cgi["checksum"].length()) {
-    eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%s "
-                    "fstpath=%s checksum=%s mtime=%s mtime.nsec=%s "
-                    "oc-chunk=%d oc-n=%d oc-max=%d oc-uuid=%s",
-                    cgi["path"].c_str(),
-                    cgi["size"].c_str(),
-                    cgi["fid"].c_str(),
-                    cgi["fsid"].c_str(),
-                    cgi["dropfsid"].c_str(),
-                    fstpath.c_str(),
-                    cgi["checksum"].c_str(),
-                    cgi["mtime"].c_str(),
-                    cgi["mtimensec"].c_str(),
-                    option["occhunk"],
-                    params["oc_n"],
-                    params["oc_max"],
-                    cgi["ocuuid"].c_str());
-  } else {
-    eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%s "
-                    "fstpath=%s mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d "
-                    "oc-max=%d oc-uuid=%s",
-                    cgi["path"].c_str(),
-                    cgi["size"].c_str(),
-                    cgi["fid"].c_str(),
-                    cgi["fsid"].c_str(),
-                    cgi["dropfsid"].c_str(),
-                    fstpath.c_str(),
-                    cgi["mtime"].c_str(),
-                    cgi["mtimensec"].c_str(),
-                    option["occhunk"],
-                    params["oc_n"],
-                    params["oc_max"],
-                    cgi["ocuuid"].c_str());
+    ss << " checksum=" << cgi["checksum"];
   }
+
+  ss << " mtime=" << cgi["mtime"].c_str()
+     << " mtime.nsec=" << cgi["mtimensec"].c_str()
+     << " oc-chunk=" << option["occhunk"]
+     << " oc-n=" << params["oc_n"]
+     << " oc-max=" << params["oc_max"]
+     << " oc-uuid=" << cgi["ocuuid"];
+
+  eos_thread_info("subcmd=commit %s", ss.str().c_str());
 }
 
 //------------------------------------------------------------------------------
