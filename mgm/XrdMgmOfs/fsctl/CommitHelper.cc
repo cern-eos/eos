@@ -489,6 +489,8 @@ CommitHelper::handle_location(eos::common::Mapping::VirtualIdentity_t& vid,
 
   // Register logical path location
   if (cgi["lpath"].length()) {
+    eos_thread_debug("commit: registering lpath=%s on fsid=%lu",
+                     cgi["lpath"].c_str(), fsid);
     eos::FsFilePath::StorePhysicalPath(fsid, fmd, cgi["lpath"]);
   }
 
