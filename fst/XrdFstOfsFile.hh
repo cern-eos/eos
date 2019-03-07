@@ -464,6 +464,7 @@ private:
   std::vector<unsigned long long> monReadSingleBytes;
   //! number of individual read op. in each readv call -> to compute min,max, etc.
   std::vector<unsigned long> monReadvCount;
+  std::unique_ptr<XrdOucCallBack> mCloseCb; ///< Close call-back
 
   struct timeval cTime; ///< current time
   struct timeval lrTime; ///<last read time

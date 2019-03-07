@@ -64,8 +64,8 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   commitReconstruction(false), mEventOnClose(false), mEventWorkflow(""),
   mSyncEventOnClose(false),
   mIsOCchunk(false), writeErrorFlag(false), mTpcFlag(kTpcNone),
-  fMd(nullptr), layOut(nullptr), maxOffsetWritten(0),
-  openSize(0), closeSize(0),
+  fMd(nullptr), mCheckSum(nullptr), layOut(nullptr), maxOffsetWritten(0),
+  openSize(0), closeSize(0), mCloseCb(nullptr),
   mTpcThreadStatus(EINVAL), mTpcState(kTpcIdle), mTpcRetc(0), mTpcCancel(false)
 {
   rBytes = wBytes = sFwdBytes = sBwdBytes = sXlFwdBytes
@@ -1726,14 +1726,29 @@ XrdFstOfsFile::close()
                             mCapOpaque->Get("mgm.manager"), capOpaqueFile,
                             nullptr, 30, mSyncEventOnClose, false);
     }
+
+    // Mask close error for fusex, if the file had been removed already
+    if (mFusexIsUnlinked && mFusex) {
+      rc = 0;
+      error.setErrCode(0);
+    }
   }
 
-  // Mask close error for fusex, if the file had been removed already
-  if (mFusexIsUnlinked && mFusex) {
-    rc = 0;
-    error.setErrCode(0);
-  }
-
+  // Create a close callback and put the client in waiting mode
+  mCloseCb.reset(new XrdOucCallBack());
+  mCloseCb->Init(&error);
+  error.setErrCB(mCloseCb.get());
+  error.setErrInfo(120, "");
+  eos_info("%s", "msg=\"setting up the callback object\"");
+  std::thread t([&]() {
+    eos_info("%s", "msg=\"doing work in the async thread\"");
+    std::this_thread::sleep_for(std::chrono::seconds(80));
+    eos_info("%s", "msg=\"done work in the async thread\"");
+    int reply_rc = mCloseCb->Reply(SFS_OK, 100, "");
+    eos_info("msg=\"callback reply rc=%i\"", reply_rc);
+  });
+  t.detach();
+  rc = SFS_STARTED;
   eos_info("Return code rc=%i errc=%d", rc, error.getErrInfo());
   return rc;
 }
