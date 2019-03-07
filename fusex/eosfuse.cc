@@ -1278,11 +1278,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     fprintf(stderr, "# MALLOC_CONF=%s\n", getenv("MALLOC_CONF"));
   }
 
-  if (!getenv("PGM_TIMER")) {
-    fprintf(stderr, "# Setting PGM_TIMER=HPET\n");
-    putenv((char*) "PGM_TIMER=HPET");
-  }
-
   int debug;
 
 
