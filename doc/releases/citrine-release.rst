@@ -16,6 +16,26 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.4.27 Citrine``
+===================
+
+2019-03-07
+
+Bug
+----
+
+* [EOS-3200] Fix crash in zmq::context_t constructor due to PGM_TIMER env variable
+* [EOS-3308] Drain status shown but machine is in configstatus rw
+* Put back fflush in Logging class to check
+
+Improvements
+------------
+
+* MGM/CONSOLE/DOC: extend LRU engine to specify policies by age and size limitations
+  like 'older than a week and larger then 50G' or 'older than a week and smaller than 1k'
+* NS: Add sharding to MetadataProvider to ease lock contention
+
+
 ``v4.4.26 Citrine``
 ===================
 
