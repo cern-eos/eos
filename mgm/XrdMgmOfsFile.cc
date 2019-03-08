@@ -1216,6 +1216,7 @@ XrdMgmOfsFile::open(const char* inpath,
   std::vector<unsigned int>::const_iterator sfs;
   int retc = 0;
   bool isRecreation = false;
+  bool isFusexCreation = false;
 
   // Place a new file
   if (isCreation || (!fmd->getNumLocation()) || isInjection) {
@@ -1629,6 +1630,10 @@ XrdMgmOfsFile::open(const char* inpath,
               fmd->unlinkAllLocations();
             }
 
+            if (!fmd->getNumLocation()) {
+              isFusexCreation = true;
+            }
+
             for (auto& fsid : selectedfs) {
               fmd->addLocation(fsid);
             }
@@ -1883,7 +1888,9 @@ XrdMgmOfsFile::open(const char* inpath,
   }
 
   // Store logical path for chosen filesystem
-  if (isCreation && filesystem->GetString("logicalpath") == "1") {
+  // only in creation scenarios
+  if ((isCreation || isRecreation || isFusexCreation)
+      && filesystem->GetString("logicalpath") == "1") {
     eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
 
     try {
@@ -2265,7 +2272,9 @@ XrdMgmOfsFile::open(const char* inpath,
       }
 
       // Store logical path for replica filesystem
-      if (isCreation && repfilesystem->GetString("logicalpath") == "1") {
+      // only in creation scenarios
+      if ((isCreation || isRecreation || isFusexCreation)
+          && repfilesystem->GetString("logicalpath") == "1") {
         eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
 
         try {
@@ -2321,9 +2330,9 @@ XrdMgmOfsFile::open(const char* inpath,
     }
   }
 
-  // Send the creation time if dealing with file creation
+  // Send the creation time if dealing with creation scenario
   // and at least one replica uses logical path
-  if (isCreation && haslPath) {
+  if ((isCreation || isRecreation || isFusexCreation) && haslPath) {
     eos::IFileMD::ctime_t ctime;
     char buff[64];
 
