@@ -2252,8 +2252,12 @@ metad::mdstackfree(ThreadAssistant& assistant)
     cnt++;
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
+    // do this ~every 64 seconds
+    if (!(cnt % 128)) {
+      EosFuse::Instance().Tracker().clean();
+    }
     // do this ~every 128 seconds
-    if (!cnt % 256) {
+    if (!(cnt % 256)) {
       XrdSysMutexHelper mLock(mdmap);
 
       for (auto it = mdmap.begin(); it != mdmap.end();) {
