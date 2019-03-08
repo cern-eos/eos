@@ -80,8 +80,8 @@ S3Handler::HandleRequest(eos::common::HttpRequest* request)
                       create_mode,
                       &mClient,
                       request->GetQuery().c_str());
-    mFileSize = mFile->getOpenSize();
-    mFileId = mFile->getFileId();
+    mFileSize = mFile->GetOpenSize();
+    mFileId = mFile->GetFileId();
     mLogId = mFile->logId;
 
     // check for range requests
@@ -100,7 +100,7 @@ S3Handler::HandleRequest(eos::common::HttpRequest* request)
     if (!mRangeRequest) {
       // we put the file size as request size if this is not a range request
       // aka full file download
-      mRangeRequestSize = mFile->getOpenSize();
+      mRangeRequestSize = mFile->GetOpenSize();
     }
   }
 
@@ -185,8 +185,8 @@ S3Handler::Get(eos::common::HttpRequest* request)
         // successful http open
         char clength[16];
         snprintf(clength, sizeof(clength) - 1, "%llu",
-                 (unsigned long long) mFile->getOpenSize());
-        mRequestSize = mFile->getOpenSize();
+                 (unsigned long long) mFile->GetOpenSize());
+        mRequestSize = mFile->GetOpenSize();
         response->mResponseLength = mRequestSize;
         responseheader["Content-Type"] = response->ContentType(GetPath());
         responseheader["Content-Length"] = clength;

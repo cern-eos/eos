@@ -140,8 +140,8 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
                         &mClient,
                         query.c_str());
     }
-    mFileSize = mFile->getOpenSize();
-    mFileId = mFile->getFileId();
+    mFileSize = mFile->GetOpenSize();
+    mFileId = mFile->GetFileId();
     mLogId = mFile->logId;
 
     // check for range requests
@@ -174,7 +174,7 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
     if (!mRangeRequest) {
       // we put the file size as request size if this is not a range request
       // aka full file download
-      mRangeRequestSize = mFile->getOpenSize();
+      mRangeRequestSize = mFile->GetOpenSize();
     }
   }
 
@@ -307,8 +307,8 @@ HttpHandler::Get(eos::common::HttpRequest* request)
         // successful http open
         char clength[16];
         snprintf(clength, sizeof(clength) - 1, "%llu",
-                 (unsigned long long) mFile->getOpenSize());
-        mRequestSize = mFile->getOpenSize();
+                 (unsigned long long) mFile->GetOpenSize());
+        mRequestSize = mFile->GetOpenSize();
         response->mResponseLength = mRequestSize;
         response->AddHeader("Content-Type", gMime.Match(request->GetUrl()));
         response->AddHeader("Content-Length", clength);
@@ -609,10 +609,9 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         if (mFile->GetChecksum()) {
           // retrieve a checksum when file is still open
           eos_static_debug("enabled checksum lastchunk=%d checksum=%x", mLastChunk,
-              mFile->GetChecksum());
-
+                           mFile->GetChecksum());
           // Call explicitly the checksum verification
-          mFile->verifychecksum();
+          mFile->VerifyChecksum();
 
           if (mFile->GetChecksum()) {
             std::string checksum_name = mFile->GetChecksum()->GetName();
@@ -623,12 +622,12 @@ HttpHandler::Put(eos::common::HttpRequest* request)
             }
 
             eos::common::OwnCloud::checksum_t checksum = std::make_pair(
-                checksum_name,
-                checksum_val);
+                  checksum_name,
+                  checksum_val);
             // inspect if there is checksum provided
             eos::common::OwnCloud::checksum_t client_checksum =
-                eos::common::OwnCloud::GetChecksum(request,
-                    header.count("x-upload-checksum") ? "x-upload-checksum" : "oc-checksum");
+              eos::common::OwnCloud::GetChecksum(request,
+                                                 header.count("x-upload-checksum") ? "x-upload-checksum" : "oc-checksum");
             eos_static_debug("client-checksum-type=%s client-checksum-value=%s "
                              "server-checksum-type=%s server-checksum-value=%s",
                              client_checksum.first.c_str(),

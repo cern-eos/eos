@@ -238,7 +238,7 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
       stripetag += static_cast<int>(i);
       const char* stripe = mOfsFile->mCapOpaque->Get(stripetag.c_str());
 
-      if (mOfsFile->isRW && (!stripe)) {
+      if (mOfsFile->mIsRW && (!stripe)) {
         eos_err("failed to open stripe - missing url for %s", stripetag.c_str());
         errno = EINVAL;
         return SFS_ERROR;

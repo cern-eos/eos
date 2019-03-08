@@ -127,7 +127,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
       const char* rep = mOfsFile->mCapOpaque->Get(reptag.c_str());
 
       if (!rep) {
-        if (mOfsFile->isRW) {
+        if (mOfsFile->mIsRW) {
           eos_err("Failed to open replica - missing url for replica %s",
                   reptag.c_str());
           return gOFS.Emsg("ReplicaParOpen", *mError, EINVAL,
@@ -194,7 +194,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
       // Gateway contacts the head, head contacts all
       if ((is_gateway && (i == replica_head)) ||
           (is_head_server && (i != replica_index))) {
-        if (mOfsFile->isRW) {
+        if (mOfsFile->mIsRW) {
           XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
           // Mask some opaque parameters to shorten the logging
           eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
