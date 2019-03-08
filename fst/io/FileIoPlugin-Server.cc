@@ -60,7 +60,7 @@ FileIoPlugin::GetIoObject(std::string path,
     // Attempt to retrieve S3 credentials from the filesystem
     if (file) {
       FileSystem* fileSystem =
-        gOFS.Storage->GetFileSystemById(file->getFileSystemId());
+        gOFS.Storage->GetFileSystemById(file->GetFileSystemId());
       s3credentials = fileSystem->GetString("s3credentials");
     }
 
