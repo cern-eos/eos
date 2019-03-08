@@ -1741,7 +1741,6 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
     md->clear_refresh();
     eos_static_info("store local pino=%016lx for %016lx", md->pid(), md->id());
     inomap.insert(md_ino, ino);
-    update(req, md, "", true);
     md->Locker().UnLock();
 
     if (is_new) {
@@ -1897,11 +1896,6 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
             eos_static_info("%016lx to-delete=%s", md->id(), it->first.c_str());
           }
 
-          // push only into the local KV cache - md was retrieved from upstream
-          if (map->first != cont.ref_inode_()) {
-            update(req, md, "", true);
-          }
-
           if (EOS_LOGS_DEBUG) {
             eos_static_debug("store md for local-ino=%08ld remote-ino=%016lx type=%d -",
                              (long) ino, (long) map->first, md->type());
@@ -1971,7 +1965,6 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
           stat.inodes_inc();
           stat.inodes_ever_inc();
         }
-        update(req, md, md->authid(), true);
 
         if ((pmd == md)) {
           if (EOS_LOGS_DEBUG) {
@@ -2026,11 +2019,6 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
 
       // now flag as a complete listing
       pmd->set_type(pmd->MDLS);
-    }
-
-    if (pmd) {
-      // store the parent now, after all children are inserted
-      update(req, pmd, "", true);
     }
 
     if (pmd) {
