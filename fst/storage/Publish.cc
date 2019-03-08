@@ -37,6 +37,33 @@ EOSFSTNAMESPACE_BEGIN
 constexpr std::chrono::seconds Storage::sConsistencyTimeout;
 
 //------------------------------------------------------------------------------
+// Serialize hot files vector into std::string
+// Return " " if given an empty vector, instead of "".
+//
+// This is to keep the entry in the hash, even if no opened files exist.
+//------------------------------------------------------------------------------
+static std::string hotFilesToString(
+  const std::vector<eos::fst::OpenFileTracker::HotEntry> &entries) {
+
+  if(entries.size() == 0u) {
+    return " ";
+  }
+
+  std::ostringstream ss;
+  for(size_t i = 0; i < entries.size(); i++) {
+    XrdOucString hexfid;
+    eos::common::FileId::Fid2Hex(entries[i].fid, hexfid);
+
+    ss << entries[i].uses;
+    ss << ":";
+    ss << hexfid.c_str();
+    ss << " ";
+  }
+
+  return ss.str();
+}
+
+//------------------------------------------------------------------------------
 // Publish
 //------------------------------------------------------------------------------
 void
@@ -168,35 +195,12 @@ Storage::Publish(ThreadAssistant &assistant)
             continue;
           }
 
-          XrdOucString r_open_hotfiles;
-          XrdOucString w_open_hotfiles;
-          {
-            std::vector<eos::fst::OpenFileTracker::HotEntry> hotEntriesRead;
-            hotEntriesRead = gOFS.openedForReading.getHotFiles(fsid, 10);
+          std::string r_open_hotfiles =
+            hotFilesToString(gOFS.openedForReading.getHotFiles(fsid, 10));
 
-            for(auto it = hotEntriesRead.begin(); it != hotEntriesRead.end(); ++it) {
-              XrdOucString hexfid;
-              eos::common::FileId::Fid2Hex(it->fid, hexfid);
+          std::string w_open_hotfiles =
+            hotFilesToString(gOFS.openedForWriting.getHotFiles(fsid, 10));
 
-              r_open_hotfiles += (int) it->uses;
-              r_open_hotfiles += ":";
-              r_open_hotfiles += hexfid.c_str();
-              r_open_hotfiles += " ";
-            }
-
-            std::vector<eos::fst::OpenFileTracker::HotEntry> hotEntriesWrite;
-            hotEntriesWrite = gOFS.openedForWriting.getHotFiles(fsid, 10);
-
-            for(auto it = hotEntriesWrite.begin(); it != hotEntriesWrite.end(); ++it) {
-              XrdOucString hexfid;
-              eos::common::FileId::Fid2Hex(it->fid, hexfid);
-
-              w_open_hotfiles += (int) it->uses;
-              w_open_hotfiles += ":";
-              w_open_hotfiles += hexfid.c_str();
-              w_open_hotfiles += " ";
-            }
-          }
           // Retrieve Statistics from the local db
           std::map<std::string, size_t>::const_iterator isit;
           bool success = true;
@@ -325,22 +329,13 @@ Storage::Publish(ThreadAssistant &assistant)
           success &= mFsVect[i]->SetDouble("stat.disk.bw",
                                            mFsVect[i]->getSeqBandwidth()); // in MB
           success &= mFsVect[i]->SetLongLong("stat.http.port", gOFS.mHttpdPort);
-          {
-            // we have to set something which is not empty to update the value
-            if (!r_open_hotfiles.length()) {
-              r_open_hotfiles = " ";
-            }
 
-            if (!w_open_hotfiles.length()) {
-              w_open_hotfiles = " ";
-            }
-
-            // Copy out hot file list
-            success &= mFsVect[i]->SetString("stat.ropen.hotfiles",
+          // Copy out hot file list
+          success &= mFsVect[i]->SetString("stat.ropen.hotfiles",
                                              r_open_hotfiles.c_str());
-            success &= mFsVect[i]->SetString("stat.wopen.hotfiles",
+          success &= mFsVect[i]->SetString("stat.wopen.hotfiles",
                                              w_open_hotfiles.c_str());
-          }
+
           {
             long long fbytes = mFsVect[i]->GetLongLong("stat.statfs.freebytes");
             XrdSysMutexHelper lock(mFsFullMapMutex);
