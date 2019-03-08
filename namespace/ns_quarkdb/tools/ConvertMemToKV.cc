@@ -799,7 +799,7 @@ ConvertQuotaView::addQuotaInfo(IFileMD* file)
   // Add current file to the the quota map
   const std::string suid = stringify(file->getCUid());
   const std::string sgid = stringify(file->getCGid());
-  eos::common::RWMutexWriteLock wr_lock(mRWMutex);
+  std::lock_guard<std::mutex> lock(mMutex);
   auto it_map = mQuotaMap.find(sid);
 
   if (it_map == mQuotaMap.end()) {

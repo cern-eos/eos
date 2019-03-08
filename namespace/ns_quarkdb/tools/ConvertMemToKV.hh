@@ -34,7 +34,6 @@
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "proto/ContainerMd.pb.h"
 #include "proto/FileMd.pb.h"
-#include "common/RWMutex.hh"
 #include <cstdint>
 
 EOSNSNAMESPACE_BEGIN
@@ -101,7 +100,7 @@ private:
   //! quota accounting
   std::set<std::string> mSetQuotaIds; ///< Set of quota ids
   std::map< std::string, std::pair<QuotaNodeMapT, QuotaNodeMapT> > mQuotaMap;
-  eos::common::RWMutex mRWMutex; ///< Mutex protecting access to the map
+  std::mutex mMutex; ///< Mutex protecting access to the map
 };
 
 
