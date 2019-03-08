@@ -62,10 +62,53 @@ public:
   }
 
   void
+  clean() 
+  {
+    eos_static_info("");
+    auto now = std::chrono::steady_clock::now();
+    XrdSysMutexHelper l(iMutex);
+    eos_static_info("size=%lu", iNodes.size());
+
+    size_t clean_age = 60000;
+
+    if (iNodes.size() > 32*1024) {
+      clean_age = 1000;
+    }
+    
+    for (auto it = iNodes.begin() ; it != iNodes.end();) {
+      if (EOS_LOGS_DEBUG)
+	eos_static_debug("usage=%lu", it->second.use_count());
+      if ( (it->second.use_count()==1) ) {
+	double age = std::chrono::duration_cast<std::chrono::milliseconds>
+	  (now.time_since_epoch()).count() - it->second->attachtime;
+	if (EOS_LOGS_DEBUG)
+	  eos_static_crit("age=%f", age);
+	if (age > clean_age)  {
+	  it = iNodes.erase(it);
+	} else {
+	  it ++;
+	}
+      } else {
+	++it;
+      }
+      if (iNodes.size() < 512) {
+	break;
+      }
+    }
+  }
+
+  void
   forget(unsigned long long ino)
   {
     XrdSysMutexHelper l(iMutex);
     iNodes.erase(ino);
+  }
+
+  size_t
+  size() 
+  {
+    XrdSysMutexHelper l(iMutex);
+    return iNodes.size();
   }
 
   double blocked_ms() {
@@ -127,15 +170,17 @@ public:
             bool exclusive = false, bool disable = false)
     {
       if (!disable) {
-        eos_static_debug("trylock caller=%s self=%lld in=%llu exclusive=%d", caller,
-                         thread_id(), ino, exclusive);
+	if (EOS_LOGS_DEBUG)
+	  eos_static_debug("trylock caller=%s self=%lld in=%llu exclusive=%d", caller,
+			   thread_id(), ino, exclusive);
         this->me = tracker.Attach(ino, exclusive);
         this->ino = ino;
         this->caller = caller;
         this->exclusive = exclusive;
-        eos_static_debug("locked  caller=%s self=%lld in=%llu exclusive=%d obj=%llx",
-                         caller, thread_id(), ino, exclusive,
-                         &(*(this->me)));
+	if (EOS_LOGS_DEBUG)
+	  eos_static_debug("locked  caller=%s self=%lld in=%llu exclusive=%d obj=%llx",
+			   caller, thread_id(), ino, exclusive,
+			   &(*(this->me)));
       } else {
         this->ino = 0;
         this->caller = 0;
@@ -146,8 +191,9 @@ public:
     ~Monitor()
     {
       if (this->me) {
-        eos_static_debug("unlock  caller=%s self=%lld in=%llu exclusive=%d", caller,
-                         thread_id(), ino, exclusive);
+	if (EOS_LOGS_DEBUG)
+	  eos_static_debug("unlock  caller=%s self=%lld in=%llu exclusive=%d", caller,
+			   thread_id(), ino, exclusive);
 
         if (exclusive) {
           me->mInUse.UnLockWrite();
@@ -157,8 +203,9 @@ public:
 	  me->openr--;
         }
 
-        eos_static_debug("unlocked  caller=%s self=%lld in=%llu exclusive=%d", caller,
-                         thread_id(), ino, exclusive);
+	if (EOS_LOGS_DEBUG)
+	  eos_static_debug("unlocked  caller=%s self=%lld in=%llu exclusive=%d", caller,
+			   thread_id(), ino, exclusive);
       }
     }
   private:
