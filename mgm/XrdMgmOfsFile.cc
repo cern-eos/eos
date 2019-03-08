@@ -1620,12 +1620,24 @@ vid.uid, vid.sudoer, isRW, acl.CanNotRead(), acl.CanNotWrite());
           std::string binchecksum = eos::common::LayoutId::GetEmptyFileChecksum(layoutId);
           eos::Buffer cx;
           cx.putData(binchecksum.c_str(), binchecksum.size());
-          eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, creation_path);
+
+          // FUSEX repair access needs to retrieve the file by fid
+          // TODO: Refactor isCreation and isRecreation code paths
+          if (byfid) {
+            eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, byfid);
+          } else {
+            eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, creation_path);
+          }
+
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
           // -------------------------------------------------------------------
 
           try {
-            fmd = gOFS->eosView->getFile(creation_path);
+            if (byfid) {
+              fmd = gOFS->eosFileService->getFileMD(byfid);
+            } else {
+              fmd = gOFS->eosView->getFile(creation_path);
+            }
 
             if (isRecreation) {
               fmd->unlinkAllLocations();
@@ -1665,10 +1677,6 @@ vid.uid, vid.sudoer, isRW, acl.CanNotRead(), acl.CanNotWrite());
 
           try {
             fmd = gOFS->eosFileService->getFileMD(byfid);
-
-            if (isRecreation) {
-              fmd->unlinkAllLocations();
-            }
 
             for (auto& fsid : selectedfs) {
               fmd->addLocation(fsid);
