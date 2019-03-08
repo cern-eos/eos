@@ -1824,6 +1824,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
              "ALL        inodes-open         := %lu\n"
              "ALL        inodes-vmap         := %lu\n"
              "ALL        inodes-caps         := %lu\n"
+             "ALL        inodes-tracker      := %lu\n"
              "# -----------------------------------------------------------------------------------------------------------\n",
              this->getMdStat().inodes(),
              this->getMdStat().inodes_stacked(),
@@ -1833,7 +1834,8 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
              this->getMdStat().inodes_deleted_ever(),
              this->datas.size(),
              this->mds.vmaps().size(),
-             this->caps.size()
+             this->caps.size(),
+	     this->Tracker().size()
             );
     sout += ino_stat;
     std::string s1;
@@ -2619,7 +2621,9 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       if (!md->id() || md->deleted()) {
 	rc = md->deleted() ? ENOENT : md->err();
       } else {
-	eos_static_info("%s", md->dump().c_str());
+	if (EOS_LOGS_DEBUG) {
+	  eos_static_debug("%s", md->dump().c_str());
+	}
 	
 	if (isRecursiveRm(req) &&
 	    Instance().mds.calculateDepth(md) <=
