@@ -1414,7 +1414,7 @@ data::datax::recover_write(fuse_req_t req)
   bool recover_from_file_cache = false;
 
   // check if the file has been created here and is still complete in the local caches
-  if ((mFlags & O_CREAT) &&
+  if ((mFlags & O_CREAT) && mFile->file() &&
       (((mSize <= mFile->file()->prefetch_size()) &&
         (mSize == (ssize_t) mFile->file()->size())) ||
        (mFile->journal() &&
@@ -1957,7 +1957,7 @@ data::datax::pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset)
     size_t cnt = 0;
 
     while (mFile->xrdiorw(req)->HasTooManyWritesInFlight()) {
-      if (!cnt % 1000) {
+      if (!(cnt % 1000)) {
         eos_debug("doing XOFF");
       }
 
