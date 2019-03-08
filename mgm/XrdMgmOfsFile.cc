@@ -1884,6 +1884,8 @@ XrdMgmOfsFile::open(const char* inpath,
 
   // Store logical path for chosen filesystem
   if (isCreation && filesystem->GetString("logicalpath") == "1") {
+    eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
+
     try {
       eos::FsFilePath::StorePhysicalPath(filesystem->GetId(), fmd, path);
       gOFS->eosView->updateFileStore(fmd.get());
@@ -2264,6 +2266,8 @@ XrdMgmOfsFile::open(const char* inpath,
 
       // Store logical path for replica filesystem
       if (isCreation && repfilesystem->GetString("logicalpath") == "1") {
+        eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
+
         try {
           eos::FsFilePath::StorePhysicalPath(repfilesystem->GetId(), fmd, path);
           gOFS->eosView->updateFileStore(fmd.get());
