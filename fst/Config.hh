@@ -31,6 +31,8 @@
 /*----------------------------------------------------------------------------*/
 #include <atomic>
 #include <chrono>
+#include <random>
+#include <mutex>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -59,7 +61,7 @@ public:
   XrdSysMutex Mutex; // lock for dynamic updates like 'Manager'
   static Config gConfig;
 
-  Config()
+  Config() : generator((std::random_device())())
   {
     autoBoot = false;
     PublishInterval = 10;
@@ -72,10 +74,18 @@ public:
   void setFstNodeConfigQueue(const XrdOucString& value);
   std::chrono::seconds getPublishInterval();
 
+  // Return a random number, uniformly distributed within
+  // [(1/2) publishInterval, (3/2) publishInterval]
+  std::chrono::milliseconds getRandomizedPublishInterval();
+
 private:
   XrdOucString
   FstNodeConfigQueue; // our queue holding this node's configuration settings
   std::atomic<bool> configQueueInitialized {false};
+
+  // Random number generator
+  std::mutex generatorMutex;
+  std::mt19937 generator;
 };
 
 EOSFSTNAMESPACE_END

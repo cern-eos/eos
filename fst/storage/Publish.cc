@@ -199,10 +199,9 @@ Storage::Publish(ThreadAssistant &assistant)
     time_t now = time(NULL);
     gettimeofday(&tv1, &tz);
 
-    std::chrono::seconds PublishInterval = eos::fst::Config::gConfig.getPublishInterval();
+    std::chrono::milliseconds lReportIntervalMilliSeconds =
+      eos::fst::Config::gConfig.getRandomizedPublishInterval();
 
-    unsigned int lReportIntervalMilliSeconds = (PublishInterval.count() * 500) +
-        (unsigned int)((PublishInterval.count() * 1000.0) * rand() / RAND_MAX);
     eos::common::LinuxStat::linux_stat_t osstat;
 
     if (!eos::common::LinuxStat::GetStat(osstat)) {
@@ -445,13 +444,13 @@ Storage::Publish(ThreadAssistant &assistant)
     gettimeofday(&tv2, &tz);
     int lCycleDuration = (int)((tv2.tv_sec * 1000.0) - (tv1.tv_sec * 1000.0) +
                                (tv2.tv_usec / 1000.0) - (tv1.tv_usec / 1000.0));
-    int lSleepTime = lReportIntervalMilliSeconds - lCycleDuration;
-    eos_static_debug("msg=\"publish interval\" %d %d", lReportIntervalMilliSeconds,
+    int lSleepTime = lReportIntervalMilliSeconds.count() - lCycleDuration;
+    eos_static_debug("msg=\"publish interval\" %d %d", lReportIntervalMilliSeconds.count(),
                      lCycleDuration);
 
     if (lSleepTime < 0) {
       eos_static_warning("Publisher cycle exceeded %d millisecons - took %d milliseconds",
-                         lReportIntervalMilliSeconds, lCycleDuration);
+                         lReportIntervalMilliSeconds.count(), lCycleDuration);
     } else {
       assistant.wait_for(std::chrono::seconds(lSleepTime / 1000));
     }

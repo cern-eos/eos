@@ -62,4 +62,13 @@ std::chrono::seconds Config::getPublishInterval() {
   return std::chrono::seconds(localInterval);
 }
 
+std::chrono::milliseconds Config::getRandomizedPublishInterval() {
+  std::chrono::seconds interval = getPublishInterval();
+
+  std::lock_guard<std::mutex> lock(mutex);
+
+  std::uniform_int_distribution<> dist(interval.count()*500, interval.count()*1500);
+  return std::chrono::milliseconds(dist(generator));
+}
+
 EOSFSTNAMESPACE_END
