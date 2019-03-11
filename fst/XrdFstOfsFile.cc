@@ -41,7 +41,8 @@ extern XrdOssSys* XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 
-const uint16_t XrdFstOfsFile::msDefaultTimeout = 300; // default timeout value
+constexpr uint64_t XrdFstOfsFile::msMinSizeAsyncClose;
+constexpr uint16_t XrdFstOfsFile::msDefaultTimeout;
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -50,7 +51,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   XrdOfsFile(user, MonID), eos::common::LogId(),
   mOpenOpaque(nullptr), mCapOpaque(nullptr), mFstPath(""), mBookingSize(0),
   mTargetSize(0), mMinSize(0), mMaxSize(0), viaDelete(false),
-  writeDelete(false), mRainSize(0), mNsPath(""), mLocalPrefix(""),
+  mWrDelete(false), mRainSize(0), mNsPath(""), mLocalPrefix(""),
   mRedirectManager(""), mSecString(""), mEtag(""), mFileId(0),
   mFsId(0), mLid(0), mCid(0), mForcedMtime(1), mForcedMtime_ms(0),
   mFusex(false), mFusexIsUnlinked(false), closed(false), mOpened(false),
@@ -60,9 +61,10 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   repairOnClose(false), mIsOCchunk(false), writeErrorFlag(false),
   commitReconstruction(false), mEventOnClose(false), mEventWorkflow(""),
   mSyncEventOnClose(false), mFmd(nullptr), mCheckSum(nullptr),
-  mLayout(nullptr), mCloseCb(nullptr), maxOffsetWritten(0ull), openSize(0),
+  mLayout(nullptr), mCloseCb(nullptr), mMaxOffsetWritten(0ull), openSize(0),
   closeSize(0), mTpcThreadStatus(EINVAL), mTpcState(kTpcIdle),
-  mTpcFlag(kTpcNone), mTpcKey(""), mIsTpcDst(false), mTpcRetc(0), mTpcCancel(false)
+  mTpcFlag(kTpcNone), mTpcKey(""), mIsTpcDst(false), mTpcRetc(0),
+  mTpcCancel(false)
 {
   rBytes = wBytes = sFwdBytes = sBwdBytes = sXlFwdBytes
                                 = sXlBwdBytes = rOffset = wOffset = 0;
@@ -670,7 +672,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   if (mIsDevNull) {
     eos_debug("offset=%llu, length=%li discarded for sink file", fileOffset,
               buffer_size);
-    maxOffsetWritten = fileOffset + buffer_size;
+    mMaxOffsetWritten = fileOffset + buffer_size;
     return buffer_size;
   }
 
@@ -695,8 +697,8 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
     }
 
     if (static_cast<unsigned long long>(fileOffset + buffer_size) >
-        static_cast<unsigned long long>(maxOffsetWritten)) {
-      maxOffsetWritten = (fileOffset + buffer_size);
+        static_cast<unsigned long long>(mMaxOffsetWritten)) {
+      mMaxOffsetWritten = (fileOffset + buffer_size);
     }
   }
 
@@ -721,7 +723,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   if (rc < 0) {
     int envlen = 0;
     // Indicate the deletion flag for write errors
-    writeDelete = true;
+    mWrDelete = true;
     XrdOucString errdetail;
 
     if (isCreation) {
@@ -794,7 +796,7 @@ XrdFstOfsFile::stat(struct stat* buf)
   int rc = SFS_OK;
 
   if (mIsDevNull) {
-    buf->st_size = maxOffsetWritten;
+    buf->st_size = mMaxOffsetWritten;
     return rc;
   }
 
@@ -946,7 +948,42 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset fsize)
 int
 XrdFstOfsFile::close()
 {
-  EPNAME("close");
+  // Close happening the in the same XRootD thread
+  if (viaDelete || mWrDelete || mIsDevNull || (mIsRW == false) ||
+      (mIsRW && mMaxOffsetWritten <= msMinSizeAsyncClose)) {
+    return _close();
+  }
+
+  // Delegate close to a different thread while the client is waiting for the
+  // callback (SFS_STARTED). This only happens for written files with size
+  // bigger than msMinSizeAsyncClose (2GB).
+  eos_info("msg=\"close delegated to async thread \" fid=%llu ns_path=\"%s\" "
+           "fs_path=\"%s\"", mFileId, mNsPath.c_str(), mFstPath.c_str());
+  // Create a close callback and put the client in waiting mode
+  mCloseCb.reset(new XrdOucCallBack());
+  mCloseCb->Init(&error);
+  error.setErrInfo(1800, "delay client up to 30 minutes");
+  gOFS.mCloseThreadPool.PushTask<void>([&]() -> void {
+    eos_info("msg=\"doing close in the async thread\" fid=%llu", mFileId);
+    int rc = _close();
+    int reply_rc = mCloseCb->Reply(rc, (rc ? error.getErrInfo() : 0),
+    (rc ? error.getErrText() : ""));
+
+    if (reply_rc == 0)
+    {
+      eos_err("%s", "msg=\"callback reply failed\" fid=%llu", mFileId);
+    }
+  });
+  return SFS_STARTED;
+}
+
+//------------------------------------------------------------------------------
+// Close file - internal method
+//------------------------------------------------------------------------------
+int
+XrdFstOfsFile::_close()
+{
+  EPNAME("_close");
   int rc = 0; // return code
   int brc = 0; // return code before 'close' has been called
   bool checksumerror = false;
@@ -1001,9 +1038,9 @@ XrdFstOfsFile::close()
     OpaqueString += hex_fid.c_str();
     XrdOucEnv Opaque(OpaqueString.c_str());
     capOpaqueString += OpaqueString;
-    eos_info("viaDelete=%d writeDelete=%d", viaDelete, writeDelete);
+    eos_info("viaDelete=%d writeDelete=%d", viaDelete, mWrDelete);
 
-    if ((viaDelete || writeDelete) &&
+    if ((viaDelete || mWrDelete) &&
         ((isCreation || (isReplication && mIsRW) || mIsInjection ||
           mRainReconstruct || IsChunkedUpload()) && (!mFusex))) {
       // It is closed by the destructor e.g. no proper close
@@ -1013,7 +1050,7 @@ XrdFstOfsFile::close()
                  " fsid=%lu fxid=%08llx", mFmd->mProtoFmd.fsid(), mFmd->mProtoFmd.fid());
       }
 
-      if (writeDelete) {
+      if (mWrDelete) {
         eos_info("msg=\"(unpersist): deleting file\" reason=\"write/policy error\""
                  " fsid=%lu fxid=%08llx", mFmd->mProtoFmd.fsid(), mFmd->mProtoFmd.fid());
       }
@@ -1044,34 +1081,34 @@ XrdFstOfsFile::close()
           // the entry server has to truncate only if this is not a recovery action
           if (mLayout->IsEntryServer() && !mRainReconstruct) {
             eos_info("msg=\"truncate RAIN layout\" truncate-offset=%llu",
-                     maxOffsetWritten);
-            mLayout->Truncate(maxOffsetWritten);
+                     mMaxOffsetWritten);
+            mLayout->Truncate(mMaxOffsetWritten);
           }
         } else {
-          if ((long long) maxOffsetWritten > (long long) openSize) {
+          if ((long long) mMaxOffsetWritten > (long long) openSize) {
             // Check if we have to deallocate something for this file transaction
-            if ((mBookingSize) && (mBookingSize > (long long) maxOffsetWritten)) {
-              eos_info("deallocationg %llu bytes", mBookingSize - maxOffsetWritten);
-              mLayout->Truncate(maxOffsetWritten);
+            if ((mBookingSize) && (mBookingSize > (long long) mMaxOffsetWritten)) {
+              eos_info("deallocationg %llu bytes", mBookingSize - mMaxOffsetWritten);
+              mLayout->Truncate(mMaxOffsetWritten);
               // We have evt. to deallocate blocks which have not been written
-              mLayout->Fdeallocate(maxOffsetWritten, mBookingSize);
+              mLayout->Fdeallocate(mMaxOffsetWritten, mBookingSize);
             }
           }
         }
       }
 
       checksumerror = VerifyChecksum();
-      targetsizeerror = (mTargetSize) ? (mTargetSize != (off_t) maxOffsetWritten) :
+      targetsizeerror = (mTargetSize) ? (mTargetSize != (off_t) mMaxOffsetWritten) :
                         false;
 
       if (isCreation) {
         // Check that the minimum file size policy is met!
-        minimumsizeerror = (mMinSize) ? ((off_t) maxOffsetWritten < mMinSize) : false;
+        minimumsizeerror = (mMinSize) ? ((off_t) mMaxOffsetWritten < mMinSize) : false;
 
         if (minimumsizeerror) {
           eos_warning("written file %s is smaller than required minimum file "
                       "size=%llu written=%llu", mNsPath.c_str(), mMinSize,
-                      maxOffsetWritten);
+                      mMaxOffsetWritten);
         }
       }
 
@@ -1082,8 +1119,8 @@ XrdFstOfsFile::close()
       }
 
       eos_debug("checksumerror = %i, targetsizerror= %i,"
-                "maxOffsetWritten = %zu, targetsize = %lli",
-                checksumerror, targetsizeerror, maxOffsetWritten, mTargetSize);
+                "mMaxOffsetWritten = %zu, targetsize = %lli",
+                checksumerror, targetsizeerror, mMaxOffsetWritten, mTargetSize);
 
       // ---- add error simulation for checksum errors on read
       if ((!mIsRW) && gOFS.mSimXsReadErr) {
@@ -1661,7 +1698,6 @@ XrdFstOfsFile::close()
                                                          mCapOpaque->Get("mgm.manager"),
                                                          attributes,
                                                          errMsgBackFromWfEndpoint);
-
         if (0 == notifyRc) {
           this->error.setErrCode(0);
           eos_info("Return code rc=%i errc=%d", SFS_OK, error.getErrInfo());
@@ -1711,22 +1747,7 @@ XrdFstOfsFile::close()
     }
   }
 
-  // Create a close callback and put the client in waiting mode
-  mCloseCb.reset(new XrdOucCallBack());
-  mCloseCb->Init(&error);
-  error.setErrCB(mCloseCb.get());
-  error.setErrInfo(120, "");
-  eos_info("%s", "msg=\"setting up the callback object\"");
-  std::thread t([&]() {
-    eos_info("%s", "msg=\"doing work in the async thread\"");
-    std::this_thread::sleep_for(std::chrono::seconds(80));
-    eos_info("%s", "msg=\"done work in the async thread\"");
-    int reply_rc = mCloseCb->Reply(SFS_OK, 100, "");
-    eos_info("msg=\"callback reply rc=%i\"", reply_rc);
-  });
-  t.detach();
-  rc = SFS_STARTED;
-  eos_info("Return code rc=%i errc=%d", rc, error.getErrInfo());
+  eos_info("msg=\"done close\" rc=%i errc=%d", rc, error.getErrInfo());
   return rc;
 }
 
@@ -1982,7 +2003,7 @@ XrdFstOfsFile::truncateofs(XrdSfsFileOffset fileOffset)
 {
   // Truncation moves the max offset written
   eos_debug("value=%llu", (unsigned long long) fileOffset);
-  maxOffsetWritten = fileOffset;
+  mMaxOffsetWritten = fileOffset;
   struct stat buf;
 
   // stat the current file size

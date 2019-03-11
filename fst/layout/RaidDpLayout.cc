@@ -846,11 +846,11 @@ RaidDpLayout::Truncate(XrdSfsFileOffset offset)
     }
   }
 
-  // *!!!* Reset the maxOffsetWritten from XrdFstOfsFile to logical offset
+  // *!!!* Reset the mMaxOffsetWritten from XrdFstOfsFile to logical offset
   mFileSize = offset;
 
   if (!mIsPio) {
-    mOfsFile->maxOffsetWritten = offset;
+    mOfsFile->mMaxOffsetWritten = offset;
   }
 
   return rc;

@@ -24,12 +24,12 @@
 #include "authz/XrdCapability.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/XrdFstOss.hh"
-#include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/FmdDbMap.hh"
+#include "fst/checksum/ChecksumPlugins.hh"
+#include "fst/http/HttpServer.hh"
 #include "fst/storage/FileSystem.hh"
 #include "fst/storage/Storage.hh"
 #include "fst/Messaging.hh"
-#include "fst/http/HttpServer.hh"
 #include "common/PasswordHandler.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
@@ -53,8 +53,8 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdVersion.hh"
-#include <qclient/Members.hh>
-#include <qclient/shared/SharedManager.hh>
+#include "qclient/Members.hh"
+#include "qclient/shared/SharedManager.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -120,93 +120,6 @@ extern "C"
 }
 
 EOSFSTNAMESPACE_BEGIN
-
-//------------------------------------------------------------------------------
-// Constructor
-//------------------------------------------------------------------------------
-XrdFstOfs::XrdFstOfs() :
-  eos::common::LogId(), mHostName(NULL), mFsckQcl(nullptr), mMqOnQdb(false),
-  mSimIoReadErr(false), mSimIoWriteErr(false), mSimXsReadErr(false),
-  mSimXsWriteErr(false), mSimFmdOpenErr(false), mSimErrIoReadOff(0ull),
-  mSimErrIoWriteOff(0ull)
-{
-  Eroute = 0;
-  Messaging = 0;
-  Storage = 0;
-  TransferScheduler = 0;
-  TpcMap.resize(2);
-  TpcMap[0].set_deleted_key(""); // readers
-  TpcMap[1].set_deleted_key(""); // writers
-
-  if (!getenv("EOS_NO_SHUTDOWN")) {
-    // Add shutdown handler
-    (void) signal(SIGINT, xrdfstofs_shutdown);
-    (void) signal(SIGTERM, xrdfstofs_shutdown);
-    (void) signal(SIGQUIT, xrdfstofs_shutdown);
-    // Add graceful shutdown handler
-    (void) signal(SIGUSR1, xrdfstofs_graceful_shutdown);
-  }
-
-  if (getenv("EOS_COVERAGE_REPORT")) {
-    // Add coverage report handler
-    (void) signal(SIGPROF, xrdfstofs_coverage);
-  }
-
-  // Initialize the google sparse hash maps
-  gOFS.WNoDeleteOnCloseFid.clear_deleted_key();
-  gOFS.WNoDeleteOnCloseFid.set_deleted_key(0);
-  setenv("EOSFSTOFS", std::to_string((unsigned long long)this).c_str(), 1);
-
-  if (getenv("EOS_FST_CALL_MANAGER_XRD_POOL")) {
-    int max_size = 10;
-    const char* csize {nullptr};
-
-    if ((csize = getenv("EOS_FST_CALL_MANAGER_XRD_POOL_SIZE"))) {
-      try {
-        max_size = std::stoi(csize);
-
-        if (max_size < 1) {
-          max_size = 1;
-        }
-
-        if (max_size > 32) {
-          max_size = 32;
-        }
-      } catch (...) {
-        // ignore
-      }
-    }
-
-    mMgmXrdPool.reset(new eos::common::XrdConnPool(true, max_size));
-    fprintf(stderr, "Config Enabled CallManager xrootd connection pool with "
-            "size=%i\n", max_size);
-  }
-}
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-XrdFstOfs::~XrdFstOfs()
-{
-}
-
-//------------------------------------------------------------------------------
-// Get a new OFS directory object - not implemented
-//-----------------------------------------------------------------------------
-XrdSfsDirectory*
-XrdFstOfs::newDir(char* user, int MonID)
-{
-  return (XrdSfsDirectory*)(0);
-}
-
-//------------------------------------------------------------------------------
-// Get a new OFS file object
-//-----------------------------------------------------------------------------
-XrdSfsFile*
-XrdFstOfs::newFile(char* user, int MonID)
-{
-  return static_cast<XrdSfsFile*>(new XrdFstOfsFile(user, MonID));
-}
 
 //------------------------------------------------------------------------------
 // Get stacktrace from crashing process
@@ -386,6 +299,94 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
   (void) signal(SIGQUIT, SIG_IGN);
   (void) signal(SIGUSR1, SIG_IGN);
   kill(getpid(), 9);
+}
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+XrdFstOfs::XrdFstOfs() :
+  eos::common::LogId(), mHostName(NULL), mMqOnQdb(false), mHttpd(nullptr),
+  mCloseThreadPool(8, 64, 5, 6, 5, "async_close"), mMgmXrdPool(nullptr),
+  mSimIoReadErr(false), mSimIoWriteErr(false), mSimXsReadErr(false),
+  mSimXsWriteErr(false), mSimFmdOpenErr(false), mSimErrIoReadOff(0ull),
+  mSimErrIoWriteOff(0ull)
+{
+  Eroute = 0;
+  Messaging = 0;
+  Storage = 0;
+  TransferScheduler = 0;
+  TpcMap.resize(2);
+  TpcMap[0].set_deleted_key(""); // readers
+  TpcMap[1].set_deleted_key(""); // writers
+
+  if (!getenv("EOS_NO_SHUTDOWN")) {
+    // Add shutdown handler
+    (void) signal(SIGINT, xrdfstofs_shutdown);
+    (void) signal(SIGTERM, xrdfstofs_shutdown);
+    (void) signal(SIGQUIT, xrdfstofs_shutdown);
+    // Add graceful shutdown handler
+    (void) signal(SIGUSR1, xrdfstofs_graceful_shutdown);
+  }
+
+  if (getenv("EOS_COVERAGE_REPORT")) {
+    // Add coverage report handler
+    (void) signal(SIGPROF, xrdfstofs_coverage);
+  }
+
+  // Initialize the google sparse hash maps
+  gOFS.WNoDeleteOnCloseFid.clear_deleted_key();
+  gOFS.WNoDeleteOnCloseFid.set_deleted_key(0);
+  setenv("EOSFSTOFS", std::to_string((unsigned long long)this).c_str(), 1);
+
+  if (getenv("EOS_FST_CALL_MANAGER_XRD_POOL")) {
+    int max_size = 10;
+    const char* csize {nullptr};
+
+    if ((csize = getenv("EOS_FST_CALL_MANAGER_XRD_POOL_SIZE"))) {
+      try {
+        max_size = std::stoi(csize);
+
+        if (max_size < 1) {
+          max_size = 1;
+        }
+
+        if (max_size > 32) {
+          max_size = 32;
+        }
+      } catch (...) {
+        // ignore
+      }
+    }
+
+    mMgmXrdPool.reset(new eos::common::XrdConnPool(true, max_size));
+    fprintf(stderr, "Config Enabled CallManager xrootd connection pool with "
+            "size=%i\n", max_size);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+XrdFstOfs::~XrdFstOfs()
+{
+}
+
+//------------------------------------------------------------------------------
+// Get a new OFS directory object - not implemented
+//------------------------------------------------------------------------------
+XrdSfsDirectory*
+XrdFstOfs::newDir(char* user, int MonID)
+{
+  return (XrdSfsDirectory*)(0);
+}
+
+//------------------------------------------------------------------------------
+// Get a new OFS file object
+//-----------------------------------------------------------------------------
+XrdSfsFile*
+XrdFstOfs::newFile(char* user, int MonID)
+{
+  return static_cast<XrdSfsFile*>(new XrdFstOfsFile(user, MonID));
 }
 
 //------------------------------------------------------------------------------
@@ -828,14 +829,15 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     mHttpdPort = strtol(getenv("EOS_FST_HTTP_PORT"), 0, 10);
   }
 
-  Httpd.reset(new eos::fst::HttpServer(mHttpdPort));
+  mHttpd.reset(new eos::fst::HttpServer(mHttpdPort));
 
   if (mHttpdPort) {
-    Httpd->Start();
+    mHttpd->Start();
   }
 
-  eos_notice("FST_HOST=%s FST_PORT=%ld FST_HTTP_PORT=%d VERSION=%s RELEASE=%s KEYTABADLER=%s",
-             mHostName, myPort, mHttpdPort, VERSION, RELEASE, kt_cks.c_str());
+  eos_notice("FST_HOST=%s FST_PORT=%ld FST_HTTP_PORT=%d VERSION=%s RELEASE=%s "
+             "KEYTABADLER=%s", mHostName, myPort, mHttpdPort, VERSION, RELEASE,
+             kt_cks.c_str());
   eos::mq::SharedHashWrapper::initialize(&ObjectManager);
   return 0;
 }
