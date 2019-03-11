@@ -64,48 +64,28 @@ static std::string hotFilesToString(
 }
 
 //------------------------------------------------------------------------------
-// Publish
+// Retrieve net speed
 //------------------------------------------------------------------------------
-void
-Storage::Publish(ThreadAssistant &assistant)
-{
-  eos_static_info("Publisher activated ...");
-  struct timeval tv1, tv2;
-  struct timezone tz;
-  unsigned long long netspeed = 1000000000;
-  // Get our network speed
-  char tmp_name[] = "/tmp/fst.publish.XXXXXX";
-  int tmp_fd = mkstemp(tmp_name);
-
-  if (tmp_fd == -1) {
-    eos_static_err("failed to create temporary file for ip route command");
-    return;
+static uint64_t getNetspeed(const std::string& tmpname) {
+  if(getenv("EOS_FST_NETWORK_SPEED")) {
+    return strtoull(getenv("EOS_FST_NETWORK_SPEED"), nullptr, 10);
   }
 
-  (void) close(tmp_fd);
-  XrdOucString getnetspeed =
+  std::string getNetspeedCommand = SSTR(
     "ip route list | sed -ne '/^default/s/.*dev //p' | cut -d ' ' -f1 |"
-    " xargs -i ethtool {} 2>&1 | grep Speed | cut -d ' ' -f2 | cut -d 'M' -f1 > ";
+    " xargs -i ethtool {} 2>&1 | grep Speed | cut -d ' ' -f2 | cut -d 'M' -f1 > "
+    << tmpname);
 
-  if (getenv("EOS_FST_NETWORK_SPEED")) {
-    getnetspeed = "echo ";
-    getnetspeed += getenv("EOS_FST_NETWORK_SPEED");
-    getnetspeed += " >> ";
-  }
-
-  getnetspeed += tmp_name;
-  eos::common::ShellCmd scmd1(getnetspeed.c_str());
+  eos::common::ShellCmd scmd1(getNetspeedCommand.c_str());
   eos::common::cmd_status rc = scmd1.wait(5);
+  unsigned long long netspeed = 1000000000;
 
   if (rc.exit_code) {
     eos_static_err("ip route list call failed to get netspeed");
+    return netspeed;
   }
 
-  XrdOucString lNodeGeoTag = (getenv("EOS_GEOTAG") ?
-                              getenv("EOS_GEOTAG") : "geotagdefault");
-  XrdOucString lEthernetDev = (getenv("EOS_FST_NETWORK_INTERFACE") ?
-                               getenv("EOS_FST_NETWORK_INTERFACE") : "eth0");
-  FILE* fnetspeed = fopen(tmp_name, "r");
+  FILE* fnetspeed = fopen(tmpname.c_str(), "r");
 
   if (fnetspeed) {
     if ((fscanf(fnetspeed, "%llu", &netspeed)) == 1) {
@@ -118,6 +98,37 @@ Storage::Publish(ThreadAssistant &assistant)
     fclose(fnetspeed);
   }
 
+  return netspeed;
+}
+
+
+//------------------------------------------------------------------------------
+// Publish
+//------------------------------------------------------------------------------
+void
+Storage::Publish(ThreadAssistant &assistant)
+{
+  eos_static_info("Publisher activated ...");
+  struct timeval tv1, tv2;
+  struct timezone tz;
+  // Get our network speed
+  char tmp_name[] = "/tmp/fst.publish.XXXXXX";
+  int tmp_fd = mkstemp(tmp_name);
+
+  if (tmp_fd == -1) {
+    eos_static_err("failed to create temporary file for ip route command");
+    return;
+  }
+
+  (void) close(tmp_fd);
+
+
+  XrdOucString lNodeGeoTag = (getenv("EOS_GEOTAG") ?
+                              getenv("EOS_GEOTAG") : "geotagdefault");
+  XrdOucString lEthernetDev = (getenv("EOS_FST_NETWORK_INTERFACE") ?
+                               getenv("EOS_FST_NETWORK_INTERFACE") : "eth0");
+
+  unsigned long long netspeed = getNetspeed(tmp_name);
   eos_static_info("publishing:networkspeed=%.02f GB/s",
                   1.0 * netspeed / 1000000000.0);
   // The following line acts as a barrier that prevents progress
@@ -134,7 +145,7 @@ Storage::Publish(ThreadAssistant &assistant)
       XrdOucString uptime = "uptime | tr -d \"\n\" > ";
       uptime += tmp_name;
       eos::common::ShellCmd scmd2(uptime.c_str());
-      rc = scmd2.wait(5);
+      eos::common::cmd_status rc = scmd2.wait(5);
 
       if (rc.exit_code) {
         eos_static_err("retrieve uptime call failed");
