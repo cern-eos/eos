@@ -27,7 +27,7 @@
 #include "XrdOfs/XrdOfs.hh"
 #include "Namespace.hh"
 #include "common/ConcurrentQueue.hh"
-#include "mgm/ZMQ.hh"
+#include <zmq.hpp>
 #include <string>
 
 //! Forward declaration
