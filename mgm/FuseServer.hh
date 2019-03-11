@@ -36,6 +36,7 @@
 #include "common/Mapping.hh"
 #include "common/Timing.hh"
 #include "common/Logging.hh"
+#include "namespace/interface/IFileMD.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <google/protobuf/util/json_util.h>
 
@@ -657,6 +658,15 @@ protected:
 
 private:
   std::atomic<bool> terminate_;
+
+  //----------------------------------------------------------------------------
+  //! Replaces the file's non-system attributes with client-supplied ones.
+  //!
+  //! @param fmd file metadata object
+  //! @param md client supplied metadata
+  //----------------------------------------------------------------------------
+  void replaceNonSysAttributes(const std::shared_ptr<eos::IFileMD>& fmd,
+                               const eos::fusex::md& md);
 };
 
 
