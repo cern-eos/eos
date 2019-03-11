@@ -119,6 +119,20 @@ static std::string getUptime(const std::string &tmpname) {
 }
 
 //------------------------------------------------------------------------------
+// Retrieve xrootd version
+//------------------------------------------------------------------------------
+static std::string getXrootdVersion() {
+  XrdOucString v = XrdVERSIONINFOVAR(XrdgetProtocol).vStr;
+  int pos = v.find(" ");
+
+  if (pos != STR_NPOS) {
+    v.erasefromstart(pos + 1);
+  }
+
+  return v.c_str();
+}
+
+//------------------------------------------------------------------------------
 // Publish
 //------------------------------------------------------------------------------
 void
@@ -138,6 +152,9 @@ Storage::Publish(ThreadAssistant &assistant)
 
   (void) close(tmp_fd);
 
+
+  std::string eosVersion = SSTR(VERSION << "-" << RELEASE);
+  std::string xrootdVersion = getXrootdVersion();
 
   XrdOucString lNodeGeoTag = (getenv("EOS_GEOTAG") ?
                               getenv("EOS_GEOTAG") : "geotagdefault");
@@ -398,22 +415,8 @@ Storage::Publish(ThreadAssistant &assistant)
             hash->Set("stat.sys.vsize", osstat.vsize);
             hash->Set("stat.sys.rss", osstat.rss);
             hash->Set("stat.sys.threads", osstat.threads);
-            {
-              XrdOucString v = VERSION;
-              v += "-";
-              v += RELEASE;
-              hash->Set("stat.sys.eos.version", v.c_str());
-            }
-            {
-              XrdOucString v = XrdVERSIONINFOVAR(XrdgetProtocol).vStr;
-              int pos = v.find(" ");
-
-              if (pos != STR_NPOS) {
-                v.erasefromstart(pos + 1);
-              }
-
-              hash->Set("stat.sys.xrootd.version", v.c_str());
-            }
+            hash->Set("stat.sys.eos.version", eosVersion.c_str());
+            hash->Set("stat.sys.xrootd.version", xrootdVersion.c_str());
             hash->Set("stat.sys.keytab", eos::fst::Config::gConfig.KeyTabAdler.c_str());
             hash->Set("stat.sys.uptime", publish_uptime.c_str());
             hash->Set("stat.sys.sockets", publish_sockets.c_str());
