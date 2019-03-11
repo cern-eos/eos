@@ -134,6 +134,26 @@ static std::string getXrootdVersion() {
 }
 
 //------------------------------------------------------------------------------
+// Retrieve number of TCP sockets in the system
+// TODO: Change return value to integer..
+//------------------------------------------------------------------------------
+static std::string getNumberOfTCPSockets(const std::string &tmpname) {
+  std::string command = SSTR("cat /proc/net/tcp | wc -l | tr -d \"\n\" > " <<
+    tmpname);
+
+  eos::common::ShellCmd cmd(command.c_str());
+  eos::common::cmd_status rc = cmd.wait(5);
+
+  if (rc.exit_code) {
+    eos_static_err("retrieve #socket call failed");
+  }
+
+  std::string retval;
+  eos::common::StringConversion::LoadFileIntoString(tmpname.c_str(), retval);
+  return retval;
+}
+
+//------------------------------------------------------------------------------
 // Publish
 //------------------------------------------------------------------------------
 void
@@ -170,25 +190,12 @@ Storage::Publish(ThreadAssistant &assistant)
   eos::fst::Config::gConfig.getFstNodeConfigQueue("Publish");
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   eos::common::FileSystem::fsid_t fsid = 0;
-  std::string publish_uptime = "";
   std::string publish_sockets = "";
 
   while (true) {
     std::string publish_uptime = getUptime(tmp_name);
+    std::string publish_sockets = getNumberOfTCPSockets(tmp_name);
 
-
-    {
-      XrdOucString sockets = "cat /proc/net/tcp | wc -l | tr -d \"\n\" > ";
-      sockets += tmp_name;
-      eos::common::ShellCmd scmd3(sockets.c_str());
-      eos::common::cmd_status rc = scmd3.wait(5);
-
-      if (rc.exit_code) {
-        eos_static_err("retrieve #socket call failed");
-      }
-
-      eos::common::StringConversion::LoadFileIntoString(tmp_name, publish_sockets);
-    }
     time_t now = time(NULL);
     gettimeofday(&tv1, &tz);
 
