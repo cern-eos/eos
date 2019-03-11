@@ -413,11 +413,11 @@ metad::mdx::dump()
 {
   char sout[16384];
   snprintf(sout, sizeof(sout),
-           "ino=%#lx dev=%#lx mode=%#o nlink=%d uid=%05d gid=%05d rdev=%#lx "
+           "ino=%#lx dev=%#lx mode=%#o nlink=%u uid=%05u gid=%05u rdev=%#lx "
            "size=%llu bsize=%lu blocks=%llu atime=%lu.%lu mtime=%lu.%lu ctime=%lu.%lu",
-           (unsigned long) id(), 0, (unsigned int) mode(), (unsigned int) nlink(),
-           (int) uid(), (int) gid(), (unsigned long)0,
-           (unsigned long long) size(), (unsigned int) 4096,
+           (unsigned long) id(), (unsigned long)0, (unsigned int) mode(), (unsigned int) nlink(),
+           (unsigned int) uid(), (unsigned int) gid(), (unsigned long)0,
+           (unsigned long long) size(), (unsigned long) 4096,
            (unsigned long long) size() / 512,
            (unsigned long) atime(), (unsigned long) atime_ns(),
            (unsigned long) mtime(), (unsigned long) mtime_ns(),
@@ -431,12 +431,12 @@ metad::mdx::dump(struct fuse_entry_param& e)
 {
   char sout[16384];
   snprintf(sout, sizeof(sout),
-           "ino=%#lx dev=%#lx mode=%#lx nlink=%#lx uid=%05d gid=%05d rdev=%#lx "
+           "ino=%#lx dev=%#lx mode=%#o nlink=%u uid=%05u gid=%05u rdev=%#lx "
            "size=%llu bsize=%lu blocks=%llu atime=%lu.%lu mtime=%lu.%lu ctime=%lu.%lu "
            "attr-timeout=%lu entry-timeout=%lu",
            (unsigned long) e.attr.st_ino, (unsigned long) e.attr.st_dev,
-           (unsigned long) e.attr.st_mode, (unsigned int) e.attr.st_nlink,
-           (int) e.attr.st_uid, (int) e.attr.st_gid, (unsigned long) e.attr.st_rdev,
+           (unsigned int) e.attr.st_mode, (unsigned int) e.attr.st_nlink,
+           (unsigned int) e.attr.st_uid,  (unsigned int) e.attr.st_gid, (unsigned long) e.attr.st_rdev,
            (unsigned long long) e.attr.st_size, (unsigned long) e.attr.st_blksize,
            (unsigned long long) e.attr.st_blocks,
            (unsigned long) e.attr.ATIMESPEC.tv_sec,
