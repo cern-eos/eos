@@ -176,7 +176,7 @@ backend::getMD(fuse_req_t req,
 /* -------------------------------------------------------------------------- */
 {
   // return's the inode of path in inode and rc=0 for success, otherwise errno
-  std::string requestURL = getURL(req, path, "LS", authid);
+  std::string requestURL = getURL(req, path, "GET", authid);
   return fetchResponse(requestURL, contv);
 }
 
