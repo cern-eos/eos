@@ -190,7 +190,6 @@ Storage::Publish(ThreadAssistant &assistant)
   eos::fst::Config::gConfig.getFstNodeConfigQueue("Publish");
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   eos::common::FileSystem::fsid_t fsid = 0;
-  std::string publish_sockets = "";
 
   while (true) {
     std::string publish_uptime = getUptime(tmp_name);

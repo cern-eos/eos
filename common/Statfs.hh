@@ -149,21 +149,6 @@ public:
     return retc;
   }
 
-  static XrdSysMutex gMutex; //< Static global mutex for the global statfs hash
-  //< Static global hash containing statfs class objects for several file systems
-  static XrdOucHash<Statfs>gStatfs;
-
-  //----------------------------------------------------------------------------
-  //! Return the statfs structure for a given path from the global statfs hash
-  //----------------------------------------------------------------------------
-  static Statfs* GetStatfs(const char* path)
-  {
-    gMutex.Lock();
-    Statfs* sfs = gStatfs.Find(path);
-    gMutex.UnLock();
-    return sfs;
-  }
-
   //----------------------------------------------------------------------------
   //! Static function do add a statfs struct for path to the global statfs hash
   //----------------------------------------------------------------------------
@@ -178,9 +163,6 @@ public:
     }
 
     if (!sfs->DoStatfs(call, data)) {
-      gMutex.Lock();
-      gStatfs.Rep(path, sfs);
-      gMutex.UnLock();
       return sfs;
     } else {
       delete sfs;

@@ -28,14 +28,4 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
-// Global mutex to lock the lgobal statfs singleton
-/*----------------------------------------------------------------------------*/
-XrdSysMutex Statfs::gMutex;
-
-/*----------------------------------------------------------------------------*/
-// Global singleton storing the statfs entries
-/*----------------------------------------------------------------------------*/
-XrdOucHash<Statfs> Statfs::gStatfs;
-
 EOSCOMMONNAMESPACE_END
