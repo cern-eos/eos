@@ -127,13 +127,9 @@ FileSystem::GetStatfs()
     return nullptr;
   }
 
-  eos::common::Statfs::Callback::callback_data_t lData;
-  std::string path = GetPath();
-  lData.path = path.c_str();
-  lData.caller = (void*) mFileIO.get();
-  // lData.statfs is set in DoStatfs
-  eos::common::Statfs::Callback::callback_t lCallback = FileIo::StatfsCB;
-  statFs = eos::common::Statfs::DoStatfs(GetPath().c_str(), lCallback, &lData);
+  if(mFileIO) {
+    statFs = mFileIO->GetStatfs().release();
+  }
 
   if ((!statFs) && GetPath().length()) {
     eos_err("cannot statfs");

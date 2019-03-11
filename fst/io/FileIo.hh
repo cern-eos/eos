@@ -396,6 +396,22 @@ public:
   virtual int Statfs(struct statfs* statFs) = 0;
 
   //----------------------------------------------------------------------------
+  //! Return our own, custom Statfs object, instead of a raw statfs struct.
+  //! @return nullptr if unsuccessful
+  //----------------------------------------------------------------------------
+  std::unique_ptr<eos::common::Statfs> GetStatfs() {
+    struct statfs rawStatfs;
+    if(Statfs(&rawStatfs) != 0) {
+      // Could not retrieve statfs
+      return nullptr;
+    }
+
+    std::unique_ptr<eos::common::Statfs> retval;
+    retval.reset(new eos::common::Statfs(rawStatfs));
+    return retval;
+  }
+
+  //----------------------------------------------------------------------------
   //! Callback function to fill a statfs structure about the storage filling
   //! state
   //!

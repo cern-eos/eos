@@ -96,6 +96,13 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Constructor taking the raw statfs struct
+  //----------------------------------------------------------------------------
+  Statfs(struct statfs raw) {
+    resetContents(raw);
+  }
+
+  //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   ~Statfs() = default;
@@ -111,6 +118,30 @@ public:
   const char* GetEnv()
   {
     return env.c_str();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Reset internal statfs contents with the given ones,
+  //! recalculate environment
+  //----------------------------------------------------------------------------
+  void resetContents(struct statfs contents) {
+    statFs = contents;
+    recalculateEnv();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Recalculate "environment variable" based on current statfs
+  //! struct contents
+  //----------------------------------------------------------------------------
+  void recalculateEnv() {
+    char s[1024];
+    sprintf(s,
+            "statfs.type=%ld&statfs.bsize=%ld&statfs.blocks=%ld&"
+            "statfs.bfree=%ld&statfs.bavail=%ld&statfs.files=%ld&statfs.ffree=%ld",
+            (long) statFs.f_type, (long) statFs.f_bsize, (long) statFs.f_blocks,
+            (long) statFs.f_bfree, (long) statFs.f_bavail, (long) statFs.f_files,
+            (long) statFs.f_ffree);
+    env = s;
   }
 
   //----------------------------------------------------------------------------
@@ -133,14 +164,7 @@ public:
     }
 
     if (!retc) {
-      char s[1024];
-      sprintf(s,
-              "statfs.type=%ld&statfs.bsize=%ld&statfs.blocks=%ld&"
-              "statfs.bfree=%ld&statfs.bavail=%ld&statfs.files=%ld&statfs.ffree=%ld",
-              (long) statFs.f_type, (long) statFs.f_bsize, (long) statFs.f_blocks,
-              (long) statFs.f_bfree, (long) statFs.f_bavail, (long) statFs.f_files,
-              (long) statFs.f_ffree);
-      env = s;
+      recalculateEnv();
     } else {
       eos_err("failed statfs path=%s, errno=%i, strerrno=%s", tmp_path.c_str(),
               errno, strerror(errno));
