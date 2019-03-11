@@ -101,6 +101,22 @@ static uint64_t getNetspeed(const std::string& tmpname) {
   return netspeed;
 }
 
+//------------------------------------------------------------------------------
+// Retrieve uptime
+//------------------------------------------------------------------------------
+static std::string getUptime(const std::string &tmpname) {
+  eos::common::ShellCmd cmd(SSTR("uptime | tr -d \"\n\" > " << tmpname));
+  eos::common::cmd_status rc = cmd.wait(5);
+
+  if (rc.exit_code) {
+    eos_static_err("retrieve uptime call failed");
+    return "N/A";
+  }
+
+  std::string retval;
+  eos::common::StringConversion::LoadFileIntoString(tmpname.c_str(), retval);
+  return retval;
+}
 
 //------------------------------------------------------------------------------
 // Publish
@@ -140,22 +156,14 @@ Storage::Publish(ThreadAssistant &assistant)
   std::string publish_sockets = "";
 
   while (true) {
+    std::string publish_uptime = getUptime(tmp_name);
+
+
     {
-      // Retrieve uptime information
-      XrdOucString uptime = "uptime | tr -d \"\n\" > ";
-      uptime += tmp_name;
-      eos::common::ShellCmd scmd2(uptime.c_str());
-      eos::common::cmd_status rc = scmd2.wait(5);
-
-      if (rc.exit_code) {
-        eos_static_err("retrieve uptime call failed");
-      }
-
-      eos::common::StringConversion::LoadFileIntoString(tmp_name, publish_uptime);
       XrdOucString sockets = "cat /proc/net/tcp | wc -l | tr -d \"\n\" > ";
       sockets += tmp_name;
       eos::common::ShellCmd scmd3(sockets.c_str());
-      rc = scmd3.wait(5);
+      eos::common::cmd_status rc = scmd3.wait(5);
 
       if (rc.exit_code) {
         eos_static_err("retrieve #socket call failed");
