@@ -30,6 +30,8 @@
 #include "mgm/Quota.hh"
 #include "mgm/Recycle.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/Prefetcher.hh"
 #include <thread>
@@ -3511,7 +3513,7 @@ FuseServer::HandleMD(const std::string& id,
         mtime.tv_nsec = md.mtime_ns();
         fmd->setCTime(ctime);
         fmd->setMTime(mtime);
-        fmd->clearAttributes();
+        replaceNonSysAttributes(fmd, md);
         struct timespec pt_mtime;
 
         if (op != UPDATE) {
@@ -3521,10 +3523,6 @@ FuseServer::HandleMD(const std::string& id,
           pt_mtime.tv_nsec = mtime.tv_nsec;
         } else {
           pt_mtime.tv_sec = pt_mtime.tv_nsec = 0 ;
-        }
-
-        for (auto map = md.attr().begin(); map != md.attr().end(); ++map) {
-          fmd->setAttribute(map->first, map->second);
         }
 
         // store the birth time as an extended attribute
@@ -3657,7 +3655,7 @@ FuseServer::HandleMD(const std::string& id,
         mtime.tv_nsec = md.mtime_ns();
         fmd->setCTime(ctime);
         fmd->setMTime(mtime);
-        fmd->clearAttributes();
+        replaceNonSysAttributes(fmd, md);
 
         if (op == CREATE) {
           // store the birth time as an extended attribute
@@ -4062,6 +4060,31 @@ FuseServer::HandleMD(const std::string& id,
   }
 
   return 0;
+}
+
+//----------------------------------------------------------------------------
+// Replaces the file's non-system attributes with client-supplied ones.
+//----------------------------------------------------------------------------
+void
+FuseServer::replaceNonSysAttributes(const std::shared_ptr<eos::IFileMD>& fmd,
+                                    const eos::fusex::md& md) {
+  eos::IFileMD::XAttrMap xattrs = fmd->getAttributes();
+
+  // Remove all non-system attributes
+  for (const auto& attr : xattrs) {
+    if ((attr.first.substr(0, 3) != "sys") ||
+        (attr.first == "sys.eos.btime")) {
+      fmd->removeAttribute(attr.first);
+    }
+  }
+
+  // Register non-system client-supplied attributes
+  for (const auto& attr : md.attr()) {
+    if ((attr.first.substr(0, 3) != "sys") ||
+        (attr.first == "sys.eos.btime")) {
+      fmd->setAttribute(attr.first, attr.second);
+    }
+  }
 }
 
 EOSMGMNAMESPACE_END
