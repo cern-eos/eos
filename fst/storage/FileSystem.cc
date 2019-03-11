@@ -46,7 +46,6 @@ FileSystem::FileSystem(const char* queuepath,
   seqBandwidth = 0;
   IOPS = 0;
   transactionDirectory = "";
-  statFs = 0;
   std::string n1 = queuepath;
   n1 += "/drain";
   std::string n2 = queuepath;
@@ -120,15 +119,17 @@ FileSystem::BroadcastError(int errc, const char* errmsg)
 }
 
 /*----------------------------------------------------------------------------*/
-eos::common::Statfs*
+std::unique_ptr<eos::common::Statfs>
 FileSystem::GetStatfs()
 {
   if (!GetPath().length()) {
     return nullptr;
   }
 
+  std::unique_ptr<eos::common::Statfs> statFs;
+
   if(mFileIO) {
-    statFs = mFileIO->GetStatfs().release();
+    statFs = mFileIO->GetStatfs();
   }
 
   if ((!statFs) && GetPath().length()) {

@@ -186,7 +186,7 @@ public:
     }
   }
 
-  eos::common::Statfs* GetStatfs();
+  std::unique_ptr<eos::common::Statfs> GetStatfs();
 
   void IoPing();
 
@@ -262,9 +262,6 @@ private:
   std::unique_ptr<eos::fst::ScanDir> mScanDir; ///< Filesystem scanner
   std::unique_ptr<FileIo> mFileIO; ///< File used for statfs calls
   XrdOucString transactionDirectory;
-  //! Owner of the object is a global hash in eos::common::Statfs - these
-  //! are just references
-  eos::common::Statfs* statFs;
 
   unsigned long last_blocks_free;
   time_t last_status_broadcast;

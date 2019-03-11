@@ -257,10 +257,10 @@ Storage::Publish(ThreadAssistant &assistant)
             }
           }
 
-          eos::common::Statfs* statfs = 0;
+          std::unique_ptr<eos::common::Statfs> statfs = mFsVect[i]->GetStatfs();
 
           // call the update function which stores into the filesystem shared hash
-          if ((statfs = mFsVect[i]->GetStatfs())) {
+          if (statfs) {
             // call the update function which stores into the filesystem shared hash
             if (!mFsVect[i]->SetStatfs(statfs->GetStatfs())) {
               eos_static_err("cannot SetStatfs on filesystem %s",

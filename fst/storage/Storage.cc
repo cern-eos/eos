@@ -355,7 +355,7 @@ Storage::Boot(FileSystem* fs)
   }
 
   // Try to statfs the filesystem
-  eos::common::Statfs* statfs = fs->GetStatfs();
+  std::unique_ptr<eos::common::Statfs> statfs = fs->GetStatfs();
 
   if (!statfs) {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);

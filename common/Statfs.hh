@@ -124,13 +124,12 @@ public:
   //----------------------------------------------------------------------------
   //! Static function do add a statfs struct for path to the global statfs hash
   //----------------------------------------------------------------------------
-  static Statfs* DoStatfs(const char* path) {
-    Statfs* sfs = new Statfs();
+  static std::unique_ptr<Statfs> DoStatfs(const char* path) {
+    std::unique_ptr<Statfs> sfs(new Statfs());
     if (!sfs->DoStatfs(path)) {
       return sfs;
     } else {
-      delete sfs;
-      return 0;
+      return {};
     }
   }
 

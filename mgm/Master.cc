@@ -440,7 +440,7 @@ Master::Supervisor()
 
     // Check if the local filesystem has enough space on the namespace partition
     XrdOucString sizestring;
-    eos::common::Statfs* statfs =
+    std::unique_ptr<eos::common::Statfs> statfs =
       eos::common::Statfs::DoStatfs(gOFS->MgmMetaLogDir.c_str());
 
     if (!statfs) {
