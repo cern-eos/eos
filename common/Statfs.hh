@@ -46,66 +46,19 @@ class Statfs: public LogId
 {
 public:
 
-  //------------------------------------------------------------------------------
-  //! Subclass Callback
-  //------------------------------------------------------------------------------
-  class Callback
-  {
-  public:
-    typedef struct callback_data {
-      callback_data() : caller(0), path(0), statfs(0), retc(-1) {}
-      void* caller;
-      const char* path;
-      struct statfs* statfs;
-      int retc;
-    } callback_data_t;
-
-    typedef int (*callback_t)(callback_data_t*);
-
-    Callback()
-    {
-      call = 0;
-    }
-
-    Callback(callback_t tocall, callback_data_t& info)
-    {
-      call = tocall;
-      data = info;
-      data.retc = 0;
-    }
-
-    virtual ~Callback() = default;
-
-    Callback(const Callback& obj)
-    {
-      call = obj.call;
-      data = obj.data;
-    }
-
-    callback_t call;
-    callback_data_t data;
-  };
-
   //----------------------------------------------------------------------------
-  //! Constructor taking the path of the filesystem to stat as in parameter
+  //! Empty constructor, empty contents
   //----------------------------------------------------------------------------
-  Statfs(const char* inpath):
-    mPath(inpath)
-  {
+  Statfs() {
     memset(&statFs, 0, sizeof(struct statfs));
   }
 
   //----------------------------------------------------------------------------
-  //! Constructor taking the raw statfs struct
+  //! Constructor absorbing the raw statfs struct
   //----------------------------------------------------------------------------
   Statfs(struct statfs raw) {
     resetContents(raw);
   }
-
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  ~Statfs() = default;
 
   //----------------------------------------------------------------------------
   //! Return reference to the internal statfs struct
@@ -115,6 +68,9 @@ public:
     return &statFs;
   }
 
+  //----------------------------------------------------------------------------
+  //! Return reference to the internal environment serialization
+  //----------------------------------------------------------------------------
   const char* GetEnv()
   {
     return env.c_str();
@@ -146,27 +102,19 @@ public:
 
   //----------------------------------------------------------------------------
   //! Execute the statfs function on the given path and build the env
-  //! representation. Optional the 'statfs' method can be given as a callback
-  //! function
+  //! representation.
   //----------------------------------------------------------------------------
-  int DoStatfs(Callback::callback_t call = 0, Callback::callback_data_t* data = 0)
+  int DoStatfs(const std::string &path)
   {
     env = "";
     int retc = 0;
-    std::string tmp_path;
 
-    if (call) {
-      tmp_path = data->path;
-      retc = call(data);
-    } else {
-      tmp_path = mPath.c_str();
-      retc = ::statfs(mPath.c_str(), (struct statfs*) &statFs);
-    }
+    retc = ::statfs(path.c_str(), (struct statfs*) &statFs);
 
     if (!retc) {
       recalculateEnv();
     } else {
-      eos_err("failed statfs path=%s, errno=%i, strerrno=%s", tmp_path.c_str(),
+      eos_err("failed statfs path=%s, errno=%i, strerrno=%s", path.c_str(),
               errno, strerror(errno));
     }
 
@@ -176,17 +124,9 @@ public:
   //----------------------------------------------------------------------------
   //! Static function do add a statfs struct for path to the global statfs hash
   //----------------------------------------------------------------------------
-  static Statfs* DoStatfs(const char* path,
-                          Callback::callback_t call = 0,
-                          Callback::callback_data_t* data = 0)
-  {
-    Statfs* sfs = new Statfs(path);
-
-    if (data) {
-      data->statfs = &sfs->statFs;
-    }
-
-    if (!sfs->DoStatfs(call, data)) {
+  static Statfs* DoStatfs(const char* path) {
+    Statfs* sfs = new Statfs();
+    if (!sfs->DoStatfs(path)) {
       return sfs;
     } else {
       delete sfs;
@@ -196,7 +136,6 @@ public:
 
 private:
   struct statfs statFs; //< the stored statfs struct
-  XrdOucString mPath; //< path to the filesystem stat'ed
   XrdOucString env; //< env representation of the contents
 };
 

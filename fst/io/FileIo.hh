@@ -412,24 +412,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Callback function to fill a statfs structure about the storage filling
-  //! state
-  //!
-  //! @param data containing path, return code and statfs structure
-  //!
-  //! @return 0 if successful otherwise errno
-  //----------------------------------------------------------------------------
-  static int StatfsCB(eos::common::Statfs::Callback::callback_data* data)
-  {
-    if (data && data->caller) {
-      data->retc = ((FileIo*)(data->caller))->Statfs(data->statfs);
-      return data->retc;
-    } else {
-      return -1;
-    }
-  }
-
-  //----------------------------------------------------------------------------
   //! Mark this IO as an IO module towards an external storage system
   //----------------------------------------------------------------------------
   void SetExternalStorage()
