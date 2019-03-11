@@ -33,8 +33,27 @@
 #include <stdio.h>
 #include <string.h>
 #include <string>
+#include <chrono>
 
 EOSCOMMONNAMESPACE_BEGIN
+
+//------------------------------------------------------------------------------
+//! Convert a system_clock timepoint into milliseconds since epoch
+//------------------------------------------------------------------------------
+inline std::chrono::milliseconds timepointToMillisecondsSinceEpoch(
+  std::chrono::system_clock::time_point tp) {
+
+  return std::chrono::duration_cast<std::chrono::milliseconds>(
+    tp.time_since_epoch()
+  );
+}
+
+//------------------------------------------------------------------------------
+//! Get system time in milliseconds since epoch
+//------------------------------------------------------------------------------
+inline std::chrono::milliseconds getEpochInMilliseconds() {
+  return timepointToMillisecondsSinceEpoch(std::chrono::system_clock::now());
+}
 
 /*----------------------------------------------------------------------------*/
 //! Class implementing comfortable time measurements through methods/functions

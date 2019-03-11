@@ -28,6 +28,7 @@
 #include "fst/FmdDbMap.hh"
 #include "common/LinuxStat.hh"
 #include "common/ShellCmd.hh"
+#include "common/Timing.hh"
 #include "XrdVersion.hh"
 
 XrdVERSIONINFOREF(XrdgetProtocol);
@@ -433,10 +434,7 @@ Storage::Publish(ThreadAssistant &assistant)
                       "rxbytes") / 1024.0 / 1024.0);
             hash->Set("stat.net.outratemib", mFstLoad.GetNetRate(lEthernetDev.c_str(),
                       "txbytes") / 1024.0 / 1024.0);
-            struct timeval tvfs;
-            gettimeofday(&tvfs, &tz);
-            size_t nowms = tvfs.tv_sec * 1000 + tvfs.tv_usec / 1000;
-            hash->Set("stat.publishtimestamp", nowms);
+            hash->Set("stat.publishtimestamp", SSTR(eos::common::getEpochInMilliseconds().count()));
           }
 
           gOFS.ObjectManager.HashMutex.UnLockRead();
