@@ -673,7 +673,7 @@ metad::get(fuse_req_t req,
     // -------------------------------------------------------------------------
     std::string root_path = "/";
     // request the root meta data
-    rc = mdbackend->getMD(req, root_path, contv, authid);
+    rc = mdbackend->getMD(req, root_path, contv, listing, authid);
     // set ourselfs as parent of root since we might mount
     // a remote directory != '/'
     md->set_pid(1);

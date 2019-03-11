@@ -2722,6 +2722,9 @@ EBADF  Invalid directory stream descriptor fi->fh
 	}
 	md->pmd_mtime.tv_sec = pmd->mtime();
 	md->pmd_mtime.tv_nsec = pmd->mtime_ns();
+	
+	// place the list iterator
+	md->pmd_children_it = md->pmd_children.begin();
       }
 
       if (!md->pmd_children.size()) {
@@ -2734,11 +2737,11 @@ EBADF  Invalid directory stream descriptor fi->fh
     // only one readdir at a time
     XrdSysMutexHelper lLock(md->items_lock);
     auto it = md->pmd_children.begin();
+
     eos_static_info("off=%lu size-%lu", off, md->pmd_children.size());
     char b[size];
     char* b_ptr = b;
     off_t b_size = 0;
-
 
     // the root directory adds only '.', all other add '.' and '..' for off=0
     if (off == 0) {
@@ -2778,7 +2781,7 @@ EBADF  Invalid directory stream descriptor fi->fh
         stbuf.st_ino = cino;
         stbuf.st_mode = mode;
         size_t a_size = fuse_add_direntry(req, b_ptr, size - b_size,
-                                          bname.c_str(), &stbuf, ++off);
+                                          bname.c_str(), &stbuf, ++off); // the .. entry is not counted for the offset list
         eos_static_info("name=%s ino=%08lx mode=%#lx bytes=%u/%u",
                         bname.c_str(), cino, mode, a_size, size - b_size);
         b_ptr += a_size;
@@ -2790,85 +2793,97 @@ EBADF  Invalid directory stream descriptor fi->fh
     bool is_seek = false;
     if (off != md->next_offset) {
       is_seek = true;
+    }  else {
+      it = md->pmd_children_it;
+      i_offset = md->next_offset;
     }
 
-    // add regular children
-    for (; it != md->pmd_children.end(); ++it) {
-      if (off > i_offset) {
-        i_offset++;
-        continue;
-      } else {
-        i_offset++;
-      }
+    int loop=0;
 
-      // if there was any seek, we don't skip entries
-      if (!is_seek) {
+    struct stat stbuf;
+    memset(&stbuf, 0, sizeof(struct stat));
+
+    if ( (size_t) off < md->pmd_children.size()) {
+      // add regular children
+      for (; it != md->pmd_children.end(); ++it,++md->pmd_children_it) {
+	loop++;
+	if (off > i_offset) {
+	  i_offset++;
+	  continue;
+	} else {
+	  i_offset++;
+	}
+	
+	// if there was any seek, we don't skip entries
+	if (!is_seek) {
 	// skip entries we have shown already
-	if (md->readdir_items.count(it->first)) {
+	  if (md->readdir_items.count(it->first)) {
+	    eos_static_crit("suppressing duplicate");
+	    continue;
+	  }
+	}
+	
+	std::string bname = eos::common::StringConversion::DecodeInvalidUTF8(it->first);
+	fuse_ino_t cino = it->second;
+	metad::shared_md cmd = Instance().mds.get(req, cino, "", 0, 0, 0, true);
+	eos_static_debug("list: %#lx %s (d=%d)", cino, it->first.c_str(),
+			 cmd->deleted());
+	
+	if (strncmp(bname.c_str(), "...eos.ino...",
+		    13) == 0) { /* hard link deleted inodes */
 	  continue;
 	}
+	
+	mode_t mode;
+	{
+	  XrdSysMutexHelper cLock(cmd->Locker());
+	  mode = cmd->mode();
+	  
+	  // skip deleted entries or hidden entries
+	  if (cmd->deleted()) {
+	    continue;
+	  }
+	}
+	stbuf.st_ino = cino;
+	{
+	  auto attrMap = cmd->mutable_attr();
+	  
+	  if (attrMap->count(k_mdino)) {
+	    uint64_t mdino = std::stoll((*attrMap)[k_mdino]);
+	    uint64_t local_ino = Instance().mds.vmaps().forward(mdino);
+	    
+	    if (EOS_LOGS_DEBUG) {
+	      eos_static_debug("hlnk %s id %#lx mdino '%s' (%lx) local_ino %#lx",
+			       cmd->name().c_str(), cmd->id(), (*attrMap)[k_mdino].c_str(), mdino, local_ino);
+	    }
+	    
+	    stbuf.st_ino = local_ino;
+	    metad::shared_md target = Instance().mds.get(req, local_ino, "", 0, 0, 0,
+							 true);
+	    mode = target->mode();
+	  }
+	}
+	stbuf.st_mode = mode;
+	size_t a_size = fuse_add_direntry(req, b_ptr, size - b_size,
+					  bname.c_str(), &stbuf, ++off);
+	
+	// store latest offset
+	md->next_offset = off-1;
+	
+	if (EOS_LOGS_DEBUG) {
+	  eos_static_debug("name=%s id=%#lx ino=%#lx mode=%#o bytes=%u/%u next-offset=%lu",
+			   bname.c_str(), cino, stbuf.st_ino, mode, a_size, size - b_size, md->next_offset);
+	}
+	
+	if (a_size > (size - b_size)) {
+	  break;
+	}
+	
+	// add to the shown list
+	md->readdir_items.insert(it->first);
+	b_ptr += a_size;
+	b_size += a_size;
       }
-
-      std::string bname = eos::common::StringConversion::DecodeInvalidUTF8(it->first);
-      fuse_ino_t cino = it->second;
-      metad::shared_md cmd = Instance().mds.get(req, cino, "", 0, 0, 0, true);
-      eos_static_debug("list: %#lx %s (d=%d)", cino, it->first.c_str(),
-                       cmd->deleted());
-
-      if (strncmp(bname.c_str(), "...eos.ino...",
-                  13) == 0) { /* hard link deleted inodes */
-        continue;
-      }
-
-      mode_t mode;
-      {
-        XrdSysMutexHelper cLock(cmd->Locker());
-        mode = cmd->mode();
-
-        // skip deleted entries or hidden entries
-        if (cmd->deleted()) {
-          continue;
-        }
-      }
-      struct stat stbuf;
-      memset(&stbuf, 0, sizeof(struct stat));
-      stbuf.st_ino = cino;
-      {
-        auto attrMap = cmd->attr();
-
-        if (attrMap.count(k_mdino)) {
-          uint64_t mdino = std::stoll(attrMap[k_mdino]);
-          uint64_t local_ino = Instance().mds.vmaps().forward(mdino);
-
-          if (EOS_LOGS_DEBUG) {
-            eos_static_debug("hlnk %s id %#lx mdino '%s' (%lx) local_ino %#lx",
-                             cmd->name().c_str(), cmd->id(), attrMap[k_mdino].c_str(), mdino, local_ino);
-          }
-
-          stbuf.st_ino = local_ino;
-          metad::shared_md target = Instance().mds.get(req, local_ino, "", 0, 0, 0,
-                                    true);
-          mode = target->mode();
-        }
-      }
-      stbuf.st_mode = mode;
-      size_t a_size = fuse_add_direntry(req, b_ptr, size - b_size,
-                                        bname.c_str(), &stbuf, ++off);
-
-      // store latest offset
-      md->next_offset = off;
-
-      eos_static_info("name=%s id=%#lx ino=%#lx mode=%#o bytes=%u/%u",
-                      bname.c_str(), cino, stbuf.st_ino, mode, a_size, size - b_size);
-
-      if (a_size > (size - b_size)) {
-        break;
-      }
-
-      // add to the shown list
-      md->readdir_items.insert(it->first);
-      b_ptr += a_size;
-      b_size += a_size;
     }
 
     if (b_size) {
@@ -2877,7 +2892,9 @@ EBADF  Invalid directory stream descriptor fi->fh
       fuse_reply_buf(req, b, 0);
     }
 
-    eos_static_debug("size=%lu off=%llu reply-size=%lu", size, off, b_size);
+    if (EOS_LOGS_DEBUG) {
+      eos_static_debug("size=%lu off=%llu reply-size=%lu", size, off, b_size);
+    }
   }
 
   EXEC_TIMING_END(__func__);

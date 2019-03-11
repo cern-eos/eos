@@ -171,12 +171,13 @@ int
 backend::getMD(fuse_req_t req,
                const std::string& path,
                std::vector<eos::fusex::container>& contv,
+               bool listing,
                std::string authid
               )
 /* -------------------------------------------------------------------------- */
 {
   // return's the inode of path in inode and rc=0 for success, otherwise errno
-  std::string requestURL = getURL(req, path, "GET", authid);
+  std::string requestURL = getURL(req, path, listing ? "LS" : "GET", authid);
   return fetchResponse(requestURL, contv);
 }
 

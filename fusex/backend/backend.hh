@@ -49,6 +49,7 @@ public:
   int getMD(fuse_req_t req,
             const std::string& path,
             std::vector<eos::fusex::container>& cont,
+	    bool listing,
             std::string authid = ""
            );
 

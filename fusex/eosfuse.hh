@@ -28,6 +28,8 @@
 #include "misc/MacOSXHelper.hh"
 #include "common/AssistedThread.hh"
 #include "common/LinuxTotalMem.hh"
+#include "common/Murmur3.hh"
+
 #include "stat/Stat.hh"
 #include "md/md.hh"
 #include "cap/cap.hh"
@@ -46,6 +48,9 @@
 #include <string.h>
 #include <string>
 #include <thread>
+
+#include <google/dense_hash_set>
+#include <google/dense_hash_map>
 
 class EosFuse : public llfusexx::FuseBase<EosFuse>
 {
@@ -330,12 +335,24 @@ public:
   }
 
   typedef struct opendir_fh {
+    // typedef google::dense_hash_map <std::string, uint64_t , Murmur3::MurmurHasher<std::string> > ChildMap;
+    // typedef google::dense_hash_set<std::string>  ChildSet;
+    typedef std::set<std::string>  ChildSet;
+    typedef std::map <std::string, uint64_t> ChildMap;
+
     opendir_fh() {
       pmd_mtime.tv_sec = pmd_mtime.tv_nsec = 0;
+      //      readdir_items.set_empty_key("");
+      //      pmd_children.set_empty_key("");
+      next_offset=0;
     }
+
     metad::shared_md md;
-    std::set<std::string> readdir_items;
-    std::map<std::string, uint64_t> pmd_children;
+
+    ChildSet readdir_items;
+    ChildMap pmd_children;
+    ChildMap::iterator pmd_children_it;
+
     struct timespec pmd_mtime;
     off_t next_offset;
     XrdSysMutex items_lock;
