@@ -191,20 +191,11 @@ Storage::Publish(ThreadAssistant &assistant)
     }
     time_t now = time(NULL);
     gettimeofday(&tv1, &tz);
-    // TODO: derive this from a global variable
-    int PublishInterval = 10;
-    {
-      XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
-      PublishInterval = eos::fst::Config::gConfig.PublishInterval;
-    }
 
-    if ((PublishInterval < 2) || (PublishInterval > 3600)) {
-      // default to 10 +- 5 seconds
-      PublishInterval = 10;
-    }
+    std::chrono::seconds PublishInterval = eos::fst::Config::gConfig.getPublishInterval();
 
-    unsigned int lReportIntervalMilliSeconds = (PublishInterval * 500) +
-        (unsigned int)((PublishInterval * 1000.0) * rand() / RAND_MAX);
+    unsigned int lReportIntervalMilliSeconds = (PublishInterval.count() * 500) +
+        (unsigned int)((PublishInterval.count() * 1000.0) * rand() / RAND_MAX);
     eos::common::LinuxStat::linux_stat_t osstat;
 
     if (!eos::common::LinuxStat::GetStat(osstat)) {

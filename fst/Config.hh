@@ -30,6 +30,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 #include <atomic>
+#include <chrono>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -69,6 +70,7 @@ public:
 
   XrdOucString& getFstNodeConfigQueue(const std::string& location = "");
   void setFstNodeConfigQueue(const XrdOucString& value);
+  std::chrono::seconds getPublishInterval();
 
 private:
   XrdOucString

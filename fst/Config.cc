@@ -49,4 +49,17 @@ void Config::setFstNodeConfigQueue(const XrdOucString& value)
   configQueueInitialized = true;
 }
 
+std::chrono::seconds Config::getPublishInterval() {
+  XrdSysMutexHelper lock(Mutex);
+  int localInterval = PublishInterval;
+  lock.UnLock();
+
+  if(localInterval < 2 || localInterval > 3600) {
+    // Strange value, default to 10
+    return std::chrono::seconds(10);
+  }
+
+  return std::chrono::seconds(localInterval);
+}
+
 EOSFSTNAMESPACE_END
