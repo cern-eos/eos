@@ -344,10 +344,8 @@ Storage::Publish(ThreadAssistant &assistant)
           success &= mFsVect[i]->SetString("stat.boot",
                                            mFsVect[i]->GetStatusAsString(mFsVect[i]->GetStatus()));
           success &= mFsVect[i]->SetString("stat.geotag", lNodeGeoTag.c_str());
-          struct timeval tvfs;
-          gettimeofday(&tvfs, &tz);
-          size_t nowms = tvfs.tv_sec * 1000 + tvfs.tv_usec / 1000;
-          success &= mFsVect[i]->SetLongLong("stat.publishtimestamp", nowms);
+          success &= mFsVect[i]->SetLongLong("stat.publishtimestamp",
+            eos::common::getEpochInMilliseconds().count());
           success &= mFsVect[i]->SetLongLong("stat.drainer.running",
                                              mFsVect[i]->GetDrainQueue()->GetRunningAndQueued());
           success &= mFsVect[i]->SetLongLong("stat.balancer.running",
