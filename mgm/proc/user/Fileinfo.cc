@@ -796,14 +796,14 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
         eos::common::FileSystem::fs_snapshot_t fs;
 
         if (filesystem->SnapShotFileSystem(fs, true)) {
-          XrdOucString physicalpath;
+          XrdOucString fstpath;
           eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(), fs.mPath.c_str(),
-                                                  physicalpath);
+                                                  fstpath);
           jsonfsinfo["fsid"] = fs.mId;
           jsonfsinfo["geotag"] = fs.mGeoTag;
           jsonfsinfo["host"] = fs.mHost;
           jsonfsinfo["mountpoint"] = fs.mPath;
-          jsonfsinfo["physicalpath"] = physicalpath.c_str();
+          jsonfsinfo["fstpath"] = fstpath.c_str();
           jsonfsinfo["schedgroup"] = fs.mGroup;
           jsonfsinfo["status"] = eos::common::FileSystem::GetStatusAsString(fs.mStatus);
           jsonfsids.append(jsonfsinfo);
