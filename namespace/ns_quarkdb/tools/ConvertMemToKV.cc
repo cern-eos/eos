@@ -861,7 +861,7 @@ ConvertQuotaView::commitToBackend()
       quota_map.hset_async(field, info.physicalSpace, &ah);
       field = elem.first + quota::sLogicalSize;
       quota_map.hset_async(field, info.space, &ah);
-      field = elem.first + quota::sPhysicalSize;
+      field = elem.first + quota::sNumFiles;
       quota_map.hset_async(field, info.files, &ah);
     }
 
