@@ -657,15 +657,24 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
 class QuotaNodeFilter : public ExpansionDecider
 {
 public:
+  QuotaNodeFilter(uint64_t root) : rootContainer(root) {}
+
   virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto& proto,
                                      const eos::IContainerMD::XAttrMap& attrs) override
   {
+    if(proto.id() == rootContainer) {
+      return true; // always expand root, no matter what
+    }
+
     if ((proto.flags() & eos::QUOTA_NODE_FLAG) == 0) {
       return true; // not a quota node, continue
     }
 
     return false; // quota node, ignore
   }
+
+private:
+  uint64_t rootContainer;
 };
 
 //------------------------------------------------------------------------------
@@ -699,7 +708,7 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
 
   ExplorationOptions options;
   options.depthLimit = 2048;
-  options.expansionDecider.reset(new QuotaNodeFilter());
+  options.expansionDecider.reset(new QuotaNodeFilter(cont->getId()));
   NamespaceExplorer explorer(gOFS->eosView->getUri(cont.get()),
                              options,
                              *eos::BackendClient::getInstance(gOFS->mQdbContactDetails,
