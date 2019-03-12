@@ -16,6 +16,26 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.4.28 Citrine``
+===================
+
+2019-03-12
+
+Bug
+----
+
+* Fix bug in the namespace conversion tool when computing the quota nodes
+* Fix bug in the QuotaNodeCode copy constructor which was preventing a quota
+  node recomputation
+* [EOS-3316] - Namespace conversion tool suffers from high lock contention on releases 4.4.26, 4.4.27
+
+Improvements
+------------
+
+* Refactor the FuseServer code into various functional pieces
+* Use std::mutex for conversion tool rather than RWMutex which hinders performance
+
+
 ``v4.4.27 Citrine``
 ===================
 
