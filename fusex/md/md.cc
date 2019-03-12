@@ -2430,6 +2430,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
   size_t cnt = 0;
   int interval = 10;
   bool shutdown = false;
+  bool first = true;
 
   while (!assistant.terminationRequested() || shutdown == false) {
     try {
@@ -2448,6 +2449,12 @@ metad::mdcommunicate(ThreadAssistant& assistant)
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
           continue;
         }
+
+	if (first) {
+	  // we want to see the first hearteat directly after startup
+	  first = false;
+	  break;
+	}
 
         // 10 milliseconds
         zmq_poll(items, 1, 10);
