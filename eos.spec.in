@@ -31,7 +31,7 @@
 %bcond_without asan
 
 # Define minimum required dependency for XRootD
-%define xrootd_version 1:4.9.0
+%define xrootd_version 1:4.8.2
 %define major_version @CPACK_PACKAGE_VERSION_MAJOR@
 
 #-------------------------------------------------------------------------------
