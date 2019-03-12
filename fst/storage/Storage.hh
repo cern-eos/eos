@@ -377,6 +377,17 @@ private:
   //----------------------------------------------------------------------------
   bool IsNodeActive() const;
 
+  //----------------------------------------------------------------------------
+  //! Check if the selected FST needs to be registered as "full" or "warning"
+  //! CAUTION: mFsMutex must be at-least-read locked before calling
+  //! this function.
+  //!
+  //! Parameter i is the index into mFsVect.
+  //----------------------------------------------------------------------------
+  void CheckFilesystemFullness(size_t index,
+    eos::common::FileSystem::fsid_t fsid);
+
+
 private:
   AssistedThread mCommunicatorThread;
   AssistedThread mQdbCommunicatorThread;

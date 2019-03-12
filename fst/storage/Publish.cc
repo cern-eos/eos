@@ -362,29 +362,7 @@ Storage::Publish(ThreadAssistant &assistant)
           success &= mFsVect[i]->SetString("stat.wopen.hotfiles",
                                              w_open_hotfiles.c_str());
 
-          {
-            long long fbytes = mFsVect[i]->GetLongLong("stat.statfs.freebytes");
-            XrdSysMutexHelper lock(mFsFullMapMutex);
-            // stop the writers if it get's critical under 5 GB space
-            int full_gb = 5;
-
-            if (getenv("EOS_FS_FULL_SIZE_IN_GB")) {
-              full_gb = atoi(getenv("EOS_FS_FULL_SIZE_IN_GB"));
-            }
-
-            if ((fbytes < full_gb * 1024ll * 1024ll * 1024ll)) {
-              mFsFullMap[fsid] = true;
-            } else {
-              mFsFullMap[fsid] = false;
-            }
-
-            if ((fbytes < 1024ll * 1024ll * 1024ll) ||
-                (fbytes <= mFsVect[i]->GetLongLong("headroom"))) {
-              mFsFullWarnMap[fsid] = true;
-            } else {
-              mFsFullWarnMap[fsid] = false;
-            }
-          }
+          CheckFilesystemFullness(i, fsid);
 
           if (!success) {
             eos_static_err("cannot set net parameters on filesystem %s",

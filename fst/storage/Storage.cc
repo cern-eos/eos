@@ -1014,4 +1014,38 @@ Storage::IsNodeActive() const
   }
 }
 
+//----------------------------------------------------------------------------
+// Check if the selected FST needs to be registered as "full" or "warning"
+// CAUTION: mFsMutex must be at-least-read locked before calling
+// this function.
+//
+// Parameter i is the index into mFsVect.
+//----------------------------------------------------------------------------
+void
+Storage::CheckFilesystemFullness(size_t index, eos::common::FileSystem::fsid_t fsid)
+{
+  long long freebytes = mFsVect[index]->GetLongLong("stat.statfs.freebytes");
+
+  XrdSysMutexHelper lock(mFsFullMapMutex);
+  // stop the writers if it get's critical under 5 GB space
+  int full_gb = 5;
+
+  if (getenv("EOS_FS_FULL_SIZE_IN_GB")) {
+    full_gb = atoi(getenv("EOS_FS_FULL_SIZE_IN_GB"));
+  }
+
+  if ((freebytes < full_gb * 1024ll * 1024ll * 1024ll)) {
+    mFsFullMap[fsid] = true;
+  } else {
+    mFsFullMap[fsid] = false;
+  }
+
+  if ((freebytes < 1024ll * 1024ll * 1024ll) ||
+      (freebytes <= mFsVect[index]->GetLongLong("headroom"))) {
+    mFsFullWarnMap[fsid] = true;
+  } else {
+    mFsFullWarnMap[fsid] = false;
+  }
+}
+
 EOSFSTNAMESPACE_END
