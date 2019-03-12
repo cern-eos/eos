@@ -270,13 +270,6 @@ Storage::Publish(ThreadAssistant &assistant)
             }
           }
 
-          // Copy out net info
-          success &= mFsVect[i]->SetDouble("stat.net.ethratemib",
-                                           netspeed / (8 * 1024 * 1024));
-          success &= mFsVect[i]->SetDouble("stat.net.inratemib",
-                                           mFstLoad.GetNetRate(lEthernetDev.c_str(), "rxbytes") / 1024.0 / 1024.0);
-          success &= mFsVect[i]->SetDouble("stat.net.outratemib",
-                                           mFstLoad.GetNetRate(lEthernetDev.c_str(), "txbytes") / 1024.0 / 1024.0);
           // Set current load stats, io-target specific implementation may override
           // fst load implementation
           {
