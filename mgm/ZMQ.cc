@@ -23,14 +23,14 @@
 
 #include "mgm/ZMQ.hh"
 #include "mgm/fusex.pb.h"
-#include "mgm/FuseServer.hh"
+#include "mgm/FuseServer/Server.hh"
 #include "common/Logging.hh"
 #include <thread>
 
 EOSMGMNAMESPACE_BEGIN
 
 int ZMQ::Task::sMaxThreads = 16;
-FuseServer ZMQ::gFuseServer;
+FuseServer::Server ZMQ::gFuseServer;
 
 //------------------------------------------------------------------------------
 // Start thread handling fuse server proxying

@@ -178,7 +178,11 @@ add_library(
   Features.cc
   ZMQ.cc
   FuseNotificationGuard.cc FuseNotificationGuard.hh
-  FuseServer.cc FuseServer.hh
+  FuseServer/Server.cc FuseServer/Server.hh
+  FuseServer/Clients.cc FuseServer/Clients.hh
+  FuseServer/Locks.cc FuseServer/Locks.hh
+  FuseServer/Caps.cc FuseServer/Caps.hh
+  FuseServer/Flush.cc FuseServer/Flush.hh
   fuse-locks/LockTracker.cc   fuse-locks/LockTracker.hh
   Master.cc
   QdbMaster.cc

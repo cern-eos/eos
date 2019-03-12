@@ -23,7 +23,7 @@
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "mgm/ZMQ.hh"
-#include "mgm/FuseServer.hh"
+#include "mgm/FuseServer/Server.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Access.hh"
 #include "mgm/Macros.hh"

@@ -1,11 +1,11 @@
 // ----------------------------------------------------------------------
-// File: Namespace.hh
+// File: FuseServer/Locks.hh
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2019 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,18 +21,46 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_NAMESPACE_HH__
-#define __EOSMGM_NAMESPACE_HH__
+#pragma once
 
-#define USE_EOSMGMNAMESPACE using namespace eos::mgm;
+#include "mgm/Namespace.hh"
+#include <map>
+#include <memory>
+#include "mgm/fuse-locks/LockTracker.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
-#define EOSMGMNAMESPACE_BEGIN namespace eos { namespace mgm {
-#define EOSMGMNAMESPACE_END }}
+EOSFUSESERVERNAMESPACE_BEGIN
+
+//----------------------------------------------------------------------------
+//! Class Lock
+//----------------------------------------------------------------------------
+
+class Lock : XrdSysMutex
+{
+public:
+
+  Lock() = default;
+
+  virtual ~Lock() = default;
+
+  typedef std::shared_ptr<LockTracker> shared_locktracker;
+
+  typedef std::map<uint64_t, shared_locktracker > lockmap_t;
+
+  shared_locktracker getLocks(uint64_t id);
+
+  void purgeLocks();
+
+  int dropLocks(uint64_t id, pid_t pid);
+
+  int dropLocks(const std::string& owner);
+
+  int lsLocks(const std::string& owner,
+              std::map<uint64_t, std::set<pid_t>>&rlocks,
+              std::map<uint64_t, std::set<pid_t>>&wlocks);
+private:
+  lockmap_t lockmap;
+};
 
 
-#define USE_EOSFUSESERVERNAMESPACE using namespace eos::mgm::FuseServer;
-
-#define EOSFUSESERVERNAMESPACE_BEGIN namespace eos { namespace mgm { namespace FuseServer {
-#define EOSFUSESERVERNAMESPACE_END }}}
-
-#endif
+EOSFUSESERVERNAMESPACE_END

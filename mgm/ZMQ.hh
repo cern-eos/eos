@@ -25,7 +25,7 @@
 #define __EOSMGM_ZMQ__HH__
 
 #include "mgm/Namespace.hh"
-#include "mgm/FuseServer.hh"
+#include "mgm/FuseServer/Server.hh"
 #include <thread>
 #include <vector>
 #include <zmq.hpp>
@@ -40,7 +40,7 @@ class ZMQ
 {
 public:
   class Task;
-  static FuseServer gFuseServer; ///< Fuse server object
+  static FuseServer::Server gFuseServer; ///< Fuse server object
 
   //----------------------------------------------------------------------------
   //! Constructor

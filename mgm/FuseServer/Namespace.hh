@@ -29,10 +29,4 @@
 #define EOSMGMNAMESPACE_BEGIN namespace eos { namespace mgm {
 #define EOSMGMNAMESPACE_END }}
 
-
-#define USE_EOSFUSESERVERNAMESPACE using namespace eos::mgm::FuseServer;
-
-#define EOSFUSESERVERNAMESPACE_BEGIN namespace eos { namespace mgm { namespace FuseServer {
-#define EOSFUSESERVERNAMESPACE_END }}}
-
 #endif
