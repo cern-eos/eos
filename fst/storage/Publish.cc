@@ -160,7 +160,7 @@ void
 Storage::Publish(ThreadAssistant &assistant)
 {
   eos_static_info("Publisher activated ...");
-  struct timeval tv1, tv2;
+  struct timeval tv1;
   struct timezone tz;
   // Get our network speed
   char tmp_name[] = "/tmp/fst.publish.XXXXXX";
@@ -189,16 +189,17 @@ Storage::Publish(ThreadAssistant &assistant)
   // until the config queue becomes known.
   eos::fst::Config::gConfig.getFstNodeConfigQueue("Publish");
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
-  eos::common::FileSystem::fsid_t fsid = 0;
 
   while (true) {
     std::string publish_uptime = getUptime(tmp_name);
     std::string publish_sockets = getNumberOfTCPSockets(tmp_name);
 
+    std::chrono::milliseconds cycleStart = eos::common::getEpochInMilliseconds();
+
     time_t now = time(NULL);
     gettimeofday(&tv1, &tz);
 
-    std::chrono::milliseconds lReportIntervalMilliSeconds =
+    std::chrono::milliseconds randomizedReportInterval =
       eos::fst::Config::gConfig.getRandomizedPublishInterval();
 
     eos::common::LinuxStat::linux_stat_t osstat;
@@ -223,6 +224,7 @@ Storage::Publish(ThreadAssistant &assistant)
             continue;
           }
 
+          eos::common::FileSystem::fsid_t fsid = 0;
           if (!(fsid = mFsVect[i]->GetId())) {
             // during the boot phase we can find a filesystem without ID
             continue;
@@ -440,18 +442,18 @@ Storage::Publish(ThreadAssistant &assistant)
       }
     }
 
-    gettimeofday(&tv2, &tz);
-    int lCycleDuration = (int)((tv2.tv_sec * 1000.0) - (tv1.tv_sec * 1000.0) +
-                               (tv2.tv_usec / 1000.0) - (tv1.tv_usec / 1000.0));
-    int lSleepTime = lReportIntervalMilliSeconds.count() - lCycleDuration;
-    eos_static_debug("msg=\"publish interval\" %d %d", lReportIntervalMilliSeconds.count(),
-                     lCycleDuration);
+    std::chrono::milliseconds cycleEnd = eos::common::getEpochInMilliseconds();
+    std::chrono::milliseconds cycleDuration = cycleEnd - cycleStart;
+    std::chrono::milliseconds sleepTime = randomizedReportInterval - cycleDuration;
 
-    if (lSleepTime < 0) {
+    eos_static_debug("msg=\"publish interval\" %d %d",
+      randomizedReportInterval.count(), cycleDuration.count());
+
+    if (cycleDuration > randomizedReportInterval) {
       eos_static_warning("Publisher cycle exceeded %d millisecons - took %d milliseconds",
-                         lReportIntervalMilliSeconds.count(), lCycleDuration);
+                         randomizedReportInterval.count(), cycleDuration.count());
     } else {
-      assistant.wait_for(std::chrono::seconds(lSleepTime / 1000));
+      assistant.wait_for(sleepTime);
     }
   }
 
