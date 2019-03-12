@@ -335,15 +335,11 @@ public:
   }
 
   typedef struct opendir_fh {
-    // typedef google::dense_hash_map <std::string, uint64_t , Murmur3::MurmurHasher<std::string> > ChildMap;
-    // typedef google::dense_hash_set<std::string>  ChildSet;
     typedef std::set<std::string>  ChildSet;
     typedef std::map <std::string, uint64_t> ChildMap;
 
     opendir_fh() {
       pmd_mtime.tv_sec = pmd_mtime.tv_nsec = 0;
-      //      readdir_items.set_empty_key("");
-      //      pmd_children.set_empty_key("");
       next_offset=0;
     }
 
