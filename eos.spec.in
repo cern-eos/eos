@@ -75,7 +75,7 @@ BuildRequires: cmake3 >= 3.3
 %define cmake_cmd cmake3
 %endif
 BuildRequires: xrootd >= %{xrootd_version_min}, xrootd < %{xrootd_version_max}
-BuildRequires: xrootd-client-devel >= %{xrootd_version_min}, xrootd-client-devl < %{xrootd_version_max}
+BuildRequires: xrootd-client-devel >= %{xrootd_version_min}, xrootd-client-devel < %{xrootd_version_max}
 BuildRequires: xrootd-server-devel >= %{xrootd_version_min}, xrootd-server-devel < %{xrootd_version_max}
 BuildRequires: xrootd-private-devel >= %{xrootd_version_min}, xrootd-private-devel < %{xrootd_version_max}
 BuildRequires: git, readline-devel
@@ -191,9 +191,9 @@ rm -rf $RPM_BUILD_ROOT
 Summary: The EOS server installation
 Group: Applications/File
 
-Requires: xrootd >= %{xrootd_version}, xrootd < %{xrootd_version_max}
-Requires: xrootd-client >= %{xrootd_version}, xrootd-client < %{xrootd_version_max}
-Requires: xrootd-private-devel >= %{xrootd_version}, xrootd_private_devel < %{xrootd_version_max}
+Requires: xrootd >= %{xrootd_version_min}, xrootd < %{xrootd_version_max}
+Requires: xrootd-client >= %{xrootd_version_min}, xrootd-client < %{xrootd_version_max}
+Requires: xrootd-private-devel >= %{xrootd_version_min}, xrootd_private_devel < %{xrootd_version_max}
 Requires: eos-client = @CPACK_PACKAGE_VERSION@
 Requires: libmicrohttpd >= 0.9.38
 Requires: acl
@@ -353,7 +353,7 @@ fi
 Summary: The EOS shell client
 Group: Applications/File
 
-Requires: xrootd-client >= %{xrootd_version}, xrootd-client < %{xrootd_version_max}
+Requires: xrootd-client >= %{xrootd_version_min}, xrootd-client < %{xrootd_version_max}
 %if %{?fedora}%{!?fedora:0} >= 27
 Requires: protobuf >= 3.3
 %else
@@ -423,7 +423,7 @@ The new EOS fuse client bundle.
 Summary: The EOS fuse client
 Group: Applications/File
 
-Requires: xrootd-client >= %{xrootd_version}, xrootd-client < %{xrootd_version_max}
+Requires: xrootd-client >= %{xrootd_version_min}, xrootd-client < %{xrootd_version_max}
 Requires: eos-client = @CPACK_PACKAGE_VERSION@
 Requires: fuse
 Requires: jemalloc
@@ -569,7 +569,7 @@ The new EOS fuse client bundle.
 Summary: The new EOS fuse client
 Group: Applications/File
 
-Requires: xrootd-client >= %{xrootd_version}, xrootd-client < %{xrootd_version_max}
+Requires: xrootd-client >= %{xrootd_version_min}, xrootd-client < %{xrootd_version_max}
 Requires: eos-client = @CPACK_PACKAGE_VERSION@
 Requires: fuse
 Requires: jemalloc
@@ -675,7 +675,7 @@ Summary: The EOS archive daemon
 Group: Applications/File
 
 Requires: python-daemon python-zmq
-Requires: xrootd-python >= %{xrootd_version}, xrootd-python < %{xrootd_version_max}
+Requires: xrootd-python >= %{xrootd_version_min}, xrootd-python < %{xrootd_version_max}
 
 %description -n eos-archive
 The EOS archive daemon.
