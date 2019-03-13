@@ -209,4 +209,20 @@ QuotaNodeCore& QuotaNodeCore::operator=(const QuotaNodeCore& other)
   return *this;
 }
 
+//------------------------------------------------------------------------------
+// equality operator==
+//------------------------------------------------------------------------------
+bool QuotaNodeCore::operator==(const QuotaNodeCore& other) const
+{
+  std::lock(mtx, other.mtx);
+
+  bool result = mUserInfo == other.mUserInfo && mGroupInfo == other.mGroupInfo;
+
+  mtx.unlock();
+  other.mtx.unlock();
+
+  return result;
+}
+
+
 EOSNSNAMESPACE_END

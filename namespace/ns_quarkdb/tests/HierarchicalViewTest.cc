@@ -26,10 +26,12 @@
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb/tests/TestUtils.hh"
+#include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
 #include "namespace/utils/TestHelpers.hh"
 #include "namespace/utils/RmrfHelper.hh"
 #include "namespace/Resolver.hh"
 #include "namespace/utils/RenameSafetyCheck.hh"
+#include "common/LayoutId.hh"
 #include <algorithm>
 #include <cstdint>
 #include <memory>
@@ -572,4 +574,191 @@ TEST_F(HierarchicalViewF, AddContainerWithConflicts)
   ASSERT_THROW(cont1->addContainer(cont3.get()),
                eos::MDException); // conflicts with file
   cont1->addContainer(cont4.get()); // conflicts with itself, thus, no conflict
+}
+
+TEST_F(HierarchicalViewF, QuotaRecomputation)
+{
+  eos::IContainerMDPtr quota1 = view()->createContainer("/quota1", true);
+  eos::IContainerMDPtr quota2 = view()->createContainer("/quota2", true);
+  eos::IContainerMDPtr quota3 = view()->createContainer("/quota1/quota3", true);
+
+  eos::IContainerMDPtr notquota1 = view()->createContainer("/not-a-quota", true);
+  eos::IContainerMDPtr notquota2 = view()->createContainer("/quota1/not-a-quota-either", true);
+
+  containerSvc()->updateStore(quota1.get());
+  containerSvc()->updateStore(quota2.get());
+  containerSvc()->updateStore(quota3.get());
+
+  unsigned long layoutId = eos::common::LayoutId::GetId(
+    eos::common::LayoutId::kReplica,
+    eos::common::LayoutId::kMD5,
+    2,
+    eos::common::LayoutId::k4k);
+
+  for(size_t i = 0; i < 10; i++) {
+    eos::IFileMDPtr file = view()->createFile(SSTR("/quota1/f" << i), true);
+    file->setSize(1337);
+    file->setLayoutId(layoutId);
+    file->setCUid(i % 4);
+    file->setCGid(i % 2);
+    fileSvc()->updateStore(file.get());
+  }
+
+  layoutId = eos::common::LayoutId::GetId(
+    eos::common::LayoutId::kReplica,
+    eos::common::LayoutId::kMD5,
+    3,
+    eos::common::LayoutId::k4k);
+
+  for(size_t i = 0; i < 15; i++) {
+    eos::IFileMDPtr file = view()->createFile(SSTR("/quota1/quota3/f" << i), true);
+    file->setSize(1338);
+    file->setLayoutId(layoutId);
+    file->setCUid(100);
+    file->setCGid(200);
+    fileSvc()->updateStore(file.get());
+  }
+
+  layoutId = eos::common::LayoutId::GetId(
+    eos::common::LayoutId::kReplica,
+    eos::common::LayoutId::kMD5,
+    5,
+    eos::common::LayoutId::k4k);
+
+  for(size_t i = 0; i < 17; i++) {
+    eos::IFileMDPtr file = view()->createFile(SSTR("/quota2/f" << i), true);
+    file->setSize(133);
+    file->setLayoutId(layoutId);
+    file->setCUid(i);
+    file->setCGid(9000);
+    fileSvc()->updateStore(file.get());
+  }
+
+  mdFlusher()->synchronize();
+
+  eos::QuotaNodeCore qnc;
+  eos::QuotaRecomputer recomputer(view(), &(qcl()));
+
+  eos::MDStatus status = recomputer.recompute(notquota1, qnc);
+  ASSERT_FALSE(status.ok());
+  ASSERT_EQ(status.getErrno(), EINVAL);
+  ASSERT_EQ(status.getError(), "Specified directory is not a quota node");
+
+  status = recomputer.recompute(notquota2, qnc);
+  ASSERT_FALSE(status.ok());
+  ASSERT_EQ(status.getErrno(), EINVAL);
+  ASSERT_EQ(status.getError(), "Specified directory is not a quota node");
+
+  // Simple, non-nested case first: quota2
+  eos::IQuotaNode* qn2 = view()->registerQuotaNode(quota2.get());
+  ASSERT_NE(qn2, nullptr);
+
+  status = recomputer.recompute(quota2, qnc);
+  ASSERT_TRUE(status.ok());
+  ASSERT_EQ(status.getErrno(), 0);
+  ASSERT_EQ(status.getError(), "");
+
+  for(size_t i = 0; i < 17; i++) {
+    ASSERT_EQ(qnc.getUsedSpaceByUser(i), 133);
+    ASSERT_EQ(qnc.getPhysicalSpaceByUser(i), 133 * 5);
+    ASSERT_EQ(qnc.getNumFilesByUser(i), 1);
+
+    ASSERT_EQ(qnc.getUsedSpaceByGroup(i), 0);
+    ASSERT_EQ(qnc.getPhysicalSpaceByGroup(i), 0);
+    ASSERT_EQ(qnc.getNumFilesByGroup(i), 0);
+  }
+
+  ASSERT_EQ(qnc.getUsedSpaceByGroup(9000), 17 * 133);
+  ASSERT_EQ(qnc.getPhysicalSpaceByGroup(9000), 17 * 133 * 5);
+  ASSERT_EQ(qnc.getNumFilesByGroup(9000), 17);
+
+  // quota1 + quota3
+  eos::IQuotaNode* qn1p3 = view()->registerQuotaNode(quota1.get());
+  ASSERT_NE(qn1p3, nullptr);
+
+  status = recomputer.recompute(quota1, qnc);
+  ASSERT_TRUE(status.ok());
+  ASSERT_EQ(status.getErrno(), 0);
+  ASSERT_EQ(status.getError(), "");
+
+  // uid0 and uid1 have 3 files each
+  for(size_t i = 0; i < 2; i++) {
+    ASSERT_EQ(qnc.getUsedSpaceByUser(i), 1337 * 3);
+    ASSERT_EQ(qnc.getPhysicalSpaceByUser(i), 1337 * 3 * 2);
+    ASSERT_EQ(qnc.getNumFilesByUser(i), 3);
+  }
+
+  // uid2 and uid3 and 2 files each
+  for(size_t i = 2; i < 4; i++) {
+    ASSERT_EQ(qnc.getUsedSpaceByUser(i), 1337 * 2);
+    ASSERT_EQ(qnc.getPhysicalSpaceByUser(i), 1337 * 2 * 2);
+    ASSERT_EQ(qnc.getNumFilesByUser(i), 2);
+  }
+
+  // gid0 and gid1 have 5 each
+  for(size_t i = 0; i < 2; i++) {
+    ASSERT_EQ(qnc.getUsedSpaceByGroup(i), 1337 * 5);
+    ASSERT_EQ(qnc.getPhysicalSpaceByGroup(i), 1337 * 2 * 5);
+    ASSERT_EQ(qnc.getNumFilesByGroup(i), 5);
+  }
+
+  ASSERT_EQ(qnc.getUsedSpaceByUser(100), 1338 * 15);
+  ASSERT_EQ(qnc.getPhysicalSpaceByUser(100), 1338 * 15 * 3);
+  ASSERT_EQ(qnc.getNumFilesByUser(100), 15);
+
+  ASSERT_EQ(qnc.getUsedSpaceByGroup(200), 1338 * 15);
+  ASSERT_EQ(qnc.getPhysicalSpaceByGroup(200), 1338 * 15 * 3);
+  ASSERT_EQ(qnc.getNumFilesByGroup(200), 15);
+
+  // register quota3, measure
+  eos::IQuotaNode* qn3 = view()->registerQuotaNode(quota3.get());
+  ASSERT_NE(qn3, nullptr);
+
+  status = recomputer.recompute(quota3, qnc);
+  ASSERT_TRUE(status.ok());
+  ASSERT_EQ(status.getErrno(), 0);
+  ASSERT_EQ(status.getError(), "");
+
+  ASSERT_EQ(qnc.getUsedSpaceByUser(100), 1338 * 15);
+  ASSERT_EQ(qnc.getPhysicalSpaceByUser(100), 1338 * 15 * 3);
+  ASSERT_EQ(qnc.getNumFilesByUser(100), 15);
+
+  ASSERT_EQ(qnc.getUsedSpaceByGroup(200), 1338 * 15);
+  ASSERT_EQ(qnc.getPhysicalSpaceByGroup(200), 1338 * 15 * 3);
+  ASSERT_EQ(qnc.getNumFilesByGroup(200), 15);
+
+  // measure quota1 _on its own_, without embedded quota3
+  status = recomputer.recompute(quota1, qnc);
+  ASSERT_TRUE(status.ok());
+  ASSERT_EQ(status.getErrno(), 0);
+  ASSERT_EQ(status.getError(), "");
+
+  // uid0 and uid1 have 3 files each
+  for(size_t i = 0; i < 2; i++) {
+    ASSERT_EQ(qnc.getUsedSpaceByUser(i), 1337 * 3);
+    ASSERT_EQ(qnc.getPhysicalSpaceByUser(i), 1337 * 3 * 2);
+    ASSERT_EQ(qnc.getNumFilesByUser(i), 3);
+  }
+
+  // uid2 and uid3 and 2 files each
+  for(size_t i = 2; i < 4; i++) {
+    ASSERT_EQ(qnc.getUsedSpaceByUser(i), 1337 * 2);
+    ASSERT_EQ(qnc.getPhysicalSpaceByUser(i), 1337 * 2 * 2);
+    ASSERT_EQ(qnc.getNumFilesByUser(i), 2);
+  }
+
+  // gid0 and gid1 have 5 each
+  for(size_t i = 0; i < 2; i++) {
+    ASSERT_EQ(qnc.getUsedSpaceByGroup(i), 1337 * 5);
+    ASSERT_EQ(qnc.getPhysicalSpaceByGroup(i), 1337 * 2 * 5);
+    ASSERT_EQ(qnc.getNumFilesByGroup(i), 5);
+  }
+
+  ASSERT_EQ(qnc.getUsedSpaceByUser(100), 0);
+  ASSERT_EQ(qnc.getPhysicalSpaceByUser(100), 0);
+  ASSERT_EQ(qnc.getNumFilesByUser(100), 0);
+
+  ASSERT_EQ(qnc.getUsedSpaceByGroup(200), 0);
+  ASSERT_EQ(qnc.getPhysicalSpaceByGroup(200), 0);
+  ASSERT_EQ(qnc.getNumFilesByGroup(200), 0);
 }

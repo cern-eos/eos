@@ -94,6 +94,8 @@ add_library(
   ns_quarkdb/persistency/MetadataProvider.cc              ns_quarkdb/persistency/MetadataProvider.hh
   ns_quarkdb/persistency/RequestBuilder.cc                ns_quarkdb/persistency/RequestBuilder.hh
 
+  ns_quarkdb/utils/QuotaRecomputer.cc                     ns_quarkdb/utils/QuotaRecomputer.hh
+
   ns_quarkdb/views/HierarchicalView.cc                    ns_quarkdb/views/HierarchicalView.hh
 
   ns_quarkdb/BackendClient.cc                             ns_quarkdb/BackendClient.hh

@@ -135,6 +135,11 @@ public:
   //----------------------------------------------------------------------------
   QuotaNodeCore& operator=(const QuotaNodeCore&);
 
+  //----------------------------------------------------------------------------
+  //! equality operator==
+  //----------------------------------------------------------------------------
+  bool operator==(const QuotaNodeCore& other) const;
+
 private:
   friend class IQuotaNode;
   friend class QuotaNode;
