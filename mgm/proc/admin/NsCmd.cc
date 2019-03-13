@@ -33,6 +33,7 @@
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
+#include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
 #include "namespace/Resolver.hh"
 #include "namespace/Constants.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -651,33 +652,6 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
 }
 
 //------------------------------------------------------------------------------
-// Filtering class for NamespaceExplorer to ignore sub-quotanodes when
-// recomputing a quotanode.
-//------------------------------------------------------------------------------
-class QuotaNodeFilter : public ExpansionDecider
-{
-public:
-  QuotaNodeFilter(uint64_t root) : rootContainer(root) {}
-
-  virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto& proto,
-                                     const eos::IContainerMD::XAttrMap& attrs) override
-  {
-    if(proto.id() == rootContainer) {
-      return true; // always expand root, no matter what
-    }
-
-    if ((proto.flags() & eos::QUOTA_NODE_FLAG) == 0) {
-      return true; // not a quota node, continue
-    }
-
-    return false; // quota node, ignore
-  }
-
-private:
-  uint64_t rootContainer;
-};
-
-//------------------------------------------------------------------------------
 // Execute quota size recompute comand
 //------------------------------------------------------------------------------
 void
@@ -694,43 +668,16 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
     return;
   }
 
-  if ((cont->getFlags() & eos::QUOTA_NODE_FLAG) == 0) {
-    reply.set_std_err("Specified directory is not a quota node.");
-    reply.set_retc(EINVAL);
-    return;
-  }
+  eos::QuotaRecomputer recomputer(gOFS->eosView,
+    eos::BackendClient::getInstance(gOFS->mQdbContactDetails, "quota-recomputation"));
 
-  if (gOFS->eosView->inMemory()) {
-    reply.set_std_err("Command only available for QDB namespace.");
-    reply.set_retc(EINVAL);
-    return;
-  }
-
-  ExplorationOptions options;
-  options.depthLimit = 2048;
-  options.expansionDecider.reset(new QuotaNodeFilter(cont->getId()));
-  NamespaceExplorer explorer(gOFS->eosView->getUri(cont.get()),
-                             options,
-                             *eos::BackendClient::getInstance(gOFS->mQdbContactDetails,
-                                 "quota-recomputation")
-                            );
-  NamespaceItem item;
   QuotaNodeCore qnc;
+  eos::MDStatus status = recomputer.recompute(cont, qnc);
 
-  while (explorer.fetch(item)) {
-    if (item.isFile) {
-      // Calculate physical size
-      uint64_t logicalSize = item.fileMd.size();
-      uint64_t physicalSize = item.fileMd.size() *
-                              eos::common::LayoutId::GetSizeFactor(item.fileMd.layout_id());
-      // Account file.
-      qnc.addFile(
-        item.fileMd.uid(),
-        item.fileMd.gid(),
-        logicalSize,
-        physicalSize
-      );
-    }
+  if(!status.ok()) {
+    reply.set_std_err(status.getError());
+    reply.set_retc(status.getErrno());
+    return;
   }
 
   try {
