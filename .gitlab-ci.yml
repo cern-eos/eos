@@ -580,7 +580,7 @@ publish_koji_cc7:
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y sssd-client
-    - yum install -y koji --disablerepo=extras
+    - yum install -y koji
     - mkdir ~/.koji
     - echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
@@ -598,7 +598,7 @@ publish_koji_slc6:
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y sssd-client
-    - yum install -y koji --disablerepo=extras
+    - yum install -y koji
     - mkdir ~/.koji
     - echo -e '[koji]\nserver = https://kojihub.cern.ch/kojihub\nweburl = https://koji.cern.ch/\ntopurl = https://koji.cern.ch/kojifiles\nkrb_canon_host = no\nkrb_rdns = False\n' >> ~/.koji/config
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
