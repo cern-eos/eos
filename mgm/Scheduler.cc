@@ -169,9 +169,17 @@ Scheduler::FilePlacement(PlacementArguments* args)
   for (unsigned int groupindex = 0;
        groupindex < FsView::gFsView.mSpaceGroupView[*args->spacename].size() +
        groupsToTry.size(); groupindex++) {
-    // Rotate scheduling view ptr -  we select a random one
-    FsGroup* group = (groupindex < groupsToTry.size() ? groupsToTry[groupindex] :
-                      *git);
+    FsGroup* group = nullptr;
+
+    // Try first the forced scheduling group and fail if we cannot schedule there
+    if (args->forced_scheduling_group_index >= 0) {
+      group = *git;
+    } else {
+      // Rotate scheduling view ptr -  we select a random one
+      group = (groupindex < groupsToTry.size() ? groupsToTry[groupindex] :
+               *git);
+    }
+
     eos_static_debug("Trying GeoTree Placement on group: %s, total groups: %d, groupsToTry: %d ",
                      group->mName.c_str(), FsView::gFsView.mSpaceGroupView[*args->spacename].size(),
                      groupsToTry.size());
@@ -212,8 +220,15 @@ Scheduler::FilePlacement(PlacementArguments* args)
       eos_static_debug("placing replicas for %s in subgroup %s", args->path,
                        group->mName.c_str());
     } else {
-      eos_static_debug("could not place all replica(s) for %s in subgroup %s, "
-                       "checking next group", args->path, group->mName.c_str());
+      if (args->forced_scheduling_group_index >= 0) {
+        eos_static_debug("msg=\"could not place all replica(s) for %s in the "
+                         "forced subgroup %s\"", args->path, group->mName.c_str());
+        args->selected_filesystems->clear();
+        return ENOSPC;
+      } else {
+        eos_static_debug("msg=\"could not place all replica(s) for %s in subgroup %s, "
+                         "checking next group\"", args->path, group->mName.c_str());
+      }
     }
 
     if (groupindex >= groupsToTry.size()) {
