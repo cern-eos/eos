@@ -550,12 +550,14 @@ Server::FillContainerCAP(uint64_t id,
     // avoid to pile-up caps for the same client, delete previous ones
     eos::common::RWMutexReadLock lLock(Cap());
 
-    if (Cap().ClientInoCaps()[dir.clientid()].count(id)) {
-      for (auto it = Cap().ClientInoCaps()[dir.clientid()][id].begin();
-           it != Cap().ClientInoCaps()[dir.clientid()][id].end(); ++it) {
-        if (*it != reuse_uuid) {
-          duplicated_caps.insert(*it);
-        }
+    if (Cap().ClientInoCaps().count(dir.clientid())) {
+      if (Cap().ClientInoCaps()[dir.clientid()].count(id)) {
+	for (auto it = Cap().ClientInoCaps()[dir.clientid()][id].begin();
+	     it != Cap().ClientInoCaps()[dir.clientid()][id].end(); ++it) {
+	  if (*it != reuse_uuid) {
+	    duplicated_caps.insert(*it);
+	  }
+	}
       }
     }
   }
