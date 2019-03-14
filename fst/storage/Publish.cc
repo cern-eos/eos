@@ -160,8 +160,6 @@ void
 Storage::Publish(ThreadAssistant &assistant)
 {
   eos_static_info("Publisher activated ...");
-  struct timeval tv1;
-  struct timezone tz;
   // Get our network speed
   char tmp_name[] = "/tmp/fst.publish.XXXXXX";
   int tmp_fd = mkstemp(tmp_name);
@@ -198,9 +196,6 @@ Storage::Publish(ThreadAssistant &assistant)
     std::string publish_sockets = getNumberOfTCPSockets(tmp_name);
 
     std::chrono::steady_clock::time_point cycleStart = std::chrono::steady_clock::now();
-
-    time_t now = time(NULL);
-    gettimeofday(&tv1, &tz);
 
     std::chrono::milliseconds randomizedReportInterval =
       eos::fst::Config::gConfig.getRandomizedPublishInterval();

@@ -523,7 +523,7 @@ ScanDir::CheckFile(const char* filepath)
 }
 
 /*----------------------------------------------------------------------------*/
-eos::fst::CheckSum*
+std::unique_ptr<eos::fst::CheckSum>
 ScanDir::GetBlockXS(const char* filepath, unsigned long long maxfilesize)
 {
   unsigned long layoutid = 0;
@@ -548,8 +548,9 @@ ScanDir::GetBlockXS(const char* filepath, unsigned long long maxfilesize)
       layoutid = eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain,
                                               eos::common::LayoutId::kNone, 0,
                                               blockSizeSymbol, checksumtype);
-      eos::fst::CheckSum* checksum = eos::fst::ChecksumPlugins::GetChecksumObject(
-                                       layoutid, true);
+
+      std::unique_ptr<eos::fst::CheckSum> checksum =
+        eos::fst::ChecksumPlugins::GetChecksumObjectPtr(layoutid, true);
 
       if (checksum) {
         // get size of XS file
@@ -566,8 +567,7 @@ ScanDir::GetBlockXS(const char* filepath, unsigned long long maxfilesize)
         if (checksum->OpenMap(fileXSPath.c_str(), maxfilesize, blockSize, false)) {
           return checksum;
         } else {
-          delete checksum;
-          return NULL;
+          return nullptr;
         }
       } else {
         if (bgThread) {
@@ -578,11 +578,11 @@ ScanDir::GetBlockXS(const char* filepath, unsigned long long maxfilesize)
         }
       }
     } else {
-      return NULL;
+      return nullptr;
     }
   }
 
-  return NULL;
+  return nullptr;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -789,7 +789,6 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
   struct timezone tz;
   struct timeval opentime;
   struct timeval currenttime;
-  eos::fst::CheckSum* blockXS;
   scansize = 0;
   scantime = 0;
   filePath = io->GetPath();
@@ -803,7 +802,8 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
     return false;
   }
 
-  blockXS = GetBlockXS(fileXSPath.c_str(), current_stat.st_size);
+  std::unique_ptr<eos::fst::CheckSum> blockXS
+    = GetBlockXS(fileXSPath.c_str(), current_stat.st_size);
 
   if ((!normalXS) && (!blockXS)) {
     // there is nothing to do here
@@ -824,7 +824,6 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
     if (nread < 0) {
       if (blockXS) {
         blockXS->CloseMap();
-        delete blockXS;
       }
 
       return false;
@@ -940,7 +939,6 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
 
   if (blockXS) {
     blockXS->CloseMap();
-    delete blockXS;
   }
 
   normalXS.reset();
