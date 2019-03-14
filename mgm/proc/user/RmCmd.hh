@@ -5,7 +5,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2018 CERN/Switzerland                                  *
+ * Copyright (C) 2019 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -24,8 +24,8 @@
 
 #pragma once
 
-#include "mgm/proc/IProcCommand.hh"
 #include "mgm/Namespace.hh"
+#include "mgm/proc/IProcCommand.hh"
 #include "proto/ConsoleRequest.pb.h"
 
 EOSMGMNAMESPACE_BEGIN
@@ -53,6 +53,49 @@ public:
   //! asynchronous thread
   //----------------------------------------------------------------------------
   eos::console::ReplyProto ProcessRequest() noexcept override;
+
+private:
+
+  //----------------------------------------------------------------------------
+  //! Attempts to remove file.
+  //!
+  //! @param path the file path
+  //! @param force bypass recycling policies
+  //!
+  //! @return 0 on success, errno otherwise
+  //----------------------------------------------------------------------------
+  int RemoveFile(const std::string path, bool force);
+
+  //----------------------------------------------------------------------------
+  //! Attempts to remove directory.
+  //!
+  //! @param path the directory path
+  //! @param force bypass recycling policies
+  //! @param outMsg output message string
+  //! @param errMsg error message string
+  //!
+  //! @return 0 on success, errno otherwise
+  //----------------------------------------------------------------------------
+  int RemoveDirectory(const std::string path, bool force,
+                      std::string& outMsg,
+                      std::string& errMsg);
+
+
+  //----------------------------------------------------------------------------
+  //! Attempts to remove files matching a given filter.
+  //! Note: directories will not be removed
+  //!
+  //! @param path directory path where filter matching is applied
+  //! @param filter the filter to match against
+  //! @param force bypass recycling policies
+  //! @param errMsg error message string
+  //!
+  //! @return 0 on success, errno otherwise
+  //----------------------------------------------------------------------------
+  int RemoveFilterMatch(const std::string path,
+                        const std::string filter,
+                        bool force,
+                        std::string& errMsg);
 };
 
 EOSMGMNAMESPACE_END

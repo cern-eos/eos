@@ -84,48 +84,34 @@ RmHelper::ParseCommand(const char* arg)
   }
 
   auto path = option;
+  unsigned long long id;
 
-  do {
-    XrdOucString param = tokenizer.GetToken();
+  while (path.length()) {
+    auto identifier = rm->add_identifier();
 
-    if (param.length()) {
-      path += " ";
-      path += param;
-    } else {
-      break;
-    }
-  } while (true);
+    // Remove escaped blanks
+    while (path.replace("\\ ", " "));
 
-  // remove escaped blanks
-  while (path.replace("\\ ", " "));
-
-  if (path.length() == 0) {
-    return false;
-  }
-
-  auto id = 0ull;
-
-  if (Path2FileDenominator(path, id)) {
-    rm->set_fileid(id);
-    rm->set_recursive(false); // disable recursive option for files
-    path = "";
-  } else {
-    if (Path2ContainerDenominator(path, id)) {
-      rm->set_containerid(id);
-      path = "";
+    // Figure identifier
+    if (Path2FileDenominator(path, id)) {
+      identifier->set_fid(id);
+    } else if (Path2ContainerDenominator(path, id)) {
+      identifier->set_cid(id);
     } else {
       path = abspath(path.c_str());
-      rm->set_path(path.c_str());
+      identifier->set_path(path.c_str());
+
+      // Tag confirmation flag
+      if (rm->recursive()) {
+        eos::common::Path cPath(path.c_str());
+        mNeedsConfirmation |= (cPath.GetSubPathSize() < 4);
+      }
     }
+
+    path = tokenizer.GetToken();
   }
 
-  eos::common::Path cPath(path.c_str());
-
-  if (path.length()) {
-    mNeedsConfirmation = rm->recursive() && (cPath.GetSubPathSize() < 4);
-  }
-
-  return true;
+  return rm->identifier_size() > 0;
 }
 
 //------------------------------------------------------------------------------
@@ -169,21 +155,23 @@ int com_protorm(char* arg)
 void com_rm_help()
 {
   std::ostringstream oss;
-  oss << "Usage: rm [-r|-rf|-rF] [--no-recycle-bin|-F] [<path>|fid:<fid-dec>|fxid:<fid-hex>|cid:<cid-dec>|cxid:<cid-hex>]"
+  oss << "Usage: rm [-r|-rf|-rF] [--no-recycle-bin|-F] <identifier> [identifier...]"
       << std::endl
-      << "            -r | -rf : remove files/directories recursively" << std::endl
-      << "                     - the 'f' option is a convenience option with no additional functionality!"
+      <<"        <identifier> = <path>|fid:<fid-dec>|fxid:<fid-hex>|cid:<cid-dec>|cxid:<cid-hex>"
       << std::endl
-      << "                     - the recursive flag is automatically removed it the target is a file!"
-      << std::endl << std::endl
-      << " --no-recycle-bin|-F : remove bypassing recycling policies" << std::endl
-      << "                     - you have to take the root role to use this flag!"
-      << std::endl << std::endl
-      << "            -rF | Fr : remove files/directories recursively bypassing recycling policies"
+      << "Options:" << std::endl
+      << "                 -r | -rf : remove files/directories recursively" << std::endl
+      << "                          - the 'f' option is a convenience option with no additional functionality!"
       << std::endl
-      << "                     - you have to take the root role to use this flag!" <<
-      std::endl
-      << "                     - the recursive flag is automatically removed it the target is a file!"
+      << std::endl
+      << "    --no-recycle-bin | -F : remove bypassing recycling policies" << std::endl
+      << "                          - you have to take the root role to use this flag!" << std::endl
+      << std::endl
+      << "                 -rF | Fr : remove files/directories recursively bypassing recycling policies"
+      << std::endl
+      << "                          - you have to take the root role to use this flag!" << std::endl
+      << "Remarks:" <<std::endl
+      << "        Wildcards are expanded but only matching files will be deleted."
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }

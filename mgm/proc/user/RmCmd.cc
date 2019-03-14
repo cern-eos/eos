@@ -5,7 +5,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2018 CERN/Switzerland                                  *
+ * Copyright (C) 2019 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -22,12 +22,12 @@
  ************************************************************************/
 
 #include "RmCmd.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/Macros.hh"
 #include "mgm/Access.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/XrdMgmOfsDirectory.hh"
 #include "common/Path.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -36,332 +36,356 @@ eos::console::ReplyProto
 eos::mgm::RmCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
+  eos::console::RmProto rm = mReqProto.rm();
   std::ostringstream outStream;
   std::ostringstream errStream;
-  XrdOucString m_err {""};
-  int ret_c = 0;
-  eos::console::RmProto rm = mReqProto.rm();
+  XrdOucErrInfo errInfo;
+  int errPos = 0;
   auto recursive = rm.recursive();
   auto force = rm.bypassrecycle();
-  std::string spath;
 
-  if (rm.path().empty()) {
-    std::string pathOut;
-    std::string err_msg;
-
-    if (rm.fileid()) {
-      GetPathFromFid(pathOut, rm.fileid(), err_msg);
-    }
-
-    if (rm.containerid()) {
-      GetPathFromCid(pathOut, rm.containerid(), err_msg);
-    }
-
-    spath = pathOut;
-
-    if (!spath.length()) {
-      reply.set_std_err(err_msg);
-      reply.set_retc(ENOENT);
-      return reply;
-    }
-  } else {
-    spath = rm.path();
-  }
-
-  eos::mgm::NamespaceMap(spath, nullptr, mVid);
-  std::string err_check;
-  int errno_check = 0;
-
-  // Enforce path checks and identity access rights
-  if (IsOperationForbidden(spath, mVid, err_check, errno_check)) {
-    eos_err("msg=\"operation forbidden\" path=\"%s\" serr_msg=\"%s\" errno=%i",
-            spath.c_str(), err_check.c_str(), errno_check);
-    reply.set_std_err(err_check);
-    reply.set_retc(errno_check);
+  if (rm.identifier_size() == 0) {
+    reply.set_std_err("error: No path identifier provided");
+    reply.set_retc(ENOENT);
     return reply;
   }
 
-  eos::common::Path cPath(spath.c_str());
-  XrdOucString filter = "";
-  std::set<std::string> rmList;
-
   if (force && (vid.uid)) {
-    errStream <<
-              "warning: removing the force flag - this is only allowed for the 'root' role!"
+    errStream << "warning: removing the force flag "
+              << "- this is only allowed for the 'root' role!"
               << std::endl;
+
     force = false;
+    // Ignore this message when reporting error code
+    errPos = errStream.tellp();
   }
 
-  if (spath.empty()) {
-    errStream << "error: you have to give a path name to call 'rm'";
-    ret_c = EINVAL;
-  } else {
-    if (spath.find('*') != std::string::npos) {
-      // this is wildcard deletion
-      eos::common::Path objPath(spath.c_str());
-      spath = objPath.GetParentPath();
-      filter = objPath.GetName();
+  for (const auto& identifier: rm.identifier()) {
+    XrdOucString path;
+    std::string filter;
+    stdErr = "";
+
+    // Retrieve path from identifier
+    switch  (identifier.Identifier_case()) {
+      case eos::console::RmProto::IdentifierProto::kFid:
+        GetPathFromFid(path, identifier.fid(), "error: ");
+
+        if (!path.length()) {
+          errStream << stdErr;
+          continue;
+        }
+
+        break;
+
+      case eos::console::RmProto::IdentifierProto::kCid:
+        GetPathFromCid(path, identifier.cid(), "error: ");
+
+        if (!path.length()) {
+          errStream << stdErr;
+          continue;
+        }
+
+        break;
+
+      case eos::console::RmProto::IdentifierProto::kPath:
+        path = identifier.path().c_str();
+
+        if (!path.length()) {
+          errStream << "warning: Empty path string provided" << std::endl;
+          continue;
+        }
+
+        break;
+
+      default:
+        errStream << "error: No expected identifier provided" << std::endl;
+        continue;
     }
 
-    // check if this file exists
-    XrdSfsFileExistence file_exists;
-    XrdOucErrInfo errInfo;
+    // Check if operation is allowed
+    if (IsOperationForbidden(path.c_str()) == SFS_OK) {
+      errStream << stdErr << "\n";
+      continue;
+    }
 
-    if (gOFS->_exists(spath.c_str(), file_exists, errInfo, mVid, nullptr)) {
-      errStream << "error: unable to run exists on path '" << spath << "'";
-      reply.set_std_err(errStream.str());
-      reply.set_retc(errno);
-      return reply;
+    // Check for wildcard deletion
+    if (path.find('*') != STR_NPOS) {
+      eos::common::Path cPath(path.c_str());
+      path = cPath.GetParentPath();
+      filter = cPath.GetName();
+    }
+
+    // Check for path existence
+    XrdSfsFileExistence file_exists;
+    errInfo.clear();
+
+    if (gOFS->_exists(path.c_str(), file_exists, errInfo, mVid, nullptr)) {
+      errStream << "error: unable to run exists on path '" << path << "'"
+                << std::endl;
+      continue;
     }
 
     if (file_exists == XrdSfsFileExistNo) {
-      errStream << "error: no such file or directory with path '" << spath << "'";
-      reply.set_std_err(errStream.str());
-      reply.set_retc(ENOENT);
-      return reply;
+      errStream << "error: no such file or directory with path '" << path << "'"
+                << std::endl;
+      continue;
     }
 
+    // File deletion
     if (file_exists == XrdSfsFileExistIsFile) {
-      // if we have rm -r <file> we remove the -r flag
-      recursive = false;
+      if (RemoveFile(path.c_str(), force)) {
+        errStream << "error: unable to remove file '" << path << "'"
+                  << std::endl;
+      }
     }
 
+    // Wildcard file deletion
     if ((file_exists == XrdSfsFileExistIsDirectory) && filter.length()) {
-      regex_t regex_filter;
-      // Adding regex anchors for beginning and end of string
-      XrdOucString filter_temp = "^";
-      // Changing wildcard * into regex syntax
-      filter.replace("*", ".*");
-      filter_temp += filter;
-      filter_temp += "$";
-      int reg_rc = regcomp(&(regex_filter), filter_temp.c_str(),
-                           REG_EXTENDED | REG_NEWLINE);
+      std::string errMsg;
 
-      if (reg_rc) {
-        errStream << "error: failed to compile filter regex " << filter_temp;
-        reply.set_std_err(errStream.str());
-        reply.set_retc(EINVAL);
-        return reply;
+      if (RemoveFilterMatch(path.c_str(), filter, force, errMsg)) {
+        errStream << errMsg;
       }
+    } else if (file_exists == XrdSfsFileExistIsDirectory) {
+      // Directory deletion
+      if (recursive) {
+        std::string outMsg, errMsg;
 
-      XrdMgmOfsDirectory dir;
-      // list the path and match against filter
-      int listrc = dir.open(spath.c_str(), mVid, nullptr);
-
-      if (!listrc) {
-        const char* val;
-
-        while ((val = dir.nextEntry())) {
-          XrdOucString mpath = spath.c_str();
-          XrdOucString entry = val;
-          mpath += val;
-
-          if ((entry == ".") ||
-              (entry == "..")) {
-            continue;
-          }
-
-          if (!regexec(&regex_filter, entry.c_str(), 0, nullptr, 0)) {
-            rmList.insert(mpath.c_str());
-          }
+        if (RemoveDirectory(path.c_str(), force, outMsg, errMsg)) {
+          errStream << errMsg;
         }
-      }
 
-      regfree(&regex_filter);
-      // if we have rm * (whatever wildcard) we remove the -r flag
-      recursive = false;
-    } else {
-      rmList.insert(spath);
-    }
-
-    // find everything to be deleted
-    if (recursive) {
-      std::map<std::string, std::set<std::string>> found;
-      std::map<std::string, std::set<std::string>>::const_reverse_iterator rfoundit;
-      std::set<std::string>::const_iterator fileit;
-      errInfo.clear();
-
-      if (gOFS->_find(spath.c_str(), errInfo, m_err, mVid, found)) {
-        errStream << "error: unable to list directory '" << spath << "'";
-        ret_c = errno;
+        outStream << outMsg;
       } else {
-        XrdOucString recyclingAttribute = "";
-
-        if (!force) {
-          // only recycle if there is no '-f' flag
-          unsigned long rpos;
-
-          if ((rpos = spath.find("/.sys.v#.")) == std::string::npos) {
-            // check if this path has a recycle attribute
-            errInfo.clear();
-            gOFS->_attr_get(spath.c_str(), errInfo, mVid, "",
-                            Recycle::gRecyclingAttribute.c_str(), recyclingAttribute);
-          } else {
-            auto ppath = spath;
-            ppath.erase(rpos);
-            // get it from the parent directory for version directories
-            errInfo.clear();
-            gOFS->_attr_get(ppath.c_str(), errInfo, mVid, "",
-                            Recycle::gRecyclingAttribute.c_str(), recyclingAttribute);
-          }
-        }
-
-        //.......................................................................
-        // see if we have a recycle policy set
-        //.......................................................................
-        if (recyclingAttribute.length() &&
-            (spath.find(Recycle::gRecyclingPrefix) != 0)) {
-          //.....................................................................
-          // two step deletion via recycle bin
-          //.....................................................................
-          // delete files in simulation mode
-          std::map<uid_t, unsigned long long> user_deletion_size;
-          std::map<gid_t, unsigned long long> group_deletion_size;
-
-          for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
-            for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
-                 fileit++) {
-              std::string fspath = rfoundit->first;
-              size_t l_pos;
-              std::string entry = *fileit;
-
-              if ((l_pos = entry.find(" ->")) != std::string::npos) {
-                entry.erase(l_pos);
-              }
-
-              fspath += entry;
-              errInfo.clear();
-
-              if (gOFS->_rem(fspath.c_str(), errInfo, mVid, nullptr, true)) {
-                errStream << "error: unable to remove file '" << fspath << "'"
-                          << " - bulk deletion aborted" << std::endl;
-                reply.set_std_err(errStream.str());
-                reply.set_retc(errno);
-                return reply;
-              }
-            }
-          }
-
-          // delete directories in simulation mode
-          for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
-            // don't even try to delete the root directory
-            std::string fspath = rfoundit->first;
-
-            if (fspath == "/") {
-              continue;
-            }
-
-            errInfo.clear();
-
-            if (gOFS->_remdir(rfoundit->first.c_str(), errInfo, mVid, nullptr, true)
-                && (errno != ENOENT)) {
-              errStream << "error: unable to remove directory '" << rfoundit->first << "'"
-                        << " - bulk deletion aborted" << std::endl;
-              reply.set_std_err(errStream.str());
-              reply.set_retc(errno);
-              return reply;
-            }
-          }
-
-          struct stat buf;
-
-          errInfo.clear();
-
-          if (gOFS->_stat(spath.c_str(), &buf, errInfo, mVid, "")) {
-            errStream << "error: failed to stat bulk deletion directory '" << spath << "'";
-            reply.set_std_err(errStream.str());
-            reply.set_retc(errno);
-            return reply;
-          }
-
-          spath += "/";
-          eos::mgm::Recycle lRecycle(spath.c_str(), recyclingAttribute.c_str(),
-                                     &mVid, buf.st_uid, buf.st_gid,
-                                     (unsigned long long) buf.st_ino);
-          errInfo.clear();
-
-          if (lRecycle.ToGarbage("rm-r", errInfo)) {
-            errStream << "error: failed to recycle path '" << spath << "'" << std::endl
-                      << "reason: " << errInfo.getErrText() << std::endl;
-            reply.set_std_err(errStream.str());
-            reply.set_retc(errInfo.getErrInfo());
-            return reply;
-          } else {
-            outStream << "success: you can recycle this deletion using 'recycle restore "
-                      << std::setw(16) << std::setfill('0') << std::hex
-                      << buf.st_ino << "'" << std::endl;
-            reply.set_std_out(outStream.str());
-            reply.set_retc(SFS_OK);
-            return reply;
-          }
-        } else {
-          //.....................................................................
-          // standard way to delete files recursively
-          //.....................................................................
-          // delete files starting at the deepest level
-          for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
-            for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
-                 fileit++) {
-              std::string fspath = rfoundit->first;
-              size_t l_pos;
-              std::string entry = *fileit;
-
-              if ((l_pos = entry.find(" ->")) != std::string::npos) {
-                entry.erase(l_pos);
-              }
-
-              fspath += entry;
-              errInfo.clear();
-
-              if (gOFS->_rem(fspath.c_str(), errInfo, mVid, nullptr, false, false,
-                             force)) {
-                errStream << "error: unable to remove file '" << fspath.c_str() << "'"
-                          << std::endl;
-                ret_c = errno;
-              }
-            }
-          }
-
-          // delete directories starting at the deepest level
-          for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
-            // don't even try to delete the root directory
-            std::string fspath = rfoundit->first;
-
-            if (fspath == "/") {
-              continue;
-            }
-
-            errInfo.clear();
-
-            if (gOFS->_remdir(rfoundit->first.c_str(), errInfo, mVid, nullptr)) {
-              if (errno != ENOENT) {
-                errStream << "error: unable to remove directory "
-                          << "'" << rfoundit->first.c_str() << "'" << std::endl
-                          << "reason: " << errInfo.getErrText() << std::endl;
-                ret_c = errno;
-              }
-            }
-          }
-        }
-      }
-    } else {
-      for (const auto& it : rmList) {
-        errInfo.clear();
-
-        if (gOFS->_rem(it.c_str(), errInfo, mVid, nullptr, false, false,
-                       force) && (errno != ENOENT)) {
-          errStream << "error: unable to remove file/directory '" << it << "'"
-                    << std::endl;
-          ret_c |= errno;
-        }
+        errStream << "warning: missing recursive flag for directory '"
+                  << path << "'" << std::endl;
       }
     }
   }
 
-  reply.set_retc(ret_c);
+  int rc = ((errPos == errStream.tellp()) ? 0 : 1);
+
+  reply.set_retc(rc);
   reply.set_std_out(outStream.str());
   reply.set_std_err(errStream.str());
   return reply;
+}
+
+
+//----------------------------------------------------------------------------
+// Attempts to remove file
+//----------------------------------------------------------------------------
+int
+RmCmd::RemoveFile(const std::string path, bool force) {
+  XrdOucErrInfo errInfo;
+
+  if (gOFS->_rem(path.c_str(), errInfo, mVid, nullptr, false, false, force)) {
+    return (errno != ENOENT) ? errno : ENOENT;
+  }
+
+  return SFS_OK;
+}
+
+//----------------------------------------------------------------------------
+// Attempts to remove directory
+//----------------------------------------------------------------------------
+int
+RmCmd::RemoveDirectory(const std::string path, bool force,
+                       std::string& outMsg,
+                       std::string& errMsg) {
+  std::map<std::string, std::set<std::string>> found;
+  ostringstream outStream;
+  ostringstream errStream;
+  XrdOucErrInfo errInfo;
+
+  if (gOFS->_find(path.c_str(), errInfo, stdErr, mVid, found)) {
+    errStream << "error: unable to search directory '" << path << "'"
+              << " (bulk deletion aborted)" << std::endl;
+    errMsg += errStream.str();
+    return errno;
+  }
+
+  XrdOucString recyclingAttr = "";
+  bool simulate = false;
+
+  // Extract recycling flags for non-force delete
+  if (!force) {
+    std::string attrPath = path;
+    size_t npos;
+
+    // Extract recycling attribute from parent path
+    if ((npos = attrPath.find("/.sys.v#.")) != std::string::npos) {
+      attrPath.erase(npos);
+    }
+
+    gOFS->_attr_get(attrPath.c_str(), errInfo, mVid, "",
+                    Recycle::gRecyclingAttribute.c_str(), recyclingAttr);
+
+    // Check for simulation mode
+    simulate = ((recyclingAttr.length()) &&
+                (path.find(Recycle::gRecyclingPrefix) != 0));
+  }
+
+  //.....................................................................
+  // Deletion via recycle bin requires two steps.
+  // The files will be deleted in 'simulation' mode.
+  // If the simulation succeeds, they are placed in the recycling bin.
+  //
+  // Deletion via recycle bin can happen only for non-force deletes.
+  //.....................................................................
+
+  // Deleting files starting at the deepest level
+  for (auto rfoundIt = found.rbegin(); rfoundIt != found.rend(); rfoundIt ++) {
+    for (const auto& entry: rfoundIt->second) {
+      std::string fullPath = rfoundIt->first;
+      std::string fileName = entry;
+      size_t lpos;
+
+      if ((lpos = fileName.find(" ->")) != std::string::npos) {
+        fileName.erase(lpos);
+      }
+
+      fullPath += fileName;
+
+      if (gOFS->_rem(fullPath.c_str(), errInfo, mVid, nullptr, simulate,
+                     false, force)) {
+        errStream << "error: unable to remove file '" << fullPath << "'"
+                  << " (bulk deletion aborted) - reason: "
+                  << errInfo.getErrText() << std::endl;
+        errMsg += errStream.str();
+        return errInfo.getErrInfo();
+      }
+    }
+  }
+
+  // Delete directories starting at the deepest level
+  for (auto rfoundIt = found.rbegin(); rfoundIt != found.rend(); rfoundIt ++) {
+    std::string dirPath = rfoundIt->first;
+
+    // Avoid delete attempts on the root directory
+    if (dirPath == "/") {
+      continue;
+    }
+
+    if ((gOFS->_remdir(dirPath.c_str(), errInfo, mVid, nullptr)) &&
+        (errno != ENOENT)) {
+      errStream << "error: unable to remove directory '" << dirPath << "'"
+                << " (bulk deletion aborted) - reason: "
+                << errInfo.getErrText() << std::endl;
+      errMsg += errStream.str();
+      return errInfo.getErrInfo();
+    }
+  }
+
+  // Place the files in recycle bin
+  if (simulate) {
+    struct stat buf;
+
+    if (gOFS->_stat(path.c_str(), &buf, errInfo, mVid, "")) {
+      errStream << "error: unable to stat directory '" << path << "'"
+                << " (bulk deletion aborted)" << std::endl;
+      errMsg += errStream.str();
+      return errno;
+    }
+
+    std::string spath = path;
+    spath += "/";
+    eos::mgm::Recycle lRecycle(spath.c_str(), recyclingAttr.c_str(), &mVid,
+                               buf.st_uid, buf.st_gid,
+                               (unsigned long long) buf.st_ino);
+
+    if (lRecycle.ToGarbage("rm-r", errInfo)) {
+      errStream << "error: failed to recycle path '" << spath << "'"
+                << " (bulk deletion aborted) - reason: "
+                << errInfo.getErrText() << std::endl;
+      errMsg += errStream.str();
+      return errInfo.getErrInfo();
+    } else {
+      outStream << "success: you can recycle this deletion using "
+                << "'recycle restore "
+                << std::setw(16) << std::setfill('0') << std::hex
+                << buf.st_ino << "'" << std::endl;
+    }
+  }
+
+  outMsg += outStream.str();
+  return SFS_OK;
+}
+
+//----------------------------------------------------------------------------
+// Attempts to remove files matching a given filter
+// Note: directories will not be removed
+//----------------------------------------------------------------------------
+int
+RmCmd::RemoveFilterMatch(const std::string path,
+                         const std::string filter,
+                         bool force,
+                         std::string& errMsg) {
+  ostringstream errStream;
+  XrdOucErrInfo errInfo;
+  regex_t regex_filter;
+  int rc = SFS_OK;
+
+  // Adding beginning and ending regex anchors
+  XrdOucString sfilter = "^";
+  sfilter += filter.c_str();
+  sfilter += "$";
+  sfilter.replace("*", ".*");
+
+  int regrc = regcomp(&(regex_filter), sfilter.c_str(),
+                      REG_EXTENDED | REG_NEWLINE);
+
+  if (regrc) {
+    errStream << "error: failed to compile filter regex " << sfilter
+              << std::endl;
+    errMsg += errStream.str();
+    return EINVAL;
+  }
+
+  XrdMgmOfsDirectory dir;
+  // List the directory and match against filter
+  int listrc = dir.open(path.c_str(), mVid, nullptr);
+
+  if (!listrc) {
+    const char* val;
+
+    while ((val = dir.nextEntry())) {
+      XrdOucString entry = val;
+
+      if ((entry == ".") || (entry == "..")) {
+        continue;
+      }
+
+      if (!regexec(&regex_filter, entry.c_str(), 0, nullptr, 0)) {
+        entry.insert(path.c_str(), 0);
+
+        // Delete only files
+        XrdSfsFileExistence file_exists;
+
+        if (gOFS->_exists(entry.c_str(), file_exists, errInfo, mVid, nullptr)) {
+          errStream << "error: unable to run exists on path '" << entry << "'"
+                    << std::endl;
+          rc = EINVAL;
+          continue;
+        }
+
+        if ((file_exists == XrdSfsFileExistIsFile) &&
+            (RemoveFile(entry.c_str(), force))) {
+          errStream << "error: unable to remove file '" << entry << "'"
+                    << std::endl;
+          rc = errno;
+        }
+      }
+    }
+  } else {
+    errStream << "error: failed to list directory '" << path << "'"
+              << std::endl;
+    rc = errno;
+  }
+
+  errMsg += errStream.str();
+  regfree(&regex_filter);
+  return rc;
 }
 
 EOSMGMNAMESPACE_END

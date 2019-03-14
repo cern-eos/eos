@@ -2,9 +2,15 @@ syntax="proto3";
 package eos.console;
 
 message RmProto {
-    bool Recursive = 1;
-    bool BypassRecycle = 2;
-    uint64 Fileid  = 3;
-    string Path = 4;
-    uint64 Containerid  = 5;
+  message IdentifierProto {
+    oneof Identifier {
+      uint64 Fid = 1;
+      uint64 Cid = 2;
+      string Path = 3;
+    }
+  }
+
+  bool Recursive = 4;
+  bool BypassRecycle = 5;
+  repeated IdentifierProto identifier = 6;
 }
