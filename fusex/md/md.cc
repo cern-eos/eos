@@ -2417,7 +2417,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
   hb.mutable_heartbeat_()->set_host(zmq_clienthost);
   hb.mutable_heartbeat_()->set_uuid(zmq_clientuuid);
   hb.mutable_heartbeat_()->set_version(VERSION);
-  hb.mutable_heartbeat_()->set_protversion(hb.heartbeat_().PROTOCOLV3);
+  hb.mutable_heartbeat_()->set_protversion(FUSEPROTOCOLVERSION);
   hb.mutable_heartbeat_()->set_pid((int32_t) getpid());
   hb.mutable_heartbeat_()->set_starttime(time(NULL));
   hb.mutable_heartbeat_()->set_leasetime(
