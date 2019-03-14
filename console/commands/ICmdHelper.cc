@@ -42,7 +42,7 @@ ICmdHelper::Execute(bool printError)
   }
 
   if (printError && !mMgmExec.GetError().empty()) {
-    std::cerr << GetError() << std::endl;
+    std::cerr << GetError();
   }
 
   return retc;
@@ -164,5 +164,12 @@ ICmdHelper::GetResult()
 std::string
 ICmdHelper::GetError()
 {
-  return mMgmExec.GetError();
+  // Add new line if necessary
+  std::string err = mMgmExec.GetError();
+
+  if (*err.rbegin() != '\n') {
+    err += '\n';
+  }
+
+  return err;
 }

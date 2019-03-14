@@ -158,7 +158,7 @@ int com_protorm(char* arg)
     if (rm.GetError().find("no such user command") != std::string::npos) {
       global_retc = com_rm(arg);
     } else {
-      std::cerr << rm.GetError() << std::endl;
+      std::cerr << rm.GetError();
     }
   }
 

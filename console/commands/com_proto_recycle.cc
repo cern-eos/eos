@@ -326,7 +326,7 @@ int com_protorecycle(char* arg)
         (global_retc == EIO)) {
       global_retc = com_recycle(arg);
     } else {
-      std::cerr << recycle.GetError() << std::endl;
+      std::cerr << recycle.GetError();
     }
   }
 
