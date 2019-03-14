@@ -748,6 +748,37 @@ runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/insta
 runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 fi
 ################################################################################
+# Remove (with multiple arguments)
+################################################################################
+# ------------------------------------------------------------------------------
+categorie="rm"
+# ------------------------------------------------------------------------------
+runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm"
+runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm"
+runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/passwd1.rm"
+runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/passwd2.rm"
+runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/passwd3.rm"
+runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/nopasswd.rm"
+runtest "### Rm        " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/passwd1.rm" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/passwd2.rm"
+runtest "### Rm        " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/passwd*"
+runtest "### Ls        " unix 0 "" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/ | wc -l | grep -w 1"
+runtest "### Rm        " unix 1 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/nofile" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/nopasswd.rm"
+runtest "### Ls        " unix 0 "" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/ | wc -l | grep -w 0"
+runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/passdir1"
+runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/passdir2"
+runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/passwd.rm"
+runtest "### Rm        " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/pass*"
+runtest "### Ls        " unix 0 "" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/ | wc -l | grep -w 2"
+runtest "### Rm        " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/passdir1" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/passdir2"
+runtest "### Upload    " unix 0 "" eos cp "/etc/passwd" "\"/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/file quoted spaces.rm\""
+runtest "### Upload    " unix 0 "" eos cp "/etc/passwd" "\"/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/file quoted spaces 2.rm\""
+runtest "### Rm        " unix 0 "" eos rm "\"/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/file quoted spaces.rm\"" "\"/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/file quoted spaces 2.rm\""
+runtest "### Upload    " unix 0 "" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/file\ backslashed\ spaces.rm"
+runtest "### Upload    " unix 0 "" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/file\ backslashed\ spaces\ 2.rm"
+runtest "### Rm        " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/file\ backslashed\ spaces.rm" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/file\ backslashed\ spaces\ 2.rm"
+runtest "### Rm        " unix 1 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/"
+runtest "### Rm        " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rm/"
+################################################################################
 # RECYCLE BIN TEST
 ################################################################################
 # ------------------------------------------------------------------------------
