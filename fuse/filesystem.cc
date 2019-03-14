@@ -3426,7 +3426,7 @@ filesystem::open(const char* path,
           eos_static_crit("new inode is null: cannot move old inode to new inode!");
           errno = EBADR;
           delete file;
-          return errno;
+          return -1;
         }
       }
 
