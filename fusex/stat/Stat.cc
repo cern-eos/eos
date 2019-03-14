@@ -57,9 +57,11 @@ Stat::AddExec(const char* tag, float exectime)
 {
   Mutex.Lock();
   StatExec[tag].push_back(exectime);
+  
+  TotalExec += exectime;
 
-  // we average over 100 entries
-  if (StatExec[tag].size() > 100) {
+  // we average over 1000 entries
+  if (StatExec[tag].size() > 1000) {
     StatExec[tag].pop_front();
   }
 
@@ -561,6 +563,7 @@ Stat::GetExec(const char* tag, double& deviation)
 
 /*----------------------------------------------------------------------------*/
 // warning: you have to lock the mutex if directly used
+/*----------------------------------------------------------------------------*/
 
 double
 Stat::GetTotalExec(double& deviation, size_t& ops)
@@ -602,27 +605,36 @@ Stat::GetTotalExec(double& deviation, size_t& ops)
   return avg;
 }
 
+
 /*----------------------------------------------------------------------------*/
 void
 Stat::Clear()
 {
   Mutex.Lock();
-  google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, unsigned long long> >::iterator
-  ittag;
 
-  for (ittag = StatsUid.begin(); ittag != StatsUid.end(); ittag++) {
+  for (auto ittag = StatsUid.begin(); ittag != StatsUid.end(); ittag++) {
     StatsUid[ittag->first].clear();
     StatsUid[ittag->first].resize(1000);
+  }
+  for (auto ittag = StatsGid.begin(); ittag != StatsGid.end(); ittag++) {
     StatsGid[ittag->first].clear();
     StatsGid[ittag->first].resize(1000);
+  }
+  for (auto ittag = StatsUid.begin(); ittag != StatsUid.end(); ittag++) {
     StatAvgUid[ittag->first].clear();
     StatAvgUid[ittag->first].resize(1000);
+  }
+  for (auto ittag = StatsGid.begin(); ittag != StatsGid.end(); ittag++) {
     StatAvgGid[ittag->first].clear();
     StatAvgGid[ittag->first].resize(1000);
+  }
+
+  for (auto ittag = StatExec.begin(); ittag != StatExec.end(); ittag++) {
     StatExec[ittag->first].clear();
     StatExec[ittag->first].resize(1000);
   }
 
+  TotalExec = 0;
   Mutex.UnLock();
 }
 
@@ -653,17 +665,6 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
   double avg = 0;
   double sig = 0;
   size_t ops = 0;
-  double cumulative = 0;
-
-  for (it = tags.begin(); it != tags.end(); ++it) {
-    const char* tag = it->c_str();
-    double avg = 0;
-    double sig = 0;
-    double total = 0;
-    avg = GetExec(tag, sig);
-    total = avg * GetTotal(tag) / 1000.0;
-    cumulative += total;
-  }
 
   avg = GetTotalExec(sig, ops);
   sum_ops = ops;
@@ -671,7 +672,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
   if (!monitoring) {
     sprintf(outline, "%-7s %-32s %3.02f +- %3.02f = %.02fs (%lu ops)\n", "ALL",
             "Execution Time", avg,
-            sig, cumulative, ops);
+            sig, TotalExec/1000.0, ops);
     out += outline;
     out += "# -----------------------------------------------------------------------------------------------------------------------\n";
     sprintf(outline, "%-7s %-32s %-9s %8s %8s %8s %8s %-8s +- %-10s = %-10s", "who",
@@ -682,7 +683,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
     out += "# -----------------------------------------------------------------------------------------------------------------------\n";
   } else {
     sprintf(outline,
-            "uid=all gid=all total.exec.avg=%.02f total.exec.sigma=%.02f\n", avg, sig);
+            "uid=all gid=all total.exec.avg=%.02f total.exec.sigma=%.02f total.exec.sum=%.02f\n", avg, sig, TotalExec);
     out += outline;
   }
 

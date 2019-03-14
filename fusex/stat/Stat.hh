@@ -525,6 +525,8 @@ public:
   StatExtGid;
   google::sparse_hash_map<std::string, std::deque<float> > StatExec;
 
+  double TotalExec;
+
   size_t sum_ops;
 
   size_t GetOps()
