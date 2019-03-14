@@ -142,6 +142,7 @@ add_library(
   XrdMgmOfs/fsctl/Event.cc
   XrdMgmOfs/fsctl/Fusex.cc
   XrdMgmOfs/fsctl/Getfmd.cc
+  XrdMgmOfs/fsctl/GetFusex.cc
   XrdMgmOfs/fsctl/MasterSignal.cc
   XrdMgmOfs/fsctl/Mkdir.cc
   XrdMgmOfs/fsctl/Open.cc

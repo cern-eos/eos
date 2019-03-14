@@ -175,6 +175,21 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Get the result stream  of a proc command
+  //----------------------------------------------------------------------------
+  inline const char* GetResult(size_t& size) const
+  {
+    if (mClosed) {
+      size = 0;
+      return 0;
+    }
+    size = mResultStream.size();
+    return mResultStream.c_str();;
+  }
+
+
+
+  //----------------------------------------------------------------------------
   //! Get result file name
   //----------------------------------------------------------------------------
   inline const char* GetResultFn() const

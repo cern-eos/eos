@@ -1963,6 +1963,7 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("Exists", 0, 0, 0);
   MgmStats.Add("Eosxd::ext::0-HANDLE", 0, 0, 0);
   MgmStats.Add("Eosxd::ext::0-STREAM", 0, 0, 0);
+  MgmStats.Add("Eosxd::ext::0-QUERY", 0, 0, 0);
   MgmStats.Add("Eosxd::ext::GET", 0, 0, 0);
   MgmStats.Add("Eosxd::ext::SET", 0, 0, 0);
   MgmStats.Add("Eosxd::ext::LS", 0, 0, 0);
@@ -2019,6 +2020,7 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("Fuse-Utimes", 0, 0, 0);
   MgmStats.Add("GetMdLocation", 0, 0, 0);
   MgmStats.Add("GetMd", 0, 0, 0);
+  MgmStats.Add("GetFusex", 0, 0, 0);
   MgmStats.Add("Http-COPY", 0, 0, 0);
   MgmStats.Add("Http-DELETE", 0, 0, 0);
   MgmStats.Add("Http-GET", 0, 0, 0);

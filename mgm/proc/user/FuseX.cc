@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "XrdOuc/XrdOucEnv.hh"
+#include "common/SymKeys.hh"
 #include "mgm/ZMQ.hh"
 #include "mgm/FuseServer/Server.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -59,6 +60,7 @@ ProcCommand::FuseX()
   XrdOucString cid    = pOpaque->Get("mgm.cid") ? pOpaque->Get("mgm.cid") : "";
   XrdOucString authid = pOpaque->Get("mgm.authid") ? pOpaque->Get("mgm.authid") :
                         "";
+  bool inlined = pOpaque->Get("mgm.inline") ? true : false; // clients supports inlined responses in error messages
 
   if (spath.length()) {
     // decode escaped path name
@@ -254,6 +256,21 @@ ProcCommand::FuseX()
     }
   }
 
+  if (inlined) {
+    if (result.size() < 2048) {
+      if (EOS_LOGS_DEBUG) {
+	eos_debug("returning in-line result - len=%u", result.size());
+      }
+      
+      std::string b64response;
+      eos::common::SymKey::Base64(result, b64response);
+      
+      XrdOucBuffer* buff = new XrdOucBuffer(strndup(b64response.c_str(), b64response.size()), b64response.size());
+      mError->setErrInfo(ECANCELED, buff);
+      return SFS_ERROR;
+    }
+  }
+  
   mResultStream = result;
 
   if (EOS_LOGS_DEBUG)
@@ -267,6 +284,8 @@ ProcCommand::FuseX()
               eos::common::StringConversion::string_to_hex(result).c_str());
 
   EXEC_TIMING_END("Eosxd::ext::0-STREAM");
+
+
   return SFS_OK;
 }
 

@@ -41,6 +41,7 @@ enum class FsctlCommand {
   drop,
   event,
   getfmd,
+  getfusex,
   is_master,
   mastersignalbounce,
   mastersignalreload,

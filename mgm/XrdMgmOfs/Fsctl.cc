@@ -174,10 +174,6 @@ XrdMgmOfs::FSctl(const int cmd,
     iopaque[0] = 0;
   }
 
-  if (EOS_LOGS_DEBUG) {
-    eos_static_debug("1 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
-  }
-
   const char* inpath = ipath;
   const char* ininfo = iopaque;
   // Do the id mapping with the opaque information
@@ -191,10 +187,6 @@ XrdMgmOfs::FSctl(const int cmd,
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
 
-  if (EOS_LOGS_DEBUG) {
-    eos_static_debug("2 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
-  }
-
   // ---------------------------------------------------------------------------
   // from here on we can deal with XrdOucString which is more 'comfortable'
   // ---------------------------------------------------------------------------
@@ -204,7 +196,6 @@ XrdMgmOfs::FSctl(const int cmd,
   XrdOucEnv env(opaque.c_str());
   const char* scmd = env.Get("mgm.pcmd");
   XrdOucString execmd = scmd ? scmd : "";
-  eos_static_debug("3 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
 
   // version and is_master is not submitted to access control
   // so that features of the instance can be retrieved by an authenticated user and
@@ -214,7 +205,7 @@ XrdMgmOfs::FSctl(const int cmd,
   }
 
   if (EOS_LOGS_DEBUG) {
-    eos_static_debug("4 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
+    eos_static_debug("fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
     eos_thread_debug("path=%s opaque=%s", spath.c_str(), opaque.c_str());
   }
 
@@ -253,10 +244,6 @@ XrdMgmOfs::FSctl(const int cmd,
 
   // Fuse e(x)tension - this we always redirect to the RW master
   if (fusexset) {
-    if (EOS_LOGS_DEBUG) {
-      eos_static_debug("5 fusexset=%d %s %s", fusexset, args.Arg1, args.Arg2);
-    }
-
     std::string protobuf;
     protobuf.assign(args.Arg2 + 6, args.Arg2Len - 6);
     return XrdMgmOfs::Fusex(path, ininfo, protobuf, env, error, ThreadLogId,
@@ -302,6 +289,10 @@ XrdMgmOfs::FSctl(const int cmd,
       case FsctlCommand::getfmd: {
         return XrdMgmOfs::Getfmd(path, ininfo, env, error, ThreadLogId, vid,
                                client);
+      }
+      case FsctlCommand::getfusex: {
+        return XrdMgmOfs::GetFusex(path, ininfo, env, error, ThreadLogId, vid, 
+				client);
       }
       case FsctlCommand::is_master: {
         return XrdMgmOfs::IsMaster(path, ininfo, env, error, ThreadLogId, vid,

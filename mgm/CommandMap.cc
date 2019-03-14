@@ -40,6 +40,7 @@ struct fsctlMapInit {
     fsctlCommandMap["drop"] = FsctlCommand::drop;
     fsctlCommandMap["event"] = FsctlCommand::event;
     fsctlCommandMap["getfmd"] = FsctlCommand::getfmd;
+    fsctlCommandMap["getfusex"] = FsctlCommand::getfusex;
     fsctlCommandMap["is_master"] = FsctlCommand::is_master;
     fsctlCommandMap["mastersignalbounce"] = FsctlCommand::mastersignalbounce;
     fsctlCommandMap["mastersignalreload"] = FsctlCommand::mastersignalreload;
