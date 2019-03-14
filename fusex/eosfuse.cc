@@ -4870,6 +4870,9 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
       if (key.substr(0, s_resetstat.length()) == s_resetstat) {
         local_setxattr = true;
         Instance().getFuseStat().Clear();
+	fuse_reply_err(req, 0);
+	// avoid to show this call in stats again
+	return ;
       }
     } else {
       rc = EPERM;
