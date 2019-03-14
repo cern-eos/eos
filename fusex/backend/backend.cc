@@ -177,8 +177,12 @@ backend::getMD(fuse_req_t req,
 /* -------------------------------------------------------------------------- */
 {
   // return's the inode of path in inode and rc=0 for success, otherwise errno
-  std::string requestURL = getURL(req, path, listing ? "LS" : "GET", authid);
-  return fetchResponse(requestURL, contv);
+  std::string requestURL = getURL(req, path, "fuseX" , "getfusex", listing ? "LS" : "GET", authid, listing? true : false);
+  if (listing) {
+    return fetchResponse(requestURL, contv);
+  } else {
+    return fetchQueryResponse(requestURL, contv);
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -192,9 +196,13 @@ backend::getMD(fuse_req_t req,
                std::string authid
               )
 {
-  std::string requestURL = getURL(req, inode, name, listing ? "LS" : "GET",
-                                  authid);
-  return fetchResponse(requestURL, contv);
+  std::string requestURL = getURL(req, inode, name, "fuseX" , "getfusex", listing ? "LS" : "GET",
+                                  authid, listing? true : false);
+  if (listing) {
+    return fetchResponse(requestURL, contv);
+  } else {
+    return fetchQueryResponse(requestURL, contv);
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -209,9 +217,13 @@ backend::getMD(fuse_req_t req,
               )
 /* -------------------------------------------------------------------------- */
 {
-  std::string requestURL = getURL(req, inode, myclock, listing ? "LS" : "GET",
-                                  authid);
-  return fetchResponse(requestURL, contv);
+  std::string requestURL = getURL(req, inode, myclock, "fuseX" , "getfusex", listing ? "LS" : "GET",
+                                  authid, listing ? true : false);
+  if (listing) {
+    return fetchResponse(requestURL, contv);
+  } else {
+    return fetchQueryResponse(requestURL, contv);
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -223,8 +235,115 @@ backend::getCAP(fuse_req_t req,
 /* -------------------------------------------------------------------------- */
 {
   uint64_t myclock = (uint64_t) time(NULL);
-  std::string requestURL = getURL(req, inode, myclock, "GETCAP");
+  std::string requestURL = getURL(req, inode, myclock, "fuseX", "getfusex", "GETCAP", "", true);
   return fetchResponse(requestURL, contv);
+}
+
+
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+backend::fetchQueryResponse(std::string& requestURL,
+			    std::vector<eos::fusex::container>& contv
+			    )
+/* -------------------------------------------------------------------------- */
+{
+  XrdCl::URL url(requestURL);
+  eos_static_debug("request='%s'", requestURL.c_str());
+  std::string sarg = url.GetPathWithParams();
+  XrdCl::Buffer arg;
+  arg.FromString(sarg);
+  XrdCl::Buffer* bresponse = 0;
+  XrdCl::XRootDStatus status = Query(url, XrdCl::QueryCode::OpaqueFile, arg,
+                                     bresponse, 30, true);
+
+  if (status.IsOK()) {
+    eos_static_debug("%x", bresponse);
+    eos_static_debug("response-size=%d",
+		     bresponse ? bresponse->GetSize() : 0);
+
+    if (bresponse && bresponse->GetBuffer()) {
+      off_t offset = 0;
+      eos::fusex::container cont;
+      std::string response(bresponse->GetBuffer(), bresponse->GetSize());
+
+      if (EOS_LOGS_DEBUG)
+	eos_static_debug("result-dump=%s",
+			 eos::common::StringConversion::string_to_hex(response).c_str());
+    
+      do {
+	cont.Clear();
+	
+	if ((response.size() - offset) > 10) {
+	  std::string slen = response.substr(1 + offset, 8);
+	  size_t len = strtoll(slen.c_str(), 0, 16);
+	  eos_static_debug("len=%llu offset=%llu", len, offset);
+	  
+	  if (!len) {
+	    eos_static_debug("response had illegal length");
+	    return EINVAL;
+	  }
+	  
+	  std::string item;
+	  item.assign(response.c_str() + offset + 10, len);
+	  offset += (10 + len);
+	  
+	  if (cont.ParseFromString(item)) {
+	    eos_static_debug("response parsing OK");
+	    
+	    if ((cont.type() != cont.MD) &&
+		(cont.type() != cont.MDMAP) &&
+		(cont.type() != cont.CAP)) {
+	      eos_static_debug("wrong response type");
+	      return EINVAL;
+	    }
+	    
+	    contv.push_back(cont);
+	    eos_static_debug("parsed %ld/%ld", offset, response.size());
+	    
+	    if (offset == (off_t) response.size()) {
+	      break;
+	    }
+	  } else {
+	    eos_static_debug("response parsing FAILED");
+	    return EIO;
+	  }
+	} else {
+	  eos_static_err("fatal protocol parsing error");
+	  return EINVAL;
+	};
+      } while (1);
+      return 0;
+    }
+    eos_static_debug("");
+  } else {
+    if (status.errNo == XErrorCode::kXR_NotFound) {
+      // this is just no such file or directory
+      eos_static_debug("error=status is NOT ok : %s", status.ToString().c_str());
+      errno = ENOENT;
+      return ENOENT;
+    }
+    if (status.code == XrdCl::errAuthFailed) {
+      eos_static_debug("");
+      // this is an authentication error which results in permission denied
+      errno = EPERM;
+      return EPERM;
+    }
+    // all the other errors are reported back
+    if (status.errNo) {
+      errno = XrdCl::Proxy::status2errno(status);
+      eos_static_err("error=status is not ok : errno=%d", errno);
+      
+      // xrootd does not transport E2BIG ... sigh
+      if (errno == ENAMETOOLONG) {
+	errno = E2BIG;
+      }
+      
+      return errno;
+    }
+    eos_static_debug("");
+  }
+  return EIO;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -239,6 +358,13 @@ backend::fetchResponse(std::string& requestURL,
   double total_exec_time_sec = 0;
   XrdCl::XRootDStatus status;
   std::unique_ptr <XrdCl::File> file(new XrdCl::File());
+  std::string response;
+  off_t offset = 0;
+  const int kPAGE = 512 * 1024;
+  std::vector<char> rbuff;
+  rbuff.reserve(kPAGE);
+  uint32_t bytesread = 0;
+
 
   do {
     struct timespec ts;
@@ -258,6 +384,13 @@ backend::fetchResponse(std::string& requestURL,
     }
 
     if (!status.IsOK()) {
+      // check if we got an inlined response in an error object
+      std::string b64response = status.GetErrorMessage();
+      if (b64response.substr(0,6) == "base64") {
+	eos::common::SymKey::DeBase64(b64response, response);
+	goto has_response;
+      }
+
       // in case of any failure
       if (status.errNo == XErrorCode::kXR_NotFound) {
         // this is just no such file or directory
@@ -335,12 +468,6 @@ backend::fetchResponse(std::string& requestURL,
   } while (1);
 
   // Start to read
-  off_t offset = 0;
-  const int kPAGE = 512 * 1024;
-  std::string response;
-  std::vector<char> rbuff;
-  rbuff.reserve(kPAGE);
-  uint32_t bytesread = 0;
 
   do {
     status = file->Read(offset, kPAGE, (char*) & rbuff[0], bytesread);
@@ -359,6 +486,8 @@ backend::fetchResponse(std::string& requestURL,
 
     eos_static_debug("rbytes=%lu offset=%llu", bytesread, offset);
   } while (bytesread);
+
+ has_response:
 
   eos_static_debug("response-size=%u response=%s",
                    response.size(), response.c_str());
@@ -433,6 +562,8 @@ backend::rmRf(fuse_req_t req, eos::fusex::md* md)
 
   query["eos.app"] = get_appname();
 
+  query["fuse.v"] = std::to_string(FUSEPROTOCOLVERSION);
+
   if (req) {
     fusexrdlogin::loginurl(url, query, req, 0);
   }
@@ -475,7 +606,10 @@ backend::putMD(const fuse_id& id, eos::fusex::md* md, std::string authid,
   url.SetPath("/dummy");
   XrdCl::URL::ParamsMap query;
   fusexrdlogin::loginurl(url, query, id.uid, id.gid, id.pid, 0);
+
   query["eos.app"] = get_appname();
+  query["fuse.v"] = std::to_string(FUSEPROTOCOLVERSION);
+
   url.SetParams(query);
   // temporary add the authid to be used for that request
   md->set_authid(authid);
@@ -658,6 +792,9 @@ backend::doLock(fuse_req_t req,
   url.SetPath("/dummy");
   XrdCl::URL::ParamsMap query;
   fusexrdlogin::loginurl(url, query, req, 0);
+
+  query["fuse.v"] = std::to_string(FUSEPROTOCOLVERSION);
+
   url.SetParams(query);
   md.set_clientuuid(clientuuid);
   std::string mdstream;
@@ -757,19 +894,24 @@ backend::doLock(fuse_req_t req,
 /* -------------------------------------------------------------------------- */
 std::string
 /* -------------------------------------------------------------------------- */
-backend::getURL(fuse_req_t req, const std::string& path, std::string op,
-                std::string authid)
+backend::getURL(fuse_req_t req, const std::string& path, std::string cmd, 
+		std::string pcmd, std::string op,
+                std::string authid, 
+		bool setinline)
 /* -------------------------------------------------------------------------- */
 {
   XrdCl::URL url("root://" + hostport);
   url.SetPath("/proc/user/");
   XrdCl::URL::ParamsMap query;
-  query["mgm.cmd"] = "fuseX";
+  query["mgm.cmd"] = cmd;
+  query["mgm.pcmd"] = pcmd;
   query["mgm.clock"] = "0";
   query["mgm.path"] = eos::common::StringConversion::curl_escaped(mount + path);
   query["mgm.op"] = op;
   query["mgm.uuid"] = clientuuid;
-
+  if (setinline) {
+    query["mgm.inline"] = 1;
+  }
   if (req) {
     query["mgm.cid"] = cap::capx::getclientid(req);
   }
@@ -779,6 +921,8 @@ backend::getURL(fuse_req_t req, const std::string& path, std::string op,
   if (authid.length()) {
     query["mgm.authid"] = authid;
   }
+
+  query["fuse.v"] = std::to_string(FUSEPROTOCOLVERSION);
 
   if (req) {
     fusexrdlogin::loginurl(url, query, req, 0);
@@ -791,13 +935,14 @@ backend::getURL(fuse_req_t req, const std::string& path, std::string op,
 /* -------------------------------------------------------------------------- */
 std::string
 /* -------------------------------------------------------------------------- */
-backend::getURL(fuse_req_t req, uint64_t inode, const std::string& name,
-                std::string op, std::string authid)
+backend::getURL(fuse_req_t req, uint64_t inode, const std::string& name, std::string cmd, 
+                std::string pcmd, std::string op, std::string authid, bool setinline)
 {
   XrdCl::URL url("root://" + hostport);
   url.SetPath("/proc/user/");
   XrdCl::URL::ParamsMap query;
-  query["mgm.cmd"] = "fuseX";
+  query["mgm.cmd"] = cmd;
+  query["mgm.pcmd"] = pcmd;
   query["mgm.clock"] = "0";
   query["mgm.child"] = eos::common::StringConversion::curl_escaped(name);
   char hexinode[32];
@@ -813,6 +958,13 @@ backend::getURL(fuse_req_t req, uint64_t inode, const std::string& name,
   }
 
   query["mgm.cid"] = cap::capx::getclientid(req);
+
+  if (setinline) {
+    query["mgm.inline"] = 1;
+  }
+
+  query["fuse.v"] = std::to_string(FUSEPROTOCOLVERSION);
+
   fusexrdlogin::loginurl(url, query, req, inode);
   url.SetParams(query);
   return url.GetURL();
@@ -821,15 +973,17 @@ backend::getURL(fuse_req_t req, uint64_t inode, const std::string& name,
 /* -------------------------------------------------------------------------- */
 std::string
 /* -------------------------------------------------------------------------- */
-backend::getURL(fuse_req_t req, uint64_t inode, uint64_t clock, std::string op,
-                std::string authid)
+backend::getURL(fuse_req_t req, uint64_t inode, uint64_t clock, std::string cmd, 
+		std::string pcmd, std::string op,
+                std::string authid, bool setinline)
 /* -------------------------------------------------------------------------- */
 {
   XrdCl::URL url("root://" + hostport);
   url.SetPath("/proc/user/");
   XrdCl::URL::ParamsMap query;
   std::string sclock;
-  query["mgm.cmd"] = "fuseX";
+  query["mgm.cmd"] = cmd;
+  query["mgm.pcmd"] = pcmd;
   query["mgm.clock"] =
     eos::common::StringConversion::GetSizeString(sclock,
         (unsigned long long) clock);
@@ -846,6 +1000,13 @@ backend::getURL(fuse_req_t req, uint64_t inode, uint64_t clock, std::string op,
   }
 
   query["mgm.cid"] = cap::capx::getclientid(req);
+
+  if (setinline) {
+    query["mgm.inline"] = 1;
+  }
+
+  query["fuse.v"] = std::to_string(FUSEPROTOCOLVERSION);
+
   fusexrdlogin::loginurl(url, query, req, inode);
   url.SetParams(query);
   return url.GetURL();
@@ -866,6 +1027,8 @@ backend::statvfs(fuse_req_t req,
   query["mgm.pcmd"] = "statvfs";
   query["eos.app"] = get_appname();
   query["path"] = "/";
+  query["fuse.v"] = std::to_string(FUSEPROTOCOLVERSION);
+
   fusexrdlogin::loginurl(url, query, req, 0);
   url.SetParams(query);
   std::string sarg = url.GetPathWithParams();
