@@ -65,15 +65,17 @@ set(COMMON_UT_SRCS
   common/FileMapTests.cc
   common/FutureWrapperTests.cc
   common/InodeTests.cc
-  common/TimingTests.cc
-  common/MappingTests.cc
-  common/SymKeysTests.cc
-  common/ThreadPoolTest.cc
-  common/RWMutexTest.cc
-  common/StringConversionTests.cc
   common/LoggingTests.cc
   common/LoggingTestsUtils.cc
-  common/XrdConnPoolTests.cc)
+  common/MappingTests.cc
+  common/RWMutexTest.cc
+  common/StringConversionTests.cc
+  common/SymKeysTests.cc
+  common/ThreadPoolTest.cc
+  common/TimingTests.cc
+  common/VariousTests.cc
+  common/XrdConnPoolTests.cc
+)
 
 set(FST_UT_SRCS
   #fst/XrdFstOssFileTest.cc
