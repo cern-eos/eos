@@ -1783,13 +1783,13 @@ private:
   //! Will redirect to the RW master.
   //----------------------------------------------------------------------------
   int Fusex(const char* path,
-            const char* ininfo,
-            std::string protobuf,
-            XrdOucEnv& env,
-            XrdOucErrInfo& error,
-            eos::common::LogId& ThreadLogId,
-            eos::common::Mapping::VirtualIdentity& vid,
-            const XrdSecEntity* client);
+	    const char* ininfo,
+	    std::string protobuf,
+	    XrdOucEnv& env,
+	    XrdOucErrInfo& error,
+	    eos::common::LogId& ThreadLogId,
+	    eos::common::Mapping::VirtualIdentity& vid,
+	    const XrdSecEntity* client); 
 
   //----------------------------------------------------------------------------
   //! Return metadata in env representation
