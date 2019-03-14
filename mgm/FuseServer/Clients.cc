@@ -126,7 +126,7 @@ FuseServer::Clients::MonitorHeartBeat()
     // delete client ot be evicted because of a version mismatch
     for (auto it = evictversionmap.begin(); it != evictversionmap.end(); ++it) {
       std::string versionerror =
-        "Server supports PROTOCOLV3 and requires atleast PROTOCOLV2";
+        "Server supports PROTOCOLV4 and requires atleast PROTOCOLV2";
       std::string uuid = it->first;
       Evict(uuid, versionerror);
       mMap.erase(it->second);
