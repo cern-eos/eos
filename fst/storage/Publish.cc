@@ -190,11 +190,14 @@ Storage::Publish(ThreadAssistant &assistant)
   eos::fst::Config::gConfig.getFstNodeConfigQueue("Publish");
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
 
+  std::chrono::steady_clock::time_point next_consistency_stats;
+  std::chrono::steady_clock::time_point last_consistency_stats;
+
   while (true) {
     std::string publish_uptime = getUptime(tmp_name);
     std::string publish_sockets = getNumberOfTCPSockets(tmp_name);
 
-    std::chrono::milliseconds cycleStart = eos::common::getEpochInMilliseconds();
+    std::chrono::steady_clock::time_point cycleStart = std::chrono::steady_clock::now();
 
     time_t now = time(NULL);
     gettimeofday(&tv1, &tz);
@@ -211,8 +214,6 @@ Storage::Publish(ThreadAssistant &assistant)
     {
       // run through our defined filesystems and publish with a MuxTransaction all changes
       eos::common::RWMutexReadLock lock(mFsMutex);
-      static time_t last_consistency_stats = 0;
-      static time_t next_consistency_stats = 0;
 
       if (!gOFS.ObjectManager.OpenMuxTransaction()) {
         eos_static_err("cannot open mux transaction");
@@ -241,9 +242,9 @@ Storage::Publish(ThreadAssistant &assistant)
           bool success = true;
 
           if (mFsVect[i]->GetStatus() == eos::common::FileSystem::kBooted) {
-            if (next_consistency_stats < now) {
+            if (next_consistency_stats < cycleStart) {
               eos_static_debug("msg=\"publish consistency stats\"");
-              last_consistency_stats = now;
+              last_consistency_stats = cycleStart;
               XrdSysMutexHelper ISLock(mFsVect[i]->InconsistencyStatsMutex);
               gFmdDbMapHandler.GetInconsistencyStatistics(fsid,
                   *mFsVect[i]->GetInconsistencyStats(),
@@ -409,12 +410,14 @@ Storage::Publish(ThreadAssistant &assistant)
 
         gOFS.ObjectManager.CloseMuxTransaction();
         // Report the consistency stats only once every 5 min
-        next_consistency_stats = last_consistency_stats + sConsistencyTimeout.count();
+        next_consistency_stats = last_consistency_stats + sConsistencyTimeout;
       }
     }
 
-    std::chrono::milliseconds cycleEnd = eos::common::getEpochInMilliseconds();
-    std::chrono::milliseconds cycleDuration = cycleEnd - cycleStart;
+    std::chrono::steady_clock::time_point cycleEnd = std::chrono::steady_clock::now();
+
+    std::chrono::milliseconds cycleDuration =
+      std::chrono::duration_cast<std::chrono::milliseconds>(cycleEnd - cycleStart);
     std::chrono::milliseconds sleepTime = randomizedReportInterval - cycleDuration;
 
     eos_static_debug("msg=\"publish interval\" %d %d",
