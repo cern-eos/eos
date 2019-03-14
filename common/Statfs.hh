@@ -104,7 +104,7 @@ public:
   //! Execute the statfs function on the given path and build the env
   //! representation.
   //----------------------------------------------------------------------------
-  int DoStatfs(const std::string &path)
+  int perform(const std::string &path)
   {
     env = "";
     int retc = 0;
@@ -126,7 +126,7 @@ public:
   //----------------------------------------------------------------------------
   static std::unique_ptr<Statfs> DoStatfs(const char* path) {
     std::unique_ptr<Statfs> sfs(new Statfs());
-    if (!sfs->DoStatfs(path)) {
+    if (!sfs->perform(path)) {
       return sfs;
     } else {
       return {};
