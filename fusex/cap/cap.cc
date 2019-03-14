@@ -411,7 +411,9 @@ cap::refresh(fuse_req_t req, shared_cap cap)
 
       return rc;
     } else {
-      eos_static_err("GETCAP failed with errno=%d for inode=%16x", errno, cap->id());
+      if (errno != EPERM) {
+	eos_static_err("GETCAP failed with errno=%d for inode=%16x", errno, cap->id());
+      }
 
       if (errno != EL2NSYNC) {
         return rc;

@@ -370,7 +370,8 @@ backend::fetchResponse(std::string& requestURL,
     struct timespec ts;
     eos::common::Timing::GetTimeSpec(ts, true);
     // the MD get operation is implemented via a stream: open/read/close
-    eos_static_debug("opening %s", requestURL.c_str());
+    if (EOS_LOGS_DEBUG)
+      eos_static_debug("opening %s", requestURL.c_str());
     status = file->Open(requestURL.c_str(),
                         XrdCl::OpenFlags::Flags::Read);
     double exec_time_sec = 1.0 * eos::common::Timing::GetCoarseAgeInNs(&ts,
@@ -399,11 +400,13 @@ backend::fetchResponse(std::string& requestURL,
         return ENOENT;
       }
 
-      eos_static_err("fetch-exec-ms=%.02f sum-query-exec-ms=%.02f ok=%d err=%d fatal=%d status-code=%d err-no=%d",
-                     exec_time_sec * 1000.0, total_exec_time_sec * 1000.0, status.IsOK(),
-                     status.IsError(), status.IsFatal(), status.code, status.errNo);
-      eos_static_err("error=status is NOT ok : %s %d %d", status.ToString().c_str(),
-                     status.code, status.errNo);
+      if (status.IsFatal() || EOS_LOGS_DEBUG || (status.errNo != kXR_NotAuthorized) ) {
+	eos_static_err("fetch-exec-ms=%.02f sum-query-exec-ms=%.02f ok=%d err=%d fatal=%d status-code=%d err-no=%d",
+		       exec_time_sec * 1000.0, total_exec_time_sec * 1000.0, status.IsOK(),
+		       status.IsError(), status.IsFatal(), status.code, status.errNo);
+	eos_static_err("error=status is NOT ok : %s %d %d", status.ToString().c_str(),
+		       status.code, status.errNo);
+      }
 
       if (status.code == XrdCl::errAuthFailed) {
         // this is an authentication error which results in permission denied
@@ -444,7 +447,9 @@ backend::fetchResponse(std::string& requestURL,
       // all the other errors are reported back
       if (status.errNo) {
         errno = XrdCl::Proxy::status2errno(status);
-        eos_static_err("error=status is not ok : errno=%d", errno);
+	if ( (status.errNo != EPERM) ) {
+	  eos_static_err("error=status is not ok : errno=%d", errno);
+	}
 
         // xrootd does not transport E2BIG ... sigh
         if (errno == ENAMETOOLONG) {
