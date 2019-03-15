@@ -218,7 +218,8 @@ message config {
   bool dentrymessaging = 2; //< enables dentry invalidation by extra message
   bool writesizeflush = 3; //< allows clients to use writesize flush interval ~= infinite
   string serverversion = 4; //< software version of the server
-  bool appname = 5; //< supports extedned app names like fuse::smaba not only fuse
+  bool appname = 5; //< supports extended app names like fuse::smaba not only fuse
+  bool mdquery = 6; //< supports fetchResponseQuery 
 }
 
 message response {

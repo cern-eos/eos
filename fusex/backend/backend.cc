@@ -178,7 +178,7 @@ backend::getMD(fuse_req_t req,
 {
   // return's the inode of path in inode and rc=0 for success, otherwise errno
   std::string requestURL = getURL(req, path, "fuseX" , "getfusex", listing ? "LS" : "GET", authid, listing? true : false);
-  if (listing) {
+  if (listing || !use_mdquery()) {
     return fetchResponse(requestURL, contv);
   } else {
     return fetchQueryResponse(requestURL, contv);
@@ -198,7 +198,7 @@ backend::getMD(fuse_req_t req,
 {
   std::string requestURL = getURL(req, inode, name, "fuseX" , "getfusex", listing ? "LS" : "GET",
                                   authid, listing? true : false);
-  if (listing) {
+  if (listing || !use_mdquery()) {
     return fetchResponse(requestURL, contv);
   } else {
     return fetchQueryResponse(requestURL, contv);
@@ -219,7 +219,7 @@ backend::getMD(fuse_req_t req,
 {
   std::string requestURL = getURL(req, inode, myclock, "fuseX" , "getfusex", listing ? "LS" : "GET",
                                   authid, listing ? true : false);
-  if (listing) {
+  if (listing || !use_mdquery()) {
     return fetchResponse(requestURL, contv);
   } else {
     return fetchQueryResponse(requestURL, contv);
@@ -1257,4 +1257,12 @@ backend::get_appname()
   } else {
     return "fuse";
   }
+}
+
+/* -------------------------------------------------------------------------- */
+bool
+/* -------------------------------------------------------------------------- */
+backend::use_mdquery()
+{
+  return EosFuse::Instance().mds.supports_mdquery();
 }

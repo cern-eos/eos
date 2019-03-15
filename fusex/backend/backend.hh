@@ -132,6 +132,7 @@ private:
                             bool noretry = false);
 
   std::string get_appname();
+  bool use_mdquery();
 
 };
 #endif /* FUSE_BACKEND_HH_ */

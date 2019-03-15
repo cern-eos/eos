@@ -828,6 +828,12 @@ public:
     return appname;
   }
 
+  bool supports_mdquery()
+  {
+    XrdSysMutexHelper cLock(ConfigMutex);
+    return mdquery;
+  }
+
 private:
 
   // Lock _two_ md objects in the given order.
@@ -877,6 +883,7 @@ private:
   bool dentrymessaging;
   bool writesizeflush;
   bool appname;
+  bool mdquery;
   std::string serverversion;
 
   InodeGenerator next_ino;

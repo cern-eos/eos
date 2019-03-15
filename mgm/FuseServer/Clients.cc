@@ -217,6 +217,7 @@ FuseServer::Clients::Dispatch(const std::string identity,
     cfg.set_dentrymessaging(true);
     cfg.set_writesizeflush(true);
     cfg.set_appname(true);
+    cfg.set_mdquery(true);
     cfg.set_serverversion(std::string(VERSION) + std::string("::") + std::string(
                             RELEASE));
     BroadcastConfig(identity, cfg);
@@ -1001,6 +1002,7 @@ FuseServer::Clients::SetHeartbeatInterval(int interval)
       cfg.set_dentrymessaging(true);
       cfg.set_writesizeflush(true);
       cfg.set_appname(true);
+      cfg.set_mdquery(true);
       cfg.set_serverversion(std::string(VERSION) + std::string("::") + std::string(
                               RELEASE));
       BroadcastConfig(id, cfg);

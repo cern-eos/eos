@@ -86,6 +86,7 @@ metad::init(backend* _mdbackend)
   dentrymessaging = false;
   writesizeflush = false;
   appname = false;
+  mdquery = false;
   serverversion = "<unkown>";
 }
 
@@ -2569,18 +2570,19 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 
             if (rsp.type() == rsp.CONFIG) {
               if (rsp.config_().hbrate()) {
-                eos_static_notice("MGM asked us to set our heartbeat interval to %d seconds, %s dentry-messaging, %s writesizeflush, %s appname and server-version=%s",
+                eos_static_warning("MGM asked us to set our heartbeat interval to %d seconds, %s dentry-messaging, %s writesizeflush, %s appname, %s mdquery and server-version=%s",
                                   rsp.config_().hbrate(),
                                   rsp.config_().dentrymessaging() ? "enable" : "disable",
                                   rsp.config_().writesizeflush() ?  "enable" : "disable",
                                   rsp.config_().appname() ? "accepts" : "rejects",
+				  rsp.config_().mdquery() ? "accepts" : "rejects", 
                                   rsp.config_().serverversion().c_str());
                 interval = (int) rsp.config_().hbrate();
                 XrdSysMutexHelper cLock(EosFuse::Instance().mds.ConfigMutex);
                 EosFuse::Instance().mds.dentrymessaging = rsp.config_().dentrymessaging();
                 EosFuse::Instance().mds.writesizeflush = rsp.config_().writesizeflush();
                 EosFuse::Instance().mds.appname = rsp.config_().appname();
-
+		EosFuse::Instance().mds.mdquery = rsp.config_().mdquery();
                 if (rsp.config_().serverversion().length()) {
                   EosFuse::Instance().mds.serverversion = rsp.config_().serverversion();
                 }
