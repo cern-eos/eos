@@ -27,6 +27,7 @@
 #include "fst/storage/FileSystem.hh"
 #include "fst/FmdDbMap.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
+#include "qclient/Formatting.hh"
 #include "common/LinuxStat.hh"
 #include "common/ShellCmd.hh"
 #include "common/Timing.hh"
@@ -530,82 +531,28 @@ void Storage::QdbPublishNodeStats(const QdbContactDetails &cd,
   qclient::QClient* qcl = eos::BackendClient::getInstance(cd, "fst-publisher");
   std::string channel = SSTR("fst-stats:" << eos::fst::Config::gConfig.FstHostPort);
 
+  //----------------------------------------------------------------------------
+  // Setup required variables..
+  //----------------------------------------------------------------------------
+  std::string tmp_name = makeTemporaryFile();
+  unsigned long long netspeed = getNetspeed(tmp_name);
+  if(tmp_name.empty()) {
+    return;
+  }
 
+  //----------------------------------------------------------------------------
+  // Main loop
+  //----------------------------------------------------------------------------
+  while(!assistant.terminationRequested()) {
+    std::map<std::string, std::string> fstStats = getFSTStatistics(tmp_name, netspeed);
+    qcl->exec("publish", channel, qclient::Formatting::serialize(fstStats));
+    assistant.wait_for(eos::fst::Config::gConfig.getRandomizedPublishInterval());
+  }
 
+  //----------------------------------------------------------------------------
+  // Cleanup temporary file
+  //----------------------------------------------------------------------------
+  (void) unlink(tmp_name.c_str());
 }
-
-
-
-//------------------------------------------------------------------------------
-// Publish statistics about all filesystems this FST manages to QDB.
-// The channel used depends on the filesystem ID:
-// - filesystem-stats:<fsid>
-//------------------------------------------------------------------------------
-// void Storage::QdbPublishFilesystemStats(const QdbContactDetails &cd,
-//   ThreadAssistant &assistant) {
-
-//   qclient::QClient* qcl = eos::BackendClient::getInstance(cd, "fst-publisher");
-//   std::string channel = SSTR("fst-stats:" << eos::fst::Config::gConfig.FstHostPort);
-
-//   eos_static_info("Publisher activated ...");
-//   // Get our network speed
-//   char tmp_name[] = "/tmp/fst.publish.XXXXXX";
-//   int tmp_fd = mkstemp(tmp_name);
-
-//   if (tmp_fd == -1) {
-//     eos_static_err("failed to create temporary file for ip route command");
-//     return;
-//   }
-
-//   (void) close(tmp_fd);
-
-
-//   std::string eosVersion = SSTR(VERSION << "-" << RELEASE);
-//   std::string xrootdVersion = getXrootdVersion();
-
-//   XrdOucString lNodeGeoTag = (getenv("EOS_GEOTAG") ?
-//                               getenv("EOS_GEOTAG") : "geotagdefault");
-//   XrdOucString lEthernetDev = (getenv("EOS_FST_NETWORK_INTERFACE") ?
-//                                getenv("EOS_FST_NETWORK_INTERFACE") : "eth0");
-
-//   unsigned long long netspeed = getNetspeed(tmp_name);
-//   eos_static_info("publishing:networkspeed=%.02f GB/s",
-//                   1.0 * netspeed / 1000000000.0);
-//   // The following line acts as a barrier that prevents progress
-//   // until the config queue becomes known.
-//   eos::fst::Config::gConfig.getFstNodeConfigQueue("Publish");
-//   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
-
-//   std::chrono::steady_clock::time_point next_consistency_stats;
-//   std::chrono::steady_clock::time_point last_consistency_stats;
-
-//   while (!assistant.terminationRequested()) {
-//     std::string publish_uptime = getUptime(tmp_name);
-//     std::string publish_sockets = getNumberOfTCPSockets(tmp_name);
-
-//     std::chrono::steady_clock::time_point cycleStart = std::chrono::steady_clock::now();
-
-//     std::chrono::milliseconds randomizedReportInterval =
-//       eos::fst::Config::gConfig.getRandomizedPublishInterval();
-
-
-//     qcl->exec("publish", channel, "test test");
-
-
-//     std::chrono::steady_clock::time_point cycleEnd = std::chrono::steady_clock::now();
-
-//     std::chrono::milliseconds cycleDuration =
-//       std::chrono::duration_cast<std::chrono::milliseconds>(cycleEnd - cycleStart);
-//     std::chrono::milliseconds sleepTime = randomizedReportInterval - cycleDuration;
-
-//     if (cycleDuration > randomizedReportInterval) {
-//       eos_static_warning("Publisher cycle exceeded %d millisecons - took %d milliseconds",
-//                          randomizedReportInterval.count(), cycleDuration.count());
-//     } else {
-//       assistant.wait_for(sleepTime);
-//     }
-
-//   }
-// }
 
 EOSFSTNAMESPACE_END
