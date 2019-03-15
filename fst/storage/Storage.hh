@@ -223,6 +223,7 @@ private:
   void ErrorReport();
   void Verify();
   void Publish(ThreadAssistant &assistant);
+  void QdbPublish(const QdbContactDetails &cd, ThreadAssistant &assistant);
   void Balancer();
   void Drainer();
   void Cleaner();
