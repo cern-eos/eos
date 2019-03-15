@@ -17,6 +17,7 @@
  ************************************************************************/
 
 #include <sstream>
+#include <chrono>
 #include "common/StacktraceHere.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/persistency/Serialization.hh"
@@ -42,9 +43,10 @@ QuarkFileMD::QuarkFileMD()
 // Constructor
 //------------------------------------------------------------------------------
 QuarkFileMD::QuarkFileMD(IFileMD::id_t id, IFileMDSvc* fileMDSvc):
-  pFileMDSvc(fileMDSvc), mClock(1)
+  pFileMDSvc(fileMDSvc)
 {
   mFile.set_id(id);
+  mClock = std::chrono::high_resolution_clock::now().time_since_epoch().count();
 }
 
 //------------------------------------------------------------------------------
@@ -273,7 +275,7 @@ QuarkFileMD::serialize(eos::Buffer& buffer)
   }
 
   // Increase clock to mark that metadata file has suffered updates
-  ++mClock;
+  mClock = std::chrono::high_resolution_clock::now().time_since_epoch().count();
   // Align the buffer to 4 bytes to efficiently compute the checksum
   size_t obj_size = mFile.ByteSizeLong();
   uint32_t align_size = (obj_size + 3) >> 2 << 2;

@@ -33,6 +33,7 @@
 #include "common/Logging.hh"
 #include <sys/stat.h>
 #include <algorithm>
+#include <chrono>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -43,7 +44,7 @@ QuarkContainerMD::QuarkContainerMD(IContainerMD::id_t id, IFileMDSvc* file_svc,
                                    IContainerMDSvc* cont_svc)
   : IContainerMD(),
     pFilesKey(stringify(id) + constants::sMapFilesSuffix),
-    pDirsKey(stringify(id) + constants::sMapDirsSuffix), mClock(1)
+    pDirsKey(stringify(id) + constants::sMapDirsSuffix)
 {
   mSubcontainers->set_deleted_key("");
   mFiles->set_deleted_key("");
@@ -51,7 +52,7 @@ QuarkContainerMD::QuarkContainerMD(IContainerMD::id_t id, IFileMDSvc* file_svc,
   mFiles->set_empty_key("##_EMPTY_##");
   mCont.set_id(id);
   mCont.set_mode(040755);
-
+  mClock = std::chrono::high_resolution_clock::now().time_since_epoch().count();
   if (!cont_svc && !file_svc) {
     // "Standalone" ContainerMD, without associated container service.
     // Don't call functions which might modify metadata..
@@ -697,7 +698,7 @@ QuarkContainerMD::serialize(Buffer& buffer)
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   // Align the buffer to 4 bytes to efficiently compute the checksum
-  ++mClock;
+  mClock = std::chrono::high_resolution_clock::now().time_since_epoch().count();
   size_t obj_size = mCont.ByteSizeLong();
   uint32_t align_size = (obj_size + 3) >> 2 << 2;
   size_t sz = sizeof(align_size);
