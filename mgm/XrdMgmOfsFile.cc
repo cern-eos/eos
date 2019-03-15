@@ -637,8 +637,6 @@ XrdMgmOfsFile::open(const char* inpath,
     eos::IFileMD::XAttrMap attrmapF;
     gOFS->_attr_ls(cPath.GetPath(), error, vid, 0, attrmapF, false);
     acl.SetFromAttrMap(attrmap, vid, &attrmapF);
-eos_debug("error %d attrmap sys %d user %d attrmapF sys %d user %d", error.getErrInfo(), attrmap.count("sys.acl"),
-attrmap.count("user.acl"), attrmapF.count("sys.acl"), attrmapF.count("user.acl"));
     eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.HasEgroup(),
@@ -646,8 +644,6 @@ attrmap.count("user.acl"), attrmapF.count("sys.acl"), attrmapF.count("user.acl")
              acl.IsMutable());
 
     if (acl.HasAcl()) {
-eos_debug("uid %d sudoer %d isRW %d CanNotRead %d CanNotWrite %d",
-vid.uid, vid.sudoer, isRW, acl.CanNotRead(), acl.CanNotWrite());
       if ( (vid.uid != 0) && (!vid.sudoer) && (isRW ? acl.CanNotWrite() : acl.CanNotRead()) ) {
         eos_debug("uid %d sudoer %d isRW %d CanNotRead %d CanNotWrite %d",
                vid.uid, vid.sudoer, isRW, acl.CanNotRead(), acl.CanNotWrite());
