@@ -135,6 +135,35 @@ static std::string getXrootdVersion() {
 }
 
 //------------------------------------------------------------------------------
+// Retrieve eos version
+//------------------------------------------------------------------------------
+static std::string getEosVersion() {
+  return SSTR(VERSION << "-" << RELEASE);
+}
+
+//------------------------------------------------------------------------------
+// Retrieve node geotag
+//------------------------------------------------------------------------------
+static std::string getGeotag() {
+  if(getenv("EOS_GEOTAG")) {
+    return getenv("EOS_GEOTAG");
+  }
+
+  return "geotagdefault";
+}
+
+//------------------------------------------------------------------------------
+// Retrieve FST network interface
+//------------------------------------------------------------------------------
+static std::string getNetworkInterface() {
+  if(getenv("EOS_FST_NETWORK_INTERFACE")) {
+    return getenv("EOS_FST_NETWORK_INTERFACE");
+  }
+
+  return "eth0";
+}
+
+//------------------------------------------------------------------------------
 // Retrieve number of TCP sockets in the system
 // TODO: Change return value to integer..
 //------------------------------------------------------------------------------
@@ -155,6 +184,77 @@ static std::string getNumberOfTCPSockets(const std::string &tmpname) {
 }
 
 //------------------------------------------------------------------------------
+// Get statistics about this FST, used for publishing
+//------------------------------------------------------------------------------
+std::map<std::string, std::string>
+Storage::getFSTStatistics(const std::string &tmpfile,
+  unsigned long long netspeed) {
+
+  eos::common::LinuxStat::linux_stat_t osstat;
+  if (!eos::common::LinuxStat::GetStat(osstat)) {
+    eos_crit("failed to get the memory usage information");
+  }
+
+  std::map<std::string, std::string> output;
+
+  // Kernel version
+  output["stat.sys.kernel"] = eos::fst::Config::gConfig.KernelVersion.c_str();
+
+  // Virtual memory size
+  output["stat.sys.vsize"] = SSTR(osstat.vsize);
+
+  // rss usage
+  output["stat.sys.rss"] = SSTR(osstat.rss);
+
+  // number of active threads on this machine
+  output["stat.sys.threads"] = SSTR(osstat.threads);
+
+  // eos version
+  output["stat.sys.eos.version"] = getEosVersion();
+
+  // xrootd version
+  output["stat.sys.xrootd.version"] = getXrootdVersion();
+
+  // adler32 of keytab
+  output["stat.sys.keytab"] = eos::fst::Config::gConfig.KeyTabAdler.c_str();
+
+  // machine uptime
+  output["stat.sys.uptime"] = getUptime(tmpfile);
+
+  // active TCP sockets
+  output["stat.sys.sockets"] = getNumberOfTCPSockets(tmpfile);
+
+  // startup time of the FST daemon
+  output["stat.sys.eos.start"] = eos::fst::Config::gConfig.StartDate.c_str();
+
+  // FST geotag
+  output["stat.geotag"] = getGeotag();
+
+  // http port
+  output["http.port"] = SSTR(gOFS.mHttpdPort);
+
+  // debug level
+  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+  output["debug.state"] = eos::common::StringConversion::ToLower
+                      (g_logging.GetPriorityString
+                       (g_logging.gPriorityLevel)).c_str();
+
+  // net info
+  output["stat.net.ethratemib"] = SSTR(netspeed / (8 * 1024 * 1024));
+  output["stat.net.inratemib"] = SSTR(
+    mFstLoad.GetNetRate(getNetworkInterface().c_str(), "rxbytes") / 1024.0 / 1024.0);
+
+  output["stat.net.outratemib"] = SSTR(
+    mFstLoad.GetNetRate(getNetworkInterface().c_str(), "txbytes") / 1024.0 / 1024.0);
+
+  // publish timestamp
+  output["stat.publishtimestamp"] = SSTR(
+    eos::common::getEpochInMilliseconds().count());
+
+  return output;
+}
+
+//------------------------------------------------------------------------------
 // Publish
 //------------------------------------------------------------------------------
 void
@@ -172,14 +272,8 @@ Storage::Publish(ThreadAssistant &assistant)
 
   (void) close(tmp_fd);
 
-
-  std::string eosVersion = SSTR(VERSION << "-" << RELEASE);
-  std::string xrootdVersion = getXrootdVersion();
-
   XrdOucString lNodeGeoTag = (getenv("EOS_GEOTAG") ?
                               getenv("EOS_GEOTAG") : "geotagdefault");
-  XrdOucString lEthernetDev = (getenv("EOS_FST_NETWORK_INTERFACE") ?
-                               getenv("EOS_FST_NETWORK_INTERFACE") : "eth0");
 
   unsigned long long netspeed = getNetspeed(tmp_name);
   eos_static_info("publishing:networkspeed=%.02f GB/s",
@@ -368,6 +462,9 @@ Storage::Publish(ThreadAssistant &assistant)
         }
 
         {
+
+          std::map<std::string, std::string> fstStats = getFSTStatistics(tmp_name, netspeed);
+
           // set node status values
           gOFS.ObjectManager.HashMutex.LockRead();
           // we received a new symkey
@@ -376,29 +473,9 @@ Storage::Publish(ThreadAssistant &assistant)
                                     "hash");
 
           if (hash) {
-            hash->Set("stat.sys.kernel", eos::fst::Config::gConfig.KernelVersion.c_str());
-            hash->Set("stat.sys.vsize", osstat.vsize);
-            hash->Set("stat.sys.rss", osstat.rss);
-            hash->Set("stat.sys.threads", osstat.threads);
-            hash->Set("stat.sys.eos.version", eosVersion.c_str());
-            hash->Set("stat.sys.xrootd.version", xrootdVersion.c_str());
-            hash->Set("stat.sys.keytab", eos::fst::Config::gConfig.KeyTabAdler.c_str());
-            hash->Set("stat.sys.uptime", publish_uptime.c_str());
-            hash->Set("stat.sys.sockets", publish_sockets.c_str());
-            hash->Set("stat.sys.eos.start", eos::fst::Config::gConfig.StartDate.c_str());
-            hash->Set("stat.geotag", lNodeGeoTag.c_str());
-            hash->Set("http.port", gOFS.mHttpdPort);
-            hash->Set("debug.state",
-                      eos::common::StringConversion::ToLower
-                      (g_logging.GetPriorityString
-                       (g_logging.gPriorityLevel)).c_str());
-            // copy out net info
-            hash->Set("stat.net.ethratemib", netspeed / (8 * 1024 * 1024));
-            hash->Set("stat.net.inratemib", mFstLoad.GetNetRate(lEthernetDev.c_str(),
-                      "rxbytes") / 1024.0 / 1024.0);
-            hash->Set("stat.net.outratemib", mFstLoad.GetNetRate(lEthernetDev.c_str(),
-                      "txbytes") / 1024.0 / 1024.0);
-            hash->Set("stat.publishtimestamp", SSTR(eos::common::getEpochInMilliseconds().count()));
+            for(auto it = fstStats.begin(); it != fstStats.end(); it++) {
+              hash->Set(it->first.c_str(), it->second.c_str());
+            }
           }
 
           gOFS.ObjectManager.HashMutex.UnLockRead();

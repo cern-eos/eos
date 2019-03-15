@@ -210,6 +210,12 @@ private:
   static void* StartBoot(void* pp);
 
   //----------------------------------------------------------------------------
+  //! Get statistics about this FST, used for publishing
+  //----------------------------------------------------------------------------
+  std::map<std::string, std::string> getFSTStatistics(
+    const std::string &tmpfile, unsigned long long netspeed);
+
+  //----------------------------------------------------------------------------
   //! Worker threads implementation
   //----------------------------------------------------------------------------
   void Supervisor();
