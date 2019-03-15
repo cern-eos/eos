@@ -255,6 +255,25 @@ Storage::getFSTStatistics(const std::string &tmpfile,
 }
 
 //------------------------------------------------------------------------------
+// open random temporary file in /tmp/
+// Return value: string containing the temporary file. If opening it was
+// not possible, return empty string.
+//------------------------------------------------------------------------------
+std::string makeTemporaryFile() {
+  char tmp_name[] = "/tmp/fst.publish.XXXXXX";
+  int tmp_fd = mkstemp(tmp_name);
+
+  if (tmp_fd == -1) {
+    eos_static_crit("failed to create temporary file!");
+    return "";
+  }
+
+  (void) close(tmp_fd);
+
+  return tmp_name;
+}
+
+//------------------------------------------------------------------------------
 // Publish
 //------------------------------------------------------------------------------
 void
@@ -262,15 +281,11 @@ Storage::Publish(ThreadAssistant &assistant)
 {
   eos_static_info("Publisher activated ...");
   // Get our network speed
-  char tmp_name[] = "/tmp/fst.publish.XXXXXX";
-  int tmp_fd = mkstemp(tmp_name);
 
-  if (tmp_fd == -1) {
-    eos_static_err("failed to create temporary file for ip route command");
+  std::string tmp_name = makeTemporaryFile();
+  if(tmp_name.empty()) {
     return;
   }
-
-  (void) close(tmp_fd);
 
   XrdOucString lNodeGeoTag = (getenv("EOS_GEOTAG") ?
                               getenv("EOS_GEOTAG") : "geotagdefault");
@@ -294,12 +309,6 @@ Storage::Publish(ThreadAssistant &assistant)
 
     std::chrono::milliseconds randomizedReportInterval =
       eos::fst::Config::gConfig.getRandomizedPublishInterval();
-
-    eos::common::LinuxStat::linux_stat_t osstat;
-
-    if (!eos::common::LinuxStat::GetStat(osstat)) {
-      eos_err("failed to get the memory usage information");
-    }
 
     {
       // run through our defined filesystems and publish with a MuxTransaction all changes
@@ -504,73 +513,99 @@ Storage::Publish(ThreadAssistant &assistant)
     }
   }
 
-  (void) unlink(tmp_name);
+  (void) unlink(tmp_name.c_str());
 }
 
-void Storage::QdbPublish(const QdbContactDetails &cd, ThreadAssistant &assistant) {
+//------------------------------------------------------------------------------
+// Publish statistics about this FST node.
+// The channel used depends on the FST hostport:
+// - fst-stats:<my hostport>
+//------------------------------------------------------------------------------
+void Storage::QdbPublishNodeStats(const QdbContactDetails &cd,
+  ThreadAssistant &assistant) {
+
+  //----------------------------------------------------------------------------
+  // Fetch a qclient object, decide on which channel to use
+  //----------------------------------------------------------------------------
   qclient::QClient* qcl = eos::BackendClient::getInstance(cd, "fst-publisher");
   std::string channel = SSTR("fst-stats:" << eos::fst::Config::gConfig.FstHostPort);
 
-  eos_static_info("Publisher activated ...");
-  // Get our network speed
-  char tmp_name[] = "/tmp/fst.publish.XXXXXX";
-  int tmp_fd = mkstemp(tmp_name);
 
-  if (tmp_fd == -1) {
-    eos_static_err("failed to create temporary file for ip route command");
-    return;
-  }
-
-  (void) close(tmp_fd);
-
-
-  std::string eosVersion = SSTR(VERSION << "-" << RELEASE);
-  std::string xrootdVersion = getXrootdVersion();
-
-  XrdOucString lNodeGeoTag = (getenv("EOS_GEOTAG") ?
-                              getenv("EOS_GEOTAG") : "geotagdefault");
-  XrdOucString lEthernetDev = (getenv("EOS_FST_NETWORK_INTERFACE") ?
-                               getenv("EOS_FST_NETWORK_INTERFACE") : "eth0");
-
-  unsigned long long netspeed = getNetspeed(tmp_name);
-  eos_static_info("publishing:networkspeed=%.02f GB/s",
-                  1.0 * netspeed / 1000000000.0);
-  // The following line acts as a barrier that prevents progress
-  // until the config queue becomes known.
-  eos::fst::Config::gConfig.getFstNodeConfigQueue("Publish");
-  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
-
-  std::chrono::steady_clock::time_point next_consistency_stats;
-  std::chrono::steady_clock::time_point last_consistency_stats;
-
-  while (!assistant.terminationRequested()) {
-    std::string publish_uptime = getUptime(tmp_name);
-    std::string publish_sockets = getNumberOfTCPSockets(tmp_name);
-
-    std::chrono::steady_clock::time_point cycleStart = std::chrono::steady_clock::now();
-
-    std::chrono::milliseconds randomizedReportInterval =
-      eos::fst::Config::gConfig.getRandomizedPublishInterval();
-
-
-    qcl->exec("publish", channel, "test test");
-
-
-    std::chrono::steady_clock::time_point cycleEnd = std::chrono::steady_clock::now();
-
-    std::chrono::milliseconds cycleDuration =
-      std::chrono::duration_cast<std::chrono::milliseconds>(cycleEnd - cycleStart);
-    std::chrono::milliseconds sleepTime = randomizedReportInterval - cycleDuration;
-
-    if (cycleDuration > randomizedReportInterval) {
-      eos_static_warning("Publisher cycle exceeded %d millisecons - took %d milliseconds",
-                         randomizedReportInterval.count(), cycleDuration.count());
-    } else {
-      assistant.wait_for(sleepTime);
-    }
-
-  }
 
 }
+
+
+
+//------------------------------------------------------------------------------
+// Publish statistics about all filesystems this FST manages to QDB.
+// The channel used depends on the filesystem ID:
+// - filesystem-stats:<fsid>
+//------------------------------------------------------------------------------
+// void Storage::QdbPublishFilesystemStats(const QdbContactDetails &cd,
+//   ThreadAssistant &assistant) {
+
+//   qclient::QClient* qcl = eos::BackendClient::getInstance(cd, "fst-publisher");
+//   std::string channel = SSTR("fst-stats:" << eos::fst::Config::gConfig.FstHostPort);
+
+//   eos_static_info("Publisher activated ...");
+//   // Get our network speed
+//   char tmp_name[] = "/tmp/fst.publish.XXXXXX";
+//   int tmp_fd = mkstemp(tmp_name);
+
+//   if (tmp_fd == -1) {
+//     eos_static_err("failed to create temporary file for ip route command");
+//     return;
+//   }
+
+//   (void) close(tmp_fd);
+
+
+//   std::string eosVersion = SSTR(VERSION << "-" << RELEASE);
+//   std::string xrootdVersion = getXrootdVersion();
+
+//   XrdOucString lNodeGeoTag = (getenv("EOS_GEOTAG") ?
+//                               getenv("EOS_GEOTAG") : "geotagdefault");
+//   XrdOucString lEthernetDev = (getenv("EOS_FST_NETWORK_INTERFACE") ?
+//                                getenv("EOS_FST_NETWORK_INTERFACE") : "eth0");
+
+//   unsigned long long netspeed = getNetspeed(tmp_name);
+//   eos_static_info("publishing:networkspeed=%.02f GB/s",
+//                   1.0 * netspeed / 1000000000.0);
+//   // The following line acts as a barrier that prevents progress
+//   // until the config queue becomes known.
+//   eos::fst::Config::gConfig.getFstNodeConfigQueue("Publish");
+//   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+
+//   std::chrono::steady_clock::time_point next_consistency_stats;
+//   std::chrono::steady_clock::time_point last_consistency_stats;
+
+//   while (!assistant.terminationRequested()) {
+//     std::string publish_uptime = getUptime(tmp_name);
+//     std::string publish_sockets = getNumberOfTCPSockets(tmp_name);
+
+//     std::chrono::steady_clock::time_point cycleStart = std::chrono::steady_clock::now();
+
+//     std::chrono::milliseconds randomizedReportInterval =
+//       eos::fst::Config::gConfig.getRandomizedPublishInterval();
+
+
+//     qcl->exec("publish", channel, "test test");
+
+
+//     std::chrono::steady_clock::time_point cycleEnd = std::chrono::steady_clock::now();
+
+//     std::chrono::milliseconds cycleDuration =
+//       std::chrono::duration_cast<std::chrono::milliseconds>(cycleEnd - cycleStart);
+//     std::chrono::milliseconds sleepTime = randomizedReportInterval - cycleDuration;
+
+//     if (cycleDuration > randomizedReportInterval) {
+//       eos_static_warning("Publisher cycle exceeded %d millisecons - took %d milliseconds",
+//                          randomizedReportInterval.count(), cycleDuration.count());
+//     } else {
+//       assistant.wait_for(sleepTime);
+//     }
+
+//   }
+// }
 
 EOSFSTNAMESPACE_END

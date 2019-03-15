@@ -229,7 +229,12 @@ private:
   void ErrorReport();
   void Verify();
   void Publish(ThreadAssistant &assistant);
-  void QdbPublish(const QdbContactDetails &cd, ThreadAssistant &assistant);
+
+  void QdbPublishFilesystemStats(
+    const QdbContactDetails &cd, ThreadAssistant &assistant);
+  void QdbPublishNodeStats(
+    const QdbContactDetails &cd, ThreadAssistant &assistant);
+
   void Balancer();
   void Drainer();
   void Cleaner();
@@ -400,7 +405,9 @@ private:
   AssistedThread mQdbCommunicatorThread;
 
   AssistedThread mPublisherThread;
-  AssistedThread mQdbPublisherThread;
+
+  AssistedThread mQdbFilesystemPublisherThread;
+  AssistedThread mQdbNodePublisherThread;
 };
 
 EOSFSTNAMESPACE_END
