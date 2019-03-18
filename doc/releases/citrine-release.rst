@@ -16,6 +16,28 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.4.30 Citrine``
+===================
+
+2019-03-18
+
+Bug
+---
+
+* FUSEX/MGM: allow all combinations of client/server versions by considering the
+  config entry if 'mdquery' is supported or not
+* FUSEX: fix return code of eos-ioverify in case of any IO error
+
+Improvements
+------------
+
+*  ALL: Drop "drainstatus" from the persistent config and use "stat.drain" to
+   hold the current status of the draining for a filesystem. This reduces also
+   the number of configuration save operations triggered by the draining and
+   we rely only on "configstatus" to decide whether or not draining should
+   be enabled. Note: all "stat.*" are filtered out from the persistent config.
+
+
 ``v4.4.29 Citrine``
 ===================
 
