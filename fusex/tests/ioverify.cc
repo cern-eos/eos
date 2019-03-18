@@ -18,6 +18,7 @@ void usage()
 
 int main(int argc , char* argv[])
 {
+  int retc=0;
   if (argc != 4) {
     usage();
   }
@@ -70,6 +71,7 @@ int main(int argc , char* argv[])
       fds.push_back(open(path.c_str(), 0));
       if (fds[i] <1) {
 	fprintf(stderr,"error: open failed for path='%s' errno=%d\n", path.c_str(), errno);
+	retc = -1;
       }
     }
 
@@ -83,11 +85,13 @@ int main(int argc , char* argv[])
 	size_t nr = pread(fds[i], buffer, size, offset);
 	if (nr != size) {
 	  fprintf(stderr,"error: failed to read file=%lu offset=%lu size=%lu read=%lu\n", i, offset, size, nr);
+	  retc = -1;
 	}
 	// verify pattern
 	for (size_t l = 0; l < size; l++) {
 	  if (buffer[l] != ((offset+l+i)%256)) {
 	    fprintf(stderr,"error: pattern for file=%lu offset=%lu should be %x but we got %x\n", i, offset+l, (unsigned int) (offset+l+i)%256, buffer[l]);
+	    retc = -1;
 	  }
 	}
       }
@@ -96,5 +100,5 @@ int main(int argc , char* argv[])
       close(fds[i]);
     }
   }
-  exit(0);
+  exit(retc);
 }
