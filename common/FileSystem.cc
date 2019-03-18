@@ -331,7 +331,7 @@ int
 FileSystem::GetConfigStatusFromString(const char* ss)
 {
   if (!ss) {
-    return kDown;
+    return kOff;
   }
 
   if (!strcmp(ss, "unknown")) {
@@ -367,7 +367,7 @@ FileSystem::GetConfigStatusFromString(const char* ss)
   }
 
   if (!strcmp(ss, "down")) {
-    return kDown;
+    return kOff;
   }
 
   return kUnknown;
