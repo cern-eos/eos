@@ -303,7 +303,6 @@ rmdir newdir || exit 11;
 ) || exit 11
 fi
 
-
 if [ "$1" = "12" ]; then
 time (
 echo "===================================================================="
@@ -312,6 +311,23 @@ mkdir 012-eos-rmrf-test
 cd 012-eos-rmrf-test
 for name in `seq 1 100`; do mkdir name; rm -rf name; stat name 2>/dev/null  && exit 12;  done; exit 0;
 ) || exit 12
+fi
+
+if [ "$1" = "13" ] ; then
+time (
+echo "===================================================================="
+echo "013 ... IO verify 512 files"
+mkdir 013-eos-ioverify-test
+cd 013-eos-ioverify-test
+
+eos-fusex-ioverify $PWD 512 0 >& /tmp/013-eos-clienttests.log
+if [ $? -eq 0 ] ; then echo OK > /dev/null; else exit 13; fi
+echo "3" > /proc/sys/vm/drop_caches
+eos-fusex-ioverify $PWD 512 1000 >> /tmp/013-eos-clienttests.log 2>&1
+if [ $? -eq 0 ] ; then echo OK > /dev/null; else exit 13; fi
+rm -rf pattern.* >> /tmp/032-eos-clienttests.log 2>&1
+if [ $? -eq 0 ] ; then echo OK > /dev/null; else exit 13; fi
+) || exit 13
 fi
 
 
