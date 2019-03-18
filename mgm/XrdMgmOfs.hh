@@ -114,6 +114,7 @@
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "mgm/FuseNotificationGuard.hh"
+#include "mgm/InFlightTracker.hh"
 #include <google/sparse_hash_map>
 #include <chrono>
 #include <mutex>
@@ -1615,10 +1616,12 @@ public:
   bool mTapeAwareGcDefaultSpaceEnable; ///< Flag to mark if tape aware garbage collection should be enabled
   eos::common::XrdConnPool mXrdConnPool; ///< XRD connection pool
   TapeAwareGc mTapeAwareGc; ///< Tape aware garbage collector
+  //! Tracker for requests which are currently executing MGM code
+  eos::mgm::InFlightTracker mTracker;
 
 private:
-  std::map<std::string, XrdMgmOfsDirectory*>
-  mMapDirs; ///< uuid to directory obj. mapping
+  ///< uuid to directory obj. mapping
+  std::map<std::string, XrdMgmOfsDirectory*> mMapDirs;
   std::map<std::string, XrdMgmOfsFile*> mMapFiles; ///< uuid to file obj. mapping
   XrdSysMutex mMutexDirs; ///< mutex for protecting the access at the dirs map
   XrdSysMutex mMutexFiles; ///< mutex for protecting the access at the files map
@@ -1783,13 +1786,13 @@ private:
   //! Will redirect to the RW master.
   //----------------------------------------------------------------------------
   int Fusex(const char* path,
-	    const char* ininfo,
-	    std::string protobuf,
-	    XrdOucEnv& env,
-	    XrdOucErrInfo& error,
-	    eos::common::LogId& ThreadLogId,
-	    eos::common::Mapping::VirtualIdentity& vid,
-	    const XrdSecEntity* client); 
+            const char* ininfo,
+            std::string protobuf,
+            XrdOucEnv& env,
+            XrdOucErrInfo& error,
+            eos::common::LogId& ThreadLogId,
+            eos::common::Mapping::VirtualIdentity& vid,
+            const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
   //! Return metadata in env representation
@@ -1806,12 +1809,12 @@ private:
   //! Return metadata for a fusex client
   //----------------------------------------------------------------------------
   int GetFusex(const char* path,
-	       const char* ininfo,
-	       XrdOucEnv& env,
-	       XrdOucErrInfo& error,
-	       eos::common::LogId& ThreadLogId,
-	       eos::common::Mapping::VirtualIdentity& vid,
-	       const XrdSecEntity* client);
+               const char* ininfo,
+               XrdOucEnv& env,
+               XrdOucErrInfo& error,
+               eos::common::LogId& ThreadLogId,
+               eos::common::Mapping::VirtualIdentity& vid,
+               const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
   //! Query to determine if current node is acting as master

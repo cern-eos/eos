@@ -279,6 +279,9 @@ QdbMaster::SlaveToMaster()
   Access::StallInfo old_stall; // to be discarded
   Access::StallInfo new_stall("*", "5", "slave->master transition", true);
   Access::SetStallRule(new_stall, old_stall);
+  gOFS->mTracker.SetAcceptingRequests(false);
+  gOFS->mTracker.SpinUntilNoRequestsInFlight(true,
+      std::chrono::milliseconds(100));
   std::string std_out, std_err;
   // We are the master and we broadcast every configuration change
   gOFS->ObjectManager.EnableBroadCast(true);
@@ -295,6 +298,7 @@ QdbMaster::SlaveToMaster()
     if (mIsMaster) {
       eos_info("%s", "msg=\"stall thread removing global stall\"");
       Access::RemoveStallRule("*");
+      gOFS->mTracker.SetAcceptingRequests(true);
     }
   });
   stall_thread.detach();
@@ -320,6 +324,9 @@ QdbMaster::MasterToSlave()
   Access::StallInfo old_stall; // to be discarded
   Access::StallInfo new_stall("*", "5", "master->slave transition", true);
   Access::SetStallRule(new_stall, old_stall);
+  gOFS->mTracker.SetAcceptingRequests(false);
+  gOFS->mTracker.SpinUntilNoRequestsInFlight(true,
+      std::chrono::milliseconds(100));
   // We are the slave, we just listen and don't broadcast anything
   gOFS->ObjectManager.EnableBroadCast(false);
   std::string new_master_id = GetMasterId();
@@ -331,6 +338,7 @@ QdbMaster::MasterToSlave()
   DisableNsCaching();
   Access::SetMasterToSlaveRules(new_master_id);
   gOFS->mDrainEngine.Stop();
+  gOFS->mTracker.SetAcceptingRequests(true);
 }
 
 //------------------------------------------------------------------------------

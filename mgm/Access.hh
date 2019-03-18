@@ -134,16 +134,16 @@ public:
   static std::map<std::string, std::string> gStallComment;
 
   //! indicates global stall rule
-  static bool gStallGlobal;
+  static std::atomic<bool> gStallGlobal;
 
   //! indicates global read stall
-  static bool gStallRead;
+  static std::atomic<bool> gStallRead;
 
   //! indicates global write stall
-  static bool gStallWrite;
+  static std::atomic<bool> gStallWrite;
 
   //! indicates a user or group rate stall entry
-  static bool gStallUserGroup;
+  static std::atomic<bool> gStallUserGroup;
 
   //! map containing user based redirection
   static std::map<uid_t, std::string> gUserRedirection;
@@ -230,7 +230,6 @@ public:
   //! @param key stall rule key
   //----------------------------------------------------------------------------
   static void RemoveStallRule(const std::string& key);
-
 };
 
 EOSMGMNAMESPACE_END

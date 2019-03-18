@@ -61,16 +61,16 @@ std::map<std::string, std::string> Access::gStallRules;
 std::map<std::string, std::string> Access::gStallComment;
 
 //! indicates global stall rule
-bool Access::gStallGlobal = false;
+std::atomic<bool> Access::gStallGlobal {false};
 
 //! indicates global read stall
-bool Access::gStallRead = false;
+std::atomic<bool> Access::gStallRead {false};
 
 //! indicates global write stall
-bool Access::gStallWrite = false;
+std::atomic<bool> Access::gStallWrite {false};
 
 //! indicates a user or group rate stall entry
-bool Access::gStallUserGroup = false;
+std::atomic<bool> Access::gStallUserGroup {false};
 
 //! singleton map for UID based redirection (not used yet)
 std::map<uid_t, std::string> Access::gUserRedirection;
@@ -568,6 +568,7 @@ Access::SetMasterToSlaveRules(const std::string& other_master_id)
     Access::gRedirectionRules.erase(std::string("ENOENT:*"));
     Access::gStallRules[std::string("*")] = "60";
     Access::gStallWrite = true;
+    Access::gStallGlobal = true;
   } else {
     // We're the slave and there is a master - set redirection to him
     eos_static_info("msg=\"add redirection to master %s\"",
@@ -579,6 +580,7 @@ Access::SetMasterToSlaveRules(const std::string& other_master_id)
     Access::gStallRules.erase(std::string("*"));
     Access::gStallRules.erase(std::string("w:*"));
     Access::gStallWrite = false;
+    Access::gStallGlobal = false;
   }
 }
 
@@ -590,6 +592,14 @@ Access::RemoveStallRule(const std::string& key)
 {
   eos::common::RWMutexWriteLock wr_lock(Access::gAccessMutex);
   Access::gStallRules.erase(key);
+
+  if (key.find("w:*") == 0) {
+    Access::gStallWrite = false;
+  } else if (key.find("r:*") == 0) {
+    Access::gStallRead = false;
+  } else if (key.find("*") == 0) {
+    Access::gStallGlobal = false;
+  }
 }
 
 EOSMGMNAMESPACE_END

@@ -233,6 +233,9 @@ XrdMgmOfs::OrderlyShutdown()
     eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
     Access::gStallRules[std::string("*")] = "300";
   }
+  gOFS->mTracker.SetAcceptingRequests(false);
+  gOFS->mTracker.SpinUntilNoRequestsInFlight(true,
+      std::chrono::milliseconds(100));
   eos_warning("%s", "msg=\"disable configuration engine autosave\"");
   ConfEngine->SetAutoSave(false);
   FsView::gFsView.SetConfigEngine(nullptr);
@@ -596,11 +599,9 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                    const XrdSecEntity* client)
 {
   EXEC_TIMING_BEGIN("Prepare");
-
   static const char* epname = "prepare";
   const char* tident = error.getErrUser();
   eos::common::Mapping::VirtualIdentity vid;
-
   XrdOucTList* pptr = pargs.paths;
   XrdOucTList* optr = pargs.oinfo;
   std::string info;
@@ -614,9 +615,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     const char* ininfo = "";
     MAYREDIRECT;
   }
-
   gOFS->MgmStats.Add("Prepare", vid.uid, vid.gid, 1);
-
   std::string cmd = "mgm.pcmd=event";
   int retc = SFS_OK;
   std::list<std::pair<char**, char**>> pathsWithPrepare;

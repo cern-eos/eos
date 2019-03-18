@@ -33,6 +33,7 @@
 #ifndef __EOSMGM_MACROS__HH__
 #define __EOSMGM_MACROS__HH__
 
+#include "mgm/InFlightTracker.hh"
 
 USE_EOSMGMNAMESPACE
 
@@ -77,18 +78,25 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 //------------------------------------------------------------------------------
 //! Stall Macro
 //------------------------------------------------------------------------------
-#define MAYSTALL { if (gOFS->IsStall) {                                        \
-      XrdOucString stallmsg="";                                                \
-      int stalltime=0;                                                         \
-      if (gOFS->ShouldStall(__FUNCTION__,__AccessMode__, vid, stalltime, stallmsg)) { \
-        if (stalltime) {                                                       \
-          return gOFS->Stall(error,stalltime, stallmsg.c_str());               \
-        } else {                                                               \
-          return gOFS->Emsg("maystall", error, EPERM, stallmsg.c_str(), "");   \
-        }                                                                      \
-      }                                                                        \
-  }                                                                            \
-}
+#define MAYSTALL eos::mgm::InFlightRegistration tracker_helper(gOFS->mTracker); \
+  if (gOFS->IsStall) {                                                  \
+    XrdOucString stallmsg="";                                           \
+    int stalltime=0;                                                    \
+    if (gOFS->ShouldStall(__FUNCTION__,__AccessMode__, vid, stalltime, stallmsg)) { \
+      if (stalltime) {                                                  \
+        return gOFS->Stall(error,stalltime, stallmsg.c_str());          \
+      } else {                                                          \
+        return gOFS->Emsg("maystall", error, EPERM, stallmsg.c_str(), ""); \
+      }                                                                 \
+    } else {                                                            \
+      if (!tracker_helper.IsOK()) {                                     \
+        stallmsg="track request, stall the client 5 seconds";           \
+        stalltime = 5;                                                  \
+        return gOFS->Stall(error,stalltime, stallmsg.c_str());          \
+      }                                                                 \
+    }                                                                   \
+  }
+
 
 //------------------------------------------------------------------------------
 //! Redirect Macro
