@@ -68,10 +68,6 @@ protected:
   //! to avoid race conditions in deletion.
   XrdMqSharedObjectManager* mSom;
 
-  //! Mutex used in a file system constructor
-  // TODO (esindril): This seems to be useless!!!
-  XrdSysMutex mConstructorLock;
-
   //! Handle to the drain queue
   TransferQueue* mDrainQueue;
 

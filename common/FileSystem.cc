@@ -34,7 +34,6 @@ EOSCOMMONNAMESPACE_BEGIN;
 FileSystem::FileSystem(const char* queuepath, const char* queue,
                        XrdMqSharedObjectManager* som, bool bc2mgm)
 {
-  XrdSysMutexHelper cLock(mConstructorLock);
   mQueuePath = queuepath;
   mQueue = queue;
   mPath = queuepath;
@@ -154,8 +153,6 @@ FileSystem::FileSystem(const char* queuepath, const char* queue,
 //------------------------------------------------------------------------------
 FileSystem::~FileSystem()
 {
-  XrdSysMutexHelper cLock(mConstructorLock);
-
   // remove the shared hash of this file system
   if (mSom) {
     mSom->DeleteSharedHash(mQueuePath.c_str(), BroadCastDeletion);
