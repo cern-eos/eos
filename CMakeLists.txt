@@ -72,18 +72,30 @@ option(TESTCOVERAGE "Build with test coverage reporting" OFF)
 
 if(TESTCOVERAGE)
   set(GCOV_CFLAGS "-fprofile-arcs -ftest-coverage --coverage")
-  set(GCOV_LIBS "gcov")
+  set(GCOV_LIBRARY "gcov")
 
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCOV_CFLAGS}")
 
   add_custom_target(
     raw-test-trace
-    COMMAND lcov --capture --base-directory ${CMAKE_CURRENT_SOURCE_DIR} --directory ${CMAKE_BINARY_DIR} --output-file ${CMAKE_BINARY_DIR}/raw-trace.info
+    COMMAND lcov --capture --base-directory ${CMAKE_SOURCE_DIR} --directory ${CMAKE_BINARY_DIR} --output-file ${CMAKE_BINARY_DIR}/raw-trace.info
   )
 
   add_custom_target(
     filtered-test-trace
-    COMMAND lcov --remove ${CMAKE_BINARY_DIR}/raw-trace.info "/usr/include/\\*" "/opt/eos-folly/\\*" "${CMAKE_BINARY_DIR}/\\*" "namespace/ns_quarkdb/tests/\\*" --output-file ${CMAKE_BINARY_DIR}/filtered-trace.info
+    COMMAND lcov --remove ${CMAKE_BINARY_DIR}/raw-trace.info
+        "/usr/include/\\*"
+        "/usr/local/include/\\*"
+        "/opt/eos-folly/\\*"
+        "/opt/rh/\\*"
+        "${CMAKE_BINARY_DIR}/\\*"
+        "${CMAKE_SOURCE_DIR}/common/backward-cpp/\\*"
+        "${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/\\*"
+        "${CMAKE_SOURCE_DIR}/fst/tests/\\*"
+        "${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/\\*"
+        "${CMAKE_SOURCE_DIR}/test/\\*"
+        "${CMAKE_SOURCE_DIR}/unit_tests/\\*"
+    --output-file ${CMAKE_BINARY_DIR}/filtered-trace.info
     DEPENDS raw-test-trace
   )
 

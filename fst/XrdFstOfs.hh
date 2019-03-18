@@ -99,6 +99,13 @@ public:
   static void xrdfstofs_stacktrace(int sig);
 
   //----------------------------------------------------------------------------
+  //! Print coverage data
+  //!
+  //! @param sig
+  //----------------------------------------------------------------------------
+  static void xrdfstofs_coverage(int sig);
+
+  //----------------------------------------------------------------------------
   //! FST "graceful" shutdown procedure. The FST will wait for a configurable
   //! amount of time for readers and writers before shutting down.
   //!

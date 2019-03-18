@@ -68,6 +68,7 @@
 extern XrdOucTrace gMgmOfsTrace;
 extern void xrdmgmofs_shutdown(int sig);
 extern void xrdmgmofs_stacktrace(int sig);
+extern void xrdmgmofs_coverage(int sig);
 
 USE_EOSMGMNAMESPACE
 
@@ -1878,6 +1879,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       (void) signal(SIGABRT, xrdmgmofs_stacktrace);
       (void) signal(SIGBUS, xrdmgmofs_stacktrace);
     }
+  }
+
+  if (getenv("EOS_COVERAGE_REPORT")) {
+    // Add coverage report handler
+    (void) signal(SIGPROF, xrdmgmofs_coverage);
   }
 
   if (mNumAuthThreads && mFrontendPort) {

@@ -78,6 +78,9 @@ extern XrdOucTrace OfsTrace;
 // Set the version information
 XrdVERSIONINFO(XrdSfsGetFileSystem2, FstOfs);
 
+// Forward declaration of gcov flush API
+extern "C" void __gcov_flush();
+
 //------------------------------------------------------------------------------
 // XRootD OFS interface implementation
 //------------------------------------------------------------------------------
@@ -135,6 +138,11 @@ XrdFstOfs::XrdFstOfs() :
     (void) signal(SIGQUIT, xrdfstofs_shutdown);
     // Add graceful shutdown handler
     (void) signal(SIGUSR1, xrdfstofs_graceful_shutdown);
+  }
+
+  if (getenv("EOS_COVERAGE_REPORT")) {
+    // Add coverage report handler
+    (void) signal(SIGPROF, xrdfstofs_coverage);
   }
 
   // Initialize the google sparse hash maps
@@ -222,6 +230,16 @@ XrdFstOfs::xrdfstofs_stacktrace(int sig)
   kill(getpid(), sig);
   int wstatus = 0;
   wait(&wstatus);
+}
+
+//------------------------------------------------------------------------------
+// Print coverage data
+//------------------------------------------------------------------------------
+void
+XrdFstOfs::xrdfstofs_coverage(int sig)
+{
+  eos_static_notice("msg=\"printing coverage data\"");
+  __gcov_flush();
 }
 
 //------------------------------------------------------------------------------

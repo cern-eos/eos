@@ -51,6 +51,9 @@ XrdSysError gMqOfsEroute(0);
 XrdOucTrace gMqOfsTrace(&gMqOfsEroute);
 XrdMqOfs* gMqFS = 0;
 
+// Forward declaration of gcov flush API
+extern "C" void __gcov_flush();
+
 //------------------------------------------------------------------------------
 // Shutdown handler
 //------------------------------------------------------------------------------
@@ -58,6 +61,15 @@ void
 xrdmqofs_shutdown(int sig)
 {
   exit(0);
+}
+
+//------------------------------------------------------------------------------
+// Coverage report handler
+//------------------------------------------------------------------------------
+void
+xrdmqofs_coverage(int sig) {
+  eos_static_notice("printing coverage data");
+  __gcov_flush();
 }
 
 //------------------------------------------------------------------------------
@@ -322,6 +334,9 @@ XrdMqOfs::XrdMqOfs(XrdSysError* ep):
   BacklogDeferred = NoMessages = QueueBacklogHits = 0;
   MaxMessageBacklog  = MQOFSMAXMESSAGEBACKLOG;
   (void) signal(SIGINT, xrdmqofs_shutdown);
+  if (getenv("EOS_COVERAGE_REPORT")) {
+    (void) signal(SIGPROF, xrdmqofs_coverage);
+  }
   HostName = 0;
   HostPref = 0;
   eos_info_lite("Addr:mQueueOutMutex: 0x%llx", &mQueueOutMutex);
