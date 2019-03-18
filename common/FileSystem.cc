@@ -88,7 +88,7 @@ FileSystem::FileSystem(const char* queuepath, const char* queue,
           hash->Set("host", host.c_str());
           hash->Set("port", port.c_str());
           hash->Set("configstatus", "down");
-          hash->Set("drainstatus", "nodrain");
+          hash->Set("stat.drain", "nodrain");
         } else {
           eos_static_crit("there is no hostport defined for queue %s\n", mQueue.c_str());
         }
@@ -121,6 +121,7 @@ FileSystem::FileSystem(const char* queuepath, const char* queue,
         hash->Set("hostport", hostport.c_str());
         hash->Set("host", host.c_str());
         hash->Set("port", port.c_str());
+        hash->Set("stat.drain", "nodrain");
       } else {
         eos_static_crit("there is no hostport defined for queue %s\n", mQueue.c_str());
       }
@@ -536,7 +537,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
     fs.mStatus = GetStatusFromString(hash->Get("stat.boot").c_str());
     fs.mConfigStatus = GetConfigStatusFromString(
                          hash->Get("configstatus").c_str());
-    fs.mDrainStatus = GetDrainStatusFromString(hash->Get("drainstatus").c_str());
+    fs.mDrainStatus = GetDrainStatusFromString(hash->Get("stat.drain").c_str());
     fs.mActiveStatus = GetActiveStatusFromString(hash->Get("stat.active").c_str());
     //headroom can be configured as KMGTP so the string should be properly converted
     fs.mHeadRoom = StringConversion::GetSizeFromString(hash->Get("headroom"));
@@ -806,8 +807,8 @@ void
 FileSystem::Print(TableHeader& table_mq_header, TableData& table_mq_data,
                   std::string listformat, const std::string& filter)
 {
-  RWMutexReadLock lock(mSom->HashMutex);
   XrdMqSharedHash* hash = nullptr;
+  RWMutexReadLock lock(mSom->HashMutex);
 
   if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
     hash->Print(table_mq_header, table_mq_data, listformat, filter);

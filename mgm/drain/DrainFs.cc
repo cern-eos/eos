@@ -229,9 +229,7 @@ DrainFs::SuccessfulDrain()
         static_cast<eos::common::FileSystem*>(fs)->SetString("configstatus",
             "empty");
         fs->CloseTransaction();
-        // we don't store anymore an 'empty' configuration state
-        // 'empty' is only set at the end of a drain job
-        // !!! FsView::gFsView.StoreFsConfig(fs);
+        FsView::gFsView.StoreFsConfig(fs);
       } else {
         fs->CloseTransaction();
       }
@@ -259,7 +257,6 @@ DrainFs::FailedDrain()
       fs->SetLongLong("stat.drainprogress", 100, false);
       fs->SetLongLong("stat.drain.failed", mJobsFailed.size(), false);
       fs->CloseTransaction();
-      FsView::gFsView.StoreFsConfig(fs);
     }
   }
 }
@@ -286,18 +283,6 @@ DrainFs::Stop()
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   }
-
-  // eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-  // if (FsView::gFsView.mIdView.count(mFsId)) {
-  //   FileSystem* fs  = FsView::gFsView.mIdView[mFsId];
-  //   if (fs) {
-  //     mStatus = eos::common::FileSystem::kNoDrain;
-  //     fs->OpenTransaction();
-  //     fs->SetDrainStatus(eos::common::FileSystem::kNoDrain, false);
-  //     fs->CloseTransaction();
-  //     FsView::gFsView.StoreFsConfig(fs);
-  //   }
-  // }
 }
 
 //------------------------------------------------------------------------------
@@ -391,7 +376,6 @@ DrainFs::MarkFsDraining()
   fs->SetLongLong("stat.drainfiles", mTotalFiles, false);
   fs->SetLongLong("stat.drain.failed", 0, false);
   fs->SetLongLong("stat.drainretry", mMaxRetries);
-  FsView::gFsView.StoreFsConfig(fs);
   return true;
 }
 
@@ -447,7 +431,6 @@ DrainFs::UpdateProgress()
       fs->SetLongLong("stat.drainfiles", mPending, false);
       mStatus = eos::common::FileSystem::kDrainExpired;
       fs->SetDrainStatus(eos::common::FileSystem::kDrainExpired);
-      FsView::gFsView.StoreFsConfig(fs);
       return State::Expired;
     }
 
@@ -455,13 +438,11 @@ DrainFs::UpdateProgress()
       if (mStatus != eos::common::FileSystem::kDrainStalling) {
         mStatus = eos::common::FileSystem::kDrainStalling;
         fs->SetDrainStatus(eos::common::FileSystem::kDrainStalling);
-        FsView::gFsView.StoreFsConfig(fs);
       }
     } else {
       if (mStatus != eos::common::FileSystem::kDraining) {
         mStatus = eos::common::FileSystem::kDraining;
         fs->SetDrainStatus(eos::common::FileSystem::kDraining);
-        FsView::gFsView.StoreFsConfig(fs);
       }
     }
 
@@ -535,7 +516,6 @@ DrainFs::ResetCounters()
       fs->SetLongLong("stat.drainprogress", 0, false);
       fs->SetLongLong("stat.drainretry", 0, false);
       fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
-      FsView::gFsView.StoreFsConfig(fs);
     }
   }
 

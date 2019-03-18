@@ -442,7 +442,7 @@ public:
   bool
   SetDrainStatus(fsstatus_t status, bool broadcast = true)
   {
-    return SetString("drainstatus", GetDrainStatusAsString(status), broadcast);
+    return SetString("stat.drain", GetDrainStatusAsString(status), broadcast);
   }
 
   //----------------------------------------------------------------------------
@@ -697,7 +697,7 @@ public:
   fsstatus_t
   GetDrainStatus()
   {
-    return GetDrainStatusFromString(GetString("drainstatus").c_str());
+    return GetDrainStatusFromString(GetString("stat.drain").c_str());
   }
 
   //----------------------------------------------------------------------------

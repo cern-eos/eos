@@ -46,17 +46,17 @@ constexpr std::chrono::seconds Storage::sConsistencyTimeout;
 // This is to keep the entry in the hash, even if no opened files exist.
 //------------------------------------------------------------------------------
 static std::string hotFilesToString(
-  const std::vector<eos::fst::OpenFileTracker::HotEntry> &entries) {
-
-  if(entries.size() == 0u) {
+  const std::vector<eos::fst::OpenFileTracker::HotEntry>& entries)
+{
+  if (entries.size() == 0u) {
     return " ";
   }
 
   std::ostringstream ss;
-  for(size_t i = 0; i < entries.size(); i++) {
+
+  for (size_t i = 0; i < entries.size(); i++) {
     XrdOucString hexfid;
     eos::common::FileId::Fid2Hex(entries[i].fid, hexfid);
-
     ss << entries[i].uses;
     ss << ":";
     ss << hexfid.c_str();
@@ -69,16 +69,16 @@ static std::string hotFilesToString(
 //------------------------------------------------------------------------------
 // Retrieve net speed
 //------------------------------------------------------------------------------
-static uint64_t getNetspeed(const std::string& tmpname) {
-  if(getenv("EOS_FST_NETWORK_SPEED")) {
+static uint64_t getNetspeed(const std::string& tmpname)
+{
+  if (getenv("EOS_FST_NETWORK_SPEED")) {
     return strtoull(getenv("EOS_FST_NETWORK_SPEED"), nullptr, 10);
   }
 
   std::string getNetspeedCommand = SSTR(
-    "ip route list | sed -ne '/^default/s/.*dev //p' | cut -d ' ' -f1 |"
-    " xargs -i ethtool {} 2>&1 | grep Speed | cut -d ' ' -f2 | cut -d 'M' -f1 > "
-    << tmpname);
-
+                                     "ip route list | sed -ne '/^default/s/.*dev //p' | cut -d ' ' -f1 |"
+                                     " xargs -i ethtool {} 2>&1 | grep Speed | cut -d ' ' -f2 | cut -d 'M' -f1 > "
+                                     << tmpname);
   eos::common::ShellCmd scmd1(getNetspeedCommand.c_str());
   eos::common::cmd_status rc = scmd1.wait(5);
   unsigned long long netspeed = 1000000000;
@@ -107,7 +107,8 @@ static uint64_t getNetspeed(const std::string& tmpname) {
 //------------------------------------------------------------------------------
 // Retrieve uptime
 //------------------------------------------------------------------------------
-static std::string getUptime(const std::string &tmpname) {
+static std::string getUptime(const std::string& tmpname)
+{
   eos::common::ShellCmd cmd(SSTR("uptime | tr -d \"\n\" > " << tmpname));
   eos::common::cmd_status rc = cmd.wait(5);
 
@@ -124,7 +125,8 @@ static std::string getUptime(const std::string &tmpname) {
 //------------------------------------------------------------------------------
 // Retrieve xrootd version
 //------------------------------------------------------------------------------
-static std::string getXrootdVersion() {
+static std::string getXrootdVersion()
+{
   XrdOucString v = XrdVERSIONINFOVAR(XrdgetProtocol).vStr;
   int pos = v.find(" ");
 
@@ -138,15 +140,17 @@ static std::string getXrootdVersion() {
 //------------------------------------------------------------------------------
 // Retrieve eos version
 //------------------------------------------------------------------------------
-static std::string getEosVersion() {
+static std::string getEosVersion()
+{
   return SSTR(VERSION << "-" << RELEASE);
 }
 
 //------------------------------------------------------------------------------
 // Retrieve node geotag
 //------------------------------------------------------------------------------
-static std::string getGeotag() {
-  if(getenv("EOS_GEOTAG")) {
+static std::string getGeotag()
+{
+  if (getenv("EOS_GEOTAG")) {
     return getenv("EOS_GEOTAG");
   }
 
@@ -156,8 +160,9 @@ static std::string getGeotag() {
 //------------------------------------------------------------------------------
 // Retrieve FST network interface
 //------------------------------------------------------------------------------
-static std::string getNetworkInterface() {
-  if(getenv("EOS_FST_NETWORK_INTERFACE")) {
+static std::string getNetworkInterface()
+{
+  if (getenv("EOS_FST_NETWORK_INTERFACE")) {
     return getenv("EOS_FST_NETWORK_INTERFACE");
   }
 
@@ -168,10 +173,10 @@ static std::string getNetworkInterface() {
 // Retrieve number of TCP sockets in the system
 // TODO: Change return value to integer..
 //------------------------------------------------------------------------------
-static std::string getNumberOfTCPSockets(const std::string &tmpname) {
+static std::string getNumberOfTCPSockets(const std::string& tmpname)
+{
   std::string command = SSTR("cat /proc/net/tcp | wc -l | tr -d \"\n\" > " <<
-    tmpname);
-
+                             tmpname);
   eos::common::ShellCmd cmd(command.c_str());
   eos::common::cmd_status rc = cmd.wait(5);
 
@@ -188,70 +193,56 @@ static std::string getNumberOfTCPSockets(const std::string &tmpname) {
 // Get statistics about this FST, used for publishing
 //------------------------------------------------------------------------------
 std::map<std::string, std::string>
-Storage::getFSTStatistics(const std::string &tmpfile,
-  unsigned long long netspeed) {
-
+Storage::getFSTStatistics(const std::string& tmpfile,
+                          unsigned long long netspeed)
+{
   eos::common::LinuxStat::linux_stat_t osstat;
+
   if (!eos::common::LinuxStat::GetStat(osstat)) {
     eos_crit("failed to get the memory usage information");
   }
 
   std::map<std::string, std::string> output;
-
   // Kernel version
   output["stat.sys.kernel"] = eos::fst::Config::gConfig.KernelVersion.c_str();
-
   // Virtual memory size
   output["stat.sys.vsize"] = SSTR(osstat.vsize);
-
   // rss usage
   output["stat.sys.rss"] = SSTR(osstat.rss);
-
   // number of active threads on this machine
   output["stat.sys.threads"] = SSTR(osstat.threads);
-
   // eos version
   output["stat.sys.eos.version"] = getEosVersion();
-
   // xrootd version
   output["stat.sys.xrootd.version"] = getXrootdVersion();
-
   // adler32 of keytab
   output["stat.sys.keytab"] = eos::fst::Config::gConfig.KeyTabAdler.c_str();
-
   // machine uptime
   output["stat.sys.uptime"] = getUptime(tmpfile);
-
   // active TCP sockets
   output["stat.sys.sockets"] = getNumberOfTCPSockets(tmpfile);
-
   // startup time of the FST daemon
   output["stat.sys.eos.start"] = eos::fst::Config::gConfig.StartDate.c_str();
-
   // FST geotag
   output["stat.geotag"] = getGeotag();
-
   // http port
   output["http.port"] = SSTR(gOFS.mHttpdPort);
-
   // debug level
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   output["debug.state"] = eos::common::StringConversion::ToLower
-                      (g_logging.GetPriorityString
-                       (g_logging.gPriorityLevel)).c_str();
-
+                          (g_logging.GetPriorityString
+                           (g_logging.gPriorityLevel)).c_str();
   // net info
   output["stat.net.ethratemib"] = SSTR(netspeed / (8 * 1024 * 1024));
   output["stat.net.inratemib"] = SSTR(
-    mFstLoad.GetNetRate(getNetworkInterface().c_str(), "rxbytes") / 1024.0 / 1024.0);
-
+                                   mFstLoad.GetNetRate(getNetworkInterface().c_str(),
+                                       "rxbytes") / 1024.0 / 1024.0);
   output["stat.net.outratemib"] = SSTR(
-    mFstLoad.GetNetRate(getNetworkInterface().c_str(), "txbytes") / 1024.0 / 1024.0);
-
+                                    mFstLoad.GetNetRate(getNetworkInterface().c_str(),
+                                        "txbytes") / 1024.0 / 1024.0);
   // publish timestamp
   output["stat.publishtimestamp"] = SSTR(
-    eos::common::getEpochInMilliseconds().count());
-
+                                      eos::common::getEpochInMilliseconds().count());
   return output;
 }
 
@@ -260,7 +251,8 @@ Storage::getFSTStatistics(const std::string &tmpfile,
 // Return value: string containing the temporary file. If opening it was
 // not possible, return empty string.
 //------------------------------------------------------------------------------
-std::string makeTemporaryFile() {
+std::string makeTemporaryFile()
+{
   char tmp_name[] = "/tmp/fst.publish.XXXXXX";
   int tmp_fd = mkstemp(tmp_name);
 
@@ -270,7 +262,6 @@ std::string makeTemporaryFile() {
   }
 
   (void) close(tmp_fd);
-
   return tmp_name;
 }
 
@@ -278,39 +269,34 @@ std::string makeTemporaryFile() {
 // Publish
 //------------------------------------------------------------------------------
 void
-Storage::Publish(ThreadAssistant &assistant)
+Storage::Publish(ThreadAssistant& assistant)
 {
   eos_static_info("Publisher activated ...");
   // Get our network speed
-
   std::string tmp_name = makeTemporaryFile();
-  if(tmp_name.empty()) {
+
+  if (tmp_name.empty()) {
     return;
   }
 
   XrdOucString lNodeGeoTag = (getenv("EOS_GEOTAG") ?
                               getenv("EOS_GEOTAG") : "geotagdefault");
-
   unsigned long long netspeed = getNetspeed(tmp_name);
   eos_static_info("publishing:networkspeed=%.02f GB/s",
                   1.0 * netspeed / 1000000000.0);
   // The following line acts as a barrier that prevents progress
   // until the config queue becomes known.
   eos::fst::Config::gConfig.getFstNodeConfigQueue("Publish");
-  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
-
   std::chrono::steady_clock::time_point next_consistency_stats;
   std::chrono::steady_clock::time_point last_consistency_stats;
 
   while (!assistant.terminationRequested()) {
     std::string publish_uptime = getUptime(tmp_name);
     std::string publish_sockets = getNumberOfTCPSockets(tmp_name);
-
-    std::chrono::steady_clock::time_point cycleStart = std::chrono::steady_clock::now();
-
+    std::chrono::steady_clock::time_point cycleStart =
+      std::chrono::steady_clock::now();
     std::chrono::milliseconds randomizedReportInterval =
       eos::fst::Config::gConfig.getRandomizedPublishInterval();
-
     {
       // run through our defined filesystems and publish with a MuxTransaction all changes
       eos::common::RWMutexReadLock lock(mFsMutex);
@@ -326,6 +312,7 @@ Storage::Publish(ThreadAssistant &assistant)
           }
 
           eos::common::FileSystem::fsid_t fsid = 0;
+
           if (!(fsid = mFsVect[i]->GetId())) {
             // during the boot phase we can find a filesystem without ID
             continue;
@@ -333,10 +320,8 @@ Storage::Publish(ThreadAssistant &assistant)
 
           std::string r_open_hotfiles =
             hotFilesToString(gOFS.openedForReading.getHotFiles(fsid, 10));
-
           std::string w_open_hotfiles =
             hotFilesToString(gOFS.openedForWriting.getHotFiles(fsid, 10));
-
           // Retrieve Statistics from the local db
           std::map<std::string, size_t>::const_iterator isit;
           bool success = true;
@@ -419,7 +404,6 @@ Storage::Publish(ThreadAssistant &assistant)
           }
           long long r_open = (long long) gOFS.openedForReading.getOpenOnFilesystem(fsid);
           long long w_open = (long long) gOFS.openedForWriting.getOpenOnFilesystem(fsid);
-
           success &= mFsVect[i]->SetLongLong("stat.ropen", r_open);
           success &= mFsVect[i]->SetLongLong("stat.wopen", w_open);
           success &= mFsVect[i]->SetLongLong("stat.statfs.freebytes",
@@ -446,7 +430,7 @@ Storage::Publish(ThreadAssistant &assistant)
                                            mFsVect[i]->GetStatusAsString(mFsVect[i]->GetStatus()));
           success &= mFsVect[i]->SetString("stat.geotag", lNodeGeoTag.c_str());
           success &= mFsVect[i]->SetLongLong("stat.publishtimestamp",
-            eos::common::getEpochInMilliseconds().count());
+                                             eos::common::getEpochInMilliseconds().count());
           success &= mFsVect[i]->SetLongLong("stat.drainer.running",
                                              mFsVect[i]->GetDrainQueue()->GetRunningAndQueued());
           success &= mFsVect[i]->SetLongLong("stat.balancer.running",
@@ -456,13 +440,11 @@ Storage::Publish(ThreadAssistant &assistant)
           success &= mFsVect[i]->SetDouble("stat.disk.bw",
                                            mFsVect[i]->getSeqBandwidth()); // in MB
           success &= mFsVect[i]->SetLongLong("stat.http.port", gOFS.mHttpdPort);
-
           // Copy out hot file list
           success &= mFsVect[i]->SetString("stat.ropen.hotfiles",
-                                             r_open_hotfiles.c_str());
+                                           r_open_hotfiles.c_str());
           success &= mFsVect[i]->SetString("stat.wopen.hotfiles",
-                                             w_open_hotfiles.c_str());
-
+                                           w_open_hotfiles.c_str());
           CheckFilesystemFullness(i, fsid);
 
           if (!success) {
@@ -472,9 +454,8 @@ Storage::Publish(ThreadAssistant &assistant)
         }
 
         {
-
-          std::map<std::string, std::string> fstStats = getFSTStatistics(tmp_name, netspeed);
-
+          std::map<std::string, std::string> fstStats = getFSTStatistics(tmp_name,
+              netspeed);
           // set node status values
           gOFS.ObjectManager.HashMutex.LockRead();
           // we received a new symkey
@@ -483,7 +464,7 @@ Storage::Publish(ThreadAssistant &assistant)
                                     "hash");
 
           if (hash) {
-            for(auto it = fstStats.begin(); it != fstStats.end(); it++) {
+            for (auto it = fstStats.begin(); it != fstStats.end(); it++) {
               hash->Set(it->first.c_str(), it->second.c_str());
             }
           }
@@ -496,15 +477,13 @@ Storage::Publish(ThreadAssistant &assistant)
         next_consistency_stats = last_consistency_stats + sConsistencyTimeout;
       }
     }
-
-    std::chrono::steady_clock::time_point cycleEnd = std::chrono::steady_clock::now();
-
+    std::chrono::steady_clock::time_point cycleEnd =
+      std::chrono::steady_clock::now();
     std::chrono::milliseconds cycleDuration =
       std::chrono::duration_cast<std::chrono::milliseconds>(cycleEnd - cycleStart);
     std::chrono::milliseconds sleepTime = randomizedReportInterval - cycleDuration;
-
     eos_static_debug("msg=\"publish interval\" %d %d",
-      randomizedReportInterval.count(), cycleDuration.count());
+                     randomizedReportInterval.count(), cycleDuration.count());
 
     if (cycleDuration > randomizedReportInterval) {
       eos_static_warning("Publisher cycle exceeded %d millisecons - took %d milliseconds",
@@ -522,29 +501,31 @@ Storage::Publish(ThreadAssistant &assistant)
 // The channel used depends on the FST hostport:
 // - fst-stats:<my hostport>
 //------------------------------------------------------------------------------
-void Storage::QdbPublishNodeStats(const QdbContactDetails &cd,
-  ThreadAssistant &assistant) {
-
+void Storage::QdbPublishNodeStats(const QdbContactDetails& cd,
+                                  ThreadAssistant& assistant)
+{
   //----------------------------------------------------------------------------
   // Fetch a qclient object, decide on which channel to use
   //----------------------------------------------------------------------------
   qclient::QClient* qcl = eos::BackendClient::getInstance(cd, "fst-publisher");
-  std::string channel = SSTR("fst-stats:" << eos::fst::Config::gConfig.FstHostPort);
-
+  std::string channel = SSTR("fst-stats:" <<
+                             eos::fst::Config::gConfig.FstHostPort);
   //----------------------------------------------------------------------------
   // Setup required variables..
   //----------------------------------------------------------------------------
   std::string tmp_name = makeTemporaryFile();
   unsigned long long netspeed = getNetspeed(tmp_name);
-  if(tmp_name.empty()) {
+
+  if (tmp_name.empty()) {
     return;
   }
 
   //----------------------------------------------------------------------------
   // Main loop
   //----------------------------------------------------------------------------
-  while(!assistant.terminationRequested()) {
-    std::map<std::string, std::string> fstStats = getFSTStatistics(tmp_name, netspeed);
+  while (!assistant.terminationRequested()) {
+    std::map<std::string, std::string> fstStats = getFSTStatistics(tmp_name,
+        netspeed);
     qcl->exec("publish", channel, qclient::Formatting::serialize(fstStats));
     assistant.wait_for(eos::fst::Config::gConfig.getRandomizedPublishInterval());
   }

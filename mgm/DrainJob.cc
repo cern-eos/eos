@@ -138,7 +138,7 @@ DrainJob::SetDrainer()
       if (FsView::gFsView.mIdView.count(*git)) {
         int drainstatus =
           (eos::common::FileSystem::GetDrainStatusFromString(
-             FsView::gFsView.mIdView[*git]->GetString("drainstatus").c_str())
+             FsView::gFsView.mIdView[*git]->GetString("stat.drain").c_str())
           );
 
         if ((drainstatus == eos::common::FileSystem::kDraining) ||
@@ -617,7 +617,6 @@ nofilestodrain:
       // if the system is not shutting down
       //--------------------------------------------------------------------------
       static_cast<eos::common::FileSystem*>(fs)->SetString("configstatus", "empty");
-
       // don't store anymore the 'empty' state into the configuration file
       // 'empty' is only set at the end of a drain
       // !!! FsView::gFsView.StoreFsConfig(fs);

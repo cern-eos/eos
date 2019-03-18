@@ -125,8 +125,8 @@ ProcCommand::FileInfo(const char* path)
     std::shared_ptr<eos::IFileMD> fmd;
 
     if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
-      unsigned long long fid = Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
-
+      unsigned long long fid = Resolver::retrieveFileIdentifier(
+                                 spath).getUnderlyingUInt64();
       // reference by fid+fxid
       //-------------------------------------------
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
@@ -168,7 +168,6 @@ ProcCommand::FileInfo(const char* path)
       using eos::common::FileId;
       using eos::common::LayoutId;
       using eos::common::StringConversion;
-
       // Make a copy of the file metadata object
       std::shared_ptr<eos::IFileMD> fmd_copy(fmd->clone());
       fmd.reset();
@@ -182,7 +181,6 @@ ProcCommand::FileInfo(const char* path)
       bool Envformat = false;
       bool outputFilter = false;
       std::ostringstream out;
-
       FileId::Fid2Hex(fmd_copy->getId(), hexfidstring);
       FileId::Fid2Hex(fmd_copy->getContainerId(), hexpidstring);
 
@@ -223,7 +221,6 @@ ProcCommand::FileInfo(const char* path)
           if ((option.find("-checksum")) != STR_NPOS) {
             std::string xs;
             eos::appendChecksumOnStringAsHex(fmd_copy.get(), xs);
-
             out << "xstype: " << LayoutId::GetChecksumString(fmd_copy->getLayoutId())
                 << std::endl
                 << "xs:     " << xs << std::endl;
@@ -258,17 +255,14 @@ ProcCommand::FileInfo(const char* path)
 
             out << std::endl;
             out << "  Size: " << fmd_copy->getSize() << std::endl;
-
             out << "Modify: " << ctime_r(&filemtime, mtimestring);
             out.seekp(-1, std::ios_base::end);
             out << " Timestamp: " << mtime.tv_sec << "." << mtime.tv_nsec
                 << std::endl;
-
             out << "Change: " << ctime_r(&filectime, ctimestring);
             out.seekp(-1, std::ios_base::end);
             out << " Timestamp: " << ctime.tv_sec << "." << ctime.tv_nsec
                 << std::endl;
-
             out << "  CUid: " << fmd_copy->getCUid()
                 << " CGid: " << fmd_copy->getCGid()
                 << "  Fxid: " << hexfidstring
@@ -276,23 +270,19 @@ ProcCommand::FileInfo(const char* path)
                 << "    Pid: " << fmd_copy->getContainerId()
                 << "   Pxid: " << hexpidstring
                 << std::endl;
-
-
-
             out << "XStype: " << LayoutId::GetChecksumString(fmd_copy->getLayoutId())
                 << "    XS: " << xs_spaces
                 << "    ETAGs: " << etag
                 << std::endl;
-
             out << "Layout: " << LayoutId::GetLayoutTypeString(fmd_copy->getLayoutId())
                 << " Stripes: " << (LayoutId::GetStripeNumber(fmd_copy->getLayoutId()) + 1)
                 << " Blocksize: " << LayoutId::GetBlockSizeString(fmd_copy->getLayoutId())
                 << " LayoutId: " << FileId::Fid2Hex(fmd_copy->getLayoutId())
                 << std::endl;
-
             out << "  #Rep: " << fmd_copy->getNumLocation() << std::endl;
           } else {
             std::string xs;
+
             if (LayoutId::GetChecksumLen(fmd_copy->getLayoutId())) {
               eos::appendChecksumOnStringAsHex(fmd_copy.get(), xs);
             } else {
@@ -348,7 +338,6 @@ ProcCommand::FileInfo(const char* path)
 
             XrdOucString location = "";
             location += (int) * lociter;
-
             eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
             eos::common::FileSystem* filesystem = 0;
 
@@ -369,7 +358,7 @@ ProcCommand::FileInfo(const char* path)
 
               if (!Monitoring) {
                 std::string format =
-                  "header=1|key=host:width=24:format=s|key=schedgroup:width=16:format=s|key=path:width=16:format=s|key=stat.boot:width=10:format=s|key=configstatus:width=14:format=s|key=drainstatus:width=12:format=s|key=stat.active:width=8:format=s|key=stat.geotag:width=24:format=s";
+                  "header=1|key=host:width=24:format=s|key=schedgroup:width=16:format=s|key=path:width=16:format=s|key=stat.boot:width=10:format=s|key=configstatus:width=14:format=s|key=stat.drain:width=12:format=s|key=stat.active:width=8:format=s|key=stat.geotag:width=24:format=s";
 
                 if (showProxygroup) {
                   format += "|key=proxygroup:width=24:format=s";
@@ -462,6 +451,7 @@ ProcCommand::FileInfo(const char* path)
                     out << "     sticky to undefined";
                   } else {
                     size_t k;
+
                     for (k = 0; k < loc_vect.size() && selectedfs[k] != loc_vect[i]; k++);
 
                     out << "sticky to " << proxys[k];
@@ -485,7 +475,6 @@ ProcCommand::FileInfo(const char* path)
           }
 
           out << table_mq.GenerateTable(HEADER);
-
           eos::IFileMD::LocationVector unlink_vect = fmd_copy->getUnlinkedLocations();
 
           for (lociter = unlink_vect.begin(); lociter != unlink_vect.end(); ++lociter) {
@@ -505,7 +494,6 @@ ProcCommand::FileInfo(const char* path)
       stdOut += out.str().c_str();
     }
   }
-
   return SFS_OK;
 }
 
@@ -574,7 +562,6 @@ ProcCommand::DirInfo(const char* path)
       using eos::common::FileId;
       using eos::common::LayoutId;
       using eos::common::StringConversion;
-
       size_t num_containers = dmd->getNumContainers();
       size_t num_files = dmd->getNumFiles();
       std::shared_ptr<eos::IContainerMD> dmd_copy(dmd->clone());
@@ -588,7 +575,6 @@ ProcCommand::DirInfo(const char* path)
       bool Monitoring = false;
       bool outputFilter = false;
       std::ostringstream out;
-
       FileId::Fid2Hex(dmd_copy->getId(), hexfidstring);
       FileId::Fid2Hex(dmd_copy->getParentId(), hexpidstring);
 
@@ -640,7 +626,6 @@ ProcCommand::DirInfo(const char* path)
         if (!Monitoring) {
           out << "  Directory: '" << spath << "'"
               << "  Treesize: " << dmd_copy->getTreeSize() << std::endl;
-
           out << "  Container: " << num_containers
               << "  Files: " << num_files
               << "  Flags: " << StringConversion::IntToOctal(dmd_copy->getMode(), 4);
@@ -654,17 +639,14 @@ ProcCommand::DirInfo(const char* path)
           out.seekp(-1, std::ios_base::end);
           out << " Timestamp: " << mtime.tv_sec << "." << mtime.tv_nsec
               << std::endl;
-
           out << "Change: " << ctime_r(&filectime, ctimestring);
           out.seekp(-1, std::ios_base::end);
           out << " Timestamp: " << ctime.tv_sec << "." << ctime.tv_nsec
               << std::endl;
-
           out << "Sync:   " << ctime_r(&filetmtime, tmtimestring);
           out.seekp(-1, std::ios_base::end);
           out << " Timestamp: " << tmtime.tv_sec << "." << tmtime.tv_nsec
               << std::endl;
-
           out << "  CUid: " << dmd_copy->getCUid()
               << " CGid: " << dmd_copy->getCGid()
               << "  Fxid: " << hexfidstring
@@ -693,7 +675,6 @@ ProcCommand::DirInfo(const char* path)
               << " pxid=" << hexpidstring
               << " etag=" << etag
               << " ";
-
           eos::IFileMD::XAttrMap xattrs = dmd_copy->getAttributes();
 
           for (const auto& elem : xattrs) {
@@ -706,7 +687,6 @@ ProcCommand::DirInfo(const char* path)
       stdOut += out.str().c_str();
     }
   }
-
   return SFS_OK;
 }
 
@@ -719,10 +699,8 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
   eos::IFileMD::ctime_t ctime;
   eos::IFileMD::ctime_t mtime;
   eos_static_debug("fid=%llu", fid);
-
   Json::Value json;
   json["id"] = (Json::Value::UInt64) fid;
-
   XrdOucString hexstring;
   eos::common::FileId::Fid2Hex(fid, hexstring);
 
@@ -743,8 +721,8 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     //--------------------------------------------------------------------------
     fmd_copy->getCTime(ctime);
     fmd_copy->getMTime(mtime);
-    unsigned long long nlink = (fmd_copy->isLink()) ? 1 : fmd_copy->getNumLocation();
-
+    unsigned long long nlink = (fmd_copy->isLink()) ? 1 :
+                               fmd_copy->getNumLocation();
     json["fxid"] = hexstring.c_str();
     json["inode"] = (Json::Value::UInt64) eos::common::FileId::FidToInode(fid);
     json["ctime"] = (Json::Value::UInt64) ctime.tv_sec;
@@ -760,9 +738,11 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["nlink"] = (Json::Value::UInt64) nlink;
     json["name"] = fmd_copy->getName();
     json["path"] = path;
-    json["layout"] = eos::common::LayoutId::GetLayoutTypeString(fmd_copy->getLayoutId());
-    json["nstripes"] = (int) (eos::common::LayoutId::GetStripeNumber(fmd_copy->getLayoutId())
-                              + 1);
+    json["layout"] = eos::common::LayoutId::GetLayoutTypeString(
+                       fmd_copy->getLayoutId());
+    json["nstripes"] = (int)(eos::common::LayoutId::GetStripeNumber(
+                               fmd_copy->getLayoutId())
+                             + 1);
 
     if (fmd_copy->isLink()) {
       json["target"] = fmd_copy->getLink();
@@ -817,7 +797,6 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     std::string cks;
     eos::appendChecksumOnStringAsHex(fmd_copy.get(), cks);
     json["checksumvalue"] = cks;
-
     std::string etag;
     eos::calculateEtag(fmd_copy.get(), etag);
     json["etag"] = etag;
@@ -851,7 +830,6 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
   eos::IFileMD::ctime_t mtime;
   eos::IFileMD::ctime_t tmtime;
   eos_static_debug("fid=%llu", fid);
-
   Json::Value json;
   json["id"] = (Json::Value::UInt64) fid;
 

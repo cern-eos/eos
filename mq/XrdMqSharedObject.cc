@@ -333,7 +333,7 @@ XrdMqSharedHash::GetUInt(const char* key)
 }
 
 //-------------------------------------------------------------------------------
-// Serializes hash contents as follows 'key1=val1 key2=val2 ... keyn=keyn'
+// Serializes hash contents as follows 'key1=val1 key2=val2 ... keyn=valn'
 // but return only keys that don't start with filter_prefix. If specified,
 // string literal values will be curl encoded
 //-------------------------------------------------------------------------------
@@ -351,6 +351,12 @@ XrdMqSharedHash::SerializeWithFilter(const char* filter_prefix,
 
     for (auto it = mStore.begin(); it != mStore.end(); ++it) {
       key = it->first.c_str();
+
+      // @todo(esindril): This should be removed in version 5.0.0. Exclude old
+      // drainstatus indicator which is not saved in the config anymore.
+      if (key == "drainstatus") {
+        continue;
+      }
 
       if (((filter_prefix == nullptr) || (strlen(filter_prefix) == 0)) ||
           (key.find(filter_prefix) != 0)) {
@@ -888,7 +894,7 @@ XrdMqSharedHash::Print(TableHeader& table_mq_header, TableData& table_mq_data,
   bool toRemove = false;
 
   if (filter.find("d") != string::npos) {
-    std::string drain = Get("drainstatus");
+    std::string drain = Get("stat.drain");
 
     if (drain == "nodrain") {
       toRemove = true;
