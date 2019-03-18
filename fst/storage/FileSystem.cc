@@ -52,7 +52,7 @@ FileSystem::FileSystem(const char* queuepath,
   n2 += "/balance";
   std::string n3 = queuepath;
   n3 += "/extern";
-  mLocalBootStatus = eos::common::FileSystem::kDown;
+  mLocalBootStatus = eos::common::BootStatus::kDown;
   mTxDrainQueue = new TransferQueue(&mDrainQueue, n1.c_str());
   mTxBalanceQueue = new TransferQueue(&mBalanceQueue, n2.c_str());
   mTxExternQueue = new TransferQueue(&mExternQueue, n3.c_str());
@@ -97,7 +97,7 @@ FileSystem::BroadcastError(const char* msg)
   }
 
   if (!shutdown) {
-    SetStatus(eos::common::FileSystem::kOpsError);
+    SetStatus(eos::common::BootStatus::kOpsError);
     SetError(errno ? errno : EIO, msg);
   }
 }
@@ -113,7 +113,7 @@ FileSystem::BroadcastError(int errc, const char* errmsg)
   }
 
   if (!shutdown) {
-    SetStatus(eos::common::FileSystem::kOpsError);
+    SetStatus(eos::common::BootStatus::kOpsError);
     SetError(errno ? errno : EIO, errmsg);
   }
 }
@@ -140,10 +140,10 @@ FileSystem::GetStatfs()
     eos_static_debug("ec=%d error=%s recover=%d", GetStatus(),
                      GetString("stat.errmsg").c_str(), mRecoverable);
 
-    if ((GetStatus() == eos::common::FileSystem::kOpsError) && mRecoverable) {
+    if ((GetStatus() == eos::common::BootStatus::kOpsError) && mRecoverable) {
       if (GetString("stat.errmsg") == "cannot statfs") {
         // reset the statfs error
-        SetStatus(eos::common::FileSystem::kBooted);
+        SetStatus(eos::common::BootStatus::kBooted);
         SetError(0, "");
       }
     }

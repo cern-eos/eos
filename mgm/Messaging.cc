@@ -125,7 +125,7 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
         // Propagate into filesystem states
         for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
              it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
-          FsView::gFsView.mIdView[*it]->SetStatus(eos::common::FileSystem::kDown, false);
+          FsView::gFsView.mIdView[*it]->SetStatus(eos::common::BootStatus::kDown, false);
         }
       }
 
@@ -160,7 +160,7 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
         // Propagate into filesystem states
         for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
              it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
-          FsView::gFsView.mIdView[*it]->SetStatus(eos::common::FileSystem::kDown, false);
+          FsView::gFsView.mIdView[*it]->SetStatus(eos::common::BootStatus::kDown, false);
         }
       }
 

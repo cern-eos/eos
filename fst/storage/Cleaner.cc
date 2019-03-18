@@ -54,7 +54,7 @@ Storage::Cleaner()
         eos::common::RWMutexReadLock lock(mFsMutex);
 
         if (i < mFsVect.size()) {
-          if (mFsVect[i]->GetStatus() == eos::common::FileSystem::kBooted) {
+          if (mFsVect[i]->GetStatus() == eos::common::BootStatus::kBooted) {
             if (mFsVect[i]->SyncTransactions(manager.c_str())) {
               mFsVect[i]->CleanTransactions();
             }

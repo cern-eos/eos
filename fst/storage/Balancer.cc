@@ -206,8 +206,7 @@ Storage::GetFileSystemInBalanceMode(std::vector<unsigned int>& balancefsvector,
         mFsVect[index]->GetBalanceQueue()->SetSlots(nparalleltx);
       }
 
-      eos::common::FileSystem::fsstatus_t bootstatus =
-        mFsVect[index]->GetStatus();
+      eos::common::BootStatus bootstatus = mFsVect[index]->GetStatus();
       eos::common::FileSystem::fsstatus_t configstatus =
         mFsVect[index]->GetConfigStatus();
       bool is_active = IsNodeActive();
@@ -219,7 +218,7 @@ Storage::GetFileSystemInBalanceMode(std::vector<unsigned int>& balancefsvector,
       }
 
       if ((is_active == false) || (full) ||
-          (bootstatus != eos::common::FileSystem::kBooted) ||
+          (bootstatus != eos::common::BootStatus::kBooted) ||
           (configstatus <= eos::common::FileSystem::kRO)) {
         eos_static_debug("balance skip fsid=%lu, status=%u, configstatus=%u, "
                          "activestatus=%u", id, bootstatus, configstatus,

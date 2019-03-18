@@ -320,7 +320,7 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto)
     while (!gOFS->IsNsBooted()) {
       std::this_thread::sleep_for(std::chrono::seconds(2));
     }
-  
+
     std::string sfsid = std::to_string(dumpmdProto.fsid());
     XrdOucString option = dumpmdProto.display() ==
                           eos::console::FsProto::DumpMdProto::MONITOR ? "m" : "";
@@ -524,7 +524,7 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
                       eos::common::FileSystem::fs_snapshot_t snapshot;
                       repfs->SnapShotFileSystem(snapshot, false);
 
-                      if ((snapshot.mStatus == eos::common::FileSystem::kBooted) &&
+                      if ((snapshot.mStatus == eos::common::BootStatus::kBooted) &&
                           (snapshot.mConfigStatus == eos::common::FileSystem::kRW) &&
                           (snapshot.mErrCode == 0) && // this we probably don't need
                           (fs->GetActiveStatus(snapshot))) {

@@ -151,7 +151,7 @@ Storage::Communicator(ThreadAssistant &assistant)
           mFsVect.push_back(fs);
           mFileSystemsMap[fs->GetId()] = fs;
           eos_static_info("setting up filesystem %s", queue.c_str());
-          fs->SetStatus(eos::common::FileSystem::kDown);
+          fs->SetStatus(eos::common::BootStatus::kDown);
         }
 
         gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
@@ -357,7 +357,7 @@ Storage::Communicator(ThreadAssistant &assistant)
 
                 // check if we are autobooting
                 if (eos::fst::Config::gConfig.autoBoot &&
-                    (mQueue2FsMap[queue.c_str()]->GetStatus() <= eos::common::FileSystem::kDown) &&
+                    (mQueue2FsMap[queue.c_str()]->GetStatus() <= eos::common::BootStatus::kDown) &&
                     (mQueue2FsMap[queue.c_str()]->GetConfigStatus() >
                      eos::common::FileSystem::kOff)) {
                   // start a boot thread
@@ -370,7 +370,7 @@ Storage::Communicator(ThreadAssistant &assistant)
                   // Request to (re-)boot a filesystem
                   if (mQueue2FsMap.count(queue.c_str())) {
                     if ((mQueue2FsMap[queue.c_str()]->GetInternalBootStatus() ==
-                         eos::common::FileSystem::kBooted)) {
+                         eos::common::BootStatus::kBooted)) {
                       if (mQueue2FsMap[queue.c_str()]->GetLongLong("bootcheck")) {
                         eos_static_info("queue=%s status=%d check=%lld msg='boot enforced'",
                                         queue.c_str(), mQueue2FsMap[queue.c_str()]->GetStatus(),
@@ -380,7 +380,7 @@ Storage::Communicator(ThreadAssistant &assistant)
                         eos_static_info("queue=%s status=%d check=%lld msg='skip boot - we are already booted'",
                                         queue.c_str(), mQueue2FsMap[queue.c_str()]->GetStatus(),
                                         mQueue2FsMap[queue.c_str()]->GetLongLong("bootcheck"));
-                        mQueue2FsMap[queue.c_str()]->SetStatus(eos::common::FileSystem::kBooted);
+                        mQueue2FsMap[queue.c_str()]->SetStatus(eos::common::BootStatus::kBooted);
                       }
                     } else {
                       eos_static_info("queue=%s status=%d check=%lld msg='booting - we are not booted yet'",

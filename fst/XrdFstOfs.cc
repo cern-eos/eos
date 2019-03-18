@@ -1198,7 +1198,7 @@ XrdFstOfs::SendFsck(XrdMqMessage* message)
           std::set<eos::common::FileId::fileid_t>::const_iterator fit;
 
           if (gOFS.Storage->mFsVect[i]->GetStatus() !=
-              eos::common::FileSystem::kBooted) {
+              eos::common::BootStatus::kBooted) {
             // we don't report filesystems which are not booted!
             continue;
           }

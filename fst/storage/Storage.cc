@@ -325,7 +325,7 @@ Storage::Boot(FileSystem* fs)
     return;
   }
 
-  fs->SetStatus(eos::common::FileSystem::kBooting);
+  fs->SetStatus(eos::common::BootStatus::kBooting);
   // Wait to know who is our manager
   std::string manager = "";
   size_t cnt = 0;
@@ -365,7 +365,7 @@ Storage::Boot(FileSystem* fs)
   std::unique_ptr<eos::common::Statfs> statfs = fs->GetStatfs();
 
   if (!statfs) {
-    fs->SetStatus(eos::common::FileSystem::kBootFailure);
+    fs->SetStatus(eos::common::BootStatus::kBootFailure);
     fs->SetError(errno ? errno : EIO, "cannot statfs filesystem");
     return;
   }
@@ -386,7 +386,7 @@ Storage::Boot(FileSystem* fs)
         errno = EPERM;
       }
 
-      fs->SetStatus(eos::common::FileSystem::kBootFailure);
+      fs->SetStatus(eos::common::BootStatus::kBootFailure);
       fs->SetError(errno ? errno : EIO, "cannot have <rw> access");
       return;
     }
@@ -395,7 +395,7 @@ Storage::Boot(FileSystem* fs)
     struct stat root_buf;
 
     if (::stat("/", &root_buf)) {
-      fs->SetStatus(eos::common::FileSystem::kBootFailure);
+      fs->SetStatus(eos::common::BootStatus::kBootFailure);
       fs->SetError(errno ? errno : EIO, "cannot stat root / filesystems");
       return;
     }
@@ -403,7 +403,7 @@ Storage::Boot(FileSystem* fs)
     if (root_buf.st_dev == buf.st_dev) {
       // This filesystem is on the ROOT partition
       if (!CheckLabel(fs->GetPath(), fsid, uuid, false, true)) {
-        fs->SetStatus(eos::common::FileSystem::kBootFailure);
+        fs->SetStatus(eos::common::BootStatus::kBootFailure);
         fs->SetError(EIO, "filesystem is on the root partition without or "
                      "wrong <uuid> label file .eosfsuuid");
         return;
@@ -419,7 +419,7 @@ Storage::Boot(FileSystem* fs)
 
   // Attach to the local DB
   if (!gFmdDbMapHandler.SetDBFile(mMetaDir.c_str(), fsid)) {
-    fs->SetStatus(eos::common::FileSystem::kBootFailure);
+    fs->SetStatus(eos::common::BootStatus::kBootFailure);
     fs->SetError(EFAULT, "cannot set DB filename - see the fst logfile "
                  "for details");
     return;
@@ -435,14 +435,14 @@ Storage::Boot(FileSystem* fs)
   if (resyncdisk && (fs->GetPath()[0] == '/')) {
     if (resyncmgm) {
       if (!gFmdDbMapHandler.ResetDB(fsid)) {
-        fs->SetStatus(eos::common::FileSystem::kBootFailure);
+        fs->SetStatus(eos::common::BootStatus::kBootFailure);
         fs->SetError(EFAULT, "cannot clean DB on local disk");
         return;
       }
     }
 
     if (!gFmdDbMapHandler.ResyncAllDisk(fs->GetPath().c_str(), fsid, resyncmgm)) {
-      fs->SetStatus(eos::common::FileSystem::kBootFailure);
+      fs->SetStatus(eos::common::BootStatus::kBootFailure);
       fs->SetError(EFAULT, "cannot resync the DB from local disk");
       return;
     }
@@ -464,14 +464,14 @@ Storage::Boot(FileSystem* fs)
       eos_info("msg=\"synchronizing from QuarkDB backend\"");
 
       if (!gFmdDbMapHandler.ResyncAllFromQdb(gOFS.mQdbContactDetails, fsid)) {
-        fs->SetStatus(eos::common::FileSystem::kBootFailure);
+        fs->SetStatus(eos::common::BootStatus::kBootFailure);
         fs->SetError(EFAULT, "cannot resync meta data from QuarkDB");
         return;
       }
     } else {
       // Resync the MGM meta data using dumpmd
       if (!gFmdDbMapHandler.ResyncAllMgm(fsid, manager.c_str())) {
-        fs->SetStatus(eos::common::FileSystem::kBootFailure);
+        fs->SetStatus(eos::common::BootStatus::kBootFailure);
         fs->SetError(EFAULT, "cannot resync the mgm meta data");
         return;
       }
@@ -490,14 +490,14 @@ Storage::Boot(FileSystem* fs)
   // Check if there is a label on the disk and if the configuration shows the
   // same fsid + uuid
   if (!CheckLabel(fs->GetPath(), fsid, uuid)) {
-    fs->SetStatus(eos::common::FileSystem::kBootFailure);
+    fs->SetStatus(eos::common::BootStatus::kBootFailure);
     fs->SetError(EFAULT, "the filesystem has a different label (fsid+uuid) "
                  "than the configuration");
     return;
   }
 
   if (!FsLabel(fs->GetPath(), fsid, uuid)) {
-    fs->SetStatus(eos::common::FileSystem::kBootFailure);
+    fs->SetStatus(eos::common::BootStatus::kBootFailure);
     fs->SetError(EFAULT, "cannot write the filesystem label (fsid+uuid) - "
                  "please check filesystem state/permissions");
     return;
@@ -518,14 +518,14 @@ Storage::Boot(FileSystem* fs)
   if (mkdir(transactionDirectory.c_str(),
             S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
     if (errno != EEXIST) {
-      fs->SetStatus(eos::common::FileSystem::kBootFailure);
+      fs->SetStatus(eos::common::BootStatus::kBootFailure);
       fs->SetError(errno ? errno : EIO, "cannot create transaction directory");
       return;
     }
   }
 
   if (chown(transactionDirectory.c_str(), 2, 2)) {
-    fs->SetStatus(eos::common::FileSystem::kBootFailure);
+    fs->SetStatus(eos::common::BootStatus::kBootFailure);
     fs->SetError(errno ? errno : EIO,
                  "cannot change ownership of transaction directory");
     return;
@@ -539,7 +539,7 @@ Storage::Boot(FileSystem* fs)
 
   fs->SetLongLong("stat.bootdonetime", (unsigned long long) time(NULL));
   fs->IoPing();
-  fs->SetStatus(eos::common::FileSystem::kBooted);
+  fs->SetStatus(eos::common::BootStatus::kBooted);
   fs->SetError(0, "");
   // Create FS orphan directory
   std::string orphanDirectory = fs->GetPath();
@@ -556,14 +556,14 @@ Storage::Boot(FileSystem* fs)
   if (mkdir(orphanDirectory.c_str(),
             S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
     if (errno != EEXIST) {
-      fs->SetStatus(eos::common::FileSystem::kBootFailure);
+      fs->SetStatus(eos::common::BootStatus::kBootFailure);
       fs->SetError(errno ? errno : EIO, "cannot create orphan directory");
       return;
     }
   }
 
   if (chown(orphanDirectory.c_str(), 2, 2)) {
-    fs->SetStatus(eos::common::FileSystem::kBootFailure);
+    fs->SetStatus(eos::common::BootStatus::kBootFailure);
     fs->SetError(errno ? errno : EIO, "cannot change ownership of orphan "
                  "directory");
     return;

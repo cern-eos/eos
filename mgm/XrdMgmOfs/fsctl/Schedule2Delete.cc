@@ -196,7 +196,7 @@ XrdMgmOfs::Schedule2Delete(const char* path,
           // Check the state of the filesystem to make sure it can delete
           if ((fs->GetActiveStatus() == eos::common::FileSystem::kOffline) ||
               (fs->GetConfigStatus() <= eos::common::FileSystem::kOff) ||
-              (fs->GetStatus() != eos::common::FileSystem::kBooted)) {
+              (fs->GetStatus() != eos::common::BootStatus::kBooted)) {
             // Don't send messages as filesystem is down, booting or offline
             break;
           }

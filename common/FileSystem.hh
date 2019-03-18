@@ -38,6 +38,16 @@
 
 EOSCOMMONNAMESPACE_BEGIN;
 
+  //! Values for a boot status
+enum class BootStatus {
+  kOpsError = -2,
+  kBootFailure = -1,
+  kDown = 0,
+  kBootSent = 1,
+  kBooting = 2,
+  kBooted = 3
+};
+
 #define EOS_TAPE_FSID 65535
 #define EOS_TAPE_MODE_T (0x10000000ll)
 
@@ -81,7 +91,7 @@ protected:
   unsigned long long PreBookedSpace;
 
   //! boot status stored inside the object not the hash
-  int32_t mInternalBootStatus;
+  BootStatus mInternalBootStatus;
 
 public:
   //------------------------------------------------------------------------------
@@ -117,7 +127,7 @@ public:
     size_t mPublishTimestamp;
     int mGroupIndex;
     std::string mSpace;
-    fsstatus_t mStatus;
+    BootStatus mStatus;
     fsstatus_t mConfigStatus;
     fsstatus_t mDrainStatus;
     fsactive_t mActiveStatus;
@@ -195,16 +205,6 @@ public:
   // Enums
   //----------------------------------------------------------------------------
 
-  //! Values for a boot status
-  enum eBootStatus {
-    kOpsError = -2,
-    kBootFailure = -1,
-    kDown = 0,
-    kBootSent = 1,
-    kBooting = 2,
-    kBooted = 3
-  };
-
   //! Values for a configuration status
   enum eConfigStatus {
     kUnknown = -1,
@@ -247,14 +247,14 @@ public:
   //----------------------------------------------------------------------------
   // Get file system status as a string
   //----------------------------------------------------------------------------
-  static const char* GetStatusAsString(int status);
+  static const char* GetStatusAsString(BootStatus status);
   static const char* GetDrainStatusAsString(int status);
   static const char* GetConfigStatusAsString(int status);
 
   //----------------------------------------------------------------------------
   //! Parse a string status into the enum value
   //----------------------------------------------------------------------------
-  static int GetStatusFromString(const char* ss);
+  static BootStatus GetStatusFromString(const char* ss);
 
   //----------------------------------------------------------------------------
   //! Parse a drain status into the enum value
@@ -287,7 +287,7 @@ public:
   fsactive_t cActive; ///< cache value of the active status
   XrdSysMutex cActiveLock; ///< lock protecting the cached active status
   time_t cActiveTime; ///< unix time stamp of last update of the active status
-  fsstatus_t cStatus; ///< cache value of the status
+  BootStatus cStatus; ///< cache value of the status
   time_t cStatusTime; ///< unix time stamp of last update of the cached status
   XrdSysMutex cStatusLock; ///< lock protecting the cached status
   std::atomic<fsstatus_t> cConfigStatus; ///< cached value of the config status
@@ -417,7 +417,7 @@ public:
   //! Set the filesystem status.
   //----------------------------------------------------------------------------
   bool
-  SetStatus(fsstatus_t status, bool broadcast = true)
+  SetStatus(BootStatus status, bool broadcast = true)
   {
     mInternalBootStatus = status;
     return SetString("stat.boot", GetStatusAsString(status), broadcast);
@@ -679,13 +679,13 @@ public:
   //----------------------------------------------------------------------------
   //! Return the filesystem status (via a cache)
   //----------------------------------------------------------------------------
-  fsstatus_t
+  BootStatus
   GetStatus(bool cached = false);
 
   //----------------------------------------------------------------------------
   //! Get internal boot status
   //----------------------------------------------------------------------------
-  fsstatus_t
+  BootStatus
   GetInternalBootStatus()
   {
     return mInternalBootStatus;

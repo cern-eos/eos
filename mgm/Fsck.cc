@@ -250,9 +250,9 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
         eos::common::FileSystem::fsid_t fsid = it->first;
         eos::common::FileSystem::fsactive_t fsactive = it->second->GetActiveStatus();
         eos::common::FileSystem::fsstatus_t fsconfig = it->second->GetConfigStatus();
-        eos::common::FileSystem::fsstatus_t fsstatus = it->second->GetStatus();
+        eos::common::BootStatus fsstatus = it->second->GetStatus();
 
-        if ((fsstatus == eos::common::FileSystem::kBooted) &&
+        if ((fsstatus == eos::common::BootStatus::kBooted) &&
             (fsconfig >= eos::common::FileSystem::kDrain) && (fsactive)) {
           // Healthy, don't need to do anything
         } else {
@@ -405,13 +405,13 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
              ++lociter) {
           if (*lociter) {
             if (FsView::gFsView.mIdView.count(*lociter)) {
-              eos::common::FileSystem::fsstatus_t bootstatus =
+              eos::common::BootStatus bootstatus =
                 (FsView::gFsView.mIdView[*lociter]->GetStatus(true));
               eos::common::FileSystem::fsstatus_t configstatus =
                 (FsView::gFsView.mIdView[*lociter]->GetConfigStatus());
               bool conda = (FsView::gFsView.mIdView[*lociter]->GetActiveStatus(true) ==
                             eos::common::FileSystem::kOffline);
-              bool condb = (bootstatus != eos::common::FileSystem::kBooted);
+              bool condb = (bootstatus != eos::common::BootStatus::kBooted);
               bool condc = (configstatus == eos::common::FileSystem::kDrainDead);
 
               if (conda || condb || condc) {

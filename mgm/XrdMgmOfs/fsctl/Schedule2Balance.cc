@@ -320,7 +320,7 @@ XrdMgmOfs::Schedule2Balance(const char* path,
 
       if ((source_snapshot.mDiskFilled < source_snapshot.mNominalFilled) ||
           // This is not a source since it is empty
-          (source_snapshot.mStatus != eos::common::FileSystem::kBooted) ||
+          (source_snapshot.mStatus != eos::common::BootStatus::kBooted) ||
           // This filesystem is not readable
           (source_snapshot.mConfigStatus < eos::common::FileSystem::kRO) ||
           (source_snapshot.mErrCode != 0) ||

@@ -77,7 +77,7 @@ Storage::Scrub()
         bool direct_io = (mFsVect[i]->GetStatfs()->GetStatfs()->f_type !=
                           0x2fc12fc1);
         unsigned long id = mFsVect[i]->GetId();
-        eos::common::FileSystem::fsstatus_t bootstatus =
+        eos::common::BootStatus bootstatus =
           mFsVect[i]->GetStatus();
         eos::common::FileSystem::fsstatus_t configstatus =
           mFsVect[i]->GetConfigStatus();
@@ -88,7 +88,7 @@ Storage::Scrub()
         }
 
         // check if there is a lable on the disk and if the configuration shows the same fsid
-        if ((bootstatus == eos::common::FileSystem::kBooted) &&
+        if ((bootstatus == eos::common::BootStatus::kBooted) &&
             (configstatus >= eos::common::FileSystem::kRO) &&
             (!CheckLabel(mFsVect[i]->GetPath(), mFsVect[i]->GetId(),
                          mFsVect[i]->GetString("uuid"), true))) {
@@ -103,7 +103,7 @@ Storage::Scrub()
         }
 
         // don't scrub on filesystems which are not booted
-        if (bootstatus != eos::common::FileSystem::kBooted) {
+        if (bootstatus != eos::common::BootStatus::kBooted) {
           continue;
         }
 

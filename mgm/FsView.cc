@@ -3221,7 +3221,7 @@ BaseView::SumLongLong(const char* param, bool lock,
                 FsView::gFsView.mIdView[*it]->GetString("stat.active").c_str())) ||
              (eos::common::FileSystem::GetStatusFromString(
                 FsView::gFsView.mIdView[*it]->GetString("stat.boot").c_str()) !=
-              eos::common::FileSystem::kBooted))) {
+              eos::common::BootStatus::kBooted))) {
           continue;
         }
 
@@ -3247,7 +3247,7 @@ BaseView::SumLongLong(const char* param, bool lock,
                 FsView::gFsView.mIdView[*it]->GetString("stat.active").c_str())) ||
              (eos::common::FileSystem::GetStatusFromString(
                 FsView::gFsView.mIdView[*it]->GetString("stat.boot").c_str()) !=
-              eos::common::FileSystem::kBooted))) {
+              eos::common::BootStatus::kBooted))) {
           continue;
         }
 
@@ -3349,7 +3349,7 @@ BaseView::AverageDouble(const char* param, bool lock,
         // we only count filesystem which are >=kRO and booted for averages in the group view
         if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
              eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
             ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
              eos::common::FileSystem::kOffline)) {
@@ -3370,7 +3370,7 @@ BaseView::AverageDouble(const char* param, bool lock,
         // we only count filesystem which are >=kRO and booted for averages in the group view
         if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
              eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
             ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
              eos::common::FileSystem::kOffline)) {
@@ -3416,7 +3416,7 @@ BaseView::MaxAbsDeviation(const char* param, bool lock,
         if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
              eos::common::FileSystem::kRO) ||
             (FsView::gFsView.mIdView[*it]->GetStatus() !=
-             eos::common::FileSystem::kBooted) ||
+             eos::common::BootStatus::kBooted) ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
              eos::common::FileSystem::kOffline)) {
           consider = false;
@@ -3439,7 +3439,7 @@ BaseView::MaxAbsDeviation(const char* param, bool lock,
         // we only count filesystem which are >=kRO and booted for averages in the group view
         if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
              eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
             ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
              eos::common::FileSystem::kOffline)) {
@@ -3488,7 +3488,7 @@ BaseView::MaxDeviation(const char* param, bool lock,
         // we only count filesystem which are >=kRO and booted for averages in the group view
         if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
              eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
             ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
              eos::common::FileSystem::kOffline)) {
@@ -3512,7 +3512,7 @@ BaseView::MaxDeviation(const char* param, bool lock,
         // we only count filesystem which are >=kRO and booted for averages in the group view
         if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
              eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
             ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
              eos::common::FileSystem::kOffline)) {
@@ -3560,7 +3560,7 @@ BaseView::MinDeviation(const char* param, bool lock,
         // we only count filesystem which are >=kRO and booted for averages in the group view
         if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
              eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
             ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
              eos::common::FileSystem::kOffline)) {
@@ -3584,7 +3584,7 @@ BaseView::MinDeviation(const char* param, bool lock,
         // we only count filesystem which are >=kRO and booted for averages in the group view
         if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
              eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
             ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
              eos::common::FileSystem::kOffline)) {
@@ -3632,7 +3632,7 @@ BaseView::SigmaDouble(const char* param, bool lock,
         // we only count filesystem which are >=kRO and booted for averages in the group view
         if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
              eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
             ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
              eos::common::FileSystem::kOffline)) {
@@ -3653,7 +3653,7 @@ BaseView::SigmaDouble(const char* param, bool lock,
         // we only count filesystem which are >=kRO and booted for averages in the group view
         if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
              eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
             ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
              eos::common::FileSystem::kOffline)) {
@@ -3698,7 +3698,7 @@ BaseView::ConsiderCount(bool lock,
         // we only count filesystem which are >=kRO and booted for averages in the group view
         if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
              eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
             ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
              eos::common::FileSystem::kOffline)) {
@@ -3718,7 +3718,7 @@ BaseView::ConsiderCount(bool lock,
         // we only count filesystem which are >=kRO and booted for averages in the group view
         if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
              eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
             ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
              eos::common::FileSystem::kOffline)) {

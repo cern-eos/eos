@@ -1320,7 +1320,7 @@ ProcCommand::File()
                 forcedsubgroup = snapshot.mGroupIndex;
 
                 if ((snapshot.mConfigStatus > eos::common::FileSystem::kDrain) &&
-                    (snapshot.mStatus == eos::common::FileSystem::kBooted)) {
+                    (snapshot.mStatus == eos::common::BootStatus::kBooted)) {
                   // This is an accessible replica
                   nreponline++;
                 }

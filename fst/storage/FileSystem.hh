@@ -135,7 +135,7 @@ public:
   }
 
   void
-  SetStatus(eos::common::FileSystem::fsstatus_t status)
+  SetStatus(eos::common::BootStatus status)
   {
     eos::common::FileSystem::SetStatus(status);
 
@@ -145,8 +145,8 @@ public:
 
     eos_static_debug("before=%d after=%d", mLocalBootStatus.load(), status);
 
-    if ((mLocalBootStatus == kBooted) &&
-        (status == kOpsError)) {
+    if ((mLocalBootStatus == eos::common::BootStatus::kBooted) &&
+        (status == eos::common::BootStatus::kOpsError)) {
       mRecoverable = true;
     } else {
       mRecoverable = false;
@@ -155,7 +155,7 @@ public:
     mLocalBootStatus = status;
   }
 
-  eos::common::FileSystem::fsstatus_t
+  eos::common::BootStatus
   GetStatus()
   {
     // we patch this function because we don't want to see the shared information
@@ -266,7 +266,7 @@ private:
   unsigned long last_blocks_free;
   time_t last_status_broadcast;
   //! Internal boot state not stored in the shared hash
-  std::atomic<eos::common::FileSystem::fsstatus_t> mLocalBootStatus;
+  std::atomic<eos::common::BootStatus> mLocalBootStatus;
 
   TransferQueue* mTxDrainQueue;
   TransferQueue* mTxBalanceQueue;

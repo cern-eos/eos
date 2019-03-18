@@ -39,10 +39,10 @@ FileSystem::FileSystem(const char* queuepath, const char* queue,
   mPath = queuepath;
   mPath.erase(0, mQueue.length());
   mSom = som;
-  mInternalBootStatus = kDown;
+  mInternalBootStatus = BootStatus::kDown;
   PreBookedSpace = 0;
   cActive = 0;
-  cStatus = 0;
+  cStatus = BootStatus::kDown;
   cConfigStatus = 0;
   cActiveTime = 0;
   cStatusTime = 0;
@@ -176,29 +176,29 @@ FileSystem::~FileSystem()
 // Return the given status as a string
 //------------------------------------------------------------------------------
 const char*
-FileSystem::GetStatusAsString(int status)
+FileSystem::GetStatusAsString(BootStatus status)
 {
-  if (status == kDown) {
+  if (status == BootStatus::kDown) {
     return "down";
   }
 
-  if (status == kOpsError) {
+  if (status == BootStatus::kOpsError) {
     return "opserror";
   }
 
-  if (status == kBootFailure) {
+  if (status == BootStatus::kBootFailure) {
     return "bootfailure";
   }
 
-  if (status == kBootSent) {
+  if (status == BootStatus::kBootSent) {
     return "bootsent";
   }
 
-  if (status == kBooting) {
+  if (status == BootStatus::kBooting) {
     return "booting";
   }
 
-  if (status == kBooted) {
+  if (status == BootStatus::kBooted) {
     return "booted";
   }
 
@@ -290,38 +290,38 @@ FileSystem::GetConfigStatusAsString(int status)
 //------------------------------------------------------------------------------
 // Get the status from a string representation
 //------------------------------------------------------------------------------
-int
+BootStatus
 FileSystem::GetStatusFromString(const char* ss)
 {
   if (!ss) {
-    return kDown;
+    return BootStatus::kDown;
   }
 
   if (!strcmp(ss, "down")) {
-    return kDown;
+    return BootStatus::kDown;
   }
 
   if (!strcmp(ss, "opserror")) {
-    return kOpsError;
+    return BootStatus::kOpsError;
   }
 
   if (!strcmp(ss, "bootfailure")) {
-    return kBootFailure;
+    return BootStatus::kBootFailure;
   }
 
   if (!strcmp(ss, "bootsent")) {
-    return kBootSent;
+    return BootStatus::kBootSent;
   }
 
   if (!strcmp(ss, "booting")) {
-    return kBooting;
+    return BootStatus::kBooting;
   }
 
   if (!strcmp(ss, "booted")) {
-    return kBooted;
+    return BootStatus::kBooted;
   }
 
-  return kDown;
+  return BootStatus::kDown;
 }
 
 
@@ -602,7 +602,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
     fs.mErrMsg = "";
     fs.mGeoTag = "";
     fs.mPublishTimestamp = 0;
-    fs.mStatus = 0;
+    fs.mStatus = BootStatus::kDown;
     fs.mConfigStatus = 0;
     fs.mDrainStatus = 0;
     fs.mHeadRoom = 0;
@@ -778,10 +778,9 @@ FileSystem::GetConfigStatus(bool cached)
 //----------------------------------------------------------------------------
 // Return the filesystem status (via a cache)
 //----------------------------------------------------------------------------
-FileSystem::fsstatus_t
+BootStatus
 FileSystem::GetStatus(bool cached)
 {
-  fsstatus_t rStatus = 0;
   XrdSysMutexHelper lock(cStatusLock);
 
   if (cached) {
@@ -790,14 +789,12 @@ FileSystem::GetStatus(bool cached)
     if (now - cStatusTime) {
       cStatusTime = now;
     } else {
-      rStatus = cStatus;
-      return rStatus;
+      return cStatus;
     }
   }
 
   cStatus = GetStatusFromString(GetString("stat.boot").c_str());
-  rStatus = cStatus;
-  return rStatus;
+  return cStatus;
 }
 
 //----------------------------------------------------------------------------

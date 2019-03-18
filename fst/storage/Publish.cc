@@ -326,7 +326,7 @@ Storage::Publish(ThreadAssistant& assistant)
           std::map<std::string, size_t>::const_iterator isit;
           bool success = true;
 
-          if (mFsVect[i]->GetStatus() == eos::common::FileSystem::kBooted) {
+          if (mFsVect[i]->GetStatus() == eos::common::BootStatus::kBooted) {
             if (next_consistency_stats < cycleStart) {
               eos_static_debug("msg=\"publish consistency stats\"");
               last_consistency_stats = cycleStart;

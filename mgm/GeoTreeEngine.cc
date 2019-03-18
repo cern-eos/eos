@@ -2478,7 +2478,7 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
   }
 
   if (keys & (sfgBoot | sfgActive | sfgErrc)) {
-    FileSystem::fsstatus_t statboot = fs->mStatus;
+    BootStatus statboot = fs->mStatus;
     unsigned int errc = fs->mErrCode;
     FileSystem::fsactive_t statactive = fs->mActiveStatus;
     eos_debug("fs %lu available recompute  boot=%s  errcode=%d  active=%s",
@@ -2487,7 +2487,7 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
               errc,
               (statactive == eos::common::FileSystem::kOnline) ? "online" : "offline");
 
-    if ((statboot == FileSystem::kBooted) &&
+    if ((statboot == BootStatus::kBooted) &&
         (errc == 0) &&    // this we probably don't need
         // This checks the heartbeat and the group & node are enabled
         (statactive == FileSystem::kOnline)) {
