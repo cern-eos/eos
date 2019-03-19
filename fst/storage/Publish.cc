@@ -426,7 +426,7 @@ Storage::Publish(ThreadAssistant& assistant)
                                              gFmdDbMapHandler.GetNumFiles(fsid));
           success &= mFsVect[i]->SetString("stat.boot",
                                            mFsVect[i]->GetStatusAsString(mFsVect[i]->GetStatus()));
-          success &= mFsVect[i]->SetString("stat.geotag", getGeoTag().c_str());
+          success &= mFsVect[i]->SetString("stat.geotag", getGeotag().c_str());
           success &= mFsVect[i]->SetLongLong("stat.publishtimestamp",
                                              eos::common::getEpochInMilliseconds().count());
           success &= mFsVect[i]->SetLongLong("stat.drainer.running",
