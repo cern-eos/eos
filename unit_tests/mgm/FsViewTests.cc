@@ -23,6 +23,7 @@
 
 #include "gtest/gtest.h"
 #include "mgm/FsView.hh"
+#include "mgm/utils/FilesystemUuidMapper.hh"
 
 //------------------------------------------------------------------------------
 // Test const_iterator implementation
@@ -56,3 +57,37 @@ TEST(FsView, ConstIteratorTest)
   ++iter;
   ASSERT_TRUE(iter == geo_tree.end());
 }
+
+//------------------------------------------------------------------------------
+// Test FilesystemUuidMapper
+//------------------------------------------------------------------------------
+TEST(FilesystemUuidMapper, BasicSanity) {
+  eos::mgm::FilesystemUuidMapper mapper;
+
+  ASSERT_FALSE(mapper.injectMapping(0, "test"));
+  ASSERT_EQ(mapper.size(), 0u);
+
+  ASSERT_FALSE(mapper.injectMapping(0, "aaa"));
+  ASSERT_EQ(mapper.size(), 0u);
+
+  ASSERT_FALSE(mapper.injectMapping(1, ""));
+  ASSERT_EQ(mapper.size(), 0u);
+
+  ASSERT_TRUE(mapper.injectMapping(1, "fs-1"));
+  ASSERT_EQ(mapper.size(), 1u);
+
+  // conflict with fsid "1"
+  ASSERT_FALSE(mapper.injectMapping(1, "fs-2"));
+  ASSERT_EQ(mapper.size(), 1u);
+
+  // conflict with uuid "fs-1"
+  ASSERT_FALSE(mapper.injectMapping(2, "fs-1"));
+  ASSERT_EQ(mapper.size(), 1u);
+
+  // conflict with itself, fine, nothing changes
+  ASSERT_TRUE(mapper.injectMapping(1, "fs-1"));
+  ASSERT_EQ(mapper.size(), 1u);
+
+
+}
+
