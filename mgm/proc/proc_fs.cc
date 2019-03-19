@@ -363,11 +363,11 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
         // If EOS_SKIP_SSS_HOSTNAME_MATCH env variable is set then we skip
         // the check below as this currently breaks the Kubernetes setup.
         bool skip_hostname_match = false;
-        
+
         if (getenv("EOS_SKIP_SSS_HOSTNAME_MATCH")) {
           skip_hostname_match = true;
         }
-        
+
         if ((vid_in.uid == 0) || (vid_in.prot == "sss")) {
           if ((vid_in.prot == "sss") && (vid_in.uid != 0)) {
             if (!skip_hostname_match &&
@@ -465,24 +465,25 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
           fs->SetString(key.c_str(), value.c_str());
           FsView::gFsView.StoreFsConfig(fs);
         } else if (key == "forcegeotag") {
-          const int maxTagSize = 8;
-          char nodeGeoTag [value.size()];
-          strcpy(nodeGeoTag,value.c_str());
-          char *gtag = strtok(nodeGeoTag, "::");
-          while(gtag != NULL)
-          {
-            if (strlen(gtag) > maxTagSize) {
-              stdErr += "error: the forcegeotag value contains a tag longer than the 8 chars maximum allowed";
-              retc= EINVAL;
+          const int max_tag_size = 8;
+          char node_geotag [value.size()];
+          strcpy(node_geotag, value.c_str());
+          char* gtag = strtok(node_geotag, "::");
+
+          while (gtag != NULL) {
+            if (strlen(gtag) > max_tag_size) {
+              stdErr += "error: the forcegeotag value contains a tag longer "
+                        "than the 8 chars maximum allowed";
+              retc = EINVAL;
               return retc;
             }
+
             gtag = strtok(NULL, "::");
           }
 
           fs->SetString(key.c_str(), value.c_str());
           FsView::gFsView.StoreFsConfig(fs);
-
-	} else {
+        } else {
           // Other proxy* key set
           fs->SetString(key.c_str(), value.c_str());
           FsView::gFsView.StoreFsConfig(fs);
@@ -537,11 +538,11 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
     // If EOS_SKIP_SSS_HOSTNAME_MATCH env variable is set then we skip
     // the check below as this currently breaks the Kubernetes setup.
     bool skip_hostname_match = false;
-    
+
     if (getenv("EOS_SKIP_SSS_HOSTNAME_MATCH")) {
       skip_hostname_match = true;
     }
-    
+
     // ========> ViewMutex WRITELOCK
     FsView::gFsView.ViewMutex.LockWrite();
 

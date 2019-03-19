@@ -416,22 +416,25 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     eos::fst::Config::gConfig.StartDate = out.c_str();
   }
 
-  //check for EOS_GEOTAG limits
+  // Check for EOS_GEOTAG limits
   if (getenv("EOS_GEOTAG")) {
-      const int maxTagSize = 8;
-      char * nodeGeoTagTmp = getenv("EOS_GEOTAG");
-      //copy to a different string as strtok is modifying the pointed string
-      char nodeGeoTag [strlen(nodeGeoTagTmp)];
-      strcpy(nodeGeoTag,nodeGeoTagTmp);
-      char *gtag = strtok(nodeGeoTag, "::"); 
-      while(gtag != NULL) 
-      { 
-         if (strlen(gtag) > maxTagSize) {
-             Eroute.Emsg("Config", "EOS_GEOTAG var contains a tag longer than the 8 chars maximum allowed:",gtag);
-             NoGo = 1;
-         }
-         gtag = strtok(NULL, "::"); 
+    const int max_tag_size = 8;
+    char* node_geotag_tmp = getenv("EOS_GEOTAG");
+    // Copy to a different string as strtok is modifying the pointed string
+    char node_geotag [strlen(node_geotag_tmp)];
+    strcpy(node_geotag, node_geotag_tmp);
+    char* gtag = strtok(node_geotag, "::");
+
+    while (gtag != NULL) {
+      if (strlen(gtag) > max_tag_size) {
+        NoGo = 1;
+        Eroute.Emsg("Config", "EOS_GEOTAG var contains a tag longer than "
+                    "the 8 chars maximum allowed: ", gtag);
+        break;
       }
+
+      gtag = strtok(NULL, "::");
+    }
   }
 
   eos::fst::Config::gConfig.FstMetaLogDir = "/var/tmp/eos/md/";
@@ -609,10 +612,11 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     Config.Close();
     close(cfgFD);
   }
-  
+
   if (NoGo) {
-      return 1;
+    return 1;
   }
+
   if (eos::fst::Config::gConfig.autoBoot) {
     Eroute.Say("=====> fstofs.autoboot : true");
   } else {
@@ -748,7 +752,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     Eroute.Say("=====> fstofs.authdir : ",
                eos::fst::Config::gConfig.FstAuthDir.c_str());
   }
-
   // Attach Storage to the meta log dir
   Storage = eos::fst::Storage::Create(
               eos::fst::Config::gConfig.FstMetaLogDir.c_str());
@@ -1683,7 +1686,6 @@ XrdFstOfs::WaitForOngoingIO(std::chrono::seconds timeout)
     all_done = true;
     {
       XrdSysMutexHelper scope_lock(OpenFidMutex);
-
       all_done = ! openedForWriting.isAnyOpen();
 
       if (all_done) {

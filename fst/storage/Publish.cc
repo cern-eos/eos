@@ -279,8 +279,6 @@ Storage::Publish(ThreadAssistant& assistant)
     return;
   }
 
-  XrdOucString lNodeGeoTag = (getenv("EOS_GEOTAG") ?
-                              getenv("EOS_GEOTAG") : "dfgeotag");
   unsigned long long netspeed = getNetspeed(tmp_name);
   eos_static_info("publishing:networkspeed=%.02f GB/s",
                   1.0 * netspeed / 1000000000.0);
@@ -428,7 +426,7 @@ Storage::Publish(ThreadAssistant& assistant)
                                              gFmdDbMapHandler.GetNumFiles(fsid));
           success &= mFsVect[i]->SetString("stat.boot",
                                            mFsVect[i]->GetStatusAsString(mFsVect[i]->GetStatus()));
-          success &= mFsVect[i]->SetString("stat.geotag", lNodeGeoTag.c_str());
+          success &= mFsVect[i]->SetString("stat.geotag", getGeoTag().c_str());
           success &= mFsVect[i]->SetLongLong("stat.publishtimestamp",
                                              eos::common::getEpochInMilliseconds().count());
           success &= mFsVect[i]->SetLongLong("stat.drainer.running",
