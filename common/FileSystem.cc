@@ -519,18 +519,16 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
 
     fs.mPath = mPath;
     fs.mErrMsg = hash->Get("stat.errmsg");
-    fs.mGeoTag.clear();
+    fs.mGeoTag = hash->Get("stat.geotag");
+    fs.mForceGeoTag.clear();
 
     if (hash->Get("forcegeotag").size()) {
-      fs.mGeoTag = hash->Get("forcegeotag");
-    }
+      std::string forceGeoTag = hash->Get("forcegeotag");
 
-    if (fs.mGeoTag == "<none>") {
-      fs.mGeoTag.clear();
-    }
-
-    if (fs.mGeoTag.empty()) {
-      fs.mGeoTag = hash->Get("stat.geotag");
+      if (forceGeoTag != "<none>") {
+        fs.mGeoTag = forceGeoTag;
+        fs.mForceGeoTag = forceGeoTag;
+      }
     }
 
     fs.mPublishTimestamp = (size_t)hash->GetLongLong("stat.publishtimestamp");

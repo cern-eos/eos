@@ -141,6 +141,7 @@ public:
     int8_t      mFileStickyProxyDepth;
     std::string mPort;
     std::string mGeoTag;
+    std::string mForceGeoTag;
     size_t mPublishTimestamp;
     int mGroupIndex;
     std::string mSpace;
