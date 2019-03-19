@@ -76,8 +76,8 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
   }
 
   if (force && (vid.uid)) {
-    errStream <<
-              "warning: removing the force flag - this is only allowed for the 'root' role!\n";
+    errStream << "warning: removing the force flag - this is only allowed for the 'root' role!"
+              << std::endl;
     force = false;
   }
 
@@ -172,7 +172,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
       errInfo.clear();
 
       if (gOFS->_find(spath.c_str(), errInfo, stdErr, mVid, found)) {
-        errStream << "error: unable to remove file/directory";
+        errStream << "error: unable to list directory '" << spath << "'";
         retc = errno;
       } else {
         XrdOucString recyclingAttribute = "";
@@ -223,8 +223,8 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
               errInfo.clear();
 
               if (gOFS->_rem(fspath.c_str(), errInfo, mVid, nullptr, true)) {
-                errStream << "error: unable to remove file - bulk deletion aborted" <<
-                          std::endl;
+                errStream << "error: unable to remove file '" << fspath << "'"
+                          << " - bulk deletion aborted" << std::endl;
                 retc = errno;
                 reply.set_std_err(std::move(errStream.str()));
                 reply.set_retc(retc);
@@ -246,8 +246,8 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
 
             if (gOFS->_remdir(rfoundit->first.c_str(), errInfo, mVid, nullptr, true)
                 && (errno != ENOENT)) {
-              errStream << "error: unable to remove directory - bulk deletion aborted" <<
-                        std::endl;
+              errStream << "error: unable to remove directory '" << rfoundit->first << "'"
+                        << " - bulk deletion aborted" << std::endl;
               retc = errno;
               reply.set_std_err(std::move(errStream.str()));
               reply.set_retc(retc);
@@ -260,7 +260,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
           errInfo.clear();
 
           if (gOFS->_stat(spath.c_str(), &buf, errInfo, mVid, "")) {
-            errStream << "error: failed to stat bulk deletion directory: " << spath;
+            errStream << "error: failed to stat bulk deletion directory '" << spath << "'";
             retc = errno;
             reply.set_std_err(std::move(errStream.str()));
             reply.set_retc(retc);
@@ -271,20 +271,18 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
           eos::mgm::Recycle lRecycle(spath.c_str(), recyclingAttribute.c_str(),
                                      &mVid, buf.st_uid, buf.st_gid,
                                      (unsigned long long) buf.st_ino);
-          int rc = 0;
           errInfo.clear();
 
-          if ((rc = lRecycle.ToGarbage("rm-r", errInfo))) {
-            errStream << "error: failed to recycle path " << spath << std::endl <<
-                      errInfo.getErrText();
+          if (lRecycle.ToGarbage("rm-r", errInfo)) {
+            errStream << "error: failed to recycle path '" << spath << "'" << std::endl
+                      << "reason: " << errInfo.getErrText() << std::endl;
             reply.set_std_err(std::move(errStream.str()));
             reply.set_retc(errInfo.getErrInfo());
             return reply;
           } else {
-            outStream << "success: you can recycle this deletion using 'recycle restore ";
-            char sp[256];
-            snprintf(sp, sizeof(sp) - 1, "%016llx", (unsigned long long) buf.st_ino);
-            outStream << sp << std::endl;
+            outStream << "success: you can recycle this deletion using 'recycle restore "
+                      << std::setw(16) << std::setfill('0') << std::hex
+                      << buf.st_ino << "'" << std::endl;
             reply.set_std_out(std::move(outStream.str()));
             reply.set_retc(SFS_OK);
             return reply;
@@ -310,11 +308,9 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
 
               if (gOFS->_rem(fspath.c_str(), errInfo, mVid, nullptr, false, false,
                              force)) {
-                errStream << "error: unable to remove file : " << std::endl;
-                errStream << fspath.c_str();
+                errStream << "error: unable to remove file '" << fspath.c_str() << "'"
+                          << std::endl;
                 retc = errno;
-                reply.set_std_err(std::move(errStream.str()));
-                reply.set_retc(retc);
               }
             }
           }
@@ -332,8 +328,9 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
 
             if (gOFS->_remdir(rfoundit->first.c_str(), errInfo, mVid, nullptr)) {
               if (errno != ENOENT) {
-                errStream << "error: unable to remove directory : " << rfoundit->first.c_str()
-                          << "; reason: " << errInfo.getErrText();
+                errStream << "error: unable to remove directory "
+                          << "'" << rfoundit->first.c_str() << "'" << std::endl
+                          << "reason: " << errInfo.getErrText() << std::endl;
                 retc = errno;
               }
             }
@@ -346,7 +343,8 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
 
         if (gOFS->_rem(it.c_str(), errInfo, mVid, nullptr, false, false,
                        force) && (errno != ENOENT)) {
-          errStream << "error: unable to remove file/directory '" << it << "'";
+          errStream << "error: unable to remove file/directory '" << it << "'"
+                    << std::endl;
           retc |= errno;
         }
       }
