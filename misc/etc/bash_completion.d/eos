@@ -10,7 +10,7 @@ _eos_comp()
 
 _eos_help_only()
 {
-    _eos_comp "--help"
+  _eos_comp "--help"
 }
 
 _eos_access() {
@@ -63,7 +63,7 @@ _eos_fileinfo()
 _eos_find()
 {
   if [[ ${word} == -* ]] ; then
-      _eos_comp "-name --xurl --childcound --purge --count -s -d -f -0 -1 -m --nrep --nunlink --size --fileinfo --online --hosts --partition --fid --fs --checksum --ctime --mtime --uid --gid --help "
+    _eos_comp "-name --xurl --childcound --purge --count -s -d -f -0 -1 -m --nrep --nunlink --size --fileinfo --online --hosts --partition --fid --fs --checksum --ctime --mtime --uid --gid --help "
   else
     _eos_files_complete
   fi
@@ -71,12 +71,12 @@ _eos_find()
 
 _eos_fs()
 {
-    _eos_comp "add boot config dropdeletion dropghosts dropfiles dumpmd ls mv rm status --help"
+  _eos_comp "add boot config dropdeletion dropghosts dropfiles dumpmd ls mv rm status --help"
 }
 
 _eos_fsck()
 {
-    _eos_comp "disable enable repair stat --help"
+  _eos_comp "disable enable repair stat --help"
 }
 
 _eos_fsck_repair()
@@ -86,7 +86,7 @@ _eos_fsck_repair()
 
 _eos_fsck_report()
 {
-    _eos_comp "-a -h -i -l --error --json  --help"
+  _eos_comp "-a -h -i -l --error --json  --help"
 }
 
 _eos_ls()
