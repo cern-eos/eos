@@ -208,7 +208,7 @@ XrdStress::RunTestProcesses()
     pipefd[i] = (int*) calloc(2, sizeof(int));
 
     if (pipe(pipefd[i]) == -1) {
-      fprintf(stderr, "error=error opening pipe.\n");
+      fprintf(stderr, "error=error opening pipe\n");
       exit(1);
     }
   }
@@ -219,7 +219,7 @@ XrdStress::RunTestProcesses()
     cpid[i] = fork();
 
     if (cpid[i] == -1) {
-      fprintf(stdout, "error=error in fork().\n");
+      fprintf(stdout, "error=error in fork()\n");
       exit(1);
     }
 
@@ -475,7 +475,7 @@ XrdStress::RdProc(void* arg)
       fprintf(stderr, "error=failed stat on file: %s\n", urlFile.c_str());
       delete[] buffer;
       free(arg);
-      exit(1);
+      exit(errno);
     }
 
     sizeReadFile = buf.st_size;
@@ -488,7 +488,7 @@ XrdStress::RdProc(void* arg)
               urlFile.c_str(), errno);
       delete[] buffer;
       free(arg);
-      exit(1);
+      exit(errno);
     }
 
     // Read from file
@@ -612,7 +612,7 @@ XrdStress::WrProc(void* arg)
               urlFile.c_str(), errno);
       delete[] buffer;
       free(arg);
-      exit(1);
+      exit(errno);
     }
 
     // Write to file
