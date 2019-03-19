@@ -780,12 +780,16 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
           eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(), fs.mPath.c_str(),
                                                   fstpath);
           jsonfsinfo["fsid"] = fs.mId;
-          jsonfsinfo["geotag"] = fs.mGeoTag;
+          jsonfsinfo["geotag"] = filesystem->GetString("stat.geotag");
           jsonfsinfo["host"] = fs.mHost;
           jsonfsinfo["mountpoint"] = fs.mPath;
           jsonfsinfo["fstpath"] = fstpath.c_str();
           jsonfsinfo["schedgroup"] = fs.mGroup;
           jsonfsinfo["status"] = eos::common::FileSystem::GetStatusAsString(fs.mStatus);
+          if (!fs.mForceGeoTag.empty()) {
+            jsonfsinfo["forcegeotag"] = fs.mForceGeoTag;
+          }
+
           jsonfsids.append(jsonfsinfo);
         }
       }
