@@ -51,8 +51,10 @@ XrdSysError gMqOfsEroute(0);
 XrdOucTrace gMqOfsTrace(&gMqOfsEroute);
 XrdMqOfs* gMqFS = 0;
 
+#ifdef COVERAGE_BUILD
 // Forward declaration of gcov flush API
 extern "C" void __gcov_flush();
+#endif
 
 //------------------------------------------------------------------------------
 // Shutdown handler
@@ -67,9 +69,15 @@ xrdmqofs_shutdown(int sig)
 // Coverage report handler
 //------------------------------------------------------------------------------
 void
-xrdmqofs_coverage(int sig) {
+xrdmqofs_coverage(int sig)
+{
+#ifdef COVERAGE_BUILD
   eos_static_notice("printing coverage data");
   __gcov_flush();
+  return;
+#endif
+
+  eos_static_notice("compiled without coverage support");
 }
 
 //------------------------------------------------------------------------------

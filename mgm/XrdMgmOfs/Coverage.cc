@@ -40,6 +40,11 @@ void
 xrdmgmofs_coverage(int sig)
 
 {
+#ifdef COVERAGE_BUILD
   eos_static_notice("msg=\"printing coverage data\"");
   __gcov_flush();
+  return;
+#endif
+
+  eos_static_notice("msg=\"compiled without coverage support\"");
 }

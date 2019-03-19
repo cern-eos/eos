@@ -140,8 +140,10 @@ std::string namespaceStateToString(NamespaceState st)
 
 extern "C" {
 
+#ifdef COVERAGE_BUILD
 // Forward declaration of gcov flush API
 extern "C" void __gcov_flush();
+#endif
 
 //------------------------------------------------------------------------------
 //! Filesystem Plugin factory function

@@ -71,6 +71,8 @@ endif()
 option(TESTCOVERAGE "Build with test coverage reporting" OFF)
 
 if(TESTCOVERAGE)
+  add_definitions(-DCOVERAGE_BUILD)
+
   set(GCOV_CFLAGS "-fprofile-arcs -ftest-coverage --coverage")
   set(GCOV_LIBRARY "gcov")
 

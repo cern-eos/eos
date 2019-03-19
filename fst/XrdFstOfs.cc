@@ -78,8 +78,10 @@ extern XrdOucTrace OfsTrace;
 // Set the version information
 XrdVERSIONINFO(XrdSfsGetFileSystem2, FstOfs);
 
+#ifdef COVERAGE_BUILD
 // Forward declaration of gcov flush API
 extern "C" void __gcov_flush();
+#endif
 
 //------------------------------------------------------------------------------
 // XRootD OFS interface implementation
@@ -238,8 +240,13 @@ XrdFstOfs::xrdfstofs_stacktrace(int sig)
 void
 XrdFstOfs::xrdfstofs_coverage(int sig)
 {
+#ifdef COVERAGE_BUILD
   eos_static_notice("msg=\"printing coverage data\"");
   __gcov_flush();
+  return;
+#endif
+
+  eos_static_notice("msg=\"compiled without coverage support\"");
 }
 
 //------------------------------------------------------------------------------
