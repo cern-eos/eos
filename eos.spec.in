@@ -178,11 +178,9 @@ BuildRequires: libasan
 # Add eos-protobuf3 build for SLC6 and EL7
 %if 0%{?distribution} == 6
 BuildRequires: eos-protobuf3 eos-protobuf3-devel eos-protobuf3-compiler
-Requires: eos-protobuf3
 %else
 %if 0%{?distribution} == 7
 BuildRequires: eos-protobuf3 eos-protobuf3-devel eos-protobuf3-compiler
-Requires: eos-protobuf3
 %endif
 %endif
 
@@ -430,6 +428,10 @@ The EOS shell client.
 %{_libdir}/libeosCommon.so.%{major_version}
 %{_libdir}/libeosCommon.so
 %{_sysconfdir}/bash_completion.d/eos
+# The eos-client package ships the protobuf library built by us for SLC6 and EL&
+%if 0%{distribution} == 6 || 0%{distribution} == 7
+/opt/eos/lib64/protobuf3/libprotobuf.so.15
+%endif
 
 # This file is required by both the eos-fuse and eos-fusex package, therefore
 # to avoid any conflicts we distribute it with eos-client.
