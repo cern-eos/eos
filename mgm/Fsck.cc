@@ -248,12 +248,12 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
         }
 
         eos::common::FileSystem::fsid_t fsid = it->first;
-        eos::common::FileSystem::fsactive_t fsactive = it->second->GetActiveStatus();
+        eos::common::ActiveStatus fsactive = it->second->GetActiveStatus();
         eos::common::FileSystem::fsstatus_t fsconfig = it->second->GetConfigStatus();
         eos::common::BootStatus fsstatus = it->second->GetStatus();
 
         if ((fsstatus == eos::common::BootStatus::kBooted) &&
-            (fsconfig >= eos::common::FileSystem::kDrain) && (fsactive)) {
+            (fsconfig >= eos::common::FileSystem::kDrain) && (fsactive == eos::common::ActiveStatus::kOnline)) {
           // Healthy, don't need to do anything
         } else {
           // Not ok and contributes to replica offline errors
@@ -410,7 +410,7 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
               eos::common::FileSystem::fsstatus_t configstatus =
                 (FsView::gFsView.mIdView[*lociter]->GetConfigStatus());
               bool conda = (FsView::gFsView.mIdView[*lociter]->GetActiveStatus(true) ==
-                            eos::common::FileSystem::kOffline);
+                            eos::common::ActiveStatus::kOffline);
               bool condb = (bootstatus != eos::common::BootStatus::kBooted);
               bool condc = (configstatus == eos::common::FileSystem::kDrainDead);
 

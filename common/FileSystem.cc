@@ -41,7 +41,7 @@ FileSystem::FileSystem(const char* queuepath, const char* queue,
   mSom = som;
   mInternalBootStatus = BootStatus::kDown;
   PreBookedSpace = 0;
-  cActive = 0;
+  cActive = ActiveStatus::kOffline;
   cStatus = BootStatus::kDown;
   cConfigStatus = 0;
   cActiveTime = 0;
@@ -422,22 +422,22 @@ FileSystem::GetDrainStatusFromString(const char* ss)
 //------------------------------------------------------------------------------
 // Return active status from a string representation
 //------------------------------------------------------------------------------
-FileSystem::fsactive_t
+ActiveStatus
 FileSystem::GetActiveStatusFromString(const char* ss)
 {
   if (!ss) {
-    return kOffline;
+    return ActiveStatus::kOffline;
   }
 
   if (!strcmp(ss, "online")) {
-    return kOnline;
+    return ActiveStatus::kOnline;
   }
 
   if (!strcmp(ss, "offline")) {
-    return kOffline;
+    return ActiveStatus::kOffline;
   }
 
-  return kOffline;
+  return ActiveStatus::kOffline;
 }
 
 //------------------------------------------------------------------------------
@@ -678,7 +678,7 @@ FileSystem::SnapShotHost(XrdMqSharedObjectManager* som,
     host.mHostPort = "";
     host.mGeoTag        = "";
     host.mPublishTimestamp = 0;
-    host.mActiveStatus = kOffline;
+    host.mActiveStatus = ActiveStatus::kOffline;
     host.mNetEthRateMiB = 0;
     host.mNetInRateMiB  = 0;
     host.mNetOutRateMiB = 0;
@@ -817,10 +817,9 @@ FileSystem::Print(TableHeader& table_mq_header, TableData& table_mq_data,
 // This can be used with a small cache which 1s expiration time to avoid too
 // many lookup's in tight loops.
 //----------------------------------------------------------------------------
-FileSystem::fsactive_t
+ActiveStatus
 FileSystem::GetActiveStatus(bool cached)
 {
-  fsactive_t rActive = 0;
   XrdSysMutexHelper lock(cActiveLock);
 
   if (cached) {
@@ -829,22 +828,21 @@ FileSystem::GetActiveStatus(bool cached)
     if (now - cActiveTime) {
       cActiveTime = now;
     } else {
-      rActive = cActive;
-      return rActive;
+      return cActive;
     }
   }
 
   std::string active = GetString("stat.active");
 
   if (active == "online") {
-    cActive = kOnline;
-    return kOnline;
+    cActive = ActiveStatus::kOnline;
+    return ActiveStatus::kOnline;
   } else if (active == "offline") {
-    cActive = kOffline;
-    return kOffline;
+    cActive = ActiveStatus::kOffline;
+    return ActiveStatus::kOffline;
   } else {
-    cActive = kUndefined;
-    return kUndefined;
+    cActive = ActiveStatus::kUndefined;
+    return ActiveStatus::kUndefined;
   }
 }
 

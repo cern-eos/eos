@@ -599,7 +599,7 @@ ProcCommand::Find()
                                 partition += fs.mPath;
 
                                 if ((!selectonline) ||
-                                    (filesystem->GetActiveStatus(true) == eos::common::FileSystem::kOnline)) {
+                                    (filesystem->GetActiveStatus(true) == eos::common::ActiveStatus::kOnline)) {
                                   fsPartition.insert(partition);
                                 }
                               }

@@ -821,7 +821,7 @@ bool proc_fs_can_mv(eos::mgm::FileSystem* fs, const std::string& dst,
 
     // File system must be in RW mode and active for the move to work
     bool is_empty = (fs->GetConfigStatus() == eos::common::FileSystem::kEmpty);
-    bool is_active = (fs->GetActiveStatus() == eos::common::FileSystem::kOnline);
+    bool is_active = (fs->GetActiveStatus() == eos::common::ActiveStatus::kOnline);
 
     if (force) {
       is_empty = is_active = true;

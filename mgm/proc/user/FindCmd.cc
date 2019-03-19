@@ -112,7 +112,7 @@ static void printReplicas(std::ofstream& ss,
 
     if (filesystem->SnapShotFileSystem(fs, true)) {
       if (selectonline && filesystem->GetActiveStatus(true) !=
-          eos::common::FileSystem::kOnline) {
+          eos::common::ActiveStatus::kOnline) {
         continue;
       }
 

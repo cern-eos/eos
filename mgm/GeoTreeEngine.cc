@@ -2480,17 +2480,17 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
   if (keys & (sfgBoot | sfgActive | sfgErrc)) {
     BootStatus statboot = fs->mStatus;
     unsigned int errc = fs->mErrCode;
-    FileSystem::fsactive_t statactive = fs->mActiveStatus;
+    ActiveStatus statactive = fs->mActiveStatus;
     eos_debug("fs %lu available recompute  boot=%s  errcode=%d  active=%s",
               (unsigned long) fs->mId,
               eos::common::FileSystem::GetStatusAsString(statboot),
               errc,
-              (statactive == eos::common::FileSystem::kOnline) ? "online" : "offline");
+              (statactive == eos::common::ActiveStatus::kOnline) ? "online" : "offline");
 
     if ((statboot == BootStatus::kBooted) &&
         (errc == 0) &&    // this we probably don't need
         // This checks the heartbeat and the group & node are enabled
-        (statactive == FileSystem::kOnline)) {
+        (statactive == ActiveStatus::kOnline)) {
       // the fs is available
       eos_debug("fs %lu is getting available  ftidx=%d  stn=%p",
                 (unsigned long) fs->mId, (int)ftIdx, stn);
@@ -2940,7 +2940,7 @@ bool GeoTreeEngine::updateTreeInfo(ProxyTMEBase* entry,
   }
 
   if (keys & (sfgActive)) {
-    if (hs->mActiveStatus == eos::common::FileSystem::kOnline) {
+    if (hs->mActiveStatus == eos::common::ActiveStatus::kOnline) {
       // the node is available
       eos_debug("node %s is getting available  ftidx=%d  stn=%p",
                 hs->mHostPort.c_str(), (int)ftIdx, stn);

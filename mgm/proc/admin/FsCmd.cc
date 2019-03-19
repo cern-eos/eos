@@ -527,7 +527,7 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
                       if ((snapshot.mStatus == eos::common::BootStatus::kBooted) &&
                           (snapshot.mConfigStatus == eos::common::FileSystem::kRW) &&
                           (snapshot.mErrCode == 0) && // this we probably don't need
-                          (fs->GetActiveStatus(snapshot))) {
+                          (fs->GetActiveStatus(snapshot) == eos::common::ActiveStatus::kOnline)) {
                         nloc_ok++;
                       }
                     }

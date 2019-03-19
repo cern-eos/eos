@@ -749,12 +749,12 @@ public:
   //----------------------------------------------------------------------------
   //! Get active status
   //----------------------------------------------------------------------------
-  eos::common::FileSystem::fsactive_t GetActiveStatus();
+  eos::common::ActiveStatus GetActiveStatus();
 
   //----------------------------------------------------------------------------
   //! Set active status
   //----------------------------------------------------------------------------
-  bool SetActiveStatus(eos::common::FileSystem::fsactive_t active);
+  bool SetActiveStatus(eos::common::ActiveStatus active);
 
   //----------------------------------------------------------------------------
   //! Set the configuration default values for a node

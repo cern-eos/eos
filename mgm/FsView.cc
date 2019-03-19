@@ -2330,8 +2330,8 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
 
         if (!it->second->HasHeartBeat(snapshot)) {
           // mark as offline
-          if (it->second->GetActiveStatus() != eos::common::FileSystem::kOffline) {
-            it->second->SetActiveStatus(eos::common::FileSystem::kOffline);
+          if (it->second->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
+            it->second->SetActiveStatus(eos::common::ActiveStatus::kOffline);
           }
         } else {
           std::string queue = it->second->GetString("queue");
@@ -2341,12 +2341,12 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
               (FsView::gFsView.mGroupView.count(group)) &&
               (FsView::gFsView.mNodeView[queue]->GetConfigMember("status") == "on") &&
               (FsView::gFsView.mGroupView[group]->GetConfigMember("status") == "on")) {
-            if (it->second->GetActiveStatus() != eos::common::FileSystem::kOnline) {
-              it->second->SetActiveStatus(eos::common::FileSystem::kOnline);
+            if (it->second->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
+              it->second->SetActiveStatus(eos::common::ActiveStatus::kOnline);
             }
           } else {
-            if (it->second->GetActiveStatus() != eos::common::FileSystem::kOffline) {
-              it->second->SetActiveStatus(eos::common::FileSystem::kOffline);
+            if (it->second->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
+              it->second->SetActiveStatus(eos::common::ActiveStatus::kOffline);
             }
           }
         }
@@ -2364,20 +2364,20 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
 
         if (!it->second->HasHeartBeat(snapshot)) {
           // mark as offline
-          if (it->second->GetActiveStatus() != eos::common::FileSystem::kOffline) {
-            it->second->SetActiveStatus(eos::common::FileSystem::kOffline);
+          if (it->second->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
+            it->second->SetActiveStatus(eos::common::ActiveStatus::kOffline);
           }
         } else {
           std::string queue = it->second->mName;
 
           if ((FsView::gFsView.mNodeView.count(queue)) &&
               (FsView::gFsView.mNodeView[queue]->GetConfigMember("status") == "on")) {
-            if (it->second->GetActiveStatus() != eos::common::FileSystem::kOnline) {
-              it->second->SetActiveStatus(eos::common::FileSystem::kOnline);
+            if (it->second->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
+              it->second->SetActiveStatus(eos::common::ActiveStatus::kOnline);
             }
           } else {
-            if (it->second->GetActiveStatus() != eos::common::FileSystem::kOffline) {
-              it->second->SetActiveStatus(eos::common::FileSystem::kOffline);
+            if (it->second->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
+              it->second->SetActiveStatus(eos::common::ActiveStatus::kOffline);
             }
           }
         }
@@ -2622,15 +2622,15 @@ FsNode::HasHeartBeat(eos::common::FileSystem::host_snapshot_t& fs)
 //------------------------------------------------------------------------------
 // Get node active status
 //------------------------------------------------------------------------------
-eos::common::FileSystem::fsactive_t
+eos::common::ActiveStatus
 FsNode::GetActiveStatus()
 {
   std::string active = GetMember("stat.active");
 
   if (active == "online") {
-    return eos::common::FileSystem::kOnline;
+    return eos::common::ActiveStatus::kOnline;
   } else {
-    return eos::common::FileSystem::kOffline;
+    return eos::common::ActiveStatus::kOffline;
   }
 }
 
@@ -2638,9 +2638,9 @@ FsNode::GetActiveStatus()
 // Set node active status
 //------------------------------------------------------------------------------
 bool
-FsNode::SetActiveStatus(eos::common::FileSystem::fsactive_t active)
+FsNode::SetActiveStatus(eos::common::ActiveStatus active)
 {
-  if (active == eos::common::FileSystem::kOnline) {
+  if (active == eos::common::ActiveStatus::kOnline) {
     return SetConfigMember("stat.active", "online", true, mName.c_str(), true);
   } else {
     return SetConfigMember("stat.active", "offline", true, mName.c_str(), true);
@@ -3217,8 +3217,9 @@ BaseView::SumLongLong(const char* param, bool lock,
       if ((!key.length())
           || (FsView::gFsView.mIdView[*it]->GetString(key.c_str()) == value)) {
         if (isquery &&
-            ((!eos::common::FileSystem::GetActiveStatusFromString(
-                FsView::gFsView.mIdView[*it]->GetString("stat.active").c_str())) ||
+            ((eos::common::FileSystem::GetActiveStatusFromString(
+                FsView::gFsView.mIdView[*it]->GetString("stat.active").c_str())
+              == eos::common::ActiveStatus::kOffline) ||
              (eos::common::FileSystem::GetStatusFromString(
                 FsView::gFsView.mIdView[*it]->GetString("stat.boot").c_str()) !=
               eos::common::BootStatus::kBooted))) {
@@ -3243,8 +3244,9 @@ BaseView::SumLongLong(const char* param, bool lock,
       if ((!key.length())
           || (FsView::gFsView.mIdView[*it]->GetString(key.c_str()) == value)) {
         if (isquery &&
-            ((!eos::common::FileSystem::GetActiveStatusFromString(
-                FsView::gFsView.mIdView[*it]->GetString("stat.active").c_str())) ||
+            ((eos::common::FileSystem::GetActiveStatusFromString(
+                FsView::gFsView.mIdView[*it]->GetString("stat.active").c_str())
+              == eos::common::ActiveStatus::kOffline) ||
              (eos::common::FileSystem::GetStatusFromString(
                 FsView::gFsView.mIdView[*it]->GetString("stat.boot").c_str()) !=
               eos::common::BootStatus::kBooted))) {
@@ -3352,7 +3354,7 @@ BaseView::AverageDouble(const char* param, bool lock,
             (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
             ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::FileSystem::kOffline)) {
+             eos::common::ActiveStatus::kOffline)) {
           consider = false;
         }
       }
@@ -3373,7 +3375,7 @@ BaseView::AverageDouble(const char* param, bool lock,
             (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
             ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::FileSystem::kOffline)) {
+             eos::common::ActiveStatus::kOffline)) {
           consider = false;
         }
       }
@@ -3418,7 +3420,7 @@ BaseView::MaxAbsDeviation(const char* param, bool lock,
             (FsView::gFsView.mIdView[*it]->GetStatus() !=
              eos::common::BootStatus::kBooted) ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::FileSystem::kOffline)) {
+             eos::common::ActiveStatus::kOffline)) {
           consider = false;
         }
       }
@@ -3442,7 +3444,7 @@ BaseView::MaxAbsDeviation(const char* param, bool lock,
             (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
             ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::FileSystem::kOffline)) {
+             eos::common::ActiveStatus::kOffline)) {
           consider = false;
         }
       }
@@ -3491,7 +3493,7 @@ BaseView::MaxDeviation(const char* param, bool lock,
             (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
             ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::FileSystem::kOffline)) {
+             eos::common::ActiveStatus::kOffline)) {
           consider = false;
         }
       }
@@ -3515,7 +3517,7 @@ BaseView::MaxDeviation(const char* param, bool lock,
             (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
             ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::FileSystem::kOffline)) {
+             eos::common::ActiveStatus::kOffline)) {
           consider = false;
         }
       }
@@ -3563,7 +3565,7 @@ BaseView::MinDeviation(const char* param, bool lock,
             (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
             ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::FileSystem::kOffline)) {
+             eos::common::ActiveStatus::kOffline)) {
           consider = false;
         }
       }
@@ -3587,7 +3589,7 @@ BaseView::MinDeviation(const char* param, bool lock,
             (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
             ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::FileSystem::kOffline)) {
+             eos::common::ActiveStatus::kOffline)) {
           consider = false;
         }
       }
@@ -3635,7 +3637,7 @@ BaseView::SigmaDouble(const char* param, bool lock,
             (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
             ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::FileSystem::kOffline)) {
+             eos::common::ActiveStatus::kOffline)) {
           consider = false;
         }
       }
@@ -3656,7 +3658,7 @@ BaseView::SigmaDouble(const char* param, bool lock,
             (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
             ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::FileSystem::kOffline)) {
+             eos::common::ActiveStatus::kOffline)) {
           consider = false;
         }
       }
@@ -3701,7 +3703,7 @@ BaseView::ConsiderCount(bool lock,
             (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
             ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::FileSystem::kOffline)) {
+             eos::common::ActiveStatus::kOffline)) {
           consider = false;
         }
       }
@@ -3721,7 +3723,7 @@ BaseView::ConsiderCount(bool lock,
             (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
             ||
             (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::FileSystem::kOffline)) {
+             eos::common::ActiveStatus::kOffline)) {
           consider = false;
         }
       }

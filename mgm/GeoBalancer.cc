@@ -204,7 +204,7 @@ GeoBalancer::populateGeotagsInfo()
   for (it = spaceView->cbegin(); it != spaceView->cend(); it++) {
     FileSystem* fs = FsView::gFsView.mIdView[*it];
 
-    if (fs->GetActiveStatus() != eos::common::FileSystem::kOnline) {
+    if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
       continue;
     }
 

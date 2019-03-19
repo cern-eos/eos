@@ -60,6 +60,14 @@ enum class DrainStatus {
   kDrainFailed = 7
 };
 
+//! Values describing if a filesystem is online or offline
+//! (combination of multiple conditions)
+enum class ActiveStatus {
+  kUndefined = -1,
+  kOffline = 0,
+  kOnline = 1
+};
+
 #define EOS_TAPE_FSID 65535
 #define EOS_TAPE_MODE_T (0x10000000ll)
 
@@ -116,9 +124,6 @@ public:
   //! File System Status type
   typedef int32_t fsstatus_t;
 
-  //! File System Activation Status Type
-  typedef int32_t fsactive_t;
-
   //! Snapshot Structure of a filesystem
 
   typedef struct fs_snapshot {
@@ -142,7 +147,7 @@ public:
     BootStatus mStatus;
     fsstatus_t mConfigStatus;
     DrainStatus mDrainStatus;
-    fsactive_t mActiveStatus;
+    ActiveStatus mActiveStatus;
     double mBalThresh;
     long long mHeadRoom;
     unsigned int mErrCode;
@@ -187,7 +192,7 @@ public:
     std::string mHostPort;
     std::string mGeoTag;
     size_t mPublishTimestamp;
-    fsactive_t mActiveStatus;
+    ActiveStatus mActiveStatus;
     time_t mHeartBeatTime;
     double mNetEthRateMiB;
     double mNetInRateMiB;
@@ -229,14 +234,6 @@ public:
     kRW
   };
 
-  //! Values describing if a filesystem is online or offline
-  //! (combination of multiple conditions)
-  enum eActiveStatus {
-    kUndefined = -1,
-    kOffline = 0,
-    kOnline = 1
-  };
-
   //! Value indication the way a boot message should be executed on an FST node
   enum eBootConfig {
     kBootOptional = 0,
@@ -267,9 +264,9 @@ public:
   static int GetConfigStatusFromString(const char*  ss);
 
   //----------------------------------------------------------------------------
-  //! Parse an active status into an fsactive_t value
+  //! Parse an active status into the enum value
   //----------------------------------------------------------------------------
-  static fsactive_t GetActiveStatusFromString(const char*  ss);
+  static ActiveStatus GetActiveStatusFromString(const char*  ss);
 
   //----------------------------------------------------------------------------
   //! Get the message string for an auto boot request
@@ -284,7 +281,7 @@ public:
   //----------------------------------------------------------------------------
   //! Cache Members
   //----------------------------------------------------------------------------
-  fsactive_t cActive; ///< cache value of the active status
+  ActiveStatus cActive; ///< cache value of the active status
   XrdSysMutex cActiveLock; ///< lock protecting the cached active status
   time_t cActiveTime; ///< unix time stamp of last update of the active status
   BootStatus cStatus; ///< cache value of the status
@@ -427,9 +424,9 @@ public:
   //! Set the activation status
   //----------------------------------------------------------------------------
   bool
-  SetActiveStatus(fsactive_t active)
+  SetActiveStatus(ActiveStatus active)
   {
-    if (active == kOnline) {
+    if (active == ActiveStatus::kOnline) {
       return SetString("stat.active", "online", false);
     } else {
       return SetString("stat.active", "offline", false);
@@ -459,13 +456,13 @@ public:
   //! This can be used with a small cache which 1s expiration time to avoid too
   //! many lookup's in tight loops.
   //----------------------------------------------------------------------------
-  fsactive_t
+  ActiveStatus
   GetActiveStatus(bool cached = false);
 
   //----------------------------------------------------------------------------
   //! Get the activation status from a snapshot
   //----------------------------------------------------------------------------
-  fsactive_t
+  ActiveStatus
   GetActiveStatus(const fs_snapshot_t& snapshot)
   {
     return snapshot.mActiveStatus;

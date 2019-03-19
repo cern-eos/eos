@@ -325,7 +325,7 @@ XrdMgmOfs::Schedule2Balance(const char* path,
           (source_snapshot.mConfigStatus < eos::common::FileSystem::kRO) ||
           (source_snapshot.mErrCode != 0) ||
           (source_fs->GetActiveStatus(source_snapshot) ==
-           eos::common::FileSystem::kOffline)) {
+           eos::common::ActiveStatus::kOffline)) {
         source_fs = 0;
 
         // Whenever we jump a filesystem we advance also the cyclic group
