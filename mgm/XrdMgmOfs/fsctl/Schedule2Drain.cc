@@ -414,11 +414,11 @@ XrdMgmOfs::Schedule2Drain(const char* path,
 
   for (size_t n = 0; n < group->size(); n++) {
     // Look for a filesystem in drain mode
-    int32_t drain_status =
+    eos::common::DrainStatus drain_status =
         FsView::gFsView.mIdView[*group_iterator]->GetDrainStatus();
 
-    if ((drain_status != eos::common::FileSystem::kDraining) &&
-        (drain_status != eos::common::FileSystem::kDrainStalling)) {
+    if ((drain_status != eos::common::DrainStatus::kDraining) &&
+        (drain_status != eos::common::DrainStatus::kDrainStalling)) {
       source_fs = 0;
 
       if (++group_iterator == group->end()) {

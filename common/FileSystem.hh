@@ -38,7 +38,7 @@
 
 EOSCOMMONNAMESPACE_BEGIN;
 
-  //! Values for a boot status
+//! Values for a boot status
 enum class BootStatus {
   kOpsError = -2,
   kBootFailure = -1,
@@ -46,6 +46,18 @@ enum class BootStatus {
   kBootSent = 1,
   kBooting = 2,
   kBooted = 3
+};
+
+//! Values for a drain status
+enum class DrainStatus {
+  kNoDrain = 0,
+  kDrainPrepare = 1,
+  kDrainWait = 2,
+  kDraining = 3,
+  kDrained = 4,
+  kDrainStalling = 5,
+  kDrainExpired = 6,
+  kDrainFailed = 7
 };
 
 #define EOS_TAPE_FSID 65535
@@ -129,7 +141,7 @@ public:
     std::string mSpace;
     BootStatus mStatus;
     fsstatus_t mConfigStatus;
-    fsstatus_t mDrainStatus;
+    DrainStatus mDrainStatus;
     fsactive_t mActiveStatus;
     double mBalThresh;
     long long mHeadRoom;
@@ -217,18 +229,6 @@ public:
     kRW
   };
 
-  //! Values for a drain status
-  enum eDrainStatus {
-    kNoDrain = 0,
-    kDrainPrepare = 1,
-    kDrainWait = 2,
-    kDraining = 3,
-    kDrained = 4,
-    kDrainStalling = 5,
-    kDrainExpired = 6,
-    kDrainFailed = 7
-  };
-
   //! Values describing if a filesystem is online or offline
   //! (combination of multiple conditions)
   enum eActiveStatus {
@@ -248,7 +248,7 @@ public:
   // Get file system status as a string
   //----------------------------------------------------------------------------
   static const char* GetStatusAsString(BootStatus status);
-  static const char* GetDrainStatusAsString(int status);
+  static const char* GetDrainStatusAsString(DrainStatus status);
   static const char* GetConfigStatusAsString(int status);
 
   //----------------------------------------------------------------------------
@@ -259,7 +259,7 @@ public:
   //----------------------------------------------------------------------------
   //! Parse a drain status into the enum value
   //----------------------------------------------------------------------------
-  static int GetDrainStatusFromString(const char* ss);
+  static DrainStatus GetDrainStatusFromString(const char* ss);
 
   //----------------------------------------------------------------------------
   //! Parse a configuration status into the enum value
@@ -440,7 +440,7 @@ public:
   //! Set the draining status
   //----------------------------------------------------------------------------
   bool
-  SetDrainStatus(fsstatus_t status, bool broadcast = true)
+  SetDrainStatus(DrainStatus status, bool broadcast = true)
   {
     return SetString("stat.drain", GetDrainStatusAsString(status), broadcast);
   }
@@ -694,7 +694,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return the drain status
   //----------------------------------------------------------------------------
-  fsstatus_t
+  DrainStatus
   GetDrainStatus()
   {
     return GetDrainStatusFromString(GetString("stat.drain").c_str());

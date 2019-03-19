@@ -209,37 +209,37 @@ FileSystem::GetStatusAsString(BootStatus status)
 // Return given drain status as a string
 //------------------------------------------------------------------------------
 const char*
-FileSystem::GetDrainStatusAsString(int status)
+FileSystem::GetDrainStatusAsString(DrainStatus status)
 {
-  if (status == kNoDrain) {
+  if (status == DrainStatus::kNoDrain) {
     return "nodrain";
   }
 
-  if (status == kDrainPrepare) {
+  if (status == DrainStatus::kDrainPrepare) {
     return "prepare";
   }
 
-  if (status == kDrainWait) {
+  if (status == DrainStatus::kDrainWait) {
     return "waiting";
   }
 
-  if (status == kDraining) {
+  if (status == DrainStatus::kDraining) {
     return "draining";
   }
 
-  if (status == kDrained) {
+  if (status == DrainStatus::kDrained) {
     return "drained";
   }
 
-  if (status == kDrainStalling) {
+  if (status == DrainStatus::kDrainStalling) {
     return "stalling";
   }
 
-  if (status == kDrainExpired) {
+  if (status == DrainStatus::kDrainExpired) {
     return "expired";
   }
 
-  if (status == kDrainFailed) {
+  if (status == DrainStatus::kDrainFailed) {
     return "failed";
   }
 
@@ -377,46 +377,46 @@ FileSystem::GetConfigStatusFromString(const char* ss)
 //------------------------------------------------------------------------------
 // Return drains status from string representation
 //------------------------------------------------------------------------------
-int
+DrainStatus
 FileSystem::GetDrainStatusFromString(const char* ss)
 {
   if (!ss) {
-    return kNoDrain;
+    return DrainStatus::kNoDrain;
   }
 
   if (!strcmp(ss, "nodrain")) {
-    return kNoDrain;
+    return DrainStatus::kNoDrain;
   }
 
   if (!strcmp(ss, "prepare")) {
-    return kDrainPrepare;
+    return DrainStatus::kDrainPrepare;
   }
 
   if (!strcmp(ss, "wait")) {
-    return kDrainWait;
+    return DrainStatus::kDrainWait;
   }
 
   if (!strcmp(ss, "draining")) {
-    return kDraining;
+    return DrainStatus::kDraining;
   }
 
   if (!strcmp(ss, "stalling")) {
-    return kDrainStalling;
+    return DrainStatus::kDrainStalling;
   }
 
   if (!strcmp(ss, "drained")) {
-    return kDrained;
+    return DrainStatus::kDrained;
   }
 
   if (!strcmp(ss, "expired")) {
-    return kDrainExpired;
+    return DrainStatus::kDrainExpired;
   }
 
   if (!strcmp(ss, "failed")) {
-    return kDrainFailed;
+    return DrainStatus::kDrainFailed;
   }
 
-  return kNoDrain;
+  return DrainStatus::kNoDrain;
 }
 
 //------------------------------------------------------------------------------
@@ -604,7 +604,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
     fs.mPublishTimestamp = 0;
     fs.mStatus = BootStatus::kDown;
     fs.mConfigStatus = 0;
-    fs.mDrainStatus = 0;
+    fs.mDrainStatus = DrainStatus::kNoDrain;
     fs.mHeadRoom = 0;
     fs.mErrCode = 0;
     fs.mBootSentTime = 0;

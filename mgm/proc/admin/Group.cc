@@ -115,11 +115,12 @@ ProcCommand::Group()
               for (auto git = FsView::gFsView.mGroupView[groupname]->begin();
                    git != FsView::gFsView.mGroupView[groupname]->end(); git++) {
                 if (FsView::gFsView.mIdView.count(*git)) {
-                  int drainstatus = (eos::common::FileSystem::GetDrainStatusFromString(
-                                       FsView::gFsView.mIdView[*git]->GetString("stat.drain").c_str()));
+                  common::DrainStatus drainstatus =
+                    (eos::common::FileSystem::GetDrainStatusFromString(
+                      FsView::gFsView.mIdView[*git]->GetString("stat.drain").c_str()));
 
-                  if ((drainstatus == eos::common::FileSystem::kDraining) ||
-                      (drainstatus == eos::common::FileSystem::kDrainStalling)) {
+                  if ((drainstatus == eos::common::DrainStatus::kDraining) ||
+                      (drainstatus == eos::common::DrainStatus::kDrainStalling)) {
                     // If any group filesystem is draining, all the others have
                     // to enable the pull for draining!
                     setactive = true;

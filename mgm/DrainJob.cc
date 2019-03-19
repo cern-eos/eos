@@ -88,7 +88,7 @@ DrainJob::ResetCounter()
       fs->SetLongLong("stat.timeleft", 0);
       fs->SetLongLong("stat.drainprogress", 0);
       fs->SetLongLong("stat.drainretry", 0);
-      fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
+      fs->SetDrainStatus(eos::common::DrainStatus::kNoDrain);
       SetDrainer();
       fs->CloseTransaction();
     }
@@ -136,13 +136,13 @@ DrainJob::SetDrainer()
     for (git = FsView::gFsView.mGroupView[mGroup]->begin();
          git != FsView::gFsView.mGroupView[mGroup]->end(); git++) {
       if (FsView::gFsView.mIdView.count(*git)) {
-        int drainstatus =
+        eos::common::DrainStatus drainstatus =
           (eos::common::FileSystem::GetDrainStatusFromString(
              FsView::gFsView.mIdView[*git]->GetString("stat.drain").c_str())
           );
 
-        if ((drainstatus == eos::common::FileSystem::kDraining) ||
-            (drainstatus == eos::common::FileSystem::kDrainStalling)) {
+        if ((drainstatus == eos::common::DrainStatus::kDraining) ||
+            (drainstatus == eos::common::DrainStatus::kDrainStalling)) {
           // if any mGroup filesystem is draining, all the others have
           // to enable the pull for draining!
           setactive = true;
@@ -265,7 +265,7 @@ retry:
       return 0;
     }
 
-    fs->SetDrainStatus(eos::common::FileSystem::kDrainPrepare);
+    fs->SetDrainStatus(eos::common::DrainStatus::kDrainPrepare);
     fs->SetLongLong("stat.drainretry", ntried - 1);
     mGroup = fs->GetString("schedgroup");
     fs->SnapShotFileSystem(drain_snapshot, false);
@@ -288,7 +288,7 @@ retry:
     XrdSysThread::CancelPoint();
   }
 
-  fs->SetDrainStatus(eos::common::FileSystem::kDrainWait);
+  fs->SetDrainStatus(eos::common::DrainStatus::kDrainWait);
   gOFS->WaitUntilNamespaceIsBooted();
   // build the list of files to migrate
   long long totalfiles = 0;
@@ -358,7 +358,7 @@ retry:
         return 0;
       }
 
-      fs->SetDrainStatus(eos::common::FileSystem::kDrainWait);
+      fs->SetDrainStatus(eos::common::DrainStatus::kDrainWait);
       waitendtime = time(NULL) + (time_t) fs->GetLongLong("graceperiod");
     }
     waitreporttime = time(NULL) + 10; // we report every 10 seconds
@@ -412,7 +412,7 @@ retry:
       return 0;
     }
 
-    fs->SetDrainStatus(eos::common::FileSystem::kDraining);
+    fs->SetDrainStatus(eos::common::DrainStatus::kDraining);
     // Enable the pull functionality on FST
     SetDrainer();
   }
@@ -478,9 +478,9 @@ retry:
                         filesleft);
 
         if (stalled) {
-          fs->SetDrainStatus(eos::common::FileSystem::kDrainStalling);
+          fs->SetDrainStatus(eos::common::DrainStatus::kDrainStalling);
         } else {
-          fs->SetDrainStatus(eos::common::FileSystem::kDraining);
+          fs->SetDrainStatus(eos::common::DrainStatus::kDraining);
         }
       }
       int progress = (int)(totalfiles) ? (100.0 * (totalfiles - filesleft) /
@@ -566,7 +566,7 @@ retry:
         }
 
         fs->SetLongLong("stat.drainfiles", filesleft);
-        fs->SetDrainStatus(eos::common::FileSystem::kDrainExpired);
+        fs->SetDrainStatus(eos::common::DrainStatus::kDrainExpired);
         SetDrainer();
 
         // Retry logic
@@ -606,7 +606,7 @@ nofilestodrain:
     }
 
     fs->SetLongLong("stat.drainfiles", filesleft);
-    fs->SetDrainStatus(eos::common::FileSystem::kDrained);
+    fs->SetDrainStatus(eos::common::DrainStatus::kDrained);
     fs->SetLongLong("stat.drainbytesleft", 0);
     fs->SetLongLong("stat.timeleft", 0);
     SetDrainer();

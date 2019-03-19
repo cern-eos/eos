@@ -2584,10 +2584,10 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
   }
 
   if (keys & sfgDrain) {
-    FileSystem::fsstatus_t drainStatus = fs->mDrainStatus;
+    DrainStatus drainStatus = fs->mDrainStatus;
 
     if (fs->mConfigStatus == FileSystem::kDrain &&
-        drainStatus == FileSystem::kDraining) {
+        drainStatus == DrainStatus::kDraining) {
       // mark as draining
       if (ftIdx) {
         setOneStateVarStatusInAllFastTrees(SchedTreeBase::Draining);

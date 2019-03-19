@@ -136,7 +136,7 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs,
       // Check if we have reached the max fs per node for this node
       if (it_drainfs->second.size() >= GetSpaceConf(src_snapshot.mSpace)) {
         fs->OpenTransaction();
-        fs->SetDrainStatus(FileSystem::kDrainWait);
+        fs->SetDrainStatus(eos::common::DrainStatus::kDrainWait);
         fs->CloseTransaction();
         mPending.push_back(std::make_pair(src_fsid, dst_fsid));
         return true;
@@ -189,7 +189,7 @@ Drainer::StopFsDrain(eos::mgm::FileSystem* fs, std::string& err)
       (void) mPending.erase(it_pending);
     }
 
-    fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
+    fs->SetDrainStatus(eos::common::DrainStatus::kNoDrain);
     FsView::gFsView.StoreFsConfig(fs);
   } else {
     (*it)->SignalStop();
@@ -350,12 +350,12 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
       eos::common::FileSystem::fs_snapshot_t drain_snapshot;
       it_fs->second->SnapShotFileSystem(drain_snapshot, false);
       FileSystem::fsstatus_t confstatus = it_fs->second->GetConfigStatus();
-      FileSystem::fsstatus_t drainstatus = it_fs->second->GetDrainStatus();
+      eos::common::DrainStatus drainstatus = it_fs->second->GetDrainStatus();
 
       // @todo (esindril) review these conditions
       if (confstatus == eos::common::FileSystem::kRO) {
-        if (drainstatus != eos::common::FileSystem::kNoDrain &&
-            drainstatus !=  eos::common::FileSystem::kDrained) {
+        if (drainstatus != eos::common::DrainStatus::kNoDrain &&
+            drainstatus !=  eos::common::DrainStatus::kDrained) {
           std::string err;
 
           if (!StartFsDrain(it_fs->second, 0, err)) {

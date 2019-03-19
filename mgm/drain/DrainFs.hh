@@ -86,7 +86,7 @@ public:
   //---------------------------------------------------------------------------
   //! Get drain status
   //---------------------------------------------------------------------------
-  inline eos::common::FileSystem::eDrainStatus GetDrainStatus() const
+  inline eos::common::DrainStatus GetDrainStatus() const
   {
     return mStatus;
   }
@@ -197,7 +197,7 @@ private:
   eos::IFsView* mNsFsView; ///< File system view
   eos::common::FileSystem::fsid_t mFsId; ///< Drain source fsid
   eos::common::FileSystem::fsid_t mTargetFsId; /// Drain target fsid
-  eos::common::FileSystem::eDrainStatus mStatus;
+  eos::common::DrainStatus mStatus;
   std::atomic<bool> mDrainStop; ///< Flag to cancel an ongoing draining
   std::atomic<std::uint32_t> mMaxRetries; ///< Max number of retries
   std::atomic<std::uint32_t> mMaxJobs; ///< Max number of drain jobs

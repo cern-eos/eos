@@ -43,7 +43,7 @@ DrainFs::DrainFs(eos::common::ThreadPool& thread_pool, eos::IFsView* fs_view,
                  eos::common::FileSystem::fsid_t src_fsid,
                  eos::common::FileSystem::fsid_t dst_fsid):
   mNsFsView(fs_view), mFsId(src_fsid), mTargetFsId(dst_fsid),
-  mStatus(eos::common::FileSystem::kNoDrain),
+  mStatus(eos::common::DrainStatus::kNoDrain),
   mDrainStop(false), mMaxRetries(1), mMaxJobs(10),
   mDrainPeriod(0), mThreadPool(thread_pool), mTotalFiles(0ull),
   mPending(0ull), mLastPending(0ull),
@@ -216,7 +216,7 @@ DrainFs::SuccessfulDrain()
     FileSystem* fs = FsView::gFsView.mIdView[mFsId];
 
     if (fs) {
-      mStatus = eos::common::FileSystem::kDrained;
+      mStatus = eos::common::DrainStatus::kDrained;
       fs->OpenTransaction();
       fs->SetDrainStatus(mStatus, false);
       fs->SetLongLong("stat.drainbytesleft", 0, false);
@@ -250,7 +250,7 @@ DrainFs::FailedDrain()
     FileSystem* fs = FsView::gFsView.mIdView[mFsId];
 
     if (fs) {
-      mStatus = eos::common::FileSystem::kDrainFailed;
+      mStatus = eos::common::DrainStatus::kDrainFailed;
       fs->OpenTransaction();
       fs->SetDrainStatus(mStatus, false);
       fs->SetLongLong("stat.timeleft", 0, false);
@@ -306,7 +306,7 @@ DrainFs::PrepareFs()
       return false;
     }
 
-    mStatus = eos::common::FileSystem::kDrainPrepare;
+    mStatus = eos::common::DrainStatus::kDrainPrepare;
     fs->SetDrainStatus(mStatus);
     fs->SetLongLong("stat.drain.failed", 0, false);
     mDrainPeriod = seconds(fs->GetLongLong("drainperiod"));
@@ -369,8 +369,8 @@ DrainFs::MarkFsDraining()
     return false;
   }
 
-  mStatus = eos::common::FileSystem::kDraining;
-  fs->SetDrainStatus(eos::common::FileSystem::kDraining);
+  mStatus = eos::common::DrainStatus::kDraining;
+  fs->SetDrainStatus(eos::common::DrainStatus::kDraining);
   fs->SetLongLong("stat.drainbytesleft",
                   fs->GetLongLong("stat.statfs.usedbytes"), false);
   fs->SetLongLong("stat.drainfiles", mTotalFiles, false);
@@ -429,20 +429,20 @@ DrainFs::UpdateProgress()
     if (is_expired) {
       fs->SetLongLong("stat.timeleft", 0, false);
       fs->SetLongLong("stat.drainfiles", mPending, false);
-      mStatus = eos::common::FileSystem::kDrainExpired;
-      fs->SetDrainStatus(eos::common::FileSystem::kDrainExpired);
+      mStatus = eos::common::DrainStatus::kDrainExpired;
+      fs->SetDrainStatus(eos::common::DrainStatus::kDrainExpired);
       return State::Expired;
     }
 
     if (is_stalled) {
-      if (mStatus != eos::common::FileSystem::kDrainStalling) {
-        mStatus = eos::common::FileSystem::kDrainStalling;
-        fs->SetDrainStatus(eos::common::FileSystem::kDrainStalling);
+      if (mStatus != eos::common::DrainStatus::kDrainStalling) {
+        mStatus = eos::common::DrainStatus::kDrainStalling;
+        fs->SetDrainStatus(eos::common::DrainStatus::kDrainStalling);
       }
     } else {
-      if (mStatus != eos::common::FileSystem::kDraining) {
-        mStatus = eos::common::FileSystem::kDraining;
-        fs->SetDrainStatus(eos::common::FileSystem::kDraining);
+      if (mStatus != eos::common::DrainStatus::kDraining) {
+        mStatus = eos::common::DrainStatus::kDraining;
+        fs->SetDrainStatus(eos::common::DrainStatus::kDraining);
       }
     }
 
@@ -515,11 +515,11 @@ DrainFs::ResetCounters()
       fs->SetLongLong("stat.timeleft", 0, false);
       fs->SetLongLong("stat.drainprogress", 0, false);
       fs->SetLongLong("stat.drainretry", 0, false);
-      fs->SetDrainStatus(eos::common::FileSystem::kNoDrain);
+      fs->SetDrainStatus(eos::common::DrainStatus::kNoDrain);
     }
   }
 
-  mStatus = eos::common::FileSystem::kNoDrain;
+  mStatus = eos::common::DrainStatus::kNoDrain;
 }
 
 EOSMGMNAMESPACE_END

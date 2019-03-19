@@ -77,7 +77,7 @@ FileSystem::StopDrainJob()
   if (mDrainJob) {
     delete mDrainJob;
     mDrainJob = 0;
-    SetDrainStatus(eos::common::FileSystem::kNoDrain);
+    SetDrainStatus(eos::common::DrainStatus::kNoDrain);
     return true;
   }
 
@@ -123,7 +123,7 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t new_status)
       if (mDrainJob) {
         delete mDrainJob;
         mDrainJob = 0;
-        SetDrainStatus(eos::common::FileSystem::kNoDrain);
+        SetDrainStatus(eos::common::DrainStatus::kNoDrain);
       }
     }
 
@@ -144,10 +144,10 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t new_status)
       }
     } else {
       if (new_status == kEmpty) {
-        SetDrainStatus(eos::common::FileSystem::kDrained);
+        SetDrainStatus(eos::common::DrainStatus::kDrained);
         SetLongLong("stat.drainprogress", 100);
       } else {
-        SetDrainStatus(eos::common::FileSystem::kNoDrain);
+        SetDrainStatus(eos::common::DrainStatus::kNoDrain);
       }
     }
   }
