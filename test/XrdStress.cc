@@ -723,7 +723,7 @@ int main(int argc, char* argv[])
                                \n\t\t -j <num_jobs>\
                                \n\t\t -f <num_files>\
                                \n\t\t [-b <size_block: 1KB, 1MB>]\
-                               \n\t\t [-s <size_file: 1KB, 1MB>]\
+                               \n\t\t [-s <size_file: 1KB, 1MB, 1GB>]\
                                \n\t\t [-c run in concurrent mode]\
                                \n\t\t [-n <testName>]\
                                \n\t\t [-v verbose]\
@@ -800,6 +800,8 @@ int main(int argc, char* argv[])
         size_file = atoi(sNo.c_str()) * 1024;
       } else if (sBytes == "MB") {
         size_file = atoi(sNo.c_str()) * 1024 * 1024;
+      } else if (sBytes == "GB") {
+        size_file = atoi(sNo.c_str()) * 1024 * 1024 * 1024;
       }
 
       break;
