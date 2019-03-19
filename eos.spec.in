@@ -225,7 +225,7 @@ cd build
 %{__make} install DESTDIR=$RPM_BUILD_ROOT
 
 %if 0%{distribution} == 6 || 0%{distribution} == 7
-mkdir -p $RPM_BUILD_ROOT/opt/eos/lib64/
+mkdir -p $RPM_BUILD_ROOT/opt/eos/lib64/libprotobuf3/
 cp -f /opt/eos/lib64/protobuf3/libprotobuf.so.15 $RPM_BUILD_ROOT/opt/eos/lib64/libprotobuf3/
 %endif
 echo "Installed!"
