@@ -310,6 +310,23 @@ XrdStress::WaitProcess(pid_t pid)
   if (waitpid(pid, &status, 0) != -1) {
     if (WIFEXITED(status)) {
       rc = WEXITSTATUS(status);
+
+      //------------------------------------------------------------------------
+      // Mask the following error codes:
+      //
+      // ENOENT  - Concurrent Open-truncate calls for the same file may lead
+      //           to a state where the file has been deleted,
+      //           but not yet recreated, ending in ENOENT
+      // EEXIST  - MGM with 'all.export nolock' option will reply with EEXIST
+      //           to concurrent write calls for the same file
+      // EDEADLK - MGM without the 'nolock' option will reply with EDEADLK
+      //           for concurrent write calls for the same file. The reply
+      //           comes from the XRootd server file descriptor locks.
+      //------------------------------------------------------------------------
+      if ((rc == ENOENT) || (rc == EEXIST) || (rc == EDEADLK)) {
+        rc = 0;
+      }
+
       if (rc != 0) {
         fprintf(stderr, "error=child process (%d) returned error code: %d\n", pid, rc);
       }
