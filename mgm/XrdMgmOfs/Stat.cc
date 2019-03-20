@@ -108,6 +108,13 @@ XrdMgmOfs::stat(const char* inpath,
     } else {
       buf->st_rdev &= ~XRDSFS_OFFLINE;
     }
+    bool onTape = (buf->st_mode & EOS_TAPE_MODE_T) != 0;
+    
+    if (onTape) {
+      buf->st_rdev |= XRDSFS_HASBKUP;
+    } else {
+      buf->st_rdev &= ~XRDSFS_HASBKUP;
+    }
   }
 
   return rc;
