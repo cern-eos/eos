@@ -167,7 +167,7 @@ private:
   Status DrainZeroSizeFile(const FileDrainInfo& fdrain);
 
   //----------------------------------------------------------------------------
-  //! Estimat TCP transfer timeout based on file size but not shorter than
+  //! Estimate TCP transfer timeout based on file size but not shorter than
   //! 30 min.
   //!
   //! @param fsize file size
