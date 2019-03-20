@@ -106,7 +106,7 @@ com_debug(char* arg1)
   fprintf(stdout,
           "  debug info *                         set MGM & all FSTs into debug mode 'info'\n\n");
   fprintf(stdout,
-          "  debug err /eos/*/fst                 set all FSTs into debug mode 'info'\n\n");
+          "  debug err /eos/*/fst                 set all FSTs into debug mode 'err'\n\n");
   fprintf(stdout,
           "  debug crit /eos/*/mgm                set MGM into debug mode 'crit'\n\n");
   fprintf(stdout,
