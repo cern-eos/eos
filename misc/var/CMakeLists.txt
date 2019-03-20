@@ -38,7 +38,6 @@ install(DIRECTORY DESTINATION /var/run/eosd/credentials/store)
 install(DIRECTORY DESTINATION /var/eos/archive/)
 install(DIRECTORY DESTINATION /var/eos/wfe/)
 install(DIRECTORY DESTINATION /var/eos/wfe/bash/)
-install(DIRECTORY DESTINATION /var/eos/kinetic/)
 install(DIRECTORY DESTINATION /var/eos/ns-queue/)
 install(DIRECTORY DESTINATION /var/eos/ns-queue/default)
 
@@ -56,13 +55,6 @@ install(FILES
   PERMISSIONS OWNER_READ OWNER_EXECUTE
 	      GROUP_READ GROUP_EXECUTE
 	      WORLD_READ WORLD_EXECUTE SETUID)
-
-install(FILES
-  eos/kinetic/kinetic-cluster-example.json
-  eos/kinetic/kinetic-location-example.json
-  eos/kinetic/kinetic-security-example.json
-  DESTINATION /var/eos/kinetic/
-  PERMISSIONS OWNER_READ OWNER_EXECUTE)
 
 install(FILES
   eos/html/error.html
