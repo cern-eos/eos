@@ -46,6 +46,7 @@ add_library(
   MgmExecute.cc MgmExecute.hh
   commands/ICmdHelper.cc       commands/ICmdHelper.hh
   commands/helpers/FsHelper.cc commands/helpers/FsHelper.hh
+  commands/helpers/AclHelper.cc commands/helpers/AclHelper.hh
   commands/HealthCommand.cc    commands/HealthCommand.hh
   commands/com_access.cc
   commands/com_accounting.cc

@@ -36,7 +36,7 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   ICmdHelper():
-    mReq(), mMgmExec(), mIsAdmin(false), mHighlight(false), mIsSilent(false)
+    mMgmExec(), mReq(), mIsAdmin(false), mHighlight(false), mIsSilent(false)
   {
     if (json) {
       mReq.set_format(eos::console::RequestProto::JSON);
@@ -67,16 +67,21 @@ public:
   //! @note When this methods is called the generic request object mReq needs
   //! to already contain the specific commands object.
   //!
+  //! @param print_err flag to enable the display of any potential errors
+  //! @param add_route flag if eos.route opaque info needs to be added
+  //!
   //! @return command return code
   //----------------------------------------------------------------------------
-  int Execute(bool printError = true);
+  int Execute(bool printError = true, bool add_route = false);
 
   //----------------------------------------------------------------------------
   //! Execute command without displaying the result
   //!
+  //! @param add_route flag if eos.route opaque info needs to be added
+  //!
   //! @return command return code
   //----------------------------------------------------------------------------
-  int ExecuteWithoutPrint();
+  int ExecuteWithoutPrint(bool add_route = false);
 
   //----------------------------------------------------------------------------
   //! Get command output string
@@ -100,6 +105,17 @@ public:
   //------------------------------------------------------------------------------
   bool ConfirmOperation();
 
+  //------------------------------------------------------------------------------
+  //! Add eos.route opaque info depending on the type of request and on the
+  //! default route configuration
+  //!
+  //! @param cmd URL opaque info collected so far to which we can append extra
+  //!        route information
+  //------------------------------------------------------------------------------
+  void AddRouteInfo(std::string& cmd);
+
+  MgmExecute mMgmExec; ///< Wrapper for executing commands at the MGM
+
 protected:
   //----------------------------------------------------------------------------
   //! Apply highlighting to text
@@ -109,7 +125,6 @@ protected:
   void TextHighlight(std::string& text);
 
   eos::console::RequestProto mReq; ///< Generic request object send to the MGM
-  MgmExecute mMgmExec; ///< Wrapper for executing commands at the MGM
   bool mIsAdmin; ///< If true execute as admin, otherwise as user
   bool mHighlight; ///< If true apply text highlighting to output
   bool mIsSilent; ///< If true execute command but don't display anything

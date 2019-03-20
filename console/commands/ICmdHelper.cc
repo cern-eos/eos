@@ -23,15 +23,16 @@
 #include "console/commands/ICmdHelper.hh"
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
+
 #include <sstream>
 
 //------------------------------------------------------------------------------
 // Execute command and display any output information
 //------------------------------------------------------------------------------
 int
-ICmdHelper::Execute(bool printError)
+ICmdHelper::Execute(bool print_err, bool add_route)
 {
-  int retc = ExecuteWithoutPrint();
+  int retc = ExecuteWithoutPrint(add_route);
 
   if (!mIsSilent && !mMgmExec.GetResult().empty()) {
     if (mHighlight) {
@@ -41,7 +42,7 @@ ICmdHelper::Execute(bool printError)
     std::cout << GetResult();
   }
 
-  if (printError && !mMgmExec.GetError().empty()) {
+  if (print_err && !mMgmExec.GetError().empty()) {
     std::cerr << GetError();
   }
 
@@ -52,7 +53,7 @@ ICmdHelper::Execute(bool printError)
 // Execute command without displaying the result
 //------------------------------------------------------------------------------
 int
-ICmdHelper::ExecuteWithoutPrint()
+ICmdHelper::ExecuteWithoutPrint(bool add_route)
 {
   if (!mReq.command_case()) {
     std::cerr << "error: generic request object not populated with command"
@@ -70,14 +71,8 @@ ICmdHelper::ExecuteWithoutPrint()
   std::string cmd = "mgm.cmd.proto=";
   cmd += b64buff;
 
-  if (getenv("EOS_ROUTE")) {
-    XrdOucString route = getenv("EOS_ROUTE");
-
-    while (route.replace("&", "#AND#")) {}
-
-    cmd += "&eos.route=";
-    cmd += route.c_str();
-    unsetenv("EOS_ROUTE");
+  if (add_route) {
+    AddRouteInfo(cmd);
   }
 
   return mMgmExec.ExecuteCommand(cmd.c_str(), mIsAdmin);
@@ -172,4 +167,44 @@ ICmdHelper::GetError()
   }
 
   return err;
+}
+
+//------------------------------------------------------------------------------
+// Add eos.route opaque info depending on the type of request and on the
+// default route configuration
+//------------------------------------------------------------------------------
+void
+ICmdHelper::AddRouteInfo(std::string& cmd)
+{
+  using eos::console::RequestProto;
+  const std::string default_route = DefaultRoute();
+  std::ostringstream oss;
+
+  switch (mReq.command_case()) {
+  case RequestProto::kRecycle:
+    oss << "&eos.route=" << default_route;
+    break;
+
+  case RequestProto::kAcl:
+    oss << "&eos.route=" << mReq.acl().path();
+    break;
+
+  case RequestProto::kRm:
+    if (mReq.rm().path().empty()) {
+      oss << "&eos.route=" << default_route;
+    } else {
+      oss << "&eos.route=" << mReq.rm().path();
+    }
+
+    break;
+
+  case RequestProto::kFind:
+    oss << "&eos.route=" << mReq.find().path();
+    break;
+
+  default:
+    break;
+  }
+
+  cmd += oss.str();
 }

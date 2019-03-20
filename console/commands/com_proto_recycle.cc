@@ -318,7 +318,7 @@ int com_protorecycle(char* arg)
     return EINVAL;
   }
 
-  global_retc = recycle.Execute(false);
+  global_retc = recycle.Execute(false, true);
 
   // Fallback for aquamarine server when dealing with new proto commands
   if (global_retc != 0) {

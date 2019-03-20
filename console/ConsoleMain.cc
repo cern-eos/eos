@@ -1379,7 +1379,6 @@ bool CheckMgmOnline(const std::string& uri)
 //------------------------------------------------------------------------------
 // Guess a default 'route' e.g. home directory
 //------------------------------------------------------------------------------
-
 std::string DefaultRoute()
 {
   std::string default_route = "";

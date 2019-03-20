@@ -38,7 +38,6 @@ int
 com_find_old(char* arg1)
 {
   XrdPosixXrootd Xroot;
-
   // split subcommands
   XrdOucString oarg = arg1;
   eos::common::StringTokenizer subtokenizer(arg1);
@@ -388,6 +387,7 @@ com_find_old(char* arg1)
     do {
       struct stat buf;
       found_dirs.resize(deepness + 2);
+
       // loop over all directories in that deepness
       for (unsigned int i = 0; i < found_dirs[deepness].size(); i++) {
         Path = found_dirs[deepness][i].c_str();
@@ -397,13 +397,14 @@ com_find_old(char* arg1)
         int rstat = 0;
         rstat = (XRootD) ? XrdPosixXrootd::Stat(url.c_str(), &buf) : stat(url.c_str(),
                 &buf);
+
         if (!rstat) {
           //
           if (S_ISDIR(buf.st_mode)) {
             // add all children
-
             DIR* dir = (XRootD) ? XrdPosixXrootd::Opendir(url.c_str()) : opendir(
                          url.c_str());
+
             if (dir) {
               struct dirent* entry;
 
@@ -820,7 +821,8 @@ com_find_usage:
   return (0);
 }
 
-class FindHelper : public ICmdHelper {
+class FindHelper : public ICmdHelper
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor
@@ -858,158 +860,132 @@ FindHelper::ParseCommand(const char* arg)
   subtokenizer.GetLine();
 
   while ((s1 = subtokenizer.GetToken()).length() > 0 && (s1.beginswith("-"))) {
-
     if (s1 == "-s") {
       find->set_silent(true);
-    }
-    else if (s1 == "-d") {
+    } else if (s1 == "-d") {
       find->set_directories(true);
-    }
-    else if (s1 == "-f") {
+    } else if (s1 == "-f") {
       find->set_files(true);
-    }
-    else if (s1 == "-0") {
+    } else if (s1 == "-0") {
       find->set_files(true);
       find->set_zerosizefiles(true);
-    }
-    else if (s1 == "-m") {
+    } else if (s1 == "-m") {
       find->set_files(true);
-    }
-    else if (s1 == "--size") {
+    } else if (s1 == "--size") {
       find->set_size(true);
-    }
-    else if (s1 == "--fs") {
+    } else if (s1 == "--fs") {
       find->set_fs(true);
-    }
-    else if (s1 == "--checksum") {
+    } else if (s1 == "--checksum") {
       find->set_checksum(true);
-    }
-    else if (s1 == "--ctime") {
+    } else if (s1 == "--ctime") {
       find->set_ctime(true);
-    }
-    else if (s1 == "--mtime") {
+    } else if (s1 == "--mtime") {
       find->set_mtime(true);
-    }
-    else if (s1 == "--fid") {
+    } else if (s1 == "--fid") {
       find->set_fid(true);
-    }
-    else if (s1 == "--nrep") {
+    } else if (s1 == "--nrep") {
       find->set_nrep(true);
-    }
-    else if (s1 == "--online") {
+    } else if (s1 == "--online") {
       find->set_online(true);
-    }
-    else if (s1 == "--fileinfo") {
+    } else if (s1 == "--fileinfo") {
       find->set_fileinfo(true);
-    }
-    else if (s1 == "--nunlink") {
+    } else if (s1 == "--nunlink") {
       find->set_nunlink(true);
-    }
-    else if (s1 == "--uid") {
+    } else if (s1 == "--uid") {
       find->set_printuid(true);
-    }
-    else if (s1 == "--gid") {
+    } else if (s1 == "--gid") {
       find->set_printgid(true);
-    }
-    else if (s1 == "--stripediff") {
+    } else if (s1 == "--stripediff") {
       find->set_stripediff(true);
-    }
-    else if (s1 == "--faultyacl") {
+    } else if (s1 == "--faultyacl") {
       find->set_faultyacl(true);
-    }
-    else if (s1 == "--count") {
+    } else if (s1 == "--count") {
       find->set_count(true);
-    }
-    else if (s1 == "--hosts") {
+    } else if (s1 == "--hosts") {
       find->set_hosts(true);
-    }
-    else if (s1 == "--partition") {
+    } else if (s1 == "--partition") {
       find->set_partition(true);
-    }
-    else if (s1 == "--childcount") {
+    } else if (s1 == "--childcount") {
       find->set_childcount(true);
-    }
-    else if (s1 == "--xurl") {
+    } else if (s1 == "--xurl") {
       find->set_xurl(true);
-    }
-    else if (s1 == "-1") {
+    } else if (s1 == "-1") {
       find->set_onehourold(true);
-    }
-    else if (s1 == "-b") {
+    } else if (s1 == "-b") {
       find->set_balance(true);
-    }
-    else if (s1 == "-g") {
+    } else if (s1 == "-g") {
       find->set_mixedgroups(true);
-    }
-    else if (s1 == "-uid") {
+    } else if (s1 == "-uid") {
       find->set_searchuid(true);
       std::string uid = subtokenizer.GetToken();
+
       try {
         find->set_uid(std::stoul(uid));
       } catch (std::invalid_argument& error) {
         return false;
       }
-    }
-    else if (s1 == "-nuid") {
+    } else if (s1 == "-nuid") {
       find->set_searchnotuid(true);
       std::string uid = subtokenizer.GetToken();
+
       try {
         find->set_notuid(std::stoul(uid));
       } catch (std::invalid_argument& error) {
         return false;
       }
-    }
-    else if (s1 == "-gid") {
+    } else if (s1 == "-gid") {
       find->set_searchgid(true);
       std::string gid = subtokenizer.GetToken();
+
       try {
         find->set_gid(std::stoul(gid));
       } catch (std::invalid_argument& error) {
         return false;
       }
-    }
-    else if (s1 == "-ngid") {
+    } else if (s1 == "-ngid") {
       find->set_searchnotgid(true);
       std::string gid = subtokenizer.GetToken();
+
       try {
         find->set_notgid(std::stoul(gid));
       } catch (std::invalid_argument& error) {
         return false;
       }
-    }
-    else if (s1 == "-flag") {
+    } else if (s1 == "-flag") {
       find->set_searchpermission(true);
       std::string permission = subtokenizer.GetToken();
-      if (permission.length() != 3 || permission.find_first_not_of("01234567") != std::string::npos) {
+
+      if (permission.length() != 3 ||
+          permission.find_first_not_of("01234567") != std::string::npos) {
         return false;
       }
+
       find->set_permission(permission);
-    }
-    else if (s1 == "-nflag") {
+    } else if (s1 == "-nflag") {
       find->set_searchnotpermission(true);
       std::string permission = subtokenizer.GetToken();
-      if (permission.length() != 3 || permission.find_first_not_of("01234567") != std::string::npos) {
+
+      if (permission.length() != 3 ||
+          permission.find_first_not_of("01234567") != std::string::npos) {
         return false;
       }
+
       find->set_notpermission(permission);
-    }
-    else if (s1 == "-x") {
+    } else if (s1 == "-x") {
       std::string attribute = subtokenizer.GetToken();
 
-      if (attribute.length() > 0 && attribute.find('=') != std::string::npos && attribute.find('&') == std::string::npos) {
+      if (attribute.length() > 0 && attribute.find('=') != std::string::npos &&
+          attribute.find('&') == std::string::npos) {
         auto key = attribute;
         auto value = attribute;
         key.erase(attribute.find('='));
         value.erase(0, attribute.find('=') + 1);
-
         find->set_attributekey(std::move(key));
         find->set_attributevalue(std::move(value));
-      }
-      else {
+      } else {
         return false;
       }
-    }
-    else if (s1 == "--maxdepth") {
+    } else if (s1 == "--maxdepth") {
       std::string maxdepth = subtokenizer.GetToken();
 
       if (maxdepth.length() > 0) {
@@ -1018,12 +994,10 @@ FindHelper::ParseCommand(const char* arg)
         } catch (std::invalid_argument& error) {
           return false;
         }
-      }
-      else {
+      } else {
         return false;
       }
-    }
-    else if (s1 == "--purge") {
+    } else if (s1 == "--purge") {
       std::string versions = subtokenizer.GetToken();
 
       if (versions.length() > 0) {
@@ -1034,44 +1008,37 @@ FindHelper::ParseCommand(const char* arg)
             return false;
           }
         }
+
         find->set_purge(versions);
-      }
-      else {
+      } else {
         return false;
       }
-    }
-    else if (s1 == "--name") {
+    } else if (s1 == "--name") {
       std::string filematch = subtokenizer.GetToken();
 
       if (filematch.length() > 0) {
         find->set_name(std::move(filematch));
-      }
-      else {
+      } else {
         return false;
       }
-    }
-    else if (s1 == "--layoutstripes") {
+    } else if (s1 == "--layoutstripes") {
       std::string stripes = subtokenizer.GetToken();
 
       if (stripes.length() > 0) {
         find->set_dolayoutstripes(true);
         find->set_layoutstripes(std::stoul(stripes));
-      }
-      else {
+      } else {
         return false;
       }
-    }
-    else if (s1 == "-p") {
+    } else if (s1 == "-p") {
       std::string printkey = subtokenizer.GetToken();
 
       if (printkey.length() > 0) {
         find->set_printkey(std::move(printkey));
-      }
-      else {
+      } else {
         return false;
       }
-    }
-    else if ((s1 == "-ctime") || (s1 == "-mtime")) {
+    } else if ((s1 == "-ctime") || (s1 == "-mtime")) {
       XrdOucString period = "";
       period = subtokenizer.GetToken();
 
@@ -1081,8 +1048,7 @@ FindHelper::ParseCommand(const char* arg)
 
         if (period.beginswith("+")) {
           do_olderthan = true;
-        }
-        else if (period.beginswith("-")) {
+        } else if (period.beginswith("-")) {
           do_youngerthan = true;
         }
 
@@ -1098,8 +1064,7 @@ FindHelper::ParseCommand(const char* arg)
 
         if (s1 == "-ctime") {
           find->set_ctime(true);
-        }
-        else if (s1 == "-mtime") {
+        } else if (s1 == "-mtime") {
           find->set_mtime(true);
         }
 
@@ -1118,12 +1083,10 @@ FindHelper::ParseCommand(const char* arg)
             return false;
           }
         }
-      }
-      else {
+      } else {
         return false;
       }
-    }
-    else {
+    } else {
       return false;
     }
   }
@@ -1137,12 +1100,8 @@ FindHelper::ParseCommand(const char* arg)
     }
 
     path = abspath(path.c_str());
-
     find->set_path(path.c_str());
-
-    setenv("EOS_ROUTE", find->path().c_str(), 1);
-  }
-  else {
+  } else {
     return false;
   }
 
@@ -1150,7 +1109,8 @@ FindHelper::ParseCommand(const char* arg)
 }
 
 int
-FindHelper::FindXroot(std::string path) {
+FindHelper::FindXroot(std::string path)
+{
   XrdPosixXrootd Xroot;
 
   if (path.rfind('/') != path.length() - 1) {
@@ -1176,7 +1136,7 @@ FindHelper::FindXroot(std::string path) {
   const char* v = nullptr;
 
   if (!(v = eos::common::StringConversion::ParseUrl(path.c_str(), protocol,
-                                                    hostport))) {
+            hostport))) {
     global_retc = EINVAL;
     return (0);
   }
@@ -1208,15 +1168,17 @@ FindHelper::FindXroot(std::string path) {
       Path = found_dirs[deepness][i].c_str();
       XrdOucString url = "";
       eos::common::StringConversion::CreateUrl(protocol.c_str(), hostport.c_str(),
-                                               Path.c_str(), url);
+          Path.c_str(), url);
       int rstat = 0;
-      rstat = (XRootD) ? XrdPosixXrootd::Stat(url.c_str(), &buf) : stat(url.c_str(), &buf);
+      rstat = (XRootD) ? XrdPosixXrootd::Stat(url.c_str(), &buf) : stat(url.c_str(),
+              &buf);
 
       if (rstat == 0) {
         //
         if (S_ISDIR(buf.st_mode)) {
           // add all children
-          DIR* dir = (XRootD) ? XrdPosixXrootd::Opendir(url.c_str()) : opendir(url.c_str());
+          DIR* dir = (XRootD) ? XrdPosixXrootd::Opendir(url.c_str()) : opendir(
+                       url.c_str());
 
           if (dir != nullptr) {
             struct dirent* entry;
@@ -1231,10 +1193,10 @@ FindHelper::FindXroot(std::string path) {
               }
 
               eos::common::StringConversion::CreateUrl(protocol.c_str(), hostport.c_str(),
-                                                       cpath.c_str(), curl);
+                  cpath.c_str(), curl);
 
               if (!((XRootD) ? XrdPosixXrootd::Stat(curl.c_str(), &buf) : stat(curl.c_str(),
-                                                                               &buf))) {
+                    &buf))) {
                 if (S_ISDIR(buf.st_mode)) {
                   curl += "/";
                   cpath += "/";
@@ -1267,7 +1229,8 @@ FindHelper::FindXroot(std::string path) {
 }
 
 int
-FindHelper::FindAs3(std::string path) {
+FindHelper::FindAs3(std::string path)
+{
   // ----------------------------------------------------------------
   // this is nightmare code because of a missing proper CLI for S3
   // ----------------------------------------------------------------
@@ -1276,7 +1239,9 @@ FindHelper::FindAs3(std::string path) {
   int rc = system("which s3 >&/dev/null");
 
   if (WEXITSTATUS(rc)) {
-    std::cerr << "error: you miss the <s3> executable provided by libs3 in your PATH" << std::endl;
+    std::cerr <<
+              "error: you miss the <s3> executable provided by libs3 in your PATH" <<
+              std::endl;
     exit(-1);
   }
 
@@ -1294,7 +1259,7 @@ FindHelper::FindAs3(std::string path) {
   }
 
   XrdOucString fPath = eos::common::StringConversion::ParseUrl(sPath.c_str(),
-                                                               protocol, hostport);
+                       protocol, hostport);
   XrdOucEnv env(sOpaque.c_str());
 
   if (env.Get("s3.key")) {
@@ -1322,7 +1287,9 @@ FindHelper::FindAs3(std::string path) {
   if (!getenv("S3_ACCESS_KEY_ID") ||
       !getenv("S3_HOSTNAME") ||
       !getenv("S3_SECRET_ACCESS_KEY")) {
-    std::cerr << "error: you have to set the S3 environment variables S3_ACCESS_KEY_ID | S3_ACCESS_ID, S3_HOSTNAME (or use a URI), S3_SECRET_ACCESS_KEY | S3_ACCESS_KEY" << std::endl;
+    std::cerr <<
+              "error: you have to set the S3 environment variables S3_ACCESS_KEY_ID | S3_ACCESS_ID, S3_HOSTNAME (or use a URI), S3_SECRET_ACCESS_KEY | S3_ACCESS_KEY"
+              << std::endl;
     global_retc = EINVAL;
     return (0);
   }
@@ -1356,7 +1323,8 @@ FindHelper::FindAs3(std::string path) {
   }
 
   if ((!bucket.length()) || (bucket.find("*") != STR_NPOS)) {
-    std::cerr << "error: no bucket specified or wildcard in bucket name!" << std::endl;
+    std::cerr << "error: no bucket specified or wildcard in bucket name!" <<
+              std::endl;
     global_retc = EINVAL;
     return (0);
   }
@@ -1399,45 +1367,69 @@ FindHelper::FindAs3(std::string path) {
 void com_find_help()
 {
   std::ostringstream oss;
-
-  oss << "Usage: find [--name <pattern>] [--xurl] [--childcount] [--purge <n> ] [--count] [-s] [-d] [-f] [-0] [-1] [-g] [-uid <n>] [-nuid <n>] [-gid <n>] [-ngid <n>] [-flag <n>] [-nflag <n>] [-ctime +<n>|-<n>] [-m] [-x <key>=<val>] [-p <key>] [-b] [--layoutstripes <n>] <path>" << std::endl;
-  oss << "                -f -d :  find files(-f) or directories (-d) in <path>" << std::endl;
+  oss << "Usage: find [--name <pattern>] [--xurl] [--childcount] [--purge <n> ] [--count] [-s] [-d] [-f] [-0] [-1] [-g] [-uid <n>] [-nuid <n>] [-gid <n>] [-ngid <n>] [-flag <n>] [-nflag <n>] [-ctime +<n>|-<n>] [-m] [-x <key>=<val>] [-p <key>] [-b] [--layoutstripes <n>] <path>"
+      << std::endl;
+  oss << "                -f -d :  find files(-f) or directories (-d) in <path>"
+      << std::endl;
   oss << "     --name <pattern> :  find by name or wildcard match" << std::endl;
   oss << "       -x <key>=<val> :  find entries with <key>=<val>" << std::endl;
   oss << "                   -0 :  find 0-size files only" << std::endl;
-  oss << "                   -g :  find files with mixed scheduling groups" << std::endl;
-  oss << "             -p <key> :  additionally print the value of <key> for each entry" << std::endl;
-  oss << "                   -b :  query the server balance of the files found" << std::endl;
-  oss << "                   -s :  run as a subcommand (in silent mode)" << std::endl;
-  oss << "             -uid <n> :  entries owned by given user id number" << std::endl;
-  oss << "            -nuid <n> :  entries not owned by given user id number" << std::endl;
-  oss << "             -gid <n> :  entries owned by given group id number" << std::endl;
-  oss << "            -ngid <n> :  entries not owned by given group id number" << std::endl;
-  oss << "            -flag <n> :  directories with specified UNIX access flag, e.g. 755" << std::endl;
-  oss << "           -nflag <n> :  directories not with specified UNIX access flag, e.g. 755" << std::endl;
+  oss << "                   -g :  find files with mixed scheduling groups" <<
+      std::endl;
+  oss << "             -p <key> :  additionally print the value of <key> for each entry"
+      << std::endl;
+  oss << "                   -b :  query the server balance of the files found" <<
+      std::endl;
+  oss << "                   -s :  run as a subcommand (in silent mode)" <<
+      std::endl;
+  oss << "             -uid <n> :  entries owned by given user id number" <<
+      std::endl;
+  oss << "            -nuid <n> :  entries not owned by given user id number" <<
+      std::endl;
+  oss << "             -gid <n> :  entries owned by given group id number" <<
+      std::endl;
+  oss << "            -ngid <n> :  entries not owned by given group id number" <<
+      std::endl;
+  oss << "            -flag <n> :  directories with specified UNIX access flag, e.g. 755"
+      << std::endl;
+  oss << "           -nflag <n> :  directories not with specified UNIX access flag, e.g. 755"
+      << std::endl;
   oss << "          -ctime +<n> :  find files older than <n> days" << std::endl;
   oss << "          -ctime -<n> :  find files younger than <n> days" << std::endl;
-  oss << "  --layoutstripes <n> :  apply new layout with <n> stripes to all files found" << std::endl;
+  oss << "  --layoutstripes <n> :  apply new layout with <n> stripes to all files found"
+      << std::endl;
   oss << "       --maxdepth <n> :  descend only <n> levels" << std::endl;
-  oss << "                   -1 :  find files which are at least 1 hour old" << std::endl;
-  oss << "         --stripediff :  find files which have not the nominal number of stripes(replicas)" << std::endl;
-  oss << "          --faultyacl :  find directories with illegal ACLs" << std::endl;
-  oss << "              --count :  just print global counters for files/dirs found" << std::endl;
-  oss << "               --xurl :  print the XRootD URL instead of the path name" << std::endl;
-  oss << "         --childcount :  print the number of children in each directory" << std::endl;
+  oss << "                   -1 :  find files which are at least 1 hour old" <<
+      std::endl;
+  oss << "         --stripediff :  find files which have not the nominal number of stripes(replicas)"
+      << std::endl;
+  oss << "          --faultyacl :  find directories with illegal ACLs" <<
+      std::endl;
+  oss << "              --count :  just print global counters for files/dirs found"
+      << std::endl;
+  oss << "               --xurl :  print the XRootD URL instead of the path name"
+      << std::endl;
+  oss << "         --childcount :  print the number of children in each directory"
+      << std::endl;
   oss << "          --purge <n> | atomic" << std::endl;
-  oss << "                      :  remove versioned files keeping <n> versions - to remove all old versions use --purge 0" << std::endl;
-  oss << "                         To apply the settings of the extended attribute definition use <n>=-1" << std::endl;
-  oss << "                         To remove all atomic upload left-overs older than a day user --purge atomic" << std::endl;
+  oss << "                      :  remove versioned files keeping <n> versions - to remove all old versions use --purge 0"
+      << std::endl;
+  oss << "                         To apply the settings of the extended attribute definition use <n>=-1"
+      << std::endl;
+  oss << "                         To remove all atomic upload left-overs older than a day user --purge atomic"
+      << std::endl;
   oss << "              default :  find files and directories" << std::endl;
-
-  oss << "       find [--nrep] [--nunlink] [--size] [--fileinfo] [--online] [--hosts] [--partition] [--fid] [--fs] [--checksum] [--ctime] [--mtime] [--uid] [--gid] <path>" << std::endl;
-  oss << "                      :  find files and print out the requested meta data as key value pairs" << std::endl;
-  oss << "       path=file:...  :  do a find in the local file system (options ignored) - 'file:' is the current working directory" << std::endl;
-  oss << "       path=root:...  :  do a find on a plain XRootD server (options ignored) - does not work on native XRootD clusters" << std::endl;
+  oss << "       find [--nrep] [--nunlink] [--size] [--fileinfo] [--online] [--hosts] [--partition] [--fid] [--fs] [--checksum] [--ctime] [--mtime] [--uid] [--gid] <path>"
+      << std::endl;
+  oss << "                      :  find files and print out the requested meta data as key value pairs"
+      << std::endl;
+  oss << "       path=file:...  :  do a find in the local file system (options ignored) - 'file:' is the current working directory"
+      << std::endl;
+  oss << "       path=root:...  :  do a find on a plain XRootD server (options ignored) - does not work on native XRootD clusters"
+      << std::endl;
   oss << "       path=as3:...   :  do a find on an S3 bucket" << std::endl;
-  oss << "       path=...       :  all other paths are considered to be EOS paths!" << std::endl;
-
+  oss << "       path=...       :  all other paths are considered to be EOS paths!"
+      << std::endl;
   std::cerr << oss.str() << std::endl;
 }
 
@@ -1451,25 +1443,23 @@ com_find_new(char* arg)
   }
 
   FindHelper find;
-
   // Handle differently if it's an xroot, file or as3 path
   std::string argStr(arg);
   auto xrootAt = argStr.rfind("root://");
   auto fileAt = argStr.rfind("file:");
   auto as3At = argStr.rfind("as3:");
+
   if (xrootAt != std::string::npos) {
     auto path = argStr.substr(xrootAt);
     // remove " from the path
     path.erase(std::remove(path.begin(), path.end(), '"'), path.end());
     return find.FindXroot(path);
-  }
-  else if (fileAt != std::string::npos) {
+  } else if (fileAt != std::string::npos) {
     auto path = argStr.substr(fileAt);
     // remove " from the path
     path.erase(std::remove(path.begin(), path.end(), '"'), path.end());
     return find.FindXroot(path);
-  }
-  else if (as3At != std::string::npos) {
+  } else if (as3At != std::string::npos) {
     auto path = argStr.substr(as3At);
     // remove " from the path
     path.erase(std::remove(path.begin(), path.end(), '"'), path.end());
@@ -1486,6 +1476,7 @@ com_find_new(char* arg)
   return global_retc;
 }
 
-int com_find(char *arg) {
+int com_find(char* arg)
+{
   return com_find_old(arg);
 }

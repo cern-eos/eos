@@ -21,7 +21,6 @@
  ************************************************************************/
 
 #include "console/ConsoleMain.hh"
-#include "console/commands/ICmdHelper.hh"
 #include "console/commands/helpers/FsHelper.hh"
 #include <algorithm>
 #include <sstream>
