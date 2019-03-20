@@ -227,6 +227,7 @@ build_cc7_xrd_testing:
     - docker_node
     - cc7
   allow_failure: true
+  when: manual
 
 
 build_cc7_asan:
@@ -346,6 +347,7 @@ cc7_docker_image_xrd_testing:
     - beryl_aquamarine
     - tags
   allow_failure: true
+  when: manual
 
 
 cc7_docker_image_commit:
@@ -515,6 +517,7 @@ system_test_qdb_xrd_testing:
   dependencies:
     - clone_docker
   allow_failure: true
+  when: manual
 
 
 system_test:
