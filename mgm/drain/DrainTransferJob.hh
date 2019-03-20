@@ -166,6 +166,16 @@ private:
   //----------------------------------------------------------------------------
   Status DrainZeroSizeFile(const FileDrainInfo& fdrain);
 
+  //----------------------------------------------------------------------------
+  //! Estimat TCP transfer timeout based on file size but not shorter than
+  //! 30 min.
+  //!
+  //! @param fsize file size
+  //!
+  //! @return timeout value in seconds
+  //----------------------------------------------------------------------------
+  std::chrono::seconds EstimateTpcTimeout(const uint64_t fsize) const;
+
   eos::common::FileId::fileid_t mFileId; ///< File id to transfer
   ///! Source and destination file system
   eos::common::FileSystem::fsid_t mFsIdSource, mFsIdTarget;

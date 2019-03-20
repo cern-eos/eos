@@ -115,7 +115,7 @@ DrainTransferJob::DoIt()
     properties.Set("sourceLimit", (uint16_t) 1);
     properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
     properties.Set("parallelChunks", (uint8_t) 1);
-    // properties.Set("tpcTimeout",  900);
+    properties.Set("tpcTimeout", EstimateTpcTimeout(fdrain.mProto.size()).count());
 
     // Non-empty files run with TPC only
     if (fdrain.mProto.size()) {
@@ -568,6 +568,25 @@ DrainTransferJob::DrainZeroSizeFile(const FileDrainInfo& fdrain)
 
   gOFS->eosFileService->updateStore(file.get());
   return Status::OK;
+}
+
+//------------------------------------------------------------------------------
+// Estimat TCP transfer timeout based on file size
+//------------------------------------------------------------------------------
+std::chrono::seconds
+DrainTransferJob::EstimateTpcTimeout(const uint64_t fsize) const
+{
+  const uint64_t avg_tx = 30 * 1024 * 1024; // 30 MB/s
+  const uint64_t default_timeout {
+    1800
+  };
+  uint64_t timeout = fsize / avg_tx;
+
+  if (timeout < default_timeout) {
+    timeout = default_timeout;
+  }
+
+  return std::chrono::seconds(timeout);
 }
 
 EOSMGMNAMESPACE_END
