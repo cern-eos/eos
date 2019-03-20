@@ -49,13 +49,51 @@ public:
   //! Otherwise, we return true.
   //----------------------------------------------------------------------------
   bool injectMapping(eos::common::FileSystem::fsid_t id,
-    const std::string uuid);
+    const std::string &uuid);
+
+  //----------------------------------------------------------------------------
+  //! Is there any entry with the given fsid?
+  //----------------------------------------------------------------------------
+  bool hasFsid(eos::common::FileSystem::fsid_t id) const;
+
+  //----------------------------------------------------------------------------
+  //! Is there any entry with the given uuid?
+  //----------------------------------------------------------------------------
+  bool hasUuid(const std::string &uuid) const;
 
   //----------------------------------------------------------------------------
   //! Retrieve size of the map
   //----------------------------------------------------------------------------
   size_t size() const;
 
+  //----------------------------------------------------------------------------
+  //! Retrieve the fsid that corresponds to the given uuid. Return 0 if none
+  //! exists.
+  //----------------------------------------------------------------------------
+  eos::common::FileSystem::fsid_t lookup(const std::string &uuid) const;
+
+  //----------------------------------------------------------------------------
+  //! Retrieve the uuid that corresponds to the given fsid. Return "" if none
+  //! exists.
+  //----------------------------------------------------------------------------
+  std::string lookup(eos::common::FileSystem::fsid_t id) const;
+
+  //----------------------------------------------------------------------------
+  //! Remove a mapping, given the fsid. Returns true if the element was found
+  //! and removed, and false if not found.
+  //----------------------------------------------------------------------------
+  bool remove(eos::common::FileSystem::fsid_t id);
+
+  //----------------------------------------------------------------------------
+  //! Remove a mapping, given the uuid. Returns true if the element was found
+  //! and removed, and false if not found.
+  //----------------------------------------------------------------------------
+  bool remove(const std::string &uuid);
+
+  //----------------------------------------------------------------------------
+  //! Clear contents
+  //----------------------------------------------------------------------------
+  void clear();
 
 private:
   mutable std::shared_timed_mutex mutex;

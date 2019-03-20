@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "mgm/utils/FilesystemUuidMapper.hh"
+#include "common/Assert.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -37,7 +38,7 @@ FilesystemUuidMapper::FilesystemUuidMapper() {}
 // Otherwise, we return true.
 //------------------------------------------------------------------------------
 bool FilesystemUuidMapper::injectMapping(eos::common::FileSystem::fsid_t id,
-  const std::string uuid) {
+  const std::string &uuid) {
 
   //----------------------------------------------------------------------------
   // Valid id?
@@ -96,7 +97,110 @@ bool FilesystemUuidMapper::injectMapping(eos::common::FileSystem::fsid_t id,
 //------------------------------------------------------------------------------
 size_t FilesystemUuidMapper::size() const {
   std::shared_lock<std::shared_timed_mutex> lock(mutex);
+  eos_assert(uuid2fs.size() == fs2uuid.size());
   return uuid2fs.size();
+}
+
+//------------------------------------------------------------------------------
+// Clear contents
+//------------------------------------------------------------------------------
+void FilesystemUuidMapper::clear() {
+  std::unique_lock<std::shared_timed_mutex> lock(mutex);
+
+  uuid2fs.clear();
+  fs2uuid.clear();
+}
+
+//------------------------------------------------------------------------------
+// Is there any entry with the given fsid?
+//------------------------------------------------------------------------------
+bool FilesystemUuidMapper::hasFsid(eos::common::FileSystem::fsid_t id) const {
+  std::shared_lock<std::shared_timed_mutex> lock(mutex);
+  return fs2uuid.find(id) != fs2uuid.end();
+}
+
+//------------------------------------------------------------------------------
+// Is there any entry with the given uuid?
+//------------------------------------------------------------------------------
+bool FilesystemUuidMapper::hasUuid(const std::string &uuid) const {
+  std::shared_lock<std::shared_timed_mutex> lock(mutex);
+  return uuid2fs.find(uuid) != uuid2fs.end();
+}
+
+//------------------------------------------------------------------------------
+// Retrieve the fsid that corresponds to the given uuid. Return 0 if none
+// exists.
+//------------------------------------------------------------------------------
+eos::common::FileSystem::fsid_t FilesystemUuidMapper::lookup(
+  const std::string &uuid) const {
+
+  std::shared_lock<std::shared_timed_mutex> lock(mutex);
+  auto it = uuid2fs.find(uuid);
+  if(it == uuid2fs.end()) {
+    return 0;
+  }
+
+  return it->second;
+}
+
+//------------------------------------------------------------------------------
+//! Retrieve the uuid that corresponds to the given fsid. Return "" if none
+//! exists.
+//------------------------------------------------------------------------------
+std::string FilesystemUuidMapper::lookup(
+  eos::common::FileSystem::fsid_t id) const {
+
+  std::shared_lock<std::shared_timed_mutex> lock(mutex);
+  auto it = fs2uuid.find(id);
+  if(it == fs2uuid.end()) {
+    return "";
+  }
+
+  return it->second;
+}
+
+//------------------------------------------------------------------------------
+//! Remove a mapping, given the fsid. Returns true if the element was found
+//! and removed, and false if not found.
+//------------------------------------------------------------------------------
+bool FilesystemUuidMapper::remove(eos::common::FileSystem::fsid_t id) {
+  std::shared_lock<std::shared_timed_mutex> lock(mutex);
+
+  auto it = fs2uuid.find(id);
+  if(it == fs2uuid.end()) {
+    return false;
+  }
+
+  // Find the reverse relationship, which _must_ exist
+  auto it2 = uuid2fs.find(it->second);
+  eos_assert(it2 != uuid2fs.end());
+
+  // Drop both
+  fs2uuid.erase(it);
+  uuid2fs.erase(it2);
+  return true;
+}
+
+//------------------------------------------------------------------------------
+//! Remove a mapping, given the uuid. Returns true if the element was found
+//! and removed, and false if not found.
+//------------------------------------------------------------------------------
+bool FilesystemUuidMapper::remove(const std::string &uuid) {
+  std::shared_lock<std::shared_timed_mutex> lock(mutex);
+
+  auto it = uuid2fs.find(uuid);
+  if(it == uuid2fs.end()) {
+    return false;
+  }
+
+  // Find the reverse relationship, which _must_ exist
+  auto it2 = fs2uuid.find(it->second);
+  eos_assert(it2 != fs2uuid.end());
+
+  // Drop both
+  uuid2fs.erase(it);
+  fs2uuid.erase(it2);
+  return true;
 }
 
 EOSMGMNAMESPACE_END

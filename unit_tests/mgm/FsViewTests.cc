@@ -88,6 +88,44 @@ TEST(FilesystemUuidMapper, BasicSanity) {
   ASSERT_TRUE(mapper.injectMapping(1, "fs-1"));
   ASSERT_EQ(mapper.size(), 1u);
 
+  // accessor tests
+  ASSERT_TRUE(mapper.hasFsid(1));
+  ASSERT_FALSE(mapper.hasFsid(2));
 
+  ASSERT_TRUE(mapper.hasUuid("fs-1"));
+  ASSERT_FALSE(mapper.hasUuid("fs-2"));
+
+  ASSERT_EQ(mapper.lookup("fs-1"), 1);
+  ASSERT_EQ(mapper.lookup("fs-2"), 0);
+
+  ASSERT_EQ(mapper.lookup(1), "fs-1");
+  ASSERT_EQ(mapper.lookup(2), "");
+
+  // Removal tests
+  ASSERT_FALSE(mapper.remove(2));
+  ASSERT_TRUE(mapper.remove(1));
+  ASSERT_EQ(mapper.size(), 0u);
+  ASSERT_FALSE(mapper.hasFsid(1));
+  ASSERT_FALSE(mapper.hasUuid("fs-1"));
+
+  ASSERT_FALSE(mapper.remove(1));
+  ASSERT_FALSE(mapper.remove("fs-1"));
+
+  ASSERT_TRUE(mapper.injectMapping(2, "fs-2"));
+  ASSERT_TRUE(mapper.injectMapping(3, "fs-3"));
+  ASSERT_TRUE(mapper.injectMapping(4, "fs-4"));
+
+  ASSERT_FALSE(mapper.injectMapping(5, "fs-4"));
+  ASSERT_FALSE(mapper.injectMapping(3, "fs-5"));
+  ASSERT_TRUE(mapper.injectMapping(3, "fs-3")); // exists already
+
+  ASSERT_EQ(mapper.size(), 3u);
+
+  ASSERT_FALSE(mapper.remove("fs-5"));
+  ASSERT_TRUE(mapper.remove("fs-3"));
+  ASSERT_EQ(mapper.size(), 2u);
+
+  ASSERT_FALSE(mapper.hasUuid("fs-3"));
+  ASSERT_FALSE(mapper.hasFsid(3));
 }
 
