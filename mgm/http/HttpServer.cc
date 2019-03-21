@@ -372,6 +372,7 @@ HttpServer::Authenticate(std::map<std::string, std::string>& headers)
   }
 
   XrdSecEntity client(headers.count("x-real-ip") ? "https" : "http");
+  std::string remotehost;
 
   if (headers.count("x-real-ip")) {
     // Translate a proxied host name
@@ -393,7 +394,7 @@ HttpServer::Authenticate(std::map<std::string, std::string>& headers)
       }
     }
 
-    std::string remotehost = real_ip;
+    remotehost = real_ip;
     XrdNetAddr netaddr;
     netaddr.Set(real_ip.c_str());
     // Try to convert IP to corresponding [host] name
@@ -407,10 +408,9 @@ HttpServer::Authenticate(std::map<std::string, std::string>& headers)
       remotehost += "=>";
       remotehost += headers["auth-type"];
     }
-
-    client.host = const_cast<char*>(remotehost.c_str());
   }
 
+  client.host = const_cast<char*>(remotehost.c_str());
   XrdOucString tident = username.c_str();
   tident += ".1:1@";
   tident += const_cast<char*>(headers["client-real-host"].c_str());
