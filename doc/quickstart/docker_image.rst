@@ -87,7 +87,7 @@ You can mount EOS to the client container using FUSE and KRB5 authentication.
 .. code-block:: bash
 
    docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos
-   docker exec -i eos-client-test bash
+   docker exec -it eos-client-test bash
 
    .... trying to create ... /eos
    ===> Mountpoint   : /eos
@@ -107,7 +107,7 @@ You can mount EOS to the client container using FUSE and KRB5 authentication.
 
 .. code-block:: bash
 
-   [root@testmachine eos-docker]# docker exec -i eos-client-test bash 
+   [root@testmachine eos-docker]# docker exec -it eos-client-test bash 
    ls -la /eos/
    total 4
    drwxrwxr-x.  1 root root    0 Jan  1  1970 .
