@@ -436,6 +436,7 @@ XrdMqClient::RecvMessage(ThreadAssistant* assistant)
     }
 
     if (stinfo->GetSize() == 0) {
+      delete stinfo;
       return 0;
     }
 
