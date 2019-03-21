@@ -15,6 +15,39 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.4.31 Citrine``
+===================
+
+2019-03-21
+
+Bug
+---
+
+* HTTP: Extend lifetime of variable pointed to from the XrdSecEntity object
+* CONSOLE: Refactor the RecycleHelper for easier testing. EOS-3345
+* MGM: Display real geotag field in FileInfo JSON format. Additionally, display forcegeotag field when available
+* FST: Fix default geotag to be less than 8 chars
+* FST: Add a check for Geotag length limit. Fixes EOS-3208
+* MGM: Fail file placement if a forced scheduling group is provided and the
+
+Refactoring
+-----------
+
+* MGM: Implement method to allocate new fsid based on uuid in FilesystemUuidMapper
+* MISC: Remove any kinetic reference
+* CONSOLE
+* ALL: enum class for filesystem status - strongly typed
+
+Improvements
+------------
+
+* MGM: add BackUpExists flag for files on CTA
+* MGM: Add estimate for drain TPC copy timeout based on the size of the file and a
+* MGM: Check geotag limit also on fs config forcegeotag command
+* MISC: Basic bash completion script. Fixes EOS-3252
+* MGM: Add tracking for in-flight requests in the MGM code for cleaner master-slave
+* ARCHIVE: Increase the TPC transfer timeout to 1 hour
+
 
 ``v4.4.30 Citrine``
 ===================
