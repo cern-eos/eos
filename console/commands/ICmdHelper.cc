@@ -182,7 +182,10 @@ ICmdHelper::AddRouteInfo(std::string& cmd)
 
   switch (mReq.command_case()) {
   case RequestProto::kRecycle:
-    oss << "&eos.route=" << default_route;
+    if (!default_route.empty()) {
+      oss << "&eos.route=" << default_route;
+    }
+
     break;
 
   case RequestProto::kAcl:
@@ -191,7 +194,9 @@ ICmdHelper::AddRouteInfo(std::string& cmd)
 
   case RequestProto::kRm:
     if (mReq.rm().path().empty()) {
-      oss << "&eos.route=" << default_route;
+      if (!default_route.empty()) {
+        oss << "&eos.route=" << default_route;
+      }
     } else {
       oss << "&eos.route=" << mReq.rm().path();
     }
