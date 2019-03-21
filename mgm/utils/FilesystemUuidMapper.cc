@@ -164,7 +164,7 @@ std::string FilesystemUuidMapper::lookup(
 //! and removed, and false if not found.
 //------------------------------------------------------------------------------
 bool FilesystemUuidMapper::remove(eos::common::FileSystem::fsid_t id) {
-  std::shared_lock<std::shared_timed_mutex> lock(mutex);
+  std::unique_lock<std::shared_timed_mutex> lock(mutex);
 
   auto it = fs2uuid.find(id);
   if(it == fs2uuid.end()) {
@@ -186,7 +186,7 @@ bool FilesystemUuidMapper::remove(eos::common::FileSystem::fsid_t id) {
 //! and removed, and false if not found.
 //------------------------------------------------------------------------------
 bool FilesystemUuidMapper::remove(const std::string &uuid) {
-  std::shared_lock<std::shared_timed_mutex> lock(mutex);
+  std::unique_lock<std::shared_timed_mutex> lock(mutex);
 
   auto it = uuid2fs.find(uuid);
   if(it == uuid2fs.end()) {
@@ -201,6 +201,61 @@ bool FilesystemUuidMapper::remove(const std::string &uuid) {
   uuid2fs.erase(it);
   fs2uuid.erase(it2);
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Allocate a new fsid for the given uuid.
+// - If the given uuid is registered already, simply map to the existing
+//   one, don't modify anything.
+// - If not, allocate a brand new, currently-unused fsid.
+// - This map cannot hold more than 64k filesystems - legacy limitation from
+//   original implementation in FsView, not sure if we can remove it.
+//------------------------------------------------------------------------------
+eos::common::FileSystem::fsid_t FilesystemUuidMapper::allocate(
+  const std::string &uuid) {
+
+  std::unique_lock<std::shared_timed_mutex> lock(mutex);
+
+  // Given uuid exists already?
+  auto it = uuid2fs.find(uuid);
+  if(it != uuid2fs.end()) {
+    return it->second; // nothing more to do
+  }
+
+  // Does not exist, need to allocate..
+  if(uuid2fs.empty()) {
+    // Entire structure is empty, start from 1.
+    eos::common::FileSystem::fsid_t id = 1;
+    uuid2fs[uuid] = id;
+    fs2uuid[id] = uuid;
+    return id;
+  }
+
+  // Find largest fsid currently in use
+  eos::common::FileSystem::fsid_t maxInUse = fs2uuid.rbegin()->first;
+
+  if(maxInUse < 64000) {
+    // Allocate maxInUse+1
+    eos::common::FileSystem::fsid_t id = maxInUse+1;
+    uuid2fs[uuid] = id;
+    fs2uuid[id] = uuid;
+    return id;
+  }
+
+  // We don't allow values larger than 64k.. linear search from 1 to 64k
+  // to find an open spot.
+  for(eos::common::FileSystem::fsid_t id = 1; id < 64000; id++) {
+    if(fs2uuid.count(id) == 0) {
+      // Found an empty spot
+      uuid2fs[uuid] = id;
+      fs2uuid[id] = uuid;
+      return id;
+    }
+  }
+
+  // Unable to allocate, something is wrong, abort
+  eos_static_crit("all filesystem id's exhausted (64.000) - aborting the program");
+  exit(-1);
 }
 
 EOSMGMNAMESPACE_END

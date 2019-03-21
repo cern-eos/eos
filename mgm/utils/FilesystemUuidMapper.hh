@@ -95,6 +95,16 @@ public:
   //----------------------------------------------------------------------------
   void clear();
 
+  //----------------------------------------------------------------------------
+  //! Allocate a new fsid for the given uuid.
+  //! - If the given uuid is registered already, simply map to the existing
+  //!   one, don't modify anything.
+  //! - If not, allocate a brand new, currently-unused fsid.
+  //! - This map cannot hold more than 64k filesystems - legacy limitation from
+  //!   original implementation in FsView, not sure if we can remove it.
+  //----------------------------------------------------------------------------
+  eos::common::FileSystem::fsid_t allocate(const std::string &uuid);
+
 private:
   mutable std::shared_timed_mutex mutex;
 

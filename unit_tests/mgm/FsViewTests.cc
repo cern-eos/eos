@@ -127,5 +127,26 @@ TEST(FilesystemUuidMapper, BasicSanity) {
 
   ASSERT_FALSE(mapper.hasUuid("fs-3"));
   ASSERT_FALSE(mapper.hasFsid(3));
+
+  // Try to allocate existing uuid
+  ASSERT_EQ(mapper.allocate("fs-2"), 2);
+  ASSERT_EQ(mapper.allocate("fs-4"), 4);
+  ASSERT_EQ(mapper.size(), 2u);
+
+  ASSERT_EQ(mapper.allocate("fs-5"), 5);
+  ASSERT_EQ(mapper.allocate("fs-6"), 6);
+  ASSERT_EQ(mapper.allocate("fs-7"), 7);
+  ASSERT_EQ(mapper.size(), 5u);
+
+  ASSERT_TRUE(mapper.injectMapping(63999, "fs-63999"));
+  ASSERT_EQ(mapper.allocate("fs-64000"), 64000);
+  ASSERT_EQ(mapper.allocate("fs-1"), 1);
+  ASSERT_EQ(mapper.allocate("fs-3"), 3);
+  ASSERT_EQ(mapper.allocate("fs-8"), 8);
+  ASSERT_EQ(mapper.allocate("fs-9"), 9);
+
+  ASSERT_EQ(mapper.lookup("fs-8"), 8);
+  ASSERT_EQ(mapper.lookup(8), "fs-8");
+
 }
 
