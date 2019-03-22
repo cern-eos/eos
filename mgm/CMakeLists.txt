@@ -63,6 +63,7 @@ target_sources(EosMgmProto-Objects PUBLIC
 add_library(
   XrdEosMgm-Objects OBJECT
   auth/AccessChecker.cc                             auth/AccessChecker.hh
+  config/ConfigParsing.cc                           config/ConfigParsing.hh
   config/FileConfigEngine.cc                        config/FileConfigEngine.hh
   config/IConfigEngine.cc                           config/IConfigEngine.hh
   config/QuarkDBConfigEngine.cc                     config/QuarkDBConfigEngine.hh

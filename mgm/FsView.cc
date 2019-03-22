@@ -31,6 +31,7 @@
 #include "mgm/GroupBalancer.hh"
 #include "mgm/Converter.hh"
 #include "mgm/GeoTreeEngine.hh"
+#include "mgm/config/ConfigParsing.hh"
 #include "mgm/TableFormatter/TableFormatterBase.hh"
 #include "common/StringConversion.hh"
 
@@ -2849,52 +2850,9 @@ FsView::PrintNodes(std::string& out, const std::string& table_format,
 bool
 FsView::ApplyFsConfig(const char* inkey, std::string& val)
 {
-  if (!inkey) {
-    return false;
-  }
-
-  // Decoding setup
-  std::string sval;
-  // Convert to map
-  std::string key = inkey;
   std::map<std::string, std::string> configmap;
-  std::vector<std::string> tokens;
-  eos::common::StringConversion::Tokenize(val, tokens);
-  CURL* curl = curl_easy_init();
-
-  if (curl) {
-    for (size_t i = 0; i < tokens.size(); i++) {
-      std::vector<std::string> keyval;
-      std::string delimiter = "=";
-      eos::common::StringConversion::Tokenize(tokens[i], keyval, delimiter);
-      sval = keyval[1].c_str();
-
-      // Curl decode string literal value
-      if (sval[0] == '"' && sval[sval.length() - 1] == '"') {
-        std::string to_decode = sval.substr(1, sval.length() - 2);
-        char* decoded = curl_easy_unescape(curl, to_decode.c_str(), 0, 0);
-
-        if (decoded) {
-          keyval[1] = '"';
-          keyval[1] += decoded;
-          keyval[1] += '"';
-          curl_free(decoded);
-        }
-      }
-
-      configmap[keyval[0]] = keyval[1];
-    }
-
-    curl_easy_cleanup(curl);
-  } else {
-    eos_err("%s", "msg=\"failed to initialize CURL handle");
-    return false;
-  }
-
-  if ((!configmap.count("queuepath")) ||
-      (!configmap.count("queue")) ||
-      (!configmap.count("id"))) {
-    eos_err("%s", "msg=\"config definitions missing\"");
+  if(!ConfigParsing::parseFilesystemConfig(val, configmap)) {
+    eos_err("could not parse fs config entry");
     return false;
   }
 

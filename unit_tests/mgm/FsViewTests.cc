@@ -24,6 +24,7 @@
 #include "gtest/gtest.h"
 #include "mgm/FsView.hh"
 #include "mgm/utils/FilesystemUuidMapper.hh"
+#include "mgm/config/ConfigParsing.hh"
 
 //------------------------------------------------------------------------------
 // Test const_iterator implementation
@@ -148,5 +149,33 @@ TEST(FilesystemUuidMapper, BasicSanity) {
   ASSERT_EQ(mapper.lookup("fs-8"), 8);
   ASSERT_EQ(mapper.lookup(8), "fs-8");
 
+}
+
+TEST(ConfigParsing, FilesystemEntry)
+{
+  std::map<std::string, std::string> results;
+  ASSERT_TRUE(eos::mgm::ConfigParsing::parseFilesystemConfig(
+    "bootcheck=0 bootsenttime=1480576520 configstatus=empty drainperiod=86400 drainstatus=drained graceperiod=3600 headroom=25000000000 host=p05798818d95041.cern.ch hostport=p05798818d95041.cern.ch:1095 id=7259 path=/data46 port=1095 queue=/eos/p05798818d95041.cern.ch:1095/fst queuepath=/eos/p05798818d95041.cern.ch:1095/fst/data46 scaninterval=604800 schedgroup=spare uuid=62dce94a-71de-4904-8105-534c61ce2eaa",
+    results));
+
+  ASSERT_EQ(results["bootcheck"], "0");
+  ASSERT_EQ(results["bootsenttime"], "1480576520");
+  ASSERT_EQ(results["configstatus"], "empty");
+  ASSERT_EQ(results["drainperiod"], "86400");
+  ASSERT_EQ(results["drainstatus"], "drained");
+  ASSERT_EQ(results["graceperiod"], "3600");
+  ASSERT_EQ(results["headroom"], "25000000000");
+  ASSERT_EQ(results["host"], "p05798818d95041.cern.ch");
+  ASSERT_EQ(results["hostport"], "p05798818d95041.cern.ch:1095");
+  ASSERT_EQ(results["id"], "7259");
+  ASSERT_EQ(results["path"], "/data46");
+  ASSERT_EQ(results["port"], "1095");
+  ASSERT_EQ(results["queue"], "/eos/p05798818d95041.cern.ch:1095/fst");
+  ASSERT_EQ(results["queuepath"], "/eos/p05798818d95041.cern.ch:1095/fst/data46");
+  ASSERT_EQ(results["scaninterval"], "604800");
+  ASSERT_EQ(results["schedgroup"], "spare");
+  ASSERT_EQ(results["uuid"], "62dce94a-71de-4904-8105-534c61ce2eaa");
+
+  ASSERT_EQ(results.size(), 17u);
 }
 

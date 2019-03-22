@@ -790,8 +790,7 @@ public:
   //! @param start_heartbeat control whether heartbeat thread is started - for
   //!                        testing purposes
   //----------------------------------------------------------------------------
-  FsView(bool start_heartbeat = true):
-    NextFsId(0)
+  FsView(bool start_heartbeat = true)
   {
     MgmConfigQueueName = "";
 
@@ -1042,8 +1041,6 @@ public:
 
 private:
   AssistedThread mHeartBeatThread; ///< Thread monitoring heart-beats
-  //! Next free filesystem ID if a new one has to be registered
-  eos::common::FileSystem::fsid_t NextFsId;
   //! Object to map between fsid <-> uuid
   FilesystemUuidMapper mFilesystemMapper;
   std::string MgmConfigQueueName; ///< MGM configuration queue name
