@@ -21,6 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+
+#include <chrono>
+
 #include "mgm/Messaging.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
@@ -69,10 +72,28 @@ Messaging::Listen(ThreadAssistant& assistant) noexcept
   std::unique_ptr<XrdMqMessage> new_msg;
 
   while (!assistant.terminationRequested()) {
+
+    int64_t t1 = std::chrono::duration_cast<std::chrono::milliseconds>
+      (std::chrono::steady_clock::now().time_since_epoch()).count();
+
     new_msg.reset(XrdMqMessaging::gMessageClient.RecvMessage(&assistant));
 
+    int64_t t2  =  std::chrono::duration_cast<std::chrono::milliseconds>
+      (std::chrono::steady_clock::now().time_since_epoch()).count();
+
+    if ( (t2 - t1) > 2000) {
+      eos_warning("MQ heartbeat recv lasted %ld milliseconds", 
+		  t2-t1);
+    }
+
     if (new_msg) {
+      int64_t t3  =  std::chrono::duration_cast<std::chrono::milliseconds>
+	(std::chrono::steady_clock::now().time_since_epoch()).count();
       Process(new_msg.get());
+      if ( (t3 - t2) > 2000) {
+	eos_warning("MQ heartbeat processing lasted %ld milliseconds", 
+		    t3-t2);
+      } 
     } else {
       assistant.wait_for(std::chrono::seconds(1));
     }
