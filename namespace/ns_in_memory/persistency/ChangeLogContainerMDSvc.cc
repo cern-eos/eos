@@ -343,7 +343,7 @@ public:
     }
 
     pUpdated.clear();
-    pContSvc->getSlaveLock()->unLock();
+    pContSvc->getSlaveLock()->writeUnLock();
   }
 
 private:

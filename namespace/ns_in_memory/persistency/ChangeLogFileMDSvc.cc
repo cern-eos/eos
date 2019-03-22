@@ -386,7 +386,7 @@ public:
     }
 
     pFileSvc->setFollowPending(pUpdated.size());
-    pFileSvc->getSlaveLock()->unLock();
+    pFileSvc->getSlaveLock()->writeUnLock();
   }
 
 private:

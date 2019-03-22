@@ -37,6 +37,7 @@
 #include "namespace/ns_in_memory/persistency/LogManager.hh"
 #include "namespace/ns_in_memory/accounting/FileSystemView.hh"
 #include "namespace/utils/RmrfHelper.hh"
+#include "common/RWMutex.hh"
 
 #include <XrdSys/XrdSysPthread.hh>
 
@@ -80,7 +81,7 @@ public:
   //------------------------------------------------------------------------
   virtual void readLock()
   {
-    pLock.ReadLock();
+    pLock.LockRead();
   }
 
   //------------------------------------------------------------------------
@@ -88,18 +89,23 @@ public:
   //------------------------------------------------------------------------
   virtual void writeLock()
   {
-    pLock.WriteLock();
+    pLock.LockWrite();
   }
 
   //------------------------------------------------------------------------
   // Unlock
   //------------------------------------------------------------------------
-  virtual void unLock()
+  virtual void writeUnLock()
   {
-    pLock.UnLock();
+    pLock.UnLockWrite();
+  }
+
+  virtual void readUnLock()
+  {
+    pLock.UnLockRead();
   }
 private:
-  XrdSysRWLock pLock;
+  eos::common::RWMutex pLock;
 };
 
 //------------------------------------------------------------------------------
@@ -682,7 +688,7 @@ void HierarchicalSlaveTest::functionalTest()
                    qnMaster->getNumFilesByGroup(0));
   }
 
-  lock.unLock();
+  lock.readUnLock();
   //----------------------------------------------------------------------------
   // Clean up
   //----------------------------------------------------------------------------

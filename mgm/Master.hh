@@ -326,14 +326,24 @@ private:
     }
 
     //------------------------------------------------------------------------
-    // Unlock
+    // Unlock read lock
     //------------------------------------------------------------------------
     virtual void
-    unLock()
+    readUnLock()
     {
-      // Does not matter if UnLockRead or Write is called
       if (pLock) {
         pLock->UnLockRead();
+      }
+    }
+
+    //------------------------------------------------------------------------
+    // Unlock write lock
+    //------------------------------------------------------------------------
+    virtual void
+    writeUnLock()
+    {
+      if (pLock) {
+        pLock->UnLockWrite();
       }
     }
 
