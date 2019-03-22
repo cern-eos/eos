@@ -560,8 +560,8 @@ k8s_unit_test:
   <<: *k8s_before_script_template
   script:
     - ./eos-on-k8s/create-mgm.sh -i ${IMAGE_TAG} -n ${NAMESPACE}
-    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-unit-tests
-    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-fst-unit-tests
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-unit-tests || true
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-fst-unit-tests || true
   <<: *k8s_after_script_template
   variables:
     BASETAG: "asan_"
