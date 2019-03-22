@@ -115,7 +115,7 @@ TransferEngine::ApplyTransferEngineConfig()
 int
 TransferEngine::Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate,
                        XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut,
-                       XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid,
+                       XrdOucString& stdErr, eos::common::VirtualIdentity& vid,
                        time_t exptime, XrdOucString credentials, bool sync, bool noauth)
 {
   if (((!src.beginswith("root://")) &&
@@ -170,7 +170,7 @@ TransferEngine::Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate,
 int
 TransferEngine::Ls(XrdOucString& id, XrdOucString& option, XrdOucString& group,
                    XrdOucString& stdOut, XrdOucString& stdErr,
-                   eos::common::Mapping::VirtualIdentity& vid)
+                   eos::common::VirtualIdentity& vid)
 {
   // forbid the 'a' option for non root
   if ((vid.uid) && (option.find("a") != STR_NPOS)) {
@@ -185,7 +185,7 @@ TransferEngine::Ls(XrdOucString& id, XrdOucString& option, XrdOucString& group,
 int
 TransferEngine::Cancel(XrdOucString& sid, XrdOucString& group,
                        XrdOucString& stdOut, XrdOucString& stdErr,
-                       eos::common::Mapping::VirtualIdentity& vid)
+                       eos::common::VirtualIdentity& vid)
 {
   long long id = strtoll(sid.c_str(), 0, 10);
 
@@ -233,7 +233,7 @@ TransferEngine::Cancel(XrdOucString& sid, XrdOucString& group,
 int
 TransferEngine::Kill(XrdOucString& sid, XrdOucString& group,
                      XrdOucString& stdOut, XrdOucString& stdErr,
-                     eos::common::Mapping::VirtualIdentity& vid)
+                     eos::common::VirtualIdentity& vid)
 {
   stdErr += "error: 'kill' is currently not supported";
   return EOPNOTSUPP;
@@ -243,7 +243,7 @@ TransferEngine::Kill(XrdOucString& sid, XrdOucString& group,
 int
 TransferEngine::Log(XrdOucString& sid, XrdOucString& group,
                     XrdOucString& stdOut, XrdOucString& stdErr,
-                    eos::common::Mapping::VirtualIdentity& vid)
+                    eos::common::VirtualIdentity& vid)
 {
   long long id = strtoll(sid.c_str(), 0, 10);
   TransferDB::transfer_t transfer = xDB->GetTransfer(id);
@@ -271,7 +271,7 @@ TransferEngine::Log(XrdOucString& sid, XrdOucString& group,
 int
 TransferEngine::Purge(XrdOucString& option, XrdOucString& sid,
                       XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr,
-                      eos::common::Mapping::VirtualIdentity& vid)
+                      eos::common::VirtualIdentity& vid)
 {
   long long id = strtoll(sid.c_str(), 0, 10);
   XrdOucString state = "failed";
@@ -321,7 +321,7 @@ TransferEngine::Purge(XrdOucString& option, XrdOucString& sid,
 int
 TransferEngine::Resubmit(XrdOucString& sid, XrdOucString& group,
                          XrdOucString& stdOut, XrdOucString& stdErr,
-                         eos::common::Mapping::VirtualIdentity& vid)
+                         eos::common::VirtualIdentity& vid)
 {
   long long id = strtoll(sid.c_str(), 0, 10);
   std::vector<long long> ids;
@@ -375,7 +375,7 @@ TransferEngine::Resubmit(XrdOucString& sid, XrdOucString& group,
 int
 TransferEngine::Reset(XrdOucString& option, XrdOucString& sid,
                       XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr,
-                      eos::common::Mapping::VirtualIdentity& vid)
+                      eos::common::VirtualIdentity& vid)
 {
   long long id = strtoll(sid.c_str(), 0, 10);
 
@@ -423,7 +423,7 @@ TransferEngine::Reset(XrdOucString& option, XrdOucString& sid,
 /*----------------------------------------------------------------------------*/
 int
 TransferEngine::Clear(XrdOucString& stdOut, XrdOucString& stdErr,
-                      eos::common::Mapping::VirtualIdentity& vid)
+                      eos::common::VirtualIdentity& vid)
 {
   if (vid.uid == 0) {
     xDB->Clear(stdOut, stdErr);

@@ -79,18 +79,18 @@ public:
   void Print(std::string& out, std::string options = "");
 
   int FillContainerMD(uint64_t id, eos::fusex::md& dir,
-                      eos::common::Mapping::VirtualIdentity& vid);
+                      eos::common::VirtualIdentity& vid);
   bool FillFileMD(uint64_t id, eos::fusex::md& file,
-                  eos::common::Mapping::VirtualIdentity& vid);
+                  eos::common::VirtualIdentity& vid);
   bool FillContainerCAP(uint64_t id, eos::fusex::md& md,
-                        eos::common::Mapping::VirtualIdentity& vid,
+                        eos::common::VirtualIdentity& vid,
                         std::string reuse_uuid = "",
                         bool issue_only_one = false);
 
   Caps::shared_cap ValidateCAP(const eos::fusex::md& md, mode_t mode,
-                               eos::common::Mapping::VirtualIdentity& vid);
+                               eos::common::VirtualIdentity& vid);
   bool ValidatePERM(const eos::fusex::md& md, const std::string& mode,
-                    eos::common::Mapping::VirtualIdentity& vid,
+                    eos::common::VirtualIdentity& vid,
                     bool lock = true);
 
   uint64_t InodeFromCAP(const eos::fusex::md&);
@@ -100,44 +100,44 @@ public:
 
   int OpBeginFlush(const std::string& identity,
                    const eos::fusex::md& md,
-                   eos::common::Mapping::VirtualIdentity& vid,
+                   eos::common::VirtualIdentity& vid,
                    std::string* response = 0,
                    uint64_t* clock = 0);
 
 
   int OpEndFlush(const std::string& identity,
                  const eos::fusex::md& md,
-                 eos::common::Mapping::VirtualIdentity& vid,
+                 eos::common::VirtualIdentity& vid,
                  std::string* response = 0,
                  uint64_t* clock = 0);
 
   int OpGetLs(const std::string& identity,
               const eos::fusex::md& md,
-              eos::common::Mapping::VirtualIdentity& vid,
+              eos::common::VirtualIdentity& vid,
               std::string* response = 0,
               uint64_t* clock = 0);
 
   int OpSet(const std::string& identity,
             const eos::fusex::md& md,
-            eos::common::Mapping::VirtualIdentity& vid,
+            eos::common::VirtualIdentity& vid,
             std::string* response = 0,
             uint64_t* clock = 0);
 
   int OpSetLink(const std::string& identity,
                 const eos::fusex::md& md,
-                eos::common::Mapping::VirtualIdentity& vid,
+                eos::common::VirtualIdentity& vid,
                 std::string* response = 0,
                 uint64_t* clock = 0);
 
   int OpSetFile(const std::string& identity,
                 const eos::fusex::md& md,
-                eos::common::Mapping::VirtualIdentity& vid,
+                eos::common::VirtualIdentity& vid,
                 std::string* response = 0,
                 uint64_t* clock = 0);
 
   int OpSetDirectory(const std::string& identity,
                      const eos::fusex::md& md,
-                     eos::common::Mapping::VirtualIdentity& vid,
+                     eos::common::VirtualIdentity& vid,
                      std::string* response = 0,
                      uint64_t* clock = 0);
 
@@ -145,50 +145,50 @@ public:
 
   int OpGetCap(const std::string& identity,
                const eos::fusex::md& md,
-               eos::common::Mapping::VirtualIdentity& vid,
+               eos::common::VirtualIdentity& vid,
                std::string* response = 0,
                uint64_t* clock = 0);
 
   int OpDelete(const std::string& identity,
                const eos::fusex::md& md,
-               eos::common::Mapping::VirtualIdentity& vid,
+               eos::common::VirtualIdentity& vid,
                std::string* response = 0,
                uint64_t* clock = 0);
 
   int OpDeleteFile(const std::string& identity,
                    const eos::fusex::md& md,
-                   eos::common::Mapping::VirtualIdentity& vid,
+                   eos::common::VirtualIdentity& vid,
                    std::string* response = 0,
                    uint64_t* clock = 0);
 
   int OpDeleteDirectory(const std::string& identity,
                         const eos::fusex::md& md,
-                        eos::common::Mapping::VirtualIdentity& vid,
+                        eos::common::VirtualIdentity& vid,
                         std::string* response = 0,
                         uint64_t* clock = 0);
 
   int OpDeleteLink(const std::string& identity,
                    const eos::fusex::md& md,
-                   eos::common::Mapping::VirtualIdentity& vid,
+                   eos::common::VirtualIdentity& vid,
                    std::string* response = 0,
                    uint64_t* clock = 0);
 
   int OpGetLock(const std::string& identity,
                 const eos::fusex::md& md,
-                eos::common::Mapping::VirtualIdentity& vid,
+                eos::common::VirtualIdentity& vid,
                 std::string* response = 0,
                 uint64_t* clock = 0);
 
 
   int OpSetLock(const std::string& identity,
                 const eos::fusex::md& md,
-                eos::common::Mapping::VirtualIdentity& vid,
+                eos::common::VirtualIdentity& vid,
                 std::string* response = 0,
                 uint64_t* clock = 0);
 
   int HandleMD(const std::string& identity,
                const eos::fusex::md& md,
-               eos::common::Mapping::VirtualIdentity& vid,
+               eos::common::VirtualIdentity& vid,
                std::string* response = 0,
                uint64_t* clock = 0);
 

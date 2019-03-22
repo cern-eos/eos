@@ -1,11 +1,11 @@
 // ----------------------------------------------------------------------
-// File: Chmod.cc
-// Author: Andreas-Joachim Peters - CERN
+// File: VirtualIdentity.cc
+// Author: Georgios Bitzes - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2018 CERN/Switzerland                                  *
+ * Copyright (C) 2019 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,46 +21,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/Logging.hh"
-#include "mgm/Stat.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/Macros.hh"
+#include "common/VirtualIdentity.hh"
 
-#include <XrdOuc/XrdOucEnv.hh>
+EOSCOMMONNAMESPACE_BEGIN
 
-//----------------------------------------------------------------------------
-// Chmod of a directory
-//----------------------------------------------------------------------------
-int
-XrdMgmOfs::Chmod(const char* path,
-                 const char* ininfo,
-                 XrdOucEnv& env,
-                 XrdOucErrInfo& error,
-                 eos::common::LogId& ThreadLogId,
-                 eos::common::VirtualIdentity& vid,
-                 const XrdSecEntity* client)
-{
-  ACCESSMODE_W;
-  MAYSTALL;
-  MAYREDIRECT;
-
-  gOFS->MgmStats.Add("Fuse-Chmod", vid.uid, vid.gid, 1);
-
-  const char* smode = env.Get("mode");
-  int retc = 0;
-
-  if (smode) {
-    XrdSfsMode newmode = atoi(smode);
-
-    if (_chmod(path, newmode, error, vid)) {
-      retc = error.getErrInfo();
-    }
-  } else {
-    retc = EINVAL;
-  }
-
-  XrdOucString response = "chmod: retc=";
-  response += retc;
-  error.setErrInfo(response.length() + 1, response.c_str());
-  return SFS_DATA;
+//------------------------------------------------------------------------------
+//! Copy constuctor
+//------------------------------------------------------------------------------
+VirtualIdentity::VirtualIdentity(const VirtualIdentity& other) {
+  *this = other;
 }
+
+
+EOSCOMMONNAMESPACE_END

@@ -211,7 +211,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     return SFS_ERROR;
   }
 
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
 
   if (ProcessCapOpaque(isRepairRead, vid)) {
     eos_err("%s", "msg=\"failed while processing cap opaque info\"");
@@ -2743,7 +2743,7 @@ XrdFstOfsFile::ProcessOpenOpaque()
 //------------------------------------------------------------------------------
 int
 XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
-                                eos::common::Mapping::VirtualIdentity& vid)
+                                eos::common::VirtualIdentity& vid)
 {
   EPNAME("open");
 

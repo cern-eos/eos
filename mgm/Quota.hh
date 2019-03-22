@@ -360,7 +360,7 @@ public:
   //! @param logical request to return the layout corrected quota values
   //!
   //----------------------------------------------------------------------------
-  static void GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t& vid,
+  static void GetIndividualQuota(eos::common::VirtualIdentity& vid,
                                  const std::string& path,
                                  long long& max_bytes,
                                  long long& free_bytes,

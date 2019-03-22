@@ -62,11 +62,11 @@ public:
   }
 
   int Trigger(const std::string& event, std::string workflow,
-              eos::common::Mapping::VirtualIdentity& vid,
+              eos::common::VirtualIdentity& vid,
               const char * const ininfo, std::string& errorMessage);
 
   std::string getCGICloseW(std::string workflow,
-                           const eos::common::Mapping::VirtualIdentity& vid);
+                           const eos::common::VirtualIdentity& vid);
 
   std::string getCGICloseR(std::string workflow);
 
@@ -86,10 +86,10 @@ public:
     mAction = "";
   }
 
-  int Create(eos::common::Mapping::VirtualIdentity& vid,
+  int Create(eos::common::VirtualIdentity& vid,
              const char * const ininfo, std::string& errorMessage);
 
-  int ExceptionThrowingCreate(eos::common::Mapping::VirtualIdentity& vid,
+  int ExceptionThrowingCreate(eos::common::VirtualIdentity& vid,
     const char * const ininfo, std::string& errorMessage);
 
   bool Attach(const char* path);

@@ -977,7 +977,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
         } catch (eos::MDException& e) {}
 
         // Issue verify operations on that particular filesystem
-        eos::common::Mapping::VirtualIdentity vid;
+        eos::common::VirtualIdentity vid;
         eos::common::Mapping::Root(vid);
         XrdOucErrInfo error;
         int lretc = 1;
@@ -1090,7 +1090,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
     // Unlink all unregistered files
     std::map < eos::common::FileSystem::fsid_t,
         std::set < eos::common::FileId::fileid_t >> fid2check;
-    eos::common::Mapping::VirtualIdentity vid;
+    eos::common::VirtualIdentity vid;
     eos::common::Mapping::Root(vid);
     XrdOucErrInfo error;
 
@@ -1231,7 +1231,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
             path = gOFS->eosView->getUri(fmd.get());
           }
           // Execute adjust replica
-          eos::common::Mapping::VirtualIdentity vid;
+          eos::common::VirtualIdentity vid;
           eos::common::Mapping::Root(vid);
           XrdOucErrInfo error;
           ProcCommand Cmd;
@@ -1270,7 +1270,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
     // have no 'image' on disk
     std::map < eos::common::FileSystem::fsid_t,
         std::set < eos::common::FileId::fileid_t >> fid2check;
-    eos::common::Mapping::VirtualIdentity vid;
+    eos::common::VirtualIdentity vid;
     eos::common::Mapping::Root(vid);
     XrdOucErrInfo error;
 
@@ -1380,7 +1380,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
       if (fmd) {
         if ((ctime.tv_sec + (24 * 3600)) < now) {
           // If the file is older than 48 hours, we do the cleanup
-          eos::common::Mapping::VirtualIdentity vid;
+          eos::common::VirtualIdentity vid;
           eos::common::Mapping::Root(vid);
           XrdOucErrInfo error;
 
@@ -1470,7 +1470,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
           break;
         }
 
-        eos::common::Mapping::VirtualIdentity vid;
+        eos::common::VirtualIdentity vid;
         eos::common::Mapping::Root(vid);
         XrdOucErrInfo error;
 

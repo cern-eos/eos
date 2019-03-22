@@ -73,14 +73,14 @@ public:
   //----------------------------------------------------------------------------
   //! Open a directory by vid
   //----------------------------------------------------------------------------
-  int open(const char* dirName, eos::common::Mapping::VirtualIdentity& vid,
+  int open(const char* dirName, eos::common::VirtualIdentity& vid,
            const char* opaque = 0);
 
   //----------------------------------------------------------------------------
   //! Open a directory by vid
   //----------------------------------------------------------------------------
   int _open(const char* dirName,
-            eos::common::Mapping::VirtualIdentity& vid,
+            eos::common::VirtualIdentity& vid,
             const char* opaque = 0);
 
   //----------------------------------------------------------------------------
@@ -133,7 +133,7 @@ public:
 
 private:
   std::string dirName;
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   std::set<std::string> dh_list;
   std::set<std::string>::const_iterator dh_it;
   std::mutex mDirLsMutex; ///< Mutex protecting access to dh_list

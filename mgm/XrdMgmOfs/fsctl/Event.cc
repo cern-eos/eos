@@ -44,7 +44,7 @@ XrdMgmOfs::Event(const char* path,
                  XrdOucEnv& env,
                  XrdOucErrInfo& error,
                  eos::common::LogId& ThreadLogId,
-                 eos::common::Mapping::VirtualIdentity& vid,
+                 eos::common::VirtualIdentity& vid,
                  const XrdSecEntity* client)
 {
   static const char* epname = "Event";
@@ -61,7 +61,7 @@ XrdMgmOfs::Event(const char* path,
   char* aworkflow = env.Get("mgm.workflow");
   char* errmsg = env.Get("mgm.errmsg");
 
-  eos::common::Mapping::VirtualIdentity localVid;
+  eos::common::VirtualIdentity localVid;
   eos::common::Mapping::Nobody(localVid);
   int errc;
 

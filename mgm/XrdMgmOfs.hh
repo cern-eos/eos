@@ -256,7 +256,7 @@ public:
   int _chmod(const char* Name,
              XrdSfsMode& Mode,
              XrdOucErrInfo& out_error,
-             eos::common::Mapping::VirtualIdentity& vid,
+             eos::common::VirtualIdentity& vid,
              const char* opaque = 0);
 
   // ---------------------------------------------------------------------------
@@ -266,7 +266,7 @@ public:
              uid_t uid,
              gid_t gid,
              XrdOucErrInfo& out_error,
-             eos::common::Mapping::VirtualIdentity& vid,
+             eos::common::VirtualIdentity& vid,
              const char* opaque = 0,
              bool nodereference = false);
 
@@ -305,7 +305,7 @@ public:
   _exists(const char* fileName,
           XrdSfsFileExistence& exists_flag,
           XrdOucErrInfo& out_error,
-          eos::common::Mapping::VirtualIdentity& vid,
+          eos::common::VirtualIdentity& vid,
           const char* opaque = 0, bool take_lock = true);
 
   // ---------------------------------------------------------------------------
@@ -367,7 +367,7 @@ public:
   int _mkdir(const char* dirName,
              XrdSfsMode Mode,
              XrdOucErrInfo& out_error,
-             eos::common::Mapping::VirtualIdentity& vid,
+             eos::common::VirtualIdentity& vid,
              const char* opaque = 0,
              ino_t* outino = 0);
 
@@ -393,7 +393,7 @@ public:
   // ---------------------------------------------------------------------------
   int _rem(const char* path,
            XrdOucErrInfo& out_error,
-           eos::common::Mapping::VirtualIdentity& vid,
+           eos::common::VirtualIdentity& vid,
            const char* opaque = 0,
            bool simulate = false,
            bool keepversion = false,
@@ -439,7 +439,7 @@ public:
   //! the impact when doing large scans.
   // ---------------------------------------------------------------------------
   int _find(const char* path, XrdOucErrInfo& out_error, XrdOucString& stdErr,
-            eos::common::Mapping::VirtualIdentity& vid,
+            eos::common::VirtualIdentity& vid,
             std::map<std::string, std::set<std::string> >& found,
             const char* key = 0, const char* val = 0, bool no_files = false,
             time_t millisleep = 0, bool nscounter = true, int maxdepth = 0,
@@ -458,7 +458,7 @@ public:
   // ---------------------------------------------------------------------------
   int _remdir(const char* dirName,
               XrdOucErrInfo& out_error,
-              eos::common::Mapping::VirtualIdentity& vid,
+              eos::common::VirtualIdentity& vid,
               const char* opaque = 0,
               bool simulate = false);
 
@@ -478,7 +478,7 @@ public:
   int rename(const char* oldFileName,
              const char* newFileName,
              XrdOucErrInfo& out_error,
-             eos::common::Mapping::VirtualIdentity& vid,
+             eos::common::VirtualIdentity& vid,
              const char* opaqueO = 0,
              const char* opaqueN = 0,
              bool overwrite = false);
@@ -489,7 +489,7 @@ public:
   int _rename(const char* oldFileName,
               const char* newFileName,
               XrdOucErrInfo& out_error,
-              eos::common::Mapping::VirtualIdentity& vid,
+              eos::common::VirtualIdentity& vid,
               const char* opaqueO = 0,
               const char* opaqueN = 0,
               bool updateCTime = false,
@@ -512,7 +512,7 @@ public:
   int symlink(const char* sourceName,
               const char* targetName,
               XrdOucErrInfo& out_error,
-              eos::common::Mapping::VirtualIdentity& vid,
+              eos::common::VirtualIdentity& vid,
               const char* opaqueO = 0,
               const char* opaqueN = 0,
               bool overwrite = false);
@@ -523,7 +523,7 @@ public:
   int _symlink(const char* sourceName,
                const char* targetName,
                XrdOucErrInfo& out_error,
-               eos::common::Mapping::VirtualIdentity& vid,
+               eos::common::VirtualIdentity& vid,
                const char* opaqueO = 0,
                const char* opaqueN = 0);
 
@@ -542,7 +542,7 @@ public:
   // ---------------------------------------------------------------------------
   int _readlink(const char* name,
                 XrdOucErrInfo& out_error,
-                eos::common::Mapping::VirtualIdentity& vid,
+                eos::common::VirtualIdentity& vid,
                 XrdOucString& link
                );
 
@@ -583,7 +583,7 @@ public:
   int _stat(const char* Name,
             struct stat* buf,
             XrdOucErrInfo& out_error,
-            eos::common::Mapping::VirtualIdentity& vid,
+            eos::common::VirtualIdentity& vid,
             const char* opaque = 0,
             std::string* etag = 0,
             bool follow = true,
@@ -638,14 +638,14 @@ public:
   // check access permissions by vid
   // ---------------------------------------------------------------------------
   int _access(const char*, int mode, XrdOucErrInfo&,
-              eos::common::Mapping::VirtualIdentity& vid, const char*, bool lock = true);
+              eos::common::VirtualIdentity& vid, const char*, bool lock = true);
 
   // ---------------------------------------------------------------------------
   // define access permissions by vid for a file/directory
   // ---------------------------------------------------------------------------
   int acc_access(const char*,
                  XrdOucErrInfo&,
-                 eos::common::Mapping::VirtualIdentity& vid,
+                 eos::common::VirtualIdentity& vid,
                  std::string& accperm);
 
   // ---------------------------------------------------------------------------
@@ -657,14 +657,14 @@ public:
   // set utimes by vid
   // ---------------------------------------------------------------------------
   int _utimes(const char*, struct timespec* tvp, XrdOucErrInfo&,
-              eos::common::Mapping::VirtualIdentity& vid, const char* opaque = 0);
+              eos::common::VirtualIdentity& vid, const char* opaque = 0);
 
   // ---------------------------------------------------------------------------
   // touch a file
   // ---------------------------------------------------------------------------
   int _touch(const char* path,
              XrdOucErrInfo& error,
-             eos::common::Mapping::VirtualIdentity& vid,
+             eos::common::VirtualIdentity& vid,
              const char* ininfo = 0);
 
   //----------------------------------------------------------------------------
@@ -698,7 +698,7 @@ public:
   //! @return SFS_OK if success otherwise SFS_ERROR
   //----------------------------------------------------------------------------
   int _attr_ls(const char* path, XrdOucErrInfo& out_error,
-               const eos::common::Mapping::VirtualIdentity& vid,
+               const eos::common::VirtualIdentity& vid,
                const char* opaque, eos::IContainerMD::XAttrMap& map,
                bool take_lock = true, bool links = false);
 
@@ -734,7 +734,7 @@ public:
   //! @return SFS_OK if success otherwise SFS_ERROR
   // ---------------------------------------------------------------------------
   int _attr_set(const char* path, XrdOucErrInfo& out_error,
-                eos::common::Mapping::VirtualIdentity& vid,
+                eos::common::VirtualIdentity& vid,
                 const char* opaque, const char* key, const char* value,
                 bool take_lock = true);
 
@@ -791,7 +791,7 @@ public:
   //! @return SFS_OK if success, otherwise SFS_ERROR
   //----------------------------------------------------------------------------
   int _attr_get(const char* path, XrdOucErrInfo& out_error,
-                eos::common::Mapping::VirtualIdentity& vid, const char* opaque,
+                eos::common::VirtualIdentity& vid, const char* opaque,
                 const char* key, XrdOucString& value, bool take_lock = true);
 
   //----------------------------------------------------------------------------
@@ -821,7 +821,7 @@ public:
   //! @return SFS_OK if success, otherwise SFS_ERROR
   //----------------------------------------------------------------------------
   int _attr_rem(const char* path, XrdOucErrInfo& out_error,
-                eos::common::Mapping::VirtualIdentity& vid,
+                eos::common::VirtualIdentity& vid,
                 const char* opaque, const char* key);
 
   //----------------------------------------------------------------------------
@@ -837,7 +837,7 @@ public:
   //! @return SFS_OK if success otherwise SFS_ERROR
   //----------------------------------------------------------------------------
   int _attr_clear(const char* path, XrdOucErrInfo& out_error,
-                  eos::common::Mapping::VirtualIdentity& vid,
+                  eos::common::VirtualIdentity& vid,
                   const char* opaque);
 
   // ---------------------------------------------------------------------------
@@ -846,7 +846,7 @@ public:
   int _dropstripe(const char* path,
                   eos::common::FileId::fileid_t fid,
                   XrdOucErrInfo& error,
-                  eos::common::Mapping::VirtualIdentity& vid,
+                  eos::common::VirtualIdentity& vid,
                   unsigned long fsid,
                   bool forceRemove = false);
 
@@ -855,7 +855,7 @@ public:
   // ---------------------------------------------------------------------------
   int _dropallstripes(const char* path,
                       XrdOucErrInfo& error,
-                      eos::common::Mapping::VirtualIdentity& vid,
+                      eos::common::VirtualIdentity& vid,
                       bool forceRemove = false);
 
   // ---------------------------------------------------------------------------
@@ -863,7 +863,7 @@ public:
   // ---------------------------------------------------------------------------
   int _verifystripe(const char* path,
                     XrdOucErrInfo& error,
-                    eos::common::Mapping::VirtualIdentity& vid,
+                    eos::common::VirtualIdentity& vid,
                     unsigned long fsid,
                     XrdOucString options);
 
@@ -872,7 +872,7 @@ public:
   // ---------------------------------------------------------------------------
   int _movestripe(const char* path,
                   XrdOucErrInfo& error,
-                  eos::common::Mapping::VirtualIdentity& vid,
+                  eos::common::VirtualIdentity& vid,
                   unsigned long sourcefsid,
                   unsigned long targetfsid,
                   bool expressflag = false);
@@ -882,7 +882,7 @@ public:
   // ---------------------------------------------------------------------------
   int _copystripe(const char* path,
                   XrdOucErrInfo& error,
-                  eos::common::Mapping::VirtualIdentity& vid,
+                  eos::common::VirtualIdentity& vid,
                   unsigned long sourcefsid,
                   unsigned long targetfsid,
                   bool expressflag = false);
@@ -892,7 +892,7 @@ public:
   // ---------------------------------------------------------------------------
   int _replicatestripe(const char* path,
                        XrdOucErrInfo& error,
-                       eos::common::Mapping::VirtualIdentity& vid,
+                       eos::common::VirtualIdentity& vid,
                        unsigned long sourcefsid,
                        unsigned long targetfsid,
                        bool dropstripe = false,
@@ -904,7 +904,7 @@ public:
   int _replicatestripe(eos::IFileMD* fmd,
                        const char* path,
                        XrdOucErrInfo& error,
-                       eos::common::Mapping::VirtualIdentity& vid,
+                       eos::common::VirtualIdentity& vid,
                        unsigned long sourcefsid,
                        unsigned long targetfsid,
                        bool dropstripe = false,
@@ -924,7 +924,7 @@ public:
   //! creation time of the target file.
   //----------------------------------------------------------------------------
   int merge(const char* src_path, const char* dst_path,
-            XrdOucErrInfo& error, eos::common::Mapping::VirtualIdentity& vid);
+            XrdOucErrInfo& error, eos::common::VirtualIdentity& vid);
 
   // ---------------------------------------------------------------------------
   // create a versioned file
@@ -932,7 +932,7 @@ public:
 
   int Version(eos::common::FileId::fileid_t fileid,
               XrdOucErrInfo& error,
-              eos::common::Mapping::VirtualIdentity& vid,
+              eos::common::VirtualIdentity& vid,
               int max_versions,
               XrdOucString* versionedname = 0,
               bool simulate = false);
@@ -973,7 +973,7 @@ public:
                               const char* info,
                               time_t expires,
                               XrdOucErrInfo& error,
-                              eos::common::Mapping::VirtualIdentity& vid);
+                              eos::common::VirtualIdentity& vid);
 
   // ---------------------------------------------------------------------------
   // verify a file sharing path with signature
@@ -1060,7 +1060,7 @@ public:
   //! (see Access.cc)
   //----------------------------------------------------------------------------
   bool ShouldStall(const char* function, int accessmode,
-                   eos::common::Mapping::VirtualIdentity& vid,
+                   eos::common::VirtualIdentity& vid,
                    int& stalltime, XrdOucString& stallmsg);
 
   //----------------------------------------------------------------------------
@@ -1078,7 +1078,7 @@ public:
   //!
   //----------------------------------------------------------------------------
   bool ShouldRedirect(const char* function, int accessmode,
-                      eos::common::Mapping::VirtualIdentity& vid,
+                      eos::common::VirtualIdentity& vid,
                       std::string& host, int& port);
 
   //----------------------------------------------------------------------------
@@ -1096,7 +1096,7 @@ public:
   //! @return true if client should get a redirected otherwise false
   //----------------------------------------------------------------------------
   bool ShouldRoute(const char* function, int accessmode,
-                   eos::common::Mapping::VirtualIdentity& vid,
+                   eos::common::VirtualIdentity& vid,
                    const char* path, const char* info,
                    std::string& host, int& port, int& stall_timeout);
 
@@ -1689,7 +1689,7 @@ private:
              XrdOucEnv& env,
              XrdOucErrInfo& error,
              eos::common::LogId& ThreadLogId,
-             eos::common::Mapping::VirtualIdentity& vid,
+             eos::common::VirtualIdentity& vid,
              const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1700,7 +1700,7 @@ private:
                     XrdOucEnv& env,
                     XrdOucErrInfo& error,
                     eos::common::LogId& ThreadLogId,
-                    eos::common::Mapping::VirtualIdentity& vid,
+                    eos::common::VirtualIdentity& vid,
                     const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1711,7 +1711,7 @@ private:
                XrdOucEnv& env,
                XrdOucErrInfo& error,
                eos::common::LogId& ThreadLogId,
-               eos::common::Mapping::VirtualIdentity& vid,
+               eos::common::VirtualIdentity& vid,
                const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1722,7 +1722,7 @@ private:
             XrdOucEnv& env,
             XrdOucErrInfo& error,
             eos::common::LogId& ThreadLogId,
-            eos::common::Mapping::VirtualIdentity& vid,
+            eos::common::VirtualIdentity& vid,
             const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1733,7 +1733,7 @@ private:
             XrdOucEnv& env,
             XrdOucErrInfo& error,
             eos::common::LogId& ThreadLogId,
-            eos::common::Mapping::VirtualIdentity& vid,
+            eos::common::VirtualIdentity& vid,
             const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1744,7 +1744,7 @@ private:
              XrdOucEnv& env,
              XrdOucErrInfo& error,
              eos::common::LogId& ThreadLogId,
-             eos::common::Mapping::VirtualIdentity& vid,
+             eos::common::VirtualIdentity& vid,
              const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1755,7 +1755,7 @@ private:
            XrdOucEnv& env,
            XrdOucErrInfo& error,
            eos::common::LogId& ThreadLogId,
-           eos::common::Mapping::VirtualIdentity& vid,
+           eos::common::VirtualIdentity& vid,
            const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1766,7 +1766,7 @@ private:
             XrdOucEnv& env,
             XrdOucErrInfo& error,
             eos::common::LogId& ThreadLogId,
-            eos::common::Mapping::VirtualIdentity& vid,
+            eos::common::VirtualIdentity& vid,
             const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1778,7 +1778,7 @@ private:
                XrdOucEnv& env,
                XrdOucErrInfo& error,
                eos::common::LogId& ThreadLogId,
-               eos::common::Mapping::VirtualIdentity& vid,
+               eos::common::VirtualIdentity& vid,
                const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1791,7 +1791,7 @@ private:
             XrdOucEnv& env,
             XrdOucErrInfo& error,
             eos::common::LogId& ThreadLogId,
-            eos::common::Mapping::VirtualIdentity& vid,
+            eos::common::VirtualIdentity& vid,
             const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1802,7 +1802,7 @@ private:
              XrdOucEnv& env,
              XrdOucErrInfo& error,
              eos::common::LogId& ThreadLogId,
-             eos::common::Mapping::VirtualIdentity& vid,
+             eos::common::VirtualIdentity& vid,
              const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1813,7 +1813,7 @@ private:
                XrdOucEnv& env,
                XrdOucErrInfo& error,
                eos::common::LogId& ThreadLogId,
-               eos::common::Mapping::VirtualIdentity& vid,
+               eos::common::VirtualIdentity& vid,
                const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1824,7 +1824,7 @@ private:
                XrdOucEnv& env,
                XrdOucErrInfo& error,
                eos::common::LogId& ThreadLogId,
-               eos::common::Mapping::VirtualIdentity& vid,
+               eos::common::VirtualIdentity& vid,
                const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1835,7 +1835,7 @@ private:
                          XrdOucEnv& env,
                          XrdOucErrInfo& error,
                          eos::common::LogId& ThreadLogId,
-                         eos::common::Mapping::VirtualIdentity& vid,
+                         eos::common::VirtualIdentity& vid,
                          const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1846,7 +1846,7 @@ private:
                          XrdOucEnv& env,
                          XrdOucErrInfo& error,
                          eos::common::LogId& ThreadLogId,
-                         eos::common::Mapping::VirtualIdentity& vid,
+                         eos::common::VirtualIdentity& vid,
                          const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1857,7 +1857,7 @@ private:
             XrdOucEnv& env,
             XrdOucErrInfo& error,
             eos::common::LogId& ThreadLogId,
-            eos::common::Mapping::VirtualIdentity& vid,
+            eos::common::VirtualIdentity& vid,
             const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1868,7 +1868,7 @@ private:
            XrdOucEnv& env,
            XrdOucErrInfo& error,
            eos::common::LogId& ThreadLogId,
-           eos::common::Mapping::VirtualIdentity& vid,
+           eos::common::VirtualIdentity& vid,
            const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1879,7 +1879,7 @@ private:
                XrdOucEnv& env,
                XrdOucErrInfo& error,
                eos::common::LogId& ThreadLogId,
-               eos::common::Mapping::VirtualIdentity& vid,
+               eos::common::VirtualIdentity& vid,
                const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1890,7 +1890,7 @@ private:
                XrdOucEnv& env,
                XrdOucErrInfo& error,
                eos::common::LogId& ThreadLogId,
-               eos::common::Mapping::VirtualIdentity& vid,
+               eos::common::VirtualIdentity& vid,
                const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1902,7 +1902,7 @@ private:
               XrdOucEnv& env,
               XrdOucErrInfo& error,
               eos::common::LogId& ThreadLogId,
-              eos::common::Mapping::VirtualIdentity& vid,
+              eos::common::VirtualIdentity& vid,
               const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1913,7 +1913,7 @@ private:
                        XrdOucEnv& env,
                        XrdOucErrInfo& error,
                        eos::common::LogId& ThreadLogId,
-                       eos::common::Mapping::VirtualIdentity& vid,
+                       eos::common::VirtualIdentity& vid,
                        const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1924,7 +1924,7 @@ private:
                       XrdOucEnv& env,
                       XrdOucErrInfo& error,
                       eos::common::LogId& ThreadLogId,
-                      eos::common::Mapping::VirtualIdentity& vid,
+                      eos::common::VirtualIdentity& vid,
                       const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1935,7 +1935,7 @@ private:
                      XrdOucEnv& env,
                      XrdOucErrInfo& error,
                      eos::common::LogId& ThreadLogId,
-                     eos::common::Mapping::VirtualIdentity& vid,
+                     eos::common::VirtualIdentity& vid,
                      const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1946,7 +1946,7 @@ private:
               XrdOucEnv& env,
               XrdOucErrInfo& error,
               eos::common::LogId& ThreadLogId,
-              eos::common::Mapping::VirtualIdentity& vid,
+              eos::common::VirtualIdentity& vid,
               const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1957,7 +1957,7 @@ private:
               XrdOucEnv& env,
               XrdOucErrInfo& error,
               eos::common::LogId& ThreadLogId,
-              eos::common::Mapping::VirtualIdentity& vid,
+              eos::common::VirtualIdentity& vid,
               const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1968,7 +1968,7 @@ private:
               XrdOucEnv& env,
               XrdOucErrInfo& error,
               eos::common::LogId& ThreadLogId,
-              eos::common::Mapping::VirtualIdentity& vid,
+              eos::common::VirtualIdentity& vid,
               const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1979,7 +1979,7 @@ private:
              XrdOucEnv& env,
              XrdOucErrInfo& error,
              eos::common::LogId& ThreadLogId,
-             eos::common::Mapping::VirtualIdentity& vid,
+             eos::common::VirtualIdentity& vid,
              const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -1990,7 +1990,7 @@ private:
               XrdOucEnv& env,
               XrdOucErrInfo& error,
               eos::common::LogId& ThreadLogId,
-              eos::common::Mapping::VirtualIdentity& vid,
+              eos::common::VirtualIdentity& vid,
               const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
@@ -2001,7 +2001,7 @@ private:
             XrdOucEnv& env,
             XrdOucErrInfo& error,
             eos::common::LogId& ThreadLogId,
-            eos::common::Mapping::VirtualIdentity& vid,
+            eos::common::VirtualIdentity& vid,
             const XrdSecEntity* client);
 };
 

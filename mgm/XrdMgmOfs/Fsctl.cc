@@ -177,7 +177,7 @@ XrdMgmOfs::FSctl(const int cmd,
   const char* inpath = ipath;
   const char* ininfo = iopaque;
   // Do the id mapping with the opaque information
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, ininfo, tident, vid, false);
   EXEC_TIMING_END("IdMap");
@@ -291,7 +291,7 @@ XrdMgmOfs::FSctl(const int cmd,
                                client);
       }
       case FsctlCommand::getfusex: {
-        return XrdMgmOfs::GetFusex(path, ininfo, env, error, ThreadLogId, vid, 
+        return XrdMgmOfs::GetFusex(path, ininfo, env, error, ThreadLogId, vid,
 				client);
       }
       case FsctlCommand::is_master: {

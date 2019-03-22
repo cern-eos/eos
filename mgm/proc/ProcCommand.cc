@@ -46,7 +46,7 @@ ProcCommand::ProcCommand():
 //------------------------------------------------------------------------------
 // Constructor with parameter
 //------------------------------------------------------------------------------
-ProcCommand::ProcCommand(eos::common::Mapping::VirtualIdentity& vid):
+ProcCommand::ProcCommand(eos::common::VirtualIdentity& vid):
   ProcCommand()
 {
   pVid = &vid;
@@ -139,7 +139,7 @@ ProcCommand::OpenTemporaryOutputFiles()
 //------------------------------------------------------------------------------
 int
 ProcCommand::open(const char* inpath, const char* info,
-                  eos::common::Mapping::VirtualIdentity& vid_in,
+                  eos::common::VirtualIdentity& vid_in,
                   XrdOucErrInfo* error)
 {
   pVid = &vid_in;

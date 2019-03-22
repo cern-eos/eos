@@ -43,7 +43,7 @@ public:
   //! @param vid client virtual identity
   //----------------------------------------------------------------------------
   explicit FindCmd(eos::console::RequestProto&& req,
-                   eos::common::Mapping::VirtualIdentity& vid);
+                   eos::common::VirtualIdentity& vid);
 
   //----------------------------------------------------------------------------
   //! Destructor

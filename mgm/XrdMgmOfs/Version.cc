@@ -43,7 +43,7 @@
 int
 XrdMgmOfs::Version(eos::common::FileId::fileid_t fid,
                    XrdOucErrInfo& error,
-                   eos::common::Mapping::VirtualIdentity& vid,
+                   eos::common::VirtualIdentity& vid,
                    int max_versions,
                    XrdOucString* versionedpath,
                    bool simulate)
@@ -56,7 +56,7 @@ XrdMgmOfs::Version(eos::common::FileId::fileid_t fid,
   std::string vpath;
   std::string bname;
   std::string versionpath;
-  eos::common::Mapping::VirtualIdentity fidvid;
+  eos::common::VirtualIdentity fidvid;
   eos::common::Mapping::Copy(vid, fidvid);
   time_t filectime = 0;
   {
@@ -173,7 +173,7 @@ XrdMgmOfs::PurgeVersion(const char* versiondir,
                         XrdOucErrInfo& error,
                         int max_versions)
 {
-  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   eos_info("version-dir=%s max-versions=%d", versiondir, max_versions);
 

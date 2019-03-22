@@ -121,7 +121,7 @@ int
 proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
                XrdOucString& df, XrdOucString& ds, XrdOucString& stdOut,
                XrdOucString& stdErr,
-               eos::common::Mapping::VirtualIdentity& vid_in, size_t& entries)
+               eos::common::VirtualIdentity& vid_in, size_t& entries)
 {
   entries = 0;
   int retc = 0;
@@ -281,7 +281,7 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
 int
 proc_fs_config(std::string& identifier, std::string& key, std::string& value,
                XrdOucString& stdOut, XrdOucString& stdErr,
-               eos::common::Mapping::VirtualIdentity& vid_in,
+               eos::common::VirtualIdentity& vid_in,
                const std::string& statusComment)
 {
   int retc = 0;
@@ -512,7 +512,7 @@ int
 proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
             std::string& mountpoint, std::string& space, std::string& configstatus,
             XrdOucString& stdOut, XrdOucString& stdErr,
-            eos::common::Mapping::VirtualIdentity& vid_in)
+            eos::common::VirtualIdentity& vid_in)
 {
   int retc = 0;
   const std::string vid_hostname = vid_in.host;
@@ -761,7 +761,7 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
 int
 proc_fs_mv(std::string& src, std::string& dst, XrdOucString& stdOut,
            XrdOucString& stdErr,
-           eos::common::Mapping::VirtualIdentity& vid_in, bool force)
+           eos::common::VirtualIdentity& vid_in, bool force)
 {
   int retc = 0;
   MvOpType operation = get_operation_type(src, dst, stdOut, stdErr);
@@ -1224,7 +1224,7 @@ int proc_mv_space_space(FsView& fs_view, const std::string& src,
 int
 proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
            XrdOucString& stdOut, XrdOucString& stdErr,
-           eos::common::Mapping::VirtualIdentity& vid_in)
+           eos::common::VirtualIdentity& vid_in)
 {
   int retc = 0;
   const std::string vid_hostname = vid_in.host;
@@ -1341,7 +1341,7 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
 int
 proc_fs_dropdeletion(const std::string& id, XrdOucString& stdOut,
                      XrdOucString& stdErr,
-                     eos::common::Mapping::VirtualIdentity& vid_in)
+                     eos::common::VirtualIdentity& vid_in)
 {
   int retc = 0;
   eos::common::FileSystem::fsid_t fsid = 0;
@@ -1381,7 +1381,7 @@ proc_fs_dropdeletion(const std::string& id, XrdOucString& stdOut,
 int
 proc_fs_dropghosts(const std::string& id, XrdOucString& stdOut,
                    XrdOucString& stdErr,
-                   eos::common::Mapping::VirtualIdentity& vid_in)
+                   eos::common::VirtualIdentity& vid_in)
 {
   int retc = 0;
   eos::common::FileSystem::fsid_t fsid = 0;

@@ -161,7 +161,7 @@ TEST(MgmExecute, FailedSimulation)
 TEST(AclCmd, CheckId)
 {
   eos::console::RequestProto req;
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   eos::common::Mapping::Root(vid);
 
   AclCmd test(std::move(req), vid);
@@ -177,7 +177,7 @@ TEST(AclCmd, CheckId)
 TEST(AclCmd, GetRuleBitmask)
 {
   eos::console::RequestProto req;
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   eos::common::Mapping::Root(vid);
 
   AclCmd test(std::move(req), vid);
@@ -210,7 +210,7 @@ TEST(AclCmd, AclRuleFromString)
   Rule temp;
 
   eos::console::RequestProto req;
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   eos::common::Mapping::Root(vid);
 
   AclCmd test(std::move(req), vid);

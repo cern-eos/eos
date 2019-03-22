@@ -48,8 +48,6 @@ public:
   static bool Set (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr, bool storeConfig = true);
   static void Ls (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr);
   static bool Rm (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr, bool storeConfig = true);
-
-  static const char* Get (const char* key);
 };
 
 EOSMGMNAMESPACE_END

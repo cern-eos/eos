@@ -47,7 +47,7 @@ eos::common::ThreadPool ProcInterface::sProcThreads(
 //------------------------------------------------------------------------------
 std::unique_ptr<IProcCommand>
 ProcInterface::GetProcCommand(const char* tident,
-                              eos::common::Mapping::VirtualIdentity& vid,
+                              eos::common::VirtualIdentity& vid,
                               const char* path, const char* opaque)
 {
   // Check if this is an already submmited command
@@ -146,7 +146,7 @@ ProcInterface::DropSubmittedCmd(const char* tident)
 //----------------------------------------------------------------------------
 std::unique_ptr<IProcCommand>
 ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
-                                     eos::common::Mapping::VirtualIdentity& vid)
+                                     eos::common::VirtualIdentity& vid)
 {
   using eos::console::RequestProto;
   std::unique_ptr<IProcCommand> cmd;
@@ -393,7 +393,7 @@ ProcInterface::IsWriteAccess(const char* path, const char* info)
 //------------------------------------------------------------------------------
 bool
 ProcInterface::Authorize(const char* path, const char* info,
-                         eos::common::Mapping::VirtualIdentity& vid,
+                         eos::common::VirtualIdentity& vid,
                          const XrdSecEntity* entity)
 {
   XrdOucString inpath = path;

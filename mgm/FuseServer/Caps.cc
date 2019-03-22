@@ -44,7 +44,7 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 void
 FuseServer::Caps::Store(const eos::fusex::cap& ecap,
-                        eos::common::Mapping::VirtualIdentity* vid)
+                        eos::common::VirtualIdentity* vid)
 {
   gOFS->MgmStats.Add("Eosxd::int::Store", 0, 0, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::Store");

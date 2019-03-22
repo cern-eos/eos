@@ -126,7 +126,7 @@ Logging::shouldlog(const char* func, int priority)
 //------------------------------------------------------------------------------
 const char*
 Logging::log(const char* func, const char* file, int line, const char* logid,
-             const Mapping::VirtualIdentity& vid, const char* cident, int priority,
+             const VirtualIdentity& vid, const char* cident, int priority,
              const char* msg, ...)
 {
   static int logmsgbuffersize = 1024 * 1024;

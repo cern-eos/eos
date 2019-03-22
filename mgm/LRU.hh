@@ -45,7 +45,7 @@ class LRU
 private:
   AssistedThread mThread; ///< thread id of the LRU thread
   time_t mMs; //< forced sleep time used for find / scans
-  eos::common::Mapping::VirtualIdentity mRootVid;//< we operate with the root vid
+  eos::common::VirtualIdentity mRootVid;//< we operate with the root vid
   XrdOucErrInfo mError; //< XRootD error object
 
 public:

@@ -311,7 +311,7 @@ public:
   //! Set's the logid, vid and trace identifier
   //----------------------------------------------------------------------------
   void
-  SetLogId(const char* newlogid, Mapping::VirtualIdentity& vid_in,
+  SetLogId(const char* newlogid, VirtualIdentity& vid_in,
            const char* td = "")
   {
     Mapping::Copy(vid_in, vid);
@@ -324,7 +324,7 @@ public:
 
   char logId[40]; //< the log Id for message printout
   char cident[256]; //< the client identifier
-  Mapping::VirtualIdentity vid; //< the client identity
+  VirtualIdentity vid; //< the client identity
 };
 
 //------------------------------------------------------------------------------
@@ -337,7 +337,7 @@ public:
   typedef std::vector< unsigned long > LogCircularIndex;
   //! Typdef for log message array
   typedef std::vector< std::vector <XrdOucString> > LogArray;
-  Mapping::VirtualIdentity gZeroVid; ///< Root vid
+  VirtualIdentity gZeroVid; ///< Root vid
   LogCircularIndex gLogCircularIndex; //< global circular index
   LogArray gLogMemory; //< global logging memory
   unsigned long gCircularIndexSize; //< global circular index size
@@ -612,7 +612,7 @@ public:
   //! @return pointer to the log message
   //----------------------------------------------------------------------------
   const char* log(const char* func, const char* file, int line,
-                  const char* logid, const Mapping::VirtualIdentity& vid,
+                  const char* logid, const VirtualIdentity& vid,
                   const char* cident, int priority, const char* msg, ...);
 
 

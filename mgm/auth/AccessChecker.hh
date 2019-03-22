@@ -48,7 +48,7 @@ public:
   //----------------------------------------------------------------------------
   static bool checkContainer(IContainerMD *cont,
     const eos::IContainerMD::XAttrMap &linkedAttrs, int mode,
-    const eos::common::Mapping::VirtualIdentity &vid);
+    const eos::common::VirtualIdentity &vid);
 
   //----------------------------------------------------------------------------
   //! Check access to the given container - all information required to make
@@ -56,14 +56,14 @@ public:
   //! be needed.
   //----------------------------------------------------------------------------
   static bool checkContainer(IContainerMD *cont, const Acl &acl, int mode,
-    const eos::common::Mapping::VirtualIdentity &vid);
+    const eos::common::VirtualIdentity &vid);
 
   //----------------------------------------------------------------------------
   //! Check access to the given file. The parent directory of the file
   //! needs to be checked separately!
   //----------------------------------------------------------------------------
   static bool checkFile(IFileMD *file, int mode,
-    const eos::common::Mapping::VirtualIdentity &vid);
+    const eos::common::VirtualIdentity &vid);
 
 };
 

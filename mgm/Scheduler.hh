@@ -86,7 +86,7 @@ public:
     //! indicate if this is a request for regular, draining or balancing placement
     tSchedType schedtype;
     //! virtual identity of the client
-    const eos::common::Mapping::VirtualIdentity_t* vid;
+    const eos::common::VirtualIdentity* vid;
     /// INPUT/OUTPUT
     //! filesystems to avoid
     std::vector<unsigned int>* alreadyused_filesystems;
@@ -163,7 +163,7 @@ public:
     //! indicate if this is a request for regular, draining or balancing access
     tSchedType schedtype;
     //! virtual identity of the client
-    const eos::common::Mapping::VirtualIdentity_t* vid;
+    const eos::common::VirtualIdentity* vid;
     /// INPUT/OUTPUT
     //!filesystem ids where layout is stored
     std::vector<unsigned int>* locationsfs;

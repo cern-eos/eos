@@ -36,7 +36,7 @@ ProcCommand::Accounting()
   static eos::common::ExpiryCache<std::string> accountingCache(
     std::chrono::seconds(600));
   static const auto generateAccountingJson = [this](
-  eos::common::Mapping::VirtualIdentity & vid) {
+  eos::common::VirtualIdentity & vid) {
     static const auto processAccountingAttribute = [](
     std::pair<std::string, std::string> attr, Json::Value & storageShare) {
       static auto accountingAttrPrefix = "sys.accounting";
@@ -104,7 +104,7 @@ ProcCommand::Accounting()
     root["storageservice"]["implementation"] = "EOS";
     root["storageservice"]["implementationversion"] = version.str().c_str();
     root["storageservice"]["latestupdate"] = Json::Int64{std::time(nullptr)};
-    
+
     auto capacityOnline = Json::UInt64{0};
     auto usedOnline = Json::UInt64{0};
     for (const auto& quota : Quota::GetAllGroupsLogicalQuotaValues()) {

@@ -52,7 +52,7 @@ public:
 
 protected:
   HttpResponse                          *mHttpResponse;    //!< the HTTP response
-  eos::common::Mapping::VirtualIdentity *mVirtualIdentity; //!< the virtual identity
+  eos::common::VirtualIdentity          *mVirtualIdentity; //!< the virtual identity
 
   std::string mRequestBody; //!< store small request bodies like PROPFIND
 public:
@@ -66,7 +66,7 @@ public:
   /**
    * Constructor
    */
-  ProtocolHandler (eos::common::Mapping::VirtualIdentity *vid) :
+  ProtocolHandler (eos::common::VirtualIdentity *vid) :
     mHttpResponse(0), mVirtualIdentity(vid) {};
 
   /**

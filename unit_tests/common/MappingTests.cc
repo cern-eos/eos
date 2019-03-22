@@ -30,7 +30,7 @@ EOSCOMMONTESTING_BEGIN
 TEST(Mapping, VidAssignOperator)
 {
   using namespace eos::common;
-  Mapping::VirtualIdentity vid;
+  VirtualIdentity vid;
   vid.uid = 99;
   vid.gid = 99;
   vid.uid_string = "99";
@@ -47,7 +47,7 @@ TEST(Mapping, VidAssignOperator)
   vid.geolocation = "some_random_geoloacation";
   vid.app = "some_random_app";
   vid.sudoer = true;
-  Mapping::VirtualIdentity copy_vid = vid;
+  VirtualIdentity copy_vid = vid;
   ASSERT_TRUE(vid.uid == copy_vid.uid);
   ASSERT_TRUE(vid.gid == copy_vid.gid);
   ASSERT_TRUE(vid.uid_string == copy_vid.uid_string);

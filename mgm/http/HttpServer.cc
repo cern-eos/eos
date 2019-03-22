@@ -85,7 +85,7 @@ HttpServer::Handler(void* cls,
     }
 
     // Authenticate the client
-    eos::common::Mapping::VirtualIdentity* vid = Authenticate(headers);
+    eos::common::VirtualIdentity* vid = Authenticate(headers);
     eos_static_info("request=%s client-real-ip=%s client-real-host=%s vid.uid=%s vid.gid=%s vid.host=%s vid.tident=%s\n",
                     method, headers["client-real-ip"].c_str(), headers["client-real-host"].c_str(),
                     vid->uid_string.c_str(), vid->gid_string.c_str(), vid->host.c_str(),
@@ -259,10 +259,10 @@ HttpServer::ProcessClientDN(const std::string& cdn) const
 }
 
 /*----------------------------------------------------------------------------*/
-eos::common::Mapping::VirtualIdentity*
+eos::common::VirtualIdentity*
 HttpServer::Authenticate(std::map<std::string, std::string>& headers)
 {
-  eos::common::Mapping::VirtualIdentity* vid = 0;
+  eos::common::VirtualIdentity* vid = 0;
   std::string clientDN = headers["ssl_client_s_dn"];
   std::string remoteUser = headers["remote-user"];
   std::string dn;
@@ -418,7 +418,7 @@ HttpServer::Authenticate(std::map<std::string, std::string>& headers)
   client.tident = const_cast<char*>(tident.c_str());
   {
     // Make a virtual identity object
-    vid = new eos::common::Mapping::VirtualIdentity();
+    vid = new eos::common::VirtualIdentity();
     EXEC_TIMING_BEGIN("IdMap");
     eos::common::Mapping::IdMap(&client, "eos.app=http", client.tident, *vid, true);
     EXEC_TIMING_END("IdMap");

@@ -40,7 +40,7 @@ public:
   //! @param vid client virtual identity
   //----------------------------------------------------------------------------
   RmCmd(eos::console::RequestProto&& req,
-        eos::common::Mapping::VirtualIdentity& vid):
+        eos::common::VirtualIdentity& vid):
     IProcCommand(std::move(req), vid, true) {}
 
   //----------------------------------------------------------------------------

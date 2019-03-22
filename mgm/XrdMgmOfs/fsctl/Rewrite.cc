@@ -42,7 +42,7 @@ XrdMgmOfs::Rewrite(const char* path,
                    XrdOucEnv& env,
                    XrdOucErrInfo& error,
                    eos::common::LogId& ThreadLogId,
-                   eos::common::Mapping::VirtualIdentity& vid,
+                   eos::common::VirtualIdentity& vid,
                    const XrdSecEntity* client)
 {
   static const char* epname = "Rewrite";
@@ -74,7 +74,7 @@ XrdMgmOfs::Rewrite(const char* path,
     eos_thread_info("msg=\"suppressing auto-repair\" fxid=\"%s\"",
                     (hexfid) ? hexfid : "<missing>");
   } else {
-    eos::common::Mapping::VirtualIdentity rvid;
+    eos::common::VirtualIdentity rvid;
     eos::common::Mapping::Root(rvid);
     // Convert fxid to path
     errno = 0;

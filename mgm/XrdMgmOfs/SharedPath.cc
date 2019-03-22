@@ -33,7 +33,7 @@ XrdMgmOfs::CreateSharePath(const char* inpath,
                            const char* ininfo,
                            time_t expires,
                            XrdOucErrInfo& error,
-                           eos::common::Mapping::VirtualIdentity& vid)
+                           eos::common::VirtualIdentity& vid)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create a file sharing path with given liftime
@@ -69,7 +69,7 @@ XrdMgmOfs::CreateSharePath(const char* inpath,
 
   struct stat buf;
 
-  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::VirtualIdentity rootvid;
 
   eos::common::Mapping::Root(rootvid);
 
@@ -150,7 +150,7 @@ XrdMgmOfs::VerifySharePath(const char* path,
 
   // get the fid
   struct stat buf;
-  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo error;
 

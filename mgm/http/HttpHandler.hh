@@ -49,7 +49,7 @@ public:
   /**
    * Constructor
    */
-  HttpHandler (eos::common::Mapping::VirtualIdentity *vid) :
+  HttpHandler (eos::common::VirtualIdentity *vid) :
     eos::common::ProtocolHandler(vid) {};
 
   /**

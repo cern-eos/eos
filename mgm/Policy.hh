@@ -49,7 +49,7 @@ public:
 
   static void GetLayoutAndSpace (const char* path,
                                  eos::IContainerMD::XAttrMap &map,
-                                 const eos::common::Mapping::VirtualIdentity &vid,
+                                 const eos::common::VirtualIdentity &vid,
                                  unsigned long &layoutId,
                                  XrdOucString &space,
                                  XrdOucEnv &env,
@@ -58,7 +58,7 @@ public:
 
   static void GetPlctPolicy (const char* path,
                              eos::IContainerMD::XAttrMap &map,
-                             const eos::common::Mapping::VirtualIdentity &vid,
+                             const eos::common::VirtualIdentity &vid,
                              XrdOucEnv &env,
                              eos::mgm::Scheduler::tPlctPolicy &plctpo,
                              std::string &targetgeotag);

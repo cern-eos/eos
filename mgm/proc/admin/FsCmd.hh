@@ -41,7 +41,7 @@ public:
   //! @param vid client virtual identity
   //----------------------------------------------------------------------------
   FsCmd(eos::console::RequestProto&& req,
-        eos::common::Mapping::VirtualIdentity& vid):
+        eos::common::VirtualIdentity& vid):
     IProcCommand(std::move(req), vid, true) {}
 
   //----------------------------------------------------------------------------

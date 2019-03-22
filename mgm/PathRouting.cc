@@ -102,7 +102,7 @@ PathRouting::Remove(const std::string& path)
 //------------------------------------------------------------------------------
 PathRouting::Status
 PathRouting::Reroute(const char* inpath, const char* ininfo,
-                     eos::common::Mapping::VirtualIdentity_t& vid,
+                     eos::common::VirtualIdentity& vid,
                      std::string& host, int& port, std::string& stat_info)
 {
   // Process and extract the path for which we need to do the routing

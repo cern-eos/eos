@@ -27,6 +27,7 @@
 
 #include "common/Namespace.hh"
 #include "common/RWMutex.hh"
+#include "common/VirtualIdentity.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include <map>
@@ -47,9 +48,6 @@ class Mapping
 {
 private:
 public:
-
-  // Constants used throughout the Mapping class
-  static const std::string PROXY_GEOTAG;
 
   typedef std::vector<uid_t>
   uid_vector; //< typdef of list storing valid uids of a user
@@ -117,49 +115,6 @@ public:
   };
 
   //----------------------------------------------------------------------------
-  //! Struct defining the virtual identity of a client e.g. his memberships and
-  //! authentication information
-  //----------------------------------------------------------------------------
-  struct VirtualIdentity_t {
-    uid_t uid;
-    gid_t gid;
-    std::string uid_string;
-    std::string gid_string;
-    uid_vector uid_list;
-    gid_vector gid_list;
-    XrdOucString tident;
-    XrdOucString name;
-    XrdOucString prot;
-    std::string host;
-    std::string domain;
-    std::string grps;
-    std::string role;
-    std::string dn;
-    std::string geolocation;
-    std::string app;
-    std::string key;
-    bool sudoer;
-
-    //--------------------------------------------------------------------------
-    //! Constructor
-    //--------------------------------------------------------------------------
-    VirtualIdentity_t(): uid(99), gid(99), sudoer(false) {};
-
-    //--------------------------------------------------------------------------
-    //! Copy constuctor
-    //--------------------------------------------------------------------------
-    VirtualIdentity_t(const VirtualIdentity_t& other)
-    {
-      *this = other;
-    }
-  };
-
-  //----------------------------------------------------------------------------
-  //! Virtual identity type
-  //----------------------------------------------------------------------------
-  typedef struct VirtualIdentity_t VirtualIdentity;
-
-  //----------------------------------------------------------------------------
   //! Function creating the Nobody identity
   //----------------------------------------------------------------------------
   static void Nobody(VirtualIdentity& vid);
@@ -203,7 +158,7 @@ public:
   //! Main mapping function to create a virtual identity from authentication information
   // ---------------------------------------------------------------------------
   static void IdMap(const XrdSecEntity* client, const char* env,
-                    const char* tident, Mapping::VirtualIdentity& vid, bool log = true);
+                    const char* tident, VirtualIdentity& vid, bool log = true);
 
   // ---------------------------------------------------------------------------
   //! Map describing which virtual user roles a user with a given uid has

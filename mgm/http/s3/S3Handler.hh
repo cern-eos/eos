@@ -55,7 +55,7 @@ public:
   /**
    * Constructor
    */
-  S3Handler (eos::common::Mapping::VirtualIdentity *vid);
+  S3Handler (eos::common::VirtualIdentity *vid);
 
   /**
    * Destructor
@@ -134,17 +134,17 @@ public:
    */
   eos::common::HttpResponse*
   Delete (eos::common::HttpRequest *request);
-  
+
   /**
    * Encode an URI
-   * 
+   *
    * @param path is the URI to encode
-   * 
+   *
    * @return an XrdOucString with the encoded URI
    */
   XrdOucString
   EncodeURI(const char* uri);
-  
+
 
 };
 

@@ -32,9 +32,9 @@
 //------------------------------------------------------------------------------
 int
 XrdMgmOfs::merge(const char* src, const char* dst, XrdOucErrInfo& error,
-                 eos::common::Mapping::VirtualIdentity& vid)
+                 eos::common::VirtualIdentity& vid)
 {
-  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   std::shared_ptr<eos::IFileMD> src_fmd;
   std::shared_ptr<eos::IFileMD> dst_fmd;

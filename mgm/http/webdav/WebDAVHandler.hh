@@ -70,7 +70,7 @@ public:
   /**
    * Constructor
    */
-  WebDAVHandler (eos::common::Mapping::VirtualIdentity *vid) :
+  WebDAVHandler (eos::common::VirtualIdentity *vid) :
     eos::common::ProtocolHandler(vid) {};
 
   /**

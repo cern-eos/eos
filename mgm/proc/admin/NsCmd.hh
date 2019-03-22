@@ -42,7 +42,7 @@ public:
   //! @param vid client virtual identity
   //----------------------------------------------------------------------------
   explicit NsCmd(eos::console::RequestProto&& req,
-                 eos::common::Mapping::VirtualIdentity& vid):
+                 eos::common::VirtualIdentity& vid):
     IProcCommand(std::move(req), vid, false)
   {}
 

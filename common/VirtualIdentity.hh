@@ -1,11 +1,11 @@
-//------------------------------------------------------------------------------
-// File: StagerRmCmd.hh
-// Author: Jozsef Makai - CERN
-//------------------------------------------------------------------------------
+// ----------------------------------------------------------------------
+// File: VirtualIdentity.hh
+// Author: Georgios Bitzes - CERN
+// ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2018 CERN/Switzerland                                  *
+ * Copyright (C) 2019 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,38 +21,46 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Namespace.hh"
+#include <vector>
+#include <string>
+#include <XrdOuc/XrdOucString.hh>
 
-#pragma once
+EOSCOMMONNAMESPACE_BEGIN
 
-#include "mgm/proc/IProcCommand.hh"
-#include "mgm/Namespace.hh"
-#include "proto/ConsoleRequest.pb.h"
+//------------------------------------------------------------------------------
+//! Struct defining the virtual identity of a client e.g. their memberships and
+//! authentication information
+//------------------------------------------------------------------------------
+struct VirtualIdentity {
+  uid_t uid;
+  gid_t gid;
+  std::string uid_string;
+  std::string gid_string;
+  std::vector<uid_t> uid_list;
+  std::vector<gid_t> gid_list;
+  XrdOucString tident;
+  XrdOucString name;
+  XrdOucString prot;
+  std::string host;
+  std::string domain;
+  std::string grps;
+  std::string role;
+  std::string dn;
+  std::string geolocation;
+  std::string app;
+  std::string key;
+  bool sudoer;
 
-EOSMGMNAMESPACE_BEGIN
-
-class StagerRmCmd : public IProcCommand
-{
-public:
-//----------------------------------------------------------------------------
-  //! Constructor
-  //!
-  //! @param req client ProtocolBuffer request
-  //! @param vid client virtual identity
   //----------------------------------------------------------------------------
-  StagerRmCmd(eos::console::RequestProto&& req,
-              eos::common::VirtualIdentity& vid):
-    IProcCommand(std::move(req), vid, true) {}
+  //! Constructor - assign to "nobody" by default
+  //----------------------------------------------------------------------------
+  VirtualIdentity() : uid(99), gid(99), sudoer(false) {}
 
   //----------------------------------------------------------------------------
-  //! Destructor
+  //! Copy constuctor
   //----------------------------------------------------------------------------
-  ~StagerRmCmd() override = default;
-
-  //----------------------------------------------------------------------------
-  //! Method implementing the specific behaviour of the command executed by the
-  //! asynchronous thread
-  //----------------------------------------------------------------------------
-  eos::console::ReplyProto ProcessRequest() noexcept override;
+  VirtualIdentity(const VirtualIdentity& other);
 };
 
-EOSMGMNAMESPACE_END
+EOSCOMMONNAMESPACE_END

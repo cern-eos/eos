@@ -221,7 +221,7 @@ private:
   unsigned long fileId; //< file id
   std::unique_ptr<IProcCommand> mProcCmd; // proc command object
   std::shared_ptr<eos::IFileMD> fmd; //< file meta data object
-  eos::common::Mapping::VirtualIdentity vid; //< virtual ID of the client
+  eos::common::VirtualIdentity vid; //< virtual ID of the client
 };
 
 #endif

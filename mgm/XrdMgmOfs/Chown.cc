@@ -33,7 +33,7 @@ XrdMgmOfs::_chown(const char* path,
                   uid_t uid,
                   gid_t gid,
                   XrdOucErrInfo& error,
-                  eos::common::Mapping::VirtualIdentity& vid,
+                  eos::common::VirtualIdentity& vid,
                   const char* ininfo,
                   bool nodereference)
 /*----------------------------------------------------------------------------*/

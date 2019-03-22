@@ -89,7 +89,7 @@ XrdMgmOfsDirectory::open(const char* inpath,
 //------------------------------------------------------------------------------
 int
 XrdMgmOfsDirectory::open(const char* inpath,
-                         eos::common::Mapping::VirtualIdentity& vid,
+                         eos::common::VirtualIdentity& vid,
                          const char* ininfo)
 
 {
@@ -109,7 +109,7 @@ XrdMgmOfsDirectory::open(const char* inpath,
 //------------------------------------------------------------------------------
 int
 XrdMgmOfsDirectory::_open(const char* dir_path,
-                          eos::common::Mapping::VirtualIdentity& vid,
+                          eos::common::VirtualIdentity& vid,
                           const char* info)
 {
   static const char* epname = "opendir";
@@ -138,7 +138,7 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
     permok = dh->access(vid.uid, vid.gid, R_OK | X_OK);
 
     if (!permok) {
-      eos::common::Mapping::VirtualIdentity rootvid;
+      eos::common::VirtualIdentity rootvid;
       eos::common::Mapping::Root(rootvid);
       // ACL and permission check
       Acl acl(cPath.GetPath(), error, vid, attrmap, false);

@@ -459,7 +459,7 @@ Access::StoreAccessConfig()
 // Get find limits in number of files/dirs returned for a certain user
 //------------------------------------------------------------------------------
 void
-Access::GetFindLimits(const eos::common::Mapping::VirtualIdentity& vid,
+Access::GetFindLimits(const eos::common::VirtualIdentity& vid,
                       uint64_t& dir_limit, uint64_t& file_limit)
 {
   eos::common::RWMutexReadLock access_rd_lock(gAccessMutex);

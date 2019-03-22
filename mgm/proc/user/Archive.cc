@@ -629,7 +629,7 @@ ProcCommand::ArchiveGetDirs(const std::string& root) const
   const char* dname;
   std::string full_path;
   std::set<std::string> fids;
-  eos::common::Mapping::VirtualIdentity_t root_ident;
+  eos::common::VirtualIdentity root_ident;
   eos::common::Mapping::Root(root_ident);
   std::vector<ArchDirStatus> dirs;
   XrdMgmOfsDirectory proc_dir;
@@ -885,7 +885,7 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
   // Remove local archive file
   unlink(arch_fn.c_str());
   // Change the permissions on the archive file to 644
-  eos::common::Mapping::VirtualIdentity root_ident;
+  eos::common::VirtualIdentity root_ident;
   eos::common::Mapping::Root(root_ident);
   XrdSfsMode mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
@@ -918,7 +918,7 @@ ProcCommand::MakeSubTreeImmutable(const std::string& arch_dir,
   bool found_archive = false;
   // Map of directories to set of files
   std::map< std::string, std::set<std::string> > found;
-  eos::common::Mapping::VirtualIdentity root_vid;
+  eos::common::VirtualIdentity root_vid;
   eos::common::Mapping::Root(root_vid);
 
   // Check for already archived directories in the current sub-tree
@@ -952,7 +952,7 @@ ProcCommand::MakeSubTreeImmutable(const std::string& arch_dir,
   }
 
   // Make the EOS sub-tree immutable e.g.: add sys.acl=z:i
-  eos::common::Mapping::VirtualIdentity root_ident;
+  eos::common::VirtualIdentity root_ident;
   eos::common::Mapping::Root(root_ident);
   const char* acl_key = "sys.acl";
   XrdOucString acl_val;
@@ -998,7 +998,7 @@ int
 ProcCommand::MakeSubTreeMutable(const std::string& arch_dir)
 {
   std::map< std::string, std::set<std::string> > found;
-  eos::common::Mapping::VirtualIdentity root_vid;
+  eos::common::VirtualIdentity root_vid;
   eos::common::Mapping::Root(root_vid);
 
   // Get all dirs in current subtree
@@ -1111,7 +1111,7 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
     info += "&mgm.option=dI";
   }
 
-  eos::common::Mapping::VirtualIdentity root_vid;
+  eos::common::VirtualIdentity root_vid;
   eos::common::Mapping::Root(root_vid);
   cmd_find->open("/proc/user", info.c_str(), root_vid, mError);
   int ret = cmd_find->close();

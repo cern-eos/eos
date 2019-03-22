@@ -317,7 +317,7 @@ Server::Print(std::string& out, std::string options)
 
 int
 Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
-                        eos::common::Mapping::VirtualIdentity& vid)
+                        eos::common::VirtualIdentity& vid)
 {
   gOFS->MgmStats.Add("Eosxd::int::FillContainerMD", vid.uid, vid.gid, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::FillContainerMD");
@@ -414,7 +414,7 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
 
 bool
 Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
-                   eos::common::Mapping::VirtualIdentity& vid)
+                   eos::common::VirtualIdentity& vid)
 {
   gOFS->MgmStats.Add("Eosxd::int::FillFileMD", vid.uid, vid.gid, 1);
   EXEC_TIMING_BEGIN("Eosxd::int::FillFileMD");
@@ -522,7 +522,7 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
 bool
 Server::FillContainerCAP(uint64_t id,
                          eos::fusex::md& dir,
-                         eos::common::Mapping::VirtualIdentity& vid,
+                         eos::common::VirtualIdentity& vid,
                          std::string reuse_uuid,
                          bool issue_only_one)
 {
@@ -821,7 +821,7 @@ Server::FillContainerCAP(uint64_t id,
 
 FuseServer::Caps::shared_cap
 Server::ValidateCAP(const eos::fusex::md& md, mode_t mode,
-                    eos::common::Mapping::VirtualIdentity& vid)
+                    eos::common::VirtualIdentity& vid)
 {
   errno = 0;
   FuseServer::Caps::shared_cap cap = Cap().GetTS(md.authid());
@@ -863,7 +863,7 @@ Server::ValidateCAP(const eos::fusex::md& md, mode_t mode,
 }
 
 //------------------------------------------------------------------------------
-// Extract inode from capability 
+// Extract inode from capability
 //------------------------------------------------------------------------------
 
 uint64_t
@@ -905,7 +905,7 @@ Server::Header(const std::string& response)
 
 bool
 Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
-                     eos::common::Mapping::VirtualIdentity& vid,
+                     eos::common::VirtualIdentity& vid,
                      bool take_lock)
 {
   gOFS->MgmStats.Add("Eosxd::int::ValidatePERM", vid.uid, vid.gid, 1);
@@ -1050,7 +1050,7 @@ Server::prefetchMD(const eos::fusex::md& md)
 int
 Server::OpBeginFlush(const std::string& id,
                      const eos::fusex::md& md,
-                     eos::common::Mapping::VirtualIdentity& vid,
+                     eos::common::VirtualIdentity& vid,
                      std::string* response,
                      uint64_t* clock)
 {
@@ -1072,7 +1072,7 @@ Server::OpBeginFlush(const std::string& id,
 int
 Server::OpEndFlush(const std::string& id,
                    const eos::fusex::md& md,
-                   eos::common::Mapping::VirtualIdentity& vid,
+                   eos::common::VirtualIdentity& vid,
                    std::string* response,
                    uint64_t* clock)
 {
@@ -1093,7 +1093,7 @@ Server::OpEndFlush(const std::string& id,
 int
 Server::OpGetLs(const std::string& id,
                 const eos::fusex::md& md,
-                eos::common::Mapping::VirtualIdentity& vid,
+                eos::common::VirtualIdentity& vid,
                 std::string* response,
                 uint64_t* clock)
 {
@@ -1291,7 +1291,7 @@ Server::OpGetLs(const std::string& id,
 int
 Server::OpSet(const std::string& id,
               const eos::fusex::md& md,
-              eos::common::Mapping::VirtualIdentity& vid,
+              eos::common::VirtualIdentity& vid,
               std::string* response,
               uint64_t * clock)
 {
@@ -1331,7 +1331,7 @@ Server::OpSet(const std::string& id,
 int
 Server::OpSetDirectory(const std::string& id,
                        const eos::fusex::md& md,
-                       eos::common::Mapping::VirtualIdentity& vid,
+                       eos::common::VirtualIdentity& vid,
                        std::string* response,
                        uint64_t * clock)
 {
@@ -1624,7 +1624,7 @@ Server::OpSetDirectory(const std::string& id,
 int
 Server::OpSetFile(const std::string& id,
                   const eos::fusex::md& md,
-                  eos::common::Mapping::VirtualIdentity& vid,
+                  eos::common::VirtualIdentity& vid,
                   std::string* response,
                   uint64_t * clock)
 {
@@ -1981,7 +1981,7 @@ Server::OpSetFile(const std::string& id,
 int
 Server::OpSetLink(const std::string& id,
                   const eos::fusex::md& md,
-                  eos::common::Mapping::VirtualIdentity& vid,
+                  eos::common::VirtualIdentity& vid,
                   std::string* response,
                   uint64_t * clock)
 {
@@ -2123,7 +2123,7 @@ Server::OpSetLink(const std::string& id,
 int
 Server::OpDelete(const std::string& id,
                  const eos::fusex::md& md,
-                 eos::common::Mapping::VirtualIdentity& vid,
+                 eos::common::VirtualIdentity& vid,
                  std::string* response,
                  uint64_t * clock)
 {
@@ -2160,7 +2160,7 @@ Server::OpDelete(const std::string& id,
 int
 Server::OpDeleteDirectory(const std::string& id,
                           const eos::fusex::md& md,
-                          eos::common::Mapping::VirtualIdentity& vid,
+                          eos::common::VirtualIdentity& vid,
                           std::string* response,
                           uint64_t * clock)
 {
@@ -2239,7 +2239,7 @@ Server::OpDeleteDirectory(const std::string& id,
 int
 Server::OpDeleteFile(const std::string& id,
                      const eos::fusex::md& md,
-                     eos::common::Mapping::VirtualIdentity& vid,
+                     eos::common::VirtualIdentity& vid,
                      std::string* response,
                      uint64_t * clock)
 {
@@ -2403,7 +2403,7 @@ Server::OpDeleteFile(const std::string& id,
 int
 Server::OpDeleteLink(const std::string& id,
                      const eos::fusex::md& md,
-                     eos::common::Mapping::VirtualIdentity& vid,
+                     eos::common::VirtualIdentity& vid,
                      std::string* response,
                      uint64_t * clock)
 {
@@ -2484,7 +2484,7 @@ Server::OpDeleteLink(const std::string& id,
 int
 Server::OpGetCap(const std::string& id,
                  const eos::fusex::md& md,
-                 eos::common::Mapping::VirtualIdentity& vid,
+                 eos::common::VirtualIdentity& vid,
                  std::string* response,
                  uint64_t * clock)
 {
@@ -2535,7 +2535,7 @@ Server::OpGetCap(const std::string& id,
 int
 Server::OpGetLock(const std::string& id,
                   const eos::fusex::md& md,
-                  eos::common::Mapping::VirtualIdentity& vid,
+                  eos::common::VirtualIdentity& vid,
                   std::string* response,
                   uint64_t * clock)
 {
@@ -2581,7 +2581,7 @@ Server::OpGetLock(const std::string& id,
 int
 Server::OpSetLock(const std::string& id,
                   const eos::fusex::md& md,
-                  eos::common::Mapping::VirtualIdentity& vid,
+                  eos::common::VirtualIdentity& vid,
                   std::string* response,
                   uint64_t * clock)
 {
@@ -2661,7 +2661,7 @@ Server::OpSetLock(const std::string& id,
 int
 Server::HandleMD(const std::string& id,
                  const eos::fusex::md& md,
-                 eos::common::Mapping::VirtualIdentity& vid,
+                 eos::common::VirtualIdentity& vid,
                  std::string* response,
                  uint64_t * clock)
 {

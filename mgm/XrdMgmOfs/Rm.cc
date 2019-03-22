@@ -51,7 +51,7 @@ XrdMgmOfs::rem(const char* inpath,
   static const char* epname = "rem";
   const char* tident = error.getErrUser();
   // use a thread private vid
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
   XrdOucEnv env(ininfo);
@@ -71,7 +71,7 @@ XrdMgmOfs::rem(const char* inpath,
 int
 XrdMgmOfs::_rem(const char* path,
                 XrdOucErrInfo& error,
-                eos::common::Mapping::VirtualIdentity& vid,
+                eos::common::VirtualIdentity& vid,
                 const char* ininfo,
                 bool simulate,
                 bool keepversion,
@@ -352,7 +352,7 @@ eos_debug("vid.uid %d vid.gid %d CanotDelete %d CUid %d", vid.uid, vid.gid, acl.
                     "space is full");
       } else {
         // Move the file to the recycle bin
-        eos::common::Mapping::VirtualIdentity rootvid;
+        eos::common::VirtualIdentity rootvid;
         eos::common::Mapping::Root(rootvid);
         int rc = 0;
         Recycle lRecycle(path, attrmap[Recycle::gRecyclingAttribute].c_str(),
@@ -381,7 +381,7 @@ eos_debug("vid.uid %d vid.gid %d CanotDelete %d CUid %d", vid.uid, vid.gid, acl.
 
       // tag the version directory key on the garbage file
       if (recyclePath.length()) {
-        eos::common::Mapping::VirtualIdentity rootvid;
+        eos::common::VirtualIdentity rootvid;
         eos::common::Mapping::Root(rootvid);
         struct stat buf;
 

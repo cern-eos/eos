@@ -601,7 +601,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   EXEC_TIMING_BEGIN("Prepare");
   static const char* epname = "prepare";
   const char* tident = error.getErrUser();
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   XrdOucTList* pptr = pargs.paths;
   XrdOucTList* optr = pargs.oinfo;
   std::string info;
@@ -780,7 +780,7 @@ XrdMgmOfs::truncate(const char*,
   static const char* epname = "truncate";
   const char* tident = error.getErrUser();
   // use a thread private vid
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, 0, tident, vid);
   EXEC_TIMING_END("IdMap");
@@ -901,7 +901,7 @@ XrdMgmOfs::StartArchiveSubmitter(ThreadAssistant& assistant) noexcept
   std::string job_opaque;
   XrdOucString std_out, std_err;
   int max, running, pending;
-  eos::common::Mapping::VirtualIdentity root_vid;
+  eos::common::VirtualIdentity root_vid;
   eos::common::Mapping::Root(root_vid);
   eos_debug("msg=\"starting archive/backup submitter thread\"");
   std::ostringstream cmd_json;

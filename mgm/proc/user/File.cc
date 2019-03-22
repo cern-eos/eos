@@ -1152,7 +1152,7 @@ ProcCommand::File()
                   }
                 }
 
-                eos::common::Mapping::VirtualIdentity rootvid;
+                eos::common::VirtualIdentity rootvid;
                 eos::common::Mapping::Root(rootvid);
 
                 if (gOFS->_touch(conversiontagfile, *mError, rootvid, 0)) {

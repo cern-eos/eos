@@ -42,7 +42,7 @@ XrdMgmOfs::Commit(const char* path,
                   XrdOucEnv& env,
                   XrdOucErrInfo& error,
                   eos::common::LogId& ThreadLogId,
-                  eos::common::Mapping::VirtualIdentity& vid,
+                  eos::common::VirtualIdentity& vid,
                   const XrdSecEntity* client)
 {
   static const char* epname = "Commit";
@@ -251,7 +251,7 @@ XrdMgmOfs::Commit(const char* path,
       gOFS->mTapeAwareGc.fileReplicaCommitted(cgi["path"], *fmd);
     }
     {
-      eos::common::Mapping::VirtualIdentity rootvid;
+      eos::common::VirtualIdentity rootvid;
       eos::common::Mapping::Root(rootvid);
       // Path of a previous version existing before an atomic/versioning upload
       std::string delete_path = "";

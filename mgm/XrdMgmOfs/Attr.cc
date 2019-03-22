@@ -40,7 +40,7 @@ XrdMgmOfs::attr_ls(const char* inpath,
   static const char* epname = "attr_ls";
   const char* tident = error.getErrUser();
   // use a thread private vid
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
@@ -58,7 +58,7 @@ XrdMgmOfs::attr_ls(const char* inpath,
 //------------------------------------------------------------------------------
 int
 XrdMgmOfs::_attr_ls(const char* path, XrdOucErrInfo& error,
-                    const eos::common::Mapping::VirtualIdentity& vid,
+                    const eos::common::VirtualIdentity& vid,
                     const char* info, eos::IContainerMD::XAttrMap& map,
                     bool take_lock, bool links)
 {
@@ -104,7 +104,7 @@ XrdMgmOfs::attr_set(const char* inpath, XrdOucErrInfo& error,
   static const char* epname = "attr_set";
   const char* tident = error.getErrUser();
   // use a thread private vid
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
@@ -122,7 +122,7 @@ XrdMgmOfs::attr_set(const char* inpath, XrdOucErrInfo& error,
 //------------------------------------------------------------------------------
 int
 XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
-                     eos::common::Mapping::VirtualIdentity& vid,
+                     eos::common::VirtualIdentity& vid,
                      const char* info, const char* key, const char* value,
                      bool take_lock)
 {
@@ -269,7 +269,7 @@ XrdMgmOfs::attr_get(const char* inpath, XrdOucErrInfo& error,
   static const char* epname = "attr_get";
   const char* tident = error.getErrUser();
   // use a thread private vid
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
@@ -287,7 +287,7 @@ XrdMgmOfs::attr_get(const char* inpath, XrdOucErrInfo& error,
 //------------------------------------------------------------------------------
 int
 XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
-                     eos::common::Mapping::VirtualIdentity& vid,
+                     eos::common::VirtualIdentity& vid,
                      const char* info, const char* key, XrdOucString& value,
                      bool take_lock)
 {
@@ -463,7 +463,7 @@ XrdMgmOfs::attr_rem(const char* inpath, XrdOucErrInfo& error,
   static const char* epname = "attr_rm";
   const char* tident = error.getErrUser();
   // use a thread private vid
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
@@ -481,7 +481,7 @@ XrdMgmOfs::attr_rem(const char* inpath, XrdOucErrInfo& error,
 //------------------------------------------------------------------------------
 int
 XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
-                     eos::common::Mapping::VirtualIdentity& vid,
+                     eos::common::VirtualIdentity& vid,
                      const char* info, const char* key)
 
 {
@@ -577,7 +577,7 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
 //------------------------------------------------------------------------------
 int
 XrdMgmOfs::_attr_clear(const char* path, XrdOucErrInfo& error,
-                       eos::common::Mapping::VirtualIdentity& vid,
+                       eos::common::VirtualIdentity& vid,
                        const char* info)
 
 {

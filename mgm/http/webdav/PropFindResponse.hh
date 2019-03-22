@@ -75,7 +75,7 @@ public:
     GET_ETAG = 0x0100,
     QUOTA_AVAIL = 0x0200,
     QUOTA_USED = 0x0400,
-    GET_OCID = 0x0800, 
+    GET_OCID = 0x0800,
     GET_OCSIZE = 0x1000,
     GET_OCPERM = 0x2000,
     ALLPROP_MARKER = 0xf000
@@ -83,7 +83,7 @@ public:
 
 protected:
   int mRequestPropertyTypes; //!< properties that were requested
-  eos::common::Mapping::VirtualIdentity *mVirtualIdentity; //!< virtual identity for this client
+  eos::common::VirtualIdentity *mVirtualIdentity; //!< virtual identity for this client
 
 public:
 
@@ -93,7 +93,7 @@ public:
    * @param request  the client request object
    */
   PropFindResponse (eos::common::HttpRequest *request,
-                    eos::common::Mapping::VirtualIdentity *vid) :
+                    eos::common::VirtualIdentity *vid) :
     WebDAVResponse (request), mRequestPropertyTypes (NONE),
     mVirtualIdentity (vid)
   {

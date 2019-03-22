@@ -115,36 +115,36 @@ public:
 
   int Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate,
              XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut,
-             XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid,
+             XrdOucString& stdErr, eos::common::VirtualIdentity& vid,
              time_t exptime = 86400, XrdOucString credentials = "", bool sync = false,
              bool noauth = false);
 
   int Ls(XrdOucString& id, XrdOucString& option, XrdOucString& group,
          XrdOucString& stdOut, XrdOucString& stdErr,
-         eos::common::Mapping::VirtualIdentity& vid);
+         eos::common::VirtualIdentity& vid);
 
   int Cancel(XrdOucString& id, XrdOucString& group, XrdOucString& stdOut,
-             XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
+             XrdOucString& stdErr, eos::common::VirtualIdentity& vid);
 
   int Kill(XrdOucString& id, XrdOucString& group, XrdOucString& stdOut,
-           XrdOucString& stdErr , eos::common::Mapping::VirtualIdentity& vid);
+           XrdOucString& stdErr , eos::common::VirtualIdentity& vid);
 
   int Resubmit(XrdOucString& id, XrdOucString& group, XrdOucString& stdOut,
-               XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
+               XrdOucString& stdErr, eos::common::VirtualIdentity& vid);
 
   int Log(XrdOucString& id, XrdOucString& group, XrdOucString& stdOut,
-          XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
+          XrdOucString& stdErr, eos::common::VirtualIdentity& vid);
 
   int Clear(XrdOucString& stdOut, XrdOucString& stdErr,
-            eos::common::Mapping::VirtualIdentity& vid);
+            eos::common::VirtualIdentity& vid);
 
   int Reset(XrdOucString& option, XrdOucString& sid, XrdOucString& group,
             XrdOucString& stdOut, XrdOucString& stdErr,
-            eos::common::Mapping::VirtualIdentity& vid);
+            eos::common::VirtualIdentity& vid);
 
   int Purge(XrdOucString& option, XrdOucString& sid, XrdOucString& group,
             XrdOucString& stdOut, XrdOucString& stdErr,
-            eos::common::Mapping::VirtualIdentity& vid);
+            eos::common::VirtualIdentity& vid);
 
   bool SetState(long long id, int status)
   {

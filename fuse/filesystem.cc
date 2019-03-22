@@ -4633,7 +4633,7 @@ filesystem::initlogging()
   }
 
   setvbuf(fstderr, (char*) NULL, _IONBF, 0);
-  eos::common::Mapping::VirtualIdentity_t vid;
+  eos::common::VirtualIdentity vid;
   eos::common::Mapping::Root(vid);
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   g_logging.SetUnit("FUSE@localhost");

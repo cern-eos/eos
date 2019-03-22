@@ -199,7 +199,7 @@ public:
   //! @param dir_limit number of directories limit
   //! @param file_limit number of files limit
   //----------------------------------------------------------------------------
-  static void GetFindLimits(const eos::common::Mapping::VirtualIdentity& vid,
+  static void GetFindLimits(const eos::common::VirtualIdentity& vid,
                             uint64_t& dir_limit, uint64_t& file_limit);
 
   //----------------------------------------------------------------------------

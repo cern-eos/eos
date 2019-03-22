@@ -39,7 +39,7 @@ XrdMgmOfs::MasterSignalBounce(const char* path,
                               XrdOucEnv& env,
                               XrdOucErrInfo& error,
                               eos::common::LogId& ThreadLogId,
-                              eos::common::Mapping::VirtualIdentity& vid,
+                              eos::common::VirtualIdentity& vid,
                               const XrdSecEntity* client)
 {
   static const char* epname = "MasterSignalBounce";
@@ -68,7 +68,7 @@ XrdMgmOfs::MasterSignalReload(const char* path,
                               XrdOucEnv& env,
                               XrdOucErrInfo& error,
                               eos::common::LogId& ThreadLogId,
-                              eos::common::Mapping::VirtualIdentity& vid,
+                              eos::common::VirtualIdentity& vid,
                               const XrdSecEntity* client)
 {
   static const char* epname = "MasterSignalReload";
@@ -100,7 +100,7 @@ XrdMgmOfs::IsMaster(const char* path,
                     XrdOucEnv& env,
                     XrdOucErrInfo& error,
                     eos::common::LogId& ThreadLogId,
-                    eos::common::Mapping::VirtualIdentity& vid,
+                    eos::common::VirtualIdentity& vid,
                     const XrdSecEntity* client)
 {
   static const char* epname = "IsMaster";

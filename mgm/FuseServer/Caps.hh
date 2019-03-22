@@ -58,18 +58,18 @@ EOSFUSESERVERNAMESPACE_BEGIN
         return *this;
       }
 
-      void set_vid(eos::common::Mapping::VirtualIdentity* vid)
+      void set_vid(eos::common::VirtualIdentity* vid)
       {
         mVid = *vid;
       }
 
-      eos::common::Mapping::VirtualIdentity* vid()
+      eos::common::VirtualIdentity* vid()
       {
         return &mVid;
       }
 
     private:
-      eos::common::Mapping::VirtualIdentity mVid;
+      eos::common::VirtualIdentity mVid;
     };
 
     typedef std::shared_ptr<capx> shared_cap;
@@ -137,7 +137,7 @@ EOSFUSESERVERNAMESPACE_BEGIN
     }
 
     void Store(const eos::fusex::cap& cap,
-               eos::common::Mapping::VirtualIdentity* vid);
+               eos::common::VirtualIdentity* vid);
 
 
     bool Imply(uint64_t md_ino,
@@ -248,5 +248,5 @@ EOSFUSESERVERNAMESPACE_BEGIN
     // inode=>authid_t
     notify_set_t mInodeCaps;
   };
-  
+
 EOSFUSESERVERNAMESPACE_END

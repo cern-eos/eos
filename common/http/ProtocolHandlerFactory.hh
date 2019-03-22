@@ -62,7 +62,7 @@ public:
   virtual eos::common::ProtocolHandler*
   CreateProtocolHandler (const std::string                     &method,
                          std::map<std::string, std::string>    &headers,
-                         eos::common::Mapping::VirtualIdentity *vid) = 0;
+                         eos::common::VirtualIdentity          *vid) = 0;
 
 };
 

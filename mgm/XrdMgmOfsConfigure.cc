@@ -2153,7 +2153,7 @@ XrdMgmOfs::SetupProcFiles()
   XrdOucString procpathmaster = MgmProcPath;
   procpathmaster += "/master";
   XrdOucErrInfo error;
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   eos::common::Mapping::Root(vid);
   std::shared_ptr<eos::IFileMD> fmd;
 

@@ -113,7 +113,7 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest* request)
   if (mRequestPropertyTypes & PropertyTypes::GET_OCID) {
     XrdOucErrInfo error;
     XrdOucString val;
-    eos::common::Mapping::VirtualIdentity rootvid;
+    eos::common::VirtualIdentity rootvid;
     eos::common::Mapping::Root(rootvid);
 
     if (gOFS->_attr_get(request->GetUrl().c_str(), error, rootvid, "",

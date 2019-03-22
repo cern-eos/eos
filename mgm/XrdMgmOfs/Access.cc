@@ -55,7 +55,7 @@ XrdMgmOfs::access(const char* inpath,
   XrdOucEnv access_Env(ininfo);
   AUTHORIZE(client, &access_Env, AOP_Stat, "access", inpath, error);
   // use a thread private vid
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
@@ -72,7 +72,7 @@ int
 XrdMgmOfs::_access(const char* path,
                    int mode,
                    XrdOucErrInfo& error,
-                   eos::common::Mapping::VirtualIdentity& vid,
+                   eos::common::VirtualIdentity& vid,
                    const char* info,
                    bool lock)
 /*----------------------------------------------------------------------------*/
@@ -204,7 +204,7 @@ XrdMgmOfs::_access(const char* path,
 int
 XrdMgmOfs::acc_access(const char* path,
                       XrdOucErrInfo& error,
-                      eos::common::Mapping::VirtualIdentity& vid,
+                      eos::common::VirtualIdentity& vid,
                       std::string& accperm)
 /*----------------------------------------------------------------------------*/
 /*

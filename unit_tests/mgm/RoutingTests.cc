@@ -94,7 +94,7 @@ TEST(Routing, StallRedirect)
                           std::move(endpoint)));
   }
 
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   eos::common::Mapping::Root(vid);
   std::string host;
   int port;

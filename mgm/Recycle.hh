@@ -84,7 +84,7 @@ public:
   //----------------------------------------------------------------------------
 
   Recycle(const char* path, const char* recycledir,
-          eos::common::Mapping::VirtualIdentity_t* vid, uid_t ownerUid,
+          eos::common::VirtualIdentity* vid, uid_t ownerUid,
           gid_t ownerGid, unsigned long long id) :
     mPath(path), mRecycleDir(recycledir),
     mRecyclePath(""), mOwnerUid(ownerUid), mOwnerGid(ownerGid), mId(id),
@@ -149,7 +149,7 @@ public:
    * @param date filter recycle bin for given date <year> or <year>/<month> or <year>/<month>/<day>
    */
   static void Print(std::string& std_out, std::string& std_err,
-                    eos::common::Mapping::VirtualIdentity_t& vid, bool monitoring,
+                    eos::common::VirtualIdentity& vid, bool monitoring,
                     bool transalteids, bool details,
                     std::string date = "",
                     bool global = false);
@@ -163,7 +163,7 @@ public:
    * @param translateids selects to display uid/gid as number or string
    */
   static void PrintOld(std::string& std_out, std::string& std_err,
-                       eos::common::Mapping::VirtualIdentity_t& vid, bool monitoring,
+                       eos::common::VirtualIdentity& vid, bool monitoring,
                        bool transalteids, bool details);
 
   /**
@@ -177,11 +177,11 @@ public:
    * @return 0 if done, otherwise errno
    */
   static int Restore(std::string& std_out, std::string& std_err,
-                     eos::common::Mapping::VirtualIdentity_t& vid, const char* key,
+                     eos::common::VirtualIdentity& vid, const char* key,
                      bool force_orig_name, bool restore_versions);
 
   static int PurgeOld(std::string& std_out, std::string& std_err,
-                      eos::common::Mapping::VirtualIdentity_t& vid);
+                      eos::common::VirtualIdentity& vid);
 
   /**
    * purge all files in the recycle bin with new uid:<uid>/<date> structure
@@ -192,7 +192,7 @@ public:
    * @return 0 if done, otherwise errno
    */
   static int Purge(std::string& std_out, std::string& std_err,
-                   eos::common::Mapping::VirtualIdentity_t& vid,
+                   eos::common::VirtualIdentity& vid,
                    std::string date = "",
                    bool global = false);
 
@@ -206,7 +206,7 @@ public:
    * @return 0 if done, otherwise errno
    */
   static int Config(std::string& std_out, std::string& std_err,
-                    eos::common::Mapping::VirtualIdentity_t& vid,
+                    eos::common::VirtualIdentity& vid,
                     const std::string& key, const std::string& value);
 
   /**

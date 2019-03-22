@@ -55,7 +55,7 @@ s3_uri_encode(unsigned char* s, char* enc, char* tb)
 S3Store* S3Handler::mS3Store = 0;
 
 /*----------------------------------------------------------------------------*/
-S3Handler::S3Handler(eos::common::Mapping::VirtualIdentity* vid) :
+S3Handler::S3Handler(eos::common::VirtualIdentity* vid) :
   eos::common::ProtocolHandler(vid)
 {
   mIsS3 = false;

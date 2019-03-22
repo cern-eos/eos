@@ -81,7 +81,7 @@ ConverterJob::DoIt()
 
 {
   using eos::common::StringConversion;
-  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo error;
   eos_static_info("msg=\"start tpc job\" fid=%08llx layout=%s proc_path=%s",
@@ -356,7 +356,7 @@ void
 Converter::Convert(ThreadAssistant& assistant) noexcept
 {
   using eos::common::StringConversion;
-  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo error;
   gOFS->WaitUntilNamespaceIsBooted(assistant);
@@ -556,7 +556,7 @@ Converter::PublishActiveJobs()
 void
 Converter::ResetJobs()
 {
-  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo error;
   XrdMgmOfsDirectory dir;

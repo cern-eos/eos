@@ -207,7 +207,7 @@ int checkFileAccess(unsigned long lid, unsigned long& fsindex,
                     std::vector<unsigned int>& locationfs,
                     XrdOucErrInfo& error)
 {
-  eos::common::Mapping::VirtualIdentity_t h_vid;
+  eos::common::VirtualIdentity h_vid;
   eos::common::Mapping::Root(h_vid);
   std::vector<unsigned int> unavailfs;
   std::string tried_cgi;
@@ -245,7 +245,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
                           XrdOucEnv& env,
                           XrdOucErrInfo& error,
                           eos::common::LogId& ThreadLogId,
-                          eos::common::Mapping::VirtualIdentity& vid,
+                          eos::common::VirtualIdentity& vid,
                           const XrdSecEntity* client)
 {
   static const char* epname = "Schedule2Drain";

@@ -32,7 +32,7 @@
 //------------------------------------------------------------------------------
 bool
 XrdMgmOfs::ShouldRedirect(const char* function, int __AccessMode__,
-                          eos::common::Mapping::VirtualIdentity& vid,
+                          eos::common::VirtualIdentity& vid,
                           std::string& host, int& port)
 {
   eos::common::RWMutexReadLock lock(Access::gAccessMutex);

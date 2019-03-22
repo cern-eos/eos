@@ -71,7 +71,7 @@ XrdMgmOfs::stat(const char* inpath,
   static const char* epname = "stat";
   const char* tident = error.getErrUser();
   // use a thread private vid
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   eos::common::Mapping::Nobody(vid);
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
@@ -109,7 +109,7 @@ XrdMgmOfs::stat(const char* inpath,
       buf->st_rdev &= ~XRDSFS_OFFLINE;
     }
     bool onTape = (buf->st_mode & EOS_TAPE_MODE_T) != 0;
-    
+
     if (onTape) {
       buf->st_rdev |= XRDSFS_HASBKUP;
     } else {
@@ -125,7 +125,7 @@ int
 XrdMgmOfs::_stat(const char* path,
                  struct stat* buf,
                  XrdOucErrInfo& error,
-                 eos::common::Mapping::VirtualIdentity& vid,
+                 eos::common::VirtualIdentity& vid,
                  const char* ininfo,
                  std::string* etag,
                  bool follow,

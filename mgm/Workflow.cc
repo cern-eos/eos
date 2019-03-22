@@ -38,7 +38,7 @@ EOSMGMNAMESPACE_BEGIN
 
 int
 Workflow::Trigger(const std::string& event, std::string workflow,
-                  eos::common::Mapping::VirtualIdentity& vid,
+                  eos::common::VirtualIdentity& vid,
                   const char * const ininfo, std::string& errorMessage)
 {
   errno = 0;
@@ -112,7 +112,7 @@ Workflow::Trigger(const std::string& event, std::string workflow,
 /*----------------------------------------------------------------------------*/
 std::string
 Workflow::getCGICloseW(std::string workflow,
-                       const eos::common::Mapping::VirtualIdentity& vid)
+                       const eos::common::VirtualIdentity& vid)
 {
   std::string cgi;
   std::string key = "sys.workflow.closew." + workflow;
@@ -203,7 +203,7 @@ Workflow::Attach(const char* path)
 
 /*----------------------------------------------------------------------------*/
 int
-Workflow::Create(eos::common::Mapping::VirtualIdentity& vid,
+Workflow::Create(eos::common::VirtualIdentity& vid,
                  const char * const ininfo, std::string& errorMessage)
 {
   try {
@@ -221,7 +221,7 @@ Workflow::Create(eos::common::Mapping::VirtualIdentity& vid,
 
 /*----------------------------------------------------------------------------*/
 int
-Workflow::ExceptionThrowingCreate(eos::common::Mapping::VirtualIdentity& vid,
+Workflow::ExceptionThrowingCreate(eos::common::VirtualIdentity& vid,
   const char * const ininfo, std::string& errorMessage)
 {
   int retc = 0;

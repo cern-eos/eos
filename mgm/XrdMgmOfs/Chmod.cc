@@ -52,7 +52,7 @@ XrdMgmOfs::chmod(const char* inpath,
   const char* tident = error.getErrUser();
   //  mode_t acc_mode = Mode & S_IAMB;
   // use a thread private vid
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
@@ -73,7 +73,7 @@ int
 XrdMgmOfs::_chmod(const char* path,
                   XrdSfsMode& Mode,
                   XrdOucErrInfo& error,
-                  eos::common::Mapping::VirtualIdentity& vid,
+                  eos::common::VirtualIdentity& vid,
                   const char* ininfo)
 /*----------------------------------------------------------------------------*/
 /*

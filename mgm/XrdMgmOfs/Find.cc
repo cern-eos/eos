@@ -31,7 +31,7 @@
 //------------------------------------------------------------------------------
 int
 XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
-                 XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid,
+                 XrdOucString& stdErr, eos::common::VirtualIdentity& vid,
                  std::map<std::string, std::set<std::string> >& found,
                  const char* key, const char* val, bool no_files,
                  time_t millisleep, bool nscounter, int maxdepth,

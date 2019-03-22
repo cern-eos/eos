@@ -65,7 +65,7 @@ public:
   eos::common::ProtocolHandler*
   CreateProtocolHandler (const std::string                     &method,
                          std::map<std::string, std::string>    &headers,
-                         eos::common::Mapping::VirtualIdentity *vid)
+                         eos::common::VirtualIdentity          *vid)
   {
     if (S3Handler::Matches(method, headers))
     {

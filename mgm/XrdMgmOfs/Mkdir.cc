@@ -52,7 +52,7 @@ XrdMgmOfs::mkdir(const char* inpath,
   static const char* epname = "mkdir";
   const char* tident = error.getErrUser();
   // use a thread private vid
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
@@ -88,7 +88,7 @@ int
 XrdMgmOfs::_mkdir(const char* path,
                   XrdSfsMode Mode,
                   XrdOucErrInfo& error,
-                  eos::common::Mapping::VirtualIdentity& vid,
+                  eos::common::VirtualIdentity& vid,
                   const char* ininfo,
                   ino_t* outino)
 {

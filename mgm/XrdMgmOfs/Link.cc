@@ -53,7 +53,7 @@ XrdMgmOfs::symlink(const char* source_name,
   static const char* epname = "symlink";
   const char* tident = error.getErrUser();
   // use a thread private vid
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, infoO, tident, vid);
   EXEC_TIMING_END("IdMap");
@@ -107,7 +107,7 @@ int
 XrdMgmOfs::symlink(const char* source_name,
                    const char* target_name,
                    XrdOucErrInfo& error,
-                   eos::common::Mapping::VirtualIdentity& vid,
+                   eos::common::VirtualIdentity& vid,
                    const char* infoO,
                    const char* infoN,
                    bool overwrite)
@@ -164,7 +164,7 @@ int
 XrdMgmOfs::_symlink(const char* source_name,
                     const char* target_name,
                     XrdOucErrInfo& error,
-                    eos::common::Mapping::VirtualIdentity& vid,
+                    eos::common::VirtualIdentity& vid,
                     const char* infoO,
                     const char* infoN
                    )
@@ -270,7 +270,7 @@ XrdMgmOfs::readlink(const char* inpath,
   static const char* epname = "readlink";
   const char* tident = error.getErrUser();
   // use a thread private vid
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
@@ -294,7 +294,7 @@ XrdMgmOfs::readlink(const char* inpath,
 int
 XrdMgmOfs::_readlink(const char* name,
                      XrdOucErrInfo& error,
-                     eos::common::Mapping::VirtualIdentity& vid,
+                     eos::common::VirtualIdentity& vid,
                      XrdOucString& link)
 {
   static const char* epname = "_readlink";

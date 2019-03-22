@@ -337,7 +337,7 @@ TapeAwareGc::tryToGarbageCollectASingleFile() noexcept
 console::ReplyProto
 TapeAwareGc::stagerrmAsRoot(const IFileMD::id_t fid)
 {
-  eos::common::Mapping::VirtualIdentity rootVid;
+  eos::common::VirtualIdentity rootVid;
   eos::common::Mapping::Root(rootVid);
 
   eos::console::RequestProto req;

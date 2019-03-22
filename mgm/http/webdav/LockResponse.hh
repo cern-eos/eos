@@ -47,7 +47,7 @@ class LockResponse : public WebDAVResponse {
 public:
 
 protected:
-  eos::common::Mapping::VirtualIdentity *mVirtualIdentity; //!< virtual identity for this client
+  eos::common::VirtualIdentity *mVirtualIdentity; //!< virtual identity for this client
 
 public:
 
@@ -57,7 +57,7 @@ public:
    * @param request  the client request object
    */
   LockResponse (eos::common::HttpRequest *request,
-                    eos::common::Mapping::VirtualIdentity *vid) :
+                    eos::common::VirtualIdentity *vid) :
   WebDAVResponse (request),
   mVirtualIdentity (vid)
   {

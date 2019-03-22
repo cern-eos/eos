@@ -51,7 +51,7 @@ XrdMgmOfs::utimes(const char* inpath,
   static const char* epname = "utimes";
   const char* tident = error.getErrUser();
   // use a thread private vid
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
@@ -72,7 +72,7 @@ int
 XrdMgmOfs::_utimes(const char* path,
                    struct timespec* tvp,
                    XrdOucErrInfo& error,
-                   eos::common::Mapping::VirtualIdentity& vid,
+                   eos::common::VirtualIdentity& vid,
                    const char* info)
 /*----------------------------------------------------------------------------*/
 /*
@@ -99,7 +99,7 @@ XrdMgmOfs::_utimes(const char* path,
   // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
-  if (gOFS->_access(path, 
+  if (gOFS->_access(path,
 		    W_OK,
 		    error,
 		    vid,

@@ -278,7 +278,7 @@ IConfigEngine::ApplyKeyDeletion(const char* key)
     XrdOucString stdOut;
     XrdOucString stdErr;
     std::string id;
-    eos::common::Mapping::VirtualIdentity rootvid;
+    eos::common::VirtualIdentity rootvid;
     eos::common::Mapping::Root(rootvid);
     skey.erase(0, 3);
     int spos1 = skey.find("/", 1);

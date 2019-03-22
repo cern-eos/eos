@@ -62,7 +62,7 @@ public:
   //! @param async if true then use thread pool to execute the command
   //----------------------------------------------------------------------------
   IProcCommand(eos::console::RequestProto&& req,
-               eos::common::Mapping::VirtualIdentity& vid, bool async):
+               eos::common::VirtualIdentity& vid, bool async):
     IProcCommand()
   {
     mReqProto = req;
@@ -108,7 +108,7 @@ public:
   //! @return SFS_OK in any case
   //----------------------------------------------------------------------------
   virtual int open(const char* path, const char* info,
-                   eos::common::Mapping::VirtualIdentity& vid,
+                   eos::common::VirtualIdentity& vid,
                    XrdOucErrInfo* error);
 
   //----------------------------------------------------------------------------
@@ -253,7 +253,7 @@ protected:
   std::future<eos::console::ReplyProto> mFuture; ///< Response future
   bool mDoAsync; ///< If true use thread pool to do the work
   std::atomic<bool> mForceKill; ///< Flag to notify worker thread
-  eos::common::Mapping::VirtualIdentity mVid; ///< Copy of original vid
+  eos::common::VirtualIdentity mVid; ///< Copy of original vid
   time_t mTimestamp; ///< Timestamp of the proc command
   XrdOucString mComment; ///< Comment issued by the user for the proc command
   XrdOucString stdOut; ///< stdOut returned by proc command

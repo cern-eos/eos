@@ -31,7 +31,7 @@
 int
 XrdMgmOfs::_verifystripe(const char* path,
                          XrdOucErrInfo& error,
-                         eos::common::Mapping::VirtualIdentity& vid,
+                         eos::common::VirtualIdentity& vid,
                          unsigned long fsid,
                          XrdOucString option)
 /*----------------------------------------------------------------------------*/
@@ -185,7 +185,7 @@ int
 XrdMgmOfs::_dropstripe(const char* path,
                        eos::common::FileId::fileid_t fid,
                        XrdOucErrInfo& error,
-                       eos::common::Mapping::VirtualIdentity& vid,
+                       eos::common::VirtualIdentity& vid,
                        unsigned long fsid,
                        bool forceRemove)
 /*----------------------------------------------------------------------------*/
@@ -289,7 +289,7 @@ XrdMgmOfs::_dropstripe(const char* path,
 int
 XrdMgmOfs::_dropallstripes(const char* path,
                            XrdOucErrInfo& error,
-                           eos::common::Mapping::VirtualIdentity& vid,
+                           eos::common::VirtualIdentity& vid,
                            bool forceRemove)
 /*----------------------------------------------------------------------------*/
 /*
@@ -402,7 +402,7 @@ XrdMgmOfs::_dropallstripes(const char* path,
 int
 XrdMgmOfs::_movestripe(const char* path,
                        XrdOucErrInfo& error,
-                       eos::common::Mapping::VirtualIdentity& vid,
+                       eos::common::VirtualIdentity& vid,
                        unsigned long sourcefsid,
                        unsigned long targetfsid,
                        bool expressflag)
@@ -435,7 +435,7 @@ XrdMgmOfs::_movestripe(const char* path,
 int
 XrdMgmOfs::_copystripe(const char* path,
                        XrdOucErrInfo& error,
-                       eos::common::Mapping::VirtualIdentity& vid,
+                       eos::common::VirtualIdentity& vid,
                        unsigned long sourcefsid,
                        unsigned long targetfsid,
                        bool expressflag)
@@ -468,7 +468,7 @@ XrdMgmOfs::_copystripe(const char* path,
 int
 XrdMgmOfs::_replicatestripe(const char* path,
                             XrdOucErrInfo& error,
-                            eos::common::Mapping::VirtualIdentity& vid,
+                            eos::common::VirtualIdentity& vid,
                             unsigned long sourcefsid,
                             unsigned long targetfsid,
                             bool dropsource,
@@ -558,7 +558,7 @@ int
 XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
                             const char* path,
                             XrdOucErrInfo& error,
-                            eos::common::Mapping::VirtualIdentity& vid,
+                            eos::common::VirtualIdentity& vid,
                             unsigned long sourcefsid,
                             unsigned long targetfsid,
                             bool dropsource,

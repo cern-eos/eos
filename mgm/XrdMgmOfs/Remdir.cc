@@ -48,7 +48,7 @@ XrdMgmOfs::remdir(const char* inpath,
 {
   static const char* epname = "remdir";
   const char* tident = error.getErrUser();
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
@@ -68,7 +68,7 @@ XrdMgmOfs::remdir(const char* inpath,
 int
 XrdMgmOfs::_remdir(const char* path,
                    XrdOucErrInfo& error,
-                   eos::common::Mapping::VirtualIdentity& vid,
+                   eos::common::VirtualIdentity& vid,
                    const char* ininfo,
                    bool simulate)
 /*----------------------------------------------------------------------------*/

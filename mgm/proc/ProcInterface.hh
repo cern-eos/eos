@@ -73,7 +73,7 @@ public:
   //! @return ProcCommand object
   //----------------------------------------------------------------------------
   static std::unique_ptr<IProcCommand>
-  GetProcCommand(const char* tident, eos::common::Mapping::VirtualIdentity& vid,
+  GetProcCommand(const char* tident, eos::common::VirtualIdentity& vid,
                  const char* path = 0, const char* opaque = 0);
 
   //----------------------------------------------------------------------------
@@ -111,7 +111,7 @@ public:
   //! @return true if authorized otherwise false
   //----------------------------------------------------------------------------
   static bool Authorize(const char* path, const char* info,
-                        eos::common::Mapping::VirtualIdentity& vid,
+                        eos::common::VirtualIdentity& vid,
                         const XrdSecEntity* entity);
 
   //----------------------------------------------------------------------------
@@ -158,7 +158,7 @@ private:
   //----------------------------------------------------------------------------
   static std::unique_ptr<IProcCommand>
   HandleProtobufRequest(const char* path, const char* opaque,
-                        eos::common::Mapping::VirtualIdentity& vid);
+                        eos::common::VirtualIdentity& vid);
 
   //! Map of command id to async proc commands
   static std::unordered_map<std::string, std::unique_ptr<IProcCommand>> mMapCmds;

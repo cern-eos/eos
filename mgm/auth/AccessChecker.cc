@@ -36,7 +36,7 @@ EOSMGMNAMESPACE_BEGIN
 //----------------------------------------------------------------------------
 bool AccessChecker::checkContainer(IContainerMD *cont,
   const eos::IContainerMD::XAttrMap &linkedAttrs, int mode,
-  const eos::common::Mapping::VirtualIdentity &vid)
+  const eos::common::VirtualIdentity &vid)
 {
   //----------------------------------------------------------------------------
   // Construct Acl object
@@ -55,7 +55,7 @@ bool AccessChecker::checkContainer(IContainerMD *cont,
 // be needed.
 //------------------------------------------------------------------------------
 bool AccessChecker::checkContainer(IContainerMD *cont, const Acl &acl,
-	int mode, const eos::common::Mapping::VirtualIdentity &vid)
+	int mode, const eos::common::VirtualIdentity &vid)
 {
   //----------------------------------------------------------------------------
   // Allow root to do anything
@@ -103,7 +103,7 @@ bool AccessChecker::checkContainer(IContainerMD *cont, const Acl &acl,
 
   //if ((mode & W_OK) && (!acl.CanWrite() && !cont->access(vid.uid, vid.gid, W_OK) ))
   if ( (mode & W_OK) &&
-       ( acl.CanNotWrite() || 
+       ( acl.CanNotWrite() ||
          ( !acl.CanWrite() && !cont->access(vid.uid, vid.gid, W_OK) )
        )
      ) {
@@ -151,7 +151,7 @@ bool AccessChecker::checkContainer(IContainerMD *cont, const Acl &acl,
 // needs to be checked separately!
 //------------------------------------------------------------------------------
 bool AccessChecker::checkFile(IFileMD *file, int mode,
-  const eos::common::Mapping::VirtualIdentity &vid)
+  const eos::common::VirtualIdentity &vid)
 {
   //----------------------------------------------------------------------------
   // We only check browse permissions for files, for now.

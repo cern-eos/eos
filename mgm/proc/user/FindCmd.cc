@@ -366,7 +366,7 @@ static bool eliminateBasedOnAttr(const eos::console::FindProto& req,
 // Constructor
 //------------------------------------------------------------------------------
 FindCmd::FindCmd(eos::console::RequestProto&& req,
-                 eos::common::Mapping::VirtualIdentity& vid) :
+                 eos::common::VirtualIdentity& vid) :
   IProcCommand(std::move(req), vid, true)
 {
 }
@@ -571,7 +571,7 @@ struct FindResult {
 class PermissionFilter : public ExpansionDecider
 {
 public:
-  PermissionFilter(const eos::common::Mapping::VirtualIdentity& v) : vid(v) {}
+  PermissionFilter(const eos::common::VirtualIdentity& v) : vid(v) {}
 
   virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto& proto,
                                      const eos::IContainerMD::XAttrMap& attrs) override
@@ -582,7 +582,7 @@ public:
   }
 
 private:
-  const eos::common::Mapping::VirtualIdentity& vid;
+  const eos::common::VirtualIdentity& vid;
 };
 
 //------------------------------------------------------------------------------
@@ -596,7 +596,7 @@ public:
   // QDB: Initialize NamespaceExplorer
   //----------------------------------------------------------------------------
   FindResultProvider(qclient::QClient* qc, const std::string& target,
-                     const eos::common::Mapping::VirtualIdentity& v)
+                     const eos::common::VirtualIdentity& v)
     : qcl(qc), path(target), vid(v)
   {
     ExplorationOptions options;
@@ -743,7 +743,7 @@ private:
   qclient::QClient* qcl = nullptr;
   std::string path;
   std::unique_ptr<NamespaceExplorer> explorer;
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
 };
 
 //------------------------------------------------------------------------------

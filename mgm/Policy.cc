@@ -37,7 +37,7 @@ EOSMGMNAMESPACE_BEGIN
 void
 Policy::GetLayoutAndSpace(const char* path,
                           eos::IContainerMD::XAttrMap& attrmap,
-                          const eos::common::Mapping::VirtualIdentity& vid,
+                          const eos::common::VirtualIdentity& vid,
                           unsigned long& layoutId, XrdOucString& space,
                           XrdOucEnv& env,
                           unsigned long& forcedfsid,
@@ -214,7 +214,7 @@ Policy::GetLayoutAndSpace(const char* path,
 void
 Policy::GetPlctPolicy(const char* path,
                       eos::IContainerMD::XAttrMap& attrmap,
-                      const eos::common::Mapping::VirtualIdentity& vid,
+                      const eos::common::VirtualIdentity& vid,
                       XrdOucEnv& env,
                       eos::mgm::Scheduler::tPlctPolicy& plctpol,
                       std::string& targetgeotag)

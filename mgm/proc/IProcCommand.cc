@@ -43,7 +43,7 @@ std::map<eos::console::RequestProto::CommandCase, std::atomic<uint64_t>>
 //------------------------------------------------------------------------------
 int
 IProcCommand::open(const char* path, const char* info,
-                   eos::common::Mapping::VirtualIdentity& vid,
+                   eos::common::VirtualIdentity& vid,
                    XrdOucErrInfo* error)
 {
   // @todo (esindril): configure delay based on the type of command

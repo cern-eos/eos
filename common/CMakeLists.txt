@@ -75,8 +75,9 @@ set(EOSCOMMON_SRCS
   Report.cc
   StringTokenizer.cc
   CommentLog.cc
-  XrdErrorMap.cc
-  XrdConnPool.cc  XrdConnPool.hh
+  VirtualIdentity.cc                                         VirtualIdentity.hh
+  XrdConnPool.cc                                             XrdConnPool.hh
+  XrdErrorMap.cc                                             XrdErrorMap.hh
   JeMallocHandler.cc
   plugin_manager/Plugin.hh
   plugin_manager/PluginManager.cc

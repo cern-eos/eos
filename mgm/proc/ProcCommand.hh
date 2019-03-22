@@ -77,7 +77,7 @@ public:
   //!
   //! @param vid identity of the user executing the current command
   //----------------------------------------------------------------------------
-  ProcCommand(eos::common::Mapping::VirtualIdentity& vid);
+  ProcCommand(eos::common::VirtualIdentity& vid);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -97,7 +97,7 @@ public:
   //! @return SFS_OK or client stall interval in seconds
   //----------------------------------------------------------------------------
   virtual int open(const char* path, const char* info,
-                   eos::common::Mapping::VirtualIdentity& vid,
+                   eos::common::VirtualIdentity& vid,
                    XrdOucErrInfo* error) override;
 
   //----------------------------------------------------------------------------
@@ -297,7 +297,7 @@ public:
   bool KeyValToHttpTable(XrdOucString& stdOut);
 
 protected:
-  eos::common::Mapping::VirtualIdentity* pVid; ///< Pointer to virtual identity
+  eos::common::VirtualIdentity* pVid; ///< Pointer to virtual identity
 
 private:
   XrdOucString mPath; ///< path argument for the proc command

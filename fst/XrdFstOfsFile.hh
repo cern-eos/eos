@@ -499,7 +499,7 @@ private:
   //! @return SFS_OK if successful, otherwise SFS_ERROR
   //--------------------------------------------------------------------------
   int ProcessCapOpaque(bool& is_repair_read,
-                       eos::common::Mapping::VirtualIdentity& vid);
+                       eos::common::VirtualIdentity& vid);
 
   //--------------------------------------------------------------------------
   //! Process mixed opaque information - decisions that need to be taken based

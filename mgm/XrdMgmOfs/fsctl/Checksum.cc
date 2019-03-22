@@ -41,7 +41,7 @@ XrdMgmOfs::Checksum(const char* path,
                     XrdOucEnv& env,
                     XrdOucErrInfo& error,
                     eos::common::LogId& ThreadLogId,
-                    eos::common::Mapping::VirtualIdentity& vid,
+                    eos::common::VirtualIdentity& vid,
                     const XrdSecEntity* client)
 {
   ACCESSMODE_R;
@@ -55,7 +55,7 @@ XrdMgmOfs::Checksum(const char* path,
   int retc = 0;
 
   bool fuse_readable = env.Get("mgm.option")? (std::string(env.Get("mgm.option"))=="fuse")?true:false:false;
-  
+
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
   XrdOucString spath = path;

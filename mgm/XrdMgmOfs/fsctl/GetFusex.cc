@@ -37,7 +37,7 @@ XrdMgmOfs::GetFusex(const char* path,
                    XrdOucEnv& env,
                    XrdOucErrInfo& error,
                    eos::common::LogId& ThreadLogId,
-                   eos::common::Mapping::VirtualIdentity& vid,
+                   eos::common::VirtualIdentity& vid,
                    const XrdSecEntity* client)
 {
   static const char* epname = "GetFusex";

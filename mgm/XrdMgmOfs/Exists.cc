@@ -51,7 +51,7 @@ XrdMgmOfs::exists(const char* inpath,
 {
   static const char* epname = "exists";
   const char* tident = error.getErrUser();
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   EXEC_TIMING_END("IdMap");
@@ -204,7 +204,7 @@ int
 XrdMgmOfs::_exists(const char* path,
                    XrdSfsFileExistence& file_exists,
                    XrdOucErrInfo& error,
-                   eos::common::Mapping::VirtualIdentity& vid,
+                   eos::common::VirtualIdentity& vid,
                    const char* ininfo, bool take_lock)
 /*----------------------------------------------------------------------------*/
 /*

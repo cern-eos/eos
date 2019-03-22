@@ -31,7 +31,7 @@
 int
 XrdMgmOfs::_touch(const char* path,
                   XrdOucErrInfo& error,
-                  eos::common::Mapping::VirtualIdentity& vid,
+                  eos::common::VirtualIdentity& vid,
                   const char* ininfo)
 /*----------------------------------------------------------------------------*/
 /*

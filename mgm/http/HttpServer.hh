@@ -96,7 +96,7 @@ public:
    *
    * @return an appropriately filled virtual identity
    */
-  eos::common::Mapping::VirtualIdentity*
+  eos::common::VirtualIdentity*
   Authenticate(std::map<std::string, std::string>& headers);
 
 private:

@@ -31,7 +31,7 @@
 bool
 XrdMgmOfs::ShouldStall(const char* function,
                        int __AccessMode__,
-                       eos::common::Mapping::VirtualIdentity& vid,
+                       eos::common::VirtualIdentity& vid,
                        int& stalltime, XrdOucString& stallmsg)
 {
   // Check for user, group or host banning
@@ -164,7 +164,7 @@ XrdMgmOfs::ShouldStall(const char* function,
 	// add random offset between 0 and 5 to stalltime
 	int random_stall = rand() % 6;
 	stalltime += random_stall;
-	
+
         stallmsg = "Attention: you are currently hold in this instance and each"
                    " request is stalled for ";
         stallmsg += (int) stalltime;

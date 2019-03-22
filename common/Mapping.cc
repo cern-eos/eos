@@ -34,9 +34,6 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-// Constants
-const std::string Mapping::PROXY_GEOTAG = "proxy";
-
 /*----------------------------------------------------------------------------*/
 // global mapping objects
 /*----------------------------------------------------------------------------*/
@@ -163,7 +160,7 @@ Mapping::ActiveExpire(int interval, bool force)
 /*----------------------------------------------------------------------------*/
 void
 Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
-               Mapping::VirtualIdentity& vid, bool log)
+               VirtualIdentity& vid, bool log)
 {
   if (!client) {
     return;
@@ -1782,8 +1779,8 @@ std::string Mapping::GidAsString(gid_t gid)
 // -----------------------------------------------------------------------------
 //! Copy function for virtual identities
 // -----------------------------------------------------------------------------
-void Mapping::Copy(Mapping::VirtualIdentity& vidin,
-                   Mapping::VirtualIdentity& vidout)
+void Mapping::Copy(VirtualIdentity& vidin,
+                   VirtualIdentity& vidout)
 {
   vidout.uid = vidin.uid;
   vidout.gid = vidin.gid;
@@ -1816,7 +1813,7 @@ void Mapping::Copy(Mapping::VirtualIdentity& vidin,
 //------------------------------------------------------------------------------
 //! Function converting vid frin a string representation
 //------------------------------------------------------------------------------
-bool Mapping::VidFromString(Mapping::VirtualIdentity& vid,
+bool Mapping::VidFromString(VirtualIdentity& vid,
                             const char* vidstring)
 {
   std::string svid = vidstring;

@@ -78,7 +78,7 @@ public:
   //! @return Status enum representing the state of the routing
   //----------------------------------------------------------------------------
   Status Reroute(const char* inpath, const char* ininfo,
-                 eos::common::Mapping::VirtualIdentity_t& vid,
+                 eos::common::VirtualIdentity& vid,
                  std::string& host, int& port, std::string& stat_info);
 
   //----------------------------------------------------------------------------

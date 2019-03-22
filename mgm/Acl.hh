@@ -107,13 +107,13 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //! @param allowUserAcl if true evaluate also the user acl for the permissions
   //----------------------------------------------------------------------------
   Acl(std::string sysacl, std::string useracl,
-      const eos::common::Mapping::VirtualIdentity& vid, bool allowUserAcl = false);
+      const eos::common::VirtualIdentity& vid, bool allowUserAcl = false);
 
   /*---------------------------------------------------------------------------*/
   //! Constructor from XAttrMap
   /*---------------------------------------------------------------------------*/
   Acl(const eos::IContainerMD::XAttrMap& xattrmap,
-      const eos::common::Mapping::VirtualIdentity& vid);
+      const eos::common::VirtualIdentity& vid);
 
   //----------------------------------------------------------------------------
   //! Constructor by path
@@ -125,7 +125,7 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //! @param lockNs should we lock the namespace when retrieveng the attribute map
   //----------------------------------------------------------------------------
   Acl(const char* path, XrdOucErrInfo& error,
-      const eos::common::Mapping::VirtualIdentity& vid,
+      const eos::common::VirtualIdentity& vid,
       eos::IContainerMD::XAttrMap& attrmap, bool lockNs);
 
   //----------------------------------------------------------------------------
@@ -138,7 +138,7 @@ public:         // [+] prevents '+' interpreted as "one or more"
   // Set Acls by interpreting the attribute map
   //----------------------------------------------------------------------------
   void SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
-    const eos::common::Mapping::VirtualIdentity& vid, eos::IFileMD::XAttrMap *attrmapF = NULL);
+    const eos::common::VirtualIdentity& vid, eos::IFileMD::XAttrMap *attrmapF = NULL);
 
   //----------------------------------------------------------------------------
   //! Enter system and user definition + identity used for ACL interpretation
@@ -153,7 +153,7 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //! @param allowUserAcl if true evaluate the user acl for permissions
   //----------------------------------------------------------------------------
   void Set(std::string sysacl, std::string useracl,
-           const eos::common::Mapping::VirtualIdentity& vid,
+           const eos::common::VirtualIdentity& vid,
            bool allowUserAcl = false);
 
   //----------------------------------------------------------------------------

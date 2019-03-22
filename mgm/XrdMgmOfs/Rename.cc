@@ -55,7 +55,7 @@ XrdMgmOfs::rename(const char* old_name,
   static const char* epname = "rename";
   const char* tident = error.getErrUser();
   // use a thread private vid
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, infoO, tident, vid);
   EXEC_TIMING_END("IdMap");
@@ -116,7 +116,7 @@ int
 XrdMgmOfs::rename(const char* old_name,
                   const char* new_name,
                   XrdOucErrInfo& error,
-                  eos::common::Mapping::VirtualIdentity& vid,
+                  eos::common::VirtualIdentity& vid,
                   const char* infoO,
                   const char* infoN,
                   bool overwrite)
@@ -208,7 +208,7 @@ int
 XrdMgmOfs::_rename(const char* old_name,
                    const char* new_name,
                    XrdOucErrInfo& error,
-                   eos::common::Mapping::VirtualIdentity& vid,
+                   eos::common::VirtualIdentity& vid,
                    const char* infoO,
                    const char* infoN,
                    bool updateCTime,

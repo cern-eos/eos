@@ -67,7 +67,7 @@ enum class MvOpType {
 //------------------------------------------------------------------------------
 int proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
                    XrdOucString& df, XrdOucString& ds, XrdOucString& stdOut,
-                   XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid_in,
+                   XrdOucString& stdErr, eos::common::VirtualIdentity& vid_in,
                    size_t& entries);
 
 //------------------------------------------------------------------------------
@@ -86,7 +86,7 @@ int proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
 int proc_fs_config(std::string& identifier, std::string& key,
                    std::string& value,
                    XrdOucString& stdOut, XrdOucString& stdErr,
-                   eos::common::Mapping::VirtualIdentity& vid_in,
+                   eos::common::VirtualIdentity& vid_in,
                    const std::string& statusComment = "");
 
 //------------------------------------------------------------------------------
@@ -108,7 +108,7 @@ int proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
                 std::string& mountpoint, std::string& space,
                 std::string& configstatus, XrdOucString& stdOut,
                 XrdOucString& stdErr,
-                eos::common::Mapping::VirtualIdentity& vid_in);
+                eos::common::VirtualIdentity& vid_in);
 
 //------------------------------------------------------------------------------
 //! Remove a filesystem
@@ -124,7 +124,7 @@ int proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
 //------------------------------------------------------------------------------
 int proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
                XrdOucString& stdOut, XrdOucString& stdErr,
-               eos::common::Mapping::VirtualIdentity& vid_in);
+               eos::common::VirtualIdentity& vid_in);
 
 //------------------------------------------------------------------------------
 //! Clear unlinked files from the filesystem
@@ -138,7 +138,7 @@ int proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
 //------------------------------------------------------------------------------
 int proc_fs_dropdeletion(const std::string& id, XrdOucString& stdOut,
                          XrdOucString& stdErr,
-                         eos::common::Mapping::VirtualIdentity& vid_in);
+                         eos::common::VirtualIdentity& vid_in);
 
 //------------------------------------------------------------------------------
 //! Drop ghost entries from a filesystem view (file ids without meta data objects)
@@ -152,7 +152,7 @@ int proc_fs_dropdeletion(const std::string& id, XrdOucString& stdOut,
 //------------------------------------------------------------------------------
 int proc_fs_dropghosts(const std::string& id, XrdOucString& stdOut,
                        XrdOucString& stdErr,
-                       eos::common::Mapping::VirtualIdentity& vid_in);
+                       eos::common::VirtualIdentity& vid_in);
 
 
 //------------------------------------------------------------------------------
@@ -194,7 +194,7 @@ MvOpType get_operation_type(const std::string& in1, const std::string& in2,
 //------------------------------------------------------------------------------
 int proc_fs_mv(std::string& src, std::string& dst, XrdOucString& stdOut,
                XrdOucString& stdErr,
-               eos::common::Mapping::VirtualIdentity& vid_in,
+               eos::common::VirtualIdentity& vid_in,
                bool force);
 
 

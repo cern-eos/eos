@@ -170,7 +170,7 @@ void
 SpaceQuota::UpdateLogicalSizeFactor()
 {
   XrdOucErrInfo error;
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   eos::common::Mapping::Root(vid);
   vid.sudoer = 1;
   eos::IContainerMD::XAttrMap map;
@@ -1357,7 +1357,7 @@ Quota::ExistsResponsible(const std::string& path)
 // Get individual quota - called only from mgm/http/webdav/PropFindResponse
 //------------------------------------------------------------------------------
 void
-Quota::GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t& vid,
+Quota::GetIndividualQuota(eos::common::VirtualIdentity& vid,
                           const std::string& path,
                           long long& max_bytes,
                           long long& free_bytes,
@@ -1366,7 +1366,7 @@ Quota::GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t& vid,
                           bool logical)
 {
   // Check for sys.auth='*'
-  eos::common::Mapping::VirtualIdentity_t m_vid = vid;
+  eos::common::VirtualIdentity m_vid = vid;
   XrdOucString xownerauth;
   XrdOucErrInfo error;
   struct stat buf;

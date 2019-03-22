@@ -67,8 +67,8 @@ IContainerMDPtr makeContainer(uid_t uid, gid_t gid, int mode) {
   return cont;
 }
 
-eos::common::Mapping::VirtualIdentity_t makeIdentity(uid_t uid, gid_t gid) {
-  eos::common::Mapping::VirtualIdentity_t vid;
+eos::common::VirtualIdentity makeIdentity(uid_t uid, gid_t gid) {
+  eos::common::VirtualIdentity vid;
   vid.uid = uid;
   vid.gid = gid;
   return vid;
@@ -189,7 +189,7 @@ TEST(AccessChecker, WithAclUserRWX) {
     cont.get(), mgm::Acl(), R_OK | W_OK | X_OK, makeIdentity(1234, 8888)));
 
   // .. unless we have an acl
-  eos::common::Mapping::VirtualIdentity_t vid1 = makeIdentity(1234, 8888);
+  eos::common::VirtualIdentity vid1 = makeIdentity(1234, 8888);
   vid1.gid_list = { 8888 };
 
   eos::mgm::Acl acl("u:1234:rwx", "", vid1, true);
@@ -246,7 +246,7 @@ TEST(AccessChecker, WithPrepare) {
   IContainerMDPtr cont = makeContainer(19229, 9999,
     S_IFDIR | S_IRWXU);
 
-  eos::common::Mapping::VirtualIdentity_t vid1 = makeIdentity(19229, 1489);
+  eos::common::VirtualIdentity vid1 = makeIdentity(19229, 1489);
   vid1.gid_list = {1489};
 
   eos::mgm::Acl acl("u:19227:rwx+d,u:19229:rwx+dp,u:19230:rwx+dp", "", vid1, true);

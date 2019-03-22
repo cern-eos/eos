@@ -373,7 +373,7 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
                   workflowdir.c_str(),
                   retry, when, mActions[action].mWhen.c_str());
   XrdOucErrInfo lError;
-  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   // check that the workflow directory exists
   struct stat buf;
@@ -460,7 +460,7 @@ WFE::Job::Load(std::string path2entry)
 /*----------------------------------------------------------------------------*/
 {
   XrdOucErrInfo lError;
-  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   std::string f = path2entry;
   f.erase(0, path2entry.rfind('/') + 1);
@@ -579,7 +579,7 @@ WFE::Job::Results(std::string queue, int retc, XrdOucString log, time_t when)
   eos_static_info("workflowdir=\"%s\" entry=%s", workflowdir.c_str(),
                   entry.c_str());
   XrdOucErrInfo lError;
-  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   // check that the workflow directory exists
   struct stat buf;
@@ -662,7 +662,7 @@ WFE::Job::Delete(std::string queue, std::string fromDay)
   std::string entry = eos::common::FileId::Fid2Hex(mFid);
   eos_static_info("workflowdir=\"%s\"", workflowdir.c_str());
   XrdOucErrInfo lError;
-  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   // write a workflow file
   std::string workflowpath = workflowdir;
@@ -709,7 +709,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char* const ininfo)
   };
   std::string method;
   std::string args;
-  eos::common::Mapping::VirtualIdentity lRootVid;
+  eos::common::VirtualIdentity lRootVid;
   XrdOucErrInfo lError;
   eos::common::Mapping::Root(lRootVid);
   int retc = 0;
@@ -2020,7 +2020,7 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string& event,
                    " Ignoring request.",
                    fullPath.c_str(), xattrCtaArchiveFileId.c_str(), opaqueCtaArchiveFileId);
   } else {
-    eos::common::Mapping::VirtualIdentity root_vid;
+    eos::common::VirtualIdentity root_vid;
     eos::common::Mapping::Root(root_vid);
     {
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
@@ -2234,7 +2234,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
   switch (response.type()) {
   case cta::xrd::Response::RSP_SUCCESS: {
     // Set all attributes for file from response
-    eos::common::Mapping::VirtualIdentity rootvid;
+    eos::common::VirtualIdentity rootvid;
     eos::common::Mapping::Root(rootvid);
     XrdOucErrInfo errInfo;
 
@@ -2403,7 +2403,7 @@ WFE::PublishActiveJobs()
 IContainerMD::XAttrMap
 WFE::CollectAttributes(const std::string& fullPath)
 {
-  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo errInfo;
   IContainerMD::XAttrMap fileAttributes, parentDirAttributes, result;
@@ -2458,7 +2458,7 @@ WFE::MoveFromRBackToQ()
   std::map<std::string, std::set<std::string>> wfedirs;
   XrdOucErrInfo errInfo;
   XrdOucString stdErr;
-  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
 
   for (const auto& query : queries) {

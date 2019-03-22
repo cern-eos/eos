@@ -76,7 +76,7 @@ Recycle::Stop()
 void
 Recycle::Recycler(ThreadAssistant& assistant) noexcept
 {
-  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo lError;
   time_t lKeepTime = 0;
@@ -475,7 +475,7 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
 int
 Recycle::ToGarbage(const char* epname, XrdOucErrInfo& error)
 {
-  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   char srecyclepath[4096];
   // If path ends with '/' we recycle a full directory tree aka directory
@@ -534,13 +534,13 @@ Recycle::ToGarbage(const char* epname, XrdOucErrInfo& error)
 /*----------------------------------------------------------------------------*/
 void
 Recycle::Print(std::string& std_out, std::string& std_err,
-               eos::common::Mapping::VirtualIdentity_t& vid, bool monitoring,
+               eos::common::VirtualIdentity& vid, bool monitoring,
                bool translateids, bool details, std::string date, bool global)
 {
   XrdOucString uids;
   XrdOucString gids;
   std::map<uid_t, bool> printmap;
-  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   std::ostringstream oss_out;
 
@@ -792,13 +792,13 @@ Recycle::Print(std::string& std_out, std::string& std_err,
 /*----------------------------------------------------------------------------*/
 void
 Recycle::PrintOld(std::string& std_out, std::string& std_err,
-                  eos::common::Mapping::VirtualIdentity_t& vid, bool monitoring,
+                  eos::common::VirtualIdentity& vid, bool monitoring,
                   bool translateids, bool details)
 {
   XrdOucString uids;
   XrdOucString gids;
   std::map<gid_t, std::map<uid_t, bool> > printmap;
-  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
 
   if ((!vid.uid) ||
@@ -996,10 +996,10 @@ Recycle::PrintOld(std::string& std_out, std::string& std_err,
 /*----------------------------------------------------------------------------*/
 int
 Recycle::Restore(std::string& std_out, std::string& std_err,
-                 eos::common::Mapping::VirtualIdentity_t& vid, const char* key,
+                 eos::common::VirtualIdentity& vid, const char* key,
                  bool force_orig_name, bool restore_versions)
 {
-  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
 
   if (!key) {
@@ -1208,9 +1208,9 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
 /*----------------------------------------------------------------------------*/
 int
 Recycle::PurgeOld(std::string& std_out, std::string& std_err,
-                  eos::common::Mapping::VirtualIdentity_t& vid)
+                  eos::common::VirtualIdentity& vid)
 {
-  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   XrdMgmOfsDirectory dirl;
   char sdir[4096];
@@ -1287,11 +1287,11 @@ Recycle::PurgeOld(std::string& std_out, std::string& std_err,
 /*----------------------------------------------------------------------------*/
 int
 Recycle::Purge(std::string& std_out, std::string& std_err,
-               eos::common::Mapping::VirtualIdentity_t& vid,
+               eos::common::VirtualIdentity& vid,
                std::string date,
                bool global)
 {
-  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   XrdMgmOfsDirectory dirl;
   char sdir[4096];
@@ -1407,11 +1407,11 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
 /*----------------------------------------------------------------------------*/
 int
 Recycle::Config(std::string& std_out, std::string& std_err,
-                eos::common::Mapping::VirtualIdentity_t& vid,
+                eos::common::VirtualIdentity& vid,
                 const std::string& key, const std::string& value)
 {
   XrdOucErrInfo lError;
-  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
 
   if (vid.uid != 0) {
@@ -1553,7 +1553,7 @@ Recycle::GetRecyclePrefix(const char* epname, XrdOucErrInfo& error,
                           std::string& recyclepath, int i_index)
 /*----------------------------------------------------------------------------*/
 {
-  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   char srecycleuser[4096];
   time_t now = time(NULL);

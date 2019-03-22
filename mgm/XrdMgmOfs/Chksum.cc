@@ -56,7 +56,7 @@ XrdMgmOfs::chksum(XrdSfsFileSystem::csFunc Func,
   static const char* epname = "chksum";
   const char* tident = error.getErrUser();
   // use a thread private vid
-  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::VirtualIdentity vid;
   eos::common::Mapping::Nobody(vid);
   char buff[MAXPATHLEN + 8];
   int rc;

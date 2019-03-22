@@ -57,7 +57,7 @@ private:
   AssistedThread mThread; //< thread id of the WFE thread
   time_t mMs; //< forced sleep time used for find / scans
 
-  eos::common::Mapping::VirtualIdentity mRootVid; //< we operate with the root vid
+  eos::common::VirtualIdentity mRootVid; //< we operate with the root vid
   XrdOucErrInfo mError; //< XRootD error object
 
   /// number of all jobs which are queued and didn't run yet
@@ -157,7 +157,7 @@ public:
     }
 
     Job(eos::common::FileId::fileid_t fid,
-        eos::common::Mapping::VirtualIdentity& vid,
+        eos::common::VirtualIdentity& vid,
         const std::string& errorMessage = "")
     {
       mFid = fid;
@@ -318,7 +318,7 @@ public:
     std::vector<Action> mActions;
     eos::common::FileId::fileid_t mFid;
     std::string mDescription;
-    eos::common::Mapping::VirtualIdentity mVid;
+    eos::common::VirtualIdentity mVid;
     std::string mWorkflowPath;
     std::string mErrorMesssage;
     int mRetry;///! number of retries

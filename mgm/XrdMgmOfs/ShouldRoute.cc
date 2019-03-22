@@ -32,7 +32,7 @@
 //------------------------------------------------------------------------------
 bool
 XrdMgmOfs::ShouldRoute(const char* function, int accessmode,
-                       eos::common::Mapping::VirtualIdentity& vid,
+                       eos::common::VirtualIdentity& vid,
                        const char* path, const char* info,
                        std::string& host, int& port, int& stall_timeout)
 {

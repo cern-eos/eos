@@ -39,7 +39,7 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
   retc = 0;
   const auto& stagerRm = mReqProto.stagerrm();
   XrdOucErrInfo errInfo;
-  eos::common::Mapping::VirtualIdentity root_vid;
+  eos::common::VirtualIdentity root_vid;
   eos::common::Mapping::Root(root_vid);
 
   for (auto i = 0; i < stagerRm.file_size(); i++) {
