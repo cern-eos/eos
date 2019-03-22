@@ -27,6 +27,7 @@
 #include "mgm/Namespace.hh"
 #include "mgm/FileSystem.hh"
 #include "mgm/config/IConfigEngine.hh"
+#include "mgm/utils/FilesystemUuidMapper.hh"
 #include "common/RWMutex.hh"
 #include "common/SymKeys.hh"
 #include "common/Logging.hh"
@@ -939,7 +940,7 @@ public:
   //----------------------------------------------------------------------------
   bool HasMapping(eos::common::FileSystem::fsid_t fsid)
   {
-    return (Fs2UuidMap.count(fsid) > 0) ? true : false;
+    return mFilesystemMapper.hasFsid(fsid);
   }
 
   //----------------------------------------------------------------------------
@@ -1033,11 +1034,6 @@ public:
   std::string GetGlobalConfig(std::string key);
 
   //----------------------------------------------------------------------------
-  //! Set the next available filesystem ID
-  //----------------------------------------------------------------------------
-  void SetNextFsId(eos::common::FileSystem::fsid_t fsid);
-
-  //----------------------------------------------------------------------------
   //! Broadcast new manager id to all the FST nodes
   //!
   //! @param master_id master identity <hostname>:<port>
@@ -1048,12 +1044,8 @@ private:
   AssistedThread mHeartBeatThread; ///< Thread monitoring heart-beats
   //! Next free filesystem ID if a new one has to be registered
   eos::common::FileSystem::fsid_t NextFsId;
-  //! Mutex protecting all ...Map variables
-  eos::common::RWMutex MapMutex;
-  //! Map translating a file system ID to a unique ID
-  std::map<eos::common::FileSystem::fsid_t, std::string> Fs2UuidMap;
-  //! Map translating a unique ID to a filesystem ID
-  std::map<std::string, eos::common::FileSystem::fsid_t> Uuid2FsMap;
+  //! Object to map between fsid <-> uuid
+  FilesystemUuidMapper mFilesystemMapper;
   std::string MgmConfigQueueName; ///< MGM configuration queue name
   //! Map translating a filesystem object pointer to a filesystem ID
   std::map<FileSystem*, eos::common::FileSystem::fsid_t> mFileSystemView;

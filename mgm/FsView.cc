@@ -2167,11 +2167,9 @@ FsView::Reset()
     UnRegisterSpace(name.c_str());
   }
 
-  eos::common::RWMutexWriteLock maplock(MapMutex);
-  // Remove all mappins
-  Fs2UuidMap.clear();
-  Uuid2FsMap.clear();
-  SetNextFsId(0);
+  // Remove all mappings
+  mFilesystemMapper.clear();
+
   // Although this shouldn't be necessary, better run an additional cleanup
   mSpaceView.clear();
   mGroupView.clear();
@@ -2209,12 +2207,7 @@ FsView::Clear()
     UnRegisterSpace(mSpaceView.begin()->first.c_str());
   }
 
-  {
-    // Remove all mappings
-    eos::common::RWMutexWriteLock wr_map_lock(MapMutex);
-    Fs2UuidMap.clear();
-    Uuid2FsMap.clear();
-  }
+  mFilesystemMapper.clear();
 
   {
     // Remove all gateway nodes
@@ -2227,23 +2220,6 @@ FsView::Clear()
   mNodeView.clear();
   mIdView.clear();
   mFileSystemView.clear();
-}
-
-//------------------------------------------------------------------------------
-// Stores the next fsid into the global config
-//------------------------------------------------------------------------------
-void
-FsView::SetNextFsId(eos::common::FileSystem::fsid_t fsid)
-{
-  NextFsId = fsid;
-  std::string key = "nextfsid";
-  char value[1024];
-  snprintf(value, sizeof(value) - 1, "%llu", (unsigned long long) fsid);
-  std::string svalue = value;
-
-  if (!SetGlobalConfig(key, value)) {
-    eos_static_err("unable to set nextfsid in global config");
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -2754,44 +2730,7 @@ BaseView::GetConfigKeys(std::vector<std::string>& keys)
 eos::common::FileSystem::fsid_t
 FsView::CreateMapping(std::string fsuuid)
 {
-  eos::common::RWMutexWriteLock lock(MapMutex);
-
-  if (Uuid2FsMap.count(fsuuid)) {
-    return Uuid2FsMap[fsuuid];
-  } else {
-    if (!NextFsId) {
-      SetNextFsId(1);
-    }
-
-    std::map<eos::common::FileSystem::fsid_t, std::string>::const_iterator it;
-
-    // use the maximum fsid
-    for (it = Fs2UuidMap.begin(); it != Fs2UuidMap.end(); it++) {
-      if (it->first > NextFsId) {
-        NextFsId = it->first;
-      }
-    }
-
-    if (NextFsId > 64000) {
-      // We don't support more than 64.000 filesystems
-      NextFsId = 1;
-    }
-
-    while (Fs2UuidMap.count(NextFsId)) {
-      NextFsId++;
-
-      if (NextFsId > 640000) {
-        // If all filesystem id's are exhausted we better abort the program to avoid a mess!
-        eos_static_crit("all filesystem id's exhausted (64.000) - aborting the program");
-        exit(-1);
-      }
-    }
-
-    SetNextFsId(NextFsId);
-    Uuid2FsMap[fsuuid] = NextFsId;
-    Fs2UuidMap[NextFsId] = fsuuid;
-    return NextFsId;
-  }
+  return mFilesystemMapper.allocate(fsuuid);
 }
 
 //------------------------------------------------------------------------------
@@ -2800,19 +2739,7 @@ FsView::CreateMapping(std::string fsuuid)
 bool
 FsView::ProvideMapping(std::string fsuuid, eos::common::FileSystem::fsid_t fsid)
 {
-  eos::common::RWMutexWriteLock lock(MapMutex);
-
-  if (Uuid2FsMap.count(fsuuid)) {
-    if (Uuid2FsMap[fsuuid] == fsid) {
-      return true;  // we accept if it is consistent with the existing mapping
-    } else {
-      return false;  // we reject if it is in contradiction to an existing mapping
-    }
-  } else {
-    Uuid2FsMap[fsuuid] = fsid;
-    Fs2UuidMap[fsid] = fsuuid;
-    return true;
-  }
+  return mFilesystemMapper.injectMapping(fsid, fsuuid);
 }
 
 //------------------------------------------------------------------------------
@@ -2821,13 +2748,7 @@ FsView::ProvideMapping(std::string fsuuid, eos::common::FileSystem::fsid_t fsid)
 eos::common::FileSystem::fsid_t
 FsView::GetMapping(std::string fsuuid)
 {
-  eos::common::RWMutexReadLock lock(MapMutex);
-
-  if (Uuid2FsMap.count(fsuuid)) {
-    return Uuid2FsMap[fsuuid];
-  } else {
-    return 0; // 0 means there is no mapping
-  }
+  return mFilesystemMapper.lookup(fsuuid);
 }
 
 //------------------------------------------------------------------------------
@@ -2836,22 +2757,7 @@ FsView::GetMapping(std::string fsuuid)
 bool
 FsView::RemoveMapping(eos::common::FileSystem::fsid_t fsid)
 {
-  eos::common::RWMutexWriteLock lock(MapMutex);
-  bool removed = false;
-  std::string fsuuid;
-
-  if (Fs2UuidMap.count(fsid)) {
-    fsuuid = Fs2UuidMap[fsid];
-    Fs2UuidMap.erase(fsid);
-    removed = true;
-  }
-
-  if (Uuid2FsMap.count(fsuuid)) {
-    Uuid2FsMap.erase(fsuuid);
-    removed = true;
-  }
-
-  return removed;
+  return mFilesystemMapper.remove(fsid);
 }
 
 //------------------------------------------------------------------------------
@@ -2860,20 +2766,7 @@ FsView::RemoveMapping(eos::common::FileSystem::fsid_t fsid)
 bool
 FsView::RemoveMapping(eos::common::FileSystem::fsid_t fsid, std::string fsuuid)
 {
-  eos::common::RWMutexWriteLock lock(MapMutex);
-  bool removed = false;
-
-  if (Uuid2FsMap.count(fsuuid)) {
-    Uuid2FsMap.erase(fsuuid);
-    removed = true;
-  }
-
-  if (Fs2UuidMap.count(fsid)) {
-    Fs2UuidMap.erase(fsid);
-    removed = true;
-  }
-
-  return removed;
+  return mFilesystemMapper.remove(fsid) | mFilesystemMapper.remove(fsuuid);
 }
 
 //------------------------------------------------------------------------------
