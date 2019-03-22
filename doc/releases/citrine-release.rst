@@ -15,6 +15,30 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.4.32 Citrine``
+===================
+
+2019-03-21
+
+Bug
+---
+
+* Fix slave follower problem with new mutex implementation due to unlock_shared vs unlock calls - EOS-3347
+
+Refactoring
+-----------
+
+* Rename VirtualIdentity_t to Virtualidentity
+* Replace Fs2UuidMap maps with FilesystemMapper, drop unused 'nextfsid' global configuration
+
+Improvements
+------------
+
+* Allow to disable partition scrubbing by creating /.eosscrub on the FST partition
+* Add warning messages containing timing information about delayed heartbeat messaging
+
+
 ``v4.4.31 Citrine``
 ===================
 
