@@ -112,16 +112,22 @@ Storage::Scrub()
           continue;
         }
 
-        if (ScrubFs(path.c_str(), free, blocks, id, direct_io)) {
-          // filesystem has errors!
-          mFsMutex.LockRead();
-
-          if ((i < mFsVect.size()) && mFsVect[i]) {
-            mFsVect[i]->BroadcastError(EIO, "filesystem probe error detected");
-          }
-
-          mFsMutex.UnLockRead();
-        }
+	struct stat buf;
+	std::string no_scrub = path + "/" + ".eosnoscrub";
+	if (!::stat(no_scrub.c_str(), &buf)) {
+	  eos_static_debug("scrub is disabled - remove %s to activate", no_scrub.c_str());
+	} else {
+	  if (ScrubFs(path.c_str(), free, blocks, id, direct_io)) {
+	    // filesystem has errors!
+	    mFsMutex.LockRead();
+	    
+	    if ((i < mFsVect.size()) && mFsVect[i]) {
+	      mFsVect[i]->BroadcastError(EIO, "filesystem probe error detected");
+	    }
+	    
+	    mFsMutex.UnLockRead();
+	  }
+	}
       } else {
         mFsMutex.UnLockRead();
       }
