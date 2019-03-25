@@ -784,6 +784,19 @@ rpm_testing_artifacts:
   retry: 2
 
 
+rpm_xrootd_latest_artifacts:
+  stage: publish
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y sudo sssd-client createrepo
+    - sudo -u stci -H ./gitlab-ci/store_artifacts_xrootd_testing.sh ${BRANCH} "tag/xrootd_latest" /eos/project/s/storage-ci/www/eos
+  tags:
+    - docker_node
+  dependencies:
+    - build_cc7_xrd_testing
+  when: manual
+
+
 rpm_stable_artifacts:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
