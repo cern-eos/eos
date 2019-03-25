@@ -284,16 +284,6 @@ public:
   static void getPhysicalIds(const char* name, VirtualIdentity& vid);
 
   // ---------------------------------------------------------------------------
-  //! Check if a vector contains uid
-  // ---------------------------------------------------------------------------
-  static bool HasUid(uid_t uid, uid_vector vector);
-
-  // ---------------------------------------------------------------------------
-  //! Check if vector contains gid
-  // ---------------------------------------------------------------------------
-  static bool HasGid(gid_t gid, gid_vector vector);
-
-  // ---------------------------------------------------------------------------
   //! Compare a uid with the string representation
   // ---------------------------------------------------------------------------
   static bool IsUid(XrdOucString idstring, uid_t& id);

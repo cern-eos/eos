@@ -405,7 +405,7 @@ ProcInterface::Authorize(const char* path, const char* info,
 
     // We allow sss only with the daemon login is admin
     if ((protocol == "sss") &&
-        (eos::common::Mapping::HasUid(DAEMONUID, vid.uid_list))) {
+        (eos::common::Mapping::HasUid(DAEMONUID, vid))) {
       return true;
     }
 
@@ -415,9 +415,9 @@ ProcInterface::Authorize(const char* path, const char* info,
     }
 
     // One has to be part of the virtual users 2(daemon)/3(adm)/4(adm)
-    return ((eos::common::Mapping::HasUid(DAEMONUID, vid.uid_list)) ||
-            (eos::common::Mapping::HasUid(3, vid.uid_list)) ||
-            (eos::common::Mapping::HasGid(4, vid.gid_list)));
+    return ((eos::common::Mapping::HasUid(DAEMONUID, vid)) ||
+            (eos::common::Mapping::HasUid(3, vid)) ||
+            (eos::common::Mapping::HasGid(4, vid)));
   }
 
   // User access

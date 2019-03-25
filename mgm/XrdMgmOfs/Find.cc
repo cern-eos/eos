@@ -65,8 +65,8 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
   bool limitresult = false;
   bool limited = false;
 
-  if ((vid.uid != 0) && (!eos::common::Mapping::HasUid(3, vid.uid_list)) &&
-      (!eos::common::Mapping::HasGid(4, vid.gid_list)) && (!vid.sudoer)) {
+  if ((vid.uid != 0) && (!eos::common::Mapping::HasUid(3, vid)) &&
+      (!eos::common::Mapping::HasGid(4, vid)) && (!vid.sudoer)) {
     limitresult = true;
   }
 

@@ -468,11 +468,11 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     //    eos_static_debug("tident mapping");
     vid.uid = gVirtualUidMap[suidtident.c_str()];
 
-    if (!HasUid(vid.uid, vid.uid_list)) {
+    if (!HasUid(vid.uid, vid)) {
       vid.uid_list.push_back(vid.uid);
     }
 
-    if (!HasUid(99, vid.uid_list)) {
+    if (!HasUid(99, vid)) {
       vid.uid_list.push_back(99);
     }
   }
@@ -481,11 +481,11 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     //    eos_static_debug("tident mapping");
     vid.gid = gVirtualGidMap[sgidtident.c_str()];
 
-    if (!HasGid(vid.gid, vid.gid_list)) {
+    if (!HasGid(vid.gid, vid)) {
       vid.gid_list.push_back(vid.gid);
     }
 
-    if (!HasGid(99, vid.gid_list)) {
+    if (!HasGid(99, vid)) {
       vid.gid_list.push_back(99);
     }
   }
@@ -649,11 +649,11 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     vid.uid = 3;
     vid.gid = 4;
 
-    if (!HasUid(3, vid.uid_list)) {
+    if (!HasUid(3, vid)) {
       vid.uid_list.push_back(vid.uid);
     }
 
-    if (!HasGid(4, vid.gid_list)) {
+    if (!HasGid(4, vid)) {
       vid.gid_list.push_back(vid.gid);
     }
   }
@@ -664,7 +664,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   vid.uid = (gVirtualUidMap.count(useralias.c_str())) ?
             gVirtualUidMap[useralias.c_str() ] : vid.uid;
 
-  if (!HasUid(vid.uid, vid.uid_list)) {
+  if (!HasUid(vid.uid, vid)) {
     vid.uid_list.insert(vid.uid_list.begin(), vid.uid);
   }
 
@@ -673,7 +673,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
   // eos_static_debug("mapped %d %d", vid.uid,vid.gid);
 
-  if (!HasGid(vid.gid, vid.gid_list)) {
+  if (!HasGid(vid.gid, vid)) {
     vid.gid_list.insert(vid.gid_list.begin(), vid.gid);
   }
 
@@ -685,7 +685,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
     for (it = gUserRoleVector[vid.uid].begin();
          it != gUserRoleVector[vid.uid].end(); ++it)
-      if (!HasUid((*it), vid.uid_list)) {
+      if (!HasUid((*it), vid)) {
         vid.uid_list.push_back((*it));
       }
   }
@@ -695,7 +695,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
     for (it = gGroupRoleVector[vid.uid].begin();
          it != gGroupRoleVector[vid.uid].end(); ++it)
-      if (!HasGid((*it), vid.gid_list)) {
+      if (!HasGid((*it), vid)) {
         vid.gid_list.push_back((*it));
       }
   }
@@ -757,13 +757,13 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   // ---------------------------------------------------------------------------
   if (!vid.sudoer) {
     // if we are not a sudore, scan the allowed ids
-    if (HasUid(sel_uid, vid.uid_list)) {
+    if (HasUid(sel_uid, vid)) {
       vid.uid = sel_uid;
     } else {
       vid.uid = 99;
     }
 
-    if (HasGid(sel_gid, vid.gid_list)) {
+    if (HasGid(sel_gid, vid)) {
       vid.gid = sel_gid;
     } else {
       vid.gid = 99;
@@ -1662,38 +1662,6 @@ Mapping::KommaListToGidVector(const char* list, std::vector<gid_t>& vector_list)
       slist.erase(0, kommapos + 1);
     }
   } while (kommapos != STR_NPOS);
-}
-
-// -----------------------------------------------------------------------------
-//! Check if a vector contains uid
-// -----------------------------------------------------------------------------
-bool Mapping::HasUid(uid_t uid, uid_vector vector)
-{
-  uid_vector::const_iterator it;
-
-  for (it = vector.begin(); it != vector.end(); ++it) {
-    if ((*it) == uid) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-// -----------------------------------------------------------------------------
-//! Check if vector contains gid
-// -----------------------------------------------------------------------------
-bool Mapping::HasGid(gid_t gid, gid_vector vector)
-{
-  uid_vector::const_iterator it;
-
-  for (it = vector.begin(); it != vector.end(); ++it) {
-    if ((*it) == gid) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 // -----------------------------------------------------------------------------
