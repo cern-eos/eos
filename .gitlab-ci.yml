@@ -23,7 +23,7 @@ before_script:
     - docker exec -i eos-client-test git clone https://gitlab.cern.ch/dss/eosclient-tests.git
     - docker exec -di eos-client-test /bin/bash -c 'mkdir /eos1/; mount -t fuse eosxd /eos1/'
     - docker exec -di eos-client-test /bin/bash -c 'mkdir /eos2/; mount -t fuse eosxd /eos2/'
-    - docker exec -i -u eos-user eos-client-test /bin/bash -c 'cd /eos1/dockertest/; fusex-benchmark'
+    - docker exec -i -u eos-user eos-client-test /bin/bash -c 'mkdir /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; fusex-benchmark'
     # @todo(esindril): run "all" tests in schedule mode once these are properly supported,\
     # until then just run the "ci" tests
     - if [ "$CI_PIPELINE_SOURCE" == "schedule" ]; then docker exec -i eos-mgm-test eos vid add gateway eos-client-test.eoscluster.cern.ch unix; docker exec -i eos-client-test env EOS_FUSE_NO_ROOT_SQUASH=1 python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci; else docker exec -i -u eos-user eos-client-test python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci; fi
@@ -46,7 +46,7 @@ before_script:
     - docker exec -i eos-client-test git clone https://gitlab.cern.ch/dss/eosclient-tests.git
     - docker exec -di eos-client-test /bin/bash -c 'mkdir /eos1/; mount -t fuse eosxd /eos1/'
     - docker exec -di eos-client-test /bin/bash -c 'mkdir /eos2/; mount -t fuse eosxd /eos2/'
-    - docker exec -i -u eos-user eos-client-test /bin/bash -c 'cd /eos1/dockertest/; fusex-benchmark'
+    - docker exec -i -u eos-user eos-client-test /bin/bash -c 'mkdir /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; fusex-benchmark'
     # @todo(esindril): run "all" tests in schedule mode once these are properly supported,\
     # until then just run the "ci" tests
     - if [ "$CI_PIPELINE_SOURCE" == "schedule" ]; then docker exec -i eos-mgm-test eos vid add gateway eos-client-test.eoscluster.cern.ch unix; docker exec -i eos-client-test env EOS_FUSE_NO_ROOT_SQUASH=1 python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci; else docker exec -i -u eos-user eos-client-test python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci; fi
@@ -152,7 +152,7 @@ before_script:
     - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) -- /bin/bash -c 'yum install -y at; sudo atd' # workaround for docker exec '-d' flag
     - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) -- /bin/bash -c 'at now <<< "mkdir /eos1/; mount -t fuse eosxd /eos1/"'
     - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) -- /bin/bash -c 'at now <<< "mkdir /eos2/; mount -t fuse eosxd /eos2/"'
-    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) -- /bin/bash -c 'su eos-user; cd /eos1/dockertest/; fusex-benchmark; exit' # workaround for docker exec '-u' flag
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) -- /bin/bash -c 'su eos-user; mkdir /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; fusex-benchmark; exit' # workaround for docker exec '-u' flag
 
 
 clone_docker:
