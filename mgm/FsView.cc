@@ -2170,7 +2170,6 @@ FsView::Reset()
 
   // Remove all mappings
   mFilesystemMapper.clear();
-
   // Although this shouldn't be necessary, better run an additional cleanup
   mSpaceView.clear();
   mGroupView.clear();
@@ -2209,13 +2208,11 @@ FsView::Clear()
   }
 
   mFilesystemMapper.clear();
-
   {
     // Remove all gateway nodes
     eos::common::RWMutexWriteLock wr_gw_lock(GwMutex);
     mGwNodes.clear();
   }
-
   mSpaceView.clear();
   mGroupView.clear();
   mNodeView.clear();
@@ -2851,7 +2848,8 @@ bool
 FsView::ApplyFsConfig(const char* inkey, std::string& val)
 {
   std::map<std::string, std::string> configmap;
-  if(!ConfigParsing::parseFilesystemConfig(val, configmap)) {
+
+  if (!ConfigParsing::parseFilesystemConfig(val, configmap)) {
     eos_err("could not parse fs config entry");
     return false;
   }
@@ -2881,7 +2879,7 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
 
       // @todo (esindril) We remove "drainstatus" from the map as we only use
       // stat.drain from 4.4.30 on!!!
-      if ((it->first != "configstatus") || (it->first != "drainstatus")) {
+      if ((it->first != "configstatus") && (it->first != "drainstatus")) {
         fs->SetString(it->first.c_str(), it->second.c_str());
       }
     }
