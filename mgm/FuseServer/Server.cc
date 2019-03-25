@@ -56,13 +56,13 @@ EOSFUSESERVERNAMESPACE_BEGIN
 #define U_OK 128   // can update
 #define SU_OK 256  // set utime
 
-        const char* k_mdino = "sys.eos.mdino";
+const char* k_mdino = "sys.eos.mdino";
 const char* k_nlink = "sys.eos.nlink";
 
 
 USE_EOSFUSESERVERNAMESPACE
 
-        const char* Server::cident = "fxserver";
+const char* Server::cident = "fxserver";
 
 
 //------------------------------------------------------------------------------
@@ -81,7 +81,6 @@ Server::Server()
 Server::~Server()
 {
   shutdown();
-  std::cerr << __FUNCTION__ << ":: end of destructor" << std::endl;
 }
 
 //------------------------------------------------------------------------------
@@ -154,12 +153,10 @@ Server::MonitorCaps() noexcept
 
     if (!(cnt % Clients().QuotaCheckInterval())) {
       // check quota nodes every mQuotaCheckInterval iterations
-
-      typedef struct quotainfo
-      {
+      typedef struct quotainfo {
 
         quotainfo(uid_t _uid, gid_t _gid, uint64_t _qid) : uid(_uid), gid(_gid),
-        qid(_qid)
+          qid(_qid)
         {
         }
 
@@ -187,7 +184,7 @@ Server::MonitorCaps() noexcept
         }
 
         std::map<FuseServer::Caps::authid_t, FuseServer::Caps::shared_cap>& allcaps =
-                Cap().GetCaps();
+          Cap().GetCaps();
 
         for (auto it = allcaps.begin(); it != allcaps.end(); ++it) {
           if (EOS_LOGS_DEBUG) {
@@ -298,9 +295,9 @@ void
 Server::Print(std::string& out, std::string options)
 {
   if (
-      (options.find("m") != std::string::npos) ||
-      (options.find("l") != std::string::npos) ||
-      !options.length()) {
+    (options.find("m") != std::string::npos) ||
+    (options.find("l") != std::string::npos) ||
+    !options.length()) {
     Client().Print(out, options);
   }
 
@@ -376,7 +373,7 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
       for (auto it = eos::FileMapIterator(cmd); it.valid(); it.next()) {
         std::string key = eos::common::StringConversion::EncodeInvalidUTF8(it.key());
         (*dir.mutable_children())[key] =
-                eos::common::FileId::FidToInode(it.value());
+          eos::common::FileId::FidToInode(it.value());
       }
 
       for (auto it = ContainerMapIterator(cmd); it.valid(); it.next()) {
@@ -425,7 +422,7 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
   uint64_t clock = 0;
 
   if (EOS_LOGS_DEBUG) eos_debug("file-inode=%llx file-id=%llx", inode,
-                                eos::common::FileId::InodeToFid(inode));
+                                  eos::common::FileId::InodeToFid(inode));
 
   try {
     bool has_mdino = false;
@@ -552,12 +549,12 @@ Server::FillContainerCAP(uint64_t id,
 
     if (Cap().ClientInoCaps().count(dir.clientid())) {
       if (Cap().ClientInoCaps()[dir.clientid()].count(id)) {
-	for (auto it = Cap().ClientInoCaps()[dir.clientid()][id].begin();
-	     it != Cap().ClientInoCaps()[dir.clientid()][id].end(); ++it) {
-	  if (*it != reuse_uuid) {
-	    duplicated_caps.insert(*it);
-	  }
-	}
+        for (auto it = Cap().ClientInoCaps()[dir.clientid()][id].begin();
+             it != Cap().ClientInoCaps()[dir.clientid()][id].end(); ++it) {
+          if (*it != reuse_uuid) {
+            duplicated_caps.insert(*it);
+          }
+        }
       }
     }
   }
@@ -651,7 +648,7 @@ Server::FillContainerCAP(uint64_t id,
 
     if (sysacl.length() || useracl.length()) {
       bool evaluseracl = (!S_ISDIR(dir.mode())) ||
-              dir.attr().count("sys.eval.useracl") > 0;
+                         dir.attr().count("sys.eval.useracl") > 0;
       Acl acl;
       acl.Set(sysacl,
               useracl,
@@ -753,11 +750,11 @@ Server::FillContainerCAP(uint64_t id,
   if (dir.attr().count("sys.forced.maxsize")) {
     // dynamic upper file size limit per file
     dir.mutable_capability()->set_max_file_size(strtoull((*
-                                                          (dir.mutable_attr()))["sys.forced.maxsize"].c_str(), 0, 10));
+        (dir.mutable_attr()))["sys.forced.maxsize"].c_str(), 0, 10));
   } else {
     // hard-coded upper file size limit per file
     dir.mutable_capability()->set_max_file_size(512ll * 1024ll * 1024ll *
-                                                1024ll); // 512 GB
+        1024ll); // 512 GB
   }
 
   std::string space = "default";
@@ -1017,14 +1014,14 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
              md.md_pino(),
              mode.c_str(),
              accperm.c_str()
-             );
+            );
     return true;
   } else {
     eos_err("reject access to ino=%16x request-mode=%s granted-mode=%s",
             md.md_pino(),
             mode.c_str(),
             accperm.c_str()
-            );
+           );
     return false;
   }
 }
@@ -1229,7 +1226,6 @@ Server::OpGetLs(const std::string& id,
 
     EXEC_TIMING_END((md.operation() == md.LS) ? "Eosxd::ext::LS" :
                     "Eosxd::ext::GET");
-
   } else {
     EXEC_TIMING_BEGIN("Eosxd::ext::GET");
     eos_info("ino=%lx get-file/link", (long) md.md_ino());
@@ -1293,7 +1289,7 @@ Server::OpSet(const std::string& id,
               const eos::fusex::md& md,
               eos::common::VirtualIdentity& vid,
               std::string* response,
-              uint64_t * clock)
+              uint64_t* clock)
 {
   gOFS->MgmStats.Add("Eosxd::ext::SET", vid.uid, vid.gid, 1);
 
@@ -1313,7 +1309,7 @@ Server::OpSet(const std::string& id,
 
   if (S_ISDIR(md.mode())) {
     return OpSetDirectory(id, md, vid, response, clock);
-  } else if (S_ISREG(md.mode()) || S_ISFIFO(md.mode()) ) {
+  } else if (S_ISREG(md.mode()) || S_ISFIFO(md.mode())) {
     return OpSetFile(id, md, vid, response, clock);
   } else if (S_ISLNK(md.mode())) {
     return OpSetLink(id, md, vid, response, clock);
@@ -1333,7 +1329,7 @@ Server::OpSetDirectory(const std::string& id,
                        const eos::fusex::md& md,
                        eos::common::VirtualIdentity& vid,
                        std::string* response,
-                       uint64_t * clock)
+                       uint64_t* clock)
 {
   gOFS->MgmStats.Add("Eosxd::ext::SETDIR", vid.uid, vid.gid, 1);
   EXEC_TIMING_BEGIN("Eosxd::ext::SETDIR");
@@ -1348,11 +1344,9 @@ Server::OpSetDirectory(const std::string& id,
     md_pino = InodeFromCAP(md);
   }
 
-  enum set_type
-  {
+  enum set_type {
     CREATE, UPDATE, RENAME, MOVE
   };
-
   set_type op;
   uint64_t md_ino = 0;
   bool exclusive = false;
@@ -1360,7 +1354,6 @@ Server::OpSetDirectory(const std::string& id,
   if (md.type() == md.EXCL) {
     exclusive = true;
   }
-
 
   eos_info("ino=%lx pin=%lx authid=%s set-dir", (long) md.md_ino(),
            (long) md.md_pino(),
@@ -1514,7 +1507,6 @@ Server::OpSetDirectory(const std::string& id,
     mtime.tv_nsec = md.mtime_ns();
     pmtime.tv_sec = mtime.tv_sec;
     pmtime.tv_nsec = mtime.tv_nsec;
-
     cmd->setCTime(ctime);
     cmd->setMTime(mtime);
 
@@ -1566,7 +1558,6 @@ Server::OpSetDirectory(const std::string& id,
     resp.mutable_ack_()->set_transactionid(md.reqid());
     resp.mutable_ack_()->set_md_ino(md_ino);
     resp.SerializeToString(response);
-
     uint64_t clock = 0;
 
     switch (op) {
@@ -1592,8 +1583,10 @@ Server::OpSetDirectory(const std::string& id,
     case CREATE:
       Cap().BroadcastMD(md, md_ino, md.md_pino(), clock, pmtime);
       break;
+
     case MOVE:
       Cap().BroadcastRelease(mv_md);
+
     case UPDATE:
     case RENAME:
       Cap().BroadcastRelease(md);
@@ -1626,13 +1619,11 @@ Server::OpSetFile(const std::string& id,
                   const eos::fusex::md& md,
                   eos::common::VirtualIdentity& vid,
                   std::string* response,
-                  uint64_t * clock)
+                  uint64_t* clock)
 {
   gOFS->MgmStats.Add("Eosxd::ext::SETFILE", vid.uid, vid.gid, 1);
   EXEC_TIMING_BEGIN("Eosxd::ext::SETFILE");
-
-  enum set_type
-  {
+  enum set_type {
     CREATE, UPDATE, RENAME, MOVE
   };
   set_type op;
@@ -1642,7 +1633,6 @@ Server::OpSetFile(const std::string& id,
   if (md.type() == md.EXCL) {
     exclusive = true;
   }
-
 
   eos_info("ino=%lx pin=%lx authid=%s file", (long) md.md_ino(),
            (long) md.md_pino(),
@@ -1671,8 +1661,8 @@ Server::OpSetFile(const std::string& id,
       fmd = gOFS->eosFileService->getFileMD(fid);
 
       if (EOS_LOGS_DEBUG) eos_debug("updating %s => %s ",
-                                    fmd->getName().c_str(),
-                                    md.name().c_str());
+                                      fmd->getName().c_str(),
+                                      md.name().c_str());
 
       if (fmd->getContainerId() != md.md_pino()) {
         // this indicates a file move
@@ -1717,9 +1707,9 @@ Server::OpSetFile(const std::string& id,
           ofmd = pcmd->findFile(md.name());
 
           if (EOS_LOGS_DEBUG) eos_debug("rename %s [%lx] => %s [%lx]",
-                                        fmd->getName().c_str(), fid,
-                                        md.name().c_str(),
-                                        ofmd ? ofmd->getId() : 0);
+                                          fmd->getName().c_str(), fid,
+                                          md.name().c_str(),
+                                          ofmd ? ofmd->getId() : 0);
 
           if (ofmd) {
             // the target might exist, so we remove it
@@ -1753,17 +1743,17 @@ Server::OpSetFile(const std::string& id,
       uint64_t tgt_md_ino = atoll(md.target().c_str() + 8);
 
       if (pcmd->findContainer(
-                              md.name())) {
+            md.name())) {
         return EEXIST;
       }
 
       /* fmd is the target file corresponding to tgt_fid, gmd the file corresponding to new name */
       fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(
-                                                                            tgt_md_ino));
+                                              tgt_md_ino));
       std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->createFile();
       int nlink;
       nlink = (fmd->hasAttribute(k_nlink)) ? std::stoi(fmd->getAttribute(
-                                                                         k_nlink)) + 1 : 1;
+                k_nlink)) + 1 : 1;
 
       if (EOS_LOGS_DEBUG) {
         eos_debug("hlnk fid=%#lx target name %s nlink %d create hard link %s",
@@ -1813,7 +1803,7 @@ Server::OpSetFile(const std::string& id,
       }
 
       if (pcmd->findContainer(
-                              md.name())) {
+            md.name())) {
         return EEXIST;
       }
 
@@ -1983,13 +1973,11 @@ Server::OpSetLink(const std::string& id,
                   const eos::fusex::md& md,
                   eos::common::VirtualIdentity& vid,
                   std::string* response,
-                  uint64_t * clock)
+                  uint64_t* clock)
 {
   gOFS->MgmStats.Add("Eosxd::ext::SETLNK", vid.uid, vid.gid, 1);
   EXEC_TIMING_BEGIN("Eosxd::ext::SETLNK");
-
-  enum set_type
-  {
+  enum set_type {
     CREATE, UPDATE, RENAME, MOVE
   };
   set_type op;
@@ -2097,6 +2085,7 @@ Server::OpSetLink(const std::string& id,
     resp.SerializeToString(response);
 
     uint64_t bclock = 0;
+
     Cap().BroadcastMD(md, md_ino, md_pino, bclock, pt_mtime);
   } catch (eos::MDException& e) {
     eos_err("ino=%lx err-no=%d err-msg=%s", (long) md.md_ino(),
@@ -2125,9 +2114,10 @@ Server::OpDelete(const std::string& id,
                  const eos::fusex::md& md,
                  eos::common::VirtualIdentity& vid,
                  std::string* response,
-                 uint64_t * clock)
+                 uint64_t* clock)
 {
   gOFS->MgmStats.Add("Eosxd::ext::RM", vid.uid, vid.gid, 1);
+
   if (!ValidateCAP(md, D_OK, vid)) {
     std::string perm = "D";
 
@@ -2150,6 +2140,7 @@ Server::OpDelete(const std::string& id,
   } else if (S_ISLNK(md.mode())) {
     return OpDeleteLink(id, md, vid, response, clock);
   }
+
   return EINVAL;
 }
 
@@ -2162,11 +2153,10 @@ Server::OpDeleteDirectory(const std::string& id,
                           const eos::fusex::md& md,
                           eos::common::VirtualIdentity& vid,
                           std::string* response,
-                          uint64_t * clock)
+                          uint64_t* clock)
 {
   gOFS->MgmStats.Add("Eosxd::ext::RMDIR", vid.uid, vid.gid, 1);
   EXEC_TIMING_BEGIN("Eosxd::ext::RMDIR");
-
   eos::fusex::response resp;
   resp.set_type(resp.ACK);
   std::shared_ptr<eos::IContainerMD> cmd;
@@ -2175,18 +2165,16 @@ Server::OpDeleteDirectory(const std::string& id,
   eos::IFileMD::ctime_t mtime;
   mtime.tv_sec = md.mtime();
   mtime.tv_nsec = md.mtime_ns();
-
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
   try {
-
     pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
 
     if (S_ISDIR(md.mode())) {
       cmd = gOFS->eosDirectoryService->getContainerMD(md.md_ino());
     } else {
       fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(
-                                                                            md.md_ino()));
+                                              md.md_ino()));
     }
 
     pcmd->setMTime(mtime);
@@ -2218,7 +2206,6 @@ Server::OpDeleteDirectory(const std::string& id,
       Cap().Delete(md.md_ino());
     }
   } catch (eos::MDException& e) {
-
     resp.mutable_ack_()->set_code(resp.ack_().PERMANENT_FAILURE);
     resp.mutable_ack_()->set_err_no(e.getErrno());
     resp.mutable_ack_()->set_err_msg(e.getMessage().str().c_str());
@@ -2228,6 +2215,7 @@ Server::OpDeleteDirectory(const std::string& id,
             e.getErrno(),
             e.getMessage().str().c_str());
   }
+
   EXEC_TIMING_END("Eosxd::ext::RMDIR");
   return 0;
 }
@@ -2241,7 +2229,7 @@ Server::OpDeleteFile(const std::string& id,
                      const eos::fusex::md& md,
                      eos::common::VirtualIdentity& vid,
                      std::string* response,
-                     uint64_t * clock)
+                     uint64_t* clock)
 {
   gOFS->MgmStats.Add("Eosxd::ext::DELETE", vid.uid, vid.gid, 1);
   EXEC_TIMING_BEGIN("Eosxd::ext::DELETE");
@@ -2269,7 +2257,6 @@ Server::OpDeleteFile(const std::string& id,
   eos::IFileMD::ctime_t mtime;
   mtime.tv_sec = md.mtime();
   mtime.tv_nsec = md.mtime_ns();
-
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
   try {
@@ -2279,11 +2266,10 @@ Server::OpDeleteFile(const std::string& id,
       cmd = gOFS->eosDirectoryService->getContainerMD(md.md_ino());
     } else {
       fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(
-                                                                            md.md_ino()));
+                                              md.md_ino()));
     }
 
     pcmd->setMTime(mtime);
-
     eos_info("ino=%lx delete-file", (long) md.md_ino());
     eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
 
@@ -2320,9 +2306,8 @@ Server::OpDeleteFile(const std::string& id,
         uint64_t clock;
         /* gmd = the file holding the inode */
         std::shared_ptr<eos::IFileMD> gmd =
-                gOFS->eosFileService->getFileMD(
-                                                eos::common::FileId::InodeToFid(tgt_md_ino), &clock);
-
+          gOFS->eosFileService->getFileMD(
+            eos::common::FileId::InodeToFid(tgt_md_ino), &clock);
         long nlink = std::stol(gmd->getAttribute(k_nlink)) - 1;
 
         if (nlink >= 0) {
@@ -2339,7 +2324,7 @@ Server::OpDeleteFile(const std::string& id,
           gOFS->eosFileService->updateStore(gmd.get());
         }
       } else if (fmd->hasAttribute(
-                                   k_nlink)) { /* this is a genuine file, potentially with hard links */
+                   k_nlink)) { /* this is a genuine file, potentially with hard links */
         tgt_md_ino = eos::common::FileId::FidToInode(fmd->getId());
         long nlink = std::stol(fmd->getAttribute(k_nlink)) - 1;
 
@@ -2382,7 +2367,6 @@ Server::OpDeleteFile(const std::string& id,
     Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId());
     Cap().Delete(md.md_ino());
   } catch (eos::MDException& e) {
-
     resp.mutable_ack_()->set_code(resp.ack_().PERMANENT_FAILURE);
     resp.mutable_ack_()->set_err_no(e.getErrno());
     resp.mutable_ack_()->set_err_msg(e.getMessage().str().c_str());
@@ -2392,6 +2376,7 @@ Server::OpDeleteFile(const std::string& id,
             e.getErrno(),
             e.getMessage().str().c_str());
   }
+
   EXEC_TIMING_END("Eosxd::ext::DELETE");
   return 0;
 }
@@ -2405,10 +2390,11 @@ Server::OpDeleteLink(const std::string& id,
                      const eos::fusex::md& md,
                      eos::common::VirtualIdentity& vid,
                      std::string* response,
-                     uint64_t * clock)
+                     uint64_t* clock)
 {
   gOFS->MgmStats.Add("Eosxd::ext::DELETELNK", vid.uid, vid.gid, 1);
   EXEC_TIMING_BEGIN("Eosxd::ext::DELETELNK");
+
   if (!ValidateCAP(md, D_OK, vid)) {
     std::string perm = "D";
 
@@ -2432,7 +2418,6 @@ Server::OpDeleteLink(const std::string& id,
   eos::IFileMD::ctime_t mtime;
   mtime.tv_sec = md.mtime();
   mtime.tv_nsec = md.mtime_ns();
-
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
   try {
@@ -2442,11 +2427,10 @@ Server::OpDeleteLink(const std::string& id,
       cmd = gOFS->eosDirectoryService->getContainerMD(md.md_ino());
     } else {
       fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(
-                                                                            md.md_ino()));
+                                              md.md_ino()));
     }
 
     pcmd->setMTime(mtime);
-
     eos_info("ino=%lx delete-link", (long) md.md_ino());
     pcmd->removeFile(fmd->getName());
     fmd->setContainerId(0);
@@ -2464,7 +2448,6 @@ Server::OpDeleteLink(const std::string& id,
     Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId());
     Cap().Delete(md.md_ino());
   } catch (eos::MDException& e) {
-
     resp.mutable_ack_()->set_code(resp.ack_().PERMANENT_FAILURE);
     resp.mutable_ack_()->set_err_no(e.getErrno());
     resp.mutable_ack_()->set_err_msg(e.getMessage().str().c_str());
@@ -2474,6 +2457,7 @@ Server::OpDeleteLink(const std::string& id,
             e.getErrno(),
             e.getMessage().str().c_str());
   }
+
   EXEC_TIMING_END("Eosxd::ext::DELETELNK");
   return 0;
 }
@@ -2486,7 +2470,7 @@ Server::OpGetCap(const std::string& id,
                  const eos::fusex::md& md,
                  eos::common::VirtualIdentity& vid,
                  std::string* response,
-                 uint64_t * clock)
+                 uint64_t* clock)
 {
   gOFS->MgmStats.Add("Eosxd::ext::GETCAP", vid.uid, vid.gid, 1);
   EXEC_TIMING_BEGIN("Eosxd::ext::GETCAP");
@@ -2501,7 +2485,6 @@ Server::OpGetCap(const std::string& id,
     if (eos::common::FileId::IsFileInode(md.md_ino())) {
       FillFileMD((uint64_t) md.md_ino(), lmd, vid);
     } else {
-
       FillContainerMD((uint64_t) md.md_ino(), lmd, vid);
     }
 
@@ -2537,7 +2520,7 @@ Server::OpGetLock(const std::string& id,
                   const eos::fusex::md& md,
                   eos::common::VirtualIdentity& vid,
                   std::string* response,
-                  uint64_t * clock)
+                  uint64_t* clock)
 {
   gOFS->MgmStats.Add("Eosxd::ext::GETLK", vid.uid, vid.gid, 1);
   EXEC_TIMING_BEGIN("Eosxd::ext::GETLK");
@@ -2556,7 +2539,6 @@ Server::OpGetLock(const std::string& id,
            lock.l_type);
 
   switch (lock.l_type) {
-
   case F_RDLCK:
     resp.mutable_lock_()->set_type(md.flock().RDLCK);
     break;
@@ -2583,7 +2565,7 @@ Server::OpSetLock(const std::string& id,
                   const eos::fusex::md& md,
                   eos::common::VirtualIdentity& vid,
                   std::string* response,
-                  uint64_t * clock)
+                  uint64_t* clock)
 {
   EXEC_TIMING_BEGIN((md.operation() == md.SETLKW) ? "Eosxd::ext::SETLKW" :
                     "Eosxd::ext::SETLK");
@@ -2639,12 +2621,11 @@ Server::OpSetLock(const std::string& id,
            lock.l_type);
 
   if (Locks().getLocks(md.md_ino())->setlk(md.flock().pid(), &lock, sleep,
-                                           md.clientuuid())) {
+      md.clientuuid())) {
     // lock ok!
     resp.mutable_lock_()->set_err_no(0);
   } else {
     // lock is busy
-
     resp.mutable_lock_()->set_err_no(EAGAIN);
   }
 
@@ -2663,7 +2644,7 @@ Server::HandleMD(const std::string& id,
                  const eos::fusex::md& md,
                  eos::common::VirtualIdentity& vid,
                  std::string* response,
-                 uint64_t * clock)
+                 uint64_t* clock)
 {
   std::string ops;
   int op_type = md.operation();
@@ -2707,7 +2688,6 @@ Server::HandleMD(const std::string& id,
   prefetchMD(md);
 
   switch (md.operation()) {
-
   case md.BEGINFLUSH:
     return OpBeginFlush(id, md, vid, response, clock);
 
@@ -2733,9 +2713,11 @@ Server::HandleMD(const std::string& id,
   case md.SETLK:
   case md.SETLKW:
     return OpSetLock(id, md, vid, response, clock);
+
   default:
     break;
   }
+
   return 0;
 }
 
@@ -2745,7 +2727,7 @@ Server::HandleMD(const std::string& id,
 
 void
 Server::replaceNonSysAttributes(const std::shared_ptr<eos::IFileMD>& fmd,
-                                const eos::fusex::md & md)
+                                const eos::fusex::md& md)
 {
   eos::IFileMD::XAttrMap xattrs = fmd->getAttributes();
 
