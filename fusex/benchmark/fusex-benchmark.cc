@@ -4,6 +4,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <dirent.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <vector>
+#include <string>
+#include <set>
 
 #include "common/Timing.hh"
 #include "common/ShellCmd.hh"
@@ -22,6 +28,7 @@
 #define LOOP_14 100
 #define LOOP_15 100
 #define LOOP_16 100
+#define LOOP_17 1234
 
 int main(int argc, char* argv[])
 {
@@ -630,6 +637,119 @@ int main(int argc, char* argv[])
     }
 
     COMMONTIMING("mkdir-symlink-loop", &tm);
+  }
+
+  // ------------------------------------------------------------------------ //
+  testno = 17;
+
+  if ((testno >= test_start) && (testno <= test_stop)) {
+    fprintf(stderr, ">>> test %04d\n", testno);
+    std::set<std::string> names;
+    std::set<std::string> found;
+    names.insert(".");
+    names.insert("..");
+
+    for (size_t i = 0; i < LOOP_17; i++) {
+      snprintf(name, sizeof(name), "test-readdir-%lu", i);
+
+      if (mkdir(name, S_IRWXU)) {
+        fprintf(stderr, "[test=%03d] mkdir failed i=%lu errno=%d\n", testno, i, errno);
+        exit(testno);
+      }
+      names.insert(name);
+    }
+
+    DIR* dir = opendir(".");
+    struct dirent* rdir=0;
+
+    size_t cnt=0;
+    std::vector<std::string> position;
+    position.resize(LOOP_17+2);
+
+    do {
+      //      fprintf(stdout, "pos=%ld\n", telldir(dir));
+      rdir = readdir(dir);
+      if (rdir) {
+	//fprintf(stdout, "pos=%ld name=%s\n", telldir(dir), rdir->d_name);
+      } else {
+	//fprintf(stdout, "EOF pos=%ld\n", telldir(dir));
+      }
+      off_t offset = telldir(dir);
+      seekdir(dir, offset);
+      if (rdir) {
+	position[offset-1] = rdir->d_name;
+	if (found.count(rdir->d_name)) {
+	  fprintf(stderr,"[test=%03d] readdir failed duplicated item got=%s\n", testno, rdir->d_name);
+	  exit(testno);
+	}
+	if (!names.count(rdir->d_name)) {
+	  fprintf(stderr,"[test=%03d] readdir failed missing item got=%s\n", testno, rdir->d_name);
+	  exit(testno);
+	}
+	found.insert(rdir->d_name);
+      }
+      cnt++;
+    } while (rdir);
+
+    for (size_t i = 0; i< 10*LOOP_17; i++) {
+      size_t idx = LOOP_17 * (1.0 * std::rand() / (RAND_MAX));
+      seekdir (dir, idx);
+      rdir = readdir (dir);
+      if (rdir) {
+	if (position[idx] != std::string(rdir->d_name)) {
+	  fprintf(stderr,"[test=%03d] readdir failed inconsistent entry got=%s for index=%lu\n", testno, rdir->d_name, idx);
+	  exit(testno);
+	}
+      }
+    }
+
+    // create one more directory
+    mkdir ("onemore", S_IRWXU);
+    
+    // check the original positions
+    for (size_t i = 0; i< LOOP_17; i++) {
+      size_t idx = LOOP_17;
+      seekdir (dir, idx);
+      rdir = readdir (dir);
+      if (rdir) {
+	if (position[idx] != std::string(rdir->d_name)) {
+	  fprintf(stderr,"[test=%03d] readdir failed inconsistent entry got=%s for index=%lu\n", testno, rdir->d_name, idx);
+	  exit(testno);
+	}
+      }
+    }
+
+    seekdir (dir, LOOP_17+2);
+    rdir = readdir (dir);
+    if (rdir) {
+      if ( std::string("onemore") != std::string(rdir->d_name) ) {
+	fprintf(stderr,"[test=%03d] readdir failed to get one new directory in correct position\n", testno);
+	exit(testno);
+      }
+      // fprintf(stdout, "got on new position %s\n", rdir->d_name);
+    }
+
+    // remove one directory
+    rmdir(position[2].c_str());
+    
+    for (size_t i = 0; i < LOOP_17; i++) {
+      seekdir (dir, i+3);
+      rdir = readdir (dir);
+      if ( position[2] == std::string(rdir->d_name) ) {
+	fprintf(stderr,"[test=%03d] readdir failed to have correct position after deletion\n", testno);
+	exit(testno);
+      }
+    }
+
+    if (dir) {
+      closedir(dir);
+    }
+
+    for (size_t i = 0 ; i< position.size(); ++i) {
+      rmdir(position[i].c_str());
+    }
+    rmdir("onemore");
+    COMMONTIMING("readdir-loop", &tm);
   }
 
 
