@@ -583,6 +583,8 @@ FuseServer::Caps::Print(std::string option, std::string filter)
   }
 
   if (option == "t") {
+    lLock.Release();
+    eos::common::RWMutexWriteLock wLock(*this);
     // print by time order
     for (auto it = mTimeOrderedCap.begin(); it != mTimeOrderedCap.end();) {
       if (!mCaps.count(it->second)) {
