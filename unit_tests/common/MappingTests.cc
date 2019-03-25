@@ -48,34 +48,23 @@ TEST(Mapping, VidAssignOperator)
   vid.app = "some_random_app";
   vid.sudoer = true;
   VirtualIdentity copy_vid = vid;
-  ASSERT_TRUE(vid.uid == copy_vid.uid);
-  ASSERT_TRUE(vid.gid == copy_vid.gid);
-  ASSERT_TRUE(vid.uid_string == copy_vid.uid_string);
-  ASSERT_TRUE(vid.gid_string == copy_vid.gid_string);
-  ASSERT_TRUE(vid.uid_list.size() == copy_vid.uid_list.size());
+  ASSERT_EQ(vid.uid, copy_vid.uid);
+  ASSERT_EQ(vid.gid, copy_vid.gid);
+  ASSERT_EQ(vid.uid_string, copy_vid.uid_string);
+  ASSERT_EQ(vid.gid_string, copy_vid.gid_string);
+  ASSERT_EQ(vid.uid_list, copy_vid.uid_list);
+  ASSERT_EQ(vid.gid_list, copy_vid.gid_list);
 
-  for (const auto& elem : vid.uid_list) {
-    ASSERT_TRUE(std::find(copy_vid.uid_list.begin(), copy_vid.uid_list.end(),
-                          elem) != copy_vid.uid_list.end());
-  }
-
-  ASSERT_TRUE(vid.gid_list.size() == copy_vid.gid_list.size());
-
-  for (const auto& elem : vid.gid_list) {
-    ASSERT_TRUE(std::find(copy_vid.gid_list.begin(), copy_vid.gid_list.end(),
-                          elem) != copy_vid.gid_list.end());
-  }
-
-  ASSERT_TRUE(vid.tident == copy_vid.tident);
-  ASSERT_TRUE(vid.name == copy_vid.name);
-  ASSERT_TRUE(vid.prot == copy_vid.prot);
-  ASSERT_TRUE(vid.host == copy_vid.host);
-  ASSERT_TRUE(vid.grps == copy_vid.grps);
-  ASSERT_TRUE(vid.role == copy_vid.role);
-  ASSERT_TRUE(vid.dn == copy_vid.dn);
-  ASSERT_TRUE(vid.geolocation == copy_vid.geolocation);
-  ASSERT_TRUE(vid.app == copy_vid.app);
-  ASSERT_TRUE(vid.sudoer == copy_vid.sudoer);
+  ASSERT_STREQ(vid.tident.c_str(), copy_vid.tident.c_str());
+  ASSERT_STREQ(vid.name.c_str(),  copy_vid.name.c_str());
+  ASSERT_STREQ(vid.prot.c_str(), copy_vid.prot.c_str());
+  ASSERT_EQ(vid.host, copy_vid.host);
+  ASSERT_EQ(vid.grps, copy_vid.grps);
+  ASSERT_EQ(vid.role, copy_vid.role);
+  ASSERT_EQ(vid.dn, copy_vid.dn);
+  ASSERT_EQ(vid.geolocation, copy_vid.geolocation);
+  ASSERT_EQ(vid.app, copy_vid.app);
+  ASSERT_EQ(vid.sudoer, copy_vid.sudoer);
 }
 
 EOSCOMMONTESTING_END
