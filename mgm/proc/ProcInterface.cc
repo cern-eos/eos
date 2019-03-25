@@ -417,7 +417,7 @@ ProcInterface::Authorize(const char* path, const char* info,
     // One has to be part of the virtual users 2(daemon)/3(adm)/4(adm)
     return ((vid.hasUid(DAEMONUID)) ||
             (vid.hasUid(3)) ||
-            (eos::common::Mapping::HasGid(4, vid)));
+            (vid.hasGid(4)));
   }
 
   // User access

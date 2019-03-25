@@ -109,8 +109,7 @@ ProcCommand::Quota()
 
   bool canQuota = false;
 
-  if ((!vid.uid) || vid.hasUid(3) ||
-      (Mapping::HasGid(4, vid))) {
+  if ((!vid.uid) || vid.hasUid(3) || vid.hasGid(4)) {
     // root and admin can set quota
     canQuota = true;
   } else {

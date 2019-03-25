@@ -39,9 +39,7 @@ ProcCommand::Motd()
   motdfile += "/motd";
 
   if (motdupload.length() &&
-      ((!pVid->uid) ||
-       vid.hasUid(3) ||
-       eos::common::Mapping::HasGid(4, vid))) {
+      ((!pVid->uid) || vid.hasUid(3) || vid.hasGid(4))) {
     // root + admins can set the MOTD
     size_t motdlen = 0;
     char* motdout = 0;

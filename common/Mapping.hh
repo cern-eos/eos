@@ -140,16 +140,6 @@ public:
   static bool IsLocalhost(VirtualIdentity& vid);
 
   // ---------------------------------------------------------------------------
-  //! Check for a role in the user id list
-  // ---------------------------------------------------------------------------
-  // static bool HasUid(uid_t uid, VirtualIdentity& vid);
-
-  // ---------------------------------------------------------------------------
-  //! Check for a role in the group id list
-  // ---------------------------------------------------------------------------
-  static bool HasGid(gid_t gid, VirtualIdentity& vid);
-
-  // ---------------------------------------------------------------------------
   //! Main mapping function to create a virtual identity from authentication information
   // ---------------------------------------------------------------------------
   static void IdMap(const XrdSecEntity* client, const char* env,

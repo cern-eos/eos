@@ -44,9 +44,7 @@ ProcCommand::Map()
   }
 
   if (mSubCmd == "link") {
-    if ((!pVid->uid) ||
-        vid.hasUid(3) ||
-        eos::common::Mapping::HasGid(4, vid)) {
+    if ((!pVid->uid) || vid.hasUid(3) || vid.hasGid(4)) {
       XrdOucString srcpath = pOpaque->Get("mgm.map.src");
       XrdOucString dstpath = pOpaque->Get("mgm.map.dest");
 
@@ -96,7 +94,7 @@ ProcCommand::Map()
 
     if ((!pVid->uid) ||
         vid.hasUid(3) ||
-        eos::common::Mapping::HasGid(4, vid)) {
+        vid.hasGid(4)) {
       eos::common::RWMutexWriteLock lock(gOFS->PathMapMutex);
 
       if ((!path.length()) || (!gOFS->PathMap.count(path.c_str()))) {

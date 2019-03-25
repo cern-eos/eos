@@ -77,8 +77,7 @@ void
 RouteCmd::LinkSubcmd(const eos::console::RouteProto_LinkProto& link,
                      eos::console::ReplyProto& reply)
 {
-  if ((mVid.uid != 0) && !mVid.hasUid(3) &&
-      !eos::common::Mapping::HasGid(3, mVid)) {
+  if ((mVid.uid != 0) && !mVid.hasUid(3) && !mVid.hasGid(4)) {
     reply.set_retc(EPERM);
     reply.set_std_err("error: you don't have the required priviledges to "
                       "execute this command");
@@ -108,8 +107,7 @@ void
 RouteCmd::UnlinkSubcmd(const eos::console::RouteProto_UnlinkProto& unlink,
                        eos::console::ReplyProto& reply)
 {
-  if ((mVid.uid != 0) && !mVid.hasUid(3) &&
-      (eos::common::Mapping::HasGid(4, mVid) == false)) {
+  if ((mVid.uid != 0) && !mVid.hasUid(3) && !mVid.hasGid(4)) {
     reply.set_retc(EPERM);
     reply.set_std_err("error: you don't have the required priviledges to "
                       "execute this command");
