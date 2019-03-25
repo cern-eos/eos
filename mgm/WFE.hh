@@ -157,12 +157,12 @@ public:
     }
 
     Job(eos::common::FileId::fileid_t fid,
-        eos::common::VirtualIdentity& vid,
+        const eos::common::VirtualIdentity& vid,
         const std::string& errorMessage = "")
     {
       mFid = fid;
       mRetry = 0;
-      eos::common::Mapping::Copy(vid, mVid);
+      mVid = vid;
       mErrorMesssage = errorMessage;
     }
 

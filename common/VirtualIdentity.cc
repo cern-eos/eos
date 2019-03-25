@@ -25,12 +25,5 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-//------------------------------------------------------------------------------
-//! Copy constuctor
-//------------------------------------------------------------------------------
-VirtualIdentity::VirtualIdentity(const VirtualIdentity& other) {
-  *this = other;
-}
-
 
 EOSCOMMONNAMESPACE_END

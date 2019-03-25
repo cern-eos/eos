@@ -311,10 +311,10 @@ public:
   //! Set's the logid, vid and trace identifier
   //----------------------------------------------------------------------------
   void
-  SetLogId(const char* newlogid, VirtualIdentity& vid_in,
+  SetLogId(const char* newlogid, const VirtualIdentity& vid_in,
            const char* td = "")
   {
-    Mapping::Copy(vid_in, vid);
+    vid = vid_in;
     snprintf(cident, sizeof(cident), "%s", td);
 
     if (newlogid != logId) {

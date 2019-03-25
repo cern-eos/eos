@@ -1776,40 +1776,6 @@ std::string Mapping::GidAsString(gid_t gid)
   return gidstring;
 }
 
-// -----------------------------------------------------------------------------
-//! Copy function for virtual identities
-// -----------------------------------------------------------------------------
-void Mapping::Copy(VirtualIdentity& vidin,
-                   VirtualIdentity& vidout)
-{
-  vidout.uid = vidin.uid;
-  vidout.gid = vidin.gid;
-  vidout.sudoer = vidin.sudoer;
-  vidout.name = vidin.name;
-  vidout.tident = vidin.tident;
-  vidout.prot = vidin.prot;
-  vidout.uid_list.clear();
-  vidout.gid_list.clear();
-  vidout.uid_string = vidin.uid_string;
-  vidout.gid_string = vidin.gid_string;
-
-  for (unsigned int i = 0; i < vidin.uid_list.size(); i++) {
-    vidout.uid_list.push_back(vidin.uid_list[i]);
-  }
-
-  for (unsigned int i = 0; i < vidin.gid_list.size(); i++) {
-    vidout.gid_list.push_back(vidin.gid_list[i]);
-  }
-
-  vidout.host = vidin.host;
-  vidout.domain = vidin.domain;
-  vidout.grps = vidin.grps;
-  vidout.role = vidin.role;
-  vidout.dn = vidin.dn;
-  vidout.geolocation = vidin.geolocation;
-  vidout.app = vidin.app;
-}
-
 //------------------------------------------------------------------------------
 //! Function converting vid frin a string representation
 //------------------------------------------------------------------------------

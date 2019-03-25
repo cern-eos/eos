@@ -56,8 +56,7 @@ XrdMgmOfs::Version(eos::common::FileId::fileid_t fid,
   std::string vpath;
   std::string bname;
   std::string versionpath;
-  eos::common::VirtualIdentity fidvid;
-  eos::common::Mapping::Copy(vid, fidvid);
+  eos::common::VirtualIdentity fidvid = vid;
   time_t filectime = 0;
   {
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);

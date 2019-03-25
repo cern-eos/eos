@@ -150,11 +150,6 @@ public:
   static bool HasGid(gid_t gid, VirtualIdentity& vid);
 
   // ---------------------------------------------------------------------------
-  //! Copy function for virtual identities
-  // ---------------------------------------------------------------------------
-  static void Copy(VirtualIdentity& vidin, VirtualIdentity& vidout);
-
-  // ---------------------------------------------------------------------------
   //! Main mapping function to create a virtual identity from authentication information
   // ---------------------------------------------------------------------------
   static void IdMap(const XrdSecEntity* client, const char* env,

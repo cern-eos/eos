@@ -57,10 +57,6 @@ struct VirtualIdentity {
   //----------------------------------------------------------------------------
   VirtualIdentity() : uid(99), gid(99), sudoer(false) {}
 
-  //----------------------------------------------------------------------------
-  //! Copy constuctor
-  //----------------------------------------------------------------------------
-  VirtualIdentity(const VirtualIdentity& other);
 };
 
 EOSCOMMONNAMESPACE_END
