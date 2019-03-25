@@ -255,8 +255,8 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
     // For read we tolerate at most mNbParityFiles missing, for write none
     if ((!mIsRw && (nmissing > mNbParityFiles)) ||
         (mIsRw && nmissing)) {
-      eos_err("failed to open RaidMetaLayout - %i stripes are missing and "
-              "parity is %i", nmissing, mNbParityFiles);
+      eos_err("msg=\"failed to open RaidMetaLayout - %i stripes are missing and "
+              "parity is %i\"", nmissing, mNbParityFiles);
       errno = EREMOTEIO;
       return SFS_ERROR;
     }
@@ -297,10 +297,10 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
           // Set the correct open flags for the stripe
           if (mStoreRecovery || (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY))) {
             mIsRw = true;
-            eos_debug("Write case with flags:%x", flags);
+            eos_debug("msg=\"write case\" flags:%x", flags);
           } else {
             mode = 0;
-            eos_debug("Read case with flags=%x", flags);
+            eos_debug("msg=\"read case\" flags=%x", flags);
           }
 
           // Doing the actual open
@@ -308,9 +308,16 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
           mLastTriedUrl = file->GetLastTriedUrl();
 
           if (ret == SFS_ERROR) {
-            eos_warning("warning=failed to open remote stripe: %s", stripe_urls[i].c_str());
+            eos_warning("msg=\"open failed on remote stripe: %s\"", stripe_urls[i].c_str());
             delete file;
             file = NULL;
+
+            if (mIsRw) {
+              eos_err("msg=\"open failure is fatal is RW mode\" stripe=%s",
+                      stripe_urls[i].c_str());
+              errno = EIO;
+              return SFS_ERROR;
+            }
           } else {
             mLastUrl = file->GetLastUrl();
           }
@@ -322,7 +329,7 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
           file = mStripe.back();
 
           if (file && !hd->ReadFromFile(file, mTimeout)) {
-            eos_warning("reading header failed for remote stripe phyid=%i",
+            eos_warning("msg=\"reading header failed for remote stripe phyid=%i\"",
                         mStripe.size() - 1);
           }
         }
@@ -330,14 +337,14 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 
       // Consistency checks
       if (mStripe.size() != mNbTotalFiles) {
-        eos_err("number of files opened is different from the one expected");
+        eos_err("msg=\"number of files opened is different from the one expected\"");
         errno = EIO;
         return SFS_ERROR;
       }
 
       // Only the head node does the validation of the headers
       if (!ValidateHeader()) {
-        eos_err("headers invalid - can not continue");
+        eos_err("msg=\"headers invalid, open will fail\"");
         errno = EIO;
         return SFS_ERROR;
       }
