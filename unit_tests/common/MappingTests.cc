@@ -65,6 +65,24 @@ TEST(Mapping, VidAssignOperator)
   ASSERT_EQ(vid.geolocation, copy_vid.geolocation);
   ASSERT_EQ(vid.app, copy_vid.app);
   ASSERT_EQ(vid.sudoer, copy_vid.sudoer);
+
+  ASSERT_TRUE(vid.hasUid(2));
+  ASSERT_TRUE(copy_vid.hasUid(2));
+
+  ASSERT_TRUE(vid.hasUid(3));
+  ASSERT_TRUE(copy_vid.hasUid(3));
+
+  ASSERT_TRUE(vid.hasUid(99));
+  ASSERT_TRUE(copy_vid.hasUid(99));
+
+  ASSERT_FALSE(vid.hasUid(4));
+  ASSERT_FALSE(copy_vid.hasUid(4));
+
+  ASSERT_TRUE(vid.hasGid(4));
+  ASSERT_TRUE(copy_vid.hasGid(4));
+
+  ASSERT_FALSE(vid.hasGid(3));
+  ASSERT_FALSE(copy_vid.hasGid(3));
 }
 
 EOSCOMMONTESTING_END

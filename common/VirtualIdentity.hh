@@ -57,6 +57,23 @@ struct VirtualIdentity {
   //----------------------------------------------------------------------------
   VirtualIdentity() : uid(99), gid(99), sudoer(false) {}
 
+  //----------------------------------------------------------------------------
+  //! Check if the uid vector contains has the requested uid
+  //----------------------------------------------------------------------------
+  bool hasUid(uid_t uid) const;
+
+  //----------------------------------------------------------------------------
+  //! Check if the gid vector contains has the requested gid
+  //----------------------------------------------------------------------------
+  bool hasGid(gid_t gid) const;
+
+
+
+
+
+
+
+
 };
 
 EOSCOMMONNAMESPACE_END

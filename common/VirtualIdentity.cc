@@ -25,5 +25,31 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+//----------------------------------------------------------------------------
+//! Check if the uid vector contained has the requested uid
+//----------------------------------------------------------------------------
+bool VirtualIdentity::hasUid(uid_t uid) const {
+  for(auto it = uid_list.begin(); it != uid_list.end(); it++) {
+    if(*it == uid) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+//----------------------------------------------------------------------------
+//! Check if the uid vector contained has the requested uid
+//----------------------------------------------------------------------------
+bool VirtualIdentity::hasGid(gid_t gid) const {
+  for(auto it = gid_list.begin(); it != gid_list.end(); it++) {
+    if(*it == gid) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 
 EOSCOMMONNAMESPACE_END
