@@ -523,7 +523,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
   }
 
-  eos_info("checksum_object=0x%llx entryserver=%d",
+  eos_info("checksum_object=%08llx entryserver=%d",
            (unsigned long long) mCheckSum.get(), layOut->IsEntryServer());
 
   if (!isCreation) {
@@ -536,19 +536,20 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
 
     // We feed the layout size, not the physical on disk!
-    eos_info("msg=\"layout size\": disk_size=%zu db_size= %llu",
+    eos_info("msg=\"layout size\" disk_size=%zu db_size= %llu",
              statinfo.st_size, fMd->mProtoFmd.size());
+    openSize = fMd->mProtoFmd.size();
 
-    if ((off_t) statinfo.st_size != (off_t) fMd->mProtoFmd.size()) {
-      // In a RAID-like layout if the header is corrupted there is no way to know
-      // the size of the initial file, therefore we take the value from the DB
-      if (!mRainReconstruct) {
-        openSize = fMd->mProtoFmd.size();
-      } else {
-        openSize = statinfo.st_size;
+    if (!IsRainLayout(layOut->GetLayoutId())) {
+      // It's a replica layout
+      if ((off_t) statinfo.st_size != (off_t) fMd->mProtoFmd.size()) {
+        const std::string err_msg =
+          SSTR("mismatch between disk_size=" << statinfo.st_size
+               << " and fmd_size=" << fMd->mProtoFmd.size()
+               << " ns_path=" << mNsPath);
+        eos_err("msg=\"%s\"", err_msg.c_str());
+        return gOFS.Emsg(epname, error, EIO, "open", err_msg.c_str());
       }
-    } else {
-      openSize = statinfo.st_size;
     }
 
     // Preset with the last known checksum
