@@ -47,9 +47,16 @@ TEST(RecycleHelper, RouteFromEnvAppended)
   oss_route << "/eos/user/" << username[0] << "/" << username << "/";
   RecycleHelper recycle;
   recycle.ParseCommand("ls");
-  recycle.mMgmExec.InjectSimulated("mgm.cmd.proto=UgQKAggB&eos.route=" +
-                                   oss_route.str(),
-  {"", "", 0});
+
+  if (getenv("USER")) {
+    recycle.mMgmExec.InjectSimulated("mgm.cmd.proto=UgQKAggB&eos.route=" +
+                                     oss_route.str(),
+    {"", "", 0});
+  } else {
+    // Inside the docker container the USER env is not set
+    recycle.mMgmExec.InjectSimulated("mgm.cmd.proto=UgQKAggB", {"", "", 0});
+  }
+
   ASSERT_EQ(recycle.Execute(false, true), 0);
   // Setting EOSHOME env variable should update the eos.route
   setenv("EOSHOME", "/eos/home/test/", 1);
