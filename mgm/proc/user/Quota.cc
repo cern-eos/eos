@@ -192,7 +192,7 @@ ProcCommand::Quota()
     }
 
     if (mSubCmd == "set") {
-      if ((pVid->prot != "sss") || (Mapping::IsLocalhost(*pVid))) {
+      if ((pVid->prot != "sss") || pVid->isLocalhost()) {
         eos_notice("quota set");
         std::string msg {""};
         XrdOucString svolume = pOpaque->Get("mgm.quota.maxbytes");
@@ -287,7 +287,7 @@ ProcCommand::Quota()
     if (mSubCmd == "rm") {
       eos_notice("quota rm");
 
-      if ((pVid->prot != "sss") || (Mapping::IsLocalhost(*pVid))) {
+      if ((pVid->prot != "sss") || pVid->isLocalhost()) {
         int errc;
 
         if (space.empty()) {

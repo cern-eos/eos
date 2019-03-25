@@ -1789,21 +1789,6 @@ std::string Mapping::VidToString(VirtualIdentity& vid)
 }
 
 //------------------------------------------------------------------------------
-//! Function checking if we come from a localhost connection
-//------------------------------------------------------------------------------
-bool Mapping::IsLocalhost(VirtualIdentity& vid)
-{
-  if ((vid.host == "localhost") ||
-      (vid.host == "localhost.localdomain") ||
-      (vid.host == "localhost6") ||
-      (vid.host == "localhost6.localdomain6")) {
-    return true;
-  }
-
-  return false;
-}
-
-//------------------------------------------------------------------------------
 //! Function creating the Nobody identity
 //------------------------------------------------------------------------------
 void Mapping::Nobody(VirtualIdentity& vid)

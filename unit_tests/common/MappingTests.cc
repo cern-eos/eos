@@ -85,4 +85,26 @@ TEST(Mapping, VidAssignOperator)
   ASSERT_FALSE(copy_vid.hasGid(3));
 }
 
+TEST(VirtualIdentity, IsLocalhost) {
+  VirtualIdentity vid;
+
+  vid.host = "localhost";
+  ASSERT_TRUE(vid.isLocalhost());
+
+  vid.host = "localhost6";
+  ASSERT_TRUE(vid.isLocalhost());
+
+  vid.host = "localhost.localdomain";
+  ASSERT_TRUE(vid.isLocalhost());
+
+  vid.host = "localhost6.localdomain6";
+  ASSERT_TRUE(vid.isLocalhost());
+
+  vid.host = "pickles";
+  ASSERT_FALSE(vid.isLocalhost());
+
+  vid.host = "asdf";
+  ASSERT_FALSE(vid.isLocalhost());
+}
+
 EOSCOMMONTESTING_END

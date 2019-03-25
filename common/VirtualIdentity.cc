@@ -25,9 +25,9 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-//----------------------------------------------------------------------------
-//! Check if the uid vector contained has the requested uid
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Check if the uid vector contained has the requested uid
+//------------------------------------------------------------------------------
 bool VirtualIdentity::hasUid(uid_t uid) const {
   for(auto it = uid_list.begin(); it != uid_list.end(); it++) {
     if(*it == uid) {
@@ -38,14 +38,29 @@ bool VirtualIdentity::hasUid(uid_t uid) const {
   return false;
 }
 
-//----------------------------------------------------------------------------
-//! Check if the uid vector contained has the requested uid
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Check if the uid vector contained has the requested uid
+//------------------------------------------------------------------------------
 bool VirtualIdentity::hasGid(gid_t gid) const {
   for(auto it = gid_list.begin(); it != gid_list.end(); it++) {
     if(*it == gid) {
       return true;
     }
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Check if this client is coming from localhost
+//------------------------------------------------------------------------------
+bool VirtualIdentity::isLocalhost() const {
+  if (host == "localhost"               ||
+       host == "localhost.localdomain"  ||
+       host == "localhost6"             ||
+       host == "localhost6.localdomain6") {
+
+    return true;
   }
 
   return false;

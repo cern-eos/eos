@@ -134,11 +134,6 @@ public:
   //----------------------------------------------------------------------------
   static bool VidFromString(VirtualIdentity& vid, const char* vidstring);
 
-  //----------------------------------------------------------------------------
-  //! Function checking if we come from a localhost connection
-  //----------------------------------------------------------------------------
-  static bool IsLocalhost(VirtualIdentity& vid);
-
   // ---------------------------------------------------------------------------
   //! Main mapping function to create a virtual identity from authentication information
   // ---------------------------------------------------------------------------
