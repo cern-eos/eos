@@ -463,7 +463,7 @@ class ArchiveFile(object):
                 orig_size = int(entry[indx])
 
                 if stat_info.size != orig_size:
-                    err_msg = ("Verify entry={0}, size={1}, expect_size={2}"
+                    err_msg = ("Verify entry={0}, expect_size={1}, size={2}"
                                "").format(dst, orig_size, stat_info.size)
                     self.logger.error(err_msg)
                     raise CheckEntryException("failed file size match")
