@@ -142,7 +142,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Check for a role in the user id list
   // ---------------------------------------------------------------------------
-  static bool HasUid(uid_t uid, VirtualIdentity& vid);
+  // static bool HasUid(uid_t uid, VirtualIdentity& vid);
 
   // ---------------------------------------------------------------------------
   //! Check for a role in the group id list

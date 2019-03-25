@@ -545,7 +545,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
   std::ostringstream oss_out;
 
   if (global && ((!vid.uid) ||
-                 (eos::common::Mapping::HasUid(3, vid)) ||
+                 (vid.hasUid(3)) ||
                  (eos::common::Mapping::HasGid(4, vid)))) {
     // add everything found in the recycle directory structure to the printmap
     std::string subdirs;
@@ -802,7 +802,7 @@ Recycle::PrintOld(std::string& std_out, std::string& std_err,
   eos::common::Mapping::Root(rootvid);
 
   if ((!vid.uid) ||
-      (eos::common::Mapping::HasUid(3, vid)) ||
+      (vid.hasUid(3)) ||
       (eos::common::Mapping::HasGid(4, vid))) {
     // add everything found in the recycle directory structure to the printmap
     std::string subdirs;
@@ -1301,7 +1301,7 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
   std::string rpath;
 
   if (vid.uid && !vid.sudoer &&
-      !(eos::common::Mapping::HasUid(3, vid)) &&
+      !(vid.hasUid(3)) &&
       !(eos::common::Mapping::HasGid(4, vid))) {
     std_err = "error: you cannot purge your recycle bin without being a sudor "
               "or having an admin role";

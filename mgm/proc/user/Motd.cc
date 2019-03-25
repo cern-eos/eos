@@ -40,7 +40,7 @@ ProcCommand::Motd()
 
   if (motdupload.length() &&
       ((!pVid->uid) ||
-       eos::common::Mapping::HasUid(3, vid) ||
+       vid.hasUid(3) ||
        eos::common::Mapping::HasGid(4, vid))) {
     // root + admins can set the MOTD
     size_t motdlen = 0;

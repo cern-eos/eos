@@ -675,7 +675,7 @@ ProcCommand::File()
       cmdok = true;
 
       if ((!((vid.prot == "sss") &&
-             (eos::common::Mapping::HasUid(DAEMONUID, vid)))) &&
+             (vid.hasUid(DAEMONUID)))) &&
           (vid.uid)) {
         stdErr = "error: permission denied - you have to be root to run the 'tag' command";
         retc = EPERM;

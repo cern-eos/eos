@@ -468,11 +468,11 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     //    eos_static_debug("tident mapping");
     vid.uid = gVirtualUidMap[suidtident.c_str()];
 
-    if (!HasUid(vid.uid, vid)) {
+    if (!vid.hasUid(vid.uid)) {
       vid.uid_list.push_back(vid.uid);
     }
 
-    if (!HasUid(99, vid)) {
+    if (!vid.hasUid(99)) {
       vid.uid_list.push_back(99);
     }
   }
@@ -649,7 +649,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     vid.uid = 3;
     vid.gid = 4;
 
-    if (!HasUid(3, vid)) {
+    if (!vid.hasUid(3)) {
       vid.uid_list.push_back(vid.uid);
     }
 
@@ -664,7 +664,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   vid.uid = (gVirtualUidMap.count(useralias.c_str())) ?
             gVirtualUidMap[useralias.c_str() ] : vid.uid;
 
-  if (!HasUid(vid.uid, vid)) {
+  if (!vid.hasUid(vid.uid)) {
     vid.uid_list.insert(vid.uid_list.begin(), vid.uid);
   }
 
@@ -685,7 +685,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
     for (it = gUserRoleVector[vid.uid].begin();
          it != gUserRoleVector[vid.uid].end(); ++it)
-      if (!HasUid((*it), vid)) {
+      if (!vid.hasUid(*it)) {
         vid.uid_list.push_back((*it));
       }
   }
@@ -757,7 +757,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   // ---------------------------------------------------------------------------
   if (!vid.sudoer) {
     // if we are not a sudore, scan the allowed ids
-    if (HasUid(sel_uid, vid)) {
+    if (vid.hasUid(sel_uid)) {
       vid.uid = sel_uid;
     } else {
       vid.uid = 99;
@@ -777,7 +777,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         vid.gid_list.push_back(sel_gid);
       }
 
-      if (!eos::common::Mapping::HasUid(sel_uid, vid)) {
+      if (!vid.hasUid(sel_uid)) {
         vid.uid_list.push_back(sel_uid);
       }
     }
@@ -1806,15 +1806,15 @@ bool Mapping::IsLocalhost(VirtualIdentity& vid)
 // -----------------------------------------------------------------------------
 //! Check for a role in the user id list
 // -----------------------------------------------------------------------------
-bool Mapping::HasUid(uid_t uid, VirtualIdentity& vid)
-{
-  for (size_t i = 0; i < vid.uid_list.size(); i++)
-    if (vid.uid_list[i] == uid) {
-      return true;
-    }
+// bool Mapping::HasUid(uid_t uid, VirtualIdentity& vid)
+// {
+//   for (size_t i = 0; i < vid.uid_list.size(); i++)
+//     if (vid.uid_list[i] == uid) {
+//       return true;
+//     }
 
-  return false;
-}
+//   return false;
+// }
 
 // -----------------------------------------------------------------------------
 //! Check for a role in the group id list

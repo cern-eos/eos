@@ -79,7 +79,7 @@ XrdMgmOfs::_chown(const char* path,
     Acl acl(pPath.GetParentPath(), error, vid, attrmap, false);
     cmd = gOFS->eosView->getContainer(path, !nodereference);
 
-    if (((vid.uid) && (!eos::common::Mapping::HasUid(3, vid) &&
+    if (((vid.uid) && (!vid.hasUid(3) &&
                        !eos::common::Mapping::HasGid(4, vid)) &&
          !acl.CanChown()) ||
         ((vid.uid) && !acl.IsMutable())) {
