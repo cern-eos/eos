@@ -151,7 +151,7 @@ before_script:
     - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) -- git clone https://gitlab.cern.ch/dss/eosclient-tests.git
     - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) -- /bin/bash -c 'at now <<< "mkdir /eos1/; mount -t fuse eosxd /eos1/"'
     - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) -- /bin/bash -c 'at now <<< "mkdir /eos2/; mount -t fuse eosxd /eos2/"'
-    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) -- /bin/bash -c 'su eos-user; mkdir /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; fusex-benchmark; exit' # workaround for docker exec '-u' flag
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) -- /bin/bash -c 'su eos-user; mkdir -p /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; fusex-benchmark; exit' # workaround for docker exec '-u' flag
 
 
 clone_docker:
