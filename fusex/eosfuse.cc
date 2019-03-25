@@ -1427,7 +1427,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       setvbuf(fstderr, (char*) NULL, _IONBF, 0);
     }
 
-#ifdef EOSCITRINE
     eos::common::Logging::GetInstance().SetUnit("FUSE@eosxd");
     eos::common::Logging::GetInstance().gShortFormat = true;
     eos::common::Logging::GetInstance().SetFilter("DumpStatistic");
@@ -1441,24 +1440,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         eos::common::Logging::GetInstance().SetLogPriority(LOG_INFO);
       }
     }
+    eos::common::Logging::GetInstance().SetIndexSize(512);
 
-#else
-    eos::common::Logging::Init();
-    eos::common::Logging::SetUnit("FUSE@eosxd");
-    eos::common::Logging::gShortFormat = true;
-    eos::common::Logging::SetFilter("DumpStatistic");
-
-    if (config.options.debug) {
-      eos::common::Logging::SetLogPriority(LOG_DEBUG);
-    } else {
-      if (config.options.debuglevel) {
-        eos::common::Logging::SetLogPriority(config.options.debuglevel);
-      } else {
-        eos::common::Logging::SetLogPriority(LOG_INFO);
-      }
-    }
-
-#endif
     // initialize mKV in case no cache is configured to act as no-op
     mKV.reset(new RedisKV());
 #ifdef ROCKSDB_FOUND
