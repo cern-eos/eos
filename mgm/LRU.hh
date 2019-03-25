@@ -55,7 +55,7 @@ public:
   LRU()
   {
     mMs = 0;
-    eos::common::Mapping::Root(mRootVid);
+    mRootVid = eos::common::VirtualIdentity::Root();
   }
 
   /**

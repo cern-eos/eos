@@ -1152,8 +1152,7 @@ ProcCommand::File()
                   }
                 }
 
-                eos::common::VirtualIdentity rootvid;
-                eos::common::Mapping::Root(rootvid);
+                eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
 
                 if (gOFS->_touch(conversiontagfile, *mError, rootvid, 0)) {
                   stdErr += "error: unable to create conversion job '";

@@ -26,6 +26,25 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+// "Constructor" - return Root identity
+//------------------------------------------------------------------------------
+VirtualIdentity VirtualIdentity::Root() {
+  VirtualIdentity vid;
+  vid.uid = 0;
+  vid.gid = 0;
+
+  vid.uid_list = {0};
+  vid.gid_list = {0};
+
+  vid.name = "root";
+  vid.prot = "local";
+  vid.tident = "service@localhost";
+  vid.sudoer = false;
+
+  return vid;
+}
+
+//------------------------------------------------------------------------------
 // Check if the uid vector contained has the requested uid
 //------------------------------------------------------------------------------
 bool VirtualIdentity::hasUid(uid_t uid) const {

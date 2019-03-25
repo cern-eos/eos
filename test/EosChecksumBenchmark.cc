@@ -42,8 +42,7 @@ XrdPosixXrootd posixXrootd;
 
 int main(int argc, char* argv[])
 {
-  eos::common::VirtualIdentity vid;
-  eos::common::Mapping::Root(vid);
+  eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   g_logging.SetUnit("eoschecksumbenchmark@localhost");
   g_logging.gShortFormat = true;

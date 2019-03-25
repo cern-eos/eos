@@ -352,8 +352,7 @@ eos_debug("vid.uid %d vid.gid %d CanotDelete %d CUid %d", vid.uid, vid.gid, acl.
                     "space is full");
       } else {
         // Move the file to the recycle bin
-        eos::common::VirtualIdentity rootvid;
-        eos::common::Mapping::Root(rootvid);
+        eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
         int rc = 0;
         Recycle lRecycle(path, attrmap[Recycle::gRecyclingAttribute].c_str(),
                          &vid, fmd->getCUid(), fmd->getCGid(),
@@ -381,8 +380,7 @@ eos_debug("vid.uid %d vid.gid %d CanotDelete %d CUid %d", vid.uid, vid.gid, acl.
 
       // tag the version directory key on the garbage file
       if (recyclePath.length()) {
-        eos::common::VirtualIdentity rootvid;
-        eos::common::Mapping::Root(rootvid);
+        eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
         struct stat buf;
 
         if (!gOFS->_stat(vdir.c_str(), &buf, error, rootvid, 0, 0)) {

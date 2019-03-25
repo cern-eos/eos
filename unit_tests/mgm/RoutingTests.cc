@@ -94,8 +94,7 @@ TEST(Routing, StallRedirect)
                           std::move(endpoint)));
   }
 
-  eos::common::VirtualIdentity vid;
-  eos::common::Mapping::Root(vid);
+  eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
   std::string host;
   int port;
   ASSERT_TRUE(PathRouting::Status::NOROUTING ==

@@ -58,6 +58,11 @@ struct VirtualIdentity {
   VirtualIdentity() : uid(99), gid(99), sudoer(false) {}
 
   //----------------------------------------------------------------------------
+  //! "Constructor" - return Root identity
+  //----------------------------------------------------------------------------
+  static VirtualIdentity Root();
+
+  //----------------------------------------------------------------------------
   //! Check if the uid vector contains has the requested uid
   //----------------------------------------------------------------------------
   bool hasUid(uid_t uid) const;

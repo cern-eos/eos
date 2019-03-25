@@ -63,8 +63,7 @@ S3Store::Refresh()
     eos::common::RWMutexWriteLock sLock(mStoreMutex);
     mStoreReloadTime = now;
     XrdOucErrInfo error;
-    eos::common::VirtualIdentity vid;
-    eos::common::Mapping::Root(vid);
+    eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
     eos::IContainerMD::XAttrMap map;
     struct stat buf;
 
@@ -167,8 +166,7 @@ S3Store::ListBuckets(const std::string& id)
       // check if we know how to map a bucket name into our regular namespace
       std::string bucketpath = mS3ContainerPath[*it];
       XrdOucErrInfo error;
-      eos::common::VirtualIdentity vid;
-      eos::common::Mapping::Root(vid);
+      eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
       eos::IContainerMD::XAttrMap map;
       struct stat buf;
 
@@ -211,8 +209,7 @@ S3Store::ListBucket(const std::string& bucket, const std::string& query)
 {
   using namespace eos::common;
   XrdOucErrInfo error;
-  VirtualIdentity vid;
-  Mapping::Root(vid);
+  VirtualIdentity vid = VirtualIdentity::Root();
   RWMutexReadLock sLock(mStoreMutex);
   HttpResponse* response = 0;
 

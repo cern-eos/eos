@@ -48,7 +48,8 @@ XrdMgmOfs::AdjustReplica(const char* path,
   MAYREDIRECT;
 
   EXEC_TIMING_BEGIN("AdjustReplica");
-  eos::common::Mapping::Root(vid);
+  // TODO(gbitzes): If vid is replaced with root, why is it even a parameter?!
+  vid = eos::common::VirtualIdentity::Root();
 
   // Execute a proc command
   ProcCommand Cmd;

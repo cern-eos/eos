@@ -465,8 +465,7 @@ int main(int argc, char* argv[])
   string resultsFile;     // file name holding the run results
   string outputFile;      // file name where the run results are to saved
   // Set up the loggin infrastructure
-  eos::common::VirtualIdentity vid;
-  eos::common::Mapping::Root(vid);
+  eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   g_logging.SetUnit("bmk@localhost");
   g_logging.gShortFormat = true;

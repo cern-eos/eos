@@ -363,8 +363,7 @@ GeoBalancer::updateTransferList()
   std::map<eos::common::FileId::fileid_t, std::string>::iterator it;
 
   for (it = mTransfers.begin(); it != mTransfers.end();) {
-    eos::common::VirtualIdentity rootvid;
-    eos::common::Mapping::Root(rootvid);
+    eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
     XrdOucErrInfo error;
     const std::string& fileName = (*it).second;
     struct stat buf;
@@ -393,8 +392,7 @@ GeoBalancer::scheduleTransfer(eos::common::FileId::fileid_t fid,
  */
 /*----------------------------------------------------------------------------*/
 {
-  eos::common::VirtualIdentity rootvid;
-  eos::common::Mapping::Root(rootvid);
+  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   XrdOucErrInfo mError;
   uint64_t size = 0;
   std::string fileName = getFileProcTransferNameAndSize(fid, &size);
@@ -557,8 +555,7 @@ GeoBalancer::prepareTransfers(int nrTransfers)
 void
 GeoBalancer::GeoBalance(ThreadAssistant& assistant) noexcept
 {
-  eos::common::VirtualIdentity rootvid;
-  eos::common::Mapping::Root(rootvid);
+  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   XrdOucErrInfo error;
   gOFS->WaitUntilNamespaceIsBooted(assistant);
   assistant.wait_for(std::chrono::seconds(10));

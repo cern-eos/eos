@@ -901,8 +901,7 @@ XrdMgmOfs::StartArchiveSubmitter(ThreadAssistant& assistant) noexcept
   std::string job_opaque;
   XrdOucString std_out, std_err;
   int max, running, pending;
-  eos::common::VirtualIdentity root_vid;
-  eos::common::Mapping::Root(root_vid);
+  eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
   eos_debug("msg=\"starting archive/backup submitter thread\"");
   std::ostringstream cmd_json;
   cmd_json << "{\"cmd\": \"stats\", "

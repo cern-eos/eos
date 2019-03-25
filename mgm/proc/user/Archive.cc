@@ -629,8 +629,7 @@ ProcCommand::ArchiveGetDirs(const std::string& root) const
   const char* dname;
   std::string full_path;
   std::set<std::string> fids;
-  eos::common::VirtualIdentity root_ident;
-  eos::common::Mapping::Root(root_ident);
+  eos::common::VirtualIdentity root_ident = eos::common::VirtualIdentity::Root();
   std::vector<ArchDirStatus> dirs;
   XrdMgmOfsDirectory proc_dir;
   int retc = proc_dir._open(gOFS->MgmProcArchivePath.c_str(),
@@ -885,8 +884,7 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
   // Remove local archive file
   unlink(arch_fn.c_str());
   // Change the permissions on the archive file to 644
-  eos::common::VirtualIdentity root_ident;
-  eos::common::Mapping::Root(root_ident);
+  eos::common::VirtualIdentity root_ident = eos::common::VirtualIdentity::Root();
   XrdSfsMode mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
   if (gOFS->_chmod(dst_path.c_str(), mode, *mError, root_ident)) {
@@ -918,8 +916,7 @@ ProcCommand::MakeSubTreeImmutable(const std::string& arch_dir,
   bool found_archive = false;
   // Map of directories to set of files
   std::map< std::string, std::set<std::string> > found;
-  eos::common::VirtualIdentity root_vid;
-  eos::common::Mapping::Root(root_vid);
+  eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
 
   // Check for already archived directories in the current sub-tree
   if (gOFS->_find(arch_dir.c_str(), *mError, stdErr, root_vid, found,
@@ -952,8 +949,7 @@ ProcCommand::MakeSubTreeImmutable(const std::string& arch_dir,
   }
 
   // Make the EOS sub-tree immutable e.g.: add sys.acl=z:i
-  eos::common::VirtualIdentity root_ident;
-  eos::common::Mapping::Root(root_ident);
+  eos::common::VirtualIdentity root_ident = eos::common::VirtualIdentity::Root();
   const char* acl_key = "sys.acl";
   XrdOucString acl_val;
 
@@ -998,8 +994,7 @@ int
 ProcCommand::MakeSubTreeMutable(const std::string& arch_dir)
 {
   std::map< std::string, std::set<std::string> > found;
-  eos::common::VirtualIdentity root_vid;
-  eos::common::Mapping::Root(root_vid);
+  eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
 
   // Get all dirs in current subtree
   if (gOFS->_find(arch_dir.c_str(), *mError, stdErr, root_vid, found,
@@ -1111,8 +1106,7 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
     info += "&mgm.option=dI";
   }
 
-  eos::common::VirtualIdentity root_vid;
-  eos::common::Mapping::Root(root_vid);
+  eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
   cmd_find->open("/proc/user", info.c_str(), root_vid, mError);
   int ret = cmd_find->close();
 

@@ -69,9 +69,7 @@ XrdMgmOfs::CreateSharePath(const char* inpath,
 
   struct stat buf;
 
-  eos::common::VirtualIdentity rootvid;
-
-  eos::common::Mapping::Root(rootvid);
+  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
 
   if (_stat(path, &buf, error, rootvid)) {
     return std::string("");
@@ -150,8 +148,7 @@ XrdMgmOfs::VerifySharePath(const char* path,
 
   // get the fid
   struct stat buf;
-  eos::common::VirtualIdentity rootvid;
-  eos::common::Mapping::Root(rootvid);
+  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   XrdOucErrInfo error;
 
   if (_stat(path, &buf, error, rootvid)) {

@@ -1587,8 +1587,7 @@ XrdMgmOfsFile::open(const char* inpath,
         } catch (eos::MDException& e) {}
 
         if (do_remove) {
-          eos::common::VirtualIdentity vidroot;
-          eos::common::Mapping::Root(vidroot);
+          eos::common::VirtualIdentity vidroot = eos::common::VirtualIdentity::Root();
           gOFS->_rem(cPath.GetPath(), error, vidroot, 0, false, false, false);
         }
       }
@@ -2035,8 +2034,7 @@ XrdMgmOfsFile::open(const char* inpath,
         (eos::common::LayoutId::GetStripeNumber(layoutId) + 1);
       plainBookingSize += 4096;
       plainBookingSize *= PioReconstructFsList.size();
-      eos::common::VirtualIdentity rootvid;
-      eos::common::Mapping::Root(rootvid);
+      eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
       /// ###############
       // if the client should go through a firewall entrypoint, try to get it
       // if the scheduled fs need to be accessed through a dataproxy, try to get it
@@ -2378,8 +2376,7 @@ XrdMgmOfsFile::open(const char* inpath,
   if (vid.prot == "https") {
     struct stat buf;
     std::string etag;
-    eos::common::VirtualIdentity rootvid;
-    eos::common::Mapping::Root(rootvid);
+    eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
     // get the current ETAG
     gOFS->_stat(path, &buf, error, rootvid, "", &etag);
     redirectionhost += "&mgm.etag=";

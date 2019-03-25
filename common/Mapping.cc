@@ -1803,21 +1803,5 @@ void Mapping::Nobody(VirtualIdentity& vid)
   vid.tident = "nobody@unknown";
 }
 
-//----------------------------------------------------------------------------
-//! Function creating the root identity
-//----------------------------------------------------------------------------
-void Mapping::Root(VirtualIdentity& vid)
-{
-  vid.uid = vid.gid = 0;
-  vid.uid_list.clear();
-  vid.gid_list.clear();
-  vid.uid_list.push_back(0);
-  vid.gid_list.push_back(0);
-  vid.name = "root";
-  vid.prot = "local";
-  vid.tident = "service@localhost";
-  vid.sudoer = false;
-}
-
 /*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END

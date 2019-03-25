@@ -251,8 +251,7 @@ XrdMgmOfs::Commit(const char* path,
       gOFS->mTapeAwareGc.fileReplicaCommitted(cgi["path"], *fmd);
     }
     {
-      eos::common::VirtualIdentity rootvid;
-      eos::common::Mapping::Root(rootvid);
+      eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
       // Path of a previous version existing before an atomic/versioning upload
       std::string delete_path = "";
       eos_thread_info("commitsize=%d n1=%s n2=%s occhunk=%d ocdone=%d",

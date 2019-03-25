@@ -120,11 +120,6 @@ public:
   static void Nobody(VirtualIdentity& vid);
 
   //----------------------------------------------------------------------------
-  //! Function creating the root identity
-  //----------------------------------------------------------------------------
-  static void Root(VirtualIdentity& vid);
-
-  //----------------------------------------------------------------------------
   //! Function converting vid to a string representation
   //----------------------------------------------------------------------------
   static std::string VidToString(VirtualIdentity& vid);

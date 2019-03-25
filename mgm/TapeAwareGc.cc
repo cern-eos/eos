@@ -337,8 +337,7 @@ TapeAwareGc::tryToGarbageCollectASingleFile() noexcept
 console::ReplyProto
 TapeAwareGc::stagerrmAsRoot(const IFileMD::id_t fid)
 {
-  eos::common::VirtualIdentity rootVid;
-  eos::common::Mapping::Root(rootVid);
+  eos::common::VirtualIdentity rootVid = eos::common::VirtualIdentity::Root();
 
   eos::console::RequestProto req;
   eos::console::StagerRmProto* stagerRm = req.mutable_stagerrm();

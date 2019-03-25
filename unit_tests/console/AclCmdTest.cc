@@ -161,8 +161,7 @@ TEST(MgmExecute, FailedSimulation)
 TEST(AclCmd, CheckId)
 {
   eos::console::RequestProto req;
-  eos::common::VirtualIdentity vid;
-  eos::common::Mapping::Root(vid);
+  eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
 
   AclCmd test(std::move(req), vid);
   ASSERT_TRUE(test.CheckCorrectId("u:user"));
@@ -177,8 +176,7 @@ TEST(AclCmd, CheckId)
 TEST(AclCmd, GetRuleBitmask)
 {
   eos::console::RequestProto req;
-  eos::common::VirtualIdentity vid;
-  eos::common::Mapping::Root(vid);
+  eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
 
   AclCmd test(std::move(req), vid);
 
@@ -210,8 +208,7 @@ TEST(AclCmd, AclRuleFromString)
   Rule temp;
 
   eos::console::RequestProto req;
-  eos::common::VirtualIdentity vid;
-  eos::common::Mapping::Root(vid);
+  eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
 
   AclCmd test(std::move(req), vid);
   temp = test.GetRuleFromString("u:user1:rwx!u");

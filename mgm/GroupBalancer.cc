@@ -372,8 +372,7 @@ GroupBalancer::updateTransferList()
 /*----------------------------------------------------------------------------*/
 {
   for (auto it = mTransfers.begin(); it != mTransfers.end();) {
-    eos::common::VirtualIdentity rootvid;
-    eos::common::Mapping::Root(rootvid);
+    eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
     XrdOucErrInfo error;
     const std::string& fileName = (*it).second;
     struct stat buf;
@@ -410,8 +409,7 @@ GroupBalancer::scheduleTransfer(eos::common::FileId::fileid_t fid,
     return;
   }
 
-  eos::common::VirtualIdentity rootvid;
-  eos::common::Mapping::Root(rootvid);
+  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   XrdOucErrInfo mError;
   uint64_t size = -1;
   std::string fileName = getFileProcTransferNameAndSize(fid, targetGroup, &size);
@@ -613,8 +611,7 @@ GroupBalancer::GroupBalance()
  */
 /*----------------------------------------------------------------------------*/
 {
-  eos::common::VirtualIdentity rootvid;
-  eos::common::Mapping::Root(rootvid);
+  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   XrdOucErrInfo error;
   gOFS->WaitUntilNamespaceIsBooted();
   std::this_thread::sleep_for(std::chrono::seconds(10));

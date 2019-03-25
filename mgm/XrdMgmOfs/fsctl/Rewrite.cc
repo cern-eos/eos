@@ -74,8 +74,7 @@ XrdMgmOfs::Rewrite(const char* path,
     eos_thread_info("msg=\"suppressing auto-repair\" fxid=\"%s\"",
                     (hexfid) ? hexfid : "<missing>");
   } else {
-    eos::common::VirtualIdentity rvid;
-    eos::common::Mapping::Root(rvid);
+    eos::common::VirtualIdentity rvid = eos::common::VirtualIdentity::Root();
     // Convert fxid to path
     errno = 0;
     const char* spath = 0;

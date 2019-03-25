@@ -977,8 +977,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
         } catch (eos::MDException& e) {}
 
         // Issue verify operations on that particular filesystem
-        eos::common::VirtualIdentity vid;
-        eos::common::Mapping::Root(vid);
+        eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
         XrdOucErrInfo error;
         int lretc = 1;
 
@@ -1090,8 +1089,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
     // Unlink all unregistered files
     std::map < eos::common::FileSystem::fsid_t,
         std::set < eos::common::FileId::fileid_t >> fid2check;
-    eos::common::VirtualIdentity vid;
-    eos::common::Mapping::Root(vid);
+    eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
     XrdOucErrInfo error;
 
     // Loop over all filesystems
@@ -1231,8 +1229,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
             path = gOFS->eosView->getUri(fmd.get());
           }
           // Execute adjust replica
-          eos::common::VirtualIdentity vid;
-          eos::common::Mapping::Root(vid);
+          eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
           XrdOucErrInfo error;
           ProcCommand Cmd;
           XrdOucString info = "mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.path=";
@@ -1270,8 +1267,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
     // have no 'image' on disk
     std::map < eos::common::FileSystem::fsid_t,
         std::set < eos::common::FileId::fileid_t >> fid2check;
-    eos::common::VirtualIdentity vid;
-    eos::common::Mapping::Root(vid);
+    eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
     XrdOucErrInfo error;
 
     // Loop over all filesystems
@@ -1380,8 +1376,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
       if (fmd) {
         if ((ctime.tv_sec + (24 * 3600)) < now) {
           // If the file is older than 48 hours, we do the cleanup
-          eos::common::VirtualIdentity vid;
-          eos::common::Mapping::Root(vid);
+          eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
           XrdOucErrInfo error;
 
           if (!gOFS->_rem(path.c_str(), error, vid)) {
@@ -1470,8 +1465,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
           break;
         }
 
-        eos::common::VirtualIdentity vid;
-        eos::common::Mapping::Root(vid);
+        eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
         XrdOucErrInfo error;
 
         if (gOFS->_dropstripe(path.c_str(), fid, error, vid, efsmapit.first, true)) {

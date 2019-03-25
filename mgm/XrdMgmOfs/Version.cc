@@ -172,8 +172,7 @@ XrdMgmOfs::PurgeVersion(const char* versiondir,
                         XrdOucErrInfo& error,
                         int max_versions)
 {
-  eos::common::VirtualIdentity rootvid;
-  eos::common::Mapping::Root(rootvid);
+  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   eos_info("version-dir=%s max-versions=%d", versiondir, max_versions);
 
   if (!versiondir) {

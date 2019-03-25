@@ -170,8 +170,7 @@ void
 SpaceQuota::UpdateLogicalSizeFactor()
 {
   XrdOucErrInfo error;
-  eos::common::VirtualIdentity vid;
-  eos::common::Mapping::Root(vid);
+  eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
   vid.sudoer = 1;
   eos::IContainerMD::XAttrMap map;
   int retc = gOFS->_attr_ls(pPath.c_str(), error, vid, 0, map, false);

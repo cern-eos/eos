@@ -207,8 +207,7 @@ int checkFileAccess(unsigned long lid, unsigned long& fsindex,
                     std::vector<unsigned int>& locationfs,
                     XrdOucErrInfo& error)
 {
-  eos::common::VirtualIdentity h_vid;
-  eos::common::Mapping::Root(h_vid);
+  eos::common::VirtualIdentity h_vid = eos::common::VirtualIdentity::Root();
   std::vector<unsigned int> unavailfs;
   std::string tried_cgi;
   int rc = 0;
