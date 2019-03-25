@@ -2844,7 +2844,7 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
     }
   }
   // Handle virtual identity
-  eos::common::Mapping::Nobody(vid);
+  vid = eos::common::VirtualIdentity::Nobody();
 
   if ((val = mCapOpaque->Get("mgm.ruid"))) {
     vid.uid = atoi(val);

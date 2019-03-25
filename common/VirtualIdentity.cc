@@ -45,6 +45,24 @@ VirtualIdentity VirtualIdentity::Root() {
 }
 
 //------------------------------------------------------------------------------
+// "Constructor" - return Nobody identity
+//------------------------------------------------------------------------------
+VirtualIdentity VirtualIdentity::Nobody() {
+  VirtualIdentity vid;
+  vid.uid = 99;
+  vid.gid = 99;
+
+  vid.uid_list = {99};
+  vid.gid_list = {99};
+
+  vid.name = "nobody";
+  vid.sudoer = false;
+  vid.tident = "nobody@unknown";
+
+  return vid;
+}
+
+//------------------------------------------------------------------------------
 // Check if the uid vector contained has the requested uid
 //------------------------------------------------------------------------------
 bool VirtualIdentity::hasUid(uid_t uid) const {

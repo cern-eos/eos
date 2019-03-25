@@ -61,8 +61,7 @@ XrdMgmOfs::Event(const char* path,
   char* aworkflow = env.Get("mgm.workflow");
   char* errmsg = env.Get("mgm.errmsg");
 
-  eos::common::VirtualIdentity localVid;
-  eos::common::Mapping::Nobody(localVid);
+  eos::common::VirtualIdentity localVid = eos::common::VirtualIdentity::Nobody();
   int errc;
 
   if (auid) {

@@ -169,7 +169,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   eos_static_debug("name:%s role:%s group:%s tident:%s", client->name,
                    client->role, client->grps, client->tident);
   // you first are 'nobody'
-  Nobody(vid);
+  vid = VirtualIdentity::Nobody();
   XrdOucEnv Env(env);
   vid.name = client->name;
   vid.tident = tident;
@@ -271,7 +271,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         if (!errc) {
           Mapping::getPhysicalIds(cname.c_str(), vid);
         } else {
-          Nobody(vid);
+          vid = VirtualIdentity::Nobody();
           eos_static_err("voms-mapping: cannot translate uid=%d to user name with the password db",
                          (int) gVirtualUidMap[vomsuidstring]);
         }
@@ -1786,21 +1786,6 @@ std::string Mapping::VidToString(VirtualIdentity& vid)
            vid.prot.c_str(),
            vid.tident.c_str());
   return std::string(vids);
-}
-
-//------------------------------------------------------------------------------
-//! Function creating the Nobody identity
-//------------------------------------------------------------------------------
-void Mapping::Nobody(VirtualIdentity& vid)
-{
-  vid.uid = vid.gid = 99;
-  vid.uid_list.clear();
-  vid.gid_list.clear();
-  vid.uid_list.push_back(99);
-  vid.gid_list.push_back(99);
-  vid.name = "nobody";
-  vid.sudoer = false;
-  vid.tident = "nobody@unknown";
 }
 
 /*----------------------------------------------------------------------------*/

@@ -55,7 +55,7 @@ XrdMgmOfsDirectory::XrdMgmOfsDirectory(char* user, int MonID):
   XrdSfsDirectory(user, MonID)
 {
   dirName = "";
-  eos::common::Mapping::Nobody(vid);
+  vid = eos::common::VirtualIdentity::Nobody();
   eos::common::LogId();
 }
 

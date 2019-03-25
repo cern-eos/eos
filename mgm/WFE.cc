@@ -503,10 +503,10 @@ WFE::Job::Load(std::string path2entry)
 
         if (!eos::common::Mapping::VidFromString(mVid, vidstring)) {
           eos_static_crit("parsing of %s failed - setting nobody\n", vidstring);
-          eos::common::Mapping::Nobody(mVid);
+          mVid = eos::common::VirtualIdentity::Nobody();
         }
       } catch (eos::MDException& ex) {
-        eos::common::Mapping::Nobody(mVid);
+        mVid = eos::common::VirtualIdentity::Nobody();
         eos_static_err("msg=\"no vid stored\" path=\"%s\"", f.c_str());
       }
 

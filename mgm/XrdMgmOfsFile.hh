@@ -75,7 +75,7 @@ public:
   {
     oh = 0;
     openOpaque = 0;
-    eos::common::Mapping::Nobody(vid);
+    vid = eos::common::VirtualIdentity::Nobody();
     fileId = 0;
     fmd.reset();
     isZeroSizeFile = false;

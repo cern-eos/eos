@@ -475,8 +475,7 @@ S3Store::HeadBucket(const std::string& id,
   using namespace eos::common;
   HttpResponse* response = 0;
   XrdOucErrInfo error;
-  VirtualIdentity vid;
-  Mapping::Nobody(vid);
+  VirtualIdentity vid = VirtualIdentity::Nobody();
   int errc = 0;
   std::string username = id;
   uid_t uid = Mapping::UserNameToUid(username, errc);
@@ -547,8 +546,7 @@ S3Store::HeadObject(const std::string& id,
 {
   using namespace eos::common;
   XrdOucErrInfo error;
-  VirtualIdentity vid;
-  Mapping::Nobody(vid);
+  VirtualIdentity vid = VirtualIdentity::Nobody();
   HttpResponse* response = 0;
   int errc = 0;
   std::string username = id;
@@ -634,8 +632,7 @@ S3Store::GetObject(eos::common::HttpRequest* request,
   using namespace eos::common;
   std::string result;
   XrdOucErrInfo error;
-  VirtualIdentity vid;
-  Mapping::Nobody(vid);
+  VirtualIdentity vid = VirtualIdentity::Nobody();
   HttpResponse* response = 0;
   int errc = 0;
   std::string username = id;
@@ -817,8 +814,7 @@ S3Store::PutObject(eos::common::HttpRequest* request,
   using namespace eos::common;
   std::string result;
   XrdOucErrInfo error;
-  VirtualIdentity vid;
-  Mapping::Nobody(vid);
+  VirtualIdentity vid = VirtualIdentity::Nobody();
   HttpResponse* response = 0;
   int errc = 0;
   std::string username = id;
@@ -914,8 +910,7 @@ S3Store::DeleteObject(eos::common::HttpRequest* request,
 {
   using namespace eos::common;
   XrdOucErrInfo error;
-  VirtualIdentity vid;
-  Mapping::Nobody(vid);
+  VirtualIdentity vid = VirtualIdentity::Nobody();
   HttpResponse* response = 0;
   int errc = 0;
   std::string username = id;

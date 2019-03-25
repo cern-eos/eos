@@ -63,6 +63,11 @@ struct VirtualIdentity {
   static VirtualIdentity Root();
 
   //----------------------------------------------------------------------------
+  //! "Constructor" - return Nobody identity
+  //----------------------------------------------------------------------------
+  static VirtualIdentity Nobody();
+
+  //----------------------------------------------------------------------------
   //! Check if the uid vector contains has the requested uid
   //----------------------------------------------------------------------------
   bool hasUid(uid_t uid) const;

@@ -71,8 +71,7 @@ XrdMgmOfs::stat(const char* inpath,
   static const char* epname = "stat";
   const char* tident = error.getErrUser();
   // use a thread private vid
-  eos::common::VirtualIdentity vid;
-  eos::common::Mapping::Nobody(vid);
+  eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Nobody();
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
   XrdOucEnv Open_Env(ininfo);

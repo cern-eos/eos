@@ -115,11 +115,6 @@ public:
   };
 
   //----------------------------------------------------------------------------
-  //! Function creating the Nobody identity
-  //----------------------------------------------------------------------------
-  static void Nobody(VirtualIdentity& vid);
-
-  //----------------------------------------------------------------------------
   //! Function converting vid to a string representation
   //----------------------------------------------------------------------------
   static std::string VidToString(VirtualIdentity& vid);
