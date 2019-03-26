@@ -116,12 +116,12 @@ before_script:
     - . /home/gitlab-runner/coe-cluster-config/st-gitlab-k8s-01/env_st-gitlab-k8s-01.sh # get access configs for the cluster
     - NAMESPACE=$(echo ${CI_JOB_NAME}-${CI_JOB_ID}-${CI_PIPELINE_ID} | tr _ -) # must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character
     - if [[ "$CI_PROJECT_NAME" == "eos-on-k8s" ]]; then
-        IMAGE_TAG="${BASETAG}764390";
+        IMAGE_TAG="${BASETAG}773981";
         git clone --single-branch --branch ${CI_COMMIT_REF_NAME} https://gitlab.cern.ch/faluchet/eos-on-k8s.git;
       else
         IMAGE_TAG="${BASETAG}${CI_PIPELINE_ID}";
         git clone https://gitlab.cern.ch/faluchet/eos-on-k8s.git;
-      fi; # @todo (faluchet) Remove the if-condition when the project is complete.
+      fi; # @todo (faluchet) Remove this if-condition when the project is complete.
 
 .k8s_after_script_template: &k8s_after_script_template
   after_script:
@@ -131,6 +131,8 @@ before_script:
     - rm -rf eos-on-k8s/
     - docker images -q | xargs docker rmi || true # remove unused images
 
+
+# todo(faluchet) this will be moved in a script
 .k8s_system_test_script_template: &k8s_system_test_script_template
   script:
     - if [[ "$CI_JOB_NAME" == k8s_system_test ]]; then
@@ -144,14 +146,44 @@ before_script:
       else 
         echo "CI_JOB_NAME:$CI_JOB_NAME not found"; exit 1;
       fi
-    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- /bin/bash -c 'eos vid enable krb5;'
-    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- sed -i 's/eos-mq-test.eoscluster.cern.ch/eos-mq/g' /usr/sbin/eos-instance-test-ci # @todo tmp, then re-code the file
-    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- sed -i 's/eos-fst4-test.eoscluster.cern.ch/eos-fst4.eos-fst4.'"$NAMESPACE"'.svc.cluster.local/g' /usr/sbin/eos-drain-test # @todo tmp, then re-code the file
-    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-instance-test-ci
-    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) -- git clone https://gitlab.cern.ch/dss/eosclient-tests.git
-    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) -- /bin/bash -c 'at now <<< "mkdir /eos1/; mount -t fuse eosxd /eos1/"'
-    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) -- /bin/bash -c 'at now <<< "mkdir /eos2/; mount -t fuse eosxd /eos2/"'
-    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) -- /bin/bash -c 'su eos-user; mkdir -p /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; fusex-benchmark; exit' # workaround for docker exec '-u' flag
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) 
+        -- eos chmod 2777 /eos/dockertest/
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) 
+        -- eos vid enable krb5
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) 
+        -- sed -i 's/eos-mq-test.eoscluster.cern.ch/eos-mq/g' /usr/sbin/eos-instance-test-ci                                        # @todo tmp, then re-code the file
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) 
+        -- sed -i "s/eos-fst4-test.eoscluster.cern.ch/eos-fst4.eos-fst4.${NAMESPACE}.svc.cluster.local/g" /usr/sbin/eos-drain-test  # @todo tmp, then re-code the file
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) 
+        -- eos-instance-test-ci
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) 
+        -- git clone https://gitlab.cern.ch/dss/eosclient-tests.git
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) 
+        -- /bin/bash -c 'atd; at now <<< "mkdir /eos1/; mount -t fuse eosxd /eos1/; mkdir /eos2/; mount -t fuse eosxd /eos2/;"'
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) 
+        -- /bin/bash -c 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos1/dockertest/ ]] || [[ ! -d /eos2/dockertest/ ]] ); do 
+              echo "Wait for mount ... $count"; count=$(($count + 1)); sleep 1; done;'
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) 
+        -- su - eos-user -c 'mkdir /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; /usr/sbin/fusex-benchmark' # workaround for docker exec '-u' flag
+    # @todo(esindril): run "all" tests in schedule mode once these are properly supported,\
+    # until then just run the "ci" tests
+    - if [ "$CI_PIPELINE_SOURCE" == "schedule" ]; then
+        kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) 
+          -- eos vid add gateway "eos-cli1.eos-cli1.${NAMESPACE}.svc.cluster.local" unix;
+        kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) 
+          -- env EOS_FUSE_NO_ROOT_SQUASH=1 python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci;
+      else
+        kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) 
+          -- su - eos-user -c 'python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci';
+      fi
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) 
+        -- eos fuse mount /eos_fuse
+    #   -- env EOS_MGM_URL="root://eos-mgm.eos-mgm.${NAMESPACE}.svc.cluster.local" eos fuse mount /eos_fuse
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) 
+        -- eos fuse mount /eos_fuse2
+    #   -- env EOS_MGM_URL="root://eos-mgm.eos-mgm.${NAMESPACE}.svc.cluster.local" eos fuse mount /eos_fuse2
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-cli1) 
+        -- python /eosclient-tests/run.py --workdir="/eos_fuse/dockertest /eos_fuse2/dockertest" ci
 
 
 clone_docker:
