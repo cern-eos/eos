@@ -19,12 +19,17 @@ This release is based on XRootD V4 and IPV6 enabled.
 ``v4.4.32 Citrine``
 ===================
 
-2019-03-21
+2019-03-26
 
 Bug
 ---
 
-* Fix slave follower problem with new mutex implementation due to unlock_shared vs unlock calls - EOS-3347
+* [EOS-3347] - Fix slave follower problem with new mutex implementation due to unlock_shared vs unlock calls
+* [EOS-3348] - openSize used in XrdFstOfsFile::open
+* [EOS-3350] - Fusex lists duplicate items
+* [EOS-3352] - RAIN upload is not failed if a stripe cannot be opened for creation
+* [EOS-3354] - MGM deadlock while loading the configuration
+
 
 Refactoring
 -----------
