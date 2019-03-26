@@ -541,14 +541,11 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     openSize = fMd->mProtoFmd.size();
 
     if (!IsRainLayout(layOut->GetLayoutId())) {
-      // It's a replica layout
+      // If replica layout and physical size of replica difference from the
+      // fmd_size it means the file is being written to so we save the actual
+      // sieze from disk.
       if ((off_t) statinfo.st_size != (off_t) fMd->mProtoFmd.size()) {
-        const std::string err_msg =
-          SSTR("mismatch between disk_size=" << statinfo.st_size
-               << " and fmd_size=" << fMd->mProtoFmd.size()
-               << " ns_path=" << mNsPath);
-        eos_err("msg=\"%s\"", err_msg.c_str());
-        return gOFS.Emsg(epname, error, EIO, "open", err_msg.c_str());
+        openSize = statinfo.st_size;
       }
     }
 
