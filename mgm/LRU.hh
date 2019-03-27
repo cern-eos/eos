@@ -50,6 +50,25 @@ private:
 
 public:
 
+  //----------------------------------------------------------------------------
+  //! Simple struct describing LRU options
+  //----------------------------------------------------------------------------
+  struct Options {
+    bool enabled;                  //< Is LRU even enabled?
+    std::chrono::seconds interval; //< Run LRU every this many seconds.
+  };
+
+  //----------------------------------------------------------------------------
+  //! Retrieve current LRU configuration options
+  //----------------------------------------------------------------------------
+  Options getOptions();
+
+  //----------------------------------------------------------------------------
+  //! Retrieve "lru.interval" configuration option as string, or empty if
+  //! cannot be found. Assumes gFsView.ViewMutex is at-least readlocked.
+  //----------------------------------------------------------------------------
+  std::string getLRUIntervalConfig() const;
+
   /* Default Constructor - use it to run the LRU thread by calling Start
    */
   LRU()

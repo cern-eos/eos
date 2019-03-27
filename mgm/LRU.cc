@@ -26,6 +26,7 @@
 #include "common/LayoutId.hh"
 #include "common/Mapping.hh"
 #include "common/RWMutex.hh"
+#include "common/ParseUtils.hh"
 #include "mgm/Quota.hh"
 #include "mgm/LRU.hh"
 #include "mgm/Stat.hh"
@@ -68,6 +69,53 @@ LRU::Stop()
   mThread.join();
 }
 
+//------------------------------------------------------------------------------
+// Retrieve "lru.interval" configuration option as string, or empty if
+// cannot be found. Assumes gFsView.ViewMutex is at-least readlocked.
+//------------------------------------------------------------------------------
+std::string LRU::getLRUIntervalConfig() const {
+  if (FsView::gFsView.mSpaceView.count("default") == 0) {
+    return "";
+  }
+
+  return FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru.interval");
+}
+
+//------------------------------------------------------------------------------
+// Retrieve current LRU configuration options
+//------------------------------------------------------------------------------
+LRU::Options LRU::getOptions() {
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+
+  LRU::Options opts;
+
+  // Default options
+  opts.enabled = false;
+  opts.interval = std::chrono::hours(24) * 7;
+
+  if (FsView::gFsView.mSpaceView.count("default") &&
+     (FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru") == "on")) {
+    opts.enabled = true;
+  }
+
+  std::string interval = getLRUIntervalConfig();
+  int64_t intv = 0;
+
+  if(opts.enabled && (interval.empty() || !common::parseInt64(interval, intv))) {
+    eos_static_crit("Unable to parse space config lru.interval option, disabling LRU!");
+    opts.enabled = false;
+  }
+  else {
+    opts.interval = std::chrono::seconds(intv);
+  }
+
+  if(opts.enabled) {
+    eos_static_info("lru is enabled, interval=%ds", opts.interval.count());
+  }
+
+  return opts;
+}
+
 /*----------------------------------------------------------------------------*/
 /**
  * @brief LRU method doing the actual policy scrubbing
@@ -92,30 +140,13 @@ LRU::LRUr(ThreadAssistant& assistant) noexcept
 
   while (!assistant.terminationRequested()) {
     // every now and then we wake up
-    bool IsEnabledLRU;
-    time_t lLRUInterval;
+    Options opts = getOptions();
+
     time_t lStartTime = time(NULL);
     time_t lStopTime;
-    {
-      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-
-      if (FsView::gFsView.mSpaceView.count("default") &&
-          (FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru") == "on")) {
-        IsEnabledLRU = true;
-      } else {
-        IsEnabledLRU = false;
-      }
-
-      if (FsView::gFsView.mSpaceView.count("default")) {
-        lLRUInterval =
-          atoi(FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru.interval").c_str());
-      } else {
-        lLRUInterval = 0;
-      }
-    }
 
     // Only a master needs to run LRU
-    if (gOFS->mMaster->IsMaster() && IsEnabledLRU) {
+    if (gOFS->mMaster->IsMaster() && opts.enabled) {
       // Do a slow find
       unsigned long long ndirs =
         (unsigned long long) gOFS->eosDirectoryService->getNumContainers();
@@ -201,11 +232,11 @@ LRU::LRUr(ThreadAssistant& assistant) noexcept
 
     lStopTime = time(NULL);
 
-    if ((lStopTime - lStartTime) < lLRUInterval) {
-      snoozetime = lLRUInterval - (lStopTime - lStartTime);
+    if ((lStopTime - lStartTime) < opts.interval.count()) {
+      snoozetime = opts.interval.count() - (lStopTime - lStartTime);
     }
 
-    eos_static_info("snooze-time=%llu enabled=%d", snoozetime, IsEnabledLRU);
+    eos_static_info("snooze-time=%llu enabled=%d", snoozetime, opts.enabled);
     size_t snoozeloop = snoozetime / 60;
 
     for (size_t i = 0 ; i < snoozeloop; i++) {
@@ -218,19 +249,8 @@ LRU::LRUr(ThreadAssistant& assistant) noexcept
         }
       }
 
-      // Check if the setting changes
-      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-
-      if (FsView::gFsView.mSpaceView.count("default") &&
-          (FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru") == "on")) {
-        if (!IsEnabledLRU) {
-          break;
-        }
-      } else {
-        if (IsEnabledLRU) {
-          break;
-        }
-      }
+      // Refresh options
+      opts = getOptions();
     }
   }
 }

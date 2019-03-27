@@ -34,6 +34,10 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+//------------------------------------------------------------------------------
+//! Parse an int64 encoded in the given numerical base, return true if parsing
+//! was successful, false otherwise.
+//------------------------------------------------------------------------------
 inline bool parseInt64(const std::string& str, int64_t& ret, int base = 10)
 {
   char* endptr = NULL;
