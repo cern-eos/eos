@@ -208,7 +208,7 @@ XrdMgmOfs::_dropstripe(const char* path,
   static const char* epname = "dropstripe";
   std::shared_ptr<eos::IContainerMD> dh;
   std::shared_ptr<eos::IFileMD> fmd;
-  errno = 0;
+  int errc = 0;
   EXEC_TIMING_BEGIN("DropStripe");
   gOFS->MgmStats.Add("DropStripe", vid.uid, vid.gid, 1);
   eos_debug("drop");
@@ -221,25 +221,25 @@ XrdMgmOfs::_dropstripe(const char* path,
     dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh.get()));
   } catch (eos::MDException& e) {
     dh.reset();
-    errno = e.getErrno();
+    errc = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
               e.getMessage().str().c_str());
   }
 
   // Check permissions
   if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK))) {
-    if (!errno) {
-      errno = EPERM;
+    if (!errc) {
+      errc = EPERM;
     }
   } else {
     // only root can drop by file id
     if (vid.uid) {
-      errno = EPERM;
+      errc = EPERM;
     }
   }
 
-  if (errno) {
-    return Emsg(epname, error, errno, "drop stripe", path);
+  if (errc) {
+    return Emsg(epname, error, errc, "drop stripe", path);
   }
 
   // get the file
@@ -257,7 +257,7 @@ XrdMgmOfs::_dropstripe(const char* path,
         gOFS->eosView->updateFileStore(fmd.get());
         eos_debug("unlinking location %u", fsid);
       } else {
-        errno = ENOENT;
+        errc = ENOENT;
       }
     } else {
       // we unlink and remove a location by force
@@ -271,15 +271,15 @@ XrdMgmOfs::_dropstripe(const char* path,
     }
   } catch (eos::MDException& e) {
     fmd.reset();
-    errno = e.getErrno();
+    errc = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
   }
 
   EXEC_TIMING_END("DropStripe");
 
-  if (errno) {
-    return Emsg(epname, error, errno, "drop stripe", path);
+  if (errc) {
+    return Emsg(epname, error, errc, "drop stripe", path);
   }
 
   return SFS_OK;
