@@ -266,6 +266,11 @@ XrdMgmOfs::_dropstripe(const char* path,
       }
 
       fmd->removeLocation(fsid);
+
+      // eraseEntry is only needed if the fsview is inconsistent with the
+      // FileMD: It exists on the selected fsview, but not in the fmd locations.
+      // Very rare case.
+      gOFS->eosFsView->eraseEntry(fsid, fmd->getId());
       gOFS->eosView->updateFileStore(fmd.get());
       eos_debug("removing/unlinking location %u", fsid);
     }
