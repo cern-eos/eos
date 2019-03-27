@@ -633,6 +633,7 @@ public:
   XrdOfsTPCInfo mTpcInfo; ///< TPC info object used for callback
   XrdSysMutex mTpcJobMutex; ///< TPC job mutex
   int mTpcRetc; ///< TPC job return code
+  std::atomic<bool> mTpcCancel; ///< Mark TPC cancellation request
   uint16_t mTimeout; ///< timeout for layout operations
 
   //----------------------------------------------------------------------------

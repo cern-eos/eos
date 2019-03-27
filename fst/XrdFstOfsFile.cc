@@ -65,7 +65,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   mIsOCchunk(false), writeErrorFlag(false), mTpcFlag(kTpcNone),
   fMd(nullptr), layOut(nullptr), maxOffsetWritten(0),
   openSize(0), closeSize(0),
-  mTpcThreadStatus(EINVAL), mTpcState(kTpcIdle), mTpcRetc(0)
+  mTpcThreadStatus(EINVAL), mTpcState(kTpcIdle), mTpcRetc(0), mTpcCancel(false)
 {
   rBytes = wBytes = sFwdBytes = sBwdBytes = sXlFwdBytes
                                 = sXlBwdBytes = rOffset = wOffset = 0;
@@ -1762,6 +1762,7 @@ XrdSfsXferSize
 XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
                        XrdSfsXferSize buffer_size)
 {
+  std::this_thread::sleep_for(std::chrono::milliseconds(25));
   gettimeofday(&cTime, &tz);
   rCalls++;
   int rc = XrdOfsFile::read(fileOffset, buffer, buffer_size);
@@ -2287,8 +2288,7 @@ XrdFstOfsFile::DoTpcTransfer()
     XrdSysMutexHelper scope_lock(mTpcJobMutex);
     mTpcState = kTpcDone;
     mTpcRetc = ECONNABORTED;
-    mTpcInfo.Reply(SFS_ERROR, ECONNABORTED, "sync TPC session closed by "
-                   "disconnect");
+    mTpcInfo.Reply(SFS_ERROR, mTpcRetc, "sync - TPC session closed by disconnect");
     return 0;
   }
 
@@ -2316,7 +2316,7 @@ XrdFstOfsFile::DoTpcTransfer()
     XrdSysMutexHelper scope_lock(mTpcJobMutex);
     mTpcState = kTpcDone;
     mTpcRetc = EFAULT;
-    mTpcInfo.Reply(SFS_ERROR, EFAULT,
+    mTpcInfo.Reply(SFS_ERROR, mTpcRetc,
                    SSTR("sync - TPC open failed for src_url=" << src_url).c_str());
     return 0;
   }
@@ -2327,7 +2327,7 @@ XrdFstOfsFile::DoTpcTransfer()
     XrdSysMutexHelper scope_lock(mTpcJobMutex);
     mTpcState = kTpcDone;
     mTpcRetc = ECONNABORTED;
-    mTpcInfo.Reply(SFS_ERROR, ECONNABORTED,
+    mTpcInfo.Reply(SFS_ERROR, mTpcRetc,
                    SSTR("sync - TPC session closed by disconnect src_url="
                         << src_url).c_str());
     return 0;
@@ -2358,7 +2358,7 @@ XrdFstOfsFile::DoTpcTransfer()
       XrdSysMutexHelper scope_lock(mTpcJobMutex);
       mTpcState = kTpcDone;
       mTpcRetc = EIO;
-      mTpcInfo.Reply(SFS_ERROR, EIO,
+      mTpcInfo.Reply(SFS_ERROR, mTpcRetc,
                      SSTR("sync - TPC remote read failed src_url="
                           << src_url).c_str());
       return 0;
@@ -2375,15 +2375,27 @@ XrdFstOfsFile::DoTpcTransfer()
 
       if (rbytes != wbytes) {
         (void) tpcIO.fileClose();
-        eos_err("msg=\"tpc transfer terminated - local write failed\"");
+        eos_err("%s", "msg=\"tpc transfer terminated - local write failed\"");
         XrdSysMutexHelper scope_lock(mTpcJobMutex);
         mTpcState = kTpcDone;
         mTpcRetc = EIO;
-        mTpcInfo.Reply(SFS_ERROR, EIO, "sync - TPC local write failed");
+        mTpcInfo.Reply(SFS_ERROR, mTpcRetc, "sync - TPC local write failed");
         return 0;
       }
 
       offset += rbytes;
+    }
+
+    // Got an "ofs.tpc cancel" request from the client who triggered it
+    if (mTpcCancel) {
+      eos_err("%s", "msg=\"tpc transfer cancelled by the client\"");
+      XrdSysMutexHelper scope_lock(mTpcJobMutex);
+      mTpcState = kTpcDone;
+      mTpcRetc = ECANCELED;
+      mTpcInfo.Reply(SFS_ERROR, mTpcRetc,
+                     SSTR("sync - TPC cancelled by client src_url="
+                          << src_url).c_str());
+      return 0;
     }
 
     // Check validity of the TPC key
@@ -2393,7 +2405,7 @@ XrdFstOfsFile::DoTpcTransfer()
       XrdSysMutexHelper scope_lock(mTpcJobMutex);
       mTpcState = kTpcDone;
       mTpcRetc = ECONNABORTED;
-      mTpcInfo.Reply(SFS_ERROR, ECONNABORTED, "sync - TPC session closed "
+      mTpcInfo.Reply(SFS_ERROR, mTpcRetc, "sync - TPC session closed "
                      "by diconnect");
       return 0;
     }
@@ -2540,6 +2552,10 @@ XrdFstOfsFile::fctl(const int cmd, int alen, const char* args,
       }
 
       return retc;
+    } else if (strncmp(args, "ofs.tpc cancel", alen) == 0) {
+      eos_notice("%s", "msg=\"received TPC cancel notification\"");
+      mTpcCancel = true;
+      return SFS_OK;
     }
   }
 
