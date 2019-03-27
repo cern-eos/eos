@@ -26,8 +26,79 @@
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
 #include "proto/FileMd.pb.h"
+#include "XrdCl/XrdClCopyProcess.hh"
 
 EOSMGMNAMESPACE_BEGIN
+
+//------------------------------------------------------------------------------
+//! Class DrainProgressHandler used to monitor the progress of the current
+//! drain transfers but also more importantly to cancel gracefully a running
+//! transfer.
+//------------------------------------------------------------------------------
+class DrainProgressHandler: public XrdCl::CopyProgressHandler,
+  public eos::common::LogId
+{
+public:
+  //----------------------------------------------------------------------------
+  //! Notify when a new job is about to start
+  //!
+  //! @param jobNum         the job number of the copy job concerned
+  //! @param jobTotal       total number of jobs being processed
+  //! @param source         the source url of the current job
+  //! @param destination    the destination url of the current job
+  //----------------------------------------------------------------------------
+  void BeginJob(uint16_t jobNum, uint16_t jobTotal, const XrdCl::URL* source,
+                const XrdCl::URL* destination) override
+  {
+    eos_info("msg=\"starting copy job %i src=%s dst=%s", jobNum,
+             source->GetURL().c_str(), destination->GetURL().c_str());
+  }
+
+  //----------------------------------------------------------------------------
+  //! Notify when the previous job has finished
+  //!
+  //! @param jobNum job number
+  //! @param result result of the job
+  //----------------------------------------------------------------------------
+  void EndJob(uint16_t jobNum, const XrdCl::PropertyList* result) override
+  {
+    eos_info("msg=\"job=%i finished\"");
+  }
+
+  //----------------------------------------------------------------------------
+  //! Notify about the progress of the current job
+  //!
+  //! @param jobNum         job number
+  //! @param bytesProcessed bytes processed by the current job
+  //! @param bytesTotal     total number of bytes to be processed by job
+  //----------------------------------------------------------------------------
+  void JobProgress(uint16_t jobNum, uint64_t bytesProcessed,
+                   uint64_t bytesTotal) override
+  {
+    eos_info("msg=\"progress job=%i percentage=%.02f\%\"", jobNum,
+             (1.0 - (1.0 * (bytesTotal - bytesProcessed) / bytesTotal)) * 100);
+  };
+
+  //----------------------------------------------------------------------------
+  //! Determine whether the job should be canceled - this is used internally
+  //! by the XrdCl::CopyProcess.
+  //----------------------------------------------------------------------------
+  bool ShouldCancel(uint16_t jobNum) override
+  {
+    return mDoCancel;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Mark drain job to be cancelled
+  //----------------------------------------------------------------------------
+  void DoCancel()
+  {
+    mDoCancel = true;
+  }
+
+private:
+  std::atomic<bool> mDoCancel {false}; ///< Mark if job should be cancelled
+};
 
 //------------------------------------------------------------------------------
 //! Class implementing the third party copy transfer, takes as input the
@@ -61,6 +132,14 @@ public:
   //! Execute a third-party transfer
   //----------------------------------------------------------------------------
   void DoIt();
+
+  //----------------------------------------------------------------------------
+  //! Cancel ongoing TPC transfer
+  //----------------------------------------------------------------------------
+  void Cancel()
+  {
+    mProgressHandler.DoCancel();
+  }
 
   //----------------------------------------------------------------------------
   //! Log error message and save it
@@ -183,6 +262,7 @@ private:
   std::atomic<Status> mStatus; ///< Status of the drain job
   std::set<eos::common::FileSystem::fsid_t> mTriedSrcs; ///< Tried src
   bool mRainReconstruct; ///< Flag to mark a rain reconstruction
+  DrainProgressHandler mProgressHandler; ///< TPC progress handler
 };
 
 EOSMGMNAMESPACE_END

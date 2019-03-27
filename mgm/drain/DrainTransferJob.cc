@@ -32,7 +32,6 @@
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/Prefetcher.hh"
-#include "XrdCl/XrdClCopyProcess.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -133,13 +132,18 @@ DrainTransferJob::DoIt()
              log_id.c_str(), prepare_st.ToStr().c_str());
 
     if (prepare_st.IsOK()) {
-      XrdCl::XRootDStatus tpc_st = cpy.Run(0);
+      XrdCl::XRootDStatus tpc_st = cpy.Run(&mProgressHandler);
 
       if (!tpc_st.IsOK()) {
         eos_err("%s", SSTR("src=" << url_src.GetLocation().c_str() <<
                            " dst=" << url_dst.GetLocation().c_str() <<
                            " logid=" << log_id <<
                            " tpc_err=" << tpc_st.ToStr()).c_str());
+
+        // If cancellation requested no point in trying other replicas
+        if (mProgressHandler.ShouldCancel(0)) {
+          break;
+        }
       } else {
         gOFS->MgmStats.Add("DrainCentralSuccessful", 0, 0, 1);
         eos_info("msg=\"drain successful\" logid=%s fxid=%s",

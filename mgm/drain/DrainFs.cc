@@ -1,3 +1,4 @@
+
 //------------------------------------------------------------------------------
 // @file DrainFs.cc
 // @author Andrea Manzi - CERN
@@ -274,6 +275,8 @@ DrainFs::Stop()
 
     if ((*it)->GetStatus() != DrainTransferJob::Status::Running) {
       mJobsRunning.erase(it);
+    } else {
+      (*it)->Cancel();
     }
 
     auto sz_end = mJobsRunning.size();
