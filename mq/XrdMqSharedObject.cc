@@ -2974,7 +2974,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
         }
 
         if ((ftag == XRDMQSHAREDHASH_BCREPLY) && sh) {
-          // we don't have to broad cast this clear => it is a broad cast reply
+          // Don't broadcast this one ... is a broadcast reply
           sh->Clear(false);
         }
 
@@ -3017,7 +3017,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
           if (!sh) {
             error = "update: subject ";
             error += subjectlist[s].c_str();
-            error += " does not exist (FATAL!)";
+            error += " does not exist";
             return false;
           }
 

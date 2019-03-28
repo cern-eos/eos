@@ -773,7 +773,10 @@ public:
   void DumpSharedObjects(XrdOucString& out);
 
   //----------------------------------------------------------------------------
+  //! Parse message and apply any modifications
   //!
+  //! @param message incoming message
+  //! @param error possible error message
   //----------------------------------------------------------------------------
   bool ParseEnvMessage(XrdMqMessage* message, XrdOucString& error);
 
