@@ -80,6 +80,8 @@ message FsProto {
       IO      = 4;
       FSCK    = 5;
       DRAIN   = 6;
+      FAILED_DRAIN_JOBS = 7;
+      RUNNING_DRAIN_JOBS = 8;
    }
 
    DisplayMode display = 1;

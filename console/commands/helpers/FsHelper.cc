@@ -426,6 +426,12 @@ FsHelper::ParseCommand(const char* arg)
         } else if ((soption == "-d") || (soption == "--drain")) {
           ls->set_display(FsProto_LsProto::DRAIN);
           ++exclusive_opt;
+        } else if ((soption == "-D") || (soption == "--drain_jobs")) {
+          ls->set_display(FsProto_LsProto::RUNNING_DRAIN_JOBS);
+          ++exclusive_opt;
+        } else if ((soption == "-F") || (soption == "--failed_drain_jobs")) {
+          ls->set_display(FsProto_LsProto::FAILED_DRAIN_JOBS);
+          ++exclusive_opt;
         } else if (soption == "-s") {
           mIsSilent = true;
         } else if ((soption == "-b") || (soption == "--brief")) {

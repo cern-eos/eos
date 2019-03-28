@@ -185,7 +185,7 @@ void com_fs_help()
       << "    -m     : print full metadata record in env format" << std::endl
       << "    -s     : silent mode (will keep an internal reference)" << std::endl
       << std::endl
-      << "  fs ls [-m|-l|-e|--io|--fsck|-d|--drain] [-s] [-b|--brief] [[matchlist]]"
+      << "  fs ls [-m|-l|-e|--io|--fsck|[-d|--drain]|-D|-F] [-s] [-b|--brief] [[matchlist]]"
       << std::endl
       << "    list filesystems using the default output format" << std::endl
       << "    -m         : monitoring format" << std::endl
@@ -197,6 +197,16 @@ void com_fs_help()
       << "    -d|--drain : display filesystems in drain or draindead status"
       << std::endl
       << "                 along with drain progress and statistics" << std::endl
+      << "    -D|--drain_jobs : " << std::endl
+      << "                 dispaly ongoing drain transfers, matchlist needs to be an integer"
+      << std::endl
+      << "                 representing the drain file system id" << std::endl
+      << "    -F|--failed_drain_jobs : " << std::endl
+      << "                 dispaly failed drain transfers, matchlist needs to be an integer"
+      << std::endl
+      << "                 representing the drain file system id. This will only display"
+      << std::endl
+      << "                 information while the draining is ongoing" << std::endl
       << "    -s         : silent mode" << std::endl
       << "    [matchlist]" << std::endl
       << "       -> can be the name of a space or a comma separated list of"
@@ -213,8 +223,9 @@ void com_fs_help()
       std::endl
       << "    move filesystem(s) in different scheduling group or space"
       << std::endl
-      << "    --force   : force mode - allows to move non-empty filesystems bypassing group and node constraints"
+      << "    --force   : force mode - allows to move non-empty filesystems bypassing group "
       << std::endl
+      << "                and node constraints" << std::endl
       << "    src_fsid  : source filesystem id" << std::endl
       << "    src_grp   : all filesystems from scheduling group are moved"
       << std::endl

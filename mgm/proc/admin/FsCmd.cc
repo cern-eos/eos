@@ -351,7 +351,45 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto)
 std::string
 eos::mgm::FsCmd::List(const eos::console::FsProto::LsProto& lsProto)
 {
+  using eos::console::FsProto_LsProto;;
   std::string output;
+
+  // Handle listing of drain jobs
+  if ((lsProto.display() == FsProto_LsProto::RUNNING_DRAIN_JOBS) ||
+      (lsProto.display() == FsProto_LsProto::FAILED_DRAIN_JOBS)) {
+    bool only_failed = (lsProto.display() == FsProto_LsProto::FAILED_DRAIN_JOBS);
+    eos::mgm::Drainer::DrainHdrInfo hdr_info;
+
+    if (only_failed) {
+      hdr_info = {{"File id", "fid"}, {"Drain fsid", "fs_src"},
+        {"Dst fsid", "fs_dst"}, {"Error info", "err_msg"}
+      };
+    } else {
+      hdr_info = {{"File id", "fid"}, {"Drain fsid", "fs_src"},
+        {"Src fsid", "tx_fs_src"}, {"Dst fsid", "fs_dst"},
+        {"Start times", "start_timestamp"},
+        {"Progress", "progress"}, {"Avg.(MB/s)", "speed"}
+      };
+    }
+
+    unsigned int fsid {0};
+
+    // If matchlist is present then it must be an fsid
+    if (!lsProto.matchlist().empty()) {
+      try {
+        fsid = std::stoul(lsProto.matchlist());
+      } catch (...) {
+        // ignore
+      }
+    }
+
+    if (!gOFS->mDrainEngine.GetJobsInfo(output, hdr_info, fsid, only_failed)) {
+      output = "error: failed while collecting drain jobs info";
+    }
+
+    return output;
+  }
+
   auto displayModeString = DisplayModeToString(lsProto.display());
   auto listFormat = FsView::GetFileSystemFormat(displayModeString);
 
