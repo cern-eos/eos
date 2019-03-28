@@ -1405,7 +1405,7 @@ EosFuse::create(fuse_req_t req, fuse_ino_t parent, const char* name,
     if (!rinode) {
       me.fs().close(res, 0, fuse_req_ctx(req)->uid, fuse_req_ctx(req)->gid,
                     fuse_req_ctx(req)->pid);
-      fuse_reply_err(req, -res);
+      fuse_reply_err(req, EPROTO);
       return;
     } else {
       me.fs().store_p2i((unsigned long long) e.ino, ifullpath);
