@@ -1593,7 +1593,6 @@ data::datax::recover_write(fuse_req_t req)
     if (!uploadproxy->write_state().IsOK()) {
       sBufferManager.put_buffer(buffer);
       eos_crit("got failure when collecting outstanding writes from the upload proxy");
-      ::close(fd);
       delete uploadproxy;
 
       if (req && end_flush(req)) {
