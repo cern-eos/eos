@@ -31,6 +31,7 @@
 #include "common/LinuxStat.hh"
 #include "common/ShellCmd.hh"
 #include "common/Timing.hh"
+#include "common/IntervalStopwatch.hh"
 #include "XrdVersion.hh"
 
 XrdVERSIONINFOREF(XrdgetProtocol);
@@ -289,10 +290,10 @@ Storage::Publish(ThreadAssistant& assistant)
   while (!assistant.terminationRequested()) {
     std::string publish_uptime = getUptime(tmp_name);
     std::string publish_sockets = getNumberOfTCPSockets(tmp_name);
-    std::chrono::steady_clock::time_point cycleStart =
-      std::chrono::steady_clock::now();
-    std::chrono::milliseconds randomizedReportInterval =
-      eos::fst::Config::gConfig.getRandomizedPublishInterval();
+
+    std::chrono::milliseconds randomizedReportInterval = eos::fst::Config::gConfig.getRandomizedPublishInterval();
+    common::IntervalStopwatch stopwatch(nullptr, randomizedReportInterval);
+
     {
       // run through our defined filesystems and publish with a MuxTransaction all changes
       eos::common::RWMutexReadLock lock(mFsMutex);
@@ -323,9 +324,9 @@ Storage::Publish(ThreadAssistant& assistant)
           bool success = true;
 
           if (mFsVect[i]->GetStatus() == eos::common::BootStatus::kBooted) {
-            if (next_consistency_stats < cycleStart) {
+            if (next_consistency_stats < stopwatch.getCycleStart()) {
               eos_static_debug("msg=\"publish consistency stats\"");
-              last_consistency_stats = cycleStart;
+              last_consistency_stats = stopwatch.getCycleStart();
               XrdSysMutexHelper ISLock(mFsVect[i]->InconsistencyStatsMutex);
               gFmdDbMapHandler.GetInconsistencyStatistics(fsid,
                   *mFsVect[i]->GetInconsistencyStats(),
@@ -473,17 +474,12 @@ Storage::Publish(ThreadAssistant& assistant)
         next_consistency_stats = last_consistency_stats + sConsistencyTimeout;
       }
     }
-    std::chrono::steady_clock::time_point cycleEnd =
-      std::chrono::steady_clock::now();
-    std::chrono::milliseconds cycleDuration =
-      std::chrono::duration_cast<std::chrono::milliseconds>(cycleEnd - cycleStart);
-    std::chrono::milliseconds sleepTime = randomizedReportInterval - cycleDuration;
-    eos_static_debug("msg=\"publish interval\" %d %d",
-                     randomizedReportInterval.count(), cycleDuration.count());
 
-    if (cycleDuration > randomizedReportInterval) {
-      eos_static_warning("Publisher cycle exceeded %d millisecons - took %d milliseconds",
-                         randomizedReportInterval.count(), cycleDuration.count());
+    std::chrono::milliseconds sleepTime = stopwatch.timeRemainingInCycle();
+
+    if (sleepTime == std::chrono::milliseconds(0)) {
+      eos_static_warning("Publisher cycle exceeded %d milliseconds - took %d milliseconds",
+                         randomizedReportInterval.count(), stopwatch.timeIntoCycle());
     } else {
       assistant.wait_for(sleepTime);
     }

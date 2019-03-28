@@ -37,7 +37,7 @@ class SteadyClock;
 //! - Sleep
 //!
 //! We want "event" to happen every 1 hour, for example. If the duration of
-//! "event" was 10 minutes, we would want to sleep for 50 miinutes before
+//! "event" was 10 minutes, we would want to sleep for 50 minutes before
 //! starting the cycle once again. This class simplifies the above pattern,
 //! essentially telling you for how long to sleep.
 //------------------------------------------------------------------------------
