@@ -27,6 +27,7 @@
 #include "common/Mapping.hh"
 #include "common/RWMutex.hh"
 #include "common/ParseUtils.hh"
+#include "common/IntervalStopwatch.hh"
 #include "mgm/Quota.hh"
 #include "mgm/LRU.hh"
 #include "mgm/Stat.hh"
@@ -141,9 +142,7 @@ LRU::LRUr(ThreadAssistant& assistant) noexcept
   while (!assistant.terminationRequested()) {
     // every now and then we wake up
     Options opts = getOptions();
-
-    time_t lStartTime = time(NULL);
-    time_t lStopTime;
+    common::IntervalStopwatch stopwatch(nullptr, opts.interval);
 
     // Only a master needs to run LRU
     if (gOFS->mMaster->IsMaster() && opts.enabled) {
@@ -230,28 +229,9 @@ LRU::LRUr(ThreadAssistant& assistant) noexcept
                       lrudirs.size());
     }
 
-    lStopTime = time(NULL);
-
-    if ((lStopTime - lStartTime) < opts.interval.count()) {
-      snoozetime = opts.interval.count() - (lStopTime - lStartTime);
-    }
-
-    eos_static_info("snooze-time=%llu enabled=%d", snoozetime, opts.enabled);
-    size_t snoozeloop = snoozetime / 60;
-
-    for (size_t i = 0 ; i < snoozeloop; i++) {
-      // Sleep one minuted in 5 seconds intervals
-      for (int j = 0; j < 12; ++j) {
-        assistant.wait_for(std::chrono::seconds(5));
-
-        if (assistant.terminationRequested()) {
-          return;
-        }
-      }
-
-      // Refresh options
-      opts = getOptions();
-    }
+    std::chrono::milliseconds sleepTime = stopwatch.timeRemainingInCycle();
+    eos_static_info("snooze-time=%llu enabled=%d", sleepTime.count(), opts.enabled);
+    assistant.wait_for(sleepTime);
   }
 }
 
