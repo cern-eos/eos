@@ -64,22 +64,32 @@ TEST(IntervalStopwatch, BasicSanity) {
 
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(0));
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(0));
+  ASSERT_EQ(stopwatch.getCycleStart(),
+    std::chrono::steady_clock::time_point());
 
   sc.advance(std::chrono::milliseconds(999));
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(999));
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(0));
+  ASSERT_EQ(stopwatch.getCycleStart(),
+    std::chrono::steady_clock::time_point());
 
   stopwatch = IntervalStopwatch(&sc, std::chrono::milliseconds(3));
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(0));
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(3));
+  ASSERT_EQ(stopwatch.getCycleStart(),
+    std::chrono::steady_clock::time_point() + std::chrono::milliseconds(999));
 
   sc.advance(std::chrono::milliseconds(1));
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(1));
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(2));
+  ASSERT_EQ(stopwatch.getCycleStart(),
+    std::chrono::steady_clock::time_point() + std::chrono::milliseconds(999));
 
   stopwatch.startCycle(std::chrono::milliseconds(10));
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(0));
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(10));
+  ASSERT_EQ(stopwatch.getCycleStart(),
+    std::chrono::steady_clock::time_point() + std::chrono::milliseconds(1000));
 
   sc.advance(std::chrono::milliseconds(1));
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(1));
@@ -100,8 +110,6 @@ TEST(IntervalStopwatch, BasicSanity) {
   sc.advance(std::chrono::milliseconds(10));
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(20));
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(0));
-
-  stopwatch.startCycle(std::chrono::milliseconds(20));
 }
 
 

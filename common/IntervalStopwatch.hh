@@ -60,6 +60,11 @@ public:
   void startCycle(std::chrono::milliseconds duration);
 
   //----------------------------------------------------------------------------
+  //! Get timepoint of cycle start
+  //----------------------------------------------------------------------------
+  std::chrono::steady_clock::time_point getCycleStart() const;
+
+  //----------------------------------------------------------------------------
   //! Return how much time has elapsed within this cycle, ie milliseconds since
   //! startCycle was called.
   //----------------------------------------------------------------------------
