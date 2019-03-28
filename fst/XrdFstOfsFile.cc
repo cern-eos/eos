@@ -438,21 +438,20 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
 
     if ((!fMd) || gOFS.Simulate_FMD_open_error) {
-      if ((!isRW) || (layOut->IsEntryServer() && (!isReplication))) {
-        eos_crit("no fmd for fileid %llu on filesystem %lu", mFileId, mFsId);
-        eos_warning("failed to get FMD record return recoverable error ENOENT(kXR_NotFound)");
+      eos_err("msg=\"no FMD record found\" fid=%08llx fsid=%lu", mFileId, mFsId);
 
+      if ((!isRW) || (layOut->IsEntryServer() && (!isReplication))) {
+        eos_warning("msg=\"failed to get FMD record, return recoverable error "
+                    "ENOENT(kXR_NotFound)\"");
+
+        // Clean-up before re-bouncing
         if (hasCreationMode) {
-          // clean-up before re-bouncing
           dropall(mFileId, path, mRedirectManager.c_str());
         }
-
-        // Return an error that can be recovered at the MGM
-        return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found");
-      } else {
-        eos_crit("no fmd for fileid %llu on filesystem %d", mFileId, mFsId);
-        return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found");
       }
+
+      // Return an error that can be recovered at the MGM
+      return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found");
     }
   }
 

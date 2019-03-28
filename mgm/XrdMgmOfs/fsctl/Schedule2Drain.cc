@@ -459,12 +459,12 @@ XrdMgmOfs::Schedule2Drain(const char* path,
   for (auto it_fid = gOFS->eosFsView->getFileList(source_fsid);
        (it_fid && it_fid->valid()); it_fid->next()) {
     eos::IFileMD::id_t fid = it_fid->getElement();
-    eos_thread_debug("checking fxid=%llx", fid);
+    eos_thread_debug("checking fid=%08llx", fid);
 
     // Check that the target does not have this file
     if (gOFS->eosFsView->hasFileId(fid, target_fsid)) {
       // Ignore file and move to the next
-      eos_static_debug("skip fxid=%llx - file exists on target fsid=%u",
+      eos_static_debug("skip fid=%08llx - file exists on target fsid=%u",
                        fid, target_fsid);
       continue;
     }
@@ -494,7 +494,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
     if (ScheduledToDrainFid.count(fid)
         && (ScheduledToDrainFid[fid] > (now))) {
       // File has been scheduled in the last hour. Move to the next
-      eos_thread_debug("skip fxid=%llx - scheduled during last hour at %lu",
+      eos_thread_debug("skip fid=%08llx - scheduled during last hour at %lu",
                        fid, ScheduledToDrainFid[fid]);
       continue;
     }
@@ -530,7 +530,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
     }
 
     if (!fmd) {
-      eos_thread_debug("skip fxid=%llx - cannot get fmd record", fid);
+      eos_thread_debug("skip fid=%08llx - cannot get fmd record", fid);
       continue;
     }
 
@@ -613,7 +613,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
 
         if (rc) {
           // We schedule to retry the file after 60 seconds
-          eos_thread_err("cmd=schedule2drain msg=\"%s\" fxid=%llx retc=%d",
+          eos_thread_err("cmd=schedule2drain msg=\"%s\" fid=%08llx retc=%d",
                          accError.getErrText(), fid, rc);
           ScheduledToDrainFid[fid] = time(NULL) + 60;
           continue;
@@ -621,7 +621,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
       }
 
       if (size >= freebytes) {
-        eos_thread_warning("skip fxid=%llx - file size >= free bytes "
+        eos_thread_warning("skip fid=%08llx - file size >= free bytes "
                            "fsize=%llu free_bytes=%llu", fid, size, freebytes);
         continue;
       }

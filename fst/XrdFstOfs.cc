@@ -1533,7 +1533,7 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
                        true);
 
       if (!fmd) {
-        eos_static_err("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
+        eos_static_err("msg=\"no FMD record found\" fid=%08llx fsid=%lu", fileid, fsid);
         const char* err = "ERROR";
         error.setErrInfo(strlen(err) + 1, err);
         return SFS_DATA;

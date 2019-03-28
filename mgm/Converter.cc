@@ -264,7 +264,7 @@ ConverterJob::DoIt()
       success = false;
     }
   }
-  eos_static_info("msg=\"stop tpc job\" fxid=%08llx layout=%s success=%d",
+  eos_static_info("msg=\"stop tpc job\" fid=%08llx layout=%s success=%d",
                   mFid, mConversionLayout.c_str(), success);
   {
     // We can only call-back to the Converter object if it wasn't destroyed/

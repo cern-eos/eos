@@ -165,7 +165,7 @@ DrainTransferJob::DoIt()
         }
       } else {
         gOFS->MgmStats.Add("DrainCentralSuccessful", 0, 0, 1);
-        eos_info("msg=\"drain successful\" logid=%s fxid=%s",
+        eos_info("msg=\"drain successful\" logid=%s fid=%s",
                  log_id.c_str(), eos::common::FileId::Fid2Hex(mFileId).c_str());
         mStatus = Status::OK;
         return;

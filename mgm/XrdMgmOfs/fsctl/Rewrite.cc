@@ -71,7 +71,7 @@ XrdMgmOfs::Rewrite(const char* path,
   }
 
   if (!IsEnabledAutoRepair) {
-    eos_thread_info("msg=\"suppressing auto-repair\" fxid=\"%s\"",
+    eos_thread_info("msg=\"suppressing auto-repair\" fid=\"%s\"",
                     (hexfid) ? hexfid : "<missing>");
   } else {
     eos::common::VirtualIdentity rvid = eos::common::VirtualIdentity::Root();
