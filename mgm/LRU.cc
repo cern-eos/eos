@@ -189,11 +189,6 @@ LRU::LRUr(ThreadAssistant& assistant) noexcept
         ms = 0;
       }
 
-      if (mMs) {
-        // we have a forced setting
-        ms = GetMs();
-      }
-
       eos_static_info("msg=\"start LRU scan\" ndir=%llu ms=%u", ndirs, ms);
       std::map<std::string, std::set<std::string> > lrudirs;
       XrdOucString stdErr;
@@ -456,11 +451,6 @@ LRU::CacheExpire(const char* dir,
   std::map<std::string, std::set<std::string> > cachedirs;
   XrdOucString stdErr;
   time_t ms = 0;
-
-  if (mMs) {
-    // we have a forced setting
-    ms = GetMs();
-  }
 
   // map with path/mtime pairs
   std::set<lru_entry_t> lru_map;

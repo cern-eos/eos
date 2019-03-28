@@ -44,7 +44,6 @@ class LRU
 {
 private:
   AssistedThread mThread; ///< thread id of the LRU thread
-  time_t mMs; //< forced sleep time used for find / scans
   eos::common::VirtualIdentity mRootVid;//< we operate with the root vid
   XrdOucErrInfo mError; //< XRootD error object
 
@@ -80,26 +79,7 @@ public:
    */
   LRU()
   {
-    mMs = 0;
     mRootVid = eos::common::VirtualIdentity::Root();
-  }
-
-  /**
-   * @brief get the millisecond sleep time for find
-   * @return configured sleep time
-   */
-  time_t GetMs()
-  {
-    return mMs;
-  }
-
-  /**
-   * @brief set the millisecond sleep time for find
-   * @param ms sleep time in milliseconds to enforce
-   */
-  void SetMs(time_t ms)
-  {
-    mMs = ms;
   }
 
   /* Start the LRU thread engine
