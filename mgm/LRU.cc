@@ -117,6 +117,41 @@ LRU::Options LRU::getOptions() {
   return opts;
 }
 
+//------------------------------------------------------------------------------
+// Parse an "sys.lru.expire.match" policy
+// Return true if parsing succeeded, false otherwise
+//------------------------------------------------------------------------------
+bool LRU::parseExpireMatchPolicy(const std::string &policy,
+  std::map<std::string, time_t> &matchAgeMap) {
+
+  matchAgeMap.clear();
+
+  std::map<std::string, std::string> tmpMap;
+
+  if(!StringConversion::GetKeyValueMap(policy.c_str(), tmpMap, ":")) {
+    //--------------------------------------------------------------------------
+    // Failed splitting on ":", cannot parse further
+    //--------------------------------------------------------------------------
+    return false;
+  }
+
+  for(auto it = tmpMap.begin(); it != tmpMap.end(); it++) {
+    uint64_t out;
+    if(!StringConversion::GetSizeFromString(it->second, out)) {
+      eos_static_err("msg=\"LRU match attribute has illegal age\" "
+                     "match=\"%s\", age=\"%s\"",
+                     it->first.c_str(),
+                     it->second.c_str());
+    }
+    else {
+      matchAgeMap[it->first] = out;
+      eos_static_info("rule=\"%s %llu\"", it->first.c_str(), out);
+    }
+  }
+
+  return true;
+}
+
 /*----------------------------------------------------------------------------*/
 /**
  * @brief LRU method doing the actual policy scrubbing
@@ -129,7 +164,6 @@ void
 LRU::LRUr(ThreadAssistant& assistant) noexcept
 {
   // Eternal thread doing LRU scans
-  time_t snoozetime = 60;
   gOFS->WaitUntilNamespaceIsBooted(assistant);
 
   if (assistant.terminationRequested()) {
@@ -237,7 +271,7 @@ LRU::LRUr(ThreadAssistant& assistant) noexcept
 
 /*----------------------------------------------------------------------------*/
 void
-LRU::AgeExpireEmpty(const char* dir, std::string& policy)
+LRU::AgeExpireEmpty(const char* dir, const std::string& policy)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief remove empty directories if they are older than age given in policy
@@ -274,8 +308,7 @@ LRU::AgeExpireEmpty(const char* dir, std::string& policy)
 
 /*----------------------------------------------------------------------------*/
 void
-LRU::AgeExpire(const char* dir,
-               std::string& policy)
+LRU::AgeExpire(const char* dir, const std::string& policy)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief remove all files older than the policy defines
@@ -287,33 +320,16 @@ LRU::AgeExpire(const char* dir,
   eos_static_info("msg=\"applying age deletion policy\" dir=\"%s\" age=\"%s\"",
                   dir,
                   policy.c_str());
-  std::map < std::string, std::string> lMatchMap;
-  std::map < std::string, time_t> lMatchAgeMap;
-  time_t now = time(NULL);
 
-  if (!StringConversion::GetKeyValueMap(policy.c_str(),
-                                        lMatchMap,
-                                        ":")
-     ) {
+
+  std::map<std::string, time_t> lMatchAgeMap;
+  if(!parseExpireMatchPolicy(policy, lMatchAgeMap)) {
     eos_static_err("msg=\"LRU match attribute is illegal\" val=\"%s\"",
                    policy.c_str());
     return;
   }
 
-  for (auto it = lMatchMap.begin(); it != lMatchMap.end(); it++) {
-    XrdOucString sage = it->second.c_str();
-    time_t t = StringConversion::GetSizeFromString(sage);
-
-    if (errno) {
-      eos_static_err("msg=\"LRU match attribute has illegal age\" "
-                     "match=\"%s\", age=\"%s\"",
-                     it->first.c_str(),
-                     it->second.c_str());
-    } else {
-      lMatchAgeMap[it->first] = t;
-      eos_static_info("rule=\"%s %u\"", it->first.c_str(), t);
-    }
-  }
+  time_t now = time(NULL);
 
   std::vector<std::string> lDeleteList;
   {

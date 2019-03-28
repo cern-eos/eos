@@ -57,6 +57,7 @@ set(MGM_UT_SRCS
   mgm/FsViewTests.cc
   mgm/HttpTests.cc
   mgm/LockTrackerTests.cc
+  mgm/LRUTests.cc
   mgm/ProcFsTests.cc
   mgm/RoutingTests.cc
   mgm/TapeAwareGcCachedValueTests.cc

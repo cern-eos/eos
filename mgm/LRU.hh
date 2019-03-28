@@ -59,6 +59,13 @@ public:
   };
 
   //----------------------------------------------------------------------------
+  //! Parse an "sys.lru.expire.match" policy
+  //! Return true if parsing succeeded, false otherwise
+  //----------------------------------------------------------------------------
+  static bool parseExpireMatchPolicy(const std::string &policy,
+    std::map<std::string, time_t> &matchAgeMap);
+
+  //----------------------------------------------------------------------------
   //! Retrieve current LRU configuration options
   //----------------------------------------------------------------------------
   Options getOptions();
@@ -119,11 +126,11 @@ public:
 
   /* expire by age if empty
    */
-  void AgeExpireEmpty(const char* dir, std::string& policy);
+  void AgeExpireEmpty(const char* dir, const std::string& policy);
 
   /* expire by age
    */
-  void AgeExpire(const char* dir, std::string& policy);
+  void AgeExpire(const char* dir, const std::string& policy);
 
   /* expire by volume
    */
