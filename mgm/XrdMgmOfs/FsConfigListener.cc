@@ -329,7 +329,8 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
 
             gOFS->ObjectManager.HashMutex.UnLockRead();
 
-            if (fsid && errc && (cfgstatus >= eos::common::FileSystem::kRO) &&
+            if (fsid && errc &&
+                (cfgstatus >= eos::common::FileSystem::kRO) &&
                 (bstatus == eos::common::BootStatus::kOpsError)) {
               // Case when we take action and explicitly ask to start a drain job
               eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
@@ -340,13 +341,16 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
               }
             }
 
-            if (fsid && (!errc)) {
-              // Make sure there is no drain job triggered by a previous filesystem errc!=0
-              eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-              auto it_fs = FsView::gFsView.mIdView.find(fsid);
+            if (fsid && (errc == 0)) {
+              if (!gOFS->mIsCentralDrain) {
+                // Make sure there is no drain job triggered by a previous
+                // filesystem errc!=0
+                eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+                auto it_fs = FsView::gFsView.mIdView.find(fsid);
 
-              if (it_fs != FsView::gFsView.mIdView.end()) {
-                it_fs->second->StopDrainJob();
+                if (it_fs != FsView::gFsView.mIdView.end()) {
+                  it_fs->second->StopDrainJob();
+                }
               }
             }
           }
