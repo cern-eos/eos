@@ -195,6 +195,17 @@ StringConversion::char_to_hex(const char input)
   return output;
 }
 
+//----------------------------------------------------------------------------
+//! Get size from the given string, return true if parsing was successful,
+//! false otherwise
+//----------------------------------------------------------------------------
+bool
+StringConversion::GetSizeFromString(const std::string& sizestring, uint64_t &out)
+{
+  out = GetSizeFromString(sizestring.c_str());
+  return (errno == 0);
+}
+
 //------------------------------------------------------------------------------
 // Convert a readable string into a number
 //------------------------------------------------------------------------------

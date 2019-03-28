@@ -176,6 +176,12 @@ public:
     return GetSizeFromString(sizestring.c_str());
   }
 
+  //----------------------------------------------------------------------------
+  //! Get size from the given string, return true if parsing was successful,
+  //! false otherwise
+  //----------------------------------------------------------------------------
+  static bool GetSizeFromString(const std::string& sizestring, uint64_t &out);
+
   // ---------------------------------------------------------------------------
   /**
    * Convert a readable string into a number, only for data

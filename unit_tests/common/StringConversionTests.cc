@@ -44,4 +44,20 @@ TEST(StringConversion, Seal_Unseal_Operation)
                StringConversion::UnsealXrdOpaque(expected).c_str());
 }
 
+TEST(GetSizeFromString, BasicSanity) {
+  uint64_t out;
+  ASSERT_TRUE(StringConversion::GetSizeFromString("5", out));
+  ASSERT_EQ(out, 5);
+
+  ASSERT_TRUE(StringConversion::GetSizeFromString("5M", out));
+  ASSERT_EQ(out, 5000000);
+
+  ASSERT_TRUE(StringConversion::GetSizeFromString("9k", out));
+  ASSERT_EQ(out, 9000);
+
+  // Bug, this should be false :(
+  ASSERT_TRUE(StringConversion::GetSizeFromString("pickles", out));
+  ASSERT_EQ(out, 0);
+}
+
 EOSCOMMONTESTING_END
