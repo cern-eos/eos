@@ -111,7 +111,8 @@ target_link_libraries(
   gmock
   XrdEosMgm-Static
   ${READLINE_LIBRARY}
-  ${XROOTD_SERVER_LIBRARY})
+  ${XROOTD_SERVER_LIBRARY}
+)
 
 install(TARGETS
   eos-unit-tests

@@ -75,6 +75,7 @@ set(EOSCOMMON_SRCS
   Report.cc
   StringTokenizer.cc
   CommentLog.cc
+  IntervalStopwatch.cc                                       IntervalStopwatch.hh
   VirtualIdentity.cc                                         VirtualIdentity.hh
   XrdConnPool.cc                                             XrdConnPool.hh
   XrdErrorMap.cc                                             XrdErrorMap.hh

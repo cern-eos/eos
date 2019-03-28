@@ -25,6 +25,7 @@
 #include "Namespace.hh"
 #include "common/Timing.hh"
 #include "common/SteadyClock.hh"
+#include "common/IntervalStopwatch.hh"
 
 EOSCOMMONTESTING_BEGIN
 
@@ -55,5 +56,53 @@ TEST(SteadyClock, FakeTests) {
   sc.advance(std::chrono::seconds(5));
   ASSERT_EQ(sc.getTime(), startOfTime);
 }
+
+TEST(IntervalStopwatch, BasicSanity) {
+  common::SteadyClock sc(true);
+
+  IntervalStopwatch stopwatch(&sc);
+
+  ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(0));
+  ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(0));
+
+  sc.advance(std::chrono::milliseconds(999));
+  ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(999));
+  ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(0));
+
+  stopwatch = IntervalStopwatch(&sc, std::chrono::milliseconds(3));
+  ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(0));
+  ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(3));
+
+  sc.advance(std::chrono::milliseconds(1));
+  ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(1));
+  ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(2));
+
+  stopwatch.startCycle(std::chrono::milliseconds(10));
+  ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(0));
+  ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(10));
+
+  sc.advance(std::chrono::milliseconds(1));
+  ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(1));
+  ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(9));
+
+  sc.advance(std::chrono::milliseconds(1));
+  ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(2));
+  ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(8));
+
+  sc.advance(std::chrono::milliseconds(7));
+  ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(9));
+  ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(1));
+
+  sc.advance(std::chrono::milliseconds(1));
+  ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(10));
+  ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(0));
+
+  sc.advance(std::chrono::milliseconds(10));
+  ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(20));
+  ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(0));
+
+  stopwatch.startCycle(std::chrono::milliseconds(20));
+}
+
 
 EOSCOMMONTESTING_END
