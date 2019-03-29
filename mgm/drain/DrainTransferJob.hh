@@ -30,6 +30,10 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+//! Forward declaration
+class DrainTransferJob;
+
+
 //------------------------------------------------------------------------------
 //! Class DrainProgressHandler used to monitor the progress of the current
 //! drain transfers but also more importantly to cancel gracefully a running
@@ -38,7 +42,19 @@ EOSMGMNAMESPACE_BEGIN
 class DrainProgressHandler: public XrdCl::CopyProgressHandler,
   public eos::common::LogId
 {
+  friend class DrainTransferJob;
+
 public:
+
+//----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  DrainProgressHandler():
+    mDoCancel{false}, mProgress{0}, mBytesTransferred{0ull},
+    mStartTimestampSec(std::chrono::duration_cast<std::chrono::seconds>
+                       (std::chrono::system_clock::now().time_since_epoch()).count())
+  {}
+
   //----------------------------------------------------------------------------
   //! Notify when a new job is about to start
   //!
@@ -50,19 +66,9 @@ public:
   void BeginJob(uint16_t jobNum, uint16_t jobTotal, const XrdCl::URL* source,
                 const XrdCl::URL* destination) override
   {
-    eos_info("msg=\"starting copy job %i src=%s dst=%s", jobNum,
-             source->GetURL().c_str(), destination->GetURL().c_str());
-  }
-
-  //----------------------------------------------------------------------------
-  //! Notify when the previous job has finished
-  //!
-  //! @param jobNum job number
-  //! @param result result of the job
-  //----------------------------------------------------------------------------
-  void EndJob(uint16_t jobNum, const XrdCl::PropertyList* result) override
-  {
-    eos_info("msg=\"job=%i finished\"");
+    using namespace std::chrono;
+    mStartTimestampSec = duration_cast<seconds>
+                         (system_clock::now().time_since_epoch()).count();
   }
 
   //----------------------------------------------------------------------------
@@ -75,9 +81,10 @@ public:
   void JobProgress(uint16_t jobNum, uint64_t bytesProcessed,
                    uint64_t bytesTotal) override
   {
-    eos_info("msg=\"progress job=%i percentage=%.02f\%\"", jobNum,
-             (1.0 - (1.0 * (bytesTotal - bytesProcessed) / bytesTotal)) * 100);
-  };
+    mBytesTransferred = bytesProcessed;
+    mProgress = static_cast<int>((1.0 - (1.0 * (bytesTotal - bytesProcessed) /
+                                         bytesTotal))  * 100);
+  }
 
   //----------------------------------------------------------------------------
   //! Determine whether the job should be canceled - this is used internally
@@ -97,8 +104,12 @@ public:
   }
 
 private:
-  std::atomic<bool> mDoCancel {false}; ///< Mark if job should be cancelled
+  std::atomic<bool> mDoCancel; ///< Mark if job should be cancelled
+  std::atomic<int> mProgress; ///< Progress percentage
+  std::atomic<uint64_t> mBytesTransferred; ///< Amount of data transferred
+  std::atomic<uint64_t> mStartTimestampSec; ///< Start timestamp in seconds
 };
+
 
 //------------------------------------------------------------------------------
 //! Class implementing the third party copy transfer, takes as input the
@@ -121,7 +132,7 @@ public:
                    eos::common::FileSystem::fsid_t fsid_src,
                    eos::common::FileSystem::fsid_t fsid_trg = 0):
     mFileId(fid), mFsIdSource(fsid_src), mFsIdTarget(fsid_trg),
-    mStatus(Status::Ready), mRainReconstruct(false) {}
+    mTxFsIdSource(fsid_src), mStatus(Status::Ready), mRainReconstruct(false) {}
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -136,7 +147,7 @@ public:
   //----------------------------------------------------------------------------
   //! Cancel ongoing TPC transfer
   //----------------------------------------------------------------------------
-  void Cancel()
+  inline void Cancel()
   {
     mProgressHandler.DoCancel();
   }
@@ -149,44 +160,38 @@ public:
   void ReportError(const std::string& error);
 
   //----------------------------------------------------------------------------
-  //! Set the taget file system
+  //! Set drain transfer status
+  //!
+  //! @param status new drain transfer status
   //----------------------------------------------------------------------------
-  inline void SetTargetFS(eos::common::FileSystem::fsid_t fsid_trg)
-  {
-    mFsIdTarget = fsid_trg;
-  }
-
   inline void SetStatus(DrainTransferJob::Status status)
   {
     mStatus = status;
   }
 
+  //----------------------------------------------------------------------------
+  //! Get drain transfer status
+  //----------------------------------------------------------------------------
   inline DrainTransferJob::Status GetStatus() const
   {
     return mStatus.load();
   }
 
-  inline eos::common::FileId::fileid_t GetFileId() const
-  {
-    return mFileId;
-  }
+  //----------------------------------------------------------------------------
+  //! Get drain job info based on the requested tags
+  //!
+  //! @param tags set of tags that the requestor would like to get inf about
+  //!
+  //! @param map of tags to corresponding information collected from the job
+  //----------------------------------------------------------------------------
+  std::list<std::string>
+  GetInfo(const std::list<std::string>& tags) const;
 
-  inline eos::common::FileSystem::fsid_t GetSourceFS() const
-  {
-    return mFsIdSource;
-  }
-
-  inline eos::common::FileSystem::fsid_t GetTargetFS() const
-  {
-    return mFsIdTarget;
-  }
-
-  inline const std::string& GetErrorString() const
-  {
-    return mErrorString;
-  }
-
+#ifdef IN_TEST_HARNESS
+public:
+#else
 private:
+#endif
 
   //----------------------------------------------------------------------------
   //! Struct holding info about a file to be drained
@@ -250,14 +255,20 @@ private:
   //! 30 min.
   //!
   //! @param fsize file size
+  //! @param avg_tx average transfer speed in MB/s, default 30 MB/s
   //!
   //! @return timeout value in seconds
   //----------------------------------------------------------------------------
-  std::chrono::seconds EstimateTpcTimeout(const uint64_t fsize) const;
+  static std::chrono::seconds
+  EstimateTpcTimeout(const uint64_t fsize, uint64_t avg_tx = 30);
 
-  eos::common::FileId::fileid_t mFileId; ///< File id to transfer
-  ///! Source and destination file system
-  eos::common::FileSystem::fsid_t mFsIdSource, mFsIdTarget;
+  const eos::common::FileId::fileid_t mFileId; ///< File id to transfer
+  //! Source and destination file system
+  std::atomic<eos::common::FileSystem::fsid_t> mFsIdSource;
+  std::atomic<eos::common::FileSystem::fsid_t> mFsIdTarget;
+  //! Actual file system id used for the current drain transfer, can point to
+  //! the file system of a replica of the file
+  std::atomic<eos::common::FileSystem::fsid_t> mTxFsIdSource;
   std::string mErrorString; ///< Error message
   std::atomic<Status> mStatus; ///< Status of the drain job
   std::set<eos::common::FileSystem::fsid_t> mTriedSrcs; ///< Tried src

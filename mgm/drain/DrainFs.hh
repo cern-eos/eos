@@ -1,11 +1,10 @@
 //------------------------------------------------------------------------------
 //! file DrainFS.hh
-//! @uthor Andrea Manzi - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2017 CERN/Switzerland                                  *
+ * Copyright (C) 2019 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -24,13 +23,12 @@
 #pragma once
 #include "mgm/Namespace.hh"
 #include "mgm/FileSystem.hh"
-#include "mgm/drain/DrainTransferJob.hh"
 #include "namespace/interface/IFsView.hh"
 #include "common/Logging.hh"
 #include <thread>
 #include <future>
-#include <map>
 
+//! Forward declarations
 namespace eos
 {
 namespace common
@@ -41,6 +39,9 @@ class ThreadPool;
 
 EOSMGMNAMESPACE_BEGIN
 
+class DrainTransferJob;
+class TableFormatterBase;
+
 //------------------------------------------------------------------------------
 //! @brief Class implementing the draining of a filesystem
 //------------------------------------------------------------------------------
@@ -50,7 +51,7 @@ public:
   //----------------------------------------------------------------------------
   //! State of file system drain operation
   //----------------------------------------------------------------------------
-  enum class State {Done, Expired, Failed, Running, Stopped, Rerun};
+  enum class State {Done, Failed, Running, Rerun};
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -70,17 +71,11 @@ public:
   virtual ~DrainFs();
 
   //----------------------------------------------------------------------------
-  //! Signal the stop of the file system drain
+  //! Signal an ongoing drain to stop
   //---------------------------------------------------------------------------
-  void SignalStop();
-
-  //----------------------------------------------------------------------------
-  //! Get the list of failed drain jobs
-  //----------------------------------------------------------------------------
-  inline const std::list<std::shared_ptr<DrainTransferJob>>&
-      GetFailedJobs() const
+  inline void SignalStop()
   {
-    return mJobsFailed;
+    mDrainStop = true;
   }
 
   //---------------------------------------------------------------------------
@@ -126,6 +121,18 @@ public:
     return (mFuture.valid() && (mFuture.wait_for(std::chrono::seconds(0)) !=
                                 std::future_status::ready));
   }
+
+  //----------------------------------------------------------------------------
+  //! Populate table with drain jobs info corresponding to the current fs
+  //!
+  //! @param table table objec
+  //! @param show_errors if true then display only failed transfers
+  //! @param itags list of internal tags for info collection
+  //!
+  //! @note: Table header tags must match the order of the internal tags
+  //----------------------------------------------------------------------------
+  void PrintJobsTable(TableFormatterBase& table, bool show_errors,
+                      const std::list<std::string>& itags) const;
 
 private:
   //----------------------------------------------------------------------------
@@ -187,10 +194,28 @@ private:
   void SuccessfulDrain();
 
   //----------------------------------------------------------------------------
-  //! Stop draining - must be called by the same thread supervising the
-  //! draining.
+  //! Stop ongoing drain jobs - must be called by the same thread supervising
+  //! the draining.
   //----------------------------------------------------------------------------
-  void Stop();
+  void StopJobs();
+
+  //----------------------------------------------------------------------------
+  //! Get number of running jobs
+  //----------------------------------------------------------------------------
+  inline uint64_t NumRunningJobs() const
+  {
+    eos::common::RWMutexReadLock rd_lock(mJobsMutex);
+    return mJobsRunning.size();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get number of failed jobs
+  //----------------------------------------------------------------------------
+  inline uint64_t NumFailedJobs() const
+  {
+    eos::common::RWMutexReadLock rd_lock(mJobsMutex);
+    return mJobsFailed.size();
+  }
 
   constexpr static std::chrono::seconds sRefreshTimeout {60};
   constexpr static std::chrono::seconds sStallTimeout {600};
@@ -199,17 +224,15 @@ private:
   eos::common::FileSystem::fsid_t mTargetFsId; /// Drain target fsid
   eos::common::DrainStatus mStatus;
   std::atomic<bool> mDrainStop; ///< Flag to cancel an ongoing draining
-  std::atomic<std::uint32_t> mMaxRetries; ///< Max number of retries
   std::atomic<std::uint32_t> mMaxJobs; ///< Max number of drain jobs
   std::chrono::seconds mDrainPeriod; ///< Allowed time for file system to drain
   std::chrono::time_point<std::chrono::steady_clock> mDrainStart;
   std::chrono::time_point<std::chrono::steady_clock> mDrainEnd;
-  //! Collection of drain jobs to run
-  std::list<std::shared_ptr<DrainTransferJob>> mJobsPending;
   //! Collection of failed drain jobs
-  std::list<std::shared_ptr<DrainTransferJob>> mJobsFailed;
+  std::set<std::shared_ptr<DrainTransferJob>> mJobsFailed;
   //! Collection of running drain jobs
   std::list<std::shared_ptr<DrainTransferJob>> mJobsRunning;
+  mutable eos::common::RWMutex mJobsMutex; ///< RW mutex protecting job lists
   eos::common::ThreadPool& mThreadPool;
   std::future<State> mFuture;
   uint64_t mTotalFiles; ///< Total number of files to drain
@@ -219,7 +242,6 @@ private:
   std::chrono::time_point<std::chrono::steady_clock> mLastProgressTime;
   //! Last timestamp when drain status was updated
   std::chrono::time_point<std::chrono::steady_clock> mLastUpdateTime;
-  std::string mSpace; ///< Space name to which fs is attached
 };
 
 EOSMGMNAMESPACE_END

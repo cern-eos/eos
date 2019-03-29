@@ -1,11 +1,10 @@
 //------------------------------------------------------------------------------
 //! @file Drainer.cc
-//! @author Andrea Manzi - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2017 CERN/Switzerland                                  *
+ * Copyright (C) 2019 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -105,7 +104,7 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs,
     }
   }
 
-  XrdSysMutexHelper scope_lock(mDrainMutex);
+  eos::common::RWMutexWriteLock wr_lock(mDrainMutex);
   auto it_drainfs = mDrainFs.find(src_snapshot.mHostPort);
 
   if (it_drainfs != mDrainFs.end()) {
@@ -134,10 +133,9 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs,
       }
 
       // Check if we have reached the max fs per node for this node
-      if (it_drainfs->second.size() >= GetSpaceConf(src_snapshot.mSpace)) {
-        fs->OpenTransaction();
-        fs->SetDrainStatus(eos::common::DrainStatus::kDrainWait);
-        fs->CloseTransaction();
+      if (it_drainfs->second.size() >=
+          MaxDrainFsInParallel(src_snapshot.mSpace)) {
+        fs->SetDrainStatus(eos::common::DrainStatus::kDrainWait, false);
         mPending.push_back(std::make_pair(src_fsid, dst_fsid));
         return true;
       }
@@ -163,7 +161,7 @@ Drainer::StopFsDrain(eos::mgm::FileSystem* fs, std::string& err)
   eos_notice("msg=\"stop draining\" fsid=%d ", fsid);
   eos::common::FileSystem::fs_snapshot_t drain_snapshot;
   fs->SnapShotFileSystem(drain_snapshot);
-  XrdSysMutexHelper scop_lock(mDrainMutex);
+  eos::common::RWMutexWriteLock wr_lock(mDrainMutex);
   auto it_drainfs = mDrainFs.find(drain_snapshot.mHostPort);
 
   if (it_drainfs == mDrainFs.end()) {
@@ -189,8 +187,7 @@ Drainer::StopFsDrain(eos::mgm::FileSystem* fs, std::string& err)
       (void) mPending.erase(it_pending);
     }
 
-    fs->SetDrainStatus(eos::common::DrainStatus::kNoDrain);
-    FsView::gFsView.StoreFsConfig(fs);
+    fs->SetDrainStatus(eos::common::DrainStatus::kNoDrain, false);
   } else {
     (*it)->SignalStop();
   }
@@ -199,127 +196,67 @@ Drainer::StopFsDrain(eos::mgm::FileSystem* fs, std::string& err)
 }
 
 //------------------------------------------------------------------------------
-// Get draining status
+// Get drain jobs info
 //------------------------------------------------------------------------------
 bool
-Drainer::GetDrainStatusOutput(unsigned int fsid, XrdOucString& out,
-                              XrdOucString& err)
+Drainer::GetJobsInfo(std::string& out, const DrainHdrInfo& hdr_info,
+                     unsigned int fsid, bool only_failed, bool monitor_fmt) const
 {
-  if (mDrainFs.size() == 0) {
-    out += "info: there are no ongoing drain activities";
-    return true;
+  if (hdr_info.empty()) {
+    eos_err("msg=\"drain info header is empty\"");
+    return false;
   }
 
-  if (fsid == 0) {
-    TableFormatterBase table;
-    std::vector<std::string> selections;
+  // Collect list of internal tags for display
+  std::list<std::string> itags;
+
+  for (const auto& elem : hdr_info) {
+    itags.push_back(elem.second);
+  }
+
+  TableFormatterBase table;
+  TableHeader table_header;
+
+  for (const auto& elem : hdr_info) {
+    if (monitor_fmt) {
+      table_header.push_back(std::make_tuple(elem.first, 10, "s"));
+    } else {
+      table_header.push_back(std::make_tuple(elem.first, 0, "s"));
+    }
+  }
+
+  table.SetHeader(table_header);
+  std::vector<std::string> selections;
+  bool found {false};
+  {
+    // Loop through all drain jobs and collect status information
+    eos::common::RWMutexReadLock rd_lock(mDrainMutex);
+
+    if (mDrainFs.size() == 0) {
+      out += "info: there is no ongoing drain activity";
+      return true;
+    }
 
     for (const auto& pair : mDrainFs) {
-      std::string node = pair.first;
-
-      for (const auto& job : pair.second) {
-        PrintTable(table, node, job.get());
-      }
-    }
-
-    TableHeader table_header;
-    table_header.push_back(std::make_tuple("node", 30, "s"));
-    table_header.push_back(std::make_tuple("fs id", 10, "s"));
-    table_header.push_back(std::make_tuple("drain status", 30, "s"));
-    table.SetHeader(table_header);
-    out =  table.GenerateTable(HEADER, selections).c_str();
-  } else {
-    eos::common::FileSystem::fs_snapshot_t drain_snapshot;
-    {
-      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-      auto it_fs = FsView::gFsView.mIdView.find(fsid);
-
-      if (it_fs == FsView::gFsView.mIdView.end()) {
-        err = "error: the given FS does not exist";
-        return false;
+      for (const auto& drain_fs : pair.second) {
+        if (fsid == 0) {
+          drain_fs->PrintJobsTable(table, only_failed, itags);
+        } else {
+          if (fsid == drain_fs->GetFsId()) {
+            drain_fs->PrintJobsTable(table, only_failed, itags);
+            found = true;
+            break;
+          }
+        }
       }
 
-      it_fs->second->SnapShotFileSystem(drain_snapshot, false);
-    }
-    auto it_drainfs = mDrainFs.find(drain_snapshot.mHostPort);
-
-    if (it_drainfs == mDrainFs.end()) {
-      err = "error: node has no ongoing draining";
-      return false;
-    }
-
-    auto it = std::find_if(it_drainfs->second.begin(), it_drainfs->second.end(),
-    [fsid](const shared_ptr<DrainFs>& elem) {
-      return (elem->GetFsId() == fsid);
-    });
-
-    if (it == it_drainfs->second.end()) {
-      err = "error: file system is not draining";
-      return false;
-    }
-
-    TableFormatterBase table;
-    std::vector<std::string> selections;
-    TableHeader table_header;
-    table_header.push_back(std::make_tuple("node", 30, "s"));
-    table_header.push_back(std::make_tuple("fs id", 10, "s"));
-    table_header.push_back(std::make_tuple("drain status", 30, "s"));
-    PrintTable(table, drain_snapshot.mHostPort, (*it).get());
-    table.SetHeader(table_header);
-    out += table.GenerateTable(HEADER, selections).c_str();
-    // Second table with status of the failed jobs
-    TableFormatterBase table_jobs;
-    TableHeader table_header_jobs;
-    table_header_jobs.push_back(std::make_tuple("file id", 30, "s"));
-    table_header_jobs.push_back(std::make_tuple("source fs", 30, "s"));
-    table_header_jobs.push_back(std::make_tuple("destination fs", 30, "s"));
-    table_header_jobs.push_back(std::make_tuple("error", 100, "s"));
-    table_jobs.SetHeader(table_header_jobs);
-    auto job_vect_it = (*it)->GetFailedJobs().cbegin();
-
-    if (job_vect_it != (*it)->GetFailedJobs().cend()) {
-      out += "List of files failed to be drained:\n\n";
-
-      while (job_vect_it != (*it)->GetFailedJobs().cend()) {
-        PrintJobsTable(table_jobs, (*job_vect_it).get());
-        job_vect_it++;
+      if (found) {
+        break;
       }
-
-      out +=  table_jobs.GenerateTable(HEADER, selections).c_str();
     }
   }
-
+  out =  table.GenerateTable(HEADER, selections).c_str();
   return true;
-}
-
-//------------------------------------------------------------------------------
-// Print table with draining status
-//------------------------------------------------------------------------------
-void
-Drainer::PrintTable(TableFormatterBase& table, std::string node, DrainFs* fs)
-{
-  TableData table_data;
-  table_data.emplace_back();
-  table_data.back().push_back(TableCell(node, "s"));
-  table_data.back().push_back(TableCell(fs->GetFsId(), "s"));
-  table_data.back().push_back(TableCell(FileSystem::GetDrainStatusAsString(
-                                          fs->GetDrainStatus()), "s"));
-  table.AddRows(table_data);
-}
-
-//------------------------------------------------------------------------------
-// Print table of the drain jobs
-//------------------------------------------------------------------------------
-void
-Drainer::PrintJobsTable(TableFormatterBase& table, DrainTransferJob* job)
-{
-  TableData table_data;
-  table_data.emplace_back();
-  table_data.back().push_back(TableCell(job->GetFileId(), "l"));
-  table_data.back().push_back(TableCell(job->GetSourceFS(), "l"));
-  table_data.back().push_back(TableCell(job->GetTargetFS(), "l"));
-  table_data.back().push_back(TableCell(job->GetErrorString(), "s"));
-  table.AddRows(table_data);
 }
 
 //------------------------------------------------------------------------------
@@ -331,53 +268,71 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
   eos_static_debug("%s", "msg=\"starting central drainer\"");
   gOFS->WaitUntilNamespaceIsBooted(assistant);
 
-  if (assistant.terminationRequested()) {
-    return;
-  }
+  while (!assistant.terminationRequested()) {
+    UpdateFromSpaceConfig();
+    HandleQueued();
+    assistant.wait_for(std::chrono::seconds(5));
+    // Clean up finished or stopped file system drains
+    eos::common::RWMutexWriteLock wr_lock(mDrainMutex);
 
-  uint64_t timeout_ns = 100 * 1e6; // 100ms
-  // Execute only once at boot time
-  {
-    while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
-      if (assistant.terminationRequested()) {
-        StopDrainFs();
-        return;
-      }
-    }
+    for (auto& pair : mDrainFs) {
+      auto& set_fs = pair.second;
 
-    for (auto it_fs = FsView::gFsView.mIdView.begin();
-         it_fs != FsView::gFsView.mIdView.end(); it_fs++) {
-      eos::common::FileSystem::fs_snapshot_t drain_snapshot;
-      it_fs->second->SnapShotFileSystem(drain_snapshot, false);
-      FileSystem::fsstatus_t confstatus = it_fs->second->GetConfigStatus();
-      eos::common::DrainStatus drainstatus = it_fs->second->GetDrainStatus();
-
-      // @todo (esindril) review these conditions
-      if (confstatus == eos::common::FileSystem::kRO) {
-        if (drainstatus != eos::common::DrainStatus::kNoDrain &&
-            drainstatus !=  eos::common::DrainStatus::kDrained) {
-          std::string err;
-
-          if (!StartFsDrain(it_fs->second, 0, err)) {
-            eos_notice("msg=\"failed to start the drain for fs %d: %s\"",
-                       it_fs->first, err.c_str());
-          }
+      for (auto it = set_fs.begin(); it != set_fs.end(); /*empty*/) {
+        if (!(*it)->IsRunning()) {
+          it = set_fs.erase(it);
+        } else {
+          ++it;
         }
       }
     }
-
-    FsView::gFsView.ViewMutex.UnLockRead();
   }
 
-  while (!assistant.terminationRequested()) {
-    assistant.wait_for(std::chrono::seconds(10));
+  WaitForAllDrainToStop();
+}
 
-    while (!FsView::gFsView.ViewMutex.TimedRdLock(timeout_ns)) {
-      if (assistant.terminationRequested()) {
-        StopDrainFs();
-        return;
+//------------------------------------------------------------------------------
+// Signal all drain file systems to stop and wait for them
+//------------------------------------------------------------------------------
+void
+Drainer::WaitForAllDrainToStop()
+{
+  eos_notice("%s", "msg=\"stop all ongoing drain\"");
+  {
+    eos::common::RWMutexReadLock rd_lock(mDrainMutex);
+
+    for (auto& node_elem : mDrainFs) {
+      for (const auto& fs_elem : node_elem.second) {
+        fs_elem->SignalStop();
       }
+
+      for (const auto& fs_elem : node_elem.second) {
+        while (fs_elem->IsRunning()) {
+          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+      }
+
+      node_elem.second.clear();
     }
+  }
+  eos::common::RWMutexWriteLock wr_lock(mDrainMutex);
+  mDrainFs.clear();
+  mPending.clear();
+}
+
+//------------------------------------------------------------------------------
+// Update drain relevant configuration from the space view
+//------------------------------------------------------------------------------
+void
+Drainer::UpdateFromSpaceConfig()
+{
+  using namespace std::chrono;
+  static auto last_update = steady_clock::now();
+
+  // Update every minute
+  if (duration_cast<seconds>(steady_clock::now() - last_update).count() > 60) {
+    last_update = std::chrono::steady_clock::now();
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
 
     for (const auto& space : FsView::gFsView.mSpaceView) {
       int max_drain_fs = 5;
@@ -392,73 +347,23 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
       XrdSysMutexHelper scope_lock(mCfgMutex);
       mCfgMap[space.first] = max_drain_fs;
     }
-
-    {
-      // Clean up finished or stopped file system drains
-      XrdSysMutexHelper scope_lock(mDrainMutex);
-
-      for (auto& pair : mDrainFs) {
-        auto& set_fs = pair.second;
-
-        for (auto it = set_fs.begin(); it != set_fs.end(); /*empty*/) {
-          if (!(*it)->IsRunning()) {
-            it = set_fs.erase(it);
-          } else {
-            ++it;
-          }
-        }
-      }
-    }
-
-    // Process pending drain jobs
-    HandleQueued();
-    FsView::gFsView.ViewMutex.UnLockRead();
   }
-
-  StopDrainFs();
-}
-
-//------------------------------------------------------------------------------
-// Stop all drain file system jobs
-//------------------------------------------------------------------------------
-void
-Drainer::StopDrainFs()
-{
-  eos_notice("%s", "msg=\"stop all drain jobs\"");
-  // Stop each file system drain operation
-  XrdSysMutexHelper scope_lock(mDrainMutex);
-
-  for (auto& node_elem : mDrainFs) {
-    for (const auto& fs_elem : node_elem.second) {
-      fs_elem->SignalStop();
-    }
-
-    for (const auto& fs_elem : node_elem.second) {
-      while (fs_elem->IsRunning()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      }
-    }
-
-    node_elem.second.clear();
-  }
-
-  mDrainFs.clear();
-  mPending.clear();
 }
 
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
 unsigned int
-Drainer::GetSpaceConf(const std::string& space)
+Drainer::MaxDrainFsInParallel(const std::string& space) const
 {
   XrdSysMutexHelper scope_lock(mCfgMutex);
+  const auto it = mCfgMap.find(space);
 
-  if (mCfgMap.count(space)) {
-    return mCfgMap[space];
-  } else {
-    return 0;
+  if (it != mCfgMap.end()) {
+    return it->second;
   }
+
+  return 0u;
 }
 
 //------------------------------------------------------------------------------
@@ -470,13 +375,14 @@ Drainer::HandleQueued()
   std::string msg;
   ListPendingT lst;
   {
-    XrdSysMutex scope_lock(mDrainMutex);
+    eos::common::RWMutexWriteLock wr_lock(mDrainMutex);
     std::swap(lst, mPending);
   }
 
   while (!lst.empty()) {
     auto pair = lst.front();
     lst.pop_front();
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
     auto it = FsView::gFsView.mIdView.find(pair.first);
 
     if (it != FsView::gFsView.mIdView.end()) {

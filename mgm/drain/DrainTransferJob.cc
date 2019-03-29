@@ -4,7 +4,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2017 CERN/Switzerland                                  *
+ * Copyright (C) 2019 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -32,8 +32,25 @@
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/Prefetcher.hh"
+#include "fmt/format.h"
 
 EOSMGMNAMESPACE_BEGIN
+
+//------------------------------------------------------------------------------
+// Estimat TCP transfer timeout based on file size
+//------------------------------------------------------------------------------
+std::chrono::seconds
+DrainTransferJob::EstimateTpcTimeout(const uint64_t fsize, uint64_t avg_tx)
+{
+  const uint64_t default_timeout = 1800;
+  uint64_t timeout = fsize / (avg_tx * std::pow(2, 20));
+
+  if (timeout < default_timeout) {
+    timeout = default_timeout;
+  }
+
+  return std::chrono::seconds(timeout);
+}
 
 //------------------------------------------------------------------------------
 // Save error message and set the status accordingly
@@ -53,8 +70,8 @@ DrainTransferJob::DoIt()
 {
   using eos::common::LayoutId;
   gOFS->MgmStats.Add("DrainCentralStarted", 0, 0, 1);
-  eos_debug("msg=\"running drain job\" fsid_src=%i, fsid_dst=%i, fid=%08llx",
-            mFsIdSource, mFsIdTarget, mFileId);
+  eos_debug_lite("msg=\"running drain job\" fsid_src=%i, fsid_dst=%i, fid=%08llx",
+                 mFsIdSource.load(), mFsIdTarget.load(), mFileId);
   mStatus = Status::Running;
   FileDrainInfo fdrain;
 
@@ -297,6 +314,7 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
 
   // Construct the source URL
   std::ostringstream src_params;
+  mTxFsIdSource = src_snapshot.mId;
 
   if (mRainReconstruct) {
     src_params << "&mgm.path=" << StringConversion::SealXrdOpaque(fdrain.mFullPath)
@@ -385,14 +403,14 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
   {
     // Get destination fs snapshot
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-    eos::common::FileSystem* dst_fs = FsView::gFsView.mIdView[mFsIdTarget];
+    const auto it_fs = FsView::gFsView.mIdView.find(mFsIdTarget);
 
-    if (!dst_fs) {
+    if (it_fs == FsView::gFsView.mIdView.end()) {
       ReportError("msg=\"target file system not found\"");
       return url_dst;
     }
 
-    dst_fs->SnapShotFileSystem(dst_snapshot);
+    it_fs->second->SnapShotFileSystem(dst_snapshot);
   }
 
   std::ostringstream dst_params;
@@ -431,8 +449,7 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
       uint32_t data_len = fdrain.mProto.checksum().size();
 
       for (auto i = 0u; i < data_len; ++i) {
-        dst_params <<
-                   eos::common::StringConversion::char_to_hex(fdrain.mProto.checksum()[i]);
+        dst_params << StringConversion::char_to_hex(fdrain.mProto.checksum()[i]);
       }
 
       // Pad with zeros if necessary
@@ -575,22 +592,50 @@ DrainTransferJob::DrainZeroSizeFile(const FileDrainInfo& fdrain)
 }
 
 //------------------------------------------------------------------------------
-// Estimat TCP transfer timeout based on file size
+// Get drain job info based on the requested tags
 //------------------------------------------------------------------------------
-std::chrono::seconds
-DrainTransferJob::EstimateTpcTimeout(const uint64_t fsize) const
+std::list<std::string>
+DrainTransferJob::GetInfo(const std::list<std::string>& tags) const
 {
-  const uint64_t avg_tx = 30 * 1024 * 1024; // 30 MB/s
-  const uint64_t default_timeout {
-    1800
-  };
-  uint64_t timeout = fsize / avg_tx;
+  std::list<std::string> info;
 
-  if (timeout < default_timeout) {
-    timeout = default_timeout;
+  for (const auto& tag : tags) {
+    // We only support the following tags
+    if (tag == "fid") {
+      info.push_back(eos::common::FileId::Fid2Hex(mFileId));
+    } else if (tag == "fs_src") {
+      info.push_back(fmt::to_string(mFsIdSource));
+    } else if (tag == "fs_dst") {
+      info.push_back(fmt::to_string(mFsIdTarget));
+    } else if (tag == "tx_fs_src") {
+      info.push_back(fmt::to_string(mTxFsIdSource));
+    } else if (tag == "start_timestamp") {
+      std::time_t start_ts {(long int)mProgressHandler.mStartTimestampSec.load()};
+      std::tm calendar_time;
+      (void) localtime_r(&start_ts, &calendar_time);
+      info.push_back(SSTR(std::put_time(&calendar_time, "%c %Z")));
+    } else if (tag == "progress") {
+      info.push_back(fmt::to_string(mProgressHandler.mProgress.load()) + "%");
+    } else if (tag == "speed") {
+      uint64_t now_sec = std::chrono::duration_cast<std::chrono::seconds>
+                         (std::chrono::system_clock::now().time_since_epoch()).count();
+
+      if (mProgressHandler.mStartTimestampSec < now_sec) {
+        uint64_t duration_sec = now_sec - mProgressHandler.mStartTimestampSec;
+        float rate = (mProgressHandler.mBytesTransferred / (1024 * 1024)) /
+                     duration_sec;
+        info.push_back(fmt::to_string(rate));
+      } else {
+        info.push_back("N/A");
+      }
+    } else if (tag == "err_msg") {
+      info.push_back(mErrorString);
+    } else {
+      info.push_back("N/A");
+    }
   }
 
-  return std::chrono::seconds(timeout);
+  return std::move(info);
 }
 
 EOSMGMNAMESPACE_END
