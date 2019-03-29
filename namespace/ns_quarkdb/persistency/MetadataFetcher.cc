@@ -336,6 +336,30 @@ MetadataFetcher::getFilesInContainer(qclient::QClient& qcl,
 }
 
 //------------------------------------------------------------------------------
+// Fetch all FileMDs contained within the given FileMap. Vector is sorted by
+// filename.
+//------------------------------------------------------------------------------
+std::vector<folly::Future<eos::ns::FileMdProto>>
+MetadataFetcher::getFilesFromFilemap(qclient::QClient& qcl, IContainerMD::FileMap &fileMap) {
+
+  // FileMap is a hashmap, thus unsorted.. We want the results to be sorted
+  // based on filename, though.
+  std::map<std::string, IFileMD::id_t> sortedFileMap;
+
+  for (auto it = fileMap.begin(); it != fileMap.end(); it++) {
+    sortedFileMap[it->first] = it->second;
+  }
+
+  std::vector<folly::Future<eos::ns::FileMdProto>> retval;
+
+  for(auto it = sortedFileMap.begin(); it != sortedFileMap.end(); it++) {
+    retval.emplace_back(getFileFromId(qcl, FileIdentifier(it->second)));
+  }
+
+  return retval;
+}
+
+//------------------------------------------------------------------------------
 // Fetch all subcontaniers for current id
 //------------------------------------------------------------------------------
 folly::Future<IContainerMD::ContainerMap>

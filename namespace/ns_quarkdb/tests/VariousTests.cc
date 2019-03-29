@@ -571,6 +571,49 @@ TEST_F(FileMDFetching, ExistenceTest) {
   ASSERT_FALSE(fileSvc()->hasFileMD(FileIdentifier(2)).get());
 }
 
+TEST_F(FileMDFetching, FilemapToFutureVector) {
+  populateDummyData1();
+
+  eos::IContainerMDPtr d1 = view()->getContainer("/eos/d1");
+  ASSERT_EQ(d1->getId(), 3);
+
+  IContainerMD::FileMap filemap = MetadataFetcher::getFilesInContainer(qcl(), ContainerIdentifier(3)).get();
+  std::map<std::string, IFileMD::id_t> sorted;
+  std::map<std::string, IFileMD::id_t> expected = {
+    {"f1", 1}, {"f2", 2}, {"f3", 3}, {"f4", 4}, {"f5", 5}
+  };
+
+  for(auto it = filemap.begin(); it != filemap.end(); it++) {
+    sorted[it->first] = it->second;
+  }
+
+  ASSERT_EQ(sorted, expected);
+
+  std::vector<folly::Future<eos::ns::FileMdProto>> mdvector = MetadataFetcher::getFilesFromFilemap(qcl(), filemap);
+  ASSERT_EQ(mdvector.size(), 5u);
+
+  eos::ns::FileMdProto f1 = mdvector[0].get();
+  eos::ns::FileMdProto f2 = mdvector[1].get();
+  eos::ns::FileMdProto f3 = mdvector[2].get();
+  eos::ns::FileMdProto f4 = mdvector[3].get();
+  eos::ns::FileMdProto f5 = mdvector[4].get();
+
+  ASSERT_EQ(f1.name(), "f1");
+  ASSERT_EQ(f1.id(), 1);
+
+  ASSERT_EQ(f2.name(), "f2");
+  ASSERT_EQ(f2.id(), 2);
+
+  ASSERT_EQ(f3.name(), "f3");
+  ASSERT_EQ(f3.id(), 3);
+
+  ASSERT_EQ(f4.name(), "f4");
+  ASSERT_EQ(f4.id(), 4);
+
+  ASSERT_EQ(f5.name(), "f5");
+  ASSERT_EQ(f5.id(), 5);
+}
+
 TEST_F(FileMDFetching, CorruptionTest) {
   std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
   ASSERT_EQ(root->getId(), 1);

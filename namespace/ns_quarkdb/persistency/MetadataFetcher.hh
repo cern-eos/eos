@@ -33,9 +33,12 @@
 #include <folly/futures/Future.h>
 
 //! Forward declaration
-namespace qclient
-{
-class QClient;
+namespace qclient {
+  class QClient;
+}
+
+namespace folly {
+  class Executor;
 }
 
 EOSNSNAMESPACE_BEGIN
@@ -89,6 +92,13 @@ public:
   //----------------------------------------------------------------------------
   static folly::Future<IContainerMD::FileMap>
   getFilesInContainer(qclient::QClient& qcl, ContainerIdentifier container);
+
+  //----------------------------------------------------------------------------
+  //! Fetch all FileMDs contained within the given FileMap. Vector is sorted
+  //! by filename.
+  //----------------------------------------------------------------------------
+  static std::vector<folly::Future<eos::ns::FileMdProto>>
+  getFilesFromFilemap(qclient::QClient& qcl, IContainerMD::FileMap &fileMap);
 
   //----------------------------------------------------------------------------
   //! Fetch subcontainers map for a container id
