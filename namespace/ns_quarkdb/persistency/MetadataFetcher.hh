@@ -112,6 +112,14 @@ public:
   getSubContainers(qclient::QClient& qcl, ContainerIdentifier container);
 
   //----------------------------------------------------------------------------
+  //! Fetch all ContainerMDs contained within the given ContainerMap.
+  //! Vector is sorted by filename.
+  //----------------------------------------------------------------------------
+  static std::vector<folly::Future<eos::ns::ContainerMdProto>>
+  getContainersFromContainerMap(qclient::QClient& qcl,
+    IContainerMD::ContainerMap &containerMap);
+
+  //----------------------------------------------------------------------------
   //! Fetch a file id given its parent and its name
   //!
   //! @param qcl qclient object

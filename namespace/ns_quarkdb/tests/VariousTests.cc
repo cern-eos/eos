@@ -574,8 +574,8 @@ TEST_F(FileMDFetching, ExistenceTest) {
 TEST_F(FileMDFetching, FilemapToFutureVector) {
   populateDummyData1();
 
-  eos::IContainerMDPtr d1 = view()->getContainer("/eos/d1");
-  ASSERT_EQ(d1->getId(), 3);
+  eos::IContainerMDPtr cont = view()->getContainer("/eos/d1");
+  ASSERT_EQ(cont->getId(), 3);
 
   IContainerMD::FileMap filemap = MetadataFetcher::getFilesInContainer(qcl(), ContainerIdentifier(3)).get();
   std::map<std::string, IFileMD::id_t> sorted;
@@ -612,6 +612,39 @@ TEST_F(FileMDFetching, FilemapToFutureVector) {
 
   ASSERT_EQ(f5.name(), "f5");
   ASSERT_EQ(f5.id(), 5);
+
+
+  IContainerMD::FileMap containermap = MetadataFetcher::getSubContainers(qcl(), ContainerIdentifier(3)).get();
+  std::map<std::string, IFileMD::id_t> sorted2;
+  std::map<std::string, IFileMD::id_t> expected2 = {
+    {"d2", 4}, {"d2-1", 11}, {"d2-2", 12}, {"d2-3", 13}
+  };
+
+  for(auto it = containermap.begin(); it != containermap.end(); it++) {
+    sorted2[it->first] = it->second;
+  }
+
+  ASSERT_EQ(sorted2, expected2);
+
+  std::vector<folly::Future<eos::ns::ContainerMdProto>> mdvector2 = MetadataFetcher::getContainersFromContainerMap(qcl(), containermap);
+  ASSERT_EQ(mdvector2.size(), 4u);
+
+  eos::ns::ContainerMdProto d0 = mdvector2[0].get();
+  eos::ns::ContainerMdProto d1 = mdvector2[1].get();
+  eos::ns::ContainerMdProto d2 = mdvector2[2].get();
+  eos::ns::ContainerMdProto d3 = mdvector2[3].get();
+
+  ASSERT_EQ(d0.name(), "d2");
+  ASSERT_EQ(d0.id(), 4);
+
+  ASSERT_EQ(d1.name(), "d2-1");
+  ASSERT_EQ(d1.id(), 11);
+
+  ASSERT_EQ(d2.name(), "d2-2");
+  ASSERT_EQ(d2.id(), 12);
+
+  ASSERT_EQ(d3.name(), "d2-3");
+  ASSERT_EQ(d3.id(), 13);
 }
 
 TEST_F(FileMDFetching, CorruptionTest) {
