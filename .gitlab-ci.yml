@@ -2,6 +2,7 @@ stages:
   - build:rpm
   - build:dockerimage
   - test
+  - coverage
   - publish
   - clean
 
@@ -198,9 +199,9 @@ before_script:
   before_script:
     - . /home/gitlab-runner/coe-cluster-config/st-gitlab-k8s-01/env_st-gitlab-k8s-01.sh # get access configs for the cluster
     - NAMESPACE=$(echo ${CI_JOB_NAME}-${CI_JOB_ID}-${CI_PIPELINE_ID} | tr _ -)
-    - if [[ "$CI_COMMIT_TAG" != "" ]]; then 
+    - if [[ "$CI_COMMIT_TAG" != "" ]]; then
         IMAGE_TAG="${BASETAG}${CI_COMMIT_TAG}";
-      else 
+      else
         IMAGE_TAG="${BASETAG}${CI_PIPELINE_ID}";
       fi;
     - git clone https://gitlab.cern.ch/faluchet/eos-on-k8s.git
@@ -369,6 +370,17 @@ build_cc7_clang:
   allow_failure: true
 
 
+build_cc7_coverage:
+  <<: *cc7_template_definition
+  variables:
+    BUILD_NAME: cc7_coverage
+    RPMBUILD_OPTIONS: "--with coverage"
+  tags:
+    - docker_node
+    - cc7
+  when:
+    manual
+
 build_fedora_stable:
   image: fedora:29
   <<: *fedora_template_definition
@@ -528,6 +540,22 @@ cc7_asan_docker_image:
   except:
     - tags
   allow_failure: true
+
+
+cc7_coverage_docker_image:
+  stage: build:dockerimage
+  tags:
+    - docker-image-build
+  script:
+    - ""
+  variables:
+    TO: gitlab-registry.cern.ch/dss/eos:coverage_${CI_PIPELINE_ID}
+    DOCKER_FILE: eos-docker/Dockerfile_coverage
+    BUILD_ARG: BRANCH=${BRANCH}
+  dependencies:
+    - build_cc7_coverage
+    - clone_docker
+  when: manual
 
 
 cc7_docker_image_xrd_testing:
@@ -1236,6 +1264,26 @@ eos_repopackage:
     - sudo -u stci -H createrepo --update -q $STORAGE_PATH
   tags:
     - docker_node
+  when: manual
+
+
+coverage_report:
+  stage: coverage
+  script:
+    - sudo ./eos-docker/scripts/shutdown_services.sh
+    - ./eos-docker/scripts/remove_unused_images.sh
+    - docker pull gitlab-registry.cern.ch/dss/${EOS_IMG_NAME}${CI_COMMIT_TAG-$CI_PIPELINE_ID}
+    - sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/${EOS_IMG_NAME}${CI_COMMIT_TAG-$CI_PIPELINE_ID}
+    - mkdir /tmp/coverage-${CI_COMMIT_TAG-$CI_PIPELINE_ID}; cd /tmp/coverage-${CI_COMMIT_TAG-$CI_PIPELINE_ID}
+    - sudo ./eos-docker/coverage/eos-coverage-ci.sh
+    - sudo -u stci eos root://eosuser.cern.ch/ cp -r /tmp/coverage-${CI_COMMIT_TAG-$CI_PIPELINE_ID}/eos-coverage/coverage-report/ /eos/project/s/storage-ci/www/eos-coverage-report/${CI_COMMIT_TAG-$CI_PIPELINE_ID}/
+    - sudo ./eos-docker/scripts/shutdown_services.sh
+  variables:
+    EOS_IMG_NAME: "eos:coverage_"
+  tags:
+    - shell-with-docker
+  dependencies:
+    - clone_docker
   when: manual
 
 
