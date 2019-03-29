@@ -91,3 +91,13 @@ add_custom_target(
   coverage-report
   DEPENDS coverage-server coverage-client
 )
+
+if (COV_CROSS_PROFILE)
+  install(
+    DIRECTORY ${CMAKE_BINARY_DIR}
+    DESTINATION "/var/eos/coverage"
+    FILES_MATCHING PATTERN "*.gcno"
+    PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
+  )
+endif()
+
