@@ -49,14 +49,16 @@ using namespace eos::common;
 //------------------------------------------------------------------------------
 // Start the LRU thread
 //------------------------------------------------------------------------------
-void LRU::Start() {
+void LRU::Start()
+{
   mThread.reset(&LRU::LRUr, this);
 }
 
 //------------------------------------------------------------------------------
 // Stop the LRU thread
 //------------------------------------------------------------------------------
-void LRU::Stop() {
+void LRU::Stop()
+{
   mThread.join();
 }
 
@@ -64,7 +66,8 @@ void LRU::Stop() {
 // Retrieve "lru.interval" configuration option as string, or empty if
 // cannot be found. Assumes gFsView.ViewMutex is at-least readlocked.
 //------------------------------------------------------------------------------
-std::string LRU::getLRUIntervalConfig() const {
+std::string LRU::getLRUIntervalConfig() const
+{
   if (FsView::gFsView.mSpaceView.count("default") == 0) {
     return "";
   }
@@ -75,32 +78,30 @@ std::string LRU::getLRUIntervalConfig() const {
 //------------------------------------------------------------------------------
 // Retrieve current LRU configuration options
 //------------------------------------------------------------------------------
-LRU::Options LRU::getOptions() {
+LRU::Options LRU::getOptions()
+{
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-
   LRU::Options opts;
-
   // Default options
   opts.enabled = false;
   opts.interval = std::chrono::hours(24) * 7;
 
   if (FsView::gFsView.mSpaceView.count("default") &&
-     (FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru") == "on")) {
+      (FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru") == "on")) {
     opts.enabled = true;
   }
 
   std::string interval = getLRUIntervalConfig();
   int64_t intv = 0;
 
-  if(opts.enabled && (interval.empty() || !common::parseInt64(interval, intv))) {
+  if (opts.enabled && (interval.empty() || !common::parseInt64(interval, intv))) {
     eos_static_crit("Unable to parse space config lru.interval option, disabling LRU!");
     opts.enabled = false;
-  }
-  else {
+  } else {
     opts.interval = std::chrono::seconds(intv);
   }
 
-  if(opts.enabled) {
+  if (opts.enabled) {
     eos_static_info("lru is enabled, interval=%ds", opts.interval.count());
   }
 
@@ -110,14 +111,15 @@ LRU::Options LRU::getOptions() {
 //------------------------------------------------------------------------------
 // Constructor. To run the LRU thread, call Start
 //------------------------------------------------------------------------------
-LRU::LRU() : mRootVid(eos::common::VirtualIdentity::Root()) {
-
+LRU::LRU() : mRootVid(eos::common::VirtualIdentity::Root())
+{
 }
 
 //------------------------------------------------------------------------------
 // Destructor - stop the background thread, if running
 //------------------------------------------------------------------------------
-LRU::~LRU() {
+LRU::~LRU()
+{
   Stop();
 }
 
@@ -125,29 +127,28 @@ LRU::~LRU() {
 // Parse an "sys.lru.expire.match" policy
 // Return true if parsing succeeded, false otherwise
 //------------------------------------------------------------------------------
-bool LRU::parseExpireMatchPolicy(const std::string &policy,
-  std::map<std::string, time_t> &matchAgeMap) {
-
+bool LRU::parseExpireMatchPolicy(const std::string& policy,
+                                 std::map<std::string, time_t>& matchAgeMap)
+{
   matchAgeMap.clear();
-
   std::map<std::string, std::string> tmpMap;
 
-  if(!StringConversion::GetKeyValueMap(policy.c_str(), tmpMap, ":")) {
+  if (!StringConversion::GetKeyValueMap(policy.c_str(), tmpMap, ":")) {
     //--------------------------------------------------------------------------
     // Failed splitting on ":", cannot parse further
     //--------------------------------------------------------------------------
     return false;
   }
 
-  for(auto it = tmpMap.begin(); it != tmpMap.end(); it++) {
+  for (auto it = tmpMap.begin(); it != tmpMap.end(); it++) {
     uint64_t out;
-    if(!StringConversion::GetSizeFromString(it->second, out)) {
+
+    if (!StringConversion::GetSizeFromString(it->second, out)) {
       eos_static_err("msg=\"LRU match attribute has illegal age\" "
                      "match=\"%s\", age=\"%s\"",
                      it->first.c_str(),
                      it->second.c_str());
-    }
-    else {
+    } else {
       matchAgeMap[it->first] = out;
       eos_static_info("rule=\"%s %llu\"", it->first.c_str(), out);
     }
@@ -226,7 +227,7 @@ void LRU::LRUr(ThreadAssistant& assistant) noexcept
     }
 
     std::chrono::milliseconds sleepTime = stopwatch.timeRemainingInCycle();
-    eos_static_info("snooze-time=%llu enabled=%d", sleepTime.count(), opts.enabled);
+    //    eos_static_info("snooze-time=%llu enabled=%d", sleepTime.count(), opts.enabled);
     assistant.wait_for(sleepTime);
   }
 }
@@ -234,9 +235,9 @@ void LRU::LRUr(ThreadAssistant& assistant) noexcept
 //------------------------------------------------------------------------------
 // Process the given directory, apply all policies
 //------------------------------------------------------------------------------
-void LRU::processDirectory(const std::string &dir, size_t contentSize,
-  eos::IContainerMD::XAttrMap &map) {
-
+void LRU::processDirectory(const std::string& dir, size_t contentSize,
+                           eos::IContainerMD::XAttrMap& map)
+{
   //----------------------------------------------------------------------------
   // sort out the individual LRU policies
   //----------------------------------------------------------------------------
@@ -260,7 +261,7 @@ void LRU::processDirectory(const std::string &dir, size_t contentSize,
     // cleaned up according to the LRU policy
     //--------------------------------------------------------------------------
     CacheExpire(dir.c_str(), map["sys.lru.lowwatermark"],
-      map["sys.lru.highwatermark"]);
+                map["sys.lru.highwatermark"]);
   }
 
   if (map.count("sys.lru.convert.match")) {
@@ -322,17 +323,15 @@ LRU::AgeExpire(const char* dir, const std::string& policy)
   eos_static_info("msg=\"applying age deletion policy\" dir=\"%s\" age=\"%s\"",
                   dir,
                   policy.c_str());
-
-
   std::map<std::string, time_t> lMatchAgeMap;
-  if(!parseExpireMatchPolicy(policy, lMatchAgeMap)) {
+
+  if (!parseExpireMatchPolicy(policy, lMatchAgeMap)) {
     eos_static_err("msg=\"LRU match attribute is illegal\" val=\"%s\"",
                    policy.c_str());
     return;
   }
 
   time_t now = time(NULL);
-
   std::vector<std::string> lDeleteList;
   {
     // Check the directory contents
@@ -458,7 +457,6 @@ LRU::CacheExpire(const char* dir,
   std::map<std::string, std::set<std::string> > cachedirs;
   XrdOucString stdErr;
   time_t ms = 0;
-
   // map with path/mtime pairs
   std::set<lru_entry_t> lru_map;
   unsigned long long lru_size = 0;
