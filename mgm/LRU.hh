@@ -75,34 +75,25 @@ public:
   //----------------------------------------------------------------------------
   std::string getLRUIntervalConfig() const;
 
-  /* Default Constructor - use it to run the LRU thread by calling Start
-   */
-  LRU()
-  {
-    mRootVid = eos::common::VirtualIdentity::Root();
-  }
+  //----------------------------------------------------------------------------
+  //! Constructor. To run the LRU thread, call Start
+  //----------------------------------------------------------------------------
+  LRU();
 
-  /* Start the LRU thread engine
-   */
-  bool Start();
+  //----------------------------------------------------------------------------
+  //! Start the LRU thread
+  //----------------------------------------------------------------------------
+  void Start();
 
-  /* Stop the LRU thread engine
-   */
+  //----------------------------------------------------------------------------
+  //! Stop the LRU thread
+  //----------------------------------------------------------------------------
   void Stop();
 
-  /* LRU method doing the actual policy scrubbing
-   */
-  void LRUr(ThreadAssistant& assistant) noexcept;
-
-  /**
-   * @brief Destructor
-   *
-   */
-  ~LRU()
-  {
-    Stop();
-    std::cerr << __FUNCTION__ << ":: end of destructor" << std::endl;
-  }
+  //----------------------------------------------------------------------------
+  //! Destructor - stop the background thread, if running
+  //----------------------------------------------------------------------------
+  ~LRU();
 
   /* expire by age if empty
    */
@@ -118,7 +109,7 @@ public:
 
   /* convert by match
    */
-  void ConvertMatch(const char* dir,  eos::IContainerMD::XAttrMap& map);
+  void ConvertMatch(const char* dir, eos::IContainerMD::XAttrMap& map);
 
   static const char* gLRUPolicyPrefix;
 
@@ -151,6 +142,22 @@ public:
 
   // entry in an lru queue having path name,mtime,size
   typedef struct lru_entry lru_entry_t;
+
+private:
+  //----------------------------------------------------------------------------
+  // LRU method doing the actual policy scrubbing
+  //
+  // This thread loops in regular intervals over all directories which have
+  // a LRU policy attribute set (sys.lru.*) and applies the defined policy.
+  //----------------------------------------------------------------------------
+  void LRUr(ThreadAssistant& assistant) noexcept;
+
+  //----------------------------------------------------------------------------
+  // Process the given directory, apply all policies
+  //----------------------------------------------------------------------------
+  void processDirectory(const std::string &dir, size_t contentSize,
+    eos::IContainerMD::XAttrMap &map);
+
 };
 
 EOSMGMNAMESPACE_END

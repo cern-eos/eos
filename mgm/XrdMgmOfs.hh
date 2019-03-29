@@ -1592,8 +1592,7 @@ public:
   std::unique_ptr<HttpServer> Httpd; ///<  Http daemon if available
 
   //! LRU object running the LRU policy engine
-  std::unique_ptr<LRU> LRUPtr;
-  LRU& LRUd;
+  std::unique_ptr<LRU> mLRUEngine;
 
   //! WFE object running the WFE engine
   std::unique_ptr<WFE> WFEPtr;

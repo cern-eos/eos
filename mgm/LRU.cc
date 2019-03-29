@@ -46,27 +46,17 @@ EOSMGMNAMESPACE_BEGIN
 
 using namespace eos::common;
 
-/*----------------------------------------------------------------------------*/
-/**
- * @brief asynchronous LRU thread startup function
- */
-/*----------------------------------------------------------------------------*/
-bool
-LRU::Start()
-{
+//------------------------------------------------------------------------------
+// Start the LRU thread
+//------------------------------------------------------------------------------
+void LRU::Start() {
   mThread.reset(&LRU::LRUr, this);
-  return true;
 }
 
-
-/*----------------------------------------------------------------------------*/
-/**
- * @brief asynchronous LRU thread stop function
- */
-/*----------------------------------------------------------------------------*/
-void
-LRU::Stop()
-{
+//------------------------------------------------------------------------------
+// Stop the LRU thread
+//------------------------------------------------------------------------------
+void LRU::Stop() {
   mThread.join();
 }
 
@@ -118,6 +108,20 @@ LRU::Options LRU::getOptions() {
 }
 
 //------------------------------------------------------------------------------
+// Constructor. To run the LRU thread, call Start
+//------------------------------------------------------------------------------
+LRU::LRU() : mRootVid(eos::common::VirtualIdentity::Root()) {
+
+}
+
+//------------------------------------------------------------------------------
+// Destructor - stop the background thread, if running
+//------------------------------------------------------------------------------
+LRU::~LRU() {
+  Stop();
+}
+
+//------------------------------------------------------------------------------
 // Parse an "sys.lru.expire.match" policy
 // Return true if parsing succeeded, false otherwise
 //------------------------------------------------------------------------------
@@ -152,16 +156,13 @@ bool LRU::parseExpireMatchPolicy(const std::string &policy,
   return true;
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * @brief LRU method doing the actual policy scrubbing
- *
- * This thread method loops in regular intervals over all directories which have
- * a LRU policy attribute set (sys.lru.*) and applies the defined policy.
- */
-/*----------------------------------------------------------------------------*/
-void
-LRU::LRUr(ThreadAssistant& assistant) noexcept
+//------------------------------------------------------------------------------
+// LRU method doing the actual policy scrubbing
+//
+// This thread loops in regular intervals over all directories which have
+// a LRU policy attribute set (sys.lru.*) and applies the defined policy.
+//------------------------------------------------------------------------------
+void LRU::LRUr(ThreadAssistant& assistant) noexcept
 {
   // Eternal thread doing LRU scans
   gOFS->WaitUntilNamespaceIsBooted(assistant);
@@ -210,41 +211,7 @@ LRU::LRUr(ThreadAssistant& assistant) noexcept
 
           if (!gOFS->_attr_ls(it->first.c_str(), mError, mRootVid,
                               (const char*) 0, map)) {
-            // -------------------------------------------------------------------
-            // sort out the individual LRU policies
-            // -------------------------------------------------------------------
-            if (map.count("sys.lru.expire.empty") && !it->second.size()) {
-              // -----------------------------------------------------------------
-              // remove empty directories older than <age>
-              // -----------------------------------------------------------------
-              AgeExpireEmpty(it->first.c_str(), map["sys.lru.expire.empty"]);
-            }
-
-            if (map.count("sys.lru.expire.match")) {
-              // -----------------------------------------------------------------
-              // files with a given match will be removed after expiration time
-              // -----------------------------------------------------------------
-              AgeExpire(it->first.c_str(), map["sys.lru.expire.match"]);
-            }
-
-            if (map.count("sys.lru.lowwatermark") &&
-                map.count("sys.lru.highwatermark")) {
-              // -----------------------------------------------------------------
-              // if the space in this directory reaches highwatermark, files are
-              // cleaned up according to the LRU policy
-              // -----------------------------------------------------------------
-              CacheExpire(it->first.c_str(),
-                          map["sys.lru.lowwatermark"],
-                          map["sys.lru.highwatermark"]
-                         );
-            }
-
-            if (map.count("sys.lru.convert.match")) {
-              // -----------------------------------------------------------------
-              // files with a given match/age will be automatically converted
-              // -----------------------------------------------------------------
-              ConvertMatch(it->first.c_str(), map);
-            }
+            processDirectory(it->first, it->second.size(), map);
           }
         }
 
@@ -261,6 +228,46 @@ LRU::LRUr(ThreadAssistant& assistant) noexcept
     std::chrono::milliseconds sleepTime = stopwatch.timeRemainingInCycle();
     eos_static_info("snooze-time=%llu enabled=%d", sleepTime.count(), opts.enabled);
     assistant.wait_for(sleepTime);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Process the given directory, apply all policies
+//------------------------------------------------------------------------------
+void LRU::processDirectory(const std::string &dir, size_t contentSize,
+  eos::IContainerMD::XAttrMap &map) {
+
+  //----------------------------------------------------------------------------
+  // sort out the individual LRU policies
+  //----------------------------------------------------------------------------
+  if (map.count("sys.lru.expire.empty") && contentSize == 0) {
+    //--------------------------------------------------------------------------
+    // remove empty directories older than <age>
+    //--------------------------------------------------------------------------
+    AgeExpireEmpty(dir.c_str(), map["sys.lru.expire.empty"]);
+  }
+
+  if (map.count("sys.lru.expire.match")) {
+    //--------------------------------------------------------------------------
+    // files with a given match will be removed after expiration time
+    //--------------------------------------------------------------------------
+    AgeExpire(dir.c_str(), map["sys.lru.expire.match"]);
+  }
+
+  if (map.count("sys.lru.lowwatermark") && map.count("sys.lru.highwatermark")) {
+    //--------------------------------------------------------------------------
+    // if the space in this directory reaches highwatermark, files are
+    // cleaned up according to the LRU policy
+    //--------------------------------------------------------------------------
+    CacheExpire(dir.c_str(), map["sys.lru.lowwatermark"],
+      map["sys.lru.highwatermark"]);
+  }
+
+  if (map.count("sys.lru.convert.match")) {
+    //--------------------------------------------------------------------------
+    // files with a given match/age will be automatically converted
+    //--------------------------------------------------------------------------
+    ConvertMatch(dir.c_str(), map);
   }
 }
 

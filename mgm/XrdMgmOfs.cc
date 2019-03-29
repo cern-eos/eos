@@ -179,7 +179,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   zMQ(nullptr), Authorization(0), MgmStatsPtr(new eos::mgm::Stat()),
   MgmStats(*MgmStatsPtr), FsckPtr(new eos::mgm::Fsck()),
   FsCheck(*FsckPtr), mMaster(nullptr), mRouting(new eos::mgm::PathRouting()),
-  mIsCentralDrain(false), LRUPtr(new eos::mgm::LRU()), LRUd(*LRUPtr),
+  mIsCentralDrain(false), mLRUEngine(new eos::mgm::LRU()),
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr), UTF8(false), mFstGwHost(""),
   mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
   mFusexPort(1100),
@@ -304,10 +304,8 @@ XrdMgmOfs::OrderlyShutdown()
     WFEPtr.reset();
   }
 
-  if (LRUPtr) {
-    eos_warning("%s", "msg=\"stopping and deleting the LRU engine\"");
-    LRUPtr.reset();
-  }
+  eos_warning("%s", "msg=\"stopping and deleting the LRU engine\"");
+  mLRUEngine.reset();
 
   if (EgroupRefresh) {
     eos_warning("%s", "msg=\"stopping and deleting egroup refresh thread\"");

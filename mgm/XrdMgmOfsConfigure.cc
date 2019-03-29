@@ -1813,9 +1813,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   // start the LRU daemon
-  if (!LRUd.Start()) {
-    eos_warning("msg=\"cannot start LRU thread\"");
-  }
+  mLRUEngine->Start();
 
   // start the WFE daemon
   if (!gOFS->WFEd.Start()) {
