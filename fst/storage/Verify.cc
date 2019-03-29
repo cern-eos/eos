@@ -93,21 +93,6 @@ Storage::Verify()
     XrdOucString fstPath = "";
     eos::common::FileId::FidPrefix2FullPath(hex_fid.c_str(),
                                             verifyfile->localPrefix.c_str(), fstPath);
-    {
-      FmdHelper* fMd = 0;
-      fMd = gFmdDbMapHandler.LocalGetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0,
-                                         0,
-                                         true);
-
-      if (fMd) {
-        // force a resync of meta data from the MGM
-        // e.g. store in the WrittenFilesQueue to have it done asynchronous
-        gOFS.WrittenFilesQueueMutex.Lock();
-        gOFS.WrittenFilesQueue.push(fMd->mProtoFmd);
-        gOFS.WrittenFilesQueueMutex.UnLock();
-        delete fMd;
-      }
-    }
     FileIo* io = eos::fst::FileIoPluginHelper::GetIoObject(fstPath.c_str());
     // get current size on disk
     struct stat statinfo;
@@ -151,9 +136,9 @@ Storage::Verify()
       }
 
       if (fMd->mProtoFmd.cid() != verifyfile->cId) {
-        eos_static_err("updating container: path=%s fid=%s central value %llu - changelog value %llu",
-                       verifyfile->path.c_str(), hex_fid.c_str(), verifyfile->cId,
-                       fMd->mProtoFmd.cid());
+        eos_static_err("updating container: path=%s fid=%s central value %llu "
+                       "- changelog value %llu", verifyfile->path.c_str(),
+                       hex_fid.c_str(), verifyfile->cId, fMd->mProtoFmd.cid());
         localUpdate = true;
       }
 
@@ -202,7 +187,8 @@ Storage::Verify()
 
           if (cxError) {
             eos_static_err("checksum invalid   : path=%s fid=%s checksum=%s stored-checksum=%s",
-                           verifyfile->path.c_str(), hex_fid.c_str(), checksummer->GetHexChecksum(),
+                           verifyfile->path.c_str(), hex_fid.c_str(),
+                           checksummer->GetHexChecksum(),
                            fMd->mProtoFmd.checksum().c_str());
             fMd->mProtoFmd.set_checksum(computedchecksum);
             fMd->mProtoFmd.set_diskchecksum(computedchecksum);
