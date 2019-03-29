@@ -61,7 +61,8 @@ set(MGM_UT_SRCS
   mgm/ProcFsTests.cc
   mgm/RoutingTests.cc
   mgm/TapeAwareGcCachedValueTests.cc
-  mgm/TapeAwareGcLruTests.cc)
+  mgm/TapeAwareGcLruTests.cc
+  mgm/DrainTests.cc)
 
 set(COMMON_UT_SRCS
   common/FileMapTests.cc
