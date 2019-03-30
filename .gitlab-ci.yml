@@ -378,8 +378,8 @@ build_cc7_coverage:
   tags:
     - docker_node
     - cc7
-  when:
-    manual
+  when: manual
+
 
 build_fedora_stable:
   image: fedora:29
