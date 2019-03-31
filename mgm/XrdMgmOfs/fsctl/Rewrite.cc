@@ -78,7 +78,7 @@ XrdMgmOfs::Rewrite(const char* path,
     // Convert fxid to path
     errno = 0;
     const char* spath = 0;
-    std::string fullpath = 0;
+    std::string fullpath;
     eos::common::FileId::fileid_t fid = strtoul(hexfid, 0, 16);
 
     if (fid && !errno) {
