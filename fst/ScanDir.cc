@@ -453,9 +453,7 @@ ScanDir::CheckFile(const char* filepath)
                 if (fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered) {
                   orphaned = true;
                 }
-              }
 
-              if (fmd) {
                 delete fmd;
                 fmd = nullptr;
               }
@@ -501,8 +499,22 @@ ScanDir::CheckFile(const char* filepath)
                 // Call the autorepair method on the MGM - but not for orphaned
                 // or unregistered filed. If MGM autorepair is disabled then it
                 // doesn't do anything.
-                if (fmd && !orphaned &&
-                    (!(fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered))) {
+                bool do_autorepair = false;
+
+                if (orphaned == false) {
+                  if (fmd) {
+                    if ((fmd->mProtoFmd.layouterror() &
+                         eos::common::LayoutId::kUnregistered) == false) {
+                      do_autorepair = true;
+                    }
+                  } else {
+                    // The fmd could be null since LocalGetFmd returns null in
+                    // case of a checksum error
+                    do_autorepair = true;
+                  }
+                }
+
+                if (do_autorepair) {
                   gFmdDbMapHandler.CallAutoRepair(manager.c_str(), fid);
                 }
               }
