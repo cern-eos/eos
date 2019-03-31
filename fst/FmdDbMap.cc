@@ -330,22 +330,18 @@ FmdDbMapHandler::CallAutoRepair(const char* manager,
   status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response);
 
   if (status.IsOK()) {
-    rc = 0;
-    eos_static_debug("scheduled a repair at %s for fid=%s ",
+    eos_static_debug("msg=\"scheduled repair\" mgm=%s fid=%s",
                      current_mgr.c_str(), hex_fid.c_str());
+    rc = 0;
   } else {
+    eos_static_err("msg=\"failed to schedule repair\" mgm=%s fid=%s "
+                   "err_msg=\"%s\"", current_mgr.c_str(), hex_fid.c_str(),
+                   status.ToString().c_str());
     rc = ECOMM;
-    eos_static_err("Unable to schedule repair at server %s for fid=%s",
-                   current_mgr.c_str(), hex_fid.c_str());
-  }
-
-  if (rc) {
-    delete response;
-    return EIO;
   }
 
   delete response;
-  return 0;
+  return rc;
 }
 
 //------------------------------------------------------------------------------
