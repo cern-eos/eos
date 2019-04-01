@@ -375,7 +375,8 @@ CommitHelper::validate_checksum(eos::common::VirtualIdentity& vid,
                                 eos::common::LogId& ThreadLogId,
                                 std::shared_ptr<eos::IFileMD> fmd,
                                 eos::Buffer& checksumbuffer,
-                                unsigned long long fsid)
+                                unsigned long long fsid, 
+				CommitHelper::option_t& option)
 {
   bool cxError = false;
   size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
@@ -394,19 +395,21 @@ CommitHelper::validate_checksum(eos::common::VirtualIdentity& vid,
     // -----------------------------------------------------------
     // if we come via FUSE, we have to remove this replica
     // -----------------------------------------------------------
-    if (fmd->hasLocation((unsigned short) fsid)) {
-      fmd->unlinkLocation((unsigned short) fsid);
-      fmd->removeLocation((unsigned short) fsid);
-
-      try {
-        gOFS->eosView->updateFileStore(fmd.get());
-        // this call is not be needed, since it is just a new replica location
-        // gOFS->FuseXCastFile(fmd->getIdentifier());
-      } catch (eos::MDException& e) {
-        errno = e.getErrno();
-        std::string errmsg = e.getMessage().str();
-        eos_thread_crit("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                        e.getErrno(), e.getMessage().str().c_str());
+    if (!option["fusex"]) {
+      if (fmd->hasLocation((unsigned short) fsid)) {
+	fmd->unlinkLocation((unsigned short) fsid);
+	fmd->removeLocation((unsigned short) fsid);
+	
+	try {
+	  gOFS->eosView->updateFileStore(fmd.get());
+	  // this call is not be needed, since it is just a new replica location
+	  // gOFS->FuseXCastFile(fmd->getIdentifier());
+	} catch (eos::MDException& e) {
+	  errno = e.getErrno();
+	  std::string errmsg = e.getMessage().str();
+	  eos_thread_crit("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+			  e.getErrno(), e.getMessage().str().c_str());
+	}
       }
     }
 

@@ -194,7 +194,7 @@ XrdMgmOfs::Commit(const char* path,
           // Validate checksum parameters
           if (option["verifychecksum"] &&
               !CommitHelper::validate_checksum(vid, ThreadLogId, fmd,
-                                               checksumbuffer, fsid)) {
+                                               checksumbuffer, fsid, option)) {
             return Emsg(epname, error, EBADR,
                         "commit replica - file checksum is wrong [EBADR]", "");
           }

@@ -87,7 +87,8 @@ public:
                                 eos::common::LogId& ThreadLogId,
                                 std::shared_ptr<eos::IFileMD> fmd,
                                 eos::Buffer& checksumbuffer,
-                                unsigned long long fsid);
+                                unsigned long long fsid, 
+				CommitHelper::option_t& option);
 
   static void log_verifychecksum(eos::common::VirtualIdentity& vid,
                                  eos::common::LogId& ThreadLogId,
