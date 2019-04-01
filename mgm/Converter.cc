@@ -169,7 +169,7 @@ ConverterJob::DoIt()
     std::string target = mProcPath.c_str();
     std::string cgi = "eos.ruid=" SDUID "&eos.rgid=" SDGID "&";
     cgi += mTargetCGI.c_str();
-    cgi += "&eos.app=converter";
+    cgi += "&eos.app=eos/converter";
     cgi += "&eos.targetsize=";
     cgi += sourceSize.c_str();
 
@@ -182,8 +182,7 @@ ConverterJob::DoIt()
     url_src.SetProtocol("root");
     url_src.SetHostName("localhost");
     url_src.SetUserName("root");
-    url_src.SetParams("eos.app=converter");
-    url_src.SetParams("eos.ruid=0&eos.rgid=0");
+    url_src.SetParams("eos.ruid=0&eos.rgid=0&eos.app=eos/converter");
     url_src.SetPath(source);
     XrdCl::URL url_dst;
     url_dst.SetProtocol("root");
