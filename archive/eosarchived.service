@@ -27,7 +27,7 @@ Wants=network-online.target local-fs.target
 
 [Service]
 WorkingDirectory=/var/eos/
-LogsDirectory=eos/archive/
+#LogsDirectory=eos/archive/
 EnvironmentFile=/etc/sysconfig/eosarchived_env
 ExecStart=/usr/bin/eosarchived.py
 Type=simple
