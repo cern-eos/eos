@@ -41,11 +41,11 @@ class DynamicLibrary;
 //----------------------------------------------------------------------------
 class PluginManager: public LogId
 {
-  typedef std::map<std::string, std::shared_ptr<DynamicLibrary> > DynamicLibMap;
   typedef std::vector<PF_ExitFunc> ExitFuncVec;
 
 public:
 
+  typedef std::map<std::string, std::shared_ptr<DynamicLibrary> > DynamicLibMap;
   typedef std::map<std::string, PF_RegisterParams> RegistrationMap;
 
   //----------------------------------------------------------------------------
@@ -123,6 +123,11 @@ public:
   //! Get registration map i.e. plugin object types available
   //----------------------------------------------------------------------------
   const RegistrationMap& GetRegistrationMap() const;
+
+  //----------------------------------------------------------------------------
+  //! Get dynamic libraries map
+  //----------------------------------------------------------------------------
+  const DynamicLibMap& GetDynamicLibMap() const;
 
   //----------------------------------------------------------------------------
   //! Get services provided by the platform i.e. logging

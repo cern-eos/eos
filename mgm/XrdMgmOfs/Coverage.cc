@@ -38,11 +38,30 @@
 /*----------------------------------------------------------------------------*/
 void
 xrdmgmofs_coverage(int sig)
-
 {
 #ifdef COVERAGE_BUILD
   eos_static_notice("msg=\"printing coverage data\"");
   __gcov_flush();
+
+  // Get a map of all the loaded dynamic libraries
+  using eos::common::PluginManager;
+  PluginManager& pm = PluginManager::GetInstance();
+  PluginManager::DynamicLibMap dynamicLibMap = pm.GetDynamicLibMap();
+
+  typedef void (*CoverageFunc)();
+
+  // Call the exported coverage function on each dynamic library
+  for (auto& dLib: dynamicLibMap) {
+    CoverageFunc coverageFunc =
+        (CoverageFunc) dLib.second->GetSymbol("plugin_coverage");
+
+    if (coverageFunc != NULL) {
+      eos_static_notice("msg=\"calling exported coverage function for: %s\"",
+                        dLib.first.c_str());
+      coverageFunc();
+    }
+  }
+
   return;
 #endif
 

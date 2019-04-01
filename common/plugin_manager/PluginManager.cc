@@ -320,6 +320,15 @@ PluginManager::GetRegistrationMap() const
 }
 
 //------------------------------------------------------------------------------
+// Get dynamic libraries map
+//------------------------------------------------------------------------------
+const PluginManager::DynamicLibMap&
+PluginManager::GetDynamicLibMap() const
+{
+  return mDynamicLibMap;
+}
+
+//------------------------------------------------------------------------------
 // Get available platform services
 //------------------------------------------------------------------------------
 PF_PlatformServices&
