@@ -22,6 +22,20 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/ns_in_memory/NamespaceGroup.hh"
 #include "namespace/ns_in_memory/NsInMemoryPlugin.hh"
+
+/*----------------------------------------------------------------------------*/
+#ifdef COVERAGE_BUILD
+// Forward declaration of gcov flush API
+extern "C" void __gcov_flush();
+
+//------------------------------------------------------------------------------
+// Profiling function flushing coverage data
+//------------------------------------------------------------------------------
+extern "C" void plugin_coverage()
+{
+  __gcov_flush();
+}
+#endif
 /*----------------------------------------------------------------------------*/
 
 //------------------------------------------------------------------------------
