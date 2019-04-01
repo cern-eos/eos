@@ -686,6 +686,7 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
   unsigned long rcmin, rcmax, rcsum;      // readv count
   unsigned long long wmin, wmax, wsum;
   double rsigma, rvsigma, rssigma, rcsigma, wsigma;
+  bool is_tpc = ((mTpcFlag == kTpcDstSetup) || (mTpcFlag == kTpcSrcRead));
   {
     XrdSysMutexHelper vecLock(vecMutex);
     ComputeStatistics(rvec, rmin, rmax, rsum, rsigma);
@@ -746,9 +747,7 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              , ((wTime.tv_sec * 1000.0) + (wTime.tv_usec / 1000.0))
              , (unsigned long long) openSize
              , (unsigned long long) closeSize
-             , eos::common::SecEntity::ToEnv(mSecString.c_str(),
-                 ((mTpcFlag == kTpcDstSetup) ||
-                  (mTpcFlag == kTpcSrcRead)) ? "tpc" : 0).c_str());
+             , eos::common::SecEntity::ToEnv(mSecString.c_str(), is_tpc).c_str());
     reportString = report;
   }
 }

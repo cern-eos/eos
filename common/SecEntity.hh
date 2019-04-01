@@ -122,8 +122,11 @@ public:
   //----------------------------------------------------------------------------
   //! Convert val1|val2|val3... to an env string, optional sec_app allows to
   //! overwrite the sec.info field
+  //!
+  //! @param s input sec entity encoded by the ToKey method above
+  //! @param is_tpc flag to signal TPC transfer
   //----------------------------------------------------------------------------
-  static std::string ToEnv(const char* s, const char* sec_app = 0)
+  static std::string ToEnv(const char* s, bool is_tpc = false)
   {
     if (!s) {
       return "";
@@ -150,8 +153,8 @@ public:
       rs += tokens[6];
       rs += "&sec.app=";
 
-      if ((tokens[7].empty() || tokens[7] == "-") && sec_app) {
-        rs += sec_app;
+      if ((tokens[7].empty() || tokens[7] == "-") && is_tpc) {
+        rs += "tpc";
       } else {
         rs += tokens[7];
       }
