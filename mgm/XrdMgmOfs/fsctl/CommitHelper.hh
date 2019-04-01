@@ -80,7 +80,8 @@ public:
                             eos::common::LogId& ThreadLogId,
                             std::shared_ptr<eos::IFileMD> fmd,
                             unsigned long fsid,
-                            unsigned long long size);
+                            unsigned long long size,
+			    CommitHelper::option_t& option);
 
   static bool validate_checksum(eos::common::VirtualIdentity& vid,
                                 eos::common::LogId& ThreadLogId,

@@ -330,7 +330,8 @@ CommitHelper::validate_size(eos::common::VirtualIdentity& vid,
                             eos::common::LogId& ThreadLogId,
                             std::shared_ptr<eos::IFileMD> fmd,
                             unsigned long fsid,
-                            unsigned long long size)
+                            unsigned long long size, 
+			    CommitHelper::option_t& option)
 {
   if (fmd->getSize() != size) {
     eos_thread_err("replication for fid=%llu resulted in a different file "
@@ -341,19 +342,21 @@ CommitHelper::validate_size(eos::common::VirtualIdentity& vid,
     // -----------------------------------------------------------
     // if we come via FUSE, we have to remove this replica
     // -----------------------------------------------------------
-    if (fmd->hasLocation((unsigned short) fsid)) {
-      fmd->unlinkLocation((unsigned short) fsid);
-      fmd->removeLocation((unsigned short) fsid);
-
-      try {
-        gOFS->eosView->updateFileStore(fmd.get());
-        // this call is not needed, since it is just a new replica location
-        // gOFS->FuseXCastFile(fmd->getIdentifier());
-      } catch (eos::MDException& e) {
-        errno = e.getErrno();
-        std::string errmsg = e.getMessage().str();
-        eos_thread_crit("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                        e.getErrno(), e.getMessage().str().c_str());
+    if ( option["fusex"] ) {
+      if (fmd->hasLocation((unsigned short) fsid)) {
+	fmd->unlinkLocation((unsigned short) fsid);
+	fmd->removeLocation((unsigned short) fsid);
+	
+	try {
+	  gOFS->eosView->updateFileStore(fmd.get());
+	  // this call is not needed, since it is just a new replica location
+	  // gOFS->FuseXCastFile(fmd->getIdentifier());
+	} catch (eos::MDException& e) {
+	  errno = e.getErrno();
+	  std::string errmsg = e.getMessage().str();
+	  eos_thread_crit("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+			  e.getErrno(), e.getMessage().str().c_str());
+	}
       }
     }
 

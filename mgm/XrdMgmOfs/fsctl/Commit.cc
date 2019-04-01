@@ -186,7 +186,7 @@ XrdMgmOfs::Commit(const char* path,
           eos_thread_debug("fmd_size=%llu, size=%lli", fmd->getSize(), size);
 
           // Validate size parameters
-          if (!CommitHelper::validate_size(vid, ThreadLogId, fmd, fsid, size)) {
+          if (!CommitHelper::validate_size(vid, ThreadLogId, fmd, fsid, size, option)) {
             return Emsg(epname, error, EBADE,
                         "commit replica - file size is wrong [EBADE]", "");
           }
