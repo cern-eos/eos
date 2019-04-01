@@ -1274,9 +1274,8 @@ coverage_report:
     - ./eos-docker/scripts/remove_unused_images.sh
     - docker pull gitlab-registry.cern.ch/dss/${EOS_IMG_NAME}${CI_COMMIT_TAG-$CI_PIPELINE_ID}
     - sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/${EOS_IMG_NAME}${CI_COMMIT_TAG-$CI_PIPELINE_ID}
-    - mkdir /tmp/coverage-${CI_COMMIT_TAG-$CI_PIPELINE_ID}; cd /tmp/coverage-${CI_COMMIT_TAG-$CI_PIPELINE_ID}
     - sudo ./eos-docker/coverage/eos-coverage-ci.sh
-    - sudo -u stci eos root://eosuser.cern.ch/ cp -r /tmp/coverage-${CI_COMMIT_TAG-$CI_PIPELINE_ID}/eos-coverage/coverage-report/ /eos/project/s/storage-ci/www/eos-coverage-report/${CI_COMMIT_TAG-$CI_PIPELINE_ID}/
+    - sudo -u stci cp -r ./eos-coverage/ /eos/project/s/storage-ci/www/eos-coverage-report/eos-coverage-${CI_COMMIT_TAG-$CI_PIPELINE_ID}/
     - sudo ./eos-docker/scripts/shutdown_services.sh
   variables:
     EOS_IMG_NAME: "eos:coverage_"
