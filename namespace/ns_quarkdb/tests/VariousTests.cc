@@ -34,6 +34,7 @@
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
+#include "namespace/ns_quarkdb/ExecutorProvider.hh"
 #include "namespace/common/QuotaNodeCore.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Etag.hh"
@@ -42,6 +43,8 @@
 #include "namespace/Resolver.hh"
 #include "TestUtils.hh"
 #include <folly/futures/Future.h>
+#include "google/protobuf/util/message_differencer.h"
+
 
 using namespace eos;
 
@@ -592,11 +595,21 @@ TEST_F(FileMDFetching, FilemapToFutureVector) {
   std::vector<folly::Future<eos::ns::FileMdProto>> mdvector = MetadataFetcher::getFilesFromFilemap(qcl(), filemap);
   ASSERT_EQ(mdvector.size(), 5u);
 
+  std::vector<folly::Future<eos::ns::FileMdProto>> mdvector3 =
+    MetadataFetcher::getFileMDsInContainer(qcl(), ContainerIdentifier(3),
+    ExecutorProvider::getIOThreadPool("testing")).get();
+
   eos::ns::FileMdProto f1 = mdvector[0].get();
   eos::ns::FileMdProto f2 = mdvector[1].get();
   eos::ns::FileMdProto f3 = mdvector[2].get();
   eos::ns::FileMdProto f4 = mdvector[3].get();
   eos::ns::FileMdProto f5 = mdvector[4].get();
+
+  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(f1, mdvector3[0].get()));
+  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(f2, mdvector3[1].get()));
+  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(f3, mdvector3[2].get()));
+  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(f4, mdvector3[3].get()));
+  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(f5, mdvector3[4].get()));
 
   ASSERT_EQ(f1.name(), "f1");
   ASSERT_EQ(f1.id(), 1);

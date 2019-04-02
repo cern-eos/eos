@@ -98,7 +98,13 @@ public:
   //! by filename.
   //----------------------------------------------------------------------------
   static std::vector<folly::Future<eos::ns::FileMdProto>>
-  getFilesFromFilemap(qclient::QClient& qcl, IContainerMD::FileMap &fileMap);
+  getFilesFromFilemap(qclient::QClient& qcl, const IContainerMD::FileMap &fileMap);
+
+  //----------------------------------------------------------------------------
+  //! Same as above, but fileMap is passed as a value.
+  //----------------------------------------------------------------------------
+  static std::vector<folly::Future<eos::ns::FileMdProto>>
+  getFilesFromFilemapV(qclient::QClient& qcl, IContainerMD::FileMap fileMap);
 
   //----------------------------------------------------------------------------
   //! Fetch all file metadata within the given container.
