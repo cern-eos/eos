@@ -157,6 +157,7 @@ if (Linux)
     EosNsCommon-Static PUBLIC
     EosCrc32c-Static
     EosProtobuf-Static
+    eosCommon-Static
     fmt
     qclient
     rocksdb
