@@ -101,6 +101,13 @@ public:
   getFilesFromFilemap(qclient::QClient& qcl, IContainerMD::FileMap &fileMap);
 
   //----------------------------------------------------------------------------
+  //! Fetch all file metadata within the given container.
+  //----------------------------------------------------------------------------
+  static folly::Future<std::vector<folly::Future<eos::ns::FileMdProto>>>
+  getFileMDsInContainer(qclient::QClient& qcl, ContainerIdentifier container,
+    folly::Executor *executor);
+
+  //----------------------------------------------------------------------------
   //! Fetch subcontainers map for a container id
   //!
   //! @param qcl qclient object

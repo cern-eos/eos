@@ -23,8 +23,8 @@
 
 #include "MetadataProvider.hh"
 #include "MetadataProviderShard.hh"
+#include "namespace/ns_quarkdb/ExecutorProvider.hh"
 #include <folly/Executor.h>
-#include <folly/executors/IOThreadPoolExecutor.h>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -34,11 +34,11 @@ EOSNSNAMESPACE_BEGIN
 MetadataProvider::MetadataProvider(const QdbContactDetails& contactDetails,
                                    IContainerMDSvc* contsvc, IFileMDSvc* filesvc)
 {
-  mExecutor.reset(new folly::IOThreadPoolExecutor(16));
+  mExecutor = ExecutorProvider::getIOThreadPool("default");
 
   for(size_t i = 0; i < kShards; i++) {
     mQcl.emplace_back(eos::BackendClient::getInstance(contactDetails, SSTR("md-provider-" << i)));
-    mShards.emplace_back(new MetadataProviderShard(mQcl.back(), contsvc, filesvc, mExecutor.get()));
+    mShards.emplace_back(new MetadataProviderShard(mQcl.back(), contsvc, filesvc, mExecutor));
   }
 }
 

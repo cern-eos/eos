@@ -339,7 +339,7 @@ private:
   IFileMDSvc* pFileSvc;
   IQuotaStats* pQuotaStats;
   std::shared_ptr<IContainerMD> pRoot;
-  std::unique_ptr<folly::Executor> pExecutor;
+  folly::Executor *pExecutor;
 };
 
 EOSNSNAMESPACE_END

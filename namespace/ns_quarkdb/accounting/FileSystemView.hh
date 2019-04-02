@@ -394,7 +394,8 @@ private:
   FileSystemHandler* fetchUnlinkedFilelistIfExists(IFileMD::location_t fsid);
 
   ///! Folly executor
-  std::unique_ptr<folly::Executor> mExecutor;
+  folly::Executor* mExecutor;
+
   ///! Metadata flusher object
   std::shared_ptr<MetadataFlusher> pFlusher;
   ///! QClient object
