@@ -22,6 +22,8 @@
 //!         and make iteration sane
 //------------------------------------------------------------------------------
 
+#pragma once
+
 #include "namespace/Namespace.hh"
 #include <vector>
 #include <folly/futures/Future.h>
@@ -30,6 +32,11 @@ EOSNSNAMESPACE_BEGIN
 
 template<typename T>
 class FutureVectorIterator {
+private:
+  using FutureT = folly::Future<T>;
+  using VectorT = std::vector<FutureT>;
+  using FutureVectorT = folly::Future<VectorT>;
+
 public:
   //----------------------------------------------------------------------------
   //! Construtor, consumes future vector of futures
@@ -41,7 +48,14 @@ public:
   //! Construtor, consumes concrete vector of futures
   //----------------------------------------------------------------------------
   FutureVectorIterator(std::vector<folly::Future<T>> &&vec)
-  : mainFuture({}), futureVectorPopulated(true), futureVector(std::move(vec)) {}
+  : mainFuture(folly::makeFuture<VectorT>(VectorT())),
+    futureVectorPopulated(true), futureVector(std::move(vec)) {}
+
+  //----------------------------------------------------------------------------
+  //! Null construtor, everything is ready, and we're already at EOF
+  //----------------------------------------------------------------------------
+  FutureVectorIterator()
+  : FutureVectorIterator(std::vector<folly::Future<T>>()) {}
 
   //----------------------------------------------------------------------------
   //! Is the top-level future ready?

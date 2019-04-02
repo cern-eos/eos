@@ -29,6 +29,7 @@
 #include "proto/ContainerMd.pb.h"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/Identifiers.hh"
+#include "namespace/ns_quarkdb/utils/FutureVectorIterator.hh"
 #include <string>
 #include <vector>
 #include <deque>
@@ -96,7 +97,9 @@ class NamespaceExplorer;
 class SearchNode
 {
 public:
-  SearchNode(NamespaceExplorer &explorer, ContainerIdentifier id, SearchNode* prnt);
+  SearchNode(NamespaceExplorer &explorer, ContainerIdentifier id,
+    SearchNode* prnt, folly::Executor *exec);
+
   inline ContainerIdentifier getID() const
   {
     return id;
@@ -113,9 +116,6 @@ public:
 
   // Activate
   void activate();
-
-  // Activate one specific contained child.
-  void activateOne(const std::string& name);
 
   // Clear children.
   void prefetchChildren();
@@ -137,16 +137,14 @@ private:
   ContainerIdentifier id;
   qclient::QClient& qcl;
   SearchNode* parent = nullptr;
+  folly::Executor *executor = nullptr;
+
   bool visited = false;
 
-  // First round of asynchronous requests fills out:
   common::FutureWrapper<eos::ns::ContainerMdProto> containerMd;
-  common::FutureWrapper<IContainerMD::FileMap> fileMap;
   common::FutureWrapper<IContainerMD::ContainerMap> containerMap;
 
-  // Second and final round fills out:
-  std::deque<folly::Future<eos::ns::FileMdProto>> pendingFileMds;
-  bool pendingFileMdsLoaded = false;
+  FutureVectorIterator<eos::ns::FileMdProto> pendingFileMds;
 
   std::deque<std::unique_ptr<SearchNode>> children; // expanded containers
   bool childrenLoaded = false;
@@ -155,7 +153,6 @@ private:
 
   // @todo (gbitzes): Replace this mess with a nice iterator object which
   // provides all children of a container, fully asynchronous with prefetching.
-  void stageFileMds();
   void stageChildren();
 };
 

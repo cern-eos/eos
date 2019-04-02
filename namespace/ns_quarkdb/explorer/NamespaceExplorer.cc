@@ -31,12 +31,13 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-SearchNode::SearchNode(NamespaceExplorer &expl, ContainerIdentifier d, eos::SearchNode* prnt)
-  : explorer(expl), id(d), qcl(explorer.qcl), parent(prnt),
-    containerMd(MetadataFetcher::getContainerFromId(qcl, ContainerIdentifier(id)))
+SearchNode::SearchNode(NamespaceExplorer &expl, ContainerIdentifier d, eos::SearchNode* prnt, folly::Executor* exec)
+  : explorer(expl), id(d), qcl(explorer.qcl), parent(prnt), executor(exec),
+    containerMd(MetadataFetcher::getContainerFromId(qcl, id))
 {
-  fileMap = MetadataFetcher::getFileMap(qcl, ContainerIdentifier(id));
-  containerMap = MetadataFetcher::getContainerMap(qcl, ContainerIdentifier(id));
+
+  pendingFileMds = MetadataFetcher::getFileMDsInContainer(qcl, id, exec);
+  containerMap = MetadataFetcher::getContainerMap(qcl, id);
 }
 
 //------------------------------------------------------------------------------
@@ -45,37 +46,8 @@ SearchNode::SearchNode(NamespaceExplorer &expl, ContainerIdentifier d, eos::Sear
 //------------------------------------------------------------------------------
 void SearchNode::handleAsync()
 {
-  if (!pendingFileMdsLoaded && fileMap.ready()) {
-    stageFileMds();
-  }
-
   if (!childrenLoaded && containerMap.ready()) {
     stageChildren();
-  }
-}
-
-//------------------------------------------------------------------------------
-// Unconditionally stage file mds, block if necessary. Call this only if:
-// - Search really needs the result.
-// - When prefetching, when you know fileMap is ready.
-//------------------------------------------------------------------------------
-void SearchNode::stageFileMds()
-{
-  if (pendingFileMdsLoaded) {
-    return;
-  }
-
-  pendingFileMdsLoaded = true;
-  // fileMap is hashmap, thus unsorted... must sort first by filename.. sigh.
-  // storing into a vector and calling std::sort might be faster, TODO
-  std::map<std::string, IFileMD::id_t> sortedFileMap;
-
-  for (auto it = fileMap->begin(); it != fileMap->end(); it++) {
-    sortedFileMap[it->first] = it->second;
-  }
-
-  for (auto it = sortedFileMap.begin(); it != sortedFileMap.end(); it++) {
-    pendingFileMds.push_back(MetadataFetcher::getFileFromId(qcl, FileIdentifier(it->second)));
   }
 }
 
@@ -145,7 +117,7 @@ void SearchNode::stageChildren()
 
   for (auto it = sortedContainerMap.begin(); it != sortedContainerMap.end();
        it++) {
-    children.emplace_back(new SearchNode(explorer, ContainerIdentifier(it->second), this));
+    children.emplace_back(new SearchNode(explorer, ContainerIdentifier(it->second), this, executor));
   }
 }
 
@@ -154,15 +126,7 @@ void SearchNode::stageChildren()
 //------------------------------------------------------------------------------
 bool SearchNode::fetchChild(eos::ns::FileMdProto& output)
 {
-  stageFileMds();
-
-  if (pendingFileMds.empty()) {
-    return false;
-  }
-
-  output = pendingFileMds[0].get();
-  pendingFileMds.pop_front();
-  return true;
+  return pendingFileMds.fetchNext(output);
 }
 
 //------------------------------------------------------------------------------
@@ -193,7 +157,7 @@ NamespaceExplorer::NamespaceExplorer(const std::string& pth,
 
   if (pathParts.empty()) {
     // We're running a search on the root node, expand.
-    dfsPath.emplace_back(new SearchNode(*this, ContainerIdentifier(1), nullptr));
+    dfsPath.emplace_back(new SearchNode(*this, ContainerIdentifier(1), nullptr, executor));
   }
 
   // TODO: This for loop looks like a useful primitive for MetadataFetcher,
@@ -237,7 +201,7 @@ NamespaceExplorer::NamespaceExplorer(const std::string& pth,
         staticPath.emplace_back(MetadataFetcher::getContainerFromId(qcl, nextId).get());
       } else {
         // Final node, expand
-        dfsPath.emplace_back(new SearchNode(*this, nextId, nullptr));
+        dfsPath.emplace_back(new SearchNode(*this, nextId, nullptr, executor));
       }
     }
   }

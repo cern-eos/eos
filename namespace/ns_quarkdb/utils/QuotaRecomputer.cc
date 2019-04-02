@@ -33,7 +33,7 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 QuotaRecomputer::QuotaRecomputer(IView *view, qclient::QClient *qcl,
-  folly::Executor *exec) : mView(view), mQcl(qcl) {}
+  folly::Executor *exec) : mView(view), mQcl(qcl), mExecutor(exec) {}
 
 //------------------------------------------------------------------------------
 // Filtering class for NamespaceExplorer to ignore sub-quotanodes when

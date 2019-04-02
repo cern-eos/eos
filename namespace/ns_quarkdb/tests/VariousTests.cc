@@ -1153,6 +1153,15 @@ TEST(FileOrContainerIdentifier, BasicSanity) {
   ASSERT_EQ(container.toContainerIdentifier(), ContainerIdentifier(222));
 }
 
+TEST(FutureVectorIterator, EmptyConstructor) {
+  FutureVectorIterator<int> fvi;
+  ASSERT_TRUE(fvi.isReady());
+  ASSERT_TRUE(fvi.isMainFutureReady());
+
+  int out;
+  ASSERT_FALSE(fvi.fetchNext(out));
+}
+
 TEST(FutureVectorIterator, BasicSanity) {
   folly::Promise<std::vector<folly::Future<int>>> mainPromise;
 
