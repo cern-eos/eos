@@ -531,7 +531,6 @@ public:
 
   size_t GetOps()
   {
-    XrdSysMutexHelper sLock(Mutex);
     return sum_ops;
   }
 

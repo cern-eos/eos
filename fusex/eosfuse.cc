@@ -5647,12 +5647,17 @@ EosFuse::getHbStat(eos::fusex::statistics& hbs)
     hbs.set_total_ram_mb(meminfo.getref().totalram / 1000.0 / 1000.0);
     hbs.set_load1(1.0 * meminfo.getref().loads[0] / (1 << SI_LOAD_SHIFT));
   }
-  hbs.set_rbytes(getFuseStat().GetTotal("rbytes"));
-  hbs.set_wbytes(getFuseStat().GetTotal("wbytes"));
-  hbs.set_rd_rate_60_mb(getFuseStat().GetTotalAvg60("rbytes") / 1000.0 / 1000.0);
-  hbs.set_wr_rate_60_mb(getFuseStat().GetTotalAvg60("wbytes") / 1000.0 / 1000.0);
-  hbs.set_nio(getFuseStat().GetOps());
-  hbs.set_iops_60(getFuseStat().GetTotalAvg60(":sum"));
+
+  {
+    XrdSysMutexHelper sLock(getFuseStat().Mutex);
+    hbs.set_rbytes(getFuseStat().GetTotal("rbytes"));
+    hbs.set_wbytes(getFuseStat().GetTotal("wbytes"));
+    hbs.set_rd_rate_60_mb(getFuseStat().GetTotalAvg60("rbytes") / 1000.0 / 1000.0);
+    hbs.set_wr_rate_60_mb(getFuseStat().GetTotalAvg60("wbytes") / 1000.0 / 1000.0);
+    hbs.set_nio(getFuseStat().GetOps());
+    hbs.set_iops_60(getFuseStat().GetTotalAvg60(":sum"));
+  }
+
   hbs.set_wr_buf_mb(XrdCl::Proxy::sWrBufferManager.inflight() / 1000.0 / 1000.0);
   hbs.set_ra_buf_mb(XrdCl::Proxy::sRaBufferManager.inflight() / 1000.0 / 1000.0);
   hbs.set_xoff(Instance().datas.get_xoff());
