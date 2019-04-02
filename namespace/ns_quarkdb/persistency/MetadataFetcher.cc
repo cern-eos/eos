@@ -327,7 +327,7 @@ std::string MetadataFetcher::keySubFiles(IContainerMD::id_t id)
 // Fetch all files for current id
 //------------------------------------------------------------------------------
 folly::Future<IContainerMD::FileMap>
-MetadataFetcher::getFilesInContainer(qclient::QClient& qcl,
+MetadataFetcher::getFileMap(qclient::QClient& qcl,
                                      ContainerIdentifier container)
 {
   MapFetcher<MapFetcherFileTrait>* fetcher = new
@@ -388,7 +388,7 @@ MetadataFetcher::getContainersFromContainerMap(qclient::QClient& qcl,
 // Fetch all subcontaniers for current id
 //------------------------------------------------------------------------------
 folly::Future<IContainerMD::ContainerMap>
-MetadataFetcher::getSubContainers(qclient::QClient& qcl,
+MetadataFetcher::getContainerMap(qclient::QClient& qcl,
                                   ContainerIdentifier container)
 {
   MapFetcher<MapFetcherContainerTrait>* fetcher =

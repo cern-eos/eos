@@ -85,9 +85,9 @@ MetadataProviderShard::retrieveContainerMD(ContainerIdentifier id)
   folly::Future<eos::ns::ContainerMdProto> protoFut =
     MetadataFetcher::getContainerFromId(*mQcl, id);
   folly::Future<IContainerMD::FileMap> fileMapFut =
-    MetadataFetcher::getFilesInContainer(*mQcl, id);
+    MetadataFetcher::getFileMap(*mQcl, id);
   folly::Future<IContainerMD::ContainerMap> containerMapFut =
-    MetadataFetcher::getSubContainers(*mQcl, id);
+    MetadataFetcher::getContainerMap(*mQcl, id);
   folly::Future<IContainerMDPtr> fut =
     folly::collect(protoFut, fileMapFut, containerMapFut)
     .via(mExecutor)

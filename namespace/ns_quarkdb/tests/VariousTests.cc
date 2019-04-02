@@ -121,8 +121,8 @@ TEST_F(VariousTests, BasicSanity) {
   ASSERT_EQ(ContainerIdentifier(subdir2->getId()), eos::MetadataFetcher::getContainerIDFromName(qcl(), ContainerIdentifier(2), "subdir2").get());
   ASSERT_EQ(ContainerIdentifier(subdir3->getId()), eos::MetadataFetcher::getContainerIDFromName(qcl(), ContainerIdentifier(2), "subdir3").get());
 
-  IContainerMD::ContainerMap containerMap = eos::MetadataFetcher::getSubContainers(qcl(), ContainerIdentifier(subdir1->getId())).get();
-  IContainerMD::FileMap fileMap = eos::MetadataFetcher::getSubContainers(qcl(), ContainerIdentifier(subdir1->getId())).get();
+  IContainerMD::ContainerMap containerMap = eos::MetadataFetcher::getContainerMap(qcl(), ContainerIdentifier(subdir1->getId())).get();
+  IContainerMD::FileMap fileMap = eos::MetadataFetcher::getContainerMap(qcl(), ContainerIdentifier(subdir1->getId())).get();
 
   ASSERT_TRUE(containerMap.empty());
   ASSERT_TRUE(fileMap.empty());
@@ -577,7 +577,7 @@ TEST_F(FileMDFetching, FilemapToFutureVector) {
   eos::IContainerMDPtr cont = view()->getContainer("/eos/d1");
   ASSERT_EQ(cont->getId(), 3);
 
-  IContainerMD::FileMap filemap = MetadataFetcher::getFilesInContainer(qcl(), ContainerIdentifier(3)).get();
+  IContainerMD::FileMap filemap = MetadataFetcher::getFileMap(qcl(), ContainerIdentifier(3)).get();
   std::map<std::string, IFileMD::id_t> sorted;
   std::map<std::string, IFileMD::id_t> expected = {
     {"f1", 1}, {"f2", 2}, {"f3", 3}, {"f4", 4}, {"f5", 5}
@@ -614,7 +614,7 @@ TEST_F(FileMDFetching, FilemapToFutureVector) {
   ASSERT_EQ(f5.id(), 5);
 
 
-  IContainerMD::FileMap containermap = MetadataFetcher::getSubContainers(qcl(), ContainerIdentifier(3)).get();
+  IContainerMD::FileMap containermap = MetadataFetcher::getContainerMap(qcl(), ContainerIdentifier(3)).get();
   std::map<std::string, IFileMD::id_t> sorted2;
   std::map<std::string, IFileMD::id_t> expected2 = {
     {"d2", 4}, {"d2-1", 11}, {"d2-2", 12}, {"d2-3", 13}

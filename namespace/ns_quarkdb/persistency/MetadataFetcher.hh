@@ -91,7 +91,7 @@ public:
   //! @return future the map of files
   //----------------------------------------------------------------------------
   static folly::Future<IContainerMD::FileMap>
-  getFilesInContainer(qclient::QClient& qcl, ContainerIdentifier container);
+  getFileMap(qclient::QClient& qcl, ContainerIdentifier container);
 
   //----------------------------------------------------------------------------
   //! Fetch all FileMDs contained within the given FileMap. Vector is sorted
@@ -109,7 +109,7 @@ public:
   //! @return future the map of subcontainers
   //----------------------------------------------------------------------------
   static folly::Future<IContainerMD::ContainerMap>
-  getSubContainers(qclient::QClient& qcl, ContainerIdentifier container);
+  getContainerMap(qclient::QClient& qcl, ContainerIdentifier container);
 
   //----------------------------------------------------------------------------
   //! Fetch all ContainerMDs contained within the given ContainerMap.

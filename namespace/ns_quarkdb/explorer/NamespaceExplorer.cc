@@ -35,8 +35,8 @@ SearchNode::SearchNode(NamespaceExplorer &expl, ContainerIdentifier d, eos::Sear
   : explorer(expl), id(d), qcl(explorer.qcl), parent(prnt),
     containerMd(MetadataFetcher::getContainerFromId(qcl, ContainerIdentifier(id)))
 {
-  fileMap = MetadataFetcher::getFilesInContainer(qcl, ContainerIdentifier(id));
-  containerMap = MetadataFetcher::getSubContainers(qcl, ContainerIdentifier(id));
+  fileMap = MetadataFetcher::getFileMap(qcl, ContainerIdentifier(id));
+  containerMap = MetadataFetcher::getContainerMap(qcl, ContainerIdentifier(id));
 }
 
 //------------------------------------------------------------------------------

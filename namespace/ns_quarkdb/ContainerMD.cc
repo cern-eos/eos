@@ -737,9 +737,9 @@ QuarkContainerMD::loadChildren()
   pDirsKey = stringify(mCont.id()) + constants::sMapDirsSuffix;
 
   if (pQcl) {
-    mFiles = MetadataFetcher::getFilesInContainer(*pQcl,
+    mFiles = MetadataFetcher::getFileMap(*pQcl,
              ContainerIdentifier(mCont.id()));
-    mSubcontainers = MetadataFetcher::getSubContainers(*pQcl,
+    mSubcontainers = MetadataFetcher::getContainerMap(*pQcl,
                      ContainerIdentifier(mCont.id()));
   } else {
     // I think this case only happens inside some tests.. remove eventually?
