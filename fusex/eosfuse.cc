@@ -1899,7 +1899,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                meminfo.getref().loads[0],
                this->getFuseStat().GetTotal("rbytes"),
                this->getFuseStat().GetTotal("wbytes"),
-               this->getFuseStat().GetOps(),
+               this->getFuseStat().GetOpsTS(),
                this->getFuseStat().GetTotalAvg5("rbytes") / 1000.0 / 1000.0,
                this->getFuseStat().GetTotalAvg5("wbytes") / 1000.0 / 1000.0,
                (int) this->getFuseStat().GetTotalAvg5(":sum"),
@@ -5652,11 +5652,12 @@ EosFuse::getHbStat(eos::fusex::statistics& hbs)
     XrdSysMutexHelper sLock(getFuseStat().Mutex);
     hbs.set_rbytes(getFuseStat().GetTotal("rbytes"));
     hbs.set_wbytes(getFuseStat().GetTotal("wbytes"));
+    hbs.set_nio(getFuseStat().GetOps());  
     hbs.set_rd_rate_60_mb(getFuseStat().GetTotalAvg60("rbytes") / 1000.0 / 1000.0);
     hbs.set_wr_rate_60_mb(getFuseStat().GetTotalAvg60("wbytes") / 1000.0 / 1000.0);
-    hbs.set_nio(getFuseStat().GetOps());
     hbs.set_iops_60(getFuseStat().GetTotalAvg60(":sum"));
   }
+
 
   hbs.set_wr_buf_mb(XrdCl::Proxy::sWrBufferManager.inflight() / 1000.0 / 1000.0);
   hbs.set_ra_buf_mb(XrdCl::Proxy::sRaBufferManager.inflight() / 1000.0 / 1000.0);

@@ -534,6 +534,12 @@ public:
     return sum_ops;
   }
 
+  size_t GetOpsTS()
+  {
+    XrdSysMutexHelper sLock(Mutex);
+    return GetOps();
+  }
+
   void Add(const char* tag, uid_t uid, gid_t gid, unsigned long val);
 
   void AddExt(const char* tag, uid_t uid, gid_t gid, unsigned long nsample,
