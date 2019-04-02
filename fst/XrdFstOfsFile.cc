@@ -1761,7 +1761,6 @@ XrdSfsXferSize
 XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
                        XrdSfsXferSize buffer_size)
 {
-  std::this_thread::sleep_for(std::chrono::milliseconds(25));
   gettimeofday(&cTime, &tz);
   rCalls++;
   int rc = XrdOfsFile::read(fileOffset, buffer, buffer_size);
