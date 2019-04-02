@@ -1,11 +1,13 @@
-#!/bin/bash
+#!/bin/bash 
 
 
+# @remind Do not set the namespace in the current-context because, if a command ever fails, the context is not reset. 
+# kubectl config set-context $(kubectl config current-context) --namespace=$NAMESPACE
 
 NAMESPACE=""
 if [[ $1 =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ ]]; 
 	then NAMESPACE=$1
-	else echo "! Wrong arg $1: arg1 must be a DNS-1123 label and must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character"; usage
+	else echo "! Wrong arg $1: arg1 must be a DNS-1123 label and must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character"; exit 1
 fi
 
 # get_podname(): Return the name of the Pods tagged with $1. For simplicity, suppose it return just one result.
@@ -15,11 +17,15 @@ fi
 function get_podname () { 
 	kubectl get pods --namespace=${NAMESPACE} --no-headers -o custom-columns=":metadata.name" -l app=$1
 }
+# function get_podname () { kubectl get pods -l app=$1 -o=name | sed "s/^.\{4\}//" }
 
 
+set -v
 
 kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm) \
 	-- eos chmod 2777 /eos/dockertest/
+echo -e "${Green} All app configured ${Color_Off}"
+
 kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm) \
 	-- eos vid enable krb5
 kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm) \
