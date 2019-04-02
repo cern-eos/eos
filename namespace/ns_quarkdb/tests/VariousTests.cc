@@ -35,6 +35,7 @@
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/ExecutorProvider.hh"
+#include "namespace/ns_quarkdb/utils/FutureVectorIterator.hh"
 #include "namespace/common/QuotaNodeCore.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Etag.hh"
@@ -1150,4 +1151,61 @@ TEST(FileOrContainerIdentifier, BasicSanity) {
 
   ASSERT_EQ(container.toFileIdentifier(), FileIdentifier(0));
   ASSERT_EQ(container.toContainerIdentifier(), ContainerIdentifier(222));
+}
+
+TEST(FutureVectorIterator, BasicSanity) {
+  folly::Promise<std::vector<folly::Future<int>>> mainPromise;
+
+  FutureVectorIterator<int> fvi(mainPromise.getFuture());
+  ASSERT_FALSE(fvi.isReady());
+  ASSERT_FALSE(fvi.isMainFutureReady());
+
+  // Build our future vector
+  std::vector<folly::Future<int>> mainVector;
+
+  folly::Promise<int> p1;
+  folly::Promise<int> p2;
+  folly::Promise<int> p3;
+
+  mainVector.emplace_back(p1.getFuture());
+  mainVector.emplace_back(p2.getFuture());
+  mainVector.emplace_back(p3.getFuture());
+
+  mainPromise.setValue(std::move(mainVector));
+
+  ASSERT_FALSE(fvi.isReady());
+  ASSERT_TRUE(fvi.isMainFutureReady());
+  ASSERT_EQ(fvi.size(), 3u);
+
+  p1.setValue(9);
+
+  ASSERT_TRUE(fvi.isReady());
+  ASSERT_TRUE(fvi.isMainFutureReady());
+
+  int val;
+  ASSERT_TRUE(fvi.fetchNext(val));
+  ASSERT_EQ(val, 9);
+
+  ASSERT_FALSE(fvi.isReady());
+
+  p3.setValue(999);
+  ASSERT_FALSE(fvi.isReady());
+
+  p2.setValue(8);
+  ASSERT_TRUE(fvi.isReady());
+
+  ASSERT_TRUE(fvi.fetchNext(val));
+  ASSERT_EQ(val, 8);
+
+  ASSERT_TRUE(fvi.isReady());
+  ASSERT_TRUE(fvi.fetchNext(val));
+  ASSERT_EQ(val, 999);
+
+  ASSERT_TRUE(fvi.isReady());
+
+  ASSERT_FALSE(fvi.fetchNext(val));
+  ASSERT_TRUE(fvi.isReady());
+
+  ASSERT_FALSE(fvi.fetchNext(val));
+  ASSERT_TRUE(fvi.isReady());
 }
