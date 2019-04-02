@@ -236,10 +236,14 @@ private:
   //! Select destiantion file system for current transfer
   //!
   //! @param fdrain file to drain metadata info
+  //! @param dst_exclude_fsids fsids to be excluded when scheduling the
+  //!        the destination
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool SelectDstFs(const FileDrainInfo& fdrain);
+  bool SelectDstFs(const FileDrainInfo& fdrain,
+                   std::vector<eos::common::FileSystem::fsid_t>&
+                   dst_exclude_fsids);
 
   //----------------------------------------------------------------------------
   //! Drain 0-size file

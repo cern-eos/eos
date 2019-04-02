@@ -83,28 +83,30 @@ DrainTransferJob::DoIt()
     return;
   }
 
-  if (!SelectDstFs(fdrain)) {
-    gOFS->MgmStats.Add("DrainCentralFailed", 0, 0, 1);
-    ReportError("msg=\"failed to select destination file system\"");
-    return;
-  }
-
-  // Special case when deadling with 0-size replica files
-  if ((fdrain.mProto.size() == 0) &&
-      (LayoutId::GetLayoutType(fdrain.mProto.layout_id()) ==
-       LayoutId::kReplica)) {
-    mStatus = DrainZeroSizeFile(fdrain);
-
-    if (mStatus == Status::OK) {
-      gOFS->MgmStats.Add("DrainCentralSuccessful", 0, 0, 1);
-    } else {
-      gOFS->MgmStats.Add("DrainCentralFailed", 0, 0, 1);
-    }
-
-    return;
-  }
+  std::vector<eos::common::FileSystem::fsid_t> dst_exclude_fsids;
 
   while (true) {
+    if (!SelectDstFs(fdrain, dst_exclude_fsids)) {
+      gOFS->MgmStats.Add("DrainCentralFailed", 0, 0, 1);
+      ReportError("msg=\"failed to select destination file system\"");
+      return;
+    }
+
+    // Special case when deadling with 0-size replica files
+    if ((fdrain.mProto.size() == 0) &&
+        (LayoutId::GetLayoutType(fdrain.mProto.layout_id()) ==
+         LayoutId::kReplica)) {
+      mStatus = DrainZeroSizeFile(fdrain);
+
+      if (mStatus == Status::OK) {
+        gOFS->MgmStats.Add("DrainCentralSuccessful", 0, 0, 1);
+      } else {
+        gOFS->MgmStats.Add("DrainCentralFailed", 0, 0, 1);
+      }
+
+      return;
+    }
+
     // Prepare the TPC copy job
     std::string log_id = LogId::GenerateLogId();
     XrdCl::URL url_src = BuildTpcSrc(fdrain, log_id);
@@ -496,12 +498,10 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
 // Select destiantion file system for current transfer
 //------------------------------------------------------------------------------
 bool
-DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
+DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain,
+                              std::vector<eos::common::FileSystem::fsid_t>&
+                              dst_exclude_fsids)
 {
-  if (mFsIdTarget) {
-    return true;
-  }
-
   unsigned int nfilesystems = 1;
   unsigned int ncollocatedfs = 0;
   std::vector<FileSystem::fsid_t> new_repl;
@@ -542,7 +542,7 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
                "",// start from geotag
                "",// client geo tag
                ncollocatedfs,
-               NULL, // excludeFS
+               &dst_exclude_fsids,
                &fsid_geotags, // excludeGeoTags
                NULL);
 
@@ -561,6 +561,7 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
                    oss.str().c_str());
   // Return only one fs now
   mFsIdTarget = new_repl[0];
+  dst_exclude_fsids.push_back(mFsIdTarget);
   return true;
 }
 
