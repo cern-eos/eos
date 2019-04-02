@@ -599,6 +599,8 @@ TEST_F(FileMDFetching, FilemapToFutureVector) {
     MetadataFetcher::getFileMDsInContainer(qcl(), ContainerIdentifier(3),
     ExecutorProvider::getIOThreadPool("testing")).get();
 
+  ASSERT_EQ(mdvector3.size(), 5u);
+
   eos::ns::FileMdProto f1 = mdvector[0].get();
   eos::ns::FileMdProto f2 = mdvector[1].get();
   eos::ns::FileMdProto f3 = mdvector[2].get();
@@ -642,10 +644,21 @@ TEST_F(FileMDFetching, FilemapToFutureVector) {
   std::vector<folly::Future<eos::ns::ContainerMdProto>> mdvector2 = MetadataFetcher::getContainersFromContainerMap(qcl(), containermap);
   ASSERT_EQ(mdvector2.size(), 4u);
 
+  std::vector<folly::Future<eos::ns::ContainerMdProto>> mdvector5 =
+    MetadataFetcher::getContainerMDsInContainer(qcl(), ContainerIdentifier(3),
+    ExecutorProvider::getIOThreadPool("testing")).get();
+
+  ASSERT_EQ(mdvector5.size(), 4u);
+
   eos::ns::ContainerMdProto d0 = mdvector2[0].get();
   eos::ns::ContainerMdProto d1 = mdvector2[1].get();
   eos::ns::ContainerMdProto d2 = mdvector2[2].get();
   eos::ns::ContainerMdProto d3 = mdvector2[3].get();
+
+  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(d0, mdvector5[0].get()));
+  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(d1, mdvector5[1].get()));
+  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(d2, mdvector5[2].get()));
+  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(d3, mdvector5[3].get()));
 
   ASSERT_EQ(d0.name(), "d2");
   ASSERT_EQ(d0.id(), 4);

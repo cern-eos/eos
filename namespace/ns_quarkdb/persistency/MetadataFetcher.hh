@@ -114,6 +114,13 @@ public:
     folly::Executor *executor);
 
   //----------------------------------------------------------------------------
+  //! Fetch all container metadata within the given container.
+  //----------------------------------------------------------------------------
+  static folly::Future<std::vector<folly::Future<eos::ns::ContainerMdProto>>>
+  getContainerMDsInContainer(qclient::QClient& qcl,
+    ContainerIdentifier container, folly::Executor *executor);
+
+  //----------------------------------------------------------------------------
   //! Fetch subcontainers map for a container id
   //!
   //! @param qcl qclient object
@@ -130,7 +137,14 @@ public:
   //----------------------------------------------------------------------------
   static std::vector<folly::Future<eos::ns::ContainerMdProto>>
   getContainersFromContainerMap(qclient::QClient& qcl,
-    IContainerMD::ContainerMap &containerMap);
+    const IContainerMD::ContainerMap &containerMap);
+
+  //----------------------------------------------------------------------------
+  //! Same as above, but containerMap is passed as a value.
+  //----------------------------------------------------------------------------
+  static std::vector<folly::Future<eos::ns::ContainerMdProto>>
+  getContainersFromContainerMapV(qclient::QClient& qcl,
+    IContainerMD::ContainerMap containerMap);
 
   //----------------------------------------------------------------------------
   //! Fetch a file id given its parent and its name

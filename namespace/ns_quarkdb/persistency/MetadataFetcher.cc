@@ -347,6 +347,20 @@ MetadataFetcher::getFileMDsInContainer(qclient::QClient& qcl,
     .then(std::bind(MetadataFetcher::getFilesFromFilemapV, std::ref(qcl), _1));
 }
 
+//----------------------------------------------------------------------------
+// Fetch all container metadata within the given container.
+//----------------------------------------------------------------------------
+folly::Future<std::vector<folly::Future<eos::ns::ContainerMdProto>>>
+MetadataFetcher::getContainerMDsInContainer(qclient::QClient& qcl,
+  ContainerIdentifier container, folly::Executor *executor)
+{
+  folly::Future<IContainerMD::ContainerMap> containerMap =
+    getContainerMap(qcl, container);
+
+  return containerMap.via(executor)
+    .then(std::bind(MetadataFetcher::getContainersFromContainerMapV, std::ref(qcl), _1));
+}
+
 //------------------------------------------------------------------------------
 // Fetch all FileMDs contained within the given FileMap. Vector is sorted by
 // filename.
@@ -386,7 +400,7 @@ MetadataFetcher::getFilesFromFilemapV(qclient::QClient& qcl,
 //------------------------------------------------------------------------------
 std::vector<folly::Future<eos::ns::ContainerMdProto>>
 MetadataFetcher::getContainersFromContainerMap(qclient::QClient& qcl,
-  IContainerMD::ContainerMap &containerMap) {
+  const IContainerMD::ContainerMap &containerMap) {
 
   // ContainerMap is a hashmap, thus unsorted.. We want the results to be
   // sorted based on filename, though.
@@ -403,6 +417,16 @@ MetadataFetcher::getContainersFromContainerMap(qclient::QClient& qcl,
   }
 
   return retval;
+}
+
+//------------------------------------------------------------------------------
+// Same as above, but containerMap is passed as a value.
+//------------------------------------------------------------------------------
+std::vector<folly::Future<eos::ns::ContainerMdProto>>
+MetadataFetcher::getContainersFromContainerMapV(qclient::QClient& qcl,
+  IContainerMD::ContainerMap containerMap)
+{
+  return getContainersFromContainerMap(qcl, containerMap);
 }
 
 //------------------------------------------------------------------------------
