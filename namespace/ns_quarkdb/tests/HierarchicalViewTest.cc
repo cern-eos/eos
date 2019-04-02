@@ -27,6 +27,7 @@
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb/tests/TestUtils.hh"
 #include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
+#include "namespace/ns_quarkdb/ExecutorProvider.hh"
 #include "namespace/utils/TestHelpers.hh"
 #include "namespace/utils/RmrfHelper.hh"
 #include "namespace/Resolver.hh"
@@ -637,7 +638,7 @@ TEST_F(HierarchicalViewF, QuotaRecomputation)
   mdFlusher()->synchronize();
 
   eos::QuotaNodeCore qnc;
-  eos::QuotaRecomputer recomputer(view(), &(qcl()));
+  eos::QuotaRecomputer recomputer(view(), &(qcl()), eos::ExecutorProvider::getIOThreadPool("test"));
 
   eos::MDStatus status = recomputer.recompute(notquota1, qnc);
   ASSERT_FALSE(status.ok());

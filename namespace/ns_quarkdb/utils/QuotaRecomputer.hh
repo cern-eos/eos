@@ -31,6 +31,10 @@ namespace qclient {
   class QClient;
 }
 
+namespace folly {
+  class Executor;
+}
+
 EOSNSNAMESPACE_BEGIN
 
 class QuotaNodeCore;
@@ -45,7 +49,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuotaRecomputer(IView *view, qclient::QClient *qcl);
+  QuotaRecomputer(IView *view, qclient::QClient *qcl, folly::Executor *executor);
 
   //----------------------------------------------------------------------------
   //! Given a quotanode, re-calculate the quota values,
@@ -56,6 +60,7 @@ public:
 private:
   IView *mView;
   qclient::QClient *mQcl;
+  folly::Executor *mExecutor;
 };
 
 EOSNSNAMESPACE_END

@@ -178,8 +178,9 @@ eos::ns::ContainerMdProto& SearchNode::getContainerInfo()
 //------------------------------------------------------------------------------
 NamespaceExplorer::NamespaceExplorer(const std::string& pth,
                                      const ExplorationOptions& opts,
-                                     qclient::QClient& qclient)
-  : path(pth), options(opts), qcl(qclient)
+                                     qclient::QClient& qclient,
+                                     folly::Executor* exec)
+  : path(pth), options(opts), qcl(qclient), executor(exec)
 {
   if(options.populateLinkedAttributes && !opts.view) {
     throw_mdexception(EINVAL, "NamespaceExplorer: asked to populate linked attrs, but view not provided");

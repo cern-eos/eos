@@ -84,7 +84,6 @@ struct VirtualIdentity {
 
 
 
-
 };
 
 EOSCOMMONNAMESPACE_END

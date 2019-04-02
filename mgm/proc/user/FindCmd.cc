@@ -34,6 +34,7 @@
 #include "namespace/utils/BalanceCalculator.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
+#include "namespace/ns_quarkdb/ExecutorProvider.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 
@@ -603,7 +604,7 @@ public:
     options.populateLinkedAttributes = true;
     options.expansionDecider.reset(new PermissionFilter(vid));
     options.view = gOFS->eosView;
-    explorer.reset(new NamespaceExplorer(path, options, *qcl));
+    explorer.reset(new NamespaceExplorer(path, options, *qcl, ExecutorProvider::getIOThreadPool("default")));
   }
 
   //----------------------------------------------------------------------------

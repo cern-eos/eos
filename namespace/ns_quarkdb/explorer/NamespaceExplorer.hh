@@ -34,6 +34,10 @@
 #include <deque>
 #include <folly/futures/Future.h>
 
+namespace folly {
+class Executor;
+}
+
 namespace qclient
 {
 class QClient;
@@ -170,7 +174,7 @@ public:
   //! underlying object.
   //----------------------------------------------------------------------------
   NamespaceExplorer(const std::string& path, const ExplorationOptions& options,
-                    qclient::QClient& qcl);
+                    qclient::QClient& qcl, folly::Executor *executor);
 
   //----------------------------------------------------------------------------
   //! Fetch next item.
@@ -193,6 +197,7 @@ private:
   std::string path;
   ExplorationOptions options;
   qclient::QClient& qcl;
+  folly::Executor *executor;
 
   std::vector<eos::ns::ContainerMdProto> staticPath;
   eos::ns::FileMdProto lastChunk;
