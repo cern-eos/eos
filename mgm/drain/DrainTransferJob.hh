@@ -237,7 +237,7 @@ private:
   //!
   //! @param fdrain file to drain metadata info
   //! @param dst_exclude_fsids fsids to be excluded when scheduling the
-  //!        the destination
+  //         destination
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
