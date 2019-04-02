@@ -68,7 +68,7 @@ Logging::GetInstance()
 //------------------------------------------------------------------------------
 Logging::Logging():
   gLogMask(0), gPriorityLevel(0), gToSysLog(false),  gUnit("none"),
-  gShortFormat(0)
+  gShortFormat(0), gRateLimiter(false)
 {
   // Initialize the log array and sets the log circular size
   gLogCircularIndex.resize(LOG_DEBUG + 1);
@@ -302,6 +302,10 @@ Logging::rate_limit(struct timeval& tv, int priority, const char* file,
   static int last_line = 0;
   static int last_priority = priority;
   static struct timeval last_tv;
+
+  if (!gRateLimiter) {
+    return false;
+  }
 
   if ((line == last_line) &&
       (priority == last_priority) &&

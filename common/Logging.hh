@@ -354,6 +354,8 @@ public:
   //! Here one can define log fan-out to different file descriptors than stderr
   std::map<std::string, FILE*> gLogFanOut;
 
+  bool gRateLimiter; //< indicating to apply message rate limiting
+
   //----------------------------------------------------------------------------
   //! Get singleton instance
   //----------------------------------------------------------------------------
@@ -368,6 +370,16 @@ public:
   //! Destructor
   //----------------------------------------------------------------------------
   ~Logging() = default;
+
+
+  //----------------------------------------------------------------------------
+  //! Get current loglevel
+  //----------------------------------------------------------------------------
+  void
+  EnableRateLimiter() 
+  {
+    gRateLimiter = true;
+  }
 
   //----------------------------------------------------------------------------
   //! Get current loglevel

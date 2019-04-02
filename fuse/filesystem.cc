@@ -4637,6 +4637,8 @@ filesystem::initlogging()
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   g_logging.SetUnit("FUSE@localhost");
   g_logging.gShortFormat = true;
+  g_logging.EnableRateLimiter();
+
   XrdOucString fusedebug = getenv("EOS_FUSE_DEBUG");
 
   if ((getenv("EOS_FUSE_DEBUG")) && (fusedebug != "0")) {
