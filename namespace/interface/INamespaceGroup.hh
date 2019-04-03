@@ -23,6 +23,8 @@
 
 #pragma once
 #include "namespace/Namespace.hh"
+#include <map>
+#include <string>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -31,6 +33,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 class IContainerMDSvc;
 class IFileMDSvc;
+class IView;
 
 //------------------------------------------------------------------------------
 //! Interface object to hold ownership of all namespace objects.
@@ -42,6 +45,16 @@ public:
   //! Virtual destructor
   //----------------------------------------------------------------------------
   virtual ~INamespaceGroup() {}
+
+  //----------------------------------------------------------------------------
+  //! Initialize with the given configuration - must be called before any
+  //! other function, and right after construction.
+  //!
+  //! Initialization may fail - in such case, "false" will be returned, and
+  //! "err" will be filled out.
+  //----------------------------------------------------------------------------
+  virtual bool initialize(const std::map<std::string, std::string> &config,
+    std::string &err) = 0;
 
   //----------------------------------------------------------------------------
   //! Provide file service

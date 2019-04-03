@@ -27,14 +27,25 @@
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Constructor
+// Constructor
 //------------------------------------------------------------------------------
 QuarkNamespaceGroup::QuarkNamespaceGroup() {}
 
 //------------------------------------------------------------------------------
-//! Destructor
+// Destructor
 //------------------------------------------------------------------------------
 QuarkNamespaceGroup::~QuarkNamespaceGroup() {}
+
+//----------------------------------------------------------------------------
+// Initialize with the given configuration - must be called before any
+// other function, and right after construction.
+//
+// Initialization may fail - in such case, "false" will be returned, and
+// "err" will be filled out.
+//----------------------------------------------------------------------------
+bool QuarkNamespaceGroup::initialize(const std::map<std::string, std::string> &config, std::string &err) {
+  return true;
+}
 
 //----------------------------------------------------------------------------
 //! Provide file service

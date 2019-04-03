@@ -36,8 +36,19 @@ InMemNamespaceGroup::InMemNamespaceGroup() {}
 //------------------------------------------------------------------------------
 InMemNamespaceGroup::~InMemNamespaceGroup() {}
 
+//----------------------------------------------------------------------------
+// Initialize with the given configuration - must be called before any
+// other function, and right after construction.
+//
+// Initialization may fail - in such case, "false" will be returned, and
+// "err" will be filled out.
+//----------------------------------------------------------------------------
+bool InMemNamespaceGroup::initialize(const std::map<std::string, std::string> &config, std::string &err) {
+  return true;
+}
+
 //------------------------------------------------------------------------------
-//! Provide file service
+// Provide file service
 //------------------------------------------------------------------------------
 IFileMDSvc* InMemNamespaceGroup::getFileService() {
   std::lock_guard<std::mutex> lock(mMutex);
@@ -50,7 +61,7 @@ IFileMDSvc* InMemNamespaceGroup::getFileService() {
 }
 
 //------------------------------------------------------------------------------
-//! Provide container service
+// Provide container service
 //------------------------------------------------------------------------------
 IContainerMDSvc* InMemNamespaceGroup::getContainerService() {
   std::lock_guard<std::mutex> lock(mMutex);

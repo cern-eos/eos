@@ -45,6 +45,16 @@ public:
   ~QuarkNamespaceGroup();
 
   //----------------------------------------------------------------------------
+  //! Initialize with the given configuration - must be called before any
+  //! other function, and right after construction.
+  //!
+  //! Initialization may fail - in such case, "false" will be returned, and
+  //! "err" will be filled out.
+  //----------------------------------------------------------------------------
+  virtual bool initialize(const std::map<std::string, std::string> &config,
+    std::string &err) override final;
+
+  //----------------------------------------------------------------------------
   //! Provide file service
   //----------------------------------------------------------------------------
   virtual IFileMDSvc* getFileService() override final;

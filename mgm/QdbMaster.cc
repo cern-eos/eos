@@ -82,6 +82,17 @@ QdbMaster::BootNamespace()
   gOFS->namespaceGroup.reset(static_cast<INamespaceGroup*>
                               (pm.CreateObject("NamespaceGroup")));
 
+  //----------------------------------------------------------------------------
+  // Collect namespace options, and initialize namespace group
+  //----------------------------------------------------------------------------
+  std::map<std::string, std::string> namespaceConfig;
+  std::string err;
+
+  if(!gOFS->namespaceGroup->initialize(namespaceConfig, err)) {
+    eos_err("msg=\"could not initialize namespace group, err: %s\"", err.c_str());
+    return false;
+  }
+
   gOFS->eosDirectoryService = static_cast<IContainerMDSvc*>
                               (pm.CreateObject("ContainerMDSvc"));
   gOFS->eosFileService = gOFS->namespaceGroup->getFileService();
