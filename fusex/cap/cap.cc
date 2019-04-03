@@ -523,26 +523,38 @@ cap::capflush(ThreadAssistant& assistant)
     {
       cmap capdelmap;
       cinodes capdelinodes;
-      capmap.Lock();
 
-      for (auto it = capmap.begin(); it != capmap.end(); ++it) {
+      cmap flushcaps;
+
+      // avoid keeping two mutexes
+      {
+	XrdSysMutexHelper capLock(capmap);
+	flushcaps = capmap;
+      }
+
+      for (auto it = flushcaps.begin(); it != flushcaps.end(); ++it) {
         XrdSysMutexHelper cLock(it->second->Locker());
 
         // make a list of caps to timeout
         if (!it->second->valid(false)) {
           capdelmap[it->first] = it->second;
-          eos_static_debug("expire %s", it->second->dump().c_str());
+
+	  if (EOS_LOGS_DEBUG) {
+	    eos_static_debug("expire %s", it->second->dump().c_str());
+	  }
+
           mds->decrease_cap(it->second->id());
           capdelinodes.insert(it->second->id());
         }
       }
 
-      for (auto it = capdelmap.begin(); it != capdelmap.end(); ++it) {
-        // remove the expired or invalidated by delete caps
-        capmap.erase(it->first);
+      {
+	XrdSysMutexHelper capLock(capmap);
+	for (auto it = capdelmap.begin(); it != capdelmap.end(); ++it) {
+	  // remove the expired or invalidated by delete caps
+	  capmap.erase(it->first);
+	}
       }
-
-      capmap.UnLock();
 
       for (auto it = capdelinodes.begin(); it != capdelinodes.end(); ++it) {
         kernelcache::inval_inode(*it, false);
@@ -550,7 +562,7 @@ cap::capflush(ThreadAssistant& assistant)
         EosFuse::Instance().cleanup(*it);
       }
 
-      assistant.wait_for(std::chrono::seconds(1));
+      assistant.wait_for(std::chrono::seconds(5));
     }
   }
 }

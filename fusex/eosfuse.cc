@@ -1956,17 +1956,18 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       cap::shared_cap pcap = Instance().caps.acquire(req, cap_ino ? cap_ino : 1,
                                                      S_IFDIR | X_OK | R_OK);
       double cap_lifetime = 0;
-      pcap->Locker().Lock();
+
+      XrdSysMutexHelper capLock(pcap->Locker());
 
       if (pcap->errc()) {
         rc = pcap->errc();
-        pcap->Locker().UnLock();
+        capLock.UnLock();
       } else {
         cap_lifetime = pcap->lifetime();
         if (md->needs_refresh()) {
           md->Locker().UnLock();
           std::string authid = pcap->authid();
-          pcap->Locker().UnLock();
+          capLock.UnLock();
           md = Instance().mds.get(req, ino);
           md->Locker().Lock();
 
@@ -1974,7 +1975,7 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
             rc = md->deleted() ? ENOENT : md->err();
           }
         } else {
-          pcap->Locker().UnLock();
+	  capLock.UnLock();
         }
 
         if (!rc) {
@@ -4367,8 +4368,9 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
           pcap = Instance().caps.acquire(req, io->md->pid(), S_IFDIR | X_OK, true);
       } else
         pcap = Instance().caps.acquire(req, io->md->pid(), S_IFDIR | W_OK, true);
+      
 
-      XrdSysMutexHelper pLock(pcap->Locker());
+      XrdSysMutexHelper capLock(pcap->Locker());
 
       if (rc == 0 && pcap->errc() != 0) rc = pcap->errc();
 
@@ -4384,7 +4386,7 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
 
           eos_static_debug("booking %ld bytes on cap ", size_change);
         }
-        pLock.UnLock();
+	capLock.UnLock();
         struct timespec tsnow;
         eos::common::Timing::GetTimeSpec(tsnow);
 
@@ -4408,15 +4410,13 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
 
         std::string cookie = io->md->Cookie();
         io->ioctx()->store_cookie(cookie);
-        pcap->Locker().Lock();
+	capLock.Lock(&pcap->Locker());
 
         if (!Instance().caps.has_quota(pcap, 0)) {
           // we signal an error to the client if the quota get's exceeded although
           // we let the file be complete
           rc = EDQUOT;
         }
-
-        pcap->Locker().UnLock();
       }
     }
 
