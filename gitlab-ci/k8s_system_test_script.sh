@@ -1,8 +1,5 @@
-#!/bin/bash 
+#!/bin/bash -v
 
-
-# @remind Do not set the namespace in the current-context because, if a command ever fails, the context is not reset. 
-# kubectl config set-context $(kubectl config current-context) --namespace=$NAMESPACE
 
 NAMESPACE=""
 if [[ $1 =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ ]]; 
@@ -10,22 +7,17 @@ if [[ $1 =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ ]];
 	else echo "! Wrong arg $1: arg1 must be a DNS-1123 label and must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character"; exit 1
 fi
 
-# get_podname(): Return the name of the Pods tagged with $1. For simplicity, suppose it return just one result.
-# $1 is a label selector with key="app", specifying identifying attributes for a Kubernetes object.
+# get_podname() : Return the name of the Pods tagged with $1. Suppose it return just one result.
+# $1 			: is a label selector with key="app", specifying identifying attributes for a Kubernetes object.
 # Example of admitted labels are {eos-mgm, eos-mq, eos-fst1, eos-fst2 ... }, mirroring mirrors eos-roles
 # refs :https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
 function get_podname () { 
 	kubectl get pods --namespace=${NAMESPACE} --no-headers -o custom-columns=":metadata.name" -l app=$1
 }
-# function get_podname () { kubectl get pods -l app=$1 -o=name | sed "s/^.\{4\}//" }
 
-
-set -v
 
 kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm) \
 	-- eos chmod 2777 /eos/dockertest/
-echo -e "${Green} All app configured ${Color_Off}"
-
 kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm) \
 	-- eos vid enable krb5
 kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm) \
@@ -56,16 +48,9 @@ else
 	-- su - eos-user -c 'python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci';
 fi
 
-if [ "$CI_JOB_NAME" != k8s_ubuntu_system_test ]; then
-	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \
-	-- /bin/bash -c 'eos fuse mount /eos_fuse; eos fuse mount /eos_fuse2;';
-	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \
-	-- python /eosclient-tests/run.py --workdir="/eos_fuse/dockertest /eos_fuse2/dockertest" ci;
-fi
-
-
-# @todo something like
-# function kexec () {
-# 	kubectl exec -it $(kubectl get pods --no-headers --output custom-columns=":metadata.name" --selector app=$1 --namespace=$NAMESPACE) --namespace=$NAMESPACE -- ${@:2}
-# }
-# kexec eos-mgm /bin/bash -c 'foo --bar "$LOREM_IPSUM"'
+# if [ "$CI_JOB_NAME" != k8s_ubuntu_system_test ]; then
+# 	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \
+# 	-- /bin/bash -c 'eos fuse mount /eos_fuse; eos fuse mount /eos_fuse2;';
+# 	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \
+# 	-- python /eosclient-tests/run.py --workdir="/eos_fuse/dockertest /eos_fuse2/dockertest" ci;
+# fi
