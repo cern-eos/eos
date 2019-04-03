@@ -2821,7 +2821,7 @@ EBADF  Invalid directory stream descriptor fi->fh
         stbuf.st_mode = mode;
 
         size_t a_size = fuse_add_direntry(req, md->b.ptr, size - md->b.size,
-                                          bname.c_str(), &stbuf, ++off); // the .. entry is not counted for the offset list
+                                          bname.c_str(), &stbuf, ++off); 
         eos_static_info("name=%s ino=%08lx mode=%#lx bytes=%u/%u",
                         bname.c_str(), cino, mode, a_size, size - md->b.size);
         md->b.ptr += a_size;
@@ -2834,6 +2834,7 @@ EBADF  Invalid directory stream descriptor fi->fh
     // ---------------------------------------------------------------------- //
     // the 'rest' of a listing
     // ---------------------------------------------------------------------- //
+
     for (size_t i = off - off_shift; i < md->readdir_items.size(); ++i) {
       std::string d_name = md->readdir_items[i];
       std::string bname = eos::common::StringConversion::DecodeInvalidUTF8(d_name);
@@ -2846,6 +2847,7 @@ EBADF  Invalid directory stream descriptor fi->fh
 
       if (strncmp(d_name.c_str(), "...eos.ino...",
                   13) == 0) { /* hard link deleted inodes */
+	off++;
         continue;
       }
 
@@ -2889,6 +2891,7 @@ EBADF  Invalid directory stream descriptor fi->fh
       }
 
       if (a_size > (size - md->b.size)) {
+	off--;
         break;
       }
 
