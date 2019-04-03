@@ -1770,7 +1770,7 @@ XrdMgmOfsFile::open(const char* inpath,
 		(eos::common::LayoutId::GetLayoutType(fmdlid) ==
 		 eos::common::LayoutId::kRaid6)) ) {
 
-    fsIndex = byfid % selectedfs.size();
+    fsIndex = fileId % selectedfs.size();
   }
 
   // Get the redirection host from the selected entry in the vector
