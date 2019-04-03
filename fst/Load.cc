@@ -415,6 +415,12 @@ NetStat::Measure()
       }
 
       if (items == 17) {
+	size_t dev_len = strlen(val[0]);
+	if (dev_len && (val[0][dev_len-1] == ':')) {
+	  // newer kernel use <device-name>: in this field ... sigh ...
+	  val[0][dev_len-1] = 0;
+	}
+
 #ifdef __APPLE__
         struct timeval tv;
         gettimeofday(&tv, 0);
