@@ -342,8 +342,6 @@ folly::Future<std::vector<folly::Future<eos::ns::FileMdProto>>>
 MetadataFetcher::getFileMDsInContainer(qclient::QClient& qcl,
   ContainerIdentifier container, folly::Executor *executor)
 {
-  std::cout << "executor pointer: " << executor << std::endl;
-
   folly::Future<IContainerMD::FileMap> filemap = getFileMap(qcl, container);
   return filemap.via(executor)
     .then(std::bind(MetadataFetcher::getFilesFromFilemapV, std::ref(qcl), _1));

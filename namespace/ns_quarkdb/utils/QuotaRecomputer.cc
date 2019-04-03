@@ -32,8 +32,8 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuotaRecomputer::QuotaRecomputer(IView *view, qclient::QClient *qcl,
-  folly::Executor *exec) : mView(view), mQcl(qcl), mExecutor(exec) {}
+QuotaRecomputer::QuotaRecomputer(IView *view, qclient::QClient *qcl)
+: mView(view), mQcl(qcl) {}
 
 //------------------------------------------------------------------------------
 // Filtering class for NamespaceExplorer to ignore sub-quotanodes when
@@ -87,8 +87,7 @@ MDStatus QuotaRecomputer::recompute(IContainerMDPtr quotanode, QuotaNodeCore &qn
   options.expansionDecider.reset(new QuotaNodeFilter(quotanode->getId()));
   NamespaceExplorer explorer(mView->getUri(quotanode.get()),
                              options,
-                             *mQcl,
-                             mExecutor);
+                             *mQcl);
   NamespaceItem item;
 
   while (explorer.fetch(item)) {

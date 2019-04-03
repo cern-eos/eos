@@ -177,7 +177,7 @@ public:
   //! underlying object.
   //----------------------------------------------------------------------------
   NamespaceExplorer(const std::string& path, const ExplorationOptions& options,
-                    qclient::QClient& qcl, folly::Executor *executor);
+                    qclient::QClient& qcl);
 
   //----------------------------------------------------------------------------
   //! Fetch next item.
@@ -199,8 +199,8 @@ private:
   //----------------------------------------------------------------------------
   std::string path;
   ExplorationOptions options;
+  std::unique_ptr<folly::Executor> executor;
   qclient::QClient& qcl;
-  folly::Executor *executor;
 
   std::vector<eos::ns::ContainerMdProto> staticPath;
   eos::ns::FileMdProto lastChunk;

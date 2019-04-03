@@ -23,6 +23,7 @@
 #include "common/Assert.hh"
 #include <memory>
 #include <numeric>
+#include <folly/executors/IOThreadPoolExecutor.h>
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
 
@@ -145,10 +146,11 @@ eos::ns::ContainerMdProto& SearchNode::getContainerInfo()
 //------------------------------------------------------------------------------
 NamespaceExplorer::NamespaceExplorer(const std::string& pth,
                                      const ExplorationOptions& opts,
-                                     qclient::QClient& qclient,
-                                     folly::Executor* exec)
-  : path(pth), options(opts), qcl(qclient), executor(exec)
+                                     qclient::QClient& qclient)
+  : path(pth), options(opts), qcl(qclient)
 {
+  executor.reset(new folly::IOThreadPoolExecutor(4));
+
   if(options.populateLinkedAttributes && !opts.view) {
     throw_mdexception(EINVAL, "NamespaceExplorer: asked to populate linked attrs, but view not provided");
   }
@@ -160,7 +162,7 @@ NamespaceExplorer::NamespaceExplorer(const std::string& pth,
 
   if (pathParts.empty()) {
     // We're running a search on the root node, expand.
-    dfsPath.emplace_back(new SearchNode(*this, ContainerIdentifier(1), nullptr, executor, opts.ignoreFiles));
+    dfsPath.emplace_back(new SearchNode(*this, ContainerIdentifier(1), nullptr, executor.get(), opts.ignoreFiles));
   }
 
   // TODO: This for loop looks like a useful primitive for MetadataFetcher,
@@ -204,7 +206,7 @@ NamespaceExplorer::NamespaceExplorer(const std::string& pth,
         staticPath.emplace_back(MetadataFetcher::getContainerFromId(qcl, nextId).get());
       } else {
         // Final node, expand
-        dfsPath.emplace_back(new SearchNode(*this, nextId, nullptr, executor, opts.ignoreFiles));
+        dfsPath.emplace_back(new SearchNode(*this, nextId, nullptr, executor.get(), opts.ignoreFiles));
       }
     }
   }

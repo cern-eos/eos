@@ -111,7 +111,7 @@ private:
 
 
   static constexpr size_t kShards = 16;
-  folly::Executor* mExecutor;
+  std::unique_ptr<folly::Executor> mExecutor;
 
   std::vector<qclient::QClient*> mQcl;
   std::vector<std::unique_ptr<MetadataProviderShard>> mShards;

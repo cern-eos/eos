@@ -100,7 +100,6 @@ add_library(
 
   ns_quarkdb/BackendClient.cc                             ns_quarkdb/BackendClient.hh
   ns_quarkdb/ContainerMD.cc                               ns_quarkdb/ContainerMD.hh
-  ns_quarkdb/ExecutorProvider.cc                          ns_quarkdb/ExecutorProvider.hh
   ns_quarkdb/FileMD.cc                                    ns_quarkdb/FileMD.hh
                                                           ns_quarkdb/LRU.hh
 

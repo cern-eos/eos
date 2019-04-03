@@ -49,7 +49,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuotaRecomputer(IView *view, qclient::QClient *qcl, folly::Executor *executor);
+  QuotaRecomputer(IView *view, qclient::QClient *qcl);
 
   //----------------------------------------------------------------------------
   //! Given a quotanode, re-calculate the quota values,
@@ -60,7 +60,6 @@ public:
 private:
   IView *mView;
   qclient::QClient *mQcl;
-  folly::Executor *mExecutor;
 };
 
 EOSNSNAMESPACE_END

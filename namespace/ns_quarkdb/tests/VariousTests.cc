@@ -34,7 +34,6 @@
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
-#include "namespace/ns_quarkdb/ExecutorProvider.hh"
 #include "namespace/ns_quarkdb/utils/FutureVectorIterator.hh"
 #include "namespace/common/QuotaNodeCore.hh"
 #include "namespace/utils/Checksum.hh"
@@ -45,6 +44,7 @@
 #include "TestUtils.hh"
 #include <folly/futures/Future.h>
 #include "google/protobuf/util/message_differencer.h"
+#include <folly/executors/IOThreadPoolExecutor.h>
 
 
 using namespace eos;
@@ -596,9 +596,11 @@ TEST_F(FileMDFetching, FilemapToFutureVector) {
   std::vector<folly::Future<eos::ns::FileMdProto>> mdvector = MetadataFetcher::getFilesFromFilemap(qcl(), filemap);
   ASSERT_EQ(mdvector.size(), 5u);
 
+  std::unique_ptr<folly::Executor> executor(new folly::IOThreadPoolExecutor(4));
+
   std::vector<folly::Future<eos::ns::FileMdProto>> mdvector3 =
     MetadataFetcher::getFileMDsInContainer(qcl(), ContainerIdentifier(3),
-    ExecutorProvider::getIOThreadPool("testing")).get();
+      executor.get()).get();
 
   ASSERT_EQ(mdvector3.size(), 5u);
 
@@ -647,7 +649,7 @@ TEST_F(FileMDFetching, FilemapToFutureVector) {
 
   std::vector<folly::Future<eos::ns::ContainerMdProto>> mdvector5 =
     MetadataFetcher::getContainerMDsInContainer(qcl(), ContainerIdentifier(3),
-    ExecutorProvider::getIOThreadPool("testing")).get();
+    executor.get()).get();
 
   ASSERT_EQ(mdvector5.size(), 4u);
 
@@ -714,10 +716,10 @@ TEST_F(NamespaceExplorerF, BasicSanity) {
   options.depthLimit = 999;
 
   // Invalid path
-  ASSERT_THROW(eos::NamespaceExplorer("/eos/invalid/path", options, qcl(), eos::ExecutorProvider::getIOThreadPool("tests")), eos::MDException);
+  ASSERT_THROW(eos::NamespaceExplorer("/eos/invalid/path", options, qcl()), eos::MDException);
 
   // Find on single file - weird, but possible
-  NamespaceExplorer explorer("/eos/d2/d3-2/my-file", options, qcl(), eos::ExecutorProvider::getIOThreadPool("tests"));
+  NamespaceExplorer explorer("/eos/d2/d3-2/my-file", options, qcl());
 
   NamespaceItem item;
   ASSERT_TRUE(explorer.fetch(item));
@@ -725,7 +727,7 @@ TEST_F(NamespaceExplorerF, BasicSanity) {
   ASSERT_FALSE(explorer.fetch(item));
 
   // Find on directory
-  NamespaceExplorer explorer2("/eos/d2", options, qcl(), eos::ExecutorProvider::getIOThreadPool("tests"));
+  NamespaceExplorer explorer2("/eos/d2", options, qcl());
   ASSERT_TRUE(explorer2.fetch(item));
   ASSERT_FALSE(item.isFile);
   ASSERT_EQ(item.fullPath, "/eos/d2/");
@@ -788,7 +790,7 @@ TEST_F(NamespaceExplorerF, NoFiles) {
   options.ignoreFiles = true;
 
   // Find on directory
-  NamespaceExplorer explorer2("/eos/d2", options, qcl(), eos::ExecutorProvider::getIOThreadPool("tests"));
+  NamespaceExplorer explorer2("/eos/d2", options, qcl());
   NamespaceItem item;
 
   ASSERT_TRUE(explorer2.fetch(item));
@@ -842,10 +844,10 @@ TEST_F(NamespaceExplorerF, LinkedAttributes) {
   options.populateLinkedAttributes = true;
 
   // attrs asked, but view not provided
-  ASSERT_THROW(eos::NamespaceExplorer("/", options, qcl(), eos::ExecutorProvider::getIOThreadPool("tests")), eos::MDException);
+  ASSERT_THROW(eos::NamespaceExplorer("/", options, qcl()), eos::MDException);
   options.view = view();
 
-  eos::NamespaceExplorer explorer("/", options, qcl(), eos::ExecutorProvider::getIOThreadPool("tests"));
+  eos::NamespaceExplorer explorer("/", options, qcl());
 
   NamespaceItem item;
   ASSERT_TRUE(explorer.fetch(item));
@@ -866,7 +868,7 @@ TEST_F(NamespaceExplorerF, LinkedAttributes) {
   fileSvc()->updateStore(file1.get());
   mdFlusher()->synchronize();
 
-  eos::NamespaceExplorer explorer2("/", options, qcl(), eos::ExecutorProvider::getIOThreadPool("tests"));
+  eos::NamespaceExplorer explorer2("/", options, qcl());
   ASSERT_TRUE(explorer2.fetch(item));
   ASSERT_FALSE(item.isFile);
   ASSERT_EQ(item.fullPath, "/");
@@ -904,7 +906,7 @@ TEST_F(NamespaceExplorerF, ExpansionDecider) {
   options.depthLimit = 999;
   options.expansionDecider.reset(new ContainerFilter());
 
-  NamespaceExplorer explorer("/eos/d2", options, qcl(), eos::ExecutorProvider::getIOThreadPool("tests"));
+  NamespaceExplorer explorer("/eos/d2", options, qcl());
   NamespaceItem item;
 
   ASSERT_TRUE(explorer.fetch(item));
