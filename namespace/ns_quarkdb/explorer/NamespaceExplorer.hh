@@ -70,6 +70,11 @@ struct ExplorationOptions {
   // You must supply the view if populateLinkedAttributes = true
   //----------------------------------------------------------------------------
   eos::IView *view = nullptr;
+
+  //----------------------------------------------------------------------------
+  // Ignore files?
+  //----------------------------------------------------------------------------
+  bool ignoreFiles = false;
 };
 
 struct NamespaceItem {
@@ -98,7 +103,7 @@ class SearchNode
 {
 public:
   SearchNode(NamespaceExplorer &explorer, ContainerIdentifier id,
-    SearchNode* prnt, folly::Executor *exec);
+    SearchNode* prnt, folly::Executor *exec, bool ignoreFiles);
 
   inline ContainerIdentifier getID() const
   {
@@ -138,6 +143,7 @@ private:
   qclient::QClient& qcl;
   SearchNode* parent = nullptr;
   folly::Executor *executor = nullptr;
+  bool ignoreFiles;
 
   bool visited = false;
 

@@ -31,12 +31,15 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-SearchNode::SearchNode(NamespaceExplorer &expl, ContainerIdentifier d, eos::SearchNode* prnt, folly::Executor* exec)
-  : explorer(expl), id(d), qcl(explorer.qcl), parent(prnt), executor(exec),
+SearchNode::SearchNode(NamespaceExplorer &expl, ContainerIdentifier d, eos::SearchNode* prnt, folly::Executor* exec, bool ignoreF)
+  : explorer(expl), id(d), qcl(explorer.qcl), parent(prnt), executor(exec), ignoreFiles(ignoreF),
     containerMd(MetadataFetcher::getContainerFromId(qcl, id))
 {
 
-  pendingFileMds = MetadataFetcher::getFileMDsInContainer(qcl, id, exec);
+  if(!ignoreFiles) {
+    pendingFileMds = MetadataFetcher::getFileMDsInContainer(qcl, id, exec);
+  }
+
   containerMap = MetadataFetcher::getContainerMap(qcl, id);
 }
 
@@ -117,7 +120,7 @@ void SearchNode::stageChildren()
 
   for (auto it = sortedContainerMap.begin(); it != sortedContainerMap.end();
        it++) {
-    children.emplace_back(new SearchNode(explorer, ContainerIdentifier(it->second), this, executor));
+    children.emplace_back(new SearchNode(explorer, ContainerIdentifier(it->second), this, executor, ignoreFiles));
   }
 }
 
@@ -157,7 +160,7 @@ NamespaceExplorer::NamespaceExplorer(const std::string& pth,
 
   if (pathParts.empty()) {
     // We're running a search on the root node, expand.
-    dfsPath.emplace_back(new SearchNode(*this, ContainerIdentifier(1), nullptr, executor));
+    dfsPath.emplace_back(new SearchNode(*this, ContainerIdentifier(1), nullptr, executor, opts.ignoreFiles));
   }
 
   // TODO: This for loop looks like a useful primitive for MetadataFetcher,
@@ -201,7 +204,7 @@ NamespaceExplorer::NamespaceExplorer(const std::string& pth,
         staticPath.emplace_back(MetadataFetcher::getContainerFromId(qcl, nextId).get());
       } else {
         // Final node, expand
-        dfsPath.emplace_back(new SearchNode(*this, nextId, nullptr, executor));
+        dfsPath.emplace_back(new SearchNode(*this, nextId, nullptr, executor, opts.ignoreFiles));
       }
     }
   }

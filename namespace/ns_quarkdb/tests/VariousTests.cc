@@ -780,6 +780,47 @@ TEST_F(NamespaceExplorerF, BasicSanity) {
   ASSERT_FALSE(explorer2.fetch(item));
 }
 
+TEST_F(NamespaceExplorerF, NoFiles) {
+  populateDummyData1();
+
+  ExplorationOptions options;
+  options.depthLimit = 999;
+  options.ignoreFiles = true;
+
+  // Find on directory
+  NamespaceExplorer explorer2("/eos/d2", options, qcl(), eos::ExecutorProvider::getIOThreadPool("tests"));
+  NamespaceItem item;
+
+  ASSERT_TRUE(explorer2.fetch(item));
+  ASSERT_FALSE(item.isFile);
+  ASSERT_EQ(item.fullPath, "/eos/d2/");
+
+  ASSERT_TRUE(explorer2.fetch(item));
+  ASSERT_FALSE(item.isFile);
+  ASSERT_EQ(item.fullPath, "/eos/d2/d3-1/");
+
+  ASSERT_TRUE(explorer2.fetch(item));
+  ASSERT_FALSE(item.isFile);
+  ASSERT_EQ(item.fullPath, "/eos/d2/d3-2/");
+
+  ASSERT_TRUE(explorer2.fetch(item));
+  ASSERT_FALSE(item.isFile);
+  ASSERT_EQ(item.fullPath, "/eos/d2/d4/");
+
+  std::stringstream path;
+  path << "/eos/d2/d4/";
+  for(size_t i = 1; i <= 7; i++) {
+    path << i << "/";
+    ASSERT_TRUE(explorer2.fetch(item));
+    ASSERT_FALSE(item.isFile);
+    ASSERT_EQ(item.fullPath, path.str());
+  }
+
+  ASSERT_FALSE(explorer2.fetch(item));
+  ASSERT_FALSE(explorer2.fetch(item));
+  ASSERT_FALSE(explorer2.fetch(item));
+}
+
 TEST_F(NamespaceExplorerF, LinkedAttributes) {
   std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
   ASSERT_EQ(root->getId(), 1);
