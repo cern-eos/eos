@@ -24,7 +24,6 @@
 #include "namespace/ns_in_memory/NsInMemoryPlugin.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
-#include "namespace/ns_in_memory/views/HierarchicalView.hh"
 #include "namespace/ns_in_memory/accounting/FileSystemView.hh"
 #include "namespace/ns_in_memory/accounting/ContainerAccounting.hh"
 #include "namespace/ns_in_memory/accounting/SyncTimeAccounting.hh"
@@ -51,13 +50,6 @@ PF_ExitFunc PF_initPlugin(const PF_PlatformServices* services)
   param_cmdsvc.version.minor = 1;
   param_cmdsvc.CreateFunc = eos::NsInMemoryPlugin::CreateContainerMDSvc;
   param_cmdsvc.DestroyFunc = eos::NsInMemoryPlugin::DestroyContainerMDSvc;
-
-  // Register hierarchical view
-  PF_RegisterParams param_hview;
-  param_hview.version.major = 0;
-  param_hview.version.minor = 1;
-  param_hview.CreateFunc = eos::NsInMemoryPlugin::CreateHierarchicalView;
-  param_hview.DestroyFunc = eos::NsInMemoryPlugin::DestroyHierarchicalView;
 
   // Register file system view
   PF_RegisterParams param_fsview;
@@ -91,7 +83,6 @@ PF_ExitFunc PF_initPlugin(const PF_PlatformServices* services)
   // common header
   std::map<std::string, PF_RegisterParams> map_obj =
       { {"ContainerMDSvc",      param_cmdsvc},
-        {"HierarchicalView",    param_hview},
         {"FileSystemView",      param_fsview},
         {"ContainerAccounting", param_contacc},
         {"SyncTimeAccounting",  param_syncacc},
@@ -166,28 +157,6 @@ NsInMemoryPlugin::DestroyContainerMDSvc(void* obj)
     return -1;
 
   delete static_cast<ChangeLogContainerMDSvc*>(obj);
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-// Create hierarchical view
-//------------------------------------------------------------------------------
-void*
-NsInMemoryPlugin::CreateHierarchicalView(PF_PlatformServices* services)
-{
-  return static_cast<void*>(new HierarchicalView());
-}
-
-//------------------------------------------------------------------------------
-// Destroy hierarchical view
-//------------------------------------------------------------------------------
-int32_t
-NsInMemoryPlugin::DestroyHierarchicalView(void* obj)
-{
-  if (!obj)
-    return -1;
-
-  delete static_cast<HierarchicalView*>(obj);
   return 0;
 }
 

@@ -86,23 +86,6 @@ class NsInMemoryPlugin
   static int32_t DestroyContainerMDSvc(void *);
 
   //----------------------------------------------------------------------------
-  //! Create hierarchical view
-  //!
-  //! @param services pointer to other services that the plugin manager might
-  //!         provide
-  //!
-  //! @return pointer to hierarchical view
-  //----------------------------------------------------------------------------
-  static void* CreateHierarchicalView(PF_PlatformServices* services);
-
-  //----------------------------------------------------------------------------
-  //! Destroy hierarchical view
-  //!
-  //! @return 0 if successful, otherwise errno
-  //----------------------------------------------------------------------------
-  static int32_t DestroyHierarchicalView(void *);
-
-  //----------------------------------------------------------------------------
   //! Create file system view
   //!
   //! @param services pointer to other services that the plugin manager might

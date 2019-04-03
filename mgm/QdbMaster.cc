@@ -96,7 +96,7 @@ QdbMaster::BootNamespace()
   gOFS->eosDirectoryService = static_cast<IContainerMDSvc*>
                               (pm.CreateObject("ContainerMDSvc"));
   gOFS->eosFileService = gOFS->namespaceGroup->getFileService();
-  gOFS->eosView = static_cast<IView*>(pm.CreateObject("HierarchicalView"));
+  gOFS->eosView = gOFS->namespaceGroup->getHierarchicalView();
   gOFS->eosFsView = static_cast<IFsView*>(pm.CreateObject("FileSystemView"));
   gOFS->eosContainerAccounting =
     static_cast<IFileMDChangeListener*>(pm.CreateObject("ContainerAccounting"));

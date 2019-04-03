@@ -23,6 +23,7 @@
 
 #include "namespace/ns_in_memory/NamespaceGroup.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
+#include "namespace/ns_in_memory/views/HierarchicalView.hh"
 
 EOSNSNAMESPACE_BEGIN
 
@@ -72,5 +73,19 @@ IContainerMDSvc* InMemNamespaceGroup::getContainerService() {
 
   return mContainerService.get();
 }
+
+//------------------------------------------------------------------------------
+// Provide hierarchical view
+//------------------------------------------------------------------------------
+IView* InMemNamespaceGroup::getHierarchicalView() {
+  std::lock_guard<std::mutex> lock(mMutex);
+
+  if(!mHierarchicalView) {
+    mHierarchicalView.reset(new HierarchicalView());
+  }
+
+  return mHierarchicalView.get();
+}
+
 
 EOSNSNAMESPACE_END

@@ -50,12 +50,6 @@ PF_initPlugin(const PF_PlatformServices* services)
   param_cmdsvc.version.minor = 1;
   param_cmdsvc.CreateFunc = eos::NsQuarkdbPlugin::CreateContainerMDSvc;
   param_cmdsvc.DestroyFunc = eos::NsQuarkdbPlugin::DestroyContainerMDSvc;
-  // Register hierarchical view
-  PF_RegisterParams param_hview = {};
-  param_hview.version.major = 0;
-  param_hview.version.minor = 1;
-  param_hview.CreateFunc = eos::NsQuarkdbPlugin::CreateHierarchicalView;
-  param_hview.DestroyFunc = eos::NsQuarkdbPlugin::DestroyHierarchicalView;
   // Register file system view
   PF_RegisterParams param_fsview = {};
   param_fsview.version.major = 0;
@@ -83,7 +77,6 @@ PF_initPlugin(const PF_PlatformServices* services)
 
   std::map<std::string, PF_RegisterParams> map_obj = {
     {"ContainerMDSvc", param_cmdsvc},
-    {"HierarchicalView", param_hview},
     {"FileSystemView", param_fsview},
     {"ContainerAccounting", param_contacc},
     {"SyncTimeAccounting", param_syncacc},
@@ -160,29 +153,6 @@ NsQuarkdbPlugin::DestroyContainerMDSvc(void* obj)
   }
 
   delete static_cast<QuarkContainerMDSvc*>(obj);
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-// Create hierarchical view
-//------------------------------------------------------------------------------
-void*
-NsQuarkdbPlugin::CreateHierarchicalView(PF_PlatformServices* /*services*/)
-{
-  return new QuarkHierarchicalView();
-}
-
-//------------------------------------------------------------------------------
-// Destroy hierarchical view
-//------------------------------------------------------------------------------
-int32_t
-NsQuarkdbPlugin::DestroyHierarchicalView(void* obj)
-{
-  if (obj == nullptr) {
-    return -1;
-  }
-
-  delete static_cast<QuarkHierarchicalView*>(obj);
   return 0;
 }
 

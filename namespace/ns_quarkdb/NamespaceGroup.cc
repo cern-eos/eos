@@ -22,7 +22,9 @@
 //------------------------------------------------------------------------------
 
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
-#include "namespace/interface/IContainerMDSvc.hh"
+#include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
+#include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
+#include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 
 EOSNSNAMESPACE_BEGIN
 
@@ -48,7 +50,7 @@ bool QuarkNamespaceGroup::initialize(const std::map<std::string, std::string> &c
 }
 
 //----------------------------------------------------------------------------
-//! Provide file service
+// Provide file service
 //----------------------------------------------------------------------------
 IFileMDSvc* QuarkNamespaceGroup::getFileService() {
   std::lock_guard<std::mutex> lock(mMutex);
@@ -61,7 +63,7 @@ IFileMDSvc* QuarkNamespaceGroup::getFileService() {
 }
 
 //------------------------------------------------------------------------------
-//! Provide container service
+// Provide container service
 //------------------------------------------------------------------------------
 IContainerMDSvc* QuarkNamespaceGroup::getContainerService() {
   std::lock_guard<std::mutex> lock(mMutex);
@@ -72,6 +74,20 @@ IContainerMDSvc* QuarkNamespaceGroup::getContainerService() {
 
   return mContainerService.get();
 }
+
+//------------------------------------------------------------------------------
+// Provide hieararchical view
+//------------------------------------------------------------------------------
+IView* QuarkNamespaceGroup::getHierarchicalView() {
+  std::lock_guard<std::mutex> lock(mMutex);
+
+  if(!mHierarchicalView) {
+    mHierarchicalView.reset(new QuarkHierarchicalView());
+  }
+
+  return mHierarchicalView.get();
+}
+
 
 EOSNSNAMESPACE_END
 

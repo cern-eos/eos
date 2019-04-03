@@ -66,6 +66,12 @@ public:
   //----------------------------------------------------------------------------
   virtual IContainerMDSvc* getContainerService() = 0;
 
+  //----------------------------------------------------------------------------
+  //! Provide hierarchical view
+  //----------------------------------------------------------------------------
+  virtual IView* getHierarchicalView() = 0;
+
+
 };
 
 EOSNSNAMESPACE_END

@@ -28,6 +28,7 @@
 #include "namespace/interface/INamespaceGroup.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
+#include "namespace/ns_in_memory/views/HierarchicalView.hh"
 #include <memory>
 #include <mutex>
 
@@ -66,12 +67,18 @@ public:
   //----------------------------------------------------------------------------
   virtual IFileMDSvc* getFileService() override final;
 
+  //----------------------------------------------------------------------------
+  //! Provide hierarchical view
+  //----------------------------------------------------------------------------
+  virtual IView* getHierarchicalView() override final;
+
 
 private:
   std::mutex mMutex;
 
   std::unique_ptr<ChangeLogFileMDSvc> mFileService;
   std::unique_ptr<ChangeLogContainerMDSvc> mContainerService;
+  std::unique_ptr<IView> mHierarchicalView;
 
 };
 

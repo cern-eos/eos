@@ -23,11 +23,15 @@
 
 #pragma once
 #include "namespace/Namespace.hh"
-#include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
-#include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/interface/INamespaceGroup.hh"
+#include <mutex>
+#include <memory>
 
 EOSNSNAMESPACE_BEGIN
+
+class QuarkContainerMDSvc;
+class QuarkFileMDSvc;
+class QuarkHierarchicalView;
 
 //------------------------------------------------------------------------------
 //! Class to hold ownership of all QuarkDB-namespace objects.
@@ -64,10 +68,18 @@ public:
   //----------------------------------------------------------------------------
   virtual IContainerMDSvc* getContainerService() override final;
 
+  //----------------------------------------------------------------------------
+  //! Provide hieararchical view
+  //----------------------------------------------------------------------------
+  virtual IView* getHierarchicalView() override final;
+
+
 private:
   std::mutex mMutex;
   std::unique_ptr<QuarkContainerMDSvc> mContainerService;
   std::unique_ptr<QuarkFileMDSvc> mFileService;
+  std::unique_ptr<QuarkHierarchicalView> mHierarchicalView;
+
 };
 
 
