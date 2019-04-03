@@ -43,7 +43,7 @@ DrainFs::DrainFs(eos::common::ThreadPool& thread_pool, eos::IFsView* fs_view,
                  eos::common::FileSystem::fsid_t src_fsid,
                  eos::common::FileSystem::fsid_t dst_fsid):
   mNsFsView(fs_view), mFsId(src_fsid), mTargetFsId(dst_fsid),
-  mStatus(eos::common::DrainStatus::kNoDrain),
+  mStatus(eos::common::DrainStatus::kNoDrain), mDidRerun(false),
   mDrainStop(false), mMaxJobs(10), mDrainPeriod(0), mThreadPool(thread_pool),
   mTotalFiles(0ull), mPending(0ull), mLastPending(0ull),
   mLastProgressTime(steady_clock::now()),
@@ -132,9 +132,8 @@ DrainFs::DoIt()
       }
     }
 
-    // If new files where added to the fs under drain then we run again
-    if (state == State::Rerun) {
-      continue;
+    if (mDrainStop) {
+      break;
     }
 
     while (!mDrainStop && (state == State::Running)) {
@@ -450,13 +449,22 @@ DrainFs::UpdateProgress()
         FailedDrain();
         return State::Failed;
       } else {
-        eos_info("msg=\"still %llu files to drain before declaring the file "
-                 "system empty\" fsid=%lu", mTotalFiles, mFsId);
-        mTotalFiles = total_files;
-        mPending = mTotalFiles;
-        eos::common::RWMutexWriteLock wr_lock(mJobsMutex);
-        mJobsFailed.clear();
-        return State::Rerun;
+        if (mDidRerun) {
+          // If we already did a rerun then we just fail since there might be
+          // ghost entries on the file system i.e. fids registered in the
+          // FileSystem view but without any existing FileMD object.
+          FailedDrain();
+          return State::Failed;
+        } else {
+          mDidRerun = true;
+          eos_info("msg=\"still %llu files to drain before declaring the file "
+                   "system empty\" fsid=%lu", total_files, mFsId);
+          mTotalFiles = total_files;
+          mPending = mTotalFiles;
+          eos::common::RWMutexWriteLock wr_lock(mJobsMutex);
+          mJobsFailed.clear();
+          return State::Rerun;
+        }
       }
     }
   }

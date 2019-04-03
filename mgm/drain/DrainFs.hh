@@ -223,6 +223,7 @@ private:
   eos::common::FileSystem::fsid_t mFsId; ///< Drain source fsid
   eos::common::FileSystem::fsid_t mTargetFsId; /// Drain target fsid
   eos::common::DrainStatus mStatus;
+  bool mDidRerun; ///< Flag if a rerun was already tried
   std::atomic<bool> mDrainStop; ///< Flag to cancel an ongoing draining
   std::atomic<std::uint32_t> mMaxJobs; ///< Max number of drain jobs
   std::chrono::seconds mDrainPeriod; ///< Allowed time for file system to drain
