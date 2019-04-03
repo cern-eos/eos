@@ -52,6 +52,23 @@ class NsInMemoryPlugin
  public:
 
   //----------------------------------------------------------------------------
+  //! Create namespace group
+  //!
+  //! @param services pointer to other services that the plugin manager might
+  //!         provide
+  //!
+  //! @return pointer to namespace group
+  //----------------------------------------------------------------------------
+  static void* CreateGroup(PF_PlatformServices* services);
+
+  //----------------------------------------------------------------------------
+  //! Destroy namespace group
+  //!
+  //! @return 0 if successful, otherwise errno
+  //----------------------------------------------------------------------------
+  static int32_t DestroyGroup(void*);
+
+  //----------------------------------------------------------------------------
   //! Create container metadata service
   //!
   //! @param services pointer to other services that the plugin manager might
@@ -67,23 +84,6 @@ class NsInMemoryPlugin
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
   static int32_t DestroyContainerMDSvc(void *);
-
-  //----------------------------------------------------------------------------
-  //! Create file metadata service
-  //!
-  //! @param services pointer to other services that the plugin manager might
-  //!         provide
-  //!
-  //! @return pointer to file metadata service
-  //----------------------------------------------------------------------------
-  static void* CreateFileMDSvc(PF_PlatformServices* services);
-
-  //----------------------------------------------------------------------------
-  //! Destroy file metadata service
-  //!
-  //! @return 0 if successful, otherwise errno
-  //----------------------------------------------------------------------------
-  static int32_t DestroyFileMDSvc(void *);
 
   //----------------------------------------------------------------------------
   //! Create hierarchical view

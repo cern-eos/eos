@@ -239,6 +239,13 @@ void LRU::processDirectory(const std::string& dir, size_t contentSize,
                            eos::IContainerMD::XAttrMap& map)
 {
   //----------------------------------------------------------------------------
+  // No LRU on "/"
+  //----------------------------------------------------------------------------
+  if(dir == "/" || dir == "") {
+    return;
+  }
+
+  //----------------------------------------------------------------------------
   // sort out the individual LRU policies
   //----------------------------------------------------------------------------
   if (map.count("sys.lru.expire.empty") && contentSize == 0) {

@@ -40,6 +40,7 @@ add_library(
   NsInMemoryPlugin.cc    NsInMemoryPlugin.hh
   FileMD.cc              FileMD.hh
   ContainerMD.cc         ContainerMD.hh
+  NamespaceGroup.cc      NamespaceGroup.hh
 
   persistency/ChangeLogConstants.hh
   persistency/ChangeLogConstants.cc

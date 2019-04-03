@@ -20,6 +20,7 @@
 #include <iostream>
 /*----------------------------------------------------------------------------*/
 #include "namespace/interface/IContainerMDSvc.hh"
+#include "namespace/ns_in_memory/NamespaceGroup.hh"
 #include "namespace/ns_in_memory/NsInMemoryPlugin.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
@@ -51,13 +52,6 @@ PF_ExitFunc PF_initPlugin(const PF_PlatformServices* services)
   param_cmdsvc.CreateFunc = eos::NsInMemoryPlugin::CreateContainerMDSvc;
   param_cmdsvc.DestroyFunc = eos::NsInMemoryPlugin::DestroyContainerMDSvc;
 
-  // Register file metadata service
-  PF_RegisterParams param_fmdsvc;
-  param_fmdsvc.version.major = 0;
-  param_fmdsvc.version.minor = 1;
-  param_fmdsvc.CreateFunc = eos::NsInMemoryPlugin::CreateFileMDSvc;
-  param_fmdsvc.DestroyFunc = eos::NsInMemoryPlugin::DestroyFileMDSvc;
-
   // Register hierarchical view
   PF_RegisterParams param_hview;
   param_hview.version.major = 0;
@@ -86,15 +80,23 @@ PF_ExitFunc PF_initPlugin(const PF_PlatformServices* services)
   param_syncacc.CreateFunc = eos::NsInMemoryPlugin::CreateSyncTimeAcc;
   param_syncacc.DestroyFunc = eos::NsInMemoryPlugin::DestroySyncTimeAcc;
 
+  // Register namespace group
+  PF_RegisterParams param_group;
+  param_group.version.major = 0;
+  param_group.version.minor = 1;
+  param_group.CreateFunc = eos::NsInMemoryPlugin::CreateGroup;
+  param_group.DestroyFunc = eos::NsInMemoryPlugin::DestroyGroup;
+
   // TODO: define the necessary objects to be provided by the namespace in a
   // common header
   std::map<std::string, PF_RegisterParams> map_obj =
       { {"ContainerMDSvc",      param_cmdsvc},
-        {"FileMDSvc",           param_fmdsvc},
         {"HierarchicalView",    param_hview},
         {"FileSystemView",      param_fsview},
         {"ContainerAccounting", param_contacc},
-        {"SyncTimeAccounting",  param_syncacc} };
+        {"SyncTimeAccounting",  param_syncacc},
+        {"NamespaceGroup",      param_group}
+      };
 
   // Register all the provided object with the Plugin Manager
   for (auto it = map_obj.begin(); it != map_obj.end(); ++it)
@@ -113,6 +115,36 @@ EOSNSNAMESPACE_BEGIN
 
 // Static variables
 eos::IContainerMDSvc* NsInMemoryPlugin::pContMDSvc = 0;
+
+//----------------------------------------------------------------------------
+//! Create namespace group
+//!
+//! @param services pointer to other services that the plugin manager might
+//!         provide
+//!
+//! @return pointer to namespace group
+//----------------------------------------------------------------------------
+void*
+NsInMemoryPlugin::CreateGroup(PF_PlatformServices* services)
+{
+  return new InMemNamespaceGroup();
+}
+
+//----------------------------------------------------------------------------
+//! Destroy namespace group
+//!
+//! @return 0 if successful, otherwise errno
+//----------------------------------------------------------------------------
+int32_t
+NsInMemoryPlugin::DestroyGroup(void* obj)
+{
+  if(!obj) {
+    return -1;
+  }
+
+  delete static_cast<InMemNamespaceGroup*>(obj);
+  return 0;
+}
 
 //------------------------------------------------------------------------------
 // Create container metadata service
@@ -134,28 +166,6 @@ NsInMemoryPlugin::DestroyContainerMDSvc(void* obj)
     return -1;
 
   delete static_cast<ChangeLogContainerMDSvc*>(obj);
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-// Create file metadata service
-//------------------------------------------------------------------------------
-void*
-NsInMemoryPlugin::CreateFileMDSvc(PF_PlatformServices* services)
-{
-  return new ChangeLogFileMDSvc();
-}
-
-//------------------------------------------------------------------------------
-// Destroy file metadata service
-//------------------------------------------------------------------------------
-int32_t
-NsInMemoryPlugin::DestroyFileMDSvc(void* obj)
-{
-  if (!obj)
-    return -1;
-
-  delete static_cast<ChangeLogFileMDSvc*>(obj);
   return 0;
 }
 

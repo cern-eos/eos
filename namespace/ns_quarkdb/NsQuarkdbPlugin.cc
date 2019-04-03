@@ -24,6 +24,7 @@
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
+#include "namespace/ns_quarkdb/NamespaceGroup.hh"
 #include "common/RWMutex.hh"
 #include <iostream>
 
@@ -49,12 +50,6 @@ PF_initPlugin(const PF_PlatformServices* services)
   param_cmdsvc.version.minor = 1;
   param_cmdsvc.CreateFunc = eos::NsQuarkdbPlugin::CreateContainerMDSvc;
   param_cmdsvc.DestroyFunc = eos::NsQuarkdbPlugin::DestroyContainerMDSvc;
-  // Register file metadata service
-  PF_RegisterParams param_fmdsvc = {};
-  param_fmdsvc.version.major = 0;
-  param_fmdsvc.version.minor = 1;
-  param_fmdsvc.CreateFunc = eos::NsQuarkdbPlugin::CreateFileMDSvc;
-  param_fmdsvc.DestroyFunc = eos::NsQuarkdbPlugin::DestroyFileMDSvc;
   // Register hierarchical view
   PF_RegisterParams param_hview = {};
   param_hview.version.major = 0;
@@ -79,13 +74,20 @@ PF_initPlugin(const PF_PlatformServices* services)
   param_syncacc.version.minor = 1;
   param_syncacc.CreateFunc = eos::NsQuarkdbPlugin::CreateSyncTimeAcc;
   param_syncacc.DestroyFunc = eos::NsQuarkdbPlugin::DestroySyncTimeAcc;
+  // Register namespace group
+  PF_RegisterParams param_group;
+  param_group.version.major = 0;
+  param_group.version.minor = 1;
+  param_group.CreateFunc = eos::NsQuarkdbPlugin::CreateGroup;
+  param_group.DestroyFunc = eos::NsQuarkdbPlugin::DestroyGroup;
+
   std::map<std::string, PF_RegisterParams> map_obj = {
     {"ContainerMDSvc", param_cmdsvc},
-    {"FileMDSvc", param_fmdsvc},
     {"HierarchicalView", param_hview},
     {"FileSystemView", param_fsview},
     {"ContainerAccounting", param_contacc},
-    {"SyncTimeAccounting", param_syncacc}
+    {"SyncTimeAccounting", param_syncacc},
+    {"NamespaceGroup", param_group},
   };
 
   // Register all the provided object with the Plugin Manager
@@ -103,6 +105,36 @@ EOSNSNAMESPACE_BEGIN
 
 // Static variables
 eos::IContainerMDSvc* NsQuarkdbPlugin::pContMDSvc = nullptr;
+
+//----------------------------------------------------------------------------
+//! Create namespace group
+//!
+//! @param services pointer to other services that the plugin manager might
+//!         provide
+//!
+//! @return pointer to namespace group
+//----------------------------------------------------------------------------
+void*
+NsQuarkdbPlugin::CreateGroup(PF_PlatformServices* services)
+{
+  return new QuarkNamespaceGroup();
+}
+
+//----------------------------------------------------------------------------
+//! Destroy namespace group
+//!
+//! @return 0 if successful, otherwise errno
+//----------------------------------------------------------------------------
+int32_t
+NsQuarkdbPlugin::DestroyGroup(void* obj)
+{
+  if(!obj) {
+    return -1;
+  }
+
+  delete static_cast<QuarkNamespaceGroup*>(obj);
+  return 0;
+}
 
 //------------------------------------------------------------------------------
 // Create container metadata service
@@ -128,29 +160,6 @@ NsQuarkdbPlugin::DestroyContainerMDSvc(void* obj)
   }
 
   delete static_cast<QuarkContainerMDSvc*>(obj);
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-// Create file metadata service
-//------------------------------------------------------------------------------
-void*
-NsQuarkdbPlugin::CreateFileMDSvc(PF_PlatformServices* /*services*/)
-{
-  return new QuarkFileMDSvc();
-}
-
-//------------------------------------------------------------------------------
-// Destroy file metadata service
-//------------------------------------------------------------------------------
-int32_t
-NsQuarkdbPlugin::DestroyFileMDSvc(void* obj)
-{
-  if (obj == nullptr) {
-    return -1;
-  }
-
-  delete static_cast<QuarkFileMDSvc*>(obj);
   return 0;
 }
 

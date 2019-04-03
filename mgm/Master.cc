@@ -36,6 +36,7 @@
 #include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/interface/INamespaceGroup.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -1709,9 +1710,12 @@ Master::BootNamespace()
   PluginManager& pm = PluginManager::GetInstance();
   PF_PlatformServices& pm_svc = pm.GetPlatformServices();
   pm_svc.invokeService = &XrdMgmOfs::DiscoverPlatformServices;
+  gOFS->namespaceGroup.reset(static_cast<INamespaceGroup*>
+                              (pm.CreateObject("NamespaceGroup")));
   gOFS->eosDirectoryService = static_cast<IContainerMDSvc*>
                               (pm.CreateObject("ContainerMDSvc"));
-  gOFS->eosFileService = static_cast<IFileMDSvc*>(pm.CreateObject("FileMDSvc"));
+
+  gOFS->eosFileService = gOFS->namespaceGroup->getFileService();
   gOFS->eosView = static_cast<IView*>(pm.CreateObject("HierarchicalView"));
   gOFS->eosFsView = static_cast<IFsView*>(pm.CreateObject("FileSystemView"));
 

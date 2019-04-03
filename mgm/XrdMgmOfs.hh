@@ -112,6 +112,7 @@
 #include "mgm/TapeAwareGc.hh"
 #include "mgm/auth/AccessChecker.hh"
 #include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/INamespaceGroup.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "mgm/FuseNotificationGuard.hh"
 #include "mgm/InFlightTracker.hh"
@@ -1416,6 +1417,8 @@ public:
   //----------------------------------------------------------------------------
   // Namespace variables
   //----------------------------------------------------------------------------
+  std::unique_ptr<eos::INamespaceGroup> namespaceGroup;
+
   eos::IContainerMDSvc* eosDirectoryService; ///< changelog for directories
   eos::IFileMDSvc* eosFileService; ///< changelog for files
   eos::IView* eosView; ///< hierarchical view of the namespace
