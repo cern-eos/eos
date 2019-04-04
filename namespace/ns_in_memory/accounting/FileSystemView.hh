@@ -78,7 +78,7 @@ public:
   //!
   //! @return
   //----------------------------------------------------------------------------
-  virtual void eraseEntry(IFileMD::location_t location, IFileMD::id_t);
+  virtual void eraseEntry(IFileMD::location_t location, IFileMD::id_t) override;
 
 
   //----------------------------------------------------------------------------
@@ -99,7 +99,7 @@ public:
   //! @return shared ptr to collection iterator
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-      getStreamingFileList(IFileMD::location_t location) {
+      getStreamingFileList(IFileMD::location_t location) override {
     return getFileList(location);
   }
 

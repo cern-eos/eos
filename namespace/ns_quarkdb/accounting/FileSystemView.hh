@@ -209,7 +209,7 @@ public:
   //!
   //! @return
   //----------------------------------------------------------------------------
-  virtual void eraseEntry(IFileMD::location_t location, IFileMD::id_t);
+  virtual void eraseEntry(IFileMD::location_t location, IFileMD::id_t) override;
 
   //----------------------------------------------------------------------------
   //! Get iterator to list of files on a particular file system

@@ -297,7 +297,7 @@ public:
   //! Get parent container of a file
   //----------------------------------------------------------------------------
   virtual folly::Future<IContainerMDPtr> getParentContainer(
-    IFileMD *file);
+    IFileMD *file) override;
 
 private:
   //----------------------------------------------------------------------------

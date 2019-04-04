@@ -77,7 +77,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get current element.
   //----------------------------------------------------------------------------
-  virtual IFileMD::id_t getElement()
+  virtual IFileMD::id_t getElement() override
   {
     return *mIterator;
   }
@@ -85,7 +85,7 @@ public:
   //----------------------------------------------------------------------------
   //! Progress iterator.
   //----------------------------------------------------------------------------
-  virtual void next()
+  virtual void next() override
   {
     mIterator++;
   }
@@ -131,7 +131,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get current element.
   //----------------------------------------------------------------------------
-  virtual IFileMD::id_t getElement()
+  virtual IFileMD::id_t getElement() override
   {
     return std::stoull(it.getElement());
   }
@@ -139,7 +139,7 @@ public:
   //----------------------------------------------------------------------------
   //! Progress iterator.
   //----------------------------------------------------------------------------
-  virtual void next()
+  virtual void next() override
   {
     return it.next();
   }
