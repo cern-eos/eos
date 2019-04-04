@@ -58,13 +58,31 @@ bool InMemNamespaceGroup::initialize(eos::common::RWMutex* nsMtx, const std::map
 }
 
 //------------------------------------------------------------------------------
+// Initialize file and container services
+//------------------------------------------------------------------------------
+void InMemNamespaceGroup::initializeFileAndContainerServices() {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
+
+  if(!mFileService) {
+    mFileService.reset(new ChangeLogFileMDSvc());
+  }
+
+  if(!mContainerService) {
+    mContainerService.reset(new ChangeLogContainerMDSvc());
+  }
+
+  mContainerService->setFileMDService(mFileService.get());
+  mFileService->setContMDService(mContainerService.get());
+}
+
+//------------------------------------------------------------------------------
 // Provide file service
 //------------------------------------------------------------------------------
 IFileMDSvc* InMemNamespaceGroup::getFileService() {
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mFileService) {
-    mFileService.reset(new ChangeLogFileMDSvc());
+    initializeFileAndContainerServices();
   }
 
   return mFileService.get();
@@ -77,7 +95,7 @@ IContainerMDSvc* InMemNamespaceGroup::getContainerService() {
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mContainerService) {
-    mContainerService.reset(new ChangeLogContainerMDSvc());
+    initializeFileAndContainerServices();
   }
 
   return mContainerService.get();

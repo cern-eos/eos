@@ -1847,9 +1847,7 @@ Master::BootNamespace()
   time_t tstart = time(nullptr);
 
   try {
-    gOFS->eosDirectoryService->setFileMDService(gOFS->eosFileService);
     gOFS->eosDirectoryService->configure(contSettings);
-    gOFS->eosFileService->setContMDService(gOFS->eosDirectoryService);
     gOFS->eosFileService->configure(fileSettings);
     gOFS->eosFsView->configure(fileSettings);
     gOFS->eosView->setContainerMDSvc(gOFS->eosDirectoryService);

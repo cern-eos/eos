@@ -62,6 +62,24 @@ bool QuarkNamespaceGroup::initialize(eos::common::RWMutex* nsMtx, const std::map
   return true;
 }
 
+//------------------------------------------------------------------------------
+// Initialize file and container services
+//------------------------------------------------------------------------------
+void QuarkNamespaceGroup::initializeFileAndContainerServices() {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
+
+  if(!mFileService) {
+    mFileService.reset(new QuarkFileMDSvc());
+  }
+
+  if(!mContainerService) {
+    mContainerService.reset(new QuarkContainerMDSvc());
+  }
+
+  mContainerService->setFileMDService(mFileService.get());
+  mFileService->setContMDService(mContainerService.get());
+}
+
 //----------------------------------------------------------------------------
 // Provide file service
 //----------------------------------------------------------------------------
@@ -69,7 +87,7 @@ IFileMDSvc* QuarkNamespaceGroup::getFileService() {
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mFileService) {
-    mFileService.reset(new QuarkFileMDSvc());
+    initializeFileAndContainerServices();
   }
 
   return mFileService.get();
@@ -82,7 +100,7 @@ IContainerMDSvc* QuarkNamespaceGroup::getContainerService() {
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mContainerService) {
-    mContainerService.reset(new QuarkContainerMDSvc());
+    initializeFileAndContainerServices();
   }
 
   return mContainerService.get();

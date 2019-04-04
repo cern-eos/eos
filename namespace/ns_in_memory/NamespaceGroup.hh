@@ -100,6 +100,12 @@ public:
 
 
 private:
+  //----------------------------------------------------------------------------
+  //! Initialize file and container services
+  //----------------------------------------------------------------------------
+  void initializeFileAndContainerServices();
+
+
   std::recursive_mutex mMutex;
 
   std::unique_ptr<ChangeLogFileMDSvc> mFileService;
