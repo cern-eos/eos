@@ -122,6 +122,7 @@ FmdHelper::FmdToEnv()
                    << "&mtime_ns=" << mProtoFmd.mtime_ns()
                    << "&size=" << mProtoFmd.size()
                    << "&checksum=" << mProtoFmd.checksum()
+                   << "&diskchecksum=" << mProtoFmd.diskchecksum()
                    << "&lid=" << mProtoFmd.lid()
                    << "&uid=" << mProtoFmd.uid()
                    << "&gid=" << mProtoFmd.gid() << '&';

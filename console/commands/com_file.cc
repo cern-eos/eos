@@ -84,6 +84,16 @@ EnvFstToFmd(XrdOucEnv& env, struct eos::fst::Fmd& fmd)
     fmd.set_checksum("");
   }
 
+  if (env.Get("diskchecksum")) {
+    fmd.set_diskchecksum(env.Get("diskchecksum"));
+
+    if (fmd.diskchecksum() == "none") {
+      fmd.set_diskchecksum("");
+    }
+  } else {
+    fmd.set_diskchecksum("");
+  }
+
   return true;
 }
 
@@ -254,9 +264,9 @@ GetRemoteFmdFromLocalDb(const char* manager, const char* shexfid,
 // Fileinfo command entry point
 //------------------------------------------------------------------------------
 int
-com_fileinfo(char* arg1) {
+com_fileinfo(char* arg1)
+{
   XrdOucString savearg = arg1;
-
   // Split subcommands
   eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
@@ -316,28 +326,37 @@ com_fileinfo(char* arg1) {
 void com_fileinfo_help()
 {
   std::ostringstream oss;
-
   oss << "Usage: fileinfo <identifier> [--path] [--fid] [--fxid] [--size] [--checksum] [--fullpath] [--proxy] [-m] [--env] [-s|--silent]"
       << std::endl
       << "    Prints file information for specified <identifier>" << std::endl
       << "        <identifier> = <path>|fid:<fid-dec>|fxid:<fid-hex>|inode:<inode-dec>"
       << std::endl
       << "Options:" << std::endl
-      << "        --path                        :  filters output to show path field" << std::endl
-      << "        --fid                         :  filters output to show fid field" << std::endl
-      << "        --fxid                        :  filters output to show fxid field" << std::endl
-      << "        --size                        :  filters output to show size field" << std::endl
-      << "        --checksum                    :  filters output to show checksum field" << std::endl
-      << "        --fullpath                    :  adds physical path information to the output" << std::endl
-      << "        --proxy                       :  adds proxy information to the output" << std::endl
-      << "        -m                            :  prints single-line information in monitoring format" << std::endl
-      << "        --env                         :  prints information in OucEnv format" << std::endl
-      << "   -s | --silent                      :  silent - used to run as internal command" << std::endl
+      << "        --path                        :  filters output to show path field"
       << std::endl
-      << "Remarks:" <<std::endl
-      << "        Filters stack up and apply only to normal display mode." << std::endl
+      << "        --fid                         :  filters output to show fid field"
+      << std::endl
+      << "        --fxid                        :  filters output to show fxid field"
+      << std::endl
+      << "        --size                        :  filters output to show size field"
+      << std::endl
+      << "        --checksum                    :  filters output to show checksum field"
+      << std::endl
+      << "        --fullpath                    :  adds physical path information to the output"
+      << std::endl
+      << "        --proxy                       :  adds proxy information to the output"
+      << std::endl
+      << "        -m                            :  prints single-line information in monitoring format"
+      << std::endl
+      << "        --env                         :  prints information in OucEnv format"
+      << std::endl
+      << "   -s | --silent                      :  silent - used to run as internal command"
+      << std::endl
+      << std::endl
+      << "Remarks:" << std::endl
+      << "        Filters stack up and apply only to normal display mode." <<
+      std::endl
       << "        Command also supports JSON output." << std::endl;
-
   std::cout << oss.str() << std::endl;
 }
 
@@ -934,6 +953,12 @@ com_file(char* arg1)
                 cx += "00";
               }
 
+              XrdOucString disk_cx = fmd.diskchecksum().c_str();
+
+              for (unsigned int k = (disk_cx.length() / 2); k < SHA_DIGEST_LENGTH; k++) {
+                disk_cx += "00";
+              }
+
               if ((option.find("%size")) != STR_NPOS) {
                 char ss[1024];
                 sprintf(ss, "%" PRIu64, fmd.size());
@@ -970,13 +995,12 @@ com_file(char* arg1)
 
               if (!silent) {
                 fprintf(stdout, "nrep=\"%02d\" fsid=\"%s\" host=\"%s\" fstpath=\"%s\" "
-                        "size=\"%" PRIu64 "\" statsize=\"%llu\" checksum=\"%s\"",
+                        "size=\"%" PRIu64 "\" statsize=\"%llu\" checksum=\"%s\" diskchecksum=\"%s\"",
                         i, newresult->Get(repfsid.c_str()),
                         newresult->Get(repurl.c_str()),
                         newresult->Get(repfstpath.c_str()),
-                        fmd.size(),
-                        static_cast<long long>(rsize),
-                        cx.c_str());
+                        fmd.size(), static_cast<long long>(rsize),
+                        cx.c_str(), disk_cx.c_str());
 
                 if ((option.find("%checksumattr") != STR_NPOS)) {
                   fprintf(stdout, " checksumattr=\"%s\"", checksumattribute.c_str());
