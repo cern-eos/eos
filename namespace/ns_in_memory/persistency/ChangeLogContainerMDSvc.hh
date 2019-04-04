@@ -63,7 +63,7 @@ public:
   ChangeLogContainerMDSvc():
     pFirstFreeId(1), pFollowerThread(0), pSlaveLock(0), pSlaveMode(false),
     pSlaveStarted(false), pSlavePoll(1000), pFollowStart(0), pQuotaStats(0),
-    pFileSvc(NULL), pAutoRepair(0), pResSize(1000000), pContainerAccounting(0)
+    pFileSvc(NULL), pAutoRepair(0), pContainerAccounting(0)
   {
     pChangeLog = new ChangeLogFile();
     pthread_mutex_init(&pFollowStartMutex, 0);
@@ -305,14 +305,6 @@ public:
     pQuotaStats = quotaStats;
   }
 
-  //------------------------------------------------------------------------
-  //! Get id map reservation size
-  //------------------------------------------------------------------------
-  uint64_t getResSize() const
-  {
-    return pResSize;
-  }
-
   //--------------------------------------------------------------------------
   //! Get changelog warning messages
   //!
@@ -443,7 +435,6 @@ private:
   IQuotaStats*       pQuotaStats;
   IFileMDSvc*        pFileSvc;
   bool               pAutoRepair;
-  uint64_t           pResSize;
   IFileMDChangeListener* pContainerAccounting;
 };
 

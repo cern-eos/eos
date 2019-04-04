@@ -825,12 +825,6 @@ void ChangeLogContainerMDSvc::configure(
     }
   }
 
-  it = config.find("ns_size");
-
-  if (it != config.end()) {
-    pResSize = strtoull(it->second.c_str(), 0, 10);
-  }
-
   pAutoRepair = false;
   it = config.find("auto_repair");
 

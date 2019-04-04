@@ -1081,12 +1081,6 @@ void ChangeLogFileMDSvc::configure(
       }
     }
   }
-
-  it = config.find("ns_size");
-
-  if (it != config.end()) {
-    pResSize = strtoull(it->second.c_str(), 0, 10);
-  }
 }
 
 //------------------------------------------------------------------------------

@@ -58,7 +58,7 @@ public:
     pFirstFreeId(1), pChangeLog(0), pFollowerThread(0), pSlaveLock(0),
     pSlaveMode(false), pSlaveStarted(false), pSlavePoll(1000),
     pFollowStart(0), pFollowPending(0), pContSvc(0), pQuotaStats(0),
-    pAutoRepair(0), pResSize(1000000)
+    pAutoRepair(0)
   {
     pChangeLog = new ChangeLogFile;
     pthread_mutex_init(&pFollowStartMutex, 0);
@@ -311,14 +311,6 @@ public:
   void setQuotaStats(IQuotaStats* quota_stats) override;
 
   //----------------------------------------------------------------------------
-  //! Get id map reservation size
-  //----------------------------------------------------------------------------
-  uint64_t getResSize() const
-  {
-    return pResSize;
-  }
-
-  //----------------------------------------------------------------------------
   //! Get changelog warning messages
   //!
   //! @return vector of warning messages
@@ -422,7 +414,6 @@ private:
   ChangeLogContainerMDSvc* pContSvc;
   IQuotaStats*       pQuotaStats;
   bool               pAutoRepair;
-  uint64_t           pResSize;
 };
 
 EOSNSNAMESPACE_END
