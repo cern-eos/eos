@@ -59,7 +59,7 @@ QuarkFileSystemView::configure(const std::map<std::string, std::string>& config)
 
     std::string qdb_flusher_id = config.at(key_flusher);
     pQcl = BackendClient::getInstance(contactDetails);
-    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails);
+    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails).get();
   }
 
   auto start = std::time(nullptr);

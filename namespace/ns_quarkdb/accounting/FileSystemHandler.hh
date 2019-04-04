@@ -162,7 +162,7 @@ public:
   //! @param unlinked whether we want the unlinked file list, or the regular one
   //----------------------------------------------------------------------------
   FileSystemHandler(IFileMD::location_t location, folly::Executor* pExecutor,
-                    qclient::QClient* qcl, std::shared_ptr<MetadataFlusher> flusher,
+                    qclient::QClient* qcl, MetadataFlusher *flusher,
                     bool unlinked);
 
   //----------------------------------------------------------------------------
@@ -174,7 +174,7 @@ public:
   //! @param Tag for dispatching to this constructor overload
   //----------------------------------------------------------------------------
   FileSystemHandler(folly::Executor* pExecutor, qclient::QClient* qcl,
-                    std::shared_ptr<MetadataFlusher> flusher, IsNoReplicaListTag tag);
+                    MetadataFlusher *flusher, IsNoReplicaListTag tag);
 
   //----------------------------------------------------------------------------
   //! Ensure contents have been loaded into the cache. If so, returns
@@ -269,7 +269,7 @@ private:
   IFileMD::location_t location;             ///< Filesystem ID, if available
   folly::Executor* pExecutor;               ///< Folly executor
   qclient::QClient* pQcl;                   ///< QClient object
-  std::shared_ptr<MetadataFlusher> pFlusher;///< Metadata flusher object
+  MetadataFlusher *pFlusher;                ///< Metadata flusher object
   std::shared_timed_mutex mMutex;           ///< Object mutex
   IFsView::FileList
   mContents;              ///< Actual contents. May be incomplete if mCacheStatus != kLoaded.

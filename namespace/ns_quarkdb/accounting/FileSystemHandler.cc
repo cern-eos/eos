@@ -30,8 +30,9 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 FileSystemHandler::FileSystemHandler(IFileMD::location_t loc,
                                      folly::Executor* executor,
-                                     qclient::QClient* qcl, std::shared_ptr<MetadataFlusher>
-                                     flusher, bool unlinked)
+                                     qclient::QClient* qcl,
+                                     MetadataFlusher *flusher,
+                                     bool unlinked)
   : location(loc), pExecutor(executor), pQcl(qcl), pFlusher(flusher)
 {
   if (unlinked) {
@@ -49,7 +50,7 @@ FileSystemHandler::FileSystemHandler(IFileMD::location_t loc,
 //------------------------------------------------------------------------------
 FileSystemHandler::FileSystemHandler(folly::Executor* executor,
                                      qclient::QClient* qcl,
-                                     std::shared_ptr<MetadataFlusher> flusher,
+                                     MetadataFlusher* flusher,
                                      IsNoReplicaListTag tag)
   : location(0), pExecutor(executor), pQcl(qcl), pFlusher(flusher)
 {

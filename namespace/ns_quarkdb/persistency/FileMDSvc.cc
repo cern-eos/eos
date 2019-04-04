@@ -76,7 +76,7 @@ QuarkFileMDSvc::configure(const std::map<std::string, std::string>& config)
     mMetaMap.setKey(constants::sMapMetaInfoKey);
     mMetaMap.setClient(*pQcl);
     mUnifiedInodeProvider.configure(mMetaMap);
-    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails);
+    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails).get();
     mMetadataProvider.reset(new MetadataProvider(contactDetails, pContSvc, this));
     static_cast<QuarkContainerMDSvc*>(pContSvc)->setMetadataProvider
     (mMetadataProvider.get());

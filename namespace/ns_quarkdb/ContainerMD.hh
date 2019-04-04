@@ -511,7 +511,7 @@ private:
   eos::ns::ContainerMdProto mCont;      ///< Protobuf container representation
   IContainerMDSvc* pContSvc = nullptr;  ///< Container metadata service
   IFileMDSvc* pFileSvc = nullptr;       ///< File metadata service
-  std::shared_ptr<MetadataFlusher> pFlusher; ///< Metadata flusher object
+  MetadataFlusher *pFlusher = nullptr;  ///< Metadata flusher object
   qclient::QClient* pQcl;               ///< QClient object
   std::string pFilesKey;                ///< Map files key
   std::string pDirsKey;                 ///< Map dir key

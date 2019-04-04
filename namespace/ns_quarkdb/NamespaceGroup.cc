@@ -49,6 +49,9 @@ QuarkNamespaceGroup::~QuarkNamespaceGroup() {
   mHierarchicalView.reset();
   mFileService.reset();
   mContainerService.reset();
+
+  mMetadataFlusher.reset();
+  mQuotaFlusher.reset();
 }
 
 //----------------------------------------------------------------------------
@@ -225,6 +228,8 @@ IQuotaStats* QuarkNamespaceGroup::getQuotaStats() {
 // Get metadata flusher
 //------------------------------------------------------------------------------
 MetadataFlusher* QuarkNamespaceGroup::getMetadataFlusher() {
+  return MetadataFlusherFactory::getInstance(flusherMDTag, contactDetails).get();
+
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mMetadataFlusher) {
@@ -239,6 +244,8 @@ MetadataFlusher* QuarkNamespaceGroup::getMetadataFlusher() {
 // Get quota flusher
 //------------------------------------------------------------------------------
 MetadataFlusher* QuarkNamespaceGroup::getQuotaFlusher() {
+  return MetadataFlusherFactory::getInstance(flusherQuotaTag, contactDetails).get();
+
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mQuotaFlusher) {

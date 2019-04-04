@@ -106,8 +106,7 @@ private:
   //! Quota quota node gid hash key e.g. quota_node:id:gid
   std::string pQuotaGidKey;
   qclient::QClient* pQcl; ///< Backend client from QuotaStats
-  std::shared_ptr<MetadataFlusher>
-  pFlusher; ///< Metadata flusher object from QuotaStats
+  MetadataFlusher* pFlusher; ///< Metadata flusher object from QuotaStats
 };
 
 //------------------------------------------------------------------------------
@@ -190,7 +189,7 @@ private:
 
   std::map<IContainerMD::id_t, std::unique_ptr<IQuotaNode>> pNodeMap; ///< Map of quota nodes
   qclient::QClient* pQcl; ///< Backend client
-  std::shared_ptr<MetadataFlusher> pFlusher; ///< Metadata flusher object
+  MetadataFlusher* pFlusher; ///< Metadata flusher object
 };
 
 EOSNSNAMESPACE_END

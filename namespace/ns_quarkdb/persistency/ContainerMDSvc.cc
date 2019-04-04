@@ -74,7 +74,7 @@ QuarkContainerMDSvc::configure(const std::map<std::string, std::string>& config)
     mMetaMap.setKey(constants::sMapMetaInfoKey);
     mMetaMap.setClient(*pQcl);
     mMetaMap.hset("EOS-NS-FORMAT-VERSION", "1");
-    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails);
+    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails).get();
   }
 
   if (config.find(constants::sMaxNumCacheDirs) != config.end()) {
