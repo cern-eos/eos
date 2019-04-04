@@ -24,6 +24,7 @@
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/accounting/SyncTimeAccounting.hh"
@@ -59,6 +60,53 @@ QuarkNamespaceGroup::~QuarkNamespaceGroup() {
 //----------------------------------------------------------------------------
 bool QuarkNamespaceGroup::initialize(eos::common::RWMutex* nsMtx, const std::map<std::string, std::string> &config, std::string &err) {
   mNsMutex = nsMtx;
+
+  // Mandatory configuration option: queue_path
+  auto it = config.find("queue_path");
+  if(it == config.end()) {
+    err = "configuration key queue_path not found!";
+    return false;
+  }
+
+  queuePath = it->second;
+
+  // Mandatory configuration option: qdb_cluster
+  it = config.find("qdb_cluster");
+  if(it == config.end()) {
+    err = "configuration key qdb_cluster not found!";
+    return false;
+  }
+
+  if(!contactDetails.members.parse(it->second)) {
+    err = "could not parse qdb_cluster!";
+    return false;
+  }
+
+  // Optional configuration option: qdb_password
+  it = config.find("qdb_password");
+  if(it != config.end()) {
+    contactDetails.password = it->second;
+  }
+
+  // Mandatory configuration: qdb_flusher_md
+  it = config.find("qdb_flusher_md");
+  if(it == config.end()) {
+    err = "configuration key qdb_flusher_md not found!";
+    return false;
+  }
+
+  flusherMDTag = it->second;
+
+  // Mandatory configuration: qdb_flusher_quota
+  it = config.find("qdb_flusher_quota");
+  if(it == config.end()) {
+    err = "configuration key qdb_flusher_quota not found!";
+    return false;
+  }
+
+  flusherQuotaTag = it->second;
+
+
   return true;
 }
 
@@ -173,6 +221,33 @@ IQuotaStats* QuarkNamespaceGroup::getQuotaStats() {
   return mQuotaStats.get();
 }
 
+//------------------------------------------------------------------------------
+// Get metadata flusher
+//------------------------------------------------------------------------------
+MetadataFlusher* QuarkNamespaceGroup::getMetadataFlusher() {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
+
+  if(!mMetadataFlusher) {
+    std::string path = SSTR(queuePath << "/" << flusherMDTag);
+    mMetadataFlusher.reset(new MetadataFlusher(path, contactDetails));
+  }
+
+  return mMetadataFlusher.get();
+}
+
+//------------------------------------------------------------------------------
+// Get quota flusher
+//------------------------------------------------------------------------------
+MetadataFlusher* QuarkNamespaceGroup::getQuotaFlusher() {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
+
+  if(!mQuotaFlusher) {
+    std::string path = SSTR(queuePath << "/" << flusherQuotaTag);
+    mQuotaFlusher.reset(new MetadataFlusher(path, contactDetails));
+  }
+
+  return mQuotaFlusher.get();
+}
 
 EOSNSNAMESPACE_END
 

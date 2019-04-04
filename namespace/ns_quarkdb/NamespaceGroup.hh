@@ -24,6 +24,7 @@
 #pragma once
 #include "namespace/Namespace.hh"
 #include "namespace/interface/INamespaceGroup.hh"
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include <mutex>
 #include <memory>
 
@@ -36,6 +37,7 @@ class QuarkFileSystemView;
 class QuarkContainerAccounting;
 class QuarkSyncTimeAccounting;
 class QuarkQuotaStats;
+class MetadataFlusher;
 
 //------------------------------------------------------------------------------
 //! Class to hold ownership of all QuarkDB-namespace objects.
@@ -106,6 +108,14 @@ public:
 
 private:
   //----------------------------------------------------------------------------
+  // Configuration
+  //----------------------------------------------------------------------------
+  QdbContactDetails contactDetails; //< QDB cluster contact details
+  std::string queuePath;            //< Namespace queue path
+  std::string flusherMDTag;         //< Tag for MD flusher
+  std::string flusherQuotaTag;      //< Tag for quota flusher
+
+  //----------------------------------------------------------------------------
   // Initialize file and container services
   //----------------------------------------------------------------------------
   void initializeFileAndContainerServices();
@@ -120,6 +130,18 @@ private:
   std::unique_ptr<QuarkSyncTimeAccounting> mSyncAccounting;
   std::unique_ptr<QuarkQuotaStats> mQuotaStats;
 
+  //----------------------------------------------------------------------------
+  //! Get metadata flusher
+  //----------------------------------------------------------------------------
+  MetadataFlusher* getMetadataFlusher();
+
+  //----------------------------------------------------------------------------
+  //! Get quota flusher
+  //----------------------------------------------------------------------------
+  MetadataFlusher* getQuotaFlusher();
+
+  std::unique_ptr<MetadataFlusher> mMetadataFlusher;  //< Flusher for metadata
+  std::unique_ptr<MetadataFlusher> mQuotaFlusher;     //< Flusher for quota
 };
 
 

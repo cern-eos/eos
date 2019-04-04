@@ -1724,6 +1724,7 @@ Master::BootNamespace()
     std::string instance_id =
       SSTR(gOFS->MgmOfsInstanceName << ":" << gOFS->ManagerPort);
 
+    namespaceConfig["queue_path"] = "/var/eos/ns-queue/";
     namespaceConfig["qdb_cluster"] = gOFS->mQdbCluster;
     namespaceConfig["qdb_password"] = gOFS->mQdbPassword;
     namespaceConfig["qdb_flusher_md"] = SSTR(instance_id << "_md");
