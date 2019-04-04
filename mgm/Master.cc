@@ -1720,6 +1720,16 @@ Master::BootNamespace()
   std::map<std::string, std::string> namespaceConfig;
   std::string err;
 
+  if(gOFS->NsInQDB) {
+    std::string instance_id =
+      SSTR(gOFS->MgmOfsInstanceName << ":" << gOFS->ManagerPort);
+
+    namespaceConfig["qdb_cluster"] = gOFS->mQdbCluster;
+    namespaceConfig["qdb_password"] = gOFS->mQdbPassword;
+    namespaceConfig["qdb_flusher_md"] = SSTR(instance_id << "_md");
+    namespaceConfig["qdb_flusher_quota"] = SSTR(instance_id << "_quota");
+  }
+
   if(!gOFS->namespaceGroup->initialize(&gOFS->eosViewRWMutex,
     namespaceConfig, err)) {
 
@@ -1746,10 +1756,6 @@ Master::BootNamespace()
   }
 
   // For qdb namespace enable by default all the views
-  bool ns_in_qdb = (dynamic_cast<eos::IChLogContainerMDSvc*>
-                    (gOFS->eosDirectoryService) == nullptr);
-  gOFS->NsInQDB = ns_in_qdb;
-
   if (gOFS->NsInQDB ||
       (getenv("EOS_NS_ACCOUNTING") &&
        ((std::string(getenv("EOS_NS_ACCOUNTING")) == "1") ||
@@ -1813,16 +1819,8 @@ Master::BootNamespace()
       MasterLog(eos_err("msg=\"mgmofs.qdbcluster configuration is missing\""));
       return false;
     } else {
-      std::ostringstream instance_id;
-      instance_id << gOFS->MgmOfsInstanceName << ":"
-                  << gOFS->ManagerPort;
-      contSettings["qdb_cluster"] = gOFS->mQdbCluster;
-      contSettings["qdb_password"] = gOFS->mQdbPassword;
-      contSettings["qdb_flusher_md"] = instance_id.str() + "_md";
-      contSettings["qdb_flusher_quota"] = instance_id.str() + "_quota";
-      fileSettings["qdb_cluster"] = gOFS->mQdbCluster;
-      fileSettings["qdb_password"] = gOFS->mQdbPassword;
-      fileSettings["qdb_flusher_md"] = instance_id.str() + "_md";
+      contSettings = namespaceConfig;
+      fileSettings = namespaceConfig;
     }
   }
 

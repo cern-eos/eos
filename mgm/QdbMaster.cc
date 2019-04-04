@@ -88,6 +88,20 @@ QdbMaster::BootNamespace()
   std::map<std::string, std::string> namespaceConfig;
   std::string err;
 
+  if (gOFS->mQdbCluster.empty()) {
+    eos_alert("msg=\"mgmofs.qdbcluster configuration is missing\"");
+    gOFS->mInitialized = gOFS->kFailed;
+    return false;
+  }
+
+  std::string instance_id =
+    SSTR(gOFS->MgmOfsInstanceName << ":" << gOFS->ManagerPort);
+
+  namespaceConfig["qdb_cluster"] = gOFS->mQdbCluster;
+  namespaceConfig["qdb_password"] = gOFS->mQdbPassword;
+  namespaceConfig["qdb_flusher_md"] = SSTR(instance_id << "_md");
+  namespaceConfig["qdb_flusher_quota"] = SSTR(instance_id << "_quota");
+
   if(!gOFS->namespaceGroup->initialize(&gOFS->eosViewRWMutex, namespaceConfig,
     err)) {
 
@@ -116,33 +130,13 @@ QdbMaster::BootNamespace()
     return false;
   }
 
-  std::map<std::string, std::string> fileSettings;
-  std::map<std::string, std::string> contSettings;
-
-  if (gOFS->mQdbCluster.empty()) {
-    eos_alert("msg=\"mgmofs.qdbcluster configuration is missing\"");
-    gOFS->mInitialized = gOFS->kFailed;
-    return false;
-  } else {
-    std::ostringstream instance_id;
-    instance_id << gOFS->MgmOfsInstanceName << ":"
-                << gOFS->ManagerPort;
-    contSettings["qdb_cluster"] = gOFS->mQdbCluster;
-    contSettings["qdb_password"] = gOFS->mQdbPassword;
-    contSettings["qdb_flusher_md"] = instance_id.str() + "_md";
-    contSettings["qdb_flusher_quota"] = instance_id.str() + "_quota";
-    fileSettings["qdb_cluster"] = gOFS->mQdbCluster;
-    fileSettings["qdb_password"] = gOFS->mQdbPassword;
-    fileSettings["qdb_flusher_md"] = instance_id.str() + "_md";
-  }
-
   time_t tstart = time(nullptr);
 
   try {
-    gOFS->eosDirectoryService->configure(contSettings);
-    gOFS->eosFileService->configure(fileSettings);
-    gOFS->eosFsView->configure(fileSettings);
-    gOFS->eosView->configure(contSettings);
+    gOFS->eosDirectoryService->configure(namespaceConfig);
+    gOFS->eosFileService->configure(namespaceConfig);
+    gOFS->eosFsView->configure(namespaceConfig);
+    gOFS->eosView->configure(namespaceConfig);
     gOFS->eosFileService->addChangeListener(gOFS->eosFsView);
     gOFS->eosDirectoryService->addChangeListener(gOFS->eosSyncTimeAccounting);
     gOFS->eosFileService->addChangeListener(gOFS->eosContainerAccounting);
