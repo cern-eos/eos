@@ -2345,8 +2345,9 @@ XrdFstOfsFile::DoTpcTransfer()
     // @note this way of reading asynchronously in the buffer without waiting
     // for the async requests works properly only if readahead is enabled.
     // Otherwise, one must call fileWaitAsyncIO().
-    rbytes = tpcIO.fileReadAsync(offset, &((*buffer)[0]),
-                                 tpcIO.GetBlockSize(), true, 30);
+    //rbytes = tpcIO.fileReadAsync(offset, &((*buffer)[0]),
+    //                             tpcIO.GetBlockSize(), true, 30);
+    rbytes = tpcIO.fileRead(offset, &((*buffer)[0]), tpcIO.GetBlockSize());
     eos_debug("msg=\"tpc read\" rbytes=%lli request=%llu",
               rbytes, tpcIO.GetBlockSize());
 

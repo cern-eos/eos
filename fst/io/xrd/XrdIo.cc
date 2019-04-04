@@ -173,7 +173,6 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
   const char* val = 0;
   std::string lOpaque;
   XrdOucEnv open_opaque(mOpaque.c_str());
-
   XrdCl::XRootDStatus okstatus;
   mWriteStatus = okstatus;
 
@@ -882,7 +881,6 @@ XrdIo::fileClose(uint16_t timeout)
 
   XrdCl::XRootDStatus okstatus;
   mWriteStatus = okstatus;
-
   bool async_ok = true;
   mIsOpen = false;
 
@@ -1019,7 +1017,6 @@ bool
 XrdIo::PrefetchBlock(int64_t offset, bool isWrite, uint16_t timeout)
 {
   bool done = true;
-  XrdCl::XRootDStatus status;
   ReadaheadBlock* block = NULL;
   eos_debug("try to prefetch with offset: %lli, length: %lu",
             offset, mBlocksize);
@@ -1033,8 +1030,8 @@ XrdIo::PrefetchBlock(int64_t offset, bool isWrite, uint16_t timeout)
   }
 
   block->handler->Update(offset, mBlocksize, isWrite);
-  status = mXrdFile->Read(offset, mBlocksize, block->buffer, block->handler,
-                          timeout);
+  XrdCl::XRootDStatus status = mXrdFile->Read(offset, mBlocksize, block->buffer,
+                               block->handler, timeout);
 
   if (!status.IsOK()) {
     // Create tmp status which is deleted in the HandleResponse method
