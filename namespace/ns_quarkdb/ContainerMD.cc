@@ -188,7 +188,7 @@ QuarkContainerMD::findItem(const std::string& name)
       // Should not happen...
       eos_static_crit("Exception occurred while looking up container with "
                       "name %s in subcontainer with id %llu: %s", name.c_str(),
-                      getId(), e.what());
+                      getId(), e.what().c_str());
       return FileOrContainerMD {};
     });
     return fut;
@@ -209,7 +209,7 @@ QuarkContainerMD::findItem(const std::string& name)
       // Should not happen...
       eos_static_crit("Exception occurred while looking up file with name %s "
                       "in subcontainer with id %llu: %s", name.c_str(), getId(),
-                      e.what());
+                      e.what().c_str());
       return FileOrContainerMD {};
     });
     return fut;

@@ -115,7 +115,7 @@ DavixIo::DavixIo(std::string path, std::string s3credentials)
     } else {
       mParams.setAwsAuthorizationKeys(key.c_str(), id.c_str());
       eos_debug("s3-access-key=\"%s\" s3-secret-key=\"%s\" (source=%s)",
-                id.c_str(), key.c_str(), credSource);
+                id.c_str(), key.c_str(), credSource.c_str());
     }
   } else {
     mIsS3 = false;

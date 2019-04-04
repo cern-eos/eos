@@ -611,7 +611,7 @@ XrdMgmOfs::_rename(const char* old_name,
             // Do the check once again, because we're paranoid
             if (!eos::isSafeToRename(gOFS->eosView, rdir.get(), newdir.get())) {
               eos_static_crit("%s", SSTR("Unsafe rename of container " << rdir->getId() <<
-                                         " -> " << newdir->getId() << " was prevented at the last resort check"));
+                                         " -> " << newdir->getId() << " was prevented at the last resort check").c_str());
               errno = EINVAL;
               return Emsg(epname, error, EINVAL,
                           "rename - old path is subpath of new path - caught by last resort check, quotanodes may have become inconsistent");

@@ -62,7 +62,7 @@ bool isSafeToRename(IView *view, IContainerMD *source, IContainerMD *target) {
     if(current->getId() == source->getId()) {
       // Should not happen.
       eos_static_crit("%s", SSTR("Two containers with the same ID ended up with different objects in memory - " <<
-      current->getId() << " == " << source->getId() << " - " << current << " vs " << source));
+      current->getId() << " == " << source->getId() << " - " << current << " vs " << source).c_str());
       return false;
     }
 
