@@ -26,6 +26,9 @@
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
+#include "namespace/ns_quarkdb/accounting/SyncTimeAccounting.hh"
+#include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
+#include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
 
 EOSNSNAMESPACE_BEGIN
 
@@ -37,7 +40,15 @@ QuarkNamespaceGroup::QuarkNamespaceGroup() {}
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-QuarkNamespaceGroup::~QuarkNamespaceGroup() {}
+QuarkNamespaceGroup::~QuarkNamespaceGroup() {
+  mSyncAccounting.reset();
+  mContainerAccounting.reset();
+  mQuotaStats.reset();
+  mFilesystemView.reset();
+  mHierarchicalView.reset();
+  mFileService.reset();
+  mContainerService.reset();
+}
 
 //----------------------------------------------------------------------------
 // Initialize with the given configuration - must be called before any
@@ -46,7 +57,8 @@ QuarkNamespaceGroup::~QuarkNamespaceGroup() {}
 // Initialization may fail - in such case, "false" will be returned, and
 // "err" will be filled out.
 //----------------------------------------------------------------------------
-bool QuarkNamespaceGroup::initialize(const std::map<std::string, std::string> &config, std::string &err) {
+bool QuarkNamespaceGroup::initialize(eos::common::RWMutex* nsMtx, const std::map<std::string, std::string> &config, std::string &err) {
+  mNsMutex = nsMtx;
   return true;
 }
 
@@ -54,7 +66,7 @@ bool QuarkNamespaceGroup::initialize(const std::map<std::string, std::string> &c
 // Provide file service
 //----------------------------------------------------------------------------
 IFileMDSvc* QuarkNamespaceGroup::getFileService() {
-  std::lock_guard<std::mutex> lock(mMutex);
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mFileService) {
     mFileService.reset(new QuarkFileMDSvc());
@@ -67,7 +79,7 @@ IFileMDSvc* QuarkNamespaceGroup::getFileService() {
 // Provide container service
 //------------------------------------------------------------------------------
 IContainerMDSvc* QuarkNamespaceGroup::getContainerService() {
-  std::lock_guard<std::mutex> lock(mMutex);
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mContainerService) {
     mContainerService.reset(new QuarkContainerMDSvc());
@@ -80,7 +92,7 @@ IContainerMDSvc* QuarkNamespaceGroup::getContainerService() {
 // Provide hieararchical view
 //------------------------------------------------------------------------------
 IView* QuarkNamespaceGroup::getHierarchicalView() {
-  std::lock_guard<std::mutex> lock(mMutex);
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mHierarchicalView) {
     mHierarchicalView.reset(new QuarkHierarchicalView());
@@ -93,13 +105,52 @@ IView* QuarkNamespaceGroup::getHierarchicalView() {
 // Provide filesystem view
 //----------------------------------------------------------------------------
 IFsView* QuarkNamespaceGroup::getFilesystemView() {
-  std::lock_guard<std::mutex> lock(mMutex);
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mFilesystemView) {
     mFilesystemView.reset(new QuarkFileSystemView());
   }
 
   return mFilesystemView.get();
+}
+
+//------------------------------------------------------------------------------
+// Provide container accounting view
+//------------------------------------------------------------------------------
+IFileMDChangeListener* QuarkNamespaceGroup::getContainerAccountingView() {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
+
+  if(!mContainerAccounting) {
+    mContainerAccounting.reset(new QuarkContainerAccounting(getContainerService(), mNsMutex));
+  }
+
+  return mContainerAccounting.get();
+}
+
+//------------------------------------------------------------------------------
+// Provide sync time accounting view
+//------------------------------------------------------------------------------
+IContainerMDChangeListener* QuarkNamespaceGroup::getSyncTimeAccountingView() {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
+
+  if(!mSyncAccounting) {
+    mSyncAccounting.reset(new QuarkSyncTimeAccounting(getContainerService(), mNsMutex));
+  }
+
+  return mSyncAccounting.get();
+}
+
+//------------------------------------------------------------------------------
+// Provide quota stats
+//------------------------------------------------------------------------------
+IQuotaStats* QuarkNamespaceGroup::getQuotaStats() {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
+
+  if(!mQuotaStats) {
+    mQuotaStats.reset(new QuarkQuotaStats());
+  }
+
+  return mQuotaStats.get();
 }
 
 

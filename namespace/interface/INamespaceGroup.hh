@@ -31,10 +31,17 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Forward declarations
 //------------------------------------------------------------------------------
+namespace common {
+  class RWMutex;
+}
+
 class IContainerMDSvc;
 class IFileMDSvc;
 class IView;
 class IFsView;
+class IContainerMDChangeListener;
+class IQuotaStats;
+class IFileMDChangeListener;
 
 //------------------------------------------------------------------------------
 //! Interface object to hold ownership of all namespace objects.
@@ -54,8 +61,8 @@ public:
   //! Initialization may fail - in such case, "false" will be returned, and
   //! "err" will be filled out.
   //----------------------------------------------------------------------------
-  virtual bool initialize(const std::map<std::string, std::string> &config,
-    std::string &err) = 0;
+  virtual bool initialize(eos::common::RWMutex* mtx,
+    const std::map<std::string, std::string> &config, std::string &err) = 0;
 
   //----------------------------------------------------------------------------
   //! Provide file service
@@ -77,7 +84,27 @@ public:
   //----------------------------------------------------------------------------
   virtual IFsView* getFilesystemView() = 0;
 
+  //----------------------------------------------------------------------------
+  //! Provide sync time accounting view
+  //----------------------------------------------------------------------------
+  virtual IContainerMDChangeListener* getSyncTimeAccountingView() = 0;
 
+  //----------------------------------------------------------------------------
+  //! Provide container accounting view
+  //----------------------------------------------------------------------------
+  virtual IFileMDChangeListener* getContainerAccountingView() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Provide quota stats
+  //----------------------------------------------------------------------------
+  virtual IQuotaStats* getQuotaStats() = 0;
+
+
+protected:
+  //----------------------------------------------------------------------------
+  //! Global namespace mutex - no ownership
+  //----------------------------------------------------------------------------
+  eos::common::RWMutex* mNsMutex;
 };
 
 EOSNSNAMESPACE_END

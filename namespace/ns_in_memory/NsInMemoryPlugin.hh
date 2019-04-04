@@ -67,61 +67,6 @@ class NsInMemoryPlugin
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
   static int32_t DestroyGroup(void*);
-
-  //----------------------------------------------------------------------------
-  //! Create container metadata service
-  //!
-  //! @param services pointer to other services that the plugin manager might
-  //!         provide
-  //!
-  //! @return pointer to container metadata service
-  //----------------------------------------------------------------------------
-  static void* CreateContainerMDSvc(PF_PlatformServices* services);
-
-  //----------------------------------------------------------------------------
-  //! Destroy container metadata service
-  //!
-  //! @return 0 if successful, otherwise errno
-  //----------------------------------------------------------------------------
-  static int32_t DestroyContainerMDSvc(void *);
-
-  //----------------------------------------------------------------------------
-  //! Create recursive container accounting listener
-  //!
-  //! @param services pointer to other services that the plugin manager might
-  //!         provide
-  //!
-  //! @return pointer to container accounting listener
-  //----------------------------------------------------------------------------
-  static void* CreateContAcc(PF_PlatformServices* services);
-
-  //----------------------------------------------------------------------------
-  //! Destroy recursive container accounting listener
-  //!
-  //! @return 0 if successful, otherwise errno
-  //----------------------------------------------------------------------------
-  static int32_t DestroyContAcc(void *);
-
-  //----------------------------------------------------------------------------
-  //! Create sync time propagation listener
-  //!
-  //! @param services pointer to other services that the plugin manager might
-  //!         provide
-  //!
-  //! @return pointer to sync time propagation listener
-  //----------------------------------------------------------------------------
-  static void* CreateSyncTimeAcc(PF_PlatformServices* services);
-
-  //----------------------------------------------------------------------------
-  //! Destroy sync time propagation listener
-  //!
-  //! @return 0 if successful, otherwise errno
-  //----------------------------------------------------------------------------
-  static int32_t DestroySyncTimeAcc(void *);
-
- private:
-
-  static IContainerMDSvc* pContMDSvc; ///< pointer to container MD service
 };
 
 EOSNSNAMESPACE_END

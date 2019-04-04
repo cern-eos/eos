@@ -1719,14 +1719,20 @@ Master::BootNamespace()
   std::map<std::string, std::string> namespaceConfig;
   std::string err;
 
-  if(!gOFS->namespaceGroup->initialize(namespaceConfig, err)) {
+  if(!gOFS->namespaceGroup->initialize(&gOFS->eosViewRWMutex,
+    namespaceConfig, err)) {
+
     eos_err("msg=\"could not initialize namespace group, err: %s\"", err.c_str());
     return false;
   }
 
+  //----------------------------------------------------------------------------
+  // Fetch all required services out of namespace group
+  //----------------------------------------------------------------------------
   gOFS->eosDirectoryService = static_cast<IContainerMDSvc*>
                               (pm.CreateObject("ContainerMDSvc"));
 
+  gOFS->eosDirectoryService = gOFS->namespaceGroup->getContainerService();
   gOFS->eosFileService = gOFS->namespaceGroup->getFileService();
   gOFS->eosView = gOFS->namespaceGroup->getHierarchicalView();
   gOFS->eosFsView = gOFS->namespaceGroup->getFilesystemView();
@@ -1748,8 +1754,8 @@ Master::BootNamespace()
        ((std::string(getenv("EOS_NS_ACCOUNTING")) == "1") ||
         (std::string(getenv("EOS_NS_ACCOUNTING")) == "yes")))) {
     eos_alert("msg=\"enabling recursive size accounting ...\"");
-    gOFS->eosContainerAccounting =
-      static_cast<IFileMDChangeListener*>(pm.CreateObject("ContainerAccounting"));
+
+    gOFS->eosContainerAccounting = gOFS->namespaceGroup->getContainerAccountingView();
 
     if (!gOFS->eosContainerAccounting) {
       eos_err("msg=\"namespace implemetation does not provide ContainerAccounting"
@@ -1763,8 +1769,8 @@ Master::BootNamespace()
        ((std::string(getenv("EOS_SYNCTIME_ACCOUNTING")) == "1") ||
         (std::string(getenv("EOS_SYNCTIME_ACCOUNTING")) == "yes")))) {
     eos_alert("msg=\"enabling sync time propagation ...\"");
-    gOFS->eosSyncTimeAccounting =
-      static_cast<IContainerMDChangeListener*>(pm.CreateObject("SyncTimeAccounting"));
+
+    gOFS->eosSyncTimeAccounting = gOFS->namespaceGroup->getSyncTimeAccountingView();
 
     if (!gOFS->eosSyncTimeAccounting) {
       eos_err("msg=\"namespace implemetation does not provide SyncTimeAccounting"

@@ -22,11 +22,6 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/ns_in_memory/NamespaceGroup.hh"
 #include "namespace/ns_in_memory/NsInMemoryPlugin.hh"
-#include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
-#include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
-#include "namespace/ns_in_memory/accounting/FileSystemView.hh"
-#include "namespace/ns_in_memory/accounting/ContainerAccounting.hh"
-#include "namespace/ns_in_memory/accounting/SyncTimeAccounting.hh"
 /*----------------------------------------------------------------------------*/
 
 //------------------------------------------------------------------------------
@@ -44,27 +39,6 @@ PF_ExitFunc PF_initPlugin(const PF_PlatformServices* services)
 {
   std::cout << "Register objects provide by NsInMemoryPlugin ..." << std::endl;
 
-  // Register container metadata service
-  PF_RegisterParams param_cmdsvc;
-  param_cmdsvc.version.major = 0;
-  param_cmdsvc.version.minor = 1;
-  param_cmdsvc.CreateFunc = eos::NsInMemoryPlugin::CreateContainerMDSvc;
-  param_cmdsvc.DestroyFunc = eos::NsInMemoryPlugin::DestroyContainerMDSvc;
-
-  // Register recursive container accounting view
-  PF_RegisterParams param_contacc;
-  param_contacc.version.major = 0;
-  param_contacc.version.minor = 1;
-  param_contacc.CreateFunc = eos::NsInMemoryPlugin::CreateContAcc;
-  param_contacc.DestroyFunc = eos::NsInMemoryPlugin::DestroyContAcc;
-
-  // Register recursive container accounting view
-  PF_RegisterParams param_syncacc;
-  param_syncacc.version.major = 0;
-  param_syncacc.version.minor = 1;
-  param_syncacc.CreateFunc = eos::NsInMemoryPlugin::CreateSyncTimeAcc;
-  param_syncacc.DestroyFunc = eos::NsInMemoryPlugin::DestroySyncTimeAcc;
-
   // Register namespace group
   PF_RegisterParams param_group;
   param_group.version.major = 0;
@@ -74,10 +48,7 @@ PF_ExitFunc PF_initPlugin(const PF_PlatformServices* services)
 
   // TODO: define the necessary objects to be provided by the namespace in a
   // common header
-  std::map<std::string, PF_RegisterParams> map_obj =
-      { {"ContainerMDSvc",      param_cmdsvc},
-        {"ContainerAccounting", param_contacc},
-        {"SyncTimeAccounting",  param_syncacc},
+  std::map<std::string, PF_RegisterParams> map_obj = {
         {"NamespaceGroup",      param_group}
       };
 
@@ -95,9 +66,6 @@ PF_ExitFunc PF_initPlugin(const PF_PlatformServices* services)
 }
 
 EOSNSNAMESPACE_BEGIN
-
-// Static variables
-eos::IContainerMDSvc* NsInMemoryPlugin::pContMDSvc = 0;
 
 //----------------------------------------------------------------------------
 //! Create namespace group
@@ -126,79 +94,6 @@ NsInMemoryPlugin::DestroyGroup(void* obj)
   }
 
   delete static_cast<InMemNamespaceGroup*>(obj);
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-// Create container metadata service
-//------------------------------------------------------------------------------
-void*
-NsInMemoryPlugin::CreateContainerMDSvc(PF_PlatformServices* services)
-{
-  pContMDSvc = new ChangeLogContainerMDSvc();
-  return pContMDSvc;
-}
-
-//------------------------------------------------------------------------------
-// Destroy container metadata service
-//------------------------------------------------------------------------------
-int32_t
-NsInMemoryPlugin::DestroyContainerMDSvc(void* obj)
-{
-  if (!obj)
-    return -1;
-
-  delete static_cast<ChangeLogContainerMDSvc*>(obj);
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-// Create recursive container accounting listener
-//------------------------------------------------------------------------------
-void*
-NsInMemoryPlugin::CreateContAcc(PF_PlatformServices* services)
-{
-  if (!pContMDSvc)
-    return 0;
-
-  return static_cast<void*>(new ContainerAccounting(pContMDSvc));
-}
-
-//------------------------------------------------------------------------------
-// Destroy recursive container accounting listener
-//------------------------------------------------------------------------------
-int32_t
-NsInMemoryPlugin::DestroyContAcc(void* obj)
-{
-  if (!obj)
-    return -1;
-
-  delete static_cast<ContainerAccounting*>(obj);
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-// Create sync time propagation listener
-//------------------------------------------------------------------------------
-void*
-NsInMemoryPlugin::CreateSyncTimeAcc(PF_PlatformServices* services)
-{
-  if (!pContMDSvc)
-    return 0;
-
-  return static_cast<void*>(new SyncTimeAccounting(pContMDSvc));
-}
-
-//------------------------------------------------------------------------------
-// Destroy sync time propagation listener
-//------------------------------------------------------------------------------
-int32_t
-NsInMemoryPlugin::DestroySyncTimeAcc(void* obj)
-{
-  if (!obj)
-    return -1;
-
-  delete static_cast<FileSystemView*>(obj);
   return 0;
 }
 

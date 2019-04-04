@@ -88,21 +88,23 @@ QdbMaster::BootNamespace()
   std::map<std::string, std::string> namespaceConfig;
   std::string err;
 
-  if(!gOFS->namespaceGroup->initialize(namespaceConfig, err)) {
+  if(!gOFS->namespaceGroup->initialize(&gOFS->eosViewRWMutex, namespaceConfig,
+    err)) {
+
     eos_err("msg=\"could not initialize namespace group, err: %s\"", err.c_str());
     return false;
   }
 
-  gOFS->eosDirectoryService = static_cast<IContainerMDSvc*>
-                              (pm.CreateObject("ContainerMDSvc"));
+  //----------------------------------------------------------------------------
+  // Fetch all required services out of namespace group
+  //----------------------------------------------------------------------------
+  gOFS->eosDirectoryService = gOFS->namespaceGroup->getContainerService();
   gOFS->eosFileService = gOFS->namespaceGroup->getFileService();
   gOFS->eosView = gOFS->namespaceGroup->getHierarchicalView();
   gOFS->eosFsView = gOFS->namespaceGroup->getFilesystemView();
 
-  gOFS->eosContainerAccounting =
-    static_cast<IFileMDChangeListener*>(pm.CreateObject("ContainerAccounting"));
-  gOFS->eosSyncTimeAccounting =
-    static_cast<IContainerMDChangeListener*>(pm.CreateObject("SyncTimeAccounting"));
+  gOFS->eosContainerAccounting = gOFS->namespaceGroup->getContainerAccountingView();
+  gOFS->eosSyncTimeAccounting = gOFS->namespaceGroup->getSyncTimeAccountingView();
 
   if (!gOFS->eosDirectoryService || !gOFS->eosFileService || !gOFS->eosView ||
       !gOFS->eosFsView || !gOFS->eosContainerAccounting ||

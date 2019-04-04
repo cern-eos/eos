@@ -30,11 +30,15 @@
 #include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
 #include "namespace/ns_in_memory/views/HierarchicalView.hh"
 #include "namespace/ns_in_memory/accounting/FileSystemView.hh"
+#include "namespace/ns_in_memory/accounting/SyncTimeAccounting.hh"
+#include "namespace/ns_in_memory/accounting/QuotaStats.hh"
+#include "namespace/ns_in_memory/accounting/ContainerAccounting.hh"
 #include <memory>
 #include <mutex>
 
 EOSNSNAMESPACE_BEGIN
 
+class IFileMDChangeListener;
 
 
 class InMemNamespaceGroup : public INamespaceGroup {
@@ -56,8 +60,8 @@ public:
   //! Initialization may fail - in such case, "false" will be returned, and
   //! "err" will be filled out.
   //----------------------------------------------------------------------------
-  virtual bool initialize(const std::map<std::string, std::string> &config,
-    std::string &err) override final;
+  virtual bool initialize(eos::common::RWMutex* nsMtx, const
+    std::map<std::string, std::string> &config, std::string &err) override final;
 
   //----------------------------------------------------------------------------
   //! Provide container service
@@ -79,15 +83,33 @@ public:
   //----------------------------------------------------------------------------
   virtual IFsView* getFilesystemView() override final;
 
+  //----------------------------------------------------------------------------
+  //! Provide sync time accounting view
+  //----------------------------------------------------------------------------
+  virtual IContainerMDChangeListener* getSyncTimeAccountingView() override final;
+
+  //----------------------------------------------------------------------------
+  //! Provide container accounting view
+  //----------------------------------------------------------------------------
+  virtual IFileMDChangeListener* getContainerAccountingView() override final;
+
+  //----------------------------------------------------------------------------
+  //! Provide quota stats
+  //----------------------------------------------------------------------------
+  virtual IQuotaStats* getQuotaStats() override final;
 
 
 private:
-  std::mutex mMutex;
+  std::recursive_mutex mMutex;
 
   std::unique_ptr<ChangeLogFileMDSvc> mFileService;
   std::unique_ptr<ChangeLogContainerMDSvc> mContainerService;
   std::unique_ptr<HierarchicalView> mHierarchicalView;
   std::unique_ptr<FileSystemView> mFilesystemView;
+  std::unique_ptr<SyncTimeAccounting> mSyncAccounting;
+  std::unique_ptr<QuotaStats> mQuotaStats;
+  std::unique_ptr<ContainerAccounting> mContainerAccounting;
+
 
 };
 

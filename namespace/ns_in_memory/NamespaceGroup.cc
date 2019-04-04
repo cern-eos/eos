@@ -33,9 +33,17 @@ EOSNSNAMESPACE_BEGIN
 InMemNamespaceGroup::InMemNamespaceGroup() {}
 
 //------------------------------------------------------------------------------
-//! Destructor
+//! Destructor - pay attention to destruction order
 //------------------------------------------------------------------------------
-InMemNamespaceGroup::~InMemNamespaceGroup() {}
+InMemNamespaceGroup::~InMemNamespaceGroup() {
+  mSyncAccounting.reset();
+  mContainerAccounting.reset();
+  mQuotaStats.reset();
+  mFilesystemView.reset();
+  mHierarchicalView.reset();
+  mFileService.reset();
+  mContainerService.reset();
+}
 
 //----------------------------------------------------------------------------
 // Initialize with the given configuration - must be called before any
@@ -44,7 +52,8 @@ InMemNamespaceGroup::~InMemNamespaceGroup() {}
 // Initialization may fail - in such case, "false" will be returned, and
 // "err" will be filled out.
 //----------------------------------------------------------------------------
-bool InMemNamespaceGroup::initialize(const std::map<std::string, std::string> &config, std::string &err) {
+bool InMemNamespaceGroup::initialize(eos::common::RWMutex* nsMtx, const std::map<std::string, std::string> &config, std::string &err) {
+  mNsMutex = nsMtx;
   return true;
 }
 
@@ -52,7 +61,7 @@ bool InMemNamespaceGroup::initialize(const std::map<std::string, std::string> &c
 // Provide file service
 //------------------------------------------------------------------------------
 IFileMDSvc* InMemNamespaceGroup::getFileService() {
-  std::lock_guard<std::mutex> lock(mMutex);
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mFileService) {
     mFileService.reset(new ChangeLogFileMDSvc());
@@ -65,7 +74,7 @@ IFileMDSvc* InMemNamespaceGroup::getFileService() {
 // Provide container service
 //------------------------------------------------------------------------------
 IContainerMDSvc* InMemNamespaceGroup::getContainerService() {
-  std::lock_guard<std::mutex> lock(mMutex);
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mContainerService) {
     mContainerService.reset(new ChangeLogContainerMDSvc());
@@ -78,7 +87,7 @@ IContainerMDSvc* InMemNamespaceGroup::getContainerService() {
 // Provide hierarchical view
 //------------------------------------------------------------------------------
 IView* InMemNamespaceGroup::getHierarchicalView() {
-  std::lock_guard<std::mutex> lock(mMutex);
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mHierarchicalView) {
     mHierarchicalView.reset(new HierarchicalView());
@@ -91,13 +100,52 @@ IView* InMemNamespaceGroup::getHierarchicalView() {
 //! Provide filesystem view
 //------------------------------------------------------------------------------
 IFsView* InMemNamespaceGroup::getFilesystemView() {
-  std::lock_guard<std::mutex> lock(mMutex);
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mFilesystemView) {
     mFilesystemView.reset(new FileSystemView());
   }
 
   return mFilesystemView.get();
+}
+
+//------------------------------------------------------------------------------
+// Provide sync time accounting view
+//------------------------------------------------------------------------------
+IContainerMDChangeListener* InMemNamespaceGroup::getSyncTimeAccountingView() {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
+
+  if(!mSyncAccounting) {
+    mSyncAccounting.reset(new SyncTimeAccounting(getContainerService()));
+  }
+
+  return mSyncAccounting.get();
+}
+
+//------------------------------------------------------------------------------
+// Provide container accounting view
+//------------------------------------------------------------------------------
+IFileMDChangeListener* InMemNamespaceGroup::getContainerAccountingView() {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
+
+  if(!mContainerAccounting) {
+    mContainerAccounting.reset(new ContainerAccounting(getContainerService()));
+  }
+
+  return mContainerAccounting.get();
+}
+
+//------------------------------------------------------------------------------
+//! Provide quota stats
+//------------------------------------------------------------------------------
+IQuotaStats* InMemNamespaceGroup::getQuotaStats() {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
+
+  if(!mQuotaStats) {
+    mQuotaStats.reset(new QuotaStats());
+  }
+
+  return mQuotaStats.get();
 }
 
 

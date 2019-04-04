@@ -33,6 +33,9 @@ class QuarkContainerMDSvc;
 class QuarkFileMDSvc;
 class QuarkHierarchicalView;
 class QuarkFileSystemView;
+class QuarkContainerAccounting;
+class QuarkSyncTimeAccounting;
+class QuarkQuotaStats;
 
 //------------------------------------------------------------------------------
 //! Class to hold ownership of all QuarkDB-namespace objects.
@@ -56,8 +59,8 @@ public:
   //! Initialization may fail - in such case, "false" will be returned, and
   //! "err" will be filled out.
   //----------------------------------------------------------------------------
-  virtual bool initialize(const std::map<std::string, std::string> &config,
-    std::string &err) override final;
+  virtual bool initialize(eos::common::RWMutex* nsMtx, const
+    std::map<std::string, std::string> &config, std::string &err) override final;
 
   //----------------------------------------------------------------------------
   //! Provide file service
@@ -79,12 +82,31 @@ public:
   //----------------------------------------------------------------------------
   virtual IFsView* getFilesystemView() override final;
 
+  //----------------------------------------------------------------------------
+  //! Provide container accounting view
+  //----------------------------------------------------------------------------
+  virtual IFileMDChangeListener* getContainerAccountingView() override final;
+
+  //----------------------------------------------------------------------------
+  //! Provide sync time accounting view
+  //----------------------------------------------------------------------------
+  virtual IContainerMDChangeListener* getSyncTimeAccountingView() override final;
+
+  //----------------------------------------------------------------------------
+  //! Provide quota stats
+  //----------------------------------------------------------------------------
+  virtual IQuotaStats* getQuotaStats() override final;
+
 private:
-  std::mutex mMutex;
+  std::recursive_mutex mMutex;
+
   std::unique_ptr<QuarkContainerMDSvc> mContainerService;
   std::unique_ptr<QuarkFileMDSvc> mFileService;
   std::unique_ptr<QuarkHierarchicalView> mHierarchicalView;
   std::unique_ptr<QuarkFileSystemView> mFilesystemView;
+  std::unique_ptr<QuarkContainerAccounting> mContainerAccounting;
+  std::unique_ptr<QuarkSyncTimeAccounting> mSyncAccounting;
+  std::unique_ptr<QuarkQuotaStats> mQuotaStats;
 
 };
 
