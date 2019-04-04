@@ -34,6 +34,7 @@ EOSNSNAMESPACE_BEGIN
 class IContainerMDSvc;
 class IFileMDSvc;
 class IView;
+class IFsView;
 
 //------------------------------------------------------------------------------
 //! Interface object to hold ownership of all namespace objects.
@@ -70,6 +71,11 @@ public:
   //! Provide hierarchical view
   //----------------------------------------------------------------------------
   virtual IView* getHierarchicalView() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Provide filesystem view
+  //----------------------------------------------------------------------------
+  virtual IFsView* getFilesystemView() = 0;
 
 
 };

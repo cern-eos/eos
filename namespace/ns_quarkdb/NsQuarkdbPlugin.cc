@@ -50,12 +50,6 @@ PF_initPlugin(const PF_PlatformServices* services)
   param_cmdsvc.version.minor = 1;
   param_cmdsvc.CreateFunc = eos::NsQuarkdbPlugin::CreateContainerMDSvc;
   param_cmdsvc.DestroyFunc = eos::NsQuarkdbPlugin::DestroyContainerMDSvc;
-  // Register file system view
-  PF_RegisterParams param_fsview = {};
-  param_fsview.version.major = 0;
-  param_fsview.version.minor = 1;
-  param_fsview.CreateFunc = eos::NsQuarkdbPlugin::CreateFsView;
-  param_fsview.DestroyFunc = eos::NsQuarkdbPlugin::DestroyFsView;
   // Register recursive container accounting view
   PF_RegisterParams param_contacc = {};
   param_contacc.version.major = 0;
@@ -77,7 +71,6 @@ PF_initPlugin(const PF_PlatformServices* services)
 
   std::map<std::string, PF_RegisterParams> map_obj = {
     {"ContainerMDSvc", param_cmdsvc},
-    {"FileSystemView", param_fsview},
     {"ContainerAccounting", param_contacc},
     {"SyncTimeAccounting", param_syncacc},
     {"NamespaceGroup", param_group},
@@ -153,29 +146,6 @@ NsQuarkdbPlugin::DestroyContainerMDSvc(void* obj)
   }
 
   delete static_cast<QuarkContainerMDSvc*>(obj);
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-// Create file system view
-//------------------------------------------------------------------------------
-void*
-NsQuarkdbPlugin::CreateFsView(PF_PlatformServices* /*services*/)
-{
-  return new QuarkFileSystemView();
-}
-
-//------------------------------------------------------------------------------
-// Destroy file system view
-//------------------------------------------------------------------------------
-int32_t
-NsQuarkdbPlugin::DestroyFsView(void* obj)
-{
-  if (obj == nullptr) {
-    return -1;
-  }
-
-  delete static_cast<QuarkFileSystemView*>(obj);
   return 0;
 }
 

@@ -29,10 +29,12 @@
 #include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
 #include "namespace/ns_in_memory/views/HierarchicalView.hh"
+#include "namespace/ns_in_memory/accounting/FileSystemView.hh"
 #include <memory>
 #include <mutex>
 
 EOSNSNAMESPACE_BEGIN
+
 
 
 class InMemNamespaceGroup : public INamespaceGroup {
@@ -72,13 +74,20 @@ public:
   //----------------------------------------------------------------------------
   virtual IView* getHierarchicalView() override final;
 
+  //----------------------------------------------------------------------------
+  //! Provide filesystem view
+  //----------------------------------------------------------------------------
+  virtual IFsView* getFilesystemView() override final;
+
+
 
 private:
   std::mutex mMutex;
 
   std::unique_ptr<ChangeLogFileMDSvc> mFileService;
   std::unique_ptr<ChangeLogContainerMDSvc> mContainerService;
-  std::unique_ptr<IView> mHierarchicalView;
+  std::unique_ptr<HierarchicalView> mHierarchicalView;
+  std::unique_ptr<FileSystemView> mFilesystemView;
 
 };
 

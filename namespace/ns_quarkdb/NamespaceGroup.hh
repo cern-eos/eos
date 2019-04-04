@@ -32,6 +32,7 @@ EOSNSNAMESPACE_BEGIN
 class QuarkContainerMDSvc;
 class QuarkFileMDSvc;
 class QuarkHierarchicalView;
+class QuarkFileSystemView;
 
 //------------------------------------------------------------------------------
 //! Class to hold ownership of all QuarkDB-namespace objects.
@@ -73,12 +74,17 @@ public:
   //----------------------------------------------------------------------------
   virtual IView* getHierarchicalView() override final;
 
+  //----------------------------------------------------------------------------
+  //! Provide filesystem view
+  //----------------------------------------------------------------------------
+  virtual IFsView* getFilesystemView() override final;
 
 private:
   std::mutex mMutex;
   std::unique_ptr<QuarkContainerMDSvc> mContainerService;
   std::unique_ptr<QuarkFileMDSvc> mFileService;
   std::unique_ptr<QuarkHierarchicalView> mHierarchicalView;
+  std::unique_ptr<QuarkFileSystemView> mFilesystemView;
 
 };
 

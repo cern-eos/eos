@@ -81,23 +81,6 @@ public:
   static int32_t DestroyContainerMDSvc(void*);
 
   //----------------------------------------------------------------------------
-  //! Create file system view
-  //!
-  //! @param services pointer to other services that the plugin manager might
-  //!         provide
-  //!
-  //! @return pointer to file system view
-  //----------------------------------------------------------------------------
-  static void* CreateFsView(PF_PlatformServices* services);
-
-  //----------------------------------------------------------------------------
-  //! Destroy file system view
-  //!
-  //! @return 0 if successful, otherwise errno
-  //----------------------------------------------------------------------------
-  static int32_t DestroyFsView(void*);
-
-  //----------------------------------------------------------------------------
   //! Create recursive container accounting listener
   //!
   //! @param services pointer to other services that the plugin manager might

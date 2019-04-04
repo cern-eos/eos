@@ -1729,8 +1729,7 @@ Master::BootNamespace()
 
   gOFS->eosFileService = gOFS->namespaceGroup->getFileService();
   gOFS->eosView = gOFS->namespaceGroup->getHierarchicalView();
-
-  gOFS->eosFsView = static_cast<IFsView*>(pm.CreateObject("FileSystemView"));
+  gOFS->eosFsView = gOFS->namespaceGroup->getFilesystemView();
 
   if (!gOFS->eosDirectoryService || ! gOFS->eosFileService ||
       !gOFS->eosView || !gOFS->eosFsView) {

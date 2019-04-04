@@ -25,6 +25,7 @@
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
+#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 
 EOSNSNAMESPACE_BEGIN
 
@@ -86,6 +87,19 @@ IView* QuarkNamespaceGroup::getHierarchicalView() {
   }
 
   return mHierarchicalView.get();
+}
+
+//----------------------------------------------------------------------------
+// Provide filesystem view
+//----------------------------------------------------------------------------
+IFsView* QuarkNamespaceGroup::getFilesystemView() {
+  std::lock_guard<std::mutex> lock(mMutex);
+
+  if(!mFilesystemView) {
+    mFilesystemView.reset(new QuarkFileSystemView());
+  }
+
+  return mFilesystemView.get();
 }
 
 

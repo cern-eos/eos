@@ -87,5 +87,19 @@ IView* InMemNamespaceGroup::getHierarchicalView() {
   return mHierarchicalView.get();
 }
 
+//------------------------------------------------------------------------------
+//! Provide filesystem view
+//------------------------------------------------------------------------------
+IFsView* InMemNamespaceGroup::getFilesystemView() {
+  std::lock_guard<std::mutex> lock(mMutex);
+
+  if(!mFilesystemView) {
+    mFilesystemView.reset(new FileSystemView());
+  }
+
+  return mFilesystemView.get();
+}
+
+
 
 EOSNSNAMESPACE_END

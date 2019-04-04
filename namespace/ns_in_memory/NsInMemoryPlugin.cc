@@ -51,13 +51,6 @@ PF_ExitFunc PF_initPlugin(const PF_PlatformServices* services)
   param_cmdsvc.CreateFunc = eos::NsInMemoryPlugin::CreateContainerMDSvc;
   param_cmdsvc.DestroyFunc = eos::NsInMemoryPlugin::DestroyContainerMDSvc;
 
-  // Register file system view
-  PF_RegisterParams param_fsview;
-  param_fsview.version.major = 0;
-  param_fsview.version.minor = 1;
-  param_fsview.CreateFunc = eos::NsInMemoryPlugin::CreateFsView;
-  param_fsview.DestroyFunc = eos::NsInMemoryPlugin::DestroyFsView;
-
   // Register recursive container accounting view
   PF_RegisterParams param_contacc;
   param_contacc.version.major = 0;
@@ -83,7 +76,6 @@ PF_ExitFunc PF_initPlugin(const PF_PlatformServices* services)
   // common header
   std::map<std::string, PF_RegisterParams> map_obj =
       { {"ContainerMDSvc",      param_cmdsvc},
-        {"FileSystemView",      param_fsview},
         {"ContainerAccounting", param_contacc},
         {"SyncTimeAccounting",  param_syncacc},
         {"NamespaceGroup",      param_group}
@@ -157,28 +149,6 @@ NsInMemoryPlugin::DestroyContainerMDSvc(void* obj)
     return -1;
 
   delete static_cast<ChangeLogContainerMDSvc*>(obj);
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-// Create file system view
-//------------------------------------------------------------------------------
-void*
-NsInMemoryPlugin::CreateFsView(PF_PlatformServices* services)
-{
-  return static_cast<void*>(new FileSystemView());
-}
-
-//------------------------------------------------------------------------------
-// Destroy file system view
-//------------------------------------------------------------------------------
-int32_t
-NsInMemoryPlugin::DestroyFsView(void* obj)
-{
-  if (!obj)
-    return -1;
-
-  delete static_cast<FileSystemView*>(obj);
   return 0;
 }
 
