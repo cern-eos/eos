@@ -288,7 +288,7 @@ DavixIo::fileOpen(
     mCreated = true;
   }
 
-  if (mFd > 0) {
+  if (mFd != NULL) {
     return 0;
   }
 
