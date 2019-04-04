@@ -142,8 +142,6 @@ QdbMaster::BootNamespace()
     gOFS->eosDirectoryService->configure(contSettings);
     gOFS->eosFileService->configure(fileSettings);
     gOFS->eosFsView->configure(fileSettings);
-    gOFS->eosView->setContainerMDSvc(gOFS->eosDirectoryService);
-    gOFS->eosView->setFileMDSvc(gOFS->eosFileService);
     gOFS->eosView->configure(contSettings);
     gOFS->eosFileService->addChangeListener(gOFS->eosFsView);
     gOFS->eosDirectoryService->addChangeListener(gOFS->eosSyncTimeAccounting);

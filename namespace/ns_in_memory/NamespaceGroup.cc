@@ -109,6 +109,8 @@ IView* InMemNamespaceGroup::getHierarchicalView() {
 
   if(!mHierarchicalView) {
     mHierarchicalView.reset(new HierarchicalView());
+    mHierarchicalView->setFileMDSvc(getFileService());
+    mHierarchicalView->setContainerMDSvc(getContainerService());
   }
 
   return mHierarchicalView.get();

@@ -114,6 +114,8 @@ IView* QuarkNamespaceGroup::getHierarchicalView() {
 
   if(!mHierarchicalView) {
     mHierarchicalView.reset(new QuarkHierarchicalView());
+    mHierarchicalView->setFileMDSvc(getFileService());
+    mHierarchicalView->setContainerMDSvc(getContainerService());
   }
 
   return mHierarchicalView.get();
