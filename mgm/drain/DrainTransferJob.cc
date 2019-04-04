@@ -415,6 +415,7 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
     it_fs->second->SnapShotFileSystem(dst_snapshot);
   }
 
+  std::ostringstream xs_info;
   std::ostringstream dst_params;
 
   if (mRainReconstruct) {
@@ -446,18 +447,17 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
                << "&eos.app=drainer&mgm.targetsize=" << fdrain.mProto.size();
 
     if (!fdrain.mProto.checksum().empty()) {
-      dst_params << "&mgm.checksum=";
+      xs_info << "&mgm.checksum=";
       uint32_t xs_len = LayoutId::GetChecksumLen(lid);
       uint32_t data_len = fdrain.mProto.checksum().size();
 
-      for (auto i = 0u; i < data_len; ++i) {
-        dst_params << StringConversion::char_to_hex(fdrain.mProto.checksum()[i]);
-      }
-
-      // Pad with zeros if necessary
-      while (data_len < xs_len) {
-        ++data_len;
-        dst_params << '0';
+      for (auto i = 0u; i < xs_len; ++i) {
+        if (i >= data_len) {
+          // Pad with zeros if necessary
+          xs_info << '0';
+        } else {
+          xs_info << StringConversion::char_to_hex(fdrain.mProto.checksum()[i]);
+        }
       }
     }
   }
@@ -481,6 +481,12 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
   std::ostringstream oss_cap;
   oss_cap << output_cap->Env(cap_len)
           << "&mgm.logid=" << log_id;
+
+  // @Note: the mgm.checksum info needs to be unencrypted in the URL
+  if (!xs_info.str().empty()) {
+    oss_cap << xs_info.str();
+  }
+
   url_dst.SetProtocol("root");
   url_dst.SetHostName(dst_snapshot.mHost.c_str());
   url_dst.SetPort(stoi(dst_snapshot.mPort));

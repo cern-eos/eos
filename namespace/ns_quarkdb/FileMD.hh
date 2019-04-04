@@ -197,7 +197,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set checksum
   //!
-  //! @param checksum address of a memory location string the checksum
+  //! @param checksum address of a memory location storing the checksum
   //! @param size     size of the checksum in bytes
   //----------------------------------------------------------------------------
   void
