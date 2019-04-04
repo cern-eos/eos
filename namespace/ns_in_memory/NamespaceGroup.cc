@@ -45,7 +45,6 @@ InMemNamespaceGroup::InMemNamespaceGroup() {}
 InMemNamespaceGroup::~InMemNamespaceGroup() {
   mSyncAccounting.reset();
   mContainerAccounting.reset();
-  mQuotaStats.reset();
   mFilesystemView.reset();
   mHierarchicalView.reset();
   mFileService.reset();
@@ -166,13 +165,7 @@ IFileMDChangeListener* InMemNamespaceGroup::getContainerAccountingView() {
 //! Provide quota stats
 //------------------------------------------------------------------------------
 IQuotaStats* InMemNamespaceGroup::getQuotaStats() {
-  std::lock_guard<std::recursive_mutex> lock(mMutex);
-
-  if(!mQuotaStats) {
-    mQuotaStats.reset(new QuotaStats());
-  }
-
-  return mQuotaStats.get();
+  return getHierarchicalView()->getQuotaStats();
 }
 
 

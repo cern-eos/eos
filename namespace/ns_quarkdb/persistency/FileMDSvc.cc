@@ -38,8 +38,8 @@ std::chrono::seconds QuarkFileMDSvc::sFlushInterval(5);
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuarkFileMDSvc::QuarkFileMDSvc()
-  : pQuotaStats(nullptr), pContSvc(nullptr), pFlusher(nullptr), pQcl(nullptr),
+QuarkFileMDSvc::QuarkFileMDSvc(MetadataFlusher *flusher)
+  : pQuotaStats(nullptr), pContSvc(nullptr), pFlusher(flusher), pQcl(nullptr),
     mMetaMap(), mNumFiles(0ull) {}
 
 //------------------------------------------------------------------------------
@@ -63,7 +63,7 @@ QuarkFileMDSvc::configure(const std::map<std::string, std::string>& config)
   const std::string key_cluster = "qdb_cluster";
   const std::string key_flusher = "qdb_flusher_md";
 
-  if (pQcl == nullptr && pFlusher == nullptr) {
+  if (pQcl == nullptr) {
     QdbContactDetails contactDetails = ConfigurationParser::parse(config);
 
     if (config.find(key_flusher) == config.end()) {
@@ -76,7 +76,6 @@ QuarkFileMDSvc::configure(const std::map<std::string, std::string>& config)
     mMetaMap.setKey(constants::sMapMetaInfoKey);
     mMetaMap.setClient(*pQcl);
     mUnifiedInodeProvider.configure(mMetaMap);
-    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails).get();
     mMetadataProvider.reset(new MetadataProvider(contactDetails, pContSvc, this));
     static_cast<QuarkContainerMDSvc*>(pContSvc)->setMetadataProvider
     (mMetadataProvider.get());

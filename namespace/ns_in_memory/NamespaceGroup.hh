@@ -119,7 +119,6 @@ private:
   std::unique_ptr<HierarchicalView> mHierarchicalView;
   std::unique_ptr<FileSystemView> mFilesystemView;
   std::unique_ptr<SyncTimeAccounting> mSyncAccounting;
-  std::unique_ptr<QuotaStats> mQuotaStats;
   std::unique_ptr<ContainerAccounting> mContainerAccounting;
 
 

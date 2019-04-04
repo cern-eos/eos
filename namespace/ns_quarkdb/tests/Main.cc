@@ -30,7 +30,6 @@ int main(int argc, char **argv) {
   std::string rmrf = "rm -rf " + testpath;
   system(rmrf.c_str());
   mkdir(testpath.c_str(), 0755);
-  eos::MetadataFlusherFactory::setQueuePath(testpath);
 
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

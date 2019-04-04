@@ -34,7 +34,6 @@
 
 EOSNSNAMESPACE_BEGIN
 
-class MetadataFlusherFactory;
 class QdbContactDetails;
 
 //------------------------------------------------------------------------------

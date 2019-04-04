@@ -113,6 +113,11 @@ TEST_F(ContainerMDSvcF, BasicSanity)
   ASSERT_EQ(contAttrs->getAttribute("test3"), "test3");
   ASSERT_THROW(contAttrs->getAttribute("test15"), eos::MDException);
   // Clean up all the containers
+  container1 = containerSvc()->getContainerMD(1);
+  container2 = containerSvc()->getContainerMD(2);
+  container3 = containerSvc()->getContainerMD(3);
+  container4 = containerSvc()->getContainerMD(4);
+
   container3->removeContainer(container6->getName());
   container3->removeContainer(container4->getName());
   container1->removeContainer(container3->getName());

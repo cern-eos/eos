@@ -40,9 +40,9 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuarkHierarchicalView::QuarkHierarchicalView()
-  : pContainerSvc(nullptr), pFileSvc(nullptr),
-    pQuotaStats(new QuarkQuotaStats()), pRoot(nullptr)
+QuarkHierarchicalView::QuarkHierarchicalView(MetadataFlusher *flusher)
+  : pQuotaFlusher(flusher), pContainerSvc(nullptr), pFileSvc(nullptr),
+    pQuotaStats(new QuarkQuotaStats(pQuotaFlusher)), pRoot(nullptr)
 {
   pExecutor.reset(new folly::IOThreadPoolExecutor(32));
 }
@@ -74,7 +74,7 @@ QuarkHierarchicalView::configure(const std::map<std::string, std::string>& confi
   }
 
   delete pQuotaStats;
-  pQuotaStats = new QuarkQuotaStats();
+  pQuotaStats = new QuarkQuotaStats(pQuotaFlusher);
   pQuotaStats->configure(config);
 }
 

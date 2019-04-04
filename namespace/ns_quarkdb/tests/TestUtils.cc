@@ -93,10 +93,10 @@ void NsTestsFixture::initServices()
     return;
   }
 
-  containerSvcPtr.reset(new eos::QuarkContainerMDSvc());
-  fileSvcPtr.reset(new eos::QuarkFileMDSvc());
-  viewPtr.reset(new eos::QuarkHierarchicalView());
-  fsViewPtr.reset(new eos::QuarkFileSystemView());
+  containerSvcPtr.reset(new eos::QuarkContainerMDSvc(mdFlusher().get()));
+  fileSvcPtr.reset(new eos::QuarkFileMDSvc(mdFlusher().get()));
+  viewPtr.reset(new eos::QuarkHierarchicalView(quotaFlusher().get()));
+  fsViewPtr.reset(new eos::QuarkFileSystemView(mdFlusher().get()));
   fileSvcPtr->setContMDService(containerSvcPtr.get());
   containerSvcPtr->setFileMDService(fileSvcPtr.get());
   fileSvcPtr->configure(testconfig);
@@ -150,8 +150,8 @@ qclient::QClient& NsTestsFixture::qcl()
 std::shared_ptr<eos::MetadataFlusher> NsTestsFixture::mdFlusher()
 {
   if (!mdFlusherPtr) {
-    mdFlusherPtr = eos::MetadataFlusherFactory::getInstance(
-                     testconfig["qdb_flusher_md"], getContactDetails());
+    std::string path = SSTR("/tmp/eos-ns-tests/" << testconfig["qdb_flusher_md"]);
+    mdFlusherPtr.reset(new MetadataFlusher(path, getContactDetails()));
   }
 
   return mdFlusherPtr;
@@ -160,8 +160,8 @@ std::shared_ptr<eos::MetadataFlusher> NsTestsFixture::mdFlusher()
 std::shared_ptr<eos::MetadataFlusher> NsTestsFixture::quotaFlusher()
 {
   if (!quotaFlusherPtr) {
-    quotaFlusherPtr = eos::MetadataFlusherFactory::getInstance(
-                        testconfig["qdb_flusher_quota"], getContactDetails());
+    std::string path = SSTR("/tmp/eos-ns-tests/" << testconfig["qdb_flusher_quota"]);
+    quotaFlusherPtr.reset(new MetadataFlusher(path, getContactDetails()));
   }
 
   return quotaFlusherPtr;
@@ -184,12 +184,12 @@ void NsTestsFixture::shut_down_everything()
 
   if (mdFlusherPtr) {
     mdFlusherPtr->synchronize();
-    mdFlusherPtr = nullptr;
+    mdFlusherPtr.reset();
   }
 
   if (quotaFlusherPtr) {
     quotaFlusherPtr->synchronize();
-    quotaFlusherPtr = nullptr;
+    quotaFlusherPtr.reset();
   }
 }
 

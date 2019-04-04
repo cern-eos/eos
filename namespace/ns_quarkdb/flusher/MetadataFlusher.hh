@@ -109,19 +109,4 @@ private:
   qclient::AssistedThread sizePrinter;
 };
 
-class MetadataFlusherFactory
-{
-public:
-  static std::shared_ptr<MetadataFlusher>
-  getInstance(const std::string& id,
-              const QdbContactDetails& contactDetails);
-  static void setQueuePath(const std::string& newpath);
-private:
-  static std::string queuePath;
-  static std::mutex mtx;
-
-  using InstanceKey = std::tuple<std::string, qclient::Members>;
-  static std::map<InstanceKey, std::shared_ptr<MetadataFlusher>> instances;
-};
-
 EOSNSNAMESPACE_END

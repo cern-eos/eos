@@ -36,6 +36,8 @@
 
 EOSNSNAMESPACE_BEGIN
 
+class MetadataFlusher;
+
 //------------------------------------------------------------------------------
 //! Implementation of the hierarchical namespace
 //------------------------------------------------------------------------------
@@ -45,7 +47,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuarkHierarchicalView();
+  QuarkHierarchicalView(MetadataFlusher *quotaFlusher);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -335,6 +337,7 @@ private:
   //----------------------------------------------------------------------------
   // Data members
   //----------------------------------------------------------------------------
+  MetadataFlusher *pQuotaFlusher;
   IContainerMDSvc* pContainerSvc;
   IFileMDSvc* pFileSvc;
   IQuotaStats* pQuotaStats;

@@ -54,13 +54,13 @@ QuarkNamespaceGroup::~QuarkNamespaceGroup() {
   mQuotaFlusher.reset();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Initialize with the given configuration - must be called before any
 // other function, and right after construction.
 //
 // Initialization may fail - in such case, "false" will be returned, and
 // "err" will be filled out.
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool QuarkNamespaceGroup::initialize(eos::common::RWMutex* nsMtx, const std::map<std::string, std::string> &config, std::string &err) {
   mNsMutex = nsMtx;
 
@@ -120,20 +120,20 @@ void QuarkNamespaceGroup::initializeFileAndContainerServices() {
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mFileService) {
-    mFileService.reset(new QuarkFileMDSvc());
+    mFileService.reset(new QuarkFileMDSvc(getMetadataFlusher()));
   }
 
   if(!mContainerService) {
-    mContainerService.reset(new QuarkContainerMDSvc());
+    mContainerService.reset(new QuarkContainerMDSvc(getMetadataFlusher()));
   }
 
   mContainerService->setFileMDService(mFileService.get());
   mFileService->setContMDService(mContainerService.get());
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Provide file service
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 IFileMDSvc* QuarkNamespaceGroup::getFileService() {
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
@@ -164,7 +164,7 @@ IView* QuarkNamespaceGroup::getHierarchicalView() {
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mHierarchicalView) {
-    mHierarchicalView.reset(new QuarkHierarchicalView());
+    mHierarchicalView.reset(new QuarkHierarchicalView(getQuotaFlusher()));
     mHierarchicalView->setFileMDSvc(getFileService());
     mHierarchicalView->setContainerMDSvc(getContainerService());
   }
@@ -172,14 +172,14 @@ IView* QuarkNamespaceGroup::getHierarchicalView() {
   return mHierarchicalView.get();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Provide filesystem view
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 IFsView* QuarkNamespaceGroup::getFilesystemView() {
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mFilesystemView) {
-    mFilesystemView.reset(new QuarkFileSystemView());
+    mFilesystemView.reset(new QuarkFileSystemView(getMetadataFlusher()));
   }
 
   return mFilesystemView.get();
@@ -215,21 +215,13 @@ IContainerMDChangeListener* QuarkNamespaceGroup::getSyncTimeAccountingView() {
 // Provide quota stats
 //------------------------------------------------------------------------------
 IQuotaStats* QuarkNamespaceGroup::getQuotaStats() {
-  std::lock_guard<std::recursive_mutex> lock(mMutex);
-
-  if(!mQuotaStats) {
-    mQuotaStats.reset(new QuarkQuotaStats());
-  }
-
-  return mQuotaStats.get();
+  return getHierarchicalView()->getQuotaStats();
 }
 
 //------------------------------------------------------------------------------
 // Get metadata flusher
 //------------------------------------------------------------------------------
 MetadataFlusher* QuarkNamespaceGroup::getMetadataFlusher() {
-  return MetadataFlusherFactory::getInstance(flusherMDTag, contactDetails).get();
-
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mMetadataFlusher) {
@@ -244,8 +236,6 @@ MetadataFlusher* QuarkNamespaceGroup::getMetadataFlusher() {
 // Get quota flusher
 //------------------------------------------------------------------------------
 MetadataFlusher* QuarkNamespaceGroup::getQuotaFlusher() {
-  return MetadataFlusherFactory::getInstance(flusherQuotaTag, contactDetails).get();
-
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mQuotaFlusher) {

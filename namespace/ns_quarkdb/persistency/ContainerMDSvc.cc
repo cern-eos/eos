@@ -36,8 +36,8 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuarkContainerMDSvc::QuarkContainerMDSvc()
-  : pQuotaStats(nullptr), pFileSvc(nullptr), pQcl(nullptr), pFlusher(nullptr),
+QuarkContainerMDSvc::QuarkContainerMDSvc(MetadataFlusher *flusher)
+  : pQuotaStats(nullptr), pFileSvc(nullptr), pQcl(nullptr), pFlusher(flusher),
     mMetaMap(), mNumConts(0ull) {}
 
 //------------------------------------------------------------------------------
@@ -61,7 +61,7 @@ QuarkContainerMDSvc::configure(const std::map<std::string, std::string>& config)
   const std::string key_cluster = "qdb_cluster";
   const std::string key_flusher = "qdb_flusher_md";
 
-  if (pQcl == nullptr && pFlusher == nullptr) {
+  if (pQcl == nullptr) {
     QdbContactDetails contactDetails = ConfigurationParser::parse(config);
 
     if (config.find(key_flusher) == config.end()) {
@@ -74,7 +74,6 @@ QuarkContainerMDSvc::configure(const std::map<std::string, std::string>& config)
     mMetaMap.setKey(constants::sMapMetaInfoKey);
     mMetaMap.setClient(*pQcl);
     mMetaMap.hset("EOS-NS-FORMAT-VERSION", "1");
-    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails).get();
   }
 
   if (config.find(constants::sMaxNumCacheDirs) != config.end()) {

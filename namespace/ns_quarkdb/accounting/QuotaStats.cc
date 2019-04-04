@@ -265,8 +265,8 @@ QuarkQuotaNode::replaceCore(const QuotaNodeCore& updated)
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuarkQuotaStats::QuarkQuotaStats():
-  pQcl(nullptr), pFlusher(nullptr) {}
+QuarkQuotaStats::QuarkQuotaStats(MetadataFlusher *flusher):
+  pQcl(nullptr), pFlusher(flusher) {}
 
 
 //------------------------------------------------------------------------------
@@ -288,7 +288,7 @@ QuarkQuotaStats::configure(const std::map<std::string, std::string>& config)
   const std::string key_cluster = "qdb_cluster";
   const std::string key_flusher = "qdb_flusher_quota";
 
-  if (pQcl == nullptr && pFlusher == nullptr) {
+  if (pQcl == nullptr) {
     QdbContactDetails contactDetails = ConfigurationParser::parse(config);
 
     if (config.find(key_flusher) == config.end()) {
@@ -298,7 +298,6 @@ QuarkQuotaStats::configure(const std::map<std::string, std::string>& config)
 
     std::string qdb_flusher_id = config.at(key_flusher);
     pQcl = BackendClient::getInstance(contactDetails);
-    pFlusher = MetadataFlusherFactory::getInstance(qdb_flusher_id, contactDetails).get();
   }
 }
 

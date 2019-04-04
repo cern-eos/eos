@@ -171,51 +171,6 @@ void MetadataFlusher::synchronize(ItemIndex targetIndex)
 }
 
 //------------------------------------------------------------------------------
-// Get a metadata flusher instance, keyed by (ID, host, port). The ID is an
-// arbitrary string which enables having multiple distinct metadata flushers
-// towards the same QuarkBD server.
-//
-// Be extremely careful when using multiple metadata flushers! The different
-// instances should all hit distinct sets of the key space.
-// TODO(gbitzes): specify a sharding scheme, based on which flusher hits
-// which keys, and enforce it with static checks, if possible.
-//------------------------------------------------------------------------------
-std::map<MetadataFlusherFactory::InstanceKey, std::shared_ptr<MetadataFlusher>>
-    MetadataFlusherFactory::instances;
-std::mutex MetadataFlusherFactory::mtx;
-std::string MetadataFlusherFactory::queuePath = "/var/eos/ns-queue/";
-
-void MetadataFlusherFactory::setQueuePath(const std::string& newpath)
-{
-  queuePath = newpath;
-}
-
-std::shared_ptr<MetadataFlusher>
-MetadataFlusherFactory::getInstance(const std::string& id,
-                                    const QdbContactDetails& contactDetails)
-{
-  std::lock_guard<std::mutex> lock(MetadataFlusherFactory::mtx);
-
-  if (contactDetails.empty()) {
-    eos_static_crit("MetadataFlusherFactory::getInstance received empty QdbContactDetails!");
-    std::terminate();
-  }
-
-  std::tuple<std::string, qclient::Members> key = std::make_tuple(id,
-      contactDetails.members);
-  auto it = instances.find(key);
-
-  if (it != instances.end()) {
-    return it->second;
-  }
-
-  eos_static_notice("Created new metadata flusher towards %s",
-                    contactDetails.members.toString().c_str());
-  instances.emplace(key,  new MetadataFlusher(queuePath + id, contactDetails));
-  return instances[key];
-}
-
-//------------------------------------------------------------------------------
 // Class to receive notifications from the BackgroundFlusher
 //------------------------------------------------------------------------------
 FlusherNotifier::FlusherNotifier(MetadataFlusher& flusher):
