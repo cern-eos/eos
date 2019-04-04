@@ -34,6 +34,8 @@
 
 eos::common::RWMutex nslock;
 
+#if 0
+
 //------------------------------------------------------------------------------
 // File size mapping function
 //------------------------------------------------------------------------------
@@ -423,5 +425,11 @@ main(int argc, char** argv)
     double rate = (n_files * n_i * n_j * n_k) / tm.RealTime() * 1000.0;
     PrintStatus(view, &st[0], &st[1], &mem[0], &mem[1], rate);
   }
+  return 0;
+}
+
+#endif
+
+int main() {
   return 0;
 }

@@ -35,6 +35,8 @@ using ::testing::Return;
 
 EOSNSTESTING_BEGIN
 
+#if 0
+
 //------------------------------------------------------------------------------
 // Test FileMd serialisation, deserialization and checksumming
 //------------------------------------------------------------------------------
@@ -172,5 +174,7 @@ TEST(NsQuarkdb, ContainerMd)
   (void) memcpy(buffer.getDataPtr(), &cksum, sizeof(cksum));
   ASSERT_THROW(rcont.deserialize(buffer), eos::MDException);
 }
+
+#endif
 
 EOSNSTESTING_END

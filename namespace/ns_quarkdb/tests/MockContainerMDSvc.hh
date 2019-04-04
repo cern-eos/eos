@@ -26,6 +26,9 @@
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 
 EOSNSTESTING_BEGIN
+
+#if 0
+
 //------------------------------------------------------------------------------
 //! Class MockContainerMDSvc
 //------------------------------------------------------------------------------
@@ -55,5 +58,7 @@ public:
   MOCK_METHOD1(setContainerAccounting, void(eos::IFileMDChangeListener*));
   MOCK_METHOD0(getFirstFreeId, eos::IContainerMD::id_t());
 };
+
+#endif
 
 EOSNSTESTING_END

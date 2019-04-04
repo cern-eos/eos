@@ -26,6 +26,9 @@
 #include "namespace/interface/IFileMDSvc.hh"
 
 EOSNSTESTING_BEGIN
+
+#if 0
+
 //------------------------------------------------------------------------------
 //! Class MockFileMDSvc
 //------------------------------------------------------------------------------
@@ -52,5 +55,7 @@ public:
   MOCK_METHOD0(getFirstFreeId, eos::IFileMD::id_t());
   MOCK_METHOD0(getCacheStatistics, eos::CacheStatistics());
 };
+
+#endif
 
 EOSNSTESTING_END
