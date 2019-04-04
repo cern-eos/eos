@@ -97,6 +97,13 @@ public:
   //----------------------------------------------------------------------------
   virtual IQuotaStats* getQuotaStats() override final;
 
+  //----------------------------------------------------------------------------
+  //! Is this in-memory namespace?
+  //----------------------------------------------------------------------------
+  virtual bool isInMemory() override final {
+    return false;
+  }
+
 private:
   //----------------------------------------------------------------------------
   // Initialize file and container services

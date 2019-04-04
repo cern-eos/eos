@@ -1712,6 +1712,7 @@ Master::BootNamespace()
   pm_svc.invokeService = &XrdMgmOfs::DiscoverPlatformServices;
   gOFS->namespaceGroup.reset(static_cast<INamespaceGroup*>
                               (pm.CreateObject("NamespaceGroup")));
+  gOFS->NsInQDB = !gOFS->namespaceGroup->isInMemory();
 
   //----------------------------------------------------------------------------
   // Collect namespace options, and initialize namespace group
@@ -1749,7 +1750,7 @@ Master::BootNamespace()
                     (gOFS->eosDirectoryService) == nullptr);
   gOFS->NsInQDB = ns_in_qdb;
 
-  if (ns_in_qdb ||
+  if (gOFS->NsInQDB ||
       (getenv("EOS_NS_ACCOUNTING") &&
        ((std::string(getenv("EOS_NS_ACCOUNTING")) == "1") ||
         (std::string(getenv("EOS_NS_ACCOUNTING")) == "yes")))) {
@@ -1764,7 +1765,7 @@ Master::BootNamespace()
     }
   }
 
-  if (ns_in_qdb ||
+  if (gOFS->NsInQDB ||
       (getenv("EOS_SYNCTIME_ACCOUNTING") &&
        ((std::string(getenv("EOS_SYNCTIME_ACCOUNTING")) == "1") ||
         (std::string(getenv("EOS_SYNCTIME_ACCOUNTING")) == "yes")))) {
@@ -1791,7 +1792,7 @@ Master::BootNamespace()
     fileSettings["auto_repair"] = "false";
   }
 
-  if (!ns_in_qdb) {
+  if (!gOFS->NsInQDB) {
     // Build local path of the file and directory changelogs
     std::ostringstream oss;
     oss << gOFS->MgmMetaLogDir.c_str() << "/directories."

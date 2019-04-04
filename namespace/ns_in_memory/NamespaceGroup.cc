@@ -24,6 +24,13 @@
 #include "namespace/ns_in_memory/NamespaceGroup.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/ns_in_memory/views/HierarchicalView.hh"
+#include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
+#include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
+#include "namespace/ns_in_memory/views/HierarchicalView.hh"
+#include "namespace/ns_in_memory/accounting/FileSystemView.hh"
+#include "namespace/ns_in_memory/accounting/SyncTimeAccounting.hh"
+#include "namespace/ns_in_memory/accounting/QuotaStats.hh"
+#include "namespace/ns_in_memory/accounting/ContainerAccounting.hh"
 
 EOSNSNAMESPACE_BEGIN
 

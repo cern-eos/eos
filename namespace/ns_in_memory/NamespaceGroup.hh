@@ -26,20 +26,19 @@
 
 #include "namespace/Namespace.hh"
 #include "namespace/interface/INamespaceGroup.hh"
-#include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
-#include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
-#include "namespace/ns_in_memory/views/HierarchicalView.hh"
-#include "namespace/ns_in_memory/accounting/FileSystemView.hh"
-#include "namespace/ns_in_memory/accounting/SyncTimeAccounting.hh"
-#include "namespace/ns_in_memory/accounting/QuotaStats.hh"
-#include "namespace/ns_in_memory/accounting/ContainerAccounting.hh"
 #include <memory>
 #include <mutex>
 
 EOSNSNAMESPACE_BEGIN
 
 class IFileMDChangeListener;
-
+class ChangeLogFileMDSvc;
+class ChangeLogContainerMDSvc;
+class HierarchicalView;
+class FileSystemView;
+class SyncTimeAccounting;
+class QuotaStats;
+class ContainerAccounting;
 
 class InMemNamespaceGroup : public INamespaceGroup {
 public:
@@ -97,6 +96,13 @@ public:
   //! Provide quota stats
   //----------------------------------------------------------------------------
   virtual IQuotaStats* getQuotaStats() override final;
+
+  //----------------------------------------------------------------------------
+  //! Is this in-memory namespace?
+  //----------------------------------------------------------------------------
+  virtual bool isInMemory() override final {
+    return true;
+  }
 
 
 private:
