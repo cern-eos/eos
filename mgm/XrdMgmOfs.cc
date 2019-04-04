@@ -363,53 +363,18 @@ XrdMgmOfs::OrderlyShutdown()
     eos_warning("%s", "msg=\"finalizing namespace views\"");
 
     try {
-      // These two views need to be deleted without holding the namespace mutex
-      // as this might lead to a deadlock
-      eos_warning("%s", "msg=\"deleting synctime and container accounting\"");
+      gOFS->eosDirectoryService = nullptr;
+      gOFS->eosFileService = nullptr;
+      gOFS->eosView = nullptr;
+      gOFS->eosFsView = nullptr;
 
-      if (gOFS->eosSyncTimeAccounting) {
-        delete gOFS->eosSyncTimeAccounting;
-        gOFS->eosSyncTimeAccounting = nullptr;
-      }
+      gOFS->eosContainerAccounting = nullptr;
+      gOFS->eosSyncTimeAccounting = nullptr;
 
-      if (gOFS->eosContainerAccounting) {
-        delete gOFS->eosContainerAccounting;
-        gOFS->eosContainerAccounting = nullptr;
-      }
+      gOFS->namespaceGroup.reset();
 
-      eos_warning("%s", "msg=\"grabbing namespace write lock\"");
-      uint64_t timeout_ns = 3 * 1e9;
-
-      while (!gOFS->eosViewRWMutex.TimedWrLock(timeout_ns)) {
-        eos_warning("%s", "msg=\"still trying to grab the ns write lock\"");
-      }
-
-      if (gOFS->eosFsView) {
-        delete gOFS->eosFsView;
-        gOFS->eosFsView = nullptr;
-      }
-
-      if (gOFS->eosView) {
-        delete gOFS->eosView;
-        gOFS->eosView = nullptr;
-      }
-
-      if (gOFS->eosDirectoryService) {
-        gOFS->eosDirectoryService->finalize();
-        delete gOFS->eosDirectoryService;
-        gOFS->eosDirectoryService = nullptr;
-      }
-
-      if (gOFS->eosFileService) {
-        gOFS->eosFileService->finalize();
-        delete gOFS->eosFileService;
-        gOFS->eosFileService = nullptr;
-      }
-
-      gOFS->eosViewRWMutex.UnLockWrite();
     } catch (eos::MDException& e) {
       // we don't really care about any exception here!
-      gOFS->eosViewRWMutex.UnLockWrite();
     }
   }
 
