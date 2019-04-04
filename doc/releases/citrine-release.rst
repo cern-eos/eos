@@ -15,6 +15,27 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.4.33 Citrine``
+===================
+
+2019-04-04
+
+Bug
+----
+
+* Disable prefetching for TPC transfers which might corrupt the data.
+* Put the mgm.checksum opaque info for drain jobs in the unencrypted part of
+  the URL otherwise the checksum check is not enforced.
+* [EOS-3367] - "eos file verify --checksum" does not update FMD checksum or ext.attribute
+* [EOS-3372] - MGM "autorepair" for corrupted replicas is not working
+* [EOS-3382] - Network monitoring always shows 0 on newer kernel versions
+
+Improvement
+------------
+
+* [EOS-3359] - Graceful cancelation of drain jobs
+* [EOS-3375] - Use eos/conversion as io stat tag
+
 
 ``v4.4.32 Citrine``
 ===================
