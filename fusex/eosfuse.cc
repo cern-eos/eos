@@ -1328,8 +1328,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
     if (rc) {
       fprintf(stderr,
-              "error: failed to run shell command\n");
-      exit(-1);
+              "warning: failed to run shell command\n");
     }
 
     if (!geteuid()) {
