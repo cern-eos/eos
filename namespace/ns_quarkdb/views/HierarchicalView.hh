@@ -47,7 +47,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuarkHierarchicalView(MetadataFlusher *quotaFlusher);
+  QuarkHierarchicalView(qclient::QClient *qcl, MetadataFlusher *quotaFlusher);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -337,6 +337,7 @@ private:
   //----------------------------------------------------------------------------
   // Data members
   //----------------------------------------------------------------------------
+  qclient::QClient *pQcl;
   MetadataFlusher *pQuotaFlusher;
   IContainerMDSvc* pContainerSvc;
   IFileMDSvc* pFileSvc;

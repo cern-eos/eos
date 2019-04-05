@@ -35,9 +35,11 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuarkFileSystemView::QuarkFileSystemView(MetadataFlusher *flusher ):
-  mExecutor(new folly::IOThreadPoolExecutor(8)),
-  pFlusher(flusher), pQcl(nullptr)
+QuarkFileSystemView::QuarkFileSystemView(qclient::QClient *qcl,
+  MetadataFlusher *flusher)
+
+ : mExecutor(new folly::IOThreadPoolExecutor(8)),
+  pFlusher(flusher), pQcl(qcl)
 { }
 
 //------------------------------------------------------------------------------
@@ -46,20 +48,8 @@ QuarkFileSystemView::QuarkFileSystemView(MetadataFlusher *flusher ):
 void
 QuarkFileSystemView::configure(const std::map<std::string, std::string>& config)
 {
-  std::string qdb_flusher_id;
-  const std::string key_flusher = "qdb_flusher_md";
-
-  if (pQcl == nullptr) {
-    QdbContactDetails contactDetails = ConfigurationParser::parse(config);
-
-    if (config.find(key_flusher) == config.end()) {
-      throw_mdexception(EINVAL, __FUNCTION__ << "No " << key_flusher
-                        << " configuration was provided");
-    }
-
-    std::string qdb_flusher_id = config.at(key_flusher);
-    pQcl = BackendClient::getInstance(contactDetails);
-  }
+  // No configuration to read, everything we need has been passed to the
+  // constructor already.
 
   auto start = std::time(nullptr);
   loadFromBackend();

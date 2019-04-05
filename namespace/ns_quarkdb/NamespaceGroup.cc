@@ -120,11 +120,11 @@ void QuarkNamespaceGroup::initializeFileAndContainerServices() {
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mFileService) {
-    mFileService.reset(new QuarkFileMDSvc(getMetadataFlusher()));
+    mFileService.reset(new QuarkFileMDSvc(getQClient(), getMetadataFlusher()));
   }
 
   if(!mContainerService) {
-    mContainerService.reset(new QuarkContainerMDSvc(getMetadataFlusher()));
+    mContainerService.reset(new QuarkContainerMDSvc(getQClient(), getMetadataFlusher()));
   }
 
   mContainerService->setFileMDService(mFileService.get());
@@ -164,7 +164,7 @@ IView* QuarkNamespaceGroup::getHierarchicalView() {
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mHierarchicalView) {
-    mHierarchicalView.reset(new QuarkHierarchicalView(getQuotaFlusher()));
+    mHierarchicalView.reset(new QuarkHierarchicalView(getQClient(), getQuotaFlusher()));
     mHierarchicalView->setFileMDSvc(getFileService());
     mHierarchicalView->setContainerMDSvc(getContainerService());
   }
@@ -179,7 +179,7 @@ IFsView* QuarkNamespaceGroup::getFilesystemView() {
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mFilesystemView) {
-    mFilesystemView.reset(new QuarkFileSystemView(getMetadataFlusher()));
+    mFilesystemView.reset(new QuarkFileSystemView(getQClient(), getMetadataFlusher()));
     getFileService()->addChangeListener(mFilesystemView.get());
   }
 
@@ -248,6 +248,19 @@ MetadataFlusher* QuarkNamespaceGroup::getQuotaFlusher() {
   }
 
   return mQuotaFlusher.get();
+}
+
+//------------------------------------------------------------------------------
+// Get generic qclient object for light-weight tasks
+//------------------------------------------------------------------------------
+qclient::QClient* QuarkNamespaceGroup::getQClient() {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
+
+  if(!mQClient) {
+    mQClient = contactDetails.makeQClient();
+  }
+
+  return mQClient.get();
 }
 
 EOSNSNAMESPACE_END

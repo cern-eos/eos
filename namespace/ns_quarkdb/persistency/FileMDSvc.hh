@@ -45,7 +45,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuarkFileMDSvc(MetadataFlusher *flusher);
+  QuarkFileMDSvc(qclient::QClient *qcl, MetadataFlusher *flusher);
 
   //----------------------------------------------------------------------------
   //! Destructor

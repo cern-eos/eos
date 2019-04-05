@@ -35,6 +35,10 @@
 #include <list>
 #include <map>
 
+namespace qclient {
+  class QClient;
+}
+
 EOSNSNAMESPACE_BEGIN
 
 class QuarkContainerMD;
@@ -51,7 +55,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuarkContainerMDSvc(MetadataFlusher *flusher);
+  QuarkContainerMDSvc(qclient::QClient *qcl, MetadataFlusher *flusher);
 
   //----------------------------------------------------------------------------
   //! Destructor

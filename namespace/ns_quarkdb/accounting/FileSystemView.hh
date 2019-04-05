@@ -175,7 +175,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuarkFileSystemView(MetadataFlusher *flusher);
+  QuarkFileSystemView(qclient::QClient *qcl, MetadataFlusher *flusher);
 
   //----------------------------------------------------------------------------
   //! Destructor

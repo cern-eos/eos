@@ -28,6 +28,10 @@
 #include <mutex>
 #include <memory>
 
+namespace qclient {
+  class QClient;
+}
+
 EOSNSNAMESPACE_BEGIN
 
 class QuarkContainerMDSvc;
@@ -116,6 +120,12 @@ public:
   //----------------------------------------------------------------------------
   MetadataFlusher* getQuotaFlusher();
 
+  //----------------------------------------------------------------------------
+  //! Get generic qclient object for light-weight tasks
+  //----------------------------------------------------------------------------
+  qclient::QClient* getQClient();
+
+
 private:
   //----------------------------------------------------------------------------
   // Configuration
@@ -142,6 +152,9 @@ private:
 
   std::unique_ptr<MetadataFlusher> mMetadataFlusher;  //< Flusher for metadata
   std::unique_ptr<MetadataFlusher> mQuotaFlusher;     //< Flusher for quota
+
+  std::unique_ptr<qclient::QClient> mQClient;         //< Main qclient object
+                                                      //< used for generic tasks
 };
 
 

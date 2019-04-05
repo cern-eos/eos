@@ -122,7 +122,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuarkQuotaStats(MetadataFlusher *flusher);
+  QuarkQuotaStats(qclient::QClient *qcl, MetadataFlusher *flusher);
 
   //----------------------------------------------------------------------------
   //! Destructor

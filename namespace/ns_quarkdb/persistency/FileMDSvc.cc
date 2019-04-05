@@ -38,8 +38,8 @@ std::chrono::seconds QuarkFileMDSvc::sFlushInterval(5);
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuarkFileMDSvc::QuarkFileMDSvc(MetadataFlusher *flusher)
-  : pQuotaStats(nullptr), pContSvc(nullptr), pFlusher(flusher), pQcl(nullptr),
+QuarkFileMDSvc::QuarkFileMDSvc(qclient::QClient *qcl, MetadataFlusher *flusher)
+  : pQuotaStats(nullptr), pContSvc(nullptr), pFlusher(flusher), pQcl(qcl),
     mMetaMap(), mNumFiles(0ull) {}
 
 //------------------------------------------------------------------------------
@@ -63,25 +63,21 @@ QuarkFileMDSvc::configure(const std::map<std::string, std::string>& config)
   const std::string key_cluster = "qdb_cluster";
   const std::string key_flusher = "qdb_flusher_md";
 
-  if (pQcl == nullptr) {
-    QdbContactDetails contactDetails = ConfigurationParser::parse(config);
+  QdbContactDetails contactDetails = ConfigurationParser::parse(config);
 
-    if (config.find(key_flusher) == config.end()) {
-      throw_mdexception(EINVAL, __FUNCTION__ << "No " << key_flusher
-                        << " configuration was provided");
-    }
-
-    std::string qdb_flusher_id = config.at(key_flusher);
-    pQcl = BackendClient::getInstance(contactDetails);
-    mMetaMap.setKey(constants::sMapMetaInfoKey);
-    mMetaMap.setClient(*pQcl);
-    mUnifiedInodeProvider.configure(mMetaMap);
-    mMetadataProvider.reset(new MetadataProvider(contactDetails, pContSvc, this));
-    static_cast<QuarkContainerMDSvc*>(pContSvc)->setMetadataProvider
-    (mMetadataProvider.get());
-    static_cast<QuarkContainerMDSvc*>(pContSvc)->setInodeProvider
-    (&mUnifiedInodeProvider);
+  if (config.find(key_flusher) == config.end()) {
+    throw_mdexception(EINVAL, __FUNCTION__ << "No " << key_flusher
+                      << " configuration was provided");
   }
+
+  mMetaMap.setKey(constants::sMapMetaInfoKey);
+  mMetaMap.setClient(*pQcl);
+  mUnifiedInodeProvider.configure(mMetaMap);
+  mMetadataProvider.reset(new MetadataProvider(contactDetails, pContSvc, this));
+  static_cast<QuarkContainerMDSvc*>(pContSvc)->setMetadataProvider
+  (mMetadataProvider.get());
+  static_cast<QuarkContainerMDSvc*>(pContSvc)->setInodeProvider
+  (&mUnifiedInodeProvider);
 
   if (config.find(constants::sMaxNumCacheFiles) != config.end()) {
     std::string val = config.at(constants::sMaxNumCacheFiles);

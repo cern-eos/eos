@@ -265,8 +265,8 @@ QuarkQuotaNode::replaceCore(const QuotaNodeCore& updated)
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuarkQuotaStats::QuarkQuotaStats(MetadataFlusher *flusher):
-  pQcl(nullptr), pFlusher(flusher) {}
+QuarkQuotaStats::QuarkQuotaStats(qclient::QClient *qcl, MetadataFlusher *flusher):
+  pQcl(qcl), pFlusher(flusher) {}
 
 
 //------------------------------------------------------------------------------
@@ -283,22 +283,7 @@ QuarkQuotaStats::~QuarkQuotaStats()
 void
 QuarkQuotaStats::configure(const std::map<std::string, std::string>& config)
 {
-  std::string qdb_cluster;
-  std::string qdb_flusher_id;
-  const std::string key_cluster = "qdb_cluster";
-  const std::string key_flusher = "qdb_flusher_quota";
-
-  if (pQcl == nullptr) {
-    QdbContactDetails contactDetails = ConfigurationParser::parse(config);
-
-    if (config.find(key_flusher) == config.end()) {
-      throw_mdexception(EINVAL, __FUNCTION__ << "No " << key_flusher
-                        << " configuration was provided");
-    }
-
-    std::string qdb_flusher_id = config.at(key_flusher);
-    pQcl = BackendClient::getInstance(contactDetails);
-  }
+  // Nothing to do, dependencies are passed through the constructor
 }
 
 //------------------------------------------------------------------------------

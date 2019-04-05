@@ -36,8 +36,8 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuarkContainerMDSvc::QuarkContainerMDSvc(MetadataFlusher *flusher)
-  : pQuotaStats(nullptr), pFileSvc(nullptr), pQcl(nullptr), pFlusher(flusher),
+QuarkContainerMDSvc::QuarkContainerMDSvc(qclient::QClient *qcl, MetadataFlusher *flusher)
+  : pQuotaStats(nullptr), pFileSvc(nullptr), pQcl(qcl), pFlusher(flusher),
     mMetaMap(), mNumConts(0ull) {}
 
 //------------------------------------------------------------------------------
@@ -56,25 +56,9 @@ QuarkContainerMDSvc::~QuarkContainerMDSvc()
 void
 QuarkContainerMDSvc::configure(const std::map<std::string, std::string>& config)
 {
-  std::string qdb_cluster;
-  std::string qdb_flusher_id;
-  const std::string key_cluster = "qdb_cluster";
-  const std::string key_flusher = "qdb_flusher_md";
-
-  if (pQcl == nullptr) {
-    QdbContactDetails contactDetails = ConfigurationParser::parse(config);
-
-    if (config.find(key_flusher) == config.end()) {
-      throw_mdexception(EINVAL, __FUNCTION__ << "No " << key_flusher
-                        << " configuration was provided");
-    }
-
-    std::string qdb_flusher_id = config.at(key_flusher);
-    pQcl = BackendClient::getInstance(contactDetails);
-    mMetaMap.setKey(constants::sMapMetaInfoKey);
-    mMetaMap.setClient(*pQcl);
-    mMetaMap.hset("EOS-NS-FORMAT-VERSION", "1");
-  }
+  mMetaMap.setKey(constants::sMapMetaInfoKey);
+  mMetaMap.setClient(*pQcl);
+  mMetaMap.hset("EOS-NS-FORMAT-VERSION", "1");
 
   if (config.find(constants::sMaxNumCacheDirs) != config.end()) {
     mCacheNum = config.at(constants::sMaxNumCacheDirs);
