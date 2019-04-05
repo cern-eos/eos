@@ -180,6 +180,7 @@ IFsView* QuarkNamespaceGroup::getFilesystemView() {
 
   if(!mFilesystemView) {
     mFilesystemView.reset(new QuarkFileSystemView(getMetadataFlusher()));
+    getFileService()->addChangeListener(mFilesystemView.get());
   }
 
   return mFilesystemView.get();
@@ -193,6 +194,8 @@ IFileMDChangeListener* QuarkNamespaceGroup::getContainerAccountingView() {
 
   if(!mContainerAccounting) {
     mContainerAccounting.reset(new QuarkContainerAccounting(getContainerService(), mNsMutex));
+    getFileService()->addChangeListener(mContainerAccounting.get());
+    getContainerService()->setContainerAccounting(mContainerAccounting.get());
   }
 
   return mContainerAccounting.get();
@@ -206,6 +209,7 @@ IContainerMDChangeListener* QuarkNamespaceGroup::getSyncTimeAccountingView() {
 
   if(!mSyncAccounting) {
     mSyncAccounting.reset(new QuarkSyncTimeAccounting(getContainerService(), mNsMutex));
+    getContainerService()->addChangeListener(mSyncAccounting.get());
   }
 
   return mSyncAccounting.get();

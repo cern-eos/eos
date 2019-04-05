@@ -130,6 +130,7 @@ IFsView* InMemNamespaceGroup::getFilesystemView() {
 
   if(!mFilesystemView) {
     mFilesystemView.reset(new FileSystemView());
+    getFileService()->addChangeListener(mFilesystemView.get());
   }
 
   return mFilesystemView.get();
@@ -143,6 +144,7 @@ IContainerMDChangeListener* InMemNamespaceGroup::getSyncTimeAccountingView() {
 
   if(!mSyncAccounting) {
     mSyncAccounting.reset(new SyncTimeAccounting(getContainerService()));
+    getContainerService()->addChangeListener(mSyncAccounting.get());
   }
 
   return mSyncAccounting.get();
@@ -156,6 +158,8 @@ IFileMDChangeListener* InMemNamespaceGroup::getContainerAccountingView() {
 
   if(!mContainerAccounting) {
     mContainerAccounting.reset(new ContainerAccounting(getContainerService()));
+    getFileService()->addChangeListener(mContainerAccounting.get());
+    getContainerService()->setContainerAccounting(mContainerAccounting.get());
   }
 
   return mContainerAccounting.get();

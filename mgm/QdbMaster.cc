@@ -138,12 +138,8 @@ QdbMaster::BootNamespace()
     gOFS->eosFileService->configure(namespaceConfig);
     gOFS->eosFsView->configure(namespaceConfig);
     gOFS->eosView->configure(namespaceConfig);
-    gOFS->eosFileService->addChangeListener(gOFS->eosFsView);
-    gOFS->eosDirectoryService->addChangeListener(gOFS->eosSyncTimeAccounting);
-    gOFS->eosFileService->addChangeListener(gOFS->eosContainerAccounting);
     gOFS->eosFileService->setQuotaStats(gOFS->eosView->getQuotaStats());
     gOFS->eosDirectoryService->setQuotaStats(gOFS->eosView->getQuotaStats());
-    gOFS->eosDirectoryService->setContainerAccounting(gOFS->eosContainerAccounting);
     gOFS->eosView->getQuotaStats()->registerSizeMapper(Quota::MapSizeCB);
     gOFS->eosView->initialize1();
     gOFS->mBootContainerId = gOFS->eosDirectoryService->getFirstFreeId();

@@ -1832,20 +1832,11 @@ Master::BootNamespace()
     gOFS->eosFileService->configure(fileSettings);
     gOFS->eosFsView->configure(fileSettings);
     gOFS->eosView->configure(contSettings);
-    gOFS->eosFileService->addChangeListener(gOFS->eosFsView);
 
     if (IsMaster()) {
       MasterLog(eos_notice("eos directory view configure started as master"));
     } else {
       MasterLog(eos_notice("eos directory view configure started as slave"));
-    }
-
-    if (gOFS->eosSyncTimeAccounting) {
-      gOFS->eosDirectoryService->addChangeListener(gOFS->eosSyncTimeAccounting);
-    }
-
-    if (gOFS->eosContainerAccounting) {
-      gOFS->eosFileService->addChangeListener(gOFS->eosContainerAccounting);
     }
 
     // This is only done for the ChangeLog implementation
@@ -1867,7 +1858,6 @@ Master::BootNamespace()
 
     gOFS->eosFileService->setQuotaStats(gOFS->eosView->getQuotaStats());
     gOFS->eosDirectoryService->setQuotaStats(gOFS->eosView->getQuotaStats());
-    gOFS->eosDirectoryService->setContainerAccounting(gOFS->eosContainerAccounting);
     gOFS->eosView->getQuotaStats()->registerSizeMapper(Quota::MapSizeCB);
     gOFS->eosView->initialize1();
     time_t tstop = time(nullptr);
