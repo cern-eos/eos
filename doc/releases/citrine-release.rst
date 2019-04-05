@@ -15,6 +15,21 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.4.34 Citrine``
+===================
+
+2019-04-05
+
+Bug
+---
+
+* [EOS-3394] - automount might fail due to race condition in ShellExecutor/ShellCmd test
+
+Improvement
+-----------
+
+* RAIN placement uses round-robin algorithm to define the entry server
+
 ``v4.4.33 Citrine``
 ===================
 
@@ -36,6 +51,10 @@ Improvement
 * [EOS-3359] - Graceful cancelation of drain jobs
 * [EOS-3375] - Use eos/conversion as io stat tag
 
+Refactoring
+-----------
+
+* Introduce NamespaceGroup  
 
 ``v4.4.32 Citrine``
 ===================
