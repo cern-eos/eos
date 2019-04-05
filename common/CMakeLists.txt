@@ -129,7 +129,7 @@ target_include_directories(eosCommon-Static PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
   $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(eosCommon-Static PRIVATE ${EOSCOMMON_LIBS})
+target_link_libraries(eosCommon-Static PUBLIC ${EOSCOMMON_LIBS})
 
 set_target_properties(eosCommon-Static PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
