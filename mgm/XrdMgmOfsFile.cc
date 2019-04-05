@@ -1763,14 +1763,14 @@ XrdMgmOfsFile::open(const char* inpath,
   // if this is a RAIN layout, we want a nice round-robin for the entry server since it 
   // has the burden of encoding and traffic fan-out
   if ( isRW && ( 
-		(eos::common::LayoutId::GetLayoutType(fmdlid) ==
+		(eos::common::LayoutId::GetLayoutType(layoutId) ==
 		 eos::common::LayoutId::kRaidDP) ||
-		(eos::common::LayoutId::GetLayoutType(fmdlid) ==
+		(eos::common::LayoutId::GetLayoutType(layoutId) ==
 		 eos::common::LayoutId::kArchive) ||
-		(eos::common::LayoutId::GetLayoutType(fmdlid) ==
+		(eos::common::LayoutId::GetLayoutType(layoutId) ==
 		 eos::common::LayoutId::kRaid6)) ) {
-
     fsIndex = fileId % selectedfs.size();
+    eos_static_info("selecting entry-server fsIndex=%lu fsid=%lu fxid=%lx mod=%lu", fsIndex, selectedfs[fsIndex], fileId, selectedfs.size());
   }
 
   // Get the redirection host from the selected entry in the vector
