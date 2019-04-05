@@ -499,7 +499,7 @@ void Storage::QdbPublishNodeStats(const QdbContactDetails& cd,
   //----------------------------------------------------------------------------
   // Fetch a qclient object, decide on which channel to use
   //----------------------------------------------------------------------------
-  qclient::QClient* qcl = eos::BackendClient::getInstance(cd, "fst-publisher");
+  std::unique_ptr<qclient::QClient> qcl = cd.makeQClient();
   std::string channel = SSTR("fst-stats:" <<
                              eos::fst::Config::gConfig.FstHostPort);
   //----------------------------------------------------------------------------

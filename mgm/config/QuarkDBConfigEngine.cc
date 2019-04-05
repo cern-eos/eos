@@ -125,8 +125,8 @@ QuarkDBConfigEngine::QuarkDBConfigEngine(const QdbContactDetails&
     contactDetails)
 {
   mQdbContactDetails = contactDetails;
-  mQcl = BackendClient::getInstance(mQdbContactDetails, "config");
-  mChangelog.reset(new QuarkDBCfgEngineChangelog(mQcl));
+  mQcl = mQdbContactDetails.makeQClient();
+  mChangelog.reset(new QuarkDBCfgEngineChangelog(mQcl.get()));
 }
 
 //------------------------------------------------------------------------------

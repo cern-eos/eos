@@ -26,7 +26,6 @@
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IQuota.hh"
-#include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/interface/INamespaceGroup.hh"
 #include "common/plugin_manager/PluginManager.hh"
@@ -45,7 +44,7 @@ QdbMaster::QdbMaster(const eos::QdbContactDetails& qdb_info,
   mIsMaster(false),  mConfigLoaded(false),
   mAcquireDelay(0)
 {
-  mQcl = eos::BackendClient::getInstance(qdb_info, "MGM_HA");
+  mQcl = qdb_info.makeQClient();
 }
 
 //------------------------------------------------------------------------------

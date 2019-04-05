@@ -201,7 +201,7 @@ private:
   void storeIntoQuarkDB(const std::string &name);
 
   QdbContactDetails mQdbContactDetails;
-  qclient::QClient* mQcl;
+  std::unique_ptr<qclient::QClient> mQcl;
   const std::string kConfigurationHashKeyPrefix = "eos-config";
   const std::string kConfigurationBackupHashKeyPrefix = "eos-config-backup";
 

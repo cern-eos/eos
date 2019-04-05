@@ -412,7 +412,7 @@ private:
   std::string mQdbCluster; ///< Quarkdb cluster info host1:port1 host2:port2 ..
   std::string mQdbPassword; ///< Quarkdb cluster password
   eos::QdbContactDetails mQdbContactDetails; ///< QuarkDB contact details
-  qclient::QClient* mQcl; ///< qclient for talking to the QDB cluster
+  std::unique_ptr<qclient::QClient> mQcl; ///< qclient for talking to the QDB cluster
   std::string mMasterId; ///< Current master id in <fqdn>:<port> format
   std::string mMgmId; ///< MGM id <host>:1094 format
 

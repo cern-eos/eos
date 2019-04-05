@@ -510,13 +510,7 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
 
   // Create a qclient object if cluster information provided
   if (!mQdbCluster.empty()) {
-    mQcl = eos::BackendClient::getInstance(mQdbContactDetails, "MQ_HA");
-
-    if (mQcl == nullptr) {
-      eos_err("msg=\"failed to qclient object\"");
-      rc = 1;
-      return rc;
-    }
+    mQcl = mQdbContactDetails.makeQClient();
   }
 
   XrdOucString basestats = StatisticsFile;
