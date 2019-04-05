@@ -25,7 +25,6 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
-#include "namespace/ns_quarkdb/LRU.hh"
 #include "qclient/BackgroundFlusher.hh"
 #include "qclient/AssistedThread.hh"
 #include <list>

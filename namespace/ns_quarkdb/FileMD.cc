@@ -18,6 +18,7 @@
 
 #include <sstream>
 #include <chrono>
+#include "common/Logging.hh"
 #include "common/StacktraceHere.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/persistency/Serialization.hh"

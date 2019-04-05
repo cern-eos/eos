@@ -27,7 +27,6 @@
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
-#include "namespace/ns_quarkdb/LRU.hh"
 #include "namespace/ns_quarkdb/persistency/NextInodeProvider.hh"
 #include "namespace/ns_quarkdb/persistency/UnifiedInodeProvider.hh"
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
