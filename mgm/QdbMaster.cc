@@ -29,6 +29,7 @@
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/interface/INamespaceGroup.hh"
 #include "common/plugin_manager/PluginManager.hh"
+#include <qclient/QClient.hh>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -44,7 +45,7 @@ QdbMaster::QdbMaster(const eos::QdbContactDetails& qdb_info,
   mIsMaster(false),  mConfigLoaded(false),
   mAcquireDelay(0)
 {
-  mQcl = qdb_info.makeQClient();
+  mQcl = std::make_unique<qclient::QClient>(qdb_info.members, qdb_info.constructOptions());
 }
 
 //------------------------------------------------------------------------------

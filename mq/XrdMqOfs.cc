@@ -510,7 +510,7 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
 
   // Create a qclient object if cluster information provided
   if (!mQdbCluster.empty()) {
-    mQcl = mQdbContactDetails.makeQClient();
+    mQcl = std::make_unique<qclient::QClient>(mQdbContactDetails.members, mQdbContactDetails.constructOptions());
   }
 
   XrdOucString basestats = StatisticsFile;

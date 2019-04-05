@@ -499,7 +499,7 @@ void Storage::QdbPublishNodeStats(const QdbContactDetails& cd,
   //----------------------------------------------------------------------------
   // Fetch a qclient object, decide on which channel to use
   //----------------------------------------------------------------------------
-  std::unique_ptr<qclient::QClient> qcl = cd.makeQClient();
+  std::unique_ptr<qclient::QClient> qcl = std::make_unique<qclient::QClient>(cd.members, cd.constructOptions());
   std::string channel = SSTR("fst-stats:" <<
                              eos::fst::Config::gConfig.FstHostPort);
   //----------------------------------------------------------------------------

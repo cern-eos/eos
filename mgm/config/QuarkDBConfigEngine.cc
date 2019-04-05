@@ -125,7 +125,7 @@ QuarkDBConfigEngine::QuarkDBConfigEngine(const QdbContactDetails&
     contactDetails)
 {
   mQdbContactDetails = contactDetails;
-  mQcl = mQdbContactDetails.makeQClient();
+  mQcl = std::make_unique<qclient::QClient>(mQdbContactDetails.members, mQdbContactDetails.constructOptions());
   mChangelog.reset(new QuarkDBCfgEngineChangelog(mQcl.get()));
 }
 

@@ -38,7 +38,7 @@ MetadataProvider::MetadataProvider(const QdbContactDetails& contactDetails,
   mExecutor.reset(new folly::IOThreadPoolExecutor(16));
 
   for(size_t i = 0; i < kShards; i++) {
-    mQcl.emplace_back(contactDetails.makeQClient());
+    mQcl.emplace_back(std::make_unique<qclient::QClient>(contactDetails.members, contactDetails.constructOptions()));
     mShards.emplace_back(new MetadataProviderShard(mQcl.back().get(), contsvc, filesvc, mExecutor.get()));
   }
 }

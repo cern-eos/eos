@@ -257,7 +257,7 @@ qclient::QClient* QuarkNamespaceGroup::getQClient() {
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mQClient) {
-    mQClient = contactDetails.makeQClient();
+    mQClient = std::make_unique<qclient::QClient>(contactDetails.members, contactDetails.constructOptions());
   }
 
   return mQClient.get();
