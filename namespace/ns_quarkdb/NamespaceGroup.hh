@@ -106,6 +106,16 @@ public:
     return false;
   }
 
+  //----------------------------------------------------------------------------
+  //! Get metadata flusher
+  //----------------------------------------------------------------------------
+  MetadataFlusher* getMetadataFlusher();
+
+  //----------------------------------------------------------------------------
+  //! Get quota flusher
+  //----------------------------------------------------------------------------
+  MetadataFlusher* getQuotaFlusher();
+
 private:
   //----------------------------------------------------------------------------
   // Configuration
@@ -129,16 +139,6 @@ private:
   std::unique_ptr<QuarkContainerAccounting> mContainerAccounting;
   std::unique_ptr<QuarkSyncTimeAccounting> mSyncAccounting;
   std::unique_ptr<QuarkQuotaStats> mQuotaStats;
-
-  //----------------------------------------------------------------------------
-  //! Get metadata flusher
-  //----------------------------------------------------------------------------
-  MetadataFlusher* getMetadataFlusher();
-
-  //----------------------------------------------------------------------------
-  //! Get quota flusher
-  //----------------------------------------------------------------------------
-  MetadataFlusher* getQuotaFlusher();
 
   std::unique_ptr<MetadataFlusher> mMetadataFlusher;  //< Flusher for metadata
   std::unique_ptr<MetadataFlusher> mQuotaFlusher;     //< Flusher for quota

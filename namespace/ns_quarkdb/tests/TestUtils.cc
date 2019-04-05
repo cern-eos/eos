@@ -58,6 +58,7 @@ NsTestsFixture::NsTestsFixture()
                            getenv("EOS_QUARKDB_PASSWD") : "";
 
   testconfig = {
+    {"queue_path", "/tmp/eos-ns-tests/"},
     {"qdb_cluster", qdb_hostport},
     {"qdb_flusher_md", "tests_md"},
     {"qdb_flusher_quota", "tests_quota"},
@@ -88,54 +89,53 @@ void NsTestsFixture::setSizeMapper(IQuotaStats::SizeMapper mapper)
 
 void NsTestsFixture::initServices()
 {
-  if (containerSvcPtr) {
+  if(namespaceGroupPtr) {
     // Already initialized.
     return;
   }
 
-  containerSvcPtr.reset(new eos::QuarkContainerMDSvc(mdFlusher().get()));
-  fileSvcPtr.reset(new eos::QuarkFileMDSvc(mdFlusher().get()));
-  viewPtr.reset(new eos::QuarkHierarchicalView(quotaFlusher().get()));
-  fsViewPtr.reset(new eos::QuarkFileSystemView(mdFlusher().get()));
-  fileSvcPtr->setContMDService(containerSvcPtr.get());
-  containerSvcPtr->setFileMDService(fileSvcPtr.get());
-  fileSvcPtr->configure(testconfig);
-  containerSvcPtr->configure(testconfig);
-  fsViewPtr->configure(testconfig);
-  viewPtr->setContainerMDSvc(containerSvcPtr.get());
-  viewPtr->setFileMDSvc(fileSvcPtr.get());
-  viewPtr->configure(testconfig);
+  namespaceGroupPtr.reset(new eos::QuarkNamespaceGroup());
 
-  if (sizeMapper) {
-    view()->getQuotaStats()->registerSizeMapper(sizeMapper);
+  std::string err;
+  if(!namespaceGroupPtr->initialize(&nsMutex, testconfig, err)) {
+    std::cerr << "Test error: could not initialize namespace group! Terminating." << std::endl;
+    std::terminate();
   }
 
-  viewPtr->initialize();
-  fileSvcPtr->addChangeListener(fsViewPtr.get());
+  namespaceGroupPtr->getFileService()->configure(testconfig);
+  namespaceGroupPtr->getContainerService()->configure(testconfig);
+  namespaceGroupPtr->getFilesystemView()->configure(testconfig);
+  namespaceGroupPtr->getHierarchicalView()->configure(testconfig);
+
+  if (sizeMapper) {
+    namespaceGroupPtr->getQuotaStats()->registerSizeMapper(sizeMapper);
+  }
+
+  namespaceGroupPtr->getHierarchicalView()->initialize();
 }
 
 eos::IContainerMDSvc* NsTestsFixture::containerSvc()
 {
   initServices();
-  return containerSvcPtr.get();
+  return namespaceGroupPtr->getContainerService();
 }
 
 eos::IFileMDSvc* NsTestsFixture::fileSvc()
 {
   initServices();
-  return fileSvcPtr.get();
+  return namespaceGroupPtr->getFileService();
 }
 
 eos::IView* NsTestsFixture::view()
 {
   initServices();
-  return viewPtr.get();
+  return namespaceGroupPtr->getHierarchicalView();
 }
 
 eos::IFsView* NsTestsFixture::fsview()
 {
   initServices();
-  return fsViewPtr.get();
+  return namespaceGroupPtr->getFilesystemView();
 }
 
 qclient::QClient& NsTestsFixture::qcl()
@@ -147,50 +147,27 @@ qclient::QClient& NsTestsFixture::qcl()
   return *qclPtr.get();
 }
 
-std::shared_ptr<eos::MetadataFlusher> NsTestsFixture::mdFlusher()
+eos::MetadataFlusher* NsTestsFixture::mdFlusher()
 {
-  if (!mdFlusherPtr) {
-    std::string path = SSTR("/tmp/eos-ns-tests/" << testconfig["qdb_flusher_md"]);
-    mdFlusherPtr.reset(new MetadataFlusher(path, getContactDetails()));
-  }
-
-  return mdFlusherPtr;
+  initServices();
+  return namespaceGroupPtr->getMetadataFlusher();
 }
 
-std::shared_ptr<eos::MetadataFlusher> NsTestsFixture::quotaFlusher()
+eos::MetadataFlusher* NsTestsFixture::quotaFlusher()
 {
-  if (!quotaFlusherPtr) {
-    std::string path = SSTR("/tmp/eos-ns-tests/" << testconfig["qdb_flusher_quota"]);
-    quotaFlusherPtr.reset(new MetadataFlusher(path, getContactDetails()));
-  }
-
-  return quotaFlusherPtr;
+  initServices();
+  return namespaceGroupPtr->getQuotaFlusher();
 }
 
 void NsTestsFixture::shut_down_everything()
 {
-  if (viewPtr) {
-    viewPtr->finalize();
+  if(namespaceGroupPtr) {
+    namespaceGroupPtr->getHierarchicalView()->finalize();
+    namespaceGroupPtr->getFilesystemView()->finalize();
   }
 
-  if (fsViewPtr) {
-    fsViewPtr->finalize();
-  }
-
-  viewPtr.reset();
-  fileSvcPtr.reset();
-  containerSvcPtr.reset();
+  namespaceGroupPtr.reset();
   qclPtr.reset();
-
-  if (mdFlusherPtr) {
-    mdFlusherPtr->synchronize();
-    mdFlusherPtr.reset();
-  }
-
-  if (quotaFlusherPtr) {
-    quotaFlusherPtr->synchronize();
-    quotaFlusherPtr.reset();
-  }
 }
 
 std::unique_ptr<qclient::QClient> NsTestsFixture::createQClient()

@@ -405,7 +405,7 @@ TEST_F(FileSystemViewF, FileSystemHandler) {
   executor.reset( new folly::IOThreadPoolExecutor(16) );
 
   {
-    eos::FileSystemHandler fs1(1, executor.get(), &qcl(), mdFlusher().get(), false);
+    eos::FileSystemHandler fs1(1, executor.get(), &qcl(), mdFlusher(), false);
     ASSERT_EQ(fs1.getRedisKey(), "fsview:1:files");
     fs1.insert(eos::FileIdentifier(1));
     fs1.insert(eos::FileIdentifier(8));
@@ -430,7 +430,7 @@ TEST_F(FileSystemViewF, FileSystemHandler) {
 
   // Make sure we pick up on any changes.
   for(int i = 0; i < 3; i++) {
-    eos::FileSystemHandler fs1(1, executor.get(), &qcl(), mdFlusher().get(), false);
+    eos::FileSystemHandler fs1(1, executor.get(), &qcl(), mdFlusher(), false);
 
     ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10, 20} ));
     ASSERT_FALSE(eos::ns::testing::verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 20} ));
@@ -459,7 +459,7 @@ TEST_F(FileSystemViewF, FileSystemHandler) {
 
   // Add item, make sure change is reflected in QDB.
   {
-    eos::FileSystemHandler fs1(1, executor.get(), &qcl(), mdFlusher().get(), false);
+    eos::FileSystemHandler fs1(1, executor.get(), &qcl(), mdFlusher(), false);
     ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10, 20} ));
 
     fs1.insert(eos::FileIdentifier(99));
@@ -481,7 +481,7 @@ TEST_F(FileSystemViewF, FileSystemHandler) {
 
   // Nuke filelist
   {
-    eos::FileSystemHandler fs1(1, executor.get(), &qcl(), mdFlusher().get(), false);
+    eos::FileSystemHandler fs1(1, executor.get(), &qcl(), mdFlusher(), false);
     ASSERT_TRUE(eos::ns::testing::verifyContents(fs1.getFileList(), std::set<eos::IFileMD::id_t> {1, 8, 10, 20, 99} ));
 
 

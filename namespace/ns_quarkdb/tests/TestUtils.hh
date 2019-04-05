@@ -25,7 +25,8 @@
 #include <gtest/gtest.h>
 #include "Namespace.hh"
 #include "qclient/Members.hh"
-#include "namespace/ns_quarkdb/QdbContactDetails.hh"
+#include "namespace/ns_quarkdb/NamespaceGroup.hh"
+#include "common/RWMutex.hh"
 #include <memory>
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
@@ -149,8 +150,8 @@ public:
   qclient::QClient& qcl();
 
   // Return flushers
-  std::shared_ptr<eos::MetadataFlusher> mdFlusher();
-  std::shared_ptr<eos::MetadataFlusher> quotaFlusher();
+  eos::MetadataFlusher* mdFlusher();
+  eos::MetadataFlusher* quotaFlusher();
 
   // Register size mapper
   void setSizeMapper(SizeMapper sizeMapper);
@@ -159,20 +160,14 @@ public:
   void populateDummyData1();
 
 private:
+  eos::common::RWMutex nsMutex;
   void initServices();
 
   std::map<std::string, std::string> testconfig;
   std::unique_ptr<eos::ns::testing::FlushAllOnConstruction> guard;
-  std::unique_ptr<eos::IContainerMDSvc> containerSvcPtr;
-  std::unique_ptr<eos::IFileMDSvc> fileSvcPtr;
-  std::unique_ptr<eos::IView> viewPtr;
-  std::unique_ptr<eos::IFsView> fsViewPtr;
 
+  std::unique_ptr<eos::QuarkNamespaceGroup> namespaceGroupPtr;
   std::unique_ptr<qclient::QClient> qclPtr;
-
-  // No ownership
-  std::shared_ptr<eos::MetadataFlusher> mdFlusherPtr = nullptr;
-  std::shared_ptr<eos::MetadataFlusher> quotaFlusherPtr = nullptr;
 
   // Size mapper, if avaliable
   SizeMapper sizeMapper = nullptr;
