@@ -1605,15 +1605,15 @@ Mapping::KommaListToUidVector(const char* list, std::vector<uid_t>& vector_list)
 
     if (kommapos != STR_NPOS) {
       number.assign(slist, 0, kommapos - 1);
-      int errc;
       std::string username = number.c_str();
-      uid_t uid = 99;
+      int errc = 0;
+      uid_t uid ;
 
       if (std::find_if(username.begin(), username.end(),
-      [](unsigned char c) {
-      return std::isalpha(c);
-      }) !=
-      username.end()) {
+          [](unsigned char c) {
+            return std::isalpha(c);
+          })
+          != username.end()) {
         uid = eos::common::Mapping::UserNameToUid(username, errc);
       } else {
         try {
@@ -1651,6 +1651,7 @@ Mapping::KommaListToGidVector(const char* list, std::vector<gid_t>& vector_list)
 
     if (kommapos != STR_NPOS) {
       number.assign(slist, 0, kommapos - 1);
+
       int errc;
       std::string groupname = number.c_str();
       gid_t gid = GroupNameToGid(groupname, errc);
