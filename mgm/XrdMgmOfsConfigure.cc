@@ -128,13 +128,13 @@ XrdMgmOfs::InitializeFileView()
       c_buf.st_size = 0;
 
       if (::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &f_buf) == -1) {
-        eos_static_alert("msg=\"failed to stat the file changlog\"");
+        eos_static_alert("msg=\"failed to stat the file changelog\"");
         mInitialized = kFailed;
         return nullptr;
       }
 
       if (::stat(gOFS->MgmNsDirChangeLogFile.c_str(), &c_buf) == -1) {
-        eos_static_alert("msg=\"failed to stat the container changlog\"");
+        eos_static_alert("msg=\"failed to stat the container changelog\"");
         mInitialized = kFailed;
         return nullptr;
       }
@@ -361,7 +361,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
     if (!out_dir.MakeParentPath(S_IRWXU)) {
       eos_err("Unable to create temporary output file directory /tmp/eos.mgm/");
-      Eroute.Emsg("Config", errno, "create temporary outputfile"
+      Eroute.Emsg("Config", errno, "create temporary output file"
                   " directory /tmp/eos.mgm/");
       NoGo = 1;
       return NoGo;
@@ -369,9 +369,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
     // Own the directory by daemon
     if (::chown(out_dir.GetParentPath(), 2, 2)) {
-      eos_err("Unable to own temporary outputfile directory %s",
+      eos_err("Unable to own temporary output file directory %s",
               out_dir.GetParentPath());
-      Eroute.Emsg("Config", errno, "own outputfile directory /tmp/eos.mgm/");
+      Eroute.Emsg("Config", errno, "own output file directory /tmp/eos.mgm/");
       NoGo = 1;
       return NoGo;
     }
@@ -601,7 +601,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
         if (!strcmp("authlib", var)) {
           if ((!(val = Config.GetWord())) || (::access(val, R_OK))) {
-            Eroute.Emsg("Config", "I cannot acccess you authorization library!");
+            Eroute.Emsg("Config", "I cannot access the authorization library!");
             NoGo = 1;
           } else {
             mAuthLib = val;
@@ -805,7 +805,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             }
 
             if (::access(MgmTxDir.c_str(), W_OK | R_OK | X_OK)) {
-              Eroute.Emsg("Config", "cannot acccess the transfer directory for r/w:",
+              Eroute.Emsg("Config", "cannot access the transfer directory for r/w:",
                           MgmTxDir.c_str());
               NoGo = 1;
             } else {
@@ -843,7 +843,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             }
 
             if (::access(MgmAuthDir.c_str(), W_OK | R_OK | X_OK)) {
-              Eroute.Emsg("Config", "cannot acccess the authentication directory "
+              Eroute.Emsg("Config", "cannot access the authentication directory "
                           "for r/w:", MgmAuthDir.c_str());
               NoGo = 1;
             } else {
@@ -876,7 +876,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             }
 
             if (::access(IoReportStorePath.c_str(), W_OK | R_OK | X_OK)) {
-              Eroute.Emsg("Config", "cannot acccess the reportstore directory "
+              Eroute.Emsg("Config", "cannot access the reportstore directory "
                           "for r/w:", IoReportStorePath.c_str());
               NoGo = 1;
             } else {
@@ -1474,7 +1474,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         rootmd->setMode(S_IFDIR | S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP |
                         S_IWGRP | S_IXGRP);
       } catch (const eos::MDException& e) {
-        Eroute.Emsg("Config", "cannot set the / directory mode to inital mode");
+        Eroute.Emsg("Config", "cannot set the / directory mode to initial mode");
         eos_crit("cannot set the / directory mode to 755");
         return 1;
       }
@@ -1513,7 +1513,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         eos_info("%s permissions are %o checksum is set <adler>", instancepath.c_str(),
                  eosmd->getMode());
       } catch (const eos::MDException& e) {
-        Eroute.Emsg("Config", "cannot set the /eos/ directory mode to inital mode");
+        Eroute.Emsg("Config", "cannot set the /eos/ directory mode to initial mode");
         eos_crit("cannot set the /eos/ directory mode to 755");
         return 1;
       }
@@ -1533,7 +1533,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         eosView->updateContainerStore(eosmd.get());
       } catch (const eos::MDException& e) {
         Eroute.Emsg("Config", "cannot set the /eos/<instance>/proc/ "
-                    "directory mode to inital mode");
+                    "directory mode to initial mode");
         eos_crit("cannot set the /eos/proc directory mode to 755");
         return 1;
       }
@@ -1554,7 +1554,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         eos_info("%s permissions are %o", Recycle::gRecyclingPrefix.c_str(),
                  eosmd->getMode());
       } catch (const eos::MDException& e) {
-        Eroute.Emsg("Config", "cannot set the recycle directory mode to inital mode");
+        Eroute.Emsg("Config", "cannot set the recycle directory mode to initial mode");
         eos_crit("cannot set the %s directory mode to 700",
                  Recycle::gRecyclingPrefix.c_str());
         eos_crit("%s", e.what());
@@ -1578,7 +1578,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         gOFS->eosView->updateContainerStore(eosmd.get());
       } catch (const eos::MDException& e) {
         Eroute.Emsg("Config", "cannot set the /eos/../proc/conversion directory"
-                    " mode to inital mode");
+                    " mode to initial mode");
         eos_crit("cannot set the /eos/../proc/conversion directory mode to 770");
         return 1;
       }
@@ -1600,7 +1600,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         gOFS->eosView->updateContainerStore(eosmd.get());
       } catch (const eos::MDException& e) {
         Eroute.Emsg("Config", "cannot set the /eos/../proc/archive directory "
-                    "mode to inital mode");
+                    "mode to initial mode");
         eos_crit("cannot set the /eos/../proc/archive directory mode to 770");
         return 1;
       }
@@ -1621,7 +1621,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         gOFS->eosView->updateContainerStore(eosmd.get());
       } catch (const eos::MDException& e) {
         Eroute.Emsg("Config",
-                    "cannot set the /eos/../proc/workflow directory mode to inital mode");
+                    "cannot set the /eos/../proc/workflow directory mode to initial mode");
         eos_crit("cannot set the /eos/../proc/workflow directory mode to 700");
         return 1;
       }
@@ -1642,7 +1642,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         gOFS->eosView->updateContainerStore(eosmd.get());
       } catch (const eos::MDException& e) {
         Eroute.Emsg("Config", "cannot set the /eos/../proc/lock directory mode "
-                    "to inital mode");
+                    "to initial mode");
         eos_crit("cannot set the /eos/../proc/lock directory mode to 700");
         return 1;
       }
@@ -1663,7 +1663,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         gOFS->eosView->updateContainerStore(eosmd.get());
       } catch (const eos::MDException& e) {
         Eroute.Emsg("Config", "cannot set the /eos/../proc/delegation directory"
-                    " mode to inital mode");
+                    " mode to initial mode");
         eos_crit("cannot set the /eos/../proc/delegation directory mode to 700");
         return 1;
       }
@@ -1729,7 +1729,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // This sleep is needed otherwise nodes/fs do not register properly
   // with the MGM. ??!!??
   std::this_thread::sleep_for(std::chrono::seconds(2));
-  // Hook to the appropiate config file
+  // Hook to the appropriate config file
   std::string stdOut;
   std::string stdErr;
 
@@ -1803,7 +1803,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   // Initialize the transfer database
   if (!gTransferEngine.Init("/var/eos/tx")) {
-    eos_crit("cannot intialize transfer database");
+    eos_crit("cannot initialize transfer database");
     NoGo = 1;
   }
 

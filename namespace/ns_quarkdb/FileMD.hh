@@ -339,7 +339,7 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Test the unlinkedlocation
+  //! Test the unlinked location
   //----------------------------------------------------------------------------
   bool
   hasUnlinkedLocation(location_t location) override;

@@ -2688,30 +2688,30 @@ Server::HandleMD(const std::string& id,
   prefetchMD(md);
 
   switch (md.operation()) {
-    case eos::fusex::md::OP::md_OP_BEGINFLUSH:
+  case eos::fusex::md::OP::md_OP_BEGINFLUSH:
     return OpBeginFlush(id, md, vid, response, clock);
 
-    case eos::fusex::md::OP::md_OP_ENDFLUSH:
+  case eos::fusex::md::OP::md_OP_ENDFLUSH:
     return OpEndFlush(id, md, vid, response, clock);
 
-    case eos::fusex::md::OP::md_OP_GET:
-    case eos::fusex::md::OP::md_OP_LS:
+  case eos::fusex::md::OP::md_OP_GET:
+  case eos::fusex::md::OP::md_OP_LS:
     return OpGetLs(id, md, vid, response, clock);
 
-    case eos::fusex::md::OP::md_OP_SET:
+  case eos::fusex::md::OP::md_OP_SET:
     return OpSet(id, md, vid, response, clock);
 
-    case eos::fusex::md::OP::md_OP_DELETE:
+  case eos::fusex::md::OP::md_OP_DELETE:
     return OpDelete(id, md, vid, response, clock);
 
-    case eos::fusex::md::OP::md_OP_GETCAP:
+  case eos::fusex::md::OP::md_OP_GETCAP:
     return OpGetCap(id, md, vid, response, clock);
 
-    case eos::fusex::md::OP::md_OP_GETLK:
+  case eos::fusex::md::OP::md_OP_GETLK:
     return OpGetLock(id, md, vid, response, clock);
 
-    case eos::fusex::md::OP::md_OP_SETLK:
-    case eos::fusex::md::OP::md_OP_SETLKW:
+  case eos::fusex::md::OP::md_OP_SETLK:
+  case eos::fusex::md::OP::md_OP_SETLKW:
     return OpSetLock(id, md, vid, response, clock);
 
   default:

@@ -470,13 +470,13 @@ private:
 
   //--------------------------------------------------------------------------
   //! Process TPC (third-party-copy) opaque information i.e handle tags like
-  //! tpc.key, tpc.dst, tpc.stage etc and also extact and decrypt the cap
+  //! tpc.key, tpc.dst, tpc.stage etc and also extract and decrypt the cap
   //! opaque info
   //!
   //! @param opaque opaque information
   //! @param client XrdSecEntity of client
   //!
-  //! @return SFS_OK if succcessful, otherwise SFS_ERROR
+  //! @return SFS_OK if successful, otherwise SFS_ERROR
   //--------------------------------------------------------------------------
   int ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client);
 
@@ -612,7 +612,7 @@ public:
   //! @param tident xrootd like tident
   //! @param hostname output parameter holding the hostname
   //!
-  //! @return true if parsing succcessful and hostname stores the desired value,
+  //! @return true if parsing successful and hostname stores the desired value,
   //!         otherwise false
   //----------------------------------------------------------------------------
   static bool GetHostFromTident(const std::string& tident,

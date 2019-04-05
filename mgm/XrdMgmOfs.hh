@@ -232,7 +232,7 @@ public:
   //----------------------------------------------------------------------------
   //! Meta data functions
   //! - the _XYZ functions are the internal version of XYZ when XrdSecEntity
-  //! - objects have been mapped to VirtuIdentity's.
+  //! - objects have been mapped to VirtualIdentity objects.
   //----------------------------------------------------------------------------
 
   //----------------------------------------------------------------------------
@@ -419,9 +419,9 @@ public:
   //! @param filematch is a pattern match for file names
   //! @param take_lock if true then take namespace lock, otherwise don't
   //!
-  //! @note The find command distinuishes 'power' and 'normal' users. If the
+  //! @note The find command distinguishes 'power' and 'normal' users. If the
   //! virtual identity indicates the root or admin user queries are unlimited.
-  //! For others queries are by dfeault limited to 50k directories and 100k
+  //! For others queries are by default limited to 50k directories and 100k
   //! files and an appropriate error/warning message is written to stdErr.
   //!
   //! @note Find limits can be (re-)defined in the access interface by using
@@ -694,7 +694,7 @@ public:
   //! @param opaque CGI
   //! @param map return object with the extended attributes, key-value map
   //! @param lock if true take the namespace lock, otherwise don't
-  //! @param link if true honour sys.link attirbute, otherwise don't
+  //! @param link if true honour sys.link attribute, otherwise don't
   //!
   //! @return SFS_OK if success otherwise SFS_ERROR
   //----------------------------------------------------------------------------
@@ -802,7 +802,7 @@ public:
   //! @param path file/directory name to delete attribute
   //! @param out_error error object
   //! @param client XRootD authentication object
-  //! @param opauqe CGI
+  //! @param opaque CGI
   //! @param key key to delete
   //!
   //! @return SFS_OK if success, otherwise SFS_ERROR
@@ -816,7 +816,7 @@ public:
   //! @param path file/directory name to delete attribute
   //! @param out_error error object
   //! @param vid virtual identity of the client
-  //! @param opauqe CGI
+  //! @param opaque CGI
   //! @param key key to delete
   //!
   //! @return SFS_OK if success, otherwise SFS_ERROR
@@ -985,7 +985,7 @@ public:
 
 
   // ---------------------------------------------------------------------------
-  // create Ofs error messsage
+  // create Ofs error message
   // ---------------------------------------------------------------------------
   int Emsg(const char*, XrdOucErrInfo&, int, const char* x,
            const char* y = "");
@@ -1001,7 +1001,7 @@ public:
   static void* StaticInitializeFileView(void* arg);
 
   // ---------------------------------------------------------------------------
-  // Namepsace file view boot function
+  // Namespace file view boot function
   // ---------------------------------------------------------------------------
   void* InitializeFileView();
 
@@ -1335,7 +1335,7 @@ public:
   //! Directory with conversion files (used as temporary files when a layout
   //! is changed using third party copy)
   XrdOucString MgmProcConversionPath;
-  XrdOucString MgmProcWorkflowPath; ///< Directory with worflows
+  XrdOucString MgmProcWorkflowPath; ///< Directory with workflows
   XrdOucString MgmProcLockPath; ///< Directory with client locks
   XrdOucString MgmProcDelegationPath; ///< Directory with client delegations
   //! Full path to the master indication proc file
@@ -1405,7 +1405,7 @@ public:
   std::atomic<uint64_t> mBootContainerId;
   bool IsRedirect; ///< true if the Redirect function should be called to redirect
   bool IsStall; ///< true if the Stall function should be called to send a wait
-  bool mAuthorize; ///< Determine if the autorization should be applied or not
+  bool mAuthorize; ///< Determine if the authorization should be applied or not
   std::string mAuthLib; ///< Path to authorization library
   //!  Acts only as a redirector, disables many components in the MGM
   bool MgmRedirector;
@@ -1423,7 +1423,7 @@ public:
   eos::IFileMDSvc* eosFileService; ///< changelog for files
   eos::IView* eosView; ///< hierarchical view of the namespace
   eos::IFsView* eosFsView; ///< filesystem view of the namespace
-  eos::IFileMDChangeListener* eosContainerAccounting; ///< subtree accoutning
+  eos::IFileMDChangeListener* eosContainerAccounting; ///< subtree accounting
   //! Subtree mtime propagation
   eos::IContainerMDChangeListener* eosSyncTimeAccounting;
   eos::common::RWMutex eosViewRWMutex; ///< rw namespace mutex
@@ -1447,7 +1447,7 @@ public:
   zmq::context_t* mZmqContext; ///< ZMQ context for all the sockets
   ZMQ* zMQ; ///< ZMQ processor
 
-  //! Autentication response time statistics
+  //! Authentication response time statistics
   struct AuthStats {
     std::int64_t mNumSamples;
     std::int64_t mMax; ///< Max milliseconds
@@ -1456,7 +1456,7 @@ public:
     double mMean;
   };
 
-  std::mutex mAuthStatsMutex; ///< Mutex protecting authenticaton stats
+  std::mutex mAuthStatsMutex; ///< Mutex protecting authentication stats
   //! Map of operation types to duration
   std::map<eos::auth::RequestProto_OperationType,
       std::list<std::int64_t> > mAuthSamples;
@@ -1590,7 +1590,7 @@ public:
   XrdMqSharedObjectManager ObjectManager; ///< Shared Hash/Queue ObjectManager
   //! Shared Hash/Queue Object Change Notifier
   XrdMqSharedObjectChangeNotifier ObjectNotifier;
-  Drainer mDrainEngine; ///< Centralized draning
+  Drainer mDrainEngine; ///< Centralized draining
   bool mIsCentralDrain; ///< Flag to mark central draining
   std::unique_ptr<HttpServer> Httpd; ///<  Http daemon if available
 
@@ -1614,7 +1614,7 @@ public:
   std::string mQdbPassword; ///< Quarkdb cluster password
   eos::QdbContactDetails mQdbContactDetails; ///< QuarkDB contact details
   int mHttpdPort; ///< port of the http server, default 8000
-  int mFusexPort; ///< port of the FUSEX brocasz MQZ, default 1100
+  int mFusexPort; ///< port of the FUSEX broadcast MQZ, default 1100
   bool mTapeAwareGcDefaultSpaceEnable; ///< Flag to mark if tape aware garbage collection should be enabled
   eos::common::XrdConnPool mXrdConnPool; ///< XRD connection pool
   TapeAwareGc mTapeAwareGc; ///< Tape aware garbage collector

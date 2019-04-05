@@ -45,9 +45,9 @@ EOS is made by three components:
    :width: 530px
    :align: center
 
-The initial architecture is using an in-memory namespace implementation with a master-slave high-availability model. This implementation provides very low-latency for meta data acccess. 
+The initial architecture is using an in-memory namespace implementation with a master-slave high-availability model. This implementation provides very low-latency for meta data access.
 
-Since the CITRINE release the architecture has been modified to provide optinal an in-memory namespace cache and a KV store for persistency. This was necessary to overcome the scalability limitation of the meta-data service given by the maximum available RAM of **MGM** nodes.
+Since the CITRINE release, the architecture has been modified to provide an optimal in-memory namespace cache and a KV store for persistency. This was necessary to overcome the scalability limitation of the meta-data service given by the maximum available RAM of **MGM** nodes.
 
 EOS is implemented using the `XRootD Framework <https://xrootd.org>`_.  
 
@@ -70,7 +70,7 @@ Files are stored with a a so called **layout**. The following layouts are suppor
 * **rain** - reed-solomon encoded files with data and parity blocks 
   
   * raid6 - a file is chunked into blocks and stored in `n-2` filesystems for data and `2` filesystems for parity blocks
-  * archive - a file is chunked into blcoks and stored in `n-3` filesystems for data and `3` filesystems for parity blocks
+  * archive - a file is chunked into blocks and stored in `n-3` filesystems for data and `3` filesystems for parity blocks
 
 
 EOS groups storage resources into three logical categories:
@@ -84,7 +84,7 @@ A **space** is used to reference a physical location when files are placed by th
 Protocols and Clients
 ---------------------
 
-The native protocol is the **xrootd** protocol, which providess additional functionalities like vector reads, third party copy transfers etc. 
+The native protocol is the **xrootd** protocol, which provides additional functionalities like vector reads, third party copy transfers etc.
 
 A second embedded protocol is **http/webdav** currently implemented using `libmicrohttpd`. 
 
@@ -93,7 +93,7 @@ EOS can be used like a filesystem using FUSE clients. There are two implementati
 * **eosd** - available for BERYL and CITRINE - limited POSIX conformity
 * **eosxd** - available for CITRINE - improved POSIX conformity, cross-client consistency aso. 
 
-EOS has been extended to work simliar to `Owncloud <owncloud.org>`_ as a sync and share platform. The front-end service is called `CERNBox <https://cernbox.web.cern.ch>`_. 
+EOS has been extended to work similar to `Owncloud <owncloud.org>`_ as a sync and share platform. The front-end service is called `CERNBox <https://cernbox.web.cern.ch>`_.
 
 .. IMAGE:: cernbox.jpg
    :width: 530px

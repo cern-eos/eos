@@ -66,7 +66,7 @@ public:
   //! Load all dynamic libraries in the specified directory
   //!
   //! @param pluginDirectory path to directory
-  //! @param fun callable to get various services provied by the PM
+  //! @param fun callable to get various services provided by the PM
   //!
   //! @return 0 if successful, otherwise !0
   //----------------------------------------------------------------------------
@@ -78,7 +78,7 @@ public:
   //!
   //! @param path path to dynamic library
   //!
-  //! @return 0 if successful, othewise !0
+  //! @return 0 if successful, otherwise !0
   //----------------------------------------------------------------------------
   int32_t LoadByPath(const std::string& path);
 
@@ -102,7 +102,7 @@ public:
   //! Method called by the plugin to register the objects it provides
   //!
   //! @param objType object type name
-  //! @param params paramters registered by the plugin
+  //! @param params parameters registered by the plugin
   //!
   //! @return 0 if successful, otherwise !0
   //----------------------------------------------------------------------------
@@ -111,7 +111,7 @@ public:
 
   //----------------------------------------------------------------------------
   //! Initialize the plugin stack. The PluginManager takes care of initializing
-  //! all the available plugins from bottop to top taking care of the dependencies
+  //! all the available plugins from bottom to top taking care of the dependencies
   //! between plugin objects. If a plugin layer is missing than the closest two
   //! plugin object are connected
   //!
@@ -152,7 +152,7 @@ private:
   //! @param path path to library
   //! @param errorString error in string format
   //!
-  //! @return dynamic libary object
+  //! @return dynamic library object
   //----------------------------------------------------------------------------
   DynamicLibrary* LoadLibrary(const std::string& path, std::string& errorString);
 

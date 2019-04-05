@@ -141,7 +141,7 @@ PluginManager::RegisterObject(const char* objType,
   PF_PluginAPI_Version v = pm.mPlatformServices.version;
 
   if (v.major != params->version.major) {
-    std::cerr << "Plugin manager API and plugin object API version missmatch"
+    std::cerr << "Plugin manager API and plugin object API version mismatch"
               << std::endl;
     return -1;
   }

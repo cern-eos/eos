@@ -58,7 +58,7 @@ enum OperationType {
 
 uint64_t block_size = 1048576;  ///< block size of rd/wr operations default 1MB
 uint32_t prefetch_size = block_size;   ///< prefetch size reading, default 1MB
-int timeout = 60;         ///< asynchronous timeout value, default 60 seconda
+int timeout = 60;         ///< asynchronous timeout value, default 60 seconds
 bool do_async = false;    ///< by default do sync operations
 bool do_update = false;   ///< write a file trying to update it
 std::string pattern_file = ""; ///< file which contains the rd/wr pattern
@@ -390,7 +390,7 @@ WriteSequentially(XrdCl::URL& url,
     eos_static_debug("EOS file opened for update");
     flags_sfs = SFS_O_RDWR;
   } else {
-    eos_static_debug("EOS file opend for creation");
+    eos_static_debug("EOS file opened for creation");
     flags_sfs = SFS_O_CREAT | SFS_O_RDWR;
   }
 
@@ -491,7 +491,7 @@ WriteSequentially(XrdCl::URL& url,
 
 //------------------------------------------------------------------------------
 // Write the file in sync/async mode using a certain patter specified in the
-// patter file - list of offset <-> length pieces to be read fromt the external
+// patter file - list of offset <-> length pieces to be read from the external
 // file and written to the EOS file
 //------------------------------------------------------------------------------
 bool
@@ -647,7 +647,7 @@ int main(int argc, char* argv[])
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   g_logging.SetLogPriority(LOG_INFO);
   g_logging.SetUnit("eosio@local");
-  // Log only mesages from functions in this file
+  // Log only messages from functions in this file
   g_logging.SetFilter("PASS:ReadSequentially,WriteSequentially,"
                       "LoadPattern,ReadPattern,WritePattern,main");
 
@@ -783,7 +783,7 @@ int main(int argc, char* argv[])
     }
   }
 
-  // Decide if the opertations are to be async or not
+  // Decide if the operations are to be async or not
   if (async_op == 1) {
     do_async = true;
   }
