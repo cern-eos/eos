@@ -134,7 +134,6 @@ public:
   eos::IFsView* fsview();
 
   void shut_down_everything();
-  void shut_down_view();
 
   // explicit transfer of ownership
   std::unique_ptr<qclient::QClient> createQClient();

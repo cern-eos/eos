@@ -23,6 +23,7 @@
 
 #include "MetadataProvider.hh"
 #include "MetadataProviderShard.hh"
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include <folly/Executor.h>
 #include <folly/executors/IOThreadPoolExecutor.h>
 
@@ -37,8 +38,8 @@ MetadataProvider::MetadataProvider(const QdbContactDetails& contactDetails,
   mExecutor.reset(new folly::IOThreadPoolExecutor(16));
 
   for(size_t i = 0; i < kShards; i++) {
-    mQcl.emplace_back(eos::BackendClient::getInstance(contactDetails, SSTR("md-provider-" << i)));
-    mShards.emplace_back(new MetadataProviderShard(mQcl.back(), contsvc, filesvc, mExecutor.get()));
+    mQcl.emplace_back(contactDetails.makeQClient());
+    mShards.emplace_back(new MetadataProviderShard(mQcl.back().get(), contsvc, filesvc, mExecutor.get()));
   }
 }
 

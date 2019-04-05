@@ -25,12 +25,13 @@
 #ifndef EOS_NS_QDB_CONTACT_DETAILS_HH
 #define EOS_NS_QDB_CONTACT_DETAILS_HH
 
-#include <chrono>
-
-#include "qclient/Members.hh"
-#include "qclient/Options.hh"
-#include "qclient/Handshake.hh"
 #include "namespace/Namespace.hh"
+
+#include <qclient/Members.hh>
+#include <qclient/Options.hh>
+#include <qclient/Handshake.hh>
+#include <qclient/QClient.hh>
+#include <chrono>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -82,6 +83,15 @@ public:
     }
 
     return opts;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Construct a qclient object with default options - convenience function.
+  //----------------------------------------------------------------------------
+  std::unique_ptr<qclient::QClient> makeQClient() const {
+    return std::unique_ptr<qclient::QClient>(
+      new qclient::QClient(members, constructOptions())
+    );
   }
 
   qclient::Members members;

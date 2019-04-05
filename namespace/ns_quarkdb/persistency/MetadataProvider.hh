@@ -111,9 +111,19 @@ private:
 
 
   static constexpr size_t kShards = 16;
-  std::unique_ptr<folly::Executor> mExecutor;
 
-  std::vector<qclient::QClient*> mQcl;
+  //----------------------------------------------------------------------------
+  //! CAUTION: The folly Executor must outlive qclient! If a continuation is
+  //! attached to a qclient-provided future, but the executor has been
+  //! destroyed, qclient will segfault when fulfilling the
+  //! corresponding promise.
+  //!
+  //! The order of these two members is very important - the executor must be
+  //! first.
+  //----------------------------------------------------------------------------
+  std::unique_ptr<folly::Executor> mExecutor;
+  std::vector<std::unique_ptr<qclient::QClient>> mQcl;
+
   std::vector<std::unique_ptr<MetadataProviderShard>> mShards;
 };
 
