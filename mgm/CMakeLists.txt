@@ -41,6 +41,12 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include
   ${CMAKE_BINARY_DIR}/common/eos_cta_pb)
 
+# Hide Clang "inconsistent-missing-override" compiler warnings
+# XrdMgmOfs inherits XrdSfsFileSystem, leading to many warnings
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-inconsistent-missing-override")
+endif()
+
 #-------------------------------------------------------------------------------
 # Generate protocol buffer files
 #-------------------------------------------------------------------------------
