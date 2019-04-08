@@ -37,22 +37,6 @@
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// Estimat TCP transfer timeout based on file size
-//------------------------------------------------------------------------------
-std::chrono::seconds
-DrainTransferJob::EstimateTpcTimeout(const uint64_t fsize, uint64_t avg_tx)
-{
-  const uint64_t default_timeout = 1800;
-  uint64_t timeout = fsize / (avg_tx * std::pow(2, 20));
-
-  if (timeout < default_timeout) {
-    timeout = default_timeout;
-  }
-
-  return std::chrono::seconds(timeout);
-}
-
-//------------------------------------------------------------------------------
 // Save error message and set the status accordingly
 //------------------------------------------------------------------------------
 void DrainTransferJob::ReportError(const std::string& error)
@@ -133,7 +117,8 @@ DrainTransferJob::DoIt()
     properties.Set("sourceLimit", (uint16_t) 1);
     properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
     properties.Set("parallelChunks", (uint8_t) 1);
-    properties.Set("tpcTimeout", EstimateTpcTimeout(fdrain.mProto.size()).count());
+    properties.Set("tpcTimeout", eos::common::FileId::EstimateTpcTimeout
+                   (fdrain.mProto.size()).count());
 
     // Non-empty files run with TPC only
     if (fdrain.mProto.size()) {

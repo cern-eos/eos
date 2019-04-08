@@ -24,6 +24,8 @@
 #pragma once
 #include "common/Namespace.hh"
 #include "XrdOuc/XrdOucString.hh"
+#include <chrono>
+#include <cmath>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -165,6 +167,28 @@ public:
     }
 
     return Hex2Fid(hexfid.c_str());
+  }
+
+  //----------------------------------------------------------------------------
+  //! Estimate TCP transfer timeout based on file size but not shorter than
+  //! 30 min.
+  //!
+  //! @param fsize file size
+  //! @param avg_tx average transfer speed in MB/s, default 30 MB/s
+  //!
+  //! @return timeout value in seconds
+  //----------------------------------------------------------------------------
+  static std::chrono::seconds
+  EstimateTpcTimeout(const uint64_t fsize, uint64_t avg_tx = 30)
+  {
+    const uint64_t default_timeout = 1800;
+    uint64_t timeout = fsize / (avg_tx * std::pow(2, 20));
+
+    if (timeout < default_timeout) {
+      timeout = default_timeout;
+    }
+
+    return std::chrono::seconds(timeout);
   }
 };
 

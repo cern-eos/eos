@@ -1329,7 +1329,7 @@ XrdIo::attrList(std::vector<std::string>& list)
 //--------------------------------------------------------------------------
 
 //--------------------------------------------------------------------------
-// Open a curser to traverse a storage system
+// Open a cursor to traverse a storage system
 //--------------------------------------------------------------------------
 FileIo::FtsHandle*
 XrdIo::ftsOpen()

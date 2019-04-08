@@ -254,18 +254,6 @@ private:
   //----------------------------------------------------------------------------
   Status DrainZeroSizeFile(const FileDrainInfo& fdrain);
 
-  //----------------------------------------------------------------------------
-  //! Estimate TCP transfer timeout based on file size but not shorter than
-  //! 30 min.
-  //!
-  //! @param fsize file size
-  //! @param avg_tx average transfer speed in MB/s, default 30 MB/s
-  //!
-  //! @return timeout value in seconds
-  //----------------------------------------------------------------------------
-  static std::chrono::seconds
-  EstimateTpcTimeout(const uint64_t fsize, uint64_t avg_tx = 30);
-
   const eos::common::FileId::fileid_t mFileId; ///< File id to transfer
   //! Source and destination file system
   std::atomic<eos::common::FileSystem::fsid_t> mFsIdSource;

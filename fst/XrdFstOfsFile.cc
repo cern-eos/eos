@@ -2192,8 +2192,6 @@ XrdFstOfsFile::TpcValid()
 int
 XrdFstOfsFile::sync()
 {
-  static const int cbWaitTime = 3600;
-
   // TPC transfer
   if (mTpcFlag == kTpcDstSetup) {
     XrdSysMutexHelper scope_lock(&mTpcJobMutex);
@@ -2227,7 +2225,8 @@ XrdFstOfsFile::sync()
         return SFS_ERROR;
       }
 
-      error.setErrCode(cbWaitTime);
+      int cb_wait_time = eos::common::FileId::EstimateTpcTimeout(mTargetSize).count();
+      error.setErrCode(cb_wait_time);
       mTpcInfo.Engage();
       return SFS_STARTED;
     } else if (mTpcState == kTpcDone) {
