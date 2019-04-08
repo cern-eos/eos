@@ -128,13 +128,6 @@ if (ASAN)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
 endif()
 
-# Temporary fix for clang 3.4 compile errors
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 3.5)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftemplate-depth=1024")
-  endif ()
-endif ()
-
 set (CMAKE_INSTALL_SYSCONFDIR /etc)
 include (EosFindLibs)
 
