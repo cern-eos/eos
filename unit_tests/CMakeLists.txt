@@ -61,10 +61,10 @@ set(MGM_UT_SRCS
   mgm/ProcFsTests.cc
   mgm/RoutingTests.cc
   mgm/TapeAwareGcCachedValueTests.cc
-  mgm/TapeAwareGcLruTests.cc
-  mgm/DrainTests.cc)
+  mgm/TapeAwareGcLruTests.cc)
 
 set(COMMON_UT_SRCS
+  common/FileIdTests.cc
   common/FileMapTests.cc
   common/FutureWrapperTests.cc
   common/InodeTests.cc
