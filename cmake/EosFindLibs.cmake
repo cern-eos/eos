@@ -74,6 +74,11 @@ if(NOT PACKAGEONLY)
     find_package(Protobuf REQUIRED)
   endif()
 
+  # Clang Linux build requires libatomic
+  if (Linux AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    find_package(atomic REQUIRED)
+  endif()
+
   # The server build also requires
   if (NOT CLIENT)
     find_package(eosfolly REQUIRED)

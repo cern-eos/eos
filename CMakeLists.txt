@@ -132,6 +132,16 @@ set (CMAKE_INSTALL_SYSCONFDIR /etc)
 include (EosFindLibs)
 
 #-------------------------------------------------------------------------------
+# Specific compiler and linker parameters
+#-------------------------------------------------------------------------------
+
+# Clang requires linking with libatomic
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${ATOMIC_LIBRARIES}")
+  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${ATOMIC_LIBRARIES}")
+endif()
+
+#-------------------------------------------------------------------------------
 # Generate documentation
 #-------------------------------------------------------------------------------
 if (PYTHONINTERP_FOUND AND SPHINX_FOUND)
