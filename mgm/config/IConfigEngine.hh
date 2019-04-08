@@ -135,7 +135,7 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Load a given configuratino file
+  //! Load a given configuration file
   //!
   //! @param env environment holding info about the configuration to be loaded
   //! @param err string holding any errors
@@ -162,7 +162,7 @@ public:
   //! List all configurations
   //!
   //! @param configlist string holding the list of all configurations
-  //! @param showbackup if true then show also the backups
+  //! @param showbackups if true then show also the backups
   //!
   //! @return true if listing successful, otherwise false
   //----------------------------------------------------------------------------

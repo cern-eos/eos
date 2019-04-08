@@ -145,7 +145,7 @@ public:
   bool DisableRemoteCheck();
 
   //----------------------------------------------------------------------------
-  //! Schedule onlinec ompacting
+  //! Schedule online compacting
   //----------------------------------------------------------------------------
   bool ScheduleOnlineCompacting(time_t starttime, time_t repetitioninterval);
 
@@ -155,7 +155,7 @@ public:
   void PrintOutCompacting(XrdOucString& out);
 
   //----------------------------------------------------------------------------
-  //! Configure Online Compating Type for files and/or directories
+  //! Configure Online Compacting Type for files and/or directories
   //!
   //! @param f mark file compacting
   //! @param d mark directory compacting
@@ -183,7 +183,7 @@ public:
   //! Apply Configuration settings to the master class
   //----------------------------------------------------------------------------
   bool ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
-                         Transition::Type transitiontype);
+                         Transition::Type transitiontype) override;
 
   //----------------------------------------------------------------------------
   //! Show the current master/slave run configuration (used by ns stat)
@@ -197,7 +197,7 @@ public:
   //! we don't know the maps of already scheduled ID's and we have to make
   //! sure not to reissue a transfer too early!
   //----------------------------------------------------------------------------
-  size_t GetServiceDelay()
+  size_t GetServiceDelay() override
   {
     time_t now = time(NULL);
     XrdSysMutexHelper lock(&f2MasterTransitionTimeMutex);
@@ -236,7 +236,7 @@ public:
 
 private:
 
-  int fDevNull; ///< /dev/null filedescriptor
+  int fDevNull; ///< /dev/null file descriptor
   Run::State fRunningState; ///< running state
   Compact::State fCompactingState; ///< compact state
   time_t fCompactingInterval; ///< compacting duration
@@ -355,7 +355,7 @@ private:
 
   //----------------------------------------------------------------------------
   //! Activate the current master/slave settings = configure configuration
-  //! directory and (re-)load the appropriate configuratio
+  //! directory and (re-)load the appropriate configuration
   //----------------------------------------------------------------------------
   bool Activate(std::string& stdOut, std::string& stdErr, int transitiontype);
 
@@ -385,7 +385,7 @@ private:
   bool Master2MasterRO();
 
   //----------------------------------------------------------------------------
-  //! Do a master(ro)=>slave transition = reloac the namspace on a slave from
+  //! Do a master(ro)=>slave transition = reload the namespace on a slave from
   //! the follower file
   //----------------------------------------------------------------------------
   bool MasterRO2Slave();

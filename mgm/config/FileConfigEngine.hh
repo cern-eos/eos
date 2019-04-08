@@ -108,7 +108,7 @@ public:
   virtual ~FileConfigEngine() = default;
 
   //----------------------------------------------------------------------------
-  //! Load a given configuratino file
+  //! Load a given configuration file
   //!
   //! @param env environment holding info about the configuration to be loaded
   //! @param err string holding any errors
@@ -130,22 +130,22 @@ public:
   //!
   //! @return true if saved successfully, otherwise false
   //----------------------------------------------------------------------------
-  bool SaveConfig(XrdOucEnv& env, XrdOucString& err);
+  bool SaveConfig(XrdOucEnv& env, XrdOucString& err) override;
 
   //----------------------------------------------------------------------------
   //! List all configurations
   //!
   //! @param configlist string holding the list of all configurations
-  //! @param showbackup if true then show also the backups
+  //! @param showbackups if true then show also the backups
   //!
   //! @return true if listing successful, otherwise false
   //----------------------------------------------------------------------------
-  bool ListConfigs(XrdOucString& configlist, bool showbackups = false);
+  bool ListConfigs(XrdOucString& configlist, bool showbackups = false) override;
 
   //----------------------------------------------------------------------------
   //! Do an autosave
   //----------------------------------------------------------------------------
-  bool AutoSave();
+  bool AutoSave() override;
 
   //----------------------------------------------------------------------------
   //! Set a configuration value
@@ -156,7 +156,7 @@ public:
   //! @param tochangelog if true add entry also to the changelog
   //----------------------------------------------------------------------------
   void SetConfigValue(const char* prefix, const char* key, const char* val,
-                      bool tochangelog = true);
+                      bool tochangelog = true) override;
 
   //----------------------------------------------------------------------------
   //! Delete a configuration value
@@ -166,19 +166,19 @@ public:
   //! @param tochangelog if true add entry also to the changelog
   //----------------------------------------------------------------------------
   void DeleteConfigValue(const char* prefix, const char* key,
-                         bool tochangelog = true);
+                         bool tochangelog = true) override;
 
   //----------------------------------------------------------------------------
   //! Set configuration directory
   //!
   //! @param configdir configuration directory
   //----------------------------------------------------------------------------
-  void SetConfigDir(const char* configdir);
+  void SetConfigDir(const char* configdir) override;
 
   //----------------------------------------------------------------------------
   //! Push a configuration to QuarkDB (not invoked in case of FileConfig)
   //----------------------------------------------------------------------------
-  bool PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
+  bool PushToQuarkDB(XrdOucEnv& env, XrdOucString& err) override
   {
     return true;
   }
@@ -197,7 +197,8 @@ private:
   //! @param out output representation of the configuration after filtering
   //! @param cfg_name configuration name
   //----------------------------------------------------------------------------
-  void FilterConfig(PrintInfo& info, XrdOucString& out, const char* cfg_fn);
+  void FilterConfig(PrintInfo& info, XrdOucString& out,
+                    const char* cfg_fn) override;
 
   //----------------------------------------------------------------------------
   //! Get the most recent autosave file from the default location

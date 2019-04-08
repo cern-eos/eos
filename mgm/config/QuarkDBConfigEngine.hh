@@ -87,8 +87,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //!
-  //! @param configdir
-  //! @param quarkDBcluster
+  //! @param contactDetails QuarkDB contact details
   //----------------------------------------------------------------------------
   QuarkDBConfigEngine(const QdbContactDetails& contactDetails);
 
@@ -98,7 +97,7 @@ public:
   virtual ~QuarkDBConfigEngine() = default;
 
   //----------------------------------------------------------------------------
-  //! Load a given configuratino file
+  //! Load a given configuration file
   //!
   //! @param env environment holding info about the configuration to be loaded
   //! @param err string holding any errors
@@ -119,23 +118,23 @@ public:
   //!
   //! @return true if saved successfully, otherwise false
   //----------------------------------------------------------------------------
-  bool SaveConfig(XrdOucEnv& env, XrdOucString& err);
+  bool SaveConfig(XrdOucEnv& env, XrdOucString& err) override;
 
   //----------------------------------------------------------------------------
   //! List all configurations
   //!
   //! @param configlist string holding the list of all configurations
-  //! @param showbackup if true then show also the backups
+  //! @param showbackups if true then show also the backups
   //!
   //! @return true if listing successful, otherwise false
   //----------------------------------------------------------------------------
-  bool ListConfigs(XrdOucString& configlist, bool showbackups = false);
+  bool ListConfigs(XrdOucString& configlist, bool showbackups = false) override;
 
 
   //----------------------------------------------------------------------------
   //! Do an autosave
   //----------------------------------------------------------------------------
-  bool AutoSave();
+  bool AutoSave() override;
 
   //----------------------------------------------------------------------------
   //! Set a configuration value
@@ -146,7 +145,7 @@ public:
   //! @param not_bcast mark if change comes from a broadcast or not
   //----------------------------------------------------------------------------
   void SetConfigValue(const char* prefix, const char* key, const char* val,
-                      bool not_bcast = true);
+                      bool not_bcast = true) override;
 
   //----------------------------------------------------------------------------
   //! Delete a configuration value
@@ -156,7 +155,7 @@ public:
   //! @param not_bcast mark if change comes from a broadcast or not
   //----------------------------------------------------------------------------
   void DeleteConfigValue(const char* prefix, const char* key,
-                         bool not_bcast = true);
+                         bool not_bcast = true) override;
 
   //----------------------------------------------------------------------------
   //         QuarkDB configuration specific functions
@@ -170,7 +169,7 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool PushToQuarkDB(XrdOucEnv& env, XrdOucString& err);
+  bool PushToQuarkDB(XrdOucEnv& env, XrdOucString& err) override;
 
   //----------------------------------------------------------------------------
   //! Load a configuration from QuarkDB
@@ -188,7 +187,7 @@ public:
   //! @param configdir path of the new configuration folder
   //----------------------------------------------------------------------------
   void
-  SetConfigDir(const char* configdir)
+  SetConfigDir(const char* configdir) override
   {
     // noop
     mConfigFile = "default";
@@ -238,7 +237,8 @@ private:
   //! @param out
   //! @param cfg_name
   //----------------------------------------------------------------------------
-  void FilterConfig(PrintInfo& info, XrdOucString& out, const char* cfg_name);
+  void FilterConfig(PrintInfo& info, XrdOucString& out,
+                    const char* cfg_name) override;
 };
 
 EOSMGMNAMESPACE_END

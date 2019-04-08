@@ -27,12 +27,12 @@
 #include <fcntl.h>
 
 //------------------------------------------------------------------------------
-//! @note: the defines after have to be in agreements with the defins in
+//! @note: the defines after have to be in agreements with the defines in
 //! XrdMqOfs.cc but we don't want to create a link in the code between the two
 //------------------------------------------------------------------------------
-//! Existance indicates that this node is to be treated as a master
+//! Existence indicates that this node is to be treated as a master
 #define EOSMGMMASTER_SUBSYS_RW_LOCKFILE "/var/eos/eos.mgm.rw"
-//! Existance indicates that the local MQ should redirect to the remote MQ
+//! Existence indicates that the local MQ should redirect to the remote MQ
 #define EOSMQMASTER_SUBSYS_REMOTE_LOCKFILE "/var/eos/eos.mq.remote.up"
 
 EOSMGMNAMESPACE_BEGIN
