@@ -399,7 +399,8 @@ public:
            bool simulate = false,
            bool keepversion = false,
            bool no_recycling = false,
-           bool no_quota_enforcement = false);
+           bool no_quota_enforcement = false,
+           bool fusexcast = true);
 
   //----------------------------------------------------------------------------
   //! Low-level namespace find command
@@ -495,7 +496,8 @@ public:
               const char* opaqueN = 0,
               bool updateCTime = false,
               bool checkQuota = false,
-              bool overwrite = false);
+              bool overwrite = false,
+	      bool fusexcast = true);
 
   // ---------------------------------------------------------------------------
   // symlink file/dir

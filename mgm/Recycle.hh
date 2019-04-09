@@ -112,9 +112,10 @@ public:
    * do the recycling of the recycle object (file or subtree)
    * @param epname error tag
    * @param error object
+   * @param fusexcast indicate if this requires an external fusex cast call
    * @return SFS_OK if ok, otherwise SFS_ERR + errno + error object set
    */
-  int ToGarbage(const char* epname, XrdOucErrInfo& error);
+  int ToGarbage(const char* epname, XrdOucErrInfo& error, bool fusexcast = true);
 
 
   /**

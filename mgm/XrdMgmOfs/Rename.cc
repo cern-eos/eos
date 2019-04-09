@@ -213,7 +213,8 @@ XrdMgmOfs::_rename(const char* old_name,
                    const char* infoN,
                    bool updateCTime,
                    bool checkQuota,
-                   bool overwrite)
+                   bool overwrite, 
+		   bool fusexcast)
 {
   static const char* epname = "_rename";
   eos_info("source=%s target=%s overwrite=%d", old_name, new_name, overwrite);
@@ -398,8 +399,10 @@ XrdMgmOfs::_rename(const char* old_name,
             dir->setMTimeNow();
             dir->notifyMTimeChange(gOFS->eosDirectoryService);
             eosView->updateContainerStore(dir.get());
-            gOFS->FuseXCastContainer(dir->getIdentifier());
-            gOFS->FuseXCastRefresh(dir->getIdentifier(), dir->getParentIdentifier());
+	    if (fusexcast) {
+	      gOFS->FuseXCastContainer(dir->getIdentifier());
+	      gOFS->FuseXCastRefresh(dir->getIdentifier(), dir->getParentIdentifier());
+	    }
           }
         } else {
           file = dir->findFile(oPath.GetName());
@@ -415,10 +418,12 @@ XrdMgmOfs::_rename(const char* old_name,
             newdir->notifyMTimeChange(gOFS->eosDirectoryService);
             eosView->updateContainerStore(dir.get());
             eosView->updateContainerStore(newdir.get());
-            gOFS->FuseXCastContainer(dir->getIdentifier());
-            gOFS->FuseXCastContainer(newdir->getIdentifier());
-            gOFS->FuseXCastRefresh(dir->getIdentifier(), dir->getParentIdentifier());
-            gOFS->FuseXCastRefresh(newdir->getIdentifier(), newdir->getParentIdentifier());
+	    if (fusexcast) {
+	      gOFS->FuseXCastContainer(dir->getIdentifier());
+	      gOFS->FuseXCastContainer(newdir->getIdentifier());
+	      gOFS->FuseXCastRefresh(dir->getIdentifier(), dir->getParentIdentifier());
+	      gOFS->FuseXCastRefresh(newdir->getIdentifier(), newdir->getParentIdentifier());
+	    }
             file->setName(nPath.GetName());
             file->setContainerId(newdir->getId());
 

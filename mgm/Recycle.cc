@@ -472,7 +472,7 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
 
 /*----------------------------------------------------------------------------*/
 int
-Recycle::ToGarbage(const char* epname, XrdOucErrInfo& error)
+Recycle::ToGarbage(const char* epname, XrdOucErrInfo& error, bool fusexcast)
 {
   eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   char srecyclepath[4096];
@@ -520,7 +520,7 @@ Recycle::ToGarbage(const char* epname, XrdOucErrInfo& error)
 
   // Finally do the rename
   if (gOFS->_rename(mPath.c_str(), srecyclepath, error, rootvid, "", "", true,
-                    true, false)) {
+                    true, false, fusexcast)) {
     return gOFS->Emsg(epname, error, EIO, "rename file/directory", srecyclepath);
   }
 

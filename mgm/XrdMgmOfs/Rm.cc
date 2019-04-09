@@ -76,7 +76,8 @@ XrdMgmOfs::_rem(const char* path,
                 bool simulate,
                 bool keepversion,
                 bool no_recycling,
-                bool no_quota_enforcement)
+                bool no_quota_enforcement, 
+		bool fusexcast)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a file from the namespace
@@ -358,7 +359,7 @@ eos_debug("vid.uid %d vid.gid %d CanotDelete %d CUid %d", vid.uid, vid.gid, acl.
                          &vid, fmd->getCUid(), fmd->getCGid(),
                          fmd->getId());
 
-        if ((rc = lRecycle.ToGarbage(epname, error))) {
+        if ((rc = lRecycle.ToGarbage(epname, error, fusexcast))) {
           return rc;
         } else {
           recyclePath = error.getErrText();
