@@ -444,8 +444,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
         eos_warning("msg=\"failed to get FMD record, return recoverable error "
                     "ENOENT(kXR_NotFound)\"");
 
-        // Clean-up before re-bouncing
-        if (hasCreationMode) {
+        if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
+          // clean-up before re-bouncing
           dropall(mFileId, path, mRedirectManager.c_str());
         }
       }
@@ -479,7 +479,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
         layOut->Remove();
         eos_warning("not enough space return recoverable error ENODEV(kXR_FSError)");
 
-        if (hasCreationMode) {
+        if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
           // clean-up before re-bouncing
           dropall(mFileId, path, mRedirectManager.c_str());
         }
@@ -507,7 +507,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
         eos_warning("not enough space i.e file allocation failed, return "
                     "recoverable error ENODEV(kXR_FSError)");
 
-        if (hasCreationMode) {
+        if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
           // clean-up before re-bouncing
           dropall(mFileId, path, mRedirectManager.c_str());
         }
@@ -618,7 +618,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       eos_warning("open error return recoverable error EIO(kXR_IOError)");
 
       // Clean-up before re-bouncing
-      if (hasCreationMode) {
+      if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
         dropall(mFileId, path, mRedirectManager.c_str());
       }
     }
@@ -1067,7 +1067,7 @@ XrdFstOfsFile::close()
       deleteOnClose = true;
       layOut->Remove();
 
-      if (layOut->IsEntryServer() && (!isReplication) && (!mIsInjection)) {
+      if (layOut->IsEntryServer() && (!isReplication) && (!mIsInjection) && (!mRainReconstruct)) {
         capOpaqueString += "&mgm.dropall=1";
       }
 
@@ -1150,7 +1150,7 @@ XrdFstOfsFile::close()
         deleteOnClose = true;
         layOut->Remove();
 
-        if (layOut->IsEntryServer() && (!isReplication) && (!mIsInjection)) {
+        if (layOut->IsEntryServer() && (!isReplication) && (!mIsInjection) && (!mRainReconstruct)) {
           capOpaqueString += "&mgm.dropall=1";
         }
 
@@ -1518,7 +1518,7 @@ XrdFstOfsFile::close()
         OpaqueString += hex_fid.c_str();
 
         // If deleteOnClose at the gateway then we drop all replicas
-        if (layOut->IsEntryServer() && (!isReplication) && (!mIsInjection)) {
+        if (layOut->IsEntryServer() && (!isReplication) && (!mIsInjection) && (!mRainReconstruct)) {
           OpaqueString += "&mgm.dropall=1";
         }
 
@@ -2343,8 +2343,8 @@ XrdFstOfsFile::DoTpcTransfer()
     // @note this way of reading asynchronously in the buffer without waiting
     // for the async requests works properly only if readahead is enabled.
     // Otherwise, one must call fileWaitAsyncIO().
-    //rbytes = tpcIO.fileReadAsync(offset, &((*buffer)[0]),
-    //                             tpcIO.GetBlockSize(), true, 30);
+    // rbytes = tpcIO.fileReadAsync(offset, &((*buffer)[0]),
+    // tpcIO.GetBlockSize(), true, 30);
     rbytes = tpcIO.fileRead(offset, &((*buffer)[0]), tpcIO.GetBlockSize());
     eos_debug("msg=\"tpc read\" rbytes=%lli request=%llu",
               rbytes, tpcIO.GetBlockSize());
