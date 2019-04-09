@@ -1049,7 +1049,8 @@ XrdFstOfsFile::close()
     capOpaqueString += OpaqueString;
     eos_info("viaDelete=%d", viaDelete);
 
-    if ((viaDelete || writeDelete) && ((isCreation || isReplication || mIsInjection || mRainReconstruct || 
+    if ((viaDelete || writeDelete) && ((isCreation || isReplication ||
+                                        mIsInjection || mRainReconstruct ||
                                         IsChunkedUpload()) && (!mFusex))) {
       // It is closed by the destructor e.g. no proper close
       // or the specified checksum does not match the computed one
@@ -1067,7 +1068,8 @@ XrdFstOfsFile::close()
       deleteOnClose = true;
       layOut->Remove();
 
-      if (layOut->IsEntryServer() && (!isReplication) && (!mIsInjection) && (!mRainReconstruct)) {
+      if (layOut->IsEntryServer() && (!isReplication) && (!mIsInjection) &&
+          (!mRainReconstruct)) {
         capOpaqueString += "&mgm.dropall=1";
       }
 
@@ -1148,7 +1150,8 @@ XrdFstOfsFile::close()
         deleteOnClose = true;
         layOut->Remove();
 
-        if (layOut->IsEntryServer() && (!isReplication) && (!mIsInjection) && (!mRainReconstruct)) {
+        if (layOut->IsEntryServer() && (!isReplication) && (!mIsInjection) &&
+            (!mRainReconstruct)) {
           capOpaqueString += "&mgm.dropall=1";
         }
 
@@ -1223,7 +1226,8 @@ XrdFstOfsFile::close()
             // Commit local
             try {
               if (!gFmdDbMapHandler.Commit(fMd)) {
-                eos_err("unabel to commit meta data to local database");
+                eos_err("msg=\"unable to commit meta data to local database\" "
+                        "fid=%08llx", mFileId);
                 (void) gOFS.Emsg(epname, this->error, EIO, "close - unable to "
                                  "commit meta data", mNsPath.c_str());
               }
@@ -1511,7 +1515,8 @@ XrdFstOfsFile::close()
         OpaqueString += hex_fid.c_str();
 
         // If deleteOnClose at the gateway then we drop all replicas
-        if (layOut->IsEntryServer() && (!isReplication) && (!mIsInjection) && (!mRainReconstruct)) {
+        if (layOut->IsEntryServer() && (!isReplication) && (!mIsInjection) &&
+            (!mRainReconstruct)) {
           OpaqueString += "&mgm.dropall=1";
         }
 
