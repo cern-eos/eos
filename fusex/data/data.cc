@@ -2112,7 +2112,9 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
 
   if (mFile->file()) {
     br = mFile->file()->pread(buf, count, offset);
-
+    if (EOS_LOGS_DEBUG) {
+      eos_debug("disk-read:%ld", br);
+    }
     if (br < 0) {
       return br;
     }
