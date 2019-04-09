@@ -159,24 +159,21 @@ private:
   };
 
 
-  bool mReport; // indicates if we store reports to the local report store
-
-  bool mReportNamespace; // indicates if we fill the report namespace
-
-  bool mReportPopularity; // indicates if we fill the popularity maps (protected by this::Mutex)
-
-
-  XrdSysMutex BroadcastMutex; // protecting the following set
-  std::set<std::string>
-  mUdpPopularityTarget; // contains all destinations for udp popularity packets
-  std::map<std::string, int>
-  mUdpSocket; // contains a socket to the udp destination
-  std::map<std::string, struct sockaddr_in>
-    mUdpSockAddr; // contains the socket address structure to be reused for messages
-  XrdOucString
-  mUdpPopularityTargetList; // contains the string describing the set above for the configuration store
-  XrdOucString
-  mStoreFileName; // file name where a dump is loaded/saved in Restore/Store
+  //! Flag to store reports in the local report store
+  std::atomic<bool> mReport;
+  //! Flag if we should fill the report namespace
+  std::atomic<bool> mReportNamespace;
+  //! Flag if we fill the popularity maps (protected by this::Mutex)
+  std::atomic<bool> mReportPopularity;
+  mutable XrdSysMutex mBcastMutex; ///< Mutex protecting the following sets
+  // Destinations for udp popularity packets
+  std::set<std::string> mUdpPopularityTarget;
+  //! Socket to the udp destination(s)
+  std::map<std::string, int> mUdpSocket;
+  //! Socket address structure to be reused for messages
+  std::map<std::string, struct sockaddr_in> mUdpSockAddr;
+  //! File name where a dump is loaded/saved in Restore/Store
+  XrdOucString mStoreFileName;
 
 
 public:
@@ -245,6 +242,16 @@ public:
   //----------------------------------------------------------------------------
   void Circulate(ThreadAssistant& assistant) noexcept;
 
+  //----------------------------------------------------------------------------
+  //! Encode the UDP popularity targets to a string using the provided separator
+  //!
+  //! @param separator separator for the encoding
+  //!
+  //! @return encoded list of UDP popularity targets
+  //----------------------------------------------------------------------------
+  std::string EncodeUdpPopularityTargets() const;
+
+
   void WriteRecord(std::string&
                    record); // let's the MGM add some record into the stream
 
@@ -255,8 +262,10 @@ public:
   AddToPopularity(std::string path, unsigned long long rb, time_t starttime,
                   time_t stoptime);
 
-  // stats collection
 
+
+
+  // Stats collection
   void
   Add(const char* tag, uid_t uid, gid_t gid, unsigned long val, time_t starttime,
       time_t stoptime)

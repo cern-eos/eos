@@ -45,7 +45,8 @@ const char* Iostat::gIostatUdpTargetList = "iostat::udptargets";
 FILE* Iostat::gOpenReportFD = 0;
 
 /* ------------------------------------------------------------------------- */
-Iostat::Iostat()
+Iostat::Iostat():
+  mReport(true), mReportNamespace(false), mReportPopularity(true)
 {
   mRunning = false;
   mInit = false;
@@ -81,9 +82,6 @@ Iostat::Iostat()
   }
 
   IostatLastPopularityBin = 0;
-  mReportPopularity = true;
-  mReportNamespace = false;
-  mReport = true;
 }
 
 
@@ -116,23 +114,17 @@ Iostat::ApplyIostatConfig()
     StartCollection();
   }
 
-  {
-    XrdSysMutexHelper mLock(Mutex);
-    mReport = (ioreport == "true");
-    mReportNamespace = (ioreportns == "true");
-    mReportPopularity = (iopopularity == "true") || (iopopularity.empty());
-  }
+  mReport = (ioreport == "true");
+  mReportNamespace = (ioreportns == "true");
+  mReportPopularity = (iopopularity == "true") || (iopopularity.empty());
+  std::string delimiter = "|";
+  std::vector<std::string> hostlist;
+  eos::common::StringConversion::Tokenize(udplist, hostlist, delimiter);
+  XrdSysMutexHelper scope_lock(mBcastMutex);
+  mUdpPopularityTarget.clear();
 
-  {
-    XrdSysMutexHelper mLock(BroadcastMutex);
-    std::string delimiter = "|";
-    std::vector<std::string> hostlist;
-    eos::common::StringConversion::Tokenize(udplist, hostlist, delimiter);
-    mUdpPopularityTarget.clear();
-
-    for (size_t i = 0; i < hostlist.size(); i++) {
-      AddUdpTarget(hostlist[i].c_str(), false);
-    }
+  for (size_t i = 0; i < hostlist.size(); i++) {
+    AddUdpTarget(hostlist[i].c_str(), false);
   }
 }
 
@@ -149,8 +141,13 @@ Iostat::StoreIostatConfig()
                                         mReportNamespace ? "true" : "false");
   ok &= FsView::gFsView.SetGlobalConfig(Iostat::gIostatCollect,
                                         mRunning ? "true" : "false");
-  ok &= FsView::gFsView.SetGlobalConfig(Iostat::gIostatUdpTargetList,
-                                        mUdpPopularityTargetList.c_str() ? mUdpPopularityTargetList.c_str() : "");
+  std::string udp_popularity_targets = EncodeUdpPopularityTargets();
+
+  if (!udp_popularity_targets.empty()) {
+    ok &= FsView::gFsView.SetGlobalConfig(Iostat::gIostatUdpTargetList,
+                                          udp_popularity_targets);
+  }
+
   return ok;
 }
 
@@ -261,12 +258,10 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
         Add("files_deleted", 0, 0, 1, now - 30, now);
       }
       // do the UDP broadcasting here
-      {
-        XrdSysMutexHelper mLock(BroadcastMutex);
+      XrdSysMutexHelper mLock(mBcastMutex);
 
-        if (mUdpPopularityTarget.size()) {
-          UdpBroadCast(report);
-        }
+      if (mUdpPopularityTarget.size()) {
+        UdpBroadCast(report);
       }
 
       // do the domain accounting here
@@ -528,7 +523,7 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
     table_data.clear();
     //! UDP Popularity Broadcast Target
     {
-      XrdSysMutexHelper mLock(BroadcastMutex);
+      XrdSysMutexHelper mLock(mBcastMutex);
 
       if (!mUdpPopularityTarget.empty()) {
         TableFormatterBase table_udp;
@@ -1521,15 +1516,11 @@ Iostat::Circulate(ThreadAssistant& assistant) noexcept
 bool
 Iostat::StartPopularity()
 {
-  {
-    XrdSysMutexHelper mLock(Mutex);
-
-    if (mReportPopularity) {
-      return false;
-    }
-
-    mReportPopularity = true;
+  if (mReportPopularity) {
+    return false;
   }
+
+  mReportPopularity = true;
   StoreIostatConfig();
   return true;
 }
@@ -1538,15 +1529,11 @@ Iostat::StartPopularity()
 bool
 Iostat::StopPopularity()
 {
-  {
-    XrdSysMutexHelper mLock(Mutex);
-
-    if (!mReportPopularity) {
-      return false;
-    }
-
-    mReportPopularity = false;
+  if (!mReportPopularity) {
+    return false;
   }
+
+  mReportPopularity = false;
   StoreIostatConfig();
   return true;
 }
@@ -1555,15 +1542,11 @@ Iostat::StopPopularity()
 bool
 Iostat::StartReport()
 {
-  {
-    XrdSysMutexHelper mLock(Mutex);
-
-    if (mReport) {
-      return false;
-    }
-
-    mReport = true;
+  if (mReport) {
+    return false;
   }
+
+  mReport = true;
   StoreIostatConfig();
   return true;
 }
@@ -1572,15 +1555,11 @@ Iostat::StartReport()
 bool
 Iostat::StopReport()
 {
-  {
-    XrdSysMutexHelper mLock(Mutex);
-
-    if (!mReport) {
-      return false;
-    }
-
-    mReport = false;
+  if (!mReport) {
+    return false;
   }
+
+  mReport = false;
   StoreIostatConfig();
   return true;
 }
@@ -1623,15 +1602,11 @@ Iostat::StopCollection()
 bool
 Iostat::StartReportNamespace()
 {
-  {
-    XrdSysMutexHelper mLock(Mutex);
-
-    if (mReportNamespace) {
-      return false;
-    }
-
-    mReportNamespace = true;
+  if (mReportNamespace) {
+    return false;
   }
+
+  mReportNamespace = true;
   StoreIostatConfig();
   return true;
 }
@@ -1640,15 +1615,11 @@ Iostat::StartReportNamespace()
 bool
 Iostat::StopReportNamespace()
 {
-  {
-    XrdSysMutexHelper mLock(Mutex);
-
-    if (!mReportNamespace) {
-      return false;
-    }
-
-    mReportNamespace = false;
+  if (!mReportNamespace) {
+    return false;
   }
+
+  mReportNamespace = false;
   StoreIostatConfig();
   return true;
 }
@@ -1659,14 +1630,14 @@ Iostat::AddUdpTarget(const char* target, bool storeitandlock)
 {
   {
     if (storeitandlock) {
-      BroadcastMutex.Lock();
+      mBcastMutex.Lock();
     }
 
     std::string starget = target;
 
     if (mUdpPopularityTarget.count(starget)) {
       if (storeitandlock) {
-        BroadcastMutex.UnLock();
+        mBcastMutex.UnLock();
       }
 
       return false;
@@ -1694,30 +1665,16 @@ Iostat::AddUdpTarget(const char* target, bool storeitandlock)
       mUdpSockAddr[starget].sin_family = AF_INET;
       mUdpSockAddr[starget].sin_port = htons(port);
     }
-
-    // rebuild the list for the configuration
-    mUdpPopularityTargetList = "";
-    std::set<std::string>::const_iterator it;
-
-    for (it = mUdpPopularityTarget.begin(); it != mUdpPopularityTarget.end();
-         it++) {
-      mUdpPopularityTargetList += it->c_str();
-      mUdpPopularityTargetList += "|";
-    }
-
-    if (mUdpPopularityTargetList.length()) {
-      mUdpPopularityTargetList.erase(mUdpPopularityTargetList.length() - 1);
-    }
   }
 
   // store the configuration
   if ((storeitandlock) && (!StoreIostatConfig())) {
-    BroadcastMutex.UnLock();
+    mBcastMutex.UnLock();
     return false;
   }
 
   if (storeitandlock) {
-    BroadcastMutex.UnLock();
+    mBcastMutex.UnLock();
   }
 
   return true;
@@ -1730,8 +1687,8 @@ Iostat::RemoveUdpTarget(const char* target)
   bool store = false;
   bool retc = false;
   {
-    XrdSysMutexHelper mLock(BroadcastMutex);
     std::string starget = target;
+    XrdSysMutexHelper mLock(mBcastMutex);
 
     if (mUdpPopularityTarget.count(starget)) {
       mUdpPopularityTarget.erase(starget);
@@ -1744,20 +1701,6 @@ Iostat::RemoveUdpTarget(const char* target)
 
         mUdpSocket.erase(starget);
         mUdpSockAddr.erase(starget);
-      }
-
-      // rebuild the list for the configuration
-      mUdpPopularityTargetList = "";
-      std::set<std::string>::const_iterator it;
-
-      for (it = mUdpPopularityTarget.begin(); it != mUdpPopularityTarget.end();
-           it++) {
-        mUdpPopularityTargetList += it->c_str();
-        mUdpPopularityTargetList += "|";
-      }
-
-      if (mUdpPopularityTargetList.length()) {
-        mUdpPopularityTargetList.erase(mUdpPopularityTargetList.length() - 1);
       }
 
       retc = true;
@@ -2039,13 +1982,12 @@ Iostat::UdpBroadCast(eos::common::Report* report)
 
 void
 Iostat::AddToPopularity(std::string path, unsigned long long rb,
-                        time_t starttime,
-                        time_t stoptime)
+                        time_t starttime, time_t stoptime)
 {
   size_t popularitybin = (((starttime + stoptime) / 2) % (IOSTAT_POPULARITY_DAY *
                           IOSTAT_POPULARITY_HISTORY_DAYS)) / IOSTAT_POPULARITY_DAY;
-  PopularityMutex.Lock();
   eos::common::Path cPath(path.c_str());
+  XrdSysMutexHelper scope_lock(PopularityMutex);
 
   for (size_t k = 0; k < cPath.GetSubPathSize(); k++) {
     std::string sp = cPath.GetSubPath(k);
@@ -2054,7 +1996,6 @@ Iostat::AddToPopularity(std::string path, unsigned long long rb,
   }
 
   IostatLastPopularityBin = popularitybin;
-  PopularityMutex.UnLock();
 }
 
 /* ------------------------------------------------------------------------- */
@@ -2130,6 +2071,31 @@ IostatAvg::Add(unsigned long val, time_t starttime, time_t stoptime)
   }
 }
 
+//------------------------------------------------------------------------------
+// Encode the UDP popularity targets to a string using the provided separator
+//------------------------------------------------------------------------------
+std::string
+Iostat::EncodeUdpPopularityTargets() const
+{
+  std::string out;
+  XrdSysMutexHelper scope_lock(mBcastMutex);
+
+  if (mUdpPopularityTarget.empty()) {
+    return out;
+  }
+
+  for (const auto& elem : mUdpPopularityTarget) {
+    out += elem;
+    out += "|";
+  }
+
+  out.pop_back();
+  return out;
+}
+
+//------------------------------------------------------------------------------
+// Reset all the bins
+//------------------------------------------------------------------------------
 void
 IostatAvg::StampZero()
 {
