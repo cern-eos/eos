@@ -36,9 +36,9 @@ add_library(
   TestEnv.cc       TestEnv.hh)
 
 target_link_libraries(
- EosFuseTests 
- FuseCache-Static
- ${CPPUNIT_LIBRARIES})
+  EosFuseTests
+  FuseCache-Static
+  ${CPPUNIT_LIBRARIES})
 
 install(
   TARGETS EosFuseTests

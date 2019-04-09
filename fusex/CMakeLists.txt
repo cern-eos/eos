@@ -37,18 +37,20 @@ include_directories(
   ${ZMQ_INCLUDE_DIRS}
   ${LIBEVENT_INCLUDE_DIRS}
   ${BZ2_INCLUDE_DIRS}
-  ${RICHACL_INCLUDE_DIRS}
   ${LIBBFD_INCLUDE_DIRS})
+
+if (RICHACL_FOUND)
+  include_directories(${RICHACL_INCLUDE_DIRS})
+endif()
 
 find_package(RocksDB)
 
-if(ROCKSDB_FOUND)
+if (ROCKSDB_FOUND)
   set(SOURCES_IF_ROCKSDB_WAS_FOUND kv/RocksKV.cc kv/RocksKV.hh)
   set(LIBRARIES_IF_ROCKSDB_WAS_FOUND ${ROCKSDB_LIBRARY} ${BZ2_LIBRARY})
   set(FLAGS_IF_ROCKSDB_WAS_FOUND "-DROCKSDB_FOUND")
   set(TEST_SOURCES_IF_ROCKSDB_WAS_FOUND rocks-kv.cc)
 endif()
-
 
 if (Linux)
   add_subdirectory(benchmark)
@@ -69,11 +71,11 @@ add_subdirectory(auth)
 #-------------------------------------------------------------------------------
 # Generate protocol buffer files
 #-------------------------------------------------------------------------------
-PROTOBUF_GENERATE_CPP(PROTO_SRC PROTO_HEADER fusex.proto )
+PROTOBUF_GENERATE_CPP(PROTO_SRC PROTO_HEADER fusex.proto)
 
 set_source_files_properties(
-	${PROTO_SRC} ${PROTO_HEADER}
-	PROPERTIES GENERATED 1)
+  ${PROTO_SRC} ${PROTO_HEADER}
+  PROPERTIES GENERATED 1)
 
 set(PROTO_SRC ${PROTO_SRC} PARENT_SCOPE)
 set(PROTO_HEADER ${PROTO_HEADER} PARENT_SCOPE)
@@ -85,7 +87,7 @@ set(EOSXD_COMMON_LINK_LIBRARIES
   ${UUID_LIBRARIES}
   ${FUSE_LIBRARIES}
   ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UNTILS_LIBRARY}
+  ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
   ${KRB5_LIBRARIES}
   ${OPENSSL_CRYPTO_LIBRARY}
@@ -96,9 +98,12 @@ set(EOSXD_COMMON_LINK_LIBRARIES
   ${ZMQ_LIBRARIES}
   ${LIBRARIES_IF_ROCKSDB_WAS_FOUND}
   ${BZ2_LIBRARY}
-  ${RICHACL_LIBRARIES}
   ${LIBBFD_LIBRARIES}
   eosCommon)
+
+if (RICHACL_FOUND)
+  LIST(APPEND EOSXD_COMMON_LINK_LIBRARIES "${RICHACL_LIBRARIES}")
+endif()
 
 #-------------------------------------------------------------------------------
 # eosxd common objects, shared between tests and main code.
@@ -161,7 +166,6 @@ if(MacOSX)
     PROPERTIES
     COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
 else()
-
   target_link_libraries(
     eosxd
     ${EOSXD_COMMON_LINK_LIBRARIES}
@@ -178,10 +182,10 @@ install(
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 
 if (FUSE3_FOUND)
-add_executable(
-  eosxd3
-  main.cc
-  ${EOSXD_COMMON_SOURCES})
+  add_executable(
+    eosxd3
+    main.cc
+    ${EOSXD_COMMON_SOURCES})
 
   target_link_libraries(
     eosxd3
@@ -193,10 +197,9 @@ add_executable(
     PROPERTIES
     COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
 
-install(
-  TARGETS eosxd3
-  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
-
+  install(
+    TARGETS eosxd3
+    RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 endif()
 
 #-------------------------------------------------------------------------------
