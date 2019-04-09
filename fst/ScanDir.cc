@@ -632,7 +632,12 @@ bool
 ScanDir::RescanFile(std::string fileTimestamp)
 {
   if (!fileTimestamp.compare("")) {
-    return true;  //first time we check
+    if (mTestInterval == 0ull) {
+      return false;
+    } else {
+      // Check the first time if scanner is not completely disabled
+      return true;
+    }
   }
 
   long long oldTime = atoll(fileTimestamp.c_str());
