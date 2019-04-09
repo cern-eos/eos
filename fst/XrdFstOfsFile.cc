@@ -1084,9 +1084,7 @@ XrdFstOfsFile::close()
       if (isCreation) {
         // If we had space allocation we have to truncate the allocated space to
         // the real size of the file
-        if ((strcmp(layOut->GetName(), "raiddp") == 0) ||
-            (strcmp(layOut->GetName(), "raid6") == 0) ||
-            (strcmp(layOut->GetName(), "archive") == 0)) {
+        if (IsRainLayout(layOut->GetLayoutId())) {
           // the entry server has to truncate only if this is not a recovery action
           if (layOut->IsEntryServer() && !mRainReconstruct) {
             eos_info("msg=\"truncate RAIN layout\" truncate-offset=%llu",
@@ -1403,12 +1401,7 @@ XrdFstOfsFile::close()
       // For RAIN layouts if there is an error on close when writing then we
       // delete the whole file. If we do RAIN reconstruction we cleanup this
       // local replica which was not committed.
-      if ((eos::common::LayoutId::GetLayoutType(layOut->GetLayoutId()) ==
-           eos::common::LayoutId::kRaidDP) ||
-          (eos::common::LayoutId::GetLayoutType(layOut->GetLayoutId()) ==
-           eos::common::LayoutId::kRaid6) ||
-          (eos::common::LayoutId::GetLayoutType(layOut->GetLayoutId()) ==
-           eos::common::LayoutId::kArchive)) {
+      if (IsRainLayout(layOut->GetLayoutId())) {
         deleteOnClose = true;
       } else {
         // Some (remote) replica didn't make it through ... trigger an auto-repair
