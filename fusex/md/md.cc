@@ -796,11 +796,12 @@ metad::get(fuse_req_t req,
     case 2: {
       // we make sure, that the meta data record is attached to the local parent
       if (pmd && pmd->id()) {
-        if (!pmd->local_children().count(
-              eos::common::StringConversion::EncodeInvalidUTF8(md->name())) &&
-            !md->deleted()) {
+	std::string encname = eos::common::StringConversion::EncodeInvalidUTF8(md->name());
+	if (!pmd->local_children().count(encname) &&
+	    !pmd->get_todelete().count(encname) &&
+	    !md->deleted()) {    
           eos_static_info("attaching %s [%#lx] to %s [%#lx]",
-                          eos::common::StringConversion::EncodeInvalidUTF8(md->name()).c_str(), md->id(),
+                          encname.c_str(), md->id(),
                           pmd->name().c_str(), pmd->id());
           // persist this hierarchical dependency
           pmd->local_children()[eos::common::StringConversion::EncodeInvalidUTF8(
@@ -1915,8 +1916,22 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
                 eos_static_debug("clearing out %0016lx", pmd->id());
               }
 
+	      // we don't wipe meta-data children which we still have to flush or have open
+	      // if they have to be deleted, there is an explicit callback arriving for deletion
               XrdSysMutexHelper scope_lock(pmd->Locker());
-              pmd->local_children().clear();
+	      std::vector<std::string> clear_children;
+	      for (auto it = pmd->local_children().begin() ; it != pmd->local_children().end(); ++it) {
+		bool in_flush = has_flush(it->second);
+		bool is_attached = EosFuse::Instance().datas.has(it->second);
+		if (!in_flush && !is_attached) {
+		  clear_children.push_back(it->first);
+		}
+	      }
+
+	      for (auto it = clear_children.begin(); it != clear_children.end(); ++it) {
+		pmd->local_children().erase(*it);
+	      }
+
               pmd->get_todelete().clear();
             }
           }
