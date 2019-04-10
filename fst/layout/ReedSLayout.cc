@@ -180,7 +180,7 @@ ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
               mStripeWidth, true, mTimeout);
 
       if (nread != (int64_t)mStripeWidth) {
-        eos_err("read block corrupted stripe=%u.", i);
+        eos_debug("msg=\"read block corrupted\" stripe=%u.", i);
         invalid_ids.insert(i);
       }
     } else {
@@ -202,7 +202,7 @@ ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
 
         if (error_type != XrdCl::errNone) {
           std::pair< uint16_t, std::map<uint64_t, uint32_t> > pair_err;
-          eos_err("remote block corrupted id=%u", i);
+          eos_debug("msg=\"remote block corrupted\" id=%u", i);
           invalid_ids.insert(i);
 
           if (error_type == XrdCl::errOperationExpired) {
@@ -218,7 +218,7 @@ ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
   if (invalid_ids.size() == 0) {
     return true;
   } else if (invalid_ids.size() > mNbParityFiles) {
-    eos_err("more blocks corrupted than the maximum number supported");
+    eos_err("msg=\"more blocks corrupted than the maximum number supported\"");
     return false;
   }
 
@@ -252,7 +252,7 @@ ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
   delete[] erasures;
 
   if (decode == -1) {
-    eos_err("decoding was unsuccessful");
+    eos_err("msg=\"decoding was unsuccessful\"");
     return false;
   }
 
@@ -277,7 +277,7 @@ ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
                mTimeout);
 
       if (nwrite != (int64_t)mStripeWidth) {
-        eos_err("while doing write operation stripe=%u, offset=%lli",
+        eos_err("msg=\"failed write\" stripe=%u, offset=%lli",
                 stripe_id, offset_local);
         ret = false;
         break;
@@ -312,7 +312,7 @@ ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
         uint16_t error_type = phandler->WaitOK();
 
         if (error_type != XrdCl::errNone) {
-          eos_err("failed write on stripe=%u", *iter);
+          eos_err("msg=\"failed write\" stripe=%u", *iter);
           ret = false;
 
           if (error_type == XrdCl::errOperationExpired) {
