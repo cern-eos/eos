@@ -95,7 +95,7 @@ if(TESTCOVERAGE)
 endif()
 
 #-------------------------------------------------------------------------------
-# Include some generic functions and compiler definition parameters
+# Include generic functions and compiler definition parameters
 #-------------------------------------------------------------------------------
 if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "Default install prefix: /usr" FORCE)
@@ -107,39 +107,16 @@ EOS_GetUidGid("daemon" "DAEMONUID" "DAEMONGID")
 EOS_GetVersion("${VERSION_MAJOR}" "${VERSION_MINOR}" "${VERSION_PATCH}" "${RELEASE}")
 include(EosOSDefaults)
 
-if (CLIENT)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCLIENT_ONLY=1")
-endif ()
+if (NOT PACKAGEONLY)
+  include(EosCompileFlags)
+endif()
 
+set(CPP_VERSION -std=c++14)
 set(EOS_CXX_DEFINE "-DEOSCITRINE -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\"")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EOS_CXX_DEFINE} ${CPP_VERSION} -msse4.2 -Wall -Wno-error=parentheses")
 
-# Set Address Sanitizer flag
-if (ASAN)
-  include(CheckCXXCompilerFlag)
-  set(CMAKE_REQUIRED_FLAGS "-fsanitize=address")
-  check_cxx_compiler_flag(-fsanitize=address HAVE_FLAG_ASAN)
-  unset(CMAKE_REQUIRED_FLAGS)
-
-  if (NOT HAVE_FLAG_ASAN)
-    message(FATAL_ERROR "A compiler with '-fsanitize=address' support is required.")
-  endif()
-
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
-endif()
-
 set(CMAKE_INSTALL_SYSCONFDIR /etc)
 include(EosFindLibs)
-
-#-------------------------------------------------------------------------------
-# Specific compiler and linker parameters
-#-------------------------------------------------------------------------------
-
-# Clang requires linking with libatomic
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${ATOMIC_LIBRARIES}")
-  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${ATOMIC_LIBRARIES}")
-endif()
 
 #-------------------------------------------------------------------------------
 # Generate documentation

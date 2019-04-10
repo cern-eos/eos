@@ -1,11 +1,11 @@
 # ----------------------------------------------------------------------
 # File: CMakeLists.txt
-# Author: Elvin-Alin Sindrailru <esindril@cern.ch> CERN
+# Author: Mihai Patrascoiu <mihai.patrascoiu@cern.ch>
 # ----------------------------------------------------------------------
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
-# * Copyright (C) 2016 CERN/Switzerland                                  *
+# * Copyright (C) 2019 CERN/Switzerland                                  *
 # *                                                                      *
 # * This program is free software: you can redistribute it and/or modify *
 # * it under the terms of the GNU General Public License as published by *
@@ -22,44 +22,42 @@
 # ************************************************************************
 
 #-------------------------------------------------------------------------------
-# Detect the operating system and define variables
+# Require c++14
 #-------------------------------------------------------------------------------
-# Nothing detected yet
-set(Linux FALSE )
-set(MacOSX FALSE )
-set(Windows FALSE )
-set(OSDEFINE "")
+include(CheckCXXCompilerFlag)
 
-# Check if we are on Linux
-if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
-  include(GNUInstallDirs)
-  set(Linux TRUE )
-  set(OSDEFINE "-D__LINUX__=1")
+check_cxx_compiler_flag(-std=c++14 HAVE_FLAG_STD_CXX14)
+if(NOT HAVE_FLAG_STD_CXX14)
+  message(FATAL_ERROR "A compiler with -std=c++14 support is required.")
 endif()
 
-# Check if we are on MacOSX
-if(APPLE)
-  include(GNUInstallDirs)
-  set(MacOSX TRUE )
-  set(CLIENT TRUE )
-  set(OSDEFINE "-D__APPLE__=1")
-  # On MAC we don't link static objects at all
-  set(FUSE_LIBRARY /usr/local/lib/libosxfuse_i64.dylib)
-  set(CMAKE_MACOSX_RPATH ON)
-  set(CMAKE_SKIP_BUILD_RPATH FALSE)
-  set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-  set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-  set(LIBRARY_PATH_PREFIX lib)
-  list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+#-------------------------------------------------------------------------------
+# Client-only flags
+#-------------------------------------------------------------------------------
+if (CLIENT)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCLIENT_ONLY=1")
+endif ()
 
-  if("${isSystemDir}" STREQUAL "-1")
-    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+#-------------------------------------------------------------------------------
+# Compiler specific flags
+#-------------------------------------------------------------------------------
+# Clang requires linking with libatomic
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${ATOMIC_LIBRARIES}")
+  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${ATOMIC_LIBRARIES}")
+endif()
+
+#-------------------------------------------------------------------------------
+# Sanitizer flags
+#-------------------------------------------------------------------------------
+if (ASAN)
+  set(CMAKE_REQUIRED_FLAGS "-fsanitize=address")
+  check_cxx_compiler_flag(-fsanitize=address HAVE_FLAG_ASAN)
+  unset(CMAKE_REQUIRED_FLAGS)
+
+  if (NOT HAVE_FLAG_ASAN)
+    message(FATAL_ERROR "A compiler with '-fsanitize=address' support is required.")
   endif()
-endif()
 
-# Check if we are on Windows
-if("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
-  set(Windows TRUE )
-  set(OSDEFINE "-D__WINDOWS__=1")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
 endif()
