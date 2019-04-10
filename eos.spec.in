@@ -3,23 +3,24 @@
 #-------------------------------------------------------------------------------
 %define _unpackaged_files_terminate_build 0
 %define distribution %(/usr/lib/rpm/redhat/dist.sh --distnum)
+%{!?compiler: %global compiler gcc}
 
 %if %{?rhel:1}%{!?rhel:0}
-    %if %{rhel} >= 7
-        %define use_systemd 1
-        %define use_richacl 1
-    %else
-        %define use_systemd 0
-        %define use_richacl 0
-    %endif
+  %if %{rhel} >= 7
+    %define use_systemd 1
+    %define use_richacl 1
+  %else
+    %define use_systemd 0
+    %define use_richacl 0
+  %endif
 %else
-    %if %{?fedora}%{!?fedora:0} >= 19
-        %define use_systemd 1
-        %define use_richacl 1
-    %else
-        %define use_systemd 0
-        %define use_richacl 0
-    %endif
+  %if %{?fedora}%{!?fedora:0} >= 19
+    %define use_systemd 1
+    %define use_richacl 1
+  %else
+    %define use_systemd 0
+    %define use_richacl 0
+  %endif
 %endif
 
 # By default we build the eos client SRPMS, if the entire build is required
@@ -37,8 +38,10 @@
 #-------------------------------------------------------------------------------
 # Custom strip command for SLC6, CC7
 #-------------------------------------------------------------------------------
+%if "%{compiler}" == "gcc"
 %if 0%{distribution} == 6 || 0%{distribution} == 7
 %global __strip /opt/rh/devtoolset-6/root/usr/bin/strip
+%endif
 %endif
 
 #-------------------------------------------------------------------------------
@@ -132,11 +135,22 @@ Requires: bzip2
 BuildRequires: centos-release-scl
 %endif
 
+%if "%{compiler}" == "gcc"
 %if 0%{distribution} == 6 || 0%{distribution} == 7
 BuildRequires: devtoolset-6
 BuildRequires: devtoolset-6-binutils-devel
 %else
 BuildRequires: binutils-devel
+%endif
+%endif
+
+%if "%{compiler}" == "clang"
+BuildRequires: clang
+BuildRequires: libatomic
+Requires: libatomic
+%if 0%{distribution} == 7
+BuildRequires: llvm-toolset-7
+%endif
 %endif
 
 %if %{?_with_asan:1}%{!?_with_asan:0}
@@ -167,10 +181,18 @@ The EOS software package.
 test -e $RPM_BUILD_ROOT && rm -r $RPM_BUILD_ROOT
 mkdir -p build
 cd build
-%if 0%{distribution} == 6 || 0%{distribution} == 7
-scl enable devtoolset-6 "%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo %{build_flags}"
+%if "%{?compiler}" == "gcc"
+  %if 0%{distribution} == 6 || 0%{distribution} == 7
+    scl enable devtoolset-6 "%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo %{build_flags}"
+  %else
+    %{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo %{build_flags}
+  %endif
 %else
-%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo %{build_flags}
+  %if 0%{distribution} == 7
+    scl enable llvm-toolset-7 "CC=clang CXX=clang++ %{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo %{build_flags}"
+  %else
+    CC=clang CXX=clang++ %{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo %{build_flags}
+  %endif
 %endif
 %{__make} %{_smp_mflags}
 
