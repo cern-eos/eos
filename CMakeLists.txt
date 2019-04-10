@@ -128,8 +128,8 @@ if (ASAN)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
 endif()
 
-set (CMAKE_INSTALL_SYSCONFDIR /etc)
-include (EosFindLibs)
+set(CMAKE_INSTALL_SYSCONFDIR /etc)
+include(EosFindLibs)
 
 #-------------------------------------------------------------------------------
 # Specific compiler and linker parameters
@@ -242,30 +242,27 @@ include(CPack)
 #-------------------------------------------------------------------------------
 # Source and binary rpms
 #-------------------------------------------------------------------------------
-set (RPM_DEFINE --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5")
-set (EOS_ARCHIVE         "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz")
-set (EOS_CLIENTS_ARCHIVE "${CMAKE_PROJECT_NAME}-clients-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz")
+set(EOS_ARCHIVE "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz")
+set(SRPM_DEFINE --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5")
+
+if (NOT CLIENT)
+  LIST(APPEND RPM_FEATURE --with server)
+endif()
+
+if (ASAN)
+  LIST(APPEND RPM_FEATURE --with asan)
+endif()
 
 add_custom_target(
   srpm
-  COMMAND rpmbuild ${RPM_DEFINE} -ts ${EOS_ARCHIVE} --define "_topdir ${CMAKE_BINARY_DIR}" --with server --with asan)
-
-add_custom_target(
-  rpm-client
-  COMMAND rpmbuild -tb ${EOS_ARCHIVE} --define "_topdir ${CMAKE_BINARY_DIR}")
+  COMMAND rpmbuild -ts ${EOS_ARCHIVE} --define "_topdir ${CMAKE_BINARY_DIR}" ${SRPM_DEFINE} ${RPM_FEATURE})
 
 add_custom_target(
   rpm
-  COMMAND rpmbuild -tb ${EOS_ARCHIVE} --define "_topdir ${CMAKE_BINARY_DIR}" --with server)
-
-add_custom_target(
-  rpm-asan
-  COMMAND rpmbuild -tb ${EOS_ARCHIVE} --define "_topdir ${CMAKE_BINARY_DIR}" --with server --with asan)
+  COMMAND rpmbuild -tb ${EOS_ARCHIVE} --define "_topdir ${CMAKE_BINARY_DIR}" ${RPM_FEATURE})
 
 add_dependencies(srpm dist)
 add_dependencies(rpm dist)
-add_dependencies(rpm-asan dist)
-add_dependencies(rpm-client dist)
 
 #-------------------------------------------------------------------------------
 # Custom target to build on OSX
