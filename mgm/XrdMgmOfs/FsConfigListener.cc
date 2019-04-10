@@ -72,13 +72,13 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
         XrdMqSharedObjectChangeNotifier::kMqSubjectDeletion);
 
   if (!ok) {
-    eos_crit("error subscribing to shared objects change notifications");
+    eos_crit("msg=\"error subscribing to shared objects change notifications\"");
   }
 
   ObjectNotifier.BindCurrentThread("fsconfiglistener");
 
   if (!ObjectNotifier.StartNotifyCurrentThread()) {
-    eos_crit("error starting shared objects change notifications");
+    eos_crit("msg=\"error starting shared objects change notifications\"");
   }
 
   // Thread listening on filesystem errors and configuration changes
@@ -98,27 +98,30 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
       event = gOFS->ObjectNotifier.tlSubscriber->NotificationSubjects.front();
       gOFS->ObjectNotifier.tlSubscriber->NotificationSubjects.pop_front();
       gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.UnLock();
-      eos_static_debug("MGM shared object notification subject is %s",
-                       event.mSubject.c_str());
+      eos_debug("msg=\"MGM shared object notification subject is %s\"",
+                event.mSubject.c_str());
       std::string newsubject = event.mSubject.c_str();
 
       // Handle subject creation
       if (event.mType == XrdMqSharedObjectManager::kMqSubjectCreation) {
-        eos_static_debug("received creation on subject %s\n", newsubject.c_str());
+        eos_debug("msg=\"received creation on subject\" subject=\"%s\"",
+                  newsubject.c_str());
         gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
         continue;
       }
 
       // Handle subject deletion
       if (event.mType == XrdMqSharedObjectManager::kMqSubjectDeletion) {
-        eos_static_debug("received deletion on subject %s\n", newsubject.c_str());
+        eos_debug("msg=\"received deletion on subject\" subject=\"%s\"",
+                  newsubject.c_str());
         gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
         continue;
       }
 
       // Handle subject modification
       if (event.mType == XrdMqSharedObjectManager::kMqSubjectModification) {
-        eos_static_debug("received modification on subject %s", newsubject.c_str());
+        eos_debug("msg=\"received modification on subject\" subject=\"%s\"",
+                  newsubject.c_str());
         // if this is an error status on a file system, check if the filesystem
         // is > drained state and in this case launch a drain job with
         // the opserror flag by calling StartDrainJob
@@ -154,7 +157,8 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
                     (key.substr(0, 4) != "vid:") &&
                     (key.substr(0, 7) != "policy:")) {
                   XrdOucString skey = key.c_str();
-                  eos_info("Calling Apply for %s %s", key.c_str(), value.c_str());
+                  eos_info("msg=\"apply access config\" key=\"%s\" val=\"%s\"",
+                           key.c_str(), value.c_str());
                   Access::ApplyAccessConfig(false);
 
                   if (skey.beginswith("iostat:")) {
@@ -165,7 +169,8 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
                     gOFS->FsCheck.ApplyFsckConfig();
                   }
                 } else {
-                  eos_info("Call SetConfig %s %s", key.c_str(), value.c_str());
+                  eos_info("msg=\"set config value\" key=\"%s\" val=\"%s\"",
+                           key.c_str(), value.c_str());
                   gOFS->ConfEngine->SetConfigValue(0, key.c_str(),
                                                    value.c_str(), false);
 
@@ -199,8 +204,8 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
           }
 
           if (fsid == 0) {
-            eos_debug("Received a geotag modification (might be no change) for "
-                      "queue %s which is not registered ", queue.c_str());
+            eos_debug("msg=\"received a geotag modification (might be no change) for "
+                      "queue=%s which is not registered\"", queue.c_str());
           } else {
             FsView::gFsView.ViewMutex.LockRead();
             auto it_fs = FsView::gFsView.mIdView.find(fsid);
@@ -216,9 +221,9 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
               }
 
               if (fs && (oldgeotag != newgeotag)) {
-                eos_warning("Received a geotag change for fsid %lu new geotag is "
-                            "%s, old geotag was %s ", (unsigned long)fsid,
-                            newgeotag.c_str(), oldgeotag.c_str());
+                eos_warning("msg=\"received geotag change\" fsid=%lu old_geotag=%s "
+                            "new_geotag=%s", (unsigned long)fsid,
+                            oldgeotag.c_str(), newgeotag.c_str());
                 FsView::gFsView.ViewMutex.UnLockRead();
                 eos::common::RWMutexWriteLock fs_rw_lock(FsView::gFsView.ViewMutex);
                 eos::common::FileSystem::fs_snapshot snapshot;
@@ -227,51 +232,51 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
                 // Update node view tree structure
                 if (FsView::gFsView.mNodeView.count(snapshot.mQueue)) {
                   FsNode* node = FsView::gFsView.mNodeView[snapshot.mQueue];
-                  eos_static_info("updating geotag of fsid %lu in node %s",
-                                  (unsigned long)fsid, node->mName.c_str());
+                  eos_debug("msg=\"update geotag of fsid=%lu in node=%s",
+                            (unsigned long)fsid, node->mName.c_str());
 
                   if (!static_cast<GeoTree*>(node)->erase(fsid)) {
-                    eos_static_err("error removing fsid %lu from node %s",
-                                   (unsigned long)fsid, node->mName.c_str());
+                    eos_err("msg=\"error removing fsid=%lu from node=%s\"",
+                            (unsigned long)fsid, node->mName.c_str());
                   }
 
                   if (!static_cast<GeoTree*>(node)->insert(fsid)) {
-                    eos_static_err("error inserting fsid %lu into node %s",
-                                   (unsigned long)fsid, node->mName.c_str());
+                    eos_err("msg=\"error inserting fsid=%lu into node=%s\"",
+                            (unsigned long)fsid, node->mName.c_str());
                   }
                 }
 
                 // Update group view tree structure
                 if (FsView::gFsView.mGroupView.count(snapshot.mGroup)) {
                   FsGroup* group = FsView::gFsView.mGroupView[snapshot.mGroup];
-                  eos_static_info("updating geotag of fsid %lu in group %s",
-                                  (unsigned long)fsid, group->mName.c_str());
+                  eos_debug("msg=\"updating geotag of fsid=%lu in group=%s\"",
+                            (unsigned long)fsid, group->mName.c_str());
 
                   if (!static_cast<GeoTree*>(group)->erase(fsid)) {
-                    eos_static_err("error removing fsid %lu from group %s",
-                                   (unsigned long)fsid, group->mName.c_str());
+                    eos_err("msg=\"error removing fsid=%lu from group=%s\"",
+                            (unsigned long)fsid, group->mName.c_str());
                   }
 
                   if (!static_cast<GeoTree*>(group)->insert(fsid)) {
-                    eos_static_err("error inserting fsid %lu into group %s",
-                                   (unsigned long)fsid, group->mName.c_str());
+                    eos_err("msg=\"error inserting fsid=%lu into group=%s\"",
+                            (unsigned long)fsid, group->mName.c_str());
                   }
                 }
 
                 // Update space view tree structure
                 if (FsView::gFsView.mSpaceView.count(snapshot.mSpace)) {
                   FsSpace* space = FsView::gFsView.mSpaceView[snapshot.mSpace];
-                  eos_static_info("updating geotag of fsid %lu in space %s",
-                                  (unsigned long)fsid, space->mName.c_str());
+                  eos_debug("msg=\"updating geotag of fsid=%lu in space=%s\"",
+                            (unsigned long)fsid, space->mName.c_str());
 
                   if (!static_cast<GeoTree*>(space)->erase(fsid)) {
-                    eos_static_err("error removing fsid %lu from space %s",
-                                   (unsigned long)fsid, space->mName.c_str());
+                    eos_err("msg=\"error removing fsid=%lu from space=%s\"",
+                            (unsigned long)fsid, space->mName.c_str());
                   }
 
                   if (!static_cast<GeoTree*>(space)->insert(fsid)) {
-                    eos_static_err("error inserting fsid %lu into space %s",
-                                   (unsigned long)fsid, space->mName.c_str());
+                    eos_err("msg=\"error inserting fsid=%lu into space=%s\"",
+                            (unsigned long)fsid, space->mName.c_str());
                   }
                 }
               } else {
@@ -300,7 +305,7 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
             eos::mgm::FsNode* node = eos::mgm::FsView::gFsView.mNodeView[hostport];
             eos::mgm::gGeoTreeEngine.matchHostPxyGr(node, status, false, false);
           } else {
-            eos_err("could not find the FsNode object associated with queue %s  and  hostport %s",
+            eos_err("msg=\"no FsNode object associated with queue=%s and hostport=%s\"",
                     queue.c_str(), hostport.c_str());
           }
         } else {
@@ -362,7 +367,8 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
 
       // Handle subject key deletion
       if (event.mType == XrdMqSharedObjectManager::kMqSubjectKeyDeletion) {
-        eos_static_info("received deletion on subject %s\n", newsubject.c_str());
+        eos_info("msg=\"received deletion on subject\" subject=\"%s\"",
+                 newsubject.c_str());
         std::string key = newsubject;
         std::string queue = newsubject;
         size_t dpos = 0;
@@ -378,8 +384,8 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
         continue;
       }
 
-      eos_static_warning("msg=\"don't know what to do with subject\" subject=%s",
-                         newsubject.c_str());
+      eos_warning("msg=\"don't know what to do with subject\" subject=\"%s\"",
+                  newsubject.c_str());
       gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
       continue;
     }
