@@ -89,6 +89,14 @@ DrainFs::State
 DrainFs::DoIt()
 {
   eos_notice("msg=\"start draining\" fsid=%d", mFsId);
+  WaitUntilNamespaceIsBooted();
+
+  if (mDrainStop) {
+    eos_err("msg=\"drain stopped while waiting for the namespace boot\" "
+            "fsid=%lu", mFsId);
+    return State::Failed;
+  }
+
   mTotalFiles = mNsFsView->getNumFilesOnFs(mFsId);
 
   if (mTotalFiles == 0) {
@@ -526,6 +534,18 @@ DrainFs::PrintJobsTable(TableFormatterBase& table, bool show_errors,
   }
 
   table.AddRows(table_data);
+}
+
+//------------------------------------------------------------------------------
+// Wait until namespace is booted or drain stop is requested
+//------------------------------------------------------------------------------
+void
+DrainFs::WaitUntilNamespaceIsBooted() const
+{
+  while ((gOFS->mInitialized != gOFS->kBooted) && (!mDrainStop)) {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    eos_debug_lite("msg=\"delay drain start until namespace is booted\"");
+  }
 }
 
 EOSMGMNAMESPACE_END

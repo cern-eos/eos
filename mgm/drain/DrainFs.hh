@@ -200,6 +200,11 @@ private:
   void StopJobs();
 
   //----------------------------------------------------------------------------
+  //! Wait until namespace is booted or drain stop is requested
+  //----------------------------------------------------------------------------
+  void WaitUntilNamespaceIsBooted() const;
+
+  //----------------------------------------------------------------------------
   //! Get number of running jobs
   //----------------------------------------------------------------------------
   inline uint64_t NumRunningJobs() const

@@ -221,8 +221,8 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
               }
 
               if (fs && (oldgeotag != newgeotag)) {
-                eos_warning("msg=\"received geotag change\" fsid=%lu old_geotag=%s "
-                            "new_geotag=%s", (unsigned long)fsid,
+                eos_warning("msg=\"received geotag change\" fsid=%lu old_geotag=\"%s\" "
+                            "new_geotag=\"%s\"", (unsigned long)fsid,
                             oldgeotag.c_str(), newgeotag.c_str());
                 FsView::gFsView.ViewMutex.UnLockRead();
                 eos::common::RWMutexWriteLock fs_rw_lock(FsView::gFsView.ViewMutex);

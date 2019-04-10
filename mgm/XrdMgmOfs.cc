@@ -367,12 +367,9 @@ XrdMgmOfs::OrderlyShutdown()
       gOFS->eosFileService = nullptr;
       gOFS->eosView = nullptr;
       gOFS->eosFsView = nullptr;
-
       gOFS->eosContainerAccounting = nullptr;
       gOFS->eosSyncTimeAccounting = nullptr;
-
       gOFS->namespaceGroup.reset();
-
     } catch (eos::MDException& e) {
       // we don't really care about any exception here!
     }
@@ -1009,8 +1006,6 @@ XrdMgmOfs::FuseXCastRefresh(eos::ContainerIdentifier id,
     id.getUnderlyingUInt64(), parentid.getUnderlyingUInt64());
 }
 
-
-
 //----------------------------------------------------------------------------
 // Check if name space is booted
 //----------------------------------------------------------------------------
@@ -1077,20 +1072,6 @@ XrdMgmOfs::WriteRecycleRecord(const std::shared_ptr<eos::IFileMD>& fmd)
 }
 
 //------------------------------------------------------------------------------
-// Wait until namespace is booted - thread cancellation point
-//------------------------------------------------------------------------------
-void
-XrdMgmOfs::WaitUntilNamespaceIsBooted()
-{
-  XrdSysThread::SetCancelDeferred();
-
-  while (gOFS->mInitialized != gOFS->kBooted) {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    XrdSysThread::CancelPoint();
-  }
-}
-
-//------------------------------------------------------------------------------
 // Check if a host was tried already in a given URL with a given error
 //------------------------------------------------------------------------------
 bool
@@ -1118,13 +1099,27 @@ XrdMgmOfs::Tried(XrdCl::URL& url, std::string& host, const char* terr)
 }
 
 //------------------------------------------------------------------------------
+// Wait until namespace is booted - thread cancellation point
+//------------------------------------------------------------------------------
+void
+XrdMgmOfs::WaitUntilNamespaceIsBooted()
+{
+  XrdSysThread::SetCancelDeferred();
+
+  while (gOFS->mInitialized != gOFS->kBooted) {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    XrdSysThread::CancelPoint();
+  }
+}
+
+//------------------------------------------------------------------------------
 // Wait until namespace is booted
 //------------------------------------------------------------------------------
 void
 XrdMgmOfs::WaitUntilNamespaceIsBooted(ThreadAssistant& assistant)
 {
   while (gOFS->mInitialized != gOFS->kBooted) {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    assistant.wait_for(std::chrono::seconds(1));
 
     if (assistant.terminationRequested()) {
       break;

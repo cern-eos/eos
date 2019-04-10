@@ -497,7 +497,7 @@ public:
               bool updateCTime = false,
               bool checkQuota = false,
               bool overwrite = false,
-	      bool fusexcast = true);
+              bool fusexcast = true);
 
   // ---------------------------------------------------------------------------
   // symlink file/dir
@@ -1284,14 +1284,14 @@ public:
   void WriteRecycleRecord(const std::shared_ptr<eos::IFileMD>& fmd);
 
   //----------------------------------------------------------------------------
-  //! Wait until namespace is initialized - thread cancellation point
-  //----------------------------------------------------------------------------
-  void WaitUntilNamespaceIsBooted();
-
-  //----------------------------------------------------------------------------
   //! Check if a host was tried in an URL already with the given error
   //----------------------------------------------------------------------------
   bool Tried(XrdCl::URL& url, std::string& host, const char* serr);
+
+  //----------------------------------------------------------------------------
+  //! Wait until namespace is initialized - thread cancellation point
+  //----------------------------------------------------------------------------
+  void WaitUntilNamespaceIsBooted();
 
   //----------------------------------------------------------------------------
   //! Wait until namespace is initialized - thread cancellation point
