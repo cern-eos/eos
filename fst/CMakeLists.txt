@@ -419,12 +419,19 @@ add_executable(eos-scan-fs
   tools/ScanXS.cc
   checksum/Adler.cc      checksum/CheckSum.cc)
 
+add_executable(eos-fsck-fs
+  Fsck.cc                Load.cc
+  Fmd.cc                 FmdDbMap.cc
+  tools/Fsck.cc
+  checksum/Adler.cc      checksum/CheckSum.cc)
+
 add_executable(eos-adler32
   tools/Adler32.cc
   checksum/Adler.cc
   checksum/CheckSum.cc)
 
 set_target_properties(eos-scan-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1)
+set_target_properties(eos-fsck-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1)
 
 add_executable(eos-ioping tools/IoPing.c)
 target_compile_options(eos-ioping PRIVATE -std=gnu99)
@@ -452,6 +459,16 @@ target_link_libraries(eos-scan-fs PRIVATE
   ${PROTOBUF_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
+target_link_libraries(eos-fsck-fs PRIVATE
+  eosCommonServer
+  EosFstIo
+  EosNsCommon-Static
+  ${GLIBC_RT_LIBRARY}
+  ${XROOTD_CL_LIBRARY}
+  ${DAVIX_LIBRARIES}
+  ${PROTOBUF_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT})
+
 install(PROGRAMS
   tools/eosfstregister
   tools/eosfstinfo
@@ -461,7 +478,7 @@ install(PROGRAMS
 
 install(TARGETS
   eos-ioping eos-adler32
-  eos-check-blockxs eos-compute-blockxs eos-scan-fs
+  eos-check-blockxs eos-compute-blockxs eos-scan-fs eos-fsck-fs
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 endif()

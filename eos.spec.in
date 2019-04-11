@@ -245,6 +245,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_sbindir}/eos-udp-dumper
 %{_sbindir}/eos-compute-blockxs
 %{_sbindir}/eos-scan-fs
+%{_sbindir}/eos-fsck-fs
 %{_sbindir}/eos-adler32
 %{_sbindir}/eos-mmap
 %{_sbindir}/eos-repair-tool

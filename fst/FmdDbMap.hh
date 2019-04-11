@@ -401,6 +401,19 @@ public:
   //----------------------------------------------------------------------------
   uint32_t GetNumFileSystems() const;
 
+  //----------------------------------------------------------------------------
+  //! Execute "fs dumpmd" on the MGM node
+  //!
+  //! @param mgm_host MGM hostname
+  //! @param fsid filesystem id
+  //! @param fn_output file name where output is written
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool ExecuteDumpmd(const std::string& mgm_hosst,
+                            eos::common::FileSystem::fsid_t fsid,
+                            std::string& fn_output);
+
 private:
   std::map<eos::common::FileSystem::fsid_t, eos::common::DbMap*> mDbMap;
   mutable eos::common::RWMutex mMapMutex;//< Mutex protecting the Fmd handler
@@ -536,19 +549,6 @@ private:
     return mDbMap[fsid]->set(eos::common::Slice((const char*)&fid, sizeof(fid)),
                              sval, "") == 0;
   }
-
-  //----------------------------------------------------------------------------
-  //! Execute "fs dumpmd" on the MGM node
-  //!
-  //! @param mgm_host MGM hostname
-  //! @param fsid filesystem id
-  //! @param fn_output file name where output is written
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  static bool ExecuteDumpmd(const std::string& mgm_hosst,
-                            eos::common::FileSystem::fsid_t fsid,
-                            std::string& fn_output);
 };
 
 extern FmdDbMapHandler gFmdDbMapHandler;
