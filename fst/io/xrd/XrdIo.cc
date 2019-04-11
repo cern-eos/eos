@@ -404,9 +404,14 @@ XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
       // has already failed
       //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       mMetaHandler->HandleResponse(&status, handler);
+      nread = -1;
+    } else {
+      if (mMetaHandler->WaitOK() == 0) {
+	nread = handler->GetRespLength();
+      } else {
+	nread = -1;
+      }
     }
-
-    nread = length;
   } else {
     eos_debug("readahead enabled, request offset=%lli, length=%i", offset, length);
     uint64_t read_length = 0;
@@ -533,7 +538,7 @@ XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
         nread = -1;
       } else {
         if (mMetaHandler->WaitOK() == 0) {
-          nread = length;
+          nread = handler->GetRespLength();
         } else {
           nread = -1;
         }
