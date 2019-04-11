@@ -143,7 +143,6 @@ add_executable(
 #-------------------------------------------------------------------------------
 target_link_libraries(
   eos PUBLIC
-  EosFstIo-Static
   ${Z_LIBRARY}
   ${RT_LIBRARIES}
   ${UUID_LIBRARIES}
@@ -154,7 +153,8 @@ target_link_libraries(
   ${XROOTD_POSIX_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT})
+  ${CMAKE_THREAD_LIBS_INIT}
+  EosFstIo-Static)
 
 set_target_properties(
   eos PROPERTIES
