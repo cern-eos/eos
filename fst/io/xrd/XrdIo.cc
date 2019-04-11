@@ -406,7 +406,7 @@ XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
       mMetaHandler->HandleResponse(&status, handler);
       nread = -1;
     } else {
-      if (mMetaHandler->WaitOK() == 0) {
+      if (mMetaHandler->WaitOK()) {
 	nread = handler->GetRespLength();
       } else {
 	nread = -1;
@@ -537,7 +537,7 @@ XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
         mMetaHandler->HandleResponse(&status, handler);
         nread = -1;
       } else {
-        if (mMetaHandler->WaitOK() == 0) {
+        if (mMetaHandler->WaitOK()) {
           nread = handler->GetRespLength();
         } else {
           nread = -1;
