@@ -80,10 +80,15 @@ IProcCommand::open(const char* path, const char* info,
       std::ostringstream oss;
 
       if (mReqProto.format() == eos::console::RequestProto::JSON) {
-        Json::Value json;
-        json["result"] = ConvertOutputToJsonFormat(reply.std_out());
-        json["errormsg"] = reply.std_err();
-        json["retc"] = std::to_string(reply.retc());
+	Json::Value json;
+	try {
+	  json["result"] = ConvertOutputToJsonFormat(reply.std_out());
+	  json["errormsg"] = reply.std_err();
+	  json["retc"] = std::to_string(reply.retc());
+	} catch (Json::Exception const&) {
+	  json["errormsg"] = "illegal string in json conversion";
+	  json["retc"] = std::to_string(EFAULT);
+	}
 
         oss << "mgm.proc.stdout=" << json
             << "&mgm.proc.stderr=" << reply.std_err()

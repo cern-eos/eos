@@ -518,23 +518,27 @@ ProcCommand::MakeResult()
     }
 
     if (mJsonFormat) {
-      if (!stdJson.length()) {
+      if (!stdJson.length()) {	
         Json::Value json;
-        json["errormsg"] = stdErr.c_str();
-        json["retc"] = std::to_string(retc);
-
-        Json::Value jsonOut =
-            IProcCommand::ConvertOutputToJsonFormat(stdOut.c_str());
-
-        if (mCmd.length()) {
-          if (mSubCmd.length()) {
-            json[mCmd.c_str()][mSubCmd.c_str()] = jsonOut;
-          } else {
-            json[mCmd.c_str()] = jsonOut;
-          }
-        } else {
-          json["result"] = jsonOut;
-        }
+	try {
+	  Json::Value jsonOut;
+	  json["errormsg"] = stdErr.c_str();
+	  json["retc"] = std::to_string(retc);
+	  jsonOut = IProcCommand::ConvertOutputToJsonFormat(stdOut.c_str());
+	  
+	  if (mCmd.length()) {
+	    if (mSubCmd.length()) {
+	      json[mCmd.c_str()][mSubCmd.c_str()] = jsonOut;
+	    } else {
+	      json[mCmd.c_str()] = jsonOut;
+	    }
+	  } else {
+	    json["result"] = jsonOut;
+	  }
+	} catch(Json::Exception const&) {
+	  json["errormsg"] = "illegal string in json conversion";
+	  json["retc"] = std::to_string(EFAULT);
+	}
 
         std::stringstream r;
         r << json;
