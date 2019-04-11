@@ -1034,6 +1034,11 @@ XrdIo::PrefetchBlock(int64_t offset, bool isWrite, uint16_t timeout)
     return done;
   }
 
+  if (FindBlock(offset) != mMapBlocks.end()) {
+    // Block is already prefetched
+    return true;
+  }
+  
   block->handler->Update(offset, mBlocksize, isWrite);
   XrdCl::XRootDStatus status = mXrdFile->Read(offset, mBlocksize, block->buffer,
                                block->handler, timeout);
