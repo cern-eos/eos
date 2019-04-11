@@ -383,35 +383,7 @@ XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
   }
 
   if (!readahead) {
-    handler = mMetaHandler->Register(offset, length, NULL, false);
-
-    // If previous read requests failed with a timeout error then we won't
-    // get a new handler and we return directly an error
-    if (!handler) {
-      return SFS_ERROR;
-    }
-
-    status = mXrdFile->Read(static_cast<uint64_t>(offset),
-                            static_cast<uint32_t>(length),
-                            buffer,
-                            static_cast<XrdCl::ResponseHandler*>(handler),
-                            timeout);
-
-    if (!status.IsOK()) {
-      //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      // TODO: for the time being we call this ourselves but this should be
-      // dropped once XrdCl will call the handler for a request as it knows it
-      // has already failed
-      //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      mMetaHandler->HandleResponse(&status, handler);
-      nread = -1;
-    } else {
-      if (mMetaHandler->WaitOK()) {
-	nread = handler->GetRespLength();
-      } else {
-	nread = -1;
-      }
-    }
+    return fileRead(offset, pBuff, length, timeout);
   } else {
     eos_debug("readahead enabled, request offset=%lli, length=%i", offset, length);
     uint64_t read_length = 0;
@@ -516,33 +488,7 @@ XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
     // If readahead not useful, use the classic way to read
     if (length && !done_read) {
       eos_debug("readahead useless, use the classic way for reading");
-      handler = mMetaHandler->Register(offset, length, NULL, false);
-
-      // If previous read requests failed then we won't get a new handler
-      // and we return directly an error
-      if (!handler) {
-        return SFS_ERROR;
-      }
-
-      status = mXrdFile->Read(static_cast<uint64_t>(offset),
-                              static_cast<uint32_t>(length),
-                              pBuff, handler, timeout);
-
-      if (!status.IsOK()) {
-        //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        // TODO: for the time being we call this ourselves but this should be
-        // dropped once XrdCl will call the handler for a request as it knows it
-        // has already failed
-        //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        mMetaHandler->HandleResponse(&status, handler);
-        nread = -1;
-      } else {
-        if (mMetaHandler->WaitOK()) {
-          nread = handler->GetRespLength();
-        } else {
-          nread = -1;
-        }
-      }
+      return fileRead(offset, pBuff, length, timeout);
     }
   }
 
