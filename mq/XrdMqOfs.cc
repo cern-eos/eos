@@ -1354,6 +1354,11 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
                  << " exceeds backlog of " << mMaxQueueBacklog
                  << " message!");
         }
+      } else {
+	msg_out->BrokenByFlush = false;
+          TRACES("warning: re-enabling queue " << msg_out->QueueName
+                 << " backlog is now " << mMaxQueueBacklog
+                 << " messageS!");
       }
 
       if (msg_out->mMsgQueue.size() > mRejectQueueBacklog) {
