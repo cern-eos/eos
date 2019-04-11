@@ -143,6 +143,10 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # the value is 10.
 # EOS_FST_CALL_MANAGER_XRD_POOL_SIZE=10
 
+# If variable defined use asynchronous (double-buffered) reading in TPCs - By default
+# it is undefined = disabled
+# EOS_FST_TPC_READASYNC=1
+
 #-------------------------------------------------------------------------------
 # HTTPD Configuration
 #-------------------------------------------------------------------------------
