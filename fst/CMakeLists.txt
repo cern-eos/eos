@@ -377,8 +377,8 @@ target_link_libraries(XrdEosFst PRIVATE
   ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(XrdEosFst-Static PUBLIC
-  eosCommonServer
-  EosFstIo
+  eosCommonServer-Static
+  EosFstIo-Static
   EosNsCommon-Static
   eosCapability-Static
   ${Z_LIBRARY}

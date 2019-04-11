@@ -313,7 +313,7 @@ if(Linux)
   target_link_libraries(
     XrdEosMgm-Static PUBLIC
     EosNsCommon-Static
-    eosCommonServer
+    eosCommonServer-Static
     eosCapability-Static
     ${FOLLY_LIBRARIES}
     ${Z_LIBRARY}

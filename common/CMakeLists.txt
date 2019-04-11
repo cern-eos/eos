@@ -59,9 +59,9 @@ set_target_properties(EosCrc32c-Static PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------
-# eosCommon library
+# eosCommon-Objects
 #-------------------------------------------------------------------------------
-set(EOSCOMMON_SRCS
+add_library(eosCommon-Objects OBJECT
   SymKeys.cc
   Mapping.cc
   RWMutex.cc
@@ -85,11 +85,10 @@ set(EOSCOMMON_SRCS
   plugin_manager/DynamicLibrary.cc
   ${CMAKE_SOURCE_DIR}/mgm/TableFormatter/TableCell.cc)
 
-add_library(eosCommon SHARED ${EOSCOMMON_SRCS})
+set_target_properties(eosCommon-Objects PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
 
-target_include_directories(eosCommon PUBLIC ${CURL_INCLUDE_DIRS})
-
-target_compile_definitions(eosCommon PUBLIC
+target_compile_definitions(eosCommon-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 set(EOSCOMMON_LIBS
@@ -108,19 +107,31 @@ set(EOSCOMMON_LIBS
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
-target_link_libraries(eosCommon PUBLIC ${EOSCOMMON_LIBS})
+#-------------------------------------------------------------------------------
+# eosCommon and eosCommon-Static library
+#-------------------------------------------------------------------------------
+add_library(eosCommon SHARED $<TARGET_OBJECTS:eosCommon-Objects>)
+
+target_link_libraries(eosCommon PUBLIC
+  ${EOSCOMMON_LIBS})
 
 set_target_properties(eosCommon PROPERTIES
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
   MACOSX_RPATH TRUE)
 
-install(TARGETS eosCommon
-  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+target_compile_definitions(eosCommon PUBLIC
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
-add_library(eosCommon-Static STATIC ${EOSCOMMON_SRCS})
+target_include_directories(eosCommon PUBLIC ${CURL_INCLUDE_DIRS})
+
+add_library(eosCommon-Static STATIC $<TARGET_OBJECTS:eosCommon-Objects>)
+
+target_link_libraries(eosCommon-Static PUBLIC
+  ${EOSCOMMON_LIBS})
+
+set_target_properties(eosCommon-Static PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
 
 target_compile_definitions(eosCommon-Static PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
@@ -129,16 +140,16 @@ target_include_directories(eosCommon-Static PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
   $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(eosCommon-Static PUBLIC ${EOSCOMMON_LIBS})
-
-set_target_properties(eosCommon-Static PROPERTIES
-  POSITION_INDEPENDENT_CODE TRUE)
+install(TARGETS eosCommon
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
 #-------------------------------------------------------------------------------
-# eosCommonServer and eosCommon-Static libraries
+# eosCommonServer and eosCommonServer-Static libraries
 #-------------------------------------------------------------------------------
 if (Linux)
-  add_library(eosCommonServer SHARED
+  add_library(eosCommonServer-Objects OBJECT
     GlobalConfig.cc
     ShellExecutor.cc
     ShellCmd.cc
@@ -155,12 +166,13 @@ if (Linux)
     http/s3/S3Handler.cc
     stringencoders/modp_numtoa.c)
 
-  target_include_directories(
-   eosCommonServer PUBLIC ${LEVELDB_INCLUDE_DIRS})
+  set_target_properties(eosCommonServer-Objects PROPERTIES
+    POSITION_INDEPENDENT_CODE TRUE)
 
-  target_link_libraries(eosCommonServer PUBLIC
-    fmt
-    XrdMqClient
+  target_compile_definitions(eosCommonServer-Objects PUBLIC
+    -DSQLITE_NO_SYNC=1)
+
+  set(EOSCOMMONSERVER_LIBS
     ${Z_LIBRARY}
     ${ZMQ_LIBRARIES}
     ${UUID_LIBRARIES}
@@ -173,15 +185,41 @@ if (Linux)
     ${OPENSSL_CRYPTO_LIBRARY})
 
   if(MICROHTTPD_FOUND)
-    target_link_libraries(eosCommonServer PUBLIC ${MICROHTTPD_LIBRARIES})
+    LIST(APPEND EOSCOMMONSERVER_LIBS "${MICROHTTPD_LIBRARIES}")
   endif()
+
+  add_library(eosCommonServer SHARED
+    $<TARGET_OBJECTS:eosCommonServer-Objects>)
+
+  target_link_libraries(eosCommonServer PUBLIC
+    fmt
+    XrdMqClient
+    ${EOSCOMMONSERVER_LIBS})
 
   set_target_properties(eosCommonServer PROPERTIES
     VERSION ${VERSION}
     SOVERSION ${VERSION_MAJOR}
     MACOSX_RPATH TRUE)
 
-  target_compile_definitions(eosCommonServer PUBLIC -DSQLITE_NO_SYNC=1)
+  target_compile_definitions(eosCommonServer PUBLIC
+    -DSQLITE_NO_SYNC=1)
+
+  target_include_directories(
+    eosCommonServer PUBLIC ${LEVELDB_INCLUDE_DIRS})
+
+  add_library(eosCommonServer-Static STATIC
+    $<TARGET_OBJECTS:eosCommonServer-Objects>)
+
+  target_link_libraries(eosCommonServer-Static PUBLIC
+    fmt
+    XrdMqClient-Static
+    ${EOSCOMMONSERVER_LIBS})
+
+  target_compile_definitions(eosCommonServer-Static PUBLIC
+    -DSQLITE_NO_SYNC=1)
+
+  target_include_directories(
+    eosCommonServer-Static PUBLIC ${LEVELDB_INCLUDE_DIRS})
 
   install(TARGETS eosCommonServer
     LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
