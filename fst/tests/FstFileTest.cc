@@ -407,6 +407,9 @@ TEST_F(FstFileTest, ReadAsyncTest)
     offset += buff_size;
   }
 
+  off_t read_size = file->fileReadAsync(offset, buffer, buff_size, true);
+  ASSERT_EQ(buff_size, 0);
+
   ASSERT_EQ(file->fileClose(), 0);
   delete[] buffer;
 }
@@ -449,6 +452,9 @@ TEST_F(FstFileTest, ReadAsyncTestRA)
     ASSERT_EQ(buff_size, read_size);
     offset += buff_size;
   }
+
+  off_t read_size = file->fileReadAsync(offset, buffer, buff_size, true);
+  ASSERT_EQ(buff_size, 0);
 
   ASSERT_EQ(file->fileClose(), 0);
   delete[] buffer;
