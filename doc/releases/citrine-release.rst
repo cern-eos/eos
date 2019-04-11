@@ -15,6 +15,38 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.4.35 Citrine``
+===================
+
+2019-04-11
+
+Bug
+---
+* [EOS-3400] - don't commit any replica with write errors
+* [EOS-3399] - never drop all replicas in reconstruction or injectino failure scenarios
+* [EOS-3398] +
+* [EOS-3237] - never wipe local MD in eosxd with LEASE messages
+* [EOS-3410] - catch JSON exception produced by empty strings
+* [EOS-3408] - fixs prefetch logic in fileReadAsync(XrdIo)
+* fix fading heart-beat problem: re-enable a queue in MQ if a client has cleared backlog
+
+Improvement
+-----------
+
+* add 'eos-fsck-fs' command to run standalone fsck on FSTs
+* add read-ahead test for XrdIo
+* [EOS-3391] - make geotag propagation less verbose
+* [EOS-3406] - move some log messages from error to debug
+* [EOS-3390] - suppress UDP target missing message
+* [EOS-3401] - if scanner is diabled don't even scan files a first time
+* avoid FuseXCasts when _rem is called in FuseServer with recycle bin enabled
+
+Refactoring
+-----------
+
+* fix some more fid/fxid log messages to use the hex format
+* drop use of BackendClient in MetadataProvider
+
 ``v4.4.34 Citrine``
 ===================
 
