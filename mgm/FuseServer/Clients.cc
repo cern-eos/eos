@@ -430,7 +430,7 @@ FuseServer::Clients::Print(std::string& out, std::string options)
 	       "ra-nobuf=%lu "
 	       "wr-nobuf=%lu "
 	       "idle=%ld "
-	       "blockedms=%f",
+	       "blockedms=%f\n",
 	       it->second.heartbeat().name().c_str(),
 	       it->second.heartbeat().host().c_str(),
 	       it->second.heartbeat().version().c_str(),
