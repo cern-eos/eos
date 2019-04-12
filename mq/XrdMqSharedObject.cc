@@ -45,6 +45,7 @@ std::atomic<unsigned long long> XrdMqSharedHash::sGetCounter {0};
 thread_local XrdMqSharedObjectChangeNotifier::Subscriber*
 XrdMqSharedObjectChangeNotifier::tlSubscriber = NULL;
 
+
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
@@ -714,7 +715,7 @@ XrdMqSharedHash::Delete(const std::string& key, bool broadcast)
       XrdMqSharedObjectManager::Notification event(fkey,
           XrdMqSharedObjectManager::kMqSubjectKeyDeletion);
       mSOM->mSubjectsMutex.Lock();
-      mSOM->NotificationSubjects.push_back(event);
+      mSOM->mNotificationSubjects.push_back(event);
       mSOM->SubjectsSem.Post();
       mSOM->mSubjectsMutex.UnLock();
     }
@@ -808,7 +809,7 @@ XrdMqSharedHash::SetImpl(const char* key, const char* value, bool broadcast)
     XrdSysMutexHelper lock(mSOM->mSubjectsMutex);
     XrdMqSharedObjectManager::Notification event
     (fkey, XrdMqSharedObjectManager::kMqSubjectModification);
-    mSOM->NotificationSubjects.push_back(event);
+    mSOM->mNotificationSubjects.push_back(event);
     mSOM->SubjectsSem.Post();
   }
 
@@ -2182,14 +2183,14 @@ noexcept
     SOM->mSubjectsMutex.Lock();
     std::set<Subscriber*> notifiedSubscribers;
 
-    while (SOM->NotificationSubjects.size()) {
+    while (SOM->mNotificationSubjects.size()) {
       XrdMqSharedObjectManager::Notification event;
-      event = SOM->NotificationSubjects.front();
-      SOM->NotificationSubjects.pop_front();
+      event = SOM->mNotificationSubjects.front();
+      SOM->mNotificationSubjects.pop_front();
       SOM->mSubjectsMutex.UnLock();
       std::string newsubject = event.mSubject;
-      //eos_static_debug("SOM Listener new notification %d on %s",
-      // event.mType,event.mSubject.c_str());
+      eos_info("msg=\"SOM Listener new notification\" subject=%s, type=%i",
+               event.mSubject.c_str(), event.mType);
       int type = static_cast<int>(event.mType);
       std::set<Subscriber*> notifiedSubscribersForCurrentEvent;
       std::string key = newsubject;
@@ -2500,7 +2501,7 @@ XrdMqSharedObjectManager::CreateSharedHash(const char* subject,
 
     if (mEnableQueue) {
       mSubjectsMutex.Lock();
-      NotificationSubjects.push_back(event);
+      mNotificationSubjects.push_back(event);
       mSubjectsMutex.UnLock();
       SubjectsSem.Post();
     }
@@ -2531,7 +2532,7 @@ XrdMqSharedObjectManager::CreateSharedQueue(const char* subject,
 
     if (mEnableQueue) {
       mSubjectsMutex.Lock();
-      NotificationSubjects.push_back(event);
+      mNotificationSubjects.push_back(event);
       mSubjectsMutex.UnLock();
       SubjectsSem.Post();
     }
@@ -2586,7 +2587,7 @@ XrdMqSharedObjectManager::DeleteSharedHash(const char* subject, bool broadcast)
 
     if (mEnableQueue) {
       mSubjectsMutex.Lock();
-      NotificationSubjects.push_back(event);
+      mNotificationSubjects.push_back(event);
       mSubjectsMutex.UnLock();
       SubjectsSem.Post();
     }
@@ -2623,7 +2624,7 @@ XrdMqSharedObjectManager::DeleteSharedQueue(const char* subject, bool broadcast)
 
     if (mEnableQueue) {
       mSubjectsMutex.Lock();
-      NotificationSubjects.push_back(event);
+      mNotificationSubjects.push_back(event);
       mSubjectsMutex.UnLock();
       SubjectsSem.Post();
     }
@@ -2782,10 +2783,8 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
 
   XrdOucEnv env(message->GetBody());
   int envlen;
-  env.Env(envlen);
 
   if (sDebug) {
-    env.Env(envlen);
     fprintf(stderr, "XrdMqSharedObjectManager::ParseEnvMessage=> size=%d text=%s\n",
             envlen, env.Env(envlen));
   }
@@ -2947,6 +2946,7 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
             error += subject.c_str();
             error += " and type ";
             error += type.c_str();
+            eos_err("%s", error.c_str());
             return false;
           }
         }
@@ -3033,11 +3033,8 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
               cid.assign(val, cidstart[i] + 1, keystart[i + 1] - 1 - (cidstart[i]));
             }
 
-            if (sDebug) {
-              fprintf(stderr,
-                      "XrdMqSharedObjectManager::ParseEnvMessage=>Setting [%s] %s=> %s\n",
-                      subject.c_str(), key.c_str(), value.c_str());
-            }
+            eos_debug_lite("subject=%s, key=%s, val=%s", subject.c_str(),
+                           key.c_str(), value.c_str());
 
             if (subjectlist.size() > 1) {
               // This is a multiplexed update, where we have to remove the

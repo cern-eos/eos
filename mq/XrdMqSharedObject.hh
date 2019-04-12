@@ -31,6 +31,7 @@
 #include "common/AssistedThread.hh"
 #include "common/StringConversion.hh"
 #include "common/RWMutex.hh"
+#include "common/Logging.hh"
 #include <string>
 #include <map>
 #include <vector>
@@ -604,7 +605,7 @@ private:
 //------------------------------------------------------------------------------
 //! Class XrdMqSharedObjectManager
 //------------------------------------------------------------------------------
-class XrdMqSharedObjectManager
+class XrdMqSharedObjectManager: public eos::common::LogId
 {
   friend class XrdMqSharedHash;
   friend class XrdMqSharedQueue;
@@ -833,7 +834,7 @@ protected:
   std::string MuxTransactionBroadCastQueue;
   bool IsMuxTransaction;
   std::map<std::string, std::set<std::string> > MuxTransactions;
-  std::deque<Notification> NotificationSubjects;
+  std::deque<Notification> mNotificationSubjects;
   //! Semaphore to wait for new creations/deletions/modifications
   XrdSysSemWait SubjectsSem;
   //! Mutex to protect the creations/deletions/modifications & watch subjects
@@ -857,7 +858,7 @@ private:
 //------------------------------------------------------------------------------
 //! Class XrdMqSharedObjectChangeNotifier
 //------------------------------------------------------------------------------
-class XrdMqSharedObjectChangeNotifier
+class XrdMqSharedObjectChangeNotifier: public eos::common::LogId
 {
 public:
   struct Subscriber {
@@ -938,7 +939,6 @@ public:
   }
 
   static thread_local Subscriber* tlSubscriber;
-
   inline Subscriber* BindCurrentThread(const std::string& name,
                                        bool createIfNeeded = true)
   {
