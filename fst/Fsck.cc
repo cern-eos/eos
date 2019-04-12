@@ -253,6 +253,9 @@ Fsck::CheckFile(const char* filepath)
     previousFileCxError, previousBlockCxError;
   char checksumVal[SHA_DIGEST_LENGTH];
   size_t checksumLen;
+  bool has_filecxerror = false;
+  bool has_blockcxerror = false;
+
   filePath = filepath;
   std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(filepath));
   noTotalFiles++;
@@ -275,8 +278,12 @@ Fsck::CheckFile(const char* filepath)
 
   io->attrGet("user.eos.timestamp", checksumStamp);
   io->attrGet("user.eos.lfn", logicalFileName);
-  io->attrGet("user.eos.filecxerror", previousFileCxError);
-  io->attrGet("user.eos.blockcxerror", previousBlockCxError);
+  if (!io->attrGet("user.eos.filecxerror", previousFileCxError)) {
+    has_filecxerror = true;
+  }
+  if (!io->attrGet("user.eos.blockcxerror", previousBlockCxError)) {
+    has_blockcxerror = true;
+  }
 
 
   io->fileClose();
@@ -299,12 +306,12 @@ Fsck::CheckFile(const char* filepath)
 	}
 	mMd[fid].set_diskchecksum(hex_checksum);
       }
-      if (previousFileCxError == "0") {
+      if ( (previousFileCxError == "0") || (!has_filecxerror)) {
 	mMd[fid].set_filecxerror(0);
       } else {
 	mMd[fid].set_filecxerror(1);
       }
-      if (previousBlockCxError == "0") {
+      if ( (previousBlockCxError == "0") || (!has_blockcxerror)) {
 	mMd[fid].set_blockcxerror(0);
       } else {
 	mMd[fid].set_blockcxerror(1);
@@ -557,10 +564,12 @@ Fsck::ReportFiles()
   for (auto it = mMd.begin();  it != mMd.end(); ++it) {
     bool corrupted = false;
     if (it->second.disksize() != (unsigned long)-1 ) {
-      if (it->second.disksize() != it->second.mgmsize()) {
-	fprintf(stderr, "[Fsck] [ERROR] [ SIZE    ] fsid:%d cxid:%08lx fxid:%08lx path:%s size mismatch disksize=%lu mgmsize=%lu\n", fsId, it->second.cid(), it->second.fid(), it->second.checksum().c_str(), it->second.disksize(), it->second.mgmsize());
-	errors["size"]++;
-	corrupted = true;
+      if (eos::common::LayoutId::GetLayoutType(it->second.lid()) <= eos::common::LayoutId::kReplica) {
+	if (it->second.disksize() != it->second.mgmsize()) {
+	  fprintf(stderr, "[Fsck] [ERROR] [ SIZE    ] fsid:%d cxid:%08lx fxid:%08lx path:%s size mismatch disksize=%lu mgmsize=%lu\n", fsId, it->second.cid(), it->second.fid(), it->second.checksum().c_str(), it->second.disksize(), it->second.mgmsize());
+	  errors["size"]++;
+	  corrupted = true;
+	}
       }
     }
 
