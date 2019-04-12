@@ -286,7 +286,8 @@ build_fedora_rawhide:
   tags:
     - docker_node
     - fedora_rawhide
-
+  only:
+    - schedules
 
 build_ubuntu_artful:
   image: ubuntu:artful
@@ -296,6 +297,8 @@ build_ubuntu_artful:
   tags:
     - docker_node
     - ubuntu
+  only:
+    - schedules
 
 
 build_ubuntu_bionic:
