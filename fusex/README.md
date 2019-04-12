@@ -54,7 +54,7 @@ This
     "cpu-core-affinity" : 1,
     "no-xattr" : 1,
     "no-link" : 0,
-    "nocache-graceperiod" : 5
+    "nocache-graceperiod" : 5,
     "leasetime" : 300,
     "write-size-flush-interval" : 5,
     "submounts" : 0
@@ -65,13 +65,13 @@ This
     "krb5" : 1,
     "gsi-first" : 0,
     "sss" : 0,
-    "ssskeytab" : "/etc/eos/fuse.sss.keytab"
+    "ssskeytab" : "/etc/eos/fuse.sss.keytab",
     "environ-deadlock-timeout" : 100,
     "forknoexec-heuristic" : 1
   },
   "inline" : {
     "max-size" : 0,
-    "default-compressor" : "none",
+    "default-compressor" : "none"
   },
   "fuzzing" : {
     "open-async-submit" : 0,
