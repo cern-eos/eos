@@ -236,7 +236,8 @@ build_cc7_xrd_testing:
     - docker_node
     - cc7
   allow_failure: true
-  when: manual
+  only:
+    - schedules
 
 
 build_cc7_asan:
@@ -249,6 +250,8 @@ build_cc7_asan:
     - docker_node
 # @todo(esindril) - add a node also with the following tag
 #    - asan
+  only:
+    - schedules
 
 
 build_cc7_clang:
@@ -260,8 +263,9 @@ build_cc7_clang:
   tags:
     - docker_node
     - cc7
+  only:
+    - schedules
   allow_failure: true
-  when: manual
 
 
 build_fedora_stable:
@@ -341,7 +345,7 @@ cc7_docker_image_xrd_testing:
     - build_cc7_xrd_testing
     - clone_docker
   only:
-    - branches
+    - schedules
   except:
     - beryl_aquamarine
     - tags
@@ -382,7 +386,7 @@ cc7_asan_docker_image_commit:
     - build_cc7_asan
     - clone_docker
   only:
-    - branches
+    - schedules
   except:
     - beryl_aquamarine
     - tags
