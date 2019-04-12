@@ -329,6 +329,11 @@ public:
   //----------------------------------------------------------------------------
   void SetSimulationError(const char* tag);
 
+  //----------------------------------------------------------------------------
+  //! Request broadcasts from all the registered queues
+  //----------------------------------------------------------------------------
+  void RequestBroadcasts();
+
   void SetDebug(XrdOucEnv& env);
 
   void SendRtLog(XrdMqMessage* message);

@@ -764,62 +764,13 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     return 1;
   }
 
-  std::this_thread::sleep_for(std::chrono::seconds(5));
   ObjectNotifier.SetShareObjectManager(&ObjectManager);
 
   if (!ObjectNotifier.Start()) {
     eos_crit("error starting the shared object change notifier");
   }
 
-  eos_notice("sending broadcasts ...");
-  // Create a wildcard broadcast
-  XrdMqSharedHash* hash = 0;
-  XrdMqSharedQueue* queue = 0;
-  // Create a node broadcast
-  ObjectManager.CreateSharedHash(
-    eos::fst::Config::gConfig.FstConfigQueueWildcard.c_str(),
-    eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
-  ObjectManager.HashMutex.LockRead();
-  hash = ObjectManager.GetHash(
-           eos::fst::Config::gConfig.FstConfigQueueWildcard.c_str());
-
-  if (hash) {
-    // Ask for a broadcast
-    hash->BroadcastRequest(
-      eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
-  }
-
-  ObjectManager.HashMutex.UnLockRead();
-  // Create a node gateway broadcast
-  ObjectManager.CreateSharedQueue(
-    eos::fst::Config::gConfig.FstGwQueueWildcard.c_str(),
-    eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
-  ObjectManager.HashMutex.LockRead();
-  queue = ObjectManager.GetQueue(
-            eos::fst::Config::gConfig.FstGwQueueWildcard.c_str());
-
-  if (queue) {
-    // Ask for a broadcast
-    queue->BroadcastRequest(
-      eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
-  }
-
-  ObjectManager.HashMutex.UnLockRead();
-  // Create a filesystem broadcast
-  ObjectManager.CreateSharedHash(
-    eos::fst::Config::gConfig.FstQueueWildcard.c_str(),
-    eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
-  ObjectManager.HashMutex.LockRead();
-  hash = ObjectManager.GetHash(
-           eos::fst::Config::gConfig.FstQueueWildcard.c_str());
-
-  if (hash) {
-    // Ask for a broadcast
-    hash->BroadcastRequest(
-      eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
-  }
-
-  ObjectManager.HashMutex.UnLockRead();
+  RequestBroadcasts();
   // Start dumper thread
   XrdOucString dumperfile = eos::fst::Config::gConfig.FstMetaLogDir;
   dumperfile += "so.fst.dump.";
@@ -1771,5 +1722,43 @@ XrdFstOfs::GetKeytabChecksum(const std::string& kt_path) const
 
   return kt_cks;
 }
+
+//------------------------------------------------------------------------------
+// Request broadcasts from all the registered queues
+//------------------------------------------------------------------------------
+void
+XrdFstOfs::RequestBroadcasts()
+{
+  using eos::fst::Config;
+  eos_notice("sending broadcasts ...");
+  // Create a wildcard broadcast
+  XrdMqSharedHash* hash = 0;
+  XrdMqSharedQueue* queue = 0;
+  // Create a node broadcast
+  ObjectManager.CreateSharedHash(Config::gConfig.FstConfigQueueWildcard.c_str(),
+                                 Config::gConfig.FstDefaultReceiverQueue.c_str());
+  {
+    eos::common::RWMutexReadLock rd_lock(ObjectManager.HashMutex);
+    hash = ObjectManager.GetHash(Config::gConfig.FstConfigQueueWildcard.c_str());
+    hash->BroadcastRequest(Config::gConfig.FstDefaultReceiverQueue.c_str());
+  }
+  // Create a node gateway broadcast
+  ObjectManager.CreateSharedQueue(Config::gConfig.FstGwQueueWildcard.c_str(),
+                                  Config::gConfig.FstDefaultReceiverQueue.c_str());
+  {
+    eos::common::RWMutexReadLock rd_lock(ObjectManager.HashMutex);
+    queue = ObjectManager.GetQueue(Config::gConfig.FstGwQueueWildcard.c_str());
+    queue->BroadcastRequest(Config::gConfig.FstDefaultReceiverQueue.c_str());
+  }
+  // Create a filesystem broadcast
+  ObjectManager.CreateSharedHash(Config::gConfig.FstQueueWildcard.c_str(),
+                                 Config::gConfig.FstDefaultReceiverQueue.c_str());
+  {
+    eos::common::RWMutexReadLock rd_lock(ObjectManager.HashMutex);
+    hash = ObjectManager.GetHash(Config::gConfig.FstQueueWildcard.c_str());
+    hash->BroadcastRequest(Config::gConfig.FstDefaultReceiverQueue.c_str());
+  }
+}
+
 
 EOSFSTNAMESPACE_END

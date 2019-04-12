@@ -173,9 +173,9 @@ Storage::Storage(const char* meta_dir)
   mCommunicatorThread.reset(&Storage::Communicator, this);
   mCommunicatorThread.setName("Communicator Thread");
 
-  if(gOFS.mMqOnQdb) {
+  if (gOFS.mMqOnQdb) {
     mQdbCommunicatorThread.reset(&Storage::QdbCommunicator,
-      this, gOFS.mQdbContactDetails);
+                                 this, gOFS.mQdbContactDetails);
     mQdbCommunicatorThread.setName("QDB Communicator Thread");
   }
 
@@ -189,15 +189,14 @@ Storage::Storage(const char* meta_dir)
   }
 
   mThreadSet.insert(tid);
-
   eos_info("starting filesystem publishing thread");
   mPublisherThread.reset(&Storage::Publish, this);
   mPublisherThread.setName("Publisher Thread");
 
-  if(gOFS.mMqOnQdb) {
+  if (gOFS.mMqOnQdb) {
     eos_info("starting filesystem QDB publishing thread");
     mQdbNodePublisherThread.reset(&Storage::QdbPublishNodeStats, this,
-      gOFS.mQdbContactDetails);
+                                  gOFS.mQdbContactDetails);
     mQdbNodePublisherThread.setName("QDB Node Publisher Thread");
   }
 
@@ -491,8 +490,9 @@ Storage::Boot(FileSystem* fs)
   // same fsid + uuid
   if (!CheckLabel(fs->GetPath(), fsid, uuid)) {
     fs->SetStatus(eos::common::BootStatus::kBootFailure);
-    fs->SetError(EFAULT, "the filesystem has a different label (fsid+uuid) "
-                 "than the configuration");
+    fs->SetError(EFAULT, SSTR("filesystem has a different label (fsid="
+                              << fsid << ", uuid=" << uuid << ") than "
+                              << "the configuration").c_str());
     return;
   }
 
@@ -1029,10 +1029,10 @@ Storage::IsNodeActive() const
 // Parameter i is the index into mFsVect.
 //----------------------------------------------------------------------------
 void
-Storage::CheckFilesystemFullness(size_t index, eos::common::FileSystem::fsid_t fsid)
+Storage::CheckFilesystemFullness(size_t index,
+                                 eos::common::FileSystem::fsid_t fsid)
 {
   long long freebytes = mFsVect[index]->GetLongLong("stat.statfs.freebytes");
-
   XrdSysMutexHelper lock(mFsFullMapMutex);
   // stop the writers if it get's critical under 5 GB space
   int full_gb = 5;

@@ -32,7 +32,7 @@ EOSFSTNAMESPACE_BEGIN
 // Communicator
 //------------------------------------------------------------------------------
 void
-Storage::Communicator(ThreadAssistant &assistant)
+Storage::Communicator(ThreadAssistant& assistant)
 {
   eos_static_info("Communicator activated ...");
   std::string watch_id = "id";
@@ -192,7 +192,7 @@ Storage::Communicator(ThreadAssistant &assistant)
           queue.erase(dpos);
         }
 
-        if (queue == Config::gConfig.getFstNodeConfigQueue()) {
+        if (queue == Config::gConfig.getFstNodeConfigQueue("communicator", false)) {
           if (key == "symkey") {
             gOFS.ObjectManager.HashMutex.LockRead();
             // we received a new symkey
@@ -436,9 +436,10 @@ Storage::Communicator(ThreadAssistant &assistant)
 // QdbCommunicator
 //------------------------------------------------------------------------------
 void
-Storage::QdbCommunicator(QdbContactDetails contactDetails, ThreadAssistant &assistant)
+Storage::QdbCommunicator(QdbContactDetails contactDetails,
+                         ThreadAssistant& assistant)
 {
-  while(!assistant.terminationRequested()) {
+  while (!assistant.terminationRequested()) {
     assistant.wait_for(std::chrono::seconds(1));
   }
 }
