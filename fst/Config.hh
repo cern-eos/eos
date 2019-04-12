@@ -68,9 +68,10 @@ public:
     Manager = "";
   }
 
-  ~Config() { }
+  ~Config() = default;
 
-  XrdOucString& getFstNodeConfigQueue(const std::string& location = "");
+  XrdOucString getFstNodeConfigQueue(const std::string& location = "",
+                                     bool blocking = true);
   void setFstNodeConfigQueue(const XrdOucString& value);
   std::chrono::seconds getPublishInterval();
 
@@ -79,8 +80,8 @@ public:
   std::chrono::milliseconds getRandomizedPublishInterval();
 
 private:
-  XrdOucString
-  FstNodeConfigQueue; // our queue holding this node's configuration settings
+  //! Queue holding this node's configuration settings
+  XrdOucString FstNodeConfigQueue;
   std::atomic<bool> configQueueInitialized {false};
 
   // Random number generator
