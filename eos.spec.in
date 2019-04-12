@@ -3,7 +3,7 @@
 #-------------------------------------------------------------------------------
 %define _unpackaged_files_terminate_build 0
 %define distribution %(/usr/lib/rpm/redhat/dist.sh --distnum)
-%{!?compiler: %global compiler gcc}
+%define compiler gcc
 
 %if %{?rhel:1}%{!?rhel:0}
   %if %{rhel} >= 7
@@ -21,6 +21,10 @@
     %define use_systemd 0
     %define use_richacl 0
   %endif
+%endif
+
+%if %{?_with_clang:1}%{!?_with_clang:0}
+  %define compiler clang
 %endif
 
 # By default we build the eos client SRPMS, if the entire build is required

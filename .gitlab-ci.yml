@@ -256,7 +256,7 @@ build_cc7_clang:
   variables:
     BUILD_NAME: cc7_clang
     CMAKE_OPTIONS: "-DCLANG_BUILD=1"
-    RPMBUILD_OPTIONS: "--define \"compiler clang\""
+    RPMBUILD_OPTIONS: "--with clang"
   tags:
     - docker_node
     - cc7
