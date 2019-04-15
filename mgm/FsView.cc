@@ -1187,7 +1187,7 @@ FsView::GetNodeFormat(std::string option)
     format += "member=hostport:width=32:format=s|";
     format += "member=cfg.stat.geotag:width=16:format=s|";
     format += "member=status:width=10:format=s|";
-    format += "member=cfg.status:width=12:format=s|";
+    format += "member=cfg.status:width=12:format=s:tag=activated|";
     format += "member=cfg.txgw:width=6:format=s|";
     format += "member=heartbeatdelta:width=16:format=s|";
     format += "member=nofs:width=5:format=s|";
@@ -1200,7 +1200,7 @@ FsView::GetNodeFormat(std::string option)
     format += "member=hostport:width=32:format=s|";
     format += "member=cfg.stat.geotag:width=16:format=s|";
     format += "member=status:width=10:format=s|";
-    format += "member=cfg.status:width=12:format=s|";
+    format += "member=cfg.status:width=12:format=s:tag=activated|";
     format += "member=cfg.txgw:width=6:format=s|";
     format += "member=inqueue:width=10:format=s:tag=gw-queued|";
     format += "member=cfg.gw.ntx:width=8:format=s:tag=gw-ntx|";
@@ -2429,8 +2429,12 @@ BaseView::GetMember(const std::string& member) const
     }
 
     // It's otherwise hard to get the default into place
-    if (((val == "") || (val == "???")) && (cfg_member == "stat.balancing")) {
+    if ((member == "cfg.stat.balancing") && ((val == "") || (val == "???"))) {
       val = "idle";
+    }
+
+    if ((member == "cfg.status") && val.empty()) {
+      val = "off";
     }
 
     return val;

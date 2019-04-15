@@ -353,7 +353,7 @@ TableFormatterColor TableFormatterBase::ChangeColor(std::string header,
   // Colors for "fs ls", "node ls", "fileinfo" and "health" commands
   if (header == "status" || header == "active") {
     if (value == "online") {
-      return BWHITE;
+      return BDEFAULT;
     }
 
     if (value == "offline" || value == "unknown") {

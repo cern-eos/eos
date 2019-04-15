@@ -416,8 +416,8 @@ void TableCell::Print(std::ostream& ostream, size_t width_left,
   }
 
   // Color (return color to default)
-  if (mFormat.find("o") == std::string::npos &&
-      mColor != TableFormatterColor::NONE) {
+  if ((mFormat.find("o") == std::string::npos) &&
+      (mColor != TableFormatterColor::NONE)) {
     ostream << sColorVector[TableFormatterColor::DEFAULT];
   }
 
