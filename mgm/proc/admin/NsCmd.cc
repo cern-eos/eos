@@ -34,6 +34,7 @@
 #include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
+#include "namespace/ns_quarkdb/NamespaceGroup.hh"
 #include "namespace/Resolver.hh"
 #include "namespace/Constants.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -669,7 +670,8 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
   }
 
   eos::QuotaRecomputer recomputer(gOFS->eosView,
-    eos::BackendClient::getInstance(gOFS->mQdbContactDetails, "quota-recomputation"));
+    eos::BackendClient::getInstance(gOFS->mQdbContactDetails, "quota-recomputation"),
+    static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor());
 
   QuotaNodeCore qnc;
   eos::MDStatus status = recomputer.recompute(cont, qnc);

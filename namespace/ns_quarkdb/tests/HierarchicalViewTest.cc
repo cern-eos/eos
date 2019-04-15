@@ -638,7 +638,7 @@ TEST_F(HierarchicalViewF, QuotaRecomputation)
   mdFlusher()->synchronize();
 
   eos::QuotaNodeCore qnc;
-  eos::QuotaRecomputer recomputer(view(), &(qcl()));
+  eos::QuotaRecomputer recomputer(view(), &(qcl()), executor());
 
   eos::MDStatus status = recomputer.recompute(notquota1, qnc);
   ASSERT_FALSE(status.ok());

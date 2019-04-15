@@ -144,6 +144,11 @@ qclient::QClient& NsTestsFixture::qcl()
   return *(namespaceGroupPtr->getQClient());
 }
 
+folly::Executor* NsTestsFixture::executor()
+{
+  return namespaceGroupPtr->getExecutor();
+}
+
 eos::MetadataFlusher* NsTestsFixture::mdFlusher()
 {
   initServices();

@@ -37,6 +37,7 @@
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
+#include "namespace/ns_quarkdb/NamespaceGroup.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -604,7 +605,8 @@ public:
     options.populateLinkedAttributes = true;
     options.expansionDecider.reset(new PermissionFilter(vid));
     options.view = gOFS->eosView;
-    explorer.reset(new NamespaceExplorer(path, options, *qcl));
+    explorer.reset(new NamespaceExplorer(path, options, *qcl,
+      static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor()) );
   }
 
   //----------------------------------------------------------------------------
