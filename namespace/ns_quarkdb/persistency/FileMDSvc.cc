@@ -38,9 +38,10 @@ std::chrono::seconds QuarkFileMDSvc::sFlushInterval(5);
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuarkFileMDSvc::QuarkFileMDSvc(qclient::QClient *qcl, MetadataFlusher *flusher)
-  : pQuotaStats(nullptr), pContSvc(nullptr), pFlusher(flusher), pQcl(qcl),
-    mMetaMap(), mNumFiles(0ull) {}
+QuarkFileMDSvc::QuarkFileMDSvc(qclient::QClient *qcl, MetadataFlusher *flusher,
+  folly::Executor *exec)
+  : mExecutor(exec), pQuotaStats(nullptr), pContSvc(nullptr), pFlusher(flusher),
+  pQcl(qcl), mMetaMap(), mNumFiles(0ull) {}
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -73,7 +74,7 @@ QuarkFileMDSvc::configure(const std::map<std::string, std::string>& config)
   mMetaMap.setKey(constants::sMapMetaInfoKey);
   mMetaMap.setClient(*pQcl);
   mUnifiedInodeProvider.configure(mMetaMap);
-  mMetadataProvider.reset(new MetadataProvider(contactDetails, pContSvc, this));
+  mMetadataProvider.reset(new MetadataProvider(contactDetails, pContSvc, this, mExecutor));
   static_cast<QuarkContainerMDSvc*>(pContSvc)->setMetadataProvider
   (mMetadataProvider.get());
   static_cast<QuarkContainerMDSvc*>(pContSvc)->setInodeProvider

@@ -36,6 +36,7 @@
 #include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
+#include "namespace/ns_quarkdb/BackendClient.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

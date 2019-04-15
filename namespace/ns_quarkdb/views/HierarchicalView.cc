@@ -40,12 +40,12 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuarkHierarchicalView::QuarkHierarchicalView(qclient::QClient *qcl, MetadataFlusher *flusher)
+QuarkHierarchicalView::QuarkHierarchicalView(qclient::QClient *qcl, MetadataFlusher *flusher,
+  folly::Executor *exec)
   : pQcl(qcl), pQuotaFlusher(flusher), pContainerSvc(nullptr), pFileSvc(nullptr),
-    pQuotaStats(new QuarkQuotaStats(pQcl, pQuotaFlusher)), pRoot(nullptr)
-{
-  pExecutor.reset(new folly::IOThreadPoolExecutor(32));
-}
+    pQuotaStats(new QuarkQuotaStats(pQcl, pQuotaFlusher)), pRoot(nullptr),
+    pExecutor(exec)
+{ }
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -214,7 +214,7 @@ QuarkHierarchicalView::getPathDeferred(folly::Future<FileOrContainerMD> fut,
   // The Executor pool will "resume" computation later, once the network
   // request is completed.
   //----------------------------------------------------------------------------
-  return fut.via(pExecutor.get())
+  return fut.via(pExecutor)
          .then(std::bind(&QuarkHierarchicalView::getPathInternal, this, _1, pendingChunks,
                          follow, expendedEffort));
 }
@@ -230,7 +230,7 @@ QuarkHierarchicalView::getPathDeferred(folly::Future<IContainerMDPtr> fut,
   //----------------------------------------------------------------------------
   // Same as getPathDeferred taking FileOrContainerMD.
   //----------------------------------------------------------------------------
-  return fut.via(pExecutor.get())
+  return fut.via(pExecutor)
          .then(toFileOrContainerMD)
          .then(std::bind(&QuarkHierarchicalView::getPathInternal, this, _1, pendingChunks,
                          follow, expendedEffort));
@@ -750,7 +750,7 @@ QuarkHierarchicalView::getUri(const IContainerMD* container) const
 folly::Future<std::string>
 QuarkHierarchicalView::getUriFut(ContainerIdentifier id) const
 {
-  return folly::via(pExecutor.get()).then([this, id]() {
+  return folly::via(pExecutor).then([this, id]() {
     return this->getUri(id.getUnderlyingUInt64());
   });
 }
@@ -789,7 +789,7 @@ QuarkHierarchicalView::getUri(const IContainerMD::id_t cid) const
 folly::Future<std::string>
 QuarkHierarchicalView::getUriFut(FileIdentifier id) const
 {
-  return folly::via(pExecutor.get()).then([this, id]() {
+  return folly::via(pExecutor).then([this, id]() {
     return this->getUri(pFileSvc->getFileMD(id.getUnderlyingUInt64()).get());
   });
 }

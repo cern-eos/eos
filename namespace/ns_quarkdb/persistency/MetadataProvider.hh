@@ -51,7 +51,7 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   MetadataProvider(const QdbContactDetails& contactDetails, IContainerMDSvc* contsvc,
-                   IFileMDSvc* filemvc);
+                   IFileMDSvc* filemvc, folly::Executor* exec);
 
   //----------------------------------------------------------------------------
   //! Retrieve ContainerMD by ID
@@ -121,7 +121,7 @@ private:
   //! The order of these two members is very important - the executor must be
   //! first.
   //----------------------------------------------------------------------------
-  std::unique_ptr<folly::Executor> mExecutor;
+  folly::Executor* mExecutor;
   std::vector<std::unique_ptr<qclient::QClient>> mQcl;
 
   std::vector<std::unique_ptr<MetadataProviderShard>> mShards;
