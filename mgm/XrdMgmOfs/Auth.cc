@@ -138,11 +138,11 @@ XrdMgmOfs::AuthWorkerThread()
 {
   using namespace eos::auth;
   int ret;
-  eos_static_info("authentication worker thread starting");
+  eos_static_info("msg=\"authentication worker thread starting\"");
   zmq::socket_t* responder = 0;
 
   if (!ConnectToBackend(responder)) {
-    eos_err("kill thread as we could not connect to backend socket");
+    eos_err("msg=\"kill thread as we could not connect to backend socket\"");
     delete responder;
     return;
   }
@@ -167,10 +167,12 @@ XrdMgmOfs::AuthWorkerThread()
         return;
       }
 
-      eos_err("socket recv error: %s, trying to reset the socket", e.what());
+      eos_err("msg=\"socket recv error: %s, trying to reset the socket\"",
+              e.what());
 
       if (!ConnectToBackend(responder)) {
-        eos_err("kill thread as we could not connect to backend socket");
+        eos_err("msg=\"kill thread as we could not connect to backend socket\"");
+        delete responder;
         return;
       }
 
@@ -573,7 +575,7 @@ XrdMgmOfs::AuthWorkerThread()
 
     if ((num_retries <= 0) || reset_socket) {
       if (!ConnectToBackend(responder)) {
-        eos_err("kill thread as we could not connect to backend socket");
+        eos_err("msg=\"kill thread as we could not connect to backend socket\"");
         delete responder;
         return;
       }

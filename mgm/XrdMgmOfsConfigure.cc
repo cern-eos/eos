@@ -1277,7 +1277,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     NoGo = 1;
   }
 
-  mFusexStackTraces.reset(new eos::common::CommentLog("/var/log/eos/mgm/eosxd-stacktraces.log"));
+  mFusexStackTraces.reset(new
+                          eos::common::CommentLog("/var/log/eos/mgm/eosxd-stacktraces.log"));
+
   if (mFusexStackTraces && mFusexStackTraces->IsValid()) {
     Eroute.Say("=====> eosxd stacktraces log in /var/log/eos/mgm/eosxd-stacktraces.log");
   } else {
@@ -1286,7 +1288,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     NoGo = 1;
   }
 
-  mFusexLogTraces.reset(new eos::common::CommentLog("/var/log/eos/mgm/eosxd-logtraces.log"));
+  mFusexLogTraces.reset(new
+                        eos::common::CommentLog("/var/log/eos/mgm/eosxd-logtraces.log"));
+
   if (mFusexLogTraces && mFusexLogTraces->IsValid()) {
     Eroute.Say("=====> eosxd logtraces log in /var/log/eos/mgm/eosxd-logtraces.log");
   } else {
@@ -1294,7 +1298,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                 "/var/log/eos/mgm/eosxd-logtraces.log");
     NoGo = 1;
   }
-
 
   // Save MGM alias if configured
   if (getenv("EOS_MGM_ALIAS")) {
@@ -1891,16 +1894,18 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     // pool of threads
     eos_info("starting the authentication worker threads");
 
-    for (unsigned int i = 0; i < mNumAuthThreads; i++) {
+    for (unsigned int i = 0; i < mNumAuthThreads; ++i) {
       pthread_t worker_tid;
 
       if ((XrdSysThread::Run(&worker_tid, XrdMgmOfs::StartAuthWorkerThread,
-                             static_cast<void*>(this), 0, "Auth Worker Thread"))) {
-        eos_crit("cannot start the authentication thread %i", i);
+                             static_cast<void*>(this), XRDSYSTHREAD_HOLD,
+                             "Auth Worker Thread"))) {
+        eos_crit("msg=\"cannot start authentication thread num=%i\"", i);
         NoGo = 1;
+        break;
+      } else {
+        mVectTid.push_back(worker_tid);
       }
-
-      mVectTid.push_back(worker_tid);
     }
   }
 
