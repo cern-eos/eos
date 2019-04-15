@@ -378,6 +378,9 @@ ubuntu_docker_image_commit:
   variables:
     TO: gitlab-registry.cern.ch/dss/eos:ubuntu_client_${CI_PIPELINE_ID}
     DOCKER_FILE: eos-docker/ubuntu_client/Dockerfile
+  dependencies:
+    - build_ubuntu_bionic
+    - clone_docker
   only:
     - dev
     - master
@@ -451,6 +454,9 @@ ubuntu_docker_image_tag:
     TO: gitlab-registry.cern.ch/dss/eos:ubuntu_client_${CI_COMMIT_TAG}
     DOCKER_FILE: eos-docker/ubuntu_client/Dockerfile
     NO_CACHE: 1
+  dependencies:
+    - build_ubuntu_bionic
+    - clone_docker
   only:
     - tags
   allow_failure: true
