@@ -485,7 +485,6 @@ cc7_docker_image_xrd_testing:
   except:
     - tags
   allow_failure: true
-  when: manual
 
 
 cc7_docker_image_tag:
@@ -606,7 +605,6 @@ k8s_unit_test:
   except:
     - schedules
   allow_failure: true
-  retry: 1
 
 
 k8s_unit_test_asan:
@@ -620,7 +618,6 @@ k8s_unit_test_asan:
   only:
     - schedules
   allow_failure: true
-  retry: 1
 
 
 k8s_ns_unit_test:
@@ -636,7 +633,6 @@ k8s_ns_unit_test:
   except:
     - schedules
   allow_failure: true
-  retry: 1
 
 
 k8s_ns_unit_test_asan:
@@ -650,7 +646,6 @@ k8s_ns_unit_test_asan:
   only:
     - schedules
   allow_failure: true
-  retry: 1
 
 
 k8s_stress_test:
