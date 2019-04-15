@@ -76,8 +76,8 @@ XrdMgmOfs::_rem(const char* path,
                 bool simulate,
                 bool keepversion,
                 bool no_recycling,
-                bool no_quota_enforcement, 
-		bool fusexcast)
+                bool no_quota_enforcement,
+                bool fusexcast)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a file from the namespace
@@ -226,7 +226,9 @@ XrdMgmOfs::_rem(const char* path,
                     "remove existing file - you are write-once user");
       }
 
-eos_debug("vid.uid %d vid.gid %d CanotDelete %d CUid %d", vid.uid, vid.gid, acl.CanNotDelete(), fmd->getCUid());
+      eos_debug("vid.uid %d vid.gid %d CanotDelete %d CUid %d", vid.uid, vid.gid,
+                acl.CanNotDelete(), fmd->getCUid());
+
       // if there is a !d policy we cannot delete files which we don't own
       if (((vid.uid) && (vid.uid != 3) && (vid.gid != 4) && (acl.CanNotDelete())) &&
           ((fmd->getCUid() != vid.uid))) {
@@ -393,8 +395,6 @@ eos_debug("vid.uid %d vid.gid %d CanotDelete %d CUid %d", vid.uid, vid.gid, acl.
             eos_err("msg=\"failed to set attribute on recycle path\" path=%s",
                     recyclePath.c_str());
           }
-        } else {
-          eos_err("msg\"failed to stat recycle path\" path=%s", recyclePath.c_str());
         }
       }
 

@@ -213,8 +213,8 @@ XrdMgmOfs::_rename(const char* old_name,
                    const char* infoN,
                    bool updateCTime,
                    bool checkQuota,
-                   bool overwrite, 
-		   bool fusexcast)
+                   bool overwrite,
+                   bool fusexcast)
 {
   static const char* epname = "_rename";
   eos_info("source=%s target=%s overwrite=%d", old_name, new_name, overwrite);
@@ -249,7 +249,6 @@ XrdMgmOfs::_rename(const char* old_name,
   bool renameVersion = false;
   bool findOk = false;
   bool quotaMove = false;
-
   XrdSfsFileExistence file_exists;
 
   if (_exists(old_name, file_exists, error, vid, infoN)) {
@@ -354,8 +353,9 @@ XrdMgmOfs::_rename(const char* old_name,
       long long avail_files, avail_bytes;
       Quota::QuotaByPath(oPath.GetParentPath(), 0, 0, avail_files, avail_bytes, q1);
       Quota::QuotaByPath(nPath.GetParentPath(), 0, 0, avail_files, avail_bytes, q2);
+
       if (q1 != q2) {
-	quotaMove = true;
+        quotaMove = true;
       }
     }
 
@@ -365,7 +365,7 @@ XrdMgmOfs::_rename(const char* old_name,
 
     // For directory renaming which move into a different directory, we build
     // the list of files which we are moving if they move between quota nodes
-    if ( (oP != nP) && quotaMove ) {
+    if ((oP != nP) && quotaMove) {
       XrdOucString stdErr;
 
       if (!gOFS->_find(oPath.GetFullPath().c_str(), error, stdErr, vid, found)) {
@@ -399,10 +399,11 @@ XrdMgmOfs::_rename(const char* old_name,
             dir->setMTimeNow();
             dir->notifyMTimeChange(gOFS->eosDirectoryService);
             eosView->updateContainerStore(dir.get());
-	    if (fusexcast) {
-	      gOFS->FuseXCastContainer(dir->getIdentifier());
-	      gOFS->FuseXCastRefresh(dir->getIdentifier(), dir->getParentIdentifier());
-	    }
+
+            if (fusexcast) {
+              gOFS->FuseXCastContainer(dir->getIdentifier());
+              gOFS->FuseXCastRefresh(dir->getIdentifier(), dir->getParentIdentifier());
+            }
           }
         } else {
           file = dir->findFile(oPath.GetName());
@@ -418,12 +419,14 @@ XrdMgmOfs::_rename(const char* old_name,
             newdir->notifyMTimeChange(gOFS->eosDirectoryService);
             eosView->updateContainerStore(dir.get());
             eosView->updateContainerStore(newdir.get());
-	    if (fusexcast) {
-	      gOFS->FuseXCastContainer(dir->getIdentifier());
-	      gOFS->FuseXCastContainer(newdir->getIdentifier());
-	      gOFS->FuseXCastRefresh(dir->getIdentifier(), dir->getParentIdentifier());
-	      gOFS->FuseXCastRefresh(newdir->getIdentifier(), newdir->getParentIdentifier());
-	    }
+
+            if (fusexcast) {
+              gOFS->FuseXCastContainer(dir->getIdentifier());
+              gOFS->FuseXCastContainer(newdir->getIdentifier());
+              gOFS->FuseXCastRefresh(dir->getIdentifier(), dir->getParentIdentifier());
+              gOFS->FuseXCastRefresh(newdir->getIdentifier(), newdir->getParentIdentifier());
+            }
+
             file->setName(nPath.GetName());
             file->setContainerId(newdir->getId());
 
@@ -493,12 +496,12 @@ XrdMgmOfs::_rename(const char* old_name,
                         fmd = gOFS->eosView->getFile(fspath.c_str(), false);
                       } catch (eos::MDException& e) {
                         errno = e.getErrno();
-                        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
                                   e.getErrno(), e.getMessage().str().c_str());
                       }
                     } else {
                       errno = e.getErrno();
-                      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
                                 e.getErrno(), e.getMessage().str().c_str());
                     }
                   }
@@ -570,12 +573,12 @@ XrdMgmOfs::_rename(const char* old_name,
                       file = gOFS->eosView->getFile(fspath.c_str(), false);
                     } catch (eos::MDException& e) {
                       errno = e.getErrno();
-                      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
                                 e.getErrno(), e.getMessage().str().c_str());
                     }
                   } else {
                     errno = e.getErrno();
-                    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
                               e.getErrno(), e.getMessage().str().c_str());
                   }
                 }
@@ -616,10 +619,12 @@ XrdMgmOfs::_rename(const char* old_name,
             // Do the check once again, because we're paranoid
             if (!eos::isSafeToRename(gOFS->eosView, rdir.get(), newdir.get())) {
               eos_static_crit("%s", SSTR("Unsafe rename of container " << rdir->getId() <<
-                                         " -> " << newdir->getId() << " was prevented at the last resort check").c_str());
+                                         " -> " << newdir->getId() <<
+                                         " was prevented at the last resort check").c_str());
               errno = EINVAL;
-              return Emsg(epname, error, EINVAL,
-                          "rename - old path is subpath of new path - caught by last resort check, quotanodes may have become inconsistent");
+              return Emsg(epname, error, EINVAL, "rename - old path is subpath "
+                          "of new path - caught by last resort check, quotanodes "
+                          "may have become inconsistent");
             }
 
             // Remove from one container to another one
