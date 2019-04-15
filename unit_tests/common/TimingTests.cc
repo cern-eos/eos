@@ -60,7 +60,7 @@ TEST(SteadyClock, FakeTests) {
 TEST(IntervalStopwatch, BasicSanity) {
   common::SteadyClock sc(true);
 
-  IntervalStopwatch stopwatch(&sc);
+  IntervalStopwatch stopwatch(std::chrono::milliseconds(0), &sc);
 
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(0));
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(0));
@@ -73,7 +73,7 @@ TEST(IntervalStopwatch, BasicSanity) {
   ASSERT_EQ(stopwatch.getCycleStart(),
     std::chrono::steady_clock::time_point());
 
-  stopwatch = IntervalStopwatch(&sc, std::chrono::milliseconds(3));
+  stopwatch = IntervalStopwatch(std::chrono::milliseconds(3), &sc);
   ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(0));
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(3));
   ASSERT_EQ(stopwatch.getCycleStart(),

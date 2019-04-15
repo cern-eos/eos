@@ -292,7 +292,7 @@ Storage::Publish(ThreadAssistant& assistant)
     std::string publish_sockets = getNumberOfTCPSockets(tmp_name);
 
     std::chrono::milliseconds randomizedReportInterval = eos::fst::Config::gConfig.getRandomizedPublishInterval();
-    common::IntervalStopwatch stopwatch(nullptr, randomizedReportInterval);
+    common::IntervalStopwatch stopwatch(randomizedReportInterval);
 
     {
       // run through our defined filesystems and publish with a MuxTransaction all changes

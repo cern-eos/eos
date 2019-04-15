@@ -178,7 +178,7 @@ void LRU::LRUr(ThreadAssistant& assistant) noexcept
   while (!assistant.terminationRequested()) {
     // every now and then we wake up
     Options opts = getOptions();
-    common::IntervalStopwatch stopwatch(nullptr, opts.interval);
+    common::IntervalStopwatch stopwatch(opts.interval);
 
     // Only a master needs to run LRU
     if (gOFS->mMaster->IsMaster() && opts.enabled) {

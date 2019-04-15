@@ -33,8 +33,8 @@ EOSCOMMONNAMESPACE_BEGIN
 //! The first cycle starts as soon as the constructor is called, with the
 //! given duration. (zero by default)
 //------------------------------------------------------------------------------
-IntervalStopwatch::IntervalStopwatch(SteadyClock *clock,
-  std::chrono::milliseconds initialCycleDuration) : mClock(clock) {
+IntervalStopwatch::IntervalStopwatch(std::chrono::milliseconds initialCycleDuration,
+  SteadyClock *clock) : mClock(clock) {
 
   startCycle(initialCycleDuration);
 }

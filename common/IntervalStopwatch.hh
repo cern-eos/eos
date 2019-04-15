@@ -50,8 +50,8 @@ public:
   //! The first cycle starts as soon as the constructor is called, with the
   //! given duration. (zero by default)
   //----------------------------------------------------------------------------
-  IntervalStopwatch(SteadyClock *clock = nullptr,
-    std::chrono::milliseconds initialCycleDuration = std::chrono::milliseconds(0));
+  IntervalStopwatch(std::chrono::milliseconds initialCycleDuration = std::chrono::milliseconds(0),
+    SteadyClock *clock = nullptr);
 
   //----------------------------------------------------------------------------
   //! Start a cycle from this point onwards, with the given duration.
