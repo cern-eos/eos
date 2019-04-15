@@ -519,10 +519,9 @@ k8s_system_test_qdb_xt: # xt stands for xrd_testing. Must shorten to not hit HOS
     - shell-with-docker
     - k8s_node
   only:
-    - branches
+    - schedules
   allow_failure: true
   retry: 1
-  when: manual
 
 
 k8s_ubuntu_system_test:
@@ -635,9 +634,8 @@ system_test_qdb_xrd_testing:
   dependencies:
     - clone_docker
   only:
-    - branches
+    - schedules
   allow_failure: true
-  when: manual
   retry: 1
 
 
