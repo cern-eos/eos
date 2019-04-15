@@ -544,7 +544,8 @@ DrainFs::WaitUntilNamespaceIsBooted() const
 {
   while ((gOFS->mInitialized != gOFS->kBooted) && (!mDrainStop)) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    eos_debug_lite("msg=\"delay drain start until namespace is booted\"");
+    eos_debug_lite("msg=\"delay drain start until namespace is booted\" fsid=%u",
+                   mFsId);
   }
 }
 
