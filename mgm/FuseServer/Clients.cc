@@ -402,7 +402,7 @@ FuseServer::Clients::Print(std::string& out, std::string options)
 
     if (options.find("m") != std::string::npos) {
       snprintf(formatline, sizeof(formatline),
-	       "client=%s host%s version=%s state=%s time=\"%s\" tof=%.02f delta=%.02f uuid=%s pid=%u caps=%lu fds=%u type=%s mount=\"%s\" "
+	       "client=%s host=%s version=%s state=%s time=\"%s\" tof=%.02f delta=%.02f uuid=%s pid=%u caps=%lu fds=%u type=%s mount=\"%s\" "
 	       "ino=%ld "
 	       "ino-to-del=%ld "
 	       "ino-backlog=%ld "
