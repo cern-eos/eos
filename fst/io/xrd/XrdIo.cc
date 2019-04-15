@@ -375,7 +375,6 @@ XrdIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
   int64_t nread = 0;
   char* pBuff = buffer;
   XrdCl::XRootDStatus status;
-  ChunkHandler* handler = NULL;
 
   if (!mDoReadahead) {
     readahead = false;
