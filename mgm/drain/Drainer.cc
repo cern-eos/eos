@@ -165,7 +165,7 @@ Drainer::StopFsDrain(eos::mgm::FileSystem* fs, std::string& err)
   auto it_drainfs = mDrainFs.find(drain_snapshot.mHostPort);
 
   if (it_drainfs == mDrainFs.end()) {
-    err = "error: no drain started for the given fs";
+    err = SSTR("error: no drain started for fsid=" << fsid);
     return false;
   }
 

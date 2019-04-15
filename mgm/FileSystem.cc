@@ -95,7 +95,6 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t new_status)
   eos::common::FileSystem::fsstatus_t old_status = GetConfigStatus();
 
   if (gOFS->mIsCentralDrain) {
-    eos_static_info("fsid=%d, centralized drain type", GetId());
     int drain_tx = IsDrainTransition(old_status, new_status);
 
     // Only master drains
@@ -109,13 +108,11 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t new_status)
         }
       } else {
         if (!gOFS->mDrainEngine.StopFsDrain(this, out_msg)) {
-          eos_static_err("%s", out_msg.c_str());
+          eos_static_debug("%s", out_msg.c_str());
         }
       }
     }
   } else {
-    eos_static_info("fsid=%d, distributed drain type", GetId());
-
     if ((old_status == kDrainDead) || (old_status == kDrain)) {
       // Stop draining
       XrdSysMutexHelper scop_lock(mDrainJobMutex);
