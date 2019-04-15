@@ -2189,8 +2189,8 @@ noexcept
       SOM->mNotificationSubjects.pop_front();
       SOM->mSubjectsMutex.UnLock();
       std::string newsubject = event.mSubject;
-      eos_info("msg=\"SOM Listener new notification\" subject=%s, type=%i",
-               event.mSubject.c_str(), event.mType);
+      //eos_info("msg=\"SOM Listener new notification\" subject=%s, type=%i",
+      //         event.mSubject.c_str(), event.mType);
       int type = static_cast<int>(event.mType);
       std::set<Subscriber*> notifiedSubscribersForCurrentEvent;
       std::string key = newsubject;
