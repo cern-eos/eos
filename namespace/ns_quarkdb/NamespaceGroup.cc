@@ -30,13 +30,16 @@
 #include "namespace/ns_quarkdb/accounting/SyncTimeAccounting.hh"
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
 #include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
+#include <folly/executors/IOThreadPoolExecutor.h>
 
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuarkNamespaceGroup::QuarkNamespaceGroup() {}
+QuarkNamespaceGroup::QuarkNamespaceGroup() {
+  mExecutor.reset(new folly::IOThreadPoolExecutor(48));
+}
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -44,14 +47,17 @@ QuarkNamespaceGroup::QuarkNamespaceGroup() {}
 QuarkNamespaceGroup::~QuarkNamespaceGroup() {
   mSyncAccounting.reset();
   mContainerAccounting.reset();
-  mQuotaStats.reset();
   mFilesystemView.reset();
+
   mHierarchicalView.reset();
   mFileService.reset();
   mContainerService.reset();
 
   mMetadataFlusher.reset();
   mQuotaFlusher.reset();
+
+  mQClient.reset();
+  mExecutor.reset();
 }
 
 //------------------------------------------------------------------------------
@@ -179,7 +185,7 @@ IFsView* QuarkNamespaceGroup::getFilesystemView() {
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mFilesystemView) {
-    mFilesystemView.reset(new QuarkFileSystemView(getQClient(), getMetadataFlusher()));
+    mFilesystemView.reset(new QuarkFileSystemView(getQClient(), getMetadataFlusher(), getExecutor()));
     getFileService()->addChangeListener(mFilesystemView.get());
   }
 
@@ -261,6 +267,14 @@ qclient::QClient* QuarkNamespaceGroup::getQClient() {
   }
 
   return mQClient.get();
+}
+
+//------------------------------------------------------------------------------
+// Get folly executor
+//------------------------------------------------------------------------------
+folly::Executor* QuarkNamespaceGroup::getExecutor() {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
+  return mExecutor.get();
 }
 
 EOSNSNAMESPACE_END

@@ -28,7 +28,6 @@
 #include "common/Logging.hh"
 #include "qclient/QScanner.hh"
 #include <iostream>
-#include <folly/executors/IOThreadPoolExecutor.h>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -36,10 +35,8 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 QuarkFileSystemView::QuarkFileSystemView(qclient::QClient *qcl,
-  MetadataFlusher *flusher)
-
- : mExecutor(new folly::IOThreadPoolExecutor(8)),
-  pFlusher(flusher), pQcl(qcl)
+  MetadataFlusher *flusher, folly::Executor *executor)
+ : pFlusher(flusher), pQcl(qcl), mExecutor(executor)
 { }
 
 //------------------------------------------------------------------------------
@@ -57,7 +54,7 @@ QuarkFileSystemView::configure(const std::map<std::string, std::string>& config)
   std::chrono::seconds duration(end - start);
   eos_static_info("msg=\"FileSystemView loadFromBackend\" duration=%llus",
                   duration.count());
-  mNoReplicas.reset(new FileSystemHandler(mExecutor.get(), pQcl, pFlusher,
+  mNoReplicas.reset(new FileSystemHandler(mExecutor, pQcl, pFlusher,
                                           IsNoReplicaListTag()));
 }
 
@@ -494,7 +491,7 @@ FileSystemHandler* QuarkFileSystemView::initializeRegularFilelist(
     return iter->second.get();
   }
 
-  mFiles[fsid].reset(new FileSystemHandler(fsid, mExecutor.get(), pQcl, pFlusher,
+  mFiles[fsid].reset(new FileSystemHandler(fsid, mExecutor, pQcl, pFlusher,
                      false));
   return mFiles[fsid].get();
 }
@@ -537,7 +534,7 @@ FileSystemHandler* QuarkFileSystemView::initializeUnlinkedFilelist(
     return iter->second.get();
   }
 
-  mUnlinkedFiles[fsid].reset(new FileSystemHandler(fsid, mExecutor.get(), pQcl,
+  mUnlinkedFiles[fsid].reset(new FileSystemHandler(fsid, mExecutor, pQcl,
                              pFlusher, true));
   return mUnlinkedFiles[fsid].get();
 }

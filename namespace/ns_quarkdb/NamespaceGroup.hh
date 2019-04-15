@@ -28,6 +28,10 @@
 #include <mutex>
 #include <memory>
 
+namespace folly {
+  class Executor;
+}
+
 namespace qclient {
   class QClient;
 }
@@ -125,6 +129,10 @@ public:
   //----------------------------------------------------------------------------
   qclient::QClient* getQClient();
 
+  //----------------------------------------------------------------------------
+  //! Get folly executor
+  //----------------------------------------------------------------------------
+  folly::Executor* getExecutor();
 
 private:
   //----------------------------------------------------------------------------
@@ -142,19 +150,30 @@ private:
 
   std::recursive_mutex mMutex;
 
-  std::unique_ptr<QuarkContainerMDSvc> mContainerService;
-  std::unique_ptr<QuarkFileMDSvc> mFileService;
-  std::unique_ptr<QuarkHierarchicalView> mHierarchicalView;
-  std::unique_ptr<QuarkFileSystemView> mFilesystemView;
-  std::unique_ptr<QuarkContainerAccounting> mContainerAccounting;
-  std::unique_ptr<QuarkSyncTimeAccounting> mSyncAccounting;
-  std::unique_ptr<QuarkQuotaStats> mQuotaStats;
+  //----------------------------------------------------------------------------
+  //! CAUTION: The folly Executor must outlive qclient! If a continuation is
+  //! attached to a qclient-provided future, but the executor has been
+  //! destroyed, qclient will segfault when fulfilling the corresponding
+  //! promise.
+  //!
+  //! Once qclient is destroyed however, any pending promises will break, and
+  //! the executor can then be deleted safely.
+  //----------------------------------------------------------------------------
+  std::unique_ptr<folly::Executor> mExecutor;
 
   std::unique_ptr<MetadataFlusher> mMetadataFlusher;  //< Flusher for metadata
   std::unique_ptr<MetadataFlusher> mQuotaFlusher;     //< Flusher for quota
 
   std::unique_ptr<qclient::QClient> mQClient;         //< Main qclient object
                                                       //< used for generic tasks
+
+  std::unique_ptr<QuarkContainerMDSvc> mContainerService;
+  std::unique_ptr<QuarkFileMDSvc> mFileService;
+  std::unique_ptr<QuarkHierarchicalView> mHierarchicalView;
+  std::unique_ptr<QuarkFileSystemView> mFilesystemView;
+  std::unique_ptr<QuarkContainerAccounting> mContainerAccounting;
+  std::unique_ptr<QuarkSyncTimeAccounting> mSyncAccounting;
+
 };
 
 

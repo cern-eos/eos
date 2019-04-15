@@ -148,6 +148,9 @@ public:
   // you're too lazy to call createQClient.
   qclient::QClient& qcl();
 
+  // Return the namespaces' executor
+  folly::Executor* executor();
+
   // Return flushers
   eos::MetadataFlusher* mdFlusher();
   eos::MetadataFlusher* quotaFlusher();
@@ -166,7 +169,6 @@ private:
   std::unique_ptr<eos::ns::testing::FlushAllOnConstruction> guard;
 
   std::unique_ptr<eos::QuarkNamespaceGroup> namespaceGroupPtr;
-  std::unique_ptr<qclient::QClient> qclPtr;
 
   // Size mapper, if avaliable
   SizeMapper sizeMapper = nullptr;

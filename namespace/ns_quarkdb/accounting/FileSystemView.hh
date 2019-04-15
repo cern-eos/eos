@@ -175,7 +175,8 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuarkFileSystemView(qclient::QClient *qcl, MetadataFlusher *flusher);
+  QuarkFileSystemView(qclient::QClient *qcl, MetadataFlusher *flusher,
+    folly::Executor *exec);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -393,13 +394,13 @@ private:
   //----------------------------------------------------------------------------
   FileSystemHandler* fetchUnlinkedFilelistIfExists(IFileMD::location_t fsid);
 
-  ///! Folly executor
-  std::unique_ptr<folly::Executor> mExecutor;
-
   ///! Metadata flusher object
   MetadataFlusher* pFlusher;
   ///! QClient object
   qclient::QClient* pQcl;
+
+  ///! Folly executor
+  folly::Executor *mExecutor;
 
   ///! No replicas handler
   std::unique_ptr<FileSystemHandler> mNoReplicas;

@@ -140,11 +140,8 @@ eos::IFsView* NsTestsFixture::fsview()
 
 qclient::QClient& NsTestsFixture::qcl()
 {
-  if (!qclPtr) {
-    qclPtr = createQClient();
-  }
-
-  return *qclPtr.get();
+  initServices();
+  return *(namespaceGroupPtr->getQClient());
 }
 
 eos::MetadataFlusher* NsTestsFixture::mdFlusher()
@@ -167,7 +164,6 @@ void NsTestsFixture::shut_down_everything()
   }
 
   namespaceGroupPtr.reset();
-  qclPtr.reset();
 }
 
 std::unique_ptr<qclient::QClient> NsTestsFixture::createQClient()
