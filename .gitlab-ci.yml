@@ -102,6 +102,10 @@ before_script:
   allow_failure: true
 
 
+#-------------------------------------------------------------------------------
+# Test templates
+#-------------------------------------------------------------------------------
+
 .system_test_template: &system_test_template_definition
   script:
     - sudo ./eos-docker/scripts/shutdown_services.sh
@@ -143,6 +147,45 @@ before_script:
     - sudo ./eos-docker/scripts/shutdown_services.sh
 
 
+.unit_test_template: &unit_test_template
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y yum-plugin-priorities createrepo
+    - createrepo ${BUILD_NAME}_artifacts/
+    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n' >> /etc/yum.repos.d/eos-depend.repo
+    - echo -e '[eos-artifacts]\nname=EOS artifacts\nbaseurl=file://'${PWD}'/'${BUILD_NAME}'_artifacts\ngpgcheck=0\nenabled=1\npriority=1' >> /etc/yum.repos.d/eos-artifacts.repo
+    - yum install --nogpg --disablerepo="cern*" -y eos-client eos-server eos-test
+    - eos-unit-tests
+    - eos-fst-unit-tests
+  variables:
+    BUILD_NAME: cc7
+
+
+.namespace_unit_test_template: &namespace_unit_test_template
+  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
+  script:
+    - yum install --nogpg -y yum-plugin-priorities createrepo
+    - createrepo ${BUILD_NAME}_artifacts/
+    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n' >> /etc/yum.repos.d/eos-depend.repo
+    - echo -e '[eos-artifacts]\nname=EOS artifacts\nbaseurl=file://'${PWD}'/'${BUILD_NAME}'_artifacts\ngpgcheck=0\nenabled=1\npriority=1' >> /etc/yum.repos.d/eos-artifacts.repo
+    - echo -e '[quarkdb]\nname=QuarkDB\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/quarkdb/tag/el7/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' >> /etc/yum.repos.d/quarkdb.repo
+    - yum install --nogpg -y --disablerepo="cern*" eos-client eos-server eos-test quarkdb
+    - export EOS_QUARKDB_HOSTPORT=localhost:9999
+    - export EOS_QUARKDB_PASSWD=password_must_be_atleast_32_characters
+    - quarkdb-create --path /var/lib/quarkdb/node-1 --clusterID ns-test --nodes $EOS_QUARKDB_HOSTPORT
+    - mkdir /var/log/quarkdb
+    - chown -R daemon:daemon /var/lib/quarkdb /var/log/quarkdb
+    - echo redis.password $EOS_QUARKDB_PASSWD >> /etc/xrd.cf.quarkdb
+    - (xrootd -c /etc/xrd.cf.quarkdb -l /var/log/quarkdb/xrdlog.quarkdb -Rdaemon &) ; sleep 3
+    - eos-ns-quarkdb-tests
+  variables:
+    BUILD_NAME: cc7
+
+
+#-------------------------------------------------------------------------------
+# Kubernetes templates
+#-------------------------------------------------------------------------------
+
 .k8s_before_script_template: &k8s_before_script_template
   before_script:
     - . /home/gitlab-runner/coe-cluster-config/st-gitlab-k8s-01/env_st-gitlab-k8s-01.sh # get access configs for the cluster
@@ -164,6 +207,7 @@ before_script:
 
 
 .k8s_system_test_script_template: &k8s_system_test_script_template
+  <<: *k8s_before_script_template
   script:
     - if   [[ "$CI_JOB_NAME" == k8s_system_test ]]; then ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -n ${NAMESPACE};
       elif [[ "$CI_JOB_NAME" == k8s_ubuntu_system_test ]]; then ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -u ubuntu_client_${IMAGE_TAG} -n ${NAMESPACE};
@@ -171,6 +215,23 @@ before_script:
       else echo "CI_JOB_NAME:$CI_JOB_NAME not found"; exit 1;
       fi
     - ./gitlab-ci/k8s_system_test_script.sh $NAMESPACE
+  <<: *k8s_after_script_template
+
+
+.k8s_unit_test_template: &k8s_unit_test_template
+  <<: *k8s_before_script_template
+  script:
+    - ./eos-on-k8s/create-mgm.sh -i ${IMAGE_TAG} -n ${NAMESPACE}
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-unit-tests
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-fst-unit-tests
+  <<: *k8s_after_script_template
+
+.k8s_ns_unit_test_template: &k8s_ns_unit_test_template
+  <<: *k8s_before_script_template
+  script:
+    - ./eos-on-k8s/create-mgm.sh -i ${IMAGE_TAG} -n ${NAMESPACE} -q
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-ns-quarkdb-tests
+  <<: *k8s_after_script_template
 
 
 #-------------------------------------------------------------------------------
@@ -486,9 +547,7 @@ prod_docker_image_tag:
 
 k8s_system_test:
   stage: test
-  <<: *k8s_before_script_template
   <<: *k8s_system_test_script_template
-  <<: *k8s_after_script_template
   tags:
     - shell-with-docker
     - k8s_node
@@ -498,9 +557,7 @@ k8s_system_test:
 
 k8s_system_test_qdb:
   stage: test
-  <<: *k8s_before_script_template
   <<: *k8s_system_test_script_template
-  <<: *k8s_after_script_template
   tags:
     - shell-with-docker
     - k8s_node
@@ -510,9 +567,7 @@ k8s_system_test_qdb:
 
 k8s_system_test_qdb_xt: # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
   stage: test
-  <<: *k8s_before_script_template
   <<: *k8s_system_test_script_template
-  <<: *k8s_after_script_template
   variables:
     BASETAG: "xrd_testing_"
   tags:
@@ -526,9 +581,7 @@ k8s_system_test_qdb_xt: # xt stands for xrd_testing. Must shorten to not hit HOS
 
 k8s_ubuntu_system_test:
   stage: test
-  <<: *k8s_before_script_template
   <<: *k8s_system_test_script_template
-  <<: *k8s_after_script_template
   tags:
     - shell-with-docker
     - k8s_node
@@ -542,39 +595,60 @@ k8s_ubuntu_system_test:
 
 k8s_unit_test:
   stage: test
-  <<: *k8s_before_script_template
-  script:
-    - ./eos-on-k8s/create-mgm.sh -i ${IMAGE_TAG} -n ${NAMESPACE}
-    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-unit-tests || true
-    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-fst-unit-tests || true
-  <<: *k8s_after_script_template
-  variables:
-    BASETAG: "asan_"
+  <<: *k8s_unit_test_template
   tags:
     - shell-with-docker
     - k8s_node
   only:
     - ci_on_k8s
     - dev
+    - master
+  except:
+    - schedules
+  allow_failure: true
+  retry: 1
+
+
+k8s_unit_test_asan:
+  stage: test
+  <<: *k8s_unit_test_template
+  variables:
+    BASETAG: "asan_"
+  tags:
+    - shell-with-docker
+    - k8s_node
+  only:
+    - schedules
   allow_failure: true
   retry: 1
 
 
 k8s_ns_unit_test:
   stage: test
-  <<: *k8s_before_script_template
-  script:
-    - ./eos-on-k8s/create-mgm.sh -i ${IMAGE_TAG} -n ${NAMESPACE} -q
-    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-ns-quarkdb-tests || true
-  <<: *k8s_after_script_template
-  variables:
-    BASETAG: "asan_"
+  <<: *k8s_ns_unit_test_template
   tags:
     - shell-with-docker
     - k8s_node
   only:
     - ci_on_k8s
     - dev
+    - master
+  except:
+    - schedules
+  allow_failure: true
+  retry: 1
+
+
+k8s_ns_unit_test_asan:
+  stage: test
+  <<: *k8s_ns_unit_test_template
+  variables:
+    BASETAG: "asan_"
+  tags:
+    - shell-with-docker
+    - k8s_node
+  only:
+    - schedules
   allow_failure: true
   retry: 1
 
@@ -655,43 +729,51 @@ ubuntu_system_test:
 
 unit_test:
   stage: test
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-  script:
-    - yum install --nogpg -y yum-plugin-priorities createrepo
-    - createrepo cc7_artifacts/
-    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n' >> /etc/yum.repos.d/eos-depend.repo
-    - echo -e '[eos-artifacts]\nname=EOS artifacts\nbaseurl=file://'${PWD}'/cc7_artifacts\ngpgcheck=0\nenabled=1\npriority=1' >> /etc/yum.repos.d/eos-artifacts.repo
-    - yum install --nogpg --disablerepo="cern*" -y eos-client eos-server eos-test
-    - eos-unit-tests
-    - eos-fst-unit-tests
+  <<: *unit_test_template
   dependencies:
     - build_cc7
   tags:
     - docker_node
+  except:
+    - schedules
+
+
+unit_test_asan:
+  stage: test
+  <<: *unit_test_template
+  variables:
+    BUILD_NAME: cc7_asan
+  dependencies:
+    - build_cc7_asan
+  tags:
+    - docker_node
+  only:
+    - schedules
 
 
 namespace_unit_test:
   stage: test
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-  script:
-    - yum install --nogpg -y yum-plugin-priorities createrepo
-    - createrepo cc7_artifacts/
-    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n' >> /etc/yum.repos.d/eos-depend.repo
-    - echo -e '[eos-artifacts]\nname=EOS artifacts\nbaseurl=file://'${PWD}'/cc7_artifacts\ngpgcheck=0\nenabled=1\npriority=1' >> /etc/yum.repos.d/eos-artifacts.repo
-    - echo -e '[quarkdb]\nname=QuarkDB\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/quarkdb/tag/el7/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' >> /etc/yum.repos.d/quarkdb.repo
-    - yum install --nogpg -y --disablerepo="cern*" eos-client eos-server eos-test quarkdb
-    - export EOS_QUARKDB_HOSTPORT=localhost:9999
-    - export EOS_QUARKDB_PASSWD=password_must_be_atleast_32_characters
-    - quarkdb-create --path /var/lib/quarkdb/node-1 --clusterID ns-test --nodes $EOS_QUARKDB_HOSTPORT
-    - mkdir /var/log/quarkdb
-    - chown -R daemon:daemon /var/lib/quarkdb /var/log/quarkdb
-    - echo redis.password $EOS_QUARKDB_PASSWD >> /etc/xrd.cf.quarkdb
-    - (xrootd -c /etc/xrd.cf.quarkdb -l /var/log/quarkdb/xrdlog.quarkdb -Rdaemon &) ; sleep 3
-    - eos-ns-quarkdb-tests
+  <<: *namespace_unit_test_template
   dependencies:
     - build_cc7
   tags:
     - docker_node
+  except:
+    - schedules
+
+
+namespace_unit_test_asan:
+  stage: test
+  <<: *namespace_unit_test_template
+  variables:
+    BUILD_NAME: cc7_asan
+  dependencies:
+    - build_cc7_asan
+  tags:
+    - docker_node
+  only:
+    - schedules
+  allow_failure: true
 
 
 stress_test:
