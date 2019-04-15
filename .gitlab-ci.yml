@@ -576,18 +576,18 @@ unit_test:
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y yum-plugin-priorities createrepo
-    - createrepo cc7_asan_artifacts/
-    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
-    - echo -e '[eos-asan-artifacts]\nname=EOS Asan artifacts\nbaseurl=file://'${PWD}'/cc7_asan_artifacts\ngpgcheck=0\nenabled=1\npriority=1' >> /etc/yum.repos.d/eos-artifacts.repo
+    - createrepo cc7_artifacts/
+    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n' >> /etc/yum.repos.d/eos-depend.repo
+    - echo -e '[eos-artifacts]\nname=EOS artifacts\nbaseurl=file://'${PWD}'/cc7_artifacts\ngpgcheck=0\nenabled=1\npriority=1' >> /etc/yum.repos.d/eos-artifacts.repo
     - yum install --nogpg --disablerepo="cern*" -y eos-client eos-server eos-test
-    - eos-unit-tests || true
-    - eos-fst-unit-tests || true
+    - eos-unit-tests
+    - eos-fst-unit-tests
   cache:
     key: "$CI_BUILD_NAME-$CI_BUILD_REF_NAME"
     paths:
     - ccache/
   dependencies:
-    - build_cc7_asan
+    - build_cc7
   tags:
     - docker_node
 
@@ -597,9 +597,9 @@ namespace_unit_test:
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y yum-plugin-priorities createrepo
-    - createrepo cc7_asan_artifacts/
-    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n' >> /etc/yum.repos.d/eos-depend.repo
-    - echo -e '[eos-asan-artifacts]\nname=EOS Asan artifacts\nbaseurl=file://'${PWD}'/cc7_asan_artifacts\ngpgcheck=0\nenabled=1\npriority=1' >> /etc/yum.repos.d/eos-artifacts.repo
+    - createrepo cc7_artifacts/
+    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n' >> /etc/yum.repos.d/eos-depend.repo
+    - echo -e '[eos-artifacts]\nname=EOS artifacts\nbaseurl=file://'${PWD}'/cc7_artifacts\ngpgcheck=0\nenabled=1\npriority=1' >> /etc/yum.repos.d/eos-artifacts.repo
     - echo -e '[quarkdb]\nname=QuarkDB\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/quarkdb/tag/el7/x86_64/\ngpgcheck=0\nenabled=1\npriority=4\n' >> /etc/yum.repos.d/quarkdb.repo
     - yum install --nogpg -y --disablerepo="cern*" eos-client eos-server eos-test quarkdb
     - export EOS_QUARKDB_HOSTPORT=localhost:9999
@@ -609,13 +609,13 @@ namespace_unit_test:
     - chown -R daemon:daemon /var/lib/quarkdb /var/log/quarkdb
     - echo redis.password $EOS_QUARKDB_PASSWD >> /etc/xrd.cf.quarkdb
     - (xrootd -c /etc/xrd.cf.quarkdb -l /var/log/quarkdb/xrdlog.quarkdb -Rdaemon &) ; sleep 3
-    - eos-ns-quarkdb-tests || true
+    - eos-ns-quarkdb-tests
   cache:
     key: "$CI_BUILD_NAME-$CI_BUILD_REF_NAME"
     paths:
       - ccache/
   dependencies:
-    - build_cc7_asan
+    - build_cc7
   tags:
    - docker_node
 
