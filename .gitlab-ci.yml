@@ -582,10 +582,6 @@ unit_test:
     - yum install --nogpg --disablerepo="cern*" -y eos-client eos-server eos-test
     - eos-unit-tests
     - eos-fst-unit-tests
-  cache:
-    key: "$CI_BUILD_NAME-$CI_BUILD_REF_NAME"
-    paths:
-    - ccache/
   dependencies:
     - build_cc7
   tags:
@@ -610,10 +606,6 @@ namespace_unit_test:
     - echo redis.password $EOS_QUARKDB_PASSWD >> /etc/xrd.cf.quarkdb
     - (xrootd -c /etc/xrd.cf.quarkdb -l /var/log/quarkdb/xrdlog.quarkdb -Rdaemon &) ; sleep 3
     - eos-ns-quarkdb-tests
-  cache:
-    key: "$CI_BUILD_NAME-$CI_BUILD_REF_NAME"
-    paths:
-      - ccache/
   dependencies:
     - build_cc7
   tags:
