@@ -36,6 +36,9 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/Prefetcher.hh"
+#include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
+#include "namespace/ns_quarkdb/NamespaceGroup.hh"
+#include <qclient/QClient.hh>
 
 //! Attribute name defining any LRU policy
 const char* LRU::gLRUPolicyPrefix = "sys.lru.*";
@@ -51,7 +54,7 @@ using namespace eos::common;
 //------------------------------------------------------------------------------
 void LRU::Start()
 {
-  mThread.reset(&LRU::LRUr, this);
+  mThread.reset(&LRU::backgroundThread, this);
 }
 
 //------------------------------------------------------------------------------
@@ -158,20 +161,98 @@ bool LRU::parseExpireMatchPolicy(const std::string& policy,
 }
 
 //------------------------------------------------------------------------------
+// Perform a single LRU cycle, in-memory namespace
+//------------------------------------------------------------------------------
+void LRU::performCycleInMem(ThreadAssistant& assistant) noexcept {
+  // Do a slow find
+  unsigned long long ndirs = (unsigned long long) gOFS->eosDirectoryService->getNumContainers();
+  time_t ms = 1;
+
+  if (ndirs > 10000000) {
+    ms = 0;
+  }
+
+  eos_static_info("msg=\"start LRU scan\" ndir=%llu ms=%u", ndirs, ms);
+  std::map<std::string, std::set<std::string> > lrudirs;
+  XrdOucString stdErr;
+  // Find all directories defining an LRU policy
+  gOFS->MgmStats.Add("LRUFind", 0, 0, 1);
+  EXEC_TIMING_BEGIN("LRUFind");
+
+  if (!gOFS->_find("/", mError, stdErr, mRootVid, lrudirs, gLRUPolicyPrefix,
+                   "*", true, ms, false)) {
+    eos_static_info("msg=\"finished LRU find\" LRU-dirs=%llu", lrudirs.size());
+
+    // scan backwards ... in this way we get rid of empty directories in one go ...
+    for (auto it = lrudirs.rbegin(); it != lrudirs.rend(); it++) {
+      // Get the attributes
+      eos_static_info("lru-dir=\"%s\"", it->first.c_str());
+      eos::IContainerMD::XAttrMap map;
+
+      if (!gOFS->_attr_ls(it->first.c_str(), mError, mRootVid,
+                          (const char*) 0, map)) {
+        processDirectory(it->first, it->second.size(), map);
+      }
+    }
+
+    if (assistant.terminationRequested()) {
+      return;
+    }
+  }
+
+  EXEC_TIMING_END("LRUFind");
+}
+
+//------------------------------------------------------------------------------
+// Perform a single LRU cycle, QDB namespace
+//------------------------------------------------------------------------------
+void LRU::performCycleQDB(ThreadAssistant& assistant) noexcept {
+  eos_static_info("msg=\"start LRU scan on QDB\"");
+
+  //----------------------------------------------------------------------------
+  // Build exploration options..
+  //----------------------------------------------------------------------------
+  ExplorationOptions opts;
+  opts.populateLinkedAttributes = true;
+  opts.view = gOFS->eosView;
+  opts.ignoreFiles = true;
+
+  //----------------------------------------------------------------------------
+  // Initialize qclient..
+  //----------------------------------------------------------------------------
+  if(!mQcl) {
+    mQcl.reset(new qclient::QClient(gOFS->mQdbContactDetails.members,
+      gOFS->mQdbContactDetails.constructOptions()));
+  }
+
+  //----------------------------------------------------------------------------
+  // Start exploring
+  //----------------------------------------------------------------------------
+  NamespaceExplorer explorer("/", opts, *(mQcl.get()),
+    static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor());
+
+  NamespaceItem item;
+  while(explorer.fetch(item)) {
+    eos_static_info("lru-dir-qdb=\"%s\" attrs=%d", item.fullPath.c_str(), item.attrs.size());
+
+    for(auto it = item.attrs.begin(); it != item.attrs.end(); it++) {
+      eos_static_info("attr=%s=%s", it->first.c_str(), it->second.c_str());
+    }
+
+    processDirectory(item.fullPath, 0, item.attrs);
+  }
+}
+
+//------------------------------------------------------------------------------
 // LRU method doing the actual policy scrubbing
 //
 // This thread loops in regular intervals over all directories which have
 // a LRU policy attribute set (sys.lru.*) and applies the defined policy.
 //------------------------------------------------------------------------------
-void LRU::LRUr(ThreadAssistant& assistant) noexcept
+void LRU::backgroundThread(ThreadAssistant& assistant) noexcept
 {
   // Eternal thread doing LRU scans
   gOFS->WaitUntilNamespaceIsBooted(assistant);
-
-  if (assistant.terminationRequested()) {
-    return;
-  }
-
   assistant.wait_for(std::chrono::seconds(10));
   eos_static_info("msg=\"async LRU thread started\"");
 
@@ -182,53 +263,16 @@ void LRU::LRUr(ThreadAssistant& assistant) noexcept
 
     // Only a master needs to run LRU
     if (gOFS->mMaster->IsMaster() && opts.enabled) {
-      // Do a slow find
-      unsigned long long ndirs =
-        (unsigned long long) gOFS->eosDirectoryService->getNumContainers();
-      time_t ms = 1;
 
-      if (ndirs > 10000000) {
-        ms = 0;
+      if(gOFS->eosView->inMemory()) {
+        performCycleInMem(assistant);
       }
-
-      eos_static_info("msg=\"start LRU scan\" ndir=%llu ms=%u", ndirs, ms);
-      std::map<std::string, std::set<std::string> > lrudirs;
-      XrdOucString stdErr;
-      // Find all directories defining an LRU policy
-      gOFS->MgmStats.Add("LRUFind", 0, 0, 1);
-      EXEC_TIMING_BEGIN("LRUFind");
-
-      if (!gOFS->_find("/", mError, stdErr, mRootVid, lrudirs, gLRUPolicyPrefix,
-                       "*", true, ms, false)
-         ) {
-        eos_static_info("msg=\"finished LRU find\" LRU-dirs=%llu",
-                        lrudirs.size());
-
-        // scan backwards ... in this way we get rid of empty directories in one go ...
-        for (auto it = lrudirs.rbegin(); it != lrudirs.rend(); it++) {
-          // Get the attributes
-          eos_static_info("lru-dir=\"%s\"", it->first.c_str());
-          eos::IContainerMD::XAttrMap map;
-
-          if (!gOFS->_attr_ls(it->first.c_str(), mError, mRootVid,
-                              (const char*) 0, map)) {
-            processDirectory(it->first, it->second.size(), map);
-          }
-        }
-
-        if (assistant.terminationRequested()) {
-          return;
-        }
+      else {
+        performCycleQDB(assistant);
       }
-
-      EXEC_TIMING_END("LRUFind");
-      eos_static_info("msg=\"finished LRU application\" LRU-dirs=%llu",
-                      lrudirs.size());
     }
 
-    std::chrono::milliseconds sleepTime = stopwatch.timeRemainingInCycle();
-    //    eos_static_info("snooze-time=%llu enabled=%d", sleepTime.count(), opts.enabled);
-    assistant.wait_for(sleepTime);
+    assistant.wait_for(stopwatch.timeRemainingInCycle());
   }
 }
 

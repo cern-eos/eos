@@ -260,7 +260,6 @@ std::string NamespaceExplorer::buildDfsPath()
 //------------------------------------------------------------------------------
 void NamespaceExplorer::handleLinkedAttrs(NamespaceItem& result) {
   result.attrs.clear();
-  if(!options.populateLinkedAttributes) return;
 
   //----------------------------------------------------------------------------
   // Retrieve reference to linked attribute map
@@ -275,8 +274,14 @@ void NamespaceExplorer::handleLinkedAttrs(NamespaceItem& result) {
   }
 
   //----------------------------------------------------------------------------
+  // Copy stuff, unfortunately
+  //----------------------------------------------------------------------------
+  result.attrs = {attrMap->begin(), attrMap->end() };
+
+  //----------------------------------------------------------------------------
   // Do we even have linked attrs?
   //----------------------------------------------------------------------------
+  if(!options.populateLinkedAttributes) return;
   auto link = attrMap->find("sys.attr.link");
   if(link == attrMap->end()) {
     //--------------------------------------------------------------------------
@@ -284,11 +289,6 @@ void NamespaceExplorer::handleLinkedAttrs(NamespaceItem& result) {
     //--------------------------------------------------------------------------
     return;
   }
-
-  //----------------------------------------------------------------------------
-  // Copy stuff, unfortunately
-  //----------------------------------------------------------------------------
-  result.attrs = {attrMap->begin(), attrMap->end() };
 
   //----------------------------------------------------------------------------
   // Cached entry exists?

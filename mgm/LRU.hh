@@ -30,6 +30,11 @@
 #include "namespace/interface/IContainerMD.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include <sys/types.h>
+#include <memory>
+
+namespace qclient {
+  class QClient;
+}
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -150,13 +155,28 @@ private:
   // This thread loops in regular intervals over all directories which have
   // a LRU policy attribute set (sys.lru.*) and applies the defined policy.
   //----------------------------------------------------------------------------
-  void LRUr(ThreadAssistant& assistant) noexcept;
+  void backgroundThread(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
   // Process the given directory, apply all policies
   //----------------------------------------------------------------------------
   void processDirectory(const std::string &dir, size_t contentSize,
     eos::IContainerMD::XAttrMap &map);
+
+  //----------------------------------------------------------------------------
+  // Perform a single LRU cycle, in-memory namespace
+  //----------------------------------------------------------------------------
+  void performCycleInMem(ThreadAssistant& assistant) noexcept;
+
+  //----------------------------------------------------------------------------
+  // Perform a single LRU cycle, QDB namespace
+  //----------------------------------------------------------------------------
+  void performCycleQDB(ThreadAssistant& assistant) noexcept;
+
+  //----------------------------------------------------------------------------
+  // Internal qclient object
+  //----------------------------------------------------------------------------
+  std::unique_ptr<qclient::QClient> mQcl;
 
 };
 
