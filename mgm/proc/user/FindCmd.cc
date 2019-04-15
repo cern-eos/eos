@@ -922,7 +922,7 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
 
         if (selectrepdiff &&
             fmd->getNumLocation() == eos::common::LayoutId::GetStripeNumber(
-              fmd->getLayoutId() + 1)) {
+              fmd->getLayoutId()) + 1) {
           selected = false;
         }
 
@@ -964,7 +964,6 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
         }
 
         // Nope, print fancy
-        ofstdoutStream << "path=";
         printPath(ofstdoutStream, fspath, printxurl);
         printFMD(ofstdoutStream, findRequest, fmd);
         ofstdoutStream << std::endl;
