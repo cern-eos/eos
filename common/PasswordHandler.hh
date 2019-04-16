@@ -25,6 +25,8 @@
 #define EOS_COMMON_PASSWORD_HANDLER_HH
 
 #include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include "common/Namespace.hh"
 #include "common/Logging.hh"
 
@@ -62,11 +64,11 @@ public:
     src.erase(src.find_last_not_of(" \t\n\r\f\v") + 1);
   }
 
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Read a password file, while taking the following into account:
   // - Permissions must be 400 - refuse to do anything otherwise.
   // - Ending newlines are discarded.
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static bool readPasswordFile(const std::string &path, std::string &contents) {
     FILE *in = fopen(path.c_str(), "rb");
     if(!in) {

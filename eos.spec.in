@@ -31,7 +31,7 @@
 # pass the "--with asan" flag to the rpmbuild command
 %bcond_without asan
 
-# Define required dependency for XRootD 
+# Define required dependency for XRootD
 %define xrootd_version_min 1:4.8.2
 %define major_version @CPACK_PACKAGE_VERSION_MAJOR@
 
@@ -253,6 +253,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %defattr(-, root, root, -)
 %{_bindir}/eos-ns-convert
 %{_bindir}/eos-ns-convert-to-locality-hashes
+%{_bindir}/eos-ns-inspect
 %{_bindir}/eos-dump-proto-md
 %{_sbindir}/eosfilesync
 %{_sbindir}/eosdirsync

@@ -98,7 +98,14 @@ target_link_libraries(eos-ns-convert-to-locality-hashes
   EosCrc32c-Static
   ${PROTOBUF_LIBRARY})
 
-install(TARGETS eos-ns-convert eos-dump-proto-md eos-ns-convert-to-locality-hashes
+add_executable(eos-ns-inspect tools/InspectionTool.cc)
+
+target_link_libraries(eos-ns-inspect
+  EosNsCommon-Static
+  eosCommon-Static
+  ${PROTOBUF_LIBRARY})
+
+install(TARGETS eos-ns-convert eos-dump-proto-md eos-ns-convert-to-locality-hashes eos-ns-inspect
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
