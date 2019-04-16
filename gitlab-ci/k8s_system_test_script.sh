@@ -36,17 +36,17 @@ kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \
 kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \
 	-- su - eos-user -c 'mkdir /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; /usr/sbin/fusex-benchmark' # workaround for docker exec '-u' flag
 
-# @todo(esindril): run "all" tests in schedule mode once these are properly supported, until then just run the "ci" tests
-if [ "$CI_PIPELINE_SOURCE" == "schedule" ]; 
-then
-	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm) \
-	-- eos vid add gateway "eos-cli1.eos-cli1.${NAMESPACE}.svc.cluster.local" unix;
-	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \
-	-- env EOS_FUSE_NO_ROOT_SQUASH=1 python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci;
-else
-	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \
-	-- su - eos-user -c 'python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci';
-fi
+# @todo(esindril): run "all" tests in schedule mode once these are properly supported
+# if [ "$CI_PIPELINE_SOURCE" == "schedule" ];
+# then
+# 	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm) \
+# 	-- eos vid add gateway "eos-cli1.eos-cli1.${NAMESPACE}.svc.cluster.local" unix;
+# 	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \
+# 	-- env EOS_FUSE_NO_ROOT_SQUASH=1 python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci;
+# fi
+# until then just run the "ci" tests
+kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \
+	-- su - eos-user -c 'python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci'
 
 if [ "$CI_JOB_NAME" != k8s_ubuntu_system_test ]; then
 	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \

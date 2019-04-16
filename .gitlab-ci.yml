@@ -112,15 +112,19 @@ before_script:
     - ./eos-docker/scripts/remove_unused_images.sh
     - docker pull gitlab-registry.cern.ch/dss/${EOS_IMG_NAME}${CI_COMMIT_TAG-$CI_PIPELINE_ID}
     - if [[ "$CI_JOB_NAME" == system_test_qdb* ]]; then sudo ./eos-docker/scripts/start_services.sh -q -i gitlab-registry.cern.ch/dss/${EOS_IMG_NAME}${CI_COMMIT_TAG-$CI_PIPELINE_ID}; else sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/${EOS_IMG_NAME}${CI_COMMIT_TAG-$CI_PIPELINE_ID}; fi
-    - docker exec -i eos-mgm-test /bin/bash -c 'eos vid enable krb5;'
+    - docker exec -i eos-mgm-test /bin/bash -c 'eos vid enable krb5'
     - docker exec -i eos-mgm-test eos-instance-test-ci
     - docker exec -i eos-client-test git clone https://gitlab.cern.ch/dss/eosclient-tests.git
     - docker exec -di eos-client-test /bin/bash -c 'mkdir /eos1/; mount -t fuse eosxd /eos1/'
     - docker exec -di eos-client-test /bin/bash -c 'mkdir /eos2/; mount -t fuse eosxd /eos2/'
     - docker exec -i -u eos-user eos-client-test /bin/bash -c 'mkdir /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; fusex-benchmark'
-    # @todo(esindril): run "all" tests in schedule mode once these are properly supported,\
+    # @todo(esindril): run "all" tests in schedule mode once these are properly supported
+    # - if [ "$CI_PIPELINE_SOURCE" == "schedule" ]; then
+    #     docker exec -i eos-mgm-test eos vid add gateway eos-client-test.eoscluster.cern.ch unix;
+    #     docker exec -i eos-client-test env EOS_FUSE_NO_ROOT_SQUASH=1 python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci;
+    #   fi
     # until then just run the "ci" tests
-    - if [ "$CI_PIPELINE_SOURCE" == "schedule" ]; then docker exec -i eos-mgm-test eos vid add gateway eos-client-test.eoscluster.cern.ch unix; docker exec -i eos-client-test env EOS_FUSE_NO_ROOT_SQUASH=1 python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci; else docker exec -i -u eos-user eos-client-test python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci; fi
+    - docker exec -i -u eos-user eos-client-test python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci;
     # - docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos_fuse
     # - docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos_fuse2
     # - docker exec -i eos-client-test python /eosclient-tests/run.py --workdir="/eos_fuse/dockertest /eos_fuse2/dockertest" ci
@@ -141,9 +145,13 @@ before_script:
     - docker exec -di eos-client-test /bin/bash -c 'mkdir /eos1/; mount -t fuse eosxd /eos1/'
     - docker exec -di eos-client-test /bin/bash -c 'mkdir /eos2/; mount -t fuse eosxd /eos2/'
     - docker exec -i -u eos-user eos-client-test /bin/bash -c 'mkdir /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; fusex-benchmark'
-    # @todo(esindril): run "all" tests in schedule mode once these are properly supported,\
+    # @todo(esindril): run "all" tests in schedule mode once these are properly supported
+    # - if [ "$CI_PIPELINE_SOURCE" == "schedule" ]; then
+    #     docker exec -i eos-mgm-test eos vid add gateway eos-client-test.eoscluster.cern.ch unix;
+    #     docker exec -i eos-client-test env EOS_FUSE_NO_ROOT_SQUASH=1 python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci;
+    #   fi
     # until then just run the "ci" tests
-    - if [ "$CI_PIPELINE_SOURCE" == "schedule" ]; then docker exec -i eos-mgm-test eos vid add gateway eos-client-test.eoscluster.cern.ch unix; docker exec -i eos-client-test env EOS_FUSE_NO_ROOT_SQUASH=1 python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci; else docker exec -i -u eos-user eos-client-test python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci; fi
+    - docker exec -i -u eos-user eos-client-test python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci;
     - sudo ./eos-docker/scripts/shutdown_services.sh
 
 
@@ -190,9 +198,9 @@ before_script:
   before_script:
     - . /home/gitlab-runner/coe-cluster-config/st-gitlab-k8s-01/env_st-gitlab-k8s-01.sh # get access configs for the cluster
     - NAMESPACE=$(echo ${CI_JOB_NAME}-${CI_JOB_ID}-${CI_PIPELINE_ID} | tr _ -)
-    - if [[ "$CI_COMMIT_TAG" != "" ]]; 
-        then IMAGE_TAG="${BASETAG}${CI_COMMIT_TAG}";
-        else IMAGE_TAG="${BASETAG}${CI_PIPELINE_ID}";
+    - if [[ "$CI_COMMIT_TAG" != "" ]];
+      then IMAGE_TAG="${BASETAG}${CI_COMMIT_TAG}";
+      else IMAGE_TAG="${BASETAG}${CI_PIPELINE_ID}";
       fi;
     - git clone https://gitlab.cern.ch/faluchet/eos-on-k8s.git
 
