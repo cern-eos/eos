@@ -175,8 +175,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuarkFileSystemView(qclient::QClient *qcl, MetadataFlusher *flusher,
-    folly::Executor *exec);
+  QuarkFileSystemView(qclient::QClient *qcl, MetadataFlusher *flusher);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -400,7 +399,7 @@ private:
   qclient::QClient* pQcl;
 
   ///! Folly executor
-  folly::Executor *mExecutor;
+  std::unique_ptr<folly::Executor> mExecutor;
 
   ///! No replicas handler
   std::unique_ptr<FileSystemHandler> mNoReplicas;

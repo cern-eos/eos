@@ -185,7 +185,7 @@ IFsView* QuarkNamespaceGroup::getFilesystemView() {
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mFilesystemView) {
-    mFilesystemView.reset(new QuarkFileSystemView(getQClient(), getMetadataFlusher(), getExecutor()));
+    mFilesystemView.reset(new QuarkFileSystemView(getQClient(), getMetadataFlusher()));
     getFileService()->addChangeListener(mFilesystemView.get());
   }
 
