@@ -257,11 +257,13 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
         Add("bytes_deleted", 0, 0, report->dsize, now - 30, now);
         Add("files_deleted", 0, 0, 1, now - 30, now);
       }
-      // do the UDP broadcasting here
-      XrdSysMutexHelper mLock(mBcastMutex);
+      {
+        // Do the UDP broadcasting here
+        XrdSysMutexHelper mLock(mBcastMutex);
 
-      if (mUdpPopularityTarget.size()) {
-        UdpBroadCast(report);
+        if (mUdpPopularityTarget.size()) {
+          UdpBroadCast(report);
+        }
       }
 
       // do the domain accounting here
@@ -1668,9 +1670,9 @@ Iostat::AddUdpTarget(const char* target, bool storeitandlock)
   }
 
   // store the configuration
-  if ((storeitandlock) && (!StoreIostatConfig())) {
+  if (storeitandlock) {
     mBcastMutex.UnLock();
-    return false;
+    return StoreIostatConfig();
   }
 
   if (storeitandlock) {
