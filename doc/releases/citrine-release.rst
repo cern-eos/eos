@@ -16,6 +16,24 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.4.37 Citrine``
+===================
+
+2019-04-16
+
+Bug
+---
+
+* Fix deadlock in the folly executor introduced when using a single folly
+  executor for the entire namespace.
+
+Improvements
+-------------
+
+* Add env variable to control the master-slave transition lease validity.
+  EOS_QDB_MASTER_INIT_LEASE_MS
+
+
 ``v4.4.36 Citrine``
 ===================
 
