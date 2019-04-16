@@ -30,10 +30,6 @@
 #include "qclient/QHash.hh"
 #include "qclient/QSet.hh"
 
-namespace folly {
-  class Executor;
-}
-
 EOSNSNAMESPACE_BEGIN
 
 class IQuotaStats;
@@ -49,8 +45,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuarkFileMDSvc(qclient::QClient *qcl, MetadataFlusher *flusher,
-    folly::Executor *exec);
+  QuarkFileMDSvc(qclient::QClient *qcl, MetadataFlusher *flusher);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -184,7 +179,6 @@ private:
   //----------------------------------------------------------------------------
   void SafetyCheck();
 
-  folly::Executor *mExecutor; ///< Folly executor
   ListenerList pListeners; ///< List of listeners to notify of changes
   IQuotaStats* pQuotaStats; ///< Quota view
   IContainerMDSvc* pContSvc; ///< Container metadata service

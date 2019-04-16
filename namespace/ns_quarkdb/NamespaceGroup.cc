@@ -126,7 +126,7 @@ void QuarkNamespaceGroup::initializeFileAndContainerServices() {
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mFileService) {
-    mFileService.reset(new QuarkFileMDSvc(getQClient(), getMetadataFlusher(), getExecutor()));
+    mFileService.reset(new QuarkFileMDSvc(getQClient(), getMetadataFlusher()));
   }
 
   if(!mContainerService) {
@@ -170,7 +170,7 @@ IView* QuarkNamespaceGroup::getHierarchicalView() {
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
   if(!mHierarchicalView) {
-    mHierarchicalView.reset(new QuarkHierarchicalView(getQClient(), getQuotaFlusher(), getExecutor()));
+    mHierarchicalView.reset(new QuarkHierarchicalView(getQClient(), getQuotaFlusher()));
     mHierarchicalView->setFileMDSvc(getFileService());
     mHierarchicalView->setContainerMDSvc(getContainerService());
   }

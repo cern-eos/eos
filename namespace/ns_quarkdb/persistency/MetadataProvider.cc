@@ -33,14 +33,13 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 MetadataProvider::MetadataProvider(const QdbContactDetails& contactDetails,
-                                   IContainerMDSvc* contsvc, IFileMDSvc* filesvc,
-                                   folly::Executor* executor)
+                                   IContainerMDSvc* contsvc, IFileMDSvc* filesvc)
 {
-  mExecutor = executor;
+  mExecutor.reset(new folly::IOThreadPoolExecutor(16));
 
   for(size_t i = 0; i < kShards; i++) {
     mQcl.emplace_back(std::make_unique<qclient::QClient>(contactDetails.members, contactDetails.constructOptions()));
-    mShards.emplace_back(new MetadataProviderShard(mQcl.back().get(), contsvc, filesvc, mExecutor));
+    mShards.emplace_back(new MetadataProviderShard(mQcl.back().get(), contsvc, filesvc, mExecutor.get()));
   }
 }
 

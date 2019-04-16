@@ -47,8 +47,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuarkHierarchicalView(qclient::QClient *qcl, MetadataFlusher *quotaFlusher,
-    folly::Executor *exec);
+  QuarkHierarchicalView(qclient::QClient *qcl, MetadataFlusher *quotaFlusher);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -344,7 +343,7 @@ private:
   IFileMDSvc* pFileSvc;
   IQuotaStats* pQuotaStats;
   std::shared_ptr<IContainerMD> pRoot;
-  folly::Executor* pExecutor;
+  std::unique_ptr<folly::Executor> pExecutor;
 };
 
 EOSNSNAMESPACE_END
