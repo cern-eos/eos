@@ -863,6 +863,10 @@ rpm_xrootd_latest_artifacts:
     - docker_node
   dependencies:
     - build_cc7_xrd_testing
+  only:
+    - master
+    - dev
+    - tags
   when: manual
 
 
@@ -877,6 +881,10 @@ rpm_stable_artifacts:
     - echo ${CI_COMMIT_TAG} | sudo -u stci tee /eos/project/s/storage-ci/www/eos/${BRANCH}/tag/latest_version
   tags:
     - docker_node
+  only:
+    - master
+    - dev
+    - tags
   when: manual
 
 
@@ -897,12 +905,12 @@ debian_artifacts:
   dependencies:
     - build_ubuntu_artful
     - build_ubuntu_bionic
-  allow_failure: true
-  retry: 2
   only:
     - master
     - dev
     - tags
+  retry: 2
+  allow_failure: true
 
 
 debian_artifacts_volume:
