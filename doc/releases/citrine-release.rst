@@ -15,6 +15,31 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.4.36 Citrine``
+===================
+
+2019-04-16
+
+
+Bug
+----
+
+* Fix deadlock in the Iostat class introduced in the previous release.
+* [EOS-2477] - MGM lockedup after enabling LRU - Citrine with new namespace
+* [EOS-3337] - MGM crash around XrdMgmOfs::OrderlyShutdown() on "orderly" shutdown
+* [EOS-3405] - MGM switches drain filesystems to empty
+
+Improvement
+------------
+
+* [EOS-3356] - RFE: shut up the 'verbose' recursive "chown" under /var/eos
+* [EOS-3389] - review "error: no drain started for the given fs": do not trigger this or do not log
+* [EOS-3402] - "eos node ls": double 'status' column, white-on-white text
+* [EOS-3412] - silence "failed to stat recycle path" error on rename+remove?
+* [EOS-3421] - Flood of "SOM Listener new notification" messages in the log since 77cfb51213
+
+
 ``v4.4.35 Citrine``
 ===================
 
@@ -86,7 +111,7 @@ Improvement
 Refactoring
 -----------
 
-* Introduce NamespaceGroup  
+* Introduce NamespaceGroup
 
 ``v4.4.32 Citrine``
 ===================
