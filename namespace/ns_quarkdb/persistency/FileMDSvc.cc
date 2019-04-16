@@ -38,10 +38,10 @@ std::chrono::seconds QuarkFileMDSvc::sFlushInterval(5);
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuarkFileMDSvc::QuarkFileMDSvc(qclient::QClient *qcl, MetadataFlusher *flusher,
-  folly::Executor *exec)
+QuarkFileMDSvc::QuarkFileMDSvc(qclient::QClient* qcl, MetadataFlusher* flusher,
+                               folly::Executor* exec)
   : mExecutor(exec), pQuotaStats(nullptr), pContSvc(nullptr), pFlusher(flusher),
-  pQcl(qcl), mMetaMap(), mNumFiles(0ull) {}
+    pQcl(qcl), mMetaMap(), mNumFiles(0ull) {}
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -61,24 +61,22 @@ QuarkFileMDSvc::configure(const std::map<std::string, std::string>& config)
 {
   std::string qdb_cluster;
   std::string qdb_flusher_id;
-  const std::string key_cluster = "qdb_cluster";
   const std::string key_flusher = "qdb_flusher_md";
 
-  QdbContactDetails contactDetails = ConfigurationParser::parse(config);
-
-  if (config.find(key_flusher) == config.end()) {
-    throw_mdexception(EINVAL, __FUNCTION__ << "No " << key_flusher
-                      << " configuration was provided");
+  if (config.find(key_flusher) != config.end()) {
+    // This should only be called once during booting but then the rest of the
+    // config values can be updated also while running
+    QdbContactDetails contactDetails = ConfigurationParser::parse(config);
+    mMetaMap.setKey(constants::sMapMetaInfoKey);
+    mMetaMap.setClient(*pQcl);
+    mUnifiedInodeProvider.configure(mMetaMap);
+    mMetadataProvider.reset(new MetadataProvider(contactDetails, pContSvc, this,
+                            mExecutor));
+    static_cast<QuarkContainerMDSvc*>(pContSvc)->setMetadataProvider
+    (mMetadataProvider.get());
+    static_cast<QuarkContainerMDSvc*>(pContSvc)->setInodeProvider
+    (&mUnifiedInodeProvider);
   }
-
-  mMetaMap.setKey(constants::sMapMetaInfoKey);
-  mMetaMap.setClient(*pQcl);
-  mUnifiedInodeProvider.configure(mMetaMap);
-  mMetadataProvider.reset(new MetadataProvider(contactDetails, pContSvc, this, mExecutor));
-  static_cast<QuarkContainerMDSvc*>(pContSvc)->setMetadataProvider
-  (mMetadataProvider.get());
-  static_cast<QuarkContainerMDSvc*>(pContSvc)->setInodeProvider
-  (&mUnifiedInodeProvider);
 
   if (config.find(constants::sMaxNumCacheFiles) != config.end()) {
     std::string val = config.at(constants::sMaxNumCacheFiles);
@@ -282,7 +280,8 @@ QuarkFileMDSvc::notifyListeners(IFileMDChangeListener::Event* event)
 void
 QuarkFileMDSvc::setContMDService(IContainerMDSvc* cont_svc)
 {
-  QuarkContainerMDSvc* impl_cont_svc = dynamic_cast<eos::QuarkContainerMDSvc*>(cont_svc);
+  QuarkContainerMDSvc* impl_cont_svc = dynamic_cast<eos::QuarkContainerMDSvc*>
+                                       (cont_svc);
 
   if (!impl_cont_svc) {
     MDException e(EFAULT);
