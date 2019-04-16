@@ -194,7 +194,6 @@ QdbMaster::BootNamespace()
 void
 QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
 {
-  constexpr int master_init_lease = 30000; // 30 seconds
   bool new_is_master = false;
   std::string old_master;
   eos_notice("%s", "msg=\"set up booting stall rule\"");
@@ -214,6 +213,12 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
 
   // Loop updating the master status
   while (!assistant.terminationRequested()) {
+    uint64_t master_init_lease = 30000; // 30 seconds
+
+    if (getenv("EOS_QDB_MASTER_INIT_LEASE_MS")) {
+      master_init_lease = std::stoull(getenv("EOS_QDB_MASTER_INIT_LEASE_MS"));
+    }
+
     old_master = GetMasterId();
     new_is_master = AcquireLeaseWithDelay();
     UpdateMasterId(GetLeaseHolder());
@@ -285,7 +290,7 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
 void
 QdbMaster::SlaveToMaster()
 {
-  eos_info("%s", "msg=\"slave to master transition\"");
+  eos_info("%s", "msg=\"start slave to master transition\"");
   Access::StallInfo old_stall; // to be discarded
   Access::StallInfo new_stall("*", "5", "slave->master transition", true);
   Access::SetStallRule(new_stall, old_stall);
@@ -311,6 +316,7 @@ QdbMaster::SlaveToMaster()
   Access::SetSlaveToMasterRules();
   gOFS->mTracker.SetAcceptingRequests(true);
   CreateStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE);
+  eos_info("%s", "msg=\"finished slave to master transition\"");
 }
 
 //------------------------------------------------------------------------------
