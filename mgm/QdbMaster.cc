@@ -34,7 +34,7 @@
 EOSMGMNAMESPACE_BEGIN
 
 std::string QdbMaster::sLeaseKey {"master_lease"};
-std::chrono::milliseconds QdbMaster::sLeaseTimeout {10000};
+std::chrono::milliseconds QdbMaster::sLeaseTimeout {15000};
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -45,7 +45,8 @@ QdbMaster::QdbMaster(const eos::QdbContactDetails& qdb_info,
   mIsMaster(false),  mConfigLoaded(false),
   mAcquireDelay(0)
 {
-  mQcl = std::make_unique<qclient::QClient>(qdb_info.members, qdb_info.constructOptions());
+  mQcl = std::make_unique<qclient::QClient>(qdb_info.members,
+         qdb_info.constructOptions());
 }
 
 //------------------------------------------------------------------------------
@@ -80,11 +81,8 @@ QdbMaster::BootNamespace()
   PF_PlatformServices& pm_svc = pm.GetPlatformServices();
   pm_svc.invokeService = &XrdMgmOfs::DiscoverPlatformServices;
   gOFS->namespaceGroup.reset(static_cast<INamespaceGroup*>
-                              (pm.CreateObject("NamespaceGroup")));
-
-  //----------------------------------------------------------------------------
+                             (pm.CreateObject("NamespaceGroup")));
   // Collect namespace options, and initialize namespace group
-  //----------------------------------------------------------------------------
   std::map<std::string, std::string> namespaceConfig;
   std::string err;
 
@@ -96,29 +94,25 @@ QdbMaster::BootNamespace()
 
   std::string instance_id =
     SSTR(gOFS->MgmOfsInstanceName << ":" << gOFS->ManagerPort);
-
   namespaceConfig["queue_path"] = "/var/eos/ns-queue/";
   namespaceConfig["qdb_cluster"] = gOFS->mQdbCluster;
   namespaceConfig["qdb_password"] = gOFS->mQdbPassword;
   namespaceConfig["qdb_flusher_md"] = SSTR(instance_id << "_md");
   namespaceConfig["qdb_flusher_quota"] = SSTR(instance_id << "_quota");
 
-  if(!gOFS->namespaceGroup->initialize(&gOFS->eosViewRWMutex, namespaceConfig,
-    err)) {
-
+  if (!gOFS->namespaceGroup->initialize(&gOFS->eosViewRWMutex, namespaceConfig,
+                                        err)) {
     eos_err("msg=\"could not initialize namespace group, err: %s\"", err.c_str());
     return false;
   }
 
-  //----------------------------------------------------------------------------
   // Fetch all required services out of namespace group
-  //----------------------------------------------------------------------------
   gOFS->eosDirectoryService = gOFS->namespaceGroup->getContainerService();
   gOFS->eosFileService = gOFS->namespaceGroup->getFileService();
   gOFS->eosView = gOFS->namespaceGroup->getHierarchicalView();
   gOFS->eosFsView = gOFS->namespaceGroup->getFilesystemView();
-
-  gOFS->eosContainerAccounting = gOFS->namespaceGroup->getContainerAccountingView();
+  gOFS->eosContainerAccounting =
+    gOFS->namespaceGroup->getContainerAccountingView();
   gOFS->eosSyncTimeAccounting = gOFS->namespaceGroup->getSyncTimeAccountingView();
 
   if (!gOFS->eosDirectoryService || !gOFS->eosFileService || !gOFS->eosView ||
@@ -200,6 +194,7 @@ QdbMaster::BootNamespace()
 void
 QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
 {
+  constexpr int master_init_lease = 30000; // 30 seconds
   bool new_is_master = false;
   std::string old_master;
   eos_notice("%s", "msg=\"set up booting stall rule\"");
@@ -220,7 +215,7 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
   // Loop updating the master status
   while (!assistant.terminationRequested()) {
     old_master = GetMasterId();
-    new_is_master = AcquireLeaseWitDelay();
+    new_is_master = AcquireLeaseWithDelay();
     UpdateMasterId(GetLeaseHolder());
     eos_info("old_is_master=%s, is_master=%s, old_master_id=%s, master_id=%s",
              mIsMaster.load() ? "true" : "false",
@@ -230,8 +225,8 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
     // Run one-off after boot
     if (mOneOff) {
       if (new_is_master) {
-        // Increase the lease validity if we're the master
-        if (!AcquireLease(20000)) {
+        // Increase the lease validity for the transition
+        if (!AcquireLease(master_init_lease)) {
           eos_err("msg=\"failed to renew lease during transition\"");
           continue;
         }
@@ -248,7 +243,17 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
     } else {
       // There was a master-slave transition
       if (mIsMaster != new_is_master) {
-        mIsMaster ? MasterToSlave() : SlaveToMaster();
+        if (mIsMaster) {
+          MasterToSlave();
+        } else {
+          // Increase the lease validity for the transition
+          if (!AcquireLease(master_init_lease)) {
+            eos_err("msg=\"failed to renew lease during transition\"");
+            continue;
+          }
+
+          SlaveToMaster();
+        }
       } else {
         std::string new_master_id = GetMasterId();
 
@@ -296,24 +301,15 @@ QdbMaster::SlaveToMaster()
     std::abort();
   }
 
-  std::thread stall_thread([&]() {
-    eos_info("%s", "msg=\"stall thread sleeping for 10 seconds\"");
-    std::this_thread::sleep_for(std::chrono::seconds(10));
-
-    if (mIsMaster) {
-      eos_info("%s", "msg=\"stall thread removing global stall\"");
-      Access::RemoveStallRule("*");
-      gOFS->mTracker.SetAcceptingRequests(true);
-    }
-  });
-  stall_thread.detach();
   Quota::LoadNodes();
   EnableNsCaching();
   WFE::MoveFromRBackToQ();
   // Notify all the nodes about the new master identity
   FsView::gFsView.BroadcastMasterId(GetMasterId());
   mIsMaster = true;
+  Access::RemoveStallRule("*");
   Access::SetSlaveToMasterRules();
+  gOFS->mTracker.SetAcceptingRequests(true);
   CreateStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE);
 }
 
@@ -419,7 +415,7 @@ QdbMaster::AcquireLease(uint64_t validity_msec)
 // then we skip trying to acquire the lease until the delay has expired.
 //------------------------------------------------------------------------------
 bool
-QdbMaster::AcquireLeaseWitDelay()
+QdbMaster::AcquireLeaseWithDelay()
 {
   bool is_master = false;
 
@@ -561,9 +557,6 @@ QdbMaster::DisableNsCaching()
   map_cfg[constants::sMaxNumCacheDirs] = "0";
   gOFS->eosFileService->configure(map_cfg);
   gOFS->eosDirectoryService->configure(map_cfg);
-  // @todo(esindril): disabling caching and dropping all values can lead to
-  // crashes in the folly threads that have pointers for the files/containers
-  // in the cache
 }
 
 //------------------------------------------------------------------------------

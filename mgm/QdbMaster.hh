@@ -190,7 +190,7 @@ private:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool AcquireLeaseWitDelay();
+  bool AcquireLeaseWithDelay();
 
   //----------------------------------------------------------------------------
   //! Release lease
@@ -234,7 +234,8 @@ private:
   ///! give the chance to other MGMs to become masters
   std::atomic<time_t> mAcquireDelay;
   AssistedThread mThread; ///< Supervisor thread updating master/slave state
-  std::unique_ptr<qclient::QClient> mQcl; ///< qclient for talking to the QDB cluster
+  std::unique_ptr<qclient::QClient>
+  mQcl; ///< qclient for talking to the QDB cluster
 };
 
 EOSMGMNAMESPACE_END
