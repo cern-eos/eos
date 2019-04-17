@@ -198,6 +198,8 @@ TEST_F(FileSystemViewF, BasicSanity)
   ASSERT_EQ(fsview()->getNumNoReplicasFiles(), 500);
   std::shared_ptr<eos::IFileMD> f{
     view()->getFile(std::string("/test/embed/embed1/file1"))};
+  ASSERT_EQ(view()->getUri(f.get()), "/test/embed/embed1/file1");
+
   f->unlinkAllLocations();
   numReplicas = countReplicas(fsview());
   ASSERT_EQ(numReplicas, 17195);
@@ -231,6 +233,7 @@ TEST_F(FileSystemViewF, BasicSanity)
       }
 
       std::shared_ptr<eos::IFileMD> file{view()->getFile(elem)};
+      ASSERT_EQ(view()->getUri(file.get()), elem);
       view()->unlinkFile(file.get());
       file->removeAllLocations();
       view()->removeFile(file.get());
@@ -249,6 +252,7 @@ TEST_F(FileSystemViewF, BasicSanity)
     o << "noreplicasfile" << i;
     std::string path = "/test/embed/embed1/" + o.str();
     std::shared_ptr<eos::IFileMD> file{view()->getFile(path)};
+    ASSERT_EQ(view()->getUri(file.get()), path);
     view()->unlinkFile(file.get());
     view()->removeFile(file.get());
   }
@@ -268,6 +272,8 @@ TEST_F(FileSystemViewF, RandomFilePicking)
   view()->createContainer("/test/", true);
   for(size_t i = 1; i < 200; i++) {
     std::shared_ptr<eos::IFileMD> file = view()->createFile(SSTR("/test/" << i));
+    ASSERT_EQ(view()->getUri(file.get()), SSTR("/test/" << i));
+    ASSERT_EQ(view()->getUriFut(file->getIdentifier()).get(), SSTR("/test/" << i));
 
     // Even files go to fs #1, odd go to #2
     if(i % 2 == 0) {

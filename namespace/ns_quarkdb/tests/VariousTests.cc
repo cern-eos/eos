@@ -404,7 +404,11 @@ TEST_F(VariousTests, createContainerMadness) {
   view()->getContainer("/eos/dev/my-dir-3/my-dir-4/what-am-i-doing");
   view()->getContainer("/eos/dev/my-dir-3/my-dir-4/what-am-i-doing/aaaaaa");
   view()->getContainer("/eos/dev/my-dir-3/my-dir-4/what-am-i-doing/bbbbbbb");
-  view()->getContainer("/eos/dev/my-dir-3/my-dir-4/what-am-i-doing/bbbbbbb/chicken");
+
+  auto chicken = view()->getContainer("/eos/dev/my-dir-3/my-dir-4/what-am-i-doing/bbbbbbb/chicken");
+  ASSERT_EQ(view()->getUri(chicken.get()), "/eos/dev/my-dir-3/my-dir-4/what-am-i-doing/bbbbbbb/chicken/");
+  ASSERT_EQ(view()->getUri(chicken->getId()), "/eos/dev/my-dir-3/my-dir-4/what-am-i-doing/bbbbbbb/chicken/");
+  ASSERT_EQ(view()->getUri(chicken->getParentId()), "/eos/dev/my-dir-3/my-dir-4/what-am-i-doing/bbbbbbb/");
 }
 
 TEST_F(VariousTests, ChecksumFormatting) {
