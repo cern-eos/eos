@@ -328,6 +328,30 @@ private:
   getPathExpectContainer(const std::deque<std::string> &chunks);
 
   //----------------------------------------------------------------------------
+  //! Build the URL of the given container, as a deque of chunks. Primary
+  //! "resumable" function.
+  //----------------------------------------------------------------------------
+  folly::Future<std::deque<std::string>> getUriInternal(std::deque<std::string>
+    currentChunks, IContainerMDPtr nextToLookup) const;
+
+  //----------------------------------------------------------------------------
+  //! Build the URL of the given file, as a deque of chunks.
+  //----------------------------------------------------------------------------
+  folly::Future<std::deque<std::string>> getUriInternalFmdPtr(IFileMDPtr fmd) const;
+  folly::Future<std::deque<std::string>> getUriInternalFmd(const IFileMD *fmd) const;
+
+  //----------------------------------------------------------------------------
+  //! Build the URL of the given container ID.
+  //----------------------------------------------------------------------------
+  folly::Future<std::deque<std::string>> getUriInternalCid(
+    std::deque<std::string> currentChunks, ContainerIdentifier cid) const;
+
+  //----------------------------------------------------------------------------
+  //! Build the URL of the given fid
+  //----------------------------------------------------------------------------
+  folly::Future<std::deque<std::string>> getUriInternalFid(FileIdentifier fid) const;
+
+  //----------------------------------------------------------------------------
   //! Clean up contents of container
   //!
   //! @param cont container object

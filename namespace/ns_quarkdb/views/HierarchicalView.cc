@@ -729,6 +729,33 @@ QuarkHierarchicalView::removeContainer(const std::string& uri)
 }
 
 //------------------------------------------------------------------------------
+// Concatenate a deque of chunks into a string
+//------------------------------------------------------------------------------
+static std::string concatenateDeque(const std::deque<std::string> &chunks) {
+  std::ostringstream ss;
+
+  for(size_t i = 0; i < chunks.size(); i++) {
+    ss << "/" << chunks[i];
+  }
+
+  return ss.str();
+}
+
+//------------------------------------------------------------------------------
+// Concatenate a deque of chunks into a string, with an ending slash
+//------------------------------------------------------------------------------
+static std::string concatenateDequeWithEndingSlash(const std::deque<std::string> &chunks) {
+  std::ostringstream ss;
+
+  for(size_t i = 0; i < chunks.size(); i++) {
+    ss << "/" << chunks[i];
+  }
+
+  ss << "/";
+  return ss.str();
+}
+
+//------------------------------------------------------------------------------
 // Get uri for the container
 //------------------------------------------------------------------------------
 std::string
@@ -741,7 +768,7 @@ QuarkHierarchicalView::getUri(const IContainerMD* container) const
     throw ex;
   }
 
-  return getUri(container->getId());
+  return getUriFut(container->getIdentifier()).get();
 }
 
 //------------------------------------------------------------------------------
@@ -750,9 +777,155 @@ QuarkHierarchicalView::getUri(const IContainerMD* container) const
 folly::Future<std::string>
 QuarkHierarchicalView::getUriFut(ContainerIdentifier id) const
 {
-  return folly::via(pExecutor.get()).then([this, id]() {
-    return this->getUri(id.getUnderlyingUInt64());
-  });
+  return getUriInternalCid({}, id)
+    .then(concatenateDequeWithEndingSlash);
+}
+
+//------------------------------------------------------------------------------
+// Build the URL of the given container, as a deque of chunks. Primary
+// "resumable" function.
+//------------------------------------------------------------------------------
+folly::Future<std::deque<std::string>>
+QuarkHierarchicalView::getUriInternal(std::deque<std::string> currentChunks,
+  IContainerMDPtr nextToLookup) const {
+
+  while(true) {
+    //--------------------------------------------------------------------------
+    // Null nextToLookup with an empty deque? ENOENT
+    //--------------------------------------------------------------------------
+    if(!nextToLookup && currentChunks.empty()) {
+      return folly::makeFuture<std::deque<std::string>>(
+        make_mdexception(ENOENT, "No such file or directory"));
+    }
+
+    //--------------------------------------------------------------------------
+    // Null nextToLookup with non-empty deque? Huh.. that shouldn't happen.
+    //--------------------------------------------------------------------------
+    if(!nextToLookup) {
+      std::string err = SSTR("Potential namespace corruption, received null nextToLookup in getUri. " <<
+        "Current state: " << concatenateDeque(currentChunks));
+
+      eos_static_crit(err.c_str());
+      return folly::makeFuture<std::deque<std::string>>(make_mdexception(EFAULT, err.c_str()));
+    }
+
+    //--------------------------------------------------------------------------
+    // Reached the end?
+    //--------------------------------------------------------------------------
+    if(nextToLookup->getIdentifier()  == ContainerIdentifier(1)) {
+      return currentChunks;
+    }
+
+    //--------------------------------------------------------------------------
+    // Potential cycle?
+    //--------------------------------------------------------------------------
+    if(currentChunks.size() > 255) {
+      std::string err = SSTR("Potential namespace corruption, detected loop in getUri. Current container: "
+        << nextToLookup->getId() << ", current state: " << concatenateDeque(currentChunks));
+
+      eos_static_crit(err.c_str());
+      return folly::makeFuture<std::deque<std::string>>(make_mdexception(EFAULT, err.c_str()));
+    }
+
+    //--------------------------------------------------------------------------
+    // Add nextToLookup's name into the deque..
+    //--------------------------------------------------------------------------
+    currentChunks.emplace_front(nextToLookup->getName());
+
+    //--------------------------------------------------------------------------
+    // Lookup parent chunk..
+    //--------------------------------------------------------------------------
+    folly::Future<IContainerMDPtr> pending = pContainerSvc->getContainerMDFut(nextToLookup->getParentId());
+
+    if(pending.isReady()) {
+      //------------------------------------------------------------------------
+      // Cache hit, carry on.
+      //------------------------------------------------------------------------
+      nextToLookup = pending.get();
+      continue;
+    }
+
+    //--------------------------------------------------------------------------
+    // Cache miss, "pause" execution until we receive the necessary metadata
+    // from QDB.
+    //--------------------------------------------------------------------------
+    return pending.via(pExecutor.get())
+      .then(std::bind(&QuarkHierarchicalView::getUriInternal, this, std::move(currentChunks),
+        _1));
+  }
+}
+
+//------------------------------------------------------------------------------
+// Build the URL of the given container ID.
+//------------------------------------------------------------------------------
+folly::Future<std::deque<std::string>>
+QuarkHierarchicalView::getUriInternalCid(std::deque<std::string> currentChunks,
+  ContainerIdentifier cid) const
+{
+  folly::Future<IContainerMDPtr> pending = pContainerSvc->getContainerMDFut(cid.getUnderlyingUInt64());
+
+  if(pending.isReady()) {
+    //--------------------------------------------------------------------------
+    // Cache hit
+    //--------------------------------------------------------------------------
+    return getUriInternal(currentChunks, pending.get());
+  }
+
+  //----------------------------------------------------------------------------
+  // Pause execution, give back future.
+  //----------------------------------------------------------------------------
+  return pending.via(pExecutor.get())
+    .then(std::bind(&QuarkHierarchicalView::getUriInternal, this, currentChunks, _1));
+}
+
+//------------------------------------------------------------------------------
+// Build the URL of the given file, as a deque of chunks.
+//------------------------------------------------------------------------------
+folly::Future<std::deque<std::string>>
+QuarkHierarchicalView::getUriInternalFmd(const IFileMD *fmd) const
+{
+  if(!fmd) {
+    //--------------------------------------------------------------------------
+    // ENOENT
+    //--------------------------------------------------------------------------
+    return folly::makeFuture<std::deque<std::string>>(
+      make_mdexception(ENOENT, "No such file or directory"));
+  }
+
+  std::deque<std::string> chunks;
+  chunks.emplace_front(fmd->getName());
+  return getUriInternalCid(chunks, ContainerIdentifier(fmd->getContainerId()));
+}
+
+//------------------------------------------------------------------------------
+// Build the URL of the given file, as a deque of chunks.
+//------------------------------------------------------------------------------
+folly::Future<std::deque<std::string>>
+QuarkHierarchicalView::getUriInternalFmdPtr(IFileMDPtr fmd) const
+{
+  return getUriInternalFmd(fmd.get());
+}
+
+//------------------------------------------------------------------------------
+// Build the URL of the given fid
+//------------------------------------------------------------------------------
+folly::Future<std::deque<std::string>>
+QuarkHierarchicalView::getUriInternalFid(FileIdentifier fid) const
+{
+  folly::Future<IFileMDPtr> pending = pFileSvc->getFileMDFut(fid.getUnderlyingUInt64());
+
+  if(pending.isReady()) {
+    //--------------------------------------------------------------------------
+    // Cache hit
+    //--------------------------------------------------------------------------
+    return getUriInternalFmdPtr(pending.get());
+  }
+
+  //----------------------------------------------------------------------------
+  // Pause execution, give back future.
+  //----------------------------------------------------------------------------
+  return pending.via(pExecutor.get())
+    .then(std::bind(&QuarkHierarchicalView::getUriInternalFmdPtr, this, _1));
 }
 
 //------------------------------------------------------------------------------
@@ -761,26 +934,7 @@ QuarkHierarchicalView::getUriFut(ContainerIdentifier id) const
 std::string
 QuarkHierarchicalView::getUri(const IContainerMD::id_t cid) const
 {
-  // Gather the uri elements
-  std::vector<std::string> elements;
-  elements.reserve(10);
-  std::shared_ptr<IContainerMD> cursor = pContainerSvc->getContainerMD(cid);
-
-  while (cursor->getId() != 1) {
-    elements.push_back(cursor->getName());
-    cursor = pContainerSvc->getContainerMD(cursor->getParentId());
-  }
-
-  // Assemble the uri
-  std::string path = "/";
-  std::vector<std::string>::reverse_iterator rit;
-
-  for (rit = elements.rbegin(); rit != elements.rend(); ++rit) {
-    path += *rit;
-    path += "/";
-  }
-
-  return path;
+  return getUriFut(ContainerIdentifier(cid)).get();
 }
 
 //------------------------------------------------------------------------------
@@ -789,9 +943,8 @@ QuarkHierarchicalView::getUri(const IContainerMD::id_t cid) const
 folly::Future<std::string>
 QuarkHierarchicalView::getUriFut(FileIdentifier id) const
 {
-  return folly::via(pExecutor.get()).then([this, id]() {
-    return this->getUri(pFileSvc->getFileMD(id.getUnderlyingUInt64()).get());
-  });
+  return getUriInternalFid(id)
+    .then(concatenateDeque);
 }
 
 //------------------------------------------------------------------------------
@@ -800,18 +953,9 @@ QuarkHierarchicalView::getUriFut(FileIdentifier id) const
 std::string
 QuarkHierarchicalView::getUri(const IFileMD* file) const
 {
-  // Check the input
-  if (file == nullptr) {
-    MDException ex;
-    ex.getMessage() << "Invalid file (zero pointer)";
-    throw ex;
-  }
-
-  // Get the uri
-  std::shared_ptr<IContainerMD> cont =
-    pContainerSvc->getContainerMD(file->getContainerId());
-  std::string path = getUri(cont.get());
-  return path + file->getName();
+  return getUriInternalFmd(file)
+    .then(concatenateDeque)
+    .get();
 }
 
 //------------------------------------------------------------------------
