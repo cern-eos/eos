@@ -1835,6 +1835,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
     std::string s8;
     {
       std::lock_guard<std::mutex> lock(meminfo.mutex());
+      XrdSysMutexHelper sLock(getFuseStat().Mutex);
       snprintf(ino_stat, sizeof(ino_stat),
                "ALL        threads             := %llu\n"
                "ALL        visze               := %s\n"
@@ -1899,7 +1900,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                meminfo.getref().loads[0],
                this->getFuseStat().GetTotal("rbytes"),
                this->getFuseStat().GetTotal("wbytes"),
-               this->getFuseStat().GetOpsTS(),
+               this->getFuseStat().GetOps(),
                this->getFuseStat().GetTotalAvg5("rbytes") / 1000.0 / 1000.0,
                this->getFuseStat().GetTotalAvg5("wbytes") / 1000.0 / 1000.0,
                (int) this->getFuseStat().GetTotalAvg5(":sum"),
