@@ -99,14 +99,14 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
     if (gOFS->_exists(spath.c_str(), file_exists, errInfo, mVid, nullptr)) {
       errStream << "error: unable to run exists on path '" << spath << "'";
       retc = errno;
-      reply.set_std_err(std::move(errStream.str()));
+      reply.set_std_err(errStream.str());
       reply.set_retc(retc);
       return reply;
     }
 
     if (file_exists == XrdSfsFileExistNo) {
       errStream << "error: no such file or directory with path '" << spath << "'";
-      reply.set_std_err(std::move(errStream.str()));
+      reply.set_std_err(errStream.str());
       reply.set_retc(ENOENT);
       return reply;
     }
@@ -129,7 +129,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
 
       if (reg_rc) {
         errStream << "error: failed to compile filter regex " << filter_temp;
-        reply.set_std_err(std::move(errStream.str()));
+        reply.set_std_err(errStream.str());
         reply.set_retc(EINVAL);
         return reply;
       }
@@ -226,7 +226,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
                 errStream << "error: unable to remove file '" << fspath << "'"
                           << " - bulk deletion aborted" << std::endl;
                 retc = errno;
-                reply.set_std_err(std::move(errStream.str()));
+                reply.set_std_err(errStream.str());
                 reply.set_retc(retc);
                 return reply;
               }
@@ -249,7 +249,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
               errStream << "error: unable to remove directory '" << rfoundit->first << "'"
                         << " - bulk deletion aborted" << std::endl;
               retc = errno;
-              reply.set_std_err(std::move(errStream.str()));
+              reply.set_std_err(errStream.str());
               reply.set_retc(retc);
               return reply;
             }
@@ -262,7 +262,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
           if (gOFS->_stat(spath.c_str(), &buf, errInfo, mVid, "")) {
             errStream << "error: failed to stat bulk deletion directory '" << spath << "'";
             retc = errno;
-            reply.set_std_err(std::move(errStream.str()));
+            reply.set_std_err(errStream.str());
             reply.set_retc(retc);
             return reply;
           }
@@ -276,14 +276,14 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
           if (lRecycle.ToGarbage("rm-r", errInfo)) {
             errStream << "error: failed to recycle path '" << spath << "'" << std::endl
                       << "reason: " << errInfo.getErrText() << std::endl;
-            reply.set_std_err(std::move(errStream.str()));
+            reply.set_std_err(errStream.str());
             reply.set_retc(errInfo.getErrInfo());
             return reply;
           } else {
             outStream << "success: you can recycle this deletion using 'recycle restore "
                       << std::setw(16) << std::setfill('0') << std::hex
                       << buf.st_ino << "'" << std::endl;
-            reply.set_std_out(std::move(outStream.str()));
+            reply.set_std_out(outStream.str());
             reply.set_retc(SFS_OK);
             return reply;
           }
@@ -352,8 +352,8 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
   }
 
   reply.set_retc(retc);
-  reply.set_std_out(std::move(outStream.str()));
-  reply.set_std_err(std::move(errStream.str()));
+  reply.set_std_out(outStream.str());
+  reply.set_std_err(errStream.str());
   return reply;
 }
 

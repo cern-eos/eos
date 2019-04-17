@@ -82,9 +82,8 @@ FileSystemHandler::ensureContentsLoadedAsync()
   if (mCacheStatus == CacheStatus::kNotLoaded) {
     mChangeList.clear();
     mCacheStatus = CacheStatus::kInFlight;
-    mSplitter = folly::FutureSplitter<FileSystemHandler*>(std::move(
-                  folly::via(pExecutor).then(&FileSystemHandler::triggerCacheLoad, this)
-                ));
+    mSplitter = folly::FutureSplitter<FileSystemHandler*>(
+                  folly::via(pExecutor).then(&FileSystemHandler::triggerCacheLoad, this));
     lock.unlock();
     return mSplitter.getFuture();
   }

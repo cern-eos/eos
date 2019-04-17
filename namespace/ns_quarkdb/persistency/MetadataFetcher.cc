@@ -234,7 +234,7 @@ parseFileMdProtoResponse(redisReplyPtr reply, FileIdentifier id)
   .throwIfNotOk(SSTR("Error while deserializing FileMD #"
                      << id.getUnderlyingUInt64()
                      << " protobuf: "));
-  return std::move(proto);
+  return proto;
 }
 
 //------------------------------------------------------------------------------
@@ -289,7 +289,7 @@ parseContainerMdProtoResponse(redisReplyPtr reply, ContainerIdentifier id)
   .throwIfNotOk(SSTR("Error while deserializing ContainerMd #"
                      << id.getUnderlyingUInt64()
                      << " protobuf: "));
-  return std::move(proto);
+  return proto;
 }
 
 //------------------------------------------------------------------------------

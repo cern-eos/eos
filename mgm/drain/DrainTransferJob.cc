@@ -627,7 +627,7 @@ DrainTransferJob::GetInfo(const std::list<std::string>& tags) const
     }
   }
 
-  return std::move(info);
+  return info;
 }
 
 EOSMGMNAMESPACE_END
