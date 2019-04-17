@@ -29,6 +29,7 @@
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/interface/INamespaceGroup.hh"
 #include "common/plugin_manager/PluginManager.hh"
+#include "common/IntervalStopwatch.hh"
 #include <qclient/QClient.hh>
 
 EOSMGMNAMESPACE_BEGIN
@@ -398,9 +399,12 @@ QdbMaster::AcquireLease(uint64_t validity_msec)
   std::string stimeout = (validity_msec ? StringConversion::stringify(
                             validity_msec) :
                           StringConversion::stringify(sLeaseTimeout.count()));
+  eos::common::IntervalStopwatch stop_watch;
   std::future<qclient::redisReplyPtr> f =
     mQcl->exec("lease-acquire", sLeaseKey, mIdentity, stimeout);
   qclient::redisReplyPtr reply = f.get();
+  eos_info("msg=\"qclient acquire lease call took %llums\"",
+           stop_watch.timeIntoCycle().count());
 
   if (reply == nullptr) {
     return false;
