@@ -312,6 +312,7 @@ build_cc7_xrd_testing:
     - cc7
   only:
     - schedules
+    - tags
   allow_failure: true
 
 
@@ -889,10 +890,7 @@ rpm_xrootd_latest_artifacts:
   dependencies:
     - build_cc7_xrd_testing
   only:
-    - master
-    - dev
     - tags
-  when: manual
 
 
 rpm_stable_artifacts:
