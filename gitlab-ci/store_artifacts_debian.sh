@@ -9,13 +9,16 @@ set -e
 
 script_loc=$(dirname "$0")
 prefix=$1
-comp=$2
+component=$2
 
-for dist in bionic artful; do
-  echo "Publishing for $dist"
-  path=$prefix/pool/$dist/$comp/e/eos/
+for artifacts_dir in *_artifacts; do
+  dist=${artifacts_dir%_*}
+  path=$prefix/pool/$dist/$component/e/eos/
   mkdir -p $path
-  cp $dist/*.deb $path
-  $script_loc/generate_debian_metadata.sh $prefix $dist $comp amd64
+
+  echo "Publishing for $dist -- $path"
+
+  cp ${dist}_artifacts/*.deb $path
+  $script_loc/generate_debian_metadata.sh $prefix $dist $component amd64
   $script_loc/sign_debian_repository.sh $prefix $dist
 done

@@ -9,9 +9,9 @@ set -e
 
 prefix=$1
 dist=$2
-comp=$3
+component=$3
 arch=$4
 
-mkdir -p $prefix/dists/$dist/$comp/binary-$arch/
-(cd $prefix && apt-ftparchive --arch $arch packages pool/$dist/$comp/ > dists/$dist/$comp/binary-$arch/Packages)
-gzip -c $prefix/dists/$dist/$comp/binary-$arch/Packages > $prefix/dists/$dist/$comp/binary-$arch/Packages.gz
+mkdir -p $prefix/dists/$dist/$component/binary-$arch/
+(cd $prefix && apt-ftparchive --arch $arch packages pool/$dist/$component/ > dists/$dist/$component/binary-$arch/Packages)
+gzip -c $prefix/dists/$dist/$component/binary-$arch/Packages > $prefix/dists/$dist/$component/binary-$arch/Packages.gz
