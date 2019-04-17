@@ -67,10 +67,16 @@ TEST_F(VariousTests, FollyWithGloriousContinuations) {
 TEST_F(VariousTests, BasicSanity) {
   std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
   ASSERT_EQ(root->getId(), 1);
+  ASSERT_EQ(view()->getUri(root.get()), "/");
+  ASSERT_EQ(view()->getUri(1), "/");
 
   std::shared_ptr<eos::IContainerMD> cont1 = view()->createContainer("/eos/", true);
   ASSERT_EQ(cont1->getId(), 2);
   ASSERT_THROW(view()->createFile("/eos/", true), eos::MDException);
+  ASSERT_EQ(view()->getUri(cont1.get()), "/eos/");
+  ASSERT_EQ(view()->getUri(cont1->getId()), "/eos/");
+  ASSERT_EQ(view()->getUri(cont1->getParentId()), "/");
+  ASSERT_EQ(view()->getUriFut(cont1->getIdentifier()).get(), "/eos/");
 
   std::shared_ptr<eos::IFileMD> file1 = view()->createFile("/eos/my-file.txt", true);
   ASSERT_EQ(file1->getId(), 1);
@@ -78,6 +84,8 @@ TEST_F(VariousTests, BasicSanity) {
   file1->addLocation(1);
   file1->addLocation(7);
   ASSERT_EQ(file1->getNumLocation(), 2u);
+  ASSERT_EQ(view()->getUri(file1.get()), "/eos/my-file.txt");
+  ASSERT_EQ(view()->getUriFut(file1->getIdentifier()).get(), "/eos/my-file.txt");
 
   containerSvc()->updateStore(root.get());
   containerSvc()->updateStore(cont1.get());
@@ -87,6 +95,8 @@ TEST_F(VariousTests, BasicSanity) {
 
   file1 = view()->getFile("/eos/my-file.txt");
   ASSERT_EQ(view()->getUri(file1.get()), "/eos/my-file.txt");
+  ASSERT_EQ(view()->getUriFut(file1->getIdentifier()).get(), "/eos/my-file.txt");
+
   ASSERT_EQ(file1->getId(), 1);
   ASSERT_EQ(file1->getNumLocation(), 2u);
   ASSERT_EQ(file1->getLocation(0), 1);
@@ -176,6 +186,9 @@ TEST_F(VariousTests, SymlinkExtravaganza) {
 
   IContainerMDPtr cont1 = view()->createContainer("/cont1", true);
   IFileMDPtr awesomeFile = view()->createFile("/cont1/awesome-file", true);
+  ASSERT_EQ(view()->getUri(cont1.get()), "/cont1/");
+  ASSERT_EQ(view()->getUri(cont1->getId()), "/cont1/");
+  ASSERT_EQ(view()->getUriFut(cont1->getIdentifier()).get(), "/cont1/");
 
   fileSvc()->updateStore(file1.get());
   fileSvc()->updateStore(awesomeFile.get());
@@ -185,6 +198,9 @@ TEST_F(VariousTests, SymlinkExtravaganza) {
   ASSERT_TRUE(cont2.get() != nullptr);
   ASSERT_EQ(cont1.get(), cont2.get());
   ASSERT_THROW(view()->getContainer("/file1", false), MDException);
+  ASSERT_EQ(view()->getUri(cont2.get()), "/cont1/");
+  ASSERT_EQ(view()->getUri(cont2->getId()), "/cont1/");
+  ASSERT_EQ(view()->getUriFut(cont2->getIdentifier()).get(), "/cont1/");
 
   IFileMDPtr file2 = view()->createFile("/file2", true);
   file2->setLink("/file1");
@@ -200,6 +216,9 @@ TEST_F(VariousTests, SymlinkExtravaganza) {
   IFileMDPtr awesomeFile1 = view()->getFile("/file1/awesome-file", true);
   ASSERT_TRUE(awesomeFile1.get() != nullptr);
   ASSERT_EQ(awesomeFile.get(), awesomeFile1.get());
+  ASSERT_EQ(view()->getUri(awesomeFile.get()), "/cont1/awesome-file");
+  ASSERT_EQ(view()->getUriFut(awesomeFile->getIdentifier()).get(), "/cont1/awesome-file");
+  ASSERT_EQ(view()->getUri(awesomeFile->getContainerId()), "/cont1/");
 
   // Retrieve awesome-file through two levels of symlinks.
   // NOTE: The following does currently not work on citrine + old NS.
@@ -280,6 +299,8 @@ TEST_F(VariousTests, SymlinkExtravaganza) {
   IFileMDPtr targetFile2 = view()->getFile("/folder1/f2/f3/f4/f1/target-file", true);
   ASSERT_TRUE(targetFile2.get() != nullptr);
   ASSERT_EQ(targetFile1.get(), targetFile2.get());
+  ASSERT_EQ(view()->getUri(targetFile2.get()), "/folder1/target-file");
+  ASSERT_EQ(view()->getUriFut(targetFile2->getIdentifier()).get(), "/folder1/target-file");
 
   IFileMDPtr symlinkFile = view()->getFile("/folder1/f2/f3/f4/f1", false);
   ASSERT_EQ(view()->getUri(symlinkFile.get()), "/folder4/f1");
