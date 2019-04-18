@@ -185,10 +185,7 @@ before_script:
     - chown -R daemon:daemon /var/lib/quarkdb /var/log/quarkdb
     - echo redis.password $EOS_QUARKDB_PASSWD >> /etc/xrd.cf.quarkdb
     - (xrootd -c /etc/xrd.cf.quarkdb -l /var/log/quarkdb/xrdlog.quarkdb -Rdaemon &) ; sleep 3
-    # Address sanitizer finds false positive "stack-buffer-underflow" when compiled with devtoolset-6
-    # Asan jobs will artificially return true
-    # @todo (mipatras) remove once compiler platform is upgraded
-    - if [[ "$CI_JOB_NAME" =~ "asan" ]]; then eos-ns-quarkdb-tests || true; else eos-ns-quarkdb-tests; fi
+    - eos-ns-quarkdb-tests
   variables:
     BUILD_NAME: cc7
 
@@ -241,14 +238,8 @@ before_script:
   <<: *k8s_before_script_template
   script:
     - ./eos-on-k8s/create-mgm.sh -i ${IMAGE_TAG} -n ${NAMESPACE} -q
-    # Address sanitizer finds false positive "stack-buffer-underflow" when compiled with devtoolset-6
-    # Asan jobs will artificially return true
-    # @todo (mipatras) remove once compiler platform is upgraded
-    - if [[ "$CI_JOB_NAME" =~ "asan" ]]; then
-        kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-ns-quarkdb-tests || true;
-      else
-        kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos-ns-quarkdb-tests;
-      fi
+    - if [[ "$CI_JOB_NAME" =~ "asan" ]]; then export ASAN_OPTIONS="fast_unwind_on_malloc=0" ; else export ASAN_OPTIONS="" ; fi
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- bash -c "ASAN_OPTIONS=${ASAN_OPTIONS} eos-ns-quarkdb-tests"
   <<: *k8s_after_script_template
 
 
@@ -322,10 +313,9 @@ build_cc7_asan:
     BUILD_NAME: cc7_asan
     CMAKE_OPTIONS: "-DASAN=1"
     RPMBUILD_OPTIONS: "--with asan"
+    CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
   tags:
     - docker_node
-  # @todo(esindril) - add a node also with the following tag
-  #    - asan
   only:
     - schedules
 
@@ -781,6 +771,7 @@ namespace_unit_test_asan:
   <<: *namespace_unit_test_template
   variables:
     BUILD_NAME: cc7_asan
+    ASAN_OPTIONS: "fast_unwind_on_malloc=0"  # Avoid indirect leaks from linked dependencies
   dependencies:
     - build_cc7_asan
   tags:
