@@ -249,7 +249,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
 
   time_t fboot_time = 0;
   time_t boot_time = 0;
-  XrdOucString bootstring = gOFS->gNameSpaceState[gOFS->mInitialized];
+  std::string bootstring = namespaceStateToString(gOFS->mNamespaceState);
 
   if (bootstring == "booting") {
     fboot_time = time(nullptr) - gOFS->mFileInitTime;
@@ -325,7 +325,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
                                            (1.0 * statd.st_size) / d : 0)
         << std::endl
         << "uid=all gid=all " << compact_status.c_str() << std::endl
-        << "uid=all gid=all ns.boot.status=" << bootstring.c_str() << std::endl
+        << "uid=all gid=all ns.boot.status=" << bootstring << std::endl
         << "uid=all gid=all ns.boot.time=" << boot_time << std::endl
         << "uid=all gid=all ns.boot.file.time=" << fboot_time << std::endl
         << "uid=all gid=all ns.latency.files=" << latencyf << std::endl

@@ -116,7 +116,7 @@ VstMessaging::Listen(ThreadAssistant& assistant) noexcept
     }
 
     if (!assistant.terminationRequested() &&
-        (gOFS->mInitialized == gOFS->kBooted)) {
+        (gOFS->mNamespaceState == NamespaceState::kBooted)) {
       if ((!lPublishTime) || ((time(NULL) - lPublishTime) > 15)) {
         XrdMqMessage message("VST-Info");
         message.SetBody(PublishVst().c_str());

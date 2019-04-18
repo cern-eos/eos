@@ -101,11 +101,36 @@
 XrdSysError gMgmOfsEroute(0);
 XrdSysError* XrdMgmOfs::eDest;
 XrdOucTrace gMgmOfsTrace(&gMgmOfsEroute);
-const char* XrdMgmOfs::gNameSpaceState[] = {"down", "booting", "booted", "failed", "compacting"};
 XrdMgmOfs* gOFS = 0;
 
 // Set the version information
 XrdVERSIONINFO(XrdSfsGetFileSystem, MgmOfs);
+
+//------------------------------------------------------------------------------
+// Convert NamespaceState to string
+//------------------------------------------------------------------------------
+std::string namespaceStateToString(NamespaceState st) {
+  switch(st) {
+    case NamespaceState::kDown: {
+      return "down";
+    }
+    case NamespaceState::kBooting: {
+      return "booting";
+    }
+    case NamespaceState::kBooted: {
+      return "booted";
+    }
+    case NamespaceState::kFailed: {
+      return "failed";
+    }
+    case NamespaceState::kCompacting: {
+      return "compacting";
+    }
+  }
+
+  return "(invalid)";
+}
+
 
 //------------------------------------------------------------------------------
 //! Filesystem Plugin factory function
@@ -169,8 +194,8 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   ConfigFN(0), ConfEngine(0), CapabilityEngine(0),
   mCapabilityValidity(3600), MgmOfsMessaging(0), MgmOfsVstMessaging(0),
   ManagerPort(1094), LinuxStatsStartup{0}, HostName(0), HostPref(0),
-  mInitialized(kDown), mFileInitTime(0), mTotalInitTime(time(nullptr)),
-  mStartTime(time(nullptr)), Shutdown(false),
+  mNamespaceState(NamespaceState::kDown), mFileInitTime(0),
+  mTotalInitTime(time(nullptr)), mStartTime(time(nullptr)), Shutdown(false),
   mBootFileId(0), mBootContainerId(0), IsRedirect(true), IsStall(true),
   mAuthorize(false), mAuthLib(""), MgmRedirector(false),
   ErrorLog(true), eosDirectoryService(0), eosFileService(0), eosView(0),
@@ -359,7 +384,7 @@ XrdMgmOfs::OrderlyShutdown()
     }
   }
 
-  if (gOFS->mInitialized == gOFS->kBooted) {
+  if (gOFS->mNamespaceState == NamespaceState::kBooted) {
     eos_warning("%s", "msg=\"finalizing namespace views\"");
 
     try {
@@ -1012,7 +1037,7 @@ XrdMgmOfs::FuseXCastRefresh(eos::ContainerIdentifier id,
 bool
 XrdMgmOfs::IsNsBooted() const
 {
-  return ((mInitialized == kBooted) || (mInitialized == kCompacting));
+  return ((mNamespaceState == NamespaceState::kBooted) || (mNamespaceState == NamespaceState::kCompacting));
 }
 
 std::string
@@ -1106,7 +1131,7 @@ XrdMgmOfs::WaitUntilNamespaceIsBooted()
 {
   XrdSysThread::SetCancelDeferred();
 
-  while (gOFS->mInitialized != gOFS->kBooted) {
+  while (gOFS->mNamespaceState != NamespaceState::kBooted) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
     XrdSysThread::CancelPoint();
   }
@@ -1118,7 +1143,7 @@ XrdMgmOfs::WaitUntilNamespaceIsBooted()
 void
 XrdMgmOfs::WaitUntilNamespaceIsBooted(ThreadAssistant& assistant)
 {
-  while (gOFS->mInitialized != gOFS->kBooted) {
+  while (gOFS->mNamespaceState != NamespaceState::kBooted) {
     assistant.wait_for(std::chrono::seconds(1));
 
     if (assistant.terminationRequested()) {

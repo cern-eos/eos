@@ -91,7 +91,7 @@ XrdMgmOfs::InitializeFileView()
     return nullptr;
   }
 
-  mInitialized = kBooting;
+  mNamespaceState = NamespaceState::kBooting;
   mFileInitTime = time(0);
   time_t tstart = time(0);
   Access::StallInfo old_stall;
@@ -115,7 +115,7 @@ XrdMgmOfs::InitializeFileView()
 
       if (mMaster->IsMaster()) {
         SetupProcFiles();
-        mInitialized = kBooted;
+        mNamespaceState = NamespaceState::kBooted;
         eos_static_alert("msg=\"namespace booted (as master)\"");
       }
     }
@@ -129,13 +129,13 @@ XrdMgmOfs::InitializeFileView()
 
       if (::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &f_buf) == -1) {
         eos_static_alert("msg=\"failed to stat the file changelog\"");
-        mInitialized = kFailed;
+        mNamespaceState = NamespaceState::kFailed;
         return nullptr;
       }
 
       if (::stat(gOFS->MgmNsDirChangeLogFile.c_str(), &c_buf) == -1) {
         eos_static_alert("msg=\"failed to stat the container changelog\"");
-        mInitialized = kFailed;
+        mNamespaceState = NamespaceState::kFailed;
         return nullptr;
       }
 
@@ -162,7 +162,7 @@ XrdMgmOfs::InitializeFileView()
         }
       }
 
-      mInitialized = kBooted;
+      mNamespaceState = NamespaceState::kBooted;
       eos_static_alert("msg=\"namespace booted (as slave)\"");
     }
 
@@ -171,7 +171,7 @@ XrdMgmOfs::InitializeFileView()
                                   "seconds", (tstop - tstart)));
     Access::SetStallRule(old_stall, new_stall);
   } catch (const eos::MDException& e) {
-    mInitialized = kFailed;
+    mNamespaceState = NamespaceState::kFailed;
     time_t tstop = time(nullptr);
     errno = e.getErrno();
     eos_crit("namespace file loading initialization failed after %d seconds",
@@ -192,7 +192,7 @@ XrdMgmOfs::InitializeFileView()
   // Load all the quota nodes from the namespace
   Quota::LoadNodes();
 
-  if (mMaster->IsMaster() && mInitialized == kBooted) {
+  if (mMaster->IsMaster() && mNamespaceState == NamespaceState::kBooted) {
     WFE::MoveFromRBackToQ();
   }
 

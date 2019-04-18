@@ -65,7 +65,7 @@ bool
 QdbMaster::Init()
 {
   gOFS->NsInQDB = true;
-  gOFS->mInitialized = gOFS->kBooting;
+  gOFS->mNamespaceState = NamespaceState::kBooting;
   mThread.reset(&QdbMaster::Supervisor, this);
   return true;
 }
@@ -89,7 +89,7 @@ QdbMaster::BootNamespace()
 
   if (gOFS->mQdbCluster.empty()) {
     eos_alert("msg=\"mgmofs.qdbcluster configuration is missing\"");
-    gOFS->mInitialized = gOFS->kFailed;
+    gOFS->mNamespaceState = NamespaceState::kFailed;
     return false;
   }
 
@@ -122,7 +122,7 @@ QdbMaster::BootNamespace()
     MasterLog(eos_err("namespace implementation could not be loaded using "
                       "the provided library plugin - one of the required "
                       "namespace views could not be created"));
-    gOFS->mInitialized = gOFS->kFailed;
+    gOFS->mNamespaceState = NamespaceState::kFailed;
     return false;
   }
 
@@ -144,12 +144,12 @@ QdbMaster::BootNamespace()
     MasterLog(eos_crit("msg=\"container initialization failed\" duration=%ds, "
                        "errc=%d, reason=\"%s\"", (time(nullptr) - tstart),
                        e.getErrno(), e.getMessage().str().c_str()));
-    gOFS->mInitialized = gOFS->kFailed;
+    gOFS->mNamespaceState = NamespaceState::kFailed;
     return false;
   } catch (const std::runtime_error& qdb_err) {
     MasterLog(eos_crit("msg=\"container initialization failed unable to connect to "
                        "QuarkDB cluster\" reason=\"%s\"", qdb_err.what()));
-    gOFS->mInitialized = gOFS->kFailed;
+    gOFS->mNamespaceState = NamespaceState::kFailed;
     return false;
   }
 
@@ -167,13 +167,13 @@ QdbMaster::BootNamespace()
     eos_crit("msg=\"file view initialize2 failed\" duration=%ds, "
              "errc=%d reason=\"%s\"", (time(nullptr) - gOFS->mFileInitTime),
              e.getErrno(), e.getMessage().str().c_str());
-    gOFS->mInitialized = gOFS->kFailed;
+    gOFS->mNamespaceState = NamespaceState::kFailed;
     return false;;
   }
 
   gOFS->mFileInitTime = time(nullptr) - gOFS->mFileInitTime;
   gOFS->mTotalInitTime = time(nullptr) - gOFS->mTotalInitTime;
-  gOFS->mInitialized = gOFS->kBooted;
+  gOFS->mNamespaceState = NamespaceState::kBooted;
   eos_static_alert("msg=\"QDB namespace booted\"");
 
   // Get process status after boot
@@ -205,11 +205,11 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
   // @todo (esindril) handle case when config contains stall rules
 
   // Wait for the namespace to boot and the config to load
-  while ((gOFS->mInitialized != gOFS->kBooted) &&
+  while ((gOFS->mNamespaceState != NamespaceState::kBooted) &&
          !assistant.terminationRequested()) {
     assistant.wait_for(std::chrono::seconds(1));
-    eos_info("msg=\"waiting for namespace boot\" mInitialized=%s",
-             gOFS->gNameSpaceState[gOFS->mInitialized.load()]);
+    eos_info("msg=\"waiting for namespace boot\" mNamespaceState=%s",
+      namespaceStateToString(gOFS->mNamespaceState).c_str());
   }
 
   // Loop updating the master status

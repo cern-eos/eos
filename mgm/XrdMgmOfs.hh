@@ -184,9 +184,22 @@ class socket_t;
 class context_t;
 }
 
+enum class NamespaceState {
+  kDown = 0,
+  kBooting = 1,
+  kBooted = 2,
+  kFailed = 3,
+  kCompacting = 4
+};
+
+//------------------------------------------------------------------------------
+//! Convert NamespaceState to string
+//------------------------------------------------------------------------------
+std::string namespaceStateToString(NamespaceState st);
+
 //------------------------------------------------------------------------------
 //! Class implementing atomic meta data commands
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 class XrdMgmOfs : public XrdSfsFileSystem, public eos::common::LogId
 {
   friend class XrdMgmOfsFile;
@@ -1386,17 +1399,12 @@ public:
   //----------------------------------------------------------------------------
   // Namespace specific variables
   //----------------------------------------------------------------------------
-  enum eNamespace {
-    kDown = 0, kBooting = 1, kBooted = 2, kFailed = 3, kCompacting = 4
-  };
-
-  std::atomic<int> mInitialized; ///< Initialization state of the namespace
+  std::atomic<NamespaceState> mNamespaceState; ///< Initialization state of the namespace
   std::atomic<time_t> mFileInitTime; ///< Time for the file initialization
   std::atomic<time_t> mTotalInitTime; ///< Time for entire initialization
   std::atomic<time_t> mStartTime; ///< Timestamp when daemon started
   bool Shutdown; ///< true if the shutdown function was called => avoid to join some threads
   //! Const strings to print the namespace boot state as in eNamespace
-  static const char* gNameSpaceState[];
 
   //----------------------------------------------------------------------------
   // State variables

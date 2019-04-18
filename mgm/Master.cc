@@ -653,7 +653,7 @@ Master::Compacting()
     if (runcompacting) {
       // Run the online compacting procedure
       eos_alert("msg=\"online-compacting running\"");
-      gOFS->mInitialized = XrdMgmOfs::kCompacting;
+      gOFS->mNamespaceState = NamespaceState::kCompacting;
       eos_notice("msg=\"starting online compaction\"");
       time_t now = time(nullptr);
       // File compacting
@@ -865,7 +865,7 @@ Master::Compacting()
         exit(-1);
       }
 
-      gOFS->mInitialized = XrdMgmOfs::kBooted;
+      gOFS->mNamespaceState = NamespaceState::kBooted;
       {
         // Set to not compacting
         XrdSysMutexHelper cLock(fCompactingMutex);
@@ -1636,7 +1636,7 @@ Master::MasterRO2Slave()
     }
   }
 
-  if (gOFS->mInitialized == gOFS->kBooted) {
+  if (gOFS->mNamespaceState == NamespaceState::kBooted) {
     // Start the file view loader thread
     MasterLog(eos_info("msg=\"starting file view loader thread\""));
     pthread_t tid;
@@ -2181,7 +2181,7 @@ bool
 Master::RebootSlaveNamespace()
 {
   fRunningState = Run::State::kIsTransition;
-  gOFS->mInitialized = gOFS->kBooting;
+  gOFS->mNamespaceState = NamespaceState::kBooting;
   {
     // now convert the namespace
     eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex);
@@ -2218,14 +2218,14 @@ Master::RebootSlaveNamespace()
     // Boot it from scratch
     if (!BootNamespace()) {
       fRunningState = Run::State::kIsNothing;
-      gOFS->mInitialized = gOFS->kFailed;
+      gOFS->mNamespaceState = NamespaceState::kFailed;
       return false;
     }
 
-    gOFS->mInitialized = gOFS->kBooted;
+    gOFS->mNamespaceState = NamespaceState::kBooted;
   }
 
-  if (gOFS->mInitialized == gOFS->kBooted) {
+  if (gOFS->mNamespaceState == NamespaceState::kBooted) {
     // Start the file view loader thread
     MasterLog(eos_info("msg=\"starting file view loader thread\""));
     pthread_t tid;

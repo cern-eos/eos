@@ -49,7 +49,7 @@ HttpServer::Handler(void* cls,
   std::map<std::string, std::string> headers;
 
   // Wait for the namespace to boot
-  while (gOFS->mInitialized != gOFS->kBooted) {
+  while (gOFS->mNamespaceState != NamespaceState::kBooted) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     XrdSysThread::CancelPoint();
   }
