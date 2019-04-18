@@ -3,7 +3,37 @@
 #-------------------------------------------------------------------------------
 %define _unpackaged_files_terminate_build 0
 %define distribution %(/usr/lib/rpm/redhat/dist.sh --distnum)
+%define devtoolset devtoolset-6
+%define cmake cmake3
 %define compiler gcc
+
+# By default we build the eos client SRPMS, if the entire build is required
+# then pass the "--with server" flag to the rpmbuild command
+%bcond_without server
+
+# By default we build without AddressSanitizer. To enable it,
+# pass the "--with asan" flag to the rpmbuild command
+%bcond_without asan
+
+# Define required dependency for XRootD
+%define xrootd_version_min 1:4.8.2
+%define major_version @CPACK_PACKAGE_VERSION_MAJOR@
+
+#-------------------------------------------------------------------------------
+# Compute additional macros based on environment or existing definitions
+#-------------------------------------------------------------------------------
+
+%if %{?_with_clang:1}%{!?_with_clang:0}
+  %define compiler clang
+%endif
+
+%if %{?_with_asan:1}%{!?_with_asan:0}
+  %define devtoolset devtoolset-8
+%endif
+
+%if %{?fedora:1}%{!?fedora:0}
+  %define cmake cmake
+%endif
 
 %if %{?rhel:1}%{!?rhel:0}
   %if %{rhel} >= 7
@@ -23,28 +53,12 @@
   %endif
 %endif
 
-%if %{?_with_clang:1}%{!?_with_clang:0}
-  %define compiler clang
-%endif
-
-# By default we build the eos client SRPMS, if the entire build is required
-# then pass the "--with server" flag to the rpmbuild command
-%bcond_without server
-
-# By default we build without AddressSanitizer. To enable it,
-# pass the "--with asan" flag to the rpmbuild command
-%bcond_without asan
-
-# Define required dependency for XRootD
-%define xrootd_version_min 1:4.8.2
-%define major_version @CPACK_PACKAGE_VERSION_MAJOR@
-
 #-------------------------------------------------------------------------------
 # Custom strip command for SLC6, CC7
 #-------------------------------------------------------------------------------
 %if "%{compiler}" == "gcc"
 %if 0%{distribution} == 6 || 0%{distribution} == 7
-%global __strip /opt/rh/devtoolset-6/root/usr/bin/strip
+%global __strip /opt/rh/%{devtoolset}/root/usr/bin/strip
 %endif
 %endif
 
@@ -73,13 +87,7 @@ Requires: epel-release
 %endif
 %endif
 
-%if %{?fedora:1}%{!?fedora:0}
-BuildRequires: cmake >= 3.3
-%define cmake_cmd cmake
-%else
-BuildRequires: cmake3 >= 3.3
-%define cmake_cmd cmake3
-%endif
+BuildRequires: %{cmake} >= 3.3
 BuildRequires: xrootd >= %{xrootd_version_min}
 BuildRequires: xrootd-client-devel >= %{xrootd_version_min}
 BuildRequires: xrootd-server-devel >= %{xrootd_version_min}
@@ -141,8 +149,8 @@ BuildRequires: centos-release-scl
 
 %if "%{compiler}" == "gcc"
 %if 0%{distribution} == 6 || 0%{distribution} == 7
-BuildRequires: devtoolset-6
-BuildRequires: devtoolset-6-binutils-devel
+BuildRequires: %{devtoolset}
+BuildRequires: %{devtoolset}-binutils-devel
 %else
 BuildRequires: binutils-devel
 %endif
@@ -159,7 +167,7 @@ BuildRequires: llvm-toolset-7
 
 %if %{?_with_asan:1}%{!?_with_asan:0}
 %if 0%{distribution} == 6 || 0%{distribution} == 7
-BuildRequires: devtoolset-6-libasan-devel
+BuildRequires: %{devtoolset}-libasan-devel
 %else
 BuildRequires: libasan
 %endif
@@ -187,15 +195,15 @@ mkdir -p build
 cd build
 %if "%{?compiler}" == "gcc"
   %if 0%{distribution} == 6 || 0%{distribution} == 7
-    scl enable devtoolset-6 "%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo %{build_flags}"
+    scl enable %{devtoolset} "%{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo %{build_flags}"
   %else
-    %{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo %{build_flags}
+    %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo %{build_flags}
   %endif
 %else
   %if 0%{distribution} == 7
-    scl enable llvm-toolset-7 "CC=clang CXX=clang++ %{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo %{build_flags}"
+    scl enable llvm-toolset-7 "CC=clang CXX=clang++ %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo %{build_flags}"
   %else
-    CC=clang CXX=clang++ %{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo %{build_flags}
+    CC=clang CXX=clang++ %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo %{build_flags}
   %endif
 %endif
 %{__make} %{_smp_mflags}
