@@ -191,7 +191,6 @@ HttpServer::Handler(void* cls,
   }
 }
 
-#endif
 
 /*----------------------------------------------------------------------------*/
 void
@@ -225,6 +224,8 @@ HttpServer::CompleteHandler(void*                              cls,
   eos_static_info("msg=\"http connection disconnect\" reason=\"Request %s\" ",
                   scode.c_str());
 }
+
+#endif
 
 //------------------------------------------------------------------------------
 // Handle clientDN specified using RFC2253 (and RFC4514) where the
