@@ -1355,10 +1355,12 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
                  << " message!");
         }
       } else {
-	msg_out->BrokenByFlush = false;
+	if (msg_out->BrokenByFlush) {
+	  msg_out->BrokenByFlush = false;
           TRACES("warning: re-enabling queue " << msg_out->QueueName
-                 << " backlog is now " << mMaxQueueBacklog
-                 << " messageS!");
+                 << " backlog is now " << msg_out->mMsgQueue.size() 
+                 << " messages!");
+	}
       }
 
       if (msg_out->mMsgQueue.size() > mRejectQueueBacklog) {
