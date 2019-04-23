@@ -25,7 +25,8 @@ yum install -y libevent libevent-devel
 yum install -y git
 yum install -y bzip2-devel bzip2-libs
 yum install -y jemalloc jemalloc-devel
-yum intsall -y eos-rocksdb
+yum install -y eos-rocksdb
+yum install -y devtoolset-6
 ( cd /tmp/; git clone  https://github.com/zeromq/cppzmq; cp cppzmq/zmq.hpp /usr/include/ )
 
 echo do \"source /opt/rh/devtoolset-6/enable\"
