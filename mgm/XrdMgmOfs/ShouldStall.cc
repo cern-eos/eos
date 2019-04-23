@@ -125,7 +125,9 @@ XrdMgmOfs::ShouldStall(const char* function,
             if (gOFS->MgmStats.StatAvgUid.count(cmd) &&
                 gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) &&
                 (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg5() > cutoff)) {
-              stalltime = 5;
+	      if (!stalltime) {
+		stalltime = 5;
+	      }
               smsg = Access::gStallComment[it->first];
             }
           } else if ((it->first.find(groupwildcardmatch) == 0)) {
@@ -135,7 +137,9 @@ XrdMgmOfs::ShouldStall(const char* function,
             if (gOFS->MgmStats.StatAvgGid.count(cmd) &&
                 gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) &&
                 (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg5() > cutoff)) {
-              stalltime = 5;
+	      if (!stalltime) {
+		stalltime = 5;
+	      }
               smsg = Access::gStallComment[it->first];
             }
           } else if ((it->first.find(usermatch) == 0)) {
@@ -144,7 +148,9 @@ XrdMgmOfs::ShouldStall(const char* function,
                 gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) &&
                 (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg5() > cutoff)) {
               // rate exceeded
-              stalltime = 5;
+	      if (!stalltime) {
+		stalltime = 5;
+	      }
               smsg = Access::gStallComment[it->first];
             }
           } else if ((it->first.find(groupmatch) == 0)) {
@@ -153,7 +159,9 @@ XrdMgmOfs::ShouldStall(const char* function,
                 gOFS->MgmStats.StatAvgGid[cmd].count(vid.gid) &&
                 (gOFS->MgmStats.StatAvgGid[cmd][vid.gid].GetAvg5() > cutoff)) {
               // rate exceeded
-              stalltime = 5;
+	      if (!stalltime) {
+		stalltime = 5;
+	      }
               smsg = Access::gStallComment[it->first];
             }
           }
