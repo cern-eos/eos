@@ -97,6 +97,7 @@ BuildRequires: openssl, openssl-devel
 BuildRequires: ncurses, ncurses-devel
 BuildRequires: zlib, zlib-devel
 BuildRequires: fuse-devel, fuse >= 2.5
+BuildRequires: krb5-devel
 %if %{use_richacl}
 BuildRequires: librichacl-devel, richacl >= 1.12
 %endif
