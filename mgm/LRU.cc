@@ -108,6 +108,14 @@ LRU::Options LRU::getOptions()
     eos_static_info("lru is enabled, interval=%ds", opts.interval.count());
   }
 
+  //----------------------------------------------------------------------------
+  // Set long interval in case LRU is de-activated, prevent the background
+  // thread from spinning
+  //----------------------------------------------------------------------------
+  if(!opts.enabled || opts.interval == std::chrono::seconds(0)) {
+    opts.interval = std::chrono::minutes(30);
+  }
+
   return opts;
 }
 
@@ -262,7 +270,7 @@ void LRU::backgroundThread(ThreadAssistant& assistant) noexcept
     common::IntervalStopwatch stopwatch(opts.interval);
 
     // Only a master needs to run LRU
-    if (gOFS->mMaster->IsMaster() && opts.enabled) {
+    if (opts.enabled && gOFS->mMaster->IsMaster()) {
 
       if(gOFS->eosView->inMemory()) {
         performCycleInMem(assistant);
