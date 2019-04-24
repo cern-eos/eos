@@ -543,9 +543,7 @@ NsCmd::MasterSubcmd(const eos::console::NsProto_MasterProto& master,
       reply.set_std_err(err.c_str());
       reply.set_retc(EIO);
     } else {
-      out += "success: <";
-      out += gOFS->mMaster->GetMasterId();
-      out += "> is now the master\n";
+      out += "success: current master will step down\n";
       reply.set_std_out(out.c_str());
     }
   }
@@ -670,13 +668,13 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
   }
 
   eos::QuotaRecomputer recomputer(gOFS->eosView,
-    eos::BackendClient::getInstance(gOFS->mQdbContactDetails, "quota-recomputation"),
-    static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor());
-
+                                  eos::BackendClient::getInstance(gOFS->mQdbContactDetails,
+                                      "quota-recomputation"),
+                                  static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor());
   QuotaNodeCore qnc;
   eos::MDStatus status = recomputer.recompute(cont, qnc);
 
-  if(!status.ok()) {
+  if (!status.ok()) {
     reply.set_std_err(status.getError());
     reply.set_retc(status.getErrno());
     return;

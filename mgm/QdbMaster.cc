@@ -500,9 +500,14 @@ QdbMaster::SetMasterId(const std::string& hostname, int port,
 {
   std::string new_id = hostname + std::to_string(port);
 
-  if (new_id != mIdentity) {
-    mAcquireDelay = time(nullptr) + 2 *
-                    std::chrono::duration_cast<std::chrono::seconds>(sLeaseTimeout).count();
+  if (mIsMaster) {
+    if (new_id != mIdentity) {
+      mAcquireDelay = time(nullptr) + 2 *
+                      std::chrono::duration_cast<std::chrono::seconds>(sLeaseTimeout).count();
+    }
+  } else {
+    err_msg = "error: currently this node is not acting as a master";
+    return false;
   }
 
   return true;
