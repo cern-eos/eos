@@ -36,7 +36,7 @@ public:
   static void inval_inode(fuse_ino_t inode, bool isfile = false)
   {
     eos_static_debug("begin: ino=%08llx", inode);
-    int rc = fuse_lowlevel_notify_inval_inode(EosFuse::Instance().Channel(),
+    int rc = fuse_lowlevel_notify_inval_inode(EosFuse::Instance().Session(),
              inode, isfile ? 0 : -1, 0);
     eos_static_debug("end: ino=%08llx rc=%d", inode, rc);
   }
@@ -44,7 +44,7 @@ public:
   static void inval_entry(fuse_ino_t parent_inode, const std::string name)
   {
     eos_static_debug("begin: ino=%08llx name=%s", parent_inode, name.c_str());
-    int rc = fuse_lowlevel_notify_inval_entry(EosFuse::Instance().Channel(),
+    int rc = fuse_lowlevel_notify_inval_entry(EosFuse::Instance().Session(),
              parent_inode, name.c_str(), name.length());
     eos_static_debug("end: ino=%08llx name=%s rc=%d", parent_inode, name.c_str(),
                      rc);

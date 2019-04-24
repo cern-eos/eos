@@ -85,10 +85,6 @@ extern "C" { /* this 'extern "C"' brace will eventually end up in the .h file, t
 #include "data/cache.hh"
 #include "data/cachehandler.hh"
 
-#if ( FUSE_USE_VERSION > 28 )
-#include "EosFuseSessionLoop.hh"
-#endif
-
 #define _FILE_OFFSET_BITS 64
 
 const char* k_mdino = "sys.eos.mdino";
@@ -101,7 +97,6 @@ EosFuse::EosFuse()
 {
   sEosFuse = this;
   fusesession = 0;
-  fusechan = 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -231,7 +226,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   env->PutInt("RunForkHandler", 1);
   struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
   fuse_opt_parse(&args, NULL, NULL, NULL);
-  char* local_mount_dir = 0;
+  struct fuse_cmdline_opts opts;
+
+
   int err = 0;
   std::string no_fsync_list;
   // check the fsname to choose the right JSON config file
@@ -253,6 +250,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         (option == "--help")) {
       fprintf(stderr, "%s%s%s%s", UsageGet().c_str(), UsageSet().c_str(),
               UsageMount().c_str(), UsageHelp().c_str());
+      fuse_cmdline_help();
+      fuse_lowlevel_help();
       exit(0);
     }
 
@@ -316,8 +315,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     fprintf(stderr, "# -o allow_other enabled on shared mount\n");
   }
 
-  fprintf(stderr, "# -o big_writes enabled\n");
-  fuse_opt_add_arg(&args, "-obig_writes");
   std::string jsonconfig = "/etc/eos/fuse";
   std::string default_ssskeytab = "/etc/eos/fuse.sss.keytab";
 
@@ -339,8 +336,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   jsonconfig += ".conf";
 #ifndef __APPLE__
 
-  if (::access("/bin/fusermount", X_OK)) {
-    fprintf(stderr, "error: /bin/fusermount is not executable for you!\n");
+  if (::access("/bin/fusermount3", X_OK)) {
+    fprintf(stderr, "error: /bin/fusermount3 is not executable for you!\n");
     exit(-1);
   }
 
@@ -663,7 +660,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     if (!root["options"].isMember("no-xattr")) {
-      root["options"]["no-xattr"] = 0;
+      root["options"]["no-xattr"] = 1;
     }
 
     if (!root["options"].isMember("no-link")) {
@@ -692,6 +689,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
     if (!root["options"].isMember("submounts")) {
       root["options"]["submounts"] = 0;
+    }
+
+    if (!root["options"].isMember("libfusethreads")) {
+      root["options"]["libfusethreads"] = 1;
     }
 
     // xrdcl default options
@@ -1279,9 +1280,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     fprintf(stderr, "# MALLOC_CONF=%s\n", getenv("MALLOC_CONF"));
   }
 
-  int debug;
-
-
   {
     // C-style fuse configuration optionss
 
@@ -1305,17 +1303,65 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       exit(errno ? errno : -1);
     }
 
-    if (fuse_parse_cmdline(&args, &local_mount_dir, NULL, &debug) == -1) {
+    if (fuse_parse_cmdline(&args, &opts) != 0) {
       exit(errno ? errno : -1);
     }
-
+    
     config.options.automounted = fuse_opts.autofs;
   }
 
 
-  if ((fusechan = fuse_mount(local_mount_dir, &args)) == NULL) {
-    fprintf(stderr, "error: fuse_mount failed\n");
-    exit(errno ? errno : -1);
+  if (opts.show_help) {
+    printf("usage: %s [options] <mountpoint>\n\n", argv[0]);
+    fuse_cmdline_help();
+    fuse_lowlevel_help();
+    free(opts.mountpoint);
+    fuse_opt_free_args(&args);
+    exit(0);
+
+  } else if (opts.show_version) {
+    printf("FUSE library version %s\n", fuse_pkgversion());
+    fuse_lowlevel_version();
+    free(opts.mountpoint);
+    fuse_opt_free_args(&args);
+    exit(0);
+  }
+
+  if(opts.mountpoint == NULL) {
+    printf("usage: %s [options] <mountpoint>\n", argv[0]);
+    printf("       %s --help\n", argv[0]);
+    free(opts.mountpoint);
+    fuse_opt_free_args(&args);
+    exit(-1);
+  }
+
+  fusesession = fuse_session_new(&args, 
+				 &(get_operations()),
+				 sizeof(operations), NULL);
+  
+  if (fusesession == NULL) {
+    fprintf(stderr, "error: fuse_session failed\n");
+    free(opts.mountpoint);
+    fuse_opt_free_args(&args);
+    exit (-1);
+  }
+
+
+  if (fuse_set_signal_handlers(fusesession) != 0) {
+    fprintf(stderr, "error: failed to set signal handlers\n");
+    fuse_session_destroy(fusesession);
+    free(opts.mountpoint);
+    fuse_opt_free_args(&args);
+    exit (-1);
+  }
+
+  if (fuse_session_mount(fusesession, opts.mountpoint) != 0) {
+    fprintf(stderr, "error: fuse_session_mount failed\n");
+    fuse_remove_signal_handlers(fusesession);
+    fuse_session_destroy(fusesession);
+    free(opts.mountpoint);
+    fuse_opt_free_args(&args);
+    exit (-1);
   }
 
   if (fuse_daemonize(config.options.foreground) != -1) {
@@ -1503,6 +1549,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     fusestat.Add("lookup", 0, 0, 0);
     fusestat.Add("opendir", 0, 0, 0);
     fusestat.Add("readdir", 0, 0, 0);
+    fusestat.Add("readdirplus", 0, 0, 0);
     fusestat.Add("releasedir", 0, 0, 0);
     fusestat.Add("statfs", 0, 0, 0);
     fusestat.Add("mknod", 0, 0, 0);
@@ -1519,6 +1566,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     fusestat.Add("release", 0, 0, 0);
     fusestat.Add("fsync", 0, 0, 0);
     fusestat.Add("forget", 0, 0, 0);
+    fusestat.Add("forget_multi", 0, 0, 0);
     fusestat.Add("flush", 0, 0, 0);
     fusestat.Add("getxattr", 0, 0, 0);
     fusestat.Add("setxattr", 0, 0, 0);
@@ -1628,34 +1676,20 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     eos_static_warning("xrdcl-options          := %s log-level='%s' fusex-chunk-timeout=%d",
                        xrdcl_option_string.c_str(), xrdcl_option_loglevel.c_str(),
                        XrdCl::Proxy::sChunkTimeout);
-    fusesession = fuse_lowlevel_new(&args,
-                                    &(get_operations()),
-                                    sizeof(operations), NULL);
 
-    if ((fusesession != NULL)) {
-      if (fuse_set_signal_handlers(fusesession) != -1) {
-        fuse_session_add_chan(fusesession, fusechan);
 
-        if (getenv("EOS_FUSE_NO_MT") &&
-            (!strcmp(getenv("EOS_FUSE_NO_MT"), "1"))) {
-          err = fuse_session_loop(fusesession);
-        } else {
-#if ( FUSE_USE_VERSION <= 28 )
-          err = fuse_session_loop_mt(fusesession);
-#else
-
-          if (config.options.libfusethreads) {
-            err = fuse_session_loop_mt(fusesession);
-          } else {
-            EosFuseSessionLoop loop(10, 20, 10, 20);
-            err = loop.Loop(fusesession);
-          }
-
-#endif
-        }
+    if (getenv("EOS_FUSE_NO_MT") &&
+	(!strcmp(getenv("EOS_FUSE_NO_MT"), "1"))) {
+      err = fuse_session_loop(fusesession);
+    } else {
+      if (config.options.libfusethreads) {
+	err = fuse_session_loop_mt(fusesession, opts.clone_fd);
+      } else {
+	eos_static_crit("custom thread pool not supported for libfuse3");
+	err = -1;
       }
     }
-
+    
     eos_static_warning("eosxd stopped version %s - FUSE protocol version %d",
                        VERSION, FUSE_USE_VERSION);
     eos_static_warning("********************************************************************************");
@@ -1671,18 +1705,15 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       Mounter().terminate();
     }
 
-    // remove the session and channel object after all threads are joined
+    // remove the session after all threads are joined
     if (fusesession) {
+      fuse_session_unmount(fusesession);
       fuse_remove_signal_handlers(fusesession);
-
-      if (fusechan) {
-        fuse_session_remove_chan(fusechan);
-      }
-
       fuse_session_destroy(fusesession);
     }
 
-    fuse_unmount(local_mount_dir, fusechan);
+    free(opts.mountpoint);
+    fuse_opt_free_args(&args);
     mKV.reset();
   } else {
     fprintf(stderr, "error: failed to daemonize\n");
@@ -1703,7 +1734,7 @@ EosFuse::umounthandler(int sig, siginfo_t* si, void* ctx)
   }
 
   eos::common::handleSignal(sig, si, ctx);
-  std::string systemline = "fusermount -u -z ";
+  std::string systemline = "fusermount3 -u -z ";
   systemline += EosFuse::Instance().Config().localmountdir;
   system(systemline.c_str());
   fprintf(stderr, "# umounthandler: executing %s", systemline.c_str());
@@ -1758,10 +1789,9 @@ EosFuse::init(void* userdata, struct fuse_conn_info* conn)
     }
   }
 
-  conn->want |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS |
-          FUSE_CAP_BIG_WRITES;
-  conn->capable |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS |
-          FUSE_CAP_BIG_WRITES;
+  conn->want |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS | FUSE_CAP_WRITEBACK_CACHE;
+    
+  conn->capable |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS;
 }
 
 void
@@ -2494,7 +2524,7 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-EosFuse::listdir(fuse_req_t req, fuse_ino_t ino, metad::shared_md& md)
+EosFuse::listdir(fuse_req_t req, fuse_ino_t ino, metad::shared_md& md, double& lifetime)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("");
@@ -2512,7 +2542,7 @@ EosFuse::listdir(fuse_req_t req, fuse_ino_t ino, metad::shared_md& md)
     std::string authid = pcap->authid();
     cLock.UnLock();
     md = Instance().mds.get(req, ino, authid, true);
-
+    lifetime = pcap->lifetime();
     if (!md->pid() && (md->id() != 1)) {
       if (md->err()) {
         rc = md->err();
@@ -2543,6 +2573,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   fuse_id id(req);
   metad::shared_md md;
   bool do_listdir = true;
+  double lifetime = 0;
 
   {
     Track::Monitor mon(__func__, Instance().Tracker(), ino);
@@ -2601,7 +2632,7 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     }
 
     if (do_listdir) {
-      rc = listdir(req, ino, md);
+      rc = listdir(req, ino, md, lifetime);
     }
 
     if (!rc) {
@@ -2622,10 +2653,13 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
         } else {
           auto md_fh = new opendir_t;
           md_fh->md = md;
+	  md_fh->lifetime = lifetime;
           md->opendir_inc();
           // fh contains a dummy 0 pointer
           eos_static_debug("adding ino=%08lx p-ino=%08lx", md->id(), md->pid());
           fi->fh = (unsigned long) md_fh;
+	  fi->keep_cache = 1;
+	  fi->cache_readdir = 1;
         }
       }
     }
@@ -2659,6 +2693,7 @@ EosFuse::readdir_filler(fuse_req_t req, EosFuse::opendir_t* md,
   metad::shared_md pmd = md->md;
   // avoid to have more than one md object locked at a time
   XrdSysMutexHelper mLock(pmd->Locker());
+  double lifetime = 0 ;
 
   pmd_id = pmd->id();
   pmd_mode = pmd->mode();
@@ -2674,7 +2709,8 @@ EosFuse::readdir_filler(fuse_req_t req, EosFuse::opendir_t* md,
     pmd->Locker().UnLock();
     // refresh the listing
     eos_static_debug("refresh listing int=%#lx", pmd_id);
-    rc = listdir(req, pmd_id, pmd);
+
+    rc = listdir(req, pmd_id, pmd, lifetime);
     pmd->Locker().Lock();
   } while ((!rc) && (pmd->type() != pmd->MDLS));
 
@@ -2733,11 +2769,20 @@ EosFuse::readdir_filler(fuse_req_t req, EosFuse::opendir_t* md,
   return rc;
 }
 
+
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
 EosFuse::readdir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
-                 struct fuse_file_info* fi)
+                 struct fuse_file_info* fi) {
+  return EosFuse::readdir(req, ino, size, off, fi, false);
+}
+
+/* -------------------------------------------------------------------------- */
+void
+/* -------------------------------------------------------------------------- */
+EosFuse::readdir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
+                 struct fuse_file_info* fi, bool plus)
 /* -------------------------------------------------------------------------- */
 /*
 EBADF  Invalid directory stream descriptor fi->fh
@@ -2758,6 +2803,10 @@ EBADF  Invalid directory stream descriptor fi->fh
   } else {
     // get the shared pointer from the open file descriptor
     opendir_t* md = (opendir_t*) fi->fh;
+
+    // get the cache lifetime 
+    double lifetime = ((opendir_t*) (fi->fh))->lifetime;
+
     metad::shared_md pmd = md->md;
     mode_t pmd_mode;
     uint64_t pmd_id;
@@ -2789,12 +2838,26 @@ EBADF  Invalid directory stream descriptor fi->fh
       eos_static_debug("list: %#lx %s", cino, bname.c_str());
       mode_t mode = pmd_mode;
 
+      size_t a_size = 0 ;
+
       stbuf.st_ino = cino;
       stbuf.st_mode = mode;
-      size_t a_size = fuse_add_direntry(req, md->b.ptr, size - md->b.size,
-                                        bname.c_str(), &stbuf, ++off);
-      eos_static_info("name=%s ino=%08lx mode=%#lx bytes=%u/%u",
-                      bname.c_str(), cino, mode, a_size, size - md->b.size);
+      
+      if (plus) {
+	struct fuse_entry_param e;
+	{
+	  XrdSysMutexHelper mLock(pmd->Locker());
+	  pmd->convert(e, lifetime);
+	}
+	a_size = fuse_add_direntry_plus(req, md->b.ptr, size - md->b.size,
+					       bname.c_str(), &e, ++off);
+
+      } else {
+	a_size = fuse_add_direntry(req, md->b.ptr, size - md->b.size,
+					  bname.c_str(), &stbuf, ++off);
+	eos_static_info("name=%s ino=%08lx mode=%#lx bytes=%u/%u",
+			bname.c_str(), cino, mode, a_size, size - md->b.size);
+      }
       md->b.ptr += a_size;
       md->b.size += a_size;
     }
@@ -2818,13 +2881,22 @@ EBADF  Invalid directory stream descriptor fi->fh
         std::string bname = "..";
         eos_static_debug("list: %#lx %s", cino, bname.c_str());
 
-        stbuf.st_ino = cino;
-        stbuf.st_mode = mode;
+	size_t a_size = 0;
 
-        size_t a_size = fuse_add_direntry(req, md->b.ptr, size - md->b.size,
-                                          bname.c_str(), &stbuf, ++off); 
-        eos_static_info("name=%s ino=%08lx mode=%#lx bytes=%u/%u",
-                        bname.c_str(), cino, mode, a_size, size - md->b.size);
+	stbuf.st_ino = cino;
+	stbuf.st_mode = mode;	
+
+	if (plus) {
+	  struct fuse_entry_param e;
+	  ppmd->convert(e, lifetime);
+	  a_size = fuse_add_direntry_plus(req, md->b.ptr, size - md->b.size,
+					  bname.c_str(), &e, ++off);
+	} else {
+	  a_size = fuse_add_direntry(req, md->b.ptr, size - md->b.size,
+				     bname.c_str(), &stbuf, ++off); 
+	  eos_static_info("name=%s ino=%08lx mode=%#lx bytes=%u/%u",
+			  bname.c_str(), cino, mode, a_size, size - md->b.size);
+	}
         md->b.ptr += a_size;
         md->b.size += a_size;
       }
@@ -2852,6 +2924,7 @@ EBADF  Invalid directory stream descriptor fi->fh
         continue;
       }
 
+      struct fuse_entry_param e;
       mode_t mode;
       {
         XrdSysMutexHelper cLock(cmd->Locker());
@@ -2861,6 +2934,7 @@ EBADF  Invalid directory stream descriptor fi->fh
         if (cmd->deleted()) {
           continue;
         }
+	cmd->convert(e, lifetime);
       }
       stbuf.st_ino = cino;
       {
@@ -2882,9 +2956,18 @@ EBADF  Invalid directory stream descriptor fi->fh
         }
       }
       stbuf.st_mode = mode;
-      size_t a_size = fuse_add_direntry(req, md->b.ptr, size - md->b.size,
-                                        bname.c_str(), &stbuf, ++off);
 
+      size_t a_size = 0;
+
+      if (plus) {
+	e.attr.st_mode = mode;
+	e.attr.st_ino = cino;
+	a_size = fuse_add_direntry_plus(req, md->b.ptr, size - md->b.size,
+					       bname.c_str(), &e, ++off);
+      } else {
+	a_size = fuse_add_direntry(req, md->b.ptr, size - md->b.size,
+					  bname.c_str(), &stbuf, ++off);
+      }
 
       if (EOS_LOGS_DEBUG) {
         eos_static_debug("name=%s id=%#lx ino=%#lx mode=%#o bytes=%u/%u ",
@@ -2914,6 +2997,28 @@ EBADF  Invalid directory stream descriptor fi->fh
   COMMONTIMING("_stop_", &timing);
   eos_static_notice("t(ms)=%.03f %s", timing.RealTime(),
                     dump(id, ino, 0, rc).c_str());
+}
+
+/* -------------------------------------------------------------------------- */
+void
+/* -------------------------------------------------------------------------- */
+EosFuse::readdirplus(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
+                 struct fuse_file_info* fi)
+/* -------------------------------------------------------------------------- */
+/*
+  calls readdir with 'plus' flag to fill stat information
+ */
+{
+  eos::common::Timing timing(__func__);
+  COMMONTIMING("_start_", &timing);
+  ADD_FUSE_STAT(__func__, req);
+
+  EXEC_TIMING_BEGIN(__func__);
+
+  EosFuse::readdir(req, ino, size, off, fi, true);
+
+  EXEC_TIMING_END(__func__);
+  COMMONTIMING("_stop_", &timing);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -3187,7 +3292,7 @@ EPERM (Linux only)
 The filesystem does not allow unlinking of files.
 
 EPERM or EACCES
-The  directory  containing pathname has the sticky bit (S_ISVTX) set and the process's effective UID is neither
+The  directory  containing pathnaopen_flagsme has the sticky bit (S_ISVTX) set and the process's effective UID is neither
 the UID of the file to be deleted nor that of the directory containing it, and the process  is  not  privileged
 (Linux: does not have the CAP_FOWNER capability).
 
@@ -3491,22 +3596,12 @@ EROFS  pathname refers to a directory on a read-only filesystem.
                     dump(id, parent, 0, rc, name).c_str());
 }
 
-#ifdef _FUSE3
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
 EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
                 fuse_ino_t newparent, const char* newname, unsigned int flags)
 /* -------------------------------------------------------------------------- */
-#else
-
-/* -------------------------------------------------------------------------- */
-void
-/* -------------------------------------------------------------------------- */
-EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
-                fuse_ino_t newparent, const char* newname)
-/* -------------------------------------------------------------------------- */
-#endif
 {
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
@@ -4339,6 +4434,29 @@ EosFuse::forget(fuse_req_t req, fuse_ino_t ino, unsigned long nlookup)
 
   fuse_reply_none(req);
 }
+
+/* -------------------------------------------------------------------------- */
+void
+/* -------------------------------------------------------------------------- */
+EosFuse::forget_multi(fuse_req_t req, size_t count, struct fuse_forget_data* forgets)
+/* -------------------------------------------------------------------------- */
+{
+  eos::common::Timing timing(__func__);
+  COMMONTIMING("_start_", &timing);
+  ADD_FUSE_STAT(__func__, req);
+  EXEC_TIMING_BEGIN(__func__);
+
+  for ( size_t i = 0; i < count; ++i ) {
+    EosFuse::forget(req, forgets[i].ino, forgets[i].nlookup);
+  }
+  
+  EXEC_TIMING_END(__func__);
+  COMMONTIMING("_stop_", &timing);
+  fuse_reply_none(req);
+}
+
+
+
 
 /* -------------------------------------------------------------------------- */
 void

@@ -27,7 +27,7 @@ include_directories(
   ${CMAKE_BINARY_DIR}
   ${XROOTD_INCLUDE_DIRS}
   ${XROOTD_PRIVATE_INCLUDE_DIR}
-  ${FUSE_INCLUDE_DIRS}
+  ${FUSE3_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
   ${KRB5_INCLUDE_DIR}
   ${OPENSSL_INCLUDE_DIR}
@@ -60,8 +60,8 @@ endif (Linux)
 # Compile flags
 #-------------------------------------------------------------------------------
 set(EOSXD_COMPILE_FLAGS
-  "-DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\" ${FLAGS_IF_ROCKSDB_WAS_FOUND}"
-)
+  "-DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -D_FUSE3 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\" ${FLAGS_IF_ROCKSDB_WAS_FOUND}")
+
 
 #-------------------------------------------------------------------------------
 # auth subsystem
@@ -83,9 +83,10 @@ set(PROTO_HEADER ${PROTO_HEADER} PARENT_SCOPE)
 #-------------------------------------------------------------------------------
 # Link libraries
 #-------------------------------------------------------------------------------
+
 set(EOSXD_COMMON_LINK_LIBRARIES
   ${UUID_LIBRARIES}
-  ${FUSE_LIBRARIES}
+  ${FUSE3_LIBRARY}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
@@ -180,27 +181,6 @@ endif()
 install(
   TARGETS eosxd
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
-
-if (FUSE3_FOUND)
-  add_executable(
-    eosxd3
-    main.cc
-    ${EOSXD_COMMON_SOURCES})
-
-  target_link_libraries(
-    eosxd3
-    ${EOSXD_COMMON_LINK_LIBRARIES}
-    jemalloc)
-
-  set_target_properties(
-    eosxd3
-    PROPERTIES
-    COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
-
-  install(
-    TARGETS eosxd3
-    RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
-endif()
 
 #-------------------------------------------------------------------------------
 # Tests

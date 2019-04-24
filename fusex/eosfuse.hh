@@ -90,12 +90,18 @@ public:
   static void
   lookup(fuse_req_t req, fuse_ino_t parent, const char* name);
 
-  static int listdir(fuse_req_t req, fuse_ino_t ino, metad::shared_md& md);
+  static int listdir(fuse_req_t req, fuse_ino_t ino, metad::shared_md& md, double& lifetime);
 
   static void opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi);
 
   static void readdir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
+                      struct fuse_file_info* fi, bool plus);
+
+  static void readdir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
                       struct fuse_file_info* fi);
+  
+  static void readdirplus(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
+			  struct fuse_file_info* fi);
 
   static void releasedir(fuse_req_t req, fuse_ino_t ino,
                          struct fuse_file_info* fi);
@@ -114,13 +120,8 @@ public:
 
   static void rmdir(fuse_req_t req, fuse_ino_t parent, const char* name);
 
-#ifdef _FUSE3
   static void rename(fuse_req_t req, fuse_ino_t parent, const char* name,
                      fuse_ino_t newparent, const char* newname, unsigned int flags);
-#else
-  static void rename(fuse_req_t req, fuse_ino_t parent, const char* name,
-                     fuse_ino_t newparent, const char* newname);
-#endif
 
   static void access(fuse_req_t req, fuse_ino_t ino, int mask);
 
@@ -141,6 +142,9 @@ public:
                     struct fuse_file_info* fi);
 
   static void forget(fuse_req_t req, fuse_ino_t ino, unsigned long nlookup);
+
+  static void forget_multi(fuse_req_t req, size_t count, 
+			   struct fuse_forget_data *forgets);
 
   static void flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi);
 
@@ -191,11 +195,6 @@ public:
   fuse_session* Session()
   {
     return fusesession;
-  }
-
-  fuse_chan* Channel()
-  {
-    return fusechan;
   }
 
   std::string Prefix(std::string path);
@@ -384,6 +383,9 @@ public:
     struct timespec pmd_mtime;
     struct reply_buf b;
 
+    double lifetime;
+    struct timespec opendir_time;
+
     XrdSysMutex items_lock;
   } opendir_t;
 
@@ -470,8 +472,6 @@ private:
   static EosFuse* sEosFuse;
 
   struct fuse_session* fusesession;
-  struct fuse_chan* fusechan;
-
 
   AssistedThread tDumpStatistic;
   AssistedThread tStatCirculate;
