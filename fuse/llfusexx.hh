@@ -34,7 +34,7 @@
 #else
 
 #ifdef _FUSE3
-#define FUSE_USE_VERSION 30
+#define FUSE_USE_VERSION 31
 #else
 #define FUSE_USE_VERSION 26
 #endif
@@ -47,6 +47,7 @@
 extern "C"
 {
 #ifdef _FUSE3
+#pragma message("FUSE3")
 #include <fuse3/fuse_lowlevel.h>
 #else
 #include <fuse/fuse_lowlevel.h>

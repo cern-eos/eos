@@ -43,8 +43,13 @@ public:
   EosFuse ();
   virtual ~EosFuse ();
 
+#ifdef _FUSE3
+  int run3( int argc, char* argv[], void *userdata );
+#else
   int run( int argc, char* argv[], void *userdata );
-   
+#endif   
+
+
   static void init (void *userdata, struct fuse_conn_info *conn);
 
   static void destroy (void *userdata);

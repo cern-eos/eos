@@ -76,6 +76,9 @@ EosFuse::EosFuse()
 
 EosFuse::~EosFuse() { }
 
+
+#ifndef _FUSE3
+
 int
 EosFuse::run(int argc, char* argv[], void* userdata)
 {
@@ -316,6 +319,272 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
   return err ? 1 : 0;
 }
+
+#else
+
+int
+EosFuse::run3(int argc, char* argv[], void* userdata)
+{
+  eos_static_debug("");
+  EosFuse& me = instance();
+  char* epos;
+  char* spos;
+  char* local_mount_dir;
+  char mounthostport[4096];
+  char mountprefix[4096];
+  int i;
+
+  if (getenv("EOS_FUSE_ENTRY_CACHE_TIME")) {
+    me.config.entrycachetime = strtod(getenv("EOS_FUSE_ENTRY_CACHE_TIME"), 0);
+  }
+
+  if (getenv("EOS_FUSE_ATTR_CACHE_TIME")) {
+    me.config.attrcachetime = strtod(getenv("EOS_FUSE_ATTR_CACHE_TIME"), 0);
+  }
+
+  if (getenv("EOS_FUSE_NEG_ENTRY_CACHE_TIME")) {
+    me.config.neg_entrycachetime = strtod(getenv("EOS_FUSE_NEG_ENTRY_CACHE_TIME"),
+                                          0);
+  }
+
+  if ((getenv("EOS_FUSE_KERNELCACHE")) &&
+      (!strcmp(getenv("EOS_FUSE_KERNELCACHE"), "1"))) {
+    me.config.kernel_cache = 1;
+  }
+
+  if (((!getenv("EOS_FUSE_NOACCESS")) ||
+       (!strcmp(getenv("EOS_FUSE_NOACCESS"), "1")))) {
+    me.config.no_access = 1;
+  }
+
+  if ((getenv("EOS_FUSE_DIRECTIO")) &&
+      (!strcmp(getenv("EOS_FUSE_DIRECTIO"), "1"))) {
+    me.config.direct_io = 1;
+  }
+
+  if ((getenv("EOS_FUSE_SYNC")) && (!strcmp(getenv("EOS_FUSE_SYNC"), "1"))) {
+    me.config.is_sync = 1;
+  } else {
+    me.config.is_sync = 0;
+  }
+
+  if (getenv("EOS_FUSE_MAX_WB_INMEMORY_SIZE")) {
+    me.fs().setMaxWbInMemorySize(strtoull(getenv("EOS_FUSE_MAX_WB_INMEMORY_SIZE"),
+                                          0, 10));
+  }
+
+  char rdr[4096];
+  char url[4096];
+  rdr[0] = 0;
+  char* cstr = getenv("EOS_RDRURL");
+
+  if (cstr && (strlen(cstr) < 4096)) {
+    snprintf(rdr, 4096, "%s", cstr);
+  }
+
+  for (i = 0; i < argc; i++) {
+    if ((spos = strstr(argv[i], "url=root://"))) {
+      size_t os = spos - argv[i];
+      argv[i] = strdup(argv[i]);
+      argv[i][os - 1] = 0;
+      snprintf(rdr, 4096, "%s", spos + 4);
+      snprintf(url, 4096, "%s", spos + 4);
+
+      if ((epos = strstr(rdr + 7, "//"))) {
+        if ((epos + 2 - rdr) < 4096) {
+          rdr[epos + 2 - rdr] = 0;
+        }
+      }
+    }
+  }
+
+  if (!rdr[0]) {
+    fprintf(stderr, "error: EOS_RDRURL is not defined or add "
+            "root://<host>// to the options argument\n");
+    exit(-1);
+  }
+
+  if (strchr(rdr, '@')) {
+    fprintf(stderr, "error: EOS_RDRURL or url option contains user "
+            "specification '@' - forbidden\n");
+    exit(-1);
+  }
+
+  setenv("EOS_RDRURL", rdr, 1);
+
+  // Move the mounthostport starting with the host name
+  char* pmounthostport = 0;
+  char* smountprefix = 0;
+  pmounthostport = strstr(url, "root://");
+#ifndef __APPLE__
+
+  if (::access("/bin/fusermount", X_OK)) {
+    fprintf(stderr, "error: /bin/fusermount is not executable for you!\n");
+    exit(-1);
+  }
+
+#endif
+
+  if (!pmounthostport) {
+    fprintf(stderr, "error: EOS_RDRURL or url option is not valid\n");
+    exit(-1);
+  }
+
+  pmounthostport += 7;
+
+  if (!(smountprefix = strstr(pmounthostport, "//"))) {
+    fprintf(stderr, "error: EOS_RDRURL or url option is not valid\n");
+    exit(-1);
+  } else {
+    strncpy(mounthostport, pmounthostport, smountprefix - pmounthostport);
+    *smountprefix = 0;
+    smountprefix++;
+    smountprefix++;
+    size_t sz = std::min(strlen(smountprefix), (size_t)4095);
+    strncpy(mountprefix, smountprefix, sz);
+    mountprefix[sz] = '\0';
+
+    while (mountprefix[strlen(mountprefix) - 1] == '/') {
+      mountprefix[strlen(mountprefix) - 1] = '\0';
+    }
+  }
+
+  if (getuid() <= DAEMONUID) {
+    setenv("KRB5CCNAME", "FILE:/dev/null", 1);
+    setenv("X509_USER_PROXY", "/dev/null", 1);
+  }
+
+  if (!me.fs().check_mgm(NULL)) {
+    me.fs().initlogging();
+    eos_static_crit("failed to contact configured mgm");
+    return 1;
+  }
+
+  std::map<std::string, std::string> features;
+
+  struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
+  struct fuse_session *se;
+  struct fuse_cmdline_opts opts;
+  int ret = -1;
+
+  if (fuse_parse_cmdline(&args, &opts) != 0)
+    return 1;
+  if (opts.show_help) {
+    printf("usage: %s [options] <mountpoint>\n\n", argv[0]);
+    fuse_cmdline_help();
+    fuse_lowlevel_help();
+    ret = 0;
+    goto err_out1;
+  } else if (opts.show_version) {
+    printf("FUSE library version %s\n", fuse_pkgversion());
+    fuse_lowlevel_version();
+    ret = 0;
+    goto err_out1;
+  }
+
+  if(opts.mountpoint == NULL) {
+    printf("usage: %s [options] <mountpoint>\n", argv[0]);
+    printf("       %s --help\n", argv[0]);
+    ret = 1;
+    goto err_out1;
+  }
+
+  me.config.isdebug = 0;
+  
+  if (getenv("EOS_FUSE_LOWLEVEL_DEBUG") &&
+      (!strcmp(getenv("EOS_FUSE_LOWLEVEL_DEBUG"), "1"))) {
+    me.config.isdebug = 1;
+  }
+  
+  if (me.config.isdebug) {
+    XrdCl::DefaultEnv::SetLogLevel("Dump");
+    setenv("XRD_LOGLEVEL", "Dump", 1);
+  } else {
+    // disable backward stacktraces long standing mutexes unless in debug mode
+    setenv("EOS_DISABLE_BACKWARD_STACKTRACE", "1", 1);
+  }
+  
+  me.config.mount_point = local_mount_dir;
+  me.config.mountprefix = mountprefix;
+  me.config.mounthostport = mounthostport;
+  me.fs().setMountPoint(me.config.mount_point);
+  me.fs().setPrefix(me.config.mountprefix);
+  
+  try {
+    if (!me.fs().init(argc, argv, userdata, &features)) {
+      goto err_out1;
+    }
+  } catch (const std::length_error& e) {
+    fprintf(stderr, "error: failed to insert into google map\n");
+    goto err_out1;
+  }
+  
+  me.config.encode_pathname = features.find("eos.encodepath") != features.end();
+  me.config.lazy_open = (features.find("eos.lazyopen") != features.end()) ? true :
+    false;
+  eos_static_warning("********************************************************************************");
+  eos_static_warning("eosd started version %s - FUSE protocol version %d",
+		     VERSION, FUSE_USE_VERSION);
+  eos_static_warning("eos-instance-url       := %s", getenv("EOS_RDRURL"));
+  eos_static_warning("encode-pathname        := %s",
+		     me.config.encode_pathname ? "true" : "false");
+  eos_static_warning("lazy-open@server       := %s",
+		     me.config.lazy_open ? "true" : "false");
+  eos_static_warning("inline-repair          := %s max-size=%llu",
+		     me.fs().getInlineRepair() ? "true" : "false", me.fs().getMaxInlineRepairSize());
+  eos_static_warning("multi-threading        := %s", (getenv("EOS_FUSE_NO_MT") &&
+						      (!strcmp(getenv("EOS_FUSE_NO_MT"), "1"))) ? "false" : "true");
+  eos_static_warning("kernel-cache           := %s",
+		     me.config.kernel_cache ? "true" : "false");
+  eos_static_warning("direct-io              := %s",
+		     me.config.direct_io ? "true" : "false");
+  eos_static_warning("no-access              := %s",
+		     me.config.no_access ? "true" : "false");
+  eos_static_warning("fsync                  := %s",
+		     me.config.is_sync ? "sync" : "async");
+  eos_static_warning("attr-cache-timeout     := %.02f seconds",
+		     me.config.attrcachetime);
+  eos_static_warning("entry-cache-timeout    := %.02f seconds",
+		     me.config.entrycachetime);
+  eos_static_warning("negative-entry-timeout := %.02f seconds",
+		     me.config.neg_entrycachetime);
+  me.fs().log_settings();
+    
+  se = fuse_session_new(&args, 
+			&(get_operations()),
+			sizeof(operations), NULL);
+  if (se == NULL)
+    goto err_out1;
+
+  if (fuse_set_signal_handlers(se) != 0)
+    goto err_out2;
+
+  if (fuse_session_mount(se, opts.mountpoint) != 0)
+    goto err_out3;
+
+  fuse_daemonize(opts.foreground);
+
+  /* Block until ctrl+c or fusermount -u */
+  if (opts.singlethread)
+    ret = fuse_session_loop(se);
+  else
+    ret = fuse_session_loop_mt(se, opts.clone_fd);
+
+  fuse_session_unmount(se);
+ err_out3:
+  fuse_remove_signal_handlers(se);
+ err_out2:
+  fuse_session_destroy(se);
+ err_out1:
+  free(opts.mountpoint);
+  fuse_opt_free_args(&args);
+  XrdSysThread::Cancel(me.fs().tCacheCleanup);
+  XrdSysThread::Join(me.fs().tCacheCleanup, NULL);
+
+  return ret ? 1 : 0;
+}
+
+#endif
 
 void
 EosFuse::init(void* userdata, struct fuse_conn_info* conn)
