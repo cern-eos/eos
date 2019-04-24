@@ -85,9 +85,10 @@ LRU::Options LRU::getOptions()
 {
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   LRU::Options opts;
+
   // Default options
   opts.enabled = false;
-  opts.interval = std::chrono::hours(24) * 7;
+  opts.interval = std::chrono::minutes(30);
 
   if (FsView::gFsView.mSpaceView.count("default") &&
       (FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru") == "on")) {
