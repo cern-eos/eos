@@ -45,7 +45,7 @@ before_script:
 
 
 .fedora_template: &fedora_template_definition
-  stage: build:none
+  stage: build:rpm
   script:
     - dnf install --nogpg -y gcc-c++ cmake3 make rpm-build which git tar dnf-plugins-core ccache rpm-sign
     - git submodule update --init --recursive
@@ -75,7 +75,7 @@ before_script:
 
 
 .ubuntu_template: &ubuntu_template_definition
-  stage: build:none
+  stage: build:rpm
   script:
     - apt-get update -y; apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core ccache
     - echo -e '\ndeb http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ '${EOS_ARCH}' master' >> /etc/apt/sources.list
@@ -248,7 +248,7 @@ before_script:
 #-------------------------------------------------------------------------------
 
 build_slc6:
-  stage: build:none
+  stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
     - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities tar ccache sl-release-scl
@@ -379,7 +379,7 @@ build_ubuntu_artful:
 
 
 macosx_dmg:
-  stage: build:none
+  stage: build:rpm
   script:
     - git submodule update --init --recursive
     - mkdir build
@@ -440,7 +440,7 @@ cc7_docker_image_commit:
 
 
 ubuntu_docker_image_commit:
-  stage: build:none
+  stage: build:dockerimage
   tags:
     - docker-image-build
   script:
@@ -458,7 +458,7 @@ ubuntu_docker_image_commit:
 
 
 cc7_asan_docker_image:
-  stage: build:none
+  stage: build:dockerimage
   tags:
     - docker-image-build
   script:
@@ -478,7 +478,7 @@ cc7_asan_docker_image:
 
 
 cc7_docker_image_xrd_testing:
-  stage: build:none
+  stage: build:dockerimage
   tags:
     - docker-image-build
   script:
@@ -514,7 +514,7 @@ cc7_docker_image_tag:
 
 
 ubuntu_docker_image_tag:
-  stage: build:none
+  stage: build:dockerimage
   tags:
     - docker-image-build
   script:
@@ -554,7 +554,7 @@ prod_docker_image_tag:
 #-------------------------------------------------------------------------------
 
 k8s_system_test:
-  stage: test:none
+  stage: test
   <<: *k8s_system_test_script_template
   tags:
     - shell-with-docker
@@ -574,7 +574,7 @@ k8s_system_test_qdb:
 
 
 k8s_system_test_qdb_xt: # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
-  stage: test:none
+  stage: test
   <<: *k8s_system_test_script_template
   variables:
     BASETAG: "xrd_testing_"
@@ -588,7 +588,7 @@ k8s_system_test_qdb_xt: # xt stands for xrd_testing. Must shorten to not hit HOS
 
 
 k8s_ubuntu_system_test:
-  stage: test:none
+  stage: test
   <<: *k8s_system_test_script_template
   tags:
     - shell-with-docker
@@ -602,7 +602,7 @@ k8s_ubuntu_system_test:
 
 
 k8s_unit_test:
-  stage: test:none
+  stage: test
   <<: *k8s_unit_test_template
   tags:
     - shell-with-docker
@@ -617,7 +617,7 @@ k8s_unit_test:
 
 
 k8s_unit_test_asan:
-  stage: test:none
+  stage: test
   <<: *k8s_unit_test_template
   variables:
     BASETAG: "asan_"
@@ -630,7 +630,7 @@ k8s_unit_test_asan:
 
 
 k8s_ns_unit_test:
-  stage: test:none
+  stage: test
   <<: *k8s_ns_unit_test_template
   tags:
     - shell-with-docker
@@ -658,7 +658,7 @@ k8s_ns_unit_test_asan:
 
 
 k8s_stress_test:
-  stage: test:none
+  stage: test
   <<: *k8s_before_script_template
   script:
     - ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -n ${NAMESPACE}
@@ -718,7 +718,7 @@ system_test_qdb_xrd_testing:
 
 
 ubuntu_system_test:
-  stage: test:none
+  stage: test
   <<: *ubuntu_system_test_template_definition
   tags:
     - shell-with-docker
@@ -743,7 +743,7 @@ unit_test:
 
 
 unit_test_asan:
-  stage: test:none
+  stage: test
   <<: *unit_test_template
   variables:
     BUILD_NAME: cc7_asan
@@ -767,7 +767,7 @@ namespace_unit_test:
 
 
 namespace_unit_test_asan:
-  stage: test:none
+  stage: test
   <<: *namespace_unit_test_template
   variables:
     BUILD_NAME: cc7_asan
@@ -782,7 +782,7 @@ namespace_unit_test_asan:
 
 
 stress_test:
-  stage: test:none
+  stage: test
   script:
     - sudo ./eos-docker/scripts/shutdown_services.sh
     - ./eos-docker/scripts/remove_unused_images.sh
@@ -804,7 +804,7 @@ stress_test:
 #-------------------------------------------------------------------------------
 
 publish_koji_cc7:
-  stage: publish:none
+  stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y sssd-client
@@ -822,7 +822,7 @@ publish_koji_cc7:
 
 
 publish_koji_slc6:
-  stage: publish:none
+  stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y sssd-client
@@ -901,7 +901,7 @@ rpm_stable_artifacts:
 
 
 debian_artifacts:
-  stage: publish:none
+  stage: publish
   image: ubuntu:artful
   script:
     - apt-get update
@@ -926,7 +926,7 @@ debian_artifacts:
 
 
 debian_artifacts_volume:
-  stage: publish:none
+  stage: publish
   image: ubuntu:artful
   script:
     - apt-get update
@@ -962,7 +962,7 @@ clean_rpm_artifacts:
 
 
 clean_debian_artifacts:
-  stage: clean:NONE
+  stage: clean
   image: ubuntu:artful
   script:
     - apt-get update
@@ -984,7 +984,7 @@ clean_debian_artifacts:
 #-------------------------------------------------------------------------------
 
 eos_nginx_slc6:
-  stage: build:none
+  stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
     - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git tar sudo createrepo
@@ -1008,7 +1008,7 @@ eos_nginx_slc6:
 
 
 eos_nginx_cc7:
-  stage: build:none
+  stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git sssd-client sudo createrepo
@@ -1029,7 +1029,7 @@ eos_nginx_cc7:
 
 
 eos_apmon_slc6:
-  stage: build:none
+  stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
     - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git tar sudo createrepo
@@ -1058,7 +1058,7 @@ eos_apmon_slc6:
 
 
 eos_apmon_cc7:
-  stage: build:none
+  stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git sssd-client sudo createrepo
@@ -1079,7 +1079,7 @@ eos_apmon_cc7:
 
 
 eos_microhttpd_slc6:
-  stage: build:none
+  stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
     - yum install --nogpg -y gcc-c++ make rpm-build which git tar sudo createrepo
@@ -1100,7 +1100,7 @@ eos_microhttpd_slc6:
 
 
 eos_microhttpd_cc7:
-  stage: build:none
+  stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y gcc-c++ make rpm-build which git sssd-client sudo createrepo
@@ -1119,7 +1119,7 @@ eos_microhttpd_cc7:
 
 
 eos_docs:
-  stage: build:none
+  stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
     - yum install --nogpg -y make python-sphinx sssd-client sudo which git
@@ -1155,7 +1155,7 @@ eos_repopackage:
 
 
 periodic_coverity:
-  stage: build:none
+  stage: build:rpm
   script:
     - rm -f CMakeCache.txt
     - git submodule update --init --recursive; mkdir build; cd build; scl enable "cmake3 .. -DPACKAGEONLY=1"; make srpm
@@ -1171,7 +1171,7 @@ periodic_coverity:
 
 
 cppcheck_sonar:
-  stage: build:none
+  stage: build:rpm
   script:
     - rm -f CMakeCache.txt
     - git submodule update --init --recursive; mkdir build; cd build; scl enable "cmake3 .. -DPACKAGEONLY=1"; make srpm; cd ..;
