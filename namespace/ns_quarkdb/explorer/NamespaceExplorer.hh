@@ -125,10 +125,13 @@ public:
   // Clear children.
   void prefetchChildren();
 
-  inline bool isVisited()
-  {
-    return visited;
-  }
+  //----------------------------------------------------------------------------
+  //! Can we visit this node? Possible only if:
+  //! - No errors occurred while retrieving the container's metadata.
+  //! - Has not been visited already.
+  //----------------------------------------------------------------------------
+  bool canVisit();
+
   inline void visit()
   {
     visited = true;

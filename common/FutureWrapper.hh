@@ -89,7 +89,7 @@ public:
   //----------------------------------------------------------------------------
   T& get()
   {
-    ensureHasArrived();
+    wait();
 
     if (mException) {
       std::rethrow_exception(mException);
@@ -106,7 +106,7 @@ public:
   //----------------------------------------------------------------------------
   T* operator->()
   {
-    ensureHasArrived();
+    wait();
 
     if (mException) {
       std::rethrow_exception(mException);
@@ -115,12 +115,18 @@ public:
     return &mObj;
   }
 
-private:
+  //----------------------------------------------------------------------------
+  //! Check if future is armed with an exception - will wait to receive result
+  //----------------------------------------------------------------------------
+  bool hasException() {
+    wait();
+    return mException != nullptr;
+  }
 
   //----------------------------------------------------------------------------
   //! Method that waits for the underlying future to return
   //----------------------------------------------------------------------------
-  void ensureHasArrived()
+  void wait()
   {
     if (mArrived) {
       return;
@@ -134,6 +140,9 @@ private:
       mException = std::current_exception();
     }
   }
+
+private:
+
 
   folly::Future<T> mFut;
   bool mArrived = false;

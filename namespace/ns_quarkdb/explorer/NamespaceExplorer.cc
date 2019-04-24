@@ -45,6 +45,21 @@ SearchNode::SearchNode(NamespaceExplorer &expl, ContainerIdentifier d, eos::Sear
 }
 
 //------------------------------------------------------------------------------
+// Can we visit this node? Possible only if:
+// - No errors occurred while retrieving the container's metadata.
+// - Has not been visited already.
+//------------------------------------------------------------------------------
+bool SearchNode::canVisit() {
+  if(visited) return false;
+
+  if(containerMd.hasException() || containerMap.hasException()) {
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
 // Send off more requests if results are ready, otherwise do nothing.
 // If search needs some result, it'll block.
 //------------------------------------------------------------------------------
@@ -60,6 +75,10 @@ void SearchNode::handleAsync()
 //------------------------------------------------------------------------------
 std::unique_ptr<SearchNode> SearchNode::expand()
 {
+  if(containerMd.hasException()) {
+    return {};
+  }
+
   NamespaceItem nodeItem;
   nodeItem.isFile = false;
   nodeItem.containerMd = getContainerInfo();
@@ -347,7 +366,7 @@ bool NamespaceExplorer::fetch(NamespaceItem& item)
     dfsPath.back()->handleAsync();
 
     // Has top node been visited yet?
-    if (!dfsPath.back()->isVisited()) {
+    if (dfsPath.back()->canVisit()) {
       dfsPath.back()->visit();
       item.isFile = false;
       item.fullPath = buildDfsPath();
