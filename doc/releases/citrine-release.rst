@@ -16,6 +16,24 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.4.38 Citrine``
+===================
+
+2019-04-24
+
+Bug
+----
+
+* Fix LRU which was looping and taking the FsView lock when disabled
+* [EOS-3427] - getUriFut can overwhelm the folly executor pool, causing slowness and potential deadlocks
+* [EOS-3432] - MGM crash in eos::NamespaceExplorer::buildDfsPath
+
+Improvement
+------------
+
+* [EOS-3431] - MGM: make "func=performCycleQDB" log (much) less
+
+
 ``v4.4.37 Citrine``
 ===================
 
