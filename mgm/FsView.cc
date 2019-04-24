@@ -44,7 +44,6 @@ std::string FsSpace::gConfigQueuePrefix;
 std::string FsGroup::gConfigQueuePrefix;
 std::string FsNode::gConfigQueuePrefix;
 std::atomic<bool> FsSpace::gDisableDefaults {false};
-IConfigEngine* FsView::sConfEngine {nullptr};
 
 //------------------------------------------------------------------------------
 // Destructor - destructs all the branches starting at this node
@@ -1703,8 +1702,8 @@ FsView::StoreFsConfig(FileSystem* fs)
     std::string key, val;
     fs->CreateConfig(key, val);
 
-    if (FsView::sConfEngine && !key.empty() && !val.empty()) {
-      FsView::sConfEngine->SetConfigValue("fs", key.c_str(), val.c_str());
+    if (FsView::gFsView.mConfigEngine && !key.empty() && !val.empty()) {
+      FsView::gFsView.mConfigEngine->SetConfigValue("fs", key.c_str(), val.c_str());
     }
   }
 }
@@ -1853,8 +1852,8 @@ FsView::UnRegister(FileSystem* fs, bool unregisterInGeoTreeEngine)
   // Delete in the configuration engine
   std::string key = fs->GetQueuePath();
 
-  if (FsView::sConfEngine) {
-    FsView::sConfEngine->DeleteConfigValue("fs", key.c_str());
+  if (FsView::gFsView.mConfigEngine) {
+    FsView::gFsView.mConfigEngine->DeleteConfigValue("fs", key.c_str());
   }
 
   eos::common::FileSystem::fs_snapshot snapshot;
@@ -2257,8 +2256,9 @@ FsView::SetGlobalConfig(std::string key, std::string value)
     ckey += key;
   }
 
-  if (FsView::sConfEngine) {
-    FsView::sConfEngine->SetConfigValue("global", ckey.c_str(), value.c_str());
+  if (FsView::gFsView.mConfigEngine) {
+    FsView::gFsView.mConfigEngine->SetConfigValue("global", ckey.c_str(),
+        value.c_str());
   }
 
   return true;
@@ -2674,12 +2674,12 @@ BaseView::SetConfigMember(std::string key, std::string value, bool create,
   eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
 
   // Register in the configuration engine
-  if ((!isstatus) && FsView::sConfEngine) {
+  if ((!isstatus) && FsView::gFsView.mConfigEngine) {
     node_cfg_name += "#";
     node_cfg_name += key;
     std::string confval = value;
-    FsView::sConfEngine->SetConfigValue("global", node_cfg_name.c_str(),
-                                        confval.c_str());
+    FsView::gFsView.mConfigEngine->SetConfigValue("global", node_cfg_name.c_str(),
+        confval.c_str());
   }
 
   return success;
@@ -2723,6 +2723,35 @@ BaseView::GetConfigKeys(std::vector<std::string>& keys)
 
   return false;
 }
+
+//------------------------------------------------------------------------------
+// Class ConfigResetMonitor
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+ConfigResetMonitor::ConfigResetMonitor():
+  mOrigConfEngine(nullptr)
+{
+  std::swap(mOrigConfEngine, FsView::gFsView.mConfigEngine);
+}
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+ConfigResetMonitor::~ConfigResetMonitor()
+{
+  if (mOrigConfEngine == nullptr) {
+    FsView::gFsView.mConfigEngine = gOFS->ConfEngine;
+  } else {
+    std::swap(FsView::gFsView.mConfigEngine, mOrigConfEngine);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Class FsView
+//------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
 // Creates a new filesystem id based on a uuid

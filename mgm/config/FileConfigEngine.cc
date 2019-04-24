@@ -25,6 +25,7 @@
 #include "mgm/config/FileConfigEngine.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Master.hh"
+#include "mgm/FsView.hh"
 #include "mq/XrdMqMessage.hh"
 #include "common/GlobalConfig.hh"
 #include "common/LinuxStat.hh"
@@ -143,6 +144,10 @@ FileConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err,
     return false;
   }
 
+  // Take care of setting the config engine for FsView to null while applying
+  // the config otherwise we deadlock since the FsView will try to set config
+  // keys
+  eos::mgm::ConfigResetMonitor fsview_cfg_reset_monitor;
   // Check if there is any full/partial update config file
   struct stat info;
   std::ostringstream oss;

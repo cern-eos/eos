@@ -763,18 +763,44 @@ public:
   void SetNodeConfigDefault();
 };
 
+
+//------------------------------------------------------------------------------
+//! Class ConfigResetMonitor - reset the current configuration engine object
+//! used by the FsView to null during construction and put it back to the
+//! initial value during destruction.
+//------------------------------------------------------------------------------
+class ConfigResetMonitor final
+{
+public:
+  //------------------------------------------------------------------------------
+  //! Constructor
+  //------------------------------------------------------------------------------
+  ConfigResetMonitor();
+  //------------------------------------------------------------------------------
+  //! Destructor
+  //------------------------------------------------------------------------------
+  ~ConfigResetMonitor();
+
+private:
+  IConfigEngine* mOrigConfEngine; ///< Initial config engine object
+};
+
+
 //------------------------------------------------------------------------------
 //! Class describing an EOS pool including views
 //------------------------------------------------------------------------------
 class FsView : public eos::common::LogId
 {
+  friend class ConfigResetMonitor;
+  // @todo (esindril): this is just for the call in SetConfigMember when
+  // accessing mConfigEngine. Should be refactored.
+  friend class BaseView;
 public:
   //! Central draining status
   enum class DrainType {Central, Distributed, Unknown};
 
   //! Static singleton object hosting the filesystem view object
   static FsView gFsView;
-  static IConfigEngine* sConfEngine;
 
   //----------------------------------------------------------------------------
   //! Return printout formats
@@ -790,7 +816,8 @@ public:
   //! @param start_heartbeat control whether heartbeat thread is started - for
   //!                        testing purposes
   //----------------------------------------------------------------------------
-  FsView(bool start_heartbeat = true)
+  FsView(bool start_heartbeat = true):
+    mConfigEngine(nullptr)
   {
     MgmConfigQueueName = "";
 
@@ -1009,7 +1036,7 @@ public:
   //----------------------------------------------------------------------------
   void SetConfigEngine(IConfigEngine* engine)
   {
-    sConfEngine = engine;
+    mConfigEngine = engine;
   }
 
   //----------------------------------------------------------------------------
@@ -1040,6 +1067,7 @@ public:
   void BroadcastMasterId(const std::string master_id);
 
 private:
+  IConfigEngine* mConfigEngine;
   AssistedThread mHeartBeatThread; ///< Thread monitoring heart-beats
   //! Object to map between fsid <-> uuid
   FilesystemUuidMapper mFilesystemMapper;

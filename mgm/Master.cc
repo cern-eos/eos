@@ -1065,6 +1065,10 @@ Master::Activate(std::string& stdOut, std::string& stdErr, int transitiontype)
         configloader += gOFS->MgmConfigAutoLoad;
         XrdOucEnv configenv(configloader.c_str());
         XrdOucString stdErr = "";
+        // Take care of setting the config engine for FsView to null while
+        // applying the config otherwise we deadlock since the FsView will
+        // try to set config keys
+        eos::mgm::ConfigResetMonitor fsview_cfg_reset_monitor;
 
         if (!gOFS->ConfEngine->LoadConfig(configenv, stdErr)) {
           MasterLog(eos_static_crit("Unable to auto-load config %s - fix your "
@@ -1711,19 +1715,17 @@ Master::BootNamespace()
   PF_PlatformServices& pm_svc = pm.GetPlatformServices();
   pm_svc.invokeService = &XrdMgmOfs::DiscoverPlatformServices;
   gOFS->namespaceGroup.reset(static_cast<INamespaceGroup*>
-                              (pm.CreateObject("NamespaceGroup")));
+                             (pm.CreateObject("NamespaceGroup")));
   gOFS->NsInQDB = !gOFS->namespaceGroup->isInMemory();
-
   //----------------------------------------------------------------------------
   // Collect namespace options, and initialize namespace group
   //----------------------------------------------------------------------------
   std::map<std::string, std::string> namespaceConfig;
   std::string err;
 
-  if(gOFS->NsInQDB) {
+  if (gOFS->NsInQDB) {
     std::string instance_id =
       SSTR(gOFS->MgmOfsInstanceName << ":" << gOFS->ManagerPort);
-
     namespaceConfig["queue_path"] = "/var/eos/ns-queue/";
     namespaceConfig["qdb_cluster"] = gOFS->mQdbCluster;
     namespaceConfig["qdb_password"] = gOFS->mQdbPassword;
@@ -1731,9 +1733,8 @@ Master::BootNamespace()
     namespaceConfig["qdb_flusher_quota"] = SSTR(instance_id << "_quota");
   }
 
-  if(!gOFS->namespaceGroup->initialize(&gOFS->eosViewRWMutex,
-    namespaceConfig, err)) {
-
+  if (!gOFS->namespaceGroup->initialize(&gOFS->eosViewRWMutex,
+                                        namespaceConfig, err)) {
     eos_err("msg=\"could not initialize namespace group, err: %s\"", err.c_str());
     return false;
   }
@@ -1743,7 +1744,6 @@ Master::BootNamespace()
   //----------------------------------------------------------------------------
   gOFS->eosDirectoryService = static_cast<IContainerMDSvc*>
                               (pm.CreateObject("ContainerMDSvc"));
-
   gOFS->eosDirectoryService = gOFS->namespaceGroup->getContainerService();
   gOFS->eosFileService = gOFS->namespaceGroup->getFileService();
   gOFS->eosView = gOFS->namespaceGroup->getHierarchicalView();
@@ -1762,8 +1762,8 @@ Master::BootNamespace()
        ((std::string(getenv("EOS_NS_ACCOUNTING")) == "1") ||
         (std::string(getenv("EOS_NS_ACCOUNTING")) == "yes")))) {
     eos_alert("msg=\"enabling recursive size accounting ...\"");
-
-    gOFS->eosContainerAccounting = gOFS->namespaceGroup->getContainerAccountingView();
+    gOFS->eosContainerAccounting =
+      gOFS->namespaceGroup->getContainerAccountingView();
 
     if (!gOFS->eosContainerAccounting) {
       eos_err("msg=\"namespace implemetation does not provide ContainerAccounting"
@@ -1777,7 +1777,6 @@ Master::BootNamespace()
        ((std::string(getenv("EOS_SYNCTIME_ACCOUNTING")) == "1") ||
         (std::string(getenv("EOS_SYNCTIME_ACCOUNTING")) == "yes")))) {
     eos_alert("msg=\"enabling sync time propagation ...\"");
-
     gOFS->eosSyncTimeAccounting = gOFS->namespaceGroup->getSyncTimeAccountingView();
 
     if (!gOFS->eosSyncTimeAccounting) {

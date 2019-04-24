@@ -209,7 +209,7 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
          !assistant.terminationRequested()) {
     assistant.wait_for(std::chrono::seconds(1));
     eos_info("msg=\"waiting for namespace boot\" mNamespaceState=%s",
-      namespaceStateToString(gOFS->mNamespaceState).c_str());
+             namespaceStateToString(gOFS->mNamespaceState).c_str());
   }
 
   // Loop updating the master status
@@ -360,8 +360,11 @@ QdbMaster::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
   std::unique_lock<std::mutex> lock(sequential_mutex);
   gOFS->mDrainEngine.Stop();
   gOFS->mDrainEngine.Start();
-  eos::mgm::FsView::gFsView.SetConfigEngine(nullptr);
   gOFS->ConfEngine->SetConfigDir(gOFS->MgmConfigDir.c_str());
+  // Take care of setting the config engine for FsView to null while applying
+  // the config otherwise we deadlock since the FsView will try to set config
+  // keys
+  eos::mgm::ConfigResetMonitor fsview_cfg_reset_monitor;
 
   if (gOFS->MgmConfigAutoLoad.length()) {
     eos_static_info("autoload config=%s", gOFS->MgmConfigAutoLoad.c_str());
@@ -381,11 +384,6 @@ QdbMaster::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
   }
 
   gOFS->SetupGlobalConfig();
-
-  if (mConfigLoaded) {
-    eos::mgm::FsView::gFsView.SetConfigEngine(gOFS->ConfEngine);
-  }
-
   return mConfigLoaded;
 }
 

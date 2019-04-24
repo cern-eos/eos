@@ -125,7 +125,8 @@ QuarkDBConfigEngine::QuarkDBConfigEngine(const QdbContactDetails&
     contactDetails)
 {
   mQdbContactDetails = contactDetails;
-  mQcl = std::make_unique<qclient::QClient>(mQdbContactDetails.members, mQdbContactDetails.constructOptions());
+  mQcl = std::make_unique<qclient::QClient>(mQdbContactDetails.members,
+         mQdbContactDetails.constructOptions());
   mChangelog.reset(new QuarkDBCfgEngineChangelog(mQcl.get()));
 }
 
@@ -562,60 +563,70 @@ QuarkDBConfigEngine::PushToQuarkDB(XrdOucEnv& env, XrdOucString& err)
 //------------------------------------------------------------------------------
 // Store configuration into given keyname
 //------------------------------------------------------------------------------
-void QuarkDBConfigEngine::storeIntoQuarkDB(const std::string &name) {
+void QuarkDBConfigEngine::storeIntoQuarkDB(const std::string& name)
+{
   // Create backup
   std::string hash_key_backup = formBackupConfigHashKey(name.c_str(), time(NULL));
   std::string keyname = formConfigHashKey(name);
-
   qclient::MultiBuilder multiBuilder;
   multiBuilder.emplace_back("hclone", keyname, hash_key_backup);
   multiBuilder.emplace_back("del", keyname);
-
   std::vector<std::future<qclient::redisReplyPtr>> replies;
-
   XrdSysMutexHelper lock(mMutex);
 
-  for(auto it = sConfigDefinitions.begin(); it != sConfigDefinitions.end(); it++) {
+  for (auto it = sConfigDefinitions.begin(); it != sConfigDefinitions.end();
+       it++) {
     multiBuilder.emplace_back("hset", keyname, it->first, it->second);
   }
 
   XrdOucString stime;
   getTimeStamp(stime);
-  multiBuilder.emplace_back("hset", keyname, "timestamp", std::string(stime.c_str()));
-
+  multiBuilder.emplace_back("hset", keyname, "timestamp",
+                            std::string(stime.c_str()));
   qclient::redisReplyPtr reply = mQcl->execute(multiBuilder.getDeque()).get();
 
   // The transaction has taken place, validate that the response makes sense
-  if(!reply || reply->type != REDIS_REPLY_ARRAY) {
-    eos_static_crit("Unexpected response from QDB when storing configuration value, bad reply type: %s", qclient::describeRedisReply(reply).c_str());
+  if (!reply || reply->type != REDIS_REPLY_ARRAY) {
+    eos_static_crit("Unexpected response from QDB when storing configuration "
+                    "value, bad reply type: %s",
+                    qclient::describeRedisReply(reply).c_str());
     return;
   }
 
-  // expected number of elements?
-  if(reply->elements != sConfigDefinitions.size() + 3) {
-    eos_static_crit("Unexpected number of elements in response from QDB when storing configuration - received %d, expected %d: %s", reply->elements, sConfigDefinitions.size() + 3, qclient::describeRedisReply(reply).c_str());
+  // Expected number of elements?
+  if (reply->elements != sConfigDefinitions.size() + 3) {
+    eos_static_crit("Unexpected number of elements in response from QDB when "
+                    "storing configuration - received %d, expected %d: %s",
+                    reply->elements, sConfigDefinitions.size() + 3,
+                    qclient::describeRedisReply(reply).c_str());
   }
 
   // hclone reply - fix..
   // qclient::StatusParser parser0(reply->element[0]);
   // if(!parser0.ok() || parser0.value() != "OK") {
-  //   eos_static_crit("Unexpected response from QDB to HCLONE when storing configuration value: %s", qclient::describeRedisReply(reply).c_str());
+  //   eos_static_crit("Unexpected response from QDB to HCLONE when storing "
+  //                   "configuration value: %s",
+  //                    qclient::describeRedisReply(reply).c_str());
   //   return;
   // }
-
   // del reply
   qclient::IntegerParser parser1(reply->element[1]);
-  if(!parser1.ok()) {
-    eos_static_crit("Unexpected response from QDB to DEL when storing configuration value: %s", qclient::describeRedisReply(reply).c_str());
+
+  if (!parser1.ok()) {
+    eos_static_crit("Unexpected response from QDB to DEL when storing "
+                    "configuration value: %s",
+                    qclient::describeRedisReply(reply).c_str());
     return;
   }
 
   // replies to individual hset commands
-  for(size_t i = 2; i < reply->elements; i++) {
+  for (size_t i = 2; i < reply->elements; i++) {
     qclient::IntegerParser parser(reply->element[i]);
 
-    if(!parser.ok() || parser.value() != 1) {
-      eos_static_crit("Unexpected response from QDB when storing configuration value: ERR=%s, value=d", parser.err().c_str(), parser.value());
+    if (!parser.ok() || parser.value() != 1) {
+      eos_static_crit("Unexpected response from QDB when storing configuration "
+                      "value: ERR=%s, value=d", parser.err().c_str(),
+                      parser.value());
     }
   }
 }
