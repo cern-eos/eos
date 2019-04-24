@@ -242,11 +242,6 @@ void LRU::performCycleQDB(ThreadAssistant& assistant) noexcept {
   NamespaceItem item;
   while(explorer.fetch(item)) {
     eos_static_info("lru-dir-qdb=\"%s\" attrs=%d", item.fullPath.c_str(), item.attrs.size());
-
-    for(auto it = item.attrs.begin(); it != item.attrs.end(); it++) {
-      eos_static_info("attr=%s=%s", it->first.c_str(), it->second.c_str());
-    }
-
     processDirectory(item.fullPath, 0, item.attrs);
   }
 }
