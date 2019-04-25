@@ -191,13 +191,13 @@ TapeAwareGc::getDefaultSpaceMinNbFreeBytes() noexcept
 // returned.
 //------------------------------------------------------------------------------
 uint64_t
-TapeAwareGc::getSpaceConfigMinNbFreeBytes(const std::string &name) noexcept
+TapeAwareGc::getSpaceConfigMinNbFreeBytes(const std::string &spaceName) noexcept
 {
   try {
     std::string valueStr;
     {
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-      const auto spaceItor = FsView::gFsView.mSpaceView.find(name);
+      const auto spaceItor = FsView::gFsView.mSpaceView.find(spaceName);
       if (FsView::gFsView.mSpaceView.end() == spaceItor) return 0;
       if (nullptr == spaceItor->second) return 0;
       const auto &space = *(spaceItor->second);

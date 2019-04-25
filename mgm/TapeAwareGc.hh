@@ -213,9 +213,9 @@ private:
   //! number of free bytes cannot be determined for whatever reason then 0 is
   //! returned.
   //!
-  //! @param name The name of the space
+  //! @param spaceName The name of the space
   //----------------------------------------------------------------------------
-  static uint64_t getSpaceConfigMinNbFreeBytes(const std::string &name) noexcept;
+  static uint64_t getSpaceConfigMinNbFreeBytes(const std::string &spaceName) noexcept;
 
   //----------------------------------------------------------------------------
   //! @return Number of free bytes in the specified space
