@@ -1,5 +1,5 @@
 .. index::
-   single: Installation
+   single: Ubuntu
 
 .. _eos_ubuntu_install:
 
@@ -14,8 +14,8 @@ currently "artful" and "bionic".
 
 .. code-block:: text
 
-deb [arch=amd64] http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ artful master
-deb [arch=amd64] http://storage-ci.web.cern.ch/storage-ci/debian/eos/citrine/ artful tag
+	deb [arch=amd64] http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ artful master
+	deb [arch=amd64] http://storage-ci.web.cern.ch/storage-ci/debian/eos/citrine/ artful tag
 
 
 Install EOS client via apt

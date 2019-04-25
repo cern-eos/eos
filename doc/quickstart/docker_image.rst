@@ -97,7 +97,7 @@ You can mount EOS to the client container using FUSE and KRB5 authentication.
    ===> fuse debug            : 0
    ===> fuse low-level debug  : 0
    ===> fuse log-level        : 5 
-  ===> fuse write-cache      : 1
+   ===> fuse write-cache      : 1
    ===> fuse write-cache-size : 67108864
    ===> fuse rm level protect : 1
    ===> fuse lazy-open-ro     : 0
