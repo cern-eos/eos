@@ -94,7 +94,7 @@ private:
 
   /// The timestamp of when the value was last updated
   time_t m_timestamp;
-}; // class CachedValue
+}; // class TapeAwareGcCachedValue
 
 EOSMGMNAMESPACE_END
 
