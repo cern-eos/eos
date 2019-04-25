@@ -660,7 +660,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     if (!root["options"].isMember("no-xattr")) {
-      root["options"]["no-xattr"] = 1;
+      root["options"]["no-xattr"] = 0;
     }
 
     if (!root["options"].isMember("no-link")) {
@@ -1789,9 +1789,10 @@ EosFuse::init(void* userdata, struct fuse_conn_info* conn)
     }
   }
 
-  conn->want |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS | FUSE_CAP_WRITEBACK_CACHE;
-    
-  conn->capable |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS;
+  conn->want |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS | FUSE_CAP_WRITEBACK_CACHE | FUSE_CAP_CACHE_SYMLINKS;
+  conn->want &= ~(FUSE_CAP_POSIX_ACL | FUSE_CAP_HANDLE_KILLPRIV); // don't want ACL lookups
+
+  eos_static_warning("want:08x capable:%08x", conn->want, con->capable);
 }
 
 void
