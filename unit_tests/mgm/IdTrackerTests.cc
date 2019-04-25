@@ -57,4 +57,9 @@ TEST(IdTrackerWithValidity, BasicFunctionality)
   for (uint64_t i = 11; i < 100; i += 10) {
     ASSERT_FALSE(tracker.HasEntry(i));
   }
+
+  tracker.AddEntry(121);
+  ASSERT_TRUE(tracker.HasEntry(121));
+  tracker.RemoveEntry(121);
+  ASSERT_FALSE(tracker.HasEntry(121));
 }

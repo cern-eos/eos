@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#pragma once
 #include <chrono>
 #include <mutex>
 #include "common/Namespace.hh"
@@ -31,7 +32,8 @@ EOSCOMMONNAMESPACE_BEGIN
 //! A clock which behaves similarly to std::chrono::steady_clock, but can be
 //! faked. During faking, you can advance time manually.
 //------------------------------------------------------------------------------
-class SteadyClock {
+class SteadyClock
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor: Specify whether we're faking time, or not.
@@ -41,8 +43,9 @@ public:
   //----------------------------------------------------------------------------
   //! Static now function - it's also possible to pass a nullptr
   //----------------------------------------------------------------------------
-  static std::chrono::steady_clock::time_point now(SteadyClock *clock) {
-    if(clock == nullptr) {
+  static std::chrono::steady_clock::time_point now(SteadyClock* clock)
+  {
+    if (clock == nullptr) {
       return std::chrono::steady_clock::now();
     }
 
@@ -52,8 +55,9 @@ public:
   //----------------------------------------------------------------------------
   //! Get current time.
   //----------------------------------------------------------------------------
-  std::chrono::steady_clock::time_point getTime() const {
-    if(fake) {
+  std::chrono::steady_clock::time_point getTime() const
+  {
+    if (fake) {
       std::lock_guard<std::mutex> lock(mtx);
       return fakeTimepoint;
     }
@@ -66,7 +70,8 @@ public:
   //! has no effect...
   //----------------------------------------------------------------------------
   template<typename T>
-  void advance(T duration) {
+  void advance(T duration)
+  {
     std::lock_guard<std::mutex> lock(mtx);
     fakeTimepoint += duration;
   }
@@ -75,10 +80,10 @@ public:
   //! Utility function to convert a time_point to seconds since epoch
   //----------------------------------------------------------------------------
   static std::chrono::seconds secondsSinceEpoch(
-    std::chrono::steady_clock::time_point point) {
-
+    std::chrono::steady_clock::time_point point)
+  {
     return std::chrono::duration_cast<std::chrono::seconds>(
-      point.time_since_epoch());
+             point.time_since_epoch());
   }
 
 private:

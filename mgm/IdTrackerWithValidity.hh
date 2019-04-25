@@ -53,7 +53,7 @@ public:
     mEntryValidity(entry_validity),
     mClock(fake_clock)
   {
-    mCleanupTimestamp = eos::common::SteadyClock::now(&mClock) + mCleanupInterval;;
+    mCleanupTimestamp = eos::common::SteadyClock::now(&mClock) + mCleanupInterval;
   }
 
   //----------------------------------------------------------------------------
@@ -72,8 +72,15 @@ public:
   //! Check if entry is already tracked
   //!
   //! @param entry
+  //!
+  //! @return true if entry in the map, otherwise false
   //----------------------------------------------------------------------------
   bool HasEntry(EntryT entry) const;
+
+  //----------------------------------------------------------------------------
+  //! Remove entry
+  //----------------------------------------------------------------------------
+  void RemoveEntry(EntryT entry);
 
   //----------------------------------------------------------------------------
   //! Clean up expired entries
@@ -81,9 +88,18 @@ public:
   void DoCleanup();
 
   //----------------------------------------------------------------------------
+  //! Clear all tracked entries
+  //----------------------------------------------------------------------------
+  void Clear()
+  {
+    eos::common::RWMutexWriteLock wr_lock(mRWMutex);
+    mMap.clear();
+  }
+
+  //----------------------------------------------------------------------------
   //! Get clock reference for testing purposes
   //----------------------------------------------------------------------------
-  eos::common::SteadyClock& GetClock()
+  inline eos::common::SteadyClock& GetClock()
   {
     return mClock;
   }
@@ -142,6 +158,21 @@ IdTrackerWithValidity<EntryT>::DoCleanup()
         ++it;
       }
     }
+  }
+}
+
+//----------------------------------------------------------------------------
+// Remove entry
+//----------------------------------------------------------------------------
+template<typename EntryT>
+void
+IdTrackerWithValidity<EntryT>::RemoveEntry(EntryT entry)
+{
+  eos::common::RWMutexWriteLock wr_lock(mRWMutex);
+  auto it = mMap.find(entry);
+
+  if (it != mMap.end()) {
+    mMap.erase(it);
   }
 }
 
