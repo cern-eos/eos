@@ -284,10 +284,23 @@ Storage::Publish(ThreadAssistant& assistant)
   // The following line acts as a barrier that prevents progress
   // until the config queue becomes known.
   eos::fst::Config::gConfig.getFstNodeConfigQueue("Publish");
-  std::chrono::steady_clock::time_point next_consistency_stats;
-  std::chrono::steady_clock::time_point last_consistency_stats;
+  common::IntervalStopwatch consistencyStatsStopwatch(sConsistencyTimeout);
 
   while (!assistant.terminationRequested()) {
+    //--------------------------------------------------------------------------
+    // Should we publish consistency stats during this cycle?
+    //--------------------------------------------------------------------------
+    bool publishConsistencyStats =
+      (consistencyStatsStopwatch.timeRemainingInCycle() == std::chrono::milliseconds(0));
+
+    if(publishConsistencyStats) {
+      //------------------------------------------------------------------------
+      // Refresh stopwatch cycle
+      //------------------------------------------------------------------------
+      consistencyStatsStopwatch.startCycle(sConsistencyTimeout);
+    }
+
+
     std::string publish_uptime = getUptime(tmp_name);
     std::string publish_sockets = getNumberOfTCPSockets(tmp_name);
 
@@ -324,9 +337,8 @@ Storage::Publish(ThreadAssistant& assistant)
           bool success = true;
 
           if (mFsVect[i]->GetStatus() == eos::common::BootStatus::kBooted) {
-            if (next_consistency_stats < stopwatch.getCycleStart()) {
+            if (publishConsistencyStats) {
               eos_static_debug("msg=\"publish consistency stats\"");
-              last_consistency_stats = stopwatch.getCycleStart();
               XrdSysMutexHelper ISLock(mFsVect[i]->InconsistencyStatsMutex);
               gFmdDbMapHandler.GetInconsistencyStatistics(fsid,
                   *mFsVect[i]->GetInconsistencyStats(),
@@ -334,7 +346,6 @@ Storage::Publish(ThreadAssistant& assistant)
 
               for (isit = mFsVect[i]->GetInconsistencyStats()->begin();
                    isit != mFsVect[i]->GetInconsistencyStats()->end(); isit++) {
-                //eos_static_debug("%-24s => %lu", isit->first.c_str(), isit->second);
                 std::string sname = "stat.fsck.";
                 sname += isit->first;
                 success &= mFsVect[i]->SetLongLong(sname.c_str(), isit->second);
@@ -470,8 +481,6 @@ Storage::Publish(ThreadAssistant& assistant)
         }
 
         gOFS.ObjectManager.CloseMuxTransaction();
-        // Report the consistency stats only once every 5 min
-        next_consistency_stats = last_consistency_stats + sConsistencyTimeout;
       }
     }
 
