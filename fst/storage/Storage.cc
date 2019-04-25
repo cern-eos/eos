@@ -1029,10 +1029,10 @@ Storage::IsNodeActive() const
 // Parameter i is the index into mFsVect.
 //----------------------------------------------------------------------------
 void
-Storage::CheckFilesystemFullness(size_t index,
+Storage::CheckFilesystemFullness(FileSystem *fs,
                                  eos::common::FileSystem::fsid_t fsid)
 {
-  long long freebytes = mFsVect[index]->GetLongLong("stat.statfs.freebytes");
+  long long freebytes = fs->GetLongLong("stat.statfs.freebytes");
   XrdSysMutexHelper lock(mFsFullMapMutex);
   // stop the writers if it get's critical under 5 GB space
   int full_gb = 5;
@@ -1048,7 +1048,7 @@ Storage::CheckFilesystemFullness(size_t index,
   }
 
   if ((freebytes < 1024ll * 1024ll * 1024ll) ||
-      (freebytes <= mFsVect[index]->GetLongLong("headroom"))) {
+      (freebytes <= fs->GetLongLong("headroom"))) {
     mFsFullWarnMap[fsid] = true;
   } else {
     mFsFullWarnMap[fsid] = false;

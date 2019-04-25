@@ -216,6 +216,11 @@ private:
     const std::string &tmpfile, unsigned long long netspeed);
 
   //----------------------------------------------------------------------------
+  //! Publish statistics about the given filesystem
+  //----------------------------------------------------------------------------
+  bool publishFsStatistics(FileSystem *fs, bool publishInconsistencyStats);
+
+  //----------------------------------------------------------------------------
   //! Worker threads implementation
   //----------------------------------------------------------------------------
   void Supervisor();
@@ -396,7 +401,7 @@ private:
   //!
   //! Parameter i is the index into mFsVect.
   //----------------------------------------------------------------------------
-  void CheckFilesystemFullness(size_t index,
+  void CheckFilesystemFullness(FileSystem *fs,
     eos::common::FileSystem::fsid_t fsid);
 
 
