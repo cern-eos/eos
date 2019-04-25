@@ -231,7 +231,12 @@ metad::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
 
     if (md) {
       md->Locker().Lock();
-      md->set_fullpath(pmd->fullpath() + name);
+      std::string fullpath = pmd->fullpath();
+      if (fullpath.back() != '/') {
+	fullpath += "/";
+      }
+      fullpath += name;
+      md->set_fullpath(fullpath.c_str());
       md->Locker().UnLock();
       pmd->Locker().Lock();
     } else {

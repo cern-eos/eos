@@ -4607,6 +4607,10 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
         } else {
           auto map = md->attr();
 
+	  if (key.substr(0, 8) == "eos.sys.") {
+	    key.erase(0,4);
+	  }
+
           if (key.substr(0, 4) == "eos.") {
             if (key == "eos.md_ino") {
               std::string md_ino;
@@ -4628,6 +4632,13 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
             if (key == "eos.stats") {
               value = Instance().statsout.get();
             }
+
+	    if (key == "eos.url.xroot") {
+	      value = "root://";
+	      value += Instance().Config().hostport;
+	      value += "/";
+	      value += md->fullpath().c_str();
+	    }
 
             if (key == "eos.quota") {
               pcap = Instance().caps.acquire(req, ino,
@@ -4911,22 +4922,25 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
         static std::string s_apple = "com.apple";
         static std::string s_racl = "system.richacl";
 
-        // ignore silently any security attribute
-        if (key.substr(0, s_sec.length()) == s_sec) {
-          rc = 0;
-        } else
-
-          // ignore silently any posix acl attribute
-          if (key == s_acl) {
-          rc = 0;
-        }
+	if (key.substr(0,4) == "eos.") {
+	  // eos attributes are read-only
+	  rc = EROFS;
+	}  else 
+	  // ignore silently any security attribute
+	  if (key.substr(0, s_sec.length()) == s_sec) {
+	    rc = 0;
+	  } else 
+	    // ignore silently any posix acl attribute
+	    if (key == s_acl) {
+	      rc = 0;
+	    } 
+	
 #ifdef __APPLE__
-        else
-
-          // ignore silently any finder attribute
-          if (key.substr(0, s_apple.length()) == s_apple) {
-          rc = 0;
-        }
+	    else
+	      // ignore silently any finder attribute
+	      if (key.substr(0, s_apple.length()) == s_apple) {
+		rc = 0;
+	      }
 #endif
 #ifdef RICHACL_FOUND
         else if (key == s_racl) {
@@ -5038,17 +5052,45 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
       rc = md->deleted() ? ENOENT : md->err();
     } else {
       auto map = md->attr();
-      size_t attrlistsize = 0;
       attrlist = "";
 
       for (auto it = map.begin(); it != map.end(); ++it) {
         attrlistsize += it->first.length() + 1;
-        attrlist += it->first;
+
+	if (it->first.substr(0,4) == "sys.") {
+	  attrlist += "eos.";
+	  attrlistsize += strlen("eos.");
+	}
+
+	attrlist += it->first;
         attrlist += '\0';
       }
 
+      {
+	// add 'eos.btime'
+	attrlist += "eos.btime";
+	attrlist += '\0';
+	attrlistsize += strlen("eos.btime") + 1;
+	// add "eos.url.xroot";
+	attrlist += "eos.url.xroot";
+	attrlist += '\0';
+	attrlistsize += strlen("eos.url.xroot") + 1;
+      }
+
+      {
+	// for files add 'eos.checksum'
+	if (S_ISREG(md->mode())) {
+	  attrlist += "eos.checksum";
+	  attrlist += '\0';
+	  attrlistsize += strlen("eos.checksum") + 1;
+	  attrlist += "eos.md_ino";
+	  attrlist += '\0';
+	  attrlistsize += strlen("eos.md_ino") + 1;
+	}
+      }
+
       if (size != 0) {
-        if (attrlist.size() > size) {
+        if (attrlistsize > size) {
           rc = ERANGE;
         }
       }
