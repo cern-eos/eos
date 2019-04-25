@@ -120,6 +120,10 @@ Or by running the EOS instance testsuite
 
    docker exec -i eos-mgm-test eos-instance-test
 
+
+Delete and clean
+-------------------
+
 You can use the  `shutdown_services <https://gitlab.cern.ch/eos/eos-docker/blob/master/scripts/shutdown_services.sh>`_ script to remove these EOS containers from your system.
 
 .. code-block:: bash
@@ -157,5 +161,3 @@ Selfmade images
 
 In case you would like to create a different setup, you are welcome to browse and reuse the provided scripts under
 the `image_scripts <https://gitlab.cern.ch/eos/eos-docker/tree/master/image_scripts>`_ directory to get an idea on how to do it.
-
-

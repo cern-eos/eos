@@ -12,6 +12,9 @@ Scientific Services Installation: EOS, CERNBox, SWAN and CVMFS
    :scale: 35 %
    :align: left
 
+|
+|
+
 We have bundled a demonstration setup of four CERN developed cloud and analysis platform services called `Boxed <http://sciencebox.web.cern.ch/sciencebox/>`_. It encapsulates four components:
 
 - `EOS <http://eos.cern.ch>`_ - scalable storage platform with data, metadata and messaging server components
@@ -24,5 +27,5 @@ We have bundled a demonstration setup of four CERN developed cloud and analysis 
    :align: center
 
 
-Follow the guidelines and checkout the project of your interest at http://sciencebox.web.cern.ch/sciencebox
+Checkout the project of your interest and follow the guidelines at http://sciencebox.web.cern.ch/sciencebox
 

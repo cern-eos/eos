@@ -12,8 +12,6 @@ EOS Kubernetes Installation
    :scale: 50 %
    :align: center   
 
-A docker installation is the easiest way to go if you want to try EOS and get up a test instance in short time. 
-We provide EOS docker images with all the necessary components installed and ready to use.
 
 A Kubernetes installation provides a fully functional distributed EOS instances on top of Kubernetes clusters,
 keeping the advantages of a straightforward set up and a short deployment time.
@@ -25,11 +23,11 @@ Preparation
 
 .. note::
 
-   Make sure you have kubectl_ installed and access rights to a Kubernetes cluster on your system.
+   Make sure you have `kubectl <https://kubernetes.io/docs/reference/kubectl/overview/>`_ installed and access rights to a Kubernetes cluster on your system.
    To start playing around by using a virtual cluster in your local machine, you can use `Minikube <https://kubernetes.io/docs/tasks/tools/install-minikube>`_.
 
 
-Run EOS in Kubernetes (K8s)
+Run EOS in Kubernetes
 -----------------
 
 Checkout the eos-on-k8s project:
@@ -49,29 +47,31 @@ We refer the courious reader to the `official documentation <https://kubernetes.
 
 Wait for the resources creation and EOS setup, and you are ready to go. You can check the cluster state in any moment, i.e. with:  
 
-.. parsed-literal::
+.. code-block:: bash
 
    kubectl get nodes # get the cluster node list 
    kubectl get all # get all the Kubernetes resources residing on the "default" namespace.  
    kubectl get all -n <your_namespace>
 
 
-**Note**  
-From now on we will use the namespace "tutorial".  
+.. note::
+
+   From now on we will use the namespace "tutorial".  
 
 
 To connect to EOS using the eos shell CLI running in the MGM container you can do:  
 
-.. parsed-literal::
+.. code-block:: bash
 
    kubectl exec -n tutorial -it <mgm_pod_name> -- eos  
 
 It is a bit verbose though very easy getting the name of a Pod of your interest, through the use of easy-to-remeber labels:
 
 .. code-block:: bash
+
    kubectl get pods -n tutorial --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm
 
-All together:  
+So, all together:  
 
 .. code-block:: bash
    kubectl exec -n tutorial -it $(kubectl get pods -n tutorial --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos
@@ -134,7 +134,7 @@ You can mount EOS to the client Pods using FUSE and KRB5 authentication:
    drwxr-xr-x. 18 root root 4096 Mar 14 10:16 ..
    drwxrwxr-x.  1 root root    0 Jan  1  1970 dockertest
 
-Or you can run the EOS instance testsuite:
+Or by running the EOS instance testsuite:
 
 .. code-block:: bash
 
@@ -144,7 +144,7 @@ Or you can run the EOS instance testsuite:
 Delete and clean
 -------------------
 
-You can use the `delete-all.sh <https://gitlab.cern.ch/faluchet/eos-on-k8s/blob/master/delete-all.sh>`_ script to remove the EOS instance from your system.
+Use the `delete-all.sh <https://gitlab.cern.ch/faluchet/eos-on-k8s/blob/master/delete-all.sh>`_ script to remove the EOS instance from your system.
 
 .. code-block:: bash
 
@@ -159,7 +159,7 @@ The release images are tagged with the release version. Regular images are tagge
 
 Docker images are accessible from the project's `registry <https://gitlab.cern.ch/dss/eos/container_registry>`_.
 
-.. parsed-literal::
+.. code-block:: bash
 
    docker pull gitlab-registry.cern.ch/dss/eos:<tag>
 
@@ -171,7 +171,7 @@ Example for a build
 
 Example for the latest release
 
-.. code-block:: bash
+.. parsed-literal::
 
    docker pull gitlab-registry.cern.ch/dss/eos:|version| 
 
@@ -184,5 +184,3 @@ Selfmade images
 
 In case you would like to create a different setup, you are welcome to browse and reuse the provided scripts under
 the `image_scripts <https://gitlab.cern.ch/eos/eos-docker/tree/master/image_scripts>`_ folder of the eos-docker project to get an idea on how to do it.
-
-
