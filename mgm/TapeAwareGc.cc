@@ -234,17 +234,17 @@ TapeAwareGc::toUint64(const std::string &str) noexcept
 // Return number of free bytes in the specified space
 //------------------------------------------------------------------------------
 uint64_t
-TapeAwareGc::getSpaceNbFreeBytes(const std::string &name)
+TapeAwareGc::getSpaceNbFreeBytes(const std::string &spaceName)
 {
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-  const auto spaceItor = FsView::gFsView.mSpaceView.find(name);
+  const auto spaceItor = FsView::gFsView.mSpaceView.find(spaceName);
 
   if(FsView::gFsView.mSpaceView.end() == spaceItor) {
-    throw SpaceNotFound(std::string("Cannot find space ") + name);
+    throw SpaceNotFound(std::string("Cannot find space ") + spaceName);
   }
 
   if(nullptr == spaceItor->second) {
-    throw SpaceNotFound(std::string("Cannot find space ") + name);
+    throw SpaceNotFound(std::string("Cannot find space ") + spaceName);
   }
 
   return spaceItor->second->SumLongLong("stat.statfs.freebytes", false);

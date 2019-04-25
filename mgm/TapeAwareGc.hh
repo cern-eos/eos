@@ -220,10 +220,10 @@ private:
   //----------------------------------------------------------------------------
   //! @return Number of free bytes in the specified space
   //!
-  //! @param name The name of the space
+  //! @param spaceName The name of the space
   //! @throw SpaceNotFound If the specified space annot be found
   //----------------------------------------------------------------------------
-  static uint64_t getSpaceNbFreeBytes(const std::string &name);
+  static uint64_t getSpaceNbFreeBytes(const std::string &spaceName);
 
   //----------------------------------------------------------------------------
   //! Try to garbage collect a single file if necessary and possible
