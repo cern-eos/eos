@@ -1290,7 +1290,7 @@ XrdFstOfsFile::close()
                 // The entry server commits size and checksum
                 capOpaqueFile += "&mgm.commit.size=1&mgm.commit.checksum=1";
               } else {
-                capOpaqueFile += "&mgm.replication=1";
+                capOpaqueFile += "&mgm.replication=1&mgm.verify.checksum=1";
               }
             }
 
@@ -2338,16 +2338,16 @@ XrdFstOfsFile::DoTpcTransfer()
   do {
     // Read the remote file in chunks and check after each chunk if the TPC
     // has been aborted already
-
     if (getenv("EOS_FST_TPC_READASYNC")) {
       // @note this way of reading asynchronously in the buffer without waiting
       // for the async requests works properly only if readahead is enabled.
       // Otherwise, one must call fileWaitAsyncIO().
       rbytes = tpcIO.fileReadAsync(offset, &((*buffer)[0]),
-				   tpcIO.GetBlockSize(), true, 30);
+                                   tpcIO.GetBlockSize(), true, 30);
     } else {
       rbytes = tpcIO.fileRead(offset, &((*buffer)[0]), tpcIO.GetBlockSize());
     }
+
     eos_debug("msg=\"tpc read\" rbytes=%lli request=%llu",
               rbytes, tpcIO.GetBlockSize());
 

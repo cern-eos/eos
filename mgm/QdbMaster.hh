@@ -137,7 +137,7 @@ public:
   size_t GetServiceDelay() override
   {
     // @todo (esindril): this needs to be properly implemented
-    return 60;
+    return 0;
   }
 
   //----------------------------------------------------------------------------
