@@ -1760,8 +1760,6 @@ EosFuse::init(void* userdata, struct fuse_conn_info* conn)
 
   conn->want |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS |
           FUSE_CAP_BIG_WRITES;
-  conn->capable |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS |
-          FUSE_CAP_BIG_WRITES;
 }
 
 void
