@@ -1,0 +1,60 @@
+//------------------------------------------------------------------------------
+//! @file IdTrackerWithValidityTests.cc
+//! @author Elvin-Alin Sindrilaru <esindril at cern dot ch>
+//------------------------------------------------------------------------------
+
+/************************************************************************
+ * EOS - the CERN Disk Storage System                                   *
+ * Copyright (C) 2019 CERN/Switzerland                                  *
+ *                                                                      *
+ * This program is free software: you can redistribute it and/or modify *
+ * it under the terms of the GNU General Public License as published by *
+ * the Free Software Foundation, either version 3 of the License, or    *
+ * (at your option) any later version.                                  *
+ *                                                                      *
+ * This program is distributed in the hope that it will be useful,      *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+ * GNU General Public License for more details.                         *
+ *                                                                      *
+ * You should have received a copy of the GNU General Public License    *
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+ ************************************************************************/
+
+#include "gtest/gtest.h"
+#include "mgm/IdTrackerWithValidity.hh"
+
+//------------------------------------------------------------------------------
+// Test tracker basic functionality
+//------------------------------------------------------------------------------
+TEST(IdTrackerWithValidity, BasicFunctionality)
+{
+  using namespace eos::mgm;
+  IdTrackerWithValidity<uint64_t> tracker(std::chrono::seconds(10),
+                                          std::chrono::seconds(60), true);
+  auto& clock = tracker.GetClock();
+
+  for (uint64_t i = 11; i < 100; i += 10) {
+    tracker.AddEntry(i);
+    clock.advance(std::chrono::seconds(5));
+  }
+
+  for (uint64_t i = 11; i < 100; i += 10) {
+    ASSERT_TRUE(tracker.HasEntry(i));
+  }
+
+  for (uint64_t i = 12; i < 100; i += 10) {
+    ASSERT_FALSE(tracker.HasEntry(i));
+  }
+
+  clock.advance(std::chrono::seconds(16)); // Should expire the first entry
+  tracker.DoCleanup();
+  ASSERT_FALSE(tracker.HasEntry(11));
+  ASSERT_TRUE(tracker.HasEntry(21));
+  clock.advance(std::chrono::seconds(100)); // Should expire all entries
+  tracker.DoCleanup();
+
+  for (uint64_t i = 11; i < 100; i += 10) {
+    ASSERT_FALSE(tracker.HasEntry(i));
+  }
+}
