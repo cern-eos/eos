@@ -110,6 +110,7 @@
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/drain/Drainer.hh"
 #include "mgm/TapeAwareGc.hh"
+#include "mgm/IdTrackerWithValidity.hh"
 #include "mgm/auth/AccessChecker.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/INamespaceGroup.hh"
@@ -167,6 +168,7 @@ class Fsck;
 class IMaster;
 class Messaging;
 class PathRouting;
+class CommitHelper;
 }
 }
 
@@ -202,11 +204,12 @@ std::string namespaceStateToString(NamespaceState st);
 //------------------------------------------------------------------------------
 class XrdMgmOfs : public XrdSfsFileSystem, public eos::common::LogId
 {
+public:
+
   friend class XrdMgmOfsFile;
   friend class XrdMgmOfsDirectory;
-  friend class ProcCommand;
-
-public:
+  friend class eos::mgm::ProcCommand;
+  friend class eos::mgm::CommitHelper;
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -1387,10 +1390,6 @@ public:
   //! Map with scheduled fids for draining
   std::map<eos::common::FileId::fileid_t, time_t> ScheduledToDrainFid;
   XrdSysMutex ScheduledToDrainFidMutex; ///< mutex protecting ScheduledToDrainFid
-  //! Map with scheduled fids for balancing
-  std::map<eos::common::FileId::fileid_t, time_t> ScheduledToBalanceFid;
-  //! Mutex protecting ScheduledToBalanceFid
-  XrdSysMutex ScheduledToBalanceFidMutex;
   char* HostName; ///< our hostname as derived in XrdOfs
   char* HostPref; ///< our hostname as derived in XrdOfs without domain
 
@@ -1399,7 +1398,8 @@ public:
   //----------------------------------------------------------------------------
   // Namespace specific variables
   //----------------------------------------------------------------------------
-  std::atomic<NamespaceState> mNamespaceState; ///< Initialization state of the namespace
+  std::atomic<NamespaceState>
+  mNamespaceState; ///< Initialization state of the namespace
   std::atomic<time_t> mFileInitTime; ///< Time for the file initialization
   std::atomic<time_t> mTotalInitTime; ///< Time for entire initialization
   std::atomic<time_t> mStartTime; ///< Timestamp when daemon started
@@ -1632,6 +1632,8 @@ public:
   eos::mgm::InFlightTracker mTracker;
 
 private:
+  //! Tracker for balanced fids
+  eos::mgm::IdTrackerWithValidity<eos::IFileMD::id_t> mBalancingTracker;
   ///< uuid to directory obj. mapping
   std::map<std::string, XrdMgmOfsDirectory*> mMapDirs;
   std::map<std::string, XrdMgmOfsFile*> mMapFiles; ///< uuid to file obj. mapping

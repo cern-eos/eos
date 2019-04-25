@@ -372,8 +372,7 @@ ProcCommand::Space()
     }
 
     if (option == "schedulebalance") {
-      XrdSysMutexHelper Lock(gOFS->ScheduledToBalanceFidMutex);
-      gOFS->ScheduledToBalanceFid.clear();
+      gOFS->mBalancingTracker.Clear();
       stdOut = "info: reset balance scheduling map in space '";
       stdOut += spacename.c_str();
       stdOut += "'";

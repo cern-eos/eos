@@ -109,23 +109,28 @@ XrdVERSIONINFO(XrdSfsGetFileSystem, MgmOfs);
 //------------------------------------------------------------------------------
 // Convert NamespaceState to string
 //------------------------------------------------------------------------------
-std::string namespaceStateToString(NamespaceState st) {
-  switch(st) {
-    case NamespaceState::kDown: {
-      return "down";
-    }
-    case NamespaceState::kBooting: {
-      return "booting";
-    }
-    case NamespaceState::kBooted: {
-      return "booted";
-    }
-    case NamespaceState::kFailed: {
-      return "failed";
-    }
-    case NamespaceState::kCompacting: {
-      return "compacting";
-    }
+std::string namespaceStateToString(NamespaceState st)
+{
+  switch (st) {
+  case NamespaceState::kDown: {
+    return "down";
+  }
+
+  case NamespaceState::kBooting: {
+    return "booting";
+  }
+
+  case NamespaceState::kBooted: {
+    return "booted";
+  }
+
+  case NamespaceState::kFailed: {
+    return "failed";
+  }
+
+  case NamespaceState::kCompacting: {
+    return "compacting";
+  }
   }
 
   return "(invalid)";
@@ -209,6 +214,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
   mFusexPort(1100),
   mTapeAwareGcDefaultSpaceEnable(false),
+  mBalancingTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
   mJeMallocHandler(new eos::common::JeMallocHandler()),
   mDoneOrderlyShutdown(false)
 {
@@ -1037,7 +1043,8 @@ XrdMgmOfs::FuseXCastRefresh(eos::ContainerIdentifier id,
 bool
 XrdMgmOfs::IsNsBooted() const
 {
-  return ((mNamespaceState == NamespaceState::kBooted) || (mNamespaceState == NamespaceState::kCompacting));
+  return ((mNamespaceState == NamespaceState::kBooted) ||
+          (mNamespaceState == NamespaceState::kCompacting));
 }
 
 std::string
