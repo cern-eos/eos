@@ -122,8 +122,8 @@ DrainFs::DoIt()
           new DrainTransferJob(it_fid->getElement(), mFsId, mTargetFsId)};
 
         if (gOFS->mDrainingTracker.HasEntry(it_fid->getElement())) {
-          job->ReportError("msg=\"skipped already scheduled drain in the last "
-                           "hour");
+          job->ReportError(SSTR("msg=\"skip already scheduled drain in the last "
+                                "hour\" fid=" << std::hex << it_fid->getElement()));
           eos::common::RWMutexWriteLock wr_lock(mJobsMutex);
           mJobsFailed.insert(job);
         } else {

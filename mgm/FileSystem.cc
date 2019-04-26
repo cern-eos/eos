@@ -92,6 +92,7 @@ bool
 FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t new_status)
 {
   using eos::mgm::FsView;
+  using eos::common::DrainStatus;
   eos::common::FileSystem::fsstatus_t old_status = GetConfigStatus();
 
   if (gOFS->mIsCentralDrain) {
@@ -109,6 +110,13 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t new_status)
       } else {
         if (!gOFS->mDrainEngine.StopFsDrain(this, out_msg)) {
           eos_static_debug("%s", out_msg.c_str());
+          // // Drain already stopped make sure we also update the drain status
+          // // if this was a finished drain ie. has status drained or failed
+          // DrainStatus st = GetDrainStatus();
+          // if ((st == DrainStatus::kDrained) ||
+          //     (st == DrainStatus::kDrainFailed)) {
+          //   SetDrainStatus(eos::common::DrainStatus::kNoDrain);
+          // }
         }
       }
     }
