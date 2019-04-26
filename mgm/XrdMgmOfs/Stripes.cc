@@ -776,24 +776,18 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
     target_cap += hex_fid.c_str();
     fullcapability += source_cap;
     fullcapability += target_cap;
-    eos::common::TransferJob* txjob = new eos::common::TransferJob(
-      fullcapability.c_str());
 
-    if (!txjob) {
-      eos_err("Couldn't create transfer job to replicate stripe of %s", path);
-      errno = ENOMEM;
+    std::unique_ptr<eos::common::TransferJob> txjob(
+      new eos::common::TransferJob(fullcapability.c_str()));
+
+    bool sub = targetfilesystem->GetExternQueue()->Add(txjob.get());
+    eos_info("info=\"submitted transfer job\" subretc=%d fid=%s cap=%s\n",
+             sub, hex_fid.c_str(), fullcapability.c_str());
+
+    if (!sub) {
+      errno = ENXIO;
     } else {
-      bool sub = targetfilesystem->GetExternQueue()->Add(txjob);
-      eos_info("info=\"submitted transfer job\" subretc=%d fid=%s cap=%s\n",
-               sub, hex_fid.c_str(), fullcapability.c_str());
-
-      if (!sub) {
-        errno = ENXIO;
-      } else {
-        errno = 0;
-      }
-
-      delete txjob;
+      errno = 0;
     }
   }
 

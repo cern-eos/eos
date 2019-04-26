@@ -565,7 +565,7 @@ TransferEngine::Scheduler(ThreadAssistant& assistant) noexcept
 
               // Do one full loop over the nodes and take the first one which
               // does not exceed the queue limit of 20 transfers
-              eos::common::TransferJob* txjob = 0;
+              std::unique_ptr<eos::common::TransferJob> txjob;
 
               for (size_t n = 0; n < FsView::gFsView.mGwNodes.size(); n++) {
                 if (FsView::gFsView.mNodeView.count(*it)) {
@@ -575,13 +575,10 @@ TransferEngine::Scheduler(ThreadAssistant& assistant) noexcept
                   if ((FsView::gFsView.mNodeView[*it]->mGwQueue->Size() < 20) &&
                       ((time(NULL) - FsView::gFsView.mNodeView[*it]->GetHeartBeat()) < 10) &&
                       (status == "online")) {
-                    if (txjob) {
-                      delete txjob;
-                    }
 
-                    txjob = new eos::common::TransferJob(transferjob.c_str());
+                    txjob.reset(new eos::common::TransferJob(transferjob.c_str()));
 
-                    if (txjob && FsView::gFsView.mNodeView[*it]->mGwQueue->Add(txjob)) {
+                    if (FsView::gFsView.mNodeView[*it]->mGwQueue->Add(txjob.get())) {
                       eos_static_info("msg=submitted id=%lld node=%s\n", id, it->c_str());
                       SetState(id, kScheduled);
                       std::string exechost = it->c_str();
@@ -600,7 +597,6 @@ TransferEngine::Scheduler(ThreadAssistant& assistant) noexcept
               }
 
               if (txjob) {
-                delete txjob;
                 continue;
               } else {
                 pacifier *= (1.2);
