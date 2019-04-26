@@ -269,7 +269,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     if (gOFS.openedForWriting.isOpen(mFsId, mFileId)) {
       eos_err("forbid to open replica - file %s is opened in RW mode",
               mNsPath.c_str());
-      return gOFS.Emsg(epname, error, ENOENT, "open - cannot replicate: file "
+      return gOFS.Emsg(epname, error, ETXTBSY, "open - cannot replicate: file "
                        "is opened in RW mode", mNsPath.c_str());
     }
 
