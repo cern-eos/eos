@@ -148,6 +148,14 @@ DrainTransferJob::DoIt()
         if (mProgressHandler.ShouldCancel(0)) {
           break;
         }
+
+        // If file is being written then remove it from the drain tracker so
+        // that it's retried one more time at the end
+        if (tpc_st.errNo == EINPROGRESS) {
+          eos_info("msg=\"skip file open in progress\" logid=%s", log_id.c_str());
+          gOFS->mDrainingTracker.RemoveEntry(mFileId);
+          break;
+        }
       } else {
         gOFS->MgmStats.Add("DrainCentralSuccessful", 0, 0, 1);
         eos_info("msg=\"drain successful\" logid=%s fid=%s",
