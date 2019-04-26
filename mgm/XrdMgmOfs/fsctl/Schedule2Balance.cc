@@ -184,6 +184,128 @@ int issueFullCapability(XrdOucString source_cap, XrdOucString target_cap,
 }
 }
 
+//------------------------------------------------------------------------------
+// Get source file system for balancing jobs given the target fs
+//------------------------------------------------------------------------------
+int
+XrdMgmOfs::BalanceGetFsSrc(eos::common::FileSystem::fsid_t tgt_fsid,
+                           eos::common::FileSystem::fs_snapshot& tgt_snapshot,
+                           eos::common::FileSystem::fs_snapshot& src_snapshot,
+                           XrdOucErrInfo& error)
+{
+  // Static map with iterator position for the next group scheduling
+  static XrdSysMutex s_grp_cycle_mutex;
+  static std::map<std::string, size_t> s_grp_cycle;
+  static const char* epname = "Schedule2Balance";
+  // ------> FS read lock
+  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+  auto it_fs = FsView::gFsView.mIdView.find(tgt_fsid);
+
+  if ((it_fs == FsView::gFsView.mIdView.end()) ||
+      (it_fs->second == nullptr)) {
+    eos_thread_err("msg=\"target filesystem not found in the view\" fsid=%u",
+                   tgt_fsid);
+    gOFS->MgmStats.Add("SchedulingFailedBalance", 0, 0, 1);
+    return Emsg(epname, error, EINVAL, "schedule - fsid not known [EINVAL]",
+                std::to_string(tgt_fsid).c_str());
+  }
+
+  eos::common::FileSystem* tgt_fs = it_fs->second;
+  tgt_fs->SnapShotFileSystem(tgt_snapshot);
+  auto it_grp = FsView::gFsView.mGroupView.find(tgt_snapshot.mGroup);
+
+  if ((it_grp == FsView::gFsView.mGroupView.end()) ||
+      (it_grp->second == nullptr)) {
+    eos_thread_err("msg=\"group not found in the view\" group=%s",
+                   tgt_snapshot.mGroup.c_str());
+    gOFS->MgmStats.Add("SchedulingFailedBalance", 0, 0, 1);
+    return Emsg(epname, error, EINVAL, "schedule - group not known [EINVAL]",
+                tgt_snapshot.mGroup.c_str());
+  }
+
+  FsGroup* group = it_grp->second;
+  size_t groupsize = group->size();
+  // Select the next fs in the group to get a file
+  size_t gposition = 0;
+  {
+    XrdSysMutexHelper lock(s_grp_cycle_mutex);
+
+    if (s_grp_cycle.count(tgt_snapshot.mGroup)) {
+      gposition = s_grp_cycle[tgt_snapshot.mGroup] % groupsize;
+    } else {
+      gposition = 0;
+      s_grp_cycle[tgt_snapshot.mGroup] = 0;
+    }
+
+    // Shift the iterator for the next schedule call to the following
+    // filesystem in the group
+    s_grp_cycle[tgt_snapshot.mGroup]++;
+    s_grp_cycle[tgt_snapshot.mGroup] %= groupsize;
+  }
+  eos_thread_debug("group=%s cycle=%lu", tgt_snapshot.mGroup.c_str(),
+                   gposition);
+  // Try to find a file which is smaller than the free bytes and has no
+  // replica on the target filesystem. We start at a random position not
+  // to move data of the same period to a single disk
+  FsGroup::const_iterator group_iterator = group->begin();
+  std::advance(group_iterator, gposition);
+  eos::common::FileSystem* src_fs = nullptr;
+
+  for (size_t n = 0; n < group->size(); ++n) {
+    // Skip over unusable file systems
+    if (*group_iterator == tgt_fsid) {
+      src_fs = nullptr;
+
+      if (++group_iterator == group->end()) {
+        group_iterator = group->begin();
+      }
+
+      continue;
+    }
+
+    src_fs = FsView::gFsView.mIdView[*group_iterator];
+
+    if (!src_fs) {
+      continue;
+    }
+
+    src_fs->SnapShotFileSystem(src_snapshot);
+
+    if ((src_snapshot.mDiskFilled < src_snapshot.mNominalFilled) ||
+        (src_snapshot.mStatus != eos::common::BootStatus::kBooted) ||
+        (src_snapshot.mConfigStatus < eos::common::FileSystem::kRO) ||
+        (src_snapshot.mErrCode != 0) ||
+        (src_fs->GetActiveStatus(src_snapshot) ==
+         eos::common::ActiveStatus::kOffline)) {
+      src_fs = nullptr;
+      // Whenever we jump a filesystem we advance also the cyclic group
+      // pointer for the next round
+      XrdSysMutexHelper lock(s_grp_cycle_mutex);
+      s_grp_cycle[tgt_snapshot.mGroup]++;
+      s_grp_cycle[tgt_snapshot.mGroup] %= groupsize;
+
+      if (++group_iterator == group->end()) {
+        group_iterator = group->begin();
+      }
+
+      continue;
+    }
+
+    // We found a suitable source file system to balance from
+    break;
+  }
+
+  if (src_fs == nullptr) {
+    eos_thread_debug("msg=\"no source available\"");
+    gOFS->MgmStats.Add("SchedulingFailedBalance", 0, 0, 1);
+    error.setErrInfo(0, "");
+    return SFS_DATA;
+  }
+
+  return SFS_OK;
+}
+
+
 //----------------------------------------------------------------------------
 // Schedule a balance transfer
 //----------------------------------------------------------------------------
@@ -192,7 +314,6 @@ XrdMgmOfs::Schedule2Balance(const char* path,
                             const char* ininfo,
                             XrdOucEnv& env,
                             XrdOucErrInfo& error,
-                            eos::common::LogId& ThreadLogId,
                             eos::common::VirtualIdentity& vid,
                             const XrdSecEntity* client)
 {
@@ -203,12 +324,7 @@ XrdMgmOfs::Schedule2Balance(const char* path,
   MAYREDIRECT;
   EXEC_TIMING_BEGIN("Scheduled2Balance");
   gOFS->MgmStats.Add("Schedule2Balance", 0, 0, 1);
-  // Static map with iterator position for the next group scheduling and its
-  // mutex
-  static std::map<std::string, size_t> sGroupCycle;
-  static XrdSysMutex sGroupCycleMutex;
   char* alogid = env.Get("mgm.logid");
-  char* simulate = env.Get("mgm.simulate"); // Used to test the routing
   char* afsid = env.Get("mgm.target.fsid");
   char* afreebytes = env.Get("mgm.target.freebytes");
 
@@ -224,270 +340,174 @@ XrdMgmOfs::Schedule2Balance(const char* path,
     return Emsg(epname, error, EINVAL, "schedule - missing parameters [EINVAL]");
   }
 
-  eos::common::FileSystem::fsid_t source_fsid = 0;
-  eos::common::FileSystem::fs_snapshot source_snapshot;
-  eos::common::FileSystem::fsid_t target_fsid = atoi(afsid);
-  eos::common::FileSystem::fs_snapshot target_snapshot;
+  eos::common::FileSystem::fs_snapshot tgt_snapshot;
+  eos::common::FileSystem::fs_snapshot src_snapshot;
+  eos::common::FileSystem::fsid_t tgt_fsid = atoi(afsid);
   unsigned long long freebytes = strtoull(afreebytes, 0, 10);
   eos_thread_info("cmd=schedule2balance fsid=%u freebytes=%llu logid=%s",
-                  target_fsid, freebytes, alogid ? alogid : "");
+                  tgt_fsid, freebytes, alogid ? alogid : "");
+  // Get filesystem information tarrget where we balance to
+  int retc = BalanceGetFsSrc(tgt_fsid, tgt_snapshot, src_snapshot, error);
 
-  // Lock view and get filesystem information tarrget where we balance to
-  while (true) {
-    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-    auto it_fs = FsView::gFsView.mIdView.find(target_fsid);
+  if (retc != SFS_OK) {
+    return retc;
+  }
 
-    if ((it_fs == FsView::gFsView.mIdView.end()) ||
-        (it_fs->second == nullptr)) {
-      eos_thread_err("msg=\"filesystem not found in the view\" fsid=%u",
-                     target_fsid);
-      gOFS->MgmStats.Add("SchedulingFailedBalance", 0, 0, 1);
-      return Emsg(epname, error, EINVAL, "schedule - fsid not known [EINVAL]",
-                  std::to_string(target_fsid).c_str());
-    }
+  eos::common::FileSystem::fsid_t src_fsid = src_snapshot.mId;
+  // ------> NS read lock
+  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+  uint64_t nfids = gOFS->eosFsView->getNumFilesOnFs(src_fsid);
+  eos_thread_debug("group=%s src_fsid=%u tgt_fsid=%u n_source_fids=%llu",
+                   src_snapshot.mGroup.c_str(), src_fsid, tgt_fsid, nfids);
 
-    eos::common::FileSystem* target_fs = it_fs->second;
-    target_fs->SnapShotFileSystem(target_snapshot);
-    auto it_grp = FsView::gFsView.mGroupView.find(target_snapshot.mGroup);
+  for (uint64_t attempts = 0; attempts < nfids; ++attempts) {
+    eos::IFileMD::id_t fid;
 
-    if ((it_grp == FsView::gFsView.mGroupView.end()) ||
-        (it_grp->second == nullptr)) {
-      eos_thread_err("msg=\"group not found in the view\" group=%s",
-                     target_snapshot.mGroup.c_str());
-      gOFS->MgmStats.Add("SchedulingFailedBalance", 0, 0, 1);
-      return Emsg(epname, error, EINVAL, "schedule - group not known [EINVAL]",
-                  target_snapshot.mGroup.c_str());
-    }
-
-    FsGroup* group = it_grp->second;
-    size_t groupsize = group->size();
-    // Select the next fs in the group to get a file
-    size_t gposition = 0;
-    {
-      XrdSysMutexHelper sLock(sGroupCycleMutex);
-
-      if (sGroupCycle.count(target_snapshot.mGroup)) {
-        gposition = sGroupCycle[target_snapshot.mGroup] % groupsize;
-      } else {
-        gposition = 0;
-        sGroupCycle[target_snapshot.mGroup] = 0;
-      }
-
-      // Shift the iterator for the next schedule call to the following
-      // filesystem in the group
-      sGroupCycle[target_snapshot.mGroup]++;
-      sGroupCycle[target_snapshot.mGroup] %= groupsize;
-    }
-    eos_thread_debug("group=%s cycle=%lu", target_snapshot.mGroup.c_str(),
-                     gposition);
-    // Try to find a file which is smaller than the free bytes and has no
-    // replica on the target filesystem. We start at a random position not
-    // to move data of the same period to a single disk
-    FsGroup::const_iterator group_iterator = group->begin();
-    std::advance(group_iterator, gposition);
-    eos::common::FileSystem* source_fs = nullptr;
-
-    for (size_t n = 0; n < group->size(); ++n) {
-      // Skip over unusable target file system
-      if (*group_iterator == target_fsid) {
-        source_fs = nullptr;
-
-        if (++group_iterator == group->end()) {
-          group_iterator = group->begin();
-        }
-
-        continue;
-      }
-
-      source_fs = FsView::gFsView.mIdView[*group_iterator];
-
-      if (!source_fs) {
-        continue;
-      }
-
-      source_fs->SnapShotFileSystem(source_snapshot);
-      source_fsid = *group_iterator;
-
-      if ((source_snapshot.mDiskFilled < source_snapshot.mNominalFilled) ||
-          // This is not a source since it is empty
-          (source_snapshot.mStatus != eos::common::BootStatus::kBooted) ||
-          // This filesystem is not readable
-          (source_snapshot.mConfigStatus < eos::common::FileSystem::kRO) ||
-          (source_snapshot.mErrCode != 0) ||
-          (source_fs->GetActiveStatus(source_snapshot) ==
-           eos::common::ActiveStatus::kOffline)) {
-        source_fs = nullptr;
-        // Whenever we jump a filesystem we advance also the cyclic group
-        // pointer for the next round
-        XrdSysMutexHelper sLock(sGroupCycleMutex);
-        sGroupCycle[target_snapshot.mGroup]++;
-        sGroupCycle[target_snapshot.mGroup] %= groupsize;
-
-        if (++group_iterator == group->end()) {
-          group_iterator = group->begin();
-        }
-
-        continue;
-      }
-
-      // We found a suitable source file system
+    if (!gOFS->eosFsView->getApproximatelyRandomFileInFs(src_fsid, fid)) {
       break;
     }
 
-    if (source_fs == nullptr) {
-      eos_thread_debug("msg=\"no source available\"");
-      gOFS->MgmStats.Add("SchedulingFailedBalance", 0, 0, 1);
-      error.setErrInfo(0, "");
-      return SFS_DATA;
+    if (!gOFS->eosView->inMemory()) {
+      ns_rd_lock.Release();
+      eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
+      ns_rd_lock.Grab(gOFS->eosViewRWMutex);
     }
 
-    source_fs->SnapShotFileSystem(source_snapshot);
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-    uint64_t nfids = gOFS->eosFsView->getNumFilesOnFs(source_fsid);
-    eos_thread_debug("group=%s cycle=%lu source_fsid=%u target_fsid=%u "
-                     "n_source_fids=%llu", target_snapshot.mGroup.c_str(),
-                     gposition, source_fsid, target_fsid, nfids);
+    // Check that the target does not have this file
+    if (gOFS->eosFsView->hasFileId(fid, tgt_fsid)) {
+      eos_static_debug("msg=\"skip file existing on target fs\" fid=%08llx "
+                       "tgt_fsid=%u", fid, tgt_fsid);
+      continue;
+    }
 
-    for (uint64_t attempts = 0; attempts < nfids; ++attempts) {
-      eos::IFileMD::id_t fid;
+    // Update tracker for scheduled fid balance jobs
+    mBalancingTracker.DoCleanup();
 
-      if (!gOFS->eosFsView->getApproximatelyRandomFileInFs(source_fsid, fid)) {
-        break;
+    if (mBalancingTracker.HasEntry(fid)) {
+      eos_thread_debug("msg=\"skip recently scheduled file\" fid=%08llx", fid);
+      continue;
+    }
+
+    // Grab file metadata object
+    std::shared_ptr<eos::IFileMD> fmd;
+    unsigned long long cid = 0;
+    unsigned long long size = 0;
+    long unsigned int lid = 0;
+    uid_t uid = 0;
+    gid_t gid = 0;
+    std::string fullpath = "";
+
+    try {
+      fmd = gOFS->eosFileService->getFileMD(fid);
+      fullpath = gOFS->eosView->getUri(fmd.get());
+      XrdOucString savepath = fullpath.c_str();
+
+      while (savepath.replace("&", "#AND#")) {}
+
+      fullpath = savepath.c_str();
+      lid = fmd->getLayoutId();
+      cid = fmd->getContainerId();
+      size = fmd->getSize();
+      uid = fmd->getCUid();
+      gid = fmd->getCGid();
+    } catch (eos::MDException& e) {
+      fmd.reset();
+    }
+
+    if (!fmd) {
+      eos_thread_debug("msg=\"skip no fmd record found\"fid=%08llx", fid);
+      continue;
+    }
+
+    if (size == 0) {
+      eos_thread_debug("msg=\"skip zero size file\" fid=%08llx", fid);
+      continue;
+    }
+
+    if (size >= freebytes) {
+      eos_thread_warning("msg=\"skip file bigger than free bytes\" fid=%08llx "
+                         "fsize=%llu free_bytes=%llu", fid, size, freebytes);
+      continue;
+    }
+
+    // We can release the NS lock since we will definetely return from this
+    // function and we have all the necessary info at the local scope
+    ns_rd_lock.Release();
+    // Schedule file transfer
+    eos_thread_info("subcmd=scheduling fid=%08llx src_fsid=%u tgt_fsid=%u",
+                    fid, src_fsid, tgt_fsid);
+    using eos::common::LayoutId;
+    unsigned long tgt_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
+
+    // Mask block checksums (set to kNone) for replica layouts
+    if (LayoutId::GetLayoutType(lid) == LayoutId::kReplica) {
+      tgt_lid = LayoutId::SetBlockChecksum(tgt_lid, LayoutId::kNone);
+    }
+
+    // Construct capability strings
+    XrdOucString source_capability =
+      constructSourceCapability(tgt_lid, cid, fullpath.c_str(), fid,
+                                src_fsid, src_snapshot.mPath.c_str(),
+                                src_snapshot.mId,
+                                src_snapshot.mHostPort.c_str());
+    XrdOucString tgt_capability =
+      constructTargetCapability(tgt_lid, cid, fullpath.c_str(), fid,
+                                src_fsid, tgt_snapshot.mPath.c_str(),
+                                tgt_snapshot.mId,
+                                tgt_snapshot.mHostPort.c_str(),
+                                size, lid, uid, gid);
+    // Issue full capability string
+    XrdOucErrInfo capError;
+    XrdOucString full_capability;
+    int rc = issueFullCapability(source_capability, tgt_capability,
+                                 mCapabilityValidity,
+                                 src_snapshot.mHostPort.c_str(),
+                                 tgt_snapshot.mHostPort.c_str(),
+                                 fid, full_capability, capError);
+
+    if (rc) {
+      std::ostringstream errstream;
+      errstream << "create " << capError.getErrText()
+                << " capability [EADV]";
+      eos_thread_err("unable to create %s capability - ec=%d",
+                     capError.getErrText(), capError.getErrInfo());
+      gOFS->MgmStats.Add("SchedulingFailedBalance", 0, 0, 1);
+      return Emsg(epname, error, rc, errstream.str().c_str());
+    }
+
+    bool scheduled = false;
+    std::unique_ptr<eos::common::TransferJob>
+    txjob(new eos::common::TransferJob(full_capability.c_str()));
+    {
+      // ----> FS read lock
+      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+      auto it_fs = FsView::gFsView.mIdView.find(tgt_fsid);
+
+      if (it_fs != FsView::gFsView.mIdView.end()) {
+        if (it_fs->second->GetBalanceQueue()->Add(txjob.get())) {
+          eos_thread_info("cmd=schedule2balance fid=%08llx source_fs=%u "
+                          "target_fs=%u", fid, src_fsid, tgt_fsid);
+          eos_thread_debug("job=%s", full_capability.c_str());
+          scheduled = true;
+        }
       }
+    }
 
-      if (!gOFS->eosView->inMemory()) {
-        ns_rd_lock.Release();
-        eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
-        ns_rd_lock.Grab(gOFS->eosViewRWMutex);
-      }
-
-      // Check that the target does not have this file
-      if (gOFS->eosFsView->hasFileId(fid, target_fsid)) {
-        // Iterate to the next file, we have this file already
-        eos_static_debug("msg=\"skip fid=%08llx, existing on target fsid=%u\"",
-                         fid, target_fsid);
-        continue;
-      }
-
-      // Update tracker for scheduled fid balance jobs
-      mBalancingTracker.DoCleanup();
-
-      if (mBalancingTracker.HasEntry(fid)) {
-        eos_thread_debug("msg=\"skip fid=%08llx scheduled during last hour\"",
-                         fid);
-        continue;
-      }
-
-      // Grab file metadata object
-      std::shared_ptr<eos::IFileMD> fmd;
-      unsigned long long cid = 0;
-      unsigned long long size = 0;
-      long unsigned int lid = 0;
-      uid_t uid = 0;
-      gid_t gid = 0;
-      std::string fullpath = "";
-
-      try {
-        fmd = gOFS->eosFileService->getFileMD(fid);
-        fullpath = gOFS->eosView->getUri(fmd.get());
-        XrdOucString savepath = fullpath.c_str();
-
-        while (savepath.replace("&", "#AND#")) {}
-
-        fullpath = savepath.c_str();
-        lid = fmd->getLayoutId();
-        cid = fmd->getContainerId();
-        size = fmd->getSize();
-        uid = fmd->getCUid();
-        gid = fmd->getCGid();
-      } catch (eos::MDException& e) {
-        fmd.reset();
-      }
-
-      if (!fmd) {
-        eos_thread_debug("skip fid=%08llx - cannot get fmd record", fid);
-        continue;
-      }
-
-      if (size == 0) {
-        eos_thread_debug("skip fid=%08llx - zero sized file", fid);
-        continue;
-      }
-
-      if (size >= freebytes) {
-        eos_thread_warning("skip fid=%08llx - file size >= free bytes "
-                           "fsize=%llu free_bytes=%llu", fid, size, freebytes);
-        continue;
-      }
-
-      // Schedule file transfer
-      eos_thread_info("subcmd=scheduling fid=%08llx source_fsid=%u target_fsid=%u",
-                      fid, source_fsid, target_fsid);
-      using eos::common::LayoutId;
-      unsigned long target_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
-
-      // Mask block checksums (set to kNone) for replica layouts
-      if (LayoutId::GetLayoutType(lid) == LayoutId::kReplica) {
-        target_lid = LayoutId::SetBlockChecksum(target_lid, LayoutId::kNone);
-      }
-
-      // Construct capability strings
-      XrdOucString source_capability =
-        constructSourceCapability(target_lid, cid, fullpath.c_str(), fid,
-                                  source_fsid, source_snapshot.mPath.c_str(),
-                                  source_snapshot.mId,
-                                  source_snapshot.mHostPort.c_str());
-      XrdOucString target_capability =
-        constructTargetCapability(target_lid, cid, fullpath.c_str(), fid,
-                                  source_fsid, target_snapshot.mPath.c_str(),
-                                  target_snapshot.mId,
-                                  target_snapshot.mHostPort.c_str(),
-                                  size, lid, uid, gid);
-      // Issue full capability string
-      XrdOucErrInfo capError;
-      XrdOucString full_capability;
-      int rc = issueFullCapability(source_capability, target_capability,
-                                   mCapabilityValidity,
-                                   source_snapshot.mHostPort.c_str(),
-                                   target_snapshot.mHostPort.c_str(),
-                                   fid, full_capability, capError);
-
-      if (rc) {
-        std::ostringstream errstream;
-        errstream << "create " << capError.getErrText()
-                  << " capability [EADV]";
-        eos_thread_err("unable to create %s capability - ec=%d",
-                       capError.getErrText(), capError.getErrInfo());
-        gOFS->MgmStats.Add("SchedulingFailedBalance", 0, 0, 1);
-        return Emsg(epname, error, rc, errstream.str().c_str());
-      }
-
+    if (scheduled) {
       // Track new scheduled job
       mBalancingTracker.AddEntry(fid);
       XrdOucString response = "submitted";
       error.setErrInfo(response.length() + 1, response.c_str());
-
-      if (!simulate) {
-        std::unique_ptr<eos::common::TransferJob>
-        txjob(new eos::common::TransferJob(full_capability.c_str()));
-
-        if (target_fs->GetBalanceQueue()->Add(txjob.get())) {
-          eos_thread_info("cmd=schedule2balance fid=%08llx source_fs=%u "
-                          "target_fs=%u", fid, source_fsid, target_fsid);
-          eos_thread_debug("job=%s", full_capability.c_str());
-        } else {
-          eos_thread_err("cmd=schedule2balance msg=\"failed to submit job\""
-                         " job=%s", full_capability.c_str());
-          error.setErrInfo(0, "");
-        }
-      }
-
       gOFS->MgmStats.Add("Scheduled2Balance", 0, 0, 1);
-      EXEC_TIMING_END("Scheduled2Balance");
-      return SFS_DATA;
+    } else {
+      eos_thread_err("cmd=schedule2balance msg=\"failed to submit job\""
+                     " job=%s", full_capability.c_str());
+      error.setErrInfo(0, "");
+      gOFS->MgmStats.Add("SchedulingFailedBalance", 0, 0, 1);
     }
 
-    break;
+    EXEC_TIMING_END("Scheduled2Balance");
+    return SFS_DATA;
   }
 
   gOFS->MgmStats.Add("SchedulingFailedBalance", 0, 0, 1);

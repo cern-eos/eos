@@ -212,6 +212,7 @@ public:
   friend class eos::mgm::CommitHelper;
   friend class eos::mgm::Drainer;
   friend class eos::mgm::DrainFs;
+  friend class eos::mgm::DrainTransferJob;
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -1648,6 +1649,7 @@ private:
   //! Manage heap profiling
   std::unique_ptr<eos::common::JeMallocHandler> mJeMallocHandler;
   std::atomic<bool> mDoneOrderlyShutdown; ///< Mark for orderly shutdown
+  static thread_local eos::common::LogId ThreadLogId;
 
   //----------------------------------------------------------------------------
   //! Check that the auth ProtocolBuffer request has not been tampered with
@@ -1923,13 +1925,31 @@ private:
               const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
+  //! Get source file system for balancing jobs given the target fs
+  //!
+  //! @param tgt_fsid target file system id requesting a file to balance
+  //! @param tgt_snapshot target file system snapshot
+  //! @param src_snapshot source file system snapshot
+  //! @param error error object
+  //!
+  //! @return SFS_OK if a suitable source file system is found and the
+  //!         src_snapshot is properly populated, SFS_DATA if data (already
+  //!         put in the error object) needs to be returned to the client,
+  //!         otherwise SFS_ERROR
+  //----------------------------------------------------------------------------
+  int BalanceGetFsSrc(eos::common::FileSystem::fsid_t tgt_fsid,
+                      eos::common::FileSystem::fs_snapshot& tgt_snapshot,
+                      eos::common::FileSystem::fs_snapshot& src_snapshot,
+                      XrdOucErrInfo& error);
+
+
+  //----------------------------------------------------------------------------
   //! Schedule a balance transfer
   //----------------------------------------------------------------------------
   int Schedule2Balance(const char* path,
                        const char* ininfo,
                        XrdOucEnv& env,
                        XrdOucErrInfo& error,
-                       eos::common::LogId& ThreadLogId,
                        eos::common::VirtualIdentity& vid,
                        const XrdSecEntity* client);
 

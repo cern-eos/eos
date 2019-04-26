@@ -97,9 +97,10 @@
 #define S_IAMB  0x1FF
 #endif
 
-/*----------------------------------------------------------------------------*/
-XrdSysError gMgmOfsEroute(0);
+// Initialize static variables
 XrdSysError* XrdMgmOfs::eDest;
+thread_local eos::common::LogId XrdMgmOfs::ThreadLogId;
+XrdSysError gMgmOfsEroute(0);
 XrdOucTrace gMgmOfsTrace(&gMgmOfsEroute);
 XrdMgmOfs* gOFS = 0;
 
