@@ -210,6 +210,8 @@ public:
   friend class XrdMgmOfsDirectory;
   friend class eos::mgm::ProcCommand;
   friend class eos::mgm::CommitHelper;
+  friend class eos::mgm::Drainer;
+  friend class eos::mgm::DrainFs;
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -1387,9 +1389,6 @@ public:
   ProtoWFResource; ///< endpoint of SSI service to communicate with in case of proto workflows (typically CTA frontend)
   //! Process state after namespace load time
   eos::common::LinuxStat::linux_stat_t LinuxStatsStartup;
-  //! Map with scheduled fids for draining
-  std::map<eos::common::FileId::fileid_t, time_t> ScheduledToDrainFid;
-  XrdSysMutex ScheduledToDrainFidMutex; ///< mutex protecting ScheduledToDrainFid
   char* HostName; ///< our hostname as derived in XrdOfs
   char* HostPref; ///< our hostname as derived in XrdOfs without domain
 
@@ -1634,6 +1633,8 @@ public:
 private:
   //! Tracker for balanced fids
   eos::mgm::IdTrackerWithValidity<eos::IFileMD::id_t> mBalancingTracker;
+  //! Tracker for drained fids
+  eos::mgm::IdTrackerWithValidity<eos::IFileMD::id_t> mDrainingTracker;
   ///< uuid to directory obj. mapping
   std::map<std::string, XrdMgmOfsDirectory*> mMapDirs;
   std::map<std::string, XrdMgmOfsFile*> mMapFiles; ///< uuid to file obj. mapping

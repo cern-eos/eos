@@ -298,20 +298,12 @@ CommitHelper::check_commit_params(CommitHelper::cgi_t& cgi)
 }
 
 //------------------------------------------------------------------------------
-// remove committed files from scheduling maps
+// Remove fid from the trakced maps
 //------------------------------------------------------------------------------
-
 void
 CommitHelper::remove_scheduler(unsigned long long fid)
 {
-  // we remote this file NOW from the scheduling maps
-  {
-    XrdSysMutexHelper sLock(gOFS->ScheduledToDrainFidMutex);
-
-    if (gOFS->ScheduledToDrainFid.count(fid)) {
-      gOFS->ScheduledToDrainFid.erase(fid);
-    }
-  }
+  gOFS->mDrainingTracker.RemoveEntry(fid);
   gOFS->mBalancingTracker.RemoveEntry(fid);
 }
 

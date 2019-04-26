@@ -120,11 +120,19 @@ DrainFs::DoIt()
       if (NumRunningJobs() <= mMaxJobs) {
         std::shared_ptr<DrainTransferJob> job {
           new DrainTransferJob(it_fid->getElement(), mFsId, mTargetFsId)};
-        {
+
+        if (gOFS->mDrainingTracker.HasEntry(it_fid->getElement())) {
+          job->ReportError("msg=\"skipped already scheduled drain in the last "
+                           "hour");
+          eos::common::RWMutexWriteLock wr_lock(mJobsMutex);
+          mJobsFailed.insert(job);
+        } else {
+          gOFS->mDrainingTracker.AddEntry(it_fid->getElement());
+          mThreadPool.PushTask<void>([job] {return job->DoIt();});
           eos::common::RWMutexWriteLock wr_lock(mJobsMutex);
           mJobsRunning.push_back(job);
         }
-        mThreadPool.PushTask<void>([job] {return job->DoIt();});
+
         // Advance to the next file id to be drained
         it_fid->next();
         --mPending;

@@ -262,7 +262,6 @@ XrdMgmOfs::Schedule2Drain(const char* path,
          std::pair<eos::common::FileSystem::fsid_t,
          eos::common::FileSystem::fsid_t>> sZeroMove;
   static XrdSysMutex sZeroMoveMutex;
-  static time_t sScheduledFidCleanupTime = 0;
 
   // Don't do anything if distributed drain is not enabled
   if (gOFS->mIsCentralDrain) {
@@ -449,7 +448,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
   }
 
   // Lock namespace view here to avoid deadlock with the Commit.cc code on
-  // the ScheduledToDrainFidMutex
+  // the id tracker mutex
   eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
   unsigned long long nfids = gOFS->eosFsView->getNumFilesOnFs(source_fsid);
   eos_thread_debug("group=%s cycle=%lu source_fsid=%u target_fsid=%u "
@@ -469,39 +468,16 @@ XrdMgmOfs::Schedule2Drain(const char* path,
       continue;
     }
 
-    // Update scheduled files mapping
-    time_t now = time(NULL);
-    XrdSysMutexHelper sLock(ScheduledToDrainFidMutex);
+    // Update tracker for scheduled fid drain jobs
+    gOFS->mDrainingTracker.DoCleanup();
 
-    if (sScheduledFidCleanupTime < now) {
-      // Next clean-up in 10 minutes
-      sScheduledFidCleanupTime = now + 600;
-      std::map<eos::common::FileId::fileid_t, time_t>::iterator it1;
-      std::map<eos::common::FileId::fileid_t, time_t>::iterator it2;
-      it2 = ScheduledToDrainFid.begin();
-
-      while (it2 != ScheduledToDrainFid.end()) {
-        it1 = it2;
-        it2++;
-
-        if (it1->second < now) {
-          ScheduledToDrainFid.erase(it1);
-        }
-      }
-    }
-
-    // Check that this file has not been scheduled during the 1h period
-    if (ScheduledToDrainFid.count(fid)
-        && (ScheduledToDrainFid[fid] > (now))) {
-      // File has been scheduled in the last hour. Move to the next
-      eos_thread_debug("skip fid=%08llx - scheduled during last hour at %lu",
-                       fid, ScheduledToDrainFid[fid]);
+    if (gOFS->mDrainingTracker.HasEntry(fid)) {
+      eos_thread_debug("msg=\"skip draining file scheduled during last hour\" "
+                       "fid=%08llx", fid);
       continue;
     }
 
-    //-----------------------------------------------------------------------
     // Grab file metadata object
-    //-----------------------------------------------------------------------
     std::shared_ptr<eos::IFileMD> fmd;
     eos::IFileMD::LocationVector locations;
     unsigned long long cid = 0;
@@ -615,7 +591,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
           // We schedule to retry the file after 60 seconds
           eos_thread_err("cmd=schedule2drain msg=\"%s\" fid=%08llx retc=%d",
                          accError.getErrText(), fid, rc);
-          ScheduledToDrainFid[fid] = time(NULL) + 60;
+          gOFS->mDrainingTracker.AddEntry(fid, std::chrono::seconds(60));
           continue;
         }
       }
@@ -688,7 +664,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
       eos_thread_info("cmd=schedule2drain msg=queued fid=%08llx source_fs=%u "
                       "target_fs=%u", fid, source_fsid, target_fsid);
       eos_thread_debug("cmd=schedule2drain job=%s", full_capability.c_str());
-      ScheduledToDrainFid[fid] = time(NULL) + 3600;
+      gOFS->mDrainingTracker.AddEntry(fid);
       XrdOucString response = "submitted";
       error.setErrInfo(response.length() + 1, response.c_str());
     } else {

@@ -215,6 +215,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mFusexPort(1100),
   mTapeAwareGcDefaultSpaceEnable(false),
   mBalancingTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
+  mDrainingTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
   mJeMallocHandler(new eos::common::JeMallocHandler()),
   mDoneOrderlyShutdown(false)
 {

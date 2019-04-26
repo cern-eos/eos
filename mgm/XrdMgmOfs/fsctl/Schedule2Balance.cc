@@ -369,7 +369,7 @@ XrdMgmOfs::Schedule2Balance(const char* path,
         continue;
       }
 
-      // Update tracke for scheduled fid balance jobs
+      // Update tracker for scheduled fid balance jobs
       mBalancingTracker.DoCleanup();
 
       if (mBalancingTracker.HasEntry(fid)) {

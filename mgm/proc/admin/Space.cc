@@ -364,8 +364,7 @@ ProcCommand::Space()
     }
 
     if (option == "scheduledrain") {
-      XrdSysMutexHelper Lock(gOFS->ScheduledToDrainFidMutex);
-      gOFS->ScheduledToDrainFid.clear();
+      gOFS->mDrainingTracker.Clear();
       stdOut = "info: reset drain scheduling map in space '";
       stdOut += spacename.c_str();
       stdOut += "'";
