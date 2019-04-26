@@ -193,6 +193,8 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
     broadcastresponsequeue += bccount;
     XrdOucString broadcasttargetqueue = gOFS->MgmDefaultReceiverQueue;
     XrdOucString msgbody;
+    // mgm.fsck.tags no longer necessary for newer versions, but keeping for
+    // compatibility
     msgbody = "mgm.cmd=fsck&mgm.fsck.tags=*";
     XrdOucString stdOut = "";
     XrdOucString stdErr = "";

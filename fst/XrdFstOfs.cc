@@ -1138,70 +1138,57 @@ XrdFstOfs::SendRtLog(XrdMqMessage* message)
 void
 XrdFstOfs::SendFsck(XrdMqMessage* message)
 {
-  XrdOucEnv opaque(message->GetBody());
   XrdOucString stdOut = "";
-  // The tag is either '*' for all or a, seperated list of tag names
-  XrdOucString tag = opaque.Get("mgm.fsck.tags");
 
-  if ((!tag.length())) {
-    eos_err("parameter tag missing");
-  } else {
-    stdOut = "";
-    // loop over filesystems
-    eos::common::RWMutexReadLock fsLock(gOFS.Storage->mFsMutex);
-    std::vector <eos::fst::FileSystem*>::const_iterator it;
+  // loop over filesystems
+  eos::common::RWMutexReadLock fsLock(gOFS.Storage->mFsMutex);
 
-    for (unsigned int i = 0; i < gOFS.Storage->mFsVect.size(); i++) {
-      XrdSysMutexHelper ISLock(
-        gOFS.Storage->mFsVect[i]->InconsistencyStatsMutex);
-      std::map<std::string, std::set<eos::common::FileId::fileid_t> >* icset =
-        gOFS.Storage->mFsVect[i]->GetInconsistencySets();
+  for (unsigned int i = 0; i < gOFS.Storage->mFsVect.size(); i++) {
+    XrdSysMutexHelper ISLock(
+      gOFS.Storage->mFsVect[i]->InconsistencyStatsMutex);
+    std::map<std::string, std::set<eos::common::FileId::fileid_t> >* icset =
+      gOFS.Storage->mFsVect[i]->GetInconsistencySets();
 
-      for (auto icit = icset->begin(); icit != icset->end(); icit++) {
-        // loop over all tags
-        if(tag == "*" || tag.find(icit->first.c_str()) != STR_NPOS) {
-          char stag[4096];
-          eos::common::FileSystem::fsid_t fsid =
-            gOFS.Storage->mFsVect[i]->GetId();
-          snprintf(stag, sizeof(stag) - 1, "%s@%lu", icit->first.c_str(),
-                   (unsigned long) fsid);
-          stdOut += stag;
+    for (auto icit = icset->begin(); icit != icset->end(); icit++) {
+      char stag[4096];
+      eos::common::FileSystem::fsid_t fsid =
+        gOFS.Storage->mFsVect[i]->GetId();
+      snprintf(stag, sizeof(stag) - 1, "%s@%lu", icit->first.c_str(),
+              (unsigned long) fsid);
+      stdOut += stag;
 
-          if (gOFS.Storage->mFsVect[i]->GetStatus() !=
-              eos::common::BootStatus::kBooted) {
-            // we don't report filesystems which are not booted!
-            continue;
-          }
+      if (gOFS.Storage->mFsVect[i]->GetStatus() != eos::common::BootStatus::kBooted) {
+        // we don't report filesystems which are not booted!
+        continue;
+      }
 
-          for (auto fit = icit->second.begin(); fit != icit->second.end(); fit++) {
-            // Don't report files which are currently write-open
-            if (gOFS.openedForWriting.isOpen(fsid, *fit)) {
-              continue;
-            }
+      for (auto fit = icit->second.begin(); fit != icit->second.end(); fit++) {
+        // Don't report files which are currently write-open
+        if (gOFS.openedForWriting.isOpen(fsid, *fit)) {
+          continue;
+        }
 
-            // loop over all fids
-            char sfid[4096];
-            snprintf(sfid, sizeof(sfid) - 1, ":%08llx", *fit);
-            stdOut += sfid;
+        // loop over all fids
+        char sfid[4096];
+        snprintf(sfid, sizeof(sfid) - 1, ":%08llx", *fit);
+        stdOut += sfid;
 
-            if (stdOut.length() > (64 * 1024)) {
-              stdOut += "\n";
-              XrdMqMessage repmessage("fsck reply message");
-              repmessage.SetBody(stdOut.c_str());
-              repmessage.MarkAsMonitor();
-
-              if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
-                eos_err("unable to send fsck reply message to %s",
-                        message->kMessageHeader.kSenderId.c_str());
-              }
-
-              stdOut = stag;
-            }
-          }
-
+        if (stdOut.length() > (64 * 1024)) {
           stdOut += "\n";
+          XrdMqMessage repmessage("fsck reply message");
+          repmessage.SetBody(stdOut.c_str());
+          repmessage.MarkAsMonitor();
+
+          if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
+            eos_err("unable to send fsck reply message to %s",
+                    message->kMessageHeader.kSenderId.c_str());
+          }
+
+          stdOut = stag;
         }
       }
+
+      stdOut += "\n";
     }
   }
 
