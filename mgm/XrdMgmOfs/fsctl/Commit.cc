@@ -41,7 +41,6 @@ XrdMgmOfs::Commit(const char* path,
                   const char* ininfo,
                   XrdOucEnv& env,
                   XrdOucErrInfo& error,
-                  eos::common::LogId& ThreadLogId,
                   eos::common::VirtualIdentity& vid,
                   const XrdSecEntity* client)
 {
@@ -101,8 +100,8 @@ XrdMgmOfs::Commit(const char* path,
     unsigned long mtimens = std::stoul(cgi["mtimensec"]);
     std::string emsg;
     CommitHelper::log_info(vid, ThreadLogId, cgi, option, params);
-    int rc = CommitHelper::check_filesystem(vid, ThreadLogId, fsid, cgi,
-                                            option, params, emsg);
+    int rc = CommitHelper::check_filesystem(vid, fsid, cgi, option,
+                                            params, emsg);
 
     if (rc) {
       return Emsg(epname, error, rc, emsg.c_str(), "");
@@ -186,15 +185,15 @@ XrdMgmOfs::Commit(const char* path,
           eos_thread_debug("fmd_size=%llu, size=%lli", fmd->getSize(), size);
 
           // Validate size parameters
-          if (!CommitHelper::validate_size(vid, ThreadLogId, fmd, fsid, size, option)) {
+          if (!CommitHelper::validate_size(vid, fmd, fsid, size, option)) {
             return Emsg(epname, error, EBADE,
                         "commit replica - file size is wrong [EBADE]", "");
           }
 
           // Validate checksum parameters
           if (option["verifychecksum"] &&
-              !CommitHelper::validate_checksum(vid, ThreadLogId, fmd,
-                                               checksumbuffer, fsid, option)) {
+              !CommitHelper::validate_checksum(vid, fmd, checksumbuffer,
+                                               fsid, option)) {
             return Emsg(epname, error, EBADR,
                         "commit replica - file checksum is wrong [EBADR]", "");
           }
@@ -210,20 +209,20 @@ XrdMgmOfs::Commit(const char* path,
       }
 
       if (option["verifychecksum"]) {
-        CommitHelper::log_verifychecksum(vid, ThreadLogId, fmd, checksumbuffer,
-                                         fsid, cgi, option);
+        CommitHelper::log_verifychecksum(vid, fmd, checksumbuffer, fsid,
+                                         cgi, option);
       }
 
-      if (!CommitHelper::handle_location(vid, ThreadLogId, cid, fmd, fsid, size,
+      if (!CommitHelper::handle_location(vid, cid, fmd, fsid, size,
                                          cgi, option)) {
         return Emsg(epname, error, EIDRM,
                     "commit file, parent container removed [EIDRM]", "");
       }
 
       // Advance oc upload parameters if concerned
-      CommitHelper::handle_occhunk(vid, ThreadLogId, fmd, option, params);
+      CommitHelper::handle_occhunk(vid, fmd, option, params);
       // Set checksum if concerned
-      CommitHelper::handle_checksum(vid, ThreadLogId, fmd, option, checksumbuffer);
+      CommitHelper::handle_checksum(vid, fmd, option, checksumbuffer);
       fmdname = fmd->getName();
       paths["atomic"].Init(fmdname.c_str());
       paths["atomic"].DecodeAtomicPath(option["versioning"]);
@@ -244,7 +243,7 @@ XrdMgmOfs::Commit(const char* path,
 
       eos_thread_debug("commit: setting size to %llu", fmd->getSize());
 
-      if (!CommitHelper::commit_fmd(vid, ThreadLogId, cid, fmd, option, emsg)) {
+      if (!CommitHelper::commit_fmd(vid, cid, fmd, option, emsg)) {
         return Emsg(epname, error, errno, "commit filesize change", emsg.c_str());
       }
 
@@ -268,7 +267,7 @@ XrdMgmOfs::Commit(const char* path,
         eos_thread_info("commit: de-atomize file %s => %s",
                         fmdname.c_str(), paths["atomic"].GetName());
         unsigned long long vfid =
-          CommitHelper::get_version_fid(vid, ThreadLogId, fid, paths, option);
+          CommitHelper::get_version_fid(vid, fid, paths, option);
 
         // Check for versioning request
         if (option["versioning"]) {
@@ -286,7 +285,7 @@ XrdMgmOfs::Commit(const char* path,
           }
         }
 
-        CommitHelper::handle_versioning(vid, ThreadLogId, fid, paths,
+        CommitHelper::handle_versioning(vid, fid, paths,
                                         option, delete_path);
       }
 

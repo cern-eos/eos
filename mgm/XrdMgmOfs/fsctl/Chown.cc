@@ -36,16 +36,13 @@ XrdMgmOfs::Chown(const char* path,
                  const char* ininfo,
                  XrdOucEnv& env,
                  XrdOucErrInfo& error,
-                 eos::common::LogId& ThreadLogId,
                  eos::common::VirtualIdentity& vid,
                  const XrdSecEntity* client)
 {
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-
   gOFS->MgmStats.Add("Fuse-Chown", vid.uid, vid.gid, 1);
-
   char* suid = env.Get("uid");
   char* sgid = env.Get("gid");
   int retc = 0;

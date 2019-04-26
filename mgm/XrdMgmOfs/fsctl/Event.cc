@@ -43,24 +43,19 @@ XrdMgmOfs::Event(const char* path,
                  const char* ininfo,
                  XrdOucEnv& env,
                  XrdOucErrInfo& error,
-                 eos::common::LogId& ThreadLogId,
                  eos::common::VirtualIdentity& vid,
                  const XrdSecEntity* client)
 {
   static const char* epname = "Event";
-
   char* auid = env.Get("mgm.ruid");
   char* agid = env.Get("mgm.rgid");
   char* asec = env.Get("mgm.sec");
   char* alogid = env.Get("mgm.logid");
-
   char* spath = env.Get("mgm.path");
   char* afid = env.Get("mgm.fid");
   char* aevent = env.Get("mgm.event");
-
   char* aworkflow = env.Get("mgm.workflow");
   char* errmsg = env.Get("mgm.errmsg");
-
   eos::common::VirtualIdentity localVid = eos::common::VirtualIdentity::Nobody();
   int errc;
 
@@ -77,8 +72,7 @@ XrdMgmOfs::Event(const char* path,
 
   if (asec) {
     std::map<std::string, std::string> secmap =
-        eos::common::SecEntity::KeyToMap(std::string(asec));
-
+      eos::common::SecEntity::KeyToMap(std::string(asec));
     localVid.prot = secmap["prot"].c_str();
     localVid.name = secmap["name"].c_str();
     localVid.host = secmap["host"];
@@ -94,7 +88,6 @@ XrdMgmOfs::Event(const char* path,
                    vid.prot.c_str(), vid.uid, vid.gid);
   eos_thread_debug("local.prot=%s, local.uid=%u, local.gid=%u",
                    localVid.prot.c_str(), localVid.uid, localVid.gid);
-
   // Check that we have write permission on path
   bool isPrepare = (aevent != nullptr
                     && std::string(aevent).find("prepare") != std::string::npos);
@@ -102,34 +95,28 @@ XrdMgmOfs::Event(const char* path,
 
   if (vid.prot != "sss" && gOFS->_access(spath, mode, error, localVid, "")) {
     const char* emsg =
-        isPrepare ? "event - you don't have write and prepare permissions [EPERM]"
-                  : "event - you don't have write permission [EPERM]";
+      isPrepare ? "event - you don't have write and prepare permissions [EPERM]"
+      : "event - you don't have write permission [EPERM]";
     return Emsg(epname, error, EPERM, emsg, spath);
   }
 
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-
   EXEC_TIMING_BEGIN("Event");
-
   gOFS->MgmStats.Add("Event", 0, 0, 1);
 
-  if (spath && afid && aevent && aworkflow)
-  {
+  if (spath && afid && aevent && aworkflow) {
     eos_thread_info("subcmd=event event=%s path=%s fid=%s",
                     aevent, spath, afid);
-
     unsigned long long fid = strtoull(afid, 0, 16);
     std::string event = aevent;
-
     std::shared_ptr<eos::IFileMD> fmd;
     std::shared_ptr<eos::IContainerMD> cmd;
-
     Workflow workflow;
     eos::IContainerMD::XAttrMap attrmap;
-
     XrdOucString lWorkflow = aworkflow;
+
     if (lWorkflow.beginswith("eos.")) {
       // Template workflow defined under the workflow proc directory
       spath = (char*) gOFS->MgmProcWorkflowPath.c_str();
@@ -169,7 +156,7 @@ XrdMgmOfs::Event(const char* path,
             cmd.reset();
             errno = e.getErrno();
             eos_thread_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
-                              e.getErrno(), e.getMessage().str().c_str());
+                             e.getErrno(), e.getMessage().str().c_str());
           }
 
           attrmap.erase("sys.attr.link");
@@ -184,8 +171,9 @@ XrdMgmOfs::Event(const char* path,
     // Load the corresponding workflow
     std::string strpath = spath;
     workflow.Init(&attrmap, strpath, fid);
+    std::string decodedErrMessage =
+      "trigger workflow - synchronous workflow failed";
 
-    std::string decodedErrMessage = "trigger workflow - synchronous workflow failed";
     if (errmsg != nullptr) {
       if (!eos::common::SymKey::Base64Decode(errmsg, decodedErrMessage)) {
         decodedErrMessage = "";
@@ -193,7 +181,8 @@ XrdMgmOfs::Event(const char* path,
     }
 
     // Trigger the specified event
-    const int rc = workflow.Trigger(event, aworkflow, localVid, ininfo, decodedErrMessage);
+    const int rc = workflow.Trigger(event, aworkflow, localVid, ininfo,
+                                    decodedErrMessage);
 
     if (rc == -1) {
       int envlen = 0;
@@ -226,11 +215,9 @@ XrdMgmOfs::Event(const char* path,
         return Emsg(epname, error, rc, decodedErrMessage.c_str(), spath);
       }
     }
-  } else
-  {
+  } else {
     int envlen = 0;
     const char* env_string = env.Env(envlen);
-
     eos_thread_err("invalid parameters for event call: %s", env_string);
     return Emsg(epname, error, EINVAL,
                 "notify - invalid parameters for event call: %s [EINVAL]",

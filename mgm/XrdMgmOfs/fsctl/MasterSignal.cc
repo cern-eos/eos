@@ -38,16 +38,13 @@ XrdMgmOfs::MasterSignalBounce(const char* path,
                               const char* ininfo,
                               XrdOucEnv& env,
                               XrdOucErrInfo& error,
-                              eos::common::LogId& ThreadLogId,
                               eos::common::VirtualIdentity& vid,
                               const XrdSecEntity* client)
 {
   static const char* epname = "MasterSignalBounce";
-
   REQUIRE_SSS_OR_LOCAL_AUTH;
-
   eos::mgm::Master* master =
-      dynamic_cast<eos::mgm::Master*>(gOFS->mMaster.get());
+    dynamic_cast<eos::mgm::Master*>(gOFS->mMaster.get());
 
   if (master) {
     master->TagNamespaceInodes();
@@ -67,19 +64,15 @@ XrdMgmOfs::MasterSignalReload(const char* path,
                               const char* ininfo,
                               XrdOucEnv& env,
                               XrdOucErrInfo& error,
-                              eos::common::LogId& ThreadLogId,
                               eos::common::VirtualIdentity& vid,
                               const XrdSecEntity* client)
 {
   static const char* epname = "MasterSignalReload";
-
   REQUIRE_SSS_OR_LOCAL_AUTH;
-
   bool compact_files       = env.Get("compact_files") != nullptr;
   bool compact_directories = env.Get("compact_dirs")  != nullptr;
-
   eos::mgm::Master* master =
-      dynamic_cast<eos::mgm::Master*>(gOFS->mMaster.get());
+    dynamic_cast<eos::mgm::Master*>(gOFS->mMaster.get());
 
   if (master) {
     master->WaitNamespaceFilesInSync(compact_files, compact_directories);
@@ -99,7 +92,6 @@ XrdMgmOfs::IsMaster(const char* path,
                     const char* ininfo,
                     XrdOucEnv& env,
                     XrdOucErrInfo& error,
-                    eos::common::LogId& ThreadLogId,
                     eos::common::VirtualIdentity& vid,
                     const XrdSecEntity* client)
 {

@@ -33,28 +33,25 @@
 //----------------------------------------------------------------------------
 int
 XrdMgmOfs::GetFusex(const char* path,
-                   const char* ininfo,
-                   XrdOucEnv& env,
-                   XrdOucErrInfo& error,
-                   eos::common::LogId& ThreadLogId,
-                   eos::common::VirtualIdentity& vid,
-                   const XrdSecEntity* client)
+                    const char* ininfo,
+                    XrdOucEnv& env,
+                    XrdOucErrInfo& error,
+                    eos::common::VirtualIdentity& vid,
+                    const XrdSecEntity* client)
 {
   static const char* epname = "GetFusex";
   ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
-
   EXEC_TIMING_BEGIN("Eosxd::ext::0-QUERY");
-
   gOFS->MgmStats.Add("GetFusex", vid.uid, vid.gid, 1);
   gOFS->MgmStats.Add("Eosxd::ext::0-QUERY", vid.uid, vid.gid, 1);
-
   ProcCommand procCommand;
+  std::string spath = path;
 
-  std::string spath=path;
   if (spath != "/proc/user/") {
-    return Emsg(epname, error, EINVAL, "call GetFusex - no proc path given [EINVAL]", path);
+    return Emsg(epname, error, EINVAL,
+                "call GetFusex - no proc path given [EINVAL]", path);
   }
 
   if (procCommand.open("/proc/user/", ininfo, vid, &error)) {
@@ -63,6 +60,7 @@ XrdMgmOfs::GetFusex(const char* path,
     size_t len;
     const char* result = procCommand.GetResult(len);
     char* dup_result = (char*) malloc(len);
+
     if (result && dup_result) {
       memcpy(dup_result, result, len);
       XrdOucBuffer* buff = new XrdOucBuffer(dup_result, len);

@@ -36,16 +36,13 @@ XrdMgmOfs::Readlink(const char* path,
                     const char* ininfo,
                     XrdOucEnv& env,
                     XrdOucErrInfo& error,
-                    eos::common::LogId& ThreadLogId,
                     eos::common::VirtualIdentity& vid,
                     const XrdSecEntity* client)
 {
   ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
-
   gOFS->MgmStats.Add("Fuse-Readlink", vid.uid, vid.gid, 1);
-
   XrdOucString link = "";
   int retc = 0;
 

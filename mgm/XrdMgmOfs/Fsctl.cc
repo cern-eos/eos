@@ -243,8 +243,7 @@ XrdMgmOfs::FSctl(const int cmd,
   if (fusexset) {
     std::string protobuf;
     protobuf.assign(args.Arg2 + 6, args.Arg2Len - 6);
-    return XrdMgmOfs::Fusex(path, ininfo, protobuf, env, error, ThreadLogId,
-                            vid, client);
+    return XrdMgmOfs::Fusex(path, ininfo, protobuf, env, error, vid, client);
   }
 
   if (scmd) {
@@ -252,93 +251,75 @@ XrdMgmOfs::FSctl(const int cmd,
 
     switch (command) {
     case FsctlCommand::access: {
-      return XrdMgmOfs::Access(path, ininfo, env, error, ThreadLogId, vid,
-                               client);
+      return XrdMgmOfs::Access(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::adjustreplica: {
-      return XrdMgmOfs::AdjustReplica(path, ininfo, env, error, ThreadLogId, vid,
-                                      client);
+      return XrdMgmOfs::AdjustReplica(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::checksum: {
-      return XrdMgmOfs::Checksum(path, ininfo, env, error, ThreadLogId, vid,
-                                 client);
+      return XrdMgmOfs::Checksum(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::chmod: {
-      return XrdMgmOfs::Chmod(path, ininfo, env, error, ThreadLogId, vid,
-                              client);
+      return XrdMgmOfs::Chmod(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::chown: {
-      return XrdMgmOfs::Chown(path, ininfo, env, error, ThreadLogId, vid,
-                              client);
+      return XrdMgmOfs::Chown(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::commit: {
-      return XrdMgmOfs::Commit(path, ininfo, env, error, ThreadLogId, vid,
-                               client);
+      return XrdMgmOfs::Commit(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::drop: {
-      return XrdMgmOfs::Drop(path, ininfo, env, error, ThreadLogId, vid,
-                             client);
+      return XrdMgmOfs::Drop(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::event: {
-      return XrdMgmOfs::Event(path, ininfo, env, error, ThreadLogId, vid,
-                              client);
+      return XrdMgmOfs::Event(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::getfmd: {
-      return XrdMgmOfs::Getfmd(path, ininfo, env, error, ThreadLogId, vid,
-                               client);
+      return XrdMgmOfs::Getfmd(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::getfusex: {
-      return XrdMgmOfs::GetFusex(path, ininfo, env, error, ThreadLogId, vid,
-                                 client);
+      return XrdMgmOfs::GetFusex(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::is_master: {
-      return XrdMgmOfs::IsMaster(path, ininfo, env, error, ThreadLogId, vid,
-                                 client);
+      return XrdMgmOfs::IsMaster(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::mastersignalbounce: {
-      return XrdMgmOfs::MasterSignalBounce(path, ininfo, env, error, ThreadLogId,
-                                           vid, client);
+      return XrdMgmOfs::MasterSignalBounce(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::mastersignalreload: {
-      return XrdMgmOfs::MasterSignalReload(path, ininfo, env, error, ThreadLogId,
-                                           vid, client);
+      return XrdMgmOfs::MasterSignalReload(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::mkdir: {
-      return XrdMgmOfs::Mkdir(path, ininfo, env, error, ThreadLogId, vid,
-                              client);
+      return XrdMgmOfs::Mkdir(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::open: {
-      return XrdMgmOfs::Open(path, ininfo, env, error, ThreadLogId, vid,
-                             client);
+      return XrdMgmOfs::Open(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::readlink: {
-      return XrdMgmOfs::Readlink(path, ininfo, env, error, ThreadLogId, vid,
-                                 client);
+      return XrdMgmOfs::Readlink(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::redirect: {
-      return XrdMgmOfs::Redirect(path, ininfo, env, error, ThreadLogId, vid,
-                                 client);
+      return XrdMgmOfs::Redirect(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::rewrite: {
-      return XrdMgmOfs::Rewrite(path, ininfo, env, error, ThreadLogId, vid,
-                                client);
+      return XrdMgmOfs::Rewrite(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::schedule2balance: {
@@ -346,48 +327,39 @@ XrdMgmOfs::FSctl(const int cmd,
     }
 
     case FsctlCommand::schedule2delete: {
-      return XrdMgmOfs::Schedule2Delete(path, ininfo, env, error, ThreadLogId, vid,
-                                        client);
+      return XrdMgmOfs::Schedule2Delete(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::schedule2drain: {
-      return XrdMgmOfs::Schedule2Drain(path, ininfo, env, error, ThreadLogId, vid,
-                                       client);
+      return XrdMgmOfs::Schedule2Drain(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::stat: {
-      return XrdMgmOfs::FuseStat(path, ininfo, env, error, ThreadLogId, vid,
-                                 client);
+      return XrdMgmOfs::FuseStat(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::statvfs: {
-      return XrdMgmOfs::Statvfs(path, ininfo, env, error, ThreadLogId, vid,
-                                client);
+      return XrdMgmOfs::Statvfs(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::symlink: {
-      return XrdMgmOfs::Symlink(path, ininfo, env, error, ThreadLogId, vid,
-                                client);
+      return XrdMgmOfs::Symlink(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::txstate: {
-      return XrdMgmOfs::Txstate(path, ininfo, env, error, ThreadLogId, vid,
-                                client);
+      return XrdMgmOfs::Txstate(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::utimes: {
-      return XrdMgmOfs::Utimes(path, ininfo, env, error, ThreadLogId, vid,
-                               client);
+      return XrdMgmOfs::Utimes(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::version: {
-      return XrdMgmOfs::Version(path, ininfo, env, error, ThreadLogId, vid,
-                                client);
+      return XrdMgmOfs::Version(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::xattr: {
-      return XrdMgmOfs::Xattr(path, ininfo, env, error, ThreadLogId, vid,
-                              client);
+      return XrdMgmOfs::Xattr(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::INVALID: {

@@ -36,16 +36,13 @@ XrdMgmOfs::Chmod(const char* path,
                  const char* ininfo,
                  XrdOucEnv& env,
                  XrdOucErrInfo& error,
-                 eos::common::LogId& ThreadLogId,
                  eos::common::VirtualIdentity& vid,
                  const XrdSecEntity* client)
 {
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-
   gOFS->MgmStats.Add("Fuse-Chmod", vid.uid, vid.gid, 1);
-
   const char* smode = env.Get("mode");
   int retc = 0;
 

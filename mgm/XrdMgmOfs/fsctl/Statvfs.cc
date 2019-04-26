@@ -38,16 +38,13 @@ XrdMgmOfs::Statvfs(const char* path,
                    const char* ininfo,
                    XrdOucEnv& env,
                    XrdOucErrInfo& error,
-                   eos::common::LogId& ThreadLogId,
                    eos::common::VirtualIdentity& vid,
                    const XrdSecEntity* client)
 {
   ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
-
   gOFS->MgmStats.Add("Fuse-Statvfs", vid.uid, vid.gid, 1);
-
   XrdOucString space = env.Get("path");
 
   if (env.Get("eos.encodepath")) {
@@ -56,17 +53,14 @@ XrdMgmOfs::Statvfs(const char* path,
 
   static XrdSysMutex statvfsmutex;
   static time_t laststat = 0;
-
   static long long freebytes = 0;
   static long long freefiles = 0;
   static long long maxbytes = 0;
   static long long maxfiles = 0;
-
   long long l_freebytes = 0;
   long long l_freefiles = 0;
   long long l_maxbytes = 0;
   long long l_maxfiles = 0;
-
   int retc = 0;
 
   if (space.length()) {
@@ -87,16 +81,16 @@ XrdMgmOfs::Statvfs(const char* path,
         // Take the sums from all file systems in 'default' space
         if (FsView::gFsView.mSpaceView.count("default")) {
           eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-
           freebytes =
-              FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes", false);
+            FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes",
+                false);
           freefiles =
-              FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree", false);
-
+            FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree", false);
           maxbytes =
-              FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity",false);
+            FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity",
+                false);
           maxfiles =
-              FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.files", false);
+            FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.files", false);
         }
 
         laststat = now;
@@ -121,19 +115,15 @@ XrdMgmOfs::Statvfs(const char* path,
 
   if (!retc) {
     char val[1025];
-
     snprintf(val, 1024, "%lld", l_freebytes);
     response += " f_avail_bytes=";
     response += val;
-
     snprintf(val, 1024, "%lld", l_freefiles);
     response += " f_avail_files=";
     response += val;
-
     snprintf(val, 1024, "%lld", l_maxbytes);
     response += " f_max_bytes=";
     response += val;
-
     snprintf(val, 1024, "%lld", l_maxfiles);
     response += " f_max_files=";
     response += val;

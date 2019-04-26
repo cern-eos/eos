@@ -38,30 +38,23 @@ XrdMgmOfs::Txstate(const char* path,
                    const char* ininfo,
                    XrdOucEnv& env,
                    XrdOucErrInfo& error,
-                   eos::common::LogId& ThreadLogId,
                    eos::common::VirtualIdentity& vid,
                    const XrdSecEntity* client)
 {
   static const char* epname = "TxState";
-
   REQUIRE_SSS_OR_LOCAL_AUTH;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-
   EXEC_TIMING_BEGIN("TxState");
-
   int envlen;
   eos_thread_debug("Transfer state + log received for %s", env.Env(envlen));
-
   char* txid = env.Get("tx.id");
 
-  if (txid)
-  {
+  if (txid) {
     char* sstate = env.Get("tx.state");
     char* logb64 = env.Get("tx.log.b64");
     char* sprogress = env.Get("tx.progress");
-
     long long id = strtoll(txid, 0, 10);
 
     if (sprogress) {
@@ -103,8 +96,7 @@ XrdMgmOfs::Txstate(const char* path,
                         id, TransferEngine::GetTransferState(state));
       }
     }
-  } else
-  {
+  } else {
     eos_thread_err("Txstate message does not contain transfer id: %s",
                    env.Env(envlen));
     return Emsg(epname, error, EINVAL, "set transfer state [EINVAL]",

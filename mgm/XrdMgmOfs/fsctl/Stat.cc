@@ -33,26 +33,22 @@
 // Will redirect to the RW master.
 //----------------------------------------------------------------------------
 int
-XrdMgmOfs::FuseStat(const char *path,
-                    const char *ininfo,
-                    XrdOucEnv &env,
-                    XrdOucErrInfo &error,
-                    eos::common::LogId &ThreadLogId,
-                    eos::common::VirtualIdentity &vid,
-                    const XrdSecEntity *client)
+XrdMgmOfs::FuseStat(const char* path,
+                    const char* ininfo,
+                    XrdOucEnv& env,
+                    XrdOucErrInfo& error,
+                    eos::common::VirtualIdentity& vid,
+                    const XrdSecEntity* client)
 {
   ACCESSMODE_R_MASTER;
   MAYSTALL;
   MAYREDIRECT;
-
   gOFS->MgmStats.Add("Fuse-Stat", vid.uid, vid.gid, 1);
-
   struct stat buf;
   int retc = lstat(path, &buf, error, client, ininfo);
 
   if (retc == SFS_OK) {
     char* statinfo = static_cast<char*>(malloc(16384));
-
     sprintf(statinfo,
             "stat: %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu\n",
             (unsigned long long) buf.st_dev,
@@ -81,7 +77,6 @@ XrdMgmOfs::FuseStat(const char *path,
             (unsigned long long) buf.st_ctim.tv_nsec
 #endif
            );
-
     // Ownership of statinfo is taken by the xrd_buff object.
     // Error then takes ownership of the xrd_buff object
     XrdOucBuffer* xrd_buff = new XrdOucBuffer(statinfo, strlen(statinfo));

@@ -36,25 +36,20 @@ XrdMgmOfs::Version(const char* path,
                    const char* ininfo,
                    XrdOucEnv& env,
                    XrdOucErrInfo& error,
-                   eos::common::LogId& ThreadLogId,
                    eos::common::VirtualIdentity& vid,
                    const XrdSecEntity* client)
 {
   ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
-
   gOFS->MgmStats.Add("Version", 0, 0, 1);
-
   bool features = env.Get("mgm.version.features");
-
   XrdOucString response = "version: retc=";
   int retc = 0;
-
   XrdOucErrInfo errInfo;
   ProcCommand procCommand;
   const char* cmdInfo = features ? "mgm.cmd=version&mgm.option=f"
-                                 : "mgm.cmd=version";
+                        : "mgm.cmd=version";
 
   if (procCommand.open("/proc/user", cmdInfo, vid, &errInfo)) {
     retc = EINVAL;
@@ -69,7 +64,10 @@ XrdMgmOfs::Version(const char* path,
     while (int nread = procCommand.read(0, buff, 4095)) {
       buff[nread] = '\0';
       response += buff;
-      if (nread != 4095) { break; }
+
+      if (nread != 4095) {
+        break;
+      }
     }
   }
 

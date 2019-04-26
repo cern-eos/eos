@@ -40,26 +40,22 @@ XrdMgmOfs::Checksum(const char* path,
                     const char* ininfo,
                     XrdOucEnv& env,
                     XrdOucErrInfo& error,
-                    eos::common::LogId& ThreadLogId,
                     eos::common::VirtualIdentity& vid,
                     const XrdSecEntity* client)
 {
   ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
-
   gOFS->MgmStats.Add("Fuse-Checksum", vid.uid, vid.gid, 1);
-
   XrdOucString checksum = "";
   std::shared_ptr<eos::IFileMD> fmd;
   int retc = 0;
-
-  bool fuse_readable = env.Get("mgm.option")? (std::string(env.Get("mgm.option"))=="fuse")?true:false:false;
-
+  bool fuse_readable = env.Get("mgm.option") ? (std::string(
+                         env.Get("mgm.option")) == "fuse") ? true : false : false;
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-
   XrdOucString spath = path;
-  unsigned long byfid = eos::Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
+  unsigned long byfid = eos::Resolver::retrieveFileIdentifier(
+                          spath).getUnderlyingUInt64();
 
   try {
     if (byfid) {
@@ -67,6 +63,7 @@ XrdMgmOfs::Checksum(const char* path,
     } else {
       fmd = gOFS->eosView->getFile(path);
     }
+
     size_t xs_length = SHA_DIGEST_LENGTH;
 
     if (fuse_readable) {

@@ -37,12 +37,10 @@ XrdMgmOfs::Redirect(const char* path,
                     const char* ininfo,
                     XrdOucEnv& env,
                     XrdOucErrInfo& error,
-                    eos::common::LogId& ThreadLogId,
                     eos::common::VirtualIdentity& vid,
                     const XrdSecEntity* client)
 {
   gOFS->MgmStats.Add("OpenRedirect", vid.uid, vid.gid, 1);
-
   XrdMgmOfsFile* file = new XrdMgmOfsFile(const_cast<char*>(client->tident));
   int retc = SFS_ERROR;
 
@@ -53,10 +51,21 @@ XrdMgmOfs::Redirect(const char* path,
     if (env.Get("eos.client.openflags")) {
       std::string openflags = env.Get("eos.client.openflags");
 
-      if (openflags.find("wo") != std::string::npos) { oflags |= SFS_O_WRONLY; }
-      if (openflags.find("rw") != std::string::npos) { oflags |= SFS_O_RDWR; }
-      if (openflags.find("cr") != std::string::npos) { oflags |= SFS_O_CREAT; }
-      if (openflags.find("tr") != std::string::npos) { oflags |= SFS_O_TRUNC; }
+      if (openflags.find("wo") != std::string::npos) {
+        oflags |= SFS_O_WRONLY;
+      }
+
+      if (openflags.find("rw") != std::string::npos) {
+        oflags |= SFS_O_RDWR;
+      }
+
+      if (openflags.find("cr") != std::string::npos) {
+        oflags |= SFS_O_CREAT;
+      }
+
+      if (openflags.find("tr") != std::string::npos) {
+        oflags |= SFS_O_TRUNC;
+      }
 
       std::string openmode = env.Get("eos.client.openmode");
       omode = (mode_t) strtol(openmode.c_str(), NULL, 8);
@@ -78,16 +87,13 @@ XrdMgmOfs::Redirect(const char* path,
 
     if (rc == SFS_REDIRECT) {
       eos_thread_debug("success redirect=%s", error.getErrText());
-
       char buf[1024];
-      snprintf(buf, 1024, ":%d/%s?",file->error.getErrInfo(), path);
-      emsg.replace(emsg.find("?"), 1 ,buf);
-
+      snprintf(buf, 1024, ":%d/%s?", file->error.getErrInfo(), path);
+      emsg.replace(emsg.find("?"), 1 , buf);
       error.setErrInfo(emsg.size() + 1, emsg.c_str());
       retc = SFS_DATA;
     } else {
       eos_thread_debug("failed redirect=%s", error.getErrText());
-
       error.setErrInfo(emsg.size() + 1, emsg.c_str());
       error.setErrCode(file->error.getErrInfo());
     }

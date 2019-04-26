@@ -32,6 +32,8 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+// Initialize static variables
+thread_local eos::common::LogId CommitHelper::ThreadLogId;
 
 //------------------------------------------------------------------------------
 // convert hex to binary checksum
@@ -57,7 +59,6 @@ CommitHelper::hex2bin_checksum(std::string& checksum, char* binchecksum)
 
 int
 CommitHelper::check_filesystem(eos::common::VirtualIdentity& vid,
-                               eos::common::LogId& ThreadLogId,
                                unsigned long fsid,
                                CommitHelper::cgi_t& cgi,
                                CommitHelper::option_t& option,
@@ -180,11 +181,14 @@ CommitHelper::grab_cgi(XrdOucEnv& env, CommitHelper::cgi_t& cgi)
 
 void
 CommitHelper::log_info(eos::common::VirtualIdentity& vid,
-                       eos::common::LogId& ThreadLogId,
+                       const eos::common::LogId& thread_logid,
                        CommitHelper::cgi_t& cgi,
                        CommitHelper::option_t& option,
                        CommitHelper::param_t& params)
 {
+  // Set the thread local variable that will be used when calling eos_thread_*
+  ThreadLogId = thread_logid;
+
   if (cgi["checksum"].length()) {
     eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%s "
                     "checksum=%s mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d "
@@ -313,7 +317,6 @@ CommitHelper::remove_scheduler(unsigned long long fid)
 
 bool
 CommitHelper::validate_size(eos::common::VirtualIdentity& vid,
-                            eos::common::LogId& ThreadLogId,
                             std::shared_ptr<eos::IFileMD> fmd,
                             unsigned long fsid,
                             unsigned long long size,
@@ -358,7 +361,6 @@ CommitHelper::validate_size(eos::common::VirtualIdentity& vid,
 
 bool
 CommitHelper::validate_checksum(eos::common::VirtualIdentity& vid,
-                                eos::common::LogId& ThreadLogId,
                                 std::shared_ptr<eos::IFileMD> fmd,
                                 eos::Buffer& checksumbuffer,
                                 unsigned long long fsid,
@@ -411,7 +413,6 @@ CommitHelper::validate_checksum(eos::common::VirtualIdentity& vid,
 
 void
 CommitHelper::log_verifychecksum(eos::common::VirtualIdentity& vid,
-                                 eos::common::LogId& ThreadLogId,
                                  std::shared_ptr<eos::IFileMD>fmd,
                                  eos::Buffer& checksumbuffer,
                                  unsigned long fsid,
@@ -443,7 +444,6 @@ CommitHelper::log_verifychecksum(eos::common::VirtualIdentity& vid,
 
 bool
 CommitHelper::handle_location(eos::common::VirtualIdentity& vid,
-                              eos::common::LogId& ThreadLogId,
                               unsigned long cid,
                               std::shared_ptr<eos::IFileMD> fmd,
                               unsigned long fsid,
@@ -509,7 +509,6 @@ CommitHelper::handle_location(eos::common::VirtualIdentity& vid,
 
 void
 CommitHelper::handle_occhunk(eos::common::VirtualIdentity& vid,
-                             eos::common::LogId& ThreadLogId,
                              std::shared_ptr<eos::IFileMD>& fmd,
                              CommitHelper::option_t& option,
                              CommitHelper::param_t& params)
@@ -536,7 +535,6 @@ CommitHelper::handle_occhunk(eos::common::VirtualIdentity& vid,
 
 void
 CommitHelper::handle_checksum(eos::common::VirtualIdentity& vid,
-                              eos::common::LogId& ThreadLogId,
                               std::shared_ptr<eos::IFileMD>fmd,
                               CommitHelper::option_t& option,
                               eos::Buffer& checksumbuffer)
@@ -561,7 +559,7 @@ CommitHelper::handle_checksum(eos::common::VirtualIdentity& vid,
 
 bool
 CommitHelper::commit_fmd(eos::common::VirtualIdentity& vid,
-                         eos::common::LogId& ThreadLogId, unsigned long cid,
+                         unsigned long cid,
                          std::shared_ptr<eos::IFileMD>fmd,
                          CommitHelper::option_t& option,
                          std::string& errmsg)
@@ -616,7 +614,6 @@ CommitHelper::commit_fmd(eos::common::VirtualIdentity& vid,
 
 unsigned long long
 CommitHelper::get_version_fid(eos::common::VirtualIdentity& vid,
-                              eos::common::LogId& ThreadLogId,
                               unsigned long long fid,
                               CommitHelper::path_t& paths,
                               CommitHelper::option_t& option)
@@ -649,7 +646,6 @@ CommitHelper::get_version_fid(eos::common::VirtualIdentity& vid,
 
 void
 CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
-                                eos::common::LogId& ThreadLogId,
                                 unsigned long fid,
                                 CommitHelper::path_t& paths,
                                 CommitHelper::option_t& option,

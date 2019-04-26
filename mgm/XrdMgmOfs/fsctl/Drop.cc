@@ -42,7 +42,6 @@ XrdMgmOfs::Drop(const char* path,
                 const char* ininfo,
                 XrdOucEnv& env,
                 XrdOucErrInfo& error,
-                eos::common::LogId& ThreadLogId,
                 eos::common::VirtualIdentity& vid,
                 const XrdSecEntity* client)
 {

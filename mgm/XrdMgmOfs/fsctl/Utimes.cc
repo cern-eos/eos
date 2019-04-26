@@ -36,26 +36,21 @@ XrdMgmOfs::Utimes(const char* path,
                   const char* ininfo,
                   XrdOucEnv& env,
                   XrdOucErrInfo& error,
-                  eos::common::LogId& ThreadLogId,
                   eos::common::VirtualIdentity& vid,
                   const XrdSecEntity* client)
 {
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-
   gOFS->MgmStats.Add("Fuse-Utimes", vid.uid, vid.gid, 1);
-
   char* tv1_sec = env.Get("tv1_sec");
   char* tv1_nsec = env.Get("tv1_nsec");
   char* tv2_sec = env.Get("tv2_sec");
   char* tv2_nsec = env.Get("tv2_nsec");
   int retc = 0;
 
-
   if (tv1_sec && tv1_nsec && tv2_sec && tv2_nsec) {
     struct timespec tvp[2];
-
     // ctime
     tvp[0].tv_sec = strtol(tv1_sec, 0, 10);
     tvp[0].tv_nsec = strtol(tv1_nsec, 0, 10);

@@ -40,26 +40,20 @@ XrdMgmOfs::Getfmd(const char* path,
                   const char* ininfo,
                   XrdOucEnv& env,
                   XrdOucErrInfo& error,
-                  eos::common::LogId& ThreadLogId,
                   eos::common::VirtualIdentity& vid,
                   const XrdSecEntity* client)
 {
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-
   gOFS->MgmStats.Add("GetMd", 0, 0, 1);
-
   char* afid = env.Get("mgm.getfmd.fid"); // decimal fid
-
   eos::common::FileId::fileid_t fid = afid ? strtoull(afid, 0, 10) : 0;
   XrdOucString response;
 
-  if (fid)
-  {
+  if (fid) {
     std::string fullpath;
     std::shared_ptr<eos::IFileMD> fmd;
-
     eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
 
     try {
@@ -76,13 +70,12 @@ XrdMgmOfs::Getfmd(const char* path,
     std::string fmdEnv = "";
     fmd->getEnv(fmdEnv, true);
     fmdEnv += "&container=";
-
     // Patch parent name
     XrdOucString safepath = cPath.GetParentPath();
+
     while (safepath.replace("&", "#AND#")) {}
 
     fmdEnv += safepath.c_str();
-
     response = "getfmd: retc=0 ";
     response += fmdEnv.c_str();
 
@@ -104,8 +97,7 @@ XrdMgmOfs::Getfmd(const char* path,
       safe_name += safepath;
       response.replace(initial_name, safe_name);
     }
-  } else
-  {
+  } else {
     response = "getfmd: retc=";
     response += EINVAL;
   }

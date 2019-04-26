@@ -40,30 +40,24 @@ XrdMgmOfs::Fusex(const char* path,
                  std::string protobuf,
                  XrdOucEnv& env,
                  XrdOucErrInfo& error,
-                 eos::common::LogId& ThreadLogId,
                  eos::common::VirtualIdentity& vid,
                  const XrdSecEntity* client)
 {
   static const char* epname = "Fusex";
-
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-
   EXEC_TIMING_BEGIN("Eosxd::ext::0-HANDLE");
-
   gOFS->MgmStats.Add("Eosxd::ext::0-HANDLE", vid.uid, vid.gid, 1);
-
   eos_static_debug("protobuf-len=%d", protobuf.length());
-
   eos::fusex::md md;
+
   if (!md.ParseFromString(protobuf)) {
     return Emsg(epname, error, EINVAL, "parse protocol buffer [EINVAL]", "");
   }
 
   std::string resultstream;
   std::string id = std::string("Fusex::sync:") + vid.tident.c_str();
-
   int rc = gOFS->zMQ->gFuseServer.HandleMD(id, md, vid, &resultstream, 0);
 
   if (rc) {
@@ -77,10 +71,8 @@ XrdMgmOfs::Fusex(const char* path,
 
   std::string b64response;
   eos::common::SymKey::Base64(resultstream, b64response);
-
   XrdOucString response = "Fusex:";
   response += b64response.c_str();
-
   error.setErrInfo(response.length(), response.c_str());
   EXEC_TIMING_END("Eosxd::ext::0-HANDLE");
   return SFS_DATA;

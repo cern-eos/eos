@@ -40,24 +40,19 @@ XrdMgmOfs::Xattr(const char* path,
                  const char* ininfo,
                  XrdOucEnv& env,
                  XrdOucErrInfo& error,
-                 eos::common::LogId& ThreadLogId,
                  eos::common::VirtualIdentity& vid,
                  const XrdSecEntity* client)
 {
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-
   gOFS->MgmStats.Add("Fuse-XAttr", vid.uid, vid.gid, 1);
-
   eos_thread_debug("cmd=xattr subcmd=%s path=%s", env.Get("mgm.subcmd"), path);
-
   int envlen = 0;
   const char* sub_cmd = env.Get("mgm.subcmd");
 
   if (!sub_cmd) {
     eos_thread_err("xattr missing subcmd information: %s", env.Env(envlen));
-
     XrdOucString response = "xattr: retc=";
     response += EINVAL;
     error.setErrInfo(response.length() + 1, response.c_str());
@@ -66,17 +61,14 @@ XrdMgmOfs::Xattr(const char* path,
 
   int retc = 0;           // return code of the function
   XrdOucString response;  // return value of the function
-
   struct stat buf;
   XrdOucString subcmd = sub_cmd;
-
   // Check if path is a file or directory
   int rc = lstat(path, &buf, error, client, 0);
 
   if (!rc) {
     if (S_ISDIR(buf.st_mode)) {
       // Extended attributes for directories
-
       if (subcmd == "ls") {
         // lsxattr
         eos::IContainerMD::XAttrMap map;
@@ -84,13 +76,16 @@ XrdMgmOfs::Xattr(const char* path,
 
         if (rc == SFS_OK) {
           response = " ";
-          for (auto& xattr: map) {
+
+          for (auto& xattr : map) {
             response += xattr.first.c_str();
             response += "&";
           }
+
           response += "\0";
 
           while (response.replace("tmp.", "user.eos.")) {}
+
           while (response.replace("sys.", "user.admin.")) {}
         } else {
           retc = error.getErrInfo();
@@ -100,7 +95,6 @@ XrdMgmOfs::Xattr(const char* path,
         XrdOucString value;
         XrdOucString key = env.Get("mgm.xattrname");
         key.replace("user.admin.", "sys.");
-
         rc = gOFS->attr_get(path, error, client, "eos.attr.val.encoding=base64",
                             key.c_str(), value);
 
@@ -130,12 +124,10 @@ XrdMgmOfs::Xattr(const char* path,
       }
     } else if (S_ISREG(buf.st_mode)) {
       // Extended attributes for files
-
       if (subcmd == "ls") {
         // lsxattr
         eos::IContainerMD::XAttrMap map;
         rc = gOFS->attr_ls(path, error, client, 0, map);
-
         retc = rc ? error.getErrInfo() : 0;
         response = " ";
 
@@ -156,7 +148,6 @@ XrdMgmOfs::Xattr(const char* path,
         // getxattr
         XrdOucString key = env.Get("mgm.xattrname");
         XrdOucString value;
-
         std::shared_ptr<eos::IFileMD> fmd;
         {
           eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
@@ -176,7 +167,7 @@ XrdMgmOfs::Xattr(const char* path,
         if (key.find("eos.cid") != STR_NPOS) {
           XrdOucString sizestring;
           value = eos::common::StringConversion::GetSizeString(sizestring,
-                                     (unsigned long long) fmd->getContainerId());
+                  (unsigned long long) fmd->getContainerId());
         } else if (key.find("eos.fid") != STR_NPOS) {
           char fid[32];
           snprintf(fid, 32, "%llu", (unsigned long long) fmd->getId());
@@ -238,7 +229,6 @@ XrdMgmOfs::Xattr(const char* path,
   XrdOucString prefix = subcmd;
   prefix += "xattr: retc=";
   prefix += retc;
-
   response.insert(prefix, 0);
   error.setErrInfo(response.length() + 1, response.c_str());
   return SFS_DATA;

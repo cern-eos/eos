@@ -37,16 +37,13 @@ XrdMgmOfs::Open(const char* path,
                 const char* ininfo,
                 XrdOucEnv& env,
                 XrdOucErrInfo& error,
-                eos::common::LogId& ThreadLogId,
                 eos::common::VirtualIdentity& vid,
                 const XrdSecEntity* client)
 {
   ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
-
   gOFS->MgmStats.Add("OpenLayout", vid.uid, vid.gid, 1);
-
   XrdMgmOfsFile* file = new XrdMgmOfsFile(const_cast<char*>(client->tident));
   XrdOucString opaque = ininfo;
   int retc = SFS_ERROR;
@@ -54,7 +51,8 @@ XrdMgmOfs::Open(const char* path,
   if (file) {
     opaque += "&eos.cli.access=pio";
     int rc = file->open(path, SFS_O_RDONLY, 0, client, opaque.c_str());
-    error.setErrInfo(strlen(file->error.getErrText()) + 1, file->error.getErrText());
+    error.setErrInfo(strlen(file->error.getErrText()) + 1,
+                     file->error.getErrText());
 
     if (rc == SFS_REDIRECT) {
       retc = SFS_DATA;
@@ -64,7 +62,7 @@ XrdMgmOfs::Open(const char* path,
 
     delete file;
   } else {
-    const char *emsg = "allocate file object";
+    const char* emsg = "allocate file object";
     error.setErrInfo(strlen(emsg) + 1, emsg);
     error.setErrCode(ENOMEM);
   }

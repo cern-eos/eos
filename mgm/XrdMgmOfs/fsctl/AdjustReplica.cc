@@ -36,21 +36,17 @@ XrdMgmOfs::AdjustReplica(const char* path,
                          const char* ininfo,
                          XrdOucEnv& env,
                          XrdOucErrInfo& error,
-                         eos::common::LogId& ThreadLogId,
                          eos::common::VirtualIdentity& vid,
                          const XrdSecEntity* client)
 {
   static const char* epname = "AdjustReplica";
-
   REQUIRE_SSS_OR_LOCAL_AUTH;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-
   EXEC_TIMING_BEGIN("AdjustReplica");
   // TODO(gbitzes): If vid is replaced with root, why is it even a parameter?!
   vid = eos::common::VirtualIdentity::Root();
-
   // Execute a proc command
   ProcCommand Cmd;
   XrdOucString info = "mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.path=";
@@ -73,7 +69,6 @@ XrdMgmOfs::AdjustReplica(const char* path,
   }
 
   eos_thread_debug("msg=\"adjustreplica succeeded\" path=%s", spath);
-
   const char* ok = "OK";
   error.setErrInfo(strlen(ok) + 1, ok);
   EXEC_TIMING_END("AdjustReplica");

@@ -1707,7 +1707,6 @@ private:
              const char* ininfo,
              XrdOucEnv& env,
              XrdOucErrInfo& error,
-             eos::common::LogId& ThreadLogId,
              eos::common::VirtualIdentity& vid,
              const XrdSecEntity* client);
 
@@ -1718,7 +1717,6 @@ private:
                     const char* ininfo,
                     XrdOucEnv& env,
                     XrdOucErrInfo& error,
-                    eos::common::LogId& ThreadLogId,
                     eos::common::VirtualIdentity& vid,
                     const XrdSecEntity* client);
 
@@ -1729,7 +1727,6 @@ private:
                const char* ininfo,
                XrdOucEnv& env,
                XrdOucErrInfo& error,
-               eos::common::LogId& ThreadLogId,
                eos::common::VirtualIdentity& vid,
                const XrdSecEntity* client);
 
@@ -1740,7 +1737,6 @@ private:
             const char* ininfo,
             XrdOucEnv& env,
             XrdOucErrInfo& error,
-            eos::common::LogId& ThreadLogId,
             eos::common::VirtualIdentity& vid,
             const XrdSecEntity* client);
 
@@ -1751,7 +1747,6 @@ private:
             const char* ininfo,
             XrdOucEnv& env,
             XrdOucErrInfo& error,
-            eos::common::LogId& ThreadLogId,
             eos::common::VirtualIdentity& vid,
             const XrdSecEntity* client);
 
@@ -1762,7 +1757,6 @@ private:
              const char* ininfo,
              XrdOucEnv& env,
              XrdOucErrInfo& error,
-             eos::common::LogId& ThreadLogId,
              eos::common::VirtualIdentity& vid,
              const XrdSecEntity* client);
 
@@ -1773,7 +1767,6 @@ private:
            const char* ininfo,
            XrdOucEnv& env,
            XrdOucErrInfo& error,
-           eos::common::LogId& ThreadLogId,
            eos::common::VirtualIdentity& vid,
            const XrdSecEntity* client);
 
@@ -1784,7 +1777,6 @@ private:
             const char* ininfo,
             XrdOucEnv& env,
             XrdOucErrInfo& error,
-            eos::common::LogId& ThreadLogId,
             eos::common::VirtualIdentity& vid,
             const XrdSecEntity* client);
 
@@ -1796,7 +1788,6 @@ private:
                const char* ininfo,
                XrdOucEnv& env,
                XrdOucErrInfo& error,
-               eos::common::LogId& ThreadLogId,
                eos::common::VirtualIdentity& vid,
                const XrdSecEntity* client);
 
@@ -1809,7 +1800,6 @@ private:
             std::string protobuf,
             XrdOucEnv& env,
             XrdOucErrInfo& error,
-            eos::common::LogId& ThreadLogId,
             eos::common::VirtualIdentity& vid,
             const XrdSecEntity* client);
 
@@ -1820,7 +1810,6 @@ private:
              const char* ininfo,
              XrdOucEnv& env,
              XrdOucErrInfo& error,
-             eos::common::LogId& ThreadLogId,
              eos::common::VirtualIdentity& vid,
              const XrdSecEntity* client);
 
@@ -1831,7 +1820,6 @@ private:
                const char* ininfo,
                XrdOucEnv& env,
                XrdOucErrInfo& error,
-               eos::common::LogId& ThreadLogId,
                eos::common::VirtualIdentity& vid,
                const XrdSecEntity* client);
 
@@ -1842,7 +1830,6 @@ private:
                const char* ininfo,
                XrdOucEnv& env,
                XrdOucErrInfo& error,
-               eos::common::LogId& ThreadLogId,
                eos::common::VirtualIdentity& vid,
                const XrdSecEntity* client);
 
@@ -1853,7 +1840,6 @@ private:
                          const char* ininfo,
                          XrdOucEnv& env,
                          XrdOucErrInfo& error,
-                         eos::common::LogId& ThreadLogId,
                          eos::common::VirtualIdentity& vid,
                          const XrdSecEntity* client);
 
@@ -1864,7 +1850,6 @@ private:
                          const char* ininfo,
                          XrdOucEnv& env,
                          XrdOucErrInfo& error,
-                         eos::common::LogId& ThreadLogId,
                          eos::common::VirtualIdentity& vid,
                          const XrdSecEntity* client);
 
@@ -1875,7 +1860,6 @@ private:
             const char* ininfo,
             XrdOucEnv& env,
             XrdOucErrInfo& error,
-            eos::common::LogId& ThreadLogId,
             eos::common::VirtualIdentity& vid,
             const XrdSecEntity* client);
 
@@ -1886,7 +1870,6 @@ private:
            const char* ininfo,
            XrdOucEnv& env,
            XrdOucErrInfo& error,
-           eos::common::LogId& ThreadLogId,
            eos::common::VirtualIdentity& vid,
            const XrdSecEntity* client);
 
@@ -1897,7 +1880,6 @@ private:
                const char* ininfo,
                XrdOucEnv& env,
                XrdOucErrInfo& error,
-               eos::common::LogId& ThreadLogId,
                eos::common::VirtualIdentity& vid,
                const XrdSecEntity* client);
 
@@ -1908,7 +1890,6 @@ private:
                const char* ininfo,
                XrdOucEnv& env,
                XrdOucErrInfo& error,
-               eos::common::LogId& ThreadLogId,
                eos::common::VirtualIdentity& vid,
                const XrdSecEntity* client);
 
@@ -1920,7 +1901,6 @@ private:
               const char* ininfo,
               XrdOucEnv& env,
               XrdOucErrInfo& error,
-              eos::common::LogId& ThreadLogId,
               eos::common::VirtualIdentity& vid,
               const XrdSecEntity* client);
 
@@ -1960,7 +1940,6 @@ private:
                       const char* ininfo,
                       XrdOucEnv& env,
                       XrdOucErrInfo& error,
-                      eos::common::LogId& ThreadLogId,
                       eos::common::VirtualIdentity& vid,
                       const XrdSecEntity* client);
 
@@ -1971,7 +1950,6 @@ private:
                      const char* ininfo,
                      XrdOucEnv& env,
                      XrdOucErrInfo& error,
-                     eos::common::LogId& ThreadLogId,
                      eos::common::VirtualIdentity& vid,
                      const XrdSecEntity* client);
 
@@ -1982,7 +1960,6 @@ private:
               const char* ininfo,
               XrdOucEnv& env,
               XrdOucErrInfo& error,
-              eos::common::LogId& ThreadLogId,
               eos::common::VirtualIdentity& vid,
               const XrdSecEntity* client);
 
@@ -1993,7 +1970,6 @@ private:
               const char* ininfo,
               XrdOucEnv& env,
               XrdOucErrInfo& error,
-              eos::common::LogId& ThreadLogId,
               eos::common::VirtualIdentity& vid,
               const XrdSecEntity* client);
 
@@ -2004,7 +1980,6 @@ private:
               const char* ininfo,
               XrdOucEnv& env,
               XrdOucErrInfo& error,
-              eos::common::LogId& ThreadLogId,
               eos::common::VirtualIdentity& vid,
               const XrdSecEntity* client);
 
@@ -2015,7 +1990,6 @@ private:
              const char* ininfo,
              XrdOucEnv& env,
              XrdOucErrInfo& error,
-             eos::common::LogId& ThreadLogId,
              eos::common::VirtualIdentity& vid,
              const XrdSecEntity* client);
 
@@ -2026,7 +2000,6 @@ private:
               const char* ininfo,
               XrdOucEnv& env,
               XrdOucErrInfo& error,
-              eos::common::LogId& ThreadLogId,
               eos::common::VirtualIdentity& vid,
               const XrdSecEntity* client);
 
@@ -2037,7 +2010,6 @@ private:
             const char* ininfo,
             XrdOucEnv& env,
             XrdOucErrInfo& error,
-            eos::common::LogId& ThreadLogId,
             eos::common::VirtualIdentity& vid,
             const XrdSecEntity* client);
 };
