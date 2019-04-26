@@ -43,11 +43,8 @@ EOSCOMMONNAMESPACE_BEGIN
  * @param bc2mgm broadcast-to-manager flag indicating if changes are broadcasted to manager nodes
  */
 /*----------------------------------------------------------------------------*/
-TransferQueue::TransferQueue (const char* queue, const char* queuepath, const char* subqueue, FileSystem* fs, XrdMqSharedObjectManager* som, bool bc2mgm)
+TransferQueue::TransferQueue (const char* queue, const char* queuepath, const char* subqueue, XrdMqSharedObjectManager* som, bool bc2mgm)
 {
-  mFileSystem = fs;
-
-  constructorLock.Lock();
   mQueue = queue;
   mFullQueue = queuepath;
   mFullQueue += "/txqueue/";
@@ -88,7 +85,6 @@ TransferQueue::TransferQueue (const char* queue, const char* queuepath, const ch
       mSom->HashMutex.UnLockRead();
     }
   }
-  constructorLock.UnLock();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -168,22 +164,6 @@ TransferQueue::Get ()
     mSom->HashMutex.UnLockRead();
   }
   return 0;
-}
-
-/*----------------------------------------------------------------------------*/
-/**
- * Remove a job from the queue. Currently this is not implemented!
- *
- * @param job pointer to job object
- *
- * @return true if successful otherwise false
- */
-
-/*----------------------------------------------------------------------------*/
-bool
-TransferQueue::Remove (eos::common::TransferJob* job)
-{
-  return false;
 }
 
 /*----------------------------------------------------------------------------*/

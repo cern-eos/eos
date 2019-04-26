@@ -131,11 +131,11 @@ FileSystem::FileSystem(const char* queuepath, const char* queue,
     }
 
     mDrainQueue = new TransferQueue(mQueue.c_str(), mQueuePath.c_str(), "drainq",
-                                    this, mSom, bc2mgm);
+                                    mSom, bc2mgm);
     mBalanceQueue = new TransferQueue(mQueue.c_str(), mQueuePath.c_str(),
-                                      "balanceq", this, mSom, bc2mgm);
+                                      "balanceq", mSom, bc2mgm);
     mExternQueue = new TransferQueue(mQueue.c_str(), mQueuePath.c_str(), "externq",
-                                     this, mSom, bc2mgm);
+                                     mSom, bc2mgm);
   } else {
     mDrainQueue = 0;
     mBalanceQueue = 0;

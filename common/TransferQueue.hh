@@ -71,11 +71,6 @@ private:
   std::string mTxQueue;
 
   // ---------------------------------------------------------------------------
-  //! Reference to parent object hosting this queue e.g. a filesystem object
-  // ---------------------------------------------------------------------------
-  FileSystem* mFileSystem;
-
-  // ---------------------------------------------------------------------------
   //! Indicator for a queue slave e.g. if the object is deleted it __does__ __not__ clear the queue!
   // ---------------------------------------------------------------------------
   bool mSlave;
@@ -85,21 +80,18 @@ private:
   //! Usage of this object requires a read lock on the shared object manager and the hash has to be validated!
   // ---------------------------------------------------------------------------
   XrdMqSharedObjectManager* mSom;
-  XrdSysMutex constructorLock;
 
   // ---------------------------------------------------------------------------
   //! Count number of jobs executed + mutex
   // ---------------------------------------------------------------------------
-  XrdSysMutex mJobGetCountMutex;
-  unsigned long long mJobGetCount;
+  std::atomic<unsigned long long> mJobGetCount;
 
 public:
   // ---------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
   TransferQueue(const char* queue, const char* queuepath, const char* subqueue,
-                eos::common::FileSystem* fs, XrdMqSharedObjectManager* som,
-                bool bc2mgm = false);
+                XrdMqSharedObjectManager* som, bool bc2mgm = false);
 
   // ---------------------------------------------------------------------------
   //! Add a transfer job to the queue
@@ -112,23 +104,12 @@ public:
   eos::common::TransferJob* Get();
 
   // ---------------------------------------------------------------------------
-  //! Remove a transfer job from the queue
-  // ---------------------------------------------------------------------------
-  bool Remove(eos::common::TransferJob* job);
-
-  // ---------------------------------------------------------------------------
   //! Get the count of retrieved transfers
   // ---------------------------------------------------------------------------
-
   unsigned long long
   GetJobCount()
   {
-    unsigned long long count;
-    {
-      XrdSysMutexHelper cLock(mJobGetCountMutex);
-      count = mJobGetCount;
-    }
-    return count;
+    return mJobGetCount;
   }
 
   // ---------------------------------------------------------------------------
@@ -138,7 +119,6 @@ public:
   void
   IncGetJobCount()
   {
-    XrdSysMutexHelper cLock(mJobGetCountMutex);
     mJobGetCount++;
   }
 

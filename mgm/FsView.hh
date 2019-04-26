@@ -703,7 +703,7 @@ public:
     std::string n = mName.c_str();
     n += "/gw";
     mGwQueue = new eos::common::TransferQueue(
-      mName.c_str(), n.c_str(), "txq", (eos::common::FileSystem*) 0,
+      mName.c_str(), n.c_str(), "txq",
       eos::common::GlobalConfig::gConfig.SOM(), false);
   }
 
