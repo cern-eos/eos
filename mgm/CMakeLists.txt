@@ -308,7 +308,9 @@ add_executable(
   testschedulingtree
   geotree/SchedulingTreeTest.cc
   geotree/SchedulingSlowTree.cc
-  geotree/SchedulingTreeCommon.cc)
+  geotree/SchedulingTreeCommon.cc
+  TableFormatter/TableFormatterBase.cc
+  TableFormatter/TableCell.cc)
 
 target_link_libraries(
   testschedulingtree

@@ -224,38 +224,93 @@ bool TableFormatterBase::GenerateBody(const TableString& selections)
 
     // Generate rows
     if (!row.empty() && !mHeader.empty()) {
-      std::stringstream mSink_temp;
+      std::stringstream output;
 
       for (size_t i = 0, size = row.size(); i < size; ++i) {
         // Left edge
         if (i == 0) {
-          mSink_temp << mBorderBody[0];
+          output << mBorderBody[0];
         }
 
         // Change color of cell
         row[i].SetColor(ChangeColor(std::get<0>(mHeader[i]), row[i].Str()));
-        // Generate cell
-        size_t cellspace_width = std::get<1>(mHeader[i]) - row[i].Length();
-
-        if (std::get<2>(mHeader[i]).find("-") == std::string::npos) {
-          row[i].Print(mSink_temp, cellspace_width, 0);
+        
+        // Generate tree
+        unsigned tree = row[i].Tree();
+        if (1 <= tree && tree <= 7) {
+          size_t tree_name_length=0; //Length of name above the tree cell in same column
+          if (1 <= tree && tree <= 5) {
+            for (int j=row_size;j>=0;j--) {
+              if (mData[j][i].Tree() == 0) {
+                tree_name_length=mData[j][i].Length();
+                break;
+              }
+            }
+          }
+          
+          size_t tree_cell_width = std::get<1>(mHeader[i]);
+          size_t tree_cell_spaces = tree_cell_width - tree_name_length/2;
+          tree_cell_spaces = (tree_cell_spaces<2)?2:tree_cell_spaces;
+          std::string arrow {};
+          if (tree == 1){ // "│   "
+            arrow = mBorderTree[tree];
+            tree_cell_width += 2;
+            for (size_t j=0; j<tree_cell_spaces-1; j++)
+              arrow += " ";
+          } else if (tree == 2 || tree == 3){ // "└─▶", "├─▶"
+            arrow = mBorderTree[tree];
+            tree_cell_width += 2;
+            for (size_t j=0; j<tree_cell_spaces-2; j++){
+              arrow += mBorderTree[4];
+              tree_cell_width += 2;
+            }
+            arrow += mBorderTree[5];
+            tree_cell_width += 2;
+          } else if (tree == 4 || tree == 5){ // "└──", "├──"
+            arrow = mBorderTree[tree-2];
+            tree_cell_width += 2;
+            for (size_t j=0; j<tree_cell_spaces-1; j++){
+              arrow += mBorderTree[4];
+              tree_cell_width += 2;
+            }
+          } else if (tree == 6){  // "───"
+            for (size_t j=0; j<std::get<1>(mHeader[i])+1; j++){
+              arrow += mBorderTree[4];
+              tree_cell_width += 2;
+            }
+          } else if (tree == 7){  // "──▶"
+            for (size_t j=0; j<std::get<1>(mHeader[i]); j++){
+              arrow += mBorderTree[4];
+              tree_cell_width += 2;
+            }
+            arrow += mBorderTree[5];
+            tree_cell_width += 2;
+          }
+          output.width(tree_cell_width);
+          output << arrow;
         } else {
-          row[i].Print(mSink_temp, 0, cellspace_width + mBorderBody[1].length());
+          // Generate cell
+          size_t cellspace_width = std::get<1>(mHeader[i]) - row[i].Length();
+          if (std::get<2>(mHeader[i]).find("-") == std::string::npos) {
+            row[i].Print(output, cellspace_width, 0);
+          } else {
+            row[i].Print(output, 0, cellspace_width + mBorderBody[1].length());
+          }
         }
 
         // Right edge of cell
-        if (i < size - 1) {
-          mSink_temp << mBorderBody[1];
+        if (i < size - 1 && (tree != 4 && tree != 5 && tree != 6)) {
+          output << mBorderBody[1];
         }
       }
 
       // Right edge of row
-      mSink_temp << mBorderBody[2] << std::endl;
+      output << mBorderBody[2] << std::endl;
       // Filter
       size_t filter_count = 0;
 
       for (size_t i = 0, size = selections.size(); i < size; ++i)
-        if (mSink_temp.str().find(selections[i]) != std::string::npos) {
+        if (output.str().find(selections[i]) != std::string::npos) {
           filter_count++;
         }
 
@@ -267,7 +322,7 @@ bool TableFormatterBase::GenerateBody(const TableString& selections)
         }
 
         // Generate row
-        mSink << mSink_temp.str();
+        mSink << output.str();
         body_exist = true;
         row_exist = true;
         string_exist = false;
@@ -353,11 +408,11 @@ TableFormatterColor TableFormatterBase::ChangeColor(std::string header,
   // Colors for "fs ls", "node ls", "fileinfo" and "health" commands
   if (header == "status" || header == "active") {
     if (value == "online") {
-      return BDEFAULT;
+      return BWHITE;
     }
 
     if (value == "offline" || value == "unknown") {
-      return BBGRED;
+      return BRED_BGWHITE;
     }
 
     if (value == "ok" || value == "fine") {
@@ -407,9 +462,11 @@ void TableFormatterBase::Style(TableFormatterStyle style)
     std::string body [7]  = {"│", " ", "│",
                              "└", "─", "┘", "─"
                             };
+    std::string tree [6]  = {"", "│", "└", "├", "─", "▶"};
     std::copy(head, head + 11, mBorderHead);
     std::copy(sep, sep + 4, mBorderSep);
     std::copy(body, body + 7, mBorderBody);
+    std::copy(tree, tree + 6, mBorderTree);
     break;
   }
 
@@ -423,9 +480,11 @@ void TableFormatterBase::Style(TableFormatterStyle style)
     std::string body [7]  = {"┃", " ", "┃",
                              "┗", "━", "┛", "━"
                             };
+    std::string tree [6]  = {"", "│", "└", "├", "─", "▶"};
     std::copy(head, head + 11, mBorderHead);
     std::copy(sep, sep + 4, mBorderSep);
     std::copy(body, body + 7, mBorderBody);
+    std::copy(tree, tree + 6, mBorderTree);
     break;
   }
 
@@ -439,9 +498,11 @@ void TableFormatterBase::Style(TableFormatterStyle style)
     std::string body [7]  = {"║", " ", "║",
                              "╚", "═", "╝", "═"
                             };
+    std::string tree [6]  = {"", "│", "└", "├", "─", "▶"};
     std::copy(head, head + 11, mBorderHead);
     std::copy(sep, sep + 4, mBorderSep);
     std::copy(body, body + 7, mBorderBody);
+    std::copy(tree, tree + 6, mBorderTree);
     break;
   }
 
@@ -453,9 +514,11 @@ void TableFormatterBase::Style(TableFormatterStyle style)
                             };
     std::string sep [4]   = {" ", "-", " ", "-"};
     std::string body [7]  = {" ", " ", " "};
+    std::string tree [6]  = {"", "│", "└", "├", "─", "▶"};
     std::copy(head, head + 11, mBorderHead);
     std::copy(sep, sep + 4, mBorderSep);
     std::copy(body, body + 7, mBorderBody);
+    std::copy(tree, tree + 6, mBorderTree);
     break;
   }
 
@@ -469,9 +532,11 @@ void TableFormatterBase::Style(TableFormatterStyle style)
     std::string body [7]  = {" ", " ", " ",
                              "┗", "━", "┛", "━"
                             };
+    std::string tree [6]  = {"", "│", "└", "├", "─", "▶"};
     std::copy(head, head + 11, mBorderHead);
     std::copy(sep, sep + 4, mBorderSep);
     std::copy(body, body + 7, mBorderBody);
+    std::copy(tree, tree + 6, mBorderTree);
     break;
   }
 
@@ -483,9 +548,11 @@ void TableFormatterBase::Style(TableFormatterStyle style)
                             };
     std::string sep [4]   = {" ", "-", " ", "-"};
     std::string body [7]  = {" ", " ", " "};
+    std::string tree [6]  = {"", "│", "└", "├", "─", "▶"};
     std::copy(head, head + 11, mBorderHead);
     std::copy(sep, sep + 4, mBorderSep);
     std::copy(body, body + 7, mBorderBody);
+    std::copy(tree, tree + 6, mBorderTree);
     break;
   }
 
@@ -497,9 +564,11 @@ void TableFormatterBase::Style(TableFormatterStyle style)
                             };
     std::string sep [4]   = {" ", "-", " ", "-"};
     std::string body [7]  = {" ", " ", " "};
+    std::string tree [6]  = {"", "│", "└", "├", "─", "▶"};
     std::copy(head, head + 11, mBorderHead);
     std::copy(sep, sep + 4, mBorderSep);
     std::copy(body, body + 7, mBorderBody);
+    std::copy(tree, tree + 6, mBorderTree);
     break;
   }
 
@@ -511,9 +580,11 @@ void TableFormatterBase::Style(TableFormatterStyle style)
                             };
     std::string sep [4]   = {" ", "  ", " ", "-"};
     std::string body [7]  = {" ", "  ", " "};
+    std::string tree [6]  = {"", "│", "└", "├", "─", "▶"};
     std::copy(head, head + 11, mBorderHead);
     std::copy(sep, sep + 4, mBorderSep);
     std::copy(body, body + 7, mBorderBody);
+    std::copy(tree, tree + 6, mBorderTree);
     break;
   }
 

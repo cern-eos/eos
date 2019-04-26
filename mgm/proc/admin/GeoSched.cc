@@ -117,6 +117,7 @@ ProcCommand::GeoSched()
     if (mSubCmd.beginswith("access")) {
       XrdOucString geotag = pOpaque->Get("mgm.geotag");
       XrdOucString geotag_list = pOpaque->Get("mgm.geotaglist");
+      bool monitoring = pOpaque->Get("mgm.monitoring");
 
       if (mSubCmd == "accesssetdirect") {
         gGeoTreeEngine.setAccessGeotagMapping(&stdOut, geotag.c_str(),
@@ -131,7 +132,7 @@ ProcCommand::GeoSched()
       }
 
       if (mSubCmd == "accessshowdirect") {
-        gGeoTreeEngine.showAccessGeotagMapping(&stdOut);
+        gGeoTreeEngine.showAccessGeotagMapping(&stdOut, monitoring);
         retc = SFS_OK;
       }
 
@@ -148,7 +149,7 @@ ProcCommand::GeoSched()
       }
 
       if (mSubCmd == "accessshowproxygroup") {
-        gGeoTreeEngine.showAccessProxygroup(&stdOut);
+        gGeoTreeEngine.showAccessProxygroup(&stdOut, monitoring);
         retc = SFS_OK;
       }
     }

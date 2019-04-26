@@ -31,6 +31,7 @@
 #define DEFINE_TREECOMMON_MACRO
 #include "mgm/geotree/SchedulingFastTree.hh"
 #include "mgm/geotree/SchedulingTreeCommon.hh"
+#include "mgm/TableFormatter/TableFormatterBase.hh"
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -125,10 +126,15 @@ public:
   }
 
   std::ostream& display(std::ostream& os) const;
-  std::ostream& recursiveDisplay(std::ostream& os, bool useColors = false,
-                                 const std::string& prefix = "") const;
-  std::ostream& recursiveDisplayAccess(std::ostream& os, bool useColors = false,
-                                       const std::string& prefix = "") const;
+  void recursiveDisplay(std::set<std::tuple<std::string, unsigned, unsigned,
+                        TableFormatterColor, unsigned, unsigned, std::string,
+                        std::string, int, int, std::string>>& data_tree,
+                        std::string group, unsigned& geo_depth_max, bool useColors = false,
+                        unsigned prefix1 = 0, unsigned prefix2 = 0);
+  void recursiveDisplayAccess(std::set<std::tuple<unsigned, unsigned, unsigned,
+                                       unsigned, std::string, std::string>>& data_access,
+                                       unsigned& geo_depth_max, unsigned prefix1 = 0,
+                                       unsigned prefix2 = 0);
 };
 
 inline std::ostream& operator << (std::ostream& os,
@@ -196,8 +202,12 @@ public:
   {
     return pNodeCount;
   }
-  std::ostream& display(std::ostream& os, bool useColors = false) const;
-  std::ostream& displayAccess(std::ostream& os, bool useColors = false) const;
+  void display(std::set<std::tuple<std::string, unsigned, unsigned,
+               TableFormatterColor, unsigned, unsigned, std::string, std::string,
+               int, int, std::string>>& data_tree, unsigned& geo_depth_max, bool useColors = false);
+  void displayAccess(std::set<std::tuple<unsigned, unsigned, unsigned,
+                     unsigned, std::string, std::string>>& data_access, 
+                     unsigned& geo_depth_max);
 
   bool buildFastStrcturesSched(
     FastPlacementTree* fpt, FastROAccessTree* froat, FastRWAccessTree* frwat,
@@ -221,7 +231,8 @@ public:
 
 inline std::ostream& operator << (std::ostream& os, const SlowTree& tree)
 {
-  return tree.display(os);
+//  return tree.display(os);
+  return os;
 }
 
 EOSMGMNAMESPACE_END

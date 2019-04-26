@@ -130,6 +130,7 @@ private:
   std::string mBorderHead [11];
   std::string mBorderSep [4];
   std::string mBorderBody [7];
+  std::string mBorderTree [6];
 };
 
 EOSMGMNAMESPACE_END

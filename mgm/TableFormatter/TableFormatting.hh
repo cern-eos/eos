@@ -55,7 +55,7 @@ enum TableFormatterColor {
   CYAN,
   WHITE,
   //Bold display (B...)
-  BDEFAULT,
+  BOLD,
   BRED,
   BGREEN,
   BYELLOW,
@@ -63,24 +63,35 @@ enum TableFormatterColor {
   BMARGARITA,
   BCYAN,
   BWHITE,
-  //Normal display with white BackGround (BG...)
-  BGDEFAULT,
-  BGRED,
-  BGGREEN,
-  BGYELLOW,
-  BGBLUE,
-  BGMARGARITA,
-  BGCYAN,
-  BGWHITE,
-  //Bold display with white BackGround (BBG...)
-  BBGDEFAULT,
-  BBGRED,
-  BBGGREEN,
-  BBGYELLOW,
-  BBGBLUE,
-  BBGMARGARITA,
-  BBGCYAN,
-  BBGWHITE
+  //Dark display (D...)
+  DARK,
+  DRED,
+  DGREEN,
+  DYELLOW,
+  DBLUE,
+  DMARGARITA,
+  DCYAN,
+  DWHITE,
+  //Bold font with white BackGround (B..._BGWHITE)
+  BRED_BGWHITE,
+  BGREEN_BGWHITE,
+  BYELLOW_BGWHITE,
+  BBLUE_BGWHITE,
+  BMARGARITA_BGWHITE,
+  BCYAN_BGWHITE,
+  //Bold white font with BackGround (BWHITE_BG...)
+  BWHITE_BGRED,
+  BWHITE_BGGREEN,
+  BWHITE_BGYELLOW,
+  BWHITE_BGBLUE,
+  BWHITE_BGMARGARITA,
+  BWHITE_BGCYAN,
+  //Bold yellow font with BackGround (BYELLOW_BG...)
+  BYELLOW_BGRED,
+  BYELLOW_BGGREEN,
+  BYELLOW_BGBLUE,
+  BYELLOW_BGMARGARITA,
+  BYELLOW_BGCYAN
 };
 
 enum TableFormatterStyle {

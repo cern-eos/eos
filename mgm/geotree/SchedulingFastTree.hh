@@ -1965,20 +1965,17 @@ public:
     }
   }
 
-  std::ostream&
-  recursiveDisplay(std::ostream& os, bool useColors = false,
-                   const std::string& prefix = "") const
+  void
+  recursiveDisplay(std::set<std::tuple<std::string, unsigned, unsigned,
+                   TableFormatterColor, unsigned, unsigned, std::string,
+                   std::string, unsigned, std::string, int, int, int, std::string,
+                   int, int, int, double>>& data_snapshot,  unsigned& geo_depth_max,
+                   std::string operation = "", std::string operation_short = "",
+                   bool useColors = false)
   {
-    if (pNodeCount && pNodes[0].treeData.childrenCount) {
-      recursiveDisplay(os, prefix, 0, useColors);
-
-      // reset the console colors in case it's used
-      if (useColors) {
-        os << "\033[0m";
-      }
-    }
-
-    return os;
+    if (pNodeCount && pNodes[0].treeData.childrenCount)
+      recursiveDisplay(data_snapshot, 0, "", geo_depth_max,
+                       operation, operation_short, useColors);
   }
 
 protected:
@@ -2091,11 +2088,16 @@ public:
     return copyFastTree(dest, this);
   }
 
-  std::ostream&
-  recursiveDisplay(std::ostream& os, const std::string& prefix, tFastTreeIdx node,
-                   bool useColors) const
+  void
+  recursiveDisplay(std::set<std::tuple<std::string, unsigned, unsigned,
+                   TableFormatterColor, unsigned, unsigned, std::string,
+                   std::string, unsigned, std::string, int, int, int, std::string,
+                   int, int, int, double>>& data_snapshot, tFastTreeIdx node,
+                   std::string group, unsigned& geo_depth_max,
+                   std::string operation = "", std::string operation_short = "",
+                   bool useColors = false, unsigned prefix1 = 0, unsigned prefix2 = 0)
   {
-    std::string consoleEscapeCode, consoleReset;
+    TableFormatterColor color = NONE;
 
     if (useColors) {
       bool isReadable = (pNodes[node].fsData.mStatus & Readable);
@@ -2113,109 +2115,81 @@ public:
         isValid = pBranchComp.isValidSlot(&pNodes[node].fsData, &freeSlot);
       }
 
-      consoleEscapeCode = "\033[";
-      consoleReset = "\033[0m";
-
       if (isDisabled) { // DISABLED
-        consoleEscapeCode = consoleEscapeCode + ("2;39;49m");
+        color = DARK;
       } else {
-        if (isFs && isDraining) {
-          consoleEscapeCode = consoleEscapeCode + ("1;33;");
-        } else {
-          consoleEscapeCode = consoleEscapeCode + ("1;39;");
-        }
-
-        if (!isAvailable
-            || (isFs && (!isValid))) { // UNAVAILABLE OR NOIO
-          consoleEscapeCode = consoleEscapeCode + ("41");
+        if (!isAvailable || (isFs && (!isValid))) { // UNAVAILABLE OR NOIO
+          color = (isFs && isDraining) ? BYELLOW_BGRED : BWHITE_BGRED;
         } else if (isFs) {
           if (isReadable && ! isWritable) { // RO case
-            consoleEscapeCode = consoleEscapeCode + "44";
+            color = (isFs && isDraining) ? BYELLOW_BGBLUE : BWHITE_BGBLUE;
           } else if (!isReadable && isWritable) { // WO case
-            consoleEscapeCode = consoleEscapeCode + "43";
+            color = (isFs && isDraining) ? NONE : BWHITE_BGYELLOW;
           } else {
-            consoleEscapeCode = consoleEscapeCode + "49";
+            color = (isFs && isDraining) ? BYELLOW : BWHITE;
           }
         } else {
-          consoleEscapeCode = consoleEscapeCode + "49";
+          color = (isFs && isDraining) ? BYELLOW : BWHITE;
         }
-
-        consoleEscapeCode = consoleEscapeCode + "m";
       }
     }
 
-    auto orig_flags = os.flags();
-    std::stringstream ss;
-    ss << prefix;
-    os << std::right << std::setw(8) << std::setfill('-');
     tFastTreeIdx& nbChildren = pNodes[node].treeData.childrenCount;
-    os << consoleEscapeCode;
-
-    if ((*pTreeInfo)[node].nodeType == TreeNodeInfo::intermediate) {
-      os << (*pTreeInfo)[node].geotag;
-    } else if ((*pTreeInfo)[node].nodeType == TreeNodeInfo::fs) {
-      os << std::dec << (unsigned int)(*pTreeInfo)[node].fsId;
-    }
-
-    os << "/( free:" << (int) pNodes[node].fileData.freeSlotsCount << "|repl:" <<
-       (int) pNodes[node].fileData.takenSlotsCount
-       << "|pidx:" << (int) pNodes[node].fileData.lastHighestPriorityOffset <<
-       "|status:";
-//        << std::hex << pNodes[node].fsData.mStatus << std::dec
-
-    if ((*pTreeInfo)[node].nodeType == TreeNodeInfo::intermediate) {
-      os << intermediateStatusToStr(pNodes[node].fsData.mStatus);
-    } else if ((*pTreeInfo)[node].nodeType == TreeNodeInfo::fs) {
-      os << fsStatusToStr(pNodes[node].fsData.mStatus);
-    }
-
-    os << std::dec
-       << "|ulSc:" << (int) pNodes[node].fsData.ulScore
-       << "|dlSc:" << (int) pNodes[node].fsData.dlScore
-       << "|filR:" << (int) pNodes[node].fsData.fillRatio
-//    << "|pxyG:"<< (*pTreeInfo)[node].proxygroup
-       << "|totS:" << pNodes[node].fsData.totalSpace << ")";
-    ss << std::right << std::setw(7) << std::setfill(' ') << "";
-
     if (!nbChildren) {
-      os << "@" << (*pTreeInfo)[node].host;
-      os << consoleReset;
-      os << std::endl;
+      // Print fsid and node (depth=3)
+      data_snapshot.insert(std::make_tuple(group, data_snapshot.size(), 3, color,
+                            prefix1, prefix2, operation, operation_short,
+                            (*pTreeInfo)[node].fsId,
+                            (*pTreeInfo)[node].host,
+                            pNodes[node].fileData.freeSlotsCount,
+                            pNodes[node].fileData.takenSlotsCount,
+                            pNodes[node].fileData.lastHighestPriorityOffset,
+                            fsStatusToStr(pNodes[node].fsData.mStatus),
+                            pNodes[node].fsData.ulScore,
+                            pNodes[node].fsData.dlScore,
+                            pNodes[node].fsData.fillRatio,
+                            pNodes[node].fsData.totalSpace));
     } else {
-      os << consoleReset;
-      os << std::endl;
-      tFastTreeIdx& firstBranchIdx = pNodes[node].treeData.firstBranchIdx;
+      // Print group (depth=1) and geotag (depth=2)
+      unsigned depth = (prefix1 == 0 && prefix2 == 0) ? 1 : 2;
+      group = (prefix1 == 0 && prefix2 == 0) ? (*pTreeInfo)[node].geotag : group;
+      data_snapshot.insert(std::make_tuple(group, data_snapshot.size(), depth, color,
+                            prefix1, prefix2, operation, operation_short, 0,
+                            (*pTreeInfo)[node].fullGeotag,
+                            pNodes[node].fileData.freeSlotsCount,
+                            pNodes[node].fileData.takenSlotsCount,
+                            pNodes[node].fileData.lastHighestPriorityOffset,
+                            intermediateStatusToStr(pNodes[node].fsData.mStatus),
+                            pNodes[node].fsData.ulScore,
+                            pNodes[node].fsData.dlScore,
+                            pNodes[node].fsData.fillRatio,
+                            pNodes[node].fsData.totalSpace));
 
+      // How many deep is geotag
+      unsigned geo_depth = 1;
+      std::string geotag_temp = (*pTreeInfo)[node].fullGeotag;
+      while (geotag_temp.find("::") != std::string::npos){
+        geotag_temp.erase(0, geotag_temp.find("::")+2);
+        geo_depth++;
+      }
+      geo_depth_max = (geo_depth_max < geo_depth) ? geo_depth : geo_depth_max;
+
+      tFastTreeIdx& firstBranchIdx = pNodes[node].treeData.firstBranchIdx;
       for (tFastTreeIdx branchIdx = firstBranchIdx;
            branchIdx < firstBranchIdx + nbChildren; branchIdx++) {
         tFastTreeIdx childIdx = pBranches[branchIdx].sonIdx;
-        std::string color;
-
-        if (useColors) {
-          if ((pNodes[childIdx].fsData.mStatus & Disabled)) {
-            color = "\033[2;39;49m";
-          } else {
-            color = "\033[1;39;49m";
-          }
-        }
-
         bool lastChild = (branchIdx == firstBranchIdx + nbChildren - 1);
+        unsigned prefix1_temp = (prefix2 == 3) ? 1 : 0;
 
-        if (lastChild) {
-          // final branch
-          os << ss.str() << color << "`--";
-          recursiveDisplay(os, ss.str() += (color + "   "), childIdx, useColors);
-          os << ss.str() << std::endl;
-        } else {
-          // intermediate branch
-          os << ss.str() << color << "|--";
-          recursiveDisplay(os, ss.str() += (color + "|  "), childIdx, useColors);
+        if (lastChild) { // final branch
+          recursiveDisplay(data_snapshot, childIdx, group, geo_depth_max, operation,
+                           operation_short, useColors, prefix1_temp, 2);
+        } else { // intermediate branch
+          recursiveDisplay(data_snapshot, childIdx, group, geo_depth_max, operation,
+                           operation_short, useColors, prefix1_temp, 3);
         }
       }
     }
-
-    os.flags(orig_flags);
-    return os;
   }
 
   void
@@ -2660,14 +2634,15 @@ template<typename T1, typename T2, typename T3>
 inline std::ostream&
 operator <<(std::ostream& os, const FastTree<T1, T2, T3>& tree)
 {
-  return tree.recursiveDisplay(os);
+//  return tree.recursiveDisplay(os);
+  return os;
 }
 
 template<typename T1, typename T2, typename T3>
 void __attribute__((used)) __attribute__((noinline))
 debugDisplay(const FastTree<T1, T2, T3>& tree)
 {
-  tree.recursiveDisplay(std::cout);
+//   tree.recursiveDisplay(std::cout);
 }
 
 EOSMGMNAMESPACE_END

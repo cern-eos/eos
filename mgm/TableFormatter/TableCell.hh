@@ -32,6 +32,21 @@ public:
   //----------------------------------------------------------------------------
   //! Different types of constructors depending on the type of value added to
   //! the current cell
+  //!
+  //! @param value of cell
+  //! @param format of cell: "s" - print cell as string
+  //!                        "l" - print cell as long long
+  //!                        "f" - print cell as double
+  //!                        "t" - print cell as tree arrows
+  //!                        "o" - print cell as monitoring view (TODO (Ivan): Move this in TableFormatterBase::GenerateBody())
+  //!                        "-" - left align the printout (TODO (Ivan): Move this only in TableFormatterBase::SetHeader())
+  //!                        "+" - convert numbers into f,p,n,u,m,K,M,G,T,P,E scale
+  //!                              (e.g. 2200 with format="+" will be "2.2 K")
+  //!                        "±" - prefix "±" for value (e.g. "± 22 ms")
+  //!                        "." - postfix "." for value (e.g. first one "1.")
+  //! @param unit Postfix of cell (e.g. "2.2 K" with unit=B will be "2.2 KB")
+  //! @param empty If we don't want to see cell in monitoring view
+  //! @param col Color of cell
   //----------------------------------------------------------------------------
   TableCell(unsigned int value, const std::string& format,
             const std::string& unit = "", bool empty = false,
@@ -87,6 +102,7 @@ public:
   //----------------------------------------------------------------------------
   size_t Length();
   bool Empty();
+  unsigned Tree();
 
 protected:
   //----------------------------------------------------------------------------
@@ -109,6 +125,7 @@ protected:
   std::string mFormat;
   std::string mUnit;
   bool mEmpty;
+  unsigned mTree = 0; //0="",1="│  ",2="└─▶",3="├─▶",4="└──",5="├──",6="───",7="──▶"
 
   //----------------------------------------------------------------------------
   //! Color of the cell
@@ -117,37 +134,51 @@ protected:
   std::vector<std::string> sColorVector = {
     "",
     "\33[0m",
-    "\33[31m",
-    "\33[32m",
-    "\33[33m",
-    "\33[34m",
-    "\33[35m",
-    "\33[36m",
-    "\33[37m",
-    "\33[0;1m",
+    "\33[0;31m",
+    "\33[0;32m",
+    "\33[0;33m",
+    "\33[0;34m",
+    "\33[0;35m",
+    "\33[0;36m",
+    "\33[0;39m",
+
+    "\33[1m",
     "\33[1;31m",
     "\33[1;32m",
     "\33[1;33m",
     "\33[1;34m",
     "\33[1;35m",
     "\33[1;36m",
-    "\33[1;37m",
-    "\33[47;0m",
-    "\33[47;31m",
-    "\33[47;32m",
-    "\33[47;33m",
-    "\33[47;34m",
-    "\33[47;35m",
-    "\33[47;36m",
-    "\33[47;37m",
-    "\33[1;47;0m",
-    "\33[1;47;31m",
-    "\33[1;47;32m",
-    "\33[1;47;33m",
-    "\33[1;47;34m",
-    "\33[1;47;35m",
-    "\33[1;47;36m",
-    "\33[1;47;37m",
+    "\33[1;39m",
+
+    "\33[2m",
+    "\33[2;31m",
+    "\33[2;32m",
+    "\33[2;33m",
+    "\33[2;34m",
+    "\33[2;35m",
+    "\33[2;36m",
+    "\33[2;39m",
+
+    "\33[1;31;47m",
+    "\33[1;32;47m",
+    "\33[1;33;47m",
+    "\33[1;34;47m",
+    "\33[1;35;47m",
+    "\33[1;36;47m",
+
+    "\33[1;39;41m",
+    "\33[1;39;42m",
+    "\33[1;39;43m",
+    "\33[1;39;44m",
+    "\33[1;39;45m",
+    "\33[1;39;46m",
+
+    "\33[1;33;41m",
+    "\33[1;33;42m",
+    "\33[1;33;44m",
+    "\33[1;33;45m",
+    "\33[1;33;46m"
   };
 
   //----------------------------------------------------------------------------
@@ -157,7 +188,8 @@ protected:
     UINT   = 1,
     INT    = 2,
     DOUBLE = 3,
-    STRING = 4
+    STRING = 4,
+    TREE   = 5
   };
 
   //! Indicate which value if carrying information

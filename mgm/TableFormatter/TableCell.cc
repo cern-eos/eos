@@ -47,6 +47,11 @@ TableCell::TableCell(unsigned int value, const std::string& format,
     std::string value_temp = std::to_string(value);
     SetValue(value_temp);
   }
+
+  if (mFormat.find("t") != std::string::npos) {
+    mSelectedValue = TypeContainingValue::TREE;
+    mTree = (unsigned)value;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -72,6 +77,11 @@ TableCell::TableCell(unsigned long long int value, const std::string& format,
     mSelectedValue = TypeContainingValue::STRING;
     std::string value_temp = std::to_string(value);
     SetValue(value_temp);
+  }
+
+  if (mFormat.find("t") != std::string::npos) {
+    mSelectedValue = TypeContainingValue::TREE;
+    mTree = (unsigned)value;
   }
 }
 
@@ -99,6 +109,11 @@ TableCell::TableCell(int value, const std::string& format,
     std::string value_temp = std::to_string(value);
     SetValue(value_temp);
   }
+
+  if (mFormat.find("t") != std::string::npos) {
+    mSelectedValue = TypeContainingValue::TREE;
+    mTree = (unsigned)value;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -124,6 +139,11 @@ TableCell::TableCell(long long int value, const std::string& format,
     mSelectedValue = TypeContainingValue::STRING;
     std::string value_temp = std::to_string(value);
     SetValue(value_temp);
+  }
+
+  if (mFormat.find("t") != std::string::npos) {
+    mSelectedValue = TypeContainingValue::TREE;
+    mTree = (unsigned)value;
   }
 }
 
@@ -151,6 +171,11 @@ TableCell::TableCell(float value, const std::string& format,
     std::string value_temp = std::to_string(value);
     SetValue(value_temp);
   }
+
+  if (mFormat.find("t") != std::string::npos) {
+    mSelectedValue = TypeContainingValue::TREE;
+    mTree = (unsigned)value;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -176,6 +201,11 @@ TableCell::TableCell(double value, const std::string& format,
     mSelectedValue = TypeContainingValue::STRING;
     std::string value_temp = std::to_string(value);
     SetValue(value_temp);
+  }
+
+  if (mFormat.find("t") != std::string::npos) {
+    mSelectedValue = TypeContainingValue::TREE;
+    mTree = (unsigned)value;
   }
 }
 
@@ -359,31 +389,22 @@ void TableCell::Print(std::ostream& ostream, size_t width_left,
     }
 
     // Because of escape characters - see TableFromatterColorContainer, we need
-    // to add 5 colored normal display, 6 for bold display, 7 for bold display
-    // with color etc.
-    // Normal display
+    // to add 4 for bold and dark display, 7 for colored display,
+    // 10 for colored display with background etc.
     if (mColor == TableFormatterColor::NONE) {
+      // Normal display
       ostream.width(width_left);
+    } else if (mColor == TableFormatterColor::DEFAULT ||
+               mColor == TableFormatterColor::BOLD ||
+               mColor == TableFormatterColor::DARK) {
+      // Default, bold and dark display
+      ostream.width(width_left + 4);
     } else if (TableFormatterColor::RED <= mColor &&
-               mColor <= TableFormatterColor::WHITE) {
-      ostream.width(width_left + 5);
-    } else  if (mColor == TableFormatterColor::BDEFAULT) {
-      // Bold display
-      ostream.width(width_left + 6);
-    } else if (TableFormatterColor::BRED <= mColor &&
-               mColor <= TableFormatterColor::BWHITE) {
+               mColor <= TableFormatterColor::DWHITE) {
+      // Display with color
       ostream.width(width_left + 7);
-    } else if (mColor == TableFormatterColor::BGDEFAULT) {
-      // Normal display with white background
-      ostream.width(width_left + 7);
-    } else if (TableFormatterColor::BGRED <= mColor &&
-               mColor <= TableFormatterColor::BGWHITE) {
-      ostream.width(width_left + 8);
-    } else if (mColor == TableFormatterColor::BBGDEFAULT) {
-      // Bold display with white background
-      ostream.width(width_left + 9);
-    } else if (TableFormatterColor::BBGRED <= mColor &&
-               mColor <= TableFormatterColor::BBGWHITE) {
+    } else {
+      // Display with color and background
       ostream.width(width_left + 10);
     }
   }
@@ -478,6 +499,17 @@ std::ostream& operator<<(std::ostream& stream, const TableCell& cell)
 bool TableCell::Empty()
 {
   return mEmpty;
+}
+
+//------------------------------------------------------------------------------
+// Tree
+//------------------------------------------------------------------------------
+unsigned TableCell::Tree()
+{
+  if (mSelectedValue == TypeContainingValue::TREE) {
+    return mTree;
+  }
+  return 0;
 }
 
 //------------------------------------------------------------------------------

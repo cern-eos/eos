@@ -44,11 +44,13 @@ ostream& SlowTreeNode::display(ostream& os) const
   return os;
 }
 
-ostream& SlowTreeNode::recursiveDisplay(ostream& os, bool useColors,
-                                        const string& prefix) const
+void SlowTreeNode::recursiveDisplay(std::set<std::tuple<std::string, unsigned, unsigned,
+                                    TableFormatterColor,unsigned, unsigned, std::string,
+                                    std::string, int, int, std::string>>& data_tree,
+                                    std::string group, unsigned& geo_depth_max,
+                                    bool useColors, unsigned prefix1, unsigned prefix2)
 {
-  std::string consoleEscapeCode, consoleReset;
-
+  TableFormatterColor color = NONE;
   if (useColors) {
     bool isReadable = (pNodeState.mStatus & Readable);
     bool isDisabled = (pNodeState.mStatus & Disabled);
@@ -56,182 +58,113 @@ ostream& SlowTreeNode::recursiveDisplay(ostream& os, bool useColors,
     bool isAvailable = (pNodeState.mStatus & Available);
     bool isDraining = (pNodeState.mStatus & Draining);
     bool isFs = pChildren.empty();
-    consoleEscapeCode = "\033[";
-    consoleReset = "\033[0m";
 
     if (isDisabled) { // DISABLED
-      consoleEscapeCode = consoleEscapeCode + ("2;39;49m");
+      color = DARK;
     } else {
-      if (isFs && isDraining) {
-        consoleEscapeCode = consoleEscapeCode + ("1;33;");
-      } else {
-        consoleEscapeCode = consoleEscapeCode + ("1;39;");
-      }
-
-      if (!isAvailable
-          || (isFs && (!(isReadable || isWritable)))) { // UNAVAILABLE OR NOIO
-        consoleEscapeCode = consoleEscapeCode + ("41");
+      if (!isAvailable || (isFs && (!(isReadable || isWritable)))) {
+        // UNAVAILABLE OR NOIO
+        color = (isFs && isDraining) ? BYELLOW_BGRED : BWHITE_BGRED;
       } else if (isFs) {
         if (isReadable && ! isWritable) { // RO case
-          consoleEscapeCode = consoleEscapeCode + "44";
+          color = (isFs && isDraining) ? BYELLOW_BGBLUE : BWHITE_BGBLUE;
         } else if (!isReadable && isWritable) { // WO case
-          consoleEscapeCode = consoleEscapeCode + "43";
+          color = (isFs && isDraining) ? NONE : BWHITE_BGYELLOW;
         } else {
-          consoleEscapeCode = consoleEscapeCode + "49";
+          color = (isFs && isDraining) ? BYELLOW : BWHITE;
         }
       } else {
-        consoleEscapeCode = consoleEscapeCode + "49";
+        color = (isFs && isDraining) ? BYELLOW : BWHITE;
       }
-
-      consoleEscapeCode = consoleEscapeCode + "m";
     }
   }
-
-  auto orig_flags = os.flags();
-  stringstream ss;
-  ss << prefix;
-  os << right << setw(8) << setfill('-') << consoleEscapeCode << *this;
-  ss << right << setw(7) << setfill(' ') << "";
 
   if (pChildren.empty()) {
-    os << "@" << pNodeInfo.host << " [" << pLeavesCount << "," << pNodeCount
-       << "," << fsStatusToStr(pNodeState.mStatus) << "]" << consoleReset << endl;
+    // Print fsid and node (depth=3)
+    data_tree.insert(std::make_tuple(group, data_tree.size(), 3, color,
+                     prefix1, prefix2, pNodeInfo.fullGeotag, pNodeInfo.host,
+                     pLeavesCount, pNodeCount, fsStatusToStr(pNodeState.mStatus)));
   } else {
-    os << " [" << pLeavesCount << "," << pNodeCount << "]" << consoleReset << endl;
+    // Print group (depth=1) and geotag (depth=2)
+    unsigned depth = (prefix1 == 0 && prefix2 == 0) ? 1 : 2;
+    group = (prefix1 == 0 && prefix2 == 0) ? pNodeInfo.geotag : group;
+    data_tree.insert(std::make_tuple(group, data_tree.size(), depth, color,
+                                     prefix1, prefix2, pNodeInfo.fullGeotag,
+                                     "", pLeavesCount, pNodeCount, ""));
 
-    for (tNodeMap::const_iterator it = pChildren.begin(); it != pChildren.end();
-         it++) {
-      std::string color;
+    // How geotag is deep
+    unsigned geo_depth = 1;
+    std::string geotag_temp = pNodeInfo.fullGeotag;
+    while (geotag_temp.find("::") != std::string::npos){
+      geotag_temp.erase(0, geotag_temp.find("::")+2);
+      geo_depth++;
+    }
+    geo_depth_max = (geo_depth_max < geo_depth) ? geo_depth : geo_depth_max;
 
-      if (useColors) {
-        if ((it->second->pNodeState.mStatus & Disabled)) {
-          color = "\033[2;39;49m";
-        } else {
-          color = "\033[1;39;49m";
-        }
-      }
-
-      if (it != pChildren.end() &&
-          ++tNodeMap::const_iterator(it) == pChildren.end()) {
+    for (auto it = pChildren.begin(); it != pChildren.end(); it++) {
+      unsigned prefix1_temp = (prefix2 == 3) ? 1 : 0;
+      if (it != pChildren.end() && ++tNodeMap::const_iterator(it) == pChildren.end()) {
         // final branch
-        os << ss.str() << color << "`--";
-        it->second->recursiveDisplay(os, useColors, ss.str() += "   ");
-        os << ss.str() << endl;
+        it->second->recursiveDisplay(data_tree, group, geo_depth_max,
+                                     useColors, prefix1_temp, 2);
       } else {
         // intermediate branch
-        os << ss.str() << color << "|--";
-        it->second->recursiveDisplay(os, useColors, ss.str() += "|  ");
+        it->second->recursiveDisplay(data_tree, group, geo_depth_max,
+                                     useColors, prefix1_temp, 3);
       }
     }
   }
-
-  os.flags(orig_flags);
-  return os;
 }
 
-ostream& SlowTreeNode::recursiveDisplayAccess(ostream& os, bool useColors,
-    const string& prefix) const
+void SlowTreeNode::recursiveDisplayAccess(std::set<std::tuple<unsigned, unsigned, unsigned,
+                                              unsigned, std::string, std::string>>& data_access,
+                                              unsigned& geo_depth_max, unsigned prefix1,
+                                              unsigned prefix2)
 {
-  std::string consoleEscapeCode, consoleReset;
-
-  if (useColors) {
-    bool isReadable = (pNodeState.mStatus & Readable);
-    bool isDisabled = (pNodeState.mStatus & Disabled);
-    bool isWritable = (pNodeState.mStatus & Writable);
-    bool isAvailable = (pNodeState.mStatus & Available);
-    bool isDraining = (pNodeState.mStatus & Draining);
-    bool isFs = pChildren.empty();
-    consoleEscapeCode = "\033[";
-    consoleReset = "\033[0m";
-
-    if (isDisabled) { // DISABLED
-      consoleEscapeCode = consoleEscapeCode + ("2;39;49m");
-    } else {
-      if (isFs && isDraining) {
-        consoleEscapeCode = consoleEscapeCode + ("1;33;");
-      } else {
-        consoleEscapeCode = consoleEscapeCode + ("1;39;");
-      }
-
-      if (!isAvailable
-          || (isFs && (!(isReadable || isWritable)))) { // UNAVAILABLE OR NOIO
-        consoleEscapeCode = consoleEscapeCode + ("41");
-      } else if (isFs) {
-        if (isReadable && ! isWritable) { // RO case
-          consoleEscapeCode = consoleEscapeCode + "44";
-        } else if (!isReadable && isWritable) { // WO case
-          consoleEscapeCode = consoleEscapeCode + "43";
-        } else {
-          consoleEscapeCode = consoleEscapeCode + "49";
-        }
-      } else {
-        consoleEscapeCode = consoleEscapeCode + "49";
-      }
-
-      consoleEscapeCode = consoleEscapeCode + "m";
-    }
+  // How geotag is deep
+  unsigned geo_depth = 1;
+  std::string geotag_temp = pNodeInfo.fullGeotag;
+  while (geotag_temp.find("::") != std::string::npos){
+    geotag_temp.erase(0, geotag_temp.find("::")+2);
+    geo_depth++;
   }
-
-  auto orig_flags = os.flags();
-  stringstream ss;
-  ss << prefix;
-  os << right << setw(8) << setfill('-') << consoleEscapeCode << *this;
-  ss << right << setw(7) << setfill(' ') << "";
+  geo_depth_max = (geo_depth_max < geo_depth) ? geo_depth : geo_depth_max;
 
   if (pChildren.empty()) {
-    //os << "@" << pNodeInfo.host << " ["<< pLeavesCount<<","<<pNodeCount<<","<<fsStatusToStr(pNodeState.mStatus)<< "]"<< consoleReset <<endl;
-    if (this->pNodeInfo.proxygroup.size()) {
-      os << " [" << this->pNodeInfo.fullGeotag << " => " << this->pNodeInfo.proxygroup
-         << "]";
+    if (pNodeInfo.proxygroup.size()) { // leavs
+      data_access.insert(std::make_tuple(data_access.size(), 3, prefix1, prefix2,
+                         pNodeInfo.fullGeotag, pNodeInfo.proxygroup));
     }
-
-    os << consoleReset << endl;
   } else {
-    //os << " ["<< pLeavesCount<<","<<pNodeCount<< "]"<< consoleReset << endl;
-    if (this->pNodeInfo.proxygroup.size()) {
-      os << " [" << this->pNodeInfo.fullGeotag << " => " << this->pNodeInfo.proxygroup
-         << "]";
-    }
-
-    os << consoleReset << endl;
-
-    for (tNodeMap::const_iterator it = pChildren.begin(); it != pChildren.end();
-         it++) {
-      std::string color;
-
-      if (useColors) {
-        if ((it->second->pNodeState.mStatus & Disabled)) {
-          color = "\033[2;39;49m";
-        } else {
-          color = "\033[1;39;49m";
-        }
-      }
-
-      if (it != pChildren.end() &&
-          ++tNodeMap::const_iterator(it) == pChildren.end()) {
+      unsigned depth = (prefix1 == 0 && prefix2 == 0) ? 1 : 2;
+      data_access.insert(std::make_tuple(data_access.size(), depth, prefix1, prefix2,
+                         pNodeInfo.fullGeotag, pNodeInfo.proxygroup));
+    
+    for (auto it = pChildren.begin(); it != pChildren.end(); it++) {
+      unsigned prefix1_temp = (prefix2 == 3) ? 1 : 0;
+      if (it != pChildren.end() && ++tNodeMap::const_iterator(it) == pChildren.end()) {
         // final branch
-        os << ss.str() << color << "`--";
-        it->second->recursiveDisplayAccess(os, useColors, ss.str() += "   ");
-        os << ss.str() << endl;
+        it->second->recursiveDisplayAccess(data_access, geo_depth_max, prefix1_temp, 2);
       } else {
         // intermediate branch
-        os << ss.str() << color << "|--";
-        it->second->recursiveDisplayAccess(os, useColors, ss.str() += "|  ");
+        it->second->recursiveDisplayAccess(data_access, geo_depth_max, prefix1_temp, 3);
       }
     }
   }
-
-  os.flags(orig_flags);
-  return os;
 }
-ostream& SlowTree::display(ostream& os, bool useColors) const
+void SlowTree::display(std::set<std::tuple<std::string, unsigned, unsigned,
+                       TableFormatterColor, unsigned, unsigned, std::string,
+                       std::string, int, int, std::string>>& data_tree,
+                       unsigned& geo_depth_max, bool useColors)
 {
-  return pRootNode.recursiveDisplay(os, useColors);
+  pRootNode.recursiveDisplay(data_tree, "", geo_depth_max, useColors);
 }
 
-ostream& SlowTree::displayAccess(ostream& os, bool useColors) const
+void SlowTree::displayAccess(std::set<std::tuple<unsigned, unsigned, unsigned,
+                             unsigned, std::string, std::string>>& data_access, 
+                             unsigned& geo_depth_max)
 {
-  return pRootNode.recursiveDisplayAccess(os, useColors);
+  pRootNode.recursiveDisplayAccess(data_access, geo_depth_max);
 }
 
 SlowTreeNode* SlowTree::insert(const TreeNodeInfo* info,

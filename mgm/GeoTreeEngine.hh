@@ -1147,7 +1147,7 @@ protected:
     bool clearMapping(const std::string& geotag = "", bool updateFastStruct = true,
                       bool setconfig = true);
 
-    bool showMapping(XrdOucString* output);
+    bool showMapping(XrdOucString* output, std::string operation, bool monitoring);
   };
   /// => access geotag mappings management / operations
   ///    they are used to check if going through a firewall entrypoint is required
@@ -2386,7 +2386,7 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  inline bool showAccessGeotagMapping(XrdOucString* output)
+  inline bool showAccessGeotagMapping(XrdOucString* output, bool monitoring)
   {
     if (!pAccessGeotagMapping.inuse) {
       *output +=
@@ -2394,7 +2394,7 @@ public:
       return true;
     }
 
-    return pAccessGeotagMapping.showMapping(output);
+    return pAccessGeotagMapping.showMapping(output, "AccessGeotagMapping", monitoring);
   }
 
   // ---------------------------------------------------------------------------
@@ -2462,7 +2462,7 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  inline bool showAccessProxygroup(XrdOucString* output)
+  inline bool showAccessProxygroup(XrdOucString* output, bool monitoring)
   {
     if (!pAccessProxygroup.inuse) {
       *output +=
@@ -2470,7 +2470,7 @@ public:
       return true;
     }
 
-    return pAccessProxygroup.showMapping(output);
+    return pAccessProxygroup.showMapping(output, "AccessProxygroupMapping", monitoring);
   }
   //! [public member functions]
 
