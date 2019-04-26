@@ -62,4 +62,21 @@ TEST(IdTrackerWithValidity, BasicFunctionality)
   ASSERT_TRUE(tracker.HasEntry(121));
   tracker.RemoveEntry(121);
   ASSERT_FALSE(tracker.HasEntry(121));
+
+  // Add enties with custom expiration time
+  for (uint64_t i = 13; i < 100; i += 10) {
+    tracker.AddEntry(i, std::chrono::seconds(i));
+  }
+
+  clock.advance(std::chrono::seconds(90));
+  tracker.DoCleanup();
+  // All but the last entry should be expired
+  ASSERT_TRUE(tracker.HasEntry(93));
+
+  for (uint64_t i = 13; i < 90; i += 10) {
+    ASSERT_FALSE(tracker.HasEntry(i));
+  }
+
+  tracker.Clear();
+  ASSERT_FALSE(tracker.HasEntry(93));
 }

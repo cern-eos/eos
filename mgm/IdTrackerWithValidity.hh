@@ -65,8 +65,11 @@ public:
   //! Add entry with expiration
   //!
   //! @param entry
+  //! @param validity validity for the newly added entry. If 0 then default
+  //!         validity applies.
   //----------------------------------------------------------------------------
-  void AddEntry(EntryT entry);
+  void AddEntry(EntryT entry, std::chrono::seconds validity =
+                  std::chrono::seconds::zero());
 
   //----------------------------------------------------------------------------
   //! Check if entry is already tracked
@@ -119,10 +122,16 @@ private:
 //------------------------------------------------------------------------------
 template<typename EntryT>
 void
-IdTrackerWithValidity<EntryT>::AddEntry(EntryT entry)
+IdTrackerWithValidity<EntryT>::AddEntry(EntryT entry,
+                                        std::chrono::seconds validity)
 {
   eos::common::RWMutexWriteLock wr_lock(mRWMutex);
-  mMap[entry] = eos::common::SteadyClock::now(&mClock) + mEntryValidity;
+
+  if (validity.count()) {
+    mMap[entry] = eos::common::SteadyClock::now(&mClock) + validity;
+  } else {
+    mMap[entry] = eos::common::SteadyClock::now(&mClock) + mEntryValidity;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -145,9 +154,11 @@ IdTrackerWithValidity<EntryT>::DoCleanup()
 {
   using namespace std::chrono;
   auto now = eos::common::SteadyClock::now(&mClock);
-  eos::common::RWMutexWriteLock wr_lock(mRWMutex);
+  eos::common::RWMutexReadLock rd_lock(mRWMutex);
 
   if (mCleanupTimestamp < now) {
+    rd_lock.Release();
+    eos::common::RWMutexWriteLock wr_lock(mRWMutex);
     mCleanupTimestamp = now + mCleanupInterval;
 
     for (auto it = mMap.begin(); it != mMap.end(); /*empty*/) {
