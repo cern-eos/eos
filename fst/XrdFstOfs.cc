@@ -1156,21 +1156,16 @@ XrdFstOfs::SendFsck(XrdMqMessage* message)
         gOFS.Storage->mFsVect[i]->InconsistencyStatsMutex);
       std::map<std::string, std::set<eos::common::FileId::fileid_t> >* icset =
         gOFS.Storage->mFsVect[i]->GetInconsistencySets();
-      std::map<std::string, std::set<eos::common::FileId::fileid_t> >::const_iterator
-      icit;
 
-      for (icit = icset->begin(); icit != icset->end(); icit++) {
+      for (auto icit = icset->begin(); icit != icset->end(); icit++) {
         // loop over all tags
-        if (((icit->first != "mem_n") && (icit->first != "d_sync_n") &&
-             (icit->first != "m_sync_n")) &&
-            ((tag == "*") || ((tag.find(icit->first.c_str()) != STR_NPOS)))) {
+        if(tag == "*" || tag.find(icit->first.c_str()) != STR_NPOS) {
           char stag[4096];
           eos::common::FileSystem::fsid_t fsid =
             gOFS.Storage->mFsVect[i]->GetId();
           snprintf(stag, sizeof(stag) - 1, "%s@%lu", icit->first.c_str(),
                    (unsigned long) fsid);
           stdOut += stag;
-          std::set<eos::common::FileId::fileid_t>::const_iterator fit;
 
           if (gOFS.Storage->mFsVect[i]->GetStatus() !=
               eos::common::BootStatus::kBooted) {
@@ -1178,7 +1173,7 @@ XrdFstOfs::SendFsck(XrdMqMessage* message)
             continue;
           }
 
-          for (fit = icit->second.begin(); fit != icit->second.end(); fit++) {
+          for (auto fit = icit->second.begin(); fit != icit->second.end(); fit++) {
             // Don't report files which are currently write-open
             if (gOFS.openedForWriting.isOpen(fsid, *fit)) {
               continue;

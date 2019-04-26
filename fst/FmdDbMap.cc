@@ -1406,10 +1406,8 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
   statistics["unreg_n"] = 0; // number of unregistered replicas
   statistics["rep_diff_n"] = 0; // number of files with replica number mismatch
   statistics["rep_missing_n"] = 0; // number of files which are missing on disk
-  fidset["m_sync_n"].clear(); // file set's for the same items as above
+
   fidset["m_mem_sz_diff"].clear();
-  fidset["mem_n"].clear();
-  fidset["d_sync_n"].clear();
   fidset["d_mem_sz_diff"].clear();
   fidset["m_cx_diff"].clear();
   fidset["d_cx_diff"].clear();
