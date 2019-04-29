@@ -924,6 +924,8 @@ metad::update(fuse_req_t req, shared_md md, std::string authid,
   }
 
   flushentry fe(md->id(), authid, localstore ? mdx::LSTORE : mdx::UPDATE, req);
+  fe.bind();
+
   mdqueue[md->id()]++;
   mdflushqueue.push_back(fe);
   eos_static_info("added ino=%#lx flushentry=%s queue-size=%u local-store=%d",
@@ -976,11 +978,15 @@ metad::add(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
     }
 
     flushentry fe(id, authid, mdx::ADD, req);
+    fe.bind();
+
     mdqueue[id]++;
     mdflushqueue.push_back(fe);
   }
 
   flushentry fep(pid, authid, mdx::LSTORE, req);
+  fep.bind();
+
   mdqueue[pid]++;
   mdflushqueue.push_back(fep);
   mdflush.Signal();
@@ -1078,6 +1084,8 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
   }
 
   flushentry fep(pmd->id(), authid, mdx::LSTORE, req);
+  fep.bind();
+
   mdqueue[pmd->id()]++;
   mdflushqueue.push_back(fep);
   mdflush.Signal();
@@ -1171,7 +1179,10 @@ metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
   }
 
   flushentry fe(md->id(), authid, mdx::RM, req);
+  fe.bind();
   flushentry fep(pmd->id(), authid, mdx::LSTORE, req);
+  fep.bind();
+
   mdflush.Lock();
 
   while (mdqueue.size() == mdqueue_max_backlog) {
@@ -1277,16 +1288,22 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
   }
 
   flushentry fe1(p1md->id(), authid1, mdx::UPDATE, req);
+  fe1.bind();
+
   mdqueue[p1md->id()]++;
   mdflushqueue.push_back(fe1);
 
   if (p1md->id() != p2md->id()) {
     flushentry fe2(p2md->id(), authid2, mdx::UPDATE, req);
+    fe2.bind();
+
     mdqueue[p2md->id()]++;
     mdflushqueue.push_back(fe2);
   }
 
   flushentry fe(md->id(), authid2, mdx::UPDATE, req);
+  fe.bind();
+
   mdqueue[md->id()]++;
   mdflushqueue.push_back(fe);
   stat.inodes_backlog_store(mdqueue.size());

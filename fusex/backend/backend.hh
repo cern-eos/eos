@@ -87,7 +87,7 @@ public:
 
   int putMD(fuse_req_t req, eos::fusex::md* md, std::string authid,
             XrdSysMutex* locker);
-  int putMD(const fuse_id& id, eos::fusex::md* md, std::string authid,
+  int putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
             XrdSysMutex* locker);
 
   int getCAP(fuse_req_t req,

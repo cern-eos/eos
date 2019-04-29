@@ -768,6 +768,10 @@ public:
       return _fuse_id;
     }
 
+    void bind() {
+      _fuse_id.bind();
+    }
+
     static std::deque<flushentry> merge(std::deque<flushentry>& f)
     {
       return f;

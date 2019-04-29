@@ -604,18 +604,33 @@ backend::putMD(fuse_req_t req, eos::fusex::md* md, std::string authid,
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-backend::putMD(const fuse_id& id, eos::fusex::md* md, std::string authid,
+backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
                XrdSysMutex* locker)
 {
-  XrdCl::URL url("root://" + hostport);
-  url.SetPath("/dummy");
+  XrdCl::URL url;
   XrdCl::URL::ParamsMap query;
-  fusexrdlogin::loginurl(url, query, id.uid, id.gid, id.pid, 0);
 
-  query["eos.app"] = get_appname();
-  query["fuse.v"] = std::to_string(FUSEPROTOCOLVERSION);
+  bool was_bound=false;
+  if (!(id.getid())) {
+    id.bind();
+  } else {
+    was_bound=true;
+  }
+  
+  {
+    // update host + port NOW
+    XrdCl::URL lurl("root://" + hostport);
+    id.getid()->url.SetHostPort(lurl.GetHostName(), lurl.GetPort());
+  }
 
-  url.SetParams(query);
+  id.getid()->query["eos.app"] = get_appname();
+  id.getid()->query["fuse.v"] = std::to_string(FUSEPROTOCOLVERSION);
+
+  id.getid()->url.SetParams(id.getid()->query);
+
+
+  eos_static_debug("identity bound url=%s was-bound=%d", id.getid()->url.GetURL().c_str(), was_bound);
+
   // temporary add the authid to be used for that request
   md->set_authid(authid);
   md->set_clientuuid(clientuuid);
@@ -648,9 +663,9 @@ backend::putMD(const fuse_id& id, eos::fusex::md* md, std::string authid,
   std::string prefix = "/?fusex:";
   arg.Append(prefix.c_str(), prefix.length());
   arg.Append(mdstream.c_str(), mdstream.length());
-  eos_static_debug("query: url=%s path=%s length=%d", url.GetURL().c_str(),
+  eos_static_debug("query: url=%s path=%s length=%d", id.getid()->url.GetURL().c_str(),
                    prefix.c_str(), mdstream.length());
-  XrdCl::XRootDStatus status = Query(url, XrdCl::QueryCode::OpaqueFile, arg,
+  XrdCl::XRootDStatus status = Query(id.getid()->url, XrdCl::QueryCode::OpaqueFile, arg,
                                      response, put_timeout);
   eos_static_info("sync-response");
   eos_static_debug("response-size=%d",
@@ -771,7 +786,7 @@ backend::putMD(const fuse_id& id, eos::fusex::md* md, std::string authid,
     return 0;
   } else {
     eos_static_err("query resulted in error for ino=%lx url=%s", md->id(),
-                   url.GetURL().c_str());
+                   id.getid()->url.GetURL().c_str());
 
     if (locker) {
       locker->Lock();

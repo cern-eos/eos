@@ -26,14 +26,26 @@
 #ifndef FUSE_FUSEID_HH_
 #define FUSE_FUSEID_HH_
 
+#include <memory>
 #include "llfusexx.hh"
+#include "misc/fusexrdlogin.hh"
+#include "XrdCl/XrdClURL.hh"
 
 //----------------------------------------------------------------------------
 
-struct fuse_id {
+
+struct fuse_identity {
+  XrdCl::URL url;
+  XrdCl::URL::ParamsMap query;
+};
+
+class fuse_id {
+public:
+
   uid_t uid;
   gid_t gid;
   pid_t pid;
+  std::shared_ptr<struct fuse_identity> getid() const { return _id; }
 
   fuse_id()
   {
@@ -52,7 +64,18 @@ struct fuse_id {
     uid = o.uid;
     gid = o.gid;
     pid = o.pid;
+    _id = o.getid();
   }
+
+
+  int bind() {
+    // when called the current process environment is snapshotted for this request
+    _id = std::make_shared<struct fuse_identity>();
+    _id->url.FromString("root://localhost//dummy");
+    return fusexrdlogin::loginurl(_id->url, _id->query, uid, gid, pid, 0);    
+  }
+private:
+  std::shared_ptr<struct fuse_identity> _id;
 };
 
 
