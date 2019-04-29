@@ -19,9 +19,11 @@
 #include "namespace/ns_quarkdb/inspector/Inspector.hh"
 #include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
 #include "namespace/ns_quarkdb/persistency/Serialization.hh"
+#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include <folly/executors/IOThreadPoolExecutor.h>
 #include <qclient/QClient.hh>
 #include <qclient/structures/QLocalityHash.hh>
+#include <google/protobuf/util/json_util.h>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -108,6 +110,31 @@ int Inspector::checkNamingConflicts(std::ostream &out, std::ostream &err) {
     containerContents[proto.name()] = proto.id();
   }
 
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Print out _everything_ known about the given file.
+//------------------------------------------------------------------------------
+int Inspector::printFileMD(uint64_t fid, std::ostream &out, std::ostream &err) {
+  folly::Future<eos::ns::FileMdProto> fut = MetadataFetcher::getFileFromId(mQcl, FileIdentifier(fid));
+  eos::ns::FileMdProto val;
+
+  try {
+    val = fut.get();
+  }
+  catch(const MDException &e) {
+    err << "Error while fetching metadata for FileMD #" << fid << ": " << e.what() << std::endl;
+    return 1;
+  }
+
+  google::protobuf::util::JsonPrintOptions opts;
+  opts.add_whitespace = true;
+
+  std::string jsonString;
+  google::protobuf::util::MessageToJsonString(val, &jsonString, opts);
+
+  err << jsonString << std::endl;
   return 0;
 }
 

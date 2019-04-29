@@ -44,6 +44,19 @@ struct MemberValidator : public CLI::Validator {
 
 using namespace eos;
 
+//------------------------------------------------------------------------------
+// Given a subcommand, add common-to-all options such as --members
+// and --password
+//----------------------------------------------------------------------------
+void addClusterOptions(CLI::App *subcmd, std::string &membersStr, MemberValidator &memberValidator, std::string &password, std::string &passwordFile) {
+  subcmd->add_option("--members", membersStr, "One or more members of the QDB cluster")
+    ->required()
+    ->check(memberValidator);
+
+  subcmd->add_option("--password", password, "The password for connecting to the QDB cluster - can be empty");
+  subcmd->add_option("--password-file", passwordFile, "The passwordfile for connecting to the QDB cluster - can be empty");
+}
+
 int main(int argc, char* argv[]) {
   CLI::App app("Tool to inspect contents of the QuarkDB-based EOS namespace.");
   app.require_subcommand();
@@ -60,30 +73,27 @@ int main(int argc, char* argv[]) {
   //----------------------------------------------------------------------------
   // Set-up dump subcommand..
   //----------------------------------------------------------------------------
-  auto dumpSubcommand = app.add_subcommand("dump", "Dump entire namespace contents under a specific path");
+  auto dumpSubcommand = app.add_subcommand("dump", "Recursively dump entire namespace contents under a specific path");
+  addClusterOptions(dumpSubcommand, membersStr, memberValidator, password, passwordFile);
 
   std::string dumpPath;
   dumpSubcommand->add_option("--path", dumpPath, "The target path to dump")
     ->required();
 
-  dumpSubcommand->add_option("--members", membersStr, "One or more members of the QDB cluster")
-    ->required()
-    ->check(memberValidator);
-
-  dumpSubcommand->add_option("--password", password, "The password for connecting to the QDB cluster - can be empty");
-  dumpSubcommand->add_option("--password-file", passwordFile, "The passwordfile for connecting to the QDB cluster - can be empty");
-
   //----------------------------------------------------------------------------
   // Set-up consistency-check subcommand..
   //----------------------------------------------------------------------------
   auto consistencyCheckSubcommand  = app.add_subcommand("consistency-check", "Scan through the entire namespace for inconsistencies");
+  addClusterOptions(consistencyCheckSubcommand, membersStr, memberValidator, password, passwordFile);
 
-  consistencyCheckSubcommand->add_option("--members", membersStr, "One or more members of the QDB cluster")
-    ->required()
-    ->check(memberValidator);
+  //----------------------------------------------------------------------------
+  // Set-up print subcommand..
+  //----------------------------------------------------------------------------
+  auto printSubcommand = app.add_subcommand("print", "Print everything known about a given file, or container");
+  addClusterOptions(printSubcommand, membersStr, memberValidator, password, passwordFile);
 
-  consistencyCheckSubcommand->add_option("--password", password, "The password for connecting to the QDB cluster - can be empty");
-  consistencyCheckSubcommand->add_option("--password-file", passwordFile, "The passwordfile for connecting to the QDB cluster - can be empty");
+  uint64_t fid;
+  printSubcommand->add_option("--fid", fid, "Specify the FileMD to print, through its ID (decimal form)");
 
   //----------------------------------------------------------------------------
   // Parse..
@@ -136,6 +146,10 @@ int main(int argc, char* argv[]) {
 
   if(consistencyCheckSubcommand->parsed()) {
     return inspector.checkNamingConflicts(std::cout, std::cerr);
+  }
+
+  if(printSubcommand->parsed()) {
+    return inspector.printFileMD(fid, std::cout, std::cerr);
   }
 
   std::cerr << "No subcommand was supplied - should never reach here" << std::endl;

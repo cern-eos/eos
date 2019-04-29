@@ -58,6 +58,11 @@ public:
   //----------------------------------------------------------------------------
   int checkNamingConflicts(std::ostream &out, std::ostream &err);
 
+  //----------------------------------------------------------------------------
+  //! Print out _everything_ known about the given file.
+  //----------------------------------------------------------------------------
+  int printFileMD(uint64_t fid, std::ostream &out, std::ostream &err);
+
 
 private:
   qclient::QClient &mQcl;
