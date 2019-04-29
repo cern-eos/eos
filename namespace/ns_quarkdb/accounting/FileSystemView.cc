@@ -26,7 +26,8 @@
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "common/StringTokenizer.hh"
 #include "common/Logging.hh"
-#include "qclient/QScanner.hh"
+#include "qclient/structures/QScanner.hh"
+#include "qclient/structures/QSet.hh"
 #include <iostream>
 #include <folly/executors/IOThreadPoolExecutor.h>
 

@@ -34,6 +34,7 @@
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
+#include "qclient/structures/QSet.hh"
 #include <stdio.h>
 #include <sys/mman.h>
 #include <fts.h>

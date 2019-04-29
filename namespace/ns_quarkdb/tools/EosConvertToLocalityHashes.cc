@@ -21,7 +21,7 @@
 #include <qclient/Utils.hh>
 #include <qclient/Members.hh>
 #include <qclient/QClient.hh>
-#include <qclient/QHash.hh>
+#include <qclient/structures/QHash.hh>
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb/Constants.hh"

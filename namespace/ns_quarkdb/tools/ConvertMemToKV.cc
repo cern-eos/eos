@@ -27,6 +27,7 @@
 #include "namespace/utils/StringConvertion.hh"
 #include "namespace/utils/DataHelper.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
+#include "qclient/structures/QHash.hh"
 
 // Static global variable
 static std::string sBkndHost;

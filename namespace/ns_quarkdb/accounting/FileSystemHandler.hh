@@ -28,7 +28,7 @@
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/accounting/SetChangeList.hh"
-#include "qclient/QSet.hh"
+#include "qclient/structures/QSet.hh"
 #include <folly/futures/FutureSplitter.h>
 #include <folly/executors/Async.h>
 #include "common/Assert.hh"

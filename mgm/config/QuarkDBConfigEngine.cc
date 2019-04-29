@@ -28,7 +28,7 @@
 #include <qclient/ResponseParsing.hh>
 #include <qclient/MultiBuilder.hh>
 #include "common/GlobalConfig.hh"
-#include "qclient/QScanner.hh"
+#include "qclient/structures/QScanner.hh"
 #include <ctime>
 
 EOSMGMNAMESPACE_BEGIN

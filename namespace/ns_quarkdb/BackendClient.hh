@@ -24,8 +24,6 @@
 #pragma once
 #include "namespace/Namespace.hh"
 #include "qclient/QClient.hh"
-#include "qclient/QHash.hh"
-#include "qclient/QSet.hh"
 #include "qclient/Members.hh"
 #include "qclient/AsyncHandler.hh"
 #include <atomic>

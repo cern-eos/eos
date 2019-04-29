@@ -31,7 +31,6 @@
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemHandler.hh"
 #include "qclient/QClient.hh"
-#include "qclient/QSet.hh"
 #include <utility>
 
 EOSNSNAMESPACE_BEGIN

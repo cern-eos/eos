@@ -19,7 +19,7 @@
 #include "common/Logging.hh"
 #include "namespace/ns_quarkdb/persistency/NextInodeProvider.hh"
 #include "namespace/interface/IFileMD.hh"
-#include "qclient/QHash.hh"
+#include "qclient/structures/QHash.hh"
 #include <memory>
 #include <numeric>
 

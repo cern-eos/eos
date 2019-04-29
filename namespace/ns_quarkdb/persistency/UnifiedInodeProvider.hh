@@ -25,7 +25,7 @@
 #include "namespace/Namespace.hh"
 #include "namespace/ns_quarkdb/persistency/NextInodeProvider.hh"
 #include <mutex>
-#include <qclient/QHash.hh>
+#include <qclient/structures/QHash.hh>
 
 EOSNSNAMESPACE_BEGIN
 

@@ -21,7 +21,6 @@
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/utils/FileListRandomPicker.hh"
 #include "common/Assert.hh"
-#include "qclient/QSet.hh"
 
 EOSNSNAMESPACE_BEGIN
 

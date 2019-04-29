@@ -27,8 +27,8 @@
 #include "namespace/ns_quarkdb/ConfigurationParser.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
-#include "qclient/QScanner.hh"
-#include "qclient/QHash.hh"
+#include "qclient/structures/QScanner.hh"
+#include "qclient/structures/QHash.hh"
 #include "common/StringTokenizer.hh"
 
 EOSNSNAMESPACE_BEGIN

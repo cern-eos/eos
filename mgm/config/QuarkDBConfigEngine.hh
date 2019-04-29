@@ -26,8 +26,7 @@
 
 #include "mgm/config/IConfigEngine.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
-#include "namespace/ns_quarkdb/qclient/include/qclient/QHash.hh"
-#include "namespace/ns_quarkdb/qclient/include/qclient/QSet.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/structures/QHash.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/AsyncHandler.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
