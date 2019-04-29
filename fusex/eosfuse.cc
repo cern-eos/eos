@@ -87,6 +87,10 @@ extern "C" { /* this 'extern "C"' brace will eventually end up in the .h file, t
 
 #define _FILE_OFFSET_BITS 64
 
+#ifndef FUSE_CAP_CACHE_SYMLINKS
+#define FUSE_CAP_CACHE_SYMLINKS (1<<23)
+#endif
+
 const char* k_mdino = "sys.eos.mdino";
 const char* k_nlink = "sys.eos.nlink";
 const char* k_fifo = "sys.eos.fifo";
@@ -1790,9 +1794,8 @@ EosFuse::init(void* userdata, struct fuse_conn_info* conn)
   }
 
   conn->want |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS | FUSE_CAP_WRITEBACK_CACHE | FUSE_CAP_CACHE_SYMLINKS;
-  conn->want &= ~(FUSE_CAP_POSIX_ACL | FUSE_CAP_HANDLE_KILLPRIV); // don't want ACL lookups
 
-  eos_static_warning("want:08x capable:%08x", conn->want, con->capable);
+  eos_static_warning("want:08x capable:%08x", conn->want, conn->capable);
 }
 
 void
