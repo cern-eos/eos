@@ -117,7 +117,7 @@ XrdMgmOfs::Version(eos::common::FileId::fileid_t fid,
 
     // Remove any directory attribute here - sort of obsolete since we don't
     // create them in first place anymore, let's just keep it
-    if (gOFS->_attr_clear(vpath.c_str(), error, fidvid, (const char*) 0)) {
+    if (gOFS->_attr_clear(vpath.c_str(), error, fidvid, (const char*) 0, true)) {
       return Emsg(epname, error, errno, "clear version directory attributes",
                   path.c_str());
     }

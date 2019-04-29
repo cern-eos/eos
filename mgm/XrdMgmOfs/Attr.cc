@@ -578,7 +578,8 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
 int
 XrdMgmOfs::_attr_clear(const char* path, XrdOucErrInfo& error,
                        eos::common::VirtualIdentity& vid,
-                       const char* info)
+                       const char* info, 
+		       bool keep_acls)
 
 {
   eos::IContainerMD::XAttrMap map;
@@ -590,6 +591,11 @@ XrdMgmOfs::_attr_clear(const char* path, XrdOucErrInfo& error,
   int success = SFS_OK;
 
   for (auto it = map.begin(); it != map.end(); ++it) {
+    if ( keep_acls && (
+		       (it->first == "sys.acl") ||
+		       (it->first == "user.acl") )) {
+      continue;
+    }
     success |= _attr_rem(path, error, vid, info, it->first.c_str());
   }
 
