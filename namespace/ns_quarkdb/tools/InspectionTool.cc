@@ -19,6 +19,7 @@
 #include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/ns_quarkdb/persistency/Serialization.hh"
+#include "namespace/ns_quarkdb/inspector/Inspector.hh"
 #include "common/PasswordHandler.hh"
 #include "CLI11.hpp"
 #include <qclient/QClient.hh>
@@ -42,60 +43,6 @@ struct MemberValidator : public CLI::Validator {
 };
 
 using namespace eos;
-
-int runDump(qclient::QClient &qcl, const std::string &dumpPath) {
-  ExplorationOptions explorerOpts;
-  std::unique_ptr<folly::Executor> executor(new folly::IOThreadPoolExecutor(4));
-
-  NamespaceExplorer explorer(dumpPath, explorerOpts, qcl, executor.get());
-  NamespaceItem item;
-
-  while(explorer.fetch(item)) {
-    std::cout << "path=" << item.fullPath << std::endl;
-  }
-
-  return 0;
-}
-
-int runConsistencyCheck(qclient::QClient &qcl) {
-  qclient::QLocalityHash::Iterator iter(&qcl, "eos-container-md");
-
-  std::map<std::string, uint64_t> containerContents;
-  uint64_t currentContainer = -1;
-  int64_t processed = 0;
-
-  for(; iter.valid(); iter.next()) {
-    processed++;
-    std::string item = iter.getValue();
-
-    eos::ns::ContainerMdProto proto;
-    eos::MDStatus status = Serialization::deserialize(item.c_str(), item.size(), proto);
-
-    if(!status.ok()) {
-      std::cerr << "Error while deserializing: " << item << std::endl;
-      continue;
-    }
-
-    if(processed % 100000 == 0) {
-      std::cerr << "Processed so far: " << processed << std::endl;
-    }
-
-    if(currentContainer == proto.parent_id()) {
-      auto conflict = containerContents.find(proto.name());
-      if(conflict != containerContents.end()) {
-        std::cout << "Detected conflict for '" << proto.name() << "' in container " << currentContainer << ", between containers " << conflict->second << " and " << proto.id() << std::endl;
-      }
-    }
-    else {
-      currentContainer = proto.parent_id();
-      containerContents.clear();
-    }
-
-    containerContents[proto.name()] = proto.id();
-  }
-
-  return 0;
-}
 
 int main(int argc, char* argv[]) {
   CLI::App app("Tool to inspect contents of the QuarkDB-based EOS namespace.");
@@ -167,12 +114,16 @@ int main(int argc, char* argv[]) {
   //----------------------------------------------------------------------------
   qclient::Members members = qclient::Members::fromString(membersStr);
   QdbContactDetails contactDetails(members, password);
-
   qclient::QClient qcl(contactDetails.members, contactDetails.constructOptions());
 
-  qclient::redisReplyPtr reply = qcl.exec("PING").get();
-  if(!reply) {
-    std::cerr << "Could not connect to the given QDB cluster!" << std::endl;
+  //----------------------------------------------------------------------------
+  // Set-up Inspector object, ensure sanity
+  //----------------------------------------------------------------------------
+  Inspector inspector(qcl);
+  std::string connectionErr;
+
+  if(!inspector.checkConnection(connectionErr)) {
+    std::cerr << connectionErr << std::endl;
     return 1;
   }
 
@@ -180,13 +131,13 @@ int main(int argc, char* argv[]) {
   // Dispatch subcommand
   //----------------------------------------------------------------------------
   if(dumpSubcommand->parsed()) {
-    return runDump(qcl, dumpPath);
+    return inspector.dump(dumpPath, std::cout);
   }
 
   if(consistencyCheckSubcommand->parsed()) {
-    return runConsistencyCheck(qcl);
+    return inspector.checkNamingConflicts(std::cout, std::cerr);
   }
 
-  std::cerr << "No subcommand was supplied - should never happen" << std::endl;
+  std::cerr << "No subcommand was supplied - should never reach here" << std::endl;
   return 1;
 }
