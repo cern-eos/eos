@@ -18,12 +18,13 @@
 
 #include "namespace/ns_quarkdb/inspector/Inspector.hh"
 #include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
-#include "namespace/ns_quarkdb/persistency/Serialization.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
+#include "namespace/ns_quarkdb/inspector/ContainerScanner.hh"
 #include <folly/executors/IOThreadPoolExecutor.h>
 #include <qclient/QClient.hh>
-#include <qclient/structures/QLocalityHash.hh>
 #include <google/protobuf/util/json_util.h>
+
+#define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
 
 EOSNSNAMESPACE_BEGIN
 
@@ -69,45 +70,55 @@ int Inspector::dump(const std::string &dumpPath, std::ostream& out) {
   return 0;
 }
 
+//----------------------------------------------------------------------------
+// Check naming conflicts, only for containers, and only for the given
+// parent ID.
+//----------------------------------------------------------------------------
+void Inspector::checkContainerConflicts(uint64_t parentContainer,
+    std::map<std::string, uint64_t> &containerMap,
+    ContainerScanner &scanner,
+    std::ostream &out, std::ostream &err) {
+
+  containerMap.clear();
+  eos::ns::ContainerMdProto proto;
+
+  for(; scanner.valid(); scanner.next()) {
+    if(!scanner.getItem(proto)) {
+      break;
+    }
+
+    if(parentContainer != proto.parent_id()) {
+      break;
+    }
+
+    auto conflict = containerMap.find(proto.name());
+    if(conflict != containerMap.end()) {
+      out << "Detected conflict for '" << proto.name() << "' in container " << parentContainer << ", between containers " << conflict->second << " and " << proto.id() << std::endl;
+    }
+
+    containerMap[proto.name()] = proto.id();
+  }
+}
+
 //------------------------------------------------------------------------------
 // Check intra-container conflicts, such as a container having two entries
 // with the name name.
 //------------------------------------------------------------------------------
 int Inspector::checkNamingConflicts(std::ostream &out, std::ostream &err) {
-  qclient::QLocalityHash::Iterator iter(&mQcl, "eos-container-md");
+  ContainerScanner scanner(mQcl);
 
-  std::map<std::string, uint64_t> containerContents;
   uint64_t currentContainer = -1;
   int64_t processed = 0;
 
-  for(; iter.valid(); iter.next()) {
-    processed++;
-    std::string item = iter.getValue();
+  while(scanner.valid()) {
 
     eos::ns::ContainerMdProto proto;
-    eos::MDStatus status = Serialization::deserialize(item.c_str(), item.size(), proto);
-
-    if(!status.ok()) {
-      err  << "Error while deserializing: " << item << std::endl;
-      continue;
+    if(!scanner.getItem(proto)) {
+      break;
     }
 
-    if(processed % 100000 == 0) {
-      err << "Processed so far: " << processed << std::endl;
-    }
-
-    if(currentContainer == proto.parent_id()) {
-      auto conflict = containerContents.find(proto.name());
-      if(conflict != containerContents.end()) {
-        out << "Detected conflict for '" << proto.name() << "' in container " << currentContainer << ", between containers " << conflict->second << " and " << proto.id() << std::endl;
-      }
-    }
-    else {
-      currentContainer = proto.parent_id();
-      containerContents.clear();
-    }
-
-    containerContents[proto.name()] = proto.id();
+    std::map<std::string, uint64_t> containerMap;
+    checkContainerConflicts(proto.parent_id(), containerMap, scanner, std::cout, std::cerr);
   }
 
   return 0;

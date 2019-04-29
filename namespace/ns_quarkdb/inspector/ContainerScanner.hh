@@ -18,13 +18,13 @@
 
 //------------------------------------------------------------------------------
 //! @author Georgios Bitzes <georgios.bitzes@cern.ch>
-//! @brief Class for inspecting namespace contents - talks directly to QDB
+//! @brief Class for scanning through all container metadata
 //------------------------------------------------------------------------------
 
 #pragma once
 #include "namespace/Namespace.hh"
-#include <string>
-#include <map>
+#include "proto/ContainerMd.pb.h"
+#include <qclient/structures/QLocalityHash.hh>
 
 namespace qclient {
   class QClient;
@@ -32,52 +32,47 @@ namespace qclient {
 
 EOSNSNAMESPACE_BEGIN
 
-class ContainerScanner;
-
 //------------------------------------------------------------------------------
-//! Inspector class
+//! ContainerScanner class
 //------------------------------------------------------------------------------
-class Inspector {
+class ContainerScanner {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  Inspector(qclient::QClient &qcl);
+  ContainerScanner(qclient::QClient &qcl);
 
   //----------------------------------------------------------------------------
-  //! Is the connection to QDB ok? If not, pointless to run anything else.
+  //! Is the iterator valid?
   //----------------------------------------------------------------------------
-  bool checkConnection(std::string &err);
+  bool valid() const;
 
   //----------------------------------------------------------------------------
-  //! Dump contents of the given path. ERRNO-like integer return value, 0
-  //! means no error.
+  //! Advance iterator - only call when valid() == true
   //----------------------------------------------------------------------------
-  int dump(const std::string &path, std::ostream &out);
+  void next();
 
   //----------------------------------------------------------------------------
-  //! Check intra-container conflicts, such as a container having two entries
-  //! with the name name.
+  //! Is there an error?
   //----------------------------------------------------------------------------
-  int checkNamingConflicts(std::ostream &out, std::ostream &err);
+  bool hasError(std::string &err) const;
 
   //----------------------------------------------------------------------------
-  //! Check naming conflicts, only for containers, and only for the given
-  //! parent ID.
+  //! Get current element
   //----------------------------------------------------------------------------
-  void checkContainerConflicts(uint64_t parentContainer,
-    std::map<std::string, uint64_t> &containerMap,
-    ContainerScanner &scanner,
-    std::ostream &out, std::ostream &err);
+  bool getItem(eos::ns::ContainerMdProto &item);
 
   //----------------------------------------------------------------------------
-  //! Print out _everything_ known about the given file.
+  //! Get number of elements scanned so far
   //----------------------------------------------------------------------------
-  int printFileMD(uint64_t fid, std::ostream &out, std::ostream &err);
+  uint64_t getScannedSoFar() const;
 
 private:
-  qclient::QClient &mQcl;
-
+  qclient::QLocalityHash::Iterator mIterator;
+  std::string mError;
+  uint64_t mScanned = 0;
 };
+
+
 
 EOSNSNAMESPACE_END
