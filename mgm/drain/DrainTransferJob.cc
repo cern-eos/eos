@@ -50,7 +50,7 @@ void DrainTransferJob::ReportError(const std::string& error)
 // Execute a thrid-party transfer
 //------------------------------------------------------------------------------
 void
-DrainTransferJob::DoIt()
+DrainTransferJob::DoIt() noexcept
 {
   using eos::common::LayoutId;
   gOFS->MgmStats.Add("DrainCentralStarted", 0, 0, 1);
@@ -187,6 +187,7 @@ DrainTransferJob::GetFileInfo() const
     try {
       eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
       std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(mFileId);
+      fdrain.mProto.set_id(mFileId);
       fdrain.mProto.set_layout_id(fmd->getLayoutId());
       fdrain.mProto.set_cont_id(fmd->getContainerId());
       fdrain.mProto.set_uid(fmd->getCUid());
@@ -571,7 +572,13 @@ DrainTransferJob::Status
 DrainTransferJob::DrainZeroSizeFile(const FileDrainInfo& fdrain)
 {
   eos::common::RWMutexWriteLock wr_lock(gOFS->eosViewRWMutex);
-  auto file = gOFS->eosFileService->getFileMD(fdrain.mProto.id());
+  std::shared_ptr<eos::IFileMD> file {nullptr};
+
+  try {
+    file = gOFS->eosFileService->getFileMD(fdrain.mProto.id());
+  } catch (const eos::MDException& e) {
+    // ignore, file will be null
+  }
 
   if (file == nullptr) {
     return Status::Failed;
@@ -579,7 +586,7 @@ DrainTransferJob::DrainZeroSizeFile(const FileDrainInfo& fdrain)
 
   // We already have excess replicas just drop the current one
   if (file->getNumLocation() >
-      eos::common::LayoutId::GetStripeNumber(fdrain.mProto.layout_id())) {
+      eos::common::LayoutId::GetStripeNumber(fdrain.mProto.layout_id()) + 1) {
     file->unlinkLocation(mFsIdSource);
   } else {
     // Add the new location and remove the old one
