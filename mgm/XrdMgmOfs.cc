@@ -99,7 +99,7 @@
 
 // Initialize static variables
 XrdSysError* XrdMgmOfs::eDest;
-thread_local eos::common::LogId XrdMgmOfs::ThreadLogId;
+thread_local eos::common::LogId XrdMgmOfs::tlLogId;
 XrdSysError gMgmOfsEroute(0);
 XrdOucTrace gMgmOfsTrace(&gMgmOfsEroute);
 XrdMgmOfs* gOFS = 0;

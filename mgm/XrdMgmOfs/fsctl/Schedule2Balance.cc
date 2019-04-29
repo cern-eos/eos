@@ -329,7 +329,7 @@ XrdMgmOfs::Schedule2Balance(const char* path,
   char* afreebytes = env.Get("mgm.target.freebytes");
 
   if (alogid) {
-    ThreadLogId.SetLogId(alogid, error.getErrUser());
+    tlLogId.SetLogId(alogid, error.getErrUser());
   }
 
   if (!afsid || !afreebytes) {

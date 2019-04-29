@@ -47,7 +47,7 @@ XrdMgmOfs::fsctl(const int cmd,
 
 {
   const char* tident = error.getErrUser();
-  ThreadLogId.SetSingleShotLogId(tident);
+  tlLogId.SetSingleShotLogId(tident);
   eos_thread_info("cmd=%d args=%s", cmd, args);
   int opcode = cmd & SFS_FSCTL_CMD;
 
@@ -181,7 +181,7 @@ XrdMgmOfs::FSctl(const int cmd,
   eos::common::Mapping::IdMap(client, ininfo, tident, vid, false);
   EXEC_TIMING_END("IdMap");
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-  ThreadLogId.SetSingleShotLogId(tident);
+  tlLogId.SetSingleShotLogId(tident);
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
   // ---------------------------------------------------------------------------

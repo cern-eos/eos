@@ -1649,7 +1649,7 @@ private:
   //! Manage heap profiling
   std::unique_ptr<eos::common::JeMallocHandler> mJeMallocHandler;
   std::atomic<bool> mDoneOrderlyShutdown; ///< Mark for orderly shutdown
-  static thread_local eos::common::LogId ThreadLogId;
+  static thread_local eos::common::LogId tlLogId;
 
   //----------------------------------------------------------------------------
   //! Check that the auth ProtocolBuffer request has not been tampered with

@@ -58,7 +58,7 @@ XrdMgmOfs::Commit(const char* path,
 
   // Initialize logging
   if (cgi.count("logid")) {
-    ThreadLogId.SetLogId(cgi["logid"].c_str(), error.getErrUser());
+    tlLogId.SetLogId(cgi["logid"].c_str(), error.getErrUser());
   }
 
   // OC parameters
@@ -99,7 +99,7 @@ XrdMgmOfs::Commit(const char* path,
     unsigned long mtime = std::stoul(cgi["mtime"]);
     unsigned long mtimens = std::stoul(cgi["mtimensec"]);
     std::string emsg;
-    CommitHelper::log_info(vid, ThreadLogId, cgi, option, params);
+    CommitHelper::log_info(vid, tlLogId, cgi, option, params);
     int rc = CommitHelper::check_filesystem(vid, fsid, cgi, option,
                                             params, emsg);
 

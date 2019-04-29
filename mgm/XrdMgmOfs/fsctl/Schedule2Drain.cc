@@ -271,7 +271,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
   char* alogid = env.Get("mgm.logid");
 
   if (alogid) {
-    ThreadLogId.SetLogId(alogid, error.getErrUser());
+    tlLogId.SetLogId(alogid, error.getErrUser());
   }
 
   // Deal with 0-size files 'scheduled' before,

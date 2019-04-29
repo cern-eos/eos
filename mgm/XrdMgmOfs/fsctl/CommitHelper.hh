@@ -40,7 +40,7 @@ class CommitHelper
 {
 public:
 
-  static thread_local eos::common::LogId ThreadLogId;
+  static thread_local eos::common::LogId tlLogId;
   typedef std::map<std::string, std::string> cgi_t;
   typedef std::map<std::string, bool> option_t;
   typedef std::map<std::string, int> param_t;

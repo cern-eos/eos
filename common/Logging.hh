@@ -136,32 +136,32 @@ EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Log Macros usable in singleton objects used by individual threads
-//! You should define locally LodId ThreadLogId in the thread function
+//! You should define locally LodId tlLogId in the thread function
 //------------------------------------------------------------------------------
 #define eos_thread_debug(...) \
-  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, \
-                                          vid, ThreadLogId.cident, (LOG_DEBUG)  , __VA_ARGS__)
+  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, tlLogId.logId, \
+                                          vid, tlLogId.cident, (LOG_DEBUG)  , __VA_ARGS__)
 #define eos_thread_info(...) \
-  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, \
-                                          vid, ThreadLogId.cident, (LOG_INFO)   , __VA_ARGS__)
+  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, tlLogId.logId, \
+                                          vid, tlLogId.cident, (LOG_INFO)   , __VA_ARGS__)
 #define eos_thread_notice(...) \
-  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, \
-                                          vid, ThreadLogId.cident, (LOG_NOTICE) , __VA_ARGS__)
+  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, tlLogId.logId, \
+                                          vid, tlLogId.cident, (LOG_NOTICE) , __VA_ARGS__)
 #define eos_thread_warning(...) \
-  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, \
-                                          vid, ThreadLogId.cident, (LOG_WARNING), __VA_ARGS__)
+  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, tlLogId.logId, \
+                                          vid, tlLogId.cident, (LOG_WARNING), __VA_ARGS__)
 #define eos_thread_err(...) \
-  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, \
-                                          vid, ThreadLogId.cident, (LOG_ERR)    , __VA_ARGS__)
+  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, tlLogId.logId, \
+                                          vid, tlLogId.cident, (LOG_ERR)    , __VA_ARGS__)
 #define eos_thread_crit(...) \
-  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, \
-                                          vid, ThreadLogId.cident, (LOG_CRIT)   , __VA_ARGS__)
+  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, tlLogId.logId, \
+                                          vid, tlLogId.cident, (LOG_CRIT)   , __VA_ARGS__)
 #define eos_thread_alert(...) \
-  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, \
-                                          vid, ThreadLogId.cident, (LOG_ALERT)  , __VA_ARGS__)
+  eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, tlLogId.logId, \
+                                          vid, tlLogId.cident, (LOG_ALERT)  , __VA_ARGS__)
 #define eos_thread_emerg(...) \
-   eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, \
-                                           vid, ThreadLogId.cident, (LOG_EMERG)  , __VA_ARGS__)
+   eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, tlLogId.logId, \
+                                           vid, tlLogId.cident, (LOG_EMERG)  , __VA_ARGS__)
 
 //------------------------------------------------------------------------------
 //! Log Macros usable from static member functions without LogId object
@@ -376,7 +376,7 @@ public:
   //! Get current loglevel
   //----------------------------------------------------------------------------
   void
-  EnableRateLimiter() 
+  EnableRateLimiter()
   {
     gRateLimiter = true;
   }
@@ -428,7 +428,6 @@ public:
       gLogMemory[i].resize(size);
       gLogMemory[i].shrink_to_fit();
     }
-
   }
 
 

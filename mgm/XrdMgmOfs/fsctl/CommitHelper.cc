@@ -33,7 +33,7 @@
 EOSMGMNAMESPACE_BEGIN
 
 // Initialize static variables
-thread_local eos::common::LogId CommitHelper::ThreadLogId;
+thread_local eos::common::LogId CommitHelper::tlLogId;
 
 //------------------------------------------------------------------------------
 // convert hex to binary checksum
@@ -187,7 +187,7 @@ CommitHelper::log_info(eos::common::VirtualIdentity& vid,
                        CommitHelper::param_t& params)
 {
   // Set the thread local variable that will be used when calling eos_thread_*
-  ThreadLogId = thread_logid;
+  tlLogId = thread_logid;
 
   if (cgi["checksum"].length()) {
     eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%s "

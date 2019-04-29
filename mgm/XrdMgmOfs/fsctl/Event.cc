@@ -81,7 +81,7 @@ XrdMgmOfs::Event(const char* path,
   }
 
   if (alogid) {
-    ThreadLogId.SetLogId(alogid, error.getErrUser());
+    tlLogId.SetLogId(alogid, error.getErrUser());
   }
 
   eos_thread_debug("vid.prot=%s, vid.uid=%u, vid.gid=%u",
