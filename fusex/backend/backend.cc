@@ -1062,20 +1062,23 @@ backend::statvfs(fuse_req_t req,
   static XrdSysMutex statmutex;
   static time_t laststat = 0;
   errno = 0;
-  XrdSysMutexHelper sLock(statmutex);
 
-  if ((time(NULL) - laststat) < ((15 + (int) 5.0 * rand() / RAND_MAX))) {
-    stbuf->f_bsize = 4096;
-    stbuf->f_frsize = 4096;
-    stbuf->f_blocks = a3 / 4096;
-    stbuf->f_bfree = a1 / 4096;
-    stbuf->f_bavail = a1 / 4096;
-    stbuf->f_files = a4;
-    stbuf->f_ffree = a2;
-    stbuf->f_fsid = 0xcafe;
-    stbuf->f_namemax = 1024;
-    eos_static_info("not calling %s\n", url.GetURL().c_str());
-    return errno;
+  {
+    XrdSysMutexHelper sLock(statmutex);
+    
+    if ((time(NULL) - laststat) < ((15 + (int) 5.0 * rand() / RAND_MAX))) {
+      stbuf->f_bsize = 4096;
+      stbuf->f_frsize = 4096;
+      stbuf->f_blocks = a3 / 4096;
+      stbuf->f_bfree = a1 / 4096;
+      stbuf->f_bavail = a1 / 4096;
+      stbuf->f_files = a4;
+      stbuf->f_ffree = a2;
+      stbuf->f_fsid = 0xcafe;
+      stbuf->f_namemax = 1024;
+      eos_static_info("not calling %s\n", url.GetURL().c_str());
+      return errno;
+    }
   }
 
   XrdCl::Buffer arg;
@@ -1095,13 +1098,14 @@ backend::statvfs(fuse_req_t req,
       return errno;
     }
 
+    XrdSysMutexHelper sLock(statmutex);
+
     int items = sscanf(response->GetBuffer(),
                        "%s retc=%d f_avail_bytes=%llu f_avail_files=%llu "
                        "f_max_bytes=%llu f_max_files=%llu",
                        tag, &retc, &a1, &a2, &a3, &a4);
 
     if ((items != 6) || (strcmp(tag, "statvfs:"))) {
-      statmutex.UnLock();
       errno = EFAULT;
       delete response;
       return errno;
