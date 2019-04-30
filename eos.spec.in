@@ -6,6 +6,8 @@
 %define devtoolset devtoolset-6
 %define cmake cmake3
 %define compiler gcc
+%define stage_protobuf3_rh 1
+
 
 # By default we build the eos client SRPMS, if the entire build is required
 # then pass the "--with server" flag to the rpmbuild command
@@ -201,6 +203,7 @@ The EOS software package.
 %global build_flags %{build_flags} -DASAN=1
 %endif
 
+%if %{?stage_protobuf3_rh:1}%{!?stage_protobuf3_rh:0}
 # Install eos-protobuf3 from remote repository for RH6 and EL7 builds because they will stage the protobuf library into /opt/eos
 %if 0%{?distribution} == 6 
 yum localinstall -y http://storage-ci.web.cern.ch/storage-ci/eos/citrine-depend/el-6/x86_64/eos-protobuf3-compiler-3.5.1-1.el7.cern.eos.x86_64.rpm
@@ -213,7 +216,7 @@ yum localinstall -y http://storage-ci.web.cern.ch/storage-ci/eos/citrine-depend/
 yum localinstall -y http://storage-ci.web.cern.ch/storage-ci/eos/citrine-depend/el-7/x86_64/eos-protobuf3-devel-3.5.1-1.el7.cern.eos.x86_64.rpm
 %endif                                                                                                                          
 %endif   
-
+%endif
 
 
 %build
@@ -239,9 +242,12 @@ cd build
 cd build
 %{__make} install DESTDIR=$RPM_BUILD_ROOT
 
+
+%if %{?stage_protobuf3_rh:1}%{!?stage_protobuf3_rh:0}
 %if 0%{distribution} == 6 || 0%{distribution} == 7
 mkdir -p $RPM_BUILD_ROOT/opt/eos/lib64/protobuf3/
 cp -f /opt/eos/lib64/protobuf3/libprotobuf.so.15 $RPM_BUILD_ROOT/opt/eos/lib64/protobuf3/
+%endif
 %endif
 echo "Installed!"
 
@@ -449,8 +455,10 @@ The EOS shell client.
 %{_libdir}/libeosCommon.so
 %{_sysconfdir}/bash_completion.d/eos
 # The eos-client package ships the protobuf library built by us for SLC6 and EL&
+%if %{?stage_protobuf3_rh:1}%{!?stage_protobuf3_rh:0}
 %if 0%{distribution} == 6 || 0%{distribution} == 7
 /opt/eos/lib64/protobuf3/libprotobuf.so.15
+%endif
 %endif
 
 # This file is required by both the eos-fuse and eos-fusex package, therefore
