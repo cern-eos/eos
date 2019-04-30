@@ -232,6 +232,7 @@ public:
     kDrain,
     kRO,
     kWO,
+    kRWfill,
     kRW
   };
 

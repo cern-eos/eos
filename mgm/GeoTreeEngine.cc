@@ -2570,6 +2570,19 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
         stn->pNodeState.mStatus &= ~SchedTreeBase::Readable;
         stn->pNodeState.mStatus |= SchedTreeBase::Writable;
       }
+    } else if (status == FileSystem::kRWfill) {
+      //set Readable and Writable everywhere, except for placement
+      if (ftIdx) {
+         setOneStateVarStatusInAllFastTrees(SchedTreeBase::Readable |
+                                           SchedTreeBase::Writable);
+         entry->backgroundFastStruct->placementTree->pNodes[ftIdx].fsData.mStatus &= ~SchedTreeBase::Writable;  
+      }
+
+      if (stn) {
+        stn->pNodeState.mStatus |= (SchedTreeBase::Readable | SchedTreeBase::Writable);
+        
+      }
+     
     } else {
       if (ftIdx) {
         unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Readable);

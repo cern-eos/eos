@@ -279,7 +279,9 @@ FileSystem::GetConfigStatusAsString(int status)
   if (status == kWO) {
     return "wo";
   }
-
+  if (status == kRWfill) {
+    return "rwfill";
+  }
   if (status == kRW) {
     return "rw";
   }
@@ -362,7 +364,9 @@ FileSystem::GetConfigStatusFromString(const char* ss)
   if (!strcmp(ss, "wo")) {
     return kWO;
   }
-
+  if (!strcmp(ss, "rwfill")) {
+    return kRWfill;
+  }
   if (!strcmp(ss, "rw")) {
     return kRW;
   }
