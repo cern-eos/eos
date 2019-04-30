@@ -93,6 +93,10 @@ void Inspector::checkContainerConflicts(uint64_t parentContainer,
       break;
     }
 
+    if(proto.name() == "." || proto.name() == "..") {
+      out << "Container " << proto.id() << " has cursed name: '" << proto.name() << "'" << std::endl;
+    }
+
     auto conflict = containerMap.find(proto.name());
     if(conflict != containerMap.end()) {
       out << "Detected conflict for '" << proto.name() << "' in container " << parentContainer << ", between containers " << conflict->second << " and " << proto.id() << std::endl;
@@ -121,6 +125,10 @@ void Inspector::checkFileConflicts(uint64_t parentContainer,
 
     if(parentContainer != proto.cont_id()) {
       break;
+    }
+
+    if(proto.name() == "." || proto.name() == "..") {
+      out << "File " << proto.id() << " has cursed name: '" << proto.name() << "'" << std::endl;
     }
 
     auto conflict = fileMap.find(proto.name());
@@ -197,8 +205,7 @@ int Inspector::checkNamingConflicts(std::ostream &out, std::ostream &err) {
       checkDifferentMaps(containerMap, fileMap, fileProto.cont_id(), out);
     }
 
-    if(stopwatch.timeRemainingInCycle() == std::chrono::milliseconds(0)) {
-      stopwatch.startCycle(std::chrono::seconds(10));
+    if(stopwatch.restartIfExpired()) {
       err << "Progress: Processed " << containerScanner.getScannedSoFar() << " containers, " << fileScanner.getScannedSoFar() << " files" << std::endl;
     }
   }
