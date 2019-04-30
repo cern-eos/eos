@@ -616,7 +616,7 @@ RaidMetaLayout::Read(XrdSfsFileOffset offset, char* buffer,
       length = static_cast<int>(mFileSize - offset);
     }
 
-    if ((offset < 0) && (mIsRw)) {
+    if (((offset < 0) && (mIsRw)) || ((offset == 0) && mStoreRecovery)) {
       // Force recover file mode - use first extra block as dummy buffer
       offset = 0;
       int64_t len = mFileSize;
@@ -628,7 +628,7 @@ RaidMetaLayout::Read(XrdSfsFileOffset offset, char* buffer,
 
       char* recover_block = new char[mStripeWidth];
 
-      while ((uint32_t)len >= mStripeWidth) {
+      while ((uint64_t)offset < mFileSize) {
         all_errs.push_back(XrdCl::ChunkInfo((uint64_t)offset,
                                             (uint32_t) mStripeWidth,
                                             (void*)recover_block));
@@ -648,6 +648,7 @@ RaidMetaLayout::Read(XrdSfsFileOffset offset, char* buffer,
       }
 
       delete[] recover_block;
+      read_length = length;
     } else {
       // Reset all the async handlers
       for (unsigned int i = 0; i < mStripe.size(); i++) {
