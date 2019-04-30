@@ -92,6 +92,13 @@ public:
   std::unique_ptr<XrdOucEnv> FmdToEnv();
 
   //---------------------------------------------------------------------------
+  //! Convert fmd object to env representation
+  //!
+  //! @return XrdOucEnv holding information about current object
+  //---------------------------------------------------------------------------
+  std::unique_ptr<XrdOucEnv> FullFmdToEnv();
+
+  //---------------------------------------------------------------------------
   //! File meta data object replication function (copy constructor)
   //---------------------------------------------------------------------------
   void

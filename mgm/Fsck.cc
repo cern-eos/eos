@@ -220,8 +220,6 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
 
       if (eos::common::StringConversion::ParseStringIdSet((char*)
           lines[nlines].c_str(), errortag, fsid, fids)) {
-        std::set<unsigned long long>::const_iterator it;
-
         if (fsid) {
           XrdSysMutexHelper lock(eMutex);
 

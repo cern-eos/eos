@@ -130,4 +130,38 @@ FmdHelper::FmdToEnv()
                                       serializedStream.str().c_str()));
 }
 
+//-------------------------------------------------------------------------------
+// Convert fmd object to env representation
+//-------------------------------------------------------------------------------
+std::unique_ptr<XrdOucEnv>
+FmdHelper::FullFmdToEnv()
+{
+  std::ostringstream serializedStream;
+  serializedStream << "id=" << mProtoFmd.fid()
+                   << "&cid=" << mProtoFmd.cid()
+                   << "&fsid=" << mProtoFmd.fsid()
+                   << "&ctime=" << mProtoFmd.ctime()
+                   << "&ctime_ns=" << mProtoFmd.ctime_ns()
+                   << "&mtime=" << mProtoFmd.mtime()
+                   << "&mtime_ns=" << mProtoFmd.mtime_ns()
+                   << "&atime=" << mProtoFmd.atime()
+                   << "&atime_ns=" << mProtoFmd.atime_ns()
+                   << "&size=" << mProtoFmd.size()
+                   << "&disksize=" << mProtoFmd.disksize()
+                   << "&mgmsize=" << mProtoFmd.mgmsize()
+                   << "&checksum=" << mProtoFmd.checksum()
+                   << "&diskchecksum=" << mProtoFmd.diskchecksum()
+                   << "&mgmchecksum=" << mProtoFmd.mgmchecksum()
+                   << "&lid=" << mProtoFmd.lid()
+                   << "&uid=" << mProtoFmd.uid()
+                   << "&gid=" << mProtoFmd.gid()
+                   << "&filecxerror=" << std::hex << mProtoFmd.filecxerror()
+                   << "&blockcxerror=" << mProtoFmd.blockcxerror()
+                   << "&layouterror=" << mProtoFmd.layouterror()
+                   << "&locations=" << std::dec << mProtoFmd.locations()
+                   << '&';
+  return std::unique_ptr<XrdOucEnv>(new XrdOucEnv(
+                                      serializedStream.str().c_str()));
+}
+
 EOSFSTNAMESPACE_END

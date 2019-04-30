@@ -403,6 +403,14 @@ install(TARGETS EosFstOss XrdEosFst
 #-------------------------------------------------------------------------------
 # Other executables
 #-------------------------------------------------------------------------------
+add_executable(eos-leveldb-inspect
+  Fmd.cc
+  tools/eos-leveldb-inspect.cc)
+
+target_link_libraries(eos-leveldb-inspect
+  eosCommonServer-Static
+  EosProtobuf-Static)
+
 add_executable(eos-check-blockxs
   tools/CheckBlockXS.cc
   checksum/Adler.cc
@@ -477,7 +485,7 @@ install(PROGRAMS
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 install(TARGETS
-  eos-ioping eos-adler32
+  eos-ioping eos-adler32 eos-leveldb-inspect
   eos-check-blockxs eos-compute-blockxs eos-scan-fs eos-fsck-fs
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
