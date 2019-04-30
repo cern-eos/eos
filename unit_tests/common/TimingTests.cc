@@ -112,5 +112,31 @@ TEST(IntervalStopwatch, BasicSanity) {
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(0));
 }
 
+TEST(IntervalStopwatch, RestartIfExpired) {
+  common::SteadyClock sc(true);
+
+  IntervalStopwatch stopwatch(std::chrono::milliseconds(100), &sc);
+  ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(0));
+  ASSERT_FALSE(stopwatch.restartIfExpired());
+
+  sc.advance(std::chrono::milliseconds(99));
+  ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(99));
+  ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(1));
+  ASSERT_FALSE(stopwatch.restartIfExpired());
+
+  sc.advance(std::chrono::milliseconds(2));
+  ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(101));
+  ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(0));
+  ASSERT_TRUE(stopwatch.restartIfExpired());
+
+  ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(0));
+  ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(100));
+  ASSERT_FALSE(stopwatch.restartIfExpired());
+
+  sc.advance(std::chrono::milliseconds(50));
+  ASSERT_EQ(stopwatch.timeIntoCycle(), std::chrono::milliseconds(50));
+  ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(50));
+  ASSERT_FALSE(stopwatch.restartIfExpired());
+}
 
 EOSCOMMONTESTING_END

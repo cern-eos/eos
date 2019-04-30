@@ -81,4 +81,20 @@ std::chrono::milliseconds IntervalStopwatch::timeRemainingInCycle() const {
   return remaining;
 }
 
+//------------------------------------------------------------------------------
+// Convenience function - if the cycle has expired:
+// - Restart from this point on, with the same exact duration.
+// - Return true.
+// Else, return false and do nothing else.
+//------------------------------------------------------------------------------
+bool IntervalStopwatch::restartIfExpired() {
+  if(timeRemainingInCycle() == std::chrono::milliseconds(0)) {
+    startCycle(mCycleDuration);
+    return true;
+  }
+
+  return false;
+}
+
+
 EOSCOMMONNAMESPACE_END

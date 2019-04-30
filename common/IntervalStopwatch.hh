@@ -76,6 +76,14 @@ public:
   //----------------------------------------------------------------------------
   std::chrono::milliseconds timeRemainingInCycle() const;
 
+  //----------------------------------------------------------------------------
+  //! Convenience function - if the cycle has expired:
+  //! - Restart from this point on, with the same exact duration.
+  //! - Return true.
+  //! Else, return false and do nothing else.
+  //----------------------------------------------------------------------------
+  bool restartIfExpired();
+
 private:
   SteadyClock *mClock; //< The internal clock object of this class, can be null.
   std::chrono::steady_clock::time_point mCycleStart; //< The point at which the
