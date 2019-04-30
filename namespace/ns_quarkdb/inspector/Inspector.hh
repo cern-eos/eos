@@ -80,6 +80,13 @@ public:
     FileScanner &scanner,
     std::ostream &out, std::ostream &err);
 
+  //----------------------------------------------------------------------------
+  //! Check if there's naming conflicts between files and containers.
+  //----------------------------------------------------------------------------
+  void checkDifferentMaps(const std::map<std::string, uint64_t> &containerMap,
+    const std::map<std::string, uint64_t> &fileMap,
+    uint64_t parentContainer,
+    std::ostream &out);
 
   //----------------------------------------------------------------------------
   //! Print out _everything_ known about the given file.

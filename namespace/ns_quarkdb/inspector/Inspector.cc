@@ -132,6 +132,21 @@ void Inspector::checkFileConflicts(uint64_t parentContainer,
   }
 }
 
+
+//------------------------------------------------------------------------------
+// Check if there's naming conflicts between files and containers.
+//------------------------------------------------------------------------------
+void Inspector::checkDifferentMaps(const std::map<std::string, uint64_t> &containerMap,
+  const std::map<std::string, uint64_t> &fileMap, uint64_t parentContainer, std::ostream &out) {
+
+  for(auto it = containerMap.begin(); it != containerMap.end(); it++) {
+    auto conflict = fileMap.find(it->first);
+    if(conflict != fileMap.end()) {
+      out << "Detected conflict for '" << conflict->first << "' in container " << parentContainer << ", between container " << it->second << " and file " << conflict->second << std::endl;
+    }
+  }
+}
+
 //------------------------------------------------------------------------------
 // Check intra-container conflicts, such as a container having two entries
 // with the name name.
@@ -179,6 +194,7 @@ int Inspector::checkNamingConflicts(std::ostream &out, std::ostream &err) {
     if(proto.parent_id() == fileProto.cont_id()) {
       std::map<std::string, uint64_t> fileMap;
       checkFileConflicts(fileProto.cont_id(), fileMap, fileScanner, out, err);
+      checkDifferentMaps(containerMap, fileMap, fileProto.cont_id(), out);
     }
 
     if(stopwatch.timeRemainingInCycle() == std::chrono::milliseconds(0)) {
