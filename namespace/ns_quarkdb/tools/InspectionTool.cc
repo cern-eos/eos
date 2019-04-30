@@ -81,10 +81,10 @@ int main(int argc, char* argv[]) {
     ->required();
 
   //----------------------------------------------------------------------------
-  // Set-up consistency-check subcommand..
+  // Set-up check-naming-conflicts subcommand..
   //----------------------------------------------------------------------------
-  auto consistencyCheckSubcommand  = app.add_subcommand("consistency-check", "Scan through the entire namespace for inconsistencies");
-  addClusterOptions(consistencyCheckSubcommand, membersStr, memberValidator, password, passwordFile);
+  auto namingConflictsSubcommand = app.add_subcommand("check-naming-conflicts", "Scan through the entire namespace looking for naming conflicts");
+  addClusterOptions(namingConflictsSubcommand, membersStr, memberValidator, password, passwordFile);
 
   //----------------------------------------------------------------------------
   // Set-up print subcommand..
@@ -144,7 +144,7 @@ int main(int argc, char* argv[]) {
     return inspector.dump(dumpPath, std::cout);
   }
 
-  if(consistencyCheckSubcommand->parsed()) {
+  if(namingConflictsSubcommand->parsed()) {
     return inspector.checkNamingConflicts(std::cout, std::cerr);
   }
 

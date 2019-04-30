@@ -85,6 +85,7 @@ add_library(
   ns_quarkdb/flusher/MetadataFlusher.cc                   ns_quarkdb/flusher/MetadataFlusher.hh
 
   ns_quarkdb/inspector/ContainerScanner.cc                ns_quarkdb/inspector/ContainerScanner.hh
+  ns_quarkdb/inspector/FileScanner.cc                     ns_quarkdb/inspector/FileScanner.hh
   ns_quarkdb/inspector/Inspector.cc                       ns_quarkdb/inspector/Inspector.hh
 
   ns_quarkdb/persistency/NextInodeProvider.cc             ns_quarkdb/persistency/NextInodeProvider.hh

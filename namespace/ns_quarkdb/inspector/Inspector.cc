@@ -20,6 +20,8 @@
 #include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/ns_quarkdb/inspector/ContainerScanner.hh"
+#include "namespace/ns_quarkdb/inspector/FileScanner.hh"
+#include "common/IntervalStopwatch.hh"
 #include <folly/executors/IOThreadPoolExecutor.h>
 #include <qclient/QClient.hh>
 #include <google/protobuf/util/json_util.h>
@@ -100,26 +102,92 @@ void Inspector::checkContainerConflicts(uint64_t parentContainer,
   }
 }
 
+//----------------------------------------------------------------------------
+// Check naming conflicts, only for files, and only for the given
+// parent ID.
+//----------------------------------------------------------------------------
+void Inspector::checkFileConflicts(uint64_t parentContainer,
+    std::map<std::string, uint64_t> &fileMap,
+    FileScanner &scanner,
+    std::ostream &out, std::ostream &err) {
+
+  fileMap.clear();
+  eos::ns::FileMdProto proto;
+
+  for(; scanner.valid(); scanner.next()) {
+    if(!scanner.getItem(proto)) {
+      break;
+    }
+
+    if(parentContainer != proto.cont_id()) {
+      break;
+    }
+
+    auto conflict = fileMap.find(proto.name());
+    if(conflict != fileMap.end()) {
+      out << "Detected conflict for '" << proto.name() << "' in container " << parentContainer << ", betewen files " << conflict->second << " and " << proto.id() << std::endl;
+    }
+
+    fileMap[proto.name()] = proto.id();
+  }
+}
+
 //------------------------------------------------------------------------------
 // Check intra-container conflicts, such as a container having two entries
 // with the name name.
 //------------------------------------------------------------------------------
 int Inspector::checkNamingConflicts(std::ostream &out, std::ostream &err) {
-  ContainerScanner scanner(mQcl);
+  ContainerScanner containerScanner(mQcl);
+  FileScanner fileScanner(mQcl);
 
   uint64_t currentContainer = -1;
   int64_t processed = 0;
 
-  while(scanner.valid()) {
+  common::IntervalStopwatch stopwatch(std::chrono::seconds(10));
 
+  while(containerScanner.valid()) {
     eos::ns::ContainerMdProto proto;
-    if(!scanner.getItem(proto)) {
+    if(!containerScanner.getItem(proto)) {
       break;
     }
 
     std::map<std::string, uint64_t> containerMap;
-    checkContainerConflicts(proto.parent_id(), containerMap, scanner, std::cout, std::cerr);
+    checkContainerConflicts(proto.parent_id(), containerMap, containerScanner, out, err);
+
+    eos::ns::FileMdProto fileProto;
+    if(!fileScanner.getItem(fileProto)) {
+      break;
+    }
+
+    //--------------------------------------------------------------------------
+    // Bring file scanner at-least-or-after our current parent container, while
+    // checking for file conflicts in the way
+    //--------------------------------------------------------------------------
+    while(proto.parent_id() > fileProto.cont_id()) {
+      std::map<std::string, uint64_t> fileMap;
+      checkFileConflicts(fileProto.cont_id(), fileMap, fileScanner, out, err);
+
+      fileScanner.next();
+      if(!fileScanner.getItem(fileProto)) {
+        goto out;
+      }
+    }
+
+    //--------------------------------------------------------------------------
+    // Check for conflicts between files and containers
+    //--------------------------------------------------------------------------
+    if(proto.parent_id() == fileProto.cont_id()) {
+      std::map<std::string, uint64_t> fileMap;
+      checkFileConflicts(fileProto.cont_id(), fileMap, fileScanner, out, err);
+    }
+
+    if(stopwatch.timeRemainingInCycle() == std::chrono::milliseconds(0)) {
+      stopwatch.startCycle(std::chrono::seconds(10));
+      err << "Progress: Processed " << containerScanner.getScannedSoFar() << " containers, " << fileScanner.getScannedSoFar() << " files" << std::endl;
+    }
   }
+
+out:
 
   return 0;
 }
