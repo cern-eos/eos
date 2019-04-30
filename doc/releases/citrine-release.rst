@@ -16,6 +16,29 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.4.39 Citrine``
+===================
+
+2019-04-30
+
+
+Bug
+---
+
+* [EOS-3313] - ns master other output looks incorrect
+* [EOS-3378] - double draining into same destination gives corrupted or empty replica
+* [EOS-3407] - Schedule2Balance reports long lasting read locks
+* [EOS-3414] - EOS config file could not be loaded
+* [EOS-3439] - rw filesystems shown with 'fs ls -d'
+* Fix for draining of RAIN file when parity information was not stored back on disk.
+* Enforce checksum verification for all replication operations.
+
+Documentation
+-------------
+
+* Add documentation for EOS on Kubernetes deployment
+
+
 ``v4.4.38 Citrine``
 ===================
 
