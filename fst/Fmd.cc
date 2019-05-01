@@ -152,12 +152,12 @@ FmdHelper::FullFmdToEnv()
                    << "&checksum=" << mProtoFmd.checksum()
                    << "&diskchecksum=" << mProtoFmd.diskchecksum()
                    << "&mgmchecksum=" << mProtoFmd.mgmchecksum()
-                   << "&lid=" << mProtoFmd.lid()
+                   << "&lid=0x" << std::hex << mProtoFmd.lid() << std::dec
                    << "&uid=" << mProtoFmd.uid()
                    << "&gid=" << mProtoFmd.gid()
-                   << "&filecxerror=" << std::hex << mProtoFmd.filecxerror()
-                   << "&blockcxerror=" << mProtoFmd.blockcxerror()
-                   << "&layouterror=" << mProtoFmd.layouterror()
+                   << "&filecxerror=0x" << std::hex << mProtoFmd.filecxerror()
+                   << "&blockcxerror=0x" << mProtoFmd.blockcxerror()
+                   << "&layouterror=0x" << mProtoFmd.layouterror()
                    << "&locations=" << std::dec << mProtoFmd.locations()
                    << '&';
   return std::unique_ptr<XrdOucEnv>(new XrdOucEnv(
