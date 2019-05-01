@@ -1407,7 +1407,6 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
   statistics["unreg_n"] = 0; // number of unregistered replicas
   statistics["rep_diff_n"] = 0; // number of files with replica number mismatch
   statistics["rep_missing_n"] = 0; // number of files which are missing on disk
-
   fidset["m_mem_sz_diff"].clear();
   fidset["d_mem_sz_diff"].clear();
   fidset["m_cx_diff"].clear();
@@ -1479,7 +1478,10 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
         statistics["d_sync_n"]++;
 
         if (f.size() != 0xfffffffffff1ULL) {
-          if (f.size() != f.disksize()) {
+          // Report missmatch only for replica layout files
+          if ((f.size() != f.disksize()) &&
+              (eos::common::LayoutId::GetLayoutType(f.lid())
+               == eos::common::LayoutId::kReplica)) {
             statistics["d_mem_sz_diff"]++;
             fidset["d_mem_sz_diff"].insert(f.fid());
           }
