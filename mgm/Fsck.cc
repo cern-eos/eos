@@ -158,9 +158,9 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
   int bccount = 0;
   ClearLog();
   gOFS->WaitUntilNamespaceIsBooted();
+  assistant.wait_for(std::chrono::seconds(60));
 
   while (!assistant.terminationRequested()) {
-    assistant.wait_for(std::chrono::seconds(1));
     eos_static_debug("msg=\"start consistency checker thread\"");
     ClearLog();
     Log("started check");
@@ -468,26 +468,24 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
       }
     }
 
-    // list shadow filesystems
-    std::map<eos::common::FileSystem::fsid_t,
-        unsigned long long >::const_iterator fsit;
-    out += "  \"shadow_fsid\": [";
+    // List shadow filesystems
+    if (!eFsDark.empty()) {
+      out += "  \"shadow_fsid\": [";
 
-    for (fsit = eFsDark.begin(); fsit != eFsDark.end(); fsit++) {
-      char sfsid[1024];
-      snprintf(sfsid, sizeof(sfsid) - 1,
-               "%lu",
-               (unsigned long) fsit->first);
-      out += sfsid;
-      out += ",";
+      for (auto fsit = eFsDark.begin(); fsit != eFsDark.end(); fsit++) {
+        char sfsid[1024];
+        snprintf(sfsid, sizeof(sfsid) - 1, "%lu", (unsigned long) fsit->first);
+        out += sfsid;
+        out += ",";
+      }
+
+      if (out.endswith(",")) {
+        out.erase(out.length() - 1);
+      }
+
+      out += "  ]\n";
+      out += "}\n";
     }
-
-    if (out.endswith(",")) {
-      out.erase(out.length() - 1);
-    }
-
-    out += "  ]\n";
-    out += "}\n";
   } else {
     // greppable format
     if (!(option.find("a") != STR_NPOS)) {
@@ -557,22 +555,24 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
         }
 
         // List shadow filesystems
-        out += " shadow_fsid=";
+        if (!eFsDark.empty()) {
+          out += " shadow_fsid=";
 
-        for (auto fsit = eFsDark.cbegin(); fsit != eFsDark.cend(); ++fsit) {
-          char sfsid[1024];
-          snprintf(sfsid, sizeof(sfsid) - 1,
-                   "%lu",
-                   (unsigned long) fsit->first);
-          out += sfsid;
-          out += ",";
+          for (auto fsit = eFsDark.cbegin(); fsit != eFsDark.cend(); ++fsit) {
+            char sfsid[1024];
+            snprintf(sfsid, sizeof(sfsid) - 1,
+                     "%lu",
+                     (unsigned long) fsit->first);
+            out += sfsid;
+            out += ",";
+          }
+
+          if (out.endswith(",")) {
+            out.erase(out.length() - 1);
+          }
+
+          out += "\n";
         }
-
-        if (out.endswith(",")) {
-          out.erase(out.length() - 1);
-        }
-
-        out += "\n";
       }
     } else {
       // Do output per filesystem
@@ -1535,8 +1535,15 @@ Fsck::PrintErrorsSummary() const
   XrdSysMutexHelper lock(eMutex);
 
   for (auto emapit = eMap.cbegin(); emapit != eMap.cend(); ++emapit) {
-    Log("%-30s : %llu (%llu)", emapit->first.c_str(),
-        emapit->second.size(), eCount.at(emapit->first));
+    uint64_t count {0ull};
+    auto it = eCount.find(emapit->first);
+
+    if (it != eCount.end()) {
+      count = it->second;
+    }
+
+    Log("%-30s : %llu (%llu)", emapit->first.c_str(), emapit->second.size(),
+        count);
   }
 }
 
