@@ -32,10 +32,8 @@
 void print_usage(const char* prg_name)
 {
   std::cerr << "Usage: : " << prg_name << " --dbpath <full_path> "
-            << "[--count] [--dump_ids] [--fid <fid_dec>] [--fsck] [--verbose_fsck]"
+            << "[--dump_ids] [--fid <fid_dec>] [--fsck] [--verbose_fsck]"
             << std::endl
-            << "   --count         :"
-            << " diplay number of entries in the DB" << std::endl
             << "   --dump_ids      :"
             << "dumpd the decimal file ids stored in the DB" << std::endl
             << "   --fid <fid_dec> : "
@@ -293,7 +291,6 @@ int main(int argc, char* argv[])
   int retc = 0;
   int c;
   int long_index = 0;
-  bool count_entries = false;
   bool dump_entry_ids = false;
   bool dump_fsck = false;
   bool verbose_fsck = false;
@@ -302,7 +299,6 @@ int main(int argc, char* argv[])
   static struct option long_options[] = {
     {"dbpath",           required_argument, 0,   0 },
     {"fid",              required_argument, 0,   0 },
-    {"count",            no_argument,       0,  'c'},
     {"dump_ids",         no_argument,       0,  'e'},
     {"fsck",             no_argument,       0,  'f'},
     {"verbose_fsck",     no_argument,       0,  'v'},
@@ -318,10 +314,6 @@ int main(int argc, char* argv[])
         sfid = optarg;
       }
 
-      break;
-
-    case 'c':
-      count_entries = true;
       break;
 
     case 'e':
@@ -343,7 +335,16 @@ int main(int argc, char* argv[])
     }
   }
 
+  // Check that the LevelDB already exists
+  struct stat buf;
+
+  if (stat(dbpath.c_str(), &buf)) {
+    std::cerr << "error: LevelDB does not exist" << std::endl;
+    return -1;
+  }
+
   eos::common::DbMap db;
+  eos::common::LvDbInterfaceBase::setAbortOnLvDbError(false);
   eos::common::LvDbDbMapInterface::Option options;
   options.CacheSizeMb = 0;
   options.BloomFilterNbits = 0;
@@ -353,13 +354,6 @@ int main(int argc, char* argv[])
     return -1;
   } else {
     db.outOfCore(true);
-  }
-
-  // Display the number of entries in the DB
-  if (count_entries) {
-    std::cout << "info: " << db.size() << " entries in the DB" << std::endl;
-    db.detachDb();
-    return 0;
   }
 
   // Dump the list of all fids
