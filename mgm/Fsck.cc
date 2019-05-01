@@ -91,7 +91,7 @@ Fsck::Stop(bool store)
     mThread.join();
     mRunning = false;
     mEnabled = false;
-    Log(false, "disabled check");
+    Log("disabled check");
 
     if (store) {
       return StoreFsckConfig();
@@ -125,8 +125,8 @@ Fsck::ApplyFsckConfig()
     }
   }
 
-  Log(false, "enabled=%s", mEnabled.c_str());
-  Log(false, "check interval=%d minutes", mInterval);
+  Log("enabled=%s", mEnabled.c_str());
+  Log("check interval=%d minutes", mInterval);
 
   if (mEnabled == "true") {
     Start();
@@ -161,33 +161,21 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
 
   while (!assistant.terminationRequested()) {
     assistant.wait_for(std::chrono::seconds(1));
-    eos_static_debug("Started consistency checker thread");
+    eos_static_debug("msg=\"start consistency checker thread\"");
     ClearLog();
-    Log(false, "started check");
+    Log("started check");
+
     // Don't run fsck if we are not a master
-    bool IsMaster = false;
+    while (!gOFS->mMaster->IsMaster()) {
+      assistant.wait_for(std::chrono::seconds(60));
 
-    while (!IsMaster) {
-      IsMaster = gOFS->mMaster->IsMaster();
-
-      if (!IsMaster) {
-        for (int i = 0; i < 60; ++i) {
-          assistant.wait_for(std::chrono::seconds(1));
-
-          if (assistant.terminationRequested()) {
-            return;
-          }
-        }
+      if (assistant.terminationRequested()) {
+        return;
       }
     }
 
-    {
-      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-      size_t max  = FsView::gFsView.mIdView.size();
-      Log(false, "Filesystems to check: %lu", max);
-      eos_static_debug("filesystems to check: %lu", max);
-    }
-
+    Log("Filesystems to check: %lu", FsView::gFsView.GetNumFileSystems());
+    // Broadcast fsck request and collect responses
     XrdOucString broadcastresponsequeue = gOFS->MgmOfsBrokerUrl;
     broadcastresponsequeue += "-fsck-";
     broadcastresponsequeue += bccount;
@@ -202,7 +190,7 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
     if (!gOFS->MgmOfsMessaging->BroadCastAndCollect(broadcastresponsequeue,
         broadcasttargetqueue, msgbody,
         stdOut, 10, &assistant)) {
-      eos_static_err("failed to broad cast and collect fsck from [%s]:[%s]",
+      eos_static_err("msg=\"failed to broadcast and collect fsck from [%s]:[%s]\"",
                      broadcastresponsequeue.c_str(), broadcasttargetqueue.c_str());
       stdErr = "error: broadcast failed\n";
     }
@@ -213,277 +201,41 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
     eos::common::StringConversion::StringToLineVector((char*) stdOut.c_str(),
         lines);
 
-    for (size_t nlines = 0; nlines < lines.size(); nlines++) {
+    for (size_t nlines = 0; nlines < lines.size(); ++nlines) {
       std::set<unsigned long long> fids;
       unsigned long fsid = 0;
-      std::string errortag;
+      std::string err_tag;
 
       if (eos::common::StringConversion::ParseStringIdSet((char*)
-          lines[nlines].c_str(), errortag, fsid, fids)) {
+          lines[nlines].c_str(), err_tag, fsid, fids)) {
         if (fsid) {
           XrdSysMutexHelper lock(eMutex);
 
           // Add the fids into the error maps
           for (auto it = fids.cbegin(); it != fids.cend(); ++it) {
-            eFsMap[errortag][fsid].insert(*it);
-            eMap[errortag].insert(*it);
-            eCount[errortag]++;
+            eFsMap[err_tag][fsid].insert(*it);
+            eMap[err_tag].insert(*it);
+            eCount[err_tag]++;
           }
         }
       } else {
-        eos_static_err("Can not parse fsck response: %s", lines[nlines].c_str());
+        eos_static_err("msg=\"cannot parse fsck response\" msg=\"%s\"",
+                       lines[nlines].c_str());
       }
     }
 
-    {
-      // Grab all files which are damaged because filesystems are down
-      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-
-      for (auto it = FsView::gFsView.mIdView.cbegin();
-           it != FsView::gFsView.mIdView.cend(); ++it) {
-        // protect against illegal 0 filesystem pointer
-        if (!it->second) {
-          eos_static_crit("found illegal pointer in filesystem view");
-          continue;
-        }
-
-        eos::common::FileSystem::fsid_t fsid = it->first;
-        eos::common::ActiveStatus fsactive = it->second->GetActiveStatus();
-        eos::common::FileSystem::fsstatus_t fsconfig = it->second->GetConfigStatus();
-        eos::common::BootStatus fsstatus = it->second->GetStatus();
-
-        if ((fsstatus == eos::common::BootStatus::kBooted) &&
-            (fsconfig >= eos::common::FileSystem::kDrain) &&
-            (fsactive == eos::common::ActiveStatus::kOnline)) {
-          // Healthy, don't need to do anything
-        } else {
-          // Not ok and contributes to replica offline errors
-          try {
-            eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView,
-                gOFS->eosFsView, fsid);
-            XrdSysMutexHelper lock(eMutex);
-            // Only need the view lock if we're in-memory
-            eos::common::RWMutexReadLock nslock;
-
-            if (gOFS->eosView->inMemory()) {
-              nslock.Grab(gOFS->eosViewRWMutex);
-            }
-
-            std::deque<std::pair<FileIdentifier, folly::Future<bool>>> futs;
-
-            for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
-                 (it_fid && it_fid->valid()); it_fid->next()) {
-              eos::FileIdentifier fid(it_fid->getElement());
-              futs.emplace_back(fid, gOFS->eosFileService->hasFileMD(fid));
-            }
-
-            for (size_t i = 0; i < futs.size(); i++) {
-              if (futs[i].second.get() == true) {
-                eFsUnavail[fsid]++;
-                eFsMap["rep_offline"][fsid].insert(futs[i].first.getUnderlyingUInt64());
-                eMap["rep_offline"].insert(futs[i].first.getUnderlyingUInt64());
-                eCount["rep_offline"]++;
-              }
-            }
-          } catch (eos::MDException& e) {
-            errno = e.getErrno();
-            eos_static_debug("caught exception %d %s\n",
-                             e.getErrno(),
-                             e.getMessage().str().c_str());
-          }
-        }
-      }
-    }
-
-    {
-      // Grab all files which have no replicas at all
-      try {
-        XrdSysMutexHelper lock(eMutex);
-        eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
-        // it_fid not invalidated when items are added or removed for QDB
-        // namespace, safe to release lock after each item.
-        bool needLockThroughout = ! gOFS->NsInQDB;
-
-        for (auto it_fid = gOFS->eosFsView->getStreamingNoReplicasFileList();
-             (it_fid && it_fid->valid()); it_fid->next()) {
-          if (!needLockThroughout) {
-            nslock.Release();
-            eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView,
-                it_fid->getElement());
-            nslock.Grab(gOFS->eosViewRWMutex);
-          }
-
-          auto fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
-          std::string path = gOFS->eosView->getUri(fmd.get());
-          XrdOucString fullpath = path.c_str();
-
-          if (fullpath.beginswith(gOFS->MgmProcPath)) {
-            // Don't report eos /proc files
-            continue;
-          }
-
-          if (fmd && (!fmd->isLink())) {
-            eMap["zero_replica"].insert(it_fid->getElement());
-            eCount["zero_replica"]++;
-          }
-
-          if (!needLockThroughout) {
-            nslock.Release();
-            nslock.Grab(gOFS->eosViewRWMutex);
-          }
-        }
-      } catch (eos::MDException& e) {
-        errno = e.getErrno();
-        eos_static_debug("caught exception %d %s\n", e.getErrno(),
-                         e.getMessage().str().c_str());
-      }
-    }
-
-    {
-      XrdSysMutexHelper lock(eMutex);
-
-      // Loop over unavailable filesystems
-      for (auto ua_it = eFsUnavail.cbegin(); ua_it != eFsUnavail.cend();
-           ++ua_it) {
-        std::string host = "not configured";
-        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-
-        if (FsView::gFsView.mIdView.count(ua_it->first)) {
-          // @todo (esindril): would be nice to understand how we can end up in
-          // such a situation that fs is null ?!
-          auto fs = FsView::gFsView.mIdView[ua_it->first];
-
-          if (fs) {
-            host = fs->GetString("hostport");
-          } else {
-            eos_static_alert("fsid=%llu is null in mIdView", ua_it->first);
-          }
-        }
-
-        Log(false, "host=%s fsid=%lu replica_offline=%llu", host.c_str(),
-            ua_it->first, ua_it->second);
-      }
-    }
-
-    {
-      // Loop over all replica_offline and layout error files to assemble a
-      // file offline list
-      std::set <eos::common::FileId::fileid_t> fid2check;
-      // Use reference_wrapper to avoid copying
-      auto set_fids = std::cref(eMap["rep_offline"]);
-
-      for (auto it = set_fids.get().cbegin(); it != set_fids.get().cend(); ++it) {
-        fid2check.insert(*it);
-      }
-
-      set_fids = std::cref(eMap["rep_diff_n"]);
-
-      for (auto it = set_fids.get().cbegin(); it != set_fids.get().cend(); ++it) {
-        fid2check.insert(*it);
-      }
-
-      for (auto it = fid2check.begin(); it != fid2check.end(); ++it) {
-        std::shared_ptr<eos::IFileMD> fmd;
-
-        // Check if locations are online
-        try {
-          eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, *it);
-          eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
-          fmd = gOFS->eosFileService->getFileMD(*it);
-        } catch (eos::MDException& e) {}
-
-        if (!fmd) {
-          continue;
-        }
-
-        XrdSysMutexHelper lock(eMutex);
-        eos::common::RWMutexReadLock fs_lock(FsView::gFsView.ViewMutex);
-        size_t nlocations = fmd->getNumLocation();
-        size_t offlinelocations = 0;
-        eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
-
-        for (auto lociter = loc_vect.cbegin(); lociter != loc_vect.cend();
-             ++lociter) {
-          if (*lociter) {
-            if (FsView::gFsView.mIdView.count(*lociter)) {
-              eos::common::BootStatus bootstatus =
-                (FsView::gFsView.mIdView[*lociter]->GetStatus(true));
-              eos::common::FileSystem::fsstatus_t configstatus =
-                (FsView::gFsView.mIdView[*lociter]->GetConfigStatus());
-              bool conda = (FsView::gFsView.mIdView[*lociter]->GetActiveStatus(true) ==
-                            eos::common::ActiveStatus::kOffline);
-              bool condb = (bootstatus != eos::common::BootStatus::kBooted);
-              bool condc = (configstatus == eos::common::FileSystem::kDrainDead);
-
-              if (conda || condb || condc) {
-                offlinelocations++;
-              }
-            }
-          }
-        }
-
-        // TODO: this condition has to be adjusted for RAIN layouts
-        if (offlinelocations == nlocations) {
-          eMap["file_offline"].insert(*it);
-          eCount["file_offline"]++;
-        }
-
-        if (offlinelocations && (offlinelocations != nlocations)) {
-          eMap["adjust_replica"].insert(*it);
-          eCount["adjust_replica"]++;
-        }
-      }
-    }
-
-    for (auto emapit = eMap.cbegin(); emapit != eMap.cend(); ++emapit) {
-      Log(false, "%-30s : %llu (%llu)",
-          emapit->first.c_str(),
-          emapit->second.size(),
-          eCount[emapit->first]);
-    }
-
-    {
-      // Look for dark MD entries e.g. filesystem ids which have MD entries,
-      // but have no configured file system
-      XrdSysMutexHelper lock(eMutex);
-      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-
-      for (auto it = gOFS->eosFsView->getFileSystemIterator(); it->valid();
-           it->next()) {
-        IFileMD::location_t nfsid = it->getElement();
-
-        try {
-          // TODO(gbitzes): Urgent fix for QDB namespace needed.. This loop
-          // will need to load all filesystems in memory, just to get a couple
-          // of silly counters.
-          uint64_t num_files = gOFS->eosFsView->getNumFilesOnFs(nfsid);
-
-          if (num_files) {
-            // Check if this exists in the gFsView
-            if (!FsView::gFsView.mIdView.count(nfsid)) {
-              eFsDark[nfsid] += num_files;
-              Log(false, "shadow fsid=%lu shadow_entries=%llu ", nfsid, num_files);
-            }
-          }
-        } catch (eos::MDException& e) {}
-      }
-    }
-
-    Log(false, "stopping check");
-    Log(false, "=> next run in %d minutes", mInterval);
+    // @todo (esindril): note this is heavy for the qdb ns
+    AccountOfflineReplicas();
+    PrintOfflineReplicas();
+    AccountNoReplicaFiles();
+    AccountOfflineFiles();
+    PrintErrorsSummary();
+    // @todo (esindril): note this is heavy for the qdb ns
+    AccountDarkFiles();
+    Log("stopping check");
+    Log("=> next run in %d minutes", mInterval);
     // Wait for next FSCK round ...
-    int timeout_sec = 5;
-    int count = 0;
-
-    while (count < mInterval * 60) {
-      count += timeout_sec;
-      assistant.wait_for(std::chrono::seconds(timeout_sec));
-
-      if (assistant.terminationRequested()) {
-        return;
-      }
-    }
+    assistant.wait_for(std::chrono::minutes(mInterval));
   }
 }
 
@@ -1516,7 +1268,7 @@ Fsck::ClearLog()
 // Write log message to the current in-memory log
 //------------------------------------------------------------------------------
 void
-Fsck::Log(bool overwrite, const char* msg, ...)
+Fsck::Log(const char* msg, ...) const
 {
   static time_t current_time;
   static struct timeval tv;
@@ -1535,15 +1287,6 @@ Fsck::Log(bool overwrite, const char* msg, ...)
   ptr = buffer + strlen(buffer);
   vsprintf(ptr, msg, args);
   XrdSysMutexHelper lock(mLogMutex);
-
-  if (overwrite) {
-    int spos = mLog.rfind("\n", mLog.length() - 2);
-
-    if (spos > 0) {
-      mLog.erase(spos + 1);
-    }
-  }
-
   mLog += buffer;
   mLog += "\n";
   va_end(args);
@@ -1562,6 +1305,274 @@ Fsck::ResetErrorMaps()
   eFsUnavail.clear();
   eFsDark.clear();
   eTimeStamp = time(NULL);
+}
+
+//------------------------------------------------------------------------------
+// Account for offline replicas due to unavailable file systems
+//------------------------------------------------------------------------------
+void
+Fsck::AccountOfflineReplicas()
+{
+  // Grab all files which are damaged because filesystems are down
+  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+
+  for (auto it = FsView::gFsView.mIdView.cbegin();
+       it != FsView::gFsView.mIdView.cend(); ++it) {
+    // protect against illegal 0 filesystem pointer
+    if (!it->second) {
+      eos_static_crit("found illegal pointer in filesystem view");
+      continue;
+    }
+
+    eos::common::FileSystem::fsid_t fsid = it->first;
+    eos::common::ActiveStatus fsactive = it->second->GetActiveStatus();
+    eos::common::FileSystem::fsstatus_t fsconfig = it->second->GetConfigStatus();
+    eos::common::BootStatus fsstatus = it->second->GetStatus();
+
+    if ((fsstatus == eos::common::BootStatus::kBooted) &&
+        (fsconfig >= eos::common::FileSystem::kDrain) &&
+        (fsactive == eos::common::ActiveStatus::kOnline)) {
+      // Healthy, don't need to do anything
+      continue;
+    } else {
+      // Not ok and contributes to replica offline errors
+      try {
+        eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView,
+            gOFS->eosFsView, fsid);
+        XrdSysMutexHelper lock(eMutex);
+        // Only need the view lock if we're in-memory
+        eos::common::RWMutexReadLock nslock;
+
+        if (gOFS->eosView->inMemory()) {
+          nslock.Grab(gOFS->eosViewRWMutex);
+        }
+
+        std::deque<std::pair<FileIdentifier, folly::Future<bool>>> futs;
+
+        for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
+             (it_fid && it_fid->valid()); it_fid->next()) {
+          eos::FileIdentifier fid(it_fid->getElement());
+          futs.emplace_back(fid, gOFS->eosFileService->hasFileMD(fid));
+        }
+
+        for (size_t i = 0; i < futs.size(); i++) {
+          if (futs[i].second.get() == true) {
+            eFsUnavail[fsid]++;
+            eFsMap["rep_offline"][fsid].insert(futs[i].first.getUnderlyingUInt64());
+            eMap["rep_offline"].insert(futs[i].first.getUnderlyingUInt64());
+            eCount["rep_offline"]++;
+          }
+        }
+      } catch (eos::MDException& e) {
+        errno = e.getErrno();
+        eos_static_debug("caught exception %d %s\n",
+                         e.getErrno(),
+                         e.getMessage().str().c_str());
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Account for file with no replicas
+//------------------------------------------------------------------------------
+void
+Fsck::AccountNoReplicaFiles()
+{
+  // Grab all files which have no replicas at all
+  try {
+    XrdSysMutexHelper lock(eMutex);
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+    // it_fid not invalidated when items are added or removed for QDB
+    // namespace, safe to release lock after each item.
+    bool needLockThroughout = ! gOFS->NsInQDB;
+
+    for (auto it_fid = gOFS->eosFsView->getStreamingNoReplicasFileList();
+         (it_fid && it_fid->valid()); it_fid->next()) {
+      if (!needLockThroughout) {
+        ns_rd_lock.Release();
+        eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView,
+            it_fid->getElement());
+        ns_rd_lock.Grab(gOFS->eosViewRWMutex);
+      }
+
+      auto fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
+      std::string path = gOFS->eosView->getUri(fmd.get());
+      XrdOucString fullpath = path.c_str();
+
+      if (fullpath.beginswith(gOFS->MgmProcPath)) {
+        // Don't report eos /proc files
+        continue;
+      }
+
+      if (fmd && (!fmd->isLink())) {
+        eMap["zero_replica"].insert(it_fid->getElement());
+        eCount["zero_replica"]++;
+      }
+
+      if (!needLockThroughout) {
+        ns_rd_lock.Release();
+        ns_rd_lock.Grab(gOFS->eosViewRWMutex);
+      }
+    }
+  } catch (eos::MDException& e) {
+    errno = e.getErrno();
+    eos_static_debug("msg=\"caught exception\" errno=d%d msg=\"%s\"",
+                     e.getErrno(), e.getMessage().str().c_str());
+  }
+}
+
+//------------------------------------------------------------------------------
+// Print offline replicas summary
+//------------------------------------------------------------------------------
+void
+Fsck::PrintOfflineReplicas() const
+{
+  XrdSysMutexHelper lock(eMutex);
+
+  // Loop over unavailable filesystems
+  for (auto ua_it = eFsUnavail.cbegin(); ua_it != eFsUnavail.cend();
+       ++ua_it) {
+    std::string host = "not configured";
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    auto it_fs = FsView::gFsView.mIdView.find(ua_it->first);
+
+    if (it_fs != FsView::gFsView.mIdView.end()) {
+      host = it_fs->second->GetString("hostport");
+    }
+
+    Log("host=%s fsid=%lu replica_offline=%llu", host.c_str(),
+        ua_it->first, ua_it->second);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Account for offline files or files that require replica adjustments
+// i.e. file_offline and adjust_replica
+//------------------------------------------------------------------------------
+void
+Fsck::AccountOfflineFiles()
+{
+  using eos::common::LayoutId;
+  // Loop over all replica_offline and layout error files to assemble a
+  // file offline list
+  std::set <eos::common::FileId::fileid_t> fid2check;
+  {
+    XrdSysMutexHelper lock(eMutex);
+    fid2check.insert(eMap["rep_offline"].begin(), eMap["rep_offline"].end());
+    fid2check.insert(eMap["rep_diff_n"].begin(), eMap["rep_diff_n"].end());
+  }
+
+  for (auto it = fid2check.begin(); it != fid2check.end(); ++it) {
+    std::shared_ptr<eos::IFileMD> fmd;
+    eos::IFileMD::LocationVector loc_vect;
+    eos::IFileMD::layoutId_t lid {0ul};
+    size_t nlocations {0};
+
+    try { // Check if locations are online
+      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, *it);
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+      fmd = gOFS->eosFileService->getFileMD(*it);
+      lid = fmd->getLayoutId();
+      nlocations = fmd->getNumLocation();
+      loc_vect = fmd->getLocations();
+    } catch (eos::MDException& e) {
+      continue;
+    }
+
+    size_t offlinelocations = 0;
+    XrdSysMutexHelper lock(eMutex);
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+
+    for (const auto& loc : loc_vect) {
+      if (loc) {
+        auto it_fs = FsView::gFsView.mIdView.find(loc);
+
+        if (it_fs != FsView::gFsView.mIdView.end()) {
+          auto fs = it_fs->second;
+          eos::common::BootStatus bootstatus = fs->GetStatus(true);
+          eos::common::FileSystem::fsstatus_t configstatus = fs->GetConfigStatus();
+          bool conda = (fs->GetActiveStatus(true) == eos::common::ActiveStatus::kOffline);
+          bool condb = (bootstatus != eos::common::BootStatus::kBooted);
+          bool condc = (configstatus == eos::common::FileSystem::kDrainDead);
+
+          if (conda || condb || condc) {
+            ++offlinelocations;
+          }
+        }
+      }
+    }
+
+    unsigned long layout_type = LayoutId::GetLayoutType(lid);
+
+    if (layout_type == LayoutId::kReplica) {
+      if (offlinelocations == nlocations) {
+        eMap["file_offline"].insert(*it);
+        eCount["file_offline"]++;
+      }
+    } else if (layout_type >= LayoutId::kArchive) {
+      // Proper condition for RAIN layout
+      if (offlinelocations > LayoutId::GetRedundancyStripeNumber(lid)) {
+        eMap["file_offline"].insert(*it);
+        eCount["file_offline"]++;
+      }
+    }
+
+    if (offlinelocations && (offlinelocations != nlocations)) {
+      eMap["adjust_replica"].insert(*it);
+      eCount["adjust_replica"]++;
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Print summary of the different type of errors collected so far and their
+// corresponding counters
+//------------------------------------------------------------------------------
+void
+Fsck::PrintErrorsSummary() const
+{
+  XrdSysMutexHelper lock(eMutex);
+
+  for (auto emapit = eMap.cbegin(); emapit != eMap.cend(); ++emapit) {
+    Log("%-30s : %llu (%llu)", emapit->first.c_str(),
+        emapit->second.size(), eCount.at(emapit->first));
+  }
+}
+
+//------------------------------------------------------------------------------
+// Account for "dark" file entries i.e. file system ids which have file
+// entries in the namespace view but have no configured file system in the
+// FsView.
+//------------------------------------------------------------------------------
+void
+Fsck::AccountDarkFiles()
+{
+  XrdSysMutexHelper lock(eMutex);
+  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+  eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+
+  for (auto it = gOFS->eosFsView->getFileSystemIterator();
+       it->valid(); it->next()) {
+    IFileMD::location_t nfsid = it->getElement();
+
+    try {
+      // @todo(gbitzes): Urgent fix for QDB namespace needed.. This loop
+      // will need to load all filesystems in memory, just to get a couple
+      // of silly counters.
+      uint64_t num_files = gOFS->eosFsView->getNumFilesOnFs(nfsid);
+
+      if (num_files) {
+        // Check if this exists in the gFsView
+        if (!FsView::gFsView.mIdView.count(nfsid)) {
+          eFsDark[nfsid] += num_files;
+          Log("shadow fsid=%lu shadow_entries=%llu ", nfsid, num_files);
+        }
+      }
+    } catch (const eos::MDException& e) {
+      // ignore
+    }
+  }
 }
 
 EOSMGMNAMESPACE_END

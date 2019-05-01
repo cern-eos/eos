@@ -1066,6 +1066,15 @@ public:
   //----------------------------------------------------------------------------
   void BroadcastMasterId(const std::string master_id);
 
+  //----------------------------------------------------------------------------
+  //! Get number of filesystems registered
+  //----------------------------------------------------------------------------
+  inline size_t GetNumFileSystems() const
+  {
+    eos::common::RWMutexReadLock fs_rd_lock(ViewMutex);
+    return mIdView.size();
+  }
+
 private:
   IConfigEngine* mConfigEngine;
   AssistedThread mHeartBeatThread; ///< Thread monitoring heart-beats

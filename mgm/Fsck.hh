@@ -112,10 +112,9 @@ public:
   //----------------------------------------------------------------------------
   //! Write a log message to the in-memory log
   //!
-  //! @param overwrite if true overwrites the last message
-  //!@param msg variable length list of printf like format string and args
+  //! @param msg variable length list of printf like format string and args
   //----------------------------------------------------------------------------
-  void Log(bool overwrite, const char* msg, ...);
+  void Log(const char* msg, ...) const;
 
   //----------------------------------------------------------------------------
   //! Apply the FSCK configuration stored in the configuration engine
@@ -133,13 +132,13 @@ public:
   void Check(ThreadAssistant& assistant) noexcept;
 
 private:
-  XrdOucString mLog; ///< In-memory FSCK log
-  XrdSysMutex mLogMutex; ///< Mutex protecting the in-memory log
+  mutable XrdOucString mLog; ///< In-memory FSCK log
+  mutable XrdSysMutex mLogMutex; ///< Mutex protecting the in-memory log
   XrdOucString mEnabled; ///< True if collection thread is active
   int mInterval; ///< Interval in min between two FSCK collection loops
   AssistedThread mThread; ///< Collection thread id
   bool mRunning; ///< True if collection thread is currently running
-  XrdSysMutex eMutex; ///< Mutex protecting all eX... map objects
+  mutable XrdSysMutex eMutex; ///< Mutex protecting all eX... map objects
   //! Error detail map storing "<error-name>=><fsid>=>[fid1,fid2,fid3...]"
   std::map<std::string,
       std::map<eos::common::FileSystem::fsid_t,
@@ -149,7 +148,7 @@ private:
   std::map<std::string, unsigned long long > eCount;
   //! Unavailable filesystems map
   std::map<eos::common::FileSystem::fsid_t, unsigned long long > eFsUnavail;
-  //! Dark filesystem map - filesystems referenced by a file bu not configured
+  //! Dark filesystem map - filesystems referenced by a file but not configured
   //! in the filesystem view
   std::map<eos::common::FileSystem::fsid_t, unsigned long long > eFsDark;
   time_t eTimeStamp; ///< Timestamp of collection
@@ -158,6 +157,41 @@ private:
   //! Reset all collected errors in the error map
   //----------------------------------------------------------------------------
   void ResetErrorMaps();
+
+  //----------------------------------------------------------------------------
+  //! Account for offline replicas due to unavailable file systems
+  //! ie. rep_offline
+  //----------------------------------------------------------------------------
+  void AccountOfflineReplicas();
+
+  //----------------------------------------------------------------------------
+  //! Print offline replicas summary
+  //----------------------------------------------------------------------------
+  void PrintOfflineReplicas() const;
+
+  //----------------------------------------------------------------------------
+  //! Account for file with no replicas ie. zero_replica
+  //----------------------------------------------------------------------------
+  void AccountNoReplicaFiles();
+
+  //----------------------------------------------------------------------------
+  //! Account for offline files or files that require replica adjustments
+  //! i.e. file_offline and adjust_replica
+  //----------------------------------------------------------------------------
+  void AccountOfflineFiles();
+
+  //----------------------------------------------------------------------------
+  //! Print summary of the different type of errors collected so far and their
+  //! corresponding counters
+  //----------------------------------------------------------------------------
+  void PrintErrorsSummary() const;
+
+  //----------------------------------------------------------------------------
+  //! Account for "dark" file entries i.e. file system ids which have file
+  //! entries in the namespace view but have no configured file system in the
+  //! FsView.
+  //----------------------------------------------------------------------------
+  void AccountDarkFiles();
 };
 
 EOSMGMNAMESPACE_END
