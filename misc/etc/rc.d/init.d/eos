@@ -37,7 +37,14 @@ prog="xrootd"
 sysconfigfile="eos"
 
 # Defaults
-XRD_LOCATION="/usr/"
+if [ -e "/opt/eos/xrootd/" ]; then 
+  XRD_LOCATION="/opt/eos/xrootd/"
+else
+  XRD_LOCATION="/usr/"
+fi
+
+
+
 EOS_LOCATION="/usr/"
 XRD_MAXFD=65000
 XRD_USER="daemon"

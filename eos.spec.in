@@ -19,6 +19,10 @@
 # By default we stage eosprotobuf3 for RH6 and EL7
 %bcond_without stage_protobuf3_rh
 
+
+# By default we don't stage xrootd for RH6 and EL7
+%bcond_without stage_xrootd_rh
+
 # Define required dependency for XRootD
 %define xrootd_version_min 1:4.8.2
 %define major_version @CPACK_PACKAGE_VERSION_MAJOR@
@@ -65,6 +69,11 @@
 %global __strip /opt/rh/%{devtoolset}/root/usr/bin/strip
 %endif
 %endif
+
+#-------------------------------------------------------------------------------
+# /opt/eos/xrootd install version (shipped by eos-client for SLC6/EL7)
+#-------------------------------------------------------------------------------
+%define EOS_XROOTD_VERSION 4.9.1
 
 #-------------------------------------------------------------------------------
 # Package definitions
@@ -179,18 +188,29 @@ BuildRequires: libasan
 %endif
 
 
-# Add eos-protobuf3 build for SLC6 and EL7
-#%if 0%{?distribution} == 6
-#BuildRequires: eos-protobuf3 eos-protobuf3-devel eos-protobuf3-compiler
-#%else
-#%if 0%{?distribution} == 7
-#BuildRequires: eos-protobuf3 eos-protobuf3-devel eos-protobuf3-compiler
-#%endif
-#%endif
+%if ! %{without stage_protobuf3_rh}
+%if 0%{distribution} == 6 || 0%{distribution} == 7
+BuildRequires: yum
+%endif
+%endif
 
 
 %if %{use_systemd}
 BuildRequires: systemd
+%endif
+
+%if ! %{without stage_protobuf3_rh}
+# Install eos-protobuf3 
+%if 0%{distribution} == 6 || 0%{distribution} == 7
+BuildRequires: eos-protobuf3, eos-protobuf3-compiler, eos-protobuf3-devel
+%endif   
+%endif
+
+%if %{?_with_stage_xrootd_rh:1}%{!?_with_stage_xrootd_rh:0}
+# Install eos-xrootd
+%if 0%{distribution} == 6 || 0%{distribution} == 7
+BuildRequires: eos-xrootd
+%endif
 %endif
 
 %description
@@ -205,21 +225,6 @@ The EOS software package.
 %global build_flags %{build_flags} -DASAN=1
 %endif
 
-%if %{?_with_stage_protobuf3_rh:1}%{!?_with_stage_protobuf3_rh:0}
-# Install eos-protobuf3 from remote repository for RH6 and EL7 builds because they will stage the protobuf library into /opt/eos
-%if 0%{?distribution} == 6 
-yum localinstall -y http://storage-ci.web.cern.ch/storage-ci/eos/citrine-depend/el-6/x86_64/eos-protobuf3-compiler-3.5.1-1.el6.eos.x86_64.rpm
-yum localinstall -y http://storage-ci.web.cern.ch/storage-ci/eos/citrine-depend/el-6/x86_64/eos-protobuf3-debuginfo-3.5.1-1.el6.eos.x86_64.rpm
-yum localinstall -y http://storage-ci.web.cern.ch/storage-ci/eos/citrine-depend/el-6/x86_64/eos-protobuf3-devel-3.5.1-1.el6.eos.x86_64.rpm
-%else                                                                                                                           
-%if 0%{?distribution} == 7                                                                                                     
-yum localinstall -y http://storage-ci.web.cern.ch/storage-ci/eos/citrine-depend/el-7/x86_64/eos-protobuf3-compiler-3.5.1-1.el7.cern.eos.x86_64.rpm
-yum localinstall -y http://storage-ci.web.cern.ch/storage-ci/eos/citrine-depend/el-7/x86_64/eos-protobuf3-debuginfo-3.5.1-1.el7.cern.eos.x86_64.rpm
-yum localinstall -y http://storage-ci.web.cern.ch/storage-ci/eos/citrine-depend/el-7/x86_64/eos-protobuf3-devel-3.5.1-1.el7.cern.eos.x86_64.rpm
-%endif                                                                                                                          
-%endif   
-%endif
-
 
 %build
 test -e $RPM_BUILD_ROOT && rm -r $RPM_BUILD_ROOT
@@ -227,7 +232,11 @@ mkdir -p build
 cd build
 %if "%{?compiler}" == "gcc"
   %if 0%{distribution} == 6 || 0%{distribution} == 7
-    scl enable %{devtoolset} "%{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo %{build_flags}"
+    %if %{?_with_stage_xrootd_rh:1}%{!?_with_stage_xrootd_rh:0}
+       scl enable %{devtoolset} "%{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_SKIP_BUILD_RPATH=false -DCMAKE_BUILD_WITH_INSTALL_RPATH=false -DCMAKE_INSTALL_RPATH=/opt/eos/xrootd/lib64/,/usr/lib64/ -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true %{build_flags}"
+    %else
+      scl enable %{devtoolset} "%{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo %{build_flags}"
+     %endif
   %else
     %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo %{build_flags}
   %endif
@@ -245,12 +254,19 @@ cd build
 %{__make} install DESTDIR=$RPM_BUILD_ROOT
 
 
-%if %{?_with_stage_protobuf3_rh:1}%{!?_with_stage_protobuf3_rh:0}
 %if 0%{distribution} == 6 || 0%{distribution} == 7
+
+%if ! %{without stage_protobuf3_rh}
 mkdir -p $RPM_BUILD_ROOT/opt/eos/lib64/protobuf3/
 cp -f /opt/eos/lib64/protobuf3/libprotobuf.so.15 $RPM_BUILD_ROOT/opt/eos/lib64/protobuf3/
 %endif
+
+%if %{?_with_stage_xrootd_rh:1}%{!?_with_stage_xrootd_rh:0}
+cp -af /opt/eos/xrootd/ $RPM_BUILD_ROOT/opt/eos/xrootd/
 %endif
+
+%endif
+
 echo "Installed!"
 
 %clean
@@ -457,11 +473,16 @@ The EOS shell client.
 %{_libdir}/libeosCommon.so.%{major_version}
 %{_libdir}/libeosCommon.so
 %{_sysconfdir}/bash_completion.d/eos
-# The eos-client package ships the protobuf library built by us for SLC6 and EL&
-%if %{?_with_stage_protobuf3_rh:1}%{!?_with_stage_protobuf3_rh:0}
+
 %if 0%{distribution} == 6 || 0%{distribution} == 7
+
+%if %{?_with_stage_protobuf3_rh:1}%{!?_with_stage_protobuf3_rh:0}
 /opt/eos/lib64/protobuf3/libprotobuf.so.15
 %endif
+%if %{?_with_stage_xrootd_rh:1}%{!?_with_stage_xrootd_rh:0}
+/opt/eos/xrootd/
+%endif
+
 %endif
 
 # This file is required by both the eos-fuse and eos-fusex package, therefore

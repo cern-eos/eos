@@ -211,10 +211,10 @@ XrdFstOfs::xrdfstofs_stacktrace(int sig)
   // Print out all the frames to stderr
   fprintf(stderr, "error: received signal %d:\n", sig);
   backtrace_symbols_fd(array, size, 2);
-  eos::common::StackTrace::GdbTrace("xrootd", getpid(), "thread apply all bt");
+  eos::common::StackTrace::GdbTrace(0 , getpid(), "thread apply all bt");
 
   if (getenv("EOS_CORE_DUMP")) {
-    eos::common::StackTrace::GdbTrace("xrootd", getpid(), "generate-core-file");
+    eos::common::StackTrace::GdbTrace(0 , getpid(), "generate-core-file");
   }
 
   // Now we put back the initial handler and send the signal again

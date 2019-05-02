@@ -56,11 +56,11 @@ xrdmgmofs_stacktrace (int sig)
 
   backtrace_symbols_fd(array, size, 2);
 
-  eos::common::StackTrace::GdbTrace("/usr/bin/xrootd", getpid(), "thread apply all bt");
+  eos::common::StackTrace::GdbTrace(0, getpid(), "thread apply all bt");
 
   if (getenv("EOS_CORE_DUMP"))
   {
-    eos::common::StackTrace::GdbTrace("/usr/bin/xrootd", getpid(), "generate-core-file");
+    eos::common::StackTrace::GdbTrace(0, getpid(), "generate-core-file");
   }
 
   // now we put back the initial handler ...

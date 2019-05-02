@@ -29,6 +29,7 @@
 
 #include "common/ShellCmd.hh"
 #include "common/StringConversion.hh"
+#include <unistd.h>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -44,15 +45,30 @@ public:
   //----------------------------------------------------------------------------
   static void GdbTrace(const char* executable, pid_t pid, const char* what, const char* file = "/var/eos/md/stacktrace", std::string* ret_dump=0)
   {
+    std::string exe;
+    if (!executable) {
+      std::string procentry = "/proc/";
+      procentry += std::to_string(pid);
+      procentry += "/exe";
+      char buf[4096];
+      ssize_t size_link = ::readlink(procentry.c_str(), buf, sizeof(buf));
+      if(size_link>0) {
+	exe.assign(buf, size_link);
+      }
+    } else {
+      exe = executable;
+    }
+
+
     fprintf(stderr, "#########################################################"
             "################\n");
-    fprintf(stderr, "# stack trace exec=%s pid=%u what='%s'\n", executable,
+    fprintf(stderr, "# stack trace exec=%s pid=%u what='%s'\n", exe.c_str(),
             (unsigned int) pid, what);
     fprintf(stderr, "#########################################################"
             "################\n");
 
     XrdOucString  gdbline="ulimit -v 10000000000; gdb --quiet "; 
-    gdbline += executable; 
+    gdbline += exe.c_str(); 
     gdbline += " -p ";
     gdbline += (int) pid;
     gdbline += " <<< ";

@@ -2553,7 +2553,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 		if (rsp.evict_().reason().find("stacktrace") != std::string::npos) {
 		  std::string stacktrace_file = EosFuse::Instance().Config().logfilepath;
 		  stacktrace_file += ".strace";
-		  eos::common::StackTrace::GdbTrace("/usr/bin/eosxd", getpid(), "thread apply all bt", stacktrace_file.c_str(), &stacktrace);
+		  eos::common::StackTrace::GdbTrace(0, getpid(), "thread apply all bt", stacktrace_file.c_str(), &stacktrace);
 		  hb.mutable_heartbeat_()->set_trace(stacktrace);
 		} else {
 		  if (rsp.evict_().reason().find("sendlog") != std::string::npos) {
