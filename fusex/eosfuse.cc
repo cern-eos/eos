@@ -4923,8 +4923,8 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
         static std::string s_racl = "system.richacl";
 
 	if (key.substr(0,4) == "eos.") {
-	  // eos attributes are read-only
-	  rc = EROFS;
+	  // eos attributes are silently ignored
+	  rc = 0;
 	}  else 
 	  // ignore silently any security attribute
 	  if (key.substr(0, s_sec.length()) == s_sec) {
