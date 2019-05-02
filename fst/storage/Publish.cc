@@ -446,16 +446,7 @@ Storage::Publish(ThreadAssistant& assistant)
     //--------------------------------------------------------------------------
     // Should we publish consistency stats during this cycle?
     //--------------------------------------------------------------------------
-    bool publishConsistencyStats =
-      (consistencyStatsStopwatch.timeRemainingInCycle() == std::chrono::milliseconds(0));
-
-    if(publishConsistencyStats) {
-      //------------------------------------------------------------------------
-      // Refresh stopwatch cycle
-      //------------------------------------------------------------------------
-      consistencyStatsStopwatch.startCycle(sConsistencyTimeout);
-    }
-
+    bool publishConsistencyStats = consistencyStatsStopwatch.restartIfExpired();
 
     std::string publish_uptime = getUptime(tmp_name);
     std::string publish_sockets = getNumberOfTCPSockets(tmp_name);
