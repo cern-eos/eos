@@ -1691,8 +1691,9 @@ XrdFstOfsFile::close()
             eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS,
             eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR, nullptr);
         std::string errMsgBackFromWfEndpoint;
-        const int notifyRc = NotifyProtoWfEndPointClosew(fMd->mProtoFmd, mEventOwner,
-                             mEventOwnerGroup,
+        const int notifyRc = NotifyProtoWfEndPointClosew(fMd->mProtoFmd,
+                             mEventOwnerUid, mEventOwnerGid,
+                             mEventOwner, mEventOwnerGroup,
                              mEventRequestor, mEventRequestorGroup,
                              mEventInstance, mCapOpaque->Get("mgm.path"),
                              mCapOpaque->Get("mgm.manager"), attributes,
@@ -2702,6 +2703,10 @@ XrdFstOfsFile::ProcessOpenOpaque()
     mEventWorkflow = (val ? val : "");
     val = mOpenOpaque->Get("mgm.instance");
     mEventInstance = val ? val : "";
+    val = mOpenOpaque->Get("mgm.owner_uid");
+    mEventOwnerUid = val ? std::stoul(val) : 99;
+    val = mOpenOpaque->Get("mgm.owner_gid");
+    mEventOwnerGid = val ? std::stoul(val) : 99;
     val = mOpenOpaque->Get("mgm.owner");
     mEventOwner = val ? val : "";
     val = mOpenOpaque->Get("mgm.ownergroup");
@@ -3272,6 +3277,7 @@ static std::string ctaResponseCodeToString(cta::xrd::Response::ResponseType rt)
 //------------------------------------------------------------------------------
 int
 XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd,
+    uint32_t ownerUid, uint32_t ownerGid,
     const string& ownerName,
     const string& ownerGroupName, const string& requestorName,
     const string& requestorGroupName, const string& instanceName,
@@ -3283,8 +3289,10 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd,
   auto notification = request.mutable_notification();
   notification->mutable_cli()->mutable_user()->set_username(requestorName);
   notification->mutable_cli()->mutable_user()->set_groupname(requestorGroupName);
-  notification->mutable_file()->mutable_owner()->set_username(ownerName);
-  notification->mutable_file()->mutable_owner()->set_groupname(ownerGroupName);
+  notification->mutable_file()->mutable_owner()->set_uid(ownerUid);
+  notification->mutable_file()->mutable_owner()->set_gid(ownerGid);
+  notification->mutable_file()->mutable_owner()->set_username(ownerName); // DEPRECATED
+  notification->mutable_file()->mutable_owner()->set_groupname(ownerGroupName); // DEPRECATED
   notification->mutable_file()->set_size(fmd.size());
   notification->mutable_file()->mutable_cks()->set_type(
     eos::common::LayoutId::GetChecksumString(fmd.lid()));
