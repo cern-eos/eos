@@ -386,8 +386,6 @@ protected:
   std::string mEventInstance;
   uint32_t mEventOwnerUid;
   uint32_t mEventOwnerGid;
-  std::string mEventOwner; // DEPRECATED in favour of mEventOwnerUid
-  std::string mEventOwnerGroup; // DEPRECATED in favour of mEventOwnerGid
   std::string mEventRequestor;
   std::string mEventRequestorGroup;
   std::string mEventAttributes;
@@ -645,8 +643,6 @@ public:
   //! @param fmd The metadata of the file
   //! @param ownerUid The user id of the file owner
   //! @param ownerGid The group id of the file owner
-  //! @param ownerName The name of user that owns the file (DEPRECATED)
-  //! @param ownerGroupName The name of the group that owns the file (DEPRECATED)
   //! @param requestorName Tha name of the user that closed the file
   //! @param requestorGroupName The name of the group that closed the file
   //! @param instanceName Tha name of the EOS instance
@@ -659,7 +655,6 @@ public:
   //! @return
   //----------------------------------------------------------------------------
   int NotifyProtoWfEndPointClosew(const Fmd& fmd, uint32_t ownerUid, uint32_t ownerGid,
-                                  const string& ownerName, const string& ownerGroupName,
                                   const string& requestorName, const string& requestorGroupName,
                                   const string& instanceName, const string& fullPath,
                                   const string& managerName,

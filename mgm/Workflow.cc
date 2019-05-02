@@ -120,7 +120,7 @@ Workflow::getCGICloseW(std::string workflow,
 
   // synchronous closew has priority
   if (mAttr && (*mAttr).count(syncKey)) {
-    std::string owner, ownerGroup, fullPath;
+    std::string fullPath;
     decltype(gOFS->eosFileService->getFileMD(mFid)->getCUid()) cuid = 99;
     decltype(gOFS->eosFileService->getFileMD(mFid)->getCGid()) cgid = 99;
 
@@ -137,8 +137,6 @@ Workflow::getCGICloseW(std::string workflow,
       return "";
     }
 
-    owner = WFE::GetUserName(cuid);
-    ownerGroup = WFE::GetGroupName(cgid);
     std::ostringstream attrStream;
     std::string separator;
 
@@ -150,16 +148,15 @@ Workflow::getCGICloseW(std::string workflow,
 
     auto attrStr = attrStream.str();
     std::string attrEncoded;
-    eos::common::SymKey::Base64Encode(attrStr.c_str(), attrStr.length(),
-                                      attrEncoded);
+    eos::common::SymKey::Base64Encode(attrStr.c_str(), attrStr.length(), attrEncoded);
     cgi = "&mgm.event=sync::closew&mgm.workflow=";
     cgi += workflow;
     cgi += "&mgm.instance=";
     cgi += gOFS->MgmOfsInstanceName.c_str();
-    cgi += "&mgm.owner=";
-    cgi += owner;
-    cgi += "&mgm.ownergroup=";
-    cgi += ownerGroup;
+    cgi += "&mgm.owner_uid=";
+    cgi += std::to_string(cuid);
+    cgi += "&mgm.owner_gid=";
+    cgi += std::to_string(cgid);
     cgi += "&mgm.requestor=";
     cgi += WFE::GetUserName(vid.uid);
     cgi += "&mgm.requestorgroup=";

@@ -1691,13 +1691,9 @@ XrdFstOfsFile::close()
             eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS,
             eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR, nullptr);
         std::string errMsgBackFromWfEndpoint;
-        const int notifyRc = NotifyProtoWfEndPointClosew(fMd->mProtoFmd,
-                             mEventOwnerUid, mEventOwnerGid,
-                             mEventOwner, mEventOwnerGroup,
-                             mEventRequestor, mEventRequestorGroup,
-                             mEventInstance, mCapOpaque->Get("mgm.path"),
-                             mCapOpaque->Get("mgm.manager"), attributes,
-                             errMsgBackFromWfEndpoint);
+        const int notifyRc = NotifyProtoWfEndPointClosew(fMd->mProtoFmd, mEventOwnerUid, mEventOwnerGid,
+            mEventRequestor, mEventRequestorGroup, mEventInstance, mCapOpaque->Get("mgm.path"),
+            mCapOpaque->Get("mgm.manager"), attributes, errMsgBackFromWfEndpoint);
 
         if (0 == notifyRc) {
           this->error.setErrCode(0);
@@ -2707,10 +2703,6 @@ XrdFstOfsFile::ProcessOpenOpaque()
     mEventOwnerUid = val ? std::stoul(val) : 99;
     val = mOpenOpaque->Get("mgm.owner_gid");
     mEventOwnerGid = val ? std::stoul(val) : 99;
-    val = mOpenOpaque->Get("mgm.owner");
-    mEventOwner = val ? val : "";
-    val = mOpenOpaque->Get("mgm.ownergroup");
-    mEventOwnerGroup = val ? val : "";
     val = mOpenOpaque->Get("mgm.requestor");
     mEventRequestor = val ? val : "";
     val = mOpenOpaque->Get("mgm.requestorgroup");
@@ -3276,15 +3268,21 @@ static std::string ctaResponseCodeToString(cta::xrd::Response::ResponseType rt)
 // Notify the workflow protobuf endpoint of closew event
 //------------------------------------------------------------------------------
 int
-XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd,
-    uint32_t ownerUid, uint32_t ownerGid,
-    const string& ownerName,
-    const string& ownerGroupName, const string& requestorName,
-    const string& requestorGroupName, const string& instanceName,
-    const string& fullPath, const string& managerName,
-    const std::map<std::string, std::string>& xattrs, string& errMsgBack)
+XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd, uint32_t ownerUid,
+  uint32_t ownerGid, const string& requestorName, const string& requestorGroupName,
+  const string& instanceName, const string& fullPath, const string& managerName,
+  const std::map<std::string, std::string>& xattrs, string& errMsgBack)
 {
   using namespace eos::common;
+
+  // Convert uid and gid to strings (DEPRECATED)
+  int errc = 0;
+  std::string ownerName = Mapping::UidToUserName(ownerUid, errc);
+  if (errc != 0) { ownerName = "nobody"; errc = 0; }
+
+  std::string ownerGroupName = Mapping::GidToGroupName(ownerGid, errc);
+  if (errc != 0) { ownerGroupName = "nobody"; errc = 0; }
+
   cta::xrd::Request request;
   auto notification = request.mutable_notification();
   notification->mutable_cli()->mutable_user()->set_username(requestorName);
