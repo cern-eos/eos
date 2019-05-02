@@ -40,7 +40,6 @@ FileSystem::FileSystem(const char* queuepath, const char* queue,
   mPath.erase(0, mQueue.length());
   mSom = som;
   mInternalBootStatus = BootStatus::kDown;
-  PreBookedSpace = 0;
   cActive = ActiveStatus::kOffline;
   cStatus = BootStatus::kDown;
   cConfigStatus = 0;
@@ -709,26 +708,6 @@ FileSystem::SetStatfs(struct statfs* statfs)
   success &= SetLongLong("stat.statfs.namelen", statfs->f_namelen);
 #endif
   return success;
-}
-
-//------------------------------------------------------------------------------
-// Try to reserve <bookingspace> on the current filesystem
-//------------------------------------------------------------------------------
-bool
-FileSystem::ReserveSpace(fs_snapshot_t& fs, unsigned long long bookingsize)
-{
-  long long headroom = fs.mHeadRoom;
-  long long freebytes = fs.mDiskFreeBytes;
-  long long prebooked = GetPrebookedSpace();
-
-  // guarantee that we don't overbook the filesystem and we keep <headroom> free
-  if ((unsigned long long)(freebytes - prebooked) > ((unsigned long long) headroom
-      + bookingsize)) {
-    // there is enough space
-    return true;
-  } else {
-    return false;
-  }
 }
 
 //------------------------------------------------------------------------------

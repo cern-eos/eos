@@ -107,9 +107,6 @@ protected:
   //! Handle to the extern queue
   TransferQueue* mExternQueue;
 
-  // Counter for prebooked space on that filesystem
-  unsigned long long PreBookedSpace;
-
   //! boot status stored inside the object not the hash
   BootStatus mInternalBootStatus;
 
@@ -564,34 +561,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Get the pre-booked space.
-  //----------------------------------------------------------------------------
-  long long
-  GetPrebookedSpace()
-  {
-    // this is dummy for the moment, but will later return 'scheduled' used space
-    return PreBookedSpace;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Do space pre-booking on the filesystem.
-  //----------------------------------------------------------------------------
-  void
-  PreBookSpace(unsigned long long book)
-  {
-    PreBookedSpace += book;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Free the pro-booked space on the filesystem.
-  //----------------------------------------------------------------------------
-  void
-  FreePreBookedSpace()
-  {
-    PreBookedSpace = 0;
-  }
-
-  //----------------------------------------------------------------------------
   //! Return handle to the drain queue.
   //----------------------------------------------------------------------------
   TransferQueue*
@@ -627,16 +596,6 @@ public:
   //! otherwise false
   //----------------------------------------------------------------------------
   bool HasHeartBeat(fs_snapshot_t& fs);
-
-  //----------------------------------------------------------------------------
-  //! Try to reserve <bookingspace> on the current filesystem
-  //!
-  //! @param fs Snapshot of the filesystem.
-  //! @param bookingsize Size to be reserved
-  //!
-  //! @return true if there is enough space - false if not
-  //----------------------------------------------------------------------------
-  bool ReserveSpace(fs_snapshot_t& fs, unsigned long long bookingsize);
 
   //----------------------------------------------------------------------------
   //! Return the filesystem id.
