@@ -1,4 +1,4 @@
-#!/bin/bash -v
+#!/bin/bash -ve
 
 
 NAMESPACE=""
@@ -54,9 +54,3 @@ if [ "$CI_JOB_NAME" != k8s_ubuntu_system_test ]; then
 	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \
 	-- python /eosclient-tests/run.py --workdir="/eos_fuse/dockertest /eos_fuse2/dockertest" ci;
 fi
-
-
-# @todo something like
-# function kexec () {
-# 	kubectl exec -it $(kubectl get pods --no-headers --output custom-columns=":metadata.name" --selector app=$1 --namespace=$NAMESPACE) --namespace=$NAMESPACE ${@:2}
-# }
