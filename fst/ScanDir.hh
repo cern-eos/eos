@@ -78,7 +78,7 @@ public:
   void CheckFile(const char*);
 
   std::unique_ptr<eos::fst::CheckSum> GetBlockXS(const char*,
-    unsigned long long maxfilesize);
+      unsigned long long maxfilesize);
 
   bool ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>&,
                          unsigned long long&, float&, const char*,
@@ -105,7 +105,6 @@ private:
   float durationScan;
   long long int totalScanSize;
   long long int bufferSize;
-  long int noNoChecksumFiles;
   long int noTotalFiles;
   long int SkippedFiles;
 
