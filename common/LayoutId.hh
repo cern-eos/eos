@@ -893,31 +893,41 @@ public:
     const char* val = 0;
 
     if ((val = env.Get("eos.layout.blockchecksum"))) {
-      XrdOucString xsum = val;
-
-      if (xsum == "adler") {
-        return kAdler;
-      }
-
-      if (xsum == "crc32") {
-        return kCRC32;
-      }
-
-      if (xsum == "crc32c") {
-        return kCRC32C;
-      }
-
-      if (xsum == "md5") {
-        return kMD5;
-      }
-
-      if (xsum == "sha") {
-        return kSHA1;
-      }
+      return GetBlockChecksumFromString(val);
     }
 
     return kNone;
   }
+
+  //--------------------------------------------------------------------------
+  //! Return block checksum enum from string representation
+  //--------------------------------------------------------------------------
+  static unsigned long
+  GetBlockChecksumFromString(const std::string& bxs_type)
+  {
+    if (bxs_type == "adler") {
+      return kAdler;
+    }
+
+    if (bxs_type == "crc32") {
+      return kCRC32;
+    }
+
+    if (bxs_type == "crc32c") {
+      return kCRC32C;
+    }
+
+    if (bxs_type == "md5") {
+      return kMD5;
+    }
+
+    if (bxs_type == "sha") {
+      return kSHA1;
+    }
+
+    return kNone;
+  }
+
 
   //--------------------------------------------------------------------------
   //! Return blocksize enum from env definition

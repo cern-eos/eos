@@ -21,15 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_SCANDIR_HH__
-#define __EOSFST_SCANDIR_HH__
-
+#pragma once
 #include <pthread.h>
 #include "fst/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
-#include "XrdOuc/XrdOucString.hh"
-
 #include <sys/syscall.h>
 #ifndef __APPLE__
 #include <asm/unistd.h>
@@ -64,6 +60,14 @@ public:
   virtual ~ScanDir();
 
   //----------------------------------------------------------------------------
+  //! Decide if a rescan is needed based on the timestamp provided and the
+  //! configured rescan interval
+  //!
+  //! @param timestamp_us timestamp in microseconds
+  //----------------------------------------------------------------------------
+  bool DoRescan(const std::string& timestamp_us) const;
+
+  //----------------------------------------------------------------------------
   //! Update scanner configuration
   //!
   //! @param key configuration type
@@ -71,52 +75,71 @@ public:
   //----------------------------------------------------------------------------
   void SetConfig(const std::string&, long long value);
 
-  void* ThreadProc();
-
+  //----------------------------------------------------------------------------
+  //! Method traversing all the files in the subtree and potentially rescanning
+  //! some of them.
+  //----------------------------------------------------------------------------
   void ScanFiles();
 
-  void CheckFile(const char*);
+  //----------------------------------------------------------------------------
+  //! Check the given file for errors and properly account them both at the
+  //! scanner level and also by setting the proper xattrs on the file.
+  //!
+  //! @param fpath file path
+  //----------------------------------------------------------------------------
+  void CheckFile(const char* fpath);
 
-  std::unique_ptr<eos::fst::CheckSum> GetBlockXS(const char*,
-      unsigned long long maxfilesize);
+  //------------------------------------------------------------------------------
+  //!
+  //------------------------------------------------------------------------------
+  void* ThreadProc();
+
+  //----------------------------------------------------------------------------
+  //! Get block checksum object for the given file. First we need to check if
+  //! there is a block checksum file (.xsmap) correspnding to the given raw
+  //! file.
+  //!
+  //! @param file_path full path to raw file
+  //!
+  //! @return block checksum object
+  //----------------------------------------------------------------------------
+  std::unique_ptr<eos::fst::CheckSum>
+  GetBlockXS(const std::string& file_path);
 
   bool ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>&,
                          unsigned long long&, float&, const char*,
                          unsigned long, const char* lfn,
                          bool& filecxerror, bool& blockxserror);
 
-  std::string GetTimestamp();
+  //----------------------------------------------------------------------------
+  //! Timestamp in microseconds
+  //----------------------------------------------------------------------------
+  std::string GetTimestamp() const;
 
   std::string GetTimestampSmeared();
 
-  bool RescanFile(std::string);
-
 private:
-  eos::fst::Load* fstLoad;
-  eos::common::FileSystem::fsid_t fsId;
-  XrdOucString dirPath;
-  std::atomic<long long> mTestInterval; ///< Test interval in seconds
+  eos::fst::Load* mFstLoad; ///< Object for providing load information
+  eos::common::FileSystem::fsid_t mFsId; ///< Corresponding file system id
+  std::string mDirPath; ///< Root directory used by the scanner
+  ///< Time interval after which a file is rescanned in seconds
+  std::atomic<uint64_t> mRescanIntervalSec;
   std::atomic<int> mRateBandwidth; ///< Max scan rate in MB/s
 
   // Statistics
-  long int noScanFiles;
-  long int noCorruptFiles;
-  long int noHWCorruptFiles;
-  float durationScan;
-  long long int totalScanSize;
-  long long int bufferSize;
-  long int noTotalFiles;
-  long int SkippedFiles;
-
-  bool setChecksum;
-
-  long alignment;
-  char* buffer;
+  float mScanDuration;
+  long int mNumScannedFiles;
+  long int mNumCorruptedFiles;
+  long int mNumHWCorruptedFiles;
+  long long int mTotalScanSize;
+  long int mNumTotalFiles;
+  long int mNumSkippedFiles;
+  bool mSetChecksum; ///< If true update the xattr checksum value
+  char* mBuffer; ///< Buffer used for reading
+  uint32_t mBufferSize; ///< Size of the reading buffer
   pthread_t thread;
   bool bgThread;
-  bool forcedScan;
+  bool mForcedScan;
 };
 
 EOSFSTNAMESPACE_END
-
-#endif
