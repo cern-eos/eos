@@ -177,6 +177,7 @@ void Inspector::checkDifferentMaps(const std::map<std::string, uint64_t>&
 //------------------------------------------------------------------------------
 int Inspector::checkNamingConflicts(std::ostream& out, std::ostream& err)
 {
+  std::string errorString;
   ContainerScanner containerScanner(mQcl);
   FileScanner fileScanner(mQcl);
   common::IntervalStopwatch stopwatch(std::chrono::seconds(10));
@@ -224,6 +225,11 @@ int Inspector::checkNamingConflicts(std::ostream& out, std::ostream& err)
       err << "Progress: Processed " << containerScanner.getScannedSoFar() <<
           " containers, " << fileScanner.getScannedSoFar() << " files" << std::endl;
     }
+  }
+
+  if(containerScanner.hasError(errorString) || fileScanner.hasError(errorString)) {
+    err << errorString;
+    return 1;
   }
 
 out:
