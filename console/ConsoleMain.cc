@@ -580,10 +580,16 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
   } else {
     std::string errmsg;
     std::ostringstream oss;
+    int retc = status.GetShellCode();
+
+    if (status.errNo) {
+      retc = status.errNo;
+    }
+
     oss << "mgm.proc.stdout=&"
-        << "mgm.proc.stderr=" << "error: errc=" << status.GetShellCode()
+        << "mgm.proc.stderr=" << "error: errc=" << retc
         << " msg=\"" << status.ToString() << "\"&"
-        << "mgm.proc.retc=" << status.GetShellCode();
+        << "mgm.proc.retc=" << retc;
     CommandEnv = new XrdOucEnv(oss.str().c_str());
 
     // Save the reply string from the server
