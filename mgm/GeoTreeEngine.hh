@@ -2045,42 +2045,6 @@ public:
                                 std::vector<std::string>* excludeGeoTags = NULL,
                                 std::vector<std::string>* forceGeoTags = NULL);
 
-  // ---------------------------------------------------------------------------
-  //! Access several replicas in one scheduling group.
-  // @param group
-  //   the group to place the replicas in
-  // @param nReplicas
-  //   the number of replicas to access
-  // @param accessedReplicas
-  //   vector to which fsids of replicas to access are appended if the scheduling
-  //   succeeds. They are appended in decreasing priority order
-  // @param existingReplicas
-  //   fsids of preexisting replicas for the current file
-  // @param type
-  //   type of access to be performed. It can be:
-  //     regularRO, regularRW, balancing or draining
-  // @param accesserGeoTag
-  //   try to get the replicas as close to this geotag as possible
-  // @param exludeFs
-  //   fsids of files to exclude from the access operation
-  // @param excludeGeoTags
-  //   geotags of branches to exclude from the access operation
-  //     (e.g. exclude a site)
-  // @param forceGeoTags
-  //   geotags of branches accessed replicas should be taken from
-  //     (e.g. force a site)
-  // @return
-  //   true if the success false else
-  // ---------------------------------------------------------------------------
-  bool accessReplicasOneGroup(FsGroup* group, const size_t& nReplicas,
-                              std::vector<eos::common::FileSystem::fsid_t>* accessedReplicas,
-                              std::vector<eos::common::FileSystem::fsid_t>* existingReplicas,
-                              SchedType type = regularRO,
-                              const std::string& accesserGeotag = "",
-                              std::vector<eos::common::FileSystem::fsid_t>* excludeFs = NULL,
-                              std::vector<std::string>* excludeGeoTags = NULL,
-                              std::vector<std::string>* forceGeoTags = NULL);
-
   // this function to access replica spread across multiple scheduling group is a BACKCOMPATIBILITY artifact
   // the new scheduler doesn't try to place files across multiple scheduling groups.
   //  bool accessReplicasMultipleGroup(const size_t &nAccessReplicas,
