@@ -110,7 +110,7 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
   mRateBandwidth(ratebandwidth), setChecksum(setchecksum), forcedScan(false)
 {
   thread = 0;
-  noNoChecksumFiles = noScanFiles = 0;
+  noScanFiles = 0;
   noHWCorruptFiles = noCorruptFiles = noTotalFiles = SkippedFiles = 0;
   durationScan = 0;
   totalScanSize = bufferSize = 0;
@@ -317,216 +317,212 @@ ScanDir::CheckFile(const char* filepath)
   }
 
   if (rescan || forcedScan) {
-    if (1) {
-      bool blockcxerror = false;
-      bool filecxerror = false;
-      bool skiptosettime = false;
-      XrdOucString envstring = "eos.layout.checksum=";
-      envstring += checksumType.c_str();
-      XrdOucEnv env(envstring.c_str());
-      unsigned long checksumtype = eos::common::LayoutId::GetChecksumFromEnv(env);
-      layoutid = eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain,
-                                              checksumtype);
+    bool blockcxerror = false;
+    bool filecxerror = false;
+    bool skiptosettime = false;
+    XrdOucString envstring = "eos.layout.checksum=";
+    envstring += checksumType.c_str();
+    XrdOucEnv env(envstring.c_str());
+    unsigned long checksumtype = eos::common::LayoutId::GetChecksumFromEnv(env);
+    layoutid = eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain,
+                                            checksumtype);
 
-      if (rescan && (!ScanFileLoadAware(io, scansize, scantime, checksumVal, layoutid,
-                                        logicalFileName.c_str(), filecxerror, blockcxerror))) {
-        bool reopened = false;
-#ifndef _NOOFS
-
-        if (bgThread) {
-          eos::common::Path cPath(filePath.c_str());
-          eos::common::FileId::fileid_t fid = strtoul(cPath.GetName(), 0, 16);
-          // Check if somebody is again writing on that file and skip in that case
-
-          if (gOFS.openedForWriting.isOpen(fsId, fid)) {
-            eos_err("file %s has been reopened for update during the scan ... "
-                    "ignoring checksum error", filePath.c_str());
-            reopened = true;
-          }
-        }
-
-#endif
-
-        if ((!io->fileStat(&buf2)) && (buf1.st_mtime == buf2.st_mtime) &&
-            !reopened) {
-          if (filecxerror) {
-            if (bgThread) {
-              syslog(LOG_ERR, "corrupted file checksum: localpath=%s lfn=\"%s\" \n",
-                     filePath.c_str(), logicalFileName.c_str());
-              eos_err("corrupted file checksum: localpath=%s lfn=\"%s\"", filePath.c_str(),
-                      logicalFileName.c_str());
-
-              if (was_healthy && didnt_change) {
-                syslog(LOG_ERR, "HW corrupted file found: localpath=%s lfn=\"%s\" \n",
-                       filePath.c_str(), logicalFileName.c_str());
-                noHWCorruptFiles++;
-              }
-            } else {
-              fprintf(stderr, "[ScanDir] corrupted  file checksum: localpath=%slfn=\"%s\" \n",
-                      filePath.c_str(), logicalFileName.c_str());
-
-              if (was_healthy && didnt_change) {
-                fprintf(stderr, "HW corrupted file found: localpath=%s lfn=\"%s\" \n",
-                        filePath.c_str(), logicalFileName.c_str());
-                noHWCorruptFiles++;
-              }
-            }
-          }
-        } else {
-          // If the file was changed in the meanwhile or is reopened for update,
-          // the checksum might have changed in the meanwhile, we cannot know
-          // now and leave it up to a later moment.
-          blockcxerror = false;
-          filecxerror = false;
-          skiptosettime = true;
-
-          if (bgThread) {
-            eos_err("file %s has been modified during the scan ... ignoring checksum error",
-                    filePath.c_str());
-          } else {
-            fprintf(stderr,
-                    "[ScanDir] file %s has been modified during the scan ... "
-                    "ignoring checksum error\n", filePath.c_str());
-          }
-        }
-      }
-
-      // Collect statistics
-      if (rescan) {
-        durationScan += scantime;
-        totalScanSize += scansize;
-      }
-
-      bool failedtoset = false;
-
-      if (rescan) {
-        if (!skiptosettime) {
-          if (io->attrSet("user.eos.timestamp", GetTimestampSmeared())) {
-            failedtoset |= true;
-          }
-        }
-
-        if ((io->attrSet("user.eos.filecxerror", filecxerror ? "1" : "0")) ||
-            (io->attrSet("user.eos.blockcxerror", blockcxerror ? "1" : "0"))) {
-          failedtoset |= true;
-        }
-
-        if (failedtoset) {
-          if (bgThread) {
-            eos_err("Can not set extended attributes to file %s", filePath.c_str());
-          } else {
-            fprintf(stderr, "error: [CheckFile] Can not set extended "
-                    "attributes to file. \n");
-          }
-        }
-      }
-
+    if (rescan && (!ScanFileLoadAware(io, scansize, scantime, checksumVal, layoutid,
+                                      logicalFileName.c_str(), filecxerror, blockcxerror))) {
+      bool reopened = false;
 #ifndef _NOOFS
 
       if (bgThread) {
-        if (filecxerror || blockcxerror || forcedScan) {
-          XrdOucString manager = "";
-          {
-            XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
-            manager = eos::fst::Config::gConfig.Manager.c_str();
+        eos::common::Path cPath(filePath.c_str());
+        eos::common::FileId::fileid_t fid = strtoul(cPath.GetName(), 0, 16);
+        // Check if somebody is again writing on that file and skip in that case
+
+        if (gOFS.openedForWriting.isOpen(fsId, fid)) {
+          eos_err("file %s has been reopened for update during the scan ... "
+                  "ignoring checksum error", filePath.c_str());
+          reopened = true;
+        }
+      }
+
+#endif
+
+      if ((!io->fileStat(&buf2)) && (buf1.st_mtime == buf2.st_mtime) &&
+          !reopened) {
+        if (filecxerror) {
+          if (bgThread) {
+            syslog(LOG_ERR, "corrupted file checksum: localpath=%s lfn=\"%s\" \n",
+                   filePath.c_str(), logicalFileName.c_str());
+            eos_err("corrupted file checksum: localpath=%s lfn=\"%s\"", filePath.c_str(),
+                    logicalFileName.c_str());
+
+            if (was_healthy && didnt_change) {
+              syslog(LOG_ERR, "HW corrupted file found: localpath=%s lfn=\"%s\" \n",
+                     filePath.c_str(), logicalFileName.c_str());
+              noHWCorruptFiles++;
+            }
+          } else {
+            fprintf(stderr, "[ScanDir] corrupted  file checksum: localpath=%slfn=\"%s\" \n",
+                    filePath.c_str(), logicalFileName.c_str());
+
+            if (was_healthy && didnt_change) {
+              fprintf(stderr, "HW corrupted file found: localpath=%s lfn=\"%s\" \n",
+                      filePath.c_str(), logicalFileName.c_str());
+              noHWCorruptFiles++;
+            }
           }
+        }
+      } else {
+        // If the file was changed in the meanwhile or is reopened for update,
+        // the checksum might have changed in the meanwhile, we cannot know
+        // now and leave it up to a later moment.
+        blockcxerror = false;
+        filecxerror = false;
+        skiptosettime = true;
 
-          if (manager.length()) {
-            errno = 0;
-            eos::common::Path cPath(filePath.c_str());
-            eos::common::FileId::fileid_t fid = strtoul(cPath.GetName(), 0, 16);
+        if (bgThread) {
+          eos_err("file %s has been modified during the scan ... ignoring checksum error",
+                  filePath.c_str());
+        } else {
+          fprintf(stderr,
+                  "[ScanDir] file %s has been modified during the scan ... "
+                  "ignoring checksum error\n", filePath.c_str());
+        }
+      }
+    }
 
-            if (fid && !errno) {
-              // check if we have this file in the local DB, if not, we
-              // resync first the disk and then the mgm meta data
-              FmdHelper* fmd = gFmdDbMapHandler.LocalGetFmd(fid, fsId, 0, 0, false,
-                               true);
-              bool orphaned = false;
+    // Collect statistics
+    if (rescan) {
+      durationScan += scantime;
+      totalScanSize += scansize;
+    }
 
-              if (fmd) {
-                // real orphanes get rechecked
-                if (fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kOrphan) {
-                  orphaned = true;
-                }
+    bool failedtoset = false;
 
-                // unregistered replicas get rechecked
-                if (fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered) {
-                  orphaned = true;
+    if (rescan) {
+      if (!skiptosettime) {
+        if (io->attrSet("user.eos.timestamp", GetTimestampSmeared())) {
+          failedtoset |= true;
+        }
+      }
+
+      if ((io->attrSet("user.eos.filecxerror", filecxerror ? "1" : "0")) ||
+          (io->attrSet("user.eos.blockcxerror", blockcxerror ? "1" : "0"))) {
+        failedtoset |= true;
+      }
+
+      if (failedtoset) {
+        if (bgThread) {
+          eos_err("Can not set extended attributes to file %s", filePath.c_str());
+        } else {
+          fprintf(stderr, "error: [CheckFile] Can not set extended "
+                  "attributes to file. \n");
+        }
+      }
+    }
+
+#ifndef _NOOFS
+
+    if (bgThread) {
+      if (filecxerror || blockcxerror || forcedScan) {
+        XrdOucString manager = "";
+        {
+          XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
+          manager = eos::fst::Config::gConfig.Manager.c_str();
+        }
+
+        if (manager.length()) {
+          errno = 0;
+          eos::common::Path cPath(filePath.c_str());
+          eos::common::FileId::fileid_t fid = strtoul(cPath.GetName(), 0, 16);
+
+          if (fid && !errno) {
+            // check if we have this file in the local DB, if not, we
+            // resync first the disk and then the mgm meta data
+            FmdHelper* fmd = gFmdDbMapHandler.LocalGetFmd(fid, fsId, 0, 0, false,
+                             true);
+            bool orphaned = false;
+
+            if (fmd) {
+              // real orphanes get rechecked
+              if (fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kOrphan) {
+                orphaned = true;
+              }
+
+              // unregistered replicas get rechecked
+              if (fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered) {
+                orphaned = true;
+              }
+
+              delete fmd;
+              fmd = nullptr;
+            }
+
+            if (filecxerror || blockcxerror || !fmd || orphaned) {
+              eos_notice("msg=\"resyncing from disk\" fsid=%d fid=%08llx", fsId, fid);
+              // ask the meta data handling class to update the error flags for this file
+              gFmdDbMapHandler.ResyncDisk(filePath.c_str(), fsId, false);
+              eos_notice("msg=\"resyncing from mgm\" fsid=%d fid=%08llx", fsId, fid);
+              bool resynced = false;
+              resynced = gFmdDbMapHandler.ResyncMgm(fsId, fid, manager.c_str());
+              fmd = gFmdDbMapHandler.LocalGetFmd(fid, fsId, 0, 0, 0, false, true);
+
+              if (resynced && fmd) {
+                if ((fmd->mProtoFmd.layouterror() ==  eos::common::LayoutId::kOrphan) ||
+                    ((!(fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kReplicaWrong))
+                     && (fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered))) {
+                  char oname[4096];
+                  snprintf(oname, sizeof(oname), "%s/.eosorphans/%08llx",
+                           dirPath.c_str(), (unsigned long long) fid);
+                  // store the original path name as an extended attribute in case ...
+                  io->attrSet("user.eos.orphaned", filePath.c_str());
+
+                  // if this is an orphaned file - we move it into the orphaned directory
+                  if (!rename(filePath.c_str(), oname)) {
+                    eos_warning("msg=\"orphaned/unregistered quarantined\" "
+                                "fst-path=%s orphan-path=%s", filePath.c_str(),
+                                oname);
+                  } else {
+                    eos_err("msg=\"failed to quarantine orphaned/unregistered"
+                            "\" fst-path=%s orphan-path=%s", filePath.c_str(),
+                            oname);
+                  }
+
+                  // remove the entry from the FMD database
+                  gFmdDbMapHandler.LocalDeleteFmd(fid, fsId);
                 }
 
                 delete fmd;
                 fmd = nullptr;
               }
 
-              if (filecxerror || blockcxerror || !fmd || orphaned) {
-                eos_notice("msg=\"resyncing from disk\" fsid=%d fid=%08llx", fsId, fid);
-                // ask the meta data handling class to update the error flags for this file
-                gFmdDbMapHandler.ResyncDisk(filePath.c_str(), fsId, false);
-                eos_notice("msg=\"resyncing from mgm\" fsid=%d fid=%08llx", fsId, fid);
-                bool resynced = false;
-                resynced = gFmdDbMapHandler.ResyncMgm(fsId, fid, manager.c_str());
-                fmd = gFmdDbMapHandler.LocalGetFmd(fid, fsId, 0, 0, 0, false, true);
+              // Call the autorepair method on the MGM - but not for orphaned
+              // or unregistered filed. If MGM autorepair is disabled then it
+              // doesn't do anything.
+              bool do_autorepair = false;
 
-                if (resynced && fmd) {
-                  if ((fmd->mProtoFmd.layouterror() ==  eos::common::LayoutId::kOrphan) ||
-                      ((!(fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kReplicaWrong))
-                       && (fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered))) {
-                    char oname[4096];
-                    snprintf(oname, sizeof(oname), "%s/.eosorphans/%08llx",
-                             dirPath.c_str(), (unsigned long long) fid);
-                    // store the original path name as an extended attribute in case ...
-                    io->attrSet("user.eos.orphaned", filePath.c_str());
-
-                    // if this is an orphaned file - we move it into the orphaned directory
-                    if (!rename(filePath.c_str(), oname)) {
-                      eos_warning("msg=\"orphaned/unregistered quarantined\" "
-                                  "fst-path=%s orphan-path=%s", filePath.c_str(),
-                                  oname);
-                    } else {
-                      eos_err("msg=\"failed to quarantine orphaned/unregistered"
-                              "\" fst-path=%s orphan-path=%s", filePath.c_str(),
-                              oname);
-                    }
-
-                    // remove the entry from the FMD database
-                    gFmdDbMapHandler.LocalDeleteFmd(fid, fsId);
-                  }
-
-                  delete fmd;
-                  fmd = nullptr;
-                }
-
-                // Call the autorepair method on the MGM - but not for orphaned
-                // or unregistered filed. If MGM autorepair is disabled then it
-                // doesn't do anything.
-                bool do_autorepair = false;
-
-                if (orphaned == false) {
-                  if (fmd) {
-                    if ((fmd->mProtoFmd.layouterror() &
-                         eos::common::LayoutId::kUnregistered) == false) {
-                      do_autorepair = true;
-                    }
-                  } else {
-                    // The fmd could be null since LocalGetFmd returns null in
-                    // case of a checksum error
+              if (orphaned == false) {
+                if (fmd) {
+                  if ((fmd->mProtoFmd.layouterror() &
+                       eos::common::LayoutId::kUnregistered) == false) {
                     do_autorepair = true;
                   }
+                } else {
+                  // The fmd could be null since LocalGetFmd returns null in
+                  // case of a checksum error
+                  do_autorepair = true;
                 }
+              }
 
-                if (do_autorepair) {
-                  gFmdDbMapHandler.CallAutoRepair(manager.c_str(), fid);
-                }
+              if (do_autorepair) {
+                gFmdDbMapHandler.CallAutoRepair(manager.c_str(), fid);
               }
             }
           }
         }
       }
+    }
 
 #endif
-    } else {
-      noNoChecksumFiles++;
-    }
   } else {
     SkippedFiles++;
   }
@@ -730,7 +726,6 @@ ScanDir::ThreadProc(void)
     totalScanSize = 0;
     noCorruptFiles = 0;
     noHWCorruptFiles = 0;
-    noNoChecksumFiles = 0;
     noTotalFiles = 0;
     SkippedFiles = 0;
     gettimeofday(&tv_start, &tz);
@@ -741,23 +736,27 @@ ScanDir::ThreadProc(void)
 
     if (bgThread) {
       syslog(LOG_ERR,
-             "Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li hwcorrupted=%li nochecksumfiles=%li skippedfiles=%li\n",
-             dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize,
-             ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles, noHWCorruptFiles,
-             noNoChecksumFiles,
-             SkippedFiles);
-      eos_notice("Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li hwcorrupted=%li nochecksumfiles=%li skippedfiles=%li",
-                 dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize,
-                 ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles, noHWCorruptFiles,
-                 noNoChecksumFiles,
-                 SkippedFiles);
+             "Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli "
+             "[Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li "
+             "hwcorrupted=%li skippedfiles=%li\n",
+             dirPath.c_str(), noTotalFiles, (durationScan / 1000.0),
+             totalScanSize, ((totalScanSize / 1000) / 1000), noScanFiles,
+             noCorruptFiles, noHWCorruptFiles, SkippedFiles);
+      eos_notice("Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli "
+                 "[Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li "
+                 "hwcorrupted=%li skippedfiles=%li",
+                 dirPath.c_str(), noTotalFiles, (durationScan / 1000.0),
+                 totalScanSize, ((totalScanSize / 1000) / 1000), noScanFiles,
+                 noCorruptFiles, noHWCorruptFiles, SkippedFiles);
     } else {
       fprintf(stderr,
-              "[ScanDir] Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li hwcorrupted=%li nochecksumfiles=%li skippedfiles=%li\n",
-              dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize,
-              ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles, noHWCorruptFiles,
-              noNoChecksumFiles,
-              SkippedFiles);
+              "[ScanDir] Directory: %s, files=%li scanduration=%.02f [s] "
+              "scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li "
+              "corruptedfiles=%li hwcorrupted=%li skippedfiles=%li\n",
+              dirPath.c_str(), noTotalFiles,
+              (durationScan / 1000.0), totalScanSize,
+              ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles,
+              noHWCorruptFiles, SkippedFiles);
     }
 
     if (!bgThread) {
@@ -791,7 +790,9 @@ ScanDir::ThreadProc(void)
   return NULL;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Scan file taking the load into considration
+//------------------------------------------------------------------------------
 bool
 ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
                            unsigned long long& scansize, float& scantime,
