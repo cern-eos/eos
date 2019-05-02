@@ -96,7 +96,7 @@ void Inspector::checkContainerConflicts(uint64_t parentContainer,
       break;
     }
 
-    if (proto.name() == "." || proto.name() == "..") {
+    if (proto.name() == "." || proto.name() == ".." ||  proto.name().find("/") != std::string::npos) {
       out << "Container " << proto.id() << " has cursed name: '" << proto.name() <<
           "'" << std::endl;
     }
@@ -134,7 +134,7 @@ void Inspector::checkFileConflicts(uint64_t parentContainer,
       break;
     }
 
-    if (proto.name() == "." || proto.name() == "..") {
+    if (proto.name() == "." || proto.name() == ".." || proto.name().find("/") != std::string::npos) {
       out << "File " << proto.id() << " has cursed name: '" << proto.name() << "'" <<
           std::endl;
     }
