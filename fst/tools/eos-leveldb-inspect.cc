@@ -25,6 +25,59 @@
 #include <algorithm>
 #include <stdlib.h>
 #include <getopt.h>
+#include <stdio.h>
+
+class LeveldbReadOnlyHack
+{
+public:
+  //------------------------------------------------------------------------------
+  //! Constructor - create a symlink to the original leveldb directory and remove
+  //! the LOCK file.
+  //------------------------------------------------------------------------------
+  LeveldbReadOnlyHack(const std::string& dbpath, std::string& symlink_path)
+  {
+    std::ostringstream oss;
+    oss << "/tmp/.eos_inspect_" << getpid() << "/";
+    mSymLinkPath = oss.str();
+    oss << "LOCK";
+    std::string lock_file = oss.str();
+    mode_t mode = 0755;
+
+    if (mkdir(mSymLinkPath.c_str(), mode)) {
+      std::cerr << "fatal: failed to create symlink directory" << std::endl;
+      std::abort();
+    }
+
+    oss.str("");
+    oss << "ln -s " << dbpath << "* " << mSymLinkPath;
+
+    // Execute symlink command
+    if (system(oss.str().c_str()) == -1) {
+      std::cerr << "fatal: failed to execte symlink command" << std::endl;
+      std::abort();
+    }
+
+    if (remove(lock_file.c_str())) {
+      std::cerr << "fatal: failed to remove LOCK file" << std::endl;
+      std::abort();
+    }
+
+    symlink_path = mSymLinkPath;
+  }
+
+  //------------------------------------------------------------------------------
+  //! Destructor
+  //------------------------------------------------------------------------------
+  ~LeveldbReadOnlyHack()
+  {
+    std::string cmd = "rm -rf ";
+    cmd += mSymLinkPath;
+    (void) system(cmd.c_str());
+  }
+
+private:
+  std::string mSymLinkPath;
+};
 
 //------------------------------------------------------------------------------
 // Display help message
@@ -310,6 +363,11 @@ int main(int argc, char* argv[])
     case 0:
       if (strcmp(long_options[long_index].name, "dbpath") == 0) {
         dbpath = optarg;
+
+        // Make sure the path is / terminated
+        if (*dbpath.rbegin() != '/') {
+          dbpath += "/";
+        }
       } else if (strcmp(long_options[long_index].name, "fid") == 0) {
         sfid = optarg;
       }
@@ -343,14 +401,16 @@ int main(int argc, char* argv[])
     return -1;
   }
 
+  std::string symlink_dbpath;
+  LeveldbReadOnlyHack dummy(dbpath, symlink_dbpath);
   eos::common::DbMap db;
-  eos::common::LvDbInterfaceBase::setAbortOnLvDbError(false);
   eos::common::LvDbDbMapInterface::Option options;
   options.CacheSizeMb = 0;
   options.BloomFilterNbits = 0;
 
-  if (!db.attachDb(dbpath, false, 0, &options)) {
-    std::cerr << "error: failed to attach db: " << dbpath << std::endl;
+  if (!db.attachDb(symlink_dbpath, false, 0, &options)) {
+    std::cerr << "error: failed to attach db: " << symlink_dbpath
+              << std::endl;
     return -1;
   } else {
     db.outOfCore(true);
