@@ -2302,14 +2302,14 @@ metad::mdstackfree(ThreadAssistant& assistant)
         // if the parent is gone, we can remove the child
         if ((!mdmap.count(it->second->pid())) &&
             (!S_ISDIR(it->second->mode()) || it->second->deleted())) {
-          eos_static_warning("removing orphaned inode from mdmap ino=%#lx path=%s",
+          eos_static_debug("removing orphaned inode from mdmap ino=%#lx path=%s",
                              it->first, it->second->fullpath().c_str());
           it = mdmap.erase(it);
           stat.inodes_dec();
         } else {
           if (it->second->deleted()) {
             if (!has_flush(it->first)) {
-              eos_static_warning("removing deleted inode from mdmap ino=%#lx path=%s",
+              eos_static_debug("removing deleted inode from mdmap ino=%#lx path=%s",
                                  it->first, it->second->fullpath().c_str());
               it = mdmap.erase(it);
               stat.inodes_dec();
