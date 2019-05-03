@@ -28,6 +28,7 @@
 #include "common/StringTokenizer.hh"
 #include "common/Constants.hh"
 #include "mgm/Quota.hh"
+#include "common/CtaCommon.hh"
 #include "common/eos_cta_pb/EosCtaAlertHandler.hh"
 #include "mgm/WFE.hh"
 #include "mgm/Stat.hh"
@@ -2137,36 +2138,6 @@ WFE::Job::HandleProtoMethodArchiveFailedEvent(const std::string& fullPath)
   return SFS_OK;
 }
 
-//------------------------------------------------------------------------------
-// Translate a cta ResponseType to std::string
-//------------------------------------------------------------------------------
-static std::string ctaResponseCodeToString(cta::xrd::Response::ResponseType rt)
-{
-  switch (rt) {
-  case cta::xrd::Response::RSP_ERR_CTA: {
-    return "RSP_ERR_CTA";
-  }
-
-  case cta::xrd::Response::RSP_ERR_USER: {
-    return "RSP_ERR_USER";
-  }
-
-  case cta::xrd::Response::RSP_ERR_PROTOBUF: {
-    return "RSP_ERR_PROTOBUF";
-  }
-
-  case cta::xrd::Response::RSP_INVALID: {
-    return "RSP_INVALID";
-  }
-
-  default: {
-    return "";
-  }
-  }
-
-  return "";
-}
-
 int
 WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
                              const cta::xrd::Request& request, std::string& errorMsg, bool retry)
@@ -2281,7 +2252,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
                  "msg=\"Received an error response\" response=\"%s\" reason=\"%s\"",
                  gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
                  event.c_str(),
-                 ctaResponseCodeToString(response.type()).c_str(),
+                 CtaCommon::ctaResponseCodeToString(response.type()).c_str(),
                  response.message_txt().c_str());
   retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(retval);
   errorMsg = response.message_txt();

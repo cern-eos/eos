@@ -25,7 +25,7 @@
 #pragma once
 
 #include "LayoutId.hh"
-#include "cta_common.pb.h"    //!< Include CTA checksum type from .proto file
+#include "cta_frontend.pb.h"
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -64,6 +64,21 @@ public:
     }
     cs->set_value(byteArray);
   }
+
+  /*!
+   * Convert CTA ResponseType to std::string
+   */
+  static std::string ctaResponseCodeToString(cta::xrd::Response::ResponseType rt)
+  {
+    switch(rt) {
+      case cta::xrd::Response::RSP_ERR_CTA:      return "RSP_ERR_CTA";
+      case cta::xrd::Response::RSP_ERR_USER:     return "RSP_ERR_USER";
+      case cta::xrd::Response::RSP_ERR_PROTOBUF: return "RSP_ERR_PROTOBUF";
+      case cta::xrd::Response::RSP_INVALID:      
+      default:                                   return "RSP_INVALID";
+    }
+  }
+
 };
 
 EOSCOMMONNAMESPACE_END
