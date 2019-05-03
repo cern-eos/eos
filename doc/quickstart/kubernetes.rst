@@ -6,7 +6,7 @@
 .. _kubernetes: https://kubernetes.io/docs/home/
 
 EOS Kubernetes Installation
-=======================
+===========================
 
 .. image:: kubernetes-logo.png
    :scale: 50 %
@@ -28,7 +28,7 @@ Preparation
 
 
 Run EOS in Kubernetes
------------------
+---------------------
 
 Checkout the eos-on-k8s project:
 
@@ -74,6 +74,7 @@ It is a bit verbose though very easy getting the name of a Pod of your interest,
 So, all together:  
 
 .. code-block:: bash
+
    kubectl exec -n tutorial -it $(kubectl get pods -n tutorial --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm) -- eos
    EOS Console [root://localhost] |/> whoami
    whoami
@@ -142,7 +143,7 @@ Or by running the EOS instance testsuite:
 
 
 Delete and clean
--------------------
+----------------
 
 Use the `delete-all.sh <https://gitlab.cern.ch/faluchet/eos-on-k8s/blob/master/delete-all.sh>`_ script to remove the EOS instance from your system.
 
@@ -152,7 +153,7 @@ Use the `delete-all.sh <https://gitlab.cern.ch/faluchet/eos-on-k8s/blob/master/d
 
 
 Image Repository
--------------------
+----------------
 
 You can get the images for each automatic build and for each release.
 The release images are tagged with the release version. Regular images are tagged with the build id of their originating pipeline.

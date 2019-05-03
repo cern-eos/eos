@@ -472,7 +472,7 @@ Improvement
 
 * [EOS-3249] - Add "flag" file for master status
 * [EOS-3251] - Expose Central drain thread pool status in monitoring format
-* [EOS-3269] - path display in `eos file check`output
+* [EOS-3269] - path display in `eos file check` output
 * [EOS-3295] - Allow MGMs to retrieve stacktraces and log files from eosxd at runtime
 
 Note
@@ -1034,7 +1034,7 @@ User Documentation
 
 
 ``v4.3.14 Citrine``
-==================
+===================
 
 2018-09-26
 
@@ -1056,7 +1056,7 @@ Task
 
 
 ``v4.3.13 Citrine``
-==================
+===================
 
 2018-09-19
 
@@ -1071,7 +1071,7 @@ Bug
 
 
 ``v4.3.12 Citrine``
-==================
+===================
 
 2018-09-13
 
@@ -1098,7 +1098,7 @@ Improvements
 
 
 ``v4.3.11 Citrine``
-==================
+===================
 
 2018-09-05
 
@@ -1119,7 +1119,7 @@ CI: Add script for promoting tag releases from the testing to the stable repo
 
 
 ``v4.3.10 Citrine``
-==================
+===================
 
 2018-08-31
 
@@ -1387,8 +1387,7 @@ Bug
 New Feature
 -----------
 
-* Use std::shared_timed_mutex for the implementation of RWMutex. This is by default
-disabled and can be enabled by setting the EOS_USE_SHARED_MUTEX=1 environment var.
+* Use std::shared_timed_mutex for the implementation of RWMutex. This is by default disabled and can be enabled by setting the EOS_USE_SHARED_MUTEX=1 environment var.
 
 Improvement
 -----------
@@ -2197,7 +2196,7 @@ Bugfix
 -------
 
 * [EOS-1606] - Reading root files error when using eos 4.1.1
-* [EOS-1609] - eos -b problem : *** Error in `/usr/bin/eos': free():
+* [EOS-1609] - eos -b problem : \*\*\* Error in `/usr/bin/eos: free():`
 
 
 ``v0.4.31 Citrine``

@@ -128,6 +128,7 @@ to create a file with the desired layout and get the hex layout ID using
 Automatic size based restriction for time based conversion
 ``````````````````````````````````````````````````````````
 This policy addition allows TO restrict the time based layout conversion to certain filesizes
+
 .. code-block:: bash
 
    # convert all files smaller than 128m in size [ with units E,e,P,p,T,t,G,g,M,m,K,k ]

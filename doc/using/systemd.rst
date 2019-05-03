@@ -3,8 +3,6 @@
 .. index::
    single: systemd
 
-.. _systemd:
-
 Service control with systemd
 ============================
 

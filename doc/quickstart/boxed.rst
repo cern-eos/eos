@@ -3,7 +3,7 @@
 
 .. _eos_base_boxed:
 
-.. _boxed: http://sciencebox.web.cern.ch/sciencebox
+.. _boxed_url: http://sciencebox.web.cern.ch/sciencebox
 
 Scientific Services Installation: EOS, CERNBox, SWAN and CVMFS
 ==============================================================

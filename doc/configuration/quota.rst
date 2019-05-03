@@ -42,7 +42,7 @@ a **quota** command in the EOS shell:
    # ==> Quota Node: /eos/dev/2rep/
    # _______________________________________________________________________________________________
    user       used bytes logi bytes used files aval bytes aval logib aval files filled[%]  vol-status ino-status
-   adm        2.00 GB    1.00 GB    8.00 -     1.00 TB    0.5 TB     1.00 M-    0.00       ok         ok'
+   adm        2.00 GB    1.00 GB    8.00 -     1.00 TB    0.5 TB     1.00 M-    0.00       ok         ok
 
 The above configuration defines user quota for user ``adm`` with 1 TB of volume 
 quota and 1 Mio inodes under the directory subtree ``/eos/dev/plain``. 
@@ -105,7 +105,7 @@ To see your quota as a user use:
 
    eosdevsrv1:# eos -b quota
 
-To see quota of all users (if you are an admin)::
+To see quota of all users (if you are an admin):
 
 .. code-block:: bash
  

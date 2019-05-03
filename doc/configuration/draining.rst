@@ -43,7 +43,7 @@ the file system is in **booted** state and the label of the
 filesystem ``<mountpoint>/.eosfsid + <mountpoint>/.eosfsuuid`` is readable.
 If the label is not readable the Scrubber broadcasts an IO error for filesystems
 in **ro**, **wo** or **rw** mode and **booted** state with the error text
- "filesystem seems to be not mounted anymore".
+"filesystem seems to be not mounted anymore".
 
 The FST scrubber follows the filling size of a disk and writes test pattern
 files at 0%, 10%, 20% ... 90% filling with the goal to do tests equally
@@ -475,10 +475,9 @@ and EOS won't try to delete any file anymore.
 .. code-block:: bash
 
    EOS Console [root://localhost] |/> fs dropfiles 170 -f
-   Do you really want to delete ALL 24 replica's from filesystem 170 ?
+   Do you really want to delete ALL 24 replica\'s from filesystem 170 ?
    Confirm the deletion by typing => 1434841745
    => 1434841745
 
    Deletion confirmed
 
-   ...

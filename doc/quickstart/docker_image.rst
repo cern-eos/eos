@@ -47,7 +47,7 @@ The arguments to provide are the name of the image to use with the **-i** and th
 
 The containers will reside on the same network knowing about each other and are configured to be working out-of-the-box.
 
-.. parsed-literal::
+.. code-block:: bash
 
    scripts/start_services.sh -i gitlab-registry.cern.ch/dss/eos:4.2.16 -n 6
 

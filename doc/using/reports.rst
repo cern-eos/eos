@@ -8,7 +8,7 @@
 Report log files
 ============================
 
-The EOS MGM writes report log files under `/var/eos/report/<YEAR>/<MONTH>/<YEAR><MONTH><DAY>.eosreport
+The EOS MGM writes report log files under `/var/eos/report/<YEAR>/<MONTH>/<YEAR><MONTH><DAY>.eosreport`
 
 File creation/update records
 ----------------------------

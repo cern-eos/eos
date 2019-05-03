@@ -215,7 +215,6 @@ The statistics file can be printed by any user on request by running:
 .. code-block:: bash
 
    eosxd get eos.stats <mount-point>
-   ...
   
 The statistics file counter can be reset by running as root:
 

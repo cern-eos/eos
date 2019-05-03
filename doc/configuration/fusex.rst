@@ -5,7 +5,7 @@
 
 
 FUSEx Client
-===========
+============
 
 The FUSEx client is a more posix confirm and performant re-implementation of the FUSE client. It allows to access EOS as a mounted file system.
 
@@ -506,6 +506,8 @@ To export FUSE via NFS4 you have to disable(shorten) the attribute caching in th
    export EOS_FUSE_ATTR_CACHE_TIME=0.0000000000000001
 
 If you mount an instance as /eos you have to configure an NFS export like this in /etc/exports:
+
+.. code-block:: bash
 
    /eos *.cern.ch(fsid=131,rw,insecure,subtree_check,async,root_squash)
 

@@ -29,3 +29,4 @@ The `conventional` service deployment is done via YUM and explained here.
    quickstart/client/configure
    quickstart/admin/configure
    quickstart/ns_quarkdb
+   quickstart/uboxed

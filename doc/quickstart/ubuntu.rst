@@ -4,7 +4,7 @@
 .. _eos_ubuntu_install:
 
 Debian/Ubuntu installation
-================
+==========================
 
 The EOS client gets automatically built for recent Ubuntu releases,
 currently "artful" and "bionic".
@@ -19,7 +19,7 @@ currently "artful" and "bionic".
 
 
 Install EOS client via apt
--------------------
+--------------------------
 
 .. code-block:: text
 

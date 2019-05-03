@@ -44,14 +44,14 @@ type storage systems.
    --rate          : limit the cp rate to <rate>
    --streams       : use <#> parallel streams
    --checksum      : output the checksums
-   -a              : append to the target, don't truncate
+   -a              : append to the target, don\'t truncate
    -n              : hide progress bar
    -S              : print summary
    -s --silent     : no output just return code
    -d              : enable debug information
    -k | --no-overwrite : disable overwriting of files
 
-.. ::note
+.. note::
 
    If you deal with directories always add a '/' in the end of source or target 
    paths e.g. if the target should be a directory and not a file put a '/' in the end.
@@ -64,7 +64,7 @@ Examples
 
    eos cp /var/data/myfile /eos/foo/user/data/                   : copy 'myfile' to /eos/foo/user/data/myfile
    eos cp /var/data/ /eos/foo/user/data/                         : copy all plain files in /var/data to /eos/foo/user/data/
-   eos cp -r /var/data/ /eos/foo/user/data/                      : copy the full hierarchy from /var/data/ to /var/data to /eos/foo/user/data/ => empty directories won't show up on the target!
+   eos cp -r /var/data/ /eos/foo/user/data/                      : copy the full hierarchy from /var/data/ to /var/data to /eos/foo/user/data/ => empty directories won\'t show up on the target!
    eos cp -r --checksum --silent /var/data/ /eos/foo/user/data/  : copy the full hierarchy and just printout the checksum information for each file copied!
 
 S3
@@ -263,4 +263,4 @@ Interaction with the transfer queue is done via the **eos transfer** CLI.
    transfer purge [<id>|--group=<groupname>]
                            : remove 'failed' transfers from the transfer queue by id, group or all if not specified
 
-   When a transfer has been submitted using 'transfer submit' it will be in state inserted. When a transfer has been assigned to a transfer gateway it is in state scheduled. When a transfer is executed it will be either in status stagein (then stageout) or running. Certain protocols need a two stage process to bridge transfers. When transfer is going into status failed IT can be inspected using 'transfer log <id>'. Transfers moving into done state are automatically purged from the queue and put in the transfer archive.The transfer archive is a daily rotated log file in /var/log/eos/tx/transfer-archive.log storing all transfer logs. It is currently not accessible via the CLI.
+When a transfer has been submitted using ``transfer submit`` it will be in state inserted. When a transfer has been assigned to a transfer gateway it is in state scheduled. When a transfer is executed it will be either in status stagein (then stageout) or running. Certain protocols need a two stage process to bridge transfers. When transfer is going into status failed IT can be inspected using ``transfer log <id>``. Transfers moving into done state are automatically purged from the queue and put in the transfer archive.The transfer archive is a daily rotated log file in ``/var/log/eos/tx/transfer-archive.log`` storing all transfer logs. It is currently not accessible via the CLI.

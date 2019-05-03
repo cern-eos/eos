@@ -43,6 +43,8 @@ For HTTP server
 
 For GridFTP server
 
+.. code-block:: text
+
    yum install xrootd-dsi
 
 For EOS test on MGM (namespace node)

@@ -141,6 +141,7 @@ File Sharing Links
 The web interface shows for each file a small link icon. By clicking on this icon a window appears showing two HTML links, one for ROOT and one for HTTP. If you copy the link address you get
 a ROOT or HTTP URL which one can use to share a file for reading bypassing all ACL and permission settings in EOS. 
 The same URLs can be obtained with the EOS shell using 
+
 .. code-block:: bash 
 
    eos file share myfile

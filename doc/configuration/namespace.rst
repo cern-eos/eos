@@ -54,7 +54,7 @@ This will enable subtree accounting for the namespace. When you use a 'fileinfo'
 Enable sync time propagation
 ----------------------------
 
--- code-block:: bash
+.. code-block:: bash
 
    export EOS_SYNCTIME_ACCOUNTING=1
 
@@ -64,7 +64,7 @@ Each directory which has the extended attribute 'sys.mtime.propagation=1' set, w
 Namespace Size Preset Variables
 -------------------------------
 
--- code-block:: bash
+.. code-block:: bash
 
    # Set Namespace Preset size
    export EOS_NS_DIR_SIZE=15000000

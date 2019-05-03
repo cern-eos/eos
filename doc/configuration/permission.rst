@@ -13,9 +13,8 @@ The EOS permission system is based on a combination of **ACLs**  and **POSIX** p
 
 There are two major differences to traditional storage systems:
 
-1   Files don't carry their permissions (only the ownership for quota accounting). 
-They inherit the permissions from the parent directory automatically!
-2   Permissions are only checked in the direct parent, EOS is not walking through the complete directory hierarchy.
+#. Files don't carry their permissions (only the ownership for quota accounting). They inherit the permissions from the parent directory automatically!
+#. Permissions are only checked in the direct parent, EOS is not walking through the complete directory hierarchy.
 
 UNIX Permissions
 
