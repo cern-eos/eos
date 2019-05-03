@@ -1605,7 +1605,7 @@ int WFE::Job::HandleProtoMethodEvents(std::string& errorMsg,
   }
 
   if (event == "sync::prepare" || event == "prepare") {
-    return HandleProtoMethodPrepareEvent(fullPath, errorMsg);
+    return HandleProtoMethodPrepareEvent(fullPath, ininfo, errorMsg);
   } else if (event == "sync::abort_prepare" || event == "abort_prepare") {
     return HandleProtoMethodAbortPrepareEvent(fullPath, errorMsg);
   } else if (event == "sync::create" || event == "create") {
@@ -1628,7 +1628,8 @@ int WFE::Job::HandleProtoMethodEvents(std::string& errorMsg,
 }
 
 int
-WFE::Job::HandleProtoMethodPrepareEvent(const std::string& fullPath,
+WFE::Job::HandleProtoMethodPrepareEvent(const std::string &fullPath,
+                                        const char * const ininfo,
                                         std::string& errorMsg)
 {
   struct stat buf;
@@ -1720,6 +1721,15 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string& fullPath,
       google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
           attribute.second);
       notification->mutable_file()->mutable_xattr()->insert(attr);
+    }
+    if (ininfo) {
+      XrdOucEnv opaque(ininfo);
+      auto * activity = opaque.Get("activity");
+      if (activity) {
+        google::protobuf::MapPair<std::string, std::string> attr("activity",
+          activity);
+        notification->mutable_file()->mutable_xattr()->insert(attr);
+      }
     }
 
     notification->mutable_wf()->set_event(cta::eos::Workflow::PREPARE);

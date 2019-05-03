@@ -197,7 +197,8 @@ public:
     //! @brief Handles a "proto" method "prepare" event
     //! @param fullPath the full path of the file
     //! @param errorMsg out parameter giving the text of any error response
-    int HandleProtoMethodPrepareEvent(const std::string &fullPath, std::string& errorMsg);
+    //! @ininfo original opaque information of the URL that triggered the event
+    int HandleProtoMethodPrepareEvent(const std::string &fullPath, const char * const ininfo, std::string& errorMsg);
 
     //! @brief Handles a "proto" method "abort_prepare" event
     //! @param fullPath the full path of the file

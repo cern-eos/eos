@@ -702,9 +702,9 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
   for (auto& pathPair : pathsWithPrepare) {
     XrdOucString prep_path = (*pathPair.first ? *pathPair.first : "");
-    eos_info("msg=\"about to trigger WFE\" path=\"%s\"", prep_path.c_str());
     XrdOucString prep_info = pathPair.second != nullptr ? (*pathPair.second ?
                              *pathPair.second : "") : "";
+    eos_info("msg=\"about to trigger WFE\" path=\"%s\" info=\"%s\"", prep_path.c_str(), prep_info.c_str());
     XrdOucEnv prep_env(prep_info.c_str());
     prep_info = cmd.c_str();
     prep_info += "&mgm.event=";
@@ -725,6 +725,10 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     prep_info += (int)vid.uid;
     prep_info += "&mgm.rgid=";
     prep_info += (int)vid.gid;
+    if (prep_env.Get("activity")) {
+      prep_info += "&activity=";
+      prep_info += prep_env.Get("activity");
+    }
     XrdSecEntity lClient(vid.prot.c_str());
     lClient.name = (char*) vid.name.c_str();
     lClient.tident = (char*) vid.tident.c_str();
