@@ -719,8 +719,14 @@ public:
   {
     WaitOpen();
 
+    // collect all pending read requests
     if (IsOpen()) {
       Collect();
+    }
+
+    // collect all pending write requests
+    if (IsWaitWrite()) {
+      CollectWrites();
     }
 
     eos_notice("ra-efficiency=%f ra-vol-efficiency=%f", get_readahead_efficiency(),
