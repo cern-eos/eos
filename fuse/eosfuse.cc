@@ -401,7 +401,22 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     eos_static_debug("mode=%x timeout=%.02f\n", stbuf.st_mode,
                      me.config.attrcachetime);
   } else {
-    fuse_reply_err(req, retc);
+    if (ino == 1) {
+      // we always return a directory stat for the mount point for autofs
+      memset(&stbuf, 0, sizeof(stbuf));
+      stbuf.st_mode |= S_IFDIR | S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
+      stbuf.st_uid = 0;
+      stbuf.st_gid = 0;
+      stbuf.st_rdev = 0;
+      stbuf.st_size = 4096;
+      stbuf.st_blksize = 4096;
+      stbuf.st_nlink = 1;
+      stbuf.st_ino = 1;
+      stbuf.st_dev = 0;
+      fuse_reply_attr(req, &stbuf, 0);
+    } else {
+      fuse_reply_err(req, retc);
+    }
   }
 
   COMMONTIMING("_stop_", &timing);
