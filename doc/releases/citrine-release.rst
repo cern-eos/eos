@@ -16,6 +16,32 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.4.40 Citrine``
+===================
+
+2019-05-03
+
+
+Bug
+---
+
+* FUSEX: avoid hanging call-back threads whnen a files is not attached and immedeatly unlinke
+* FUSE:  allow unauthenticated stats on the mount point directory ( for autofs )
+* FUSEX: silence mdstrackfree messages to debug mode
+* [EOS-3446] - CONSOLE: Return errno if set otherwise the XRootD client shell code approximation
+* FST: Don't report RAIN files as d_mem_sz_diff in the fsck output
+* FUSEX: allow setting 'eos.*' attributes by silently ignoring them
+* NS: add detection for container names '.' and '..' 
+
+
+Improvements
+-------------
+
+* NS: Report any errors found by ContainerScanner or FileScanner in check-naming-conflicts
+* Adding ' eos-leveldb-inspect' tool 
+* MGM: Refactor Fsck
+
+
 ``v4.4.39 Citrine``
 ===================
 
