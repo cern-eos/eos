@@ -72,7 +72,7 @@ public:
     kMD5 = 0x4,
     kSHA1 = 0x5,
     kCRC32C = 0x6,
-    kXSmax = 0x7,
+    kXSmax = kCRC32C
   };
 
 
