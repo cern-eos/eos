@@ -27,6 +27,7 @@
 #include "common/http/OwnCloud.hh"
 #include "common/StringTokenizer.hh"
 #include "common/SecEntity.hh"
+#include "common/CtaCommon.hh"
 #include "common/xrootd-ssi-protobuf-interface/eos_cta/include/CtaFrontendApi.hpp"
 #include "fst/FmdDbMap.hh"
 #include "fst/XrdFstOfsFile.hh"
@@ -3292,15 +3293,18 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd, uint32_t ownerUid,
   notification->mutable_file()->mutable_owner()->set_username(ownerName); // DEPRECATED
   notification->mutable_file()->mutable_owner()->set_groupname(ownerGroupName); // DEPRECATED
   notification->mutable_file()->set_size(fmd.size());
-  notification->mutable_file()->mutable_cks()->set_type(
-    eos::common::LayoutId::GetChecksumString(fmd.lid()));
-  notification->mutable_file()->mutable_cks()->set_value(fmd.checksum());
+#ifdef CTA_DEPRECATED
+  notification->mutable_file()->mutable_cks()->set_type(eos::common::LayoutId::GetChecksumString(fmd.lid())); // DEPRECATED
+  notification->mutable_file()->mutable_cks()->set_value(fmd.checksum()); // DEPRECATED
+#else
+  // Insert a single checksum into the checksum blob
+  CtaCommon::SetChecksum(notification->mutable_file()->mutable_csb()->add_cs(), fmd.lid(), fmd.checksum());
+#endif
   notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
   notification->mutable_wf()->mutable_instance()->set_name(instanceName);
   notification->mutable_file()->set_lpath(fullPath);
   notification->mutable_file()->set_fid(fmd.fid());
-  auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(
-                      fmd.fid());
+  auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(fmd.fid());
   std::string ctaArchiveFileId = "none";
 
   for (const auto& attrPair : xattrs) {
