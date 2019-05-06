@@ -324,6 +324,15 @@ QuarkFileMD::deserialize(const eos::Buffer& buffer)
   Serialization::deserializeFile(buffer, mFile);
 }
 
+//----------------------------------------------------------------------------
+// Get reference to underlying protobuf object
+//----------------------------------------------------------------------------
+const eos::ns::FileMdProto&
+QuarkFileMD::getProto() const
+{
+  return mFile;
+}
+
 //------------------------------------------------------------------------------
 // Set size - 48 bytes will be used
 //------------------------------------------------------------------------------

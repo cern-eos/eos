@@ -21,6 +21,7 @@
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/ns_quarkdb/inspector/ContainerScanner.hh"
 #include "namespace/ns_quarkdb/inspector/FileScanner.hh"
+#include "namespace/ns_quarkdb/inspector/Printing.hh"
 #include "common/IntervalStopwatch.hh"
 #include <folly/executors/IOThreadPoolExecutor.h>
 #include <qclient/QClient.hh>
@@ -253,11 +254,7 @@ int Inspector::printFileMD(uint64_t fid, std::ostream& out, std::ostream& err)
     return 1;
   }
 
-  google::protobuf::util::JsonPrintOptions opts;
-  opts.add_whitespace = true;
-  std::string jsonString;
-  google::protobuf::util::MessageToJsonString(val, &jsonString, opts);
-  err << jsonString << std::endl;
+  Printing::printMultiline(val, out);
   return 0;
 }
 

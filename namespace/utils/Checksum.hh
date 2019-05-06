@@ -41,16 +41,17 @@ namespace eos
   //! We use a template to support both std::string and XrdOucString...
   //----------------------------------------------------------------------------
   template<typename StringType>
-  bool appendChecksumOnStringAsHex(const eos::IFileMD *fmd, StringType &out,
+  bool appendChecksumOnStringAsHexNoFmd(IFileMD::layoutId_t layoutId,
+                                   const Buffer &buffer,
+                                   StringType &out,
                                    char separator = 0x00,
                                    int overrideLength = -1) {
     // All this is to maintain backward compatibility in all places where
     // we print checksums.. I'm not sure if we absolutely need to pad with
     // zeroes, for example.
-    if (!fmd) return false;
 
     unsigned int nominalChecksumLength =
-        eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
+      eos::common::LayoutId::GetChecksumLen(layoutId);
     unsigned int targetChecksumLength;
 
     if (overrideLength == -1) {
@@ -58,8 +59,6 @@ namespace eos
     } else {
       targetChecksumLength = overrideLength;
     }
-
-    Buffer buffer = fmd->getChecksum();
 
     for (unsigned int i = 0; i < targetChecksumLength; i++) {
       unsigned char targetCharacter = 0x00;
@@ -80,6 +79,16 @@ namespace eos
 
     return (nominalChecksumLength > 0);
   }
+
+  template<typename StringType>
+  bool appendChecksumOnStringAsHex(const eos::IFileMD *fmd, StringType &out,
+                                   char separator = 0x00,
+                                   int overrideLength = -1) {
+    if(!fmd) return false;
+    return appendChecksumOnStringAsHexNoFmd(fmd->getLayoutId(), fmd->getChecksum(),
+      out, separator, overrideLength);
+  }
+
 }
 
 #endif

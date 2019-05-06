@@ -35,6 +35,7 @@
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/utils/FutureVectorIterator.hh"
+#include "namespace/ns_quarkdb/inspector/Printing.hh"
 #include "namespace/common/QuotaNodeCore.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Etag.hh"
@@ -83,9 +84,39 @@ TEST_F(VariousTests, BasicSanity) {
   ASSERT_EQ(file1->getNumLocation(), 0u);
   file1->addLocation(1);
   file1->addLocation(7);
+  file1->setCUid(333);
+  file1->setCGid(999);
+  file1->setSize(555);
+
+  char buff[32];
+  buff[0] = 0x12; buff[1] = 0x23; buff[2] = 0x55; buff[3] = 0x99;
+  buff[4] = 0xAA; buff[5] = 0xDD; buff[6] = 0x00; buff[7] = 0x55;
+
+  file1->setChecksum(buff, 8);
+
+  std::string out;
+  ASSERT_FALSE(eos::appendChecksumOnStringAsHex(file1.get(), out));
+
+  unsigned long layout = eos::common::LayoutId::GetId(
+    eos::common::LayoutId::kReplica,
+    eos::common::LayoutId::kMD5,
+    2,
+    eos::common::LayoutId::k4k);
+
+  file1->setLayoutId(layout);
+
   ASSERT_EQ(file1->getNumLocation(), 2u);
   ASSERT_EQ(view()->getUri(file1.get()), "/eos/my-file.txt");
   ASSERT_EQ(view()->getUriFut(file1->getIdentifier()).get(), "/eos/my-file.txt");
+
+  ASSERT_EQ(eos::Printing::printMultiline(static_cast<eos::QuarkFileMD*>(file1.get())->getProto()),
+    "ID: 1\n"
+    "Name: my-file.txt\n"
+    "Container ID: 2\n"
+    "uid: 333, gid: 999\n"
+    "Size: 555\n"
+    "Checksum type: md5, checksum bytes: 12235599aadd00550000000000000000\n"
+  );
 
   containerSvc()->updateStore(root.get());
   containerSvc()->updateStore(cont1.get());

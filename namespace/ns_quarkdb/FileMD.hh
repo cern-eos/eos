@@ -608,6 +608,11 @@ public:
   void deserialize(const Buffer& buffer) override;
 
   //----------------------------------------------------------------------------
+  //! Get reference to underlying protobuf object
+  //----------------------------------------------------------------------------
+  const eos::ns::FileMdProto& getProto() const;
+
+  //----------------------------------------------------------------------------
   //! Get value tracking changes to the metadata object
   //----------------------------------------------------------------------------
   virtual uint64_t getClock() const override
