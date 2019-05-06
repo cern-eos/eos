@@ -2208,6 +2208,15 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
     int recovery = 0;
 
     while (1) {
+      // if the recovery failed already once, we continue to silently return this error
+      if (!can_recover_read()) {
+	errno = XrdCl::Proxy::status2errno(status);
+	if (EOS_LOGS_DEBUG) {
+	  eos_debug("sync remote-io failed msg=\"%s\" previously - recovery disabled", status.ToString().c_str());
+	}
+	return -1;
+      }
+            
       proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(
                 req); // recovery might change the proxy object
       status = proxy->Read(offset + br + jr,
@@ -2240,6 +2249,7 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
 
     if (recovery) {
       errno = recovery;
+      disable_read_recovery();
       eos_err("sync remote-io recovery failed errno=%d", errno);
       return -1;
     }

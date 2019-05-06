@@ -61,11 +61,13 @@ public:
   public:
 
     datax() : mIno(0), mReq(0), mFile(0), mSize(0), mAttached(0), mMd(0),
-      mPrefetchHandler(0),
-      mSimulateWriteErrorInFlush(false),
-      mSimulateWriteErrorInFlusher(false),
-      mFlags(0), mXoff(false), mIsInlined(false), mInlineMaxSize(0),
-      mInlineCompressor("none"), mIsUnlinked(false)
+	      mPrefetchHandler(0),
+	      mSimulateWriteErrorInFlush(false),
+	      mSimulateWriteErrorInFlusher(false),
+	      mFlags(0), mXoff(false), mIsInlined(false), mInlineMaxSize(0),
+	      mInlineCompressor("none"), mIsUnlinked(false),
+	      mCanRecoverRead(true)
+	      
     {
       inline_buffer = nullptr;
     }
@@ -154,6 +156,15 @@ public:
 
     int begin_flush(fuse_req_t req);
     int end_flush(fuse_req_t req);
+
+
+    bool can_recover_read() {
+      return mCanRecoverRead;
+    }
+ 
+    void disable_read_recovery() {
+      mCanRecoverRead = false;
+    }
 
     // ref counting for this object
 
@@ -260,7 +271,7 @@ public:
     std::string mInlineCompressor;
     bufferllmanager::shared_buffer inline_buffer;
     bool mIsUnlinked;
-
+    bool mCanRecoverRead;
   };
 
   typedef std::shared_ptr<datax> shared_data;
