@@ -102,6 +102,32 @@ int Inspector::scanDirs(std::ostream &out, std::ostream &err) {
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Scan all file metadata in the namespace, and print out some information
+// about each one. (even potentially unreachable ones)
+//------------------------------------------------------------------------------
+int Inspector::scanFileMetadata(std::ostream &out, std::ostream &err) {
+  FileScanner fileScanner(mQcl);
+
+  while(fileScanner.valid()) {
+    eos::ns::FileMdProto proto;
+    if (!fileScanner.getItem(proto)) {
+      break;
+    }
+
+    out << "fid=" << proto.id() << " name=" << proto.name() << " pid=" << proto.cont_id() << std::endl;
+    fileScanner.next();
+  }
+
+  std::string errorString;
+  if(fileScanner.hasError(errorString)) {
+    err << errorString;
+    return 1;
+  }
+
+  return 0;
+}
+
 //----------------------------------------------------------------------------
 // Check naming conflicts, only for containers, and only for the given
 // parent ID.

@@ -63,6 +63,12 @@ public:
   int scanDirs(std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
+  //! Scan all file metadata in the namespace, and print out some information
+  //! about each one. (even potentially unreachable directories)
+  //----------------------------------------------------------------------------
+  int scanFileMetadata(std::ostream &out, std::ostream &err);
+
+  //----------------------------------------------------------------------------
   //! Check intra-container conflicts, such as a container having two entries
   //! with the name name.
   //----------------------------------------------------------------------------

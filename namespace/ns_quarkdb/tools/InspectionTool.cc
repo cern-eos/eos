@@ -87,6 +87,12 @@ int main(int argc, char* argv[]) {
   addClusterOptions(scanDirsSubcommand, membersStr, memberValidator, password, passwordFile);
 
   //----------------------------------------------------------------------------
+  // Set-up scan-files subcommand..
+  //----------------------------------------------------------------------------
+  auto scanFilesSubcommand = app.add_subcommand("scan-files", "Dump the full list of file metadata across the entire namespace");
+  addClusterOptions(scanFilesSubcommand, membersStr, memberValidator, password, passwordFile);
+
+  //----------------------------------------------------------------------------
   // Set-up check-naming-conflicts subcommand..
   //----------------------------------------------------------------------------
   auto namingConflictsSubcommand = app.add_subcommand("check-naming-conflicts", "Scan through the entire namespace looking for naming conflicts");
@@ -160,6 +166,10 @@ int main(int argc, char* argv[]) {
 
   if(scanDirsSubcommand->parsed()) {
     return inspector.scanDirs(std::cout, std::cerr);
+  }
+
+  if(scanFilesSubcommand->parsed()) {
+    return inspector.scanFileMetadata(std::cout, std::cerr);
   }
 
   std::cerr << "No subcommand was supplied - should never reach here" << std::endl;
