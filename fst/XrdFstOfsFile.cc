@@ -3260,20 +3260,18 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd, uint32_t ownerUid,
   notification->mutable_cli()->mutable_user()->set_groupname(requestorGroupName);
   notification->mutable_file()->mutable_owner()->set_uid(ownerUid);
   notification->mutable_file()->mutable_owner()->set_gid(ownerGid);
-  notification->mutable_file()->mutable_owner()->set_username(ownerName); // DEPRECATED
-  notification->mutable_file()->mutable_owner()->set_groupname(ownerGroupName); // DEPRECATED
   notification->mutable_file()->set_size(fmd.size());
-#ifdef CTA_DEPRECATED
-  notification->mutable_file()->mutable_cks()->set_type(eos::common::LayoutId::GetChecksumString(fmd.lid())); // DEPRECATED
-  notification->mutable_file()->mutable_cks()->set_value(fmd.checksum()); // DEPRECATED
-#else
   // Insert a single checksum into the checksum blob
   CtaCommon::SetChecksum(notification->mutable_file()->mutable_csb()->add_cs(), fmd.lid(), fmd.checksum());
-#endif
   notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
   notification->mutable_wf()->mutable_instance()->set_name(instanceName);
   notification->mutable_file()->set_lpath(fullPath);
   notification->mutable_file()->set_fid(fmd.fid());
+  // The 4 entries below will be deleted
+  notification->mutable_file()->mutable_owner()->set_username(ownerName); // DEPRECATED
+  notification->mutable_file()->mutable_owner()->set_groupname(ownerGroupName); // DEPRECATED
+  notification->mutable_file()->mutable_cks()->set_type(eos::common::LayoutId::GetChecksumString(fmd.lid())); // DEPRECATED
+  notification->mutable_file()->mutable_cks()->set_value(fmd.checksum()); // DEPRECATED
   auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(fmd.fid());
   std::string ctaArchiveFileId = "none";
 
