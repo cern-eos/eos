@@ -81,6 +81,12 @@ int main(int argc, char* argv[]) {
     ->required();
 
   //----------------------------------------------------------------------------
+  // Set-up scan-directories subcommand..
+  //----------------------------------------------------------------------------
+  auto scanDirsSubcommand = app.add_subcommand("scan-dirs", "Dump the full list of container metadata across the entire namespace");
+  addClusterOptions(scanDirsSubcommand, membersStr, memberValidator, password, passwordFile);
+
+  //----------------------------------------------------------------------------
   // Set-up check-naming-conflicts subcommand..
   //----------------------------------------------------------------------------
   auto namingConflictsSubcommand = app.add_subcommand("check-naming-conflicts", "Scan through the entire namespace looking for naming conflicts");
@@ -150,6 +156,10 @@ int main(int argc, char* argv[]) {
 
   if(printSubcommand->parsed()) {
     return inspector.printFileMD(fid, std::cout, std::cerr);
+  }
+
+  if(scanDirsSubcommand->parsed()) {
+    return inspector.scanDirs(std::cout, std::cerr);
   }
 
   std::cerr << "No subcommand was supplied - should never reach here" << std::endl;

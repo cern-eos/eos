@@ -76,6 +76,32 @@ int Inspector::dump(const std::string& dumpPath, std::ostream& out)
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Scan all directories in the namespace, and print out some information
+// about each one. (even potentially unreachable directories)
+//------------------------------------------------------------------------------
+int Inspector::scanDirs(std::ostream &out, std::ostream &err) {
+  ContainerScanner containerScanner(mQcl);
+
+  while(containerScanner.valid()) {
+    eos::ns::ContainerMdProto proto;
+    if (!containerScanner.getItem(proto)) {
+      break;
+    }
+
+    out << "cid=" << proto.id() << " name=" << proto.name() << std::endl;
+    containerScanner.next();
+  }
+
+  std::string errorString;
+  if(containerScanner.hasError(errorString)) {
+    err << errorString;
+    return 1;
+  }
+
+  return 0;
+}
+
 //----------------------------------------------------------------------------
 // Check naming conflicts, only for containers, and only for the given
 // parent ID.

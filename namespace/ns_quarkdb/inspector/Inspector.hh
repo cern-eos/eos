@@ -57,6 +57,12 @@ public:
   int dump(const std::string &path, std::ostream &out);
 
   //----------------------------------------------------------------------------
+  //! Scan all directories in the namespace, and print out some information
+  //! about each one. (even potentially unreachable directories)
+  //----------------------------------------------------------------------------
+  int scanDirs(std::ostream &out, std::ostream &err);
+
+  //----------------------------------------------------------------------------
   //! Check intra-container conflicts, such as a container having two entries
   //! with the name name.
   //----------------------------------------------------------------------------
