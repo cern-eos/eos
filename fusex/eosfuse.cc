@@ -1914,6 +1914,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
     std::ofstream dumpfile(EosFuse::Instance().config.statfilepath);
     dumpfile << sout;
     this->statsout.set(sout);
+    shrinkLogFile();
     assistant.wait_for(std::chrono::seconds(1));
   }
 }

@@ -433,6 +433,15 @@ public:
     }
   }
 
+  size_t shrinkLogFile()
+  {
+    const size_t maxsize = 4*1024ll*1024ll*1024ll; // 4G
+    if ( sizeLogFile() > maxsize) {
+      ftruncate(fileno(fstderr), maxsize/2);
+      eos_static_crit("logfile has been truncated back to %lu bytes - exceeded %lu bytes", maxsize/2, maxsize);
+    }
+  }
+
 protected:
 
 private:
