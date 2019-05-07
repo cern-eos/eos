@@ -1742,8 +1742,6 @@ Master::BootNamespace()
   //----------------------------------------------------------------------------
   // Fetch all required services out of namespace group
   //----------------------------------------------------------------------------
-  gOFS->eosDirectoryService = static_cast<IContainerMDSvc*>
-                              (pm.CreateObject("ContainerMDSvc"));
   gOFS->eosDirectoryService = gOFS->namespaceGroup->getContainerService();
   gOFS->eosFileService = gOFS->namespaceGroup->getFileService();
   gOFS->eosView = gOFS->namespaceGroup->getHierarchicalView();
