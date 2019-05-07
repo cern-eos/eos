@@ -104,7 +104,7 @@ XrdMgmOfs::Statvfs(const char* path,
     } else {
       const std::string sspace = space.c_str();
       Quota::GetIndividualQuota(vid, sspace, l_maxbytes, l_freebytes,
-                                l_maxfiles, l_freefiles);
+                                l_maxfiles, l_freefiles, true);
     }
   } else {
     retc = EINVAL;

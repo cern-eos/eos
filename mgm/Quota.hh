@@ -637,6 +637,15 @@ public:
   //----------------------------------------------------------------------------
   static std::string GetResponsibleSpaceQuotaPath(const std::string& path);
 
+
+  //----------------------------------------------------------------------------
+  //! Get logical free und max bytes for this space
+  //----------------------------------------------------------------------------
+  static void GetStatfs(const std::string& path, unsigned long long& maxbytes, unsigned long long& freebytes);
+
+
+
+
   static gid_t gProjectId; ///< gid indicating project quota
   static eos::common::RWMutex pMapMutex; ///< Protect access to pMapQuota
 

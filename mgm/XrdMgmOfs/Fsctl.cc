@@ -93,8 +93,7 @@ XrdMgmOfs::fsctl(const int cmd,
         auto map_quotas = Quota::GetGroupStatistics(path, 0);
 
         if (!map_quotas.empty()) {
-          maxbytes = map_quotas[SpaceQuota::kAllGroupBytesTarget];
-          freebytes = maxbytes - map_quotas[SpaceQuota::kAllGroupBytesIs];
+	  Quota::GetStatfs(path, maxbytes, freebytes);
         }
       }
     }
