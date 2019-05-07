@@ -16,6 +16,25 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.4.41 Citrine``
+===================
+
+2019-05-07
+
+
+Bug
+---
+* [EOS-3462] - FUSEX: suppress concurrent read errors for unrecoverable errors
+* MGM: Fix monitoring output for eos fusex ls -m
+
+Improvements
+------------
+
+* NS: Implement inspect subcommand to run through all file/directory metadata
+* MGM: optimize quota accounting to correct for the given default layout when queried for quota via 'xrdfs ... space query /'
+* FUSEX: if a logfile exceeds 4G, we shrink it back to 2G
+* CTA: various cta related fixes (see commits)
+
 ``v4.4.40 Citrine``
 ===================
 
