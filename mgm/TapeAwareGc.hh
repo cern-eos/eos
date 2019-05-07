@@ -27,8 +27,10 @@
 #include "common/Logging.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/TapeAwareGcCachedValue.hh"
+#include "mgm/TapeAwareGcFreeSpace.hh"
 #include "mgm/TapeAwareGcLru.hh"
 #include "namespace/interface/IFileMD.hh"
+#include "proto/ConsoleReply.pb.h"
 #include "proto/ConsoleRequest.pb.h"
 
 #include <atomic>
@@ -100,7 +102,7 @@ public:
   void fileReplicaCommitted(const std::string &path, const IFileMD &fmd)
     noexcept;
 
-private:
+protected:
 
   //----------------------------------------------------------------------------
   //! Boolean flag that starts with a value of false and can have timed waits on
@@ -194,19 +196,6 @@ private:
   //----------------------------------------------------------------------------
   void workerThreadEntryPoint() noexcept;
 
-  /// Thrown when a given space cannot be found
-  struct SpaceNotFound: public std::runtime_error {
-    SpaceNotFound(const std::string &msg): std::runtime_error(msg) {}
-  };
-
-  //----------------------------------------------------------------------------
-  //! @return The minimum number of free bytes the default space should have
-  //! as set in the configuration variables of the space.  If the minimum
-  //! number of free bytes cannot be determined for whatever reason then 0 is
-  //! returned.
-  //----------------------------------------------------------------------------
-  static uint64_t getDefaultSpaceMinNbFreeBytes() noexcept;
-
   //----------------------------------------------------------------------------
   //! @return The minimum number of free bytes the specified space should have
   //! as set in the configuration variables of the space.  If the minimum
@@ -218,17 +207,9 @@ private:
   static uint64_t getSpaceConfigMinNbFreeBytes(const std::string &spaceName) noexcept;
 
   //----------------------------------------------------------------------------
-  //! @return Number of free bytes in the specified space
-  //!
-  //! @param spaceName The name of the space
-  //! @throw SpaceNotFound If the specified space annot be found
-  //----------------------------------------------------------------------------
-  static uint64_t getSpaceNbFreeBytes(const std::string &spaceName);
-
-  //----------------------------------------------------------------------------
   //! Try to garbage collect a single file if necessary and possible
   //!
-  //! \return True if a file was garbage collected
+  //! @return True if a file was garbage collected
   //----------------------------------------------------------------------------
   bool tryToGarbageCollectASingleFile() noexcept;
 
@@ -241,25 +222,42 @@ private:
   console::ReplyProto stagerrmAsRoot(const IFileMD::id_t fid);
 
   //----------------------------------------------------------------------------
+  //! @param fid The file identifier
+  //! @return The size of the specified file in bytes.  If the file cannot be
+  //! found in the EOS namespace then a file size of 0 is returned.
+  //----------------------------------------------------------------------------
+  uint64_t getFileSizeBytes(const IFileMD::id_t fid);
+
+  //----------------------------------------------------------------------------
+  //! Determine if the specified file exists and is not scheduled for deletion
+  //!
+  //! @param fid The file identifier
+  //! @return True if the file exists in the EOS namespace and is not scheduled
+  //! for deletion
+  //----------------------------------------------------------------------------
+  bool fileInNamespaceAndNotScheduledForDeletion(const IFileMD::id_t fid);
+
+  //----------------------------------------------------------------------------
   //! Return the preamble to be placed at the beginning of every log message
   //!
-  //! @param path file path
-  //! @param fid EOS file identifier
+  //! @param path The file path
+  //! @param fid The file identifier
   //----------------------------------------------------------------------------
   static std::string createLogPreamble(const std::string &path,
     const IFileMD::id_t fid);
 
-  //----------------------------------------------------------------------------
-  //! Returns the integer representation of the specified string or zero if the
-  //! string could not be parsed
-  //!
-  //! @param str string to be parsed
-  //! @return the integer representation of the specified string
-  //----------------------------------------------------------------------------
-  static uint64_t toUint64(const std::string &str) noexcept;
+  /// Thrown when a string is not a valid unsigned 64-bit integer
+  struct InvalidUint64: public std::runtime_error {
+    InvalidUint64(const std::string &msg): std::runtime_error(msg) {}
+  };
+
+  /// Thrown when a string representing a 64-bit integer is out of range
+  struct OutOfRangeUint64: public InvalidUint64 {
+    OutOfRangeUint64(const std::string &msg): InvalidUint64(msg) {}
+  };
 
   //----------------------------------------------------------------------------
-  //! Cached value for the minum number of free bytes to be available in the
+  //! Cached value for the minimum number of free bytes to be available in the
   //! default EOS space.  If the actual number of free bytes is less than this
   //! value then the garbage collector will try to free up space by garbage
   //! collecting disk replicas.
@@ -267,7 +265,13 @@ private:
   TapeAwareGcCachedValue<uint64_t> m_cachedDefaultSpaceMinFreeBytes;
 
   //----------------------------------------------------------------------------
-  //! Counter that is incremented each time a file is successfully garabage
+  //! Object responsible for determining the number of free bytes in the EOS
+  //! space named "default".
+  //----------------------------------------------------------------------------
+  TapeAwareGcFreeSpace m_freeSpaceInDefault;
+
+  //----------------------------------------------------------------------------
+  //! Counter that is incremented each time a file is successfully garbage
   //! collected.
   //----------------------------------------------------------------------------
   uint64_t m_nbGarbageCollectedFiles;
