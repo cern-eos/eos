@@ -33,6 +33,7 @@
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/config/ConfigParsing.hh"
 #include "mgm/TableFormatter/TableFormatterBase.hh"
+#include "mgm/TapeAwareGcConstants.hh"
 #include "common/StringConversion.hh"
 
 using eos::common::RWMutexReadLock;
@@ -991,6 +992,13 @@ FsSpace::FsSpace(const char* name)
     // Disable the 'file archived' garbage collector by default
     if (GetConfigMember("filearchivedgc").empty()) {
       SetConfigMember("filearchivedgc", "off", false, "/eos/*/mgm");
+    }
+
+    // Set the default delay in seconds between free space queries
+    if (GetConfigMember("tapeawaregc.spacequeryperiodsecs").empty()) {
+      SetConfigMember("tapeawaregc.spacequeryperiodsecs",
+        std::to_string(TAPEAWAREGC_DEFAULT_SPACE_QUERY_PERIOD_SECS),
+        true, "/eos/*/mgm");
     }
 
     // Set the default minimum number of free bytes for the tape aware garbage

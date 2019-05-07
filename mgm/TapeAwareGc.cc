@@ -24,6 +24,9 @@
 #include "mgm/FsView.hh"
 #include "mgm/proc/admin/StagerRmCmd.hh"
 #include "mgm/TapeAwareGc.hh"
+#include "mgm/TapeAwareGcConstants.hh"
+#include "mgm/TapeAwareGcSpaceNotFound.hh"
+#include "mgm/TapeAwareGcUtils.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/Prefetcher.hh"
@@ -42,8 +45,9 @@ TapeAwareGc::TapeAwareGc():
   m_enabled(false),
   m_cachedDefaultSpaceMinFreeBytes(
     0, // Initial value
-    TapeAwareGc::getDefaultSpaceMinNbFreeBytes, // Value getter
+    std::bind(getSpaceConfigMinNbFreeBytes, "default"), // Value getter
     10), // Maximum age of cached value in seconds
+  m_freeSpaceInDefault("default", TAPEAWAREGC_DEFAULT_SPACE_QUERY_PERIOD_SECS),
   m_nbGarbageCollectedFiles(0)
 {
 }
@@ -114,14 +118,14 @@ TapeAwareGc::fileOpened(const std::string &path, const IFileMD &fmd) noexcept
   if(!m_enabled) return;
 
   try {
+    const auto fid = fmd.getId();
+    const std::string preamble = createLogPreamble(path, fid);
+    eos_static_debug(preamble.c_str());
+
     // Only consider files that have a CTA archive ID as only these can be
     // guaranteed to have been successfully closed, committed and intended for
     // tape storage
     if(!fmd.hasAttribute("CTA_ArchiveFileId")) return;
-
-    const auto fid = fmd.getId();
-    const std::string preamble = createLogPreamble(path, fid);
-    eos_static_info(preamble.c_str());
 
     std::lock_guard<std::mutex> lruQueueLock(m_lruQueueMutex);
     const bool exceededBefore = m_lruQueue.maxQueueSizeExceeded();
@@ -150,7 +154,12 @@ TapeAwareGc::fileReplicaCommitted(const std::string &path, const IFileMD &fmd) n
   try {
     const auto fid = fmd.getId();
     const std::string preamble = createLogPreamble(path, fid);
-    eos_static_info(preamble.c_str());
+    eos_static_debug(preamble.c_str());
+
+    // Only consider files that have a CTA archive ID as only these can be
+    // guaranteed to have been successfully closed, committed and intended for
+    // tape storage
+    if(!fmd.hasAttribute("CTA_ArchiveFileId")) return;
 
     std::lock_guard<std::mutex> lruQueueLock(m_lruQueueMutex);
     const bool exceededBefore = m_lruQueue.maxQueueSizeExceeded();
@@ -165,22 +174,6 @@ TapeAwareGc::fileReplicaCommitted(const std::string &path, const IFileMD &fmd) n
     eos_static_err("msg=\"%s\"", ex.what());
   } catch(...) {
     eos_static_err("msg=\"Caught an unknown exception\"");
-  }
-}
-
-//------------------------------------------------------------------------------
-// Return the minimum number of free bytes the default space should have
-// as set in the configuration variables of the space.  If the minimum
-// number of free bytes cannot be determined for whatever reason then 0 is
-// returned.
-//------------------------------------------------------------------------------
-uint64_t
-TapeAwareGc::getDefaultSpaceMinNbFreeBytes() noexcept
-{
-  try {
-    return getSpaceConfigMinNbFreeBytes("default");
-  } catch(...) {
-    return 0;
   }
 }
 
@@ -207,47 +200,11 @@ TapeAwareGc::getSpaceConfigMinNbFreeBytes(const std::string &spaceName) noexcept
     if(valueStr.empty()) {
      return 0;
     } else {
-      return toUint64(valueStr);
+      return TapeAwareGcUtils::toUint64(valueStr);
     }
   } catch(...) {
     return 0;
   }
-}
-
-//------------------------------------------------------------------------------
-// Return the integer representation of the specified string
-//------------------------------------------------------------------------------
-uint64_t
-TapeAwareGc::toUint64(const std::string &str) noexcept
-{
-  try {
-    uint64_t result = 0;
-    std::istringstream iss(str);
-    iss >> result;
-    return result;
-  } catch(...) {
-    return 0;
-  }
-}
-
-//------------------------------------------------------------------------------
-// Return number of free bytes in the specified space
-//------------------------------------------------------------------------------
-uint64_t
-TapeAwareGc::getSpaceNbFreeBytes(const std::string &spaceName)
-{
-  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-  const auto spaceItor = FsView::gFsView.mSpaceView.find(spaceName);
-
-  if(FsView::gFsView.mSpaceView.end() == spaceItor) {
-    throw SpaceNotFound(std::string("Cannot find space ") + spaceName);
-  }
-
-  if(nullptr == spaceItor->second) {
-    throw SpaceNotFound(std::string("Cannot find space ") + spaceName);
-  }
-
-  return spaceItor->second->SumLongLong("stat.statfs.freebytes", false);
 }
 
 //------------------------------------------------------------------------------
@@ -257,20 +214,26 @@ bool
 TapeAwareGc::tryToGarbageCollectASingleFile() noexcept
 {
   try {
-    bool defaultSpaceMinFreeBytesHasChanged = false;
-    const auto defaultSpaceMinFreeBytes =
-      m_cachedDefaultSpaceMinFreeBytes.get(defaultSpaceMinFreeBytesHasChanged);
-    if(defaultSpaceMinFreeBytesHasChanged) {
-      std::ostringstream msg;
-      msg << "msg=\"defaultSpaceMinFreeBytes has been changed to " << defaultSpaceMinFreeBytes << "\"";
-      eos_static_info(msg.str().c_str());
+    uint64_t defaultSpaceMinFreeBytes = 0;
+
+    try {
+      bool defaultSpaceMinFreeBytesHasChanged = false;
+      defaultSpaceMinFreeBytes = m_cachedDefaultSpaceMinFreeBytes.get(defaultSpaceMinFreeBytesHasChanged);
+      if(defaultSpaceMinFreeBytesHasChanged) {
+        std::ostringstream msg;
+        msg << "msg=\"defaultSpaceMinFreeBytes has been changed to " << defaultSpaceMinFreeBytes << "\"";
+        eos_static_info(msg.str().c_str());
+      }
+    } catch(TapeAwareGcSpaceNotFound &) {
+      // Return no file was garbage collected if the space was not found
+      return false;
     }
 
     try {
       // Return no file was garbage collected if there is still enough free space
-      const auto actualDefaultSpaceNbFreeBytes = getSpaceNbFreeBytes("default");
+      const auto actualDefaultSpaceNbFreeBytes = m_freeSpaceInDefault.getFreeBytes();
       if(actualDefaultSpaceNbFreeBytes >= defaultSpaceMinFreeBytes) return false;
-    } catch(SpaceNotFound) {
+    } catch(TapeAwareGcSpaceNotFound &) {
       // Return no file was garbage collected if the space was not found
       return false;
     }
@@ -283,12 +246,14 @@ TapeAwareGc::tryToGarbageCollectASingleFile() noexcept
       fid = m_lruQueue.getAndPopFidOfLeastUsedFile();
     }
 
+    const uint64_t fileToBeDeletedSizeBytes = getFileSizeBytes(fid);
     const auto result = stagerrmAsRoot(fid);
 
     std::ostringstream preamble;
     preamble << "fxid=" << std::hex << fid;
 
     if(0 == result.retc()) {
+      m_freeSpaceInDefault.fileQueuedForDeletion(fileToBeDeletedSizeBytes);
       std::ostringstream msg;
       msg << preamble.str() << " msg=\"Garbage collected file using stagerrm\"";
       eos_static_info(msg.str().c_str());
@@ -301,15 +266,10 @@ TapeAwareGc::tryToGarbageCollectASingleFile() noexcept
         eos_static_info(msg.str().c_str());
       }
 
-      // Prefetch before taking lock because metadata may not be in memory
-      Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
-      common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-      const auto fmd = gOFS->eosFileService->getFileMD(fid);
-
-      if(nullptr != fmd && 0 != fmd->getContainerId()) {
+      if(fileInNamespaceAndNotScheduledForDeletion(fid)) {
         std::ostringstream msg;
         msg << preamble.str() << " msg=\"Putting file back in GC queue"
-          " because it is still in the namespace\"";
+                                 " because it is still in the namespace\"";
         eos_static_info(msg.str().c_str());
 
         std::lock_guard<std::mutex> lruQueueLock(m_lruQueueMutex);
@@ -317,7 +277,7 @@ TapeAwareGc::tryToGarbageCollectASingleFile() noexcept
       } else {
         std::ostringstream msg;
         msg << preamble.str() << " msg=\"Not returning file to GC queue"
-          " because it is not in the namespace\"";
+                                 " because it is not in the namespace\"";
         eos_static_info(msg.str().c_str());
       }
     }
@@ -329,6 +289,35 @@ TapeAwareGc::tryToGarbageCollectASingleFile() noexcept
   }
 
   return false; // No file was garbage collected
+}
+
+//----------------------------------------------------------------------------
+// Determine if the specified file exists and is not scheduled for deletion
+//----------------------------------------------------------------------------
+bool TapeAwareGc::fileInNamespaceAndNotScheduledForDeletion(const IFileMD::id_t fid) {
+  // Prefetch before taking lock because metadata may not be in memory
+  Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
+  common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  const auto fmd = gOFS->eosFileService->getFileMD(fid);
+
+  // A file scheduled for deletion has a container ID of 0
+  return nullptr != fmd && 0 != fmd->getContainerId();
+}
+
+//----------------------------------------------------------------------------
+// Return size of the specified file
+//----------------------------------------------------------------------------
+uint64_t TapeAwareGc::getFileSizeBytes(const IFileMD::id_t fid) {
+  // Prefetch before taking lock because metadata may not be in memory
+  Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
+  common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  const auto fmd = gOFS->eosFileService->getFileMD(fid);
+
+  if(nullptr != fmd) {
+    return fmd->getSize();
+  } else {
+    return 0;
+  }
 }
 
 //----------------------------------------------------------------------------

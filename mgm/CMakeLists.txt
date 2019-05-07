@@ -199,7 +199,10 @@ add_library(
   PathRouting.cc
   RouteEndpoint.cc
   TapeAwareGc.cc
+  TapeAwareGcFreeSpace.cc
   TapeAwareGcLru.cc
+  TapeAwareGcSpaceNotFound.cc
+  TapeAwareGcUtils.cc
   LRU.cc
   WFE.cc
   Workflow.cc
