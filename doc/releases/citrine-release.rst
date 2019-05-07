@@ -15,6 +15,17 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.4.42 Citrine``
+===================
+
+2019-05-07
+
+Improvements
+------------
+
+* FUSEX: lower default IO buffer size to 128M
+* MGM: remove unnecessary plug-incall
+* NS: implement subcmd to change fid attributes
 
 ``v4.4.41 Citrine``
 ===================
