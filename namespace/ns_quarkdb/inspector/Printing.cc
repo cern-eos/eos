@@ -25,6 +25,24 @@
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+// Serialize locations vector
+//------------------------------------------------------------------------------
+static std::string serializeLocations(const eos::ns::FileMdProto &proto) {
+  std::ostringstream stream;
+  stream << "[";
+
+  for(size_t i = 0; i < proto.locations().size(); i++) {
+    stream << proto.locations()[i];
+    if(i != proto.locations().size() - 1) {
+      stream << ", ";
+    }
+  }
+
+  stream << "]";
+  return stream.str();
+}
+
+//------------------------------------------------------------------------------
 // Print the given FileMd protobuf using multiple lines, full information
 //------------------------------------------------------------------------------
 void Printing::printMultiline(const eos::ns::FileMdProto &proto, std::ostream &stream) {
@@ -40,6 +58,7 @@ void Printing::printMultiline(const eos::ns::FileMdProto &proto, std::ostream &s
   appendChecksumOnStringAsHexNoFmd(proto.layout_id(), checksumBuffer, checksum);
 
   stream << "Checksum type: " << common::LayoutId::GetChecksumString(proto.layout_id()) << ", checksum bytes: " << checksum << std::endl;
+  stream << "Locations: " << serializeLocations(proto) << std::endl;
 }
 
 std::string Printing::printMultiline(const eos::ns::FileMdProto &proto) {

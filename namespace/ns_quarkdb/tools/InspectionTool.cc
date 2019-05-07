@@ -110,6 +110,16 @@ int main(int argc, char* argv[]) {
   printSubcommand->add_option("--fid", fid, "Specify the FileMD to print, through its ID (decimal form)");
 
   //----------------------------------------------------------------------------
+  // Change fid protobuf properties
+  //----------------------------------------------------------------------------
+  auto changeFidSubcommand = app.add_subcommand("change-fid", "Change specific properties of a specific fid. Better know what you're doing before using this!");
+  addClusterOptions(changeFidSubcommand, membersStr, memberValidator, password, passwordFile);
+
+  uint64_t newParent = 0;
+  changeFidSubcommand->add_option("--fid", fid, "Specify the FileMD to print, through its ID (decimal form)");
+  changeFidSubcommand->add_option("--new-parent", newParent, "Change the parent container of the specified fid. This _DOES NOT_ modify the respective container maps!");
+
+  //----------------------------------------------------------------------------
   // Parse..
   //----------------------------------------------------------------------------
   try {
@@ -176,6 +186,10 @@ int main(int argc, char* argv[]) {
 
   if(scanFilesSubcommand->parsed()) {
     return inspector.scanFileMetadata(std::cout, std::cerr);
+  }
+
+  if(changeFidSubcommand->parsed()) {
+    return inspector.changeFid(fid, newParent, std::cout, std::cerr);
   }
 
   std::cerr << "No subcommand was supplied - should never reach here" << std::endl;
