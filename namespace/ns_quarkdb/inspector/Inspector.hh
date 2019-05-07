@@ -75,6 +75,11 @@ public:
   int checkNamingConflicts(std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
+  //! Find files with non-nominal number of stripes (replicas)
+  //----------------------------------------------------------------------------
+  int stripediff(std::ostream &out, std::ostream &err);
+
+  //----------------------------------------------------------------------------
   //! Check naming conflicts, only for containers, and only for the given
   //! parent ID.
   //----------------------------------------------------------------------------
