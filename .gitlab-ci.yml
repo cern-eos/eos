@@ -367,18 +367,6 @@ build_ubuntu_bionic:
     - ubuntu
 
 
-build_ubuntu_artful:
-  image: ubuntu:artful
-  <<: *ubuntu_template_definition
-  variables:
-    EOS_ARCH: artful
-  tags:
-    - docker_node
-    - ubuntu
-  only:
-    - schedules
-
-
 macosx_dmg:
   stage: build:rpm
   script:
@@ -903,7 +891,7 @@ rpm_stable_artifacts:
 
 debian_artifacts:
   stage: publish
-  image: ubuntu:artful
+  image: ubuntu:bionic
   script:
     - apt-get update
     - apt-get install -y sudo apt-utils sssd
@@ -916,7 +904,6 @@ debian_artifacts:
   tags:
     - docker_node
   dependencies:
-    - build_ubuntu_artful
     - build_ubuntu_bionic
   only:
     - master
@@ -928,7 +915,7 @@ debian_artifacts:
 
 debian_artifacts_volume:
   stage: publish
-  image: ubuntu:artful
+  image: ubuntu:bionic
   script:
     - apt-get update
     - apt-get install -y sudo apt-utils sssd
@@ -938,7 +925,6 @@ debian_artifacts_volume:
   tags:
     - docker_node
   dependencies:
-    - build_ubuntu_artful
     - build_ubuntu_bionic
   only:
     - tags
@@ -964,7 +950,7 @@ clean_rpm_artifacts:
 
 clean_debian_artifacts:
   stage: clean
-  image: ubuntu:artful
+  image: ubuntu:bionic
   script:
     - apt-get update
     - apt-get install -y sudo apt-utils sssd
