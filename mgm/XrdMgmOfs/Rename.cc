@@ -236,14 +236,11 @@ XrdMgmOfs::_rename(const char* old_name,
   }
 
   gOFS->MgmStats.Add("Rename", vid.uid, vid.gid, 1);
-  std::shared_ptr<eos::IContainerMD> dir = std::shared_ptr<eos::IContainerMD>((
-        eos::IContainerMD*)0);
-  std::shared_ptr<eos::IContainerMD> newdir = std::shared_ptr<eos::IContainerMD>((
-        eos::IContainerMD*)0);
-  std::shared_ptr<eos::IContainerMD> rdir = std::shared_ptr<eos::IContainerMD>((
-        eos::IContainerMD*)0);
-  std::shared_ptr<eos::IFileMD> file = std::shared_ptr<eos::IFileMD>((
-                                         eos::IFileMD*)0);
+  std::shared_ptr<eos::IContainerMD> dir;
+  std::shared_ptr<eos::IContainerMD> newdir;
+  std::shared_ptr<eos::IContainerMD> rdir;
+  std::shared_ptr<eos::IFileMD> file;
+
   bool renameFile = false;
   bool renameDir = false;
   bool renameVersion = false;

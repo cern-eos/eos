@@ -269,12 +269,6 @@ QuarkFileMD::serialize(eos::Buffer& buffer)
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
 
-  if (pFileMDSvc == nullptr) {
-    MDException ex(ENOTSUP);
-    ex.getMessage() << "This was supposed to be a read only copy!";
-    throw ex;
-  }
-
   // Increase clock to mark that metadata file has suffered updates
   mClock = std::chrono::high_resolution_clock::now().time_since_epoch().count();
   // Align the buffer to 4 bytes to efficiently compute the checksum

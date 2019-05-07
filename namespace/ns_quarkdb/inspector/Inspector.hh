@@ -80,6 +80,11 @@ public:
   int stripediff(std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
+  //! Change the given fid - USE WITH CAUTION
+  //----------------------------------------------------------------------------
+  int changeFid(uint64_t id, uint64_t newParent, std::ostream &out, std::ostream &err);
+
+  //----------------------------------------------------------------------------
   //! Check naming conflicts, only for containers, and only for the given
   //! parent ID.
   //----------------------------------------------------------------------------

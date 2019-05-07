@@ -22,6 +22,8 @@
 #include "namespace/ns_quarkdb/inspector/ContainerScanner.hh"
 #include "namespace/ns_quarkdb/inspector/FileScanner.hh"
 #include "namespace/ns_quarkdb/inspector/Printing.hh"
+#include "namespace/ns_quarkdb/FileMD.hh"
+#include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "common/LayoutId.hh"
 #include "common/IntervalStopwatch.hh"
 #include <folly/executors/IOThreadPoolExecutor.h>
@@ -31,6 +33,28 @@
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
 
 EOSNSNAMESPACE_BEGIN
+
+//------------------------------------------------------------------------------
+// Escape non-printable string
+//------------------------------------------------------------------------------
+static std::string escapeNonPrintable(const std::string &str) {
+  std::stringstream ss;
+
+  for(size_t i = 0; i < str.size(); i++) {
+    if(isprint(str[i])) {
+      ss << str[i];
+    }
+    else if(str[i] == '\0') {
+      ss << "\\x00";
+    }
+    else {
+      char buff[16];
+      snprintf(buff, 16, "\\x%02X", (unsigned char) str[i]);
+      ss << buff;
+    }
+  }
+  return ss.str();
+}
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -326,12 +350,10 @@ out:
 //------------------------------------------------------------------------------
 int Inspector::printFileMD(uint64_t fid, std::ostream& out, std::ostream& err)
 {
-  folly::Future<eos::ns::FileMdProto> fut = MetadataFetcher::getFileFromId(mQcl,
-      FileIdentifier(fid));
-  eos::ns::FileMdProto val;
+    eos::ns::FileMdProto val;
 
   try {
-    val = fut.get();
+    val = MetadataFetcher::getFileFromId(mQcl, FileIdentifier(fid)).get();
   } catch (const MDException& e) {
     err << "Error while fetching metadata for FileMD #" << fid << ": " << e.what()
         << std::endl;
@@ -339,6 +361,50 @@ int Inspector::printFileMD(uint64_t fid, std::ostream& out, std::ostream& err)
   }
 
   Printing::printMultiline(val, out);
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Change the given fid - USE WITH CAUTION
+//------------------------------------------------------------------------------
+int Inspector::changeFid(uint64_t fid, uint64_t newParent, std::ostream &out, std::ostream &err) {
+  eos::ns::FileMdProto val;
+
+  try {
+    val = MetadataFetcher::getFileFromId(mQcl, FileIdentifier(fid)).get();
+  } catch(const MDException& e) {
+    err << "Error while fetching metadata for FileMD #" << fid << ": " << e.what()
+        << std::endl;
+    return 1;
+  }
+
+  Printing::printMultiline(val, out);
+
+  bool ok = false;
+  out << "----- CHANGING THE FOLLOWING ATTRIBUTES:" << std::endl;
+  if(newParent != 0) {
+    ok = true;
+    err << "    Container ID: " << val.cont_id() << " --> " << newParent << std::endl;
+    val.set_cont_id(newParent);
+  }
+
+  if(!ok) {
+    err << "Error: No attributes specified to update." << std::endl;
+    return 1;
+  }
+
+  QuarkFileMD fileMD;
+  fileMD.initialize(std::move(val));
+  RedisRequest req = RequestBuilder::writeFileProto(&fileMD);
+
+  out << "---- SENDING THE FOLLOWING REQUEST TO QDB:" << std::endl;
+  for(size_t i = 0; i < req.size(); i++) {
+    out << i << ".\"" << escapeNonPrintable(req[i]) << "\"" << std::endl;;
+  }
+
+  out << "---- RESPONSE:" << std::endl;
+  out << qclient::describeRedisReply(mQcl.execute(req).get()) << std::endl;
+
   return 0;
 }
 

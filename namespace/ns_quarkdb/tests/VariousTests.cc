@@ -116,6 +116,7 @@ TEST_F(VariousTests, BasicSanity) {
     "uid: 333, gid: 999\n"
     "Size: 555\n"
     "Checksum type: md5, checksum bytes: 12235599aadd00550000000000000000\n"
+    "Locations: [1, 7]\n"
   );
 
   containerSvc()->updateStore(root.get());
