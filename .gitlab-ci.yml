@@ -894,7 +894,7 @@ debian_artifacts:
   image: ubuntu:bionic
   script:
     - apt-get update
-    - apt-get install -y sudo apt-utils sssd
+    - apt-get install -y sudo apt-utils sssd gpg
     - mkdir /home/stci
     - chown -R stci:def-cg /home/stci
     - chmod -R 700 /home/stci
@@ -918,7 +918,7 @@ debian_artifacts_volume:
   image: ubuntu:bionic
   script:
     - apt-get update
-    - apt-get install -y sudo apt-utils sssd
+    - apt-get install -y sudo apt-utils sssd gpg
     - mkdir /home/stci
     - gpg --homedir /home/stci/ --allow-secret-key-import --import /keys/stci-debian-repo.sec
     - ./gitlab-ci/store_artifacts_debian.sh /mnt/eos_repositories/debian/eos/${BRANCH} tag
@@ -953,7 +953,7 @@ clean_debian_artifacts:
   image: ubuntu:bionic
   script:
     - apt-get update
-    - apt-get install -y sudo apt-utils sssd
+    - apt-get install -y sudo apt-utils sssd gpg
     - mkdir /home/stci
     - chown -R stci:def-cg /home/stci
     - chmod -R 700 /home/stci
