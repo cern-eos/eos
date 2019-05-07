@@ -335,7 +335,7 @@ int main(int argc, char* argv[])
       ssize_t nread = pread(fd, &v, 4, (i * 4) + (2 * 1024 * 1024));
 
       if (nread != 4) {
-        fprintf(stderr, "[test=%03d] failed linear read i=%d\n", testno, i);
+        fprintf(stderr, "[test=%03d] failed linear read i=%d nread=%ld \n", testno, i, nread);
         exit(testno);
       }
 

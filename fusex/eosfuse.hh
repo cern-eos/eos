@@ -433,7 +433,7 @@ public:
     }
   }
 
-  size_t shrinkLogFile()
+  void shrinkLogFile()
   {
     const size_t maxsize = 4*1024ll*1024ll*1024ll; // 4G
     if ( sizeLogFile() > maxsize) {
