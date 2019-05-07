@@ -97,8 +97,8 @@ You also need to define a local cache directory (location) where small files are
     "read-ahead-bytes-nominal" : 262144,
     "read-ahead-bytes-max" : 2097152,
     "read-ahead-blocks-max" : 16,
-    "max-read-ahead-buffer" : 268435456,
-    "max-write-buffer" : 268435456
+    "max-read-ahead-buffer" : 134217728,
+    "max-write-buffer" : 134217728
   }
 
 ```
