@@ -31,6 +31,7 @@ Improvements
 ------------
 
 * NS: Implement inspect subcommand to run through all file/directory metadata
+* [EOS-3463] - implement stripediff functionality in inspect tool
 * MGM: optimize quota accounting to correct for the given default layout when queried for quota via 'xrdfs ... space query /'
 * FUSEX: if a logfile exceeds 4G, we shrink it back to 2G
 * CTA: various cta related fixes (see commits)
