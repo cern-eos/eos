@@ -16,15 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
-#include "namespace/ns_quarkdb/persistency/Serialization.hh"
 #include "namespace/ns_quarkdb/inspector/Inspector.hh"
 #include "common/PasswordHandler.hh"
 #include "CLI11.hpp"
 #include <qclient/QClient.hh>
-#include "qclient/structures/QLocalityHash.hh"
-#include <folly/executors/IOThreadPoolExecutor.h>
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
 
@@ -99,6 +95,12 @@ int main(int argc, char* argv[]) {
   addClusterOptions(namingConflictsSubcommand, membersStr, memberValidator, password, passwordFile);
 
   //----------------------------------------------------------------------------
+  // Set-up stripediff subcommand..
+  //----------------------------------------------------------------------------
+  auto stripediffSubcommand = app.add_subcommand("stripediff", "Find files which have non-nominal number of stripes (replicas)");
+  addClusterOptions(stripediffSubcommand, membersStr, memberValidator, password, passwordFile);
+
+  //----------------------------------------------------------------------------
   // Set-up print subcommand..
   //----------------------------------------------------------------------------
   auto printSubcommand = app.add_subcommand("print", "Print everything known about a given file, or container");
@@ -166,6 +168,10 @@ int main(int argc, char* argv[]) {
 
   if(scanDirsSubcommand->parsed()) {
     return inspector.scanDirs(std::cout, std::cerr);
+  }
+
+  if(stripediffSubcommand->parsed()) {
+    return inspector.stripediff(std::cout, std::cerr);
   }
 
   if(scanFilesSubcommand->parsed()) {

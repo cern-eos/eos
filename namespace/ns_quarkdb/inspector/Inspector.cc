@@ -22,6 +22,7 @@
 #include "namespace/ns_quarkdb/inspector/ContainerScanner.hh"
 #include "namespace/ns_quarkdb/inspector/FileScanner.hh"
 #include "namespace/ns_quarkdb/inspector/Printing.hh"
+#include "common/LayoutId.hh"
 #include "common/IntervalStopwatch.hh"
 #include <folly/executors/IOThreadPoolExecutor.h>
 #include <qclient/QClient.hh>
@@ -224,6 +225,38 @@ void Inspector::checkDifferentMaps(const std::map<std::string, uint64_t>&
   }
 }
 
+//----------------------------------------------------------------------------
+// Find files with non-nominal number of stripes (replicas)
+//----------------------------------------------------------------------------
+int Inspector::stripediff(std::ostream &out, std::ostream &err) {
+  FileScanner fileScanner(mQcl);
+
+  while(fileScanner.valid()) {
+    eos::ns::FileMdProto proto;
+    if (!fileScanner.getItem(proto)) {
+      break;
+    }
+
+    int64_t actual = proto.locations().size();
+    int64_t expected = eos::common::LayoutId::GetStripeNumber(proto.layout_id()) + 1;
+    int64_t size = proto.size();
+
+    if(actual != expected && size != 0) {
+      out << "id=" << proto.id() << " size=" << size << " nstripes=" << actual << " expected-stripes=" << expected << std::endl;
+    }
+
+    fileScanner.next();
+  }
+
+  std::string errorString;
+  if(fileScanner.hasError(errorString)) {
+    err << errorString;
+    return 1;
+  }
+
+  return 0;
+}
+
 //------------------------------------------------------------------------------
 // Check intra-container conflicts, such as a container having two entries
 // with the name name.
@@ -237,7 +270,6 @@ int Inspector::checkNamingConflicts(std::ostream& out, std::ostream& err)
 
   while (containerScanner.valid()) {
     eos::ns::ContainerMdProto proto;
-
     if (!containerScanner.getItem(proto)) {
       break;
     }
