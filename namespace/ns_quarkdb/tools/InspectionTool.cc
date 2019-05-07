@@ -112,12 +112,12 @@ int main(int argc, char* argv[]) {
   //----------------------------------------------------------------------------
   // Change fid protobuf properties
   //----------------------------------------------------------------------------
-  auto changeFidSubcommand = app.add_subcommand("change-fid", "Change specific properties of a specific fid. Better know what you're doing before using this!");
+  auto changeFidSubcommand = app.add_subcommand("change-fid", "Change specified properties of a single fid. Better know what you're doing before using this!");
   addClusterOptions(changeFidSubcommand, membersStr, memberValidator, password, passwordFile);
 
   uint64_t newParent = 0;
   changeFidSubcommand->add_option("--fid", fid, "Specify the FileMD to print, through its ID (decimal form)");
-  changeFidSubcommand->add_option("--new-parent", newParent, "Change the parent container of the specified fid. This _DOES NOT_ modify the respective container maps!");
+  changeFidSubcommand->add_option("--new-parent", newParent, "Change the parent container of the specified fid. This _DOES NOT_ modify the respective container maps, only the protobuf FMD!");
 
   //----------------------------------------------------------------------------
   // Parse..

@@ -27,13 +27,14 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Serialize locations vector
 //------------------------------------------------------------------------------
-static std::string serializeLocations(const eos::ns::FileMdProto &proto) {
+template<typename T>
+static std::string serializeLocations(const T& vec) {
   std::ostringstream stream;
   stream << "[";
 
-  for(size_t i = 0; i < proto.locations().size(); i++) {
-    stream << proto.locations()[i];
-    if(i != proto.locations().size() - 1) {
+  for(int i = 0; i < vec.size(); i++) {
+    stream << vec[i];
+    if(i != vec.size() - 1) {
       stream << ", ";
     }
   }
@@ -43,14 +44,49 @@ static std::string serializeLocations(const eos::ns::FileMdProto &proto) {
 }
 
 //------------------------------------------------------------------------------
+// timespec to fileinfo: Convert a timespec into
+// "Wed Nov 11 15:38:31 2015 Timestamp: 1447252711.38412918"
+//------------------------------------------------------------------------------
+void Printing::timespecToFileinfo(const struct timespec &val, std::ostream &stream) {
+  time_t tv_sec = (time_t) val.tv_sec;
+  char buffer[4096];
+
+  stream << ctime_r(&tv_sec, buffer);
+  stream.seekp(-1, std::ios_base::end);
+  stream << " Timestamp: " << val.tv_sec << "." << val.tv_nsec;
+}
+
+std::string Printing::timespecToFileinfo(const struct timespec &val) {
+  std::ostringstream ss;
+  timespecToFileinfo(val, ss);
+  return ss.str();
+}
+
+//------------------------------------------------------------------------------
+// Serialize protobuf time
+//------------------------------------------------------------------------------
+template<typename T>
+static std::string serializeTime(const T& bytes) {
+  struct timespec spec;
+  (void) memcpy(&spec, bytes.data(), sizeof(struct timespec));
+
+  std::ostringstream ss;
+  Printing::timespecToFileinfo(spec, ss);
+  return ss.str();
+}
+
+//------------------------------------------------------------------------------
 // Print the given FileMd protobuf using multiple lines, full information
 //------------------------------------------------------------------------------
 void Printing::printMultiline(const eos::ns::FileMdProto &proto, std::ostream &stream) {
   stream << "ID: " << proto.id() << std::endl;
   stream << "Name: " << proto.name() << std::endl;
+  stream << "Link name: " << proto.link_name() << std::endl;
   stream << "Container ID: " << proto.cont_id() << std::endl;
   stream << "uid: " << proto.uid() << ", gid: " << proto.gid() << std::endl;
   stream << "Size: " << proto.size() << std::endl;
+  stream << "Modify: " << serializeTime(proto.mtime()) << std::endl;
+  stream << "Change: " << serializeTime(proto.ctime()) << std::endl;
 
   std::string checksum;
   Buffer checksumBuffer(proto.checksum().size());
@@ -58,7 +94,8 @@ void Printing::printMultiline(const eos::ns::FileMdProto &proto, std::ostream &s
   appendChecksumOnStringAsHexNoFmd(proto.layout_id(), checksumBuffer, checksum);
 
   stream << "Checksum type: " << common::LayoutId::GetChecksumString(proto.layout_id()) << ", checksum bytes: " << checksum << std::endl;
-  stream << "Locations: " << serializeLocations(proto) << std::endl;
+  stream << "Locations: " << serializeLocations(proto.locations()) << std::endl;
+  stream << "Unlinked locations: " << serializeLocations(proto.unlink_locations()) << std::endl;
 }
 
 std::string Printing::printMultiline(const eos::ns::FileMdProto &proto) {
