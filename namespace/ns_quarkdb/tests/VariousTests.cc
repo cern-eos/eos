@@ -255,7 +255,7 @@ TEST_F(VariousTests, BasicSanity) {
          "Etag: \"12235599aadd00550000000000000000\"\n"
          "Locations: [1, 7]\n"
          "Unlinked locations: []\n")
-  );
+            );
 
   containerSvc()->updateStore(root.get());
   containerSvc()->updateStore(cont1.get());
