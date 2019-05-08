@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: ScanDir.hh
+// File: Fsck.hh
 // Author: Elvin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
@@ -59,8 +59,8 @@ public:
   Fsck(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
        eos::fst::Load* fstload, long int testinterval = 10,
        long int rate = 100,
-       const std::string mamager = "", 
-       bool silent=false);
+       const std::string mamager = "",
+       bool silent = false);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -89,21 +89,22 @@ public:
   bool RescanFile(std::string);
 
   void ScanMd();
-  
+
   void ScanMdQdb();
 
-  void SetQdbContactDetails(const QdbContactDetails& _contactDetails) {
+  void SetQdbContactDetails(const QdbContactDetails& _contactDetails)
+  {
     contactDetails = _contactDetails;
     useQuarkDB = true;
   }
-  
+
 private:
   eos::fst::Load* fstLoad;
   eos::common::FileSystem::fsid_t fsId;
   XrdOucString dirPath;
   std::atomic<long long> mTestInterval; ///< Test interval in seconds
   std::atomic<long long> mScanRate; ///< meta-data files/s rate limiting
-  
+
   std::map<uint64_t, struct Fmd> mMd;
   // Statistics
   long int noCorruptFiles;
@@ -114,7 +115,7 @@ private:
   std::string managerHostPort;
   bool useQuarkDB;
   QdbContactDetails contactDetails;
-  
+
   bool setChecksum;
   bool silent;
 
