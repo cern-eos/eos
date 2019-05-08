@@ -15,6 +15,18 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.4.43 Citrine``
+===================
+
+2019-05-08
+
+Improvements
+------------
+* FUSEX: add compatiblity mode for older server which cannot return getChecksum by file-id
+* CI: build with ubuntu bionic
+* NS: Add mtime, ctime, unlinked locations, and link name to eos-ns-inspect printing
+* CTA: configuration parameters for tapeaware garbage collector
+
 ``v4.4.42 Citrine``
 ===================
 
