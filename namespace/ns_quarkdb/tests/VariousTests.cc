@@ -114,22 +114,23 @@ TEST_F(VariousTests, BasicSanity) {
   ctime.tv_nsec = 8888;
   file1->setCTime(ctime);
 
-  ctime.tv_sec = 2000;
-  ctime.tv_nsec = 999;
-  file1->setMTime(ctime);
+  struct timespec mtime;
+  mtime.tv_sec = 2000;
+  mtime.tv_nsec = 999;
+  file1->setMTime(mtime);
 
   ASSERT_EQ(eos::Printing::printMultiline(static_cast<eos::QuarkFileMD*>(file1.get())->getProto()),
-    "ID: 1\n"
-    "Name: my-file.txt\n"
-    "Link name: \n"
-    "Container ID: 2\n"
-    "uid: 333, gid: 999\n"
-    "Size: 555\n"
-    "Modify: Thu Jan  1 00:33:20 1970 Timestamp: 2000.999\n"
-    "Change: Thu Jan  1 00:33:19 1970 Timestamp: 1999.8888\n"
-    "Checksum type: md5, checksum bytes: 12235599aadd00550000000000000000\n"
-    "Locations: [1, 7]\n"
-    "Unlinked locations: []\n"
+    SSTR("ID: 1\n"
+         "Name: my-file.txt\n"
+         "Link name: \n"
+         "Container ID: 2\n"
+         "uid: 333, gid: 999\n"
+         "Size: 555\n"
+         "Modify: " << Printing::timespecToFileinfo(mtime) << "\n"
+         "Change: " << Printing::timespecToFileinfo(ctime) << "\n"
+         "Checksum type: md5, checksum bytes: 12235599aadd00550000000000000000\n"
+         "Locations: [1, 7]\n"
+         "Unlinked locations: []\n")
   );
 
   containerSvc()->updateStore(root.get());
