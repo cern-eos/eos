@@ -20,6 +20,8 @@
 #include "common/LayoutId.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/interface/IFileMD.hh"
+#include "namespace/utils/Etag.hh"
+#include "common/StringConversion.hh"
 #include <sstream>
 
 EOSNSNAMESPACE_BEGIN
@@ -87,13 +89,16 @@ void Printing::printMultiline(const eos::ns::FileMdProto &proto, std::ostream &s
   stream << "Size: " << proto.size() << std::endl;
   stream << "Modify: " << serializeTime(proto.mtime()) << std::endl;
   stream << "Change: " << serializeTime(proto.ctime()) << std::endl;
+  stream << "Flags: " << common::StringConversion::IntToOctal( (int) proto.flags(), 4) << std::endl;
 
   std::string checksum;
-  Buffer checksumBuffer(proto.checksum().size());
-  checksumBuffer.putData((void*)proto.checksum().data(), proto.checksum().size());
-  appendChecksumOnStringAsHexNoFmd(proto.layout_id(), checksumBuffer, checksum);
-
+  appendChecksumOnStringProtobuf(proto, checksum);
   stream << "Checksum type: " << common::LayoutId::GetChecksumString(proto.layout_id()) << ", checksum bytes: " << checksum << std::endl;
+
+  std::string etag;
+  eos::calculateEtag(proto, etag);
+  stream << "Etag: " << etag << std::endl;
+
   stream << "Locations: " << serializeLocations(proto.locations()) << std::endl;
   stream << "Unlinked locations: " << serializeLocations(proto.unlink_locations()) << std::endl;
 }

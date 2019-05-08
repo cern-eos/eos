@@ -87,6 +87,7 @@ TEST_F(VariousTests, BasicSanity) {
   file1->setCUid(333);
   file1->setCGid(999);
   file1->setSize(555);
+  file1->setFlags( (S_IRWXU | S_IRWXG | S_IRWXO));
 
   char buff[32];
   buff[0] = 0x12; buff[1] = 0x23; buff[2] = 0x55; buff[3] = 0x99;
@@ -128,7 +129,9 @@ TEST_F(VariousTests, BasicSanity) {
          "Size: 555\n"
          "Modify: " << Printing::timespecToFileinfo(mtime) << "\n"
          "Change: " << Printing::timespecToFileinfo(ctime) << "\n"
+         "Flags: 0777\n"
          "Checksum type: md5, checksum bytes: 12235599aadd00550000000000000000\n"
+         "Etag: \"12235599aadd00550000000000000000\"\n"
          "Locations: [1, 7]\n"
          "Unlinked locations: []\n")
   );
