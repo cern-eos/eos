@@ -1176,12 +1176,27 @@ backend::getChecksum(fuse_req_t req,
       int retc=0;
       size_t items = sscanf(checksum_response.c_str(), "checksum: %1023s retc=%i", checksum, &retc);
       if (items != 2) {
-	delete response;
-	return ENODATA;
-      } else {
-	if (retc) {
+	size_t items = sscanf(checksum_response.c_str(), "checksum:  retc=%i", &retc);
+	if (items == 1) {
+	  if (retc == ENOENT) {
+	    // an old server might not be able to call getChecksum by file id, we return an empty one in that case
+	    checksum_return = "unknown";
+	  } else {
+	    delete response;
+	    return retc;
+	  }
+	} else {
 	  delete response;
 	  return ENODATA;
+	}
+      } else {
+	if (retc) {
+	  if (retc == ENOENT) {
+	    checksum_return = "unknown";
+	  } else {
+	    delete response;
+	    return ENODATA;
+	  }
 	} else {
 	  checksum_return = checksum;
 	}
