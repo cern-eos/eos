@@ -119,6 +119,18 @@ public:
   std::string GetTimestampSmeared();
 
 private:
+  //----------------------------------------------------------------------------
+  //! Enforce the scan rate by throttling the current thread and also adjust it
+  //! depending on the IO load on the mountpoint
+  //!
+  //! @param offset current offset in file
+  //! @param open_ts open timestamp
+  //! @param scan_rate current scan rate, if 0 then then rate limiting is
+  //!        disabled
+  //----------------------------------------------------------------------------
+  void EnforceAndAdjustScanRate(const off_t offet,
+                                const struct timeval& open_ts, int& scan_rate);
+
   eos::fst::Load* mFstLoad; ///< Object for providing load information
   eos::common::FileSystem::fsid_t mFsId; ///< Corresponding file system id
   std::string mDirPath; ///< Root directory used by the scanner

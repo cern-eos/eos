@@ -104,7 +104,6 @@ ScanDir::StaticThreadProc(void* arg)
   return reinterpret_cast<ScanDir*>(arg)->ThreadProc();
 }
 
-
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -249,7 +248,7 @@ ScanDir::ScanFiles()
 void
 ScanDir::CheckFile(const char* filepath)
 {
-  float scantime;
+  float scan_duration;
   unsigned long layoutid = 0;
   unsigned long long scansize;
   std::string filePath, checksumType, checksumStamp, logicalFileName,
@@ -316,7 +315,7 @@ ScanDir::CheckFile(const char* filepath)
   if (rescan || mForcedScan) {
     bool blockcxerror = false;
     bool filecxerror = false;
-    bool skiptosettime = false;
+    bool skip_settime = false;
     XrdOucString envstring = "eos.layout.checksum=";
     envstring += checksumType.c_str();
     XrdOucEnv env(envstring.c_str());
@@ -324,8 +323,9 @@ ScanDir::CheckFile(const char* filepath)
     layoutid = eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain,
                                             checksumtype);
 
-    if (rescan && (!ScanFileLoadAware(io, scansize, scantime, checksumVal, layoutid,
-                                      logicalFileName.c_str(), filecxerror, blockcxerror))) {
+    if (rescan &&
+        (!ScanFileLoadAware(io, scansize, scan_duration, checksumVal, layoutid,
+                            logicalFileName.c_str(), filecxerror, blockcxerror))) {
       bool reopened = false;
 #ifndef _NOOFS
 
@@ -374,7 +374,7 @@ ScanDir::CheckFile(const char* filepath)
         // now and leave it up to a later moment.
         blockcxerror = false;
         filecxerror = false;
-        skiptosettime = true;
+        skip_settime = true;
 
         if (bgThread) {
           eos_err("file %s has been modified during the scan ... ignoring checksum error",
@@ -389,14 +389,14 @@ ScanDir::CheckFile(const char* filepath)
 
     // Collect statistics
     if (rescan) {
-      mScanDuration += scantime;
+      mScanDuration += scan_duration;
       mTotalScanSize += scansize;
     }
 
-    bool failedtoset = false;
-
     if (rescan) {
-      if (!skiptosettime) {
+      bool failedtoset = false;
+
+      if (!skip_settime) {
         if (io->attrSet("user.eos.timestamp", GetTimestampSmeared())) {
           failedtoset |= true;
         }
@@ -409,7 +409,7 @@ ScanDir::CheckFile(const char* filepath)
 
       if (failedtoset) {
         if (bgThread) {
-          eos_err("Can not set extended attributes to file %s", filePath.c_str());
+          eos_err("msg=\"failed to set xattrs\" file=%s", filePath.c_str());
         } else {
           fprintf(stderr, "error: [CheckFile] Can not set extended "
                   "attributes to file. \n");
@@ -647,7 +647,7 @@ ScanDir::DoRescan(const std::string& timestamp_us) const
 }
 
 //------------------------------------------------------------------------------
-//
+// Infinite loop doing the scanning
 //------------------------------------------------------------------------------
 void*
 ScanDir::ThreadProc(void)
@@ -790,7 +790,7 @@ ScanDir::ThreadProc(void)
 //------------------------------------------------------------------------------
 bool
 ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
-                           unsigned long long& scansize, float& scantime,
+                           unsigned long long& scansize, float& scan_duration,
                            const char* checksumVal, unsigned long layoutid,
                            const char* lfn, bool& filecxerror, bool& blockcxerror)
 {
@@ -800,7 +800,7 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
   struct timeval opentime;
   struct timeval currenttime;
   scansize = 0;
-  scantime = 0;
+  scan_duration = 0;
   struct stat info;
 
   if (io->fileStat(&info)) {
@@ -848,36 +848,13 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
       }
 
       offset += nread;
-
-      if (scan_rate) {
-        gettimeofday(&currenttime, &tz);
-        scantime = (((currenttime.tv_sec - opentime.tv_sec) * 1000.0) + ((
-                      currenttime.tv_usec - opentime.tv_usec) / 1000.0));
-        float expecttime = (1.0 * offset / scan_rate) / 1000.0;
-
-        if (expecttime > scantime) {
-          std::this_thread::sleep_for
-          (std::chrono::milliseconds((int)(expecttime - scantime)));
-        }
-
-        // Adjust the rate according to the load information
-        double load = mFstLoad->GetDiskRate(mDirPath.c_str(), "millisIO") / 1000.0;
-
-        if (load > 0.7) {
-          // Adjust the scan_rate
-          if (scan_rate > 5) {
-            scan_rate = 0.9 * scan_rate;
-          }
-        } else {
-          scan_rate = mRateBandwidth;
-        }
-      }
+      EnforceAndAdjustScanRate(offset, opentime, scan_rate);
     }
   } while (nread == mBufferSize);
 
   gettimeofday(&currenttime, &tz);
-  scantime = (((currenttime.tv_sec - opentime.tv_sec) * 1000.0) + ((
-                currenttime.tv_usec - opentime.tv_usec) / 1000.0));
+  scan_duration = (((currenttime.tv_sec - opentime.tv_sec) * 1000.0) + ((
+                     currenttime.tv_usec - opentime.tv_usec) / 1000.0));
   scansize = (unsigned long long) offset;
 
   if (normalXS) {
@@ -903,8 +880,7 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
           fprintf(stderr, "error: failed to reset existing checksum \n");
         } else {
           fprintf(stdout, "success: reset checksum of %s to %s\n",
-                  file_path.c_str(),
-                  normalXS->GetHexChecksum());
+                  file_path.c_str(), normalXS->GetHexChecksum());
         }
       }
     }
@@ -949,6 +925,41 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
   }
 
   return retVal;
+}
+
+//------------------------------------------------------------------------------
+// Enforce the scan rate by throttling the current thread and also adjust it
+// depending on the IO load on the mountpoint
+//------------------------------------------------------------------------------
+void
+ScanDir::EnforceAndAdjustScanRate(const off_t offset,
+                                  const struct timeval& open_ts, int& scan_rate)
+{
+  if (scan_rate) {
+    struct timezone tz;
+    struct timeval now_ts;
+    gettimeofday(&now_ts, &tz);
+    float scan_duration = (((now_ts.tv_sec - open_ts.tv_sec) * 1000.0) +
+                           ((now_ts.tv_usec - open_ts.tv_usec) / 1000.0));
+    float expect_duration = (1.0 * offset / scan_rate) / 1000.0;
+
+    if (expect_duration > scan_duration) {
+      std::this_thread::sleep_for
+      (std::chrono::milliseconds((int)(expect_duration - scan_duration)));
+    }
+
+    // Adjust the rate according to the load information
+    double load = mFstLoad->GetDiskRate(mDirPath.c_str(), "millisIO") / 1000.0;
+
+    if (load > 0.7) {
+      // Adjust the scan_rate
+      if (scan_rate > 5) {
+        scan_rate = 0.9 * scan_rate;
+      }
+    } else {
+      scan_rate = mRateBandwidth;
+    }
+  }
 }
 
 EOSFSTNAMESPACE_END
