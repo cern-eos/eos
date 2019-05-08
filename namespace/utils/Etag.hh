@@ -22,6 +22,7 @@
 //------------------------------------------------------------------------------
 
 #include <string>
+#include "proto/FileMd.pb.h"
 
 #ifndef EOS_NS_ETAG_HH
 #define EOS_NS_ETAG_HH
@@ -36,6 +37,7 @@ namespace eos
   //! Calculate etag for the given FileMD.
   //----------------------------------------------------------------------------
   void calculateEtag(const IFileMD *const fmd, std::string &out);
+  void calculateEtag(const eos::ns::FileMdProto &proto, std::string &out);
 
   //----------------------------------------------------------------------------
   //! Calculate etag for the given ContainerMD.

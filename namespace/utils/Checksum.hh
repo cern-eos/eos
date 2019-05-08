@@ -26,8 +26,10 @@
 
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
+#include "proto/FileMd.pb.h"
 #include "namespace/utils/Buffer.hh"
 #include "namespace/interface/IFileMD.hh"
+
 
 namespace eos
 {
@@ -87,6 +89,14 @@ namespace eos
     if(!fmd) return false;
     return appendChecksumOnStringAsHexNoFmd(fmd->getLayoutId(), fmd->getChecksum(),
       out, separator, overrideLength);
+  }
+
+  inline bool appendChecksumOnStringProtobuf(const eos::ns::FileMdProto &proto,
+    std::string &out, char separator = 0x00, int overrideLength = -1) {
+
+    Buffer checksumBuffer(proto.checksum().size());
+    checksumBuffer.putData((void*)proto.checksum().data(), proto.checksum().size());
+    return appendChecksumOnStringAsHexNoFmd(proto.layout_id(), checksumBuffer, out, separator, overrideLength);
   }
 
 }
