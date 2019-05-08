@@ -1050,7 +1050,7 @@ XrdFstOfsFile::close()
     capOpaqueString += OpaqueString;
     eos_info("viaDelete=%d", viaDelete);
 
-    if ((viaDelete || writeDelete) && ((isCreation || isReplication ||
+    if ((viaDelete || writeDelete) && ((isCreation || (isReplication && isRW) ||
                                         mIsInjection || mRainReconstruct ||
                                         IsChunkedUpload()) && (!mFusex))) {
       // It is closed by the destructor e.g. no proper close
