@@ -15,6 +15,17 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.4.44 Citrine``
+===================
+
+2019-05-08
+
+Bug
+---
+
+* FST: fix dataloss bug introduced in 4.4.35 when an asynchronous replication fails (adjustreplica cleaning up also the source)
+
+
 ``v4.4.43 Citrine``
 ===================
 
