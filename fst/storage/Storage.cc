@@ -195,9 +195,9 @@ Storage::Storage(const char* meta_dir)
 
   if (gOFS.mMqOnQdb) {
     eos_info("starting filesystem QDB publishing thread");
-    mQdbNodePublisherThread.reset(&Storage::QdbPublishNodeStats, this,
+    mQdbNodePublisherThread.reset(&Storage::QdbPublish, this,
                                   gOFS.mQdbContactDetails);
-    mQdbNodePublisherThread.setName("QDB Node Publisher Thread");
+    mQdbNodePublisherThread.setName("QDB Publisher Thread");
   }
 
   eos_info("starting filesystem balancer thread");
