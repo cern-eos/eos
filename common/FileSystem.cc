@@ -685,32 +685,6 @@ FileSystem::SnapShotHost(XrdMqSharedObjectManager* som,
 }
 
 //------------------------------------------------------------------------------
-// Store a given statfs struct into the hash representation
-//------------------------------------------------------------------------------
-bool
-FileSystem::SetStatfs(struct statfs* statfs)
-{
-  if (!statfs) {
-    return false;
-  }
-
-  bool success = true;
-  success &= SetLongLong("stat.statfs.type", statfs->f_type);
-  success &= SetLongLong("stat.statfs.bsize", statfs->f_bsize);
-  success &= SetLongLong("stat.statfs.blocks", statfs->f_blocks);
-  success &= SetLongLong("stat.statfs.bfree", statfs->f_bfree);
-  success &= SetLongLong("stat.statfs.bavail", statfs->f_bavail);
-  success &= SetLongLong("stat.statfs.files", statfs->f_files);
-  success &= SetLongLong("stat.statfs.ffree", statfs->f_ffree);
-#ifdef __APPLE__
-  success &= SetLongLong("stat.statfs.namelen", MNAMELEN);
-#else
-  success &= SetLongLong("stat.statfs.namelen", statfs->f_namelen);
-#endif
-  return success;
-}
-
-//------------------------------------------------------------------------------
 // Check if the filesystem has a valid heartbeat
 //------------------------------------------------------------------------------
 bool
