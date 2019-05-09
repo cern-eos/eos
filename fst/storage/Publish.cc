@@ -265,6 +265,83 @@ std::string makeTemporaryFile()
 }
 
 //------------------------------------------------------------------------------
+// Insert statfs info into the map
+//------------------------------------------------------------------------------
+static void insertStatfs(struct statfs* statfs,
+  std::map<std::string, std::string> &output) {
+
+  output["stat.statfs.type"] = std::to_string(statfs->f_type);
+  output["stat.statfs.bsize"] = std::to_string(statfs->f_bsize);
+  output["stat.statfs.blocks"] = std::to_string(statfs->f_blocks);
+  output["stat.statfs.bfree"] = std::to_string(statfs->f_bfree);
+  output["stat.statfs.bavail"] = std::to_string(statfs->f_bavail);
+  output["stat.statfs.files"] = std::to_string(statfs->f_files);
+  output["stat.statfs.ffree"] = std::to_string(statfs->f_ffree);
+
+#ifdef __APPLE__
+  output["stat.statfs.namelen"] = std::to_string(MNAMELEN);
+#else
+  output["stat.statfs.namelen"] = std::to_string(statfs->f_namelen);
+#endif
+
+  output["stat.statfs.freebytes"] = std::to_string(statfs->f_bfree * statfs->f_bsize);
+  output["stat.statfs.usedbytes"] = std::to_string( (statfs->f_blocks - statfs->f_bfree) * statfs->f_bsize );
+  output["stat.statfs.filled"] = std::to_string(
+    (double) 100.0 * ((double) (statfs->f_blocks - statfs->f_bfree) / (double) (1 + statfs->f_blocks)));
+  output["stat.statfs.capacity"] = std::to_string(statfs->f_blocks * statfs->f_bsize);
+  output["stat.statfs.fused"] = std::to_string( (statfs->f_files - statfs->f_ffree) * statfs->f_bsize);
+}
+
+//------------------------------------------------------------------------------
+// Get statistics about this FileSystem, used for publishing
+//------------------------------------------------------------------------------
+std::map<std::string, std::string>
+Storage::getFsStatistics(FileSystem *fs, bool publishInconsistencyStats) {
+  if(!fs) {
+    eos_static_crit("asked to publish statistics for a null filesystem");
+    return {};
+  }
+
+  eos::common::FileSystem::fsid_t fsid = fs->GetId();
+
+  if(!fsid) {
+    // during the boot phase we can find a filesystem without ID
+    eos_static_warning("asked to publish statistics for filesystem with fsid=0");
+    return {};
+  }
+
+  std::map<std::string, std::string> output;
+
+  //----------------------------------------------------------------------------
+  // Publish inconsistency statistics?
+  //----------------------------------------------------------------------------
+  if(publishInconsistencyStats && fs->GetStatus() == eos::common::BootStatus::kBooted) {
+    XrdSysMutexHelper ISLock(fs->InconsistencyStatsMutex);
+    gFmdDbMapHandler.GetInconsistencyStatistics(
+      fsid,
+      *fs->GetInconsistencyStats(),
+      *fs->GetInconsistencySets()
+    );
+
+    for (auto it = fs->GetInconsistencyStats()->begin(); it != fs->GetInconsistencyStats()->end(); it++) {
+      std::string sname = SSTR("stat.fsck." << it->first);
+      output[sname] = std::to_string(it->second);
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // Publish statfs
+  //----------------------------------------------------------------------------
+  std::unique_ptr<eos::common::Statfs> statfs = fs->GetStatfs();
+
+  if(statfs) {
+    insertStatfs(statfs->GetStatfs(), output);
+  }
+
+  return output;
+}
+
+//------------------------------------------------------------------------------
 // Publish statistics about the given filesystem
 //------------------------------------------------------------------------------
 bool Storage::publishFsStatistics(FileSystem *fs, bool publishInconsistencyStats) {
@@ -306,8 +383,11 @@ bool Storage::publishFsStatistics(FileSystem *fs, bool publishInconsistencyStats
   std::unique_ptr<eos::common::Statfs> statfs = fs->GetStatfs();
 
   if(statfs) {
-    if(!fs->SetStatfs(statfs->GetStatfs())) {
-      eos_static_err("cannot SetStatfs on filesystem %s", fs->GetPath().c_str());
+    std::map<std::string, std::string> statfsMap;
+    insertStatfs(statfs->GetStatfs(), statfsMap);
+
+    for(auto it = statfsMap.begin(); it != statfsMap.end(); it++) {
+      fs->SetString(it->first.c_str(), it->second.c_str());
     }
   }
 
@@ -366,27 +446,6 @@ bool Storage::publishFsStatistics(FileSystem *fs, bool publishInconsistencyStats
   success &= fs->SetLongLong("stat.ropen", r_open);
 
   success &= fs->SetLongLong("stat.wopen", w_open);
-
-  success &= fs->SetLongLong("stat.statfs.freebytes",
-    fs->GetLongLong("stat.statfs.bfree") * fs->GetLongLong("stat.statfs.bsize"));
-
-  success &= fs->SetLongLong("stat.statfs.usedbytes",
-             (fs->GetLongLong("stat.statfs.blocks") - fs->GetLongLong("stat.statfs.bfree")) *
-             fs->GetLongLong("stat.statfs.bsize"));
-
-  success &= fs->SetDouble("stat.statfs.filled",
-                100.0 * ((fs->GetLongLong("stat.statfs.blocks") -
-                fs->GetLongLong("stat.statfs.bfree"))) /
-                (1 + fs->GetLongLong("stat.statfs.blocks")));
-
-  success &= fs->SetLongLong("stat.statfs.capacity",
-               fs->GetLongLong("stat.statfs.blocks") *
-               fs->GetLongLong("stat.statfs.bsize"));
-
-  success &= fs->SetLongLong("stat.statfs.fused",
-              (fs->GetLongLong("stat.statfs.files") -
-              fs->GetLongLong("stat.statfs.ffree")) *
-              fs->GetLongLong("stat.statfs.bsize"));
 
   success &= fs->SetLongLong("stat.usedfiles",
               gFmdDbMapHandler.GetNumFiles(fsid));

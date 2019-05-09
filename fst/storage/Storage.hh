@@ -210,6 +210,12 @@ private:
   static void* StartBoot(void* pp);
 
   //----------------------------------------------------------------------------
+  //! Get statistics about this FileSystem, used for publishing
+  //----------------------------------------------------------------------------
+  std::map<std::string, std::string> getFsStatistics(
+    FileSystem *fs, bool publishInconsistencyStats);
+
+  //----------------------------------------------------------------------------
   //! Get statistics about this FST, used for publishing
   //----------------------------------------------------------------------------
   std::map<std::string, std::string> getFSTStatistics(
