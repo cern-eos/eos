@@ -338,59 +338,6 @@ Storage::getFsStatistics(FileSystem *fs, bool publishInconsistencyStats) {
     insertStatfs(statfs->GetStatfs(), output);
   }
 
-  return output;
-}
-
-//------------------------------------------------------------------------------
-// Publish statistics about the given filesystem
-//------------------------------------------------------------------------------
-bool Storage::publishFsStatistics(FileSystem *fs, bool publishInconsistencyStats) {
-  if(!fs) {
-    eos_static_crit("asked to publish statistics for a null filesystem");
-    return false;
-  }
-
-  eos::common::FileSystem::fsid_t fsid = fs->GetId();
-
-  if(!fsid) {
-    // during the boot phase we can find a filesystem without ID
-    eos_static_warning("asked to publish statistics for filesystem with fsid=0");
-    return false;
-  }
-
-  bool success = true;
-
-  //----------------------------------------------------------------------------
-  // Publish inconsistency statistics?
-  //----------------------------------------------------------------------------
-  if(fs->GetStatus() == eos::common::BootStatus::kBooted && publishInconsistencyStats) {
-    XrdSysMutexHelper ISLock(fs->InconsistencyStatsMutex);
-    gFmdDbMapHandler.GetInconsistencyStatistics(
-      fsid,
-      *fs->GetInconsistencyStats(),
-      *fs->GetInconsistencySets()
-    );
-
-    for (auto it = fs->GetInconsistencyStats()->begin(); it != fs->GetInconsistencyStats()->end(); it++) {
-      std::string sname = SSTR("stat.fsck." << it->first);
-      success &= fs->SetLongLong(sname.c_str(), it->second);
-    }
-  }
-
-  //----------------------------------------------------------------------------
-  // Publish statfs
-  //----------------------------------------------------------------------------
-  std::unique_ptr<eos::common::Statfs> statfs = fs->GetStatfs();
-
-  if(statfs) {
-    std::map<std::string, std::string> statfsMap;
-    insertStatfs(statfs->GetStatfs(), statfsMap);
-
-    for(auto it = statfsMap.begin(); it != statfsMap.end(); it++) {
-      fs->SetString(it->first.c_str(), it->second.c_str());
-    }
-  }
-
   //----------------------------------------------------------------------------
   // Publish stat.disk.*
   //----------------------------------------------------------------------------
@@ -413,9 +360,9 @@ bool Storage::publishFsStatistics(FileSystem *fs, bool publishInconsistencyStats
                                     "millisIO") / 1000.0;
   }
 
-  success &= fs->SetDouble("stat.disk.readratemb", readratemb);
-  success &= fs->SetDouble("stat.disk.writeratemb", writeratemb);
-  success &= fs->SetDouble("stat.disk.load", diskload);
+  output["stat.disk.readratemb"] = std::to_string(readratemb);
+  output["stat.disk.writeratemb"] = std::to_string(writeratemb);
+  output["stat.disk.load"] = std::to_string(diskload);
 
   //----------------------------------------------------------------------------
   // Publish stat.health.*
@@ -426,16 +373,11 @@ bool Storage::publishFsStatistics(FileSystem *fs, bool publishInconsistencyStats
     health = mFstHealth.getDiskHealth(fs->GetPath());
   }
 
-  success &= fs->SetString("stat.health",
-                (health.count("summary") ? health["summary"].c_str() : "N/A"));
-  success &= fs->SetLongLong("stat.health.indicator",
-                strtoll(health["indicator"].c_str(), 0, 10));
-  success &= fs->SetLongLong("stat.health.drives_total",
-                strtoll(health["drives_total"].c_str(), 0, 10));
-  success &= fs->SetLongLong("stat.health.drives_failed",
-                strtoll(health["drives_failed"].c_str(), 0, 10));
-  success &= fs->SetLongLong("stat.health.redundancy_factor",
-                strtoll(health["redundancy_factor"].c_str(), 0, 10));
+  output["stat.health"] = (health.count("summary") ? health["summary"].c_str() : "N/A");
+  output["stat.health.indicator"] = health["indicator"];
+  output["stat.health.drives_total"] = health["drives_total"];
+  output["stat.health.drives_failed"] = health["drives_failed"];
+  output["stat.health.redundancy_factor"] = health["redundancy_factor"];
 
   //----------------------------------------------------------------------------
   // Publish generic statistics, related to free space and current load
@@ -443,37 +385,50 @@ bool Storage::publishFsStatistics(FileSystem *fs, bool publishInconsistencyStats
   long long r_open = (long long) gOFS.openedForReading.getOpenOnFilesystem(fsid);
   long long w_open = (long long) gOFS.openedForWriting.getOpenOnFilesystem(fsid);
 
-  success &= fs->SetLongLong("stat.ropen", r_open);
+  output["stat.ropen"] = std::to_string(r_open);
+  output["stat.wopen"] = std::to_string(w_open);
+  output["stat.usedfiles"] = std::to_string(gFmdDbMapHandler.GetNumFiles(fsid));
+  output["stat.boot"] = fs->GetStatusAsString(fs->GetStatus());
+  output["stat.geotag"] = getGeotag();
+  output["stat.publishtimestamp"] = std::to_string(
+    eos::common::getEpochInMilliseconds().count());
+  output["stat.drainer.running"] = std::to_string(
+    fs->GetDrainQueue()->GetRunningAndQueued());
+  output["stat.balancer.running"] = std::to_string(
+    fs->GetBalanceQueue()->GetRunningAndQueued());
+  output["stat.disk.iops"] = std::to_string(fs->getIOPS());
+  output["stat.disk.bw"] = std::to_string(fs->getSeqBandwidth()); // in MB
 
-  success &= fs->SetLongLong("stat.wopen", w_open);
+  output["stat.http.port"] = std::to_string(gOFS.mHttpdPort);
+  output["stat.ropen.hotfiles"] = hotFilesToString(gOFS.openedForReading.getHotFiles(fsid, 10));
+  output["stat.wopen.hotfiles"] = hotFilesToString(gOFS.openedForWriting.getHotFiles(fsid, 10));
 
-  success &= fs->SetLongLong("stat.usedfiles",
-              gFmdDbMapHandler.GetNumFiles(fsid));
+  return output;
+}
 
-  success &= fs->SetString("stat.boot", fs->GetStatusAsString(fs->GetStatus()));
+//------------------------------------------------------------------------------
+// Publish statistics about the given filesystem
+//------------------------------------------------------------------------------
+bool Storage::publishFsStatistics(FileSystem *fs, bool publishInconsistencyStats) {
+  if(!fs) {
+    eos_static_crit("asked to publish statistics for a null filesystem");
+    return {};
+  }
 
-  success &= fs->SetString("stat.geotag", getGeotag().c_str());
+  eos::common::FileSystem::fsid_t fsid = fs->GetId();
 
-  success &= fs->SetLongLong("stat.publishtimestamp",
-              eos::common::getEpochInMilliseconds().count());
+  if(!fsid) {
+    // during the boot phase we can find a filesystem without ID
+    eos_static_warning("asked to publish statistics for filesystem with fsid=0");
+    return {};
+  }
 
-  success &= fs->SetLongLong("stat.drainer.running",
-               fs->GetDrainQueue()->GetRunningAndQueued());
+  bool success = true;
+  std::map<std::string, std::string> fsStats = getFsStatistics(fs, publishInconsistencyStats);
 
-  success &= fs->SetLongLong("stat.balancer.running",
-               fs->GetBalanceQueue()->GetRunningAndQueued());
-
-  success &= fs->SetLongLong("stat.disk.iops", fs->getIOPS());
-
-  success &= fs->SetDouble("stat.disk.bw", fs->getSeqBandwidth()); // in MB
-
-  success &= fs->SetLongLong("stat.http.port", gOFS.mHttpdPort);
-
-  success &= fs->SetString("stat.ropen.hotfiles",
-    hotFilesToString(gOFS.openedForReading.getHotFiles(fsid, 10)).c_str());
-
-  success &= fs->SetString("stat.wopen.hotfiles",
-    hotFilesToString(gOFS.openedForWriting.getHotFiles(fsid, 10)).c_str());
+  for(auto it = fsStats.begin(); it != fsStats.end(); it++) {
+    success &= fs->SetString(it->first.c_str(), it->second.c_str());
+  }
 
   CheckFilesystemFullness(fs, fsid);
   return success;
