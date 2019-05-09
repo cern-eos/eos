@@ -441,15 +441,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Store a given statfs struct into the hash representation
-  //!
-  //! @param statfs struct to read
-  //!
-  //! @return true if successful otherwise false
-  //----------------------------------------------------------------------------
-  bool SetStatfs(struct statfs* statfs);
-
-  //----------------------------------------------------------------------------
   //! Get the activation status via a cache.
   //! This can be used with a small cache which 1s expiration time to avoid too
   //! many lookup's in tight loops.
