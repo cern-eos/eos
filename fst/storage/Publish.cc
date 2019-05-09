@@ -521,11 +521,13 @@ Storage::Publish(ThreadAssistant& assistant)
 }
 
 //------------------------------------------------------------------------------
-// Publish statistics about this FST node.
-// The channel used depends on the FST hostport:
-// - fst-stats:<my hostport>
+// Publish statistics about this FST node and filesystems.
+//
+// Channels used:
+// - fst-stats:<my hostport> for FST statistics
+// - fs-stats:<id>
 //------------------------------------------------------------------------------
-void Storage::QdbPublishNodeStats(const QdbContactDetails& cd,
+void Storage::QdbPublish(const QdbContactDetails& cd,
                                   ThreadAssistant& assistant)
 {
   //----------------------------------------------------------------------------
@@ -547,11 +549,41 @@ void Storage::QdbPublishNodeStats(const QdbContactDetails& cd,
   //----------------------------------------------------------------------------
   // Main loop
   //----------------------------------------------------------------------------
+  common::IntervalStopwatch consistencyStatsStopwatch(sConsistencyTimeout);
   while (!assistant.terminationRequested()) {
+    //--------------------------------------------------------------------------
+    // Should we publish consistency stats during this cycle?
+    //--------------------------------------------------------------------------
+    bool publishConsistencyStats = consistencyStatsStopwatch.restartIfExpired();
+
+    //--------------------------------------------------------------------------
+    // Publish FST stats
+    //--------------------------------------------------------------------------
     std::map<std::string, std::string> fstStats = getFSTStatistics(tmp_name,
         netspeed);
     qcl->exec("publish", channel, qclient::Formatting::serialize(fstStats));
+
+    //--------------------------------------------------------------------------
+    // Publish individual fs stats
+    //--------------------------------------------------------------------------
+    eos::common::RWMutexReadLock lock(mFsMutex);
+
+    for (size_t i = 0; i < mFsVect.size(); i++) {
+      std::map<std::string, std::string> fsStats = getFsStatistics(mFsVect[i],
+        publishConsistencyStats);
+
+      eos::common::FileSystem::fsid_t fsid = mFsVect[i]->GetId();
+      std::string fsChannel = SSTR("fs-" << fsid);
+      qcl->exec("publish", fsChannel, qclient::Formatting::serialize(fsStats));
+    }
+
+    lock.Release();
+
+    //--------------------------------------------------------------------------
+    // Sleep until next cycle
+    //--------------------------------------------------------------------------
     assistant.wait_for(eos::fst::Config::gConfig.getRandomizedPublishInterval());
+
   }
 
   //----------------------------------------------------------------------------
