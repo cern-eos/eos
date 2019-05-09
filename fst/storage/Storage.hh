@@ -241,9 +241,7 @@ private:
   void Verify();
   void Publish(ThreadAssistant &assistant);
 
-  void QdbPublishFilesystemStats(
-    const QdbContactDetails &cd, ThreadAssistant &assistant);
-  void QdbPublishNodeStats(
+  void QdbPublish(
     const QdbContactDetails &cd, ThreadAssistant &assistant);
 
   void Balancer();
