@@ -223,8 +223,8 @@ before_script:
       elif [[ "$CI_JOB_NAME" == k8s_system_test_qdb || "$CI_JOB_NAME" == k8s_system_test_qdb_xt ]]; then ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -n ${NAMESPACE} -q;
       else echo "CI_JOB_NAME:$CI_JOB_NAME not found"; exit 1;
       fi
-    - if [[ "$CI_JOB_NAME" == k8s_ubuntu_system_test ]]; then ./gitlab-ci/k8s_system_test_script.sh --only-client $NAMESPACE
-      else ./gitlab-ci/k8s_system_test_script.sh $NAMESPACE
+    - if [[ "$CI_JOB_NAME" == k8s_ubuntu_system_test ]]; then ./gitlab-ci/k8s_system_test_script.sh --only-client ${NAMESPACE};
+      else ./gitlab-ci/k8s_system_test_script.sh ${NAMESPACE};
       fi
   <<: *k8s_after_script_template
 

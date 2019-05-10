@@ -2,10 +2,10 @@
 
 
 function usage () {
-  filename=$(basename $0)
-  echo "Usage: $filename [--only-client] <namespace>"
-  echo "       --only-client  -- execute only client functionality tests"
-  echo "       <namespace>    -- name of the k8s namespace (DNS-1123 label)"
+	filename=$(basename $0)
+	echo "Usage: $filename [--only-client] <namespace>"
+	echo "       --only-client  -- execute only client functionality tests"
+	echo "       <namespace>    -- name of the k8s namespace (DNS-1123 label)"
 }
 
 # get_podname() : Return the name of the Pods tagged with $1. Suppose it return just one result.
@@ -21,22 +21,22 @@ function get_podname () {
 ################################################################################
 
 if [[ $1 = "--only-client" ]]; then
-  ONLY_CLIENT=true
-  shift
+	ONLY_CLIENT=true
+	shift
 fi
 
 if [[ $# -ne 1 ]]; then
-  echo "Invalid number of arguments"
-  usage
-  exit 1
+	echo "Invalid number of arguments"
+	usage
+	exit 1
 fi
 
 NAMESPACE=""
 if [[ $1 =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ ]]; then
-  NAMESPACE=$1
+	NAMESPACE=$1
 else
-  echo "! Wrong arg $1: arg1 must be a DNS-1123 label and must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character"
-  exit 1
+	echo "! Wrong arg $1: arg1 must be a DNS-1123 label and must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character"
+	exit 1
 fi
 
 ################################################################################
@@ -50,11 +50,11 @@ kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm) \
 
 # Execute full suite of instance tests if ONLY_CLIENT flag is not defined
 if [[ -z $ONLY_CLIENT ]]; then
-  kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm) \
-    -- sed -i 's/eos-mq-test.eoscluster.cern.ch/eos-mq/g' /usr/sbin/eos-instance-test-ci # @todo tmp, then re-code the files
-  kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm) \
-    -- sed -i "s/eos-fst4-test.eoscluster.cern.ch/eos-fst4.eos-fst4.${NAMESPACE}.svc.cluster.local/g" /usr/sbin/eos-drain-test # @todo tmp, then re-code the files
-  kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm) \
+	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm) \
+	-- sed -i 's/eos-mq-test.eoscluster.cern.ch/eos-mq/g' /usr/sbin/eos-instance-test-ci # @todo tmp, then re-code the files
+	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm) \
+	-- sed -i "s/eos-fst4-test.eoscluster.cern.ch/eos-fst4.eos-fst4.${NAMESPACE}.svc.cluster.local/g" /usr/sbin/eos-drain-test # @todo tmp, then re-code the files
+	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm) \
 	-- eos-instance-test-ci
 fi
 
