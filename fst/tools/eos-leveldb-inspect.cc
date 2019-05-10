@@ -91,6 +91,7 @@ void print_usage(const char* prg_name)
             << "dumpd the decimal file ids stored in the DB" << std::endl
             << "   --fid <fid_dec> : "
             << " display stored metadata info about given file id"
+            << std::endl
             << "   --fsck          : "
             << " display fsck inconsistencies counters" << std::endl
             << "   --verbose_fsck  : "
@@ -268,7 +269,7 @@ void DumpFsckStats(eos::common::DbMap& db, bool verbose = false)
       std::ostringstream oss;
       int count = 0;
       int max_per_line = 10;
-      oss << std::hex;
+      oss << std::setw(8) << std::setfill('0') << std::hex;
 
       for (const auto& elem : set)
       {
