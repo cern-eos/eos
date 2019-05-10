@@ -401,6 +401,16 @@ build_ubuntu_bionic:
     - ubuntu
 
 
+build_ubuntu_disco:
+  image: ubuntu:disco
+  <<: *ubuntu_template_definition
+  variables:
+    EOS_ARCH: disco
+  tags:
+    - docker_node
+    - ubuntu
+
+
 macosx_dmg:
   stage: build:rpm
   script:
@@ -477,6 +487,23 @@ ubuntu_docker_image_commit:
   only:
     - dev
     - master
+  allow_failure: true
+
+
+ubuntu_disco_docker_image_commit:
+  stage: build:dockerimage
+  tags:
+    - docker-image-build
+  script:
+    - ""
+  variables:
+    TO: gitlab-registry.cern.ch/dss/eos:ubuntu_disco_client_${CI_PIPELINE_ID}
+    DOCKER_FILE: eos-docker/Dockerfile_ubuntu_disco
+  dependencies:
+    - build_ubuntu_disco
+    - clone_docker
+  only:
+    - branches
   allow_failure: true
 
 
@@ -752,6 +779,19 @@ ubuntu_system_test:
   only:
     - dev
     - master
+  allow_failure: true
+  retry: 1
+
+
+ubuntu_disco_system_test:
+  stage: test
+  <<: *ubuntu_system_test_template_definition
+  variables:
+    UBUNTU_EOS_IMG_NAME: "eos:ubuntu_disco_client_"
+  tags:
+    - shell-with-docker
+  dependencies:
+    - clone_docker
   allow_failure: true
   retry: 1
 
