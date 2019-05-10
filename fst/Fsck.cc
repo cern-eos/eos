@@ -523,13 +523,19 @@ Fsck::ScanMdQdb()
       FmdDbMapHandler::NsFileProtoToFmd(files.front().get(), fMd);
       CheckFile(fMd, nfiles);
       mMd[fMd.fid()] = fMd;
+      files.pop_front();
     } catch (const eos::MDException& e) {
       fprintf(stderr, "msg=\"failed to get metadata from QuarkDB: %s\"\n", e.what());
       files.pop_front();
-      continue;
     }
 
-    files.pop_front();
+    if (it != file_ids.end()) {
+      ++num_files;
+      files.emplace_back(MetadataFetcher::getFileFromId(*qcl.get(),
+							FileIdentifier(*it)));
+      ++it;
+    }
+
   }
 }
 
