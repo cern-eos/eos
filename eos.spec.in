@@ -306,12 +306,6 @@ Requires: zeromq
 BuildRequires: eos-folly = 2017.09.18.00-4%{dist}
 Requires: eos-folly = 2017.09.18.00-4%{dist}
 
-%if ! %{without stage_protobuf3_rh}
-%if 0%{distribution} == 6 || 0%{distribution} == 7
-Conflicts: eos-protobuf3
-%endif
-%endif
-
 %description -n eos-server
 The EOS server installation containing MGM, FST & MQ service.
 
@@ -455,6 +449,17 @@ Requires: systemd
 Requires: chkconfig
 Requires: initscripts
 Requires: sysvinit-tools
+%endif
+
+%if 0%{distribution} == 6 || 0%{distribution} == 7
+%if ! %{without stage_protobuf3_rh}
+# we will clash with eos-protobuf3
+Conflicts: eos-protobuf3
+%endif
+%if ! %{without stage_xrootd_rh}
+# we will clash with eos-xrootd
+Conflicts: eos-xrootd
+%endif
 %endif
 
 %description -n eos-client
