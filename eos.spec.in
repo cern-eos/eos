@@ -20,7 +20,7 @@
 %bcond_without stage_protobuf3_rh
 
 
-# By default we don't stage xrootd for RH6 and EL7
+# By default we stage xrootd for RH6 and EL7
 %bcond_without stage_xrootd_rh
 
 # Define required dependency for XRootD
@@ -198,7 +198,7 @@ BuildRequires: eos-protobuf3, eos-protobuf3-compiler, eos-protobuf3-devel
 %endif   
 %endif
 
-%if %{?_with_stage_xrootd_rh:1}%{!?_with_stage_xrootd_rh:0}
+%if ! %{without stage_xrootd_rh}
 # Install eos-xrootd
 %if 0%{distribution} == 6 || 0%{distribution} == 7
 BuildRequires: eos-xrootd
@@ -224,7 +224,7 @@ mkdir -p build
 cd build
 %if "%{?compiler}" == "gcc"
   %if 0%{distribution} == 6 || 0%{distribution} == 7
-    %if %{?_with_stage_xrootd_rh:1}%{!?_with_stage_xrootd_rh:0}
+    %if ! %{without stage_xrootd_rh}
        scl enable %{devtoolset} "%{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_SKIP_BUILD_RPATH=false -DCMAKE_BUILD_WITH_INSTALL_RPATH=false -DCMAKE_INSTALL_RPATH=/opt/eos/xrootd/lib64/,/usr/lib64/ -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true -DXROOTD_ROOT_DIR=/opt/eos/xrootd/ %{build_flags}"
     %else
       scl enable %{devtoolset} "%{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo %{build_flags}"
@@ -253,7 +253,7 @@ mkdir -p $RPM_BUILD_ROOT/opt/eos/lib64/protobuf3/
 cp -f /opt/eos/lib64/protobuf3/libprotobuf.so.15 $RPM_BUILD_ROOT/opt/eos/lib64/protobuf3/
 %endif
 
-%if %{?_with_stage_xrootd_rh:1}%{!?_with_stage_xrootd_rh:0}
+%if ! %{without stage_xrootd_rh}
 cp -af /opt/eos/xrootd/ $RPM_BUILD_ROOT/opt/eos/xrootd/
 %endif
 
@@ -473,7 +473,7 @@ The EOS shell client.
 /opt/eos/lib64/protobuf3/libprotobuf.so.15
 %endif
 
-%if %{?_with_stage_xrootd_rh:1}%{!?_with_stage_xrootd_rh:0}
+%if ! %{without stage_xrootd_rh}
 /opt/eos/xrootd/
 %endif
 
