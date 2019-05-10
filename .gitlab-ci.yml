@@ -981,6 +981,7 @@ debian_artifacts:
     - docker_node
   dependencies:
     - build_ubuntu_bionic
+    - build_ubuntu_disco
   only:
     - master
     - dev
