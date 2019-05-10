@@ -102,8 +102,7 @@ EOSCOMMONNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 #define eos_log(__EOSCOMMON_LOG_PRIORITY__ , ...) \
   eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, this->logId, \
-    this->uid, this->gid, this->ruid, this->rgid, this->cident, \
-    LOG_MASK(__EOSCOMMON_LOG_PRIORITY__) , __VA_ARGS__
+                                          vid, this->cident, LOG_MASK(__EOSCOMMON_LOG_PRIORITY__), __VA_ARGS__)
 #define eos_debug(...) \
   eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, this->logId, \
                                           vid, this->cident, (LOG_DEBUG), __VA_ARGS__)
