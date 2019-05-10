@@ -1,0 +1,4 @@
+#!/bin/bash
+
+chown daemon:daemon /etc/eos.keytab
+chmod 400 /etc/eos.keytab
