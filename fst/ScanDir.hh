@@ -5,7 +5,7 @@
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2019 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -22,14 +22,12 @@
  ************************************************************************/
 
 #pragma once
-#include <pthread.h>
 #include "fst/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
-#include <sys/syscall.h>
-#ifndef __APPLE__
-#include <asm/unistd.h>
-#endif
+#include "common/FileId.hh"
+#include "common/AssistedThread.hh"
+#include "common/SteadyClock.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -42,22 +40,44 @@ class CheckSum;
 //! @brief Scan a directory tree and checks checksums (and blockchecksums if
 //! present) on a regular interval with limited bandwidth
 //------------------------------------------------------------------------------
-class ScanDir : eos::common::LogId
+class ScanDir: public eos::common::LogId
 {
 public:
-  static void* StaticThreadProc(void*);
-
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
-          eos::fst::Load* fstload, bool bgthread = true, long int testinterval = 10,
-          int ratebandwidth = 50, bool setchecksum = false);
+          eos::fst::Load* fstload, bool bgthread = true,
+          long int testinterval = 60, int ratebandwidth = 50,
+          bool setchecksum = false, bool fake_clock = false);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~ScanDir();
+
+  //----------------------------------------------------------------------------
+  //! Update scanner configuration
+  //!
+  //! @param key configuration type
+  //! @param value configuration value
+  //----------------------------------------------------------------------------
+  void SetConfig(const std::string&, long long value);
+
+  //------------------------------------------------------------------------------
+  //! Infinite loop doing the scanning and verification
+  //!
+  //! @param assistant thread running the job
+  //------------------------------------------------------------------------------
+  void Run(ThreadAssistant& assistant) noexcept;
+
+  //----------------------------------------------------------------------------
+  //! Method traversing all the files in the subtree and potentially rescanning
+  //! some of them
+  //!
+  //! @param assistant thread running the job
+  //----------------------------------------------------------------------------
+  void ScanSubtree(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
   //! Decide if a rescan is needed based on the timestamp provided and the
@@ -68,31 +88,12 @@ public:
   bool DoRescan(const std::string& timestamp_us) const;
 
   //----------------------------------------------------------------------------
-  //! Update scanner configuration
-  //!
-  //! @param key configuration type
-  //! @param value configuration value
-  //----------------------------------------------------------------------------
-  void SetConfig(const std::string&, long long value);
-
-  //----------------------------------------------------------------------------
-  //! Method traversing all the files in the subtree and potentially rescanning
-  //! some of them.
-  //----------------------------------------------------------------------------
-  void ScanFiles();
-
-  //----------------------------------------------------------------------------
   //! Check the given file for errors and properly account them both at the
   //! scanner level and also by setting the proper xattrs on the file.
   //!
   //! @param fpath file path
   //----------------------------------------------------------------------------
-  void CheckFile(const char* fpath);
-
-  //------------------------------------------------------------------------------
-  //!
-  //------------------------------------------------------------------------------
-  void* ThreadProc();
+  void CheckFile(const std::string& fpath);
 
   //----------------------------------------------------------------------------
   //! Get block checksum object for the given file. First we need to check if
@@ -106,16 +107,35 @@ public:
   std::unique_ptr<eos::fst::CheckSum>
   GetBlockXS(const std::string& file_path);
 
-  bool ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>&,
-                         unsigned long long&, float&, const char*,
-                         unsigned long, const char* lfn,
-                         bool& filecxerror, bool& blockxserror);
+  //----------------------------------------------------------------------------
+  //! Scan the given file for checksum errors taking the load into consideration
+  //!
+  //! @param io io object attached to the file
+  //! @param scan_size final scan size
+  //! @param xs_type string representing the checksum type
+  //! @param xs_val reference file checksum value to compare against
+  //! @param lfn logical file name (NS path)
+  //! @param filexs_err set to true if file has a checksum error
+  //! @param blockxs_err set to true if file has a block checksum errror
+  //!
+  //! @return true if file is correct, otherwise false if file does not exist,
+  //!        or there is any type of checksum error
+  //----------------------------------------------------------------------------
+  bool ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
+                         unsigned long long& scan_size,
+                         const std::string& xs_type, const char* xs_val,
+                         const std::string& lfn, bool& filexs_err,
+                         bool& blockxs_err);
 
   //----------------------------------------------------------------------------
-  //! Timestamp in microseconds
+  //! Get clock reference for testing purposes
   //----------------------------------------------------------------------------
-  std::string GetTimestamp() const;
+  inline eos::common::SteadyClock& GetClock()
+  {
+    return mClock;
+  }
 
+  // @todo(esindril): drop it
   std::string GetTimestampSmeared();
 
 private:
@@ -128,18 +148,59 @@ private:
   //! @param scan_rate current scan rate, if 0 then then rate limiting is
   //!        disabled
   //----------------------------------------------------------------------------
-  void EnforceAndAdjustScanRate(const off_t offet,
+  void EnforceAndAdjustScanRate(const off_t offset,
                                 const struct timeval& open_ts, int& scan_rate);
+
+  //----------------------------------------------------------------------------
+  //! Update the local database based on the checksum information
+  //!
+  //! @param file_path
+  //! @param fid file identifier extracted from the path
+  //! @param filexs_error true if file has a checksum error
+  //! @param blocxs_error true if file has block checksum error
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool UpdateLocalDB(const std::string& file_path,
+                     eos::common::FileId::fileid_t fid,
+                     bool filexs_error, bool blockxs_error);
+
+  //----------------------------------------------------------------------------
+  //! Print log message - depending on whether or not we run in standalone mode
+  //! or inside the FST daemon
+  //!
+  //! @param log_level log level used for the printout
+  //----------------------------------------------------------------------------
+  template <typename ... Args>
+  void LogMsg(int log_level, Args&& ... args)
+  {
+    if (mBgThread) {
+      eos_log(log_level, std::forward<Args>(args) ...);
+    } else {
+      if ((log_level == LOG_INFO) || (log_level == LOG_DEBUG)) {
+        fprintf(stdout, std::forward<Args>(args) ...);
+      } else {
+        fprintf(stderr, std::forward<Args>(args) ...);
+        fprintf(stderr, "%s", "\n");
+      }
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Update the forced scan flag based on the existence of the .eosscan file
+  //! on the FST mountpoint
+  //----------------------------------------------------------------------------
+  void UpdateForcedScan();
 
   eos::fst::Load* mFstLoad; ///< Object for providing load information
   eos::common::FileSystem::fsid_t mFsId; ///< Corresponding file system id
   std::string mDirPath; ///< Root directory used by the scanner
-  ///< Time interval after which a file is rescanned in seconds
+  //! Time interval after which a file is rescanned in seconds, if 0 then
+  //! rescanning is completely disabled
   std::atomic<uint64_t> mRescanIntervalSec;
   std::atomic<int> mRateBandwidth; ///< Max scan rate in MB/s
 
   // Statistics
-  float mScanDuration;
   long int mNumScannedFiles;
   long int mNumCorruptedFiles;
   long int mNumHWCorruptedFiles;
@@ -149,9 +210,10 @@ private:
   bool mSetChecksum; ///< If true update the xattr checksum value
   char* mBuffer; ///< Buffer used for reading
   uint32_t mBufferSize; ///< Size of the reading buffer
-  pthread_t thread;
-  bool bgThread;
-  bool mForcedScan;
+  bool mBgThread; ///< If true running as background thread inside the FST
+  bool mForcedScan; ///< Mark if scanner is in force mode
+  AssistedThread mThread; ///< Thread doing the scanning
+  eos::common::SteadyClock mClock; ///< Clock wrapper also used for testing
 };
 
 EOSFSTNAMESPACE_END

@@ -87,7 +87,7 @@ set(FST_UT_SRCS
   fst/HealthTest.cc
   fst/UtilsTest.cc
   fst/XrdFstOfsFileTest.cc
-)
+  fst/ScanDirTests.cc)
 
 #-------------------------------------------------------------------------------
 # unit tests source files

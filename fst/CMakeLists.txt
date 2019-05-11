@@ -422,9 +422,9 @@ add_executable(eos-compute-blockxs
   checksum/CheckSum.cc)
 
 add_executable(eos-scan-fs
+  tools/ScanXS.cc
   ScanDir.cc             Load.cc
   Fmd.cc                 FmdDbMap.cc
-  tools/ScanXS.cc
   checksum/Adler.cc      checksum/CheckSum.cc)
 
 add_executable(eos-fsck-fs
@@ -460,22 +460,12 @@ target_link_libraries(eos-adler32 PRIVATE
 target_link_libraries(eos-scan-fs PRIVATE
   eosCommonServer
   EosFstIo
-  EosNsCommon-Static
-  ${GLIBC_RT_LIBRARY}
-  ${XROOTD_CL_LIBRARY}
-  ${DAVIX_LIBRARIES}
-  ${PROTOBUF_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT})
+  EosNsCommon-Static)
 
 target_link_libraries(eos-fsck-fs PRIVATE
   eosCommonServer
   EosFstIo
-  EosNsCommon-Static
-  ${GLIBC_RT_LIBRARY}
-  ${XROOTD_CL_LIBRARY}
-  ${DAVIX_LIBRARIES}
-  ${PROTOBUF_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT})
+  EosNsCommon-Static)
 
 install(PROGRAMS
   tools/eosfstregister
