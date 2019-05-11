@@ -21,23 +21,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/ScanDir.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
-
 #include "fst/FmdDbMap.hh"
-
 #include "fst/Config.hh"
 #include "common/LayoutId.hh"
+#include "common/AssistedThread.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 
-
 eos::fst::FmdDbMapHandler gFmdDbMapHandler; // needed for compilation
 eos::fst::Config eos::fst::Config::gConfig; // needed for compilation
-
-/*----------------------------------------------------------------------------*/
 
 int
 main(int argc, char* argv[])
@@ -68,11 +63,10 @@ main(int argc, char* argv[])
   fstLoad.Monitor();
   usleep(100000);
   XrdOucString dirName = argv[1];
-  eos::fst::ScanDir* sd = new eos::fst::ScanDir(dirName.c_str(), 0, &fstLoad,
-      false, 10, 100, setxs);
-
-  if (sd) {
-    eos::fst::ScanDir::StaticThreadProc((void*) sd);
-    delete sd;
-  }
+  eos::fst::ScanDir* sd =
+    new eos::fst::ScanDir(dirName.c_str(), 0, &fstLoad, false, 10, 100, setxs);
+  AssistedThread thread;
+  thread.reset(&eos::fst::ScanDir::Run, sd);
+  thread.blockUntilThreadJoins();
+  delete sd;
 }

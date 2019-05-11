@@ -351,7 +351,7 @@ public:
   XrdSysError* Eroute;
   eos::fst::Messaging* Messaging; ///< messaging interface class
   eos::fst::Storage* Storage; ///< Meta data & filesytem store object
-  XrdSysMutex OpenFidMutex;
+  mutable XrdSysMutex OpenFidMutex;
 
   eos::fst::OpenFileTracker openedForWriting;
   eos::fst::OpenFileTracker openedForReading;
