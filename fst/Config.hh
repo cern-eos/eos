@@ -58,7 +58,7 @@ public:
   int PublishInterval; // Interval after which filesystem information should be published
   XrdOucString StartDate; // Time when daemon was started
   XrdOucString KeyTabAdler; // adler string of the keytab file
-  XrdSysMutex Mutex; // lock for dynamic updates like 'Manager'
+  mutable XrdSysMutex Mutex; // lock for dynamic updates like 'Manager'
   static Config gConfig;
 
   Config() : generator((std::random_device())())
@@ -69,6 +69,15 @@ public:
   }
 
   ~Config() = default;
+
+  //----------------------------------------------------------------------------
+  //! Get the current manager hostname and port
+  //----------------------------------------------------------------------------
+  std::string GetManager() const
+  {
+    XrdSysMutexHelper scope_lock(Mutex);
+    return gConfig.Manager.c_str();
+  }
 
   XrdOucString getFstNodeConfigQueue(const std::string& location = "",
                                      bool blocking = true);

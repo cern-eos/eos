@@ -1139,7 +1139,6 @@ void
 XrdFstOfs::SendFsck(XrdMqMessage* message)
 {
   XrdOucString stdOut = "";
-
   // loop over filesystems
   eos::common::RWMutexReadLock fsLock(gOFS.Storage->mFsMutex);
 
@@ -1154,7 +1153,7 @@ XrdFstOfs::SendFsck(XrdMqMessage* message)
       eos::common::FileSystem::fsid_t fsid =
         gOFS.Storage->mFsVect[i]->GetId();
       snprintf(stag, sizeof(stag) - 1, "%s@%lu", icit->first.c_str(),
-              (unsigned long) fsid);
+               (unsigned long) fsid);
       stdOut += stag;
 
       if (gOFS.Storage->mFsVect[i]->GetStatus() != eos::common::BootStatus::kBooted) {
@@ -1741,6 +1740,5 @@ XrdFstOfs::RequestBroadcasts()
     hash->BroadcastRequest(Config::gConfig.FstDefaultReceiverQueue.c_str());
   }
 }
-
 
 EOSFSTNAMESPACE_END
