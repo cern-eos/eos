@@ -45,13 +45,11 @@ public:
   typedef unsigned long layoutid_t;
 
   // A layout id is constructed as an xor as defined in GetId()
-
   static const uint64_t OssXsBlockSize = 4 * 1024; ///< block xs size 4KB
 
   //--------------------------------------------------------------------------
   //! Definition of layout errors
   //--------------------------------------------------------------------------
-
   enum eLayoutError {
     // this is used on FSTs in the Fmd Synchronization
     kOrphan = 0x1, ///< layout produces an orphan
@@ -64,7 +62,6 @@ public:
   //--------------------------------------------------------------------------
   //! Definition of checksum types
   //--------------------------------------------------------------------------
-
   enum eChecksum {
     kNone = 0x1,
     kAdler = 0x2,
@@ -79,7 +76,6 @@ public:
   //--------------------------------------------------------------------------
   //! Definition of file layout types
   //--------------------------------------------------------------------------
-
   enum eLayoutType {
     kPlain = 0x0,
     kReplica = 0x1,
@@ -92,7 +88,6 @@ public:
   //--------------------------------------------------------------------------
   //! Definition of IO types
   //--------------------------------------------------------------------------
-
   enum eIoType {
     kLocal = 0x0,
     kXrdCl = 0x1,
@@ -100,6 +95,10 @@ public:
     kDavix = 0x4
   };
 
+
+  //--------------------------------------------------------------------------
+  //! Get type of io access based on the given URL (path)
+  //--------------------------------------------------------------------------
   static eIoType
   GetIoType(const char* path)
   {
@@ -136,7 +135,6 @@ public:
   //--------------------------------------------------------------------------
   //! Definition of predefined block sizes
   //--------------------------------------------------------------------------
-
   enum eBlockSize {
     k4k = 0x0,
     k64k = 0x1,
@@ -151,7 +149,6 @@ public:
   //--------------------------------------------------------------------------
   //! Definition of stripe number
   //--------------------------------------------------------------------------
-
   enum eStripeNumber {
     kOneStripe = 0x0,
     kTwoStripe = 0x1,
@@ -171,11 +168,9 @@ public:
     kSixteenStripe = 0xf
   };
 
-
   //--------------------------------------------------------------------------
   //! Build a layout id from given parameters
   //--------------------------------------------------------------------------
-
   static unsigned long
   GetId(int layout,
         int checksum = 1,
@@ -208,11 +203,9 @@ public:
     return id;
   }
 
-
   //--------------------------------------------------------------------------
   //! Convert the blocksize enum to bytes
   //--------------------------------------------------------------------------
-
   static unsigned long
   BlockSize(int blocksize)
   {
@@ -251,11 +244,9 @@ public:
     return 0;
   }
 
-
   //--------------------------------------------------------------------------
   //! Convert bytes to blocksize enum
   //--------------------------------------------------------------------------
-
   static int
   BlockSizeEnum(unsigned long blocksize)
   {
@@ -298,18 +289,15 @@ public:
   //--------------------------------------------------------------------------
   //! Get Checksum enum from given layout
   //--------------------------------------------------------------------------
-
   static unsigned long
   GetChecksum(unsigned long layout)
   {
     return (layout & 0xf);
   }
 
-
   //--------------------------------------------------------------------------
   //! Get Length of Layout checksum in bytes
   //--------------------------------------------------------------------------
-
   static unsigned long
   GetChecksumLen(unsigned long layout)
   {
@@ -638,6 +626,27 @@ public:
     }
 
     return "none";
+  }
+
+  //--------------------------------------------------------------------------
+  //! Get checksum type from string representation
+  //--------------------------------------------------------------------------
+  static eChecksum
+  GetChecksumFromString(const std::string& checksum)
+  {
+    if (checksum == "adler") {
+      return kAdler;
+    } else if (checksum == "crc32") {
+      return kCRC32;
+    } else if (checksum == "crc32c") {
+      return kCRC32C;
+    } else if (checksum == "md5") {
+      return kMD5;
+    } else if (checksum == "sha") {
+      return kSHA1;
+    } else {
+      return kNone;
+    }
   }
 
   //--------------------------------------------------------------------------
