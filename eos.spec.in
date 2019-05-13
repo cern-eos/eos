@@ -192,10 +192,10 @@ BuildRequires: systemd
 %endif
 
 %if ! %{without stage_protobuf3_rh}
-# Install eos-protobuf3 
+# Install eos-protobuf3
 %if 0%{distribution} == 6 || 0%{distribution} == 7
 BuildRequires: eos-protobuf3, eos-protobuf3-compiler, eos-protobuf3-devel
-%endif   
+%endif
 %endif
 
 %if %{?_with_stage_xrootd_rh:1}%{!?_with_stage_xrootd_rh:0}
@@ -313,7 +313,6 @@ The EOS server installation containing MGM, FST & MQ service.
 %defattr(-, root, root, -)
 %{_bindir}/eos-ns-convert
 %{_bindir}/eos-ns-convert-to-locality-hashes
-%{_bindir}/eos-ns-inspect
 %{_bindir}/eos-dump-proto-md
 %{_sbindir}/eosfilesync
 %{_sbindir}/eosdirsync
@@ -431,6 +430,24 @@ fi
 %endif
 
 #-------------------------------------------------------------------------------
+# Package eos-ns-inspect
+#-------------------------------------------------------------------------------
+%package -n eos-ns-inspect
+Summary: EOS namespace inspection tool for instance administrators
+Group: Applications/File
+
+Requires: xrootd-client >= %{xrootd_version_min}
+BuildRequires: eos-folly = 2017.09.18.00-4%{dist}
+Requires: eos-folly = 2017.09.18.00-4%{dist}
+
+%description -n eos-ns-inspect
+EOS namespace inspection tool for instance administrators
+
+%files -n eos-ns-inspect
+%defattr(-, root, root, -)
+%{_bindir}/eos-ns-inspect
+
+#-------------------------------------------------------------------------------
 # Package eos-client
 #-------------------------------------------------------------------------------
 %package -n eos-client
@@ -469,7 +486,7 @@ The EOS shell client.
 %if 0%{distribution} == 6 || 0%{distribution} == 7
 
 %if ! %{without stage_protobuf3_rh}
-# Install eos-protobuf3 
+# Install eos-protobuf3
 /opt/eos/lib64/protobuf3/libprotobuf.so.15
 %endif
 
