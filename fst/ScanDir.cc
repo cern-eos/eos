@@ -776,8 +776,10 @@ ScanDir::UpdateForcedScan()
   forcedrun += "/.eosscan";
 
   if (!stat(forcedrun.c_str(), &buf)) {
-    mForcedScan = true;
-    LogMsg(LOG_NOTICE, "%s", "msg=\"scanner is in forced mode\"");
+    if (!mForcedScan) {
+      mForcedScan = true;
+      LogMsg(LOG_NOTICE, "%s", "msg=\"scanner is in forced mode\"");
+    }
   } else {
     if (mForcedScan) {
       mForcedScan = false;
