@@ -471,13 +471,15 @@ Requires: sysvinit-tools
 %if 0%{distribution} == 6 || 0%{distribution} == 7
 %if ! %{without stage_protobuf3_rh}
 # we will clash with eos-protobuf3
-Conflicts: eos-protobuf3
+Obsoletes: eos-protobuf3
 %endif
+
 %if ! %{without stage_xrootd_rh}
 # we will clash with eos-xrootd
-Conflicts: eos-xrootd
+Obsoletes: eos-xrootd
 %endif
 %endif
+
 
 %description -n eos-client
 The EOS shell client.
