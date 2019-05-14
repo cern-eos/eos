@@ -15,6 +15,25 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.4.45 Citrine``
+===================
+
+2019-05-14
+
+
+Bug
+---
+
+* Introduce obsoletes statement in spec file for eos-protobuf3/eos-xrootd
+
+Improvement
+-----------
+
+FST: Refactor the ScanDir code and add simple unit tests
+FST: Encapsulate the rate limiting code into its own method
+FST: Start publishing individual fs stats
+NS: Add etag, flags to eos-ns-inspect output
+
 ``v4.4.44 Citrine``
 ===================
 
