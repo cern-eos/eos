@@ -427,7 +427,6 @@ if [ $1 = 0 ]; then
     /sbin/chkconfig --del eosslave
   %endif
 fi
-%endif
 
 #-------------------------------------------------------------------------------
 # Package eos-ns-inspect
@@ -446,6 +445,7 @@ EOS namespace inspection tool for instance administrators
 %files -n eos-ns-inspect
 %defattr(-, root, root, -)
 %{_bindir}/eos-ns-inspect
+%endif
 
 #-------------------------------------------------------------------------------
 # Package eos-client
