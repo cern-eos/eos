@@ -230,6 +230,8 @@ ProcCommand::File()
       XrdOucString commitsize = pOpaque->Get("mgm.file.commit.size");
       XrdOucString commitfmd = pOpaque->Get("mgm.file.commit.fmd");
       XrdOucString verifyrate = pOpaque->Get("mgm.file.verify.rate");
+      XrdOucString sendresync = pOpaque->Get("mgm.file.resync");
+      bool doresync = false;
 
       if (computechecksum == "1") {
         option += "&mgm.verify.compute.checksum=1";
@@ -250,6 +252,10 @@ ProcCommand::File()
       if (verifyrate.length()) {
         option += "&mgm.verify.rate=";
         option += verifyrate;
+      }
+
+      if (sendresync == "1") {
+	doresync = true;
       }
 
       XrdOucString fsidfilter = pOpaque->Get("mgm.file.verify.filterid");
@@ -334,52 +340,67 @@ ProcCommand::File()
               acceptfound = true;
             }
 
-            if (isRAIN) {
-              int lretc = gOFS->SendResync(fileid, (int) * it);
-
-              if (!lretc) {
-                stdOut += "success: sending resync for RAIN layout to fsid= ";
-                stdOut += (int) * it;
+	    if (doresync) {
+	      int lretc = gOFS->SendResync(fileid, (int) * it);
+	      if (!lretc) {
+		stdOut += "success: sending FMD resync to fsid=";
+		stdOut += (int) * it;
                 stdOut += " for path=";
                 stdOut += spath;
                 stdOut += "\n";
               } else {
+		stdErr = "error: failed to send FMD resync to fsid=";
+		stdErr += (int) * it;
+		stdErr += "\n";
                 retc = errno;
               }
-            } else {
-              // rain layouts only resync meta data records
-              int lretc = gOFS->_verifystripe(spath.c_str(), *mError, vid,
-                                              (unsigned long) * it, option);
-
-              if (!lretc) {
-                stdOut += "success: sending verify to fsid= ";
-                stdOut += (int) * it;
-                stdOut += " for path=";
-                stdOut += spath;
-                stdOut += "\n";
-              } else {
-                retc = errno;
-              }
-            }
-          }
-
-          // -------------------------------------------------------------------
-          // we want to be able to force the registration and verification of a
-          // not registered replica
-          // -------------------------------------------------------------------
-          if (acceptfsid && (!acceptfound)) {
-            int lretc = gOFS->_verifystripe(spath.c_str(), *mError, vid,
-                                            (unsigned long) acceptfsid, option);
-
-            if (!lretc) {
-              stdOut += "success: sending forced verify to fsid= ";
-              stdOut += acceptfsid;
-              stdOut += " for path=";
-              stdOut += spath;
-              stdOut += "\n";
-            } else {
-              retc = errno;
-            }
+	    } else {
+	      if (isRAIN) {
+		int lretc = gOFS->SendResync(fileid, (int) * it);
+		if (!lretc) {
+		  stdOut += "success: sending resync for RAIN layout to fsid=";
+		  stdOut += (int) * it;
+		  stdOut += " for path=";
+		  stdOut += spath;
+		  stdOut += "\n";
+		} else {
+		  retc = errno;
+		}
+	      } else {
+		// rain layouts only resync meta data records
+		int lretc = gOFS->_verifystripe(spath.c_str(), *mError, vid,
+						(unsigned long) * it, option);
+		
+		if (!lretc) {
+		  stdOut += "success: sending verify to fsid= ";
+		  stdOut += (int) * it;
+		  stdOut += " for path=";
+		  stdOut += spath;
+		  stdOut += "\n";
+		} else {
+		  retc = errno;
+		}
+	      }
+	    }
+	    
+	    // -------------------------------------------------------------------
+	    // we want to be able to force the registration and verification of a
+	    // not registered replica
+	    // -------------------------------------------------------------------
+	    if (acceptfsid && (!acceptfound)) {
+	      int lretc = gOFS->_verifystripe(spath.c_str(), *mError, vid,
+					      (unsigned long) acceptfsid, option);
+	      
+	      if (!lretc) {
+		stdOut += "success: sending forced verify to fsid= ";
+		stdOut += acceptfsid;
+		stdOut += " for path=";
+		stdOut += spath;
+		stdOut += "\n";
+	      } else {
+		retc = errno;
+	      }
+	    }
           }
         }
 
