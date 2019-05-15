@@ -134,8 +134,8 @@ FmdDbMapHandler::NsFileProtoToFmd(eos::ns::FileMdProto&& filemd,
   std::string slocations;
 
   for (const auto& loc : filemd.locations()) {
-    slocations += loc;
-    slocations += " ";
+    slocations += std::to_string(loc);
+    slocations += ",";
   }
 
   if (!slocations.empty()) {
