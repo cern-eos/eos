@@ -38,12 +38,12 @@ public:
   static void SetChecksum(cta::common::ChecksumBlob::Checksum *cs, int type, const std::string &value) {
     // Convert LayoutId enum to CTA+EOS enum
     switch(LayoutId::GetChecksum(type)) {
-      case LayoutId::kNone:   cs->set_type(cta::common::ChecksumBlob::Checksum::NONE);
-      case LayoutId::kAdler:  cs->set_type(cta::common::ChecksumBlob::Checksum::ADLER32);
-      case LayoutId::kCRC32:  cs->set_type(cta::common::ChecksumBlob::Checksum::CRC32);
-      case LayoutId::kMD5:    cs->set_type(cta::common::ChecksumBlob::Checksum::CRC32C);
-      case LayoutId::kSHA1:   cs->set_type(cta::common::ChecksumBlob::Checksum::MD5);
-      case LayoutId::kCRC32C: cs->set_type(cta::common::ChecksumBlob::Checksum::SHA1);
+      case LayoutId::kNone:   cs->set_type(cta::common::ChecksumBlob::Checksum::NONE);    break;
+      case LayoutId::kAdler:  cs->set_type(cta::common::ChecksumBlob::Checksum::ADLER32); break;
+      case LayoutId::kCRC32:  cs->set_type(cta::common::ChecksumBlob::Checksum::CRC32);   break;
+      case LayoutId::kMD5:    cs->set_type(cta::common::ChecksumBlob::Checksum::CRC32C);  break;
+      case LayoutId::kSHA1:   cs->set_type(cta::common::ChecksumBlob::Checksum::MD5);     break;
+      case LayoutId::kCRC32C: cs->set_type(cta::common::ChecksumBlob::Checksum::SHA1);    break;
       // Follows the behaviour of LayoutId::GetChecksumString():
       // unknown enum values set checksum type to None rather than throwing an exception
       default:                cs->set_type(cta::common::ChecksumBlob::Checksum::NONE);
@@ -78,7 +78,6 @@ public:
       default:                                   return "RSP_INVALID";
     }
   }
-
 };
 
 EOSCOMMONNAMESPACE_END
