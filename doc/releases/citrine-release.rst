@@ -15,6 +15,23 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.4.46 Citrine``
+===================
+
+2019-05-15
+
+Bug 
+---
+
+* Fix FST conversion from NS proto to Fmd
+* Fix RPATH configuration to force linker locations
+
+Improvement
+-----------
+* Implement 'eos fsck search' to forward FSCK from NS to FSTs
+* Expose 'eos resync' and 'eos verify -resync' to force FMD resynchronization on FSTs
+* Refactor ScanDir code
+
 ``v4.4.45 Citrine``
 ===================
 
