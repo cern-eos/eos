@@ -219,15 +219,14 @@ com_fs(char* arg1)
 
     XrdOucEnv* result = client_command(in, true);
 
-    if (!silent && (!temp_silent)) {
-      global_retc = output_result(result, highlighting);
-    } else {
-      if (result) {
-        global_retc = 0;
-      } else {
-        global_retc = EINVAL;
-      }
+    bool is_silent = silent;
+    if (temp_silent) {
+      silent = true;
     }
+
+    global_retc = output_result(result, highlighting);
+
+    silent = is_silent;
 
     return (0);
   }
