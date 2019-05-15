@@ -402,7 +402,7 @@ com_file(char* arg1)
   if ((cmd != "drop") && (cmd != "move") && (cmd != "touch") &&
       (cmd != "replicate") && (cmd != "check") && (cmd != "adjustreplica") &&
       (cmd != "info") && (cmd != "layout") && (cmd != "verify") &&
-      (cmd != "rename") && (cmd != "copy") && (cmd != "convert") &&
+      (cmd != "rename") && (cmd != "resync") && (cmd != "copy") && (cmd != "convert") &&
       (cmd != "share") && (cmd != "purge") && (cmd != "version") &&
       (cmd != "versions") && (cmd != "symlink") && (cmd != "tag") &&
       (cmd != "workflow")) {
@@ -497,6 +497,82 @@ com_file(char* arg1)
         goto com_file_usage;
       }
     }
+  }
+
+  if (cmd == "resync") {
+    XrdMqMessage message("resync");
+    XrdOucString msgbody = "mgm.cmd=resync";
+    char payload[4096];
+
+    unsigned long long fid;
+
+    if (path.beginswith("fxid:")) {
+      path.erase(0,5);
+      fid = strtoull(path.c_str(),0,16);
+    } else {
+      if (path.beginswith("fid:")) {
+	path.erase(0,4);
+	fid = strtoull(path.c_str(),0,10);
+      } else {
+	fprintf(stderr,"usage: file resync fxid:<n>|fid:<n> <fsid>\n");
+	global_retc=EINVAL;
+	return 0;
+      }
+    }
+
+    unsigned long fsid = strtoul(fsid1.c_str(),0,10);
+
+    // @todo(esindril) Transition, eventually send mgm.fid=HEX
+    snprintf(payload, sizeof(payload) - 1,
+	     "&mgm.fsid=%lu&mgm.fid=%llu&mgm.fxid=%08llx",
+	     (unsigned long) fsid, (unsigned long long) fid, (unsigned long long) fid);
+    msgbody += payload;
+    message.SetBody(msgbody.c_str());
+
+    // figure out the receiver
+    XrdOucString receiver = "/eos/*/fst";
+    XrdMqClient mqc;
+
+    if (!mqc.IsInitOK()) {
+      fprintf(stderr, "error: failed to initialize MQ Client\n");
+      exit(-1);
+    }
+
+    XrdOucString broker = serveruri;
+
+    if (!broker.endswith("//")) {
+      if (!broker.endswith("/")) {
+	broker += ":1097//";
+      } else {
+	broker.erase(broker.length() - 2);
+	broker += ":1097//";
+      }
+    } else {
+      broker.erase(broker.length() - 3);
+      broker += ":1097//";
+    }
+
+    broker += "eos/";
+    broker += getenv("HOSTNAME");
+    broker += ":";
+    broker += (int) getpid();
+    broker += ":";
+    broker += (int) getppid();
+    broker += "/cli";
+
+    if (!mqc.AddBroker(broker.c_str())) {
+      fprintf(stderr, "error: failed to add broker %s\n", broker.c_str());
+      global_retc = -1;
+    } else { 
+      if (!mqc.SendMessage(message, receiver.c_str())) {
+	fprintf(stderr,"unable to send resync message to %s", receiver.c_str());
+	global_retc = -1;
+      } else {
+	fprintf(stdout, "info: resynced fxid=%08llx on fs=%lu\n", fid, fsid);
+	global_retc = 0;
+      }
+    }
+    return 0;
   }
 
   if (cmd == "move") {
@@ -738,7 +814,7 @@ com_file(char* arg1)
     // TODO: all this is silly and should be properly re-written
     if (fsid1.length()) {
       if ((fsid1 != "-checksum") && (fsid1 != "-commitchecksum") &&
-          (fsid1 != "-commitsize") && (fsid1 != "-commitfmd") && (fsid1 != "-rate")) {
+          (fsid1 != "-commitsize") && (fsid1 != "-commitfmd") && (fsid1 != "-rate") && (fsid1 != "-resync")) {
         if (fsid1.beginswith("-")) {
           goto com_file_usage;
         }
@@ -788,7 +864,9 @@ com_file(char* arg1)
           in += "&mgm.file.commit.fmd=1";
         } else if (elem == "-rate") {
           in += "&mgm.file.verify.rate=";
-        } else {
+        } else if (elem == "-resync") {
+	  in += "&mgm.file.resync=1";
+	} else {
           goto com_file_usage;
         }
       }
@@ -1158,6 +1236,10 @@ com_file_usage:
           "file replicate [<path>|fid:<fid-dec>|fxid:<fid-hex>] <fsid1> <fsid2> :\n");
   fprintf(stdout,
           "                                                  replicate file <path> part on <fsid1> to <fsid2>\n");
+
+  fprintf(stdout, "file resync fxid:<n>|fid:<n> <fsid> :\n");
+  fprintf(stdout,      
+	  "                                                  resync the FMD record for the specified file on the given filesystem\n");
   fprintf(stdout, "file symlink <name> <link-name> :\n");
   fprintf(stdout,
           "                                                  create a symlink with <name> pointing to <link-name>\n");
@@ -1173,6 +1255,10 @@ com_file_usage:
           "file verify <path>|fid:<fid-dec>|fxid:<fid-hex> [<fsid>] [-checksum] [-commitchecksum] [-commitsize] [-rate <rate>] : \n");
   fprintf(stdout,
           "                                                  verify a file against the disk images\n");
+  fprintf(stdout, 
+	  "file verify <path|fid:<fid-dec>|fxid:<fid-hex> -resync : \n");
+  fprintf(stdout,
+	  "                                                  ask all locations to resync their file md records\n");
   fprintf(stdout,
           "       <fsid>          : verifies only the replica on <fsid>\n");
   fprintf(stdout,

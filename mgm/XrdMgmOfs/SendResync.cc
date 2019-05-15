@@ -69,7 +69,7 @@ XrdMgmOfs::SendResync(eos::common::FileId::fileid_t fid,
     if (!verifyfilesystem) {
       eos_err("fsid=%lu is not in the configuration - cannot send resync message",
               fsid);
-      return false;
+      return -1;
     }
 
     receiver = verifyfilesystem->GetQueue().c_str();
@@ -77,10 +77,10 @@ XrdMgmOfs::SendResync(eos::common::FileId::fileid_t fid,
 
   if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
     eos_err("unable to send resync message to %s", receiver.c_str());
-    return false;
+    return -1;
   }
 
   EXEC_TIMING_END("SendResync");
-  return true;
+  return 0;
 }
 

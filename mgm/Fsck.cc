@@ -809,7 +809,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
           // Issue a resync command for a filesystem/fid pair
           lretc = gOFS->SendResync(*it, efsmapit->first);
 
-          if (lretc) {
+          if (!lretc) {
             char outline[1024];
             snprintf(outline, sizeof(outline) - 1,
                      "success: sending resync to fsid=%u fid=%08llx\n",
