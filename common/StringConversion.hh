@@ -409,6 +409,18 @@ public:
 
   // ---------------------------------------------------------------------------
   /**
+   * Save a string into  a text file <name> 
+   *
+   * @param filename where to save the contents
+   * @param in string with the contents
+   * @return (const char*) pointer to loaded string
+   */
+  // ---------------------------------------------------------------------------
+  static bool
+  SaveStringIntoFile(const char* filename, const std::string& in);
+
+  // ---------------------------------------------------------------------------
+  /**
    * Read a long long number as output of a shell command - this is not useful
    * in multi-threaded environments.
    *

@@ -23,10 +23,15 @@
 
 #pragma once
 #include "XrdOuc/XrdOucString.hh"
-
+#include "XrdCl/XrdClFileSystem.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
 #include <string>
 #include <vector>
 #include <math.h>
+#include "common/StringConversion.hh"
+#include <map>
+#include <iostream>
+#include <memory>
 
 class XrdOucEnv;
 
@@ -55,6 +60,8 @@ extern int output_result(XrdOucEnv* result, bool highlighting = true);
 extern void command_result_stdout_to_vector(std::vector<std::string>&
     string_vector);
 extern XrdOucEnv* CommandEnv;
+
+using namespace XrdCl; 
 
 //------------------------------------------------------------------------------
 //! Send client command to the MGM
@@ -179,3 +186,112 @@ bool CheckMgmOnline(const std::string& uri);
 //! @return guessed home path
 //------------------------------------------------------------------------------
 std::string DefaultRoute();
+
+
+
+
+//------------------------------------------------------------------------------
+//! API to load the filesystem configuration of an instance
+//------------------------------------------------------------------------------
+
+class filesystems {
+public:
+  filesystems() {}
+  ~filesystems() {}
+
+  typedef std::map<int, std::map<std::string,std::string>> filesystemmap_t;
+  typedef std::map<int, std::shared_ptr<XrdCl::FileSystem>> clientmap_t;
+  int Connect();
+  int Load(bool verbose=false);
+
+  filesystemmap_t& fs() { return fsmap;    }
+  clientmap_t& clients() {return clientmap; }
+private:
+  filesystemmap_t fsmap;
+  clientmap_t clientmap;
+};
+
+class files {
+public: 
+  files() {}
+  ~files() {}
+  
+  struct fileentry {
+    int expired;
+    int nrep;
+    size_t size;
+    std::string hexid;
+    std::set<int> locations;
+    std::string checksum;
+    std::set<int> missing_locations;
+    std::set<int> wrongsize_locations;
+  };
+
+  int Find(const char* path, bool verbose=false);
+  int Lookup(filesystems& fsmap, bool verbose=false);
+  size_t Size() { return filemap.size(); }
+  int Report(size_t expect_replica);
+
+  class SyncResponseHandler: public ResponseHandler
+  {
+  public:
+    SyncResponseHandler(const char* path, int fsid):
+      pStatus(0),
+      pResponse(0),
+      pCondVar(0),
+      pPath(path), 
+      pFsid(fsid){ pStartTime = time(NULL);}
+
+    virtual ~SyncResponseHandler() {}
+
+    virtual void HandleResponse( XRootDStatus *status,
+				 AnyObject    *response )
+    {
+      XrdSysCondVarHelper scopedLock(pCondVar);
+      pStatus = status;
+      pResponse = response;
+      pCondVar.Broadcast();
+    }
+
+    XRootDStatus *GetStatus() { return pStatus; }
+
+    bool HasStatus() {
+      XrdSysCondVarHelper scopedLock(pCondVar);
+      if (pStatus) 
+	return true;
+      else 
+	return false;
+    }
+
+    AnyObject *GetResponse() { return pResponse; } 
+
+    void WaitForResponse()
+    {
+      XrdSysCondVarHelper scopedLock(pCondVar);
+      while (pStatus == 0) {
+	pCondVar.Wait();
+      }
+    }
+
+    const char* GetPath() { return pPath.c_str(); }
+
+    int         GetFsid() { return pFsid; }
+
+    size_t      GetAge()  { return time(NULL) - pStartTime; }
+
+  private:
+    SyncResponseHandler(const SyncResponseHandler &other);
+    SyncResponseHandler &operator = (const SyncResponseHandler &other);
+
+    XRootDStatus    *pStatus;
+    AnyObject       *pResponse;
+    XrdSysCondVar    pCondVar;
+    std::string      pPath;
+    int              pFsid;
+    time_t           pStartTime;
+  };
+
+private:
+  std::map<std::string, struct fileentry> filemap;
+};
+

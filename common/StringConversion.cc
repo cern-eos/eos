@@ -638,6 +638,18 @@ StringConversion::LoadFileIntoString(const char* filename, std::string& out)
   return out.c_str();
 }
 
+// ---------------------------------------------------------------------------                                                                   
+// Save a string into  a text file <name>                                                                                                        
+// ---------------------------------------------------------------------------                                                                   
+bool
+StringConversion::SaveStringIntoFile(const char* filename, const std::string& in)
+{
+  std::ofstream save(filename);
+  save.write(in.c_str(), in.size());
+  return true;
+}
+
+
 //------------------------------------------------------------------------------
 // Read a long long number as output of a shell command - this is not usefull
 // in multi-threaded environments.

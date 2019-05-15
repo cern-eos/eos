@@ -24,7 +24,12 @@
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 #include "common/StringTokenizer.hh"
+#include "common/StringConversion.hh"
+#include <map>
+#include <iostream>
 /*----------------------------------------------------------------------------*/
+
+extern int com_protofs(char* arg);
 
 /* Namespace Interface */
 int
@@ -44,7 +49,7 @@ com_fsck(char* arg1)
   }
 
   if ((cmd != "stat") && (cmd != "enable") && (cmd != "disable") &&
-      (cmd != "report") && (cmd != "repair")) {
+      (cmd != "report") && (cmd != "repair") && (cmd != "search")) {
     goto com_fsck_usage;
   }
 
@@ -96,6 +101,25 @@ com_fsck(char* arg1)
         options += option;
       }
     } while (option.length());
+  }
+
+
+  if (cmd == "search") {
+    size_t nrep=0;
+    path = subtokenizer.GetToken();
+    XrdOucString srep = subtokenizer.GetToken();
+    if (srep.length()) {
+      nrep = std::stoi(srep.c_str());
+    }
+    filesystems fs;
+    fs.Load();
+    fs.Connect();
+    files f;
+    f.Find(path.c_str());
+    fprintf(stdout, "# found %lu files\n", f.Size());
+    f.Lookup(fs);
+    f.Report(nrep);
+    return 0;
   }
 
   if (cmd == "repair") {
@@ -186,6 +210,8 @@ com_fsck_usage:
           "                                                                  :  drop the damaged replica of the file and recover with a healthy one if possible!\n");
   fprintf(stdout,
           "       fsck repair --all                                          :  do all the repair actions besides <checksum-commit>\n");
+
+  fprintf(stdout, "       fsck search <searchpath> [<nrep expected>]               :  do a forward FSCK scan from namespace to FSTs - will report missing files and show files, which are lost - be careful with the tree given to searchpath because everything has to stay in memory - don't use /eos/ !\n");
   global_retc = EINVAL;
   return (0);
 }
