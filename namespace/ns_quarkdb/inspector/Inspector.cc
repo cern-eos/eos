@@ -284,7 +284,7 @@ int Inspector::stripediff(std::ostream &out, std::ostream &err) {
     int64_t size = proto.size();
 
     if(actual != expected && size != 0) {
-      out << "id=" << proto.id() << " container=" << proto.cont_id() << " size=" << size << " actual-stripes=" << actual << " expected-stripes=" << expected << " unlinked-stripes=" << unlinked <<  " locations=" << serializeLocations(proto.locations()) << std::endl;
+      out << "id=" << proto.id() << " container=" << proto.cont_id() << " size=" << size << " actual-stripes=" << actual << " expected-stripes=" << expected << " unlinked-stripes=" << unlinked <<  " locations=" << serializeLocations(proto.locations()) << " unlinked-locations=" << serializeLocations(proto.unlink_locations()) << std::endl;
     }
 
     fileScanner.next();
