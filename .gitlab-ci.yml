@@ -312,7 +312,7 @@ build_cc7_xrd_cta:
   before_script:
     - source gitlab-ci/export_branch.sh
     - echo "Exporting BRANCH=${BRANCH}"
-    - echo -e '[xrootd-cta]\nname=XRootD CTA-CI repository\nbaseurl=https://cta-ci-repo.web.cern.ch/cta-ci-repo/xroot/\ngpgcheck=0\nenabled=1\npriority=1\nprotect=0\n' >> /etc/yum.repos.d/xrootd-cta.repo
+    - echo -e '[xrootd-cta]\nname=XRootD CTA-CI repository\nbaseurl=https://cta-ci-repo.web.cern.ch/cta-ci-repo/xrootd_tag/\ngpgcheck=0\nenabled=1\npriority=1\nprotect=0\n' >> /etc/yum.repos.d/xrootd-cta.repo
   <<: *cc7_template_definition
   variables:
     BUILD_NAME: cc7_xrd_cta
