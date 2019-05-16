@@ -249,6 +249,23 @@ void Inspector::checkDifferentMaps(const std::map<std::string, uint64_t>&
   }
 }
 
+//------------------------------------------------------------------------------
+// Serialize locations vector
+//------------------------------------------------------------------------------
+template<typename T>
+static std::string serializeLocations(const T& vec) {
+  std::ostringstream stream;
+
+  for(int i = 0; i < vec.size(); i++) {
+    stream << vec[i];
+    if(i != vec.size() - 1) {
+      stream << ",";
+    }
+  }
+
+  return stream.str();
+}
+
 //----------------------------------------------------------------------------
 // Find files with non-nominal number of stripes (replicas)
 //----------------------------------------------------------------------------
@@ -263,10 +280,11 @@ int Inspector::stripediff(std::ostream &out, std::ostream &err) {
 
     int64_t actual = proto.locations().size();
     int64_t expected = eos::common::LayoutId::GetStripeNumber(proto.layout_id()) + 1;
+    int64_t unlinked = proto.unlink_locations().size();
     int64_t size = proto.size();
 
     if(actual != expected && size != 0) {
-      out << "id=" << proto.id() << " container=" << proto.cont_id() << " size=" << size << " nstripes=" << actual << " expected-stripes=" << expected << std::endl;
+      out << "id=" << proto.id() << " container=" << proto.cont_id() << " size=" << size << " actual-stripes=" << actual << " expected-stripes=" << expected << " unlinked-stripes=" << unlinked <<  " locations=" << serializeLocations(proto.locations()) << std::endl;
     }
 
     fileScanner.next();
