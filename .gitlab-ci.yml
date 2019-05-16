@@ -345,6 +345,7 @@ build_cc7_eos_xrd:
     - docker_node
     - cc7
   when: manual
+  allow_failure: true
 
 
 build_cc7_clang:
