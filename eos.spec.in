@@ -109,7 +109,7 @@ BuildRequires: xrootd >= %{xrootd_version_min}
 # ----------------------
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{distribution} == 6 || 0%{distribution} == 7
+%if 0%{?distribution} == 7
 BuildRequires: eos-xrootd
 # dont' put an explicit dependency on xrootd because eos-xrootd hides the shared libraries from provide
 %global __requires_exclude ^libXrd*$
@@ -131,7 +131,7 @@ BuildRequires: xrootd-private-devel >= %{xrootd_version_min}
 # -----------------------
 %if ! %{without eos_protobuf3_rh}
 # Install eos-protobuf3
-%if 0%{distribution} == 6 || 0%{distribution} == 7
+%if 0%{?distribution} == 7
 BuildRequires: eos-protobuf3, eos-protobuf3-compiler, eos-protobuf3-devel
 # don't put an explicit dependency on protobuf because eos-protobuf3 hides shared libraries from provide
 %global __requires_exclude ^libprotobuf.so.*$
@@ -291,7 +291,7 @@ Group: Applications/File
 # ----------------------
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{distribution} == 6 || 0%{distribution} == 7
+%if 0%{?distribution} == 7
 Requires: eos-xrootd
 %else
 Requires: xrootd >= %{xrootd_version_min}
@@ -320,7 +320,7 @@ Requires: logrotate
 # -----------------------
 %if ! %{without eos_protobuf3_rh}
 # Install eos-protobuf3
-%if 0%{distribution} == 6 || 0%{distribution} == 7
+%if 0%{?distribution} == 7
 Requires: eos-protobuf3
 %else
 %if %{?fedora}%{!?fedora:0} >= 27
@@ -489,7 +489,7 @@ Group: Applications/File
 # ----------------------
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{distribution} == 6 || 0%{distribution} == 7
+%if 0%{?distribution} == 7
 Requires: eos-xrootd
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
@@ -521,7 +521,7 @@ Group: Applications/File
 # ----------------------
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{distribution} == 6 || 0%{distribution} == 7
+%if 0%{?distribution} == 7
 Requires: eos-xrootd
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
@@ -535,7 +535,7 @@ Requires: xrootd-client >= %{xrootd_version_min}
 # -----------------------
 %if ! %{without eos_protobuf3_rh}
 # Install eos-protobuf3
-%if 0%{distribution} == 6 || 0%{distribution} == 7
+%if 0%{?distribution} == 7
 Requires: eos-protobuf3
 %else
 %if %{?fedora}%{!?fedora:0} >= 27
@@ -622,7 +622,7 @@ Group: Applications/File
 # ----------------------
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{distribution} == 6 || 0%{distribution} == 7
+%if 0%{?distribution} == 7
 Requires: eos-xrootd
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
@@ -781,7 +781,7 @@ Group: Applications/File
 # ----------------------
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{distribution} == 6 || 0%{distribution} == 7
+%if 0%{?distribution} == 7
 Requires: eos-xrootd
 %else
 Requires: xrootd-client >= %{xrootd_version_min}
@@ -901,7 +901,7 @@ Requires: python-daemon python-zmq
 # ----------------------
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{distribution} == 6 || 0%{distribution} == 7
+%if 0%{?distribution} == 7
 Requires: eos-xrootd
 %else
 Requires: xrootd-python >= %{xrootd_version_min}
