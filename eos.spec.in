@@ -16,12 +16,12 @@
 # pass the "--with asan" flag to the rpmbuild command
 %bcond_without asan
 
-# By default we stage eosprotobuf3 for RH6 and EL7
-%bcond_without stage_protobuf3_rh
+# By default we use eosprotobuf3 for RH6 and EL7
+%bcond_without eos_protobuf3_rh
 
 
-# By default we don't stage xrootd for RH6 and EL7
-%bcond_without stage_xrootd_rh
+# By default we don't use eosxrootd for RH6 and EL7
+%bcond_without eos_xrootd_rh
 
 # Define required dependency for XRootD
 %define xrootd_version_min 1:4.8.2
@@ -102,9 +102,51 @@ Requires: epel-release
 
 BuildRequires: %{cmake} >= 3.3
 BuildRequires: xrootd >= %{xrootd_version_min}
+
+
+# ----------------------
+# select xrootd package
+# ----------------------
+%if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
+# Install eos-xrootd
+%if 0%{distribution} == 6 || 0%{distribution} == 7
+BuildRequires: eos-xrootd
+%else
+# Install default xrootd
 BuildRequires: xrootd-client-devel >= %{xrootd_version_min}
 BuildRequires: xrootd-server-devel >= %{xrootd_version_min}
 BuildRequires: xrootd-private-devel >= %{xrootd_version_min}
+%endif
+%else
+# Install default xrootd
+BuildRequires: xrootd-client-devel >= %{xrootd_version_min}
+BuildRequires: xrootd-server-devel >= %{xrootd_version_min}
+BuildRequires: xrootd-private-devel >= %{xrootd_version_min}
+%endif
+
+# -----------------------
+# select protobuf package
+# -----------------------
+%if ! %{without eos_protobuf3_rh}
+# Install eos-protobuf3
+%if 0%{distribution} == 6 || 0%{distribution} == 7
+BuildRequires: eos-protobuf3, eos-protobuf3-compiler, eos-protobuf3-devel
+%else
+%if %{?fedora}%{!?fedora:0} >= 27
+BuildRequires: protobuf >= 3.3
+%else
+BuildRequires: protobuf3 >= 3.3
+%endif
+%endif
+%else
+%if %{?fedora}%{!?fedora:0} >= 27
+BuildRequires: protobuf >= 3.3
+%else
+BuildRequires: protobuf3 >= 3.3
+%endif
+%endif
+
+
 BuildRequires: git, readline-devel
 BuildRequires: openssl, openssl-devel
 BuildRequires: ncurses, ncurses-devel
@@ -115,11 +157,6 @@ BuildRequires: krb5-devel
 BuildRequires: librichacl-devel, richacl >= 1.12
 %endif
 BuildRequires: redhat-rpm-config
-%if %{?fedora}%{!?fedora:0} >= 27
-BuildRequires: protobuf >= 3.3, protobuf-devel >= 3.3, protobuf-compiler >= 3.3
-%else
-BuildRequires: protobuf3 >= 3.3, protobuf3-devel >= 3.3, protobuf3-compiler >= 3.3
-%endif
 BuildRequires: leveldb-devel
 BuildRequires: libattr-devel, xfsprogs-devel
 BuildRequires: gcc gcc-c++
@@ -191,20 +228,6 @@ BuildRequires: libasan
 BuildRequires: systemd
 %endif
 
-%if ! %{without stage_protobuf3_rh}
-# Install eos-protobuf3
-%if 0%{distribution} == 6 || 0%{distribution} == 7
-BuildRequires: eos-protobuf3, eos-protobuf3-compiler, eos-protobuf3-devel
-%endif
-%endif
-
-%if %{?_with_stage_xrootd_rh:1}%{!?_with_stage_xrootd_rh:0}
-# Install eos-xrootd
-%if 0%{distribution} == 6 || 0%{distribution} == 7
-BuildRequires: eos-xrootd
-%endif
-%endif
-
 %description
 The EOS software package.
 %prep
@@ -224,7 +247,7 @@ mkdir -p build
 cd build
 %if "%{?compiler}" == "gcc"
   %if 0%{distribution} == 6 || 0%{distribution} == 7
-    %if %{?_with_stage_xrootd_rh:1}%{!?_with_stage_xrootd_rh:0}
+    %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
        scl enable %{devtoolset} "%{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_SKIP_BUILD_RPATH=false -DCMAKE_BUILD_WITH_INSTALL_RPATH=false -DCMAKE_INSTALL_RPATH=/opt/eos/xrootd/lib64/,/opt/eos/lib64/protobuf3/,/lib64,/usr/lib64/ -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true %{build_flags}"
     %else
       scl enable %{devtoolset} "%{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_RPATH=/opt/eos/lib64/protobuf3/,/lib64/,/usr/lib64/ -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true %{build_flags}"
@@ -246,19 +269,6 @@ cd build
 %{__make} install DESTDIR=$RPM_BUILD_ROOT
 
 
-%if 0%{distribution} == 6 || 0%{distribution} == 7
-
-%if ! %{without stage_protobuf3_rh}
-mkdir -p $RPM_BUILD_ROOT/opt/eos/lib64/protobuf3/
-cp -f /opt/eos/lib64/protobuf3/libprotobuf.so.15 $RPM_BUILD_ROOT/opt/eos/lib64/protobuf3/
-%endif
-
-%if %{?_with_stage_xrootd_rh:1}%{!?_with_stage_xrootd_rh:0}
-cp -af /opt/eos/xrootd/ $RPM_BUILD_ROOT/opt/eos/xrootd/
-%endif
-
-%endif
-
 echo "Installed!"
 
 %clean
@@ -272,9 +282,25 @@ rm -rf $RPM_BUILD_ROOT
 Summary: The EOS server installation
 Group: Applications/File
 
+# ----------------------
+# select xrootd package
+# ----------------------
+%if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
+# Install eos-xrootd
+%if 0%{distribution} == 6 || 0%{distribution} == 7
+Requires: eos-xrootd
+%else
 Requires: xrootd >= %{xrootd_version_min}
 Requires: xrootd-client >= %{xrootd_version_min}
 Requires: xrootd-private-devel >= %{xrootd_version_min}
+%endif
+%else
+Requires: xrootd >= %{xrootd_version_min}
+Requires: xrootd-client >= %{xrootd_version_min}
+Requires: xrootd-private-devel >= %{xrootd_version_min}
+%endif
+
+
 Requires: eos-client = @CPACK_PACKAGE_VERSION@
 Requires: libmicrohttpd >= 0.9.38
 Requires: acl
@@ -284,11 +310,30 @@ Requires: jsoncpp
 Requires: psmisc
 Requires: libcurl
 Requires: logrotate
+
+# -----------------------
+# select protobuf package
+# -----------------------
+%if ! %{without eos_protobuf3_rh}
+# Install eos-protobuf3
+%if 0%{distribution} == 6 || 0%{distribution} == 7
+Requires: eos-protobuf3
+%else
 %if %{?fedora}%{!?fedora:0} >= 27
 Requires: protobuf >= 3.3
 %else
 Requires: protobuf3 >= 3.3
 %endif
+%endif
+%else
+%if %{?fedora}%{!?fedora:0} >= 27
+Requires: protobuf >= 3.3
+%else
+Requires: protobuf3 >= 3.3
+%endif
+%endif
+
+
 %if %{use_systemd}
 Requires: systemd
 %else
@@ -435,7 +480,20 @@ fi
 Summary: EOS namespace inspection tool for instance administrators
 Group: Applications/File
 
+# ----------------------
+# select xrootd package
+# ----------------------
+%if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
+# Install eos-xrootd
+%if 0%{distribution} == 6 || 0%{distribution} == 7
+Requires: eos-xrootd
+%else
 Requires: xrootd-client >= %{xrootd_version_min}
+%endif
+%else
+Requires: xrootd-client >= %{xrootd_version_min}
+%endif
+
 BuildRequires: eos-folly = 2017.09.18.00-4%{dist}
 Requires: eos-folly = 2017.09.18.00-4%{dist}
 
@@ -454,12 +512,42 @@ EOS namespace inspection tool for instance administrators
 Summary: The EOS shell client
 Group: Applications/File
 
+# ----------------------
+# select xrootd package
+# ----------------------
+%if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
+# Install eos-xrootd
+%if 0%{distribution} == 6 || 0%{distribution} == 7
+Requires: eos-xrootd
+%else
 Requires: xrootd-client >= %{xrootd_version_min}
+%endif
+%else
+Requires: xrootd-client >= %{xrootd_version_min}
+%endif
+
+# -----------------------
+# select protobuf package
+# -----------------------
+%if ! %{without eos_protobuf3_rh}
+# Install eos-protobuf3
+%if 0%{distribution} == 6 || 0%{distribution} == 7
+Requires: eos-protobuf3
+%else
 %if %{?fedora}%{!?fedora:0} >= 27
 Requires: protobuf >= 3.3
 %else
 Requires: protobuf3 >= 3.3
 %endif
+%endif
+%else
+%if %{?fedora}%{!?fedora:0} >= 27
+Requires: protobuf >= 3.3
+%else
+Requires: protobuf3 >= 3.3
+%endif
+%endif
+
 %if %{use_systemd}
 Requires: systemd
 %else
@@ -467,19 +555,6 @@ Requires: chkconfig
 Requires: initscripts
 Requires: sysvinit-tools
 %endif
-
-%if 0%{distribution} == 6 || 0%{distribution} == 7
-%if ! %{without stage_protobuf3_rh}
-# we will clash with eos-protobuf3
-Obsoletes: eos-protobuf3
-%endif
-
-%if %{?_with_stage_xrootd_rh:1}%{!?_with_stage_xrootd_rh:0}
-# we will clash with eos-xrootd
-Obsoletes: eos-xrootd
-%endif
-%endif
-
 
 %description -n eos-client
 The EOS shell client.
@@ -495,19 +570,6 @@ The EOS shell client.
 %{_libdir}/libeosCommon.so.%{major_version}
 %{_libdir}/libeosCommon.so
 %{_sysconfdir}/bash_completion.d/eos
-
-%if 0%{distribution} == 6 || 0%{distribution} == 7
-
-%if ! %{without stage_protobuf3_rh}
-# Install eos-protobuf3
-/opt/eos/lib64/protobuf3/libprotobuf.so.15
-%endif
-
-%if %{?_with_stage_xrootd_rh:1}%{!?_with_stage_xrootd_rh:0}
-/opt/eos/xrootd/
-%endif
-
-%endif
 
 # This file is required by both the eos-fuse and eos-fusex package, therefore
 # to avoid any conflicts we distribute it with eos-client.
@@ -551,7 +613,20 @@ The new EOS fuse client bundle.
 Summary: The EOS fuse client
 Group: Applications/File
 
+# ----------------------
+# select xrootd package
+# ----------------------
+%if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
+# Install eos-xrootd
+%if 0%{distribution} == 6 || 0%{distribution} == 7
+Requires: eos-xrootd
+%else
 Requires: xrootd-client >= %{xrootd_version_min}
+%endif
+%else
+Requires: xrootd-client >= %{xrootd_version_min}
+%endif
+
 Requires: eos-client = @CPACK_PACKAGE_VERSION@
 Requires: fuse
 Requires: jemalloc
@@ -697,7 +772,20 @@ The new EOS fuse client bundle.
 Summary: The new EOS fuse client
 Group: Applications/File
 
+# ----------------------
+# select xrootd package
+# ----------------------
+%if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
+# Install eos-xrootd
+%if 0%{distribution} == 6 || 0%{distribution} == 7
+Requires: eos-xrootd
+%else
 Requires: xrootd-client >= %{xrootd_version_min}
+%endif
+%else
+Requires: xrootd-client >= %{xrootd_version_min}
+%endif
+
 Requires: eos-client = @CPACK_PACKAGE_VERSION@
 Requires: fuse
 Requires: jemalloc
@@ -803,7 +891,21 @@ Summary: The EOS archive daemon
 Group: Applications/File
 
 Requires: python-daemon python-zmq
+
+# ----------------------
+# select xrootd package
+# ----------------------
+%if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
+# Install eos-xrootd
+%if 0%{distribution} == 6 || 0%{distribution} == 7
+Requires: eos-xrootd
+%else
 Requires: xrootd-python >= %{xrootd_version_min}
+%endif
+%else
+Requires: xrootd-python >= %{xrootd_version_min}
+%endif
+
 
 %description -n eos-archive
 The EOS archive daemon.
