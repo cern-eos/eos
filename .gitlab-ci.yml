@@ -337,6 +337,8 @@ build_cc7_asan:
 
 
 build_cc7_eos_xrd:
+  before_script:
+    - yum install --nogpg -y eos-xrootd
   <<: *cc7_template_definition
   variables:
     BUILD_NAME: cc7_eos_xrd
