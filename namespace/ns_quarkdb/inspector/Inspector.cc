@@ -266,7 +266,7 @@ int Inspector::stripediff(std::ostream &out, std::ostream &err) {
     int64_t size = proto.size();
 
     if(actual != expected && size != 0) {
-      out << "id=" << proto.id() << " size=" << size << " nstripes=" << actual << " expected-stripes=" << expected << std::endl;
+      out << "id=" << proto.id() << " container=" << proto.cont_id() << " size=" << size << " nstripes=" << actual << " expected-stripes=" << expected << std::endl;
     }
 
     fileScanner.next();
