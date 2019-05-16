@@ -225,9 +225,9 @@ cd build
 %if "%{?compiler}" == "gcc"
   %if 0%{distribution} == 6 || 0%{distribution} == 7
     %if %{?_with_stage_xrootd_rh:1}%{!?_with_stage_xrootd_rh:0}
-       scl enable %{devtoolset} "%{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_SKIP_BUILD_RPATH=false -DCMAKE_BUILD_WITH_INSTALL_RPATH=false -DCMAKE_INSTALL_RPATH=/opt/eos/xrootd/lib64/,/opt/eos/lib64/protobuf3/,/usr/lib64/ -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true %{build_flags}"
+       scl enable %{devtoolset} "%{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_SKIP_BUILD_RPATH=false -DCMAKE_BUILD_WITH_INSTALL_RPATH=false -DCMAKE_INSTALL_RPATH=/opt/eos/xrootd/lib64/,/opt/eos/lib64/protobuf3/,/lib64,/usr/lib64/ -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true %{build_flags}"
     %else
-      scl enable %{devtoolset} "%{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_RPATH=/opt/eos/lib64/protobuf3/,/usr/lib64/ -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true %{build_flags}"
+      scl enable %{devtoolset} "%{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_RPATH=/opt/eos/lib64/protobuf3/,/lib64/,/usr/lib64/ -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true %{build_flags}"
      %endif
   %else
     %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo %{build_flags}
