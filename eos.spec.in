@@ -111,6 +111,8 @@ BuildRequires: xrootd >= %{xrootd_version_min}
 # Install eos-xrootd
 %if 0%{distribution} == 6 || 0%{distribution} == 7
 BuildRequires: eos-xrootd
+# dont' put an explicit dependency on xrootd because eos-xrootd hides the shared libraries from provide
+%global __requires_exclude ^libXrd*$
 %else
 # Install default xrootd
 BuildRequires: xrootd-client-devel >= %{xrootd_version_min}
@@ -131,6 +133,8 @@ BuildRequires: xrootd-private-devel >= %{xrootd_version_min}
 # Install eos-protobuf3
 %if 0%{distribution} == 6 || 0%{distribution} == 7
 BuildRequires: eos-protobuf3, eos-protobuf3-compiler, eos-protobuf3-devel
+# don't put an explicit dependency on protobuf because eos-protobuf3 hides shared libraries from provide
+%global __requires_exclude ^libprotobuf.so.*$
 %else
 %if %{?fedora}%{!?fedora:0} >= 27
 BuildRequires: protobuf >= 3.3
