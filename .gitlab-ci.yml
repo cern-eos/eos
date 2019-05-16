@@ -319,9 +319,7 @@ build_cc7_xrd_cta:
   tags:
     - docker_node
     - cc7
-  only:
-    - schedules
-    - tags
+  when: manual
   allow_failure: true
 
 
