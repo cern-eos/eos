@@ -16,16 +16,21 @@
 # pass the "--with asan" flag to the rpmbuild command
 %bcond_without asan
 
-# By default we use eosprotobuf3 for RH6 and EL7
+# By default we use eosprotobuf3 for EL7
 %bcond_without eos_protobuf3_rh
 
-
-# By default we don't use eosxrootd for RH6 and EL7
+# By default we don't use eosxrootd for EL7
 %bcond_without eos_xrootd_rh
 
 # Define required dependency for XRootD
 %define xrootd_version_min 1:4.8.2
 %define major_version @CPACK_PACKAGE_VERSION_MAJOR@
+%define release_version @CPACK_PACKAGE_RELEASE@
+
+# release tags like x.y.z-0 enable automatically to build with eos-xrootd
+%if 0%{?release_version} == 0 
+%define _with_eos_xrootd_rh 1
+%endif
 
 #-------------------------------------------------------------------------------
 # Compute additional macros based on environment or existing definitions
@@ -137,16 +142,16 @@ BuildRequires: eos-protobuf3, eos-protobuf3-compiler, eos-protobuf3-devel
 %global __requires_exclude ^libprotobuf.so.*$
 %else
 %if %{?fedora}%{!?fedora:0} >= 27
-BuildRequires: protobuf >= 3.3
+BuildRequires: protobuf >= 3.3, protobuf-devel >= 3.3, protobuf-compiler >= 3.3
 %else
-BuildRequires: protobuf3 >= 3.3
+BuildRequires: protobuf3 >= 3.3, protobuf3-devel >= 3.3, protobuf3-compiler >= 3.3
 %endif
 %endif
 %else
 %if %{?fedora}%{!?fedora:0} >= 27
-BuildRequires: protobuf >= 3.3
+BuildRequires: protobuf >= 3.3, protobuf-devel >= 3.3, protobuf-compiler >= 3.3
 %else
-BuildRequires: protobuf3 >= 3.3
+BuildRequires: protobuf3 >= 3.3, protobuf3-devel >= 3.3, protobuf3-compiler >= 3.3
 %endif
 %endif
 
@@ -251,11 +256,7 @@ mkdir -p build
 cd build
 %if "%{?compiler}" == "gcc"
   %if 0%{distribution} == 6 || 0%{distribution} == 7
-    %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
-       scl enable %{devtoolset} "%{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_SKIP_BUILD_RPATH=false -DCMAKE_BUILD_WITH_INSTALL_RPATH=false -DCMAKE_INSTALL_RPATH=/opt/eos/xrootd/lib64/,/opt/eos/lib64/protobuf3/,/lib64,/usr/lib64/ -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true %{build_flags}"
-    %else
-      scl enable %{devtoolset} "%{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_RPATH=/opt/eos/lib64/protobuf3/,/lib64/,/usr/lib64/ -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true %{build_flags}"
-     %endif
+    scl enable %{devtoolset} "%{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_SKIP_BUILD_RPATH=false -DCMAKE_BUILD_WITH_INSTALL_RPATH=false -DCMAKE_INSTALL_RPATH=/opt/eos/xrootd/lib64/,/opt/eos/lib64/protobuf3/,/lib64,/usr/lib64/ -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true -DXROOTD_ROOT_DIR=/opt/eos/xrootd/ %{build_flags}"
   %else
     %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo %{build_flags}
   %endif

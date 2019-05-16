@@ -336,6 +336,17 @@ build_cc7_asan:
     - schedules
 
 
+build_cc7_eos_xrd:
+  <<: *cc7_template_definition
+  variables:
+    BUILD_NAME: cc7_eos_xrd
+    RPMBUILD_OPTIONS: "--with eos_xrootd_rh"
+  tags:
+    - docker_node
+    - cc7
+  when: manual
+
+
 build_cc7_clang:
   <<: *cc7_template_definition
   variables:
