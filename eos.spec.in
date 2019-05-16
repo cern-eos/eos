@@ -28,7 +28,7 @@
 %define release_version @CPACK_PACKAGE_RELEASE@
 
 # release tags like x.y.z-0 enable automatically to build with eos-xrootd
-%if 0%{?release_version} == 0 
+%if "%release_version" == "0"
 %define _with_eos_xrootd_rh 1
 %endif
 
