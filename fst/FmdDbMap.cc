@@ -95,6 +95,9 @@ FmdDbMapHandler::EnvMgmToFmd(XrdOucEnv& env, struct Fmd& fmd)
   fmd.set_gid((gid_t) strtoul(env.Get("gid"), 0, 10));
   fmd.set_mgmchecksum(env.Get("checksum"));
   fmd.set_locations(env.Get("location") ? env.Get("location") : "");
+
+  size_t cslen = eos::common::LayoutId::GetChecksumLen(fmd.lid()) * 2;
+  fmd.set_mgmchecksum( std::string(fmd.mgmchecksum()).erase(std::min(fmd.mgmchecksum().length(), cslen)));
   return true;
 }
 
@@ -130,7 +133,12 @@ FmdDbMapHandler::NsFileProtoToFmd(eos::ns::FileMdProto&& filemd,
     str_xs += static_cast<char*>(hx);
   }
 
+  size_t cslen = eos::common::LayoutId::GetChecksumLen(filemd.layout_id()) * 2;
+
+  // Truncate the checksum to the right string length                                                                          
+  str_xs.erase(std::min(str_xs.length(), cslen));
   fmd.set_mgmchecksum(str_xs);
+  
   std::string slocations;
 
   for (const auto& loc : filemd.locations()) {

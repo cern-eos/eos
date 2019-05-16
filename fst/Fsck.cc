@@ -302,9 +302,6 @@ Fsck::CheckFile(const char* filepath)
 	std::unique_ptr<CheckSum> checksum(ChecksumPlugins::GetChecksumObject (mMd[fid].lid(), false));
 	checksum->SetBinChecksum(checksumVal, checksumLen);
 	std::string hex_checksum = checksum->GetHexChecksum();
-	for (size_t i=checksumLen; i< SHA_DIGEST_LENGTH; ++i) {
-	  hex_checksum += "00";
-	}
 	mMd[fid].set_diskchecksum(hex_checksum);
       }
       if ( (previousFileCxError == "0") || (!has_filecxerror)) {
