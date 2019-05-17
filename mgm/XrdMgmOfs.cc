@@ -654,6 +654,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   if(pargs.opts & Prep_STAGE) {
     event = "sync::prepare";
 
+#if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
     if(gOFS->IsFileSystem2) {
       // Override the XRootD-supplied request ID. The request ID can be any arbitrary string, so long as
       // it is guaranteed to be unique for each request.
@@ -665,20 +666,14 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       // This is a placeholder. To use this feature, EOS should generate a unique ID here.
       reqid = "eos:" + reqid;
     }
-#if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
-  // Prep_CANCEL and Prep_QUERY are only defined in 4.10
   } else if(pargs.opts & Prep_CANCEL) {
     event = "sync::abort_prepare";
-  } else if(pargs.opts & Prep_QUERY) {
-    Emsg(epname, error, ENOSYS, "prepare - Query not implemented");
-    return SFS_ERROR;
 #else
   } else if(pargs.opts & Prep_FRESH) {
     event = "sync::abort_prepare";
 #endif
   } else {
-    Emsg(epname, error, EINVAL, "prepare - invalid value for pargs.opts =", std::to_string(pargs.opts).c_str());
-    return SFS_ERROR;
+    event = "sync::prepare";
   }
 
   // check that all files exist
@@ -828,11 +823,13 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     }
   }
 
+#if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
   // If we generated our own request ID, return it to the client
   if(gOFS->IsFileSystem2 && (pargs.opts & Prep_STAGE)) {
     error.setErrInfo(reqid.length() + 1, reqid.c_str());
     retc = SFS_DATA;
   }
+#endif
 
   EXEC_TIMING_END("Prepare");
   return retc;
