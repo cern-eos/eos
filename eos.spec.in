@@ -137,7 +137,10 @@ BuildRequires: xrootd-private-devel >= %{xrootd_version_min}
 %if ! %{without eos_protobuf3_rh}
 # Install eos-protobuf3
 %if 0%{?distribution} == 7
-BuildRequires: eos-protobuf3, eos-protobuf3-compiler, eos-protobuf3-devel
+BuildRequires: eos-protobuf3 = 3.5.1-5.el7.cern.eos
+BuildRequires: eos-protobuf3-compiler = 3.5.1-5.el7.cern.eos
+BuildRequires: eos-protobuf3-devel = 3.5.1-5.el7.cern.eos
+
 # don't put an explicit dependency on protobuf because eos-protobuf3 hides shared libraries from provide
 %global __requires_exclude ^libprotobuf.so.*$
 %else
@@ -322,7 +325,7 @@ Requires: logrotate
 %if ! %{without eos_protobuf3_rh}
 # Install eos-protobuf3
 %if 0%{?distribution} == 7
-Requires: eos-protobuf3
+Requires: eos-protobuf3 = 3.5.1-5.el7.cern.eos
 %else
 %if %{?fedora}%{!?fedora:0} >= 27
 Requires: protobuf >= 3.3
