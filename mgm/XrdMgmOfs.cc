@@ -106,6 +106,7 @@ XrdMgmOfs* gOFS = 0;
 
 // Set the version information
 XrdVERSIONINFO(XrdSfsGetFileSystem, MgmOfs);
+XrdVERSIONINFO(XrdSfsGetFileSystem2, MgmOfs);
 
 //------------------------------------------------------------------------------
 // Convert NamespaceState to string
@@ -137,6 +138,7 @@ std::string namespaceStateToString(NamespaceState st)
   return "(invalid)";
 }
 
+extern "C" {
 
 //------------------------------------------------------------------------------
 //! Filesystem Plugin factory function
@@ -147,7 +149,6 @@ std::string namespaceStateToString(NamespaceState st)
 //!
 //! @returns configures and returns our MgmOfs object
 //------------------------------------------------------------------------------
-extern "C"
 XrdSfsFileSystem*
 XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
                     XrdSysLogger* lp,
@@ -168,6 +169,8 @@ XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
   // Disable XRootd log rotation
   lp->setRotate(0);
   gOFS = &myFS;
+  // Did we pass the "-2" option to the plugin in the config file?
+  gOFS->IsFileSystem2 = false;
   // By default enable stalling and redirection
   gOFS->IsStall = true;
   gOFS->IsRedirect = true;
@@ -188,6 +191,36 @@ XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
   return gOFS;
 }
 
+//------------------------------------------------------------------------------
+//! Filesystem Plugin factory function
+//!
+//! @description FileSystem2 version, to allow passing configuration info back
+//!              to XRootD. Configure with: xrootd.fslib -2 libXrdEosMgm.so
+//!
+//! @param native_fs (not used)
+//! @param lp the logger object
+//! @param configfn the configuration file name
+//! @param envP pass configuration information back to XrdXrootd
+//!
+//! @returns configures and returns our MgmOfs object
+//------------------------------------------------------------------------------
+XrdSfsFileSystem*
+XrdSfsGetFileSystem2(XrdSfsFileSystem* native_fs,
+                    XrdSysLogger* lp,
+                    const char* configfn,
+                    XrdOucEnv *envP)
+{
+  // Initialise gOFS
+  XrdSfsGetFileSystem(native_fs, lp, configfn);
+  gOFS->IsFileSystem2 = true;
+
+  // Tell XRootD that MgmOfs implements the Prepare plugin
+  if(envP != nullptr) envP->Put("XRD_PrepHandler", "1");
+
+  return gOFS;
+}
+
+} // extern "C"
 
 /******************************************************************************/
 /* MGM Meta Data Interface                                                    */
@@ -612,8 +645,35 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   std::string cmd = "mgm.pcmd=event";
   int retc = SFS_OK;
   std::list<std::pair<char**, char**>> pathsWithPrepare;
-  std::string event = pargs.opts & Prep_FRESH ? "sync::abort_prepare" :
-                      "sync::prepare";
+
+  // Initialise the request ID for the Prepare request to the one provided by XRootD
+  XrdOucString reqid(pargs.reqid);
+
+  // Validate the event type
+  std::string event;
+  if(pargs.opts & Prep_STAGE) {
+    event = "sync::prepare";
+
+    if(gOFS->IsFileSystem2) {
+      // Override the XRootD-supplied request ID. The request ID can be any arbitrary string, so long as
+      // it is guaranteed to be unique for each request.
+      //
+      // Note: To use the default request ID supplied in pargs.reqid, return SFS_OK instead of SFS_DATA.
+      //       Overriding is only possible in the case of PREPARE. In the case of ABORT and QUERY requests,
+      //       pargs.reqid should contain the request ID that was returned by the corresponding PREPARE.
+
+      // This is a placeholder. To use this feature, EOS should generate a unique ID here.
+      reqid = "eos:" + reqid;
+    }
+  } else if(pargs.opts & Prep_CANCEL) {
+    event = "sync::abort_prepare";
+  } else if(pargs.opts & Prep_QUERY) {
+    Emsg(epname, error, ENOSYS, "prepare - Query not implemented");
+    return SFS_ERROR;
+  } else {
+    Emsg(epname, error, EINVAL, "prepare - invalid value for pargs.opts =", std::to_string(pargs.opts).c_str());
+    return SFS_ERROR;
+  }
 
   // check that all files exist
   while (pptr) {
@@ -725,6 +785,8 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     prep_info += (int)vid.uid;
     prep_info += "&mgm.rgid=";
     prep_info += (int)vid.gid;
+    prep_info += "&mgm.reqid=";
+    prep_info += reqid.c_str();
     if (prep_env.Get("activity")) {
       prep_info += "&activity=";
       prep_info += prep_env.Get("activity");
@@ -758,6 +820,12 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       retc = Emsg(epname, error, ret_wfe,
                   errMsg.c_str(), prep_path.c_str());
     }
+  }
+
+  // If we generated our own request ID, return it to the client
+  if(gOFS->IsFileSystem2 && (pargs.opts & Prep_STAGE)) {
+    error.setErrInfo(reqid.length() + 1, reqid.c_str());
+    retc = SFS_DATA;
   }
 
   EXEC_TIMING_END("Prepare");

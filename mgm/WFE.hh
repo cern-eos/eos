@@ -196,14 +196,15 @@ public:
 
     //! @brief Handles a "proto" method "prepare" event
     //! @param fullPath the full path of the file
-    //! @param errorMsg out parameter giving the text of any error response
     //! @ininfo original opaque information of the URL that triggered the event
+    //! @param errorMsg out parameter giving the text of any error response
     int HandleProtoMethodPrepareEvent(const std::string &fullPath, const char * const ininfo, std::string& errorMsg);
 
     //! @brief Handles a "proto" method "abort_prepare" event
     //! @param fullPath the full path of the file
+    //! @ininfo original opaque information of the URL that triggered the event
     //! @param errorMsg out parameter giving the text of any error response
-    int HandleProtoMethodAbortPrepareEvent(const std::string &fullPath, std::string &errorMsg);
+    int HandleProtoMethodAbortPrepareEvent(const std::string &fullPath, const char * const ininfo, std::string &errorMsg);
 
     //! @brief Handles a "proto" method "create" event
     //! @param fullPath the full path of the file
@@ -238,7 +239,7 @@ public:
     //! @brief Resets the extended attribute sys.retrieves to 0 and the extended
     //! attribute sys.retrieve.error to an empty string
     //! @param fullPath the full path of the file
-    void resetRetreiveCounterAndErrorMsg(const std::string &fullPath);
+    void resetRetrieveIdListAndErrorMsg(const std::string &fullPath);
 
     //! @brief This method is used for communicating proto event requests
     //! @param jobPtr pointer to the job of the event

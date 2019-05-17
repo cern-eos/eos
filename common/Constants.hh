@@ -29,9 +29,10 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 static constexpr auto TAPE_FS_ID = 65535u;
-static constexpr auto RETRIEVES_ATTR_NAME = "sys.retrieves";
-static constexpr auto RETRIEVES_ERROR_ATTR_NAME = "sys.retrieve.error";
-static constexpr auto ARCHIVE_ERROR_ATTR_NAME = "sys.archive.error";
+static constexpr auto RETRIEVE_REQID_ATTR_NAME = "sys.retrieve.req_id";        //!< List of Prepare request IDs for this file
+static constexpr auto RETRIEVE_REQTIME_ATTR_NAME = "sys.retrieve.req_time";    //!< Last time the Prepare request was actioned
+static constexpr auto RETRIEVE_ERROR_ATTR_NAME = "sys.retrieve.error";         //!< Prepare request failure reason
+static constexpr auto ARCHIVE_ERROR_ATTR_NAME = "sys.archive.error";           //!< Archive request failure reason
 static constexpr auto RETRIEVE_WRITTEN_WORKFLOW_NAME = "retrieve_written";
 static constexpr auto RETRIEVE_FAILED_WORKFLOW_NAME = "sync::retrieve_failed";
 static constexpr auto ARCHIVE_FAILED_WORKFLOW_NAME = "sync::archive_failed";
