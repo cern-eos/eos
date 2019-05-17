@@ -374,10 +374,11 @@ Storage::getFsStatistics(FileSystem *fs, bool publishInconsistencyStats) {
   }
 
   output["stat.health"] = (health.count("summary") ? health["summary"].c_str() : "N/A");
-  output["stat.health.indicator"] = health["indicator"];
-  output["stat.health.drives_total"] = health["drives_total"];
-  output["stat.health.drives_failed"] = health["drives_failed"];
-  output["stat.health.redundancy_factor"] = health["redundancy_factor"];
+  // set some reasonable defaults if information is not available
+  output["stat.health.indicator"] = (health.count("indicator") ? health["indicator"] : "N/A");
+  output["stat.health.drives_total"] = (health.count("drives_total") ? health["drives_total"] : "1");
+  output["stat.health.drives_failed"] = (health.count("drives_failed") ? health["drives_failed"] : "0");
+  output["stat.health.redundancy_factor"] = (health.count("redundancy_factor") ? health["redundancy_factor"] : "1");
 
   //----------------------------------------------------------------------------
   // Publish generic statistics, related to free space and current load
