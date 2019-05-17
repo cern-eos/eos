@@ -15,6 +15,27 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.4.47 Citrine``
+===================
+
+2019-05-17
+
+Bug 
+---
+
+* freeze client RPATH to XRootD location used during build
+
+Improvement
+-----------
+
+* CTA module v 0.41
+* Extended 'prepare' for XRoot 4.4.10 (abort etc.)
+* Report detached files in 'eos-fsck-fs'
+* [ EOS-3483 ] - add container id in output of stripediff option
+* [ EOS-3484 ] - add location to output of stripediff option
+* use eos-protobuf3 eos-xrootd only on EL7 for tags like x.y.z-0, otherwise only eos-protouf3 on EL7 builds
+
+
 ``v4.4.46 Citrine``
 ===================
 
