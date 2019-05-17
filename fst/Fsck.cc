@@ -151,12 +151,11 @@ Fsck::Fsck(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
     exit(-1);
 
   }
-  errors["orphaned"]=0;
   errors["missing"]=0;
   errors["size"]=0;
   errors["checksum"]=0;
   errors["replica"]=0;
-  errors["unregistered"]=0;
+  errors["detached"]=0;
 }
 
 //------------------------------------------------------------------------------
@@ -294,8 +293,8 @@ Fsck::CheckFile(const char* filepath)
   if (fid) {
     if (!mMd.count(fid)) {
 
-      fprintf(stderr, "[Fsck] [ERROR] [ ORPHAN  ] fsid:%d cxid:???????? fxid:%08lx path:%s is orphaned on disk\n", fsId, fid, filepath);
-      errors["orphaned"]++;
+      fprintf(stderr, "[Fsck] [ERROR] [ DETACHE ] fsid:%d cxid:???????? fxid:%08lx path:%s is detached on disk\n", fsId, fid, filepath);
+      errors["detached"]++;
     } else {
       if (checksumLen) {
 
@@ -608,11 +607,6 @@ Fsck::ReportFiles()
     if (nstripes != valid_replicas) {
       fprintf(stderr, "[Fsck] [ERROR] [ REPLICA ] fsid:%d cxid:%08lx fxid:%08lx path:%s replica count wrong is=%lu expected=%lu\n", fsId, it->second.cid(), it->second.fid(), it->second.checksum().c_str(),valid_replicas, nstripes);
       errors["replica"]++;
-    }
-
-    if (!location_set.count(fsId)) {
-      fprintf(stderr, "[Fsck] [ERROR] [ UNREGIS ] fsid:%d cxid:%08lx fxid:%08lx path:%s replica unregistered\n", fsId, it->second.cid(), it->second.fid(), it->second.checksum().c_str());
-      errors["unregistered"]++;
     }
   }
 }
