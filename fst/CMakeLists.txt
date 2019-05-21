@@ -334,6 +334,9 @@ add_library(XrdEosFst-Objects OBJECT ${XRDEOSFST_SRCS})
 # Add dependency to protobuf objects so we guarantee that the protocol
 # buffer files are generated when we try to build XrdEosFst
 #-------------------------------------------------------------------------------
+add_dependencies(XrdEosFst-Objects EosFstProto-Objects)
+add_dependencies(XrdEosFst-Objects EosCliProto-Objects)
+add_dependencies(XrdEosFst-Objects EosNsQuarkdbProto-Objects)
 add_dependencies(XrdEosFst-Objects XrdSsiPbEosCta-Objects)
 
 set_target_properties(
