@@ -409,6 +409,9 @@ build_ubuntu_disco:
   tags:
     - docker_node
     - ubuntu
+  only:
+    - schedules
+    - tags
 
 
 macosx_dmg:
@@ -503,7 +506,7 @@ ubuntu_disco_docker_image_commit:
     - build_ubuntu_disco
     - clone_docker
   only:
-    - branches
+    - schedules
   allow_failure: true
 
 
@@ -575,6 +578,23 @@ ubuntu_bionic_docker_image_tag:
     NO_CACHE: 1
   dependencies:
     - build_ubuntu_bionic
+    - clone_docker
+  only:
+    - tags
+  allow_failure: true
+
+
+ubuntu_disco_docker_image_tag:
+  stage: build:dockerimage
+  tags:
+    - docker-image-build
+  script:
+    - ""
+  variables:
+    TO: gitlab-registry.cern.ch/dss/eos:ubuntu_disco_client_${CI_COMMIT_TAG}
+    DOCKER_FILE: eos-docker/Dockerfile_ubuntu_disco
+  dependencies:
+    - build_ubuntu_disco
     - clone_docker
   only:
     - tags
@@ -776,6 +796,7 @@ ubuntu_system_test:
   only:
     - dev
     - master
+    - tags
   allow_failure: true
   retry: 1
 
@@ -789,6 +810,9 @@ ubuntu_disco_system_test:
     - shell-with-docker
   dependencies:
     - clone_docker
+  only:
+    - schedules
+    - tags
   allow_failure: true
   retry: 1
 
