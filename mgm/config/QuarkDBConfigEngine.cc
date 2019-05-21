@@ -374,6 +374,11 @@ void
 QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
                                     const char* val, bool not_bcast)
 {
+  // QuarkDB does not accept empty values
+  if ((val == nullptr) || (strlen(val) == 0)) {
+    return;
+  }
+
   std::string configname = formFullKey(prefix, key);
   eos_debug("%s => %s", key, val);
   {
