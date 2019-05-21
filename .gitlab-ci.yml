@@ -644,7 +644,6 @@ k8s_ubuntu_system_test:
     - shell-with-docker
     - k8s_node
   only:
-    - ci_on_k8s
     - dev
     - master
   allow_failure: true
@@ -658,7 +657,6 @@ k8s_unit_test:
     - shell-with-docker
     - k8s_node
   only:
-    - ci_on_k8s
     - dev
     - master
   except:
@@ -686,7 +684,6 @@ k8s_ns_unit_test:
     - shell-with-docker
     - k8s_node
   only:
-    - ci_on_k8s
     - dev
     - master
   except:
