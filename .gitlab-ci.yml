@@ -219,7 +219,7 @@ before_script:
   <<: *k8s_before_script_template
   script:
     - if   [[ "$CI_JOB_NAME" == k8s_system_test ]]; then ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -n ${NAMESPACE};
-      elif [[ "$CI_JOB_NAME" == k8s_ubuntu_system_test ]]; then ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -u ubuntu_client_${IMAGE_TAG} -n ${NAMESPACE};
+      elif [[ "$CI_JOB_NAME" == k8s_ubuntu_system_test ]]; then ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -u ubuntu_bionic_client_${IMAGE_TAG} -n ${NAMESPACE};
       elif [[ "$CI_JOB_NAME" == k8s_system_test_qdb || "$CI_JOB_NAME" == k8s_system_test_qdb_xt ]]; then ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -n ${NAMESPACE} -q;
       else echo "CI_JOB_NAME:$CI_JOB_NAME not found"; exit 1;
       fi
@@ -472,14 +472,14 @@ cc7_docker_image_commit:
     - tags
 
 
-ubuntu_docker_image_commit:
+ubuntu_bionic_docker_image_commit:
   stage: build:dockerimage
   tags:
     - docker-image-build
   script:
     - ""
   variables:
-    TO: gitlab-registry.cern.ch/dss/eos:ubuntu_client_${CI_PIPELINE_ID}
+    TO: gitlab-registry.cern.ch/dss/eos:ubuntu_bionic_client_${CI_PIPELINE_ID}
     DOCKER_FILE: eos-docker/Dockerfile_ubuntu_bionic
   dependencies:
     - build_ubuntu_bionic
@@ -563,14 +563,14 @@ cc7_docker_image_tag:
     - tags
 
 
-ubuntu_docker_image_tag:
+ubuntu_bionic_docker_image_tag:
   stage: build:dockerimage
   tags:
     - docker-image-build
   script:
     - ""
   variables:
-    TO: gitlab-registry.cern.ch/dss/eos:ubuntu_client_${CI_COMMIT_TAG}
+    TO: gitlab-registry.cern.ch/dss/eos:ubuntu_bionic_client_${CI_COMMIT_TAG}
     DOCKER_FILE: eos-docker/Dockerfile_ubuntu_bionic
     NO_CACHE: 1
   dependencies:
@@ -768,7 +768,7 @@ ubuntu_system_test:
   stage: test
   <<: *ubuntu_system_test_template_definition
   variables:
-    UBUNTU_EOS_IMG_NAME: "eos:ubuntu_client_"
+    UBUNTU_EOS_IMG_NAME: "eos:ubuntu_bionic_client_"
   tags:
     - shell-with-docker
   dependencies:
