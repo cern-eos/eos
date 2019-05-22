@@ -23,20 +23,28 @@
 
 
 #pragma once
-
 #include "common/Namespace.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
 
 static constexpr auto TAPE_FS_ID = 65535u;
-static constexpr auto RETRIEVE_REQID_ATTR_NAME = "sys.retrieve.req_id";        //!< List of Prepare request IDs for this file
-static constexpr auto RETRIEVE_REQTIME_ATTR_NAME = "sys.retrieve.req_time";    //!< Last time the Prepare request was actioned
-static constexpr auto RETRIEVE_ERROR_ATTR_NAME = "sys.retrieve.error";         //!< Prepare request failure reason
-static constexpr auto ARCHIVE_ERROR_ATTR_NAME = "sys.archive.error";           //!< Archive request failure reason
+//! List of Prepare request IDs for this file
+static constexpr auto RETRIEVE_REQID_ATTR_NAME = "sys.retrieve.req_id";
+//! Last time the Prepare request was actioned
+static constexpr auto RETRIEVE_REQTIME_ATTR_NAME = "sys.retrieve.req_time";
+//!< Prepare request failure reason
+static constexpr auto RETRIEVE_ERROR_ATTR_NAME = "sys.retrieve.error";
+//! Archive request failure reason
+static constexpr auto ARCHIVE_ERROR_ATTR_NAME = "sys.archive.error";
 static constexpr auto RETRIEVE_WRITTEN_WORKFLOW_NAME = "retrieve_written";
 static constexpr auto RETRIEVE_FAILED_WORKFLOW_NAME = "sync::retrieve_failed";
 static constexpr auto ARCHIVE_FAILED_WORKFLOW_NAME = "sync::archive_failed";
 static constexpr auto WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS = "=";
 static constexpr auto WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR = ";;;";
-
+//! Max rate in MB/s at which the scanner should run
+static constexpr auto SCAN_RATE_NAME = "scanrate";
+//! Time interval after which a scanned filed is rescanned
+static constexpr auto SCAN_INTERVAL_NAME = "scaninterval";
+//! Time interval after which the scanner will rerun
+static constexpr auto SCAN_RERUNINTERVAL_NAME = "scanreruninterval";
 EOSCOMMONNAMESPACE_END

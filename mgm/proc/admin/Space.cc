@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "common/Path.hh"
+#include "common/Constants.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/inspector/FileInspector.hh"
@@ -514,8 +515,9 @@ ProcCommand::Space()
 	    } else {
 	      if ((key == "nominalsize") ||
 		  (key == "headroom") ||
-		  (key == "scaninterval") ||
-		  (key == "scanrate") ||
+		  (key == eos::common::SCAN_RATE_NAME) ||
+		  (key == eos::common::SCAN_INTERVAL_NAME) ||
+		  (key == eos::common::SCAN_RERUNINTERVAL_NAME) ||
 		  (key == "graceperiod") ||
 		  (key == "drainperiod") ||
 		  (key == "balancer") ||
@@ -705,8 +707,11 @@ ProcCommand::Space()
             gOFS->ConfEngine->SetAutoSave(false);
 
             // Store these as a global parameters of the space
-            if (((key == "headroom") || (key == "scaninterval") ||
-                 (key == "scanrate") || (key == "graceperiod") ||
+            if (((key == eos::common::SCAN_RATE_NAME) ||
+                 (key == eos::common::SCAN_INTERVAL_NAME) ||
+                 (key == eos::common::SCAN_RERUNINTERVAL_NAME) ||
+                 (key == "headroom") ||
+                 (key == "graceperiod") ||
                  (key == "drainperiod"))) {
               unsigned long long size = eos::common::StringConversion::GetSizeFromString(
                                           value.c_str());
@@ -748,21 +753,24 @@ ProcCommand::Space()
 
                   FsView::gFsView.StoreFsConfig(fs);
                 } else {
-                  errno = 0;
-                  eos::common::StringConversion::GetSizeFromString(value.c_str());
+                    errno = 0;
+                    eos::common::StringConversion::GetSizeFromString(value.c_str());
 
-                  if (((key == "headroom") || (key == "scaninterval") ||
-                      (key == "scanrate") || (key == "graceperiod") ||
-                      (key == "drainperiod"))  && (!errno)) {
-                    fs->SetLongLong(key.c_str(),
-                                    eos::common::StringConversion::GetSizeFromString(value.c_str()));
-                    FsView::gFsView.StoreFsConfig(fs);
-                  } else {
-                    stdErr += "error: not an allowed parameter <";
-                    stdErr += key.c_str();
-                    stdErr += ">\n";
-                    retc = EINVAL;
-                    break;
+                    if (((key == eos::common::SCAN_RATE_NAME) ||
+                         (key == eos::common::SCAN_INTERVAL_NAME) ||
+                         (key == eos::common::SCAN_RERUNINTERVAL_NAME) ||
+                         (key == "headroom") || (key == "graceperiod") ||
+                         (key == "drainperiod"))  && (!errno)) {
+                      fs->SetLongLong(key.c_str(),
+                                      eos::common::StringConversion::GetSizeFromString(value.c_str()));
+                      FsView::gFsView.StoreFsConfig(fs);
+                    } else {
+                      stdErr += "error: not an allowed parameter <";
+                      stdErr += key.c_str();
+                      stdErr += ">\n";
+                      retc = EINVAL;
+                      break;
+                    }
                   }
                 }
               } else {

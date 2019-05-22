@@ -29,6 +29,7 @@
 #include "common/ParseUtils.hh"
 #include "common/Assert.hh"
 #include <curl/curl.h>
+#include "common/Constants.hh"
 
 EOSCOMMONNAMESPACE_BEGIN;
 
@@ -1196,8 +1197,9 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
   fs.mDiskNameLen = (long) hash.getLongLong("stat.statfs.namelen");
   fs.mDiskRopen = (long) hash.getLongLong("stat.ropen");
   fs.mDiskWopen = (long) hash.getLongLong("stat.wopen");
-  fs.mScanRate = (time_t) hash.getLongLong("scanrate");
-  fs.mScanInterval = (time_t) hash.getLongLong("scaninterval");
+  fs.mScanRate =  (long) hash->getLongLong(eos::common::SCAN_RATE_NAME);
+  fs.mScanInterval = (long) hash->getLongLong(eos::common::SCAN_INTERVAL_NAME);
+  fs.mScanRerunInterval = (long) hash->getLongLong(eos::common::SCAN_RERUNINTERVAL_NAME);
   fs.mGracePeriod = (time_t) hash.getLongLong("graceperiod");
   fs.mDrainPeriod = (time_t) hash.getLongLong("drainperiod");
   fs.mBalThresh   = hash.getDouble("stat.balance.threshold");

@@ -30,6 +30,7 @@
 #include "namespace/Prefetcher.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
+#include "common/Constants.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -365,9 +366,11 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
       // Check the allowed strings
       if (((key == "configstatus") &&
            (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) !=
-            eos::common::ConfigStatus::kUnknown)) ||
-          (((key == "headroom") || (key == "scaninterval") ||
-            (key == "scanrate") || (key == "graceperiod") ||
+            eos::common::FileSystem::kUnknown)) ||
+          (((key == eos::common::SCAN_RATE_NAME) ||
+            (key == eos::common::SCAN_INTERVAL_NAME) ||
+            (key == eos::common::SCAN_RERUNINTERVAL_NAME) ||
+            (key == "headroom") || (key == "graceperiod") ||
             (key == "drainperiod") || (key == "proxygroup") ||
             (key == "filestickyproxydepth") || (key == "forcegeotag") ||
             (key == "s3credentials")))) {
@@ -405,8 +408,10 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
           return retc;
         }
 
-        if ((key == "headroom") || (key == "scaninterval") ||
-            (key == "scanrate") || (key == "graceperiod") ||
+        if ((key == eos::common::SCAN_RATE_NAME) ||
+            (key == eos::common::SCAN_INTERVAL_NAME) ||
+            (key == eos::common::SCAN_RERUNINTERVAL_NAME) ||
+            (key == "headroom") || (key == "graceperiod") ||
             (key == "drainperiod")) {
           fs->SetLongLong(key.c_str(),
                           eos::common::StringConversion::GetSizeFromString(value.c_str()));

@@ -23,6 +23,7 @@
 
 #include "fst/ScanDir.hh"
 #include "common/Path.hh"
+#include "common/Constants.hh"
 #include "fst/Config.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/FmdDbMap.hh"
@@ -96,14 +97,16 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
-                 eos::fst::Load* fstload, bool bgthread, long int testinterval,
-                 int ratebandwidth, bool setchecksum, bool fake_clock) :
+                 eos::fst::Load* fstload, bool bgthread,
+                 long int file_rescan_interval, int ratebandwidth,
+                 bool setchecksum, bool fake_clock) :
   mFstLoad(fstload), mFsId(fsid), mDirPath(dirpath),
-  mRescanIntervalSec(testinterval), mRateBandwidth(ratebandwidth),
-  mNumScannedFiles(0), mNumCorruptedFiles(0), mNumHWCorruptedFiles(0),
-  mTotalScanSize(0), mNumTotalFiles(0),  mNumSkippedFiles(0),
-  mSetChecksum(setchecksum), mBuffer(nullptr), mBufferSize(0),
-  mBgThread(bgthread), mForcedScan(false), mClock(fake_clock)
+  mRescanIntervalSec(file_rescan_interval), mRerunIntervalSec(4 * 3600),
+  mRateBandwidth(ratebandwidth), mNumScannedFiles(0), mNumCorruptedFiles(0),
+  mNumHWCorruptedFiles(0),  mTotalScanSize(0), mNumTotalFiles(0),
+  mNumSkippedFiles(0), mSetChecksum(setchecksum), mBuffer(nullptr),
+  mBufferSize(0), mBgThread(bgthread), mForcedScan(false), mFakeClock(fake_clock),
+  mClock(mFakeClock)
 {
   long alignment = pathconf((mDirPath[0] != '/') ? "/" : mDirPath.c_str(),
                               _PC_REC_XFER_ALIGN);
@@ -152,10 +155,14 @@ ScanDir::SetConfig(const std::string& key, long long value)
   eos_info("msg=\"update scanner configuration\" key=\"%s\" value=\"%s\"",
            key.c_str(), std::to_string(value).c_str());
 
-  if (key == "scaninterval") {
-    mRescanIntervalSec = value;
-  } else if (key == "scanrate") {
+  if (key == eos::common::SCAN_RATE_NAME) {
     mRateBandwidth = (int) value;
+  } else if (key == eos::common::SCAN_INTERVAL_NAME) {
+    mRescanIntervalSec = value;
+  } else if (key == eos::common::SCAN_RERUNINTERVAL_NAME) {
+    mRerunIntervalSec = value;
+    mThread.join();
+    mThread.reset(&ScanDir::Run, this);
   }
 }
 
@@ -184,7 +191,7 @@ ScanDir::Run(ThreadAssistant& assistant) noexcept
 
   if (mBgThread && !mForcedScan) {
     // Get a random smearing and avoid that all start at the same time! 0-4 hours
-    size_t sleeper = (4 * 3600.0 * random() / RAND_MAX);
+    size_t sleeper = (1.0 * mRerunIntervalSec * random() / RAND_MAX);
     assistant.wait_for(seconds(sleeper));
   }
 
@@ -214,8 +221,8 @@ ScanDir::Run(ThreadAssistant& assistant) noexcept
 
     if (mBgThread) {
       if (!mForcedScan) {
-        // Run again after 4 hours
-        assistant.wait_for(std::chrono::hours(4));
+        // Run again after (default) 4 hours
+        assistant.wait_for(std::chrono::seconds(mRerunIntervalSec));
       } else {
         // Call the ghost entry clean-up function
         eos_notice("msg=\"cleaning ghost entries\" dir=%s fsid=%d",
@@ -283,6 +290,7 @@ ScanDir::CheckFile(const std::string& fpath)
   char xs_val[SHA_DIGEST_LENGTH];
   memset(xs_val, 0, sizeof(xs_val));
   size_t xs_len = SHA_DIGEST_LENGTH;
+  eos_debug("msg=\"running check file\" path=\"%s\"", fpath.c_str());
   std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(fpath.c_str()));
   ++mNumTotalFiles;
   // Get last modification time
@@ -581,9 +589,18 @@ ScanDir::DoRescan(const std::string& timestamp_us) const
     }
   }
 
-  steady_clock::time_point old_ts(microseconds(std::stoull(timestamp_us)));
-  steady_clock::time_point now_ts(mClock.getTime());
-  uint64_t elapsed_sec = duration_cast<seconds>(now_ts - old_ts).count();
+  uint64_t elapsed_sec {0ull};
+
+  // Used only during testing
+  if (mFakeClock) {
+    steady_clock::time_point old_ts(microseconds(std::stoull(timestamp_us)));
+    steady_clock::time_point now_ts(mClock.getTime());
+    elapsed_sec = duration_cast<seconds>(now_ts - old_ts).count();
+  } else {
+    system_clock::time_point old_ts(microseconds(std::stoull(timestamp_us)));
+    system_clock::time_point now_ts(system_clock::now());
+    elapsed_sec = duration_cast<seconds>(now_ts - old_ts).count();
+  }
 
   if (elapsed_sec < mRescanIntervalSec) {
     return false;
@@ -789,22 +806,31 @@ ScanDir::UpdateForcedScan()
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get timestamp smeared +/-20% of mRescanIntervalSec around the current
+// timestamp value
+//------------------------------------------------------------------------------
 std::string
-ScanDir::GetTimestampSmeared()
+ScanDir::GetTimestampSmeared() const
 {
-  char buffer[65536];
-  size_t size = sizeof(buffer) - 1;
-  long long timestamp;
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  timestamp = tv.tv_sec * 1000000 + tv.tv_usec;
-  // smear +- 20% of mRescanIntervalSec around the value
-  long int smearing = (long int)((0.2 * 2 * mRescanIntervalSec * random() /
-                                  RAND_MAX))
-                      - ((long int)(0.2 * mRescanIntervalSec));
-  snprintf(buffer, size, "%lli", timestamp + smearing);
-  return std::string(buffer);
+  using namespace std::chrono;
+  int64_t smearing =
+    (int64_t)(0.2 * 2 * mRescanIntervalSec.load() * random() / RAND_MAX) -
+    (int64_t)(0.2 * mRescanIntervalSec.load());
+  uint64_t ts_sec;
+
+  if (mFakeClock) {
+    ts_sec = duration_cast<seconds>(mClock.getTime().time_since_epoch()).count();
+  } else {
+    ts_sec = duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
+  }
+
+  // Avoid underflow when using the steady_clock for testing
+  if ((uint64_t)std::abs(smearing) < ts_sec) {
+    ts_sec += smearing;
+  }
+
+  return std::to_string(ts_sec);
 }
 
 EOSFSTNAMESPACE_END

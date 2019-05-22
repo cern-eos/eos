@@ -36,6 +36,7 @@
 #include "common/StringConversion.hh"
 #include "common/Assert.hh"
 #include "mq/SharedHashWrapper.hh"
+#include "common/Constants.hh"
 
 using eos::common::RWMutexReadLock;
 
@@ -863,13 +864,19 @@ FsSpace::FsSpace(const char* name)
     }
 
     // Set the scan rate by default to 100 MB/s
-    if (GetConfigMember("scanrate").empty()) {
-      SetConfigMember("scanrate", "100");
+    if (GetConfigMember(eos::common::SCAN_RATE_NAME).empty()) {
+      SetConfigMember(eos::common::SCAN_RATE_NAME, "100", true, "/eos/*/mgm");
     }
 
     // Set the scan interval by default to 1 week
-    if (GetConfigMember("scaninterval").empty()) {
-      SetConfigMember("scaninterval", "604800");
+    if (GetConfigMember(eos::common::SCAN_INTERVAL_NAME).empty()) {
+      SetConfigMember(eos::common::SCAN_INTERVAL_NAME, "604800", true, "/eos/*/mgm");
+    }
+
+    // Set the scan rerun interval by default to 4 hours
+    if (GetConfigMember(eos::common::SCAN_RERUNINTERVAL_NAME).empty()) {
+      SetConfigMember(eos::common::SCAN_RERUNINTERVAL_NAME, "14400", true,
+                      "/eos/*/mgm");
     }
 
     // Disable quota by default
@@ -1221,6 +1228,7 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=stat.timeleft:format=ol|";
     format += "key=stat.active:format=os|";
     format += "key=scaninterval:format=os|";
+    format += "key=scanreruninterval:format=os|";
     format += "key=stat.balancer.running:format=ol:tag=stat.balancer.running|";
     format += "key=stat.drainer.running:format=ol:tag=stat.drainer.running|";
     format += "key=stat.disk.iops:format=ol|";
@@ -3651,18 +3659,28 @@ FsSpace::ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs, bool force)
   eos::common::FileSystem::fs_snapshot_t snapshot;
 
   if (fs->SnapShotFileSystem(snapshot, false)) {
-    if (force || (!snapshot.mScanInterval)) {
-      // try to apply the default
-      if (GetConfigMember("scaninterval").length()) {
-        fs->SetString("scaninterval", GetConfigMember("scaninterval").c_str());
+    if (force || (!snapshot.mScanRate)) {
+      if (GetConfigMember(eos::common::SCAN_RATE_NAME).length()) {
+        fs->SetString(eos::common::SCAN_RATE_NAME,
+                      GetConfigMember(eos::common::SCAN_RATE_NAME).c_str());
         modified = true;
       }
     }
 
-    if (force || (!snapshot.mScanRate)) {
-      if (GetConfigMember("scanrate").length()) {
-        fs->SetString("scanrate", GetConfigMember("scanrate").c_str());
+    if (force || (!snapshot.mScanInterval)) {
+      // try to apply the default
+      if (GetConfigMember(eos::common::SCAN_INTERVAL_NAME).length()) {
         modified = true;
+        fs->SetString(eos::common::SCAN_INTERVAL_NAME,
+                      GetConfigMember(eos::common::SCAN_INTERVAL_NAME).c_str());
+      }
+    }
+
+    if (force || (!snapshot.mScanRerunInterval)) {
+      if (GetConfigMember(eos::common::SCAN_RERUNINTERVAL_NAME).length()) {
+        modified = true;
+        fs->SetString(eos::common::SCAN_RERUNINTERVAL_NAME,
+                      GetConfigMember(eos::common::SCAN_RERUNINTERVAL_NAME).c_str());
       }
     }
 

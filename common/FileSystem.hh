@@ -486,7 +486,8 @@ public:
     long mDiskRopen;
     long mDiskWopen;
     long mScanRate; ///< Maximum scan rate in MB/s
-    time_t mScanInterval;
+    long mScanInterval; ///< Time after which a scanned file is rescanned
+    long mScanRerunInterval; ///< Time after which the scanner runs again
     time_t mGracePeriod;
     time_t mDrainPeriod;
 

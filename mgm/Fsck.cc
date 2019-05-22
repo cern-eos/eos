@@ -157,7 +157,6 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
   int bccount = 0;
   ClearLog();
   gOFS->WaitUntilNamespaceIsBooted();
-  assistant.wait_for(std::chrono::seconds(60));
 
   while (!assistant.terminationRequested()) {
     eos_static_debug("msg=\"start consistency checker thread\"");
