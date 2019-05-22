@@ -322,6 +322,8 @@ eosxd provides a command line interface to interact with mounts (see eosxd -h):
 usage CLI   : eosxd get <key> [<path>]
 
                      eos.btime <path>                   : show inode birth time
+                     eos.ttime <path>                   : show lastest mtime in tree
+                     eos.tsize <path>                   : show size of directory tree
 		     eos.checksum <path>                : show path checksum if defined
                      eos.name <path>                    : show EOS instance name for given path
                      eos.md_ino <path>                  : show inode number valid on MGM 

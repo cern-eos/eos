@@ -321,6 +321,7 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
   std::shared_ptr<eos::IContainerMD> cmd;
   eos::IContainerMD::ctime_t ctime;
   eos::IContainerMD::ctime_t mtime;
+  eos::IContainerMD::ctime_t tmtime;
   uint64_t clock = 0;
 
   if (EOS_LOGS_DEBUG) {
@@ -331,6 +332,7 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
     cmd = gOFS->eosDirectoryService->getContainerMD(id, &clock);
     cmd->getCTime(ctime);
     cmd->getMTime(mtime);
+    cmd->getTMTime(tmtime);
     std::string fullpath = gOFS->eosView->getUri(cmd.get());
     dir.set_md_ino(id);
     dir.set_md_pino(cmd->getParentId());
@@ -338,6 +340,9 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
     dir.set_ctime_ns(ctime.tv_nsec);
     dir.set_mtime(mtime.tv_sec);
     dir.set_mtime_ns(mtime.tv_nsec);
+    dir.set_ttime(tmtime.tv_sec);
+    dir.set_ttime_ns(tmtime.tv_nsec);
+
     dir.set_atime(mtime.tv_sec);
     dir.set_atime_ns(mtime.tv_nsec);
     dir.set_size(cmd->getTreeSize());

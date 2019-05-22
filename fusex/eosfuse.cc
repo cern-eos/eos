@@ -136,6 +136,10 @@ EosFuse::UsageGet()
   usage +=
           "                     eos.btime <path>                   : show inode birth time\n";
   usage +=
+          "                     eos.ttime <path>                   : show lastest mtime in tree\n";
+  usage +=
+          "                     eos.tsize <path>                   : show size of directory tree\n";
+  usage +=
           "                     eos.name <path>                    : show EOS instance name for given path\n";
   usage +=
           "                     eos.md_ino <path>                  : show inode number valid on MGM \n";
@@ -4623,7 +4627,22 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
               char btime[256];
               snprintf(btime, sizeof(btime), "%lu.%lu", md->btime(), md->btime_ns());
               value = btime;
-              ;
+            }
+
+            if (key == "eos.ttime") {
+              char ttime[256];
+	      if (S_ISDIR(md->mode())) {
+		snprintf(ttime, sizeof(ttime), "%lu.%lu", md->ttime(), md->ttime_ns());
+	      } else {
+		snprintf(ttime, sizeof(ttime), "%lu.%lu", md->mtime(), md->mtime_ns());
+	      }
+              value = ttime;
+            }
+
+            if (key == "eos.tsize") {
+              char tsize[256];
+	      snprintf(tsize, sizeof(tsize), "%lu", md->size());
+              value = tsize;
             }
 
             if (key == "eos.checksum") {
@@ -5072,6 +5091,14 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
 	attrlist += "eos.btime";
 	attrlist += '\0';
 	attrlistsize += strlen("eos.btime") + 1;
+	// add 'eos.ttime'
+	attrlist += "eos.ttime";
+	attrlist += '\0';
+	attrlistsize += strlen("eos.ttime") + 1;
+	// add 'eos.tsize'
+	attrlist += "eos.tsize";
+	attrlist += '\0';
+	attrlistsize += strlen("eos.tszie") + 1;
 	// add "eos.url.xroot";
 	attrlist += "eos.url.xroot";
 	attrlist += '\0';
