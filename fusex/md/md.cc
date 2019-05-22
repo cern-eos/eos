@@ -388,7 +388,7 @@ metad::mdx::convert(struct fuse_entry_param& e, double lifetime)
     if (!EosFuse::Instance().Config().options.show_tree_size) {
       // show 4kb directory size
       e.attr.st_size = 4096;
-      e.attr.st_blocks = e.attr.st_size + 511) / 512;
+      e.attr.st_blocks = (e.attr.st_size + 511) / 512;
     }
 
     // we mask this bits for the moment
