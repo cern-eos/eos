@@ -140,6 +140,8 @@ EosFuse::UsageGet()
   usage +=
           "                     eos.tsize <path>                   : show size of directory tree\n";
   usage +=
+          "                     eos.dsize <path>                   : show total size of files inside a directory \n";
+  usage +=
           "                     eos.name <path>                    : show EOS instance name for given path\n";
   usage +=
           "                     eos.md_ino <path>                  : show inode number valid on MGM \n";
@@ -4643,6 +4645,27 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
               char tsize[256];
 	      snprintf(tsize, sizeof(tsize), "%lu", md->size());
               value = tsize;
+            }
+
+            if (key == "eos.dsize") {
+	      uint64_t sumsize=0;	      
+	      mLock.UnLock();
+	      rc = listdir(req, ino, md);
+	      if (!rc) {
+		for (auto it = md->local_children().begin(); it != md->local_children().end(); ++it) {
+		  fuse_ino_t cino = it->second;
+		  metad::shared_md cmd = Instance().mds.get(req, cino, "", 0, 0, 0, true);
+		  XrdSysMutexHelper mLock(cmd->Locker());
+		  if (cmd->id()) {
+		    if (S_ISREG(cmd->mode())) {
+		      sumsize += cmd->size();
+		    }
+		  }
+		}
+	      }
+              char dsize[256];
+	      snprintf(dsize, sizeof(dsize), "%lu", sumsize);
+              value = dsize;
             }
 
             if (key == "eos.checksum") {
