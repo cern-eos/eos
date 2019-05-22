@@ -1,11 +1,11 @@
 //------------------------------------------------------------------------------
-// File: FsHelper.hh
-// Author: Jozsef Makai - CERN
+//! @file FsckCmd.hh
+//! @author Elvin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2018 CERN/Switzerland                                  *
+ * Copyright (C) 2019 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -22,34 +22,38 @@
  ************************************************************************/
 
 #pragma once
-#include "console/commands/ICmdHelper.hh"
+#include "mgm/Namespace.hh"
+#include "proto/Fsck.pb.h"
+#include "mgm/proc/IProcCommand.hh"
+
+EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Class FsHelper
+//! Class FsckCmd - class handling ns commands
 //------------------------------------------------------------------------------
-class FsHelper: public ICmdHelper
+class FsckCmd: public IProcCommand
 {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param req client ProtocolBuffer request
+  //! @param vid client virtual identity
   //----------------------------------------------------------------------------
-  FsHelper()
-  {
-    mIsAdmin = true;
-    mHighlight = true;
-  }
+  explicit FsckCmd(eos::console::RequestProto&& req,
+                   eos::common::VirtualIdentity& vid):
+    IProcCommand(std::move(req), vid, false)
+  {}
 
   //----------------------------------------------------------------------------
-  //! Denstructor
+  //! Destructor
   //----------------------------------------------------------------------------
-  ~FsHelper() override = default;
+  virtual ~FsckCmd() = default;
 
   //----------------------------------------------------------------------------
-  //! Parse command line input
-  //!
-  //! @param arg input
-  //!
-  //! @return true if successful, otherwise false
+  //! Method implementing the specific behaviour of the command executed
   //----------------------------------------------------------------------------
-  bool ParseCommand(const char* arg) override;
+  eos::console::ReplyProto ProcessRequest() noexcept override;
 };
+
+EOSMGMNAMESPACE_END

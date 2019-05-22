@@ -114,7 +114,7 @@ add_library(
   proc/proc_fs.cc
   proc/admin/Backup.cc
   proc/admin/FsCmd.cc
-  proc/admin/Fsck.cc
+  proc/admin/FsckCmd.cc
   proc/admin/Fusex.cc
   proc/admin/GeoSched.cc
   proc/admin/NsCmd.cc

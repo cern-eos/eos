@@ -72,7 +72,7 @@ extern int com_fileinfo(char*);
 extern int com_find(char*);
 extern int com_find_new(char*);
 extern int com_protofs(char*);
-extern int com_fsck(char*);
+extern int com_proto_fsck(char*);
 extern int com_fuse(char*);
 extern int com_fusex(char*);
 extern int com_geosched(char*);
@@ -145,7 +145,7 @@ COMMAND commands[] = {
   { (char*) "find", com_find, (char*) "Find files/directories"},
   { (char*) "newfind", com_find_new, (char*) "Find files/directories (new implementation)"},
   { (char*) "fs", com_protofs, (char*) "File System configuration"},
-  { (char*) "fsck", com_fsck, (char*) "File System Consistency Checking"},
+  { (char*) "fsck", com_proto_fsck, (char*) "File System Consistency Checking"},
   { (char*) "fuse", com_fuse, (char*) "Fuse Mounting"},
   { (char*) "fusex", com_fusex, (char*) "Fuse(x) Administration"},
   { (char*) "geosched", com_geosched, (char*) "Geoscheduler Interface"},

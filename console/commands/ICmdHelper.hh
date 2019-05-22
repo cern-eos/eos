@@ -100,7 +100,10 @@ public:
   //----------------------------------------------------------------------------
   std::string GetError();
 
-  inline bool NeedsConfirmation()
+  //----------------------------------------------------------------------------
+  //! Check if commands needs confirmation from the client
+  //----------------------------------------------------------------------------
+  inline bool NeedsConfirmation() const
   {
     return mNeedsConfirmation;
   }

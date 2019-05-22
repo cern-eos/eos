@@ -48,6 +48,7 @@ add_library(
   commands/helpers/FsHelper.cc      commands/helpers/FsHelper.hh
   commands/helpers/AclHelper.cc     commands/helpers/AclHelper.hh
   commands/helpers/RecycleHelper.cc commands/helpers/RecycleHelper.hh
+  commands/helpers/FsckHelper.cc    commands/helpers/FsckHelper.hh
   commands/HealthCommand.cc         commands/HealthCommand.hh
   commands/com_accounting.cc
   commands/com_archive.cc
@@ -62,7 +63,6 @@ add_library(
   commands/com_file.cc
   commands/com_find.cc
   commands/com_fs.cc
-  commands/com_fsck.cc
   commands/com_fuse.cc
   commands/com_fusex.cc
   commands/com_geosched.cc
@@ -131,7 +131,8 @@ add_library(
   commands/com_proto_io.cc
   #@todo (esindril) drop com_access when move to 5.0.0
   commands/com_access.cc
-  commands/com_proto_access.cc)
+  commands/com_proto_access.cc
+  commands/com_proto_fsck.cc)
 
 add_dependencies(EosConsoleCommands-Objects EosCliProto-Objects)
 add_dependencies(EosConsoleCommands-Objects EosFstProto-Objects)

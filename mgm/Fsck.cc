@@ -43,7 +43,6 @@ EOSMGMNAMESPACE_BEGIN
 const char* Fsck::gFsckEnabled = "fsck";
 const char* Fsck::gFsckInterval = "fsckinterval";
 
-
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -104,7 +103,7 @@ Fsck::Stop(bool store)
 }
 
 //------------------------------------------------------------------------------
-//! Apply the FSCK configuration stored in the configuration engine
+// Apply the FSCK configuration stored in the configuration engine
 //------------------------------------------------------------------------------
 void
 Fsck::ApplyFsckConfig()
@@ -141,7 +140,7 @@ Fsck::ApplyFsckConfig()
 bool
 Fsck::StoreFsckConfig()
 {
-  bool ok = 1;
+  bool ok = true;
   XrdOucString sInterval = "";
   sInterval += (int) mInterval;
   ok &= FsView::gFsView.SetGlobalConfig(gFsckEnabled, mEnabled.c_str());
@@ -243,50 +242,26 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
 // Print the current log output
 //------------------------------------------------------------------------------
 void
-Fsck::PrintOut(XrdOucString& out, XrdOucString option)
+Fsck::PrintOut(std::string& out) const
 {
   XrdSysMutexHelper lock(mLogMutex);
-  out = mLog;
-}
-
-//------------------------------------------------------------------------------
-// Get usage information
-//------------------------------------------------------------------------------
-bool
-Fsck::Usage(XrdOucString& out, XrdOucString& err)
-{
-  err += "error: invalid option specified\n";
-  return false;
+  out = mLog.c_str();
 }
 
 //------------------------------------------------------------------------------
 // Return the current FSCK report
 //------------------------------------------------------------------------------
 bool
-Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
-             XrdOucString selection)
+Fsck::Report(std::string& out, const std::set<std::string> tags,
+             bool display_per_fs,  bool display_fid, bool display_lfn,
+             bool display_json, bool display_help)
 {
-  bool printfid = (option.find("i") != STR_NPOS);
-  bool printlfn = (option.find("l") != STR_NPOS);
+  // @todo(esindril) add display_help info
   XrdSysMutexHelper lock(eMutex);
-  XrdOucString checkoption = option;
-  checkoption.replace("h", "");
-  checkoption.replace("json", "");
-  checkoption.replace("i", "");
-  checkoption.replace("l", "");
-  checkoption.replace("a", "");
-
-  if (checkoption.length()) {
-    return Fsck::Usage(out, err);
-  }
-
   char stimestamp[1024];
-  snprintf(stimestamp,
-           sizeof(stimestamp) - 1,
-           "%lu",
-           (unsigned long) eTimeStamp);
+  snprintf(stimestamp, sizeof(stimestamp) - 1, "%lu", (unsigned long) eTimeStamp);
 
-  if ((option.find("json") != STR_NPOS) || (option.find("j") != STR_NPOS)) {
+  if (display_json) {
     // json output format
     out += "{\n";
     // put the check timestamp
@@ -294,10 +269,10 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
     out += stimestamp;
     out += ",\n";
 
-    if (!(option.find("a") != STR_NPOS)) {
+    if (!display_per_fs) {
       // Dump global table
       for (auto emapit = eMap.cbegin(); emapit != eMap.cend(); ++emapit) {
-        if (selection.length() && (selection.find(emapit->first.c_str()) == STR_NPOS)) {
+        if (!tags.empty() && (tags.find(emapit->first) == tags.end())) {
           continue;  // skip unselected
         }
 
@@ -311,7 +286,7 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
         out += sn;
         out += "\",\n";
 
-        if (printfid) {
+        if (display_fid) {
           out += "    \"fxid\": [";
 
           for (auto fidit = emapit->second.cbegin();
@@ -320,14 +295,14 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
             out += ",";
           }
 
-          if (out.endswith(",")) {
+          if (*out.rbegin() == ',') {
             out.erase(out.length() - 1);
           }
 
           out += "]\n";
         }
 
-        if (printlfn) {
+        if (display_lfn) {
           out += "    \"lfn\": [";
           std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
 
@@ -351,14 +326,14 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
             out += ",";
           }
 
-          if (out.endswith(",")) {
+          if (*out.rbegin() == ',') {
             out.erase(out.length() - 1);
           }
 
           out += "]\n";
         }
 
-        if (out.endswith(",\n")) {
+        if (out.find(",\n") == (out.length() - 2)) {
           out.erase(out.length() - 2);
           out += "\n";
         }
@@ -368,8 +343,7 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
     } else {
       // Do output per filesystem
       for (auto emapit = eMap.cbegin(); emapit != eMap.cend(); ++emapit) {
-        if (selection.length() &&
-            (selection.find(emapit->first.c_str()) == STR_NPOS)) {
+        if (!tags.empty() && (tags.find(emapit->first) == tags.end())) {
           continue;  // skip unselected
         }
 
@@ -407,7 +381,7 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
           out += sn;
           out += ",\n";
 
-          if (printfid) {
+          if (display_fid) {
             out += "        \"fxid\": [";
             std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
 
@@ -417,14 +391,14 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
               out += ",";
             }
 
-            if (out.endswith(",")) {
+            if (*out.rbegin() == ',') {
               out.erase(out.length() - 1);
             }
 
             out += "]\n";
           }
 
-          if (printlfn) {
+          if (display_lfn) {
             out += "        \"lfn\": [";
             std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
 
@@ -449,14 +423,14 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
               out += ",";
             }
 
-            if (out.endswith(",")) {
+            if (*out.rbegin() == ',') {
               out.erase(out.length() - 1);
             }
 
             out += "]\n";
           }
 
-          if (out.endswith(",\n")) {
+          if (out.find(",\n") == (out.length() - 2)) {
             out.erase(out.length() - 2);
             out += "\n";
           }
@@ -479,7 +453,7 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
         out += ",";
       }
 
-      if (out.endswith(",")) {
+      if (*out.rbegin() == ',') {
         out.erase(out.length() - 1);
       }
 
@@ -488,10 +462,9 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
     }
   } else {
     // greppable format
-    if (!(option.find("a") != STR_NPOS)) {
+    if (!display_per_fs) {
       for (auto emapit = eMap.cbegin(); emapit != eMap.cend(); ++emapit) {
-        if (selection.length() &&
-            (selection.find(emapit->first.c_str()) == STR_NPOS)) {
+        if (!tags.empty() && (tags.find(emapit->first) == tags.end())) {
           continue;  // skip unselected
         }
 
@@ -517,14 +490,14 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
             out += ",";
           }
 
-          if (out.endswith(",")) {
+          if (*out.rbegin() == ',') {
             out.erase(out.length() - 1);
           }
 
           out += "\n";
         }
 
-        if (printlfn) {
+        if (display_lfn) {
           out += " lfn=";
 
           for (auto fidit = emapit->second.cbegin();
@@ -547,7 +520,7 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
             out += ",";
           }
 
-          if (out.endswith(",")) {
+          if (*out.rbegin() == ',') {
             out.erase(out.length() - 1);
           }
 
@@ -567,7 +540,7 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
             out += ",";
           }
 
-          if (out.endswith(",")) {
+          if (*out.rbegin() == ',') {
             out.erase(out.length() - 1);
           }
 
@@ -577,8 +550,7 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
     } else {
       // Do output per filesystem
       for (auto emapit = eMap.cbegin(); emapit != eMap.cend(); ++emapit) {
-        if (selection.length() &&
-            (selection.find(emapit->first.c_str()) == STR_NPOS)) {
+        if (!tags.empty() && (tags.find(emapit->first) == tags.end())) {
           continue;  // skip unselected
         }
 
@@ -615,13 +587,13 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
               out += ",";
             }
 
-            if (out.endswith(",")) {
+            if (*out.rbegin() == ',') {
               out.erase(out.length() - 1);
             }
 
             out += "\n";
           } else {
-            if (printlfn) {
+            if (display_lfn) {
               out += " lfn=";
 
               for (auto fidit = efsmapit->second.cbegin();
@@ -643,7 +615,7 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
                 out += ",";
               }
 
-              if (out.endswith(",")) {
+              if (*out.rbegin() == ',') {
                 out.erase(out.length() - 1);
               }
 
@@ -664,28 +636,24 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
 // Method to issue a repair action
 //------------------------------------------------------------------------------
 bool
-Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
+Fsck::Repair(std::string& out, const std::set<string>& options)
 {
-  XrdSysMutexHelper lock(eMutex);
+  std::set<std::string> allowed_options {"checksum", "checksum-commit",
+                                         "resync", "unlink-unregistered", "unlink-orpahsn", "adjust-replicas",
+                                         "adjust-replicas-nodrop", "drop-missing-replicas", "unlink-zero-replicas",
+                                         "replace-damaged-replicas"};
 
-  // Check for a valid action in option
-  if ((option != "checksum") &&
-      (option != "checksum-commit") &&
-      (option != "resync") &&
-      (option != "unlink-unregistered") &&
-      (option != "unlink-orphans") &&
-      (option != "adjust-replicas") &&
-      (option != "adjust-replicas-nodrop") &&
-      (option != "drop-missing-replicas") &&
-      (option != "unlink-zero-replicas") &&
-      (option != "replace-damaged-replicas")) {
-    err += "error: illegal option <";
-    err += option;
-    err += ">\n";
-    return false;
+  // Check for a valid action in options
+  for (const auto& elem : options) {
+    if (allowed_options.find(elem) == allowed_options.end()) {
+      out = SSTR("error: illegal option <" << elem << ">").c_str();
+      return false;
+    }
   }
 
-  if (option.beginswith("checksum")) {
+  XrdSysMutexHelper lock(eMutex);
+
+  if (options.find("checksum") != options.end()) {
     out += "# repair checksum ------------------------------------------------"
            "-------------------------\n";
     std::map < eos::common::FileSystem::fsid_t,
@@ -734,7 +702,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
         int lretc = 1;
 
         if (path.length()) {
-          if (option == "checksum-commit") {
+          if (options.find("checksum-commit") != options.end()) {
             // Verify & commit
             lretc = gOFS->_verifystripe(path.c_str(), error, vid, efsmapit->first,
                                         "&mgm.verify.compute.checksum=1&"
@@ -766,7 +734,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
     return true;
   }
 
-  if (option.beginswith("resync")) {
+  if (options.find("resync") != options.end()) {
     out += "# resync         ------------------------------------------------"
            "-------------------------\n";
     std::map < eos::common::FileSystem::fsid_t,
@@ -835,7 +803,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
     return true;
   }
 
-  if (option == "unlink-unregistered") {
+  if (options.find("unlink-unregistered") != options.end()) {
     out += "# unlink unregistered --------------------------------------------"
            "-------------------------\n";
     // Unlink all unregistered files
@@ -903,7 +871,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
     return true;
   }
 
-  if (option == "unlink-orphans") {
+  if (options.find("unlink-orphans") != options.end()) {
     out += "# unlink orphans  ------------------------------------------------"
            "-------------------------\n";
     // Unlink all orphaned files
@@ -957,7 +925,8 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
     return true;
   }
 
-  if (option.beginswith("adjust-replicas")) {
+  if ((options.find("adjust-replicas") != options.end()) ||
+      (options.find("adjust-replicas-nodrop") != options.end())) {
     out += "# adjust replicas ------------------------------------------------"
            "-------------------------\n";
     // Adjust all layout errors e.g. missing replicas where possible
@@ -982,29 +951,39 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
           }
           // Execute adjust replica
           eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
+          XrdOucString cmd_out, cmd_err;
           XrdOucErrInfo error;
           ProcCommand Cmd;
           XrdOucString info = "mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.path=";
           info += path.c_str();
           info += "&mgm.format=fuse";
 
-          if (option == "adjust-replicas-nodrop") {
+          if (options.find("adjust-replicas-nodrop") != options.end()) {
             info += "&mgm.file.option=nodrop";
           }
 
           Cmd.open("/proc/user", info.c_str(), vid, &error);
-          Cmd.AddOutput(out, err);
+          Cmd.AddOutput(cmd_out, cmd_err);
 
-          if (!out.endswith("\n")) {
-            out += "\n";
+          if (cmd_out.length()) {
+            if (!cmd_out.endswith("\n")) {
+              cmd_out += "\n";
+            }
+
+            out += cmd_out.c_str();
           }
 
-          if (!err.endswith("\n")) {
-            err += "\n";
+          if (cmd_err.length()) {
+            if (!cmd_err.endswith("\n")) {
+              cmd_err += "\n";
+            }
+
+            out += cmd_err.c_str();
           }
 
           Cmd.close();
         } catch (eos::MDException& e) {
+          // ignore missing file entries
         }
       }
     }
@@ -1012,7 +991,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
     return true;
   }
 
-  if (option == "drop-missing-replicas") {
+  if (options.find("drop-missing-replicas") != options.end()) {
     out += "# drop missing replicas ------------------------------------------"
            "-------------------------\n";
     // Unlink all orphaned files - drop replicas which are in the namespace but
@@ -1077,18 +1056,27 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
 
           // Execute a proc command
           ProcCommand Cmd;
+          XrdOucString cmd_out, cmd_err;
           XrdOucString info = "mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.path=";
           info += path.c_str();
           info += "&mgm.format=fuse";
           Cmd.open("/proc/user", info.c_str(), vid, &error);
-          Cmd.AddOutput(out, err);
+          Cmd.AddOutput(cmd_out, cmd_err);
 
-          if (!out.endswith("\n")) {
-            out += "\n";
+          if (cmd_out.length()) {
+            if (!cmd_out.endswith("\n")) {
+              cmd_out += "\n";
+            }
+
+            out += cmd_out.c_str();
           }
 
-          if (!err.endswith("\n")) {
-            err += "\n";
+          if (cmd_err.length()) {
+            if (!cmd_err.endswith("\n")) {
+              cmd_err += "\n";
+            }
+
+            out += cmd_err.c_str();
           }
 
           Cmd.close();
@@ -1099,7 +1087,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
     return true;
   }
 
-  if (option == "unlink-zero-replicas") {
+  if (options.find("unlink-zero-replicas") != options.end()) {
     out += "# unlink zero replicas -------------------------------------------"
            "-------------------------\n";
     // Drop all namespace entries which are older than 48 hours and have no
@@ -1155,7 +1143,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
     return true;
   }
 
-  if (option == "replace-damaged-replicas") {
+  if (options.find("replace-damaged-replicas") != options.end()) {
     out += "# repairing replace-damaged-replicas -------------------------------------------"
            "-------------------------\n";
 
@@ -1224,18 +1212,27 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
           out += errline;
         } else {
           ProcCommand Cmd;
+          XrdOucString cmd_out, cmd_err;
           XrdOucString info = "mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.path=";
           info += path.c_str();
           info += "&mgm.format=fuse";
           Cmd.open("/proc/user", info.c_str(), vid, &error);
-          Cmd.AddOutput(out, err);
+          Cmd.AddOutput(cmd_out, cmd_err);
 
-          if (!out.endswith("\n")) {
-            out += "\n";
+          if (cmd_out.length()) {
+            if (!cmd_out.endswith("\n")) {
+              cmd_out += "\n";
+            }
+
+            out += cmd_out.c_str();
           }
 
-          if (!err.endswith("\n")) {
-            err += "\n";
+          if (cmd_err.length()) {
+            if (!cmd_err.endswith("\n")) {
+              cmd_err += "\n";
+            }
+
+            out += cmd_err.c_str();
           }
 
           Cmd.close();
@@ -1246,7 +1243,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
     return true;
   }
 
-  err = "error: unavailable option";
+  out = "error: unavailable option";
   return false;
 }
 

@@ -21,9 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_FSCK__HH__
-#define __EOSMGM_FSCK__HH__
-
+#pragma once
 #include "mgm/Namespace.hh"
 #include "common/FileSystem.hh"
 #include "common/FileId.hh"
@@ -43,11 +41,10 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! @brief Class implementing the EOS filesystem check.
 //!
-//! When the FSCK thread is enabled it collects in a regular interval the
+//! When the FSCK thread is enabled it collects on a regular interval the
 //! FSCK results broadcasted by all FST nodes into a central view.
-//!
 //! The FSCK interface offers a 'report' and a 'repair' utility allowing to
-//! inspect and to actively try to run repair commands to fix inconsistencies.
+//! inspect and to actively try to run repair to fix inconsistencies.
 //------------------------------------------------------------------------------
 class Fsck
 {
@@ -80,29 +77,39 @@ public:
   bool Stop(bool store = true);
 
   //----------------------------------------------------------------------------
-  //! FSCK interface usage output
-  //----------------------------------------------------------------------------
-  bool Usage(XrdOucString& out, XrdOucString& err);
-
-  //----------------------------------------------------------------------------
   //! Print function to display FSCK results
+  //!
+  //! @param out string holding the output to be displayed
   //----------------------------------------------------------------------------
-  void PrintOut(XrdOucString& out, XrdOucString option = "");
+  void PrintOut(std::string& out) const;
 
   //----------------------------------------------------------------------------
   //! Method to create a report
+  //!
+  //! @param output output string
+  //! @param tags set of tags for which the report should be generated
+  //! @param display_per_fs if true then display information per file system
+  //! @param display_fid if true then display file identifiers
+  //! @param display_lfn if true then display logical file name
+  //! @param display_json if true then dispaly info in json format
+  //! @param display_help if true then display help info about the tags
+  //!
+  //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool Report(XrdOucString& out, XrdOucString& err, XrdOucString option = "",
-              XrdOucString selection = "");
+  bool Report(std::string& output, const std::set<std::string> tags,
+              bool display_per_fs,  bool display_fid, bool display_lfn,
+              bool display_json, bool display_help);
 
   //----------------------------------------------------------------------------
   //! Method ot issue a repair action
   //!
-  //! @param out return of the action output
-  //! @param err return of STDERR
-  //! @param option selection of repair action (see code or command help)
+  //! @param out output of the repair action
+  //! @param options set of error types to be repaired
+  //!
+  //! @return true if successful, otherwise false and out contains the error
+  //!         message
   //----------------------------------------------------------------------------
-  bool Repair(XrdOucString& out, XrdOucString& err, XrdOucString option = "");
+  bool Repair(std::string& out, const std::set<std::string>& options);
 
   //----------------------------------------------------------------------------
   //! Clear the in-memory log
@@ -195,5 +202,3 @@ private:
 };
 
 EOSMGMNAMESPACE_END
-
-#endif
