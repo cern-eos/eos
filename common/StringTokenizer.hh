@@ -105,6 +105,15 @@ public:
   const char* GetTokenUnquoted(bool escapeand = true);
 
   //----------------------------------------------------------------------------
+  //! Get next token and return it in the supplied string
+  //!
+  //! @param token the next token or empty string if nothing found
+  //!
+  //! @return true if token retrieved, otherwise false
+  //----------------------------------------------------------------------------
+  bool NextToken(std::string& token);
+
+  //----------------------------------------------------------------------------
   //! Split given string based on the delimiter
   //!
   //! @param str given string

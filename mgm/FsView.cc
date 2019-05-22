@@ -263,7 +263,7 @@ bool GeoTree::erase(const fsid_t& fs)
 //------------------------------------------------------------------------------
 // Get the geotag at which the fs is stored if found
 //------------------------------------------------------------------------------
-bool GeoTree::getGeoTagInTree(const fsid_t& fs , std::string& geoTag)
+bool GeoTree::getGeoTagInTree(const fsid_t& fs, std::string& geoTag)
 {
   if (!pLeaves.count(fs)) {
     return false;
@@ -628,7 +628,7 @@ DoubleAggregator::aggregateLeaves(
 //------------------------------------------------------------------------------
 bool
 DoubleAggregator::aggregateNodes(
-  const std::map<std::string , GeoTreeElement*>& nodes,
+  const std::map<std::string, GeoTreeElement*>& nodes,
   const size_t& idx, bool includeSelf)
 {
   double pS, pM, pMAD, pSD, pMiD, pMaD;
@@ -661,7 +661,7 @@ DoubleAggregator::aggregateNodes(
 
   if (pN) {
     pSD = sqrt(pSD / pN - pM * pM);
-    pMAD = std::max(fabs(pMaD) , fabs(pMiD));
+    pMAD = std::max(fabs(pMaD), fabs(pMiD));
   }
 
   if (includeSelf) {
@@ -673,16 +673,16 @@ DoubleAggregator::aggregateNodes(
     }
 
     pMiD = std::min(pMiD,
-                    std::min((pMinDevs[idx] + pMeans[idx]) - pM ,
+                    std::min((pMinDevs[idx] + pMeans[idx]) - pM,
                              (pMaxDevs[idx] + pMeans[idx]) - pM));
     pMaD = std::max(pMaD,
-                    std::max((pMinDevs[idx] + pMeans[idx]) - pM ,
+                    std::max((pMinDevs[idx] + pMeans[idx]) - pM,
                              (pMaxDevs[idx] + pMeans[idx]) - pM));
     pSD += pNb[idx] * (pStdDevs[idx] * pStdDevs[idx] + pMeans[idx] * pMeans[idx]);
 
     if (pN) {
       pSD = sqrt(pSD / pN - pM * pM);
-      pMAD = std::max(fabs(pMaD) , fabs(pMiD));
+      pMAD = std::max(fabs(pMaD), fabs(pMiD));
     }
   }
 
@@ -786,7 +786,7 @@ LongLongAggregator::aggregateLeaves(
 //------------------------------------------------------------------------------
 bool
 LongLongAggregator::aggregateNodes(
-  const std::map<std::string , GeoTreeElement*>& nodes, const size_t& idx,
+  const std::map<std::string, GeoTreeElement*>& nodes, const size_t& idx,
   bool includeSelf)
 {
   long long pS = 0;
@@ -959,8 +959,8 @@ FsSpace::FsSpace(const char* name)
     // Set the default delay in seconds between free space queries
     if (GetConfigMember("tapeawaregc.spacequeryperiodsecs").empty()) {
       SetConfigMember("tapeawaregc.spacequeryperiodsecs",
-        std::to_string(TAPEAWAREGC_DEFAULT_SPACE_QUERY_PERIOD_SECS),
-        true, "/eos/*/mgm");
+                      std::to_string(TAPEAWAREGC_DEFAULT_SPACE_QUERY_PERIOD_SECS),
+                      true, "/eos/*/mgm");
     }
 
     // Set the default minimum number of free bytes for the tape aware garbage
@@ -1462,8 +1462,8 @@ FsView::GetGroupFormat(std::string option)
   if (option == "m") {
     // monitoring format
     format = "member=type:format=os|";
-    format += "member=name:format=os|";
     format += "member=cfg.status:format=os|";
+    format += "member=name:format=os|";
     format += "member=nofs:format=os|";
     format += "avg=stat.disk.load:format=of|";
     format += "sig=stat.disk.load:format=of|";
@@ -2790,7 +2790,7 @@ FsView::PrintSpaces(std::string& out, const std::string& table_format,
   std::string selected = selection ? selection : "";
 
   if (selection) {
-    eos::common::StringConversion::Tokenize(selected, selections , ",");
+    eos::common::StringConversion::Tokenize(selected, selections, ",");
   }
 
   TableFormatterBase table;
@@ -2814,7 +2814,7 @@ FsView::PrintGroups(std::string& out, const std::string& table_format,
   std::string selected = selection ? selection : "";
 
   if (selection) {
-    eos::common::StringConversion::Tokenize(selected, selections , ",");
+    eos::common::StringConversion::Tokenize(selected, selections, ",");
   }
 
   TableFormatterBase table;
@@ -2838,7 +2838,7 @@ FsView::PrintNodes(std::string& out, const std::string& table_format,
   std::string selected = selection ? selection : "";
 
   if (selection) {
-    eos::common::StringConversion::Tokenize(selected, selections , ",");
+    eos::common::StringConversion::Tokenize(selected, selections, ",");
   }
 
   TableFormatterBase table;

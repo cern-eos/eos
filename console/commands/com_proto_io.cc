@@ -39,7 +39,6 @@ public:
   //----------------------------------------------------------------------------
   IoHelper()
   {
-    mIsSilent = false;
     mHighlight = true;
   }
 
@@ -68,7 +67,7 @@ bool IoHelper::ParseCommand(const char* arg)
   tokenizer.GetLine();
   std::string token;
 
-  if (!next_token(tokenizer, token)) {
+  if (!tokenizer.NextToken(token)) {
     return false;
   }
 
@@ -76,7 +75,7 @@ bool IoHelper::ParseCommand(const char* arg)
   if (token == "stat") {
     eos::console::IoProto_StatProto* stat = io->mutable_stat();
 
-    while (next_token(tokenizer, token)) {
+    while (tokenizer.NextToken(token)) {
       if (token == "-a") {
         stat->set_details(true);
       } else if (token == "-m") {
@@ -98,7 +97,7 @@ bool IoHelper::ParseCommand(const char* arg)
   } else if (token == "ns") {
     eos::console::IoProto_NsProto* ns = io->mutable_ns();
 
-    while (next_token(tokenizer, token)) {
+    while (tokenizer.NextToken(token)) {
       if (token == "-m") {
         ns->set_monitoring(true);
       } else if (token == "-b") {
@@ -123,7 +122,7 @@ bool IoHelper::ParseCommand(const char* arg)
       }
     }
   } else if (token == "report") {
-    if (!next_token(tokenizer, token)) {
+    if (!tokenizer.NextToken(token)) {
       return false;
     }
 
@@ -138,7 +137,7 @@ bool IoHelper::ParseCommand(const char* arg)
       enable->set_switchx(false);
     }
 
-    while (next_token(tokenizer, token)) {
+    while (tokenizer.NextToken(token)) {
       if (token == "-r") {
         enable->set_reports(true);
       } else if (token == "-p") {
@@ -146,7 +145,7 @@ bool IoHelper::ParseCommand(const char* arg)
       } else if (token == "-n") {
         enable->set_namespacex(true);
       } else if (token == "--udp") {
-        if (!(next_token(tokenizer, token)) || (token.find("-") == 0)) {
+        if (!(tokenizer.NextToken(token)) || (token.find("-") == 0)) {
           return false;
         } else {
           enable->set_upd_address(token);

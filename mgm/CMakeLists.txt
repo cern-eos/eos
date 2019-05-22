@@ -90,7 +90,7 @@ add_library(
   proc/admin/Fsck.cc
   proc/admin/Fusex.cc
   proc/admin/GeoSched.cc
-  proc/admin/Group.cc
+  proc/admin/Group.cc proc/admin/GroupCmd.cc
   proc/admin/Io.cc
   proc/admin/IoCmd.cc proc/admin/IoCmd.hh
   proc/admin/Node.cc

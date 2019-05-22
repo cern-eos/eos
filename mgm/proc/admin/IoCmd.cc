@@ -71,12 +71,10 @@ void IoCmd::StatSubcmd(const eos::console::IoProto_StatProto& stat,
 {
   // If nothing is selected, we show the summary information
   if (!(stat.apps() || stat.domain() || stat.top() || stat.details())) {
-    eos_static_info("io stat");
     gOFS->IoStats->PrintOut(stdOut, true, stat.details(),
                             stat.monitoring(), stat.numerical(),
                             stat.top(), stat.domain(), stat.apps());
   } else {
-    eos_static_info("io stat");
     gOFS->IoStats->PrintOut(stdOut, stat.summary(), stat.details(),
                             stat.monitoring(), stat.numerical(),
                             stat.top(), stat.domain(), stat.apps());
@@ -260,7 +258,6 @@ void IoCmd::NsSubcmd(const eos::console::IoProto_NsProto& ns,
     break;
   }
 
-  eos_static_info("io ns");
   gOFS->IoStats->PrintNs(stdOut, option.c_str());
   reply.set_std_out(stdOut.c_str());
   reply.set_std_err(stdErr.c_str());

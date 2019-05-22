@@ -11,6 +11,7 @@ import "StagerRm.proto";
 import "Route.proto";
 import "Recycle.proto";
 import "Io.proto";
+import "Group.proto";
 
 //------------------------------------------------------------------------------
 // Request message sent to the server
@@ -38,6 +39,7 @@ message RequestProto {
     RouteProto route       = 9;
     RecycleProto recycle   = 10;
     IoProto io             = 11;
+    GroupProto group       = 12;
   }
 
   string Comment = 30;

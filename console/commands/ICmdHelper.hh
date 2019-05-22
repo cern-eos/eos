@@ -63,21 +63,6 @@ public:
   //----------------------------------------------------------------------------
   virtual bool ParseCommand(const char* arg) = 0;
 
-  bool next_token(eos::common::StringTokenizer& tokenizer,
-                  std::string& token)
-  {
-    const char* tmp = tokenizer.GetToken();
-
-    //token = (tmp ? tmp : "");
-    if (!tmp) {
-      token = "";
-      return false;
-    } else {
-      token = tmp;
-      return true;
-    }
-  }
-
   //----------------------------------------------------------------------------
   //! Execute command and display any output information
   //! @note When this methods is called the generic request object mReq needs

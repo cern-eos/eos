@@ -30,6 +30,7 @@
 #include "mgm/proc/admin/NsCmd.hh"
 #include "mgm/proc/admin/StagerRmCmd.hh"
 #include "mgm/proc/admin/IoCmd.hh"
+#include "mgm/proc/admin/GroupCmd.hh"
 #include <google/protobuf/util/json_util.h>
 
 EOSMGMNAMESPACE_BEGIN
@@ -213,6 +214,10 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
     cmd.reset(new IoCmd(std::move(req), vid));
     break;
 
+  case RequestProto::kGroup:
+    cmd.reset(new GroupCmd(std::move(req), vid));
+    break;
+
   default:
     eos_static_err("error: unknown request type");
     break;
@@ -288,6 +293,10 @@ ProcInterface::ProtoIsWriteAccess(const char* path, const char* opaque)
     break;
 
   case RequestProto::kIo:
+    return false;
+    break;
+
+  case RequestProto::kGroup:
     return false;
     break;
 

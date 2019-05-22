@@ -70,6 +70,7 @@ add_library(
   commands/com_fusex.cc
   commands/com_geosched.cc
   commands/com_group.cc
+  commands/com_proto_group.cc
   commands/com_health.cc
   commands/com_info.cc
   commands/com_io.cc
