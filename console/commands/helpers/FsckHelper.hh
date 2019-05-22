@@ -1,11 +1,11 @@
 //------------------------------------------------------------------------------
-// File: FsHelper.hh
-// Author: Jozsef Makai - CERN
+//! @file FsckHelper.hh
+//! @author Elvin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2018 CERN/Switzerland                                  *
+ * Copyright (C) 2019 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -25,24 +25,23 @@
 #include "console/commands/ICmdHelper.hh"
 
 //------------------------------------------------------------------------------
-//! Class FsHelper
+//! Class FsckHelper
 //------------------------------------------------------------------------------
-class FsHelper: public ICmdHelper
+class FsckHelper: public ICmdHelper
 {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  FsHelper()
+  FsckHelper()
   {
     mIsAdmin = true;
-    mHighlight = true;
   }
 
   //----------------------------------------------------------------------------
-  //! Denstructor
+  //! Destructor
   //----------------------------------------------------------------------------
-  ~FsHelper() override = default;
+  ~FsckHelper() = default;
 
   //----------------------------------------------------------------------------
   //! Parse command line input

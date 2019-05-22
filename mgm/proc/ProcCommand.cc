@@ -240,8 +240,11 @@ ProcCommand::open(const char* inpath, const char* info,
     } else if (mCmd == "geosched") {
       GeoSched();
       mDoSort = false;
-    } else if (mCmd == "fsck") {
-      Fsck();
+    } else if (mCmd == "group") {
+      Group();
+      mDoSort = false;
+    } else if (mCmd == "io") {
+      Io();
       mDoSort = false;
     } else if (mCmd == "fusex") {
       Fusex();
@@ -517,7 +520,6 @@ ProcCommand::MakeResult()
     if (mJsonFormat) {
       if (!stdJson.length()) {
         Json::Value json;
-
         try {
           Json::Value jsonOut;
           json["errormsg"] = stdErr.c_str();

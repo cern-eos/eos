@@ -1,0 +1,36 @@
+syntax="proto3";
+package eos.console;
+
+message FsckProto {
+
+  message EnableProto {
+   uint32 interval = 1;
+  }
+
+  message ReportProto {
+    bool display_per_fs = 1;
+    bool display_fid = 2;
+    bool display_lfn = 3;
+    bool display_json = 4;
+    bool display_help = 5;
+    repeated string tags = 6;
+  }
+
+  message RepairProto {
+    repeated string types = 1;
+  }
+
+  message SearchProto {
+    string path = 1;
+    uint32 num_expected_replicas = 2;
+  }
+
+  oneof subcmd {
+    bool stat = 1;
+    bool disable = 2;
+    EnableProto enable = 3;
+    SearchProto search = 4;
+    ReportProto report = 5;
+    RepairProto repair = 6;
+  }
+}
