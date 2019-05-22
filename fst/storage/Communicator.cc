@@ -27,6 +27,7 @@
 #include "common/SymKeys.hh"
 #include "common/Assert.hh"
 #include "mq/SharedHashWrapper.hh"
+#include "common/Constants.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -219,17 +220,21 @@ Storage::processIncomingFsConfigurationChange(fst::FileSystem *targetFs, const s
         targetFs->SetStatus(eos::common::BootStatus::kBooted);
       }
     } else {
-        eos_static_info("queue=%s status=%d check=%lld msg='booting - we are not booted yet'",
-          queue.c_str(), targetFs->GetStatus(),
-          targetFs->GetLongLong("bootcheck"));
+      eos_static_info("queue=%s status=%d check=%lld msg='booting - we are not booted yet'",
+                      queue.c_str(), targetFs->GetStatus(),
+                      targetFs->GetLongLong("bootcheck"));
       // start a boot thread;
       RunBootThread(targetFs);
     }
-  } else if ((key == "scaninterval") || (key == "scanrate")) {
-    long long value = targetFs->GetLongLong(key.c_str());
-
-    if (value > 0) {
-      targetFs->ConfigScanner(&mFstLoad, key.c_str(), value);
+  } else {
+    if ((key == eos::common::SCAN_RATE_NAME) ||
+        (key == eos::common::SCAN_INTERVAL_NAME) ||
+        (key == eos::common::SCAN_RERUNINTERVAL_NAME)) {
+      long long value = targetFs->GetLongLong(key.c_str());
+      
+      if (value > 0) {
+        targetFs->ConfigScanner(&mFstLoad, key.c_str(), value);
+      }
     }
   }
 }
@@ -272,8 +277,9 @@ Storage::Communicator(ThreadAssistant& assistant)
   eos_static_info("Communicator activated ...");
   std::string watch_id = "id";
   std::string watch_bootsenttime = "bootsenttime";
-  std::string watch_scaninterval = "scaninterval";
-  std::string watch_scanrate = "scanrate";
+  std::string watch_scanrate = eos::common::SCAN_RATE_NAME;
+  std::string watch_scaninterval = eos::common::SCAN_INTERVAL_NAME;
+  std::string watch_scanreruninterval = eos::common::SCAN_RERUNINTERVAL_NAME;
   std::string watch_symkey = "symkey";
   std::string watch_manager = "manager";
   std::string watch_publishinterval = "publish.interval";
@@ -291,6 +297,9 @@ Storage::Communicator(ThreadAssistant& assistant)
   ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_scanrate,
         XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
   ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_scaninterval,
+        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",
+        watch_scanreruninterval,
         XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
   ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_symkey,
         XrdMqSharedObjectChangeNotifier::kMqSubjectModification);

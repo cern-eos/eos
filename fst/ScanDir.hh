@@ -48,7 +48,7 @@ public:
   //----------------------------------------------------------------------------
   ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
           eos::fst::Load* fstload, bool bgthread = true,
-          long int testinterval = 60, int ratebandwidth = 50,
+          long int file_rescan_interval = 60, int ratebandwidth = 50,
           bool setchecksum = false, bool fake_clock = false);
 
   //----------------------------------------------------------------------------
@@ -135,8 +135,11 @@ public:
     return mClock;
   }
 
-  // @todo(esindril): drop it
-  std::string GetTimestampSmeared();
+  //----------------------------------------------------------------------------
+  //! Get timestamp smeared +/-20% of mRescanIntervalSec around the current
+  //! timestamp value
+  //----------------------------------------------------------------------------
+  std::string GetTimestampSmeared() const;
 
 private:
   //----------------------------------------------------------------------------
@@ -198,6 +201,8 @@ private:
   //! Time interval after which a file is rescanned in seconds, if 0 then
   //! rescanning is completely disabled
   std::atomic<uint64_t> mRescanIntervalSec;
+  //! Time interval after which the scanner will run again, default 4h
+  std::atomic<uint64_t> mRerunIntervalSec;
   std::atomic<int> mRateBandwidth; ///< Max scan rate in MB/s
 
   // Statistics
@@ -213,6 +218,7 @@ private:
   bool mBgThread; ///< If true running as background thread inside the FST
   bool mForcedScan; ///< Mark if scanner is in force mode
   AssistedThread mThread; ///< Thread doing the scanning
+  bool mFakeClock; ///< Mark if we're using a fake clock (testing)
   eos::common::SteadyClock mClock; ///< Clock wrapper also used for testing
 };
 

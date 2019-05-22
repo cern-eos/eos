@@ -295,7 +295,8 @@ FileSystem::ConfigScanner(Load* fst_load, const std::string& key,
   // If not running then create scanner thread with default parameters
   if (mScanDir == nullptr) {
     mScanDir.reset(new ScanDir(GetPath().c_str(), GetId(), fst_load, true));
-    eos_info("msg=\"%s\"", "started 'ScanDir' thread with default parameters");
+    eos_info("msg=\"started ScanDir thread with default parameters\" fsid=%d",
+             GetId());
   }
 
   mScanDir->SetConfig(key, value);

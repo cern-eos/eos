@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "fst/ScanDir.hh"
+#include "common/Constants.hh"
 #include "gtest/gtest.h"
 
 // Helper method to convert current timestamp to string microseconds
@@ -60,3 +61,24 @@ TEST(ScanDir, RescanTiming)
   ASSERT_TRUE(sd.DoRescan(sinit_ts));
 }
 
+TEST(ScanDir, TimestampSmeared)
+{
+  using namespace std::chrono;
+  std::string dir_path {"/"};
+  eos::common::FileSystem::fsid_t fsid = 1;
+  eos::fst::ScanDir sd(dir_path.c_str(), fsid, nullptr, false, 0, 40, false,
+                       true);
+  int interval = 300;
+  sd.SetConfig(eos::common::SCAN_INTERVAL_NAME, interval);
+  auto& clock = sd.GetClock();
+  clock.advance(seconds(5000));
+
+  for (int count = 0; count < 100; ++count) {
+    uint64_t ts_sec = duration_cast<seconds>
+                      (clock.getTime().time_since_epoch()).count();
+    auto sts = sd.GetTimestampSmeared();
+    ASSERT_TRUE(std::stoull(sts) >= ts_sec - interval);
+    ASSERT_TRUE(std::stoull(sts) <= ts_sec + interval);
+    clock.advance(seconds(1000));
+  }
+}
