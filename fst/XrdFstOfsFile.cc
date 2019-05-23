@@ -931,29 +931,35 @@ XrdFstOfsFile::verifychecksum()
         std::unique_ptr<eos::fst::FileIo> io(eos::fst::FileIoPlugin::GetIoObject(
                                                mFstPath.c_str(), this));
 
-        if (((eos::common::LayoutId::GetLayoutType(mLid) ==
-              eos::common::LayoutId::kPlain) ||
-             (eos::common::LayoutId::GetLayoutType(mLid) ==
-              eos::common::LayoutId::kReplica))) {
-          // Don't put file checksum tags for complex layouts like raid6,readdp, archive
+        // Don't store file checksum for complex layouts like raid6,readdp, archive
+        if (!IsRainLayout(mLid)) {
           if (io->attrSet(std::string("user.eos.checksumtype"),
                           std::string(mCheckSum->GetName()))) {
-            eos_err("unable to set extended attribute <eos.checksumtype> errno=%d", errno);
+            eos_err("msg=\"unable to set extended attribute <eos.checksumtype>\" "
+                    "path=%s errno=%d", mFstPath.c_str(), errno);
           }
 
           if (io->attrSet("user.eos.checksum", mCheckSum->GetBinChecksum(checksumlen),
                           checksumlen)) {
-            eos_err("unable to set extended attribute <eos.checksum> errno=%d", errno);
+            eos_err("msg=\"unable to set extended attribute <eos.checksum>\" "
+                    "path=%s errno=%d", mFstPath.c_str(), errno);
+          }
+
+          if (io->attrSet("user.eos.hexchecksum", mCheckSum->GetHexChecksum())) {
+            eos_err("msg=\"unable to set extended attribute <eos.hexchecksum>\" "
+                    "path=%s errno=%d", mFstPath.c_str(), errno);
           }
         }
 
         // Reset any tagged error
         if (io->attrSet("user.eos.filecxerror", "0")) {
-          eos_err("unable to set extended attribute <eos.filecxerror> errno=%d", errno);
+          eos_err("msg=\"unable to set extended attribute <eos.filecxerror> \""
+                  "path=%s errno=%d", mFstPath.c_str(), errno);
         }
 
         if (io->attrSet("user.eos.blockcxerror", "0")) {
-          eos_err("unable to set extended attribute <eos.blockcxerror> errno=%d", errno);
+          eos_err("msg=\"unable to set extended attribute <eos.blockcxerror>\" "
+                  "path=%s errno=%d", mFstPath.c_str(), errno);
         }
       }
     } else {
