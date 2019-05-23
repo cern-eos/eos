@@ -96,6 +96,19 @@ public:
                             eos::common::FileId::fileid_t fid);
 
   //----------------------------------------------------------------------------
+  //! Execute "fs dumpmd" on the MGM node
+  //!
+  //! @param mgm_host MGM hostname
+  //! @param fsid filesystem id
+  //! @param fn_output file name where output is written
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool ExecuteDumpmd(const std::string& mgm_hosst,
+                            eos::common::FileSystem::fsid_t fsid,
+                            std::string& fn_output);
+
+  //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   FmdDbMapHandler();
@@ -176,7 +189,8 @@ public:
   bool Commit(FmdHelper* fmd, bool lockit = true);
 
   //----------------------------------------------------------------------------
-  //! Update fmd from disk i.e. physical file extended attributes
+  //! Update local fmd with info from the disk i.e. physical file extended
+  //!  attributes
   //!
   //! @param fsid file system id
   //! @param fid  file id to update
@@ -189,15 +203,15 @@ public:
   //!
   //! @return true if record has been committed
   //----------------------------------------------------------------------------
-  bool UpdateFromDisk(eos::common::FileSystem::fsid_t fsid,
-                      eos::common::FileId::fileid_t fid,
-                      unsigned long long disksize,
-                      std::string diskchecksum,
-                      unsigned long checktime, bool filecxerror,
-                      bool blockcxerror, bool flaglayouterror);
+  bool UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
+                          eos::common::FileId::fileid_t fid,
+                          unsigned long long disksize,
+                          std::string diskchecksum,
+                          unsigned long checktime, bool filecxerror,
+                          bool blockcxerror, bool flaglayouterror);
 
   //----------------------------------------------------------------------------
-  //! Update fmd from MGM metadata
+  //! Update local fmd with info from the MGM
   //!
   //! @param fsid file system id
   //! @param fid  file id to update
@@ -208,18 +222,33 @@ public:
   //!
   //! @return true if record has been committed
   //----------------------------------------------------------------------------
-  bool UpdateFromMgm(eos::common::FileSystem::fsid_t fsid,
-                     eos::common::FileId::fileid_t fid,
-                     eos::common::FileId::fileid_t cid,
-                     eos::common::LayoutId::layoutid_t lid,
-                     unsigned long long mgmsize,
-                     std::string mgmchecksum,
-                     uid_t uid, gid_t gid,
-                     unsigned long long ctime,
-                     unsigned long long ctime_ns,
-                     unsigned long long mtime,
-                     unsigned long long mtime_ns,
-                     int layouterror, std::string locations);
+  bool UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
+                         eos::common::FileId::fileid_t fid,
+                         eos::common::FileId::fileid_t cid,
+                         eos::common::LayoutId::layoutid_t lid,
+                         unsigned long long mgmsize,
+                         std::string mgmchecksum,
+                         uid_t uid, gid_t gid,
+                         unsigned long long ctime,
+                         unsigned long long ctime_ns,
+                         unsigned long long mtime,
+                         unsigned long long mtime_ns,
+                         int layouterror, std::string locations);
+
+  //----------------------------------------------------------------------------
+  //! Update local fmd with info from the scanner
+  //!
+  //! @param fsid file system id
+  //! @param fs_root file system mountpoint
+  //! @param fpath local file path
+  //! @param filexs_err true if file has checksum error, otherwise false
+  //! @param blockxs_err true if file has block checksum error, otherwise false
+  //!
+  //! @return true if update done, otherwise false
+  //----------------------------------------------------------------------------
+  bool UpdateWithScanInfo(eos::common::FileSystem::fsid_t fsid,
+                          const std::string& fs_root, const std::string& fpath,
+                          bool filexs_err, bool blockxs_err);
 
   //----------------------------------------------------------------------------
   //! Reset disk information for all files stored on a particular file system
@@ -400,19 +429,6 @@ public:
   //! @return number of file systems on the current machine
   //----------------------------------------------------------------------------
   uint32_t GetNumFileSystems() const;
-
-  //----------------------------------------------------------------------------
-  //! Execute "fs dumpmd" on the MGM node
-  //!
-  //! @param mgm_host MGM hostname
-  //! @param fsid filesystem id
-  //! @param fn_output file name where output is written
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  static bool ExecuteDumpmd(const std::string& mgm_hosst,
-                            eos::common::FileSystem::fsid_t fsid,
-                            std::string& fn_output);
 
 private:
   std::map<eos::common::FileSystem::fsid_t, eos::common::DbMap*> mDbMap;
