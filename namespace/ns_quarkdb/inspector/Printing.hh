@@ -46,6 +46,19 @@ public:
   //----------------------------------------------------------------------------
   static void timespecToFileinfo(const struct timespec &val, std::ostream &stream);
   static std::string timespecToFileinfo(const struct timespec &val);
+  static std::string timespecToTimestamp(const struct timespec &val);
+
+
+  //----------------------------------------------------------------------------
+  //! Parse timespec
+  //----------------------------------------------------------------------------
+  template<typename T>
+  static struct timespec parseTimespec(const T& bytes) {
+    struct timespec spec;
+    (void) memcpy(&spec, bytes.data(), sizeof(struct timespec));
+    return spec;
+  }
+
 
 };
 

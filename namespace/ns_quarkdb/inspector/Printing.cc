@@ -47,6 +47,16 @@ static std::string serializeLocations(const T& vec) {
 
 //------------------------------------------------------------------------------
 // timespec to fileinfo: Convert a timespec into
+// "1447252711.38412918"
+//------------------------------------------------------------------------------
+std::string Printing::timespecToTimestamp(const struct timespec &val) {
+  std::ostringstream ss;
+  ss << val.tv_sec << "." << val.tv_nsec;
+  return ss.str();
+}
+
+//------------------------------------------------------------------------------
+// timespec to fileinfo: Convert a timespec into
 // "Wed Nov 11 15:38:31 2015 Timestamp: 1447252711.38412918"
 //------------------------------------------------------------------------------
 void Printing::timespecToFileinfo(const struct timespec &val, std::ostream &stream) {
@@ -55,7 +65,7 @@ void Printing::timespecToFileinfo(const struct timespec &val, std::ostream &stre
 
   stream << ctime_r(&tv_sec, buffer);
   stream.seekp(-1, std::ios_base::end);
-  stream << " Timestamp: " << val.tv_sec << "." << val.tv_nsec;
+  stream << " Timestamp: " << timespecToTimestamp(val);
 }
 
 std::string Printing::timespecToFileinfo(const struct timespec &val) {
@@ -69,11 +79,8 @@ std::string Printing::timespecToFileinfo(const struct timespec &val) {
 //------------------------------------------------------------------------------
 template<typename T>
 static std::string serializeTime(const T& bytes) {
-  struct timespec spec;
-  (void) memcpy(&spec, bytes.data(), sizeof(struct timespec));
-
   std::ostringstream ss;
-  Printing::timespecToFileinfo(spec, ss);
+  Printing::timespecToFileinfo(Printing::parseTimespec(bytes), ss);
   return ss.str();
 }
 

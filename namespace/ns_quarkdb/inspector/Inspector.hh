@@ -77,7 +77,7 @@ public:
   //----------------------------------------------------------------------------
   //! Find files with non-nominal number of stripes (replicas)
   //----------------------------------------------------------------------------
-  int stripediff(std::ostream &out, std::ostream &err);
+  int stripediff(bool printTime, std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
   //! Change the given fid - USE WITH CAUTION

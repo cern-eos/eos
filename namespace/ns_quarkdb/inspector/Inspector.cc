@@ -269,7 +269,7 @@ static std::string serializeLocations(const T& vec) {
 //----------------------------------------------------------------------------
 // Find files with non-nominal number of stripes (replicas)
 //----------------------------------------------------------------------------
-int Inspector::stripediff(std::ostream &out, std::ostream &err) {
+int Inspector::stripediff(bool printTime, std::ostream &out, std::ostream &err) {
   FileScanner fileScanner(mQcl);
 
   while(fileScanner.valid()) {
@@ -284,7 +284,13 @@ int Inspector::stripediff(std::ostream &out, std::ostream &err) {
     int64_t size = proto.size();
 
     if(actual != expected && size != 0) {
-      out << "id=" << proto.id() << " container=" << proto.cont_id() << " size=" << size << " actual-stripes=" << actual << " expected-stripes=" << expected << " unlinked-stripes=" << unlinked <<  " locations=" << serializeLocations(proto.locations()) << " unlinked-locations=" << serializeLocations(proto.unlink_locations()) << std::endl;
+      out << "id=" << proto.id() << " container=" << proto.cont_id() << " size=" << size << " actual-stripes=" << actual << " expected-stripes=" << expected << " unlinked-stripes=" << unlinked <<  " locations=" << serializeLocations(proto.locations()) << " unlinked-locations=" << serializeLocations(proto.unlink_locations());
+      if(printTime) {
+        out << " mtime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.mtime()));
+        out << " ctime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.ctime()));
+      }
+
+      out << std::endl;
     }
 
     fileScanner.next();

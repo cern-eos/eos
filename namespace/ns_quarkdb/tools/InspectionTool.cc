@@ -100,6 +100,9 @@ int main(int argc, char* argv[]) {
   auto stripediffSubcommand = app.add_subcommand("stripediff", "Find files which have non-nominal number of stripes (replicas)");
   addClusterOptions(stripediffSubcommand, membersStr, memberValidator, password, passwordFile);
 
+  bool printTime = false;
+  stripediffSubcommand->add_flag("--time", printTime, "Print mtime and ctime of found files");
+
   //----------------------------------------------------------------------------
   // Set-up print subcommand..
   //----------------------------------------------------------------------------
@@ -181,7 +184,7 @@ int main(int argc, char* argv[]) {
   }
 
   if(stripediffSubcommand->parsed()) {
-    return inspector.stripediff(std::cout, std::cerr);
+    return inspector.stripediff(printTime, std::cout, std::cerr);
   }
 
   if(scanFilesSubcommand->parsed()) {
