@@ -168,7 +168,7 @@ public:
   //!
   //! @return disk rate value
   //----------------------------------------------------------------------------
-  double GetDiskRate(const char* dev_path, const char* tag);
+  virtual double GetDiskRate(const char* dev_path, const char* tag);
 
   //----------------------------------------------------------------------------
   //! Get net rate type for a particular device

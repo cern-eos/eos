@@ -72,7 +72,6 @@ ioprio_set(int which, int who, int ioprio)
  * class, the default for any process. IDLE is the idle scheduling class, it
  * is only served when no one else is using the disk.
  */
-
 enum {
   IOPRIO_CLASS_NONE,
   IOPRIO_CLASS_RT,
@@ -196,8 +195,8 @@ ScanDir::Run(ThreadAssistant& assistant) noexcept
   }
 
   while (!assistant.terminationRequested()) {
-    mNumScannedFiles =  mTotalScanSize =  mNumCorruptedFiles =
-                                            mNumHWCorruptedFiles =  mNumTotalFiles = mNumSkippedFiles = 0;
+    mNumScannedFiles =  mTotalScanSize =  mNumCorruptedFiles = 0;
+    mNumHWCorruptedFiles =  mNumTotalFiles = mNumSkippedFiles = 0;
     UpdateForcedScan();
     auto start_ts = mClock.getTime();
     // Do the heavy work
@@ -286,7 +285,7 @@ ScanDir::CheckFile(const std::string& fpath)
 {
   using eos::common::LayoutId;
   unsigned long long scan_size {0ull};
-  std::string xs_type, xs_stamp, lfn, previous_xs_err;
+  std::string xs_type, xs_stamp_sec, lfn, previous_xs_err;
   char xs_val[SHA_DIGEST_LENGTH];
   memset(xs_val, 0, sizeof(xs_val));
   size_t xs_len = SHA_DIGEST_LENGTH;
@@ -326,15 +325,14 @@ ScanDir::CheckFile(const std::string& fpath)
 #endif
   io->attrGet("user.eos.checksumtype", xs_type);
   io->attrGet("user.eos.checksum", xs_val, xs_len);
-  io->attrGet("user.eos.timestamp", xs_stamp);
+  io->attrGet("user.eos.timestamp", xs_stamp_sec);
   io->attrGet("user.eos.lfn", lfn);
   io->attrGet("user.eos.filecxerror", previous_xs_err);
-  bool rescan = DoRescan(xs_stamp);
+  bool rescan = DoRescan(xs_stamp_sec);
   // A file which was checked as ok, but got a checksum error
   bool was_healthy = (previous_xs_err == "0");
   // Check if this file has been modified since the last time we scanned it
-  time_t scanTime = atoll(xs_stamp.c_str()) / 1000000;
-  bool didnt_change = (buf1.st_mtime < scanTime);
+  bool didnt_change = (buf1.st_mtime < atoll(xs_stamp_sec.c_str()));
 
   if (rescan || mForcedScan) {
     bool blockcxerror = false;
@@ -398,7 +396,7 @@ ScanDir::CheckFile(const std::string& fpath)
       bool failedtoset = false;
 
       if (!skip_settime) {
-        if (io->attrSet("user.eos.timestamp", GetTimestampSmeared())) {
+        if (io->attrSet("user.eos.timestamp", GetTimestampSmearedSec())) {
           failedtoset |= true;
         }
       }
@@ -525,8 +523,7 @@ ScanDir::UpdateLocalDB(const std::string& file_path,
 
 //------------------------------------------------------------------------------
 // Get block checksum object for the given file. First we need to check if
-// there is a block checksum file (.xsmap) correspnding to the given raw
-// file.
+// there is a block checksum file (.xsmap) corresponding to the given raw file.
 //------------------------------------------------------------------------------
 std::unique_ptr<eos::fst::CheckSum>
 ScanDir::GetBlockXS(const std::string& file_path)
@@ -576,11 +573,11 @@ ScanDir::GetBlockXS(const std::string& file_path)
 // configured rescan interval
 //------------------------------------------------------------------------------
 bool
-ScanDir::DoRescan(const std::string& timestamp_us) const
+ScanDir::DoRescan(const std::string& timestamp_sec) const
 {
   using namespace std::chrono;
 
-  if (!timestamp_us.compare("")) {
+  if (!timestamp_sec.compare("")) {
     if (mRescanIntervalSec == 0ull) {
       return false;
     } else {
@@ -593,11 +590,11 @@ ScanDir::DoRescan(const std::string& timestamp_us) const
 
   // Used only during testing
   if (mFakeClock) {
-    steady_clock::time_point old_ts(microseconds(std::stoull(timestamp_us)));
+    steady_clock::time_point old_ts(seconds(std::stoull(timestamp_sec)));
     steady_clock::time_point now_ts(mClock.getTime());
     elapsed_sec = duration_cast<seconds>(now_ts - old_ts).count();
   } else {
-    system_clock::time_point old_ts(microseconds(std::stoull(timestamp_us)));
+    system_clock::time_point old_ts(seconds(std::stoull(timestamp_sec)));
     system_clock::time_point now_ts(system_clock::now());
     elapsed_sec = duration_cast<seconds>(now_ts - old_ts).count();
   }
@@ -633,20 +630,13 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
     return false;
   }
 
-  struct timezone tz;
-
-  struct timeval opentime;
-
-  gettimeofday(&opentime, &tz);
-
+  uint64_t open_ts_sec = std::chrono::duration_cast<std::chrono::seconds>
+                         (mClock.getTime().time_since_epoch()).count();
   std::string file_path = io->GetPath();
-
   auto lid = LayoutId::GetId(LayoutId::kPlain,
                              LayoutId::GetChecksumFromString(xs_type));
-
   std::unique_ptr<eos::fst::CheckSum> normalXS
   {eos::fst::ChecksumPlugins::GetChecksumObjectPtr(lid)};
-
   std::unique_ptr<eos::fst::CheckSum> blockXS {GetBlockXS(file_path)};
 
   // If no checksum then there is nothing to check ...
@@ -685,7 +675,7 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
       }
 
       offset += nread;
-      EnforceAndAdjustScanRate(offset, opentime, scan_rate);
+      EnforceAndAdjustScanRate(offset, open_ts_sec, scan_rate);
     }
   } while (nread == mBufferSize);
 
@@ -753,26 +743,26 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
 //------------------------------------------------------------------------------
 void
 ScanDir::EnforceAndAdjustScanRate(const off_t offset,
-                                  const struct timeval& open_ts, int& scan_rate)
+                                  const uint64_t open_ts_sec,
+                                  int& scan_rate)
 {
+  using namespace std::chrono;
+
   if (scan_rate && mFstLoad) {
-    struct timezone tz;
-    struct timeval now_ts;
-    gettimeofday(&now_ts, &tz);
-    float scan_duration = (((now_ts.tv_sec - open_ts.tv_sec) * 1000.0) +
-                           ((now_ts.tv_usec - open_ts.tv_usec) / 1000.0));
-    float expect_duration = (1.0 * offset / scan_rate) / 1000.0;
+    uint64_t now_ts_sec = duration_cast<seconds>
+                          (mClock.getTime().time_since_epoch()).count();
+    uint64_t scan_duration = now_ts_sec - open_ts_sec;
+    uint64_t expect_duration = (uint64_t)((1.0 * offset / scan_rate) / 1000.0);
 
     if (expect_duration > scan_duration) {
-      std::this_thread::sleep_for
-      (std::chrono::milliseconds((int)(expect_duration - scan_duration)));
+      std::this_thread::sleep_for(milliseconds(expect_duration - scan_duration));
     }
 
     // Adjust the rate according to the load information
     double load = mFstLoad->GetDiskRate(mDirPath.c_str(), "millisIO") / 1000.0;
 
     if (load > 0.7) {
-      // Adjust the scan_rate
+      // Adjust the scan_rate which is in MB/s but no lower then 5 MB/s
       if (scan_rate > 5) {
         scan_rate = 0.9 * scan_rate;
       }
@@ -811,7 +801,7 @@ ScanDir::UpdateForcedScan()
 // timestamp value
 //------------------------------------------------------------------------------
 std::string
-ScanDir::GetTimestampSmeared() const
+ScanDir::GetTimestampSmearedSec() const
 {
   using namespace std::chrono;
   int64_t smearing =

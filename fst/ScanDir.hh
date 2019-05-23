@@ -83,9 +83,9 @@ public:
   //! Decide if a rescan is needed based on the timestamp provided and the
   //! configured rescan interval
   //!
-  //! @param timestamp_us timestamp in microseconds
+  //! @param timestamp_us timestamp in seconds
   //----------------------------------------------------------------------------
-  bool DoRescan(const std::string& timestamp_us) const;
+  bool DoRescan(const std::string& timestamp_sec) const;
 
   //----------------------------------------------------------------------------
   //! Check the given file for errors and properly account them both at the
@@ -136,23 +136,29 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Get timestamp smeared +/-20% of mRescanIntervalSec around the current
-  //! timestamp value
+  //! Get timestamp in seconds smeared +/-20% of mRescanIntervalSec around the
+  //!  current timestamp value
+  //!
+  //! @return string representing timestamp in seconds since epoch
   //----------------------------------------------------------------------------
-  std::string GetTimestampSmeared() const;
+  std::string GetTimestampSmearedSec() const;
 
 private:
+#ifdef IN_TEST_HARNESS
+public:
+#endif
+
   //----------------------------------------------------------------------------
   //! Enforce the scan rate by throttling the current thread and also adjust it
   //! depending on the IO load on the mountpoint
   //!
   //! @param offset current offset in file
-  //! @param open_ts open timestamp
+  //! @param open_ts_sec open timestamp in seconds from epoch
   //! @param scan_rate current scan rate, if 0 then then rate limiting is
   //!        disabled
   //----------------------------------------------------------------------------
-  void EnforceAndAdjustScanRate(const off_t offset,
-                                const struct timeval& open_ts, int& scan_rate);
+  void EnforceAndAdjustScanRate(const off_t offset, const uint64_t open_ts_sec,
+                                int& scan_rate);
 
   //----------------------------------------------------------------------------
   //! Update the local database based on the checksum information
