@@ -21,30 +21,42 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "fst/ScanDir.hh"
-#include "common/Constants.hh"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "fst/ScanDir.hh"
+#include "fst/Load.hh"
+#include "common/Constants.hh"
 
+//------------------------------------------------------------------------------
 // Helper method to convert current timestamp to string microseconds
 // representation
-std::string GetTimestampMicroSec(eos::common::SteadyClock& clock)
+//------------------------------------------------------------------------------
+std::string GetTimestampSec(eos::common::SteadyClock& clock)
 {
   using namespace std::chrono;
-  uint64_t now_us = duration_cast<microseconds>
+  uint64_t now_us = duration_cast<seconds>
                     (clock.getTime().time_since_epoch()).count();
   return std::to_string(now_us);
 }
 
+//------------------------------------------------------------------------------
+// MockLoad class
+//------------------------------------------------------------------------------
+class MockLoad: public eos::fst::Load
+{
+public:
+  MOCK_METHOD2(GetDiskRate, double(const char*, const char*));
+};
+
 TEST(ScanDir, RescanTiming)
 {
   using namespace std::chrono;
-  std::string dir_path {"/"};
+  std::string path {"/"};
   eos::common::FileSystem::fsid_t fsid = 1;
   // Scanner completely disabled
-  eos::fst::ScanDir sd(dir_path.c_str(), fsid, nullptr, false, 0, 50, false,
-                       true);
+  eos::fst::ScanDir sd(path.c_str(), fsid, nullptr, false, 0, 50, false, true);
   auto& clock = sd.GetClock();
-  std::string sinit_ts = GetTimestampMicroSec(clock);
+  std::string sinit_ts = GetTimestampSec(clock);
   ASSERT_FALSE(sd.DoRescan(""));
   clock.advance(seconds(65));
   ASSERT_FALSE(sd.DoRescan(sinit_ts));
@@ -53,7 +65,7 @@ TEST(ScanDir, RescanTiming)
   // First time the file should be scanned
   ASSERT_TRUE(sd.DoRescan(""));
   // Update initial timestamp
-  sinit_ts = GetTimestampMicroSec(clock);
+  sinit_ts = GetTimestampSec(clock);
   ASSERT_FALSE(sd.DoRescan(sinit_ts));
   clock.advance(seconds(59));
   ASSERT_FALSE(sd.DoRescan(sinit_ts));
@@ -64,10 +76,9 @@ TEST(ScanDir, RescanTiming)
 TEST(ScanDir, TimestampSmeared)
 {
   using namespace std::chrono;
-  std::string dir_path {"/"};
+  std::string path {"/"};
   eos::common::FileSystem::fsid_t fsid = 1;
-  eos::fst::ScanDir sd(dir_path.c_str(), fsid, nullptr, false, 0, 40, false,
-                       true);
+  eos::fst::ScanDir sd(path.c_str(), fsid, nullptr, false, 0, 50, false, true);
   int interval = 300;
   sd.SetConfig(eos::common::SCAN_INTERVAL_NAME, interval);
   auto& clock = sd.GetClock();
@@ -76,9 +87,40 @@ TEST(ScanDir, TimestampSmeared)
   for (int count = 0; count < 100; ++count) {
     uint64_t ts_sec = duration_cast<seconds>
                       (clock.getTime().time_since_epoch()).count();
-    auto sts = sd.GetTimestampSmeared();
+    auto sts = sd.GetTimestampSmearedSec();
     ASSERT_TRUE(std::stoull(sts) >= ts_sec - interval);
     ASSERT_TRUE(std::stoull(sts) <= ts_sec + interval);
     clock.advance(seconds(1000));
   }
+}
+
+TEST(ScanDir, AdjustScanRate)
+{
+  using namespace std::chrono;
+  using ::testing::_;
+  using ::testing::Return;
+  // Mock load class to return first a value for the disk rate below the
+  // threshold and then only values above the threshold to trigger the
+  // adjustment of the scan_rate but not lower then 5 MB/s
+  MockLoad load;
+  EXPECT_CALL(load, GetDiskRate(_, _)
+             ).WillOnce(Return(500.0)).WillRepeatedly(Return(800.0));
+  std::string path {"/"};
+  eos::common::FileSystem::fsid_t fsid = 1;
+  off_t offset = 0;
+  int rate = 75;  // MB/s
+  eos::fst::ScanDir sd(path.c_str(), fsid, &load, false, 0, rate, false, true);
+  uint64_t open_ts_sec = duration_cast<seconds>
+                         (sd.GetClock().getTime().time_since_epoch()).count();
+  int old_rate = rate;
+  sd.EnforceAndAdjustScanRate(offset, open_ts_sec, rate);
+  ASSERT_EQ(rate, old_rate);
+
+  while (rate > 5) {
+    old_rate = rate;
+    sd.EnforceAndAdjustScanRate(offset, open_ts_sec, rate);
+    ASSERT_EQ(rate, (int)(old_rate * 0.9));
+  }
+
+  ASSERT_LE(rate, 5);
 }

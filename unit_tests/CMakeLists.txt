@@ -130,6 +130,7 @@ install(TARGETS
 # eos-fst-unit-tests executable
 #-------------------------------------------------------------------------------
 add_executable(eos-fst-unit-tests ${UT_FST_SRCS})
+target_compile_definitions(eos-fst-unit-tests PUBLIC -DIN_TEST_HARNESS)
 
 target_link_libraries(
   eos-fst-unit-tests
