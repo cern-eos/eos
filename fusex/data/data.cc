@@ -1143,6 +1143,14 @@ data::datax::try_ropen(fuse_req_t req, XrdCl::Proxy*& proxy,
       return XrdCl::Proxy::status2errno(status);
     }
 
+    if ( (status.errNo == kXR_overQuota) || 
+	 (status.errNo == kXR_NoSpace) ) {
+      // error useless to retry - this can happen if the open tries to reattach a file without locations and the user is out of quota
+      eos_crit("recover read-open errno=%d", XrdCl::Proxy::status2errno(status));
+      return XrdCl::Proxy::status2errno(status);
+    }
+
+
     eos_warning("recover reopening file for read");
     // retrieve the 'tried' information to apply this for the file-reopening to exclude already knowns 'bad' locations
     std::string slasturl;
@@ -1290,6 +1298,12 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy*& proxy,
       // error useless to retry
       eos_crit("recover write-open-fatal queue=%d errno=%d",
                proxy->WriteQueue().size(), XrdCl::Proxy::status2errno(status));
+      return XrdCl::Proxy::status2errno(status);
+    }
+
+    if ( (status.errNo == kXR_overQuota) ) {
+      // error useless to retry - no quota anymore
+      eos_crit("recover write-open errno=%d", XrdCl::Proxy::status2errno(status));
       return XrdCl::Proxy::status2errno(status);
     }
 
