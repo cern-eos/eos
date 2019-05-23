@@ -10,7 +10,7 @@ function usage () {
 
 # get_podname() : Return the name of the Pods tagged with $1. Suppose it return just one result.
 #            $1 : is a label selector with key="app", specifying identifying attributes for a Kubernetes object.
-# Example of admitted labels are {eos-mgm, eos-mq, eos-fst1, eos-fst2 ... }, mirroring mirrors eos-roles
+# Example of admitted labels are {eos-mgm1, eos-mq, eos-fst1, eos-fst2 ... }, mirroring mirrors eos-roles
 # refs :https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
 function get_podname () {
 	kubectl get pods --namespace=${NAMESPACE} --no-headers -o custom-columns=":metadata.name" -l app=$1
@@ -43,18 +43,18 @@ fi
 # Execute system tests
 ################################################################################
 
-kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm) \
+kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm1) \
 	-- eos chmod 2777 /eos/dockertest/
-kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm) \
+kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm1) \
 	-- eos vid enable krb5
 
 # Execute full suite of instance tests if ONLY_CLIENT flag is not defined
 if [[ -z $ONLY_CLIENT ]]; then
-	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm) \
+	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm1) \
 	-- sed -i 's/eos-mq-test.eoscluster.cern.ch/eos-mq/g' /usr/sbin/eos-instance-test-ci # @todo tmp, then re-code the files
-	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm) \
+	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm1) \
 	-- sed -i "s/eos-fst4-test.eoscluster.cern.ch/eos-fst4.eos-fst4.${NAMESPACE}.svc.cluster.local/g" /usr/sbin/eos-drain-test # @todo tmp, then re-code the files
-	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm) \
+	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm1) \
 	-- eos-instance-test-ci
 fi
 
@@ -70,7 +70,7 @@ kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \
 # @todo(esindril): run "all" tests in schedule mode once these are properly supported
 # if [ "$CI_PIPELINE_SOURCE" == "schedule" ];
 # then
-# 	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm) \
+# 	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm1) \
 # 	-- eos vid add gateway "eos-cli1.eos-cli1.${NAMESPACE}.svc.cluster.local" unix;
 # 	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \
 # 	-- env EOS_FUSE_NO_ROOT_SQUASH=1 python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci;
