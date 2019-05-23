@@ -23,7 +23,9 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#define IN_TEST_HARNESS
 #include "fst/ScanDir.hh"
+#undef IN_TEST_HARNESS
 #include "fst/Load.hh"
 #include "common/Constants.hh"
 

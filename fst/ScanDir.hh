@@ -112,8 +112,6 @@ public:
   //!
   //! @param io io object attached to the file
   //! @param scan_size final scan size
-  //! @param xs_type string representing the checksum type
-  //! @param xs_val reference file checksum value to compare against
   //! @param lfn logical file name (NS path)
   //! @param filexs_err set to true if file has a checksum error
   //! @param blockxs_err set to true if file has a block checksum errror
@@ -123,7 +121,6 @@ public:
   //----------------------------------------------------------------------------
   bool ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
                          unsigned long long& scan_size,
-                         const std::string& xs_type, const char* xs_val,
                          const std::string& lfn, bool& filexs_err,
                          bool& blockxs_err);
 
@@ -159,20 +156,6 @@ public:
   //----------------------------------------------------------------------------
   void EnforceAndAdjustScanRate(const off_t offset, const uint64_t open_ts_sec,
                                 int& scan_rate);
-
-  //----------------------------------------------------------------------------
-  //! Update the local database based on the checksum information
-  //!
-  //! @param file_path
-  //! @param fid file identifier extracted from the path
-  //! @param filexs_error true if file has a checksum error
-  //! @param blocxs_error true if file has block checksum error
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool UpdateLocalDB(const std::string& file_path,
-                     eos::common::FileId::fileid_t fid,
-                     bool filexs_error, bool blockxs_error);
 
   //----------------------------------------------------------------------------
   //! Print log message - depending on whether or not we run in standalone mode

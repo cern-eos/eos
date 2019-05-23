@@ -536,7 +536,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
              statinfo.st_size, fMd->mProtoFmd.size());
     openSize = fMd->mProtoFmd.size();
 
-    if (!eos::common::LayoutId::IsRainLayout(layOut->GetLayoutId())) {
+    if (!eos::common::LayoutId::IsRain(layOut->GetLayoutId())) {
       // If replica layout and physical size of replica difference from the
       // fmd_size it means the file is being written to so we save the actual
       // sieze from disk.
@@ -555,8 +555,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   // If we are not the entry server for RAIN layouts we disable the checksum
   // object for write. If we read we don't check checksums at all since we
   // have block and parity checking.
-  if (eos::common::LayoutId::IsRainLayout(mLid) && ((!isRW) ||
-      (!layOut->IsEntryServer()))) {
+  if (eos::common::LayoutId::IsRain(mLid) &&
+      ((!isRW) || (!layOut->IsEntryServer()))) {
     mCheckSum.reset(nullptr);
   }
 
@@ -932,7 +932,7 @@ XrdFstOfsFile::verifychecksum()
                                                mFstPath.c_str(), this));
 
         // Don't store file checksum for complex layouts like raid6,readdp, archive
-        if (!IsRainLayout(mLid)) {
+        if (!eos::common::LayoutId::IsRain(mLid)) {
           if (io->attrSet(std::string("user.eos.checksumtype"),
                           std::string(mCheckSum->GetName()))) {
             eos_err("msg=\"unable to set extended attribute <eos.checksumtype>\" "
@@ -1090,7 +1090,7 @@ XrdFstOfsFile::close()
       if (isCreation) {
         // If we had space allocation we have to truncate the allocated space to
         // the real size of the file
-        if (eos::common::LayoutId::IsRainLayout(layOut->GetLayoutId())) {
+        if (eos::common::LayoutId::IsRain(layOut->GetLayoutId())) {
           // the entry server has to truncate only if this is not a recovery action
           if (layOut->IsEntryServer() && !mRainReconstruct) {
             eos_info("msg=\"truncate RAIN layout\" truncate-offset=%llu",
@@ -1125,7 +1125,7 @@ XrdFstOfsFile::close()
         }
       }
 
-      if (eos::common::LayoutId::IsRainLayout(layOut->GetLayoutId())) {
+      if (eos::common::LayoutId::IsRain(layOut->GetLayoutId())) {
         // For RAID-like layouts don't do this check
         targetsizeerror = false;
         minimumsizeerror = false;
@@ -1415,7 +1415,7 @@ XrdFstOfsFile::close()
       // For RAIN layouts if there is an error on close when writing then we
       // delete the whole file. If we do RAIN reconstruction we cleanup this
       // local replica which was not committed.
-      if (eos::common::LayoutId::IsRainLayout(layOut->GetLayoutId())) {
+      if (eos::common::LayoutId::IsRain(layOut->GetLayoutId())) {
         deleteOnClose = true;
       } else {
         // Some (remote) replica didn't make it through ... trigger an auto-repair
@@ -1805,7 +1805,7 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
   }
 
   if (rc > 0) {
-    if (layOut->IsEntryServer() || eos::common::LayoutId::IsRainLayout(mLid)) {
+    if (layOut->IsEntryServer() || eos::common::LayoutId::IsRain(mLid)) {
       XrdSysMutexHelper vecLock(vecMutex);
       rvec.push_back(rc);
     }
@@ -2037,7 +2037,7 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
   }
 
   if (rc > 0) {
-    if (layOut->IsEntryServer() || eos::common::LayoutId::IsRainLayout(mLid)) {
+    if (layOut->IsEntryServer() || eos::common::LayoutId::IsRain(mLid)) {
       XrdSysMutexHelper lock(vecMutex);
       wvec.push_back(rc);
     }

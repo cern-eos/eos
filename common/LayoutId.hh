@@ -358,7 +358,7 @@ public:
   //! Test for RAIN layout e.g. raid6,archive,qrain
   //--------------------------------------------------------------------------
   static bool
-  IsRainLayout(unsigned long layout)
+  IsRain(unsigned long layout)
   {
     // everything but plain and replica
     return (GetLayoutType(layout)>kReplica);

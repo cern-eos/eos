@@ -499,9 +499,7 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
         // The force flag allows to retrieve 'any' value even with inconsistencies
         // as needed by ResyncAllMgm
         if (!force) {
-          if (strcmp(LayoutId::GetLayoutTypeString(fmd->mProtoFmd.lid()), "raid6") &&
-              strcmp(LayoutId::GetLayoutTypeString(fmd->mProtoFmd.lid()), "raiddp") &&
-              strcmp(LayoutId::GetLayoutTypeString(fmd->mProtoFmd.lid()), "archive")) {
+          if (!eos::common::LayoutId::IsRain(fmd->mProtoFmd.lid())) {
             // If we have a mismatch between the mgm/disk and 'ref' value in size,
             // we don't return the Fmd record
             if ((!isRW) &&
@@ -535,6 +533,8 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
               delete fmd;
               return 0;
             }
+          } else {
+            // @todo(esindril) decide what flags to set for rain layouts
           }
         }
 
@@ -665,12 +665,12 @@ FmdDbMapHandler::Commit(FmdHelper* fmd, bool lockit)
 // Update fmd from disk i.e. physical file extended attributes
 //------------------------------------------------------------------------------
 bool
-FmdDbMapHandler::UpdateFromDisk(eos::common::FileSystem::fsid_t fsid,
-                                eos::common::FileId::fileid_t fid,
-                                unsigned long long disksize,
-                                std::string diskchecksum, unsigned long checktime,
-                                bool filecxerror, bool blockcxerror,
-                                bool flaglayouterror)
+FmdDbMapHandler::UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
+                                    eos::common::FileId::fileid_t fid,
+                                    unsigned long long disksize,
+                                    std::string diskchecksum, unsigned long checktime,
+                                    bool filecxerror, bool blockcxerror,
+                                    bool flaglayouterror)
 {
   if (!fid) {
     eos_info("skipping to insert a file with fid 0");
@@ -715,18 +715,18 @@ FmdDbMapHandler::UpdateFromDisk(eos::common::FileSystem::fsid_t fsid,
 // Update fmd from MGM metadata
 //------------------------------------------------------------------------------
 bool
-FmdDbMapHandler::UpdateFromMgm(eos::common::FileSystem::fsid_t fsid,
-                               eos::common::FileId::fileid_t fid,
-                               eos::common::FileId::fileid_t cid,
-                               eos::common::LayoutId::layoutid_t lid,
-                               unsigned long long mgmsize,
-                               std::string mgmchecksum,
-                               uid_t uid, gid_t gid,
-                               unsigned long long ctime,
-                               unsigned long long ctime_ns,
-                               unsigned long long mtime,
-                               unsigned long long mtime_ns,
-                               int layouterror, std::string locations)
+FmdDbMapHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
+                                   eos::common::FileId::fileid_t fid,
+                                   eos::common::FileId::fileid_t cid,
+                                   eos::common::LayoutId::layoutid_t lid,
+                                   unsigned long long mgmsize,
+                                   std::string mgmchecksum,
+                                   uid_t uid, gid_t gid,
+                                   unsigned long long ctime,
+                                   unsigned long long ctime_ns,
+                                   unsigned long long mtime,
+                                   unsigned long long mtime_ns,
+                                   int layouterror, std::string locations)
 {
   if (!fid) {
     eos_info("skipping to insert a file with fid 0");
@@ -774,6 +774,109 @@ FmdDbMapHandler::UpdateFromMgm(eos::common::FileSystem::fsid_t fsid,
     return false;
   }
 }
+
+//------------------------------------------------------------------------------
+// Update local fmd with info from the scanner
+//------------------------------------------------------------------------------
+bool
+FmdDbMapHandler::UpdateWithScanInfo(eos::common::FileSystem::fsid_t fsid,
+                                    const std::string& fs_root,
+                                    const std::string& fpath,
+                                    bool filexs_err, bool blockxs_err)
+{
+  eos::common::Path cPath(fpath.c_str());
+  eos::common::FileId::fileid_t fid {0ull};
+
+  try {
+    fid = std::stoull(cPath.GetName(), 0, 16);
+  } catch (...) {
+    eos_err("msg=\"failed to extract fid\" path=%s", fpath.c_str());
+    return false;
+  }
+
+  std::string manager = eos::fst::Config::gConfig.GetManager();
+
+  if (manager.empty()) {
+    eos_err("msg=\"no manager hostname info available\"");
+    return false;
+  }
+
+  // Check if we have this file in the local DB, if not, we resync first
+  // the disk and then the MGM meta data
+  bool orphaned = false;
+  std::unique_ptr<FmdHelper> fmd {LocalGetFmd(fid, fsid, 0, 0, false, true)};
+
+  if (fmd) {
+    // Real orphans get rechecked
+    if (fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kOrphan) {
+      orphaned = true;
+    }
+
+    // Unregistered replicas get rechecked
+    if (fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered) {
+      orphaned = true;
+    }
+  }
+
+  if ((fmd == nullptr) || filexs_err || blockxs_err || orphaned) {
+    eos_notice("msg=\"resyncing from disk\" fsid=%d fid=%08llx", fsid, fid);
+    // ask the meta data handling class to update the error flags for this file
+    ResyncDisk(fpath.c_str(), fsid, false);
+    eos_notice("msg=\"resyncing from mgm\" fsid=%d fid=%08llx", fsid, fid);
+    bool resynced = false;
+    resynced = ResyncMgm(fsid, fid, manager.c_str());
+    fmd.reset(LocalGetFmd(fid, fsid, 0, 0, 0, false, true));
+
+    if (resynced && fmd) {
+      if ((fmd->mProtoFmd.layouterror() ==  eos::common::LayoutId::kOrphan) ||
+          ((!(fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kReplicaWrong))
+           && (fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered))) {
+        char oname[4096];
+        snprintf(oname, sizeof(oname), "%s/.eosorphans/%08llx",
+                 fs_root.c_str(), (unsigned long long) fid);
+        // Store the original path name as an extended attribute in case ...
+        std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(fpath));
+        io->attrSet("user.eos.orphaned", fpath.c_str());
+
+        // If orphan move it into the orphaned directory
+        if (!rename(fpath.c_str(), oname)) {
+          eos_warning("msg=\"orphaned/unregistered quarantined\" "
+                      "fst-path=%s orphan-path=%s", fpath.c_str(), oname);
+        } else {
+          eos_err("msg=\"failed to quarantine orphaned/unregistered\" "
+                  "fst-path=%s orphan-path=%s", fpath.c_str(), oname);
+        }
+
+        gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
+      }
+    }
+
+    // Call the autorepair method on the MGM - but not for orphaned or
+    // unregistered files. If MGM autorepair is disabled then it doesn't do
+    // anything
+    bool do_autorepair = false;
+
+    if (orphaned == false) {
+      if (fmd) {
+        if ((fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered)
+            == false) {
+          do_autorepair = true;
+        }
+      } else {
+        // The fmd could be null since LocalGetFmd returns null in case of a
+        // checksum error
+        do_autorepair = true;
+      }
+    }
+
+    if (do_autorepair) {
+      CallAutoRepair(manager.c_str(), fid);
+    }
+  }
+
+  return true;
+}
+
 
 //------------------------------------------------------------------------------
 // Reset disk information
@@ -886,7 +989,6 @@ FmdDbMapHandler::ResyncDisk(const char* path,
         std::string diskchecksum = "";
         char checksumVal[SHA_DIGEST_LENGTH];
         size_t checksumLen = 0;
-        unsigned long checktime = 0;
         disksize = buf.st_size;
         memset(checksumVal, 0, sizeof(checksumVal));
         checksumLen = SHA_DIGEST_LENGTH;
@@ -898,7 +1000,8 @@ FmdDbMapHandler::ResyncDisk(const char* path,
         io->attrGet("user.eos.checksumtype", checksumType);
         io->attrGet("user.eos.filecxerror", filecxError);
         io->attrGet("user.eos.blockcxerror", blockcxError);
-        checktime = (strtoull(checksumStamp.c_str(), 0, 10) / 1000000);
+        io->attrGet("user.eos.timestamp", checksumStamp);
+        unsigned long checktime = std::stoul(checksumStamp);
 
         if (checksumLen) {
           // Use a checksum object to get the hex representation
@@ -923,8 +1026,9 @@ FmdDbMapHandler::ResyncDisk(const char* path,
                             (filecxError == "1") ? 1 : 0,
                             (blockcxError == "1") ? 1 : 0,
                             flaglayouterror)) {
-          eos_err("failed to update %s DB for fsid=%lu fxid=%08llx",
-                  eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid, fid);
+          eos_err("msg=\"failed to update DB\" dbpath=%s fsid=%lu fxid=%08llx",
+                  eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid,
+                  fid);
           retc = false;
         }
       }
@@ -1159,10 +1263,11 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
                         (unsigned long) fsid);
           }
 
-          if (!UpdateFromMgm(fsid, fMd.fid(), fMd.cid(), fMd.lid(), fMd.mgmsize(),
-                             fMd.mgmchecksum(), fMd.uid(), fMd.gid(), fMd.ctime(),
-                             fMd.ctime_ns(), fMd.mtime(), fMd.mtime_ns(),
-                             fMd.layouterror(), fMd.locations())) {
+          if (!UpdateWithMgmInfo(fsid, fMd.fid(), fMd.cid(), fMd.lid(),
+                                 fMd.mgmsize(), fMd.mgmchecksum(), fMd.uid(),
+                                 fMd.gid(), fMd.ctime(), fMd.ctime_ns(),
+                                 fMd.mtime(), fMd.mtime_ns(),
+                                 fMd.layouterror(), fMd.locations())) {
             eos_err("failed to update fmd %s", dumpentry.c_str());
           }
 
@@ -1262,11 +1367,11 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contactDetails,
                     ns_fmd.fid(), (unsigned long) fsid);
       }
 
-      if (!UpdateFromMgm(fsid, ns_fmd.fid(), ns_fmd.cid(), ns_fmd.lid(),
-                         ns_fmd.mgmsize(), ns_fmd.mgmchecksum(), ns_fmd.uid(),
-                         ns_fmd.gid(), ns_fmd.ctime(), ns_fmd.ctime_ns(),
-                         ns_fmd.mtime(), ns_fmd.mtime_ns(),
-                         ns_fmd.layouterror(), ns_fmd.locations())) {
+      if (!UpdateWithMgmInfo(fsid, ns_fmd.fid(), ns_fmd.cid(), ns_fmd.lid(),
+                             ns_fmd.mgmsize(), ns_fmd.mgmchecksum(), ns_fmd.uid(),
+                             ns_fmd.gid(), ns_fmd.ctime(), ns_fmd.ctime_ns(),
+                             ns_fmd.mtime(), ns_fmd.mtime_ns(),
+                             ns_fmd.layouterror(), ns_fmd.locations())) {
         eos_err("failed to update fid %llu", ns_fmd.fid());
       }
 

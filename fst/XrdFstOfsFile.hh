@@ -645,7 +645,8 @@ public:
   //! protobuf endpoint
   //! @return
   //----------------------------------------------------------------------------
-  int NotifyProtoWfEndPointClosew(const Fmd& fmd, uint32_t ownerUid, uint32_t ownerGid,
+  int NotifyProtoWfEndPointClosew(const Fmd& fmd, uint32_t ownerUid,
+                                  uint32_t ownerGid,
                                   const string& requestorName, const string& requestorGroupName,
                                   const string& instanceName, const string& fullPath,
                                   const string& managerName,
