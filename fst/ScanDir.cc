@@ -321,6 +321,12 @@ ScanDir::CheckFile(const std::string& fpath)
 
 #endif
   io->attrGet("user.eos.timestamp", xs_stamp_sec);
+
+  // Handle the old format in microseconds, truncate to seconds
+  if (xs_stamp_sec.length() > 10) {
+    xs_stamp_sec.erase(10);
+  }
+
   io->attrGet("user.eos.lfn", lfn);
   io->attrGet("user.eos.filecxerror", previous_xs_err);
   bool rescan = DoRescan(xs_stamp_sec);
