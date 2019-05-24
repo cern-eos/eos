@@ -30,6 +30,7 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 struct Fmd : public FmdBase {
 public:
+  static constexpr uint64_t UNDEF = 0xfffffffffff1ULL;
   virtual ~Fmd() {}
 };
 

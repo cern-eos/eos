@@ -220,10 +220,10 @@ void DumpFsckStats(eos::common::DbMap& db, bool verbose = false)
       }
     }
 
-    if (f.mgmsize() != 0xfffffffffff1ULL) {
+    if (f.mgmsize() != eos::fst::Fmd::UNDEF) {
       statistics["m_sync_n"]++;
 
-      if (f.size() != 0xfffffffffff1ULL) {
+      if (f.size() != eos::fst::Fmd::UNDEF) {
         if (f.size() != f.mgmsize()) {
           statistics["m_mem_sz_diff"]++;
           fid_set["m_mem_sz_diff"].insert(f.fid());
@@ -246,10 +246,10 @@ void DumpFsckStats(eos::common::DbMap& db, bool verbose = false)
 
     statistics["mem_n"]++;
 
-    if (f.disksize() != 0xfffffffffff1ULL) {
+    if (f.disksize() != eos::fst::Fmd::UNDEF) {
       statistics["d_sync_n"]++;
 
-      if (f.size() != 0xfffffffffff1ULL) {
+      if (f.size() != eos::fst::Fmd::UNDEF) {
         // Report missmatch only for replica layout files
         if ((f.size() != f.disksize()) &&
             (eos::common::LayoutId::GetLayoutType(f.lid())
