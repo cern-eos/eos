@@ -1415,11 +1415,7 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
     MakeDeletionReport(fsid, fid, sbd);
   }
 
-  if (!gFmdDbMapHandler.LocalDeleteFmd(fid, fsid)) {
-    eos_notice("unable to delete fmd for fid %llu on filesystem %lu", fid, fsid);
-    return gOFS.Emsg(epname, error, EIO, "delete file meta data ", fstPath.c_str());
-  }
-
+  gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
   return SFS_OK;
 }
 

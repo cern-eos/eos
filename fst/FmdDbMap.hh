@@ -75,14 +75,14 @@ public:
   //----------------------------------------------------------------------------
   //! Return Fmd from MGM doing getfmd command
   //!
-  //! @param manager host:port of the mgm to contact
+  //! @parm manager manager hostname:port
   //! @param fid file id
   //! @param fmd reference to the Fmd struct to store Fmd
   //!
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
-  static int GetMgmFmd(const char* manager, eos::common::FileId::fileid_t fid,
-                       struct Fmd& fmd);
+  static int GetMgmFmd(const std::string& manager,
+                       eos::common::FileId::fileid_t fid, struct Fmd& fmd);
 
   //----------------------------------------------------------------------------
   //! Call the 'auto repair' function e.g. 'file convert --rewrite'
@@ -158,7 +158,8 @@ public:
   //! @param uid user id of the caller
   //! @param gid group id of the caller
   //! @param layoutid layout id used to store during creation
-  //! @param isRW indicates if we create a non-existing Fmd
+  //! @param do_create if true create a non-existing Fmd if needed
+  //! @param force_retrieve get object even in the presence of inconsistencies
   //!
   //! @return pointer to Fmd struct if successful, otherwise nullptr
   //----------------------------------------------------------------------------
@@ -166,17 +167,15 @@ public:
                          eos::common::FileSystem::fsid_t fsid,
                          uid_t uid, gid_t gid,
                          eos::common::LayoutId::layoutid_t layoutid,
-                         bool isRW = false, bool force = false);
+                         bool do_create = false, bool force_retrieve = false);
 
   //----------------------------------------------------------------------------
   //! Delete a record associated with fid and filesystem fsid
   //!
   //! @param fid file id
   //! @param fsid filesystem id
-  //!
-  //! @return true if deleted, false if it does not exist
   //----------------------------------------------------------------------------
-  bool LocalDeleteFmd(eos::common::FileId::fileid_t fid,
+  void LocalDeleteFmd(eos::common::FileId::fileid_t fid,
                       eos::common::FileSystem::fsid_t fsid);
 
   //----------------------------------------------------------------------------
@@ -190,25 +189,25 @@ public:
 
   //----------------------------------------------------------------------------
   //! Update local fmd with info from the disk i.e. physical file extended
-  //!  attributes
+  //! attributes
   //!
   //! @param fsid file system id
   //! @param fid  file id to update
-  //! @param disksize size of the file on disk
-  //! @param diskchecksum checksum of the file on disk
-  //! @param checktime time of the last check of that file
-  //! @param filecxerror indicator for file checksum error
-  //! @param blockcxerror inidicator for block checksum error
-  //! @param flaglayouterror indication for layout error
+  //! @param disk_size size of the file on disk
+  //! @param disk_xs checksum of the file on disk
+  //! @param check_ts_sec time of the last check of that file
+  //! @param filexs_err indicator for file checksum error
+  //! @param blockxs_err inidicator for block checksum error
+  //! @param layout_err indication for layout error
   //!
   //! @return true if record has been committed
   //----------------------------------------------------------------------------
   bool UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
                           eos::common::FileId::fileid_t fid,
-                          unsigned long long disksize,
-                          std::string diskchecksum,
-                          unsigned long checktime, bool filecxerror,
-                          bool blockcxerror, bool flaglayouterror);
+                          unsigned long long disk_size,
+                          std::string disk_xs,
+                          unsigned long check_ts_sec, bool filexs_err,
+                          bool blockxs_err, bool layout_err);
 
   //----------------------------------------------------------------------------
   //! Update local fmd with info from the MGM
@@ -243,10 +242,8 @@ public:
   //! @param fpath local file path
   //! @param filexs_err true if file has checksum error, otherwise false
   //! @param blockxs_err true if file has block checksum error, otherwise false
-  //!
-  //! @return true if update done, otherwise false
   //----------------------------------------------------------------------------
-  bool UpdateWithScanInfo(eos::common::FileSystem::fsid_t fsid,
+  void UpdateWithScanInfo(eos::common::FileSystem::fsid_t fsid,
                           const std::string& fs_root, const std::string& fpath,
                           bool filexs_err, bool blockxs_err);
 
@@ -504,46 +501,36 @@ private:
   }
 
   //----------------------------------------------------------------------------
-  //! Check if file record exists in the local database
-  //!
-  //! @param fid file id
-  //! @param fsid filesystem id
-  //!
-  //! @return true if it exits, otherwise false
-  //! @note this function must be called with the mMapMutex locked and also the
-  //! mutex corresponding to the filesystem locked
-  //----------------------------------------------------------------------------
-  bool LocalExistFmd(eos::common::FileId::fileid_t fid,
-                     eos::common::FileSystem::fsid_t fsid)
-  {
-    if (!mDbMap.count(fsid)) {
-      return false;
-    }
-
-    eos::common::DbMap::Tval val;
-    bool retval = mDbMap[fsid]->get(eos::common::Slice((const char*)&fid,
-                                    sizeof(fid)), &val);
-    return retval;
-  }
-
-  //----------------------------------------------------------------------------
   //! Get Fmd struct from local database for a file we know for sure it exists
   //!
   //! @param fid file id
   //! @param fsid filesystem id
+  //! @param fmd structure populated in case fid found
   //!
-  //! @return Fmd structure
+  //! @return true if object found and retrieved, otherwise false
   //! @note this function must be called with the mMapMutex locked and also the
   //! mutex corresponding to the filesystem locked
   //----------------------------------------------------------------------------
-  Fmd LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
-                       eos::common::FileSystem::fsid_t fsid)
+  bool LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
+                        eos::common::FileSystem::fsid_t fsid, Fmd& fmd)
   {
+    FmdHelper::Reset(fmd);
+    auto it = mDbMap.find(fsid);
+
+    if (it == mDbMap.end()) {
+      eos_crit("msg=\"db not open\" dbpath=%s fsid=%lu",
+               eos::common::DbMap::getDbType().c_str(), fsid);
+      return false;
+    }
+
     eos::common::DbMap::Tval val;
-    mDbMap[fsid]->get(eos::common::Slice((const char*)&fid, sizeof(fid)), &val);
-    Fmd retval;
-    retval.ParseFromString(val.value);
-    return retval;
+
+    if (it->second->get(eos::common::Slice((const char*)&fid, sizeof(fid)), &val)) {
+      fmd.ParseFromString(val.value);
+      return true;
+    }
+
+    return false;
   }
 
   //----------------------------------------------------------------------------
