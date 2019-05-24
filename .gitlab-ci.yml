@@ -378,7 +378,9 @@ build_cc7_coverage:
   tags:
     - docker_node
     - cc7
-  when: manual
+  only:
+    variables:
+      - $COVERAGE_SCHEDULE
 
 
 build_fedora_stable:
@@ -555,7 +557,9 @@ cc7_coverage_docker_image:
   dependencies:
     - build_cc7_coverage
     - clone_docker
-  when: manual
+  only:
+    variables:
+      - $COVERAGE_SCHEDULE
 
 
 cc7_docker_image_xrd_testing:
@@ -1283,7 +1287,9 @@ coverage_report:
     - shell-with-docker
   dependencies:
     - clone_docker
-  when: manual
+  only:
+    variables:
+      - $COVERAGE_SCHEDULE
 
 
 periodic_coverity:
