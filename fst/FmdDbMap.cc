@@ -1001,7 +1001,13 @@ FmdDbMapHandler::ResyncDisk(const char* path,
         io->attrGet("user.eos.filecxerror", filecxError);
         io->attrGet("user.eos.blockcxerror", blockcxError);
         io->attrGet("user.eos.timestamp", checksumStamp);
-        unsigned long checktime = std::stoul(checksumStamp);
+
+        // Handle the old format in microseconds, truncate to seconds
+        if (checksumStamp.length() > 10) {
+          checksumStamp.erase(10);
+        }
+
+        unsigned long check_ts_sec = std::stoul(checksumStamp);
 
         if (checksumLen) {
           // Use a checksum object to get the hex representation
@@ -1027,8 +1033,7 @@ FmdDbMapHandler::ResyncDisk(const char* path,
                             (blockcxError == "1") ? 1 : 0,
                             flaglayouterror)) {
           eos_err("msg=\"failed to update DB\" dbpath=%s fsid=%lu fxid=%08llx",
-                  eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid,
-                  fid);
+                  eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid, fid);
           retc = false;
         }
       }
