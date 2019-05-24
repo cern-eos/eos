@@ -48,7 +48,7 @@ public:
   //----------------------------------------------------------------------------
   IProcCommand():
     mHasSlot(false), mExecRequest(false), mReqProto(), mDoAsync(false),
-    mForceKill(false), mVid(), mComment(), stdOut(), stdErr(), stdJson(),
+    mForceKill(false), mVid(), mComment(), stdOut(""), stdErr(""), stdJson(),
     retc(0), mTmpResp()
   {
     mTimestamp = time(NULL);

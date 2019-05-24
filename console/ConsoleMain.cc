@@ -45,7 +45,7 @@
 #include <setjmp.h>
 #include <readline/readline.h>
 #include <readline/history.h>
-#include <list> 
+#include <list>
 
 #ifdef __APPLE__
 #define ENONET 64
@@ -81,7 +81,8 @@ extern int com_group(char*);
 extern int com_health(char*);
 extern int com_help(char*);
 extern int com_info(char*);
-extern int com_io(char*);
+// extern int com_io(char*);
+extern int com_protoio(char*);
 extern int com_json(char*);
 extern int com_license(char*);
 extern int com_ln(char*);
@@ -152,7 +153,8 @@ COMMAND commands[] = {
   { (char*) "health", com_health, (char*) "Health information about system"},
   { (char*) "help", com_help, (char*) "Display this text"},
   { (char*) "info", com_info, (char*) "Retrieve file or directory information"},
-  { (char*) "io", com_io, (char*) "IO Interface"},
+  // { (char*) "io", com_io, (char*) "IO Interface"},
+  { (char*) "io", com_protoio, (char*) "IO Interface"},
   { (char*) "json", com_json, (char*) "Toggle JSON output flag for stdout"},
   { (char*) "license", com_license, (char*) "Display Software License"},
   { (char*) "ls", com_ls, (char*) "List a directory"},
@@ -1443,28 +1445,32 @@ std::string DefaultRoute()
 //------------------------------------------------------------------------------
 // Load current filesystems into a map
 //------------------------------------------------------------------------------
-int filesystems::Load(bool verbose) {
+int filesystems::Load(bool verbose)
+{
   std::string cmd = "ls -m -s";
   struct stat buf;
   std::string cachefile = "/tmp/.eos.filesystems.";
   XrdOucString serverflat = serveruri;
-  while (serverflat.replace("/",":")) {}
+
+  while (serverflat.replace("/", ":")) {}
+
   cachefile += serverflat.c_str();
   cachefile += std::to_string(geteuid());
   bool use_cache = false;
+
   if (!::stat(cachefile.c_str(), &buf)) {
-    if ( (buf.st_mtime + 3600 ) > time(NULL) ) {
+    if ((buf.st_mtime + 3600) > time(NULL)) {
       use_cache = true;
     }
   }
 
   std::string cachefiletmp = cachefile + ".tmp";
-  
   int retc = 0;
 
   if (use_cache) {
     std::string out;
-    rstdout = eos::common::StringConversion::LoadFileIntoString(cachefile.c_str(), out);
+    rstdout = eos::common::StringConversion::LoadFileIntoString(cachefile.c_str(),
+              out);
   } else {
     retc = com_protofs((char*)cmd.c_str());
     std::string in = rstdout.c_str();
@@ -1475,21 +1481,24 @@ int filesystems::Load(bool verbose) {
   if (!retc) {
     std::istringstream f(rstdout.c_str());
     std::string line;
+
     while (std::getline(f, line)) {
-      std::map<std::string,std::string> fs;
+      std::map<std::string, std::string> fs;
       eos::common::StringConversion::GetKeyValueMap(line.c_str(),
-						    fs, "=", " ");
-      
-    std::string hostport = fs["host"] + ":" + fs["port"];
-    fs["hostport"] = hostport;
-    fsmap[std::stoi(fs["id"])] = fs;
-    if (verbose) {
-	fprintf(stdout,"[fs] id=%06d %s\n", std::stoi(fs["id"]), hostport.c_str());
+          fs, "=", " ");
+      std::string hostport = fs["host"] + ":" + fs["port"];
+      fs["hostport"] = hostport;
+      fsmap[std::stoi(fs["id"])] = fs;
+
+      if (verbose) {
+        fprintf(stdout, "[fs] id=%06d %s\n", std::stoi(fs["id"]), hostport.c_str());
       }
     }
-    fprintf(stdout,"# loaded %lu filesystems\n", fsmap.size());
+
+    fprintf(stdout, "# loaded %lu filesystems\n", fsmap.size());
     fflush(stdout);
   }
+
   return retc;
 }
 
@@ -1501,12 +1510,13 @@ int filesystems::Connect()
 {
   for (auto it = fsmap.begin(); it != fsmap.end() ; ++it) {
     if (!clientmap.count(it->first)) {
-      XrdCl::URL url( std::string("root://") + it->second["id"] + "@" + it->second["hostport"] + "//dummy");
+      XrdCl::URL url(std::string("root://") + it->second["id"] + "@" +
+                     it->second["hostport"] + "//dummy");
       // make a new connection
       clientmap[it->first] = std::make_shared<XrdCl::FileSystem> (url);
     }
   }
-   
+
   return 0;
 }
 
@@ -1514,47 +1524,49 @@ int filesystems::Connect()
 // Find files
 //------------------------------------------------------------------------------
 
-int files::Find(const char* path, bool verbose) 
+int files::Find(const char* path, bool verbose)
 {
-  fprintf(stdout,"# finding files ...\n");
+  fprintf(stdout, "# finding files ...\n");
   fflush(stdout);
   std::string cmd = "-f --nrep --fid --fs --checksum --size ";
   cmd += path;
-
   bool old_silent = silent;
-  silent =true;
+  silent = true;
   int retc = com_find((char*)cmd.c_str());
   silent = old_silent;
+
   if (!retc) {
     std::istringstream f(rstdout.c_str());
     std::string line;
+
     while (std::getline(f, line)) {
-      std::map<std::string,std::string> f;
+      std::map<std::string, std::string> f;
       eos::common::StringConversion::GetKeyValueMap(line.c_str(),
-						    f, "=", " ");
-      
+          f, "=", " ");
       filemap[f["path"]].size = std::stol(f["size"]);
       filemap[f["path"]].nrep = std::stoi(f["nrep"]);
       filemap[f["path"]].checksum = f["checksum"];
       filemap[f["path"]].hexid = f["fid"];
-      
       std::vector<std::string> tokens;
       eos::common::StringConversion::Tokenize(f["fsid"], tokens, ",");
-      for (size_t i = 0 ; i< tokens.size(); ++i) {
-	filemap[f["path"]].locations.insert(std::stoi(tokens[i]));
+
+      for (size_t i = 0 ; i < tokens.size(); ++i) {
+        filemap[f["path"]].locations.insert(std::stoi(tokens[i]));
       }
-	
+
       if (verbose) {
-	fprintf(stdout,"[file] path=%s hexid=%s checksum=%s nrep=%d size=%lu locations=%lu\n", 
-		f["path"].c_str(), 
-		filemap[f["path"]].hexid.c_str(),
-		filemap[f["path"]].checksum.c_str(),
-		filemap[f["path"]].nrep,
-		filemap[f["path"]].size,
-		filemap[f["path"]].locations.size());
+        fprintf(stdout,
+                "[file] path=%s hexid=%s checksum=%s nrep=%d size=%lu locations=%lu\n",
+                f["path"].c_str(),
+                filemap[f["path"]].hexid.c_str(),
+                filemap[f["path"]].checksum.c_str(),
+                filemap[f["path"]].nrep,
+                filemap[f["path"]].size,
+                filemap[f["path"]].locations.size());
       }
     }
   }
+
   return retc;
 }
 
@@ -1562,145 +1574,183 @@ int files::Find(const char* path, bool verbose)
 // Lookup locations
 //------------------------------------------------------------------------------
 
-int files::Lookup(filesystems& fsmap, bool verbose) 
+int files::Lookup(filesystems& fsmap, bool verbose)
 {
   size_t max_queue = 49512;
   size_t stat_timeout = 300;
   size_t n_timeouts = 0;
   size_t n_missing = 0;
   size_t n_other = 0;
-
   std::list< SyncResponseHandler*> callback_queue;
   std::map<uint64_t, SyncResponseHandler*> callbacks;
+  size_t count = 0;
 
-  size_t count=0;
   for (auto it = filemap.begin(); it != filemap.end(); ++it) {
     count++;
-    if (!(count% 100)) {
-      fprintf(stdout, "# progress %.01f %% [ %lu/%lu ] [ unix:%lu ] [ cb:%lu ] [ to:%lu ] [ miss:%lu ] [ oth:%lu ] \n", 100.0* count / filemap.size(), count, filemap.size(), time(NULL) , callbacks.size(), n_timeouts, n_missing, n_other);
-      fflush (stdout);
+
+    if (!(count % 100)) {
+      fprintf(stdout,
+              "# progress %.01f %% [ %lu/%lu ] [ unix:%lu ] [ cb:%lu ] [ to:%lu ] [ miss:%lu ] [ oth:%lu ] \n",
+              100.0 * count / filemap.size(), count, filemap.size(), time(NULL),
+              callbacks.size(), n_timeouts, n_missing, n_other);
+      fflush(stdout);
     }
-    for (auto loc = it->second.locations.begin(); loc != it->second.locations.end(); ++loc) {
+
+    for (auto loc = it->second.locations.begin(); loc != it->second.locations.end();
+         ++loc) {
       if (!fsmap.fs().count(*loc)) {
-	fprintf(stderr,"[ERROR] [SHADOWFS] fs=%d path=%s\n", *loc, it->first.c_str());
-	continue;
+        fprintf(stderr, "[ERROR] [SHADOWFS] fs=%d path=%s\n", *loc, it->first.c_str());
+        continue;
       }
+
       std::string prefix = fsmap.fs()[*loc]["path"];
       XrdOucString fullpath;
-      eos::common::FileId::FidPrefix2FullPath(it->second.hexid.c_str(), prefix.c_str(), 
-					      fullpath);
+      eos::common::FileId::FidPrefix2FullPath(it->second.hexid.c_str(),
+                                              prefix.c_str(),
+                                              fullpath);
+
       if (verbose) {
-	fprintf(stdout,"[file] path=%s loc=%d fstpath=%s\n", it->first.c_str(), *loc, fullpath.c_str());
+        fprintf(stdout, "[file] path=%s loc=%d fstpath=%s\n", it->first.c_str(), *loc,
+                fullpath.c_str());
       }
-      
+
       bool cleaning = false;
-      while (callbacks.size() > max_queue || (cleaning && (callbacks.size() > max_queue/2) ) ) {
-	//	fprintf(stderr,"waiting 1 %lu\n", callbacks.size());
-	//	cleaning = true;
-	for (auto it = callback_queue.begin(); it != callback_queue.end(); ++it) {
-	  if ((*it)->HasStatus()) {
-	    (*it)->WaitForResponse();
-	    if ((*it)->GetStatus()->IsOK()) {
-	      StatInfo* statinfo;
-	      (*it)->GetResponse()->Get(statinfo);
-	      //	      fprintf(stderr,"path=%s size=%ld\n", (*it)->GetPath(), statinfo->GetSize());
-	      if (statinfo->GetSize() != filemap[(*it)->GetPath()].size) {
-		filemap[(*it)->GetPath()].wrongsize_locations.insert((*it)->GetFsid());
-	      }
-	      delete statinfo;
-	    } else {
-	      if ( (*it)->GetStatus()->code == XrdCl::errOperationExpired) {
-		filemap[(*it)->GetPath()].expired = true;
-		n_timeouts++;
-	      } else {
-		if ( ((*it)->GetStatus()->code == XrdCl::errErrorResponse ) &&
-		     ((*it)->GetStatus()->errNo == kXR_NotFound)) {
-		  filemap[(*it)->GetPath()].missing_locations.insert((*it)->GetFsid());
-		  n_missing++;
-		} else {
-		  n_other++;
-		}
-	      }
-	    }
-	    callbacks.erase((uint64_t)*it);
-	    delete *it;
-	    callback_queue.erase(it);
-	    break;
-	  } else {
-	    size_t age = (*it) -> GetAge();
-	    if ( age > (stat_timeout+60) )  {
-	      fprintf(stderr,"pending request since %lu seconds - path=%s fsid=%d\n", age, (*it)->GetPath(), (*it)->GetFsid());
-	    }
-	  }
-	}
-	//	fprintf(stderr,"waiting 2 %lu\n", callbacks.size());
+
+      while (callbacks.size() > max_queue || (cleaning &&
+                                              (callbacks.size() > max_queue / 2))) {
+        //  fprintf(stderr,"waiting 1 %lu\n", callbacks.size());
+        //  cleaning = true;
+        for (auto it = callback_queue.begin(); it != callback_queue.end(); ++it) {
+          if ((*it)->HasStatus()) {
+            (*it)->WaitForResponse();
+
+            if ((*it)->GetStatus()->IsOK()) {
+              StatInfo* statinfo;
+              (*it)->GetResponse()->Get(statinfo);
+
+              //        fprintf(stderr,"path=%s size=%ld\n", (*it)->GetPath(), statinfo->GetSize());
+              if (statinfo->GetSize() != filemap[(*it)->GetPath()].size) {
+                filemap[(*it)->GetPath()].wrongsize_locations.insert((*it)->GetFsid());
+              }
+
+              delete statinfo;
+            } else {
+              if ((*it)->GetStatus()->code == XrdCl::errOperationExpired) {
+                filemap[(*it)->GetPath()].expired = true;
+                n_timeouts++;
+              } else {
+                if (((*it)->GetStatus()->code == XrdCl::errErrorResponse) &&
+                    ((*it)->GetStatus()->errNo == kXR_NotFound)) {
+                  filemap[(*it)->GetPath()].missing_locations.insert((*it)->GetFsid());
+                  n_missing++;
+                } else {
+                  n_other++;
+                }
+              }
+            }
+
+            callbacks.erase((uint64_t)*it);
+            delete *it;
+            callback_queue.erase(it);
+            break;
+          } else {
+            size_t age = (*it) -> GetAge();
+
+            if (age > (stat_timeout + 60))  {
+              fprintf(stderr, "pending request since %lu seconds - path=%s fsid=%d\n", age,
+                      (*it)->GetPath(), (*it)->GetFsid());
+            }
+          }
+        }
+
+        //  fprintf(stderr,"waiting 2 %lu\n", callbacks.size());
       }
-	
+
       SyncResponseHandler* cb = new SyncResponseHandler(it->first.c_str(), *loc);
       callback_queue.push_back(cb);
       callbacks[(uint64_t)cb] = cb;
-      if (verbose) {fprintf(stdout, "sending to %d %s count=%lu\n", *loc, fsmap.fs()[*loc]["hostport"].c_str(), 
-			    fsmap.clients().count(*loc));
+
+      if (verbose) {
+        fprintf(stdout, "sending to %d %s count=%lu\n", *loc,
+                fsmap.fs()[*loc]["hostport"].c_str(),
+                fsmap.clients().count(*loc));
       }
-      XRootDStatus status = fsmap.clients() [*loc]->Stat(fullpath.c_str(), cb, stat_timeout);
+
+      XRootDStatus status = fsmap.clients() [*loc]->Stat(fullpath.c_str(), cb,
+                            stat_timeout);
+
       if (!status.IsOK()) {
-	fprintf(stderr, "error: failed to send path=%s to %d : %s\n", cb->GetPath(), cb->GetFsid(), status.ToString().c_str());
-	callback_queue.pop_back();
-	callbacks.erase((uint64_t)cb);
+        fprintf(stderr, "error: failed to send path=%s to %d : %s\n", cb->GetPath(),
+                cb->GetFsid(), status.ToString().c_str());
+        callback_queue.pop_back();
+        callbacks.erase((uint64_t)cb);
       }
     }
   }
-  
+
   // wait for call-backs to be returned or time-out
   while (callbacks.size()) {
     for (auto it = callback_queue.begin(); it != callback_queue.end(); ++it) {
       if ((*it)->HasStatus()) {
-	(*it)->WaitForResponse();
-	if ((*it)->GetStatus()->IsOK()) {
-	  StatInfo* statinfo;
-	  (*it)->GetResponse()->Get(statinfo);
-	  // fprintf(stderr,"response=%llx path=%s size=%ld\n", (*it)->GetResponse(), (*it)->GetPath(), statinfo->GetSize());
-	  if (statinfo->GetSize() != filemap[(*it)->GetPath()].size) {
-	    filemap[(*it)->GetPath()].wrongsize_locations.insert((*it)->GetFsid());
-	  }
-	  delete statinfo;
-	} else {
-	  if ( (*it)->GetStatus()->code == XrdCl::errOperationExpired) {
-	    fprintf(stderr,"status=%s\n", (*it)->GetStatus()->ToString().c_str());
-	    filemap[(*it)->GetPath()].expired = true;
-	  } else {
-	    if ( ((*it)->GetStatus()->code == XrdCl::errErrorResponse ) &&
-		     ((*it)->GetStatus()->errNo == kXR_NotFound)) {
-	      filemap[(*it)->GetPath()].missing_locations.insert((*it)->GetFsid());
-	      n_missing++;
-	    } else {
-	      n_other++;
-	    }
-	  }
-	}
-	if (verbose) {
-	  fprintf(stderr,"erasing callback %s %d\n", (*it)->GetPath(), (*it)->GetFsid());
-	}
-	callbacks.erase((uint64_t)*it);
-	delete *it;
-	callback_queue.erase(it);
-	break;
+        (*it)->WaitForResponse();
+
+        if ((*it)->GetStatus()->IsOK()) {
+          StatInfo* statinfo;
+          (*it)->GetResponse()->Get(statinfo);
+
+          // fprintf(stderr,"response=%llx path=%s size=%ld\n", (*it)->GetResponse(), (*it)->GetPath(), statinfo->GetSize());
+          if (statinfo->GetSize() != filemap[(*it)->GetPath()].size) {
+            filemap[(*it)->GetPath()].wrongsize_locations.insert((*it)->GetFsid());
+          }
+
+          delete statinfo;
+        } else {
+          if ((*it)->GetStatus()->code == XrdCl::errOperationExpired) {
+            fprintf(stderr, "status=%s\n", (*it)->GetStatus()->ToString().c_str());
+            filemap[(*it)->GetPath()].expired = true;
+          } else {
+            if (((*it)->GetStatus()->code == XrdCl::errErrorResponse) &&
+                ((*it)->GetStatus()->errNo == kXR_NotFound)) {
+              filemap[(*it)->GetPath()].missing_locations.insert((*it)->GetFsid());
+              n_missing++;
+            } else {
+              n_other++;
+            }
+          }
+        }
+
+        if (verbose) {
+          fprintf(stderr, "erasing callback %s %d\n", (*it)->GetPath(), (*it)->GetFsid());
+        }
+
+        callbacks.erase((uint64_t)*it);
+        delete *it;
+        callback_queue.erase(it);
+        break;
       }
+
       size_t age = (*it) -> GetAge();
-      if ( age > (stat_timeout +60 ))  {
-	fprintf(stderr,"pending request since %lu seconds - path=%s fsid=%d\n", age, (*it)->GetPath(), (*it)->GetFsid());
+
+      if (age > (stat_timeout + 60))  {
+        fprintf(stderr, "pending request since %lu seconds - path=%s fsid=%d\n", age,
+                (*it)->GetPath(), (*it)->GetFsid());
       }
     }
   }
-  fprintf(stdout, "# progress %.01f %% [ %lu/%lu ] [ unix:%lu ] [ cb:%lu ] [ to:%lu ] [ miss:%lu ] [ oth:%lu ] \n", 100.0* count / filemap.size(), count, filemap.size(), time(NULL) , callbacks.size(), n_timeouts, n_missing, n_other);
-  fflush (stdout);
+
+  fprintf(stdout,
+          "# progress %.01f %% [ %lu/%lu ] [ unix:%lu ] [ cb:%lu ] [ to:%lu ] [ miss:%lu ] [ oth:%lu ] \n",
+          100.0 * count / filemap.size(), count, filemap.size(), time(NULL),
+          callbacks.size(), n_timeouts, n_missing, n_other);
+  fflush(stdout);
   return 0;
 }
 
 //------------------------------------------------------------------------------
 // Report files
 //------------------------------------------------------------------------------
-int files::Report(size_t expect_nrep) {
+int files::Report(size_t expect_nrep)
+{
   size_t n_missing = 0;
   size_t n_size = 0;
   size_t n_nrep = 0;
@@ -1709,30 +1759,43 @@ int files::Report(size_t expect_nrep) {
 
   for (auto it = filemap.begin(); it != filemap.end(); ++it) {
     if (it->second.expired) {
-      fprintf(stderr,"[ERROR] [ EXPIRED ] path=%s nrep=%d \n", it->first.c_str(), it->second.nrep);
+      fprintf(stderr, "[ERROR] [ EXPIRED ] path=%s nrep=%d \n", it->first.c_str(),
+              it->second.nrep);
       n_expired++;
     } else {
-      for (auto loc = it->second.missing_locations.begin(); loc != it->second.missing_locations.end(); ++loc) {
-	fprintf(stderr,"[ERROR] [ MISSING ] path=%s nrep=%d loc=%d \n", it->first.c_str(), it->second.nrep, *loc);
-	n_missing++;
+      for (auto loc = it->second.missing_locations.begin();
+           loc != it->second.missing_locations.end(); ++loc) {
+        fprintf(stderr, "[ERROR] [ MISSING ] path=%s nrep=%d loc=%d \n",
+                it->first.c_str(), it->second.nrep, *loc);
+        n_missing++;
       }
-      for (auto loc = it->second.wrongsize_locations.begin(); loc != it->second.wrongsize_locations.end(); ++loc) {
-	fprintf(stderr,"[ERROR] [ SIZE    ] path=%s loc=%d\n", it->first.c_str(), *loc);
-	n_size++;
+
+      for (auto loc = it->second.wrongsize_locations.begin();
+           loc != it->second.wrongsize_locations.end(); ++loc) {
+        fprintf(stderr, "[ERROR] [ SIZE    ] path=%s loc=%d\n", it->first.c_str(),
+                *loc);
+        n_size++;
       }
+
       if (expect_nrep) {
-	if (it->second.locations.size() != expect_nrep) {
-	  fprintf(stderr,"[ERROR] [ NREP    ] path=%s nrep=%lu expected=%lu\n", it->first.c_str(), it->second.locations.size(), expect_nrep);
-	  n_nrep++;
-	}
+        if (it->second.locations.size() != expect_nrep) {
+          fprintf(stderr, "[ERROR] [ NREP    ] path=%s nrep=%lu expected=%lu\n",
+                  it->first.c_str(), it->second.locations.size(), expect_nrep);
+          n_nrep++;
+        }
       }
     }
+
     if (it->second.missing_locations.size() == it->second.locations.size()) {
-      fprintf(stderr,"[ERROR] { LOST    ] path=%s nrep=%lu missing=%lu\n", it->first.c_str(), it->second.locations.size(), it->second.missing_locations.size());
+      fprintf(stderr, "[ERROR] { LOST    ] path=%s nrep=%lu missing=%lu\n",
+              it->first.c_str(), it->second.locations.size(),
+              it->second.missing_locations.size());
       n_lost++;
     }
   }
-  fprintf(stderr,"[SUMMARY] expired:%lu missing:%lu size:%lu nrep:%lu lost:%lu total:%lu\n", 
-	  n_expired, n_missing, n_size, n_nrep, n_lost, filemap.size());
+
+  fprintf(stderr,
+          "[SUMMARY] expired:%lu missing:%lu size:%lu nrep:%lu lost:%lu total:%lu\n",
+          n_expired, n_missing, n_size, n_nrep, n_lost, filemap.size());
   return 0;
 }

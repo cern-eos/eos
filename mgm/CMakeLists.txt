@@ -92,6 +92,7 @@ add_library(
   proc/admin/GeoSched.cc
   proc/admin/Group.cc
   proc/admin/Io.cc
+  proc/admin/IoCmd.cc proc/admin/IoCmd.hh
   proc/admin/Node.cc
   proc/admin/NsCmd.cc
   proc/admin/Quota.cc

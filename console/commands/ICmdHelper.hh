@@ -23,6 +23,7 @@
 #pragma once
 #include "proto/ConsoleRequest.pb.h"
 #include "console/MgmExecute.hh"
+#include "common/StringTokenizer.hh"
 
 //------------------------------------------------------------------------------
 //! Class ICmdHelper
@@ -61,6 +62,21 @@ public:
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   virtual bool ParseCommand(const char* arg) = 0;
+
+  bool next_token(eos::common::StringTokenizer& tokenizer,
+                  std::string& token)
+  {
+    const char* tmp = tokenizer.GetToken();
+
+    //token = (tmp ? tmp : "");
+    if (!tmp) {
+      token = "";
+      return false;
+    } else {
+      token = tmp;
+      return true;
+    }
+  }
 
   //----------------------------------------------------------------------------
   //! Execute command and display any output information
