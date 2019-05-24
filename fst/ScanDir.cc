@@ -224,6 +224,8 @@ ScanDir::Run(ThreadAssistant& assistant) noexcept
         assistant.wait_for(std::chrono::seconds(mRerunIntervalSec));
       } else {
         // Call the ghost entry clean-up function
+        // @todo(esindril): this should be removed and done on demand when
+        // requested by and admin. We should also drop the mForcedScan flag.
         eos_notice("msg=\"cleaning ghost entries\" dir=%s fsid=%d",
                    mDirPath.c_str(), mFsId);
         gFmdDbMapHandler.RemoveGhostEntries(mDirPath.c_str(), mFsId);
@@ -320,6 +322,8 @@ ScanDir::CheckFile(const std::string& fpath)
   }
 
 #endif
+  io->attrGet("user.eos.lfn", lfn);
+  io->attrGet("user.eos.filecxerror", previous_xs_err);
   io->attrGet("user.eos.timestamp", xs_stamp_sec);
 
   // Handle the old format in microseconds, truncate to seconds
@@ -327,19 +331,17 @@ ScanDir::CheckFile(const std::string& fpath)
     xs_stamp_sec.erase(10);
   }
 
-  io->attrGet("user.eos.lfn", lfn);
-  io->attrGet("user.eos.filecxerror", previous_xs_err);
   bool rescan = DoRescan(xs_stamp_sec);
   bool was_healthy = (previous_xs_err == "0");
   // Check if this file has been modified since the last time we scanned it
   bool didnt_change = (buf1.st_mtime < atoll(xs_stamp_sec.c_str()));
 
   if (rescan || mForcedScan) {
-    bool blockcxerror = false;
-    bool filecxerror = false;
+    bool blockxs_err = false;
+    bool filexs_err = false;
     bool skip_settime = false;
 
-    if (!ScanFileLoadAware(io, scan_size, lfn, filecxerror, blockcxerror)) {
+    if (!ScanFileLoadAware(io, scan_size, lfn, filexs_err, blockxs_err)) {
       bool reopened = false;
 #ifndef _NOOFS
 
@@ -353,9 +355,10 @@ ScanDir::CheckFile(const std::string& fpath)
 
 #endif
 
-      if (!reopened && (!io->fileStat(&buf2)) &&
-          (buf1.st_mtime == buf2.st_mtime)) {
-        if (filecxerror) {
+      // If not reopened and not modified then account any errors
+      if (!reopened &&
+          (!io->fileStat(&buf2)) && (buf1.st_mtime == buf2.st_mtime)) {
+        if (filexs_err) {
           if (mBgThread) {
             syslog(LOG_ERR, "corrupted file checksum path=%s lfn=%s\n",
                    fpath.c_str(), lfn.c_str());
@@ -381,8 +384,8 @@ ScanDir::CheckFile(const std::string& fpath)
       } else {
         // If the file was changed in the meanwhile or is reopened for update
         // we leave it for a later scan
-        blockcxerror = false;
-        filecxerror = false;
+        blockxs_err = false;
+        filexs_err = false;
         skip_settime = true;
         LogMsg(LOG_ERR, "msg=\"[ScanDir] skip file modified during scan path=%s",
                fpath.c_str());
@@ -390,31 +393,29 @@ ScanDir::CheckFile(const std::string& fpath)
     }
 
     // Collect statistics
-    if (rescan) {
-      mTotalScanSize += scan_size;
-      bool failedtoset = false;
+    mTotalScanSize += scan_size;
+    bool failed_set = false;
 
-      if (!skip_settime) {
-        if (io->attrSet("user.eos.timestamp", GetTimestampSmearedSec())) {
-          failedtoset |= true;
-        }
+    if (!skip_settime) {
+      if (io->attrSet("user.eos.timestamp", GetTimestampSmearedSec())) {
+        failed_set |= true;
       }
+    }
 
-      if ((io->attrSet("user.eos.filecxerror", filecxerror ? "1" : "0")) ||
-          (io->attrSet("user.eos.blockcxerror", blockcxerror ? "1" : "0"))) {
-        failedtoset |= true;
-      }
+    if ((io->attrSet("user.eos.filecxerror", filexs_err ? "1" : "0")) ||
+        (io->attrSet("user.eos.blockcxerror", blockxs_err ? "1" : "0"))) {
+      failed_set |= true;
+    }
 
-      if (failedtoset) {
-        LogMsg(LOG_ERR, "msg=\"failed to set xattrs\" path=%s", fpath.c_str());
-      }
+    if (failed_set) {
+      LogMsg(LOG_ERR, "msg=\"failed to set xattrs\" path=%s", fpath.c_str());
     }
 
 #ifndef _NOOFS
 
     if (mBgThread) {
-      gFmdDbMapHandler.UpdateWithScanInfo(mFsId, mDirPath, fpath,
-                                          filecxerror, blockcxerror);
+      gFmdDbMapHandler.UpdateWithScanInfo(mFsId, mDirPath, fpath, filexs_err,
+                                          blockxs_err);
     }
 
 #endif
