@@ -66,9 +66,9 @@ FmdHelper::Reset(Fmd& fmd)
   fmd.set_atime(0);
   fmd.set_atime_ns(0);
   fmd.set_checktime(0);
-  fmd.set_size(0xfffffff1ULL);
-  fmd.set_disksize(0xfffffff1ULL);
-  fmd.set_mgmsize(0xfffffff1ULL);
+  fmd.set_size(Fmd::UNDEF);
+  fmd.set_disksize(Fmd::UNDEF);
+  fmd.set_mgmsize(Fmd::UNDEF);
   fmd.set_checksum("");
   fmd.set_diskchecksum("");
   fmd.set_mgmchecksum("");

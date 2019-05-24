@@ -1195,7 +1195,7 @@ XrdFstOfsFile::close()
             closeSize = statinfo.st_size;
             fMd->mProtoFmd.set_size(statinfo.st_size);
             fMd->mProtoFmd.set_disksize(statinfo.st_size);
-            fMd->mProtoFmd.set_mgmsize(0xfffffffffff1ULL); // now again undefined
+            fMd->mProtoFmd.set_mgmsize(Fmd::UNDEF); // now again undefined
             fMd->mProtoFmd.set_mgmchecksum(""); // now again empty
             fMd->mProtoFmd.set_diskchecksum(""); // now again empty
             fMd->mProtoFmd.set_layouterror(0); // reset layout errors
