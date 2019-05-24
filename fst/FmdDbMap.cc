@@ -431,7 +431,7 @@ FmdDbMapHandler::ShutdownDB(eos::common::FileSystem::fsid_t fsid, bool do_lock)
 // Return/create an Fmd struct for the given file/filesystem id for user
 // uid/gid and layout layoutid
 //------------------------------------------------------------------------------
-FmdHelper*
+std::unique_ptr<FmdHelper>
 FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
                              eos::common::FileSystem::fsid_t fsid,
                              uid_t uid, gid_t gid,
@@ -451,7 +451,7 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
       FsReadLock fs_rd_lock(fsid);
 
       if (LocalRetrieveFmd(fid, fsid, valfmd)) {
-        FmdHelper* fmd = new FmdHelper();
+        std::unique_ptr<FmdHelper> fmd {new FmdHelper()};
 
         if (!fmd) {
           return nullptr;
@@ -465,7 +465,6 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
           eos_crit("msg=\"mismatch between requested fid/fsid and retrieved ones\" "
                    "fid=%08llx retrieved_fid=%08llx fsid=%lu retrieved_fsid=%lu",
                    fid, fmd->mProtoFmd.fid(), fsid, fmd->mProtoFmd.fsid());
-          delete fmd;
           return nullptr;
         }
 
@@ -488,7 +487,6 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
                      "fsid=%lu size=%llu disksize=%llu mgmsize=%llu",
                      fid, (unsigned long) fsid, fmd->mProtoFmd.size(),
                      fmd->mProtoFmd.disksize(), fmd->mProtoFmd.mgmsize());
-            delete fmd;
             return nullptr;
           }
 
@@ -505,7 +503,6 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
                      fmd->mProtoFmd.mgmchecksum().c_str(),
                      fmd->mProtoFmd.filecxerror(),
                      fmd->mProtoFmd.blockcxerror());
-            delete fmd;
             return nullptr;
           }
         } else {
@@ -534,7 +531,7 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
       valfmd.set_ctime_ns(tv.tv_usec * 1000);
       valfmd.set_mtime_ns(tv.tv_usec * 1000);
       valfmd.set_atime_ns(tv.tv_usec * 1000);
-      FmdHelper* fmd = new FmdHelper(fid, fsid);
+      std::unique_ptr<FmdHelper> fmd {new FmdHelper(fid, fsid)};
 
       if (!fmd) {
         return nullptr;
@@ -542,13 +539,12 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
 
       fmd->Replicate(valfmd);
 
-      if (Commit(fmd, false)) {
+      if (Commit(fmd.get(), false)) {
         eos_debug("msg=\"return fmd object\" fid=%08llx fsid=%lu", fid, fsid);
         return fmd;
       } else {
         eos_crit("msg=\"failed to commit fmd to db\" fid=%08llx fsid=%lu",
                  fid, fsid);
-        delete fmd;
         return nullptr;
       }
     } else {
@@ -750,7 +746,7 @@ FmdDbMapHandler::UpdateWithScanInfo(eos::common::FileSystem::fsid_t fsid,
   // Check if we have this file in the local DB, if not, we resync first
   // the disk and then the MGM meta data
   bool orphaned = false;
-  std::unique_ptr<FmdHelper> fmd {LocalGetFmd(fid, fsid, 0, 0, false, true)};
+  auto fmd = LocalGetFmd(fid, fsid, 0, 0, false, true);
 
   if (fmd) {
     // Real orphans and unregistered replicas get rechecked
@@ -765,7 +761,7 @@ FmdDbMapHandler::UpdateWithScanInfo(eos::common::FileSystem::fsid_t fsid,
     ResyncDisk(fpath.c_str(), fsid, true);
     eos_notice("msg=\"resyncing from mgm\" fsid=%d fid=%08llx", fsid, fid);
     bool resynced = ResyncMgm(fsid, fid, manager.c_str());
-    fmd.reset(LocalGetFmd(fid, fsid, 0, 0, 0, false, true));
+    fmd = LocalGetFmd(fid, fsid, 0, 0, 0, false, true);
 
     if (resynced && fmd) {
       if ((fmd->mProtoFmd.layouterror() ==  eos::common::LayoutId::kOrphan) ||
@@ -1093,8 +1089,7 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
     }
 
     // Get/create a record
-    fmd.reset(LocalGetFmd(fMd.fid(), fsid, fMd.uid(), fMd.gid(), fMd.lid(),
-                          true, true));
+    fmd = LocalGetFmd(fMd.fid(), fsid, fMd.uid(), fMd.gid(), fMd.lid(), true, true);
 
     if (fmd) {
       if (!UpdateWithMgmInfo(fsid, fMd.fid(), fMd.cid(), fMd.lid(), fMd.mgmsize(),
@@ -1169,8 +1164,8 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
 
       if (EnvMgmToFmd(*env, fMd)) {
         // get/create one
-        FmdHelper* fmd = LocalGetFmd(fMd.fid(), fsid, fMd.uid(), fMd.gid(),
-                                     fMd.lid(), true, true);
+        auto fmd = LocalGetFmd(fMd.fid(), fsid, fMd.uid(), fMd.gid(),
+                               fMd.lid(), true, true);
         fMd.set_layouterror(FmdHelper::LayoutError(fMd, fsid));
 
         if (fmd) {
@@ -1186,15 +1181,15 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
                                  fMd.gid(), fMd.ctime(), fMd.ctime_ns(),
                                  fMd.mtime(), fMd.mtime_ns(),
                                  fMd.layouterror(), fMd.locations())) {
-            eos_err("failed to update fmd %s", dumpentry.c_str());
+            eos_err("msg=\"failed to update fmd\" entry=\"%s\"",
+                    dumpentry.c_str());
           }
-
-          delete fmd;
         } else {
-          eos_err("failed to get/create fmd %s", dumpentry.c_str());
+          eos_err("msg=\"failed to get/create fmd\" enrty=\"%s\"",
+                  dumpentry.c_str());
         }
       } else {
-        eos_err("failed to convert %s", dumpentry.c_str());
+        eos_err("msg=\"failed to convert\" entry=\"%s\"", dumpentry.c_str());
       }
     }
 
@@ -1273,8 +1268,8 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contactDetails,
     }
 
     files.pop_front();
-    FmdHelper* local_fmd = LocalGetFmd(ns_fmd.fid(), fsid, ns_fmd.uid(),
-                                       ns_fmd.gid(), ns_fmd.lid(), true, true);
+    auto local_fmd = LocalGetFmd(ns_fmd.fid(), fsid, ns_fmd.uid(),
+                                 ns_fmd.gid(), ns_fmd.lid(), true, true);
     ns_fmd.set_layouterror(FmdHelper::LayoutError(ns_fmd, fsid));
 
     if (local_fmd) {
@@ -1292,8 +1287,6 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contactDetails,
                              ns_fmd.layouterror(), ns_fmd.locations())) {
         eos_err("failed to update fid %llu", ns_fmd.fid());
       }
-
-      delete local_fmd;
     } else {
       eos_err("failed to get/create local fid %llu", ns_fmd.fid());
     }

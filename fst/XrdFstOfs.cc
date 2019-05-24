@@ -1518,8 +1518,8 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
 
       unsigned long long fileid = eos::common::FileId::Hex2Fid(afid);
       unsigned long fsid = atoi(afsid);
-      FmdHelper* fmd = gFmdDbMapHandler.LocalGetFmd(fileid, fsid, 0, 0, 0, false,
-                       true);
+      auto fmd = gFmdDbMapHandler.LocalGetFmd(fileid, fsid, 0, 0, 0, false,
+                                              true);
 
       if (!fmd) {
         eos_static_err("msg=\"no FMD record found\" fxid=%08llx fsid=%lu", fileid,
@@ -1532,7 +1532,6 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
       auto fmdenv = fmd->FmdToEnv();
       int envlen;
       XrdOucString fmdenvstring = fmdenv->Env(envlen);
-      delete fmd;
       error.setErrInfo(fmdenvstring.length() + 1, fmdenvstring.c_str());
       return SFS_DATA;
     }

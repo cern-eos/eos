@@ -94,10 +94,10 @@ Storage::Verify()
     eos::common::FileId::FidPrefix2FullPath(hex_fid.c_str(),
                                             verifyfile->localPrefix.c_str(), fstPath);
     {
-      FmdHelper* fMd = 0;
-      fMd = gFmdDbMapHandler.LocalGetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0,
-                                         0,
-                                         true);
+      auto fMd = gFmdDbMapHandler.LocalGetFmd(verifyfile->fId, verifyfile->fsId, 0, 0,
+                                              0,
+                                              0,
+                                              true);
 
       if (fMd) {
         // force a resync of meta data from the MGM
@@ -105,7 +105,6 @@ Storage::Verify()
         gOFS.WrittenFilesQueueMutex.Lock();
         gOFS.WrittenFilesQueue.push(fMd->mProtoFmd);
         gOFS.WrittenFilesQueueMutex.UnLock();
-        delete fMd;
       }
     }
     FileIo* io = eos::fst::FileIoPluginHelper::GetIoObject(fstPath.c_str());
@@ -125,10 +124,10 @@ Storage::Verify()
 
     // even if the stat failed, we run this code to tag the file as is ...
     // attach meta data
-    FmdHelper* fMd = 0;
-    fMd = gFmdDbMapHandler.LocalGetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0,
-                                       verifyfile->commitFmd, true);
     bool localUpdate = false;
+    auto fMd = gFmdDbMapHandler.LocalGetFmd(verifyfile->fId, verifyfile->fsId, 0, 0,
+                                            0,
+                                            verifyfile->commitFmd, true);
 
     if (!fMd) {
       eos_static_err("unable to verify id=%x on fs=%u path=%s - no local MD stored",
@@ -246,7 +245,7 @@ Storage::Verify()
         eos::common::Path cPath(verifyfile->path.c_str());
 
         // commit local
-        if (localUpdate && (!gFmdDbMapHandler.Commit(fMd))) {
+        if (localUpdate && (!gFmdDbMapHandler.Commit(fMd.get()))) {
           eos_static_err("unable to verify file id=%llu on fs=%u path=%s - commit "
                          "to local MD storage failed", verifyfile->fId,
                          verifyfile->fsId, fstPath.c_str());
@@ -307,10 +306,6 @@ Storage::Verify()
             }
           }
         }
-      }
-
-      if (fMd) {
-        delete fMd;
       }
     }
 

@@ -187,8 +187,7 @@ Messaging::Process(XrdMqMessage* newmessage)
                     (unsigned long) fsid, fid);
         gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
       } else {
-        FmdHelper* fMd = 0;
-        fMd = gFmdDbMapHandler.LocalGetFmd(fid, fsid, 0, 0, 0, 0, true);
+        auto fMd = gFmdDbMapHandler.LocalGetFmd(fid, fsid, 0, 0, 0, 0, true);
 
         if (fMd) {
           // force a resync of meta data from the MGM
@@ -196,7 +195,6 @@ Messaging::Process(XrdMqMessage* newmessage)
           gOFS.WrittenFilesQueueMutex.Lock();
           gOFS.WrittenFilesQueue.push(fMd->mProtoFmd);
           gOFS.WrittenFilesQueueMutex.UnLock();
-          delete fMd;
         }
       }
     }

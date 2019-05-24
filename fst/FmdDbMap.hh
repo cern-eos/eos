@@ -163,11 +163,12 @@ public:
   //!
   //! @return pointer to Fmd struct if successful, otherwise nullptr
   //----------------------------------------------------------------------------
-  FmdHelper* LocalGetFmd(eos::common::FileId::fileid_t fid,
-                         eos::common::FileSystem::fsid_t fsid,
-                         uid_t uid, gid_t gid,
-                         eos::common::LayoutId::layoutid_t layoutid,
-                         bool do_create = false, bool force_retrieve = false);
+  std::unique_ptr<FmdHelper>
+  LocalGetFmd(eos::common::FileId::fileid_t fid,
+              eos::common::FileSystem::fsid_t fsid,
+              uid_t uid, gid_t gid,
+              eos::common::LayoutId::layoutid_t layoutid,
+              bool do_create = false, bool force_retrieve = false);
 
   //----------------------------------------------------------------------------
   //! Delete a record associated with fid and filesystem fsid

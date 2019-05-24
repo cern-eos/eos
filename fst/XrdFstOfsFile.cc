@@ -93,12 +93,6 @@ XrdFstOfsFile::~XrdFstOfsFile()
     close();
   }
 
-  // Unmap the MD record
-  if (fMd) {
-    delete fMd;
-    fMd = 0;
-  }
-
   if (layOut) {
     delete layOut;
     layOut = 0;
@@ -294,8 +288,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   if (!layOut) {
     int envlen;
-    eos_err("msg=\"unable to handle layout for %s\"", mCapOpaque->Env(envlen));
-    delete fMd;
+    eos_err("unable to handle layout for %s", mCapOpaque->Env(envlen));
     return gOFS.Emsg(epname, error, EINVAL, "open - illegal layout specified ",
                      mCapOpaque->Env(envlen));
   }
@@ -313,7 +306,6 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     // We have to distinguish if an Exists call fails or return ENOENT, otherwise
     // we might trigger an automatic clean-up of a file !!!
     if (errno != ENOENT) {
-      delete fMd;
       return gOFS.Emsg(epname, error, EIO, "open - unable to check for existence"
                        " of file ", mCapOpaque->Env(envlen));
     }
@@ -1229,7 +1221,7 @@ XrdFstOfsFile::close()
 
             // Commit local
             try {
-              if (!gFmdDbMapHandler.Commit(fMd)) {
+              if (!gFmdDbMapHandler.Commit(fMd.get())) {
                 eos_err("msg=\"unable to commit meta data to local database\" "
                         "fxid=%08llx", mFileId);
                 (void) gOFS.Emsg(epname, this->error, EIO, "close - unable to "

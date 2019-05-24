@@ -416,7 +416,7 @@ protected:
     kTpcDone = 2, //! TPC has finished
   };
 
-  FmdHelper* fMd; //! pointer to the in-memory file meta data object
+  std::unique_ptr<FmdHelper> fMd; //! File meta data object
   std::unique_ptr<eos::fst::CheckSum> mCheckSum; //! Checksum object
   Layout* layOut; //! pointer to a layout object
 
