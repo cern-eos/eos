@@ -180,8 +180,7 @@ FileSystem::CleanTransactions()
         bool isOpen = gOFS.openedForWriting.isOpen(GetId(), fileid);
 
         if ((buf.st_mtime < (time(NULL) - (7 * 86400))) && (!isOpen)) {
-          FmdHelper* fMd = 0;
-          fMd = gFmdDbMapHandler.LocalGetFmd(fileid, GetId(), 0, 0, 0, 0, true);
+          auto fMd = gFmdDbMapHandler.LocalGetFmd(fileid, GetId(), 0, 0, 0, 0, true);
 
           if (fMd) {
             size_t valid_loc;
@@ -190,11 +189,8 @@ FileSystem::CleanTransactions()
             if (location_set.count(GetId())) {
               // close that transaction and keep the file
               gOFS.Storage->CloseTransaction(GetId(), fileid);
-              delete fMd;
               continue;
             }
-
-            delete fMd;
           }
 
           eos_static_info("action=delete transaction=%llx fstpath=%s",
