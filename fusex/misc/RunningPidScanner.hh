@@ -1,11 +1,11 @@
 // ----------------------------------------------------------------------
-// File: DirectoryIterator.hh
+// File: RunningPidScanner.hh
 // Author: Georgios Bitzes - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2018 CERN/Switzerland                                  *
+ * Copyright (C) 2019 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,56 +21,48 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef FUSEX_DIRECTORY_ITERATOR_HH
-#define FUSEX_DIRECTORY_ITERATOR_HH
+#ifndef FUSEX_MISC_RUNNING_PID_SCANNER_HH
+#define FUSEX_MISC_RUNNING_PID_SCANNER_HH
 
-#include <dirent.h>
-#include <string>
+#include "../auth/DirectoryIterator.hh"
 
-class DirectoryIterator {
+//------------------------------------------------------------------------------
+//! Class to scan through all pids in the system, as found in /proc/<pid>.
+//! Only provides readlink(cwd) for now.
+//------------------------------------------------------------------------------
+class RunningPidScanner {
 public:
+  //----------------------------------------------------------------------------
+  //! Entry
+  //----------------------------------------------------------------------------
+  struct Entry {
+    std::string cwd;
+  };
 
   //----------------------------------------------------------------------------
-  // Construct iterator object on the given path - must be a directory.
+  //! Constructor
   //----------------------------------------------------------------------------
-  DirectoryIterator(const std::string &path);
+  RunningPidScanner();
 
   //----------------------------------------------------------------------------
-  // Destructor
+  //! Fetch next element
   //----------------------------------------------------------------------------
-  ~DirectoryIterator();
+  bool next(Entry &out);
 
   //----------------------------------------------------------------------------
-  // Checks if the iterator is in an error state. EOF is not an error state!
+  //! Has there been an error? Reaching EOF is not an error.
   //----------------------------------------------------------------------------
   bool ok() const;
 
   //----------------------------------------------------------------------------
-  // Retrieve the error message if the iterator object is in an error state.
-  // If no error state, returns an empty string.
+  //! Return error string. If no error has occurred, return the empty string.
   //----------------------------------------------------------------------------
   std::string err() const;
 
-  //----------------------------------------------------------------------------
-  // Checks whether we have reached the end.
-  //----------------------------------------------------------------------------
-  bool eof() const;
-
-  //----------------------------------------------------------------------------
-  // Retrieve next directory entry.
-  // This object retains ownership on the given pointer, never call free on it.
-  //
-  // If the iterator is in an error state, next() will only ever return nullptr.
-  //----------------------------------------------------------------------------
-  struct dirent* next();
 
 private:
-  std::string error;
-  std::string path;
-  bool reachedEnd;
+  DirectoryIterator iter;
 
-  DIR *dir;
-  struct dirent *nextEntry;
 };
 
 #endif

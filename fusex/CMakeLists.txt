@@ -121,6 +121,7 @@ add_library(eosxd-objects OBJECT
                           kv/kv.hh
   misc/longstring.cc misc/longstring.hh
   misc/fusexrdlogin.cc misc/fusexrdlogin.hh
+  misc/RunningPidScanner.cc misc/RunningPidScanner.hh
   data/cache.cc data/cache.hh data/bufferll.hh
   data/diskcache.cc data/diskcache.hh
   data/memorycache.cc data/memorycache.hh

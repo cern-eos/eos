@@ -1,11 +1,11 @@
 // ----------------------------------------------------------------------
-// File: DirectoryIterator.cc
+// File: RunningPidScanner.cc
 // Author: Georgios Bitzes - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2018 CERN/Switzerland                                  *
+ * Copyright (C) 2019 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,79 +21,85 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "DirectoryIterator.hh"
-#include "Utils.hh"
+#include "RunningPidScanner.hh"
+#include <sstream>
+#include <unistd.h>
 
-#include "common/Logging.hh"
 
-#include <string.h>
+#define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
 
 //------------------------------------------------------------------------------
-// Construct iterator object on the given path - must be a directory.
+// Constructor
 //------------------------------------------------------------------------------
-DirectoryIterator::DirectoryIterator(const std::string &mypath)
-: path(mypath), reachedEnd(false), dir(nullptr), nextEntry(nullptr) {
+RunningPidScanner::RunningPidScanner() : iter("/proc") {}
 
-  dir = opendir(path.c_str());
-  if(!dir) {
-    error = SSTR("Unable to opendir: " << path);
-    return;
+//------------------------------------------------------------------------------
+// Check if string is purely numeric, only 0-9, no dots or minus
+//------------------------------------------------------------------------------
+bool isPid(const char* str) {
+  if(str == nullptr || *str == '\0') {
+    // should not really happen
+    return false;
   }
-}
 
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-DirectoryIterator::~DirectoryIterator() {
-  if(dir) {
-    if(closedir(dir) != 0) {
-      eos_static_crit("Unable to close DIR* for %s", path.c_str());
+  while(*str != '\0') {
+    if(isdigit(*str) == 0) {
+      // not numeric
+      return false;
     }
-    dir = nullptr;
-  }
-}
 
-//------------------------------------------------------------------------------
-// Retrieve next directory entry.
-// This object retains ownership on the given pointer, never call free on it.
-//
-// If the iterator is in an error state, next() will only ever return nullptr.
-//------------------------------------------------------------------------------
-struct dirent* DirectoryIterator::next() {
-  if(!ok()) return nullptr;
-  if(reachedEnd) return nullptr;
-
-  errno = 0;
-  nextEntry = readdir(dir);
-
-  if(!nextEntry && errno == 0) {
-    reachedEnd = true;
-  }
-  else if(!nextEntry) {
-    error = SSTR("Error when calling readdir: " << strerror(errno));
+    str++;
   }
 
-  return nextEntry;
+  return true;
 }
 
 //------------------------------------------------------------------------------
-// Checks if the iterator is in an error state. EOF is not an error state!
+// Fetch next element
 //------------------------------------------------------------------------------
-bool DirectoryIterator::ok() const {
-  return error.empty();
+bool RunningPidScanner::next(Entry &out) {
+  if(!iter.ok() || iter.eof()) {
+    //--------------------------------------------------------------------------
+    // No more elements to process
+    //--------------------------------------------------------------------------
+    return false;
+  }
+
+  struct dirent* ent = nullptr;
+  while(true) {
+    ent = iter.next();
+    if(ent == nullptr) {
+      return false;
+    }
+
+    //--------------------------------------------------------------------------
+    // Is this a /proc/<pid>?
+    //--------------------------------------------------------------------------
+    if(ent->d_type == DT_DIR && isPid(ent->d_name)) {
+      char buff[2048];
+      ssize_t len = ::readlink(SSTR("/proc/" << ent->d_name << "/cwd").c_str(), buff, 2048);
+
+      if(len > 0) {
+        out.cwd = std::string(buff, len);
+        return true;
+      }
+    }
+  }
+
 }
 
 //------------------------------------------------------------------------------
-// Checks whether we have reached the end.
+//! Has there been an error? Reaching EOF is not an error.
 //------------------------------------------------------------------------------
-bool DirectoryIterator::eof() const {
-  return reachedEnd;
+bool RunningPidScanner::ok() const {
+  return iter.ok();
 }
 
 //------------------------------------------------------------------------------
-// Retrieve the error message if the iterator object is in an error state.
-// If no error state, returns an empty string.
+//! Return error string. If no error has occurred, return the empty string.
 //------------------------------------------------------------------------------
-std::string DirectoryIterator::err() const {
-  return error;
+std::string RunningPidScanner::err() const {
+  return iter.err();
 }
+
+
