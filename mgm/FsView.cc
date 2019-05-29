@@ -2876,12 +2876,19 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
     return false;
   }
 
+  common::FileSystemLocator locator;
+  if(!common::FileSystemLocator::fromQueuePath(configmap["queuepath"], locator)) {
+    eos_crit("Could not parse queuepath: %s", configmap["queuepath"]);
+    return false;
+  }
+
+
   FileSystem* fs = nullptr;
   eos::common::FileSystem::fsid_t fsid = atoi(configmap["id"].c_str());
 
   // Apply only the registration for a new filesystem if it does not exist
   if (!FsView::gFsView.mIdView.count(fsid)) {
-    fs = new FileSystem(configmap["queuepath"].c_str(), configmap["queue"].c_str(),
+    fs = new FileSystem(locator, configmap["queue"].c_str(),
                         eos::common::GlobalConfig::gConfig.SOM());
   } else {
     fs = FsView::gFsView.mIdView[fsid];

@@ -65,9 +65,9 @@ public:
   //! @param queue associated to a filesystem like /eos/<host:port>/fst
   //! @param som external shared object manager object
   //----------------------------------------------------------------------------
-  FileSystem(const char* queuepath, const char* queue,
+  FileSystem(const common::FileSystemLocator &locator, const char* queue,
              XrdMqSharedObjectManager* som) :
-    eos::common::FileSystem(queuepath, queue, som), mDrainJob(0)
+    eos::common::FileSystem(locator.getQueuePath().c_str(), queue, som), mDrainJob(0)
   {}
 
   //----------------------------------------------------------------------------

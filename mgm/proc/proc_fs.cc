@@ -543,8 +543,7 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
       skip_hostname_match = true;
     }
 
-    // ========> ViewMutex WRITELOCK
-    FsView::gFsView.ViewMutex.LockWrite();
+    eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
 
     // Rough check that the filesystem is added from a host with the same
     // hostname ... anyway we should have configured 'sss' security
@@ -569,6 +568,14 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
     // queuepath = /eos/<host:port><path>
     std::string queuepath = nodename;
     queuepath += mountpoint;
+
+    common::FileSystemLocator locator;
+    if(!common::FileSystemLocator::fromQueuePath(queuepath, locator)) {
+      eos_static_crit("could not parse queue path: %s", queuepath.c_str());
+      stdErr += "error: could not parse queue path";
+      retc = EINVAL;
+      return retc;
+    }
 
     // Check if this filesystem exists already ....
     if (!FsView::gFsView.ExistsQueue(nodename, queuepath)) {
@@ -596,11 +603,11 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
             stdErr += "error: conflict adding your uuid & id mapping";
             retc = EINVAL;
           } else {
-            fs = new FileSystem(queuepath.c_str(), nodename.c_str(), &gOFS->ObjectManager);
+            fs = new FileSystem(locator, nodename.c_str(), &gOFS->ObjectManager);
           }
         } else {
           fsid = FsView::gFsView.CreateMapping(uuid);
-          fs = new FileSystem(queuepath.c_str(), nodename.c_str(), &gOFS->ObjectManager);
+          fs = new FileSystem(locator, nodename.c_str(), &gOFS->ObjectManager);
         }
 
         XrdOucString sizestring;
@@ -748,8 +755,6 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
       retc = EEXIST;
     }
 
-    // ========> ViewMutex WRITEUnLOCK
-    FsView::gFsView.ViewMutex.UnLockWrite();
   }
 
   return retc;
