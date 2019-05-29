@@ -70,6 +70,8 @@ public:
 
   virtual int erase(uint64_t key, const std::string& name_space = "i") = 0;
 
+  virtual std::string statistics() = 0;
+
 protected:
 
   std::string buildKey(uint64_t key, const std::string& name_space)

@@ -57,8 +57,8 @@ This
     "nocache-graceperiod" : 5,
     "leasetime" : 300,
     "write-size-flush-interval" : 5,
-    "submounts" : 0
-   
+    "submounts" : 0,
+    "inmemory-inodes" : 16384  
   },
   "auth" : {
     "shared-mount" : 1,

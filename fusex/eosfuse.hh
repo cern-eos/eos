@@ -212,6 +212,7 @@ public:
     std::string mdcachehost;
     int mdcacheport;
     std::string mdcachedir;
+    std::string mdcachedir_unlink;
     std::string mqtargethost;
     std::string mqidentity;
     std::string mqname;
@@ -265,6 +266,7 @@ public:
       int leasetime;
       int write_size_flush_interval;
       int submounts;
+      int inmemory_inodes;
       std::vector<std::string> no_fsync_suffixes;
     } options_t;
 

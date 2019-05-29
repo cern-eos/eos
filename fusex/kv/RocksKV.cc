@@ -67,15 +67,28 @@ RocksKV::connect(const std::string& prefix, const std::string& path)
 /* -------------------------------------------------------------------------- */
 {
   eos_static_info("Opening RocksKV store at local path %s", path.c_str());
-  rocksdb::Options options;
-  rocksdb::BlockBasedTableOptions table_options;
   table_options.filter_policy.reset(rocksdb::NewBloomFilterPolicy(10, false));
-  table_options.block_size = 16 * 1024;
+  table_options.block_size = 1024;
+  //  table_options.block_cache = rocksdb::NewLRUCache(4*1024);
+  //  table_options.cache_index_and_filter_blocks = false;
+
+  options.optimize_filters_for_hits = true;
+  options.statistics = rocksdb::CreateDBStatistics();
+  //  options.compression = rocksdb::kZSTD;
+  //  options.bottommost_compression = rocksdb::kZSTD;
+
   options.table_factory.reset(rocksdb::NewBlockBasedTableFactory(table_options));
   options.create_if_missing = true;
+  options.row_cache = rocksdb::NewLRUCache(4*1024*1024);
+  options.level_compaction_dynamic_level_bytes = true;
+  options.max_subcompactions = 4;
+  options.disable_auto_compactions = false;
+  options.write_buffer_size = 1*1024*1024;
+
   rocksdb::TransactionDBOptions txopts;
   txopts.transaction_lock_timeout = -1;
   txopts.default_lock_timeout = -1;
+
   rocksdb::TransactionDB* mydb;
   rocksdb::Status st = rocksdb::TransactionDB::Open(options, txopts, path, &mydb);
 

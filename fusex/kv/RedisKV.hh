@@ -80,6 +80,8 @@ public:
     return mPrefix + key;
   }
 
+  std::string statistics() { return std::string("");}
+
 private:
   redisContext* mContext;
   redisAsyncContext* mAsyncContext;

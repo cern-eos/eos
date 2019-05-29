@@ -52,6 +52,20 @@ message md {
   fixed64 bc_time = 43; //< indicates the reception time of a broadcasted md record
 };
 
+message md_state {	
+  sfixed32 op = 1;		
+  sfixed32 lookup_cnt = 2;
+  sfixed32 cap_cnt = 3;
+  sfixed32 opendir_cnt	= 4;
+  bool lock_remote     = 5;
+  bool refresh =   6;
+  bool rmrf = 7; 
+  fixed64 inline_size = 8;
+  map<string, fixed64> todelete = 9;
+  map<string, fixed64> children = 10;
+  map<string, fixed64> enoent = 11;
+};
+
 message md_map {
   map<fixed64, md> md_map_ = 1;
 };

@@ -52,6 +52,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sched.h>
+
 #ifdef RICHACL_FOUND
 extern "C" { /* this 'extern "C"' brace will eventually end up in the .h file, then it can be removed */
 #include <sys/richacl.h>
@@ -61,6 +62,7 @@ extern "C" { /* this 'extern "C"' brace will eventually end up in the .h file, t
 
 #include <sys/resource.h>
 #include <sys/types.h>
+
 #include "common/XattrCompat.hh"
 
 #ifdef __APPLE__
@@ -454,18 +456,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
           // keep always all meta-data
           root["options"]["free-md-asap"] = 0;
 
-          // if 'gw' = gateway is defined as user name, we enable stable inode support e.g. mdcachedir
-          if (!root.isMember("mdcachedir")) {
-            if (geteuid()) {
-              root["mdcachedir"] = "/var/tmp/eos/fusex/md-cache/";
-            } else {
-              root["mdcachedir"] = "/var/cache/eos/fusex/md-cache/";
-            }
-
-            fprintf(stderr, "# enabling stable inodes with md-cache in '%s'\n",
-                    root["mdcachedir"].asString().c_str());
-          }
-
           root["auth"]["krb5"] = 0;
 
           if (fsuser == "smb") {
@@ -491,6 +481,17 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       root["hostport"] = fsname;
       fprintf(stderr, "# extracted connection host from fsname is '%s'\n",
               fsname.c_str());
+    }
+
+    if (!root.isMember("mdcachedir")) {
+      if (geteuid()) {
+	root["mdcachedir"] = "/var/tmp/eos/fusex/md-cache/";
+      } else {
+	root["mdcachedir"] = "/var/cache/eos/fusex/md-cache/";
+      }
+      
+      fprintf(stderr, "# enabling swapping inodes with md-cache in '%s'\n",
+	      root["mdcachedir"].asString().c_str());
     }
 
     // apply some default settings for undefined entries.
@@ -698,6 +699,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
     if (!root["options"].isMember("submounts")) {
       root["options"]["submounts"] = 0;
+
+    if (!root["options"].isMember("inmemory-inodes")) {
+      root["options"]["inmemory-inodes"] = 16384;
     }
 
     // xrdcl default options
@@ -832,8 +836,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.options.no_xattr = root["options"]["no-xattr"].asInt();
     config.options.no_hardlinks = root["options"]["no-link"].asInt();
     config.options.write_size_flush_interval =
-            root["options"]["write-size-flush-interval"].asInt();
-
+      root["options"]["write-size-flush-interval"].asInt();
+    config.options.inmemory_inodes = root["options"]["inmemory-inodes"].asInt();
+    
     if (config.options.no_xattr) {
       disable_xattr();
     }
@@ -990,6 +995,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       char spid[16];
       snprintf(spid, sizeof(spid), "%d", getpid());
       config.mqidentity += spid;
+      config.mdcachedir += "/";
+      config.mdcachedir += suuid;
     }
 
     if (config.options.fdlimit > 0) {
@@ -1195,6 +1202,13 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
     if (config.mdcachedir.length()) {
       system(mk_cachedir.c_str());
+      size_t slashes = std::count(config.mdcachedir.begin(), config.mdcachedir.end(), '/');
+      
+      // just some paranoid safety to avoid wiping by accident something we didn't intend to wipe
+      if ( (slashes > 2)  && 
+	   config.mdcachedir[config.mdcachedir.length()-37] == '/') {
+	config.mdcachedir_unlink = config.mdcachedir;
+      }
     }
 
     if (cconfig.journal.length()) {
@@ -1209,11 +1223,26 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       system(mk_credentialdir.c_str());
     }
 
+
     // make the cache directories private to root
     chmod_to_700_or_die(config.mdcachedir);
     chmod_to_700_or_die(cconfig.journal);
     chmod_to_700_or_die(cconfig.location);
     chmod_to_700_or_die(config.auth.credentialStore);
+
+    {
+      char list[64];
+
+      if (::listxattr(cconfig.location.c_str(), list, sizeof(list))) {
+        if (errno == ENOTSUP) {
+          fprintf(stderr,
+                  "error: eosxd requires XATTR support on partition %s errno=%d\n",
+                  cconfig.location.c_str(), errno);
+          exit(-1);
+        }
+      }
+    }
+
     cconfig.total_file_cache_size = root["cache"]["size-mb"].asUInt64() * 1024 *
             1024;
     cconfig.total_file_cache_inodes = root["cache"]["size-ino"].asUInt64();
@@ -1435,6 +1464,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     eos::common::Logging::GetInstance().SetUnit("FUSE@eosxd");
     eos::common::Logging::GetInstance().gShortFormat = true;
     eos::common::Logging::GetInstance().SetFilter("DumpStatistic");
+    eos::common::Logging::GetInstance().SetIndexSize(512);
 
     if (config.options.debug) {
       eos::common::Logging::GetInstance().SetLogPriority(LOG_DEBUG);
@@ -1550,12 +1580,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
     eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
     eos_static_warning("fd-limit               := %lu", config.options.fdlimit);
-
     if (config.auth.use_user_sss) {
       eos_static_warning("sss-keytabfile         := %s", config.ssskeytab.c_str());
     }
 
-    eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d",
+    eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d",
                        config.options.enable_backtrace,
                        config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
@@ -1582,8 +1611,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                        config.options.rm_rf_bulk,
                        config.options.leasetime,
                        config.options.write_size_flush_interval,
-                       config.options.submounts
-                       );
+                       config.options.submounts,
+                       config.options.inmemory_inodes
+		       );
     eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d rh-blocks:%d max-rh-buffer=%lu max-wr-buffer=%lu tot-size=%ld tot-ino=%ld dc-loc:%s jc-loc:%s clean-thrs:%02f%%%",
                        cconfig.read_ahead_strategy.c_str(),
                        cconfig.default_read_ahead_size,
@@ -1656,12 +1686,12 @@ EosFuse::run(int argc, char* argv[], void* userdata)
             EosFuseSessionLoop loop(10, 20, 10, 20);
             err = loop.Loop(fusesession);
           }
-
+	  
 #endif
         }
       }
     }
-
+    
     eos_static_warning("eosxd stopped version %s - FUSE protocol version %d",
                        VERSION, FUSE_USE_VERSION);
     eos_static_warning("********************************************************************************");
@@ -1672,6 +1702,14 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     tMetaStackFree.join();
     tMetaCommunicate.join();
     tCapFlush.join();
+
+
+    if (config.mdcachedir_unlink.length()) {
+      // clean rocksdb directory
+      std::string rmline = "rm -rf ";
+      rmline += config.mdcachedir_unlink.c_str();
+      system(rmline.c_str());
+    }
 
     if (Instance().Config().options.submounts) {
       Mounter().terminate();
@@ -1687,15 +1725,16 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
       fuse_session_destroy(fusesession);
     }
-
+    
     fuse_unmount(local_mount_dir, fusechan);
     mKV.reset();
   } else {
     fprintf(stderr, "error: failed to daemonize\n");
     exit(errno ? errno : -1);
   }
-
+  
   return err ? 1 : 0;
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -4917,10 +4956,10 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
     if (fuse_req_ctx(req)->uid == 0) {
       if (key.substr(0, s_resetstat.length()) == s_resetstat) {
         local_setxattr = true;
-        Instance().getFuseStat().Clear();
-        fuse_reply_err(req, 0);
-        // avoid to show this call in stats again
-        return;
+	Instance().getFuseStat().Clear();
+	fuse_reply_err(req, 0);
+	// avoid to show this call in stats again
+	return ;
       }
     } else {
       rc = EPERM;

@@ -260,6 +260,12 @@ public:
 
   void reset();
 
+  void clear() {
+    capmap.clear();
+    capextionsmap.clear();
+    quotamap.clear();  
+  }
+
   std::string ls();
 
   void capflush(ThreadAssistant& assistant); // thread removing capabilities

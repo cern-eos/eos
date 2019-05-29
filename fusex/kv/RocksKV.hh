@@ -35,6 +35,7 @@
 #include <map>
 #include <event.h>
 #include <rocksdb/db.h>
+#include <rocksdb/table.h>
 #include <rocksdb/utilities/transaction_db.h>
 #include <rocksdb/utilities/transaction.h>
 
@@ -74,11 +75,21 @@ public:
   {
     return mPrefix + key;
   }
+
+  std::string statistics() { 
+    
+    return options.statistics->ToString();
+    //return std::string("##### cache size is ") + std::to_string(table_options.block_cache->GetUsage());
+  }
+
   using TransactionPtr = std::unique_ptr<rocksdb::Transaction>;
 private:
   std::unique_ptr<rocksdb::TransactionDB> transactionDB;
   rocksdb::DB* db; // owned by transactionDB
   std::string mPrefix;
+
+  rocksdb::Options options;
+  rocksdb::BlockBasedTableOptions table_options;
 
   TransactionPtr startTransaction()
   {

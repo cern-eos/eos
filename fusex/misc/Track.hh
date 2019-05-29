@@ -62,6 +62,12 @@ public:
   }
 
   void
+  clear() {
+    XrdSysMutexHelper l(iMutex);
+    iNodes.clear();
+  }
+
+  void
   clean() 
   {
     eos_static_info("");
