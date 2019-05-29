@@ -25,8 +25,99 @@
 #include "common/FileSystem.hh"
 #include "common/Logging.hh"
 #include "common/TransferQueue.hh"
+#include "common/StringUtils.hh"
+#include "common/ParseUtils.hh"
 
 EOSCOMMONNAMESPACE_BEGIN;
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+FileSystemLocator::FileSystemLocator(const std::string &_host, int _port,
+  const std::string &_localpath) : host(_host), port(_port),
+  localpath(_localpath) {}
+
+//------------------------------------------------------------------------------
+// Try to parse a "queuepath"
+//------------------------------------------------------------------------------
+bool FileSystemLocator::fromQueuePath(const std::string &queuepath,
+  FileSystemLocator &out) {
+
+  std::string queue = queuepath;
+
+  if(!startsWith(queue, "/eos/")) {
+    return false;
+  }
+
+  queue.erase(0, 5);
+
+  //----------------------------------------------------------------------------
+  // Chop /eos/, extract host+port
+  //----------------------------------------------------------------------------
+  size_t slashLocation = queue.find("/");
+  if(slashLocation == std::string::npos) {
+    return false;
+  }
+
+  std::string hostPort = std::string(queue.begin(), queue.begin() + slashLocation);
+  queue.erase(0, slashLocation);
+
+  //----------------------------------------------------------------------------
+  // Separate host from port
+  //----------------------------------------------------------------------------
+  size_t separator = hostPort.find(":");
+  if(separator == std::string::npos) {
+    return false;
+  }
+
+  out.host = std::string(hostPort.begin(), hostPort.begin() + separator);
+  hostPort.erase(0, separator+1);
+
+  int64_t port;
+  if(!parseInt64(hostPort, port)) {
+    return false;
+  }
+
+  out.port = port;
+
+  //----------------------------------------------------------------------------
+  // Chop "/fst/", extract local path
+  //----------------------------------------------------------------------------
+  if(!startsWith(queue, "/fst/")) {
+    return false;
+  }
+
+  queue.erase(0, 4);
+  out.localpath = queue;
+
+  if(out.localpath.size() < 2) {
+    // Empty, or "/"? Reject
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Get host
+//------------------------------------------------------------------------------
+std::string FileSystemLocator::getHost() const {
+  return host;
+}
+
+//------------------------------------------------------------------------------
+// Get port
+//------------------------------------------------------------------------------
+int FileSystemLocator::getPort() const {
+  return port;
+}
+
+//------------------------------------------------------------------------------
+// Get local path
+//------------------------------------------------------------------------------
+std::string FileSystemLocator::getLocalPath() const {
+  return localpath;
+}
 
 //------------------------------------------------------------------------------
 // Constructor

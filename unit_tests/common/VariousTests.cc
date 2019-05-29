@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "common/Statfs.hh"
+#include "common/FileSystem.hh"
 #include "Namespace.hh"
 #include "gtest/gtest.h"
 #include <list>
@@ -36,6 +37,25 @@ TEST(StatFs, BasicSanity)
 
   statfs = eos::common::Statfs::DoStatfs("aaaaaaaa");
   ASSERT_EQ(statfs, nullptr);
+}
+
+TEST(FileSystemLocator, BasicSanity) {
+  FileSystemLocator locator;
+  ASSERT_TRUE(FileSystemLocator::fromQueuePath("/eos/somehost.cern.ch:1095/fst/data05", locator));
+
+  ASSERT_EQ(locator.getHost(), "somehost.cern.ch");
+  ASSERT_EQ(locator.getPort(), 1095);
+  ASSERT_EQ(locator.getLocalPath(), "/data05");
+}
+
+TEST(FileSystemLocator, ParsingFailure) {
+  FileSystemLocator locator;
+  ASSERT_FALSE(FileSystemLocator::fromQueuePath("/fst/somehost.cern.ch:1095/fst/data05", locator));
+  ASSERT_FALSE(FileSystemLocator::fromQueuePath("/eos/somehost.cern.ch:1095/mgm/data07", locator));
+  ASSERT_FALSE(FileSystemLocator::fromQueuePath("/eos/somehost.cern.ch:1095/mgm/data07", locator));
+  ASSERT_FALSE(FileSystemLocator::fromQueuePath("/eos/somehost.cern.ch/fst/data05", locator));
+  ASSERT_FALSE(FileSystemLocator::fromQueuePath("/eos/fst:999/data05", locator));
+  ASSERT_FALSE(FileSystemLocator::fromQueuePath("/eos/somehost.cern.ch:1096/fst/", locator));
 }
 
 EOSCOMMONTESTING_END
