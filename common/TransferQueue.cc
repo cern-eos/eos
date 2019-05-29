@@ -49,7 +49,6 @@ TransferQueue::TransferQueue (const char* queue, const char* queuepath, const ch
   mFullQueue = queuepath;
   mFullQueue += "/txqueue/";
   mFullQueue += subqueue;
-  mTxQueue = subqueue;
   mJobGetCount = 0;
 
   if (bc2mgm)

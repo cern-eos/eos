@@ -66,11 +66,6 @@ private:
   std::string mFullQueue;
 
   // ---------------------------------------------------------------------------
-  //! Transfer Queue name e.g. 'txname' e.g. balanceq, drainq, externq
-  // ---------------------------------------------------------------------------
-  std::string mTxQueue;
-
-  // ---------------------------------------------------------------------------
   //! Indicator for a queue slave e.g. if the object is deleted it __does__ __not__ clear the queue!
   // ---------------------------------------------------------------------------
   bool mSlave;
