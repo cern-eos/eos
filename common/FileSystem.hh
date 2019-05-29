@@ -182,6 +182,18 @@ public:
     time_t mGracePeriod;
     time_t mDrainPeriod;
     bool mDrainerOn;
+
+    bool hasHeartbeat() const {
+      time_t now = time(NULL);
+
+      if ((now - mHeartBeatTime) < 60) {
+        // we allow some time drift plus overload delay of 60 seconds
+        return true;
+      }
+
+      return false;
+    }
+
   } fs_snapshot_t;
 
   typedef struct host_snapshot {
@@ -196,6 +208,18 @@ public:
     double mNetInRateMiB;
     double mNetOutRateMiB;
     long mGopen; // number of files open as data proxy
+
+    bool hasHeartbeat() const {
+      time_t now = time(NULL);
+
+      if ((now - mHeartBeatTime) < 60) {
+        // we allow some time drift plus overload delay of 60 seconds
+        return true;
+      }
+
+      return false;
+    }
+
   } host_snapshot_t;
 
   //----------------------------------------------------------------------------
@@ -577,16 +601,6 @@ public:
   {
     return mExternQueue;
   }
-
-  //----------------------------------------------------------------------------
-  //! Check if the filesystem has a valid heartbeat
-  //!
-  //! @param fs snapshot of the filesystem
-  //!
-  //! @return true if filesystem got a heartbeat during the last 300 seconds,
-  //! otherwise false
-  //----------------------------------------------------------------------------
-  bool HasHeartBeat(fs_snapshot_t& fs);
 
   //----------------------------------------------------------------------------
   //! Return the filesystem id.

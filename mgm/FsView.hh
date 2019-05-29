@@ -739,15 +739,6 @@ public:
   bool SnapShotHost(FileSystem::host_snapshot_t& host, bool dolock);
 
   //----------------------------------------------------------------------------
-  //! Check heartbeat
-  //!
-  //! @param fs file system info
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool HasHeartBeat(eos::common::FileSystem::host_snapshot_t& fs);
-
-  //----------------------------------------------------------------------------
   //! Get active status
   //----------------------------------------------------------------------------
   eos::common::ActiveStatus GetActiveStatus();

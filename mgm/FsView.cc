@@ -2308,7 +2308,7 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
         snapshot.mHeartBeatTime = (time_t)
                                   it->second->GetLongLong("stat.heartbeattime");
 
-        if (!it->second->HasHeartBeat(snapshot)) {
+        if (!snapshot.hasHeartbeat()) {
           // mark as offline
           if (it->second->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
             it->second->SetActiveStatus(eos::common::ActiveStatus::kOffline);
@@ -2342,7 +2342,7 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
         auto shbt = it->second->GetMember("heartbeat");
         snapshot.mHeartBeatTime = (time_t) strtoll(shbt.c_str(), NULL, 10);
 
-        if (!it->second->HasHeartBeat(snapshot)) {
+        if (!snapshot.hasHeartbeat()) {
           // mark as offline
           if (it->second->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
             it->second->SetActiveStatus(eos::common::ActiveStatus::kOffline);
@@ -2584,23 +2584,6 @@ FsNode::GetMember(const std::string& member) const
   } else {
     return BaseView::GetMember(member);
   }
-}
-
-//------------------------------------------------------------------------------
-// Check for heartbeat for given file system
-//------------------------------------------------------------------------------
-bool
-FsNode::HasHeartBeat(eos::common::FileSystem::host_snapshot_t& fs)
-{
-  time_t now = time(NULL);
-  time_t hb = fs.mHeartBeatTime;
-
-  if ((now - hb) < 60) {
-    // we allow some time drift plus overload delay of 60 seconds
-    return true;
-  }
-
-  return false;
 }
 
 //------------------------------------------------------------------------------
