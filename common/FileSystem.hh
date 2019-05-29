@@ -345,11 +345,6 @@ public:
   static ActiveStatus GetActiveStatusFromString(const char*  ss);
 
   //----------------------------------------------------------------------------
-  //! Get the message string for an auto boot request
-  //----------------------------------------------------------------------------
-  static const char* GetAutoBootRequestString();
-
-  //----------------------------------------------------------------------------
   //! Get the message string to register a filesystem
   //----------------------------------------------------------------------------
   static const char* GetRegisterRequestString();

@@ -545,15 +545,6 @@ FileSystem::GetActiveStatusFromString(const char* ss)
 }
 
 //------------------------------------------------------------------------------
-// Return boot request string
-//------------------------------------------------------------------------------
-const char*
-FileSystem::GetAutoBootRequestString()
-{
-  return "mgm.cmd=bootreq";
-}
-
-//------------------------------------------------------------------------------
 // Return register request string
 //------------------------------------------------------------------------------
 const char*
