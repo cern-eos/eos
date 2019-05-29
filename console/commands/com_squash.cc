@@ -155,7 +155,7 @@ com_squash(char* arg1)
     shellcmd += linktarget;
     shellcmd += " ";
     shellcmd += squashpack;
-    shellcmd += " -quiet -noappend";
+    shellcmd += " -noappend";
     shellcmd += " -force-uid ";
     shellcmd += std::to_string(geteuid());
     shellcmd += " -force-gid ";
@@ -186,15 +186,74 @@ com_squash(char* arg1)
         global_retc = errno;
         return (0);
       } else {
-        if (symlink("squashfuse:", packagepath.GetPath())) {
+	std::string targetline = "eosxd get eos.hostport ";
+	targetline += packagepath.GetParentPath();
+
+	std::string hostport = eos::common::StringConversion::StringFromShellCmd(targetline.c_str());
+	if (!hostport.length()) {
+	  fprintf(stderr, "error: failed to get eos.hostport from mountpoint '%s'\n", targetline.c_str());
+	  global_retc = EIO;
+	  return (0);
+	}
+	
+	std::string target = "/eos/squashfs/";
+	target += hostport; 
+	target += "@";
+	XrdOucString spackagepath = squashpack.c_str();
+	while(spackagepath.replace("/","%%")) {}
+	target += spackagepath.c_str();
+
+        if (symlink(target.c_str(), packagepath.GetPath())) {
           fprintf(stderr, "error: failed to create squashfs symlink '%s' => '%s'\n",
                   packagepath.GetPath(),
-                  "squashfuse:");
+                  target.c_str());
         }
       }
     }
 
     ok = true;
+  }
+
+  if (cmd == "relabel") {
+    ok = true;
+    struct stat buf;
+    eos::common::Path packagepath(path.c_str());
+    std::string squashpack = packagepath.GetParentPath();
+    squashpack += ".";
+    squashpack += packagepath.GetName();
+    squashpack += ".sqsh";
+
+    if (!lstat(packagepath.GetPath(), &buf)) {
+      if (unlink(packagepath.GetPath())) {
+        fprintf(stderr,
+                "error: failed to remove existing squashfs archive '%s' - errno '%d'\n",
+                packagepath.GetPath(), errno);
+        global_retc = errno;
+        return (0);
+      }
+    }
+    std::string targetline = "eosxd get eos.hostport ";
+    targetline += packagepath.GetParentPath();
+
+    std::string hostport = eos::common::StringConversion::StringFromShellCmd(targetline.c_str());
+    if (!hostport.length()) {
+      fprintf(stderr, "error: failed to get eos.hostport from mountpoint '%s'\n", targetline.c_str());
+      global_retc = EIO;
+      return (0);
+    }
+
+    std::string target = "/eos/squashfs/";
+    target += hostport; 
+    target += "@";
+    XrdOucString spackagepath = squashpack.c_str();
+    while(spackagepath.replace("/","%%")) {}
+    target += spackagepath.c_str();
+    
+    if (symlink(target.c_str(), packagepath.GetPath())) {
+      fprintf(stderr, "error: failed to create squashfs symlink '%s' => '%s'\n",
+	      packagepath.GetPath(),
+	      target.c_str());
+    }
   }
 
   if (cmd == "unpack") {
@@ -368,7 +427,7 @@ com_squash(char* arg1)
       }
     }
 
-    if (!stat(packagepath.GetPath(), &buf)) {
+    if (!lstat(packagepath.GetPath(), &buf)) {
       if (unlink(packagepath.GetPath())) {
         fprintf(stderr,
                 "error: failed to unlink locally staged squashfs archive '%s' - errno '%d'\n",
@@ -398,6 +457,8 @@ com_squash_usage:
           "       squash info <path>                                                 : squashfs information about <path>\n");
   fprintf(stdout,
           "       squash rm <path>                                                   : delete a squashfs attached image and its smart link\n");
+  fprintf(stdout,       
+	  "       squash relabel <path>                                              : relable a squashfs image link e.g. after an image move in the namespace\n");
   global_retc = EINVAL;
   return (0);
 }
