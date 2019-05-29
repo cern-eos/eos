@@ -46,6 +46,9 @@ TEST(FileSystemLocator, BasicSanity) {
   ASSERT_EQ(locator.getHost(), "somehost.cern.ch");
   ASSERT_EQ(locator.getPort(), 1095);
   ASSERT_EQ(locator.getLocalPath(), "/data05");
+
+  ASSERT_EQ(locator.getHostPort(), "somehost.cern.ch:1095");
+  ASSERT_EQ(locator.getQueuePath(), "/eos/somehost.cern.ch:1095/fst/data05");
 }
 
 TEST(FileSystemLocator, ParsingFailure) {

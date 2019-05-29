@@ -106,6 +106,20 @@ std::string FileSystemLocator::getHost() const {
 }
 
 //------------------------------------------------------------------------------
+// Get hostport, concatenated together as "host:port"
+//------------------------------------------------------------------------------
+std::string FileSystemLocator::getHostPort() const {
+  return SSTR(host << ":" << port);
+}
+
+//------------------------------------------------------------------------------
+// Get queuepath
+//------------------------------------------------------------------------------
+std::string FileSystemLocator::getQueuePath() const {
+  return SSTR("/eos/" << host << ":" << port << "/fst" << localpath);
+}
+
+//------------------------------------------------------------------------------
 // Get port
 //------------------------------------------------------------------------------
 int FileSystemLocator::getPort() const {
