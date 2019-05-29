@@ -424,13 +424,7 @@ bool Storage::publishFsStatistics(FileSystem *fs, bool publishInconsistencyStats
     return {};
   }
 
-  bool success = true;
-  std::map<std::string, std::string> fsStats = getFsStatistics(fs, publishInconsistencyStats);
-
-  for(auto it = fsStats.begin(); it != fsStats.end(); it++) {
-    success &= fs->SetString(it->first.c_str(), it->second.c_str());
-  }
-
+  bool success = fs->SetTransientBatch(getFsStatistics(fs, publishInconsistencyStats));
   CheckFilesystemFullness(fs, fsid);
   return success;
 }
@@ -462,9 +456,6 @@ Storage::Publish(ThreadAssistant& assistant)
     // Should we publish consistency stats during this cycle?
     //--------------------------------------------------------------------------
     bool publishConsistencyStats = consistencyStatsStopwatch.restartIfExpired();
-
-    std::string publish_uptime = getUptime(tmp_name);
-    std::string publish_sockets = getNumberOfTCPSockets(tmp_name);
 
     std::chrono::milliseconds randomizedReportInterval = eos::fst::Config::gConfig.getRandomizedPublishInterval();
     common::IntervalStopwatch stopwatch(randomizedReportInterval);

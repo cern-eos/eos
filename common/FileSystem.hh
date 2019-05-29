@@ -414,6 +414,29 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Set a batch of transient values - ideal for statistics.
+  //!
+  //! "Meh" level of consistency - the other end may or may not receive
+  //! the updates in case of network instabilities, and all values will be lost
+  //! after a process restart.
+  //!
+  //! Essentially publishes a single message on a channel, and that's it.
+  //! All those subscribed to the channel will receive it,
+  //! anyone else will not.
+  //----------------------------------------------------------------------------
+  bool
+  SetTransientBatch(const std::map<std::string, std::string> &batch)
+  {
+    bool success = true;
+
+    for(auto it = batch.begin(); it != batch.end(); it++) {
+      success &= SetString(it->first.c_str(), it->second.c_str());
+    }
+
+    return success;
+  }
+
+  //----------------------------------------------------------------------------
   //! Set a key-value pair in a filesystem and evt. broadcast it.
   //----------------------------------------------------------------------------
   bool
