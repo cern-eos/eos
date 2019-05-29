@@ -350,4 +350,13 @@ TapeAwareGc::createLogPreamble(const std::string &path, const IFileMD::id_t fid)
   return preamble.str();
 }
 
+//----------------------------------------------------------------------------
+// Return the number of files successfully garbage collected since boot
+//----------------------------------------------------------------------------
+uint64_t
+TapeAwareGc::getNbGarbageCollectedFiles() const
+{
+  return m_nbGarbageCollectedFiles;
+}
+
 EOSMGMNAMESPACE_END

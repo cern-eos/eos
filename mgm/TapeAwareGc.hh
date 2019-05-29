@@ -102,6 +102,11 @@ public:
   void fileReplicaCommitted(const std::string &path, const IFileMD &fmd)
     noexcept;
 
+  //----------------------------------------------------------------------------
+  //! @return the number of files successfully garbage collected since boot
+  //----------------------------------------------------------------------------
+  uint64_t getNbGarbageCollectedFiles() const;
+
 protected:
 
   //----------------------------------------------------------------------------
@@ -274,7 +279,7 @@ protected:
   //! Counter that is incremented each time a file is successfully garbage
   //! collected.
   //----------------------------------------------------------------------------
-  uint64_t m_nbGarbageCollectedFiles;
+  std::atomic<uint64_t> m_nbGarbageCollectedFiles;
 };
 
 EOSMGMNAMESPACE_END

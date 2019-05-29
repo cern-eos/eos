@@ -475,6 +475,12 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << "ALL      drain info                       "
         << gOFS->mDrainEngine.GetThreadPoolInfo() << std::endl
         << line << std::endl;
+
+    if(gOFS->mTapeAwareGcDefaultSpaceEnable) {
+      oss << "ALL      tape GC rm count since boot      " << gOFS->mTapeAwareGc.getNbGarbageCollectedFiles()
+          << std::endl
+          << line << std::endl;
+    }
   }
 
   if (!stat.summary()) {
