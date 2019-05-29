@@ -3214,7 +3214,7 @@ metad::pmap::retrieve(fuse_ino_t ino, shared_md& ret)
   }
 
   ret = it->second;
-  eos_static_info("retc=%x", ret);
+  eos_static_debug("retc=%x", (bool)(ret));
 
   if (!ret) {
     ret = std::make_shared<mdx>();
