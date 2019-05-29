@@ -61,7 +61,7 @@ public:
   //-----------------------------------------------------------------------------
   //! Constructor
   //-----------------------------------------------------------------------------
-  FileSystem(const char* queuepath, const char* queue,
+  FileSystem(const common::FileSystemLocator &locator, const char* queue,
              XrdMqSharedObjectManager* som);
 
   //-----------------------------------------------------------------------------

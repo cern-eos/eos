@@ -145,7 +145,14 @@ Storage::Communicator(ThreadAssistant& assistant)
         FileSystem* fs = 0;
 
         if (!(mQueue2FsMap.count(queue.c_str()))) {
-          fs = new FileSystem(queue.c_str(), Config::gConfig.FstQueue.c_str(),
+
+          common::FileSystemLocator locator;
+          if(!common::FileSystemLocator::fromQueuePath(queue.c_str(), locator)) {
+            eos_static_crit("Unable to parse queuepath: %s", queue.c_str());
+            continue;
+          }
+
+          fs = new FileSystem(locator, Config::gConfig.FstQueue.c_str(),
                               &gOFS.ObjectManager);
           mQueue2FsMap[queue.c_str()] = fs;
           mFsVect.push_back(fs);
