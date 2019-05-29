@@ -51,14 +51,17 @@ public:
 
     // Validate the length of the supplied hex string
     auto byteArrayLen = LayoutId::GetChecksumLen(type);
-    if(byteArrayLen == 0 || (byteArrayLen % 2) == 1 || byteArrayLen != value.length()) {
+    if(byteArrayLen == 0) {
       cs->set_value("");
+      return;
+    } else if((value.length()%2 != 0) || (value.length() > byteArrayLen*2)) {
+      cs->set_value("INVALID CHECKSUM LENGTH=" + std::to_string(value.length()));
       return;
     }
 
     // Convert string hex representation into a little-endian byte array
     std::string byteArray;
-    for(unsigned int i = 0; i < byteArrayLen; i += 2) {
+    for(unsigned int i = 0; i < value.length(); i += 2) {
       char byte = static_cast<char>(strtol(value.substr(i, 2).c_str(), NULL, 16));
       byteArray.insert(byteArray.begin(), byte);
     }
