@@ -38,7 +38,7 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 FileSystem::FileSystem(const common::FileSystemLocator &locator,
                        const char* queue, XrdMqSharedObjectManager* som):
-  eos::common::FileSystem(locator.getQueuePath().c_str(), queue, som, true),
+  eos::common::FileSystem(locator, queue, som, true),
   mScanDir()
 {
   std::string queuepath = locator.getQueuePath();

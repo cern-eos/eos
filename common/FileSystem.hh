@@ -286,7 +286,7 @@ public:
   //!                  key-value pairs
   //! @param bc2mgm   If true we broad cast to the management server
   //----------------------------------------------------------------------------
-  FileSystem(const char* queuepath, const char* queue,
+  FileSystem(const FileSystemLocator &locator, const char* queue,
              XrdMqSharedObjectManager* som, bool bc2mgm = false);
 
   //----------------------------------------------------------------------------

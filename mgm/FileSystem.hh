@@ -67,7 +67,7 @@ public:
   //----------------------------------------------------------------------------
   FileSystem(const common::FileSystemLocator &locator, const char* queue,
              XrdMqSharedObjectManager* som) :
-    eos::common::FileSystem(locator.getQueuePath().c_str(), queue, som), mDrainJob(0)
+    eos::common::FileSystem(locator, queue, som), mDrainJob(0)
   {}
 
   //----------------------------------------------------------------------------

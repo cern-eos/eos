@@ -136,13 +136,12 @@ std::string FileSystemLocator::getLocalPath() const {
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileSystem::FileSystem(const char* queuepath, const char* queue,
+FileSystem::FileSystem(const FileSystemLocator &locator, const char* queue,
                        XrdMqSharedObjectManager* som, bool bc2mgm)
 {
-  mQueuePath = queuepath;
+  mQueuePath = locator.getQueuePath();
   mQueue = queue;
-  mPath = queuepath;
-  mPath.erase(0, mQueue.length());
+  mPath = locator.getLocalPath();
   mSom = som;
   mInternalBootStatus = BootStatus::kDown;
   cActive = ActiveStatus::kOffline;
@@ -173,29 +172,11 @@ FileSystem::FileSystem(const char* queuepath, const char* queue,
         hash->Set("queue", mQueue.c_str());
         hash->Set("queuepath", mQueuePath.c_str());
         hash->Set("path", mPath.c_str());
-        std::string hostport =
-          eos::common::StringConversion::GetStringHostPortFromQueue(mQueue.c_str());
-
-        if (hostport.length()) {
-          size_t ppos = hostport.find(":");
-          std::string host = hostport;
-          std::string port = hostport;
-
-          if (ppos != std::string::npos) {
-            host.erase(ppos);
-            port.erase(0, ppos + 1);
-          } else {
-            port = "1094";
-          }
-
-          hash->Set("hostport", hostport.c_str());
-          hash->Set("host", host.c_str());
-          hash->Set("port", port.c_str());
-          hash->Set("configstatus", "down");
-          hash->Set("stat.drain", "nodrain");
-        } else {
-          eos_static_crit("there is no hostport defined for queue %s\n", mQueue.c_str());
-        }
+        hash->Set("hostport", locator.getHostPort().c_str());
+        hash->Set("host", locator.getHost().c_str());
+        hash->Set("port", std::to_string(locator.getPort()).c_str());
+        hash->Set("configstatus", "down");
+        hash->Set("stat.drain", "nodrain");
 
         hash->CloseTransaction();
       }
@@ -207,28 +188,10 @@ FileSystem::FileSystem(const char* queuepath, const char* queue,
       hash->Set("queue", mQueue.c_str());
       hash->Set("queuepath", mQueuePath.c_str());
       hash->Set("path", mPath.c_str());
-      std::string hostport =
-        eos::common::StringConversion::GetStringHostPortFromQueue(mQueue.c_str());
-
-      if (hostport.length()) {
-        size_t ppos = hostport.find(":");
-        std::string host = hostport;
-        std::string port = hostport;
-
-        if (ppos != std::string::npos) {
-          host.erase(ppos);
-          port.erase(0, ppos + 1);
-        } else {
-          port = "1094";
-        }
-
-        hash->Set("hostport", hostport.c_str());
-        hash->Set("host", host.c_str());
-        hash->Set("port", port.c_str());
-        hash->Set("stat.drain", "nodrain");
-      } else {
-        eos_static_crit("there is no hostport defined for queue %s\n", mQueue.c_str());
-      }
+      hash->Set("hostport", locator.getHostPort().c_str());
+      hash->Set("host", locator.getHost().c_str());
+      hash->Set("port", std::to_string(locator.getPort()).c_str());
+      hash->Set("stat.drain", "nodrain");
 
       hash->CloseTransaction();
       mSom->HashMutex.UnLockRead();
