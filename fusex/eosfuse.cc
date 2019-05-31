@@ -1233,7 +1233,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     {
       char list[64];
 
+#ifndef __APPLE__
       if (::listxattr(cconfig.location.c_str(), list, sizeof(list))) {
+#else
+      if (::listxattr(cconfig.location.c_str(), list, sizeof(list),0)) {
+#endif
         if (errno == ENOTSUP) {
           fprintf(stderr,
                   "error: eosxd requires XATTR support on partition %s errno=%d\n",
