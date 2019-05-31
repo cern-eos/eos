@@ -151,10 +151,10 @@ TransferQueue::Get ()
         mSom->HashMutex.UnLockRead();
         return 0;
       } else {
-        TransferJob* job = TransferJob::Create(value.c_str());
+        std::unique_ptr<TransferJob> job = TransferJob::Create(value.c_str());
         mSom->HashMutex.UnLockRead();
         IncGetJobCount();
-        return job;
+        return job.release();
       }
     } else {
       fprintf(stderr, "error: couldn't get queue %s!\n", mFullQueue.c_str());

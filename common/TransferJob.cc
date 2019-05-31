@@ -81,7 +81,7 @@ TransferJob::GetSealed()
 //!
 //! @return pointer to transfer job object
 //------------------------------------------------------------------------------
-TransferJob*
+std::unique_ptr<TransferJob>
 TransferJob::Create(const char* sealeddescription)
 {
   if (!sealeddescription) {
@@ -93,7 +93,7 @@ TransferJob::Create(const char* sealeddescription)
   while (s.replace("#@#", "&")) {
   };
 
-  return new TransferJob(s.c_str());
+  return std::unique_ptr<TransferJob>(new TransferJob(s.c_str()));
 }
 
 //------------------------------------------------------------------------------

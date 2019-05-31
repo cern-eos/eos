@@ -39,6 +39,7 @@
 /*----------------------------------------------------------------------------*/
 #include <string>
 #include <stdint.h>
+#include <memory>
 /*----------------------------------------------------------------------------*/
 
 class XrdOucEnv;
@@ -73,7 +74,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Factory function for a transferjob
   // ---------------------------------------------------------------------------
-  static TransferJob* Create(const char* sealeddescription);
+  static std::unique_ptr<TransferJob> Create(const char* sealeddescription);
 
   // ---------------------------------------------------------------------------
   //! Return XrdOucEnv repesentation of a transfer job
