@@ -2878,7 +2878,7 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
 
   common::FileSystemLocator locator;
   if(!common::FileSystemLocator::fromQueuePath(configmap["queuepath"], locator)) {
-    eos_crit("Could not parse queuepath: %s", configmap["queuepath"]);
+    eos_crit("Could not parse queuepath: %s", configmap["queuepath"].c_str());
     return false;
   }
 
