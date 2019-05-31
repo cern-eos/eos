@@ -2983,7 +2983,8 @@ filesystem::rmdir(const char* path, uid_t uid, gid_t gid, pid_t pid)
   XrdCl::XRootDStatus status = fs.RmDir(spath);
 
   if (eos::common::error_retc_map(status.errNo)) {
-    if (status.GetErrorMessage().find("Directory not empty") != std::string::npos) {
+    if ( ( errno == EIO ) ||
+	 ( status.GetErrorMessage().find("Directory not empty") != std::string::npos) ) {
       errno = ENOTEMPTY;
     }
   } else {
