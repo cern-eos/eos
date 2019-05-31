@@ -134,6 +134,14 @@ std::string FileSystemLocator::getLocalPath() const {
 }
 
 //------------------------------------------------------------------------------
+// Get transient channel for this filesystem - that is, the channel through
+// which all transient, non-important information will be transmitted.
+//------------------------------------------------------------------------------
+std::string FileSystemLocator::getTransientChannel() const {
+  return SSTR("filesystem-transient||" << getHostPort() << "||" << getLocalPath());
+}
+
+//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 FileSystem::FileSystem(const FileSystemLocator &locator, const char* queue,
