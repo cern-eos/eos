@@ -145,8 +145,9 @@ std::string FileSystemLocator::getTransientChannel() const {
 // Constructor
 //------------------------------------------------------------------------------
 FileSystem::FileSystem(const FileSystemLocator &locator, const char* queue,
-                       XrdMqSharedObjectManager* som, bool bc2mgm)
+  XrdMqSharedObjectManager* som, qclient::SharedManager* qsom, bool bc2mgm)
 {
+  mSharedManager = qsom;
   mQueuePath = locator.getQueuePath();
   mQueue = queue;
   mPath = locator.getLocalPath();

@@ -31,7 +31,9 @@ include_directories(
   ${ZMQ_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIRS}
-  ${LIBBFD_INCLUDE_DIRS})
+  ${LIBBFD_INCLUDE_DIRS}
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
+)
 
 #-------------------------------------------------------------------------------
 # CTA integration related operations

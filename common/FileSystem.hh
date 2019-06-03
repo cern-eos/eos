@@ -37,6 +37,13 @@
 #endif
 #include <atomic>
 
+namespace qclient {
+
+class SharedManager;
+class TransientSharedHash;
+
+}
+
 EOSCOMMONNAMESPACE_BEGIN;
 
 //! Values for a boot status
@@ -171,6 +178,9 @@ protected:
   //! boot status stored inside the object not the hash
   BootStatus mInternalBootStatus;
 
+  //! QClient shared manager - no ownership, can be null
+  qclient::SharedManager *mSharedManager = nullptr;
+
 public:
   //------------------------------------------------------------------------------
   //! Struct & Type definitions
@@ -294,7 +304,8 @@ public:
   //! @param bc2mgm   If true we broad cast to the management server
   //----------------------------------------------------------------------------
   FileSystem(const FileSystemLocator &locator, const char* queue,
-             XrdMqSharedObjectManager* som, bool bc2mgm = false);
+             XrdMqSharedObjectManager* som, qclient::SharedManager* qsom,
+             bool bc2mgm = false);
 
   //----------------------------------------------------------------------------
   // Destructor

@@ -2889,7 +2889,7 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
   // Apply only the registration for a new filesystem if it does not exist
   if (!FsView::gFsView.mIdView.count(fsid)) {
     fs = new FileSystem(locator, configmap["queue"].c_str(),
-                        eos::common::GlobalConfig::gConfig.SOM());
+                        eos::common::GlobalConfig::gConfig.SOM(), nullptr);
   } else {
     fs = FsView::gFsView.mIdView[fsid];
   }

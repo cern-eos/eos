@@ -66,8 +66,8 @@ public:
   //! @param som external shared object manager object
   //----------------------------------------------------------------------------
   FileSystem(const common::FileSystemLocator &locator, const char* queue,
-             XrdMqSharedObjectManager* som) :
-    eos::common::FileSystem(locator, queue, som), mDrainJob(0)
+             XrdMqSharedObjectManager* som, qclient::SharedManager *qsom) :
+    eos::common::FileSystem(locator, queue, som, qsom), mDrainJob(0)
   {}
 
   //----------------------------------------------------------------------------
