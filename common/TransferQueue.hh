@@ -96,7 +96,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Get a transfer job from the queue
   // ---------------------------------------------------------------------------
-  eos::common::TransferJob* Get();
+  std::unique_ptr<eos::common::TransferJob> Get();
 
   // ---------------------------------------------------------------------------
   //! Get the count of retrieved transfers

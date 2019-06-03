@@ -46,7 +46,7 @@ class TransferJob : public XrdJob
 {
 private:
   TransferQueue* mQueue;
-  eos::common::TransferJob* mJob;
+  std::unique_ptr<eos::common::TransferJob> mJob;
   int mBandWidth; // band width in Mb/s
   int mTimeOut; // max duration for a transfer in seconds
   int mStreams; // number of streams to use
@@ -64,7 +64,7 @@ private:
 
 public:
 
-  TransferJob(TransferQueue* queue, eos::common::TransferJob* cjob, int bw,
+  TransferJob(TransferQueue* queue, std::unique_ptr<eos::common::TransferJob> cjob, int bw,
               int timeout = 7200);
   ~TransferJob();
 

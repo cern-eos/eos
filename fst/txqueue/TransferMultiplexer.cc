@@ -147,7 +147,7 @@ TransferMultiplexer::ThreadProc(void)
           eos_static_info("Found %u transfers in queue %s", (unsigned int)
                           mQueues[i]->GetQueue()->Size(), mQueues[i]->GetName());
           mQueues[i]->GetQueue()->OpenTransaction();
-          eos::common::TransferJob* cjob = mQueues[i]->GetQueue()->Get();
+          std::unique_ptr<eos::common::TransferJob> cjob = mQueues[i]->GetQueue()->Get();
           mQueues[i]->GetQueue()->CloseTransaction();
 
           if (!cjob) {
@@ -159,7 +159,7 @@ TransferMultiplexer::ThreadProc(void)
           cjob->PrintOut(out);
           eos_static_info("New transfer %s", out.c_str());
           //create new TransferJob and submit it to the scheduler
-          TransferJob* job = new TransferJob(mQueues[i], cjob,
+          TransferJob* job = new TransferJob(mQueues[i], std::move(cjob),
                                              mQueues[i]->GetBandwidth());
           gOFS.TransferSchedulerMutex.Lock();
           gOFS.TransferScheduler->Schedule(job);

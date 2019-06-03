@@ -136,7 +136,7 @@ TransferQueue::Add (eos::common::TransferJob* job)
  */
 
 /*----------------------------------------------------------------------------*/
-TransferJob*
+std::unique_ptr<TransferJob>
 TransferQueue::Get ()
 {
   if (mSom)
@@ -154,7 +154,7 @@ TransferQueue::Get ()
         std::unique_ptr<TransferJob> job = TransferJob::Create(value.c_str());
         mSom->HashMutex.UnLockRead();
         IncGetJobCount();
-        return job.release();
+        return job;
       }
     } else {
       fprintf(stderr, "error: couldn't get queue %s!\n", mFullQueue.c_str());

@@ -54,13 +54,13 @@ ToString(const T& t)
   return oss.str();
 }
 
-TransferJob::TransferJob(TransferQueue* queue, eos::common::TransferJob* job,
+TransferJob::TransferJob(TransferQueue* queue, std::unique_ptr<eos::common::TransferJob> job,
                          int bw, int timeout)
 {
   mQueue = queue;
   mBandWidth = bw;
   mTimeOut = timeout;
-  mJob = job;
+  mJob = std::move(job);
   mSourceUrl = "";
   mTargetUrl = "";
   mStreams = 1;
@@ -76,9 +76,7 @@ TransferJob::TransferJob(TransferQueue* queue, eos::common::TransferJob* job,
 /* ------------------------------------------------------------------------- */
 TransferJob::~TransferJob()
 {
-  if (mJob) {
-    delete mJob;
-  }
+  mJob.reset();
 
   if (mProgressThread) {
     XrdSysThread::Cancel(mProgressThread);
