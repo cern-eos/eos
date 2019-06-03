@@ -30,8 +30,8 @@
 #define EOSCOMMON_PARSE_UTILS_HH
 
 #include "common/Namespace.hh"
-#include <climits>
 #include <string>
+#include <limits>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -44,8 +44,8 @@ inline bool parseInt64(const std::string& str, int64_t& ret, int base = 10)
   char* endptr = NULL;
   ret = std::strtoll(str.c_str(), &endptr, base);
 
-  if (endptr != str.c_str() + str.size() || ret == LLONG_MIN ||
-      ret == LONG_LONG_MAX) {
+  if (endptr != str.c_str() + str.size() || ret == std::numeric_limits<long long>::min() ||
+      ret == std::numeric_limits<long long>::max()) {
     return false;
   }
 
