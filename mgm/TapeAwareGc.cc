@@ -259,29 +259,29 @@ TapeAwareGc::tryToGarbageCollectASingleFile() noexcept
       eos_static_info(msg.str().c_str());
       return true; // A file was garbage collected
     } else {
-      {
-        std::ostringstream msg;
-        msg << preamble.str() << " msg=\"Unable to stagerrm file at this time: "
-          << result.std_err() << "\"";
-        eos_static_info(msg.str().c_str());
-      }
-
       if(fileInNamespaceAndNotScheduledForDeletion(fid)) {
-        std::ostringstream msg;
-        msg << preamble.str() << " msg=\"Putting file back in GC queue"
-                                 " because it is still in the namespace\"";
-        eos_static_info(msg.str().c_str());
+        {
+          std::ostringstream msg;
+          msg << preamble.str() << " msg=\"Unable to stagerrm file at this time: "
+            << result.std_err() << "\"";
+          eos_static_info(msg.str().c_str());
+        }
+        {
+          std::ostringstream msg;
+          msg << preamble.str() << " msg=\"Putting file back in GC queue"
+                                   " because it is still in the namespace\"";
+          eos_static_info(msg.str().c_str());
+        }
 
         std::lock_guard<std::mutex> lruQueueLock(m_lruQueueMutex);
         m_lruQueue.fileAccessed(fid);
       } else {
-        std::ostringstream msg;
-        msg << preamble.str() << " msg=\"Not returning file to GC queue"
-                                 " because it is not in the namespace\"";
-        eos_static_info(msg.str().c_str());
+        // Please note that a file is considered successfully garbage collected
+        // if it does not exists in the EOS namespace when it is popped from the
+        // LRU data structure.
+        return true;
       }
     }
-
   } catch(std::exception &ex) {
     eos_static_err("msg=\"%s\"", ex.what());
   } catch(...) {

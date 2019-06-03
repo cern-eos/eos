@@ -212,7 +212,11 @@ protected:
   static uint64_t getSpaceConfigMinNbFreeBytes(const std::string &spaceName) noexcept;
 
   //----------------------------------------------------------------------------
-  //! Try to garbage collect a single file if necessary and possible
+  //! Try to garbage collect a single file if necessary and possible.
+  //!
+  //! Please note that a file is considered successfully garbage collected if
+  //! it does not exists in the EOS namespace when it is popped from the LRU
+  //! data structure.
   //!
   //! @return True if a file was garbage collected
   //----------------------------------------------------------------------------
