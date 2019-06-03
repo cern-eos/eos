@@ -362,7 +362,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
     if(gOFS->mTapeAwareGcDefaultSpaceEnable) {
       // Number of successful stagerrms since boot
       oss << "uid=all gid=all tapeawaregc.stagerrms="
-          << gOFS->mTapeAwareGc.getNbStagerrms() << std::endl;
+          << gOFS->mTapeAwareGc.getNbStagerrms() << std::endl
+          << "uid=all gid=all tapeawaregc.queuesize="
+          << gOFS->mTapeAwareGc.getLruQueueSize() << std::endl;
     }
   } else {
     std::string line = "# ------------------------------------------------------"
@@ -484,6 +486,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
 
     if(gOFS->mTapeAwareGcDefaultSpaceEnable) {
       oss << "ALL      tapeawaregc stagerrms since boot " << gOFS->mTapeAwareGc.getNbStagerrms()
+          << std::endl
+          << "ALL      tapeawaregc queue size           " << gOFS->mTapeAwareGc.getLruQueueSize()
           << std::endl
           << line << std::endl;
     }
