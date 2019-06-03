@@ -209,8 +209,6 @@ public:
     std::string statfilesuffix;
     std::string statfilepath;
     std::string logfilepath;
-    std::string mdcachehost;
-    int mdcacheport;
     std::string mdcachedir;
     std::string mdcachedir_unlink;
     std::string mqtargethost;

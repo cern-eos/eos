@@ -453,9 +453,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         fsuser.erase(pos_add);
 
         if ((fsuser == "gw") || (fsuser == "smb")) {
-          // keep always all meta-data
-          root["options"]["free-md-asap"] = 0;
-
           root["auth"]["krb5"] = 0;
 
           if (fsuser == "smb") {
@@ -590,10 +587,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
       if (!root["options"].isMember("show-tree-size")) {
         root["options"]["show-tree-size"] = 0;
-      }
-
-      if (!root["options"].isMember("free-md-asap")) {
-        root["options"]["free-md-asap"] = 1;
       }
 
       if (!root["auth"].isMember("krb5")) {
@@ -831,7 +824,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.options.rm_rf_bulk =
             root["options"]["rm-rf-bulk"].asInt();
     config.options.show_tree_size = root["options"]["show-tree-size"].asInt();
-    config.options.free_md_asap = root["options"]["free-md-asap"].asInt();
     config.options.cpu_core_affinity = root["options"]["cpu-core-affinity"].asInt();
     config.options.no_xattr = root["options"]["no-xattr"].asInt();
     config.options.no_hardlinks = root["options"]["no-link"].asInt();
@@ -877,8 +869,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                               config.fuzzing.open_async_submit_fatal,
                               config.fuzzing.open_async_return_fatal,
                               config.fuzzing.read_async_return);
-    config.mdcachehost = root["mdcachehost"].asString();
-    config.mdcacheport = root["mdcacheport"].asInt();
     config.mdcachedir = root["mdcachedir"].asString();
     config.mqtargethost = root["mdzmqtarget"].asString();
     config.mqidentity = root["mdzmqidentity"].asString();
@@ -935,14 +925,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
 #endif
 
-    // disallow conflicting options
-    if (!config.mdcachedir.empty() && (config.mdcacheport != 0 ||
-                                       !config.mdcachehost.empty())) {
-      std::cerr <<
-              "Options (mdcachehost, mdcacheport) conflict with (mdcachedir) - only one type of mdcache is allowed."
-              << std::endl;
-      exit(EINVAL);
-    }
 
     if (config.mdcachedir.length()) {
       // add the instance name to all cache directories
@@ -956,10 +938,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     // default settings
     if (!config.statfilesuffix.length()) {
       config.statfilesuffix = "stats";
-    }
-
-    if (!config.mdcacheport) {
-      config.mdcacheport = 6379;
     }
 
     if (!config.mqtargethost.length()) {
@@ -1024,11 +1002,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     // data caching configuration
     cconfig.type = cache_t::INVALID;
 
-    if (!config.mdcachehost.length() && !config.mdcachedir.length()) {
-      cconfig.clean_on_startup = true;
-    } else {
-      cconfig.clean_on_startup = false;
-    }
+    cconfig.clean_on_startup = true;
 
     if (root["cache"]["type"].asString() == "disk") {
       cconfig.type = cache_t::DISK;
@@ -1500,19 +1474,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
 #endif
 
-    if (config.mdcachehost.length()) {
-      RedisKV* kv = new RedisKV();
-
-      if (kv->connect(config.name, config.mdcachehost, config.mdcacheport ?
-                      config.mdcacheport : 6379) != 0) {
-        fprintf(stderr, "error: failed to connect to md cache - connect-string=%s",
-                config.mdcachehost.c_str());
-        exit(EINVAL);
-      }
-
-      mKV.reset(kv);
-    }
-
     mdbackend.init(config.hostport, config.remotemountdir,
                    config.options.md_backend_timeout,
                    config.options.md_backend_put_timeout);
@@ -1588,7 +1549,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       eos_static_warning("sss-keytabfile         := %s", config.ssskeytab.c_str());
     }
 
-    eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d free-md-asap:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d",
+    eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d",
                        config.options.enable_backtrace,
                        config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
@@ -1606,7 +1567,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                        no_fsync_list.c_str(),
                        config.options.overlay_mode,
                        config.options.show_tree_size,
-                       config.options.free_md_asap,
                        config.options.cpu_core_affinity,
                        config.options.no_xattr,
                        config.options.no_hardlinks,

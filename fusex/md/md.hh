@@ -547,7 +547,7 @@ public:
   std::string calculateLocalPath(shared_md md);
 
   void cleanup(shared_md md);
-  void cleanup(fuse_ino_t ino, bool force = false);
+  void cleanup(fuse_ino_t ino);
 
   class mdstat
   {

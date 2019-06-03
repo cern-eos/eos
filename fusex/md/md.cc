@@ -1653,16 +1653,14 @@ metad::cleanup(shared_md md)
 /* -------------------------------------------------------------------------- */
 void
 /* -------------------------------------------------------------------------- */
-metad::cleanup(fuse_ino_t ino, bool force)
+metad::cleanup(fuse_ino_t ino)
 /* -------------------------------------------------------------------------- */
 {
   shared_md md;
 
-  if (force || EosFuse::Instance().Config().options.free_md_asap) {
-    if (mdmap.retrieveTS(ino, md)) {
-      md->Locker().Lock();
-      return cleanup(md);
-    }
+  if (mdmap.retrieveTS(ino, md)) {
+    md->Locker().Lock();
+    return cleanup(md);
   }
 }
 
