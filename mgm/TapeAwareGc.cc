@@ -361,4 +361,14 @@ TapeAwareGc::getNbStagerrms() const
   return m_nbStagerrms;
 }
 
+//----------------------------------------------------------------------------
+// Return the size of the LRUE queue
+//----------------------------------------------------------------------------
+TapeAwareGcLru::FidQueue::size_type
+TapeAwareGc::getLruQueueSize() const
+{
+  std::lock_guard<std::mutex> lruQueueLock(m_lruQueueMutex);
+  return m_lruQueue.size();
+}
+
 EOSMGMNAMESPACE_END

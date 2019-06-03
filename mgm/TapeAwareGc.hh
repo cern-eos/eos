@@ -107,6 +107,11 @@ public:
   //----------------------------------------------------------------------------
   uint64_t getNbStagerrms() const;
 
+  //----------------------------------------------------------------------------
+  //! @return the size of teh LRU queue
+  //----------------------------------------------------------------------------
+  TapeAwareGcLru::FidQueue::size_type getLruQueueSize() const;
+
 protected:
 
   //----------------------------------------------------------------------------
@@ -191,7 +196,7 @@ protected:
   std::unique_ptr<std::thread> m_worker;
 
   /// Mutex protecting mLruQueue
-  std::mutex m_lruQueueMutex;
+  mutable std::mutex m_lruQueueMutex;
 
   /// Queue of Least Recently Used (LRU) files
   TapeAwareGcLru m_lruQueue;
