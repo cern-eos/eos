@@ -109,7 +109,6 @@ DrainTransferJob::DoIt() noexcept
     // When no more sources are available the url_src is empty
     if (!url_src.IsValid() || !url_dst.IsValid()) {
       gOFS->MgmStats.Add("DrainCentralFailed", 0, 0, 1);
-      ReportError("msg=\"no more replicas available\"");
       return;
     }
 
