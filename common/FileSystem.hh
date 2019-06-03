@@ -465,15 +465,7 @@ public:
   bool
   SetDouble(const char* key, double f, bool broadcast = true)
   {
-    XrdMqSharedHash* hash = nullptr;
-    RWMutexReadLock lock(mSom->HashMutex);
-
-    if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
-      hash->Set(key, f, broadcast);
-      return true;
-    } else {
-      return false;
-    }
+    return SetString(key, std::to_string(f).c_str(), broadcast);
   }
 
   //----------------------------------------------------------------------------
@@ -482,15 +474,7 @@ public:
   bool
   SetLongLong(const char* key, long long l, bool broadcast = true)
   {
-    XrdMqSharedHash* hash = nullptr;
-    RWMutexReadLock lock(mSom->HashMutex);
-
-    if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
-      hash->Set(key, l, broadcast);
-      return true;
-    } else {
-      return false;
-    }
+    return SetString(key, std::to_string(l).c_str(), broadcast);
   }
 
   //----------------------------------------------------------------------------
