@@ -48,7 +48,7 @@ TapeAwareGc::TapeAwareGc():
     std::bind(getSpaceConfigMinNbFreeBytes, "default"), // Value getter
     10), // Maximum age of cached value in seconds
   m_freeSpaceInDefault("default", TAPEAWAREGC_DEFAULT_SPACE_QUERY_PERIOD_SECS),
-  m_nbGarbageCollectedFiles(0)
+  m_nbStagerrms(0)
 {
 }
 
@@ -104,7 +104,6 @@ TapeAwareGc::workerThreadEntryPoint() noexcept
 
   do {
     while(!m_stop && tryToGarbageCollectASingleFile()) {
-      m_nbGarbageCollectedFiles++;
     };
   } while(!m_stop.waitForTrue(std::chrono::seconds(10)));
 }
@@ -257,6 +256,9 @@ TapeAwareGc::tryToGarbageCollectASingleFile() noexcept
       std::ostringstream msg;
       msg << preamble.str() << " msg=\"Garbage collected file using stagerrm\"";
       eos_static_info(msg.str().c_str());
+
+      m_nbStagerrms++;
+
       return true; // A file was garbage collected
     } else {
       if(fileInNamespaceAndNotScheduledForDeletion(fid)) {
@@ -351,12 +353,12 @@ TapeAwareGc::createLogPreamble(const std::string &path, const IFileMD::id_t fid)
 }
 
 //----------------------------------------------------------------------------
-// Return the number of files successfully garbage collected since boot
+// Return the number of files successfully stagerrm'ed since boot
 //----------------------------------------------------------------------------
 uint64_t
-TapeAwareGc::getNbGarbageCollectedFiles() const
+TapeAwareGc::getNbStagerrms() const
 {
-  return m_nbGarbageCollectedFiles;
+  return m_nbStagerrms;
 }
 
 EOSMGMNAMESPACE_END
