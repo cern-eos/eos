@@ -25,6 +25,7 @@
 #include "mq/XrdMqMessaging.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
+#include "common/ParseUtils.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include <sys/stat.h>
@@ -295,18 +296,7 @@ XrdMqSharedHash::GetKeys()
 long long
 XrdMqSharedHash::GetLongLong(const char* key)
 {
-  std::string get = Get(key);
-
-  if (get.length()) {
-    errno = 0;
-    long long ret = strtoll(get.c_str(), 0, 10);
-
-    if (!errno) {
-      return ret;
-    }
-  }
-
-  return 0;
+  return eos::common::parseLongLong(Get(key));
 }
 
 //------------------------------------------------------------------------------
@@ -315,13 +305,7 @@ XrdMqSharedHash::GetLongLong(const char* key)
 double
 XrdMqSharedHash::GetDouble(const char* key)
 {
-  std::string get = Get(key);
-
-  if (get.length()) {
-    return atof(get.c_str());
-  }
-
-  return 0;
+  return eos::common::parseDouble(Get(key));
 }
 
 //------------------------------------------------------------------------------

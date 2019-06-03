@@ -25,6 +25,7 @@
 #define __EOSCOMMON_FILESYSTEM_HH__
 
 #include "common/Namespace.hh"
+#include "common/ParseUtils.hh"
 #include "mq/XrdMqSharedObject.hh"
 #include <string>
 #include <stdint.h>
@@ -605,20 +606,7 @@ public:
   long long
   GetLongLong(const char* key)
   {
-    std::string skey = key;
-
-    if (skey == "<n>") {
-      return 1;
-    }
-
-    XrdMqSharedHash* hash = nullptr;
-    RWMutexReadLock lock(mSom->HashMutex);
-
-    if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
-      return hash->GetLongLong(key);
-    } else {
-      return 0;
-    }
+    return parseLongLong(GetString(key));
   }
 
   //----------------------------------------------------------------------------
@@ -627,14 +615,7 @@ public:
   double
   GetDouble(const char* key)
   {
-    XrdMqSharedHash* hash = nullptr;
-    RWMutexReadLock lock(mSom->HashMutex);
-
-    if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
-      return hash->GetDouble(key);
-    } else {
-      return 0;
-    }
+    return parseDouble(GetString(key));
   }
 
   //----------------------------------------------------------------------------

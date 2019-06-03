@@ -31,6 +31,7 @@
 
 #include "common/Namespace.hh"
 #include <climits>
+#include <string>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -49,6 +50,33 @@ inline bool parseInt64(const std::string& str, int64_t& ret, int base = 10)
   }
 
   return true;
+}
+
+//------------------------------------------------------------------------------
+//! Parse a long long - behave exactly the same as old XrdMq "GetLongLong".
+//------------------------------------------------------------------------------
+inline long long parseLongLong(const std::string& str) {
+  if (str.length()) {
+    errno = 0;
+    long long ret = strtoll(str.c_str(), 0, 10);
+
+    if (!errno) {
+      return ret;
+    }
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+//! Parse a long long - behave exactly the same as old XrdMq "GetDouble".
+//------------------------------------------------------------------------------
+inline long long parseDouble(const std::string& str) {
+  if (str.length()) {
+    return atof(str.c_str());
+  }
+
+  return 0;
 }
 
 //------------------------------------------------------------------------------
