@@ -26,9 +26,9 @@
 
 #include "common/Logging.hh"
 #include "mgm/Namespace.hh"
-#include "mgm/TapeAwareGcCachedValue.hh"
 #include "mgm/TapeAwareGcFreeSpace.hh"
 #include "mgm/TapeAwareGcLru.hh"
+#include "mgm/TapeAwareGcThreadSafeCachedValue.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "proto/ConsoleReply.pb.h"
 #include "proto/ConsoleRequest.pb.h"
@@ -110,7 +110,12 @@ public:
   //----------------------------------------------------------------------------
   //! @return the size of teh LRU queue
   //----------------------------------------------------------------------------
-  TapeAwareGcLru::FidQueue::size_type getLruQueueSize() const;
+  TapeAwareGcLru::FidQueue::size_type getLruQueueSize();
+
+  //----------------------------------------------------------------------------
+  //! @return the amount of free bytes in the EOS space named default
+  //----------------------------------------------------------------------------
+  uint64_t getDefaultSpaceFreeBytes();
 
 protected:
 
@@ -276,7 +281,7 @@ protected:
   //! value then the garbage collector will try to free up space by garbage
   //! collecting disk replicas.
   //----------------------------------------------------------------------------
-  TapeAwareGcCachedValue<uint64_t> m_cachedDefaultSpaceMinFreeBytes;
+  TapeAwareGcThreadSafeCachedValue<uint64_t> m_cachedDefaultSpaceMinFreeBytes;
 
   //----------------------------------------------------------------------------
   //! Object responsible for determining the number of free bytes in the EOS

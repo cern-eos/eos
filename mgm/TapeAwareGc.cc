@@ -365,10 +365,19 @@ TapeAwareGc::getNbStagerrms() const
 // Return the size of the LRUE queue
 //----------------------------------------------------------------------------
 TapeAwareGcLru::FidQueue::size_type
-TapeAwareGc::getLruQueueSize() const
+TapeAwareGc::getLruQueueSize()
 {
   std::lock_guard<std::mutex> lruQueueLock(m_lruQueueMutex);
   return m_lruQueue.size();
+}
+
+//----------------------------------------------------------------------------
+// Return the amount of free bytes in the EOS space named default
+//----------------------------------------------------------------------------
+uint64_t
+TapeAwareGc::getDefaultSpaceFreeBytes() {
+  bool defaultSpaceMinFreeBytesHasChanged = false;
+  return m_cachedDefaultSpaceMinFreeBytes.get(defaultSpaceMinFreeBytesHasChanged);
 }
 
 EOSMGMNAMESPACE_END
