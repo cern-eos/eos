@@ -358,6 +358,12 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << (int)(time(NULL) - gOFS->mStartTime) << std::endl
         << "uid=all gid=all "
         << gOFS->mDrainEngine.GetThreadPoolInfo() << std::endl;
+
+    if(gOFS->mTapeAwareGcDefaultSpaceEnable) {
+      // Number of successful stagerrms since boot
+      oss << "uid=all gid=all tapeawaregc.stagerrms="
+          << gOFS->mTapeAwareGc.getNbGarbageCollectedFiles() << std::endl;
+    }
   } else {
     std::string line = "# ------------------------------------------------------"
                        "------------------------------";
