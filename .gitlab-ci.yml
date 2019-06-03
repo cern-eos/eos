@@ -232,13 +232,18 @@ before_script:
   script:
     - if   [[ "$CI_JOB_NAME" == k8s_system_test ]]; then ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -n ${NAMESPACE};
       elif [[ "$CI_JOB_NAME" == k8s_ubuntu_system_test ]]; then ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -u ubuntu_bionic_client_${IMAGE_TAG} -n ${NAMESPACE};
-      elif [[ "$CI_JOB_NAME" == k8s_system_test_qdb || "$CI_JOB_NAME" == k8s_system_test_qdb_xt ]]; then ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -n ${NAMESPACE} -q;
+      elif [[ "$CI_JOB_NAME" == k8s_system_test_qdb || "$CI_JOB_NAME" == k8s_system_test_qdb_xt ]]; then ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -n ${NAMESPACE} -q; quarkdb_argument="--quarkdb";
       else echo "CI_JOB_NAME:$CI_JOB_NAME not found"; exit 1;
       fi
     - if [[ "$CI_JOB_NAME" == k8s_ubuntu_system_test ]]; then ./gitlab-ci/k8s_system_test_script.sh --only-client ${NAMESPACE};
       else ./gitlab-ci/k8s_system_test_script.sh ${NAMESPACE};
       fi
+    - ./eos-on-k8s/collect_logs.sh {quarkdb_argument} eos-logs/
   <<: *k8s_after_script_template
+  artifacts:
+    expire_in: 3 days
+    paths:
+      - eos-logs/
 
 
 .k8s_unit_test_template: &k8s_unit_test_template
