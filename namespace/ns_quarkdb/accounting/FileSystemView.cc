@@ -162,9 +162,9 @@ QuarkFileSystemView::fileMDCheck(IFileMD* file)
 
   // If file has no replicas make sure it's accounted for
   if (has_no_replicas) {
-    no_replica_set.sadd_async(file->getId(), &ah);
+    no_replica_set.sadd_async(std::to_string(file->getId()), &ah);
   } else {
-    no_replica_set.srem_async(file->getId(), &ah);
+    no_replica_set.srem_async(std::to_string(file->getId()), &ah);
   }
 
   // Make sure all active locations are accounted for
@@ -172,7 +172,7 @@ QuarkFileSystemView::fileMDCheck(IFileMD* file)
 
   for (IFileMD::location_t location : replica_locs) {
     replica_set.setKey(eos::RequestBuilder::keyFilesystemFiles(location));
-    replica_set.sadd_async(file->getId(), &ah);
+    replica_set.sadd_async(std::to_string(file->getId()), &ah);
   }
 
   // Make sure all unlinked locations are accounted for.
@@ -180,7 +180,7 @@ QuarkFileSystemView::fileMDCheck(IFileMD* file)
 
   for (IFileMD::location_t location : unlink_locs) {
     unlink_set.setKey(eos::RequestBuilder::keyFilesystemUnlinked(location));
-    unlink_set.sadd_async(file->getId(), &ah);
+    unlink_set.sadd_async(std::to_string(file->getId()), &ah);
   }
 
   // Make sure there's no other filesystems that erroneously contain this file.
@@ -190,13 +190,13 @@ QuarkFileSystemView::fileMDCheck(IFileMD* file)
     if (std::find(replica_locs.begin(), replica_locs.end(),
                   fsid) == replica_locs.end()) {
       replica_set.setKey(eos::RequestBuilder::keyFilesystemFiles(fsid));
-      replica_set.srem_async(file->getId(), &ah);
+      replica_set.srem_async(std::to_string(file->getId()), &ah);
     }
 
     if (std::find(unlink_locs.begin(), unlink_locs.end(),
                   fsid) == unlink_locs.end()) {
       unlink_set.setKey(eos::RequestBuilder::keyFilesystemUnlinked(fsid));
-      unlink_set.srem_async(file->getId(), &ah);
+      unlink_set.srem_async(std::to_string(file->getId()), &ah);
     }
   }
 

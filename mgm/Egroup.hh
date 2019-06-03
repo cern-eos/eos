@@ -28,7 +28,7 @@
 #include "common/AssistedThread.hh"
 #include "common/SteadyClock.hh"
 #include "common/RWMutex.hh"
-#include <qclient/WaitableQueue.hh>
+#include <qclient/queueing/WaitableQueue.hh>
 #include "XrdSys/XrdSysPthread.hh"
 #include <sys/types.h>
 #include <string>

@@ -329,7 +329,7 @@ TEST_F(FileSystemViewF, FileIterator)
   qclient::QSet set(qcl(), key);
 
   for (auto elem : input_set) {
-    set.sadd_async(elem, &ah);
+    set.sadd_async(std::to_string(elem), &ah);
   }
 
   ASSERT_TRUE(ah.Wait());

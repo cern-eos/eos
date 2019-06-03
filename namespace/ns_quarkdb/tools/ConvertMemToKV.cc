@@ -847,11 +847,11 @@ ConvertQuotaView::commitToBackend()
     for (auto& elem : uid_map) {
       eos::QuotaNodeCore::UsageInfo& info = elem.second;
       std::string field = elem.first + quota::sPhysicalSize;
-      quota_map.hset_async(field, info.physicalSpace, &ah);
+      quota_map.hset_async(field, std::to_string(info.physicalSpace), &ah);
       field = elem.first + quota::sLogicalSize;
-      quota_map.hset_async(field, info.space, &ah);
+      quota_map.hset_async(field, std::to_string(info.space), &ah);
       field = elem.first + quota::sNumFiles;
-      quota_map.hset_async(field, info.files, &ah);
+      quota_map.hset_async(field, std::to_string(info.files), &ah);
     }
 
     quota_map.setKey(gid_key);
@@ -859,11 +859,11 @@ ConvertQuotaView::commitToBackend()
     for (auto& elem : gid_map) {
       eos::QuotaNodeCore::UsageInfo& info = elem.second;
       std::string field = elem.first + quota::sPhysicalSize;
-      quota_map.hset_async(field, info.physicalSpace, &ah);
+      quota_map.hset_async(field, std::to_string(info.physicalSpace), &ah);
       field = elem.first + quota::sLogicalSize;
-      quota_map.hset_async(field, info.space, &ah);
+      quota_map.hset_async(field, std::to_string(info.space), &ah);
       field = elem.first + quota::sNumFiles;
-      quota_map.hset_async(field, info.files, &ah);
+      quota_map.hset_async(field, std::to_string(info.files), &ah);
     }
 
     if (count >= max_count) {
@@ -1222,8 +1222,8 @@ main(int argc, char* argv[])
               << std::endl;
     // Save the last used file and container id in the meta_hmap
     qclient::QHash meta_map {*sQcl, eos::constants::sMapMetaInfoKey};
-    meta_map.hset(eos::constants::sLastUsedFid, file_svc->getFirstFreeId() - 1);
-    meta_map.hset(eos::constants::sLastUsedCid, cont_svc->getFirstFreeId() - 1);
+    meta_map.hset(eos::constants::sLastUsedFid, std::to_string(file_svc->getFirstFreeId() - 1));
+    meta_map.hset(eos::constants::sLastUsedCid, std::to_string(cont_svc->getFirstFreeId() - 1));
     // QuarkDB bulkload finalization (triggers manual compaction in rocksdb)
     std::time_t finalizeStart = std::time(nullptr);
     sQcl->exec("quarkdb_bulkload_finalize").get();
