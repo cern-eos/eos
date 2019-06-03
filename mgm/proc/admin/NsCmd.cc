@@ -477,7 +477,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << line << std::endl;
 
     if(gOFS->mTapeAwareGcDefaultSpaceEnable) {
-      oss << "ALL      tape GC rm count since boot      " << gOFS->mTapeAwareGc.getNbGarbageCollectedFiles()
+      oss << "ALL      tapeawaregc stagerrms since boot " << gOFS->mTapeAwareGc.getNbGarbageCollectedFiles()
           << std::endl
           << line << std::endl;
     }
