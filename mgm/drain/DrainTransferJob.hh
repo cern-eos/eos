@@ -131,9 +131,14 @@ public:
   //----------------------------------------------------------------------------
   DrainTransferJob(eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid_src,
-                   eos::common::FileSystem::fsid_t fsid_trg = 0):
-    mFileId(fid), mFsIdSource(fsid_src), mFsIdTarget(fsid_trg),
-    mTxFsIdSource(fsid_src), mStatus(Status::Ready), mRainReconstruct(false) {}
+                   eos::common::FileSystem::fsid_t fsid_trg = 0,
+                   std::set<eos::common::FileSystem::fsid_t> exclude_srcs = {},
+                   const std::string& app_tag = "drainer"):
+    mAppTag(app_tag), mFileId(fid), mFsIdSource(fsid_src), mFsIdTarget(fsid_trg),
+    mTxFsIdSource(fsid_src), mStatus(Status::Ready), mRainReconstruct(false)
+  {
+    mTriedSrcs.insert(exclude_srcs.begin(), exclude_srcs.end());
+  }
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -255,6 +260,7 @@ private:
   //----------------------------------------------------------------------------
   Status DrainZeroSizeFile(const FileDrainInfo& fdrain);
 
+  std::string mAppTag; ///< Application tag for the transfer
   const eos::common::FileId::fileid_t mFileId; ///< File id to transfer
   //! Source and destination file system
   std::atomic<eos::common::FileSystem::fsid_t> mFsIdSource;
