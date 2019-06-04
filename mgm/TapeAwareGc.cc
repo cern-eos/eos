@@ -376,8 +376,7 @@ TapeAwareGc::getLruQueueSize()
 //----------------------------------------------------------------------------
 uint64_t
 TapeAwareGc::getDefaultSpaceFreeBytes() {
-  bool defaultSpaceMinFreeBytesHasChanged = false;
-  return m_cachedDefaultSpaceMinFreeBytes.get(defaultSpaceMinFreeBytesHasChanged);
+  return m_freeSpaceInDefault.getFreeBytes();
 }
 
 EOSMGMNAMESPACE_END
