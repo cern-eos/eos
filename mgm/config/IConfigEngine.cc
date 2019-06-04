@@ -34,7 +34,7 @@
 #include "mgm/txengine/TransferEngine.hh"
 #include "mgm/RouteEndpoint.hh"
 #include "mgm/PathRouting.hh"
-#include "mgm/Fsck.hh"
+#include "mgm/fsck/Fsck.hh"
 #include "common/StringUtils.hh"
 #include "mq/SharedHashWrapper.hh"
 #include <sstream>
@@ -242,7 +242,8 @@ IConfigEngine::ApplyConfig(XrdOucString& err, bool apply_stall_redirect)
     // Disable the defaults in FsSpace
     FsSpace::gDisableDefaults = true;
 
-    for(auto it = sConfigDefinitions.begin(); it != sConfigDefinitions.end(); it++) {
+    for (auto it = sConfigDefinitions.begin(); it != sConfigDefinitions.end();
+         it++) {
       XrdOucString val(it->second.c_str());
       ApplyEachConfig(it->first.c_str(), &val, &err);
     }
@@ -350,13 +351,12 @@ IConfigEngine::DeleteConfigValueByMatch(const char* prefix, const char* match)
   smatch += ":";
   smatch += match;
   XrdSysMutexHelper lock(mMutex);
-
   auto it = sConfigDefinitions.begin();
-  while(it != sConfigDefinitions.end()) {
-    if(strncmp(it->first.c_str(), smatch.c_str(), smatch.length()) == 0) {
+
+  while (it != sConfigDefinitions.end()) {
+    if (strncmp(it->first.c_str(), smatch.c_str(), smatch.length()) == 0) {
       it = sConfigDefinitions.erase(it);
-    }
-    else {
+    } else {
       it++;
     }
   }
@@ -489,7 +489,6 @@ IConfigEngine::InsertComment(const char* comment)
     esccomment.insert(stime.c_str(), 0);
     esccomment.insert("\"", 0);
     esccomment.append("\"");
-
     std::string configkey = SSTR("comment-" << timestamp << ":");
     XrdSysMutexHelper lock(mMutex);
     sConfigDefinitions[configkey] = esccomment.c_str();

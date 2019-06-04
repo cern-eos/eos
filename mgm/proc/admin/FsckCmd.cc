@@ -23,7 +23,7 @@
 
 #include "FsckCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Fsck.hh"
+#include "mgm/fsck/Fsck.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
