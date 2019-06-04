@@ -268,8 +268,8 @@ std::string makeTemporaryFile()
 // Insert statfs info into the map
 //------------------------------------------------------------------------------
 static void insertStatfs(struct statfs* statfs,
-  std::map<std::string, std::string> &output) {
-
+                         std::map<std::string, std::string>& output)
+{
   output["stat.statfs.type"] = std::to_string(statfs->f_type);
   output["stat.statfs.bsize"] = std::to_string(statfs->f_bsize);
   output["stat.statfs.blocks"] = std::to_string(statfs->f_blocks);
@@ -277,34 +277,38 @@ static void insertStatfs(struct statfs* statfs,
   output["stat.statfs.bavail"] = std::to_string(statfs->f_bavail);
   output["stat.statfs.files"] = std::to_string(statfs->f_files);
   output["stat.statfs.ffree"] = std::to_string(statfs->f_ffree);
-
 #ifdef __APPLE__
   output["stat.statfs.namelen"] = std::to_string(MNAMELEN);
 #else
   output["stat.statfs.namelen"] = std::to_string(statfs->f_namelen);
 #endif
-
-  output["stat.statfs.freebytes"] = std::to_string(statfs->f_bfree * statfs->f_bsize);
-  output["stat.statfs.usedbytes"] = std::to_string( (statfs->f_blocks - statfs->f_bfree) * statfs->f_bsize );
+  output["stat.statfs.freebytes"] = std::to_string(statfs->f_bfree *
+                                    statfs->f_bsize);
+  output["stat.statfs.usedbytes"] = std::to_string((statfs->f_blocks -
+                                    statfs->f_bfree) * statfs->f_bsize);
   output["stat.statfs.filled"] = std::to_string(
-    (double) 100.0 * ((double) (statfs->f_blocks - statfs->f_bfree) / (double) (1 + statfs->f_blocks)));
-  output["stat.statfs.capacity"] = std::to_string(statfs->f_blocks * statfs->f_bsize);
-  output["stat.statfs.fused"] = std::to_string( (statfs->f_files - statfs->f_ffree) * statfs->f_bsize);
+                                   (double) 100.0 * ((double)(statfs->f_blocks - statfs->f_bfree) / (double)(
+                                         1 + statfs->f_blocks)));
+  output["stat.statfs.capacity"] = std::to_string(statfs->f_blocks *
+                                   statfs->f_bsize);
+  output["stat.statfs.fused"] = std::to_string((statfs->f_files - statfs->f_ffree)
+                                * statfs->f_bsize);
 }
 
 //------------------------------------------------------------------------------
 // Get statistics about this FileSystem, used for publishing
 //------------------------------------------------------------------------------
 std::map<std::string, std::string>
-Storage::getFsStatistics(FileSystem *fs, bool publishInconsistencyStats) {
-  if(!fs) {
+Storage::getFsStatistics(FileSystem* fs, bool publishInconsistencyStats)
+{
+  if (!fs) {
     eos_static_crit("asked to publish statistics for a null filesystem");
     return {};
   }
 
   eos::common::FileSystem::fsid_t fsid = fs->GetId();
 
-  if(!fsid) {
+  if (!fsid) {
     // during the boot phase we can find a filesystem without ID
     eos_static_warning("asked to publish statistics for filesystem with fsid=0");
     return {};
@@ -312,10 +316,9 @@ Storage::getFsStatistics(FileSystem *fs, bool publishInconsistencyStats) {
 
   std::map<std::string, std::string> output;
 
-  //----------------------------------------------------------------------------
   // Publish inconsistency statistics?
-  //----------------------------------------------------------------------------
-  if(publishInconsistencyStats && fs->GetStatus() == eos::common::BootStatus::kBooted) {
+  if (publishInconsistencyStats &&
+      fs->GetStatus() == eos::common::BootStatus::kBooted) {
     XrdSysMutexHelper ISLock(fs->InconsistencyStatsMutex);
     gFmdDbMapHandler.GetInconsistencyStatistics(
       fsid,
@@ -323,31 +326,27 @@ Storage::getFsStatistics(FileSystem *fs, bool publishInconsistencyStats) {
       *fs->GetInconsistencySets()
     );
 
-    for (auto it = fs->GetInconsistencyStats()->begin(); it != fs->GetInconsistencyStats()->end(); it++) {
+    for (auto it = fs->GetInconsistencyStats()->begin();
+         it != fs->GetInconsistencyStats()->end(); it++) {
       std::string sname = SSTR("stat.fsck." << it->first);
       output[sname] = std::to_string(it->second);
     }
   }
 
-  //----------------------------------------------------------------------------
   // Publish statfs
-  //----------------------------------------------------------------------------
   std::unique_ptr<eos::common::Statfs> statfs = fs->GetStatfs();
 
-  if(statfs) {
+  if (statfs) {
     insertStatfs(statfs->GetStatfs(), output);
   }
 
-  //----------------------------------------------------------------------------
   // Publish stat.disk.*
-  //----------------------------------------------------------------------------
   double readratemb;
   double writeratemb;
   double diskload;
-
   std::map<std::string, std::string> iostats;
 
-  if(fs->getFileIOStats(iostats)) {
+  if (fs->getFileIOStats(iostats)) {
     readratemb = strtod(iostats["read-mb-second"].c_str(), 0);
     writeratemb = strtod(iostats["write-mb-second"].c_str(), 0);
     diskload = strtod(iostats["load"].c_str(), 0);
@@ -355,7 +354,7 @@ Storage::getFsStatistics(FileSystem *fs, bool publishInconsistencyStats) {
     readratemb = mFstLoad.GetDiskRate(fs->GetPath().c_str(),
                                       "readSectors") * 512.0 / 1000000.0;
     writeratemb = mFstLoad.GetDiskRate(fs->GetPath().c_str(),
-                                      "writeSectors") * 512.0 / 1000000.0;
+                                       "writeSectors") * 512.0 / 1000000.0;
     diskload = mFstLoad.GetDiskRate(fs->GetPath().c_str(),
                                     "millisIO") / 1000.0;
   }
@@ -363,62 +362,62 @@ Storage::getFsStatistics(FileSystem *fs, bool publishInconsistencyStats) {
   output["stat.disk.readratemb"] = std::to_string(readratemb);
   output["stat.disk.writeratemb"] = std::to_string(writeratemb);
   output["stat.disk.load"] = std::to_string(diskload);
-
-  //----------------------------------------------------------------------------
   // Publish stat.health.*
-  //----------------------------------------------------------------------------
   std::map<std::string, std::string> health;
 
   if (!fs->getHealth(health)) {
     health = mFstHealth.getDiskHealth(fs->GetPath());
   }
 
-  output["stat.health"] = (health.count("summary") ? health["summary"].c_str() : "N/A");
+  output["stat.health"] = (health.count("summary") ? health["summary"].c_str() :
+                           "N/A");
   // set some reasonable defaults if information is not available
-  output["stat.health.indicator"] = (health.count("indicator") ? health["indicator"] : "N/A");
-  output["stat.health.drives_total"] = (health.count("drives_total") ? health["drives_total"] : "1");
-  output["stat.health.drives_failed"] = (health.count("drives_failed") ? health["drives_failed"] : "0");
-  output["stat.health.redundancy_factor"] = (health.count("redundancy_factor") ? health["redundancy_factor"] : "1");
-
-  //----------------------------------------------------------------------------
+  output["stat.health.indicator"] = (health.count("indicator") ?
+                                     health["indicator"] : "N/A");
+  output["stat.health.drives_total"] = (health.count("drives_total") ?
+                                        health["drives_total"] : "1");
+  output["stat.health.drives_failed"] = (health.count("drives_failed") ?
+                                         health["drives_failed"] : "0");
+  output["stat.health.redundancy_factor"] = (health.count("redundancy_factor") ?
+      health["redundancy_factor"] : "1");
   // Publish generic statistics, related to free space and current load
-  //----------------------------------------------------------------------------
   long long r_open = (long long) gOFS.openedForReading.getOpenOnFilesystem(fsid);
   long long w_open = (long long) gOFS.openedForWriting.getOpenOnFilesystem(fsid);
-
   output["stat.ropen"] = std::to_string(r_open);
   output["stat.wopen"] = std::to_string(w_open);
   output["stat.usedfiles"] = std::to_string(gFmdDbMapHandler.GetNumFiles(fsid));
   output["stat.boot"] = fs->GetStatusAsString(fs->GetStatus());
   output["stat.geotag"] = getGeotag();
   output["stat.publishtimestamp"] = std::to_string(
-    eos::common::getEpochInMilliseconds().count());
+                                      eos::common::getEpochInMilliseconds().count());
   output["stat.drainer.running"] = std::to_string(
-    fs->GetDrainQueue()->GetRunningAndQueued());
+                                     fs->GetDrainQueue()->GetRunningAndQueued());
   output["stat.balancer.running"] = std::to_string(
-    fs->GetBalanceQueue()->GetRunningAndQueued());
+                                      fs->GetBalanceQueue()->GetRunningAndQueued());
   output["stat.disk.iops"] = std::to_string(fs->getIOPS());
   output["stat.disk.bw"] = std::to_string(fs->getSeqBandwidth()); // in MB
-
   output["stat.http.port"] = std::to_string(gOFS.mHttpdPort);
-  output["stat.ropen.hotfiles"] = hotFilesToString(gOFS.openedForReading.getHotFiles(fsid, 10));
-  output["stat.wopen.hotfiles"] = hotFilesToString(gOFS.openedForWriting.getHotFiles(fsid, 10));
-
+  output["stat.ropen.hotfiles"] = hotFilesToString(
+                                    gOFS.openedForReading.getHotFiles(fsid, 10));
+  output["stat.wopen.hotfiles"] = hotFilesToString(
+                                    gOFS.openedForWriting.getHotFiles(fsid, 10));
   return output;
 }
 
 //------------------------------------------------------------------------------
 // Publish statistics about the given filesystem
 //------------------------------------------------------------------------------
-bool Storage::publishFsStatistics(FileSystem *fs, bool publishInconsistencyStats) {
-  if(!fs) {
+bool Storage::publishFsStatistics(FileSystem* fs,
+                                  bool publishInconsistencyStats)
+{
+  if (!fs) {
     eos_static_crit("asked to publish statistics for a null filesystem");
     return false;
   }
 
   eos::common::FileSystem::fsid_t fsid = fs->GetId();
 
-  if(!fsid) {
+  if (!fsid) {
     // during the boot phase we can find a filesystem without ID
     eos_static_warning("asked to publish statistics for filesystem with fsid=0");
     return false;
@@ -461,7 +460,6 @@ Storage::Publish(ThreadAssistant& assistant)
     // Should we publish consistency stats during this cycle?
     //--------------------------------------------------------------------------
     bool publishConsistencyStats = consistencyStatsStopwatch.restartIfExpired();
-
     std::chrono::milliseconds randomizedReportInterval = eos::fst::Config::gConfig.getRandomizedPublishInterval();
     common::IntervalStopwatch stopwatch(randomizedReportInterval);
 
@@ -475,7 +473,8 @@ Storage::Publish(ThreadAssistant& assistant)
         // copy out statfs info
         for (size_t i = 0; i < mFsVect.size(); i++) {
           bool success = publishFsStatistics(mFsVect[i], publishConsistencyStats);
-          if(!success && mFsVect[i]) {
+
+          if (!success && mFsVect[i]) {
             eos_static_err("cannot set net parameters on filesystem %s",
                            mFsVect[i]->GetPath().c_str());
           }
@@ -497,7 +496,6 @@ Storage::Publish(ThreadAssistant& assistant)
         gOFS.ObjectManager.CloseMuxTransaction();
       }
     }
-
     std::chrono::milliseconds sleepTime = stopwatch.timeRemainingInCycle();
 
     if (sleepTime == std::chrono::milliseconds(0)) {
@@ -519,12 +517,13 @@ Storage::Publish(ThreadAssistant& assistant)
 // - fs-stats:<id>
 //------------------------------------------------------------------------------
 void Storage::QdbPublish(const QdbContactDetails& cd,
-                                  ThreadAssistant& assistant)
+                         ThreadAssistant& assistant)
 {
   //----------------------------------------------------------------------------
   // Fetch a qclient object, decide on which channel to use
   //----------------------------------------------------------------------------
-  std::unique_ptr<qclient::QClient> qcl = std::make_unique<qclient::QClient>(cd.members, cd.constructOptions());
+  std::unique_ptr<qclient::QClient> qcl = std::make_unique<qclient::QClient>
+                                          (cd.members, cd.constructOptions());
   std::string channel = SSTR("fst-stats:" <<
                              eos::fst::Config::gConfig.FstHostPort);
   //----------------------------------------------------------------------------
@@ -541,19 +540,18 @@ void Storage::QdbPublish(const QdbContactDetails& cd,
   // Main loop
   //----------------------------------------------------------------------------
   common::IntervalStopwatch consistencyStatsStopwatch(sConsistencyTimeout);
+
   while (!assistant.terminationRequested()) {
     //--------------------------------------------------------------------------
     // Should we publish consistency stats during this cycle?
     //--------------------------------------------------------------------------
     bool publishConsistencyStats = consistencyStatsStopwatch.restartIfExpired();
-
     //--------------------------------------------------------------------------
     // Publish FST stats
     //--------------------------------------------------------------------------
     std::map<std::string, std::string> fstStats = getFSTStatistics(tmp_name,
         netspeed);
     qcl->exec("publish", channel, qclient::Formatting::serialize(fstStats));
-
     //--------------------------------------------------------------------------
     // Publish individual fs stats
     //--------------------------------------------------------------------------
@@ -561,20 +559,17 @@ void Storage::QdbPublish(const QdbContactDetails& cd,
 
     for (size_t i = 0; i < mFsVect.size(); i++) {
       std::map<std::string, std::string> fsStats = getFsStatistics(mFsVect[i],
-        publishConsistencyStats);
-
+          publishConsistencyStats);
       eos::common::FileSystem::fsid_t fsid = mFsVect[i]->GetId();
       std::string fsChannel = SSTR("fs-" << fsid);
       qcl->exec("publish", fsChannel, qclient::Formatting::serialize(fsStats));
     }
 
     lock.Release();
-
     //--------------------------------------------------------------------------
     // Sleep until next cycle
     //--------------------------------------------------------------------------
     assistant.wait_for(eos::fst::Config::gConfig.getRandomizedPublishInterval());
-
   }
 
   //----------------------------------------------------------------------------

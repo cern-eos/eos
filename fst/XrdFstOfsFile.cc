@@ -937,7 +937,7 @@ XrdFstOfsFile::verifychecksum()
                     "path=%s errno=%d", mFstPath.c_str(), errno);
           }
 
-          if (io->attrSet("user.eos.hexchecksum", mCheckSum->GetHexChecksum())) {
+          if (io->attrSet("user.eos.checksumhex", mCheckSum->GetHexChecksum())) {
             eos_err("msg=\"unable to set extended attribute <eos.hexchecksum>\" "
                     "path=%s errno=%d", mFstPath.c_str(), errno);
           }

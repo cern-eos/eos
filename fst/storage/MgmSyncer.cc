@@ -79,7 +79,8 @@ Storage::MgmSyncer()
       gOFS.WrittenFilesQueue.pop();
       gOFS.WrittenFilesQueueMutex.UnLock();
       eos_static_info("fxid=%08llx mtime=%llu", fmd.fid(), fmd.mtime());
-      // guarantee that we delay the check by atleast 60 seconds to wait for the commit of all recplias
+      // guarantee that we delay the check by atleast 60 seconds to wait
+      // for the commit of all recplias
       time_t delay = fmd.mtime() + 60 - now;
 
       if ((delay > 0) && (delay <= 60)) {
