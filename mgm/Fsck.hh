@@ -84,6 +84,17 @@ public:
   void PrintOut(std::string& out) const;
 
   //----------------------------------------------------------------------------
+  //! Apply configuration options to the fsck mechanism
+  //!
+  //! @param key key to be modified
+  //! @param value value
+  //!
+  //! @param return true if configuration change applied successfully, otherwise
+  //!         false
+  //----------------------------------------------------------------------------
+  bool Config(const std::string& key, const std::string& value);
+
+  //----------------------------------------------------------------------------
   //! Method to create a report
   //!
   //! @param output output string
@@ -139,6 +150,7 @@ public:
   void Check(ThreadAssistant& assistant) noexcept;
 
 private:
+  std::atomic<bool> mShowDarkFiles; ///< Flag to display dark files
   mutable XrdOucString mLog; ///< In-memory FSCK log
   mutable XrdSysMutex mLogMutex; ///< Mutex protecting the in-memory log
   XrdOucString mEnabled; ///< True if collection thread is active
@@ -199,6 +211,13 @@ private:
   //! FsView.
   //----------------------------------------------------------------------------
   void AccountDarkFiles();
+
+  //----------------------------------------------------------------------------
+  //! Repair checksum errors
+  //!
+  //! @param out output string
+  //----------------------------------------------------------------------------
+  void RepairChecksumErrs(std::string& out);
 };
 
 EOSMGMNAMESPACE_END
