@@ -153,7 +153,6 @@ DrainTransferJob::DoIt() noexcept
         // that it's retried one more time at the end
         if (tpc_st.errNo == EINPROGRESS) {
           eos_info("msg=\"skip file open in progress\" logid=%s", log_id.c_str());
-          gOFS->mDrainingTracker.RemoveEntry(mFileId);
           break;
         }
       } else {
@@ -161,6 +160,7 @@ DrainTransferJob::DoIt() noexcept
         eos_info("msg=\"drain successful\" logid=%s fid=%s",
                  log_id.c_str(), eos::common::FileId::Fid2Hex(mFileId).c_str());
         mStatus = Status::OK;
+        gOFS->mDrainingTracker.RemoveEntry(mFileId);
         return;
       }
     } else {
@@ -171,6 +171,7 @@ DrainTransferJob::DoIt() noexcept
 
   gOFS->MgmStats.Add("DrainCentralFailed", 0, 0, 1);
   mStatus = Status::Failed;
+  gOFS->mDrainingTracker.RemoveEntry(mFileId);
   return;
 }
 
