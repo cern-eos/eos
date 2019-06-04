@@ -142,6 +142,71 @@ std::string FileSystemLocator::getTransientChannel() const {
 }
 
 //------------------------------------------------------------------------------
+// Contains a batch of key-value updates on the attributes of a filesystem.
+//------------------------------------------------------------------------------
+FileSystemUpdateBatch::FileSystemUpdateBatch() {}
+
+//------------------------------------------------------------------------------
+// Set filesystem ID - durable.
+//------------------------------------------------------------------------------
+void FileSystemUpdateBatch::SetId(fsid_t fsid) {
+
+}
+
+//------------------------------------------------------------------------------
+// Set durable string.
+//
+// All observers of this filesystem are guaranteed to receive the update
+// eventually, and all updates are guaranteed to be applied in the same
+// order for all observers.
+//------------------------------------------------------------------------------
+void FileSystemUpdateBatch::SetStringDurable(const std::string &key, const std::string &value) {
+  mDurableUpdates.emplace(key, value);
+}
+
+//------------------------------------------------------------------------------
+// Set transient string. Depending on network instabilities,
+// process restarts, or the phase of the moon, some or all observers of this
+// filesystem may or may not receive the update.
+//
+// Transient updates may be applied out of order, and if multiple subscribers
+// try to modify the same value, it's possible that observers will not all
+// converge on a single consistent value.
+//------------------------------------------------------------------------------
+void FileSystemUpdateBatch::SetStringTransient(const std::string &key, const std::string &value) {
+  mTransientUpdates.emplace(key, value);
+}
+
+//------------------------------------------------------------------------------
+// Set local string. This node, and only this node will store the value,
+// and only until process restart.
+//------------------------------------------------------------------------------
+void FileSystemUpdateBatch::SetStringLocal(const std::string &key, const std::string &value) {
+  mLocalUpdates.emplace(key, value);
+}
+
+//------------------------------------------------------------------------------
+// Set durable int64_t - serialize as string automatically.
+//------------------------------------------------------------------------------
+void FileSystemUpdateBatch::SetLongLongDurable(const std::string &key, int64_t value) {
+  return SetStringDurable(key, std::to_string(value));
+}
+
+//------------------------------------------------------------------------------
+// Set transient int64_t - serialize as string automatically.
+//------------------------------------------------------------------------------
+void FileSystemUpdateBatch::SetLongLongTransient(const std::string &key, int64_t value) {
+  return SetStringTransient(key, std::to_string(value));
+}
+
+//------------------------------------------------------------------------------
+// Set local int64_t - serialize as string automatically.
+//------------------------------------------------------------------------------
+void FileSystemUpdateBatch::SetLongLongLocal(const std::string &key, int64_t value) {
+  return SetStringLocal(key, std::to_string(value));
+}
+
+//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 FileSystem::FileSystem(const FileSystemLocator &locator, const char* queue,
@@ -523,6 +588,42 @@ const char*
 FileSystem::GetRegisterRequestString()
 {
   return "mgm.cmd=register";
+}
+
+//----------------------------------------------------------------------------
+//! Set a batch of transient values - ideal for statistics.
+//!
+//! "Meh" level of consistency - the other end may or may not receive
+//! the updates in case of network instabilities, and all values will be lost
+//! after a process restart.
+//!
+//! Essentially publishes a single message on a channel, and that's it.
+//! All those subscribed to the channel will receive it,
+//! anyone else will not.
+//----------------------------------------------------------------------------
+bool
+FileSystem::SetTransientBatch(const std::map<std::string, std::string> &batch, bool broadcast)
+{
+  bool success = true;
+
+  for(auto it = batch.begin(); it != batch.end(); it++) {
+    success &= SetString(it->first.c_str(), it->second.c_str(), broadcast);
+  }
+
+  return success;
+}
+
+//------------------------------------------------------------------------------
+// Set a batch of durable values - values which are meant to be persisted
+// and survive process reboots.
+//
+// This property is only available when using QDB as a backend, not MQ..
+//------------------------------------------------------------------------------
+bool
+FileSystem::SetDurableBatch(const std::map<std::string, std::string> &batch)
+{
+  // TODO ..
+  return SetTransientBatch(batch);
 }
 
 //------------------------------------------------------------------------------

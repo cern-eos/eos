@@ -82,6 +82,78 @@ enum class ActiveStatus {
 class TransferQueue;
 
 //------------------------------------------------------------------------------
+//! Contains a batch of key-value updates on the attributes of a filesystem.
+//! Build up the batch, then submit it through SubmitBatch.
+//!
+//! Note: If the batch mixes durable, transient, and/or local values, three
+//! "transactions" will take place:
+//!
+//! - All durable values will be updated atomically.
+//! - All transient values will be updated atomically.
+//! - All local values will be updated atomically.
+//!
+//! However, the entire operation as a whole will NOT be atomic.
+//------------------------------------------------------------------------------
+class FileSystemUpdateBatch {
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  FileSystemUpdateBatch();
+
+  //----------------------------------------------------------------------------
+  //! Set filesystem ID - durable.
+  //----------------------------------------------------------------------------
+  void SetId(fsid_t fsid);
+
+  //----------------------------------------------------------------------------
+  //! Set durable string.
+  //!
+  //! All observers of this filesystem are guaranteed to receive the update
+  //! eventually, and all updates are guaranteed to be applied in the same
+  //! order for all observers.
+  //----------------------------------------------------------------------------
+  void SetStringDurable(const std::string &key, const std::string &value);
+
+  //----------------------------------------------------------------------------
+  //! Set transient string. Depending on network instabilities,
+  //! process restarts, or the phase of the moon, some or all observers of this
+  //! filesystem may or may not receive the update.
+  //!
+  //! Transient updates may be applied out of order, and if multiple subscribers
+  //! try to modify the same value, it's possible that observers will not all
+  //! converge on a single consistent value.
+  //----------------------------------------------------------------------------
+  void SetStringTransient(const std::string &key, const std::string &value);
+
+  //----------------------------------------------------------------------------
+  //! Set local string. This node, and only this node will store the value,
+  //! and only until process restart.
+  //----------------------------------------------------------------------------
+  void SetStringLocal(const std::string &key, const std::string &value);
+
+  //----------------------------------------------------------------------------
+  //! Set durable int64_t - serialize as string automatically.
+  //----------------------------------------------------------------------------
+  void SetLongLongDurable(const std::string &key, int64_t value);
+
+  //----------------------------------------------------------------------------
+  //! Set transient int64_t - serialize as string automatically.
+  //----------------------------------------------------------------------------
+  void SetLongLongTransient(const std::string &key, int64_t value);
+
+  //----------------------------------------------------------------------------
+  //! Set local int64_t - serialize as string automatically.
+  //----------------------------------------------------------------------------
+  void SetLongLongLocal(const std::string &key, int64_t value);
+
+private:
+  std::map<std::string, std::string> mDurableUpdates;
+  std::map<std::string, std::string> mTransientUpdates;
+  std::map<std::string, std::string> mLocalUpdates;
+};
+
+//------------------------------------------------------------------------------
 //! Describes how to physically locate a filesystem:
 //! - Host + port of the corresponding FST.
 //! - Local path of the filesystem.
@@ -443,16 +515,16 @@ public:
   //! anyone else will not.
   //----------------------------------------------------------------------------
   bool
-  SetTransientBatch(const std::map<std::string, std::string> &batch)
-  {
-    bool success = true;
+  SetTransientBatch(const std::map<std::string, std::string> &batch, bool broadcast = true);
 
-    for(auto it = batch.begin(); it != batch.end(); it++) {
-      success &= SetString(it->first.c_str(), it->second.c_str());
-    }
-
-    return success;
-  }
+  //----------------------------------------------------------------------------
+  //! Set a batch of durable values - values which are meant to be persisted
+  //! and survive process reboots.
+  //!
+  //! This property is only available when using QDB as a backend, not MQ..
+  //----------------------------------------------------------------------------
+  bool
+  SetDurableBatch(const std::map<std::string, std::string> &batch);
 
   //----------------------------------------------------------------------------
   //! Set a key-value pair in a filesystem and evt. broadcast it.
