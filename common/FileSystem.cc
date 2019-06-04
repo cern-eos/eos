@@ -150,7 +150,14 @@ FileSystemUpdateBatch::FileSystemUpdateBatch() {}
 // Set filesystem ID - durable.
 //------------------------------------------------------------------------------
 void FileSystemUpdateBatch::SetId(fsid_t fsid) {
+  SetLongLongDurable("id", fsid);
+}
 
+//------------------------------------------------------------------------------
+// Set the draining status - durable.
+//------------------------------------------------------------------------------
+void FileSystemUpdateBatch::SetDrainStatus(DrainStatus status) {
+  SetStringDurable("stat.drain", FileSystem::GetDrainStatusAsString(status));
 }
 
 //------------------------------------------------------------------------------
@@ -207,11 +214,34 @@ void FileSystemUpdateBatch::SetLongLongLocal(const std::string &key, int64_t val
 }
 
 //------------------------------------------------------------------------------
+// Get durable updates map
+//------------------------------------------------------------------------------
+const std::map<std::string, std::string>& FileSystemUpdateBatch::getDurableUpdates() const {
+  return mDurableUpdates;
+}
+
+//------------------------------------------------------------------------------
+// Get transient updates map
+//------------------------------------------------------------------------------
+const std::map<std::string, std::string>& FileSystemUpdateBatch::getTransientUpdates() const {
+  return mTransientUpdates;
+}
+
+//------------------------------------------------------------------------------
+// Get local updates map
+//------------------------------------------------------------------------------
+const std::map<std::string, std::string>& FileSystemUpdateBatch::getLocalUpdates() const {
+  return mLocalUpdates;
+}
+
+//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 FileSystem::FileSystem(const FileSystemLocator &locator, const char* queue,
   XrdMqSharedObjectManager* som, qclient::SharedManager* qsom, bool bc2mgm)
 {
+  eos_static_info("queuepath: %s, queue: %s", locator.getQueuePath().c_str(), queue);
+
   mSharedManager = qsom;
   mQueuePath = locator.getQueuePath();
   mQueue = queue;
@@ -588,6 +618,37 @@ const char*
 FileSystem::GetRegisterRequestString()
 {
   return "mgm.cmd=register";
+}
+
+//------------------------------------------------------------------------------
+//! Apply the given batch of updates
+//------------------------------------------------------------------------------
+bool FileSystem::applyBatch(const FileSystemUpdateBatch &batch) {
+  RWMutexReadLock lock(mSom->HashMutex);
+  XrdMqSharedHash* hash = mSom->GetObject(mQueuePath.c_str(), "hash");
+  if(!hash) {
+    return false;
+  }
+
+  hash->OpenTransaction();
+
+  auto& durable = batch.getDurableUpdates();
+  for(auto it = durable.begin(); it != durable.end(); it++) {
+    hash->Set(it->first.c_str(), it->second.c_str(), true);
+  }
+
+  auto& transient = batch.getTransientUpdates();
+  for(auto it = transient.begin(); it != transient.end(); it++) {
+    hash->Set(it->first.c_str(), it->second.c_str(), true);
+  }
+
+  auto& local = batch.getLocalUpdates();
+  for(auto it = local.begin(); it != local.end(); it++) {
+    hash->Set(it->first.c_str(), it->second.c_str(), false);
+  }
+
+  hash->CloseTransaction();
+  return true;
 }
 
 //----------------------------------------------------------------------------

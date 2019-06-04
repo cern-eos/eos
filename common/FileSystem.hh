@@ -97,6 +97,11 @@ class TransferQueue;
 class FileSystemUpdateBatch {
 public:
   //----------------------------------------------------------------------------
+  //! Type definitions
+  //----------------------------------------------------------------------------
+  using fsid_t = uint32_t;
+
+  //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   FileSystemUpdateBatch();
@@ -107,11 +112,19 @@ public:
   void SetId(fsid_t fsid);
 
   //----------------------------------------------------------------------------
+  //! Set the draining status - durable.
+  //----------------------------------------------------------------------------
+  void SetDrainStatus(DrainStatus status);
+
+  //----------------------------------------------------------------------------
   //! Set durable string.
   //!
   //! All observers of this filesystem are guaranteed to receive the update
   //! eventually, and all updates are guaranteed to be applied in the same
   //! order for all observers.
+  //!
+  //! If two racing SetStringDurable are attempted on the same key, only one
+  //! will survive, and all observers will agree as to which one survives.
   //----------------------------------------------------------------------------
   void SetStringDurable(const std::string &key, const std::string &value);
 
@@ -146,6 +159,22 @@ public:
   //! Set local int64_t - serialize as string automatically.
   //----------------------------------------------------------------------------
   void SetLongLongLocal(const std::string &key, int64_t value);
+
+  //----------------------------------------------------------------------------
+  //! Get durable updates map
+  //----------------------------------------------------------------------------
+  const std::map<std::string, std::string>& getDurableUpdates() const;
+
+  //----------------------------------------------------------------------------
+  //! Get transient updates map
+  //----------------------------------------------------------------------------
+  const std::map<std::string, std::string>& getTransientUpdates() const;
+
+  //----------------------------------------------------------------------------
+  //! Get local updates map
+  //----------------------------------------------------------------------------
+  const std::map<std::string, std::string>& getLocalUpdates() const;
+
 
 private:
   std::map<std::string, std::string> mDurableUpdates;
@@ -451,6 +480,11 @@ public:
   std::atomic<fsstatus_t> cConfigStatus; ///< cached value of the config status
   XrdSysMutex cConfigLock; ///< lock protecting the cached config status
   time_t cConfigTime; ///< unix time stamp of last update of the cached config status
+
+  //----------------------------------------------------------------------------
+  //! Apply the given batch of updates
+  //----------------------------------------------------------------------------
+  bool applyBatch(const FileSystemUpdateBatch &batch);
 
   //----------------------------------------------------------------------------
   //! Open transaction to initiate bulk modifications on a file system
