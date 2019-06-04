@@ -293,8 +293,7 @@ FmdDbMapHandler::CallAutoRepair(const char* manager,
 
   if (!manager) {
     // Use the broadcasted manager name
-    XrdSysMutexHelper lock(Config::gConfig.Mutex);
-    current_mgr = Config::gConfig.Manager.c_str();
+    current_mgr = eos::fst::Config::gConfig.GetManager();
   } else {
     current_mgr = manager;
   }
@@ -408,7 +407,7 @@ FmdDbMapHandler::SetDBFile(const char* meta_dir, int fsid)
 bool
 FmdDbMapHandler::ShutdownDB(eos::common::FileSystem::fsid_t fsid, bool do_lock)
 {
-  eos_info("%s DB shutdown for fsid=%u",
+  eos_info("msg=\"DB shutdown\" dbpath=%s fsid=%lu",
            eos::common::DbMap::getDbType().c_str(), fsid);
   eos::common::RWMutexWriteLock wr_lock;
 
@@ -609,8 +608,8 @@ FmdDbMapHandler::Commit(FmdHelper* fmd, bool lockit)
 
     return res;
   } else {
-    eos_crit("no %s DB open for fsid=%llu", eos::common::DbMap::getDbType().c_str(),
-             (unsigned long) fsid);
+    eos_crit("msg=\"DB not open\" dbpath=%s fsid=%lu",
+             eos::common::DbMap::getDbType().c_str(), fsid);
 
     if (lockit) {
       FsUnlockWrite(fsid);
@@ -647,13 +646,17 @@ FmdDbMapHandler::UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
   (void)LocalRetrieveFmd(fid, fsid, valfmd);
   valfmd.set_disksize(disk_size);
   valfmd.set_size(disk_size);
-  valfmd.set_checksum(disk_xs);
   valfmd.set_fid(fid);
   valfmd.set_fsid(fsid);
   valfmd.set_diskchecksum(disk_xs);
   valfmd.set_checktime(check_ts_sec);
   valfmd.set_filecxerror(filexs_err);
   valfmd.set_blockcxerror(blockxs_err);
+
+  // Update the reference checksum only if empty
+  if (valfmd.checksum().empty()) {
+    valfmd.set_checksum(disk_xs);
+  }
 
   if (layout_err) {
     // If the mgm sync is run afterwards, every disk file is by construction an
@@ -694,7 +697,7 @@ FmdDbMapHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
   (void)LocalRetrieveFmd(fid, fsid, valfmd);
   valfmd.set_mgmsize(mgmsize);
   valfmd.set_size(mgmsize);
-  valfmd.set_checksum(mgmchecksum);
+  //valfmd.set_checksum(mgmchecksum);
   valfmd.set_mgmchecksum(mgmchecksum);
   valfmd.set_cid(cid);
   valfmd.set_lid(lid);
@@ -708,12 +711,10 @@ FmdDbMapHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
   valfmd.set_locations(locations);
   // Truncate the checksum to the right length
   size_t cslen = LayoutId::GetChecksumLen(lid) * 2;
-  valfmd.set_mgmchecksum(std::string(valfmd.mgmchecksum()).erase(std::min(
-                           valfmd.mgmchecksum().length(),
-                           cslen)));
-  valfmd.set_checksum(std::string(valfmd.checksum()).erase(std::min(
-                        valfmd.checksum().length(),
-                        cslen)));
+  valfmd.set_mgmchecksum(std::string(valfmd.mgmchecksum()).erase
+                         (std::min(valfmd.mgmchecksum().length(), cslen)));
+  // valfmd.set_checksum(std::string(valfmd.checksum()).erase
+  //                     (std::min(valfmd.checksum().length(), cslen)));
   return LocalPutFmd(fid, fsid, valfmd);
 }
 
@@ -764,9 +765,9 @@ FmdDbMapHandler::UpdateWithScanInfo(eos::common::FileSystem::fsid_t fsid,
     fmd = LocalGetFmd(fid, fsid, 0, 0, 0, false, true);
 
     if (resynced && fmd) {
-      if ((fmd->mProtoFmd.layouterror() ==  eos::common::LayoutId::kOrphan) ||
-          ((!(fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kReplicaWrong)) &&
-           (fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered))) {
+      if ((fmd->mProtoFmd.layouterror() &  eos::common::LayoutId::kOrphan) ||
+          ((fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered) &&
+           (!(fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kReplicaWrong)))) {
         char oname[4096];
         snprintf(oname, sizeof(oname), "%s/.eosorphans/%08llx",
                  fs_root.c_str(), (unsigned long long) fid);
@@ -1332,8 +1333,7 @@ bool
 FmdDbMapHandler::RemoveGhostEntries(const char* fs_root,
                                     eos::common::FileSystem::fsid_t fsid)
 {
-  eos_static_info("");
-  eos::common::FileId::fileid_t fid;
+  eos_static_info("fsid=%lu", fsid);
   std::vector<eos::common::FileId::fileid_t> to_delete;
 
   if (!IsSyncing(fsid)) {
@@ -1354,6 +1354,7 @@ FmdDbMapHandler::RemoveGhostEntries(const char* fs_root,
       // Report values only when we are not in the sync phase from disk/mgm
       for (db_map->beginIter(false); db_map->iterate(&k, &v, false);) {
         Fmd f;
+        eos::common::FileId::fileid_t fid {0ul};
         f.ParseFromString(v->value);
         (void)memcpy(&fid, (void*)k->data(), k->size());
 
@@ -1399,7 +1400,7 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
     std::map<std::string, size_t>& statistics,
     std::map<std::string, std::set < eos::common::FileId::fileid_t> >& fidset)
 {
-  eos::common::RWMutexReadLock lock(mMapMutex);
+  eos::common::RWMutexReadLock map_rd_lock(mMapMutex);
 
   if (!mDbMap.count(fsid)) {
     return false;
@@ -1434,11 +1435,13 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
     const eos::common::DbMapTypes::Tkey* k;
     const eos::common::DbMapTypes::Tval* v;
     eos::common::DbMapTypes::Tval val;
+    FsReadLock fs_rd_lock(fsid);
 
     // We report values only when we are not in the sync phase from disk/mgm
     for (mDbMap[fsid]->beginIter(false); mDbMap[fsid]->iterate(&k, &v, false);) {
       Fmd f;
       f.ParseFromString(v->value);
+      statistics["mem_n"]++;
 
       if (f.layouterror()) {
         if (f.layouterror() & LayoutId::kOrphan) {
@@ -1480,13 +1483,12 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
           fidset["d_cx_diff"].insert(f.fid());
         }
 
-        if (f.size() && f.mgmchecksum().length() && (f.mgmchecksum() != f.checksum())) {
+        if (f.size() && f.mgmchecksum().length() &&
+            (f.mgmchecksum() != f.checksum())) {
           statistics["m_cx_diff"]++;
           fidset["m_cx_diff"].insert(f.fid());
         }
       }
-
-      statistics["mem_n"]++;
 
       if (f.disksize() != Fmd::UNDEF) {
         statistics["d_sync_n"]++;

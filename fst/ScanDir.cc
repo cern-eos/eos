@@ -605,6 +605,7 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
 
       if (io->attrSet("user.eos.checksum",
                       normalXS->GetBinChecksum(checksumlen), checksumlen) ||
+          io->attrSet("user.eos.checksumhex", normalXS->GetHexChecksum()) ||
           io->attrSet("user.eos.filecxerror", "0")) {
         fprintf(stderr, "error: failed to reset existing checksum \n");
       } else {
