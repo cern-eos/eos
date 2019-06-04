@@ -364,7 +364,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
       oss << "uid=all gid=all tapeawaregc.stagerrms="
           << gOFS->mTapeAwareGc.getNbStagerrms() << std::endl
           << "uid=all gid=all tapeawaregc.queuesize="
-          << gOFS->mTapeAwareGc.getLruQueueSize() << std::endl;
+          << gOFS->mTapeAwareGc.getLruQueueSize() << std::endl
+          << "uid=all gid=all tapeawaregc.freebytes.default="
+          << gOFS->mTapeAwareGc.getDefaultSpaceFreeBytes() << std::endl;
     }
   } else {
     std::string line = "# ------------------------------------------------------"
@@ -488,6 +490,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
       oss << "ALL      tapeawaregc stagerrms since boot " << gOFS->mTapeAwareGc.getNbStagerrms()
           << std::endl
           << "ALL      tapeawaregc queue size           " << gOFS->mTapeAwareGc.getLruQueueSize()
+          << std::endl
+          << "ALL      tapeawaregc freebytes default    " << gOFS->mTapeAwareGc.getDefaultSpaceFreeBytes()
           << std::endl
           << line << std::endl;
     }
