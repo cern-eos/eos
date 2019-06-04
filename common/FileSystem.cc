@@ -161,6 +161,13 @@ void FileSystemUpdateBatch::setDrainStatus(DrainStatus status) {
 }
 
 //----------------------------------------------------------------------------
+// Set the draining status - transient.
+//----------------------------------------------------------------------------
+void FileSystemUpdateBatch::setDrainStatusTransient(DrainStatus status) {
+  setStringTransient("stat.drain", FileSystem::GetDrainStatusAsString(status));
+}
+
+//----------------------------------------------------------------------------
 // Set the draining status - local.
 //----------------------------------------------------------------------------
 void FileSystemUpdateBatch::setDrainStatusLocal(DrainStatus status) {
