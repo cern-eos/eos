@@ -327,7 +327,8 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
                << "&mgm.manager=" << gOFS->ManagerId.c_str()
                << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
                << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, "eos/draining")
-               << "&eos.app=drainer&eos.ruid=0&eos.rgid=0";
+               << "&eos.app=" << mAppTag
+               << "&eos.ruid=0&eos.rgid=0";
   } else {
     src_params << "mgm.access=read"
                << "&mgm.lid=" << target_lid
@@ -340,7 +341,8 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
                << "&mgm.localprefix=" << src_snapshot.mPath.c_str()
                << "&mgm.fsid=" << src_snapshot.mId
                << "&mgm.sourcehostport=" << src_snapshot.mHostPort.c_str()
-               << "&eos.app=drainer&eos.ruid=0&eos.rgid=0";
+               << "&eos.app=" << mAppTag
+               << "&eos.ruid=0&eos.rgid=0";
   }
 
   // Build the capability
@@ -430,7 +432,7 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
                << "&mgm.manager=" << gOFS->ManagerId.c_str()
                << "&mgm.fsid=" << dst_snapshot.mId
                << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, "eos/draining").c_str()
-               << "&eos.app=drainer";
+               << "&eos.app=" << mAppTag;
   } else {
     dst_params << "mgm.access=write"
                << "&mgm.lid=" << target_lid
@@ -448,7 +450,8 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
                << "&mgm.fsid=" << dst_snapshot.mId
                << "&mgm.sourcehostport=" << dst_snapshot.mHostPort.c_str()
                << "&mgm.bookingsize=" << fdrain.mProto.size()
-               << "&eos.app=drainer&mgm.targetsize=" << fdrain.mProto.size();
+               << "&eos.app=" << mAppTag
+               << "&mgm.targetsize=" << fdrain.mProto.size();
 
     if (!fdrain.mProto.checksum().empty()) {
       xs_info << "&mgm.checksum=";
