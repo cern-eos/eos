@@ -117,16 +117,6 @@ public:
   void setDrainStatus(DrainStatus status);
 
   //----------------------------------------------------------------------------
-  //! Set the draining status - local.
-  //----------------------------------------------------------------------------
-  void setDrainStatusLocal(DrainStatus status);
-
-  //----------------------------------------------------------------------------
-  //! Set the draining status - transient.
-  //----------------------------------------------------------------------------
-  void setDrainStatusTransient(DrainStatus status);
-
-  //----------------------------------------------------------------------------
   //! Set durable string.
   //!
   //! All observers of this filesystem are guaranteed to receive the update
@@ -497,9 +487,38 @@ public:
   bool applyBatch(const FileSystemUpdateBatch &batch);
 
   //----------------------------------------------------------------------------
-  //! Set a single local long long
+  //! Open transaction to initiate bulk modifications on a file system
   //----------------------------------------------------------------------------
-  bool setLongLongLocal(const std::string &key, int64_t value);
+  bool
+  OpenTransaction()
+  {
+    RWMutexReadLock lock(mSom->HashMutex);
+    XrdMqSharedHash* hash = nullptr;
+
+    if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
+      hash->OpenTransaction();
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Close transaction to finish modifications on a file system
+  //----------------------------------------------------------------------------
+  bool
+  CloseTransaction()
+  {
+    RWMutexReadLock lock(mSom->HashMutex);
+    XrdMqSharedHash* hash = nullptr;
+
+    if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
+      hash->CloseTransaction();
+      return true;
+    } else {
+      return false;
+    }
+  }
 
   //----------------------------------------------------------------------------
   //! Set a filesystem ID.
@@ -517,6 +536,29 @@ public:
       return false;
     }
   }
+
+  //----------------------------------------------------------------------------
+  //! Set a batch of transient values - ideal for statistics.
+  //!
+  //! "Meh" level of consistency - the other end may or may not receive
+  //! the updates in case of network instabilities, and all values will be lost
+  //! after a process restart.
+  //!
+  //! Essentially publishes a single message on a channel, and that's it.
+  //! All those subscribed to the channel will receive it,
+  //! anyone else will not.
+  //----------------------------------------------------------------------------
+  bool
+  SetTransientBatch(const std::map<std::string, std::string> &batch, bool broadcast = true);
+
+  //----------------------------------------------------------------------------
+  //! Set a batch of durable values - values which are meant to be persisted
+  //! and survive process reboots.
+  //!
+  //! This property is only available when using QDB as a backend, not MQ..
+  //----------------------------------------------------------------------------
+  bool
+  SetDurableBatch(const std::map<std::string, std::string> &batch);
 
   //----------------------------------------------------------------------------
   //! Set a key-value pair in a filesystem and evt. broadcast it.

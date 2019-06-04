@@ -389,12 +389,9 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
         if ((key == "headroom") || (key == "scaninterval") ||
             (key == "scanrate") || (key == "graceperiod") ||
             (key == "drainperiod")) {
-
-          common::FileSystemUpdateBatch batch;
-          batch.setLongLongDurable(key, eos::common::StringConversion::GetSizeFromString(value.c_str()));
-          fs->applyBatch(batch);
+          fs->SetLongLong(key.c_str(),
+                          eos::common::StringConversion::GetSizeFromString(value.c_str()));
           FsView::gFsView.StoreFsConfig(fs);
-
         } else if (key == "configstatus") {
           if (value == "empty") {
             // Check if this filesystem is really empty
@@ -622,11 +619,10 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
 
         if (fs) {
           // We want one atomic update with all the parameters defined
-          common::FileSystemUpdateBatch batch;
-          batch.setId(fsid);
-          batch.setStringDurable("uuid", uuid);
-          batch.setStringDurable("configstatus", configstatus);
-
+          fs->OpenTransaction();
+          fs->SetId(fsid);
+          fs->SetString("uuid", uuid.c_str());
+          fs->SetString("configstatus", configstatus.c_str());
           std::string splitspace;
           std::string splitgroup;
           unsigned int groupsize = 0;
@@ -720,7 +716,7 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
           }
 
           if (!retc) {
-            batch.setStringDurable("schedgroup", splitgroup);
+            fs->SetString("schedgroup", splitgroup.c_str());
 
             if (!FsView::gFsView.Register(fs)) {
               // Remove mapping
@@ -751,7 +747,7 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
             retc = ENOMEM;
           }
 
-          fs->applyBatch(batch); // close all the definitions and broadcast
+          fs->CloseTransaction(); // close all the definitions and broadcast
         }
       }
     } else {

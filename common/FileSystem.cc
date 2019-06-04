@@ -160,20 +160,6 @@ void FileSystemUpdateBatch::setDrainStatus(DrainStatus status) {
   setStringDurable("stat.drain", FileSystem::GetDrainStatusAsString(status));
 }
 
-//----------------------------------------------------------------------------
-// Set the draining status - transient.
-//----------------------------------------------------------------------------
-void FileSystemUpdateBatch::setDrainStatusTransient(DrainStatus status) {
-  setStringTransient("stat.drain", FileSystem::GetDrainStatusAsString(status));
-}
-
-//----------------------------------------------------------------------------
-// Set the draining status - local.
-//----------------------------------------------------------------------------
-void FileSystemUpdateBatch::setDrainStatusLocal(DrainStatus status) {
-  setStringLocal("stat.drain", FileSystem::GetDrainStatusAsString(status));
-}
-
 //------------------------------------------------------------------------------
 // Set durable string.
 //
@@ -665,13 +651,40 @@ bool FileSystem::applyBatch(const FileSystemUpdateBatch &batch) {
   return true;
 }
 
+//----------------------------------------------------------------------------
+//! Set a batch of transient values - ideal for statistics.
+//!
+//! "Meh" level of consistency - the other end may or may not receive
+//! the updates in case of network instabilities, and all values will be lost
+//! after a process restart.
+//!
+//! Essentially publishes a single message on a channel, and that's it.
+//! All those subscribed to the channel will receive it,
+//! anyone else will not.
+//----------------------------------------------------------------------------
+bool
+FileSystem::SetTransientBatch(const std::map<std::string, std::string> &batch, bool broadcast)
+{
+  bool success = true;
+
+  for(auto it = batch.begin(); it != batch.end(); it++) {
+    success &= SetString(it->first.c_str(), it->second.c_str(), broadcast);
+  }
+
+  return success;
+}
+
 //------------------------------------------------------------------------------
-// Set a local long long
+// Set a batch of durable values - values which are meant to be persisted
+// and survive process reboots.
+//
+// This property is only available when using QDB as a backend, not MQ..
 //------------------------------------------------------------------------------
-bool FileSystem::setLongLongLocal(const std::string &key, int64_t value) {
-  common::FileSystemUpdateBatch batch;
-  batch.setLongLongLocal(key, value);
-  return this->applyBatch(batch);
+bool
+FileSystem::SetDurableBatch(const std::map<std::string, std::string> &batch)
+{
+  // TODO ..
+  return SetTransientBatch(batch);
 }
 
 //------------------------------------------------------------------------------

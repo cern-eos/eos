@@ -2895,11 +2895,12 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
   }
 
   if (fs) {
-    common::FileSystemUpdateBatch batch;
-    batch.setId(fsid);
-    batch.setStringDurable("uuid", configmap["uuid"]);
+    fs->OpenTransaction();
+    fs->SetId(fsid);
+    fs->SetString("uuid", configmap["uuid"].c_str());
+    std::map<std::string, std::string>::iterator it;
 
-    for (auto it = configmap.begin(); it != configmap.end(); it++) {
+    for (it = configmap.begin(); it != configmap.end(); it++) {
       // Set config parameters except for the "configstatus" which can trigger a
       // drain job. This in turn could try to update the status of the file
       // system and will deadlock trying to get the transaction mutex. Therefore,
@@ -2908,13 +2909,11 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
       // @todo (esindril) We remove "drainstatus" from the map as we only use
       // stat.drain from 4.4.30 on!!!
       if ((it->first != "configstatus") && (it->first != "drainstatus")) {
-        batch.setStringDurable(it->first, it->second);
+        fs->SetString(it->first.c_str(), it->second.c_str());
       }
     }
 
-    fs->applyBatch(batch);
-
-    // TODO: somehow use batch for this?
+    fs->CloseTransaction();
     auto it_cfg = configmap.find("configstatus");
 
     if (it_cfg != configmap.end()) {
