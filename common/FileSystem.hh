@@ -117,6 +117,11 @@ public:
   void setDrainStatus(DrainStatus status);
 
   //----------------------------------------------------------------------------
+  //! Set the draining status - local.
+  //----------------------------------------------------------------------------
+  void setDrainStatusLocal(DrainStatus status);
+
+  //----------------------------------------------------------------------------
   //! Set durable string.
   //!
   //! All observers of this filesystem are guaranteed to receive the update
@@ -487,6 +492,11 @@ public:
   bool applyBatch(const FileSystemUpdateBatch &batch);
 
   //----------------------------------------------------------------------------
+  //! Set a single local long long
+  //----------------------------------------------------------------------------
+  bool setLongLongLocal(const std::string &key, int64_t value);
+
+  //----------------------------------------------------------------------------
   //! Open transaction to initiate bulk modifications on a file system
   //----------------------------------------------------------------------------
   bool
@@ -536,29 +546,6 @@ public:
       return false;
     }
   }
-
-  //----------------------------------------------------------------------------
-  //! Set a batch of transient values - ideal for statistics.
-  //!
-  //! "Meh" level of consistency - the other end may or may not receive
-  //! the updates in case of network instabilities, and all values will be lost
-  //! after a process restart.
-  //!
-  //! Essentially publishes a single message on a channel, and that's it.
-  //! All those subscribed to the channel will receive it,
-  //! anyone else will not.
-  //----------------------------------------------------------------------------
-  bool
-  SetTransientBatch(const std::map<std::string, std::string> &batch, bool broadcast = true);
-
-  //----------------------------------------------------------------------------
-  //! Set a batch of durable values - values which are meant to be persisted
-  //! and survive process reboots.
-  //!
-  //! This property is only available when using QDB as a backend, not MQ..
-  //----------------------------------------------------------------------------
-  bool
-  SetDurableBatch(const std::map<std::string, std::string> &batch);
 
   //----------------------------------------------------------------------------
   //! Set a key-value pair in a filesystem and evt. broadcast it.
