@@ -260,6 +260,13 @@ private:
   //----------------------------------------------------------------------------
   Status DrainZeroSizeFile(const FileDrainInfo& fdrain);
 
+  //----------------------------------------------------------------------------
+  //! Update MGM stats depending on the type of transfer
+  //!
+  //! @param status transfer status
+  //----------------------------------------------------------------------------
+  void UpdateMgmStats(Status status);
+
   std::string mAppTag; ///< Application tag for the transfer
   const eos::common::FileId::fileid_t mFileId; ///< File id to transfer
   //! Source and destination file system

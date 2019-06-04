@@ -54,8 +54,8 @@ void
 DrainTransferJob::DoIt() noexcept
 {
   using eos::common::LayoutId;
-  gOFS->MgmStats.Add("DrainCentralStarted", 0, 0, 1);
-  eos_debug_lite("msg=\"running drain job\" fsid_src=%i, fsid_dst=%i, fxid=%08llx",
+  UpdateMgmStats(mStatus);
+  eos_debug_lite("msg=\"running job\" fsid_src=%i fsid_dst=%i fxid=%08llx",
                  mFsIdSource.load(), mFsIdTarget.load(), mFileId);
 
   if (mProgressHandler.ShouldCancel(0)) {
@@ -71,8 +71,8 @@ DrainTransferJob::DoIt() noexcept
   try {
     fdrain = GetFileInfo();
   } catch (const eos::MDException& e) {
-    gOFS->MgmStats.Add("DrainCentralFailed", 0, 0, 1);
     ReportError(std::string(e.what()));
+    UpdateMgmStats(mStatus);
     return;
   }
 
@@ -80,9 +80,9 @@ DrainTransferJob::DoIt() noexcept
 
   while (true) {
     if (!SelectDstFs(fdrain, dst_exclude_fsids)) {
-      gOFS->MgmStats.Add("DrainCentralFailed", 0, 0, 1);
       ReportError(SSTR("msg=\"failed to select destination file system\" fxid="
                        << eos::common::FileId::Fid2Hex(mFileId)));
+      UpdateMgmStats(mStatus);
       return;
     }
 
@@ -91,13 +91,7 @@ DrainTransferJob::DoIt() noexcept
         (LayoutId::GetLayoutType(fdrain.mProto.layout_id()) ==
          LayoutId::kReplica)) {
       mStatus = DrainZeroSizeFile(fdrain);
-
-      if (mStatus == Status::OK) {
-        gOFS->MgmStats.Add("DrainCentralSuccessful", 0, 0, 1);
-      } else {
-        gOFS->MgmStats.Add("DrainCentralFailed", 0, 0, 1);
-      }
-
+      UpdateMgmStats(mStatus);
       return;
     }
 
@@ -108,7 +102,7 @@ DrainTransferJob::DoIt() noexcept
 
     // When no more sources are available the url_src is empty
     if (!url_src.IsValid() || !url_dst.IsValid()) {
-      gOFS->MgmStats.Add("DrainCentralFailed", 0, 0, 1);
+      UpdateMgmStats(mStatus);
       return;
     }
 
@@ -165,22 +159,22 @@ DrainTransferJob::DoIt() noexcept
           break;
         }
       } else {
-        gOFS->MgmStats.Add("DrainCentralSuccessful", 0, 0, 1);
         eos_info("msg=\"drain successful\" logid=%s fxid=%s",
                  log_id.c_str(), eos::common::FileId::Fid2Hex(mFileId).c_str());
         mStatus = Status::OK;
         gOFS->mDrainingTracker.RemoveEntry(mFileId);
+        UpdateMgmStats(mStatus);
         return;
       }
     } else {
-      eos_err("%s", SSTR("msg=\"prepare drain failed\" logid="
+      eos_err("%s", SSTR("msg=\"prepare failed\" logid="
                          << log_id.c_str()).c_str());
     }
   }
 
-  gOFS->MgmStats.Add("DrainCentralFailed", 0, 0, 1);
   mStatus = Status::Failed;
   gOFS->mDrainingTracker.RemoveEntry(mFileId);
+  UpdateMgmStats(mStatus);
   return;
 }
 
@@ -519,7 +513,7 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain,
   }
 
   if (!gGeoTreeEngine.getInfosFromFsIds(existing_repl, &fsid_geotags, 0, 0)) {
-    eos_err("msg=\"fxid=%08llx failed to retrieve info for existing replicas\"",
+    eos_err("msg=\"failed to retrieve info for existing replicas\" fxid=%08llx",
             mFileId);
     return false;
   }
@@ -637,6 +631,33 @@ DrainTransferJob::GetInfo(const std::list<std::string>& tags) const
   }
 
   return info;
+}
+
+//------------------------------------------------------------------------------
+// Update MGM stats depending on the type of transfer
+//------------------------------------------------------------------------------
+void
+DrainTransferJob::UpdateMgmStats(Status status)
+{
+  std::string tag_stats;
+
+  if (mAppTag == "drainer") {
+    tag_stats = "DrainCentral";
+  } else if (mAppTag == "fsck") {
+    tag_stats = "FsckRepair";
+  } else {
+    tag_stats = "Unknown";
+  }
+
+  if (status == Status::OK) {
+    tag_stats += "Successful";
+  } else if (status == Status::Failed) {
+    tag_stats += "Failed";
+  } else {
+    tag_stats += "Started";
+  }
+
+  gOFS->MgmStats.Add(tag_stats.c_str(), 0, 0, 1);
 }
 
 EOSMGMNAMESPACE_END
