@@ -231,8 +231,8 @@ before_script:
   <<: *k8s_before_script_template
   script:
     - if   [[ "$CI_JOB_NAME" == k8s_system_test ]]; then ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -n ${NAMESPACE};
-      elif [[ "$CI_JOB_NAME" == k8s_ubuntu_system_test ]]; then ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -u ubuntu_bionic_client_${IMAGE_TAG} -n ${NAMESPACE};
-      elif [[ "$CI_JOB_NAME" == k8s_system_test_qdb || "$CI_JOB_NAME" == k8s_system_test_qdb_xt ]]; then ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -n ${NAMESPACE} -q; quarkdb_argument="--quarkdb";
+      elif [[ "$CI_JOB_NAME" == k8s_ubuntu_system_test ]]; then ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -u ubuntu_bionic_client_${IMAGE_TAG} -n ${NAMESPACE} -q;
+      elif [[ "$CI_JOB_NAME" == k8s_system_test_qdb* ]]; then ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -n ${NAMESPACE} -q; quarkdb_argument="--quarkdb";
       else echo "CI_JOB_NAME:$CI_JOB_NAME not found"; exit 1;
       fi
     - if [[ "$CI_JOB_NAME" == k8s_ubuntu_system_test ]]; then ./gitlab-ci/k8s_system_test_script.sh --only-client ${NAMESPACE};
