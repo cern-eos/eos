@@ -47,7 +47,8 @@ const char* Fsck::gFsckInterval = "fsckinterval";
 // Constructor
 //------------------------------------------------------------------------------
 Fsck::Fsck():
-  mEnabled(false), mInterval(30), mRunning(false), eTimeStamp(0)
+  mShowDarkFiles(false), mEnabled(false),
+  mInterval(30), mRunning(false), eTimeStamp(0)
 {}
 
 //------------------------------------------------------------------------------
@@ -56,7 +57,6 @@ Fsck::Fsck():
 Fsck::~Fsck()
 {
   (void) Stop(false);
-  std::cerr << __FUNCTION__ << ":: end of destructor" << std::endl;
 }
 
 //------------------------------------------------------------------------------
@@ -141,11 +141,25 @@ bool
 Fsck::StoreFsckConfig()
 {
   bool ok = true;
-  XrdOucString sInterval = "";
-  sInterval += (int) mInterval;
+  std::string interval_min = std::to_string(mInterval);
   ok &= FsView::gFsView.SetGlobalConfig(gFsckEnabled, mEnabled.c_str());
-  ok &= FsView::gFsView.SetGlobalConfig(gFsckInterval, sInterval.c_str());
+  ok &= FsView::gFsView.SetGlobalConfig(gFsckInterval, interval_min.c_str());
   return ok;
+}
+
+//------------------------------------------------------------------------------
+// Apply configuration options to the fsck mechanism
+//------------------------------------------------------------------------------
+bool
+Fsck::Config(const std::string& key, const std::string& value)
+{
+  if (key == "show-dark-files") {
+    mShowDarkFiles = (value == "yes");
+  } else {
+    return false;
+  }
+
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -222,14 +236,17 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
       }
     }
 
-    // @todo (esindril): note this is heavy for the qdb ns
     AccountOfflineReplicas();
     PrintOfflineReplicas();
     AccountNoReplicaFiles();
     AccountOfflineFiles();
     PrintErrorsSummary();
-    // @todo (esindril): note this is heavy for the qdb ns
-    AccountDarkFiles();
+
+    // @note the following operation is heavy for the qdb ns
+    if (mShowDarkFiles) {
+      AccountDarkFiles();
+    }
+
     Log("stopping check");
     Log("=> next run in %d minutes", mInterval);
     // Wait for next FSCK round ...
@@ -404,13 +421,11 @@ Fsck::Report(std::string& out, const std::set<std::string> tags,
             for (fidit = efsmapit->second.begin();
                  fidit != efsmapit->second.end();
                  fidit++) {
-              std::shared_ptr<eos::IFileMD> fmd = std::shared_ptr<eos::IFileMD>((
-                                                    eos::IFileMD*)0);
               eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *fidit);
-              eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+              eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
               try {
-                fmd = gOFS->eosFileService->getFileMD(*fidit);
+                auto fmd = gOFS->eosFileService->getFileMD(*fidit);
                 std::string fullpath = gOFS->eosView->getUri(fmd.get());
                 out += "\"";
                 out += fullpath.c_str();
@@ -501,13 +516,11 @@ Fsck::Report(std::string& out, const std::set<std::string> tags,
 
           for (auto fidit = emapit->second.cbegin();
                fidit != emapit->second.cend(); fidit++) {
-            std::shared_ptr<eos::IFileMD> fmd =
-              std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);
             eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *fidit);
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
             try {
-              fmd = gOFS->eosFileService->getFileMD(*fidit);
+              auto fmd = gOFS->eosFileService->getFileMD(*fidit);
               std::string fullpath = gOFS->eosView->getUri(fmd.get());
               out += "\"";
               out += fullpath.c_str();
@@ -597,12 +610,11 @@ Fsck::Report(std::string& out, const std::set<std::string> tags,
 
               for (auto fidit = efsmapit->second.cbegin();
                    fidit != efsmapit->second.cend(); ++fidit) {
-                std::shared_ptr<eos::IFileMD> fmd;
                 eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *fidit);
                 eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
                 try {
-                  fmd = gOFS->eosFileService->getFileMD(*fidit);
+                  auto fmd = gOFS->eosFileService->getFileMD(*fidit);
                   std::string fullpath = gOFS->eosView->getUri(fmd.get());
                   out += "\"";
                   out += fullpath.c_str();
@@ -632,15 +644,95 @@ Fsck::Report(std::string& out, const std::set<std::string> tags,
 }
 
 //------------------------------------------------------------------------------
+// Repair checksum errors
+//------------------------------------------------------------------------------
+void
+Fsck::RepairChecksumErrs(std::string& out)
+{
+  std::ostringstream oss;
+  XrdSysMutexHelper lock(eMutex);
+  oss << "# repair checksum ------------------------------------------------"
+      << "-------------------------" << std::endl;
+  std::map<eos::common::FileSystem::fsid_t,
+      std::set<eos::common::FileId::fileid_t>> fid2check;
+
+  // Loop over all filesystems with MGM checksum mismatch
+  for (auto efsmapit = eFsMap["m_cx_diff"].cbegin();
+       efsmapit != eFsMap["m_cx_diff"].cend(); ++efsmapit) {
+    for (const auto& fid : efsmapit->second) {
+      fid2check[efsmapit->first].insert(fid);
+    }
+  }
+
+  // Loop over all filesystems with disk checksum mismatch
+  for (auto efsmapit = eFsMap["d_cx_diff"].cbegin();
+       efsmapit != eFsMap["d_cx_diff"].cend(); ++efsmapit) {
+    for (const auto& fid : efsmapit->second) {
+      fid2check[efsmapit->first].insert(fid);
+    }
+  }
+
+  // Loop over all filesystems
+  for (auto it = fid2check.cbegin();
+       it != fid2check.cend(); ++it) {
+    for (const auto& fid : it->second) {
+      std::string path = "";
+      eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
+      eos::common::RWMutexReadLock ns_rdlock(gOFS->eosViewRWMutex);
+
+      try {
+        auto fmd = gOFS->eosFileService->getFileMD(fid);
+        path = gOFS->eosView->getUri(fmd.get());
+      } catch (const eos::MDException& e) {
+        continue;
+      }
+
+      // Issue verify operations on that particular file
+      eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
+      XrdOucErrInfo error;
+      int lretc = 1;
+
+      if (path.length()) {
+        //if (options.find("checksum-commit") != options.end()) {
+        // Verify & commit
+        lretc = gOFS->_verifystripe(path.c_str(), error, vid, it->first,
+                                    "&mgm.verify.compute.checksum=1&"
+                                    "mgm.verify.commit.checksum=1&"
+                                    "mgm.verify.commit.size=1");
+        // } else {
+        //   // Verify only
+        //   lretc = gOFS->_verifystripe(path.c_str(), error, vid, efsmapit->first,
+        //                               "&mgm.verify.compute.checksum=1");
+        // }
+
+        if (!lretc) {
+          out += "success: sending verify to fsid=";
+          out += (int) it->first;
+          out += " for path=";
+          out += path.c_str();
+          out += "\n";
+        } else {
+          out += "error: sending verify to fsid=";
+          out += (int) it->first;
+          out += " failed for path=";
+          out += path.c_str();
+          out += "\n";
+        }
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 // Method to issue a repair action
 //------------------------------------------------------------------------------
 bool
 Fsck::Repair(std::string& out, const std::set<string>& options)
 {
-  std::set<std::string> allowed_options {"checksum", "checksum-commit",
-                                         "resync", "unlink-unregistered", "unlink-orpahsn", "adjust-replicas",
-                                         "adjust-replicas-nodrop", "drop-missing-replicas", "unlink-zero-replicas",
-                                         "replace-damaged-replicas"};
+  std::set<std::string> allowed_options {
+    "checksum", "checksum-commit", "resync", "unlink-unregistered",
+    "unlink-orpahsn", "adjust-replicas", "adjust-replicas-nodrop",
+    "drop-missing-replicas", "unlink-zero-replicas", "replace-damaged-replicas"};
 
   // Check for a valid action in options
   for (const auto& elem : options) {
@@ -671,8 +763,6 @@ Fsck::Repair(std::string& out, const std::set<string>& options)
     // Loop over all filesystems
     for (auto efsmapit = eFsMap["d_cx_diff"].cbegin();
          efsmapit != eFsMap["d_cx_diff"].cend(); ++efsmapit) {
-      std::set <eos::common::FileId::fileid_t>::const_iterator it;
-
       // Loop over all fids
       for (auto it = efsmapit->second.cbegin();
            it != efsmapit->second.cend(); ++it) {
@@ -686,16 +776,17 @@ Fsck::Repair(std::string& out, const std::set<string>& options)
       for (auto it = efsmapit->second.cbegin();
            it != efsmapit->second.cend(); ++it) {
         std::string path = "";
-        std::shared_ptr<eos::IFileMD> fmd;
         eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *it);
-        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+        eos::common::RWMutexReadLock ns_rdlock(gOFS->eosViewRWMutex);
 
         try {
-          fmd = gOFS->eosFileService->getFileMD(*it);
+          auto fmd = gOFS->eosFileService->getFileMD(*it);
           path = gOFS->eosView->getUri(fmd.get());
-        } catch (eos::MDException& e) {}
+        } catch (const eos::MDException& e) {
+          continue;
+        }
 
-        // Issue verify operations on that particular filesystem
+        // Issue verify operations on that particular file
         eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
         XrdOucErrInfo error;
         int lretc = 1;
@@ -761,40 +852,30 @@ Fsck::Repair(std::string& out, const std::set<string>& options)
          efsmapit != fid2check.cend(); ++efsmapit) {
       for (auto it = efsmapit->second.cbegin();
            it != efsmapit->second.cend(); ++it) {
-        std::string path = "";
-        std::shared_ptr<eos::IFileMD> fmd =
-          std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);
+        std::shared_ptr<eos::IFileMD> fmd;
         eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, *it);
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
         try {
           fmd = gOFS->eosFileService->getFileMD(*it);
-        } catch (eos::MDException& e) {}
+        } catch (const eos::MDException& e) {
+          out += SSTR("error: no metadata for fsid=" << efsmapit->first
+                      << " fid=" << std::setw(8) << std::setfill('0')
+                      << std::hex << *it << std::endl).c_str();
+          continue;
+        }
 
         if (fmd) {
-          int lretc = 0;
           // Issue a resync command for a filesystem/fid pair
-          lretc = gOFS->SendResync(*it, efsmapit->first);
-
-          if (!lretc) {
-            char outline[1024];
-            snprintf(outline, sizeof(outline) - 1,
-                     "success: sending resync to fsid=%u fxid=%08llx\n",
-                     efsmapit->first, *it);
-            out += outline;
+          if (gOFS->SendResync(*it, efsmapit->first) == 0) {
+            out += SSTR("success: sending resync to fsid=" << efsmapit->first
+                        << " fxid=" << std::setw(8) << std::setfill('0')
+                        << std::hex << *it << std::endl).c_str();
           } else {
-            char outline[1024];
-            snprintf(outline, sizeof(outline) - 1,
-                     "error: sending resync to fsid=%u failed for fxid=%08llx\n",
-                     efsmapit->first, *it);
-            out += outline;
+            out += SSTR("error: failed resync to fsid=" << efsmapit->first
+                        << " fxid=" << std::setw(8) << std::setfill('0')
+                        << std::hex << *it << std::endl).c_str();
           }
-        } else {
-          char outline[1024];
-          snprintf(outline, sizeof(outline) - 1,
-                   "error: no file meta data for fsid=%u failed for fxid=%08llx\n",
-                   efsmapit->first, *it);
-          out += outline;
         }
       }
     }
@@ -817,7 +898,7 @@ Fsck::Repair(std::string& out, const std::set<string>& options)
       // Loop over all fids
       for (auto it = efsmapit->second.cbegin();
            it != efsmapit->second.cend(); ++it) {
-        std::shared_ptr<eos::IFileMD> fmd;
+        bool fmd_exists = false;
         bool haslocation = false;
         std::string spath = "";
 
@@ -825,43 +906,40 @@ Fsck::Repair(std::string& out, const std::set<string>& options)
         try {
           eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *it);
           eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-          fmd = gOFS->eosFileService->getFileMD(*it);
+          auto fmd = gOFS->eosFileService->getFileMD(*it);
           spath = gOFS->eosView->getUri(fmd.get());
+          fmd_exists = true;
 
           if (fmd->hasLocation(efsmapit->first)) {
             haslocation = true;
           }
-        } catch (eos::MDException& e) {}
-
-        // Send external deletion
-        if (gOFS->DeleteExternal(efsmapit->first, *it)) {
-          char outline[1024];
-          snprintf(outline, sizeof(outline) - 1,
-                   "success: send unlink to fsid=%u fxid=%08llx\n",
-                   efsmapit->first, *it);
-          out += outline;
-        } else {
-          char errline[1024];
-          snprintf(errline, sizeof(errline) - 1,
-                   "err: unable to send unlink to fsid=%u fxid=%08llx\n",
-                   efsmapit->first, *it);
-          out += errline;
+        } catch (const eos::MDException& e) {
+          // ignore
         }
 
-        if (haslocation) {
-          // Drop from the namespace
-          if (gOFS->_dropstripe(spath.c_str(), *it, error, vid, efsmapit->first, false)) {
-            char outline[1024];
-            snprintf(outline, sizeof(outline) - 1,
-                     "error: unable to drop stripe on fsid=%u fxid=%08llx\n",
-                     efsmapit->first, *it);
-            out += outline;
+        if (!haslocation) {
+          // Send external deletion
+          if (gOFS->DeleteExternal(efsmapit->first, *it)) {
+            out += SSTR("success: sent unlink to fsid=" << efsmapit->first
+                        << " fxid=" << std::setw(8) << std::setfill('0')
+                        << std::hex << *it << std::endl).c_str();
           } else {
-            char outline[1024];
-            snprintf(outline, sizeof(outline) - 1,
-                     "success: send dropped stripe on fsid=%u fxid=%08llx\n",
-                     efsmapit->first, *it);
-            out += outline;
+            out += SSTR("error: failed to send unlink to fsid=" << efsmapit->first
+                        << " fxid=" << std::setw(8) << std::setfill('0')
+                        << std::hex << *it << std::endl).c_str();
+          }
+
+          if (fmd_exists) {
+            // Drop from the namespace
+            if (gOFS->_dropstripe(spath.c_str(), *it, error, vid, efsmapit->first, false)) {
+              out += SSTR("error: unable to drop stripe on fsid=" << efsmapit->first
+                          << " fxid=" << std::setw(8) << std::setfill('0')
+                          << std::hex << *it << std::endl).c_str();
+            } else {
+              out += SSTR("success: sent drop stripe on fsid=" << efsmapit->first
+                          << " fxid=" << std::setw(8) << std::setfill('0')
+                          << std::hex << *it << std::endl).c_str();
+            }
           }
         }
       }
@@ -883,40 +961,33 @@ Fsck::Repair(std::string& out, const std::set<string>& options)
       // Loop over all fids
       for (auto it = efsmapit->second.cbegin();
            it != efsmapit->second.cend(); ++it) {
-        std::shared_ptr<eos::IFileMD> fmd;
+        bool has_location = false;
         eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *it);
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-        bool haslocation = false;
 
         // Crosscheck if the location really is not attached
         try {
-          fmd = gOFS->eosFileService->getFileMD(*it);
+          auto fmd = gOFS->eosFileService->getFileMD(*it);
 
           if (fmd->hasLocation(efsmapit->first)) {
-            haslocation = true;
+            has_location = true;
           }
-        } catch (eos::MDException& e) {}
+        } catch (const eos::MDException& e) {}
 
-        if (!haslocation) {
+        if (!has_location) {
           if (gOFS->DeleteExternal(efsmapit->first, *it)) {
-            char outline[1024];
-            snprintf(outline, sizeof(outline) - 1,
-                     "success: send unlink to fsid=%u fxid=%08llx\n",
-                     efsmapit->first, *it);
-            out += outline;
+            out += SSTR("success: sent unlink to fsid=" << efsmapit->first
+                        << " fxid=" << std::setw(8) << std::setfill('0')
+                        << std::hex << *it << std::endl).c_str();
           } else {
-            char errline[1024];
-            snprintf(errline, sizeof(errline) - 1,
-                     "err: unable to send unlink to fsid=%u fxid=%08llx\n",
-                     efsmapit->first, *it);
-            out += errline;
+            out += SSTR("error: failed to send unlink to fsid=" << efsmapit->first
+                        << " fxid=" << std::setw(8) << std::setfill('0')
+                        << std::hex << *it << std::endl).c_str();
           }
         } else {
-          char errline[1024];
-          snprintf(errline, sizeof(errline) - 1,
-                   "err: not sending unlink to fsid=%u fxid=%08llx - location exists!\n",
-                   efsmapit->first, *it);
-          out += errline;
+          out += SSTR("error: location exists, not sending unlin to fsid="
+                      << efsmapit->first << " fxid=" << std::setw(8)
+                      << std::setfill('0') << std::hex << *it << std::endl).c_str();
         }
       }
     }
@@ -981,7 +1052,7 @@ Fsck::Repair(std::string& out, const std::set<string>& options)
           }
 
           Cmd.close();
-        } catch (eos::MDException& e) {
+        } catch (const eos::MDException& e) {
           // ignore missing file entries
         }
       }
@@ -1007,7 +1078,7 @@ Fsck::Repair(std::string& out, const std::set<string>& options)
       for (auto it = efsmapit->second.cbegin();
            it != efsmapit->second.cend(); ++it) {
         std::shared_ptr<eos::IFileMD> fmd;
-        bool haslocation = false;
+        bool has_location = false;
         std::string path = "";
 
         // Crosscheck if the location really is not attached
@@ -1018,11 +1089,11 @@ Fsck::Repair(std::string& out, const std::set<string>& options)
           path = gOFS->eosView->getUri(fmd.get());
 
           if (fmd->hasLocation(efsmapit->first)) {
-            haslocation = true;
+            has_location = true;
           }
         } catch (eos::MDException& e) {}
 
-        if (!haslocation) {
+        if (!has_location) {
           if (gOFS->DeleteExternal(efsmapit->first, *it)) {
             char outline[1024];
             snprintf(outline, sizeof(outline) - 1,
@@ -1339,21 +1410,12 @@ Fsck::AccountOfflineReplicas()
           nslock.Grab(gOFS->eosViewRWMutex);
         }
 
-        std::deque<std::pair<FileIdentifier, folly::Future<bool>>> futs;
-
         for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
              (it_fid && it_fid->valid()); it_fid->next()) {
-          eos::FileIdentifier fid(it_fid->getElement());
-          futs.emplace_back(fid, gOFS->eosFileService->hasFileMD(fid));
-        }
-
-        for (size_t i = 0; i < futs.size(); i++) {
-          if (futs[i].second.get() == true) {
-            eFsUnavail[fsid]++;
-            eFsMap["rep_offline"][fsid].insert(futs[i].first.getUnderlyingUInt64());
-            eMap["rep_offline"].insert(futs[i].first.getUnderlyingUInt64());
-            eCount["rep_offline"]++;
-          }
+          eFsUnavail[fsid]++;
+          eFsMap["rep_offline"][fsid].insert(it_fid->getElement());
+          eMap["rep_offline"].insert(it_fid->getElement());
+          eCount["rep_offline"]++;
         }
       } catch (eos::MDException& e) {
         errno = e.getErrno();
@@ -1377,7 +1439,7 @@ Fsck::AccountNoReplicaFiles()
     eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     // it_fid not invalidated when items are added or removed for QDB
     // namespace, safe to release lock after each item.
-    bool needLockThroughout = ! gOFS->NsInQDB;
+    bool needLockThroughout = !gOFS->NsInQDB;
 
     for (auto it_fid = gOFS->eosFsView->getStreamingNoReplicasFileList();
          (it_fid && it_fid->valid()); it_fid->next()) {
