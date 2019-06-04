@@ -193,52 +193,33 @@ DrainTransferJob::GetFileInfo() const
   std::ostringstream oss;
   FileDrainInfo fdrain;
 
-  if (gOFS->mQdbCluster.empty()) {
-    try {
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-      std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(mFileId);
-      fdrain.mProto.set_id(mFileId);
-      fdrain.mProto.set_layout_id(fmd->getLayoutId());
-      fdrain.mProto.set_cont_id(fmd->getContainerId());
-      fdrain.mProto.set_uid(fmd->getCUid());
-      fdrain.mProto.set_gid(fmd->getCGid());
-      fdrain.mProto.set_size(fmd->getSize());
-      fdrain.mFullPath = gOFS->eosView->getUri(fmd.get());
-      auto xs = fmd->getChecksum();
-      fdrain.mProto.set_checksum(xs.getDataPtr(), xs.getSize());
-      auto vect_locations = fmd->getLocations();
+  // Use prefetching for QDB namespace
+  if (!gOFS->mQdbCluster.empty()) {
+    eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFileId);
+  }
 
-      for (const auto loc : vect_locations) {
-        fdrain.mProto.add_locations(loc);
-      }
-    } catch (eos::MDException& e) {
-      oss << "fxid=" << eos::common::FileId::Fid2Hex(mFileId)
-          << " errno=" << e.getErrno()
-          << " msg=\"" << e.getMessage().str() << "\"";
-      eos_err("%s", oss.str().c_str());
-      throw e;
-    }
-  } else {
-    qclient::QClient* qcl = eos::BackendClient::getInstance(
-                              gOFS->mQdbContactDetails, "drain");
-    auto tmp = eos::MetadataFetcher::getFileFromId(*qcl,
-               FileIdentifier(mFileId)).get();
-    std::swap<eos::ns::FileMdProto>(fdrain.mProto, tmp);
-    // Get the full path to the file
-    std::string dir_uri;
-    {
-      eos::Prefetcher::prefetchContainerMDWithParentsAndWait(gOFS->eosView,
-          fdrain.mProto.cont_id());
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-      dir_uri = gOFS->eosView->getUri(fdrain.mProto.cont_id());
-    }
+  try {
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+    std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(mFileId);
+    fdrain.mFullPath = gOFS->eosView->getUri(mFileId);
+    fdrain.mProto.set_id(fmd->getId());
+    fdrain.mProto.set_layout_id(fmd->getLayoutId());
+    fdrain.mProto.set_cont_id(fmd->getContainerId());
+    fdrain.mProto.set_uid(fmd->getCUid());
+    fdrain.mProto.set_gid(fmd->getCGid());
+    fdrain.mProto.set_size(fmd->getSize());
+    auto xs = fmd->getChecksum();
+    fdrain.mProto.set_checksum(xs.getDataPtr(), xs.getSize());
+    auto vect_locations = fmd->getLocations();
 
-    if (dir_uri.empty()) {
-      oss << "msg\"no parent container id=" << fdrain.mProto.cont_id() << "\"";
-      throw_mdexception(ENOENT, oss.str());
+    for (const auto loc : vect_locations) {
+      fdrain.mProto.add_locations(loc);
     }
-
-    fdrain.mFullPath = dir_uri + fdrain.mProto.name();
+  } catch (eos::MDException& e) {
+    eos_err("%s", SSTR("fid=" << eos::common::FileId::Fid2Hex(mFileId)
+                       << " errno=" << e.getErrno()
+                       << " msg=\"" << e.getMessage().str() << "\"").c_str());
+    throw e;
   }
 
   return fdrain;
