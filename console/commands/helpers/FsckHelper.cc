@@ -54,6 +54,22 @@ FsckHelper::ParseCommand(const char* arg)
     fsck->set_disable(true);
   } else if (cmd == "stat") {
     fsck->set_stat(true);
+  } else if (cmd == "config") {
+    if ((option = tokenizer.GetToken()) == nullptr) {
+      return false;
+    }
+
+    std::string key = option;
+    std::string value {""};
+
+    if ((option = tokenizer.GetToken()) == nullptr) {
+      return false;
+    }
+
+    value = option;
+    eos::console::FsckProto::ConfigProto* config = fsck->mutable_config();
+    config->set_key(key);
+    config->set_value(value);
   } else if (cmd == "report") {
     eos::console::FsckProto::ReportProto* report = fsck->mutable_report();
 

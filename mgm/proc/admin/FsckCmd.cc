@@ -47,6 +47,14 @@ FsckCmd::ProcessRequest() noexcept
     std::string output;
     gOFS->FsCheck.PrintOut(output);
     reply.set_std_out(std::move(output));
+  } else if (subcmd == eos::console::FsckProto::kConfig) {
+    const eos::console::FsckProto::ConfigProto& config = fsck.config();
+
+    if (!gOFS->FsCheck.Config(config.key(), config.value())) {
+      reply.set_retc(EINVAL);
+      reply.set_std_err(SSTR("error: failed to set " << config.key()
+                             << "=" << config.value()).c_str());
+    }
   } else if (subcmd == eos::console::FsckProto::kEnable) {
     const eos::console::FsckProto::EnableProto& enable = fsck.enable();
 

@@ -25,6 +25,11 @@ message FsckProto {
     uint32 num_expected_replicas = 2;
   }
 
+  message ConfigProto {
+    string key = 1;
+    string value = 2;
+  }
+
   oneof subcmd {
     bool stat = 1;
     bool disable = 2;
@@ -32,5 +37,6 @@ message FsckProto {
     SearchProto search = 4;
     ReportProto report = 5;
     RepairProto repair = 6;
+    ConfigProto config = 7;
   }
 }

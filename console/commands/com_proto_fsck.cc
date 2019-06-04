@@ -67,6 +67,11 @@ void com_fsck_help()
       << "  fsck stat" << std::endl
       << "    print summary of consistency checks" << std::endl
       << std::endl
+      << "  fsck config <key> <value>" << std::endl
+      << "    configure the fsck with the following possible options:"
+      << std::endl
+      << "    show-dark-files: yes/no [default no]" << std::endl
+      << std::endl
       << "  fsck report [-a] [-h] [-i] [-l] [-j|--json] [--error <tag1> <tag2> ...]"
       << std::endl
       << "    report consistency check results, with the following options"
