@@ -31,6 +31,7 @@
 #include "mgm/proc/admin/StagerRmCmd.hh"
 #include "mgm/proc/admin/IoCmd.hh"
 #include "mgm/proc/admin/GroupCmd.hh"
+#include "mgm/proc/admin/DebugCmd.hh"
 #include <google/protobuf/util/json_util.h>
 
 EOSMGMNAMESPACE_BEGIN
@@ -216,6 +217,10 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
 
   case RequestProto::kGroup:
     cmd.reset(new GroupCmd(std::move(req), vid));
+
+  case RequestProto::kDebug:
+    cmd.reset(new DebugCmd(std::move(req), vid));
+
     break;
 
   default:
@@ -298,6 +303,10 @@ ProcInterface::ProtoIsWriteAccess(const char* path, const char* opaque)
 
   case RequestProto::kGroup:
     return false;
+
+  case RequestProto::kDebug:
+    return true; // @note (faluchet) to check
+
     break;
 
   default:

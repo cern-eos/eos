@@ -302,9 +302,8 @@ IProcCommand::ConvertOutputToJsonFormat(std::string stdOut)
     while (sline.replace("?configstatus@rw", "_rw")) {}
 
     line = sline.c_str();
-    std::map <std::string , std::string> map;
+    std::map <std::string, std::string> map;
     eos::common::StringConversion::GetKeyValueMap(line.c_str(), map, "=", " ");
-
     // These values violate the JSON hierarchy and have to be rewritten
     eos::common::StringConversion::ReplaceMapKey(map, "cfg.balancer",
         "cfg.balancer.status");
@@ -358,7 +357,6 @@ IProcCommand::ConvertOutputToJsonFormat(std::string stdOut)
       // Unquote value
       std::stringstream quoted_ss(value);
       quoted_ss >> std::quoted(value);
-
       // Seal value
       XrdOucString svalue = value.c_str();
       XrdMqMessage::Seal(svalue);
@@ -463,15 +461,18 @@ IProcCommand::HasSlot()
     init = true;
 
     for (const auto& type : {
-    eos::console::RequestProto::kAcl,
-        eos::console::RequestProto::kNs,
-        eos::console::RequestProto::kDrain,
-        eos::console::RequestProto::kFind,
-        eos::console::RequestProto::kFs,
-        eos::console::RequestProto::kRm,
-        eos::console::RequestProto::kStagerRm,
-        eos::console::RequestProto::kRoute
-  }) {
+           eos::console::RequestProto::kAcl,
+           eos::console::RequestProto::kNs,
+           eos::console::RequestProto::kDrain,
+           eos::console::RequestProto::kFind,
+           eos::console::RequestProto::kFs,
+           eos::console::RequestProto::kRm,
+           eos::console::RequestProto::kStagerRm,
+           eos::console::RequestProto::kRoute,
+           eos::console::RequestProto::kIo,    // @note (faluchet) to check
+           eos::console::RequestProto::kGroup, // @note (faluchet) to check
+           eos::console::RequestProto::kDebug // @note (faluchet) to check
+         }) {
       mCmdsExecuting.emplace(type, 0ull);
     }
   }

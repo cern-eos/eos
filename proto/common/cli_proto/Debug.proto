@@ -1,0 +1,21 @@
+syntax="proto3";
+package eos.console;
+
+message DebugProto {
+
+  message SetProto {
+    string nodename     = 1;
+    string debuglevel   = 2;
+    string filter       = 3;
+  }
+
+  message GetProto {
+    bool placeholder = 1; // @note (faluchet) to check
+  }
+
+  oneof subcmd {
+    SetProto set  = 1;
+    GetProto get  = 2;
+  }
+
+}
