@@ -51,6 +51,8 @@ TapeAwareGcFreeSpace::TapeAwareGcFreeSpace(const std::string &spaceName,
 //------------------------------------------------------------------------------
 void
 TapeAwareGcFreeSpace::fileQueuedForDeletion(const size_t deletedFileSize) {
+  std::lock_guard<std::mutex> lock(m_mutex);
+
   if(m_freeSpaceBytes < deletedFileSize) {
     m_freeSpaceBytes = 0;
   } else {
@@ -64,6 +66,8 @@ TapeAwareGcFreeSpace::fileQueuedForDeletion(const size_t deletedFileSize) {
 uint64_t
 TapeAwareGcFreeSpace::getFreeBytes()
 {
+  std::lock_guard<std::mutex> lock(m_mutex);
+
   const time_t now = time(nullptr);
   const time_t secsSinceLastQuery = now - m_freeSpaceQueryTimestamp;
 

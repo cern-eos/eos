@@ -24,10 +24,10 @@
 #ifndef __EOSMGM_TAPEAWAREGCFREESPACE_HH__
 #define __EOSMGM_TAPEAWAREGCFREESPACE_HH__
 
-#include "common/RWMutex.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/TapeAwareGcCachedValue.hh"
 
+#include <mutex>
 #include <stdexcept>
 #include <stdint.h>
 #include <string>
@@ -75,6 +75,9 @@ public:
   uint64_t getFreeBytes();
 
 private:
+
+  /// Mutex
+  std::mutex m_mutex;
 
   /// The name of the space to be queried for free space
   std::string m_spaceName;
