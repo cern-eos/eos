@@ -83,7 +83,7 @@ class TransferQueue;
 
 //------------------------------------------------------------------------------
 //! Contains a batch of key-value updates on the attributes of a filesystem.
-//! Build up the batch, then submit it through SubmitBatch.
+//! Build up the batch, then submit it through applyBatch.
 //!
 //! Note: If the batch mixes durable, transient, and/or local values, three
 //! "transactions" will take place:
@@ -109,12 +109,12 @@ public:
   //----------------------------------------------------------------------------
   //! Set filesystem ID - durable.
   //----------------------------------------------------------------------------
-  void SetId(fsid_t fsid);
+  void setId(fsid_t fsid);
 
   //----------------------------------------------------------------------------
   //! Set the draining status - durable.
   //----------------------------------------------------------------------------
-  void SetDrainStatus(DrainStatus status);
+  void setDrainStatus(DrainStatus status);
 
   //----------------------------------------------------------------------------
   //! Set durable string.
@@ -123,10 +123,10 @@ public:
   //! eventually, and all updates are guaranteed to be applied in the same
   //! order for all observers.
   //!
-  //! If two racing SetStringDurable are attempted on the same key, only one
+  //! If two racing setStringDurable are attempted on the same key, only one
   //! will survive, and all observers will agree as to which one survives.
   //----------------------------------------------------------------------------
-  void SetStringDurable(const std::string &key, const std::string &value);
+  void setStringDurable(const std::string &key, const std::string &value);
 
   //----------------------------------------------------------------------------
   //! Set transient string. Depending on network instabilities,
@@ -137,28 +137,28 @@ public:
   //! try to modify the same value, it's possible that observers will not all
   //! converge on a single consistent value.
   //----------------------------------------------------------------------------
-  void SetStringTransient(const std::string &key, const std::string &value);
+  void setStringTransient(const std::string &key, const std::string &value);
 
   //----------------------------------------------------------------------------
   //! Set local string. This node, and only this node will store the value,
   //! and only until process restart.
   //----------------------------------------------------------------------------
-  void SetStringLocal(const std::string &key, const std::string &value);
+  void setStringLocal(const std::string &key, const std::string &value);
 
   //----------------------------------------------------------------------------
   //! Set durable int64_t - serialize as string automatically.
   //----------------------------------------------------------------------------
-  void SetLongLongDurable(const std::string &key, int64_t value);
+  void setLongLongDurable(const std::string &key, int64_t value);
 
   //----------------------------------------------------------------------------
   //! Set transient int64_t - serialize as string automatically.
   //----------------------------------------------------------------------------
-  void SetLongLongTransient(const std::string &key, int64_t value);
+  void setLongLongTransient(const std::string &key, int64_t value);
 
   //----------------------------------------------------------------------------
   //! Set local int64_t - serialize as string automatically.
   //----------------------------------------------------------------------------
-  void SetLongLongLocal(const std::string &key, int64_t value);
+  void setLongLongLocal(const std::string &key, int64_t value);
 
   //----------------------------------------------------------------------------
   //! Get durable updates map

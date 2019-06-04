@@ -424,9 +424,14 @@ bool Storage::publishFsStatistics(FileSystem *fs, bool publishInconsistencyStats
     return {};
   }
 
-  bool success = fs->SetTransientBatch(getFsStatistics(fs, publishInconsistencyStats));
+  common::FileSystemUpdateBatch batch;
+  std::map<std::string, std::string> fsStats = getFsStatistics(fs, publishInconsistencyStats);
+  for(auto it = fsStats.begin(); it != fsStats.end(); it++) {
+    batch.setStringTransient(it->first, it->second);
+  }
+
   CheckFilesystemFullness(fs, fsid);
-  return success;
+  return fs->applyBatch(batch);
 }
 
 //------------------------------------------------------------------------------

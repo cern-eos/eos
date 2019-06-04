@@ -149,15 +149,15 @@ FileSystemUpdateBatch::FileSystemUpdateBatch() {}
 //------------------------------------------------------------------------------
 // Set filesystem ID - durable.
 //------------------------------------------------------------------------------
-void FileSystemUpdateBatch::SetId(fsid_t fsid) {
-  SetLongLongDurable("id", fsid);
+void FileSystemUpdateBatch::setId(fsid_t fsid) {
+  setLongLongDurable("id", fsid);
 }
 
 //------------------------------------------------------------------------------
 // Set the draining status - durable.
 //------------------------------------------------------------------------------
-void FileSystemUpdateBatch::SetDrainStatus(DrainStatus status) {
-  SetStringDurable("stat.drain", FileSystem::GetDrainStatusAsString(status));
+void FileSystemUpdateBatch::setDrainStatus(DrainStatus status) {
+  setStringDurable("stat.drain", FileSystem::GetDrainStatusAsString(status));
 }
 
 //------------------------------------------------------------------------------
@@ -167,7 +167,7 @@ void FileSystemUpdateBatch::SetDrainStatus(DrainStatus status) {
 // eventually, and all updates are guaranteed to be applied in the same
 // order for all observers.
 //------------------------------------------------------------------------------
-void FileSystemUpdateBatch::SetStringDurable(const std::string &key, const std::string &value) {
+void FileSystemUpdateBatch::setStringDurable(const std::string &key, const std::string &value) {
   mDurableUpdates.emplace(key, value);
 }
 
@@ -180,7 +180,7 @@ void FileSystemUpdateBatch::SetStringDurable(const std::string &key, const std::
 // try to modify the same value, it's possible that observers will not all
 // converge on a single consistent value.
 //------------------------------------------------------------------------------
-void FileSystemUpdateBatch::SetStringTransient(const std::string &key, const std::string &value) {
+void FileSystemUpdateBatch::setStringTransient(const std::string &key, const std::string &value) {
   mTransientUpdates.emplace(key, value);
 }
 
@@ -188,29 +188,29 @@ void FileSystemUpdateBatch::SetStringTransient(const std::string &key, const std
 // Set local string. This node, and only this node will store the value,
 // and only until process restart.
 //------------------------------------------------------------------------------
-void FileSystemUpdateBatch::SetStringLocal(const std::string &key, const std::string &value) {
+void FileSystemUpdateBatch::setStringLocal(const std::string &key, const std::string &value) {
   mLocalUpdates.emplace(key, value);
 }
 
 //------------------------------------------------------------------------------
 // Set durable int64_t - serialize as string automatically.
 //------------------------------------------------------------------------------
-void FileSystemUpdateBatch::SetLongLongDurable(const std::string &key, int64_t value) {
-  return SetStringDurable(key, std::to_string(value));
+void FileSystemUpdateBatch::setLongLongDurable(const std::string &key, int64_t value) {
+  return setStringDurable(key, std::to_string(value));
 }
 
 //------------------------------------------------------------------------------
 // Set transient int64_t - serialize as string automatically.
 //------------------------------------------------------------------------------
-void FileSystemUpdateBatch::SetLongLongTransient(const std::string &key, int64_t value) {
-  return SetStringTransient(key, std::to_string(value));
+void FileSystemUpdateBatch::setLongLongTransient(const std::string &key, int64_t value) {
+  return setStringTransient(key, std::to_string(value));
 }
 
 //------------------------------------------------------------------------------
 // Set local int64_t - serialize as string automatically.
 //------------------------------------------------------------------------------
-void FileSystemUpdateBatch::SetLongLongLocal(const std::string &key, int64_t value) {
-  return SetStringLocal(key, std::to_string(value));
+void FileSystemUpdateBatch::setLongLongLocal(const std::string &key, int64_t value) {
+  return setStringLocal(key, std::to_string(value));
 }
 
 //------------------------------------------------------------------------------
