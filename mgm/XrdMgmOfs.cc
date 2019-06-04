@@ -68,7 +68,7 @@
 #include "mgm/Iostat.hh"
 #include "mgm/LRU.hh"
 #include "mgm/WFE.hh"
-#include "mgm/Fsck.hh"
+#include "mgm/fsck/Fsck.hh"
 #include "mgm/Master.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/inspector/FileInspector.hh"

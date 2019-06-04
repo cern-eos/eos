@@ -21,15 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include "common/FileId.hh"
+#include "mgm/fsck/Fsck.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
 #include "common/Mapping.hh"
-#include "mgm/Fsck.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Master.hh"
 #include "mgm/Messaging.hh"
