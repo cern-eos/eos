@@ -326,10 +326,7 @@ FileEos::ReadPio(Result*& result)
           eos::common::LayoutId::kRaidDP) {
         file = new eos::fst::RaidDpLayout(NULL, layout, NULL, NULL,
                                           "");
-      } else if ((eos::common::LayoutId::GetLayoutType(layout) ==
-                  eos::common::LayoutId::kRaid6) ||
-                 (eos::common::LayoutId::GetLayoutType(layout) ==
-                  eos::common::LayoutId::kArchive)) {
+      } else if ((eos::common::LayoutId::IsRainLayout(layout))) {
         file = new eos::fst::ReedSLayout(NULL, layout, NULL, NULL,
                                          "");
       } else {

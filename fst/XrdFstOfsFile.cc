@@ -540,7 +540,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
              statinfo.st_size, fMd->mProtoFmd.size());
     openSize = fMd->mProtoFmd.size();
 
-    if (!IsRainLayout(layOut->GetLayoutId())) {
+    if (!eos::common::LayoutId::IsRainLayout(layOut->GetLayoutId())) {
       // If replica layout and physical size of replica difference from the
       // fmd_size it means the file is being written to so we save the actual
       // sieze from disk.
@@ -559,7 +559,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   // If we are not the entry server for RAIN layouts we disable the checksum
   // object for write. If we read we don't check checksums at all since we
   // have block and parity checking.
-  if (IsRainLayout(mLid) && ((!isRW) || (!layOut->IsEntryServer()))) {
+  if (eos::common::LayoutId::IsRainLayout(mLid) && ((!isRW) || (!layOut->IsEntryServer()))) {
     mCheckSum.reset(nullptr);
   }
 
@@ -1087,7 +1087,7 @@ XrdFstOfsFile::close()
       if (isCreation) {
         // If we had space allocation we have to truncate the allocated space to
         // the real size of the file
-        if (IsRainLayout(layOut->GetLayoutId())) {
+	if (eos::common::LayoutId::IsRainLayout(layOut->GetLayoutId())) {
           // the entry server has to truncate only if this is not a recovery action
           if (layOut->IsEntryServer() && !mRainReconstruct) {
             eos_info("msg=\"truncate RAIN layout\" truncate-offset=%llu",
@@ -1122,7 +1122,7 @@ XrdFstOfsFile::close()
         }
       }
 
-      if (IsRainLayout(layOut->GetLayoutId())) {
+      if (eos::common::LayoutId::IsRainLayout(layOut->GetLayoutId())) {
         // For RAID-like layouts don't do this check
         targetsizeerror = false;
         minimumsizeerror = false;
@@ -1406,7 +1406,7 @@ XrdFstOfsFile::close()
       // For RAIN layouts if there is an error on close when writing then we
       // delete the whole file. If we do RAIN reconstruction we cleanup this
       // local replica which was not committed.
-      if (IsRainLayout(layOut->GetLayoutId())) {
+      if (eos::common::LayoutId::IsRainLayout(layOut->GetLayoutId())) {
         deleteOnClose = true;
       } else {
         // Some (remote) replica didn't make it through ... trigger an auto-repair
@@ -1792,7 +1792,7 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
   }
 
   if (rc > 0) {
-    if (layOut->IsEntryServer() || IsRainLayout(mLid)) {
+    if (layOut->IsEntryServer() || eos::common::LayoutId::IsRainLayout(mLid)) {
       XrdSysMutexHelper vecLock(vecMutex);
       rvec.push_back(rc);
     }
@@ -2022,7 +2022,7 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
   }
 
   if (rc > 0) {
-    if (layOut->IsEntryServer() || IsRainLayout(mLid)) {
+    if (layOut->IsEntryServer() || eos::common::LayoutId::IsRainLayout(mLid)) {
       XrdSysMutexHelper lock(vecMutex);
       wvec.push_back(rc);
     }
@@ -2621,24 +2621,6 @@ std::string
 XrdFstOfsFile::GetFmdChecksum()
 {
   return fMd->mProtoFmd.checksum();
-}
-
-//------------------------------------------------------------------------------
-// Check if layout encoding indicates a RAIN layout
-//------------------------------------------------------------------------------
-bool
-XrdFstOfsFile::IsRainLayout(unsigned long long lid)
-{
-  using eos::common::LayoutId;
-  unsigned long ltype = LayoutId::GetLayoutType(lid);
-
-  if ((ltype == LayoutId::kArchive) ||
-      (ltype == LayoutId::kRaidDP) ||
-      (ltype == LayoutId::kRaid6)) {
-    return true;
-  } else {
-    return false;
-  }
 }
 
 //------------------------------------------------------------------------------

@@ -120,8 +120,8 @@ ProcCommand::File()
                  " as an argument to call 'file layout' or a valid checksum";
         retc = EINVAL;
       } else if (stripes.length() &&
-                 ((newstripenumber < (eos::common::LayoutId::kOneStripe + 1)) ||
-                  (newstripenumber > (eos::common::LayoutId::kSixteenStripe + 1)))) {
+                 ((newstripenumber < 1) ||
+                  (newstripenumber > 255))) {
         stdErr = "error: you have to give a valid number of stripes"
                  " as an argument to call 'file layout'";
         retc = EINVAL;

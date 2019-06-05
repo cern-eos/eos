@@ -1007,10 +1007,7 @@ main(int argc, char* argv[])
                 isSrcRaid = true;
                 src_location.clear();
                 replicationType = "raiddp";
-              } else if ((eos::common::LayoutId::GetLayoutType(layout) ==
-                          eos::common::LayoutId::kArchive) ||
-                         (eos::common::LayoutId::GetLayoutType(layout) ==
-                          eos::common::LayoutId::kRaid6)) {
+              } else if (eos::common::LayoutId::IsRainLayout(layout)) {
                 nsrc = eos::common::LayoutId::GetStripeNumber(layout) + 1;
                 nparitystripes = eos::common::LayoutId::GetRedundancyStripeNumber(layout);
                 isRaidTransfer = true;
@@ -1565,7 +1562,7 @@ main(int argc, char* argv[])
               location.c_str(),
               0, doStoreRecovery);
         } else if (replicationType == "reeds") {
-          layout = LayoutId::GetId(LayoutId::kRaid6,
+          layout = LayoutId::GetId(LayoutId::GetReedSLayoutByParity(nparitystripes),
                                    1, nsrc,
                                    LayoutId::BlockSizeEnum(stripeWidth),
                                    LayoutId::OssXsBlockSize,
@@ -1779,7 +1776,7 @@ main(int argc, char* argv[])
               location.c_str(),
               0, doStoreRecovery, isStreamFile);
         } else if (replicationType == "reeds") {
-          layout = LayoutId::GetId(LayoutId::kRaid6,
+          layout = LayoutId::GetId(LayoutId::GetReedSLayoutByParity(nparitystripes),
                                    1, ndst,
                                    LayoutId::BlockSizeEnum(stripeWidth),
                                    LayoutId::OssXsBlockSize,

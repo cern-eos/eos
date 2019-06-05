@@ -222,7 +222,7 @@ TEST_F(FstFileTest, SplitReadVTest)
   using namespace eos::common;
   using namespace eos::fst;
   unsigned long layout_id = LayoutId::GetId(LayoutId::kRaid6, 1,
-                            LayoutId::kSevenStripe,
+                            6,
                             LayoutId::k1M,
                             LayoutId::kCRC32);
   std::unique_ptr<RaidDpLayout> file(new RaidDpLayout(NULL, layout_id, NULL, NULL,

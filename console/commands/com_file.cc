@@ -915,7 +915,7 @@ com_file(char* arg1)
       XrdOucString inconsistencylable = "";
       int nreplicaonline = 0;
 
-      for (i = 0; i < eos::common::LayoutId::kSixteenStripe; i++) {
+      for (i = 0; i < 255; i++) {
         XrdOucString repurl = "mgm.replica.url";
         repurl += i;
         XrdOucString repfid = "mgm.fid";

@@ -82,6 +82,8 @@ public:
     kArchive = 0x2,
     kRaidDP = 0x3,
     kRaid6 = 0x4,
+    kQrain = 0x5,
+    kRaid5 = 0x6,
   };
 
 
@@ -147,26 +149,24 @@ public:
   };
 
   //--------------------------------------------------------------------------
-  //! Definition of stripe number
+  //! Get a reed solomon layout by number of redundancystripess
   //--------------------------------------------------------------------------
-  enum eStripeNumber {
-    kOneStripe = 0x0,
-    kTwoStripe = 0x1,
-    kThreeStripe = 0x2,
-    kFourStripe = 0x3,
-    kFiveStripe = 0x4,
-    kSixStripe = 0x5,
-    kSevenStripe = 0x6,
-    kEightStripe = 0x7,
-    kNineStripe = 0x8,
-    kTenStripe = 0x9,
-    kElevenStripe = 0xa,
-    kTwelveStripe = 0xb,
-    kThirteenStripe = 0xc,
-    kFourteenStripe = 0xd,
-    kFivteenStripe = 0xe,
-    kSixteenStripe = 0xf
-  };
+  static int 
+  GetReedSLayoutByParity(int redundancystripes) 
+  {
+    switch (redundancystripes) {
+    case 1:
+      return kRaid5;
+    case 2:
+      return kRaid6;
+    case 3:
+      return kArchive;
+    case 4:
+      return kQrain;
+    default: 
+      return 0;
+    }
+  }
 
   //--------------------------------------------------------------------------
   //! Build a layout id from given parameters
@@ -190,13 +190,17 @@ public:
     // Set the number of parity stripes depending on the layout type if not
     // already set explicitly
     if (redundancystripes == 0) {
-      if (layout == kRaidDP) {
+      if (layout == kRaid5) {
+	redundancystripes = 1;
+      } else if (layout == kRaidDP) {
         redundancystripes = 2;
       } else if (layout == kRaid6) {
         redundancystripes = 2;
       } else if (layout == kArchive) {
         redundancystripes = 3;
-      }
+      } else if (layout == kQrain) {
+	redundancystripes = 4;
+      } 
     }
 
     id |= ((redundancystripes & 0x7) << 28);
@@ -209,39 +213,27 @@ public:
   static unsigned long
   BlockSize(int blocksize)
   {
-    if (blocksize == k4k) {
+
+    switch (blocksize) {
+    case k4k:
       return (4 * 1024);
-    }
-
-    if (blocksize == k64k) {
+    case k64k:
       return (64 * 1024);
-    }
-
-    if (blocksize == k128k) {
+    case k128k:
       return (128 * 1024);
-    }
-
-    if (blocksize == k512k) {
+    case k512k:
       return (512 * 1024);
-    }
-
-    if (blocksize == k1M) {
+    case k1M:
       return (1024 * 1024);
-    }
-
-    if (blocksize == k4M) {
+    case k4M:
       return (4 * 1024 * 1024);
-    }
-
-    if (blocksize == k16M) {
+    case k16M:
       return (16 * 1024 * 1024);
-    }
-
-    if (blocksize == k64M) {
+    case k64M:
       return (64 * 1024 * 1024);
+    default:
+      return 0;
     }
-
-    return 0;
   }
 
   //--------------------------------------------------------------------------
@@ -250,41 +242,27 @@ public:
   static int
   BlockSizeEnum(unsigned long blocksize)
   {
-    if (blocksize == (4 * 1024)) {
+    switch (blocksize) {
+    case (4*1024):
       return k4k;
-    }
-
-    if (blocksize == (64 * 1024)) {
+    case (64*1024):
       return k64k;
-    }
-
-    if (blocksize == (128 * 1024)) {
+    case (128*1024):
       return k128k;
-    }
-
-    if (blocksize == (512 * 1024)) {
+    case (512*1024):
       return k512k;
-    }
-
-    if (blocksize == (1024 * 1024)) {
+    case (1024 * 1024):
       return k1M;
-    }
-
-    if (blocksize == (4 * 1024 * 1024)) {
+    case (4 * 1024 * 1024):
       return k4M;
-    }
-
-    if (blocksize == (16 * 1024 * 1024)) {
+    case (16 * 1024 * 1024):
       return k16M;
-    }
-
-    if (blocksize == (64 * 1024 * 1024)) {
+    case (64 * 1024 * 1024):
       return k64M;
+    default:
+      return 0;
     }
-
-    return 0;
   }
-
 
   //--------------------------------------------------------------------------
   //! Get Checksum enum from given layout
@@ -375,6 +353,17 @@ public:
   {
     return ((layout >> 4) & 0xf);
   }
+
+  //--------------------------------------------------------------------------
+  //! Test for RAIN layout e.g. raid6,archive,qrain
+  //--------------------------------------------------------------------------
+  static bool
+  IsRainLayout(unsigned long layout)
+  {
+    // everything but plain and replica
+    return (GetLayoutType(layout)>kReplica);
+  }
+
 
   //--------------------------------------------------------------------------
   //! Set file layout type in the layout encoding
@@ -558,19 +547,15 @@ public:
   static size_t
   GetMinOnlineReplica(unsigned long layout)
   {
-    if (GetLayoutType(layout) == kRaidDP) {
-      return (GetStripeNumber(layout) - 1);
+    if (GetLayoutType(layout) == kPlain) {
+      return 1;
     }
 
-    if (GetLayoutType(layout) == kRaid6) {
-      return (GetStripeNumber(layout) - 1);
+    if (GetLayoutType(layout) == kReplica) {
+      return 1;
     }
 
-    if (GetLayoutType(layout) == kArchive) {
-      return (GetStripeNumber(layout) - 2);
-    }
-
-    return 1;
+    return (GetStripeNumber(layout) - GetRedundancyStripeNumber(layout));
   }
 
   //--------------------------------------------------------------------------
@@ -580,19 +565,7 @@ public:
   static unsigned long
   GetOnlineStripeNumber(unsigned long layout)
   {
-    if (GetLayoutType(layout) == kRaidDP) {
-      return (GetStripeNumber(layout) + 1);
-    }
-
-    if (GetLayoutType(layout) == kRaid6) {
-      return (GetStripeNumber(layout) + 1);
-    }
-
-    if (GetLayoutType(layout) == kArchive) {
-      return (GetStripeNumber(layout) + 1);
-    }
-
-    return 1;
+    return (GetStripeNumber(layout)+1);
   }
 
   //--------------------------------------------------------------------------
@@ -774,6 +747,10 @@ public:
       return "raiddp";
     }
 
+    if (GetLayoutType(layout) == kRaid5) {
+      return "raid5";
+    }
+
     if (GetLayoutType(layout) == kRaid6) {
       return "raid6";
     }
@@ -782,80 +759,26 @@ public:
       return "archive";
     }
 
+    if (GetLayoutType(layout) == kQrain) {
+      return "qrain";
+    }
+
     return "none";
   }
 
   //--------------------------------------------------------------------------
   //! Return layout stripe number as string
   //--------------------------------------------------------------------------
-  static const char*
+  static std::string
   GetStripeNumberString(unsigned long layout)
   {
-    if (GetStripeNumber(layout) == kOneStripe) {
-      return "1";
-    }
 
-    if (GetStripeNumber(layout) == kTwoStripe) {
-      return "2";
-    }
+    int n = GetStripeNumber(layout) + 1;
 
-    if (GetStripeNumber(layout) == kThreeStripe) {
-      return "3";
-    }
-
-    if (GetStripeNumber(layout) == kFourStripe) {
-      return "4";
-    }
-
-    if (GetStripeNumber(layout) == kFiveStripe) {
-      return "5";
-    }
-
-    if (GetStripeNumber(layout) == kSixStripe) {
-      return "6";
-    }
-
-    if (GetStripeNumber(layout) == kSevenStripe) {
-      return "7";
-    }
-
-    if (GetStripeNumber(layout) == kEightStripe) {
-      return "8";
-    }
-
-    if (GetStripeNumber(layout) == kNineStripe) {
-      return "9";
-    }
-
-    if (GetStripeNumber(layout) == kTenStripe) {
-      return "10";
-    }
-
-    if (GetStripeNumber(layout) == kElevenStripe) {
-      return "11";
-    }
-
-    if (GetStripeNumber(layout) == kTwelveStripe) {
-      return "12";
-    }
-
-    if (GetStripeNumber(layout) == kThirteenStripe) {
-      return "13";
-    }
-
-    if (GetStripeNumber(layout) == kFourteenStripe) {
-      return "14";
-    }
-
-    if (GetStripeNumber(layout) == kFivteenStripe) {
-      return "15";
-    }
-
-    if (GetStripeNumber(layout) == kSixteenStripe) {
-      return "16";
-    }
-
-    return "none";
+    if (n<256) 
+      return std::to_string(n);
+    else
+      return "none";
   }
 
   //--------------------------------------------------------------------------
@@ -1011,6 +934,10 @@ public:
       if (typ == "archive") {
         return kArchive;
       }
+
+      if (typ == "qrain") {
+	return kQrain;
+      }
     }
 
     return kPlain;
@@ -1027,12 +954,12 @@ public:
     if ((val = env.Get("eos.layout.nstripes"))) {
       int n = atoi(val);
 
-      if (((n - 1) >= kOneStripe) && ((n - 1) <= kSixteenStripe)) {
+      if (((n - 1) >= 0) && ((n - 1) <= 255)) {
         return n;
       }
     }
 
-    return (kOneStripe + 1);
+    return (1);
   }
 
   //----------------------------------------------------------------------------
@@ -1089,7 +1016,7 @@ public:
     out = "eos.layout.type=";
     out += GetLayoutTypeString(lid);
     out += "&eos.layout.nstripes=";
-    out += GetStripeNumberString(lid);
+    out += GetStripeNumberString(lid).c_str();
     out += "&eos.layout.blockchecksum=";
     out += GetBlockChecksumString(lid);
     out += "&eos.layout.checksum=";

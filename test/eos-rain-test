@@ -192,7 +192,14 @@ then
 	echo_failure
 	exit 1
     fi
-
+elif [ "$ARG" = "qrain" ];
+then
+    $SUDO $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="qrain"'
+    if [ $? -ne 0 ]; then
+	echo "$ERR_MSG1"
+	echo_failure
+	exit 1
+    fi
 else 
     echo "Usage: $0 raiddp/raid6/archive/plain dir_test_files eos_rain_dir tmp_dir"
     exit 1

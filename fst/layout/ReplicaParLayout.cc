@@ -71,7 +71,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
     replica_index = atoi(index);
 
     if ((replica_index < 0) ||
-        (replica_index > eos::common::LayoutId::kSixteenStripe)) {
+        (replica_index > 255)) {
       eos_err("illegal replica index %d", replica_index);
       return gOFS.Emsg("ReplicaPar::Open", *mError, EINVAL,
                        "open replica - illegal replica index found", index);
@@ -89,7 +89,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
     replica_head = atoi(head);
 
     if ((replica_head < 0) ||
-        (replica_head > eos::common::LayoutId::kSixteenStripe)) {
+        (replica_head > 255)) {
       eos_err("illegal replica head %d", replica_head);
       return gOFS.Emsg("ReplicaParOpen", *mError, EINVAL,
                        "open replica - illegal replica head found", head);

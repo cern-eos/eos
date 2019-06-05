@@ -1366,20 +1366,34 @@ if [ $NUM_FST -ge 6 ]; then
    runtest "### Attr      " unix 0 "" eos attr set sys.forced.layout=raid6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6"
    runtest "### Attr      " unix 0 "" eos attr set sys.forced.nstripes=6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6"
 
+   # Qrain test (4 parity stripes ) 
+   runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain"
+   runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain"
+   runtest "### Attr      " unix 0 "" eos attr set sys.forced.checksum=crc32c "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain"
+   runtest "### Attr      " unix 0 "" eos attr set sys.forced.blockchecksum=crc32c "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain"
+   runtest "### Attr      " unix 0 "" eos attr set sys.forced.blocksize=1M "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain"
+   runtest "### Attr      " unix 0 "" eos attr set sys.forced.layout=qrain "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain"
+   runtest "### Attr      " unix 0 "" eos attr set sys.forced.nstripes=6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain"
+   
+
    runtest "### RaiddpTest " unix 0 "" eos_rain "raiddp" "$EOS_TEST_RAIN_DIR" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp" "$EOS_TEST_RAIN_TMP"
    # Sleep two seconds between the tests as disabling/enabling a FST is not that fast
    sleep 2
    runtest "### Raid6Test  " unix 0 "" eos_rain "raid6" "$EOS_TEST_RAIN_DIR" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6" "$EOS_TEST_RAIN_TMP"
+   sleep 2
+   runtest "### QrainTest  " unix 0 "" eos_rain "qrain" "$EOS_TEST_RAIN_DIR" "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain" "$EOS_TEST_RAIN_TMP"
    sleep 2
 
    # Run the eos-io-test for sequential and non-streaming IO against the RAIN
    # directories
    runtest "### EosIoRaiddp  " unix 0 "" eos_io "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp" "$EOS_TEST_RAIN_DIR"
    runtest "### EosIoRaid6   " unix 0 "" eos_io "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6" "$EOS_TEST_RAIN_DIR"
+   runtest "### EosIoQrain   " unix 0 "" eos_io "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain" "$EOS_TEST_RAIN_DIR"
 
    # Clean up the files used for the RAIN test
    runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp"
    runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6"
+   runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain"
    rm -rf $EOS_TEST_RAIN_TMP
 else
   echo "Can not run RAIN test - not enough FSTs!"

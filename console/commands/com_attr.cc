@@ -211,6 +211,37 @@ com_attr(char* arg1)
         return (0);
       }
 
+      if (value == "raid5") {
+        XrdOucString d1 = optionstring;
+        d1 += "set ";
+        d1 += "sys.forced.blocksize=1M ";
+        d1 += path;
+        XrdOucString d2 = optionstring;
+        d2 += "set ";
+        d2 += "sys.forced.checksum=adler ";
+        d2 += path;
+        XrdOucString d3 = optionstring;
+        d3 += "set ";
+        d3 += "sys.forced.layout=raid5 ";
+        d3 += path;
+        XrdOucString d4 = optionstring;
+        d4 += "set ";
+        d4 += "sys.forced.nstripes=5 ";
+        d4 += path;
+        XrdOucString d5 = optionstring;
+        d5 += "set ";
+        d5 += "sys.forced.space=default ";
+        d5 += path;
+        XrdOucString d6 = optionstring;
+        d6 += "set ";
+        d6 += "sys.forced.blockchecksum=crc32c ";
+        d6 += path;
+        global_retc = com_attr((char*) d1.c_str()) || com_attr((char*) d2.c_str()) ||
+                      com_attr((char*) d3.c_str()) || com_attr((char*) d4.c_str()) ||
+                      com_attr((char*) d5.c_str()) || com_attr((char*) d6.c_str());
+        return (0);
+      }
+
       if (value == "raid6") {
         XrdOucString d1 = optionstring;
         d1 += "set ";
@@ -258,6 +289,37 @@ com_attr(char* arg1)
         XrdOucString d4 = optionstring;
         d4 += "set ";
         d4 += "sys.forced.nstripes=8 ";
+        d4 += path;
+        XrdOucString d5 = optionstring;
+        d5 += "set ";
+        d5 += "sys.forced.space=default ";
+        d5 += path;
+        XrdOucString d6 = optionstring;
+        d6 += "set ";
+        d6 += "sys.forced.blockchecksum=crc32c ";
+        d6 += path;
+        global_retc = com_attr((char*) d1.c_str()) || com_attr((char*) d2.c_str()) ||
+                      com_attr((char*) d3.c_str()) || com_attr((char*) d4.c_str()) ||
+                      com_attr((char*) d5.c_str()) || com_attr((char*) d6.c_str());
+        return (0);
+      }
+
+      if (value == "qrain") {
+        XrdOucString d1 = optionstring;
+        d1 += "set ";
+        d1 += "sys.forced.blocksize=1M ";
+        d1 += path;
+        XrdOucString d2 = optionstring;
+        d2 += "set ";
+        d2 += "sys.forced.checksum=adler ";
+        d2 += path;
+        XrdOucString d3 = optionstring;
+        d3 += "set ";
+        d3 += "sys.forced.layout=qrain ";
+        d3 += path;
+        XrdOucString d4 = optionstring;
+        d4 += "set ";
+        d4 += "sys.forced.nstripes=12 ";
         d4 += path;
         XrdOucString d5 = optionstring;
         d5 += "set ";
@@ -349,7 +411,7 @@ com_attr_usage:
   fprintf(stdout,
           "                                                : set attributes of path (-r recursive)\n");
   fprintf(stdout,
-          "attr [-r] set default=replica|raiddp|raid6|archive <path> :\n");
+          "attr [-r] set default=replica|raiddp|raid5|raid6|archive|qrain <path> :\n");
   fprintf(stdout,
           "                                                : set attributes of path (-r recursive) to the EOS defaults for replicas,dual-parity-raid (4+2), raid-6 (4+2) or archive layouts (5+3).\n");
   //  fprintf(stdout,"attr [-r] set default=reeds <path> :\n");
@@ -387,7 +449,7 @@ com_attr_usage:
           "         sys.forced.group=<group>              : enforces to use <group>, where <group> is the numerical index of <space>.<n>    [configuration dependend]\n");
   //  fprintf(stdout,"         sys.forced.layout=<layout>            : enforces to use <layout>   [<layout>=(plain,replica,raiddp,reeds)]\n");
   fprintf(stdout,
-          "         sys.forced.layout=<layout>            : enforces to use <layout>   [<layout>=(plain,replica)]\n");
+          "         sys.forced.layout=<layout>            : enforces to use <layout>   [<layout>=(plain,replica,raid5,raid6,archive,qrain)]\n");
   fprintf(stdout,
           "         sys.forced.checksum=<checksum>        : enforces to use file-level checksum <checksum>\n");
   fprintf(stdout,
@@ -567,6 +629,10 @@ com_attr_usage:
           "--------------------------------------------------------------------------------\n");
   fprintf(stdout, "- set ARCHIVE 5+3 as standard layout ...\n");
   fprintf(stdout, "     |eos> attr set default=archive /eos/instance/archive\n");
+  fprintf(stdout,
+          "--------------------------------------------------------------------------------\n");
+  fprintf(stdout, "- set QRAIN 8+4 as standard layout ...\n");
+  fprintf(stdout, "     |eos> attr set default=qrain /eos/instance/qrain\n");
   fprintf(stdout,
           "--------------------------------------------------------------------------------\n");
   fprintf(stdout,

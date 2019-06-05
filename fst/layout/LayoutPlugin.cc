@@ -78,8 +78,10 @@ LayoutPlugin::GetLayoutObject(XrdFstOfsFile* file,
                                 path, timeout, storeRecovery));
   }
 
-  if ((LayoutId::GetLayoutType(layoutId) == LayoutId::kRaid6) ||
-      (LayoutId::GetLayoutType(layoutId) == LayoutId::kArchive)) {
+  if ((LayoutId::GetLayoutType(layoutId) == LayoutId::kRaid5) ||
+      (LayoutId::GetLayoutType(layoutId) == LayoutId::kRaid6) ||
+      (LayoutId::GetLayoutType(layoutId) == LayoutId::kArchive) ||
+      (LayoutId::GetLayoutType(layoutId) == LayoutId::kQrain)) {
     return static_cast<Layout*>(new ReedSLayout(file, layoutId, client, error, path,
                                 timeout, storeRecovery));
   }

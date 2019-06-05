@@ -143,7 +143,7 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
     mPhysicalStripeIndex = atoi(index);
 
     if ((mPhysicalStripeIndex < 0) ||
-        (mPhysicalStripeIndex > eos::common::LayoutId::kSixteenStripe)) {
+        (mPhysicalStripeIndex > 255)) {
       eos_err("illegal stripe index %d", mPhysicalStripeIndex);
       errno = EINVAL;
       return SFS_ERROR;
@@ -157,7 +157,7 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
     mStripeHead = atoi(head);
 
     if ((mStripeHead < 0) ||
-        (mStripeHead > eos::common::LayoutId::kSixteenStripe)) {
+        (mStripeHead > 255)) {
       eos_err("illegal stripe head %d", mStripeHead);
       errno = EINVAL;
       return SFS_ERROR;

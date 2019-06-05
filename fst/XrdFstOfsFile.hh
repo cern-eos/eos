@@ -583,15 +583,6 @@ private:
   void* DoTpcTransfer();
 
   //----------------------------------------------------------------------------
-  //! Check if layout encoding indicates a RAIN layout
-  //!
-  //! @param lid layout id encoding
-  //!
-  //! @return true if RAIN layout, otherwise false
-  //----------------------------------------------------------------------------
-  static bool IsRainLayout(unsigned long long lid);
-
-  //----------------------------------------------------------------------------
   //! Extract logid from the opaque info i.e. mgm.logid
   //!
   //! @param opaque opaque info

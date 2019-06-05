@@ -134,8 +134,7 @@ RainFile::Open(const std::string& url,
 
         if (LayoutId::GetLayoutType(layout) == LayoutId::kRaidDP) {
           pRainFile = new RaidDpLayout(NULL, layout, NULL, NULL, "");
-        } else if ((LayoutId::GetLayoutType(layout) == LayoutId::kRaid6) ||
-                   (LayoutId::GetLayoutType(layout) == LayoutId::kArchive)) {
+        } else if ((LayoutId::IsRainLayout(layout))) {
           pRainFile = new ReedSLayout(NULL, layout, NULL, NULL, "");
         } else {
           eos_warning("unsupported PIO layout");
