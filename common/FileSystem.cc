@@ -251,6 +251,69 @@ const std::map<std::string, std::string>& FileSystemUpdateBatch::getLocalUpdates
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
+GroupLocator::GroupLocator() {}
+
+//------------------------------------------------------------------------------
+// Get group (space.index)
+//------------------------------------------------------------------------------
+std::string GroupLocator::getGroup() const {
+  return mGroup;
+}
+
+//------------------------------------------------------------------------------
+// Get space
+//------------------------------------------------------------------------------
+std::string GroupLocator::getSpace() const {
+  return mSpace;
+}
+
+//------------------------------------------------------------------------------
+// Get index
+//------------------------------------------------------------------------------
+int GroupLocator::getIndex() const {
+  return mIndex;
+}
+
+//------------------------------------------------------------------------------
+// Parse full group (space.index)
+//
+// NOTE: In case parsing fails, out will still be filled
+// with "description.0" to match legacy behaviour.
+//------------------------------------------------------------------------------
+bool GroupLocator::parseGroup(const std::string &description, GroupLocator &out) {
+  size_t dot = description.find(".");
+  if(dot == std::string::npos) {
+    out.mGroup = description;
+    out.mSpace = description;
+    out.mIndex = 0;
+
+    if(description != "spare") {
+      eos_static_crit("Unable to parse group: %s, assuming index is zero", description.c_str());
+      return false;
+    }
+
+    return true;
+  }
+
+  out.mGroup = description;
+  out.mSpace = std::string(description.c_str(), dot);
+
+  std::string index = std::string(description.begin()+dot+1, description.end());
+  int64_t idx;
+
+  if(!parseInt64(index, idx)) {
+    eos_static_crit("Could not parse integer index in group: %s", description.c_str());
+    out.mIndex = 0;
+    return false;
+  }
+
+  out.mIndex = idx;
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
 FileSystem::FileSystem(const FileSystemLocator &locator,
   XrdMqSharedObjectManager* som, qclient::SharedManager* qsom, bool bc2mgm)
 {
@@ -715,21 +778,11 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
     }
 
     fs.mPort = hash->Get("port");
-    std::string::size_type dpos = 0;
 
-    if ((dpos = fs.mGroup.find(".")) != std::string::npos) {
-      std::string s = fs.mGroup;
-      s.erase(0, dpos + 1);
-      fs.mGroupIndex = atoi(s.c_str());
-    } else {
-      fs.mGroupIndex = 0;
-    }
-
-    fs.mSpace = fs.mGroup;
-
-    if (dpos != std::string::npos) {
-      fs.mSpace.erase(dpos);
-    }
+    GroupLocator groupLocator;
+    GroupLocator::parseGroup(fs.mGroup, groupLocator);
+    fs.mSpace = groupLocator.getSpace();
+    fs.mGroupIndex = groupLocator.getIndex();
 
     fs.mPath = mPath;
     fs.mErrMsg = hash->Get("stat.errmsg");

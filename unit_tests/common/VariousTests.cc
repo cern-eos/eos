@@ -63,4 +63,36 @@ TEST(FileSystemLocator, ParsingFailure) {
   ASSERT_FALSE(FileSystemLocator::fromQueuePath("/eos/somehost.cern.ch:1096/fst/", locator));
 }
 
+TEST(GroupLocator, BasicSanity) {
+  GroupLocator locator;
+  ASSERT_TRUE(GroupLocator::parseGroup("default.1337", locator));
+  ASSERT_EQ(locator.getSpace(), "default");
+  ASSERT_EQ(locator.getIndex(), 1337);
+
+  ASSERT_TRUE(GroupLocator::parseGroup("spare", locator));
+  ASSERT_EQ(locator.getSpace(), "spare");
+  ASSERT_EQ(locator.getGroup(), "spare");
+  ASSERT_EQ(locator.getIndex(), 0);
+
+  ASSERT_FALSE(GroupLocator::parseGroup("aaa.bbb", locator));
+  ASSERT_EQ(locator.getSpace(), "aaa");
+  ASSERT_EQ(locator.getGroup(), "aaa.bbb");
+  ASSERT_EQ(locator.getIndex(), 0);
+
+  ASSERT_TRUE(GroupLocator::parseGroup("default.0", locator));
+  ASSERT_EQ(locator.getSpace(), "default");
+  ASSERT_EQ(locator.getGroup(), "default.0");
+  ASSERT_EQ(locator.getIndex(), 0);
+
+  ASSERT_FALSE(GroupLocator::parseGroup("onlyspace", locator));
+  ASSERT_EQ(locator.getSpace(), "onlyspace");
+  ASSERT_EQ(locator.getGroup(), "onlyspace");
+  ASSERT_EQ(locator.getIndex(), 0);
+
+  ASSERT_FALSE(GroupLocator::parseGroup("", locator));
+  ASSERT_EQ(locator.getSpace(), "");
+  ASSERT_EQ(locator.getGroup(), "");
+  ASSERT_EQ(locator.getIndex(), 0);
+}
+
 EOSCOMMONTESTING_END
