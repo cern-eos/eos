@@ -44,20 +44,60 @@ TEST(StringConversion, Seal_Unseal_Operation)
                StringConversion::UnsealXrdOpaque(expected).c_str());
 }
 
-TEST(GetSizeFromString, BasicSanity) {
+TEST(StringConversion, ChecksumTranslations)
+{
+  char buff[4];
+  buff[0] = 0xc2;
+  buff[1] = 0x3b;
+  buff[2] = 0x91;
+  buff[3] = 0x38;
+  ASSERT_TRUE(StringConversion::BinData2HexString(buff, 4, 4) == "c23b9138");
+  std::string in_buf;
+  in_buf.resize(4);
+  memcpy(&in_buf[0], &buff[0], 4);
+  ASSERT_TRUE(StringConversion::BinData2HexString
+              (in_buf, in_buf.capacity(), 4) == "c23b9138");
+  ASSERT_TRUE(StringConversion::BinData2HexString
+              (in_buf, in_buf.capacity(), 4, ' ') == "c2 3b 91 38");
+  size_t out_sz;
+  auto new_buff = StringConversion::Hex2BinDataChar("c23b9138", out_sz);
+  ASSERT_EQ(out_sz, 4);
+
+  for (size_t i = 0; i < out_sz; ++i) {
+    ASSERT_EQ(buff[i], new_buff.get()[i]);
+  }
+
+  // Wrongly specified checksum should be converted only partially
+  buff[0] = 0x2a;
+  buff[1] = 0x38;
+  buff[2] = 0x17;
+  buff[3] = 0x4b;
+  std::string wrong_xs {"2a38174be"}; // has 9 chars!
+  new_buff = StringConversion::Hex2BinDataChar(wrong_xs, out_sz);
+  ASSERT_EQ(out_sz, 4);
+
+  for (size_t i = 0; i < out_sz; ++i) {
+    ASSERT_EQ(buff[i], new_buff.get()[i]);
+  }
+
+  ASSERT_FALSE(StringConversion::BinData2HexString(buff, 4, 4) == wrong_xs);
+  ASSERT_TRUE(StringConversion::BinData2HexString(buff, 4, 4) == "2a38174b");
+}
+
+TEST(GetSizeFromString, BasicSanity)
+{
   uint64_t out;
   ASSERT_TRUE(StringConversion::GetSizeFromString("5", out));
   ASSERT_EQ(out, 5);
-
   ASSERT_TRUE(StringConversion::GetSizeFromString("5M", out));
   ASSERT_EQ(out, 5000000);
-
   ASSERT_TRUE(StringConversion::GetSizeFromString("9k", out));
   ASSERT_EQ(out, 9000);
-
   // Bug, this should be false :(
   ASSERT_TRUE(StringConversion::GetSizeFromString("pickles", out));
   ASSERT_EQ(out, 0);
 }
+
+
 
 EOSCOMMONTESTING_END

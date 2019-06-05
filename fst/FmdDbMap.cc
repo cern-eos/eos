@@ -921,6 +921,9 @@ FmdDbMapHandler::ResyncDisk(const char* path,
     memset(xs_val, 0, sizeof(xs_val));
     xs_len = SHA_DIGEST_LENGTH;
 
+    // @todo(esindril) update the diskchecksum from the localdb with the
+    // scan checksum if available
+
     if (io->attrGet("user.eos.checksum", xs_val, xs_len)) {
       xs_len = 0;
     }
