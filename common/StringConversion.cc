@@ -195,12 +195,89 @@ StringConversion::char_to_hex(const char input)
   return output;
 }
 
+
+//------------------------------------------------------------------------------
+// Convert binary string to hex string representation
+//------------------------------------------------------------------------------
+std::string
+StringConversion::BinData2HexString(const std::string& buf,
+                                    const size_t buf_len,
+                                    const size_t nominal_len, const char separator)
+{
+  return BinData2HexString(buf.data(), buf_len, nominal_len, separator);
+}
+
+
+//------------------------------------------------------------------------------
+// Convert binary string given as a char* and length to hex string representation
+//------------------------------------------------------------------------------
+std::string
+StringConversion::BinData2HexString(const char* buf, const size_t buf_len,
+                                    const size_t nominal_len,
+                                    const char separator)
+{
+  std::string out;
+
+  if (buf_len == 0) {
+    return out;
+  }
+
+  char hb[4];
+
+  for (size_t i = 0; i < nominal_len; ++i) {
+    unsigned char target = 0x00;
+
+    if (i < buf_len) {
+      target = buf[i];
+    }
+
+    if ((separator != 0x00) && (i != (nominal_len - 1))) {
+      sprintf(hb, "%02x%c", target, separator);
+    } else {
+      sprintf(hb, "%02x", target);
+    }
+
+    out += hb;
+  }
+
+  return out;
+}
+
+//------------------------------------------------------------------------------
+// Convert checksum hex representation to binary string
+//------------------------------------------------------------------------------
+std::unique_ptr<char>
+StringConversion::Hex2BinDataChar(const std::string& shex, size_t& out_size)
+{
+  out_size = 0;
+  std::unique_ptr<char> buf {new char[SHA_DIGEST_LENGTH]};
+
+  if ((buf == nullptr) || shex.empty()) {
+    return nullptr;
+  }
+
+  memset(buf.get(), 0, SHA_DIGEST_LENGTH);
+  char hex[3];
+
+  for (size_t i = 0;
+       ((i < shex.length() - 1) && (i / 2 < SHA_DIGEST_LENGTH)); i += 2) {
+    hex[0] = shex.at(i);
+    hex[1] = shex.at(i + 1);
+    hex[2] = '\0';
+    buf.get()[i / 2] = std::stol(hex, 0, 16);
+    ++out_size;
+  }
+
+  return buf;
+}
+
 //----------------------------------------------------------------------------
 //! Get size from the given string, return true if parsing was successful,
 //! false otherwise
 //----------------------------------------------------------------------------
 bool
-StringConversion::GetSizeFromString(const std::string& sizestring, uint64_t &out)
+StringConversion::GetSizeFromString(const std::string& sizestring,
+                                    uint64_t& out)
 {
   out = GetSizeFromString(sizestring.c_str());
   return (errno == 0);
@@ -638,11 +715,12 @@ StringConversion::LoadFileIntoString(const char* filename, std::string& out)
   return out.c_str();
 }
 
-// ---------------------------------------------------------------------------                                                                   
-// Save a string into  a text file <name>                                                                                                        
-// ---------------------------------------------------------------------------                                                                   
+// ---------------------------------------------------------------------------
+// Save a string into  a text file <name>
+// ---------------------------------------------------------------------------
 bool
-StringConversion::SaveStringIntoFile(const char* filename, const std::string& in)
+StringConversion::SaveStringIntoFile(const char* filename,
+                                     const std::string& in)
 {
   std::ofstream save(filename);
   save.write(in.c_str(), in.size());

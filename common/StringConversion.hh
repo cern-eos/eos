@@ -31,18 +31,21 @@
 
 #include "common/Namespace.hh"
 #include "XrdOuc/XrdOucString.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "fmt/format.h"
 #include <string>
 #include <vector>
 #include <algorithm>
 #include <map>
 #include <set>
+#include <memory>
 #include <stdio.h>
 #include <limits.h>
 #include <errno.h>
 #include <string.h>
 #include <fstream>
 #include <sstream>
+#include <openssl/sha.h>
 
 typedef void CURL;
 
@@ -105,6 +108,44 @@ public:
   // ---------------------------------------------------------------------------
   static std::string string_to_hex(const std::string& input);
   static std::string char_to_hex(const char input);
+
+  //----------------------------------------------------------------------------
+  //! Convert binary string to hex string representation. See description below.
+  //----------------------------------------------------------------------------
+  static std::string
+  BinData2HexString(const std::string& buf,
+                    const size_t buf_len = SHA_DIGEST_LENGTH,
+                    const size_t nominal_len = SHA_DIGEST_LENGTH,
+                    const char separator = 0x00);
+
+  //----------------------------------------------------------------------------
+  //! Convert binary string given as a char* and length to hex string
+  //! representation
+  //!
+  //! @param buf buffer holding the checksum in binary format
+  //! @param buf_len size of the checksum buffer
+  //! @param nominal_len expected size of the checksum in bytes
+  //! @param separator possible separator for the display of the converted
+  //!        string
+  //! @param return string holding the hex representation of the checksum or
+  //!        empty strin if nothing is converted
+  //----------------------------------------------------------------------------
+  static std::string
+  BinData2HexString(const char* buf, const size_t buf_len,
+                    const size_t nominal_len, const char separator = 0x00);
+
+
+  //----------------------------------------------------------------------------
+  //! Convert checksum hex representation to binary string
+  //!
+  //! @param shex string hex representation of checksum
+  //! @param out_size buffer size of the binary data
+  //!
+  //! @return array of chars holding the binary data representaion of the
+  //!         checksum or nullptr if there were any errors
+  //----------------------------------------------------------------------------
+  static std::unique_ptr<char>
+  Hex2BinDataChar(const std::string& shex, size_t& out_size);
 
   // ---------------------------------------------------------------------------
   /**
@@ -180,7 +221,7 @@ public:
   //! Get size from the given string, return true if parsing was successful,
   //! false otherwise
   //----------------------------------------------------------------------------
-  static bool GetSizeFromString(const std::string& sizestring, uint64_t &out);
+  static bool GetSizeFromString(const std::string& sizestring, uint64_t& out);
 
   // ---------------------------------------------------------------------------
   /**
@@ -409,7 +450,7 @@ public:
 
   // ---------------------------------------------------------------------------
   /**
-   * Save a string into  a text file <name> 
+   * Save a string into  a text file <name>
    *
    * @param filename where to save the contents
    * @param in string with the contents
