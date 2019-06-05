@@ -214,6 +214,7 @@ add_library(
   Stat.cc
   Iostat.cc
   Fsck.cc
+  fsck/FsckEntry.cc
   utils/FileSystemRegistry.cc                  utils/FileSystemRegistry.hh
   utils/FilesystemUuidMapper.cc                utils/FilesystemUuidMapper.hh
   txengine/TransferEngine.cc
