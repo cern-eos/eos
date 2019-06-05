@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "mgm/fsck/Fsck.hh"
+#include "mgm/fsck/FsckEntry.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
