@@ -39,66 +39,6 @@
 void com_fileinfo_help();
 
 //------------------------------------------------------------------------------
-//! Convert an FST env representation to an Fmd struct
-//!
-//! @param env env representation
-//! @param fmd reference to Fmd struct
-//!
-//! @return true if successful otherwise false
-//------------------------------------------------------------------------------
-bool
-EnvFstToFmd(XrdOucEnv& env, struct eos::fst::Fmd& fmd)
-{
-  // Check that all tags are present
-  if (!env.Get("id") ||
-      !env.Get("cid") ||
-      !env.Get("ctime") ||
-      !env.Get("ctime_ns") ||
-      !env.Get("mtime") ||
-      !env.Get("mtime_ns") ||
-      !env.Get("size") ||
-      !env.Get("lid") ||
-      !env.Get("uid") ||
-      !env.Get("gid")) {
-    return false;
-  }
-
-  fmd.set_fid(strtoull(env.Get("id"), 0, 10));
-  fmd.set_cid(strtoull(env.Get("cid"), 0, 10));
-  fmd.set_ctime(strtoul(env.Get("ctime"), 0, 10));
-  fmd.set_ctime_ns(strtoul(env.Get("ctime_ns"), 0, 10));
-  fmd.set_mtime(strtoul(env.Get("mtime"), 0, 10));
-  fmd.set_mtime_ns(strtoul(env.Get("mtime_ns"), 0, 10));
-  fmd.set_size(strtoull(env.Get("size"), 0, 10));
-  fmd.set_lid(strtoul(env.Get("lid"), 0, 10));
-  fmd.set_uid((uid_t) strtoul(env.Get("uid"), 0, 10));
-  fmd.set_gid((gid_t) strtoul(env.Get("gid"), 0, 10));
-
-  if (env.Get("checksum")) {
-    fmd.set_checksum(env.Get("checksum"));
-
-    if (fmd.checksum() == "none") {
-      fmd.set_checksum("");
-    }
-  } else {
-    fmd.set_checksum("");
-  }
-
-  if (env.Get("diskchecksum")) {
-    fmd.set_diskchecksum(env.Get("diskchecksum"));
-
-    if (fmd.diskchecksum() == "none") {
-      fmd.set_diskchecksum("");
-    }
-  } else {
-    fmd.set_diskchecksum("");
-  }
-
-  return true;
-}
-
-
-//------------------------------------------------------------------------------
 //! Return a remote file attribute
 //!
 //! @param manager host:port of the server to contact
@@ -240,7 +180,7 @@ GetRemoteFmdFromLocalDb(const char* manager, const char* shexfid,
   // get the remote file meta data into an env hash
   XrdOucEnv fmdenv(response->GetBuffer());
 
-  if (!EnvFstToFmd(fmdenv, fmd)) {
+  if (!eos::fst::EnvToFstFmd(fmdenv, fmd)) {
     int envlen;
     eos_static_err("Failed to unparse file meta data %s", fmdenv.Env(envlen));
     delete response;
@@ -738,7 +678,8 @@ com_file(char* arg1)
     // TODO: all this is silly and should be properly re-written
     if (fsid1.length()) {
       if ((fsid1 != "-checksum") && (fsid1 != "-commitchecksum") &&
-          (fsid1 != "-commitsize") && (fsid1 != "-commitfmd") && (fsid1 != "-rate") && (fsid1 != "-resync")) {
+          (fsid1 != "-commitsize") && (fsid1 != "-commitfmd") && (fsid1 != "-rate") &&
+          (fsid1 != "-resync")) {
         if (fsid1.beginswith("-")) {
           goto com_file_usage;
         }
@@ -789,8 +730,8 @@ com_file(char* arg1)
         } else if (elem == "-rate") {
           in += "&mgm.file.verify.rate=";
         } else if (elem == "-resync") {
-	  in += "&mgm.file.resync=1";
-	} else {
+          in += "&mgm.file.resync=1";
+        } else {
           goto com_file_usage;
         }
       }
@@ -1160,7 +1101,6 @@ com_file_usage:
           "file replicate [<path>|fid:<fid-dec>|fxid:<fid-hex>] <fsid1> <fsid2> :\n");
   fprintf(stdout,
           "                                                  replicate file <path> part on <fsid1> to <fsid2>\n");
-
   fprintf(stdout, "file symlink <name> <link-name> :\n");
   fprintf(stdout,
           "                                                  create a symlink with <name> pointing to <link-name>\n");
@@ -1177,9 +1117,9 @@ com_file_usage:
   fprintf(stdout,
           "                                                  verify a file against the disk images\n");
   fprintf(stdout,
-	  "file verify <path|fid:<fid-dec>|fxid:<fid-hex> -resync : \n");
+          "file verify <path|fid:<fid-dec>|fxid:<fid-hex> -resync : \n");
   fprintf(stdout,
-	  "                                                  ask all locations to resync their file md records\n");
+          "                                                  ask all locations to resync their file md records\n");
   fprintf(stdout,
           "       <fsid>          : verifies only the replica on <fsid>\n");
   fprintf(stdout,

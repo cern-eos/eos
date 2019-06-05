@@ -26,6 +26,16 @@
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+//! Convert an FST env representation to an Fmd struct
+//!
+//! @param env env representation
+//! @param fmd reference to Fmd struct
+//!
+//! @return true if successful, otherwise false
+//------------------------------------------------------------------------------
+bool EnvToFstFmd(XrdOucEnv& env, struct Fmd& fmd);
+
+//------------------------------------------------------------------------------
 //! Structure holding file metadata
 //------------------------------------------------------------------------------
 struct Fmd : public FmdBase {
