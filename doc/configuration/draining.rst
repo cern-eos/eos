@@ -472,10 +472,10 @@ you can drop all files on a particular filesystem using **eos fs dropfiles**.
 If you use the '-f' flag all references to these files will be removed immediately
 and EOS won't try to delete any file anymore.
 
-.. code-block:: bash
+.. code-block:: console
 
    EOS Console [root://localhost] |/> fs dropfiles 170 -f
-   Do you really want to delete ALL 24 replica\'s from filesystem 170 ?
+   Do you really want to delete ALL 24 replica's from filesystem 170 ?
    Confirm the deletion by typing => 1434841745
    => 1434841745
 

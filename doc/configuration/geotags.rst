@@ -28,12 +28,12 @@ Client Tagging
 To optimise the network path it is not enough to tag only the storage server. EOS allows you to define IP prefixes to match a client
 to a certain location. This is done via the **vid** command:
 
-.. code-block:: bash
+.. code-block:: console
 
    eos vid -h
    ... 
-   vid set geotag <IP-prefix> <geotag>  : add to all IP\'s matching the prefix <prefix> the geo location tag <geotag>
-                                          N.B. specify the default assumption via \'vid set geotag default <default-tag>\'
+   vid set geotag <IP-prefix> <geotag>  : add to all IP's matching the prefix <prefix> the geo location tag <geotag>
+                                          N.B. specify the default assumption via 'vid set geotag default <default-tag>'
 
 As an example we could define the default location to be CERN:
 

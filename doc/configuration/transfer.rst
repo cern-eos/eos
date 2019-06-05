@@ -33,7 +33,7 @@ As a first overview we refer to the usage information of the EOS cp command.
 Currently the support of copy full directory trees is only supported for EOS 
 type storage systems.
 
-.. code-block:: bash
+.. code-block:: console
 
    Usage: cp [--async] [--rate=<rate>] [--streams=<n>] [--recursive|-R|-r] [-a] [-n] [-S] [-s|--silent] [-d] [--checksum] <src> <dst>
 
@@ -44,7 +44,7 @@ type storage systems.
    --rate          : limit the cp rate to <rate>
    --streams       : use <#> parallel streams
    --checksum      : output the checksums
-   -a              : append to the target, don\'t truncate
+   -a              : append to the target, don't truncate
    -n              : hide progress bar
    -S              : print summary
    -s --silent     : no output just return code
@@ -60,11 +60,11 @@ type storage systems.
 Examples
 --------
 
-.. code-block:: bash
+.. code-block:: console
 
    eos cp /var/data/myfile /eos/foo/user/data/                   : copy 'myfile' to /eos/foo/user/data/myfile
    eos cp /var/data/ /eos/foo/user/data/                         : copy all plain files in /var/data to /eos/foo/user/data/
-   eos cp -r /var/data/ /eos/foo/user/data/                      : copy the full hierarchy from /var/data/ to /var/data to /eos/foo/user/data/ => empty directories won\'t show up on the target!
+   eos cp -r /var/data/ /eos/foo/user/data/                      : copy the full hierarchy from /var/data/ to /var/data to /eos/foo/user/data/ => empty directories won't show up on the target!
    eos cp -r --checksum --silent /var/data/ /eos/foo/user/data/  : copy the full hierarchy and just printout the checksum information for each file copied!
 
 S3
