@@ -231,6 +231,11 @@ public:
   std::string getQueuePath() const;
 
   //----------------------------------------------------------------------------
+  //! Get "FST queue", ie /eos/example.com:3002/fst
+  //----------------------------------------------------------------------------
+  std::string getFSTQueue() const;
+
+  //----------------------------------------------------------------------------
   //! Get local path
   //----------------------------------------------------------------------------
   std::string getLocalPath() const;
@@ -409,7 +414,7 @@ public:
   //!                  key-value pairs
   //! @param bc2mgm   If true we broad cast to the management server
   //----------------------------------------------------------------------------
-  FileSystem(const FileSystemLocator &locator, const char* queue,
+  FileSystem(const FileSystemLocator &locator,
              XrdMqSharedObjectManager* som, qclient::SharedManager* qsom,
              bool bc2mgm = false);
 

@@ -61,7 +61,7 @@ public:
   //-----------------------------------------------------------------------------
   //! Constructor
   //-----------------------------------------------------------------------------
-  FileSystem(const common::FileSystemLocator &locator, const char* queue,
+  FileSystem(const common::FileSystemLocator &locator,
              XrdMqSharedObjectManager* som, qclient::SharedManager *qsom);
 
   //-----------------------------------------------------------------------------

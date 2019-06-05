@@ -49,6 +49,7 @@ TEST(FileSystemLocator, BasicSanity) {
 
   ASSERT_EQ(locator.getHostPort(), "somehost.cern.ch:1095");
   ASSERT_EQ(locator.getQueuePath(), "/eos/somehost.cern.ch:1095/fst/data05");
+  ASSERT_EQ(locator.getFSTQueue(), "/eos/somehost.cern.ch:1095/fst");
   ASSERT_EQ(locator.getTransientChannel(), "filesystem-transient||somehost.cern.ch:1095||/data05");
 }
 

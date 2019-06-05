@@ -120,6 +120,13 @@ std::string FileSystemLocator::getQueuePath() const {
 }
 
 //------------------------------------------------------------------------------
+// Get "FST queue", ie /eos/example.com:3002/fst
+//------------------------------------------------------------------------------
+std::string FileSystemLocator::getFSTQueue() const {
+  return SSTR("/eos/" << host << ":" << port << "/fst");
+}
+
+//------------------------------------------------------------------------------
 // Get port
 //------------------------------------------------------------------------------
 int FileSystemLocator::getPort() const {
@@ -244,14 +251,12 @@ const std::map<std::string, std::string>& FileSystemUpdateBatch::getLocalUpdates
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileSystem::FileSystem(const FileSystemLocator &locator, const char* queue,
+FileSystem::FileSystem(const FileSystemLocator &locator,
   XrdMqSharedObjectManager* som, qclient::SharedManager* qsom, bool bc2mgm)
 {
-  eos_static_info("queuepath: %s, queue: %s", locator.getQueuePath().c_str(), queue);
-
   mSharedManager = qsom;
   mQueuePath = locator.getQueuePath();
-  mQueue = queue;
+  mQueue = locator.getFSTQueue();
   mPath = locator.getLocalPath();
   mSom = som;
   mInternalBootStatus = BootStatus::kDown;
@@ -261,7 +266,7 @@ FileSystem::FileSystem(const FileSystemLocator &locator, const char* queue,
   cActiveTime = 0;
   cStatusTime = 0;
   cConfigTime = 0;
-  std::string broadcast = queue;
+  std::string broadcast = locator.getFSTQueue();
 
   if (bc2mgm) {
     broadcast = "/eos/*/mgm";
