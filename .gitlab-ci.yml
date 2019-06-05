@@ -138,6 +138,7 @@ before_script:
     # - docker exec -i eos-client1-test python /eosclient-tests/run.py --workdir="/eos_fuse/dockertest /eos_fuse2/dockertest" ci
   <<: *system_test_after_script_template
   artifacts:
+    when: on_failure
     expire_in: 3 days
     paths:
       - eos-logs/
@@ -166,6 +167,7 @@ before_script:
     - docker exec -i -u eos-user eos-client1-test python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci;
   <<: *system_test_after_script_template
   artifacts:
+    when: on_failure
     expire_in: 3 days
     paths:
       - eos-logs/
