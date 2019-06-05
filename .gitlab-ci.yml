@@ -248,6 +248,7 @@ before_script:
       fi
   <<: *k8s_after_script_template
   artifacts:
+    when: on_failure
     expire_in: 3 days
     paths:
       - eos-logs/
