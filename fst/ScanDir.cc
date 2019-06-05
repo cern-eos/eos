@@ -104,7 +104,7 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
   mRateBandwidth(ratebandwidth), mNumScannedFiles(0), mNumCorruptedFiles(0),
   mNumHWCorruptedFiles(0),  mTotalScanSize(0), mNumTotalFiles(0),
   mNumSkippedFiles(0), mSetChecksum(setchecksum), mBuffer(nullptr),
-  mBufferSize(0), mBgThread(bgthread), mForcedScan(false), mFakeClock(fake_clock),
+  mBufferSize(0), mBgThread(bgthread), mFakeClock(fake_clock),
   mClock(mFakeClock)
 {
   long alignment = pathconf((mDirPath[0] != '/') ? "/" : mDirPath.c_str(),
@@ -186,9 +186,7 @@ ScanDir::Run(ThreadAssistant& assistant) noexcept
     }
   }
 
-  UpdateForcedScan();
-
-  if (mBgThread && !mForcedScan) {
+  if (mBgThread) {
     // Get a random smearing and avoid that all start at the same time! 0-4 hours
     size_t sleeper = (1.0 * mRerunIntervalSec * random() / RAND_MAX);
     assistant.wait_for(seconds(sleeper));
@@ -197,7 +195,6 @@ ScanDir::Run(ThreadAssistant& assistant) noexcept
   while (!assistant.terminationRequested()) {
     mNumScannedFiles =  mTotalScanSize =  mNumCorruptedFiles = 0;
     mNumHWCorruptedFiles =  mNumTotalFiles = mNumSkippedFiles = 0;
-    UpdateForcedScan();
     auto start_ts = mClock.getTime();
     // Do the heavy work
     ScanSubtree(assistant);
@@ -219,18 +216,14 @@ ScanDir::Run(ThreadAssistant& assistant) noexcept
     }
 
     if (mBgThread) {
-      if (!mForcedScan) {
-        // Run again after (default) 4 hours
-        assistant.wait_for(std::chrono::seconds(mRerunIntervalSec));
-      } else {
-        // Call the ghost entry clean-up function
-        // @todo(esindril): this should be removed and done on demand when
-        // requested by and admin. We should also drop the mForcedScan flag.
-        eos_notice("msg=\"cleaning ghost entries\" dir=%s fsid=%d",
-                   mDirPath.c_str(), mFsId);
-        gFmdDbMapHandler.RemoveGhostEntries(mDirPath.c_str(), mFsId);
-        assistant.wait_for(std::chrono::seconds(60));
-      }
+      // Run again after (default) 4 hours
+      assistant.wait_for(std::chrono::seconds(mRerunIntervalSec));
+      // @todo(esindril): this will not be needed anymore once we drop the
+      // local db. If needed we could add it as an individual command
+      // Call the ghost entry clean-up function
+      // eos_notice("msg=\"cleaning ghost entries\" dir=%s fsid=%d",
+      //            mDirPath.c_str(), mFsId);
+      // gFmdDbMapHandler.RemoveGhostEntries(mDirPath.c_str(), mFsId);
     } else {
       break;
     }
@@ -331,12 +324,11 @@ ScanDir::CheckFile(const std::string& fpath)
     xs_stamp_sec.erase(10);
   }
 
-  bool rescan = DoRescan(xs_stamp_sec);
   bool was_healthy = (previous_xs_err == "0");
   // Check if this file has been modified since the last time we scanned it
   bool didnt_change = (buf1.st_mtime < atoll(xs_stamp_sec.c_str()));
 
-  if (rescan || mForcedScan) {
+  if (DoRescan(xs_stamp_sec)) {
     bool blockxs_err = false;
     bool filexs_err = false;
     bool skip_settime = false;
@@ -672,30 +664,6 @@ ScanDir::EnforceAndAdjustScanRate(const off_t offset,
       }
     } else {
       scan_rate = mRateBandwidth;
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
-// Update the forced scan flag based on the existence of the .eosscan file
-// on the FST mountpoint
-//------------------------------------------------------------------------------
-void
-ScanDir::UpdateForcedScan()
-{
-  struct stat buf;
-  std::string forcedrun = mDirPath.c_str();
-  forcedrun += "/.eosscan";
-
-  if (!stat(forcedrun.c_str(), &buf)) {
-    if (!mForcedScan) {
-      mForcedScan = true;
-      LogMsg(LOG_NOTICE, "%s", "msg=\"scanner is in forced mode\"");
-    }
-  } else {
-    if (mForcedScan) {
-      mForcedScan = false;
-      LogMsg(LOG_NOTICE, "%s", "msg=\"scanner is back to non-forced mode\"");
     }
   }
 }
