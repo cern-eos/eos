@@ -178,12 +178,6 @@ public:
     }
   }
 
-  //----------------------------------------------------------------------------
-  //! Update the forced scan flag based on the existence of the .eosscan file
-  //! on the FST mountpoint
-  //----------------------------------------------------------------------------
-  void UpdateForcedScan();
-
   eos::fst::Load* mFstLoad; ///< Object for providing load information
   eos::common::FileSystem::fsid_t mFsId; ///< Corresponding file system id
   std::string mDirPath; ///< Root directory used by the scanner
@@ -205,7 +199,6 @@ public:
   char* mBuffer; ///< Buffer used for reading
   uint32_t mBufferSize; ///< Size of the reading buffer
   bool mBgThread; ///< If true running as background thread inside the FST
-  bool mForcedScan; ///< Mark if scanner is in force mode
   AssistedThread mThread; ///< Thread doing the scanning
   bool mFakeClock; ///< Mark if we're using a fake clock (testing)
   eos::common::SteadyClock mClock; ///< Clock wrapper also used for testing
