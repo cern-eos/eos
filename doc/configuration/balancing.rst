@@ -29,7 +29,7 @@ Balancing View and Configuration
 Each filesystem advertises the used volume and the central view allows to see 
 the deviation from the average filesystem usage in each group.
 
-.. code-block::bash
+.. code-block:: bash
 
    EOS Console [root://localhost] |/> group ls
    #---------------------------------------------------------------------------------------------------------------------
@@ -100,7 +100,7 @@ If balancing is enabled ....
 
 Groups which are balancing are shown via the **eos group ls** command:
 
-.. code-block:; bash
+.. code-block:: bash
 
    EOS Console [root://localhost] |/> group ls
    #---------------------------------------------------------------------------------------------------------------------
@@ -176,7 +176,7 @@ To see the usage difference within the group, one can inspect all the group file
  
 The scheduling activity for balancing can be monitored with the **eos ns ls** command:
 
-.. code-block::bash
+.. code-block:: bash
 
    EOS Console [root://localhost] |/> ns stat
    # ------------------------------------------------------------------------------------

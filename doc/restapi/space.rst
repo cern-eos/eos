@@ -156,7 +156,7 @@ REST syntax
 CLI syntax
 ++++++++++
 
-.. code-block::text
+.. code-block:: text
 
       space status <space-name>                                     : print's all defined variables for space
 
@@ -180,7 +180,7 @@ REST syntax
 CLI syntax
 ++++++++++
 
-.. code-block::text
+.. code-block:: text
 
       space set <space-name> on|off                                 : enables/disabels all groups under that space ( not the nodes !)
 
