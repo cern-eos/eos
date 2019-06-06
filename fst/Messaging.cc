@@ -187,7 +187,7 @@ Messaging::Process(XrdMqMessage* newmessage)
                     (unsigned long) fsid, fid);
         gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
       } else {
-        auto fMd = gFmdDbMapHandler.LocalGetFmd(fid, fsid, 0, 0, 0, 0, true);
+        auto fMd = gFmdDbMapHandler.LocalGetFmd(fid, fsid, true);
 
         if (fMd) {
           // force a resync of meta data from the MGM

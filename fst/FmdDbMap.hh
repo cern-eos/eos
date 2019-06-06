@@ -109,6 +109,17 @@ public:
                             std::string& fn_output);
 
   //----------------------------------------------------------------------------
+  //! Check if entry has a file checksum error
+  //!
+  //! @param lpath file local path
+  //! @param fsid file system identifier
+  //!
+  //! @return true if file has checksum error, otherwise false
+  //----------------------------------------------------------------------------
+  bool FileHasXsError(const std::string& lpath,
+                      eos::common::FileSystem::fsid_t fsid);
+
+  //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   FmdDbMapHandler();
@@ -155,20 +166,20 @@ public:
   //!
   //! @param fid file id
   //! @param fsid filesystem id
+  //! @param force_retrieve get object even in the presence of inconsistencies
+  //! @param do_create if true create a non-existing Fmd if needed
   //! @param uid user id of the caller
   //! @param gid group id of the caller
   //! @param layoutid layout id used to store during creation
-  //! @param do_create if true create a non-existing Fmd if needed
-  //! @param force_retrieve get object even in the presence of inconsistencies
   //!
   //! @return pointer to Fmd struct if successful, otherwise nullptr
   //----------------------------------------------------------------------------
   std::unique_ptr<FmdHelper>
   LocalGetFmd(eos::common::FileId::fileid_t fid,
               eos::common::FileSystem::fsid_t fsid,
-              uid_t uid, gid_t gid,
-              eos::common::LayoutId::layoutid_t layoutid,
-              bool do_create = false, bool force_retrieve = false);
+              bool force_retrieve = false, bool do_create = false,
+              uid_t uid = 0, gid_t gid = 0,
+              eos::common::LayoutId::layoutid_t layoutid = 0);
 
   //----------------------------------------------------------------------------
   //! Delete a record associated with fid and filesystem fsid

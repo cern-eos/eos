@@ -94,10 +94,8 @@ Storage::Verify()
     eos::common::FileId::FidPrefix2FullPath(hex_fid.c_str(),
                                             verifyfile->localPrefix.c_str(), fstPath);
     {
-      auto fMd = gFmdDbMapHandler.LocalGetFmd(verifyfile->fId, verifyfile->fsId, 0, 0,
-                                              0,
-                                              0,
-                                              true);
+      auto fMd = gFmdDbMapHandler.LocalGetFmd(verifyfile->fId,
+                                              verifyfile->fsId, true);
 
       if (fMd) {
         // force a resync of meta data from the MGM
@@ -125,9 +123,8 @@ Storage::Verify()
     // even if the stat failed, we run this code to tag the file as is ...
     // attach meta data
     bool localUpdate = false;
-    auto fMd = gFmdDbMapHandler.LocalGetFmd(verifyfile->fId, verifyfile->fsId, 0, 0,
-                                            0,
-                                            verifyfile->commitFmd, true);
+    auto fMd = gFmdDbMapHandler.LocalGetFmd(verifyfile->fId, verifyfile->fsId,
+                                            true, verifyfile->commitFmd);
 
     if (!fMd) {
       eos_static_err("unable to verify id=%x on fs=%u path=%s - no local MD stored",

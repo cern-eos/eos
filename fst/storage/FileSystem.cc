@@ -180,7 +180,7 @@ FileSystem::CleanTransactions()
         bool isOpen = gOFS.openedForWriting.isOpen(GetId(), fileid);
 
         if ((buf.st_mtime < (time(NULL) - (7 * 86400))) && (!isOpen)) {
-          auto fMd = gFmdDbMapHandler.LocalGetFmd(fileid, GetId(), 0, 0, 0, 0, true);
+          auto fMd = gFmdDbMapHandler.LocalGetFmd(fileid, GetId(), true);
 
           if (fMd) {
             size_t valid_loc;
