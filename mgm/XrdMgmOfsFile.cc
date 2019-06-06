@@ -1888,11 +1888,10 @@ XrdMgmOfsFile::open(const char* inpath,
               (selectedfs.size()),
               eos::common::LayoutId::GetBlocksizeType(layoutId),
               eos::common::LayoutId::GetBlockChecksum(layoutId));
-  unsigned long orig_type = eos::common::LayoutId::GetLayoutType(layoutId);
 
   // For RAIN layouts we need to keep the original number of stripes since this
   // is used to compute the different groups and block sizes in the FSTs
-  if ((eos::common::LayoutId::IsRainLayout(orig_type))) {
+  if ((eos::common::LayoutId::IsRainLayout(layoutId))) {
     eos::common::LayoutId::SetStripeNumber(new_lid,
                                            eos::common::LayoutId::GetStripeNumber(layoutId));
   }
