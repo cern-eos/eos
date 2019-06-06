@@ -217,10 +217,11 @@ DrainFs::SuccessfulDrain()
       // If drain done and the system is not shutting down then set the
       // file system to "empty" state
       batch.setLongLongLocal("stat.drainprogress", 100);
+      batch.setLongLongLocal("stat.drain.failed", 0);
       batch.setStringDurable("configstatus", "empty");
       FsView::gFsView.StoreFsConfig(fs);
     }
-
+    
     fs->applyBatch(batch);
   }
 }
