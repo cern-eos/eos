@@ -98,12 +98,12 @@ EOSFSTNAMESPACE_BEGIN
 ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
                  eos::fst::Load* fstload, bool bgthread,
                  long int file_rescan_interval, int ratebandwidth,
-                 bool setchecksum, bool fake_clock) :
+                 bool fake_clock) :
   mFstLoad(fstload), mFsId(fsid), mDirPath(dirpath),
   mRescanIntervalSec(file_rescan_interval), mRerunIntervalSec(4 * 3600),
   mRateBandwidth(ratebandwidth), mNumScannedFiles(0), mNumCorruptedFiles(0),
   mNumHWCorruptedFiles(0),  mTotalScanSize(0), mNumTotalFiles(0),
-  mNumSkippedFiles(0), mSetChecksum(setchecksum), mBuffer(nullptr),
+  mNumSkippedFiles(0), mBuffer(nullptr),
   mBufferSize(0), mBgThread(bgthread), mFakeClock(fake_clock),
   mClock(mFakeClock)
 {
@@ -279,8 +279,6 @@ void
 ScanDir::CheckFile(const std::string& fpath)
 {
   using eos::common::LayoutId;
-  unsigned long long scan_size {0ull};
-  std::string xs_stamp_sec, lfn, previous_xs_err;
   eos_debug("msg=\"running check file\" path=\"%s\"", fpath.c_str());
   std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(fpath.c_str()));
   ++mNumTotalFiles;
@@ -294,15 +292,7 @@ ScanDir::CheckFile(const std::string& fpath)
   }
 
 #ifndef _NOOFS
-  eos::common::Path cPath(fpath.c_str());
-  eos::common::FileId::fileid_t fid {0ull};
-
-  try {
-    fid = std::stoull(cPath.GetName(), 0, 16);
-  } catch (...) {
-    LogMsg(LOG_ERR, "msg=\"failed to extract fid\" path=%s", fpath.c_str());
-    return;
-  }
+  auto fid = eos::common::FileId::PathToFid(fpath.c_str());
 
   if (mBgThread) {
     if (gOFS.openedForWriting.isOpen(mFsId, fid)) {
@@ -315,8 +305,7 @@ ScanDir::CheckFile(const std::string& fpath)
   }
 
 #endif
-  io->attrGet("user.eos.lfn", lfn);
-  io->attrGet("user.eos.filecxerror", previous_xs_err);
+  std::string xs_stamp_sec;
   io->attrGet("user.eos.timestamp", xs_stamp_sec);
 
   // Handle the old format in microseconds, truncate to seconds
@@ -324,96 +313,89 @@ ScanDir::CheckFile(const std::string& fpath)
     xs_stamp_sec.erase(10);
   }
 
+  // If rescan not necessary just return
+  if (!DoRescan(xs_stamp_sec)) {
+    ++mNumSkippedFiles;
+    return;
+  }
+
+  std::string lfn, previous_xs_err;
+  io->attrGet("user.eos.lfn", lfn);
+  io->attrGet("user.eos.filecxerror", previous_xs_err);
   bool was_healthy = (previous_xs_err == "0");
-  // Check if this file has been modified since the last time we scanned it
+  // Flag if file has been modified since the last time we scanned it
   bool didnt_change = (buf1.st_mtime < atoll(xs_stamp_sec.c_str()));
+  bool blockxs_err = false;
+  bool filexs_err = false;
+  unsigned long long scan_size {0ull};
 
-  if (DoRescan(xs_stamp_sec)) {
-    bool blockxs_err = false;
-    bool filexs_err = false;
-    bool skip_settime = false;
+  if (!ScanFileLoadAware(io, scan_size, lfn, filexs_err, blockxs_err)) {
+    eos_err("msg=\"failed scan file\" path=%s", fpath.c_str());
+    return;
+  }
 
-    if (!ScanFileLoadAware(io, scan_size, lfn, filexs_err, blockxs_err)) {
-      bool reopened = false;
+  bool reopened = false;
 #ifndef _NOOFS
+
+  if (mBgThread) {
+    if (gOFS.openedForWriting.isOpen(mFsId, fid)) {
+      eos_err("msg=\"file reopened during the scan, ignore checksum error\" "
+              "path=%s", fpath.c_str());
+      reopened = true;
+    }
+  }
+
+#endif
+
+  // If the file was changed in the meanwhile or is reopened for update
+  // we leave it for a later scan
+  if (reopened || io->fileStat(&buf2) || (buf1.st_mtime != buf2.st_mtime)) {
+    LogMsg(LOG_ERR, "msg=\"[ScanDir] skip file modified during scan path=%s",
+           fpath.c_str());
+    return;
+  }
+
+  if (filexs_err) {
+    if (mBgThread) {
+      syslog(LOG_ERR, "corrupted file checksum path=%s lfn=%s\n",
+             fpath.c_str(), lfn.c_str());
+      eos_err("corrupted file checksum path=%s lfn=%s", fpath.c_str(),
+              lfn.c_str());
+    } else {
+      fprintf(stderr, "[ScanDir] corrupted file checksum path=%s lfn=%s\n",
+              fpath.c_str(), lfn.c_str());
+    }
+
+    if (was_healthy && didnt_change) {
+      ++mNumHWCorruptedFiles;
 
       if (mBgThread) {
-        if (gOFS.openedForWriting.isOpen(mFsId, fid)) {
-          eos_err("msg=\"file reopened during the scan, ignore checksum error\" "
-                  "path=%s", fpath.c_str());
-          reopened = true;
-        }
-      }
-
-#endif
-
-      // If not reopened and not modified then account any errors
-      if (!reopened &&
-          (!io->fileStat(&buf2)) && (buf1.st_mtime == buf2.st_mtime)) {
-        if (filexs_err) {
-          if (mBgThread) {
-            syslog(LOG_ERR, "corrupted file checksum path=%s lfn=%s\n",
-                   fpath.c_str(), lfn.c_str());
-            eos_err("corrupted file checksum path=%s lfn=%s", fpath.c_str(),
-                    lfn.c_str());
-          } else {
-            fprintf(stderr, "[ScanDir] corrupted file checksum path=%s lfn=%s\n",
-                    fpath.c_str(), lfn.c_str());
-          }
-
-          if (was_healthy && didnt_change) {
-            ++mNumHWCorruptedFiles;
-
-            if (mBgThread) {
-              syslog(LOG_ERR, "HW corrupted file found path=%s lfn=%s\n",
-                     fpath.c_str(), lfn.c_str());
-            } else {
-              fprintf(stderr, "HW corrupted file found path=%s lfn=%s\n",
-                      fpath.c_str(), lfn.c_str());
-            }
-          }
-        }
+        syslog(LOG_ERR, "HW corrupted file found path=%s lfn=%s\n",
+               fpath.c_str(), lfn.c_str());
       } else {
-        // If the file was changed in the meanwhile or is reopened for update
-        // we leave it for a later scan
-        blockxs_err = false;
-        filexs_err = false;
-        skip_settime = true;
-        LogMsg(LOG_ERR, "msg=\"[ScanDir] skip file modified during scan path=%s",
-               fpath.c_str());
+        fprintf(stderr, "HW corrupted file found path=%s lfn=%s\n",
+                fpath.c_str(), lfn.c_str());
       }
     }
+  }
 
-    // Collect statistics
-    mTotalScanSize += scan_size;
-    bool failed_set = false;
+  // Collect statistics
+  mTotalScanSize += scan_size;
 
-    if (!skip_settime) {
-      if (io->attrSet("user.eos.timestamp", GetTimestampSmearedSec())) {
-        failed_set |= true;
-      }
-    }
-
-    if ((io->attrSet("user.eos.filecxerror", filexs_err ? "1" : "0")) ||
-        (io->attrSet("user.eos.blockcxerror", blockxs_err ? "1" : "0"))) {
-      failed_set |= true;
-    }
-
-    if (failed_set) {
-      LogMsg(LOG_ERR, "msg=\"failed to set xattrs\" path=%s", fpath.c_str());
-    }
+  if ((io->attrSet("user.eos.filecxerror", filexs_err ? "1" : "0")) ||
+      (io->attrSet("user.eos.blockcxerror", blockxs_err ? "1" : "0")) ||
+      (io->attrSet("user.eos.timestamp", GetTimestampSmearedSec()))) {
+    LogMsg(LOG_ERR, "msg=\"failed to set xattrs\" path=%s", fpath.c_str());
+  }
 
 #ifndef _NOOFS
 
-    if (mBgThread) {
-      gFmdDbMapHandler.UpdateWithScanInfo(mFsId, mDirPath, fpath, filexs_err,
-                                          blockxs_err);
-    }
+  if (mBgThread) {
+    gFmdDbMapHandler.UpdateWithScanInfo(mFsId, mDirPath, fpath, filexs_err,
+                                        blockxs_err);
+  }
 
 #endif
-  } else {
-    ++mNumSkippedFiles;
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -584,31 +566,12 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
     normalXS->Finalize();
   }
 
-  bool ret = true;
-
   // Check file checksum only for replica layouts
   if (normalXS && (!normalXS->Compare(xs_val))) {
     LogMsg(LOG_ERR, "msg=\file checksum error\" expected_xs=%s computed_xs=%s "
            "scan_size=%llu", xs_val, normalXS->GetHexChecksum(), scan_size);
-
-    if (!mBgThread && mSetChecksum) {
-      int checksumlen = 0;
-      normalXS->GetBinChecksum(checksumlen);
-
-      if (io->attrSet("user.eos.checksum",
-                      normalXS->GetBinChecksum(checksumlen), checksumlen) ||
-          io->attrSet("user.eos.checksumhex", normalXS->GetHexChecksum()) ||
-          io->attrSet("user.eos.filecxerror", "0")) {
-        fprintf(stderr, "error: failed to reset existing checksum \n");
-      } else {
-        fprintf(stdout, "success: reset checksum of %s to %s\n",
-                file_path.c_str(), normalXS->GetHexChecksum());
-      }
-    }
-
     ++mNumCorruptedFiles;
     filexs_err = true;
-    ret = false;
   }
 
   // Check block checksum
@@ -621,8 +584,6 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
       syslog(LOG_ERR, "corrupted block checksum path=%s blockxs_path=%s.xsmap "
              "lfn=%s\n", file_path.c_str(), file_path.c_str(), lfn.c_str());
     }
-
-    ret &= false;
   }
 
   if (blockXS) {
@@ -630,7 +591,7 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
   }
 
   ++mNumScannedFiles;
-  return ret;
+  return true;
 }
 
 //------------------------------------------------------------------------------
