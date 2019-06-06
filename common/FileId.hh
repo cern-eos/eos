@@ -26,6 +26,7 @@
 #include "XrdOuc/XrdOucString.hh"
 #include <chrono>
 #include <cmath>
+#include <cstring>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -54,7 +55,7 @@ public:
   //----------------------------------------------------------------------------
   static unsigned long long Hex2Fid(const char* hexstring)
   {
-    if (hexstring) {
+    if (hexstring && strlen(hexstring)) {
       return strtoll(hexstring, 0, 16);
     } else {
       return 0;
