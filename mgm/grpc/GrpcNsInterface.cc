@@ -39,7 +39,7 @@ EOSMGMNAMESPACE_BEGIN
 
 #ifdef EOS_GRPC
 grpc::Status
-GrpcNsInterface::GetMD(eos::common::Mapping::VirtualIdentity_t& vid,
+GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
                        grpc::ServerWriter<eos::rpc::MDResponse>* writer,
                        const eos::rpc::MDRequest* request, bool check_perms)
 {
@@ -234,7 +234,7 @@ GrpcNsInterface::GetMD(eos::common::Mapping::VirtualIdentity_t& vid,
 }
 
 grpc::Status
-GrpcNsInterface::StreamMD(eos::common::Mapping::VirtualIdentity_t& vid,
+GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& vid,
                           grpc::ServerWriter<eos::rpc::MDResponse>* writer,
                           const eos::rpc::MDRequest* request)
 {
@@ -328,7 +328,7 @@ GrpcNsInterface::StreamMD(eos::common::Mapping::VirtualIdentity_t& vid,
 }
 
 bool
-GrpcNsInterface::Access(eos::common::Mapping::VirtualIdentity_t& vid, int mode,
+GrpcNsInterface::Access(eos::common::VirtualIdentity& vid, int mode,
                         std::shared_ptr<eos::IContainerMD> cmd)
 {
   // UNIX permissions
@@ -371,7 +371,7 @@ GrpcNsInterface::Access(eos::common::Mapping::VirtualIdentity_t& vid, int mode,
 }
 
 grpc::Status 
-GrpcNsInterface::FileInsert(eos::common::Mapping::VirtualIdentity_t& vid,
+GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
 			    eos::rpc::InsertReply* reply,
 			    const eos::rpc::FileInsertRequest* request)
 
@@ -386,9 +386,9 @@ GrpcNsInterface::FileInsert(eos::common::Mapping::VirtualIdentity_t& vid,
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   
   for (auto it : request->files()) {
-    eos_static_info("creating %s", it.path().c_str());
+    eos_static_info("creating path=%s id=%lx", it.path().c_str(), it.id());
     try {
-      newfile = gOFS->eosView->createFile(it.path(), it.uid(), it.gid());
+      newfile = gOFS->eosView->createFile(it.path(), it.uid(), it.gid(), it.id());
       
       eos::IFileMD::ctime_t ctime;
       eos::IFileMD::ctime_t mtime;
@@ -426,7 +426,7 @@ GrpcNsInterface::FileInsert(eos::common::Mapping::VirtualIdentity_t& vid,
 
 
 grpc::Status 
-GrpcNsInterface::ContainerInsert(eos::common::Mapping::VirtualIdentity_t& vid,
+GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
 			     eos::rpc::InsertReply* reply,
 			     const eos::rpc::ContainerInsertRequest* request)
 			    
@@ -441,9 +441,9 @@ GrpcNsInterface::ContainerInsert(eos::common::Mapping::VirtualIdentity_t& vid,
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   
   for (auto it : request->container()) {
-    eos_static_info("creating %s", it.path().c_str());
+    eos_static_info("creating path=%s id=%lx", it.path().c_str(), it.id());
     try {
-      newdir = gOFS->eosView->createContainer(it.path());
+      newdir = gOFS->eosView->createContainer(it.path(), false, it.id());
       
       eos::IContainerMD::ctime_t ctime;
       eos::IContainerMD::ctime_t mtime;

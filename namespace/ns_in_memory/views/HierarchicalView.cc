@@ -77,7 +77,7 @@ void HierarchicalView::initialize1()
   try {
     pRoot = pContainerSvc->getContainerMD(1);
   } catch (MDException& e) {
-    pRoot = pContainerSvc->createContainer();
+    pRoot = pContainerSvc->createContainer(0);
     pRoot->setParentId(pRoot->getId());
 
     if (!static_cast<ChangeLogContainerMDSvc*>(pContainerSvc)->getSlaveMode()) {
@@ -251,7 +251,7 @@ std::string HierarchicalView::getRealPath(const std::string& uri)
 // Create a file for given uri
 //----------------------------------------------------------------------------
 std::shared_ptr<IFileMD>
-HierarchicalView::createFile(const std::string& uri, uid_t uid, gid_t gid)
+HierarchicalView::createFile(const std::string& uri, uid_t uid, gid_t gid,  uint64_t fid)
 {
   if (uri == "/") {
     MDException e(EISDIR);
@@ -287,7 +287,7 @@ HierarchicalView::createFile(const std::string& uri, uid_t uid, gid_t gid)
     throw e;
   }
 
-  std::shared_ptr<IFileMD> file = pFileSvc->createFile();
+  std::shared_ptr<IFileMD> file = pFileSvc->createFile(fid);
 
   if (!file) {
     MDException e(EIO);
@@ -460,7 +460,7 @@ HierarchicalView::getContainer(const std::string& uri,
 // Create a container (directory)
 //----------------------------------------------------------------------------
 std::shared_ptr<IContainerMD>
-HierarchicalView::createContainer(const std::string& uri, bool createParents)
+HierarchicalView::createContainer(const std::string& uri, bool createParents, uint64_t cid)
 {
   // Split the path
   if (uri == "/") {
@@ -510,7 +510,7 @@ HierarchicalView::createContainer(const std::string& uri, bool createParents)
   // Create the container with all missing parent's if requires
   //--------------------------------------------------------------------------
   for (size_t i = position; i < elements.size(); ++i) {
-    std::shared_ptr<IContainerMD> newContainer = pContainerSvc->createContainer();
+    std::shared_ptr<IContainerMD> newContainer = pContainerSvc->createContainer((i == (elements.size()-1)? cid: 0));
     newContainer->setName(elements[i]);
     newContainer->setCTimeNow();
     lastContainer->addContainer(newContainer.get());

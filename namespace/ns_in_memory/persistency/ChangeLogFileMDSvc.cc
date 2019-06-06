@@ -1137,9 +1137,30 @@ folly::Future<bool> ChangeLogFileMDSvc::hasFileMD(const eos::FileIdentifier id)
 //------------------------------------------------------------------------------
 // Create new file metadata object
 //------------------------------------------------------------------------------
-std::shared_ptr<IFileMD> ChangeLogFileMDSvc::createFile()
+  std::shared_ptr<IFileMD> ChangeLogFileMDSvc::createFile(IFileMD::id_t id)
 {
-  std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(pFirstFreeId++, this);
+  if (id) {
+    // you can only create non-existant ids
+    bool exists=false;
+
+    try {
+      getFileMD(id,0);
+      exists=true;
+    } catch (MDException& e) {
+    }
+
+    if (exists) {
+      MDException e(EEXIST);
+      e.getMessage() << "File #" << id << " exists";
+      throw e;
+    }
+
+    if (id > pFirstFreeId) {
+      pFirstFreeId = id+1;
+    }
+  }
+
+  std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(id?id:pFirstFreeId++, this);
   pIdMap.insert(std::make_pair(file->getId(), DataInfo(0, file)));
   IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::Created);
   notifyListeners(&e);

@@ -64,7 +64,7 @@ This
     "krb5" : 1,
     "gsi-first" : 0,
     "sss" : 0,
-    "ssskeytab" : "/etc/eos/fuse.sss.keytab"
+    "ssskeytab" : "/etc/eos/fuse.sss.keytab",
     "environ-deadlock-timeout" : 100,
     "forknoexec-heuristic" : 1
   },

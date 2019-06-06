@@ -64,11 +64,11 @@ void ChangeLogContainerMDSvcTest::reloadTest()
     containerSvc->configure( config );
     containerSvc->initialize();
   
-    std::shared_ptr<eos::IContainerMD> container1 = containerSvc->createContainer();
-    std::shared_ptr<eos::IContainerMD> container2 = containerSvc->createContainer();
-    std::shared_ptr<eos::IContainerMD> container3 = containerSvc->createContainer();
-    std::shared_ptr<eos::IContainerMD> container4 = containerSvc->createContainer();
-    std::shared_ptr<eos::IContainerMD> container5 = containerSvc->createContainer();
+    std::shared_ptr<eos::IContainerMD> container1 = containerSvc->createContainer(0);
+    std::shared_ptr<eos::IContainerMD> container2 = containerSvc->createContainer(0);
+    std::shared_ptr<eos::IContainerMD> container3 = containerSvc->createContainer(0);
+    std::shared_ptr<eos::IContainerMD> container4 = containerSvc->createContainer(0);
+    std::shared_ptr<eos::IContainerMD> container5 = containerSvc->createContainer(0);
 
     eos::IContainerMD::id_t id = container1->getId();
 
@@ -104,7 +104,7 @@ void ChangeLogContainerMDSvcTest::reloadTest()
     container3->removeContainer( "subContainerLevel2-2" );
     containerSvc->removeContainer( container5.get() );
 
-    std::shared_ptr<eos::IContainerMD> container6 = containerSvc->createContainer();
+    std::shared_ptr<eos::IContainerMD> container6 = containerSvc->createContainer(0);
     container6->setName( "subContLevel2-3" );
     container3->addContainer( container6.get() );
     containerSvc->updateStore( container6.get() );

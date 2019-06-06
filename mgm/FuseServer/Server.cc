@@ -1476,7 +1476,7 @@ Server::OpSetDirectory(const std::string& id,
       // if ( (md.attr().find("user.acl") != md.attr().end()) && (xattrs.find("sys.eval.useracl") == xattrs.end()) ) {
       // return EPERM;
       // }
-      cmd = gOFS->eosDirectoryService->createContainer();
+      cmd = gOFS->eosDirectoryService->createContainer(0);
       cmd->setName(md.name());
       md_ino = cmd->getId();
       pcmd->addContainer(cmd.get());
@@ -1755,7 +1755,7 @@ Server::OpSetFile(const std::string& id,
       /* fmd is the target file corresponding to tgt_fid, gmd the file corresponding to new name */
       fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(
                                               tgt_md_ino));
-      std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->createFile();
+      std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->createFile(0);
       int nlink;
       nlink = (fmd->hasAttribute(k_nlink)) ? std::stoi(fmd->getAttribute(
                 k_nlink)) + 1 : 1;
@@ -1847,7 +1847,7 @@ Server::OpSetFile(const std::string& id,
         }
       }
 
-      fmd = gOFS->eosFileService->createFile();
+      fmd = gOFS->eosFileService->createFile(0);
       fmd->setName(md.name());
       fmd->setLayoutId(layoutId);
       md_ino = eos::common::FileId::FidToInode(fmd->getId());
@@ -2022,7 +2022,7 @@ Server::OpSetLink(const std::string& id,
         return EPERM;
       }
 
-      fmd = gOFS->eosFileService->createFile();
+      fmd = gOFS->eosFileService->createFile(0);
     }
 
     fmd->setName(md.name());

@@ -148,7 +148,7 @@ public:
   //! Create new file metadata object with an assigned id, the user has
   //! to fill all the remaining fields
   //------------------------------------------------------------------------
-  virtual std::shared_ptr<IFileMD> createFile() = 0;
+  virtual std::shared_ptr<IFileMD> createFile(IFileMD::id_t id) = 0;
 
   //------------------------------------------------------------------------
   //! Update the file metadata in the backing store after the IFileMD object

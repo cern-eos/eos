@@ -42,11 +42,11 @@ class FileMDSvcF : public eos::ns::testing::NsTestsFixture {};
 //------------------------------------------------------------------------------
 TEST_F(FileMDSvcF, LoadTest)
 {
-  std::shared_ptr<eos::IFileMD> file1 = fileSvc()->createFile();
-  std::shared_ptr<eos::IFileMD> file2 = fileSvc()->createFile();
-  std::shared_ptr<eos::IFileMD> file3 = fileSvc()->createFile();
-  std::shared_ptr<eos::IFileMD> file4 = fileSvc()->createFile();
-  std::shared_ptr<eos::IFileMD> file5 = fileSvc()->createFile();
+  std::shared_ptr<eos::IFileMD> file1 = fileSvc()->createFile(0);
+  std::shared_ptr<eos::IFileMD> file2 = fileSvc()->createFile(0);
+  std::shared_ptr<eos::IFileMD> file3 = fileSvc()->createFile(0);
+  std::shared_ptr<eos::IFileMD> file4 = fileSvc()->createFile(0);
+  std::shared_ptr<eos::IFileMD> file5 = fileSvc()->createFile(0);
   ASSERT_TRUE(file1 != nullptr);
   ASSERT_TRUE(file2 != nullptr);
   ASSERT_TRUE(file3 != nullptr);

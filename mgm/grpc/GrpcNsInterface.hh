@@ -53,27 +53,27 @@ class GrpcNsInterface
 {
 public:
 
-  static grpc::Status GetMD(eos::common::Mapping::VirtualIdentity_t& vid,
+  static grpc::Status GetMD(eos::common::VirtualIdentity& vid,
                             grpc::ServerWriter<eos::rpc::MDResponse>* writer,
                             const eos::rpc::MDRequest* request, bool check_perms = true);
 
-  static grpc::Status StreamMD(eos::common::Mapping::VirtualIdentity_t& vid,
+  static grpc::Status StreamMD(eos::common::VirtualIdentity& vid,
                                grpc::ServerWriter<eos::rpc::MDResponse>* writer,
                                const eos::rpc::MDRequest* request);
 
-  static grpc::Status FileInsert(eos::common::Mapping::VirtualIdentity_t& vid, 
+  static grpc::Status FileInsert(eos::common::VirtualIdentity& vid, 
 				 eos::rpc::InsertReply* reply,
 				 const eos::rpc::FileInsertRequest* request);
 				 
 
 
-  static grpc::Status ContainerInsert(eos::common::Mapping::VirtualIdentity_t& vid, 
+  static grpc::Status ContainerInsert(eos::common::VirtualIdentity& vid, 
 				      eos::rpc::InsertReply* reply,
 				      const eos::rpc::ContainerInsertRequest* request);
 
 
 
-  static bool Access(eos::common::Mapping::VirtualIdentity_t& vid, int mode,
+  static bool Access(eos::common::VirtualIdentity& vid, int mode,
                      std::shared_ptr<eos::IContainerMD> cmd);
 
 };

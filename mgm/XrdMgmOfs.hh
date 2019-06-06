@@ -1631,6 +1631,7 @@ public:
   eos::QdbContactDetails mQdbContactDetails; ///< QuarkDB contact details
   int mHttpdPort; ///< port of the http server, default 8000
   int mFusexPort; ///< port of the FUSEX broadcast MQZ, default 1100
+  int mGRPCPort; ///< port of the GRPC server, default 50051
   bool mTapeAwareGcDefaultSpaceEnable; ///< Flag to mark if tape aware garbage collection should be enabled
   eos::common::XrdConnPool mXrdConnPool; ///< XRD connection pool
   TapeAwareGc mTapeAwareGc; ///< Tape aware garbage collector

@@ -103,7 +103,7 @@ public:
   //! Create new container metadata object with an assigned id, the user has
   //! to fill all the remaining fields
   //------------------------------------------------------------------------
-  virtual std::shared_ptr<IContainerMD> createContainer() = 0;
+  virtual std::shared_ptr<IContainerMD> createContainer(IContainerMD::id_t id) = 0;
 
   //------------------------------------------------------------------------
   //! Update the contaienr metadata in the backing store after the

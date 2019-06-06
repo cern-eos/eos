@@ -98,7 +98,7 @@ QuarkHierarchicalView::initialize1()
   try {
     pRoot = pContainerSvc->getContainerMD(1);
   } catch (MDException& e) {
-    pRoot = pContainerSvc->createContainer();
+    pRoot = pContainerSvc->createContainer(0);
 
     if (pRoot->getId() != 1) {
       eos_static_crit("Error when creating root '/' path - directory inode is not 1, but %d!",
@@ -413,7 +413,7 @@ QuarkHierarchicalView::getFile(const std::string& uri, bool follow,
 // Create a file for given uri
 //------------------------------------------------------------------------------
 std::shared_ptr<IFileMD>
-QuarkHierarchicalView::createFile(const std::string& uri, uid_t uid, gid_t gid)
+QuarkHierarchicalView::createFile(const std::string& uri, uid_t uid, gid_t gid, IFileMD::id_t id)
 {
   if (uri == "/") {
     throw_mdexception(EEXIST, "File exists");
@@ -443,7 +443,7 @@ QuarkHierarchicalView::createFile(const std::string& uri, uid_t uid, gid_t gid)
     throw_mdexception(EEXIST, "File exists");
   }
 
-  IFileMDPtr file = pFileSvc->createFile();
+  IFileMDPtr file = pFileSvc->createFile(id);
 
   if (!file) {
     eos_static_crit("File creation failed for %s", uri.c_str());
@@ -604,7 +604,7 @@ private:
 // Create container - method eventually consistent
 //------------------------------------------------------------------------------
 std::shared_ptr<IContainerMD>
-QuarkHierarchicalView::createContainer(const std::string& uri, bool createParents)
+QuarkHierarchicalView::createContainer(const std::string& uri, bool createParents, uint64_t cid)
 {
   // Split the path
   if (uri == "/") {
@@ -661,7 +661,7 @@ QuarkHierarchicalView::createContainer(const std::string& uri, bool createParent
         throw_mdexception(ENOTDIR, uri << ": Not a directory");
       }
 
-      IContainerMDPtr newContainer = pContainerSvc->createContainer();
+      IContainerMDPtr newContainer = pContainerSvc->createContainer(chunks.empty()?cid:0);
       newContainer->setName(nextChunk);
       newContainer->setCTimeNow();
       state.container->addContainer(newContainer.get());

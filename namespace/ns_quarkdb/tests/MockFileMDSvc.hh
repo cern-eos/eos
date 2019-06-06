@@ -43,7 +43,7 @@ public:
   MOCK_METHOD1(hasFileMD, folly::Future<bool>(eos::FileIdentifier));
   MOCK_METHOD2(getFileMD, std::shared_ptr<eos::IFileMD>(eos::IFileMD::id_t id,
                uint64_t* clock));
-  MOCK_METHOD0(createFile, std::shared_ptr<eos::IFileMD>());
+  MOCK_METHOD1(createFile, std::shared_ptr<eos::IFileMD>(eos::IFileMD::id_t id));
   MOCK_METHOD1(updateStore, void(eos::IFileMD* obj));
   MOCK_METHOD1(removeFile, void(eos::IFileMD* obj));
   MOCK_METHOD0(getNumFiles, uint64_t());

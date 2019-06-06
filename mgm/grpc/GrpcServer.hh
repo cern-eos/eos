@@ -91,7 +91,7 @@ public:
                         std::string* net = 0);
   /* return VID for a given call */
   static void Vid(grpc::ServerContext* context,
-                  eos::common::Mapping::VirtualIdentity_t& vid,
+                  eos::common::VirtualIdentity& vid,
                   const std::string& authkey);
 
 #endif

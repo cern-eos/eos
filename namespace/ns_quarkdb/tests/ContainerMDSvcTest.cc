@@ -33,10 +33,10 @@ class ContainerMDSvcF : public eos::ns::testing::NsTestsFixture {};
 TEST_F(ContainerMDSvcF, BasicSanity)
 {
   std::shared_ptr<eos::IContainerMD> container1 = containerSvc()->getContainerMD(1);
-  std::shared_ptr<eos::IContainerMD> container2 = containerSvc()->createContainer();
-  std::shared_ptr<eos::IContainerMD> container3 = containerSvc()->createContainer();
-  std::shared_ptr<eos::IContainerMD> container4 = containerSvc()->createContainer();
-  std::shared_ptr<eos::IContainerMD> container5 = containerSvc()->createContainer();
+  std::shared_ptr<eos::IContainerMD> container2 = containerSvc()->createContainer(0);
+  std::shared_ptr<eos::IContainerMD> container3 = containerSvc()->createContainer(0);
+  std::shared_ptr<eos::IContainerMD> container4 = containerSvc()->createContainer(0);
+  std::shared_ptr<eos::IContainerMD> container5 = containerSvc()->createContainer(0);
 
   eos::IContainerMD::id_t id = container1->getId();
   container1->setName("root");
@@ -74,7 +74,7 @@ TEST_F(ContainerMDSvcF, BasicSanity)
   mdFlusher()->synchronize();
   ASSERT_EQ((size_t)1, container3->getNumContainers());
   ASSERT_EQ((size_t)4, containerSvc()->getNumContainers());
-  std::shared_ptr<eos::IContainerMD> container6 = containerSvc()->createContainer();
+  std::shared_ptr<eos::IContainerMD> container6 = containerSvc()->createContainer(0);
   container6->setName("subContLevel2-3");
   container3->addContainer(container6.get());
   containerSvc()->updateStore(container6.get());

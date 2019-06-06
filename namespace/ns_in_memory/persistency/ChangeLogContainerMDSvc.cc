@@ -867,10 +867,29 @@ ChangeLogContainerMDSvc::getContainerMD(IContainerMD::id_t id,
 //----------------------------------------------------------------------------
 // Create a new container metadata object
 //----------------------------------------------------------------------------
-std::shared_ptr<IContainerMD> ChangeLogContainerMDSvc::createContainer()
+std::shared_ptr<IContainerMD> ChangeLogContainerMDSvc::createContainer(IContainerMD::id_t id)
 {
-  std::shared_ptr<IContainerMD> cont = std::make_shared<ContainerMD>
-                                       (pFirstFreeId++, pFileSvc, this);
+  if (id) {
+    bool exists=false;
+
+    try {
+      getContainerMD(id,0);
+      exists = true;
+    } catch (MDException& e) {
+    }
+
+    if (exists) {
+      MDException e(EEXIST);
+      e.getMessage() << "Container #" << id << " exists";
+      throw e;
+    }
+
+    if (id > pFirstFreeId) {
+      pFirstFreeId = id+1;
+    }
+  }
+
+  std::shared_ptr<IContainerMD> cont = std::make_shared<ContainerMD> (id?id:pFirstFreeId++, pFileSvc, this);
   pIdMap.insert(std::make_pair(cont->getId(), DataInfo(0, cont)));
   return cont;
 }
@@ -1200,7 +1219,7 @@ std::shared_ptr<IContainerMD> ChangeLogContainerMDSvc::createInParent(
   const std::string& name, IContainerMD* parent)
 
 {
-  std::shared_ptr<IContainerMD> container = createContainer();
+  std::shared_ptr<IContainerMD> container = createContainer(0);
   container->setName(name);
   parent->addContainer(container.get());
   updateStore(container.get());
@@ -1218,7 +1237,7 @@ std::shared_ptr<IContainerMD> ChangeLogContainerMDSvc::getLostFound()
   try {
     root = getContainerMD(1);
   } catch (MDException& e) {
-    root = createContainer();
+    root = createContainer(0);
     root->setParentId(root->getId());
     updateStore(root.get());
   }

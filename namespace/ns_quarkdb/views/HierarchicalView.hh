@@ -132,7 +132,7 @@ public:
   //! Create a file for given uri
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<IFileMD> createFile(const std::string& uri,
-      uid_t uid = 0, gid_t gid = 0) override;
+					      uid_t uid = 0, gid_t gid = 0, IFileMD::id_t id = 0) override;
 
   //----------------------------------------------------------------------------
   //! Create a link for given uri
@@ -190,7 +190,7 @@ public:
   //! Create a container (directory)
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<IContainerMD>
-  createContainer(const std::string& uri, bool createParents = false) override;
+  createContainer(const std::string& uri, bool createParents = false, uint64_t cid = 0) override;
 
   //----------------------------------------------------------------------------
   //! Update container store

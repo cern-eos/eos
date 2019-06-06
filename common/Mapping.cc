@@ -711,7 +711,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       }
     } else {
       // we are nobody if we are not an authorized host
-      Nobody(vid);
+      vid = VirtualIdentity::Nobody();
     }
   }
 
@@ -763,7 +763,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       }
     } else {
       // we are nobody if we are not an authorized host
-      Nobody(vid);
+      vid = VirtualIdentity::Nobody();
     }
   }
 
@@ -1777,42 +1777,8 @@ Mapping::KommaListToGidVector(const char* list, std::vector<gid_t>& vector_list)
   } while (kommapos != STR_NPOS);
 }
 
-// -----------------------------------------------------------------------------
-//! Check if a vector contains uid
-// -----------------------------------------------------------------------------
-
-bool Mapping::HasUid(uid_t uid, uid_vector vector)
-{
-  uid_vector::const_iterator it;
-
-  for (it = vector.begin(); it != vector.end(); ++it) {
-    if ((*it) == uid) {
-      return true;
-    }
-  }
-
-  return false;
-}
 
 // -----------------------------------------------------------------------------
-//! Check if vector contains gid
-// -----------------------------------------------------------------------------
-
-bool Mapping::HasGid(gid_t gid, gid_vector vector)
-{
-  uid_vector::const_iterator it;
-
-  for (it = vector.begin(); it != vector.end(); ++it) {
-    if ((*it) == gid) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-// -----------------------------------------------------------------------------
->>>>>>> COMMON: add 'grpc' mapping to Mapping class
 //! Compare a uid with the string representation
 // -----------------------------------------------------------------------------
 
@@ -1896,46 +1862,11 @@ std::string Mapping::GidAsString(gid_t gid)
   return gidstring;
 }
 
-// -----------------------------------------------------------------------------
-//! Copy function for virtual identities
-// -----------------------------------------------------------------------------
-
-void Mapping::Copy(Mapping::VirtualIdentity& vidin,
-                   Mapping::VirtualIdentity& vidout)
-{
-  vidout.uid = vidin.uid;
-  vidout.gid = vidin.gid;
-  vidout.sudoer = vidin.sudoer;
-  vidout.name = vidin.name;
-  vidout.tident = vidin.tident;
-  vidout.prot = vidin.prot;
-  vidout.uid_list.clear();
-  vidout.gid_list.clear();
-  vidout.uid_string = vidin.uid_string;
-  vidout.gid_string = vidin.gid_string;
-
-  for (unsigned int i = 0; i < vidin.uid_list.size(); i++) {
-    vidout.uid_list.push_back(vidin.uid_list[i]);
-  }
-
-  for (unsigned int i = 0; i < vidin.gid_list.size(); i++) {
-    vidout.gid_list.push_back(vidin.gid_list[i]);
-  }
-
-  vidout.host = vidin.host;
-  vidout.domain = vidin.domain;
-  vidout.grps = vidin.grps;
-  vidout.role = vidin.role;
-  vidout.dn = vidin.dn;
-  vidout.geolocation = vidin.geolocation;
-  vidout.app = vidin.app;
-}
-
 //------------------------------------------------------------------------------
 //! Function converting vid frin a string representation
 //------------------------------------------------------------------------------
 
-bool Mapping::VidFromString(Mapping::VirtualIdentity& vid,
+bool Mapping::VidFromString(VirtualIdentity& vid,
                             const char* vidstring)
 {
   std::string svid = vidstring;

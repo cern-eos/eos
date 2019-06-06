@@ -14,6 +14,18 @@ int usage(const char* prog)
 	  "[--prefix prefix] "
 	  "[--treefile <treefile>] \n", prog);
 
+  fprintf(stderr, 
+	  "treefile format providing inodes: \n"
+	  "----------------------------------\n"
+	  "ino:000000000000ffff:/eos/mydir/\n"
+	  "ino:000000000000ff01:/eos/mydir/myfile\n\n");
+
+  fprintf(stderr, 
+	  "treefile format without inodes: \n"
+	  "----------------------------------\n"
+	  "/eos/mydir/\n"
+	  "/eos/mydir/myfile\n\n");
+
   return -1;
 }
 
@@ -139,7 +151,11 @@ int main(int argc, const char* argv[])
 
   for ( std::string line ; std::getline ( input, line ); ) {
     n++;
-    line.insert(0,prefix);
+    if (line.substr(0,4) == "ino:") {
+      line.insert(21, prefix);
+    } else {
+      line.insert(0,prefix);
+    }
     std::cout << n << " " << line << std::endl;
     if (line.back() == '/') {
       // dir

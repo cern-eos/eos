@@ -94,7 +94,7 @@ public:
   {
     return std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);
   }
-  virtual std::shared_ptr<eos::IFileMD> createFile()
+  virtual std::shared_ptr<eos::IFileMD> createFile(eos::IFileMD::id_t id)
   {
     return std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);
   }

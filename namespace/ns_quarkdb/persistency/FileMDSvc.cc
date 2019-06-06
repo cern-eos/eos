@@ -178,9 +178,10 @@ QuarkFileMDSvc::hasFileMD(const eos::FileIdentifier id)
 // Create new file metadata object
 //------------------------------------------------------------------------------
 std::shared_ptr<IFileMD>
-QuarkFileMDSvc::createFile()
+QuarkFileMDSvc::createFile(IFileMD::id_t id)
 {
-  uint64_t free_id = mUnifiedInodeProvider.reserveFileId();
+  uint64_t free_id = id?id:mUnifiedInodeProvider.reserveFileId();
+
   std::shared_ptr<IFileMD> file{new QuarkFileMD(free_id, this)};
   mMetadataProvider->insertFileMD(file->getIdentifier(), file);
   IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::Created);

@@ -100,7 +100,7 @@ public:
   //----------------------------------------------------------------------------
   //! Create new file metadata object with an assigned id
   //----------------------------------------------------------------------------
-  virtual std::shared_ptr<IFileMD> createFile() override;
+  virtual std::shared_ptr<IFileMD> createFile(IFileMD::id_t id = 0) override;
 
   //----------------------------------------------------------------------------
   //! Update the file metadata in the backing store after the FileMD object

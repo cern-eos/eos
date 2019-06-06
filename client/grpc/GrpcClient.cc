@@ -164,12 +164,25 @@ GrpcClient::FileInsert(const std::vector<std::string>& paths)
   FileInsertRequest request;
   size_t cnt=0;
   for (auto it : paths ) {
+    std::string path = it;
     struct timespec tsnow;
     eos::common::Timing::GetTimeSpec(tsnow);
+    uint64_t inode = 0;
 
     cnt++;
     FileMdProto* file = request.add_files();
-    file->set_path(it);
+
+    if (it.substr(0,4) == "ino:") {
+      // the format is ino:xxxxxxxxxxxxxxxx:<path> where xxxxxxxxxxxxxxxx is a 64bit hex string of the inode
+      path = it.substr(21);
+      inode = std::strtol(it.substr(4,20).c_str() ,0, 16);
+    }
+
+    if (inode) {
+      file->set_id(inode);
+    }
+
+    file->set_path(path);
     file->set_uid(2);
     file->set_gid(2);
     file->set_size(cnt);
@@ -230,11 +243,25 @@ GrpcClient::ContainerInsert(const std::vector<std::string>& paths)
 {
   ContainerInsertRequest request;
   for (auto it : paths ) {
+    std::string path;
     struct timespec tsnow;
     eos::common::Timing::GetTimeSpec(tsnow);
 
+    uint64_t inode = 0 ;
+
+    if (it.substr(0,4) == "ino:") {
+      // the format is ino:xxxxxxxxxxxxxxxx:<path> where xxxxxxxxxxxxxxxx is a 64bit hex string of the inode
+      path = it.substr(21);
+      inode = std::strtol(it.substr(4,20).c_str() ,0, 16);
+    }
+
     ContainerMdProto* container = request.add_container();
-    container->set_path(it);
+
+    if (inode) {
+      container->set_id(inode);
+    }
+
+    container->set_path(path);
     container->set_uid(2);
     container->set_gid(2);
     container->set_mode(S_IFDIR | S_IRWXU);

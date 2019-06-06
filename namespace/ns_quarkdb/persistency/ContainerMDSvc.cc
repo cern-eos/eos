@@ -186,9 +186,10 @@ QuarkContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
 // Create a new container metadata object
 //----------------------------------------------------------------------------
 std::shared_ptr<IContainerMD>
-QuarkContainerMDSvc::createContainer()
+QuarkContainerMDSvc::createContainer(IContainerMD::id_t id)
 {
-  uint64_t free_id = mUnifiedInodeProvider->reserveContainerId();
+  uint64_t free_id = id?id:mUnifiedInodeProvider->reserveContainerId();
+
   std::shared_ptr<IContainerMD> cont
   (new QuarkContainerMD(free_id, pFileSvc, static_cast<IContainerMDSvc*>(this)));
   ++mNumConts;
@@ -250,7 +251,7 @@ QuarkContainerMDSvc::addChangeListener(IContainerMDChangeListener* listener)
 std::shared_ptr<IContainerMD>
 QuarkContainerMDSvc::createInParent(const std::string& name, IContainerMD* parent)
 {
-  std::shared_ptr<IContainerMD> container = createContainer();
+  std::shared_ptr<IContainerMD> container = createContainer(0);
   container->setName(name);
   parent->addContainer(container.get());
   updateStore(container.get());
@@ -270,7 +271,7 @@ QuarkContainerMDSvc::getLostFound()
   try {
     root = getContainerMD(1);
   } catch (MDException& e) {
-    root = createContainer();
+    root = createContainer(0);
     root->setParentId(root->getId());
     updateStore(root.get());
   }
