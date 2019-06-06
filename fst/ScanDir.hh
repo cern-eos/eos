@@ -49,7 +49,7 @@ public:
   ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
           eos::fst::Load* fstload, bool bgthread = true,
           long int file_rescan_interval = 60, int ratebandwidth = 50,
-          bool setchecksum = false, bool fake_clock = false);
+          bool fake_clock = false);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -195,7 +195,6 @@ public:
   long long int mTotalScanSize;
   long int mNumTotalFiles;
   long int mNumSkippedFiles;
-  bool mSetChecksum; ///< If true update the xattr checksum value
   char* mBuffer; ///< Buffer used for reading
   uint32_t mBufferSize; ///< Size of the reading buffer
   bool mBgThread; ///< If true running as background thread inside the FST
