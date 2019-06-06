@@ -72,10 +72,21 @@ public:
   getContainerFromId(qclient::QClient& qcl, ContainerIdentifier id);
 
   //----------------------------------------------------------------------------
-  //! Check if given file id exists on the namespace
+  //! Check if given container id exists on the namespace
   //!
   //! @param qcl qclient object
   //! @param id container id
+  //!
+  //! @return future holding whether given file exists
+  //----------------------------------------------------------------------------
+  static folly::Future<bool>
+  doesContainerMdExist(qclient::QClient& qcl, ContainerIdentifier id);
+
+  //----------------------------------------------------------------------------
+  //! Check if given file id exists on the namespace
+  //!
+  //! @param qcl qclient object
+  //! @param id file id
   //!
   //! @return future holding whether given file exists
   //----------------------------------------------------------------------------

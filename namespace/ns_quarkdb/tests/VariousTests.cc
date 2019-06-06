@@ -647,6 +647,9 @@ TEST_F(FileMDFetching, ExistenceTest) {
 
   ASSERT_TRUE(fileSvc()->hasFileMD(FileIdentifier(1)).get());
   ASSERT_FALSE(fileSvc()->hasFileMD(FileIdentifier(2)).get());
+
+  ASSERT_TRUE(MetadataFetcher::doesContainerMdExist(qcl(), ContainerIdentifier(1)).get());
+  ASSERT_FALSE(MetadataFetcher::doesContainerMdExist(qcl(), ContainerIdentifier(2)).get());
 }
 
 TEST_F(FileMDFetching, FilemapToFutureVector) {

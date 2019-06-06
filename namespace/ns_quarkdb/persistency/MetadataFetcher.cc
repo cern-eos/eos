@@ -265,6 +265,33 @@ checkFileMdProtoExistence(redisReplyPtr reply, FileIdentifier id)
   return true;
 }
 
+//------------------------------------------------------------------------------
+// Fetch container metadata info for current id
+//------------------------------------------------------------------------------
+static bool
+checkContainerMdProtoExistence(redisReplyPtr reply, ContainerIdentifier id)
+{
+  MDStatus st = ensureStringReply(reply);
+  if(st.getErrno() == ENOENT) {
+    return false;
+  }
+
+  st.throwIfNotOk(SSTR("Error while fetching ContainerMD #"
+                       << id.getUnderlyingUInt64()
+                       << " protobuf from QDB: "));
+  return true;
+}
+
+//----------------------------------------------------------------------------
+// Check if given container id exists on the namespace
+//----------------------------------------------------------------------------
+folly::Future<bool>
+MetadataFetcher::doesContainerMdExist(qclient::QClient& qcl, ContainerIdentifier id)
+{
+  return qcl.follyExec(RequestBuilder::readContainerProto(id))
+         .then(std::bind(checkContainerMdProtoExistence, _1, id));
+}
+
 //----------------------------------------------------------------------------
 // Check if given file id exists on the namespace
 //----------------------------------------------------------------------------
