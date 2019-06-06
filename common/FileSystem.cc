@@ -83,7 +83,7 @@ bool FileSystemLocator::fromQueuePath(const std::string &queuepath,
   //----------------------------------------------------------------------------
   // Chop "/fst/", extract local path
   //----------------------------------------------------------------------------
-  if(!startsWith(queue, "/fst/")) {
+  if(!startsWith(queue, "/fst")) {
     return false;
   }
 

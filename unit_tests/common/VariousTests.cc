@@ -63,6 +63,17 @@ TEST(FileSystemLocator, ParsingFailure) {
   ASSERT_FALSE(FileSystemLocator::fromQueuePath("/eos/somehost.cern.ch:1096/fst/", locator));
 }
 
+TEST(FileSystemLocator, RemoteFileSystem) {
+  FileSystemLocator locator;
+  ASSERT_TRUE(FileSystemLocator::fromQueuePath("/eos/example.com:1095/fsthttps://remote.example.com/bla/bla/", locator));
+  ASSERT_EQ(locator.getHost(), "example.com");
+  ASSERT_EQ(locator.getPort(), 1095);
+  ASSERT_EQ(locator.getHostPort(), "example.com:1095");
+  ASSERT_EQ(locator.getQueuePath(), "/eos/example.com:1095/fsthttps://remote.example.com/bla/bla/");
+  ASSERT_EQ(locator.getFSTQueue(), "/eos/example.com:1095/fst");
+  ASSERT_EQ(locator.getLocalPath(), "https://remote.example.com/bla/bla/");
+}
+
 TEST(GroupLocator, BasicSanity) {
   GroupLocator locator;
   ASSERT_TRUE(GroupLocator::parseGroup("default.1337", locator));
