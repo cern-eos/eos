@@ -1291,7 +1291,13 @@ XrdFstOfsFile::close()
                 // The entry server commits size and checksum
                 capOpaqueFile += "&mgm.commit.size=1&mgm.commit.checksum=1";
               } else {
-                capOpaqueFile += "&mgm.replication=1&mgm.verify.checksum=1";
+		if (mCheckSum ) {
+		  // if we computed a checksum, we verify it
+		  capOpaqueFile += "&mgm.replication=1&mgm.verify.checksum=1";
+		} else {
+		  // if we didn't compute a checksum, we disable checksum verification
+		  capOpaqueFile += "&mgm.replication=1&mgm.verify.checksum=0";
+		}
               }
             }
 

@@ -381,17 +381,18 @@ CommitHelper::validate_checksum(eos::common::VirtualIdentity& vid,
     gOFS->MgmStats.Add("ReplicaFailedChecksum", 0, 0, 1);
 
     // -----------------------------------------------------------
-    // if we come via FUSE, we have to remove this replica
+    // if we don't come via FUSEX, we have to remove this replica
     // -----------------------------------------------------------
     if (!option["fusex"]) {
       if (fmd->hasLocation((unsigned short) fsid)) {
         fmd->unlinkLocation((unsigned short) fsid);
         fmd->removeLocation((unsigned short) fsid);
+	
+	eos_thread_err("replication for fid=%llu resulted in a different checksum "
+		       "on fsid=%llu - dropping replica", fmd->getId(), fsid);
 
         try {
           gOFS->eosView->updateFileStore(fmd.get());
-          // this call is not be needed, since it is just a new replica location
-          // gOFS->FuseXCastFile(fmd->getIdentifier());
         } catch (eos::MDException& e) {
           errno = e.getErrno();
           std::string errmsg = e.getMessage().str();
