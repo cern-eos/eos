@@ -356,7 +356,7 @@ protected:
   bool mFusex; //! indicator that we are commiting from a fusex client
   bool mFusexIsUnlinked; //! indicator for an already unlinked file
   bool closed; //! indicator the file is closed
-  bool opened; //! indicator that file is opened
+  bool mOpened; //! indicator that file is opened
   bool mHasWrite; //! indicator that file was written/modified
   bool hasWriteError;// indicator for write errros to avoid message flooding
   bool hasReadError; //! indicator if a RAIN file could be reconstructed or not
