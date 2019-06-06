@@ -370,6 +370,134 @@ out:
 }
 
 //------------------------------------------------------------------------------
+// Helper struct used in checkOrphans
+//------------------------------------------------------------------------------
+struct PendingFile {
+  folly::Future<bool> validParent;
+  eos::ns::FileMdProto proto;
+
+  PendingFile(folly::Future<bool> &&f, const eos::ns::FileMdProto &p)
+  : validParent(std::move(f)), proto(p) {}
+};
+
+void consumePendingEntries(std::deque<PendingFile> &futs, bool unconditional, std::ostream &out) {
+  while(!futs.empty() && (unconditional || futs.front().validParent.isReady())) {
+    PendingFile &entry = futs.front();
+
+    entry.validParent.wait();
+
+    if(entry.validParent.hasException()) {
+      out << "ERROR: Exception occurred when fetching container " << entry.proto.cont_id() << " as part of checking existence of parent of container " << entry.proto.id() << std::endl;
+    }
+    else if(entry.validParent.get() == false) {
+      out << "file-id=" << entry.proto.id() << " invalid-parent-id=" << entry.proto.cont_id() << " size=" << entry.proto.size() << " locations=" << serializeLocations(entry.proto.locations()) << " unlinked-locations=" << serializeLocations(entry.proto.unlink_locations()) << std::endl;
+    }
+
+    futs.pop_front();
+  }
+}
+
+struct PendingContainer {
+  folly::Future<bool> validParent;
+  eos::ns::ContainerMdProto proto;
+
+  PendingContainer(folly::Future<bool> &&f, const eos::ns::ContainerMdProto &p)
+  : validParent(std::move(f)), proto(p) {}
+};
+
+void consumePendingEntries(std::deque<PendingContainer> &futs, bool unconditional, std::ostream &out) {
+  while(!futs.empty() && (unconditional || futs.front().validParent.isReady())) {
+    PendingContainer &entry = futs.front();
+
+    entry.validParent.wait();
+
+    if(entry.validParent.hasException()) {
+      out << "ERROR: Exception occurred when fetching container " << entry.proto.parent_id() << " as part of checking existence of parent of container " << entry.proto.id() << std::endl;
+    }
+    else if(entry.validParent.get() == false) {
+      out << "container-id=" << entry.proto.id() << " invalid-parent-id=" << entry.proto.parent_id() << std::endl;
+    }
+
+    futs.pop_front();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Find orphan files and orphan directories
+//------------------------------------------------------------------------------
+int Inspector::checkOrphans(std::ostream &out, std::ostream &err) {
+  //----------------------------------------------------------------------------
+  // Look for orphan containers..
+  //----------------------------------------------------------------------------
+  std::string errorString;
+  ContainerScanner containerScanner(mQcl);
+  common::IntervalStopwatch stopwatch(std::chrono::seconds(10));
+
+  std::deque<PendingContainer> containers;
+  while (containerScanner.valid()) {
+    consumePendingEntries(containers, false, out);
+
+    eos::ns::ContainerMdProto proto;
+    if (!containerScanner.getItem(proto)) {
+      break;
+    }
+
+    containers.emplace_back(
+      MetadataFetcher::doesContainerMdExist(mQcl, ContainerIdentifier(proto.parent_id())),
+      proto
+    );
+
+    if (stopwatch.restartIfExpired()) {
+      err << "Progress: Processed " << containerScanner.getScannedSoFar() << " containers so far..." << std::endl;
+    }
+
+    containerScanner.next();
+  }
+
+  consumePendingEntries(containers, true, out);
+  if(containerScanner.hasError(errorString)) {
+    err << errorString;
+    return 1;
+  }
+
+  err << "All containers processed, checking files..." << std::endl;
+
+  //----------------------------------------------------------------------------
+  // Look for orphan files..
+  //----------------------------------------------------------------------------
+  FileScanner fileScanner(mQcl);
+
+  std::deque<PendingFile> files;
+  while (fileScanner.valid()) {
+    consumePendingEntries(files, false, out);
+
+    eos::ns::FileMdProto proto;
+    if (!fileScanner.getItem(proto)) {
+      break;
+    }
+
+    files.emplace_back(
+      MetadataFetcher::doesContainerMdExist(mQcl, ContainerIdentifier(proto.cont_id())),
+      proto
+    );
+
+    if (stopwatch.restartIfExpired()) {
+      err << "Progress: Processed " << fileScanner.getScannedSoFar() << " files so far..." << std::endl;
+    }
+
+    fileScanner.next();
+  }
+
+  consumePendingEntries(files, true, out);
+  if(fileScanner.hasError(errorString)) {
+    err << errorString;
+    return 1;
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
 // Print out _everything_ known about the given file.
 //------------------------------------------------------------------------------
 int Inspector::printFileMD(uint64_t fid, std::ostream& out, std::ostream& err)

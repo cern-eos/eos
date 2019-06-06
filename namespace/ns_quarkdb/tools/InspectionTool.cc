@@ -104,6 +104,12 @@ int main(int argc, char* argv[]) {
   stripediffSubcommand->add_flag("--time", printTime, "Print mtime and ctime of found files");
 
   //----------------------------------------------------------------------------
+  // Set-up check-orphans subcommand..
+  //----------------------------------------------------------------------------
+  auto checkOrphansSubcommand = app.add_subcommand("check-orphans", "Find files and directories with invalid parents");
+  addClusterOptions(checkOrphansSubcommand, membersStr, memberValidator, password, passwordFile);
+
+  //----------------------------------------------------------------------------
   // Set-up print subcommand..
   //----------------------------------------------------------------------------
   auto printSubcommand = app.add_subcommand("print", "Print everything known about a given file, or container");
@@ -189,6 +195,10 @@ int main(int argc, char* argv[]) {
 
   if(scanFilesSubcommand->parsed()) {
     return inspector.scanFileMetadata(std::cout, std::cerr);
+  }
+
+  if(checkOrphansSubcommand->parsed()) {
+    return inspector.checkOrphans(std::cout, std::cerr);
   }
 
   if(changeFidSubcommand->parsed()) {

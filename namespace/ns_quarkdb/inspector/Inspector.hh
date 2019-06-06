@@ -80,6 +80,11 @@ public:
   int stripediff(bool printTime, std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
+  //! Find orphan files and orphan directories
+  //----------------------------------------------------------------------------
+  int checkOrphans(std::ostream &out, std::ostream &err);
+
+  //----------------------------------------------------------------------------
   //! Change the given fid - USE WITH CAUTION
   //----------------------------------------------------------------------------
   int changeFid(uint64_t id, uint64_t newParent, std::ostream &out, std::ostream &err);
