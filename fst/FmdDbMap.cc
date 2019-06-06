@@ -433,9 +433,9 @@ FmdDbMapHandler::ShutdownDB(eos::common::FileSystem::fsid_t fsid, bool do_lock)
 std::unique_ptr<FmdHelper>
 FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
                              eos::common::FileSystem::fsid_t fsid,
+                             bool force_retrieve, bool do_create,
                              uid_t uid, gid_t gid,
-                             eos::common::LayoutId::layoutid_t layoutid,
-                             bool do_create, bool force_retrieve)
+                             eos::common::LayoutId::layoutid_t layoutid)
 {
   if (fid == 0ull) {
     eos_warning("msg=\"no such fmd in db\" fxid=0 fsid=%lu", fsid);
@@ -747,7 +747,7 @@ FmdDbMapHandler::UpdateWithScanInfo(eos::common::FileSystem::fsid_t fsid,
   // Check if we have this file in the local DB, if not, we resync first
   // the disk and then the MGM meta data
   bool orphaned = false;
-  auto fmd = LocalGetFmd(fid, fsid, 0, 0, false, true);
+  auto fmd = LocalGetFmd(fid, fsid, true);
 
   if (fmd) {
     // Real orphans and unregistered replicas get rechecked
@@ -762,7 +762,10 @@ FmdDbMapHandler::UpdateWithScanInfo(eos::common::FileSystem::fsid_t fsid,
     ResyncDisk(fpath.c_str(), fsid, true);
     eos_notice("msg=\"resyncing from mgm\" fsid=%d fid=%08llx", fsid, fid);
     bool resynced = ResyncMgm(fsid, fid, manager.c_str());
-    fmd = LocalGetFmd(fid, fsid, 0, 0, 0, false, true);
+    fmd = LocalGetFmd(fid, fsid, true);
+
+    // @todo(esindril) update the diskchecksum from the localdb with the
+    // scan checksum if available
 
     if (resynced && fmd) {
       if ((fmd->mProtoFmd.layouterror() &  eos::common::LayoutId::kOrphan) ||
@@ -920,14 +923,6 @@ FmdDbMapHandler::ResyncDisk(const char* path,
     disk_size = buf.st_size;
     memset(xs_val, 0, sizeof(xs_val));
     xs_len = SHA_DIGEST_LENGTH;
-
-    // @todo(esindril) update the diskchecksum from the localdb with the
-    // scan checksum if available
-
-    if (io->attrGet("user.eos.checksum", xs_val, xs_len)) {
-      xs_len = 0;
-    }
-
     io->attrGet("user.eos.checksumtype", sxs_type);
     io->attrGet("user.eos.filecxerror", filexs_err);
     io->attrGet("user.eos.blockcxerror", blockxs_err);
@@ -939,19 +934,10 @@ FmdDbMapHandler::ResyncDisk(const char* path,
     }
 
     unsigned long check_ts_sec = std::stoul(scheck_stamp);
-    std::string disk_xs {""};
+    std::string disk_xs;
 
-    if (xs_len) {
-      int xs_type = LayoutId::GetChecksumFromString(sxs_type);
-      LayoutId::layoutid_t layoutid = LayoutId::GetId(LayoutId::kPlain, xs_type);
-      std::unique_ptr<CheckSum> checksum =
-        eos::fst::ChecksumPlugins::GetChecksumObjectPtr(layoutid, false);
-
-      if (checksum) {
-        if (checksum->SetBinChecksum(xs_val, xs_len)) {
-          disk_xs = checksum->GetHexChecksum();
-        }
-      }
+    if (io->attrGet("user.eos.checksum", xs_val, xs_len) == 0) {
+      disk_xs = eos::common::StringConversion::BinData2HexString(xs_val, xs_len);
     }
 
     // Update the DB
@@ -1052,7 +1038,7 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
 {
   Fmd fMd;
   FmdHelper::Reset(fMd);
-  int rc = GetMgmFmd(manager, fid, fMd);
+  int rc = GetMgmFmd((manager ? manager : ""), fid, fMd);
 
   if ((rc == 0) || (rc == ENODATA)) {
     if (rc == ENODATA) {
@@ -1070,7 +1056,7 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
     fMd.set_layouterror(FmdHelper::LayoutError(fMd, fsid));
     // Get an existing record without creating the record !!!
     std::unique_ptr<FmdHelper> fmd {
-      LocalGetFmd(fMd.fid(), fsid, fMd.uid(), fMd.gid(), fMd.lid(), false, true)};
+      LocalGetFmd(fMd.fid(), fsid, true, false, fMd.uid(), fMd.gid(), fMd.lid())};
 
     if (fmd) {
       // Check if exists on disk
@@ -1093,7 +1079,7 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
     }
 
     // Get/create a record
-    fmd = LocalGetFmd(fMd.fid(), fsid, fMd.uid(), fMd.gid(), fMd.lid(), true, true);
+    fmd = LocalGetFmd(fMd.fid(), fsid, true, true, fMd.uid(), fMd.gid(), fMd.lid());
 
     if (fmd) {
       if (!UpdateWithMgmInfo(fsid, fMd.fid(), fMd.cid(), fMd.lid(), fMd.mgmsize(),
@@ -1168,8 +1154,8 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
 
       if (EnvMgmToFmd(*env, fMd)) {
         // get/create one
-        auto fmd = LocalGetFmd(fMd.fid(), fsid, fMd.uid(), fMd.gid(),
-                               fMd.lid(), true, true);
+        auto fmd = LocalGetFmd(fMd.fid(), fsid, true, true, fMd.uid(),
+                               fMd.gid(), fMd.lid());
         fMd.set_layouterror(FmdHelper::LayoutError(fMd, fsid));
 
         if (fmd) {
@@ -1272,8 +1258,8 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contactDetails,
     }
 
     files.pop_front();
-    auto local_fmd = LocalGetFmd(ns_fmd.fid(), fsid, ns_fmd.uid(),
-                                 ns_fmd.gid(), ns_fmd.lid(), true, true);
+    auto local_fmd = LocalGetFmd(ns_fmd.fid(), fsid, true, true, ns_fmd.uid(),
+                                 ns_fmd.gid(), ns_fmd.lid());
     ns_fmd.set_layouterror(FmdHelper::LayoutError(ns_fmd, fsid));
 
     if (local_fmd) {
@@ -1644,5 +1630,35 @@ FmdDbMapHandler::ExecuteDumpmd(const std::string& mgm_host,
     return true;
   }
 }
+
+//------------------------------------------------------------------------------
+// Check if entry has a file checksum error
+//------------------------------------------------------------------------------
+bool
+FmdDbMapHandler::FileHasXsError(const std::string& lpath,
+                                eos::common::FileSystem::fsid_t fsid)
+{
+  bool has_xs_err = false;
+  // First check the local db for any filecxerror flags
+  auto fid = eos::common::FileId::PathToFid(lpath.c_str());
+  auto fmd = LocalGetFmd(fid, fsid, true);
+
+  if (fmd && (fmd->mProtoFmd.filecxerror() != -1)) {
+    has_xs_err = true;
+  }
+
+  // If no error found then also check the xattr on the physical file
+  if (!has_xs_err) {
+    std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(lpath.c_str()));
+    std::string xattr_xs_err = "0";
+
+    if (io->attrGet("user.eos.filecxerror", xattr_xs_err) == 0) {
+      has_xs_err = (xattr_xs_err == "1");
+    }
+  }
+
+  return has_xs_err;
+}
+
 
 EOSFSTNAMESPACE_END

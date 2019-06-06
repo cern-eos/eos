@@ -56,7 +56,7 @@ TEST(ScanDir, RescanTiming)
   std::string path {"/"};
   eos::common::FileSystem::fsid_t fsid = 1;
   // Scanner completely disabled
-  eos::fst::ScanDir sd(path.c_str(), fsid, nullptr, false, 0, 50, false, true);
+  eos::fst::ScanDir sd(path.c_str(), fsid, nullptr, false, 0, 50, true);
   auto& clock = sd.GetClock();
   std::string sinit_ts = GetTimestampSec(clock);
   ASSERT_FALSE(sd.DoRescan(""));
@@ -80,7 +80,7 @@ TEST(ScanDir, TimestampSmeared)
   using namespace std::chrono;
   std::string path {"/"};
   eos::common::FileSystem::fsid_t fsid = 1;
-  eos::fst::ScanDir sd(path.c_str(), fsid, nullptr, false, 0, 50, false, true);
+  eos::fst::ScanDir sd(path.c_str(), fsid, nullptr, false, 0, 50, true);
   int interval = 300;
   sd.SetConfig(eos::common::SCAN_INTERVAL_NAME, interval);
   auto& clock = sd.GetClock();
@@ -111,7 +111,7 @@ TEST(ScanDir, AdjustScanRate)
   eos::common::FileSystem::fsid_t fsid = 1;
   off_t offset = 0;
   int rate = 75;  // MB/s
-  eos::fst::ScanDir sd(path.c_str(), fsid, &load, false, 0, rate, false, true);
+  eos::fst::ScanDir sd(path.c_str(), fsid, &load, false, 0, rate, true);
   uint64_t open_ts_sec = duration_cast<seconds>
                          (sd.GetClock().getTime().time_since_epoch()).count();
   int old_rate = rate;
