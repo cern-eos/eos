@@ -770,7 +770,7 @@ XrdMgmOfsFile::open(const char* inpath,
     // FUSE mount with lazy-open mode enabled.
     if (!getenv("EOS_ALLOW_RAIN_RWM") && isRewrite && (vid.uid > 3) &&
         (fmdsize != 0) &&
-        ((eos::common::LayoutId::IsRainLayout(fmdlid)))) {
+        ((eos::common::LayoutId::IsRain(fmdlid)))) {
       // Unpriviledged users are not allowed to open RAIN files for update
       gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1);
       return Emsg(epname, error, EPERM, "update RAIN layout file - "
@@ -1775,7 +1775,7 @@ XrdMgmOfsFile::open(const char* inpath,
 
   // if this is a RAIN layout, we want a nice round-robin for the entry server since it
   // has the burden of encoding and traffic fan-out
-  if (isRW && eos::common::LayoutId::IsRainLayout(layoutId)) {
+  if (isRW && eos::common::LayoutId::IsRain(layoutId)) {
     fsIndex = fileId % selectedfs.size();
     eos_static_info("selecting entry-server fsIndex=%lu fsid=%lu fxid=%lx mod=%lu",
                     fsIndex, selectedfs[fsIndex], fileId, selectedfs.size());
@@ -1910,7 +1910,7 @@ XrdMgmOfsFile::open(const char* inpath,
 
   // For RAIN layouts we need to keep the original number of stripes since this
   // is used to compute the different groups and block sizes in the FSTs
-  if ((eos::common::LayoutId::IsRainLayout(layoutId))) {
+  if ((eos::common::LayoutId::IsRain(layoutId))) {
     eos::common::LayoutId::SetStripeNumber(new_lid,
                                            eos::common::LayoutId::GetStripeNumber(layoutId));
   }
@@ -1969,7 +1969,7 @@ XrdMgmOfsFile::open(const char* inpath,
 
   if ((eos::common::LayoutId::GetLayoutType(layoutId) ==
        eos::common::LayoutId::kReplica) ||
-      (eos::common::LayoutId::IsRainLayout(layoutId))) {
+      (eos::common::LayoutId::IsRain(layoutId))) {
     capability += "&mgm.fsid=";
     capability += (int) filesystem->GetId();
     eos::mgm::FileSystem* repfilesystem = 0;

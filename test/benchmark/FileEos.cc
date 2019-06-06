@@ -326,7 +326,7 @@ FileEos::ReadPio(Result*& result)
           eos::common::LayoutId::kRaidDP) {
         file = new eos::fst::RaidDpLayout(NULL, layout, NULL, NULL,
                                           "");
-      } else if ((eos::common::LayoutId::IsRainLayout(layout))) {
+      } else if ((eos::common::LayoutId::IsRain(layout))) {
         file = new eos::fst::ReedSLayout(NULL, layout, NULL, NULL,
                                          "");
       } else {

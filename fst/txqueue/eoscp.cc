@@ -1009,7 +1009,7 @@ main(int argc, char* argv[])
                 isSrcRaid = true;
                 src_location.clear();
                 replicationType = "raiddp";
-              } else if (eos::common::LayoutId::IsRainLayout(layout)) {
+              } else if (eos::common::LayoutId::IsRain(layout)) {
                 nsrc = eos::common::LayoutId::GetStripeNumber(layout) + 1;
                 nparitystripes = eos::common::LayoutId::GetRedundancyStripeNumber(layout);
                 isRaidTransfer = true;
