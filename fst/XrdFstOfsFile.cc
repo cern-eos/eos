@@ -57,7 +57,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   mRedirectManager(""), mSecString(""), mTpcKey(""), mEtag(""), mFileId(0),
   mFsId(0), mLid(0), mCid(0), mForcedMtime(1), mForcedMtime_ms(0), mFusex(false),
   mFusexIsUnlinked(false),
-  closed(false), opened(false), mHasWrite(false), hasWriteError(false),
+  closed(false), mOpened(false), mHasWrite(false), hasWriteError(false),
   hasReadError(false), isRW(false), mIsTpcDst(false), mIsDevNull(false),
   isCreation(false), isReplication(false), mIsInjection(false),
   mRainReconstruct(false), deleteOnClose(false), repairOnClose(false),
@@ -411,37 +411,39 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
   }
 
-  fMd = gFmdDbMapHandler.LocalGetFmd(mFileId, mFsId, vid.uid, vid.gid, mLid, isRW,
-                                     isRepairRead);
+  if (gOFS.Simulate_FMD_open_error) {
+    return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found, "
+                     "simulated error");
+  }
 
-  if ((!fMd) || gOFS.mSimFmdOpenErr) {
-    if (!gOFS.mSimFmdOpenErr) {
-      // Get the layout object
-      if (gFmdDbMapHandler.ResyncMgm(mFsId, mFileId, mRedirectManager.c_str())) {
-        eos_info("msg=\"resync ok\" fsid=%lu fxid=%08llx", mFsId, mFileId);
-        fMd = gFmdDbMapHandler.LocalGetFmd(mFileId, mFsId, vid.uid, vid.gid, mLid,
-                                           isRW);
-      } else {
-        eos_err("msg=\"resync failed\" fsid=%lu fxid=%08llx", mFsId, mFileId);
+  fMd = gFmdDbMapHandler.LocalGetFmd(mFileId, mFsId, isRepairRead, isRW, vid.uid,
+                                     vid.gid, mLid);
+
+  if (fMd == nullptr) {
+    if (gFmdDbMapHandler.ResyncMgm(mFsId, mFileId, mRedirectManager.c_str())) {
+      eos_info("msg=\"resync ok\" fsid=%lu fxid=%08llx", mFsId, mFileId);
+      fMd = gFmdDbMapHandler.LocalGetFmd(mFileId, mFsId, false, isRW, vid.uid,
+                                         vid.gid, mLid);
+    } else {
+      eos_err("msg=\"resync failed\" fsid=%lu fid=%08llx", mFsId, mFileId);
+    }
+  }
+
+  if (fMd == nullptr) {
+    eos_err("msg=\"no FMD record found\" fsid=%lu fxid=%08llx", mFsId, mFileId);
+
+    if ((!isRW) || (layOut->IsEntryServer() && (!isReplication))) {
+      eos_warning("msg=\"failed to get FMD record, return recoverable error "
+                  "ENOENT(kXR_NotFound)\" fid=%08llx", mFileId);
+
+      if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
+        // Clean-up before re-bouncing
+        dropall(mFileId, path, mRedirectManager.c_str());
       }
     }
 
-    if ((!fMd) || gOFS.mSimFmdOpenErr) {
-      eos_err("msg=\"no FMD record found\" fsid=%lu fxid=%08llx", mFsId, mFileId);
-
-      if ((!isRW) || (layOut->IsEntryServer() && (!isReplication))) {
-        eos_warning("msg=\"failed to get FMD record, return recoverable error "
-                    "ENOENT(kXR_NotFound)\"");
-
-        if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
-          // clean-up before re-bouncing
-          dropall(mFileId, path, mRedirectManager.c_str());
-        }
-      }
-
-      // Return an error that can be recovered at the MGM
-      return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found");
-    }
+    // Return an error that can be recovered at the MGM
+    return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found");
   }
 
   XrdOucString oss_opaque = "";
@@ -454,22 +456,37 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
            mFstPath.c_str(), open_mode, create_mode, layOut->GetName());
   int rc = layOut->Open(open_mode, create_mode, oss_opaque.c_str());
 
+  if (rc) {
+    // If we have local errors in open we don't disable the filesystem -
+    // this is done by the Scrub thread if necessary!
+    if (layOut->IsEntryServer() && (!isReplication)) {
+      eos_warning("msg=\"open error return recoverable error "
+                  "EIO(kXR_IOError)\" fid=%08llx", mFileId);
+
+      // Clean-up before re-bouncing
+      if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
+        dropall(mFileId, path, mRedirectManager.c_str());
+      }
+    }
+
+    return gOFS.Emsg(epname, error, EIO, "open - failed open");
+  }
+
   if (isReplication && !isCreation) {
     layOut->Stat(&updateStat);
   }
 
-  if ((!rc) && isCreation && mBookingSize) {
-    // check if the file system is full
+  if (isCreation && mBookingSize) {
+    // Check if the file system is full
     XrdSysMutexHelper lock(gOFS.Storage->mFsFullMapMutex);
 
     if (gOFS.Storage->mFsFullMap[mFsId]) {
       if (layOut->IsEntryServer() && (!isReplication)) {
-        writeErrorFlag = kOfsDiskFullError;
         layOut->Remove();
-        eos_warning("not enough space return recoverable error ENODEV(kXR_FSError)");
+        eos_warning("msg=\"not enough space return recoverable error "
+                    "ENODEV(kXR_FSError)\" fid=%08llx", mFileId);
 
         if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
-          // clean-up before re-bouncing
           dropall(mFileId, path, mRedirectManager.c_str());
         }
 
@@ -477,42 +494,34 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
         return gOFS.Emsg(epname, error, ENODEV, "open - not enough space");
       }
 
-      writeErrorFlag = kOfsDiskFullError;
-      return gOFS.Emsg("writeofs", error, ENOSPC,
-                       "create file - disk space (headroom) exceeded fn=",
-                       mCapOpaque ?
-                       (mCapOpaque->Get("mgm.path") ? mCapOpaque->Get("mgm.path") : FName())
-                       : FName());
+      return gOFS.Emsg(epname, error, ENOSPC, "create file - disk space "
+                       "(headroom) exceeded fn=", mFstPath.c_str());
     }
 
     rc = layOut->Fallocate(mBookingSize);
 
     if (rc) {
-      eos_crit("file allocation gave return code %d errno=%d for allocation of size=%llu",
+      eos_crit("msg=\"file allocation failed\" retc=%d errno=%d size=%llu",
                rc, errno, mBookingSize);
 
       if (layOut->IsEntryServer() && (!isReplication)) {
         layOut->Remove();
-        eos_warning("not enough space i.e file allocation failed, return "
-                    "recoverable error ENODEV(kXR_FSError)");
+        eos_warning("msg=\"not enough space i.e falloacte failed, return "
+                    "recoverable error ENODEV(kXR_FSError)\" fid=%08llx",
+                    mFileId);
 
         if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
-          // clean-up before re-bouncing
           dropall(mFileId, path, mRedirectManager.c_str());
         }
 
         // Return an error that can be recovered at the MGM
         return gOFS.Emsg(epname, error, ENODEV, "open - file allocation failed");
-      } else {
-        layOut->Remove();
-        return gOFS.Emsg(epname, error, ENOSPC, "open - cannot allocate required space",
-                         mNsPath.c_str());
       }
+
+      return gOFS.Emsg(epname, error, ENOSPC, "open - cannot allocate "
+                       "required space ", mNsPath.c_str());
     }
   }
-
-  eos_info("checksum_object=%08llx entryserver=%d",
-           (unsigned long long) mCheckSum.get(), layOut->IsEntryServer());
 
   if (!isCreation) {
     // Get the real size of the file, not the local stripe size!
@@ -530,100 +539,77 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
     if (!eos::common::LayoutId::IsRain(layOut->GetLayoutId())) {
       // If replica layout and physical size of replica difference from the
-      // fmd_size it means the file is being written to so we save the actual
-      // sieze from disk.
+      // fmd_size it means the file is being written to, so we save the actual
+      // size from disk.
       if ((off_t) statinfo.st_size != (off_t) fMd->mProtoFmd.size()) {
         openSize = statinfo.st_size;
       }
     }
 
     // Preset with the last known checksum
-    if (mCheckSum && isRW && !IsChunkedUpload()) {
-      eos_info("msg=\"reset init\" file-xs=%s", fMd->mProtoFmd.checksum().c_str());
+    if (isRW && mCheckSum && !IsChunkedUpload()) {
+      eos_info("msg=\"checksum reset init\" file-xs=%s",
+               fMd->mProtoFmd.checksum().c_str());
       mCheckSum->ResetInit(0, openSize, fMd->mProtoFmd.checksum().c_str());
     }
   }
 
-  // If we are not the entry server for RAIN layouts we disable the checksum
-  // object for write. If we read we don't check checksums at all since we
-  // have block and parity checking.
-  if (eos::common::LayoutId::IsRain(mLid) &&
-      ((!isRW) || (!layOut->IsEntryServer()))) {
+  // For RAIN layouts we enable full file checksum only at the entry server for
+  // write operations. For the rest of the cases we rely on the block and parity
+  // checking.
+  if (eos::common::LayoutId::IsRain(mLid) && !(isRW && layOut->IsEntryServer())) {
     mCheckSum.reset(nullptr);
   }
 
-  std::string filecxerror = "0";
+  // Set the eos lfn as extended attribute
+  std::unique_ptr<FileIo> io
+  (FileIoPlugin::GetIoObject(layOut->GetLocalReplicaPath(), this));
 
-  if (!rc) {
-    // Set the eos lfn as extended attribute
-    std::unique_ptr<FileIo> io(FileIoPlugin::GetIoObject(
-                                 layOut->GetLocalReplicaPath(), this));
+  if (isRW) {
+    if (mNsPath.beginswith("/replicate:") || mNsPath.beginswith("/fusex-open")) {
+      if (mCapOpaque->Get("mgm.path")) {
+        XrdOucString unsealedpath = mCapOpaque->Get("mgm.path");
+        XrdOucString sealedpath = path;
 
-    if (isRW) {
-      if (mNsPath.beginswith("/replicate:") || mNsPath.beginswith("/fusex-open")) {
-        if (mCapOpaque->Get("mgm.path")) {
-          XrdOucString unsealedpath = mCapOpaque->Get("mgm.path");
-          XrdOucString sealedpath = path;
-
-          if (io->attrSet(std::string("user.eos.lfn"),
-                          std::string(unsealedpath.c_str()))) {
-            eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
-          }
-        } else {
-          eos_err("no lfn in replication capability");
-        }
-      } else {
-        if (io->attrSet(std::string("user.eos.lfn"), std::string(mNsPath.c_str()))) {
+        if (io->attrSet(std::string("user.eos.lfn"),
+                        std::string(unsealedpath.c_str()))) {
           eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
         }
+      } else {
+        eos_err("msg=\"no lfn in replication capability\"");
       }
-    }
-
-    // Try to get error if the file has a scan error
-    io->attrGet("user.eos.filecxerror", filecxerror);
-
-    if ((!isRW) && (filecxerror == "1")) {
-      if (eos::common::LayoutId::GetLayoutType(mLid) ==
-          eos::common::LayoutId::kReplica) {
-        eos_err("open of %s failed - replica has a checksum mismatch", mNsPath.c_str());
-        return gOFS.Emsg(epname, error, EIO, "open - replica has a checksum mismatch",
-                         mNsPath.c_str());
+    } else {
+      if (io->attrSet(std::string("user.eos.lfn"), std::string(mNsPath.c_str()))) {
+        eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
       }
     }
   }
 
-  if (!rc) {
-    opened = true;
-    XrdSysMutexHelper scop_lock(gOFS.OpenFidMutex);
-
-    if (isRW) {
-      gOFS.openedForWriting.up(mFsId, mFileId);
-    } else {
-      gOFS.openedForReading.up(mFsId, mFileId);
+  // For reading of replica file check for xs errors
+  if (!isRW) {
+    if ((eos::common::LayoutId::GetLayoutType(mLid) ==
+         eos::common::LayoutId::kReplica) &&
+        gFmdDbMapHandler.FileHasXsError(layOut->GetLocalReplicaPath(), mFsId)) {
+      eos_err("msg=\"open failed due to checksum mismatch\" path=%s",
+              mNsPath.c_str());
+      return gOFS.Emsg(epname, error, EIO, "open - replica checksum mismatch",
+                       mNsPath.c_str());
     }
-  } else {
-    // If we have local errors in open we don't disable the filesystem -
-    // this is done by the Scrub thread if necessary!
-    if (layOut->IsEntryServer() && (!isReplication)) {
-      eos_warning("open error return recoverable error EIO(kXR_IOError)");
-
-      // Clean-up before re-bouncing
-      if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
-        dropall(mFileId, path, mRedirectManager.c_str());
-      }
-    }
-
-    // Return an error that can be recovered at the MGM
-    return gOFS.Emsg(epname, error, EIO, "open - failed open");
   }
 
   if (isRW) {
+    gOFS.openedForWriting.up(mFsId, mFileId);
+
     if (!gOFS.Storage->OpenTransaction(mFsId, mFileId)) {
-      eos_crit("cannot open transaction for fsid=%u fxid=%08llx", mFsId, mFileId);
+      eos_crit("msg=\"cannot open transaction\" fsid=%lu fxid=%08llx",
+               mFsId, mFileId);
     }
+  } else {
+    gOFS.openedForReading.up(mFsId, mFileId);
   }
 
-  return rc;
+  mOpened = true;
+  return SFS_OK;
 }
 
 //------------------------------------------------------------------------------
@@ -916,6 +902,7 @@ XrdFstOfsFile::verifychecksum()
       mCheckSum->GetBinChecksum(checksumlen);
       // Copy checksum into meta data
       fMd->mProtoFmd.set_checksum(mCheckSum->GetHexChecksum());
+      fMd->mProtoFmd.set_diskchecksum(mCheckSum->GetHexChecksum());
 
       if (mHasWrite) {
         // If we have no write, we don't set this attributes (xrd3cp!)
@@ -1031,7 +1018,7 @@ XrdFstOfsFile::close()
 
   // We enter the close logic only once since there can be an explicit close or
   // a close via the destructor
-  if (opened && (!closed) && fMd) {
+  if (mOpened && (!closed) && fMd) {
     // Check if the file close comes from a client disconnect e.g. the destructor
     const std::string hex_fid = eos::common::FileId::Fid2Hex(fMd->mProtoFmd.fid());
     XrdOucErrInfo error;
@@ -1189,7 +1176,6 @@ XrdFstOfsFile::close()
             fMd->mProtoFmd.set_disksize(statinfo.st_size);
             fMd->mProtoFmd.set_mgmsize(Fmd::UNDEF); // now again undefined
             fMd->mProtoFmd.set_mgmchecksum(""); // now again empty
-            fMd->mProtoFmd.set_diskchecksum(""); // now again empty
             fMd->mProtoFmd.set_layouterror(0); // reset layout errors
             fMd->mProtoFmd.set_locations(""); // reset locations
             fMd->mProtoFmd.set_filecxerror(0);
