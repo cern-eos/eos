@@ -195,19 +195,6 @@ StringConversion::char_to_hex(const char input)
   return output;
 }
 
-
-//------------------------------------------------------------------------------
-// Convert binary string to hex string representation
-//------------------------------------------------------------------------------
-std::string
-StringConversion::BinData2HexString(const std::string& buf,
-                                    const size_t buf_len,
-                                    const size_t nominal_len, const char separator)
-{
-  return BinData2HexString(buf.data(), buf_len, nominal_len, separator);
-}
-
-
 //------------------------------------------------------------------------------
 // Convert binary string given as a char* and length to hex string representation
 //------------------------------------------------------------------------------

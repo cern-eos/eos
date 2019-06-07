@@ -56,9 +56,9 @@ TEST(StringConversion, ChecksumTranslations)
   in_buf.resize(4);
   memcpy(&in_buf[0], &buff[0], 4);
   ASSERT_TRUE(StringConversion::BinData2HexString
-              (in_buf, in_buf.capacity(), 4) == "c23b9138");
+              (in_buf.c_str(), in_buf.capacity(), 4) == "c23b9138");
   ASSERT_TRUE(StringConversion::BinData2HexString
-              (in_buf, in_buf.capacity(), 4, ' ') == "c2 3b 91 38");
+              (in_buf.c_str(), in_buf.capacity(), 4, ' ') == "c2 3b 91 38");
   size_t out_sz;
   auto new_buff = StringConversion::Hex2BinDataChar("c23b9138", out_sz);
   ASSERT_EQ(out_sz, 4);
@@ -80,8 +80,8 @@ TEST(StringConversion, ChecksumTranslations)
     ASSERT_EQ(buff[i], new_buff.get()[i]);
   }
 
-  ASSERT_FALSE(StringConversion::BinData2HexString(buff, 4, 4) == wrong_xs);
-  ASSERT_TRUE(StringConversion::BinData2HexString(buff, 4, 4) == "2a38174b");
+  ASSERT_FALSE(StringConversion::BinData2HexString(&buff[0], 4, 4) == wrong_xs);
+  ASSERT_TRUE(StringConversion::BinData2HexString(&buff[0], 4, 4) == "2a38174b");
 }
 
 TEST(GetSizeFromString, BasicSanity)
