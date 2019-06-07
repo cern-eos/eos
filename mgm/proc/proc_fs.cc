@@ -125,12 +125,16 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
 {
   entries = 0;
   int retc = 0;
+  bool monitor = false;
   bool dumppath = false;
   bool dumpfid = false;
   bool dumpsize = false;
-  bool monitor = false;
+  std::ostringstream out;
+  std::ostringstream err;
 
-  if (option != "m") {
+  if (option == "m") {
+    monitor = true;
+  } else {
     if (dp == "1") {
       dumppath = true;
     }
@@ -142,12 +146,10 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
     if (ds == "1") {
       dumpsize = true;
     }
-  } else {
-    monitor = true;
   }
 
   if (!sfsid.length()) {
-    stdErr = "error: illegal parameters";
+    err << "error: illegal parameters";
     retc = EINVAL;
   } else {
     int fsid = atoi(sfsid.c_str());
@@ -181,66 +183,45 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
               senv.replace("checksum=", "checksum=none");
             }
 
-            stdOut += senv.c_str();
+            out << senv.c_str();
 
             if (monitor) {
               std::string fullpath = gOFS->eosView->getUri(fmd.get());
               eos::common::Path cPath(fullpath.c_str());
-              stdOut += "&container=";
-              XrdOucString safepath = cPath.GetParentPath();
 
+              XrdOucString safepath = cPath.GetParentPath();
               while (safepath.replace("&", "#AND#")) {}
 
-              stdOut += safepath;
+              out << "&container=" << safepath.c_str();
             }
-
-            stdOut += "\n";
           } else {
             if (dumppath) {
-              std::string fullpath = gOFS->eosView->getUri(fmd.get());
-              XrdOucString safepath = fullpath.c_str();
-
+              XrdOucString safepath = gOFS->eosView->getUri(fmd.get()).c_str();
               while (safepath.replace("&", "#AND#")) {}
-
-              stdOut += "path=";
-              stdOut += safepath.c_str();
+              out << "path=" << safepath.c_str() << " ";
             }
 
             if (dumpfid) {
-              if (dumppath) {
-                stdOut += " ";
-              }
-
-              char sfid[40];
-              snprintf(sfid, 40, "fid=%08llx", (unsigned long long)fmd->getId());
-              stdOut += sfid;
+              out << "fid=" << std::setfill('0') << std::setw(8)
+                  << std::hex << fmd->getId() << std::dec << " ";
             }
 
             if (dumpsize) {
-              if (dumppath || dumpfid) {
-                stdOut += " ";
-              }
-
-              char ssize[40];
-              snprintf(ssize, 40, "size=%llu", (unsigned long long) fmd->getSize());
-              stdOut += ssize;
+              out << "size=" << fmd->getSize();
             }
-
-            stdOut += "\n";
           }
+
+          out << endl;
         }
       } catch (eos::MDException& e) {
         errno = e.getErrno();
-        eos_static_err("Couldn't retrieve meta data for file id: %u. Error "
-                       "code: %d, message: %s", it_fid->getElement(),
+        eos_static_err("Couldn't retrieve meta data for fid=%llx errc=%d "
+                       "emsg=\"%s\"", (unsigned long long) it_fid->getElement(),
                        e.getErrno(), e.getMessage().str().c_str());
       }
 
       if (!fmd) {
-        char sfid[1024];
-        snprintf(sfid, 1024, "# warning: ghost entry fid=%llu\n",
-                 (unsigned long long) it_fid->getElement());
-        stdOut += sfid;
+        out << "# warning: ghost entry fid=" << it_fid->getElement() << endl;
       }
     }
 
@@ -259,18 +240,20 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
             fmd->getEnv(env, true);
             XrdOucString senv = env.c_str();
             senv.replace("checksum=&", "checksum=none&");
-            stdOut += senv.c_str();
-            stdOut += "&container=-\n";
+            out << senv.c_str() << "&container=-" << endl;
           }
         } catch (eos::MDException& e) {
           errno = e.getErrno();
-          eos_static_err("Couldn't retrieve meta data for file id: %u. Error "
-                         "code: %d, message: %s", it_fid->getElement(),
+          eos_static_err("Couldn't retrieve meta data for fid=%llx errc=%d "
+                         "emsg=\"%s\"", (unsigned long long) it_fid->getElement(),
                          e.getErrno(), e.getMessage().str().c_str());
         }
       }
     }
   }
+
+  stdOut += out.str().c_str();
+  stdErr = err.str().c_str();
 
   return retc;
 }
