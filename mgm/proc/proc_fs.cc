@@ -133,6 +133,9 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
   std::ostringstream out;
   std::ostringstream err;
 
+  out << std::setfill('0');
+  err << std::setfill('0') << std::hex;
+
   if (option == "m") {
     monitor = true;
   } else {
@@ -219,8 +222,8 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
             }
 
             if (dumpfid) {
-              out << "fid=" << std::setfill('0') << std::setw(8)
-                  << std::hex << fmd->getId() << std::dec << " ";
+              out << "fid=" << std::setw(8) << std::hex << fmd->getId()
+                  << std::dec << " ";
             }
 
             if (dumpsize) {
@@ -238,10 +241,12 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
       }
 
       if (!fmd) {
-        err << "# warning: ghost entry fid=" << it_fid->getElement() << endl;
+        err << "# warning: ghost entry fid=" << std::setw(8)
+            << it_fid->getElement() << endl;
         retc = EIDRM;
       } else if (processPath && containerpath.empty()) {
-        err << "# warning: missing container for fid=" << fmd->getId() << endl;
+        err << "# warning: missing container for fid=" << std::setw(8)
+            << fmd->getId() << endl;
         retc = EIDRM;
       }
     }
