@@ -129,6 +129,7 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
   bool dumppath = false;
   bool dumpfid = false;
   bool dumpsize = false;
+  bool processPath = false;
   std::ostringstream out;
   std::ostringstream err;
 
@@ -148,8 +149,10 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
     }
   }
 
+  processPath = monitor || dumppath;
+
   if (!sfsid.length()) {
-    err << "error: illegal parameters";
+    err << "error: no <fsid> provided";
     retc = EINVAL;
   } else {
     int fsid = atoi(sfsid.c_str());
@@ -167,12 +170,34 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
     for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
          (it_fid && it_fid->valid()); it_fid->next()) {
       std::shared_ptr<eos::IFileMD> fmd;
+      std::string containerpath;
+      std::string fullpath;
 
       try {
         fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
 
         if (fmd) {
           entries++;
+
+          if (processPath) {
+            try {
+              std::string spath = gOFS->eosView->getUri(fmd.get());
+
+              XrdOucString safepath = spath.c_str();
+              while (safepath.replace("&", "#AND#")) {}
+              fullpath = safepath.c_str();
+
+              safepath = eos::common::Path{spath.c_str()}.GetParentPath();
+              while (safepath.replace("&", "#AND#")) {}
+              containerpath = safepath.c_str();
+            } catch(eos::MDException& e) {
+              errno = e.getErrno();
+              eos_static_err("Couldn't retrieve path for fid=%llx "
+                             "errc=%d emsg=\"%s\"",
+                             (unsigned long long) it_fid->getElement(),
+                             e.getErrno(), e.getMessage().str().c_str());
+            }
+          }
 
           if ((!dumppath) && (!dumpfid) && (!dumpsize)) {
             std::string env;
@@ -185,20 +210,12 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
 
             out << senv.c_str();
 
-            if (monitor) {
-              std::string fullpath = gOFS->eosView->getUri(fmd.get());
-              eos::common::Path cPath(fullpath.c_str());
-
-              XrdOucString safepath = cPath.GetParentPath();
-              while (safepath.replace("&", "#AND#")) {}
-
-              out << "&container=" << safepath.c_str();
+            if (monitor && containerpath.size()) {
+              out << "&container=" << containerpath.c_str();
             }
           } else {
-            if (dumppath) {
-              XrdOucString safepath = gOFS->eosView->getUri(fmd.get()).c_str();
-              while (safepath.replace("&", "#AND#")) {}
-              out << "path=" << safepath.c_str() << " ";
+            if (dumppath && fullpath.size()) {
+              out << "path=" << fullpath.c_str() << " ";
             }
 
             if (dumpfid) {
@@ -221,7 +238,11 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
       }
 
       if (!fmd) {
-        out << "# warning: ghost entry fid=" << it_fid->getElement() << endl;
+        err << "# warning: ghost entry fid=" << it_fid->getElement() << endl;
+        retc = EIDRM;
+      } else if (processPath && containerpath.empty()) {
+        err << "# warning: missing container for fid=" << fmd->getId() << endl;
+        retc = EIDRM;
       }
     }
 
