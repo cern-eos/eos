@@ -283,7 +283,7 @@ if (GRPC_FOUND)
   target_compile_definitions(
     XrdEosMgm PUBLIC -DEOS_GRPC=1)
 
-  taget_link_libraries(
+  target_link_libraries(
     XrdEosMgm PUBLIC
     ${GRPC_LIBRARY}
     ${GRPC_GRPC++_LIBRARY})
@@ -356,7 +356,7 @@ if(Linux)
     target_compile_definitions(
       XrdEosMgm-sTATIC PUBLIC -DEOS_GRPC=1)
 
-    taget_link_libraries(
+    target_link_libraries(
       XrdEosMgm PUBLIC
       ${GRPC_LIBRARY}
       ${GRPC_GRPC++_LIBRARY})
