@@ -835,8 +835,8 @@ FsCmd::SemaphoreProtectedProcDumpmd(std::string& fsid, XrdOucString& option,
     return EAGAIN;
   }
 
-  retc = proc_fs_dumpmd(fsid, option, dp, df, ds, out, err,
-                        mVid, entries);
+  int retc = proc_fs_dumpmd(fsid, option, dp, df, ds, out, err,
+                            mVid, entries);
 
   try {
     mSemaphore.Post();

@@ -332,7 +332,6 @@ FsHelper::ParseCommand(const char* arg)
     }
   } else if (cmd == "dumpmd") {
     using eos::console::FsProto_DumpMdProto;
-    mReq.set_format(eos::console::RequestProto::FUSE);
     FsProto_DumpMdProto* dumpmd = fs->mutable_dumpmd();
 
     if (!(option = tokenizer.GetToken())) {
