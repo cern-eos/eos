@@ -58,7 +58,7 @@ PROTOBUF_GENERATE_CPP(FMDBASE_SRCS FMDBASE_HDRS fst/FmdBase.proto)
 #set(FMDBASE_SRCS ${FMDBASE_SRCS} PARENT_SCOPE)
 #set(FMDBASE_HDRS ${FMDBASE_HDRS} PARENT_SCOPE)
 #set_source_files_properties(
-#  ${FMDBASE_SRCS} 
+#  ${FMDBASE_SRCS}
 #  ${FMDBASE_HDRS}
 #  PROPERTIES GENERATED TRUE)
 
@@ -73,41 +73,31 @@ set_target_properties(EosFstProto-Objects PROPERTIES
 # Generate protobol buffer object for GRPC
 #-------------------------------------------------------------------------------
 if (GRPC_FOUND)
+  set(GRPC_PROTOS ${CMAKE_CURRENT_SOURCE_DIR}/grpc/Rpc.proto)
+  set(GRPC_PROTOBUF_PATH "${CMAKE_BINARY_DIR}/proto/")
+  PROTOBUF_GENERATE_CPP(GRPC_SRCS GRPC_HDRS grpc/Rpc.proto)
+  grpc_generate_cpp(GRPC_SVC_SRCS GRPC_SVC_HDRS ${GRPC_PROTOBUF_PATH} ${GRPC_PROTOS})
 
-set(GRPC_PROTOS
-    ${CMAKE_CURRENT_SOURCE_DIR}/grpc/Rpc.proto
-)
+  set(GRPC_SRCS ${GRPC_SRCS} PARENT_SCOPE)
+  set(GRPC_HDRS ${GRPC_HDRS} PARENT_SCOPE)
+  set(GRPC_SVC_SRCS ${GRPC_SVC_SRCS} PARENT_SCOPE)
+  set(GRPC_SVC_HDRS ${GRPC_SVC_HDRS} PARENT_SCOPE)
 
-set(GRPC_PROTOBUF_PATH "${CMAKE_BINARY_DIR}/proto/")
+  set_source_files_properties(
+    ${GRPC_SRCS}
+    ${GRPC_HDRS}
+    ${GRPC_SVC_SRCS}
+    ${GRPC_SVC_HDRS}
+    PROPERTIES GENERATED TRUE)
 
-PROTOBUF_GENERATE_CPP(GRPC_SRCS GRPC_HDRS grpc/Rpc.proto)
-grpc_generate_cpp(GRPC_SVC_SRCS GRPC_SVC_HDRS ${GRPC_PROTOBUF_PATH} ${GRPC_PROTOS})
+  add_library(EosGrpcProto-Objects OBJECT
+    ${GRPC_SRCS}
+    ${GRPC_HDRS}
+    ${GRPC_SVC_SRCS}
+    ${GRPC_SVC_HDRS})
 
-set(GRPC_SRCS ${GRPC_SRCS} PARENT_SCOPE)
-set(GRPC_HDRS ${GRPC_HDRS} PARENT_SCOPE)
-set(GRPC_SVC_SRCS ${GRPC_SVC_SRCS} PARENT_SCOPE)
-set(GRPC_SVC_HDRS ${GRPC_SVC_HDRS} PARENT_SCOPE)
-
-set_source_files_properties(
-  ${GRPC_SRCS}
-  ${GRPC_HDRS}
-  ${GRPC_SVC_SRCS}
-  ${GRPC_SVC_HDRS}
-
-  PROPERTIES GENERATED TRUE)
-
-add_library(EosGrpcProto-Objects OBJECT
-  ${GRPC_SRCS}
-  ${GRPC_HDRS}
-  ${GRPC_SVC_SRCS}
-  ${GRPC_SVC_HDRS}
-
-
-)
-
-set_target_properties(EosGrpcProto-Objects PROPERTIES
-  POSITION_INDEPENDENT_CODE TRUE)
-
+  set_target_properties(EosGrpcProto-Objects PROPERTIES
+    POSITION_INDEPENDENT_CODE TRUE)
 endif()
 
 #-------------------------------------------------------------------------------
@@ -144,31 +134,25 @@ set_target_properties(EosCliProto-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 if (GRPC_FOUND)
-add_library(EosProtobuf SHARED
-  $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
-  $<TARGET_OBJECTS:EosFstProto-Objects>
-  $<TARGET_OBJECTS:EosGrpcProto-Objects>
-  $<TARGET_OBJECTS:EosCliProto-Objects>)
+  add_library(EosProtobuf SHARED
+    $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
+    $<TARGET_OBJECTS:EosFstProto-Objects>
+    $<TARGET_OBJECTS:EosGrpcProto-Objects>
+    $<TARGET_OBJECTS:EosCliProto-Objects>)
 
-target_link_libraries(EosProtobuf PUBLIC
-  ${PROTOBUF_LIBRARIES}
-  ${GRPC_GRPC++_LIBRARY}
-)
-
+  target_link_libraries(EosProtobuf PUBLIC
+    ${PROTOBUF_LIBRARIES}
+    ${GRPC_GRPC++_LIBRARY})
 else ()
+  add_library(EosProtobuf SHARED
+    $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
+    $<TARGET_OBJECTS:EosFstProto-Objects>
+    $<TARGET_OBJECTS:EosCliProto-Objects>)
 
-add_library(EosProtobuf SHARED
-  $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
-  $<TARGET_OBJECTS:EosFstProto-Objects>
-  $<TARGET_OBJECTS:EosCliProto-Objects>)
-
-target_link_libraries(EosProtobuf PUBLIC
-  eosCommon
-  ${PROTOBUF_LIBRARIES}
-)
-
+  target_link_libraries(EosProtobuf PUBLIC
+    eosCommon
+    ${PROTOBUF_LIBRARIES})
 endif ()
-
 
 set_target_properties(EosProtobuf PROPERTIES
   VERSION ${VERSION}
@@ -176,26 +160,24 @@ set_target_properties(EosProtobuf PROPERTIES
   MACOSX_RPATH TRUE)
 
 if (GRPC_FOUND)
-add_library(EosProtobuf-Static STATIC
-  $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
-  $<TARGET_OBJECTS:EosFstProto-Objects>
-  $<TARGET_OBJECTS:EosGrpcProto-Objects>
-  $<TARGET_OBJECTS:EosCliProto-Objects>)
+  add_library(EosProtobuf-Static STATIC
+    $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
+    $<TARGET_OBJECTS:EosFstProto-Objects>
+    $<TARGET_OBJECTS:EosGrpcProto-Objects>
+    $<TARGET_OBJECTS:EosCliProto-Objects>)
 
-target_link_libraries(EosProtobuf-Static PRIVATE
-  eosCommon-Static
-  ${PROTOBUF_LIBARIES}
-  ${GRPC_GRPC++_LIBRARY_STATIC}
-)
+  target_link_libraries(EosProtobuf-Static PRIVATE
+    eosCommon-Static
+    ${PROTOBUF_LIBARIES}
+    ${GRPC_GRPC++_LIBRARY_STATIC})
 else ()
-add_library(EosProtobuf-Static STATIC
-  $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
-  $<TARGET_OBJECTS:EosFstProto-Objects>
-  $<TARGET_OBJECTS:EosCliProto-Objects>)
+  add_library(EosProtobuf-Static STATIC
+    $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
+    $<TARGET_OBJECTS:EosFstProto-Objects>
+    $<TARGET_OBJECTS:EosCliProto-Objects>)
 
-target_link_libraries(EosProtobuf-Static PRIVATE
-  ${PROTOBUF_LIBARIES})
-
+  target_link_libraries(EosProtobuf-Static PRIVATE
+    ${PROTOBUF_LIBARIES})
 endif ()
 
 install(

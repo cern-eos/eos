@@ -254,12 +254,6 @@ if (MICROHTTPD_FOUND)
     XrdEosMgm PUBLIC -DEOS_MICRO_HTTPD=1)
 endif()
 
-if (GRPC_FOUND)
-  target_compile_definitions(
-    XrdEosMgm PUBLIC -DEOS_GRPC=1)
-endif()
-
-
 target_link_libraries(
   XrdEosMgm PUBLIC
   EosProtobuf
@@ -280,12 +274,20 @@ target_link_libraries(
   ${XROOTD_POSIX_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${XROOTD_SSI_LIBRARY}
-  ${GRPC_LIBRARY}
-  ${GRPC_GRPC++_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
   ${JSONCPP_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
+
+if (GRPC_FOUND)
+  target_compile_definitions(
+    XrdEosMgm PUBLIC -DEOS_GRPC=1)
+
+  taget_link_libraries(
+    XrdEosMgm PUBLIC
+    ${GRPC_LIBRARY}
+    ${GRPC_GRPC++_LIBRARY})
+endif()
 
 install(
   TARGETS XrdEosMgm
@@ -345,10 +347,18 @@ if(Linux)
     ${XROOTD_POSIX_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
     ${XROOTD_SSI_LIBRARY}
-    ${GRPC_LIBRARY}
-    ${GRPC_GRPC++_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}
     ${JSONCPP_LIBRARIES}
     ${CMAKE_THREAD_LIBS_INIT})
+
+  if (GRPC_FOUND)
+    target_compile_definitions(
+      XrdEosMgm-sTATIC PUBLIC -DEOS_GRPC=1)
+
+    taget_link_libraries(
+      XrdEosMgm PUBLIC
+      ${GRPC_LIBRARY}
+      ${GRPC_GRPC++_LIBRARY})
+  endif()
 endif()

@@ -21,21 +21,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "GrpcServer.hh"
 #include "GrpcNsInterface.hh"
-#include "proto/Rpc.grpc.pb.h"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 #include "common/StringConversion.hh"
 #include "XrdSec/XrdSecEntity.hh"
-/*----------------------------------------------------------------------------*/
 
-
-EOSMGMNAMESPACE_BEGIN
-
-//#ifdef EOS_GRPC
-
+#ifdef EOS_GRPC
+#include "proto/Rpc.grpc.pb.h"
 #include <grpc++/security/credentials.h>
 
 using grpc::Server;
@@ -43,13 +37,17 @@ using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::ServerWriter;
 using grpc::Status;
-
 using eos::rpc::Eos;
 using eos::rpc::PingRequest;
 using eos::rpc::PingReply;
 using eos::rpc::FileInsertRequest;
 using eos::rpc::ContainerInsertRequest;
 using eos::rpc::InsertReply;
+#endif
+
+EOSMGMNAMESPACE_BEGIN
+
+#ifdef EOS_GRPC
 
 class RequestServiceImpl final : public Eos::Service
 {
@@ -59,15 +57,17 @@ class RequestServiceImpl final : public Eos::Service
   {
     eos_static_info("grpc::ping from client peer=%s ip=%s DN=%s token=%s len=%lu",
                     context->peer().c_str(), GrpcServer::IP(context).c_str(),
-                    GrpcServer::DN(context).c_str(), request->authkey().c_str(), request->message().length());
+                    GrpcServer::DN(context).c_str(), request->authkey().c_str(),
+                    request->message().length());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     reply->set_message(request->message());
     return Status::OK;
   }
 
-  Status FileInsert(ServerContext* context, const eos::rpc::FileInsertRequest* request,
-		    eos::rpc::InsertReply* reply) override
+  Status FileInsert(ServerContext* context,
+                    const eos::rpc::FileInsertRequest* request,
+                    eos::rpc::InsertReply* reply) override
   {
     eos_static_info("grpc::fileinsert from client peer=%s ip=%s DN=%s token=%s",
                     context->peer().c_str(), GrpcServer::IP(context).c_str(),
@@ -77,8 +77,9 @@ class RequestServiceImpl final : public Eos::Service
     return GrpcNsInterface::FileInsert(vid, reply, request);
   }
 
-  Status ContainerInsert(ServerContext* context, const eos::rpc::ContainerInsertRequest* request,
-			 eos::rpc::InsertReply* reply) override
+  Status ContainerInsert(ServerContext* context,
+                         const eos::rpc::ContainerInsertRequest* request,
+                         eos::rpc::InsertReply* reply) override
   {
     eos_static_info("grpc::containerinsert from client peer=%s ip=%s DN=%s token=%s",
                     context->peer().c_str(), GrpcServer::IP(context).c_str(),
@@ -215,7 +216,7 @@ GrpcServer::Vid(grpc::ServerContext* context,
   eos::common::Mapping::IdMap(&client, "eos.app=grpc", client.tident, vid, true);
 }
 
-//#endif
+#endif
 
 void
 GrpcServer::Run(ThreadAssistant& assistant) noexcept

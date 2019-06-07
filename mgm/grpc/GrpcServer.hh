@@ -22,18 +22,12 @@
  ************************************************************************/
 
 #pragma once
-
-/*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "common/AssistedThread.hh"
 #include "common/Mapping.hh"
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
 #ifdef EOS_GRPC
 #include <grpc++/grpc++.h>
 #endif
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -43,8 +37,6 @@ EOSMGMNAMESPACE_BEGIN
  * @brief  This class implements a gRPC server running embedded in the MGM
  *
  */
-
-
 class GrpcServer
 {
 private:
@@ -97,7 +89,4 @@ public:
 #endif
 };
 
-
-
 EOSMGMNAMESPACE_END
-

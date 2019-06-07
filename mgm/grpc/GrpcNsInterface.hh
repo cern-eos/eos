@@ -24,17 +24,13 @@
 #pragma once
 
 #ifdef EOS_GRPC
-
-/*----------------------------------------------------------------------------*/
 #include "common/Mapping.hh"
 #include "mgm/Namespace.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IView.hh"
-/*----------------------------------------------------------------------------*/
 #include "GrpcServer.hh"
 #include "proto/Rpc.grpc.pb.h"
-/*----------------------------------------------------------------------------*/
 #include <grpc++/grpc++.h>
 
 /*----------------------------------------------------------------------------*/
@@ -61,15 +57,15 @@ public:
                                grpc::ServerWriter<eos::rpc::MDResponse>* writer,
                                const eos::rpc::MDRequest* request);
 
-  static grpc::Status FileInsert(eos::common::VirtualIdentity& vid, 
-				 eos::rpc::InsertReply* reply,
-				 const eos::rpc::FileInsertRequest* request);
-				 
+  static grpc::Status FileInsert(eos::common::VirtualIdentity& vid,
+                                 eos::rpc::InsertReply* reply,
+                                 const eos::rpc::FileInsertRequest* request);
 
 
-  static grpc::Status ContainerInsert(eos::common::VirtualIdentity& vid, 
-				      eos::rpc::InsertReply* reply,
-				      const eos::rpc::ContainerInsertRequest* request);
+
+  static grpc::Status ContainerInsert(eos::common::VirtualIdentity& vid,
+                                      eos::rpc::InsertReply* reply,
+                                      const eos::rpc::ContainerInsertRequest* request);
 
 
 
@@ -78,8 +74,5 @@ public:
 
 };
 
-#endif
-
-
 EOSMGMNAMESPACE_END
-
+#endif

@@ -145,7 +145,7 @@ extern "C" {
 
 #ifdef COVERAGE_BUILD
 // Forward declaration of gcov flush API
-extern "C" void __gcov_flush();
+  extern "C" void __gcov_flush();
 #endif
 
 //------------------------------------------------------------------------------
@@ -157,47 +157,47 @@ extern "C" void __gcov_flush();
 //!
 //! @returns configures and returns our MgmOfs object
 //------------------------------------------------------------------------------
-XrdSfsFileSystem*
-XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
-                    XrdSysLogger* lp,
-                    const char* configfn)
-{
-  gMgmOfsEroute.SetPrefix("MgmOfs_");
-  gMgmOfsEroute.logger(lp);
-  static XrdMgmOfs myFS(&gMgmOfsEroute);
-  XrdOucString vs = "MgmOfs (meta data redirector) ";
-  vs += VERSION;
-  gMgmOfsEroute.Say("++++++ (c) 2015 CERN/IT-DSS ", vs.c_str());
+  XrdSfsFileSystem*
+  XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
+                      XrdSysLogger* lp,
+                      const char* configfn)
+  {
+    gMgmOfsEroute.SetPrefix("MgmOfs_");
+    gMgmOfsEroute.logger(lp);
+    static XrdMgmOfs myFS(&gMgmOfsEroute);
+    XrdOucString vs = "MgmOfs (meta data redirector) ";
+    vs += VERSION;
+    gMgmOfsEroute.Say("++++++ (c) 2015 CERN/IT-DSS ", vs.c_str());
 
-  // Initialize the subsystems
-  if (!myFS.Init(gMgmOfsEroute)) {
-    return nullptr;
+    // Initialize the subsystems
+    if (!myFS.Init(gMgmOfsEroute)) {
+      return nullptr;
+    }
+
+    // Disable XRootd log rotation
+    lp->setRotate(0);
+    gOFS = &myFS;
+    // Did we pass the "-2" option to the plugin in the config file?
+    gOFS->IsFileSystem2 = false;
+    // By default enable stalling and redirection
+    gOFS->IsStall = true;
+    gOFS->IsRedirect = true;
+    myFS.ConfigFN = (configfn && *configfn ? strdup(configfn) : nullptr);
+
+    if (myFS.Configure(gMgmOfsEroute)) {
+      return nullptr;
+    }
+
+    // Initialize authorization module ServerAcc
+    gOFS->CapabilityEngine = (XrdCapability*) XrdAccAuthorizeObject(lp, configfn,
+                             nullptr);
+
+    if (!gOFS->CapabilityEngine) {
+      return nullptr;
+    }
+
+    return gOFS;
   }
-
-  // Disable XRootd log rotation
-  lp->setRotate(0);
-  gOFS = &myFS;
-  // Did we pass the "-2" option to the plugin in the config file?
-  gOFS->IsFileSystem2 = false;
-  // By default enable stalling and redirection
-  gOFS->IsStall = true;
-  gOFS->IsRedirect = true;
-  myFS.ConfigFN = (configfn && *configfn ? strdup(configfn) : nullptr);
-
-  if (myFS.Configure(gMgmOfsEroute)) {
-    return nullptr;
-  }
-
-  // Initialize authorization module ServerAcc
-  gOFS->CapabilityEngine = (XrdCapability*) XrdAccAuthorizeObject(lp, configfn,
-                           nullptr);
-
-  if (!gOFS->CapabilityEngine) {
-    return nullptr;
-  }
-
-  return gOFS;
-}
 
 //------------------------------------------------------------------------------
 //! Filesystem Plugin factory function
@@ -212,21 +212,23 @@ XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
 //!
 //! @returns configures and returns our MgmOfs object
 //------------------------------------------------------------------------------
-XrdSfsFileSystem*
-XrdSfsGetFileSystem2(XrdSfsFileSystem* native_fs,
-                    XrdSysLogger* lp,
-                    const char* configfn,
-                    XrdOucEnv *envP)
-{
-  // Initialise gOFS
-  XrdSfsGetFileSystem(native_fs, lp, configfn);
-  gOFS->IsFileSystem2 = true;
+  XrdSfsFileSystem*
+  XrdSfsGetFileSystem2(XrdSfsFileSystem* native_fs,
+                       XrdSysLogger* lp,
+                       const char* configfn,
+                       XrdOucEnv* envP)
+  {
+    // Initialise gOFS
+    XrdSfsGetFileSystem(native_fs, lp, configfn);
+    gOFS->IsFileSystem2 = true;
 
-  // Tell XRootD that MgmOfs implements the Prepare plugin
-  if(envP != nullptr) envP->Put("XRD_PrepHandler", "1");
+    // Tell XRootD that MgmOfs implements the Prepare plugin
+    if (envP != nullptr) {
+      envP->Put("XRD_PrepHandler", "1");
+    }
 
-  return gOFS;
-}
+    return gOFS;
+  }
 
 } // extern "C"
 
@@ -254,8 +256,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mIsCentralDrain(false), mLRUEngine(new eos::mgm::LRU()),
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr), UTF8(false), mFstGwHost(""),
   mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
-  mGRPCPort(50051),
-  mFusexPort(1100),
+  mFusexPort(1100), mGRPCPort(50051),
   mTapeAwareGcDefaultSpaceEnable(false),
   mBalancingTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
   mDrainingTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
@@ -667,31 +668,29 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   std::string cmd = "mgm.pcmd=event";
   int retc = SFS_OK;
   std::list<std::pair<char**, char**>> pathsWithPrepare;
-
   // Initialise the request ID for the Prepare request to the one provided by XRootD
   XrdOucString reqid(pargs.reqid);
-
   // Validate the event type
   std::string event;
-  if(pargs.opts & Prep_STAGE) {
-    event = "sync::prepare";
 
+  if (pargs.opts & Prep_STAGE) {
+    event = "sync::prepare";
 #if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
-    if(gOFS->IsFileSystem2) {
+
+    if (gOFS->IsFileSystem2) {
       // Override the XRootD-supplied request ID. The request ID can be any arbitrary string, so long as
       // it is guaranteed to be unique for each request.
       //
       // Note: To use the default request ID supplied in pargs.reqid, return SFS_OK instead of SFS_DATA.
       //       Overriding is only possible in the case of PREPARE. In the case of ABORT and QUERY requests,
       //       pargs.reqid should contain the request ID that was returned by the corresponding PREPARE.
-
       // This is a placeholder. To use this feature, EOS should generate a unique ID here.
       reqid = "eos:" + reqid;
     }
-  } else if(pargs.opts & Prep_CANCEL) {
+  } else if (pargs.opts & Prep_CANCEL) {
     event = "sync::abort_prepare";
 #else
-  } else if(pargs.opts & Prep_FRESH) {
+  } else if (pargs.opts & Prep_FRESH) {
     event = "sync::abort_prepare";
 #endif
   } else {
@@ -787,7 +786,8 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     XrdOucString prep_path = (*pathPair.first ? *pathPair.first : "");
     XrdOucString prep_info = pathPair.second != nullptr ? (*pathPair.second ?
                              *pathPair.second : "") : "";
-    eos_info("msg=\"about to trigger WFE\" path=\"%s\" info=\"%s\"", prep_path.c_str(), prep_info.c_str());
+    eos_info("msg=\"about to trigger WFE\" path=\"%s\" info=\"%s\"",
+             prep_path.c_str(), prep_info.c_str());
     XrdOucEnv prep_env(prep_info.c_str());
     prep_info = cmd.c_str();
     prep_info += "&mgm.event=";
@@ -810,10 +810,12 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     prep_info += (int)vid.gid;
     prep_info += "&mgm.reqid=";
     prep_info += reqid.c_str();
+
     if (prep_env.Get("activity")) {
       prep_info += "&activity=";
       prep_info += prep_env.Get("activity");
     }
+
     XrdSecEntity lClient(vid.prot.c_str());
     lClient.name = (char*) vid.name.c_str();
     lClient.tident = (char*) vid.tident.c_str();
@@ -846,13 +848,14 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   }
 
 #if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
+
   // If we generated our own request ID, return it to the client
-  if(gOFS->IsFileSystem2 && (pargs.opts & Prep_STAGE)) {
+  if (gOFS->IsFileSystem2 && (pargs.opts & Prep_STAGE)) {
     error.setErrInfo(reqid.length() + 1, reqid.c_str());
     retc = SFS_DATA;
   }
-#endif
 
+#endif
   EXEC_TIMING_END("Prepare");
   return retc;
 }
