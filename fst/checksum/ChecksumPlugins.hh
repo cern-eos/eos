@@ -21,12 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_CHECKSUMPLUGIN_HH__
-#define __EOSFST_CHECKSUMPLUGIN_HH__
-
-/*----------------------------------------------------------------------------*/
-#include "common/LayoutId.hh"
+#pragma once
 #include "fst/Namespace.hh"
+#include "common/LayoutId.hh"
 #include "fst/checksum/CheckSum.hh"
 #include "fst/checksum/Adler.hh"
 #include "fst/checksum/CRC32.hh"
@@ -34,79 +31,70 @@
 #include "fst/checksum/MD5.hh"
 #include "fst/checksum/SHA1.hh"
 
-/*----------------------------------------------------------------------------*/
-
 EOSFSTNAMESPACE_BEGIN
 
+//------------------------------------------------------------------------------
+//! Class ChecksumPluging
+//------------------------------------------------------------------------------
 class ChecksumPlugins
 {
 public:
-
-  ChecksumPlugins () { };
-
-  ~ChecksumPlugins () { };
-
+  //----------------------------------------------------------------------------
+  //! Get checksum object depending on the given type
+  //!
+  //! @param xs_type checksum type given usigned long
+  //!
+  //! @return checksum object
+  //----------------------------------------------------------------------------
   static CheckSum*
-  GetChecksumObject (unsigned int layoutid, bool blockchecksum = false)
+  GetXsObj(unsigned long xs_type)
   {
-    if (blockchecksum)
-    {
-      if (eos::common::LayoutId::GetBlockChecksum(layoutid) == eos::common::LayoutId::kAdler)
-      {
-        return (CheckSum*)new Adler;
-      }
-      if (eos::common::LayoutId::GetBlockChecksum(layoutid) == eos::common::LayoutId::kCRC32)
-      {
-        return (CheckSum*)new CRC32;
-      }
-      if (eos::common::LayoutId::GetBlockChecksum(layoutid) == eos::common::LayoutId::kCRC32C)
-      {
-        return (CheckSum*)new CRC32C;
-      }
-      if (eos::common::LayoutId::GetBlockChecksum(layoutid) == eos::common::LayoutId::kMD5)
-      {
-        return (CheckSum*)new MD5;
-      }
-      if (eos::common::LayoutId::GetBlockChecksum(layoutid) == eos::common::LayoutId::kSHA1)
-      {
-        return (CheckSum*)new SHA1;
-      }
-    }
-    else
-    {
-      if (eos::common::LayoutId::GetChecksum(layoutid) == eos::common::LayoutId::kAdler)
-      {
-        return (CheckSum*)new Adler;
-      }
-      if (eos::common::LayoutId::GetChecksum(layoutid) == eos::common::LayoutId::kCRC32)
-      {
-        return (CheckSum*)new CRC32;
-      }
-      if (eos::common::LayoutId::GetChecksum(layoutid) == eos::common::LayoutId::kCRC32C)
-      {
-        return (CheckSum*)new CRC32C;
-      }
-      if (eos::common::LayoutId::GetChecksum(layoutid) == eos::common::LayoutId::kMD5)
-      {
-        return (CheckSum*)new MD5;
-      }
-      if (eos::common::LayoutId::GetChecksum(layoutid) == eos::common::LayoutId::kSHA1)
-      {
-        return (CheckSum*)new SHA1;
-      }
+    if (xs_type == eos::common::LayoutId::kAdler) {
+      return static_cast<CheckSum*>(new Adler());
+    } else if (xs_type == eos::common::LayoutId::kCRC32) {
+      return static_cast<CheckSum*>(new CRC32());
+    } else if (xs_type == eos::common::LayoutId::kCRC32C) {
+      return static_cast<CheckSum*>(new CRC32C());
+    } else if (xs_type == eos::common::LayoutId::kMD5) {
+      return static_cast<CheckSum*>(new MD5());
+    } else if (xs_type == eos::common::LayoutId::kSHA1) {
+      return static_cast<CheckSum*>(new SHA1());
     }
 
-    return 0;
+    return nullptr;
   }
 
+  //----------------------------------------------------------------------------
+  //! Get checksum object depending on the given type
+  //!
+  //! @param xs_type checksum type given as string
+  //!
+  //! @return checksum object
+  //----------------------------------------------------------------------------
   static std::unique_ptr<CheckSum>
-  GetChecksumObjectPtr(unsigned int layoutid, bool blockchecksum = false)
+  GetXsObj(const std::string& xs_type)
   {
-    return std::unique_ptr<CheckSum>(GetChecksumObject(layoutid, blockchecksum));
+    return std::unique_ptr<CheckSum>
+           (GetXsObj(eos::common::LayoutId::GetChecksumFromString(xs_type)));
   }
 
+  //----------------------------------------------------------------------------
+  //! Get checksum object given the layoutid
+  //!
+  //! @param layoutid layout id endcoding see eos::common::LayoutId
+  //! @param blockchecksum if true then return the checksum object for the
+  //!        block checksum part encoded in the layout id
+  //!
+  //! @return checksum object
+  //----------------------------------------------------------------------------
+  static std::unique_ptr<CheckSum>
+  GetChecksumObject(unsigned long layoutid, bool blockchecksum = false)
+  {
+    unsigned int xs_type = (blockchecksum ?
+                            eos::common::LayoutId::GetBlockChecksum(layoutid) :
+                            eos::common::LayoutId::GetChecksum(layoutid));
+    return std::unique_ptr<CheckSum>(GetXsObj(xs_type));
+  }
 };
 
 EOSFSTNAMESPACE_END
-
-#endif

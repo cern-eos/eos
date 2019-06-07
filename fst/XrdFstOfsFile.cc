@@ -1181,8 +1181,6 @@ XrdFstOfsFile::close()
             fMd->mProtoFmd.set_filecxerror(0);
             fMd->mProtoFmd.set_blockcxerror(0);
             fMd->mProtoFmd.set_locations(""); // reset locations
-            fMd->mProtoFmd.set_filecxerror(0);
-            fMd->mProtoFmd.set_blockcxerror(0);
             fMd->mProtoFmd.set_mtime(statinfo.st_mtime);
 #ifdef __APPLE__
             fMd->mProtoFmd.set_mtime_ns(0);
@@ -2894,7 +2892,7 @@ XrdFstOfsFile::ProcessMixedOpaque()
 
   // Call the checksum factory function with the selected layout
   if (opaqueCheckSum != "ignore") {
-    mCheckSum = eos::fst::ChecksumPlugins::GetChecksumObjectPtr(mLid);
+    mCheckSum = eos::fst::ChecksumPlugins::GetChecksumObject(mLid);
     eos_debug("checksum requested %d %u", mCheckSum.get(), mLid);
   }
 

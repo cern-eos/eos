@@ -112,7 +112,6 @@ public:
   //!
   //! @param io io object attached to the file
   //! @param scan_size final scan size
-  //! @param lfn logical file name (NS path)
   //! @param filexs_err set to true if file has a checksum error
   //! @param blockxs_err set to true if file has a block checksum errror
   //!
@@ -121,8 +120,7 @@ public:
   //----------------------------------------------------------------------------
   bool ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
                          unsigned long long& scan_size,
-                         const std::string& lfn, bool& filexs_err,
-                         bool& blockxs_err);
+                         bool& filexs_err, bool& blockxs_err);
 
   //----------------------------------------------------------------------------
   //! Get clock reference for testing purposes

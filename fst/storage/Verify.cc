@@ -158,7 +158,7 @@ Storage::Verify()
       fMd->mProtoFmd.set_lid(verifyfile->lId);
       fMd->mProtoFmd.set_cid(verifyfile->cId);
       std::unique_ptr<CheckSum> checksummer =
-        ChecksumPlugins::GetChecksumObjectPtr(fMd->mProtoFmd.lid());
+        ChecksumPlugins::GetChecksumObject(fMd->mProtoFmd.lid());
       unsigned long long scansize = 0;
       float scantime = 0; // is ms
       eos::fst::CheckSum::ReadCallBack::callback_data_t cbd;

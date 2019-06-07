@@ -110,7 +110,7 @@ int main(int argc, char* argv[])
         for (size_t i = 0; i < checksumnames.size(); i++) {
           eos_static_info("benchmarking checksum algorithm %s", checksumnames[i].c_str());
           std::unique_ptr<eos::fst::CheckSum> checksum =
-            eos::fst::ChecksumPlugins::GetChecksumObjectPtr(checksumids[i]);
+            eos::fst::ChecksumPlugins::GetChecksumObject(checksumids[i]);
 
           if (!checksum) {
             eos_static_err("failed to get checksum algorithm %s", checksumnames[i].c_str());
