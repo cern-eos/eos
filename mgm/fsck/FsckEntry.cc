@@ -60,14 +60,17 @@ bool
 FsckEntry::RepairMgmXsDiff()
 {
   using eos::common::StringConversion;
+  using eos::common::LayoutId;
 
   // This only makes sense for replica layouts
-  if (eos::common::LayoutId::IsRain(mMgmFmd.layout_id())) {
+  if (LayoutId::IsRain(mMgmFmd.layout_id())) {
     return true;
   }
 
-  std::string mgm_xs_val = StringConversion::BinData2HexString(
-                             mMgmFmd.checksum());
+  std::string mgm_xs_val =
+    StringConversion::BinData2HexString(mMgmFmd.checksum().c_str(),
+                                        SHA_DIGEST_LENGTH,
+                                        LayoutId::GetChecksumLen(mMgmFmd.layout_id()));
   // Make sure the disk xs values match between all the replicas
   std::string xs_val;
   bool mgm_xs_match = false; // one of the disk xs matches the mgm one
@@ -80,7 +83,7 @@ FsckEntry::RepairMgmXsDiff()
       if (!finfo->mScanXs.empty()) {
         xs_val = finfo->mScanXs;
       } else {
-        xs_val = StringConversion::BinData2HexString(finfo->mFstFmd.checksum());
+        xs_val = finfo->mFstFmd.checksum();
       }
 
       if (mgm_xs_val == xs_val) {
@@ -93,7 +96,7 @@ FsckEntry::RepairMgmXsDiff()
       if (!finfo->mScanXs.empty()) {
         current_xs_val = finfo->mScanXs;
       } else {
-        current_xs_val = StringConversion::BinData2HexString(finfo->mFstFmd.checksum());
+        current_xs_val = finfo->mFstFmd.checksum();
       }
 
       if (mgm_xs_val == current_xs_val) {
