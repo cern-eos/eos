@@ -151,19 +151,23 @@ public:
   //--------------------------------------------------------------------------
   //! Get a reed solomon layout by number of redundancystripess
   //--------------------------------------------------------------------------
-  static int 
-  GetReedSLayoutByParity(int redundancystripes) 
+  static int
+  GetReedSLayoutByParity(int redundancystripes)
   {
     switch (redundancystripes) {
     case 1:
       return kRaid5;
+
     case 2:
       return kRaid6;
+
     case 3:
       return kArchive;
+
     case 4:
       return kQrain;
-    default: 
+
+    default:
       return 0;
     }
   }
@@ -191,7 +195,7 @@ public:
     // already set explicitly
     if (redundancystripes == 0) {
       if (layout == kRaid5) {
-	redundancystripes = 1;
+        redundancystripes = 1;
       } else if (layout == kRaidDP) {
         redundancystripes = 2;
       } else if (layout == kRaid6) {
@@ -199,8 +203,8 @@ public:
       } else if (layout == kArchive) {
         redundancystripes = 3;
       } else if (layout == kQrain) {
-	redundancystripes = 4;
-      } 
+        redundancystripes = 4;
+      }
     }
 
     id |= ((redundancystripes & 0x7) << 28);
@@ -213,24 +217,31 @@ public:
   static unsigned long
   BlockSize(int blocksize)
   {
-
     switch (blocksize) {
     case k4k:
       return (4 * 1024);
+
     case k64k:
       return (64 * 1024);
+
     case k128k:
       return (128 * 1024);
+
     case k512k:
       return (512 * 1024);
+
     case k1M:
       return (1024 * 1024);
+
     case k4M:
       return (4 * 1024 * 1024);
+
     case k16M:
       return (16 * 1024 * 1024);
+
     case k64M:
       return (64 * 1024 * 1024);
+
     default:
       return 0;
     }
@@ -245,20 +256,28 @@ public:
     switch (blocksize) {
     case (4*1024):
       return k4k;
+
     case (64*1024):
       return k64k;
+
     case (128*1024):
       return k128k;
+
     case (512*1024):
       return k512k;
+
     case (1024 * 1024):
       return k1M;
+
     case (4 * 1024 * 1024):
       return k4M;
+
     case (16 * 1024 * 1024):
       return k16M;
+
     case (64 * 1024 * 1024):
       return k64M;
+
     default:
       return 0;
     }
@@ -274,7 +293,7 @@ public:
   }
 
   //--------------------------------------------------------------------------
-  //! Get Length of Layout checksum in bytes
+  //! Get length of Layout checksum in bytes
   //--------------------------------------------------------------------------
   static unsigned long
   GetChecksumLen(unsigned long layout)
@@ -300,6 +319,27 @@ public:
     }
 
     return 0;
+  }
+
+  //--------------------------------------------------------------------------
+  //! Get length of Layout checksum in bytes
+  //--------------------------------------------------------------------------
+  static unsigned long
+  GetChecksumLen(const std::string& xs_type)
+  {
+    if (xs_type == "adler") {
+      return 4;
+    } else if (xs_type == "crc32") {
+      return 4;
+    } else if (xs_type == "crc32c") {
+      return 4;
+    } else if (xs_type == "md5") {
+      return 16;
+    } else if (xs_type == "sha") {
+      return 20;
+    } else {
+      return 0;
+    }
   }
 
   static std::string
@@ -361,7 +401,7 @@ public:
   IsRain(unsigned long layout)
   {
     // everything but plain and replica
-    return (GetLayoutType(layout)>kReplica);
+    return (GetLayoutType(layout) > kReplica);
   }
 
 
@@ -565,7 +605,7 @@ public:
   static unsigned long
   GetOnlineStripeNumber(unsigned long layout)
   {
-    return (GetStripeNumber(layout)+1);
+    return (GetStripeNumber(layout) + 1);
   }
 
   //--------------------------------------------------------------------------
@@ -772,13 +812,13 @@ public:
   static std::string
   GetStripeNumberString(unsigned long layout)
   {
-
     int n = GetStripeNumber(layout) + 1;
 
-    if (n<256) 
+    if (n < 256) {
       return std::to_string(n);
-    else
+    } else {
       return "none";
+    }
   }
 
   //--------------------------------------------------------------------------
@@ -936,7 +976,7 @@ public:
       }
 
       if (typ == "qrain") {
-	return kQrain;
+        return kQrain;
       }
     }
 
