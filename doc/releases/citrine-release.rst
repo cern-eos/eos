@@ -15,6 +15,28 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.5.0 Citrine``
+===================
+
+2019-06-07
+
+Bug
+---
+
+* [ EOS-3495 ] Handle out-of-quota open correctly in eosxd
+* [ EOS-1755 ] Don't irritate du with . entry size
+
+Improvement
+-----------
+
+* Provide optional GRPC service in MGM
+* Documentation improvements
+* Swap-in-out eosxd inodes with lru table into rocksdb DB
+* Block only running file drains from parallel draining
+* CTA GC monitoring in 'eos ns'
+* [ EOS-3514 ] Implement orphan detection in eos-ns-inspec
+* [ EOS-3490 ] Support printing mctime, ctime in eos-ns-inspec
+
 ``v4.4.47 Citrine``
 ===================
 
