@@ -280,9 +280,6 @@ target_link_libraries(
   ${CMAKE_THREAD_LIBS_INIT})
 
 if (GRPC_FOUND)
-  target_compile_definitions(
-    XrdEosMgm PUBLIC -DEOS_GRPC=1)
-
   target_link_libraries(
     XrdEosMgm PUBLIC
     ${GRPC_LIBRARY}
@@ -353,11 +350,8 @@ if(Linux)
     ${CMAKE_THREAD_LIBS_INIT})
 
   if (GRPC_FOUND)
-    target_compile_definitions(
-      XrdEosMgm-sTATIC PUBLIC -DEOS_GRPC=1)
-
     target_link_libraries(
-      XrdEosMgm PUBLIC
+      XrdEosMgm-Static PUBLIC
       ${GRPC_LIBRARY}
       ${GRPC_GRPC++_LIBRARY})
   endif()
