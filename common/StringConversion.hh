@@ -110,15 +110,6 @@ public:
   static std::string char_to_hex(const char input);
 
   //----------------------------------------------------------------------------
-  //! Convert binary string to hex string representation. See description below.
-  //----------------------------------------------------------------------------
-  static std::string
-  BinData2HexString(const std::string& buf,
-                    const size_t buf_len = SHA_DIGEST_LENGTH,
-                    const size_t nominal_len = SHA_DIGEST_LENGTH,
-                    const char separator = 0x00);
-
-  //----------------------------------------------------------------------------
   //! Convert binary string given as a char* and length to hex string
   //! representation
   //!
@@ -132,7 +123,8 @@ public:
   //----------------------------------------------------------------------------
   static std::string
   BinData2HexString(const char* buf, const size_t buf_len,
-                    const size_t nominal_len, const char separator = 0x00);
+                    const size_t nominal_len = SHA_DIGEST_LENGTH,
+                    const char separator = 0x00);
 
 
   //----------------------------------------------------------------------------
