@@ -57,9 +57,9 @@ class RequestServiceImpl final : public Eos::Service
   Status Ping(ServerContext* context, const eos::rpc::PingRequest* request,
               eos::rpc::PingReply* reply) override
   {
-    eos_static_info("grpc::ping from client peer=%s ip=%s DN=%s token=%s",
+    eos_static_info("grpc::ping from client peer=%s ip=%s DN=%s token=%s len=%lu",
                     context->peer().c_str(), GrpcServer::IP(context).c_str(),
-                    GrpcServer::DN(context).c_str(), request->authkey().c_str());
+                    GrpcServer::DN(context).c_str(), request->authkey().c_str(), request->message().length());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     reply->set_message(request->message());

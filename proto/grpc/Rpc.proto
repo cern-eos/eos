@@ -20,12 +20,12 @@ service Eos {
 }
 
 message PingRequest {
-	string message = 1;
-	string authkey = 2;
+	string authkey = 1;
+	bytes message = 2;
 }
 
 message PingReply {
-	string message = 1;
+	bytes message = 1;
 }
 
 message ContainerInsertRequest {

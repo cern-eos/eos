@@ -6,7 +6,7 @@
 
 int usage(const char* prog)
 {
-  fprintf(stderr, "usage: %s [--key <ssl-key-file> "
+  fprintf(stderr, "usage: %s [--size pingsize (max 4M)] [--key <ssl-key-file> "
           "--cert <ssl-cert-file> "
           "--ca <ca-cert-file>] "
           "[--endpoint <host:port>] [--token <auth-token>]\n", prog);
@@ -23,6 +23,7 @@ int main(int argc, const char* argv[])
   std::string keyfile;
   std::string certfile;
   std::string cafile;
+  size_t ping_size = 0 ;
 
   for (auto i = 1; i < argc; ++i) {
     std::string option = argv[i];
@@ -77,6 +78,16 @@ int main(int argc, const char* argv[])
       }
     }
 
+    if (option == "--size") {
+      if (argc > i + 1) {
+        ping_size = std::strtoul(argv[i + 1],0,10);
+        ++i;
+        continue;
+      } else {
+        return usage(argv[0]);
+      }
+    }
+
     return usage(argv[0]);
   }
 
@@ -84,6 +95,11 @@ int main(int argc, const char* argv[])
     if (!keyfile.length() || !certfile.length() || !cafile.length()) {
       return usage(argv[0]);
     }
+  }
+
+
+  if (ping_size > (4*1000000)) {
+    return usage(argv[0]);
   }
 
   std::unique_ptr<eos::client::GrpcClient> eosgrpc =
@@ -99,22 +115,27 @@ int main(int argc, const char* argv[])
   }
 
   std::string message("ping");
+  
+  if (ping_size) {
+    message.resize(ping_size);
+  }
+
   std::chrono::steady_clock::time_point watch_global =
     std::chrono::steady_clock::now();
-  int n_requests = 1000;
+  int n_requests = 100;
 
   for (auto i = 0; i < n_requests; ++i) {
     std::chrono::steady_clock::time_point watch_local =
       std::chrono::steady_clock::now();
     std::string reply = eosgrpc->Ping(message);
 
-    if (reply != "ping") {
+    if (reply != message) {
       std::cout << "request: failed/timeout" << std::endl;
     } else {
       std::chrono::microseconds elapsed_local =
         std::chrono::duration_cast<std::chrono::microseconds>
         (std::chrono::steady_clock::now() - watch_local);
-      std::cout << "request: " << message << " reply: " << reply << " timing: " <<
+      std::cout << "request: " << message.length() << " reply: " << reply.length() << " timing: " <<
                 elapsed_local.count() << " micro seconds" << std::endl;
     }
   }
