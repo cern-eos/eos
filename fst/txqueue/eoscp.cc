@@ -619,7 +619,7 @@ main(int argc, char* argv[])
         layoutId = LayoutId::GetId(layout, LayoutId::kCRC32C);
       }
 
-      xsObj = eos::fst::ChecksumPlugins::GetChecksumObjectPtr(layoutId);
+      xsObj = eos::fst::ChecksumPlugins::GetChecksumObject(layoutId);
 
       if (xsObj) {
         xsObj->Reset();

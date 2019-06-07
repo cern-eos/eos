@@ -83,7 +83,7 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
   const char* val = 0;
   unsigned long lid = 0;
   off_t booking_size = 0;
-  eos_info("path=%s", path);
+  eos_debug("path=%s", path);
   mPath = path;
 
   if (fd >= 0) {
@@ -115,7 +115,10 @@ XrdFstOssFile::Open(const char* path, int flags, mode_t mode, XrdOucEnv& env)
     mBlockXs = pair_value.second;
 
     if (!mBlockXs) {
-      mBlockXs = ChecksumPlugins::GetChecksumObject(lid, true);
+      auto xs_ptr = ChecksumPlugins::GetChecksumObject(lid, true);
+      mBlockXs = xs_ptr.get();
+      // Management of the xs object lifetime is handled by the OSS class
+      xs_ptr.release();
 
       if (mBlockXs) {
         XrdOucString xs_path = mBlockXs->MakeBlockXSPath(mPath.c_str());

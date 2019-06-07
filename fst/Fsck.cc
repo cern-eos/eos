@@ -295,8 +295,8 @@ Fsck::CheckFile(const char* filepath)
       errors["detached"]++;
     } else {
       if (checksumLen) {
-        std::unique_ptr<CheckSum> checksum(ChecksumPlugins::GetChecksumObject(
-                                             mMd[fid].lid(), false));
+        std::unique_ptr<CheckSum> checksum =
+          ChecksumPlugins::GetChecksumObject(mMd[fid].lid(), false);
         checksum->SetBinChecksum(checksumVal, checksumLen);
         std::string hex_checksum = checksum->GetHexChecksum();
         mMd[fid].set_diskchecksum(hex_checksum);

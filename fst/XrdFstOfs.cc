@@ -1746,7 +1746,7 @@ XrdFstOfs::GetKeytabChecksum(const std::string& kt_path) const
 
     if (nread > 0) {
       std::unique_ptr<CheckSum> KeyCKS =
-        ChecksumPlugins::GetChecksumObjectPtr(eos::common::LayoutId::kAdler);
+        ChecksumPlugins::GetChecksumObject(eos::common::LayoutId::kAdler);
 
       if (KeyCKS) {
         KeyCKS->Add(buffer, nread, 0);

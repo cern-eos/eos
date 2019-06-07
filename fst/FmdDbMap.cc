@@ -797,6 +797,7 @@ FmdDbMapHandler::UpdateWithScanInfo(eos::common::FileSystem::fsid_t fsid,
       if ((orphaned == false) &&
           ((fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered)
            == false)) {
+        eos_info("msg=\"trigger auto repair\" fid=%08llx", fid);
         CallAutoRepair(manager.c_str(), fid);
       }
     }
@@ -825,8 +826,8 @@ FmdDbMapHandler::ResetDiskInformation(eos::common::FileSystem::fsid_t fsid)
       f.set_disksize(Fmd::UNDEF);
       f.set_diskchecksum("");
       f.set_checktime(0);
-      f.set_filecxerror(-1);
-      f.set_blockcxerror(-1);
+      f.set_filecxerror(0);
+      f.set_blockcxerror(0);
       val = *v;
       f.SerializeToString(&val.value);
       mDbMap[fsid]->set(*k, val);
@@ -917,12 +918,11 @@ FmdDbMapHandler::ResyncDisk(const char* path,
   struct stat buf;
 
   if ((!io->fileStat(&buf)) && S_ISREG(buf.st_mode)) {
+    disk_size = buf.st_size;
     std::string sxs_type, scheck_stamp, filexs_err, blockxs_err;
     char xs_val[SHA_DIGEST_LENGTH];
-    size_t xs_len = 0;
-    disk_size = buf.st_size;
+    size_t xs_len = SHA_DIGEST_LENGTH;
     memset(xs_val, 0, sizeof(xs_val));
-    xs_len = SHA_DIGEST_LENGTH;
     io->attrGet("user.eos.checksumtype", sxs_type);
     io->attrGet("user.eos.filecxerror", filexs_err);
     io->attrGet("user.eos.blockcxerror", blockxs_err);
@@ -937,7 +937,13 @@ FmdDbMapHandler::ResyncDisk(const char* path,
     std::string disk_xs;
 
     if (io->attrGet("user.eos.checksum", xs_val, xs_len) == 0) {
-      disk_xs = eos::common::StringConversion::BinData2HexString(xs_val, xs_len);
+      std::unique_ptr<CheckSum> xs_obj {ChecksumPlugins::GetXsObj(sxs_type)};
+
+      if (xs_obj) {
+        if (xs_obj->SetBinChecksum(xs_val, xs_len)) {
+          disk_xs = xs_obj->GetHexChecksum();
+        }
+      }
     }
 
     // Update the DB
@@ -945,7 +951,7 @@ FmdDbMapHandler::ResyncDisk(const char* path,
                             (filexs_err == "1"), (blockxs_err == "1"),
                             flaglayouterror)) {
       eos_err("msg=\"failed to update DB\" dbpath=%s fsid=%lu fxid=%08llx",
-              eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid, fid);
+              eos::common::DbMap::getDbType().c_str(), fsid, fid);
       return false;
     }
   } else {
@@ -1643,7 +1649,7 @@ FmdDbMapHandler::FileHasXsError(const std::string& lpath,
   auto fid = eos::common::FileId::PathToFid(lpath.c_str());
   auto fmd = LocalGetFmd(fid, fsid, true);
 
-  if (fmd && (fmd->mProtoFmd.filecxerror() != -1)) {
+  if (fmd && fmd->mProtoFmd.filecxerror()) {
     has_xs_err = true;
   }
 

@@ -186,6 +186,8 @@ ScanDir::Run(ThreadAssistant& assistant) noexcept
     }
   }
 
+  // @todo(esindril): wait for all FSes to be booted before starting
+
   if (mBgThread) {
     // Get a random smearing and avoid that all start at the same time! 0-4 hours
     size_t sleeper = (1.0 * mRerunIntervalSec * random() / RAND_MAX);
@@ -329,8 +331,7 @@ ScanDir::CheckFile(const std::string& fpath)
   bool filexs_err = false;
   unsigned long long scan_size {0ull};
 
-  if (!ScanFileLoadAware(io, scan_size, lfn, filexs_err, blockxs_err)) {
-    eos_err("msg=\"failed scan file\" path=%s", fpath.c_str());
+  if (!ScanFileLoadAware(io, scan_size, filexs_err, blockxs_err)) {
     return;
   }
 
@@ -423,7 +424,7 @@ ScanDir::GetBlockXS(const std::string& file_path)
       auto layoutid = LayoutId::GetId(LayoutId::kPlain, LayoutId::kNone, 0,
                                       bxs_size_type, bxs_type);
       std::unique_ptr<eos::fst::CheckSum> checksum =
-        eos::fst::ChecksumPlugins::GetChecksumObjectPtr(layoutid, true);
+        eos::fst::ChecksumPlugins::GetChecksumObject(layoutid, true);
 
       if (checksum) {
         if (checksum->OpenMap(filexs_path.c_str(), info.st_size, bxs_size, false)) {
@@ -493,19 +494,19 @@ ScanDir::DoRescan(const std::string& timestamp_sec) const
 bool
 ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
                            unsigned long long& scan_size,
-                           const std::string& lfn, bool& filexs_err,
-                           bool& blockxs_err)
+                           bool& filexs_err, bool& blockxs_err)
 {
   scan_size = 0ull;
   filexs_err = blockxs_err = false;
   int scan_rate = mRateBandwidth;
+  std::string file_path = io->GetPath();
   struct stat info;
 
   if (io->fileStat(&info)) {
+    eos_err("msg=\"failed stat\" path=%s\"", file_path.c_str());
     return false;
   }
 
-  std::string file_path = io->GetPath();
   // Get checksum type and value
   std::string xs_type;
   char xs_val[SHA_DIGEST_LENGTH];
@@ -513,19 +514,16 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
   size_t xs_len = SHA_DIGEST_LENGTH;
   io->attrGet("user.eos.checksumtype", xs_type);
   io->attrGet("user.eos.checksum", xs_val, xs_len);
-  auto lid = LayoutId::GetId(LayoutId::kPlain,
-                             LayoutId::GetChecksumFromString(xs_type));
-  std::unique_ptr<eos::fst::CheckSum> normalXS
-  {eos::fst::ChecksumPlugins::GetChecksumObjectPtr(lid)};
+  auto comp_file_xs = eos::fst::ChecksumPlugins::GetXsObj(xs_type);
   std::unique_ptr<eos::fst::CheckSum> blockXS {GetBlockXS(file_path)};
 
   // If no checksum then there is nothing to check
-  if (!normalXS && !blockXS) {
+  if (!comp_file_xs && !blockXS) {
     return false;
   }
 
-  if (normalXS) {
-    normalXS->Reset();
+  if (comp_file_xs) {
+    comp_file_xs->Reset();
   }
 
   size_t nread = 0;
@@ -541,6 +539,8 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
         blockXS->CloseMap();
       }
 
+      eos_err("msg=\"failed read\" offset=%llu path=%s", offset,
+              file_path.c_str());
       return false;
     }
 
@@ -551,8 +551,8 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
         }
       }
 
-      if (normalXS) {
-        normalXS->Add(mBuffer, nread, offset);
+      if (comp_file_xs) {
+        comp_file_xs->Add(mBuffer, nread, offset);
       }
 
       offset += nread;
@@ -562,27 +562,32 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
 
   scan_size = (unsigned long long) offset;
 
-  if (normalXS) {
-    normalXS->Finalize();
+  if (comp_file_xs) {
+    comp_file_xs->Finalize();
   }
 
   // Check file checksum only for replica layouts
-  if (normalXS && (!normalXS->Compare(xs_val))) {
-    LogMsg(LOG_ERR, "msg=\file checksum error\" expected_xs=%s computed_xs=%s "
-           "scan_size=%llu", xs_val, normalXS->GetHexChecksum(), scan_size);
-    ++mNumCorruptedFiles;
-    filexs_err = true;
+  if (comp_file_xs) {
+    if (!comp_file_xs->Compare(xs_val)) {
+      auto exp_file_xs = eos::fst::ChecksumPlugins::GetXsObj(xs_type);
+      exp_file_xs->SetBinChecksum(xs_val, xs_len);
+      LogMsg(LOG_ERR, "msg=\"file checksum error\" expected_file_xs=%s "
+             "computed_file_xs=%s scan_size=%llu",
+             exp_file_xs->GetHexChecksum(), comp_file_xs->GetHexChecksum(),
+             scan_size);
+      ++mNumCorruptedFiles;
+      filexs_err = true;
+    }
   }
 
   // Check block checksum
   if (blockxs_err) {
-    LogMsg(LOG_ERR, "msg=\"corrupted block checksum\" path=%s "
-           "blockxs_path=%s.xsmap lfn=%s", file_path.c_str(), file_path.c_str(),
-           lfn.c_str());
+    LogMsg(LOG_ERR, "msg=\"corrupted block checksum\" path=%s ",
+           "blockxs_path=%s.xsmap", file_path.c_str(), file_path.c_str());
 
     if (mBgThread) {
-      syslog(LOG_ERR, "corrupted block checksum path=%s blockxs_path=%s.xsmap "
-             "lfn=%s\n", file_path.c_str(), file_path.c_str(), lfn.c_str());
+      syslog(LOG_ERR, "corrupted block checksum path=%s blockxs_path=%s.xsmap\n",
+             file_path.c_str(), file_path.c_str());
     }
   }
 
