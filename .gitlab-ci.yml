@@ -109,8 +109,7 @@ before_script:
 
 .system_test_after_script_template: &system_test_after_script_template
   after_script:
-    - if [[ "$CI_JOB_NAME" == system_test_qdb*  || "$CI_JOB_NAME" == ubuntu_* ]]; then quarkdb_argument="--quarkdb"; fi
-    - ./eos-docker/scripts/collect_logs.sh ${quarkdb_argument} eos-logs/
+    - ./eos-docker/scripts/collect_logs.sh eos-logs/
     - sudo ./eos-docker/scripts/shutdown_services.sh
 
 
@@ -228,8 +227,7 @@ before_script:
   after_script:
     - . /home/gitlab-runner/coe-cluster-config/st-gitlab-k8s-01/env_st-gitlab-k8s-01.sh # get access configs for the cluster
     - NAMESPACE=$(echo ${CI_JOB_NAME}-${CI_JOB_ID}-${CI_PIPELINE_ID} | tr _ -) # must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character
-    - if [[ "$CI_JOB_NAME" == k8s_system_test_qdb* || "$CI_JOB_NAME" == k8s_ubuntu* ]]; then quarkdb_argument="--quarkdb"; fi
-    - ./eos-on-k8s/collect_logs.sh ${quarkdb_argument} ${NAMESPACE} eos-logs/
+    - ./eos-on-k8s/collect_logs.sh ${NAMESPACE} eos-logs/
     - ./eos-on-k8s/delete-all.sh ${NAMESPACE}
     - rm -rf eos-on-k8s/
     - docker images -q | xargs docker rmi || true # remove unused images
