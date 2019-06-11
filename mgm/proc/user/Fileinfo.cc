@@ -733,6 +733,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["nlink"] = (Json::Value::UInt64) nlink;
     json["name"] = fmd_copy->getName();
     json["path"] = path;
+    json["pid"] = (Json::Value::UInt64) fmd_copy->getContainerId();
     json["layout"] = eos::common::LayoutId::GetLayoutTypeString(
                        fmd_copy->getLayoutId());
     json["nstripes"] = (int)(eos::common::LayoutId::GetStripeNumber(
@@ -861,6 +862,7 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["nlink"] = 1;
     json["name"] = cmd->getName();
     json["path"] = path;
+    json["pid"] = (Json::Value::UInt64) cmd->getParentId();
     json["nndirectories"] = (int)cmd->getNumContainers();
     json["nfiles"] = (int)cmd->getNumFiles();
     Json::Value chld;
