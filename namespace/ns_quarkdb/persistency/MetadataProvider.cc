@@ -95,6 +95,11 @@ MetadataProvider::insertContainerMD(ContainerIdentifier id,
 void MetadataProvider::setFileMDCacheNum(uint64_t max_num)
 {
   uint64_t max_num_per_shard = max_num / kShards;
+
+  if(max_num == UINT64_MAX) {
+    max_num_per_shard = UINT64_MAX;
+  }
+
   for(size_t i = 0; i < mShards.size(); i++) {
     mShards[i]->setFileMDCacheNum(max_num_per_shard);
   }
@@ -106,6 +111,11 @@ void MetadataProvider::setFileMDCacheNum(uint64_t max_num)
 void MetadataProvider::setContainerMDCacheNum(uint64_t max_num)
 {
   uint64_t max_num_per_shard = max_num / kShards;
+
+  if(max_num == UINT64_MAX) {
+    max_num_per_shard = UINT64_MAX;
+  }
+
   for(size_t i = 0; i < mShards.size(); i++) {
     mShards[i]->setContainerMDCacheNum(max_num_per_shard);
   }
