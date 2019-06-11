@@ -24,6 +24,7 @@
 #include "namespace/ns_quarkdb/inspector/Printing.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
+#include "namespace/ns_quarkdb/Constants.hh"
 #include "common/LayoutId.hh"
 #include "common/IntervalStopwatch.hh"
 #include <folly/executors/IOThreadPoolExecutor.h>
@@ -517,6 +518,19 @@ int Inspector::printFileMD(uint64_t fid, std::ostream& out, std::ostream& err)
 }
 
 //------------------------------------------------------------------------------
+// Serialize RedisRequest
+//------------------------------------------------------------------------------
+static std::string serializeRequest(const RedisRequest &req) {
+  std::ostringstream ss;
+
+  for(size_t i = 0; i < req.size(); i++) {
+    ss << "\"" << escapeNonPrintable(req[i]) << "\"" << " ";
+  }
+
+  return ss.str();
+}
+
+//------------------------------------------------------------------------------
 // Change the given fid - USE WITH CAUTION
 //------------------------------------------------------------------------------
 int Inspector::changeFid(uint64_t fid, uint64_t newParent, std::ostream &out, std::ostream &err) {
@@ -559,5 +573,91 @@ int Inspector::changeFid(uint64_t fid, uint64_t newParent, std::ostream &out, st
 
   return 0;
 }
+
+//------------------------------------------------------------------------------
+// Turn bool to yes / no
+//------------------------------------------------------------------------------
+static std::string toYesOrNo(bool val) {
+  if(val) {
+    return "Yes";
+  }
+
+  return "No";
+}
+
+//------------------------------------------------------------------------------
+// Rename the given fid fully, taking care of the container maps as well
+//------------------------------------------------------------------------------
+int Inspector::renameFid(uint64_t fid, uint64_t newParent, const std::string &newName, std::ostream &out, std::ostream &err) {
+  eos::ns::FileMdProto val;
+
+  try {
+    val = MetadataFetcher::getFileFromId(mQcl, FileIdentifier(fid)).get();
+  } catch(const MDException &e) {
+    err << "Error while fetching metadata for FileMD #" << fid << ": " << e.what()
+        << std::endl;
+    return 1;
+  }
+
+  out << "------------------------------------------------------ FMD overview" << std::endl;
+  Printing::printMultiline(val, out);
+
+  bool cidExists = MetadataFetcher::doesContainerMdExist(mQcl, ContainerIdentifier(val.cont_id())).get();
+  IContainerMD::FileMap cidFilemap = MetadataFetcher::getFileMap(mQcl, ContainerIdentifier(val.cont_id())).get();
+  bool filemapEntryExists = cidFilemap.find(val.name()) != cidFilemap.end();
+  bool filemapEntryValid = (cidFilemap[val.name()] == val.id());
+  std::string oldName = val.name();
+  uint64_t oldContainer = val.cont_id();
+
+  out << "------------------------------------------------------ Sanity check" << std::endl;
+  out << "Old container (" << (val.cont_id()) << ") exists? " << toYesOrNo(cidExists) << std::endl;
+  out << "Filemap entry exists? " << toYesOrNo(filemapEntryExists) << std::endl;
+
+  if(filemapEntryExists) {
+    out << "Filemap entry (" << val.name() << " -> " << cidFilemap[val.name()] << ") valid? " << toYesOrNo(filemapEntryValid) << std::endl;
+  }
+  out << "------------------------------------------------------ FMD changes" << std::endl;
+
+  out << "    Parent ID: " << val.cont_id() << " --> " << newParent << std::endl;
+  val.set_cont_id(newParent);
+
+  if(!newName.empty()) {
+    out << "    Name: " << val.name() << " --> " << newName << std::endl;
+    val.set_name(newName);
+  }
+
+  out << "------------------------------------------------------ QDB commands to execute" << std::endl;
+
+  std::vector<RedisRequest> requests;
+  QuarkFileMD fileMD;
+  fileMD.initialize(std::move(val));
+  requests.emplace_back(RequestBuilder::writeFileProto(&fileMD));
+
+  if(filemapEntryExists && filemapEntryValid) {
+    RedisRequest req = {"HDEL", SSTR(oldContainer << constants::sMapFilesSuffix), oldName};
+    requests.emplace_back(req);
+  }
+
+  RedisRequest req = {"HSET", SSTR(newParent << constants::sMapFilesSuffix), fileMD.getName(), SSTR(fileMD.getId()) };
+  requests.emplace_back(req);
+
+  for(size_t i = 0; i < requests.size(); i++) {
+    out << i+1 << ". " << serializeRequest(requests[i]) << std::endl;
+  }
+
+  out << "------------------------------------------------------ Output" << std::endl;
+
+  std::vector<std::future<qclient::redisReplyPtr>> replies;
+  for(size_t i = 0; i < requests.size(); i++) {
+    replies.push_back(mQcl.execute(requests[i]));
+  }
+
+  for(size_t i = 0; i < requests.size(); i++) {
+    out << i+1 << ". " << qclient::describeRedisReply(replies[i].get()) << std::endl;
+  }
+
+  return 0;
+}
+
 
 EOSNSNAMESPACE_END

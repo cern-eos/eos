@@ -129,6 +129,20 @@ int main(int argc, char* argv[]) {
   changeFidSubcommand->add_option("--new-parent", newParent, "Change the parent container of the specified fid. This _DOES NOT_ modify the respective container maps, only the protobuf FMD!");
 
   //----------------------------------------------------------------------------
+  // Rename a fid from its current location
+  //----------------------------------------------------------------------------
+  std::string newName;
+
+  auto renameFidSubcommand = app.add_subcommand("rename-fid", "Rename a file onto the specified container ID - the respective container maps are modified as well.");
+  addClusterOptions(renameFidSubcommand, membersStr, memberValidator, password, passwordFile);
+
+  renameFidSubcommand->add_option("--fid", fid, "Specify the FileMD to rename")
+    ->required();
+  renameFidSubcommand->add_option("--destination-cid", newParent, "The destination container ID in which to put the FileMD")
+    ->required();
+  renameFidSubcommand->add_option("--new-pathname", newName, "The new name of the specified fid - must only contain alphanumeric characters, and can be left empty");
+
+  //----------------------------------------------------------------------------
   // Parse..
   //----------------------------------------------------------------------------
   try {
@@ -203,6 +217,10 @@ int main(int argc, char* argv[]) {
 
   if(changeFidSubcommand->parsed()) {
     return inspector.changeFid(fid, newParent, std::cout, std::cerr);
+  }
+
+  if(renameFidSubcommand->parsed()) {
+    return inspector.renameFid(fid, newParent, newName, std::cout, std::cerr);
   }
 
   std::cerr << "No subcommand was supplied - should never reach here" << std::endl;

@@ -90,6 +90,11 @@ public:
   int changeFid(uint64_t id, uint64_t newParent, std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
+  //! Rename the given fid fully, taking care of the container maps as well
+  //----------------------------------------------------------------------------
+  int renameFid(uint64_t id, uint64_t newParent, const std::string& newName, std::ostream &out, std::ostream &err);
+
+  //----------------------------------------------------------------------------
   //! Check naming conflicts, only for containers, and only for the given
   //! parent ID.
   //----------------------------------------------------------------------------
