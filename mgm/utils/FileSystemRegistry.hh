@@ -58,13 +58,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Map compatibility: count()
-  //----------------------------------------------------------------------------
-  // size_t count(eos::common::FileSystem::fsid_t id) const {
-  //   return mById.count(id);
-  // }
-
-  //----------------------------------------------------------------------------
   //! Map compatibility: operator[]
   //! Yes, reference to pointer is awful, but we try to follow exactly the
   //! std::map API..

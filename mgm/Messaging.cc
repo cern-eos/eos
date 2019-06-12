@@ -82,7 +82,7 @@ Messaging::Listen(ThreadAssistant& assistant) noexcept
       (std::chrono::steady_clock::now().time_since_epoch()).count();
 
     if ( (t2 - t1) > 2000) {
-      eos_warning("MQ heartbeat recv lasted %ld milliseconds", 
+      eos_warning("MQ heartbeat recv lasted %ld milliseconds",
 		  t2-t1);
     }
 
@@ -91,9 +91,9 @@ Messaging::Listen(ThreadAssistant& assistant) noexcept
 	(std::chrono::steady_clock::now().time_since_epoch()).count();
       Process(new_msg.get());
       if ( (t3 - t2) > 2000) {
-	eos_warning("MQ heartbeat processing lasted %ld milliseconds", 
+	eos_warning("MQ heartbeat processing lasted %ld milliseconds",
 		    t3-t2);
-      } 
+      }
     } else {
       assistant.wait_for(std::chrono::seconds(1));
     }
@@ -146,7 +146,11 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
         // Propagate into filesystem states
         for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
              it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
-          FsView::gFsView.mIdView[*it]->SetStatus(eos::common::BootStatus::kDown, false);
+
+          FileSystem *entry = FsView::gFsView.mIdView.lookupByID(*it);
+          if(entry) {
+            entry->SetStatus(eos::common::BootStatus::kDown, false);
+          }
         }
       }
 
@@ -159,8 +163,11 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
       // Propagate into filesystems
       for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
            it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
-        FsView::gFsView.mIdView[*it]->SetLongLong("stat.heartbeattime",
-            (long long) advmsg->kMessageHeader.kSenderTime_sec, false);
+
+        FileSystem *entry = FsView::gFsView.mIdView.lookupByID(*it);
+        if(entry) {
+          entry->SetLongLong("stat.heartbeattime", (long long) advmsg->kMessageHeader.kSenderTime_sec, false);
+        }
       }
     }
 
@@ -181,7 +188,11 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
         // Propagate into filesystem states
         for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
              it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
-          FsView::gFsView.mIdView[*it]->SetStatus(eos::common::BootStatus::kDown, false);
+
+          FileSystem *entry = FsView::gFsView.mIdView.lookupByID(*it);
+          if(entry) {
+            entry->SetStatus(eos::common::BootStatus::kDown, false);
+          }
         }
       }
 
@@ -194,8 +205,11 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
       // Propagate into filesystems
       for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
            it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
-        FsView::gFsView.mIdView[*it]->SetLongLong("stat.heartbeattime",
-            (long long) advmsg->kMessageHeader.kSenderTime_sec, false);
+
+        FileSystem *entry = FsView::gFsView.mIdView.lookupByID(*it);
+        if(entry) {
+          entry->SetLongLong("stat.heartbeattime", (long long) advmsg->kMessageHeader.kSenderTime_sec, false);
+        }
       }
     }
 
