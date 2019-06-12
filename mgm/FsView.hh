@@ -28,6 +28,7 @@
 #include "mgm/FileSystem.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/utils/FilesystemUuidMapper.hh"
+#include "mgm/utils/FileSystemRegistry.hh"
 #include "common/RWMutex.hh"
 #include "common/SymKeys.hh"
 #include "common/Logging.hh"
@@ -914,7 +915,7 @@ public:
   std::map<std::string, FsNode* > mNodeView;
 
   //! Map translating a filesystem ID to a file system object
-  std::map<eos::common::FileSystem::fsid_t, FileSystem*> mIdView;
+  FileSystemRegistry mIdView;
 
   //! Mutex protecting the set of gateway nodes mGwNodes
   eos::common::RWMutex GwMutex;

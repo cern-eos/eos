@@ -178,6 +178,7 @@ add_library(
   Stat.cc
   Iostat.cc
   Fsck.cc
+  utils/FileSystemRegistry.cc                  utils/FileSystemRegistry.hh
   utils/FilesystemUuidMapper.cc                utils/FilesystemUuidMapper.hh
   txengine/TransferEngine.cc
   txengine/TransferFsDB.cc
