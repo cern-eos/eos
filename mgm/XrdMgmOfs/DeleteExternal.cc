@@ -58,21 +58,19 @@ XrdMgmOfs::DeleteExternal(eos::common::FileSystem::fsid_t fsid,
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
-    if (FsView::gFsView.mIdView.count(fsid)) {
-      fs = FsView::gFsView.mIdView[fsid];
+    fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
-      if (fs) {
-        capability += "&mgm.access=delete";
-        capability += "&mgm.manager=";
-        capability += gOFS->ManagerId.c_str();
-        capability += "&mgm.fsid=";
-        capability += (int) fs->GetId();
-        capability += "&mgm.localprefix=";
-        capability += fs->GetPath().c_str();
-        capability += "&mgm.fids=";
-        capability += eos::common::FileId::Fid2Hex(fid).c_str();
-        receiver = fs->GetQueue().c_str();
-      }
+    if (fs) {
+      capability += "&mgm.access=delete";
+      capability += "&mgm.manager=";
+      capability += gOFS->ManagerId.c_str();
+      capability += "&mgm.fsid=";
+      capability += (int) fs->GetId();
+      capability += "&mgm.localprefix=";
+      capability += fs->GetPath().c_str();
+      capability += "&mgm.fids=";
+      capability += eos::common::FileId::Fid2Hex(fid).c_str();
+      receiver = fs->GetQueue().c_str();
     }
   }
   bool ok = false;

@@ -176,11 +176,7 @@ XrdMgmOfs::Schedule2Delete(const char* path,
           continue;
         }
 
-        if (FsView::gFsView.mIdView.count(fsid)) {
-          fs = FsView::gFsView.mIdView[fsid];
-        } else {
-          fs = 0;
-        }
+        fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
         if (fs) {
           // Check the state of the filesystem to make sure it can delete

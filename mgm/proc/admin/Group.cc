@@ -114,10 +114,12 @@ ProcCommand::Group()
             if (FsView::gFsView.mGroupView.count(groupname)) {
               for (auto git = FsView::gFsView.mGroupView[groupname]->begin();
                    git != FsView::gFsView.mGroupView[groupname]->end(); git++) {
-                if (FsView::gFsView.mIdView.count(*git)) {
+
+                FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*git);
+                if (fs) {
                   common::DrainStatus drainstatus =
                     (eos::common::FileSystem::GetDrainStatusFromString(
-                      FsView::gFsView.mIdView[*git]->GetString("stat.drain").c_str()));
+                      fs->GetString("stat.drain").c_str()));
 
                   if ((drainstatus == eos::common::DrainStatus::kDraining) ||
                       (drainstatus == eos::common::DrainStatus::kDrainStalling)) {
@@ -130,7 +132,7 @@ ProcCommand::Group()
 
               for (auto git = FsView::gFsView.mGroupView[groupname]->begin();
                    git != FsView::gFsView.mGroupView[groupname]->end(); git++) {
-                fs = FsView::gFsView.mIdView[*git];
+                FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*git);
 
                 if (fs) {
                   if (setactive) {
@@ -149,12 +151,10 @@ ProcCommand::Group()
 
           if (status == "off") {
             // Disable all draining in this group
-            FileSystem* fs = 0;
-
             if (FsView::gFsView.mGroupView.count(groupname)) {
               for (auto git = FsView::gFsView.mGroupView[groupname]->begin();
                    git != FsView::gFsView.mGroupView[groupname]->end(); git++) {
-                fs = FsView::gFsView.mIdView[*git];
+                FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*git);
 
                 if (fs) {
                   fs->SetString("stat.drainer", "off");
@@ -189,18 +189,16 @@ ProcCommand::Group()
         } else {
           for (auto it = FsView::gFsView.mGroupView[groupname]->begin();
                it != FsView::gFsView.mGroupView[groupname]->end(); it++) {
-            if (FsView::gFsView.mIdView.count(*it)) {
-              FileSystem* fs = FsView::gFsView.mIdView[*it];
 
-              if (fs) {
-                // check that all filesystems are empty
-                if ((fs->GetConfigStatus(false) != eos::common::FileSystem::kEmpty)) {
-                  stdErr = "error: unable to remove group '";
-                  stdErr += groupname.c_str();
-                  stdErr += "' - filesystems are not all in empty state - try list the group and drain them or set: fs config <fsid> configstatus=empty\n";
-                  retc = EBUSY;
-                  return SFS_OK;
-                }
+            FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
+            if (fs) {
+              // check that all filesystems are empty
+              if ((fs->GetConfigStatus(false) != eos::common::FileSystem::kEmpty)) {
+                stdErr = "error: unable to remove group '";
+                stdErr += groupname.c_str();
+                stdErr += "' - filesystems are not all in empty state - try list the group and drain them or set: fs config <fsid> configstatus=empty\n";
+                retc = EBUSY;
+                return SFS_OK;
               }
             }
           }

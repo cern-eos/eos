@@ -182,11 +182,8 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
 
         for (auto it = FsView::gFsView.mNodeView[node]->begin();
              it != FsView::gFsView.mNodeView[node]->end(); ++it) {
-          FileSystem* fs = nullptr;
 
-          if (FsView::gFsView.mIdView.count(*it)) {
-            fs = FsView::gFsView.mIdView[*it];
-          }
+          FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
 
           if (fs != nullptr) {
             eos::common::FileSystem::eBootConfig bootConfig = (forcemgmsync)
@@ -209,9 +206,9 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
       if (fsid) {
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
-        if (FsView::gFsView.mIdView.count(fsid)) {
-          fs = FsView::gFsView.mIdView[fsid];
-        } else {
+        fs = FsView::gFsView.mIdView.lookupByID(fsid);
+
+        if(!fs) {
           errStream << "error: cannot boot filesystem - no filesystem with fsid=";
           errStream << sfsid.c_str();
           retc = ENOENT;
@@ -219,9 +216,8 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
       } else if (fsuuid.length()) {
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
-        if (FsView::gFsView.GetMapping(fsuuid)
-            && FsView::gFsView.mIdView.count(FsView::gFsView.GetMapping(fsuuid))) {
-          fs = FsView::gFsView.mIdView[FsView::gFsView.GetMapping(fsuuid)];
+        if (FsView::gFsView.GetMapping(fsuuid)) {
+          fs = FsView::gFsView.mIdView.lookupByID(FsView::gFsView.GetMapping(fsuuid));
         } else {
           errStream << "error: cannot boot filesystem - no filesystem with uuid=";
           errStream << fsuuid.c_str();
@@ -557,8 +553,8 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
 
                 for (auto& loc : fmd->getLocations()) {
                   if (loc) {
-                    if (FsView::gFsView.mIdView.count(loc)) {
-                      FileSystem* repfs = FsView::gFsView.mIdView[loc];
+                    FileSystem* repfs = FsView::gFsView.mIdView.lookupByID(loc);
+                    if(repfs) {
                       eos::common::FileSystem::fs_snapshot_t snapshot;
                       repfs->SnapShotFileSystem(snapshot, false);
 

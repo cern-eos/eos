@@ -32,5 +32,17 @@ FileSystemRegistry::FileSystemRegistry() {
 
 }
 
+//------------------------------------------------------------------------------
+// Lookup a FileSystem object by ID - return nullptr if none exists.
+//------------------------------------------------------------------------------
+FileSystem* FileSystemRegistry::lookupByID(eos::common::FileSystem::fsid_t id) const {
+  auto it = mById.find(id);
+  if(it == mById.end()) {
+    return nullptr;
+  }
+
+  return it->second;
+}
+
 
 EOSMGMNAMESPACE_END

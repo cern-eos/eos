@@ -318,47 +318,48 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
     FileSystem* fs = nullptr;
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
 
-    if (fsid && FsView::gFsView.mIdView.count(fsid)) {
+    if(fsid) {
       // by filesystem id
-      fs = FsView::gFsView.mIdView[fsid];
-    } else {
+      fs = FsView::gFsView.mIdView.lookupByID(fsid);
+    }
+
+    if(!fs && FsView::gFsView.GetMapping(identifier)) {
       // by filesystem uuid
-      if (FsView::gFsView.GetMapping(identifier)) {
-        if (FsView::gFsView.mIdView.count(FsView::gFsView.GetMapping(identifier))) {
-          fs = FsView::gFsView.mIdView[FsView::gFsView.GetMapping(identifier)];
+      fs = FsView::gFsView.mIdView.lookupByID(FsView::gFsView.GetMapping(identifier));
+    }
+
+    if(!fs) {
+      // by host:port:data name
+      std::string path = identifier;
+      size_t slashpos = identifier.find('/');
+
+      if (slashpos != std::string::npos) {
+        path.erase(0, slashpos);
+        identifier.erase(slashpos);
+
+        if ((identifier.find(':') == std::string::npos)) {
+          identifier += ":1095"; // default eos fst port
         }
-      } else {
-        // by host:port:data name
-        std::string path = identifier;
-        size_t slashpos = identifier.find('/');
 
-        if (slashpos != std::string::npos) {
-          path.erase(0, slashpos);
-          identifier.erase(slashpos);
+        if ((identifier.find("/eos/") == std::string::npos)) {
+          identifier.insert(0, "/eos/");
+          identifier.append("/fst");
+        }
 
-          if ((identifier.find(':') == std::string::npos)) {
-            identifier += ":1095"; // default eos fst port
-          }
-
-          if ((identifier.find("/eos/") == std::string::npos)) {
-            identifier.insert(0, "/eos/");
-            identifier.append("/fst");
-          }
-
-          if (FsView::gFsView.mNodeView.count(identifier)) {
-            for (auto it = FsView::gFsView.mNodeView[identifier]->begin();
-                 it != FsView::gFsView.mNodeView[identifier]->end(); ++it) {
-              if (FsView::gFsView.mIdView.count(*it)) {
-                // This is the filesystem
-                if (FsView::gFsView.mIdView[*it]->GetPath() == path) {
-                  fs = FsView::gFsView.mIdView[*it];
-                }
+        if (FsView::gFsView.mNodeView.count(identifier)) {
+          for (auto it = FsView::gFsView.mNodeView[identifier]->begin();
+              it != FsView::gFsView.mNodeView[identifier]->end(); ++it) {
+            if (FsView::gFsView.mIdView.count(*it)) {
+              // This is the filesystem
+              if (FsView::gFsView.mIdView[*it]->GetPath() == path) {
+                fs = FsView::gFsView.mIdView[*it];
               }
             }
           }
         }
       }
     }
+
 
     if (fs) {
       // Check the allowed strings

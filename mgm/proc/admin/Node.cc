@@ -307,19 +307,18 @@ ProcCommand::Node()
           // Remove a node only if all filesystems are in empty state
           for (auto it = FsView::gFsView.mNodeView[nodename]->begin();
                it != FsView::gFsView.mNodeView[nodename]->end(); ++it) {
-            if (FsView::gFsView.mIdView.count(*it)) {
-              FileSystem* fs = FsView::gFsView.mIdView[*it];
 
-              if (fs) {
-                // check the empty state
-                if ((fs->GetConfigStatus(false) != eos::common::FileSystem::kEmpty)) {
-                  stdErr = "error: unable to remove node '";
-                  stdErr += nodename.c_str();
-                  stdErr += "' - filesystems are not all in empty state - try "
-                            "to drain them or: node config <name> configstatus=empty\n";
-                  retc = EBUSY;
-                  return SFS_OK;
-                }
+            FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
+
+            if (fs) {
+              // check the empty state
+              if ((fs->GetConfigStatus(false) != eos::common::FileSystem::kEmpty)) {
+                stdErr = "error: unable to remove node '";
+                stdErr += nodename.c_str();
+                stdErr += "' - filesystems are not all in empty state - try "
+                          "to drain them or: node config <name> configstatus=empty\n";
+                retc = EBUSY;
+                return SFS_OK;
               }
             }
           }
@@ -344,7 +343,7 @@ ProcCommand::Node()
               stdErr += "'";
             }
           }
-          
+
           // Delete also the entry from the configuration
           eos_info("msg=\"delete from configuration\" node_name=%s",
                    nodeconfigname.c_str());
@@ -400,34 +399,32 @@ ProcCommand::Node()
         for (size_t i = 0; i < nodes.size(); i++) {
           if (key == "configstatus") {
             for (auto it = nodes[i]->begin(); it != nodes[i]->end(); ++it) {
-              if (FsView::gFsView.mIdView.count(*it)) {
-                fs = FsView::gFsView.mIdView[*it];
+              fs = FsView::gFsView.mIdView.lookupByID(*it);
 
-                if (fs) {
-                  // Check the allowed strings
-                  if ((eos::common::FileSystem::GetConfigStatusFromString(
-                         value.c_str()) != eos::common::FileSystem::kUnknown)) {
-                    fs->SetString(key.c_str(), value.c_str());
+              if (fs) {
+                // Check the allowed strings
+                if ((eos::common::FileSystem::GetConfigStatusFromString(
+                        value.c_str()) != eos::common::FileSystem::kUnknown)) {
+                  fs->SetString(key.c_str(), value.c_str());
 
-                    if (value == "off") {
-                      // We have to remove the errc here, otherwise we cannot terminate
-                      // drainjobs on file systems with errc set
-                      fs->SetString("errc", "0");
-                    }
-
-                    FsView::gFsView.StoreFsConfig(fs);
-                  } else {
-                    stdErr += "error: not an allowed parameter <";
-                    stdErr += key.c_str();
-                    stdErr += ">\n";
-                    retc = EINVAL;
+                  if (value == "off") {
+                    // We have to remove the errc here, otherwise we cannot terminate
+                    // drainjobs on file systems with errc set
+                    fs->SetString("errc", "0");
                   }
+
+                  FsView::gFsView.StoreFsConfig(fs);
                 } else {
-                  stdErr += "error: cannot identify the filesystem by <";
-                  stdErr += identifier.c_str();
+                  stdErr += "error: not an allowed parameter <";
+                  stdErr += key.c_str();
                   stdErr += ">\n";
                   retc = EINVAL;
                 }
+              } else {
+                stdErr += "error: cannot identify the filesystem by <";
+                stdErr += identifier.c_str();
+                stdErr += ">\n";
+                retc = EINVAL;
               }
             }
           } else {

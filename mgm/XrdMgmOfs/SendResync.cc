@@ -60,11 +60,8 @@ XrdMgmOfs::SendResync(eos::common::FileId::fileid_t fid,
   XrdOucString receiver;
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    eos::mgm::FileSystem* verifyfilesystem = 0;
-
-    if (FsView::gFsView.mIdView.count(fsid)) {
-      verifyfilesystem = FsView::gFsView.mIdView[fsid];
-    }
+    eos::mgm::FileSystem* verifyfilesystem =
+      FsView::gFsView.mIdView.lookupByID(fsid);
 
     if (!verifyfilesystem) {
       eos_err("fsid=%lu is not in the configuration - cannot send resync message",

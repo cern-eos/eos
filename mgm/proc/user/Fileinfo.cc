@@ -761,12 +761,8 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     // Get host name for the fs ids
     for (auto loc_it = loc_vect.begin(); loc_it != loc_vect.end(); ++loc_it) {
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-      eos::common::FileSystem* filesystem = 0;
       Json::Value jsonfsinfo;
-
-      if (FsView::gFsView.mIdView.count(*loc_it)) {
-        filesystem = FsView::gFsView.mIdView[*loc_it];
-      }
+      eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(*loc_it);
 
       if (filesystem) {
         eos::common::FileSystem::fs_snapshot_t fs;
