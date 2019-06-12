@@ -686,8 +686,9 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
                 // Check if this node doesn't already have a filesystem in this group
                 for (auto it = FsView::gFsView.mGroupView[snewgroup]->begin();
                      it != FsView::gFsView.mGroupView[snewgroup]->end(); ++it) {
-                  if (FsView::gFsView.mIdView[*it]->GetString("host") ==
-                      fs->GetString("host")) {
+
+                  FileSystem* entry = FsView::gFsView.mIdView.lookupByID(*it);
+                  if(entry && entry->GetString("host") == fs->GetString("host")) {
                     // This subgroup has already this host
                     exists = true;
                   }
@@ -934,11 +935,14 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
       std::string fs_qnode = fs->GetQueue();
 
       for (auto it = grp->begin(); it != grp->end(); ++it) {
-        qnode = fs_view.mIdView[*it]->GetQueue();
+        FileSystem* entry = fs_view.mIdView.lookupByID(*it);
+        if(entry) {
+          qnode = entry->GetQueue();
 
-        if (fs_qnode == qnode) {
-          is_forbidden = true;
-          break;
+          if (fs_qnode == qnode) {
+            is_forbidden = true;
+            break;
+          }
         }
       }
 

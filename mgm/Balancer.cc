@@ -158,7 +158,7 @@ Balancer::Balance(ThreadAssistant& assistant) noexcept
           }
 
           for (auto fsit = (*git)->begin(); fsit != (*git)->end(); ++fsit) {
-            FileSystem* fs = FsView::gFsView.mIdView[*fsit];
+            FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*fsit);
 
             if (fs) {
               if (FsView::gFsView.mNodeView.count(fs->GetQueue())) {
@@ -205,7 +205,7 @@ Balancer::Balance(ThreadAssistant& assistant) noexcept
           }
         } else {
           for (auto fsit = (*git)->begin(); fsit != (*git)->end(); ++fsit) {
-            FileSystem* fs = FsView::gFsView.mIdView[*fsit];
+            FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*fsit);
 
             if (fs) {
               std::string isset = fs->GetString("stat.nominal.filled");
@@ -247,7 +247,7 @@ Balancer::Balance(ThreadAssistant& assistant) noexcept
           }
 
           for (auto fsit = (*git)->begin(); fsit != (*git)->end(); ++fsit) {
-            FileSystem* fs = FsView::gFsView.mIdView[*fsit];
+            FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*fsit);
 
             if (fs) {
               std::string isset = fs->GetString("stat.nominal.filled");

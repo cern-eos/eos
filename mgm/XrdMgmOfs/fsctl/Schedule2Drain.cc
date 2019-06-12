@@ -352,7 +352,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
                   target_fsid, freebytes, alogid ? alogid : "");
   // Retrieve filesystem information about the drain target
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-  target_fs = FsView::gFsView.mIdView[target_fsid];
+  target_fs = FsView::gFsView.mIdView.lookupByID(target_fsid);
 
   if (!target_fs) {
     eos_thread_err("fsid=%u is not in filesystem view", target_fsid);

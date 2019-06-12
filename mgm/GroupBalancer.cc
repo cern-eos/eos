@@ -465,8 +465,8 @@ GroupBalancer::chooseFidFromGroup(FsGroup* group)
     std::advance(fs_it, validFsIndexes[rndIndex]);
 
     // Accept only active file systems
-    if (FsView::gFsView.mIdView[fsid]->GetActiveStatus() ==
-        eos::common::ActiveStatus::kOnline) {
+    FileSystem* target = FsView::gFsView.mIdView.lookupByID(fsid);
+    if (target && target->GetActiveStatus() == eos::common::ActiveStatus::kOnline) {
       fsid_size = gOFS->eosFsView->getNumFilesOnFs(fsid);
 
       if (fsid_size) {

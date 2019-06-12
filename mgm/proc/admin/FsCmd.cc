@@ -484,7 +484,7 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
              it != FsView::gFsView.mNodeView[queue]->end(); ++it) {
 
           FileSystem *fs = FsView::gFsView.mIdView.lookupByID(*it);
-          if(fs && FsView::gFsView.mIdView[*it]->GetPath() == mount) {
+          if(fs && fs->GetPath() == mount) {
             // this is the filesystem
             fsid = *it;
           }

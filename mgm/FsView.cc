@@ -279,13 +279,12 @@ bool GeoTree::getGeoTagInTree(const fsid_t& fs , std::string& geoTag)
 //------------------------------------------------------------------------------
 std::string GeoTree::getGeoTag(const fsid_t& fs) const
 {
-  auto it = FsView::gFsView.mIdView.find(fs);
-
-  if (it != FsView::gFsView.mIdView.end()) {
-    return FsView::gFsView.mIdView[fs]->GetString("stat.geotag");
-  } else {
+  FileSystem* entry = FsView::gFsView.mIdView.lookupByID(fs);
+  if(!entry) {
     return "";
   }
+
+  return entry->GetString("stat.geotag");
 }
 
 //------------------------------------------------------------------------------

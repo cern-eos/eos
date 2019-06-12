@@ -508,7 +508,7 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain,
   std::vector<FileSystem::fsid_t> new_repl;
   eos::common::FileSystem::fs_snapshot source_snapshot;
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-  eos::common::FileSystem* source_fs = FsView::gFsView.mIdView[mFsIdSource];
+  eos::common::FileSystem* source_fs = FsView::gFsView.mIdView.lookupByID(mFsIdSource);
 
   if (source_fs == nullptr) {
     return false;

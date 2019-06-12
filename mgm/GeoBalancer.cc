@@ -202,9 +202,9 @@ GeoBalancer::populateGeotagsInfo()
   eos::mgm::BaseView::const_iterator it;
 
   for (it = spaceView->cbegin(); it != spaceView->cend(); it++) {
-    FileSystem* fs = FsView::gFsView.mIdView[*it];
+    FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
 
-    if (fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
+    if (!fs || fs->GetActiveStatus() != eos::common::ActiveStatus::kOnline) {
       continue;
     }
 

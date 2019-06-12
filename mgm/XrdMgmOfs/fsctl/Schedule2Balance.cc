@@ -263,7 +263,7 @@ XrdMgmOfs::BalanceGetFsSrc(eos::common::FileSystem::fsid_t tgt_fsid,
       continue;
     }
 
-    src_fs = FsView::gFsView.mIdView[*group_iterator];
+    src_fs = FsView::gFsView.mIdView.lookupByID(*group_iterator);
 
     if (!src_fs) {
       continue;
