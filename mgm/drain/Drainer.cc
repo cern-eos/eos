@@ -85,16 +85,16 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs,
   // Check that the destination fs, if specified, is in the same space and
   // group as the source
   if (dst_fsid) {
-    auto it_fs = FsView::gFsView.mIdView.find(dst_fsid);
+    FileSystem* dst = FsView::gFsView.mIdView.lookupByID(dst_fsid);
     FileSystem::fs_snapshot_t  dst_snapshot;
 
-    if (it_fs == FsView::gFsView.mIdView.end()) {
+    if (!dst) {
       err = SSTR("error: destination file system " << dst_fsid
                  << " does not exist");
       return false;
     }
 
-    it_fs->second->SnapShotFileSystem(dst_snapshot, false);
+    dst->SnapShotFileSystem(dst_snapshot, false);
 
     if ((src_snapshot.mSpace != dst_snapshot.mSpace) ||
         (src_snapshot.mGroup != dst_snapshot.mGroup)) {
@@ -385,15 +385,11 @@ Drainer::HandleQueued()
     auto pair = lst.front();
     lst.pop_front();
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-    auto it = FsView::gFsView.mIdView.find(pair.first);
 
-    if (it != FsView::gFsView.mIdView.end()) {
-      auto fs = it->second;
-
-      if (fs && !StartFsDrain(fs, pair.second, msg)) {
-        eos_err("msg=\"failed to start pending drain src_fsid=%lu\""
-                " msg=\"%s\"", pair.first, msg.c_str());
-      }
+    FileSystem* fs = FsView::gFsView.mIdView.lookupByID(pair.first);
+    if (fs && !StartFsDrain(fs, pair.second, msg)) {
+      eos_err("msg=\"failed to start pending drain src_fsid=%lu\""
+              " msg=\"%s\"", pair.first, msg.c_str());
     }
   }
 }

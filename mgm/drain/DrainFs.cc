@@ -202,29 +202,26 @@ DrainFs::SuccessfulDrain()
 {
   eos_notice("msg=\"complete drain\" fsid=%d", mFsId);
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-  auto it_fs = FsView::gFsView.mIdView.find(mFsId);
 
-  if (it_fs != FsView::gFsView.mIdView.end()) {
-    FileSystem* fs = it_fs->second;
+  FileSystem* fs = FsView::gFsView.mIdView.lookupByID(mFsId);
 
-    if (fs) {
-      mStatus = eos::common::DrainStatus::kDrained;
+  if (fs) {
+    mStatus = eos::common::DrainStatus::kDrained;
 
-      eos::common::FileSystemUpdateBatch batch;
-      batch.setDrainStatusLocal(mStatus);
-      batch.setLongLongLocal("stat.drainbytesleft", 0);
-      batch.setLongLongLocal("stat.timeleft", 0);
+    eos::common::FileSystemUpdateBatch batch;
+    batch.setDrainStatusLocal(mStatus);
+    batch.setLongLongLocal("stat.drainbytesleft", 0);
+    batch.setLongLongLocal("stat.timeleft", 0);
 
-      if (!gOFS->Shutdown) {
-        // If drain done and the system is not shutting down then set the
-        // file system to "empty" state
-        batch.setLongLongLocal("stat.drainprogress", 100);
-        batch.setStringDurable("configstatus", "empty");
-        FsView::gFsView.StoreFsConfig(fs);
-      }
-
-      fs->applyBatch(batch);
+    if (!gOFS->Shutdown) {
+      // If drain done and the system is not shutting down then set the
+      // file system to "empty" state
+      batch.setLongLongLocal("stat.drainprogress", 100);
+      batch.setStringDurable("configstatus", "empty");
+      FsView::gFsView.StoreFsConfig(fs);
     }
+
+    fs->applyBatch(batch);
   }
 }
 
@@ -236,11 +233,9 @@ DrainFs::FailedDrain()
 {
   eos_notice("msg=\"failed drain\" fsid=%d", mFsId);
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-  auto it_fs = FsView::gFsView.mIdView.find(mFsId);
 
-  if ((it_fs != FsView::gFsView.mIdView.end()) &&
-      (it_fs->second != nullptr)) {
-    FileSystem* fs = it_fs->second;
+  FileSystem *fs = FsView::gFsView.mIdView.lookupByID(mFsId);
+  if (fs) {
     mStatus = eos::common::DrainStatus::kDrainFailed;
 
     eos::common::FileSystemUpdateBatch batch;
@@ -290,15 +285,14 @@ DrainFs::PrepareFs()
   {
     eos_info("msg=\"setting the drain prepare status\" fsid=%i", mFsId);
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-    auto it_fs = FsView::gFsView.mIdView.find(mFsId);
 
-    if ((it_fs == FsView::gFsView.mIdView.end()) ||
-        (it_fs->second == nullptr)) {
+    FileSystem* fs = FsView::gFsView.mIdView.lookupByID(mFsId);
+
+    if (!fs) {
       eos_notice("msg=\"removed during prepare\" fsid=%d", mFsId);
       return false;
     }
 
-    FileSystem* fs = it_fs->second;
     mStatus = eos::common::DrainStatus::kDrainPrepare;
 
     eos::common::FileSystemUpdateBatch batch;
@@ -328,15 +322,14 @@ DrainFs::PrepareFs()
     std::this_thread::sleep_for(seconds(1));
     {
       eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-      auto it_fs = FsView::gFsView.mIdView.find(mFsId);
+      FileSystem *entry = FsView::gFsView.mIdView.lookupByID(mFsId);
 
-      if ((it_fs == FsView::gFsView.mIdView.end()) ||
-          (it_fs->second == nullptr)) {
+      if (!entry) {
         eos_err("msg=\"removed during drain prepare\" fsid=%d", mFsId);
         return false;
       }
 
-      it_fs->second->setLongLongLocal("stat.timeleft", kLoop - 1 - k);
+      entry->setLongLongLocal("stat.timeleft", kLoop - 1 - k);
     }
 
     if (mDrainStop) {
@@ -347,16 +340,14 @@ DrainFs::PrepareFs()
 
   // Mark file system as draining
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-  auto it_fs = FsView::gFsView.mIdView.find(mFsId);
+  FileSystem* fs = FsView::gFsView.mIdView.lookupByID(mFsId);
 
-  if ((it_fs == FsView::gFsView.mIdView.end()) ||
-      (it_fs->second == nullptr)) {
+  if (!fs) {
     eos_notice("msg=\"removed during drain\" fsid=%d", mFsId);
     return false;
   }
 
   GetSpaceConfiguration(space_name);
-  FileSystem* fs = it_fs->second;
   mStatus = eos::common::DrainStatus::kDraining;
 
   eos::common::FileSystemUpdateBatch batch;
@@ -405,15 +396,12 @@ DrainFs::UpdateProgress()
   // Update drain display variables
   if (is_stalled || is_expired || (mLastProgressTime == now)) {
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-    auto it_fs = FsView::gFsView.mIdView.find(mFsId);
+    FileSystem* fs = FsView::gFsView.mIdView.lookupByID(mFsId);
 
-    if ((it_fs == FsView::gFsView.mIdView.end()) ||
-        (it_fs->second == nullptr)) {
+    if (!fs) {
       eos_err("msg=\"removed during drain\" fsid=%d", mFsId);
       return State::Failed;
     }
-
-    FileSystem* fs = it_fs->second;
 
     if (is_expired) {
       mStatus = eos::common::DrainStatus::kDrainExpired;
@@ -512,20 +500,16 @@ void
 DrainFs::ResetCounters()
 {
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-  auto it_fs = FsView::gFsView.mIdView.find(mFsId);
+  FileSystem *fs = FsView::gFsView.mIdView.lookupByID(mFsId);
 
-  if (it_fs != FsView::gFsView.mIdView.end()) {
-    FileSystem* fs = it_fs->second;
-
-    if (fs) {
-      common::FileSystemUpdateBatch batch;
-      batch.setLongLongLocal("stat.drainbytesleft", 0);
-      batch.setLongLongLocal("stat.drainfiles", 0);
-      batch.setLongLongLocal("stat.timeleft", 0);
-      batch.setLongLongLocal("stat.drainprogress", 0);
-      batch.setDrainStatusLocal(eos::common::DrainStatus::kNoDrain);
-      fs->applyBatch(batch);
-    }
+  if (fs) {
+    common::FileSystemUpdateBatch batch;
+    batch.setLongLongLocal("stat.drainbytesleft", 0);
+    batch.setLongLongLocal("stat.drainfiles", 0);
+    batch.setLongLongLocal("stat.timeleft", 0);
+    batch.setLongLongLocal("stat.drainprogress", 0);
+    batch.setDrainStatusLocal(eos::common::DrainStatus::kNoDrain);
+    fs->applyBatch(batch);
   }
 
   mStatus = eos::common::DrainStatus::kNoDrain;

@@ -997,14 +997,14 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
          it != FsView::gFsView.mIdView.end(); it++) {
       r_open_vector.clear();
       w_open_vector.clear();
-      std::string r_open_hotfiles =
-        FsView::gFsView.mIdView[it->first]->GetString("stat.ropen.hotfiles");
-      std::string w_open_hotfiles =
-        FsView::gFsView.mIdView[it->first]->GetString("stat.wopen.hotfiles");
-      double age_r =
-        FsView::gFsView.mIdView[it->first]->GetAge("stat.ropen.hotfiles");
-      double age_w =
-        FsView::gFsView.mIdView[it->first]->GetAge("stat.wopen.hotfiles");
+
+      FileSystem *fs = it->second;
+      if(!fs) continue;
+
+      std::string r_open_hotfiles = fs->GetString("stat.ropen.hotfiles");
+      std::string w_open_hotfiles = fs->GetString("stat.wopen.hotfiles");
+      double age_r = fs->GetAge("stat.ropen.hotfiles");
+      double age_w = fs->GetAge("stat.wopen.hotfiles");
 
       // we only show the reports from the last minute, there could be pending values
       if ((age_r > 60)) {
@@ -1025,9 +1025,9 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
 
       eos::common::StringConversion::Tokenize(r_open_hotfiles, r_open_vector);
       eos::common::StringConversion::Tokenize(w_open_hotfiles, w_open_vector);
-      std::string host = FsView::gFsView.mIdView[it->first]->GetString("host");
+      std::string host = fs->GetString("host");
       std::string path;
-      std::string id = FsView::gFsView.mIdView[it->first]->GetString("id");
+      std::string id = fs->GetString("id");
       std::vector<std::tuple<std::string, std::string, std::string,
           std::string, std::string>> data;
       std::vector<std::tuple<std::string, std::string, std::string,

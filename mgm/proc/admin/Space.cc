@@ -665,49 +665,46 @@ ProcCommand::Space()
 
             for (auto it = FsView::gFsView.mSpaceView[identifier]->begin();
                  it != FsView::gFsView.mSpaceView[identifier]->end(); ++it) {
-              auto it_fs = FsView::gFsView.mIdView.find(*it);
 
-              if (it_fs != FsView::gFsView.mIdView.end()) {
-                fs = it_fs->second;
+              fs = FsView::gFsView.mIdView.lookupByID(*it);
 
-                if (fs) {
-                  // check the allowed strings
-                  if (((key == "configstatus") &&
-                       (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) !=
-                        eos::common::FileSystem::kUnknown))) {
-                    fs->SetString(key.c_str(), value.c_str());
+              if (fs) {
+                // check the allowed strings
+                if (((key == "configstatus") &&
+                    (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) !=
+                    eos::common::FileSystem::kUnknown))) {
+                  fs->SetString(key.c_str(), value.c_str());
 
-                    if (value == "off") {
-                      // we have to remove the errc here, otherwise we cannot
-                      // terminate drainjobs on file systems with errc set
-                      fs->SetString("errc", "0");
-                    }
+                  if (value == "off") {
+                    // we have to remove the errc here, otherwise we cannot
+                    // terminate drainjobs on file systems with errc set
+                    fs->SetString("errc", "0");
+                  }
 
+                  FsView::gFsView.StoreFsConfig(fs);
+                } else {
+                  errno = 0;
+                  eos::common::StringConversion::GetSizeFromString(value.c_str());
+
+                  if (((key == "headroom") || (key == "scaninterval") ||
+                      (key == "scanrate") || (key == "graceperiod") ||
+                      (key == "drainperiod"))  && (!errno)) {
+                    fs->SetLongLong(key.c_str(),
+                                    eos::common::StringConversion::GetSizeFromString(value.c_str()));
                     FsView::gFsView.StoreFsConfig(fs);
                   } else {
-                    errno = 0;
-                    eos::common::StringConversion::GetSizeFromString(value.c_str());
-
-                    if (((key == "headroom") || (key == "scaninterval") ||
-                         (key == "scanrate") || (key == "graceperiod") ||
-                         (key == "drainperiod"))  && (!errno)) {
-                      fs->SetLongLong(key.c_str(),
-                                      eos::common::StringConversion::GetSizeFromString(value.c_str()));
-                      FsView::gFsView.StoreFsConfig(fs);
-                    } else {
-                      stdErr += "error: not an allowed parameter <";
-                      stdErr += key.c_str();
-                      stdErr += ">\n";
-                      retc = EINVAL;
-                      break;
-                    }
+                    stdErr += "error: not an allowed parameter <";
+                    stdErr += key.c_str();
+                    stdErr += ">\n";
+                    retc = EINVAL;
+                    break;
                   }
-                } else {
-                  stdErr += "error: cannot identify the filesystem by <";
-                  stdErr += identifier.c_str();
-                  stdErr += ">\n";
-                  retc = EINVAL;
                 }
+              } else {
+                stdErr += "error: cannot identify the filesystem by <";
+                stdErr += identifier.c_str();
+                stdErr += ">\n";
+                retc = EINVAL;
               }
             }
 

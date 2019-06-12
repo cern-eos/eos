@@ -414,7 +414,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
       continue;
     }
 
-    source_fs = FsView::gFsView.mIdView[*group_iterator];
+    source_fs = FsView::gFsView.mIdView.lookupByID(*group_iterator);
 
     if (source_fs) {
       break;
