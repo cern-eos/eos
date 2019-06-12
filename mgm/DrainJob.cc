@@ -76,22 +76,18 @@ void
 /*----------------------------------------------------------------------------*/
 DrainJob::ResetCounter()
 {
-  FileSystem* fs = 0;
+  FileSystem* fs = FsView::gFsView.mIdView.lookupByID(mFsId);
 
-  if (FsView::gFsView.mIdView.count(mFsId)) {
-    fs = FsView::gFsView.mIdView[mFsId];
-
-    if (fs) {
-      fs->OpenTransaction();
-      fs->SetLongLong("stat.drainbytesleft", 0);
-      fs->SetLongLong("stat.drainfiles", 0);
-      fs->SetLongLong("stat.timeleft", 0);
-      fs->SetLongLong("stat.drainprogress", 0);
-      fs->SetLongLong("stat.drainretry", 0);
-      fs->SetDrainStatus(eos::common::DrainStatus::kNoDrain);
-      SetDrainer();
-      fs->CloseTransaction();
-    }
+  if (fs) {
+    fs->OpenTransaction();
+    fs->SetLongLong("stat.drainbytesleft", 0);
+    fs->SetLongLong("stat.drainfiles", 0);
+    fs->SetLongLong("stat.timeleft", 0);
+    fs->SetLongLong("stat.drainprogress", 0);
+    fs->SetLongLong("stat.drainretry", 0);
+    fs->SetDrainStatus(eos::common::DrainStatus::kNoDrain);
+    SetDrainer();
+    fs->CloseTransaction();
   }
 }
 
@@ -118,13 +114,7 @@ DrainJob::SetDrainer()
  */
 /*----------------------------------------------------------------------------*/
 {
-  FileSystem* fs = 0;
-  fs = 0;
-
-  if (FsView::gFsView.mIdView.count(mFsId)) {
-    fs = FsView::gFsView.mIdView[mFsId];
-  }
-
+  FileSystem* fs = FsView::gFsView.mIdView.lookupByID(mFsId);
   if (!fs) {
     return;
   }
@@ -183,7 +173,6 @@ DrainJob::SetSpaceNode()
 {
   std::string SpaceNodeTransfers = "";
   std::string SpaceNodeTransferRate = "";
-  FileSystem* fs = 0;
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
   if (FsView::gFsView.mSpaceView.count(mSpace)) {
@@ -198,24 +187,22 @@ DrainJob::SetSpaceNode()
   if (FsView::gFsView.mGroupView.count(mGroup)) {
     for (git = FsView::gFsView.mGroupView[mGroup]->begin();
          git != FsView::gFsView.mGroupView[mGroup]->end(); git++) {
-      if (FsView::gFsView.mIdView.count(*git)) {
-        fs = FsView::gFsView.mIdView[*git];
 
-        if (fs) {
-          if (FsView::gFsView.mNodeView.count(fs->GetQueue())) {
-            FsNode* node = FsView::gFsView.mNodeView[fs->GetQueue()];
+      FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*git);
+      if (fs) {
+        if (FsView::gFsView.mNodeView.count(fs->GetQueue())) {
+          FsNode* node = FsView::gFsView.mNodeView[fs->GetQueue()];
 
-            if (node) {
-              // broadcast the rate & stream configuration if changed
-              if (node->GetConfigMember("stat.drain.ntx") != SpaceNodeTransfers) {
-                node->SetConfigMember("stat.drain.ntx",
-                                      SpaceNodeTransfers, false, "", true);
-              }
+          if (node) {
+            // broadcast the rate & stream configuration if changed
+            if (node->GetConfigMember("stat.drain.ntx") != SpaceNodeTransfers) {
+              node->SetConfigMember("stat.drain.ntx",
+                                    SpaceNodeTransfers, false, "", true);
+            }
 
-              if (node->GetConfigMember("stat.drain.rate") != SpaceNodeTransferRate) {
-                node->SetConfigMember("stat.drain.rate",
-                                      SpaceNodeTransferRate, false, "", true);
-              }
+            if (node->GetConfigMember("stat.drain.rate") != SpaceNodeTransferRate) {
+              node->SetConfigMember("stat.drain.rate",
+                                    SpaceNodeTransferRate, false, "", true);
             }
           }
         }

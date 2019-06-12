@@ -360,7 +360,6 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
       }
     }
 
-
     if (fs) {
       // Check the allowed strings
       if (((key == "configstatus") &&
@@ -900,11 +899,9 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
   }
 
   // Get this filesystem
-  FileSystem* fs = nullptr;
+  FileSystem* fs = fs_view.mIdView.lookupByID(fsid);
 
-  if (fs_view.mIdView.count(fsid)) {
-    fs = fs_view.mIdView[fsid];
-
+  if (fs) {
     if (!proc_fs_can_mv(fs, dst, stdOut, stdErr, force)) {
       return EINVAL;
     }
@@ -1000,11 +997,9 @@ int proc_mv_fs_space(FsView& fs_view, const std::string& src,
   std::ostringstream oss;
   // Check if file system is not already in this space
   FileSystem::fsid_t fsid = strtol(src.c_str(), nullptr, 10);
-  FileSystem* fs = nullptr;
+  FileSystem* fs = fs_view.mIdView.lookupByID(fsid);
 
-  if (fs_view.mIdView.count(fsid)) {
-    fs = fs_view.mIdView[fsid];
-
+  if (fs) {
     if (!proc_fs_can_mv(fs, dst, stdOut, stdErr, force)) {
       return EINVAL;
     }

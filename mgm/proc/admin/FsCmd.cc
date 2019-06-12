@@ -482,11 +482,11 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
       if (FsView::gFsView.mNodeView.count(queue)) {
         for (auto it = FsView::gFsView.mNodeView[queue]->begin();
              it != FsView::gFsView.mNodeView[queue]->end(); ++it) {
-          if (FsView::gFsView.mIdView.count(*it)) {
-            if (FsView::gFsView.mIdView[*it]->GetPath() == mount) {
-              // this is the filesystem
-              fsid = *it;
-            }
+
+          FileSystem *fs = FsView::gFsView.mIdView.lookupByID(*it);
+          if(fs && FsView::gFsView.mIdView[*it]->GetPath() == mount) {
+            // this is the filesystem
+            fsid = *it;
           }
         }
       }
@@ -505,99 +505,74 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
       "# ------------------------------------------------------------------------------------\n";
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
-    if (FsView::gFsView.mIdView.count(fsid)) {
-      FileSystem* fs = FsView::gFsView.mIdView[fsid];
+    FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
-      if (fs) {
+    if (fs) {
+      outStream << dotted_line.c_str();
+      outStream << "# FileSystem Variables\n";
+      outStream << dotted_line.c_str();
+      std::vector<std::string> keylist;
+      fs->GetKeys(keylist);
+      std::sort(keylist.begin(), keylist.end());
+
+      for (auto& key : keylist) {
+        char line[1024];
+        snprintf(line, sizeof(line) - 1, "%-32s := %s\n", key.c_str(),
+                 fs->GetString(key.c_str()).c_str());
+        outStream << line;
+      }
+
+      if (riskanalysis) {
         outStream << dotted_line.c_str();
-        outStream << "# FileSystem Variables\n";
+        outStream << "# Risk Analysis\n";
         outStream << dotted_line.c_str();
-        std::vector<std::string> keylist;
-        fs->GetKeys(keylist);
-        std::sort(keylist.begin(), keylist.end());
+        // get some statistics about the filesystem
+        //-------------------------------------------
+        unsigned long long nfids = 0;
+        unsigned long long nfids_healthy = 0;
+        unsigned long long nfids_risky = 0;
+        unsigned long long nfids_inaccessible = 0;
+        unsigned long long nfids_todelete = 0;
+        eos::Prefetcher::prefetchFilesystemFileListWithFileMDsAndParentsAndWait(
+          gOFS->eosView, gOFS->eosFsView, fsid);
+        eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex);
 
-        for (auto& key : keylist) {
-          char line[1024];
-          snprintf(line, sizeof(line) - 1, "%-32s := %s\n", key.c_str(),
-                   fs->GetString(key.c_str()).c_str());
-          outStream << line;
-        }
+        try {
+          nfids_todelete = gOFS->eosFsView->getNumUnlinkedFilesOnFs(fsid);
+          nfids = gOFS->eosFsView->getNumFilesOnFs(fsid);
 
-        if (riskanalysis) {
-          outStream << dotted_line.c_str();
-          outStream << "# Risk Analysis\n";
-          outStream << dotted_line.c_str();
-          // get some statistics about the filesystem
-          //-------------------------------------------
-          unsigned long long nfids = 0;
-          unsigned long long nfids_healthy = 0;
-          unsigned long long nfids_risky = 0;
-          unsigned long long nfids_inaccessible = 0;
-          unsigned long long nfids_todelete = 0;
-          eos::Prefetcher::prefetchFilesystemFileListWithFileMDsAndParentsAndWait(
-            gOFS->eosView, gOFS->eosFsView, fsid);
-          eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex);
+          for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
+              (it_fid && it_fid->valid()); it_fid->next()) {
+            std::shared_ptr<eos::IFileMD> fmd =
+              gOFS->eosFileService->getFileMD(it_fid->getElement());
 
-          try {
-            nfids_todelete = gOFS->eosFsView->getNumUnlinkedFilesOnFs(fsid);
-            nfids = gOFS->eosFsView->getNumFilesOnFs(fsid);
+            if (fmd) {
+              size_t nloc_ok = 0;
+              size_t nloc = fmd->getNumLocation();
 
-            for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
-                 (it_fid && it_fid->valid()); it_fid->next()) {
-              std::shared_ptr<eos::IFileMD> fmd =
-                gOFS->eosFileService->getFileMD(it_fid->getElement());
+              for (auto& loc : fmd->getLocations()) {
+                if (loc) {
+                  FileSystem* repfs = FsView::gFsView.mIdView.lookupByID(loc);
+                  if(repfs) {
+                    eos::common::FileSystem::fs_snapshot_t snapshot;
+                    repfs->SnapShotFileSystem(snapshot, false);
 
-              if (fmd) {
-                size_t nloc_ok = 0;
-                size_t nloc = fmd->getNumLocation();
-
-                for (auto& loc : fmd->getLocations()) {
-                  if (loc) {
-                    FileSystem* repfs = FsView::gFsView.mIdView.lookupByID(loc);
-                    if(repfs) {
-                      eos::common::FileSystem::fs_snapshot_t snapshot;
-                      repfs->SnapShotFileSystem(snapshot, false);
-
-                      if ((snapshot.mStatus == eos::common::BootStatus::kBooted) &&
-                          (snapshot.mConfigStatus == eos::common::FileSystem::kRW) &&
-                          (snapshot.mErrCode == 0) && // this we probably don't need
-                          (fs->GetActiveStatus(snapshot) == eos::common::ActiveStatus::kOnline)) {
-                        nloc_ok++;
-                      }
+                    if ((snapshot.mStatus == eos::common::BootStatus::kBooted) &&
+                        (snapshot.mConfigStatus == eos::common::FileSystem::kRW) &&
+                        (snapshot.mErrCode == 0) && // this we probably don't need
+                        (fs->GetActiveStatus(snapshot) == eos::common::ActiveStatus::kOnline)) {
+                      nloc_ok++;
                     }
                   }
                 }
+              }
 
-                if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
-                    eos::common::LayoutId::kReplica) {
-                  if (nloc_ok == nloc) {
-                    nfids_healthy++;
-                  } else {
-                    if (nloc_ok == 0) {
-                      nfids_inaccessible++;
-
-                      if (listfile) {
-                        filelisting += "status=offline path=";
-                        filelisting += gOFS->eosView->getUri(fmd.get()).c_str();
-                        filelisting += "\n";
-                      }
-                    } else {
-                      if (nloc_ok < nloc) {
-                        nfids_risky++;
-
-                        if (listfile) {
-                          filelisting += "status=atrisk  path=";
-                          filelisting += gOFS->eosView->getUri(fmd.get()).c_str();
-                          filelisting += "\n";
-                        }
-                      }
-                    }
-                  }
-                }
-
-                if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
-                    eos::common::LayoutId::kPlain) {
-                  if (nloc_ok != nloc) {
+              if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
+                  eos::common::LayoutId::kReplica) {
+                if (nloc_ok == nloc) {
+                  nfids_healthy++;
+                } else {
+                  if (nloc_ok == 0) {
                     nfids_inaccessible++;
 
                     if (listfile) {
@@ -605,45 +580,68 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
                       filelisting += gOFS->eosView->getUri(fmd.get()).c_str();
                       filelisting += "\n";
                     }
+                  } else {
+                    if (nloc_ok < nloc) {
+                      nfids_risky++;
+
+                      if (listfile) {
+                        filelisting += "status=atrisk  path=";
+                        filelisting += gOFS->eosView->getUri(fmd.get()).c_str();
+                        filelisting += "\n";
+                      }
+                    }
+                  }
+                }
+              }
+
+              if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
+                  eos::common::LayoutId::kPlain) {
+                if (nloc_ok != nloc) {
+                  nfids_inaccessible++;
+
+                  if (listfile) {
+                    filelisting += "status=offline path=";
+                    filelisting += gOFS->eosView->getUri(fmd.get()).c_str();
+                    filelisting += "\n";
                   }
                 }
               }
             }
-
-            XrdOucString sizestring;
-            char line[1024];
-            snprintf(line, sizeof(line) - 1, "%-32s := %10s (%.02f%%)\n", "number of files",
-                     eos::common::StringConversion::GetSizeString(sizestring, nfids), 100.0);
-            outStream << line;
-            snprintf(line, sizeof(line) - 1, "%-32s := %10s (%.02f%%)\n", "files healthy",
-                     eos::common::StringConversion::GetSizeString(sizestring, nfids_healthy),
-                     nfids ? (100.0 * nfids_healthy) / nfids : 100.0);
-            outStream << line;
-            snprintf(line, sizeof(line) - 1, "%-32s := %10s (%.02f%%)\n", "files at risk",
-                     eos::common::StringConversion::GetSizeString(sizestring, nfids_risky),
-                     nfids ? (100.0 * nfids_risky) / nfids : 100.0);
-            outStream << line;
-            snprintf(line, sizeof(line) - 1, "%-32s := %10s (%.02f%%)\n",
-                     "files inaccessible", eos::common::StringConversion::GetSizeString(sizestring,
-                         nfids_inaccessible), nfids ? (100.0 * nfids_inaccessible) / nfids : 100.0);
-            outStream << line;
-            snprintf(line, sizeof(line) - 1, "%-32s := %10s\n", "files pending deletion",
-                     eos::common::StringConversion::GetSizeString(sizestring, nfids_todelete));
-            outStream << line;
-            outStream << dotted_line.c_str();
-
-            if (listfile) {
-              outStream << filelisting;
-            }
-          } catch (eos::MDException& e) {
-            errno = e.getErrno();
-            eos_static_err("caught exception %d %s\n", e.getErrno(),
-                           e.getMessage().str().c_str());
           }
-        }
 
-        retc = 0;
+          XrdOucString sizestring;
+          char line[1024];
+          snprintf(line, sizeof(line) - 1, "%-32s := %10s (%.02f%%)\n", "number of files",
+                   eos::common::StringConversion::GetSizeString(sizestring, nfids), 100.0);
+          outStream << line;
+          snprintf(line, sizeof(line) - 1, "%-32s := %10s (%.02f%%)\n", "files healthy",
+                   eos::common::StringConversion::GetSizeString(sizestring, nfids_healthy),
+                   nfids ? (100.0 * nfids_healthy) / nfids : 100.0);
+          outStream << line;
+          snprintf(line, sizeof(line) - 1, "%-32s := %10s (%.02f%%)\n", "files at risk",
+                   eos::common::StringConversion::GetSizeString(sizestring, nfids_risky),
+                   nfids ? (100.0 * nfids_risky) / nfids : 100.0);
+          outStream << line;
+          snprintf(line, sizeof(line) - 1, "%-32s := %10s (%.02f%%)\n",
+                   "files inaccessible", eos::common::StringConversion::GetSizeString(sizestring,
+                    nfids_inaccessible), nfids ? (100.0 * nfids_inaccessible) / nfids : 100.0);
+          outStream << line;
+          snprintf(line, sizeof(line) - 1, "%-32s := %10s\n", "files pending deletion",
+                   eos::common::StringConversion::GetSizeString(sizestring, nfids_todelete));
+          outStream << line;
+          outStream << dotted_line.c_str();
+
+          if (listfile) {
+            outStream << filelisting;
+          }
+        } catch (eos::MDException& e) {
+          errno = e.getErrno();
+          eos_static_err("caught exception %d %s\n", e.getErrno(),
+                         e.getMessage().str().c_str());
+        }
       }
+
+      retc = 0;
     } else {
       errStream << "error: cannot find filesystem - no filesystem with fsid=";
       errStream << fsid;

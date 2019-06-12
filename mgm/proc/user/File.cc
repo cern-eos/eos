@@ -370,7 +370,7 @@ ProcCommand::File()
 		// rain layouts only resync meta data records
 		int lretc = gOFS->_verifystripe(spath.c_str(), *mError, vid,
 						(unsigned long) * it, option);
-		
+
 		if (!lretc) {
 		  stdOut += "success: sending verify to fsid= ";
 		  stdOut += (int) * it;
@@ -382,7 +382,7 @@ ProcCommand::File()
 		}
 	      }
 	    }
-	    
+
 	    // -------------------------------------------------------------------
 	    // we want to be able to force the registration and verification of a
 	    // not registered replica
@@ -390,7 +390,7 @@ ProcCommand::File()
 	    if (acceptfsid && (!acceptfound)) {
 	      int lretc = gOFS->_verifystripe(spath.c_str(), *mError, vid,
 					      (unsigned long) acceptfsid, option);
-	      
+
 	      if (!lretc) {
 		stdOut += "success: sending forced verify to fsid= ";
 		stdOut += acceptfsid;
@@ -1086,11 +1086,7 @@ ProcCommand::File()
                   // figure out which space this fsid is in ...
                   {
                     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-                    FileSystem* filesystem = 0;
-
-                    if (FsView::gFsView.mIdView.count((int) fsid)) {
-                      filesystem = FsView::gFsView.mIdView[(int) fsid];
-                    }
+                    FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(fsid);
 
                     if (!filesystem) {
                       stdErr += "error: couldn't find filesystem in view\n";
@@ -1313,11 +1309,7 @@ ProcCommand::File()
               }
 
               eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-              FileSystem* filesystem = 0;
-
-              if (FsView::gFsView.mIdView.count((int) *lociter)) {
-                filesystem = FsView::gFsView.mIdView[(int) * lociter];
-              }
+              FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(*lociter);
 
               if (filesystem) {
                 eos::common::FileSystem::fs_snapshot_t snapshot;

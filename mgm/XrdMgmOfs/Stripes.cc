@@ -110,11 +110,7 @@ XrdMgmOfs::_verifystripe(const char* path,
 
   if (!errno) {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    eos::mgm::FileSystem* verifyfilesystem = 0;
-
-    if (FsView::gFsView.mIdView.count(fsid)) {
-      verifyfilesystem = FsView::gFsView.mIdView[fsid];
-    }
+    eos::mgm::FileSystem* verifyfilesystem = FsView::gFsView.mIdView.lookupByID(fsid);
 
     if (!verifyfilesystem) {
       errno = EINVAL;
@@ -617,16 +613,8 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
                 "illegal source/target fsid", fmd->getName().c_str());
   }
 
-  eos::mgm::FileSystem* sourcefilesystem = 0;
-  eos::mgm::FileSystem* targetfilesystem = 0;
-
-  if (FsView::gFsView.mIdView.count(sourcefsid)) {
-    sourcefilesystem = FsView::gFsView.mIdView[sourcefsid];
-  }
-
-  if (FsView::gFsView.mIdView.count(targetfsid)) {
-    targetfilesystem = FsView::gFsView.mIdView[targetfsid];
-  }
+  eos::mgm::FileSystem* sourcefilesystem = FsView::gFsView.mIdView.lookupByID(sourcefsid);
+  eos::mgm::FileSystem* targetfilesystem = FsView::gFsView.mIdView.lookupByID(targetfsid);
 
   if (!sourcefilesystem) {
     errno = EINVAL;
