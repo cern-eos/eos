@@ -132,9 +132,10 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
   bool processPath = false;
   std::ostringstream out;
   std::ostringstream err;
+  std::ostringstream warn;
 
   out << std::setfill('0');
-  err << std::setfill('0') << std::hex;
+  warn << std::setfill('0') << std::hex;
 
   if (option == "m") {
     monitor = true;
@@ -213,17 +214,20 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
 
             out << senv.c_str();
 
-            if (monitor && containerpath.size()) {
-              out << "&container=" << containerpath.c_str();
+            if (monitor) {
+              out << "&container="
+                  << (containerpath.size() ? containerpath.c_str() : "-");
             }
           } else {
-            if (dumppath && fullpath.size()) {
-              out << "path=" << fullpath.c_str() << " ";
+            if (dumppath) {
+              out << "path="
+                  << (fullpath.size() ? fullpath.c_str() : "-")
+                  << " ";
             }
 
             if (dumpfid) {
-              out << "fid=" << std::setw(8) << std::hex << fmd->getId()
-                  << std::dec << " ";
+              out << "fid=" << std::setw(8)
+                  << std::hex << fmd->getId() << std::dec << " ";
             }
 
             if (dumpsize) {
@@ -241,12 +245,12 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
       }
 
       if (!fmd) {
-        err << "# warning: ghost entry fid=" << std::setw(8)
-            << it_fid->getElement() << endl;
+        warn << "# warning: ghost entry fid=" << std::setw(8)
+             << it_fid->getElement() << endl;
         retc = EIDRM;
       } else if (processPath && containerpath.empty()) {
-        err << "# warning: missing container for fid=" << std::setw(8)
-            << fmd->getId() << endl;
+        warn << "# warning: missing container for fid=" << std::setw(8)
+             << fmd->getId() << endl;
         retc = EIDRM;
       }
     }
@@ -276,6 +280,11 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
         }
       }
     }
+  }
+
+  if (retc == EIDRM) {
+    out << warn.str().c_str();
+    err << "# error: filesystem contains problematic entries" << endl;
   }
 
   stdOut += out.str().c_str();
