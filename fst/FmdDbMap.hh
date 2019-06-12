@@ -217,7 +217,7 @@ public:
   bool UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
                           eos::common::FileId::fileid_t fid,
                           unsigned long long disk_size,
-                          std::string disk_xs,
+                          const std::string& disk_xs,
                           unsigned long check_ts_sec, bool filexs_err,
                           bool blockxs_err, bool layout_err);
 
@@ -250,13 +250,15 @@ public:
   //! Update local fmd with info from the scanner
   //!
   //! @param fsid file system id
-  //! @param fs_root file system mountpoint
   //! @param fpath local file path
+  //! @param scan_sz size of the file computed by the scanner
+  //! @param scan_xs_hex hex checksum of the file computed by the scanner
   //! @param filexs_err true if file has checksum error, otherwise false
   //! @param blockxs_err true if file has block checksum error, otherwise false
   //----------------------------------------------------------------------------
   void UpdateWithScanInfo(eos::common::FileSystem::fsid_t fsid,
-                          const std::string& fs_root, const std::string& fpath,
+                          const std::string& fpath,
+                          uint64_t scan_sz, const std::string& scan_xs_hex,
                           bool filexs_err, bool blockxs_err);
 
   //----------------------------------------------------------------------------
@@ -283,12 +285,15 @@ public:
   //! @param fstpath file system location
   //! @param fsid filesystem id
   //! @param flaglayouterror indicates a layout error
+  //! @param scan_sz size of file computed by the scanner
+  //! @param scan_xs_hex hex checksum of the file computed by the scanner
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool ResyncDisk(const char* fstpath,
                   eos::common::FileSystem::fsid_t fsid,
-                  bool flaglayouterror);
+                  bool flaglayouterror, uint64_t scan_sz = 0ull,
+                  const std::string& scan_xs_hex = "");
 
   //----------------------------------------------------------------------------
   //! Resync files under path into local database
@@ -448,6 +453,14 @@ private:
   google::dense_hash_map<eos::common::FileSystem::fsid_t, eos::common::RWMutex*>
   mFsMtxMap;
   eos::common::RWMutex mFsMtxMapMutex; ///< Mutex protecting the previous map
+
+  //----------------------------------------------------------------------------
+  //! Move given file to orphans directory and also set its extended attribute
+  //! to reflect the original path to the file.
+  //!
+  //! @param fpath file to move
+  //----------------------------------------------------------------------------
+  void MoveToOrphans(const std::string& fpath) const;
 
   //----------------------------------------------------------------------------
   //! Lock mutex corresponding to the given file systemd id

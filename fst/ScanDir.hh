@@ -112,6 +112,7 @@ public:
   //!
   //! @param io io object attached to the file
   //! @param scan_size final scan size
+  //! @param scan_xs_hex scanned file checksum in hex
   //! @param filexs_err set to true if file has a checksum error
   //! @param blockxs_err set to true if file has a block checksum errror
   //!
@@ -120,6 +121,7 @@ public:
   //----------------------------------------------------------------------------
   bool ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
                          unsigned long long& scan_size,
+                         std::string& scan_xs_hex,
                          bool& filexs_err, bool& blockxs_err);
 
   //----------------------------------------------------------------------------
