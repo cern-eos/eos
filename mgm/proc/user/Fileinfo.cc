@@ -337,11 +337,7 @@ ProcCommand::FileInfo(const char* path)
             XrdOucString location = "";
             location += (int) * lociter;
             eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-            eos::common::FileSystem* filesystem = 0;
-
-            if (FsView::gFsView.mIdView.count(*lociter)) {
-              filesystem = FsView::gFsView.mIdView[*lociter];
-            }
+            eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(*lociter);
 
             if (filesystem) {
               // For the fullpath option we output the physical location of the

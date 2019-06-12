@@ -602,11 +602,10 @@ XrdMgmOfs::Schedule2Drain(const char* path,
       }
 
       // We schedule fid from replica_source => target_fs
-      eos::common::FileSystem* replica_source_fs = 0;
       unsigned int replica_fsid = locationfs[fsindex];
+      eos::common::FileSystem* replica_source_fs = FsView::gFsView.mIdView.lookupByID(replica_fsid);
 
-      if ((!FsView::gFsView.mIdView.count(replica_fsid)) ||
-          (replica_source_fs = FsView::gFsView.mIdView[replica_fsid]) == 0) {
+      if(!replica_source_fs) {
         continue;
       }
 

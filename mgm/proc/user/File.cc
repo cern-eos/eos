@@ -1489,11 +1489,7 @@ ProcCommand::File()
                   }
 
                   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-                  FileSystem* filesystem = 0;
-
-                  if (FsView::gFsView.mIdView.count((int) *lociter)) {
-                    filesystem = FsView::gFsView.mIdView[(int) * lociter];
-                  }
+                  FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(*lociter);
 
                   eos::common::FileSystem::fs_snapshot_t fs;
 
@@ -1761,11 +1757,7 @@ ProcCommand::File()
             }
 
             eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-            eos::common::FileSystem* filesystem = 0;
-
-            if (FsView::gFsView.mIdView.count(*lociter)) {
-              filesystem = FsView::gFsView.mIdView[*lociter];
-            }
+            eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(*lociter);
 
             if (filesystem) {
               XrdOucString host;

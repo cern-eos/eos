@@ -67,11 +67,7 @@ CommitHelper::check_filesystem(eos::common::VirtualIdentity& vid,
 {
   // Check that the file system is still allowed to accept replica's
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-  eos::mgm::FileSystem* fs = 0;
-
-  if (FsView::gFsView.mIdView.count(fsid)) {
-    fs = FsView::gFsView.mIdView[fsid];
-  }
+  eos::mgm::FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
   if ((!fs) || (fs->GetConfigStatus() < eos::common::FileSystem::kDrain)) {
     eos_thread_err("msg=\"commit suppressed\" configstatus=%s subcmd=commit "
@@ -387,7 +383,7 @@ CommitHelper::validate_checksum(eos::common::VirtualIdentity& vid,
       if (fmd->hasLocation((unsigned short) fsid)) {
         fmd->unlinkLocation((unsigned short) fsid);
         fmd->removeLocation((unsigned short) fsid);
-	
+
 	eos_thread_err("replication for fid=%llu resulted in a different checksum "
 		       "on fsid=%llu - dropping replica", fmd->getId(), fsid);
 

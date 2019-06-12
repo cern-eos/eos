@@ -617,11 +617,7 @@ ProcCommand::Find()
                           for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter) {
                             // get host name for fs id
                             eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-                            eos::common::FileSystem* filesystem = 0;
-
-                            if (FsView::gFsView.mIdView.count(*lociter)) {
-                              filesystem = FsView::gFsView.mIdView[*lociter];
-                            }
+                            eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(*lociter);
 
                             if (filesystem) {
                               eos::common::FileSystem::fs_snapshot_t fs;
@@ -785,11 +781,7 @@ ProcCommand::Find()
                 }
 
                 eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-                eos::common::FileSystem* filesystem = 0;
-
-                if (FsView::gFsView.mIdView.count(loc)) {
-                  filesystem = FsView::gFsView.mIdView[loc];
-                }
+                eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(loc);
 
                 if (filesystem) {
                   eos::common::FileSystem::fs_snapshot_t fs;

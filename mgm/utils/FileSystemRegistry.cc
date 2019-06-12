@@ -44,5 +44,11 @@ FileSystem* FileSystemRegistry::lookupByID(eos::common::FileSystem::fsid_t id) c
   return it->second;
 }
 
+//------------------------------------------------------------------------------
+//! Does a FileSystem with the given id exist?
+//------------------------------------------------------------------------------
+bool FileSystemRegistry::exists(eos::common::FileSystem::fsid_t id) const {
+  return mById.count(id) > 0;
+}
 
 EOSMGMNAMESPACE_END

@@ -2883,54 +2883,48 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
   }
 
 
-  FileSystem* fs = nullptr;
   eos::common::FileSystem::fsid_t fsid = atoi(configmap["id"].c_str());
+  FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
   // Apply only the registration for a new filesystem if it does not exist
-  if (!FsView::gFsView.mIdView.count(fsid)) {
+  if (!fs) {
     fs = new FileSystem(locator, eos::common::GlobalConfig::gConfig.SOM(), nullptr);
-  } else {
-    fs = FsView::gFsView.mIdView[fsid];
   }
 
-  if (fs) {
-    fs->OpenTransaction();
-    fs->SetId(fsid);
-    fs->SetString("uuid", configmap["uuid"].c_str());
-    std::map<std::string, std::string>::iterator it;
+  fs->OpenTransaction();
+  fs->SetId(fsid);
+  fs->SetString("uuid", configmap["uuid"].c_str());
+  std::map<std::string, std::string>::iterator it;
 
-    for (it = configmap.begin(); it != configmap.end(); it++) {
-      // Set config parameters except for the "configstatus" which can trigger a
-      // drain job. This in turn could try to update the status of the file
-      // system and will deadlock trying to get the transaction mutex. Therefore,
-      // we update the configstatus outside this transaction.
+  for (it = configmap.begin(); it != configmap.end(); it++) {
+    // Set config parameters except for the "configstatus" which can trigger a
+    // drain job. This in turn could try to update the status of the file
+    // system and will deadlock trying to get the transaction mutex. Therefore,
+    // we update the configstatus outside this transaction.
 
-      // @todo (esindril) We remove "drainstatus" from the map as we only use
-      // stat.drain from 4.4.30 on!!!
-      if ((it->first != "configstatus") && (it->first != "drainstatus")) {
-        fs->SetString(it->first.c_str(), it->second.c_str());
-      }
+    // @todo (esindril) We remove "drainstatus" from the map as we only use
+    // stat.drain from 4.4.30 on!!!
+    if ((it->first != "configstatus") && (it->first != "drainstatus")) {
+      fs->SetString(it->first.c_str(), it->second.c_str());
     }
-
-    fs->CloseTransaction();
-    auto it_cfg = configmap.find("configstatus");
-
-    if (it_cfg != configmap.end()) {
-      fs->SetString(it_cfg->first.c_str(), it_cfg->second.c_str());
-    }
-
-    if (!FsView::gFsView.Register(fs)) {
-      eos_err("msg=\"cannot register filesystem name=%s from configuration\"",
-              configmap["queuepath"].c_str());
-      return false;
-    }
-
-    // insert into the mapping
-    FsView::gFsView.ProvideMapping(configmap["uuid"], fsid);
-    return true;
   }
 
-  return false;
+  fs->CloseTransaction();
+  auto it_cfg = configmap.find("configstatus");
+
+  if (it_cfg != configmap.end()) {
+    fs->SetString(it_cfg->first.c_str(), it_cfg->second.c_str());
+  }
+
+  if (!FsView::gFsView.Register(fs)) {
+    eos_err("msg=\"cannot register filesystem name=%s from configuration\"",
+            configmap["queuepath"].c_str());
+    return false;
+  }
+
+  // insert into the mapping
+  FsView::gFsView.ProvideMapping(configmap["uuid"], fsid);
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -4102,10 +4096,12 @@ FsSpace::ResetDraining()
 
     for (git = (*sgit)->begin();
          git != (*sgit)->end(); git++) {
-      if (FsView::gFsView.mIdView.count(*git)) {
+
+      FileSystem *entry = FsView::gFsView.mIdView.lookupByID(*git);
+      if(entry) {
         eos::common::DrainStatus drainstatus =
           (eos::common::FileSystem::GetDrainStatusFromString(
-             FsView::gFsView.mIdView[*git]->GetString("stat.drain").c_str()));
+             entry->GetString("stat.drain").c_str()));
 
         if ((drainstatus == eos::common::DrainStatus::kDraining) ||
             (drainstatus == eos::common::DrainStatus::kDrainStalling)) {
@@ -4122,9 +4118,9 @@ FsSpace::ResetDraining()
     }
 
     for (git = (*sgit)->begin(); git != (*sgit)->end(); git++) {
-      if (FsView::gFsView.mIdView.count(*git)) {
-        eos::mgm::FileSystem* fs = FsView::gFsView.mIdView[*git];
+      eos::mgm::FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*git);
 
+      if (fs) {
         if (setactive) {
           if (fs->GetString("stat.drainer") != "on") {
             fs->SetString("stat.drainer", "on");

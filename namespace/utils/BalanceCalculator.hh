@@ -69,11 +69,7 @@ public:
       }
 
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-      eos::common::FileSystem* filesystem = nullptr;
-
-      if(FsView::gFsView.mIdView.count(loc)) {
-        filesystem = FsView::gFsView.mIdView[loc];
-      }
+      eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(loc);
 
       if(filesystem != nullptr) {
         eos::common::FileSystem::fs_snapshot_t fs;

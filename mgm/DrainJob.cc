@@ -125,10 +125,12 @@ DrainJob::SetDrainer()
   if (FsView::gFsView.mGroupView.count(mGroup)) {
     for (git = FsView::gFsView.mGroupView[mGroup]->begin();
          git != FsView::gFsView.mGroupView[mGroup]->end(); git++) {
-      if (FsView::gFsView.mIdView.count(*git)) {
+
+      FileSystem* checkDrain = FsView::gFsView.mIdView.lookupByID(*git);
+      if(checkDrain) {
         eos::common::DrainStatus drainstatus =
           (eos::common::FileSystem::GetDrainStatusFromString(
-             FsView::gFsView.mIdView[*git]->GetString("stat.drain").c_str())
+             checkDrain->GetString("stat.drain").c_str())
           );
 
         if ((drainstatus == eos::common::DrainStatus::kDraining) ||
@@ -147,7 +149,7 @@ DrainJob::SetDrainer()
 
     for (git = FsView::gFsView.mGroupView[mGroup]->begin();
          git != FsView::gFsView.mGroupView[mGroup]->end(); git++) {
-      fs = FsView::gFsView.mIdView[*git];
+      fs = FsView::gFsView.mIdView.lookupByID(*git);
 
       if (fs) {
         if (setactive) {
@@ -239,11 +241,7 @@ retry:
   {
     // set status to 'prepare'
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-    fs = 0;
-
-    if (FsView::gFsView.mIdView.count(mFsId)) {
-      fs = FsView::gFsView.mIdView[mFsId];
-    }
+    fs = FsView::gFsView.mIdView.lookupByID(mFsId);
 
     if (!fs) {
       eos_static_notice("Filesystem fsid=%u has been removed during drain "
@@ -307,11 +305,7 @@ retry:
   // set the shared object counter
   {
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-    fs = 0;
-
-    if (FsView::gFsView.mIdView.count(mFsId)) {
-      fs = FsView::gFsView.mIdView[mFsId];
-    }
+    fs = FsView::gFsView.mIdView.lookupByID(mFsId);
 
     if (!fs) {
       eos_static_notice("Filesystem fsid=%u has been removed during drain "
@@ -332,11 +326,7 @@ retry:
     {
       // Set status to 'waiting'
       eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-      fs = 0;
-
-      if (FsView::gFsView.mIdView.count(mFsId)) {
-        fs = FsView::gFsView.mIdView[mFsId];
-      }
+      fs = FsView::gFsView.mIdView.lookupByID(mFsId);
 
       if (!fs) {
         eos_static_notice("Filesystem fsid=%u has been removed during drain "
@@ -358,11 +348,7 @@ retry:
       if (now > waitreporttime) {
         // update stat.timeleft
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-        fs = 0;
-
-        if (FsView::gFsView.mIdView.count(mFsId)) {
-          fs = FsView::gFsView.mIdView[mFsId];
-        }
+        fs = FsView::gFsView.mIdView.lookupByID(mFsId);
 
         if (!fs) {
           eos_static_notice("Filesystem fsid=%u has been removed during drain "
@@ -386,11 +372,7 @@ retry:
   //in draindead
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    fs = 0;
-
-    if (FsView::gFsView.mIdView.count(mFsId)) {
-      fs = FsView::gFsView.mIdView[mFsId];
-    }
+    fs = FsView::gFsView.mIdView.lookupByID(mFsId);
 
     if (!fs) {
       eos_static_notice("Filesystem fsid=%u has been removed during drain "
@@ -447,11 +429,7 @@ retry:
       // --------------------------------------------- -------------------------
       {
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-        fs = 0;
-
-        if (FsView::gFsView.mIdView.count(mFsId)) {
-          fs = FsView::gFsView.mIdView[mFsId];
-        }
+        fs = FsView::gFsView.mIdView.lookupByID(mFsId);
 
         if (!fs) {
           eos_static_notice(
@@ -508,11 +486,7 @@ retry:
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
       int progress = (int)(totalfiles) ? (100.0 * (totalfiles - filesleft) /
                                           totalfiles) : 100;
-      fs = 0;
-
-      if (FsView::gFsView.mIdView.count(mFsId)) {
-        fs = FsView::gFsView.mIdView[mFsId];
-      }
+      fs = FsView::gFsView.mIdView.lookupByID(mFsId);
 
       if (!fs) {
         eos_static_notice("Filesystem fsid=%u has been removed during drain "
@@ -539,11 +513,7 @@ retry:
       //------------------------------------------------------------------------
       {
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-        fs = 0;
-
-        if (FsView::gFsView.mIdView.count(mFsId)) {
-          fs = FsView::gFsView.mIdView[mFsId];
-        }
+        fs = FsView::gFsView.mIdView.lookupByID(mFsId);
 
         if (!fs) {
           eos_static_notice("Filesystem fsid=%u has been removed during drain "
@@ -579,11 +549,7 @@ nofilestodrain:
   //----------------------------------------------------------------------------
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    fs = 0;
-
-    if (FsView::gFsView.mIdView.count(mFsId)) {
-      fs = FsView::gFsView.mIdView[mFsId];
-    }
+    fs = FsView::gFsView.mIdView.lookupByID(mFsId);
 
     if (!fs) {
       eos_static_notice("Filesystem fsid=%u has been removed during drain "

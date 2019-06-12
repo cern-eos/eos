@@ -641,7 +641,7 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
       size_t fsid_count = pPenaltySched.pCircFrCnt2FsPenalties.begin()->size();
 
       for (size_t fsid = 1; fsid < fsid_count; fsid++) {
-        if (!(FsView::gFsView.mIdView.count(fsid))) {
+        if (!FsView::gFsView.mIdView.exists(fsid)) {
           continue;
         }
 
@@ -740,7 +740,7 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
                                        pLatencySched.pGlobalLatencyStats.maxlatency, avAge, true));
 
     for (size_t fsid = 1; fsid < pLatencySched.pFsId2LatencyStats.size(); fsid++) {
-      if (!(FsView::gFsView.mIdView.count(fsid))) {
+      if (!FsView::gFsView.mIdView.exists(fsid)) {
         continue;
       }
 

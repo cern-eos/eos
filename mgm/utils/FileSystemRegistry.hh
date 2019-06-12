@@ -60,9 +60,9 @@ public:
   //----------------------------------------------------------------------------
   //! Map compatibility: count()
   //----------------------------------------------------------------------------
-  size_t count(eos::common::FileSystem::fsid_t id) const {
-    return mById.count(id);
-  }
+  // size_t count(eos::common::FileSystem::fsid_t id) const {
+  //   return mById.count(id);
+  // }
 
   //----------------------------------------------------------------------------
   //! Map compatibility: operator[]
@@ -127,7 +127,10 @@ public:
   //----------------------------------------------------------------------------
   FileSystem* lookupByID(eos::common::FileSystem::fsid_t id) const;
 
-
+  //----------------------------------------------------------------------------
+  //! Does a FileSystem with the given id exist?
+  //----------------------------------------------------------------------------
+  bool exists(eos::common::FileSystem::fsid_t id) const;
 
 
 private:

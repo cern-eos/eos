@@ -1190,19 +1190,15 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
 
           for (const auto& fsid : fmd->getLocations()) {
             if (efsmapit.first != fsid) {
-              FileSystem* fileSystem = nullptr;
+              FileSystem* fileSystem = FsView::gFsView.mIdView.lookupByID(fsid);
+              const auto& inconsistentsOnFs = eFsMap["d_mem_sz_diff"][fsid];
+              auto found = inconsistentsOnFs.find(fid);
 
-              if (FsView::gFsView.mIdView.count(fsid) != 0) {
-                fileSystem = FsView::gFsView.mIdView[fsid];
-                const auto& inconsistentsOnFs = eFsMap["d_mem_sz_diff"][fsid];
-                auto found = inconsistentsOnFs.find(fid);
-
-                if (fileSystem != nullptr &&
-                    fileSystem->GetConfigStatus(false) > FileSystem::kRO &&
-                    found == inconsistentsOnFs.end()) {
-                  replicaAvailable = true;
-                  break;
-                }
+              if (fileSystem != nullptr &&
+                  fileSystem->GetConfigStatus(false) > FileSystem::kRO &&
+                  found == inconsistentsOnFs.end()) {
+                replicaAvailable = true;
+                break;
               }
             }
           }
@@ -1571,7 +1567,7 @@ Fsck::AccountDarkFiles()
 
       if (num_files) {
         // Check if this exists in the gFsView
-        if (!FsView::gFsView.mIdView.count(nfsid)) {
+        if (!FsView::gFsView.mIdView.exists(nfsid)) {
           eFsDark[nfsid] += num_files;
           Log("shadow fsid=%lu shadow_entries=%llu ", nfsid, num_files);
         }

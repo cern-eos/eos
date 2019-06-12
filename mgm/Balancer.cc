@@ -118,8 +118,9 @@ Balancer::Balance(ThreadAssistant& assistant) noexcept
         total_files = 0;
 
         for (auto it = (*git)->begin(); it != (*git)->end(); ++it) {
-          if (FsView::gFsView.mIdView.count(*it)) {
-            eos::common::FileSystem* fs = FsView::gFsView.mIdView[*it];
+
+          eos::common::FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
+          if(fs) {
             total_files += fs->GetLongLong("stat.balancer.running");
             eos::common::FileSystem::fsstatus_t configstatus = fs->GetConfigStatus();
 

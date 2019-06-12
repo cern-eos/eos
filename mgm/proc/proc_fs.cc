@@ -349,11 +349,10 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
         if (FsView::gFsView.mNodeView.count(identifier)) {
           for (auto it = FsView::gFsView.mNodeView[identifier]->begin();
               it != FsView::gFsView.mNodeView[identifier]->end(); ++it) {
-            if (FsView::gFsView.mIdView.count(*it)) {
-              // This is the filesystem
-              if (FsView::gFsView.mIdView[*it]->GetPath() == path) {
-                fs = FsView::gFsView.mIdView[*it];
-              }
+
+            FileSystem* candidate = FsView::gFsView.mIdView.lookupByID(*it);
+            if(candidate && candidate->GetPath() == path) {
+              fs = candidate;
             }
           }
         }
@@ -1257,13 +1256,7 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
 
   if (id.length()) {
     // find by id
-    if (FsView::gFsView.mIdView.count(fsid)) {
-      fs = FsView::gFsView.mIdView[fsid];
-
-      if (fs == nullptr) {
-        FsView::gFsView.mIdView.erase(fsid);
-      }
-    }
+    fs = FsView::gFsView.mIdView.lookupByID(fsid);
   } else {
     if (mountpoint.length() && nodename.length()) {
       std::string queuepath = nodename;

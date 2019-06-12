@@ -154,11 +154,7 @@ static bool hasMixedSchedGroups(std::shared_ptr<eos::IFileMD>& fmd)
     }
 
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    eos::common::FileSystem* filesystem = nullptr;
-
-    if (FsView::gFsView.mIdView.count(lociter)) {
-      filesystem = FsView::gFsView.mIdView[lociter];
-    }
+    eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(lociter);
 
     if (filesystem != nullptr) {
       sGroup = filesystem->GetString("schedgroup");

@@ -1695,11 +1695,10 @@ XrdMgmOfsFile::open(const char* inpath,
         std::string fsgeotag;
 
         for (size_t k = 0; k < selectedfs.size(); k++) {
-          filesystem = 0;
+          filesystem = FsView::gFsView.mIdView.lookupByID(selectedfs[k]);
           fsgeotag = "";
 
-          if (FsView::gFsView.mIdView.count(selectedfs[k])) {
-            filesystem = FsView::gFsView.mIdView[selectedfs[k]];
+          if (filesystem) {
             fsgeotag = filesystem->GetString("stat.geotag");
           }
 
@@ -1755,7 +1754,7 @@ XrdMgmOfsFile::open(const char* inpath,
     }
   }
 
-  // if this is a RAIN layout, we want a nice round-robin for the entry server since it 
+  // if this is a RAIN layout, we want a nice round-robin for the entry server since it
   // has the burden of encoding and traffic fan-out
   if ( isRW && eos::common::LayoutId::IsRainLayout(layoutId) ) {
     fsIndex = fileId % selectedfs.size();
@@ -1768,9 +1767,9 @@ XrdMgmOfsFile::open(const char* inpath,
     return Emsg(epname, error, ENETUNREACH, "received filesystem id 0", path);
   }
 
-  if (FsView::gFsView.mIdView.count(selectedfs[fsIndex])) {
-    filesystem = FsView::gFsView.mIdView[selectedfs[fsIndex]];
-  } else {
+  filesystem = FsView::gFsView.mIdView.lookupByID(selectedfs[fsIndex]);
+
+  if (!filesystem) {
     return Emsg(epname, error, ENETUNREACH, "received non-existent filesystem",
                 path);
   }
@@ -2005,13 +2004,14 @@ XrdMgmOfsFile::open(const char* inpath,
                       path);
         }
 
-        if (!FsView::gFsView.mIdView.count(orig_fs)) {
+        // get an original filesystem which is not in the reconstruction list
+        eos::mgm::FileSystem* origfs = FsView::gFsView.mIdView.lookupByID(orig_fs);
+
+        if (!origfs) {
           // not existing original filesystem
           return Emsg(epname, error, EINVAL, "reconstruct filesystem", path);
         }
 
-        // get an original filesystem which is not in the reconstruction list
-        eos::mgm::FileSystem* origfs = FsView::gFsView.mIdView[orig_fs];
         origfs->SnapShotFileSystem(orig_snapshot);
         forcedGroup = orig_snapshot.mGroupIndex;
       }
@@ -2148,11 +2148,7 @@ XrdMgmOfsFile::open(const char* inpath,
         replacedfs[i] = 0;
       }
 
-      if (FsView::gFsView.mIdView.count(selectedfs[i])) {
-        repfilesystem = FsView::gFsView.mIdView[selectedfs[i]];
-      } else {
-        repfilesystem = nullptr;
-      }
+      repfilesystem = FsView::gFsView.mIdView.lookupByID(selectedfs[i]);
 
       if (!repfilesystem) {
         // don't fail IO on a shadow file system but throw a critical error message
