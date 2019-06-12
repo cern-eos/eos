@@ -330,8 +330,9 @@ ScanDir::CheckFile(const std::string& fpath)
   bool blockxs_err = false;
   bool filexs_err = false;
   unsigned long long scan_size {0ull};
+  std::string scan_xs_hex;
 
-  if (!ScanFileLoadAware(io, scan_size, filexs_err, blockxs_err)) {
+  if (!ScanFileLoadAware(io, scan_size, scan_xs_hex, filexs_err, blockxs_err)) {
     return;
   }
 
@@ -383,17 +384,17 @@ ScanDir::CheckFile(const std::string& fpath)
   // Collect statistics
   mTotalScanSize += scan_size;
 
-  if ((io->attrSet("user.eos.filecxerror", filexs_err ? "1" : "0")) ||
-      (io->attrSet("user.eos.blockcxerror", blockxs_err ? "1" : "0")) ||
-      (io->attrSet("user.eos.timestamp", GetTimestampSmearedSec()))) {
+  if ((io->attrSet("user.eos.timestamp", GetTimestampSmearedSec())) ||
+      (io->attrSet("user.eos.filecxerror", filexs_err ? "1" : "0")) ||
+      (io->attrSet("user.eos.blockcxerror", blockxs_err ? "1" : "0"))) {
     LogMsg(LOG_ERR, "msg=\"failed to set xattrs\" path=%s", fpath.c_str());
   }
 
 #ifndef _NOOFS
 
   if (mBgThread) {
-    gFmdDbMapHandler.UpdateWithScanInfo(mFsId, mDirPath, fpath, filexs_err,
-                                        blockxs_err);
+    gFmdDbMapHandler.UpdateWithScanInfo(mFsId, fpath, scan_size, scan_xs_hex,
+                                        filexs_err, blockxs_err);
   }
 
 #endif
@@ -494,6 +495,7 @@ ScanDir::DoRescan(const std::string& timestamp_sec) const
 bool
 ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
                            unsigned long long& scan_size,
+                           std::string& scan_xs_hex,
                            bool& filexs_err, bool& blockxs_err)
 {
   scan_size = 0ull;
@@ -568,13 +570,15 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
 
   // Check file checksum only for replica layouts
   if (comp_file_xs) {
+    scan_xs_hex = comp_file_xs->GetHexChecksum();
+
     if (!comp_file_xs->Compare(xs_val)) {
       auto exp_file_xs = eos::fst::ChecksumPlugins::GetXsObj(xs_type);
       exp_file_xs->SetBinChecksum(xs_val, xs_len);
       LogMsg(LOG_ERR, "msg=\"file checksum error\" expected_file_xs=%s "
-             "computed_file_xs=%s scan_size=%llu",
+             "computed_file_xs=%s scan_size=%llu path=%s",
              exp_file_xs->GetHexChecksum(), comp_file_xs->GetHexChecksum(),
-             scan_size);
+             scan_size, file_path.c_str());
       ++mNumCorruptedFiles;
       filexs_err = true;
     }

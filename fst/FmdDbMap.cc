@@ -627,7 +627,8 @@ bool
 FmdDbMapHandler::UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
                                     eos::common::FileId::fileid_t fid,
                                     unsigned long long disk_size,
-                                    std::string disk_xs, unsigned long check_ts_sec,
+                                    const std::string& disk_xs,
+                                    unsigned long check_ts_sec,
                                     bool filexs_err, bool blockxs_err,
                                     bool layout_err)
 {
@@ -644,14 +645,18 @@ FmdDbMapHandler::UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
   eos::common::RWMutexReadLock map_rd_lock(mMapMutex);
   FsWriteLock fs_wr_lock(fsid);
   (void)LocalRetrieveFmd(fid, fsid, valfmd);
-  valfmd.set_disksize(disk_size);
-  valfmd.set_size(disk_size);
   valfmd.set_fid(fid);
   valfmd.set_fsid(fsid);
+  valfmd.set_disksize(disk_size);
   valfmd.set_diskchecksum(disk_xs);
   valfmd.set_checktime(check_ts_sec);
   valfmd.set_filecxerror(filexs_err);
   valfmd.set_blockcxerror(blockxs_err);
+
+  // Update reference size only if undefined
+  if (valfmd.size() == Fmd::UNDEF) {
+    valfmd.set_size(disk_size);
+  }
 
   // Update the reference checksum only if empty
   if (valfmd.checksum().empty()) {
@@ -723,8 +728,9 @@ FmdDbMapHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
 //------------------------------------------------------------------------------
 void
 FmdDbMapHandler::UpdateWithScanInfo(eos::common::FileSystem::fsid_t fsid,
-                                    const std::string& fs_root,
                                     const std::string& fpath,
+                                    uint64_t scan_sz,
+                                    const std::string& scan_xs_hex,
                                     bool filexs_err, bool blockxs_err)
 {
   eos::common::Path cPath(fpath.c_str());
@@ -758,35 +764,16 @@ FmdDbMapHandler::UpdateWithScanInfo(eos::common::FileSystem::fsid_t fsid,
   }
 
   if ((fmd == nullptr) || filexs_err || blockxs_err || orphaned) {
-    eos_notice("msg=\"resyncing from disk\" fsid=%d fid=%08llx", fsid, fid);
-    ResyncDisk(fpath.c_str(), fsid, true);
-    eos_notice("msg=\"resyncing from mgm\" fsid=%d fid=%08llx", fsid, fid);
+    eos_notice("msg=\"resyncing from disk and mgm\" fsid=%d fid=%08llx", fsid, fid);
+    ResyncDisk(fpath.c_str(), fsid, true, scan_sz, scan_xs_hex);
     bool resynced = ResyncMgm(fsid, fid, manager.c_str());
     fmd = LocalGetFmd(fid, fsid, true);
-
-    // @todo(esindril) update the diskchecksum from the localdb with the
-    // scan checksum if available
 
     if (resynced && fmd) {
       if ((fmd->mProtoFmd.layouterror() &  eos::common::LayoutId::kOrphan) ||
           ((fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered) &&
            (!(fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kReplicaWrong)))) {
-        char oname[4096];
-        snprintf(oname, sizeof(oname), "%s/.eosorphans/%08llx",
-                 fs_root.c_str(), (unsigned long long) fid);
-        // Store the original path name as an extended attribute in case ...
-        std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(fpath));
-        io->attrSet("user.eos.orphaned", fpath.c_str());
-
-        // If orphan move it into the orphaned directory
-        if (!rename(fpath.c_str(), oname)) {
-          eos_warning("msg=\"orphaned/unregistered quarantined\" "
-                      "fst-path=%s orphan-path=%s", fpath.c_str(), oname);
-        } else {
-          eos_err("msg=\"failed to quarantine orphaned/unregistered\" "
-                  "fst-path=%s orphan-path=%s", fpath.c_str(), oname);
-        }
-
+        MoveToOrphans(fpath);
         gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
         return;
       }
@@ -801,6 +788,11 @@ FmdDbMapHandler::UpdateWithScanInfo(eos::common::FileSystem::fsid_t fsid,
         CallAutoRepair(manager.c_str(), fid);
       }
     }
+  } else {
+    // Update the size and checksum of the file on disk
+    eos_notice("msg=\"resync from disk with scan info\" fsid=%d fid=%08llx",
+               fsid, fid);
+    ResyncDisk(fpath.c_str(), fsid, false, scan_sz, scan_xs_hex);
   }
 }
 
@@ -895,9 +887,9 @@ FmdDbMapHandler::ResetMgmInformation(eos::common::FileSystem::fsid_t fsid)
 bool
 FmdDbMapHandler::ResyncDisk(const char* path,
                             eos::common::FileSystem::fsid_t fsid,
-                            bool flaglayouterror)
+                            bool flaglayouterror,
+                            uint64_t scan_sz, const std::string& scan_xs_hex)
 {
-  off_t disk_size = 0;
   eos::common::Path cPath(path);
   eos::common::FileId::fileid_t fid =
     eos::common::FileId::Hex2Fid(cPath.GetName());
@@ -918,7 +910,6 @@ FmdDbMapHandler::ResyncDisk(const char* path,
   struct stat buf;
 
   if ((!io->fileStat(&buf)) && S_ISREG(buf.st_mode)) {
-    disk_size = buf.st_size;
     std::string sxs_type, scheck_stamp, filexs_err, blockxs_err;
     char xs_val[SHA_DIGEST_LENGTH];
     size_t xs_len = SHA_DIGEST_LENGTH;
@@ -934,20 +925,28 @@ FmdDbMapHandler::ResyncDisk(const char* path,
     }
 
     unsigned long check_ts_sec = std::stoul(scheck_stamp);
-    std::string disk_xs;
+    std::string disk_xs_hex;
+    off_t disk_size {0ull};
 
-    if (io->attrGet("user.eos.checksum", xs_val, xs_len) == 0) {
-      std::unique_ptr<CheckSum> xs_obj {ChecksumPlugins::GetXsObj(sxs_type)};
+    if (scan_sz && !scan_xs_hex.empty()) {
+      disk_size = scan_sz;
+      disk_xs_hex = scan_xs_hex;
+    } else {
+      disk_size = buf.st_size;
 
-      if (xs_obj) {
-        if (xs_obj->SetBinChecksum(xs_val, xs_len)) {
-          disk_xs = xs_obj->GetHexChecksum();
+      if (io->attrGet("user.eos.checksum", xs_val, xs_len) == 0) {
+        std::unique_ptr<CheckSum> xs_obj {ChecksumPlugins::GetXsObj(sxs_type)};
+
+        if (xs_obj) {
+          if (xs_obj->SetBinChecksum(xs_val, xs_len)) {
+            disk_xs_hex = xs_obj->GetHexChecksum();
+          }
         }
       }
     }
 
     // Update the DB
-    if (!UpdateWithDiskInfo(fsid, fid, disk_size, disk_xs, check_ts_sec,
+    if (!UpdateWithDiskInfo(fsid, fid, disk_size, disk_xs_hex, check_ts_sec,
                             (filexs_err == "1"), (blockxs_err == "1"),
                             flaglayouterror)) {
       eos_err("msg=\"failed to update DB\" dbpath=%s fsid=%lu fxid=%08llx",
@@ -1666,5 +1665,45 @@ FmdDbMapHandler::FileHasXsError(const std::string& lpath,
   return has_xs_err;
 }
 
+//------------------------------------------------------------------------------
+// Move given file to orphans directory and also set its extended attribute
+// to reflect the original path to the file.
+//------------------------------------------------------------------------------
+void
+FmdDbMapHandler::MoveToOrphans(const std::string& fpath) const
+{
+  eos::common::Path cpath(fpath.c_str());
+  size_t cpath_sz = cpath.GetSubPathSize();
+
+  if (cpath_sz <= 2) {
+    eos_err("msg=\"failed to extract FST mount/fid hex\" path=%s",
+            fpath.c_str());
+    return;
+  }
+
+  std::string fs_mount {"/"};
+  std::string fid_hex = cpath.GetName();
+
+  for (size_t i = 0; i < cpath_sz; ++i) {
+    fs_mount += cpath.GetSubPath(i);
+    fs_mount += "/";
+  }
+
+  std::ostringstream oss;
+  oss << fs_mount << ".eosorphans/" << fid_hex;
+  std::string forphan = oss.str();
+  // Store the original path name as an extended attribute in case ...
+  std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(fpath));
+  io->attrSet("user.eos.orphaned", fpath.c_str());
+
+  // If orphan move it into the orphaned directory
+  if (!rename(fpath.c_str(), forphan.c_str())) {
+    eos_warning("msg=\"orphaned/unregistered quarantined\" "
+                "fst-path=%s orphan-path=%s", fpath.c_str(), forphan.c_str());
+  } else {
+    eos_err("msg=\"failed to quarantine orphaned/unregistered\" "
+            "fst-path=%s orphan-path=%s", fpath.c_str(), forphan.c_str());
+  }
+}
 
 EOSFSTNAMESPACE_END
