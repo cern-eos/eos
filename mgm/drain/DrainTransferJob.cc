@@ -264,10 +264,11 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
       if ((id != mFsIdSource) && (mTriedSrcs.find(id) == mTriedSrcs.end())) {
         mTriedSrcs.insert(id);
         eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-        auto it = FsView::gFsView.mIdView.find(id);
 
-        if (it != FsView::gFsView.mIdView.end()) {
-          it->second->SnapShotFileSystem(src_snapshot);
+        FileSystem* fs = FsView::gFsView.mIdView.lookupByID(id);
+
+        if (fs) {
+          fs->SnapShotFileSystem(src_snapshot);
 
           if (src_snapshot.mConfigStatus >= eos::common::FileSystem::kDrain) {
             found = true;
@@ -282,14 +283,14 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
       found = true;
       mTriedSrcs.insert(mFsIdSource);
       eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-      auto it = FsView::gFsView.mIdView.find(mFsIdSource);
+      FileSystem* fs = FsView::gFsView.mIdView.lookupByID(mFsIdSource);
 
-      if (it == FsView::gFsView.mIdView.end()) {
+      if (!fs) {
         ReportError(SSTR("msg=\"fsid=" << mFsIdSource << " no longer in the list"));
         return url_src;
       }
 
-      it->second->SnapShotFileSystem(src_snapshot);
+      fs->SnapShotFileSystem(src_snapshot);
     }
 
     if (!found) {
@@ -400,14 +401,14 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
   {
     // Get destination fs snapshot
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-    const auto it_fs = FsView::gFsView.mIdView.find(mFsIdTarget);
+    FileSystem* fs = FsView::gFsView.mIdView.lookupByID(mFsIdTarget);
 
-    if (it_fs == FsView::gFsView.mIdView.end()) {
+    if (!fs) {
       ReportError("msg=\"target file system not found\"");
       return url_dst;
     }
 
-    it_fs->second->SnapShotFileSystem(dst_snapshot);
+    fs->SnapShotFileSystem(dst_snapshot);
   }
 
   std::ostringstream xs_info;

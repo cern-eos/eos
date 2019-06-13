@@ -1431,10 +1431,11 @@ Fsck::PrintOfflineReplicas() const
        ++ua_it) {
     std::string host = "not configured";
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-    auto it_fs = FsView::gFsView.mIdView.find(ua_it->first);
 
-    if (it_fs != FsView::gFsView.mIdView.end()) {
-      host = it_fs->second->GetString("hostport");
+    FileSystem *fs = FsView::gFsView.mIdView.lookupByID(ua_it->first);
+
+    if(fs) {
+      host = fs->GetString("hostport");
     }
 
     Log("host=%s fsid=%lu replica_offline=%llu", host.c_str(),
@@ -1482,10 +1483,10 @@ Fsck::AccountOfflineFiles()
 
     for (const auto& loc : loc_vect) {
       if (loc) {
-        auto it_fs = FsView::gFsView.mIdView.find(loc);
 
-        if (it_fs != FsView::gFsView.mIdView.end()) {
-          auto fs = it_fs->second;
+        FileSystem *fs = FsView::gFsView.mIdView.lookupByID(loc);
+
+        if (fs) {
           eos::common::BootStatus bootstatus = fs->GetStatus(true);
           eos::common::FileSystem::fsstatus_t configstatus = fs->GetConfigStatus();
           bool conda = (fs->GetActiveStatus(true) == eos::common::ActiveStatus::kOffline);

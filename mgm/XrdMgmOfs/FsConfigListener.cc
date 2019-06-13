@@ -339,10 +339,10 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
                 (bstatus == eos::common::BootStatus::kOpsError)) {
               // Case when we take action and explicitly ask to start a drain job
               eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-              auto it_fs = FsView::gFsView.mIdView.find(fsid);
 
-              if (it_fs != FsView::gFsView.mIdView.end()) {
-                it_fs->second->SetConfigStatus(eos::common::FileSystem::kDrain);
+              FileSystem *fs = FsView::gFsView.mIdView.lookupByID(fsid);
+              if(fs) {
+                fs->SetConfigStatus(eos::common::FileSystem::kDrain);
               }
             }
 
@@ -351,10 +351,10 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
                 // Make sure there is no drain job triggered by a previous
                 // filesystem errc!=0
                 eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-                auto it_fs = FsView::gFsView.mIdView.find(fsid);
 
-                if (it_fs != FsView::gFsView.mIdView.end()) {
-                  it_fs->second->StopDrainJob();
+                FileSystem *fs = FsView::gFsView.mIdView.lookupByID(fsid);
+                if(fs) {
+                  fs->StopDrainJob();
                 }
               }
             }

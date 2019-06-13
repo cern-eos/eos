@@ -1946,7 +1946,9 @@ FsView::ExistsQueue(std::string queue, std::string queuepath)
   if (mNodeView.count(queue)) {
     // Loop over all attached filesystems and compare the queue path
     for (auto it = mNodeView[queue]->begin(); it != mNodeView[queue]->end(); ++it) {
-      if (FsView::gFsView.mIdView[*it]->GetQueuePath() == queuepath) {
+
+      FileSystem *candidate = FsView::gFsView.mIdView.lookupByID(*it);
+      if(candidate && candidate->GetQueuePath() == queuepath) {
         // This queuepath exists already, we cannot register
         return true;
       }
@@ -1991,17 +1993,14 @@ FsView::UnRegisterNode(const char* nodename)
     while (mNodeView.count(nodename) &&
            (mNodeView[nodename]->begin() != mNodeView[nodename]->end())) {
       eos::common::FileSystem::fsid_t fsid = *(mNodeView[nodename]->begin());
-      auto it_fs = mIdView.find(fsid);
 
-      if (it_fs != mIdView.end()) {
-        FileSystem* fs = it_fs->second;
+      FileSystem *fs = mIdView.lookupByID(fsid);
 
-        if (fs) {
-          has_fs = true;
-          eos_static_debug("Unregister filesystem fsid=%llu node=%s queue=%s",
-                           (unsigned long long) fsid, nodename, fs->GetQueue().c_str());
-          retc |= UnRegister(fs);
-        }
+      if (fs) {
+        has_fs = true;
+        eos_static_debug("Unregister filesystem fsid=%llu node=%s queue=%s",
+                          (unsigned long long) fsid, nodename, fs->GetQueue().c_str());
+        retc |= UnRegister(fs);
       }
     }
 
@@ -2049,17 +2048,14 @@ FsView::UnRegisterSpace(const char* spacename)
     while (mSpaceView.count(spacename) &&
            (mSpaceView[spacename]->begin() != mSpaceView[spacename]->end())) {
       eos::common::FileSystem::fsid_t fsid = *(mSpaceView[spacename]->begin());
-      auto it_fs = mIdView.find(fsid);
 
-      if (it_fs != mIdView.end()) {
-        FileSystem* fs = it_fs->second;
+      FileSystem* fs = mIdView.lookupByID(fsid);
 
-        if (fs) {
-          has_fs = true;
-          eos_static_debug("Unregister filesystem fsid=%llu space=%s queue=%s",
-                           (unsigned long long) fsid, spacename, fs->GetQueue().c_str());
-          retc |= UnRegister(fs);
-        }
+      if (fs) {
+        has_fs = true;
+        eos_static_debug("Unregister filesystem fsid=%llu space=%s queue=%s",
+                          (unsigned long long) fsid, spacename, fs->GetQueue().c_str());
+        retc |= UnRegister(fs);
       }
 
       if (mSpaceView.count(spacename) == 0) {
@@ -2112,17 +2108,15 @@ FsView::UnRegisterGroup(const char* groupname)
     while (mGroupView.count(groupname) &&
            (mGroupView[groupname]->begin() != mGroupView[groupname]->end())) {
       eos::common::FileSystem::fsid_t fsid = *(mGroupView[groupname]->begin());
-      auto it_fs = mIdView.find(fsid);
 
-      if (it_fs != mIdView.end()) {
-        FileSystem* fs = it_fs->second;
 
-        if (fs) {
-          has_fs = true;
-          eos_static_debug("Unregister filesystem fsid=%llu group=%s queue=%s",
-                           (unsigned long long) fsid, groupname, fs->GetQueue().c_str());
-          retc |= UnRegister(fs);
-        }
+      FileSystem* fs = mIdView.lookupByID(fsid);
+
+      if (fs) {
+        has_fs = true;
+        eos_static_debug("Unregister filesystem fsid=%llu group=%s queue=%s",
+                        (unsigned long long) fsid, groupname, fs->GetQueue().c_str());
+        retc |= UnRegister(fs);
       }
     }
 
@@ -2232,7 +2226,7 @@ FsView::FindByQueuePath(std::string& queuepath)
 {
   // Needs an external ViewMutex lock !!!!
   for (auto it = mIdView.begin(); it != mIdView.end(); ++it) {
-    if (it->second->GetQueuePath() == queuepath) {
+    if (it->second && it->second->GetQueuePath() == queuepath) {
       return it->second;
     }
   }
@@ -3980,13 +3974,12 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
     if (table_mq_format.length()) {
       // If a format was given for the filesystem children, forward it
       for (auto it = begin(); it != end(); ++it) {
-        auto it_fs = FsView::gFsView.mIdView.find(*it);
+        // auto it_fs = FsView::gFsView.mIdView.find(*it);
+        FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
 
-        if (it_fs != FsView::gFsView.mIdView.end()) {
-          if (it_fs->second) {
-            table_mq_header.clear();
-            it_fs->second->Print(table_mq_header, table_mq_data, table_mq_format, filter);
-          }
+        if(fs) {
+          table_mq_header.clear();
+          fs->Print(table_mq_header, table_mq_data, table_mq_format, filter);
         }
       }
     }
