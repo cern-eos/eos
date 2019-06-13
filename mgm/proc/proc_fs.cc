@@ -216,22 +216,22 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
 
             if (monitor) {
               out << "&container="
-                  << (containerpath.size() ? containerpath.c_str() : "-");
+                  << (containerpath.size() ? containerpath.c_str() : "(null)");
             }
           } else {
             if (dumppath) {
               out << "path="
-                  << (fullpath.size() ? fullpath.c_str() : "-")
-                  << " ";
+                  << (fullpath.size() ? fullpath.c_str() : "(null)");
             }
 
             if (dumpfid) {
-              out << "fid=" << std::setw(8)
-                  << std::hex << fmd->getId() << std::dec << " ";
+              out << (dumppath ? " " : "") << "fid=" << std::setw(8)
+                  << std::hex << fmd->getId() << std::dec;
             }
 
             if (dumpsize) {
-              out << "size=" << fmd->getSize();
+              out << ((dumppath || dumpfid) ? " " : "")
+                  << "size=" << fmd->getSize();
             }
           }
 
@@ -270,7 +270,7 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
             fmd->getEnv(env, true);
             XrdOucString senv = env.c_str();
             senv.replace("checksum=&", "checksum=none&");
-            out << senv.c_str() << "&container=-" << endl;
+            out << senv.c_str() << "&container=(null)" << endl;
           }
         } catch (eos::MDException& e) {
           errno = e.getErrno();
