@@ -314,19 +314,22 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
        ((vid.prot != "sss") && (vid.host != "localhost") &&                   \
         (vid.host != "localhost.localdomain")))) {                            \
     if (Access::gAllowedUsers.size() || Access::gAllowedGroups.size() ||      \
-        Access::gAllowedHosts.size()) {                                       \
+        Access::gAllowedHosts.size() || Access::gAllowedDomains.size())     { \
       if ((!Access::gAllowedGroups.count(vid.gid)) &&                         \
           (!Access::gAllowedUsers.count(vid.uid)) &&                          \
-          (!Access::gAllowedHosts.count(vid.host))) {                         \
-        eos_err("user access restricted - unauthorized identity vid.uid="     \
+          (!Access::gAllowedHosts.count(vid.host)) &&                         \
+	  (!Access::gAllowedDomains.count(vid.getUserAtDomain()))) {	\
+        eos_err("user access restricted - unauthorized identity vid.uid= "    \
                 "%d, vid.gid=%d, vid.host=\"%s\", vid.tident=\"%s\" for "     \
-                "path=\"%s\"", vid.uid, vid.gid, vid.host.c_str(),            \
-                (vid.tident.c_str() ? vid.tident.c_str() : ""), inpath);      \
+                "path=\"%s\" user@domain=\"%s\"", vid.uid, vid.gid, vid.host.c_str(),            \
+                (vid.tident.c_str() ? vid.tident.c_str() : ""), inpath,       \
+                vid.getUserAtDomain().c_str());				      \
         return Emsg(epname, error, EACCES,"give access - user access "        \
                     "restricted - unauthorized identity used");               \
       }                                                                       \
     }                                                                         \
     if (Access::gAllowedDomains.size() &&                                     \
+	(!Access::gAllowedDomains.count("-")) &&	 		      \
         (!Access::gAllowedDomains.count(vid.domain))) {                       \
       eos_err("domain access restricted - unauthorized identity "             \
               "vid.domain=\"%s\"for "                                         \
@@ -350,18 +353,21 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
         Access::gAllowedHosts.size()) {                                       \
       if ( (!Access::gAllowedGroups.count(vid.gid)) &&                        \
            (!Access::gAllowedUsers.count(vid.uid)) &&                         \
-           (!Access::gAllowedHosts.count(vid.host))) {                        \
+           (!Access::gAllowedHosts.count(vid.host)) &&                        \
+	   (!Access::gAllowedDomains.count(vid.getUserAtDomain()))) {	      \
         eos_err("user access restricted - unauthorized identity vid.uid="     \
                 "%d, vid.gid=%d, vid.host=\"%s\", vid.tident=\"%s\" for "     \
-                "path=\"%s\"", vid.uid, vid.gid, vid.host.c_str(),            \
-                (vid.tident.c_str() ? vid.tident.c_str() : ""), inpath);      \
+                "path=\"%s\" user@domain=\"%s\"", vid.uid, vid.gid, vid.host.c_str(),            \
+                (vid.tident.c_str() ? vid.tident.c_str() : ""), inpath,       \
+		vid.getUserAtDomain().c_str());                               \
         retc = EACCES;                                                        \
         stdErr += "error: user access restricted - unauthorized identity used";\
         return SFS_OK;                                                        \
       }                                                                       \
     }                                                                         \
     if (Access::gAllowedDomains.size() &&                                     \
-        (!Access::gAllowedDomains.count(vid.domain))) {                       \
+	(!Access::gAllowedDomains.count("-")) &&			      \
+        (!Access::gAllowedDomains.count(vid.domain))) {			\
       eos_err("domain access restricted - unauthorized identity "             \
               "vid.domain=\"%s\"for "                                         \
               "path=\"%s\"", vid.domain.c_str(),                              \

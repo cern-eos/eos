@@ -688,6 +688,26 @@ runtest "### Access    " unix 0 "" eos "access ls | grep foo"
 runtest "### Access    " unix 0 "" eos "access rm redirect"
 runtest "### Access    " unix 1 "" eos "access ls | grep foo"
 runtest "### Rm        " unix 0 "" eos "rm /eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
+#-----------------------------
+# Access whitelist domain
+#-----------------------------
+runtest "### Access    " unix 0 "" eos "access allow user bin"
+runtest "### Ls        " unix 0 "EOSROLE='-r 1 1'" eos ls /eos/$EOS_TEST_INSTANCE/
+runtest "### Ls        " unix 1 "EOSROLE='-r 99 99'" eos ls /eos/$EOS_TEST_INSTANCE/
+runtest "### Access    " unix 0 "" eos "access ls | grep bin"
+runtest "### Access    " unix 0 "" eos "access unallow user bin"
+runtest "### Ls        " unix 0 "EOSROLE='-r 1 1'" eos ls /eos/$EOS_TEST_INSTANCE/test
+runtest "### Access    " unix 0 "" eos "access allow user bin"
+runtest "### Ls        " unix 1 "EOSROLE='-r 99 99'" eos ls /eos/$EOS_TEST_INSTANCE/
+runtest "### Access    " unix 0 "" eos "access allow domain nobody@localdomain"
+runtest "### Ls        " unix 1 shell runuser -u nobody eos ls /eos/$EOS_TEST_INSTANCE/
+runtest "### Access    " unix 0 "" eos "access allow domain -"
+runtest "### Ls        " unix 0 shell runuser -u nobody eos ls /eos/$EOS_TEST_INSTANCE/
+runtest "### Access    " unix 0 "" eos "access ls"
+runtest "### Access    " unix 0 "" eos "access unallow user bin"
+runtest "### Access    " unix 0 "" eos "access unallow domain -"
+runtest "### Access    " unix 0 "" eos "access unallow domain nobody@localdomain"
+
 ################################################################################
 # Quota Tests
 ################################################################################

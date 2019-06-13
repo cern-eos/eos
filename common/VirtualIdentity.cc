@@ -104,4 +104,22 @@ bool VirtualIdentity::isLocalhost() const {
 }
 
 
+//----------------------------------------------------------------------------                                                                         
+// Return user@domain string                                                                                                                          
+//----------------------------------------------------------------------------                                                                         
+std::string 
+VirtualIdentity::getUserAtDomain()
+{
+  return uid_string+"@"+domain;
+}
+
+//----------------------------------------------------------------------------                                                                         
+// Return group@domain string                                                                                                                         
+//----------------------------------------------------------------------------                                                                         
+std::string 
+VirtualIdentity::getGroupAtDomain()
+{
+  return gid_string+"@"+domain;
+}
+
 EOSCOMMONNAMESPACE_END

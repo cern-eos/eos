@@ -104,6 +104,8 @@ ProcCommand::Whoami()
 
     stdOut += " host=";
     stdOut += pVid->host.c_str();
+    stdOut += " domain=";
+    stdOut += pVid->domain.c_str();
 
     if (pVid->geolocation.length()) {
       stdOut += " geo-location=";

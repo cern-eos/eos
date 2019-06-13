@@ -341,7 +341,9 @@ com_access_usage:
   fprintf(stdout, "Examples:\n");
   fprintf(stdout, "  access ban host foo      Ban host foo\n");
   fprintf(stdout, "  access ban domain bar    Ban domain bar\n");
-  fprintf(stdout, "  access allow bar         Allow only domain bar\n");
+  fprintf(stdout, "  access allow domain nobody@bar Allows user nobody from domain bar\n");
+  fprintf(stdout, "  access allow domain -    use domain allow as whitelist - e.g. nobody@bar will additionally allow the nobody user from domain bar!");
+  fprintf(stdout, "  access allow domain bar  Allow only domain bar\n");
   fprintf(stdout,
           "  access set redirect foo  Redirect all requests to host foo\n");
   fprintf(stdout,
