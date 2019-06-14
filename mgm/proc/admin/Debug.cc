@@ -31,107 +31,126 @@ int
 ProcCommand::Debug()
 {
   if (pVid->uid == 0) {
-    XrdOucString debugnode = pOpaque->Get("mgm.nodename");
-    XrdOucString debuglevel = pOpaque->Get("mgm.debuglevel");
-    XrdOucString filterlist = pOpaque->Get("mgm.filter");
-    XrdMqMessage message("debug");
-    int envlen;
-    XrdOucString body = pOpaque->Env(envlen);
-    message.SetBody(body.c_str());
-    // filter out several *'s ...
-    int nstars = 0;
-    int npos = 0;
-    eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+    if (mSubCmd == "getloglevel") {
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      stdOut += "# ------------------------------------------------------------------------------------\n";
+      stdOut += "# Debug log level\n";
+      stdOut += "# ....................................................................................\n";
+      // std::string line;
+      // std::string loglevel;
+      auto nodes = FsView::gFsView.mNodeView;
 
-    while ((npos = debugnode.find("*", npos)) != STR_NPOS) {
-      npos++;
-      nstars++;
-    }
-
-    if (nstars > 1) {
-      stdErr = "error: debug level node can only contain one wildcard character (*) !";
-      retc = EINVAL;
+      for (auto node = nodes.begin(); node != nodes.end(); ++node) {
+        // loglevel = FsView::gFsView.mNodeView[node->first]->GetConfigMember("debug.level");
+        // line = node->first + " := " + loglevel + "\n";
+        // stdOut += line.c_str();
+        stdOut += (node->first.substr(5) + " := \t" +
+                   FsView::gFsView.mNodeView[node->first]->GetConfigMember("debug.level") +
+                   "\n").c_str();
+      }
     } else {
-      // always check debug level exists first
-      int debugval = g_logging.GetPriorityByString(debuglevel.c_str());
+      XrdOucString debugnode = pOpaque->Get("mgm.nodename");
+      XrdOucString debuglevel = pOpaque->Get("mgm.debuglevel");
+      XrdOucString filterlist = pOpaque->Get("mgm.filter");
+      XrdMqMessage message("debug");
+      int envlen;
+      XrdOucString body = pOpaque->Env(envlen);
+      message.SetBody(body.c_str());
+      // filter out several *'s ...
+      int nstars = 0;
+      int npos = 0;
+      eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
 
-      if (debugval < 0) {
-        stdErr = "error: debug level ";
-        stdErr += debuglevel;
-        stdErr += " is not known!";
+      while ((npos = debugnode.find("*", npos)) != STR_NPOS) {
+        npos++;
+        nstars++;
+      }
+
+      if (nstars > 1) {
+        stdErr = "error: debug level node can only contain one wildcard character (*) !";
         retc = EINVAL;
       } else {
-        if ((debugnode == "*") || (debugnode == "") ||
-            (debugnode == gOFS->MgmOfsQueue)) {
-          // this is for us!
-          int debugval = g_logging.GetPriorityByString(debuglevel.c_str());
-          g_logging.SetLogPriority(debugval);
-          stdOut = "success: debug level is now <";
-          stdOut += debuglevel.c_str();
-          stdOut += ">";
-          eos_notice("setting debug level to <%s>", debuglevel.c_str());
+        // always check debug level exists first
+        int debugval = g_logging.GetPriorityByString(debuglevel.c_str());
 
-          if (filterlist.length()) {
-            g_logging.SetFilter(filterlist.c_str());
-            stdOut += " filter=";
-            stdOut += filterlist;
-            eos_notice("setting message logid filter to <%s>", filterlist.c_str());
-          }
-
-          if (debuglevel == "debug" &&
-              ((g_logging.gAllowFilter.Num() &&
-                g_logging.gAllowFilter.Find("SharedHash")) ||
-               ((g_logging.gDenyFilter.Num() == 0) ||
-                (g_logging.gDenyFilter.Find("SharedHash") == 0)))
-             ) {
-            gOFS->ObjectManager.SetDebug(true);
-          } else {
-            gOFS->ObjectManager.SetDebug(false);
-          }
-        }
-
-        if (debugnode == "*") {
-          debugnode = "/eos/*/fst";
-
-          if (!Messaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
-            stdErr = "error: could not send debug level to nodes mgm.nodename=";
-            stdErr += debugnode;
-            stdErr += "\n";
-            retc = EINVAL;
-          } else {
-            stdOut = "success: switched to mgm.debuglevel=";
-            stdOut += debuglevel;
-            stdOut += " on nodes mgm.nodename=";
-            stdOut += debugnode;
-            stdOut += "\n";
-            eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s",
-                       debuglevel.c_str(), debugnode.c_str());
-          }
-
-          debugnode = "/eos/*/mgm";
-          // Ignore return value as we've already set the loglevel for the
-          // current instance. We're doing this only for the slave.
-          (void) Messaging::gMessageClient.SendMessage(message, debugnode.c_str());
-          stdOut += "success: switched to mgm.debuglevel=";
-          stdOut += debuglevel;
-          stdOut += " on nodes mgm.nodename=";
-          stdOut += debugnode;
-          eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s",
-                     debuglevel.c_str(), debugnode.c_str());
+        if (debugval < 0) {
+          stdErr = "error: debug level ";
+          stdErr += debuglevel;
+          stdErr += " is not known!";
+          retc = EINVAL;
         } else {
-          if (debugnode != "") {
-            // send to the specified list
+          if ((debugnode == "*") || (debugnode == "") ||
+              (debugnode == gOFS->MgmOfsQueue)) {
+            // this is for us!
+            int debugval = g_logging.GetPriorityByString(debuglevel.c_str());
+            g_logging.SetLogPriority(debugval);
+            stdOut = "success: debug level is now <";
+            stdOut += debuglevel.c_str();
+            stdOut += ">";
+            eos_notice("setting debug level to <%s>", debuglevel.c_str());
+
+            if (filterlist.length()) {
+              g_logging.SetFilter(filterlist.c_str());
+              stdOut += " filter=";
+              stdOut += filterlist;
+              eos_notice("setting message logid filter to <%s>", filterlist.c_str());
+            }
+
+            if (debuglevel == "debug" &&
+                ((g_logging.gAllowFilter.Num() &&
+                  g_logging.gAllowFilter.Find("SharedHash")) ||
+                 ((g_logging.gDenyFilter.Num() == 0) ||
+                  (g_logging.gDenyFilter.Find("SharedHash") == 0)))
+               ) {
+              gOFS->ObjectManager.SetDebug(true);
+            } else {
+              gOFS->ObjectManager.SetDebug(false);
+            }
+          }
+
+          if (debugnode == "*") {
+            debugnode = "/eos/*/fst";
+
             if (!Messaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
               stdErr = "error: could not send debug level to nodes mgm.nodename=";
               stdErr += debugnode;
+              stdErr += "\n";
               retc = EINVAL;
             } else {
               stdOut = "success: switched to mgm.debuglevel=";
               stdOut += debuglevel;
               stdOut += " on nodes mgm.nodename=";
               stdOut += debugnode;
+              stdOut += "\n";
               eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s",
                          debuglevel.c_str(), debugnode.c_str());
+            }
+
+            debugnode = "/eos/*/mgm";
+            // Ignore return value as we've already set the loglevel for the
+            // current instance. We're doing this only for the slave.
+            (void) Messaging::gMessageClient.SendMessage(message, debugnode.c_str());
+            stdOut += "success: switched to mgm.debuglevel=";
+            stdOut += debuglevel;
+            stdOut += " on nodes mgm.nodename=";
+            stdOut += debugnode;
+            eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s",
+                       debuglevel.c_str(), debugnode.c_str());
+          } else {
+            if (debugnode != "") {
+              // send to the specified list
+              if (!Messaging::gMessageClient.SendMessage(message, debugnode.c_str())) {
+                stdErr = "error: could not send debug level to nodes mgm.nodename=";
+                stdErr += debugnode;
+                retc = EINVAL;
+              } else {
+                stdOut = "success: switched to mgm.debuglevel=";
+                stdOut += debuglevel;
+                stdOut += " on nodes mgm.nodename=";
+                stdOut += debugnode;
+                eos_notice("forwarding debug level <%s> to nodes mgm.nodename=%s",
+                           debuglevel.c_str(), debugnode.c_str());
+              }
             }
           }
         }

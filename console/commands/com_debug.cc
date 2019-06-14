@@ -53,6 +53,14 @@ com_debug(char* arg1)
       return (0);
     }
 
+    // @todo the addition of a subcommand makes the variable names of the parsed token strings very misleading. Change them
+    if (level == "getloglevel") {
+      XrdOucString in = "mgm.cmd=debug&mgm.subcmd=";
+      in += level;
+      global_retc = output_result(client_command(in, true));
+      return (0);
+    }
+
     if (level.length()) {
       XrdOucString in = "mgm.cmd=debug&mgm.debuglevel=";
       in += level;
