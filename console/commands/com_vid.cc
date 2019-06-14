@@ -33,7 +33,7 @@ com_vid(char* arg1)
   // split subcommands
   eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
-  XrdOucString subcommand = subtokenizer.GetToken();
+  XrdOucString subcommand = subtokenizer.GetTokenUnquoted();
 
   if (wants_help(arg1)) {
     goto com_vid_usage;
@@ -45,7 +45,7 @@ com_vid(char* arg1)
     XrdOucString option = "";
 
     do {
-      option = subtokenizer.GetToken();
+      option = subtokenizer.GetTokenUnquoted();
 
       if (option.beginswith("-")) {
         option.erase(0, 1);
@@ -68,7 +68,7 @@ com_vid(char* arg1)
 
   if (subcommand == "set") {
     XrdOucString in = "mgm.cmd=vid&mgm.subcmd=set";
-    XrdOucString key = subtokenizer.GetToken();
+    XrdOucString key = subtokenizer.GetTokenUnquoted();
 
     if (!key.length()) {
       goto com_vid_usage;
@@ -81,7 +81,7 @@ com_vid(char* arg1)
     XrdOucString vidkey = "";
 
     if (key == "geotag") {
-      XrdOucString match = subtokenizer.GetToken();
+      XrdOucString match = subtokenizer.GetTokenUnquoted();
 
       if (!match.length()) {
         goto com_vid_usage;
@@ -91,7 +91,7 @@ com_vid(char* arg1)
         goto com_vid_usage;
       }
 
-      XrdOucString target = subtokenizer.GetToken();
+      XrdOucString target = subtokenizer.GetTokenUnquoted();
 
       if (!target.length()) {
         goto com_vid_usage;
@@ -109,7 +109,7 @@ com_vid(char* arg1)
     }
 
     if (key == "membership") {
-      XrdOucString uid = subtokenizer.GetToken();
+      XrdOucString uid = subtokenizer.GetTokenUnquoted();
 
       if (!uid.length()) {
         goto com_vid_usage;
@@ -120,7 +120,7 @@ com_vid(char* arg1)
       }
 
       vidkey += uid;
-      XrdOucString type = subtokenizer.GetToken();
+      XrdOucString type = subtokenizer.GetTokenUnquoted();
 
       if (!type.length()) {
         goto com_vid_usage;
@@ -133,7 +133,7 @@ com_vid(char* arg1)
 
       if ((type == "-uids")) {
         vidkey += ":uids";
-        list = subtokenizer.GetToken();
+        list = subtokenizer.GetTokenUnquoted();
         in += "&mgm.vid.key=";
         in += vidkey;
         in += "&mgm.vid.target.uid=";
@@ -142,7 +142,7 @@ com_vid(char* arg1)
 
       if ((type == "-gids")) {
         vidkey += ":gids";
-        list = subtokenizer.GetToken();
+        list = subtokenizer.GetTokenUnquoted();
         in += "&mgm.vid.key=";
         in += vidkey;
         in += "&mgm.vid.target.gid=";
@@ -175,7 +175,7 @@ com_vid(char* arg1)
 
     if (key == "map") {
       in += "&mgm.vid.cmd=map";
-      XrdOucString type = subtokenizer.GetToken();
+      XrdOucString type = subtokenizer.GetTokenUnquoted();
 
       if (!type.length()) {
         goto com_vid_usage;
@@ -231,13 +231,13 @@ com_vid(char* arg1)
         goto com_vid_usage;
       }
 
-      XrdOucString pattern = subtokenizer.GetToken();
+      XrdOucString pattern = subtokenizer.GetTokenUnquoted();
 
       // deal with patterns containing spaces but inside ""
       if (pattern.beginswith("\"")) {
         if (!pattern.endswith("\""))
           do {
-            XrdOucString morepattern = subtokenizer.GetToken();
+            XrdOucString morepattern = subtokenizer.GetTokenUnquoted();
 
             if (morepattern.endswith("\"")) {
               pattern += " ";
@@ -260,7 +260,7 @@ com_vid(char* arg1)
 
       in += "&mgm.vid.pattern=";
       in += pattern;
-      XrdOucString vid = subtokenizer.GetToken();
+      XrdOucString vid = subtokenizer.GetTokenUnquoted();
 
       if (!vid.length()) {
         goto com_vid_usage;
@@ -270,7 +270,7 @@ com_vid(char* arg1)
         vid.replace("vuid:", "");
         in += "&mgm.vid.uid=";
         in += vid;
-        XrdOucString vid = subtokenizer.GetToken();
+        XrdOucString vid = subtokenizer.GetTokenUnquoted();
 
         if (vid.length()) {
           fprintf(stderr, "Got %s\n", vid.c_str());
@@ -306,7 +306,7 @@ com_vid(char* arg1)
       "mgm.cmd=vid&mgm.subcmd=rm&mgm.vid.cmd=unmap&mgm.vid.key=";
     XrdOucString disableg =
       "mgm.cmd=vid&mgm.subcmd=rm&mgm.vid.cmd=unmap&mgm.vid.key=";
-    XrdOucString type = subtokenizer.GetToken();
+    XrdOucString type = subtokenizer.GetTokenUnquoted();
 
     if (!type.length()) {
       goto com_vid_usage;
@@ -390,19 +390,19 @@ com_vid(char* arg1)
   }
 
   if ((subcommand == "add") || (subcommand == "remove")) {
-    XrdOucString gw = subtokenizer.GetToken();
+    XrdOucString gw = subtokenizer.GetTokenUnquoted();
 
     if (gw != "gateway") {
       goto com_vid_usage;
     }
 
-    XrdOucString host = subtokenizer.GetToken();
+    XrdOucString host = subtokenizer.GetTokenUnquoted();
 
     if (!host.length()) {
       goto com_vid_usage;
     }
 
-    XrdOucString protocol = subtokenizer.GetToken();
+    XrdOucString protocol = subtokenizer.GetTokenUnquoted();
 
     if (protocol.length() && ((protocol != "sss") && (protocol != "gsi") &&
                               (protocol != "krb5") && (protocol != "unix") && (protocol != "https") &&
@@ -454,10 +454,10 @@ com_vid(char* arg1)
 
   if (subcommand == "rm") {
     XrdOucString in = "mgm.cmd=vid&mgm.subcmd=rm";
-    XrdOucString key = subtokenizer.GetToken();
+    XrdOucString key = subtokenizer.GetTokenUnquoted();
 
     if (key == "membership") {
-      key = subtokenizer.GetToken();
+      key = subtokenizer.GetTokenUnquoted();
       key.insert("vid:", 0);
       XrdOucString key1 = key;
       XrdOucString key2 = key;
