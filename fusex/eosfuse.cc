@@ -1100,6 +1100,16 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["cache"]["size-ino"] = 65536;
       }
 
+      // default journal cache size 2 G
+      if (!root["cache"]["journal-mb"].asString().length()) {
+        root["cache"]["journal-mb"] = 2048;
+      }
+
+      // default journal size 64k inodes
+      if (!root["cache"]["journal-ino"].asString().length()) {
+        root["cache"]["journal-ino"] = 65536;
+      }
+
       // default cleaning threshold
       if (!root["cache"]["clean-threshold"].asString().length()) {
         root["cache"]["clean-threshold"] = 85.0;
@@ -1224,6 +1234,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     cconfig.total_file_cache_inodes = root["cache"]["size-ino"].asUInt64();
     cconfig.total_file_journal_size = root["cache"]["journal-mb"].asUInt64() *
             1024 * 1024;
+    cconfig.total_file_journal_inodes = root["cache"]["journal-ino"].asUInt64();
     cconfig.per_file_cache_max_size = root["cache"]["file-cache-max-kb"].asUInt64()
             * 1024;
     cconfig.per_file_journal_max_size =
@@ -1576,7 +1587,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                        config.options.submounts,
                        config.options.inmemory_inodes
 		       );
-    eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d rh-blocks:%d max-rh-buffer=%lu max-wr-buffer=%lu tot-size=%ld tot-ino=%ld dc-loc:%s jc-loc:%s clean-thrs:%02f%%%",
+    eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d rh-blocks:%d max-rh-buffer=%lu max-wr-buffer=%lu tot-size=%ld tot-ino=%ld jc-size=%ld jc-ino=%ld dc-loc:%s jc-loc:%s clean-thrs:%02f%%%",
                        cconfig.read_ahead_strategy.c_str(),
                        cconfig.default_read_ahead_size,
                        cconfig.max_read_ahead_size,
@@ -1585,6 +1596,8 @@ EosFuse::run(int argc, char* argv[], void* userdata)
                        cconfig.max_inflight_write_buffer_size,
                        cconfig.total_file_cache_size,
                        cconfig.total_file_cache_inodes,
+                       cconfig.total_file_journal_size,
+                       cconfig.total_file_journal_inodes,
                        cconfig.location.c_str(),
                        cconfig.journal.c_str(),
                        cconfig.clean_threshold);
@@ -3711,7 +3724,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
         }
 
         if (!rc) {
-	  int cache_flag;
+	  int cache_flag = 0;
           std::string md_name = md->name();
           uint64_t md_ino = md->md_ino();
           uint64_t md_pino = md->md_pino();

@@ -30,8 +30,8 @@
 #include "cachesyncer.hh"
 #include "cacheconfig.hh"
 #include "xrdclproxy.hh"
-
 #include "interval_tree.hh"
+#include "data/dircleaner.hh"
 
 #include <stdint.h>
 
@@ -141,8 +141,6 @@ public:
 
 private:
 
-private:
-
   void process_intersection(interval_tree<uint64_t, const void*>& write,
                             interval_tree<uint64_t, uint64_t>::iterator acr, std::vector<chunk_t>& updates);
 
@@ -172,6 +170,11 @@ private:
   bufferllmanager::shared_buffer buffer;
   static std::string sLocation;
   static size_t sMaxSize;
+
+  struct stat attachstat;
+  struct stat detachstat;
+  
+  static shared_ptr<dircleaner> jDirCleaner;
 };
 
 #endif /* FUSEX_JOURNALCACHE_HH_ */

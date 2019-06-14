@@ -36,6 +36,7 @@ struct cacheconfig {
   uint64_t total_file_cache_inodes; // max number of inodes in the file cache
   uint64_t per_file_cache_max_size; // per file maximum file cache size
   uint64_t total_file_journal_size; // total size of the journal cache
+  uint64_t total_file_journal_inodes; // max number of inodes in the journal cache
   uint64_t per_file_journal_max_size; // per file maximum journal cache size
   uint64_t default_read_ahead_size; // default start value for read-ahead
   uint64_t max_inflight_read_ahead_buffer_size; // max size of read-ahead-buffers
