@@ -227,7 +227,7 @@ dircleaner::trim(bool force)
                     treeinfo.get_size(), it->second.size);
 
     if (::unlink(it->second.path.c_str())) {
-      eos_static_err("[ %s ] failed to unlink file %s errno=%d", name, it->second.path.c_str(),
+      eos_static_err("[ %s ] failed to unlink file %s errno=%d", name.c_str(), it->second.path.c_str(),
                      errno);
     } else {
       treeinfo.change(-it->second.size, -1);
