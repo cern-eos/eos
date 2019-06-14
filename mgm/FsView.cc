@@ -708,18 +708,6 @@ DoubleAggregator::aggregateNodes(
 }
 
 //------------------------------------------------------------------------------
-// DeepAggregate
-//------------------------------------------------------------------------------
-bool DoubleAggregator::deepAggregate(
-  const std::set<eos::common::FileSystem::fsid_t>& leaves,
-  const size_t& idx)
-{
-  // Not necessary for the statistics. Might be useful for some more advanced
-  // statistics requiring using the whole distribution at each depth.
-  return false;
-}
-
-//------------------------------------------------------------------------------
 // @brief Constructor
 // @param param Name of the parameter statistics have to be computed for
 //------------------------------------------------------------------------------
@@ -826,20 +814,6 @@ LongLongAggregator::aggregateNodes(
   pSums[idx] = pS;
   return true;
 };
-
-//------------------------------------------------------------------------------
-// Deep aggregate
-//------------------------------------------------------------------------------
-bool
-LongLongAggregator::deepAggregate(
-  const std::set<eos::common::FileSystem::fsid_t>& leaves,
-  const size_t& idx)
-{
-  // Not necessary for the statistics
-  // might be useful for some more advanced statistics requiring using the
-  // whole distribution at each depth e.g median
-  return false;
-}
 
 //----------------------------------------------------------------------------
 // Constructor

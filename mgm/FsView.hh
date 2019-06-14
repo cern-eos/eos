@@ -125,11 +125,6 @@ public:
                               nodes,
                               const size_t& idx, bool includeSelf = false) = 0;
 
-  // Aggregate the leaves any level of the tree
-  virtual bool deepAggregate(const std::set<eos::common::FileSystem::fsid_t>&
-                             leaves,
-                             const size_t& idx) = 0;
-
   // Aggregate the leaves and the nodes at any level of the tree
   virtual bool aggregateLeavesAndNodes(
     const std::set<eos::common::FileSystem::fsid_t>& leaves,
@@ -205,17 +200,6 @@ public:
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool runAggregator(GeoTreeAggregator* aggregator) const;
-
-  //----------------------------------------------------------------------------
-  //! Run an aggregator through the tree
-  //----------------------------------------------------------------------------
-  bool runDeepAggregator(GeoTreeAggregator* aggregator)
-  {
-    // loop over the last level of Aggregate and call AggregateDeepLeaves
-    // loop from end-1 to beginning in mLevels and call AggregateDeepNodes
-    // NOT IMPLEMENTED
-    return false;
-  }
 
   //----------------------------------------------------------------------------
   //! Recursive debug helper function to display the tree
@@ -1159,9 +1143,6 @@ public:
   virtual bool aggregateNodes(
     const std::map<std::string , GeoTreeElement*>& nodes,
     const size_t& idx, bool includeSelf = false);
-
-  virtual bool deepAggregate(
-    const std::set<eos::common::FileSystem::fsid_t>& leaves, const size_t& idx);
 };
 
 //------------------------------------------------------------------------------
@@ -1226,9 +1207,6 @@ public:
   virtual bool aggregateNodes(
     const std::map<std::string , GeoTreeElement*>& nodes, const size_t& idx,
     bool includeSelf = false);
-
-  virtual bool deepAggregate(
-    const std::set<eos::common::FileSystem::fsid_t>& leaves, const size_t& idx);
 };
 
 EOSMGMNAMESPACE_END
