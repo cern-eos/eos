@@ -76,12 +76,9 @@ StringTokenizer::~StringTokenizer()
   }
 }
 
-/**
- * Return the next parsed line
- *
- *
- * @return char reference to the next line
- */
+//------------------------------------------------------------------------------
+// Return the next parsed line
+//------------------------------------------------------------------------------
 const char*
 StringTokenizer::GetLine()
 {
@@ -109,8 +106,11 @@ StringTokenizer::GetLine()
           if ((i > 1) && (line[i - 1] == '\\')) {
             // don't start a new word here
           } else {
+            char val = line[i];
             line[i] = 0;
             fLineArgs.push_back(wordptr);
+            line[i] = val;
+
             // start a new word here
             wordptr = line + i + 1;
           }
