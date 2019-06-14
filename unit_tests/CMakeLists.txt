@@ -76,6 +76,7 @@ set(COMMON_UT_SRCS
   common/MappingTests.cc
   common/RWMutexTest.cc
   common/StringConversionTests.cc
+  common/StringTokenizerTests.cc
   common/SymKeysTests.cc
   common/ThreadPoolTest.cc
   common/TimingTests.cc
