@@ -3711,10 +3711,16 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
         }
 
         if (!rc) {
+	  int cache_flag;
           std::string md_name = md->name();
           uint64_t md_ino = md->md_ino();
           uint64_t md_pino = md->md_pino();
           std::string cookie = md->Cookie();
+
+	  if (md->attr().count("sys.file.cache")) {
+	    cache_flag |= O_CACHE;
+	  }
+
           capLock.UnLock();
           struct fuse_entry_param e;
           memset(&e, 0, sizeof(e));
@@ -3741,7 +3747,10 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
                                   md_pino,
                                   req,
                                   (mode == U_OK));
-          bool outdated = (io->ioctx()->attach(req, cookie, fi->flags) == EKEYEXPIRED);
+
+
+	  
+          bool outdated = (io->ioctx()->attach(req, cookie, fi->flags | cache_flag ) == EKEYEXPIRED);
           fi->keep_cache = outdated ? 0 : Instance().Config().options.data_kernelcache;
 
           if (md->creator()) {

@@ -28,6 +28,8 @@
 #include "data/cache.hh"
 #include "data/journalcache.hh"
 
+#define O_CACHE 040000000
+
 namespace XrdCl
 {
 class Proxy;

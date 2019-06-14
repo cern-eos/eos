@@ -24,6 +24,7 @@
 
 #include "journalcache.hh"
 #include "dircleaner.hh"
+#include "io.hh"
 #include "common/Path.hh"
 #include "common/Logging.hh"
 #ifdef __APPLE__
@@ -55,8 +56,11 @@ journalcache::~journalcache()
 
     }
 
-    journal.clear();
-    unlink();
+    if (!(flags & O_CACHE)) {
+      // only clean write caches
+      journal.clear();
+      unlink();
+    }
     fd = -1;
   }
 }
@@ -121,10 +125,11 @@ int journalcache::read_journal()
   return totalBytesRead;
 }
 
-int journalcache::attach(fuse_req_t req, std::string& cookie, int flags)
+int journalcache::attach(fuse_req_t req, std::string& cookie, int _flags)
 {
   XrdSysMutexHelper lck(mtx);
-
+  
+  flags = _flags;
   if ((nbAttached == 0) && (fd == -1)) {
     std::string path;
     int rc = location(path);

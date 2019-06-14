@@ -168,6 +168,7 @@ private:
   size_t nbFlushed;
   cachelock clck;
   XrdSysMutex mtx;
+  int flags;
   bufferllmanager::shared_buffer buffer;
   static std::string sLocation;
   static size_t sMaxSize;

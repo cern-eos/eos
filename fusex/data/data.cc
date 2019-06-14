@@ -476,7 +476,7 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
   bool isRW = false;
   bool add_O_SYNC = false;
   bool add_O_CREAT = false;
-  
+
   if (mFlags & O_SYNC) {
     // preserve the sync flag
     add_O_SYNC = true;
@@ -487,6 +487,7 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
   }
 
   mFlags = flags;
+
   if (add_O_SYNC) mFlags |= O_SYNC;
   if (add_O_CREAT) mFlags |= O_CREAT;
 
@@ -579,8 +580,8 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
   }
 
   int bcache = mFile->file() ? mFile->file()->attach(freq, cookie, isRW) : 0;
-  int jcache = mFile->journal() ? (isRW ? mFile->journal()->attach(freq, cookie,
-                                   isRW) : 0) : 0;
+  int jcache = mFile->journal() ? ((isRW || (mFlags & O_CACHE)) ? mFile->journal()->attach(freq, cookie,
+                                   flags) : 0) : 0;
 
   if (bcache < 0) {
     char msg[1024];
@@ -2148,6 +2149,11 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
       }
 
       if (br == (ssize_t) count) {
+	
+	if (mFile->journal() && (mFlags & O_CACHE)) {
+	  // optionally populate the read journal cache
+	  mFile->journal()->pwrite(buf,count,offset);
+	}
         return br;
       }
     }
@@ -2308,6 +2314,11 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
 
       eos_info("count=%lu read-bytes=%lu", count, br + bytesRead);
       
+      if (mFile->journal() && (mFlags & O_CACHE)) {
+	// optionally populate the read journal cache
+	mFile->journal()->pwrite(buf, br + bytesRead, offset);
+      }
+
       if ( (size_t)(br + bytesRead)  > count) {
 	return count; 
       } else {
