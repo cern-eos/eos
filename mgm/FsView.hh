@@ -202,39 +202,6 @@ public:
   bool runAggregator(GeoTreeAggregator* aggregator) const;
 
   //----------------------------------------------------------------------------
-  //! Recursive debug helper function to display the tree
-  //!
-  //! @param buffer output buffer
-  //! @param el the tree element to start the display from
-  //! @param fullgeotag the full geotag of the element
-  //!
-  //! @return buffer output
-  //----------------------------------------------------------------------------
-  char* dumpTree(char* buffer, GeoTreeElement* el,
-                 std::string fullgeotag = "") const;
-
-  //----------------------------------------------------------------------------
-  //! Debug helper function to display the leaves in the tree
-  //!
-  //! @param buffer output buffer
-  //----------------------------------------------------------------------------
-  char* dumpLeaves(char* buffer) const;
-
-  //----------------------------------------------------------------------------
-  //! Debug helper function to display the elements of the tree sorted by levels
-  //!
-  //! @param buffer output buffer
-  //----------------------------------------------------------------------------
-  char* dumpLevels(char* buffer) const;
-
-  //----------------------------------------------------------------------------
-  //! Debug helper function to display all the content of the tree
-  //!
-  //! @param buffer output buffer
-  //----------------------------------------------------------------------------
-  char* dump(char* buffer) const;
-
-  //----------------------------------------------------------------------------
   //! STL const_iterator class
   //!
   //! Only the leaves are iterated in alphabetical order of their geotag
@@ -352,15 +319,6 @@ public:
   inline const_iterator cend() const
   {
     return end();
-  }
-
-  //----------------------------------------------------------------------------
-  // find()
-  //----------------------------------------------------------------------------
-  inline const_iterator find(const fsid_t& fsid) const
-  {
-    const_iterator it(pLeaves.find(fsid), pLeaves);
-    return it;
   }
 
 private:
