@@ -48,8 +48,10 @@ void addClusterOptions(CLI::App *subcmd, std::string &membersStr, MemberValidato
     ->required()
     ->check(memberValidator);
 
-  subcmd->add_option("--password", password, "The password for connecting to the QDB cluster - can be empty");
-  subcmd->add_option("--password-file", passwordFile, "The passwordfile for connecting to the QDB cluster - can be empty");
+  auto passwordGroup = subcmd->add_option_group("Authentication", "Specify QDB authentication options");
+  passwordGroup->add_option("--password", password, "The password for connecting to the QDB cluster - can be empty");
+  passwordGroup->add_option("--password-file", passwordFile, "The passwordfile for connecting to the QDB cluster - can be empty");
+  passwordGroup->require_option(0, 1);
 }
 
 int main(int argc, char* argv[]) {
@@ -153,11 +155,6 @@ int main(int argc, char* argv[]) {
   //----------------------------------------------------------------------------
   // Validate --password and --password-file options..
   //----------------------------------------------------------------------------
-  if(!password.empty() && !passwordFile.empty()) {
-    std::cerr << "Only one of --password / --password-file is allowed." << std::endl;
-    return 1;
-  }
-
   if(!passwordFile.empty()) {
     if(!common::PasswordHandler::readPasswordFile(passwordFile, password)) {
       std::cerr << "Could not read passwordfile: '" << passwordFile << "'. Ensure the file exists, and its permissions are 400." << std::endl;
