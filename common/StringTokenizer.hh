@@ -54,18 +54,12 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  StringTokenizer(XrdOucString s)
-  {
-    StringTokenizer(s.c_str());
-  }
+  StringTokenizer(XrdOucString s) : StringTokenizer(s.c_str()) {}
 
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  StringTokenizer(std::string s)
-  {
-    StringTokenizer(s.c_str());
-  }
+  StringTokenizer(std::string s) : StringTokenizer(s.c_str()) {}
 
   //----------------------------------------------------------------------------
   //! Destructor
