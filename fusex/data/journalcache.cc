@@ -466,7 +466,7 @@ int journalcache::init_daemonized(const cacheconfig& config)
   jDirCleaner->set_trim_suffix(".jc");
 
   if (config.clean_on_startup) {
-    eos_static_info("cleaning journal path=%s",config.location);
+    eos_static_info("cleaning journal path=%s",config.location.c_str());
     if (jDirCleaner->cleanall(".jc")) {
       eos_static_err("journal cleanup failed");
       return -1;
