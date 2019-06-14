@@ -5294,47 +5294,53 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
   fuse_id id(req);
   cap::shared_cap pcap;
   metad::shared_md md;
+
   md = Instance().mds.get(req, ino);
-  pcap = Instance().caps.acquire(req, md->pid(),
-                                 R_OK, true);
-
-  if (pcap->errc()) {
-    rc = pcap->errc();
+  
+  if (!md->id() || md->deleted()) {
+    rc = md->deleted() ? ENOENT : md->err();
   } else {
-    XrdSysMutexHelper mLock(md->Locker());
-
-    if (!md->id() || md->deleted()) {
-      rc = ENOENT;
+    pcap = Instance().caps.acquire(req, md->pid(),
+				   R_OK, true);
+    
+    if (pcap->errc()) {
+      rc = pcap->errc();
     } else {
-      if (!(md->mode() & S_IFLNK)) {
-        // no a link
-        rc = EINVAL;
+      XrdSysMutexHelper mLock(md->Locker());
+      
+      if (!md->id() || md->deleted()) {
+	rc = ENOENT;
       } else {
-        target = md->target();
+	if (!(md->mode() & S_IFLNK)) {
+	  // no a link
+	  rc = EINVAL;
+	} else {
+	  target = md->target();
+	}
       }
     }
-  }
-
-  if (Instance().Config().options.submounts) {
-    if (target.substr(0, 6) == "mount:") {
-      std::string env;
-
-      // if not shared, set the caller credentials
-      if (0) {
-        env = fusexrdlogin::environment(req);
+    
+    if (Instance().Config().options.submounts) {
+      if (target.substr(0, 6) == "mount:") {
+	std::string env;
+	
+	// if not shared, set the caller credentials
+	if (0) {
+	  env = fusexrdlogin::environment(req);
+	}
+	
+	std::string localpath = Instance().Prefix(Instance().mds.calculateLocalPath(
+										    md));
+	rc = Instance().Mounter().mount(target, localpath, env);
       }
-
-      std::string localpath = Instance().Prefix(Instance().mds.calculateLocalPath(
-                                                                                  md));
-      rc = Instance().Mounter().mount(target, localpath, env);
-    }
-
-    if (target.substr(0, 11) == "squashfuse:") {
-      std::string env;
-      //    env = fusexrdlogin::environment(req);
-      std::string localpath = Instance().Prefix(Instance().mds.calculateLocalPath(
-                                                                                  md));
-      rc = Instance().Mounter().squashfuse(target, localpath, env);
+      
+      if (target.substr(0, 11) == "squashfuse:") {
+	std::string env;
+	//    env = fusexrdlogin::environment(req);
+	std::string localpath = Instance().Prefix(Instance().mds.calculateLocalPath(
+										    md));
+	rc = Instance().Mounter().squashfuse(target, localpath, env);
+      }
     }
   }
 
