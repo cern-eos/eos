@@ -25,9 +25,8 @@
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
 
 struct MemberValidator : public CLI::Validator {
-  MemberValidator() {
-    tname = "MEMBER";
-    func = [](const std::string &str) {
+  MemberValidator() : Validator("MEMBER") {
+    func_ = [](const std::string &str) {
       qclient::Members members;
       if(!members.parse(str)) {
         return SSTR("Could not parse members: '" << str << "'. Expected format is a comma-separated list of servers: example1:1111,example2:2222");
