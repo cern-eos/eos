@@ -48,8 +48,6 @@
 //------------------------------------------------------------------------------
 EOSMGMNAMESPACE_BEGIN
 
-struct GeoTreeNode;
-struct GeoTreeLeaf;
 struct GeoTreeElement;
 class GeoTree;
 class TableFormatterBase;
@@ -142,9 +140,6 @@ public:
 class GeoTree
 {
   typedef eos::common::FileSystem::fsid_t fsid_t;
-  typedef GeoTreeElement tElement;
-  typedef GeoTreeLeaf tLeaf;
-  typedef GeoTreeNode tNode;
 
 public:
   //----------------------------------------------------------------------------
@@ -210,7 +205,7 @@ public:
     std::iterator<std::bidirectional_iterator_tag, fsid_t>
   {
     friend class GeoTree;
-    using ContainerT = std::map<fsid_t, tElement*>;
+    using ContainerT = std::map<fsid_t, GeoTreeElement*>;
     ContainerT::const_iterator mIt; ///< Iterator inside the container
     ContainerT* mCont; ///< Pointer to original container
   public:
@@ -331,10 +326,10 @@ private:
   //----------------------------------------------------------------------------
   std::string getGeoTag(const fsid_t& fs) const;
 
-  tElement* pRoot;   ///< The root branch of the tree
+  GeoTreeElement* pRoot;   ///< The root branch of the tree
   //! All the elements of the tree collected by depth
-  std::vector<std::set<tElement*, GeoTreeNodeOrderHelper > > pLevels;
-  mutable std::map<fsid_t, tElement*> pLeaves; ///< All the leaves of the tree
+  std::vector<std::set<GeoTreeElement*, GeoTreeNodeOrderHelper > > pLevels;
+  mutable std::map<fsid_t, GeoTreeElement*> pLeaves; ///< All the leaves of the tree
 };
 
 //------------------------------------------------------------------------------

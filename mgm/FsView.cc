@@ -62,7 +62,7 @@ GeoTreeElement::~GeoTreeElement()
 GeoTree::GeoTree() : pLevels(8)
 {
   pLevels.resize(1);
-  pRoot = new tElement;
+  pRoot = new GeoTreeElement;
   pLevels[0].insert(pRoot);
   pRoot->mTagToken = "<ROOT>";
   pRoot->mFullTag = "<ROOT>";
@@ -105,11 +105,11 @@ bool GeoTree::insert(const fsid_t& fs)
     geotokens.push_back("");  // geotag is not provided
   }
 
-  tElement* father = pRoot;
+  GeoTreeElement* father = pRoot;
   std::string fulltag = pRoot->mFullTag;
   // Insert all the geotokens in the tree
-  tElement* currentnode = pRoot;
-  tElement* currentleaf = NULL;
+  GeoTreeElement* currentnode = pRoot;
+  GeoTreeElement* currentleaf = NULL;
 
   for (int i = 0; i < (int)geotokens.size() - 1; i++) {
     const std::string& geotoken = geotokens[i];
@@ -123,7 +123,7 @@ bool GeoTree::insert(const fsid_t& fs)
 
       fulltag += geotoken;
     } else {
-      currentnode = new tElement;
+      currentnode = new GeoTreeElement;
       currentnode->mTagToken = geotoken;
 
       if (!fulltag.empty()) {
@@ -147,7 +147,7 @@ bool GeoTree::insert(const fsid_t& fs)
 
   // Finally, insert the fs
   if (!father->mSons.count(geotokens.back())) {
-    currentleaf = new tElement;
+    currentleaf = new GeoTreeElement;
     currentleaf->mFather = father;
     currentleaf->mTagToken = geotokens.back();
 
@@ -192,7 +192,7 @@ size_t GeoTree::size() const
 //------------------------------------------------------------------------------
 bool GeoTree::erase(const fsid_t& fs)
 {
-  tElement* leaf;
+  GeoTreeElement* leaf;
 
   if (!pLeaves.count(fs)) {
     return false;
@@ -202,7 +202,7 @@ bool GeoTree::erase(const fsid_t& fs)
 
   pLeaves.erase(fs);
   leaf->mFsIds.erase(fs);
-  tElement* father = leaf;
+  GeoTreeElement* father = leaf;
 
   if (leaf->mFsIds.empty() && leaf->mSons.empty()) {
     // Compute the depth for the current father
