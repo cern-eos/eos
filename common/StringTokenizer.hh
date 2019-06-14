@@ -33,9 +33,14 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Utility class with convenience functions for string command line parsing
+//! Utility class with convenience functions for string command line parsing.
+//!
 //! Works like XrdOucTokenizer but wants each argument in " ".
-//! Escaped quotes are ignored and & is replaced with #AND# !!!
+//! When returned, each token will have the enclosing quotes removed.
+//!
+//! Additional options:
+//!   - Replace & with #AND# in tokens
+//!   - Fully unescape quotes within the token
 //------------------------------------------------------------------------------
 class StringTokenizer
 {
@@ -75,13 +80,29 @@ public:
 
   //----------------------------------------------------------------------------
   //! Return next parsed space separated token taking into account escaped
-  //! blanks and quoted strings
+  //! blanks and quoted strings.
+  //!
+  //! Note: Quotes enclosing the token are removed, but other type of quotes
+  //!       are left untouched
   //!
   //! @param escapeand if true escape & with #AND# !! UGLY!!
   //!
   //! @return next token or null if no token found
   //----------------------------------------------------------------------------
   const char* GetToken(bool escapeand = true);
+
+  //----------------------------------------------------------------------------
+  //! Return next parsed space separated token taking into account escaped
+  //! blanks and quoted strings.
+  //!
+  //! Note: Quotes enclosing the token are removed, while any other
+  //!       type of quotes will be unescaped
+  //!
+  //! @param escapeand if true escape & with #AND#
+  //!
+  //! @return next token or null if no token found
+  //----------------------------------------------------------------------------
+  const char* GetTokenUnquoted(bool escapeand = true);
 
   //----------------------------------------------------------------------------
   //! Split given string based on the delimiter

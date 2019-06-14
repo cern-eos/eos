@@ -23,6 +23,9 @@
 
 #include "common/StringTokenizer.hh"
 #include <cstring>
+#include <sstream>
+#include <iomanip>
+#include <algorithm>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -130,7 +133,10 @@ StringTokenizer::GetLine()
 
 //------------------------------------------------------------------------------
 // Return next parsed space separated token taking into account escaped
-// blanks and quoted strings
+// blanks and quoted strings.
+//
+// Note: Quotes enclosing the token are removed, but other type of quotes
+//       are left untouched
 //------------------------------------------------------------------------------
 const char*
 StringTokenizer::GetToken(bool escapeand)
@@ -164,6 +170,45 @@ StringTokenizer::GetToken(bool escapeand)
     }
 
     fLineArgs[fCurrentArg] = item.c_str();
+    return fLineArgs[fCurrentArg].c_str();
+  } else {
+    return 0;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Return next parsed space separated token taking into account escaped
+// blanks and quoted strings.
+//
+// Note: Quotes enclosing the token are removed, while any other
+//       type of quotes will be unescaped
+//------------------------------------------------------------------------------
+const char*
+StringTokenizer::GetTokenUnquoted(bool escapeand)
+{
+  fCurrentArg++;
+
+  if (fCurrentArg < (int) fLineArgs.size()) {
+    std::string token;
+    std::stringstream ss;
+
+    // Dequote token
+    ss << fLineArgs[fCurrentArg].c_str();
+    ss >> std::quoted(token);
+
+    if (escapeand) {
+      size_t pos = 0;
+
+      while ((pos = token.find("&", pos)) != std::string::npos) {
+        if ((pos == 0) || (token[pos - 1] != '\\')) {
+          token.replace(pos, 1, "#AND#");
+        }
+
+        pos++;
+      }
+    }
+
+    fLineArgs[fCurrentArg] = token.c_str();
     return fLineArgs[fCurrentArg].c_str();
   } else {
     return 0;
