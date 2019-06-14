@@ -913,14 +913,13 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       no_fsync_list += ",";
     }
 
-    // disallow mdcachedir if compiled without rocksdb support
+    // reset mdcachedir if compiled without rocksdb support
 #ifndef ROCKSDB_FOUND
-
     if (!config.mdcachedir.empty()) {
       std::cerr <<
               "Options mdcachedir is unavailable, fusex was compiled without rocksdb support."
               << std::endl;
-      exit(EINVAL);
+      config.mdcachedir="";
     }
 
 #endif
