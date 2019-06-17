@@ -27,6 +27,7 @@
 #include "mgm/Access.hh"
 #include "mgm/Macros.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/Resolver.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -36,18 +37,40 @@ ProcCommand::Attr()
   XrdOucString spath = pOpaque->Get("mgm.path");
   XrdOucString option = pOpaque->Get("mgm.option");
   const char* inpath = spath.c_str();
+  uint64_t identifier = 0;
   NAMESPACEMAP;
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
-  eos::common::Path cPath(path);
-  spath = cPath.GetPath();
 
-  while (spath.replace("#AND#", "&")) {}
+  if ((spath.beginswith("fid:") || spath.beginswith("fxid:"))) {
+    WAIT_BOOT;
+    identifier = Resolver::retrieveFileIdentifier(spath)
+                    .getUnderlyingUInt64();
+    spath = "";
+    GetPathFromFid(spath, identifier, "error: ");
+  } else if ((spath.beginswith("pid:") || spath.beginswith("pxid:"))) {
+    WAIT_BOOT;
+    spath.replace('p', 'f', 0, 1);
+    identifier = Resolver::retrieveFileIdentifier(spath)
+                    .getUnderlyingUInt64();
+    spath = "";
+    GetPathFromCid(spath, identifier, "error: ");
+  } else {
+    spath = eos::common::Path(path).GetPath();
+    while (spath.replace("#AND#", "&")) {}
+  }
 
-  if ((!spath.length()) ||
-      ((mSubCmd != "set") && (mSubCmd != "get") && (mSubCmd != "ls") &&
-       (mSubCmd != "rm") && (mSubCmd != "fold"))) {
-    stdErr = "error: you have to give a path name to call 'attr' and one of the subcommands 'ls', 'get','rm','set', 'fold' !";
+  if ((!spath.length()) && (!identifier)) {
+    // Empty path or invalid numeric identifier
+    stdErr = "error: you have to give a valid identifier (<path>|fid:<fid-dec>|fxid:<fid-hex>|pid:<pid-dec>|pxid:<pid-hex>)";
+    retc = EINVAL;
+  } else if ((!spath.length())) {
+    // Retrieval of path from numeric identifier failed
+    retc = errno;
+  } else if ((mSubCmd != "set") && (mSubCmd != "get") && (mSubCmd != "ls") &&
+       (mSubCmd != "rm") && (mSubCmd != "fold")) {
+    // Unrecognized subcommand
+    stdErr = "error: the subcommand must be one of 'ls', 'get', 'set', 'rm' or 'fold'!";
     retc = EINVAL;
   } else {
     if (((mSubCmd == "set") && ((!pOpaque->Get("mgm.attr.key")) ||
@@ -153,7 +176,8 @@ ProcCommand::Attr()
 
               // Check if the origin exists and is a directory
               if (key == "sys.attr.link") {
-		eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+                eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+
                 try {
                   auto cmd = gOFS->eosView->getContainer(val.c_str());
                 } catch (eos::MDException& e) {

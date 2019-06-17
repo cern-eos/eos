@@ -77,9 +77,7 @@ com_attr(char* arg1)
       goto com_attr_usage;
     }
 
-    path = abspath(path.c_str());
-
-    while (path.replace("&", "#AND#")) {}
+    path = path_identifier(path.c_str(), true);
 
     in += "&mgm.subcmd=ls";
     in += "&mgm.path=";
@@ -141,9 +139,7 @@ com_attr(char* arg1)
       goto com_attr_usage;
     }
 
-    path = abspath(path.c_str());
-
-    while (path.replace("&", "#AND#")) {}
+    path = path_identifier(path.c_str(), true);
 
     in += "&mgm.subcmd=set&mgm.attr.key=";
     in += key;
@@ -347,9 +343,7 @@ com_attr(char* arg1)
       goto com_attr_usage;
     }
 
-    path = abspath(path.c_str());
-
-    while (path.replace("&", "#AND#")) {}
+    path = path_identifier(path.c_str(), true);
 
     in += "&mgm.subcmd=get&mgm.attr.key=";
     in += key;
@@ -364,9 +358,7 @@ com_attr(char* arg1)
       goto com_attr_usage;
     }
 
-    path = abspath(path.c_str());
-
-    while (path.replace("&", "#AND#")) {}
+    path = path_identifier(path.c_str(), true);
 
     in += "&mgm.subcmd=fold";
     in += "&mgm.path=";
@@ -386,9 +378,7 @@ com_attr(char* arg1)
       goto com_attr_usage;
     }
 
-    path = abspath(path.c_str());
-
-    while (path.replace("&", "#AND#")) {}
+    path = path_identifier(path.c_str(), true);
 
     in += "&mgm.subcmd=rm&mgm.attr.key=";
     in += key;
