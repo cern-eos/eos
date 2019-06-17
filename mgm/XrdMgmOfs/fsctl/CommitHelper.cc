@@ -383,9 +383,8 @@ CommitHelper::validate_checksum(eos::common::VirtualIdentity& vid,
       if (fmd->hasLocation((unsigned short) fsid)) {
         fmd->unlinkLocation((unsigned short) fsid);
         fmd->removeLocation((unsigned short) fsid);
-
-	eos_thread_err("replication for fid=%llu resulted in a different checksum "
-		       "on fsid=%llu - dropping replica", fmd->getId(), fsid);
+        eos_thread_err("replication for fid=%llu resulted in a different checksum "
+                       "on fsid=%llu - dropping replica", fmd->getId(), fsid);
 
         try {
           gOFS->eosView->updateFileStore(fmd.get());
@@ -460,7 +459,13 @@ CommitHelper::handle_location(eos::common::VirtualIdentity& vid,
     return false;
   }
 
-  eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(dir.get());
+  eos::IQuotaNode* ns_quota = nullptr;
+
+  try {
+    ns_quota = gOFS->eosView->getQuotaNode(dir.get());
+  } catch (const eos::MDException& e) {
+    // empty
+  }
 
   // Free previous quota
   if (ns_quota) {
