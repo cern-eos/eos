@@ -571,7 +571,7 @@ Fsck::ReportFiles()
 	if (it->second.disksize() != it->second.mgmsize()) {
 	  fprintf(stderr, "[Fsck] [ERROR] [ SIZE    ] fsid:%d cxid:%08lx fxid:%08lx path:%s size mismatch disksize=%lu mgmsize=%lu\n", fsId, it->second.cid(), it->second.fid(), it->second.checksum().c_str(), it->second.disksize(), it->second.mgmsize());
 	  errors["size"]++;
-	  corrupted = true;
+	    corrupted = true;
 	}
       }
     }
@@ -605,8 +605,11 @@ Fsck::ReportFiles()
     size_t nstripes = eos::common::LayoutId::GetStripeNumber(it->second.lid()) + 1;
 
     if (nstripes != valid_replicas) {
-      fprintf(stderr, "[Fsck] [ERROR] [ REPLICA ] fsid:%d cxid:%08lx fxid:%08lx path:%s replica count wrong is=%lu expected=%lu\n", fsId, it->second.cid(), it->second.fid(), it->second.checksum().c_str(),valid_replicas, nstripes);
-      errors["replica"]++;
+      if (it->second.mgmsize() != 0) {
+	// suppress 0 size files in the mgm 
+	fprintf(stderr, "[Fsck] [ERROR] [ REPLICA ] fsid:%d cxid:%08lx fxid:%08lx path:%s replica count wrong is=%lu expected=%lu\n", fsId, it->second.cid(), it->second.fid(), it->second.checksum().c_str(),valid_replicas, nstripes);
+	errors["replica"]++;
+      }
     }
   }
 }
