@@ -36,17 +36,16 @@ ProcCommand::Debug()
       stdOut += "# ------------------------------------------------------------------------------------\n";
       stdOut += "# Debug log level\n";
       stdOut += "# ....................................................................................\n";
-      // std::string line;
-      // std::string loglevel;
+      eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+      stdOut += (XrdOucString) gOFS->HostName + ":" + std::to_string(
+                  gOFS->ManagerPort).c_str() + "/mgm := \t" + g_logging.GetPriorityString(
+                  g_logging.gPriorityLevel) + '\n';
       auto nodes = FsView::gFsView.mNodeView;
 
       for (auto node = nodes.begin(); node != nodes.end(); ++node) {
-        // loglevel = FsView::gFsView.mNodeView[node->first]->GetConfigMember("debug.level");
-        // line = node->first + " := " + loglevel + "\n";
-        // stdOut += line.c_str();
         stdOut += (node->first.substr(5) + " := \t" +
-                   FsView::gFsView.mNodeView[node->first]->GetConfigMember("debug.level") +
-                   "\n").c_str();
+                   FsView::gFsView.mNodeView[node->first]->GetConfigMember("debug.state") +
+                   '\n').c_str();
       }
     } else {
       XrdOucString debugnode = pOpaque->Get("mgm.nodename");
