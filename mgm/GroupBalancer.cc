@@ -280,8 +280,8 @@ GroupBalancer::populateGroupsInfo()
       continue;
     }
 
-    uint64_t size = (*it)->AverageDouble("stat.statfs.usedbytes", false);
-    uint64_t capacity = (*it)->AverageDouble("stat.statfs.capacity", false);
+    uint64_t size = (*it)->AverageDouble("stat.statfs.usedbytes");
+    uint64_t capacity = (*it)->AverageDouble("stat.statfs.capacity");
 
     if (capacity == 0) {
       continue;

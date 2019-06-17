@@ -82,15 +82,13 @@ XrdMgmOfs::Statvfs(const char* path,
         if (FsView::gFsView.mSpaceView.count("default")) {
           eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
           freebytes =
-            FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes",
-                false);
+            FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes");
           freefiles =
-            FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree", false);
+            FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree");
           maxbytes =
-            FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity",
-                false);
+            FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity");
           maxfiles =
-            FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.files", false);
+            FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.files");
         }
 
         laststat = now;

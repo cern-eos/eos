@@ -79,11 +79,9 @@ XrdMgmOfs::fsctl(const int cmd,
       if (!getenv("EOS_MGM_STATVFS_ONLY_QUOTA") && ((path == "/") || (path == ""))) {
         space = "default";
         freebytes =
-          FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes",
-              false);
+          FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes");
         maxbytes =
-          FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity",
-              false);
+          FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity");
       } else {
         if (path[path.length() - 1] != '/') {
           path += '/';

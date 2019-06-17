@@ -457,51 +457,50 @@ public:
   //! Calculate the sum of <param> as long long
   //----------------------------------------------------------------------------
   long long
-  SumLongLong(const char* param, bool lock = true,
+  SumLongLong(const char* param,
               const std::set<eos::common::FileSystem::fsid_t>* subset = nullptr);
 
   //----------------------------------------------------------------------------
   //! Calculate the sum of <param> as double
   //----------------------------------------------------------------------------
   double
-  SumDouble(const char* param, bool lock = true,
+  SumDouble(const char* param,
             const std::set<eos::common::FileSystem::fsid_t>* subset = nullptr);
 
   //----------------------------------------------------------------------------
   //! Calculates the average of <param> as double
   //----------------------------------------------------------------------------
   double
-  AverageDouble(const char* param, bool lock = true,
+  AverageDouble(const char* param,
                 const std::set<eos::common::FileSystem::fsid_t>* subset = nullptr);
 
   //----------------------------------------------------------------------------
   //! Calculates the maximum deviation from the average in a group
   //---------------------------------------------------------------------------
   double
-  MaxAbsDeviation(const char* param, bool lock = true,
+  MaxAbsDeviation(const char* param,
                   const std::set<eos::common::FileSystem::fsid_t>* subset = nullptr);
 
   double
-  MaxDeviation(const char* param, bool lock = true,
+  MaxDeviation(const char* param,
                const std::set<eos::common::FileSystem::fsid_t>* subset = nullptr);
 
   double
-  MinDeviation(const char* param, bool lock = true,
+  MinDeviation(const char* param,
                const std::set<eos::common::FileSystem::fsid_t>* subset = nullptr);
 
   //----------------------------------------------------------------------------
   //! Calculates the standard deviation of <param> as double
   //----------------------------------------------------------------------------
   double
-  SigmaDouble(const char* param, bool lock = true,
+  SigmaDouble(const char* param,
               const std::set<eos::common::FileSystem::fsid_t>* subset = nullptr);
 
   //----------------------------------------------------------------------------
   //! Calculates the number of fsid considered for average
   //----------------------------------------------------------------------------
   long long
-  ConsiderCount(bool lock,
-                const std::set<eos::common::FileSystem::fsid_t>* subset);
+  ConsiderCount(const std::set<eos::common::FileSystem::fsid_t>* subset);
 
 private:
   time_t mHeartBeat; ///< Last heartbeat time

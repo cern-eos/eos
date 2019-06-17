@@ -598,16 +598,16 @@ DoubleAggregator::aggregateLeaves(
     pNb.resize(idx + 1);
   }
 
-  pNb[idx] = pView->ConsiderCount(false, &leaves);
+  pNb[idx] = pView->ConsiderCount(&leaves);
 
   if (pNb[idx]) {
-    pSums[idx] = pView->SumDouble(pParam.c_str(), false, &leaves);
-    pMeans[idx] = pView->AverageDouble(pParam.c_str(), false, &leaves);
-    pMaxDevs[idx] = (pNb[idx] == 1) ? 0 : pView->MaxDeviation(pParam.c_str(), false,
+    pSums[idx] = pView->SumDouble(pParam.c_str(), &leaves);
+    pMeans[idx] = pView->AverageDouble(pParam.c_str(), &leaves);
+    pMaxDevs[idx] = (pNb[idx] == 1) ? 0 : pView->MaxDeviation(pParam.c_str(),
                     &leaves);
-    pMinDevs[idx] = (pNb[idx] == 1) ? 0 : pView->MinDeviation(pParam.c_str(), false,
+    pMinDevs[idx] = (pNb[idx] == 1) ? 0 : pView->MinDeviation(pParam.c_str(),
                     &leaves);
-    pStdDevs[idx] = (pNb[idx] == 1) ? 0 : pView->SigmaDouble(pParam.c_str(), false,
+    pStdDevs[idx] = (pNb[idx] == 1) ? 0 : pView->SigmaDouble(pParam.c_str(),
                     &leaves);
     pMaxAbsDevs[idx] = (pNb[idx] == 1) ? 0 : std::max(abs(pMaxDevs[idx]),
                        abs(pMinDevs[idx]));
@@ -777,7 +777,7 @@ LongLongAggregator::aggregateLeaves(
   }
 
   pSums[idx] = 0;
-  pSums[idx] = pView->SumLongLong(pParam.c_str(), false, &leaves);
+  pSums[idx] = pView->SumLongLong(pParam.c_str(), &leaves);
   return true;
 }
 
@@ -3029,13 +3029,9 @@ bool BaseView::shouldConsiderForStatistics(FileSystem *fs) {
 // param="<param>[?<key>=<value] allows to select with matches
 //------------------------------------------------------------------------------
 long long
-BaseView::SumLongLong(const char* param, bool lock,
+BaseView::SumLongLong(const char* param,
                       const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
-  if (lock) {
-    FsView::gFsView.ViewMutex.LockRead();
-  }
-
   long long sum = 0;
   std::string sparam = param;
   size_t qpos = 0;
@@ -3117,10 +3113,6 @@ BaseView::SumLongLong(const char* param, bool lock,
     }
   }
 
-  if (lock) {
-    FsView::gFsView.ViewMutex.UnLockRead();
-  }
-
   return sum;
 }
 
@@ -3128,22 +3120,14 @@ BaseView::SumLongLong(const char* param, bool lock,
 // Computes the sum for <param> as double
 //------------------------------------------------------------------------------
 double
-BaseView::SumDouble(const char* param, bool lock,
+BaseView::SumDouble(const char* param,
                     const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
-  if (lock) {
-    FsView::gFsView.ViewMutex.LockRead();
-  }
-
   double sum = 0;
 
   fsid_iterator it(subset, this);
   for(; it.valid(); it.next()) {
     sum += FsView::gFsView.mIdView[*it]->GetDouble(param);
-  }
-
-  if (lock) {
-    FsView::gFsView.ViewMutex.UnLockRead();
   }
 
   return sum;
@@ -3152,16 +3136,10 @@ BaseView::SumDouble(const char* param, bool lock,
 //------------------------------------------------------------------------------
 // Computes the average for <param>
 //------------------------------------------------------------------------------
-// @todo (esindril) The lock parameter should be removed as this function is
-// never called without the lock taken
 double
-BaseView::AverageDouble(const char* param, bool lock,
+BaseView::AverageDouble(const char* param,
                         const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
-  if (lock) {
-    FsView::gFsView.ViewMutex.LockRead();
-  }
-
   double sum = 0;
   int cnt = 0;
 
@@ -3180,10 +3158,6 @@ BaseView::AverageDouble(const char* param, bool lock,
     }
   }
 
-  if (lock) {
-    FsView::gFsView.ViewMutex.UnLockRead();
-  }
-
   return (cnt) ? (double)(1.0 * sum / cnt) : 0;
 }
 
@@ -3191,14 +3165,10 @@ BaseView::AverageDouble(const char* param, bool lock,
 // Computes the maximum absolute deviation of <param> from the avg of <param>
 //------------------------------------------------------------------------------
 double
-BaseView::MaxAbsDeviation(const char* param, bool lock,
+BaseView::MaxAbsDeviation(const char* param,
                           const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
-  if (lock) {
-    FsView::gFsView.ViewMutex.LockRead();
-  }
-
-  double avg = AverageDouble(param, false);
+  double avg = AverageDouble(param);
   double maxabsdev = 0;
   double dev = 0;
 
@@ -3220,10 +3190,6 @@ BaseView::MaxAbsDeviation(const char* param, bool lock,
     }
   }
 
-  if (lock) {
-    FsView::gFsView.ViewMutex.UnLockRead();
-  }
-
   return maxabsdev;
 }
 
@@ -3232,14 +3198,10 @@ BaseView::MaxAbsDeviation(const char* param, bool lock,
 // Computes the maximum deviation of <param> from the avg of <param>
 //------------------------------------------------------------------------------
 double
-BaseView::MaxDeviation(const char* param, bool lock,
+BaseView::MaxDeviation(const char* param,
                        const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
-  if (lock) {
-    FsView::gFsView.ViewMutex.LockRead();
-  }
-
-  double avg = AverageDouble(param, false);
+  double avg = AverageDouble(param);
   double maxdev = -DBL_MAX;
   double dev = 0;
 
@@ -3261,10 +3223,6 @@ BaseView::MaxDeviation(const char* param, bool lock,
     }
   }
 
-  if (lock) {
-    FsView::gFsView.ViewMutex.UnLockRead();
-  }
-
   return maxdev;
 }
 
@@ -3272,14 +3230,10 @@ BaseView::MaxDeviation(const char* param, bool lock,
 // Computes the maximum deviation of <param> from the avg of <param>
 //------------------------------------------------------------------------------
 double
-BaseView::MinDeviation(const char* param, bool lock,
+BaseView::MinDeviation(const char* param,
                        const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
-  if (lock) {
-    FsView::gFsView.ViewMutex.LockRead();
-  }
-
-  double avg = AverageDouble(param, false);
+  double avg = AverageDouble(param);
   double mindev = DBL_MAX;
   double dev = 0;
 
@@ -3301,10 +3255,6 @@ BaseView::MinDeviation(const char* param, bool lock,
     }
   }
 
-  if (lock) {
-    FsView::gFsView.ViewMutex.UnLockRead();
-  }
-
   return mindev;
 }
 
@@ -3312,14 +3262,10 @@ BaseView::MinDeviation(const char* param, bool lock,
 // Computes the sigma for <param>
 //------------------------------------------------------------------------------
 double
-BaseView::SigmaDouble(const char* param, bool lock,
+BaseView::SigmaDouble(const char* param,
                       const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
-  if (lock) {
-    FsView::gFsView.ViewMutex.LockRead();
-  }
-
-  double avg = AverageDouble(param, false);
+  double avg = AverageDouble(param);
   double sumsquare = 0;
   int cnt = 0;
 
@@ -3340,11 +3286,6 @@ BaseView::SigmaDouble(const char* param, bool lock,
   }
 
   sumsquare = (cnt) ? sqrt(sumsquare / cnt) : 0;
-
-  if (lock) {
-    FsView::gFsView.ViewMutex.UnLockRead();
-  }
-
   return sumsquare;
 }
 
@@ -3352,13 +3293,8 @@ BaseView::SigmaDouble(const char* param, bool lock,
 // Computes the considered count
 //------------------------------------------------------------------------------
 long long
-BaseView::ConsiderCount(bool lock,
-                        const std::set<eos::common::FileSystem::fsid_t>* subset)
+BaseView::ConsiderCount(const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
-  if (lock) {
-    FsView::gFsView.ViewMutex.LockRead();
-  }
-
   long long cnt = 0;
 
   fsid_iterator it(subset, this);
@@ -3374,11 +3310,6 @@ BaseView::ConsiderCount(bool lock,
     if (consider) {
       cnt++;
     }
-  }
-
-
-  if (lock) {
-    FsView::gFsView.ViewMutex.UnLockRead();
   }
 
   return cnt;
@@ -3584,7 +3515,7 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
         if (formattags.count("sum")) {
           if (!outdepth) {
             table_data.back().push_back(
-              TableCell(SumLongLong(formattags["sum"].c_str(), false),
+              TableCell(SumLongLong(formattags["sum"].c_str()),
                         format, unit));
           } else {
             table_data.back().push_back(
@@ -3638,7 +3569,7 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
           } else { // If not geotag special case
             if (!outdepth) {
               table_data.back().push_back(
-                TableCell(AverageDouble(formattags["avg"].c_str(), false),
+                TableCell(AverageDouble(formattags["avg"].c_str()),
                           format, unit));
             } else {
               table_data.back().push_back(
@@ -3672,7 +3603,7 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
         if (formattags.count("sig")) {
           if (!outdepth) {
             table_data.back().push_back(
-              TableCell(SigmaDouble(formattags["sig"].c_str(), false),
+              TableCell(SigmaDouble(formattags["sig"].c_str()),
                         format, unit));
           } else {
             table_data.back().push_back(
@@ -3705,7 +3636,7 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
         if (formattags.count("maxdev")) {
           if (!outdepth) {
             table_data.back().push_back(
-              TableCell(MaxAbsDeviation(formattags["maxdev"].c_str(), false),
+              TableCell(MaxAbsDeviation(formattags["maxdev"].c_str()),
                         format, unit));
           } else {
             table_data.back().push_back(

@@ -106,7 +106,7 @@ TapeAwareGcFreeSpace::queryMgmForFreeBytes() {
     throw TapeAwareGcSpaceNotFound(std::string(__FUNCTION__) + ": Cannot find space " + m_spaceName);
   }
 
-  return spaceItor->second->SumLongLong("stat.statfs.freebytes", false);
+  return spaceItor->second->SumLongLong("stat.statfs.freebytes");
 }
 
 //------------------------------------------------------------------------------
