@@ -50,8 +50,7 @@ enum class FstErr {
   None = 0x00,
   NoContact = 0x01,
   NotOnDisk = 0x02,
-  NoFmdInfo = 0x03,
-  NoXattrInfo = 0x04
+  NoFmdInfo = 0x03
 };
 
 //------------------------------------------------------------------------------
@@ -70,7 +69,6 @@ struct FstFileInfoT {
 public:
   std::string mLocalPath;
   uint64_t mDiskSize;
-  std::string mScanXs;
   eos::fst::Fmd mFstFmd;
   FstErr mFstErr;
 
@@ -84,7 +82,7 @@ public:
 
 //! Forward declaration and aliases
 class FsckEntry;
-using RepairFnT = std::function<bool(FsckEntry&)>;
+using RepairFnT = std::function<bool(FsckEntry*)>;
 using FsckRepairJob = eos::mgm::DrainTransferJob;
 
 //------------------------------------------------------------------------------
@@ -93,8 +91,6 @@ using FsckRepairJob = eos::mgm::DrainTransferJob;
 class FsckEntry: public eos::common::LogId
 {
 public:
-
-
   //----------------------------------------------------------------------------
   //! Constructor
   //!
@@ -104,10 +100,7 @@ public:
   //!        FST
   //----------------------------------------------------------------------------
   FsckEntry(eos::IFileMD::id_t fid, eos::common::FileSystem::fsid_t fsid_err,
-            const std::string& expected_err):
-    mFid(fid), mFsidErr(fsid_err),
-    mReportedErr(ConvertToFsckErr(expected_err))
-  {}
+            const std::string& expected_err);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -157,7 +150,9 @@ public:
   bool RepairFstXsDiff();
 
 private:
-
+#ifdef IN_TEST_HARNESS
+public:
+#endif
   //----------------------------------------------------------------------------
   //! Get file metadata info stored at the FST
   //!
@@ -170,20 +165,6 @@ private:
   bool GetFstFmd(std::unique_ptr<FstFileInfoT>& finfo, XrdCl::FileSystem& fs,
                  eos::common::FileSystem::fsid_t fsid);
 
-  //----------------------------------------------------------------------------
-  //! Get extended attribute concerning the current file entry
-  //!
-  //! @param finfo object holding file info to be populated
-  //! @param fs file system object used for doing the queries
-  //! @param fsid file system id
-  //! @param key xattr key to retrieve
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool GetXattr(std::unique_ptr<FstFileInfoT>& finfo, XrdCl::FileSystem& fs,
-                eos::common::FileSystem::fsid_t fsid, const std::string& key);
-
-
   eos::IFileMD::id_t mFid; ///< File id
   eos::common::FileSystem::fsid_t mFsidErr; ///< File system id with expected err
   FsckErr mReportedErr; ///< Reported error type
@@ -191,6 +172,8 @@ private:
   //! Map of file system id to file metadata held at the corresponding fs
   std::map<eos::common::FileSystem::fsid_t,
       std::unique_ptr<FstFileInfoT>> mFstFileInfo;
+  //! Map of fsck error to list of repair operations
+  std::map<FsckErr, std::list<RepairFnT>> mMapRepairOps;
 };
 
 EOSMGMNAMESPACE_END

@@ -64,6 +64,7 @@ set(MGM_UT_SRCS
   mgm/ProcFsTests.cc
   mgm/RoutingTests.cc
   mgm/IdTrackerTests.cc
+  mgm/FsckEntryTests.cc
   mgm/XrdMgmOfsTests.cc)
 
 set(COMMON_UT_SRCS
