@@ -1549,7 +1549,9 @@ FsView::Register(FileSystem* fs, bool registerInGeoTreeEngine)
       // Loop over all attached filesystems and compare the queue path
       for (auto it = mNodeView[snapshot.mQueue]->begin();
            it != mNodeView[snapshot.mQueue]->end(); ++it) {
-        if (FsView::gFsView.mIdView[*it]->GetQueuePath() == snapshot.mQueuePath) {
+
+        FileSystem *fs = FsView::gFsView.mIdView.lookupByID(*it);
+        if(fs && fs->GetQueuePath() == snapshot.mQueuePath) {
           // This queuepath already exists, we cannot register
           eos_err("msg=\"queuepath already registered\" qpath=%s",
                   snapshot.mQueuePath.c_str());
@@ -2997,6 +2999,32 @@ FsView::BroadcastMasterId(const std::string master_id)
 }
 
 //------------------------------------------------------------------------------
+// Should the provided fsid participate in statistics calculations?
+// Yes, if:
+// - The filesystem exists (duh)
+// - The filesystem is at-least-RO, booted and online
+//
+// Call with fsview lock at-least-read locked.
+//------------------------------------------------------------------------------
+bool BaseView::shouldConsiderForStatistics(FileSystem *fs) {
+  if(!fs) return false;
+
+  if(fs->GetConfigStatus() < eos::common::FileSystem::kRO) {
+    return false;
+  }
+
+  if(fs->GetStatus() != eos::common::BootStatus::kBooted) {
+    return false;
+  }
+
+  if(fs->GetActiveStatus() == eos::common::ActiveStatus::kOffline) {
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
 // Computes the sum for <param> as long
 // param="<param>[?<key>=<value] allows to select with matches
 //------------------------------------------------------------------------------
@@ -3185,21 +3213,14 @@ BaseView::MaxAbsDeviation(const char* param, bool lock,
   for(; it.valid(); it.next()) {
     bool consider = true;
 
+    FileSystem *fs = FsView::gFsView.mIdView.lookupByID(*it);
+
     if (mType == "groupview") {
-      // we only count filesystem which are >=kRO and booted for averages in the group view
-      if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
-            eos::common::FileSystem::kRO) ||
-          (FsView::gFsView.mIdView[*it]->GetStatus() !=
-            eos::common::BootStatus::kBooted) ||
-          (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-            eos::common::ActiveStatus::kOffline)) {
-        consider = false;
-      }
+      consider = shouldConsiderForStatistics(fs);
     }
 
-    dev = fabs(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
-
     if (consider) {
+      dev = fabs(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
       if (dev > maxabsdev) {
         maxabsdev = dev;
       }
@@ -3233,21 +3254,14 @@ BaseView::MaxDeviation(const char* param, bool lock,
   for(; it.valid(); it.next()) {
     bool consider = true;
 
+    FileSystem *fs = FsView::gFsView.mIdView.lookupByID(*it);
+
     if (mType == "groupview") {
-      // we only count filesystem which are >=kRO and booted for averages in the group view
-      if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
-            eos::common::FileSystem::kRO) ||
-          (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
-          ||
-          (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-            eos::common::ActiveStatus::kOffline)) {
-        consider = false;
-      }
+      consider = shouldConsiderForStatistics(fs);
     }
 
-    dev = -(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
-
     if (consider) {
+      dev = -(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
       if (dev > maxdev) {
         maxdev = dev;
       }

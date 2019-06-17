@@ -444,6 +444,16 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Should the provided fsid participate in statistics calculations?
+  //! Yes, if:
+  //! - The filesystem exists (duh)
+  //! - The filesystem is at-least-RO, booted and online
+  //!
+  //! Call with fsview lock at-least-read locked.
+  //----------------------------------------------------------------------------
+  bool shouldConsiderForStatistics(FileSystem *fs);
+
+  //----------------------------------------------------------------------------
   //! Calculate the sum of <param> as long long
   //----------------------------------------------------------------------------
   long long
