@@ -371,6 +371,73 @@ GeoTree::const_iterator::operator*() const
 }
 
 //------------------------------------------------------------------------------
+// fsid_iterator: Iterate either over a given subset, or the pLeaves map.
+// Yes this is weird, but we need it for certain BaseView functions.
+//------------------------------------------------------------------------------
+class fsid_iterator {
+public:
+  //----------------------------------------------------------------------------
+  // Constructor. Iterate through subset: if subset is nullptr, iterate through
+  // tree instead.
+  //----------------------------------------------------------------------------
+  fsid_iterator(const std::set<eos::common::FileSystem::fsid_t>* subset,
+    GeoTree *tree) {
+
+    subsetValid = subset != nullptr;
+
+    if(subsetValid) {
+      subsetIter = subset->begin();
+      subsetEnd = subset->end();
+    }
+    else {
+      geotreeIter = tree->begin();
+      geotreeEnd = tree->end();
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // Is the iterator still valid?
+  //----------------------------------------------------------------------------
+  bool valid() const {
+    if(subsetValid) {
+      return subsetIter != subsetEnd;
+    }
+
+    return geotreeIter != geotreeEnd;
+  }
+
+  //----------------------------------------------------------------------------
+  // Advance
+  //----------------------------------------------------------------------------
+  void next() {
+    if(!valid()) return;
+
+    if(subsetValid) {
+      subsetIter++;
+    }
+    else {
+      geotreeIter++;
+    }
+  }
+
+  eos::common::FileSystem::fsid_t operator*() const {
+    if(subsetValid) {
+      return *subsetIter;
+    }
+
+    return *geotreeIter;
+  }
+
+private:
+  bool subsetValid;
+  std::set<eos::common::FileSystem::fsid_t>::const_iterator subsetIter;
+  std::set<eos::common::FileSystem::fsid_t>::const_iterator subsetEnd;
+
+  GeoTree::const_iterator geotreeIter;
+  GeoTree::const_iterator geotreeEnd;
+};
+
+//------------------------------------------------------------------------------
 // Run an aggregator through the tree
 //------------------------------------------------------------------------------
 bool GeoTree::runAggregator(GeoTreeAggregator* aggregator) const
@@ -2969,59 +3036,31 @@ BaseView::SumLongLong(const char* param, bool lock,
     }
   }
 
-  if (subset) {
-    for (auto it = subset->begin(); it != subset->end(); it++) {
-      eos::common::FileSystem::fs_snapshot snapshot;
+  fsid_iterator it(subset, this);
+  for(; it.valid(); it.next()) {
+    eos::common::FileSystem::fs_snapshot snapshot;
 
-      // for query sum's we always fold in that a group and host has to be enabled
-      if ((!key.length())
-          || (FsView::gFsView.mIdView[*it]->GetString(key.c_str()) == value)) {
-        if (isquery &&
-            ((eos::common::FileSystem::GetActiveStatusFromString(
-                FsView::gFsView.mIdView[*it]->GetString("stat.active").c_str())
-              == eos::common::ActiveStatus::kOffline) ||
-             (eos::common::FileSystem::GetStatusFromString(
-                FsView::gFsView.mIdView[*it]->GetString("stat.boot").c_str()) !=
-              eos::common::BootStatus::kBooted))) {
-          continue;
-        }
-
-        long long v = FsView::gFsView.mIdView[*it]->GetLongLong(sparam.c_str());
-
-        if (isquery && v && (sparam == "stat.statfs.capacity")) {
-          // Correct the capacity(rw) value for headroom
-          v -= FsView::gFsView.mIdView[*it]->GetLongLong("headroom");
-        }
-
-        sum += v;
+    // for query sum's we always fold in that a group and host has to be enabled
+    if ((!key.length())
+        || (FsView::gFsView.mIdView[*it]->GetString(key.c_str()) == value)) {
+      if (isquery &&
+          ((eos::common::FileSystem::GetActiveStatusFromString(
+              FsView::gFsView.mIdView[*it]->GetString("stat.active").c_str())
+            == eos::common::ActiveStatus::kOffline) ||
+            (eos::common::FileSystem::GetStatusFromString(
+              FsView::gFsView.mIdView[*it]->GetString("stat.boot").c_str()) !=
+            eos::common::BootStatus::kBooted))) {
+        continue;
       }
-    }
-  } else {
-    for (auto it = begin(); it != end(); ++it) {
-      eos::common::FileSystem::fs_snapshot snapshot;
 
-      // for query sum's we always fold in that a group and host has to be enabled
-      if ((!key.length())
-          || (FsView::gFsView.mIdView[*it]->GetString(key.c_str()) == value)) {
-        if (isquery &&
-            ((eos::common::FileSystem::GetActiveStatusFromString(
-                FsView::gFsView.mIdView[*it]->GetString("stat.active").c_str())
-              == eos::common::ActiveStatus::kOffline) ||
-             (eos::common::FileSystem::GetStatusFromString(
-                FsView::gFsView.mIdView[*it]->GetString("stat.boot").c_str()) !=
-              eos::common::BootStatus::kBooted))) {
-          continue;
-        }
+      long long v = FsView::gFsView.mIdView[*it]->GetLongLong(sparam.c_str());
 
-        long long v = FsView::gFsView.mIdView[*it]->GetLongLong(sparam.c_str());
-
-        if (isquery && v && (sparam == "stat.statfs.capacity")) {
-          // correct the capacity(rw) value for headroom
-          v -= FsView::gFsView.mIdView[*it]->GetLongLong("headroom");
-        }
-
-        sum += v;
+      if (isquery && v && (sparam == "stat.statfs.capacity")) {
+        // Correct the capacity(rw) value for headroom
+        v -= FsView::gFsView.mIdView[*it]->GetLongLong("headroom");
       }
+
+      sum += v;
     }
   }
 
@@ -3070,14 +3109,9 @@ BaseView::SumDouble(const char* param, bool lock,
 
   double sum = 0;
 
-  if (subset) {
-    for (auto it = subset->begin(); it != subset->end(); ++it) {
-      sum += FsView::gFsView.mIdView[*it]->GetDouble(param);
-    }
-  } else {
-    for (auto it = begin(); it != end(); ++it) {
-      sum += FsView::gFsView.mIdView[*it]->GetDouble(param);
-    }
+  fsid_iterator it(subset, this);
+  for(; it.valid(); it.next()) {
+    sum += FsView::gFsView.mIdView[*it]->GetDouble(param);
   }
 
   if (lock) {
@@ -3103,47 +3137,25 @@ BaseView::AverageDouble(const char* param, bool lock,
   double sum = 0;
   int cnt = 0;
 
-  if (subset) {
-    for (auto it = subset->begin(); it != subset->end(); ++it) {
-      bool consider = true;
+  fsid_iterator it(subset, this);
+  for (; it.valid(); it.next()) {
+    bool consider = true;
 
-      if (mType == "groupview") {
-        // we only count filesystem which are >=kRO and booted for averages in the group view
-        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
-             eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
-            ||
-            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::ActiveStatus::kOffline)) {
-          consider = false;
-        }
-      }
-
-      if (consider) {
-        cnt++;
-        sum += FsView::gFsView.mIdView[*it]->GetDouble(param);
+    if (mType == "groupview") {
+      // we only count filesystem which are >=kRO and booted for averages in the group view
+      if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
+            eos::common::FileSystem::kRO) ||
+          (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
+          ||
+          (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
+            eos::common::ActiveStatus::kOffline)) {
+        consider = false;
       }
     }
-  } else {
-    for (auto it = begin(); it != end(); ++it) {
-      bool consider = true;
 
-      if (mType == "groupview") {
-        // we only count filesystem which are >=kRO and booted for averages in the group view
-        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
-             eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
-            ||
-            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::ActiveStatus::kOffline)) {
-          consider = false;
-        }
-      }
-
-      if (consider) {
-        cnt++;
-        sum += FsView::gFsView.mIdView[*it]->GetDouble(param);
-      }
+    if (consider) {
+      cnt++;
+      sum += FsView::gFsView.mIdView[*it]->GetDouble(param);
     }
   }
 
@@ -3169,52 +3181,27 @@ BaseView::MaxAbsDeviation(const char* param, bool lock,
   double maxabsdev = 0;
   double dev = 0;
 
-  if (subset) {
-    for (auto it = subset->begin(); it != subset->end(); ++it) {
-      bool consider = true;
+  fsid_iterator it(subset, this);
+  for(; it.valid(); it.next()) {
+    bool consider = true;
 
-      if (mType == "groupview") {
-        // we only count filesystem which are >=kRO and booted for averages in the group view
-        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
-             eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() !=
-             eos::common::BootStatus::kBooted) ||
-            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::ActiveStatus::kOffline)) {
-          consider = false;
-        }
-      }
-
-      dev = fabs(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
-
-      if (consider) {
-        if (dev > maxabsdev) {
-          maxabsdev = dev;
-        }
+    if (mType == "groupview") {
+      // we only count filesystem which are >=kRO and booted for averages in the group view
+      if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
+            eos::common::FileSystem::kRO) ||
+          (FsView::gFsView.mIdView[*it]->GetStatus() !=
+            eos::common::BootStatus::kBooted) ||
+          (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
+            eos::common::ActiveStatus::kOffline)) {
+        consider = false;
       }
     }
-  } else {
-    for (auto it = begin(); it != end(); ++it) {
-      bool consider = true;
 
-      if (mType == "groupview") {
-        // we only count filesystem which are >=kRO and booted for averages in the group view
-        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
-             eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
-            ||
-            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::ActiveStatus::kOffline)) {
-          consider = false;
-        }
-      }
+    dev = fabs(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
 
-      dev = fabs(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
-
-      if (consider) {
-        if (dev > maxabsdev) {
-          maxabsdev = dev;
-        }
+    if (consider) {
+      if (dev > maxabsdev) {
+        maxabsdev = dev;
       }
     }
   }
@@ -3242,52 +3229,27 @@ BaseView::MaxDeviation(const char* param, bool lock,
   double maxdev = -DBL_MAX;
   double dev = 0;
 
-  if (subset) {
-    for (auto it = subset->begin(); it != subset->end(); ++it) {
-      bool consider = true;
+  fsid_iterator it(subset, this);
+  for(; it.valid(); it.next()) {
+    bool consider = true;
 
-      if (mType == "groupview") {
-        // we only count filesystem which are >=kRO and booted for averages in the group view
-        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
-             eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
-            ||
-            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::ActiveStatus::kOffline)) {
-          consider = false;
-        }
-      }
-
-      dev = -(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
-
-      if (consider) {
-        if (dev > maxdev) {
-          maxdev = dev;
-        }
+    if (mType == "groupview") {
+      // we only count filesystem which are >=kRO and booted for averages in the group view
+      if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
+            eos::common::FileSystem::kRO) ||
+          (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
+          ||
+          (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
+            eos::common::ActiveStatus::kOffline)) {
+        consider = false;
       }
     }
-  } else {
-    for (auto it = begin(); it != end(); ++it) {
-      bool consider = true;
 
-      if (mType == "groupview") {
-        // we only count filesystem which are >=kRO and booted for averages in the group view
-        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
-             eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
-            ||
-            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::ActiveStatus::kOffline)) {
-          consider = false;
-        }
-      }
+    dev = -(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
 
-      dev = -(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
-
-      if (consider) {
-        if (dev > maxdev) {
-          maxdev = dev;
-        }
+    if (consider) {
+      if (dev > maxdev) {
+        maxdev = dev;
       }
     }
   }
@@ -3314,52 +3276,27 @@ BaseView::MinDeviation(const char* param, bool lock,
   double mindev = DBL_MAX;
   double dev = 0;
 
-  if (subset) {
-    for (auto it = subset->begin(); it != subset->end(); ++it) {
-      bool consider = true;
+  fsid_iterator it(subset, this);
+  for(; it.valid(); it.next()) {
+    bool consider = true;
 
-      if (mType == "groupview") {
-        // we only count filesystem which are >=kRO and booted for averages in the group view
-        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
-             eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
-            ||
-            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::ActiveStatus::kOffline)) {
-          consider = false;
-        }
-      }
-
-      dev = -(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
-
-      if (consider) {
-        if (dev < mindev) {
-          mindev = dev;
-        }
+    if (mType == "groupview") {
+      // we only count filesystem which are >=kRO and booted for averages in the group view
+      if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
+          eos::common::FileSystem::kRO) ||
+          (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
+          ||
+          (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
+            eos::common::ActiveStatus::kOffline)) {
+        consider = false;
       }
     }
-  } else {
-    for (auto it = begin(); it != end(); ++it) {
-      bool consider = true;
 
-      if (mType == "groupview") {
-        // we only count filesystem which are >=kRO and booted for averages in the group view
-        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
-             eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
-            ||
-            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::ActiveStatus::kOffline)) {
-          consider = false;
-        }
-      }
+    dev = -(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
 
-      dev = -(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
-
-      if (consider) {
-        if (dev < mindev) {
-          mindev = dev;
-        }
+    if (consider) {
+      if (dev < mindev) {
+        mindev = dev;
       }
     }
   }
@@ -3386,47 +3323,25 @@ BaseView::SigmaDouble(const char* param, bool lock,
   double sumsquare = 0;
   int cnt = 0;
 
-  if (subset) {
-    for (auto it = subset->begin(); it != subset->end(); ++it) {
-      bool consider = true;
+  fsid_iterator it(subset, this);
+  for(; it.valid(); it.next()) {
+    bool consider = true;
 
-      if (mType == "groupview") {
-        // we only count filesystem which are >=kRO and booted for averages in the group view
-        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
-             eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
-            ||
-            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::ActiveStatus::kOffline)) {
-          consider = false;
-        }
-      }
-
-      if (consider) {
-        cnt++;
-        sumsquare += pow((avg - FsView::gFsView.mIdView[*it]->GetDouble(param)), 2);
+    if (mType == "groupview") {
+      // we only count filesystem which are >=kRO and booted for averages in the group view
+      if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
+            eos::common::FileSystem::kRO) ||
+          (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
+          ||
+          (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
+            eos::common::ActiveStatus::kOffline)) {
+        consider = false;
       }
     }
-  } else {
-    for (auto it = begin(); it != end(); ++it) {
-      bool consider = true;
 
-      if (mType == "groupview") {
-        // we only count filesystem which are >=kRO and booted for averages in the group view
-        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
-             eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
-            ||
-            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::ActiveStatus::kOffline)) {
-          consider = false;
-        }
-      }
-
-      if (consider) {
-        cnt++;
-        sumsquare += pow((avg - FsView::gFsView.mIdView[*it]->GetDouble(param)), 2);
-      }
+    if (consider) {
+      cnt++;
+      sumsquare += pow((avg - FsView::gFsView.mIdView[*it]->GetDouble(param)), 2);
     }
   }
 
@@ -3452,47 +3367,27 @@ BaseView::ConsiderCount(bool lock,
 
   long long cnt = 0;
 
-  if (subset) {
-    for (auto it = subset->begin(); it != subset->end(); ++it) {
-      bool consider = true;
+  fsid_iterator it(subset, this);
+  for(; it.valid(); it.next()) {
+    bool consider = true;
 
-      if (mType == "groupview") {
-        // we only count filesystem which are >=kRO and booted for averages in the group view
-        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
-             eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
-            ||
-            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::ActiveStatus::kOffline)) {
-          consider = false;
-        }
-      }
-
-      if (consider) {
-        cnt++;
+    if (mType == "groupview") {
+      // we only count filesystem which are >=kRO and booted for averages in the group view
+      if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
+            eos::common::FileSystem::kRO) ||
+          (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
+          ||
+          (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
+            eos::common::ActiveStatus::kOffline)) {
+        consider = false;
       }
     }
-  } else {
-    for (auto it = begin(); it != end(); ++it) {
-      bool consider = true;
 
-      if (mType == "groupview") {
-        // we only count filesystem which are >=kRO and booted for averages in the group view
-        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
-             eos::common::FileSystem::kRO) ||
-            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
-            ||
-            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-             eos::common::ActiveStatus::kOffline)) {
-          consider = false;
-        }
-      }
-
-      if (consider) {
-        cnt++;
-      }
+    if (consider) {
+      cnt++;
     }
   }
+
 
   if (lock) {
     FsView::gFsView.ViewMutex.UnLockRead();
