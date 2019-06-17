@@ -33,6 +33,22 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+//----------------------------------------------------------------------------
+//! Constructor
+//----------------------------------------------------------------------------
+FsckEntry::FsckEntry(eos::IFileMD::id_t fid,
+                     eos::common::FileSystem::fsid_t fsid_err,
+                     const std::string& expected_err):
+  mFid(fid), mFsidErr(fsid_err),
+  mReportedErr(ConvertToFsckErr(expected_err))
+{
+  mMapRepairOps = {
+    {FsckErr::MgmXsDiff, {&FsckEntry::RepairMgmXsDiff}},
+    {FsckErr::FstXsDiff, {&FsckEntry::RepairFstXsDiff}}
+  };
+}
+
+
 //------------------------------------------------------------------------------
 // Collect MGM file metadata information
 //------------------------------------------------------------------------------
@@ -80,24 +96,14 @@ FsckEntry::RepairMgmXsDiff()
     auto& finfo = it->second;
 
     if (xs_val.empty()) {
-      if (!finfo->mScanXs.empty()) {
-        xs_val = finfo->mScanXs;
-      } else {
-        xs_val = finfo->mFstFmd.checksum();
-      }
+      xs_val = finfo->mFstFmd.diskchecksum();
 
       if (mgm_xs_val == xs_val) {
         mgm_xs_match = true;
         break;
       }
     } else {
-      std::string current_xs_val;
-
-      if (!finfo->mScanXs.empty()) {
-        current_xs_val = finfo->mScanXs;
-      } else {
-        current_xs_val = finfo->mFstFmd.checksum();
-      }
+      std::string current_xs_val = finfo->mFstFmd.diskchecksum();
 
       if (mgm_xs_val == current_xs_val) {
         mgm_xs_match = true;
@@ -160,14 +166,13 @@ FsckEntry::RepairFstXsDiff()
 std::list<RepairFnT>
 FsckEntry::GenerateRepairWokflow()
 {
-  std::list<RepairFnT> repair_ops;
+  auto it = mMapRepairOps.find(mReportedErr);
 
-  if (mReportedErr == FsckErr::MgmXsDiff) {
-    repair_ops.push_back(&FsckEntry::RepairMgmXsDiff);
-  } else if (mReportedErr == FsckErr::FstXsDiff) {
+  if (it == mMapRepairOps.end()) {
+    return {};
   }
 
-  return repair_ops;
+  return it->second;
 }
 
 //------------------------------------------------------------------------------
@@ -241,11 +246,6 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
   if (!GetFstFmd(finfo, fs, fsid)) {
     return;
   }
-
-  // Collect possible scan checksum information
-  if (!GetXattr(finfo, fs, fsid, "user.scanchecksumhex")) {
-    return;
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -295,47 +295,6 @@ FsckEntry::GetFstFmd(std::unique_ptr<FstFileInfoT>& finfo,
     return false;
   }
 
-  return true;
-}
-
-//------------------------------------------------------------------------------
-// Get extended attribute concerning the current file entry
-//------------------------------------------------------------------------------
-bool
-FsckEntry::GetXattr(std::unique_ptr<FstFileInfoT>& finfo, XrdCl::FileSystem& fs,
-                    eos::common::FileSystem::fsid_t fsid, const std::string& key)
-{
-  XrdCl::Buffer* raw_response {nullptr};
-  std::unique_ptr<XrdCl::Buffer> response(raw_response);
-  // Create query command for file metadata
-  std::ostringstream oss;
-  oss << "/?fst.pcmd=getxattr&fst.getxattr.key=" << key
-      << "&fst.getxattr.path=" << finfo->mLocalPath;
-  XrdCl::Buffer arg;
-  arg.FromString(oss.str().c_str());
-  uint16_t timeout = 10;
-  XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
-                                        raw_response, timeout);
-
-  if (!status.IsOK()) {
-    if (status.code == XrdCl::errOperationExpired) {
-      eos_err("msg=\"timeout xattr info query\" fsid=%lu", fsid);
-      finfo->mFstErr = FstErr::NoContact;
-    } else {
-      eos_err("msg=\"failed xattr info query\" fsid=%lu", fsid);
-      finfo->mFstErr = FstErr::NoXattrInfo;
-    }
-
-    return false;
-  }
-
-  if ((response == nullptr) ||
-      (strncmp(response->GetBuffer(), "ERROR", 5) == 0)) {
-    finfo->mFstErr = FstErr::NoXattrInfo;
-    return false;
-  }
-
-  finfo->mScanXs = response->GetBuffer();
   return true;
 }
 
