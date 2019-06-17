@@ -334,7 +334,7 @@ public:
   //!
   //! @param tag type of simulation error
   //----------------------------------------------------------------------------
-  void SetSimulationError(const char* tag);
+  void SetSimulationError(const std::string& tag);
 
   //----------------------------------------------------------------------------
   //! Request broadcasts from all the registered queues
@@ -396,11 +396,13 @@ private:
   //! Xrd connection pool for interaction with the MGM, used from CallManager
   std::unique_ptr<eos::common::XrdConnPool> mMgmXrdPool;
   HttpServer* mHttpd; ///< Embedded http server
-  bool Simulate_IO_read_error; ///< simulate an IO error on read
-  bool Simulate_IO_write_error; ///< simulate an IO error on write
-  bool Simulate_XS_read_error; ///< simulate a checksum error on read
-  bool Simulate_XS_write_error; ///< simulate a checksum error on write
-  bool Simulate_FMD_open_error; ///< simulate a fmd mismatch error on open
+  std::atomic<bool> mSimIoReadErr; ///< simulate an IO error on read
+  std::atomic<bool> mSimIoWriteErr; ///< simulate an IO error on write
+  std::atomic<bool> mSimXsReadErr; ///< simulate a checksum error on read
+  std::atomic<bool> mSimXsWriteErr; ///< simulate a checksum error on write
+  std::atomic<bool> mSimFmdOpenErr; ///< simulate a fmd mismatch error on open
+  std::atomic<uint64_t> mSimErrIoReadOff; ///< Simulate IO error offset on rd
+  std::atomic<uint64_t> mSimErrIoWriteOff;///< Simulate IO error offset on wr
 
   //----------------------------------------------------------------------------
   //! Information saved for TPC transfers
@@ -431,6 +433,17 @@ private:
   //!         is unavailable
   //----------------------------------------------------------------------------
   std::string GetKeytabChecksum(const std::string& kt_path) const;
+
+  //----------------------------------------------------------------------------
+  //! Get simulation error offset. Parse the last characters and return the
+  //! desired offset e.g. io_read_8M should return 8MB
+  //!
+  //! @param input string encoding the error type and optionally the offset
+  //!
+  //! @return return offset from which the error should be reported or 0 if no
+  //!         such offset if provided
+  //----------------------------------------------------------------------------
+  uint64_t GetSimulationErrorOffset(const std::string& input) const;
 };
 
 //------------------------------------------------------------------------------

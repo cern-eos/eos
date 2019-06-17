@@ -356,15 +356,19 @@ com_node_usage:
   fprintf(stdout,
           "                                                               <key> : error.simulation=io_read|io_write|xs_read|xs_write|fmd_open\n");
   fprintf(stdout,
-          "                                                                       io_read  : simulate read  errors\n");
+          "                                                                       If offset is given the the error will get triggered for request past the given value.\n");
   fprintf(stdout,
-          "                                                                       io_write : simulate write errors\n");
+          "                                                                       Accepted format for offset: 8B, 10M, 20G etc.\n");
   fprintf(stdout,
-          "                                                                       xs_read  : simulate checksum errors when reading a file\n");
+          "                                                                       io_read[_<offset>]  : simulate read  errors\n");
   fprintf(stdout,
-          "                                                                       xs_write : simulate checksum errors when writing a file\n");
+          "                                                                       io_write[_<offset>] : simulate write errors\n");
   fprintf(stdout,
-          "                                                                       fmd_open : simulate a file metadata mismatch when opening a file\n");
+          "                                                                       xs_read             : simulate checksum errors when reading a file\n");
+  fprintf(stdout,
+          "                                                                       xs_write            : simulate checksum errors when writing a file\n");
+  fprintf(stdout,
+          "                                                                       fmd_open            : simulate a file metadata mismatch when opening a file\n");
   fprintf(stdout,
           "                                                                       <none>   : disable error simulation (every value than the previous ones are fine!)\n");
   fprintf(stdout,

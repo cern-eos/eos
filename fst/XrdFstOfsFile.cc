@@ -424,8 +424,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   fMd = gFmdDbMapHandler.LocalGetFmd(mFileId, mFsId, vid.uid, vid.gid, mLid, isRW,
                                      isRepairRead);
 
-  if ((!fMd) || gOFS.Simulate_FMD_open_error) {
-    if (!gOFS.Simulate_FMD_open_error) {
+  if ((!fMd) || gOFS.mSimFmdOpenErr) {
+    if (!gOFS.mSimFmdOpenErr) {
       // Get the layout object
       if (gFmdDbMapHandler.ResyncMgm(mFsId, mFileId, mRedirectManager.c_str())) {
         eos_info("msg=\"resync ok\" fsid=%lu fid=%08llx", (unsigned long) mFsId,
@@ -438,7 +438,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       }
     }
 
-    if ((!fMd) || gOFS.Simulate_FMD_open_error) {
+    if ((!fMd) || gOFS.mSimFmdOpenErr) {
       eos_err("msg=\"no FMD record found\" fid=%08llx fsid=%lu", mFileId, mFsId);
 
       if ((!isRW) || (layOut->IsEntryServer() && (!isReplication))) {
@@ -559,7 +559,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   // If we are not the entry server for RAIN layouts we disable the checksum
   // object for write. If we read we don't check checksums at all since we
   // have block and parity checking.
-  if (eos::common::LayoutId::IsRainLayout(mLid) && ((!isRW) || (!layOut->IsEntryServer()))) {
+  if (eos::common::LayoutId::IsRainLayout(mLid) && ((!isRW) ||
+      (!layOut->IsEntryServer()))) {
     mCheckSum.reset(nullptr);
   }
 
@@ -1087,7 +1088,7 @@ XrdFstOfsFile::close()
       if (isCreation) {
         // If we had space allocation we have to truncate the allocated space to
         // the real size of the file
-	if (eos::common::LayoutId::IsRainLayout(layOut->GetLayoutId())) {
+        if (eos::common::LayoutId::IsRainLayout(layOut->GetLayoutId())) {
           // the entry server has to truncate only if this is not a recovery action
           if (layOut->IsEntryServer() && !mRainReconstruct) {
             eos_info("msg=\"truncate RAIN layout\" truncate-offset=%llu",
@@ -1133,15 +1134,15 @@ XrdFstOfsFile::close()
                 checksumerror, targetsizeerror, maxOffsetWritten, mTargetSize);
 
       // ---- add error simulation for checksum errors on read
-      if ((!isRW) && gOFS.Simulate_XS_read_error) {
+      if ((!isRW) && gOFS.mSimXsReadErr) {
         checksumerror = true;
-        eos_warning("simlating checksum errors on read");
+        eos_warning("msg=\"simulating checksum errors on read\"");
       }
 
       // ---- add error simulation for checksum errors on write
-      if (isRW && gOFS.Simulate_XS_write_error) {
+      if (isRW && gOFS.mSimXsWriteErr) {
         checksumerror = true;
-        eos_warning("simlating checksum errors on write");
+        eos_warning("msg=\"simulating checksum errors on write\"");
       }
 
       if (isRW && (checksumerror || targetsizeerror || minimumsizeerror)) {
@@ -1291,13 +1292,13 @@ XrdFstOfsFile::close()
                 // The entry server commits size and checksum
                 capOpaqueFile += "&mgm.commit.size=1&mgm.commit.checksum=1";
               } else {
-		if (mCheckSum ) {
-		  // if we computed a checksum, we verify it
-		  capOpaqueFile += "&mgm.replication=1&mgm.verify.checksum=1";
-		} else {
-		  // if we didn't compute a checksum, we disable checksum verification
-		  capOpaqueFile += "&mgm.replication=1&mgm.verify.checksum=0";
-		}
+                if (mCheckSum) {
+                  // if we computed a checksum, we verify it
+                  capOpaqueFile += "&mgm.replication=1&mgm.verify.checksum=1";
+                } else {
+                  // if we didn't compute a checksum, we disable checksum verification
+                  capOpaqueFile += "&mgm.replication=1&mgm.verify.checksum=0";
+                }
               }
             }
 
@@ -1698,9 +1699,11 @@ XrdFstOfsFile::close()
             eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS,
             eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR, nullptr);
         std::string errMsgBackFromWfEndpoint;
-        const int notifyRc = NotifyProtoWfEndPointClosew(fMd->mProtoFmd, mEventOwnerUid, mEventOwnerGid,
-            mEventRequestor, mEventRequestorGroup, mEventInstance, mCapOpaque->Get("mgm.path"),
-            mCapOpaque->Get("mgm.manager"), attributes, errMsgBackFromWfEndpoint);
+        const int notifyRc = NotifyProtoWfEndPointClosew(fMd->mProtoFmd, mEventOwnerUid,
+                             mEventOwnerGid,
+                             mEventRequestor, mEventRequestorGroup, mEventInstance,
+                             mCapOpaque->Get("mgm.path"),
+                             mCapOpaque->Get("mgm.manager"), attributes, errMsgBackFromWfEndpoint);
 
         if (0 == notifyRc) {
           this->error.setErrCode(0);
@@ -1767,10 +1770,12 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
   int rc = XrdOfsFile::read(fileOffset, buffer, buffer_size);
   eos_debug("read %llu %llu %i rc=%d", this, fileOffset, buffer_size, rc);
 
-  if (gOFS.Simulate_IO_read_error) {
-    return gOFS.Emsg("readofs", error, EIO, "read file - simulated IO error fn=",
-                     mCapOpaque ? (mCapOpaque->Get("mgm.path") ?
-                                   mCapOpaque->Get("mgm.path") : FName()) : FName());
+  if (gOFS.mSimIoReadErr) {
+    if ((gOFS.mSimErrIoReadOff == 0) ||
+        (gOFS.mSimErrIoReadOff >= (uint64_t)fileOffset)) {
+      return gOFS.Emsg("readofs", error, EIO, "read file - simulated IO error fn=",
+                       mNsPath.c_str());
+    }
   }
 
   // Account seeks for monitoring
@@ -1954,11 +1959,13 @@ XrdSfsXferSize
 XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
                         XrdSfsXferSize buffer_size)
 {
-  if (gOFS.Simulate_IO_write_error) {
-    writeErrorFlag = kOfsSimulatedIoError;
-    return gOFS.Emsg("writeofs", error, EIO, "write file - simulated IO error fn=",
-                     mCapOpaque ? (mCapOpaque->Get("mgm.path") ?
-                                   mCapOpaque->Get("mgm.path") : FName()) : FName());
+  if (gOFS.mSimIoWriteErr) {
+    if ((gOFS.mSimErrIoWriteOff == 0) ||
+        (gOFS.mSimErrIoWriteOff >= (uint64_t)fileOffset)) {
+      writeErrorFlag = kOfsSimulatedIoError;
+      return gOFS.Emsg("writeofs", error, EIO, "write file - simulated IO error fn=",
+                       mNsPath.c_str());
+    }
   }
 
   if (mFsId) {
@@ -3228,19 +3235,27 @@ XrdFstOfsFile::ExtractLogId(const char* opaque) const
 //------------------------------------------------------------------------------
 int
 XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd, uint32_t ownerUid,
-  uint32_t ownerGid, const string& requestorName, const string& requestorGroupName,
-  const string& instanceName, const string& fullPath, const string& managerName,
-  const std::map<std::string, std::string>& xattrs, string& errMsgBack)
+    uint32_t ownerGid, const string& requestorName,
+    const string& requestorGroupName,
+    const string& instanceName, const string& fullPath, const string& managerName,
+    const std::map<std::string, std::string>& xattrs, string& errMsgBack)
 {
   using namespace eos::common;
-
   // Convert uid and gid to strings (DEPRECATED)
   int errc = 0;
   std::string ownerName = Mapping::UidToUserName(ownerUid, errc);
-  if (errc != 0) { ownerName = "nobody"; errc = 0; }
+
+  if (errc != 0) {
+    ownerName = "nobody";
+    errc = 0;
+  }
 
   std::string ownerGroupName = Mapping::GidToGroupName(ownerGid, errc);
-  if (errc != 0) { ownerGroupName = "nobody"; errc = 0; }
+
+  if (errc != 0) {
+    ownerGroupName = "nobody";
+    errc = 0;
+  }
 
   cta::xrd::Request request;
   auto notification = request.mutable_notification();
@@ -3250,17 +3265,23 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd, uint32_t ownerUid,
   notification->mutable_file()->mutable_owner()->set_gid(ownerGid);
   notification->mutable_file()->set_size(fmd.size());
   // Insert a single checksum into the checksum blob
-  CtaCommon::SetChecksum(notification->mutable_file()->mutable_csb()->add_cs(), fmd.lid(), fmd.checksum());
+  CtaCommon::SetChecksum(notification->mutable_file()->mutable_csb()->add_cs(),
+                         fmd.lid(), fmd.checksum());
   notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
   notification->mutable_wf()->mutable_instance()->set_name(instanceName);
   notification->mutable_file()->set_lpath(fullPath);
   notification->mutable_file()->set_fid(fmd.fid());
   // The 4 entries below will be deleted
-  notification->mutable_file()->mutable_owner()->set_username(ownerName); // DEPRECATED
-  notification->mutable_file()->mutable_owner()->set_groupname(ownerGroupName); // DEPRECATED
-  notification->mutable_file()->mutable_cks()->set_type(eos::common::LayoutId::GetChecksumString(fmd.lid())); // DEPRECATED
-  notification->mutable_file()->mutable_cks()->set_value(fmd.checksum()); // DEPRECATED
-  auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(fmd.fid());
+  notification->mutable_file()->mutable_owner()->set_username(
+    ownerName); // DEPRECATED
+  notification->mutable_file()->mutable_owner()->set_groupname(
+    ownerGroupName); // DEPRECATED
+  notification->mutable_file()->mutable_cks()->set_type(
+    eos::common::LayoutId::GetChecksumString(fmd.lid())); // DEPRECATED
+  notification->mutable_file()->mutable_cks()->set_value(
+    fmd.checksum()); // DEPRECATED
+  auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(
+                      fmd.fid());
   std::string ctaArchiveFileId = "none";
 
   for (const auto& attrPair : xattrs) {

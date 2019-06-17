@@ -121,9 +121,9 @@ EOSFSTNAMESPACE_BEGIN
 XrdFstOfs::XrdFstOfs() :
   eos::common::LogId(), mHostName(NULL), mMqOnQdb(false),
   mHttpd(0),
-  Simulate_IO_read_error(false), Simulate_IO_write_error(false),
-  Simulate_XS_read_error(false), Simulate_XS_write_error(false),
-  Simulate_FMD_open_error(false)
+  mSimIoReadErr(false), mSimIoWriteErr(false), mSimXsReadErr(false),
+  mSimXsWriteErr(false), mSimFmdOpenErr(false), mSimErrIoReadOff(0ull),
+  mSimErrIoWriteOff(0ull)
 {
   Eroute = 0;
   Messaging = 0;
@@ -245,7 +245,6 @@ XrdFstOfs::xrdfstofs_coverage(int sig)
   __gcov_flush();
   return;
 #endif
-
   eos_static_notice("msg=\"compiled without coverage support\"");
 }
 
@@ -825,24 +824,45 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 // Define error bool variables to en-/disable error simulation in the OFS layer
 //------------------------------------------------------------------------------
 void
-XrdFstOfs::SetSimulationError(const char* tag)
+XrdFstOfs::SetSimulationError(const std::string& input)
 {
-  XrdOucString stag = tag;
-  gOFS.Simulate_IO_read_error = gOFS.Simulate_IO_write_error = false;
-  gOFS.Simulate_XS_read_error = gOFS.Simulate_XS_write_error = false;
-  gOFS.Simulate_FMD_open_error = false;
+  mSimIoReadErr = mSimIoWriteErr = mSimXsReadErr =
+                                     mSimXsWriteErr = mSimFmdOpenErr = false;
+  mSimErrIoReadOff = mSimErrIoWriteOff = 0ull;
 
-  if (stag == "io_read") {
-    gOFS.Simulate_IO_read_error = true;
-  } else if (stag == "io_write") {
-    gOFS.Simulate_IO_write_error = true;
-  } else if (stag == "xs_read") {
-    gOFS.Simulate_XS_read_error = true;
-  } else if (stag == "xs_write") {
-    gOFS.Simulate_XS_write_error = true;
-  } else if (stag == "fmd_open") {
-    gOFS.Simulate_FMD_open_error = true;
+  if (input.find("io_read") == 0) {
+    mSimIoReadErr = true;
+    mSimErrIoReadOff = GetSimulationErrorOffset(input);
+  } else if (input.find("io_write") == 0) {
+    mSimIoWriteErr = true;
+    mSimErrIoWriteOff = GetSimulationErrorOffset(input);
+  } else if (input.find("xs_read") == 0) {
+    mSimXsReadErr = true;
+  } else if (input.find("xs_write") == 0) {
+    mSimXsWriteErr = true;
+  } else if (input.find("fmd_open") == 0) {
+    mSimFmdOpenErr = true;
   }
+}
+
+//------------------------------------------------------------------------------
+// Get simulation error offset. Parse the last characters and return the
+// desired offset e.g. io_read_8M should return 8MB
+//-----------------------------------------------------------------------------
+uint64_t
+XrdFstOfs::GetSimulationErrorOffset(const std::string& input) const
+{
+  uint64_t offset {0ull};
+  size_t num = std::count(input.begin(), input.end(), '_');
+
+  if ((num < 2) || (*input.rbegin() == '_')) {
+    return offset;
+  }
+
+  size_t pos = input.rfind('_');
+  std::string soff = input.substr(pos + 1);
+  offset = eos::common::StringConversion::GetDataSizeFromString(soff.c_str());
+  return offset;
 }
 
 //------------------------------------------------------------------------------
