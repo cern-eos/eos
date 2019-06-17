@@ -273,22 +273,33 @@ VstMessaging::PublishVst()
 
     if (FsView::gFsView.mSpaceView.count("default")) {
       freebytes =
-        FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes?configstatus@rw");
+        FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes?configstatus@rw",
+            false);
       freefiles =
-        FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree?configstatus@rw");
+        FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree?configstatus@rw",
+            false);
       maxbytes =
-        FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity?configstatus@rw");
+        FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity?configstatus@rw",
+            false);
       maxfiles =
-        FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.files?configstatus@rw");
-      ethin = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.net.inratemib");
-      ethout = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.net.outratemib");
-      diskin = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.disk.readratemb");
-      diskout = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.disk.writeratemb");
-      ropen = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.ropen");
-      wopen = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.wopen");
-      nfsrw = FsView::gFsView.mSpaceView["default"]->SumLongLong("<n>?configstatus@rw");
-      iops = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.disk.iops?configstatus@rw");
-      bw = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.disk.bw?configstatus@rw");
+        FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.files?configstatus@rw",
+            false);
+      ethin = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.net.inratemib",
+              false);
+      ethout = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.net.outratemib",
+               false);
+      diskin = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.disk.readratemb",
+               false);
+      diskout = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.disk.writeratemb",
+                false);
+      ropen = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.ropen", false);
+      wopen = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.wopen", false);
+      nfsrw = FsView::gFsView.mSpaceView["default"]->SumLongLong("<n>?configstatus@rw",
+              false);
+      iops = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.disk.iops?configstatus@rw",
+             false);
+      bw = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.disk.bw?configstatus@rw",
+           false);
     }
   }
   {
