@@ -3169,21 +3169,14 @@ BaseView::AverageDouble(const char* param, bool lock,
   for (; it.valid(); it.next()) {
     bool consider = true;
 
+    FileSystem *fs = FsView::gFsView.mIdView.lookupByID(*it);
     if (mType == "groupview") {
-      // we only count filesystem which are >=kRO and booted for averages in the group view
-      if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
-            eos::common::FileSystem::kRO) ||
-          (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
-          ||
-          (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-            eos::common::ActiveStatus::kOffline)) {
-        consider = false;
-      }
+      consider = shouldConsiderForStatistics(fs);
     }
 
     if (consider) {
       cnt++;
-      sum += FsView::gFsView.mIdView[*it]->GetDouble(param);
+      sum += fs->GetDouble(param);
     }
   }
 
@@ -3220,7 +3213,7 @@ BaseView::MaxAbsDeviation(const char* param, bool lock,
     }
 
     if (consider) {
-      dev = fabs(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
+      dev = fabs(avg - fs->GetDouble(param));
       if (dev > maxabsdev) {
         maxabsdev = dev;
       }
@@ -3261,7 +3254,7 @@ BaseView::MaxDeviation(const char* param, bool lock,
     }
 
     if (consider) {
-      dev = -(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
+      dev = -(avg - fs->GetDouble(param));
       if (dev > maxdev) {
         maxdev = dev;
       }
@@ -3294,21 +3287,14 @@ BaseView::MinDeviation(const char* param, bool lock,
   for(; it.valid(); it.next()) {
     bool consider = true;
 
+    FileSystem *fs = FsView::gFsView.mIdView.lookupByID(*it);
+
     if (mType == "groupview") {
-      // we only count filesystem which are >=kRO and booted for averages in the group view
-      if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
-          eos::common::FileSystem::kRO) ||
-          (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
-          ||
-          (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-            eos::common::ActiveStatus::kOffline)) {
-        consider = false;
-      }
+      consider = shouldConsiderForStatistics(fs);
     }
 
-    dev = -(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
-
     if (consider) {
+      dev = -(avg - fs->GetDouble(param));
       if (dev < mindev) {
         mindev = dev;
       }
@@ -3341,21 +3327,15 @@ BaseView::SigmaDouble(const char* param, bool lock,
   for(; it.valid(); it.next()) {
     bool consider = true;
 
+    FileSystem *fs = FsView::gFsView.mIdView.lookupByID(*it);
+
     if (mType == "groupview") {
-      // we only count filesystem which are >=kRO and booted for averages in the group view
-      if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
-            eos::common::FileSystem::kRO) ||
-          (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
-          ||
-          (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-            eos::common::ActiveStatus::kOffline)) {
-        consider = false;
-      }
+      consider = shouldConsiderForStatistics(fs);
     }
 
     if (consider) {
       cnt++;
-      sumsquare += pow((avg - FsView::gFsView.mIdView[*it]->GetDouble(param)), 2);
+      sumsquare += pow((avg - fs->GetDouble(param)), 2);
     }
   }
 
@@ -3385,16 +3365,10 @@ BaseView::ConsiderCount(bool lock,
   for(; it.valid(); it.next()) {
     bool consider = true;
 
+    FileSystem *fs = FsView::gFsView.mIdView.lookupByID(*it);
+
     if (mType == "groupview") {
-      // we only count filesystem which are >=kRO and booted for averages in the group view
-      if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
-            eos::common::FileSystem::kRO) ||
-          (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::BootStatus::kBooted)
-          ||
-          (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
-            eos::common::ActiveStatus::kOffline)) {
-        consider = false;
-      }
+      consider = shouldConsiderForStatistics(fs);
     }
 
     if (consider) {
