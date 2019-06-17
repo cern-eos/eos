@@ -393,50 +393,53 @@ com_attr_usage:
           "'[eos] attr ..' provides the extended attribute interface for directories in EOS.\n");
   fprintf(stdout, "Usage: attr [OPTIONS] ls|set|get|rm ...\n");
   fprintf(stdout, "Options:\n");
-  fprintf(stdout, "attr [-r] ls <path> :\n");
+  fprintf(stdout, "attr [-r] ls <identifier> :\n");
   fprintf(stdout,
           "                                                : list attributes of path\n");
   fprintf(stdout, " -r : list recursive on all directory children\n");
-  fprintf(stdout, "attr [-r] set <key>=<value> <path> :\n");
+  fprintf(stdout, "attr [-r] set <key>=<value> <identifier> :\n");
   fprintf(stdout,
           "                                                : set attributes of path (-r recursive)\n");
   fprintf(stdout,
-          "attr [-r] set default=replica|raiddp|raid5|raid6|archive|qrain <path> :\n");
+          "attr [-r] set default=replica|raiddp|raid5|raid6|archive|qrain <identifier> :\n");
   fprintf(stdout,
-          "                                                : set attributes of path (-r recursive) to the EOS defaults for replicas,dual-parity-raid (4+2), raid-6 (4+2) or archive layouts (5+3).\n");
+          "                                                : set attributes of path (-r recursive) to the EOS defaults for replicas, dual-parity-raid (4+2), raid-6 (4+2) or archive layouts (5+3).\n");
   //  fprintf(stdout,"attr [-r] set default=reeds <path> :\n");
   //  fprintf(stdout,"                                                : set attributes of path (-r recursive) to the EOS defaults for reed solomon (4+2).\n");
   fprintf(stdout, " -r : set recursive on all directory children\n");
-  fprintf(stdout, "attr [-r] get <key> <path> :\n");
+  fprintf(stdout, "attr [-r] get <key> <identifier> :\n");
   fprintf(stdout,
           "                                                : get attributes of path (-r recursive)\n");
   fprintf(stdout, " -r : get recursive on all directory children\n");
-  fprintf(stdout, "attr [-r] rm  <key> <path> :\n");
+  fprintf(stdout, "attr [-r] rm  <key> <identifier> :\n");
   fprintf(stdout,
           "                                                : delete attributes of path (-r recursive)\n\n");
   fprintf(stdout, " -r : delete recursive on all directory children\n");
-  fprintf(stdout, "attr [-r] link <origin> <path> :\n");
+  fprintf(stdout, "attr [-r] link <origin> <identifier> :\n");
   fprintf(stdout,
-          "                                                : link attributes of <origin> under the attributes of <path> (-r recursive)\n\n");
+          "                                                : link attributes of <origin> under the attributes of <identifier> (-r recursive)\n\n");
   fprintf(stdout, " -r : apply recursive on all directory children\n");
-  fprintf(stdout, "attr [-r] unlink <path> :\n");
+  fprintf(stdout, "attr [-r] unlink <identifier> :\n");
   fprintf(stdout,
-          "                                                : remove attribute link of <path> (-r recursive)\n\n");
+          "                                                : remove attribute link of <identifier> (-r recursive)\n\n");
   fprintf(stdout, " -r : apply recursive on all directory children\n");
-  fprintf(stdout, "attr [-r] fold <path> :\n");
+  fprintf(stdout, "attr [-r] fold <identifier> :\n");
   fprintf(stdout,
-          "                                                : fold attributes of <path> if an attribute link is defined (-r recursive)\n\n");
+          "                                                : fold attributes of <identifier> if an attribute link is defined (-r recursive)\n\n");
   fprintf(stdout,
           "                                                  all attributes which are identical to the origin-link attributes are removed locally\n");
-  fprintf(stdout, " -r : apply recursive on all directory children\n");
+  fprintf(stdout, " -r : apply recursive on all directory children\n\n");
+  fprintf(stdout, "Remarks:\n");
   fprintf(stdout,
-          "If <key> starts with 'sys.' you have to be member of the sudoer group to see this attributes or modify.\n\n");
+          "         <identifier> = <path>|fid:<fid-dec>|fxid:<fid-hex>|pid:<pid-dec>|pxid:<pid-hex>\n");
+  fprintf(stdout,
+          "         If <key> starts with 'sys.' you have to be member of the sudoers group to see this attributes or modify.\n\n");
   fprintf(stdout, "Administrator Variables:\n");
   // ---------------------------------------------------------------------------
   fprintf(stdout,
-          "         sys.forced.space=<space>              : enforces to use <space>    [configuration dependend]\n");
+          "         sys.forced.space=<space>              : enforces to use <space>    [configuration dependent]\n");
   fprintf(stdout,
-          "         sys.forced.group=<group>              : enforces to use <group>, where <group> is the numerical index of <space>.<n>    [configuration dependend]\n");
+          "         sys.forced.group=<group>              : enforces to use <group>, where <group> is the numerical index of <space>.<n>    [configuration dependent]\n");
   //  fprintf(stdout,"         sys.forced.layout=<layout>            : enforces to use <layout>   [<layout>=(plain,replica,raiddp,reeds)]\n");
   fprintf(stdout,
           "         sys.forced.layout=<layout>            : enforces to use <layout>   [<layout>=(plain,replica,raid5,raid6,archive,qrain)]\n");
@@ -447,7 +450,7 @@ com_attr_usage:
   fprintf(stdout,
           "         sys.forced.blockchecksum=<checksum>   : enforces to use block-level checksum <checksum>\n");
   fprintf(stdout,
-          "                                              <checksuM> = adler,crc32,crc32c,md5,sha\n");
+          "                                              <checksum> = adler,crc32,crc32c,md5,sha\n");
   fprintf(stdout,
           "         sys.forced.nstripes=<n>               : enforces to use <n> stripes[<n>= 1..16]\n");
   fprintf(stdout,
@@ -483,7 +486,7 @@ com_attr_usage:
   fprintf(stdout,
           "                                               : defines the rule that files with a given match will be removed if \n");
   fprintf(stdout,
-          "                                                 they havn't been accessed longer than <age> ago. <age> is defined like 3600,3600s,60min,1h,1mo,y ...\n");
+          "                                                 they haven't been accessed longer than <age> ago. <age> is defined like 3600,3600s,60min,1h,1mo,1y...\n");
   fprintf(stdout,
           "         sys.lru.watermark=<low>:<high>        : if the watermark reaches more than <high> %%, files will be removed \n");
   fprintf(stdout,
@@ -501,16 +504,16 @@ com_attr_usage:
   fprintf(stdout,
           "         sys.redirect.enoent=<host[:port]>     : redirect clients opening non existing files to <host[:port]>\n");
   fprintf(stdout,
-          "               => hence this variable has to be set on the directory at level 2 in the eos namespace e.g. /eog/public \n\n");
+          "               => hence this variable has to be set on the directory at level 2 in the eos namespace e.g. /eos/public \n\n");
   fprintf(stdout,
-          "         sys.redirect.enonet=<host[:port]>     : redirect clients opening unaccessible files to <host[:port]>\n");
+          "         sys.redirect.enonet=<host[:port]>     : redirect clients opening inaccessible files to <host[:port]>\n");
   fprintf(stdout,
-          "               => hence this variable has to be set on the directory at level 2 in the eos namespace e.g. /eog/public \n\n");
+          "               => hence this variable has to be set on the directory at level 2 in the eos namespace e.g. /eos/public \n\n");
   // ---------------------------------------------------------------------------
   fprintf(stdout,
           "         sys.recycle=....                      : define the recycle bin for that directory - WARNING: never modify this variables via 'attr' ... use the 'recycle' interface\n");
   fprintf(stdout,
-          "         sys.recycle.keeptime=<seconds>        : define the time how long files stay in a recycle bin before final deletions taks place. This attribute has to defined on the recycle - WARNING: never modify this variables via 'attr' ... use the 'recycle' interface\n\n");
+          "         sys.recycle.keeptime=<seconds>        : define the time how long files stay in a recycle bin before final deletions takes place. This attribute has to defined on the recycle - WARNING: never modify this variables via 'attr' ... use the 'recycle' interface\n\n");
   fprintf(stdout,
           "         sys.recycle.keepratio=< 0 .. 1.0 >    : ratio of used/max quota for space and inodes in the recycle bin under which files are still kept in the recycle bin even if their lifetime has exceeded. If not defined pure lifetime policy will be applied \n\n");
   fprintf(stdout,
@@ -579,7 +582,7 @@ com_attr_usage:
   fprintf(stdout,
           "         sys.proc=<opaque command>             : run arbitrary command on accessing the file\n");
   fprintf(stdout,
-          "               => <opaque comamnd> command to execute in opaque format, e.g. mgm.cmd=accounting&mgm.subcmd=report&mgm.format=fuse\n");
+          "               => <opaque command> command to execute in opaque format, e.g. mgm.cmd=accounting&mgm.subcmd=report&mgm.format=fuse\n");
   fprintf(stdout, "\n");
   // ---------------------------------------------------------------------------
   fprintf(stdout, "User Variables:\n");
@@ -610,7 +613,7 @@ com_attr_usage:
   fprintf(stdout, "...................\n");
   fprintf(stdout, "- set 2 replica as standard layout ...\n");
   fprintf(stdout,
-          "     |eos> attr set default=replicae /eos/instance/2-replica\n");
+          "     |eos> attr set default=replica /eos/instance/2-replica\n");
   fprintf(stdout,
           "--------------------------------------------------------------------------------\n");
   fprintf(stdout, "- set RAID-6 4+2 as standard layout ...\n");
@@ -644,7 +647,7 @@ com_attr_usage:
   fprintf(stdout,
           "- configure a volume based LRU cache with a low/high watermark \n");
   fprintf(stdout,
-          "  e.g. when the cache reaches the high watermark it cleans the oldest files untile low-watermark is reached ...\n");
+          "  e.g. when the cache reaches the high watermark it cleans the oldest files until low-watermark is reached ...\n");
   fprintf(stdout,
           "     |eos> quota set -g 99 -v 1T /eos/instance/cache/                           # define project quota on the cache\n");
   fprintf(stdout,
