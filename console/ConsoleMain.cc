@@ -1268,6 +1268,25 @@ parse_comment(const char* line, std::string& comment)
 }
 
 //------------------------------------------------------------------------------
+// Given an input string, return the appropriate path identifier.
+//------------------------------------------------------------------------------
+const char* path_identifier(const char *in, bool escapeand)
+{
+  static XrdOucString input;
+  input = in;
+
+  if ((input.beginswith("fid:")) || (input.beginswith("fxid:")) ||
+      (input.beginswith("pid:")) || (input.beginswith("pxid:"))) {
+    return in;
+  }
+
+  input = abspath(in);
+  while (escapeand && input.replace("&", "#AND#")) {}
+
+  return input.c_str();
+}
+
+//------------------------------------------------------------------------------
 // Check if input matches pattern and extract the file id if possible
 //------------------------------------------------------------------------------
 bool RegWrapDenominator(XrdOucString& input, const std::string& key)

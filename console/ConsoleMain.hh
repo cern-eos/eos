@@ -105,6 +105,19 @@ int execute_line(char* line);
 
 int Run(int argc, char* argv[]);
 
+
+//------------------------------------------------------------------------------
+//! Given an input string, return the appropriate path identifier:
+//!   - string begins with fid: | fxid: | pid: | pxid: -- leave untouched
+//!   - otherwise -- return abspath of the given string
+//!
+//! @param in the string to process
+//! @param escapeand whether to replace '&' symbols with '#AND#'
+//!
+//! @return processed path identifier
+//------------------------------------------------------------------------------
+const char* path_identifier(const char *in, bool escapeand = false);
+
 //------------------------------------------------------------------------------
 //! Check if input matches pattern and extract the file id if possible
 //!
