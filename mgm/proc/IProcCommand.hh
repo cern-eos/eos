@@ -194,22 +194,22 @@ protected:
   virtual bool CloseTemporaryOutputFiles();
 
   //----------------------------------------------------------------------------
-  //! Get a file's full path using the fid information stored in the opaque
-  //! data.
+  //! Retrieve the file's full path given its numeric id.
+  //! This method executes under the NamespaceView lock.
   //!
   //! @param path full path of the file
-  //! @param opaque request opaque information
+  //! @param fid file numeric id
   //! @param err_msg error message to be displayed in case of exception
   //----------------------------------------------------------------------------
   void GetPathFromFid(XrdOucString& path, unsigned long long fid,
                       const std::string& err_msg);
 
   //----------------------------------------------------------------------------
-  //! Get a containers's full path using the cid information stored in the opaque
-  //! data.
+  //! Retrieve the container's full path given its numeric id.
+  //! This method executes under the NamespaceView lock.
   //!
   //! @param path full path of the container
-  //! @param opaque request opaque information
+  //! @param cid container numeric id
   //! @param err_msg error message to be displayed in case of exception
   //----------------------------------------------------------------------------
   void GetPathFromCid(XrdOucString& path, unsigned long long cid,

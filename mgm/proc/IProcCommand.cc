@@ -381,7 +381,7 @@ IProcCommand::ConvertOutputToJsonFormat(std::string stdOut)
 }
 
 //------------------------------------------------------------------------------
-// Get a file's full path using the fid information stored in the opaque data
+// Retrieve the file's full path given its numeric id
 //------------------------------------------------------------------------------
 void
 IProcCommand::GetPathFromFid(XrdOucString& path, unsigned long long fid,
@@ -395,6 +395,7 @@ IProcCommand::GetPathFromFid(XrdOucString& path, unsigned long long fid,
     }
 
     try {
+      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
       std::string temp =
         gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
       path = XrdOucString(temp.c_str());
@@ -410,7 +411,7 @@ IProcCommand::GetPathFromFid(XrdOucString& path, unsigned long long fid,
 }
 
 //------------------------------------------------------------------------------
-// Get a directory full path using the cid information stored in the opaque data
+// Retrieve the container's full path given its numeric id
 //------------------------------------------------------------------------------
 void
 IProcCommand::GetPathFromCid(XrdOucString& path, unsigned long long cid,
@@ -424,6 +425,7 @@ IProcCommand::GetPathFromCid(XrdOucString& path, unsigned long long cid,
     }
 
     try {
+      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
       std::string temp =
         gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(cid).get());
       path = XrdOucString(temp.c_str());
