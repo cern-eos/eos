@@ -131,6 +131,7 @@ TEST_F(VariousTests, BasicSanity) {
          "Change: " << Printing::timespecToFileinfo(ctime) << "\n"
          "Flags: 0777\n"
          "Checksum type: md5, checksum bytes: 12235599aadd00550000000000000000\n"
+         "Expected number of replicas / stripes: 2\n"
          "Etag: \"12235599aadd00550000000000000000\"\n"
          "Locations: [1, 7]\n"
          "Unlinked locations: []\n")
