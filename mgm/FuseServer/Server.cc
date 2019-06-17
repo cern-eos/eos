@@ -1427,8 +1427,8 @@ Server::OpSetDirectory(const std::string& id,
             }
 
             // remove it via the directory service
-            gOFS->eosDirectoryService->removeContainer(exist_target_cmd.get());
             pcmd->removeContainer(md.name());
+            gOFS->eosDirectoryService->removeContainer(exist_target_cmd.get());
           }
         } catch (eos::MDException& e) {
           // it might not exist, that is fine
