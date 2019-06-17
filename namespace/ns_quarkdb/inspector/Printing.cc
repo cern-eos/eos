@@ -101,6 +101,7 @@ void Printing::printMultiline(const eos::ns::FileMdProto &proto, std::ostream &s
   std::string checksum;
   appendChecksumOnStringProtobuf(proto, checksum);
   stream << "Checksum type: " << common::LayoutId::GetChecksumString(proto.layout_id()) << ", checksum bytes: " << checksum << std::endl;
+  stream << "Expected number of replicas / stripes: " << eos::common::LayoutId::GetStripeNumber(proto.layout_id()) + 1 << std::endl;
 
   std::string etag;
   eos::calculateEtag(proto, etag);
