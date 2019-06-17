@@ -1634,6 +1634,8 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string &fullPath,
                                         const char * const ininfo,
                                         std::string& errorMsg)
 {
+  using namespace std::chrono;
+
   struct stat buf;
   XrdOucErrInfo errInfo;
   bool onDisk;
@@ -1735,24 +1737,22 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string &fullPath,
   notification->mutable_transport()->set_error_report_url(errorReportStream.str());
   auto sendResult = SendProtoWFRequest(this, fullPath, request, errorMsg);
 
-  // Create human readable timestamp
-  auto time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  std::string ctime = std::ctime(&time);
-  ctime.resize(ctime.length()-1);
+  // Create timestamp
+  std::string ctimestr(std::to_string(system_clock::to_time_t(system_clock::now())));
 
   if(sendResult == 0) {
     // Update the timestamp of the last Prepare request that was successfully sent
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
     try {
-      fmd->setAttribute(RETRIEVE_REQTIME_ATTR_NAME, ctime);
+      fmd->setAttribute(RETRIEVE_REQTIME_ATTR_NAME, ctimestr);
       gOFS->eosView->updateFileStore(fmd.get());
     } catch(eos::MDException& ex) {
       // fail silently if we couldn't update the timestamp
     }
   } else {
     if(errorMsg.empty()) { errorMsg = "Prepare handshake failed"; }
-    std::string errorMsgAttr = ctime + " -> " + errorMsg;
+    std::string errorMsgAttr = ctimestr + " -> " + errorMsg;
 
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
