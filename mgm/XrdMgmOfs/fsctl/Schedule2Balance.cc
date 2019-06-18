@@ -199,10 +199,10 @@ XrdMgmOfs::BalanceGetFsSrc(eos::common::FileSystem::fsid_t tgt_fsid,
   static const char* epname = "Schedule2Balance";
   // ------> FS read lock
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-  auto it_fs = FsView::gFsView.mIdView.find(tgt_fsid);
 
-  if ((it_fs == FsView::gFsView.mIdView.end()) ||
-      (it_fs->second == nullptr)) {
+  eos::mgm::FileSystem* tgt_fs = FsView::gFsView.mIdView.lookupByID(tgt_fsid);
+
+  if (!tgt_fs) {
     eos_thread_err("msg=\"target filesystem not found in the view\" fsid=%u",
                    tgt_fsid);
     gOFS->MgmStats.Add("SchedulingFailedBalance", 0, 0, 1);
@@ -210,7 +210,6 @@ XrdMgmOfs::BalanceGetFsSrc(eos::common::FileSystem::fsid_t tgt_fsid,
                 std::to_string(tgt_fsid).c_str());
   }
 
-  eos::common::FileSystem* tgt_fs = it_fs->second;
   tgt_fs->SnapShotFileSystem(tgt_snapshot);
   auto it_grp = FsView::gFsView.mGroupView.find(tgt_snapshot.mGroup);
 
@@ -481,10 +480,10 @@ XrdMgmOfs::Schedule2Balance(const char* path,
     {
       // ----> FS read lock
       eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-      auto it_fs = FsView::gFsView.mIdView.find(tgt_fsid);
+      FileSystem* fs = FsView::gFsView.mIdView.lookupByID(tgt_fsid);
 
-      if (it_fs != FsView::gFsView.mIdView.end()) {
-        if (it_fs->second->GetBalanceQueue()->Add(txjob.get())) {
+      if (fs) {
+        if (fs->GetBalanceQueue()->Add(txjob.get())) {
           eos_thread_info("cmd=schedule2balance fid=%08llx source_fs=%u "
                           "target_fs=%u", fid, src_fsid, tgt_fsid);
           eos_thread_debug("job=%s", full_capability.c_str());

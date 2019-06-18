@@ -208,19 +208,17 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
                       "queue=%s which is not registered\"", queue.c_str());
           } else {
             FsView::gFsView.ViewMutex.LockRead();
-            auto it_fs = FsView::gFsView.mIdView.find(fsid);
+            FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
-            if (it_fs != FsView::gFsView.mIdView.end()) {
-              FileSystem* fs = it_fs->second;
-
-              if (fs && FsView::gFsView.mNodeView.count(fs->GetQueue())) {
+            if (fs) {
+              if (FsView::gFsView.mNodeView.count(fs->GetQueue())) {
                 // check if the change notification is an actual change in the geotag
                 FsNode* node = FsView::gFsView.mNodeView[fs->GetQueue()];
                 static_cast<GeoTree*>(node)->getGeoTagInTree(fsid , oldgeotag);
                 oldgeotag.erase(0, 8); // to get rid of the "<ROOT>::" prefix
               }
 
-              if (fs && (oldgeotag != newgeotag)) {
+              if (oldgeotag != newgeotag) {
                 eos_warning("msg=\"received geotag change\" fsid=%lu old_geotag=\"%s\" "
                             "new_geotag=\"%s\"", (unsigned long)fsid,
                             oldgeotag.c_str(), newgeotag.c_str());

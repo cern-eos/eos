@@ -80,13 +80,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Map compatibility: find()
-  //----------------------------------------------------------------------------
-  iterator find(eos::common::FileSystem::fsid_t id) {
-    return mById.find(id);
-  }
-
-  //----------------------------------------------------------------------------
   //! Lookup a FileSystem object by ID - return nullptr if none exists.
   //----------------------------------------------------------------------------
   FileSystem* lookupByID(eos::common::FileSystem::fsid_t id) const;
