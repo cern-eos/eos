@@ -288,7 +288,7 @@ ProcInterface::ProtoIsWriteAccess(const char* path, const char* opaque)
     break;
 
   case RequestProto::kIo:
-    return false; // @note(faluchet) check if it is true, it seems to be. putting false for "safety"
+    return false;
     break;
 
   default:

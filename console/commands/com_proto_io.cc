@@ -204,7 +204,7 @@ void com_io_help()
       << "\t  -d : break down by domains" << std::endl
       << "\t  -x : break down by application" << std::endl
       << std::endl
-      << "usage: io enable [-r] [-p] [-n] [--udp <address>] : enable collection of io statistics"
+      << "       io enable [-r] [-p] [-n] [--udp <address>] : enable collection of io statistics"
       << std::endl
       << "\t              -r : enable collection of io reports" << std::endl
       << "\t              -p : enable popularity accounting" << std::endl
@@ -212,7 +212,7 @@ void com_io_help()
       << "\t --udp <address> : add a UDP message target for io UDP packtes (the configured targets are shown by 'io stat -l)"
       << std::endl
       << std::endl
-      << "usage: io disable [-r] [-p] [-n] [--udp <address>] : disable collection of io statistics"
+      << "       io disable [-r] [-p] [-n] [--udp <address>] : disable collection of io statistics"
       << std::endl
       << "\t              -r : disable collection of io reports" << std::endl
       << "\t              -p : disable popularity accounting" << std::endl
@@ -220,10 +220,10 @@ void com_io_help()
       << "\t --udp <address> : remove a UDP message target for io UDP packtes (the configured targets are shown by 'io stat -l)"
       << std::endl
       << std::endl
-      << "usage: io report <path> : show contents of report namespace for <path>" <<
+      << "       io report <path> : show contents of report namespace for <path>" <<
       std::endl
       << std::endl
-      << "usage: io ns [-a] [-n] [-b] [-100|-1000|-10000] [-w] [-f] : show namespace IO ranking (popularity)"
+      << "       io ns [-a] [-n] [-b] [-100|-1000|-10000] [-w] [-f] : show namespace IO ranking (popularity)"
       << std::endl
       << "\t      -a :  don't limit the output list" << std::endl
       << "\t      -n :  show ranking by number of accesses" << std::endl

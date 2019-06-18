@@ -29,8 +29,7 @@
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// Method implementing the specific behavior of the command executed by the
-// asynchronous thread
+// Method implementing the specific behavior of the command executed
 //------------------------------------------------------------------------------
 eos::console::ReplyProto
 IoCmd::ProcessRequest() noexcept
@@ -71,9 +70,7 @@ void IoCmd::StatSubcmd(const eos::console::IoProto_StatProto& stat,
                        eos::console::ReplyProto& reply)
 {
   // If nothing is selected, we show the summary information
-  if (!(stat.apps() | stat.domain() | stat.top() | stat.details())) {
-    // @todo(faluchet): looks like 'summary' is not used at all. Is it needed?
-    //stat.set_summary(true);
+  if (!(stat.apps() || stat.domain() || stat.top() || stat.details())) {
     eos_static_info("io stat");
     gOFS->IoStats->PrintOut(stdOut, true, stat.details(),
                             stat.monitoring(), stat.numerical(),
@@ -88,7 +85,6 @@ void IoCmd::StatSubcmd(const eos::console::IoProto_StatProto& stat,
   reply.set_std_out(stdOut.c_str());
   reply.set_std_err(stdErr.c_str());
   reply.set_retc(retc);
-  // return SFS_OK;
 }
 
 //------------------------------------------------------------------------------
@@ -198,7 +194,6 @@ void IoCmd::EnableSubcmd(const eos::console::IoProto_EnableProto& enable,
   reply.set_std_out(stdOut.c_str());
   reply.set_std_err(stdErr.c_str());
   reply.set_retc(retc);
-  // return SFS_OK;
 }
 
 //------------------------------------------------------------------------------
@@ -214,7 +209,6 @@ void IoCmd::ReportSubcmd(const eos::console::IoProto_ReportProto& report,
   reply.set_std_out(stdOut.c_str());
   reply.set_std_err(stdErr.c_str());
   reply.set_retc(retc);
-  // return SFS_OK;
 }
 
 //------------------------------------------------------------------------------
@@ -271,7 +265,6 @@ void IoCmd::NsSubcmd(const eos::console::IoProto_NsProto& ns,
   reply.set_std_out(stdOut.c_str());
   reply.set_std_err(stdErr.c_str());
   reply.set_retc(retc);
-  // return SFS_OK;
 }
 
 EOSMGMNAMESPACE_END
