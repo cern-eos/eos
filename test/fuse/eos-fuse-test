@@ -431,7 +431,7 @@ runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/fusetest
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.blockchecksum /eos/$EOS_TEST_INSTANCE/fusetest/
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.blocksize /eos/$EOS_TEST_INSTANCE/fusetest/
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.checksum /eos/$EOS_TEST_INSTANCE/fusetest/
-runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.layouts /eos/$EOS_TEST_INSTANCE/fusetest/
+runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.layout /eos/$EOS_TEST_INSTANCE/fusetest/
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.nstripes /eos/$EOS_TEST_INSTANCE/fusetest/
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.space /eos/$EOS_TEST_INSTANCE/fusetest/
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.versioning /eos/$EOS_TEST_INSTANCE/fusetest/

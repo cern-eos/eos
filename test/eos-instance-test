@@ -483,7 +483,7 @@ runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/str
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.blockchecksum /eos/$EOS_TEST_INSTANCE/test/
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.blocksize /eos/$EOS_TEST_INSTANCE/test/
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.checksum /eos/$EOS_TEST_INSTANCE/test/
-runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.layouts /eos/$EOS_TEST_INSTANCE/test/
+runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.layout /eos/$EOS_TEST_INSTANCE/test/
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.nstripes /eos/$EOS_TEST_INSTANCE/test/
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.space /eos/$EOS_TEST_INSTANCE/test/
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.versioning /eos/$EOS_TEST_INSTANCE/test/
@@ -540,9 +540,9 @@ runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTA
 runtest "### Rmdir     " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/rename"
 
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/a\&b"
-runtest "### Rmdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/a\&b"
+runtest "### Rmdir     " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/a\&b"
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/a\&b"
-runtest "### Rmrf      " unix 0 "" eos rm -rf "/eos/$EOS_TEST_INSTANCE/test/instancetest/a\&b"
+runtest "### Rem       " unix 0 "" eos rm -rf "/eos/$EOS_TEST_INSTANCE/test/instancetest/a\&b"
 
 runtest "### MkSpace   " unix 0 "" eos "space define __test__"
 runtest "### SetSpace  " unix 0 "" eos "space set __test__ on "
@@ -913,8 +913,8 @@ runtest "### Rmdir   " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/acl"
 ###################################################A############################
 categorie="policy"
 runtest "### Cd        " unix 0 "" eos cd /eos/$EOS_TEST_INSTANCE/test
-runtest "### Mkdir     " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/policies/
-runtest "### Attr      " unix 0 "" eos attr rm sys.forced.layout /eos/$EOS_TEST_INSTANCE/test/instancetest/policies/
+runtest "### Mkdir     " unix 0 "" eos mkdir -p /eos/$EOS_TEST_INSTANCE/test/instancetest/policies/
+runtest "### Attr      " unix 2 "" eos attr rm sys.forced.layout /eos/$EOS_TEST_INSTANCE/test/instancetest/policies/
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/policies"
 runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/policies/p1" "-ODeos.space=default"
 runtest "### Grep      " unix 0 "" eos file info "/eos/$EOS_TEST_INSTANCE/test/instancetest/policies/p1"
