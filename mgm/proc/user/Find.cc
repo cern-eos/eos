@@ -434,67 +434,63 @@ ProcCommand::Find()
                   }
                 }
 
-                if (selected && (findzero || findgroupmix)) {
-                  if (findzero) {
-                    if (!(filesize = fmd->getSize())) {
-                      if (!printcounter) {
-                        if (printxurl) {
-                          fprintf(fstdout, "%s", url.c_str());
-                        }
-
-                        fprintf(fstdout, "%s\n", fspath.c_str());
+                if (selected && findgroupmix) {
+                  if (findzero && !fmd->getSize()) {
+                    if (!printcounter) {
+                      if (printxurl) {
+                        fprintf(fstdout, "%s", url.c_str());
                       }
+
+                      fprintf(fstdout, "%s\n", fspath.c_str());
                     }
                   }
 
-                  if (selected && findgroupmix) {
-                    // find files which have replicas on mixed scheduling groups
-                    XrdOucString sGroupRef = "";
-                    XrdOucString sGroup = "";
-                    bool mixed = false;
-                    eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
-                    eos::IFileMD::LocationVector::const_iterator lociter;
+                  // find files which have replicas on mixed scheduling groups
+                  XrdOucString sGroupRef = "";
+                  XrdOucString sGroup = "";
+                  bool mixed = false;
+                  eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+                  eos::IFileMD::LocationVector::const_iterator lociter;
 
-                    for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter) {
-                      // ignore filesystem id 0
-                      if (!(*lociter)) {
-                        eos_err("fsid 0 found fid=%08llx", fmd->getId());
-                        continue;
-                      }
-
-                      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-                      eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(*lociter);
-
-                      if (filesystem) {
-                        sGroup = filesystem->GetString("schedgroup").c_str();
-                      } else {
-                        sGroup = "none";
-                      }
-
-                      if (sGroupRef.length()) {
-                        if (sGroup != sGroupRef) {
-                          mixed = true;
-                          break;
-                        }
-                      } else {
-                        sGroupRef = sGroup;
-                      }
+                  for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter) {
+                    // ignore filesystem id 0
+                    if (!(*lociter)) {
+                      eos_err("fsid 0 found fid=%08llx", fmd->getId());
+                      continue;
                     }
 
-                    if (mixed) {
-                      if (!printcounter) {
-                        if (printxurl) {
-                          fprintf(fstdout, "%s", url.c_str());
-                        }
+                    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+                    eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(*lociter);
 
-                        fprintf(fstdout, "%s\n", fspath.c_str());
+                    if (filesystem) {
+                      sGroup = filesystem->GetString("schedgroup").c_str();
+                    } else {
+                      sGroup = "none";
+                    }
+
+                    if (sGroupRef.length()) {
+                      if (sGroup != sGroupRef) {
+                        mixed = true;
+                        break;
                       }
+                    } else {
+                      sGroupRef = sGroup;
+                    }
+                  }
+
+                  if (mixed) {
+                    if (!printcounter) {
+                      if (printxurl) {
+                        fprintf(fstdout, "%s", url.c_str());
+                      }
+
+                      fprintf(fstdout, "%s\n", fspath.c_str());
                     }
                   }
                 } else {
                   if (selected &&
                       (selectonehour || selectoldertime || selectyoungertime ||
-                       printsize || printfid || printuid || printgid ||
+                       findzero || printsize || printfid || printuid || printgid ||
                        printchecksum || printfileinfo || printfs || printctime ||
                        printmtime || printrep || printunlink || printhosts ||
                        printpartition || selectrepdiff || purge_atomic)) {
@@ -508,6 +504,10 @@ ProcCommand::Find()
                       } else {
                         printed = false;
                       }
+                    }
+
+                    if (findzero) {
+                      printed = (fmd->getSize() == 0);
                     }
 
                     if (purge_atomic) {
