@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: XrdCpAbort.cc
+// File: XrdCpTruncate.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
@@ -21,22 +21,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*-----------------------------------------------------------------------------*/
-/*-----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-/*-----------------------------------------------------------------------------*/
 #include <XrdPosix/XrdPosixXrootd.hh>
 #include <XrdCl/XrdClFileSystem.hh>
 #include <XrdOuc/XrdOucString.hh>
-/*-----------------------------------------------------------------------------*/
 
 XrdPosixXrootd posixXrootd;
 
 int main(int argc, char* argv[])
 {
-  // create a 1k file but does not close it!
   XrdOucString urlFile = argv[1];
 
   if (!urlFile.length()) {
@@ -44,11 +39,11 @@ int main(int argc, char* argv[])
     exit(EINVAL);
   }
 
-  int fdWrite = XrdPosixXrootd::Open(urlFile.c_str(),
-                                     O_CREAT | O_TRUNC | O_RDWR,
-                                     kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or);
+  int fd = XrdPosixXrootd::Open(urlFile.c_str(),
+                                O_CREAT | O_TRUNC | O_RDWR,
+                                kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or);
 
-  if (fdWrite >= 0) {
+  if (fd >= 0) {
     size_t sz = 10000000;
     char* buffer = (char*)malloc(sz);
 
@@ -60,9 +55,9 @@ int main(int argc, char* argv[])
       buffer[i] = i % 255;
     }
 
-    XrdPosixXrootd::Pwrite(fdWrite, buffer, sz, 0);
-    XrdPosixXrootd::Ftruncate(fdWrite, 2000000);
-    XrdPosixXrootd::Pwrite(fdWrite, buffer, sz, 1024);
+    XrdPosixXrootd::Pwrite(fd, buffer, sz, 0);
+    XrdPosixXrootd::Ftruncate(fd, 2000000);
+    XrdPosixXrootd::Pwrite(fd, buffer, sz, 1024);
     free(buffer);
   } else {
     exit(-1);

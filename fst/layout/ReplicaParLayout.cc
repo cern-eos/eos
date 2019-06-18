@@ -321,7 +321,7 @@ ReplicaParLayout::Write(XrdSfsFileOffset offset,
                         XrdSfsXferSize length)
 {
   for (unsigned int i = 0; i < mReplicaFile.size(); ++i) {
-    int64_t rc = mReplicaFile[i]->fileWriteAsync(offset, buffer, length, mTimeout);
+    int64_t rc = mReplicaFile[i]->fileWrite(offset, buffer, length, mTimeout);
 
     if (rc != length) {
       XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";

@@ -87,6 +87,7 @@ set(COMMON_UT_SRCS
 
 set(FST_UT_SRCS
   #fst/XrdFstOssFileTest.cc
+  fst/XrdFstOfsTests.cc
   fst/HealthTest.cc
   fst/UtilsTest.cc
   fst/XrdFstOfsFileTest.cc
@@ -118,8 +119,7 @@ target_link_libraries(
   gmock
   XrdEosMgm-Static
   ${READLINE_LIBRARY}
-  ${XROOTD_SERVER_LIBRARY}
-)
+  ${XROOTD_SERVER_LIBRARY})
 
 install(TARGETS
   eos-unit-tests

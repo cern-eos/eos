@@ -392,7 +392,11 @@ public:
   QdbContactDetails mQdbContactDetails; ///< QDB contact details
   bool mMqOnQdb; ///< Are we using QDB as an MQ?
   int mHttpdPort; ///< listening port of the http server
+
 private:
+#ifdef IN_TEST_HARNESS
+public:
+#endif
   //! Xrd connection pool for interaction with the MGM, used from CallManager
   std::unique_ptr<eos::common::XrdConnPool> mMgmXrdPool;
   HttpServer* mHttpd; ///< Embedded http server

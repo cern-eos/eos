@@ -107,7 +107,7 @@ XrdFstOss::Init(XrdSysLogger* lp, const char* configfn)
   unit += "localhost";
   // Setup the circular in-memory log buffer
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
-  g_logging.SetLogPriority(LOG_DEBUG);
+  g_logging.SetLogPriority(LOG_INFO);
   g_logging.SetUnit(unit.c_str());
   eos_debug("info=\"oss logging configured\"");
   // Process the configuration file

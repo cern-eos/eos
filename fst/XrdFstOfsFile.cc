@@ -264,11 +264,11 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
   }
 
-  eos_info("ns_path=%s", mNsPath.c_str());
+  eos_info("ns_path=%s fst_path=%s", mNsPath.c_str(), mFstPath.c_str());
 
   if (mNsPath.beginswith("/replicate:")) {
     if (gOFS.openedForWriting.isOpen(mFsId, mFileId)) {
-      eos_err("forbid to open replica - file %s is opened in RW mode",
+      eos_err("msg=\"forbid replica open, file %s opened in RW mode",
               mNsPath.c_str());
       return gOFS.Emsg(epname, error, ETXTBSY, "open - cannot replicate: file "
                        "is opened in RW mode", mNsPath.c_str());
@@ -280,14 +280,13 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   // Check if this is an open for HTTP
   if ((!isRW) && ((std::string(client->tident) == "http"))) {
     if (gOFS.openedForWriting.isOpen(mFsId, mFileId)) {
-      eos_err("forbid to open replica for synchronization - file %s is opened "
+      eos_err("msg=\"forbid replica open for synchronization,file %s opened "
               "in RW mode", mNsPath.c_str());
-      return gOFS.Emsg(epname, error, ETXTBSY, "open - cannot synchronize this "
-                       "file: file is opened in RW mode", mNsPath.c_str());
+      return gOFS.Emsg(epname, error, ETXTBSY, "open - cannot synchronize "
+                       "file opened in RW mode", mNsPath.c_str());
     }
   }
 
-  eos_info("fstpath=%s", mFstPath.c_str());
   // Get the layout object
   layOut = eos::fst::LayoutPlugin::GetLayoutObject
            (this, mLid, client, &error, mFstPath.c_str(), msDefaultTimeout,
@@ -295,7 +294,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   if (!layOut) {
     int envlen;
-    eos_err("unable to handle layout for %s", mCapOpaque->Env(envlen));
+    eos_err("msg=\"unable to handle layout for %s\"", mCapOpaque->Env(envlen));
     delete fMd;
     return gOFS.Emsg(epname, error, EINVAL, "open - illegal layout specified ",
                      mCapOpaque->Env(envlen));
@@ -420,7 +419,6 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
   }
 
-  eos_info("fstpath=%s", mFstPath.c_str());
   fMd = gFmdDbMapHandler.LocalGetFmd(mFileId, mFsId, vid.uid, vid.gid, mLid, isRW,
                                      isRepairRead);
 
@@ -462,7 +460,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   oss_opaque += "&mgm.bookingsize=";
   oss_opaque += static_cast<int>(mBookingSize);
   // Open layout implementation
-  eos_info("fstpath=%s open-mode=%x create-mode=%x layout-name=%s",
+  eos_info("fst_path=%s open-mode=%x create-mode=%x layout-name=%s",
            mFstPath.c_str(), open_mode, create_mode, layOut->GetName());
   int rc = layOut->Open(open_mode, create_mode, oss_opaque.c_str());
 
@@ -888,12 +886,12 @@ XrdFstOfsFile::verifychecksum()
                    1.0 * scansize / 1000 / (scantime ? scantime : 99999999999999LL),
                    mCheckSum->GetHexChecksum());
         } else {
-          eos_err("Rescanning of checksum failed");
+          eos_err("msg=\"rescanning of checksum failed\"");
           mCheckSum.reset(nullptr);
           return false;
         }
       } else {
-        eos_err("Couldn't get file descriptor");
+        eos_err("msg=\"failed to get file descriptor\"");
         mCheckSum.reset(nullptr);
         return false;
       }
@@ -1049,16 +1047,16 @@ XrdFstOfsFile::close()
     OpaqueString += hex_fid.c_str();
     XrdOucEnv Opaque(OpaqueString.c_str());
     capOpaqueString += OpaqueString;
-    eos_info("viaDelete=%d", viaDelete);
+    eos_info("viaDelete=%d writeDelete=%d", viaDelete, writeDelete);
 
-    if ((viaDelete || writeDelete) && ((isCreation || (isReplication && isRW) ||
-                                        mIsInjection || mRainReconstruct ||
-                                        IsChunkedUpload()) && (!mFusex))) {
+    if ((viaDelete || writeDelete) &&
+        ((isCreation || (isReplication && isRW) || mIsInjection ||
+          mRainReconstruct || IsChunkedUpload()) && (!mFusex))) {
       // It is closed by the destructor e.g. no proper close
       // or the specified checksum does not match the computed one
       if (viaDelete) {
         eos_info("msg=\"(unpersist): deleting file\" reason=\"client disconnect\""
-                 "  fsid=%u fid=%08llx on fsid=%u", fMd->mProtoFmd.fsid(), fMd->mProtoFmd.fid());
+                 " fsid=%u fid=%08llx on fsid=%u", fMd->mProtoFmd.fsid(), fMd->mProtoFmd.fid());
       }
 
       if (writeDelete) {
@@ -1070,8 +1068,8 @@ XrdFstOfsFile::close()
       deleteOnClose = true;
       layOut->Remove();
 
-      if (layOut->IsEntryServer() && (!isReplication) && (!mIsInjection) &&
-          (!mRainReconstruct)) {
+      if (layOut->IsEntryServer() && (!isReplication) &&
+          (!mIsInjection) && (!mRainReconstruct)) {
         capOpaqueString += "&mgm.dropall=1";
       }
 
@@ -1772,7 +1770,7 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
 
   if (gOFS.mSimIoReadErr) {
     if ((gOFS.mSimErrIoReadOff == 0) ||
-        (gOFS.mSimErrIoReadOff >= (uint64_t)fileOffset)) {
+        (gOFS.mSimErrIoReadOff <= (uint64_t)fileOffset)) {
       return gOFS.Emsg("readofs", error, EIO, "read file - simulated IO error fn=",
                        mNsPath.c_str());
     }
@@ -1961,7 +1959,7 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
 {
   if (gOFS.mSimIoWriteErr) {
     if ((gOFS.mSimErrIoWriteOff == 0) ||
-        (gOFS.mSimErrIoWriteOff >= (uint64_t)fileOffset)) {
+        (gOFS.mSimErrIoWriteOff <= (uint64_t)fileOffset)) {
       writeErrorFlag = kOfsSimulatedIoError;
       return gOFS.Emsg("writeofs", error, EIO, "write file - simulated IO error fn=",
                        mNsPath.c_str());
@@ -2055,9 +2053,11 @@ XrdSfsXferSize
 XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
                      XrdSfsXferSize buffer_size)
 {
+  mHasWrite = true;
+
   if (mIsDevNull) {
-    eos_debug("offset=%llu, length=%li discarded for sink file", fileOffset,
-              buffer_size);
+    eos_debug("msg=\"write discarded for sink file\" offset=%llu length=%li",
+              fileOffset, buffer_size);
     maxOffsetWritten = fileOffset + buffer_size;
     return buffer_size;
   }
@@ -2074,6 +2074,8 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
     rc = buffer_size;
   }
 
+  eos_debug("rc=%d offset=%ll size=%i", rc, fileOffset, buffer_size);
+
   // Evt. add checksum
   if (rc > 0) {
     if (mCheckSum) {
@@ -2088,28 +2090,8 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
     }
   }
 
-  mHasWrite = true;
-  eos_debug("rc=%d offset=%lu size=%lu", rc, fileOffset,
-            static_cast<unsigned long>(buffer_size));
-
   if (rc < 0) {
-    int envlen = 0;
-
-    if (!hasWriteError || EOS_LOGS_DEBUG) {
-      eos_crit("block-write error=%d offset=%llu len=%llu file=%s",
-               layOut->GetErrObj()->getErrInfo(),
-               static_cast<unsigned long long>(fileOffset),
-               static_cast<unsigned long long>(buffer_size),
-               FName(), mCapOpaque ? mCapOpaque->Env(envlen) : FName());
-    }
-
-    hasWriteError = true;
-  }
-
-  if (rc < 0) {
-    int envlen = 0;
-    // Indicate the deletion flag for write errors
-    writeDelete = true;
+    writeDelete = true; // set deletion flag for write errors
     XrdOucString errdetail;
 
     if (isCreation) {
@@ -2120,17 +2102,16 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
 
       if (writeErrorFlag == kOfsSimulatedIoError) {
         // Simulated IO error
-        errdetail += " => file has been removed because of a simulated IO error";
+        errdetail += " => file removed because of a simulated IO error";
       } else {
         if (writeErrorFlag == kOfsDiskFullError) {
           // Disk full error
-          errdetail +=
-            " => file has been removed because the target filesystem  was full";
+          errdetail += " => file removed because the target filesystem  was full";
         } else {
           if (writeErrorFlag == kOfsMaxSizeError) {
             // Maximum file size error
-            errdetail += " => file has been removed because the maximum target "
-                         "filesize defined for that subtree was exceeded (maxsize=";
+            errdetail += " => file removed because the maximum target filesize "
+                         "defined for that subtree was exceeded (maxsize=";
             char smaxsize[16];
             snprintf(smaxsize, sizeof(smaxsize) - 1, "%llu", (unsigned long long) mMaxSize);
             errdetail += smaxsize;
@@ -2139,9 +2120,9 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
             if (writeErrorFlag == kOfsIoError) {
               // Generic IO error
               errdetail +=
-                " => file has been removed due to an IO error on the target filesystem";
+                " => file removed due to an IO error on the target filesystem";
             } else {
-              errdetail += " => file has been removed due to an IO error (unspecified)";
+              errdetail += " => file removed due to an IO error (unspecified)";
             }
           }
         }
@@ -2151,12 +2132,12 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
       error.setErrInfo(error.getErrInfo(), newerr.c_str());
     }
 
-    eos_err("block-write error=%d offset=%llu len=%llu file=%s error=\"%s\"",
-            error.getErrInfo(),
-            (unsigned long long) fileOffset,
-            (unsigned long long) buffer_size, FName(),
-            mCapOpaque ? mCapOpaque->Env(envlen) : FName(),
-            errdetail.c_str());
+    if (!hasWriteError || EOS_LOGS_DEBUG) {
+      hasWriteError = true;
+      eos_err("block-write error=%d offset=%llu len=%llu file=%s error=\"%s\"",
+              error.getErrInfo(), fileOffset, buffer_size, mNsPath.c_str(),
+              errdetail.c_str());
+    }
   }
 
   return rc;
@@ -2477,6 +2458,10 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset fileOffset)
     }
   }
 
+  // If there is a truncate then we set the isCreation flag so that any write
+  // errors are properly recovered if possible or the file is dropped if errors
+  // happen at the entry server.
+  isCreation = true;
   return layOut->Truncate(fileOffset);
 }
 
