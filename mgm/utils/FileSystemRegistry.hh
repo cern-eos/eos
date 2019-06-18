@@ -43,7 +43,6 @@ public:
   //----------------------------------------------------------------------------
   //! Types
   //----------------------------------------------------------------------------
-  using iterator = std::map<eos::common::FileSystem::fsid_t, mgm::FileSystem*>::iterator;
   using const_iterator = std::map<eos::common::FileSystem::fsid_t, mgm::FileSystem*>::const_iterator;
 
   //----------------------------------------------------------------------------
@@ -54,28 +53,28 @@ public:
   //----------------------------------------------------------------------------
   //! Map compatibility: begin()
   //----------------------------------------------------------------------------
-  iterator begin() {
-    return mById.begin();
+  const_iterator begin() const {
+    return mById.cbegin();
   }
 
   //----------------------------------------------------------------------------
   //! Map compatibility: cbegin()
   //----------------------------------------------------------------------------
-  const_iterator cbegin() {
+  const_iterator cbegin() const {
     return mById.cbegin();
   }
 
   //----------------------------------------------------------------------------
   //! Map compatibility: end()
   //----------------------------------------------------------------------------
-  iterator end() {
-    return mById.end();
+  const_iterator end() const {
+    return mById.cend();
   }
 
   //----------------------------------------------------------------------------
   //! Map compatibility: cend()
   //----------------------------------------------------------------------------
-  const_iterator cend() {
+  const_iterator cend() const {
     return mById.cend();
   }
 
