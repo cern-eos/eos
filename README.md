@@ -35,21 +35,27 @@ doxygen
 * archive - Archive tool implementation in Python
 * auth_plugin - Authorization delegation plugin
 * authz - Authorization capability functionality
+* client - GRPC clients
 * cmake - CMake related scripts and functions
 * common - Common helper files and classes
 * console - Command line client implementation
+* coverage - Test coverage config for LCOV
 * doc - Doxygen documentation
-* etc - Service scripts, log rotation and sysconfig Files
+* etc - Log rotation files
 * fst - The Storage Server Plugin (FST)
 * fuse - The FUSE mount Client (eosd low level API)
+* fusex- Next generation bi-directional FUSE mount Client with high-end features
 * man - Manual pages
 * mgm - Meta Data Namespace and Scheduling Redirector Plugin (MGM)
+* misc - systemd, sysconfig and service scripts
 * mq - Message Queue Server Plugin
 * namespace - Namespace Implementation
 * nginx - Nginx related patches for EOS integration
+* proto - Protobuf definitions for various components
 * srm - SRM BestMan utility scripts
 * sync - file/directory synchronization programs
 * test - Instance test script with some dedicated test executables
+* unit_tests - Various unit tests for individual modules
 * utils - Useful utilities and the uninstall scripts
 * var - Placeholder directory to create log, http and namespace directories
 
@@ -114,13 +120,6 @@ make srpm
 make rpm
 ```
 
-## System specific notes
-
-* The current production version of **EOS** in the **beryl_aquamarine** branch
-which has a hard requirement on **XRootD 3.3.6**.
-* The the future production version of **EOS** is the **citrine** branch and
- requires **XRootD >= 4.2.0**.
-
 ## Bug Reporting
 
 You can send **EOS** bug reports to <project-eos@cern.ch>. 
@@ -131,7 +130,7 @@ https://its.cern.ch/jira/browse/EOS
 ## Licence
 
 **EOS - The CERN Disk Storage System**  
-**Copyright (C) 2015 CERN/Switzerland**  
+**Copyright (C) 2019 CERN/Switzerland**  
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
 Foundation, either version 3 of the License, or (at your option) any later
