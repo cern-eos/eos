@@ -1820,7 +1820,7 @@ Server::OpSetFile(const std::string& id,
       XrdOucEnv env;
       // retrieve the layout
       Policy::GetLayoutAndSpace("fusex", attrmap, vid, layoutId, space, env,
-                                forcedFsId, forcedGroup);
+                                forcedFsId, forcedGroup, true);
 
       if (eos::mgm::FsView::gFsView.IsQuotaEnabled(space.c_str())) {
         // check inode quota here

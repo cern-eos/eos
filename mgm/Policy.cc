@@ -41,9 +41,12 @@ Policy::GetLayoutAndSpace(const char* path,
                           unsigned long& layoutId, XrdOucString& space,
                           XrdOucEnv& env,
                           unsigned long& forcedfsid,
-                          long& forcedgroup)
+                          long& forcedgroup, 
+			  bool lockview)
 
 {
+  eos::common::RWMutexReadLock lock;
+
   // this is for the moment only defaulting or manual selection
   unsigned long layout = eos::common::LayoutId::GetLayoutFromEnv(env);
   unsigned long xsum = eos::common::LayoutId::GetChecksumFromEnv(env);
@@ -53,6 +56,11 @@ Policy::GetLayoutAndSpace(const char* path,
   bool noforcedchecksum = false;
   const char* val = 0;
   std::map<std::string, std::string> spacepolicies;
+
+  if (lockview) {
+    lock.Grab(FsView::gFsView.ViewMutex);
+  }
+
   auto it = FsView::gFsView.mSpaceView.find("default");
 
   if (it != FsView::gFsView.mSpaceView.end()) {
@@ -61,8 +69,7 @@ Policy::GetLayoutAndSpace(const char* path,
     spacepolicies["nstripes"]  = it->second->GetConfigMember("policy.nstripes");
     spacepolicies["checksum"]  = it->second->GetConfigMember("policy.checksum");
     spacepolicies["blocksize"] = it->second->GetConfigMember("policy.blocksize");
-    spacepolicies["blockchecksum"] =
-      it->second->GetConfigMember("policy.blockchecksum");
+    spacepolicies["blockchecksum"] = it->second->GetConfigMember("policy.blockchecksum");
   }
 
   if ((val = env.Get("eos.space"))) {

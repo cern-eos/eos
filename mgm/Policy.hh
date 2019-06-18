@@ -54,7 +54,8 @@ public:
                                  XrdOucString &space,
                                  XrdOucEnv &env,
                                  unsigned long &forcedfsid,
-                                 long &forcedgroup);
+                                 long &forcedgroup, 
+				 bool lock_view = false);
 
   static void GetPlctPolicy (const char* path,
                              eos::IContainerMD::XAttrMap &map,
