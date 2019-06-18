@@ -55,12 +55,14 @@ Policy::GetLayoutAndSpace(const char* path,
 
   std::map<std::string, std::string> spacepolicies;
 
-  spacepolicies["space"]     = FsView::gFsView.mSpaceView["default"]->GetConfigMember("policy.space");
-  spacepolicies["layout"]    = FsView::gFsView.mSpaceView["default"]->GetConfigMember("policy.layout");
-  spacepolicies["nstripes"]  = FsView::gFsView.mSpaceView["default"]->GetConfigMember("policy.nstripes");
-  spacepolicies["checksum"]  = FsView::gFsView.mSpaceView["default"]->GetConfigMember("policy.checksum");
-  spacepolicies["blocksize"] = FsView::gFsView.mSpaceView["default"]->GetConfigMember("policy.blocksize");
-  spacepolicies["blockchecksum"] = FsView::gFsView.mSpaceView["default"]->GetConfigMember("policy.blockchecksum");
+  if (FsView::gFsView.mSpaceView.count("default")) {
+    spacepolicies["space"]     = FsView::gFsView.mSpaceView["default"]->GetConfigMember("policy.space");
+    spacepolicies["layout"]    = FsView::gFsView.mSpaceView["default"]->GetConfigMember("policy.layout");
+    spacepolicies["nstripes"]  = FsView::gFsView.mSpaceView["default"]->GetConfigMember("policy.nstripes");
+    spacepolicies["checksum"]  = FsView::gFsView.mSpaceView["default"]->GetConfigMember("policy.checksum");
+    spacepolicies["blocksize"] = FsView::gFsView.mSpaceView["default"]->GetConfigMember("policy.blocksize");
+    spacepolicies["blockchecksum"] = FsView::gFsView.mSpaceView["default"]->GetConfigMember("policy.blockchecksum");
+  }
   
   if ((val = env.Get("eos.space"))) {
     space = val;
