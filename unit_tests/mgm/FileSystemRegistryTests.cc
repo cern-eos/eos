@@ -70,4 +70,10 @@ TEST(FileSystemRegistry, BasicSanity) {
   ASSERT_EQ(registry.size(), 2u);
   ASSERT_EQ(registry.lookupByID(4), nullptr);
   ASSERT_EQ(registry.lookupByPtr( (eos::mgm::FileSystem*) 0x04), 0);
+
+  registry.clear();
+
+  ASSERT_EQ(registry.size(), 0u);
+  ASSERT_EQ(registry.lookupByID(2), nullptr);
+  ASSERT_EQ(registry.lookupByPtr( (eos::mgm::FileSystem*) 0x02), 0);
 }

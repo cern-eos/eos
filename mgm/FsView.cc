@@ -1567,15 +1567,15 @@ FsView::Register(FileSystem* fs, bool registerInGeoTreeEngine)
 
       if (fsid != snapshot.mId) {
         // Remove previous mapping
-        mIdView.erase(fsid);
+        mIdView.eraseById(fsid);
         // Setup new two way mapping
         mFileSystemView[fs] = snapshot.mId;
-        mIdView[snapshot.mId] = fs;
+        mIdView.registerFileSystem(snapshot.mId, fs);
         eos_debug("updating mapping %u<=>%lld", snapshot.mId, fs);
       }
     } else {
       mFileSystemView[fs] = snapshot.mId;
-      mIdView[snapshot.mId] = fs;
+      mIdView.registerFileSystem(snapshot.mId, fs);
       eos_debug("registering mapping %u<=>%lld", snapshot.mId, fs);
     }
 
@@ -1835,7 +1835,7 @@ FsView::UnRegister(FileSystem* fs, bool unregisterInGeoTreeEngine)
     // Check if this is in the view
     if (mFileSystemView.count(fs)) {
       mFileSystemView.erase(fs);
-      mIdView.erase(snapshot.mId);
+      mIdView.eraseById(snapshot.mId);
       eos_debug("unregister %lld from filesystem view", fs);
     }
 
@@ -2667,13 +2667,13 @@ BaseView::DeleteConfigMember(std::string key) const
 										   GetConfigQueuePrefix(), mName.c_str());
     XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
 								   node_cfg_name.c_str());
-    
-    
+
+
     if (hash) {
       deleted = hash->Delete(key.c_str());
     }
   }
-  
+
   // Delete in the configuration engine
   if ( FsView::gFsView.mConfigEngine ) {
     node_cfg_name += "#";

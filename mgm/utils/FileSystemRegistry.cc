@@ -184,4 +184,15 @@ size_t FileSystemRegistry::size() const {
   return mById.size();
 }
 
+//------------------------------------------------------------------------------
+// Entirely clear registry contents
+//------------------------------------------------------------------------------
+void FileSystemRegistry::clear() {
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+
+  mById.clear();
+  mByFsPtr.clear();
+}
+
+
 EOSMGMNAMESPACE_END
