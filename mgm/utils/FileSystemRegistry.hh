@@ -26,6 +26,7 @@
 #include "mgm/Namespace.hh"
 #include "mgm/FileSystem.hh"
 #include <map>
+#include <shared_mutex>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -49,13 +50,6 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   FileSystemRegistry();
-
-  //----------------------------------------------------------------------------
-  //! Map compatibility: size()
-  //----------------------------------------------------------------------------
-  size_t size() const {
-    return mById.size();
-  }
 
   //----------------------------------------------------------------------------
   //! Map compatibility: operator[]
@@ -121,13 +115,47 @@ public:
   FileSystem* lookupByID(eos::common::FileSystem::fsid_t id) const;
 
   //----------------------------------------------------------------------------
+  //! Lookup a FileSystem id by FileSystem pointer - return 0 if none exists
+  //----------------------------------------------------------------------------
+  eos::common::FileSystem::fsid_t lookupByPtr(mgm::FileSystem* fs) const;
+
+  //----------------------------------------------------------------------------
   //! Does a FileSystem with the given id exist?
   //----------------------------------------------------------------------------
   bool exists(eos::common::FileSystem::fsid_t id) const;
 
+  //----------------------------------------------------------------------------
+  //! Register new FileSystem with the given ID.
+  //!
+  //! Refuse if either the FileSystem pointer already exists, or another
+  //! FileSystem has the same ID.
+  //----------------------------------------------------------------------------
+  bool registerFileSystem(eos::common::FileSystem::fsid_t fsid, mgm::FileSystem *fs);
+
+  //----------------------------------------------------------------------------
+  //! Return number of registered filesystems
+  //----------------------------------------------------------------------------
+  size_t size() const;
+
+  //----------------------------------------------------------------------------
+  //! Erase by fsid - return true if found and erased, false otherwise
+  //----------------------------------------------------------------------------
+  bool eraseById(eos::common::FileSystem::fsid_t id);
+
+  //----------------------------------------------------------------------------
+  //! Erase by ptr - return true if found and erased, false otherwise
+  //------------------------- ---------------------------------------------------
+  bool eraseByPtr(mgm::FileSystem *fs);
+
+
+
+
 
 private:
+  mutable std::shared_timed_mutex mMutex;
   std::map<eos::common::FileSystem::fsid_t, mgm::FileSystem*> mById;
+  std::map<mgm::FileSystem*, eos::common::FileSystem::fsid_t> mByFsPtr;
+
 };
 
 EOSMGMNAMESPACE_END

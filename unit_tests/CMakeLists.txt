@@ -55,6 +55,7 @@ set(MGM_UT_SRCS
   mgm/AccessTests.cc
   mgm/AclCmdTests.cc
   mgm/EgroupTests.cc
+  mgm/FileSystemRegistryTests.cc
   mgm/FsViewTests.cc
   mgm/HttpTests.cc
   mgm/LockTrackerTests.cc
