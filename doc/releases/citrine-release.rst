@@ -25,6 +25,7 @@ Bug
 
 * [ EOS-3495 ] Handle out-of-quota open correctly in eosxd
 * [ EOS-1755 ] Don't irritate du with . entry size
+* [ EOS-3536 ] Fix hardlink deletion logic to avoid hidden entries after all references have been removed
 
 Improvement
 -----------
