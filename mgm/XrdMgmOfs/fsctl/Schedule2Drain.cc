@@ -400,8 +400,8 @@ XrdMgmOfs::Schedule2Drain(const char* path,
 
   for (size_t n = 0; n < group->size(); n++) {
     // Look for a filesystem in drain mode
-    eos::common::DrainStatus drain_status =
-      FsView::gFsView.mIdView[*group_iterator]->GetDrainStatus();
+    FileSystem *fs1 = FsView::gFsView.mIdView.lookupByID(*group_iterator);
+    eos::common::DrainStatus drain_status = fs1->GetDrainStatus();
 
     if ((drain_status != eos::common::DrainStatus::kDraining) &&
         (drain_status != eos::common::DrainStatus::kDrainStalling)) {

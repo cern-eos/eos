@@ -3097,26 +3097,24 @@ BaseView::SumLongLong(const char* param, bool lock,
 
   fsid_iterator it(subset, this);
   for(; it.valid(); it.next()) {
-    eos::common::FileSystem::fs_snapshot snapshot;
+    FileSystem *fs = FsView::gFsView.mIdView.lookupByID(*it);
+    if(!fs) continue;
 
     // for query sum's we always fold in that a group and host has to be enabled
-    if ((!key.length())
-        || (FsView::gFsView.mIdView[*it]->GetString(key.c_str()) == value)) {
+    if (!key.length() || fs->GetString(key.c_str()) == value) {
       if (isquery &&
-          ((eos::common::FileSystem::GetActiveStatusFromString(
-              FsView::gFsView.mIdView[*it]->GetString("stat.active").c_str())
+          ((eos::common::FileSystem::GetActiveStatusFromString(fs->GetString("stat.active").c_str())
             == eos::common::ActiveStatus::kOffline) ||
-            (eos::common::FileSystem::GetStatusFromString(
-              FsView::gFsView.mIdView[*it]->GetString("stat.boot").c_str()) !=
+            (eos::common::FileSystem::GetStatusFromString(fs->GetString("stat.boot").c_str()) !=
             eos::common::BootStatus::kBooted))) {
         continue;
       }
 
-      long long v = FsView::gFsView.mIdView[*it]->GetLongLong(sparam.c_str());
+      long long v = fs->GetLongLong(sparam.c_str());
 
       if (isquery && v && (sparam == "stat.statfs.capacity")) {
         // Correct the capacity(rw) value for headroom
-        v -= FsView::gFsView.mIdView[*it]->GetLongLong("headroom");
+        v -= fs->GetLongLong("headroom");
       }
 
       sum += v;
@@ -3170,7 +3168,10 @@ BaseView::SumDouble(const char* param, bool lock,
 
   fsid_iterator it(subset, this);
   for(; it.valid(); it.next()) {
-    sum += FsView::gFsView.mIdView[*it]->GetDouble(param);
+    FileSystem *fs = FsView::gFsView.mIdView.lookupByID(*it);
+    if(fs) {
+      sum += fs->GetDouble(param);
+    }
   }
 
   if (lock) {
