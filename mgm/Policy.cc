@@ -53,10 +53,39 @@ Policy::GetLayoutAndSpace(const char* path,
   bool noforcedchecksum = false;
   const char* val = 0;
 
+  std::map<std::string, std::string> spacepolicies;
+
+  spacepolicies["space"]     = FsView::gFsView.mSpaceView["default"]->GetConfigMember("policy.space");
+  spacepolicies["layout"]    = FsView::gFsView.mSpaceView["default"]->GetConfigMember("policy.layout");
+  spacepolicies["nstripes"]  = FsView::gFsView.mSpaceView["default"]->GetConfigMember("policy.nstripes");
+  spacepolicies["checksum"]  = FsView::gFsView.mSpaceView["default"]->GetConfigMember("policy.checksum");
+  spacepolicies["blocksize"] = FsView::gFsView.mSpaceView["default"]->GetConfigMember("policy.blocksize");
+  spacepolicies["blockchecksum"] = FsView::gFsView.mSpaceView["default"]->GetConfigMember("policy.blockchecksum");
+  
   if ((val = env.Get("eos.space"))) {
     space = val;
   } else {
     space = "default";
+    if (!spacepolicies["space"].empty()) {
+      // if there is no explicit space given, we preset with the policy one
+      space = spacepolicies["space"].c_str();
+    }
+  }
+
+  // look if we have to inject the default space policies
+  for ( auto it = spacepolicies.begin(); it != spacepolicies.end(); ++it) {
+    if (it->first == "space")
+      continue;
+    std::string sys_key  = "sys.forced.";
+    std::string user_key = "user.forced.";
+    sys_key  += it->first;
+    user_key += it->first;
+
+    if ( (!attrmap.count(sys_key)) && 
+	 (!attrmap.count(user_key)) && 
+	 (!it->second.empty()) ) {
+      attrmap[sys_key] = it->second;
+    }
   }
 
   if ((val = env.Get("eos.group"))) {
@@ -73,6 +102,7 @@ Policy::GetLayoutAndSpace(const char* path,
     // we need this flag to be able to force MD5 checksums for S3 uploads
     noforcedchecksum = true;
   }
+
 
   if ((vid.uid == 0) && (val = env.Get("eos.layout.noforce"))) {
     // root can request not to apply any forced settings

@@ -464,173 +464,201 @@ ProcCommand::Space()
           // set a space related parameter
           if (!key.compare(0, 6, "space.")) {
             key.erase(0, 6);
+	    if (key.substr(0,7) == "policy.") {
+	      if (value == "remove") {
+		if (!FsView::gFsView.mSpaceView[identifier]->DeleteConfigMember(key)) {
+		  retc = ENOENT;
+		  stdErr = "error: key has not been deleted";
+		} else {
+		  stdOut = "success: removed space policy '";
+		  stdOut += key.c_str();
+		  stdOut += "'\n";
+		}
+	      }  else {
+		// set a space policy parameters e.g. default placement attributes	      
+		if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value, true,
+									     "/eos/*/mgm")) {
+		  retc = EIO;
+		  stdErr = "error: cannot set space config value";
+		} else {
+		  stdOut = "success: configured policy in space='";
+		  stdOut += identifier.c_str();
+		  stdOut += "' as ";
+		  stdOut += key.c_str(); 
+		  stdOut += "='";
+		  stdOut += value.c_str();
+		  stdOut += "'\n";
+		  retc = 0 ;
+		}
+	      }
+	    } else {
+	      if ((key == "nominalsize") ||
+		  (key == "headroom") ||
+		  (key == "scaninterval") ||
+		  (key == "scanrate") ||
+		  (key == "graceperiod") ||
+		  (key == "drainperiod") ||
+		  (key == "balancer") ||
+		  (key == "balancer.node.rate") ||
+		  (key == "balancer.node.ntx") ||
+		  (key == "drainer.node.rate") ||
+		  (key == "drainer.node.ntx") ||
+		  (key == "drainer.node.nfs") ||
+		  (key == "drainer.retries") ||
+		  (key == "drainer.fs.ntx") ||
+		  (key == "converter") ||
+		  (key == "lru") ||
+		  (key == "lru.interval") ||
+		  (key == "wfe") ||
+		  (key == "wfe.interval") ||
+		  (key == "wfe.ntx") ||
+		  (key == "converter.ntx") ||
+		  (key == "autorepair") ||
+		  (key == "groupbalancer") ||
+		  (key == "groupbalancer.ntx") ||
+		  (key == "groupbalancer.threshold") ||
+		  (key == "geobalancer") ||
+		  (key == "geobalancer.ntx") ||
+		  (key == "geobalancer.threshold") ||
+		  (key == "geo.access.policy.read.exact") ||
+		  (key == "geo.access.policy.write.exact") ||
+		  (key == "filearchivedgc") ||
+		  (key == "tapeawaregc.spacequeryperiodsecs") ||
+		  (key == "tapeawaregc.minfreebytes") ||
+		  (key == "balancer.threshold")) {
+		if ((key == "balancer") || (key == "converter") ||
+		    (key == "autorepair") || (key == "lru") ||
+		    (key == "groupbalancer") || (key == "geobalancer") ||
+		    (key == "geo.access.policy.read.exact") ||
+		    (key == "geo.access.policy.write.exact") ||
+		    (key == "filearchivedgc")) {
+		  if ((value != "on") && (value != "off")) {
+		    retc = EINVAL;
+		    stdErr = "error: value has to either on or off";
+		  } else {
+		    if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value, true,
+										 "/eos/*/mgm")) {
+		      retc = EIO;
+		      stdErr = "error: cannot set space config value";
+		    } else {
+		      if (key == "balancer") {
+			if (value == "on") {
+			  stdOut += "success: balancer is enabled!";
+			} else {
+			  stdOut += "success: balancer is disabled!";
+			}
+		      }
+		      
+		      if (key == "converter") {
+			if (value == "on") {
+			  stdOut += "success: converter is enabled!";
+			} else {
+			  stdOut += "success: converter is disabled!";
+			}
+		      }
+		      
+		      if (key == "autorepair") {
+			if (value == "on") {
+			  stdOut += "success: auto-repair is enabled!";
+			} else {
+			  stdOut += "success: auto-repair is disabled!";
+			}
+		      }
+		      
+		      if (key == "groupbalancer") {
+			if (value == "on") {
+			  stdOut += "success: groupbalancer is enabled!";
+			} else {
+			  stdOut += "success: groupbalancer is disabled!";
+			}
+		      }
+		      
+		      if (key == "geobalancer") {
+			if (value == "on") {
+			  stdOut += "success: geobalancer is enabled!";
+			} else {
+			  stdOut += "success: geobalancer is disabled!";
+			}
+		      }
+		      
+		      if (key == "geo.access.policy.read.exact") {
+			if (value == "on") {
+			  stdOut += "success: geo access policy prefers the exact geo matching replica for reading!";
+			} else {
+			  stdOut += "success: geo access policy prefers with a weight the geo matching replica for reading!";
+			}
+		      }
 
-            if ((key == "nominalsize") ||
-                (key == "headroom") ||
-                (key == "scaninterval") ||
-                (key == "scanrate") ||
-                (key == "graceperiod") ||
-                (key == "drainperiod") ||
-                (key == "balancer") ||
-                (key == "balancer.node.rate") ||
-                (key == "balancer.node.ntx") ||
-                (key == "drainer.node.rate") ||
-                (key == "drainer.node.ntx") ||
-                (key == "drainer.node.nfs") ||
-                (key == "drainer.retries") ||
-                (key == "drainer.fs.ntx") ||
-                (key == "converter") ||
-                (key == "lru") ||
-                (key == "lru.interval") ||
-                (key == "wfe") ||
-                (key == "wfe.interval") ||
-                (key == "wfe.ntx") ||
-                (key == "converter.ntx") ||
-                (key == "autorepair") ||
-                (key == "groupbalancer") ||
-                (key == "groupbalancer.ntx") ||
-                (key == "groupbalancer.threshold") ||
-                (key == "geobalancer") ||
-                (key == "geobalancer.ntx") ||
-                (key == "geobalancer.threshold") ||
-                (key == "geo.access.policy.read.exact") ||
-                (key == "geo.access.policy.write.exact") ||
-                (key == "filearchivedgc") ||
-                (key == "tapeawaregc.spacequeryperiodsecs") ||
-                (key == "tapeawaregc.minfreebytes") ||
-                (key == "balancer.threshold")) {
-              if ((key == "balancer") || (key == "converter") ||
-                  (key == "autorepair") || (key == "lru") ||
-                  (key == "groupbalancer") || (key == "geobalancer") ||
-                  (key == "geo.access.policy.read.exact") ||
-                  (key == "geo.access.policy.write.exact") ||
-                  (key == "filearchivedgc")) {
-                if ((value != "on") && (value != "off")) {
-                  retc = EINVAL;
-                  stdErr = "error: value has to either on or off";
-                } else {
-                  if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value, true,
-                      "/eos/*/mgm")) {
-                    retc = EIO;
-                    stdErr = "error: cannot set space config value";
-                  } else {
-                    if (key == "balancer") {
-                      if (value == "on") {
-                        stdOut += "success: balancer is enabled!";
-                      } else {
-                        stdOut += "success: balancer is disabled!";
-                      }
-                    }
-
-                    if (key == "converter") {
-                      if (value == "on") {
-                        stdOut += "success: converter is enabled!";
-                      } else {
-                        stdOut += "success: converter is disabled!";
-                      }
-                    }
-
-                    if (key == "autorepair") {
-                      if (value == "on") {
-                        stdOut += "success: auto-repair is enabled!";
-                      } else {
-                        stdOut += "success: auto-repair is disabled!";
-                      }
-                    }
-
-                    if (key == "groupbalancer") {
-                      if (value == "on") {
-                        stdOut += "success: groupbalancer is enabled!";
-                      } else {
-                        stdOut += "success: groupbalancer is disabled!";
-                      }
-                    }
-
-                    if (key == "geobalancer") {
-                      if (value == "on") {
-                        stdOut += "success: geobalancer is enabled!";
-                      } else {
-                        stdOut += "success: geobalancer is disabled!";
-                      }
-                    }
-
-                    if (key == "geo.access.policy.read.exact") {
-                      if (value == "on") {
-                        stdOut += "success: geo access policy prefers the exact geo matching replica for reading!";
-                      } else {
-                        stdOut += "success: geo access policy prefers with a weight the geo matching replica for reading!";
-                      }
-                    }
-
-                    if (key == "geo.access.policy.write.exact") {
-                      if (value == "on") {
-                        stdOut += "success: geo access policy prefers the exact geo matching replica for placements!";
-                      } else {
-                        stdOut += "success: geo access policy prefers with a weight the geo matching replica for placements!";
-                      }
-                    }
-
-                    if (key == "scheduler.skip.overloaded") {
-                      if (value == "on") {
-                        stdOut += "success: scheduler skips overloaded eth-out nodes!";
-                      } else {
-                        stdOut += "success: scheduler does not skip overloaded eth-out nodes!";
-                      }
-                    }
-
-                    if (key == "filearchivedgc") {
-                      if (value == "on") {
-                        stdOut += "success: 'file archived' garbage collector is enabled";
-                      } else {
-                        stdOut += "success: 'file archived' garbage collector is disabled";
-                      }
-                    }
-                  }
-                }
-              } else if (key == "wfe") {
-                if ((value != "on") && (value != "off") && (value != "paused")) {
-                  retc = EINVAL;
-                  stdErr = "error: value has to either on, paused or off";
-                } else {
-                  if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value, true,
-                      "/eos/*/mgm")) {
-                    retc = EIO;
-                    stdErr = "error: cannot set space config value";
-                  }
-                }
-              } else {
-                errno = 0;
-                unsigned long long size = eos::common::StringConversion::GetSizeFromString(
-                                            value.c_str());
-
-                if (!errno) {
-                  if ((key != "balancer.threshold") &&
-                      (key != "groupbalancer.threshold") &&
-                      (key != "geobalancer.threshold")) {
-                    // the threshold is allowed to be decimal!
-                    char ssize[1024];
-                    snprintf(ssize, sizeof(ssize) - 1, "%llu", size);
-                    value = ssize;
-                  }
-
-                  if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value, true,
-                      "/eos/*/mgm")) {
-                    retc = EIO;
-                    stdErr = "error: cannot set space config value";
-                  } else {
-                    stdOut = "success: setting ";
-                    stdOut += key.c_str();
-                    stdOut += "=";
-                    stdOut += value.c_str();
-                  }
-                } else {
-                  retc = EINVAL;
-                  stdErr = "error: value has to be a positiv number";
-                }
-              }
-            }
-          }
-
+		      if (key == "geo.access.policy.write.exact") {
+			if (value == "on") {
+			  stdOut += "success: geo access policy prefers the exact geo matching replica for placements!";
+			} else {
+			  stdOut += "success: geo access policy prefers with a weight the geo matching replica for placements!";
+			}
+		      }
+		      
+		      if (key == "scheduler.skip.overloaded") {
+			if (value == "on") {
+			  stdOut += "success: scheduler skips overloaded eth-out nodes!";
+			} else {
+			  stdOut += "success: scheduler does not skip overloaded eth-out nodes!";
+			}
+		      }
+		      
+		      if (key == "filearchivedgc") {
+			if (value == "on") {
+			  stdOut += "success: 'file archived' garbage collector is enabled";
+			} else {
+			  stdOut += "success: 'file archived' garbage collector is disabled";
+			}
+		      }
+		    }
+		  }
+		} else if (key == "wfe") {
+		  if ((value != "on") && (value != "off") && (value != "paused")) {
+		    retc = EINVAL;
+		    stdErr = "error: value has to either on, paused or off";
+		  } else {
+		    if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value, true,
+										 "/eos/*/mgm")) {
+		      retc = EIO;
+		      stdErr = "error: cannot set space config value";
+		    }
+		  }
+		} else {
+		  errno = 0;
+		  unsigned long long size = eos::common::StringConversion::GetSizeFromString(
+											     value.c_str());
+		  
+		  if (!errno) {
+		    if ((key != "balancer.threshold") &&
+			(key != "groupbalancer.threshold") &&
+			(key != "geobalancer.threshold")) {
+		      // the threshold is allowed to be decimal!
+		      char ssize[1024];
+		      snprintf(ssize, sizeof(ssize) - 1, "%llu", size);
+		      value = ssize;
+		    }
+		    
+		    if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value, true,
+										 "/eos/*/mgm")) {
+		      retc = EIO;
+		      stdErr = "error: cannot set space config value";
+		    } else {
+		      stdOut = "success: setting ";
+		      stdOut += key.c_str();
+		      stdOut += "=";
+		      stdOut += value.c_str();
+		    }
+		  } else {
+		    retc = EINVAL;
+		    stdErr = "error: value has to be a positiv number";
+		  }
+		}
+	      }
+	    }
+	  }
+	  
           // Set a filesystem related parameter
           if (!key.compare(0, 3, "fs.")) {
             key.erase(0, 3);

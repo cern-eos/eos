@@ -1011,14 +1011,18 @@ XrdMgmOfsFile::open(const char* inpath,
   unsigned long fsIndex = 0;
   XrdOucString space = "default";
   unsigned long new_lid = 0;
+  eos::mgm::Scheduler::tPlctPolicy plctplcy;
+  std::string targetgeotag;
+
+  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+
   // select space and layout according to policies
   Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
                             forcedFsId, forcedGroup);
-  eos::mgm::Scheduler::tPlctPolicy plctplcy;
-  std::string targetgeotag;
+
   // get placement policy
   Policy::GetPlctPolicy(path, attrmap, vid, *openOpaque, plctplcy, targetgeotag);
-  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+  
   unsigned long long ext_mtime_sec = 0;
   unsigned long long ext_mtime_nsec = 0;
   unsigned long long ext_ctime_sec = 0;

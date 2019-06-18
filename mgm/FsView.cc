@@ -2654,6 +2654,37 @@ BaseView::GetConfigMember(std::string key) const
 }
 
 //------------------------------------------------------------------------------
+// Delete a configuration member variable (stored in the config engine)
+//------------------------------------------------------------------------------
+bool
+BaseView::DeleteConfigMember(std::string key) const
+{
+  bool deleted=false;
+  std::string node_cfg_name;
+  {
+    eos::common::RWMutexWriteLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+    node_cfg_name = eos::common::GlobalConfig::gConfig.QueuePrefixName(
+										   GetConfigQueuePrefix(), mName.c_str());
+    XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
+								   node_cfg_name.c_str());
+    
+    
+    if (hash) {
+      deleted = hash->Delete(key.c_str());
+    }
+  }
+  
+  // Delete in the configuration engine
+  if ( FsView::gFsView.mConfigEngine ) {
+    node_cfg_name += "#";
+    node_cfg_name += key;
+    FsView::gFsView.mConfigEngine->DeleteConfigValue("global", node_cfg_name.c_str());
+  }
+
+  return deleted;
+}
+
+//------------------------------------------------------------------------------
 // GetConfigKeys
 //------------------------------------------------------------------------------
 bool

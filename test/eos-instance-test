@@ -894,6 +894,49 @@ runtest "### Acl upd " unix 0 "" eos acl u:daemon:-r-w-+d-+u "/eos/$EOS_TEST_INS
 runtest "### Acl ls  " unix 1 "" eos acl -l "/eos/$EOS_TEST_INSTANCE/test/acl"
 runtest "### Rmdir   " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/acl"
 
+
+################################################################################
+# POLICIES
+###################################################A############################
+categorie="policy"
+runtest "### Cd        " unix 0 "" eos cd /eos/$EOS_TEST_INSTANCE/test
+runtest "### Mkdir     " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/policies/
+runtest "### Attr      " unix 0 "" eos attr rm sys.forced.layout /eos/$EOS_TEST_INSTANCE/test/instancetest/policies/
+runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/policies"
+runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/policies/p1" "-ODeos.space=default"
+runtest "### Grep      " unix 0 "" eos file info "/eos/$EOS_TEST_INSTANCE/test/instancetest/policies/p1"
+
+runtest "### Grep      " unix 0 "" eos file info "/eos/$EOS_TEST_INSTANCE/test/instancetest/policies/p1| grep plain | wc -l | grep -w 1"
+runtest "### Policy    " unix 0 "" eos space config default space.policy.layout=replica
+runtest "### Policy    " unix 0 "" eos space config default space.policy.nstripes=2
+runtest "### Grep      " unix 0 "" eos space status "default | grep policy.layout | wc -l | grep -w 1"
+runtest "### Grep      " unix 0 "" eos space status "default | grep policy.nstripes | wc -l | grep -w 1"
+runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/policies/p2" "-ODeos.space=default"
+runtest "### Grep      " unix 0 "" eos file info "/eos/$EOS_TEST_INSTANCE/test/instancetest/policies/p2| grep replica | wc -l | grep -w 1"
+runtest "### Policy    " unix 0 "" eos space config default space.policy.checksum=adler
+runtest "### Grep      " unix 0 "" eos space status "default | grep policy.checksum | wc -l | grep -w 1"
+runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/policies/p3" "-ODeos.space=default"
+runtest "### Grep      " unix 0 "" eos file info "/eos/$EOS_TEST_INSTANCE/test/instancetest/policies/p3| grep adler | wc -l | grep -w 1"
+runtest "### Policy    " unix 0 "" eos space config default space.policy.blocksize=1M
+runtest "### Grep      " unix 0 "" eos space status "default | grep policy.blocksize | wc -l | grep -w 1"
+runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/policies/p4" "-ODeos.space=default"
+runtest "### Grep      " unix 0 "" eos file info "/eos/$EOS_TEST_INSTANCE/test/instancetest/policies/p4| grep 1M | wc -l | grep -w 1"
+runtest "### Policy    " unix 0 "" eos space config default space.policy.blockchecksum=crc32c
+runtest "### Grep      " unix 0 "" eos space status "default | grep policy.blockchecksum | wc -l | grep -w 1"
+runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/policies/p5" "-ODeos.space=default"
+runtest "### Policy    " unix 0 "" eos space config default space.policy.layout=remove
+runtest "### Policy    " unix 0 "" eos space config default space.policy.nstripes=remove
+runtest "### Policy    " unix 0 "" eos space config default space.policy.checksum=remove
+runtest "### Policy    " unix 0 "" eos space config default space.policy.blockchecksum=remove
+runtest "### Policy    " unix 0 "" eos space config default space.policy.blocksize=remove
+runtest "### Policy    " unix 1 "" eos space config default space.policy.blocksize=remove
+runtest "### Grep      " unix 0 "" eos space status "default | grep policy.layout | wc -l | grep -w 0"
+runtest "### Grep      " unix 0 "" eos space status "default | grep policy.nstripes | wc -l | grep -w 0"
+runtest "### Grep      " unix 0 "" eos space status "default | grep policy.checksum | wc -l | grep -w 0"
+runtest "### Grep      " unix 0 "" eos space status "default | grep policy.blockchecksum | wc -l | grep -w 0"
+runtest "### Grep      " unix 0 "" eos space status "default | grep policy.blocksize | wc -l | grep -w 0"
+runtest "### Rm        " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/policies
+
 ################################################################################
 # NAMESPACE
 ################################################################################

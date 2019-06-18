@@ -13,6 +13,7 @@ Using EOS
    using/eos_services
    using/rain
    using/reports
+   using/policies
    using/systemd
    using/tpc
    using/fusex
