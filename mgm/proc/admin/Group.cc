@@ -109,17 +109,16 @@ ProcCommand::Group()
           if (status == "on") {
             // Recompute the drain status in this group
             bool setactive = false;
-            FileSystem* fs = 0;
 
             if (FsView::gFsView.mGroupView.count(groupname)) {
               for (auto git = FsView::gFsView.mGroupView[groupname]->begin();
                    git != FsView::gFsView.mGroupView[groupname]->end(); git++) {
-
                 FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*git);
+
                 if (fs) {
                   common::DrainStatus drainstatus =
                     (eos::common::FileSystem::GetDrainStatusFromString(
-                      fs->GetString("stat.drain").c_str()));
+                       fs->GetString("stat.drain").c_str()));
 
                   if ((drainstatus == eos::common::DrainStatus::kDraining) ||
                       (drainstatus == eos::common::DrainStatus::kDrainStalling)) {
@@ -189,8 +188,8 @@ ProcCommand::Group()
         } else {
           for (auto it = FsView::gFsView.mGroupView[groupname]->begin();
                it != FsView::gFsView.mGroupView[groupname]->end(); it++) {
-
             FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
+
             if (fs) {
               // check that all filesystems are empty
               if ((fs->GetConfigStatus(false) != eos::common::FileSystem::kEmpty)) {
