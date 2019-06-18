@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "mgm/FsView.hh"
 #include "mgm/proc/proc_fs.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -975,6 +976,23 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
   }
 
   if (fs_view.MoveGroup(fs, dst)) {
+    // apply defaults from the new space
+    std::set<std::string> paramlist;
+    paramlist.insert("scaninterval");
+    paramlist.insert("scanrate");
+    paramlist.insert("headroom");
+    paramlist.insert("drainperiod");
+    paramlist.insert("graceperiod");
+    for ( auto it = paramlist.begin(); it != paramlist.end(); ++it) {
+      std::string value = it_space->second->GetConfigMember(*it);
+      if (value.length()) {
+	int64_t uvalue = eos::common::StringConversion::GetSizeFromString(value.c_str());
+	fs->SetLongLong(it->c_str(),uvalue);
+	FsView::gFsView.StoreFsConfig(fs);
+	oss << "info: applying space config " << *it << "=" << value << std::endl;
+      }
+    }
+
     oss << "success: filesystem " << (int) fs->GetId() << " moved to group "
         << dst << std::endl;
     stdOut = oss.str().c_str();
