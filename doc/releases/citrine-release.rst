@@ -36,6 +36,8 @@ Improvement
 * CTA GC monitoring in 'eos ns'
 * [ EOS-3514 ] Implement orphan detection in eos-ns-inspec
 * [ EOS-3490 ] Support printing mctime, ctime in eos-ns-inspec
+* 
+
 
 ``v4.4.47 Citrine``
 ===================
@@ -55,6 +57,7 @@ Improvement
 * Report detached files in 'eos-fsck-fs'
 * [ EOS-3483 ] - add container id in output of stripediff option
 * [ EOS-3484 ] - add location to output of stripediff option
+* [ EOS-3532 ] - introduce space default placement policies ( obsoletes per directory extended attributes for default placement policy)
 * use eos-protobuf3 eos-xrootd only on EL7 for tags like x.y.z-0, otherwise only eos-protouf3 on EL7 builds
 
 
