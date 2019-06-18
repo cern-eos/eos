@@ -18,7 +18,7 @@ This release is based on XRootD V4 and IPV6 enabled.
 ``v4.5.0 Citrine``
 ===================
 
-2019-06-07
+2019-06-18
 
 Bug
 ---
@@ -26,6 +26,17 @@ Bug
 * [ EOS-3495 ] Handle out-of-quota open correctly in eosxd
 * [ EOS-1755 ] Don't irritate du with . entry size
 * [ EOS-3536 ] Fix hardlink deletion logic to avoid hidden entries after all references have been removed
+* [EOS-3279] - eos fs dumpmd RC wrong
+* [EOS-3396] - File with two 'bad' replicas: one has size mismatch, the other xsum mismatch
+* [EOS-3499] - eos-ns-inspect: Include again the libprotobuf dependency
+* [EOS-3522] - 'eos config dump --vid' prints dummy "mgm.vid.key=<key>", cannot  "eos vid rm'
+* [EOS-3526] - eosxd crash in EosFuse::readlink(), NULL 'md' pointer
+* [EOS-3533] - eos find doesnt work with --fid and -0
+
+New Feature
+-----------
+
+* [EOS-3532] - Allow default placement policies per space
 
 Improvement
 -----------
@@ -37,7 +48,17 @@ Improvement
 * CTA GC monitoring in 'eos ns'
 * [ EOS-3514 ] Implement orphan detection in eos-ns-inspec
 * [ EOS-3490 ] Support printing mctime, ctime in eos-ns-inspec
-* 
+* [EOS-3409] - 'bind mount' FUSEX, no credentials: "No such file or directory"
+  instead of "Permission denied"
+* [EOS-3519] - Add the possibility to do attr ls with the fid/pid
+* [EOS-3520] - add pid to the json output of file info
+* [EOS-2020] - Use Table Formatter for geosched show tree and snaphot commands output
+* [EOS-3513] - Provide an exception when eos dumpmd <fsid> --path is not really empty
+* [EOS-3527] - FSCK dection tool: Classify size errors for not orphan files
+* [EOS-3531] - FSCK detection: Ignore size 0 files in the namespace in replica error detection
+* Move the "group" command to the Protobuf implementation
+* Move the "io" command to the Protobuf implementation
+* Move the "debug" command to the Protobuf implementation
 
 
 ``v4.4.47 Citrine``
@@ -45,7 +66,7 @@ Improvement
 
 2019-05-17
 
-Bug 
+Bug
 ---
 
 * freeze client RPATH to XRootD location used during build
@@ -67,7 +88,7 @@ Improvement
 
 2019-05-15
 
-Bug 
+Bug
 ---
 
 * Fix FST conversion from NS proto to Fmd
@@ -168,14 +189,14 @@ Bug
 * [EOS-3446] - CONSOLE: Return errno if set otherwise the XRootD client shell code approximation
 * FST: Don't report RAIN files as d_mem_sz_diff in the fsck output
 * FUSEX: allow setting 'eos.*' attributes by silently ignoring them
-* NS: add detection for container names '.' and '..' 
+* NS: add detection for container names '.' and '..'
 
 
 Improvements
 -------------
 
 * NS: Report any errors found by ContainerScanner or FileScanner in check-naming-conflicts
-* Adding ' eos-leveldb-inspect' tool 
+* Adding ' eos-leveldb-inspect' tool
 * MGM: Refactor Fsck
 
 
