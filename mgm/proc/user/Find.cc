@@ -392,7 +392,6 @@ ProcCommand::Find()
 
               try {
                 bool selected = true;
-                unsigned long long filesize = 0;
                 fmd = gOFS->eosView->getFile(fspath.c_str());
                 viewReadLock.Release();
                 //-------------------------------------------
@@ -870,14 +869,14 @@ ProcCommand::Find()
           if (printchildcount) {
             //-------------------------------------------
             eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex);
-            std::shared_ptr<eos::IContainerMD> mCmd;
+            std::shared_ptr<eos::IContainerMD> cmd;
             unsigned long long childfiles = 0;
             unsigned long long childdirs = 0;
 
             try {
-              mCmd = gOFS->eosView->getContainer(foundit->first.c_str());
-              childfiles = mCmd->getNumFiles();
-              childdirs = mCmd->getNumContainers();
+              cmd = gOFS->eosView->getContainer(foundit->first.c_str());
+              childfiles = cmd->getNumFiles();
+              childdirs = cmd->getNumContainers();
               fprintf(fstdout, "%s ndir=%llu nfiles=%llu\n", foundit->first.c_str(),
                       childdirs, childfiles);
             } catch (eos::MDException& e) {
@@ -894,17 +893,17 @@ ProcCommand::Find()
 
               if (printuid || printgid) {
                 eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex);
-                std::shared_ptr<eos::IContainerMD> mCmd;
+                std::shared_ptr<eos::IContainerMD> cmd;
 
                 try {
-                  mCmd = gOFS->eosView->getContainer(foundit->first.c_str());
+                  cmd = gOFS->eosView->getContainer(foundit->first.c_str());
 
                   if (printuid) {
-                    fprintf(fstdout, " uid=%u", (unsigned int) mCmd->getCUid());
+                    fprintf(fstdout, " uid=%u", (unsigned int) cmd->getCUid());
                   }
 
                   if (printgid) {
-                    fprintf(fstdout, " gid=%u", (unsigned int) mCmd->getCGid());
+                    fprintf(fstdout, " gid=%u", (unsigned int) cmd->getCGid());
                   }
                 } catch (eos::MDException& e) {
                   eos_debug("caught exception %d %s\n", e.getErrno(),
