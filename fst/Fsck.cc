@@ -152,6 +152,7 @@ Fsck::Fsck(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
 
   }
   errors["missing"]=0;
+  errors["zeromis"]=0;
   errors["size"]=0;
   errors["checksum"]=0;
   errors["replica"]=0;
@@ -407,7 +408,7 @@ Fsck::ThreadProc(void)
   }
 
   fprintf(stdout,
-          "[Fsck] [ESUMM]: %s, fsid=%d files=%li fsckduration=%.02f [s] corruptedfiles=%li \n",
+          "[Fsck] [ESUMM]: %s, fsid=%d files=%li fsckduration=%.02f [s] corruptedfiles=%ld\n",
           dirPath.c_str(), fsId, noTotalFiles, (durationScan / 1000.0), noCorruptFiles);
 
 
@@ -547,10 +548,17 @@ Fsck::CheckFile(struct Fmd & fMd, size_t nfiles)
   eos::common::FileId::FidPrefix2FullPath(fxid, dirPath.c_str(), fullpath);
 
   struct stat buf;
+
   if (!silent) fprintf(stdout, "[Fsck] [ MGM ] [ %07lu ] processing file cxid:%08lx fxid:%08lx path:%s\n", nfiles, fMd.cid(), fMd.fid(), fullpath.c_str());
+
   if (stat(fullpath.c_str(), &buf)) {
-    fprintf(stderr, "[Fsck] [ERROR] [ MISSING ] fsid:%d cxid:%08lx fxid:%08lx path:%s is missing  on disk\n", fsId, fMd.cid(), fMd.fid(), fullpath.c_str());
-    errors["missing"]++;
+    if (!fMd.size()) {
+      fprintf(stderr, "[Fsck] [ERROR] [ ZEROMIS ] fsid:%d cxid:%08lx fxid:%08lx path:%s is missing  on disk\n", fsId, fMd.cid(), fMd.fid(), fullpath.c_str());
+      errors["zeromis"]++;
+    } else {
+      fprintf(stderr, "[Fsck] [ERROR] [ MISSING ] fsid:%d cxid:%08lx fxid:%08lx path:%s is missing  on disk\n", fsId, fMd.cid(), fMd.fid(), fullpath.c_str());
+      errors["missing"]++;
+    }
     fMd.set_disksize(-1);
   } else {
     fMd.set_disksize(buf.st_size);

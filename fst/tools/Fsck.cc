@@ -52,6 +52,7 @@ void usage()
   fprintf(stderr, "                      [Fsck] [ERROR] [ CKSFLAG ] fsid:1 cxid:???????? fxid:0013a549 ... file is flagged with a checksum error on disk\n");
   fprintf(stderr, "                      [Fsck] [ERROR] [ BXSFLAG ] fsid:1 cxid:???????? fxid:0013a549 ... file is flagged with a blockchecksum error on disk\n");
   fprintf(stderr, "                      [Fsck] [ERROR] [ MISSING ] fsid:1 cxid:00000006 fxid:0013da3f ... file was suppossed to be here, but is missing on disk\n");
+  fprintf(stderr, "                      [Fsck] [ERROR] [ ZEROMIS ] fsid:1 cxid:00000006 fxid:0013da3f ... an empty file was suppossed to be here, but is missing on disk\n");
   fprintf(stderr, "                      [Fsck] [ERROR] [ SIZE    ] fsid:1 cxid:00000007 fxid:0013da3a ... file size differes from MGM size\n");
   fprintf(stderr, "                      [Fsck] [ERROR] [ REPLICA ] fsid:1 cxid:00000007 fxid:0013da3a ... file replica count is inconsistent for the given layout\n");
   fprintf(stderr, "                      [Fsck] [ERROR] [ UNREGIS ] fsid:1 cxid:00000007 fxid:0013da3a ... file replica is not registered in the MGM\n");
