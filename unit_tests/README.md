@@ -43,7 +43,7 @@ The file is located within the repo in `misc/var/eos/test`.
 
 Any _accepted_ memory leak should be registered.
 
-More information on suppressions can be found [here].
+More information on suppressions can be found [here][1].
 
 ### Installing from RPMs
 
