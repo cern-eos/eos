@@ -111,6 +111,12 @@ int main(int argc, char* argv[]) {
   addClusterOptions(checkOrphansSubcommand, membersStr, memberValidator, password, passwordFile);
 
   //----------------------------------------------------------------------------
+  // Set-up check-fsview-missing subcommand..
+  //----------------------------------------------------------------------------
+  auto checkFsViewMissingSubcommand = app.add_subcommand("check-fsview-missing", "Check which FileMDs have locations / unlinked locations not present in the filesystem view");
+  addClusterOptions(checkFsViewMissingSubcommand, membersStr, memberValidator, password, passwordFile);
+
+  //----------------------------------------------------------------------------
   // Set-up print subcommand..
   //----------------------------------------------------------------------------
   auto printSubcommand = app.add_subcommand("print", "Print everything known about a given file, or container");
@@ -209,6 +215,10 @@ int main(int argc, char* argv[]) {
 
   if(checkOrphansSubcommand->parsed()) {
     return inspector.checkOrphans(std::cout, std::cerr);
+  }
+
+  if(checkFsViewMissingSubcommand->parsed()) {
+    return inspector.checkFsViewMissing(std::cout, std::cerr);
   }
 
   if(changeFidSubcommand->parsed()) {

@@ -37,7 +37,7 @@ FileSystemRegistry::FileSystemRegistry() {
 //------------------------------------------------------------------------------
 // Lookup a FileSystem object by ID - return nullptr if none exists.
 //------------------------------------------------------------------------------
-FileSystem* FileSystemRegistry::lookupByID(eos::common::FileSystem::fsid_t id) const {
+mgm::FileSystem* FileSystemRegistry::lookupByID(eos::common::FileSystem::fsid_t id) const {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
 
   auto it = mById.find(id);

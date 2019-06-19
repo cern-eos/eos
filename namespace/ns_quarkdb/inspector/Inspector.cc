@@ -503,6 +503,86 @@ int Inspector::checkOrphans(std::ostream &out, std::ostream &err) {
 }
 
 //------------------------------------------------------------------------------
+// Helper struct for checkFsViewMissing
+//------------------------------------------------------------------------------
+struct FsViewItemExists {
+  folly::Future<bool> valid;
+  eos::ns::FileMdProto proto;
+  int64_t location;
+  bool unlinked;
+
+  FsViewItemExists(folly::Future<bool> &&v, const eos::ns::FileMdProto &pr, int64_t loc, bool unl)
+  : valid(std::move(v)), proto(pr), location(loc), unlinked(unl) {}
+};
+
+void consumeFsViewQueue(std::deque<FsViewItemExists> &futs, bool unconditional, std::ostream &out) {
+  while(!futs.empty() && (unconditional || futs.front().valid.isReady())) {
+    FsViewItemExists &entry = futs.front();
+    entry.valid.wait();
+
+    if(entry.valid.hasException()) {
+      out << "ERROR: Exception occurred when checking validity of location " << entry.location << " (unlinked=" << entry.unlinked << ") of FileMD " << entry.proto.id() << std::endl;
+    }
+    else if(entry.valid.get() == false) {
+
+      if(entry.unlinked) {
+        out << "id=" << entry.proto.id() << " parent-id=" << entry.proto.cont_id() << " size=" << entry.proto.size() << " locations=" << serializeLocations(entry.proto.locations()) << " unlinked-locations=" << serializeLocations(entry.proto.unlink_locations()) << " missing-unlinked-location=" << entry.location << std::endl;
+      }
+      else {
+        out << "id=" << entry.proto.id() << " parent-id=" << entry.proto.cont_id() << " size=" << entry.proto.size() << " locations=" << serializeLocations(entry.proto.locations()) << " unlinked-locations=" << serializeLocations(entry.proto.unlink_locations()) << " missing-location=" << entry.location << std::endl;
+      }
+    }
+
+    futs.pop_front();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Search for holes in FsView: Items which should be in FsView according to
+// FMD locations / unlinked locations, but are not there.
+//------------------------------------------------------------------------------
+int Inspector::checkFsViewMissing(std::ostream &out, std::ostream &err) {
+  //----------------------------------------------------------------------------
+  // Search through all FileMDs..
+  //----------------------------------------------------------------------------
+  std::deque<FsViewItemExists> queue;
+  FileScanner fileScanner(mQcl);
+  common::IntervalStopwatch stopwatch(std::chrono::seconds(10));
+
+  while(fileScanner.valid()) {
+    consumeFsViewQueue(queue, false, out);
+
+    eos::ns::FileMdProto proto;
+    if (!fileScanner.getItem(proto)) {
+      break;
+    }
+
+    for(auto it = proto.locations().cbegin(); it != proto.locations().cend(); it++) {
+      queue.emplace_back(MetadataFetcher::locationExistsInFsView(mQcl, FileIdentifier(proto.id()),
+        *it, false), proto, *it, false);
+    }
+
+    for(auto it = proto.unlink_locations().cbegin(); it != proto.unlink_locations().cend(); it++) {
+      queue.emplace_back(MetadataFetcher::locationExistsInFsView(mQcl, FileIdentifier(proto.id()),
+        *it, true), proto, *it, true);
+    }
+
+    if (stopwatch.restartIfExpired()) {
+      err << "Progress: Processed " << fileScanner.getScannedSoFar() << " files so far" << std::endl;
+    }
+
+    fileScanner.next();
+  }
+
+  consumeFsViewQueue(queue, true, out);
+  std::string errorString;
+  if(fileScanner.hasError(errorString)) {
+    err << errorString;
+    return 1;
+  }
+}
+
+//------------------------------------------------------------------------------
 // Print out _everything_ known about the given file.
 //------------------------------------------------------------------------------
 int Inspector::printFileMD(uint64_t fid, std::ostream& out, std::ostream& err)

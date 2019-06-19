@@ -81,7 +81,7 @@ public:
   //----------------------------------------------------------------------------
   //! Lookup a FileSystem object by ID - return nullptr if none exists.
   //----------------------------------------------------------------------------
-  FileSystem* lookupByID(eos::common::FileSystem::fsid_t id) const;
+  mgm::FileSystem* lookupByID(eos::common::FileSystem::fsid_t id) const;
 
   //----------------------------------------------------------------------------
   //! Lookup a FileSystem id by FileSystem pointer - return 0 if none exists

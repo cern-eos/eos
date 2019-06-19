@@ -75,6 +75,12 @@ public:
   int checkNamingConflicts(std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
+  //! Search for holes in FsView: Items which should be in FsView according to
+  //! FMD locations / unlinked locations, but are not there.
+  //----------------------------------------------------------------------------
+  int checkFsViewMissing(std::ostream &out, std::ostream &err);
+
+  //----------------------------------------------------------------------------
   //! Find files with non-nominal number of stripes (replicas)
   //----------------------------------------------------------------------------
   int stripediff(bool printTime, std::ostream &out, std::ostream &err);
