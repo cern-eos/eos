@@ -37,6 +37,8 @@ com_squash(char* arg1)
   subtokenizer.GetLine();
   XrdOucString cmd = "";
   XrdOucString path = "";
+  XrdOucString option = "";
+
   bool ok = false;
   const int len = 4096;
   char username[len];
@@ -65,6 +67,11 @@ com_squash(char* arg1)
 
     if (cmd == "-h") {
       goto com_squash_usage;
+    }
+
+    if (path.length() && (path[0] == '-')) {
+      option = path[1];
+      path = subtokenizer.GetToken();
     }
 
     if (!path.length()) {
@@ -155,21 +162,17 @@ com_squash(char* arg1)
     shellcmd += linktarget;
     shellcmd += " ";
     shellcmd += squashpack;
+    shellcmd += "~";
     shellcmd += " -noappend";
     shellcmd += " -force-uid ";
     shellcmd += std::to_string(geteuid());
     shellcmd += " -force-gid ";
     shellcmd += std::to_string(getegid());
-
-    if (!stat(squashpack.c_str(), &buf)) {
-      if (unlink(squashpack.c_str())) {
-        fprintf(stderr,
-                "error: failed to remove existing squashfs archive '%s' - errno '%d'\n",
-                squashpack.c_str(), errno);
-        global_retc = errno;
-        return (0);
-      }
-    }
+    shellcmd += " && mv -f -T ";
+    shellcmd += squashpack;
+    shellcmd += "~";
+    shellcmd += " ";
+    shellcmd += squashpack;
 
     fprintf(stderr, "running %s\n", shellcmd.c_str());
     int rc = system(shellcmd.c_str());
@@ -179,35 +182,37 @@ com_squash(char* arg1)
       global_retc = WEXITSTATUS(rc);
       return (0);
     } else {
-      if (unlink(packagepath.GetPath())) {
-        fprintf(stderr,
-                "error: failed to unlink locally staged squashfs archive '%s' - errno '%d'\n",
-                squashpack.c_str(), errno);
-        global_retc = errno;
-        return (0);
-      } else {
-	std::string targetline = "eosxd get eos.hostport ";
-	targetline += packagepath.GetParentPath();
-
-	std::string hostport = eos::common::StringConversion::StringFromShellCmd(targetline.c_str());
-	if (!hostport.length()) {
-	  fprintf(stderr, "error: failed to get eos.hostport from mountpoint '%s'\n", targetline.c_str());
-	  global_retc = EIO;
+      if (option!= "f") {
+	if (unlink(packagepath.GetPath())) {
+	  fprintf(stderr,
+		  "error: failed to unlink locally staged squashfs archive '%s' - errno '%d'\n",
+		  squashpack.c_str(), errno);
+	  global_retc = errno;
 	  return (0);
+	} else {
+	  std::string targetline = "eosxd get eos.hostport ";
+	  targetline += packagepath.GetParentPath();
+	  
+	  std::string hostport = eos::common::StringConversion::StringFromShellCmd(targetline.c_str());
+	  if (!hostport.length()) {
+	    fprintf(stderr, "error: failed to get eos.hostport from mountpoint '%s'\n", targetline.c_str());
+	    global_retc = EIO;
+	    return (0);
+	  }
+	  
+	  std::string target = "/eos/squashfs/";
+	  target += hostport; 
+	  target += "@";
+	  XrdOucString spackagepath = squashpack.c_str();
+	  while(spackagepath.replace("/","%%")) {}
+	  target += spackagepath.c_str();
+	  
+	  if (symlink(target.c_str(), packagepath.GetPath())) {
+	    fprintf(stderr, "error: failed to create squashfs symlink '%s' => '%s'\n",
+		    packagepath.GetPath(),
+		    target.c_str());
+	  }
 	}
-	
-	std::string target = "/eos/squashfs/";
-	target += hostport; 
-	target += "@";
-	XrdOucString spackagepath = squashpack.c_str();
-	while(spackagepath.replace("/","%%")) {}
-	target += spackagepath.c_str();
-
-        if (symlink(target.c_str(), packagepath.GetPath())) {
-          fprintf(stderr, "error: failed to create squashfs symlink '%s' => '%s'\n",
-                  packagepath.GetPath(),
-                  target.c_str());
-        }
       }
     }
 
@@ -283,22 +288,24 @@ com_squash(char* arg1)
     mkpath += username;
     mkpath += "/eosxd/mksquash/";
 
-    if (mounttarget.beginswith(mkpath.c_str())) {
-      fprintf(stderr, "error: squash image is already unpacked!\n");
-      global_retc = EINVAL;
-      return (0);
-    }
-
-    // remove any mounts
-    std::string umountcmd = "umount -f -l ";
-    umountcmd += mounttarget.c_str();
-    system(umountcmd.c_str());
-
-    if (rmdir(mounttarget.c_str())) {
-      if (errno != ENOENT) {
-        fprintf(stderr,
-                "error: failed to unlink local mount directory path='%s' errno=%d\n",
-                mounttarget.c_str(), errno);
+    if (option != "f") {
+      if (mounttarget.beginswith(mkpath.c_str())) {
+	fprintf(stderr, "error: squash image is already unpacked!\n");
+	global_retc = EINVAL;
+	return (0);
+      }
+      
+      // remove any mounts
+      std::string umountcmd = "umount -f -l ";
+      umountcmd += mounttarget.c_str();
+      system(umountcmd.c_str());
+      
+      if (rmdir(mounttarget.c_str())) {
+	if (errno != ENOENT) {
+	  fprintf(stderr,
+		  "error: failed to unlink local mount directory path='%s' errno=%d\n",
+		  mounttarget.c_str(), errno);
+	}
       }
     }
 
@@ -330,8 +337,23 @@ com_squash(char* arg1)
     }
 
     shellcmd += mountpath.GetParentPath();
+    shellcmd.erase(shellcmd.length()-1);
+    shellcmd += "~";
     shellcmd += " ";
     shellcmd += squashpack.c_str();
+    shellcmd += " && rsync -aq --delete "; 
+    shellcmd += mountpath.GetParentPath();
+    shellcmd.erase(shellcmd.length()-1);
+    shellcmd += "~/";
+    shellcmd += " ";
+    shellcmd += mountpath.GetParentPath();
+
+    shellcmd += " && rm -rf ";
+    shellcmd += mountpath.GetParentPath();
+    shellcmd.erase(shellcmd.length()-1);
+    shellcmd += "~";
+
+    fprintf(stdout, "%s\n", shellcmd.c_str());
     int rc = system(shellcmd.c_str());
 
     if (WEXITSTATUS(rc)) {
@@ -450,15 +472,26 @@ com_squash_usage:
   fprintf(stdout,
           "usage: squash new <path>                                                  : create a new squashfs under <path>\n");
   fprintf(stdout,
-          "       squash pack <path>                                                 : pack a squashfs image\n");
+          "       squash pack [-f] <path>                                            : pack a squashfs image\n");
+  fprintf(stdout, 
+	  "                                                                            -f will recreate the package but keeps the symbolic link locally\n");         
+
   fprintf(stdout,
-          "       squash unpack <path>                                               : unpack a squashfs image for modification\n");
+          "       squash unpack [-f] <path>                                          : unpack a squashfs image for modification\n");
+  fprintf(stdout, 
+	  "                                                                          : -f will atomically update the local package\n");
+  
   fprintf(stdout,
           "       squash info <path>                                                 : squashfs information about <path>\n");
   fprintf(stdout,
           "       squash rm <path>                                                   : delete a squashfs attached image and its smart link\n");
   fprintf(stdout,       
 	  "       squash relabel <path>                                              : relable a squashfs image link e.g. after an image move in the namespace\n");
+
+  fprintf(stdout, 
+	  "       squash roll <path>                                                 : will create a squash package form the EOS directory pointed by <path\n");
+  fprintf(stdout, 
+	  "       squash unroll <path>                                               : will store the squash package contents unpacked into the EOS package directory\n");
   global_retc = EINVAL;
   return (0);
 }
