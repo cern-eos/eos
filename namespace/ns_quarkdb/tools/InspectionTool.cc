@@ -117,6 +117,12 @@ int main(int argc, char* argv[]) {
   addClusterOptions(checkFsViewMissingSubcommand, membersStr, memberValidator, password, passwordFile);
 
   //----------------------------------------------------------------------------
+  // Set-up check-fsview-extra subcommand..
+  //----------------------------------------------------------------------------
+  auto checkFsViewExtraSubcommand = app.add_subcommand("check-fsview-extra", "Check whether there exist FsView entries without a corresponding FMD location");
+  addClusterOptions(checkFsViewExtraSubcommand, membersStr, memberValidator, password, passwordFile);
+
+  //----------------------------------------------------------------------------
   // Set-up print subcommand..
   //----------------------------------------------------------------------------
   auto printSubcommand = app.add_subcommand("print", "Print everything known about a given file, or container");
@@ -219,6 +225,10 @@ int main(int argc, char* argv[]) {
 
   if(checkFsViewMissingSubcommand->parsed()) {
     return inspector.checkFsViewMissing(std::cout, std::cerr);
+  }
+
+  if(checkFsViewExtraSubcommand->parsed()) {
+    return inspector.checkFsViewExtra(std::cout, std::cerr);
   }
 
   if(changeFidSubcommand->parsed()) {

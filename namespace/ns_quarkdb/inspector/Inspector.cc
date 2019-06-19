@@ -24,6 +24,8 @@
 #include "namespace/ns_quarkdb/inspector/Printing.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
+#include "namespace/ns_quarkdb/persistency/FileSystemIterator.hh"
+#include "namespace/ns_quarkdb/accounting/FileSystemHandler.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "common/LayoutId.hh"
 #include "common/IntervalStopwatch.hh"
@@ -580,7 +582,95 @@ int Inspector::checkFsViewMissing(std::ostream &out, std::ostream &err) {
     err << errorString;
     return 1;
   }
+
+  return 0;
 }
+
+struct FsViewExpectInLocations {
+  folly::Future<eos::ns::FileMdProto> proto;
+  int64_t futureFid;
+  int64_t expectedLocation;
+  bool unlinked;
+
+  FsViewExpectInLocations(folly::Future<eos::ns::FileMdProto> &&p, int64_t fid, int64_t expected,
+    bool unl) : proto(std::move(p)), futureFid(fid), expectedLocation(expected), unlinked(unl) {}
+};
+
+void consumeFsViewQueue(std::deque<FsViewExpectInLocations> &futs, bool unconditional, std::ostream &out) {
+  while(!futs.empty() && (unconditional || futs.front().proto.isReady())) {
+    FsViewExpectInLocations &entry = futs.front();
+    entry.proto.wait();
+
+    if(entry.proto.hasException()) {
+      out << "ERROR: Exception occurred when fetching file with id " << entry.futureFid << std::endl;
+    }
+    else if(!entry.unlinked) {
+      eos::ns::FileMdProto proto = entry.proto.get();
+
+      bool found = false;
+      for(auto it = proto.locations().cbegin(); it != proto.locations().cend(); it++) {
+        if(*it == entry.expectedLocation) {
+          found = true;
+          break;
+        }
+      }
+
+      if(!found) {
+        out << "id=" << proto.id() << " parent-id=" << proto.cont_id() << " size=" << proto.size() << " locations=" << serializeLocations(proto.locations()) << " unlinked-locations=" << serializeLocations(proto.unlink_locations()) << " extra-location=" << entry.expectedLocation << std::endl;
+      }
+    }
+    else {
+      eos::ns::FileMdProto proto = entry.proto.get();
+
+      bool found = false;
+      for(auto it = proto.unlink_locations().cbegin(); it != proto.unlink_locations().cend(); it++) {
+        if(*it == entry.expectedLocation) {
+          found = true;
+          break;
+        }
+      }
+
+      if(!found) {
+        out << "id=" << proto.id() << " parent-id=" << proto.cont_id() << " size=" << proto.size() << " locations=" << serializeLocations(proto.locations()) << " unlinked-locations=" << serializeLocations(proto.unlink_locations()) << " extra-unlink-location=" << entry.expectedLocation << std::endl;
+      }
+    }
+
+    futs.pop_front();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Search for elements which are present in FsView, but not FMD locations
+//------------------------------------------------------------------------------
+int Inspector::checkFsViewExtra(std::ostream &out, std::ostream &err) {
+  //----------------------------------------------------------------------------
+  // Scan through the entire filesystem view..
+  //----------------------------------------------------------------------------
+  std::deque<FsViewExpectInLocations> queue;
+  FileSystemIterator fsIter(mQcl);
+
+  while(fsIter.valid()) {
+    StreamingFileListIterator fsScanner(mQcl, fsIter.getRedisKey());
+
+    while(fsScanner.valid()) {
+      consumeFsViewQueue(queue, false, out);
+
+      queue.emplace_back(MetadataFetcher::getFileFromId(mQcl, FileIdentifier(fsScanner.getElement())),
+        fsScanner.getElement(),
+        fsIter.getFileSystemID(),
+        fsIter.isUnlinked()
+      );
+
+      fsScanner.next();
+    }
+
+    fsIter.next();
+  }
+
+  consumeFsViewQueue(queue, true, out);
+  return 0;
+}
+
 
 //------------------------------------------------------------------------------
 // Print out _everything_ known about the given file.

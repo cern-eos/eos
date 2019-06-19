@@ -81,6 +81,11 @@ public:
   int checkFsViewMissing(std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
+  //! Search for elements which are present in FsView, but not FMD locations
+  //----------------------------------------------------------------------------
+  int checkFsViewExtra(std::ostream &out, std::ostream &err);
+
+  //----------------------------------------------------------------------------
   //! Find files with non-nominal number of stripes (replicas)
   //----------------------------------------------------------------------------
   int stripediff(bool printTime, std::ostream &out, std::ostream &err);
