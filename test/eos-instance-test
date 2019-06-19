@@ -909,6 +909,25 @@ runtest "### Rmdir   " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/acl"
 
 
 ################################################################################
+# Public access
+###################################################A############################
+categorie="publicaccess"
+runtest "### Mkdir   " unix 0 "" eos mkdir -p /eos/$EOS_TEST_INSTANCE/test/instancetest/public/
+runtest "### Chmod   " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/public/"
+runtest "### Upload  " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/public/p1" "-ODeos.space=default"
+runtest "### Vid     " unix 0 "" eos vid publicaccesslevel 2
+runtest "### Rm      " unix 1 "EOSROLE='-r 99 99'" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/public/p1"
+runtest "### Rm      " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/public/p1"
+runtest "### Rmdir   " unix 1 "EOSROLE='-r 99 99'" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instancetest/public
+runtest "### Ls      " unix 1 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/"
+runtest "### Ls      " unix 0 "" eos ls -l "/eos/$EOS_TEST_INSTANCE/test/"
+runtest "### Find    " unix 1 "EOSROLE='-r 99 99'" eos find "/eos/$EOS_TEST_INSTANCE/test/"
+runtest "### Vid     " unix 0 "" eos vid publicaccesslevel 1024
+runtest "### Ls      " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/"
+runtest "### Find    " unix 0 "EOSROLE='-r 99 99'" eos find "/eos/$EOS_TEST_INSTANCE/test/"
+runtest "### Rmdir   " unix 0 "" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instancetest/public
+
+################################################################################
 # POLICIES
 ###################################################A############################
 categorie="policy"
