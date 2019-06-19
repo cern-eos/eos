@@ -89,15 +89,16 @@ add_library(
   ns_quarkdb/inspector/Inspector.cc                       ns_quarkdb/inspector/Inspector.hh
   ns_quarkdb/inspector/Printing.cc                        ns_quarkdb/inspector/Printing.hh
 
-  ns_quarkdb/persistency/NextInodeProvider.cc             ns_quarkdb/persistency/NextInodeProvider.hh
-  ns_quarkdb/persistency/Serialization.cc                 ns_quarkdb/persistency/Serialization.hh
-  ns_quarkdb/persistency/UnifiedInodeProvider.cc          ns_quarkdb/persistency/UnifiedInodeProvider.hh
   ns_quarkdb/persistency/ContainerMDSvc.cc                ns_quarkdb/persistency/ContainerMDSvc.hh
   ns_quarkdb/persistency/FileMDSvc.cc                     ns_quarkdb/persistency/FileMDSvc.hh
+  ns_quarkdb/persistency/FileSystemIterator.cc            ns_quarkdb/persistency/FileSystemIterator.hh
   ns_quarkdb/persistency/MetadataFetcher.cc               ns_quarkdb/persistency/MetadataFetcher.hh
-  ns_quarkdb/persistency/MetadataProviderShard.cc         ns_quarkdb/persistency/MetadataProviderShard.hh
   ns_quarkdb/persistency/MetadataProvider.cc              ns_quarkdb/persistency/MetadataProvider.hh
+  ns_quarkdb/persistency/MetadataProviderShard.cc         ns_quarkdb/persistency/MetadataProviderShard.hh
+  ns_quarkdb/persistency/NextInodeProvider.cc             ns_quarkdb/persistency/NextInodeProvider.hh
   ns_quarkdb/persistency/RequestBuilder.cc                ns_quarkdb/persistency/RequestBuilder.hh
+  ns_quarkdb/persistency/Serialization.cc                 ns_quarkdb/persistency/Serialization.hh
+  ns_quarkdb/persistency/UnifiedInodeProvider.cc          ns_quarkdb/persistency/UnifiedInodeProvider.hh
 
   ns_quarkdb/utils/QuotaRecomputer.cc                     ns_quarkdb/utils/QuotaRecomputer.hh
 

@@ -36,6 +36,7 @@
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/utils/FutureVectorIterator.hh"
 #include "namespace/ns_quarkdb/inspector/Printing.hh"
+#include "namespace/ns_quarkdb/persistency/FileSystemIterator.hh"
 #include "namespace/common/QuotaNodeCore.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Etag.hh"
@@ -82,6 +83,9 @@ TEST_F(VariousTests, CheckLocationInFsView) {
   file->unlinkLocation(11);
   file->unlinkLocation(22);
 
+  std::shared_ptr<eos::IFileMD> file2 = view()->createFile("/my-file-2.txt", true);
+  file2->addLocation(22);
+
   mdFlusher()->synchronize();
 
   ASSERT_TRUE(eos::MetadataFetcher::locationExistsInFsView(qcl(), FileIdentifier(1), 99, false).get());
@@ -97,6 +101,46 @@ TEST_F(VariousTests, CheckLocationInFsView) {
   ASSERT_FALSE(eos::MetadataFetcher::locationExistsInFsView(qcl(), FileIdentifier(1), 99, true).get());
   ASSERT_FALSE(eos::MetadataFetcher::locationExistsInFsView(qcl(), FileIdentifier(1), 77, true).get());
   ASSERT_FALSE(eos::MetadataFetcher::locationExistsInFsView(qcl(), FileIdentifier(1), 33, true).get());
+
+  // Try to confuse the iterator object
+  qcl().exec("SET", "fsview:22:pickles", "123").get();
+
+  FileSystemIterator fsIter(qcl());
+  ASSERT_TRUE(fsIter.valid());
+  ASSERT_EQ(fsIter.getFileSystemID(), 11);
+  ASSERT_TRUE(fsIter.isUnlinked());
+  ASSERT_EQ(fsIter.getRedisKey(), "fsview:11:unlinked");
+
+  fsIter.next();
+
+  ASSERT_TRUE(fsIter.valid());
+  ASSERT_EQ(fsIter.getFileSystemID(), 22);
+  ASSERT_FALSE(fsIter.isUnlinked());
+  ASSERT_EQ(fsIter.getRedisKey(), "fsview:22:files");
+
+  fsIter.next();
+
+  ASSERT_TRUE(fsIter.valid());
+  ASSERT_EQ(fsIter.getFileSystemID(), 22);
+  ASSERT_TRUE(fsIter.isUnlinked());
+  ASSERT_EQ(fsIter.getRedisKey(), "fsview:22:unlinked");
+
+  fsIter.next();
+
+  ASSERT_TRUE(fsIter.valid());
+  ASSERT_EQ(fsIter.getFileSystemID(), 77);
+  ASSERT_FALSE(fsIter.isUnlinked());
+  ASSERT_EQ(fsIter.getRedisKey(), "fsview:77:files");
+
+  fsIter.next();
+
+  ASSERT_TRUE(fsIter.valid());
+  ASSERT_EQ(fsIter.getFileSystemID(), 99);
+  ASSERT_FALSE(fsIter.isUnlinked());
+  ASSERT_EQ(fsIter.getRedisKey(), "fsview:99:files");
+
+  fsIter.next();
+  ASSERT_FALSE(fsIter.valid());
 }
 
 TEST_F(VariousTests, BasicSanity) {

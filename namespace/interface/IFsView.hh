@@ -240,17 +240,17 @@ public:
 
 //------------------------------------------------------------------------------
 // File System iterator implementation of a in-memory namespace
-// Trivial implementation, using the same logic to iterate over filesystems
+// Trivial implementation, using the same "logic" to iterate over filesystems
 // as we did with "getNumFileSystems" before.
 //------------------------------------------------------------------------------
-class FileSystemIterator:
+class StupidFileSystemIterator:
   public ICollectionIterator<IFileMD::location_t>
 {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  FileSystemIterator(IFileMD::location_t maxfs) :
+  StupidFileSystemIterator(IFileMD::location_t maxfs) :
     pCurrentFS(0), pMaxFS(maxfs) {}
 
   //----------------------------------------------------------------------------

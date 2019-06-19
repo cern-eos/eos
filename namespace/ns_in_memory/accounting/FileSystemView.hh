@@ -158,7 +158,7 @@ public:
       getFileSystemIterator() override
   {
     return std::shared_ptr<ICollectionIterator<IFileMD::location_t>>
-           (new FileSystemIterator(pFiles.size()));
+           (new StupidFileSystemIterator(pFiles.size()));
   }
 
   //----------------------------------------------------------------------------
