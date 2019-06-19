@@ -1059,6 +1059,9 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-ns-quarkdb-tests
 %attr(444,daemon,daemon) %{_localstatedir}/eos/test/fuse/untar/untar.tgz
 %attr(444,daemon,daemon) %{_localstatedir}/eos/test/fuse/untar/xrootd.tgz
+%if %{?_with_asan:1}%{!?_with_asan:0}
+%attr(644,daemon,daemon) %{_localstatedir}/eos/test/LeakSanitizer.supp
+%endif
 
 %if %{?_with_coverage:1}%{!?_with_coverage:0}
 #-------------------------------------------------------------------------------

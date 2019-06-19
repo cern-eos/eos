@@ -69,6 +69,13 @@ install(FILES
   DESTINATION /var/eos/test/fuse/untar/
   PERMISSIONS OWNER_READ GROUP_READ WORLD_READ)
 
+if (ASAN)
+  install(FILES
+    eos/test/LeakSanitizer.supp
+    DESTINATION /var/eos/test/
+    PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
+endif()
+
 if( MacOSX )
   install(FILES
     eosd.conf

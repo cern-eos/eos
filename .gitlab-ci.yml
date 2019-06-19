@@ -256,8 +256,9 @@ before_script:
   <<: *k8s_before_script_template
   script:
     - ./eos-on-k8s/create-mgm.sh -i ${IMAGE_TAG} -n ${NAMESPACE}
-    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm1) -- eos-unit-tests
-    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm1) -- eos-fst-unit-tests
+    - if [[ "$CI_JOB_NAME" =~ "asan" ]]; then export LSAN_OPTIONS="suppressions=/var/eos/test/LeakSanitizer.supp" ; else export LSAN_OPTIONS="" ; fi
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm1) -- bash -c "LSAN_OPTIONS=${LSAN_OPTIONS} eos-unit-tests"
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm1) -- bash -c "LSAN_OPTIONS=${LSAN_OPTIONS} eos-fst-unit-tests"
   <<: *k8s_after_script_template
 
 .k8s_ns_unit_test_template: &k8s_ns_unit_test_template
@@ -887,6 +888,7 @@ unit_test_asan:
   <<: *unit_test_template
   variables:
     BUILD_NAME: cc7_asan
+    LSAN_OPTIONS: "suppressions=/var/eos/test/LeakSanitizer.supp"  # Suppress known memory leaks
   dependencies:
     - build_cc7_asan
   tags:
