@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: TapeAwareGcSpaceNotFound.cc
+// File: TapeAwareGcUtils.cc
 // Author: Steven Murray - CERN
 // ----------------------------------------------------------------------
 
@@ -21,15 +21,61 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/Namespace.hh"
-#include "mgm/TapeAwareGcSpaceNotFound.hh"
+#include "mgm/tgc/TapeAwareGcUtils.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Thrown when a given EOS space cannot be found
+// Return the integer representation of the specified string
 //------------------------------------------------------------------------------
-TapeAwareGcSpaceNotFound::TapeAwareGcSpaceNotFound(const std::string &msg): std::runtime_error(msg) {
+uint64_t
+TapeAwareGcUtils::toUint64(const std::string &str)
+{
+  bool outOfRange = false;
+
+  if(isValidUInt(str)) {
+    try {
+      return std::stoul(str);
+    } catch(std::out_of_range &) {
+      outOfRange = true;
+    }
+  }
+
+  std::ostringstream errMsg;
+  errMsg << "Invalid unsigned 64-bit integer: value=" << str;
+  if(outOfRange) {
+    errMsg << ",reason='Out of range'";
+    throw OutOfRangeUint64(errMsg.str());
+  } else {
+    throw InvalidUint64(errMsg.str());
+  }
+}
+
+//------------------------------------------------------------------------------
+// Return true if the specified string is a valid unsigned integer
+//------------------------------------------------------------------------------
+bool
+TapeAwareGcUtils::isValidUInt(std::string str)
+{
+  // left trim
+  str.erase(0, str.find_first_not_of(" \t"));
+
+  // An empty string is not a valid unsigned integer
+  if(str.empty()) {
+    return false;
+  }
+
+  // For each character in the string
+  for(std::string::const_iterator itor = str.begin(); itor != str.end();
+    itor++) {
+
+    // If the current character is not a valid numerical digit
+    if(*itor < '0' || *itor > '9') {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 EOSMGMNAMESPACE_END

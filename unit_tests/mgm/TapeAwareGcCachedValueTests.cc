@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/TapeAwareGcCachedValue.hh"
+#include "mgm/tgc/TapeAwareGcCachedValue.hh"
 
 #include <gtest/gtest.h>
 #include <stdint.h>

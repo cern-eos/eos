@@ -200,11 +200,6 @@ add_library(
   Recycle.cc
   PathRouting.cc
   RouteEndpoint.cc
-  TapeAwareGc.cc
-  TapeAwareGcFreeSpace.cc
-  TapeAwareGcLru.cc
-  TapeAwareGcSpaceNotFound.cc
-  TapeAwareGcUtils.cc
   LRU.cc
   WFE.cc
   Workflow.cc
@@ -224,6 +219,11 @@ add_library(
   geotree/SchedulingTreeCommon.cc
   TableFormatter/TableFormatterBase.cc
   TableFormatter/TableCell.cc
+  tgc/TapeAwareGc.cc
+  tgc/TapeAwareGcFreeSpace.cc
+  tgc/TapeAwareGcLru.cc
+  tgc/TapeAwareGcSpaceNotFound.cc
+  tgc/TapeAwareGcUtils.cc
   ${FUSEX_SRCS})
 
 #-------------------------------------------------------------------------------

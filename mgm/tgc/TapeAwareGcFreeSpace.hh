@@ -25,7 +25,7 @@
 #define __EOSMGM_TAPEAWAREGCFREESPACE_HH__
 
 #include "mgm/Namespace.hh"
-#include "mgm/TapeAwareGcCachedValue.hh"
+#include "mgm/tgc/TapeAwareGcCachedValue.hh"
 
 #include <mutex>
 #include <stdexcept>

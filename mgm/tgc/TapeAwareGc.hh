@@ -26,9 +26,9 @@
 
 #include "common/Logging.hh"
 #include "mgm/Namespace.hh"
-#include "mgm/TapeAwareGcFreeSpace.hh"
-#include "mgm/TapeAwareGcLru.hh"
-#include "mgm/TapeAwareGcThreadSafeCachedValue.hh"
+#include "mgm/tgc/TapeAwareGcFreeSpace.hh"
+#include "mgm/tgc/TapeAwareGcLru.hh"
+#include "mgm/tgc/TapeAwareGcThreadSafeCachedValue.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "proto/ConsoleReply.pb.h"
 #include "proto/ConsoleRequest.pb.h"

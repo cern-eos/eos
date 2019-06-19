@@ -22,9 +22,9 @@
  ************************************************************************/
 
 #include "mgm/FsView.hh"
-#include "mgm/TapeAwareGcFreeSpace.hh"
-#include "mgm/TapeAwareGcSpaceNotFound.hh"
-#include "mgm/TapeAwareGcUtils.hh"
+#include "mgm/tgc/TapeAwareGcFreeSpace.hh"
+#include "mgm/tgc/TapeAwareGcSpaceNotFound.hh"
+#include "mgm/tgc/TapeAwareGcUtils.hh"
 
 #include <functional>
 #include <sstream>

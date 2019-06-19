@@ -33,7 +33,7 @@
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/config/ConfigParsing.hh"
 #include "mgm/TableFormatter/TableFormatterBase.hh"
-#include "mgm/TapeAwareGcConstants.hh"
+#include "mgm/tgc/TapeAwareGcConstants.hh"
 #include "common/StringConversion.hh"
 
 using eos::common::RWMutexReadLock;

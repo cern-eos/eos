@@ -28,7 +28,7 @@
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Macros.hh"
-#include "mgm/TapeAwareGc.hh"
+#include "mgm/tgc/TapeAwareGc.hh"
 #include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
 
 #include <XrdOuc/XrdOucEnv.hh>

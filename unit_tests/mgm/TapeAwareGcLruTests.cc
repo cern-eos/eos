@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/TapeAwareGcLru.hh"
+#include "mgm/tgc/TapeAwareGcLru.hh"
 
 #include <gtest/gtest.h>
 

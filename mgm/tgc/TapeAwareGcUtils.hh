@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: TapeAwareGcUtis.hh
+// File: TapeAwareGcUtils.hh
 // Author: Steven Murray - CERN
 // ----------------------------------------------------------------------
 
@@ -26,8 +26,8 @@
 
 #include "common/Logging.hh"
 #include "mgm/Namespace.hh"
-#include "mgm/TapeAwareGcCachedValue.hh"
-#include "mgm/TapeAwareGcLru.hh"
+#include "mgm/tgc/TapeAwareGcCachedValue.hh"
+#include "mgm/tgc/TapeAwareGcLru.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "proto/ConsoleReply.pb.h"
 #include "proto/ConsoleRequest.pb.h"
