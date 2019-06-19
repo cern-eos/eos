@@ -102,6 +102,13 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
                   e.getErrno(), e.getMessage().str().c_str());
       }
 
+      if (!gOFS->allow_public_access(Path.c_str(), vid)) {
+	stdErr += "error: public access level restriction - no access in  ";
+	stdErr += Path.c_str();
+	stdErr += "\n";
+	continue;
+      }
+
       if (cmd) {
         if (!permok) {
           // check-out for ACLs

@@ -193,6 +193,13 @@ XrdMgmOfs::_rem(const char* path,
       return Emsg(epname, error, errno, "remove file - immutable", path);
     }
 
+    // check publicaccess level
+    if (!gOFS->allow_public_access(aclpath.c_str(),vid)) {
+      gOFS->eosViewRWMutex.UnLockWrite();
+      errno = EACCES;
+      return Emsg(epname, error, EACCES, "access - public access level restriction", aclpath.c_str());
+    }
+
     bool stdpermcheck = false;
 
     if (acl.HasAcl()) {

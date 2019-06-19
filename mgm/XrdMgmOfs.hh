@@ -672,6 +672,12 @@ public:
                  std::string& accperm);
 
   // ---------------------------------------------------------------------------
+  // test if public access is allowed in a given path
+  // ---------------------------------------------------------------------------
+  bool allow_public_access(const char* path,
+			   eos::common::VirtualIdentity& vid);
+
+  // ---------------------------------------------------------------------------
   // set utimes
   // ---------------------------------------------------------------------------
   int utimes(const char*, struct timespec* tvp, XrdOucErrInfo&,

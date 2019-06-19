@@ -200,6 +200,12 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
     return Emsg(epname, error, errno,
                 "open directory", cPath.GetPath());
   }
+  
+  if (!gOFS->allow_public_access(cPath.GetPath(),vid)) {
+    errno = EACCES;
+    return Emsg(epname, error, EACCES, "access - public access level restriction", cPath.GetPath());
+  }
+
 
   dirName = dir_path;
   EXEC_TIMING_END("OpenDir");

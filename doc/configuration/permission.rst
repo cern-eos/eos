@@ -347,3 +347,22 @@ To provide atomic add,remove and replacement of permissions one can take advanta
    Every ACL flag can be added with + or removed with -, or in case
    of setting new ACL permission just enter the ACL flag.
 
+
+Anonymous Access
+++++++++++++++++
+
+Anonymous access can be allowed by configuring unix authentication (which maps by default everyone to user nobody). If you want to restrict anonymous access to a certain domain you can configure this via the ``access`` interface:
+
+.. code-block:: bash
+
+   eos access allow domain nobody@cern.ch
+
+As an additional measure you can limit the deepness of the directory tree where anonymous access is possible using the ``vid`` interface e.g. not more than 4 levels:
+
+.. code-block:: bash
+
+   eos vid publicaccesslevel 4
+
+
+The default value for the publicaccesslevel is 1024.
+

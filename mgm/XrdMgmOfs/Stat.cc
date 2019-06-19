@@ -163,6 +163,13 @@ XrdMgmOfs::_stat(const char* path,
     }
   }
 
+  // public access level restriction
+  if (!gOFS->allow_public_access(path,vid)) {
+    eos_static_err("vid.uid=%d\n", vid.uid);
+    errno = EACCES;
+    return Emsg(epname, error, EACCES, "access - public access level restriction", path);
+  }
+
   // Prefetch path
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath(), follow);
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);

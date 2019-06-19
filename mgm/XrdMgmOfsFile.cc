@@ -677,6 +677,11 @@ XrdMgmOfsFile::open(const char* inpath,
       return Emsg(epname, error, errno, "open file - directory immutable", path);
     }
 
+    // check publicaccess level  
+    if (!gOFS->allow_public_access(path,vid)) {
+      return Emsg(epname, error, EACCES, "access - public access level restriction", path);
+    }
+
     int taccess = -1;
 
     if ((!isSharedFile || isRW) && stdpermcheck

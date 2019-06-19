@@ -160,6 +160,12 @@ public:
   // ---------------------------------------------------------------------------
   static GeoLocationMap_t gGeoMap;
 
+
+  // ---------------------------------------------------------------------------
+  //! Max. subdirectory deepeness where anonymous access is allowed
+  // ---------------------------------------------------------------------------
+  static int gNobodyAccessTreeDeepness;
+
   // ---------------------------------------------------------------------------
   //! Vector having pattern matches of hosts which are allowed to use tident mapping
   // ---------------------------------------------------------------------------
@@ -305,6 +311,10 @@ public:
   // ---------------------------------------------------------------------------
   static std::string GidAsString(gid_t gid);
 
+  static int GetPublicAccessLevel() {
+    RWMutexReadLock lock(gMapMutex);
+    return Mapping::gNobodyAccessTreeDeepness;
+  }
 };
 
 /*----------------------------------------------------------------------------*/

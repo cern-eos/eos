@@ -48,6 +48,7 @@ Mapping::SudoerMap_t Mapping::gSudoerMap;
 bool Mapping::gRootSquash = true;
 
 Mapping::GeoLocationMap_t Mapping::gGeoMap;
+int Mapping::gNobodyAccessTreeDeepness(1024);
 
 Mapping::AllowedTidentMatches_t Mapping::gAllowedTidentMatches;
 
@@ -991,7 +992,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
  * Print the current mappings
  *
  * @param stdOut the output is stored here
- * @param option can be 'u' for user role mappings 'g' for group role mappings 's' for sudoer list 'U' for user alias mapping 'G' for group alias mapping 'y' for gateway mappings (tidents) 'a' for authentication mapping rules 'l' for geo location rules
+ * @param option can be 'u' for user role mappings 'g' for group role mappings 's' for sudoer list 'U' for user alias mapping 'G' for group alias mapping 'y' for gateway mappings (tidents) 'a' for authentication mapping rules 'l' for geo location rules, 'n' for the anonymous access deepness of user nobody
  */
 
 /*----------------------------------------------------------------------------*/
@@ -1200,6 +1201,13 @@ Mapping::Print(XrdOucString& stdOut, XrdOucString option)
         stdOut += "\n";
       }
     }
+  }
+
+  if ((!option.length()) || ((option.find("N")) != STR_NPOS)) {
+    char sline[1024];
+    snprintf(sline, sizeof(sline), "publicaccesslevel: => %d\n", 
+	    gNobodyAccessTreeDeepness);
+    stdOut += sline;
   }
 
   if ((!option.length()) || ((option.find("l")) != STR_NPOS)) {

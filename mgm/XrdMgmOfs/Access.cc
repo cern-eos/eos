@@ -196,6 +196,13 @@ XrdMgmOfs::_access(const char* path,
     return Emsg(epname, error, EACCES, "access", path);
   }
 
+  // check publicaccess level                                                                        
+  if (!allow_public_access(path, vid)) {
+    errno = EACCES;
+    return Emsg(epname, error, EACCES, "access - public access level restriction", path);
+  }
+
+
   errno = EOPNOTSUPP;
   return Emsg(epname, error, EOPNOTSUPP, "access", path);
 }
@@ -354,4 +361,32 @@ XrdMgmOfs::acc_access(const char* path,
 
   return SFS_OK;
 }
+/*----------------------------------------------------------------------------*/
+
+
+/*----------------------------------------------------------------------------*/
+bool
+XrdMgmOfs::allow_public_access(const char* path,
+			       eos::common::VirtualIdentity& vid)
+{
+  // check only for anonymous access
+  if (vid.uid != 99)
+    return true;
+
+  // check publicaccess level
+  int level = eos::common::Mapping::GetPublicAccessLevel();
+  if (level >= 1024) { 
+    // short cut
+    return true;
+  }
+
+  eos::common::Path cPath(path);
+  if ((int)cPath.GetSubPathSize() >= level) {
+    // forbid everything to nobody in that case
+    errno = EACCES;
+    return false;
+  }
+  return true;
+}
+
 /*----------------------------------------------------------------------------*/

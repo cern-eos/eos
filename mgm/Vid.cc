@@ -53,6 +53,18 @@ Vid::Set(const char* value, bool storeConfig)
     return false;
   }
 
+  if (vidcmd == "publicaccesslevel") {    
+    if (storeConfig) {
+      gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), value);
+    }
+    
+    if ((val = env.Get("mgm.vid.level"))) {
+      eos::common::Mapping::gNobodyAccessTreeDeepness = (int) strtol(val,0,10);
+      set = true;
+    }
+  }
+
+
   if (vidcmd == "geotag") {
     if ((val = env.Get("mgm.vid.geotag"))) {
       XrdOucString gkey = skey;

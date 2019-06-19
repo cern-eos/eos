@@ -389,6 +389,29 @@ com_vid(char* arg1)
     return (0);
   }
 
+  if (subcommand == "publicaccesslevel") {
+    XrdOucString in = "mgm.cmd=vid&mgm.subcmd=set";
+    XrdOucString vidkey = "";
+    XrdOucString level = subtokenizer.GetTokenUnquoted();
+    
+    if (!level.length()) {
+      goto com_vid_usage;
+    }
+    
+    if (level.beginswith("-h") || level.beginswith("=-h")) {
+      goto com_vid_usage;
+    }
+    
+    vidkey = "publicaccesslevel";
+    in += "&mgm.vid.cmd=publicaccesslevel";
+    in += "&mgm.vid.key=";
+    in += vidkey.c_str();
+    in += "&mgm.vid.level=";
+    in += level.c_str();
+    global_retc = output_result(client_command(in, true));
+    return (0);
+  }
+
   if ((subcommand == "add") || (subcommand == "remove")) {
     XrdOucString gw = subtokenizer.GetTokenUnquoted();
 
@@ -505,6 +528,8 @@ com_vid_usage:
           "                                        -y : show configured gateways\n");
   fprintf(stdout,
           "                                        -a : show authentication\n");
+  fprintf(stdout,                                  
+	  "                                        -N : show maximum anonymous (nobody) access level deepness - the tree deepness where unauthenticated access is possible (default is 1024)\n");
   fprintf(stdout,
           "                                        -l : show geo location mapping\n");
   fprintf(stdout,
@@ -514,7 +539,7 @@ com_vid_usage:
   fprintf(stdout, "       vid set membership <uid> -gids [<gid1>,<gid2>,...]\n");
   fprintf(stdout,
           "       vid rm membership <uid>             : delete the membership entries for <uid>.\n");
-  fprintf(stdout, "       vid set membership <uid> [+|-]sudo \n");
+  fprintf(stdout, "       vid set membership <uid> [+|-]sudo \n");  
   fprintf(stdout,
           "       vid set map -krb5|-gsi|-https|-sss|-unix|-tident|-voms|-grpc <pattern> [vuid:<uid>] [vgid:<gid>] \n");
   fprintf(stdout,
@@ -540,6 +565,11 @@ com_vid_usage:
           "                                            : adds/removes a host as a (fuse) gateway with 'su' priviledges\n");
   fprintf(stdout,
           "                                              [<prot>] restricts the gateway role change to the specified authentication method\n");
+
+  fprintf(stdout, 
+	  "       vid publicaccesslevel <level>\n");
+  fprintf(stdout, 
+	  "                                           : sets the deepest directory level where anonymous access (nobody) is possible\n");
   global_retc = EINVAL;
   return (0);
 }

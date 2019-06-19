@@ -141,6 +141,11 @@ XrdMgmOfs::_remdir(const char* path,
     return Emsg(epname, error, EPERM, "rmdir - immutable", path);
   }
 
+  if (!gOFS->allow_public_access(aclpath.c_str(),vid)) {
+    errno = EACCES;
+    return Emsg(epname, error, EACCES, "access - public access level restriction", aclpath.c_str());    
+  }
+
   if (ininfo) {
     XrdOucEnv env_info(ininfo);
 
