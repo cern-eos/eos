@@ -183,6 +183,13 @@ public:
   getContainerIDFromName(qclient::QClient& qcl, ContainerIdentifier parent_id,
                          const std::string& name);
 
+  //----------------------------------------------------------------------------
+  //! Is the given location of a FileID contained in the FsView?
+  //----------------------------------------------------------------------------
+  static folly::Future<bool>
+  locationExistsInFsView(qclient::QClient& qcl, FileIdentifier id, int64_t location,
+                   bool unlinked);
+
 private:
   //----------------------------------------------------------------------------
   //! Construct hmap key of subcontainers in container

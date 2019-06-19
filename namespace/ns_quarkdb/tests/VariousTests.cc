@@ -65,6 +65,40 @@ TEST_F(VariousTests, FollyWithGloriousContinuations) {
   ASSERT_TRUE(ok.get());
 }
 
+TEST_F(VariousTests, CheckLocationInFsView) {
+  std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
+  ASSERT_EQ(root->getId(), 1);
+
+  std::shared_ptr<eos::IFileMD> file = view()->createFile("/my-file.txt", true);
+  ASSERT_EQ(file->getId(), 1);
+  ASSERT_EQ(file->getNumLocation(), 0u);
+
+  file->addLocation(99);
+  file->addLocation(77);
+
+  file->addLocation(11);
+  file->addLocation(22);
+
+  file->unlinkLocation(11);
+  file->unlinkLocation(22);
+
+  mdFlusher()->synchronize();
+
+  ASSERT_TRUE(eos::MetadataFetcher::locationExistsInFsView(qcl(), FileIdentifier(1), 99, false).get());
+  ASSERT_TRUE(eos::MetadataFetcher::locationExistsInFsView(qcl(), FileIdentifier(1), 77, false).get());
+
+  ASSERT_FALSE(eos::MetadataFetcher::locationExistsInFsView(qcl(), FileIdentifier(1), 11, false).get());
+  ASSERT_FALSE(eos::MetadataFetcher::locationExistsInFsView(qcl(), FileIdentifier(1), 22, false).get());
+  ASSERT_FALSE(eos::MetadataFetcher::locationExistsInFsView(qcl(), FileIdentifier(1), 33, false).get());
+
+  ASSERT_TRUE(eos::MetadataFetcher::locationExistsInFsView(qcl(), FileIdentifier(1), 11, true).get());
+  ASSERT_TRUE(eos::MetadataFetcher::locationExistsInFsView(qcl(), FileIdentifier(1), 22, true).get());
+
+  ASSERT_FALSE(eos::MetadataFetcher::locationExistsInFsView(qcl(), FileIdentifier(1), 99, true).get());
+  ASSERT_FALSE(eos::MetadataFetcher::locationExistsInFsView(qcl(), FileIdentifier(1), 77, true).get());
+  ASSERT_FALSE(eos::MetadataFetcher::locationExistsInFsView(qcl(), FileIdentifier(1), 33, true).get());
+}
+
 TEST_F(VariousTests, BasicSanity) {
   std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
   ASSERT_EQ(root->getId(), 1);

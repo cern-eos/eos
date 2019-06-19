@@ -65,6 +65,29 @@ MDStatus ensureStringReply(redisReplyPtr& reply)
 }
 
 //------------------------------------------------------------------------------
+// Helper method to check that a redis reply is 0/1
+//------------------------------------------------------------------------------
+MDStatus ensureBoolReply(redisReplyPtr& reply) {
+  if(!reply) {
+    return MDStatus(EFAULT, "QuarkDB backend not available!");
+  }
+
+  if (reply->type != REDIS_REPLY_INTEGER) {
+    return MDStatus(EFAULT,
+                    SSTR("Received unexpected response, was expecting integer: "
+                         << qclient::describeRedisReply(reply)));
+  }
+
+  if(reply->integer != 0 && reply->integer != 1) {
+    return MDStatus(EFAULT,
+                    SSTR("Received unexpected integer, was expecting {0,1}: "
+                         << qclient::describeRedisReply(reply)));
+  }
+
+  return MDStatus();
+}
+
+//------------------------------------------------------------------------------
 //! Struct MapFetcherFileTrait
 //------------------------------------------------------------------------------
 struct MapFetcherFileTrait {
@@ -526,6 +549,35 @@ MetadataFetcher::getContainerIDFromName(qclient::QClient& qcl,
                        SSTR(parent_id.getUnderlyingUInt64() << constants::sMapDirsSuffix), name)
          .then(std::bind(parseIDFromNameResponse, _1, parent_id, name))
          .then(convertInt64ToContainerIdentifier);
+}
+
+//------------------------------------------------------------------------------
+// Parse bool response
+//------------------------------------------------------------------------------
+bool parseBoolResponse(redisReplyPtr reply) {
+  ensureBoolReply(reply).throwIfNotOk("");
+
+  if(reply->integer == 0) return false;
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Is the given location of a FileID contained in the FsView?
+//------------------------------------------------------------------------------
+folly::Future<bool>
+MetadataFetcher::locationExistsInFsView(qclient::QClient& qcl, FileIdentifier id,
+  int64_t location, bool unlinked)
+{
+  std::string key;
+  if(!unlinked) {
+    key = SSTR("fsview:" << location << ":files");
+  }
+  else {
+    key = SSTR("fsview:" << location << ":unlinked");
+  }
+
+  return qcl.follyExec("SISMEMBER",
+    key, SSTR(id.getUnderlyingUInt64())).then(parseBoolResponse);
 }
 
 EOSNSNAMESPACE_END
