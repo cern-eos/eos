@@ -58,13 +58,12 @@ ProcCommand::Space()
 
   if (mSubCmd == "tracker") {
     std::string output;
-    gOFS->mReplicationTracker->Scan(2*86400, false, &output);
+    gOFS->mReplicationTracker->Scan(2 * 86400, false, &output);
     stdOut += "# ------------------------------------------------------------------------------------\n";
     stdOut += output.c_str();
     stdOut += "# ------------------------------------------------------------------------------------\n";
     retc = 0;
   }
-
 
   if (mSubCmd == "inspector") {
     std::string output;
@@ -75,7 +74,6 @@ ProcCommand::Space()
     stdOut += output.c_str();
     retc = 0;
   }
-
 
   if (mSubCmd == "status") {
     bool mformat = (mOutFormat == "m");
@@ -486,6 +484,7 @@ ProcCommand::Space()
           // set a space related parameter
           if (!key.compare(0, 6, "space.")) {
             key.erase(0, 6);
+
 	    if (key.substr(0,7) == "policy.") {
 	      if (value == "remove") {
 		if (!FsView::gFsView.mSpaceView[identifier]->DeleteConfigMember(key)) {
@@ -735,14 +734,13 @@ ProcCommand::Space()
 
             for (auto it = FsView::gFsView.mSpaceView[identifier]->begin();
                  it != FsView::gFsView.mSpaceView[identifier]->end(); ++it) {
-
               fs = FsView::gFsView.mIdView.lookupByID(*it);
 
               if (fs) {
                 // check the allowed strings
                 if (((key == "configstatus") &&
-                    (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) !=
-                    eos::common::ConfigStatus::kUnknown))) {
+                     (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) !=
+                      eos::common::ConfigStatus::kUnknown))) {
                   fs->SetString(key.c_str(), value.c_str());
 
                   if (value == "off") {
@@ -753,24 +751,23 @@ ProcCommand::Space()
 
                   FsView::gFsView.StoreFsConfig(fs);
                 } else {
-                    errno = 0;
-                    eos::common::StringConversion::GetSizeFromString(value.c_str());
+                  errno = 0;
+                  eos::common::StringConversion::GetSizeFromString(value.c_str());
 
-                    if (((key == eos::common::SCAN_RATE_NAME) ||
-                         (key == eos::common::SCAN_INTERVAL_NAME) ||
-                         (key == eos::common::SCAN_RERUNINTERVAL_NAME) ||
-                         (key == "headroom") || (key == "graceperiod") ||
-                         (key == "drainperiod"))  && (!errno)) {
-                      fs->SetLongLong(key.c_str(),
-                                      eos::common::StringConversion::GetSizeFromString(value.c_str()));
-                      FsView::gFsView.StoreFsConfig(fs);
-                    } else {
-                      stdErr += "error: not an allowed parameter <";
-                      stdErr += key.c_str();
-                      stdErr += ">\n";
-                      retc = EINVAL;
-                      break;
-                    }
+                  if (((key == eos::common::SCAN_RATE_NAME) ||
+                       (key == eos::common::SCAN_INTERVAL_NAME) ||
+                       (key == eos::common::SCAN_RERUNINTERVAL_NAME) ||
+                       (key == "headroom") || (key == "graceperiod") ||
+                       (key == "drainperiod"))  && (!errno)) {
+                    fs->SetLongLong(key.c_str(),
+                                    eos::common::StringConversion::GetSizeFromString(value.c_str()));
+                    FsView::gFsView.StoreFsConfig(fs);
+                  } else {
+                    stdErr += "error: not an allowed parameter <";
+                    stdErr += key.c_str();
+                    stdErr += ">\n";
+                    retc = EINVAL;
+                    break;
                   }
                 }
               } else {
@@ -846,7 +843,6 @@ ProcCommand::Space()
         } else {
           for (auto it = FsView::gFsView.mSpaceView[spacename]->begin();
                it != FsView::gFsView.mSpaceView[spacename]->end(); it++) {
-
             FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
 
             if (fs) {

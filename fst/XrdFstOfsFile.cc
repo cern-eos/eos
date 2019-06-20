@@ -411,7 +411,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
   }
 
-  if (gOFS.Simulate_FMD_open_error) {
+  if (gOFS.mSimFmdOpenErr) {
     return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found, "
                      "simulated error");
   }
