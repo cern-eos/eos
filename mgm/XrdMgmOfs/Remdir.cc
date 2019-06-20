@@ -142,6 +142,7 @@ XrdMgmOfs::_remdir(const char* path,
   }
 
   if (!gOFS->allow_public_access(aclpath.c_str(),vid)) {
+    gOFS->eosViewRWMutex.UnLockWrite();
     errno = EACCES;
     return Emsg(epname, error, EACCES, "access - public access level restriction", aclpath.c_str());    
   }
