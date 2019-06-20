@@ -50,6 +50,7 @@
 #include "mgm/Master.hh"
 #include "mgm/QdbMaster.hh"
 #include "mgm/Messaging.hh"
+#include "mgm/tgc/TapeAwareGc.hh"
 #include "common/StacktraceHere.hh"
 #include "common/plugin_manager/PluginManager.hh"
 #include "common/CommentLog.hh"
@@ -1939,9 +1940,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     mDrainEngine.Start();
   }
 
+  mTapeAwareGc.reset(new TapeAwareGc());
+
   // Only if configured to do so, enable the tape aware garbage collector
   if (mTapeAwareGcDefaultSpaceEnable) {
-    mTapeAwareGc.enable();
+
+    mTapeAwareGc->enable();
   }
 
   return NoGo;

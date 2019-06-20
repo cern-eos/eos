@@ -40,6 +40,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Stat.hh"
+#include "mgm/tgc/TapeAwareGc.hh"
 #include "mgm/Master.hh"
 #include "mgm/ZMQ.hh"
 #include <sstream>
@@ -362,11 +363,11 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
     if(gOFS->mTapeAwareGcDefaultSpaceEnable) {
       // Number of successful stagerrms since boot
       oss << "uid=all gid=all tapeawaregc.stagerrms="
-          << gOFS->mTapeAwareGc.getNbStagerrms() << std::endl
+          << gOFS->mTapeAwareGc->getNbStagerrms() << std::endl
           << "uid=all gid=all tapeawaregc.queuesize="
-          << gOFS->mTapeAwareGc.getLruQueueSize() << std::endl
+          << gOFS->mTapeAwareGc->getLruQueueSize() << std::endl
           << "uid=all gid=all tapeawaregc.freebytes.default="
-          << gOFS->mTapeAwareGc.getDefaultSpaceFreeBytes() << std::endl;
+          << gOFS->mTapeAwareGc->getDefaultSpaceFreeBytes() << std::endl;
     }
   } else {
     std::string line = "# ------------------------------------------------------"
@@ -487,11 +488,11 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
         << line << std::endl;
 
     if(gOFS->mTapeAwareGcDefaultSpaceEnable) {
-      oss << "ALL      tapeawaregc stagerrms since boot " << gOFS->mTapeAwareGc.getNbStagerrms()
+      oss << "ALL      tapeawaregc stagerrms since boot " << gOFS->mTapeAwareGc->getNbStagerrms()
           << std::endl
-          << "ALL      tapeawaregc queue size           " << gOFS->mTapeAwareGc.getLruQueueSize()
+          << "ALL      tapeawaregc queue size           " << gOFS->mTapeAwareGc->getLruQueueSize()
           << std::endl
-          << "ALL      tapeawaregc freebytes default    " << gOFS->mTapeAwareGc.getDefaultSpaceFreeBytes()
+          << "ALL      tapeawaregc freebytes default    " << gOFS->mTapeAwareGc->getDefaultSpaceFreeBytes()
           << std::endl
           << line << std::endl;
     }

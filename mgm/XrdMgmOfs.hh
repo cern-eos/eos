@@ -111,8 +111,8 @@
 #include "mgm/drain/Drainer.hh"
 #include "mgm/IdTrackerWithValidity.hh"
 #include "mgm/auth/AccessChecker.hh"
-#include "mgm/tgc/TapeAwareGc.hh"
 #include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/INamespaceGroup.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "mgm/FuseNotificationGuard.hh"
@@ -170,6 +170,7 @@ class IMaster;
 class Messaging;
 class PathRouting;
 class CommitHelper;
+class TapeAwareGc;
 }
 }
 
@@ -1640,7 +1641,7 @@ public:
   int mGRPCPort; ///< port of the GRPC server, default 50051
   bool mTapeAwareGcDefaultSpaceEnable; ///< Flag to mark if tape aware garbage collection should be enabled
   eos::common::XrdConnPool mXrdConnPool; ///< XRD connection pool
-  TapeAwareGc mTapeAwareGc; ///< Tape aware garbage collector
+  std::unique_ptr<TapeAwareGc> mTapeAwareGc; ///< Tape aware garbage collector
   //! Tracker for requests which are currently executing MGM code
   eos::mgm::InFlightTracker mTracker;
 

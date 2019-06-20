@@ -247,7 +247,7 @@ XrdMgmOfs::Commit(const char* path,
         return Emsg(epname, error, errno, "commit filesize change", emsg.c_str());
       }
 
-      gOFS->mTapeAwareGc.fileReplicaCommitted(cgi["path"], *fmd);
+      gOFS->mTapeAwareGc->fileReplicaCommitted(cgi["path"], *fmd);
     }
     {
       eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
