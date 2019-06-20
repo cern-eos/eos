@@ -34,8 +34,10 @@ EOSCOMMONNAMESPACE_BEGIN;
 // Constructor
 //------------------------------------------------------------------------------
 FileSystemLocator::FileSystemLocator(const std::string &_host, int _port,
-  const std::string &_localpath) : host(_host), port(_port),
-  localpath(_localpath) {}
+  const std::string &_storagepath) : host(_host), port(_port),
+                                     storagepath(_storagepath) {
+  storageType = FileSystemLocator::parseStorageType(_storagepath);
+}
 
 //------------------------------------------------------------------------------
 // Try to parse a "queuepath"
@@ -45,7 +47,7 @@ bool FileSystemLocator::fromQueuePath(const std::string &queuepath,
 
   std::string queue = queuepath;
 
-  if(!startsWith(queue, "/eos/")) {
+  if (!startsWith(queue, "/eos/")) {
     return false;
   }
 
@@ -55,7 +57,7 @@ bool FileSystemLocator::fromQueuePath(const std::string &queuepath,
   // Chop /eos/, extract host+port
   //----------------------------------------------------------------------------
   size_t slashLocation = queue.find("/");
-  if(slashLocation == std::string::npos) {
+  if (slashLocation == std::string::npos) {
     return false;
   }
 
@@ -66,7 +68,7 @@ bool FileSystemLocator::fromQueuePath(const std::string &queuepath,
   // Separate host from port
   //----------------------------------------------------------------------------
   size_t separator = hostPort.find(":");
-  if(separator == std::string::npos) {
+  if (separator == std::string::npos) {
     return false;
   }
 
@@ -74,7 +76,7 @@ bool FileSystemLocator::fromQueuePath(const std::string &queuepath,
   hostPort.erase(0, separator+1);
 
   int64_t port;
-  if(!parseInt64(hostPort, port)) {
+  if (!parseInt64(hostPort, port)) {
     return false;
   }
 
@@ -83,19 +85,46 @@ bool FileSystemLocator::fromQueuePath(const std::string &queuepath,
   //----------------------------------------------------------------------------
   // Chop "/fst/", extract local path
   //----------------------------------------------------------------------------
-  if(!startsWith(queue, "/fst")) {
+  if (!startsWith(queue, "/fst")) {
     return false;
   }
 
   queue.erase(0, 4);
-  out.localpath = queue;
+  out.storagepath = queue;
 
-  if(out.localpath.size() < 2) {
+  if (out.storagepath.size() < 2) {
     // Empty, or "/"? Reject
     return false;
   }
 
+  out.storageType = FileSystemLocator::parseStorageType(out.storagepath);
+  if (out.storageType == StorageType::Unknown) {
+    return false;
+  }
+
   return true;
+}
+
+//----------------------------------------------------------------------------
+//! Parse storage type from storage path string
+//----------------------------------------------------------------------------
+FileSystemLocator::StorageType FileSystemLocator::parseStorageType(
+    const std::string &storagepath) {
+  if (storagepath.find("/") == 0) {
+    return StorageType::Local;
+  } else if (storagepath.find("root://") == 0) {
+    return StorageType ::Xrd;
+  } else if (storagepath.find("s3://") == 0) {
+    return StorageType::S3;
+  } else if (storagepath.find("dav://") == 0) {
+    return StorageType::WebDav;
+  } else if (storagepath.find("http://") == 0) {
+    return StorageType::HTTP;
+  } else if (storagepath.find("https://") == 0) {
+    return StorageType::HTTPS;
+  } else {
+    return StorageType::Unknown;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -116,7 +145,7 @@ std::string FileSystemLocator::getHostPort() const {
 // Get queuepath
 //------------------------------------------------------------------------------
 std::string FileSystemLocator::getQueuePath() const {
-  return SSTR("/eos/" << host << ":" << port << "/fst" << localpath);
+  return SSTR("/eos/" << host << ":" << port << "/fst" << storagepath);
 }
 
 //------------------------------------------------------------------------------
@@ -134,10 +163,24 @@ int FileSystemLocator::getPort() const {
 }
 
 //------------------------------------------------------------------------------
-// Get local path
+// Get storage path
 //------------------------------------------------------------------------------
-std::string FileSystemLocator::getLocalPath() const {
-  return localpath;
+std::string FileSystemLocator::getStoragePath() const {
+  return storagepath;
+}
+
+//----------------------------------------------------------------------------
+// Get storage type
+//----------------------------------------------------------------------------
+FileSystemLocator::StorageType FileSystemLocator::getStorageType() const {
+  return storageType;
+}
+
+//----------------------------------------------------------------------------
+// Check whether filesystem is local or remote
+//----------------------------------------------------------------------------
+bool FileSystemLocator::isLocal() const {
+  return storageType == StorageType::Local;
 }
 
 //------------------------------------------------------------------------------
@@ -145,7 +188,7 @@ std::string FileSystemLocator::getLocalPath() const {
 // which all transient, non-important information will be transmitted.
 //------------------------------------------------------------------------------
 std::string FileSystemLocator::getTransientChannel() const {
-  return SSTR("filesystem-transient||" << getHostPort() << "||" << getLocalPath());
+  return SSTR("filesystem-transient||" << getHostPort() << "||" << getStoragePath());
 }
 
 //------------------------------------------------------------------------------
@@ -320,7 +363,7 @@ FileSystem::FileSystem(const FileSystemLocator &locator,
   mSharedManager = qsom;
   mQueuePath = locator.getQueuePath();
   mQueue = locator.getFSTQueue();
-  mPath = locator.getLocalPath();
+  mPath = locator.getStoragePath();
   mSom = som;
   mInternalBootStatus = BootStatus::kDown;
   cActive = ActiveStatus::kOffline;

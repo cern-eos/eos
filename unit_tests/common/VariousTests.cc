@@ -45,12 +45,26 @@ TEST(FileSystemLocator, BasicSanity) {
 
   ASSERT_EQ(locator.getHost(), "somehost.cern.ch");
   ASSERT_EQ(locator.getPort(), 1095);
-  ASSERT_EQ(locator.getLocalPath(), "/data05");
+  ASSERT_EQ(locator.getStoragePath(), "/data05");
+  ASSERT_EQ(locator.getStorageType(), FileSystemLocator::StorageType::Local);
+  ASSERT_TRUE(locator.isLocal());
 
   ASSERT_EQ(locator.getHostPort(), "somehost.cern.ch:1095");
   ASSERT_EQ(locator.getQueuePath(), "/eos/somehost.cern.ch:1095/fst/data05");
   ASSERT_EQ(locator.getFSTQueue(), "/eos/somehost.cern.ch:1095/fst");
   ASSERT_EQ(locator.getTransientChannel(), "filesystem-transient||somehost.cern.ch:1095||/data05");
+}
+
+TEST(FileSystemLocator, ParseStorageType) {
+  ASSERT_EQ(FileSystemLocator::parseStorageType("/data"), FileSystemLocator::StorageType::Local);
+  ASSERT_EQ(FileSystemLocator::parseStorageType("root://root.example.cern.ch:1094//"), FileSystemLocator::StorageType::Xrd);
+  ASSERT_EQ(FileSystemLocator::parseStorageType("s3://s3.example.cern.ch//"), FileSystemLocator::StorageType::S3);
+  ASSERT_EQ(FileSystemLocator::parseStorageType("dav://webdav.example.cern.ch/"), FileSystemLocator::StorageType::WebDav);
+  ASSERT_EQ(FileSystemLocator::parseStorageType("http://web.example.cern.ch/"), FileSystemLocator::StorageType::HTTP);
+  ASSERT_EQ(FileSystemLocator::parseStorageType("https://webs.example.cern.ch/"), FileSystemLocator::StorageType::HTTPS);
+
+  ASSERT_EQ(FileSystemLocator::parseStorageType("root:/invalid.example"), FileSystemLocator::StorageType::Unknown);
+  ASSERT_EQ(FileSystemLocator::parseStorageType("local/path"), FileSystemLocator::StorageType::Unknown);
 }
 
 TEST(FileSystemLocator, ParsingFailure) {
@@ -65,13 +79,17 @@ TEST(FileSystemLocator, ParsingFailure) {
 
 TEST(FileSystemLocator, RemoteFileSystem) {
   FileSystemLocator locator;
-  ASSERT_TRUE(FileSystemLocator::fromQueuePath("/eos/example.com:1095/fsthttps://remote.example.com/bla/bla/", locator));
-  ASSERT_EQ(locator.getHost(), "example.com");
+  ASSERT_TRUE(FileSystemLocator::fromQueuePath("/eos/example-host.cern.ch:1095/fsthttps://remote.example.cern.ch/path/", locator));
+  ASSERT_EQ(locator.getHost(), "example-host.cern.ch");
   ASSERT_EQ(locator.getPort(), 1095);
-  ASSERT_EQ(locator.getHostPort(), "example.com:1095");
-  ASSERT_EQ(locator.getQueuePath(), "/eos/example.com:1095/fsthttps://remote.example.com/bla/bla/");
-  ASSERT_EQ(locator.getFSTQueue(), "/eos/example.com:1095/fst");
-  ASSERT_EQ(locator.getLocalPath(), "https://remote.example.com/bla/bla/");
+  ASSERT_EQ(locator.getStoragePath(), "https://remote.example.cern.ch/path/");
+  ASSERT_EQ(locator.getStorageType(), FileSystemLocator::StorageType::HTTPS);
+  ASSERT_FALSE(locator.isLocal());
+
+  ASSERT_EQ(locator.getHostPort(), "example-host.cern.ch:1095");
+  ASSERT_EQ(locator.getQueuePath(), "/eos/example-host.cern.ch:1095/fsthttps://remote.example.cern.ch/path/");
+  ASSERT_EQ(locator.getFSTQueue(), "/eos/example-host.cern.ch:1095/fst");
+  ASSERT_EQ(locator.getTransientChannel(), "filesystem-transient||example-host.cern.ch:1095||https://remote.example.cern.ch/path/");
 }
 
 TEST(GroupLocator, BasicSanity) {
