@@ -764,9 +764,9 @@ Run(int argc, char* argv[])
     }
 
     if ((in1 == "--version") || (in1 == "-v")) {
-      fprintf(stderr, "EOS %s (CERN)\n\n", VERSION);
-      fprintf(stderr, "Written by CERN-IT-DSS (Andreas-Joachim Peters, "
-              "Lukasz Janyst & Elvin Sindrilaru)\n");
+      fprintf(stderr, "EOS %s (2019)\n\n", VERSION);
+      fprintf(stderr, "Developed by the CERN IT storage group\n");
+
       exit(-1);
     }
 
