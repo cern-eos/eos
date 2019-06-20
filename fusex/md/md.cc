@@ -260,30 +260,29 @@ int
 metad::forget(fuse_req_t req, fuse_ino_t ino, int nlookup)
 {
   shared_md md;
+  uint64_t pino = 0;
 
   if (!mdmap.retrieveTS(ino, md)) {
     return ENOENT;
   }
 
-  XrdSysMutexHelper mLock(md->Locker());
+  {
+    XrdSysMutexHelper mLock(md->Locker());
+    
+    if (!md->id()) {
+      return EAGAIN;
+    }
 
-  if (!md->id()) {
-    return EAGAIN;
-  }
+    if (EOS_LOGS_DEBUG) {
+      eos_static_debug("count=%d(-%d) - ino=%#lx", md->lookup_is(), nlookup, ino);
+    }
+    
+    if (!md->lookup_dec(nlookup)) {
+      eos_static_debug("count=%d(-%d) - ino=%#lx", md->lookup_is(), nlookup, ino);
+      return EAGAIN;
+    }
 
-  if (EOS_LOGS_DEBUG) {
-    eos_static_debug("count=%d(-%d) - ino=%#lx", md->lookup_is(), nlookup, ino);
-  }
-
-  if (!md->lookup_dec(nlookup)) {
-    eos_static_debug("count=%d(-%d) - ino=%#lx", md->lookup_is(), nlookup, ino);
-    return EAGAIN;
-  }
-
-  shared_md pmd;
-
-  if (!mdmap.retrieveTS(md->pid(), pmd)) {
-    return ENOENT;
+    pino = md->pid();
   }
 
   if (has_flush(ino)) {
@@ -291,19 +290,34 @@ metad::forget(fuse_req_t req, fuse_ino_t ino, int nlookup)
     return 0;
   }
 
-  if (pmd->cap_count()) {
-    eos_static_debug("caps %d - ino=%016x", pmd->cap_count(), ino);
+  if ( (pino > 1) && (ino != pino) ) {
+    // this does not make sense for the mount directory (inode 1)
+    shared_md pmd;
+    
+    if (!mdmap.retrieveTS(pino, pmd)) {
+      return ENOENT;
+    }
+        
+    if (pmd->cap_count()) {
+      eos_static_debug("caps %d - ino=%016x", pmd->cap_count(), ino);
+      return 0;
+    }
+    
+    if (pmd->opendir_is()) {
+      eos_static_debug("opendir %d - ino=%016x", pmd->opendir_is(), ino);
+      return 0;
+    }
+  } else {
+    // we don't remove the mount point
     return 0;
   }
 
-  if (pmd->opendir_is()) {
-    eos_static_debug("opendir %d - ino=%016x", pmd->opendir_is(), ino);
-    return 0;
+  if (EOS_LOGS_DEBUG) {
+    XrdSysMutexHelper mLock(md->Locker());
+    eos_static_debug("delete md object - ino=%#lx name=%s", ino,
+		     md->name().c_str());
   }
-
-  eos_static_debug("delete md object - ino=%#lx name=%s", ino,
-                   md->name().c_str());
-
+  
   if (mdmap.eraseTS(ino)) {
     stat.inodes_dec();
   }
