@@ -47,7 +47,7 @@ void usage()
   fprintf(stderr, "usage: eos-fsck-fs [--silent|-s] [--rate rate] [--nomgm ] <directory>\n");
   fprintf(stderr, "\n");
   fprintf(stderr, "       error output format:\n");
-  fprintf(stderr, "                      [Fsck] [ERROR] [ ORPHAN  ] fsid:1 cxid:???????? fxid:0013a549 ... file exists on disk , but is not registered in MGM\n");
+  fprintf(stderr, "                      [Fsck] [ERROR] [ DETACHE ] fsid:1 cxid:???????? fxid:0013a549 ... file exists on disk , but is not registered in MGM\n");
   fprintf(stderr, "                      [Fsck] [ERROR] [ CKS     ] fsid:1 cxid:???????? fxid:0013a549 ... file checksum differs from MGM checksum\n");
   fprintf(stderr, "                      [Fsck] [ERROR] [ CKSFLAG ] fsid:1 cxid:???????? fxid:0013a549 ... file is flagged with a checksum error on disk\n");
   fprintf(stderr, "                      [Fsck] [ERROR] [ BXSFLAG ] fsid:1 cxid:???????? fxid:0013a549 ... file is flagged with a blockchecksum error on disk\n");
