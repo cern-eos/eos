@@ -186,11 +186,11 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
   std::string fst_local_path;
   {
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-    auto it_fs = FsView::gFsView.mIdView.find(fsid);
+    FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
-    if (it_fs != FsView::gFsView.mIdView.end()) {
-      host_port = it_fs->second->GetString("hostport");
-      fst_local_path = it_fs->second->GetPath();
+    if (fs) {
+      host_port = fs->GetString("hostport");
+      fst_local_path = fs->GetPath();
     }
   }
 

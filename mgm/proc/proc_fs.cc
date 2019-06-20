@@ -366,7 +366,7 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
       // Check the allowed strings
       if (((key == "configstatus") &&
            (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) !=
-            eos::common::FileSystem::kUnknown)) ||
+            eos::common::ConfigStatus::kUnknown)) ||
           (((key == eos::common::SCAN_RATE_NAME) ||
             (key == eos::common::SCAN_INTERVAL_NAME) ||
             (key == eos::common::SCAN_RERUNINTERVAL_NAME) ||
