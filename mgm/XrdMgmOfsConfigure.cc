@@ -1992,6 +1992,7 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("Eosxd::ext::GET", 0, 0, 0);
   MgmStats.Add("Eosxd::ext::SET", 0, 0, 0);
   MgmStats.Add("Eosxd::ext::LS", 0, 0, 0);
+  MgmStats.Add("Eosxd::ext::LS-Entry", 0, 0, 0);
   MgmStats.Add("Eosxd::ext::CREATE", 0, 0, 0);
   MgmStats.Add("Eosxd::ext::UPDATE", 0, 0, 0);
   MgmStats.Add("Eosxd::ext::MKDIR", 0, 0, 0);

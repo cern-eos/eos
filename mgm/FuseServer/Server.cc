@@ -1153,6 +1153,7 @@ Server::OpGetLs(const std::string& id,
         size_t items_per_lock_cycle = 128;
         size_t items_cycled = 1;
 
+	gOFS->MgmStats.Add("Eosxd::ext::LS-Entry", vid.uid, vid.gid, map.size());
         for (; it != map.end(); ++it) {
           // this is a map by inode
           (*parent)[it->second].set_md_ino(it->second);
