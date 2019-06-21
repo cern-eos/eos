@@ -1561,20 +1561,18 @@ FsView::Register(FileSystem* fs, bool registerInGeoTreeEngine)
     }
 
     // Check if this is already in the view
-    if (mFileSystemView.count(fs)) {
+    if (mIdView.lookupByPtr(fs) != 0) {
       // This filesystem is already there, this might be an update
-      eos::common::FileSystem::fsid_t fsid = mFileSystemView[fs];
+      eos::common::FileSystem::fsid_t fsid = mIdView.lookupByPtr(fs);
 
       if (fsid != snapshot.mId) {
         // Remove previous mapping
         mIdView.eraseById(fsid);
         // Setup new two way mapping
-        mFileSystemView[fs] = snapshot.mId;
         mIdView.registerFileSystem(snapshot.mId, fs);
         eos_debug("updating mapping %u<=>%lld", snapshot.mId, fs);
       }
     } else {
-      mFileSystemView[fs] = snapshot.mId;
       mIdView.registerFileSystem(snapshot.mId, fs);
       eos_debug("registering mapping %u<=>%lld", snapshot.mId, fs);
     }
@@ -1833,10 +1831,8 @@ FsView::UnRegister(FileSystem* fs, bool unregisterInGeoTreeEngine)
   if (fs->SnapShotFileSystem(snapshot)) {
     // Remove view by filesystem object and filesystem id
     // Check if this is in the view
-    if (mFileSystemView.count(fs)) {
-      mFileSystemView.erase(fs);
-      mIdView.eraseById(snapshot.mId);
-      eos_debug("unregister %lld from filesystem view", fs);
+    if(!mIdView.eraseByPtr(fs)) {
+      eos_static_crit("could not find fs ptr=%x (fsid=%lld) to unregister ?!", fs, snapshot.mId);
     }
 
     // Remove fs from node view & evt. remove node view
@@ -2142,7 +2138,6 @@ FsView::Reset()
     mGwNodes.clear();
   }
   mIdView.clear();
-  mFileSystemView.clear();
 }
 
 
@@ -2180,7 +2175,6 @@ FsView::Clear()
   mGroupView.clear();
   mNodeView.clear();
   mIdView.clear();
-  mFileSystemView.clear();
 }
 
 //------------------------------------------------------------------------------

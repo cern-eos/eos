@@ -1026,8 +1026,6 @@ private:
   //! Object to map between fsid <-> uuid
   FilesystemUuidMapper mFilesystemMapper;
   std::string MgmConfigQueueName; ///< MGM configuration queue name
-  //! Map translating a filesystem object pointer to a filesystem ID
-  std::map<FileSystem*, eos::common::FileSystem::fsid_t> mFileSystemView;
 };
 
 //------------------------------------------------------------------------------
