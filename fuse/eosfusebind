@@ -183,10 +183,10 @@ function GetSymlinkBaseNameSession
   if test ! -n SymlinkBaseNameSession ; then return; fi
   GetSymlinkBaseNameUser
   PID=$$
-  PROCPIDSTATCONTENT=`cat /proc/$PID/stat`
+  PROCPIDSTATCONTENT=$(cat /proc/$PID/stat 2> /dev/null)
   PROCPIDSTATCONTENT=`echo $PROCPIDSTATCONTENT | sed 's/([^)]*)/execname/'`
   SID=`echo $PROCPIDSTATCONTENT | awk '{ print $6 }'`
-  PROCPIDSTATCONTENT=`cat /proc/$SID/stat`
+  PROCPIDSTATCONTENT=$(cat /proc/$SID/stat 2> /dev/null)
   PROCPIDSTATCONTENT=`echo $PROCPIDSTATCONTENT | sed 's/([^)]*)/execname/'`
   SUT=`echo $PROCPIDSTATCONTENT | awk '{ print $22 }'`
   let "SUT/=`getconf CLK_TCK`"
@@ -247,7 +247,7 @@ function GetActiveLinkedSessions
     local lSUT=`ls $LINK | grep -oh "sst[0-9]*" | cut -c 4-`
     # check if the process is active
     if test ! -d "/proc/$lSID/"; then UnactiveLinkedSessions="${UnactiveLinkedSessions} $LINK"; continue; fi
-    local lPROCPIDSTATCONTENT=`cat /proc/$lSID/stat`
+    local lPROCPIDSTATCONTENT=$(cat /proc/$lSID/stat 2> /dev/null)
     local lPROCPIDSTATCONTENT=`echo $lPROCPIDSTATCONTENT | sed 's/([^)]*)/execname/'`
     local lPROCSUT=`echo $lPROCPIDSTATCONTENT | awk '{ print $22 }'`
     let "lPROCSUT/=`getconf CLK_TCK`"
