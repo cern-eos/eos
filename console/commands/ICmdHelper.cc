@@ -32,6 +32,10 @@
 int
 ICmdHelper::Execute(bool print_err, bool add_route)
 {
+  if (mIsLocal) {
+    return 0;
+  }
+
   int retc = ExecuteWithoutPrint(add_route);
 
   if (!mIsSilent && !mMgmExec.GetResult().empty()) {

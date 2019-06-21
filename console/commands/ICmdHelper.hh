@@ -131,4 +131,5 @@ protected:
   bool mIsSilent; ///< If true execute command but don't display anything
   //! If true it requires a strong user confirmation before executing the command
   bool mNeedsConfirmation {false};
+  bool mIsLocal {false}; ///< Mark if command is executed only client side
 };

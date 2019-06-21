@@ -28,7 +28,6 @@
 
 void com_debug_help();
 
-
 //------------------------------------------------------------------------------
 //! Class DebugHelper
 //------------------------------------------------------------------------------
@@ -36,7 +35,6 @@ class DebugHelper : public ICmdHelper
 {
 public:
 
-  bool execute_locally = false; // 'debug this' is not forwarded
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -55,9 +53,7 @@ public:
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool ParseCommand(const char* arg) override;
-
 };
-
 
 //------------------------------------------------------------------------------
 // Parse command line input
@@ -91,8 +87,9 @@ bool DebugHelper::ParseCommand(const char* arg)
       g_logging.SetLogPriority(LOG_NOTICE);
     }
 
-    execute_locally = true;
-  } else { // token (supposedly) equals one of [debug info warning notice err crit alert emerg]
+    mIsLocal = true;
+  } else {
+    // token must be one of [debug info warning notice err crit alert emerg]
     eos::console::DebugProto_SetProto* set = debugproto->mutable_set();
     set->set_debuglevel(token);
 
@@ -142,10 +139,6 @@ com_protodebug(char* arg)
     com_debug_help();
     global_retc = EINVAL;
     return EINVAL;
-  }
-
-  if (debug.execute_locally) {
-    return global_retc;
   }
 
   global_retc = debug.Execute();
@@ -209,7 +202,6 @@ void com_debug_help()
       std::endl
       << std::endl
       << "  debug debug --filter MgmOfsMessage   set MGM into debug mode 'debug' and filter only messages coming from unit 'MgmOfsMessage'."
-      << std::endl
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }

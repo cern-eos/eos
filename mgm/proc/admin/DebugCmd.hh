@@ -74,10 +74,6 @@ private:
   //----------------------------------------------------------------------------
   void SetSubcmd(const eos::console::DebugProto_SetProto& set,
                  eos::console::ReplyProto& reply);
-
-  int ret_c;
-  std::string std_out, std_err;
-
 };
 
 EOSMGMNAMESPACE_END

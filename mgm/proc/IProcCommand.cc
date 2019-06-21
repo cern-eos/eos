@@ -461,18 +461,18 @@ IProcCommand::HasSlot()
     init = true;
 
     for (const auto& type : {
-           eos::console::RequestProto::kAcl,
-           eos::console::RequestProto::kNs,
-           eos::console::RequestProto::kDrain,
-           eos::console::RequestProto::kFind,
-           eos::console::RequestProto::kFs,
-           eos::console::RequestProto::kRm,
-           eos::console::RequestProto::kStagerRm,
-           eos::console::RequestProto::kRoute,
-           eos::console::RequestProto::kIo,    // @note (faluchet) to check
-           eos::console::RequestProto::kGroup, // @note (faluchet) to check
-           eos::console::RequestProto::kDebug // @note (faluchet) to check
-         }) {
+    eos::console::RequestProto::kAcl,
+        eos::console::RequestProto::kNs,
+        eos::console::RequestProto::kDrain,
+        eos::console::RequestProto::kFind,
+        eos::console::RequestProto::kFs,
+        eos::console::RequestProto::kRm,
+        eos::console::RequestProto::kStagerRm,
+        eos::console::RequestProto::kRoute,
+        eos::console::RequestProto::kIo,
+        eos::console::RequestProto::kGroup,
+        eos::console::RequestProto::kDebug
+  }) {
       mCmdsExecuting.emplace(type, 0ull);
     }
   }

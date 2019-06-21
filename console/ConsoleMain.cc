@@ -66,7 +66,6 @@ extern int com_clear(char*);
 extern int com_config(char*);
 extern int com_console(char*);
 extern int com_cp(char*);
-// extern int com_debug(char*);
 extern int com_protodebug(char*);
 extern int com_file(char*);
 extern int com_fileinfo(char*);
@@ -138,7 +137,6 @@ COMMAND commands[] = {
   { (char*) "config", com_config, (char*) "Configuration System"},
   { (char*) "console", com_console, (char*) "Run Error Console"},
   { (char*) "cp", com_cp, (char*) "Cp command"},
-  // { (char*) "debug", com_debug, (char*) "Set debug level"},
   { (char*) "debug", com_protodebug, (char*) "Set debug level"},
   { (char*) "exit", com_quit, (char*) "Exit from EOS console"},
   { (char*) "file", com_file, (char*) "File Handling"},
@@ -768,7 +766,6 @@ Run(int argc, char* argv[])
     if ((in1 == "--version") || (in1 == "-v")) {
       fprintf(stderr, "EOS %s (2019)\n\n", VERSION);
       fprintf(stderr, "Developed by the CERN IT storage group\n");
-
       exit(-1);
     }
 

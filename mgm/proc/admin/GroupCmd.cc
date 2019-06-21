@@ -105,10 +105,8 @@ GroupCmd::LsSubcmd(const eos::console::GroupProto_LsProto& ls,
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   FsView::gFsView.PrintGroups(output, format, list_format, ls.outdepth(),
                               ls.selection().c_str());
-  stdOut += output.c_str();
-  reply.set_std_out(stdOut.c_str());
-  reply.set_std_err(stdErr.c_str());
-  reply.set_retc(retc);
+  reply.set_std_out(output.c_str());
+  reply.set_retc(0);
 }
 
 //------------------------------------------------------------------------------
@@ -118,60 +116,65 @@ void
 GroupCmd::RmSubcmd(const eos::console::GroupProto_RmProto& rm,
                    eos::console::ReplyProto& reply)
 {
-  if (mVid.uid == 0) {
-    if (!rm.group().length()) {
-      stdErr = "error: illegal parameter 'group'";
-      retc = EINVAL;
-    } else {
-      eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
-
-      if (!FsView::gFsView.mGroupView.count(rm.group())) {
-        stdErr = ("error: no such group '" + rm.group() + "'").c_str();
-        retc = ENOENT;
-      } else {
-        for (auto it = FsView::gFsView.mGroupView[rm.group()]->begin();
-             it != FsView::gFsView.mGroupView[rm.group()]->end(); ++it) {
-          FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
-
-          if (fs) {
-            // Check that all filesystems are empty
-            if ((fs->GetConfigStatus(false) != eos::common::FileSystem::kEmpty)) {
-              reply.set_std_err("error: unable to remove group '" + rm.group() +
-                                "' - filesystems are not all in empty state - "
-                                "try list the group and drain them or set: fs "
-                                "config <fsid> configstatus=empty\n");
-              reply.set_retc(EBUSY);
-              return;
-            }
-          }
-        }
-
-        std::string groupconfigname =
-          eos::common::GlobalConfig::gConfig.QueuePrefixName(
-            FsGroup::sGetConfigQueuePrefix(), rm.group().c_str());
-
-        if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(
-              groupconfigname.c_str())) {
-          stdErr = ("error: unable to remove config of group '" + rm.group() +
-                    "'").c_str();
-          retc = EIO;
-        } else {
-          if (FsView::gFsView.UnRegisterGroup(rm.group().c_str())) {
-            stdOut = ("success: removed group '" + rm.group() + "'").c_str();
-          } else {
-            stdErr = ("error: unable to unregister group '" + rm.group() + "'").c_str();
-          }
-        }
-      }
-    }
-  } else {
-    stdErr = "error: you have to take role 'root' to execute this command";
-    retc = EPERM;
+  if (mVid.uid != 0) {
+    reply.set_std_err("error: you have to take role 'root' to execute this command");
+    reply.set_retc(EPERM);
+    return;
   }
 
-  reply.set_std_out(stdOut.c_str());
-  reply.set_std_err(stdErr.c_str());
-  reply.set_retc(retc);
+  if (!rm.group().length()) {
+    reply.set_std_err("error: illegal parameter 'group'");
+    reply.set_retc(EINVAL);
+    return;
+  }
+
+  eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+
+  if (!FsView::gFsView.mGroupView.count(rm.group())) {
+    reply.set_std_err(("error: no such group '" + rm.group() + "'").c_str());
+    reply.set_retc(ENOENT);
+    return;
+  }
+
+  for (auto it = FsView::gFsView.mGroupView[rm.group()]->begin();
+       it != FsView::gFsView.mGroupView[rm.group()]->end(); ++it) {
+    FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
+
+    if (fs) {
+      // Check that all filesystems are empty
+      if ((fs->GetConfigStatus(false) != eos::common::FileSystem::kEmpty)) {
+        reply.set_std_err("error: unable to remove group '" + rm.group() +
+                          "' - filesystems are not all in empty state - "
+                          "try list the group and drain them or set: fs "
+                          "config <fsid> configstatus=empty\n");
+        reply.set_retc(EBUSY);
+        return;
+      }
+    }
+  }
+
+  std::string groupconfigname =
+    eos::common::GlobalConfig::gConfig.QueuePrefixName
+    (FsGroup::sGetConfigQueuePrefix(), rm.group().c_str());
+
+  if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash
+      (groupconfigname.c_str())) {
+    reply.set_std_err(("error: unable to remove config of group '" +
+                       rm.group() + "'").c_str());
+    reply.set_retc(EIO);
+    return;
+  } else {
+    if (FsView::gFsView.UnRegisterGroup(rm.group().c_str())) {
+      reply.set_std_out(("success: removed group '" + rm.group() + "'").c_str());
+      reply.set_retc(0);
+    } else {
+      reply.set_retc(EINVAL);
+      reply.set_std_err(("error: unable to unregister group '" +
+                         rm.group() + "'").c_str());
+    }
+
+    return;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -181,100 +184,101 @@ void
 GroupCmd::SetSubcmd(const eos::console::GroupProto_SetProto& set,
                     eos::console::ReplyProto& reply)
 {
-  if (mVid.uid == 0) {
-    std::string key = "status";
+  if (mVid.uid != 0) {
+    reply.set_std_err("error: you have to take role 'root' to execute this command");
+    reply.set_retc(EPERM);
+    return;
+  }
 
-    if (!set.group().length() || !set.group_state().length()) {
-      stdErr = "error: illegal parameters 'group or group-state'";
-      retc = EINVAL;
-    } else {
-      eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+  std::string key = "status";
 
-      if (!FsView::gFsView.mGroupView.count(set.group().c_str())) {
-        stdOut = ("info: creating group '" + set.group() + "'").c_str();
+  if (!set.group().length() || !set.group_state().length()) {
+    reply.set_std_err("error: illegal parameters 'group or group-state'");
+    reply.set_retc(EINVAL);
+    return;
+  }
 
-        if (!FsView::gFsView.RegisterGroup(set.group().c_str())) {
-          std::string groupconfigname =
-            eos::common::GlobalConfig::gConfig.QueuePrefixName(
-              gOFS->GroupConfigQueuePrefix.c_str(), set.group().c_str());
-          retc = EIO;
-          stdErr = ("error: cannot register group <" + set.group() + ">").c_str();
+  eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+
+  if (!FsView::gFsView.mGroupView.count(set.group().c_str())) {
+    reply.set_std_out(("info: creating group '" + set.group() + "'").c_str());
+
+    if (!FsView::gFsView.RegisterGroup(set.group().c_str())) {
+      std::string groupconfigname =
+        eos::common::GlobalConfig::gConfig.QueuePrefixName
+        (gOFS->GroupConfigQueuePrefix.c_str(), set.group().c_str());
+      reply.set_std_err(("error: cannot register group <" +
+                         set.group() + ">").c_str());
+      reply.set_retc(EIO);
+      return;
+    }
+  }
+
+  // Set this new group to offline
+  if (!FsView::gFsView.mGroupView[set.group()]->SetConfigMember
+      (key, set.group_state(), true, "/eos/*/mgm")) {
+    reply.set_std_err("error: cannot set config status");
+    reply.set_retc(EIO);
+    return;
+  }
+
+  if (set.group_state() == "on") {
+    // Recompute the drain status in this group
+    bool setactive = false;
+
+    if (FsView::gFsView.mGroupView.count(set.group())) {
+      for (auto git = FsView::gFsView.mGroupView[set.group()]->begin();
+           git != FsView::gFsView.mGroupView[set.group()]->end(); ++git) {
+        auto fs = FsView::gFsView.mIdView.lookupByID(*git);
+
+        if (fs) {
+          common::DrainStatus drainstatus =
+            (eos::common::FileSystem::GetDrainStatusFromString
+             (fs->GetString("stat.drain").c_str()));
+
+          if ((drainstatus == eos::common::DrainStatus::kDraining) ||
+              (drainstatus == eos::common::DrainStatus::kDrainStalling)) {
+            // If any group filesystem is draining, all the others have
+            // to enable the pull for draining!
+            setactive = true;
+          }
         }
       }
 
-      if (!retc) {
-        // Set this new group to offline
-        if (!FsView::gFsView.mGroupView[set.group()]->SetConfigMember
-            (key, set.group_state(), true, "/eos/*/mgm")) {
-          stdErr = "error: cannot set config status";
-          retc = EIO;
-        }
+      for (auto git = FsView::gFsView.mGroupView[set.group()]->begin();
+           git != FsView::gFsView.mGroupView[set.group()]->end(); ++git) {
+        auto fs = FsView::gFsView.mIdView.lookupByID(*git);
 
-        if (set.group_state() == "on") {
-          // Recompute the drain status in this group
-          bool setactive = false;
-
-          if (FsView::gFsView.mGroupView.count(set.group())) {
-            for (auto git = FsView::gFsView.mGroupView[set.group()]->begin();
-                 git != FsView::gFsView.mGroupView[set.group()]->end(); ++git) {
-              auto fs = FsView::gFsView.mIdView.lookupByID(*git);
-
-              if (fs) {
-                common::DrainStatus drainstatus =
-                  (eos::common::FileSystem::GetDrainStatusFromString
-                   (fs->GetString("stat.drain").c_str()));
-
-                if ((drainstatus == eos::common::DrainStatus::kDraining) ||
-                    (drainstatus == eos::common::DrainStatus::kDrainStalling)) {
-                  // If any group filesystem is draining, all the others have
-                  // to enable the pull for draining!
-                  setactive = true;
-                }
-              }
+        if (fs) {
+          if (setactive) {
+            if (fs->GetString("stat.drainer") != "on") {
+              fs->SetString("stat.drainer", "on");
             }
-
-            for (auto git = FsView::gFsView.mGroupView[set.group()]->begin();
-                 git != FsView::gFsView.mGroupView[set.group()]->end(); ++git) {
-              auto fs = FsView::gFsView.mIdView.lookupByID(*git);
-
-              if (fs) {
-                if (setactive) {
-                  if (fs->GetString("stat.drainer") != "on") {
-                    fs->SetString("stat.drainer", "on");
-                  }
-                } else {
-                  if (fs->GetString("stat.drainer") != "off") {
-                    fs->SetString("stat.drainer", "off");
-                  }
-                }
-              }
-            }
-          }
-        }
-
-        if (set.group_state() == "off") {
-          // Disable all draining in this group
-          if (FsView::gFsView.mGroupView.count(set.group())) {
-            for (auto git = FsView::gFsView.mGroupView[set.group()]->begin();
-                 git != FsView::gFsView.mGroupView[set.group()]->end(); ++git) {
-              auto fs = FsView::gFsView.mIdView.lookupByID(*git);
-
-              if (fs) {
-                fs->SetString("stat.drainer", "off");
-              }
+          } else {
+            if (fs->GetString("stat.drainer") != "off") {
+              fs->SetString("stat.drainer", "off");
             }
           }
         }
       }
     }
-  } else {
-    retc = EPERM;
-    stdErr = "error: you have to take role 'root' to execute this command";
   }
 
-  reply.set_std_out(stdOut.c_str());
-  reply.set_std_err(stdErr.c_str());
-  reply.set_retc(retc);
+  if (set.group_state() == "off") {
+    // Disable all draining in this group
+    if (FsView::gFsView.mGroupView.count(set.group())) {
+      for (auto git = FsView::gFsView.mGroupView[set.group()]->begin();
+           git != FsView::gFsView.mGroupView[set.group()]->end(); ++git) {
+        auto fs = FsView::gFsView.mIdView.lookupByID(*git);
+
+        if (fs) {
+          fs->SetString("stat.drainer", "off");
+        }
+      }
+    }
+  }
+
+  reply.set_retc(0);
 }
 
 EOSMGMNAMESPACE_END

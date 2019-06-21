@@ -217,10 +217,10 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
 
   case RequestProto::kGroup:
     cmd.reset(new GroupCmd(std::move(req), vid));
+    break;
 
   case RequestProto::kDebug:
     cmd.reset(new DebugCmd(std::move(req), vid));
-
     break;
 
   default:
@@ -306,7 +306,6 @@ ProcInterface::ProtoIsWriteAccess(const char* path, const char* opaque)
 
   case RequestProto::kDebug:
     return true; // @note (faluchet) to check
-
     break;
 
   default:
