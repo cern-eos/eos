@@ -115,12 +115,13 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
   static const char* epname = "opendir";
   XrdOucEnv Open_Env(info);
   errno = 0;
+
   EXEC_TIMING_BEGIN("OpenDir");
   eos::common::Path cPath(dir_path);
 
   // Skip printout when listing the /eos/<instance/proc/conversion dir
   if ((strstr(dir_path, "/proc/conversion") == nullptr) && (info != nullptr)) {
-    eos_info("name=opendir path=%s", cPath.GetPath());
+    eos_info("name=opendir path=%s name=%s prot=%s uid=%u gid=%u", cPath.GetPath(), vid.name.c_str(), vid.prot.c_str(), vid.uid, vid.gid);
   }
 
   gOFS->MgmStats.Add("OpenDir", vid.uid, vid.gid, 1);
