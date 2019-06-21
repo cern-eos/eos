@@ -528,7 +528,7 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
     comp_file_xs->Reset();
   }
 
-  size_t nread = 0;
+  int64_t nread = 0;
   off_t offset = 0;
   uint64_t open_ts_sec = std::chrono::duration_cast<std::chrono::seconds>
                          (mClock.getTime().time_since_epoch()).count();
