@@ -357,9 +357,44 @@ bool GroupLocator::parseGroup(const std::string &description, GroupLocator &out)
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
+FileSystemCoreParams::FileSystemCoreParams(uint32_t id, FileSystemLocator fsLocator, GroupLocator grpLocator, const std::string &uuid)
+: mFsId(id), mLocator(fsLocator), mGroup(grpLocator), mUuid(uuid) {}
+
+//------------------------------------------------------------------------------
+// Get locator
+//------------------------------------------------------------------------------
+const FileSystemLocator& FileSystemCoreParams::getLocator() const {
+  return mLocator;
+}
+
+//------------------------------------------------------------------------------
+//! Get group locator
+//------------------------------------------------------------------------------
+const GroupLocator& FileSystemCoreParams::getGroupLocator() const {
+  return mGroup;
+}
+
+//------------------------------------------------------------------------------
+//! Get id
+//------------------------------------------------------------------------------
+uint32_t FileSystemCoreParams::getId() const {
+  return mFsId;
+}
+
+//------------------------------------------------------------------------------
+//! Get uuid
+//------------------------------------------------------------------------------
+std::string FileSystemCoreParams::getUuid() const {
+  return mUuid;
+}
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
 FileSystem::FileSystem(const FileSystemLocator &locator,
   XrdMqSharedObjectManager* som, qclient::SharedManager* qsom, bool bc2mgm)
 {
+  mLocator = locator;
   mSharedManager = qsom;
   mQueuePath = locator.getQueuePath();
   mQueue = locator.getFSTQueue();
@@ -739,7 +774,7 @@ FileSystem::GetRegisterRequestString()
 }
 
 //------------------------------------------------------------------------------
-//! Apply the given batch of updates
+// Apply the given batch of updates
 //------------------------------------------------------------------------------
 bool FileSystem::applyBatch(const FileSystemUpdateBatch &batch) {
   RWMutexReadLock lock(mSom->HashMutex);
@@ -770,6 +805,22 @@ bool FileSystem::applyBatch(const FileSystemUpdateBatch &batch) {
 }
 
 //------------------------------------------------------------------------------
+// Apply the given core parameters
+//------------------------------------------------------------------------------
+bool FileSystem::applyCoreParams(const FileSystemCoreParams &params, const std::string &configstatus) {
+  FileSystemUpdateBatch batch;
+  batch.setId(params.getId());
+  batch.setStringDurable("uuid", params.getUuid());
+
+  if(!configstatus.empty()) {
+    batch.setStringDurable("configstatus", configstatus);
+  }
+
+  batch.setStringDurable("schedgroup", params.getGroupLocator().getGroup());
+  return applyBatch(batch);
+}
+
+//------------------------------------------------------------------------------
 // Set a local long long
 //------------------------------------------------------------------------------
 bool FileSystem::setLongLongLocal(const std::string &key, int64_t value) {
@@ -790,6 +841,27 @@ FileSystem::CreateConfig(std::string& key, std::string& val)
   key = mQueuePath;
   XrdMqSharedHash* hash = mSom->GetObject(mQueuePath.c_str(), "hash");
   val = hash->SerializeWithFilter("stat.", true);
+}
+
+//------------------------------------------------------------------------------
+// Retrieve FileSystem's core parameters
+//------------------------------------------------------------------------------
+FileSystemCoreParams FileSystem::getCoreParams() {
+  RWMutexReadLock lock(mSom->HashMutex);
+
+  XrdMqSharedHash* hash = mSom->GetObject(mQueuePath.c_str(), "hash");
+
+  if(!hash) {
+    return FileSystemCoreParams(0, FileSystemLocator(), GroupLocator(), "");
+  }
+
+  fsid_t id = hash->GetUInt("id");
+
+  GroupLocator groupLocator;
+  GroupLocator::parseGroup(hash->Get("schedgroup"), groupLocator);
+
+  std::string uuid = hash->Get("uuid");
+  return FileSystemCoreParams(id, mLocator, groupLocator, uuid);
 }
 
 //------------------------------------------------------------------------------

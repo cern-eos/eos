@@ -326,12 +326,57 @@ private:
 };
 
 //------------------------------------------------------------------------------
+//! Describes critical parameters of a FileSystem, which are necessary to have
+//! to register a filesystem on the MGM.
+//!
+//! A FileSystemLocator can physically locate a FileSystem, but we still can't
+//! operate it on the MGM without knowing more information. (id, group, uuid)
+//------------------------------------------------------------------------------
+class FileSystemCoreParams {
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  FileSystemCoreParams(uint32_t id, FileSystemLocator fsLocator, GroupLocator grpLocator,
+    const std::string &uuid);
+
+  //----------------------------------------------------------------------------
+  //! Get locator
+  //----------------------------------------------------------------------------
+  const FileSystemLocator& getLocator() const;
+
+  //----------------------------------------------------------------------------
+  //! Get group locator
+  //----------------------------------------------------------------------------
+  const GroupLocator& getGroupLocator() const;
+
+  //----------------------------------------------------------------------------
+  //! Get id
+  //----------------------------------------------------------------------------
+  uint32_t getId() const;
+
+  //----------------------------------------------------------------------------
+  //! Get uuid
+  //----------------------------------------------------------------------------
+  std::string getUuid() const;
+
+private:
+  uint32_t mFsId;
+  FileSystemLocator mLocator;
+  GroupLocator mGroup;
+  std::string mUuid;
+};
+
+//------------------------------------------------------------------------------
 //! Base Class abstracting the internal representation of a filesystem inside
 //! the MGM and FST
 //------------------------------------------------------------------------------
 class FileSystem
 {
 protected:
+  //! This filesystem's locator object
+  FileSystemLocator mLocator;
+
   //! Queue Name/Path    = 'queue' + 'path' e.g. /eos/'host'/fst/data01
   std::string mQueuePath;
 
@@ -568,6 +613,11 @@ public:
   //! Apply the given batch of updates
   //----------------------------------------------------------------------------
   bool applyBatch(const FileSystemUpdateBatch &batch);
+
+  //----------------------------------------------------------------------------
+  //! Apply the given core parameters
+  //----------------------------------------------------------------------------
+  bool applyCoreParams(const FileSystemCoreParams &params, const std::string &configstatus);
 
   //----------------------------------------------------------------------------
   //! Set a single local long long
@@ -901,6 +951,11 @@ public:
   {
     return atoi(GetString("stat.errc").c_str());
   }
+
+  //----------------------------------------------------------------------------
+  //! Retrieve FileSystem's core parameters
+  //----------------------------------------------------------------------------
+  FileSystemCoreParams getCoreParams();
 
   //------------------------------------------------------------------------------
   //! Snapshots all variables of a filesystem into a snapshot struct
