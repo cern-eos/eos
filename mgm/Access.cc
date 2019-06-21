@@ -242,16 +242,15 @@ Access::ApplyAccessConfig(bool applyredirectandstall)
     }
   }
 
-  if (applyredirectandstall) {
-    tokens.clear();
-    delimiter = ",";
-    eos::common::StringConversion::Tokenize(stall, tokens, delimiter);
+  tokens.clear();
+  delimiter = ",";
+  eos::common::StringConversion::Tokenize(stall, tokens, delimiter);
 
-    for (size_t i = 0; i < tokens.size(); i++) {
-      if (tokens[i].length()) {
+  for (size_t i = 0; i < tokens.size(); ++i) {
+    if (tokens[i].length()) {
+      if (applyredirectandstall || (tokens[i].find("rate:") == 0)) {
         subtokens.clear();
-        eos::common::StringConversion::Tokenize(tokens[i],
-                                                subtokens,
+        eos::common::StringConversion::Tokenize(tokens[i], subtokens,
                                                 subdelimiter);
 
         if (subtokens.size() >= 2) {
@@ -287,7 +286,9 @@ Access::ApplyAccessConfig(bool applyredirectandstall)
         }
       }
     }
+  }
 
+  if (applyredirectandstall) {
     tokens.clear();
     delimiter = ",";
     eos::common::StringConversion::Tokenize(redirect, tokens, delimiter);
