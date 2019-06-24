@@ -357,8 +357,8 @@ bool GroupLocator::parseGroup(const std::string &description, GroupLocator &out)
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileSystemCoreParams::FileSystemCoreParams(uint32_t id, FileSystemLocator fsLocator, GroupLocator grpLocator, const std::string &uuid)
-: mFsId(id), mLocator(fsLocator), mGroup(grpLocator), mUuid(uuid) {}
+FileSystemCoreParams::FileSystemCoreParams(uint32_t id, const FileSystemLocator &fsLocator, const GroupLocator &grpLocator, const std::string &uuid, ConfigStatus cfg)
+: mFsId(id), mLocator(fsLocator), mGroup(grpLocator), mUuid(uuid), mConfigStatus(cfg) {}
 
 //------------------------------------------------------------------------------
 // Get locator
@@ -386,6 +386,13 @@ uint32_t FileSystemCoreParams::getId() const {
 //------------------------------------------------------------------------------
 std::string FileSystemCoreParams::getUuid() const {
   return mUuid;
+}
+
+//------------------------------------------------------------------------------
+// Get current ConfigStatus
+//------------------------------------------------------------------------------
+ConfigStatus FileSystemCoreParams::getConfigStatus() const {
+  return mConfigStatus;
 }
 
 //------------------------------------------------------------------------------
@@ -848,7 +855,7 @@ FileSystemCoreParams FileSystem::getCoreParams() {
   XrdMqSharedHash* hash = mSom->GetObject(mQueuePath.c_str(), "hash");
 
   if(!hash) {
-    return FileSystemCoreParams(0, FileSystemLocator(), GroupLocator(), "");
+    return FileSystemCoreParams(0, FileSystemLocator(), GroupLocator(), "", ConfigStatus::kOff);
   }
 
   fsid_t id = hash->GetUInt("id");
@@ -857,7 +864,9 @@ FileSystemCoreParams FileSystem::getCoreParams() {
   GroupLocator::parseGroup(hash->Get("schedgroup"), groupLocator);
 
   std::string uuid = hash->Get("uuid");
-  return FileSystemCoreParams(id, mLocator, groupLocator, uuid);
+  ConfigStatus cfg = GetConfigStatusFromString(hash->Get("configstatus").c_str());
+
+  return FileSystemCoreParams(id, mLocator, groupLocator, uuid, cfg);
 }
 
 //------------------------------------------------------------------------------

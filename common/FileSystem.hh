@@ -358,8 +358,9 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  FileSystemCoreParams(uint32_t id, FileSystemLocator fsLocator, GroupLocator grpLocator,
-    const std::string &uuid);
+  FileSystemCoreParams(uint32_t id, const FileSystemLocator &fsLocator,
+    const GroupLocator &grpLocator, const std::string &uuid,
+    ConfigStatus cfg);
 
   //----------------------------------------------------------------------------
   //! Get locator
@@ -381,11 +382,17 @@ public:
   //----------------------------------------------------------------------------
   std::string getUuid() const;
 
+  //----------------------------------------------------------------------------
+  //! Get current ConfigStatus
+  //----------------------------------------------------------------------------
+  ConfigStatus getConfigStatus() const;
+
 private:
   uint32_t mFsId;
   FileSystemLocator mLocator;
   GroupLocator mGroup;
   std::string mUuid;
+  ConfigStatus mConfigStatus;
 };
 
 //------------------------------------------------------------------------------
