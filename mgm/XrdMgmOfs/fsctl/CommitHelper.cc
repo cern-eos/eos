@@ -69,7 +69,7 @@ CommitHelper::check_filesystem(eos::common::VirtualIdentity& vid,
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
   eos::mgm::FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
-  if ((!fs) || (fs->GetConfigStatus() < eos::common::FileSystem::kDrain)) {
+  if ((!fs) || (fs->GetConfigStatus() < eos::common::ConfigStatus::kDrain)) {
     eos_thread_err("msg=\"commit suppressed\" configstatus=%s subcmd=commit "
                    "path=%s size=%s fid=%s fsid=%s dropfsid=%s checksum=%s"
                    " mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d oc-max=%d "

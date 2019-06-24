@@ -272,7 +272,7 @@ XrdMgmOfs::BalanceGetFsSrc(eos::common::FileSystem::fsid_t tgt_fsid,
 
     if ((src_snapshot.mDiskFilled < src_snapshot.mNominalFilled) ||
         (src_snapshot.mStatus != eos::common::BootStatus::kBooted) ||
-        (src_snapshot.mConfigStatus < eos::common::FileSystem::kRO) ||
+        (src_snapshot.mConfigStatus < eos::common::ConfigStatus::kRO) ||
         (src_snapshot.mErrCode != 0) ||
         (src_fs->GetActiveStatus(src_snapshot) ==
          eos::common::ActiveStatus::kOffline)) {

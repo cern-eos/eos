@@ -212,7 +212,7 @@ GeoBalancer::populateGeotagsInfo()
     fs->SnapShotFileSystem(snapshot, false);
 
     if (snapshot.mStatus != eos::common::BootStatus::kBooted ||
-        snapshot.mConfigStatus < eos::common::FileSystem::kRO ||
+        snapshot.mConfigStatus < eos::common::ConfigStatus::kRO ||
         snapshot.mGeoTag.empty()) {
       continue;
     }

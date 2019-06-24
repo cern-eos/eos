@@ -1475,7 +1475,7 @@ XrdFstOfsFile::close()
 
       if (gOFS.Storage->mFileSystemsMap.count(mFsId) &&
           gOFS.Storage->mFileSystemsMap[mFsId]->GetConfigStatus() <
-          eos::common::FileSystem::kDrain) {
+          eos::common::ConfigStatus::kDrain) {
         eos_notice("msg=\"failing transfer because filesystem has non-"
                    "operational state\" path=%s state=%s", mNsPath.c_str(),
                    eos::common::FileSystem::GetConfigStatusAsString

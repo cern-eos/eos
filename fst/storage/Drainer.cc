@@ -177,8 +177,7 @@ Storage::GetFileSystemInDrainMode(std::vector<unsigned int>& drainfsvector,
       }
 
       eos::common::BootStatus bootstatus = mFsVect[index]->GetStatus();
-      eos::common::FileSystem::fsstatus_t configstatus =
-        mFsVect[index]->GetConfigStatus();
+      eos::common::ConfigStatus configstatus = mFsVect[index]->GetConfigStatus();
       // check if the filesystem is full
       bool full = false;
       {
@@ -187,7 +186,7 @@ Storage::GetFileSystemInDrainMode(std::vector<unsigned int>& drainfsvector,
       }
 
       if ((bootstatus != eos::common::BootStatus::kBooted) ||
-          (configstatus <= eos::common::FileSystem::kRO) ||
+          (configstatus <= eos::common::ConfigStatus::kRO) ||
           (full)) {
         // skip this one in bad state
         eos_static_debug("FileSystem %lu status=%u configstatus=%i", id, bootstatus,

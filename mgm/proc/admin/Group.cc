@@ -192,7 +192,7 @@ ProcCommand::Group()
 
             if (fs) {
               // check that all filesystems are empty
-              if ((fs->GetConfigStatus(false) != eos::common::FileSystem::kEmpty)) {
+              if ((fs->GetConfigStatus(false) != eos::common::ConfigStatus::kEmpty)) {
                 stdErr = "error: unable to remove group '";
                 stdErr += groupname.c_str();
                 stdErr += "' - filesystems are not all in empty state - try list the group and drain them or set: fs config <fsid> configstatus=empty\n";

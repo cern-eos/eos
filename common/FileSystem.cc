@@ -403,7 +403,7 @@ FileSystem::FileSystem(const FileSystemLocator &locator,
   mInternalBootStatus = BootStatus::kDown;
   cActive = ActiveStatus::kOffline;
   cStatus = BootStatus::kDown;
-  cConfigStatus = 0;
+  cConfigStatus = ConfigStatus::kOff;
   cActiveTime = 0;
   cStatusTime = 0;
   cConfigTime = 0;
@@ -574,41 +574,37 @@ FileSystem::GetDrainStatusAsString(DrainStatus status)
 // Return given configuration status as a string
 //------------------------------------------------------------------------------
 const char*
-FileSystem::GetConfigStatusAsString(int status)
+FileSystem::GetConfigStatusAsString(ConfigStatus status)
 {
-  if (status == kUnknown) {
-    return "unknown";
+  switch(status) {
+    case ConfigStatus::kUnknown: {
+      return "unknown";
+    }
+    case ConfigStatus::kOff: {
+      return "off";
+    }
+    case ConfigStatus::kEmpty: {
+      return "empty";
+    }
+    case ConfigStatus::kDrainDead: {
+      return "draindead";
+    }
+    case ConfigStatus::kDrain: {
+      return "drain";
+    }
+    case ConfigStatus::kRO: {
+      return "ro";
+    }
+    case ConfigStatus::kWO: {
+      return "wo";
+    }
+    case ConfigStatus::kRW: {
+      return "rw";
+    }
+    default: {
+      return "unknown";
+    }
   }
-
-  if (status == kOff) {
-    return "off";
-  }
-
-  if (status == kEmpty) {
-    return "empty";
-  }
-
-  if (status == kDrainDead) {
-    return "draindead";
-  }
-
-  if (status == kDrain) {
-    return "drain";
-  }
-
-  if (status == kRO) {
-    return "ro";
-  }
-
-  if (status == kWO) {
-    return "wo";
-  }
-
-  if (status == kRW) {
-    return "rw";
-  }
-
-  return "unknown";
 }
 
 //------------------------------------------------------------------------------
@@ -652,50 +648,50 @@ FileSystem::GetStatusFromString(const char* ss)
 //------------------------------------------------------------------------------
 // Return configuration status from a string representation
 //------------------------------------------------------------------------------
-int
+ConfigStatus
 FileSystem::GetConfigStatusFromString(const char* ss)
 {
   if (!ss) {
-    return kOff;
+    return ConfigStatus::kOff;
   }
 
   if (!strcmp(ss, "unknown")) {
-    return kUnknown;
+    return ConfigStatus::kUnknown;
   }
 
   if (!strcmp(ss, "off")) {
-    return kOff;
+    return ConfigStatus::kOff;
   }
 
   if (!strcmp(ss, "empty")) {
-    return kEmpty;
+    return ConfigStatus::kEmpty;
   }
 
   if (!strcmp(ss, "draindead")) {
-    return kDrainDead;
+    return ConfigStatus::kDrainDead;
   }
 
   if (!strcmp(ss, "drain")) {
-    return kDrain;
+    return ConfigStatus::kDrain;
   }
 
   if (!strcmp(ss, "ro")) {
-    return kRO;
+    return ConfigStatus::kRO;
   }
 
   if (!strcmp(ss, "wo")) {
-    return kWO;
+    return ConfigStatus::kWO;
   }
 
   if (!strcmp(ss, "rw")) {
-    return kRW;
+    return ConfigStatus::kRW;
   }
 
   if (!strcmp(ss, "down")) {
-    return kOff;
+    return ConfigStatus::kOff;
   }
 
-  return kUnknown;
+  return ConfigStatus::kUnknown;
 }
 
 //------------------------------------------------------------------------------
@@ -983,7 +979,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
     fs.mGeoTag = "";
     fs.mPublishTimestamp = 0;
     fs.mStatus = BootStatus::kDown;
-    fs.mConfigStatus = 0;
+    fs.mConfigStatus = ConfigStatus::kOff;
     fs.mDrainStatus = DrainStatus::kNoDrain;
     fs.mHeadRoom = 0;
     fs.mErrCode = 0;
@@ -1070,10 +1066,9 @@ FileSystem::SnapShotHost(XrdMqSharedObjectManager* som,
 //----------------------------------------------------------------------------
 // Return the configuration status (via cache)
 //----------------------------------------------------------------------------
-FileSystem::fsstatus_t
+ConfigStatus
 FileSystem::GetConfigStatus(bool cached)
 {
-  fsstatus_t rConfigStatus = 0;
   XrdSysMutexHelper lock(cConfigLock);
 
   if (cached) {
@@ -1082,14 +1077,12 @@ FileSystem::GetConfigStatus(bool cached)
     if (now - cConfigTime) {
       cConfigTime = now;
     } else {
-      rConfigStatus = cConfigStatus;
-      return rConfigStatus;
+      return cConfigStatus;
     }
   }
 
   cConfigStatus = GetConfigStatusFromString(GetString("configstatus").c_str());
-  rConfigStatus = cConfigStatus;
-  return rConfigStatus;
+  return cConfigStatus;
 }
 
 //----------------------------------------------------------------------------

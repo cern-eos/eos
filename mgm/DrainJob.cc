@@ -288,7 +288,7 @@ retry:
     try {
       totalfiles = gOFS->eosFsView->getNumFilesOnFs(mFsId);
 
-      if (fs->GetConfigStatus() == eos::common::FileSystem::kDrain) {
+      if (fs->GetConfigStatus() == eos::common::ConfigStatus::kDrain) {
         // if we are still an alive file system, we cannot finish a drain
         // as a long as we see some open files
         wopenfiles = fs->GetLongLong("stat.wopen");

@@ -55,8 +55,8 @@ public:
   //!         should be restarted, 0 if not a drain transition
   //----------------------------------------------------------------------------
   static
-  int IsDrainTransition(const eos::common::FileSystem::fsstatus_t old_status,
-                        const eos::common::FileSystem::fsstatus_t new_status);
+  int IsDrainTransition(const eos::common::ConfigStatus old_status,
+                        const eos::common::ConfigStatus new_status);
 
   //----------------------------------------------------------------------------
   //! @brief Constructor
@@ -106,7 +106,7 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool SetConfigStatus(eos::common::FileSystem::fsstatus_t status);
+  bool SetConfigStatus(eos::common::ConfigStatus status);
 
   //----------------------------------------------------------------------------
   //! Set a 'key' describing the filesystem

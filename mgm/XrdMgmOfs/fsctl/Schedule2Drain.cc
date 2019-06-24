@@ -541,7 +541,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
       }
 
       if (source_snapshot.mId == location) {
-        if (source_snapshot.mConfigStatus == eos::common::FileSystem::kDrain) {
+        if (source_snapshot.mConfigStatus == eos::common::ConfigStatus::kDrain) {
           // Only add filesystems which are not in drain dead to the
           // list of possible locations
           locationfs.push_back(location);
@@ -556,7 +556,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
     if ((LayoutId::GetLayoutType(lid) == LayoutId::kRaidDP ||
          LayoutId::GetLayoutType(lid) == LayoutId::kArchive ||
          LayoutId::GetLayoutType(lid) == LayoutId::kRaid6) &&
-        source_snapshot.mConfigStatus == eos::common::FileSystem::kDrainDead) {
+        source_snapshot.mConfigStatus == eos::common::ConfigStatus::kDrainDead) {
       //------------------------------------------------------------------
       // RAIN layouts (not replica) drain by running a reconstruction
       // 'eoscp -c' ... if they are in draindead

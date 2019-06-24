@@ -365,7 +365,7 @@ Storage::Communicator(ThreadAssistant& assistant)
                 if (eos::fst::Config::gConfig.autoBoot &&
                     (mQueue2FsMap[queue.c_str()]->GetStatus() <= eos::common::BootStatus::kDown) &&
                     (mQueue2FsMap[queue.c_str()]->GetConfigStatus() >
-                     eos::common::FileSystem::kOff)) {
+                     eos::common::ConfigStatus::kOff)) {
                   // start a boot thread
                   RunBootThread(mQueue2FsMap[queue.c_str()]);
                 }

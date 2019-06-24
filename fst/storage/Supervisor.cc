@@ -52,11 +52,10 @@ Storage::Supervisor()
             continue;
           } else {
             eos::common::BootStatus bootstatus = mFsVect[i]->GetStatus();
-            eos::common::FileSystem::fsstatus_t configstatus =
-              mFsVect[i]->GetConfigStatus();
+            eos::common::ConfigStatus configstatus = mFsVect[i]->GetConfigStatus();
 
             if ((bootstatus == eos::common::BootStatus::kDown) &&
-                (configstatus > eos::common::FileSystem::kDrain)) {
+                (configstatus > eos::common::ConfigStatus::kDrain)) {
               ndown++;
             }
           }
@@ -76,11 +75,10 @@ Storage::Supervisor()
                 continue;
               } else {
                 eos::common::BootStatus bootstatus = mFsVect[i]->GetStatus();
-                eos::common::FileSystem::fsstatus_t configstatus =
-                  mFsVect[i]->GetConfigStatus();
+                eos::common::ConfigStatus configstatus = mFsVect[i]->GetConfigStatus();
 
                 if ((bootstatus == eos::common::BootStatus::kDown) &&
-                    (configstatus > eos::common::FileSystem::kDrain)) {
+                    (configstatus > eos::common::ConfigStatus::kDrain)) {
                   ndown++;
                 }
               }

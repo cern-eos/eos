@@ -314,7 +314,7 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
             long long errc = 0;
             std::string configstatus = "";
             std::string bootstatus = "";
-            int cfgstatus = 0;
+            eos::common::ConfigStatus cfgstatus = eos::common::ConfigStatus::kOff;
             eos::common::BootStatus bstatus = eos::common::BootStatus::kDown;
             // read the id from the hash and the current error value
             gOFS->ObjectManager.HashMutex.LockRead();
@@ -333,14 +333,14 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
             gOFS->ObjectManager.HashMutex.UnLockRead();
 
             if (fsid && errc &&
-                (cfgstatus >= eos::common::FileSystem::kRO) &&
+                (cfgstatus >= eos::common::ConfigStatus::kRO) &&
                 (bstatus == eos::common::BootStatus::kOpsError)) {
               // Case when we take action and explicitly ask to start a drain job
               eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
               FileSystem *fs = FsView::gFsView.mIdView.lookupByID(fsid);
               if(fs) {
-                fs->SetConfigStatus(eos::common::FileSystem::kDrain);
+                fs->SetConfigStatus(eos::common::ConfigStatus::kDrain);
               }
             }
 

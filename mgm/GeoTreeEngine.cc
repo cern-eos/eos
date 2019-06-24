@@ -885,7 +885,7 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
   std::set<std::tuple<std::string, unsigned, unsigned, TableFormatterColor,
               unsigned, unsigned, std::string, std::string, unsigned, std::string,
               int, int, int, std::string, int, int, int, double>> data_snapshot;
- 
+
   for (auto it = pGroup2SchedTME.begin(); it != pGroup2SchedTME.end(); it++) {
     if (dispTree && (schedgroup.empty() || schedgroup == "*" ||
                      (schedgroup == it->second->group->mName))) {
@@ -2554,9 +2554,9 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
   }
 
   if (keys & sfgConfigstatus) {
-    FileSystem::fsstatus_t status = fs->mConfigStatus;
+    common::ConfigStatus status = fs->mConfigStatus;
 
-    if (status == FileSystem::kRW) {
+    if (status == common::ConfigStatus::kRW) {
       if (ftIdx) {
         setOneStateVarStatusInAllFastTrees(SchedTreeBase::Readable |
                                            SchedTreeBase::Writable);
@@ -2565,7 +2565,7 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
       if (stn) {
         stn->pNodeState.mStatus |= (SchedTreeBase::Readable | SchedTreeBase::Writable);
       }
-    } else if (status == FileSystem::kRO || status == FileSystem::kDrain) {
+    } else if (status == common::ConfigStatus::kRO || status == common::ConfigStatus::kDrain) {
       if (ftIdx) {
         setOneStateVarStatusInAllFastTrees(SchedTreeBase::Readable);
         unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Writable);
@@ -2575,7 +2575,7 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
         stn->pNodeState.mStatus |= SchedTreeBase::Readable;
         stn->pNodeState.mStatus &= ~SchedTreeBase::Writable;
       }
-    } else if (status == FileSystem::kWO) {
+    } else if (status == common::ConfigStatus::kWO) {
       if (ftIdx) {
         unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Readable);
         setOneStateVarStatusInAllFastTrees(SchedTreeBase::Writable);
@@ -2601,7 +2601,7 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
   if (keys & sfgDrain) {
     DrainStatus drainStatus = fs->mDrainStatus;
 
-    if (fs->mConfigStatus == FileSystem::kDrain &&
+    if (fs->mConfigStatus == common::ConfigStatus::kDrain &&
         drainStatus == DrainStatus::kDraining) {
       // mark as draining
       if (ftIdx) {
@@ -2613,12 +2613,12 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
       }
     } else {
       // This covers the following cases
-      // case FileSystem::kNoDrain:
-      // case FileSystem::kDrainPrepare:
-      // case FileSystem::kDrainWait:
-      // case FileSystem::kDrainStalling:
-      // case FileSystem::kDrained:
-      // case FileSystem::kDrainExpired:
+      // case common::ConfigStatus::kNoDrain:
+      // case common::ConfigStatus::kDrainPrepare:
+      // case common::ConfigStatus::kDrainWait:
+      // case common::ConfigStatus::kDrainStalling:
+      // case common::ConfigStatus::kDrained:
+      // case common::ConfigStatus::kDrainExpired:
       if (ftIdx) {
         unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Draining);
       }
@@ -4827,7 +4827,7 @@ bool GeoTreeEngine::AccessStruct::showMapping(XrdOucString* output, std::string 
     std::set<std::tuple<unsigned, unsigned, unsigned, unsigned, std::string, std::string>>
       data_access;
     accessST->displayAccess(data_access, geo_depth_max);
-    
+
     TableFormatterBase table_access;
     TableHeader table_header;
     table_header.push_back(std::make_tuple("operation", 6, format_ss));
@@ -4843,7 +4843,7 @@ bool GeoTreeEngine::AccessStruct::showMapping(XrdOucString* output, std::string 
     }
     table_header.push_back(std::make_tuple("mapping", 6, format_s));
     table_access.SetHeader(table_header);
-    
+
     unsigned prefix[geo_depth_max +1];
     for (auto it : data_access) {
       if (!monitoring) {
@@ -4890,7 +4890,7 @@ bool GeoTreeEngine::AccessStruct::showMapping(XrdOucString* output, std::string 
         table_access.AddRows(table_data);
       }
     }
-    
+
     output->append(table_access.GenerateTable(HEADER).c_str());
     return true;
   }

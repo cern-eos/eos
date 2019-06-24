@@ -122,10 +122,10 @@ Balancer::Balance(ThreadAssistant& assistant) noexcept
           eos::common::FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
           if(fs) {
             total_files += fs->GetLongLong("stat.balancer.running");
-            eos::common::FileSystem::fsstatus_t configstatus = fs->GetConfigStatus();
+            eos::common::ConfigStatus configstatus = fs->GetConfigStatus();
 
-            if (((configstatus == eos::common::FileSystem::kDrain)
-                 || (configstatus == eos::common::FileSystem::kDrainDead))) {
+            if (((configstatus == eos::common::ConfigStatus::kDrain)
+                 || (configstatus == eos::common::ConfigStatus::kDrainDead))) {
               has_drainjob = true;
             }
           }

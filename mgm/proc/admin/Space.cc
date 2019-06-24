@@ -475,7 +475,7 @@ ProcCommand::Space()
 		  stdOut += "'\n";
 		}
 	      }  else {
-		// set a space policy parameters e.g. default placement attributes	      
+		// set a space policy parameters e.g. default placement attributes
 		if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value, true,
 									     "/eos/*/mgm")) {
 		  retc = EIO;
@@ -484,7 +484,7 @@ ProcCommand::Space()
 		  stdOut = "success: configured policy in space='";
 		  stdOut += identifier.c_str();
 		  stdOut += "' as ";
-		  stdOut += key.c_str(); 
+		  stdOut += key.c_str();
 		  stdOut += "='";
 		  stdOut += value.c_str();
 		  stdOut += "'\n";
@@ -548,7 +548,7 @@ ProcCommand::Space()
 			  stdOut += "success: balancer is disabled!";
 			}
 		      }
-		      
+
 		      if (key == "converter") {
 			if (value == "on") {
 			  stdOut += "success: converter is enabled!";
@@ -556,7 +556,7 @@ ProcCommand::Space()
 			  stdOut += "success: converter is disabled!";
 			}
 		      }
-		      
+
 		      if (key == "autorepair") {
 			if (value == "on") {
 			  stdOut += "success: auto-repair is enabled!";
@@ -564,7 +564,7 @@ ProcCommand::Space()
 			  stdOut += "success: auto-repair is disabled!";
 			}
 		      }
-		      
+
 		      if (key == "groupbalancer") {
 			if (value == "on") {
 			  stdOut += "success: groupbalancer is enabled!";
@@ -572,7 +572,7 @@ ProcCommand::Space()
 			  stdOut += "success: groupbalancer is disabled!";
 			}
 		      }
-		      
+
 		      if (key == "geobalancer") {
 			if (value == "on") {
 			  stdOut += "success: geobalancer is enabled!";
@@ -580,7 +580,7 @@ ProcCommand::Space()
 			  stdOut += "success: geobalancer is disabled!";
 			}
 		      }
-		      
+
 		      if (key == "geo.access.policy.read.exact") {
 			if (value == "on") {
 			  stdOut += "success: geo access policy prefers the exact geo matching replica for reading!";
@@ -596,7 +596,7 @@ ProcCommand::Space()
 			  stdOut += "success: geo access policy prefers with a weight the geo matching replica for placements!";
 			}
 		      }
-		      
+
 		      if (key == "scheduler.skip.overloaded") {
 			if (value == "on") {
 			  stdOut += "success: scheduler skips overloaded eth-out nodes!";
@@ -604,7 +604,7 @@ ProcCommand::Space()
 			  stdOut += "success: scheduler does not skip overloaded eth-out nodes!";
 			}
 		      }
-		      
+
 		      if (key == "filearchivedgc") {
 			if (value == "on") {
 			  stdOut += "success: 'file archived' garbage collector is enabled";
@@ -629,7 +629,7 @@ ProcCommand::Space()
 		  errno = 0;
 		  unsigned long long size = eos::common::StringConversion::GetSizeFromString(
 											     value.c_str());
-		  
+
 		  if (!errno) {
 		    if ((key != "balancer.threshold") &&
 			(key != "groupbalancer.threshold") &&
@@ -639,7 +639,7 @@ ProcCommand::Space()
 		      snprintf(ssize, sizeof(ssize) - 1, "%llu", size);
 		      value = ssize;
 		    }
-		    
+
 		    if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value, true,
 										 "/eos/*/mgm")) {
 		      retc = EIO;
@@ -658,7 +658,7 @@ ProcCommand::Space()
 	      }
 	    }
 	  }
-	  
+
           // Set a filesystem related parameter
           if (!key.compare(0, 3, "fs.")) {
             key.erase(0, 3);
@@ -700,7 +700,7 @@ ProcCommand::Space()
                 // check the allowed strings
                 if (((key == "configstatus") &&
                     (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) !=
-                    eos::common::FileSystem::kUnknown))) {
+                    eos::common::ConfigStatus::kUnknown))) {
                   fs->SetString(key.c_str(), value.c_str());
 
                   if (value == "off") {
@@ -808,7 +808,7 @@ ProcCommand::Space()
 
             if (fs) {
               // check that filesystems are empty
-              if ((fs->GetConfigStatus(false) != eos::common::FileSystem::kEmpty)) {
+              if ((fs->GetConfigStatus(false) != eos::common::ConfigStatus::kEmpty)) {
                 stdErr = "error: unable to remove space '";
                 stdErr += spacename.c_str();
                 stdErr += "' - filesystems are not all in empty state - try to drain them or: space config <name> configstatus=empty\n";

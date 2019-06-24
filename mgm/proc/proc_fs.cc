@@ -364,7 +364,7 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
       // Check the allowed strings
       if (((key == "configstatus") &&
            (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) !=
-            eos::common::FileSystem::kUnknown)) ||
+            eos::common::ConfigStatus::kUnknown)) ||
           (((key == "headroom") || (key == "scaninterval") ||
             (key == "scanrate") || (key == "graceperiod") ||
             (key == "drainperiod") || (key == "proxygroup") ||
@@ -540,7 +540,7 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
       (!configstatus.length()) ||
       (configstatus.length() &&
        (eos::common::FileSystem::GetConfigStatusFromString(configstatus.c_str()) <
-        eos::common::FileSystem::kOff))) {
+        eos::common::ConfigStatus::kOff))) {
     stdErr += "error: illegal parameters";
     retc = EINVAL;
   } else {
@@ -844,7 +844,7 @@ bool proc_fs_can_mv(eos::mgm::FileSystem* fs, const std::string& dst,
     }
 
     // File system must be in RW mode and active for the move to work
-    bool is_empty = (fs->GetConfigStatus() == eos::common::FileSystem::kEmpty);
+    bool is_empty = (fs->GetConfigStatus() == eos::common::ConfigStatus::kEmpty);
     bool is_active = (fs->GetActiveStatus() == eos::common::ActiveStatus::kOnline);
 
     if (force) {

@@ -77,10 +77,8 @@ Storage::Scrub()
         bool direct_io = (mFsVect[i]->GetStatfs()->GetStatfs()->f_type !=
                           0x2fc12fc1);
         unsigned long id = mFsVect[i]->GetId();
-        eos::common::BootStatus bootstatus =
-          mFsVect[i]->GetStatus();
-        eos::common::FileSystem::fsstatus_t configstatus =
-          mFsVect[i]->GetConfigStatus();
+        eos::common::BootStatus bootstatus = mFsVect[i]->GetStatus();
+        eos::common::ConfigStatus configstatus = mFsVect[i]->GetConfigStatus();
         mFsMutex.UnLockRead();
 
         if (!id) {
@@ -89,7 +87,7 @@ Storage::Scrub()
 
         // check if there is a lable on the disk and if the configuration shows the same fsid
         if ((bootstatus == eos::common::BootStatus::kBooted) &&
-            (configstatus >= eos::common::FileSystem::kRO) &&
+            (configstatus >= eos::common::ConfigStatus::kRO) &&
             (!CheckLabel(mFsVect[i]->GetPath(), mFsVect[i]->GetId(),
                          mFsVect[i]->GetString("uuid"), true))) {
           mFsVect[i]->BroadcastError(EIO,
@@ -98,7 +96,7 @@ Storage::Scrub()
         }
 
         // don't scrub on filesystems which are not in writable mode!
-        if (configstatus < eos::common::FileSystem::kWO) {
+        if (configstatus < eos::common::ConfigStatus::kWO) {
           continue;
         }
 
@@ -120,11 +118,11 @@ Storage::Scrub()
 	  if (ScrubFs(path.c_str(), free, blocks, id, direct_io)) {
 	    // filesystem has errors!
 	    mFsMutex.LockRead();
-	    
+
 	    if ((i < mFsVect.size()) && mFsVect[i]) {
 	      mFsVect[i]->BroadcastError(EIO, "filesystem probe error detected");
 	    }
-	    
+
 	    mFsMutex.UnLockRead();
 	  }
 	}

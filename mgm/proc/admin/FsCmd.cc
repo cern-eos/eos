@@ -152,7 +152,7 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
         outStream << "success: boot message sent to";
 
         for (const auto id : FsView::gFsView.mIdView) {
-          if ((id.second->GetConfigStatus() > eos::common::FileSystem::kOff)) {
+          if ((id.second->GetConfigStatus() > eos::common::ConfigStatus::kOff)) {
             eos::common::FileSystem::eBootConfig bootConfig = (forcemgmsync)
                 ? eos::common::FileSystem::kBootResync  // MGM resync
                 : eos::common::FileSystem::kBootForced; // local resync
@@ -558,7 +558,7 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
                     repfs->SnapShotFileSystem(snapshot, false);
 
                     if ((snapshot.mStatus == eos::common::BootStatus::kBooted) &&
-                        (snapshot.mConfigStatus == eos::common::FileSystem::kRW) &&
+                        (snapshot.mConfigStatus == eos::common::ConfigStatus::kRW) &&
                         (snapshot.mErrCode == 0) && // this we probably don't need
                         (fs->GetActiveStatus(snapshot) == eos::common::ActiveStatus::kOnline)) {
                       nloc_ok++;

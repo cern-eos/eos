@@ -3034,7 +3034,7 @@ FsView::BroadcastMasterId(const std::string master_id)
 bool BaseView::shouldConsiderForStatistics(FileSystem *fs) {
   if(!fs) return false;
 
-  if(fs->GetConfigStatus() < eos::common::FileSystem::kRO) {
+  if(fs->GetConfigStatus() < eos::common::ConfigStatus::kRO) {
     return false;
   }
 

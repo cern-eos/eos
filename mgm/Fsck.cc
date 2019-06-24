@@ -1195,7 +1195,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
               auto found = inconsistentsOnFs.find(fid);
 
               if (fileSystem != nullptr &&
-                  fileSystem->GetConfigStatus(false) > FileSystem::kRO &&
+                  fileSystem->GetConfigStatus(false) > common::ConfigStatus::kRO &&
                   found == inconsistentsOnFs.end()) {
                 replicaAvailable = true;
                 break;
@@ -1322,11 +1322,11 @@ Fsck::AccountOfflineReplicas()
 
     eos::common::FileSystem::fsid_t fsid = it->first;
     eos::common::ActiveStatus fsactive = it->second->GetActiveStatus();
-    eos::common::FileSystem::fsstatus_t fsconfig = it->second->GetConfigStatus();
+    eos::common::ConfigStatus fsconfig = it->second->GetConfigStatus();
     eos::common::BootStatus fsstatus = it->second->GetStatus();
 
     if ((fsstatus == eos::common::BootStatus::kBooted) &&
-        (fsconfig >= eos::common::FileSystem::kDrain) &&
+        (fsconfig >= eos::common::ConfigStatus::kDrain) &&
         (fsactive == eos::common::ActiveStatus::kOnline)) {
       // Healthy, don't need to do anything
       continue;
@@ -1488,10 +1488,10 @@ Fsck::AccountOfflineFiles()
 
         if (fs) {
           eos::common::BootStatus bootstatus = fs->GetStatus(true);
-          eos::common::FileSystem::fsstatus_t configstatus = fs->GetConfigStatus();
+          eos::common::ConfigStatus configstatus = fs->GetConfigStatus();
           bool conda = (fs->GetActiveStatus(true) == eos::common::ActiveStatus::kOffline);
           bool condb = (bootstatus != eos::common::BootStatus::kBooted);
-          bool condc = (configstatus == eos::common::FileSystem::kDrainDead);
+          bool condc = (configstatus == eos::common::ConfigStatus::kDrainDead);
 
           if (conda || condb || condc) {
             ++offlinelocations;

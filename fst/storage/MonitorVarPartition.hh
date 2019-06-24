@@ -100,7 +100,7 @@ public:
         eos::common::RWMutexReadLock lock(mtx);
 
         for (auto fs = fss.begin(); fs != fss.end(); ++fs) {
-          if ((*fs)->GetConfigStatus() != eos::common::FileSystem::eConfigStatus::kRO) {
+          if ((*fs)->GetConfigStatus() != eos::common::ConfigStatus::kRO) {
             (*fs)->SetString("configstatus", "ro");
           }
         }

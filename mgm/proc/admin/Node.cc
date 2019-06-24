@@ -312,7 +312,7 @@ ProcCommand::Node()
 
             if (fs) {
               // check the empty state
-              if ((fs->GetConfigStatus(false) != eos::common::FileSystem::kEmpty)) {
+              if ((fs->GetConfigStatus(false) != eos::common::ConfigStatus::kEmpty)) {
                 stdErr = "error: unable to remove node '";
                 stdErr += nodename.c_str();
                 stdErr += "' - filesystems are not all in empty state - try "
@@ -404,7 +404,7 @@ ProcCommand::Node()
               if (fs) {
                 // Check the allowed strings
                 if ((eos::common::FileSystem::GetConfigStatusFromString(
-                        value.c_str()) != eos::common::FileSystem::kUnknown)) {
+                        value.c_str()) != eos::common::ConfigStatus::kUnknown)) {
                   fs->SetString(key.c_str(), value.c_str());
 
                   if (value == "off") {

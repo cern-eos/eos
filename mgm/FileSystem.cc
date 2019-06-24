@@ -65,9 +65,9 @@ FileSystem::StartDrainJob()
 bool
 FileSystem::StopDrainJob()
 {
-  eos::common::FileSystem::fsstatus_t isstatus = GetConfigStatus();
+  eos::common::ConfigStatus isstatus = GetConfigStatus();
 
-  if ((isstatus == kDrainDead) || (isstatus == kDrain)) {
+  if ((isstatus == common::ConfigStatus::kDrainDead) || (isstatus == common::ConfigStatus::kDrain)) {
     // if this is in drain mode, we leave the drain job
     return false;
   }
@@ -89,11 +89,11 @@ FileSystem::StopDrainJob()
 // the draining.
 //----------------------------------------------------------------------------
 bool
-FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t new_status)
+FileSystem::SetConfigStatus(eos::common::ConfigStatus new_status)
 {
   using eos::mgm::FsView;
   using eos::common::DrainStatus;
-  eos::common::FileSystem::fsstatus_t old_status = GetConfigStatus();
+  eos::common::ConfigStatus old_status = GetConfigStatus();
 
   if (gOFS->mIsCentralDrain) {
     int drain_tx = IsDrainTransition(old_status, new_status);
@@ -121,7 +121,7 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t new_status)
       }
     }
   } else {
-    if ((old_status == kDrainDead) || (old_status == kDrain)) {
+    if ((old_status == common::ConfigStatus::kDrainDead) || (old_status == common::ConfigStatus::kDrain)) {
       // Stop draining
       XrdSysMutexHelper scop_lock(mDrainJobMutex);
 
@@ -132,7 +132,7 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t new_status)
       }
     }
 
-    if ((new_status == kDrain) || (new_status == kDrainDead)) {
+    if ((new_status == common::ConfigStatus::kDrain) || (new_status == common::ConfigStatus::kDrainDead)) {
       // Create a drain job
       XrdSysMutexHelper scope_lock(mDrainJobMutex);
 
@@ -148,7 +148,7 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t new_status)
         // this is a filesystem on a ro-slave MGM e.g. it does not drain
       }
     } else {
-      if (new_status == kEmpty) {
+      if (new_status == common::ConfigStatus::kEmpty) {
         SetDrainStatus(eos::common::DrainStatus::kDrained);
         SetLongLong("stat.drainprogress", 100);
       } else {
@@ -180,27 +180,27 @@ FileSystem::SetString(const char* key, const char* str, bool broadcast)
 // Check if this is a drain transition i.e. enables or disabled draining
 //------------------------------------------------------------------------------
 int
-FileSystem::IsDrainTransition(const eos::common::FileSystem::fsstatus_t old,
-                              const eos::common::FileSystem::fsstatus_t status)
+FileSystem::IsDrainTransition(const eos::common::ConfigStatus old,
+                              const eos::common::ConfigStatus status)
 {
   using eos::common::FileSystem;
 
   // Enable draining
-  if (((old != FileSystem::kDrain) &&
-       (old != FileSystem::kDrainDead) &&
-       ((status == FileSystem::kDrain) ||
-        (status == FileSystem::kDrainDead))) ||
-      (((old == FileSystem::kDrain) ||
-        (old == FileSystem::kDrainDead)) &&
+  if (((old != common::ConfigStatus::kDrain) &&
+       (old != common::ConfigStatus::kDrainDead) &&
+       ((status == common::ConfigStatus::kDrain) ||
+        (status == common::ConfigStatus::kDrainDead))) ||
+      (((old == common::ConfigStatus::kDrain) ||
+        (old == common::ConfigStatus::kDrainDead)) &&
        (status == old))) {
     return 1;
   }
 
   // Stop draining
-  if (((old == FileSystem::kDrain) ||
-       (old == FileSystem::kDrainDead)) &&
-      ((status != FileSystem::kDrain) &&
-       (status != FileSystem::kDrainDead))) {
+  if (((old == common::ConfigStatus::kDrain) ||
+       (old == common::ConfigStatus::kDrainDead)) &&
+      ((status != common::ConfigStatus::kDrain) &&
+       (status != common::ConfigStatus::kDrainDead))) {
     return -1;
   }
 

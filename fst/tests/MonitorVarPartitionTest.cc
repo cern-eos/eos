@@ -33,23 +33,20 @@
 
 EOSFSTTEST_NAMESPACE_BEGIN
 
-using fsstatus_t = eos::common::FileSystem::eConfigStatus;
-
 //------------------------------------------------------------------------------
 //! Mock class implementing only relevant methods related to unit testing
 //------------------------------------------------------------------------------
 struct MockFileSystem {
-  fsstatus_t status;
+  eos::common::ConfigStatus status;
 
-  MockFileSystem() : status(eos::common::FileSystem::kRW) {}
+  MockFileSystem() : status(eos::common::ConfigStatus::kRW) {}
 
   void SetString(const std::string& key, const std::string& val)
   {
-    this->status = (fsstatus_t)
-        eos::common::FileSystem::GetConfigStatusFromString(val.c_str());
+    this->status = eos::common::FileSystem::GetConfigStatusFromString(val.c_str());
   }
 
-  fsstatus_t GetConfigStatus(bool cached = false)
+  eos::common::ConfigStatus GetConfigStatus(bool cached = false)
   {
     return this->status;
   }
@@ -139,7 +136,7 @@ TEST_F(MonitorVarPartitionTest, MonitorVarPartition)
   mFsMutex.LockRead();
 
   for (auto fs = fsVector.begin(); fs != fsVector.end(); ++fs) {
-    ASSERT_EQ((*fs)->GetConfigStatus(), eos::common::FileSystem::kRO);
+    ASSERT_EQ((*fs)->GetConfigStatus(), eos::common::ConfigStatus::kRO);
   }
 
   mFsMutex.UnLockRead();
@@ -159,7 +156,7 @@ TEST_F(MonitorVarPartitionTest, MonitorVarPartition)
   mFsMutex.LockRead();
 
   for (auto fs = fsVector.begin(); fs != fsVector.end(); ++fs) {
-    ASSERT_EQ((*fs)->GetConfigStatus(), eos::common::FileSystem::kRO);
+    ASSERT_EQ((*fs)->GetConfigStatus(), eos::common::ConfigStatus::kRO);
   }
 
   mFsMutex.UnLockRead();
@@ -184,7 +181,7 @@ TEST_F(MonitorVarPartitionTest, MonitorVarPartition)
   mFsMutex.LockRead();
 
   for (auto fs = fsVector.begin(); fs != fsVector.end(); ++fs) {
-    ASSERT_EQ((*fs)->GetConfigStatus(), eos::common::FileSystem::kRW);
+    ASSERT_EQ((*fs)->GetConfigStatus(), eos::common::ConfigStatus::kRW);
   }
 
   mFsMutex.UnLockRead();

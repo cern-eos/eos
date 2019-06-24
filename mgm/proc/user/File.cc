@@ -1328,7 +1328,7 @@ ProcCommand::File()
 
                 forcedsubgroup = snapshot.mGroupIndex;
 
-                if ((snapshot.mConfigStatus > eos::common::FileSystem::kDrain) &&
+                if ((snapshot.mConfigStatus > eos::common::ConfigStatus::kDrain) &&
                     (snapshot.mStatus == eos::common::BootStatus::kBooted)) {
                   // This is an accessible replica
                   nreponline++;
@@ -1471,7 +1471,7 @@ ProcCommand::File()
                 std::vector<unsigned long> fsid2delete;
                 unsigned int n2delete = nrep - nreplayout;
                 // we build three views to sort the order of dropping
-                std::multimap <int /*configstate*/, int /*fsid*/> statemap;
+                std::multimap <common::ConfigStatus, int /*fsid*/> statemap;
                 std::multimap <std::string /*schedgroup*/, int /*fsid*/> groupmap;
                 std::multimap <std::string /*space*/, int /*fsid*/> spacemap;
                 // We have too many replica's online, we drop (nrepoonline-nreplayout)
@@ -1495,7 +1495,7 @@ ProcCommand::File()
 
                   if (filesystem && filesystem->SnapShotFileSystem(fs, true)) {
                     unsigned int fsid = filesystem->GetId();
-                    statemap.insert(std::pair<int, int>(fs.mConfigStatus, fsid));
+                    statemap.insert(std::pair<common::ConfigStatus, int>(fs.mConfigStatus, fsid));
                     groupmap.insert(std::pair<std::string, int>(fs.mGroup, fsid));
                     spacemap.insert(std::pair<std::string, int>(fs.mSpace, fsid));
                   }
@@ -1503,9 +1503,7 @@ ProcCommand::File()
 
                 if (!creationspace.length()) {
                   // there is no requirement to keep a certain space
-                  std::multimap <int, int>::const_iterator sit;
-
-                  for (sit = statemap.begin(); sit != statemap.end(); ++sit) {
+                  for (auto sit = statemap.cbegin(); sit != statemap.cend(); ++sit) {
                     fsid2delete.push_back(sit->second);
 
                     // we add to the deletion vector until we have found enough replicas
@@ -1516,23 +1514,21 @@ ProcCommand::File()
                 } else {
                   if (!icreationsubgroup) {
                     // we have only a space requirement no subgroup required
-                    std::multimap <std::string, int>::const_iterator sit;
-                    std::multimap <int, int> limitedstatemap;
+                    std::multimap <common::ConfigStatus, int> limitedstatemap;
                     std::string cspace = creationspace.c_str();
 
-                    for (sit = spacemap.begin(); sit != spacemap.end(); ++sit) {
+                    for (auto sit = spacemap.cbegin(); sit != spacemap.cend(); ++sit) {
                       // match the space name
                       if (sit->first != cspace) {
                         continue;
                       }
 
                       // we default to the highest state for safety reasons
-                      int state = eos::common::FileSystem::kRW;
-                      std::multimap <int, int>::const_iterator stateit;
+                      common::ConfigStatus state = eos::common::ConfigStatus::kRW;
 
                       // get the state for each fsid matching
-                      for (stateit = statemap.begin();
-                           stateit != statemap.end();
+                      for (auto stateit = statemap.cbegin();
+                           stateit != statemap.cend();
                            stateit++) {
                         if (stateit->second == sit->second) {
                           state = stateit->first;
@@ -1541,13 +1537,11 @@ ProcCommand::File()
                       }
 
                       // fill the map containing only the candidates
-                      limitedstatemap.insert(std::pair<int, int>(state, sit->second));
+                      limitedstatemap.insert(std::pair<common::ConfigStatus, int>(state, sit->second));
                     }
 
-                    std::multimap <int, int>::const_iterator lit;
-
                     for (
-                      lit = limitedstatemap.begin();
+                      auto lit = limitedstatemap.begin();
                       lit != limitedstatemap.end();
                       ++lit
                     ) {
@@ -1559,24 +1553,22 @@ ProcCommand::File()
                     }
                   } else {
                     // we have a clear requirement on space/subgroup
-                    std::multimap <std::string, int>::const_iterator sit;
-                    std::multimap <int, int> limitedstatemap;
+                    std::multimap <common::ConfigStatus, int> limitedstatemap;
                     std::string cspace = creationspace.c_str();
                     cspace += ".";
                     cspace += icreationsubgroup;
 
-                    for (sit = groupmap.begin(); sit != groupmap.end(); ++sit) {
+                    for (auto sit = groupmap.begin(); sit != groupmap.end(); ++sit) {
                       // match the space name
                       if (sit->first == cspace) {
                         continue;
                       }
 
                       // we default to the highest state for safety reasons
-                      int state = eos::common::FileSystem::kRW;
-                      std::multimap <int, int>::const_iterator stateit;
+                      common::ConfigStatus state = eos::common::ConfigStatus::kRW;
 
                       // get the state for each fsid matching
-                      for (stateit = statemap.begin();
+                      for (auto stateit = statemap.begin();
                            stateit != statemap.end();
                            stateit++) {
                         if (stateit->second == sit->second) {
@@ -1586,12 +1578,10 @@ ProcCommand::File()
                       }
 
                       // fill the map containing only the candidates
-                      limitedstatemap.insert(std::pair<int, int>(state, sit->second));
+                      limitedstatemap.insert(std::pair<common::ConfigStatus, int>(state, sit->second));
                     }
 
-                    std::multimap <int, int>::const_iterator lit;
-
-                    for (lit = limitedstatemap.begin(); lit != limitedstatemap.end(); ++lit) {
+                    for (auto lit = limitedstatemap.begin(); lit != limitedstatemap.end(); ++lit) {
                       fsid2delete.push_back(lit->second);
 
                       if (fsid2delete.size() == n2delete) {

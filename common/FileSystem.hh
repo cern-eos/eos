@@ -76,6 +76,27 @@ enum class ActiveStatus {
   kOnline = 1
 };
 
+//! Values for a configuration status - stored persistently in the
+//! filesystem configuration
+enum class ConfigStatus {
+  kUnknown = -1,
+  kOff = 0,
+  kEmpty,
+  kDrainDead,
+  kDrain,
+  kRO,
+  kWO,
+  kRW
+};
+
+inline bool operator<(ConfigStatus one, ConfigStatus two) {
+  return static_cast<int>(one) < static_cast<int>(two);
+}
+
+inline bool operator<=(ConfigStatus one, ConfigStatus two) {
+  return static_cast<int>(one) <= static_cast<int>(two);
+}
+
 #define EOS_TAPE_FSID 65535
 #define EOS_TAPE_MODE_T (0x10000000ll)
 
@@ -327,7 +348,7 @@ private:
 
 //------------------------------------------------------------------------------
 //! Describes critical parameters of a FileSystem, which are necessary to have
-//! to register a filesystem on the MGM.
+//! when registering a filesystem on the MGM.
 //!
 //! A FileSystemLocator can physically locate a FileSystem, but we still can't
 //! operate it on the MGM without knowing more information. (id, group, uuid)
@@ -418,9 +439,6 @@ public:
   //! File System ID type
   typedef uint32_t fsid_t;
 
-  //! File System Status type
-  typedef int32_t fsstatus_t;
-
   //! Snapshot Structure of a filesystem
 
   typedef struct fs_snapshot {
@@ -443,7 +461,7 @@ public:
     int mGroupIndex;
     std::string mSpace;
     BootStatus mStatus;
-    fsstatus_t mConfigStatus;
+    ConfigStatus mConfigStatus;
     DrainStatus mDrainStatus;
     ActiveStatus mActiveStatus;
     double mBalThresh;
@@ -545,18 +563,6 @@ public:
   // Enums
   //----------------------------------------------------------------------------
 
-  //! Values for a configuration status
-  enum eConfigStatus {
-    kUnknown = -1,
-    kOff = 0,
-    kEmpty,
-    kDrainDead,
-    kDrain,
-    kRO,
-    kWO,
-    kRW
-  };
-
   //! Value indication the way a boot message should be executed on an FST node
   enum eBootConfig {
     kBootOptional = 0,
@@ -569,7 +575,7 @@ public:
   //----------------------------------------------------------------------------
   static const char* GetStatusAsString(BootStatus status);
   static const char* GetDrainStatusAsString(DrainStatus status);
-  static const char* GetConfigStatusAsString(int status);
+  static const char* GetConfigStatusAsString(ConfigStatus status);
 
   //----------------------------------------------------------------------------
   //! Parse a string status into the enum value
@@ -584,7 +590,7 @@ public:
   //----------------------------------------------------------------------------
   //! Parse a configuration status into the enum value
   //----------------------------------------------------------------------------
-  static int GetConfigStatusFromString(const char*  ss);
+  static ConfigStatus GetConfigStatusFromString(const char*  ss);
 
   //----------------------------------------------------------------------------
   //! Parse an active status into the enum value
@@ -605,7 +611,7 @@ public:
   BootStatus cStatus; ///< cache value of the status
   time_t cStatusTime; ///< unix time stamp of last update of the cached status
   XrdSysMutex cStatusLock; ///< lock protecting the cached status
-  std::atomic<fsstatus_t> cConfigStatus; ///< cached value of the config status
+  std::atomic<ConfigStatus> cConfigStatus; ///< cached value of the config status
   XrdSysMutex cConfigLock; ///< lock protecting the cached config status
   time_t cConfigTime; ///< unix time stamp of last update of the cached config status
 
@@ -940,7 +946,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return the configuration status (via cache)
   //----------------------------------------------------------------------------
-  fsstatus_t
+  ConfigStatus
   GetConfigStatus(bool cached = false);
 
   //----------------------------------------------------------------------------

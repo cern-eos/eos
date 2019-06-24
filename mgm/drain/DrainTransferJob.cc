@@ -270,7 +270,7 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
         if (fs) {
           fs->SnapShotFileSystem(src_snapshot);
 
-          if (src_snapshot.mConfigStatus >= eos::common::FileSystem::kDrain) {
+          if (src_snapshot.mConfigStatus >= eos::common::ConfigStatus::kDrain) {
             found = true;
             break;
           }
