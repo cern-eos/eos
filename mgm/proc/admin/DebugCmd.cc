@@ -153,12 +153,12 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
             (XrdOucString(set.nodename().c_str()) == gOFS->MgmOfsQueue)) {
           g_logging.SetLogPriority(debugval);
           out = ("success: debug level is now <" + set.debuglevel() + '>').c_str();
-          eos_static_notice("setting debug level to <%s>", set.debuglevel());
+          eos_static_notice("setting debug level to <%s>", set.debuglevel().c_str());
 
           if (set.filter().length()) {
             g_logging.SetFilter(set.filter().c_str());
             out += (" filter=" + set.filter()).c_str();
-            eos_static_notice("setting message logid filter to <%s>", set.filter());
+            eos_static_notice("setting message logid filter to <%s>", set.filter().c_str());
           }
 
           if (set.debuglevel() == "debug" &&
