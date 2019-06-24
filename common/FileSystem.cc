@@ -820,6 +820,7 @@ bool FileSystem::applyCoreParams(const FileSystemCoreParams &params, const std::
   }
 
   batch.setStringDurable("schedgroup", params.getGroupLocator().getGroup());
+  batch.setStringDurable("configstatus", GetConfigStatusAsString(params.getConfigStatus()));
   return applyBatch(batch);
 }
 

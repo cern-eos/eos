@@ -1534,7 +1534,7 @@ FsView::GetGroupFormat(std::string option)
 // Register a filesystem object in the filesystem view
 //------------------------------------------------------------------------------
 bool
-FsView::Register(FileSystem* fs, bool registerInGeoTreeEngine)
+FsView::Register(FileSystem* fs, const common::FileSystemCoreParams &coreParams, bool registerInGeoTreeEngine)
 {
   if (!fs) {
     return false;
@@ -1766,7 +1766,7 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
       if (!gGeoTreeEngine.insertFsIntoGroup(fs, mGroupView[group], false)) {
         if (fs->SetString("schedgroup", group.c_str()) && UnRegister(fs, false)) {
           if (oldgroup && fs->SetString("schedgroup", oldgroup->mName.c_str()) &&
-              Register(fs)) {
+              Register(fs, fs->getCoreParams())) {
             eos_err("while moving fs, could not insert fs %u in group %s. fs "
                     "was registered back to group %s and consistency is KEPT "
                     "between FsView and GeoTreeEngine",
@@ -1853,7 +1853,7 @@ FsView::UnRegister(FileSystem* fs, bool unregisterInGeoTreeEngine)
 
       if (unregisterInGeoTreeEngine
           && !gGeoTreeEngine.removeFsFromGroup(fs, group, false)) {
-        if (Register(fs, false))
+        if (Register(fs, fs->getCoreParams(), false))
           eos_err("could not remove fs %u from GeoTreeEngine : fs was "
                   "registered back and consistency is KEPT between FsView "
                   "and GeoTreeEngine", snapshot.mId);
@@ -2899,7 +2899,7 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
     fs->SetString(it_cfg->first.c_str(), it_cfg->second.c_str());
   }
 
-  if (!FsView::gFsView.Register(fs)) {
+  if (!FsView::gFsView.Register(fs, fs->getCoreParams())) {
     eos_err("msg=\"cannot register filesystem name=%s from configuration\"",
             configmap["queuepath"].c_str());
     return false;

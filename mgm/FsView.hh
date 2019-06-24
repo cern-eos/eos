@@ -787,7 +787,7 @@ public:
   //!
   //! @return true if done, otherwise false
   //----------------------------------------------------------------------------
-  bool Register(FileSystem* fs, bool registerInGeoTreeEngine = true);
+  bool Register(FileSystem* fs, const common::FileSystemCoreParams &coreParams, bool registerInGeoTreeEngine = true);
 
   //----------------------------------------------------------------------------
   //! Move a filesystem to another group
