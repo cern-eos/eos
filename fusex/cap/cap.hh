@@ -68,8 +68,12 @@ public:
       return *this;
     }
 
+
+    int& writer() {return writer_cnt;}
+
   private:
     XrdSysMutex mLock;
+    int writer_cnt;
   };
 
   class capx : public eos::fusex::cap
@@ -184,6 +188,20 @@ public:
     return ( cap1->_quota().quota_inode() == cap2->_quota().quota_inode() );
   }
 
+
+  void open_writer_inode(shared_cap cap)
+  {
+    shared_quota q = quotamap.get(cap);
+    XrdSysMutexHelper qLock(q->Locker());
+    q->writer()++;
+  }
+
+  void close_writer_inode(shared_cap cap)
+  {
+    shared_quota q = quotamap.get(cap);
+    XrdSysMutexHelper qLock(q->Locker());
+    q->writer()--;
+  }
 
   void book_inode(shared_cap cap)
   {

@@ -584,6 +584,13 @@ cap::qmap::get(shared_cap cap)
   // quota information is shared per uid/gid/quota_inode triple
   if (this->count(qid)) {
     shared_quota quota = (*this)[qid];
+    if (!quota->writer()) {
+      eos_static_notice("updating qnode=%s volume=%lu inodes=%lu", 
+			sqid, quota->volume_quota(), quota->inode_quota());
+      // if there is no open file on that quota node, we can refresh from remo
+      *quota = cap->_quota();
+    }
+    (*this)[qid] = quota;
     return quota;
   } else {
     shared_quota quota = std::make_shared<quotax>();

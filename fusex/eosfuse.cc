@@ -3720,7 +3720,9 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
         if (mode == U_OK) {
           if (!(pquota = Instance().caps.has_quota(pcap, 1024 * 1024))) {
             rc = EDQUOT;
-          }
+          } else {
+	    Instance().caps.open_writer_inode(pcap);
+	  }
         }
 
         if (!rc) {
@@ -4036,6 +4038,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
           if (!rc) {
             Instance().caps.book_inode(pcap);
+	    Instance().caps.open_writer_inode(pcap);
             md->convert(e, pcap->lifetime());
             md->lookup_inc();
 
@@ -4263,6 +4266,7 @@ EosFuse::release(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     data::data_fh* io = (data::data_fh*) fi->fh;
     std::string cookie = "";
     io->ioctx()->detach(req, cookie, io->rw);
+    Instance().caps.close_writer_inode(io->cap_);
     delete io;
     Instance().datas.release(req, ino);
   }
@@ -4717,15 +4721,16 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
                 XrdSysMutexHelper qLock(q->Locker());
                 char qline[1024];
                 snprintf(qline, sizeof(qline),
-                         "instance             uid     gid        vol-avail        ino-avail        max-fsize                         endpoint\n"
-                         "%-16s %7u %7u %16lu %16lu %16lu %32s\n",
+                         "instance             uid     gid        vol-avail        ino-avail        max-fsize                         endpoint                        writer\n"
+                         "%-16s %7u %7u %16lu %16lu %16lu %32s %d\n",
                          Instance().Config().name.c_str(),
                          pcap->uid(),
                          pcap->gid(),
                          q->volume_quota(),
                          q->inode_quota(),
                          pcap->max_file_size(),
-                         Instance().Config().hostport.c_str());
+                         Instance().Config().hostport.c_str(),
+			 q->writer());
                 value = qline;
               }
             }
