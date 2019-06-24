@@ -79,15 +79,16 @@ DrainJob::ResetCounter()
   FileSystem* fs = FsView::gFsView.mIdView.lookupByID(mFsId);
 
   if (fs) {
-    fs->OpenTransaction();
-    fs->SetLongLong("stat.drainbytesleft", 0);
-    fs->SetLongLong("stat.drainfiles", 0);
-    fs->SetLongLong("stat.timeleft", 0);
-    fs->SetLongLong("stat.drainprogress", 0);
-    fs->SetLongLong("stat.drainretry", 0);
-    fs->SetDrainStatus(eos::common::DrainStatus::kNoDrain);
+    common::FileSystemUpdateBatch batch;
+    batch.setLongLongTransient("stat.drainbytesleft", 0);
+    batch.setLongLongTransient("stat.drainfiles", 0);
+    batch.setLongLongTransient("stat.timeleft", 0);
+    batch.setLongLongTransient("stat.drainprogress", 0);
+    batch.setLongLongTransient("stat.drainretry", 0);
+    batch.setDrainStatus(eos::common::DrainStatus::kNoDrain);
+    fs->applyBatch(batch);
+
     SetDrainer();
-    fs->CloseTransaction();
   }
 }
 
