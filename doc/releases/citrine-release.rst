@@ -18,6 +18,16 @@ This release is based on XRootD V4 and IPV6 enabled.
 ``v4.5.0 Citrine``
 ===================
 
+2019-06-24
+
+Bug
+---
+
+* [ EOS-3546 ] Apply remote quota updates if q-node has no file open
+
+``v4.5.0 Citrine``
+===================
+
 2019-06-21
 
 Bug
