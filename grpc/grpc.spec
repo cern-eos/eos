@@ -1,3 +1,4 @@
+#-------------------------------------------------------------------------------
 # When using 'make install' with prefix option,
 # the following target 'install-header_cxx' will generate
 # a line which is too long, ending in the following error:
@@ -9,6 +10,7 @@
 #
 # Issue tracked at:
 # https://github.com/grpc/grpc/pull/14844
+#-------------------------------------------------------------------------------
 
 %if 0%{?rhel} == 7
   # CentOS 7 can use ".el7.centos" or ".el7.cern". However, we want to avoid that
@@ -17,6 +19,17 @@
   %define dist .el7
 %endif
 
+#-------------------------------------------------------------------------------
+# Custom strip command for SLC6, CC7
+#-------------------------------------------------------------------------------
+%define distribution %(/usr/lib/rpm/redhat/dist.sh --distnum)
+%if 0%{distribution} == 6 || 0%{distribution} == 7
+%global __strip /opt/rh/devtoolset-6/root/usr/bin/strip
+%endif
+
+#-------------------------------------------------------------------------------
+# Package definitions
+#-------------------------------------------------------------------------------
 Summary: gRPC, A high performance, open-source universal RPC framework
 Name: grpc
 Version: 1.15.0
