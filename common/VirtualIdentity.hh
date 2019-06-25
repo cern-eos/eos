@@ -28,6 +28,7 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+#pragma once
 //------------------------------------------------------------------------------
 //! Struct defining the virtual identity of a client e.g. their memberships and
 //! authentication information
