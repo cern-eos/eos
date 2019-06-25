@@ -1,14 +1,25 @@
+# When using 'make install' with prefix option,
+# the following target 'install-header_cxx' will generate
+# a line which is too long, ending in the following error:
+#
+# > [INSTALL] Installing public C++ headers
+# > make: execvp: /bin/sh: Argument list too long
+# > make: *** [install-headers_cxx] Error 127
+# > Makefile:3021: recipe for target 'install-headers_cxx' failed
+#
+# Issue tracked at:
+# https://github.com/grpc/grpc/pull/14844
+#
+# To avoid the line length surpassing ARG_MAX problem,
+# we apply the following patch before starting the 'make' build:
+# https://github.com/grpc/grpc/pull/17763/files
+
 %if 0%{?rhel} == 7
   # CentOS 7 can use ".el7.centos" or ".el7.cern", we want to avoid that.
-  # NOTE: if the ".cern/centos" part is kept then the compilation with fail
-  # due to the way makefile foreach function is used in the grpc project.
-  # The single command line that is executed during include-header_cxx will
-  # be to long and you will get the following error:
+  # If the ".cern/centos" part is kept then the compilation will fail
+  # due to the problem highlighted in the above note.
   #
-  # [INSTALL] Installing public C++ headers
-  # make: execvp: /bin/sh: Argument list too long
-  # make: *** [install-headers_cxx] Error 127
-  # Makefile:3005: recipe for target 'install-headers_cxx' failed
+  # This workaround has been left for backwards compatibility
   %define dist .el7
 %endif
 
@@ -58,6 +69,11 @@ git clone https://github.com/grpc/grpc
 cd grpc
 git checkout -b v%{version}
 git submodule update --init --recursive
+# Fix the ARG_MAX problem explained in the note at the top
+git fetch origin pull/17763/head:pr17763
+git show pr17763 > install_headers_arg_max.patch
+git apply install_headers_arg_max.patch
+rm -f install_headers_arg_max.patch
 %build
 cd grpc
 %if %{?fedora}%{!?fedora:0} >= 19
@@ -67,7 +83,7 @@ export HAS_SYSTEM_PROTOBUF=false
 %if 0%{?rhel} == 6
 # Fix for SLC6 compilation and autotools
 mkdir third_party/protobuf/third_party/googletest/m4
-make -j 4 
+make -j 4
 %else
 %make_build
 %endif
