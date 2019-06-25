@@ -37,6 +37,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/ZMQ.hh"
 #include "mgm/Stat.hh"
+#include "mgm/tracker/ReplicationTracker.hh"
 
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMD.hh"
@@ -1859,6 +1860,7 @@ Server::OpSetFile(const std::string& id,
       pcmd->addFile(fmd.get());
       eos_info("ino=%lx pino=%lx md-ino=%lx create-file", (long) md_ino,
                (long) md.md_pino(), md_ino);
+
     }
 
     fmd->setName(md.name());
@@ -1919,6 +1921,11 @@ Server::OpSetFile(const std::string& id,
     // retrieve the clock
     fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(md_ino),
                                           &clock);
+
+    if (op == CREATE) {
+      gOFS->mReplicationTracker->Create(fmd);
+    }
+
     eos_info("ino=%llx clock=%llx", md_ino, clock);
     // release the namespace lock before serialization/broadcasting
     lock.Release();

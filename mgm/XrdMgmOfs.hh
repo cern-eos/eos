@@ -170,6 +170,7 @@ class IMaster;
 class Messaging;
 class PathRouting;
 class CommitHelper;
+class ReplicationTracker;
 class TapeAwareGc;
 }
 }
@@ -695,7 +696,8 @@ public:
   int _touch(const char* path,
              XrdOucErrInfo& error,
              eos::common::VirtualIdentity& vid,
-             const char* ininfo = 0);
+             const char* ininfo = 0,
+	     bool doLock = true);
 
   //----------------------------------------------------------------------------
   //! List extended attributes for a given file/directory - high-level API.
@@ -1367,8 +1369,7 @@ public:
   //! is changed using third party copy)
   XrdOucString MgmProcConversionPath;
   XrdOucString MgmProcWorkflowPath; ///< Directory with workflows
-  XrdOucString MgmProcLockPath; ///< Directory with client locks
-  XrdOucString MgmProcDelegationPath; ///< Directory with client delegations
+  XrdOucString MgmProcTrackerPath; ///< Directory with file creations which are not consistent (yet)
   //! Full path to the master indication proc file
   XrdOucString MgmProcMasterPath;
   XrdOucString MgmProcArchivePath; ///< EOS directory where archive dir inodes
@@ -1587,6 +1588,10 @@ public:
 
   std::unique_ptr<eos::common::CommentLog> mFusexStackTraces;
   std::unique_ptr<eos::common::CommentLog> mFusexLogTraces;
+
+  //! Class tracking file creations for sanity
+
+  std::unique_ptr<eos::mgm::ReplicationTracker> mReplicationTracker;
 
   //! Class checking the filesystem
   std::unique_ptr<Fsck> FsckPtr;

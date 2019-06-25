@@ -130,6 +130,12 @@ com_space(char* arg1)
     } while (option.length());
   }
 
+  if (subcommand == "tracker") {
+    in = "mgm.cmd=space&mgm.subcmd=tracker&mgm.space=default";
+    ok = true;
+  }
+
+
   if (subcommand == "reset") {
     in = "mgm.cmd=space&mgm.subcmd=reset";
     XrdOucString spacename = subtokenizer.GetToken();
@@ -531,6 +537,8 @@ com_space_usage:
           "       space config <space-name> space.tapeawaregc.spacequeryperiodsecs=<#>  : delay in seconds between free space queries for the tape aware GC [ default=310 ]\n");
   fprintf(stdout,
           "       space config <space-name> space.tapeawaregc.minfreebytes=<#>  : configure the minimum number of free bytes a space should have before the tape aware GC kicks in [ default=0 ]\n");
+  fprintf(stdout,
+          "       space config <space-name> space.tracker=on|off                : enable/disable the space layout creation tracker [default=off]\n");
   fprintf(stdout,
           "       space config <space-name> space.autorepair=on|off             : enable auto-repair of faulty replica's/files (the converter has to be enabled too)\n");
   fprintf(stdout,

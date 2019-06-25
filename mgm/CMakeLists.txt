@@ -225,6 +225,7 @@ add_library(
   tgc/TapeAwareGcLru.cc
   tgc/TapeAwareGcSpaceNotFound.cc
   tgc/TapeAwareGcUtils.cc
+  tracker/ReplicationTracker.cc
   ${FUSEX_SRCS})
 
 #-------------------------------------------------------------------------------

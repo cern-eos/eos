@@ -40,6 +40,7 @@
 #include "mgm/Workflow.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/tgc/TapeAwareGc.hh"
+#include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/txengine/TransferEngine.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/Macros.hh"
@@ -896,6 +897,7 @@ XrdMgmOfsFile::open(const char* inpath,
             gOFS->FuseXCastContainer(cmd_id);
             gOFS->FuseXCastContainer(cmd_pid);
             gOFS->FuseXCastRefresh(cmd_id, cmd_pid);
+	    gOFS->mReplicationTracker->Create(fmd);
           } catch (eos::MDException& e) {
             fmd.reset();
             errno = e.getErrno();

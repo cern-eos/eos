@@ -68,16 +68,6 @@
 	compress
 }
 
-/var/log/eos/eosha/eosha.log {
-	missingok
-	daily
-	copytruncate
-	create 755 root root
-	dateext
-	rotate 200
-	compress
-}
-
 /var/log/eos/mgm/logbook.log {
 	missingok
 	daily
@@ -129,6 +119,16 @@
 }
 
 /var/log/eos/mgm/Converter.log {
+	missingok
+	daily
+	copytruncate
+	create 755 root root
+	dateext
+	rotate 200
+	compress
+}
+
+/var/log/eos/mgm/ReplicationTracker.log {
 	missingok
 	daily
 	copytruncate
@@ -229,6 +229,26 @@
 }
 
 /var/log/eos/mgm/MetadataFlusher.log {
+	missingok
+	daily
+	copytruncate
+	create 755 root root
+	dateext
+	rotate 200
+	compress
+}
+
+/var/log/eos/mgm/eosxd-logtraces.log {
+	missingok
+	daily
+	copytruncate
+	create 755 root root
+	dateext
+	rotate 200
+	compress
+}
+
+/var/log/eos/mgm/eosxd-stacktraces.log {
 	missingok
 	daily
 	copytruncate

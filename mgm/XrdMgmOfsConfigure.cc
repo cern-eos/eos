@@ -50,6 +50,7 @@
 #include "mgm/Master.hh"
 #include "mgm/QdbMaster.hh"
 #include "mgm/Messaging.hh"
+#include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/tgc/TapeAwareGc.hh"
 #include "common/StacktraceHere.hh"
 #include "common/plugin_manager/PluginManager.hh"
@@ -1107,8 +1108,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Configure log-file fan out
   std::vector<std::string> lFanOutTags {
     "Grpc", "Balancer", "Converter", "DrainJob", "ZMQ", "MetadataFlusher", "Http",
-    "Master", "Recycle", "LRU", "WFE", "WFE::Job", "GroupBalancer",
-    "GeoBalancer", "GeoTreeEngine", "#"};
+      "Master", "Recycle", "LRU", "WFE", "WFE::Job", "GroupBalancer",
+      "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "#"};
   // Get the XRootD log directory
   char* logdir = 0;
   XrdOucEnv::Import("XRDLOGDIR", logdir);
@@ -1404,10 +1405,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmProcArchivePath += "/archive";
   MgmProcWorkflowPath = MgmProcPath;
   MgmProcWorkflowPath += "/workflow";
-  MgmProcLockPath = MgmProcPath;
-  MgmProcLockPath += "/lock";
-  MgmProcDelegationPath = MgmProcPath;
-  MgmProcDelegationPath += "/delegation";
+  MgmProcTrackerPath = MgmProcPath;
+  MgmProcTrackerPath += "/tracker";
   Recycle::gRecyclingPrefix.insert(0, MgmProcPath.c_str());
   instancepath += subpath;
   // Initialize user mapping
@@ -1634,47 +1633,28 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       }
     }
 
-    // Create lock directory
+    // Create tracker directory
     try {
-      eosmd = gOFS->eosView->getContainer(MgmProcLockPath.c_str());
+      eosmd = gOFS->eosView->getContainer(MgmProcTrackerPath.c_str());
     } catch (const eos::MDException& e) {
       eosmd = nullptr;
     }
 
     if (!eosmd) {
       try {
-        eosmd = gOFS->eosView->createContainer(MgmProcLockPath.c_str(), true);
+        eosmd = gOFS->eosView->createContainer(MgmProcTrackerPath.c_str(), true);
         eosmd->setMode(S_IFDIR | S_IRWXU);
         eosmd->setCUid(2); // lock directory is owned by daemon
         gOFS->eosView->updateContainerStore(eosmd.get());
       } catch (const eos::MDException& e) {
-        Eroute.Emsg("Config", "cannot set the /eos/../proc/lock directory mode "
+        Eroute.Emsg("Config", "cannot set the /eos/../proc/creation directory mode "
                     "to initial mode");
-        eos_crit("cannot set the /eos/../proc/lock directory mode to 700");
+        eos_crit("cannot set the /eos/../proc/creation directory mode to 700");
         return 1;
       }
     }
 
-    // Create delegation directory
-    try {
-      eosmd = gOFS->eosView->getContainer(MgmProcDelegationPath.c_str());
-    } catch (const eos::MDException& e) {
-      eosmd = nullptr;
-    }
-
-    if (!eosmd) {
-      try {
-        eosmd = gOFS->eosView->createContainer(MgmProcDelegationPath.c_str(), true);
-        eosmd->setMode(S_IFDIR | S_IRWXU);
-        eosmd->setCUid(2); // delegation directory is owned by daemon
-        gOFS->eosView->updateContainerStore(eosmd.get());
-      } catch (const eos::MDException& e) {
-        Eroute.Emsg("Config", "cannot set the /eos/../proc/delegation directory"
-                    " mode to initial mode");
-        eos_crit("cannot set the /eos/../proc/delegation directory mode to 700");
-        return 1;
-      }
-    }
+    mReplicationTracker.reset(ReplicationTracker::Create(MgmProcTrackerPath.c_str()));
 
     if (NsInQDB) {
       SetupProcFiles();

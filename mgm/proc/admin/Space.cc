@@ -23,6 +23,7 @@
 
 #include "common/Path.hh"
 #include "mgm/proc/ProcInterface.hh"
+#include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Egroup.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
@@ -52,6 +53,16 @@ ProcCommand::Space()
       stdOut += output.c_str();
     }
   }
+
+  if (mSubCmd == "tracker") {
+    std::string output;
+    gOFS->mReplicationTracker->Scan(2*86400, false, &output);
+    stdOut += "# ------------------------------------------------------------------------------------\n";
+    stdOut += output.c_str();
+    stdOut += "# ------------------------------------------------------------------------------------\n";
+    retc = 0;
+  }
+
 
   if (mSubCmd == "status") {
     bool mformat = (mOutFormat == "m");
@@ -507,6 +518,7 @@ ProcCommand::Space()
 		  (key == "drainer.retries") ||
 		  (key == "drainer.fs.ntx") ||
 		  (key == "converter") ||
+		  (key == "tracker") ||
 		  (key == "lru") ||
 		  (key == "lru.interval") ||
 		  (key == "wfe") ||
@@ -526,7 +538,7 @@ ProcCommand::Space()
 		  (key == "tapeawaregc.spacequeryperiodsecs") ||
 		  (key == "tapeawaregc.minfreebytes") ||
 		  (key == "balancer.threshold")) {
-		if ((key == "balancer") || (key == "converter") ||
+		if ((key == "balancer") || (key == "converter") || (key == "tracker") ||
 		    (key == "autorepair") || (key == "lru") ||
 		    (key == "groupbalancer") || (key == "geobalancer") ||
 		    (key == "geo.access.policy.read.exact") ||
@@ -556,7 +568,17 @@ ProcCommand::Space()
 			  stdOut += "success: converter is disabled!";
 			}
 		      }
-
+		      
+		      if (key == "tracker") {
+			if (value == "on") {
+			  gOFS->mReplicationTracker->enable();
+			  stdOut += "success: tracker is enabled!";
+			} else {
+			  gOFS->mReplicationTracker->disable();
+			  stdOut += "success: tracker is disabled!";
+			}
+		      }
+		      
 		      if (key == "autorepair") {
 			if (value == "on") {
 			  stdOut += "success: auto-repair is enabled!";

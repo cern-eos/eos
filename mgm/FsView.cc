@@ -969,6 +969,13 @@ FsSpace::FsSpace(const char* name)
       SetConfigMember("tapeawaregc.minfreebytes", "0", true, "/eos/*/mgm");
     }
   }
+
+  if (mName == std::string("default")) {
+    // Disable tracker by default
+    if (GetConfigMember("tracker").empty()) {
+      SetConfigMember("tracker", "off", true, "/eos/*/mgm");
+    }
+  }
 }
 
 //----------------------------------------------------------------------------

@@ -32,7 +32,8 @@ int
 XrdMgmOfs::_touch(const char* path,
                   XrdOucErrInfo& error,
                   eos::common::VirtualIdentity& vid,
-                  const char* ininfo)
+                  const char* ininfo,
+		  bool doLock)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create(touch) a no-replica file in the namespace
@@ -60,7 +61,10 @@ XrdMgmOfs::_touch(const char* path,
   }
 
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock lock;
+  if (doLock) {
+    lock.Grab(gOFS->eosViewRWMutex);
+  }
 
   try {
     fmd = gOFS->eosView->getFile(path);
@@ -111,7 +115,9 @@ XrdMgmOfs::_touch(const char* path,
     fuseNotifier.castContainer(cmd->getIdentifier());
     fuseNotifier.castRefresh(cmd->getIdentifier(), cmd->getParentIdentifier());
 
-    lock.Release();
+    if (doLock) {
+      lock.Release();
+    }
 
     errno = 0;
   } catch (eos::MDException& e) {

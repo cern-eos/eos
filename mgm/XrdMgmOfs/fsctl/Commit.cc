@@ -29,6 +29,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Macros.hh"
 #include "mgm/tgc/TapeAwareGc.hh"
+#include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
 
 #include <XrdOuc/XrdOucEnv.hh>
@@ -288,6 +289,8 @@ XrdMgmOfs::Commit(const char* path,
         CommitHelper::handle_versioning(vid, fid, paths,
                                         option, delete_path);
       }
+
+      gOFS->mReplicationTracker->Commit(fmd);
 
       // -----------------------------------------------------------------------
       // If there was a previous target file we have to delete the renamed
