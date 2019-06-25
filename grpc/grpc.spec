@@ -61,7 +61,7 @@ Static libraries for gRPC.
 rm -rf grpc
 git clone https://github.com/grpc/grpc
 cd grpc
-git checkout -b v%{version}
+git checkout --track tags/v%{version}
 git submodule update --init --recursive
 %build
 cd grpc
@@ -72,7 +72,7 @@ export HAS_SYSTEM_PROTOBUF=false
 %if 0%{?rhel} == 6
 # Fix for SLC6 compilation and autotools
 mkdir third_party/protobuf/third_party/googletest/m4
-make -j 4 
+make -j 4
 %else
 %make_build
 %endif
