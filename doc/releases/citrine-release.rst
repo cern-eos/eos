@@ -15,15 +15,20 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
-``v4.5.0 Citrine``
+``v4.5.1 Citrine``
 ===================
 
-2019-06-24
+2019-06-25
 
 Bug
 ---
 
 * [ EOS-3546 ] Apply remote quota updates if q-node has no file open
+
+New Feature
+-----------
+
+* [ EOS-3548 ] Replication Tracker class (see docs/configuration/tracker)
 
 ``v4.5.0 Citrine``
 ===================
