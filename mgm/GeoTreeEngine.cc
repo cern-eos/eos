@@ -1356,7 +1356,7 @@ GeoTreeEngine::placeNewReplicasOneGroup(FsGroup* group,
     success = placeNewReplicas(entry, nNewReplicas, &newReplicasIdx,
                                entry->foregroundFastStruct->placementTree,
                                existingReplicasIdx, bookingSize, startFromNode,
-                               nCollocatedReplicas, excludeFsIdx, forceBrIdx,
+                               nCollocatedReplicas, excludeFsIdx,
                                pSkipSaturatedPlct);
     break;
 
@@ -1364,7 +1364,7 @@ GeoTreeEngine::placeNewReplicasOneGroup(FsGroup* group,
     success = placeNewReplicas(entry, nNewReplicas, &newReplicasIdx,
                                entry->foregroundFastStruct->drnPlacementTree,
                                existingReplicasIdx, bookingSize, startFromNode,
-                               nCollocatedReplicas, excludeFsIdx, forceBrIdx,
+                               nCollocatedReplicas, excludeFsIdx,
                                pSkipSaturatedDrnPlct);
     break;
 
@@ -1372,7 +1372,7 @@ GeoTreeEngine::placeNewReplicasOneGroup(FsGroup* group,
     success = placeNewReplicas(entry, nNewReplicas, &newReplicasIdx,
                                entry->foregroundFastStruct->blcPlacementTree,
                                existingReplicasIdx, bookingSize, startFromNode,
-                               nCollocatedReplicas, excludeFsIdx, forceBrIdx,
+                               nCollocatedReplicas, excludeFsIdx,
                                pSkipSaturatedBlcPlct);
     break;
 

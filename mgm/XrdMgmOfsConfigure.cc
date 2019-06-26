@@ -1236,12 +1236,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   g_logging.SetLogPriority(LOG_INFO);
   g_logging.SetUnit(unit.c_str());
   std::string filter =
-    "Process,AddQuota,Update,UpdateHint,UpdateQuotaStatus,SetConfigValue,"
-    "Deletion,GetQuota,PrintOut,RegisterNode,SharedHash,work";
+    "Process,AddQuota,Update,UpdateHint,"
+    "Deletion,PrintOut,SharedHash,work";
   g_logging.SetFilter(filter.c_str());
   Eroute.Say("=====> setting message filter: Process,AddQuota,Update,UpdateHint,"
-             "UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,"
-             "RegisterNode,SharedHash,work");
+             "Deletion,PrintOut,SharedHash,work");
 
   // Setup configuration directory and start the config engine
   if (!SetupConfigDir()) {
