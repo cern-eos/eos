@@ -27,6 +27,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/TableFormatter/TableFormatterBase.hh"
 #include "common/FileSystem.hh"
+#include "common/IntervalStopwatch.hh"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -2220,13 +2221,7 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant &assistant)
     eos_info("GeoTreeEngine updater is starting...");
   }
 
-  struct timeval curtime, prevtime;
-
-  gettimeofday(&prevtime, NULL);
-
-  curtime = prevtime;
-
-  do {
+  while(!assistant.terminationRequested()) {
     while (sem_wait(&gUpdaterPauseSem)) {
       if (EINTR != errno) {
         throw "sem_wait() failed";
@@ -2234,7 +2229,7 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant &assistant)
     }
 
     gOFS->ObjectNotifier.tlSubscriber->mSubjSem.Wait(1);
-    XrdSysThread::SetCancelOff();
+
     // to be sure that we won't try to access a removed fs
     pAddRmFsMutex.LockWrite();
     // we always take a lock to take something from the queue and then release it
@@ -2321,14 +2316,10 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant &assistant)
 
     gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.UnLock();
     pAddRmFsMutex.UnLockWrite();
-    // do the processing
-    prevtime = curtime;
-    gettimeofday(&curtime, NULL);
-    eos_debug("Updating Fast Structures at %ds. %dns. Previous update was at "
-              "prev: %ds. %dns. Time elapsed since the last update is: %dms.",
-              (int)curtime.tv_sec, (int)curtime.tv_usec, (int)prevtime.tv_sec,
-              (int)prevtime.tv_usec, (int)curtime.tv_sec * 1000 + ((int)curtime.tv_usec) /
-              1000 - (int)prevtime.tv_sec * 1000 - ((int)prevtime.tv_usec) / 1000);
+
+    // Do the processing
+    common::IntervalStopwatch stopwatch((std::chrono::milliseconds(pTimeFrameDurationMs)));
+
     {
       // Do it before tree info to leave some time to the other threads
       checkPendingDeletionsFs();
@@ -2340,20 +2331,14 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant &assistant)
       gNotificationsBufferFs.clear();
       gNotificationsBufferProxy.clear();
     }
-    XrdSysThread::SetCancelOn();
-    size_t elapsedMs = (curtime.tv_sec - prevtime.tv_sec) * 1000 +
-                       (curtime.tv_usec - prevtime.tv_usec) / 1000;
     pFrameCount++;
 
     if (sem_post(&gUpdaterPauseSem)) {
       throw "sem_post() failed";
     }
 
-    if ((int)elapsedMs < pTimeFrameDurationMs) {
-      std::this_thread::sleep_for
-      (std::chrono::milliseconds(pTimeFrameDurationMs - (int)elapsedMs));
-    }
-  } while (1);
+    std::this_thread::sleep_for(stopwatch.timeRemainingInCycle());
+  }
 }
 
 bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
