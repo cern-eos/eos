@@ -1432,7 +1432,6 @@ protected:
                                           const SchedTreeBase::tFastTreeIdx& startFromNode = 0,
                                           const size_t& nFinalCollocatedReplicas = 0,
                                           std::vector<SchedTreeBase::tFastTreeIdx>* excludedNodes = NULL,
-                                          std::vector<SchedTreeBase::tFastTreeIdx>* forceNodes = NULL,
                                           bool skipSaturated = false)
   {
     // a read lock is supposed to be acquired on the fast structures
@@ -1457,16 +1456,6 @@ protected:
     }
 
     T* tree = (T*)tlGeoBuffer;
-
-    if (forceNodes) {
-      ///// =====  NOT IMPLEMENTED
-      assert(false);
-
-      // make all the nodes
-      for (SchedTreeBase::tFastTreeIdx k = 0; k < tree->getMaxNodeCount(); k++) {
-        tree->pNodes[k].fsData.mStatus &= ~SchedTreeBase::Available;
-      }
-    }
 
     // place the existing replicas
     size_t nAdjustCollocatedReplicas = nFinalCollocatedReplicas;
