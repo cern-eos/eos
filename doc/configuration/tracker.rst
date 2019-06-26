@@ -6,7 +6,7 @@
 Replication Tracker
 ===================
 
-The Replication Tracker follows the workflow of file creations. For each created file a virtual entry is created in the ``proc/creation`` directory. Entries are removed once a layout is completely commited. The purpose of this tracker is to find inconsistent files after creation and to remove atomic upload relicts automatically after two days.
+The Replication Tracker follows the workflow of file creations. For each created file a virtual entry is created in the ``proc/tracker`` directory. Entries are removed once a layout is completely commited. The purpose of this tracker is to find inconsistent files after creation and to remove atomic upload relicts automatically after two days.
 
 Configuration
 -------------
@@ -33,7 +33,7 @@ The current status of the Tracker can be seen via:
    # Space Variables
    # ....................................................................................
    ...
-   trakcer                        := off
+   tracker                        := off
    ...
 
 
