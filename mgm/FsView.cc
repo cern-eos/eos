@@ -1547,7 +1547,6 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams &coreParams,
     return false;
   }
 
-  eos::common::FileSystem::fs_snapshot snapshot;
 
   std::string queuePath = coreParams.getQueuePath();
   std::string groupName = coreParams.getGroupName();
@@ -1558,8 +1557,8 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams &coreParams,
   if (mNodeView.count(queuePath)) {
     // Loop over all attached filesystems and compare the queue path
     for (auto it = mNodeView[queuePath]->begin(); it != mNodeView[queuePath]->end(); ++it) {
-      FileSystem *fs = FsView::gFsView.mIdView.lookupByID(*it);
-      if(fs && fs->GetQueuePath() == queuePath) {
+      FileSystem *potentialConflict = FsView::gFsView.mIdView.lookupByID(*it);
+      if(potentialConflict && potentialConflict->GetQueuePath() == queuePath) {
         // This queuepath already exists, we cannot register
         eos_err("msg=\"queuepath already registered\" qpath=%s",
                 queuePath.c_str());

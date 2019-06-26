@@ -838,15 +838,10 @@ bool FileSystem::applyBatch(const FileSystemUpdateBatch &batch) {
 //------------------------------------------------------------------------------
 // Apply the given core parameters
 //------------------------------------------------------------------------------
-bool FileSystem::applyCoreParams(const FileSystemCoreParams &params, const std::string &configstatus) {
+bool FileSystem::applyCoreParams(const FileSystemCoreParams &params) {
   FileSystemUpdateBatch batch;
   batch.setId(params.getId());
   batch.setStringDurable("uuid", params.getUuid());
-
-  if(!configstatus.empty()) {
-    batch.setStringDurable("configstatus", configstatus);
-  }
-
   batch.setStringDurable("schedgroup", params.getGroupLocator().getGroup());
   batch.setStringDurable("configstatus", GetConfigStatusAsString(params.getConfigStatus()));
   return applyBatch(batch);

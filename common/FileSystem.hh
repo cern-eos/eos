@@ -650,7 +650,7 @@ public:
   //----------------------------------------------------------------------------
   //! Apply the given core parameters
   //----------------------------------------------------------------------------
-  bool applyCoreParams(const FileSystemCoreParams &params, const std::string &configstatus);
+  bool applyCoreParams(const FileSystemCoreParams &params);
 
   //----------------------------------------------------------------------------
   //! Set a single local long long

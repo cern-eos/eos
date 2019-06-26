@@ -2214,32 +2214,18 @@ cleanup:
   return returnCode;
 }
 
-bool GeoTreeEngine::StartUpdater()
+void GeoTreeEngine::StartUpdater()
 {
-  if (XrdSysThread::Run(&pUpdaterTid, GeoTreeEngine::startFsChangeListener,
-                        static_cast<void*>(this),
-                        XRDSYSTHREAD_HOLD, "GeoTreeEngine Updater")) {
-    return false;
-  }
-
-  return true;
+  updaterThread.reset(&GeoTreeEngine::listenFsChange, this);
 }
 
-bool GeoTreeEngine::StopUpdater()
+void GeoTreeEngine::StopUpdater()
 {
-  XrdSysThread::Cancel(pUpdaterTid);
-  XrdSysThread::Join(pUpdaterTid, 0);
+  updaterThread.join();
   gUpdaterStarted = false;
-  return true;
 }
 
-void* GeoTreeEngine::startFsChangeListener(void* pp)
-{
-  ((GeoTreeEngine*)pp)->listenFsChange();
-  return 0;
-}
-
-void GeoTreeEngine::listenFsChange()
+void GeoTreeEngine::listenFsChange(ThreadAssistant &assistant)
 {
   gUpdaterStarted = true;
   gOFS->ObjectNotifier.BindCurrentThread("geotreeengine");
