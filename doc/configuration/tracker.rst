@@ -61,7 +61,7 @@ The displayed reasons are:
 * REPLOW - the replica number is too low
 * ATOMIC - the file is an atomic upload
 * KEEPIT - the file is still in flight
-* ENONET - the tracking entry has no corresponding namespace entry with the given file-id
+* ENOENT - the tracking entry has no corresponding namespace entry with the given file-id
 * REP_OK - the tracking entry is healthy and can be removed - FUSE files appear here when not replica has been committed yet
 
 
