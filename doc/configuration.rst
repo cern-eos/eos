@@ -41,7 +41,7 @@ This chapter discusses several components of EOS and how they are configured.
    configuration/route
    configuration/s3
    configuration/scheduler
-   configuratoin/tracker
+   configuration/tracker
    configuration/transfer
    configuration/tty
    configuration/wfe
