@@ -1220,8 +1220,7 @@ GeoTreeEngine::placeNewReplicasOneGroup(FsGroup* group,
                                         const std::string& clientGeoTag,
                                         const size_t& nCollocatedReplicas,
                                         vector<FileSystem::fsid_t>* excludeFs,
-                                        vector<string>* excludeGeoTags,
-                                        vector<string>* forceGeoTags)
+                                        vector<string>* excludeGeoTags)
 {
   assert(nNewReplicas);
   assert(newReplicas);
@@ -1244,7 +1243,7 @@ GeoTreeEngine::placeNewReplicasOneGroup(FsGroup* group,
   entry->doubleBufferMutex.LockRead();
   // locate the existing replicas and the excluded fs in the tree
   vector<SchedTreeBase::tFastTreeIdx> newReplicasIdx(nNewReplicas),
-         *existingReplicasIdx = NULL, *excludeFsIdx = NULL, *forceBrIdx = NULL;
+         *existingReplicasIdx = NULL, *excludeFsIdx = NULL;
   newReplicasIdx.resize(0);
 
   if (existingReplicas) {
@@ -1321,17 +1320,6 @@ GeoTreeEngine::placeNewReplicasOneGroup(FsGroup* group,
       idx = entry->foregroundFastStruct->tag2NodeIdx->getClosestFastTreeNode(
               it->c_str());
       excludeFsIdx->push_back(idx);
-    }
-  }
-
-  if (forceGeoTags) {
-    forceBrIdx = new vector<SchedTreeBase::tFastTreeIdx>(forceGeoTags->size());
-
-    for (auto it = forceGeoTags->begin(); it != forceGeoTags->end(); ++it) {
-      SchedTreeBase::tFastTreeIdx idx;
-      idx = entry->foregroundFastStruct->tag2NodeIdx->getClosestFastTreeNode(
-              it->c_str());
-      forceBrIdx->push_back(idx);
     }
   }
 
@@ -1490,10 +1478,6 @@ cleanup:
 
   if (excludeFsIdx) {
     delete excludeFsIdx;
-  }
-
-  if (forceBrIdx) {
-    delete forceBrIdx;
   }
 
   return success;

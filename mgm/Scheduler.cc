@@ -198,7 +198,6 @@ Scheduler::FilePlacement(PlacementArguments* args)
                       args->vid->geolocation,
                       ncollocatedfs,
                       NULL,
-                      NULL,
                       NULL);
     eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
 
