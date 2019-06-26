@@ -1217,7 +1217,7 @@ protected:
   // => background updating
   //
   /// thread ID of the dumper thread
-  pthread_t pUpdaterTid;
+  AssistedThread updaterThread;
   /// maps a notification subject to changes that happened in the current time frame
   static std::map<std::string, int>
   gNotificationsBufferFs;   /**< Shared object change notification for filesystems */
@@ -1241,9 +1241,7 @@ protected:
   void updateAtomicPenalties();
 
   /// Trees update management
-  void listenFsChange();
-  static void* startFsChangeListener(void* pp);
-
+  void listenFsChange(ThreadAssistant &assistant);
 
   /// Clean
   void checkPendingDeletionsFs()
@@ -1870,8 +1868,7 @@ public:
     pAccessProxygroup("accessproxygroup"),
     pCircSize(30), pFrameCount(0),
     pPenaltySched(pCircSize),
-    pLatencySched(pCircSize),
-    pUpdaterTid(0)
+    pLatencySched(pCircSize)
   {
     // by default, disable all the placement operations for non geotagged fs
     addDisabledBranch("*", "plct", "nogeotag", NULL, false);
@@ -2111,7 +2108,7 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool StartUpdater();
+  void StartUpdater();
 
   // ---------------------------------------------------------------------------
   //! Pause the updating of the GeoTreeEngine but keep accumulating
@@ -2181,7 +2178,7 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool StopUpdater();
+  void StopUpdater();
 
   // ---------------------------------------------------------------------------
   //! Get the fs informations in the GeotreeEngine
