@@ -545,8 +545,7 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain,
                "",// client geo tag
                ncollocatedfs,
                &dst_exclude_fsids,
-               &fsid_geotags, // excludeGeoTags
-               NULL);
+               &fsid_geotags); // excludeGeoTags
 
   if (!res || new_repl.empty())  {
     eos_err("msg=\"fid=%08llx could not place new replica\"", mFileId);

@@ -2028,8 +2028,7 @@ public:
                                 const std::string& clientGeoTag = "",
                                 const size_t& nCollocatedReplicas = 0,
                                 std::vector<eos::common::FileSystem::fsid_t>* excludeFs = NULL,
-                                std::vector<std::string>* excludeGeoTags = NULL,
-                                std::vector<std::string>* forceGeoTags = NULL);
+                                std::vector<std::string>* excludeGeoTags = NULL);
 
   // this function to access replica spread across multiple scheduling group is a BACKCOMPATIBILITY artifact
   // the new scheduler doesn't try to place files across multiple scheduling groups.
@@ -2039,8 +2038,7 @@ public:
   //      SchedType type=regularRO,
   //      const std::string &accesserGeotag="",
   //      std::vector<eos::common::FileSystem::fsid_t> *excludeFs=NULL,
-  //      std::vector<std::string> *excludeGeoTags=NULL,
-  //      std::vector<std::string> *forceGeoTags=NULL);
+  //      std::vector<std::string> *excludeGeoTags=NULL);
 
   // ---------------------------------------------------------------------------
   //! Access replicas across one or several scheduling group.
