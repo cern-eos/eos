@@ -48,6 +48,102 @@ Storage::getFSTConfigValue(const std::string &key, std::string &value) {
 }
 
 //------------------------------------------------------------------------------
+// Process incoming configuration change
+//------------------------------------------------------------------------------
+void
+Storage::processIncomingFstConfigurationChange(const std::string &key) {
+  std::string tmpValue;
+
+  if(!getFSTConfigValue(key.c_str(), tmpValue)) {
+    return;
+  }
+
+  if (key == "symkey") {
+    eos_static_info("symkey=%s", tmpValue.c_str());
+    eos::common::gSymKeyStore.SetKey64(tmpValue.c_str(), 0);
+    return;
+  }
+
+  if (key == "manager") {
+    eos_static_info("manager=%s", tmpValue.c_str());
+    XrdSysMutexHelper lock(Config::gConfig.Mutex);
+    Config::gConfig.Manager = tmpValue.c_str();
+    return;
+  }
+
+  if (key == "publish.interval") {
+    eos_static_info("publish.interval=%s", tmpValue.c_str());
+    XrdSysMutexHelper lock(Config::gConfig.Mutex);
+    Config::gConfig.PublishInterval = atoi(tmpValue.c_str());
+    return;
+  }
+
+  if (key == "debug.level") {
+    std::string debuglevel = tmpValue;
+    eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+    int debugval = g_logging.GetPriorityByString(debuglevel.c_str());
+
+    if (debugval < 0) {
+      eos_static_err("debug level %s is not known!", debuglevel.c_str());
+    } else {
+      // we set the shared hash debug for the lowest 'debug' level
+      if (debuglevel == "debug") {
+        gOFS.ObjectManager.SetDebug(true);
+      } else {
+        gOFS.ObjectManager.SetDebug(false);
+      }
+
+      g_logging.SetLogPriority(debugval);
+    }
+    return;
+  }
+
+  // creation/deletion of gateway transfer queue
+  if (key == "txgw") {
+    std::string gw = tmpValue;
+    eos_static_info("txgw=%s", gw.c_str());
+
+    if (gw == "off") {
+      // just stop the multiplexer
+      mGwMultiplexer.Stop();
+      eos_static_info("Stopping transfer multiplexer");
+    }
+
+    if (gw == "on") {
+      mGwMultiplexer.Run();
+      eos_static_info("Starting transfer multiplexer");
+    }
+
+    return;
+  }
+
+  if (key == "gw.rate") {
+    // modify the rate settings of the gw multiplexer
+    std::string rate = tmpValue;
+    eos_static_info("cmd=set gw.rate=%s", rate.c_str());
+    mGwMultiplexer.SetBandwidth(atoi(rate.c_str()));
+    return;
+  }
+
+  if (key == "gw.ntx") {
+    // modify the parallel transfer settings of the gw multiplexer
+    std::string ntx = tmpValue;
+    eos_static_info("cmd=set gw.ntx=%s", ntx.c_str());
+    mGwMultiplexer.SetSlots(atoi(ntx.c_str()));
+    return;
+  }
+
+  if (key == "error.simulation") {
+    std::string value = tmpValue;
+    eos_static_info("cmd=set error.simulation=%s", tmpValue.c_str());
+    gOFS.SetSimulationError(tmpValue.c_str());
+    return;
+  }
+
+}
+
+
+//------------------------------------------------------------------------------
 // Communicator
 //------------------------------------------------------------------------------
 void
@@ -220,96 +316,9 @@ Storage::Communicator(ThreadAssistant& assistant)
         std::string tmpValue;
 
         if (queue == Config::gConfig.getFstNodeConfigQueue("communicator", false)) {
-          if (key == "symkey") {
-            if(getFSTConfigValue(key.c_str(), tmpValue)) {
-              eos_static_info("symkey=%s", tmpValue.c_str());
-              eos::common::gSymKeyStore.SetKey64(tmpValue.c_str(), 0);
-            }
-          }
+          processIncomingFstConfigurationChange(key.c_str());
 
-          if (key == "manager") {
-            if(getFSTConfigValue(key.c_str(), tmpValue)) {
-              eos_static_info("manager=%s", tmpValue.c_str());
-              XrdSysMutexHelper lock(Config::gConfig.Mutex);
-              Config::gConfig.Manager = tmpValue.c_str();
-            }
-          }
 
-          if (key == "publish.interval") {
-            if(getFSTConfigValue(key.c_str(), tmpValue)) {
-              eos_static_info("publish.interval=%s", tmpValue.c_str());
-              XrdSysMutexHelper lock(Config::gConfig.Mutex);
-              Config::gConfig.PublishInterval = atoi(tmpValue.c_str());
-            }
-          }
-
-          if (key == "debug.level") {
-            if (getFSTConfigValue(key.c_str(), tmpValue)) {
-              std::string debuglevel = tmpValue;
-              eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
-              int debugval = g_logging.GetPriorityByString(debuglevel.c_str());
-
-              if (debugval < 0) {
-                eos_static_err("debug level %s is not known!", debuglevel.c_str());
-              } else {
-                // we set the shared hash debug for the lowest 'debug' level
-                if (debuglevel == "debug") {
-                  gOFS.ObjectManager.SetDebug(true);
-                } else {
-                  gOFS.ObjectManager.SetDebug(false);
-                }
-
-                g_logging.SetLogPriority(debugval);
-              }
-            }
-          }
-
-          // creation/deletion of gateway transfer queue
-          if (key == "txgw") {
-            if (getFSTConfigValue(key.c_str(), tmpValue)) {
-              std::string gw = tmpValue;
-              eos_static_info("txgw=%s", gw.c_str());
-
-              if (gw == "off") {
-                // just stop the multiplexer
-                mGwMultiplexer.Stop();
-                eos_static_info("Stopping transfer multiplexer on %s", queue.c_str());
-              }
-
-              if (gw == "on") {
-                mGwMultiplexer.Run();
-                eos_static_info("Starting transfer multiplexer on %s", queue.c_str());
-              }
-            } else {
-              eos_static_warning("Cannot get hash(queue)");
-            }
-          }
-
-          if (key == "gw.rate") {
-            // modify the rate settings of the gw multiplexer
-            if (getFSTConfigValue(key.c_str(), tmpValue)) {
-              std::string rate = tmpValue;
-              eos_static_info("cmd=set gw.rate=%s", rate.c_str());
-              mGwMultiplexer.SetBandwidth(atoi(rate.c_str()));
-            }
-          }
-
-          if (key == "gw.ntx") {
-            // modify the parallel transfer settings of the gw multiplexer
-            if (getFSTConfigValue(key.c_str(), tmpValue)) {
-              std::string ntx = tmpValue;
-              eos_static_info("cmd=set gw.ntx=%s", ntx.c_str());
-              mGwMultiplexer.SetSlots(atoi(ntx.c_str()));
-            }
-          }
-
-          if (key == "error.simulation") {
-            if (getFSTConfigValue(key.c_str(), tmpValue)) {
-              std::string value = tmpValue;
-              eos_static_info("cmd=set error.simulation=%s", tmpValue.c_str());
-              gOFS.SetSimulationError(tmpValue.c_str());
-            }
-          }
         } else {
           mFsMutex.LockRead();
 

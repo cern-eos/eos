@@ -233,6 +233,7 @@ private:
   void QdbCommunicator(QdbContactDetails contactDetails,
                        ThreadAssistant& assistant);
   bool getFSTConfigValue(const std::string &key, std::string &value);
+  void processIncomingFstConfigurationChange(const std::string &key);
 
   void Scrub();
   void Trim();
