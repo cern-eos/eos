@@ -1008,10 +1008,8 @@ Storage::CheckLabel(std::string path,
 bool
 Storage::IsNodeActive() const
 {
-  std::string cfg_node = Config::gConfig.getFstNodeConfigQueue().c_str();
-  eos::common::RWMutexReadLock rd_lock(gOFS.ObjectManager.HashMutex);
-  XrdMqSharedHash* hash = gOFS.ObjectManager.GetHash(cfg_node.c_str());
-  std::string status = hash->Get("stat.active");
+  std::string status;
+  getFSTConfigValue("stat.active", status);
 
   if (status == "online") {
     return true;

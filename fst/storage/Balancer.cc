@@ -43,12 +43,8 @@ Storage::GetBalanceSlotVariables(unsigned long long& nparalleltx,
  */
 /*----------------------------------------------------------------------------*/
 {
-  eos::common::RWMutexReadLock rd_lock(gOFS.ObjectManager.HashMutex);
-  XrdMqSharedHash* confighash = gOFS.ObjectManager.GetHash(
-                                  nodeconfigqueue.c_str());
-  std::string manager = confighash ? confighash->Get("manager") : "unknown";
-  nparalleltx = confighash ? confighash->GetLongLong("stat.balance.ntx") : 0;
-  ratetx = confighash ? confighash->GetLongLong("stat.balance.rate") : 0;
+  getFSTConfigValue("stat.balance.ntx", nparalleltx);
+  getFSTConfigValue("stat.balance.rate", ratetx);
 
   if (nparalleltx == 0) {
     nparalleltx = 0;
@@ -58,8 +54,7 @@ Storage::GetBalanceSlotVariables(unsigned long long& nparalleltx,
     ratetx = 25;
   }
 
-  eos_static_debug("manager=%s nparalleltransfers=%llu transferrate=%llu",
-                   manager.c_str(), nparalleltx, ratetx);
+  eos_static_debug("nparalleltransfers=%llu transferrate=%llu", nparalleltx, ratetx);
 }
 
 /*----------------------------------------------------------------------------*/
