@@ -51,7 +51,6 @@ const size_t GeoTreeEngine::gGeoBufferSize = sizeof(FastPlacementTree) +
     FastPlacementTree::sGetMaxDataMemSize();
 thread_local void* GeoTreeEngine::tlGeoBuffer = NULL;
 pthread_key_t GeoTreeEngine::gPthreadKey;
-thread_local const FsGroup* GeoTreeEngine::tlCurrentGroup = NULL;
 
 const int GeoTreeEngine::sfgId = 1;
 const int GeoTreeEngine::sfgHost = 1 << 1;
@@ -1227,7 +1226,6 @@ GeoTreeEngine::placeNewReplicasOneGroup(FsGroup* group,
   assert(newReplicas);
   std::vector<SchedTME*> entries;
   // find the entry in the map
-  tlCurrentGroup = group;
   SchedTME* entry;
   {
     RWMutexReadLock lock(this->pTreeMapMutex);
