@@ -196,7 +196,6 @@ private:
   //----------------------------------------------------------------------------
   static void* StartVarPartitionMonitor(void* pp);
   static void* StartDaemonSupervisor(void* pp);
-  static void* StartFsCommunicator(void* pp);
   static void* StartFsScrub(void* pp);
   static void* StartFsTrim(void* pp);
   static void* StartFsRemover(void* pp);
@@ -233,6 +232,8 @@ private:
   void Communicator(ThreadAssistant& assistant);
   void QdbCommunicator(QdbContactDetails contactDetails,
                        ThreadAssistant& assistant);
+  bool getFSTConfigValue(const std::string &key, std::string &value);
+
   void Scrub();
   void Trim();
   void Remover();

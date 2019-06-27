@@ -29,6 +29,25 @@
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+// Get configuration value from global FST config
+//------------------------------------------------------------------------------
+bool
+Storage::getFSTConfigValue(const std::string &key, std::string &value) {
+  eos::common::RWMutexReadLock lock(gOFS.ObjectManager.HashMutex);
+
+  XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(
+    Config::gConfig.getFstNodeConfigQueue("getConfigValue", false).c_str(),
+    "hash");
+
+  if(!hash) {
+    return false;
+  }
+
+  value = hash->Get(key.c_str());
+  return true;
+}
+
+//------------------------------------------------------------------------------
 // Communicator
 //------------------------------------------------------------------------------
 void
@@ -198,58 +217,35 @@ Storage::Communicator(ThreadAssistant& assistant)
           queue.erase(dpos);
         }
 
+        std::string tmpValue;
+
         if (queue == Config::gConfig.getFstNodeConfigQueue("communicator", false)) {
           if (key == "symkey") {
-            gOFS.ObjectManager.HashMutex.LockRead();
-            // we received a new symkey
-            XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(), "hash");
-
-            if (hash) {
-              std::string symkey = hash->Get("symkey");
-              eos_static_info("symkey=%s", symkey.c_str());
-              eos::common::gSymKeyStore.SetKey64(symkey.c_str(), 0);
+            if(getFSTConfigValue(key.c_str(), tmpValue)) {
+              eos_static_info("symkey=%s", tmpValue.c_str());
+              eos::common::gSymKeyStore.SetKey64(tmpValue.c_str(), 0);
             }
-
-            gOFS.ObjectManager.HashMutex.UnLockRead();
           }
 
           if (key == "manager") {
-            gOFS.ObjectManager.HashMutex.LockRead();
-            // we received a manager
-            XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(), "hash");
-
-            if (hash) {
-              std::string manager = hash->Get("manager");
-              eos_static_info("manager=%s", manager.c_str());
+            if(getFSTConfigValue(key.c_str(), tmpValue)) {
+              eos_static_info("manager=%s", tmpValue.c_str());
               XrdSysMutexHelper lock(Config::gConfig.Mutex);
-              Config::gConfig.Manager = manager.c_str();
+              Config::gConfig.Manager = tmpValue.c_str();
             }
-
-            gOFS.ObjectManager.HashMutex.UnLockRead();
           }
 
           if (key == "publish.interval") {
-            gOFS.ObjectManager.HashMutex.LockRead();
-            // we received a manager
-            XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(), "hash");
-
-            if (hash) {
-              std::string publishinterval = hash->Get("publish.interval");
-              eos_static_info("publish.interval=%s", publishinterval.c_str());
+            if(getFSTConfigValue(key.c_str(), tmpValue)) {
+              eos_static_info("publish.interval=%s", tmpValue.c_str());
               XrdSysMutexHelper lock(Config::gConfig.Mutex);
-              Config::gConfig.PublishInterval = atoi(publishinterval.c_str());
+              Config::gConfig.PublishInterval = atoi(tmpValue.c_str());
             }
-
-            gOFS.ObjectManager.HashMutex.UnLockRead();
           }
 
           if (key == "debug.level") {
-            gOFS.ObjectManager.HashMutex.LockRead();
-            // we received a manager
-            XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(), "hash");
-
-            if (hash) {
-              std::string debuglevel = hash->Get("debug.level");
+            if (getFSTConfigValue(key.c_str(), tmpValue)) {
+              std::string debuglevel = tmpValue;
               eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
               int debugval = g_logging.GetPriorityByString(debuglevel.c_str());
 
@@ -266,19 +262,13 @@ Storage::Communicator(ThreadAssistant& assistant)
                 g_logging.SetLogPriority(debugval);
               }
             }
-
-            gOFS.ObjectManager.HashMutex.UnLockRead();
           }
 
           // creation/deletion of gateway transfer queue
           if (key == "txgw") {
-            gOFS.ObjectManager.HashMutex.LockRead();
-            XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(), "hash");
-
-            if (hash) {
-              std::string gw = hash->Get("txgw");
+            if (getFSTConfigValue(key.c_str(), tmpValue)) {
+              std::string gw = tmpValue;
               eos_static_info("txgw=%s", gw.c_str());
-              gOFS.ObjectManager.HashMutex.UnLockRead();
 
               if (gw == "off") {
                 // just stop the multiplexer
@@ -291,50 +281,34 @@ Storage::Communicator(ThreadAssistant& assistant)
                 eos_static_info("Starting transfer multiplexer on %s", queue.c_str());
               }
             } else {
-              gOFS.ObjectManager.HashMutex.UnLockRead();
               eos_static_warning("Cannot get hash(queue)");
             }
           }
 
           if (key == "gw.rate") {
             // modify the rate settings of the gw multiplexer
-            gOFS.ObjectManager.HashMutex.LockRead();
-            XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(), "hash");
-
-            if (hash) {
-              std::string rate = hash->Get("gw.rate");
+            if (getFSTConfigValue(key.c_str(), tmpValue)) {
+              std::string rate = tmpValue;
               eos_static_info("cmd=set gw.rate=%s", rate.c_str());
               mGwMultiplexer.SetBandwidth(atoi(rate.c_str()));
             }
-
-            gOFS.ObjectManager.HashMutex.UnLockRead();
           }
 
           if (key == "gw.ntx") {
             // modify the parallel transfer settings of the gw multiplexer
-            gOFS.ObjectManager.HashMutex.LockRead();
-            XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(), "hash");
-
-            if (hash) {
-              std::string ntx = hash->Get("gw.ntx");
+            if (getFSTConfigValue(key.c_str(), tmpValue)) {
+              std::string ntx = tmpValue;
               eos_static_info("cmd=set gw.ntx=%s", ntx.c_str());
               mGwMultiplexer.SetSlots(atoi(ntx.c_str()));
             }
-
-            gOFS.ObjectManager.HashMutex.UnLockRead();
           }
 
           if (key == "error.simulation") {
-            gOFS.ObjectManager.HashMutex.LockRead();
-            XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(), "hash");
-
-            if (hash) {
-              std::string value = hash->Get("error.simulation");
-              eos_static_info("cmd=set error.simulation=%s", value.c_str());
-              gOFS.SetSimulationError(value.c_str());
+            if (getFSTConfigValue(key.c_str(), tmpValue)) {
+              std::string value = tmpValue;
+              eos_static_info("cmd=set error.simulation=%s", tmpValue.c_str());
+              gOFS.SetSimulationError(tmpValue.c_str());
             }
-
-            gOFS.ObjectManager.HashMutex.UnLockRead();
           }
         } else {
           mFsMutex.LockRead();
