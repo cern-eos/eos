@@ -971,8 +971,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       char spid[16];
       snprintf(spid, sizeof(spid), "%d", getpid());
       config.mqidentity += spid;
-      config.mdcachedir += "/";
-      config.mdcachedir += suuid;
+
+      if (config.mdcachedir.length()) {
+	config.mdcachedir += "/";
+	config.mdcachedir += suuid;
+      }
     }
 
     if (config.options.fdlimit > 0) {
