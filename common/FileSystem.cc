@@ -389,34 +389,6 @@ std::string FileSystemCoreParams::getUuid() const {
 }
 
 //------------------------------------------------------------------------------
-// Convenience method: Get queue path
-//------------------------------------------------------------------------------
-std::string FileSystemCoreParams::getQueuePath() const {
-  return mLocator.getQueuePath();
-}
-
-//------------------------------------------------------------------------------
-// Convenience method: Get full group name
-//------------------------------------------------------------------------------
-std::string FileSystemCoreParams::getGroupName() const {
-  return mGroup.getGroup();
-}
-
-//------------------------------------------------------------------------------
-// Convenience method: Get group index
-//------------------------------------------------------------------------------
-int FileSystemCoreParams::getGroupIndex() const {
-  return mGroup.getIndex();
-}
-
-//------------------------------------------------------------------------------
-// Convenience method: Get space name
-//------------------------------------------------------------------------------
-std::string FileSystemCoreParams::getSpaceName() const {
-  return mGroup.getSpace();
-}
-
-//------------------------------------------------------------------------------
 // Get current ConfigStatus
 //------------------------------------------------------------------------------
 ConfigStatus FileSystemCoreParams::getConfigStatus() const {
