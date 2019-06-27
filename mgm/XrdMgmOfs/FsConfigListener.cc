@@ -27,6 +27,73 @@
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
+//------------------------------------------------------------------------------
+// Get key from MGM config queue
+//------------------------------------------------------------------------------
+bool XrdMgmOfs::getMGMConfigValue(const std::string &key, std::string &value) {
+  eos::common::RWMutexReadLock lock(gOFS->ObjectManager.HashMutex);
+
+  XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(
+    MgmConfigQueue.c_str(), "hash");
+
+  if(!hash) {
+    return false;
+  }
+
+  value = hash->Get(key.c_str());
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Process incoming MGM configuration change
+//------------------------------------------------------------------------------
+void
+XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string &key) {
+  std::string tmpValue;
+  if(!getMGMConfigValue(key, tmpValue)) {
+    return;
+  }
+
+  XrdOucString err;
+  XrdOucString value = tmpValue.c_str();
+
+  if (value.c_str()) {
+    // Here we might get a change without the namespace, in this
+    // case we add the global namespace
+    if ((key.substr(0, 4) != "map:") &&
+      (key.substr(0, 3) != "fs:") &&
+      (key.substr(0, 6) != "quota:") &&
+      (key.substr(0, 4) != "vid:") &&
+      (key.substr(0, 7) != "policy:")) {
+
+      XrdOucString skey = key.c_str();
+      eos_info("msg=\"apply access config\" key=\"%s\" val=\"%s\"",
+      key.c_str(), value.c_str());
+      Access::ApplyAccessConfig(false);
+
+      if (skey.beginswith("iostat:")) {
+        gOFS->IoStats->ApplyIostatConfig();
+      }
+
+      if (skey.beginswith("fsck")) {
+        gOFS->FsCheck.ApplyFsckConfig();
+      }
+    } else {
+      eos_info("msg=\"set config value\" key=\"%s\" val=\"%s\"", key.c_str(), value.c_str());
+      gOFS->ConfEngine->SetConfigValue(0, key.c_str(), value.c_str(), false);
+
+      // For file system modification we need to take the
+      // FsView::ViewMutex for write
+      if (key.find("fs:") == 0) {
+        eos::common::RWMutexWriteLock wr_view_lock(FsView::gFsView.ViewMutex);
+        gOFS->ConfEngine->ApplyEachConfig(key.c_str(), &value, (void*) &err);
+      } else {
+        gOFS->ConfEngine->ApplyEachConfig(key.c_str(), &value, (void*) &err);
+      }
+    }
+  }
+}
+
 /*----------------------------------------------------------------------------*/
 /*
  * @brief file system listener agent starting drain jobs when receving opserror
@@ -140,53 +207,7 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
           // This is an MGM configuration modification
           if (!gOFS->mMaster->IsMaster()) {
             // only an MGM slave needs to apply this
-            gOFS->ObjectManager.HashMutex.LockRead();
-            XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(queue.c_str(), "hash");
-
-            if (hash) {
-              XrdOucString err;
-              XrdOucString value = hash->Get(key.c_str()).c_str();
-              gOFS->ObjectManager.HashMutex.UnLockRead();
-
-              if (value.c_str()) {
-                // Here we might get a change without the namespace, in this
-                // case we add the global namespace
-                if ((key.substr(0, 4) != "map:") &&
-                    (key.substr(0, 3) != "fs:") &&
-                    (key.substr(0, 6) != "quota:") &&
-                    (key.substr(0, 4) != "vid:") &&
-                    (key.substr(0, 7) != "policy:")) {
-                  XrdOucString skey = key.c_str();
-                  eos_info("msg=\"apply access config\" key=\"%s\" val=\"%s\"",
-                           key.c_str(), value.c_str());
-                  Access::ApplyAccessConfig(false);
-
-                  if (skey.beginswith("iostat:")) {
-                    gOFS->IoStats->ApplyIostatConfig();
-                  }
-
-                  if (skey.beginswith("fsck")) {
-                    gOFS->FsCheck.ApplyFsckConfig();
-                  }
-                } else {
-                  eos_info("msg=\"set config value\" key=\"%s\" val=\"%s\"",
-                           key.c_str(), value.c_str());
-                  gOFS->ConfEngine->SetConfigValue(0, key.c_str(),
-                                                   value.c_str(), false);
-
-                  // For file system modification we need to take the
-                  // FsView::ViewMutex for write
-                  if (key.find("fs:") == 0) {
-                    eos::common::RWMutexWriteLock wr_view_lock(FsView::gFsView.ViewMutex);
-                    gOFS->ConfEngine->ApplyEachConfig(key.c_str(), &value, (void*) &err);
-                  } else {
-                    gOFS->ConfEngine->ApplyEachConfig(key.c_str(), &value, (void*) &err);
-                  }
-                }
-              }
-            } else {
-              gOFS->ObjectManager.HashMutex.UnLockRead();
-            }
+            processIncomingMgmConfigurationChange(key.c_str());
           }
         } else if (key == watch_geotag) {
           // Geotag update

@@ -1269,6 +1269,16 @@ public:
   // ---------------------------------------------------------------------------
   void FsConfigListener(ThreadAssistant& assistant) noexcept;
 
+  //----------------------------------------------------------------------------
+  // Get key from MGM config queue
+  //----------------------------------------------------------------------------
+  bool getMGMConfigValue(const std::string &key, std::string &value);
+
+  //----------------------------------------------------------------------------
+  // Process incoming MGM configuration change
+  //----------------------------------------------------------------------------
+  void processIncomingMgmConfigurationChange(const std::string &key);
+
   //------------------------------------------------------------------------------
   //! Add backup job to the queue to be picked up by the archive/backup submitter
   //! thread.
