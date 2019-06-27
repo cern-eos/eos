@@ -695,8 +695,6 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   } else if (pargs.opts & Prep_FRESH) {
     event = "sync::abort_prepare";
 #endif
-  } else {
-    event = "sync::prepare";
   }
 
   // check that all files exist
@@ -737,7 +735,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
     eos::IContainerMD::XAttrMap attributes;
 
-    if (_attr_ls(eos::common::Path(prep_path.c_str()).GetParentPath(), error, vid,
+    if (!event.empty() && _attr_ls(eos::common::Path(prep_path.c_str()).GetParentPath(), error, vid,
                  nullptr, attributes) == 0) {
       bool foundPrepareTag = false;
       std::string eventAttr = "sys.workflow." + event;
@@ -760,7 +758,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
         continue;
       }
     } else {
-      // don't do workflow if we can't check attributes
+      // don't do workflow if we can't check attributes or if there is no event
       pptr = pptr->next;
 
       if (optr) {
