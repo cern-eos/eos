@@ -1279,6 +1279,12 @@ public:
   //----------------------------------------------------------------------------
   void processIncomingMgmConfigurationChange(const std::string &key);
 
+  //----------------------------------------------------------------------------
+  // Process geotag change on the specified filesystem
+  //----------------------------------------------------------------------------
+  void processGeotagChange(eos::common::FileSystem::fsid_t fsid,
+    const std::string &newgeotag);
+
   //------------------------------------------------------------------------------
   //! Add backup job to the queue to be picked up by the archive/backup submitter
   //! thread.
