@@ -37,12 +37,11 @@ Storage::GetDrainSlotVariables(unsigned long long& nparalleltx,
                                unsigned long long& ratetx,
                                std::string nodeconfigqueue)
 {
-  gOFS.ObjectManager.HashMutex.LockRead();
-  XrdMqSharedHash* confighash = gOFS.ObjectManager.GetHash(
-                                  nodeconfigqueue.c_str());
-  std::string manager = confighash ? confighash->Get("manager") : "unknown";
-  nparalleltx = confighash ? confighash->GetLongLong("stat.drain.ntx") : 0;
-  ratetx = confighash ? confighash->GetLongLong("stat.drain.rate") : 0;
+  nparalleltx = 0;
+  ratetx = 0;
+
+  getFSTConfigValue("stat.drain.ntx", nparalleltx);
+  getFSTConfigValue("stat.drain.rate", ratetx);
 
   if (nparalleltx == 0) {
     nparalleltx = 0;
@@ -52,11 +51,9 @@ Storage::GetDrainSlotVariables(unsigned long long& nparalleltx,
     ratetx = 25;
   }
 
-  eos_static_debug("manager=%s nparalleltransfers=%llu transferrate=%llu",
-                   manager.c_str(),
+  eos_static_debug("nparalleltransfers=%llu transferrate=%llu",
                    nparalleltx,
                    ratetx);
-  gOFS.ObjectManager.HashMutex.UnLockRead();
 }
 
 //------------------------------------------------------------------------------

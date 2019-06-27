@@ -32,7 +32,7 @@ EOSFSTNAMESPACE_BEGIN
 // Get configuration value from global FST config
 //------------------------------------------------------------------------------
 bool
-Storage::getFSTConfigValue(const std::string &key, std::string &value) {
+Storage::getFSTConfigValue(const std::string &key, std::string &value) const {
   eos::common::RWMutexReadLock lock(gOFS.ObjectManager.HashMutex);
 
   XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(
@@ -44,6 +44,17 @@ Storage::getFSTConfigValue(const std::string &key, std::string &value) {
   }
 
   value = hash->Get(key.c_str());
+  return true;
+}
+
+bool
+Storage::getFSTConfigValue(const std::string &key, unsigned long long &value) {
+  std::string strVal;
+  if(!getFSTConfigValue(key, strVal)) {
+    return false;
+  }
+
+  value = atoi(strVal.c_str());
   return true;
 }
 
