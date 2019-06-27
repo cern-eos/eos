@@ -15,6 +15,18 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.5.2 Citrine``
+===================
+
+2019-06-27
+
+Bug
+---
+
+* if eosxd is compiled without ROCKSDB support, it should not touch mdcachedir e.g. it has to stay empty - fixes EOS-3558
+* require eos-rocksdb on SLC6 and EL7 to have support for swapping inodes
+
 ``v4.5.1 Citrine``
 ===================
 
