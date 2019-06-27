@@ -85,14 +85,6 @@ Storage::Remover()
 
     // Ask to schedule deletions regularly (default is every 5 minutes)
     if ((now - lastAskedForDeletions) > deletionInterval) {
-      // get some global variables
-      gOFS.ObjectManager.HashMutex.LockRead();
-      XrdMqSharedHash* confighash = gOFS.ObjectManager.GetHash(
-                                      nodeconfigqueue.c_str());
-      std::string manager = confighash ? confighash->Get("manager") : "unknown";
-      eos_static_debug("manager=%s", manager.c_str());
-      gOFS.ObjectManager.HashMutex.UnLockRead();
-      // ---------------------------------------
       lastAskedForDeletions = now;
       eos_static_debug("asking for new deletions");
       XrdOucString managerQuery = "/?";
