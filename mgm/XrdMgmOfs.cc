@@ -675,10 +675,18 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   // Validate the event type
   std::string event;
 
-  if (pargs.opts & Prep_STAGE) {
-    event = "sync::prepare";
-#if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
+  // Strip "quality of service" bits from pargs.opts so that only the action to
+  // be taken is left
+  const int pargsOptsQoS = Prep_PMASK | Prep_SENDAOK | Prep_SENDERR | Prep_SENDACK | Prep_WMODE | Prep_COLOC |
+    Prep_FRESH;
+  const int pargsOptsAction = pargs.opts & ~pargsOptsQoS;
 
+#if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
+  // The XRootD prepare actions are mutually exclusive
+  switch(pargsOptsAction) {
+  case 0: // No flags means stage file in from tape
+  case Prep_STAGE:
+    event = "sync::prepare";
     if (gOFS->IsFileSystem2) {
       // Override the XRootD-supplied request ID. The request ID can be any arbitrary string, so long as
       // it is guaranteed to be unique for each request.
@@ -689,15 +697,34 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       // This is a placeholder. To use this feature, EOS should generate a unique ID here.
       reqid = "eos:" + reqid;
     }
-  } else if (pargs.opts & Prep_CANCEL) {
+    break;
+  case Prep_CANCEL:
     event = "sync::abort_prepare";
-#else
-  } else if (pargs.opts & Prep_FRESH) {
-    event = "sync::abort_prepare";
-#endif
-  } else {
-    event = "sync::prepare";
+    break;
+  case Prep_FRESH:
+    // Do not generate any worfklow event for FRESH
+    break;
+  default:
+    // More than one flag was set or there is an unknown flag
+    Emsg(epname, error, EINVAL, "prepare - invalid value for pargs.opts =", std::to_string(pargs.opts).c_str());
+    return SFS_ERROR;
   }
+#else
+  // The XRootD prepare flags are mutually exclusive
+  switch(pargs.opts) {
+  case 0: // No flags means stage file in from tape
+  case Prep_STAGE:
+    event = "sync::prepare";
+    break;
+  case Prep_FRESH:
+    event = "sync::abort_prepare";
+    break;
+  default:
+    // More than one flag was set or there is an unknown flag
+    Emsg(epname, error, EINVAL, "prepare - invalid value for pargs.opts =", std::to_string(pargs.opts).c_str());
+    return SFS_ERROR;
+  }
+#endif
 
   // check that all files exist
   while (pptr) {
@@ -737,7 +764,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
     eos::IContainerMD::XAttrMap attributes;
 
-    if (_attr_ls(eos::common::Path(prep_path.c_str()).GetParentPath(), error, vid,
+    if (!event.empty() && _attr_ls(eos::common::Path(prep_path.c_str()).GetParentPath(), error, vid,
                  nullptr, attributes) == 0) {
       bool foundPrepareTag = false;
       std::string eventAttr = "sys.workflow." + event;
@@ -760,7 +787,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
         continue;
       }
     } else {
-      // don't do workflow if we can't check attributes
+      // don't do workflow if event not set or we can't check attributes
       pptr = pptr->next;
 
       if (optr) {
