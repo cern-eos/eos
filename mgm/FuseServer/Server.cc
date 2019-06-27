@@ -1521,6 +1521,9 @@ Server::OpSetDirectory(const std::string& id,
     cmd->setCTime(ctime);
     cmd->setMTime(mtime);
 
+    // propagate mtime changes
+    cmd->notifyMTimeChange(gOFS->eosDirectoryService);
+
     for (auto it = md.attr().begin(); it != md.attr().end(); ++it) {
       if ((it->first.substr(0, 3) != "sys") ||
           (it->first == "sys.eos.btime")) {
