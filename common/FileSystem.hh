@@ -697,15 +697,7 @@ public:
   bool
   SetId(fsid_t fsid)
   {
-    XrdMqSharedHash* hash = nullptr;
-    RWMutexReadLock lock(mSom->HashMutex);
-
-    if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
-      hash->Set("id", (long long) fsid);
-      return true;
-    } else {
-      return false;
-    }
+    return SetString("id", std::to_string(fsid).c_str());
   }
 
   //----------------------------------------------------------------------------
