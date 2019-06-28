@@ -438,10 +438,14 @@ protected:
   //! QClient shared manager - no ownership, can be null
   qclient::SharedManager *mSharedManager = nullptr;
 
+  //! Store the last heartbeat time - set/get through
+  //! the corresponding functions, not published on MQ.
+  std::atomic<time_t> mHeartBeatTime {0};
+
 public:
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Struct & Type definitions
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
 
   //! File System ID type
   typedef uint32_t fsid_t;
@@ -1001,6 +1005,17 @@ public:
   //! @param val value string
   //----------------------------------------------------------------------------
   void CreateConfig(std::string& key, std::string& val);
+
+  //----------------------------------------------------------------------------
+  //! Get heartbeatTime
+  //----------------------------------------------------------------------------
+  time_t getLocalHeartbeatTime() const;
+
+  //----------------------------------------------------------------------------
+  //! Set heartbeatTime
+  //----------------------------------------------------------------------------
+  void setLocalHeartbeatTime(time_t t);
+
 };
 
 EOSCOMMONNAMESPACE_END;

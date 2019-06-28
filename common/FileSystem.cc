@@ -925,7 +925,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
     fs.mErrCode = (unsigned int) hash->GetLongLong("stat.errc");
     fs.mBootSentTime = (time_t) hash->GetLongLong("stat.bootsenttime");
     fs.mBootDoneTime = (time_t) hash->GetLongLong("stat.bootdonetime");
-    fs.mHeartBeatTime = (time_t) hash->GetLongLong("stat.heartbeattime");
+    fs.mHeartBeatTime = mHeartBeatTime;
     fs.mDiskUtilization = hash->GetDouble("stat.disk.load");
     fs.mNetEthRateMiB = hash->GetDouble("stat.net.ethratemib");
     fs.mNetInRateMiB = hash->GetDouble("stat.net.inratemib");
@@ -1159,6 +1159,20 @@ FileSystem::GetActiveStatus(bool cached)
     cActive = ActiveStatus::kUndefined;
     return ActiveStatus::kUndefined;
   }
+}
+
+//------------------------------------------------------------------------------
+// Get heartbeatTime
+//------------------------------------------------------------------------------
+time_t FileSystem::getLocalHeartbeatTime() const {
+  return mHeartBeatTime;
+}
+
+//------------------------------------------------------------------------------
+// Set heartbeatTime
+//------------------------------------------------------------------------------
+void FileSystem::setLocalHeartbeatTime(time_t t) {
+  mHeartBeatTime = t;
 }
 
 EOSCOMMONNAMESPACE_END;

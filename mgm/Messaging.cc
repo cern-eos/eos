@@ -166,7 +166,7 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
 
         FileSystem *entry = FsView::gFsView.mIdView.lookupByID(*it);
         if(entry) {
-          entry->SetLongLong("stat.heartbeattime", (long long) advmsg->kMessageHeader.kSenderTime_sec, false);
+          entry->setLocalHeartbeatTime(advmsg->kMessageHeader.kSenderTime_sec);
         }
       }
     }
@@ -208,7 +208,7 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
 
         FileSystem *entry = FsView::gFsView.mIdView.lookupByID(*it);
         if(entry) {
-          entry->SetLongLong("stat.heartbeattime", (long long) advmsg->kMessageHeader.kSenderTime_sec, false);
+          entry->setLocalHeartbeatTime(advmsg->kMessageHeader.kSenderTime_sec);
         }
       }
     }
