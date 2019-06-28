@@ -159,46 +159,6 @@ public:
   };
 
   // ---------------------------------------------------------------------------
-  //! Open a transaction for a bulk injection
-  // ---------------------------------------------------------------------------
-
-  bool
-  OpenTransaction()
-  {
-    if (mSom) {
-      RWMutexReadLock lock(mSom->HashMutex);
-      XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(
-                                      mFullQueue.c_str());
-
-      if (hashQueue) {
-        return hashQueue->OpenTransaction();
-      }
-    }
-
-    return false;
-  }
-
-  // ---------------------------------------------------------------------------
-  //! Close a transaction after a bulk injection
-  // ---------------------------------------------------------------------------
-
-  bool
-  CloseTransaction()
-  {
-    if (mSom) {
-      RWMutexReadLock lock(mSom->HashMutex);
-      XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(
-                                      mFullQueue.c_str());
-
-      if (hashQueue) {
-        return hashQueue->CloseTransaction();
-      }
-    }
-
-    return false;
-  }
-
-  // ---------------------------------------------------------------------------
   //! Destructor
   // ---------------------------------------------------------------------------
   virtual ~TransferQueue();
