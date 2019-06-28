@@ -705,9 +705,9 @@ public:
   //! Set a double value by name and evt. broadcast it.
   //----------------------------------------------------------------------------
   bool
-  SetDouble(const char* key, double f, bool broadcast = true)
+  SetDouble(const char* key, double f)
   {
-    return SetString(key, std::to_string(f).c_str(), broadcast);
+    return SetString(key, std::to_string(f).c_str());
   }
 
   //----------------------------------------------------------------------------

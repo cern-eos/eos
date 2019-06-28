@@ -192,14 +192,14 @@ Balancer::Balance(ThreadAssistant& assistant) noexcept
               // If the value changes significantly, broadcast it
               if (fabs(fsdev - avg) > 0.1) {
                 if (!has_drainjob) {
-                  fs->SetDouble("stat.nominal.filled", avg, true);
+                  fs->SetDouble("stat.nominal.filled", avg);
                 }
               }
 
               // Disable balancing on this filesystem if draining is running
               // in the group
               if (has_drainjob && fsdev) {
-                fs->SetDouble("stat.nominal.filled", 0.0, true);
+                fs->SetDouble("stat.nominal.filled", 0.0);
               }
             }
           }
@@ -216,7 +216,7 @@ Balancer::Balance(ThreadAssistant& assistant) noexcept
                 // 0.0 indicates, that we are perfectly filled
                 // (or the balancing is disabled)
                 if (fsdev) {
-                  fs->SetDouble("stat.nominal.filled", 0.0, true);
+                  fs->SetDouble("stat.nominal.filled", 0.0);
                 }
 
                 if ((*git)->GetConfigMember("stat.balancing") != "idle")
@@ -257,7 +257,7 @@ Balancer::Balance(ThreadAssistant& assistant) noexcept
                 // 0.0 indicates, that we are perfectly filled
                 // (or the balancing is disabled)
                 if (fsdev) {
-                  fs->SetDouble("stat.nominal.filled", 0.0, true);
+                  fs->SetDouble("stat.nominal.filled", 0.0);
                 }
               }
             }
