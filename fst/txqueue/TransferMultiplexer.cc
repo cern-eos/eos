@@ -146,9 +146,7 @@ TransferMultiplexer::ThreadProc(void)
 
           eos_static_info("Found %u transfers in queue %s", (unsigned int)
                           mQueues[i]->GetQueue()->Size(), mQueues[i]->GetName());
-          mQueues[i]->GetQueue()->OpenTransaction();
           std::unique_ptr<eos::common::TransferJob> cjob = mQueues[i]->GetQueue()->Get();
-          mQueues[i]->GetQueue()->CloseTransaction();
 
           if (!cjob) {
             eos_static_err("No transfer job created");
