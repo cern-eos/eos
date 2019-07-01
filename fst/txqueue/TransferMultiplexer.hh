@@ -26,11 +26,12 @@
 
 #include "fst/Namespace.hh"
 #include "common/RWMutex.hh"
-#include "fst/txqueue/TransferJob.hh"
+#include "common/AssistedThread.hh"
 #include <vector>
-#include <pthread.h>
 
 EOSFSTNAMESPACE_BEGIN
+
+class TransferQueue;
 
 //------------------------------------------------------------------------------
 //! Class TransferMultiplexer
@@ -81,19 +82,14 @@ public:
   void Stop();
 
   //----------------------------------------------------------------------------
-  //! Static helper function to start the thread.
-  //----------------------------------------------------------------------------
-  static void* StaticThreadProc(void*);
-
-  //----------------------------------------------------------------------------
   //! Multiplexer thread loop.
   //----------------------------------------------------------------------------
-  void* ThreadProc();
+  void ThreadLoop(ThreadAssistant &assistant);
 
 private:
   eos::common::RWMutex mMutex;
   std::vector<TransferQueue*> mQueues;
-  pthread_t mTid;
+  AssistedThread mThread;
 };
 
 EOSFSTNAMESPACE_END
