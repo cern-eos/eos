@@ -122,6 +122,13 @@ TransferQueue::TransferQueue(const TransferQueueLocator &locator, XrdMqSharedObj
   }
 }
 
+//------------------------------------------------------------------------------
+//! Get queue path
+//------------------------------------------------------------------------------
+std::string TransferQueue::getQueuePath() const {
+  return mFullQueue;
+}
+
 /*----------------------------------------------------------------------------*/
 //! Destructor
 
