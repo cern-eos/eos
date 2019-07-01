@@ -130,7 +130,7 @@ TransferMultiplexer::ThreadLoop(ThreadAssistant &assistant)
         }
 
         eos_static_info("Found %u transfers in queue %s", (unsigned int)
-                        mQueues[i]->GetQueue()->Size(), mQueues[i]->GetName());
+                        mQueues[i]->GetQueue()->Size(), mQueues[i]->GetQueue()->getQueuePath().c_str());
         std::unique_ptr<eos::common::TransferJob> cjob = mQueues[i]->GetQueue()->Get();
 
         if (!cjob) {

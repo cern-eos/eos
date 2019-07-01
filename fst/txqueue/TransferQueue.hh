@@ -40,7 +40,6 @@ class TransferQueue
 {
 private:
   eos::common::TransferQueue** mQueue;
-  std::string mName;
 
   size_t nslots, bandwidth;
 
@@ -56,7 +55,7 @@ private:
 
 public:
 
-  TransferQueue(eos::common::TransferQueue** queue, const char* name,
+  TransferQueue(eos::common::TransferQueue** queue,
                 int slots = 2, int band = 100);
   ~TransferQueue();
 
@@ -64,12 +63,6 @@ public:
   GetQueue()
   {
     return *mQueue;
-  }
-
-  const char*
-  GetName()
-  {
-    return mName.c_str();
   }
 
   size_t GetSlots();

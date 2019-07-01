@@ -34,10 +34,9 @@ EOSFSTNAMESPACE_BEGIN
 
 /* ------------------------------------------------------------------------- */
 TransferQueue::TransferQueue(eos::common::TransferQueue** queue,
-                             const char* name, int slots, int band)
+                             int slots, int band)
 {
   mQueue = queue;
-  mName = name;
   mJobsRunning = 0;
   mJobsDone = 0;
   nslots = slots;
