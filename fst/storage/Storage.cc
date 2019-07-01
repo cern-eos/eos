@@ -260,8 +260,7 @@ Storage::Storage(const char* meta_dir)
   std::string n = eos::fst::Config::gConfig.FstQueue.c_str();
   n += "/gw";
   mGwQueue = new eos::common::TransferQueue(
-    eos::fst::Config::gConfig.FstQueue.c_str(),
-    n.c_str(), "txq",
+    eos::common::TransferQueueLocator(eos::fst::Config::gConfig.FstQueue.c_str(), "txq"),
     &gOFS.ObjectManager, true);
   n += "/txqueue";
   mTxGwQueue = new TransferQueue(&mGwQueue, n.c_str());

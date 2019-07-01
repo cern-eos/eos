@@ -115,8 +115,8 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  TransferQueue(const char* queue, const char* queuepath, const char* subqueue,
-                XrdMqSharedObjectManager* som, bool bc2mgm = false);
+  TransferQueue(const TransferQueueLocator &locator,
+    XrdMqSharedObjectManager* som, bool bc2mgm = false);
 
   //----------------------------------------------------------------------------
   //! Add a transfer job to the queue

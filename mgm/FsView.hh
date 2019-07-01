@@ -654,10 +654,8 @@ public:
     mType = "nodesview";
     SetConfigMember("stat.hostport", GetMember("hostport"), true, mName.c_str(),
                     false);
-    std::string n = mName.c_str();
-    n += "/gw";
     mGwQueue = new eos::common::TransferQueue(
-      mName.c_str(), n.c_str(), "txq",
+      eos::common::TransferQueueLocator(mName, "txq"),
       eos::common::GlobalConfig::gConfig.SOM(), false);
   }
 
