@@ -36,8 +36,9 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   TableFormatterBase();
+  TableFormatterBase(bool DontColor);
 
-  //----------------------------------------------------------------------------
+    //----------------------------------------------------------------------------
   //! Set table header
   //----------------------------------------------------------------------------
   void SetHeader(const TableHeader& header);
@@ -70,6 +71,11 @@ public:
   //----------------------------------------------------------------------------
   std::string GenerateTable(TableFormatterStyle style = FULL,
                             const TableString& selections = TableString());
+
+
+
+  bool mDontColor;
+
 
 protected:
   std::stringstream mSink;

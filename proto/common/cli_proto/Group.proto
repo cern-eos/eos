@@ -27,7 +27,7 @@ message GroupProto {
   }
 
   message SetProto {
-    string group     = 1;
+    string group       = 1;
     string group_state = 2;
   }
 

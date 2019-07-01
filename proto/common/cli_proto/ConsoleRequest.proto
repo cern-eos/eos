@@ -13,6 +13,7 @@ import "Recycle.proto";
 import "Io.proto";
 import "Group.proto";
 import "Debug.proto";
+import "Node.proto";
 
 //------------------------------------------------------------------------------
 // Request message sent to the server
@@ -42,6 +43,7 @@ message RequestProto {
     IoProto io             = 11;
     GroupProto group       = 12;
     DebugProto debug       = 13;
+    NodeProto node         = 14;
   }
 
   string Comment = 30;

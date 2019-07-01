@@ -401,7 +401,7 @@ com_node_usage:
   fprintf(stdout,
           "       node proxygrouprm  <group-name> <queue-name>|<host:port> : rm a node from a proxy group\n");
   fprintf(stdout,
-          "       node proxygroupclear  <queue-name>|<host:port>              : clear the list of groups a node belongs to\n");
+          "       node proxygroupclear  <queue-name>|<host:port>           : clear the list of groups a node belongs to\n");
   fprintf(stdout,
           "       node status     <queue-name>|<host:port>                 : print's all defined variables for a node\n");
   global_retc = EINVAL;

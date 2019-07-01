@@ -86,6 +86,7 @@ add_library(
   commands/com_motd.cc
   commands/com_mv.cc
   commands/com_node.cc
+  commands/com_proto_node.cc
   commands/com_print.cc
   commands/com_pwd.cc
   commands/com_quit.cc

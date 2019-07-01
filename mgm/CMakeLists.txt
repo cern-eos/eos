@@ -95,6 +95,7 @@ add_library(
   proc/admin/Io.cc
   proc/admin/IoCmd.cc proc/admin/IoCmd.hh
   proc/admin/Node.cc
+  proc/admin/NodeCmd.cc proc/admin/NodeCmd.hh
   proc/admin/NsCmd.cc
   proc/admin/Quota.cc
   proc/admin/Rtlog.cc
