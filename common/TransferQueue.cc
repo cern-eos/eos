@@ -53,7 +53,6 @@ std::string TransferQueueLocator::getQueue() const {
   else {
     return mLocator.getFSTQueue();
   }
-
 }
 
 //------------------------------------------------------------------------------
@@ -80,12 +79,10 @@ std::string TransferQueueLocator::getQueuePath() const {
  * @param bc2mgm broadcast-to-manager flag indicating if changes are broadcasted to manager nodes
  */
 /*----------------------------------------------------------------------------*/
-TransferQueue::TransferQueue (const char* queue, const char* queuepath, const char* subqueue, XrdMqSharedObjectManager* som, bool bc2mgm)
+TransferQueue::TransferQueue(const TransferQueueLocator &locator, XrdMqSharedObjectManager* som, bool bc2mgm)
 {
-  mQueue = queue;
-  mFullQueue = queuepath;
-  mFullQueue += "/txqueue/";
-  mFullQueue += subqueue;
+  mQueue = locator.getQueue();
+  mFullQueue = locator.getQueuePath();
   mJobGetCount = 0;
 
   eos_static_info("SENTINEL queue: %s, fullQueue: %s", mQueue.c_str(), mFullQueue.c_str());

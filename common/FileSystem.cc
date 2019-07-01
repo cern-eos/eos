@@ -461,12 +461,13 @@ FileSystem::FileSystem(const FileSystemLocator &locator,
       mSom->HashMutex.UnLockRead();
     }
 
-    mDrainQueue = new TransferQueue(mQueue.c_str(), mQueuePath.c_str(), "drainq",
-                                    mSom, bc2mgm);
-    mBalanceQueue = new TransferQueue(mQueue.c_str(), mQueuePath.c_str(),
-                                      "balanceq", mSom, bc2mgm);
-    mExternQueue = new TransferQueue(mQueue.c_str(), mQueuePath.c_str(), "externq",
-                                     mSom, bc2mgm);
+    mDrainQueue = new TransferQueue(TransferQueueLocator(mLocator, "drainq"),
+      mSom, bc2mgm);
+    mBalanceQueue = new TransferQueue(TransferQueueLocator(mLocator, "balanceq"),
+      mSom, bc2mgm);
+    mExternQueue = new TransferQueue(TransferQueueLocator(mLocator, "externq"),
+      mSom, bc2mgm);
+
   } else {
     mDrainQueue = 0;
     mBalanceQueue = 0;
