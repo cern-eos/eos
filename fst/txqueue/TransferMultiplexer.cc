@@ -23,6 +23,7 @@
 
 #include "fst/txqueue/TransferMultiplexer.hh"
 #include "fst/txqueue/TransferQueue.hh"
+#include "fst/txqueue/TransferJob.hh"
 #include "fst/XrdFstOfs.hh"
 #include "common/Logging.hh"
 #include "Xrd/XrdScheduler.hh"
@@ -33,9 +34,9 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-TransferMultiplexer::TransferMultiplexer():
-  mTid(0)
-{}
+TransferMultiplexer::TransferMultiplexer()
+{
+}
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -51,11 +52,7 @@ TransferMultiplexer::~TransferMultiplexer()
 void
 TransferMultiplexer::Stop()
 {
-  if (mTid) {
-    XrdSysThread::Cancel(mTid);
-    XrdSysThread::Join(mTid, NULL);
-    mTid = 0;
-  }
+  mThread.join();
 }
 
 //------------------------------------------------------------------------------
@@ -64,11 +61,7 @@ TransferMultiplexer::Stop()
 void
 TransferMultiplexer::Run()
 {
-  if (!mTid) {
-    XrdSysThread::Run(&mTid, TransferMultiplexer::StaticThreadProc,
-                      static_cast<void*>(this), XRDSYSTHREAD_HOLD,
-                      "Multiplexer Thread");
-  }
+  mThread.reset(&TransferMultiplexer::ThreadLoop, this);
 }
 
 //------------------------------------------------------------------------------
@@ -112,67 +105,57 @@ TransferMultiplexer::SetSlots(size_t slots)
 }
 
 //------------------------------------------------------------------------------
-// Static helper function to run the thread
-//------------------------------------------------------------------------------
-void*
-TransferMultiplexer::StaticThreadProc(void* arg)
-{
-  return reinterpret_cast<TransferMultiplexer*>(arg)->ThreadProc();
-}
-
-//------------------------------------------------------------------------------
 // Multiplexer thread loop
 //------------------------------------------------------------------------------
-void*
-TransferMultiplexer::ThreadProc(void)
+void
+TransferMultiplexer::ThreadLoop(ThreadAssistant &assistant)
 {
   std::string sTmp, src, dest;
   eos_static_info("running transfer multiplexer with %d queues", mQueues.size());
 
-  while (1) {
-    {
-      XrdSysThread::SetCancelOff();
-      eos::common::RWMutexReadLock lock(mMutex);
+  while(!assistant.terminationRequested()) {
+    eos::common::RWMutexReadLock lock(mMutex);
 
-      for (size_t i = 0; i < mQueues.size(); i++) {
-        while (mQueues[i]->GetQueue()->Size()) {
-          // look in all registered queues
-          // take an entry from the queue
-          int freeslots = mQueues[i]->GetSlots() - mQueues[i]->GetRunning();
+    for (size_t i = 0; i < mQueues.size(); i++) {
+      while (mQueues[i]->GetQueue()->Size()) {
 
-          if (freeslots <= 0) {
-            break;
-          }
+        if(assistant.terminationRequested()) break;
 
-          eos_static_info("Found %u transfers in queue %s", (unsigned int)
-                          mQueues[i]->GetQueue()->Size(), mQueues[i]->GetName());
-          std::unique_ptr<eos::common::TransferJob> cjob = mQueues[i]->GetQueue()->Get();
+        // look in all registered queues
+        // take an entry from the queue
+        int freeslots = mQueues[i]->GetSlots() - mQueues[i]->GetRunning();
 
-          if (!cjob) {
-            eos_static_err("No transfer job created");
-            break;
-          }
-
-          XrdOucString out = "";
-          cjob->PrintOut(out);
-          eos_static_info("New transfer %s", out.c_str());
-          //create new TransferJob and submit it to the scheduler
-          TransferJob* job = new TransferJob(mQueues[i], std::move(cjob),
-                                             mQueues[i]->GetBandwidth());
-          gOFS.TransferSchedulerMutex.Lock();
-          gOFS.TransferScheduler->Schedule(job);
-          gOFS.TransferSchedulerMutex.UnLock();
-          mQueues[i]->IncRunning();
+        if (freeslots <= 0) {
+          break;
         }
+
+        eos_static_info("Found %u transfers in queue %s", (unsigned int)
+                        mQueues[i]->GetQueue()->Size(), mQueues[i]->GetName());
+        std::unique_ptr<eos::common::TransferJob> cjob = mQueues[i]->GetQueue()->Get();
+
+        if (!cjob) {
+          eos_static_err("No transfer job created");
+          break;
+        }
+
+        XrdOucString out = "";
+        cjob->PrintOut(out);
+        eos_static_info("New transfer %s", out.c_str());
+        //create new TransferJob and submit it to the scheduler
+        TransferJob* job = new TransferJob(mQueues[i], std::move(cjob),
+                                             mQueues[i]->GetBandwidth());
+        gOFS.TransferSchedulerMutex.Lock();
+        gOFS.TransferScheduler->Schedule(job);
+        gOFS.TransferSchedulerMutex.UnLock();
+        mQueues[i]->IncRunning();
       }
     }
-    XrdSysThread::SetCancelOn();
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    assistant.wait_for(std::chrono::milliseconds(100));
   }
 
   // Wait that the scheduler is empty, otherwise we might have callbacks
   // to our queues
-  return NULL;
 }
 
 EOSFSTNAMESPACE_END
