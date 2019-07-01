@@ -31,6 +31,43 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+TransferQueueLocator::TransferQueueLocator(const FileSystemLocator &fsLocator, const std::string &tag)
+: mLocator(fsLocator), mTag(tag) {}
+
+//------------------------------------------------------------------------------
+// Constructor: Queue tied to an FST
+//------------------------------------------------------------------------------
+TransferQueueLocator::TransferQueueLocator(const std::string &fstQueue, const std::string &tag)
+: mFstQueue(fstQueue), mTag(tag) {}
+
+//------------------------------------------------------------------------------
+// Get "queue"
+//------------------------------------------------------------------------------
+std::string TransferQueueLocator::getQueue() const {
+  if(!mFstQueue.empty()) {
+    return mFstQueue;
+  }
+  else {
+    return mLocator.getFSTQueue();
+  }
+
+}
+
+//------------------------------------------------------------------------------
+// Get "queuepath"
+//------------------------------------------------------------------------------
+std::string TransferQueueLocator::getQueuePath() const {
+  if(!mFstQueue.empty()) {
+    return SSTR(mFstQueue << "/gw/txqueue/" << mTag);
+  }
+  else {
+    return SSTR(mLocator.getQueuePath() << "/txqueue/" << mTag);
+  }
+}
+
 /*----------------------------------------------------------------------------*/
 /**
  * Constructor for a transfer queue
@@ -50,6 +87,8 @@ TransferQueue::TransferQueue (const char* queue, const char* queuepath, const ch
   mFullQueue += "/txqueue/";
   mFullQueue += subqueue;
   mJobGetCount = 0;
+
+  eos_static_info("SENTINEL queue: %s, fullQueue: %s", mQueue.c_str(), mFullQueue.c_str());
 
   if (bc2mgm)
   {

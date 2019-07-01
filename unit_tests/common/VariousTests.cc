@@ -23,6 +23,7 @@
 
 #include "common/Statfs.hh"
 #include "common/FileSystem.hh"
+#include "common/TransferQueue.hh"
 #include "Namespace.hh"
 #include "gtest/gtest.h"
 #include <list>
@@ -122,6 +123,22 @@ TEST(GroupLocator, BasicSanity) {
   ASSERT_EQ(locator.getSpace(), "");
   ASSERT_EQ(locator.getGroup(), "");
   ASSERT_EQ(locator.getIndex(), 0);
+}
+
+TEST(TransferQueueLocator, BasicSanity) {
+  FileSystemLocator fsLocator("example-host.cern.ch", 1095, "/some/path");
+  ASSERT_EQ(fsLocator.getQueuePath(), "/eos/example-host.cern.ch:1095/fst/some/path");
+
+  TransferQueueLocator locator(fsLocator, "drainq");
+  ASSERT_EQ(locator.getQueue(), "/eos/example-host.cern.ch:1095/fst");
+  ASSERT_EQ(locator.getQueuePath(), "/eos/example-host.cern.ch:1095/fst/some/path/txqueue/drainq");
+}
+
+TEST(TransferQueueLocator, txq) {
+  TransferQueueLocator locator("/eos/example-host.cern.ch:1095/fst", "txq");
+
+  ASSERT_EQ(locator.getQueue(), "/eos/example-host.cern.ch:1095/fst");
+  ASSERT_EQ(locator.getQueuePath(), "/eos/example-host.cern.ch:1095/fst/gw/txqueue/txq");
 }
 
 EOSCOMMONTESTING_END
