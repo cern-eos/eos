@@ -415,6 +415,17 @@ build_fedora_stable:
     - docker_node
     - fedora_stable
 
+build_fedora_30:
+  image: fedora:30
+  <<: *fedora_template_definition
+  variables:
+    EOS_ARCH: fc-30
+  tags:
+    - docker_node
+    - fedora_30
+  only:
+    - schedules
+    - tags
 
 build_fedora_rawhide:
   image: registry.fedoraproject.org/fedora:rawhide
