@@ -99,7 +99,7 @@ bool GroupHelper::ParseCommand(const char* arg)
         ls->set_outformat(eos::console::GroupProto_LsProto::IOGROUP);
       } else if (token == "--IO") {
         ls->set_outformat(eos::console::GroupProto_LsProto::IOFS);
-      } else if (!(token.find("-") == 0)) { // begins with "-"
+      } else if (!(token.find("-") == 0)) { // does not  with "-"
         ls->set_selection(token);
       } else {
         return false;

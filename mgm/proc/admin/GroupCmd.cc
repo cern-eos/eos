@@ -60,7 +60,7 @@ void
 GroupCmd::LsSubcmd(const eos::console::GroupProto_LsProto& ls,
                    eos::console::ReplyProto& reply)
 {
-  std::string format {""};
+  std::string format;
   std::string list_format;
 
   switch (ls.outformat()) {
@@ -75,7 +75,7 @@ GroupCmd::LsSubcmd(const eos::console::GroupProto_LsProto& ls,
   case eos::console::GroupProto_LsProto::IOFS:
     format = FsView::GetGroupFormat("IO");
     list_format = FsView::GetFileSystemFormat("io");
-    //@note in the old implementation was mOutFormat="io", but then mOutFormat
+    // @note in the old implementation was mOutFormat="io", but then mOutFormat
     // never used again apparently
     // ls.set_outformat(eos::console::GroupProto_LsProto::IOGROUP);
     break;
@@ -92,12 +92,12 @@ GroupCmd::LsSubcmd(const eos::console::GroupProto_LsProto& ls,
 
   // if not( -b || --brief )
   if (!ls.outhost()) {
-    if (format.find("S") != std::string::npos) {
-      format.replace(format.find("S"), 1, "s");
+    if (format.find('S') != std::string::npos) {
+      format.replace(format.find('S'), 1, "s");
     }
 
-    if (list_format.find("S") != std::string::npos) {
-      list_format.replace(list_format.find("S"), 1, "s");
+    if (list_format.find('S') != std::string::npos) {
+      list_format.replace(list_format.find('S'), 1, "s");
     }
   }
 

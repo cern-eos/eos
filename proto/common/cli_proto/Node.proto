@@ -1,0 +1,86 @@
+//------------------------------------------------------------------------------
+// File: Node.proto
+// Author: Fabio Luchetti - CERN
+//------------------------------------------------------------------------------
+
+syntax="proto3";
+package eos.console;
+
+message NodeProto {
+
+  message LsProto {
+    bool outhost          = 1; // [-b]
+    enum OutFormat {
+      NONE                  = 0; //
+      MONITORING            = 1; // [-m]
+      LISTING               = 2; // [-l]
+      IO                    = 3; // [--io]
+      SYS                   = 4; // [--sys]
+      FSCK                  = 5; // [--fsck]
+    }
+    OutFormat outformat   = 2; //
+    string selection      = 3; // [<node>]
+    
+    bool dont_color = 4;
+  }
+
+  message RmProto {
+    string node = 1;
+  }
+
+  message StatusProto {
+    string node = 1;
+  }
+
+  message ConfigProto {
+    string node_name  = 1;
+    string node_key   = 2;
+    string node_value = 3;
+  }
+
+  message RegisterProto {
+    string node_name           = 1;
+    string node_path2register  = 2;
+    string node_space2register = 3;
+    bool node_force            = 4;
+    bool node_root             = 5;
+  }
+
+  message SetProto {
+    string node              = 1;
+    string node_state_switch = 2;
+  }
+
+  message TxgwProto {
+    string node             = 1;
+    string node_txgw_switch = 2;
+  }
+
+  message ProxygroupProto {
+    string node            = 1;
+    enum Action {
+      NONE                   = 0;
+      ADD                    = 1;
+      RM                     = 2;
+      CLEAR                  = 3;
+    }
+    Action node_action     = 2;
+    string node_proxygroup = 3;
+  }
+
+
+  // one of { ls, rm, status, set, txgw, config, register, proxygroupadd|proxygrouprm|proxygroupclear }
+  oneof subcmd {
+    LsProto ls                 = 1;
+    RmProto rm                 = 2;
+    StatusProto status         = 3;
+    ConfigProto config         = 4;
+    RegisterProto registerx    = 5;
+    SetProto set               = 6;
+    TxgwProto txgw             = 7;
+    ProxygroupProto proxygroup = 8; // @note
+
+
+  }
+
+}

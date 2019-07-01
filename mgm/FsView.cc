@@ -2832,7 +2832,7 @@ FsView::PrintGroups(std::string& out, const std::string& table_format,
 void
 FsView::PrintNodes(std::string& out, const std::string& table_format,
                    const std::string& table_mq_format, unsigned int outdepth,
-                   const char* selection)
+                   const char* selection, const bool dont_color)
 {
   std::vector<std::string> selections;
   std::string selected = selection ? selection : "";
@@ -2841,7 +2841,7 @@ FsView::PrintNodes(std::string& out, const std::string& table_format,
     eos::common::StringConversion::Tokenize(selected, selections, ",");
   }
 
-  TableFormatterBase table;
+  TableFormatterBase table(dont_color);
 
   for (auto it = mNodeView.begin(); it != mNodeView.end(); ++it) {
     it->second->Print(table, table_format, table_mq_format, outdepth);

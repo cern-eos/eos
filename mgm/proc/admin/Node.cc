@@ -61,7 +61,8 @@ ProcCommand::Node()
     eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
     FsView::gFsView.PrintNodes(output, format, mListFormat, mOutDepth, mSelection);
     stdOut += output.c_str();
-  } else if (mSubCmd == "status") {
+  }
+  else if (mSubCmd == "status") {
     std::string node = (pOpaque->Get("mgm.node")) ? pOpaque->Get("mgm.node") : "";
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
@@ -105,16 +106,13 @@ ProcCommand::Node()
       stdErr += node.c_str();
       retc = ENOENT;
     }
-  } else if (mSubCmd == "set") {
-    std::string nodename = (pOpaque->Get("mgm.node")) ? pOpaque->Get("mgm.node") :
-                           "";
-    std::string status = (pOpaque->Get("mgm.node.state")) ?
-                         pOpaque->Get("mgm.node.state") : "";
-    std::string txgw = (pOpaque->Get("mgm.node.txgw")) ?
-                       pOpaque->Get("mgm.node.txgw") : "";
+  }
+  else if (mSubCmd == "set") {
+    std::string nodename = (pOpaque->Get("mgm.node")) ? pOpaque->Get("mgm.node") : "";
+    std::string status = (pOpaque->Get("mgm.node.state")) ? pOpaque->Get("mgm.node.state") : "";
+    std::string txgw = (pOpaque->Get("mgm.node.txgw")) ? pOpaque->Get("mgm.node.txgw") : "";
     std::string key = "status";
-    std::string action = (pOpaque->Get("mgm.node.action")) ?
-                         pOpaque->Get("mgm.node.action") : "";
+    std::string action = (pOpaque->Get("mgm.node.action")) ? pOpaque->Get("mgm.node.action") : "";
 
     if (txgw.length()) {
       key = "txgw";
@@ -124,11 +122,9 @@ ProcCommand::Node()
     if (!action.empty()) {
       // we are setting a proxygroup
       key = "proxygroups";
-      status = (pOpaque->Get("mgm.node.proxygroup")) ?
-               pOpaque->Get("mgm.node.proxygroup") : "clear";
+      status = (pOpaque->Get("mgm.node.proxygroup")) ? pOpaque->Get("mgm.node.proxygroup") : "clear";
 
-      if (status.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890._-")
-          != std::string::npos) {
+      if (status.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890._-") != std::string::npos) {
         status.clear();
       }
     }
@@ -270,7 +266,8 @@ ProcCommand::Node()
         }
       }
     }
-  } else if (mSubCmd == "rm") {
+  }
+  else if (mSubCmd == "rm") {
     if ((pVid->uid == 0) || (pVid->prot == "sss")) {
       std::string nodename = (pOpaque->Get("mgm.node")) ? pOpaque->Get("mgm.node") :
                              "";
@@ -355,7 +352,9 @@ ProcCommand::Node()
       retc = EPERM;
       stdErr = "error: you have to take role 'root' to execute this command";
     }
-  } else if (mSubCmd == "config") {
+  }
+  else if (mSubCmd == "config") {
+
     if ((pVid->uid == 0) || (pVid->prot == "sss")) {
       std::string identifier = (pOpaque->Get("mgm.node.name")) ?
                                pOpaque->Get("mgm.node.name") : "";
@@ -526,7 +525,8 @@ ProcCommand::Node()
       retc = EPERM;
       stdErr = "error: you have to take role 'root' to execute this command";
     }
-  } else if (mSubCmd == "register") {
+  }
+  else if (mSubCmd == "register") {
     if ((pVid->uid == 0) || (pVid->prot == "sss")) {
       XrdOucString registernode = pOpaque->Get("mgm.node.name");
       XrdOucString path2register = pOpaque->Get("mgm.node.path2register");
@@ -581,7 +581,8 @@ ProcCommand::Node()
       stdErr = "error: you have to take the root role to execute the register command!";
       retc = EPERM;
     }
-  } else {
+  }
+  else {
     stdErr = "error: no such subcommand for node!";
     retc = EINVAL;
   }

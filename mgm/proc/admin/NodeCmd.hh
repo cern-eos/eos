@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: GroupCmd.hh
+// File: NodeCmd.hh
 // Author: Fabio Luchetti - CERN
 //------------------------------------------------------------------------------
 
@@ -23,15 +23,15 @@
 
 #pragma once
 #include "mgm/Namespace.hh"
-#include "proto/Group.pb.h"
+#include "proto/Node.pb.h"
 #include "mgm/proc/ProcCommand.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Class GroupCmd - class handling group commands
+//! Class NodeCmd - class handling group commands
 //------------------------------------------------------------------------------
-class GroupCmd: public IProcCommand
+class NodeCmd: public IProcCommand
 {
 public:
   //----------------------------------------------------------------------------
@@ -40,7 +40,7 @@ public:
   //! @param req client ProtocolBuffer request
   //! @param vid client virtual identity
   //----------------------------------------------------------------------------
-  explicit GroupCmd(eos::console::RequestProto&& req,
+  explicit NodeCmd(eos::console::RequestProto&& req,
                     eos::common::VirtualIdentity& vid):
     IProcCommand(std::move(req), vid, false)
   {}
@@ -48,7 +48,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~GroupCmd() = default;
+  virtual ~NodeCmd() = default;
 
   //----------------------------------------------------------------------------
   //! Method implementing the specific behaviour of the command executed by the
@@ -57,13 +57,14 @@ public:
   eos::console::ReplyProto ProcessRequest() noexcept override;
 
 private:
+
   //----------------------------------------------------------------------------
   //! Execute ls subcommand
   //!
   //! @param ls ls subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  void LsSubcmd(const eos::console::GroupProto_LsProto& ls,
+  void LsSubcmd(const eos::console::NodeProto_LsProto& ls,
                eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
@@ -72,8 +73,35 @@ private:
   //! @param rm rm subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  void RmSubcmd(const eos::console::GroupProto_RmProto& rm,
+  void RmSubcmd(const eos::console::NodeProto_RmProto& rm,
                 eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
+  //! Execute status subcommand
+  //!
+  //! @param status status subcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void StatusSubcmd(const eos::console::NodeProto_StatusProto& status,
+                 eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
+  //! Execute config subcommand
+  //!
+  //! @param config config subcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void ConfigSubcmd(const eos::console::NodeProto_ConfigProto& config,
+                    eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
+  //! Execute register subcommand
+  //!
+  //! @param register register subcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void RegisterSubcmd(const eos::console::NodeProto_RegisterProto& registerx,
+                      eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Execute set subcommand
@@ -81,8 +109,27 @@ private:
   //! @param set set subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  void SetSubcmd(const eos::console::GroupProto_SetProto& set,
+  void SetSubcmd(const eos::console::NodeProto_SetProto& set,
                  eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
+  //! Execute txgw subcommand
+  //!
+  //! @param txgw txgw subcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void TxgwSubcmd(const eos::console::NodeProto_TxgwProto& txgw,
+                 eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
+  //! Execute proxygroup subcommand
+  //!
+  //! @param proxygroup proxygroup subcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void ProxygroupSubcmd(const eos::console::NodeProto_ProxygroupProto& proxygroup,
+                 eos::console::ReplyProto& reply);
+
 };
 
 EOSMGMNAMESPACE_END
