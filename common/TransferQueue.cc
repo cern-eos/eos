@@ -85,8 +85,6 @@ TransferQueue::TransferQueue(const TransferQueueLocator &locator, XrdMqSharedObj
   mFullQueue = locator.getQueuePath();
   mJobGetCount = 0;
 
-  eos_static_info("SENTINEL queue: %s, fullQueue: %s", mQueue.c_str(), mFullQueue.c_str());
-
   if (bc2mgm)
   {
     // the fst has to reply to the mgm and set up the right broadcast queue
