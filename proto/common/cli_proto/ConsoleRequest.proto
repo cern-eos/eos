@@ -19,6 +19,7 @@ import "Config.proto";
 import "Access.proto";
 import "Fsck.proto";
 import "Token.proto";
+import "QoS.proto";
 
 //------------------------------------------------------------------------------
 // Request message sent to the server
@@ -55,6 +56,7 @@ message RequestProto {
     AccessProto access     = 18;
     FsckProto fsck         = 19;
     TokenProto token       = 20;
+    QoSProto qos           = 21;
   }
 
   string Comment = 30;
