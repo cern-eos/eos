@@ -105,14 +105,18 @@ public:
   const char* GetTokenUnquoted(bool escapeand = true);
 
   //----------------------------------------------------------------------------
-  //! Get next token and return it in the supplied string
+  //! Get next token and return it in the supplied StringType.
+  //!
+  //! Note: We use the StringType template to support both
+  //! std::string and XrdOucString.
   //!
   //! @param token the next token or empty string if nothing found
   //! @param escapeand if true escape & with #AND#
   //!
   //! @return true if token retrieved, otherwise false
   //----------------------------------------------------------------------------
-  bool NextToken(std::string& token, bool escapeand = true);
+  template <typename StringType>
+  bool NextToken(StringType& token, bool escapeand = true);
 
   //----------------------------------------------------------------------------
   //! Split given string based on the delimiter
@@ -142,6 +146,22 @@ public:
   static bool IsUnsignedNumber(const std::string& str);
 };
 
+//------------------------------------------------------------------------------
+// Get next token and return it in the supplied StringType
+//------------------------------------------------------------------------------
+template <typename StringType>
+inline bool StringTokenizer::NextToken(StringType& token, bool escapeand)
+{
+  const char* tmp = GetToken(escapeand);
+
+  if (tmp == nullptr) {
+    token = "";
+    return false;
+  }
+
+  token = tmp;
+  return true;
+}
 
 //------------------------------------------------------------------------------
 // Split given string based on the delimiter
@@ -183,6 +203,5 @@ StringTokenizer::merge(const C& container, char delimiter)
 
   return output;
 }
-
 
 EOSCOMMONNAMESPACE_END
