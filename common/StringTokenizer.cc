@@ -223,21 +223,4 @@ StringTokenizer::IsUnsignedNumber(const std::string& str)
          (str.front() != '0' || str.size() == 1);
 }
 
-//------------------------------------------------------------------------------
-// Get next token and return it in the supplied string
-//------------------------------------------------------------------------------
-bool
-StringTokenizer::NextToken(std::string& token, bool escapeand)
-{
-  const char* tmp = GetToken(escapeand);
-
-  if (tmp == nullptr) {
-    token = "";
-    return false;
-  } else {
-    token = tmp;
-    return true;
-  }
-}
-
 EOSCOMMONNAMESPACE_END
