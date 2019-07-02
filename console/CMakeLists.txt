@@ -102,6 +102,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/com_who.cc
   commands/com_proto_acl.cc
   commands/com_proto_fs.cc
+  commands/com_proto_qos.cc
   commands/com_proto_route.cc
   commands/com_stagerrm.cc
   commands/com_proto_ns.cc
