@@ -34,7 +34,6 @@ EOSMGMNAMESPACE_BEGIN
 //! Forward declaration
 class DrainTransferJob;
 
-
 //------------------------------------------------------------------------------
 //! Class DrainProgressHandler used to monitor the progress of the current
 //! drain transfers but also more importantly to cancel gracefully a running
@@ -128,6 +127,9 @@ public:
   //! @param fid the file id
   //! @param fsid_src source file system id
   //! @param fsid_trg target file system id
+  //! @param exclude_srcs set of file system ids which are to be excluded as
+  //!        sources
+  //! @param app_tag application tag for easy classification of job types
   //----------------------------------------------------------------------------
   DrainTransferJob(eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid_src,
@@ -143,12 +145,12 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~DrainTransferJob() = default;
+  virtual ~DrainTransferJob() = default;
 
   //----------------------------------------------------------------------------
   //! Execute a third-party transfer
   //----------------------------------------------------------------------------
-  void DoIt() noexcept;
+  virtual void DoIt() noexcept;
 
   //----------------------------------------------------------------------------
   //! Cancel ongoing TPC transfer
@@ -178,7 +180,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get drain transfer status
   //----------------------------------------------------------------------------
-  inline DrainTransferJob::Status GetStatus() const
+  virtual DrainTransferJob::Status GetStatus() const
   {
     return mStatus.load();
   }
