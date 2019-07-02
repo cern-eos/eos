@@ -1,52 +1,56 @@
 #!/bin/bash
+
+#-------------------------------------------------------------------------------
+# Publish artifacts from CERN Gitlab CI.
+# The script will only upload artifacts from builds found in the buildmap.
+#
+# To add a new build type, register it in the buildmap together
+# with the repo name at the storage endpoint.
+#
+# E.g: cc7 --> el-7
+#      storage endpoint: /eos/project/s/storage-ci/www/eos/citrine/commit/el-7/
+#-------------------------------------------------------------------------------
 set -ex
+
+# Define a mapping between builds and repos
+declare -A BUILDMAP
+
+BUILDMAP[cc7]=el-7
+BUILDMAP[slc6]=el-6
+BUILDMAP[fc-29]=fc-29
+BUILDMAP[fc-rawhide]=fc-rawhide
+BUILDMAP[osx]=osx
 
 BRANCH=$1
 BUILD_TYPE=$2
 PATH_PREFIX=$3
 
-STORAGE_PATH_CC7=${PATH_PREFIX}/${BRANCH}/${BUILD_TYPE}/el-7/x86_64
-mkdir -p $STORAGE_PATH_CC7
-cp cc7_artifacts/RPMS/* $STORAGE_PATH_CC7
-createrepo --update -q $STORAGE_PATH_CC7
-STORAGE_PATH_CC7_SRPM=${PATH_PREFIX}/${BRANCH}/${BUILD_TYPE}/el-7/SRPMS
-mkdir -p $STORAGE_PATH_CC7_SRPM
-cp cc7_artifacts/SRPMS/* $STORAGE_PATH_CC7_SRPM
-createrepo --update -q $STORAGE_PATH_CC7_SRPM
+for artifacts_dir in *_artifacts; do
+  build=${artifacts_dir%_*}
+  repo=${BUILDMAP[${build}]}
 
-STORAGE_PATH_SLC6=${PATH_PREFIX}/${BRANCH}/${BUILD_TYPE}/el-6/x86_64
-mkdir -p $STORAGE_PATH_SLC6
-cp slc6_artifacts/RPMS/* $STORAGE_PATH_SLC6
-createrepo --update -q $STORAGE_PATH_SLC6
-STORAGE_PATH_SLC6_SRPM=${PATH_PREFIX}/${BRANCH}/${BUILD_TYPE}/el-6/SRPMS
-mkdir -p $STORAGE_PATH_SLC6_SRPM
-cp slc6_artifacts/SRPMS/* $STORAGE_PATH_SLC6_SRPM
-createrepo --update -q $STORAGE_PATH_SLC6_SRPM
+  # Handle only builds registered in the build map
+  [ -z ${repo} ] && continue
 
-# Allow failures from now on, since the builds for
-# these platforms are allowed to fail
-set +e
+  path=${PATH_PREFIX}/${BRANCH}/${BUILD_TYPE}/${repo}
 
-STORAGE_PATH_FC29=${PATH_PREFIX}/${BRANCH}/${BUILD_TYPE}/fc-29/x86_64
-mkdir -p $STORAGE_PATH_FC29
-cp fc-29_artifacts/RPMS/* $STORAGE_PATH_FC29
-createrepo --update -q $STORAGE_PATH_FC29
-STORAGE_PATH_FC29_SRPM=${PATH_PREFIX}/${BRANCH}/${BUILD_TYPE}/fc-29/SRPMS
-mkdir -p $STORAGE_PATH_FC29_SRPM
-cp fc-29_artifacts/SRPMS/* $STORAGE_PATH_FC29_SRPM
-createrepo --update -q $STORAGE_PATH_FC29_SRPM
+  # Treat OSX artifacts separately
+  if [ ${build} == "osx" ]; then
+    mkdir -p ${path}/x86_64/
+    cp ${build}_artifacts/* ${path}/x86_64/
 
-STORAGE_PATH_FCRH=${PATH_PREFIX}/${BRANCH}/${BUILD_TYPE}/fc-rawhide/x86_64
-mkdir -p $STORAGE_PATH_FCRH
-cp fc-rawhide_artifacts/RPMS/* $STORAGE_PATH_FCRH
-createrepo --update -q $STORAGE_PATH_FCRH
-STORAGE_PATH_FCRH_SRPM=${PATH_PREFIX}/${BRANCH}/${BUILD_TYPE}/fc-rawhide/SRPMS
-mkdir -p $STORAGE_PATH_FCRH_SRPM
-cp fc-rawhide_artifacts/SRPMS/* $STORAGE_PATH_FCRH_SRPM
-createrepo --update -q $STORAGE_PATH_FCRH_SRPM
+    continue
+  fi
 
-STORAGE_PATH_MACOS=${PATH_PREFIX}/${BRANCH}/${BUILD_TYPE}/osx/x86_64
-mkdir -p $STORAGE_PATH_MACOS
-cp osx_artifacts/* $STORAGE_PATH_MACOS
+  # Upload RPMS
+  mkdir -p ${path}/x86_64/
+  cp ${build}_artifacts/RPMS/* ${path}/x86_64/
+  createrepo --update -q ${path}/x86_64/
+
+  # Upload SRPMS
+  mkdir -p ${path}/SRPMS/
+  cp ${build}_artifacts/SRPMS/* ${path}/SRPMS/
+  createrepo --update -q ${path}/SRPMS/
+done
 
 exit 0
