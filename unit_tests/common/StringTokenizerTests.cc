@@ -239,6 +239,38 @@ TEST(StringTokenizer, GetTokenEscapeAndFlag)
   ASSERT_EQ(tokenizer->GetTokenUnquoted(false), nullptr);
 }
 
+TEST(StringTokenizer, NextToken)
+{
+  std::string token;
+  XrdOucString stoken;
+  std::unique_ptr<StringTokenizer> tokenizer;
+
+  std::string input = "Line to tokenize";
+  tokenizer.reset(new StringTokenizer(input));
+
+  // Parse using std::string token
+  ASSERT_STREQ(tokenizer->GetLine(), "Line to tokenize");
+  ASSERT_TRUE(tokenizer->NextToken(token));
+  ASSERT_STREQ(token.c_str(), "Line");
+  ASSERT_TRUE(tokenizer->NextToken(token));
+  ASSERT_STREQ(token.c_str(), "to");
+  ASSERT_TRUE(tokenizer->NextToken(token));
+  ASSERT_STREQ(token.c_str(), "tokenize");
+  ASSERT_FALSE(tokenizer->NextToken(token));
+
+  tokenizer.reset(new StringTokenizer(input));
+
+  // Parse using XrdOucString
+  ASSERT_STREQ(tokenizer->GetLine(), "Line to tokenize");
+  ASSERT_TRUE(tokenizer->NextToken(stoken));
+  ASSERT_STREQ(stoken.c_str(), "Line");
+  ASSERT_TRUE(tokenizer->NextToken(stoken));
+  ASSERT_STREQ(stoken.c_str(), "to");
+  ASSERT_TRUE(tokenizer->NextToken(stoken));
+  ASSERT_STREQ(stoken.c_str(), "tokenize");
+  ASSERT_FALSE(tokenizer->NextToken(stoken));
+}
+
 TEST(StringTokenizer, IsUnsignedNumber)
 {
   // Valid numbers
