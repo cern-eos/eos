@@ -565,6 +565,13 @@ Storage::Boot(FileSystem* fs)
   }
 
   eos_info("msg=\"finished boot procedure\" fsid=%lu", (unsigned long) fsid);
+{
+  XrdSysMutexHelper lock(mFsFullMapMutex);
+  for (unsigned int i = 0; i < gOFS.Storage->mFsVect.size(); i++) {
+    eos::common::FileSystem::fsid_t fsid = mFsVect[i]->GetId();
+    eos_static_info("mFsFullMap[%d] %d", fsid, mFsFullMap[fsid]);
+  }
+}
   return;
 }
 
@@ -1026,6 +1033,13 @@ Storage::CheckFilesystemFullness(FileSystem *fs,
                                  eos::common::FileSystem::fsid_t fsid)
 {
   long long freebytes = fs->GetLongLong("stat.statfs.freebytes");
+
+  /* watch out for stat.statfs.freebytes not yet set */
+  if (freebytes == 0 && fs->GetString("stat.statfs.freebytes").length() == 0) {
+      eos_static_info("stat.statfs.freebytes has not yet been defined, not setting file system fill status");
+      return;
+  }
+
   XrdSysMutexHelper lock(mFsFullMapMutex);
   // stop the writers if it get's critical under 5 GB space
   int full_gb = 5;
@@ -1034,11 +1048,15 @@ Storage::CheckFilesystemFullness(FileSystem *fs,
     full_gb = atoi(getenv("EOS_FS_FULL_SIZE_IN_GB"));
   }
 
+eos_static_info("mFsId %d Id %d mFsFullMap.count %d isfull %d", fsid, fs->GetId(), mFsFullMap.count(fsid), mFsFullMap[fsid]);
   if ((freebytes < full_gb * 1024ll * 1024ll * 1024ll)) {
+    if (!mFsFullMap[fsid]) eos_static_info("mFsId %d Id %d freebytes %lld isfull 1", fsid, fs->GetId(), freebytes);
     mFsFullMap[fsid] = true;
   } else {
+    if (mFsFullMap[fsid]) eos_static_info("mFsId %d Id %d freebytes %lld isfull 0", fsid, fs->GetId(), freebytes);
     mFsFullMap[fsid] = false;
   }
+eos_static_info("freebytes %lld full_gb %d fsid %d isfull %d", freebytes, full_gb, fsid, mFsFullMap[fsid]);
 
   if ((freebytes < 1024ll * 1024ll * 1024ll) ||
       (freebytes <= fs->GetLongLong("headroom"))) {

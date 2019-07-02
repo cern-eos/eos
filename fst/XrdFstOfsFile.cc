@@ -472,6 +472,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     // check if the file system is full
     XrdSysMutexHelper lock(gOFS.Storage->mFsFullMapMutex);
 
+eos_debug("mFsId %d mFsFullMap.count %d isfull %d", mFsId, gOFS.Storage->mFsFullMap.count(mFsId), gOFS.Storage->mFsFullMap[mFsId]);
     if (gOFS.Storage->mFsFullMap[mFsId]) {
       if (layOut->IsEntryServer() && (!isReplication)) {
         writeErrorFlag = kOfsDiskFullError;
@@ -1975,6 +1976,7 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
       bool isfull = false;
       {
         XrdSysMutexHelper lock(gOFS.Storage->mFsFullMapMutex);
+eos_debug("mFsId %d mFsFullMap.count %d isfull %d", mFsId, gOFS.Storage->mFsFullMap.count(mFsId), gOFS.Storage->mFsFullMap[mFsId]);
         isfull = gOFS.Storage->mFsFullMap[mFsId];
       }
 

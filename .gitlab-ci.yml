@@ -121,9 +121,10 @@ before_script:
     - if [[ "$CI_JOB_NAME" == system_test_qdb* ]]; then sudo ./eos-docker/scripts/start_services.sh -q -i gitlab-registry.cern.ch/dss/${EOS_IMG_NAME}${CI_COMMIT_TAG-$CI_PIPELINE_ID}; else sudo ./eos-docker/scripts/start_services.sh -i gitlab-registry.cern.ch/dss/${EOS_IMG_NAME}${CI_COMMIT_TAG-$CI_PIPELINE_ID}; fi
     - docker exec -i eos-client1-test git clone https://gitlab.cern.ch/dss/eosclient-tests.git
     - docker exec -i eos-mgm-test /bin/bash -c 'eos vid enable krb5'
-    - docker exec -i eos-mgm-test eos-instance-test-ci
     - docker exec -di eos-client1-test /bin/bash -c 'mkdir /eos1/; mount -t fuse eosxd /eos1/'
     - docker exec -di eos-client1-test /bin/bash -c 'mkdir /eos2/; mount -t fuse eosxd /eos2/'
+    - docker exec -i eos-client1-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch bash -c 'cd /eosclient-tests; git checkout rtb_clone; ./fusex_test.sh'
+    - docker exec -i eos-mgm-test eos-instance-test-ci
     - docker exec -i -u eos-user eos-client1-test /bin/bash -c 'mkdir /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; fusex-benchmark'
     # @todo(esindril): run "all" tests in schedule mode once these are properly supported
     # - if [ "$CI_PIPELINE_SOURCE" == "schedule" ]; then
@@ -306,6 +307,7 @@ build_slc6:
   tags:
     - docker_node
     - slc6
+  when: manual
 
 
 build_cc7:
@@ -414,6 +416,7 @@ build_fedora_stable:
   tags:
     - docker_node
     - fedora_stable
+  when: manual
 
 build_fedora_30:
   image: fedora:30
@@ -485,6 +488,7 @@ macosx_dmg:
   tags:
     - macosx-shell
   allow_failure: true
+  when: manual
 
 
 clone_docker:

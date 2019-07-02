@@ -283,6 +283,15 @@ Storage::Communicator(ThreadAssistant& assistant)
           mFsVect.push_back(fs);
           mFileSystemsMap[fs->GetId()] = fs;
           eos_static_info("setting up filesystem %s", queue.c_str());
+{
+  // XrdSysMutexHelper lock(mFsFullMapMutex);
+  for (unsigned int i = 0; i < gOFS.Storage->mFsVect.size(); i++) {
+    eos::common::FileSystem::fsid_t fsid = mFsVect[i]->GetId();
+    eos_static_info("fsid %d mFsFullMap.count[...]=%d", fsid, mFsFullMap.count(fsid));
+  }
+  eos_static_info("filesystems %d mFsFullMap.size %d", gOFS.Storage->mFsVect.size(), gOFS.Storage->mFsFullMap.size());
+}
+eos_static_info("...");
           fs->SetStatus(eos::common::BootStatus::kDown);
         }
 
