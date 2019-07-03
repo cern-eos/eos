@@ -40,6 +40,7 @@
 #include "common/eos_cta_pb/EosCtaAlertHandler.hh"
 #include "common/Constants.hh"
 #include "common/StringConversion.hh"
+#include "common/XattrCompat.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
@@ -51,6 +52,8 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdVersion.hh"
+#include <qclient/Members.hh>
+#include <qclient/shared/SharedManager.hh>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -64,8 +67,6 @@
 #include <stdlib.h>
 #include <sstream>
 #include <thread>
-#include "qclient/Members.hh"
-#include "common/XattrCompat.hh"
 
 // The global OFS handle
 eos::fst::XrdFstOfs eos::fst::gOFS;
@@ -732,6 +733,16 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   ObjectManager.mEnableQueue = true;
   ObjectManager.SetAutoReplyQueue("/eos/*/mgm");
   ObjectManager.SetDebug(false);
+
+  // Enable experimental MQ on QDB? Note that any functionality not supported
+  // will fallback to regular MQ, which is still required.
+  if(getenv("EOS_USE_MQ_ON_QDB")) {
+    eos_static_info("MQ on QDB - setting up SharedManager..");
+    mQSOM.reset(new qclient::SharedManager(mQdbContactDetails.members,
+      mQdbContactDetails.constructOptions(),
+      mQdbContactDetails.constructSubscriptionOptions()));
+  }
+
   // Create the specific listener class
   Messaging = new eos::fst::Messaging(
     eos::fst::Config::gConfig.FstOfsBrokerUrl.c_str(),
