@@ -701,8 +701,11 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   case Prep_CANCEL:
     event = "sync::abort_prepare";
     break;
+  case Prep_EVICT:
+    event = "sync::evict_prepare";
+    break;
   case Prep_FRESH:
-    // Do not generate any worfklow event for FRESH
+    // Do not generate a workflow event for Prep_FRESH
     break;
   default:
     // More than one flag was set or there is an unknown flag

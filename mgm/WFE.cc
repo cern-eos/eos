@@ -36,6 +36,7 @@
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Master.hh"
+#include "mgm/proc/admin/StagerRmCmd.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/utils/Checksum.hh"
@@ -1609,6 +1610,8 @@ int WFE::Job::HandleProtoMethodEvents(std::string& errorMsg,
     return HandleProtoMethodPrepareEvent(fullPath, ininfo, errorMsg);
   } else if (event == "sync::abort_prepare" || event == "abort_prepare") {
     return HandleProtoMethodAbortPrepareEvent(fullPath, ininfo, errorMsg);
+  } else if (event == "sync::evict_prepare" || event == "evict_prepare") {
+    return HandleProtoMethodEvictPrepareEvent(fullPath, ininfo, errorMsg);
   } else if (event == "sync::create" || event == "create") {
     return HandleProtoMethodCreateEvent(fullPath, errorMsg);
   } else if (event == "sync::delete" || event == "delete") {
@@ -1863,6 +1866,66 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string &fullPath,
   return s_ret;
 }
 
+int
+WFE::Job::HandleProtoMethodEvictPrepareEvent(const std::string &fullPath,
+                                             const char * const ininfo,
+                                             std::string& errorMsg)
+{
+  using namespace std::chrono;
+
+  struct stat buf;
+  XrdOucErrInfo errInfo;
+  bool onDisk;
+  bool onTape;
+
+  EXEC_TIMING_BEGIN("Proto::EvictPrepare");
+  gOFS->MgmStats.Add("Proto::EvictPrepare", 0, 0, 1);
+
+  std::ostringstream preamble;
+  preamble << "fxid=" << std::hex << mFid << " file=" << fullPath;
+
+  // Check if we have a disk replica and if not, whether it's on tape
+  if(gOFS->_stat(fullPath.c_str(), &buf, errInfo, mVid, nullptr, nullptr, false) == 0) {
+    onDisk = ((buf.st_mode & EOS_TAPE_MODE_T) ? buf.st_nlink-1 : buf.st_nlink) > 0;
+    onTape =  (buf.st_mode & EOS_TAPE_MODE_T) != 0;
+  } else {
+    std::ostringstream msg;
+    msg << preamble.str() << " msg=\"Cannot determine file and disk replicas, not doing the evict. Reason: " << errInfo.getErrText() << "\"";
+    eos_static_err(msg.str().c_str());
+    MoveWithResults(EAGAIN);
+    return EAGAIN;
+  }
+
+  if(!onDisk) {
+    std::ostringstream msg;
+    msg << preamble.str() << " msg=\"File is not on disk, nothing to evict.\"";
+    eos_static_info(msg.str().c_str());
+  } else if(!onTape) {
+    std::ostringstream msg;
+    msg << preamble.str() << " msg=\"File is not on tape, cannot evict it.\"";
+    eos_static_err(msg.str().c_str());
+    MoveWithResults(ENODATA);
+    return ENODATA;
+  } else {
+    const auto result = StagerrmAsRoot(mFid);
+
+    if(0 == result.retc()) {
+      std::ostringstream msg;
+      msg << preamble.str() << " msg=\"Successfully issued stagerrm for evict_prepare event\"";
+      eos_static_info(msg.str().c_str());
+    } else {
+      std::ostringstream msg;
+      msg << preamble.str() << " msg=\"Failed to issue stagerrm for evict_prepare event\"";
+      eos_static_info(msg.str().c_str());
+      MoveWithResults(EAGAIN);
+      return EAGAIN;
+    }
+  }
+
+  MoveWithResults(SFS_OK);
+  EXEC_TIMING_END("Proto::EvictPrepare");
+  return SFS_OK;
+}
 
 int
 WFE::Job::HandleProtoMethodCreateEvent(const std::string& fullPath,
@@ -2267,6 +2330,20 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
   retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(retval);
   errorMsg = response.message_txt();
   return retval;
+}
+
+console::ReplyProto
+WFE::Job::StagerrmAsRoot(const eos::IFileMD::id_t fid)
+{
+  eos::common::VirtualIdentity rootVid = eos::common::VirtualIdentity::Root();
+
+  eos::console::RequestProto req;
+  eos::console::StagerRmProto* stagerRm = req.mutable_stagerrm();
+  auto file = stagerRm->add_file();
+  file->set_fid(fid);
+
+  StagerRmCmd cmd(std::move(req), rootVid);
+  return cmd.ProcessRequest();
 }
 
 void

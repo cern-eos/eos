@@ -31,6 +31,7 @@
 #include "common/ThreadPool.hh"
 #include "common/AssistedThread.hh"
 #include "common/xrootd-ssi-protobuf-interface/eos_cta/include/CtaFrontendApi.hpp"
+#include "proto/ConsoleReply.pb.h"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "Xrd/XrdJob.hh"
@@ -206,6 +207,12 @@ public:
     //! @param errorMsg out parameter giving the text of any error response
     int HandleProtoMethodAbortPrepareEvent(const std::string &fullPath, const char * const ininfo, std::string &errorMsg);
 
+    //! @brief Handles a "proto" method "evict_prepare" event
+    //! @param fullPath the full path of the file
+    //! @ininfo original opaque information of the URL that triggered the event
+    //! @param errorMsg out parameter giving the text of any error response
+    int HandleProtoMethodEvictPrepareEvent(const std::string &fullPath, const char * const ininfo, std::string& errorMsg);
+
     //! @brief Handles a "proto" method "create" event
     //! @param fullPath the full path of the file
     //! @param errorMsg out parameter giving the text of any error response
@@ -251,6 +258,12 @@ public:
     static int SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
                                   const cta::xrd::Request& request, std::string& errorMsg,
                                   bool retry = false);
+
+    //! @brief Execute stagerrm as user root
+    //!
+    //! @param fid The file identifier
+    //! @return stagerrm result
+    static console::ReplyProto StagerrmAsRoot(const IFileMD::id_t fid);
 
     //! @brief Returns true if the 'file archived' garbage collector should be
     //! enabled
