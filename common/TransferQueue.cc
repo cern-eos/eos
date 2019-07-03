@@ -23,6 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "common/TransferQueue.hh"
+#include "common/StringTokenizer.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
@@ -64,6 +65,20 @@ std::string TransferQueueLocator::getQueuePath() const {
   }
   else {
     return SSTR(mLocator.getQueuePath() << "/txqueue/" << mTag);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Get QDB key for this queue
+//------------------------------------------------------------------------------
+std::string TransferQueueLocator::getQDBKey() const {
+  if(!mFstQueue.empty()) {
+    std::vector<std::string> parts;
+    parts = eos::common::StringTokenizer::split<std::vector<std::string>>(mFstQueue, '/');
+    return SSTR("txqueue-fst||" << parts[1] << "||" << mTag);
+  }
+  else {
+    return SSTR("txqueue-filesystem||" << mLocator.getHostPort() << "||" << mLocator.getStoragePath() << "||" << mTag);
   }
 }
 

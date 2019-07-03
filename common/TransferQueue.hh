@@ -77,6 +77,11 @@ public:
   //----------------------------------------------------------------------------
   std::string getQueuePath() const;
 
+  //----------------------------------------------------------------------------
+  //! Get QDB key for this queue
+  //----------------------------------------------------------------------------
+  std::string getQDBKey() const;
+
 private:
   FileSystemLocator mLocator;
   std::string mFstQueue;
