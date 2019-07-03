@@ -383,6 +383,7 @@ public:
   XrdSysMutex WrittenFilesQueueMutex;
   std::queue<struct Fmd> WrittenFilesQueue;
   XrdMqSharedObjectManager ObjectManager; ///< Managing shared objects
+  std::unique_ptr<qclient::SharedManager> mQSOM; ///< MQ on QDB - can be null
   //! Notifying any shared object changes
   XrdMqSharedObjectChangeNotifier ObjectNotifier;
   XrdScheduler* TransferScheduler; ///< TransferScheduler
