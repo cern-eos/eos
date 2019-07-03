@@ -462,11 +462,11 @@ FileSystem::FileSystem(const FileSystemLocator &locator,
     }
 
     mDrainQueue = new TransferQueue(TransferQueueLocator(mLocator, "drainq"),
-      mSom, bc2mgm);
+      mSom, qsom, bc2mgm);
     mBalanceQueue = new TransferQueue(TransferQueueLocator(mLocator, "balanceq"),
-      mSom, bc2mgm);
+      mSom, qsom, bc2mgm);
     mExternQueue = new TransferQueue(TransferQueueLocator(mLocator, "externq"),
-      mSom, bc2mgm);
+      mSom, qsom, bc2mgm);
 
   } else {
     mDrainQueue = 0;
