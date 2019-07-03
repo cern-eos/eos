@@ -195,6 +195,7 @@ if (Linux)
 
   target_link_libraries(eosCommonServer PUBLIC
     fmt
+    qclient
     XrdMqClient
     ${EOSCOMMONSERVER_LIBS})
 
@@ -214,6 +215,7 @@ if (Linux)
 
   target_link_libraries(eosCommonServer-Static PUBLIC
     fmt
+    qclient
     XrdMqClient-Static
     ${EOSCOMMONSERVER_LIBS})
 
