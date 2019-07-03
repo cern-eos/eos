@@ -132,6 +132,7 @@ TEST(TransferQueueLocator, BasicSanity) {
   TransferQueueLocator locator(fsLocator, "drainq");
   ASSERT_EQ(locator.getQueue(), "/eos/example-host.cern.ch:1095/fst");
   ASSERT_EQ(locator.getQueuePath(), "/eos/example-host.cern.ch:1095/fst/some/path/txqueue/drainq");
+  ASSERT_EQ(locator.getQDBKey(), "txqueue-filesystem||example-host.cern.ch:1095||/some/path||drainq");
 }
 
 TEST(TransferQueueLocator, txq) {
@@ -139,6 +140,7 @@ TEST(TransferQueueLocator, txq) {
 
   ASSERT_EQ(locator.getQueue(), "/eos/example-host.cern.ch:1095/fst");
   ASSERT_EQ(locator.getQueuePath(), "/eos/example-host.cern.ch:1095/fst/gw/txqueue/txq");
+  ASSERT_EQ(locator.getQDBKey(), "txqueue-fst||example-host.cern.ch:1095||txq");
 }
 
 EOSCOMMONTESTING_END
