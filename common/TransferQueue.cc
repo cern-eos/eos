@@ -79,7 +79,7 @@ std::string TransferQueueLocator::getQueuePath() const {
  * @param bc2mgm broadcast-to-manager flag indicating if changes are broadcasted to manager nodes
  */
 /*----------------------------------------------------------------------------*/
-TransferQueue::TransferQueue(const TransferQueueLocator &locator, XrdMqSharedObjectManager* som, bool bc2mgm)
+TransferQueue::TransferQueue(const TransferQueueLocator &locator, XrdMqSharedObjectManager* som, qclient::SharedManager* qsom, bool bc2mgm)
 {
   mQueue = locator.getQueue();
   mFullQueue = locator.getQueuePath();
@@ -98,6 +98,8 @@ TransferQueue::TransferQueue(const TransferQueueLocator &locator, XrdMqSharedObj
 
 
   mSom = som;
+  mQsom = qsom;
+
   if (mSom) {
     mSom->HashMutex.LockRead();
     XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");

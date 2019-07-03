@@ -2877,7 +2877,8 @@ FsView::ApplyFsConfig(const char* inkey, std::string& val)
 
   // Apply only the registration for a new filesystem if it does not exist
   if (!fs) {
-    fs = new FileSystem(locator, eos::common::GlobalConfig::gConfig.SOM(), nullptr);
+    fs = new FileSystem(locator, eos::common::GlobalConfig::gConfig.SOM(),
+      eos::common::GlobalConfig::gConfig.QSOM());
   }
 
   common::FileSystemUpdateBatch batch;

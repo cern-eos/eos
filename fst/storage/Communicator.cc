@@ -278,7 +278,7 @@ Storage::Communicator(ThreadAssistant& assistant)
             continue;
           }
 
-          fs = new FileSystem(locator, &gOFS.ObjectManager, nullptr);
+          fs = new FileSystem(locator, &gOFS.ObjectManager, gOFS.mQSOM.get());
           mQueue2FsMap[queue.c_str()] = fs;
           mFsVect.push_back(fs);
           mFileSystemsMap[fs->GetId()] = fs;

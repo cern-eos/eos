@@ -259,7 +259,7 @@ Storage::Storage(const char* meta_dir)
   XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
   mGwQueue = new eos::common::TransferQueue(
     eos::common::TransferQueueLocator(eos::fst::Config::gConfig.FstQueue.c_str(), "txq"),
-    &gOFS.ObjectManager, true);
+    &gOFS.ObjectManager, gOFS.mQSOM.get(), true);
   mTxGwQueue = new TransferQueue(&mGwQueue);
 
   if (mTxGwQueue) {

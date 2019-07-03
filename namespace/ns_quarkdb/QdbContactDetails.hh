@@ -85,7 +85,7 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Construct reasonable QClient subscription options, using the password as\
+  //! Construct reasonable QClient subscription options, using the password as
   //! handshake if available.
   //----------------------------------------------------------------------------
   qclient::SubscriptionOptions constructSubscriptionOptions() const

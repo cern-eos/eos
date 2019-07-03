@@ -44,6 +44,10 @@
 #include <stdint.h>
 /*----------------------------------------------------------------------------*/
 
+namespace qclient {
+  class SharedManager;
+}
+
 EOSCOMMONNAMESPACE_BEGIN
 
 class FileSystem;
@@ -105,6 +109,7 @@ private:
   //! Usage of this object requires a read lock on the shared object manager and the hash has to be validated!
   //----------------------------------------------------------------------------
   XrdMqSharedObjectManager* mSom;
+  qclient::SharedManager* mQsom;
 
   //----------------------------------------------------------------------------
   //! Count number of jobs executed + mutex
@@ -116,7 +121,7 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   TransferQueue(const TransferQueueLocator &locator,
-    XrdMqSharedObjectManager* som, bool bc2mgm = false);
+    XrdMqSharedObjectManager* som, qclient::SharedManager *qsom,  bool bc2mgm);
 
   //----------------------------------------------------------------------------
   //! Get queue path

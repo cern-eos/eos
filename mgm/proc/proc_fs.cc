@@ -622,11 +622,11 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
           stdErr += "error: conflict adding your uuid & id mapping";
           retc = EINVAL;
         } else {
-          fs = new FileSystem(locator, &gOFS->ObjectManager, nullptr);
+          fs = new FileSystem(locator, &gOFS->ObjectManager, eos::common::GlobalConfig::gConfig.QSOM());
         }
       } else {
         fsid = FsView::gFsView.CreateMapping(uuid);
-        fs = new FileSystem(locator, &gOFS->ObjectManager, nullptr);
+        fs = new FileSystem(locator, &gOFS->ObjectManager, eos::common::GlobalConfig::gConfig.QSOM());
       }
 
       XrdOucString sizestring;
