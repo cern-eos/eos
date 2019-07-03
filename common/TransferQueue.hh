@@ -46,6 +46,7 @@
 
 namespace qclient {
   class SharedManager;
+  class QDeque;
 }
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -115,6 +116,7 @@ private:
   //----------------------------------------------------------------------------
   XrdMqSharedObjectManager* mSom;
   qclient::SharedManager* mQsom;
+  std::unique_ptr<qclient::QDeque> mQDeque;
 
   //----------------------------------------------------------------------------
   //! Count number of jobs executed + mutex
@@ -165,41 +167,12 @@ public:
   //----------------------------------------------------------------------------
   //! Get the current size of the queue
   //----------------------------------------------------------------------------
-  size_t
-  Size()
-  {
-    if (mSom) {
-      RWMutexReadLock lock(mSom->HashMutex);
-      XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(
-                                      mFullQueue.c_str());
-
-      if (hashQueue) {
-        return hashQueue->GetSize();
-      }
-    }
-
-    return 0;
-  }
+  size_t Size();
 
   // ---------------------------------------------------------------------------
   //! Clear all jobs from the queue
   // ---------------------------------------------------------------------------
-  bool
-  Clear()
-  {
-    if (mSom) {
-      RWMutexReadLock lock(mSom->HashMutex);
-      XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(
-                                      mFullQueue.c_str());
-
-      if (hashQueue) {
-        hashQueue->Clear();
-        return true;
-      }
-    }
-
-    return false;
-  }
+  bool Clear();
 
   // ---------------------------------------------------------------------------
   //! Destructor

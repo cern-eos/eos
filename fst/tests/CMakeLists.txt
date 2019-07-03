@@ -46,6 +46,7 @@ add_executable(
 target_link_libraries(
   eos-fst-test PRIVATE
   gtest
+  qclient
   gmock_main
   EosFstIo-Static
   ${XROOTD_SERVER_LIBRARY})

@@ -24,6 +24,8 @@
 /*----------------------------------------------------------------------------*/
 #include "common/TransferQueue.hh"
 #include "common/StringTokenizer.hh"
+#include <qclient/structures/QDeque.hh>
+#include <qclient/shared/SharedManager.hh>
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
@@ -115,7 +117,13 @@ TransferQueue::TransferQueue(const TransferQueueLocator &locator, XrdMqSharedObj
   mSom = som;
   mQsom = qsom;
 
-  if (mSom) {
+  if(mQsom) {
+    mQDeque.reset(new qclient::QDeque(*mQsom->getQClient(), locator.getQDBKey()));
+    if(!mSlave) {
+      mQDeque->clear();
+    }
+  }
+  else if (mSom) {
     mSom->HashMutex.LockRead();
     XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
     if(!hashQueue) {
@@ -146,12 +154,10 @@ std::string TransferQueue::getQueuePath() const {
 
 /*----------------------------------------------------------------------------*/
 //! Destructor
-
 /*----------------------------------------------------------------------------*/
 TransferQueue::~TransferQueue ()
 {
-  if (!mSlave)
-  {
+  if (!mSlave) {
     Clear();
   }
 }
@@ -170,7 +176,10 @@ bool
 TransferQueue::Add (eos::common::TransferJob* job)
 {
   bool retc = false;
-  if (mSom)
+  if(mQsom) {
+    return mQDeque->push_back(job->GetSealed()).ok();
+  }
+  else if (mSom)
   {
     mSom->HashMutex.LockRead();
     XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
@@ -197,20 +206,28 @@ TransferQueue::Add (eos::common::TransferJob* job)
 std::unique_ptr<TransferJob>
 TransferQueue::Get ()
 {
-  if (mSom)
-  {
+  if(mQsom) {
+    std::string sealed;
+    if(!mQDeque->pop_front(sealed).ok()) {
+      return {};
+    }
+
+    std::unique_ptr<TransferJob> job = TransferJob::Create(sealed.c_str());
+    IncGetJobCount();
+    return job;
+  }
+  else if (mSom) {
     mSom->HashMutex.LockRead();
 
     XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(mFullQueue.c_str());
     if(hashQueue) {
       std::string value = hashQueue->PopFront();
+      mSom->HashMutex.UnLockRead();
 
       if (value.empty()) {
-        mSom->HashMutex.UnLockRead();
         return 0;
       } else {
         std::unique_ptr<TransferJob> job = TransferJob::Create(value.c_str());
-        mSom->HashMutex.UnLockRead();
         IncGetJobCount();
         return job;
       }
@@ -220,6 +237,46 @@ TransferQueue::Get ()
 
     mSom->HashMutex.UnLockRead();
   }
+  return 0;
+}
+
+// ---------------------------------------------------------------------------
+//! Clear all jobs from the queue
+// ---------------------------------------------------------------------------
+bool TransferQueue::Clear()
+{
+  if(mQsom) {
+    return mQDeque->clear().ok();
+  }
+  else if (mSom) {
+    RWMutexReadLock lock(mSom->HashMutex);
+    XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(
+                                  mFullQueue.c_str());
+
+    if (hashQueue) {
+      hashQueue->Clear();
+      return true;
+    }
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
+//! Get the current size of the queue
+//------------------------------------------------------------------------------
+size_t TransferQueue::Size()
+{
+  if (mSom) {
+    RWMutexReadLock lock(mSom->HashMutex);
+    XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(
+                                  mFullQueue.c_str());
+
+    if (hashQueue) {
+      return hashQueue->GetSize();
+    }
+  }
+
   return 0;
 }
 
