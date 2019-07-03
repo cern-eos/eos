@@ -35,6 +35,10 @@
 #include <string>
 #include <stdint.h>
 
+namespace qclient {
+  class SharedManager;
+}
+
 EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
@@ -92,6 +96,14 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Return the QDB SharedManager
+  //----------------------------------------------------------------------------
+  inline qclient::SharedManager* QSOM()
+  {
+    return mQsom;
+  }
+
+  //----------------------------------------------------------------------------
   //! Print the broad cast mapping to the given string
   //!
   //! @param out reference to a string where to print
@@ -118,8 +130,17 @@ public:
     mSom = som;
   }
 
+  //----------------------------------------------------------------------------
+  //! Set global qclient SharedManager object - can be null
+  //----------------------------------------------------------------------------
+  inline void setQSharedManager(qclient::SharedManager* qsom) {
+    mQsom = qsom;
+  }
+
 private:
   XrdMqSharedObjectManager* mSom; ///< Pointer to the global object manager
+  qclient::SharedManager* mQsom = nullptr;
+
   //! Hash storing which config queue get's broadcasted where ...
   std::map<std::string, std::string> mBroadCastQueueMap;
 };

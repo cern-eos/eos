@@ -67,6 +67,7 @@
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdOuc/XrdOucTrace.hh"
+#include <qclient/shared/SharedManager.hh>
 
 extern XrdOucTrace gMgmOfsTrace;
 extern void xrdmgmofs_shutdown(int sig);
@@ -1370,6 +1371,17 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   ObjectManager.EnableBroadCast(false);
   // setup the modifications which the fs listener thread is waiting for
   ObjectManager.SetDebug(false);
+
+  if ((getenv("EOS_USE_MQ_ON_QDB") != 0)) {
+    eos_static_info("MQ on QDB - setting up SharedManager..");
+
+    // Using QDB as MQ? Currently experimental - functionality not switched over
+    // to QDB will still use the old MQ.
+    qclient::SharedManager* sm = new qclient::SharedManager(mQdbContactDetails.members,
+      mQdbContactDetails.constructOptions(), mQdbContactDetails.constructSubscriptionOptions());
+    eos::common::GlobalConfig::gConfig.setQSharedManager(sm);
+  }
+
   SetupGlobalConfig();
 
   // Eventually autoload a configuration

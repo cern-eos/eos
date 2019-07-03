@@ -84,6 +84,22 @@ public:
     return opts;
   }
 
+  //----------------------------------------------------------------------------
+  //! Construct reasonable QClient subscription options, using the password as\
+  //! handshake if available.
+  //----------------------------------------------------------------------------
+  qclient::SubscriptionOptions constructSubscriptionOptions() const
+  {
+    qclient::SubscriptionOptions opts;
+    if(!password.empty()) {
+      opts.handshake.reset(new qclient::HmacAuthHandshake(password));
+    }
+
+    return opts;
+  }
+
+
+
   qclient::Members members;
   std::string password;
 };
