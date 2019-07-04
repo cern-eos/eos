@@ -193,7 +193,7 @@ DrainTransferJob::GetFileInfo() const
   try {
     eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(mFileId);
-    fdrain.mFullPath = gOFS->eosView->getUri(mFileId);
+    fdrain.mFullPath = gOFS->eosView->getUri(fmd.get());
     fdrain.mProto.set_id(fmd->getId());
     fdrain.mProto.set_layout_id(fmd->getLayoutId());
     fdrain.mProto.set_cont_id(fmd->getContainerId());
