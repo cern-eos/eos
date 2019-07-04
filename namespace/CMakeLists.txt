@@ -33,11 +33,6 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
 )
 
-#-------------------------------------------------------------------------------
-# Build qclient static library
-#-------------------------------------------------------------------------------
-add_subdirectory(ns_quarkdb/qclient)
-
 add_library(
   EosNsCommon-Objects OBJECT
 

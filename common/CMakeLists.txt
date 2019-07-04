@@ -184,7 +184,10 @@ if (Linux)
     ${GLIBC_RT_LIBRARY}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
-    ${OPENSSL_CRYPTO_LIBRARY})
+    ${OPENSSL_CRYPTO_LIBRARY}
+    qclient
+    fmt
+  )
 
   if(MICROHTTPD_FOUND)
     LIST(APPEND EOSCOMMONSERVER_LIBS "${MICROHTTPD_LIBRARIES}")
@@ -194,8 +197,6 @@ if (Linux)
     $<TARGET_OBJECTS:eosCommonServer-Objects>)
 
   target_link_libraries(eosCommonServer PUBLIC
-    fmt
-    qclient
     XrdMqClient
     ${EOSCOMMONSERVER_LIBS})
 
@@ -214,8 +215,6 @@ if (Linux)
     $<TARGET_OBJECTS:eosCommonServer-Objects>)
 
   target_link_libraries(eosCommonServer-Static PUBLIC
-    fmt
-    qclient
     XrdMqClient-Static
     ${EOSCOMMONSERVER_LIBS})
 

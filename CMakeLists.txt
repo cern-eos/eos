@@ -124,6 +124,12 @@ if (NOT TARGET fmt)
   set_target_properties(fmt PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 endif ()
 
+#-------------------------------------------------------------------------------
+# Build qclient static library
+#-------------------------------------------------------------------------------
+include_directories(${FOLLY_INCLUDE_DIRS})
+add_subdirectory(namespace/ns_quarkdb/qclient)
+
 add_subdirectory(common)
 add_subdirectory(proto)
 add_subdirectory(misc)
@@ -134,7 +140,7 @@ add_subdirectory(fuse)
 add_subdirectory(console)
 add_subdirectory(fusex)
 add_subdirectory(test)
-if (GRPC_FOUND) 
+if (GRPC_FOUND)
   add_subdirectory(client)
 endif()
 
