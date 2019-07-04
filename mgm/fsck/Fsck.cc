@@ -206,7 +206,7 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
 
     ResetErrorMaps();
     std::vector<std::string> lines;
-    // Convert into a lines-wise seperated array
+    // Convert into a line-wise seperated array
     eos::common::StringConversion::StringToLineVector((char*) stdOut.c_str(),
         lines);
 
@@ -638,86 +638,6 @@ Fsck::Report(std::string& out, const std::set<std::string> tags,
   }
 
   return true;
-}
-
-//------------------------------------------------------------------------------
-// Repair checksum errors
-//------------------------------------------------------------------------------
-void
-Fsck::RepairChecksumErrs(std::string& out)
-{
-  std::ostringstream oss;
-  XrdSysMutexHelper lock(eMutex);
-  oss << "# repair checksum ------------------------------------------------"
-      << "-------------------------" << std::endl;
-  std::map<eos::common::FileSystem::fsid_t,
-      std::set<eos::common::FileId::fileid_t>> fid2check;
-
-  // Loop over all filesystems with MGM checksum mismatch
-  for (auto efsmapit = eFsMap["m_cx_diff"].cbegin();
-       efsmapit != eFsMap["m_cx_diff"].cend(); ++efsmapit) {
-    for (const auto& fid : efsmapit->second) {
-      fid2check[efsmapit->first].insert(fid);
-    }
-  }
-
-  // Loop over all filesystems with disk checksum mismatch
-  for (auto efsmapit = eFsMap["d_cx_diff"].cbegin();
-       efsmapit != eFsMap["d_cx_diff"].cend(); ++efsmapit) {
-    for (const auto& fid : efsmapit->second) {
-      fid2check[efsmapit->first].insert(fid);
-    }
-  }
-
-  // Loop over all filesystems
-  for (auto it = fid2check.cbegin();
-       it != fid2check.cend(); ++it) {
-    for (const auto& fid : it->second) {
-      std::string path = "";
-      eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
-      eos::common::RWMutexReadLock ns_rdlock(gOFS->eosViewRWMutex);
-
-      try {
-        auto fmd = gOFS->eosFileService->getFileMD(fid);
-        path = gOFS->eosView->getUri(fmd.get());
-      } catch (const eos::MDException& e) {
-        continue;
-      }
-
-      // Issue verify operations on that particular file
-      eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
-      XrdOucErrInfo error;
-      int lretc = 1;
-
-      if (path.length()) {
-        //if (options.find("checksum-commit") != options.end()) {
-        // Verify & commit
-        lretc = gOFS->_verifystripe(path.c_str(), error, vid, it->first,
-                                    "&mgm.verify.compute.checksum=1&"
-                                    "mgm.verify.commit.checksum=1&"
-                                    "mgm.verify.commit.size=1");
-        // } else {
-        //   // Verify only
-        //   lretc = gOFS->_verifystripe(path.c_str(), error, vid, efsmapit->first,
-        //                               "&mgm.verify.compute.checksum=1");
-        // }
-
-        if (!lretc) {
-          out += "success: sending verify to fsid=";
-          out += (int) it->first;
-          out += " for path=";
-          out += path.c_str();
-          out += "\n";
-        } else {
-          out += "error: sending verify to fsid=";
-          out += (int) it->first;
-          out += " failed for path=";
-          out += path.c_str();
-          out += "\n";
-        }
-      }
-    }
-  }
 }
 
 //------------------------------------------------------------------------------

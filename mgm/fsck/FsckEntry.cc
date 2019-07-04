@@ -266,7 +266,6 @@ FsckEntry::RepairFstXsSzDiff()
   return all_repaired;
 }
 
-
 //------------------------------------------------------------------------------
 // Method to repair an unregistered FST replica
 //------------------------------------------------------------------------------
@@ -275,6 +274,7 @@ FsckEntry::RepairReplicaInconsistencies()
 {
   if (LayoutId::IsRain(mMgmFmd.layout_id())) {
     // Any stripe inconsistency translates into a rewrite of the file
+    // @todo (esindril)
     return true;
   }
 
