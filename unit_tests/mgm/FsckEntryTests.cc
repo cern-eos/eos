@@ -22,14 +22,43 @@
  ************************************************************************/
 
 #include "gtest/gtest.h"
-#include <type_traits>
+#include "gmock/gmock.h"
+#include "common/LayoutId.hh"
 #define IN_TEST_HARNESS
 #include "mgm/fsck/FsckEntry.hh"
 #undef IN_TEST_HARNESS
 
+using ::testing::Return;
+using eos::common::LayoutId;
+using eos::common::FileSystem;
 static constexpr uint64_t kTimestampSec {1560331003};
 static constexpr uint64_t kFileSize {256256};
 static std::string kChecksum {"74d77c3a"};
+
+//------------------------------------------------------------------------------
+// MockRepairJob that doesn't trigger any TPC transfer
+//------------------------------------------------------------------------------
+class MockRepairJob: public eos::mgm::FsckRepairJob
+{
+public:
+  MockRepairJob(eos::common::FileId::fileid_t fid,
+                FileSystem::fsid_t fsid_src,
+                FileSystem::fsid_t fsid_trg = 0,
+                std::set<FileSystem::fsid_t> exclude_srcs = {},
+                std::set<FileSystem::fsid_t> exclude_dsts = {},
+                bool drop_src = true,
+                const std::string& app_tag = "fsck_mock"):
+    eos::mgm::FsckRepairJob(fid, fsid_src, fsid_trg, exclude_srcs,
+                            exclude_dsts, drop_src, app_tag)
+  {}
+
+  MOCK_METHOD0(DoItNoExcept, void());
+  virtual void DoIt() noexcept
+  {
+    return DoItNoExcept();
+  }
+  MOCK_CONST_METHOD0(GetStatus, eos::mgm::FsckRepairJob::Status());
+};
 
 //------------------------------------------------------------------------------
 // Test fixture for the FsckEntry
@@ -42,6 +71,7 @@ protected:
   //------------------------------------------------------------------------------
   void SetUp() override
   {
+    mRepairJob = nullptr;
     mFsckEntry = std::unique_ptr<eos::mgm::FsckEntry>
                  (new eos::mgm::FsckEntry(1234567, 3, "none"));
     PopulateMgmFmd();
@@ -49,10 +79,29 @@ protected:
     for (auto fsid : mFsckEntry->mMgmFmd.locations()) {
       PopulateFstFmd(fsid);
     }
+
+    // Redefine the repair factory to return a MockRepairJob
+    mFsckEntry->mRepairFactory =
+      [&](eos::common::FileId::fileid_t fid,
+          FileSystem::fsid_t fsid_src,
+          FileSystem::fsid_t fsid_trg ,
+          std::set<FileSystem::fsid_t> exclude_srcs,
+          std::set<FileSystem::fsid_t> exclude_dsts,
+          bool drop_src,
+    const std::string & app_tag) {
+      if (mRepairJob) {
+        return mRepairJob;
+      } else {
+        mRepairJob.reset(new MockRepairJob(fid, fsid_src, fsid_trg, exclude_srcs,
+                                           exclude_dsts, drop_src, app_tag));
+      }
+
+      return mRepairJob;
+    };
   }
 
   //----------------------------------------------------------------------------
-  //! Tear down - no needed as everything is already handled by destructor
+  //! Tear down - not needed as everything is already handled by destructor
   //----------------------------------------------------------------------------
   // void TearDown() override;
 
@@ -87,12 +136,8 @@ protected:
   //----------------------------------------------------------------------------
   //! Populate with dummy data the FST fmd structure
   //----------------------------------------------------------------------------
-  void PopulateFstFmd(eos::common::FileSystem::fsid_t fsid)
+  void PopulateFstFmd(FileSystem::fsid_t fsid)
   {
-    if (mFsckEntry->mFstFileInfo.find(fsid) != mFsckEntry->mFstFileInfo.end()) {
-      return;
-    }
-
     std::unique_ptr<eos::mgm::FstFileInfoT> finfo  {
       new eos::mgm::FstFileInfoT("/data01/00000000/0012d687", eos::mgm::FstErr::None)};
     finfo->mDiskSize = kFileSize;
@@ -125,22 +170,342 @@ protected:
   }
 
   std::unique_ptr<eos::mgm::FsckEntry> mFsckEntry;
+  std::shared_ptr<eos::mgm::FsckRepairJob> mRepairJob;
 };
 
 //------------------------------------------------------------------------------
-// Basic checks
+// MGM checksum difference
 //------------------------------------------------------------------------------
-TEST_F(FsckEntryTest, BasicChecks)
+TEST_F(FsckEntryTest, MgmXsDiff)
 {
-  ASSERT_TRUE(mFsckEntry->GenerateRepairWokflow().empty());
-  // Got an error reported but the checks don't confirm it
+  using eos::common::StringConversion;
   mFsckEntry->mReportedErr = eos::mgm::FsckErr::MgmXsDiff;
-  ASSERT_FALSE(mFsckEntry->GenerateRepairWokflow().empty());
-  // Got an error reported but the checks do confirm it
   size_t xs_sz;
   auto xs_buff = eos::common::StringConversion::Hex2BinDataChar("aabbccdd",
                  xs_sz);
-  mFsckEntry->mMgmFmd.set_checksum(xs_buff.get(), xs_sz);
+  auto& mgm_fmd = mFsckEntry->mMgmFmd;
+  mgm_fmd.set_checksum(xs_buff.get(), xs_sz);
+  // The new MGM FMD chechsum should be different from the initial one
+  ASSERT_STRNE(kChecksum.c_str(),
+               StringConversion::BinData2HexString
+               (mgm_fmd.checksum().c_str(),
+                SHA_DIGEST_LENGTH,
+                LayoutId::GetChecksumLen(mgm_fmd.layout_id())).c_str());
   auto repair_ops = mFsckEntry->GenerateRepairWokflow();
   ASSERT_FALSE(repair_ops.empty());
+
+  for (auto& fn : repair_ops) {
+    auto fn_with_obj = std::bind(fn, mFsckEntry.get());
+    ASSERT_TRUE(fn_with_obj());
+  }
+
+  // After a successful repair the checksum should match the original one
+  ASSERT_STREQ(kChecksum.c_str(),
+               StringConversion::BinData2HexString
+               (mgm_fmd.checksum().c_str(),
+                SHA_DIGEST_LENGTH,
+                LayoutId::GetChecksumLen(mgm_fmd.layout_id())).c_str());
+}
+
+//------------------------------------------------------------------------------
+// MGM size difference
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, MgmSzDiff)
+{
+  mFsckEntry->mReportedErr = eos::mgm::FsckErr::MgmSzDiff;
+  auto& mgm_fmd = mFsckEntry->mMgmFmd;
+  mgm_fmd.set_size(123456789);
+  // The new MGM FMD size should be different from the initial one
+  ASSERT_NE(kFileSize, mgm_fmd.size());
+  auto repair_ops = mFsckEntry->GenerateRepairWokflow();
+  ASSERT_FALSE(repair_ops.empty());
+
+  for (auto& fn : repair_ops) {
+    auto fn_with_obj = std::bind(fn, mFsckEntry.get());
+    ASSERT_TRUE(fn_with_obj());
+  }
+
+  // After a successful repair the size should match the original one
+  ASSERT_EQ(kFileSize, mgm_fmd.size());
+}
+
+//------------------------------------------------------------------------------
+// FST size difference
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, FstSzDiff)
+{
+  // Set the desired type of error
+  mFsckEntry->mReportedErr = eos::mgm::FsckErr::FstSzDiff;
+  // All FST sizes match, repair succeeds - no bad replicas
+  auto repair_ops = mFsckEntry->GenerateRepairWokflow();
+  ASSERT_FALSE(repair_ops.empty());
+
+  for (auto& fn : repair_ops) {
+    auto fn_with_obj = std::bind(fn, mFsckEntry.get());
+    ASSERT_TRUE(fn_with_obj());
+  }
+
+  // All FST fmd sizes are different, repair failes - no good replicas
+  for (auto& pair : mFsckEntry->mFstFileInfo) {
+    auto& finfo = pair.second;
+    finfo->mFstFmd.set_disksize(1);
+  }
+
+  for (auto& fn : repair_ops) {
+    auto fn_with_obj = std::bind(fn, mFsckEntry.get());
+    ASSERT_FALSE(fn_with_obj());
+  }
+
+  // Set the first FST fmd disksize to the correct one - repair successful
+  std::shared_ptr<eos::mgm::FsckRepairJob> repair_job =
+    mFsckEntry->mRepairFactory(0, 0, 0, {}, {}, true, "none");
+  MockRepairJob* mock_job = static_cast<MockRepairJob*>(repair_job.get());
+  EXPECT_CALL(*mock_job, DoItNoExcept);
+  EXPECT_CALL(*mock_job, GetStatus).
+  WillOnce(Return(eos::mgm::FsckRepairJob::Status::OK));
+  auto& finfo = mFsckEntry->mFstFileInfo.begin()->second;
+  finfo->mFstFmd.set_disksize(finfo->mFstFmd.size());
+
+  for (auto& fn : repair_ops) {
+    auto fn_with_obj = std::bind(fn, mFsckEntry.get());
+    ASSERT_TRUE(fn_with_obj());
+  }
+}
+
+//------------------------------------------------------------------------------
+// FST xs difference
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, FstXsDiff)
+{
+  // Set the desired type of error
+  mFsckEntry->mReportedErr = eos::mgm::FsckErr::FstXsDiff;
+  // All FST xs match, repair succeeds - no bad replicas
+  auto repair_ops = mFsckEntry->GenerateRepairWokflow();
+  ASSERT_FALSE(repair_ops.empty());
+
+  for (auto& fn : repair_ops) {
+    auto fn_with_obj = std::bind(fn, mFsckEntry.get());
+    ASSERT_TRUE(fn_with_obj());
+  }
+
+  // All FST fmd xs are different, repair failes - no good replicas
+  for (auto& pair : mFsckEntry->mFstFileInfo) {
+    auto& finfo = pair.second;
+    finfo->mFstFmd.set_diskchecksum("abcdefab");
+  }
+
+  for (auto& fn : repair_ops) {
+    auto fn_with_obj = std::bind(fn, mFsckEntry.get());
+    ASSERT_FALSE(fn_with_obj());
+  }
+
+  // Set the first FST fmd xs to the correct one - repair successful
+  // @note the repair factory always returns the same repair job object so that
+  // we can easily set expecteations on it
+  std::shared_ptr<eos::mgm::FsckRepairJob> repair_job =
+    mFsckEntry->mRepairFactory(0, 0, 0, {}, {}, true, "none");
+  MockRepairJob* mock_job = static_cast<MockRepairJob*>(repair_job.get());
+  EXPECT_CALL(*mock_job, DoItNoExcept);
+  EXPECT_CALL(*mock_job, GetStatus).
+  WillOnce(Return(eos::mgm::FsckRepairJob::Status::OK));
+  auto& finfo = mFsckEntry->mFstFileInfo.begin()->second;
+  finfo->mFstFmd.set_diskchecksum(kChecksum);
+
+  for (auto& fn : repair_ops) {
+    auto fn_with_obj = std::bind(fn, mFsckEntry.get());
+    ASSERT_TRUE(fn_with_obj());
+  }
+}
+
+//------------------------------------------------------------------------------
+// Unregistered replica when file has enough replicas gets dropped
+// Begin:                  Final:
+// MGM: 3 5                MGM: 3 5
+// FST: 3 5 101(u)         FST: 3 5
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, UnregReplicaDrop)
+{
+  FileSystem::fsid_t unreg_fsid = 101;
+  // Set the desired type of error
+  mFsckEntry->mReportedErr = eos::mgm::FsckErr::UnregRepl;
+  // Add one more FST replica which is unregistered
+  PopulateFstFmd(unreg_fsid);
+  auto repair_ops = mFsckEntry->GenerateRepairWokflow();
+  ASSERT_FALSE(repair_ops.empty());
+
+  for (auto& fn : repair_ops) {
+    auto fn_with_obj = std::bind(fn, mFsckEntry.get());
+    ASSERT_TRUE(fn_with_obj());
+  }
+
+  // The replica on FS 101 should be dropped from the map
+  ASSERT_TRUE(mFsckEntry->mFstFileInfo.find(unreg_fsid) ==
+              mFsckEntry->mFstFileInfo.end());
+  ASSERT_TRUE(mFsckEntry->mFstFileInfo.size() ==
+              LayoutId::GetStripeNumber(mFsckEntry->mMgmFmd.layout_id()) + 1);
+}
+
+//------------------------------------------------------------------------------
+// Unregistered replica when file doesn't have enough replicas gets added
+// Begin:                Final:
+// MGM: 5                MGM: 5 101
+// FST: 5 101(u)         FST: 5 101
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, UnregReplicaAdd)
+{
+  FileSystem::fsid_t unreg_fsid = 101;
+  // Set the desired type of error
+  mFsckEntry->mReportedErr = eos::mgm::FsckErr::UnregRepl;
+  // Add one more FST replica which is unregistered
+  PopulateFstFmd(unreg_fsid);
+  // Drop the replica on fsid 3
+  FileSystem::fsid_t drop_fsid = 3;
+  ASSERT_EQ(1, mFsckEntry->mFstFileInfo.erase(drop_fsid));
+  auto locations = mFsckEntry->mMgmFmd.mutable_locations();
+
+  for (auto it = locations->begin(); it != locations->end(); ++it) {
+    if (*it == drop_fsid) {
+      locations->erase(it);
+      break;
+    }
+  }
+
+  auto repair_ops = mFsckEntry->GenerateRepairWokflow();
+  ASSERT_FALSE(repair_ops.empty());
+
+  for (auto& fn : repair_ops) {
+    auto fn_with_obj = std::bind(fn, mFsckEntry.get());
+    ASSERT_TRUE(fn_with_obj());
+  }
+
+  // The replica on FS 101 should be added to the map and MGM meta data info
+  ASSERT_TRUE(mFsckEntry->mFstFileInfo.find(unreg_fsid) !=
+              mFsckEntry->mFstFileInfo.end());
+  ASSERT_TRUE(mFsckEntry->mFstFileInfo.size() ==
+              LayoutId::GetStripeNumber(mFsckEntry->mMgmFmd.layout_id()) + 1);
+}
+
+//------------------------------------------------------------------------------
+// Over-replicated files should drop some of their replicas to reach the
+// nominal number of replicas of the layout
+// Begin:                Final:
+// MGM: 3 5 6 7          MGM: 3 5
+// FST: 3 5 6 7          FST: 3 5
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, FileOverReplicated)
+{
+  // Set the desired type of error
+  mFsckEntry->mReportedErr = eos::mgm::FsckErr::DiffRepl;
+
+  for (const auto& elem : {
+  6, 7
+}) {
+    PopulateFstFmd(elem);
+    mFsckEntry->mMgmFmd.add_locations(elem);
+  }
+  // Over-replicated
+  ASSERT_TRUE(mFsckEntry->mFstFileInfo.size() >
+              LayoutId::GetStripeNumber(mFsckEntry->mMgmFmd.layout_id()) + 1);
+  // Generate repair workflow and execute it
+  auto repair_ops = mFsckEntry->GenerateRepairWokflow();
+  ASSERT_FALSE(repair_ops.empty());
+
+  for (auto& fn : repair_ops) {
+    auto fn_with_obj = std::bind(fn, mFsckEntry.get());
+    ASSERT_TRUE(fn_with_obj());
+  }
+
+  ASSERT_TRUE(mFsckEntry->mFstFileInfo.size() ==
+              LayoutId::GetStripeNumber(mFsckEntry->mMgmFmd.layout_id()) + 1);
+}
+
+//------------------------------------------------------------------------------
+// Under-replicated files should trigger new FsckRepair jobs that create new
+// replicas up to the nominal number of replicas of the layout
+// Begin:                Final:
+// MGM: 3                MGM: 3 x
+// FST: 3                FST: 3 x
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, FileUnderReplicated)
+{
+  // Set the desired type of error
+  mFsckEntry->mReportedErr = eos::mgm::FsckErr::DiffRepl;
+  // Drop the replica on fsid 5
+  FileSystem::fsid_t drop_fsid = 5;
+  ASSERT_EQ(1, mFsckEntry->mFstFileInfo.erase(drop_fsid));
+  auto locations = mFsckEntry->mMgmFmd.mutable_locations();
+
+  for (auto it = locations->begin(); it != locations->end(); ++it) {
+    if (*it == drop_fsid) {
+      locations->erase(it);
+      break;
+    }
+  }
+
+  // Under-replicated
+  ASSERT_TRUE(mFsckEntry->mFstFileInfo.size() <
+              LayoutId::GetStripeNumber(mFsckEntry->mMgmFmd.layout_id()) + 1);
+  // Set the expectations
+  // @note the repair factory always returns the same repair job object so that
+  // we can easily set expecteations on it
+  std::shared_ptr<eos::mgm::FsckRepairJob> repair_job =
+    mFsckEntry->mRepairFactory(0, 0, 0, {}, {}, false, "none");
+  MockRepairJob* mock_job = static_cast<MockRepairJob*>(repair_job.get());
+  EXPECT_CALL(*mock_job, DoItNoExcept).Times(1);
+  EXPECT_CALL(*mock_job, GetStatus).
+  WillOnce(Return(eos::mgm::FsckRepairJob::Status::OK));
+  // Generate repair workflow and execute it
+  auto repair_ops = mFsckEntry->GenerateRepairWokflow();
+  ASSERT_FALSE(repair_ops.empty());
+
+  for (auto& fn : repair_ops) {
+    auto fn_with_obj = std::bind(fn, mFsckEntry.get());
+    ASSERT_TRUE(fn_with_obj());
+  }
+}
+
+//------------------------------------------------------------------------------
+// Missgin replica should be dropped from the MGM file metadata and a repair
+// job shoudl bring the number of replicas back up to nominal number
+// Begin:                Final:
+// MGM: 3 5              MGM: 3 y
+// FST: 3                FST: 3 y
+//------------------------------------------------------------------------------
+TEST_F(FsckEntryTest, FileMissingReplica)
+{
+  // Set the desired type of error
+  mFsckEntry->mReportedErr = eos::mgm::FsckErr::MissRepl;
+  // Mark replica on file system 5 as not on disk
+  FileSystem::fsid_t miss_fsid = 5;
+  auto it = mFsckEntry->mFstFileInfo.find(miss_fsid);
+  it->second->mFstErr = eos::mgm::FstErr::NotOnDisk;
+  // Set the expectations
+  // @note the repair factory always returns the same repair job object so that
+  // we can easily set expecteations on it
+  std::shared_ptr<eos::mgm::FsckRepairJob> repair_job =
+    mFsckEntry->mRepairFactory(0, 0, 0, {}, {}, false, "none");
+  MockRepairJob* mock_job = static_cast<MockRepairJob*>(repair_job.get());
+  EXPECT_CALL(*mock_job, DoItNoExcept).Times(1);
+  EXPECT_CALL(*mock_job, GetStatus).
+  WillOnce(Return(eos::mgm::FsckRepairJob::Status::OK));
+  // Generate repair workflow and execute it
+  auto repair_ops = mFsckEntry->GenerateRepairWokflow();
+  ASSERT_FALSE(repair_ops.empty());
+
+  for (auto& fn : repair_ops) {
+    auto fn_with_obj = std::bind(fn, mFsckEntry.get());
+    ASSERT_TRUE(fn_with_obj());
+  }
+
+  // The missing replicas should no longer be registered with the MGM fmd
+  bool found = false;
+
+  for (const auto& fsid : mFsckEntry->mMgmFmd.locations()) {
+    if (fsid == miss_fsid) {
+      found = true;
+      break;
+    }
+  }
+
+  ASSERT_FALSE(found);
 }

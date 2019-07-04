@@ -39,9 +39,13 @@ EOSMGMNAMESPACE_BEGIN
 enum class FsckErr {
   None = 0x00,
   MgmXsDiff = 0x01,
-  FstXsDiff = 0x02
+  FstXsDiff = 0x02,
+  MgmSzDiff = 0x03,
+  FstSzDiff = 0x04,
+  UnregRepl = 0x05,
+  DiffRepl  = 0x06,
+  MissRepl  = 0x07
 };
-
 
 //------------------------------------------------------------------------------
 //! Types of errors that come up on the FST side
@@ -82,8 +86,17 @@ public:
 
 //! Forward declaration and aliases
 class FsckEntry;
-using RepairFnT = std::function<bool(FsckEntry*)>;
 using FsckRepairJob = eos::mgm::DrainTransferJob;
+using RepairFnT = std::function<bool(FsckEntry*)>;
+using RepairFactoryFnT =
+  std::function<std::shared_ptr<FsckRepairJob>
+  (eos::common::FileId::fileid_t fid,
+   eos::common::FileSystem::fsid_t fsid_src,
+   eos::common::FileSystem::fsid_t fsid_trg ,
+   std::set<eos::common::FileSystem::fsid_t> exclude_srcs,
+   std::set<eos::common::FileSystem::fsid_t> exclude_dsts,
+   bool drop_src,
+   const std::string& app_tag)>;
 
 //------------------------------------------------------------------------------
 //! Class FsckEntry
@@ -136,18 +149,26 @@ public:
   GenerateRepairWokflow();
 
   //----------------------------------------------------------------------------
-  //! Method to repair an mgm checksum difference error
+  //! Method to repair an mgm checksum and/or size difference error
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool RepairMgmXsDiff();
+  bool RepairMgmXsSzDiff();
 
   //----------------------------------------------------------------------------
-  //! Method to repair an FST checksum difference error
+  //! Method to repair an FST checksum and/or size difference error
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool RepairFstXsDiff();
+  bool RepairFstXsSzDiff();
+
+  //----------------------------------------------------------------------------
+  //! Method to repair replica inconsistencies e.g. unregistered replicas,
+  //! under/over replication, missing replicas
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool RepairReplicaInconsistencies();
 
 private:
 #ifdef IN_TEST_HARNESS
@@ -165,6 +186,16 @@ public:
   bool GetFstFmd(std::unique_ptr<FstFileInfoT>& finfo, XrdCl::FileSystem& fs,
                  eos::common::FileSystem::fsid_t fsid);
 
+  //----------------------------------------------------------------------------
+  //! Drop replica form FST and also update the namespace view for the given
+  //! file system id
+  //!
+  //! @param fsid file system id from where to drop the replica
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool DropReplica(eos::common::FileSystem::fsid_t fsid) const;
+
   eos::IFileMD::id_t mFid; ///< File id
   eos::common::FileSystem::fsid_t mFsidErr; ///< File system id with expected err
   FsckErr mReportedErr; ///< Reported error type
@@ -174,6 +205,8 @@ public:
       std::unique_ptr<FstFileInfoT>> mFstFileInfo;
   //! Map of fsck error to list of repair operations
   std::map<FsckErr, std::list<RepairFnT>> mMapRepairOps;
+  //! Factory callable creating fsck repair jobs
+  RepairFactoryFnT mRepairFactory;
 };
 
 EOSMGMNAMESPACE_END
