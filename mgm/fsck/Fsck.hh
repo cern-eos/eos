@@ -211,13 +211,6 @@ private:
   //! FsView.
   //----------------------------------------------------------------------------
   void AccountDarkFiles();
-
-  //----------------------------------------------------------------------------
-  //! Repair checksum errors
-  //!
-  //! @param out output string
-  //----------------------------------------------------------------------------
-  void RepairChecksumErrs(std::string& out);
 };
 
 EOSMGMNAMESPACE_END
