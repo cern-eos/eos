@@ -31,6 +31,7 @@
 #include "mgm/Macros.hh"
 
 #include <XrdOuc/XrdOucEnv.hh>
+#include <openssl/sha.h>
 
 //----------------------------------------------------------------------------
 // Check access rights

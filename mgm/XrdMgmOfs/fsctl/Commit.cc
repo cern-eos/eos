@@ -33,6 +33,7 @@
 #include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
 
 #include <XrdOuc/XrdOucEnv.hh>
+#include <openssl/sha.h>
 
 //----------------------------------------------------------------------------
 // Commit a replica
