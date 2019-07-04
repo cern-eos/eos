@@ -99,12 +99,17 @@ bool GroupHelper::ParseCommand(const char* arg)
         ls->set_outformat(eos::console::GroupProto_LsProto::IOGROUP);
       } else if (token == "--IO") {
         ls->set_outformat(eos::console::GroupProto_LsProto::IOFS);
-      } else if (!(token.find("-") == 0)) { // does not  with "-"
+      } else if (token.find("-") != 0) { // does not begin with "-"
         ls->set_selection(token);
       } else {
         return false;
       }
     }
+
+    if ( !isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO)) {
+      ls->set_dont_color(true);
+    }
+
   } else if (token == "rm") {
     if (!tokenizer.NextToken(token)) {
       return false;

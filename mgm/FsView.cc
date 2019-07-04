@@ -2784,7 +2784,7 @@ FsView::RemoveMapping(eos::common::FileSystem::fsid_t fsid, std::string fsuuid)
 void
 FsView::PrintSpaces(std::string& out, const std::string& table_format,
                     const std::string& table_mq_format, unsigned int outdepth,
-                    const char* selection, const string& filter)
+                    const char* selection, const std::string& filter, const bool dont_color)
 {
   std::vector<std::string> selections;
   std::string selected = selection ? selection : "";
@@ -2793,13 +2793,13 @@ FsView::PrintSpaces(std::string& out, const std::string& table_format,
     eos::common::StringConversion::Tokenize(selected, selections, ",");
   }
 
-  TableFormatterBase table;
+  TableFormatterBase table(dont_color);
 
   for (auto it = mSpaceView.begin(); it != mSpaceView.end(); ++it) {
     it->second->Print(table, table_format, table_mq_format, outdepth, filter);
   }
 
-  out = table.GenerateTable(HEADER, selections).c_str();
+  out = table.GenerateTable(HEADER, selections);
 }
 
 //----------------------------------------------------------------------------
@@ -2808,7 +2808,7 @@ FsView::PrintSpaces(std::string& out, const std::string& table_format,
 void
 FsView::PrintGroups(std::string& out, const std::string& table_format,
                     const std::string& table_mq_format, unsigned int outdepth,
-                    const char* selection)
+                    const char* selection, const bool dont_color)
 {
   std::vector<std::string> selections;
   std::string selected = selection ? selection : "";
@@ -2817,13 +2817,13 @@ FsView::PrintGroups(std::string& out, const std::string& table_format,
     eos::common::StringConversion::Tokenize(selected, selections, ",");
   }
 
-  TableFormatterBase table;
+  TableFormatterBase table(dont_color);
 
   for (auto it = mGroupView.begin(); it != mGroupView.end(); ++it) {
     it->second->Print(table, table_format, table_mq_format, outdepth);
   }
 
-  out =  table.GenerateTable(HEADER, selections).c_str();
+  out =  table.GenerateTable(HEADER, selections);
 }
 
 //------------------------------------------------------------------------------
@@ -2847,7 +2847,7 @@ FsView::PrintNodes(std::string& out, const std::string& table_format,
     it->second->Print(table, table_format, table_mq_format, outdepth);
   }
 
-  out = table.GenerateTable(HEADER, selections).c_str();
+  out = table.GenerateTable(HEADER, selections);
 }
 
 //------------------------------------------------------------------------------

@@ -20,6 +20,7 @@ message GroupProto {
     }
     OutFormat outformat   = 3; //
     string selection      = 4; // [<groups>]
+    bool dont_color       = 5;
   }
 
   message RmProto {

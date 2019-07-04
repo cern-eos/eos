@@ -104,7 +104,7 @@ GroupCmd::LsSubcmd(const eos::console::GroupProto_LsProto& ls,
   std::string output;
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   FsView::gFsView.PrintGroups(output, format, list_format, ls.outdepth(),
-                              ls.selection().c_str());
+                              ls.selection().c_str(), ls.dont_color());
   reply.set_std_out(output.c_str());
   reply.set_retc(0);
 }
