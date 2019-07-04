@@ -127,19 +127,26 @@ public:
   //! @param fid the file id
   //! @param fsid_src source file system id
   //! @param fsid_trg target file system id
-  //! @param exclude_srcs set of file system ids which are to be excluded as
-  //!        sources
+  //! @param exclude_srcs set of fs ids which are to be excluded as sources
+  //! @param exclude_dsts set of fs ids which are to be excluded as dest.
+  //! @param drop_src mark if source replica should be dropped if operation
+  //!        is successful (default true)
   //! @param app_tag application tag for easy classification of job types
   //----------------------------------------------------------------------------
   DrainTransferJob(eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid_src,
                    eos::common::FileSystem::fsid_t fsid_trg = 0,
                    std::set<eos::common::FileSystem::fsid_t> exclude_srcs = {},
+                   std::set<eos::common::FileSystem::fsid_t> exclude_dsts = {},
+                   bool drop_src = true,
                    const std::string& app_tag = "drainer"):
     mAppTag(app_tag), mFileId(fid), mFsIdSource(fsid_src), mFsIdTarget(fsid_trg),
-    mTxFsIdSource(fsid_src), mStatus(Status::Ready), mRainReconstruct(false)
+    mTxFsIdSource(fsid_src), mStatus(Status::Ready), mRainReconstruct(false),
+    mDropSrc(drop_src)
   {
     mTriedSrcs.insert(exclude_srcs.begin(), exclude_srcs.end());
+    mExcludeDsts.insert(mExcludeDsts.begin(), exclude_dsts.begin(),
+                        exclude_dsts.end());
   }
 
   //----------------------------------------------------------------------------
@@ -244,14 +251,10 @@ private:
   //! Select destiantion file system for current transfer
   //!
   //! @param fdrain file to drain metadata info
-  //! @param dst_exclude_fsids fsids to be excluded when scheduling the
-  //         destination
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool SelectDstFs(const FileDrainInfo& fdrain,
-                   std::vector<eos::common::FileSystem::fsid_t>&
-                   dst_exclude_fsids);
+  bool SelectDstFs(const FileDrainInfo& fdrain);
 
   //----------------------------------------------------------------------------
   //! Drain 0-size file
@@ -280,7 +283,9 @@ private:
   std::string mErrorString; ///< Error message
   std::atomic<Status> mStatus; ///< Status of the drain job
   std::set<eos::common::FileSystem::fsid_t> mTriedSrcs; ///< Tried src
-  bool mRainReconstruct; ///< Flag to mark a rain reconstruction
+  std::vector<eos::common::FileSystem::fsid_t> mExcludeDsts; ///< Excluded dest.
+  bool mRainReconstruct; ///< Mark rain reconstruction
+  bool mDropSrc; ///< Mark if source replicas should be dropped
   DrainProgressHandler mProgressHandler; ///< TPC progress handler
 };
 

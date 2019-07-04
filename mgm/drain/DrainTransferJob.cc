@@ -76,10 +76,8 @@ DrainTransferJob::DoIt() noexcept
     return;
   }
 
-  std::vector<eos::common::FileSystem::fsid_t> dst_exclude_fsids;
-
   while (true) {
-    if (!SelectDstFs(fdrain, dst_exclude_fsids)) {
+    if (!SelectDstFs(fdrain)) {
       ReportError(SSTR("msg=\"failed to select destination file system\" fxid="
                        << eos::common::FileId::Fid2Hex(mFileId)));
       UpdateMgmStats(mStatus);
@@ -420,13 +418,19 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
                << "&mgm.manager=" << gOFS->ManagerId.c_str()
                << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
                << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, "eos/draining").c_str()
-               << "&mgm.drainfsid=" << mFsIdSource
                << "&mgm.localprefix=" << dst_snapshot.mPath.c_str()
                << "&mgm.fsid=" << dst_snapshot.mId
                << "&mgm.sourcehostport=" << dst_snapshot.mHostPort.c_str()
                << "&mgm.bookingsize=" << fdrain.mProto.size()
                << "&eos.app=" << mAppTag
                << "&mgm.targetsize=" << fdrain.mProto.size();
+
+    // This is true by default for drain, but when this is set to false, we get
+    // a replication like behaviour similar to the adjustreplica command which
+    // is useful for fsck for eg.
+    if (mDropSrc) {
+      dst_params << "&mgm.drainfsid=" << mFsIdSource;
+    }
 
     if (!fdrain.mProto.checksum().empty()) {
       xs_info << "&mgm.checksum=";
@@ -486,9 +490,7 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
 // Select destiantion file system for current transfer
 //------------------------------------------------------------------------------
 bool
-DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain,
-                              std::vector<eos::common::FileSystem::fsid_t>&
-                              dst_exclude_fsids)
+DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
 {
   unsigned int nfilesystems = 1;
   unsigned int ncollocatedfs = 0;
@@ -531,7 +533,7 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain,
                "",// start from geotag
                "",// client geo tag
                ncollocatedfs,
-               &dst_exclude_fsids,
+               &mExcludeDsts,
                &fsid_geotags); // excludeGeoTags
 
   if (!res || new_repl.empty())  {
@@ -545,11 +547,11 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain,
     oss << " " << (unsigned long)(elem);
   }
 
-  eos_static_debug("msg=\"drain placement retc=%d with fsids=%s", (int)res,
+  eos_static_debug("msg=\"schedule placement retc=%d with fsids=%s", (int)res,
                    oss.str().c_str());
   // Return only one fs now
   mFsIdTarget = new_repl[0];
-  dst_exclude_fsids.push_back(mFsIdTarget);
+  mExcludeDsts.push_back(mFsIdTarget);
   return true;
 }
 

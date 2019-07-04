@@ -404,7 +404,6 @@ public:
     return (GetLayoutType(layout) > kReplica);
   }
 
-
   //--------------------------------------------------------------------------
   //! Set file layout type in the layout encoding
   //!
