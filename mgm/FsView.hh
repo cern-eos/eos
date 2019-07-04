@@ -928,15 +928,15 @@ public:
   //----------------------------------------------------------------------------
   void PrintGroups(std::string& out, const std::string& headerformat,
                    const std::string& listformat, unsigned int geodepth = 0,
-                   const char* selection = 0);
+                   const char* selection = 0, bool dont_color = false);
 
   void PrintNodes(std::string& out, const std::string& headerformat,
                   const std::string& listformat, unsigned int geodepth = 0,
-                  const char* selection = 0, const bool dont_color = false);
+                  const char* selection = 0, bool dont_color = false);
 
   void PrintSpaces(std::string& out, const std::string& headerformat,
                    const std::string& listformat, unsigned int geodepth = 0,
-                   const char* selection = 0, const std::string&  filter = "");
+                   const char* selection = 0, const std::string&  filter = "", bool dont_color = false);
 
   //----------------------------------------------------------------------------
   //! Clear all mappings and filesystem objects obtaining locks

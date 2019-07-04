@@ -20,8 +20,7 @@ message NodeProto {
     }
     OutFormat outformat   = 2; //
     string selection      = 3; // [<node>]
-    
-    bool dont_color = 4;
+    bool dont_color       = 4;
   }
 
   message RmProto {
@@ -68,8 +67,6 @@ message NodeProto {
     string node_proxygroup = 3;
   }
 
-
-  // one of { ls, rm, status, set, txgw, config, register, proxygroupadd|proxygrouprm|proxygroupclear }
   oneof subcmd {
     LsProto ls                 = 1;
     RmProto rm                 = 2;
@@ -78,8 +75,7 @@ message NodeProto {
     RegisterProto registerx    = 5;
     SetProto set               = 6;
     TxgwProto txgw             = 7;
-    ProxygroupProto proxygroup = 8; // @note
-
+    ProxygroupProto proxygroup = 8;
 
   }
 
