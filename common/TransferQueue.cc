@@ -24,7 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/TransferQueue.hh"
 #include "common/StringTokenizer.hh"
-#include <qclient/structures/QDeque.hh>
+#include <qclient/shared/SharedDeque.hh>
 #include <qclient/shared/SharedManager.hh>
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
@@ -118,9 +118,9 @@ TransferQueue::TransferQueue(const TransferQueueLocator &locator, XrdMqSharedObj
   mQsom = qsom;
 
   if(mQsom) {
-    mQDeque.reset(new qclient::QDeque(*mQsom->getQClient(), locator.getQDBKey()));
+    mSharedDeque.reset(new qclient::SharedDeque(mQsom, locator.getQDBKey()));
     if(!mSlave) {
-      mQDeque->clear();
+      mSharedDeque->clear();
     }
   }
   else if (mSom) {
@@ -177,7 +177,7 @@ TransferQueue::Add (eos::common::TransferJob* job)
 {
   bool retc = false;
   if(mQsom) {
-    return mQDeque->push_back(job->GetSealed()).ok();
+    return mSharedDeque->push_back(job->GetSealed());
   }
   else if (mSom)
   {
@@ -208,7 +208,7 @@ TransferQueue::Get ()
 {
   if(mQsom) {
     std::string sealed;
-    if(!mQDeque->pop_front(sealed).ok()) {
+    if(!mSharedDeque->pop_front(sealed)) {
       return {};
     }
 
@@ -246,7 +246,7 @@ TransferQueue::Get ()
 bool TransferQueue::Clear()
 {
   if(mQsom) {
-    return mQDeque->clear().ok();
+    return mSharedDeque->clear();
   }
   else if (mSom) {
     RWMutexReadLock lock(mSom->HashMutex);
@@ -269,7 +269,7 @@ size_t TransferQueue::Size()
 {
   if(mQsom) {
     size_t output = 0;
-    mQDeque->size(output);
+    mSharedDeque->size(output);
     return output;
   }
   else if (mSom) {
