@@ -47,7 +47,13 @@ public:
       mReq.set_comment(global_comment.c_str());
       global_comment = "";
     }
-  }
+
+    if ( !isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO)) {
+      mReq.set_dontcolor(true);
+    }
+
+
+    }
 
   //----------------------------------------------------------------------------
   //! Destructor

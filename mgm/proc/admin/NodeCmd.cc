@@ -113,7 +113,7 @@ void NodeCmd::LsSubcmd(const eos::console::NodeProto_LsProto& ls, eos::console::
 
   std::string std_out;
   eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
-  FsView::gFsView.PrintNodes(std_out, format, list_format, 0, ls.selection().c_str(), ls.dont_color());
+  FsView::gFsView.PrintNodes(std_out, format, list_format, 0, ls.selection().c_str(), mReqProto.dontcolor());
 
   reply.set_std_out(std_out.c_str());
   reply.set_retc(SFS_OK);

@@ -398,7 +398,7 @@ public:
   //----------------------------------------------------------------------------
   void Print(TableFormatterBase& table, std::string table_format,
              const std::string& table_mq_format, unsigned outdepth,
-             const std::string& filter = "");
+             const std::string& filter = "", const bool dont_color = false);
 
   //----------------------------------------------------------------------------
   //! Return all configuration keys

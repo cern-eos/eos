@@ -99,10 +99,6 @@ bool NodeHelper::ParseCommand(const char* arg)
       }
     }
 
-    if ( !isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO)) {
-      ls->set_dont_color(true);
-    }
-
   }
   else if (token == "rm") {
     if (!tokenizer.NextToken(token)) return false;

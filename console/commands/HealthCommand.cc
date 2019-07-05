@@ -127,7 +127,7 @@ void HealthCommand::DeadNodesCheck()
   std::istringstream splitter(ret);
   std::string format_s = !m_monitoring ? "s" : "os";
   std::string format_ss = !m_monitoring ? "-s" : "os";
-  eos::mgm::TableFormatterBase table;
+  eos::mgm::TableFormatterBase table(!isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO));
 
   if (!m_monitoring) {
     table.SetHeader({
@@ -173,7 +173,7 @@ void HealthCommand::TooFullForDrainingCheck()
   std::string format_ss = !m_monitoring ? "-s" : "os";
   std::string format_l = !m_monitoring ? "+l" : "ol";
   std::string unit = !m_monitoring ? "B" : "";
-  eos::mgm::TableFormatterBase table;
+  eos::mgm::TableFormatterBase table(!isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO));
 
   if (!m_monitoring) {
     table.SetHeader({
@@ -242,7 +242,7 @@ void HealthCommand::PlacementContentionCheck()
   std::string format_ss = !m_monitoring ? "-s" : "os";
   std::string format_l = !m_monitoring ? "l" : "ol";
   std::string unit = !m_monitoring ? "%" : "";
-  eos::mgm::TableFormatterBase table;
+  eos::mgm::TableFormatterBase table(!isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO));
 
   if (!m_monitoring) {
     table.SetHeader({
@@ -328,7 +328,7 @@ void HealthCommand::PlacementContentionCheck()
   m_output << table.GenerateTable(HEADER).c_str();
   //! Summary
   avg /= m_group_data.size();
-  eos::mgm::TableFormatterBase table_summ;
+  eos::mgm::TableFormatterBase table_summ(!isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO));
 
   if (!m_monitoring) {
     table_summ.SetHeader({

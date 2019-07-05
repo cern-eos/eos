@@ -73,15 +73,13 @@ public:
                             const TableString& selections = TableString());
 
 
-
-  bool mDontColor;
-
-
 protected:
   std::stringstream mSink;
   TableHeader mHeader;
   TableData mData;
   TableString mString;
+  bool mDontColor;
+
 
   //----------------------------------------------------------------------------
   //! Set cell color
