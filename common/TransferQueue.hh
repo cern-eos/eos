@@ -46,7 +46,7 @@
 
 namespace qclient {
   class SharedManager;
-  class QDeque;
+  class SharedDeque;
 }
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -116,7 +116,7 @@ private:
   //----------------------------------------------------------------------------
   XrdMqSharedObjectManager* mSom;
   qclient::SharedManager* mQsom;
-  std::unique_ptr<qclient::QDeque> mQDeque;
+  std::unique_ptr<qclient::SharedDeque> mSharedDeque;
 
   //----------------------------------------------------------------------------
   //! Count number of jobs executed + mutex
