@@ -2796,7 +2796,7 @@ FsView::PrintSpaces(std::string& out, const std::string& table_format,
   TableFormatterBase table(dont_color);
 
   for (auto it = mSpaceView.begin(); it != mSpaceView.end(); ++it) {
-    it->second->Print(table, table_format, table_mq_format, outdepth, filter);
+    it->second->Print(table, table_format, table_mq_format, outdepth, filter, dont_color);
   }
 
   out = table.GenerateTable(HEADER, selections);
@@ -2820,10 +2820,10 @@ FsView::PrintGroups(std::string& out, const std::string& table_format,
   TableFormatterBase table(dont_color);
 
   for (auto it = mGroupView.begin(); it != mGroupView.end(); ++it) {
-    it->second->Print(table, table_format, table_mq_format, outdepth);
+    it->second->Print(table, table_format, table_mq_format, outdepth, std::string(""), dont_color);
   }
 
-  out =  table.GenerateTable(HEADER, selections);
+  out = table.GenerateTable(HEADER, selections);
 }
 
 //------------------------------------------------------------------------------
@@ -2844,7 +2844,7 @@ FsView::PrintNodes(std::string& out, const std::string& table_format,
   TableFormatterBase table(dont_color);
 
   for (auto it = mNodeView.begin(); it != mNodeView.end(); ++it) {
-    it->second->Print(table, table_format, table_mq_format, outdepth);
+    it->second->Print(table, table_format, table_mq_format, outdepth, std::string(""),dont_color);
   }
 
   out = table.GenerateTable(HEADER, selections);
@@ -3456,12 +3456,12 @@ BaseView::ConsiderCount(bool lock,
 void
 BaseView::Print(TableFormatterBase& table, std::string table_format,
                 const std::string& table_mq_format, unsigned outdepth,
-                const std::string& filter)
+                const std::string& filter, const bool dont_color)
 {
   // Since we don't display the members with geodepth option, we proceed with
   // the non geodepth display first.
   if (outdepth > 0) {
-    Print(table, table_format, table_mq_format, 0);
+    Print(table, table_format, table_mq_format, 0, filter, dont_color);
 
     // We force-print the header
     if (table_format.find("header=1") == std::string::npos) {
@@ -3777,7 +3777,8 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
 
   if (outdepth > 0) {
     // Print table for geotag
-    TableFormatterBase table_geo;
+//    TableFormatterBase table_geo;
+    TableFormatterBase table_geo(dont_color);
     table_geo.SetHeader(table_header);
     table_geo.AddRows(table_data);
     table.AddString(table_geo.GenerateTable(HEADER).c_str());
@@ -3806,7 +3807,8 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
     if (table_format.length() && table_mq_format.length()) {
       table.SetHeader(table_header);
       table.AddRows(table_data);
-      TableFormatterBase table_mq;
+//      TableFormatterBase table_mq;
+      TableFormatterBase table_mq(dont_color);
       table_mq.SetHeader(table_mq_header);
       table_mq.AddRows(table_mq_data);
       table.AddString(table_mq.GenerateTable(HEADER).c_str());

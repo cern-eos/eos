@@ -46,7 +46,8 @@ message RequestProto {
     NodeProto node         = 14;
   }
 
-
-
   string Comment = 30;
+
+  bool DontColor = 31; // It should be set if the output fd is not a tty. If true, do not beautify the output.
+
 }

@@ -347,7 +347,7 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto)
 std::string
 eos::mgm::FsCmd::List(const eos::console::FsProto::LsProto& lsProto)
 {
-  using eos::console::FsProto_LsProto;;
+  using eos::console::FsProto_LsProto;
   std::string output;
 
   // Handle listing of drain jobs
@@ -397,7 +397,7 @@ eos::mgm::FsCmd::List(const eos::console::FsProto::LsProto& lsProto)
 
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   FsView::gFsView.PrintSpaces(output, "", listFormat, 0,
-                              lsProto.matchlist().c_str(), displayModeString, lsProto.dontcolor());
+                              lsProto.matchlist().c_str(), displayModeString, mReqProto.dontcolor());
   return output;
 }
 

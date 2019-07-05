@@ -20,7 +20,6 @@ message NodeProto {
     }
     OutFormat outformat   = 2; //
     string selection      = 3; // [<node>]
-    bool dont_color       = 4;
   }
 
   message RmProto {

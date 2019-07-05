@@ -29,7 +29,7 @@ EOSMGMNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 TableFormatterBase::TableFormatterBase()
-  : mDontColor(false), mSink("")
+  : mSink(""), mDontColor(false)
 {
 }
 
@@ -237,9 +237,11 @@ bool TableFormatterBase::GenerateBody(const TableString& selections)
           output << mBorderBody[0];
         }
 
-        // Change color of cell
-        row[i].SetColor(ChangeColor(std::get<0>(mHeader[i]), row[i].Str()));
-        
+        if (!mDontColor) {
+          // Change color of cell
+          row[i].SetColor(ChangeColor(std::get<0>(mHeader[i]), row[i].Str()));
+        }
+
         // Generate tree
         unsigned tree = row[i].Tree();
         if (1 <= tree && tree <= 7) {

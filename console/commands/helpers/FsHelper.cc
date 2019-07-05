@@ -411,11 +411,6 @@ FsHelper::ParseCommand(const char* arg)
     using eos::console::FsProto_LsProto;
     FsProto_LsProto* ls = fs->mutable_ls();
 
-    if ( !isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO)) {
-      ls->set_dontcolor(true);
-    }
-
-
     if ((option = tokenizer.GetToken())) {
       int exclusive_opt = 0;
 
