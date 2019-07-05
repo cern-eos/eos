@@ -267,7 +267,12 @@ bool TransferQueue::Clear()
 //------------------------------------------------------------------------------
 size_t TransferQueue::Size()
 {
-  if (mSom) {
+  if(mQsom) {
+    size_t output = 0;
+    mQDeque->size(output);
+    return output;
+  }
+  else if (mSom) {
     RWMutexReadLock lock(mSom->HashMutex);
     XrdMqSharedQueue* hashQueue = (XrdMqSharedQueue*) mSom->GetQueue(
                                   mFullQueue.c_str());
