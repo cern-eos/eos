@@ -132,6 +132,7 @@ add_library(
   proc/admin/NodeCmd.cc proc/admin/NodeCmd.hh
   proc/admin/NsCmd.cc
   proc/admin/Quota.cc
+  proc/admin/QuotaCmd.cc proc/admin/QuotaCmd.hh
   proc/admin/Rtlog.cc
   proc/admin/Space.cc
   proc/admin/StagerRmCmd.cc proc/admin/StagerRmCmd.hh

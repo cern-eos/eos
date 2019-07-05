@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//com node
 #include "console/ConsoleMain.hh"
 #include "common/StringTokenizer.hh"
 #include "console/commands/ICmdHelper.hh"

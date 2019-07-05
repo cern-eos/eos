@@ -91,6 +91,7 @@ add_library(
   commands/com_pwd.cc
   commands/com_quit.cc
   commands/com_quota.cc
+  commands/com_proto_quota.cc
   commands/com_reconnect.cc
   commands/com_rmdir.cc
   commands/com_role.cc
