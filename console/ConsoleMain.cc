@@ -91,12 +91,12 @@ extern int com_member(char*);
 extern int com_mkdir(char*);
 extern int com_motd(char*);
 extern int com_mv(char*);
-//extern int com_node(char*);
 extern int com_protonode(char*);
 extern int com_ns(char*);
 extern int com_pwd(char*);
 extern int com_quit(char*);
-extern int com_quota(char*);
+//extern int com_quota(char*);
+extern int com_protoquota(char*);
 extern int com_reconnect(char*);
 extern int com_protorecycle(char*);
 extern int com_rm(char*);
@@ -163,12 +163,12 @@ COMMAND commands[] = {
   { (char*) "mkdir", com_mkdir, (char*) "Create a directory"},
   { (char*) "motd", com_motd, (char*) "Message of the day"},
   { (char*) "mv", com_mv, (char*) "Rename file or directory"},
-  //{ (char*) "node", com_node, (char*) "Node configuration"},
   { (char*) "node", com_protonode, (char*) "Node configuration"},
   { (char*) "ns", com_ns, (char*) "Namespace Interface"},
   { (char*) "pwd", com_pwd, (char*) "Print working directory"},
   { (char*) "quit", com_quit, (char*) "Exit from EOS console"},
-  { (char*) "quota", com_quota, (char*) "Quota System configuration"},
+//  { (char*) "quota", com_quota, (char*) "Quota System configuration"},
+  { (char*) "quota", com_protoquota, (char*) "Quota System configuration"},
   { (char*) "reconnect", com_reconnect, (char*) "Forces a re-authentication of the shell"},
   { (char*) "recycle", com_protorecycle, (char*) "Recycle Bin Functionality"},
   { (char*) "rmdir", com_rmdir, (char*) "Remove a directory"},
