@@ -56,6 +56,14 @@ DrainTransferJob::DoIt() noexcept
   gOFS->MgmStats.Add("DrainCentralStarted", 0, 0, 1);
   eos_debug_lite("msg=\"running drain job\" fsid_src=%i, fsid_dst=%i, fid=%08llx",
                  mFsIdSource.load(), mFsIdTarget.load(), mFileId);
+
+  if (mProgressHandler.ShouldCancel(0)) {
+    gOFS->MgmStats.Add("DrainCentralFailed", 0, 0, 1);
+    ReportError(SSTR("msg=\"job cancelled before starting\" fid="
+                     << eos::common::FileId::Fid2Hex(mFileId)));
+    return;
+  }
+
   mStatus = Status::Running;
   FileDrainInfo fdrain;
 
@@ -72,7 +80,8 @@ DrainTransferJob::DoIt() noexcept
   while (true) {
     if (!SelectDstFs(fdrain, dst_exclude_fsids)) {
       gOFS->MgmStats.Add("DrainCentralFailed", 0, 0, 1);
-      ReportError("msg=\"failed to select destination file system\"");
+      ReportError(SSTR("msg=\"failed to select destination file system\" fid="
+                       << eos::common::FileId::Fid2Hex(mFileId)));
       return;
     }
 
@@ -264,7 +273,6 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
       if ((id != mFsIdSource) && (mTriedSrcs.find(id) == mTriedSrcs.end())) {
         mTriedSrcs.insert(id);
         eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-
         FileSystem* fs = FsView::gFsView.mIdView.lookupByID(id);
 
         if (fs) {
@@ -509,7 +517,8 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain,
   std::vector<FileSystem::fsid_t> new_repl;
   eos::common::FileSystem::fs_snapshot source_snapshot;
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-  eos::common::FileSystem* source_fs = FsView::gFsView.mIdView.lookupByID(mFsIdSource);
+  eos::common::FileSystem* source_fs = FsView::gFsView.mIdView.lookupByID(
+                                         mFsIdSource);
 
   if (source_fs == nullptr) {
     return false;
