@@ -71,9 +71,16 @@ class ThreadJob(threading.Thread):
         proc = client.CopyProcess()
 
         for job in self.lst_jobs:
+            # If file is 0-size then we do a normal copy, otherwise we enforce
+            # a TPC transfer
+            tpc_flag = "none"
+
+            if (int(job[2]) != 0):
+                tpc_flag = "only"
+
             # TODO: use the parallel mode starting with XRootD 4.1
             proc.add_job(job[0].encode("utf-8"), job[1].encode("utf-8"),
-                         force=True, thirdparty="only", tpctimeout=3600)
+                         force=True, thirdparty=tpc_flag, tpctimeout=3600)
 
         self.xrd_status = proc.prepare()
 
@@ -594,11 +601,12 @@ class Transfer(object):
             msg = "copy file {0}/{1}".format(indx_file, self.archive.header['num_files'])
             self.set_status(msg)
             src, dst = self.archive.get_endpoints(fentry[1])
+            dfile = dict(zip(self.archive.header['file_meta'], fentry[2:]))
 
             # Copy file
             if not self.archive.d2t:
                 # For GET we also have the dictionary with the metadata
-                dfile = dict(zip(self.archive.header['file_meta'], fentry[2:]))
+
                 dst = ''.join([dst, "?eos.ctime=", dfile['ctime'],
                                "&eos.mtime=", dfile['mtime'],
                                "&eos.bookingsize=", dfile['size'],
@@ -634,7 +642,7 @@ class Transfer(object):
                 src = ''.join([src, "?eos.ruid=0&eos.rgid=0&eos.app=archive"])
 
             self.logger.info("Copying from {0} to {1}".format(src, dst))
-            self.list_jobs.append((src, dst))
+            self.list_jobs.append((src, dst, dfile['size']))
 
             if len(self.list_jobs) >= self.config.BATCH_SIZE:
                 st = self.flush_files(False)
