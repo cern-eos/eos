@@ -1166,7 +1166,6 @@ protected:
   //
   struct LatencySubSys {
     std::vector<tLatencyStats> pFsId2LatencyStats;
-    std::map<std::string, tLatencyStats> pHost2LatencyStats;
     std::vector<size_t> pCircFrCnt2Timestamp;
     // Constructor
     LatencySubSys(const size_t& circSize) :
