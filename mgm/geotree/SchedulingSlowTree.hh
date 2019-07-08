@@ -206,12 +206,11 @@ public:
                TableFormatterColor, unsigned, unsigned, std::string, std::string,
                int, int, std::string>>& data_tree, unsigned& geo_depth_max, bool useColors = false);
   void displayAccess(std::set<std::tuple<unsigned, unsigned, unsigned,
-                     unsigned, std::string, std::string>>& data_access, 
+                     unsigned, std::string, std::string>>& data_access,
                      unsigned& geo_depth_max);
 
   bool buildFastStrcturesSched(
     FastPlacementTree* fpt, FastROAccessTree* froat, FastRWAccessTree* frwat,
-    FastBalancingPlacementTree* fbpt, FastBalancingAccessTree* fbat,
     FastDrainingPlacementTree* fdpt, FastDrainingAccessTree* fdat,
     FastTreeInfo* fastinfo, Fs2TreeIdxMap* fs2idx,
     GeoTag2NodeIdxMap* geo2node) const;

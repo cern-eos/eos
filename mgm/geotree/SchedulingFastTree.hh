@@ -1031,27 +1031,6 @@ public:
 typedef AccessPriorityRandWeightEvaluator
 DrainingAccessPriorityRandWeightEvaluator;
 
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Functor Class to define relative priorities of branches in
- *        the fast tree for file access in balancing.
- *        It's the same as the general file access case
- *
- */
-/*----------------------------------------------------------------------------*/
-typedef ROAccessPriorityComparator BalancingAccessPriorityComparator;
-
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Functor Class to define relative weights of branches in the tree
- *        having the same priority. This weight is used for file access in
- *        balancing. It's the same as the general file access case
- *
- */
-/*----------------------------------------------------------------------------*/
-typedef AccessPriorityRandWeightEvaluator
-BalancingAccessPriorityRandWeightEvaluator;
-
 template<typename FsDataMemberForRand, typename FsAndFileDataComparerForBranchSorting, typename FsIdType>
 struct FastTreeBranchComparator;
 template<typename FsDataMemberForRand, typename FsAndFileDataComparerForBranchSorting, typename FsIdType>
@@ -2604,23 +2583,6 @@ FastDrainingPlacementTree;
 /*----------------------------------------------------------------------------*/
 typedef FastTree<DrainingAccessPriorityRandWeightEvaluator, DrainingAccessPriorityComparator>
 FastDrainingAccessTree;
-
-/*----------------------------------------------------------------------------*/
-/**
- * @brief FastTree instantiation for balancing replica placement.
- *
- */
-/*----------------------------------------------------------------------------*/
-typedef FastTree<BalancingPlacementPriorityRandWeightEvaluator, BalancingPlacementPriorityComparator>
-FastBalancingPlacementTree;
-
-/**
- * @brief FastTree instantiation for balancing replica access.
- *
- */
-/*----------------------------------------------------------------------------*/
-typedef FastTree<BalancingAccessPriorityRandWeightEvaluator, BalancingAccessPriorityComparator>
-FastBalancingAccessTree;
 
 /**
  * @brief FastTree instantiation for gateway selection

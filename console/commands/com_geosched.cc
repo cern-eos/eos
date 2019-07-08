@@ -36,9 +36,8 @@ com_geosched(char* arg1)
   eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString cmd = subtokenizer.GetToken();
-  std::set<std::string> supportedParam = {"skipSaturatedPlct", "skipSaturatedAccess",
+  std::set<std::string> supportedParam = {"skipSaturatedAccess",
                                           "skipSaturatedDrnAccess", "skipSaturatedBlcAccess",
-                                          "skipSaturatedDrnPlct", "skipSaturatedBlcPlct",
                                           "plctDlScorePenalty", "plctUlScorePenalty",
                                           "accessDlScorePenalty", "accessUlScorePenalty",
                                           "fillRatioLimit", "fillRatioCompTol", "saturationThres",
@@ -303,7 +302,7 @@ com_geosched_usage:
   fprintf(stdout, "       geosched show [-c|-m] snapshot [{<scheduling group>,*} [<optype>]] :  show snapshots of scheduling trees\n");
   fprintf(stdout, "                                                                          :  if <scheduling group> is specified only the snapshot(s) for this group is/are shown. If it's not all, the snapshots for all the groups are shown.\n");
   fprintf(stdout, "                                                                          :  if <optype> is specified only the snapshot for this operation is shown. If it's not, the snapshots for all the optypes are shown.\n");
-  fprintf(stdout, "                                                                          :  <optype> can be one of the folowing plct,accsro,accsrw,accsdrain,plctdrain,accsblc,plctblc\n");
+  fprintf(stdout, "                                                                          :  <optype> can be one of the folowing plct,accsro,accsrw,accsdrain,plctdrain\n");
   fprintf(stdout, "                                                                          :  '-c' enables color display\n");
   fprintf(stdout, "                                                                          :  '-m' list in monitoring format\n");
   fprintf(stdout, "       geosched show param                                                :  show internal parameters\n");

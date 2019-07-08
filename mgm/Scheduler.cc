@@ -280,10 +280,6 @@ int Scheduler::FileAccess(AccessArguments* args)
   }
 
   // make sure we have the matching geo location before the not matching one
-  if (args->schedtype == balancing) {
-    st = GeoTreeEngine::balancing;
-  }
-
   if (!args->tried_cgi->empty()) {
     std::vector<std::string> hosts;
 

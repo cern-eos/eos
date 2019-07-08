@@ -284,10 +284,8 @@ class GeoTreeEngine : public eos::common::LogId
   struct FastStructSched {
     FastROAccessTree* rOAccessTree;
     FastRWAccessTree* rWAccessTree;
-    FastBalancingAccessTree* blcAccessTree;
     FastDrainingAccessTree* drnAccessTree;
     FastPlacementTree* placementTree;
-    FastBalancingPlacementTree* blcPlacementTree;
     FastDrainingPlacementTree* drnPlacementTree;
     SchedTreeBase::FastTreeInfo* treeInfo;
     Fs2TreeIdxMap* fs2TreeIdx;
@@ -300,14 +298,10 @@ class GeoTreeEngine : public eos::common::LogId
       rOAccessTree->selfAllocate(FastROAccessTree::sGetMaxNodeCount());
       rWAccessTree = new FastRWAccessTree;
       rWAccessTree->selfAllocate(FastRWAccessTree::sGetMaxNodeCount());
-      blcAccessTree = new FastBalancingAccessTree;
-      blcAccessTree->selfAllocate(FastBalancingAccessTree::sGetMaxNodeCount());
       drnAccessTree = new FastDrainingAccessTree;
       drnAccessTree->selfAllocate(FastDrainingAccessTree::sGetMaxNodeCount());
       placementTree = new FastPlacementTree;
       placementTree->selfAllocate(FastPlacementTree::sGetMaxNodeCount());
-      blcPlacementTree = new FastBalancingPlacementTree;
-      blcPlacementTree->selfAllocate(FastBalancingPlacementTree::sGetMaxNodeCount());
       drnPlacementTree = new FastDrainingPlacementTree;
       drnPlacementTree->selfAllocate(FastDrainingPlacementTree::sGetMaxNodeCount());
       treeInfo = new SchedTreeBase::FastTreeInfo;
@@ -317,18 +311,14 @@ class GeoTreeEngine : public eos::common::LogId
       fs2TreeIdx->selfAllocate(SchedTreeBase::sGetMaxNodeCount());
       rOAccessTree->pFs2Idx
         = rWAccessTree->pFs2Idx
-          = blcAccessTree->pFs2Idx
             = drnAccessTree->pFs2Idx
               = placementTree->pFs2Idx
-                = blcPlacementTree->pFs2Idx
                   = drnPlacementTree->pFs2Idx
                     = fs2TreeIdx;
       rOAccessTree->pTreeInfo
         = rWAccessTree->pTreeInfo
-          = blcAccessTree->pTreeInfo
             = drnAccessTree->pTreeInfo
               = placementTree->pTreeInfo
-                = blcPlacementTree->pTreeInfo
                   = drnPlacementTree->pTreeInfo
                     = treeInfo;
       tag2NodeIdx = new GeoTag2NodeIdxMap;
@@ -345,20 +335,12 @@ class GeoTreeEngine : public eos::common::LogId
         delete rWAccessTree;
       }
 
-      if (blcAccessTree) {
-        delete blcAccessTree;
-      }
-
       if (drnAccessTree) {
         delete drnAccessTree;
       }
 
       if (placementTree) {
         delete placementTree;
-      }
-
-      if (blcPlacementTree) {
-        delete blcPlacementTree;
       }
 
       if (drnPlacementTree) {
@@ -387,10 +369,8 @@ class GeoTreeEngine : public eos::common::LogId
       if (
         rOAccessTree->copyToFastTree(target->rOAccessTree) ||
         rWAccessTree->copyToFastTree(target->rWAccessTree) ||
-        blcAccessTree->copyToFastTree(target->blcAccessTree) ||
         drnAccessTree->copyToFastTree(target->drnAccessTree) ||
         placementTree->copyToFastTree(target->placementTree) ||
-        blcPlacementTree->copyToFastTree(target->blcPlacementTree) ||
         drnPlacementTree->copyToFastTree(target->drnPlacementTree)
       ) {
         return false;
@@ -411,18 +391,14 @@ class GeoTreeEngine : public eos::common::LogId
       // update the information in the FastTrees to point to the copy
       target->rOAccessTree->pFs2Idx
         = target->rWAccessTree->pFs2Idx
-          = target->blcAccessTree->pFs2Idx
             = target->drnAccessTree->pFs2Idx
               = target->placementTree->pFs2Idx
-                = target->blcPlacementTree->pFs2Idx
                   = target->drnPlacementTree->pFs2Idx
                     = target->fs2TreeIdx;
       target->rOAccessTree->pTreeInfo
         = target->rWAccessTree->pTreeInfo
-          = target->blcAccessTree->pTreeInfo
             = target->drnAccessTree->pTreeInfo
               = target->placementTree->pTreeInfo
-                = target->blcPlacementTree->pTreeInfo
                   = target->drnPlacementTree->pTreeInfo
                     = target->treeInfo;
       return true;
@@ -432,10 +408,8 @@ class GeoTreeEngine : public eos::common::LogId
     {
       rOAccessTree->updateTree();
       rWAccessTree->updateTree();
-      blcAccessTree->updateTree();
       drnAccessTree->updateTree();
       placementTree->updateTree();
-      blcPlacementTree->updateTree();
       drnPlacementTree->updateTree();
     }
 
@@ -457,11 +431,9 @@ class GeoTreeEngine : public eos::common::LogId
     {
       AtomicSub(placementTree->pNodes[idx].fsData.dlScore, penalty);
       AtomicSub(drnPlacementTree->pNodes[idx].fsData.dlScore, penalty);
-      AtomicSub(blcPlacementTree->pNodes[idx].fsData.dlScore, penalty);
       AtomicSub(rOAccessTree->pNodes[idx].fsData.dlScore, penalty);
       AtomicSub(rWAccessTree->pNodes[idx].fsData.dlScore, penalty);
       AtomicSub(drnAccessTree->pNodes[idx].fsData.dlScore, penalty);
-      AtomicSub(blcAccessTree->pNodes[idx].fsData.dlScore, penalty);
 
       if (!background) {
         AtomicAdd((*penalties)[idx].dlScorePenalty, penalty);
@@ -474,11 +446,9 @@ class GeoTreeEngine : public eos::common::LogId
     {
       AtomicSub(placementTree->pNodes[idx].fsData.ulScore, penalty);
       AtomicSub(drnPlacementTree->pNodes[idx].fsData.ulScore, penalty);
-      AtomicSub(blcPlacementTree->pNodes[idx].fsData.ulScore, penalty);
       AtomicSub(rOAccessTree->pNodes[idx].fsData.ulScore, penalty);
       AtomicSub(rWAccessTree->pNodes[idx].fsData.ulScore, penalty);
       AtomicSub(drnAccessTree->pNodes[idx].fsData.ulScore, penalty);
-      AtomicSub(blcAccessTree->pNodes[idx].fsData.ulScore, penalty);
 
       if (!background) {
         AtomicAdd((*penalties)[idx].ulScorePenalty, penalty);
@@ -504,7 +474,6 @@ class GeoTreeEngine : public eos::common::LogId
     {
       return slowTree->buildFastStrcturesSched(
                placementTree , rOAccessTree, rWAccessTree,
-               blcPlacementTree , blcAccessTree,
                drnPlacementTree , drnAccessTree,
                treeInfo , fs2TreeIdx, tag2NodeIdx
              );
@@ -523,13 +492,9 @@ class GeoTreeEngine : public eos::common::LogId
       rOAccessTree->setSaturationThreshold(saturationThres);
       rWAccessTree->setSaturationThreshold(saturationThres);
       drnAccessTree->setSaturationThreshold(saturationThres);
-      blcAccessTree->setSaturationThreshold(saturationThres);
       placementTree->setSaturationThreshold(saturationThres);
       placementTree->setSpreadingFillRatioCap(fillRatioLimit);
       placementTree->setFillRatioCompTol(fillRatioCompTol);
-      blcPlacementTree->setSaturationThreshold(saturationThres);
-      blcPlacementTree->setSpreadingFillRatioCap(fillRatioLimit);
-      blcPlacementTree->setFillRatioCompTol(fillRatioCompTol);
       drnPlacementTree->setSaturationThreshold(saturationThres);
       drnPlacementTree->setSpreadingFillRatioCap(fillRatioLimit);
       drnPlacementTree->setFillRatioCompTol(fillRatioCompTol);
@@ -993,7 +958,7 @@ class GeoTreeEngine : public eos::common::LogId
   /// enum holding the possible operations
 public:
   enum SchedType
-  { regularRO, regularRW, balancing, draining};
+  { regularRO, regularRW, draining};
 
 protected:
 //**********************************************************
@@ -1787,7 +1752,6 @@ public:
   {
     // by default, disable all the placement operations for non geotagged fs
     addDisabledBranch("*", "plct", "nogeotag", NULL, false);
-    addDisabledBranch("*", "accsblc", "nogeotag", NULL, false);
     addDisabledBranch("*", "accsdrain", "nogeotag", NULL, false);
     // set blocking mutexes for lower latencies
     pAddRmFsMutex.SetBlocking(true);
@@ -2116,7 +2080,7 @@ public:
   // @param group
   //   group name or "*"
   // @param optype
-  //   "*" or one of the following plct,accsro,accsrw,accsdrain,plctdrain,accsblc,plctblc
+  //   "*" or one of the following plct,accsro,accsrw,accsdrain,plctdrain
   // @param geotag
   //   geotag of the branch to disable
   // @param output
@@ -2132,7 +2096,7 @@ public:
   // @param group
   //   group name or "*"
   // @param optype
-  //   "*" or one of the following plct,accsro,accsrw,accsdrain,plctdrain,accsblc,plctblc
+  //   "*" or one of the following plct,accsro,accsrw,accsdrain,plctdrain
   // @param geotag
   //   geotag of the branch to disable
   // @param output
@@ -2148,7 +2112,7 @@ public:
   // @param group
   //   group name or "*"
   // @param optype
-  //   "*" or one of the following plct,accsro,accsrw,accsdrain,plctdrain,accsblc,plctblc
+  //   "*" or one of the following plct,accsro,accsrw,accsdrain,plctdrain
   // @param geotag
   //   geotag of the branch to disable
   // @param output

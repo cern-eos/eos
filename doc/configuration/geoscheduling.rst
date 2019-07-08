@@ -9,7 +9,7 @@ File Geoscheduling
 Overview
 --------
 
-The EOS file scheduler is a core component of EOS which decides on which filesystems to place or access files. 
+The EOS file scheduler is a core component of EOS which decides on which filesystems to place or access files.
 This decision is based on:
 
 * the geotag of each filesystem
@@ -19,15 +19,15 @@ This decision is based on:
 * several admin-defined internal parameters
 * several admin-defined or user-defined directory attributes
 
-This information is structured under the form of so-called *scheduling trees* 
+This information is structured under the form of so-called *scheduling trees*
 -the shape of the trees being given by the geotags of the filesystems-.
 There is one *scheduling tree* by scheduling group.
- 
+
 The file scheduler is a stateful component of which state is continuously updated to reflect the state of all
 the filesystems involved in the instance.
 
-The file scheduler is involved in ALL the file access/placement operations including file access/placement from clients, 
-space balancing and filesystem draining.  
+The file scheduler is involved in ALL the file access/placement operations including file access/placement from clients,
+space balancing and filesystem draining.
 
 The interaction with the file geoscheduling is three-folded:
 
@@ -37,13 +37,13 @@ The interaction with the file geoscheduling is three-folded:
 
 Interacting with the GeoTreeEngine using the geosched command
 -------------------------------------------------------------
-The GeoTreeEngine is a software component inside EOS in charge of keeping a consistent 
+The GeoTreeEngine is a software component inside EOS in charge of keeping a consistent
 up-to-date view of each scheduling group. For each scheduling group, this view is summarized into
 a *scheduling tree* and multiple *snapshots* of this scheduling tree, one for each type of access/placement operation.
 These snapshots are then copied and used to serve all the file access/placement requests.
 To achieve its tasks, the GeoTreeEngine has several features including:
 
-* a background *updater* which keeps snapshots and trees up-to-date. It updates snapshots and, only when needed, trees. Only when it is ultimately necessary, the updates on the snapshots are backported to the trees. It happens when a filesystem is added or removed from a scheduling group. So in general, snapshots have fresher information than trees. This is perfectly normal. 
+* a background *updater* which keeps snapshots and trees up-to-date. It updates snapshots and, only when needed, trees. Only when it is ultimately necessary, the updates on the snapshots are backported to the trees. It happens when a filesystem is added or removed from a scheduling group. So in general, snapshots have fresher information than trees. This is perfectly normal.
 * a *penalty system* which makes sure that some filesystems cannot be over-scheduled in bursts of requests. Atomic penalties can be self-estimated or fixed. These penalties are subtracted from the *dlscore* and the *ulscore* of the scheduled fs.
 * a *latency estimation system* which estimates how fresh is the information the state of the GeoTreeEngine is based on.
 
@@ -54,25 +54,22 @@ The commands
 ::
 
    geosched show param
-   
+
 and
 
 ::
 
    geosched set
-   
+
 allow to view and set internal parameters of the GeoTreeEngine.
 
 .. code-block:: bash
 
    EOS Console [root://localhost] |/eos/demo/> geosched show param
    ### GeoTreeEngine parameters :
-   skipSaturatedPlct = 0
    skipSaturatedAccess = 1
    skipSaturatedDrnAccess = 1
    skipSaturatedBlcAccess = 1
-   skipSaturatedDrnPlct = 0
-   skipSaturatedBlcPlct = 0
    penaltyUpdateRate = 1
    plctDlScorePenalty = 10(default) | 10(1Gbps) | 10(10Gbps) | 10(100Gbps) | 10(1000Gbps)
    plctUlScorePenalty = 10(defaUlt) | 10(1Gbps) | 10(10Gbps) | 10(100Gbps) | 10(1000Gbps)
@@ -86,24 +83,21 @@ allow to view and set internal parameters of the GeoTreeEngine.
    default.0 , default.1 , default.10 , default.11 , default.12 , default.13
    default.14 , default.15 , default.16 , default.17 , default.18 , default.19
    default.2 , default.20 , default.21 , default.22 , default.3 , default.4
-   default.5 , default.6 , default.7 , default.8 , default.9 , 
+   default.5 , default.6 , default.7 , default.8 , default.9 ,
 
 Here follows the list of these parameters.
 
 .. epigraph::
-  
+
    ========================= ======================================================================
    parameter                 definition
    ========================= ======================================================================
-   *skipSaturatedPlct*       if 0, select the optimal fs for placement regardless of the fact it is IO-saturated. if 1, try to find an IO-unsaturated fs first and then fallback onto saturated fs.
    *skipSaturatedAccess*     as *skipSaturatedPlct* but for access
-   *skipSaturatedDrnPlct*    as *skipSaturatedPlct* but for draining placement
    *skipSaturatedDrnAccess*  as *skipSaturatedPlct* but for draining access
-   *skipSaturatedBlcPlct*    as *skipSaturatedPlct* but for balancing placement
    *skipSaturatedBlcAccess*  as *skipSaturatedPlct* but for balancing access
-   *penaltyUpdateRate*       weight of the penalty update at each time Frame. **0 means penalties are fixed**, 100 means that new values are estimated for each time frame regardless of the past. This parameter is used to ensure some stability for the penalties when they are self-estimated. 
+   *penaltyUpdateRate*       weight of the penalty update at each time Frame. **0 means penalties are fixed**, 100 means that new values are estimated for each time frame regardless of the past. This parameter is used to ensure some stability for the penalties when they are self-estimated.
    *plctDlScorePenalty*      atomic penalty applied to a fs download score on any type of placement operation. It is a vector indexed by the networking speed class of the file system.
-   *plctUlScorePenalty*      as *plctDlScorePenalty* but for the upload score 
+   *plctUlScorePenalty*      as *plctDlScorePenalty* but for the upload score
    *accessDlScorePenalty*    as *plctDlScorePenalty* but for access operations.
    *accessUlScorePenalty*    as *accessDlScorePenalty* but for the upload score
    *fillRatioLimit*          fill ratio above which a filesystem should not be used for a placement or a RW access operation.
@@ -114,7 +108,7 @@ Here follows the list of these parameters.
 
 Internal state
 ~~~~~~~~~~~~~~
-The internal state of the GeoTreeEngine is essentially composed of *scheduling trees* and *snapshots*. 
+The internal state of the GeoTreeEngine is essentially composed of *scheduling trees* and *snapshots*.
 They can be displayed with commands
 
 ::
@@ -123,9 +117,9 @@ They can be displayed with commands
    geosched show snapshot
 
 .. warning::
-      
+
       By design, information attached to the trees might not be up-to-date. Contrary to the snapshots that should be keep up-to-date.
-   
+
 The internal state also includes the penalty accounting table and the fs age/latency report. They can be displayed with the command
 
 ::
@@ -142,12 +136,12 @@ Some examples follow.
           |----------site1 [1,3]
           |         `----------rack1 [1,2]
           |                   `----------1@lxfsrd47a04.cern.ch [1,1,UnvRW]
-          |                   
-          |         
+          |
+          |
           `----------site2 [2,5]
                     |----------rack1 [1,2]
                     |         `----------24@lxfsre13a01.cern.ch [1,1,UnvRW]
-                    |         
+                    |
                     `----------rack2 [1,2]
                               `----------46@lxfsrg15a01.cern.ch [1,1,UnvRW]
 
@@ -159,96 +153,96 @@ Some examples follow.
           |----------site1/( free:1|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.86507e+12)
           |         `----------rack1/( free:1|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.86507e+12)
           |                   `----------1/( free:1|repl:0|pidx:0|status:RW|ulSc:99|dlSc:99|filR:0|totS:1.86507e+12)@lxfsrd47a04.cern.ch
-          |                   
-          |         
+          |
+          |
           `----------site2/( free:1|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.99291e+12)
                     |----------rack1/( free:1|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.99291e+12)
                     |         `----------24/( free:1|repl:0|pidx:0|status:RW|ulSc:99|dlSc:99|filR:0|totS:1.99291e+12)@lxfsre13a01.cern.ch
-                    |         
+                    |
                     `----------rack2/( free:0|repl:0|pidx:0|status:Dis|ulSc:0|dlSc:0|filR:0|totS:0)
                               `----------46/( free:1|repl:0|pidx:0|status:DISRW|ulSc:99|dlSc:99|filR:0|totS:1.99091e+12)@lxfsrg15a01.cern.ch
-   
+
    ### scheduling snapshot for scheduling group default.0 and operation 'Access RO' :
    --------default.0/( free:0|repl:0|pidx:1|status:OK|ulSc:99|dlSc:99|filR:0|totS:3.85797e+12)
           |----------site1/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.86507e+12)
           |         `----------rack1/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.86507e+12)
           |                   `----------1/( free:0|repl:0|pidx:0|status:RW|ulSc:99|dlSc:99|filR:0|totS:1.86507e+12)@lxfsrd47a04.cern.ch
-          |                   
-          |         
+          |
+          |
           `----------site2/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.99291e+12)
                     |----------rack1/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.99291e+12)
                     |         `----------24/( free:0|repl:0|pidx:0|status:RW|ulSc:99|dlSc:99|filR:0|totS:1.99291e+12)@lxfsre13a01.cern.ch
-                    |         
+                    |
                     `----------rack2/( free:0|repl:0|pidx:0|status:Dis|ulSc:0|dlSc:0|filR:0|totS:0)
                               `----------46/( free:0|repl:0|pidx:0|status:DISRW|ulSc:99|dlSc:99|filR:0|totS:1.99091e+12)@lxfsrg15a01.cern.ch
-   
+
    ### scheduling snapshot for scheduling group default.0 and operation 'Access RW' :
    --------default.0/( free:0|repl:0|pidx:1|status:OK|ulSc:99|dlSc:99|filR:0|totS:3.85797e+12)
           |----------site1/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.86507e+12)
           |         `----------rack1/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.86507e+12)
           |                   `----------1/( free:0|repl:0|pidx:0|status:RW|ulSc:99|dlSc:99|filR:0|totS:1.86507e+12)@lxfsrd47a04.cern.ch
-          |                   
-          |         
+          |
+          |
           `----------site2/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.99291e+12)
                     |----------rack1/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.99291e+12)
                     |         `----------24/( free:0|repl:0|pidx:0|status:RW|ulSc:99|dlSc:99|filR:0|totS:1.99291e+12)@lxfsre13a01.cern.ch
-                    |         
+                    |
                     `----------rack2/( free:0|repl:0|pidx:0|status:Dis|ulSc:0|dlSc:0|filR:0|totS:0)
                               `----------46/( free:0|repl:0|pidx:0|status:DISRW|ulSc:99|dlSc:99|filR:0|totS:1.99091e+12)@lxfsrg15a01.cern.ch
-   
+
    ### scheduling snapshot for scheduling group default.0 and operation 'Draining Access' :
    --------default.0/( free:0|repl:0|pidx:1|status:OK|ulSc:99|dlSc:99|filR:0|totS:3.85797e+12)
           |----------site1/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.86507e+12)
           |         `----------rack1/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.86507e+12)
           |                   `----------1/( free:0|repl:0|pidx:0|status:RW|ulSc:99|dlSc:99|filR:0|totS:1.86507e+12)@lxfsrd47a04.cern.ch
-          |                   
-          |         
+          |
+          |
           `----------site2/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.99291e+12)
                     |----------rack1/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.99291e+12)
                     |         `----------24/( free:0|repl:0|pidx:0|status:RW|ulSc:99|dlSc:99|filR:0|totS:1.99291e+12)@lxfsre13a01.cern.ch
-                    |         
+                    |
                     `----------rack2/( free:0|repl:0|pidx:0|status:Dis|ulSc:0|dlSc:0|filR:0|totS:0)
                               `----------46/( free:0|repl:0|pidx:0|status:DISRW|ulSc:99|dlSc:99|filR:0|totS:1.99091e+12)@lxfsrg15a01.cern.ch
-   
+
    ### scheduling snapshot for scheduling group default.0 and operation 'Draining Placement' :
    --------default.0/( free:0|repl:0|pidx:1|status:OK|ulSc:99|dlSc:99|filR:0|totS:3.85797e+12)
           |----------site1/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.86507e+12)
           |         `----------rack1/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.86507e+12)
           |                   `----------1/( free:1|repl:0|pidx:0|status:RW|ulSc:99|dlSc:99|filR:0|totS:1.86507e+12)@lxfsrd47a04.cern.ch
-          |                   
-          |         
+          |
+          |
           `----------site2/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.99291e+12)
                     |----------rack1/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.99291e+12)
                     |         `----------24/( free:1|repl:0|pidx:0|status:RW|ulSc:99|dlSc:99|filR:0|totS:1.99291e+12)@lxfsre13a01.cern.ch
-                    |         
+                    |
                     `----------rack2/( free:0|repl:0|pidx:0|status:Dis|ulSc:0|dlSc:0|filR:0|totS:0)
                               `----------46/( free:1|repl:0|pidx:0|status:DISRW|ulSc:99|dlSc:99|filR:0|totS:1.99091e+12)@lxfsrg15a01.cern.ch
-   
+
    ### scheduling snapshot for scheduling group default.0 and operation 'Balancing Access' :
    --------default.0/( free:0|repl:0|pidx:1|status:OK|ulSc:99|dlSc:99|filR:0|totS:3.85797e+12)
           |----------site1/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.86507e+12)
           |         `----------rack1/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.86507e+12)
           |                   `----------1/( free:0|repl:0|pidx:0|status:RW|ulSc:99|dlSc:99|filR:0|totS:1.86507e+12)@lxfsrd47a04.cern.ch
-          |                   
-          |         
+          |
+          |
           `----------site2/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.99291e+12)
                     |----------rack1/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.99291e+12)
                     |         `----------24/( free:0|repl:0|pidx:0|status:RW|ulSc:99|dlSc:99|filR:0|totS:1.99291e+12)@lxfsre13a01.cern.ch
-                    |         
+                    |
                     `----------rack2/( free:0|repl:0|pidx:0|status:Dis|ulSc:0|dlSc:0|filR:0|totS:0)
                               `----------46/( free:0|repl:0|pidx:0|status:DISRW|ulSc:99|dlSc:99|filR:0|totS:1.99091e+12)@lxfsrg15a01.cern.ch
-   
+
    ### scheduling snapshot for scheduling group default.0 and operation 'Draining Placement' :
    --------default.0/( free:0|repl:0|pidx:1|status:OK|ulSc:99|dlSc:99|filR:0|totS:3.85797e+12)
           |----------site1/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.86507e+12)
           |         `----------rack1/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.86507e+12)
           |                   `----------1/( free:1|repl:0|pidx:0|status:RW|ulSc:99|dlSc:99|filR:0|totS:1.86507e+12)@lxfsrd47a04.cern.ch
-          |                   
-          |         
+          |
+          |
           `----------site2/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.99291e+12)
                     |----------rack1/( free:0|repl:0|pidx:0|status:OK|ulSc:99|dlSc:99|filR:0|totS:1.99291e+12)
                     |         `----------24/( free:1|repl:0|pidx:0|status:RW|ulSc:99|dlSc:99|filR:0|totS:1.99291e+12)@lxfsre13a01.cern.ch
-                    |         
+                    |
                     `----------rack2/( free:0|repl:0|pidx:0|status:Dis|ulSc:0|dlSc:0|filR:0|totS:0)
                               `----------46/( free:1|repl:0|pidx:0|status:DISRW|ulSc:99|dlSc:99|filR:0|totS:1.99091e+12)@lxfsrg15a01.cern.ch
 
@@ -258,7 +252,7 @@ The internal state of the GeoTreeEngine is kept up-to-date by the background upd
 
    geosched updater pause
    geosched updater resume
-   
+
 **A refresh of all the** *scheduling trees* **and** *snapshots* **can be obtained with the command**
 
 ::
@@ -277,18 +271,18 @@ The list of inhibited branches for each operation can be managed with the comman
    geosched disabled rm
    geosched disabled show
 
-.. warning:: 
+.. warning::
    By default, placing data to ungeotagged fs is disabled. That means that for very basic instances (like dev ones), this disabling should be removed by the command
-   
+
    ::
-   
+
       geosched disabled rm nogeotag * *
 
 One can foresee multiple applications for this. An example can be found in **the default value that forbids any placement operation to a non-geotagged filesystem**.
 
 Geoscheduling-related directory extended attributes
 ---------------------------------------------------
-In EOS, directories have several extended attributes to control the *placement policy* in multiple situations. 
+In EOS, directories have several extended attributes to control the *placement policy* in multiple situations.
 There are three types **placement policy**. Here follows a table with their definition depending on the file layout.
 
 .. epigraph::
@@ -303,7 +297,7 @@ There are three types **placement policy**. Here follows a table with their defi
 The following variables deal with the default *placement policy* in a directory.
 
 .. epigraph::
-  
+
    ================================= ======================================================================
    parameter                                     definition
    ================================= ======================================================================
@@ -312,7 +306,7 @@ The following variables deal with the default *placement policy* in a directory.
    user.forced.placementpolicy       s.a.
    user.forced.nouserplacementpolicy s.a.
    ================================= ======================================================================
-   
+
 For more detailed information about these attributes, please refer to the help of the command
 
 ::
@@ -325,15 +319,15 @@ The file conversion command
 
    file convert
 
-supports mentioning *placement policy*. 
+supports mentioning *placement policy*.
 
 The file conversion feature of the :doc:`lru` is also *placement policy*-aware.
 The extended directory attribute
 
 .. epigraph::
-  
+
    ================================== =
-   parameter                      
+   parameter
    ================================== =
    sys.conversion.\<match_rule_name\>
    ================================== =
@@ -353,7 +347,7 @@ The commands
 
    group ls
    space ls
-   
+
 both feature a switch *-g <depth>* that allows to summarize the displayed information along the scheduling trees down to depth *<depth>*.
 
 .. code-block:: bash
@@ -364,11 +358,11 @@ both feature a switch *-g <depth>* that allows to summarize the displayed inform
    #-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
    spaceview           default             0            0     67        66        272.69 G       133.62 T      131.62 T             0    off        off          20          on      2        0         off
    #-------------------------------------------------------------------------------------------------------
-   #                         geotag   #N(fs) #N(fs-rw) #sum(usedbytes) #sum(capacity) #capacity(rw)        
+   #                         geotag   #N(fs) #N(fs-rw) #sum(usedbytes) #sum(capacity) #capacity(rw)
    #-------------------------------------------------------------------------------------------------------
-                             <ROOT>       67        66        272.69 G       133.62 T      131.62 T        
-                      <ROOT>::site1       23        23        105.72 G        45.79 T       45.79 T        
-                      <ROOT>::site2       44        43        166.97 G        87.83 T       85.84 T        
-               <ROOT>::site1::rack1       23        23        105.72 G        45.79 T       45.79 T        
-               <ROOT>::site2::rack1       22        22         74.36 G        43.92 T       43.92 T        
-               <ROOT>::site2::rack2       22        21         92.61 G        43.92 T       41.92 T        
+                             <ROOT>       67        66        272.69 G       133.62 T      131.62 T
+                      <ROOT>::site1       23        23        105.72 G        45.79 T       45.79 T
+                      <ROOT>::site2       44        43        166.97 G        87.83 T       85.84 T
+               <ROOT>::site1::rack1       23        23        105.72 G        45.79 T       45.79 T
+               <ROOT>::site2::rack1       22        22         74.36 G        43.92 T       43.92 T
+               <ROOT>::site2::rack2       22        21         92.61 G        43.92 T       41.92 T
