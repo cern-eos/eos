@@ -1783,11 +1783,6 @@ public:
 #endif
   }
   // ---------------------------------------------------------------------------
-  //! constants to describe the fs type, including in client access capability
-  // ---------------------------------------------------------------------------
-  static const unsigned char fsTypeEosReplica, fsTypeEosPIO, fsTypeKinetic,
-         fstTypeAll;
-  // ---------------------------------------------------------------------------
   //! Force a refresh of the information in the scheduling trees
   // @return
   //   true if success false else
