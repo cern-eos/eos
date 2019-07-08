@@ -1387,40 +1387,6 @@ protected:
 //    }
   }
 
-  inline void recallScorePenalty(ProxyTMEBase* entry,
-                                 const SchedTreeBase::tFastTreeIdx& idx)
-  {
-    auto host = (*entry->backgroundFastStruct->treeInfo)[idx].host;
-    tLatencyStats& lstat = pLatencySched.pHost2LatencyStats[host];
-    int count = 0;
-
-    for (size_t circIdx = pFrameCount % pCircSize;
-         (lstat.lastupdate != 0) &&
-         (pLatencySched.pCircFrCnt2Timestamp[circIdx] > lstat.lastupdate -
-          pPublishToPenaltyDelayMs);
-         circIdx = ((pCircSize + circIdx - 1) % pCircSize)) {
-      if (entry->foregroundFastStruct->proxyAccessTree->pNodes[idx].fsData.dlScore >
-          0)
-        applyDlScorePenalty(entry, idx,
-                            pPenaltySched.pCircFrCnt2HostPenalties[circIdx][host].dlScorePenalty,
-                            true
-                           );
-
-      if (entry->foregroundFastStruct->proxyAccessTree->pNodes[idx].fsData.ulScore >
-          0)
-        applyUlScorePenalty(entry, idx,
-                            pPenaltySched.pCircFrCnt2HostPenalties[circIdx][host].ulScorePenalty,
-                            true
-                           );
-
-      if (++count == (int)pCircSize) {
-        eos_warning("Last host update for host %s is older than older penalty : it could happen as a transition but should not happen permanently.",
-                    host.c_str());
-        break;
-      }
-    }
-  }
-
   template<class T> bool placeNewReplicas(SchedTME* entry,
                                           const size_t& nNewReplicas,
 
