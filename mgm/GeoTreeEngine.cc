@@ -1697,7 +1697,6 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
   // Find the group holdings the fs of the existing replicas and check that the
   // replicas are available
   size_t availFsCount = 0;
-  eos::mgm::ROAccessPriorityComparator comp;
   eos::mgm::SchedTreeBase::TreeNodeSlots freeSlot;
   freeSlot.freeSlotsCount = 1;
   std::vector<eos::common::FileSystem::fsid_t>::iterator it;
@@ -2205,7 +2204,7 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant &assistant)
       throw "sem_post() failed";
     }
 
-    std::this_thread::sleep_for(stopwatch.timeRemainingInCycle());
+    assistant.wait_for(stopwatch.timeRemainingInCycle());
   }
 }
 
