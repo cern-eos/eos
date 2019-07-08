@@ -677,7 +677,7 @@ public:
   // test if public access is allowed in a given path
   // ---------------------------------------------------------------------------
   bool allow_public_access(const char* path,
-			   eos::common::VirtualIdentity& vid);
+                           eos::common::VirtualIdentity& vid);
 
   // ---------------------------------------------------------------------------
   // set utimes
@@ -697,7 +697,7 @@ public:
              XrdOucErrInfo& error,
              eos::common::VirtualIdentity& vid,
              const char* ininfo = 0,
-	     bool doLock = true);
+             bool doLock = true);
 
   //----------------------------------------------------------------------------
   //! List extended attributes for a given file/directory - high-level API.
@@ -872,7 +872,7 @@ public:
   int _attr_clear(const char* path, XrdOucErrInfo& out_error,
                   eos::common::VirtualIdentity& vid,
                   const char* opaque,
-		  bool keep_acls=false);
+                  bool keep_acls = false);
 
   // ---------------------------------------------------------------------------
   // drop stripe by vid
@@ -1272,18 +1272,18 @@ public:
   //----------------------------------------------------------------------------
   // Get key from MGM config queue
   //----------------------------------------------------------------------------
-  bool getMGMConfigValue(const std::string &key, std::string &value);
+  bool getMGMConfigValue(const std::string& key, std::string& value);
 
   //----------------------------------------------------------------------------
   // Process incoming MGM configuration change
   //----------------------------------------------------------------------------
-  void processIncomingMgmConfigurationChange(const std::string &key);
+  void processIncomingMgmConfigurationChange(const std::string& key);
 
   //----------------------------------------------------------------------------
   // Process geotag change on the specified filesystem
   //----------------------------------------------------------------------------
   void processGeotagChange(eos::common::FileSystem::fsid_t fsid,
-    const std::string &newgeotag);
+                           const std::string& newgeotag);
 
   //------------------------------------------------------------------------------
   //! Add backup job to the queue to be picked up by the archive/backup submitter
@@ -1385,7 +1385,8 @@ public:
   //! is changed using third party copy)
   XrdOucString MgmProcConversionPath;
   XrdOucString MgmProcWorkflowPath; ///< Directory with workflows
-  XrdOucString MgmProcTrackerPath; ///< Directory with file creations which are not consistent (yet)
+  XrdOucString
+  MgmProcTrackerPath; ///< Directory with file creations which are not consistent (yet)
   //! Full path to the master indication proc file
   XrdOucString MgmProcMasterPath;
   XrdOucString MgmProcArchivePath; ///< EOS directory where archive dir inodes
@@ -1605,10 +1606,6 @@ public:
   std::unique_ptr<eos::common::CommentLog> mFusexStackTraces;
   std::unique_ptr<eos::common::CommentLog> mFusexLogTraces;
 
-  //! Class tracking file creations for sanity
-
-  std::unique_ptr<eos::mgm::ReplicationTracker> mReplicationTracker;
-
   //! Class checking the filesystem
   std::unique_ptr<Fsck> FsckPtr;
   Fsck& FsCheck;
@@ -1665,6 +1662,8 @@ public:
   std::unique_ptr<TapeAwareGc> mTapeAwareGc; ///< Tape aware garbage collector
   //! Tracker for requests which are currently executing MGM code
   eos::mgm::InFlightTracker mTracker;
+  //! Class tracking file creations for sanity
+  std::unique_ptr<eos::mgm::ReplicationTracker> mReplicationTracker;
 
 private:
   //! Tracker for balanced fids

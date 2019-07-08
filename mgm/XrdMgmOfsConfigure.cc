@@ -1109,8 +1109,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Configure log-file fan out
   std::vector<std::string> lFanOutTags {
     "Grpc", "Balancer", "Converter", "DrainJob", "ZMQ", "MetadataFlusher", "Http",
-      "Master", "Recycle", "LRU", "WFE", "WFE::Job", "GroupBalancer",
-      "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "#"};
+    "Master", "Recycle", "LRU", "WFE", "WFE::Job", "GroupBalancer",
+    "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "#"};
   // Get the XRootD log directory
   char* logdir = 0;
   XrdOucEnv::Import("XRDLOGDIR", logdir);
@@ -1374,11 +1374,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   if ((getenv("EOS_USE_MQ_ON_QDB") != 0)) {
     eos_static_info("MQ on QDB - setting up SharedManager..");
-
     // Using QDB as MQ? Currently experimental - functionality not switched over
     // to QDB will still use the old MQ.
-    qclient::SharedManager* sm = new qclient::SharedManager(mQdbContactDetails.members,
-      mQdbContactDetails.constructOptions(), mQdbContactDetails.constructSubscriptionOptions());
+    qclient::SharedManager* sm = new qclient::SharedManager(
+      mQdbContactDetails.members,
+      mQdbContactDetails.constructOptions(),
+      mQdbContactDetails.constructSubscriptionOptions());
     eos::common::GlobalConfig::gConfig.setQSharedManager(sm);
   }
 
@@ -1659,13 +1660,14 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       }
     }
 
-    mReplicationTracker.reset(ReplicationTracker::Create(MgmProcTrackerPath.c_str()));
-
     if (NsInQDB) {
       SetupProcFiles();
     }
   }
 
+  // Initialize the replication tracker
+  mReplicationTracker.reset(ReplicationTracker::Create(
+                              MgmProcTrackerPath.c_str()));
   // Set also the archiver ZMQ endpoint were client requests are sent
   std::ostringstream oss;
   oss << "ipc://" << MgmArchiveDir.c_str() << "archive_frontend.ipc";
@@ -1813,7 +1815,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
 #endif
-
   // start the LRU daemon
   mLRUEngine->Start();
 
@@ -1929,7 +1930,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   // Only if configured to do so, enable the tape aware garbage collector
   if (mTapeAwareGcDefaultSpaceEnable) {
-
     mTapeAwareGc->enable();
   }
 
