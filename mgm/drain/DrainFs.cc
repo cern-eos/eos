@@ -202,12 +202,10 @@ DrainFs::SuccessfulDrain()
 {
   eos_notice("msg=\"complete drain\" fsid=%d", mFsId);
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-
   FileSystem* fs = FsView::gFsView.mIdView.lookupByID(mFsId);
 
   if (fs) {
     mStatus = eos::common::DrainStatus::kDrained;
-
     eos::common::FileSystemUpdateBatch batch;
     batch.setDrainStatusLocal(mStatus);
     batch.setLongLongLocal("stat.drainbytesleft", 0);
@@ -233,11 +231,10 @@ DrainFs::FailedDrain()
 {
   eos_notice("msg=\"failed drain\" fsid=%d", mFsId);
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+  FileSystem* fs = FsView::gFsView.mIdView.lookupByID(mFsId);
 
-  FileSystem *fs = FsView::gFsView.mIdView.lookupByID(mFsId);
   if (fs) {
     mStatus = eos::common::DrainStatus::kDrainFailed;
-
     eos::common::FileSystemUpdateBatch batch;
     batch.setDrainStatusLocal(mStatus);
     batch.setLongLongLocal("stat.timeleft", 0);
@@ -265,8 +262,9 @@ DrainFs::StopJobs()
 
     // Wait for drain jobs to cancel
     for (auto& job : mJobsRunning) {
-      while (job->GetStatus() == DrainTransferJob::Status::Running) {
-        std::this_thread::sleep_for(milliseconds(100));
+      while ((job->GetStatus() == DrainTransferJob::Status::Running) ||
+             (job->GetStatus() == DrainTransferJob::Status::Ready)) {
+        std::this_thread::sleep_for(milliseconds(10));
       }
     }
   }
@@ -285,7 +283,6 @@ DrainFs::PrepareFs()
   {
     eos_info("msg=\"setting the drain prepare status\" fsid=%i", mFsId);
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(mFsId);
 
     if (!fs) {
@@ -294,7 +291,6 @@ DrainFs::PrepareFs()
     }
 
     mStatus = eos::common::DrainStatus::kDrainPrepare;
-
     eos::common::FileSystemUpdateBatch batch;
     batch.setLongLongLocal("stat.drainbytesleft", 0);
     batch.setLongLongLocal("stat.drainfiles", 0);
@@ -303,7 +299,6 @@ DrainFs::PrepareFs()
     batch.setLongLongLocal("stat.drainprogress", 0);
     batch.setDrainStatusLocal(mStatus);
     fs->applyBatch(batch);
-
     mDrainPeriod = seconds(fs->GetLongLong("drainperiod"));
     eos::common::FileSystem::fs_snapshot_t drain_snapshot;
     fs->SnapShotFileSystem(drain_snapshot, false);
@@ -322,7 +317,7 @@ DrainFs::PrepareFs()
     std::this_thread::sleep_for(seconds(1));
     {
       eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-      FileSystem *entry = FsView::gFsView.mIdView.lookupByID(mFsId);
+      FileSystem* entry = FsView::gFsView.mIdView.lookupByID(mFsId);
 
       if (!entry) {
         eos_err("msg=\"removed during drain prepare\" fsid=%d", mFsId);
@@ -349,13 +344,12 @@ DrainFs::PrepareFs()
 
   GetSpaceConfiguration(space_name);
   mStatus = eos::common::DrainStatus::kDraining;
-
   eos::common::FileSystemUpdateBatch batch;
   batch.setDrainStatusLocal(mStatus);
   batch.setLongLongLocal("stat.drainfiles", mTotalFiles);
   batch.setLongLongLocal("stat.drain.failed", 0);
   batch.setLongLongLocal("stat.drainbytesleft",
-    fs->GetLongLong("stat.statfs.usedbytes"));
+                         fs->GetLongLong("stat.statfs.usedbytes"));
   fs->applyBatch(batch);
   return true;
 }
@@ -405,7 +399,6 @@ DrainFs::UpdateProgress()
 
     if (is_expired) {
       mStatus = eos::common::DrainStatus::kDrainExpired;
-
       common::FileSystemUpdateBatch batch;
       batch.setLongLongLocal("stat.timeleft", 0);
       batch.setLongLongLocal("stat.drainfiles", mPending);
@@ -445,10 +438,8 @@ DrainFs::UpdateProgress()
     batch.setLongLongLocal("stat.drainprogress", progress);
     batch.setLongLongLocal("stat.timeleft", time_left);
     batch.setLongLongLocal("stat.drainbytesleft",
-      fs->GetLongLong("stat.statfs.usedbytes"));
-
+                           fs->GetLongLong("stat.statfs.usedbytes"));
     fs->applyBatch(batch);
-
     eos_debug_lite("msg=\"fsid=%d, update progress", mFsId);
   }
 
@@ -500,7 +491,7 @@ void
 DrainFs::ResetCounters()
 {
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-  FileSystem *fs = FsView::gFsView.mIdView.lookupByID(mFsId);
+  FileSystem* fs = FsView::gFsView.mIdView.lookupByID(mFsId);
 
   if (fs) {
     common::FileSystemUpdateBatch batch;
