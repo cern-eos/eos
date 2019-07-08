@@ -156,8 +156,6 @@ public:
     bool isRW;
     //! size to book additionally for rd/wr access
     unsigned long long bookingsize;
-    //! override geolocation defined in the virtual id
-    const std::string* overridegeoloc;
     //! don't apply the penalty as this file access won't result in any IO
     bool noIO;
     //! indicate if this is a request for regular, draining or balancing access
@@ -184,7 +182,6 @@ public:
       inode(0),
       isRW(false),
       bookingsize(0),
-      overridegeoloc(),
       noIO(false),
       schedtype(regular),
       vid(NULL),
