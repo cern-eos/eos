@@ -780,82 +780,6 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
     }
 
     ostr << table_fst.GenerateTable(HEADER2).c_str();
-
-    //! gw2GeotreeEngine latency
-    if (!monitoring) {
-      ostr << "\n┏━> gw2GeotreeEngine latency\n";
-    }
-
-    avAge = 0.0;
-    count = 0;
-    std::vector<std::tuple<std::string,
-        double, double, double, double, bool>> data_gw;
-
-    for (auto it : pLatencySched.pHost2LatencyStats) {
-      if (it.second.getage(nowms) < 600000) { // consider only if less than a minute
-        avAge += it.second.getage(nowms);
-        count++;
-      }
-    }
-
-    avAge /= (count ? count : 1);
-    TableFormatterBase table_gw;
-
-    if (!monitoring)
-      table_gw.SetHeader({
-      std::make_tuple("hostname", 10, format_ss),
-      std::make_tuple("minimum", 10, format_f),
-      std::make_tuple("averge", 10, format_f),
-      std::make_tuple("maximum", 10, format_f),
-      std::make_tuple("age(last)", 10, format_f)
-    });
-    else
-      table_gw.SetHeader({
-      std::make_tuple("type", 0, format_ss),
-      std::make_tuple("hostname", 0, format_ss),
-      std::make_tuple("min", 0, format_f),
-      std::make_tuple("avg", 0, format_f),
-      std::make_tuple("max", 0, format_f),
-      std::make_tuple("age(last)", 0, format_f)
-    });
-
-    for (auto it : pLatencySched.pHost2LatencyStats) {
-      // more than 1 minute, something is wrong
-      if (it.second.getage(nowms) > 600000) {
-        data_gw.push_back(std::make_tuple(it.first, 0, 0, 0, 0, false));
-      } else
-        data_gw.push_back(std::make_tuple(it.first,
-                                          it.second.minlatency, it.second.averagelatency,
-                                          it.second.maxlatency, it.second.getage(nowms), true));
-    }
-
-    for (auto it : data_gw) {
-      TableData table_data;
-      table_data.emplace_back();
-
-      if (monitoring) {
-        table_data.back().push_back(TableCell("gw2GeotreeEngine", format_ss));
-      }
-
-      table_data.back().push_back(TableCell(std::get<0>(it), format_ss));
-
-      if (std::get<5>(it)) {
-        table_data.back().push_back(TableCell(std::get<1>(it) / scale, format_f, unit));
-        table_data.back().push_back(TableCell(std::get<2>(it) / scale, format_f, unit));
-        table_data.back().push_back(TableCell(std::get<3>(it) / scale, format_f, unit));
-        table_data.back().push_back(TableCell(std::get<4>(it) / scale, format_f, unit));
-      } else for (int i = 0; i < 4; i++) {
-          table_data.back().push_back(TableCell(na, format_ss));
-        }
-
-      table_gw.AddRows(table_data);
-
-      if (std::get<0>(it) == "global" && data_gw.size() > 1) {
-        table_gw.AddSeparator();
-      }
-    }
-
-    ostr << table_gw.GenerateTable(HEADER2).c_str();
   }
 
   // ==== run through the map of file systems
@@ -2826,24 +2750,6 @@ bool GeoTreeEngine::updateTreeInfo(ProxyTMEBase* entry,
 
   size_t netSpeedClass =
     0; // <1Gb/s -> 0 ; 1Gb/s -> 1; 10Gb/s->2 ; 100Gb/s->...etc
-
-  if ((keys & sfgPubTmStmp) && hs->mPublishTimestamp) {
-    // update the latency of this fs
-    std::string host;
-
-    if (ftIdx) {
-      host = (*entry->backgroundFastStruct->treeInfo)[ftIdx].host;
-    } else if (stn) {
-      host = stn->pNodeInfo.host;
-    }
-
-    if (!host.empty()) {
-      tLatencyStats* lstat = NULL;
-      lstat = &pLatencySched.pHost2LatencyStats[host];
-      lstat->lastupdate = hs->mPublishTimestamp;
-      lstat->update();
-    }
-  }
 
   if (keys & (sfgActive)) {
     if (hs->mActiveStatus == eos::common::ActiveStatus::kOnline) {
