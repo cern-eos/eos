@@ -736,10 +736,6 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
       std::make_tuple("age(last)", 0, format_f)
     });
     FsView::gFsView.ViewMutex.LockRead();
-    data_fst.push_back(std::make_tuple(0,
-                                       pLatencySched.pGlobalLatencyStats.minlatency,
-                                       pLatencySched.pGlobalLatencyStats.averagelatency,
-                                       pLatencySched.pGlobalLatencyStats.maxlatency, avAge, true));
 
     for (size_t fsid = 1; fsid < pLatencySched.pFsId2LatencyStats.size(); fsid++) {
       if (!FsView::gFsView.mIdView.exists(fsid)) {
@@ -828,10 +824,6 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
       std::make_tuple("max", 0, format_f),
       std::make_tuple("age(last)", 0, format_f)
     });
-    data_gw.push_back(std::make_tuple("global",
-                                      pLatencySched.pGlobalLatencyStats.minlatency,
-                                      pLatencySched.pGlobalLatencyStats.averagelatency,
-                                      pLatencySched.pGlobalLatencyStats.maxlatency, avAge, true));
 
     for (auto it : pLatencySched.pHost2LatencyStats) {
       // more than 1 minute, something is wrong
@@ -2665,8 +2657,6 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
   size_t netSpeedClass = 0;
 
   if ((keys & sfgPubTmStmp) && fs->mPublishTimestamp) {
-    pLatencySched.pGlobalLatencyStats.lastupdate = fs->mPublishTimestamp;
-    pLatencySched.pGlobalLatencyStats.update();
     // update the latency of this fs
     tLatencyStats* lstat = NULL;
 
@@ -2888,8 +2878,6 @@ bool GeoTreeEngine::updateTreeInfo(ProxyTMEBase* entry,
     0; // <1Gb/s -> 0 ; 1Gb/s -> 1; 10Gb/s->2 ; 100Gb/s->...etc
 
   if ((keys & sfgPubTmStmp) && hs->mPublishTimestamp) {
-    pLatencySched.pGlobalLatencyStats.lastupdate = hs->mPublishTimestamp;
-    pLatencySched.pGlobalLatencyStats.update();
     // update the latency of this fs
     std::string host;
 
