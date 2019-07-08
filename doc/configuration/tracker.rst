@@ -48,7 +48,7 @@ Listing Tracking Information
 
 You can get the current listing of tracked files using:
 
-.. code-lock:: bash
+.. code-block:: bash
 
    eos space tracker
 
