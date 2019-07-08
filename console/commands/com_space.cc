@@ -135,7 +135,11 @@ com_space(char* arg1)
     ok = true;
   }
 
-
+  if (subcommand == "inspector") {
+    in = "mgm.cmd=space&mgm.subcmd=inspector&mgm.space=default";
+    ok = true;
+  }
+  
   if (subcommand == "reset") {
     in = "mgm.cmd=space&mgm.subcmd=reset";
     XrdOucString spacename = subtokenizer.GetToken();
@@ -540,6 +544,9 @@ com_space_usage:
   fprintf(stdout,
           "       space config <space-name> space.tracker=on|off                : enable/disable the space layout creation tracker [default=off]\n");
   fprintf(stdout,
+          "       space config <space-name> space.inspector=on|off                : enable/disable the file inspector [default=off]\n");
+
+  fprintf(stdout,
           "       space config <space-name> space.autorepair=on|off             : enable auto-repair of faulty replica's/files (the converter has to be enabled too)\n");
   fprintf(stdout,
           "                                                                       => size can be given also like 10T, 20G, 2P ... without space before the unit \n");
@@ -603,6 +610,8 @@ com_space_usage:
           "                                                    --nsdirectorymap : resize namespace directory map\n");
   fprintf(stdout,
           "       space status <space-name> [-m]                                : print's all defined variables for space\n");
+  fprintf(stdout,
+          "       space tracker                                                 : print's all file replication tracking entries\n");
   fprintf(stdout,
           "       space set <space-name> on|off                                 : enables/disabels all groups under that space ( not the nodes !) \n");
   fprintf(stdout,
