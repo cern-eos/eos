@@ -566,12 +566,9 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
 
   if (dispParam) {
     ostr << "### GeoTreeEngine parameters :" << std::endl;
-    ostr << "skipSaturatedPlct = " << pSkipSaturatedPlct << std::endl;
     ostr << "skipSaturatedAccess = " << pSkipSaturatedAccess << std::endl;
     ostr << "skipSaturatedDrnAccess = " << pSkipSaturatedDrnAccess << std::endl;
     ostr << "skipSaturatedBlcAccess = " << pSkipSaturatedBlcAccess << std::endl;
-    ostr << "skipSaturatedDrnPlct = " << pSkipSaturatedDrnPlct << std::endl;
-    ostr << "skipSaturatedBlcPlct = " << pSkipSaturatedBlcPlct << std::endl;
     ostr << "proxyCloseToFs = " << pProxyCloseToFs << std::endl;
     ostr << "penaltyUpdateRate = " << pPenaltyUpdateRate << std::endl;
     ostr << "plctDlScorePenalty = " << pPenaltySched.pPlctDlScorePenaltyF[0] <<
@@ -1335,24 +1332,21 @@ GeoTreeEngine::placeNewReplicasOneGroup(FsGroup* group,
     success = placeNewReplicas(entry, nNewReplicas, &newReplicasIdx,
                                entry->foregroundFastStruct->placementTree,
                                existingReplicasIdx, bookingSize, startFromNode,
-                               nCollocatedReplicas, excludeFsIdx,
-                               pSkipSaturatedPlct);
+                               nCollocatedReplicas, excludeFsIdx);
     break;
 
   case draining:
     success = placeNewReplicas(entry, nNewReplicas, &newReplicasIdx,
                                entry->foregroundFastStruct->drnPlacementTree,
                                existingReplicasIdx, bookingSize, startFromNode,
-                               nCollocatedReplicas, excludeFsIdx,
-                               pSkipSaturatedDrnPlct);
+                               nCollocatedReplicas, excludeFsIdx);
     break;
 
   case balancing:
     success = placeNewReplicas(entry, nNewReplicas, &newReplicasIdx,
                                entry->foregroundFastStruct->blcPlacementTree,
                                existingReplicasIdx, bookingSize, startFromNode,
-                               nCollocatedReplicas, excludeFsIdx,
-                               pSkipSaturatedBlcPlct);
+                               nCollocatedReplicas, excludeFsIdx);
     break;
 
   default:
@@ -3589,11 +3583,6 @@ void GeoTreeEngine::updateAtomicPenalties()
   }
 }
 
-bool GeoTreeEngine::setSkipSaturatedPlct(bool value, bool setconfig)
-{
-  return setInternalParam(pSkipSaturatedPlct, (int)value, false,
-                          setconfig ? "skipsaturatedplct" : "");
-}
 bool GeoTreeEngine::setSkipSaturatedAccess(bool value, bool setconfig)
 {
   return setInternalParam(pSkipSaturatedAccess, (int)value, false,
@@ -3608,16 +3597,6 @@ bool GeoTreeEngine::setSkipSaturatedBlcAccess(bool value, bool setconfig)
 {
   return setInternalParam(pSkipSaturatedBlcAccess, (int)value, false,
                           setconfig ? "skipsaturatedblcaccess" : "");
-}
-bool GeoTreeEngine::setSkipSaturatedDrnPlct(bool value, bool setconfig)
-{
-  return setInternalParam(pSkipSaturatedDrnPlct, (int)value, false,
-                          setconfig ? "skipsaturateddrnplct" : "");
-}
-bool GeoTreeEngine::setSkipSaturatedBlcPlct(bool value, bool setconfig)
-{
-  return setInternalParam(pSkipSaturatedBlcPlct, (int)value, false,
-                          setconfig ? "skipsaturatedblcplct" : "");
 }
 
 bool GeoTreeEngine::setProxyCloseToFs(bool value, bool setconfig)
@@ -3837,18 +3816,12 @@ bool GeoTreeEngine::setParameter(std::string param, const std::string& value,
     } else {
       readParamVFromString(pPenaltySched.pProxyScorePenalty, value);
     }
-  } else if (param == "skipsaturatedblcplct") {
-    ok = gGeoTreeEngine.setSkipSaturatedBlcPlct((bool)ival, setconfig);
-  } else if (param == "skipsaturateddrnplct") {
-    ok = gGeoTreeEngine.setSkipSaturatedDrnPlct((bool)ival, setconfig);
   } else if (param == "skipsaturatedblcaccess") {
     ok = gGeoTreeEngine.setSkipSaturatedBlcAccess((bool)ival, setconfig);
   } else if (param == "skipsaturateddrnaccess") {
     ok = gGeoTreeEngine.setSkipSaturatedDrnAccess((bool)ival, setconfig);
   } else if (param == "skipsaturatedaccess") {
     ok = gGeoTreeEngine.setSkipSaturatedAccess((bool)ival, setconfig);
-  } else if (param == "skipsaturatedplct") {
-    ok = gGeoTreeEngine.setSkipSaturatedPlct((bool)ival, setconfig);
   } else if (param == "penaltyupdaterate") {
     ok = gGeoTreeEngine.setPenaltyUpdateRate((float)dval, setconfig);
   } else if (param == "disabledbranches") {
@@ -3962,12 +3935,6 @@ bool GeoTreeEngine::applyBranchDisablings(const SchedTME& entry)
     }
   }
 
-  return true;
-}
-
-bool GeoTreeEngine::applyBranchDisablings(const ProxyTMEBase& entry)
-{
-  // don't use the branch disablings for Gateway and DataProxy
   return true;
 }
 
