@@ -310,7 +310,7 @@ int Scheduler::FileAccess(AccessArguments* args)
          args->firewallentpts,
          st,
          args->vid->geolocation,
-         args->forcedfsid, args->unavailfs, args->noIO);
+         args->forcedfsid, args->unavailfs);
 }
 
 EOSMGMNAMESPACE_END

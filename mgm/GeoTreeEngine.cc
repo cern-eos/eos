@@ -1674,9 +1674,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
     SchedType type,
     const std::string& accesserGeotag,
     const eos::common::FileSystem::fsid_t& forcedFsId,
-    std::vector<eos::common::FileSystem::fsid_t>* unavailableFs,
-    bool noIO
-                                                 )
+    std::vector<eos::common::FileSystem::fsid_t>* unavailableFs)
 {
   int returnCode = ENODATA;
   assert(nAccessReplicas);
@@ -1961,7 +1959,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
   }
 
   // Apply penalties if needed
-  if (!noIO) {
+  if (true) {
     std::set<eos::common::FileSystem::fsid_t>
     setunav(unavailableFs->begin(), unavailableFs->end());
 
