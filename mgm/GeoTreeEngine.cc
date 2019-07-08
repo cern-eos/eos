@@ -126,9 +126,6 @@ bool GeoTreeEngine::gUpdaterStarted = false;
 const unsigned char GeoTreeEngine::sntFilesystem = 1,
                                    GeoTreeEngine::sntDataproxy = 4;
 std::map<std::string, unsigned char> GeoTreeEngine::gQueue2NotifType;
-const unsigned char GeoTreeEngine::fsTypeEosReplica = 1,
-                                   GeoTreeEngine::fsTypeEosPIO = 2, GeoTreeEngine::fsTypeKinetic = 4,
-                                                  GeoTreeEngine::fstTypeAll = 255;
 
 bool GeoTreeEngine::forceRefreshSched()
 {
