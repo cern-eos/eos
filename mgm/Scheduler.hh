@@ -156,8 +156,6 @@ public:
     bool isRW;
     //! size to book additionally for rd/wr access
     unsigned long long bookingsize;
-    //! don't apply the penalty as this file access won't result in any IO
-    bool noIO;
     //! indicate if this is a request for regular, draining or balancing access
     tSchedType schedtype;
     //! virtual identity of the client
@@ -182,7 +180,6 @@ public:
       inode(0),
       isRW(false),
       bookingsize(0),
-      noIO(false),
       schedtype(regular),
       vid(NULL),
       locationsfs(NULL),

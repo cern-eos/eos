@@ -1970,8 +1970,7 @@ public:
                                      SchedType type = regularRO,
                                      const std::string& accesserGeotag = "",
                                      const eos::common::FileSystem::fsid_t& forcedFsId = 0,
-                                     std::vector<eos::common::FileSystem::fsid_t>* unavailableFs = NULL,
-                                     bool noIO = false
+                                     std::vector<eos::common::FileSystem::fsid_t>* unavailableFs = NULL
                                     );
 
   // ---------------------------------------------------------------------------
