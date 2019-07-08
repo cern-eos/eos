@@ -201,10 +201,10 @@ void functionalTestFastTree(FastTree<T1, T2>* fptree, FastTree<T3, T4>* fatree,
     }
 
     // repopulate the access tree with the placed replicas
-    for (set<SchedTreeBase::tFastTreeIdx>::const_iterator it = repIdxs.begin();
-         it != repIdxs.end(); it++) {
-      ftree2->incrementFreeSlot(*it);
-    }
+    // for (set<SchedTreeBase::tFastTreeIdx>::const_iterator it = repIdxs.begin();
+    //      it != repIdxs.end(); it++) {
+    //   ftree2->incrementFreeSlot(*it);
+    // }
 
     // ========= PLACEMENT/ACCESS ROUNDTRIP TEST =========
     // get all the replicas
@@ -431,7 +431,7 @@ int main()
   for (auto it = testv.begin(); it != testv.end(); it++) {
     auto idx  = geomap->getClosestFastTreeNode(it->c_str());
     SchedTreeBase::tFastTreeIdx idx2 = 0;
-    ft->findFreeSlotFirstHitBack(idx2, idx, false);
+    ft->findFreeSlotFirstHitBack(idx2, idx);
     std::cout << "geotag=" << *it;
     std::cout << "  closest_idx=" << (int)idx;
     std::cout << "  access_idx=" << (int)idx2;
@@ -976,7 +976,7 @@ int mainFull()
     // update the tree
     for (int k = 0; k < 3; k++) {
       ftree->decrementFreeSlot(replicaIdxs[3 * (i % schedGroups.size()) + k]);
-      ftree2->incrementFreeSlot(replicaIdxs[3 * (i % schedGroups.size()) + k]);
+      // ftree2->incrementFreeSlot(replicaIdxs[3 * (i % schedGroups.size()) + k]);
     }
   }
 
@@ -1003,9 +1003,9 @@ int mainFull()
           clientGeoString.c_str());
 
     // update the tree
-    for (int k = 0; k < 3; k++) {
-      ftree->incrementFreeSlot(replicaIdxs[3 * (i % schedGroups.size()) + k]);
-    }
+    // for (int k = 0; k < 3; k++) {
+    //   ftree->incrementFreeSlot(replicaIdxs[3 * (i % schedGroups.size()) + k]);
+    // }
 
     // access the replicas
     SchedTreeBase::tFastTreeIdx repId;
@@ -1029,9 +1029,9 @@ int mainFull()
     FastROAccessTree* ftree = (FastROAccessTree*) buffer;
 
     // update the tree
-    for (int k = 0; k < 3; k++) {
-      ftree->incrementFreeSlot(replicaIdxs[3 * (i % schedGroups.size()) + k]);
-    }    // access the replicas
+    // for (int k = 0; k < 3; k++) {
+    //   ftree->incrementFreeSlot(replicaIdxs[3 * (i % schedGroups.size()) + k]);
+    // }    // access the replicas
 
     SchedTreeBase::tFastTreeIdx repIdxs[3];
     ftree->findFreeSlotsAll(repIdxs, 3);
