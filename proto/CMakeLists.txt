@@ -73,9 +73,9 @@ set_target_properties(EosFstProto-Objects PROPERTIES
 # Generate protobol buffer object for GRPC
 #-------------------------------------------------------------------------------
 if (GRPC_FOUND)
-  set(GRPC_PROTOS ${CMAKE_CURRENT_SOURCE_DIR}/grpc/Rpc.proto)
+  set(GRPC_PROTOS ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/eos_cta/protobuf_grpc/Rpc.proto)
   set(GRPC_PROTOBUF_PATH "${CMAKE_BINARY_DIR}/proto/")
-  PROTOBUF_GENERATE_CPP(GRPC_SRCS GRPC_HDRS grpc/Rpc.proto)
+  PROTOBUF_GENERATE_CPP(GRPC_SRCS GRPC_HDRS ${GRPC_PROTOS})
   grpc_generate_cpp(GRPC_SVC_SRCS GRPC_SVC_HDRS ${GRPC_PROTOBUF_PATH} ${GRPC_PROTOS})
 
   set(GRPC_SRCS ${GRPC_SRCS} PARENT_SCOPE)
