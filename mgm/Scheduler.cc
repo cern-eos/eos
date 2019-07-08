@@ -309,9 +309,7 @@ int Scheduler::FileAccess(AccessArguments* args)
          args->dataproxys,
          args->firewallentpts,
          st,
-         (!args->overridegeoloc ||
-          args->overridegeoloc->empty()) ? args->vid->geolocation : *
-         (args->overridegeoloc),
+         args->vid->geolocation,
          args->forcedfsid, args->unavailfs, args->noIO);
 }
 
