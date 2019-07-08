@@ -296,6 +296,8 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
 
         if (request->GetHeaders().count("want-digest")) {
           std::string type = request->GetHeaders()["want-digest"];
+	  type = LC_STRING(type);
+	  
           XrdOucString digest = "";
           eos_static_debug("method=HEAD, path=%s, checksum requested=%s",
                            url.c_str(), type.c_str());
