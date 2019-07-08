@@ -1866,21 +1866,21 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
           retCode = accessReplicas(entryIt->first, 1, &accessedReplicasIdx,
                                    accesserNode, &existingReplicasIdx,
                                    entry->foregroundFastStruct->rOAccessTree,
-                                   NULL, NULL, pSkipSaturatedAccess);
+                                   pSkipSaturatedAccess);
           break;
 
         case regularRW:
           retCode = accessReplicas(entryIt->first, 1, &accessedReplicasIdx,
                                    accesserNode, &existingReplicasIdx,
                                    entry->foregroundFastStruct->rWAccessTree,
-                                   NULL, NULL, pSkipSaturatedAccess);
+                                   pSkipSaturatedAccess);
           break;
 
         case draining:
           retCode = accessReplicas(entryIt->first, 1, &accessedReplicasIdx,
                                    accesserNode, &existingReplicasIdx,
                                    entry->foregroundFastStruct->drnAccessTree,
-                                   NULL, NULL, pSkipSaturatedDrnAccess);
+                                   pSkipSaturatedDrnAccess);
           break;
 
         default:
@@ -4669,7 +4669,7 @@ bool GeoTreeEngine::accessReqFwEP(const std::string& targetGeotag,
   auto idx  = pAccessGeotagMapping.accessTag2Idx->getClosestFastTreeNode(
                 accesserGeotag.c_str());
   SchedTreeBase::tFastTreeIdx idx2 = 0;
-  pAccessGeotagMapping.accessFT->findFreeSlotFirstHitBack(idx2, idx, false);
+  pAccessGeotagMapping.accessFT->findFreeSlotFirstHitBack(idx2, idx);
   // parse the geotag list and check the access
   auto accessible = (*pAccessGeotagMapping.accessFTI)[idx2].proxygroup;
   size_t beg = std::numeric_limits<size_t>::max(),
@@ -4725,7 +4725,7 @@ const
   auto idx  = pAccessProxygroup.accessTag2Idx->getClosestFastTreeNode(
                 toAccess.c_str());
   SchedTreeBase::tFastTreeIdx idx2 = 0;
-  pAccessProxygroup.accessFT->findFreeSlotFirstHitBack(idx2, idx, false);
+  pAccessProxygroup.accessFT->findFreeSlotFirstHitBack(idx2, idx);
   return (*pAccessProxygroup.accessFTI)[idx2].proxygroup;
 }
 

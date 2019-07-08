@@ -217,21 +217,6 @@ public:
     return true;
   }
 
-  bool
-  allocate(void* buffer, size_t bufSize, tFastTreeIdx size)
-  {
-    size_t memsize = sizeof(Node) * size;
-
-    if (bufSize < memsize) {
-      return false;
-    }
-
-    pMaxSize = size;
-    pSelfAllocated = false;
-    pNodes = (Node*) buffer;
-    return true;
-  }
-
   inline tFastTreeIdx
   getMaxNodeCount() const
   {
@@ -315,22 +300,6 @@ public:
   selfUnallocate()
   {
     delete[] pFsIds;
-    return true;
-  }
-
-  bool
-  allocate(void* buffer, size_t bufSize, tFastTreeIdx size)
-  {
-    size_t memsize = (sizeof(T) + sizeof(tFastTreeIdx)) * size;
-
-    if (bufSize < memsize) {
-      return false;
-    }
-
-    pMaxSize = size;
-    pSelfAllocated = false;
-    pFsIds = (T*) buffer;
-    pNodeIdxs = (tFastTreeIdx*)(pFsIds + size);
     return true;
   }
 
@@ -1767,15 +1736,6 @@ public:
     return pNodeCount;
   }
 
-  inline bool
-  findFreeSlotsMultiple(std::vector<tFastTreeIdx>& idxs, tFastTreeIdx nReplicas,
-                        tFastTreeIdx startFrom = 0, bool allowUpRoot = false)
-  {
-    // NOT IMPLEMENTED
-    eos_static_crit("NOT IMPLEMENTED");
-    return false;
-  }
-
   inline tFastTreeIdx
   findFreeSlotsAll(tFastTreeIdx* idxs, tFastTreeIdx sizeIdxs,
                    tFastTreeIdx startFrom = 0, bool allowUpRoot = false,
@@ -2011,22 +1971,6 @@ public:
     return true;
   }
 
-  bool
-  allocate(void* buffer, size_t bufsize, tFastTreeIdx size)
-  {
-    size_t memsize = (sizeof(FastTreeNode) + sizeof(Branch)) * size;
-
-    if (bufsize < memsize) {
-      return false;
-    }
-
-    pMaxNodeCount = size;
-    pNodes = (FastTreeNode*) buffer;
-    pBranches = (Branch*)(pNodes + size);
-    pSelfAllocated = false;
-    return true;
-  }
-
   tSelf& operator = (const tSelf& model)
   {
     (*static_cast<SchedTreeBase*>(this)) = *static_cast<const SchedTreeBase*>
@@ -2211,42 +2155,6 @@ public:
     }
   }
 
-  void
-  incrementFreeSlot(tFastTreeIdx node, bool useHpSpeedUp = false)
-  {
-    // first update the node information
-    __EOSMGM_TREECOMMON_CHK2__
-    checkConsistency(0);
-    pNodes[node].fileData.freeSlotsCount++;
-
-    // if there is a father node, update its branches
-    if (node) {
-      tFastTreeIdx father = pNodes[node].treeData.fatherIdx;
-      tFastTreeIdx firstBranchIndex = pNodes[father].treeData.firstBranchIdx;
-      tFastTreeIdx nbBranches = pNodes[father].treeData.childrenCount;
-      tFastTreeIdx matchBranchIdx;
-
-      // first locate the branch (it should be in the first positions if it's a placement)
-      for (matchBranchIdx = firstBranchIndex;
-           matchBranchIdx < firstBranchIndex + nbBranches &&
-           pBranches[matchBranchIdx].sonIdx != node; matchBranchIdx++) {
-      }
-
-      __EOSMGM_TREECOMMON_CHK1__
-      assert(pBranches[matchBranchIdx].sonIdx == node);
-
-      // the branches are supposed to be ordered before the update
-      if (useHpSpeedUp) {
-        fixBranchSortingHP(father, matchBranchIdx);  // optimized for
-      } else {
-        fixBranchSorting(father, matchBranchIdx);
-      }
-
-      // finally iterate upper in the tree
-      incrementFreeSlot(father, useHpSpeedUp);
-    }
-  }
-
   bool
   findFreeSlotFirstHit(tFastTreeIdx& newReplica, tFastTreeIdx startFrom = 0,
                        bool allowUpRoot = false, bool decrFreeSlot = true)
@@ -2293,8 +2201,7 @@ public:
   }
 
   bool
-  findFreeSlotFirstHitBack(tFastTreeIdx& newReplica, tFastTreeIdx startFrom = 0,
-                           bool decrFreeSlot = true)
+  findFreeSlotFirstHitBack(tFastTreeIdx& newReplica, tFastTreeIdx startFrom = 0)
   {
     if (pNodes[startFrom].fsData.mStatus == SchedTreeBase::Available) {
       newReplica = startFrom;
@@ -2302,7 +2209,7 @@ public:
     } else {
       if (startFrom) {
         return findFreeSlotFirstHitBack(newReplica,
-                                        pNodes[startFrom].treeData.fatherIdx, decrFreeSlot);
+                                        pNodes[startFrom].treeData.fatherIdx);
       } else {
         return false;
       }
@@ -2463,30 +2370,10 @@ go_back:
     }
   }
 
-  inline void enableSubTree(const tFastTreeIdx& node)
-  {
-    // need to call update after calling this function
-    const tFastTreeIdx& firstBranchIdx = pNodes[node].treeData.firstBranchIdx;
-    const tFastTreeIdx& nbChildren = pNodes[node].treeData.childrenCount;
-    enableNode(node);
-
-    if (nbChildren) {
-      for (tFastTreeIdx branchIdx = firstBranchIdx;
-           branchIdx < firstBranchIdx + nbChildren; branchIdx++) {
-        enableSubTree(pBranches[branchIdx].sonIdx);
-      }
-    }
-  }
-
   inline void disableNode(const tFastTreeIdx& node)
   {
     // need to call update after calling this function
     pNodes[node].fsData.mStatus |= Disabled;
-  }
-  inline void enableNode(const tFastTreeIdx& node)
-  {
-    // need to call update after calling this function
-    pNodes[node].fsData.mStatus &= ~Disabled;
   }
 };
 
