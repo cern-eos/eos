@@ -949,8 +949,6 @@ class GeoTreeEngine : public eos::common::LogId
         return false;
       }
 
-      applyBranchDisablings(*entry);
-
       if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
         stringstream ss;
         ss << (*entry->backgroundFastStruct->proxyAccessTree);
@@ -1051,9 +1049,7 @@ protected:
 
   /// these settings indicate if saturated FS should try to be avoided
   /// this might lead to unoptimal access/placement location-wise
-  bool pSkipSaturatedPlct, pSkipSaturatedAccess,
-       pSkipSaturatedDrnAccess, pSkipSaturatedBlcAccess,
-       pSkipSaturatedDrnPlct, pSkipSaturatedBlcPlct;
+  bool pSkipSaturatedAccess, pSkipSaturatedDrnAccess, pSkipSaturatedBlcAccess;
   /// these setting indicates if sthe proxy should be selected closest to the fs or closest to the client
   bool pProxyCloseToFs;
 
@@ -1378,8 +1374,7 @@ protected:
                                           unsigned long long bookingSize = 0,
                                           const SchedTreeBase::tFastTreeIdx& startFromNode = 0,
                                           const size_t& nFinalCollocatedReplicas = 0,
-                                          std::vector<SchedTreeBase::tFastTreeIdx>* excludedNodes = NULL,
-                                          bool skipSaturated = false)
+                                          std::vector<SchedTreeBase::tFastTreeIdx>* excludedNodes = NULL)
   {
     // a read lock is supposed to be acquired on the fast structures
     eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
@@ -1505,22 +1500,12 @@ protected:
       SchedTreeBase::tFastTreeIdx startidx = (k < nNewReplicas -
                                               nAdjustCollocatedReplicas) ? 0 : startFromNode;
 
-      if (!tree->findFreeSlot(idx, startidx, true /*allow uproot if necessary*/, true,
-                              skipSaturated)) {
-        if (skipSaturated) {
-          eos_debug("Could not find any replica for placement while skipping saturated fs. Trying with saturated nodes included");
-        }
-
-        if ((!skipSaturated) ||
-            !tree->findFreeSlot(idx, startidx, true /*allow uproot if necessary*/, true,
-                                false)) {
-          eos_debug("could not find a new slot for a replica in the fast tree");
-          stringstream ss;
-          ss << (*tree);
-          eos_debug("iteration number %lu fast tree used for placement is: \n %s", k,
-                    ss.str().c_str());
-          return false;
-        }
+      if (!tree->findFreeSlot(idx, startidx, true /*allow uproot if necessary*/, true, false)) {
+        eos_debug("could not find a new slot for a replica in the fast tree");
+        stringstream ss;
+        ss << (*tree);
+        eos_debug("iteration number %lu fast tree used for placement is: \n %s", k, ss.str().c_str());
+        return false;
       }
 
       newReplicas->push_back(idx);
@@ -1753,13 +1738,9 @@ protected:
   bool markPendingBranchDisablings(const std::string& group,
                                    const std::string& optype, const std::string& geotag);
   bool applyBranchDisablings(const SchedTME& entry);
-  bool applyBranchDisablings(const ProxyTMEBase& entry);
-  bool setSkipSaturatedPlct(bool value, bool setconfig = false);
   bool setSkipSaturatedAccess(bool value, bool setconfig = false);
   bool setSkipSaturatedDrnAccess(bool value, bool setconfig = false);
   bool setSkipSaturatedBlcAccess(bool value, bool setconfig = false);
-  bool setSkipSaturatedDrnPlct(bool value, bool setconfig = false);
-  bool setSkipSaturatedBlcPlct(bool value, bool setconfig = false);
   bool setProxyCloseToFs(bool value, bool setconfig = false);
   bool setScorePenalty(std::vector<float>& fvector, std::vector<char>& cvector,
                        const std::vector<char>& value, const std::string& configentry);
@@ -1793,10 +1774,8 @@ protected:
 public:
   //! [public member functions]
   GeoTreeEngine() :
-    pSkipSaturatedPlct(false), pSkipSaturatedAccess(true),
-    pSkipSaturatedDrnAccess(true), pSkipSaturatedBlcAccess(true),
-    pSkipSaturatedDrnPlct(false), pSkipSaturatedBlcPlct(false),
-    pProxyCloseToFs(true),
+    pSkipSaturatedAccess(true), pSkipSaturatedDrnAccess(true),
+    pSkipSaturatedBlcAccess(true), pProxyCloseToFs(true),
     pPenaltyUpdateRate(1),
     pFillRatioLimit(80), pFillRatioCompTol(100), pSaturationThres(10),
     pTimeFrameDurationMs(1000), pPublishToPenaltyDelayMs(1000),
