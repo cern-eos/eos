@@ -1484,8 +1484,6 @@ protected:
       SchedTreeBase::tFastTreeIdx accesserNode,
       std::vector<SchedTreeBase::tFastTreeIdx>* existingReplicas,
       T* accessTree,
-      std::vector<SchedTreeBase::tFastTreeIdx>* excludedNodes = NULL,
-      std::vector<SchedTreeBase::tFastTreeIdx>* forceNodes = NULL,
       bool skipSaturated = false)
   {
     eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
@@ -1512,16 +1510,6 @@ protected:
                      (int)accessTree->pBranchComp.saturationThresh,
                      (int)tree->pBranchComp.saturationThresh);
 
-    if (forceNodes) {
-      ///// =====  NOT IMPLEMENTED
-      assert(false);
-
-      // make all the nodes
-      for (SchedTreeBase::tFastTreeIdx k = 0; k < tree->getMaxNodeCount(); k++) {
-        tree->pNodes[k].fsData.mStatus &= ~SchedTreeBase::Available;
-      }
-    }
-
     // place the existing replicas
     if (existingReplicas) {
       for (auto it = existingReplicas->begin(); it != existingReplicas->end(); ++it) {
@@ -1532,15 +1520,6 @@ protected:
       // update the tree
       // (could be made faster for a small number of existing replicas by using update branches)
       tree->updateTree();
-    }
-
-    if (excludedNodes) {
-      // mark the excluded branches as unavailable and sort the branches (no deep, or we would lose the unavailable marks)
-      for (auto it = excludedNodes->begin(); it != excludedNodes->end(); ++it) {
-        tree->pNodes[*it].fsData.mStatus = tree->pNodes[*it].fsData.mStatus &
-                                           ~SchedTreeBase::Available;
-        tree->updateBranch(*it);
-      }
     }
 
     // do the access
