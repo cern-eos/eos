@@ -1204,7 +1204,6 @@ protected:
   // => latency estimation
   //
   struct LatencySubSys {
-    tLatencyStats pGlobalLatencyStats, globalAgeStats;
     std::vector<tLatencyStats> pFsId2LatencyStats;
     std::map<std::string, tLatencyStats> pHost2LatencyStats;
     std::vector<size_t> pCircFrCnt2Timestamp;
