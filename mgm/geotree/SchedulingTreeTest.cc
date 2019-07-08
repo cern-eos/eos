@@ -348,7 +348,7 @@ int main()
   GeoTag2NodeIdxMap* geomap = new GeoTag2NodeIdxMap();
   geomap->selfAllocate(255);
   st->buildFastStrcturesAccess(ft, ftmap, fti, geomap);
-  
+
   std::cout << " AccessGeotagMapping is " << endl;
   unsigned geo_depth_max = 0;
   TableFormatterBase table_access;
@@ -516,11 +516,9 @@ int mainFull()
   PopulateSchedGroupFromFile(geoTagFileName, groupSize, nFsPerBox, schedGroups);
   vector<SlowTree> trees(schedGroups.size());
   vector<FastPlacementTree> fptrees(schedGroups.size());
-  vector<FastBalancingPlacementTree> fbptrees(schedGroups.size());
   vector<FastDrainingPlacementTree> fdptrees(schedGroups.size());
   vector<FastROAccessTree> froatrees(schedGroups.size());
   vector<FastRWAccessTree> frwatrees(schedGroups.size());
-  vector<FastBalancingAccessTree> fbatrees(schedGroups.size());
   vector<FastDrainingAccessTree> fdatrees(schedGroups.size());
   vector<SchedTreeBase::FastTreeInfo> ftinfos(schedGroups.size());
   vector<Fs2TreeIdxMap> ftmaps(schedGroups.size());
@@ -642,18 +640,15 @@ int mainFull()
          << nUnavailFs << "\tnDisabledFs = " << std::setw(3) << nDisabledFs << std::endl;
     // allocate the memory for the content of the FastTree
     fptrees[idx].selfAllocate(trees[idx].getNodeCount());
-    fbptrees[idx].selfAllocate(trees[idx].getNodeCount());
     fdptrees[idx].selfAllocate(trees[idx].getNodeCount());
     froatrees[idx].selfAllocate(trees[idx].getNodeCount());
     frwatrees[idx].selfAllocate(trees[idx].getNodeCount());
-    fbatrees[idx].selfAllocate(trees[idx].getNodeCount());
     fdatrees[idx].selfAllocate(trees[idx].getNodeCount());
     // build the FastTree
     //std::cout<<trees[0]<<std::endl;
     assert(
       trees[idx].buildFastStrcturesSched(&fptrees[idx], &froatrees[idx],
-                                         &frwatrees[idx], &fbptrees[idx], &fbatrees[idx],
-                                         &fdptrees[idx], &fdatrees[idx], &ftinfos[idx], &ftmaps[idx], &geomaps[idx]));
+                                         &frwatrees[idx], &fdptrees[idx], &fdatrees[idx], &ftinfos[idx], &ftmaps[idx], &geomaps[idx]));
     // check the consistency of the FastTree
     fptrees[idx].checkConsistency(0);
     // check the consistency of the FastTree
@@ -702,8 +697,6 @@ int mainFull()
                            &ftinfos[idx], nAvailableFsPlct);
     functionalTestFastTree(&fptrees[idx], &frwatrees[idx], &geomaps[idx],
                            &ftinfos[idx], nAvailableFsPlct);
-    functionalTestFastTree(&fbptrees[idx], &fbatrees[idx], &geomaps[idx],
-                           &ftinfos[idx], nAvailableFsBlcPlct);
     functionalTestFastTree(&fdptrees[idx], &fdatrees[idx], &geomaps[idx],
                            &ftinfos[idx], nAvailableFsDrnPlct);
 
@@ -770,7 +763,7 @@ int mainFull()
            std::endl << std::endl;
       cout << "====== Illustrating the color display of a Placement FastTree ======"
            << std::endl;
-           
+
       geo_depth_max = 0;
       TableFormatterBase table_snapshot;
       table_snapshot.SetHeader({
@@ -842,7 +835,7 @@ int mainFull()
            std::endl << std::endl;
       cout << "====== Illustrating the color display of an Access FastTree ======" <<
            std::endl;
-           
+
       geo_depth_max = 0;
       TableFormatterBase table_snapshot2;
       table_snapshot2.SetHeader({
@@ -1129,7 +1122,6 @@ int mainFull()
     int j = i % schedGroups.size();
     assert(
       trees[j].buildFastStrcturesSched(&fptrees[j], &froatrees[j], &frwatrees[j],
-                                       &fbptrees[j], &fbatrees[j],
                                        &fdptrees[j], &fdatrees[j], &ftinfos[j], &ftmaps[j], &geomaps[j]));
   }
 

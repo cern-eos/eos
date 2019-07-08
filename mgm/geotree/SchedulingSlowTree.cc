@@ -139,7 +139,7 @@ void SlowTreeNode::recursiveDisplayAccess(std::set<std::tuple<unsigned, unsigned
       unsigned depth = (prefix1 == 0 && prefix2 == 0) ? 1 : 2;
       data_access.insert(std::make_tuple(data_access.size(), depth, prefix1, prefix2,
                          pNodeInfo.fullGeotag, pNodeInfo.proxygroup));
-    
+
     for (auto it = pChildren.begin(); it != pChildren.end(); it++) {
       unsigned prefix1_temp = (prefix2 == 3) ? 1 : 0;
       if (it != pChildren.end() && ++tNodeMap::const_iterator(it) == pChildren.end()) {
@@ -161,7 +161,7 @@ void SlowTree::display(std::set<std::tuple<std::string, unsigned, unsigned,
 }
 
 void SlowTree::displayAccess(std::set<std::tuple<unsigned, unsigned, unsigned,
-                             unsigned, std::string, std::string>>& data_access, 
+                             unsigned, std::string, std::string>>& data_access,
                              unsigned& geo_depth_max)
 {
   pRootNode.recursiveDisplayAccess(data_access, geo_depth_max);
@@ -382,7 +382,6 @@ SlowTreeNode* SlowTree::moveToNewGeoTag(SlowTreeNode* node,
 
 bool SlowTree::buildFastStrcturesSched(
   FastPlacementTree* fpt, FastROAccessTree* froat, FastRWAccessTree* frwat,
-  FastBalancingPlacementTree* fbpt, FastBalancingAccessTree* fbat,
   FastDrainingPlacementTree* fdpt, FastDrainingAccessTree* fdat,
   FastTreeInfo* fastinfo, Fs2TreeIdxMap* fs2idx,
   GeoTag2NodeIdxMap* geo2node) const
@@ -392,9 +391,7 @@ bool SlowTree::buildFastStrcturesSched(
       frwat->getMaxNodeCount() < getNodeCount()
       || fpt->getMaxNodeCount() < getNodeCount()
       || fdat->getMaxNodeCount() < getNodeCount() ||
-      fdpt->getMaxNodeCount() < getNodeCount()
-      || fbat->getMaxNodeCount() < getNodeCount() ||
-      fbpt->getMaxNodeCount() < getNodeCount()) {
+      fdpt->getMaxNodeCount() < getNodeCount()) {
     return false;
   }
 
@@ -544,27 +541,13 @@ bool SlowTree::buildFastStrcturesSched(
   frwat->pNodeCount = pNodeCount;
   frwat->updateTree();
 
-  // copy them to the other trees (balancing and draining)
-  if (fpt->copyToFastTree(fbpt)) {
-    assert(false);
-    return false;
-  }
-
-  fbpt->updateTree();
-
+  // copy them to the other tree (draining)
   if (fpt->copyToFastTree(fdpt)) {
     assert(false);
     return false;
   }
 
   fdpt->updateTree();
-
-  if (froat->copyToFastTree(fbat)) {
-    assert(false);
-    return false;
-  }
-
-  fbat->updateTree();
 
   if (froat->copyToFastTree(fdat)) {
     assert(false);
@@ -669,22 +652,17 @@ bool SlowTree::buildFastStrcturesSched(
   }
 
   fs2idx->pSize = fs2idxMap.size();
-  froat->pFs2Idx = frwat->pFs2Idx = fpt->pFs2Idx = fdat->pFs2Idx =
-                                      fdpt->pFs2Idx = fbat->pFs2Idx = fbpt->pFs2Idx = fs2idx;
-  froat->pTreeInfo = frwat->pTreeInfo = fpt->pTreeInfo = fdat->pTreeInfo =
-                                          fdpt->pTreeInfo = fbat->pTreeInfo = fbpt->pTreeInfo = fastinfo;
+  froat->pFs2Idx = frwat->pFs2Idx = fpt->pFs2Idx = fdat->pFs2Idx = fdpt->pFs2Idx = fs2idx;
+  froat->pTreeInfo = frwat->pTreeInfo = fpt->pTreeInfo = fdat->pTreeInfo = fdpt->pTreeInfo = fastinfo;
+
   __EOSMGM_TREECOMMON_CHK2__
   fpt->checkConsistency(0, true);
-  __EOSMGM_TREECOMMON_CHK2__
-  fbpt->checkConsistency(0, true);
   __EOSMGM_TREECOMMON_CHK2__
   fdpt->checkConsistency(0, true);
   __EOSMGM_TREECOMMON_CHK2__
   froat->checkConsistency(0, true);
   __EOSMGM_TREECOMMON_CHK2__
   frwat->checkConsistency(0, true);
-  __EOSMGM_TREECOMMON_CHK2__
-  fbat->checkConsistency(0, true);
   __EOSMGM_TREECOMMON_CHK2__
   fdat->checkConsistency(0, true);
 

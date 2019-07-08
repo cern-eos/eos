@@ -58,7 +58,7 @@ public:
 
   //! Types of scheduling
   enum tSchedType
-  { regular, balancing, draining};
+  { regular, draining};
 
   //! Arguments to place a file placement
   struct PlacementArguments {

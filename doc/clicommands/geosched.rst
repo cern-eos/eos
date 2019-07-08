@@ -12,7 +12,7 @@ geosched
     geosched show [-c] snapshot [{<scheduling subgroup>,*}] [<optype>] :  show snapshots of scheduling trees
     :  if <scheduling group> is specified only the snapshot(s) for this group is/are shown. If it's not all, the snapshots for all the groups are shown.
     :  if <optype> is specified only the snapshot for this operation is shown. If it's not, the snapshots for all the optypes are shown.
-    :  <optype> can be one of the folowing plct,accsro,accsrw,accsdrain,plctdrain,accsblc,plctblc
+    :  <optype> can be one of the folowing plct,accsro,accsrw,accsdrain,plctdrain
     :  '-c' enables color display
     geosched show param                                                :  show internal parameters
     geosched show state [-m]                                           :  show internal state

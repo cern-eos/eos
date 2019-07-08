@@ -922,22 +922,6 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
         geo_depth_max = (geo_depth_max_temp > geo_depth_max) ?
                         geo_depth_max_temp : geo_depth_max;
       }
-
-      if (optype.empty() || (optype == "accsblc")) {
-        unsigned geo_depth_max_temp = 0;
-        it->second->foregroundFastStruct->blcAccessTree->recursiveDisplay(
-          data_snapshot, geo_depth_max, "Balancing Access", "accsblc", useColors);
-        geo_depth_max = (geo_depth_max_temp > geo_depth_max) ?
-                        geo_depth_max_temp : geo_depth_max;
-      }
-
-      if (optype.empty() || (optype == "plctblc")) {
-        unsigned geo_depth_max_temp = 0;
-        it->second->foregroundFastStruct->blcPlacementTree->recursiveDisplay(
-          data_snapshot, geo_depth_max, "Balancing Placement", "plctblc", useColors);
-        geo_depth_max = (geo_depth_max_temp > geo_depth_max) ?
-                        geo_depth_max_temp : geo_depth_max;
-      }
     }
   }
 
@@ -1338,13 +1322,6 @@ GeoTreeEngine::placeNewReplicasOneGroup(FsGroup* group,
   case draining:
     success = placeNewReplicas(entry, nNewReplicas, &newReplicasIdx,
                                entry->foregroundFastStruct->drnPlacementTree,
-                               existingReplicasIdx, bookingSize, startFromNode,
-                               nCollocatedReplicas, excludeFsIdx);
-    break;
-
-  case balancing:
-    success = placeNewReplicas(entry, nNewReplicas, &newReplicasIdx,
-                               entry->foregroundFastStruct->blcPlacementTree,
                                existingReplicasIdx, bookingSize, startFromNode,
                                nCollocatedReplicas, excludeFsIdx);
     break;
@@ -1876,11 +1853,6 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
                       &entry->foregroundFastStruct->drnAccessTree->pNodes[*idx].fsData, &freeSlot);
           break;
 
-        case balancing:
-          isValid = entry->foregroundFastStruct->blcAccessTree->pBranchComp.isValidSlot(
-                      &entry->foregroundFastStruct->blcAccessTree->pNodes[*idx].fsData, &freeSlot);
-          break;
-
         default:
           break;
         }
@@ -1991,13 +1963,6 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
                                    accesserNode, &existingReplicasIdx,
                                    entry->foregroundFastStruct->drnAccessTree,
                                    NULL, NULL, pSkipSaturatedDrnAccess);
-          break;
-
-        case balancing:
-          retCode = accessReplicas(entryIt->first, 1, &accessedReplicasIdx,
-                                   accesserNode, &existingReplicasIdx,
-                                   entry->foregroundFastStruct->blcAccessTree,
-                                   NULL, NULL, pSkipSaturatedBlcAccess);
           break;
 
         default:
@@ -2344,8 +2309,6 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
     entry->backgroundFastStruct->placementTree->pNodes[ftIdx].fsData.variable = value;    \
     entry->backgroundFastStruct->drnAccessTree->pNodes[ftIdx].fsData.variable = value;    \
     entry->backgroundFastStruct->drnPlacementTree->pNodes[ftIdx].fsData.variable = value; \
-    entry->backgroundFastStruct->blcAccessTree->pNodes[ftIdx].fsData.variable = value;    \
-    entry->backgroundFastStruct->blcPlacementTree->pNodes[ftIdx].fsData.variable = value; \
   }
 #define setOneStateVarStatusInAllFastTrees(flag)                                          \
   {                                                                                       \
@@ -2354,8 +2317,6 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
     entry->backgroundFastStruct->placementTree->pNodes[ftIdx].fsData.mStatus |= flag;     \
     entry->backgroundFastStruct->drnAccessTree->pNodes[ftIdx].fsData.mStatus |= flag;     \
     entry->backgroundFastStruct->drnPlacementTree->pNodes[ftIdx].fsData.mStatus |= flag;  \
-    entry->backgroundFastStruct->blcAccessTree->pNodes[ftIdx].fsData.mStatus |= flag;     \
-    entry->backgroundFastStruct->blcPlacementTree->pNodes[ftIdx].fsData.mStatus |= flag;  \
   }
 #define unsetOneStateVarStatusInAllFastTrees(flag)                                        \
   {                                                                                       \
@@ -2364,8 +2325,6 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
     entry->backgroundFastStruct->placementTree->pNodes[ftIdx].fsData.mStatus &= ~flag;    \
     entry->backgroundFastStruct->drnAccessTree->pNodes[ftIdx].fsData.mStatus &= ~flag;    \
     entry->backgroundFastStruct->drnPlacementTree->pNodes[ftIdx].fsData.mStatus &= ~flag; \
-    entry->backgroundFastStruct->blcAccessTree->pNodes[ftIdx].fsData.mStatus &= ~flag;    \
-    entry->backgroundFastStruct->blcPlacementTree->pNodes[ftIdx].fsData.mStatus &= ~flag; \
   }
 
   if (keys & sfgGeotag) {
@@ -3922,14 +3881,6 @@ bool GeoTreeEngine::applyBranchDisablings(const SchedTME& entry)
 
         if (optype == "*" || optype == "accsdrain") {
           entry.backgroundFastStruct->drnAccessTree->disableSubTree(idx);
-        }
-
-        if (optype == "*" || optype == "plctblc") {
-          entry.backgroundFastStruct->blcPlacementTree->disableSubTree(idx);
-        }
-
-        if (optype == "*" || optype == "accsblc") {
-          entry.backgroundFastStruct->blcAccessTree->disableSubTree(idx);
         }
       }
     }
