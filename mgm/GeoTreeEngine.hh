@@ -1316,29 +1316,11 @@ protected:
     ft->applyDlScorePenalty(idx, penalty, background);
   }
 
-  inline void applyDlScorePenalty(ProxyTMEBase* entry,
-                                  const SchedTreeBase::tFastTreeIdx& idx, const char& penalty,
-                                  bool background = false)
-  {
-    FastStructProxy* ft = background ? entry->backgroundFastStruct :
-                          entry->foregroundFastStruct;
-    ft->applyDlScorePenalty(idx, penalty, background);
-  }
-
   inline void applyUlScorePenalty(SchedTME* entry,
                                   const SchedTreeBase::tFastTreeIdx& idx, const char& penalty,
                                   bool background = false)
   {
     FastStructSched* ft = background ? entry->backgroundFastStruct :
-                          entry->foregroundFastStruct;
-    ft->applyUlScorePenalty(idx, penalty, background);
-  }
-
-  inline void applyUlScorePenalty(ProxyTMEBase* entry,
-                                  const SchedTreeBase::tFastTreeIdx& idx, const char& penalty,
-                                  bool background = false)
-  {
-    FastStructProxy* ft = background ? entry->backgroundFastStruct :
                           entry->foregroundFastStruct;
     ft->applyUlScorePenalty(idx, penalty, background);
   }
@@ -2108,22 +2090,6 @@ public:
       gUpdaterPaused = false;
     }
   }
-
-  // ---------------------------------------------------------------------------
-  //! Helper class to use Pausing the updater
-  // ---------------------------------------------------------------------------
-  class UpdaterPauser
-  {
-  public:
-    UpdaterPauser()
-    {
-      GeoTreeEngine::PauseUpdater();
-    }
-    ~UpdaterPauser()
-    {
-      GeoTreeEngine::ResumeUpdater();
-    }
-  };
 
   // ---------------------------------------------------------------------------
   //! Stop the background updater thread
