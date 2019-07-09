@@ -292,6 +292,96 @@ const std::map<std::string, std::string>& FileSystemUpdateBatch::getLocalUpdates
 }
 
 //------------------------------------------------------------------------------
+// Empty constructor
+//------------------------------------------------------------------------------
+FstLocator::FstLocator() {}
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+FstLocator::FstLocator(const std::string &host, int port)
+: mHost(host), mPort(port) {}
+
+//------------------------------------------------------------------------------
+// Get host
+//------------------------------------------------------------------------------
+std::string FstLocator::getHost() const {
+  return mHost;
+}
+
+//------------------------------------------------------------------------------
+// Get port
+//------------------------------------------------------------------------------
+int FstLocator::getPort() const {
+  return mPort;
+}
+
+//------------------------------------------------------------------------------
+// Get fst queuepath
+//------------------------------------------------------------------------------
+std::string FstLocator::getQueuePath() const {
+  return SSTR("/eos/" << mHost << ":" << mPort << "/fst");
+}
+
+//------------------------------------------------------------------------------
+// Get host:port
+//------------------------------------------------------------------------------
+std::string FstLocator::getHostPort() const {
+  return SSTR(mHost << ":" << mPort);
+}
+
+//------------------------------------------------------------------------------
+// Try to parse from queuepath
+//------------------------------------------------------------------------------
+bool FstLocator::fromQueuePath(const std::string &queuepath, FstLocator &out) {
+  std::string queue = queuepath;
+
+  if (!startsWith(queue, "/eos/")) {
+    return false;
+  }
+
+  queue.erase(0, 5);
+
+  //----------------------------------------------------------------------------
+  // Chop /eos/, extract host+port
+  //----------------------------------------------------------------------------
+  size_t slashLocation = queue.find("/");
+  if (slashLocation == std::string::npos) {
+    return false;
+  }
+
+  std::string hostPort = std::string(queue.begin(), queue.begin() + slashLocation);
+  queue.erase(0, slashLocation);
+
+  //----------------------------------------------------------------------------
+  // Separate host from port
+  //----------------------------------------------------------------------------
+  size_t separator = hostPort.find(":");
+  if (separator == std::string::npos) {
+    return false;
+  }
+
+  out.mHost = std::string(hostPort.begin(), hostPort.begin() + separator);
+  hostPort.erase(0, separator+1);
+
+  int64_t port;
+  if (!parseInt64(hostPort, port)) {
+    return false;
+  }
+
+  out.mPort = port;
+
+  //----------------------------------------------------------------------------
+  // Chop "/fst/"
+  //----------------------------------------------------------------------------
+  if(queue != "/fst") {
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 GroupLocator::GroupLocator() {}
