@@ -55,10 +55,10 @@ EOSMGMNAMESPACE_BEGIN
 class IostatAvg
 {
 public:
-  unsigned long avg86400[60];
-  unsigned long avg3600[60];
-  unsigned long avg300[60];
-  unsigned long avg60[60];
+  unsigned long long avg86400[60];
+  unsigned long long avg3600[60];
+  unsigned long long avg300[60];
+  unsigned long long avg60[60];
 
   IostatAvg()
   {
@@ -71,7 +71,7 @@ public:
   ~IostatAvg() { };
 
   void
-  Add(unsigned long val, time_t starttime, time_t stoptime);
+  Add(unsigned long long val, time_t starttime, time_t stoptime);
 
   void
   StampZero();
@@ -267,7 +267,8 @@ public:
 
   // Stats collection
   void
-  Add(const char* tag, uid_t uid, gid_t gid, unsigned long val, time_t starttime,
+  Add(const char* tag, uid_t uid, gid_t gid, unsigned long long val,
+      time_t starttime,
       time_t stoptime)
   {
     Mutex.Lock();
