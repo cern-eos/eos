@@ -2281,26 +2281,6 @@ metad::mdcflush(ThreadAssistant& assistant)
   }
 }
 
-
-/* -------------------------------------------------------------------------- */
-void
-metad::mdselfstat(ThreadAssistant& assistant)
-{
-  while (!assistant.terminationRequested()) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10000));
-    struct stat buf;
-    if (::stat(EosFuse::Instance().Config().localmountdir.c_str(), &buf)) {
-      eos_static_err("self-stat failed path='%s' errno=%d", 
-		     EosFuse::Instance().Config().localmountdir.c_str(),
-		     errno);
-    }
-  }
-  
-}
-
-
-
-
 /* -------------------------------------------------------------------------- */
 void
 metad::mdsizeflush(ThreadAssistant& assistant)
