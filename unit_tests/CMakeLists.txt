@@ -66,7 +66,8 @@ set(MGM_UT_SRCS
   mgm/TapeAwareGcThreadSafeCachedValueTests.cc
   mgm/TapeAwareGcLruTests.cc
   mgm/TapeAwareGcUtilsTests.cc
-  mgm/IdTrackerTests.cc)
+  mgm/IdTrackerTests.cc
+  mgm/XrdMgmOfsTests.cc)
 
 set(COMMON_UT_SRCS
   common/FileIdTests.cc
