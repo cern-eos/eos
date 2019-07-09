@@ -650,6 +650,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                    const XrdSecEntity* client)
 {
   EXEC_TIMING_BEGIN("Prepare");
+  eos_info("prepareOpts=\"%s\"", prepareOptsToString(pargs.opts).c_str());
   static const char* epname = "prepare";
   const char* tident = error.getErrUser();
   eos::common::VirtualIdentity vid;
@@ -1291,4 +1292,60 @@ XrdMgmOfs::WaitUntilNamespaceIsBooted(ThreadAssistant& assistant)
       break;
     }
   }
+}
+
+//------------------------------------------------------------------------------
+// Return string representation of prepare options
+//------------------------------------------------------------------------------
+std::string
+XrdMgmOfs::prepareOptsToString(const int opts) {
+  std::ostringstream result;
+
+  const int priority = opts & Prep_PMASK;
+  switch(priority) {
+  case Prep_PRTY0:
+    result << "PRTY0";
+    break;
+  case Prep_PRTY1:
+    result << "PRTY1";
+    break;
+  case Prep_PRTY2:
+    result << "PRTY2";
+    break;
+  case Prep_PRTY3:
+    result << "PRTY3";
+    break;
+  default:
+    result << "PRTYUNKNOWN";
+  }
+
+  const int send_mask = 12;
+  const int send = opts & send_mask;
+  switch(send) {
+  case 0:
+    break;
+  case Prep_SENDAOK:
+    result << ",SENDAOK";
+    break;
+  case Prep_SENDERR:
+    result << ",SENDERR";
+    break;
+  case Prep_SENDACK:
+    result << ",SENDACK";
+    break;
+  default:
+    result << ",SENDUNKNOWN";
+  }
+
+  if(opts & Prep_WMODE) result << ",WMODE";
+  if(opts & Prep_STAGE) result << ",STAGE";
+  if(opts & Prep_COLOC) result << ",COLOC";
+  if(opts & Prep_FRESH) result << ",FRESH";
+#if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
+  if(opts & Prep_CANCEL) result << ",CANCEL";
+  if(opts & Prep_QUERY) result << ",QUERY";
+  if(opts & Prep_EVICT) result << ",EVICT";
+#endif
+
+  return result.str();
 }
