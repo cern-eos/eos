@@ -38,9 +38,6 @@ TEST(FileSystemRegistry, BasicSanity) {
   FileSystemLocator locator3("example.com", 1111, "/path3");
   FileSystemLocator locator4("example.com", 1111, "/path4");
 
-
-
-
   ASSERT_TRUE(registry.registerFileSystem(locator1, 1, (eos::mgm::FileSystem*) 0x01));
 
   // No duplicates
@@ -54,6 +51,9 @@ TEST(FileSystemRegistry, BasicSanity) {
   ASSERT_EQ(registry.lookupByPtr( (eos::mgm::FileSystem*) 0x01), 1);
   ASSERT_EQ(registry.lookupByPtr( (eos::mgm::FileSystem*) 0x02), 0);
   ASSERT_EQ(registry.lookupByPtr(nullptr), 0);
+
+  ASSERT_EQ(registry.lookupByQueuePath("/eos/example.com:1111/fst/path1"), (eos::mgm::FileSystem*) 0x01);
+  ASSERT_EQ(registry.lookupByQueuePath("/eos/example.com:1111/fst/path2"), nullptr);
 
   ASSERT_EQ(registry.size(), 1u);
   ASSERT_FALSE(registry.eraseById(2));
@@ -85,4 +85,14 @@ TEST(FileSystemRegistry, BasicSanity) {
   ASSERT_EQ(registry.size(), 0u);
   ASSERT_EQ(registry.lookupByID(2), nullptr);
   ASSERT_EQ(registry.lookupByPtr( (eos::mgm::FileSystem*) 0x02), 0);
+}
+
+TEST(FileSystemRegistry, QueuepathCollision) {
+  FileSystemRegistry registry;
+
+  FileSystemLocator locator("example.com", 1111, "/path1");
+
+  // No duplicate queuepath
+  ASSERT_TRUE(registry.registerFileSystem(locator, 1, (eos::mgm::FileSystem*) 0x01));
+  ASSERT_FALSE(registry.registerFileSystem(locator, 2, (eos::mgm::FileSystem*) 0x01));
 }

@@ -89,6 +89,11 @@ public:
   eos::common::FileSystem::fsid_t lookupByPtr(mgm::FileSystem* fs) const;
 
   //----------------------------------------------------------------------------
+  //! Lookup a FileSystem object by queuepath - return nullptr if none exists
+  //----------------------------------------------------------------------------
+  mgm::FileSystem* lookupByQueuePath(const std::string &queuepath) const;
+
+  //----------------------------------------------------------------------------
   //! Does a FileSystem with the given id exist?
   //----------------------------------------------------------------------------
   bool exists(eos::common::FileSystem::fsid_t id) const;
@@ -122,10 +127,18 @@ public:
   void clear();
 
 private:
+  struct IdAndQueuePath {
+    eos::common::FileSystem::fsid_t mId;
+    std::string mQueuePath;
+
+    IdAndQueuePath(eos::common::FileSystem::fsid_t id,
+      const std::string &queuepath) : mId(id), mQueuePath(queuepath) {}
+  };
+
   mutable std::shared_timed_mutex mMutex;
   std::map<eos::common::FileSystem::fsid_t, mgm::FileSystem*> mById;
-  std::map<mgm::FileSystem*, eos::common::FileSystem::fsid_t> mByFsPtr;
-
+  std::map<mgm::FileSystem*, IdAndQueuePath> mByFsPtr;
+  std::map<std::string, mgm::FileSystem*> mByQueuePath;
 };
 
 EOSMGMNAMESPACE_END
