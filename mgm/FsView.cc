@@ -1576,11 +1576,11 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams &coreParams,
         // Remove previous mapping
         mIdView.eraseById(fsid);
         // Setup new two way mapping
-        mIdView.registerFileSystem(snapshot.mId, fs);
+        mIdView.registerFileSystem(coreParams.getLocator(), snapshot.mId, fs);
         eos_debug("updating mapping %u<=>%lld", snapshot.mId, fs);
       }
     } else {
-      mIdView.registerFileSystem(snapshot.mId, fs);
+      mIdView.registerFileSystem(coreParams.getLocator(), snapshot.mId, fs);
       eos_debug("registering mapping %u<=>%lld", snapshot.mId, fs);
     }
 

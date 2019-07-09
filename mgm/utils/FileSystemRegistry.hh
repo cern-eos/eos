@@ -99,7 +99,7 @@ public:
   //! Refuse if either the FileSystem pointer already exists, or another
   //! FileSystem has the same ID.
   //----------------------------------------------------------------------------
-  bool registerFileSystem(eos::common::FileSystem::fsid_t fsid, mgm::FileSystem *fs);
+  bool registerFileSystem(const common::FileSystemLocator &locator, common::FileSystem::fsid_t fsid, mgm::FileSystem *fs);
 
   //----------------------------------------------------------------------------
   //! Return number of registered filesystems
