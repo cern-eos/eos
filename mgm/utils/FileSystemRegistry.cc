@@ -68,7 +68,9 @@ eos::common::FileSystem::fsid_t FileSystemRegistry::lookupByPtr(mgm::FileSystem*
 // Refuse if either the FileSystem pointer already exists, or another
 // FileSystem has the same ID.
 //----------------------------------------------------------------------------
-bool FileSystemRegistry::registerFileSystem(eos::common::FileSystem::fsid_t fsid, FileSystem *fs) {
+bool FileSystemRegistry::registerFileSystem(const common::FileSystemLocator &mLocator,
+  common::FileSystem::fsid_t fsid, FileSystem *fs) {
+
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
 
   //----------------------------------------------------------------------------

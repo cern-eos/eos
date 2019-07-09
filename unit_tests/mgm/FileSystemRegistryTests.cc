@@ -32,12 +32,21 @@ using namespace eos::common;
 //------------------------------------------------------------------------------
 TEST(FileSystemRegistry, BasicSanity) {
   FileSystemRegistry registry;
-  ASSERT_TRUE(registry.registerFileSystem(1, (eos::mgm::FileSystem*) 0x01));
+
+  FileSystemLocator locator1("example.com", 1111, "/path1");
+  FileSystemLocator locator2("example.com", 1111, "/path2");
+  FileSystemLocator locator3("example.com", 1111, "/path3");
+  FileSystemLocator locator4("example.com", 1111, "/path4");
+
+
+
+
+  ASSERT_TRUE(registry.registerFileSystem(locator1, 1, (eos::mgm::FileSystem*) 0x01));
 
   // No duplicates
-  ASSERT_FALSE(registry.registerFileSystem(1, (eos::mgm::FileSystem*) 0x01));
-  ASSERT_FALSE(registry.registerFileSystem(2, (eos::mgm::FileSystem*) 0x01));
-  ASSERT_FALSE(registry.registerFileSystem(1, (eos::mgm::FileSystem*) 0x02));
+  ASSERT_FALSE(registry.registerFileSystem(locator1, 1, (eos::mgm::FileSystem*) 0x01));
+  ASSERT_FALSE(registry.registerFileSystem(locator2, 2, (eos::mgm::FileSystem*) 0x01));
+  ASSERT_FALSE(registry.registerFileSystem(locator1, 1, (eos::mgm::FileSystem*) 0x02));
 
   ASSERT_EQ(registry.lookupByID(1), (eos::mgm::FileSystem*) 0x01);
   ASSERT_EQ(registry.lookupByID(2), nullptr);
@@ -50,9 +59,9 @@ TEST(FileSystemRegistry, BasicSanity) {
   ASSERT_FALSE(registry.eraseById(2));
   ASSERT_FALSE(registry.eraseByPtr( (eos::mgm::FileSystem*) 0x02));
 
-  ASSERT_TRUE(registry.registerFileSystem(2, (eos::mgm::FileSystem*) 0x02));
-  ASSERT_TRUE(registry.registerFileSystem(3, (eos::mgm::FileSystem*) 0x03));
-  ASSERT_TRUE(registry.registerFileSystem(4, (eos::mgm::FileSystem*) 0x04));
+  ASSERT_TRUE(registry.registerFileSystem(locator2,  2, (eos::mgm::FileSystem*) 0x02));
+  ASSERT_TRUE(registry.registerFileSystem(locator3, 3, (eos::mgm::FileSystem*) 0x03));
+  ASSERT_TRUE(registry.registerFileSystem(locator4, 4, (eos::mgm::FileSystem*) 0x04));
 
   ASSERT_EQ(registry.size(), 4u);
 
