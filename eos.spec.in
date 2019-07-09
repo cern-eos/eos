@@ -31,8 +31,8 @@
 %define major_version @CPACK_PACKAGE_VERSION_MAJOR@
 %define release_version @CPACK_PACKAGE_RELEASE@
 
-# release tags like x.y.z-0 enable automatically to build with eos-xrootd
-%if "%release_version" == "4"
+# release tags like x.y.z-1 enable automatically to build with eos-xrootd
+%if "%release_version" == "1"
 %define _with_eos_xrootd_rh 1
 %endif
 
