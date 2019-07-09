@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File com_fs.cc
+// File com_proto_qos.cc
 // Author: Mihai Patrascoiu - CERN
 //------------------------------------------------------------------------------
 
@@ -67,9 +67,8 @@ QoSHelper::ParseCommand(const char *arg) {
     auto identifier = new eos::console::QoSProto_IdentifierProto {};
     auto id = 0ull;
 
-    if ((Path2FileDenominator(path, id)) ||
-        (Path2ContainerDenominator(path, id))) {
-      identifier->set_id(id);
+    if (Path2FileDenominator(path, id)) {
+      identifier->set_fileid(id);
     } else {
       path = abspath(path.c_str());
       identifier->set_path(path.c_str());
@@ -174,7 +173,7 @@ void com_qos_help()
   oss << "Usage: qos get <identifier> [<key>]        : get QoS property of item" << std::endl
       << "       qos set <identifier> <key>=<value>  : set QoS property of item" << std::endl
       << std::endl
-      << "Note: <identifier> = fid|fxid|cid|cxid|path"
+      << "Note: <identifier> = fid|fxid|path"
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }
