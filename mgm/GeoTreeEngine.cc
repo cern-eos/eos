@@ -3023,29 +3023,16 @@ bool GeoTreeEngine::updateTreeInfo(const map<string, int>& updatesFs,
 
   // => PROXYGROUPS
   for (auto it = updatesDp.begin(); it != updatesDp.end(); ++it) {
-    gOFS->ObjectManager.HashMutex.LockRead();
-    XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(it->first.c_str(),
-                            "hash");
-
-    if (!hash) {
-      eos_warning("Inconsistency : Trying to access a deleted host.");
-      gOFS->ObjectManager.HashMutex.UnLockRead();
-      continue;
-    }
-
-    std::string host = hash->Get("stat.hostport");
-
-    if (host.empty()) {
+    eos::common::FileSystem::host_snapshot_t hs;
+    if(!eos::common::FileSystem::SnapShotHost(&gOFS->ObjectManager, it->first, hs,
+                                          true) || hs.mHostPort.empty()) {
       eos_warning("Inconsistency : Trying to update an unregistered host. "
                   "Should not happen.");
-      gOFS->ObjectManager.HashMutex.UnLockRead();
       continue;
     }
 
-    gOFS->ObjectManager.HashMutex.UnLockRead();
-    eos::common::FileSystem::host_snapshot_t hs;
-    eos::common::FileSystem::SnapShotHost(&gOFS->ObjectManager, it->first, hs,
-                                          true);
+    std::string host = hs.mHostPort;
+
     pPxyTreeMapMutex.LockRead();
 
     if (!pPxyHost2DpTMEs.count(hs.mHostPort)) {
