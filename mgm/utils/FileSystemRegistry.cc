@@ -49,6 +49,20 @@ mgm::FileSystem* FileSystemRegistry::lookupByID(eos::common::FileSystem::fsid_t 
 }
 
 //------------------------------------------------------------------------------
+// Lookup a FileSystem object by queuepath - return nullptr if none exists
+//------------------------------------------------------------------------------
+mgm::FileSystem* FileSystemRegistry::lookupByQueuePath(const std::string &queuepath) const {
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+
+  auto it = mByQueuePath.find(queuepath);
+  if(it == mByQueuePath.end()) {
+    return nullptr;
+  }
+
+  return it->second;
+}
+
+//------------------------------------------------------------------------------
 // Lookup a FileSystem id by FileSystem pointer - return 0 if none exists
 //------------------------------------------------------------------------------
 eos::common::FileSystem::fsid_t FileSystemRegistry::lookupByPtr(mgm::FileSystem* fs) const {
@@ -59,7 +73,7 @@ eos::common::FileSystem::fsid_t FileSystemRegistry::lookupByPtr(mgm::FileSystem*
     return 0;
   }
 
-  return it->second;
+  return it->second.mId;
 }
 
 //----------------------------------------------------------------------------
@@ -68,7 +82,7 @@ eos::common::FileSystem::fsid_t FileSystemRegistry::lookupByPtr(mgm::FileSystem*
 // Refuse if either the FileSystem pointer already exists, or another
 // FileSystem has the same ID.
 //----------------------------------------------------------------------------
-bool FileSystemRegistry::registerFileSystem(const common::FileSystemLocator &mLocator,
+bool FileSystemRegistry::registerFileSystem(const common::FileSystemLocator &locator,
   common::FileSystem::fsid_t fsid, FileSystem *fs) {
 
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
@@ -90,6 +104,14 @@ bool FileSystemRegistry::registerFileSystem(const common::FileSystemLocator &mLo
   }
 
   //----------------------------------------------------------------------------
+  // queuepath collision?
+  //----------------------------------------------------------------------------
+  if(mByQueuePath.count(locator.getQueuePath()) > 0) {
+    eos_static_crit("Could not insert fsid=%llu to FileSystemRegistry - queuepath %s already exists!", fsid, locator.getQueuePath().c_str());
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
   // Attempting to insert fsid=0?
   //----------------------------------------------------------------------------
   if(fsid == 0) {
@@ -105,14 +127,23 @@ bool FileSystemRegistry::registerFileSystem(const common::FileSystemLocator &mLo
     return false;
   }
 
+  //----------------------------------------------------------------------------
+  // Attempting to insert queuepath=""?
+  //----------------------------------------------------------------------------
+  if(locator.getQueuePath().empty()) {
+    eos_static_crit("Attempted to insert queuepath=empty into FileSystemRegistry");
+    return false;
+  }
 
   //----------------------------------------------------------------------------
   // All good, insert.
   //----------------------------------------------------------------------------
   mById.emplace(fsid, fs);
-  mByFsPtr.emplace(fs, fsid);
+  mByFsPtr.emplace(fs, IdAndQueuePath(fsid, locator.getQueuePath()));
+  mByQueuePath.emplace(locator.getQueuePath(), fs);
 
   eos_assert(mById.size() == mByFsPtr.size());
+  eos_assert(mById.size() == mByQueuePath.size());
   return true;
 }
 
@@ -136,10 +167,18 @@ bool FileSystemRegistry::eraseById(eos::common::FileSystem::fsid_t id) {
   auto it2 = mByFsPtr.find(it->second);
   eos_assert(it2 != mByFsPtr.end());
 
+  //----------------------------------------------------------------------------
+  // Lookup corresponding mByQueuePath entry, which MUST exist
+  //----------------------------------------------------------------------------
+  auto it3 = mByQueuePath.find(it2->second.mQueuePath);
+  eos_assert(it3 != mByQueuePath.end());
+
   mById.erase(it);
   mByFsPtr.erase(it2);
+  mByQueuePath.erase(it3);
 
   eos_assert(mById.size() == mByFsPtr.size());
+  eos_assert(mById.size() == mByQueuePath.size());
   return true;
 }
 
@@ -160,13 +199,21 @@ bool FileSystemRegistry::eraseByPtr(mgm::FileSystem *fs) {
   //----------------------------------------------------------------------------
   // Lookup corresponding mById entry, which MUST exist
   //----------------------------------------------------------------------------
-  auto it2 = mById.find(it->second);
+  auto it2 = mById.find(it->second.mId);
   eos_assert(it2 != mById.end());
+
+  //----------------------------------------------------------------------------
+  // Lookup corresponding mByQueuePath entry, which MUST exist
+  //----------------------------------------------------------------------------
+  auto it3 = mByQueuePath.find(it->second.mQueuePath);
+  eos_assert(it3 != mByQueuePath.end());
 
   mByFsPtr.erase(it);
   mById.erase(it2);
+  mByQueuePath.erase(it3);
 
   eos_assert(mById.size() == mByFsPtr.size());
+  eos_assert(mById.size() == mByQueuePath.size());
   return true;
 }
 
@@ -183,6 +230,10 @@ bool FileSystemRegistry::exists(eos::common::FileSystem::fsid_t id) const {
 //------------------------------------------------------------------------------
 size_t FileSystemRegistry::size() const {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+
+  eos_assert(mById.size() == mByFsPtr.size());
+  eos_assert(mById.size() == mByQueuePath.size());
+
   return mById.size();
 }
 
@@ -194,6 +245,7 @@ void FileSystemRegistry::clear() {
 
   mById.clear();
   mByFsPtr.clear();
+  mByQueuePath.clear();
 }
 
 
