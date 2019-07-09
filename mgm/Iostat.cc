@@ -247,10 +247,10 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
           report->cts);
       Add("bytes_xl_bwd_wseek", report->uid, report->gid, report->sxlbwdb,
           report->ots, report->cts);
-      Add("disk_time_read", report->uid, report->gid, (unsigned long long) report->rt,
+      Add("disk_time_read", report->uid, report->gid, report->rt,
           report->ots, report->cts);
       Add("disk_time_write", report->uid, report->gid,
-          (unsigned long long) report->wt, report->ots, report->cts);
+          report->wt, report->ots, report->cts);
       {
         // track deletions
         time_t now = time(NULL);
@@ -513,11 +513,11 @@ Iostat::PrintOut(XrdOucString& out, bool summary, bool details,
       }
 
       row.emplace_back(tag, format_s);
-      row.emplace_back(GetTotal(tag), format_l);
-      row.emplace_back(GetTotalAvg60(tag), format_l);
-      row.emplace_back(GetTotalAvg300(tag), format_l);
-      row.emplace_back(GetTotalAvg3600(tag), format_l);
-      row.emplace_back(GetTotalAvg86400(tag), format_l);
+      row.emplace_back(GetTotal(tag), format_ll);
+      row.emplace_back(GetTotalAvg60(tag), format_ll);
+      row.emplace_back(GetTotalAvg300(tag), format_ll);
+      row.emplace_back(GetTotalAvg3600(tag), format_ll);
+      row.emplace_back(GetTotalAvg86400(tag), format_ll);
     }
 
     table.AddRows(table_data);
@@ -997,9 +997,11 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
          it != FsView::gFsView.mIdView.end(); it++) {
       r_open_vector.clear();
       w_open_vector.clear();
+      FileSystem* fs = it->second;
 
-      FileSystem *fs = it->second;
-      if(!fs) continue;
+      if (!fs) {
+        continue;
+      }
 
       std::string r_open_hotfiles = fs->GetString("stat.ropen.hotfiles");
       std::string w_open_hotfiles = fs->GetString("stat.wopen.hotfiles");
@@ -1043,7 +1045,7 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
         }
 
         {
-          unsigned long fid = eos::common::FileId::Hex2Fid(val.c_str());
+          unsigned long long fid = eos::common::FileId::Hex2Fid(val.c_str());
           eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
           eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex);
 
@@ -1073,7 +1075,7 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
         }
 
         {
-          unsigned long fid = eos::common::FileId::Hex2Fid(val.c_str());
+          unsigned long long fid = eos::common::FileId::Hex2Fid(val.c_str());
           eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
           eos::common::RWMutexReadLock viewLock(gOFS->eosViewRWMutex);
 
@@ -1312,21 +1314,17 @@ Iostat::Store()
 
   // store user counters
   for (tuit = IostatUid.begin(); tuit != IostatUid.end(); tuit++) {
-    google::sparse_hash_map<uid_t, unsigned long long>::iterator it;
-
-    for (it = tuit->second.begin(); it != tuit->second.end(); ++it) {
+    for (auto it = tuit->second.begin(); it != tuit->second.end(); ++it) {
       fprintf(fout, "tag=%s&uid=%u&val=%llu\n", tuit->first.c_str(), it->first,
-              it->second);
+              (unsigned long long)it->second);
     }
   }
 
   // store group counter
   for (tgit = IostatGid.begin(); tgit != IostatGid.end(); tgit++) {
-    google::sparse_hash_map<uid_t, unsigned long long>::iterator it;
-
-    for (it = tgit->second.begin(); it != tgit->second.end(); ++it) {
+    for (auto it = tgit->second.begin(); it != tgit->second.end(); ++it) {
       fprintf(fout, "tag=%s&gid=%u&val=%llu\n", tgit->first.c_str(), it->first,
-              it->second);
+              (unsigned long long)it->second);
     }
   }
 
@@ -1430,7 +1428,8 @@ Iostat::NamespaceReport(const char* path, XrdOucString& stdOut,
            totalwritetime ? (totalwritebytes / totalwritetime / 1000000.0) : 0,
            eos::common::StringConversion::GetReadableSizeString(sizestring1,
                totalreadbytes, "B"), eos::common::StringConversion::GetReadableSizeString(
-             sizestring2, totalwritebytes, "B"), rcount, wcount);
+             sizestring2, totalwritebytes, "B"), (unsigned long long)rcount,
+           (unsigned long long)wcount);
   stdOut += summaryline;
   return true;
 }
@@ -1984,7 +1983,8 @@ Iostat::UdpBroadCast(eos::common::Report* report)
 
 void
 Iostat::AddToPopularity(std::string path, unsigned long long rb,
-                        time_t starttime, time_t stoptime)
+                        time_t starttime,
+                        time_t stoptime)
 {
   size_t popularitybin = (((starttime + stoptime) / 2) % (IOSTAT_POPULARITY_DAY *
                           IOSTAT_POPULARITY_HISTORY_DAYS)) / IOSTAT_POPULARITY_DAY;
@@ -2002,7 +2002,7 @@ Iostat::AddToPopularity(std::string path, unsigned long long rb,
 
 /* ------------------------------------------------------------------------- */
 void
-IostatAvg::Add(unsigned long val, time_t starttime, time_t stoptime)
+IostatAvg::Add(unsigned long long val, time_t starttime, time_t stoptime)
 {
   time_t now = time(0);
   size_t tdiff = stoptime - starttime;
@@ -2016,7 +2016,7 @@ IostatAvg::Add(unsigned long val, time_t starttime, time_t stoptime)
       mbins = 1;
     }
 
-    unsigned long norm_val = (1.0 * val / mbins);
+    unsigned long long norm_val = (1.0 * val / mbins);
 
     for (size_t bins = 0; bins < mbins; bins++) {
       unsigned int bin86400 = (((stoptime - (bins * 1440)) / 1440) % 60);
@@ -2032,7 +2032,7 @@ IostatAvg::Add(unsigned long val, time_t starttime, time_t stoptime)
       mbins = 1;
     }
 
-    unsigned long norm_val = 1.0 * val / mbins;
+    unsigned long long norm_val = 1.0 * val / mbins;
 
     for (size_t bins = 0; bins < mbins; bins++) {
       unsigned int bin3600 = (((stoptime - (bins * 60)) / 60) % 60);
@@ -2048,7 +2048,7 @@ IostatAvg::Add(unsigned long val, time_t starttime, time_t stoptime)
       mbins = 1;
     }
 
-    unsigned long norm_val = 1.0 * val / mbins;
+    unsigned long long norm_val = 1.0 * val / mbins;
 
     for (size_t bins = 0; bins < mbins; bins++) {
       unsigned int bin300 = (((stoptime - (bins * 5)) / 5) % 60);
@@ -2064,7 +2064,7 @@ IostatAvg::Add(unsigned long val, time_t starttime, time_t stoptime)
       mbins = 1;
     }
 
-    unsigned long norm_val = 1.0 * val / mbins;
+    unsigned long long norm_val = 1.0 * val / mbins;
 
     for (size_t bins = 0; bins < mbins; ++bins) {
       unsigned int bin60 = (((stoptime - (bins * 1)) / 1) % 60);
