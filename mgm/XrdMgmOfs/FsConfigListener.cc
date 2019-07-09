@@ -306,15 +306,10 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
           eos::common::FileSystem::fsid_t fsid = 0;
           std::string newgeotag;
 
-          {
-            // Read the id from the hash and the new geotag
-            eos::common::RWMutexReadLock hash_rd_lock(gOFS->ObjectManager.HashMutex);
-            XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(queue.c_str(), "hash");
-
-            if (hash) {
-              fsid = (eos::common::FileSystem::fsid_t) hash->GetLongLong("id");
-              newgeotag = hash->Get("stat.geotag");
-            }
+          FileSystem *fs = FsView::gFsView.mIdView.lookupByQueuePath(queue);
+          if(fs) {
+            fsid = (eos::common::FileSystem::fsid_t) fs->GetLongLong("id");
+            newgeotag = fs->GetString("stat.geotag");
           }
 
           if(fsid != 0 && !newgeotag.empty()) {
@@ -346,44 +341,32 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
             std::string bootstatus = "";
             eos::common::ConfigStatus cfgstatus = eos::common::ConfigStatus::kOff;
             eos::common::BootStatus bstatus = eos::common::BootStatus::kDown;
-            // read the id from the hash and the current error value
-            gOFS->ObjectManager.HashMutex.LockRead();
-            XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(queue.c_str(), "hash");
 
-            if (hash) {
-              fsid = (eos::common::FileSystem::fsid_t) hash->GetLongLong("id");
-              errc = (int) hash->GetLongLong("stat.errc");
-              configstatus = hash->Get("configstatus");
-              bootstatus = hash->Get("stat.boot");
+            // read the id from the hash and the current error value
+            eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+            FileSystem *fs = FsView::gFsView.mIdView.lookupByQueuePath(queue);
+            if(fs) {
+              fsid = (eos::common::FileSystem::fsid_t) fs->GetLongLong("id");
+              errc = (int) fs->GetLongLong("stat.errc");
+              configstatus = fs->GetString("configstatus");
+              bootstatus = fs->GetString("stat.boot");
               cfgstatus = eos::common::FileSystem::GetConfigStatusFromString(
                             configstatus.c_str());
               bstatus = eos::common::FileSystem::GetStatusFromString(bootstatus.c_str());
             }
 
-            gOFS->ObjectManager.HashMutex.UnLockRead();
-
-            if (fsid && errc &&
+            if (fs && fsid && errc &&
                 (cfgstatus >= eos::common::ConfigStatus::kRO) &&
                 (bstatus == eos::common::BootStatus::kOpsError)) {
               // Case when we take action and explicitly ask to start a drain job
-              eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-
-              FileSystem *fs = FsView::gFsView.mIdView.lookupByID(fsid);
-              if(fs) {
-                fs->SetConfigStatus(eos::common::ConfigStatus::kDrain);
-              }
+              fs->SetConfigStatus(eos::common::ConfigStatus::kDrain);
             }
 
-            if (fsid && (errc == 0)) {
+            if (fs && fsid && (errc == 0)) {
               if (!gOFS->mIsCentralDrain) {
                 // Make sure there is no drain job triggered by a previous
                 // filesystem errc!=0
-                eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-
-                FileSystem *fs = FsView::gFsView.mIdView.lookupByID(fsid);
-                if(fs) {
-                  fs->StopDrainJob();
-                }
+                fs->StopDrainJob();
               }
             }
           }
