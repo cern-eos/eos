@@ -143,4 +143,21 @@ TEST(TransferQueueLocator, txq) {
   ASSERT_EQ(locator.getQDBKey(), "txqueue-fst||example-host.cern.ch:1095||txq");
 }
 
+TEST(FstLocator, BasicSanity) {
+  FstLocator locator("example.com", 999);
+  ASSERT_EQ(locator.getHost(), "example.com");
+  ASSERT_EQ(locator.getPort(), 999);
+  ASSERT_EQ(locator.getHostPort(), "example.com:999");
+  ASSERT_EQ(locator.getQueuePath(), "/eos/example.com:999/fst");
+}
+
+TEST(FstLocator, FromQueuePath) {
+  FstLocator locator;
+  ASSERT_TRUE(FstLocator::fromQueuePath("/eos/example.com:1111/fst", locator));
+  ASSERT_EQ(locator.getHost(), "example.com");
+  ASSERT_EQ(locator.getPort(), 1111);
+  ASSERT_EQ(locator.getHostPort(), "example.com:1111");
+  ASSERT_EQ(locator.getQueuePath(), "/eos/example.com:1111/fst");
+}
+
 EOSCOMMONTESTING_END
