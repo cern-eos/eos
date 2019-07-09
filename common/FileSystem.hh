@@ -575,6 +575,7 @@ public:
     std::string mHost;
     std::string mHostPort;
     std::string mGeoTag;
+    std::string mProxyGroups;
     size_t mPublishTimestamp;
     ActiveStatus mActiveStatus;
     time_t mHeartBeatTime;
