@@ -1124,8 +1124,8 @@ FileSystem::SnapShotHost(XrdMqSharedObjectManager* som,
 
   if ((hash = som->GetObject(queue.c_str(), "hash"))) {
     host.mQueue = queue;
-    host.mHost        = hash->Get("stat.host");
-    host.mHostPort      = hash->Get("stat.hostport");
+    host.mHost        = hash->Get("host");
+    host.mHostPort      = hash->Get("hostport");
     host.mGeoTag        = hash->Get("stat.geotag");
     host.mPublishTimestamp = hash->GetLongLong("stat.publishtimestamp");
     host.mActiveStatus = GetActiveStatusFromString(

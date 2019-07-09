@@ -2487,46 +2487,10 @@ FsNode::SnapShotHost(FileSystem::host_snapshot_t& host, bool dolock)
 {
   auto som = eos::common::GlobalConfig::gConfig.SOM();
 
-  if (dolock) {
-    som->HashMutex.LockRead();
-  }
-
-  XrdMqSharedHash* hash = NULL;
   std::string node_cfg_name = eos::common::GlobalConfig::gConfig.QueuePrefixName(
                                 GetConfigQueuePrefix(), mName.c_str());
 
-  if ((hash = som->GetObject(node_cfg_name.c_str(), "hash"))) {
-    host.mQueue = node_cfg_name;
-    host.mHost        = GetMember("host");
-    host.mHostPort        = GetMember("hostport");
-    host.mGeoTag        = hash->Get("stat.geotag");
-    host.mPublishTimestamp = hash->GetLongLong("stat.publishtimestamp");
-    host.mNetEthRateMiB = hash->GetDouble("stat.net.ethratemib");
-    host.mNetInRateMiB  = hash->GetDouble("stat.net.inratemib");
-    host.mNetOutRateMiB = hash->GetDouble("stat.net.outratemib");
-    host.mGopen = hash->GetLongLong("stat.dataproxy.gopen");
-
-    if (dolock) {
-      som->HashMutex.UnLockRead();
-    }
-
-    return true;
-  } else {
-    if (dolock) {
-      som->HashMutex.UnLockRead();
-    }
-
-    host.mQueue = node_cfg_name;
-    host.mHost = mName;
-    host.mHostPort = "";
-    host.mGeoTag        = "";
-    host.mPublishTimestamp = 0;
-    host.mNetEthRateMiB = 0;
-    host.mNetInRateMiB  = 0;
-    host.mNetOutRateMiB = 0;
-    host.mGopen = 0;
-    return false;
-  }
+  return eos::common::FileSystem::SnapShotHost(som, node_cfg_name, host, dolock);
 }
 
 //------------------------------------------------------------------------------
