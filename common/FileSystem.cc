@@ -1127,6 +1127,7 @@ FileSystem::SnapShotHost(XrdMqSharedObjectManager* som,
     host.mHost        = hash->Get("host");
     host.mHostPort      = hash->Get("hostport");
     host.mGeoTag        = hash->Get("stat.geotag");
+    host.mProxyGroups   = hash->Get("proxygroups");
     host.mPublishTimestamp = hash->GetLongLong("stat.publishtimestamp");
     host.mActiveStatus = GetActiveStatusFromString(
                            hash->Get("stat.active").c_str());
@@ -1149,6 +1150,7 @@ FileSystem::SnapShotHost(XrdMqSharedObjectManager* som,
     host.mHost = "";
     host.mHostPort = "";
     host.mGeoTag        = "";
+    host.mProxyGroups   = "";
     host.mPublishTimestamp = 0;
     host.mActiveStatus = ActiveStatus::kOffline;
     host.mNetEthRateMiB = 0;

@@ -323,22 +323,15 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
 
         } else if (key == watch_proxygroups) {
           // This is a dataproxy / dataep status update
-          std::string status;
-          {
-            // Read the proxygrouplist
-            eos::common::RWMutexReadLock hash_rd_lock(gOFS->ObjectManager.HashMutex);
-            XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(queue.c_str(), "hash");
+          eos::common::FileSystem::host_snapshot_t hsn;
+          eos::common::FileSystem::SnapShotHost(&gOFS->ObjectManager, queue, hsn, true);
 
-            if (hash) {
-              status = hash->Get("proxygroups");
-            }
-          }
           std::string hostport = "/eos/" + queue.substr(queue.rfind('/') + 1) + "/fst";
           eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
 
           if (eos::mgm::FsView::gFsView.mNodeView.count(hostport)) {
             eos::mgm::FsNode* node = eos::mgm::FsView::gFsView.mNodeView[hostport];
-            eos::mgm::gGeoTreeEngine.matchHostPxyGr(node, status, false, false);
+            eos::mgm::gGeoTreeEngine.matchHostPxyGr(node, hsn.mProxyGroups, false, false);
           } else {
             eos_err("msg=\"no FsNode object associated with queue=%s and hostport=%s\"",
                     queue.c_str(), hostport.c_str());
