@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: Fsck.cc
-// Author: Andreas-Joachim Peters - CERN
+// Author: Andreas-Joachim Peters/Elvin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -45,8 +45,16 @@ const char* Fsck::gFsckInterval = "fsckinterval";
 //------------------------------------------------------------------------------
 Fsck::Fsck():
   mShowDarkFiles(false), mEnabled(false),
-  mInterval(30), mRunning(false), eTimeStamp(0)
-{}
+  mInterval(30), mRunning(false), eTimeStamp(0),
+  mThreadPool(std::thread::hardware_concurrency(), 20, 10, 6, 5, "fsck"),
+  mIdTracker(std::chrono::minutes(10), std::chrono::hours(2))
+{
+  if (!gOFS->mQdbCluster.empty()) {
+    mQcl = std::make_shared<qclient::QClient>
+           (gOFS->mQdbContactDetails.members,
+            gOFS->mQdbContactDetails.constructOptions());
+  }
+}
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -67,7 +75,8 @@ Fsck::Start(int interval)
   }
 
   if (!mRunning) {
-    mThread.reset(&Fsck::Check, this);
+    mCollectorThread.reset(&Fsck::CollectErrs, this);
+    mRepairThread.reset(&Fsck::RepairErrs, this);
     mRunning = true;
     mEnabled = "true";
     return StoreFsckConfig();
@@ -83,8 +92,9 @@ bool
 Fsck::Stop(bool store)
 {
   if (mRunning) {
-    eos_static_info("%s", "msg=\"join FSCK thread\"");
-    mThread.join();
+    eos_info("%s", "msg=\"join FSCK thread\"");
+    mCollectorThread.join();
+    mRepairThread.join();
     mRunning = false;
     mEnabled = false;
     Log("disabled check");
@@ -152,6 +162,13 @@ Fsck::Config(const std::string& key, const std::string& value)
 {
   if (key == "show-dark-files") {
     mShowDarkFiles = (value == "yes");
+  } else if (key == "max-queued-jobs") {
+    try {
+      mMaxQueuedJobs = std::stoull(value);
+    } catch (...) {
+      eos_err("msg=\"failed to convert max-queued-jobs\" value=%s",
+              value.c_str());
+    }
   } else {
     return false;
   }
@@ -163,14 +180,14 @@ Fsck::Config(const std::string& key, const std::string& value)
 // Looping thread function collecting FSCK results
 //------------------------------------------------------------------------------
 void
-Fsck::Check(ThreadAssistant& assistant) noexcept
+Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
 {
   int bccount = 0;
   ClearLog();
   gOFS->WaitUntilNamespaceIsBooted();
 
   while (!assistant.terminationRequested()) {
-    eos_static_debug("msg=\"start consistency checker thread\"");
+    eos_debug("msg=\"started consistency checker thread\"");
     ClearLog();
     Log("started check");
 
@@ -199,8 +216,8 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
     if (!gOFS->MgmOfsMessaging->BroadCastAndCollect(broadcastresponsequeue,
         broadcasttargetqueue, msgbody,
         stdOut, 10, &assistant)) {
-      eos_static_err("msg=\"failed to broadcast and collect fsck from [%s]:[%s]\"",
-                     broadcastresponsequeue.c_str(), broadcasttargetqueue.c_str());
+      eos_err("msg=\"failed to broadcast and collect fsck from [%s]:[%s]\"",
+              broadcastresponsequeue.c_str(), broadcasttargetqueue.c_str());
       stdErr = "error: broadcast failed\n";
     }
 
@@ -218,7 +235,7 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
       if (eos::common::StringConversion::ParseStringIdSet((char*)
           lines[nlines].c_str(), err_tag, fsid, fids)) {
         if (fsid) {
-          XrdSysMutexHelper lock(eMutex);
+          eos::common::RWMutexWriteLock wr_lock(mErrMutex);
 
           // Add the fids into the error maps
           for (auto it = fids.cbegin(); it != fids.cend(); ++it) {
@@ -228,8 +245,8 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
           }
         }
       } else {
-        eos_static_err("msg=\"cannot parse fsck response\" msg=\"%s\"",
-                       lines[nlines].c_str());
+        eos_err("msg=\"cannot parse fsck response\" msg=\"%s\"",
+                lines[nlines].c_str());
       }
     }
 
@@ -252,6 +269,73 @@ Fsck::Check(ThreadAssistant& assistant) noexcept
 }
 
 //------------------------------------------------------------------------------
+// Method submitting fsck repair jobs to the thread pool
+//------------------------------------------------------------------------------
+void
+Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
+{
+  gOFS->WaitUntilNamespaceIsBooted();
+
+  while (!assistant.terminationRequested()) {
+    eos_info("%s", "msg=\"started repair thread\"");
+
+    // Don't run if we are not a master
+    while (!gOFS->mMaster->IsMaster()) {
+      assistant.wait_for(std::chrono::seconds(60));
+
+      if (assistant.terminationRequested()) {
+        return;
+      }
+    }
+
+    eos::common::RWMutexReadLock rd_lock(mErrMutex);
+
+    for (const auto& err_fs : eFsMap) {
+      for (const auto& elem : err_fs.second) {
+        for (const auto& fid : elem.second) {
+          if (mIdTracker.HasEntry(fid)) {
+            eos_info("msg=\"skip already scheduled fsck repair\" fid=%08llx",
+                     fid);
+            continue;
+          }
+
+          std::shared_ptr<FsckEntry> job {
+            new FsckEntry(fid, elem.first, err_fs.first, mQcl)};
+          mThreadPool.PushTask<void>([job]() {
+            return job->Repair();
+          });
+        }
+
+        while (mThreadPool.GetQueueSize() > mMaxQueuedJobs) {
+          rd_lock.Release();
+          assistant.wait_for(std::chrono::seconds(1));
+
+          if (assistant.terminationRequested()) {
+            // Wait that there are not more jobs in the queue
+            while (mThreadPool.GetQueueSize()) {
+              assistant.wait_for(std::chrono::seconds(1));
+            }
+
+            eos_info("%s", "msg=\"stopped repair thread\"");
+            return;
+          }
+
+          // @todo(esindril) the iterators could be invalidated in the meantime
+          rd_lock.Grab(mErrMutex);
+        }
+      }
+    }
+  }
+
+  // Wait that there are not more jobs in the queue
+  while (mThreadPool.GetQueueSize()) {
+    assistant.wait_for(std::chrono::seconds(1));
+  }
+
+  eos_info("%s", "msg=\"stopped repair thread\"");
+}
+
+//------------------------------------------------------------------------------
 // Print the current log output
 //------------------------------------------------------------------------------
 void
@@ -270,7 +354,7 @@ Fsck::Report(std::string& out, const std::set<std::string> tags,
              bool display_json, bool display_help)
 {
   // @todo(esindril) add display_help info
-  XrdSysMutexHelper lock(eMutex);
+  eos::common::RWMutexReadLock rd_lock(mErrMutex);
   char stimestamp[1024];
   snprintf(stimestamp, sizeof(stimestamp) - 1, "%lu", (unsigned long) eTimeStamp);
 
@@ -659,7 +743,7 @@ Fsck::Repair(std::string& out, const std::set<string>& options)
     }
   }
 
-  XrdSysMutexHelper lock(eMutex);
+  eos::common::RWMutexWriteLock wr_lock(mErrMutex);
 
   if (options.find("checksum") != options.end()) {
     out += "# repair checksum ------------------------------------------------"
@@ -1278,7 +1362,7 @@ Fsck::Log(const char* msg, ...) const
 void
 Fsck::ResetErrorMaps()
 {
-  XrdSysMutexHelper lock(eMutex);
+  eos::common::RWMutexWriteLock wr_lock(mErrMutex);
   eFsMap.clear();
   eMap.clear();
   eCount.clear();
@@ -1300,7 +1384,8 @@ Fsck::AccountOfflineReplicas()
        it != FsView::gFsView.mIdView.cend(); ++it) {
     // protect against illegal 0 filesystem pointer
     if (!it->second) {
-      eos_static_crit("found illegal pointer in filesystem view");
+      eos_crit("msg=\"found illegal pointer in filesystem view\" fsid=%lu",
+               it->first);
       continue;
     }
 
@@ -1319,7 +1404,7 @@ Fsck::AccountOfflineReplicas()
       try {
         eos::Prefetcher::prefetchFilesystemFileListAndWait(gOFS->eosView,
             gOFS->eosFsView, fsid);
-        XrdSysMutexHelper lock(eMutex);
+        eos::common::RWMutexWriteLock wr_lock(mErrMutex);
         // Only need the view lock if we're in-memory
         eos::common::RWMutexReadLock nslock;
 
@@ -1336,9 +1421,8 @@ Fsck::AccountOfflineReplicas()
         }
       } catch (eos::MDException& e) {
         errno = e.getErrno();
-        eos_static_debug("caught exception %d %s\n",
-                         e.getErrno(),
-                         e.getMessage().str().c_str());
+        eos_debug("caught exception %d %s\n", e.getErrno(),
+                  e.getMessage().str().c_str());
       }
     }
   }
@@ -1352,7 +1436,7 @@ Fsck::AccountNoReplicaFiles()
 {
   // Grab all files which have no replicas at all
   try {
-    XrdSysMutexHelper lock(eMutex);
+    eos::common::RWMutexWriteLock wr_lock(mErrMutex);
     eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
     // it_fid not invalidated when items are added or removed for QDB
     // namespace, safe to release lock after each item.
@@ -1388,8 +1472,8 @@ Fsck::AccountNoReplicaFiles()
     }
   } catch (eos::MDException& e) {
     errno = e.getErrno();
-    eos_static_debug("msg=\"caught exception\" errno=d%d msg=\"%s\"",
-                     e.getErrno(), e.getMessage().str().c_str());
+    eos_debug("msg=\"caught exception\" errno=d%d msg=\"%s\"", e.getErrno(),
+              e.getMessage().str().c_str());
   }
 }
 
@@ -1399,7 +1483,7 @@ Fsck::AccountNoReplicaFiles()
 void
 Fsck::PrintOfflineReplicas() const
 {
-  XrdSysMutexHelper lock(eMutex);
+  eos::common::RWMutexReadLock rd_lock(mErrMutex);
 
   // Loop over unavailable filesystems
   for (auto ua_it = eFsUnavail.cbegin(); ua_it != eFsUnavail.cend();
@@ -1429,7 +1513,7 @@ Fsck::AccountOfflineFiles()
   // file offline list
   std::set <eos::common::FileId::fileid_t> fid2check;
   {
-    XrdSysMutexHelper lock(eMutex);
+    eos::common::RWMutexReadLock rd_lock(mErrMutex);
     fid2check.insert(eMap["rep_offline"].begin(), eMap["rep_offline"].end());
     fid2check.insert(eMap["rep_diff_n"].begin(), eMap["rep_diff_n"].end());
   }
@@ -1452,7 +1536,7 @@ Fsck::AccountOfflineFiles()
     }
 
     size_t offlinelocations = 0;
-    XrdSysMutexHelper lock(eMutex);
+    eos::common::RWMutexWriteLock wr_lock(mErrMutex);
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
 
     for (const auto& loc : loc_vect) {
@@ -1502,7 +1586,7 @@ Fsck::AccountOfflineFiles()
 void
 Fsck::PrintErrorsSummary() const
 {
-  XrdSysMutexHelper lock(eMutex);
+  eos::common::RWMutexReadLock rd_lock(mErrMutex);
 
   for (auto emapit = eMap.cbegin(); emapit != eMap.cend(); ++emapit) {
     uint64_t count {0ull};
@@ -1525,7 +1609,7 @@ Fsck::PrintErrorsSummary() const
 void
 Fsck::AccountDarkFiles()
 {
-  XrdSysMutexHelper lock(eMutex);
+  eos::common::RWMutexWriteLock wr_lock(mErrMutex);
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
   eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 

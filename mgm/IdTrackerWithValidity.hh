@@ -19,7 +19,7 @@
 //------------------------------------------------------------------------------
 //! @brief Class tracking entries that were used by different
 //! sub-systems during a reference period. e.g. draining / balancing
-//! @author Elvin Sindrilaru <esindril at cern dot ch>
+//! @author Elvin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 #pragma once
 #include "mgm/Namespace.hh"
