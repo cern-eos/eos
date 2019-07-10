@@ -74,6 +74,7 @@ protected:
              //!< usually to facilitate SSL-encrypted communication (HTTPS)
              //!< through an unencrypted HTTP proxy.
     PATCH,   //!< Is used to apply partial modifications to a resource.
+    CREATE,  //!< internal method used by Xrdhttp - creates a file without payload
   };
 
 public:
@@ -133,6 +134,7 @@ public:
     else if (method == "OPTIONS") return Methods::OPTIONS;
     else if (method == "CONNECT") return Methods::CONNECT;
     else if (method == "PATCH")   return Methods::PATCH;
+    else if (method == "CREATE")   return Methods::CREATE;
     else return -1;
   }
 };

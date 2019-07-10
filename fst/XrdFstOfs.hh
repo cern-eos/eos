@@ -393,6 +393,7 @@ public:
   QdbContactDetails mQdbContactDetails; ///< QDB contact details
   bool mMqOnQdb; ///< Are we using QDB as an MQ?
   int mHttpdPort; ///< listening port of the http server
+  std::unique_ptr<HttpServer> Httpd; //< Embedded http server if available
 
 private:
 #ifdef IN_TEST_HARNESS
@@ -400,7 +401,6 @@ public:
 #endif
   //! Xrd connection pool for interaction with the MGM, used from CallManager
   std::unique_ptr<eos::common::XrdConnPool> mMgmXrdPool;
-  HttpServer* mHttpd; ///< Embedded http server
   std::atomic<bool> mSimIoReadErr; ///< simulate an IO error on read
   std::atomic<bool> mSimIoWriteErr; ///< simulate an IO error on write
   std::atomic<bool> mSimXsReadErr; ///< simulate a checksum error on read

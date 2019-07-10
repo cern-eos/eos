@@ -64,6 +64,40 @@ target_sources(EosMgmProto-Objects PUBLIC
   ${FUSEX_SRCS} ${FUSEX_HDRS})
 
 #-------------------------------------------------------------------------------
+# EosMgmHttp library
+#-------------------------------------------------------------------------------
+
+add_library(
+  EosMgmHttp-Objects OBJECT
+  http/xrdhttp/EosMgmHttpHandler.hh
+  http/xrdhttp/EosMgmHttpHandler.cc
+)
+
+set_target_properties(
+  EosMgmHttp-Objects
+  PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
+
+add_dependencies(EosMgmHttp-Objects EosAuthProto-Objects)
+
+add_library(EosMgmHttp MODULE
+  $<TARGET_OBJECTS:EosMgmHttp-Objects>
+)
+
+target_link_libraries(
+  EosMgmHttp PUBLIC
+  XrdHttp-4
+  eosCommon
+  eosCommonServer
+)
+
+install(
+  TARGETS EosMgmHttp
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+
+#-------------------------------------------------------------------------------
 # XrdEosMgm-Objects library
 #-------------------------------------------------------------------------------
 add_library(

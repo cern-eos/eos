@@ -56,8 +56,8 @@ HttpHandler::Matches(const std::string& meth, HeaderMap& headers)
 {
   int method = ParseMethodString(meth);
 
-  // We only support GET, HEAD and PUT on the FST
-  if (method == GET || method == HEAD || method == PUT) {
+  // We only support GET, HEAD and PUT on the FST (CREATE is used by XrdHttp)
+  if (method == GET || method == HEAD || method == PUT || method == CREATE ) {
     eos_static_info("Matched HTTP protocol for request");
     return true;
   } else {
@@ -89,7 +89,8 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
       query += request->GetHeaders()["x-upload-range"].c_str();
     }
 
-    if (request->GetMethod() == "PUT") {
+    if ( (request->GetMethod() == "PUT") || 
+	 (request->GetMethod() == "CREATE") ) {
       // use the proper creation/open flags for PUT's
       open_mode |= SFS_O_CREAT;
 
@@ -180,6 +181,13 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
   if (request->GetMethod() == "GET") {
     // call the HttpHandler::Get method
     mHttpResponse = Get(request);
+  }
+
+  if (request->GetMethod() == "CREATE") {
+    // fake method for XrdHttp bridge
+    mHttpResponse = new eos::common::PlainHttpResponse();
+    mHttpResponse->SetResponseCode(0);
+    return;
   }
 
   if (request->GetMethod() == "PUT") {
@@ -541,6 +549,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
                                    *request->GetBodySize());
 
       if (stored != *request->GetBodySize()) {
+	eos_static_err("stored %lu of %lu bytes", stored, *request->GetBodySize());
         // HTTP write error
         mErrCode = response->INTERNAL_SERVER_ERROR;
         mErrText = "Write error occured";

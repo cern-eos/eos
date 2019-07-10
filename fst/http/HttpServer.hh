@@ -34,6 +34,7 @@
 #include "fst/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/http/HttpServer.hh"
+#include "common/http/ProtocolHandler.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
@@ -72,6 +73,22 @@ public:
           void**                 ptr);
 
   /**
+   * HTTP object handler function on FST called by XrdHttp 
+   *
+   * @return see implementation
+   */
+
+  virtual std::unique_ptr<eos::common::ProtocolHandler>
+  XrdHttpHandler(std::string& method, 
+                 std::string& uri,
+                 std::map<std::string,std::string>& headers, 
+                 std::string& query, 
+                 std::map<std::string,std::string>& cookies, 
+                 std::string& body,
+                 const XrdSecEntity& client
+                 );
+
+  /**
    * HTTP complete handler function
    *
    * @return nothing
@@ -95,6 +112,21 @@ public:
   static ssize_t
   FileReaderCallback(void* cls, uint64_t pos, char* buf, size_t max);
 
+  virtual ssize_t
+  FileReader(eos::common::ProtocolHandler* handler, uint64_t pos, char* buf, size_t max);
+
+  virtual ssize_t
+  FileWriter(eos::common::ProtocolHandler* handler, 
+	     std::string& method,
+	     std::string& uri,
+	     std::map<std::string,std::string>& headers,
+	     std::string& query,
+	     std::map<std::string,std::string>& cookies,
+	     std::string& body);
+
+  virtual ssize_t
+  FileClose(eos::common::ProtocolHandler* handler, int rc);
+  
 #endif
 };
 

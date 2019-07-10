@@ -41,10 +41,11 @@ HttpRequest::HttpRequest (HeaderMap          headers,
                           const std::string &query,
                           const std::string &body,
                           size_t            *bodySize,
-                          HeaderMap          cookies) :
+                          HeaderMap          cookies, 
+			  bool               xrdhttp) :
   mRequestHeaders(headers), mRequestMethod(method), mRequestUrl(url),
   mRequestQuery(query), mRequestBody(body), mRequestBodySize(bodySize),
-  mRequestCookies(cookies) {}
+  mRequestCookies(cookies),mXrdHttp(xrdhttp) {}
 
 /*----------------------------------------------------------------------------*/
 std::string

@@ -1,4 +1,4 @@
-###########################################################
+	###########################################################
 set MGM=$EOS_MGM_ALIAS
 ###########################################################
 
@@ -31,3 +31,14 @@ fstofs.metalog /var/eos/md/
 #fstofs.authdir /var/eos/auth/
 #fstofs.trace client
 ###########################################################
+
+#-------------------------------------------------------------------------------
+# Configuration for XrdHttp http(s) service on port 11000
+#-------------------------------------------------------------------------------
+#if exec xrootd
+#   xrd.protocol XrdHttp:11000 /usr/lib64/libXrdHttp-4.so
+#   http.exthandler EosFstHttp /usr/lib64/libEosFstHttp.so none
+#   http.cert /etc/grid-security/daemon/host.cert
+#   http.key /etc/grid-security/daemon/privkey.pem
+#   http.cafile /etc/grid-security/daemon/ca.cert
+#fi
