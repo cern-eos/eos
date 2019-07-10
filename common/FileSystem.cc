@@ -486,6 +486,13 @@ ConfigStatus FileSystemCoreParams::getConfigStatus() const {
 }
 
 //------------------------------------------------------------------------------
+// Get queuepath
+//------------------------------------------------------------------------------
+std::string FileSystemCoreParams::getQueuePath() const {
+  return mLocator.getQueuePath();
+}
+
+//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 FileSystem::FileSystem(const FileSystemLocator &locator,

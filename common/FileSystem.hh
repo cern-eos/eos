@@ -432,6 +432,11 @@ public:
   //----------------------------------------------------------------------------
   ConfigStatus getConfigStatus() const;
 
+  //----------------------------------------------------------------------------
+  //! Get queuepath
+  //----------------------------------------------------------------------------
+  std::string getQueuePath() const;
+
 private:
   uint32_t mFsId;
   FileSystemLocator mLocator;
