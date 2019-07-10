@@ -20,3 +20,6 @@
 [submodule "unit_tests/googletest"]
 	path = unit_tests/googletest
 	url = https://github.com/google/googletest
+[submodule "common/grpc-proto"]
+	path = common/grpc-proto
+	url = https://:@gitlab.cern.ch:8443/eos/grpc-proto.git
