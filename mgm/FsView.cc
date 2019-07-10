@@ -1547,41 +1547,30 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams &coreParams,
     return false;
   }
 
+  // Check for queuepath collision..
+  if(mIdView.lookupByQueuePath(coreParams.getQueuePath())) {
+    eos_err("msg=\"queuepath already registered\" qpath=%s", coreParams.getQueuePath());
+    return false;
+  }
+
   eos::common::FileSystem::fs_snapshot snapshot;
 
   if (fs->SnapShotFileSystem(snapshot)) {
-    // Align view by filesystem object and filesystem id
-    // Check if there is already a filesystem with the same path on the same node
-    if (mNodeView.count(snapshot.mQueue)) {
-      // Loop over all attached filesystems and compare the queue path
-      for (auto it = mNodeView[snapshot.mQueue]->begin();
-           it != mNodeView[snapshot.mQueue]->end(); ++it) {
-
-        FileSystem *fs = FsView::gFsView.mIdView.lookupByID(*it);
-        if(fs && fs->GetQueuePath() == snapshot.mQueuePath) {
-          // This queuepath already exists, we cannot register
-          eos_err("msg=\"queuepath already registered\" qpath=%s",
-                  snapshot.mQueuePath.c_str());
-          return false;
-        }
-      }
-    }
-
     // Check if this is already in the view
     if (mIdView.lookupByPtr(fs) != 0) {
       // This filesystem is already there, this might be an update
       eos::common::FileSystem::fsid_t fsid = mIdView.lookupByPtr(fs);
 
-      if (fsid != snapshot.mId) {
+      if (fsid != coreParams.getId()) {
         // Remove previous mapping
         mIdView.eraseById(fsid);
         // Setup new two way mapping
-        mIdView.registerFileSystem(coreParams.getLocator(), snapshot.mId, fs);
-        eos_debug("updating mapping %u<=>%lld", snapshot.mId, fs);
+        mIdView.registerFileSystem(coreParams.getLocator(), coreParams.getId(), fs);
+        eos_debug("updating mapping %u<=>%lld", coreParams.getId(), fs);
       }
     } else {
-      mIdView.registerFileSystem(coreParams.getLocator(), snapshot.mId, fs);
-      eos_debug("registering mapping %u<=>%lld", snapshot.mId, fs);
+      mIdView.registerFileSystem(coreParams.getLocator(), coreParams.getId(), fs);
+      eos_debug("registering mapping %u<=>%lld", coreParams.getId(), fs);
     }
 
     // Align view by nodename (= MQ queue) e.g. /eos/<host>:<port>/fst
