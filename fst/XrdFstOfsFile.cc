@@ -1047,6 +1047,7 @@ XrdFstOfsFile::close()
                  " fsid=%lu fxid=%08llx", fMd->mProtoFmd.fsid(), fMd->mProtoFmd.fid());
       }
 
+
       // Delete the file - set the file to be deleted
       deleteOnClose = true;
       layOut->Remove();
