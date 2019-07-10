@@ -252,7 +252,7 @@ IConfigEngine::ApplyConfig(XrdOucString& err, bool apply_stall_redirect)
     FsSpace::gDisableDefaults = false;
   }
   Access::ApplyAccessConfig(apply_stall_redirect);
-  gOFS->FsCheck.ApplyFsckConfig();
+  gOFS->mFsckEngine->ApplyFsckConfig();
   gOFS->IoStats->ApplyIostatConfig();
   gTransferEngine.ApplyTransferEngineConfig();
 

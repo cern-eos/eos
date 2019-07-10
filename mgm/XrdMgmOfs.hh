@@ -1600,9 +1600,7 @@ public:
   //! Class inspecting files in the namespace for statistics
   std::unique_ptr<eos::mgm::FileInspector> mFileInspector;
 
-  //! Class checking the filesystem
-  std::unique_ptr<Fsck> FsckPtr;
-  Fsck& FsCheck;
+  std::unique_ptr<Fsck> mFsckEngine; ///< Fsck functionality
 
   //! Master/Slave configuration/failover class
   std::unique_ptr<IMaster> mMaster;

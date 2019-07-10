@@ -183,6 +183,7 @@ public:
   }
 
 private:
+  std::atomic<bool> mShowOffline; ///< Flag to display offline files/replicas
   std::atomic<bool> mShowDarkFiles; ///< Flag to display dark files
   mutable XrdOucString mLog; ///< In-memory FSCK log
   mutable XrdSysMutex mLogMutex; ///< Mutex protecting the in-memory log

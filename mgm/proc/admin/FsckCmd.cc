@@ -45,12 +45,12 @@ FsckCmd::ProcessRequest() noexcept
 
   if (subcmd == eos::console::FsckProto::kStat) {
     std::string output;
-    gOFS->FsCheck.PrintOut(output);
+    gOFS->mFsckEngine->PrintOut(output);
     reply.set_std_out(std::move(output));
   } else if (subcmd == eos::console::FsckProto::kConfig) {
     const eos::console::FsckProto::ConfigProto& config = fsck.config();
 
-    if (!gOFS->FsCheck.Config(config.key(), config.value())) {
+    if (!gOFS->mFsckEngine->Config(config.key(), config.value())) {
       reply.set_retc(EINVAL);
       reply.set_std_err(SSTR("error: failed to set " << config.key()
                              << "=" << config.value()).c_str());
@@ -58,7 +58,7 @@ FsckCmd::ProcessRequest() noexcept
   } else if (subcmd == eos::console::FsckProto::kEnable) {
     const eos::console::FsckProto::EnableProto& enable = fsck.enable();
 
-    if (gOFS->FsCheck.Start(enable.interval())) {
+    if (gOFS->mFsckEngine->Start(enable.interval())) {
       reply.set_std_out("success: fsck enabled");
     } else {
       reply.set_retc(EALREADY);
@@ -66,7 +66,7 @@ FsckCmd::ProcessRequest() noexcept
                         " setting you need to stop if first");
     }
   } else if (subcmd == eos::console::FsckProto::kDisable) {
-    if (gOFS->FsCheck.Stop()) {
+    if (gOFS->mFsckEngine->Stop()) {
       reply.set_std_out("success: fsck disabled");
     } else {
       reply.set_retc(EALREADY);
@@ -83,9 +83,9 @@ FsckCmd::ProcessRequest() noexcept
 
     std::string out;
 
-    if (gOFS->FsCheck.Report(out, tags, report.display_per_fs(),
-                             report.display_fid(), report.display_lfn(),
-                             report.display_json(), report.display_help())) {
+    if (gOFS->mFsckEngine->Report(out, tags, report.display_per_fs(),
+                                  report.display_fid(), report.display_lfn(),
+                                  report.display_json(), report.display_help())) {
       reply.set_std_out(out);
     } else {
       reply.set_retc(EINVAL);
@@ -101,7 +101,7 @@ FsckCmd::ProcessRequest() noexcept
       options.insert(elem);
     }
 
-    if (gOFS->FsCheck.Repair(out, options)) {
+    if (gOFS->mFsckEngine->Repair(out, options)) {
       reply.set_std_out(out);
     } else {
       reply.set_retc(EINVAL);

@@ -44,17 +44,11 @@ const char* Fsck::gFsckInterval = "fsckinterval";
 // Constructor
 //------------------------------------------------------------------------------
 Fsck::Fsck():
-  mShowDarkFiles(false), mEnabled(false),
+  mShowOffline(false), mShowDarkFiles(false), mEnabled(false),
   mInterval(30), mRunning(false), eTimeStamp(0),
   mThreadPool(std::thread::hardware_concurrency(), 20, 10, 6, 5, "fsck"),
-  mIdTracker(std::chrono::minutes(10), std::chrono::hours(2))
-{
-  if (!gOFS->mQdbCluster.empty()) {
-    mQcl = std::make_shared<qclient::QClient>
-           (gOFS->mQdbContactDetails.members,
-            gOFS->mQdbContactDetails.constructOptions());
-  }
-}
+  mIdTracker(std::chrono::minutes(10), std::chrono::hours(2)), mQcl(nullptr)
+{}
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -75,6 +69,12 @@ Fsck::Start(int interval)
   }
 
   if (!mRunning) {
+    if (!gOFS->mQdbCluster.empty()) {
+      mQcl = std::make_shared<qclient::QClient>
+             (gOFS->mQdbContactDetails.members,
+              gOFS->mQdbContactDetails.constructOptions());
+    }
+
     mCollectorThread.reset(&Fsck::CollectErrs, this);
     mRepairThread.reset(&Fsck::RepairErrs, this);
     mRunning = true;
@@ -162,6 +162,8 @@ Fsck::Config(const std::string& key, const std::string& value)
 {
   if (key == "show-dark-files") {
     mShowDarkFiles = (value == "yes");
+  } else if (key == "show-offline") {
+    mShowOffline = (value == "yes");
   } else if (key == "max-queued-jobs") {
     try {
       mMaxQueuedJobs = std::stoull(value);
@@ -250,10 +252,14 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
       }
     }
 
-    AccountOfflineReplicas();
-    PrintOfflineReplicas();
+    // @note accounting the offline replicas/files is a heavy ns op.
+    if (mShowOffline) {
+      AccountOfflineReplicas();
+      PrintOfflineReplicas();
+      AccountOfflineFiles();
+    }
+
     AccountNoReplicaFiles();
-    AccountOfflineFiles();
     PrintErrorsSummary();
 
     // @note the following operation is heavy for the qdb ns
@@ -275,10 +281,9 @@ void
 Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
 {
   gOFS->WaitUntilNamespaceIsBooted();
+  eos_info("%s", "msg=\"started repair thread\"");
 
   while (!assistant.terminationRequested()) {
-    eos_info("%s", "msg=\"started repair thread\"");
-
     // Don't run if we are not a master
     while (!gOFS->mMaster->IsMaster()) {
       assistant.wait_for(std::chrono::seconds(60));
@@ -288,6 +293,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
       }
     }
 
+    assistant.wait_for(std::chrono::seconds(10));
     eos::common::RWMutexReadLock rd_lock(mErrMutex);
 
     for (const auto& err_fs : eFsMap) {

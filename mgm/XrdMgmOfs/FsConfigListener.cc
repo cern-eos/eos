@@ -38,9 +38,11 @@ bool XrdMgmOfs::getMGMConfigValue(const std::string &key, std::string &value) {
 // Process incoming MGM configuration change
 //------------------------------------------------------------------------------
 void
-XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string &key) {
+XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string& key)
+{
   std::string tmpValue;
-  if(!getMGMConfigValue(key, tmpValue)) {
+
+  if (!getMGMConfigValue(key, tmpValue)) {
     return;
   }
 
@@ -51,14 +53,13 @@ XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string &key) {
     // Here we might get a change without the namespace, in this
     // case we add the global namespace
     if ((key.substr(0, 4) != "map:") &&
-      (key.substr(0, 3) != "fs:") &&
-      (key.substr(0, 6) != "quota:") &&
-      (key.substr(0, 4) != "vid:") &&
-      (key.substr(0, 7) != "policy:")) {
-
+        (key.substr(0, 3) != "fs:") &&
+        (key.substr(0, 6) != "quota:") &&
+        (key.substr(0, 4) != "vid:") &&
+        (key.substr(0, 7) != "policy:")) {
       XrdOucString skey = key.c_str();
       eos_info("msg=\"apply access config\" key=\"%s\" val=\"%s\"",
-      key.c_str(), value.c_str());
+               key.c_str(), value.c_str());
       Access::ApplyAccessConfig(false);
 
       if (skey.beginswith("iostat:")) {
@@ -66,10 +67,11 @@ XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string &key) {
       }
 
       if (skey.beginswith("fsck")) {
-        gOFS->FsCheck.ApplyFsckConfig();
+        gOFS->mFsckEngine->ApplyFsckConfig();
       }
     } else {
-      eos_info("msg=\"set config value\" key=\"%s\" val=\"%s\"", key.c_str(), value.c_str());
+      eos_info("msg=\"set config value\" key=\"%s\" val=\"%s\"", key.c_str(),
+               value.c_str());
       gOFS->ConfEngine->SetConfigValue(0, key.c_str(), value.c_str(), false);
 
       // For file system modification we need to take the
@@ -89,8 +91,8 @@ XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string &key) {
 //------------------------------------------------------------------------------
 void
 XrdMgmOfs::processGeotagChange(eos::common::FileSystem::fsid_t fsid,
-  const std::string &newgeotag) {
-
+                               const std::string& newgeotag)
+{
   std::string oldgeotag = newgeotag;
 
   if (fsid == 0) {
@@ -109,8 +111,8 @@ XrdMgmOfs::processGeotagChange(eos::common::FileSystem::fsid_t fsid,
 
       if (oldgeotag != newgeotag) {
         eos_warning("msg=\"received geotag change\" fsid=%lu old_geotag=\"%s\" "
-          "new_geotag=\"%s\"", (unsigned long)fsid,
-        oldgeotag.c_str(), newgeotag.c_str());
+                    "new_geotag=\"%s\"", (unsigned long)fsid,
+                    oldgeotag.c_str(), newgeotag.c_str());
         FsView::gFsView.ViewMutex.UnLockRead();
         eos::common::RWMutexWriteLock fs_rw_lock(FsView::gFsView.ViewMutex);
         eos::common::FileSystem::fs_snapshot_t snapshot;
@@ -120,16 +122,16 @@ XrdMgmOfs::processGeotagChange(eos::common::FileSystem::fsid_t fsid,
         if (FsView::gFsView.mNodeView.count(snapshot.mQueue)) {
           FsNode* node = FsView::gFsView.mNodeView[snapshot.mQueue];
           eos_debug("msg=\"update geotag of fsid=%lu in node=%s",
-            (unsigned long)fsid, node->mName.c_str());
+                    (unsigned long)fsid, node->mName.c_str());
 
           if (!static_cast<GeoTree*>(node)->erase(fsid)) {
             eos_err("msg=\"error removing fsid=%lu from node=%s\"",
-              (unsigned long)fsid, node->mName.c_str());
+                    (unsigned long)fsid, node->mName.c_str());
           }
 
           if (!static_cast<GeoTree*>(node)->insert(fsid)) {
             eos_err("msg=\"error inserting fsid=%lu into node=%s\"",
-              (unsigned long)fsid, node->mName.c_str());
+                    (unsigned long)fsid, node->mName.c_str());
           }
         }
 
@@ -137,16 +139,16 @@ XrdMgmOfs::processGeotagChange(eos::common::FileSystem::fsid_t fsid,
         if (FsView::gFsView.mGroupView.count(snapshot.mGroup)) {
           FsGroup* group = FsView::gFsView.mGroupView[snapshot.mGroup];
           eos_debug("msg=\"updating geotag of fsid=%lu in group=%s\"",
-            (unsigned long)fsid, group->mName.c_str());
+                    (unsigned long)fsid, group->mName.c_str());
 
           if (!static_cast<GeoTree*>(group)->erase(fsid)) {
             eos_err("msg=\"error removing fsid=%lu from group=%s\"",
-              (unsigned long)fsid, group->mName.c_str());
+                    (unsigned long)fsid, group->mName.c_str());
           }
 
           if (!static_cast<GeoTree*>(group)->insert(fsid)) {
             eos_err("msg=\"error inserting fsid=%lu into group=%s\"",
-              (unsigned long)fsid, group->mName.c_str());
+                    (unsigned long)fsid, group->mName.c_str());
           }
         }
 
@@ -154,16 +156,16 @@ XrdMgmOfs::processGeotagChange(eos::common::FileSystem::fsid_t fsid,
         if (FsView::gFsView.mSpaceView.count(snapshot.mSpace)) {
           FsSpace* space = FsView::gFsView.mSpaceView[snapshot.mSpace];
           eos_debug("msg=\"updating geotag of fsid=%lu in space=%s\"",
-            (unsigned long)fsid, space->mName.c_str());
+                    (unsigned long)fsid, space->mName.c_str());
 
           if (!static_cast<GeoTree*>(space)->erase(fsid)) {
             eos_err("msg=\"error removing fsid=%lu from space=%s\"",
-              (unsigned long)fsid, space->mName.c_str());
+                    (unsigned long)fsid, space->mName.c_str());
           }
 
           if (!static_cast<GeoTree*>(space)->insert(fsid)) {
             eos_err("msg=\"error inserting fsid=%lu into space=%s\"",
-              (unsigned long)fsid, space->mName.c_str());
+                    (unsigned long)fsid, space->mName.c_str());
           }
         }
       } else {
@@ -287,18 +289,17 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
           // Geotag update
           eos::common::FileSystem::fsid_t fsid = 0;
           std::string newgeotag;
-
           FileSystem *fs = FsView::gFsView.mIdView.lookupByQueuePath(queue);
+
           if(fs) {
             fsid = (eos::common::FileSystem::fsid_t) fs->GetLongLong("id");
             newgeotag = fs->GetString("stat.geotag");
           }
 
-          if(fsid != 0 && !newgeotag.empty()) {
+          if (fsid != 0 && !newgeotag.empty()) {
             processGeotagChange(fsid, newgeotag);
           }
-        }
-        else {
+        } else {
           // This is a filesystem status error
           if (gOFS->mMaster->IsMaster()) {
             // only an MGM master needs to initiate draining
