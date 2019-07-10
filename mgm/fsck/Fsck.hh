@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// File: Fsck.hh
-// Author: Andreas-Joachim Peters - CERN
+//! @file Fsck.hh
+//! @author Andreas-Joachim Peters/Elvin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -26,6 +26,10 @@
 #include "common/FileSystem.hh"
 #include "common/FileId.hh"
 #include "common/AssistedThread.hh"
+#include "common/ThreadPool.hh"
+#include "mgm/IdTrackerWithValidity.hh"
+#include "namespace/interface/IFileMD.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
 #include <sys/types.h>
 #include <string>
 #include <stdarg.h>
@@ -46,7 +50,7 @@ EOSMGMNAMESPACE_BEGIN
 //! The FSCK interface offers a 'report' and a 'repair' utility allowing to
 //! inspect and to actively try to run repair to fix inconsistencies.
 //------------------------------------------------------------------------------
-class Fsck
+class Fsck: public eos::common::LogId
 {
 public:
   //! Key used in the configuration engine to store the enable status
@@ -145,9 +149,38 @@ public:
   bool StoreFsckConfig();
 
   //----------------------------------------------------------------------------
-  //! FSCK thread loop function
+  //! Method collecting errors from the FSTS
+  //!
+  //! @param assistant thread doing the job
   //----------------------------------------------------------------------------
-  void Check(ThreadAssistant& assistant) noexcept;
+  void CollectErrs(ThreadAssistant& assistant) noexcept;
+
+  //----------------------------------------------------------------------------
+  //! Method submitting fsck repair jobs to the thread pool
+  //!
+  //! @param assistant thread doing the job
+  //----------------------------------------------------------------------------
+  void RepairErrs(ThreadAssistant& assistant) noexcept;
+
+  //----------------------------------------------------------------------------
+  //! Set max size of thread pool used for fsck repair jobs
+  //!
+  //! @param max max value
+  //----------------------------------------------------------------------------
+  inline void SetMaxThreadPoolSize(uint64_t max)
+  {
+    mThreadPool.SetMaxThreads(max);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get thread pool info
+  //!
+  //! @return string summary for the thread pool
+  //----------------------------------------------------------------------------
+  inline std::string GetThreadPoolInfo() const
+  {
+    return mThreadPool.GetInfo();
+  }
 
 private:
   std::atomic<bool> mShowDarkFiles; ///< Flag to display dark files
@@ -155,9 +188,8 @@ private:
   mutable XrdSysMutex mLogMutex; ///< Mutex protecting the in-memory log
   XrdOucString mEnabled; ///< True if collection thread is active
   int mInterval; ///< Interval in min between two FSCK collection loops
-  AssistedThread mThread; ///< Collection thread id
   bool mRunning; ///< True if collection thread is currently running
-  mutable XrdSysMutex eMutex; ///< Mutex protecting all eX... map objects
+  mutable eos::common::RWMutex mErrMutex; ///< Mutex protecting all map obj
   //! Error detail map storing "<error-name>=><fsid>=>[fid1,fid2,fid3...]"
   std::map<std::string,
       std::map<eos::common::FileSystem::fsid_t,
@@ -171,6 +203,13 @@ private:
   //! in the filesystem view
   std::map<eos::common::FileSystem::fsid_t, unsigned long long > eFsDark;
   time_t eTimeStamp; ///< Timestamp of collection
+  uint64_t mMaxQueuedJobs {(uint64_t)1e5}; ///< Max number of queued jobs (100k)
+  eos::common::ThreadPool mThreadPool; ///< Thread pool for fsck repair jobs
+  AssistedThread mRepairThread; ///< Thread repair jobs to the thread pool
+  AssistedThread mCollectorThread; ///< Thread collecting errors
+  ///< Fids with repaired in the last hour
+  IdTrackerWithValidity<eos::IFileMD::id_t> mIdTracker;
+  std::shared_ptr<qclient::QClient> mQcl; ///< QClient object for metadata
 
   //----------------------------------------------------------------------------
   //! Reset all collected errors in the error map

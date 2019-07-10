@@ -109,11 +109,13 @@ public:
   //!
   //! @param fid file identifier
   //! @param fsid_err file system which reported an error
-  //! @param expected_err expected type of error reported by the scanner on the
-  //!        FST
+  //! @param expected_err expected type of error reported by the scanner
+  //! @param qcl QClient object for getting metadata information
   //----------------------------------------------------------------------------
-  FsckEntry(eos::IFileMD::id_t fid, eos::common::FileSystem::fsid_t fsid_err,
-            const std::string& expected_err);
+  FsckEntry(eos::IFileMD::id_t fid,
+            eos::common::FileSystem::fsid_t fsid_err,
+            const std::string& expected_err,
+            std::shared_ptr<qclient::QClient> qcl);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -121,33 +123,16 @@ public:
   virtual ~FsckEntry() = default;
 
   //----------------------------------------------------------------------------
-  //! Collect MGM file metadata information
+  //! Repair current entry
   //!
-  //! @param qcl QClient object used for retrieved file md without polluting
-  //!        the MGM cache
+  //! @return true if successful repair and/or no errors, otherwise false
   //----------------------------------------------------------------------------
-  void CollectMgmInfo(qclient::QClient& qcl);
+  bool Repair();
 
-  //----------------------------------------------------------------------------
-  //! Collect FST file metadata information from all replicas
-  //----------------------------------------------------------------------------
-  void CollectAllFstInfo();
-
-  //----------------------------------------------------------------------------
-  //! Collect FST file metadata information
-  //!
-  //! @param fsid file system identifier
-  //----------------------------------------------------------------------------
-  void CollectFstInfo(eos::common::FileSystem::fsid_t fsid);
-
-  //----------------------------------------------------------------------------
-  //! Generate repair workflow for the current entry
-  //!
-  //! @return list of repair function to be applied to the current entry
-  //----------------------------------------------------------------------------
-  std::list<RepairFnT>
-  GenerateRepairWokflow();
-
+private:
+#ifdef IN_TEST_HARNESS
+public:
+#endif
   //----------------------------------------------------------------------------
   //! Method to repair an mgm checksum and/or size difference error
   //!
@@ -170,10 +155,25 @@ public:
   //----------------------------------------------------------------------------
   bool RepairReplicaInconsistencies();
 
-private:
-#ifdef IN_TEST_HARNESS
-public:
-#endif
+  //----------------------------------------------------------------------------
+  //! Collect MGM file metadata information
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool CollectMgmInfo();
+
+  //----------------------------------------------------------------------------
+  //! Collect FST file metadata information from all replicas
+  //----------------------------------------------------------------------------
+  void CollectAllFstInfo();
+
+  //----------------------------------------------------------------------------
+  //! Collect FST file metadata information
+  //!
+  //! @param fsid file system identifier
+  //----------------------------------------------------------------------------
+  void CollectFstInfo(eos::common::FileSystem::fsid_t fsid);
+
   //----------------------------------------------------------------------------
   //! Get file metadata info stored at the FST
   //!
@@ -196,6 +196,13 @@ public:
   //----------------------------------------------------------------------------
   bool DropReplica(eos::common::FileSystem::fsid_t fsid) const;
 
+  //----------------------------------------------------------------------------
+  //! Update MGM stats depending on the final outcome
+  //!
+  //! @param success true if repair successful, otherwise false
+  //----------------------------------------------------------------------------
+  void UpdateMgmStats(bool success) const;
+
   eos::IFileMD::id_t mFid; ///< File id
   eos::common::FileSystem::fsid_t mFsidErr; ///< File system id with expected err
   FsckErr mReportedErr; ///< Reported error type
@@ -204,9 +211,10 @@ public:
   std::map<eos::common::FileSystem::fsid_t,
       std::unique_ptr<FstFileInfoT>> mFstFileInfo;
   //! Map of fsck error to list of repair operations
-  std::map<FsckErr, std::list<RepairFnT>> mMapRepairOps;
+  std::map<FsckErr, RepairFnT> mMapRepairOps;
   //! Factory callable creating fsck repair jobs
   RepairFactoryFnT mRepairFactory;
+  std::shared_ptr<qclient::QClient> mQcl; ///< QClient object for metadata
 };
 
 EOSMGMNAMESPACE_END

@@ -24,6 +24,7 @@
 #include "mgm/fsck/FsckEntry.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
+#include "mgm/Stat.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "common/StringConversion.hh"
@@ -41,18 +42,20 @@ EOSMGMNAMESPACE_BEGIN
 //----------------------------------------------------------------------------
 FsckEntry::FsckEntry(eos::IFileMD::id_t fid,
                      eos::common::FileSystem::fsid_t fsid_err,
-                     const std::string& expected_err):
+                     const std::string& expected_err,
+                     std::shared_ptr<qclient::QClient> qcl):
   mFid(fid), mFsidErr(fsid_err),
-  mReportedErr(ConvertToFsckErr(expected_err)), mRepairFactory()
+  mReportedErr(ConvertToFsckErr(expected_err)), mRepairFactory(),
+  mQcl(qcl)
 {
   mMapRepairOps = {
-    {FsckErr::MgmXsDiff, {&FsckEntry::RepairMgmXsSzDiff}},
-    {FsckErr::MgmSzDiff, {&FsckEntry::RepairMgmXsSzDiff}},
-    {FsckErr::FstXsDiff, {&FsckEntry::RepairFstXsSzDiff}},
-    {FsckErr::FstSzDiff, {&FsckEntry::RepairFstXsSzDiff}},
-    {FsckErr::UnregRepl, {&FsckEntry::RepairReplicaInconsistencies}},
-    {FsckErr::DiffRepl,  {&FsckEntry::RepairReplicaInconsistencies}},
-    {FsckErr::MissRepl,  {&FsckEntry::RepairReplicaInconsistencies}}
+    {FsckErr::MgmXsDiff, &FsckEntry::RepairMgmXsSzDiff},
+    {FsckErr::MgmSzDiff, &FsckEntry::RepairMgmXsSzDiff},
+    {FsckErr::FstXsDiff, &FsckEntry::RepairFstXsSzDiff},
+    {FsckErr::FstSzDiff, &FsckEntry::RepairFstXsSzDiff},
+    {FsckErr::UnregRepl, &FsckEntry::RepairReplicaInconsistencies},
+    {FsckErr::DiffRepl,  &FsckEntry::RepairReplicaInconsistencies},
+    {FsckErr::MissRepl,  &FsckEntry::RepairReplicaInconsistencies}
   };
   mRepairFactory = [](eos::common::FileId::fileid_t fid,
                       eos::common::FileSystem::fsid_t fsid_src,
@@ -70,10 +73,21 @@ FsckEntry::FsckEntry(eos::IFileMD::id_t fid,
 //------------------------------------------------------------------------------
 // Collect MGM file metadata information
 //------------------------------------------------------------------------------
-void
-FsckEntry::CollectMgmInfo(qclient::QClient& qcl)
+bool
+FsckEntry::CollectMgmInfo()
 {
-  mMgmFmd = eos::MetadataFetcher::getFileFromId(qcl, FileIdentifier(mFid)).get();
+  if (mQcl == nullptr) {
+    return false;
+  }
+
+  try {
+    mMgmFmd = eos::MetadataFetcher::getFileFromId(*mQcl.get(),
+              FileIdentifier(mFid)).get();
+  } catch (const eos::MDException& e) {
+    return false;
+  }
+
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -84,6 +98,84 @@ FsckEntry::CollectAllFstInfo()
 {
   for (const auto fsid : mMgmFmd.locations()) {
     CollectFstInfo(fsid);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Collect FST file metadata information
+//------------------------------------------------------------------------------
+void
+FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
+{
+  using eos::common::FileId;
+
+  if (mFstFileInfo.find(fsid) == mFstFileInfo.end()) {
+    return;
+  }
+
+  std::string host_port;
+  std::string fst_local_path;
+  {
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
+
+    if (fs) {
+      host_port = fs->GetString("hostport");
+      fst_local_path = fs->GetPath();
+    }
+  }
+
+  if (host_port.empty() || fst_local_path.empty()) {
+    eos_err("msg=\"missing or misconfigured file system\" fsid=%lu", fsid);
+    mFstFileInfo.emplace(fsid, std::make_unique<FstFileInfoT>("",
+                         FstErr::NoContact));
+    return;
+  }
+
+  std::ostringstream oss;
+  oss << "root://" << host_port << "//dummy";
+  std::string surl = oss.str();
+  XrdCl::URL url(surl);
+
+  if (!url.IsValid()) {
+    eos_err("msg=\"invalid url\" url=\"%s\"", surl.c_str());
+    mFstFileInfo.emplace(fsid, std::make_unique<FstFileInfoT>("",
+                         FstErr::NoContact));
+    return;
+  }
+
+  XrdOucString fpath_local;
+  FileId::FidPrefix2FullPath(FileId::Fid2Hex(mFid).c_str(),
+                             fst_local_path.c_str(),
+                             fpath_local);
+  // Check that the file exists on disk
+  XrdCl::StatInfo* stat_info_raw {nullptr};
+  std::unique_ptr<XrdCl::StatInfo> stat_info(stat_info_raw);
+  uint16_t timeout = 10;
+  XrdCl::FileSystem fs(url);
+  XrdCl::XRootDStatus status = fs.Stat(fpath_local.c_str(), stat_info_raw,
+                                       timeout);
+
+  if (!status.IsOK()) {
+    if (status.code == XrdCl::errOperationExpired) {
+      mFstFileInfo.emplace(fsid, std::make_unique<FstFileInfoT>("",
+                           FstErr::NoContact));
+    } else {
+      mFstFileInfo.emplace(fsid, std::make_unique<FstFileInfoT>("",
+                           FstErr::NotOnDisk));
+    }
+
+    return;
+  }
+
+  // Collect file metadata stored on the FST about the current file
+  auto ret_pair =  mFstFileInfo.emplace(fsid, std::make_unique<FstFileInfoT>
+                                        (fpath_local.c_str(), FstErr::None));
+  auto& finfo = ret_pair.first->second;
+  finfo->mDiskSize = stat_info->GetSize();
+
+  if (!GetFstFmd(finfo, fs, fsid)) {
+    return;
   }
 }
 
@@ -114,7 +206,7 @@ FsckEntry::RepairMgmXsSzDiff()
     if (finfo->mFstErr != FstErr::None) {
       eos_err("msg=\"unavailable replica info\" fid=%08llx fsid=%lu",
               mFid, it->first);
-      disk_xs_sz_match = true;
+      disk_xs_sz_match = false;
       break;
     }
 
@@ -149,7 +241,7 @@ FsckEntry::RepairMgmXsSzDiff()
     return false;
   }
 
-  if (disk_xs_sz_match) {
+  if (disk_xs_sz_match && sz_val) {
     size_t out_sz;
     auto xs_binary = StringConversion::Hex2BinDataChar(xs_val, out_sz);
     eos::Buffer xs_buff;
@@ -479,91 +571,61 @@ FsckEntry::DropReplica(eos::common::FileSystem::fsid_t fsid) const
 }
 
 //------------------------------------------------------------------------------
-// Generate repair workflow for the current entry
+// Repair entry
 //------------------------------------------------------------------------------
-std::list<RepairFnT>
-FsckEntry::GenerateRepairWokflow()
+bool
+FsckEntry::Repair()
 {
-  auto it = mMapRepairOps.find(mReportedErr);
+  bool success = false;
 
-  if (it == mMapRepairOps.end()) {
-    return {};
+  // If no MGM object then we are in testing mode
+  if (gOFS) {
+    gOFS->MgmStats.Add("FsckRepairStarted", 0, 0, 1);
+
+    if (CollectMgmInfo() == false) {
+      eos_err("msg=\"no repair action, file is orphan\", fid=%08llx", mFid);
+      UpdateMgmStats(success);
+      return success;
+    }
+
+    CollectAllFstInfo();
+    CollectFstInfo(mFsidErr);
   }
 
-  return it->second;
-}
+  if (mReportedErr != FsckErr::None) {
+    auto it = mMapRepairOps.find(mReportedErr);
 
-//------------------------------------------------------------------------------
-// Collect FST file metadata information
-//------------------------------------------------------------------------------
-void
-FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
-{
-  using eos::common::FileId;
-  std::string host_port;
-  std::string fst_local_path;
-  {
-    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-    FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
+    if (it == mMapRepairOps.end()) {
+      eos_err("msg=\"unknown type of error\" errr=%i", mReportedErr);
+      UpdateMgmStats(success);
+      return success;
+    }
 
-    if (fs) {
-      host_port = fs->GetString("hostport");
-      fst_local_path = fs->GetPath();
+    auto fn_with_obj = std::bind(it->second, this);
+    success = fn_with_obj();
+    UpdateMgmStats(success);
+    return success;
+  }
+
+  // If no explicit error given then try to repair all types of errors, we put
+  // the ones with higher priority first
+  std::list<RepairFnT> repair_ops {
+    &FsckEntry::RepairMgmXsSzDiff,
+    &FsckEntry::RepairFstXsSzDiff,
+    &FsckEntry::RepairReplicaInconsistencies};
+
+  for (const auto& op : repair_ops) {
+    auto fn_with_obj = std::bind(op, this);
+
+    if (!fn_with_obj()) {
+      UpdateMgmStats(success);
+      return success;
     }
   }
 
-  if (host_port.empty() || fst_local_path.empty()) {
-    eos_err("msg=\"missing or misconfigured file system\" fsid=%lu", fsid);
-    mFstFileInfo.emplace(fsid, std::make_unique<FstFileInfoT>("",
-                         FstErr::NoContact));
-    return;
-  }
-
-  std::ostringstream oss;
-  oss << "root://" << host_port << "//dummy";
-  std::string surl = oss.str();
-  XrdCl::URL url(surl);
-
-  if (!url.IsValid()) {
-    eos_err("msg=\"invalid url\" url=\"%s\"", surl.c_str());
-    mFstFileInfo.emplace(fsid, std::make_unique<FstFileInfoT>("",
-                         FstErr::NoContact));
-    return;
-  }
-
-  XrdOucString fpath_local;
-  FileId::FidPrefix2FullPath(FileId::Fid2Hex(mFid).c_str(),
-                             fst_local_path.c_str(),
-                             fpath_local);
-  // Check that the file exists on disk
-  XrdCl::StatInfo* stat_info_raw {nullptr};
-  std::unique_ptr<XrdCl::StatInfo> stat_info(stat_info_raw);
-  uint16_t timeout = 10;
-  XrdCl::FileSystem fs(url);
-  XrdCl::XRootDStatus status = fs.Stat(fpath_local.c_str(), stat_info_raw,
-                                       timeout);
-
-  if (!status.IsOK()) {
-    if (status.code == XrdCl::errOperationExpired) {
-      mFstFileInfo.emplace(fsid, std::make_unique<FstFileInfoT>("",
-                           FstErr::NoContact));
-    } else {
-      mFstFileInfo.emplace(fsid, std::make_unique<FstFileInfoT>("",
-                           FstErr::NotOnDisk));
-    }
-
-    return;
-  }
-
-  // Collect file metadata stored on the FST about the current file
-  auto ret_pair =  mFstFileInfo.emplace(fsid, std::make_unique<FstFileInfoT>
-                                        (fpath_local.c_str(), FstErr::None));
-  auto& finfo = ret_pair.first->second;
-  finfo->mDiskSize = stat_info->GetSize();
-
-  if (!GetFstFmd(finfo, fs, fsid)) {
-    return;
-  }
+  success = true;
+  UpdateMgmStats(success);
+  return success;
 }
 
 //------------------------------------------------------------------------------
@@ -637,6 +699,21 @@ FsckErr ConvertToFsckErr(const std::string& serr)
     return FsckErr::MissRepl;
   } else {
     return FsckErr::None;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Update MGM stats depending on the final outcome
+//------------------------------------------------------------------------------
+void
+FsckEntry::UpdateMgmStats(bool success) const
+{
+  if (gOFS) {
+    if (success) {
+      gOFS->MgmStats.Add("FsckRepairSuccessful", 0, 0, 1);
+    } else {
+      gOFS->MgmStats.Add("FsckRepairFailed", 0, 0, 1);
+    }
   }
 }
 
