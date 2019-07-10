@@ -1046,7 +1046,6 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
     fs.mScanInterval = (time_t) hash->GetLongLong("scaninterval");
     fs.mGracePeriod = (time_t) hash->GetLongLong("graceperiod");
     fs.mDrainPeriod = (time_t) hash->GetLongLong("drainperiod");
-    fs.mDrainerOn   = (hash->Get("stat.drainer") == "on");
     fs.mBalThresh   = hash->GetDouble("stat.balance.threshold");
 
     if (dolock) {
@@ -1102,7 +1101,6 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
     fs.mDiskRopen = 0;
     fs.mDiskWopen = 0;
     fs.mScanRate = 0;
-    fs.mDrainerOn = false;
     fs.mBalThresh = 0.0;
     return false;
   }

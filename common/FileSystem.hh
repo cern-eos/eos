@@ -555,7 +555,6 @@ public:
     time_t mScanInterval;
     time_t mGracePeriod;
     time_t mDrainPeriod;
-    bool mDrainerOn;
 
     bool hasHeartbeat() const {
       time_t now = time(NULL);
