@@ -258,8 +258,8 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   eosFsView(0), eosContainerAccounting(0), eosSyncTimeAccounting(0),
   mStatsTid(0), mFrontendPort(0), mNumAuthThreads(0),
   zMQ(nullptr), Authorization(0), MgmStatsPtr(new eos::mgm::Stat()),
-  MgmStats(*MgmStatsPtr), FsckPtr(new eos::mgm::Fsck()),
-  FsCheck(*FsckPtr), mMaster(nullptr), mRouting(new eos::mgm::PathRouting()),
+  MgmStats(*MgmStatsPtr), mFsckEngine(new Fsck()), mMaster(nullptr),
+  mRouting(new eos::mgm::PathRouting()),
   mIsCentralDrain(false), mLRUEngine(new eos::mgm::LRU()),
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr), UTF8(false), mFstGwHost(""),
   mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
@@ -378,11 +378,7 @@ XrdMgmOfs::OrderlyShutdown()
   }
 
   eos_warning("%s", "msg=\"stopping FSCK service\"");
-
-  if (FsckPtr) {
-    FsckPtr.reset();
-  }
-
+  mFsckEngine->Stop();
   eos_warning("%s", "msg=\"stopping messaging\"");
 
   if (MgmOfsMessaging) {

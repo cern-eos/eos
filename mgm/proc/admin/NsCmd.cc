@@ -39,6 +39,7 @@
 #include "namespace/Resolver.hh"
 #include "namespace/Constants.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/fsck/Fsck.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Master.hh"
@@ -367,7 +368,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
     oss << "uid=all gid=all ns.uptime="
         << (int)(time(NULL) - gOFS->mStartTime) << std::endl
         << "uid=all gid=all "
-        << gOFS->mDrainEngine.GetThreadPoolInfo() << std::endl;
+        << gOFS->mDrainEngine.GetThreadPoolInfo() << std::endl
+        << "uid=all gid=all "
+        << gOFS->mFsckEngine->GetThreadPoolInfo() << std::endl;
   } else {
     std::string line = "# ------------------------------------------------------"
                        "------------------------------";
@@ -484,6 +487,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << line << std::endl
         << "ALL      drain info                       "
         << gOFS->mDrainEngine.GetThreadPoolInfo() << std::endl
+        << "ALL      fsck info                        "
+        << gOFS->mFsckEngine->GetThreadPoolInfo() << std::endl
         << line << std::endl;
   }
 
