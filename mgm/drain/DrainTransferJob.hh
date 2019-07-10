@@ -266,7 +266,9 @@ private:
   Status DrainZeroSizeFile(const FileDrainInfo& fdrain);
 
   //----------------------------------------------------------------------------
-  //! Update MGM stats depending on the type of transfer
+  //! Update MGM stats depending on the type of transfer. The generic
+  //! DrainTransferJob can be used in different components eg. fsck. For the
+  //! time being this will update the MGM statistics only for the drainer.
   //!
   //! @param status transfer status
   //----------------------------------------------------------------------------

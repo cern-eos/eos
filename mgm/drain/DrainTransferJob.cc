@@ -645,8 +645,6 @@ DrainTransferJob::UpdateMgmStats(Status status)
 
   if (mAppTag == "drainer") {
     tag_stats = "DrainCentral";
-  } else if (mAppTag == "fsck") {
-    tag_stats = "FsckRepair";
   } else {
     tag_stats = "Unknown";
   }
@@ -659,7 +657,9 @@ DrainTransferJob::UpdateMgmStats(Status status)
     tag_stats += "Started";
   }
 
-  gOFS->MgmStats.Add(tag_stats.c_str(), 0, 0, 1);
+  if (tag_stats != "Unknown") {
+    gOFS->MgmStats.Add(tag_stats.c_str(), 0, 0, 1);
+  }
 }
 
 EOSMGMNAMESPACE_END
