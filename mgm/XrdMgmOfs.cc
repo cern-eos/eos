@@ -161,16 +161,20 @@ extern "C" {
 //------------------------------------------------------------------------------
   XrdSfsFileSystem*
   XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
-                      XrdSysLogger* lp,
-                      const char* configfn)
+		      XrdSysLogger* lp,
+		      const char* configfn)
   {
+    if (gOFS) {
+      // initialize filesystems only once
+      return gOFS;
+    }
     gMgmOfsEroute.SetPrefix("MgmOfs_");
     gMgmOfsEroute.logger(lp);
     static XrdMgmOfs myFS(&gMgmOfsEroute);
     XrdOucString vs = "MgmOfs (meta data redirector) ";
     vs += VERSION;
     gMgmOfsEroute.Say("++++++ (c) 2015 CERN/IT-DSS ", vs.c_str());
-
+    
     // Initialize the subsystems
     if (!myFS.Init(gMgmOfsEroute)) {
       return nullptr;
@@ -283,6 +287,9 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   eos::common::LogId::SetSingleShotLogId();
   mZmqContext = new zmq::context_t(1);
   IoStats.reset(new eos::mgm::Iostat());
+
+  // export pointer to this object ... sigh ...
+  setenv("EOSMGMOFS", std::to_string((unsigned long long)this).c_str(),1);
 
   if (mHttpdPort)  {
     Httpd.reset(new eos::mgm::HttpServer(mHttpdPort));

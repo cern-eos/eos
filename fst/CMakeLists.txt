@@ -139,6 +139,40 @@ set_target_properties(jerasure-static PROPERTIES
 target_link_libraries(jerasure-static PRIVATE gf-complete-static)
 
 #-------------------------------------------------------------------------------
+# EosFstHttp library
+#-------------------------------------------------------------------------------
+
+add_library(
+  EosFstHttp-Objects OBJECT
+  http/xrdhttp/EosFstHttpHandler.hh
+  http/xrdhttp/EosFstHttpHandler.cc
+)
+
+set_target_properties(
+  EosFstHttp-Objects
+  PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
+
+add_library(EosFstHttp MODULE
+  $<TARGET_OBJECTS:EosFstHttp-Objects>
+)
+
+
+target_link_libraries(
+  EosFstHttp PUBLIC
+  XrdHttp-4
+  eosCommon
+  eosCommonServer
+)
+
+install(
+  TARGETS EosFstHttp
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+
+
+#-------------------------------------------------------------------------------
 # EosFstIo-Objects library
 #-------------------------------------------------------------------------------
 add_library(EosFstIo-Objects OBJECT

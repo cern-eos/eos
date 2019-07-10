@@ -53,6 +53,7 @@ private:
   const std::string mRequestBody;     //!< the client request body
   size_t           *mRequestBodySize; //!< the size of the client request body
   HeaderMap         mRequestCookies;  //!< the client request cookie header map
+  bool              mXrdHttp;         //!< the request came with XrdHttp
 
 public:
 
@@ -66,6 +67,7 @@ public:
    * @param body     the request body data sent by the client
    * @param bodysize the size of the request body
    * @param cookies  the map of cookie headers
+   * @param xrdhttp  indicate an xrdhttp request
    */
   HttpRequest (HeaderMap          headers,
                const std::string &method,
@@ -73,7 +75,8 @@ public:
                const std::string &query,
                const std::string &uploadData,
                size_t            *uploadDataSize,
-               HeaderMap          cookies);
+               HeaderMap          cookies, 
+	       bool               xrdhttp = false);
 
   /**
    * Destructor
@@ -121,6 +124,12 @@ public:
    */
   inline HeaderMap&
   GetCookies () { return mRequestCookies; }
+  
+  /**
+   * @return true if xrdhttp request
+   */
+  inline bool&
+  IsXrdHttp () { return mXrdHttp; }
 
   /**
    * Change the request query string, useful in the case where a capability

@@ -26,6 +26,7 @@
 #include "fst/http/ProtocolHandlerFactory.hh"
 #include "fst/XrdFstOfsFile.hh"
 #include "common/http/ProtocolHandler.hh"
+#include "common/SecEntity.hh"
 #include "fst/XrdFstOfs.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
@@ -180,6 +181,79 @@ HttpServer::Handler(void* cls,
   }
 }
 
+
+/*----------------------------------------------------------------------------*/
+ssize_t
+HttpServer::FileReader(eos::common::ProtocolHandler* handler, uint64_t pos, char* buf, size_t max)
+{
+  return HttpServer::FileReaderCallback(handler, pos, buf, max);
+}
+
+/*----------------------------------------------------------------------------*/
+ssize_t
+HttpServer::FileWriter(eos::common::ProtocolHandler* handler,
+		       std::string& method,
+		       std::string& uri,
+		       std::map<std::string,std::string>& headers,
+		       std::string& query,
+		       std::map<std::string,std::string>& cookies,
+		       std::string& body)
+
+{
+  eos::fst::HttpHandler* httpHandle = dynamic_cast<eos::fst::HttpHandler*>
+    (handler);
+  
+  size_t uploadSize = body.size();
+
+  std::unique_ptr<eos::common::HttpRequest> request ( new eos::common::HttpRequest(
+										   headers, method, uri,
+										   query.c_str(),
+										   body, &uploadSize, cookies, 
+										   true));
+
+  eos_static_debug("\n\n%s", request->ToString().c_str());
+  // Handle the request and build a response based on the specific protocol
+  httpHandle->HandleRequest(request.get());  
+
+  eos::common::HttpResponse* response = handler->GetResponse();
+
+  if (response->GetResponseCode() == response->CREATED)
+    return 0; 
+  else 
+    return -1;
+}
+
+
+/*----------------------------------------------------------------------------*/
+ssize_t
+HttpServer::FileClose(eos::common::ProtocolHandler* handler, int rc)
+{
+  eos::fst::HttpHandler* httpHandle = dynamic_cast<eos::fst::HttpHandler*>
+    (handler);
+  
+  if (httpHandle && httpHandle->mFile) {
+    if (rc) {
+      eos_static_err("msg=\"clean-up interrupted or IO error related PUT/GET request\" path=\"%s\"",
+		     httpHandle->mFile->GetPath().c_str());
+      
+      // we have to disable delete-on-close for chunked uploads since files are stateful
+      if (httpHandle->mFile->IsChunkedUpload()) {
+	httpHandle->mFile->close();
+      }
+    } else {
+      httpHandle->mFile->close();
+    }
+    
+    // clean-up file objects
+    if (httpHandle->mFile) {
+      delete(httpHandle->mFile);
+      httpHandle->mFile = 0;
+    }
+  }    
+  return 0;
+}
+
+
 /*----------------------------------------------------------------------------*/
 ssize_t
 HttpServer::FileReaderCallback(void* cls, uint64_t pos, char* buf, size_t max)
@@ -194,7 +268,6 @@ HttpServer::FileReaderCallback(void* cls, uint64_t pos, char* buf, size_t max)
     eos_static_err("error: dynamic cast to eos::fst::HttpHandler failed");
     return -1;
   }
-
   eos_static_debug("pos=%llu max=%llu current-index=%d current-offset=%llu",
                    (unsigned long long) pos,
                    (unsigned long long) max,
@@ -310,6 +383,49 @@ HttpServer::FileReaderCallback(void* cls, uint64_t pos, char* buf, size_t max)
   }
 
   return 0;
+}
+
+std::unique_ptr<eos::common::ProtocolHandler>
+HttpServer::XrdHttpHandler(std::string& method,
+                           std::string& uri,
+                           std::map<std::string,std::string>& headers,
+                           std::string& query,
+                           std::map<std::string,std::string>& cookies,
+                           std::string& body, 
+                           const XrdSecEntity& client)
+{
+  if (client.moninfo && strlen(client.moninfo)) {
+    headers["ssl_client_s_dn"] = client.moninfo;
+    headers["x-real-ip"] = client.host;
+  }
+
+  ProtocolHandlerFactory factory = ProtocolHandlerFactory();
+  std::unique_ptr<eos::common::ProtocolHandler> handler ( factory.CreateProtocolHandler(method, headers, 0) );
+
+  if (!handler) {
+    eos_static_err("msg=\"no matching protocol for request method %s\"",
+                   method);
+    return 0;
+  }
+  
+  size_t bodySize = body.length();
+  
+  // Retrieve the protocol handler stored in *ptr
+  std::unique_ptr<eos::common::HttpRequest> request ( new eos::common::HttpRequest(
+                                                                                   headers, method, uri,
+                                                                                   query.c_str() ? query : "",
+                                                                                   body, &bodySize, cookies, true) );
+  if (EOS_LOGS_DEBUG) {
+    eos_static_debug("\n\n%s\n%s\n", request->ToString().c_str(),
+                     request->GetBody().c_str());
+  }
+
+  handler->HandleRequest(request.get());
+  
+  if (EOS_LOGS_DEBUG) {
+    eos_static_debug("method=%s uri='%s' %s (warning this is not the mapped identity)",method.c_str(), uri.c_str(), eos::common::SecEntity::ToString(&client,"xrdhttp").c_str());
+  }
+  return handler;
 }
 
 void

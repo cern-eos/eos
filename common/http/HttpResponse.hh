@@ -196,6 +196,11 @@ public:
   std::string
   ToString ();
 
+  /** 
+   * @return response code string
+   */
+  std::string
+  GetResponseCodeDescription(); 
 };
 
 /*----------------------------------------------------------------------------*/
