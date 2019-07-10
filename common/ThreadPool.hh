@@ -295,6 +295,14 @@ public:
     return mPoolSize;
   }
 
+  //----------------------------------------------------------------------------
+  //! Get size of the queue of jobs
+  //----------------------------------------------------------------------------
+  size_t GetQueueSize() const
+  {
+    return mTasks.size();
+  }
+
   // Disable copy/move constructors and assignment operators
   ThreadPool(const ThreadPool&) = delete;
   ThreadPool(ThreadPool&&) = delete;
