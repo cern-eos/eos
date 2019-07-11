@@ -30,11 +30,13 @@ TEST(AclHelper, RouteFromPathAppeneded)
 {
   AclHelper acl;
   acl.ParseCommand("--user u:1001=rwx /eos/devtest/");
-  acl.mMgmExec.InjectSimulated("mgm.cmd.proto=Eh0IAioKdToxMDAxPXJ3eDINL2Vvcy9kZXZ0ZXN0L/gBAQ==&eos.route=/eos/devtest/", {"", "", 0});
+  const std::string proto_msg = ( !isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO)) ?
+      "Eh0IAioKdToxMDAxPXJ3eDINL2Vvcy9kZXZ0ZXN0L/gBAQ" : "Eh0IAioKdToxMDAxPXJ3eDINL2Vvcy9kZXZ0ZXN0Lw";
+  acl.mMgmExec.InjectSimulated("mgm.cmd.proto=" + proto_msg + "==&eos.route=/eos/devtest/", {"", "", 0});
   ASSERT_EQ(acl.Execute(true, true), 0);
   // Setting EOSHOME env variable should make no difference
   setenv("EOSHOME", "/eos/home/test/", 1);
-  acl.mMgmExec.InjectSimulated("mgm.cmd.proto=Eh0IAioKdToxMDAxPXJ3eDINL2Vvcy9kZXZ0ZXN0L/gBAQ==&eos.route=/eos/devtest/", {"", "", 0});
+  acl.mMgmExec.InjectSimulated("mgm.cmd.proto=" + proto_msg + "==&eos.route=/eos/devtest/", {"", "", 0});
   ASSERT_EQ(acl.Execute(true, true), 0);
   unsetenv("EOSHOME");
 }
@@ -47,20 +49,21 @@ TEST(RecycleHelper, RouteFromEnvAppended)
   oss_route << "/eos/user/" << username[0] << "/" << username << "/";
   RecycleHelper recycle;
   recycle.ParseCommand("ls");
-
+  const std::string proto_msg = ( !isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO)) ?
+                                "UgQKAggB+AEB" : "UgQKAggB";
   if (getenv("USER")) {
-    recycle.mMgmExec.InjectSimulated("mgm.cmd.proto=UgQKAggB+AEB&eos.route=" +
+    recycle.mMgmExec.InjectSimulated("mgm.cmd.proto=" + proto_msg + "&eos.route=" +
                                      oss_route.str(),
     {"", "", 0});
   } else {
     // Inside the docker container the USER env is not set
-    recycle.mMgmExec.InjectSimulated("mgm.cmd.proto=UgQKAggB+AEB", {"", "", 0});
+    recycle.mMgmExec.InjectSimulated("mgm.cmd.proto=" + proto_msg, {"", "", 0});
   }
 
   ASSERT_EQ(recycle.Execute(false, true), 0);
   // Setting EOSHOME env variable should update the eos.route
   setenv("EOSHOME", "/eos/home/test/", 1);
-  recycle.mMgmExec.InjectSimulated("mgm.cmd.proto=UgQKAggB+AEB&eos.route=/eos/home/test/",
+  recycle.mMgmExec.InjectSimulated("mgm.cmd.proto=" + proto_msg + "&eos.route=/eos/home/test/",
   {"", "", 0});
   ASSERT_EQ(recycle.Execute(false, true), 0);
   unsetenv("EOSHOME");
@@ -68,13 +71,13 @@ TEST(RecycleHelper, RouteFromEnvAppended)
   // /eos/user/username[0]/username/ where username=getenv("EOSUSER")
   setenv("EOSUSER", "dummy", 1);
   unsetenv("USER"); // otherwise USER has precedence
-  recycle.mMgmExec.InjectSimulated("mgm.cmd.proto=UgQKAggB+AEB&eos.route=/eos/user/d/dummy/",
+  recycle.mMgmExec.InjectSimulated("mgm.cmd.proto=" + proto_msg + "&eos.route=/eos/user/d/dummy/",
   {"", "", 0});
   ASSERT_EQ(recycle.Execute(false, true), 0);
   unsetenv("EOSUSER");
   // The same should happend if USER is set
   setenv("USER", "other_dummy", 1);
-  recycle.mMgmExec.InjectSimulated("mgm.cmd.proto=UgQKAggB+AEB&eos.route=/eos/user/o/other_dummy/",
+  recycle.mMgmExec.InjectSimulated("mgm.cmd.proto=" + proto_msg + "&eos.route=/eos/user/o/other_dummy/",
   {"", "", 0});
   ASSERT_EQ(recycle.Execute(false, true), 0);
   unsetenv("USER");
