@@ -33,9 +33,9 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 struct CacheStatistics {
   bool enabled = false;
-  int64_t maxNum = 0;
-  int64_t occupancy = 0;
-  int64_t inFlight = 0;
+  uint64_t maxNum = 0;
+  uint64_t occupancy = 0;
+  uint64_t inFlight = 0;
 };
 
 EOSNSNAMESPACE_END
