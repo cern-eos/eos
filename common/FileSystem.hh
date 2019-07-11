@@ -999,17 +999,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return the configuration status (via cache)
   //----------------------------------------------------------------------------
-  ConfigStatus
-  GetConfigStatus(bool cached = false);
-
-  //----------------------------------------------------------------------------
-  //! Return the error code variable of that filesystem
-  //----------------------------------------------------------------------------
-  int
-  GetErrCode()
-  {
-    return atoi(GetString("stat.errc").c_str());
-  }
+  ConfigStatus GetConfigStatus(bool cached = false);
 
   //----------------------------------------------------------------------------
   //! Retrieve FileSystem's core parameters

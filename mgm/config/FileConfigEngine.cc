@@ -626,18 +626,7 @@ FileConfigEngine::SetConfigValue(const char* prefix, const char* key,
 
   if (mBroadcast && gOFS->mMaster->IsMaster()) {
     // Make this value visible between MGM's
-    eos::common::RWMutexReadLock
-    lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-    XrdMqSharedHash* hash =
-      eos::common::GlobalConfig::gConfig.Get(gOFS->MgmConfigQueue.c_str());
-
-    if (hash) {
-      XrdOucString repval = val;
-
-      while (repval.replace("&", " ")) {}
-
-      hash->Set(configname.c_str(), repval.c_str());
-    }
+    publishConfigChange(configname.c_str(), val);
   }
 
   (void) AutoSave();
@@ -655,15 +644,7 @@ FileConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
   if (mBroadcast && gOFS->mMaster->IsMaster()) {
     eos_static_info("Deleting %s", configname.c_str());
     // make this value visible between MGM's
-    eos::common::RWMutexReadLock
-    lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-    XrdMqSharedHash* hash =
-      eos::common::GlobalConfig::gConfig.Get(gOFS->MgmConfigQueue.c_str());
-
-    if (hash) {
-      eos_static_info("Deleting on hash %s", configname.c_str());
-      hash->Delete(configname.c_str());
-    }
+    publishConfigDeletion(configname.c_str());
   }
 
   {

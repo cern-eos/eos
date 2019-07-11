@@ -221,6 +221,37 @@ IConfigEngine::CheckFilterMatch(XrdOucString& option, const std::string& key)
 }
 
 //------------------------------------------------------------------------------
+// Publish the given configuration change
+//------------------------------------------------------------------------------
+void IConfigEngine::publishConfigChange(const std::string &key, const std::string &value) {
+  eos_notice("Publishing configuration change %s => %s", key.c_str(), value.c_str());
+
+  eos::common::RWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(gOFS->MgmConfigQueue.c_str());
+
+  if (hash) {
+    XrdOucString repval = value.c_str();
+    while (repval.replace("&", " ")) {}
+
+    hash->Set(key.c_str(), repval.c_str());
+  }
+}
+
+//------------------------------------------------------------------------------
+// Publish the deletion of the given configuration key
+//------------------------------------------------------------------------------
+void IConfigEngine::publishConfigDeletion(const std::string &key) {
+  eos_static_info("Publishing deletion of configuration key %s", key.c_str());
+
+  eos::common::RWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(gOFS->MgmConfigQueue.c_str());
+
+  if (hash) {
+    hash->Delete(key.c_str());
+  }
+}
+
+//------------------------------------------------------------------------------
 // Apply a given configuration definition
 //------------------------------------------------------------------------------
 bool
