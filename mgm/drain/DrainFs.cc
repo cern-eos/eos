@@ -210,6 +210,8 @@ DrainFs::SuccessfulDrain()
     batch.setDrainStatusLocal(mStatus);
     batch.setLongLongLocal("stat.drainbytesleft", 0);
     batch.setLongLongLocal("stat.timeleft", 0);
+    batch.setLongLongLocal("stat.drain.failed", 0);
+    batch.setLongLongLocal("stat.drainfiles", 0);
 
     if (!gOFS->Shutdown) {
       // If drain done and the system is not shutting down then set the
