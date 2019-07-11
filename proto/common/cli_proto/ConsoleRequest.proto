@@ -1,6 +1,5 @@
 syntax="proto3";
 package eos.console;
-
 import "Acl.proto";
 import "Ns.proto";
 import "Drain.proto";
@@ -47,7 +46,5 @@ message RequestProto {
   }
 
   string Comment = 30;
-
-  bool DontColor = 31; // It should be set if the output fd is not a tty. If true, do not beautify the output.
-
+  bool DontColor = 31; // True if the output fd is not a tty.
 }
