@@ -404,7 +404,7 @@ HttpServer::XrdHttpHandler(std::string& method,
 
   if (!handler) {
     eos_static_err("msg=\"no matching protocol for request method %s\"",
-                   method);
+                   method.c_str());
     return 0;
   }
   
