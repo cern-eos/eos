@@ -906,6 +906,7 @@ unit_test_asan:
     - docker_node
   only:
     - schedules
+  allow_failure: true
 
 
 namespace_unit_test:
