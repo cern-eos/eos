@@ -2535,11 +2535,16 @@ EosFuse::listdir(fuse_req_t req, fuse_ino_t ino, metad::shared_md& md)
     cLock.UnLock();
     md = Instance().mds.get(req, ino, authid, true);
 
-    if (!md->pid() && (md->id() != 1)) {
-      if (md->err()) {
-        rc = md->err();
-      } else {
-        rc = ENOENT;
+    if (!md) {
+      // this is weired, but instead of SEGV we throw an IO error
+      rc = EIO;
+    } else {
+      if (!md->pid() && (md->id() != 1)) {
+	if (md->err()) {
+	  rc = md->err();
+	} else {
+	  rc = ENOENT;
+	}
       }
     }
   }
