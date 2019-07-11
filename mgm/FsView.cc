@@ -1547,9 +1547,10 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams &coreParams,
     return false;
   }
 
-  // Check for queuepath collision..
+  // Check for queuepath collision
   if(mIdView.lookupByQueuePath(coreParams.getQueuePath())) {
-    eos_err("msg=\"queuepath already registered\" qpath=%s", coreParams.getQueuePath());
+    eos_err("msg=\"queuepath already registered\" qpath=%s",
+            coreParams.getQueuePath().c_str());
     return false;
   }
 
