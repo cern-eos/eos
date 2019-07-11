@@ -738,60 +738,6 @@ DrainingPlacementPriorityRandWeightEvaluator;
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Functor Class to define relative priorities of branches in
- *        the fast tree for file placement in balancing.
- *
- */
-/*----------------------------------------------------------------------------*/
-class BalancingPlacementPriorityComparator
-{
-public:
-  char saturationThresh;
-  char spreadingFillRatioCap, fillRatioCompTol;
-  BalancingPlacementPriorityComparator() : saturationThresh(0),
-    spreadingFillRatioCap(0), fillRatioCompTol(0)
-  {
-  }
-  inline signed char
-  operator()(const SchedTreeBase::TreeNodeStateChar* const& lefts,
-             const SchedTreeBase::TreeNodeSlots* const& leftp,
-             const SchedTreeBase::TreeNodeStateChar* const& rights,
-             const SchedTreeBase::TreeNodeSlots* const& rightp) const
-  {
-    return SchedTreeBase::compareBlcPlct<char>(lefts, leftp, rights, rightp,
-           spreadingFillRatioCap, fillRatioCompTol);
-  }
-
-  inline bool isValidSlot(const SchedTreeBase::TreeNodeStateChar* const& s,
-                          const SchedTreeBase::TreeNodeSlots* const& p) const
-  {
-    const int16_t mask = SchedTreeBase::Available | SchedTreeBase::Writable |
-                         SchedTreeBase::Balancer;
-    return !(SchedTreeBase::Disabled & s->mStatus) &&
-           (mask == (s->mStatus & mask)) && (p->freeSlotsCount > 0);
-  }
-
-  inline bool isSaturatedSlot(const SchedTreeBase::TreeNodeStateChar* const& s,
-                              const SchedTreeBase::TreeNodeSlots* const& p) const
-  {
-    return s->dlScore < saturationThresh;
-  }
-};
-
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Functor Class to define relative weights of branches in the tree
- *        having the same priority. This weight is used for file placement
- *        in balancing by random sampling in all the branches having
- *        the same priority. It's the same as the general file placement case
- *
- */
-/*----------------------------------------------------------------------------*/
-typedef PlacementPriorityRandWeightEvaluator
-BalancingPlacementPriorityRandWeightEvaluator;
-
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Functor Class to define relative priorities of branches in
  *        the fast tree for Read-Only file access.
  *
  */
