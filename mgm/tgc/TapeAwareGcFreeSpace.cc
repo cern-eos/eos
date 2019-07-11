@@ -99,14 +99,48 @@ TapeAwareGcFreeSpace::queryMgmForFreeBytes() {
   const auto spaceItor = FsView::gFsView.mSpaceView.find(m_spaceName);
 
   if(FsView::gFsView.mSpaceView.end() == spaceItor) {
-    throw TapeAwareGcSpaceNotFound(std::string(__FUNCTION__) + ": Cannot find space " + m_spaceName);
+    throw TapeAwareGcSpaceNotFound(std::string(__FUNCTION__) + ": Cannot find space " + m_spaceName +
+      ": FsView does not know the space name");
   }
 
   if(nullptr == spaceItor->second) {
-    throw TapeAwareGcSpaceNotFound(std::string(__FUNCTION__) + ": Cannot find space " + m_spaceName);
+    throw TapeAwareGcSpaceNotFound(std::string(__FUNCTION__) + ": Cannot find space " + m_spaceName +
+      ": Pointer to FsSpace is nullptr");
   }
 
-  return spaceItor->second->SumLongLong("stat.statfs.freebytes", false);
+  const FsSpace &space = *(spaceItor->second);
+
+  uint64_t freeBytes = 0;
+  for(const auto fsid: space) {
+    FileSystem * const fs = FsView::gFsView.mIdView.lookupByID(fsid);
+
+    // Skip this file system if it cannot be found
+    if(nullptr == fs) {
+      std::ostringstream msg;
+      msg << "Unable to find file system: space=" << m_spaceName << " fsid=" << fsid;
+      eos_static_warning(msg.str().c_str());
+      continue;
+    }
+
+    common::FileSystem::fs_snapshot_t fsSnapshot;
+
+    // Skip this file system if a snapshot cannot be taken
+    const bool doLock = true;
+    if(!fs->SnapShotFileSystem(fsSnapshot, doLock)) {
+      std::ostringstream msg;
+      msg << "Unable to take a snaphot of file system: space=" << m_spaceName << " fsid=" << fsid;
+      eos_static_warning(msg.str().c_str());
+    }
+
+    // Only consider file systems that are booted, on-line and read/write
+    if(common::BootStatus::kBooted == fsSnapshot.mStatus &&
+       common::ActiveStatus::kOnline == fsSnapshot.mActiveStatus &&
+       common::ConfigStatus::kRW == fsSnapshot.mConfigStatus) {
+      freeBytes += fsSnapshot.mDiskFreeBytes;
+    }
+  }
+
+  return freeBytes;
 }
 
 //------------------------------------------------------------------------------
