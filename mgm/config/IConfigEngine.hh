@@ -289,6 +289,16 @@ public:
   //----------------------------------------------------------------------------
   static bool CheckFilterMatch(XrdOucString& option, const std::string& key);
 
+  //----------------------------------------------------------------------------
+  //! Publish the given configuration change
+  //----------------------------------------------------------------------------
+  void publishConfigChange(const std::string &key, const std::string &value);
+
+  //----------------------------------------------------------------------------
+  //! Publish the deletion of the given configuration key
+  //----------------------------------------------------------------------------
+  void publishConfigDeletion(const std::string &key);
+
 protected:
   //! Helper struct for passing information in/out of XrdOucHash callbacks
   struct PrintInfo {

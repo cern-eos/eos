@@ -389,20 +389,7 @@ QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
   // In case the change is not coming from a broacast we can can broadcast it
   if (mBroadcast && not_bcast) {
     // Make this value visible between MGM's
-    eos_notice("Setting %s", configname.c_str());
-    eos::common::RWMutexReadLock
-    lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-    XrdMqSharedHash* hash =
-      eos::common::GlobalConfig::gConfig.Get(gOFS->MgmConfigQueue.c_str());
-
-    if (hash) {
-      XrdOucString repval = val;
-
-      while (repval.replace("&", " ")) {
-      }
-
-      hash->Set(configname.c_str(), repval.c_str());
-    }
+    publishConfigChange(configname.c_str(), val);
   }
 
   // In case is not coming from a broadcast we can add it to the changelog
@@ -435,17 +422,8 @@ QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
 
   // In case the change is not coming from a broacast we can can broadcast it
   if (mBroadcast && not_bcast) {
-    eos_static_info("Deleting %s", configname.c_str());
     // Make this value visible between MGM's
-    eos::common::RWMutexReadLock
-    lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-    XrdMqSharedHash* hash =
-      eos::common::GlobalConfig::gConfig.Get(gOFS->MgmConfigQueue.c_str());
-
-    if (hash) {
-      eos_static_info("Deleting on hash %s", gOFS->MgmConfigQueue.c_str());
-      hash->Delete(configname.c_str());
-    }
+    publishConfigDeletion(configname.c_str());
   }
 
   {
