@@ -103,6 +103,7 @@ add_library(
   commands/com_test.cc
   commands/com_timing.cc
   commands/com_touch.cc
+  commands/com_tracker.cc
   commands/com_transfer.cc
   commands/com_version.cc
   commands/com_vid.cc
