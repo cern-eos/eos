@@ -113,7 +113,9 @@ ReplicationTracker::Commit(std::shared_ptr<eos::IFileMD> fmd)
       entry_fmd = gOFS->eosView->getFile(tag);
       gOFS->eosView->unlinkFile(entry_fmd.get());
     } catch (const MDException& e) {
-      eos_static_crit("failed to remove tag file='%s'", tag.c_str());
+      if (e.getErrno() != ENOENT) {
+	eos_static_crit("failed to remove tag file='%s' error='%s'", tag.c_str(), e.what());
+      }
       return;
     }
 
@@ -351,6 +353,11 @@ ReplicationTracker::Scan(uint64_t atomic_age, bool cleanup, std::string* out)
 	  }
 	  
 	  if (out) {
+	    if (reason == "ENOENT") {
+	      // don't show files which had been deleted
+	      continue;
+	    }
+
 	    char outline[16384];
 	    snprintf(outline, sizeof(outline), "key=%s age=%lu (s) delete=%d rep=%lu/%lu atomic=%d reason=%s uri='%s'\n", 
 		     entry.c_str(), 
