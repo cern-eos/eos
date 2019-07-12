@@ -50,11 +50,13 @@ You can get the current listing of tracked files using:
 
 .. code-block:: bash
 
-   eos space tracker
+   eos space tracker 
 
-  # ------------------------------------------------------------------------------------
-  key=00142888 age=4 (s) delete=0 rep=0/1 atomic=1 reason=REPLOW uri='/eos/test/creations/.sys.a#.f.1.802e6b70-973e-11e9-a687-fa163eb6b6cf'
-  # ------------------------------------------------------------------------------------
+   # ------------------------------------------------------------------------------------
+   key=00142888 age=4 (s) delete=0 rep=0/1 atomic=1 reason=REPLOW uri='/eos/test/creations/.sys.a#.f.1.802e6b70-973e-11e9-a687-fa163eb6b6cf'
+   # ------------------------------------------------------------------------------------
+
+   
 
 The displayed reasons are:
 
@@ -63,6 +65,13 @@ The displayed reasons are:
 * KEEPIT - the file is still in flight
 * ENOENT - the tracking entry has no corresponding namespace entry with the given file-id
 * REP_OK - the tracking entry is healthy and can be removed - FUSE files appear here when not replica has been committed yet
+
+There is convenience command defined in the console:
+
+.. code-block:: bash
+
+   eos tracker # instead of eos space tracker
+
 
 
 Log Files
