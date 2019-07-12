@@ -978,9 +978,16 @@ public:
                    XrdOucErrInfo& error,
                    int max_versions);
 
-  // ---------------------------------------------------------------------------
-  // send resync command to a file system
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! @brief Send a resync command for a file identified by id and filesystem.
+  //! A resync synchronizes the cache DB on the FST with the meta data on disk
+  //! and on the MGM and flags files accordingly with size/checksum errors.
+  //!
+  //! @param fid file id to be resynced
+  //! @param fsid filesystem id where the file should be resynced
+  //!
+  //! @return true if successfully send otherwise false
+  //----------------------------------------------------------------------------
   int SendResync(eos::common::FileId::fileid_t fid,
                  eos::common::FileSystem::fsid_t fsid);
 

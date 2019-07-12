@@ -21,29 +21,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
-// -----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // This file is included source code in XrdMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Send a resync command for a file identified by id and filesystem.
+//------------------------------------------------------------------------------
 int
 XrdMgmOfs::SendResync(eos::common::FileId::fileid_t fid,
                       eos::common::FileSystem::fsid_t fsid)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief send a resync command for a file identified by id and filesystem
- *
- * @param fid file id to be resynced
- * @param fsid filesystem id where the file should be resynced
- *
- * @return true if successfully send otherwise false
- *
- * A resync synchronizes the cache DB on the FST with the meta data on disk
- * and on the MGM and flags files accordingly with size/checksum errors.
- */
-/*----------------------------------------------------------------------------*/
 {
   EXEC_TIMING_BEGIN("SendResync");
   gOFS->MgmStats.Add("SendResync", vid.uid, vid.gid, 1);
@@ -53,31 +41,28 @@ XrdMgmOfs::SendResync(eos::common::FileId::fileid_t fid,
   // @todo(esindril) Transition, eventually send mgm.fid=HEX
   snprintf(payload, sizeof(payload) - 1,
            "&mgm.fsid=%lu&mgm.fid=%llu&mgm.fxid=%08llx",
-           (unsigned long) fsid, (unsigned long long) fid, (unsigned long long) fid);
+           (unsigned long) fsid, fid, fid);
   msgbody += payload;
   message.SetBody(msgbody.c_str());
-  // figure out the receiver
-  XrdOucString receiver;
+  // Figure out the receiver
+  std::string receiver;
   {
-    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    eos::mgm::FileSystem* verifyfilesystem =
-      FsView::gFsView.mIdView.lookupByID(fsid);
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    eos::mgm::FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
-    if (!verifyfilesystem) {
-      eos_err("fsid=%lu is not in the configuration - cannot send resync message",
-              fsid);
+    if (!fs) {
+      eos_err("msg=\"no resync msg sent, no such file system\" fsid=%lu", fsid);
       return -1;
     }
 
-    receiver = verifyfilesystem->GetQueue().c_str();
+    receiver = fs->GetQueue();
   }
 
   if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
-    eos_err("unable to send resync message to %s", receiver.c_str());
+    eos_err("msg=\"failed to send resync message\" dst=%s", receiver.c_str());
     return -1;
   }
 
   EXEC_TIMING_END("SendResync");
   return 0;
 }
-
