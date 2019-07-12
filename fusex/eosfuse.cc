@@ -553,18 +553,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         root["options"]["data-kernelcache"] = 1;
       }
 
-      if (!root["options"].isMember("mkdir-is-sync")) {
-        root["options"]["mkdir-is-sync"] = 1;
-      }
-
-      if (!root["options"].isMember("create-is-sync")) {
-        root["options"]["create-is-sync"] = 1;
-      }
-
-      if (!root["options"].isMember("symlink-is-sync")) {
-        root["options"]["symlink-is-sync"] = 1;
-      }
-
       if (!root["options"].isMember("rename-is-sync")) {
         root["options"]["rename-is-sync"] = 1;
       }
@@ -808,9 +796,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.options.md_backend_put_timeout =
             root["options"]["md-backend.put.timeout"].asDouble();
     config.options.data_kernelcache = root["options"]["data-kernelcache"].asInt();
-    config.options.mkdir_is_sync = root["options"]["mkdir-is-sync"].asInt();
-    config.options.create_is_sync = root["options"]["create-is-sync"].asInt();
-    config.options.symlink_is_sync = root["options"]["symlink-is-sync"].asInt();
     config.options.rename_is_sync = root["options"]["rename-is-sync"].asInt();
     config.options.rmdir_is_sync = root["options"]["rmdir-is-sync"].asInt();
     config.options.global_flush = root["options"]["global-flush"].asInt();
@@ -1561,16 +1546,13 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       eos_static_warning("sss-keytabfile         := %s", config.ssskeytab.c_str());
     }
 
-    eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d mkdir-sync:%d create-sync:%d symlink-sync:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d",
+    eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d",
                        config.options.enable_backtrace,
                        config.options.md_kernelcache,
                        config.options.md_kernelcache_enoent_timeout,
                        config.options.md_backend_timeout,
                        config.options.md_backend_put_timeout,
                        config.options.data_kernelcache,
-                       config.options.mkdir_is_sync,
-                       config.options.create_is_sync,
-                       config.options.symlink_is_sync,
                        config.options.rename_is_sync,
                        config.options.rmdir_is_sync,
                        config.options.global_flush,
@@ -3142,13 +3124,9 @@ EROFS  pathname refers to a file on a read-only filesystem.
       }
 
       if (!rc) {
-        if (Instance().Config().options.mkdir_is_sync) {
-          md->set_type(md->EXCL);
-          rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
-          md->set_type(md->MD);
-        } else {
-          Instance().mds.add(req, pmd, md, pcap->authid());
-        }
+	md->set_type(md->EXCL);
+	rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
+	md->set_type(md->MD);
 
         if (!rc) {
           memset(&e, 0, sizeof(e));
@@ -4033,14 +4011,9 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
             mLock.Lock(&md->Locker());
           }
 
-          if ((Instance().Config().options.create_is_sync) ||
-              (fi && fi->flags & O_EXCL)) {
-            md->set_type(md->EXCL);
-            rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
-            md->set_type(md->MD);
-          } else {
-            Instance().mds.add(req, pmd, md, pcap->authid());
-          }
+	  md->set_type(md->EXCL);
+	  rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
+	  md->set_type(md->MD);
 
           memset(&e, 0, sizeof(e));
 
@@ -5491,13 +5464,9 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
       md->set_id(Instance().mds.insert(req, md, pcap->authid()));
       md->lookup_inc();
 
-      if (Instance().Config().options.symlink_is_sync) {
-        md->set_type(md->EXCL);
-        rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
-        md->set_type(md->MD);
-      } else {
-        Instance().mds.add(req, pmd, md, pcap->authid());
-      }
+      md->set_type(md->EXCL);
+      rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
+      md->set_type(md->MD);
 
       if (rc) {
         pmd->local_enoent().erase(name);

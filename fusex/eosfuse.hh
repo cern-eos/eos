@@ -232,9 +232,6 @@ public:
       double md_backend_timeout;
       double md_backend_put_timeout;
       int data_kernelcache;
-      int mkdir_is_sync;
-      int create_is_sync;
-      int symlink_is_sync;
       int rename_is_sync;
       int rmdir_is_sync;
       int global_flush;
