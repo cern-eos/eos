@@ -44,8 +44,9 @@ const char* Fsck::gFsckInterval = "fsckinterval";
 // Constructor
 //------------------------------------------------------------------------------
 Fsck::Fsck():
-  mShowOffline(false), mShowDarkFiles(false), mEnabled(false),
-  mInterval(30), mRunning(false), eTimeStamp(0),
+  mShowOffline(false), mShowDarkFiles(false), mStartProcessing(false),
+  mEnabled(false), mRunInterval(std::chrono::minutes(30)), mRunning(false),
+  eTimeStamp(0),
   mThreadPool(std::thread::hardware_concurrency(), 20, 10, 6, 5, "fsck"),
   mIdTracker(std::chrono::minutes(10), std::chrono::hours(2)), mQcl(nullptr)
 {}
@@ -62,10 +63,10 @@ Fsck::~Fsck()
 // Start FSCK trhread
 //------------------------------------------------------------------------------
 bool
-Fsck::Start(int interval)
+Fsck::Start(int interval_min)
 {
-  if (interval) {
-    mInterval = interval;
+  if (interval_min) {
+    mRunInterval = std::chrono::minutes(interval_min);
   }
 
   if (!mRunning) {
@@ -92,7 +93,7 @@ bool
 Fsck::Stop(bool store)
 {
   if (mRunning) {
-    eos_info("%s", "msg=\"join FSCK thread\"");
+    eos_info("%s", "msg=\"join FSCK threads\"");
     mCollectorThread.join();
     mRepairThread.join();
     mRunning = false;
@@ -121,18 +122,21 @@ Fsck::ApplyFsckConfig()
     mEnabled = enabled.c_str();
   }
 
-  std::string interval = FsView::gFsView.GetGlobalConfig(gFsckInterval);
+  std::string sinterval = FsView::gFsView.GetGlobalConfig(gFsckInterval);
 
-  if (interval.length()) {
-    mInterval = atoi(interval.c_str());
+  if (sinterval.length()) {
+    int interval = std::stoi(sinterval);
 
-    if (mInterval < 0) {
-      mInterval = 30;
+    if (interval < 0) {
+      interval = 30;
     }
+
+    mRunInterval = std::chrono::minutes(interval);
   }
 
   Log("enabled=%s", mEnabled.c_str());
-  Log("check interval=%d minutes", mInterval);
+  Log("check interval=%d minutes",
+      std::chrono::duration_cast<std::chrono::minutes>(mRunInterval).count());
 
   if (mEnabled == "true") {
     Start();
@@ -148,7 +152,8 @@ bool
 Fsck::StoreFsckConfig()
 {
   bool ok = true;
-  std::string interval_min = std::to_string(mInterval);
+  std::string interval_min = std::to_string
+                             (std::chrono::duration_cast<std::chrono::minutes>(mRunInterval).count());
   ok &= FsView::gFsView.SetGlobalConfig(gFsckEnabled, mEnabled.c_str());
   ok &= FsView::gFsView.SetGlobalConfig(gFsckInterval, interval_min.c_str());
   return ok;
@@ -187,9 +192,9 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
   int bccount = 0;
   ClearLog();
   gOFS->WaitUntilNamespaceIsBooted();
+  eos_info("%s", "msg=\"started fsck collector thread\"");
 
   while (!assistant.terminationRequested()) {
-    eos_debug("msg=\"started consistency checker thread\"");
     ClearLog();
     Log("started check");
 
@@ -198,6 +203,7 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
       assistant.wait_for(std::chrono::seconds(60));
 
       if (assistant.terminationRequested()) {
+        eos_info("%s", "msg=\"stopped fsck collector thread\"");
         return;
       }
     }
@@ -217,7 +223,7 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
 
     if (!gOFS->MgmOfsMessaging->BroadCastAndCollect(broadcastresponsequeue,
         broadcasttargetqueue, msgbody,
-        stdOut, 10, &assistant)) {
+        stdOut, 30, &assistant)) {
       eos_err("msg=\"failed to broadcast and collect fsck from [%s]:[%s]\"",
               broadcastresponsequeue.c_str(), broadcasttargetqueue.c_str());
       stdErr = "error: broadcast failed\n";
@@ -268,9 +274,12 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
     }
 
     Log("stopping check");
-    Log("=> next run in %d minutes", mInterval);
+    Log("=> next run in %d minutes",
+        std::chrono::duration_cast<std::chrono::minutes>(mRunInterval).count());
+    // Notify the repair thread that it can run now
+    mStartProcessing = true;
     // Wait for next FSCK round ...
-    assistant.wait_for(std::chrono::minutes(mInterval));
+    assistant.wait_for(mRunInterval);
   }
 }
 
@@ -281,19 +290,29 @@ void
 Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
 {
   gOFS->WaitUntilNamespaceIsBooted();
-  eos_info("%s", "msg=\"started repair thread\"");
+  eos_info("%s", "msg=\"started fsck repair thread\"");
 
   while (!assistant.terminationRequested()) {
     // Don't run if we are not a master
     while (!gOFS->mMaster->IsMaster()) {
-      assistant.wait_for(std::chrono::seconds(60));
+      assistant.wait_for(std::chrono::seconds(1));
 
       if (assistant.terminationRequested()) {
+        eos_info("%s", "msg=\"stopped fsck repair thread\"");
         return;
       }
     }
 
-    assistant.wait_for(std::chrono::seconds(10));
+    // Wait for the collector thread to signal us
+    while (!mStartProcessing) {
+      assistant.wait_for(std::chrono::seconds(1));
+
+      if (assistant.terminationRequested()) {
+        eos_info("%s", "msg=\"stopped fsck repair thread\"");
+        return;
+      }
+    }
+
     eos::common::RWMutexReadLock rd_lock(mErrMutex);
 
     for (const auto& err_fs : eFsMap) {
@@ -322,7 +341,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
               assistant.wait_for(std::chrono::seconds(1));
             }
 
-            eos_info("%s", "msg=\"stopped repair thread\"");
+            eos_info("%s", "msg=\"stopped fsck repair thread\"");
             return;
           }
 
@@ -331,6 +350,8 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
         }
       }
     }
+
+    mStartProcessing = false;
   }
 
   // Wait that there are not more jobs in the queue
@@ -338,7 +359,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
     assistant.wait_for(std::chrono::seconds(1));
   }
 
-  eos_info("%s", "msg=\"stopped repair thread\"");
+  eos_info("%s", "msg=\"stopped fsck repair thread\"");
 }
 
 //------------------------------------------------------------------------------
