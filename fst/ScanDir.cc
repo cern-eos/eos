@@ -186,7 +186,19 @@ ScanDir::Run(ThreadAssistant& assistant) noexcept
     }
   }
 
-  // @todo(esindril): wait for all FSes to be booted before starting
+#ifndef _NOOFS
+
+  // Wait for the corresponding file system to boot before starting
+  while (gOFS.Storage->IsFsBooting(mFsId)) {
+    assistant.wait_for(std::chrono::seconds(5));
+
+    if (assistant.terminationRequested()) {
+      eos_info("%s", "msg=\"stopping scan thread\"");
+      return;
+    }
+  }
+
+#endif
 
   if (mBgThread) {
     // Get a random smearing and avoid that all start at the same time! 0-4 hours

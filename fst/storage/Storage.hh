@@ -145,6 +145,19 @@ public:
   //----------------------------------------------------------------------------
   void PushVerification(eos::fst::Verify* entry);
 
+  //----------------------------------------------------------------------------
+  //! Check if files system is booting
+  //!
+  //! @param fsid file system id
+  //!
+  //! @return true if booting, otherwise false
+  //----------------------------------------------------------------------------
+  inline bool IsFsBooting(eos::common::FileSystem::fsid_t fsid) const
+  {
+    XrdSysMutexHelper lock(mBootingMutex);
+    return (mBootingSet.find(fsid) != mBootingSet.end());
+  }
+
 protected:
   eos::common::RWMutex mFsMutex; ///< Mutex protecting access to the fs map
   std::vector <FileSystem*> mFsVect; ///< Vector of filesystems
@@ -165,7 +178,7 @@ private:
   eos::common::TransferQueue* mGwQueue;
   //! Multiplexer for gw transfers
   TransferMultiplexer mGwMultiplexer;
-  XrdSysMutex mBootingMutex; // Mutex protecting the boot set
+  mutable XrdSysMutex mBootingMutex; // Mutex protecting the boot set
   //! Set containing the filesystems currently booting
   std::set<eos::common::FileSystem::fsid_t> mBootingSet;
   eos::fst::Verify* mRunningVerify; ///< Currently running verification job
@@ -212,18 +225,18 @@ private:
   //! Get statistics about this FileSystem, used for publishing
   //----------------------------------------------------------------------------
   std::map<std::string, std::string> getFsStatistics(
-    FileSystem *fs, bool publishInconsistencyStats);
+    FileSystem* fs, bool publishInconsistencyStats);
 
   //----------------------------------------------------------------------------
   //! Get statistics about this FST, used for publishing
   //----------------------------------------------------------------------------
   std::map<std::string, std::string> getFSTStatistics(
-    const std::string &tmpfile, unsigned long long netspeed);
+    const std::string& tmpfile, unsigned long long netspeed);
 
   //----------------------------------------------------------------------------
   //! Publish statistics about the given filesystem
   //----------------------------------------------------------------------------
-  bool publishFsStatistics(FileSystem *fs, bool publishInconsistencyStats);
+  bool publishFsStatistics(FileSystem* fs, bool publishInconsistencyStats);
 
   //----------------------------------------------------------------------------
   //! Worker threads implementation
@@ -250,10 +263,10 @@ private:
   void Report();
   void ErrorReport();
   void Verify();
-  void Publish(ThreadAssistant &assistant);
+  void Publish(ThreadAssistant& assistant);
 
   void QdbPublish(
-    const QdbContactDetails &cd, ThreadAssistant &assistant);
+    const QdbContactDetails& cd, ThreadAssistant& assistant);
 
   void Balancer();
   void Drainer();
@@ -414,8 +427,8 @@ private:
   //!
   //! Parameter i is the index into mFsVect.
   //----------------------------------------------------------------------------
-  void CheckFilesystemFullness(FileSystem *fs,
-    eos::common::FileSystem::fsid_t fsid);
+  void CheckFilesystemFullness(FileSystem* fs,
+                               eos::common::FileSystem::fsid_t fsid);
 
 
 private:
