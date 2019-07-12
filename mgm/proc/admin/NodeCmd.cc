@@ -57,7 +57,7 @@ NodeCmd::ProcessRequest() noexcept
   } else if (subcmd == eos::console::NodeProto::kProxygroup) {
     ProxygroupSubcmd(node.proxygroup(), reply);
   } else {
-    reply.set_std_err("error: not supported xxxx");
+    reply.set_std_err("error: not supported");
     reply.set_retc(EINVAL);
   }
 
@@ -115,7 +115,7 @@ void NodeCmd::LsSubcmd(const eos::console::NodeProto_LsProto& ls, eos::console::
   eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
   FsView::gFsView.PrintNodes(std_out, format, list_format, 0, ls.selection().c_str(), mReqProto.dontcolor());
 
-  reply.set_std_out(std_out.c_str());
+  reply.set_std_out(std_out);
   reply.set_retc(SFS_OK);
 
 }

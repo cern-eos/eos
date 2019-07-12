@@ -135,6 +135,7 @@ add_library(
   proc/admin/QuotaCmd.cc proc/admin/QuotaCmd.hh
   proc/admin/Rtlog.cc
   proc/admin/Space.cc
+  proc/admin/SpaceCmd.cc proc/admin/SpaceCmd.hh
   proc/admin/StagerRmCmd.cc proc/admin/StagerRmCmd.hh
   proc/admin/Transfer.cc
   proc/admin/Vid.cc

@@ -260,7 +260,7 @@ void com_node_help()
       << "\t      -m : monitoring key=value output format\n"
       << "\t      -l : long output - list also file systems after each node\n"
       << "\t    --io : print IO statistics\n"
-      << "\t  --sys  : print SYS statistics (memory + threads)\n"
+      << "\t   --sys : print SYS statistics (memory + threads)\n"
       << "\t  --fsck : print filesystem check statistcis\n"
       << std::endl
       << "node config <host:port> <key>=<value : configure file system parameters for each filesystem of this node\n"
@@ -274,7 +274,7 @@ void com_node_help()
       << "\t            xs_read             : simulate checksum errors when reading a file\n"
       << "\t            xs_write            : simulate checksum errors when writing a file\n"
       << "\t            fmd_open            : simulate a file metadata mismatch when opening a file\n"
-      << "\t            <none>  : disable error simulation (every value than the previous ones are fine!)\n"
+      << "\t            <none>              : disable error simulation (every value than the previous ones are fine!)\n"
       << "\t    <key> : publish.interval=<sec> - set the filesystem state publication interval to <sec> seconds\n"
       << "\t    <key> : debug.level=<level> - set the node into debug level <level> [default=notice] -> see debug --help for available levels\n"
       << "\t    <key> : for other keys see help of 'fs config' for details\n"

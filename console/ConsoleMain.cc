@@ -107,7 +107,8 @@ extern int com_rmdir(char*);
 extern int com_role(char*);
 extern int com_rtlog(char*);
 extern int com_silent(char*);
-extern int com_space(char*);
+//extern int com_space(char*);
+ extern int com_protospace(char*);
 extern int com_stagerrm(char*);
 extern int com_stat(char*);
 extern int com_squash(char*);
@@ -180,7 +181,8 @@ COMMAND commands[] = {
   { (char*) "route", com_route, (char*) "Routing interface"},
   { (char*) "rtlog", com_rtlog, (char*) "Get realtime log output from mgm & fst servers"},
   { (char*) "silent", com_silent, (char*) "Toggle silent flag for stdout"},
-  { (char*) "space", com_space, (char*) "Space configuration"},
+//  { (char*) "space", com_space, (char*) "Space configuration"},
+  { (char*) "space", com_protospace, (char*) "Space configuration"},
   { (char*) "stagerrm", com_stagerrm, (char*) "Remove disk replicas of a file if it has tape replicas"},
   { (char*) "stat", com_stat, (char*) "Run 'stat' on a file or directory"},
   { (char*) "squash", com_squash, (char*) "Run 'squashfs' utility function"},
