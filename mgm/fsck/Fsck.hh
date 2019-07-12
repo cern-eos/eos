@@ -71,9 +71,9 @@ public:
   //----------------------------------------------------------------------------
   //! Start the collection thread
   //!
-  //! @param interval check interval in minutes
+  //! @param interval_min check interval in minutes
   //----------------------------------------------------------------------------
-  bool Start(int interval = 0);
+  bool Start(int interval_min = 0);
 
   //----------------------------------------------------------------------------
   //! Stop the collection thread
@@ -185,10 +185,11 @@ public:
 private:
   std::atomic<bool> mShowOffline; ///< Flag to display offline files/replicas
   std::atomic<bool> mShowDarkFiles; ///< Flag to display dark files
+  std::atomic<bool> mStartProcessing; ///< Notification flag for repair thread
   mutable XrdOucString mLog; ///< In-memory FSCK log
   mutable XrdSysMutex mLogMutex; ///< Mutex protecting the in-memory log
   XrdOucString mEnabled; ///< True if collection thread is active
-  int mInterval; ///< Interval in min between two FSCK collection loops
+  std::chrono::seconds mRunInterval; ///< Interval between FSCK collection loops
   bool mRunning; ///< True if collection thread is currently running
   mutable eos::common::RWMutex mErrMutex; ///< Mutex protecting all map obj
   //! Error detail map storing "<error-name>=><fsid>=>[fid1,fid2,fid3...]"
