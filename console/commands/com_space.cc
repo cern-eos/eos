@@ -136,8 +136,34 @@ com_space(char* arg1)
   }
 
   if (subcommand == "inspector") {
-    in = "mgm.cmd=space&mgm.subcmd=inspector&mgm.space=default";
+    
+    in = "mgm.cmd=space&mgm.subcmd=inspector&mgm.space=default&mgm.options=";
+
     ok = true;
+
+    do {
+      subtokenizer.GetLine();
+      option = subtokenizer.GetToken();
+      if (!option.length())
+	break;
+
+      if ( (option == "--current") ||
+	   (option == "-c") ){
+	in += "c";
+      } else if ( (option == "--last") ||
+		  (option == "-l") ) {
+	in += "l";
+      } else if (option == "-m") {
+	in += "m";
+      } else if ( option == "-p") {
+	in += "p";
+      } else if ( option == "-e") {
+	in += "e";
+      }	else {
+	ok = false;
+	break;
+      }
+    } while (option.length());
   }
   
   if (subcommand == "reset") {
@@ -568,6 +594,21 @@ com_space_usage:
           "                                                                       => <groupsize>=0 means that no groups are built within a space, otherwise it should be the maximum number of nodes in a scheduling group\n");
   fprintf(stdout,
           "                                                                       => <groupmod> maximum number of groups in the space, which should be at least equal to the maximun number of filesystems per node\n");
+  fprintf(stdout, "\n");
+  
+  fprintf(stdout,
+	  "       space inspector [--current|-c] [--last|-l] [-m] [-p] [-e]     : show namespace inspector output\n");
+  fprintf(stdout, 
+	  "                                                                 -c  : show current scan\n");
+  fprintf(stdout,
+	  "                                                                 -l  : show last complete scan\n");
+  fprintf(stdout, 
+	  "                                                                 -m  : print last scan in monitoring format\n");
+  fprintf(stdout,
+	  "                                                                 -p  : combined with -c or -l lists errorneous files\n");
+  fprintf(stdout,
+	  "                                                                 -e  : combined with -c or -l exports errorneous files on the MGM into /var/log/eos/mgm/FileInspector.<date>.list\n");
+
   fprintf(stdout, "\n");
   fprintf(stdout,
           "       space node-set <space-name> <node.key> <file-name>            : store the contents of <file-name> into the node configuration variable <node.key> visibile to all FSTs\n");

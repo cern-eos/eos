@@ -125,6 +125,9 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
   }
 
   gOFS->MgmStats.Add("OpenDir", vid.uid, vid.gid, 1);
+
+
+  XrdOucEnv env(info);
   // Open the directory
   bool permok = false;
   eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
@@ -161,21 +164,25 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
       std::unique_lock<std::mutex> scope_lock(mDirLsMutex);
       dh_list.clear();
 
-      // Collect all file names
-      for (auto it = eos::FileMapIterator(dh); it.valid(); it.next()) {
-        dh_list.insert(it.key());
+      if (!env.Get("ls.skip.files")) {
+	// Collect all file names
+	for (auto it = eos::FileMapIterator(dh); it.valid(); it.next()) {
+	  dh_list.insert(it.key());
+	}
       }
 
-      // Collect all subcontainers
-      for (auto it = eos::ContainerMapIterator(dh); it.valid(); it.next()) {
-        dh_list.insert(it.key());
-      }
-
-      dh_list.insert(".");
-
-      // The root dir has no .. entry
-      if (strcmp(dir_path, "/")) {
-        dh_list.insert("..");
+      if (!env.Get("ls.skip.directories")) {
+	// Collect all subcontainers
+	for (auto it = eos::ContainerMapIterator(dh); it.valid(); it.next()) {
+	  dh_list.insert(it.key());
+	}
+	
+	dh_list.insert(".");
+	
+	// The root dir has no .. entry
+	if (strcmp(dir_path, "/")) {
+	  dh_list.insert("..");
+	}
       }
 
       dh_it = dh_list.begin();

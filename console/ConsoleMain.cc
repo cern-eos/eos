@@ -81,6 +81,7 @@ extern int com_protogroup(char*);
 extern int com_health(char*);
 extern int com_help(char*);
 extern int com_info(char*);
+extern int com_inspector(char*);
 extern int com_protoio(char*);
 extern int com_json(char*);
 extern int com_license(char*);
@@ -154,6 +155,7 @@ COMMAND commands[] = {
   { (char*) "health", com_health, (char*) "Health information about system"},
   { (char*) "help", com_help, (char*) "Display this text"},
   { (char*) "info", com_info, (char*) "Retrieve file or directory information"},
+  { (char*) "inspector", com_inspector, (char*) "Interact with File Inspector"},
   { (char*) "io", com_protoio, (char*) "IO Interface"},
   { (char*) "json", com_json, (char*) "Toggle JSON output flag for stdout"},
   { (char*) "license", com_license, (char*) "Display Software License"},

@@ -171,6 +171,7 @@ class Messaging;
 class PathRouting;
 class CommitHelper;
 class ReplicationTracker;
+class FileInspector;
 class TapeAwareGc;
 }
 }
@@ -1606,6 +1607,12 @@ public:
   std::unique_ptr<eos::common::CommentLog> mFusexStackTraces;
   std::unique_ptr<eos::common::CommentLog> mFusexLogTraces;
 
+  //! Class tracking file creations for sanity
+  std::unique_ptr<eos::mgm::ReplicationTracker> mReplicationTracker;
+
+  //! Class inspecting files in the namespace for statistics
+  std::unique_ptr<eos::mgm::FileInspector> mFileInspector;
+
   //! Class checking the filesystem
   std::unique_ptr<Fsck> FsckPtr;
   Fsck& FsCheck;
@@ -1662,8 +1669,6 @@ public:
   std::unique_ptr<TapeAwareGc> mTapeAwareGc; ///< Tape aware garbage collector
   //! Tracker for requests which are currently executing MGM code
   eos::mgm::InFlightTracker mTracker;
-  //! Class tracking file creations for sanity
-  std::unique_ptr<eos::mgm::ReplicationTracker> mReplicationTracker;
 
   //----------------------------------------------------------------------------
   //! Return string representation of prepare options

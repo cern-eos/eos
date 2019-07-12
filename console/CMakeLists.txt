@@ -74,6 +74,7 @@ add_library(
   commands/com_proto_group.cc
   commands/com_health.cc
   commands/com_info.cc
+  commands/com_inspector.cc
   commands/com_io.cc
   commands/com_proto_io.cc
   commands/com_json.cc
