@@ -112,6 +112,7 @@ extern int com_stat(char*);
 extern int com_squash(char*);
 extern int com_test(char*);
 extern int com_timing(char*);
+extern int com_tracker(char*);
 extern int com_transfer(char*);
 extern int com_touch(char*);
 extern int com_version(char*);
@@ -184,6 +185,7 @@ COMMAND commands[] = {
   { (char*) "test", com_test, (char*) "Run performance test"},
   { (char*) "timing", com_timing, (char*) "Toggle timing flag for execution time measurement"},
   { (char*) "touch", com_touch, (char*) "Touch a file"},
+  { (char*) "tracker", com_tracker, (char*) "Interact with File Tracker"},
   { (char*) "transfer", com_transfer, (char*) "Transfer Interface"},
   { (char*) "version", com_version, (char*) "Verbose client/server version"},
   { (char*) "vid", com_vid, (char*) "Virtual ID System Configuration"},
