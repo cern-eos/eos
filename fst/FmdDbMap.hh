@@ -85,17 +85,6 @@ public:
                        eos::common::FileId::fileid_t fid, struct Fmd& fmd);
 
   //----------------------------------------------------------------------------
-  //! Call the 'auto repair' function e.g. 'file convert --rewrite'
-  //!
-  //! @param manager host:port of the server to contact
-  //! @param fid file id to auto-repair
-  //!
-  //! @return 0 if successful, otherwise errno
-  //----------------------------------------------------------------------------
-  static int CallAutoRepair(const char* manager,
-                            eos::common::FileId::fileid_t fid);
-
-  //----------------------------------------------------------------------------
   //! Execute "fs dumpmd" on the MGM node
   //!
   //! @param mgm_host MGM hostname

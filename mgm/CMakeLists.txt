@@ -191,7 +191,6 @@ add_library(
   XrdMgmOfs/fsctl/Open.cc
   XrdMgmOfs/fsctl/Readlink.cc
   XrdMgmOfs/fsctl/Redirect.cc
-  XrdMgmOfs/fsctl/Rewrite.cc
   XrdMgmOfs/fsctl/Schedule2Balance.cc
   XrdMgmOfs/fsctl/Schedule2Delete.cc
   XrdMgmOfs/fsctl/Schedule2Drain.cc

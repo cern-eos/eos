@@ -268,71 +268,6 @@ FmdDbMapHandler::GetMgmFmd(const std::string& manager,
 }
 
 //------------------------------------------------------------------------------
-// Call the 'auto repair' function e.g. 'file convert --rewrite'
-//------------------------------------------------------------------------------
-int
-FmdDbMapHandler::CallAutoRepair(const char* manager,
-                                eos::common::FileId::fileid_t fid)
-{
-  if (!fid) {
-    return EINVAL;
-  }
-
-  int rc = 0;
-  XrdCl::Buffer arg;
-  XrdCl::Buffer* response = 0;
-  XrdCl::XRootDStatus status;
-  XrdOucString fmdquery = "/?mgm.pcmd=rewrite&mgm.fid=";
-  const std::string hex_fid = eos::common::FileId::Fid2Hex(fid);
-  fmdquery += hex_fid.c_str();
-  // @todo(esindril) Legacy, remove once fsctl/Rewrite.cc no longer expects 'fxid'
-  fmdquery += "&mgm.fxid=";
-  fmdquery += hex_fid.c_str(); // legacy
-  XrdOucString address = "root://";
-  std::string current_mgr;
-
-  if (!manager) {
-    // Use the broadcasted manager name
-    current_mgr = eos::fst::Config::gConfig.GetManager();
-  } else {
-    current_mgr = manager;
-  }
-
-  address += current_mgr.c_str();
-  address += "//dummy?xrd.wantprot=sss";
-  XrdCl::URL url(address.c_str());
-
-  if (!url.IsValid()) {
-    eos_static_err("error=URL is not valid: %s", address.c_str());
-    return EINVAL;
-  }
-
-  std::unique_ptr<XrdCl::FileSystem> fs(new XrdCl::FileSystem(url));
-
-  if (!fs) {
-    eos_static_err("error=failed to get new FS object");
-    return EINVAL;
-  }
-
-  arg.FromString(fmdquery.c_str());
-  status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response);
-
-  if (status.IsOK()) {
-    eos_static_debug("msg=\"scheduled repair\" mgm=%s fxid=%s",
-                     current_mgr.c_str(), hex_fid.c_str());
-    rc = 0;
-  } else {
-    eos_static_err("msg=\"failed to schedule repair\" mgm=%s fxid=%s "
-                   "err_msg=\"%s\"", current_mgr.c_str(), hex_fid.c_str(),
-                   status.ToString().c_str());
-    rc = ECOMM;
-  }
-
-  delete response;
-  return rc;
-}
-
-//------------------------------------------------------------------------------
 // Get number of file systems
 //------------------------------------------------------------------------------
 uint32_t
@@ -776,16 +711,6 @@ FmdDbMapHandler::UpdateWithScanInfo(eos::common::FileSystem::fsid_t fsid,
         MoveToOrphans(fpath);
         gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
         return;
-      }
-
-      // Call the autorepair method on the MGM - but not for orphaned or
-      // unregistered files. If MGM autorepair is disabled then it doesn't do
-      // anything
-      if ((orphaned == false) &&
-          ((fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered)
-           == false)) {
-        eos_info("msg=\"trigger auto repair\" fid=%08llx", fid);
-        CallAutoRepair(manager.c_str(), fid);
       }
     }
   } else {
