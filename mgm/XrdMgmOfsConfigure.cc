@@ -51,6 +51,7 @@
 #include "mgm/QdbMaster.hh"
 #include "mgm/Messaging.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
+#include "mgm/inspector/FileInspector.hh"
 #include "mgm/tgc/TapeAwareGc.hh"
 #include "common/StacktraceHere.hh"
 #include "common/plugin_manager/PluginManager.hh"
@@ -1110,7 +1111,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   std::vector<std::string> lFanOutTags {
     "Grpc", "Balancer", "Converter", "DrainJob", "ZMQ", "MetadataFlusher", "Http",
     "Master", "Recycle", "LRU", "WFE", "WFE::Job", "GroupBalancer",
-    "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "#"};
+    "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "FileInspector", "#"};
   // Get the XRootD log directory
   char* logdir = 0;
   XrdOucEnv::Import("XRDLOGDIR", logdir);
@@ -1661,6 +1662,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
 
     if (NsInQDB) {
+      // only supported in QDB
       SetupProcFiles();
     }
   }
@@ -1668,6 +1670,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Initialize the replication tracker
   mReplicationTracker.reset(ReplicationTracker::Create(
                               MgmProcTrackerPath.c_str()));
+
+  // Initialize the file inspector
+  mFileInspector.reset(FileInspector::Create());
+
   // Set also the archiver ZMQ endpoint were client requests are sent
   std::ostringstream oss;
   oss << "ipc://" << MgmArchiveDir.c_str() << "archive_frontend.ipc";

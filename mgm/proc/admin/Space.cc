@@ -24,6 +24,7 @@
 #include "common/Path.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
+#include "mgm/inspector/FileInspector.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Egroup.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
@@ -60,6 +61,17 @@ ProcCommand::Space()
     stdOut += "# ------------------------------------------------------------------------------------\n";
     stdOut += output.c_str();
     stdOut += "# ------------------------------------------------------------------------------------\n";
+    retc = 0;
+  }
+
+
+  if (mSubCmd == "inspector") {
+    std::string output;
+
+    std::string options = (pOpaque->Get("mgm.options")) ? pOpaque->Get("mgm.options") : "";
+    gOFS->mFileInspector->Dump(output, options);
+
+    stdOut += output.c_str();
     retc = 0;
   }
 
@@ -519,6 +531,8 @@ ProcCommand::Space()
 		  (key == "drainer.fs.ntx") ||
 		  (key == "converter") ||
 		  (key == "tracker") ||
+		  (key == "inspector") ||
+		  (key == "inspector.interval") ||
 		  (key == "lru") ||
 		  (key == "lru.interval") ||
 		  (key == "wfe") ||
@@ -538,7 +552,7 @@ ProcCommand::Space()
 		  (key == "tapeawaregc.spacequeryperiodsecs") ||
 		  (key == "tapeawaregc.minfreebytes") ||
 		  (key == "balancer.threshold")) {
-		if ((key == "balancer") || (key == "converter") || (key == "tracker") ||
+		if ((key == "balancer") || (key == "converter") || (key == "tracker") || (key == "inspector") || 
 		    (key == "autorepair") || (key == "lru") ||
 		    (key == "groupbalancer") || (key == "geobalancer") ||
 		    (key == "geo.access.policy.read.exact") ||
@@ -576,6 +590,16 @@ ProcCommand::Space()
 			} else {
 			  gOFS->mReplicationTracker->disable();
 			  stdOut += "success: tracker is disabled!";
+			}
+		      }
+
+		      if (key == "inspector") {
+			if (value == "on") {
+			  gOFS->mFileInspector->enable();
+			  stdOut += "success: file inspector is enabled!";
+			} else {
+			  gOFS->mFileInspector->disable();
+			  stdOut += "success: file inspector is disabled!";
 			}
 		      }
 		      
