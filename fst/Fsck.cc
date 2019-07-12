@@ -148,7 +148,7 @@ Fsck::Fsck(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
     fprintf(stderr, "error: OS does not provide alignment\n");
     exit(-1);
   }
-  
+
   errors["missing"] = 0;
   errors["zeromis"] = 0;
   errors["size"] = 0;
@@ -432,8 +432,8 @@ Fsck::ScanMd()
     std::unique_ptr<XrdOucEnv> env(new XrdOucEnv(dumpentry.c_str()));
 
     if (env) {
-      struct Fmd fMd;
-      FmdHelper::Reset(fMd);
+      eos::common::Fmd fMd;
+      eos::common::FmdHelper::Reset(fMd);
 
       if (eos::fst::FmdDbMapHandler::EnvMgmToFmd(*env, fMd)) {
         // now the MD object is filled
@@ -510,8 +510,8 @@ Fsck::ScanMdQdb()
 
   while (!files.empty()) {
     nfiles++;
-    struct Fmd fMd;
-    FmdHelper::Reset(fMd);
+    eos::common::Fmd fMd;
+    eos::common::FmdHelper::Reset(fMd);
 
     try {
       FmdDbMapHandler::NsFileProtoToFmd(files.front().get(), fMd);
@@ -534,7 +534,7 @@ Fsck::ScanMdQdb()
 
 /*----------------------------------------------------------------------------*/
 void
-Fsck::CheckFile(struct Fmd& fMd, size_t nfiles)
+Fsck::CheckFile(eos::common::Fmd& fMd, size_t nfiles)
 {
   char fxid[1024];
   sprintf(fxid, "%08lx", fMd.fid());
@@ -542,7 +542,6 @@ Fsck::CheckFile(struct Fmd& fMd, size_t nfiles)
   eos::common::FileId::FidPrefix2FullPath(fxid, dirPath.c_str(), fullpath);
   struct stat buf;
 
-  
   if (!silent) {
     fprintf(stdout,
             "[Fsck] [ MGM ] [ %07lu ] processing file cxid:%08lx fxid:%08lx path:%s\n",
@@ -556,16 +555,18 @@ Fsck::CheckFile(struct Fmd& fMd, size_t nfiles)
               fsId, fMd.cid(), fMd.fid(), fullpath.c_str());
       errors["zeromis"]++;
     } else {
-      fprintf(stderr, "[Fsck] [ERROR] [ MISSING ] fsid:%d cxid:%08lx fxid:%08lx path:%s is missing  on disk\n",
+      fprintf(stderr,
+              "[Fsck] [ERROR] [ MISSING ] fsid:%d cxid:%08lx fxid:%08lx path:%s is missing  on disk\n",
               fsId, fMd.cid(), fMd.fid(), fullpath.c_str());
       errors["missing"]++;
       fMd.set_disksize(-1);
     }
+
     fMd.set_disksize(-1);
   } else {
     fMd.set_disksize(buf.st_size);
   }
-  
+
   // for the moment we don't have an extra field to store this, but we don't checksum here
   fMd.set_checksum(fullpath.c_str());
 }
@@ -629,17 +630,18 @@ Fsck::ReportFiles()
     }
 
     size_t valid_replicas = 0;
-    auto location_set = FmdHelper::GetLocations(it->second, valid_replicas);
+    auto location_set = eos::common::FmdHelper::GetLocations(it->second,
+                        valid_replicas);
     size_t nstripes = eos::common::LayoutId::GetStripeNumber(it->second.lid()) + 1;
 
     if (nstripes != valid_replicas) {
       if (it->second.mgmsize() != 0) {
-	// suppress 0 size files in the mgm 
+        // suppress 0 size files in the mgm
         fprintf(stderr,
                 "[Fsck] [ERROR] [ REPLICA ] fsid:%d cxid:%08lx fxid:%08lx path:%s replica count wrong is=%lu expected=%lu\n",
                 fsId, it->second.cid(), it->second.fid(), it->second.checksum().c_str(),
                 valid_replicas, nstripes);
-	errors["replica"]++;
+        errors["replica"]++;
       }
     }
   }

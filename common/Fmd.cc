@@ -16,11 +16,64 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "fst/Fmd.hh"
+#include "common/Fmd.hh"
 #include "common/StringConversion.hh"
 #include "common/LayoutId.hh"
 
-EOSFSTNAMESPACE_BEGIN
+EOSCOMMONNAMESPACE_BEGIN
+
+//------------------------------------------------------------------------------
+// Convert an FST env representation to an Fmd struct
+//------------------------------------------------------------------------------
+bool EnvToFstFmd(XrdOucEnv& env, struct Fmd& fmd)
+{
+  // Check that all tags are present
+  if (!env.Get("id") ||
+      !env.Get("cid") ||
+      !env.Get("ctime") ||
+      !env.Get("ctime_ns") ||
+      !env.Get("mtime") ||
+      !env.Get("mtime_ns") ||
+      !env.Get("size") ||
+      !env.Get("lid") ||
+      !env.Get("uid") ||
+      !env.Get("gid")) {
+    return false;
+  }
+
+  fmd.set_fid(strtoull(env.Get("id"), 0, 10));
+  fmd.set_cid(strtoull(env.Get("cid"), 0, 10));
+  fmd.set_ctime(strtoul(env.Get("ctime"), 0, 10));
+  fmd.set_ctime_ns(strtoul(env.Get("ctime_ns"), 0, 10));
+  fmd.set_mtime(strtoul(env.Get("mtime"), 0, 10));
+  fmd.set_mtime_ns(strtoul(env.Get("mtime_ns"), 0, 10));
+  fmd.set_size(strtoull(env.Get("size"), 0, 10));
+  fmd.set_lid(strtoul(env.Get("lid"), 0, 10));
+  fmd.set_uid((uid_t) strtoul(env.Get("uid"), 0, 10));
+  fmd.set_gid((gid_t) strtoul(env.Get("gid"), 0, 10));
+
+  if (env.Get("checksum")) {
+    fmd.set_checksum(env.Get("checksum"));
+
+    if (fmd.checksum() == "none") {
+      fmd.set_checksum("");
+    }
+  } else {
+    fmd.set_checksum("");
+  }
+
+  if (env.Get("diskchecksum")) {
+    fmd.set_diskchecksum(env.Get("diskchecksum"));
+
+    if (fmd.diskchecksum() == "none") {
+      fmd.set_diskchecksum("");
+    }
+  } else {
+    fmd.set_diskchecksum("");
+  }
+
+  return true;
+}
 
 //------------------------------------------------------------------------------
 // Compute layout error
@@ -164,57 +217,4 @@ FmdHelper::FullFmdToEnv()
                                       serializedStream.str().c_str()));
 }
 
-//------------------------------------------------------------------------------
-// Convert FST env representation of file info to an Fmd struct
-//------------------------------------------------------------------------------
-bool EnvToFstFmd(XrdOucEnv& env, struct Fmd& fmd)
-{
-  // Check that all tags are present
-  if (!env.Get("id") ||
-      !env.Get("cid") ||
-      !env.Get("ctime") ||
-      !env.Get("ctime_ns") ||
-      !env.Get("mtime") ||
-      !env.Get("mtime_ns") ||
-      !env.Get("size") ||
-      !env.Get("lid") ||
-      !env.Get("uid") ||
-      !env.Get("gid")) {
-    return false;
-  }
-
-  fmd.set_fid(strtoull(env.Get("id"), 0, 10));
-  fmd.set_cid(strtoull(env.Get("cid"), 0, 10));
-  fmd.set_ctime(strtoul(env.Get("ctime"), 0, 10));
-  fmd.set_ctime_ns(strtoul(env.Get("ctime_ns"), 0, 10));
-  fmd.set_mtime(strtoul(env.Get("mtime"), 0, 10));
-  fmd.set_mtime_ns(strtoul(env.Get("mtime_ns"), 0, 10));
-  fmd.set_size(strtoull(env.Get("size"), 0, 10));
-  fmd.set_lid(strtoul(env.Get("lid"), 0, 10));
-  fmd.set_uid((uid_t) strtoul(env.Get("uid"), 0, 10));
-  fmd.set_gid((gid_t) strtoul(env.Get("gid"), 0, 10));
-
-  if (env.Get("checksum")) {
-    fmd.set_checksum(env.Get("checksum"));
-
-    if (fmd.checksum() == "none") {
-      fmd.set_checksum("");
-    }
-  } else {
-    fmd.set_checksum("");
-  }
-
-  if (env.Get("diskchecksum")) {
-    fmd.set_diskchecksum(env.Get("diskchecksum"));
-
-    if (fmd.diskchecksum() == "none") {
-      fmd.set_diskchecksum("");
-    }
-  } else {
-    fmd.set_diskchecksum("");
-  }
-
-  return true;
-}
-
-EOSFSTNAMESPACE_END
+EOSCOMMONNAMESPACE_END

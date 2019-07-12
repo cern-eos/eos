@@ -26,7 +26,7 @@
 #define __EOSFST_FSTOFSFILE_HH__
 
 #include <numeric>
-#include "fst/Fmd.hh"
+#include "common/Fmd.hh"
 #include "fst/Namespace.hh"
 #include "fst/checksum/CheckSum.hh"
 #include "fst/storage/Storage.hh"
@@ -37,6 +37,14 @@
 
 class XrdOucEnv;
 
+namespace eos
+{
+namespace common
+{
+class FmdHelper;
+}
+}
+
 EOSFSTNAMESPACE_BEGIN;
 
 // This defines for reports what is a large seek e.g. > 128 kB = default RA size
@@ -45,7 +53,7 @@ EOSFSTNAMESPACE_BEGIN;
 // Forward declaration
 class Layout;
 class CheckSum;
-class FmdHelper;
+
 
 //------------------------------------------------------------------------------
 //! Class XrdFstOfsFile
@@ -416,7 +424,7 @@ protected:
     kTpcDone = 2, //! TPC has finished
   };
 
-  std::unique_ptr<FmdHelper> fMd; //! File meta data object
+  std::unique_ptr<eos::common::FmdHelper> fMd; //! File meta data object
   std::unique_ptr<eos::fst::CheckSum> mCheckSum; //! Checksum object
   Layout* layOut; //! pointer to a layout object
 
@@ -645,7 +653,7 @@ public:
   //! protobuf endpoint
   //! @return
   //----------------------------------------------------------------------------
-  int NotifyProtoWfEndPointClosew(const Fmd& fmd, uint32_t ownerUid,
+  int NotifyProtoWfEndPointClosew(const eos::common::Fmd& fmd, uint32_t ownerUid,
                                   uint32_t ownerGid,
                                   const string& requestorName, const string& requestorGroupName,
                                   const string& instanceName, const string& fullPath,

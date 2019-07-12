@@ -19,7 +19,7 @@
 #include "common/DbMap.hh"
 #include "common/LayoutId.hh"
 #include "namespace/interface/IFileMD.hh"
-#include "fst/Fmd.hh"
+#include "common/Fmd.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include <iostream>
 #include <algorithm>
@@ -118,7 +118,7 @@ void DumpAllFids(eos::common::DbMap& db)
   std::cout << "fid(dec) : " << std::endl;
 
   for (db.beginIter(false); db.iterate(&k, &v, false); /*no progress*/) {
-    eos::fst::Fmd fmd;
+    eos::common::Fmd fmd;
     fmd.ParseFromString(v->value);
     std::cout << std::setw(10) << fmd.fid() << " ";
     ++count;
@@ -146,9 +146,9 @@ bool DumpFileInfo(eos::common::DbMap& db, const std::string& sfid)
     return false;
   }
 
-  eos::fst::Fmd fmd;
+  eos::common::Fmd fmd;
   fmd.ParseFromString(val.value);
-  eos::fst::FmdHelper fmd_helper;
+  eos::common::FmdHelper fmd_helper;
   fmd_helper.Replicate(fmd);
   auto opaque = fmd_helper.FullFmdToEnv();
   int envlen;
@@ -195,7 +195,7 @@ void DumpFsckStats(eos::common::DbMap& db, bool verbose = false)
   eos::common::DbMapTypes::Tval val;
 
   for (db.beginIter(false); db.iterate(&k, &v, false);) {
-    eos::fst::Fmd f;
+    eos::common::Fmd f;
     f.ParseFromString(v->value);
 
     if (f.layouterror()) {
@@ -220,10 +220,10 @@ void DumpFsckStats(eos::common::DbMap& db, bool verbose = false)
       }
     }
 
-    if (f.mgmsize() != eos::fst::Fmd::UNDEF) {
+    if (f.mgmsize() != eos::common::Fmd::UNDEF) {
       statistics["m_sync_n"]++;
 
-      if (f.size() != eos::fst::Fmd::UNDEF) {
+      if (f.size() != eos::common::Fmd::UNDEF) {
         if (f.size() != f.mgmsize()) {
           statistics["m_mem_sz_diff"]++;
           fid_set["m_mem_sz_diff"].insert(f.fid());
@@ -246,10 +246,10 @@ void DumpFsckStats(eos::common::DbMap& db, bool verbose = false)
 
     statistics["mem_n"]++;
 
-    if (f.disksize() != eos::fst::Fmd::UNDEF) {
+    if (f.disksize() != eos::common::Fmd::UNDEF) {
       statistics["d_sync_n"]++;
 
-      if (f.size() != eos::fst::Fmd::UNDEF) {
+      if (f.size() != eos::common::Fmd::UNDEF) {
         // Report missmatch only for replica layout files
         if ((f.size() != f.disksize()) &&
             (eos::common::LayoutId::GetLayoutType(f.lid())

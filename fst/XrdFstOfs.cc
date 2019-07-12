@@ -1240,7 +1240,7 @@ XrdFstOfs::SendFsck(XrdMqMessage* message)
           repmessage.MarkAsMonitor();
 
           if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
-            eos_err("unable to send fsck reply message to %s",
+            eos_err("msg=\"unable to send fsck reply message\" dst=%s",
                     message->kMessageHeader.kSenderId.c_str());
           }
 
@@ -1251,6 +1251,8 @@ XrdFstOfs::SendFsck(XrdMqMessage* message)
       stdOut += "\n";
     }
   }
+
+  eos_info("reply=%s", stdOut.c_str());
 
   if (stdOut.length()) {
     XrdMqMessage repmessage("fsck reply message");
@@ -1518,8 +1520,7 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
 
       unsigned long long fileid = eos::common::FileId::Hex2Fid(afid);
       unsigned long fsid = atoi(afsid);
-      auto fmd = gFmdDbMapHandler.LocalGetFmd(fileid, fsid, 0, 0, 0, false,
-                                              true);
+      auto fmd = gFmdDbMapHandler.LocalGetFmd(fileid, fsid, true);
 
       if (!fmd) {
         eos_static_err("msg=\"no FMD record found\" fxid=%08llx fsid=%lu", fileid,

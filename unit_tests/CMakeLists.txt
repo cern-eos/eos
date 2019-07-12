@@ -49,8 +49,7 @@ set(CONSOLE_UT_SRCS
   console/ParseCommentTest.cc
   console/RegexUtilTest.cc
   console/ConsoleUtilTests.cc
-  console/CmdsTests.cc
-  ${CMAKE_SOURCE_DIR}/fst/Fmd.cc)
+  console/CmdsTests.cc)
 
 set(MGM_UT_SRCS
   mgm/AccessTests.cc

@@ -30,7 +30,7 @@
 #include "common/DbMap.hh"
 #include "google/protobuf/text_format.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
-#include "test.pb.h"
+#include "common/test.pb.h"
 #include <iostream>
 #include <fstream>
 #include <string>

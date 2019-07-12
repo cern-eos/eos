@@ -26,7 +26,7 @@
 
 #include "fst/Namespace.hh"
 #include "fst/Config.hh"
-#include "fst/Fmd.hh"
+#include "common/Fmd.hh"
 #include "fst/utils/OpenFileTracker.hh"
 #include "common/Logging.hh"
 #include "common/XrdConnPool.hh"
@@ -381,7 +381,7 @@ public:
   XrdSysMutex ErrorReportQueueMutex;
   std::queue<XrdOucString> ErrorReportQueue;
   XrdSysMutex WrittenFilesQueueMutex;
-  std::queue<struct Fmd> WrittenFilesQueue;
+  std::queue<eos::common::Fmd> WrittenFilesQueue;
   XrdMqSharedObjectManager ObjectManager; ///< Managing shared objects
   std::unique_ptr<qclient::SharedManager> mQSOM; ///< MQ on QDB - can be null
   //! Notifying any shared object changes
