@@ -258,7 +258,8 @@ Storage::Storage(const char* meta_dir)
   // Create gw queue
   XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
   mGwQueue = new eos::common::TransferQueue(
-    eos::common::TransferQueueLocator(eos::fst::Config::gConfig.FstQueue.c_str(), "txq"),
+    eos::common::TransferQueueLocator(eos::fst::Config::gConfig.FstQueue.c_str(),
+                                      "txq"),
     &gOFS.ObjectManager, gOFS.mQSOM.get(), true);
   mTxGwQueue = new TransferQueue(&mGwQueue);
 
@@ -741,7 +742,7 @@ Storage::RunBootThread(FileSystem* fs)
       mBootingSet.insert(fs->GetId());
     }
 
-    BootThreadInfo* info = new BootThreadInfo;
+    BootThreadInfo* info = new BootThreadInfo();
 
     if (info) {
       info->storage = this;
@@ -1022,7 +1023,7 @@ Storage::IsNodeActive() const
 // Parameter i is the index into mFsVect.
 //----------------------------------------------------------------------------
 void
-Storage::CheckFilesystemFullness(FileSystem *fs,
+Storage::CheckFilesystemFullness(FileSystem* fs,
                                  eos::common::FileSystem::fsid_t fsid)
 {
   long long freebytes = fs->GetLongLong("stat.statfs.freebytes");
