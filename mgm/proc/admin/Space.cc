@@ -403,12 +403,10 @@ ProcCommand::Space()
 
   if (mSubCmd == "define") {
     if (pVid->uid == 0) {
-      std::string spacename = (pOpaque->Get("mgm.space")) ? pOpaque->Get("mgm.space")
-                              : "";
-      std::string groupsize = (pOpaque->Get("mgm.space.groupsize")) ?
-                              pOpaque->Get("mgm.space.groupsize") : "";
-      std::string groupmod = (pOpaque->Get("mgm.space.groupmod")) ?
-                             pOpaque->Get("mgm.space.groupmod") : "";
+
+      std::string spacename = (pOpaque->Get("mgm.space")) ? pOpaque->Get("mgm.space") : "";
+      std::string groupsize = (pOpaque->Get("mgm.space.groupsize")) ? pOpaque->Get("mgm.space.groupsize") : "";
+      std::string groupmod = (pOpaque->Get("mgm.space.groupmod")) ? pOpaque->Get("mgm.space.groupmod") : "";
       int gsize = atoi(groupsize.c_str());
       int gmod = atoi(groupmod.c_str());
       char line[1024];

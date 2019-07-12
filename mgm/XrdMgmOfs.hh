@@ -108,6 +108,7 @@
 #include "common/XrdConnPool.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mgm/proc/ProcCommand.hh"
+#include "mgm/proc/admin/SpaceCmd.hh"
 #include "mgm/drain/Drainer.hh"
 #include "mgm/IdTrackerWithValidity.hh"
 #include "mgm/auth/AccessChecker.hh"
@@ -217,6 +218,7 @@ public:
   friend class eos::mgm::Drainer;
   friend class eos::mgm::DrainFs;
   friend class eos::mgm::DrainTransferJob;
+  friend class eos::mgm::SpaceCmd;
 
   //----------------------------------------------------------------------------
   //! Constructor

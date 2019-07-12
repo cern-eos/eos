@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: NodeCmd.hh
+// File: SpaceCmd.hh
 // Author: Fabio Luchetti - CERN
 //------------------------------------------------------------------------------
 
@@ -23,15 +23,15 @@
 
 #pragma once
 #include "mgm/Namespace.hh"
-#include "proto/Node.pb.h"
+#include "proto/Space.pb.h"
 #include "mgm/proc/ProcCommand.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Class NodeCmd - class handling node commands
+//! Class SpaceCmd - class handling space commands
 //------------------------------------------------------------------------------
-class NodeCmd: public IProcCommand
+class SpaceCmd: public IProcCommand
 {
 public:
   //----------------------------------------------------------------------------
@@ -40,7 +40,7 @@ public:
   //! @param req client ProtocolBuffer request
   //! @param vid client virtual identity
   //----------------------------------------------------------------------------
-  explicit NodeCmd(eos::console::RequestProto&& req,
+  explicit SpaceCmd(eos::console::RequestProto&& req,
                     eos::common::VirtualIdentity& vid):
     IProcCommand(std::move(req), vid, false)
   {}
@@ -48,7 +48,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~NodeCmd() = default;
+  virtual ~SpaceCmd() = default;
 
   //----------------------------------------------------------------------------
   //! Method implementing the specific behaviour of the command executed by the
@@ -64,16 +64,16 @@ private:
   //! @param ls ls subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  void LsSubcmd(const eos::console::NodeProto_LsProto& ls,
-               eos::console::ReplyProto& reply);
+  void LsSubcmd(const eos::console::SpaceProto_LsProto& ls,
+                eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
-  //! Execute rm subcommand
+  //! Execute tracker subcommand
   //!
-  //! @param rm rm subcommand proto object
+  //! @param tracker tracker subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  void RmSubcmd(const eos::console::NodeProto_RmProto& rm,
+  void TrackerSubcmd(const eos::console::SpaceProto_TrackerProto& tracker,
                 eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
@@ -82,26 +82,8 @@ private:
   //! @param status status subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  void StatusSubcmd(const eos::console::NodeProto_StatusProto& status,
-                 eos::console::ReplyProto& reply);
-
-  //----------------------------------------------------------------------------
-  //! Execute config subcommand
-  //!
-  //! @param config config subcommand proto object
-  //! @param reply reply proto object
-  //----------------------------------------------------------------------------
-  void ConfigSubcmd(const eos::console::NodeProto_ConfigProto& config,
-                    eos::console::ReplyProto& reply);
-
-  //----------------------------------------------------------------------------
-  //! Execute register subcommand
-  //!
-  //! @param register register subcommand proto object
-  //! @param reply reply proto object
-  //----------------------------------------------------------------------------
-  void RegisterSubcmd(const eos::console::NodeProto_RegisterProto& registerx,
-                      eos::console::ReplyProto& reply);
+  void StatusSubcmd(const eos::console::SpaceProto_StatusProto& status,
+                eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Execute set subcommand
@@ -109,26 +91,81 @@ private:
   //! @param set set subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  void SetSubcmd(const eos::console::NodeProto_SetProto& set,
-                 eos::console::ReplyProto& reply);
+  void SetSubcmd(const eos::console::SpaceProto_SetProto& set,
+                eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
-  //! Execute txgw subcommand
+  //! Execute node-set subcommand
   //!
-  //! @param txgw txgw subcommand proto object
+  //! @param nodeset nodeset subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  void TxgwSubcmd(const eos::console::NodeProto_TxgwProto& txgw,
-                 eos::console::ReplyProto& reply);
+  void NodeSetSubcmd(const eos::console::SpaceProto_NodeSetProto& nodeset,
+                eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
-  //! Execute proxygroup subcommand
+  //! Execute node-get subcommand
   //!
-  //! @param proxygroup proxygroup subcommand proto object
+  //! @param nodeget nodeget subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  void ProxygroupSubcmd(const eos::console::NodeProto_ProxygroupProto& proxygroup,
-                 eos::console::ReplyProto& reply);
+  void NodeGetSubcmd(const eos::console::SpaceProto_NodeGetProto& nodeget,
+                eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
+  //! Execute reset subcommand
+  //!
+  //! @param reset reset subcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
+                eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
+  //! Execute define subcommand
+  //!
+  //! @param define define subcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void DefineSubcmd(const eos::console::SpaceProto_DefineProto& define,
+                eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
+  //! Execute config subcommand
+  //!
+  //! @param config config subcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
+                eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
+  //! Execute quota subcommand
+  //!
+  //! @param quota quota subcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void QuotaSubcmd(const eos::console::SpaceProto_QuotaProto& quota,
+                eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
+  //! Execute rm subcommand
+  //!
+  //! @param rm rm subcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void RmSubcmd(const eos::console::SpaceProto_RmProto& rm,
+                eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
+  //! Execute inspector subcommand
+  //!
+  //! @param inspector inspector subcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void InspectorSubcmd(const eos::console::SpaceProto_InspectorProto& inspector,
+                eos::console::ReplyProto& reply);
+
 
 };
 

@@ -34,6 +34,7 @@
 #include "mgm/proc/admin/DebugCmd.hh"
 #include "mgm/proc/admin/NodeCmd.hh"
 #include "mgm/proc/admin/QuotaCmd.hh"
+#include "mgm/proc/admin/SpaceCmd.hh"
 #include <google/protobuf/util/json_util.h>
 
 EOSMGMNAMESPACE_BEGIN
@@ -233,7 +234,11 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
     cmd.reset(new QuotaCmd(std::move(req), vid));
     break;
 
-  default:
+  case RequestProto::kSpace:
+    cmd.reset(new SpaceCmd(std::move(req), vid));
+    break;
+
+    default:
     eos_static_err("error: unknown request type");
     break;
   }
@@ -323,6 +328,10 @@ ProcInterface::ProtoIsWriteAccess(const char* path, const char* opaque)
     break;
 
   case RequestProto::kQuota:
+    return true; // @note (faluchet) to check
+    break;
+
+  case RequestProto::kSpace:
     return true; // @note (faluchet) to check
     break;
 
