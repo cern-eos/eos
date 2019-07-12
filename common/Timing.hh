@@ -399,6 +399,25 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Covert time local time
+  //----------------------------------------------------------------------------
+  static
+  std::string ltime(time_t& t)
+  {
+    struct tm * timeinfo;
+    timeinfo = localtime(&t);
+
+    char a_time[4096];
+    a_time[0]=0;
+    asctime_r(timeinfo, a_time);
+    std::string s_atime = a_time;
+    if (s_atime.length()) {
+      s_atime.erase(s_atime.length()-1);
+    }
+    return s_atime;
+  }
+
+  //----------------------------------------------------------------------------
   //! Format time value for display when doing "ls -l"
   //----------------------------------------------------------------------------
   static
