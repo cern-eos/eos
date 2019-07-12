@@ -174,7 +174,13 @@ bool LRU::parseExpireMatchPolicy(const std::string& policy,
 //------------------------------------------------------------------------------
 void LRU::performCycleInMem(ThreadAssistant& assistant) noexcept {
   // Do a slow find
-  unsigned long long ndirs = (unsigned long long) gOFS->eosDirectoryService->getNumContainers();
+  unsigned long long ndirs = 0;
+
+  {
+    RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    (unsigned long long) gOFS->eosDirectoryService->getNumContainers();
+  }
+
   time_t ms = 1;
 
   if (ndirs > 10000000) {
