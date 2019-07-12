@@ -93,7 +93,7 @@ XrdMgmOfs::fsctl(const int cmd,
         auto map_quotas = Quota::GetGroupStatistics(path, 0);
 
         if (!map_quotas.empty()) {
-	  Quota::GetStatfs(path, maxbytes, freebytes);
+          Quota::GetStatfs(path, maxbytes, freebytes);
         }
       }
     }
@@ -315,10 +315,6 @@ XrdMgmOfs::FSctl(const int cmd,
 
     case FsctlCommand::redirect: {
       return XrdMgmOfs::Redirect(path, ininfo, env, error, vid, client);
-    }
-
-    case FsctlCommand::rewrite: {
-      return XrdMgmOfs::Rewrite(path, ininfo, env, error, vid, client);
     }
 
     case FsctlCommand::schedule2balance: {
