@@ -109,7 +109,7 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
 {
   using eos::common::FileId;
 
-  if (mFstFileInfo.find(fsid) == mFstFileInfo.end()) {
+  if (mFstFileInfo.find(fsid) != mFstFileInfo.end()) {
     return;
   }
 
@@ -122,6 +122,8 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
     if (fs) {
       host_port = fs->GetString("hostport");
       fst_local_path = fs->GetPath();
+    } else {
+      return;
     }
   }
 
@@ -150,11 +152,12 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
                              fpath_local);
   // Check that the file exists on disk
   XrdCl::StatInfo* stat_info_raw {nullptr};
-  std::unique_ptr<XrdCl::StatInfo> stat_info(stat_info_raw);
+  std::unique_ptr<XrdCl::StatInfo> stat_info;
   uint16_t timeout = 10;
   XrdCl::FileSystem fs(url);
   XrdCl::XRootDStatus status = fs.Stat(fpath_local.c_str(), stat_info_raw,
                                        timeout);
+  stat_info.reset(stat_info_raw);
 
   if (!status.IsOK()) {
     if (status.code == XrdCl::errOperationExpired) {
@@ -380,11 +383,12 @@ FsckEntry::RepairReplicaInconsistencies()
 
   // Account for missing replicas from MGM's perspective
   for (const auto& fsid : mMgmFmd.locations()) {
+    eos_info("fid=%08llx fsid=%lu", mFid, fsid);
     auto it = mFstFileInfo.find(fsid);
 
     if ((it == mFstFileInfo.end()) ||
         (it->second->mFstErr == FstErr::NotOnDisk)) {
-      repmiss_fsids.insert(it->first);
+      repmiss_fsids.insert(fsid);
     }
   }
 
@@ -508,7 +512,7 @@ FsckEntry::RepairReplicaInconsistencies()
       to_drop.insert(unreg_fsids.begin(), unreg_fsids.end());
 
       // If still under-replicated then start creating new replicas
-      while (num_actual_rep < num_expected_rep) {
+      while ((num_actual_rep < num_expected_rep) && mMgmFmd.locations_size()) {
         // Trigger a fsck repair job but without dropping the source, this is
         // similar to adjust replica
         eos::common::FileSystem::fsid_t good_fsid = mMgmFmd.locations(0);
@@ -527,17 +531,43 @@ FsckEntry::RepairReplicaInconsistencies()
 
         ++num_actual_rep;
       }
+
+      if (num_actual_rep < num_expected_rep) {
+        eos_err("msg=\"replica inconsistency repair failed\" fid=%08llx", mFid);
+        return false;
+      }
     }
   }
 
   // Discard unregistered/bad replicas
   for (auto fsid : to_drop) {
+    eos_info("msg=\"droping replica\" fid=%08llx fsid=%lu", mFid, fsid);
     (void) DropReplica(fsid);
-    // Drop also from the locasl map of FST fmd info
+    // Drop also from the local map of FST fmd info
     mFstFileInfo.erase(fsid);
   }
 
+  ResyncFstMd(true);
+  eos_info("msg=\"file replicas consistent\" fid=%08llx", mFid);
   return true;
+}
+
+//----------------------------------------------------------------------------
+// Resync local FST metadata with the MGM info. The refresh flag needs to
+// be set whenever there is an FsckRepairJob done before.
+//----------------------------------------------------------------------------
+void
+FsckEntry::ResyncFstMd(bool refresh_mgm_md)
+{
+  if (refresh_mgm_md) {
+    CollectMgmInfo();
+  }
+
+  for (const auto& fsid : mMgmFmd.locations()) {
+    if (gOFS) {
+      (void) gOFS->SendResync(mFid, fsid);
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -583,8 +613,10 @@ FsckEntry::Repair()
     gOFS->MgmStats.Add("FsckRepairStarted", 0, 0, 1);
 
     if (CollectMgmInfo() == false) {
-      eos_err("msg=\"no repair action, file is orphan\", fid=%08llx", mFid);
+      eos_err("msg=\"no repair action, file is orphan\", fid=%08llx fsid=%lu",
+              mFid, mFsidErr);
       UpdateMgmStats(success);
+      (void) DropReplica(mFsidErr);
       return success;
     }
 

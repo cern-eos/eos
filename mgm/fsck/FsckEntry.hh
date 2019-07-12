@@ -203,6 +203,16 @@ public:
   //----------------------------------------------------------------------------
   void UpdateMgmStats(bool success) const;
 
+  //----------------------------------------------------------------------------
+  //! Resync local FST metadata with the MGM info.
+  //!
+  //! @param refresh_mgm_md if true then the MGM metadata corresponding to the
+  //!        current file is retrieved again, otherwise we use what we have
+  //!        already. This needs tobe set whenever there is an FsckRepairJob
+  //!        done before.
+  //----------------------------------------------------------------------------
+  void ResyncFstMd(bool refresh_mgm_md = false);
+
   eos::IFileMD::id_t mFid; ///< File id
   eos::common::FileSystem::fsid_t mFsidErr; ///< File system id with expected err
   FsckErr mReportedErr; ///< Reported error type
