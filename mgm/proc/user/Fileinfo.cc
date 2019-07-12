@@ -309,6 +309,14 @@ ProcCommand::FileInfo(const char* path)
                 << " lid=" << FileId::Fid2Hex(fmd_copy->getLayoutId())
                 << " nrep=" << fmd_copy->getNumLocation()
                 << " ";
+
+	    eos::IFileMD::XAttrMap xattrs = fmd_copy->getAttributes();
+	    
+	    for (const auto& elem : xattrs) {
+	      out << "xattrn=" << elem.first
+		  << " xattrv=" << elem.second << " ";
+	    }
+	    
           }
 
           eos::IFileMD::LocationVector::const_iterator lociter;
