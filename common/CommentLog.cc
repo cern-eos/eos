@@ -24,6 +24,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "common/CommentLog.hh"
+#include "common/Timing.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -99,13 +100,9 @@ bool
 CommentLog::Add (time_t t, const char* cmd, const char* subcmd, const char* args, const char* comment, const char* stdErr, int retc)
 {
   XrdOucString out = "";
-  struct tm * timeinfo;
-  timeinfo = localtime(&t);
-
   out += "# ==============================================================\n";
   out += "# ";
-  out += asctime(timeinfo);
-  out.erase(out.length() - 1, 1);
+  out += eos::common::Timing::ltime(t).c_str();
   out += " ";
   out += comment;
   out += "\n";
