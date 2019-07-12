@@ -167,7 +167,7 @@ protected:
   std::map<std::string, FileSystem*> mQueue2FsMap;
 
 private:
-  static constexpr std::chrono::seconds sConsistencyTimeout {300};
+  static constexpr std::chrono::seconds sConsistencyTimeout {10};
   bool mZombie; ///< State of the node
   XrdOucString mMetaDir; ///< Path to meta directory
   unsigned long long* mScrubPattern[2];

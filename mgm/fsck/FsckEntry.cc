@@ -160,6 +160,9 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
   stat_info.reset(stat_info_raw);
 
   if (!status.IsOK()) {
+    eos_err("msg=\"failed stat\" fid=%08llx, local_path=%s", mFid,
+            fpath_local.c_str());
+
     if (status.code == XrdCl::errOperationExpired) {
       mFstFileInfo.emplace(fsid, std::make_unique<FstFileInfoT>("",
                            FstErr::NoContact));
@@ -176,10 +179,7 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
                                         (fpath_local.c_str(), FstErr::None));
   auto& finfo = ret_pair.first->second;
   finfo->mDiskSize = stat_info->GetSize();
-
-  if (!GetFstFmd(finfo, fs, fsid)) {
-    return;
-  }
+  (void) GetFstFmd(finfo, fs, fsid);
 }
 
 //------------------------------------------------------------------------------
@@ -669,7 +669,6 @@ FsckEntry::GetFstFmd(std::unique_ptr<FstFileInfoT>& finfo,
                      eos::common::FileSystem::fsid_t fsid)
 {
   XrdCl::Buffer* raw_response {nullptr};
-  std::unique_ptr<XrdCl::Buffer> response(raw_response);
   // Create query command for file metadata
   std::ostringstream oss;
   oss << "/?fst.pcmd=getfmd&fst.getfmd.fsid=" << fsid
@@ -679,13 +678,16 @@ FsckEntry::GetFstFmd(std::unique_ptr<FstFileInfoT>& finfo,
   uint16_t timeout = 10;
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
                                         raw_response, timeout);
+  std::unique_ptr<XrdCl::Buffer> response(raw_response);
 
   if (!status.IsOK()) {
     if (status.code == XrdCl::errOperationExpired) {
-      eos_err("msg=\"timeout file metadata query\" fsid=%lu", fsid);
+      eos_err("msg=\"timeout file metadata query\" fid=%08llx fsid=%lu",
+              mFid, fsid);
       finfo->mFstErr = FstErr::NoContact;
     } else {
-      eos_err("msg=\"failed file metadata query\" fsid=%lu", fsid);
+      eos_err("msg=\"failed file metadata query\" fid=08llx fsid=%lu",
+              mFid, fsid);
       finfo->mFstErr = FstErr::NoFmdInfo;
     }
 
@@ -694,6 +696,8 @@ FsckEntry::GetFstFmd(std::unique_ptr<FstFileInfoT>& finfo,
 
   if ((response == nullptr) ||
       (strncmp(response->GetBuffer(), "ERROR", 5) == 0)) {
+    eos_err("msg=\"no local fst metadata present\" fid=%08llx fsid=%lu",
+            mFid, fsid);
     finfo->mFstErr = FstErr::NoFmdInfo;
     return false;
   }
@@ -701,7 +705,7 @@ FsckEntry::GetFstFmd(std::unique_ptr<FstFileInfoT>& finfo,
   // Parse in the file metadata info
   XrdOucEnv fmd_env(response->GetBuffer());
 
-  if (!eos::fst::EnvToFstFmd(fmd_env, finfo->mFstFmd)) {
+  if (!eos::common::EnvToFstFmd(fmd_env, finfo->mFstFmd)) {
     eos_err("msg=\"failed parsing fmd env\" fsid=%lu", fsid);
     finfo->mFstErr = FstErr::NoFmdInfo;
     return false;

@@ -29,7 +29,7 @@
 #include "common/FileId.hh"
 #include "common/SymKeys.hh"
 #include "common/LayoutId.hh"
-#include "fst/Fmd.hh"
+#include "common/Fmd.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 
 #ifdef __APPLE__
@@ -120,7 +120,7 @@ GetRemoteAttribute(const char* manager, const char* key,
 //------------------------------------------------------------------------------
 int
 GetRemoteFmdFromLocalDb(const char* manager, const char* shexfid,
-                        const char* sfsid, struct eos::fst::Fmd& fmd)
+                        const char* sfsid, struct eos::common::Fmd& fmd)
 {
   if ((!manager) || (!shexfid) || (!sfsid)) {
     return EINVAL;
@@ -180,7 +180,7 @@ GetRemoteFmdFromLocalDb(const char* manager, const char* shexfid,
   // get the remote file meta data into an env hash
   XrdOucEnv fmdenv(response->GetBuffer());
 
-  if (!eos::fst::EnvToFstFmd(fmdenv, fmd)) {
+  if (!eos::common::EnvToFstFmd(fmdenv, fmd)) {
     int envlen;
     eos_static_err("Failed to unparse file meta data %s", fmdenv.Env(envlen));
     delete response;
@@ -820,7 +820,7 @@ com_file(char* arg1)
           bool down = (bs != "booted");
           int retc = 0;
           int oldsilent = silent;
-          struct eos::fst::Fmd fmd;
+          eos::common::Fmd fmd;
 
           if ((option.find("%silent")) != STR_NPOS) {
             silent = true;

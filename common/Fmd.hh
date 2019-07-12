@@ -1,3 +1,4 @@
+
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
  * Copyright (C) 2017 CERN/Switzerland                                  *
@@ -17,28 +18,18 @@
  ************************************************************************/
 
 #pragma once
-#include "fst/Namespace.hh"
+#include "common/Namespace.hh"
 #include "proto/FmdBase.pb.h"
 #include "common/FileSystem.hh"
 #include "common/Logging.hh"
 #include "common/FileId.hh"
 
-EOSFSTNAMESPACE_BEGIN
-
-//------------------------------------------------------------------------------
-//! Convert an FST env representation to an Fmd struct
-//!
-//! @param env env representation
-//! @param fmd reference to Fmd struct
-//!
-//! @return true if successful, otherwise false
-//------------------------------------------------------------------------------
-bool EnvToFstFmd(XrdOucEnv& env, struct Fmd& fmd);
+EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Structure holding file metadata
 //------------------------------------------------------------------------------
-struct Fmd : public FmdBase {
+struct Fmd : public eos::fst::FmdBase {
 public:
   static constexpr uint64_t UNDEF = 0xfffffffffff1ULL;
   virtual ~Fmd() {}
@@ -121,4 +112,14 @@ public:
   Fmd mProtoFmd; ///< Protobuf file metadata info
 };
 
-EOSFSTNAMESPACE_END
+//------------------------------------------------------------------------------
+//! Convert an FST env representation to an Fmd struct
+//!
+//! @param env env representation
+//! @param fmd reference to Fmd struct
+//!
+//! @return true if successful, otherwise false
+//------------------------------------------------------------------------------
+bool EnvToFstFmd(XrdOucEnv& env, struct Fmd& fmd);
+
+EOSCOMMONNAMESPACE_END

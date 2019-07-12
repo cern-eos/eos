@@ -1175,7 +1175,7 @@ XrdFstOfsFile::close()
             closeSize = statinfo.st_size;
             fMd->mProtoFmd.set_size(statinfo.st_size);
             fMd->mProtoFmd.set_disksize(statinfo.st_size);
-            fMd->mProtoFmd.set_mgmsize(Fmd::UNDEF); // now again undefined
+            fMd->mProtoFmd.set_mgmsize(eos::common::Fmd::UNDEF); // now again undefined
             fMd->mProtoFmd.set_mgmchecksum(""); // now again empty
             fMd->mProtoFmd.set_layouterror(0); // reset layout errors
             fMd->mProtoFmd.set_locations(""); // reset locations
@@ -3217,8 +3217,8 @@ XrdFstOfsFile::ExtractLogId(const char* opaque) const
 // Notify the workflow protobuf endpoint of closew event
 //------------------------------------------------------------------------------
 int
-XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd, uint32_t ownerUid,
-    uint32_t ownerGid, const string& requestorName,
+XrdFstOfsFile::NotifyProtoWfEndPointClosew(const eos::common::Fmd& fmd,
+    uint32_t ownerUid, uint32_t ownerGid, const string& requestorName,
     const string& requestorGroupName,
     const string& instanceName, const string& fullPath, const string& managerName,
     const std::map<std::string, std::string>& xattrs, string& errMsgBack)

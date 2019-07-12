@@ -28,7 +28,7 @@
 #include "mgm/drain/DrainTransferJob.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
-#include "fst/Fmd.hh"
+#include "common/Fmd.hh"
 #include <functional>
 
 EOSMGMNAMESPACE_BEGIN
@@ -73,7 +73,7 @@ struct FstFileInfoT {
 public:
   std::string mLocalPath;
   uint64_t mDiskSize;
-  eos::fst::Fmd mFstFmd;
+  eos::common::Fmd mFstFmd;
   FstErr mFstErr;
 
   //------------------------------------------------------------------------------

@@ -347,7 +347,6 @@ set(XRDEOSFST_SRCS
   utils/OpenFileTracker.cc
 
   # File metadata interface
-  Fmd.cc               Fmd.hh
   FmdDbMap.cc          FmdDbMap.hh
 
   # HTTP interface
@@ -467,7 +466,6 @@ install(TARGETS EosFstOss XrdEosFst XrdEosFst-4
 # Other executables
 #-------------------------------------------------------------------------------
 add_executable(eos-leveldb-inspect
-  Fmd.cc
   tools/eos-leveldb-inspect.cc)
 
 target_link_libraries(eos-leveldb-inspect
@@ -487,12 +485,12 @@ add_executable(eos-compute-blockxs
 add_executable(eos-scan-fs
   tools/ScanXS.cc
   ScanDir.cc             Load.cc
-  Fmd.cc                 FmdDbMap.cc
+  FmdDbMap.cc
   checksum/Adler.cc      checksum/CheckSum.cc)
 
 add_executable(eos-fsck-fs
   Fsck.cc                Load.cc
-  Fmd.cc                 FmdDbMap.cc
+  FmdDbMap.cc
   tools/Fsck.cc
   checksum/Adler.cc      checksum/CheckSum.cc)
 

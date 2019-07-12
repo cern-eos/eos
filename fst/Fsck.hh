@@ -26,6 +26,7 @@
 
 #include <pthread.h>
 #include "fst/Namespace.hh"
+#include "common/Fmd.hh"
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -81,7 +82,7 @@ public:
   void ReportFiles();
 
   void CheckFile(const char*);
-  void CheckFile(struct Fmd& fmd, size_t nfiles);
+  void CheckFile(eos::common::Fmd& fmd, size_t nfiles);
 
   std::string GetTimestamp();
   std::string GetTimestampSmeared();
@@ -105,7 +106,7 @@ private:
   std::atomic<long long> mTestInterval; ///< Test interval in seconds
   std::atomic<long long> mScanRate; ///< meta-data files/s rate limiting
 
-  std::map<uint64_t, struct Fmd> mMd;
+  std::map<uint64_t, eos::common::Fmd> mMd;
   // Statistics
   long int noCorruptFiles;
   float durationScan;

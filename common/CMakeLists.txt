@@ -23,7 +23,7 @@
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
-  ${CMAKE_CURRENT_BINARY_DIR}
+  ${CMAKE_BINARY_DIR}
   ${Z_INCLUDE_DIRS}
   ${PROTOBUF_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
@@ -65,6 +65,7 @@ set_target_properties(EosCrc32c-Static PROPERTIES
 # eosCommon-Objects
 #-------------------------------------------------------------------------------
 add_library(eosCommon-Objects OBJECT
+  Fmd.cc
   SymKeys.cc
   InstanceName.cc
   Mapping.cc
@@ -93,6 +94,12 @@ add_library(eosCommon-Objects OBJECT
 
 set_target_properties(eosCommon-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
+
+#-------------------------------------------------------------------------------
+# Add dependency to protobuf objects so we guarantee that the protocol
+# buffer files are generated when we try to build XrdEosFst
+#-------------------------------------------------------------------------------
+add_dependencies(eosCommon-Objects EosFstProto-Objects)
 
 target_compile_definitions(eosCommon-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})

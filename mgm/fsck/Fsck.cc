@@ -222,13 +222,13 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
     XrdOucString stdErr = "";
 
     if (!gOFS->MgmOfsMessaging->BroadCastAndCollect(broadcastresponsequeue,
-        broadcasttargetqueue, msgbody,
-        stdOut, 30, &assistant)) {
+        broadcasttargetqueue, msgbody, stdOut, 10, &assistant)) {
       eos_err("msg=\"failed to broadcast and collect fsck from [%s]:[%s]\"",
               broadcastresponsequeue.c_str(), broadcasttargetqueue.c_str());
       stdErr = "error: broadcast failed\n";
     }
 
+    eos_info("msg=\"fsck reply size=%llu\"", stdOut.length());
     ResetErrorMaps();
     std::vector<std::string> lines;
     // Convert into a line-wise seperated array
@@ -352,6 +352,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
     }
 
     mStartProcessing = false;
+    eos_info("%s", "msg=\"loop in fsck repair thread\"");
   }
 
   // Wait that there are not more jobs in the queue

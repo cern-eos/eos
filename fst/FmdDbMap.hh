@@ -22,7 +22,7 @@
 
 #pragma once
 #include "fst/Namespace.hh"
-#include "fst/Fmd.hh"
+#include "common/Fmd.hh"
 #include "common/DbMap.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
@@ -60,7 +60,7 @@ public:
   //!
   //! @return true if successful otherwise false
   //----------------------------------------------------------------------------
-  static bool EnvMgmToFmd(XrdOucEnv& env, struct Fmd& fmd);
+  static bool EnvMgmToFmd(XrdOucEnv& env, eos::common::Fmd& fmd);
 
   //----------------------------------------------------------------------------
   //! Convert namespace file proto md to an Fmd struct
@@ -70,7 +70,8 @@ public:
   //!
   //! @return true if successful otherwise false
   //----------------------------------------------------------------------------
-  static bool NsFileProtoToFmd(eos::ns::FileMdProto&& filemd, struct Fmd& fmd);
+  static bool NsFileProtoToFmd(eos::ns::FileMdProto&& filemd,
+                               eos::common::Fmd& fmd);
 
   //----------------------------------------------------------------------------
   //! Return Fmd from MGM doing getfmd command
@@ -82,7 +83,8 @@ public:
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
   static int GetMgmFmd(const std::string& manager,
-                       eos::common::FileId::fileid_t fid, struct Fmd& fmd);
+                       eos::common::FileId::fileid_t fid,
+                       eos::common::Fmd& fmd);
 
   //----------------------------------------------------------------------------
   //! Execute "fs dumpmd" on the MGM node
@@ -163,7 +165,7 @@ public:
   //!
   //! @return pointer to Fmd struct if successful, otherwise nullptr
   //----------------------------------------------------------------------------
-  std::unique_ptr<FmdHelper>
+  std::unique_ptr<eos::common::FmdHelper>
   LocalGetFmd(eos::common::FileId::fileid_t fid,
               eos::common::FileSystem::fsid_t fsid,
               bool force_retrieve = false, bool do_create = false,
@@ -186,7 +188,7 @@ public:
   //!
   //! @return true if record was committed, otherwise false
   //----------------------------------------------------------------------------
-  bool Commit(FmdHelper* fmd, bool lockit = true);
+  bool Commit(eos::common::FmdHelper* fmd, bool lockit = true);
 
   //----------------------------------------------------------------------------
   //! Update local fmd with info from the disk i.e. physical file extended
@@ -526,9 +528,10 @@ private:
   //! mutex corresponding to the filesystem locked
   //----------------------------------------------------------------------------
   bool LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
-                        eos::common::FileSystem::fsid_t fsid, Fmd& fmd)
+                        eos::common::FileSystem::fsid_t fsid,
+                        eos::common::Fmd& fmd)
   {
-    FmdHelper::Reset(fmd);
+    eos::common::FmdHelper::Reset(fmd);
     auto it = mDbMap.find(fsid);
 
     if (it == mDbMap.end()) {
@@ -559,7 +562,8 @@ private:
   //! mutex corresponding to the filesystem locked
   //----------------------------------------------------------------------------
   bool LocalPutFmd(eos::common::FileId::fileid_t fid,
-                   eos::common::FileSystem::fsid_t fsid, const Fmd& fmd)
+                   eos::common::FileSystem::fsid_t fsid,
+                   const eos::common::Fmd& fmd)
   {
     std::string sval;
     fmd.SerializePartialToString(&sval);

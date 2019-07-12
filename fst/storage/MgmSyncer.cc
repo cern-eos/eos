@@ -75,8 +75,7 @@ Storage::MgmSyncer()
     while (gOFS.WrittenFilesQueue.size() > 0) {
       // we enter this loop with the WrittenFilesQueueMutex locked
       time_t now = time(NULL);
-      struct Fmd fmd = gOFS.WrittenFilesQueue.front();
-      gOFS.WrittenFilesQueue.pop();
+      eos::common::Fmd fmd = gOFS.WrittenFilesQueue.front();
       gOFS.WrittenFilesQueueMutex.UnLock();
       eos_static_info("fxid=%08llx mtime=%llu", fmd.fid(), fmd.mtime());
       // guarantee that we delay the check by atleast 60 seconds to wait

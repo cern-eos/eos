@@ -66,7 +66,7 @@ FmdDbMapHandler::FmdDbMapHandler()
 // Convert an MGM env representation to an Fmd struct
 //------------------------------------------------------------------------------
 bool
-FmdDbMapHandler::EnvMgmToFmd(XrdOucEnv& env, struct Fmd& fmd)
+FmdDbMapHandler::EnvMgmToFmd(XrdOucEnv& env, eos::common::Fmd& fmd)
 {
   // Check that all tags are present
   if (!env.Get("id") ||
@@ -106,7 +106,7 @@ FmdDbMapHandler::EnvMgmToFmd(XrdOucEnv& env, struct Fmd& fmd)
 //----------------------------------------------------------------------------
 bool
 FmdDbMapHandler::NsFileProtoToFmd(eos::ns::FileMdProto&& filemd,
-                                  struct Fmd& fmd)
+                                  eos::common::Fmd& fmd)
 {
   fmd.set_fid(filemd.id());
   fmd.set_cid(filemd.cont_id());
@@ -157,7 +157,8 @@ FmdDbMapHandler::NsFileProtoToFmd(eos::ns::FileMdProto&& filemd,
 //------------------------------------------------------------------------------
 int
 FmdDbMapHandler::GetMgmFmd(const std::string& manager,
-                           eos::common::FileId::fileid_t fid, struct Fmd& fmd)
+                           eos::common::FileId::fileid_t fid,
+                           eos::common::Fmd& fmd)
 {
   if (!fid) {
     return EINVAL;
@@ -365,7 +366,7 @@ FmdDbMapHandler::ShutdownDB(eos::common::FileSystem::fsid_t fsid, bool do_lock)
 // Return/create an Fmd struct for the given file/filesystem id for user
 // uid/gid and layout layoutid
 //------------------------------------------------------------------------------
-std::unique_ptr<FmdHelper>
+std::unique_ptr<eos::common::FmdHelper>
 FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
                              eos::common::FileSystem::fsid_t fsid,
                              bool force_retrieve, bool do_create,
@@ -380,12 +381,13 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
   eos::common::RWMutexReadLock lock(mMapMutex);
 
   if (mDbMap.count(fsid)) {
-    Fmd valfmd;
+    eos::common::Fmd valfmd;
     {
       FsReadLock fs_rd_lock(fsid);
 
       if (LocalRetrieveFmd(fid, fsid, valfmd)) {
-        std::unique_ptr<FmdHelper> fmd {new FmdHelper()};
+        std::unique_ptr<eos::common::FmdHelper> fmd {
+          new eos::common::FmdHelper()};
 
         if (!fmd) {
           return nullptr;
@@ -412,10 +414,10 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
           // Don't return a record if there is a size mismatch
           if ((!do_create) &&
               ((fmd->mProtoFmd.disksize() &&
-                (fmd->mProtoFmd.disksize() != Fmd::UNDEF) &&
+                (fmd->mProtoFmd.disksize() != eos::common::Fmd::UNDEF) &&
                 (fmd->mProtoFmd.disksize() != fmd->mProtoFmd.size())) ||
                (fmd->mProtoFmd.mgmsize() &&
-                (fmd->mProtoFmd.mgmsize() != Fmd::UNDEF) &&
+                (fmd->mProtoFmd.mgmsize() != eos::common::Fmd::UNDEF) &&
                 (fmd->mProtoFmd.mgmsize() != fmd->mProtoFmd.size())))) {
             eos_crit("msg=\"size mismatch disk/mgm vs memory\" fxid=%08llx "
                      "fsid=%lu size=%llu disksize=%llu mgmsize=%llu",
@@ -452,7 +454,7 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
       struct timeval tv;
       struct timezone tz;
       gettimeofday(&tv, &tz);
-      FmdHelper::Reset(valfmd);
+      eos::common::FmdHelper::Reset(valfmd);
       FsWriteLock fs_wr_lock(fsid); // --> (return)
       valfmd.set_uid(uid);
       valfmd.set_gid(gid);
@@ -465,7 +467,8 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
       valfmd.set_ctime_ns(tv.tv_usec * 1000);
       valfmd.set_mtime_ns(tv.tv_usec * 1000);
       valfmd.set_atime_ns(tv.tv_usec * 1000);
-      std::unique_ptr<FmdHelper> fmd {new FmdHelper(fid, fsid)};
+      std::unique_ptr<eos::common::FmdHelper> fmd {
+        new eos::common::FmdHelper(fid, fsid)};
 
       if (!fmd) {
         return nullptr;
@@ -511,7 +514,7 @@ FmdDbMapHandler::LocalDeleteFmd(eos::common::FileId::fileid_t fid,
 // Commit modified Fmd record to the DB file
 //------------------------------------------------------------------------------
 bool
-FmdDbMapHandler::Commit(FmdHelper* fmd, bool lockit)
+FmdDbMapHandler::Commit(eos::common::FmdHelper* fmd, bool lockit)
 {
   if (!fmd) {
     return false;
@@ -576,7 +579,7 @@ FmdDbMapHandler::UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
             "fcxerror=%d bcxerror=%d flaglayouterror=%d",
             fsid, fid, disk_size, disk_xs.c_str(), check_ts_sec,
             filexs_err, blockxs_err, layout_err);
-  Fmd valfmd;
+  eos::common::Fmd valfmd;
   eos::common::RWMutexReadLock map_rd_lock(mMapMutex);
   FsWriteLock fs_wr_lock(fsid);
   (void)LocalRetrieveFmd(fid, fsid, valfmd);
@@ -589,7 +592,7 @@ FmdDbMapHandler::UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
   valfmd.set_blockcxerror(blockxs_err);
 
   // Update reference size only if undefined
-  if (valfmd.size() == Fmd::UNDEF) {
+  if (valfmd.size() == eos::common::Fmd::UNDEF) {
     valfmd.set_size(disk_size);
   }
 
@@ -631,7 +634,7 @@ FmdDbMapHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
 
   eos_debug("fsid=%lu fxid=%08llx cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s",
             (unsigned long) fsid, fid, cid, lid, mgmsize, mgmchecksum.c_str());
-  Fmd valfmd;
+  eos::common::Fmd valfmd;
   eos::common::RWMutexReadLock map_rd_lock(mMapMutex);
   FsWriteLock fs_wr_lock(fsid);
   (void)LocalRetrieveFmd(fid, fsid, valfmd);
@@ -738,9 +741,9 @@ FmdDbMapHandler::ResetDiskInformation(eos::common::FileSystem::fsid_t fsid)
     unsigned long cpt = 0;
 
     for (mDbMap[fsid]->beginIter(false); mDbMap[fsid]->iterate(&k, &v, false);) {
-      Fmd f;
+      eos::common::Fmd f;
       f.ParseFromString(v->value);
-      f.set_disksize(Fmd::UNDEF);
+      f.set_disksize(eos::common::Fmd::UNDEF);
       f.set_diskchecksum("");
       f.set_checktime(0);
       f.set_filecxerror(0);
@@ -782,9 +785,9 @@ FmdDbMapHandler::ResetMgmInformation(eos::common::FileSystem::fsid_t fsid)
     unsigned long cpt = 0;
 
     for (mDbMap[fsid]->beginIter(false); mDbMap[fsid]->iterate(&k, &v, false);) {
-      Fmd f;
+      eos::common::Fmd f;
       f.ParseFromString(v->value);
-      f.set_mgmsize(Fmd::UNDEF);
+      f.set_mgmsize(eos::common::Fmd::UNDEF);
       f.set_mgmchecksum("");
       f.set_locations("");
       val = *v;
@@ -966,8 +969,8 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
                            eos::common::FileId::fileid_t fid,
                            const char* manager)
 {
-  Fmd fMd;
-  FmdHelper::Reset(fMd);
+  eos::common::Fmd fMd;
+  eos::common::FmdHelper::Reset(fMd);
   int rc = GetMgmFmd((manager ? manager : ""), fid, fMd);
 
   if ((rc == 0) || (rc == ENODATA)) {
@@ -983,14 +986,14 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
     }
 
     // Define layouterrors
-    fMd.set_layouterror(FmdHelper::LayoutError(fMd, fsid));
+    fMd.set_layouterror(eos::common::FmdHelper::LayoutError(fMd, fsid));
     // Get an existing record without creating the record !!!
-    std::unique_ptr<FmdHelper> fmd {
+    std::unique_ptr<eos::common::FmdHelper> fmd {
       LocalGetFmd(fMd.fid(), fsid, true, false, fMd.uid(), fMd.gid(), fMd.lid())};
 
     if (fmd) {
       // Check if exists on disk
-      if (fmd->mProtoFmd.disksize() == Fmd::UNDEF) {
+      if (fmd->mProtoFmd.disksize() == eos::common::Fmd::UNDEF) {
         if (fMd.layouterror() & LayoutId::kUnregistered) {
           // There is no replica supposed to be here and there is nothing on
           // disk, so remove it from the database
@@ -1021,15 +1024,15 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
       }
 
       // Check if it exists on disk
-      if (fmd->mProtoFmd.disksize() == Fmd::UNDEF) {
+      if (fmd->mProtoFmd.disksize() == eos::common::Fmd::UNDEF) {
         fMd.set_layouterror(fMd.layouterror() | LayoutId::kMissing);
         eos_warning("msg=\"found missing replica\" fxid=%08llx on fsid=%lu",
                     fid, fsid);
       }
 
       // Check if it exists on disk and at the mgm
-      if ((fmd->mProtoFmd.disksize() == Fmd::UNDEF) &&
-          (fmd->mProtoFmd.mgmsize() == Fmd::UNDEF)) {
+      if ((fmd->mProtoFmd.disksize() == eos::common::Fmd::UNDEF) &&
+          (fmd->mProtoFmd.mgmsize() == eos::common::Fmd::UNDEF)) {
         // There is no replica supposed to be here and there is nothing on
         // disk, so remove it from the database
         eos_warning("removing <ghost> entry for fxid=%08llx on fsid=%lu", fid,
@@ -1079,18 +1082,18 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
     std::unique_ptr<XrdOucEnv> env(new XrdOucEnv(dumpentry.c_str()));
 
     if (env) {
-      Fmd fMd;
-      FmdHelper::Reset(fMd);
+      eos::common::Fmd fMd;
+      eos::common::FmdHelper::Reset(fMd);
 
       if (EnvMgmToFmd(*env, fMd)) {
         // get/create one
         auto fmd = LocalGetFmd(fMd.fid(), fsid, true, true, fMd.uid(),
                                fMd.gid(), fMd.lid());
-        fMd.set_layouterror(FmdHelper::LayoutError(fMd, fsid));
+        fMd.set_layouterror(eos::common::FmdHelper::LayoutError(fMd, fsid));
 
         if (fmd) {
           // Check if it exists on disk
-          if (fmd->mProtoFmd.disksize() == Fmd::UNDEF) {
+          if (fmd->mProtoFmd.disksize() == eos::common::Fmd::UNDEF) {
             fMd.set_layouterror(fMd.layouterror() | LayoutId::kMissing);
             eos_warning("found missing replica for fxid=%08llx on fsid=%lu", fMd.fid(),
                         (unsigned long) fsid);
@@ -1176,8 +1179,8 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contactDetails,
   }
 
   while (!files.empty()) {
-    Fmd ns_fmd;
-    FmdHelper::Reset(ns_fmd);
+    eos::common::Fmd ns_fmd;
+    eos::common::FmdHelper::Reset(ns_fmd);
 
     try {
       NsFileProtoToFmd(files.front().get(), ns_fmd);
@@ -1190,11 +1193,11 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contactDetails,
     files.pop_front();
     auto local_fmd = LocalGetFmd(ns_fmd.fid(), fsid, true, true, ns_fmd.uid(),
                                  ns_fmd.gid(), ns_fmd.lid());
-    ns_fmd.set_layouterror(FmdHelper::LayoutError(ns_fmd, fsid));
+    ns_fmd.set_layouterror(eos::common::FmdHelper::LayoutError(ns_fmd, fsid));
 
     if (local_fmd) {
       // Check if it exists on disk
-      if (local_fmd->mProtoFmd.disksize() == Fmd::UNDEF) {
+      if (local_fmd->mProtoFmd.disksize() == eos::common::Fmd::UNDEF) {
         ns_fmd.set_layouterror(ns_fmd.layouterror() | LayoutId::kMissing);
         eos_warning("found missing replica for fxid=%08llx on fsid=%lu",
                     ns_fmd.fid(), (unsigned long) fsid);
@@ -1272,7 +1275,7 @@ FmdDbMapHandler::RemoveGhostEntries(const char* fs_root,
 
       // Report values only when we are not in the sync phase from disk/mgm
       for (db_map->beginIter(false); db_map->iterate(&k, &v, false);) {
-        Fmd f;
+        eos::common::Fmd f;
         eos::common::FileId::fileid_t fid {0ul};
         f.ParseFromString(v->value);
         (void)memcpy(&fid, (void*)k->data(), k->size());
@@ -1358,7 +1361,7 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
 
     // We report values only when we are not in the sync phase from disk/mgm
     for (mDbMap[fsid]->beginIter(false); mDbMap[fsid]->iterate(&k, &v, false);) {
-      Fmd f;
+      eos::common::Fmd f;
       f.ParseFromString(v->value);
       statistics["mem_n"]++;
 
@@ -1384,10 +1387,10 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
         }
       }
 
-      if (f.mgmsize() != Fmd::UNDEF) {
+      if (f.mgmsize() != eos::common::Fmd::UNDEF) {
         statistics["m_sync_n"]++;
 
-        if (f.size() != Fmd::UNDEF) {
+        if (f.size() != eos::common::Fmd::UNDEF) {
           if (f.size() != f.mgmsize()) {
             statistics["m_mem_sz_diff"]++;
             fidset["m_mem_sz_diff"].insert(f.fid());
@@ -1409,10 +1412,10 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
         }
       }
 
-      if (f.disksize() != Fmd::UNDEF) {
+      if (f.disksize() != eos::common::Fmd::UNDEF) {
         statistics["d_sync_n"]++;
 
-        if (f.size() != Fmd::UNDEF) {
+        if (f.size() != eos::common::Fmd::UNDEF) {
           // Report missmatch only for replica layout files
           if ((f.size() != f.disksize()) &&
               (eos::common::LayoutId::GetLayoutType(f.lid())
