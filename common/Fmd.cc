@@ -25,7 +25,7 @@ EOSCOMMONNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Convert an FST env representation to an Fmd struct
 //------------------------------------------------------------------------------
-bool EnvToFstFmd(XrdOucEnv& env, struct Fmd& fmd)
+bool EnvToFstFmd(XrdOucEnv& env, FmdHelper& fmd)
 {
   // Check that all tags are present
   if (!env.Get("id") ||
@@ -41,35 +41,35 @@ bool EnvToFstFmd(XrdOucEnv& env, struct Fmd& fmd)
     return false;
   }
 
-  fmd.set_fid(strtoull(env.Get("id"), 0, 10));
-  fmd.set_cid(strtoull(env.Get("cid"), 0, 10));
-  fmd.set_ctime(strtoul(env.Get("ctime"), 0, 10));
-  fmd.set_ctime_ns(strtoul(env.Get("ctime_ns"), 0, 10));
-  fmd.set_mtime(strtoul(env.Get("mtime"), 0, 10));
-  fmd.set_mtime_ns(strtoul(env.Get("mtime_ns"), 0, 10));
-  fmd.set_size(strtoull(env.Get("size"), 0, 10));
-  fmd.set_lid(strtoul(env.Get("lid"), 0, 10));
-  fmd.set_uid((uid_t) strtoul(env.Get("uid"), 0, 10));
-  fmd.set_gid((gid_t) strtoul(env.Get("gid"), 0, 10));
+  fmd.mProtoFmd.set_fid(strtoull(env.Get("id"), 0, 10));
+  fmd.mProtoFmd.set_cid(strtoull(env.Get("cid"), 0, 10));
+  fmd.mProtoFmd.set_ctime(strtoul(env.Get("ctime"), 0, 10));
+  fmd.mProtoFmd.set_ctime_ns(strtoul(env.Get("ctime_ns"), 0, 10));
+  fmd.mProtoFmd.set_mtime(strtoul(env.Get("mtime"), 0, 10));
+  fmd.mProtoFmd.set_mtime_ns(strtoul(env.Get("mtime_ns"), 0, 10));
+  fmd.mProtoFmd.set_size(strtoull(env.Get("size"), 0, 10));
+  fmd.mProtoFmd.set_lid(strtoul(env.Get("lid"), 0, 10));
+  fmd.mProtoFmd.set_uid((uid_t) strtoul(env.Get("uid"), 0, 10));
+  fmd.mProtoFmd.set_gid((gid_t) strtoul(env.Get("gid"), 0, 10));
 
   if (env.Get("checksum")) {
-    fmd.set_checksum(env.Get("checksum"));
+    fmd.mProtoFmd.set_checksum(env.Get("checksum"));
 
-    if (fmd.checksum() == "none") {
-      fmd.set_checksum("");
+    if (fmd.mProtoFmd.checksum() == "none") {
+      fmd.mProtoFmd.set_checksum("");
     }
   } else {
-    fmd.set_checksum("");
+    fmd.mProtoFmd.set_checksum("");
   }
 
   if (env.Get("diskchecksum")) {
-    fmd.set_diskchecksum(env.Get("diskchecksum"));
+    fmd.mProtoFmd.set_diskchecksum(env.Get("diskchecksum"));
 
-    if (fmd.diskchecksum() == "none") {
-      fmd.set_diskchecksum("");
+    if (fmd.mProtoFmd.diskchecksum() == "none") {
+      fmd.mProtoFmd.set_diskchecksum("");
     }
   } else {
-    fmd.set_diskchecksum("");
+    fmd.mProtoFmd.set_diskchecksum("");
   }
 
   return true;
@@ -79,9 +79,9 @@ bool EnvToFstFmd(XrdOucEnv& env, struct Fmd& fmd)
 // Compute layout error
 //------------------------------------------------------------------------------
 int
-FmdHelper::LayoutError(const Fmd& fmd, eos::common::FileSystem::fsid_t fsid)
+FmdHelper::LayoutError(eos::common::FileSystem::fsid_t fsid)
 {
-  uint32_t lid = fmd.lid();
+  uint32_t lid = mProtoFmd.lid();
 
   if (lid == 0) {
     // An orphan has no lid at the MGM e.g. lid=0
@@ -89,7 +89,7 @@ FmdHelper::LayoutError(const Fmd& fmd, eos::common::FileSystem::fsid_t fsid)
   }
 
   size_t valid_replicas = 0;
-  auto location_set = GetLocations(fmd, valid_replicas);
+  auto location_set = GetLocations(valid_replicas);
   size_t nstripes = eos::common::LayoutId::GetStripeNumber(lid) + 1;
   int lerror = 0;
 
@@ -108,41 +108,42 @@ FmdHelper::LayoutError(const Fmd& fmd, eos::common::FileSystem::fsid_t fsid)
 // Reset file meta data object
 //---------------------------------------------------------------------------
 void
-FmdHelper::Reset(Fmd& fmd)
+FmdHelper::Reset()
 {
-  fmd.set_fid(0);
-  fmd.set_cid(0);
-  fmd.set_ctime(0);
-  fmd.set_ctime_ns(0);
-  fmd.set_mtime(0);
-  fmd.set_mtime_ns(0);
-  fmd.set_atime(0);
-  fmd.set_atime_ns(0);
-  fmd.set_checktime(0);
-  fmd.set_size(Fmd::UNDEF);
-  fmd.set_disksize(Fmd::UNDEF);
-  fmd.set_mgmsize(Fmd::UNDEF);
-  fmd.set_checksum("");
-  fmd.set_diskchecksum("");
-  fmd.set_mgmchecksum("");
-  fmd.set_lid(0);
-  fmd.set_uid(0);
-  fmd.set_gid(0);
-  fmd.set_filecxerror(0);
-  fmd.set_blockcxerror(0);
-  fmd.set_layouterror(0);
-  fmd.set_locations("");
+  mProtoFmd.set_fid(0);
+  mProtoFmd.set_cid(0);
+  mProtoFmd.set_ctime(0);
+  mProtoFmd.set_ctime_ns(0);
+  mProtoFmd.set_mtime(0);
+  mProtoFmd.set_mtime_ns(0);
+  mProtoFmd.set_atime(0);
+  mProtoFmd.set_atime_ns(0);
+  mProtoFmd.set_checktime(0);
+  mProtoFmd.set_size(UNDEF);
+  mProtoFmd.set_disksize(UNDEF);
+  mProtoFmd.set_mgmsize(UNDEF);
+  mProtoFmd.set_checksum("");
+  mProtoFmd.set_diskchecksum("");
+  mProtoFmd.set_mgmchecksum("");
+  mProtoFmd.set_lid(0);
+  mProtoFmd.set_uid(0);
+  mProtoFmd.set_gid(0);
+  mProtoFmd.set_filecxerror(0);
+  mProtoFmd.set_blockcxerror(0);
+  mProtoFmd.set_layouterror(0);
+  mProtoFmd.set_locations("");
 }
 
 //---------------------------------------------------------------------------
 // Get the set of all file system id locations of the current file
 //---------------------------------------------------------------------------
 std::set<eos::common::FileSystem::fsid_t>
-FmdHelper::GetLocations(const Fmd& fmd, size_t& valid_replicas)
+FmdHelper::GetLocations(size_t& valid_replicas)
 {
   valid_replicas = 0;
   std::vector<std::string> location_vector;
-  eos::common::StringConversion::Tokenize(fmd.locations(), location_vector, ",");
+  eos::common::StringConversion::Tokenize(mProtoFmd.locations(), location_vector,
+                                          ",");
   std::set<eos::common::FileSystem::fsid_t> location_set;
 
   for (size_t i = 0; i < location_vector.size(); i++) {
@@ -166,21 +167,20 @@ FmdHelper::GetLocations(const Fmd& fmd, size_t& valid_replicas)
 std::unique_ptr<XrdOucEnv>
 FmdHelper::FmdToEnv()
 {
-  std::ostringstream serializedStream;
-  serializedStream << "id=" << mProtoFmd.fid()
-                   << "&cid=" << mProtoFmd.cid()
-                   << "&ctime=" << mProtoFmd.ctime()
-                   << "&ctime_ns=" << mProtoFmd.ctime_ns()
-                   << "&mtime=" << mProtoFmd.mtime()
-                   << "&mtime_ns=" << mProtoFmd.mtime_ns()
-                   << "&size=" << mProtoFmd.size()
-                   << "&checksum=" << mProtoFmd.checksum()
-                   << "&diskchecksum=" << mProtoFmd.diskchecksum()
-                   << "&lid=" << mProtoFmd.lid()
-                   << "&uid=" << mProtoFmd.uid()
-                   << "&gid=" << mProtoFmd.gid() << '&';
-  return std::unique_ptr<XrdOucEnv>(new XrdOucEnv(
-                                      serializedStream.str().c_str()));
+  std::ostringstream oss;
+  oss << "id=" << mProtoFmd.fid()
+      << "&cid=" << mProtoFmd.cid()
+      << "&ctime=" << mProtoFmd.ctime()
+      << "&ctime_ns=" << mProtoFmd.ctime_ns()
+      << "&mtime=" << mProtoFmd.mtime()
+      << "&mtime_ns=" << mProtoFmd.mtime_ns()
+      << "&size=" << mProtoFmd.size()
+      << "&checksum=" << mProtoFmd.checksum()
+      << "&diskchecksum=" << mProtoFmd.diskchecksum()
+      << "&lid=" << mProtoFmd.lid()
+      << "&uid=" << mProtoFmd.uid()
+      << "&gid=" << mProtoFmd.gid() << '&';
+  return std::unique_ptr<XrdOucEnv> (new XrdOucEnv(oss.str().c_str()));
 }
 
 //-------------------------------------------------------------------------------
@@ -189,32 +189,32 @@ FmdHelper::FmdToEnv()
 std::unique_ptr<XrdOucEnv>
 FmdHelper::FullFmdToEnv()
 {
-  std::ostringstream serializedStream;
-  serializedStream << "id=" << mProtoFmd.fid()
-                   << "&cid=" << mProtoFmd.cid()
-                   << "&fsid=" << mProtoFmd.fsid()
-                   << "&ctime=" << mProtoFmd.ctime()
-                   << "&ctime_ns=" << mProtoFmd.ctime_ns()
-                   << "&mtime=" << mProtoFmd.mtime()
-                   << "&mtime_ns=" << mProtoFmd.mtime_ns()
-                   << "&atime=" << mProtoFmd.atime()
-                   << "&atime_ns=" << mProtoFmd.atime_ns()
-                   << "&size=" << mProtoFmd.size()
-                   << "&disksize=" << mProtoFmd.disksize()
-                   << "&mgmsize=" << mProtoFmd.mgmsize()
-                   << "&checksum=" << mProtoFmd.checksum()
-                   << "&diskchecksum=" << mProtoFmd.diskchecksum()
-                   << "&mgmchecksum=" << mProtoFmd.mgmchecksum()
-                   << "&lid=0x" << std::hex << mProtoFmd.lid() << std::dec
-                   << "&uid=" << mProtoFmd.uid()
-                   << "&gid=" << mProtoFmd.gid()
-                   << "&filecxerror=0x" << std::hex << mProtoFmd.filecxerror()
-                   << "&blockcxerror=0x" << mProtoFmd.blockcxerror()
-                   << "&layouterror=0x" << mProtoFmd.layouterror()
-                   << "&locations=" << std::dec << mProtoFmd.locations()
-                   << '&';
-  return std::unique_ptr<XrdOucEnv>(new XrdOucEnv(
-                                      serializedStream.str().c_str()));
+  std::ostringstream oss;
+  oss << "id=" << mProtoFmd.fid()
+      << "&cid=" << mProtoFmd.cid()
+      << "&fsid=" << mProtoFmd.fsid()
+      << "&ctime=" << mProtoFmd.ctime()
+      << "&ctime_ns=" << mProtoFmd.ctime_ns()
+      << "&mtime=" << mProtoFmd.mtime()
+      << "&mtime_ns=" << mProtoFmd.mtime_ns()
+      << "&atime=" << mProtoFmd.atime()
+      << "&atime_ns=" << mProtoFmd.atime_ns()
+      << "&size=" << mProtoFmd.size()
+      << "&disksize=" << mProtoFmd.disksize()
+      << "&mgmsize=" << mProtoFmd.mgmsize()
+      << "&checksum=" << mProtoFmd.checksum()
+      << "&diskchecksum=" << mProtoFmd.diskchecksum()
+      << "&mgmchecksum=" << mProtoFmd.mgmchecksum()
+      << "&lid=0x" << std::hex << mProtoFmd.lid() << std::dec
+      << "&uid=" << mProtoFmd.uid()
+      << "&gid=" << mProtoFmd.gid()
+      << "&filecxerror=0x" << std::hex << mProtoFmd.filecxerror()
+      << "&blockcxerror=0x" << mProtoFmd.blockcxerror()
+      << "&layouterror=0x" << mProtoFmd.layouterror()
+      << "&locations=" << std::dec << mProtoFmd.locations()
+      << '&';
+  return std::unique_ptr<XrdOucEnv>
+         (new XrdOucEnv(oss.str().c_str()));
 }
 
 EOSCOMMONNAMESPACE_END

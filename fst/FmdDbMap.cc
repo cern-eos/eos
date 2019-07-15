@@ -1,7 +1,7 @@
-//------------- ----------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: FmdDbMap.cc
 // Author: Geoffray Adde - CERN
-//------------- ----------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -66,7 +66,7 @@ FmdDbMapHandler::FmdDbMapHandler()
 // Convert an MGM env representation to an Fmd struct
 //------------------------------------------------------------------------------
 bool
-FmdDbMapHandler::EnvMgmToFmd(XrdOucEnv& env, eos::common::Fmd& fmd)
+FmdDbMapHandler::EnvMgmToFmd(XrdOucEnv& env, eos::common::FmdHelper& fmd)
 {
   // Check that all tags are present
   if (!env.Get("id") ||
@@ -83,21 +83,22 @@ FmdDbMapHandler::EnvMgmToFmd(XrdOucEnv& env, eos::common::Fmd& fmd)
     return false;
   }
 
-  fmd.set_fid(strtoull(env.Get("id"), 0, 10));
-  fmd.set_cid(strtoull(env.Get("cid"), 0, 10));
-  fmd.set_ctime(strtoul(env.Get("ctime"), 0, 10));
-  fmd.set_ctime_ns(strtoul(env.Get("ctime_ns"), 0, 10));
-  fmd.set_mtime(strtoul(env.Get("mtime"), 0, 10));
-  fmd.set_mtime_ns(strtoul(env.Get("mtime_ns"), 0, 10));
-  fmd.set_mgmsize(strtoull(env.Get("size"), 0, 10));
-  fmd.set_lid(strtoul(env.Get("lid"), 0, 10));
-  fmd.set_uid((uid_t) strtoul(env.Get("uid"), 0, 10));
-  fmd.set_gid((gid_t) strtoul(env.Get("gid"), 0, 10));
-  fmd.set_mgmchecksum(env.Get("checksum"));
-  fmd.set_locations(env.Get("location") ? env.Get("location") : "");
-  size_t cslen = eos::common::LayoutId::GetChecksumLen(fmd.lid()) * 2;
-  fmd.set_mgmchecksum(std::string(fmd.mgmchecksum()).erase(std::min(
-                        fmd.mgmchecksum().length(), cslen)));
+  fmd.mProtoFmd.set_fid(strtoull(env.Get("id"), 0, 10));
+  fmd.mProtoFmd.set_cid(strtoull(env.Get("cid"), 0, 10));
+  fmd.mProtoFmd.set_ctime(strtoul(env.Get("ctime"), 0, 10));
+  fmd.mProtoFmd.set_ctime_ns(strtoul(env.Get("ctime_ns"), 0, 10));
+  fmd.mProtoFmd.set_mtime(strtoul(env.Get("mtime"), 0, 10));
+  fmd.mProtoFmd.set_mtime_ns(strtoul(env.Get("mtime_ns"), 0, 10));
+  fmd.mProtoFmd.set_mgmsize(strtoull(env.Get("size"), 0, 10));
+  fmd.mProtoFmd.set_lid(strtoul(env.Get("lid"), 0, 10));
+  fmd.mProtoFmd.set_uid((uid_t) strtoul(env.Get("uid"), 0, 10));
+  fmd.mProtoFmd.set_gid((gid_t) strtoul(env.Get("gid"), 0, 10));
+  fmd.mProtoFmd.set_mgmchecksum(env.Get("checksum"));
+  fmd.mProtoFmd.set_locations(env.Get("location") ? env.Get("location") : "");
+  size_t cslen = eos::common::LayoutId::GetChecksumLen(fmd.mProtoFmd.lid()) * 2;
+  fmd.mProtoFmd.set_mgmchecksum(std::string(fmd.mProtoFmd.mgmchecksum()).erase(
+                                  std::min(
+                                    fmd.mProtoFmd.mgmchecksum().length(), cslen)));
   return true;
 }
 
@@ -106,22 +107,22 @@ FmdDbMapHandler::EnvMgmToFmd(XrdOucEnv& env, eos::common::Fmd& fmd)
 //----------------------------------------------------------------------------
 bool
 FmdDbMapHandler::NsFileProtoToFmd(eos::ns::FileMdProto&& filemd,
-                                  eos::common::Fmd& fmd)
+                                  eos::common::FmdHelper& fmd)
 {
-  fmd.set_fid(filemd.id());
-  fmd.set_cid(filemd.cont_id());
+  fmd.mProtoFmd.set_fid(filemd.id());
+  fmd.mProtoFmd.set_cid(filemd.cont_id());
   eos::IFileMD::ctime_t ctime;
   (void) memcpy(&ctime, filemd.ctime().data(), sizeof(ctime));
   eos::IFileMD::ctime_t mtime;
   (void) memcpy(&mtime, filemd.mtime().data(), sizeof(mtime));
-  fmd.set_ctime(ctime.tv_sec);
-  fmd.set_ctime_ns(ctime.tv_nsec);
-  fmd.set_mtime(mtime.tv_sec);
-  fmd.set_mtime_ns(mtime.tv_nsec);
-  fmd.set_mgmsize(filemd.size());
-  fmd.set_lid(filemd.layout_id());
-  fmd.set_uid(filemd.uid());
-  fmd.set_gid(filemd.gid());
+  fmd.mProtoFmd.set_ctime(ctime.tv_sec);
+  fmd.mProtoFmd.set_ctime_ns(ctime.tv_nsec);
+  fmd.mProtoFmd.set_mtime(mtime.tv_sec);
+  fmd.mProtoFmd.set_mtime_ns(mtime.tv_nsec);
+  fmd.mProtoFmd.set_mgmsize(filemd.size());
+  fmd.mProtoFmd.set_lid(filemd.layout_id());
+  fmd.mProtoFmd.set_uid(filemd.uid());
+  fmd.mProtoFmd.set_gid(filemd.gid());
   std::string str_xs;
   uint8_t size = filemd.checksum().size();
 
@@ -136,7 +137,7 @@ FmdDbMapHandler::NsFileProtoToFmd(eos::ns::FileMdProto&& filemd,
   size_t cslen = eos::common::LayoutId::GetChecksumLen(filemd.layout_id()) * 2;
   // Truncate the checksum to the right string length
   str_xs.erase(std::min(str_xs.length(), cslen));
-  fmd.set_mgmchecksum(str_xs);
+  fmd.mProtoFmd.set_mgmchecksum(str_xs);
   std::string slocations;
 
   for (const auto& loc : filemd.locations()) {
@@ -148,7 +149,7 @@ FmdDbMapHandler::NsFileProtoToFmd(eos::ns::FileMdProto&& filemd,
     slocations.pop_back();
   }
 
-  fmd.set_locations(slocations);
+  fmd.mProtoFmd.set_locations(slocations);
   return true;
 }
 
@@ -158,7 +159,7 @@ FmdDbMapHandler::NsFileProtoToFmd(eos::ns::FileMdProto&& filemd,
 int
 FmdDbMapHandler::GetMgmFmd(const std::string& manager,
                            eos::common::FileId::fileid_t fid,
-                           eos::common::Fmd& fmd)
+                           eos::common::FmdHelper& fmd)
 {
   if (!fid) {
     return EINVAL;
@@ -259,9 +260,9 @@ FmdDbMapHandler::GetMgmFmd(const std::string& manager,
     return EIO;
   }
 
-  if (fmd.fid() != fid) {
+  if (fmd.mProtoFmd.fid() != fid) {
     eos_static_err("msg=\"received wrong meta data from mgm\" fid=%08llx "
-                   "recv_fid=%08llx", fmd.fid(), fid);
+                   "recv_fid=%08llx", fmd.mProtoFmd.fid(), fid);
     return EIO;
   }
 
@@ -381,7 +382,7 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
   eos::common::RWMutexReadLock lock(mMapMutex);
 
   if (mDbMap.count(fsid)) {
-    eos::common::Fmd valfmd;
+    eos::common::FmdHelper valfmd;
     {
       FsReadLock fs_rd_lock(fsid);
 
@@ -414,10 +415,10 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
           // Don't return a record if there is a size mismatch
           if ((!do_create) &&
               ((fmd->mProtoFmd.disksize() &&
-                (fmd->mProtoFmd.disksize() != eos::common::Fmd::UNDEF) &&
+                (fmd->mProtoFmd.disksize() != eos::common::FmdHelper::UNDEF) &&
                 (fmd->mProtoFmd.disksize() != fmd->mProtoFmd.size())) ||
                (fmd->mProtoFmd.mgmsize() &&
-                (fmd->mProtoFmd.mgmsize() != eos::common::Fmd::UNDEF) &&
+                (fmd->mProtoFmd.mgmsize() != eos::common::FmdHelper::UNDEF) &&
                 (fmd->mProtoFmd.mgmsize() != fmd->mProtoFmd.size())))) {
             eos_crit("msg=\"size mismatch disk/mgm vs memory\" fxid=%08llx "
                      "fsid=%lu size=%llu disksize=%llu mgmsize=%llu",
@@ -454,19 +455,19 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
       struct timeval tv;
       struct timezone tz;
       gettimeofday(&tv, &tz);
-      eos::common::FmdHelper::Reset(valfmd);
+      valfmd.Reset();
       FsWriteLock fs_wr_lock(fsid); // --> (return)
-      valfmd.set_uid(uid);
-      valfmd.set_gid(gid);
-      valfmd.set_lid(layoutid);
-      valfmd.set_fsid(fsid);
-      valfmd.set_fid(fid);
-      valfmd.set_ctime(tv.tv_sec);
-      valfmd.set_mtime(tv.tv_sec);
-      valfmd.set_atime(tv.tv_sec);
-      valfmd.set_ctime_ns(tv.tv_usec * 1000);
-      valfmd.set_mtime_ns(tv.tv_usec * 1000);
-      valfmd.set_atime_ns(tv.tv_usec * 1000);
+      valfmd.mProtoFmd.set_uid(uid);
+      valfmd.mProtoFmd.set_gid(gid);
+      valfmd.mProtoFmd.set_lid(layoutid);
+      valfmd.mProtoFmd.set_fsid(fsid);
+      valfmd.mProtoFmd.set_fid(fid);
+      valfmd.mProtoFmd.set_ctime(tv.tv_sec);
+      valfmd.mProtoFmd.set_mtime(tv.tv_sec);
+      valfmd.mProtoFmd.set_atime(tv.tv_sec);
+      valfmd.mProtoFmd.set_ctime_ns(tv.tv_usec * 1000);
+      valfmd.mProtoFmd.set_mtime_ns(tv.tv_usec * 1000);
+      valfmd.mProtoFmd.set_atime_ns(tv.tv_usec * 1000);
       std::unique_ptr<eos::common::FmdHelper> fmd {
         new eos::common::FmdHelper(fid, fsid)};
 
@@ -536,7 +537,7 @@ FmdDbMapHandler::Commit(eos::common::FmdHelper* fmd, bool lockit)
   }
 
   if (mDbMap.count(fsid)) {
-    bool res = LocalPutFmd(fid, fsid, fmd->mProtoFmd);
+    bool res = LocalPutFmd(fid, fsid, *fmd);
 
     // Updateed in-memory
     if (lockit) {
@@ -579,32 +580,32 @@ FmdDbMapHandler::UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
             "fcxerror=%d bcxerror=%d flaglayouterror=%d",
             fsid, fid, disk_size, disk_xs.c_str(), check_ts_sec,
             filexs_err, blockxs_err, layout_err);
-  eos::common::Fmd valfmd;
+  eos::common::FmdHelper valfmd;
   eos::common::RWMutexReadLock map_rd_lock(mMapMutex);
   FsWriteLock fs_wr_lock(fsid);
   (void)LocalRetrieveFmd(fid, fsid, valfmd);
-  valfmd.set_fid(fid);
-  valfmd.set_fsid(fsid);
-  valfmd.set_disksize(disk_size);
-  valfmd.set_diskchecksum(disk_xs);
-  valfmd.set_checktime(check_ts_sec);
-  valfmd.set_filecxerror(filexs_err);
-  valfmd.set_blockcxerror(blockxs_err);
+  valfmd.mProtoFmd.set_fid(fid);
+  valfmd.mProtoFmd.set_fsid(fsid);
+  valfmd.mProtoFmd.set_disksize(disk_size);
+  valfmd.mProtoFmd.set_diskchecksum(disk_xs);
+  valfmd.mProtoFmd.set_checktime(check_ts_sec);
+  valfmd.mProtoFmd.set_filecxerror(filexs_err);
+  valfmd.mProtoFmd.set_blockcxerror(blockxs_err);
 
   // Update reference size only if undefined
-  if (valfmd.size() == eos::common::Fmd::UNDEF) {
-    valfmd.set_size(disk_size);
+  if (valfmd.mProtoFmd.size() == eos::common::FmdHelper::UNDEF) {
+    valfmd.mProtoFmd.set_size(disk_size);
   }
 
   // Update the reference checksum only if empty
-  if (valfmd.checksum().empty()) {
-    valfmd.set_checksum(disk_xs);
+  if (valfmd.mProtoFmd.checksum().empty()) {
+    valfmd.mProtoFmd.set_checksum(disk_xs);
   }
 
   if (layout_err) {
     // If the mgm sync is run afterwards, every disk file is by construction an
     // orphan, until it is synced from the mgm
-    valfmd.set_layouterror(LayoutId::kOrphan);
+    valfmd.mProtoFmd.set_layouterror(LayoutId::kOrphan);
   }
 
   return LocalPutFmd(fid, fsid, valfmd);
@@ -634,30 +635,31 @@ FmdDbMapHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
 
   eos_debug("fsid=%lu fxid=%08llx cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s",
             (unsigned long) fsid, fid, cid, lid, mgmsize, mgmchecksum.c_str());
-  eos::common::Fmd valfmd;
+  eos::common::FmdHelper valfmd;
   eos::common::RWMutexReadLock map_rd_lock(mMapMutex);
   FsWriteLock fs_wr_lock(fsid);
   (void)LocalRetrieveFmd(fid, fsid, valfmd);
-  valfmd.set_mgmsize(mgmsize);
-  valfmd.set_size(mgmsize);
-  //valfmd.set_checksum(mgmchecksum);
-  valfmd.set_mgmchecksum(mgmchecksum);
-  valfmd.set_cid(cid);
-  valfmd.set_lid(lid);
-  valfmd.set_uid(uid);
-  valfmd.set_gid(gid);
-  valfmd.set_ctime(ctime);
-  valfmd.set_ctime_ns(ctime_ns);
-  valfmd.set_mtime(mtime);
-  valfmd.set_mtime_ns(mtime_ns);
-  valfmd.set_layouterror(layouterror);
-  valfmd.set_locations(locations);
+  valfmd.mProtoFmd.set_mgmsize(mgmsize);
+  valfmd.mProtoFmd.set_size(mgmsize);
+  //valfmd.mProtoFmd.set_checksum(mgmchecksum);
+  valfmd.mProtoFmd.set_mgmchecksum(mgmchecksum);
+  valfmd.mProtoFmd.set_cid(cid);
+  valfmd.mProtoFmd.set_lid(lid);
+  valfmd.mProtoFmd.set_uid(uid);
+  valfmd.mProtoFmd.set_gid(gid);
+  valfmd.mProtoFmd.set_ctime(ctime);
+  valfmd.mProtoFmd.set_ctime_ns(ctime_ns);
+  valfmd.mProtoFmd.set_mtime(mtime);
+  valfmd.mProtoFmd.set_mtime_ns(mtime_ns);
+  valfmd.mProtoFmd.set_layouterror(layouterror);
+  valfmd.mProtoFmd.set_locations(locations);
   // Truncate the checksum to the right length
   size_t cslen = LayoutId::GetChecksumLen(lid) * 2;
-  valfmd.set_mgmchecksum(std::string(valfmd.mgmchecksum()).erase
-                         (std::min(valfmd.mgmchecksum().length(), cslen)));
-  // valfmd.set_checksum(std::string(valfmd.checksum()).erase
-  //                     (std::min(valfmd.checksum().length(), cslen)));
+  valfmd.mProtoFmd.set_mgmchecksum(std::string(
+                                     valfmd.mProtoFmd.mgmchecksum()).erase
+                                   (std::min(valfmd.mProtoFmd.mgmchecksum().length(), cslen)));
+  // valfmd.mProtoFmd.set_checksum(std::string(valfmd.mProtoFmd.checksum()).erase
+  //                     (std::min(valfmd.mProtoFmd.checksum().length(), cslen)));
   return LocalPutFmd(fid, fsid, valfmd);
 }
 
@@ -741,15 +743,15 @@ FmdDbMapHandler::ResetDiskInformation(eos::common::FileSystem::fsid_t fsid)
     unsigned long cpt = 0;
 
     for (mDbMap[fsid]->beginIter(false); mDbMap[fsid]->iterate(&k, &v, false);) {
-      eos::common::Fmd f;
-      f.ParseFromString(v->value);
-      f.set_disksize(eos::common::Fmd::UNDEF);
-      f.set_diskchecksum("");
-      f.set_checktime(0);
-      f.set_filecxerror(0);
-      f.set_blockcxerror(0);
+      eos::common::FmdHelper f;
+      f.mProtoFmd.ParseFromString(v->value);
+      f.mProtoFmd.set_disksize(eos::common::FmdHelper::UNDEF);
+      f.mProtoFmd.set_diskchecksum("");
+      f.mProtoFmd.set_checktime(0);
+      f.mProtoFmd.set_filecxerror(0);
+      f.mProtoFmd.set_blockcxerror(0);
       val = *v;
-      f.SerializeToString(&val.value);
+      f.mProtoFmd.SerializeToString(&val.value);
       mDbMap[fsid]->set(*k, val);
       cpt++;
     }
@@ -785,13 +787,13 @@ FmdDbMapHandler::ResetMgmInformation(eos::common::FileSystem::fsid_t fsid)
     unsigned long cpt = 0;
 
     for (mDbMap[fsid]->beginIter(false); mDbMap[fsid]->iterate(&k, &v, false);) {
-      eos::common::Fmd f;
-      f.ParseFromString(v->value);
-      f.set_mgmsize(eos::common::Fmd::UNDEF);
-      f.set_mgmchecksum("");
-      f.set_locations("");
+      eos::common::FmdHelper f;
+      f.mProtoFmd.ParseFromString(v->value);
+      f.mProtoFmd.set_mgmsize(eos::common::FmdHelper::UNDEF);
+      f.mProtoFmd.set_mgmchecksum("");
+      f.mProtoFmd.set_locations("");
       val = *v;
-      f.SerializeToString(&val.value);
+      f.mProtoFmd.SerializeToString(&val.value);
       mDbMap[fsid]->set(*k, val);
       cpt++;
     }
@@ -969,75 +971,80 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
                            eos::common::FileId::fileid_t fid,
                            const char* manager)
 {
-  eos::common::Fmd fMd;
-  eos::common::FmdHelper::Reset(fMd);
+  eos::common::FmdHelper fMd;
   int rc = GetMgmFmd((manager ? manager : ""), fid, fMd);
 
   if ((rc == 0) || (rc == ENODATA)) {
     if (rc == ENODATA) {
-      eos_warning("no such file on MGM for fxid=%08llx", fid);
-      fMd.set_fid(fid);
+      eos_warning("msg=\"file not found on MGM\" fxid=%08llx", fid);
+      fMd.mProtoFmd.set_fid(fid);
 
       if (fid == 0) {
         eos_warning("msg=\"removing fxid=0 entry\"");
-        LocalDeleteFmd(fMd.fid(), fsid);
+        LocalDeleteFmd(fMd.mProtoFmd.fid(), fsid);
         return true;
       }
     }
 
     // Define layouterrors
-    fMd.set_layouterror(eos::common::FmdHelper::LayoutError(fMd, fsid));
+    fMd.mProtoFmd.set_layouterror(fMd.LayoutError(fsid));
     // Get an existing record without creating the record !!!
     std::unique_ptr<eos::common::FmdHelper> fmd {
-      LocalGetFmd(fMd.fid(), fsid, true, false, fMd.uid(), fMd.gid(), fMd.lid())};
+      LocalGetFmd(fMd.mProtoFmd.fid(), fsid, true, false, fMd.mProtoFmd.uid(),
+      fMd.mProtoFmd.gid(), fMd.mProtoFmd.lid())};
 
     if (fmd) {
       // Check if exists on disk
-      if (fmd->mProtoFmd.disksize() == eos::common::Fmd::UNDEF) {
-        if (fMd.layouterror() & LayoutId::kUnregistered) {
+      if (fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) {
+        if (fMd.mProtoFmd.layouterror() & LayoutId::kUnregistered) {
           // There is no replica supposed to be here and there is nothing on
           // disk, so remove it from the database
           eos_warning("msg=\"removing ghost fmd from db\" fsid=%lu fxid=%08llx",
                       fsid, fid);
-          LocalDeleteFmd(fMd.fid(), fsid);
+          LocalDeleteFmd(fMd.mProtoFmd.fid(), fsid);
           return true;
         }
       }
     } else {
       // No file locally and also not registered with the MGM
-      if ((fMd.layouterror() & LayoutId::kUnregistered) ||
-          (fMd.layouterror() & LayoutId::kOrphan)) {
+      if ((fMd.mProtoFmd.layouterror() & LayoutId::kUnregistered) ||
+          (fMd.mProtoFmd.layouterror() & LayoutId::kOrphan)) {
         return true;
       }
     }
 
     // Get/create a record
-    fmd = LocalGetFmd(fMd.fid(), fsid, true, true, fMd.uid(), fMd.gid(), fMd.lid());
+    fmd = LocalGetFmd(fMd.mProtoFmd.fid(), fsid, true, true,
+                      fMd.mProtoFmd.uid(), fMd.mProtoFmd.gid(),
+                      fMd.mProtoFmd.lid());
 
     if (fmd) {
-      if (!UpdateWithMgmInfo(fsid, fMd.fid(), fMd.cid(), fMd.lid(), fMd.mgmsize(),
-                             fMd.mgmchecksum(), fMd.uid(), fMd.gid(), fMd.ctime(),
-                             fMd.ctime_ns(), fMd.mtime(), fMd.mtime_ns(),
-                             fMd.layouterror(), fMd.locations())) {
+      if (!UpdateWithMgmInfo(fsid, fMd.mProtoFmd.fid(), fMd.mProtoFmd.cid(),
+                             fMd.mProtoFmd.lid(), fMd.mProtoFmd.mgmsize(),
+                             fMd.mProtoFmd.mgmchecksum(), fMd.mProtoFmd.uid(),
+                             fMd.mProtoFmd.gid(), fMd.mProtoFmd.ctime(),
+                             fMd.mProtoFmd.ctime_ns(), fMd.mProtoFmd.mtime(),
+                             fMd.mProtoFmd.mtime_ns(), fMd.mProtoFmd.layouterror(),
+                             fMd.mProtoFmd.locations())) {
         eos_err("msg=\"failed to update fmd with mgm info\" fxid=%08llx", fid);
         return false;
       }
 
       // Check if it exists on disk
-      if (fmd->mProtoFmd.disksize() == eos::common::Fmd::UNDEF) {
-        fMd.set_layouterror(fMd.layouterror() | LayoutId::kMissing);
+      if (fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) {
+        fMd.mProtoFmd.set_layouterror(fMd.mProtoFmd.layouterror() | LayoutId::kMissing);
         eos_warning("msg=\"found missing replica\" fxid=%08llx on fsid=%lu",
                     fid, fsid);
       }
 
       // Check if it exists on disk and at the mgm
-      if ((fmd->mProtoFmd.disksize() == eos::common::Fmd::UNDEF) &&
-          (fmd->mProtoFmd.mgmsize() == eos::common::Fmd::UNDEF)) {
+      if ((fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) &&
+          (fmd->mProtoFmd.mgmsize() == eos::common::FmdHelper::UNDEF)) {
         // There is no replica supposed to be here and there is nothing on
         // disk, so remove it from the database
         eos_warning("removing <ghost> entry for fxid=%08llx on fsid=%lu", fid,
                     (unsigned long) fsid);
-        LocalDeleteFmd(fMd.fid(), fsid);
+        LocalDeleteFmd(fMd.mProtoFmd.fid(), fsid);
         return true;
       }
     } else {
@@ -1082,28 +1089,30 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
     std::unique_ptr<XrdOucEnv> env(new XrdOucEnv(dumpentry.c_str()));
 
     if (env) {
-      eos::common::Fmd fMd;
-      eos::common::FmdHelper::Reset(fMd);
+      eos::common::FmdHelper fMd;
 
       if (EnvMgmToFmd(*env, fMd)) {
         // get/create one
-        auto fmd = LocalGetFmd(fMd.fid(), fsid, true, true, fMd.uid(),
-                               fMd.gid(), fMd.lid());
-        fMd.set_layouterror(eos::common::FmdHelper::LayoutError(fMd, fsid));
+        auto fmd = LocalGetFmd(fMd.mProtoFmd.fid(), fsid, true, true,
+                               fMd.mProtoFmd.uid(), fMd.mProtoFmd.gid(),
+                               fMd.mProtoFmd.lid());
+        fMd.mProtoFmd.set_layouterror(fMd.LayoutError(fsid));
 
         if (fmd) {
           // Check if it exists on disk
-          if (fmd->mProtoFmd.disksize() == eos::common::Fmd::UNDEF) {
-            fMd.set_layouterror(fMd.layouterror() | LayoutId::kMissing);
-            eos_warning("found missing replica for fxid=%08llx on fsid=%lu", fMd.fid(),
-                        (unsigned long) fsid);
+          if (fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) {
+            fMd.mProtoFmd.set_layouterror(fMd.mProtoFmd.layouterror() | LayoutId::kMissing);
+            eos_warning("found missing replica for fxid=%08llx on fsid=%lu",
+                        fMd.mProtoFmd.fid(), (unsigned long) fsid);
           }
 
-          if (!UpdateWithMgmInfo(fsid, fMd.fid(), fMd.cid(), fMd.lid(),
-                                 fMd.mgmsize(), fMd.mgmchecksum(), fMd.uid(),
-                                 fMd.gid(), fMd.ctime(), fMd.ctime_ns(),
-                                 fMd.mtime(), fMd.mtime_ns(),
-                                 fMd.layouterror(), fMd.locations())) {
+          if (!UpdateWithMgmInfo(fsid, fMd.mProtoFmd.fid(), fMd.mProtoFmd.cid(),
+                                 fMd.mProtoFmd.lid(), fMd.mProtoFmd.mgmsize(),
+                                 fMd.mProtoFmd.mgmchecksum(), fMd.mProtoFmd.uid(),
+                                 fMd.mProtoFmd.gid(), fMd.mProtoFmd.ctime(),
+                                 fMd.mProtoFmd.ctime_ns(), fMd.mProtoFmd.mtime(),
+                                 fMd.mProtoFmd.mtime_ns(), fMd.mProtoFmd.layouterror(),
+                                 fMd.mProtoFmd.locations())) {
             eos_err("msg=\"failed to update fmd\" entry=\"%s\"",
                     dumpentry.c_str());
           }
@@ -1136,7 +1145,7 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contactDetails,
   using namespace std::chrono;
 
   if (!ResetMgmInformation(fsid)) {
-    eos_err("failed to reset the mgm information before resyncing");
+    eos_err("%s", "msg=\"failed to reset the mgm info before resyncing\"");
     return false;
   }
 
@@ -1165,7 +1174,7 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contactDetails,
 
   auto start = steady_clock::now();
   uint64_t total = file_ids.size();
-  eos_info("resyncing %llu files for file_system %u", total, fsid);
+  eos_info("msg=\"resyncing %llu files for file_system %u\"", total, fsid);
   uint64_t num_files = 0;
   auto it = file_ids.begin();
   std::list<folly::Future<eos::ns::FileMdProto>> files;
@@ -1179,39 +1188,42 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contactDetails,
   }
 
   while (!files.empty()) {
-    eos::common::Fmd ns_fmd;
-    eos::common::FmdHelper::Reset(ns_fmd);
+    eos::common::FmdHelper ns_fmd;
 
     try {
       NsFileProtoToFmd(files.front().get(), ns_fmd);
     } catch (const eos::MDException& e) {
-      eos_err("msg=\"failed to get metadata from QuarkDB: %s\"", e.what());
+      eos_err("msg=\"failed to get metadata from QDB: %s\"", e.what());
       files.pop_front();
       continue;
     }
 
     files.pop_front();
-    auto local_fmd = LocalGetFmd(ns_fmd.fid(), fsid, true, true, ns_fmd.uid(),
-                                 ns_fmd.gid(), ns_fmd.lid());
-    ns_fmd.set_layouterror(eos::common::FmdHelper::LayoutError(ns_fmd, fsid));
+    auto local_fmd = LocalGetFmd(ns_fmd.mProtoFmd.fid(), fsid, true, true,
+                                 ns_fmd.mProtoFmd.uid(), ns_fmd.mProtoFmd.gid(),
+                                 ns_fmd.mProtoFmd.lid());
+    ns_fmd.mProtoFmd.set_layouterror(ns_fmd.LayoutError(fsid));
 
     if (local_fmd) {
       // Check if it exists on disk
-      if (local_fmd->mProtoFmd.disksize() == eos::common::Fmd::UNDEF) {
-        ns_fmd.set_layouterror(ns_fmd.layouterror() | LayoutId::kMissing);
-        eos_warning("found missing replica for fxid=%08llx on fsid=%lu",
-                    ns_fmd.fid(), (unsigned long) fsid);
+      if (local_fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) {
+        ns_fmd.mProtoFmd.set_layouterror(ns_fmd.mProtoFmd.layouterror() |
+                                         LayoutId::kMissing);
+        eos_warning("msg=\"found missing replica for fxid=%08llx on fsid=%lu\"",
+                    ns_fmd.mProtoFmd.fid(), fsid);
       }
 
-      if (!UpdateWithMgmInfo(fsid, ns_fmd.fid(), ns_fmd.cid(), ns_fmd.lid(),
-                             ns_fmd.mgmsize(), ns_fmd.mgmchecksum(), ns_fmd.uid(),
-                             ns_fmd.gid(), ns_fmd.ctime(), ns_fmd.ctime_ns(),
-                             ns_fmd.mtime(), ns_fmd.mtime_ns(),
-                             ns_fmd.layouterror(), ns_fmd.locations())) {
-        eos_err("failed to update fid %llu", ns_fmd.fid());
+      if (!UpdateWithMgmInfo(fsid, ns_fmd.mProtoFmd.fid(), ns_fmd.mProtoFmd.cid(),
+                             ns_fmd.mProtoFmd.lid(), ns_fmd.mProtoFmd.mgmsize(),
+                             ns_fmd.mProtoFmd.mgmchecksum(), ns_fmd.mProtoFmd.uid(),
+                             ns_fmd.mProtoFmd.gid(), ns_fmd.mProtoFmd.ctime(),
+                             ns_fmd.mProtoFmd.ctime_ns(), ns_fmd.mProtoFmd.mtime(),
+                             ns_fmd.mProtoFmd.mtime_ns(), ns_fmd.mProtoFmd.layouterror(),
+                             ns_fmd.mProtoFmd.locations())) {
+        eos_err("failed to update fid %llu", ns_fmd.mProtoFmd.fid());
       }
     } else {
-      eos_err("failed to get/create local fid %llu", ns_fmd.fid());
+      eos_err("failed to get/create local fid %llu", ns_fmd.mProtoFmd.fid());
     }
 
     if (it != file_ids.end()) {
@@ -1275,12 +1287,12 @@ FmdDbMapHandler::RemoveGhostEntries(const char* fs_root,
 
       // Report values only when we are not in the sync phase from disk/mgm
       for (db_map->beginIter(false); db_map->iterate(&k, &v, false);) {
-        eos::common::Fmd f;
+        eos::common::FmdHelper f;
         eos::common::FileId::fileid_t fid {0ul};
-        f.ParseFromString(v->value);
+        f.mProtoFmd.ParseFromString(v->value);
         (void)memcpy(&fid, (void*)k->data(), k->size());
 
-        if (f.layouterror()) {
+        if (f.mProtoFmd.layouterror()) {
           struct stat buf;
           XrdOucString fpath;
           const std::string hex_fid = eos::common::FileId::Fid2Hex(fid);
@@ -1289,8 +1301,8 @@ FmdDbMapHandler::RemoveGhostEntries(const char* fs_root,
 
           if (stat(fpath.c_str(), &buf)) {
             if ((errno == ENOENT) || (errno == ENOTDIR)) {
-              if ((f.layouterror() & LayoutId::kOrphan) ||
-                  (f.layouterror() & LayoutId::kUnregistered)) {
+              if ((f.mProtoFmd.layouterror() & LayoutId::kOrphan) ||
+                  (f.mProtoFmd.layouterror() & LayoutId::kUnregistered)) {
                 eos_static_info("msg=\"push back for deletion\" fxid=%08llx", fid);
                 to_delete.push_back(fid);
               }
@@ -1361,67 +1373,68 @@ FmdDbMapHandler::GetInconsistencyStatistics(eos::common::FileSystem::fsid_t
 
     // We report values only when we are not in the sync phase from disk/mgm
     for (mDbMap[fsid]->beginIter(false); mDbMap[fsid]->iterate(&k, &v, false);) {
-      eos::common::Fmd f;
-      f.ParseFromString(v->value);
+      eos::common::FmdHelper f;
+      auto& proto_fmd = f.mProtoFmd;
+      proto_fmd.ParseFromString(v->value);
       statistics["mem_n"]++;
 
-      if (f.layouterror()) {
-        if (f.layouterror() & LayoutId::kOrphan) {
+      if (proto_fmd.layouterror()) {
+        if (proto_fmd.layouterror() & LayoutId::kOrphan) {
           statistics["orphans_n"]++;
-          fidset["orphans_n"].insert(f.fid());
+          fidset["orphans_n"].insert(proto_fmd.fid());
         }
 
-        if (f.layouterror() & LayoutId::kUnregistered) {
+        if (proto_fmd.layouterror() & LayoutId::kUnregistered) {
           statistics["unreg_n"]++;
-          fidset["unreg_n"].insert(f.fid());
+          fidset["unreg_n"].insert(proto_fmd.fid());
         }
 
-        if (f.layouterror() & LayoutId::kReplicaWrong) {
+        if (proto_fmd.layouterror() & LayoutId::kReplicaWrong) {
           statistics["rep_diff_n"]++;
-          fidset["rep_diff_n"].insert(f.fid());
+          fidset["rep_diff_n"].insert(proto_fmd.fid());
         }
 
-        if (f.layouterror() & LayoutId::kMissing) {
+        if (proto_fmd.layouterror() & LayoutId::kMissing) {
           statistics["rep_missing_n"]++;
-          fidset["rep_missing_n"].insert(f.fid());
+          fidset["rep_missing_n"].insert(proto_fmd.fid());
         }
       }
 
-      if (f.mgmsize() != eos::common::Fmd::UNDEF) {
+      if (proto_fmd.mgmsize() != eos::common::FmdHelper::UNDEF) {
         statistics["m_sync_n"]++;
 
-        if (f.size() != eos::common::Fmd::UNDEF) {
-          if (f.size() != f.mgmsize()) {
+        if (proto_fmd.size() != eos::common::FmdHelper::UNDEF) {
+          if (proto_fmd.size() != proto_fmd.mgmsize()) {
             statistics["m_mem_sz_diff"]++;
-            fidset["m_mem_sz_diff"].insert(f.fid());
+            fidset["m_mem_sz_diff"].insert(proto_fmd.fid());
           }
         }
       }
 
-      if (!f.layouterror()) {
-        if (f.size() && f.diskchecksum().length() &&
-            (f.diskchecksum() != f.checksum())) {
+      if (!proto_fmd.layouterror()) {
+        if (proto_fmd.size() && proto_fmd.diskchecksum().length() &&
+            (proto_fmd.diskchecksum() != proto_fmd.checksum())) {
           statistics["d_cx_diff"]++;
-          fidset["d_cx_diff"].insert(f.fid());
+          fidset["d_cx_diff"].insert(proto_fmd.fid());
         }
 
-        if (f.size() && f.mgmchecksum().length() &&
-            (f.mgmchecksum() != f.checksum())) {
+        if (proto_fmd.size() && proto_fmd.mgmchecksum().length() &&
+            (proto_fmd.mgmchecksum() != proto_fmd.checksum())) {
           statistics["m_cx_diff"]++;
-          fidset["m_cx_diff"].insert(f.fid());
+          fidset["m_cx_diff"].insert(proto_fmd.fid());
         }
       }
 
-      if (f.disksize() != eos::common::Fmd::UNDEF) {
+      if (proto_fmd.disksize() != eos::common::FmdHelper::UNDEF) {
         statistics["d_sync_n"]++;
 
-        if (f.size() != eos::common::Fmd::UNDEF) {
+        if (proto_fmd.size() != eos::common::FmdHelper::UNDEF) {
           // Report missmatch only for replica layout files
-          if ((f.size() != f.disksize()) &&
-              (eos::common::LayoutId::GetLayoutType(f.lid())
+          if ((proto_fmd.size() != proto_fmd.disksize()) &&
+              (eos::common::LayoutId::GetLayoutType(proto_fmd.lid())
                == eos::common::LayoutId::kReplica)) {
             statistics["d_mem_sz_diff"]++;
-            fidset["d_mem_sz_diff"].insert(f.fid());
+            fidset["d_mem_sz_diff"].insert(proto_fmd.fid());
           }
         }
       }

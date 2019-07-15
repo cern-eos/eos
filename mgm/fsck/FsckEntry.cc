@@ -214,16 +214,16 @@ FsckEntry::RepairMgmXsSzDiff()
     }
 
     if (xs_val.empty() && (sz_val == 0ull)) {
-      xs_val = finfo->mFstFmd.diskchecksum();
-      sz_val = finfo->mFstFmd.size();
+      xs_val = finfo->mFstFmd.mProtoFmd.diskchecksum();
+      sz_val = finfo->mFstFmd.mProtoFmd.size();
 
       if ((mgm_xs_val == xs_val) && (mMgmFmd.size() == sz_val)) {
         mgm_xs_sz_match = true;
         break;
       }
     } else {
-      uint64_t current_sz_val = finfo->mFstFmd.size();
-      std::string current_xs_val = finfo->mFstFmd.diskchecksum();
+      uint64_t current_sz_val = finfo->mFstFmd.mProtoFmd.size();
+      std::string current_xs_val = finfo->mFstFmd.mProtoFmd.diskchecksum();
 
       if ((mgm_xs_val == current_xs_val) && (mMgmFmd.size() == current_sz_val)) {
         mgm_xs_sz_match = true;
@@ -306,20 +306,20 @@ FsckEntry::RepairFstXsSzDiff()
     if (finfo->mFstErr != FstErr::None) {
       eos_err("msg=\"unavailable replica info\" fid=%08llx fsid=%lu",
               mFid, it->first);
-      bad_fsids.insert(finfo->mFstFmd.fsid());
+      bad_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
       continue;
     }
 
-    xs_val = finfo->mFstFmd.diskchecksum();
-    sz_val = finfo->mFstFmd.disksize();
+    xs_val = finfo->mFstFmd.mProtoFmd.diskchecksum();
+    sz_val = finfo->mFstFmd.mProtoFmd.disksize();
 
     // The disksize/xs must also match the original reference size/xs
     if ((mgm_xs_val == xs_val) && (mMgmFmd.size() == sz_val) &&
-        (finfo->mFstFmd.size() == sz_val) &&
-        (finfo->mFstFmd.checksum() == xs_val)) {
-      good_fsids.insert(finfo->mFstFmd.fsid());
+        (finfo->mFstFmd.mProtoFmd.size() == sz_val) &&
+        (finfo->mFstFmd.mProtoFmd.checksum() == xs_val)) {
+      good_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
     } else {
-      bad_fsids.insert(finfo->mFstFmd.fsid());
+      bad_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
     }
   }
 
@@ -411,8 +411,8 @@ FsckEntry::RepairReplicaInconsistencies()
       }
     } else {
       // Make sure the FST size/xs match the MGM ones
-      if ((finfo->mFstFmd.disksize() != mMgmFmd.size()) ||
-          (finfo->mFstFmd.diskchecksum() != mgm_xs_val)) {
+      if ((finfo->mFstFmd.mProtoFmd.disksize() != mMgmFmd.size()) ||
+          (finfo->mFstFmd.mProtoFmd.diskchecksum() != mgm_xs_val)) {
         to_drop.insert(elem.first);
       } else {
         unreg_fsids.insert(elem.first);

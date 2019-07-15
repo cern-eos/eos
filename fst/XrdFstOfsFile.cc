@@ -1175,7 +1175,8 @@ XrdFstOfsFile::close()
             closeSize = statinfo.st_size;
             fMd->mProtoFmd.set_size(statinfo.st_size);
             fMd->mProtoFmd.set_disksize(statinfo.st_size);
-            fMd->mProtoFmd.set_mgmsize(eos::common::Fmd::UNDEF); // now again undefined
+            fMd->mProtoFmd.set_mgmsize(
+              eos::common::FmdHelper::UNDEF); // now again undefined
             fMd->mProtoFmd.set_mgmchecksum(""); // now again empty
             fMd->mProtoFmd.set_layouterror(0); // reset layout errors
             fMd->mProtoFmd.set_locations(""); // reset locations
@@ -1444,7 +1445,7 @@ XrdFstOfsFile::close()
       if (isRW) {
         // Store in the WrittenFilesQueue
         gOFS.WrittenFilesQueueMutex.Lock();
-        gOFS.WrittenFilesQueue.push(fMd->mProtoFmd);
+        gOFS.WrittenFilesQueue.push(*fMd.get());
         gOFS.WrittenFilesQueueMutex.UnLock();
       }
     }
@@ -1678,11 +1679,12 @@ XrdFstOfsFile::close()
             eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS,
             eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR, nullptr);
         std::string errMsgBackFromWfEndpoint;
-        const int notifyRc = NotifyProtoWfEndPointClosew(fMd->mProtoFmd, mEventOwnerUid,
+        const int notifyRc = NotifyProtoWfEndPointClosew(*fMd.get(), mEventOwnerUid,
                              mEventOwnerGid,
                              mEventRequestor, mEventRequestorGroup, mEventInstance,
                              mCapOpaque->Get("mgm.path"),
-                             mCapOpaque->Get("mgm.manager"), attributes, errMsgBackFromWfEndpoint);
+                             mCapOpaque->Get("mgm.manager"), attributes,
+                             errMsgBackFromWfEndpoint);
 
         if (0 == notifyRc) {
           this->error.setErrCode(0);
@@ -3217,8 +3219,9 @@ XrdFstOfsFile::ExtractLogId(const char* opaque) const
 // Notify the workflow protobuf endpoint of closew event
 //------------------------------------------------------------------------------
 int
-XrdFstOfsFile::NotifyProtoWfEndPointClosew(const eos::common::Fmd& fmd,
-    uint32_t ownerUid, uint32_t ownerGid, const string& requestorName,
+XrdFstOfsFile::NotifyProtoWfEndPointClosew(const eos::common::FmdHelper& fmd,
+    uint32_t ownerUid, uint32_t ownerGid,
+    const string& requestorName,
     const string& requestorGroupName,
     const string& instanceName, const string& fullPath, const string& managerName,
     const std::map<std::string, std::string>& xattrs, string& errMsgBack)
@@ -3246,16 +3249,16 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const eos::common::Fmd& fmd,
   notification->mutable_cli()->mutable_user()->set_groupname(requestorGroupName);
   notification->mutable_file()->mutable_owner()->set_uid(ownerUid);
   notification->mutable_file()->mutable_owner()->set_gid(ownerGid);
-  notification->mutable_file()->set_size(fmd.size());
+  notification->mutable_file()->set_size(fmd.mProtoFmd.size());
   // Insert a single checksum into the checksum blob
   CtaCommon::SetChecksum(notification->mutable_file()->mutable_csb()->add_cs(),
-                         fmd.lid(), fmd.checksum());
+                         fmd.mProtoFmd.lid(), fmd.mProtoFmd.checksum());
   notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
   notification->mutable_wf()->mutable_instance()->set_name(instanceName);
   notification->mutable_file()->set_lpath(fullPath);
   notification->mutable_file()->set_fid(fmd.fid());
   auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(
-                      fmd.fid());
+                      fmd.mProtoFmd.fid());
   std::string ctaArchiveFileId = "none";
 
   for (const auto& attrPair : xattrs) {

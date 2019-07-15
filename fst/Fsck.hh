@@ -82,7 +82,7 @@ public:
   void ReportFiles();
 
   void CheckFile(const char*);
-  void CheckFile(eos::common::Fmd& fmd, size_t nfiles);
+  void CheckFile(eos::common::FmdHelper& fmd, size_t nfiles);
 
   std::string GetTimestamp();
   std::string GetTimestampSmeared();
@@ -106,7 +106,7 @@ private:
   std::atomic<long long> mTestInterval; ///< Test interval in seconds
   std::atomic<long long> mScanRate; ///< meta-data files/s rate limiting
 
-  std::map<uint64_t, eos::common::Fmd> mMd;
+  std::map<uint64_t, eos::common::FmdHelper> mMd;
   // Statistics
   long int noCorruptFiles;
   float durationScan;

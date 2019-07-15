@@ -1,10 +1,11 @@
 //------------------------------------------------------------------------------
 //! @file FmdDbMap.hh
+//! @author Elvin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2019 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -60,7 +61,7 @@ public:
   //!
   //! @return true if successful otherwise false
   //----------------------------------------------------------------------------
-  static bool EnvMgmToFmd(XrdOucEnv& env, eos::common::Fmd& fmd);
+  static bool EnvMgmToFmd(XrdOucEnv& env, eos::common::FmdHelper& fmd);
 
   //----------------------------------------------------------------------------
   //! Convert namespace file proto md to an Fmd struct
@@ -71,7 +72,7 @@ public:
   //! @return true if successful otherwise false
   //----------------------------------------------------------------------------
   static bool NsFileProtoToFmd(eos::ns::FileMdProto&& filemd,
-                               eos::common::Fmd& fmd);
+                               eos::common::FmdHelper& fmd);
 
   //----------------------------------------------------------------------------
   //! Return Fmd from MGM doing getfmd command
@@ -84,7 +85,7 @@ public:
   //----------------------------------------------------------------------------
   static int GetMgmFmd(const std::string& manager,
                        eos::common::FileId::fileid_t fid,
-                       eos::common::Fmd& fmd);
+                       eos::common::FmdHelper& fmd);
 
   //----------------------------------------------------------------------------
   //! Execute "fs dumpmd" on the MGM node
@@ -529,9 +530,9 @@ private:
   //----------------------------------------------------------------------------
   bool LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
                         eos::common::FileSystem::fsid_t fsid,
-                        eos::common::Fmd& fmd)
+                        eos::common::FmdHelper& fmd)
   {
-    eos::common::FmdHelper::Reset(fmd);
+    fmd.Reset();
     auto it = mDbMap.find(fsid);
 
     if (it == mDbMap.end()) {
@@ -543,7 +544,7 @@ private:
     eos::common::DbMap::Tval val;
 
     if (it->second->get(eos::common::Slice((const char*)&fid, sizeof(fid)), &val)) {
-      fmd.ParseFromString(val.value);
+      fmd.mProtoFmd.ParseFromString(val.value);
       return true;
     }
 
@@ -563,10 +564,10 @@ private:
   //----------------------------------------------------------------------------
   bool LocalPutFmd(eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid,
-                   const eos::common::Fmd& fmd)
+                   const eos::common::FmdHelper& fmd)
   {
     std::string sval;
-    fmd.SerializePartialToString(&sval);
+    fmd.mProtoFmd.SerializePartialToString(&sval);
     return mDbMap[fsid]->set(eos::common::Slice((const char*)&fid, sizeof(fid)),
                              sval, "") == 0;
   }

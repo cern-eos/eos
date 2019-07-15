@@ -73,7 +73,7 @@ struct FstFileInfoT {
 public:
   std::string mLocalPath;
   uint64_t mDiskSize;
-  eos::common::Fmd mFstFmd;
+  eos::common::FmdHelper mFstFmd;
   FstErr mFstErr;
 
   //------------------------------------------------------------------------------

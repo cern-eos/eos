@@ -141,31 +141,31 @@ protected:
     std::unique_ptr<eos::mgm::FstFileInfoT> finfo  {
       new eos::mgm::FstFileInfoT("/data01/00000000/0012d687", eos::mgm::FstErr::None)};
     finfo->mDiskSize = kFileSize;
-    auto& fmd = finfo->mFstFmd;
+    auto& proto_fmd = finfo->mFstFmd.mProtoFmd;
     // Populate FmdBase.proto
-    fmd.set_fid(123456);
-    fmd.set_cid(199991);
-    fmd.set_fsid(fsid);
-    fmd.set_ctime(kTimestampSec);
-    fmd.set_ctime_ns(0);
-    fmd.set_mtime(kTimestampSec);
-    fmd.set_mtime_ns(0);
-    fmd.set_atime(kTimestampSec);
-    fmd.set_atime_ns(0);
-    // fmd.set_checktime() unset
-    fmd.set_size(kFileSize);
-    fmd.set_disksize(kFileSize);
-    fmd.set_mgmsize(kFileSize);
-    fmd.set_checksum(kChecksum);
-    fmd.set_diskchecksum(kChecksum);
-    fmd.set_mgmchecksum(kChecksum);
-    fmd.set_lid(std::stoul("0x0100112", nullptr, 16));
-    fmd.set_uid(1001);
-    fmd.set_gid(2002);
-    fmd.set_filecxerror(0);
-    fmd.set_blockcxerror(0);
-    fmd.set_layouterror(0);
-    fmd.set_locations("3,5,");
+    proto_fmd.set_fid(123456);
+    proto_fmd.set_cid(199991);
+    proto_fmd.set_fsid(fsid);
+    proto_fmd.set_ctime(kTimestampSec);
+    proto_fmd.set_ctime_ns(0);
+    proto_fmd.set_mtime(kTimestampSec);
+    proto_fmd.set_mtime_ns(0);
+    proto_fmd.set_atime(kTimestampSec);
+    proto_fmd.set_atime_ns(0);
+    // proto_fmd.set_checktime() unset
+    proto_fmd.set_size(kFileSize);
+    proto_fmd.set_disksize(kFileSize);
+    proto_fmd.set_mgmsize(kFileSize);
+    proto_fmd.set_checksum(kChecksum);
+    proto_fmd.set_diskchecksum(kChecksum);
+    proto_fmd.set_mgmchecksum(kChecksum);
+    proto_fmd.set_lid(std::stoul("0x0100112", nullptr, 16));
+    proto_fmd.set_uid(1001);
+    proto_fmd.set_gid(2002);
+    proto_fmd.set_filecxerror(0);
+    proto_fmd.set_blockcxerror(0);
+    proto_fmd.set_layouterror(0);
+    proto_fmd.set_locations("3,5,");
     mFsckEntry->mFstFileInfo.insert(std::make_pair(fsid, std::move(finfo)));
   }
 
@@ -252,7 +252,7 @@ TEST_F(FsckEntryTest, FstSzDiff)
   // All FST fmd sizes are different, repair fails - no good replicas
   for (auto& pair : mFsckEntry->mFstFileInfo) {
     auto& finfo = pair.second;
-    finfo->mFstFmd.set_disksize(1);
+    finfo->mFstFmd.mProtoFmd.set_disksize(1);
   }
 
   ASSERT_FALSE(mFsckEntry->Repair());
@@ -264,7 +264,7 @@ TEST_F(FsckEntryTest, FstSzDiff)
   EXPECT_CALL(*mock_job, GetStatus).
   WillOnce(Return(eos::mgm::FsckRepairJob::Status::OK));
   auto& finfo = mFsckEntry->mFstFileInfo.begin()->second;
-  finfo->mFstFmd.set_disksize(finfo->mFstFmd.size());
+  finfo->mFstFmd.mProtoFmd.set_disksize(finfo->mFstFmd.mProtoFmd.size());
   ASSERT_TRUE(mFsckEntry->Repair());
 }
 
@@ -281,7 +281,7 @@ TEST_F(FsckEntryTest, FstXsDiff)
   // All FST fmd xs are different, repair failes - no good replicas
   for (auto& pair : mFsckEntry->mFstFileInfo) {
     auto& finfo = pair.second;
-    finfo->mFstFmd.set_diskchecksum("abcdefab");
+    finfo->mFstFmd.mProtoFmd.set_diskchecksum("abcdefab");
   }
 
   ASSERT_FALSE(mFsckEntry->Repair());
@@ -295,7 +295,7 @@ TEST_F(FsckEntryTest, FstXsDiff)
   EXPECT_CALL(*mock_job, GetStatus).
   WillOnce(Return(eos::mgm::FsckRepairJob::Status::OK));
   auto& finfo = mFsckEntry->mFstFileInfo.begin()->second;
-  finfo->mFstFmd.set_diskchecksum(kChecksum);
+  finfo->mFstFmd.mProtoFmd.set_diskchecksum(kChecksum);
   ASSERT_TRUE(mFsckEntry->Repair());
 }
 

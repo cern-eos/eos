@@ -290,28 +290,31 @@ Fsck::CheckFile(const char* filepath)
   if (fid) {
     if (!mMd.count(fid)) {
       fprintf(stderr,
-              "[Fsck] [ERROR] [ DETACHE ] fsid:%d cxid:???????? fxid:%08lx path:%s is detached on disk\n",
+              "[Fsck] [ERROR] [ DETACHE ] fsid:%d cxid:???????? fxid:%08lx "
+              "path:%s is detached on disk\n",
               fsId, fid, filepath);
       errors["detached"]++;
     } else {
+      auto& proto_fmd = mMd[fid].mProtoFmd;
+
       if (checksumLen) {
         std::unique_ptr<CheckSum> checksum =
-          ChecksumPlugins::GetChecksumObject(mMd[fid].lid(), false);
+          ChecksumPlugins::GetChecksumObject(proto_fmd.lid(), false);
         checksum->SetBinChecksum(checksumVal, checksumLen);
         std::string hex_checksum = checksum->GetHexChecksum();
-        mMd[fid].set_diskchecksum(hex_checksum);
+        proto_fmd.set_diskchecksum(hex_checksum);
       }
 
       if ((previousFileCxError == "0") || (!has_filecxerror)) {
-        mMd[fid].set_filecxerror(0);
+        proto_fmd.set_filecxerror(0);
       } else {
-        mMd[fid].set_filecxerror(1);
+        proto_fmd.set_filecxerror(1);
       }
 
       if ((previousBlockCxError == "0") || (!has_blockcxerror)) {
-        mMd[fid].set_blockcxerror(0);
+        proto_fmd.set_blockcxerror(0);
       } else {
-        mMd[fid].set_blockcxerror(1);
+        proto_fmd.set_blockcxerror(1);
       }
     }
   }
@@ -432,13 +435,12 @@ Fsck::ScanMd()
     std::unique_ptr<XrdOucEnv> env(new XrdOucEnv(dumpentry.c_str()));
 
     if (env) {
-      eos::common::Fmd fMd;
-      eos::common::FmdHelper::Reset(fMd);
+      eos::common::FmdHelper fMd;
 
       if (eos::fst::FmdDbMapHandler::EnvMgmToFmd(*env, fMd)) {
         // now the MD object is filled
         CheckFile(fMd, nfiles);
-        mMd[fMd.fid()] = fMd;
+        mMd[fMd.mProtoFmd.fid()] = fMd;
       } else {
         fprintf(stderr, "failed to convert %s\n", dumpentry.c_str());
       }
@@ -510,13 +512,12 @@ Fsck::ScanMdQdb()
 
   while (!files.empty()) {
     nfiles++;
-    eos::common::Fmd fMd;
-    eos::common::FmdHelper::Reset(fMd);
+    eos::common::FmdHelper fMd;
 
     try {
       FmdDbMapHandler::NsFileProtoToFmd(files.front().get(), fMd);
       CheckFile(fMd, nfiles);
-      mMd[fMd.fid()] = fMd;
+      mMd[fMd.mProtoFmd.fid()] = fMd;
       files.pop_front();
     } catch (const eos::MDException& e) {
       fprintf(stderr, "msg=\"failed to get metadata from QuarkDB: %s\"\n", e.what());
@@ -534,10 +535,10 @@ Fsck::ScanMdQdb()
 
 /*----------------------------------------------------------------------------*/
 void
-Fsck::CheckFile(eos::common::Fmd& fMd, size_t nfiles)
+Fsck::CheckFile(eos::common::FmdHelper& fMd, size_t nfiles)
 {
   char fxid[1024];
-  sprintf(fxid, "%08lx", fMd.fid());
+  sprintf(fxid, "%08lx", fMd.mProtoFmd.fid());
   XrdOucString fullpath;
   eos::common::FileId::FidPrefix2FullPath(fxid, dirPath.c_str(), fullpath);
   struct stat buf;
@@ -545,30 +546,32 @@ Fsck::CheckFile(eos::common::Fmd& fMd, size_t nfiles)
   if (!silent) {
     fprintf(stdout,
             "[Fsck] [ MGM ] [ %07lu ] processing file cxid:%08lx fxid:%08lx path:%s\n",
-            nfiles, fMd.cid(), fMd.fid(), fullpath.c_str());
+            nfiles, fMd.mProtoFmd.cid(), fMd.mProtoFmd.fid(), fullpath.c_str());
   }
 
   if (stat(fullpath.c_str(), &buf)) {
-    if (!fMd.size()) {
+    if (!fMd.mProtoFmd.size()) {
       fprintf(stderr,
-              "[Fsck] [ERROR] [ ZEROMIS ] fsid:%d cxid:%08lx fxid:%08lx path:%s is missing  on disk\n",
-              fsId, fMd.cid(), fMd.fid(), fullpath.c_str());
+              "[Fsck] [ERROR] [ ZEROMIS ] fsid:%d cxid:%08lx fxid:%08lx path:%s "
+              "is missing  on disk\n",
+              fsId, fMd.mProtoFmd.cid(), fMd.mProtoFmd.fid(), fullpath.c_str());
       errors["zeromis"]++;
     } else {
       fprintf(stderr,
-              "[Fsck] [ERROR] [ MISSING ] fsid:%d cxid:%08lx fxid:%08lx path:%s is missing  on disk\n",
-              fsId, fMd.cid(), fMd.fid(), fullpath.c_str());
+              "[Fsck] [ERROR] [ MISSING ] fsid:%d cxid:%08lx fxid:%08lx "
+              "path:%s is missing  on disk\n",
+              fsId, fMd.mProtoFmd.cid(), fMd.mProtoFmd.fid(), fullpath.c_str());
       errors["missing"]++;
-      fMd.set_disksize(-1);
+      fMd.mProtoFmd.set_disksize(-1);
     }
 
-    fMd.set_disksize(-1);
+    fMd.mProtoFmd.set_disksize(-1);
   } else {
-    fMd.set_disksize(buf.st_size);
+    fMd.mProtoFmd.set_disksize(buf.st_size);
   }
 
   // for the moment we don't have an extra field to store this, but we don't checksum here
-  fMd.set_checksum(fullpath.c_str());
+  fMd.mProtoFmd.set_checksum(fullpath.c_str());
 }
 
 /*----------------------------------------------------------------------------*/
@@ -578,48 +581,53 @@ Fsck::ReportFiles()
   // don't get confused here, it->second.checksum() contains the local fst path
   for (auto it = mMd.begin();  it != mMd.end(); ++it) {
     bool corrupted = false;
+    auto& proto_fmd = it->second.mProtoFmd;
 
-    if (it->second.disksize() != (unsigned long) - 1) {
-      if (eos::common::LayoutId::GetLayoutType(it->second.lid()) <=
+    if (proto_fmd.disksize() != (unsigned long) - 1) {
+      if (eos::common::LayoutId::GetLayoutType(proto_fmd.lid()) <=
           eos::common::LayoutId::kReplica) {
-        if (it->second.disksize() != it->second.mgmsize()) {
+        if (proto_fmd.disksize() != proto_fmd.mgmsize()) {
           fprintf(stderr,
-                  "[Fsck] [ERROR] [ SIZE    ] fsid:%d cxid:%08lx fxid:%08lx path:%s size mismatch disksize=%lu mgmsize=%lu\n",
-                  fsId, it->second.cid(), it->second.fid(), it->second.checksum().c_str(),
-                  it->second.disksize(), it->second.mgmsize());
+                  "[Fsck] [ERROR] [ SIZE    ] fsid:%d cxid:%08lx fxid:%08lx "
+                  "path:%s size mismatch disksize=%lu mgmsize=%lu\n",
+                  fsId, proto_fmd.cid(), proto_fmd.fid(), proto_fmd.checksum().c_str(),
+                  proto_fmd.disksize(), proto_fmd.mgmsize());
           errors["size"]++;
           corrupted = true;
         }
       }
     }
 
-    if (eos::common::LayoutId::GetChecksum(it->second.lid()) !=
+    if (eos::common::LayoutId::GetChecksum(proto_fmd.lid()) !=
         eos::common::LayoutId::kNone) {
-      if (it->second.diskchecksum().length()) {
-        if (it->second.diskchecksum() != it->second.mgmchecksum()) {
+      if (proto_fmd.diskchecksum().length()) {
+        if (proto_fmd.diskchecksum() != proto_fmd.mgmchecksum()) {
           fprintf(stderr,
-                  "[Fsck] [ERROR] [ CKS     ] fsid:%d cxid:%08lx fxid:%08lx path:%s checksum mismatch diskxs=%s mgmxs=%s\n",
-                  fsId, it->second.cid(), it->second.fid(), it->second.checksum().c_str(),
-                  it->second.diskchecksum().c_str(), it->second.mgmchecksum().c_str());
+                  "[Fsck] [ERROR] [ CKS     ] fsid:%d cxid:%08lx fxid:%08lx "
+                  "path:%s checksum mismatch diskxs=%s mgmxs=%s\n",
+                  fsId, proto_fmd.cid(), proto_fmd.fid(), proto_fmd.checksum().c_str(),
+                  proto_fmd.diskchecksum().c_str(), proto_fmd.mgmchecksum().c_str());
           errors["checksum"]++;
           corrupted = true;
         }
       }
 
-      if (it->second.filecxerror()) {
+      if (proto_fmd.filecxerror()) {
         fprintf(stderr,
-                "[Fsck] [ERROR] [ CKSFLAG ] fsid:%d cxid:%08lx fxid:%08lx path:%s checksum error flagged diskxs=%s mgmxs=%s\n",
-                fsId, it->second.cid(), it->second.fid(), it->second.checksum().c_str(),
-                it->second.diskchecksum().c_str(), it->second.mgmchecksum().c_str());
+                "[Fsck] [ERROR] [ CKSFLAG ] fsid:%d cxid:%08lx fxid:%08lx "
+                "path:%s checksum error flagged diskxs=%s mgmxs=%s\n",
+                fsId, proto_fmd.cid(), proto_fmd.fid(), proto_fmd.checksum().c_str(),
+                proto_fmd.diskchecksum().c_str(), proto_fmd.mgmchecksum().c_str());
         errors["checksumflag"]++;
         corrupted = true;
       }
 
-      if (it->second.blockcxerror()) {
+      if (proto_fmd.blockcxerror()) {
         fprintf(stderr,
-                "[Fsck] [ERROR] [ BXSFLAG ] fsid:%d cxid:%08lx fxid:%08lx path:%s block checksum error flagged diskxs=%s mgmxs=%s\n",
-                fsId, it->second.cid(), it->second.fid(), it->second.checksum().c_str(),
-                it->second.diskchecksum().c_str(), it->second.mgmchecksum().c_str());
+                "[Fsck] [ERROR] [ BXSFLAG ] fsid:%d cxid:%08lx fxid:%08lx "
+                "path:%s block checksum error flagged diskxs=%s mgmxs=%s\n",
+                fsId, proto_fmd.cid(), proto_fmd.fid(), proto_fmd.checksum().c_str(),
+                proto_fmd.diskchecksum().c_str(), proto_fmd.mgmchecksum().c_str());
         errors["blockcksflag"]++;
         corrupted = true;
       }
@@ -630,17 +638,17 @@ Fsck::ReportFiles()
     }
 
     size_t valid_replicas = 0;
-    auto location_set = eos::common::FmdHelper::GetLocations(it->second,
-                        valid_replicas);
-    size_t nstripes = eos::common::LayoutId::GetStripeNumber(it->second.lid()) + 1;
+    auto location_set = it->second.GetLocations(valid_replicas);
+    size_t nstripes = eos::common::LayoutId::GetStripeNumber(proto_fmd.lid()) + 1;
 
     if (nstripes != valid_replicas) {
-      if (it->second.mgmsize() != 0) {
+      if (proto_fmd.mgmsize() != 0) {
         // suppress 0 size files in the mgm
         fprintf(stderr,
-                "[Fsck] [ERROR] [ REPLICA ] fsid:%d cxid:%08lx fxid:%08lx path:%s replica count wrong is=%lu expected=%lu\n",
-                fsId, it->second.cid(), it->second.fid(), it->second.checksum().c_str(),
-                valid_replicas, nstripes);
+                "[Fsck] [ERROR] [ REPLICA ] fsid:%d cxid:%08lx fxid:%08lx "
+                "path:%s replica count wrong is=%lu expected=%lu\n",
+                fsId, proto_fmd.cid(), proto_fmd.fid(),
+                proto_fmd.checksum().c_str(), valid_replicas, nstripes);
         errors["replica"]++;
       }
     }
