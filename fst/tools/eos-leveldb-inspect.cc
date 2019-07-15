@@ -118,9 +118,9 @@ void DumpAllFids(eos::common::DbMap& db)
   std::cout << "fid(dec) : " << std::endl;
 
   for (db.beginIter(false); db.iterate(&k, &v, false); /*no progress*/) {
-    eos::common::Fmd fmd;
-    fmd.ParseFromString(v->value);
-    std::cout << std::setw(10) << fmd.fid() << " ";
+    eos::common::FmdHelper fmd;
+    fmd.mProtoFmd.ParseFromString(v->value);
+    std::cout << std::setw(10) << fmd.mProtoFmd.fid() << " ";
     ++count;
 
     if (count % max_per_row == 0) {
@@ -146,11 +146,9 @@ bool DumpFileInfo(eos::common::DbMap& db, const std::string& sfid)
     return false;
   }
 
-  eos::common::Fmd fmd;
-  fmd.ParseFromString(val.value);
-  eos::common::FmdHelper fmd_helper;
-  fmd_helper.Replicate(fmd);
-  auto opaque = fmd_helper.FullFmdToEnv();
+  eos::common::FmdHelper fmd;
+  fmd.mProtoFmd.ParseFromString(val.value);
+  auto opaque = fmd.FullFmdToEnv();
   int envlen;
   std::string data {opaque->Env(envlen)};
   std::replace(data.begin(), data.end(), '&', ' ');
@@ -195,67 +193,68 @@ void DumpFsckStats(eos::common::DbMap& db, bool verbose = false)
   eos::common::DbMapTypes::Tval val;
 
   for (db.beginIter(false); db.iterate(&k, &v, false);) {
-    eos::common::Fmd f;
-    f.ParseFromString(v->value);
+    eos::common::FmdHelper f;
+    f.mProtoFmd.ParseFromString(v->value);
 
-    if (f.layouterror()) {
-      if (f.layouterror() & LayoutId::kOrphan) {
+    if (f.mProtoFmd.layouterror()) {
+      if (f.mProtoFmd.layouterror() & LayoutId::kOrphan) {
         statistics["orphans_n"]++;
-        fid_set["orphans_n"].insert(f.fid());
+        fid_set["orphans_n"].insert(f.mProtoFmd.fid());
       }
 
-      if (f.layouterror() & LayoutId::kUnregistered) {
+      if (f.mProtoFmd.layouterror() & LayoutId::kUnregistered) {
         statistics["unreg_n"]++;
-        fid_set["unreg_n"].insert(f.fid());
+        fid_set["unreg_n"].insert(f.mProtoFmd.fid());
       }
 
-      if (f.layouterror() & LayoutId::kReplicaWrong) {
+      if (f.mProtoFmd.layouterror() & LayoutId::kReplicaWrong) {
         statistics["rep_diff_n"]++;
-        fid_set["rep_diff_n"].insert(f.fid());
+        fid_set["rep_diff_n"].insert(f.mProtoFmd.fid());
       }
 
-      if (f.layouterror() & LayoutId::kMissing) {
+      if (f.mProtoFmd.layouterror() & LayoutId::kMissing) {
         statistics["rep_missing_n"]++;
-        fid_set["rep_missing_n"].insert(f.fid());
+        fid_set["rep_missing_n"].insert(f.mProtoFmd.fid());
       }
     }
 
-    if (f.mgmsize() != eos::common::Fmd::UNDEF) {
+    if (f.mProtoFmd.mgmsize() != eos::common::FmdHelper::UNDEF) {
       statistics["m_sync_n"]++;
 
-      if (f.size() != eos::common::Fmd::UNDEF) {
-        if (f.size() != f.mgmsize()) {
+      if (f.mProtoFmd.size() != eos::common::FmdHelper::UNDEF) {
+        if (f.mProtoFmd.size() != f.mProtoFmd.mgmsize()) {
           statistics["m_mem_sz_diff"]++;
-          fid_set["m_mem_sz_diff"].insert(f.fid());
+          fid_set["m_mem_sz_diff"].insert(f.mProtoFmd.fid());
         }
       }
     }
 
-    if (!f.layouterror()) {
-      if (f.size() && f.diskchecksum().length() &&
-          (f.diskchecksum() != f.checksum())) {
+    if (!f.mProtoFmd.layouterror()) {
+      if (f.mProtoFmd.size() && f.mProtoFmd.diskchecksum().length() &&
+          (f.mProtoFmd.diskchecksum() != f.mProtoFmd.checksum())) {
         statistics["d_cx_diff"]++;
-        fid_set["d_cx_diff"].insert(f.fid());
+        fid_set["d_cx_diff"].insert(f.mProtoFmd.fid());
       }
 
-      if (f.size() && f.mgmchecksum().length() && (f.mgmchecksum() != f.checksum())) {
+      if (f.mProtoFmd.size() && f.mProtoFmd.mgmchecksum().length() &&
+          (f.mProtoFmd.mgmchecksum() != f.mProtoFmd.checksum())) {
         statistics["m_cx_diff"]++;
-        fid_set["m_cx_diff"].insert(f.fid());
+        fid_set["m_cx_diff"].insert(f.mProtoFmd.fid());
       }
     }
 
     statistics["mem_n"]++;
 
-    if (f.disksize() != eos::common::Fmd::UNDEF) {
+    if (f.mProtoFmd.disksize() != eos::common::FmdHelper::UNDEF) {
       statistics["d_sync_n"]++;
 
-      if (f.size() != eos::common::Fmd::UNDEF) {
+      if (f.mProtoFmd.size() != eos::common::FmdHelper::UNDEF) {
         // Report missmatch only for replica layout files
-        if ((f.size() != f.disksize()) &&
-            (eos::common::LayoutId::GetLayoutType(f.lid())
+        if ((f.mProtoFmd.size() != f.mProtoFmd.disksize()) &&
+            (eos::common::LayoutId::GetLayoutType(f.mProtoFmd.lid())
              == eos::common::LayoutId::kReplica)) {
           statistics["d_mem_sz_diff"]++;
-          fid_set["d_mem_sz_diff"].insert(f.fid());
+          fid_set["d_mem_sz_diff"].insert(f.mProtoFmd.fid());
         }
       }
     }

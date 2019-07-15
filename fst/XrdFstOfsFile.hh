@@ -653,12 +653,15 @@ public:
   //! protobuf endpoint
   //! @return
   //----------------------------------------------------------------------------
-  int NotifyProtoWfEndPointClosew(const eos::common::Fmd& fmd, uint32_t ownerUid,
-                                  uint32_t ownerGid,
-                                  const string& requestorName, const string& requestorGroupName,
-                                  const string& instanceName, const string& fullPath,
+  int NotifyProtoWfEndPointClosew(const eos::common::FmdHelper& fmd,
+                                  uint32_t ownerUid, uint32_t ownerGid,
+                                  const string& requestorName,
+                                  const string& requestorGroupName,
+                                  const string& instanceName,
+                                  const string& fullPath,
                                   const string& managerName,
-                                  const std::map<std::string, std::string>& xattrs, string& errMsgBack);
+                                  const std::map<std::string, std::string>& xattrs,
+                                  string& errMsgBack);
 
   //----------------------------------------------------------------------------
   //! Send archive failed event to the manager

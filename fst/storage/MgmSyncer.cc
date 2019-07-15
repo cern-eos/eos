@@ -75,12 +75,13 @@ Storage::MgmSyncer()
     while (gOFS.WrittenFilesQueue.size() > 0) {
       // we enter this loop with the WrittenFilesQueueMutex locked
       time_t now = time(NULL);
-      eos::common::Fmd fmd = gOFS.WrittenFilesQueue.front();
+      eos::common::FmdHelper fmd = gOFS.WrittenFilesQueue.front();
       gOFS.WrittenFilesQueueMutex.UnLock();
-      eos_static_info("fxid=%08llx mtime=%llu", fmd.fid(), fmd.mtime());
+      eos_static_info("fxid=%08llx mtime=%llu", fmd.mProtoFmd.fid(),
+                      fmd.mProtoFmd.mtime());
       // guarantee that we delay the check by atleast 60 seconds to wait
       // for the commit of all recplias
-      time_t delay = fmd.mtime() + 60 - now;
+      time_t delay = fmd.mProtoFmd.mtime() + 60 - now;
 
       if ((delay > 0) && (delay <= 60)) {
         // only values less than a minute should be taken into account here
@@ -92,17 +93,21 @@ Storage::MgmSyncer()
         continue;
       }
 
-      bool isopenforwrite = gOFS.openedForWriting.isOpen(fmd.fsid(), fmd.fid());
+      bool isopenforwrite = gOFS.openedForWriting.isOpen(fmd.mProtoFmd.fsid(),
+                            fmd.mProtoFmd.fid());
 
       if (!isopenforwrite) {
         // now do the consistency check
-        if (gFmdDbMapHandler.ResyncMgm(fmd.fsid(), fmd.fid(), nullptr)) {
+        if (gFmdDbMapHandler.ResyncMgm(fmd.mProtoFmd.fsid(),
+                                       fmd.mProtoFmd.fid(), nullptr)) {
           eos_static_debug("msg=\"resync ok\" fsid=%lu fxid=%08llx",
-                           (unsigned long) fmd.fsid(), fmd.fid());
+                           (unsigned long) fmd.mProtoFmd.fsid(),
+                           fmd.mProtoFmd.fid());
           gOFS.WrittenFilesQueueMutex.Lock();
         } else {
           eos_static_err("msg=\"resync failed\" fsid=%lu fxid=%08llx",
-                         (unsigned long) fmd.fsid(), fmd.fid());
+                         (unsigned long) fmd.mProtoFmd.fsid(),
+                         fmd.mProtoFmd.fid());
           failure = true;
           gOFS.WrittenFilesQueueMutex.Lock(); // put back the lock and the entry
           gOFS.WrittenFilesQueue.push(fmd);

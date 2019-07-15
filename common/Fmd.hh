@@ -27,56 +27,21 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Structure holding file metadata
-//------------------------------------------------------------------------------
-struct Fmd : public eos::fst::FmdBase {
-public:
-  static constexpr uint64_t UNDEF = 0xfffffffffff1ULL;
-  virtual ~Fmd() {}
-};
-
-//------------------------------------------------------------------------------
-//! Class implementing file meta data
+//! Class modelling the file metadata stored on the FST. It wrapps an FmdBase
+//! class generated from the ProtoBuffer specification and adds some extra
+//! functionality for conversion to/from string/env representation.
 //------------------------------------------------------------------------------
 class FmdHelper : public eos::common::LogId
 {
 public:
-  //---------------------------------------------------------------------------
-  //! Compute layout error
-  //!
-  //! @param fmd protobuf file meta data
-  //! @param fsid file system id to check against
-  //!
-  //! @return 0 if there are no errors, otherwise encoded type of layout error
-  //!        stored in the int.
-  //---------------------------------------------------------------------------
-  static int LayoutError(const Fmd& fmd, eos::common::FileSystem::fsid_t fsid);
-
-  //---------------------------------------------------------------------------
-  //! Reset file meta data object
-  //!
-  //! @param fmd protobuf file meta data
-  //---------------------------------------------------------------------------
-  static void Reset(Fmd& fmd);
-
-  //---------------------------------------------------------------------------
-  //! Get set of locations for the given fmd
-  //!
-  //! @param fmd file metadata object
-  //! @param valid_replicas number of valid replicas <= size of the returned
-  //!        set i.e. replicas which are not unlinked
-  //!
-  //! @return set of file system ids representing the locations
-  //---------------------------------------------------------------------------
-  static std::set<eos::common::FileSystem::fsid_t>
-  GetLocations(const Fmd& fmd, size_t& valid_replicas);
+  static constexpr uint64_t UNDEF = 0xfffffffffff1ULL;
 
   //---------------------------------------------------------------------------
   //! Constructor
   //---------------------------------------------------------------------------
-  FmdHelper(eos::common::FileId::fileid_t fid = 0, int fsid = 0): LogId()
+  FmdHelper(eos::common::FileId::fileid_t fid = 0, int fsid = 0)
   {
-    Reset(mProtoFmd);
+    Reset();
     mProtoFmd.set_fid(fid);
     mProtoFmd.set_fsid(fsid);
   }
@@ -85,6 +50,34 @@ public:
   //! Destructor
   //---------------------------------------------------------------------------
   virtual ~FmdHelper() = default;
+
+  //---------------------------------------------------------------------------
+  //! Compute layout error
+  //!
+  //! @param fsid file system id to check against
+  //!
+  //! @return 0 if there are no errors, otherwise encoded type of layout error
+  //!        stored in the int.
+  //---------------------------------------------------------------------------
+  int LayoutError(eos::common::FileSystem::fsid_t fsid);
+
+  //---------------------------------------------------------------------------
+  //! Reset file meta data object
+  //!
+  //! @param fmd protobuf file meta data
+  //---------------------------------------------------------------------------
+  void Reset();
+
+  //---------------------------------------------------------------------------
+  //! Get set of locations for the given fmd
+  //!
+  //! @param valid_replicas number of valid replicas <= size of the returned
+  //!        set i.e. replicas which are not unlinked
+  //!
+  //! @return set of file system ids representing the locations
+  //---------------------------------------------------------------------------
+  std::set<eos::common::FileSystem::fsid_t>
+  GetLocations(size_t& valid_replicas);
 
   //---------------------------------------------------------------------------
   //! Convert fmd object to env representation
@@ -104,12 +97,12 @@ public:
   //! File meta data object replication function (copy constructor)
   //---------------------------------------------------------------------------
   void
-  Replicate(Fmd& fmd)
+  Replicate(FmdHelper& fmd)
   {
-    mProtoFmd = fmd;
+    mProtoFmd = fmd.mProtoFmd;
   }
 
-  Fmd mProtoFmd; ///< Protobuf file metadata info
+  eos::fst::FmdBase mProtoFmd; ///< Protobuf file metadata info
 };
 
 //------------------------------------------------------------------------------
@@ -120,6 +113,6 @@ public:
 //!
 //! @return true if successful, otherwise false
 //------------------------------------------------------------------------------
-bool EnvToFstFmd(XrdOucEnv& env, struct Fmd& fmd);
+bool EnvToFstFmd(XrdOucEnv& env, FmdHelper& fmd);
 
 EOSCOMMONNAMESPACE_END

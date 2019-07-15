@@ -120,7 +120,7 @@ GetRemoteAttribute(const char* manager, const char* key,
 //------------------------------------------------------------------------------
 int
 GetRemoteFmdFromLocalDb(const char* manager, const char* shexfid,
-                        const char* sfsid, struct eos::common::Fmd& fmd)
+                        const char* sfsid, eos::common::FmdHelper& fmd)
 {
   if ((!manager) || (!shexfid) || (!sfsid)) {
     return EINVAL;
@@ -188,9 +188,9 @@ GetRemoteFmdFromLocalDb(const char* manager, const char* shexfid,
   }
 
   // very simple check
-  if (fmd.fid() != eos::common::FileId::Hex2Fid(shexfid)) {
+  if (fmd.mProtoFmd.fid() != eos::common::FileId::Hex2Fid(shexfid)) {
     eos_static_err("Uups! Received wrong meta data from remote server - fid "
-                   "is %lu instead of %lu !", fmd.fid(),
+                   "is %lu instead of %lu !", fmd.mProtoFmd.fid(),
                    eos::common::FileId::Hex2Fid(shexfid));
     delete response;
     return EIO;
@@ -820,7 +820,7 @@ com_file(char* arg1)
           bool down = (bs != "booted");
           int retc = 0;
           int oldsilent = silent;
-          eos::common::Fmd fmd;
+          eos::common::FmdHelper fmd;
 
           if ((option.find("%silent")) != STR_NPOS) {
             silent = true;
@@ -890,13 +890,14 @@ com_file(char* arg1)
               consistencyerror = true;
               inconsistencylable = "NOFMD";
             } else {
-              XrdOucString cx = fmd.checksum().c_str();
+              const auto& proto_fmd = fmd.mProtoFmd;
+              XrdOucString cx = proto_fmd.checksum().c_str();
 
               for (unsigned int k = (cx.length() / 2); k < SHA_DIGEST_LENGTH; k++) {
                 cx += "00";
               }
 
-              XrdOucString disk_cx = fmd.diskchecksum().c_str();
+              XrdOucString disk_cx = proto_fmd.diskchecksum().c_str();
 
               for (unsigned int k = (disk_cx.length() / 2); k < SHA_DIGEST_LENGTH; k++) {
                 disk_cx += "00";
@@ -904,14 +905,14 @@ com_file(char* arg1)
 
               if ((option.find("%size")) != STR_NPOS) {
                 char ss[1024];
-                sprintf(ss, "%" PRIu64, fmd.size());
+                sprintf(ss, "%" PRIu64, proto_fmd.size());
                 XrdOucString sss = ss;
 
                 if (sss != size) {
                   consistencyerror = true;
                   inconsistencylable = "SIZE";
                 } else {
-                  if (fmd.size() != (unsigned long long) rsize) {
+                  if (proto_fmd.size() != (unsigned long long) rsize) {
                     if (!consistencyerror) {
                       consistencyerror = true;
                       inconsistencylable = "FSTSIZE";
@@ -942,7 +943,7 @@ com_file(char* arg1)
                         i, newresult->Get(repfsid.c_str()),
                         newresult->Get(repurl.c_str()),
                         newresult->Get(repfstpath.c_str()),
-                        fmd.size(), static_cast<long long>(rsize),
+                        proto_fmd.size(), static_cast<long long>(rsize),
                         cx.c_str(), disk_cx.c_str());
 
                 if ((option.find("%checksumattr") != STR_NPOS)) {

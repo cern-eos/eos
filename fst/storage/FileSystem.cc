@@ -184,8 +184,7 @@ FileSystem::CleanTransactions()
 
           if (fMd) {
             size_t valid_loc;
-            auto location_set = eos::common::FmdHelper::GetLocations(fMd->mProtoFmd,
-                                valid_loc);
+            auto location_set = fMd->GetLocations(valid_loc);
 
             if (location_set.count(GetId())) {
               // close that transaction and keep the file

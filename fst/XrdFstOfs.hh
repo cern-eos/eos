@@ -381,7 +381,7 @@ public:
   XrdSysMutex ErrorReportQueueMutex;
   std::queue<XrdOucString> ErrorReportQueue;
   XrdSysMutex WrittenFilesQueueMutex;
-  std::queue<eos::common::Fmd> WrittenFilesQueue;
+  std::queue<eos::common::FmdHelper> WrittenFilesQueue;
   XrdMqSharedObjectManager ObjectManager; ///< Managing shared objects
   std::unique_ptr<qclient::SharedManager> mQSOM; ///< MQ on QDB - can be null
   //! Notifying any shared object changes
