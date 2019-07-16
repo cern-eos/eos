@@ -379,4 +379,12 @@ TapeAwareGc::getDefaultSpaceFreeBytes() {
   return m_freeSpaceInDefault.getFreeBytes();
 }
 
+//----------------------------------------------------------------------------
+// Return the amount of free bytes in the EOS space named default
+//----------------------------------------------------------------------------
+time_t
+TapeAwareGc::getDefaultSpaceFreeSpaceQueryTimestamp() {
+  return m_freeSpaceInDefault.getFreeSpaceQueryTimestamp();
+}
+
 EOSMGMNAMESPACE_END

@@ -74,6 +74,11 @@ public:
   //----------------------------------------------------------------------------
   uint64_t getFreeBytes();
 
+  //----------------------------------------------------------------------------
+  //! @return the timestamp at which the last free space query was made
+  //----------------------------------------------------------------------------
+  time_t getFreeSpaceQueryTimestamp();
+
 private:
 
   /// Mutex
