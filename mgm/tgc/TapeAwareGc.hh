@@ -39,6 +39,7 @@
 #include <stdexcept>
 #include <stdint.h>
 #include <thread>
+#include <time.h>
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -116,6 +117,12 @@ public:
   //! @return the amount of free bytes in the EOS space named default
   //----------------------------------------------------------------------------
   uint64_t getDefaultSpaceFreeBytes();
+
+  //----------------------------------------------------------------------------
+  //! @return the timestamp at which the EOS space named default eas queried for
+  //! free space
+  //----------------------------------------------------------------------------
+  time_t getDefaultSpaceFreeSpaceQueryTimestamp();
 
 protected:
 

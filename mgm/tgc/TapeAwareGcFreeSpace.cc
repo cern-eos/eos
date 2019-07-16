@@ -87,6 +87,16 @@ TapeAwareGcFreeSpace::getFreeBytes()
 }
 
 //------------------------------------------------------------------------------
+// Return the timestamp at which the last free space query was made
+//------------------------------------------------------------------------------
+time_t
+TapeAwareGcFreeSpace::getFreeSpaceQueryTimestamp() {
+  std::lock_guard<std::mutex> lock(m_mutex);
+
+  return m_freeSpaceQueryTimestamp;
+}
+
+//------------------------------------------------------------------------------
 // Query the EOS MGM for the amount of free space in bytes
 //------------------------------------------------------------------------------
 uint64_t
