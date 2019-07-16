@@ -82,9 +82,6 @@ TapeAwareGcFreeSpace::getFreeBytes()
   if(secsSinceLastQuery >= spaceQueryPeriodSecs) {
     m_freeSpaceQueryTimestamp = now;
     m_freeSpaceBytes = queryMgmForFreeBytes();
-    ostringstream msg;
-    msg << "TapeAwareGc queried default EOS space for free space: freeSpaceBytes=" << m_freeSpaceBytes;
-    eos_static_info(msg.str().c_str());
   }
   return m_freeSpaceBytes;
 }
