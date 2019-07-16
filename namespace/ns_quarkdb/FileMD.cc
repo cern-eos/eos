@@ -86,8 +86,9 @@ QuarkFileMD::operator = (const QuarkFileMD& other)
 //------------------------------------------------------------------------------
 void QuarkFileMD::setName(const std::string& name)
 {
-  if(name.find('/') != std::string::npos) {
-    eos_static_crit("Detected slashes in filename: %s", eos::common::getStacktrace().c_str());
+  if (name.find('/') != std::string::npos) {
+    eos_static_crit("Detected slashes in filename: %s",
+                    eos::common::getStacktrace().c_str());
     throw_mdexception(EINVAL, "Bug, detected slashes in file name: " << name);
   }
 
@@ -166,6 +167,11 @@ QuarkFileMD::unlinkLocation(location_t location)
   for (auto it = mFile.mutable_locations()->cbegin();
        it != mFile.mutable_locations()->cend(); ++it) {
     if (*it == location) {
+      // If location is already unlink, skip adding it
+      if (hasUnlinkedLocation(location)) {
+        return;
+      }
+
       mFile.add_unlink_locations(*it);
       it = mFile.mutable_locations()->erase(it);
       lock.unlock();
@@ -268,7 +274,6 @@ void
 QuarkFileMD::serialize(eos::Buffer& buffer)
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-
   // Increase clock to mark that metadata file has suffered updates
   mClock = std::chrono::high_resolution_clock::now().time_since_epoch().count();
   // Align the buffer to 4 bytes to efficiently compute the checksum
