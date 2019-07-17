@@ -168,7 +168,7 @@ QuarkFileMD::unlinkLocation(location_t location)
        it != mFile.mutable_locations()->cend(); ++it) {
     if (*it == location) {
       // If location is already unlink, skip adding it
-      if (hasUnlinkedLocation(location)) {
+      if (hasUnlinkedLocationNoLock(location)) {
         return;
       }
 
@@ -457,11 +457,18 @@ QuarkFileMD::getAttributes() const
   return xattrs;
 }
 
-bool
-QuarkFileMD::hasUnlinkedLocation(IFileMD::location_t location)
-{
+//------------------------------------------------------------------------------
+// Test the unlinked location
+//------------------------------------------------------------------------------
+bool QuarkFileMD::hasUnlinkedLocation(IFileMD::location_t location) {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+  return hasUnlinkedLocationNoLock(location);
+}
 
+//------------------------------------------------------------------------------
+// Test the unlinked location, no locks
+//------------------------------------------------------------------------------
+bool QuarkFileMD::hasUnlinkedLocationNoLock(location_t location) const {
   for (int i = 0; i < mFile.unlink_locations_size(); ++i) {
     if (mFile.unlink_locations()[i] == location) {
       return true;
@@ -470,5 +477,6 @@ QuarkFileMD::hasUnlinkedLocation(IFileMD::location_t location)
 
   return false;
 }
+
 
 EOSNSNAMESPACE_END

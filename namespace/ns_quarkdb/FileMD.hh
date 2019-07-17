@@ -637,6 +637,12 @@ private:
   //----------------------------------------------------------------------------
   void getCTimeNoLock(ctime_t& ctime) const;
 
+  //----------------------------------------------------------------------------
+  //! Test the unlinked location, no locks
+  //----------------------------------------------------------------------------
+  bool hasUnlinkedLocationNoLock(location_t location) const;
+
+
   mutable std::shared_timed_mutex mMutex;
   eos::ns::FileMdProto mFile; ///< Protobuf file representation
   uint64_t mClock; ///< Value tracking metadata changes
