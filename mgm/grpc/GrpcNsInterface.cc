@@ -370,7 +370,7 @@ GrpcNsInterface::Access(eos::common::VirtualIdentity& vid, int mode,
   return permok;
 }
 
-grpc::Status 
+grpc::Status
 GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
 			    eos::rpc::InsertReply* reply,
 			    const eos::rpc::FileInsertRequest* request)
@@ -384,33 +384,34 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
 
   std::shared_ptr<eos::IFileMD> newfile;
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-  
+
   for (auto it : request->files()) {
     eos_static_info("creating path=%s id=%lx", it.path().c_str(), it.id());
     try {
       newfile = gOFS->eosView->createFile(it.path(), it.uid(), it.gid(), it.id());
-      
+
       eos::IFileMD::ctime_t ctime;
       eos::IFileMD::ctime_t mtime;
       ctime.tv_sec  = it.ctime().sec();
       ctime.tv_nsec = it.ctime().n_sec();
       mtime.tv_sec  = it.mtime().sec();
       mtime.tv_nsec = it.mtime().n_sec();
-      
+
       newfile->setFlags(it.flags());
       newfile->setCTime(ctime);
       newfile->setMTime(mtime);
       newfile->setCUid(it.uid());
       newfile->setCGid(it.gid());
       newfile->setLayoutId(it.layout_id());
+      newfile->setSize(it.size());
       newfile->setChecksum(it.checksum().value().c_str(), it.checksum().value().size());
 
       for (auto attrit : it.xattrs()) {
-	newfile->setAttribute(attrit.first, attrit.second);
-      }    
+	      newfile->setAttribute(attrit.first, attrit.second);
+      }
 
       for (auto locit : it.locations() ) {
-	newfile->addLocation(locit);
+	      newfile->addLocation(locit);
       }
 
       gOFS->eosView->updateFileStore(newfile.get());
@@ -425,11 +426,11 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
 }
 
 
-grpc::Status 
+grpc::Status
 GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
 			     eos::rpc::InsertReply* reply,
 			     const eos::rpc::ContainerInsertRequest* request)
-			    
+
 {
   if (!vid.sudoer) {
     // block every one who is not a sudoer
@@ -439,12 +440,12 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
 
   std::shared_ptr<eos::IContainerMD> newdir;
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-  
+
   for (auto it : request->container()) {
     eos_static_info("creating path=%s id=%lx", it.path().c_str(), it.id());
     try {
       newdir = gOFS->eosView->createContainer(it.path(), false, it.id());
-      
+
       eos::IContainerMD::ctime_t ctime;
       eos::IContainerMD::ctime_t mtime;
       eos::IContainerMD::ctime_t stime;
@@ -454,7 +455,7 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
       mtime.tv_nsec = it.mtime().n_sec();
       stime.tv_sec  = it.stime().sec();
       stime.tv_nsec = it.stime().n_sec();
-      
+
       newdir->setFlags(it.flags());
       newdir->setCTime(ctime);
       newdir->setMTime(mtime);
@@ -464,8 +465,8 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
       newdir->setMode(it.mode() | S_IFDIR);
 
       for (auto attrit : it.xattrs()) {
-	newdir->setAttribute(attrit.first, attrit.second);
-      }    
+	      newdir->setAttribute(attrit.first, attrit.second);
+      }
 
       gOFS->eosView->updateContainerStore(newdir.get());
       reply->add_retc(0);
