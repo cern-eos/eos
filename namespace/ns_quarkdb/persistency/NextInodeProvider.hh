@@ -57,6 +57,12 @@ public:
   int64_t getFirstFreeId();
 
   //----------------------------------------------------------------------------
+  //! Blacklist all IDs below the given number - from that point on, no IDs
+  //! less or equal to what is specified will be given out.
+  //----------------------------------------------------------------------------
+  void blacklistBelow(int64_t threshold);
+
+  //----------------------------------------------------------------------------
   //! Method used for reseving a batch of ids and return the first free one
   //----------------------------------------------------------------------------
   int64_t reserve();
