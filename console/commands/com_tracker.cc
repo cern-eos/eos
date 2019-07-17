@@ -23,13 +23,13 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
-extern int com_space (char*);
+extern int com_protospace (char*);
 /*----------------------------------------------------------------------------*/
 
 int
 com_tracker (char *arg1)
 {
-  XrdOucString cmd = "tracker ";
+  XrdOucString cmd = "tracker";
   cmd += arg1;
-  return com_space((char*)cmd.c_str());
+  return com_protospace((char*)cmd.c_str());
 }

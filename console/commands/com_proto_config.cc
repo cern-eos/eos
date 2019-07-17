@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: com_space_node.cc
+// File: com_space_config.cc
 // Author: Fabio Luchetti - CERN
 //------------------------------------------------------------------------------
 
@@ -23,39 +23,29 @@
 
 #include "console/commands/ICmdHelper.hh"
 
-
-/*----------------------------------------------------------------------------*/
-#include "console/ConsoleMain.hh"
 #include "common/StringTokenizer.hh"
-#include "common/StringConversion.hh"
-#include "common/SymKeys.hh"
-#include "XrdOuc/XrdOucEnv.hh"
-/*----------------------------------------------------------------------------*/
-#include <streambuf>
-#include <string>
-#include <cerrno>
+#include "console/ConsoleMain.hh"
 
 
-void com_space_help();
+void com_config_help();
 
 //------------------------------------------------------------------------------
-//! Class SpaceHelper
+//! Class ConfigHelper
 //------------------------------------------------------------------------------
-class SpaceHelper : public ICmdHelper
+class ConfigHelper : public ICmdHelper
 {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  SpaceHelper()
+  ConfigHelper()
   {
-    mHighlight = true;
   }
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~SpaceHelper() = default;
+  ~ConfigHelper() = default;
 
   //----------------------------------------------------------------------------
   //! Parse command line input
@@ -70,7 +60,7 @@ public:
 //------------------------------------------------------------------------------
 // Parse command line input
 //------------------------------------------------------------------------------
-bool SpaceHelper::ParseCommand(const char* arg)
+bool ConfigHelper::ParseCommand(const char* arg)
 {
   eos::console::SpaceProto* space = mReq.mutable_space();
   eos::common::StringTokenizer tokenizer(arg);
@@ -326,115 +316,77 @@ bool SpaceHelper::ParseCommand(const char* arg)
 }
 
 //------------------------------------------------------------------------------
-// Space command entry point
+// Config command entry point
 //------------------------------------------------------------------------------
-int com_protospace(char* arg)
+int com_protoconfig(char* arg)
 {
   if (wants_help(arg)) {
-    com_space_help();
+    com_config_help();
     global_retc = EINVAL;
     return EINVAL;
   }
 
-  SpaceHelper space;
+  ConfigHelper config;
 
-  if (!space.ParseCommand(arg)) {
-    com_space_help();
+  if (!config.ParseCommand(arg)) {
+    com_config_help();
     global_retc = EINVAL;
     return EINVAL;
   }
 
-  global_retc = space.Execute();
+  global_retc = config.Execute();
   return global_retc;
 }
 
 //------------------------------------------------------------------------------
 // Print help message
 //------------------------------------------------------------------------------
-void com_space_help()
+void com_config_help()
 {
   std::ostringstream oss;
   oss
       << " usage:\n"
-      << "space ls [-s|-g <depth>] [-m|-l|--io|--fsck] [<space>] : list in all spaces or select only <space>. <space> is a substring match and can be a comma seperated list\n"
-      << "\t      -s : silent mode\n"
-      << "\t      -m : monitoring key=value output format\n"
-      << "\t      -l : long output - list also file systems after each space\n"
-      << "\t      -g : geo output - aggregate space information along the instance geotree down to <depth>\n"
-      << "\t    --io : print IO satistics\n"
-      << "\t  --fsck : print filesystem check statistics\n"
+
+      << "config changelog|dump|export|load|ls|reset|save [OPTIONS]"
       << std::endl
-      << "space config <space-name> space.nominalsize=<value>                   : configure the nominal size for this space\n"
-      << "space config <space-name> space.balancer=on|off                       : enable/disable the space balancer [default=off]\n"
-      << "space config <space-name> space.balancer.threshold=<percent>          : configure the used bytes deviation which triggers balancing            [ default=20 (%%)     ] \n"
-      << "space config <space-name> space.balancer.node.rate=<MB/s>             : configure the nominal transfer bandwith per running transfer on a node [ default=25 (MB/s)   ]\n"
-      << "space config <space-name> space.balancer.node.ntx=<#>                 : configure the number of parallel balancing transfers per node          [ default=2 (streams) ]\n"
-      << "space config <space-name> space.converter=on|off                      : enable/disable the space converter [default=off]\n"
-      << "space config <space-name> space.converter.ntx=<#>                     : configure the number of parallel conversions per space                 [ default=2 (streams) ]\n"
-      << "space config <space-name> space.drainer.node.rate=<MB/s >             : configure the nominal transfer bandwith per running transfer on a node [ default=25 (MB/s)   ]\n"
-      << "space config <space-name> space.drainer.node.ntx=<#>                  : configure the number of parallel draining transfers per node           [ default=2 (streams) ]\n"
-      << "space config <space-name> space.drainer.node.nfs=<#>                  : configure the number of max draining filesystems per node (Valid only for central drain)  [ default=5 ]\n"
-      << "space config <space-name> space.drainer.retries=<#>                   : configure the number of retry for the draining process (Valid only for central drain)     [ default=1 ]\n"
-      << "space config <space-name> space.drainer.fs.ntx=<#>                    : configure the number of parallel draining transfers per fs (Valid only for central drain) [ default=5 ]\n"
-      << "space config <space-name> space.lru=on|off                            : enable/disable the LRU policy engine [default=off]\n"
-      << "space config <space-name> space.lru.interval=<sec>                    : configure the default lru scan interval\n"
-      << "space config <space-name> space.headroom=<size>                       : configure the default disk headroom if not defined on a filesystem (see fs for details)\n"
-      << "space config <space-name> space.scaninterval=<sec>                    : configure the default scan interval if not defined on a filesystem (see fs for details)\n"
-      << "space config <space-name> space.scanrate=<MB/S>                       : configure the default scan rate if not defined on a filesystem (see fs for details)\n"
-      << "space config <space-name> space.drainperiod=<sec>                     : configure the default drain  period if not defined on a filesystem (see fs for details)\n"
-      << "space config <space-name> space.graceperiod=<sec>                     : configure the default grace  period if not defined on a filesystem (see fs for details)\n"
-      << "space config <space-name> space.filearchivedgc=on|off                 : enable/disable the 'file archived' garbage collector [ default=off ]\n"
-      << "space config <space-name> space.tapeawaregc.spacequeryperiodsecs=<#>  : delay in seconds between free space queries for the tape aware GC [ default=310 ]\n"
-      << "space config <space-name> space.tapeawaregc.minfreebytes=<#>          : configure the minimum number of free bytes a space should have before the tape aware GC kicks in [ default=0 ]\n"
-      << "space config <space-name> space.tracker=on|off                        : enable/disable the space layout creation tracker [default=off]\n"
-      << "space config <space-name> space.inspector=on|off                      : enable/disable the file inspector [default=off]\n"
-      << "space config <space-name> space.autorepair=on|off                     : enable auto-repair of faulty replica's/files (the converter has to be enabled too)\n"
-      << "                                                                        => size can be given also like 10T, 20G, 2P ... without space before the unit \n"
-      << "space config <space-name> space.geo.access.policy.write.exact=on|off  : if 'on' use exact matching geo replica (if available) , 'off' uses weighting [ for write case ]\n"
-      << "space config <space-name> space.geo.access.policy.read.exact=on|off   : if 'on' use exact matching geo replica (if available) , 'off' uses weighting [ for read  case ]\n"
-      << "space config <space-name> fs.<key>=<value>                            : configure file system parameters for each filesystem in this space (see help of 'fs config' for details)\n"
-      << "space config <space-name> policy.[layout|nstripes|checksum|blockchecksum|blocksize|remove]=<value> : configure default file layout creation settings as a space policy - a value='remove' deletes the space policy\n\n"
+      << "'[eos] config' provides the configuration interface to EOS." << std::endl
       << std::endl
-      << "space define <space-name> [<groupsize> [<groupmod>]] : define how many filesystems can end up in one scheduling group <groupsize> [default=0]\n"
-      << "                                                       => <groupsize>=0 means that no groups are built within a space, otherwise it should be the maximum number of nodes in a scheduling group\n"
-      << "                                                       => <groupmod> maximum number of groups in the space, which should be at least equal to the maximun number of filesystems per node\n"
+      << "Subcommands:" << std::endl
+      << "config changelog [-#lines]" << std::endl
+      << "       show the last <#> lines from the changelog - default is 10" << std::endl
       << std::endl
-      << "space inspector [--current|-c] [--last|-l] [-m] [-p] [-e] : show namespace inspector output\n"
-      << "\t  -c  : show current scan\n"
-      << "\t  -l  : show last complete scan\n"
-      << "\t  -m  : print last scan in monitoring format\n"
-      << "\t  -p  : combined with -c or -l lists erroneous files\n"
-      << "\t  -e  : combined with -c or -l exports erroneous files on the MGM into /var/log/eos/mgm/FileInspector.<date>.list\n"
+      << "config dump [-cfgpqmsv] [<name>]" << std::endl
+      << "       dump configuration with name <name> or current one by default" << std::endl
+      << "       -c|--comments : " << "dump only comment config" << std::endl
+      << "       -f|--fs       : " << "dump only file system config" << std::endl
+      << "       -g|--global   : " << "dump only global config" << std::endl
+      << "       -p|--policy   : " << "dump only policy config" << std::endl
+      << "       -q|--quota    : " << "dump only quota config" << std::endl
+      << "       -m|--map      : " << "dump only mapping config" << std::endl
+      << "       -r|--route    : " << "dump only routing config" << std::endl
+      << "       -s|--geosched : " << "dump only geosched config" << std::endl
+      << "       -v|--vid      : " << "dump only virtual id config" << std::endl
       << std::endl
-      << "space node-set <space-name> <node.key> <file-name> : store the contents of <file-name> into the node configuration variable <node.key> visibile to all FSTs\n"
-      << "                                                     => if <file-name> matches file:<path> the file is loaded from the MGM and not from the client\n"
-      << "                                                     => local files cannot exceed 512 bytes - MGM files can be arbitrary length\n"
-      << "                                                     => the contents gets base64 encoded by default\n"
+      << "config export [-f] [<name>]" << std::endl
+      << "       export a configuration stored on file to QuarkDB - you need to specify the full path" << std::endl
+      << "       -f : overwrite existing config name and create a timestamped backup" << std::endl
       << std::endl
-      << "space node-get <space-name> <node.key> : get the value of <node.key> and base64 decode before output\n"
-      << "                                         => if the value for <node.key> is identical for all nodes in the referenced space, it is dumped only once, otherwise the value is dumped for each node separately\n"
+      << "config load <name>"  << std::endl
+      << "       load config (optionally with name)" << std::endl
       << std::endl
-      << "space reset <space-name> [--egroup|mapping|drain|scheduledrain|schedulebalance|ns|nsfilesystemview|nsfilemap|nsdirectorymap] : reset different space attributes\n"
-      << "\t            --egroup : clear cached egroup information\n"
-      << "\t           --mapping : clear all user/group uid/gid caches\n"
-      << "\t             --drain : reset draining\n"
-      << "\t     --scheduledrain : reset drain scheduling map\n"
-      << "\t   --schedulebalance : reset balance scheduling map\n"
-      << "\t                --ns : resize all namespace maps\n"
-      << "\t  --nsfilesystemview : resize namespace filesystem view\n"
-      << "\t         --nsfilemap : resize namespace file map\n"
-      << "\t    --nsdirectorymap : resize namespace directory map\n"
+      << "config ls [-b|--backup]" << std::endl
+      << "       list existing configurations" << std::endl
+      << "       --backup|-b : show also backup & autosave files" << std::endl
       << std::endl
-      << "space status <space-name> [-m] : print all defined variables for space\n"
+      << "config reset" << std::endl
+      << "       reset all configuration to empty state" << std::endl
       << std::endl
-      << "space tracker : print all file replication tracking entries\n"
-      << std::endl
-      << "space set <space-name> on|off : enable/disable all groups under that space ( not the nodes !) \n"
-      << std::endl
-      << "space rm <space-name> : remove space\n"
-      << std::endl
-      << "space quota <space-name> on|off : enable/disable quota\n"
-      << std::endl;
+      << "config save [-f] [<name>] [-c|--comment \"<comment>\"]" << std::endl
+      << "       save config (optionally under name)" << std::endl
+      << "       -f : overwrite existing config name and create a timestamped backup" << std::endl
+      << "            If no name is specified the current config file is overwritten." << std::endl
+      << "       -c : add a comment entry to the config" << std::endl
+      << "            Extended option will also add the entry to the logbook." << std::endl;
   std::cerr << oss.str() << std::endl;
 
 }
