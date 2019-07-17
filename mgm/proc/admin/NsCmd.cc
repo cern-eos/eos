@@ -367,7 +367,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
           << "uid=all gid=all tapeawaregc.queuesize="
           << gOFS->mTapeAwareGc->getLruQueueSize() << std::endl
           << "uid=all gid=all tapeawaregc.freebytes.default="
-          << gOFS->mTapeAwareGc->getDefaultSpaceFreeBytes() << std::endl;
+          << gOFS->mTapeAwareGc->getDefaultSpaceFreeBytes() << std::endl
+          << "uid=all gid=all tapeawaregc.freespacequerytimestamp.default="
+          << gOFS->mTapeAwareGc->getDefaultSpaceFreeSpaceQueryTimestamp() << std::endl;
     }
   } else {
     std::string line = "# ------------------------------------------------------"
