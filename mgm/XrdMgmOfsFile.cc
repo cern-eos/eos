@@ -679,9 +679,10 @@ XrdMgmOfsFile::open(const char* inpath,
       return Emsg(epname, error, errno, "open file - directory immutable", path);
     }
 
-    // check publicaccess level  
-    if (!gOFS->allow_public_access(path,vid)) {
-      return Emsg(epname, error, EACCES, "access - public access level restriction", path);
+    // check publicaccess level
+    if (!gOFS->allow_public_access(path, vid)) {
+      return Emsg(epname, error, EACCES, "access - public access level restriction",
+                  path);
     }
 
     int taccess = -1;
@@ -897,7 +898,7 @@ XrdMgmOfsFile::open(const char* inpath,
             gOFS->FuseXCastContainer(cmd_id);
             gOFS->FuseXCastContainer(cmd_pid);
             gOFS->FuseXCastRefresh(cmd_id, cmd_pid);
-	    gOFS->mReplicationTracker->Create(fmd);
+            gOFS->mReplicationTracker->Create(fmd);
           } catch (eos::MDException& e) {
             fmd.reset();
             errno = e.getErrno();
@@ -1021,16 +1022,12 @@ XrdMgmOfsFile::open(const char* inpath,
   unsigned long new_lid = 0;
   eos::mgm::Scheduler::tPlctPolicy plctplcy;
   std::string targetgeotag;
-
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-
   // select space and layout according to policies
   Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
                             forcedFsId, forcedGroup);
-
   // get placement policy
   Policy::GetPlctPolicy(path, attrmap, vid, *openOpaque, plctplcy, targetgeotag);
-  
   unsigned long long ext_mtime_sec = 0;
   unsigned long long ext_mtime_nsec = 0;
   unsigned long long ext_ctime_sec = 0;
@@ -1069,13 +1066,9 @@ XrdMgmOfsFile::open(const char* inpath,
   }
 
   if (openOpaque->Get("eos.xattr")) {
-    int envlen;
     std::vector<std::string> xattr_keys;
-    eos::common::StringConversion::GetKeyValueMap(openOpaque->Env(envlen),
-        ext_xattr_map,
-        "=",
-        "&",
-        &xattr_keys);
+    eos::common::StringConversion::GetKeyValueMap(openOpaque->Get("eos.xattr"),
+        ext_xattr_map, "=", "&", &xattr_keys);
 
     for (auto it = xattr_keys.begin(); it != xattr_keys.end(); ++it) {
       if (it->substr(0, 5) != "user.") {
@@ -1768,9 +1761,10 @@ XrdMgmOfsFile::open(const char* inpath,
 
   // if this is a RAIN layout, we want a nice round-robin for the entry server since it
   // has the burden of encoding and traffic fan-out
-  if ( isRW && eos::common::LayoutId::IsRainLayout(layoutId) ) {
+  if (isRW && eos::common::LayoutId::IsRainLayout(layoutId)) {
     fsIndex = fileId % selectedfs.size();
-    eos_static_info("selecting entry-server fsIndex=%lu fsid=%lu fxid=%lx mod=%lu", fsIndex, selectedfs[fsIndex], fileId, selectedfs.size());
+    eos_static_info("selecting entry-server fsIndex=%lu fsid=%lu fxid=%lx mod=%lu",
+                    fsIndex, selectedfs[fsIndex], fileId, selectedfs.size());
   }
 
   // Get the redirection host from the selected entry in the vector
