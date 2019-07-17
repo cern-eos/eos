@@ -66,4 +66,39 @@ TEST_F(NextInodeProviderTest, BasicSanity)
   qcl->del("ns-tests-next-inode-provider");
 }
 
+TEST_F(NextInodeProviderTest, Blacklisting)
+{
+  std::unique_ptr<qclient::QClient> qcl = createQClient();
+
+  qclient::QHash myhash;
+  myhash.setKey("ns-tests-next-inode-provider");
+  myhash.setClient(*qcl.get());
+  myhash.hdel("counter");
+
+  NextInodeProvider inodeProvider;
+  inodeProvider.configure(myhash, "counter");
+
+  ASSERT_EQ(inodeProvider.reserve(), 1);
+  ASSERT_EQ(inodeProvider.reserve(), 2);
+  ASSERT_EQ(inodeProvider.reserve(), 3);
+
+  inodeProvider.blacklistBelow(4);
+  ASSERT_EQ("7", myhash.hget("counter"));
+
+  ASSERT_EQ(inodeProvider.reserve(), 5);
+  ASSERT_EQ(inodeProvider.reserve(), 6);
+  ASSERT_EQ(inodeProvider.reserve(), 7);
+
+  for(size_t i = 8; i < 5000; i++) {
+    ASSERT_EQ(inodeProvider.reserve(), i);
+  }
+
+  inodeProvider.blacklistBelow(10000);
+  ASSERT_EQ("10101", myhash.hget("counter"));
+
+  for(size_t i = 10001; i < 10100; i++) {
+    ASSERT_EQ(inodeProvider.reserve(), i);
+  }
+}
+
 EOSNSTESTING_END

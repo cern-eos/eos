@@ -79,6 +79,24 @@ int64_t NextInodeProvider::reserve()
 }
 
 //------------------------------------------------------------------------------
+// Blacklist all IDs below the given number - from that point on, no IDs
+// less or equal to what is specified will be given out.
+//------------------------------------------------------------------------------
+void NextInodeProvider::blacklistBelow(int64_t threshold)
+{
+  std::lock_guard<std::mutex> lock(mMtx);
+
+  if(mBlockEnd <= threshold) {
+    mBlockEnd = threshold + mStepIncrease;
+    pHash->hset(pField, std::to_string(mBlockEnd));
+    mNextId = threshold+1;
+  }
+  else {
+    mNextId = std::max(mNextId, threshold+1);
+  }
+}
+
+//------------------------------------------------------------------------------
 // Configure hash and field
 //------------------------------------------------------------------------------
 void NextInodeProvider::configure(qclient::QHash& hash,
