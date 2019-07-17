@@ -180,7 +180,15 @@ QuarkFileMDSvc::hasFileMD(const eos::FileIdentifier id)
 std::shared_ptr<IFileMD>
 QuarkFileMDSvc::createFile(IFileMD::id_t id)
 {
-  uint64_t free_id = id?id:mUnifiedInodeProvider.reserveFileId();
+  uint64_t free_id;
+
+  if(id > 0) {
+    mUnifiedInodeProvider.blacklistFileId(id);
+    free_id = id;
+  }
+  else {
+    free_id = mUnifiedInodeProvider.reserveFileId();
+  }
 
   std::shared_ptr<IFileMD> file{new QuarkFileMD(free_id, this)};
   mMetadataProvider->insertFileMD(file->getIdentifier(), file);

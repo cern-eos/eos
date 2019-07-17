@@ -89,6 +89,10 @@ TEST_F(NextInodeProviderTest, Blacklisting)
   ASSERT_EQ(inodeProvider.reserve(), 6);
   ASSERT_EQ(inodeProvider.reserve(), 7);
 
+  inodeProvider.blacklistBelow(1);
+  inodeProvider.blacklistBelow(6);
+  inodeProvider.blacklistBelow(7);
+
   for(size_t i = 8; i < 5000; i++) {
     ASSERT_EQ(inodeProvider.reserve(), i);
   }

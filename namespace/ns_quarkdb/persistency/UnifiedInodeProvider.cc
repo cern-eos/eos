@@ -61,6 +61,17 @@ int64_t UnifiedInodeProvider::reserveContainerId() {
   return mContainerIdProvider->reserve();
 }
 
+void UnifiedInodeProvider::blacklistContainerId(int64_t inode) {
+  if(mSharedInodes) {
+    return mFileIdProvider->blacklistBelow(inode);
+  }
+  return mContainerIdProvider->blacklistBelow(inode);
+}
+
+void UnifiedInodeProvider::blacklistFileId(int64_t inode) {
+  return mFileIdProvider->blacklistBelow(inode);
+}
+
 int64_t UnifiedInodeProvider::getFirstFreeFileId() {
   return mFileIdProvider->getFirstFreeId();
 }

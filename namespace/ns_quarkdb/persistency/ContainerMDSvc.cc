@@ -188,7 +188,15 @@ QuarkContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
 std::shared_ptr<IContainerMD>
 QuarkContainerMDSvc::createContainer(IContainerMD::id_t id)
 {
-  uint64_t free_id = id?id:mUnifiedInodeProvider->reserveContainerId();
+  uint64_t free_id;
+
+  if(id > 0) {
+    mUnifiedInodeProvider->blacklistContainerId(id);
+    free_id = id;
+  }
+  else {
+    free_id = mUnifiedInodeProvider->reserveContainerId();
+  }
 
   std::shared_ptr<IContainerMD> cont
   (new QuarkContainerMD(free_id, pFileSvc, static_cast<IContainerMDSvc*>(this)));
