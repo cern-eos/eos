@@ -24,6 +24,7 @@
 #include "ProcInterface.hh"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/FindCmd.hh"
+#include "mgm/proc/user/QoSCmd.hh"
 #include "mgm/proc/user/RmCmd.hh"
 #include "mgm/proc/user/TokenCmd.hh"
 #include "mgm/proc/user/RouteCmd.hh"
@@ -270,6 +271,10 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
 
   case RequestProto::kAccess:
     cmd.reset(new AccessCmd(std::move(req), vid));
+    break;
+
+  case RequestProto::kQos:
+    cmd.reset(new QoSCmd(std::move(req), vid));
     break;
 
   default:
