@@ -934,6 +934,38 @@ public:
                   const char* opaque,
                   bool keep_acls = false);
 
+  //----------------------------------------------------------------------------
+  //! List QoS properties for a given entry - low-level API
+  //!
+  //! @param path entry path
+  //! @param out_error error object
+  //! @param vid virtual identity of the client
+  //! @param map map containing all QoS values
+  //! @param only_cdmi flag to list only CDMI-specific QoS properties
+  //!
+  //! @return SFS_OK if success, otherwise SFS_ERROR
+  //----------------------------------------------------------------------------
+  int _qos_ls(const char* path, XrdOucErrInfo& out_error,
+              eos::common::VirtualIdentity& vid,
+              eos::IFileMD::QoSAttrMap& map,
+              bool only_cdmi = false);
+
+  //----------------------------------------------------------------------------
+  //! Get QoS property for a given entry by key - low-level API
+  //!
+  //! @param path entry path
+  //! @param out_error error object
+  //! @param vid virtual identity of the client
+  //! @param key QoS key to retrieve
+  //! @param value QoS value
+  //!
+  //! @return SFS_OK if success, otherwise SFS_ERROR
+  //----------------------------------------------------------------------------
+  int _qos_get(const char* path, XrdOucErrInfo& out_error,
+               eos::common::VirtualIdentity& vid,
+               const char* key,
+               XrdOucString& value);
+
   // ---------------------------------------------------------------------------
   // drop stripe by vid
   // ---------------------------------------------------------------------------
