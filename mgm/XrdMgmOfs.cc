@@ -564,6 +564,7 @@ XrdMgmOfs::Disc(const XrdSecEntity* client)
 #include "XrdMgmOfs/Link.cc"
 #include "XrdMgmOfs/Mkdir.cc"
 #include "XrdMgmOfs/PathMap.cc"
+#include "XrdMgmOfs/QoS.cc"
 #include "XrdMgmOfs/Remdir.cc"
 #include "XrdMgmOfs/Rename.cc"
 #include "XrdMgmOfs/Rm.cc"
