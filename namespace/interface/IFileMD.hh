@@ -53,6 +53,7 @@ public:
   typedef struct timespec ctime_t;
   typedef std::vector<location_t> LocationVector;
   typedef std::map<std::string, std::string> XAttrMap;
+  typedef std::map<std::string, std::string> QoSAttrMap;
 
   //----------------------------------------------------------------------------
   //! Constructor
