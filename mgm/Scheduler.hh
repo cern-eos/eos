@@ -217,6 +217,22 @@ public:
   //----------------------------------------------------------------------------
   static int FileAccess(AccessArguments* args);
 
+  //----------------------------------------------------------------------------
+  //! Translate placement policy type to string
+  //----------------------------------------------------------------------------
+  static const char* PlctPolicyString(tPlctPolicy plctPolicy)
+  {
+    if (plctPolicy == kScattered) {
+      return "scattered";
+    } else if (plctPolicy == kHybrid) {
+      return "hybrid";
+    } else if (plctPolicy == kGathered) {
+      return "gathered";
+    } else {
+      return "none";
+    }
+  }
+
 protected:
 
   static XrdSysMutex pMapMutex; //< protect the following scheduling state maps
