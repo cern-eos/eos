@@ -133,13 +133,12 @@ FileConfigEngine::SetConfigDir(const char* config_dir)
 // Load a given configuration file
 //------------------------------------------------------------------------------
 bool
-FileConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err,
+FileConfigEngine::LoadConfig(const std::string& filename, XrdOucString& err,
                              bool skip_stall_redirect)
 {
-  const char* name = env.Get("mgm.config.file");
-  eos_notice("loading name=%s ", name);
+  eos_notice("loading name=%s ", filename.c_str());
 
-  if (!name) {
+  if (filename.empty()) {
     err = "error: you have to specify a configuration file name";
     return false;
   }
@@ -151,7 +150,7 @@ FileConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err,
   // Check if there is any full/partial update config file
   struct stat info;
   std::ostringstream oss;
-  oss << mConfigDir << name << EOSMGMCONFIGENGINE_EOS_SUFFIX;
+  oss << mConfigDir << filename << EOSMGMCONFIGENGINE_EOS_SUFFIX;
   XrdOucString full_path = oss.str().c_str();
   oss << ".tmp";
   std::string tmp_path = oss.str();
@@ -255,32 +254,31 @@ FileConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err,
 
     if (!ApplyConfig(err)) {
       mBroadcast = true;
-      mChangelog->AddEntry("loaded config", name, SSTR("with failure : " << err));
+      mChangelog->AddEntry("loaded config", filename, SSTR("with failure : " << err));
       return false;
     } else {
       mBroadcast = true;
-      mChangelog->AddEntry("loaded config", name, "successfully");
-      mConfigFile = name;
+      mChangelog->AddEntry("loaded config", filename, "successfully");
+      mConfigFile = filename.c_str();
       return true;
     }
   } else {
     err = "error: failed to open configuration file with name \"";
-    err += name;
+    err += filename.c_str();
     err += "\"!";
     return false;
   }
 
-  return false;
 }
 
 //------------------------------------------------------------------------------
 // Store the current configuration to a given file or QuarkDB.
 //------------------------------------------------------------------------------
 bool
-FileConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
+FileConfigEngine::SaveConfig(std::string filename, bool overwrite, bool autosave, const std::string& comment, XrdOucString& err)
 {
   std::lock_guard<std::mutex> lock(sMutex);
-  return SaveConfigNoLock(env, err);
+  return SaveConfigNoLock(filename, overwrite, autosave, comment, err);
 }
 
 //------------------------------------------------------------------------------
@@ -288,25 +286,22 @@ FileConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
 // be executed by one thread at a time.
 //------------------------------------------------------------------------------
 bool
-FileConfigEngine::SaveConfigNoLock(XrdOucEnv& env, XrdOucString& err)
+FileConfigEngine::SaveConfigNoLock(std::string filename, bool overwrite, bool autosave, const std::string& comment, XrdOucString& err)
 {
-  const char* name = env.Get("mgm.config.file");
-  bool force = (bool)env.Get("mgm.config.force");
-  bool autosave = (bool)env.Get("mgm.config.autosave");
-  const char* comment = env.Get("mgm.config.comment");
-  eos_debug("saving config name=%s comment=%s force=%d", name, comment, force);
 
-  if (!name) {
+  eos_debug("saving config name=%s comment=%s force=%d", filename.c_str(), comment.c_str(), overwrite);
+
+  if (filename.empty()) {
     if (mConfigFile.length()) {
-      name = mConfigFile.c_str();
-      force = true;
+      filename = mConfigFile.c_str();
+      overwrite = true;
     } else {
       err = "error: you have to specify a configuration file name";
       return false;
     }
   }
 
-  XrdOucString sname = name;
+  XrdOucString sname = filename.c_str();
 
   if ((sname.find("..") != STR_NPOS) || (sname.find("/") != STR_NPOS)) {
     err = "error: the config name cannot contain .. or /";
@@ -316,7 +311,7 @@ FileConfigEngine::SaveConfigNoLock(XrdOucEnv& env, XrdOucString& err)
 
   std::string bkp_path;
   std::ostringstream oss;
-  oss << mConfigDir << name;
+  oss << mConfigDir << filename;
   std::string half_path = oss.str();
   oss << EOSMGMCONFIGENGINE_EOS_SUFFIX;
   std::string full_path = oss.str();
@@ -326,10 +321,10 @@ FileConfigEngine::SaveConfigNoLock(XrdOucEnv& env, XrdOucString& err)
   std::string tmp_partial = oss.str();
 
   if (!::access(full_path.c_str(), R_OK)) {
-    if (!force) {
+    if (!overwrite) {
       errno = EEXIST;
       err = "error: a configuration file with name \"";
-      err += name;
+      err += filename.c_str();
       err += "\" exists already!";
       return false;
     } else {
@@ -337,7 +332,7 @@ FileConfigEngine::SaveConfigNoLock(XrdOucEnv& env, XrdOucString& err)
       struct stat st;
 
       if (stat(full_path.c_str(), &st)) {
-        oss << "error: cannot stat the config file with name \"" <<  name << "\"";
+        oss << "error: cannot stat the config file with name \"" <<  filename << "\"";
         err = oss.str().c_str();
         return false;
       }
@@ -359,9 +354,8 @@ FileConfigEngine::SaveConfigNoLock(XrdOucEnv& env, XrdOucString& err)
 
   if (tmp_fstream.is_open()) {
     XrdOucString config = "";
-    XrdOucEnv env("");
-    InsertComment(comment);
-    DumpConfig(config, env);
+    InsertComment(comment.c_str());
+    DumpConfig(config, "");
     tmp_fstream << config.c_str();
     tmp_fstream.flush();
     tmp_fstream.close();
@@ -377,7 +371,7 @@ FileConfigEngine::SaveConfigNoLock(XrdOucEnv& env, XrdOucString& err)
   } else {
     eos_err("failed to open temporary configuration file %s", tmp_partial.c_str());
     err = "error: failed to save temporary configuration file with name \"";
-    err += name;
+    err += filename.c_str();
     err += "\"!";
     return false;
   }
@@ -412,18 +406,18 @@ FileConfigEngine::SaveConfigNoLock(XrdOucEnv& env, XrdOucString& err)
 
   std::ostringstream changeLogValue;
 
-  if (force) {
+  if (overwrite) {
     changeLogValue << "(force)";
   }
 
   changeLogValue << " successfully";
 
-  if (comment) {
+  if (comment.c_str()) {
     changeLogValue << "[" << comment << "]";
   }
 
-  mChangelog->AddEntry(changeLogAction, name, changeLogValue.str());
-  mConfigFile = name;
+  mChangelog->AddEntry(changeLogAction, filename, changeLogValue.str());
+  mConfigFile = filename.c_str();
   return true;
 }
 
@@ -588,14 +582,12 @@ FileConfigEngine::AutoSave()
       mConfigFile.erase(aspos);
     }
 
-    XrdOucString envstring = "mgm.config.file=";
-    envstring += mConfigFile;
-    envstring += "&mgm.config.force=1";
-    envstring += "&mgm.config.autosave=1";
-    XrdOucEnv env(envstring.c_str());
+    std::string filename = mConfigFile.c_str();
+    bool overwrite = true;
+    bool autosave = true;
     XrdOucString err = "";
 
-    if (!SaveConfigNoLock(env, err)) {
+    if (!SaveConfigNoLock(filename, overwrite, autosave, "", err)) {
       eos_static_err("%s\n", err.c_str());
       return false;
     }

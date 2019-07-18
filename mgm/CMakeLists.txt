@@ -120,6 +120,7 @@ add_library(
   proc/admin/Access.cc
   proc/admin/Backup.cc
   proc/admin/Config.cc
+  proc/admin/ConfigCmd.cc proc/admin/ConfigCmd.hh
   proc/admin/Debug.cc
   proc/admin/DebugCmd.cc proc/admin/DebugCmd.hh
   proc/admin/FsCmd.cc

@@ -1,6 +1,7 @@
 #-------------------------------------------------------------------------------
 # File: CMakeLists.txt
 # Author: Jozsef Makai - CERN
+# Author: Fabio Luchetti - CERN
 #-------------------------------------------------------------------------------
 
 # ************************************************************************
@@ -103,6 +104,8 @@ endif()
 #-------------------------------------------------------------------------------
 # Generate protobol buffer object for the CLI
 #-------------------------------------------------------------------------------
+PROTOBUF_GENERATE_CPP(REQ_SRCS REQ_HDRS common/cli_proto/ConsoleRequest.proto)
+PROTOBUF_GENERATE_CPP(REP_SRCS REP_HDRS common/cli_proto/ConsoleReply.proto)
 PROTOBUF_GENERATE_CPP(RECY_SRCS RECY_HDRS common/cli_proto/Recycle.proto)
 PROTOBUF_GENERATE_CPP(ACL_SRCS ACL_HDRS common/cli_proto/Acl.proto)
 PROTOBUF_GENERATE_CPP(NS_SRCS NS_HDRS common/cli_proto/Ns.proto)
@@ -118,18 +121,17 @@ PROTOBUF_GENERATE_CPP(DEBUG_SRCS DEBUG_HDRS common/cli_proto/Debug.proto)
 PROTOBUF_GENERATE_CPP(NODE_SRCS NODE_HDRS common/cli_proto/Node.proto)
 PROTOBUF_GENERATE_CPP(QUOTA_SRCS QUOTA_HDRS common/cli_proto/Quota.proto)
 PROTOBUF_GENERATE_CPP(SPACE_SRCS SPACE_HDRS common/cli_proto/Space.proto)
-PROTOBUF_GENERATE_CPP(REQ_SRCS REQ_HDRS common/cli_proto/ConsoleRequest.proto)
-PROTOBUF_GENERATE_CPP(REP_SRCS REP_HDRS common/cli_proto/ConsoleReply.proto)
+PROTOBUF_GENERATE_CPP(CONFIG_SRCS CONFIG_HDRS common/cli_proto/Config.proto)
 
 set(CLI_PROTO_SRCS
-  ${RECY_SRCS} ${NS_SRCS} ${ACL_SRCS} ${DRAIN_SRCS} ${FIND_SRCS} ${REQ_SRCS}
-  ${REP_SRCS} ${FS_SRCS} ${RM_SRCS} ${STAGER_RM_SRCS} ${ROUTE_SRCS} ${IO_SRCS}
-  ${GROUP_SRCS} ${DEBUG_SRCS} ${NODE_SRCS} ${QUOTA_SRCS} ${SPACE_SRCS} )
+  ${REQ_SRCS} ${REP_SRCS} ${RECY_SRCS} ${ACL_SRCS} ${NS_SRCS} ${DRAIN_SRCS} ${FIND_SRCS} 
+  ${FS_SRCS} ${RM_SRCS} ${STAGER_RM_SRCS} ${ROUTE_SRCS} ${IO_SRCS} ${GROUP_SRCS} 
+  ${DEBUG_SRCS} ${NODE_SRCS} ${QUOTA_SRCS} ${SPACE_SRCS} ${CONFIG_SRCS} )
 
 set(CLI_PROTO_HDRS
-  ${RECY_HDRS} ${NS_HDRS} ${ACL_HDRS} ${DRAIN_HDRS} ${FIND_HDRS} ${REQ_HDRS}
-  ${REP_HDRS} ${FS_HDRS} ${RM_HDRS} ${STAGER_RM_HDRS} ${ROUTE_HDRS} ${IO_HDRS}
-  ${GROUP_HDRS} ${DEBUG_HDRS} ${NODE_HDRS} ${QUOTA_HDRS} ${SPACE_HDRS} )
+  ${REQ_HDRS} ${REP_HDRS} ${RECY_HDRS} ${ACL_HDRS} ${NS_HDRS} ${DRAIN_HDRS} ${FIND_HDRS}
+  ${FS_HDRS} ${RM_HDRS} ${STAGER_RM_HDRS} ${ROUTE_HDRS} ${IO_HDRS} ${GROUP_HDRS}
+  ${DEBUG_HDRS} ${NODE_HDRS} ${QUOTA_HDRS} ${SPACE_HDRS} ${CONFIG_HDRS} )
 
 set_source_files_properties(
   ${CLI_PROTO_SRCS} ${CLI_PROTO_HDRS}

@@ -98,26 +98,28 @@ public:
   //----------------------------------------------------------------------------
   //! Load a given configuration file
   //!
-  //! @param env environment holding info about the configuration to be loaded
+  //! @param filename name of the file holding the configuration to be loaded
   //! @param err string holding any errors
   //! @param apply_stall_redirect if true then skip applying stall and redirect
   //!        rules from the configuration
   //!
   //! @return true if loaded successfully, otherwise false
   //----------------------------------------------------------------------------
-  bool LoadConfig(XrdOucEnv& env, XrdOucString& err,
+  bool LoadConfig(const std::string& filename, XrdOucString& err,
                   bool apply_stall_redirect = false) override;
 
   //----------------------------------------------------------------------------
   //! Save configuration to specified destination
   //!
-  //! @param env environment holding info about the destination where the
-  //!        current configuration will be saved
+  //! @param filename name of the file where the current configuration will be saved
+  //! @param overwrite force overwrite of <filename> if the file exists already
+  //! @param autosave
+  //! @param comment comments
   //! @param err string holding any errors
   //!
   //! @return true if saved successfully, otherwise false
   //----------------------------------------------------------------------------
-  bool SaveConfig(XrdOucEnv& env, XrdOucString& err) override;
+  bool SaveConfig(std::string filename, bool overwrite, bool autosave, const std::string& comment, XrdOucString& err) override;
 
   //----------------------------------------------------------------------------
   //! List all configurations
@@ -163,12 +165,13 @@ public:
   //----------------------------------------------------------------------------
   //! Push a configuration to QuarkDB
   //!
-  //! @param env
+  //! @param filename
+  //! @param force_overwrite
   //! @param err
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool PushToQuarkDB(XrdOucEnv& env, XrdOucString& err) override;
+  bool PushToQuarkDB(const std::string& filename, bool overwrite, XrdOucString& err) override;
 
   //----------------------------------------------------------------------------
   //! Load a configuration from QuarkDB

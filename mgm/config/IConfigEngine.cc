@@ -441,88 +441,34 @@ IConfigEngine::ParseConfig(XrdOucString& inconfig, XrdOucString& err)
   return true;
 }
 
+
 //------------------------------------------------------------------------------
 // Dump method for selective configuration printing
 //------------------------------------------------------------------------------
 bool
-IConfigEngine::DumpConfig(XrdOucString& out, XrdOucEnv& filter)
-{
+IConfigEngine::DumpConfig(XrdOucString& out, const std::string& filename) {
+
   struct PrintInfo pinfo;
-  const char* name = filter.Get("mgm.config.file");
   pinfo.out = &out;
-  pinfo.option = "vfqcgmrs";
+  pinfo.option = "";
 
-  if (filter.Get("mgm.config.comment") || filter.Get("mgm.config.fs") ||
-      filter.Get("mgm.config.global") || filter.Get("mgm.config.map") ||
-      filter.Get("mgm.config.route") ||
-      filter.Get("mgm.config.policy") || filter.Get("mgm.config.quota") ||
-      filter.Get("mgm.config.geosched") || filter.Get("mgm.config.vid")) {
-    pinfo.option = "";
-  }
-
-  if (filter.Get("mgm.config.comment")) {
-    pinfo.option += "c";
-  }
-
-  if (filter.Get("mgm.config.fs")) {
-    pinfo.option += "f";
-  }
-
-  if (filter.Get("mgm.config.global")) {
-    pinfo.option += "g";
-  }
-
-  if (filter.Get("mgm.config.policy")) {
-    pinfo.option += "p";
-  }
-
-  if (filter.Get("mgm.config.map")) {
-    pinfo.option += "m";
-  }
-
-  if (filter.Get("mgm.config.route")) {
-    pinfo.option += "r";
-  }
-
-  if (filter.Get("mgm.config.quota")) {
-    pinfo.option += "q";
-  }
-
-  if (filter.Get("mgm.config.geosched")) {
-    pinfo.option += "s";
-  }
-
-  if (filter.Get("mgm.config.vid")) {
-    pinfo.option += "v";
-  }
-
-  if (name == 0) {
+  if (filename.empty()) {
     XrdSysMutexHelper lock(mMutex);
-
-    for(auto it = sConfigDefinitions.begin(); it != sConfigDefinitions.end(); it++) {
-      std::string key = it->first;
-      std::string val = it->second;
-
-      eos_static_debug("%s => %s", key.c_str(), val.c_str());
-
-      if (CheckFilterMatch(pinfo.option, key)) {
-        out += key.c_str();
-        out += " => ";
-        out += val.c_str();
-        out += "\n";
-      }
+    for(auto & sConfigDefinition : sConfigDefinitions) {
+      eos_static_debug("%s => %s", sConfigDefinition.first.c_str(), sConfigDefinition.second.c_str());
     }
-
     while (out.replace("&", " ")) {}
-  } else {
-    FilterConfig(pinfo, out, name);
+  }
+  else {
+    FilterConfig(pinfo, out, filename.c_str());
   }
 
   eos::common::StringConversion::SortLines(out);
   return true;
 }
 
-//------------------------------------------------------------------------------
+
+    //------------------------------------------------------------------------------
 // Reset the configuration
 //------------------------------------------------------------------------------
 void

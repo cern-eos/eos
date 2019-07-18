@@ -137,26 +137,28 @@ public:
   //----------------------------------------------------------------------------
   //! Load a given configuration file
   //!
-  //! @param env environment holding info about the configuration to be loaded
+  //! @param filename name of the file holding the configuration to be loaded
   //! @param err string holding any errors
   //! @param apply_stall_redirect if true then skip applying stall and redirect
   //!        rules from the configuration
   //!
   //! @return true if loaded successfully, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool LoadConfig(XrdOucEnv& env, XrdOucString& err,
+  virtual bool LoadConfig(const std::string& filename, XrdOucString& err,
                           bool apply_stall_redirect = false) = 0;
 
   //----------------------------------------------------------------------------
   //! Save configuration to specified destination
   //!
-  //! @param env environment holding info about the destination where the
-  //!        current configuration will be saved
+  //! @param filename name of the file where the current configuration will be saved
+  //! @param overwrite force overwrite of <filename> if the file exists already
+  //! @param autosave
+  //! @param comment comments
   //! @param err string holding any errors
   //!
   //! @return true if saved successfully, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool SaveConfig(XrdOucEnv& env, XrdOucString& err) = 0;
+  virtual bool SaveConfig(std::string filename, bool overwrite, bool autosave, const std::string& comment, XrdOucString& err) = 0;
 
   //----------------------------------------------------------------------------
   //! List all configurations
@@ -205,12 +207,13 @@ public:
   //----------------------------------------------------------------------------
   //! Push a configuration to QuarkDB
   //!
-  //! @param env environment holding information about the configuration
+  //! @param filename name of the file holding the configuration
+  //! @param overwrite force overwrite of <filename> if the file exists already
   //! @param err object collecting any possible errors
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool PushToQuarkDB(XrdOucEnv& env, XrdOucString& err) = 0;
+  virtual bool PushToQuarkDB(const std::string& filename, bool overwrite, XrdOucString& err) = 0;
 
   //----------------------------------------------------------------------------
   //! Delete a configuration key from the responsible object
@@ -250,15 +253,16 @@ public:
   //----------------------------------------------------------------------------
   bool ParseConfig(XrdOucString& config, XrdOucString& err);
 
+
   //----------------------------------------------------------------------------
   //! Dump method for selective configuration printing
   //!
   //! @param out output string
-  //! @param filter environment holding filter options
+  //! @param filename string holding the name of the config file to dump
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool DumpConfig(XrdOucString& out, XrdOucEnv& filter);
+  bool DumpConfig(XrdOucString& out, const std::string& filename);
 
   //----------------------------------------------------------------------------
   //! Reset the current configuration

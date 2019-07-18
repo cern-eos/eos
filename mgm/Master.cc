@@ -1061,10 +1061,12 @@ Master::Activate(std::string& stdOut, std::string& stdErr, int transitiontype)
       if (gOFS->MgmConfigAutoLoad.length()) {
         MasterLog(eos_static_info("autoload config=%s",
                                   gOFS->MgmConfigAutoLoad.c_str()));
-        XrdOucString configloader = "mgm.config.file=";
-        configloader += gOFS->MgmConfigAutoLoad;
-        XrdOucEnv configenv(configloader.c_str());
+//        XrdOucString configloader = "mgm.config.file=";
+//        configloader += gOFS->MgmConfigAutoLoad;
+//        XrdOucEnv configenv(configloader.c_str());
+        std::string configenv = gOFS->MgmConfigAutoLoad.c_str();
         XrdOucString stdErr = "";
+
         // Take care of setting the config engine for FsView to null while
         // applying the config otherwise we deadlock since the FsView will
         // try to set config keys
@@ -1624,9 +1626,10 @@ Master::MasterRO2Slave()
   if (gOFS->MgmConfigAutoLoad.length()) {
     MasterLog(eos_static_info("autoload config=%s",
                               gOFS->MgmConfigAutoLoad.c_str()));
-    XrdOucString configloader = "mgm.config.file=";
-    configloader += gOFS->MgmConfigAutoLoad;
-    XrdOucEnv configenv(configloader.c_str());
+//        XrdOucString configloader = "mgm.config.file=";
+//        configloader += gOFS->MgmConfigAutoLoad;
+//        XrdOucEnv configenv(configloader.c_str());
+    std::string configenv = gOFS->MgmConfigAutoLoad.c_str();
     XrdOucString stdErr = "";
 
     if (!gOFS->ConfEngine->LoadConfig(configenv, stdErr)) {

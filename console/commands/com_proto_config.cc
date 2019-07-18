@@ -62,7 +62,7 @@ public:
 //------------------------------------------------------------------------------
 bool ConfigHelper::ParseCommand(const char* arg)
 {
-  eos::console::SpaceProto* space = mReq.mutable_space();
+  eos::console::ConfigProto* config = mReq.mutable_config();
   eos::common::StringTokenizer tokenizer(arg);
   tokenizer.GetLine();
   std::string token;
@@ -72,239 +72,112 @@ bool ConfigHelper::ParseCommand(const char* arg)
   }
 
   if (token == "ls") {
-    eos::console::SpaceProto_LsProto* ls = space->mutable_ls();
 
-    while (tokenizer.NextToken(token)) {
-      if (token == "-s") {
-        mIsSilent = true;
-      } else if (token == "-g") {
-        if (!tokenizer.NextToken(token) || !eos::common::StringTokenizer::IsUnsignedNumber(token)) {
-          std::cerr << "error: geodepth was not provided or it does not have "
-                    << "the correct value: geodepth should be a positive "
-                    << "integer" << std::endl;
-          return false;
-        }
-        ls->set_outdepth(std::stoi(token));
-      } else if (token == "-m") {
-        mHighlight = false;
-        ls->set_outformat(eos::console::SpaceProto_LsProto::MONITORING);
-      } else if (token == "-l") {
-        ls->set_outformat(eos::console::SpaceProto_LsProto::LISTING);
-      } else if (token == "--io") {
-        ls->set_outformat(eos::console::SpaceProto_LsProto::IO);
-      } else if (token == "--fsck") {
-        ls->set_outformat(eos::console::SpaceProto_LsProto::FSCK);
-      } else if ((token.find('-') != 0)) { // does not begin with "-"
-        ls->set_selection(token);
+    eos::console::ConfigProto_LsProto *ls = config->mutable_ls();
+
+    if (tokenizer.NextToken(token)) {
+      if (token == "--backup" || token == "-b") {
+        ls->set_showbackup(true);
       } else {
         return false;
       }
     }
 
   }
-  else if (token == "tracker") {
-    eos::console::SpaceProto_TrackerProto* tracker = space->mutable_tracker();
-    tracker->set_mgmspace("default");
+  else if (token == "dump") {
+    eos::console::ConfigProto_DumpProto *dump = config->mutable_dump();
 
-  }
-  else if (token == "inspector") {
-    eos::console::SpaceProto_InspectorProto *inspector = space->mutable_inspector();
-    inspector->set_mgmspace("default");
-
-    std::string options;
-
-    while (tokenizer.NextToken(token)) {
-      if (token == "-c" || token == "--current") {
-        options += "c";
-      } else if (token == "-l" || token == "--last") {
-        options += "l";
-      } else if (token == "-m") {
-        options += "m";
-      } else if (token == "-p") {
-        options += "p";
-      } else if (token == "-e") {
-        options += "e";
-      } else {
-        return false;
-      }
+    if (tokenizer.NextToken(token)) {
+      dump->set_file(token);
     }
-    inspector->set_options(options);
 
   }
   else if (token == "reset") {
 
+    if (tokenizer.NextToken(token)) return false; // no need for more arguments
+    eos::console::ConfigProto_ResetProto *reset = config->mutable_reset(); // @note
+
+  }
+  else if (token == "export") {
+
     if (!tokenizer.NextToken(token)) return false;
-    eos::console::SpaceProto_ResetProto *reset = space->mutable_reset();
-    reset->set_mgmspace(token);
+
+    eos::console::ConfigProto_ExportProto *exp = config->mutable_exp();
+
+    // either "<file> or <file> -f
+    if (token.find('-') != 0) { // does not begins with '-'
+      exp->set_file(token);
+      if (tokenizer.NextToken(token)) {
+        if (token == "-f") {
+          exp->set_force(true);
+        } else {
+          return false;
+        }
+      }
+    } else {
+      return false;
+    }
+
+
+  }
+  else if (token == "save") {
+
+    if (!tokenizer.NextToken(token)) return false;
+
+    eos::console::ConfigProto_SaveProto *save = config->mutable_save();
+    if (token.find('-') != 0) {
+      save->set_file(token);
+    } else {
+      return false;
+    }
 
     while (tokenizer.NextToken(token)) {
-      if (token == "--egroup") {
-        reset->set_option(eos::console::SpaceProto_ResetProto::EGROUP);
-      } else if (token == "--mapping") {
-        reset->set_option(eos::console::SpaceProto_ResetProto::MAPPING);
-      } else if (token == "--drain") {
-        reset->set_option(eos::console::SpaceProto_ResetProto::DRAIN);
-      } else if (token == "--scheduledrain") {
-        reset->set_option(eos::console::SpaceProto_ResetProto::SCHEDULEDRAIN);
-      } else if (token == "--schedulebalance") {
-        reset->set_option(eos::console::SpaceProto_ResetProto::SCHEDULEBALANCE);
-      } else if (token == "--ns") {
-        reset->set_option(eos::console::SpaceProto_ResetProto::NS);
-      } else if (token == "--nsfilesystemview") {
-        reset->set_option(eos::console::SpaceProto_ResetProto::NSFILESISTEMVIEW);
-      } else if (token == "--nsfilemap") {
-        reset->set_option(eos::console::SpaceProto_ResetProto::NSFILEMAP);
-      } else if (token == "--nsdirectorymap") {
-        reset->set_option(eos::console::SpaceProto_ResetProto::NSDIRECTORYMAP);
+      if (token == "-c" || token == "--comment") { // put the comment in the mReq object
+
+        std::string sline = arg;
+
+        if (token == "-c") {
+          // have to replace "-c" with "--comment" in sline
+          size_t pos = sline.find("-c");
+          sline.replace(pos, std::string("-c").length(), "--comment");
+          parse_comment(sline.c_str(), token);
+        } else if (token == "--comment") {
+          parse_comment(sline.c_str(), token);
+        }
+        mReq.set_comment(token);
+        tokenizer.NextToken(token); // skip comment text
+
+      } else if ( token == "-f") {
+        save->set_force(true);
       } else {
         return false;
       }
     }
 
-  }
-  else if (token == "define") {
-
-    if (!tokenizer.NextToken(token)) return false;
-
-    eos::console::SpaceProto_DefineProto *define = space->mutable_define();
-    define->set_mgmspace(token);
-
-    if (!tokenizer.NextToken(token)) {
-      define->set_groupsize(0);
-      define->set_groupmod(24);
-    } else {
-      define->set_groupsize(std::stoi(token));
-      if (!tokenizer.NextToken(token)) {
-        define->set_groupmod(24);
-      } else {
-        define->set_groupsize(std::stoi(token));
-      }
-    }
 
   }
-  else if (token == "set") {
-    if (!tokenizer.NextToken(token)) return false;
-
-    eos::console::SpaceProto_SetProto *set = space->mutable_set();
-    set->set_mgmspace(token);
+  else if (token == "load") {
 
     if (!tokenizer.NextToken(token)) return false;
 
-    if (token == "on") {
-      set->set_state_switch(true);
-    } else if (token == "off") {
-      set->set_state_switch(false);
-    } else {
-      return false;
-    }
+    eos::console::ConfigProto_LoadProto *load = config->mutable_load();
+    load->set_file(token);
 
   }
-  else if (token == "rm") {
+  else if (token == "changelog") {
 
-    if (!tokenizer.NextToken(token)) return false;
-    eos::console::SpaceProto_RmProto *rm = space->mutable_rm();
-    rm->set_mgmspace(token);
-
-  }
-  else if (token == "status") {
-    if (!tokenizer.NextToken(token)) return false;
-
-    eos::console::SpaceProto_StatusProto *status = space->mutable_status();
-    status->set_mgmspace(token);
+    eos::console::ConfigProto_ChangelogProto *changelog = config->mutable_changelog();
 
     if (tokenizer.NextToken(token)) {
-      if (token == "m") {
-        status->set_outformat_m(true);
-      } else {
+      if (token.find('-') == 0) token.erase(0); // remove first char to allow both -100 and 100
+      try {
+        changelog->set_lines(std::stoi(token));
+      } catch (const std::exception& e) {
+        std::cerr << "error: argument needs to be numeric" << std::endl;
         return false;
       }
-    }
-
-    std::string contents = eos::common::StringConversion::StringFromShellCmd("cat /var/eos/md/stacktrace 2> /dev/null");
-
-
-  }
-  else if (token == "node-set") {
-
-    if (!tokenizer.NextToken(token)) return false;
-    eos::console::SpaceProto_NodeSetProto* nodeset = space->mutable_nodeset();
-    nodeset->set_mgmspace(token);
-
-    if (!tokenizer.NextToken(token)) return false;
-    nodeset->set_nodeset_key(token);
-
-    if (!tokenizer.NextToken(token)) return false;
-
-
-    if (token.find('/') == 0) { // if begins with "/"
-      std::ifstream ifs(token, std::ios::in | std::ios::binary);
-      if (!ifs) {
-        std::cerr << "error: unable to read " << token << " - errno=" << errno << '\n';
-        return false;
-      }
-
-      std::string val = std::string((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
-      if (val.length() > 512) {
-        std::cerr << "error: the file contents exceeds 0.5 kB - configure a file hosted on the MGM using file:<mgm-path>\n";
-        return false;
-      }
-
-      // store the value b64 encoded
-      XrdOucString val64;
-      eos::common::SymKey::Base64Encode((char*) val.c_str(), val.length(), val64);
-      while (val64.replace("=", ":")) {}
-
-      nodeset->set_nodeset_value( std::string (("base64:"+val64).c_str()));
-
-
     } else {
-      nodeset->set_nodeset_value(token);
-    }
-
-  }
-  else if (token == "node-get") {
-    if (!tokenizer.NextToken(token)) return false;
-
-    eos::console::SpaceProto_NodeGetProto *nodeget = space->mutable_nodeget();
-    nodeget->set_mgmspace(token);
-
-    if (!tokenizer.NextToken(token)) return false;
-
-    nodeget->set_nodeget_key(token);
-
-  }
-  else if (token == "quota") {
-    if (!tokenizer.NextToken(token)) return false;
-
-    eos::console::SpaceProto_QuotaProto *quota = space->mutable_quota();
-    quota->set_mgmspace(token);
-
-    if (!tokenizer.NextToken(token)) return false;
-
-    if (token == "on") {
-      quota->set_quota_switch(true);
-    } else if (token == "off") {
-      quota->set_quota_switch(false);
-    } else {
-      return false;
-    }
-
-
-  }
-  else if (token == "config") {
-
-    if (!tokenizer.NextToken(token)) return false;
-
-    eos::console::SpaceProto_ConfigProto* config = space->mutable_config();
-    config->set_mgmspace_name(token);
-
-    if (!tokenizer.NextToken(token)) return false;
-    std::string::size_type pos = token.find('=');
-    if (pos != std::string::npos && count(token.begin(), token.end(), '=') == 1 ) { // contains 1 and only 1 '='. It expects a token like <key>=<value>
-      config->set_mgmspace_key(token.substr(0, pos));
-      config->set_mgmspace_value(token.substr(pos+1, token.length()-1));
-    } else {
-      return false;
+      changelog->set_lines(10);
     }
 
   }
@@ -346,47 +219,27 @@ void com_config_help()
   std::ostringstream oss;
   oss
       << " usage:\n"
-
-      << "config changelog|dump|export|load|ls|reset|save [OPTIONS]"
+      << "config changelog|dump|export|load|ls|reset|save [OPTIONS]\n"
+      << "'[eos] config' provides the configuration interface to EOS.\n"
       << std::endl
-      << "'[eos] config' provides the configuration interface to EOS." << std::endl
+      << "Subcommands:\n"
+      << "config changelog [-#lines] : show the last #lines from the changelog - default is 10\n"
       << std::endl
-      << "Subcommands:" << std::endl
-      << "config changelog [-#lines]" << std::endl
-      << "       show the last <#> lines from the changelog - default is 10" << std::endl
+      << "config dump [<name>] : dump configuration with name <name> or current one by default\n"
       << std::endl
-      << "config dump [-cfgpqmsv] [<name>]" << std::endl
-      << "       dump configuration with name <name> or current one by default" << std::endl
-      << "       -c|--comments : " << "dump only comment config" << std::endl
-      << "       -f|--fs       : " << "dump only file system config" << std::endl
-      << "       -g|--global   : " << "dump only global config" << std::endl
-      << "       -p|--policy   : " << "dump only policy config" << std::endl
-      << "       -q|--quota    : " << "dump only quota config" << std::endl
-      << "       -m|--map      : " << "dump only mapping config" << std::endl
-      << "       -r|--route    : " << "dump only routing config" << std::endl
-      << "       -s|--geosched : " << "dump only geosched config" << std::endl
-      << "       -v|--vid      : " << "dump only virtual id config" << std::endl
+      << "config export <name> [-f] : export a configuration stored on file to QuarkDB (you need to specify the full path!)\n"
+      << "\t -f : overwrite existing config name and create a timestamped backup\n"
       << std::endl
-      << "config export [-f] [<name>]" << std::endl
-      << "       export a configuration stored on file to QuarkDB - you need to specify the full path" << std::endl
-      << "       -f : overwrite existing config name and create a timestamped backup" << std::endl
+      << "config load <name> : load <name> config\n"
       << std::endl
-      << "config load <name>"  << std::endl
-      << "       load config (optionally with name)" << std::endl
+      << "config ls [-b|--backup] : list existing configurations\n"
+      << "\t -b : show also backup & autosave files\n"
       << std::endl
-      << "config ls [-b|--backup]" << std::endl
-      << "       list existing configurations" << std::endl
-      << "       --backup|-b : show also backup & autosave files" << std::endl
+      << "config reset : reset all configuration to empty state\n"
       << std::endl
-      << "config reset" << std::endl
-      << "       reset all configuration to empty state" << std::endl
-      << std::endl
-      << "config save [-f] [<name>] [-c|--comment \"<comment>\"]" << std::endl
-      << "       save config (optionally under name)" << std::endl
-      << "       -f : overwrite existing config name and create a timestamped backup" << std::endl
-      << "            If no name is specified the current config file is overwritten." << std::endl
-      << "       -c : add a comment entry to the config" << std::endl
-      << "            Extended option will also add the entry to the logbook." << std::endl;
+      << "config save <name> [-f] [-c|--comment \"<comment>\"] : save config under <name>\n"
+      << "\t -f : overwrite existing config name and create a timestamped backup\n"
+      << "\t -c : add a comment entry to the config\n";
   std::cerr << oss.str() << std::endl;
 
 }

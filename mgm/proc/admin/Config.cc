@@ -51,7 +51,9 @@ ProcCommand::Config()
       eos_notice("config load: %s", pOpaque->Env(envlen));
       eos::mgm::ConfigResetMonitor fsview_cfg_reset_monitor;
 
-      if (!gOFS->ConfEngine->LoadConfig(*pOpaque, stdErr)) {
+      std::string name = pOpaque->Get("mgm.config.file");
+
+      if (!gOFS->ConfEngine->LoadConfig(name, stdErr)) {
         retc = errno;
       } else {
         stdOut = "success: configuration successfully loaded!";
@@ -70,10 +72,15 @@ ProcCommand::Config()
       eos_notice("config export: %s", pOpaque->Env(envlen));
       eos::mgm::ConfigResetMonitor fsview_cfg_reset_monitor;
 
-      if (!gOFS->ConfEngine->PushToQuarkDB(*pOpaque, stdErr)) {
+
+      std::string cstr = pOpaque->Get("mgm.config.file");
+      bool force = (bool)pOpaque->Get("mgm.config.force");
+
+//      if (!gOFS->ConfEngine->PushToQuarkDB(*pOpaque, stdErr)) {
+      if (!gOFS->ConfEngine->PushToQuarkDB(cstr, force, stdErr)) {
         retc = errno;
       } else {
-        stdOut = "success: configuration successfully loaded!";
+        stdOut = "success: configuration successfully exported!";
       }
     } else {
       retc = EPERM;
@@ -84,8 +91,13 @@ ProcCommand::Config()
   if (mSubCmd == "save") {
     eos_notice("config save: %s", pOpaque->Env(envlen));
 
+    const char* name = pOpaque->Get("mgm.config.file");
+    bool force = (bool)pOpaque->Get("mgm.config.force");
+    bool autosave = (bool)pOpaque->Get("mgm.config.autosave");
+    const char* comment = pOpaque->Get("mgm.config.comment");
+
     if (pVid->uid == 0) {
-      if (!gOFS->ConfEngine->SaveConfig(*pOpaque, stdErr)) {
+      if (!gOFS->ConfEngine->SaveConfig(name, force, autosave, comment, stdErr)) {
         retc = errno;
       } else {
         stdOut = "success: configuration successfully saved!";
@@ -112,7 +124,10 @@ ProcCommand::Config()
     eos_notice("config dump");
     XrdOucString dump = "";
 
-    if (!gOFS->ConfEngine->DumpConfig(dump, *pOpaque)) {
+    const char* name = pOpaque->Get("mgm.config.file");
+
+//    if (!gOFS->ConfEngine->DumpConfig(dump, *pOpaque)) {
+    if (!gOFS->ConfEngine->DumpConfig(dump, name)) {
       stdErr += "error: listing of existing configs failed!";
       retc = errno;
     } else {
