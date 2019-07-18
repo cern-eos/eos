@@ -59,7 +59,7 @@ NsCmd::ProcessRequest() noexcept
   eos::console::NsProto::SubcmdCase subcmd = ns.subcmd_case();
 
   if (subcmd == eos::console::NsProto::kStat) {
-    reply.set_std_out(StatSubcmd(ns.stat()));
+    StatSubcmd(ns.stat(), reply);
   } else if (subcmd == eos::console::NsProto::kMutex) {
     MutexSubcmd(ns.mutex(), reply);
   } else if (subcmd == eos::console::NsProto::kCompact) {
@@ -205,11 +205,14 @@ NsCmd::MutexSubcmd(const eos::console::NsProto_MutexProto& mutex,
 //------------------------------------------------------------------------------
 // Execute stat command
 //------------------------------------------------------------------------------
-std::string
-NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
+void
+NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
+                  eos::console::ReplyProto& reply)
 {
   using eos::common::StringConversion;
   std::ostringstream oss;
+  std::ostringstream err;
+  int retc = 0;
 
   if (stat.reset()) {
     gOFS->MgmStats.Clear();
@@ -264,19 +267,22 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
   eos::common::LinuxMemConsumption::linux_mem_t mem;
 
   if (!eos::common::LinuxMemConsumption::GetMemoryFootprint(mem)) {
-    oss << "error: failed to get the memory usage information" << std::endl;
+    err << "error: failed to get the memory usage information" << std::endl;
+    retc = errno;
   }
 
   eos::common::LinuxStat::linux_stat_t pstat;
 
   if (!eos::common::LinuxStat::GetStat(pstat)) {
-    oss << "error: failed to get the process stat information" << std::endl;
+    err << "error: failed to get the process stat information" << std::endl;
+    retc = errno;
   }
 
   eos::common::LinuxFds::linux_fds_t fds;
 
   if (!eos::common::LinuxFds::GetFdUsage(fds)) {
-    oss << "error: failed to get the process fd information" << std::endl;
+    err << "error: failed to get the process fd information" << std::endl;
+    retc = errno;
   }
 
   int64_t latencyf = 0, latencyd = 0, latencyp = 0;
@@ -509,7 +515,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat)
     oss << stats_out.c_str();
   }
 
-  return oss.str();
+  reply.set_retc(retc);
+  reply.set_std_out(oss.str());
+  reply.set_std_err(err.str());
 }
 
 //------------------------------------------------------------------------------

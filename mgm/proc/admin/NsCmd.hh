@@ -71,10 +71,10 @@ private:
   //! Execute stat comand
   //!
   //! @param stat stat subcommand proto object
-  //!
-  //! @return string representing stat output
+  //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  std::string StatSubcmd(const eos::console::NsProto_StatProto& stat);
+  void StatSubcmd(const eos::console::NsProto_StatProto& stat,
+                  eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Execute master comand
