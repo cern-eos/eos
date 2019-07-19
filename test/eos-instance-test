@@ -1072,7 +1072,21 @@ runtest "### Attr      " unix 0 "" eos attr set user.acl=u:nobody:rwx /eos/$EOS_
 runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
 runtest "### Attr      " unix 0 "" eos attr rm user.acl /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Chown     " unix 0 "" eos chown 0:0 "/eos/$EOS_TEST_INSTANCE/test/instancetest"
-#exit
+
+#-------------------------------------------------------------------------------
+# Ns map functionality
+#-------------------------------------------------------------------------------
+runtest "### Map ls    " unix 0 "" eos map ls
+runtest "### Map mkdir " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/map_test/
+runtest "### Touch     " unix 0 "" eos touch /eos/$EOS_TEST_INSTANCE/test/map_test/file1.dat
+runtest "### Stat      " unix 0 "" eos stat /eos/$EOS_TEST_INSTANCE/test/map_test/file1.dat
+runtest "### Ls        " unix 0 "" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/map_test/file1.dat
+runtest "### Map link  " unix 0 "" eos map link /store/ /eos/$EOS_TEST_INSTANCE/test/map_test/
+runtest "### Stat      " unix 0 "" eos stat /store/file1.dat
+runtest "### Ls        " unix 0 "" eos ls /store/file1.dat
+runtest "### Rm        " unix 0 "" eos rm /store/file1.dat
+runtest "### Map unlink" unix 0 "" eos map unlink /store/
+runtest "### Rmdir     " unix 0 "" eos rm -rf /eos/$EOS_TEST_INSTANCE/test/map_test/
 
 # ------------------------------------------------------------------------------
 categorie="symlink"
