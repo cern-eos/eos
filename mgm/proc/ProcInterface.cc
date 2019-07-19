@@ -179,6 +179,16 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
     return cmd;
   }
 
+  return HandleProtobufRequest(req, vid);
+}
+
+
+std::unique_ptr<IProcCommand>
+ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
+				       eos::common::VirtualIdentity& vid)
+{
+  using eos::console::RequestProto;
+  std::unique_ptr<IProcCommand> cmd;
   // Log the type of command that we received
   std::string json_out;
   (void) google::protobuf::util::MessageToJsonString(req, &json_out);
