@@ -336,6 +336,36 @@ NsHelper::ParseCommand(const char* arg)
           return false;
         }
       }
+    } else if (soption == "drop-single-file") {
+      if (!(option = tokenizer.GetToken())) {
+        return false;
+      }
+
+      uint64_t target;
+
+      try {
+        target = std::stoull(option);
+      } catch (const std::exception& e) {
+        return false;
+      }
+
+      cache->set_op(eos::console::NsProto_CacheProto::DROP_SINGLE_FILE);
+      cache->set_single_to_drop(target);
+    } else if (soption == "drop-single-container") {
+      if (!(option = tokenizer.GetToken())) {
+        return false;
+      }
+
+      uint64_t target;
+
+      try {
+        target = std::stoull(option);
+      } catch (const std::exception& e) {
+        return false;
+      }
+
+      cache->set_op(eos::console::NsProto_CacheProto::DROP_SINGLE_CONTAINER);
+      cache->set_single_to_drop(target);
     } else {
       return false;
     }
@@ -467,6 +497,14 @@ void com_ns_help()
       << "    -f         : control the file cache" << std::endl
       << "    <max_num>  : max number of entries" << std::endl
       << "    <max_size> : max size of the cache - not implemented yet"
+      << std::endl
+      << std::endl
+      << "  ns cache drop-single-file <id of file to drop>" << std::endl
+      << "    force refresh of the given FileMD by dropping it from the cache" << std::endl
+      << std::endl
+      << std::endl
+      << "  ns cache drop-single-container <id of container to drop>" << std::endl
+      << "    force refresh of the given ContainerMD by dropping it from the cache" << std::endl
       << std::endl
       << std::endl
       << "  ns max_drain_threads <num>" << std::endl

@@ -126,6 +126,14 @@ public:
   virtual std::shared_ptr<IContainerMD>
   getContainerMD(IContainerMD::id_t id, uint64_t* clock) override;
 
+  //----------------------------------------------------------------------------
+  //! Drop cached ContainerMD - return true if found
+  //----------------------------------------------------------------------------
+  virtual bool
+  dropCachedContainerMD(ContainerIdentifier id) override {
+    return false;
+  }
+
   //--------------------------------------------------------------------------
   //! Create new container metadata object with an assigned id, the user has
   //! to fill all the remaining fields

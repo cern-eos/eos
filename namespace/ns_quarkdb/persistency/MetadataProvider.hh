@@ -64,6 +64,16 @@ public:
   folly::Future<IFileMDPtr> retrieveFileMD(FileIdentifier id);
 
   //----------------------------------------------------------------------------
+  //! Drop cached FileID - return true if found
+  //----------------------------------------------------------------------------
+  bool dropCachedFileID(FileIdentifier id);
+
+  //----------------------------------------------------------------------------
+  //! Drop cached ContainerID - return true if found
+  //----------------------------------------------------------------------------
+  bool dropCachedContainerID(ContainerIdentifier id);
+
+  //----------------------------------------------------------------------------
   //! Check if a FileMD exists with the given id
   //----------------------------------------------------------------------------
   folly::Future<bool> hasFileMD(FileIdentifier id);

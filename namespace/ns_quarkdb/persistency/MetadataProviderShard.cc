@@ -151,6 +151,27 @@ MetadataProviderShard::retrieveFileMD(FileIdentifier id)
   return mInFlightFiles[id].getFuture();
 }
 
+//------------------------------------------------------------------------------
+// Drop cached FileID - return true if found
+//------------------------------------------------------------------------------
+bool
+MetadataProviderShard::dropCachedFileID(FileIdentifier id)
+{
+  std::unique_lock<std::mutex> lock(mMutex);
+  return mFileCache.remove(id);
+}
+
+//------------------------------------------------------------------------------
+// Drop cached ContainerID - return true if found
+//------------------------------------------------------------------------------
+bool
+MetadataProviderShard::dropCachedContainerID(ContainerIdentifier id)
+{
+  std::unique_lock<std::mutex> lock(mMutex);
+  eos_static_info("SENTINEL");
+  return mContainerCache.remove(id);
+}
+
 //----------------------------------------------------------------------------
 // Check if a FileMD exists with the given id
 //----------------------------------------------------------------------------

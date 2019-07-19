@@ -128,6 +128,15 @@ public:
   virtual folly::Future<bool> hasFileMD(const eos::FileIdentifier id) override;
 
   //----------------------------------------------------------------------------
+  //! Drop cached FileMD - return true if found. No-op, since in-memory
+  //! namespace doesn't really have a cache.
+  //----------------------------------------------------------------------------
+  virtual bool
+  dropCachedFileMD(FileIdentifier id) override {
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
   //! Create new file metadata object with an assigned id
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<IFileMD> createFile(IFileMD::id_t id = 0) override;

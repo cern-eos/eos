@@ -73,11 +73,14 @@ message NsProto {
       DROP_FILE = 2;
       DROP_DIR  = 3;
       DROP_ALL  = 4;
+      DROP_SINGLE_FILE = 5;
+      DROP_SINGLE_CONTAINER = 6;
     }
 
     OpType op = 1;
     uint64 max_num  = 2;
     uint64 max_size = 3;
+    uint64 single_to_drop = 4;
   }
 
   message DrainSizeProto {

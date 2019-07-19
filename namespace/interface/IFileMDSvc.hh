@@ -144,6 +144,12 @@ public:
   //----------------------------------------------------------------------------
   virtual folly::Future<bool> hasFileMD(const eos::FileIdentifier id) = 0;
 
+  //----------------------------------------------------------------------------
+  //! Drop cached FileMD - return true if found
+  //----------------------------------------------------------------------------
+  virtual bool
+  dropCachedFileMD(FileIdentifier id) = 0;
+
   //------------------------------------------------------------------------
   //! Create new file metadata object with an assigned id, the user has
   //! to fill all the remaining fields

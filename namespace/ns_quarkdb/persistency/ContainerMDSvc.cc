@@ -182,9 +182,18 @@ QuarkContainerMDSvc::getContainerMD(IContainerMD::id_t id, uint64_t* clock)
   return container;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Drop cached ContainerMD - return true if found
+//------------------------------------------------------------------------------
+bool
+QuarkContainerMDSvc::dropCachedContainerMD(ContainerIdentifier id)
+{
+  return mMetadataProvider->dropCachedContainerID(id);
+}
+
+//------------------------------------------------------------------------------
 // Create a new container metadata object
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 std::shared_ptr<IContainerMD>
 QuarkContainerMDSvc::createContainer(IContainerMD::id_t id)
 {

@@ -174,6 +174,15 @@ QuarkFileMDSvc::hasFileMD(const eos::FileIdentifier id)
   return mMetadataProvider->hasFileMD(id);
 }
 
+//----------------------------------------------------------------------------
+// Drop cached FileMD - return true if found
+//----------------------------------------------------------------------------
+bool
+QuarkFileMDSvc::dropCachedFileMD(FileIdentifier id)
+{
+  return mMetadataProvider->dropCachedFileID(id);
+}
+
 //------------------------------------------------------------------------------
 // Create new file metadata object
 //------------------------------------------------------------------------------
