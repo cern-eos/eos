@@ -21,12 +21,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
 #include "RmCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Recycle.hh"
+#include "mgm/Macros.hh"
+#include "mgm/Access.hh"
 #include "common/Path.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -64,19 +65,26 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
     spath = rm.path();
   }
 
+  eos::mgm::NamespaceMap(spath, nullptr, mVid);
+  std::string err_check;
+  int errno_check = 0;
+
+  // Enforce path checks and identity access rights
+  if (IsOperationForbidden(spath.c_str(), mVid, err_check, errno_check)) {
+    eos_err("msg=\"operation forbidden\" path=\"%s\" serr_msg=\"%s\" errno=%i",
+            spath.c_str(), err_check.c_str(), errno_check);
+    reply.set_std_err(err_check);
+    reply.set_retc(errno_check);
+    return reply;
+  }
+
   eos::common::Path cPath(spath.c_str());
   XrdOucString filter = "";
   std::set<std::string> rmList;
 
-  // This is the not allowed case now
-  if (IsOperationForbidden(spath.c_str()) == SFS_OK) {
-    reply.set_std_err(stdErr.c_str());
-    reply.set_retc(EACCES);
-    return reply;
-  }
-
   if (force && (vid.uid)) {
-    errStream << "warning: removing the force flag - this is only allowed for the 'root' role!"
+    errStream <<
+              "warning: removing the force flag - this is only allowed for the 'root' role!"
               << std::endl;
     force = false;
   }

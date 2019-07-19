@@ -151,7 +151,6 @@ XrdMgmOfs::_rem(const char* path,
     owner_uid = fmd->getCUid();
     owner_gid = fmd->getCGid();
     fid = fmd->getId();
-    eos_info("got fmd=%lld", (unsigned long long) fmd.get());
 
     if (fmd->hasAttribute("sys.eos.mdino") || fmd->hasAttribute("sys.eos.nlink")) {
       eos_static_info("hlnk rm target fid %#lx", fid);
@@ -178,7 +177,6 @@ XrdMgmOfs::_rem(const char* path,
     try {
       container = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
       aclpath = gOFS->eosView->getUri(container.get());
-      eos_info("got container=%lld", (unsigned long long) container.get());
     } catch (eos::MDException& e) {
       container.reset();
     }
@@ -194,10 +192,11 @@ XrdMgmOfs::_rem(const char* path,
     }
 
     // check publicaccess level
-    if (!gOFS->allow_public_access(aclpath.c_str(),vid)) {
+    if (!gOFS->allow_public_access(aclpath.c_str(), vid)) {
       gOFS->eosViewRWMutex.UnLockWrite();
       errno = EACCES;
-      return Emsg(epname, error, EACCES, "access - public access level restriction", aclpath.c_str());
+      return Emsg(epname, error, EACCES, "access - public access level restriction",
+                  aclpath.c_str());
     }
 
     bool stdpermcheck = false;
