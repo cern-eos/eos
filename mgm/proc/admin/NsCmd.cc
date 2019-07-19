@@ -801,7 +801,17 @@ NsCmd::CacheSubcmd(const eos::console::NsProto_CacheProto& cache,
     map_cfg[sMaxSizeCacheDirs] = std::to_string(UINT64_MAX);
     gOFS->eosFileService->configure(map_cfg);
     gOFS->eosDirectoryService->configure(map_cfg);
+  } else if(cache.op() == NsProto_CacheProto::DROP_SINGLE_FILE) {
+    bool found = gOFS->eosFileService->dropCachedFileMD(FileIdentifier(cache.single_to_drop()));
+    reply.set_retc(!found);
+  } else if(cache.op() == NsProto_CacheProto::DROP_SINGLE_CONTAINER) {
+    eos_static_info("SENTINEL");
+    bool found = gOFS->eosDirectoryService->dropCachedContainerMD(ContainerIdentifier(cache.single_to_drop()));
+    eos_static_info("SENTINEL");
+    reply.set_retc(!found);
+    eos_static_info("SENTINEL");
   }
+
 }
 
 //------------------------------------------------------------------------------

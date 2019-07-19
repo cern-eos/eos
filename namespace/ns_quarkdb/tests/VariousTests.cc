@@ -66,6 +66,13 @@ TEST_F(VariousTests, FollyWithGloriousContinuations) {
   ASSERT_TRUE(ok.get());
 }
 
+TEST_F(VariousTests, FileCacheInvalidation) {
+  std::shared_ptr<eos::IFileMD> file = view()->createFile("/my-file.txt", true);
+  ASSERT_EQ(file->getId(), 1);
+  mdFlusher()->synchronize();
+
+}
+
 TEST_F(VariousTests, CheckLocationInFsView) {
   std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
   ASSERT_EQ(root->getId(), 1);

@@ -61,6 +61,25 @@ MetadataProvider::retrieveFileMD(FileIdentifier id)
   return pickShard(id)->retrieveFileMD(id);
 }
 
+//------------------------------------------------------------------------------
+// Drop cached FileID - return true if found
+//------------------------------------------------------------------------------
+bool
+MetadataProvider::dropCachedFileID(FileIdentifier id)
+{
+  eos_static_info("SENTINEL");
+  return pickShard(id)->dropCachedFileID(id);
+}
+
+//------------------------------------------------------------------------------
+// Drop cached ContainerID - return true if found
+//------------------------------------------------------------------------------
+bool
+MetadataProvider::dropCachedContainerID(ContainerIdentifier id)
+{
+  return pickShard(id)->dropCachedContainerID(id);
+}
+
 //----------------------------------------------------------------------------
 // Check if a FileMD exists with the given id
 //----------------------------------------------------------------------------

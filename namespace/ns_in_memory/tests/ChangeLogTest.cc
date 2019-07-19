@@ -81,6 +81,10 @@ public:
   {
     return folly::makeFuture(getFileMD(id));
   }
+  virtual bool dropCachedFileMD(eos::FileIdentifier id)
+  {
+    return false;
+  }
   virtual folly::Future<bool> hasFileMD(eos::FileIdentifier id)
   {
     return false;
