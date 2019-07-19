@@ -76,7 +76,6 @@ xrdmqofs_coverage(int sig)
   __gcov_flush();
   return;
 #endif
-
   eos_static_notice("compiled without coverage support");
 }
 
@@ -342,9 +341,11 @@ XrdMqOfs::XrdMqOfs(XrdSysError* ep):
   BacklogDeferred = NoMessages = QueueBacklogHits = 0;
   MaxMessageBacklog  = MQOFSMAXMESSAGEBACKLOG;
   (void) signal(SIGINT, xrdmqofs_shutdown);
+
   if (getenv("EOS_COVERAGE_REPORT")) {
     (void) signal(SIGPROF, xrdmqofs_coverage);
   }
+
   HostName = 0;
   HostPref = 0;
   eos_info_lite("Addr:mQueueOutMutex: 0x%llx", &mQueueOutMutex);
@@ -533,7 +534,8 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
 
   // Create a qclient object if cluster information provided
   if (!mQdbCluster.empty()) {
-    mQcl = std::make_unique<qclient::QClient>(mQdbContactDetails.members, mQdbContactDetails.constructOptions());
+    mQcl = std::make_unique<qclient::QClient>(mQdbContactDetails.members,
+           mQdbContactDetails.constructOptions());
   }
 
   XrdOucString basestats = StatisticsFile;
@@ -891,8 +893,11 @@ bool XrdMqOfs::ShouldRedirectQdb(XrdOucString& host, int& port)
       return false;
     }
 
-    eos_info_lite("msg=\"redirect to new master mq\" id=%s:%i", host.c_str(),
-                  port);
+    if (now - last_check > 10) {
+      eos_info_lite("msg=\"redirect to new master mq\" id=%s:%i", host.c_str(),
+                    port);
+    }
+
     return true;
   }
 }
@@ -1378,12 +1383,12 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
                  << " message!");
         }
       } else {
-	if (msg_out->BrokenByFlush) {
-	  msg_out->BrokenByFlush = false;
+        if (msg_out->BrokenByFlush) {
+          msg_out->BrokenByFlush = false;
           TRACES("warning: re-enabling queue " << msg_out->QueueName
-                 << " backlog is now " << msg_out->mMsgQueue.size() 
+                 << " backlog is now " << msg_out->mMsgQueue.size()
                  << " messages!");
-	}
+        }
       }
 
       if (msg_out->mMsgQueue.size() > mRejectQueueBacklog) {
