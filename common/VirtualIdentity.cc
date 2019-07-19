@@ -28,46 +28,43 @@ EOSCOMMONNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // "Constructor" - return Root identity
 //------------------------------------------------------------------------------
-VirtualIdentity VirtualIdentity::Root() {
+VirtualIdentity VirtualIdentity::Root()
+{
   VirtualIdentity vid;
   vid.uid = 0;
   vid.gid = 0;
-
   vid.uid_list = {0};
   vid.gid_list = {0};
-
   vid.name = "root";
   vid.prot = "local";
   vid.tident = "service@localhost";
   vid.sudoer = false;
-
   return vid;
 }
 
 //------------------------------------------------------------------------------
 // "Constructor" - return Nobody identity
 //------------------------------------------------------------------------------
-VirtualIdentity VirtualIdentity::Nobody() {
+VirtualIdentity VirtualIdentity::Nobody()
+{
   VirtualIdentity vid;
   vid.uid = 99;
   vid.gid = 99;
-
   vid.uid_list = {99};
   vid.gid_list = {99};
-
   vid.name = "nobody";
   vid.sudoer = false;
   vid.tident = "nobody@unknown";
-
   return vid;
 }
 
 //------------------------------------------------------------------------------
 // Check if the uid vector contained has the requested uid
 //------------------------------------------------------------------------------
-bool VirtualIdentity::hasUid(uid_t uid) const {
-  for(auto it = uid_list.begin(); it != uid_list.end(); it++) {
-    if(*it == uid) {
+bool VirtualIdentity::hasUid(uid_t uid) const
+{
+  for (auto it = uid_list.begin(); it != uid_list.end(); it++) {
+    if (*it == uid) {
       return true;
     }
   }
@@ -78,9 +75,10 @@ bool VirtualIdentity::hasUid(uid_t uid) const {
 //------------------------------------------------------------------------------
 // Check if the uid vector contained has the requested uid
 //------------------------------------------------------------------------------
-bool VirtualIdentity::hasGid(gid_t gid) const {
-  for(auto it = gid_list.begin(); it != gid_list.end(); it++) {
-    if(*it == gid) {
+bool VirtualIdentity::hasGid(gid_t gid) const
+{
+  for (auto it = gid_list.begin(); it != gid_list.end(); it++) {
+    if (*it == gid) {
       return true;
     }
   }
@@ -91,12 +89,12 @@ bool VirtualIdentity::hasGid(gid_t gid) const {
 //------------------------------------------------------------------------------
 // Check if this client is coming from localhost
 //------------------------------------------------------------------------------
-bool VirtualIdentity::isLocalhost() const {
+bool VirtualIdentity::isLocalhost() const
+{
   if (host == "localhost"               ||
-       host == "localhost.localdomain"  ||
-       host == "localhost6"             ||
-       host == "localhost6.localdomain6") {
-
+      host == "localhost.localdomain"  ||
+      host == "localhost6"             ||
+      host == "localhost6.localdomain6") {
     return true;
   }
 
@@ -104,22 +102,22 @@ bool VirtualIdentity::isLocalhost() const {
 }
 
 
-//----------------------------------------------------------------------------                                                                         
-// Return user@domain string                                                                                                                          
-//----------------------------------------------------------------------------                                                                         
-std::string 
-VirtualIdentity::getUserAtDomain()
+//----------------------------------------------------------------------------
+// Return user@domain string
+//----------------------------------------------------------------------------
+std::string
+VirtualIdentity::getUserAtDomain() const
 {
-  return uid_string+"@"+domain;
+  return uid_string + "@" + domain;
 }
 
-//----------------------------------------------------------------------------                                                                         
-// Return group@domain string                                                                                                                         
-//----------------------------------------------------------------------------                                                                         
-std::string 
-VirtualIdentity::getGroupAtDomain()
+//----------------------------------------------------------------------------
+// Return group@domain string
+//----------------------------------------------------------------------------
+std::string
+VirtualIdentity::getGroupAtDomain() const
 {
-  return gid_string+"@"+domain;
+  return gid_string + "@" + domain;
 }
 
 EOSCOMMONNAMESPACE_END
