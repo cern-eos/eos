@@ -25,7 +25,7 @@
  * @file   LinuxMemConsumption.hh
  * 
  * @brief  Class measuring the current memory usage using the proc interface
- *  
+ *
  */
 
 #ifndef __EOSCOMMON__LINUXMEMCONSUMPTION__HH
@@ -39,33 +39,37 @@ EOSCOMMONNAMESPACE_BEGIN
 //! Static Class to measure memory consumption
 //! 
 //! Example: linux_mem_t mem; GetMemoryFootprint(mem);
-//! 
+//!
 /*----------------------------------------------------------------------------*/
 class LinuxMemConsumption {
 public:
   typedef struct {
-    unsigned long long vmsize,resident,share,text,lib,data,dt;
+    unsigned long long vmsize, resident, share, text, lib, data, dt;
   } linux_mem_t;
 
   static bool GetMemoryFootprint(linux_mem_t& result)
   {
     const char* statm_path = "/proc/self/statm";
-    result.vmsize=result.resident=result.share=result.text=result.lib=result.data=result.dt = 0;
+    result.vmsize = result.resident = result.share =
+        result.text = result.lib = result.data = result.dt = 0;
 
     FILE *f = fopen(statm_path,"r");
-    if(!f){
+
+    if (!f) {
       perror(statm_path);
       return false;
     }
-    if(7 != fscanf(f,"%lld %lld %lld %lld %lld %lld %lld",
-		   &result.vmsize,&result.resident,&result.share,
-		   &result.text,&result.lib,&result.data,&result.dt)) {
+
+    if (7 != fscanf(f,"%lld %lld %lld %lld %lld %lld %lld",
+                    &result.vmsize, &result.resident, &result.share,
+		                &result.text, &result.lib, &result.data, &result.dt)) {
       perror(statm_path);
       (void) fclose(f);
       return false;
     }
 
     fclose(f);
+
     // Convert into bytes
     result.vmsize*=4096;
     result.resident*=4096;

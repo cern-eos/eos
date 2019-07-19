@@ -314,7 +314,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     // we might trigger an automatic clean-up of a file !!!
     if (errno != ENOENT) {
       delete fMd;
-      return gOFS.Emsg(epname, error, EIO, "open - unable to check for existance"
+      return gOFS.Emsg(epname, error, EIO, "open - unable to check for existence"
                        " of file ", mCapOpaque->Env(envlen));
     }
 

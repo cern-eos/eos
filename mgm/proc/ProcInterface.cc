@@ -56,7 +56,7 @@ ProcInterface::GetProcCommand(const char* tident,
                               eos::common::VirtualIdentity& vid,
                               const char* path, const char* opaque)
 {
-  // Check if this is an already submmited command
+  // Check if this is an already submitted command
   std::unique_ptr<IProcCommand> pcmd = GetSubmittedCmd(tident);
 
   if (pcmd) {
@@ -238,7 +238,7 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
     cmd.reset(new SpaceCmd(std::move(req), vid));
     break;
 
-    default:
+  default:
     eos_static_err("error: unknown request type");
     break;
   }

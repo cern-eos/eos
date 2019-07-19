@@ -207,7 +207,7 @@ public:
   virtual void clearUnlinkedLocations() = 0;
 
   //----------------------------------------------------------------------------
-  //! Test the unlinkedlocation
+  //! Test the unlinked location
   //----------------------------------------------------------------------------
   virtual bool hasUnlinkedLocation(location_t location) = 0;
 

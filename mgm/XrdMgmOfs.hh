@@ -1125,7 +1125,7 @@ public:
   //! @param function name of the function to check
   //! @param accessmode macro generated parameter defining if this is a
   //!        reading or writing (namespace modifying) function
-  //! @param vid virtual idenity
+  //! @param vid virtual identity
   //! @param host target host of a redirection
   //! @param port target port of a redirection
   //! @param stall_timeout timeout value in case stalling is required
@@ -1156,7 +1156,7 @@ public:
                 XrdOucString& stallmsg);
 
   //----------------------------------------------------------------------------
-  //!Test if there is redirect configured for a given rule
+  //! Test if there is redirect configured for a given rule
   //!
   //! @param path the path where the rule should be checked (currently unused)
   //! @param rule the rule to check e.g. rule = "ENOENT:*" meaning we send a
@@ -1312,7 +1312,7 @@ public:
   //! Discover/search for a service provided to the plugins by the platform
   //!
   //! @param svc_name name of the service the plugin wants to use
-  //! @param opaque parameter for the service or reference to returned discvoery
+  //! @param opaque parameter for the service or reference to returned discovery
   //!        service info
   //!
   //! @return 0 if successful, otherwise errno
@@ -1468,12 +1468,12 @@ public:
   eos::IFileMDChangeListener* eosContainerAccounting; ///< subtree accounting
   //! Subtree mtime propagation
   eos::IContainerMDChangeListener* eosSyncTimeAccounting;
-  eos::common::RWMutex eosViewRWMutex; ///< rw namespace mutex
+  eos::common::RWMutex eosViewRWMutex; ///< RW namespace mutex
   XrdOucString
-  MgmMetaLogDir; //  Directory containing the meta data (change) log files
+  MgmMetaLogDir; ///<  Directory containing the meta data (change) log files
 
   // ---------------------------------------------------------------------------
-  // thread variables
+  // Thread variables
   // ---------------------------------------------------------------------------
   pthread_t mStatsTid; ///< Thread Id of the stats thread
   AssistedThread mFsConfigTid; ///< Fs listener/config change thread
@@ -1624,7 +1624,7 @@ public:
 
   //! Map storing the last time of a filesystem dump, this information is used
   //! to track filesystems which have not been checked decentral by an FST.
-  //! It is filled in the 'dumpmd' function definde in Procinterface
+  //! It is filled in the 'dumpmd' function defined in ProcInterface
   std::map<eos::common::FileSystem::fsid_t, time_t> DumpmdTimeMap;
   XrdSysMutex DumpmdTimeMapMutex; ///< mutex protecting the 'dumpmd' time
 
@@ -1642,7 +1642,7 @@ public:
   bool mIsCentralDrain; ///< Flag to mark central draining
   std::unique_ptr<HttpServer> Httpd; ///<  Http daemon if available
 
-  std::unique_ptr<GrpcServer> GRPCd; ///< Grpc server
+  std::unique_ptr<GrpcServer> GRPCd; ///< GRPC server
 
   //! LRU object running the LRU policy engine
   std::unique_ptr<LRU> mLRUEngine;

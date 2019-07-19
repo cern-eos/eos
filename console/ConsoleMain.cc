@@ -1793,7 +1793,7 @@ int files::Report(size_t expect_nrep)
     }
 
     if (it->second.missing_locations.size() == it->second.locations.size()) {
-      fprintf(stderr, "[ERROR] { LOST    ] path=%s nrep=%lu missing=%lu\n",
+      fprintf(stderr, "[ERROR] [ LOST    ] path=%s nrep=%lu missing=%lu\n",
               it->first.c_str(), it->second.locations.size(),
               it->second.missing_locations.size());
       n_lost++;

@@ -85,7 +85,7 @@ XrdMgmOfs::_access(const char* path,
  * @param ininfo CGI
  * @return SFS_OK if possible otherwise SFS_ERROR
  *
- * If F_OK is specified we just check for the existance of the path, which can
+ * If F_OK is specified we just check for the existence of the path, which can
  * be a file or directory. We don't support X_OK since it cannot be mapped
  * in case of files (we don't have explicit execution permissions).
  */

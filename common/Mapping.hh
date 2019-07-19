@@ -50,9 +50,9 @@ private:
 public:
 
   typedef std::vector<uid_t>
-  uid_vector; //< typdef of list storing valid uids of a user
+  uid_vector; //< typedef of list storing valid uids of a user
   typedef std::vector<gid_t>
-  gid_vector; //< typdef of list storing valid gids of a user
+  gid_vector; //< typedef of list storing valid gids of a user
   typedef std::map<uid_t, uid_vector >
   UserRoleMap_t; //< typedef of map storing uid vectors per uid
   typedef std::map<uid_t, gid_vector >
@@ -62,11 +62,11 @@ public:
   typedef std::map<std::string, gid_t>
   VirtualGroupMap_t; //< typedef of map storing translation rules from auth methods to gids
   typedef std::map<uid_t, bool >
-  SudoerMap_t; //< typde of map storing members of the suid group
+  SudoerMap_t; //< typedef of map storing members of the suid group
   typedef std::map<std::string, std::string>
-  GeoLocationMap_t; //< typdef of map storing translation of string(IP) => geo location string
+  GeoLocationMap_t; //< typedef of map storing translation of string(IP) => geo location string
   typedef std::set<std::pair<std::string, std::string>>
-      AllowedTidentMatches_t; //< typdef of set storing all host patterns which are allowed to use tident mapping
+      AllowedTidentMatches_t; //< typedef of set storing all host patterns which are allowed to use tident mapping
   // ---------------------------------------------------------------------------
   //! Class wrapping an uid/gid pari
   // ---------------------------------------------------------------------------
@@ -120,7 +120,7 @@ public:
   static std::string VidToString(VirtualIdentity& vid);
 
   //----------------------------------------------------------------------------
-  //! Function converting vid frin a string representation
+  //! Function converting vid from a string representation
   //----------------------------------------------------------------------------
   static bool VidFromString(VirtualIdentity& vid, const char* vidstring);
 
@@ -162,7 +162,7 @@ public:
 
 
   // ---------------------------------------------------------------------------
-  //! Max. subdirectory deepeness where anonymous access is allowed
+  //! Max. subdirectory deepness where anonymous access is allowed
   // ---------------------------------------------------------------------------
   static int gNobodyAccessTreeDeepness;
 
@@ -202,7 +202,7 @@ public:
   static XrdSysMutex gPhysicalIdMutex;
 
   // ---------------------------------------------------------------------------
-  //! RWMutex protecting all global hashmaps
+  //! RWMutex protecting all global hash maps
   // ---------------------------------------------------------------------------
   static RWMutex gMapMutex;
 
@@ -212,7 +212,7 @@ public:
   static XrdSysMutex ActiveLock;
 
   // ---------------------------------------------------------------------------
-  //! Cache for host to ip translatiosn used by geo mapping
+  //! Cache for host to ip translation used by geo mapping
   // ---------------------------------------------------------------------------
   static ip_cache gIpCache;
 

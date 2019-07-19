@@ -397,7 +397,9 @@ eos::mgm::FsCmd::List(const eos::console::FsProto::LsProto& lsProto)
 
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   FsView::gFsView.PrintSpaces(output, "", listFormat, 0,
-                              lsProto.matchlist().c_str(), displayModeString, mReqProto.dontcolor());
+                              lsProto.matchlist().c_str(),
+                              displayModeString, mReqProto.dontcolor());
+
   return output;
 }
 

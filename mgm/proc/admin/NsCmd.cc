@@ -48,7 +48,7 @@
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// Method implementing the specific behvior of the command executed by the
+// Method implementing the specific behaviour of the command executed by the
 // asynchronous thread
 //------------------------------------------------------------------------------
 eos::console::ReplyProto
@@ -366,7 +366,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "uid=all gid=all "
         << gOFS->mDrainEngine.GetThreadPoolInfo() << std::endl;
 
-    if(gOFS->mTapeAwareGcDefaultSpaceEnable) {
+    if (gOFS->mTapeAwareGcDefaultSpaceEnable) {
       // Number of successful stagerrms since boot
       oss << "uid=all gid=all tgc.stagerrms="
           << gOFS->mTapeAwareGc->getNbStagerrms() << std::endl
@@ -521,7 +521,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
 }
 
 //------------------------------------------------------------------------------
-// Execute master comand
+// Execute master command
 //------------------------------------------------------------------------------
 void
 NsCmd::MasterSubcmd(const eos::console::NsProto_MasterProto& master,
@@ -583,7 +583,7 @@ NsCmd::MasterSubcmd(const eos::console::NsProto_MasterProto& master,
 }
 
 //------------------------------------------------------------------------------
-// Execute compact comand
+// Execute compact command
 //------------------------------------------------------------------------------
 void
 NsCmd::CompactSubcmd(const eos::console::NsProto_CompactProto& compact,
@@ -642,7 +642,7 @@ NsCmd::CompactSubcmd(const eos::console::NsProto_CompactProto& compact,
 }
 
 //------------------------------------------------------------------------------
-// Execute tree size recompute comand
+// Execute tree size recompute command
 //------------------------------------------------------------------------------
 void
 NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
@@ -684,7 +684,7 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
 }
 
 //------------------------------------------------------------------------------
-// Execute quota size recompute comand
+// Execute quota size recompute command
 //------------------------------------------------------------------------------
 void
 NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
@@ -728,7 +728,7 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
 }
 
 //------------------------------------------------------------------------------
-// Recompute and update tree size of the given container assumming its
+// Recompute and update tree size of the given container assuming its
 // subcontainers tree size values are correct and adding the size of files
 // attached directly to the current container
 //------------------------------------------------------------------------------

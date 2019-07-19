@@ -32,7 +32,7 @@ typedef std::pair<std::string, unsigned short> Rule;
 typedef std::unordered_map<std::string, unsigned short> RuleMap;
 
 //------------------------------------------------------------------------------
-//! Class AclCmd - class hadling acl command from a client
+//! Class AclCmd - class handling acl command from a client
 //------------------------------------------------------------------------------
 class AclCmd: public IProcCommand
 {
@@ -55,7 +55,7 @@ public:
   virtual ~AclCmd() = default;
 
   //----------------------------------------------------------------------------
-  //! Method implementing the specific behvior of the command executed by the
+  //! Method implementing the specific behavior of the command executed by the
   //! asynchronous thread
   //----------------------------------------------------------------------------
   eos::console::ReplyProto ProcessRequest() noexcept override;
@@ -96,7 +96,7 @@ public:
   //! Convert acl modification command into bitmask rule format
   //!
   //! @param input string containing the modifications of the acls
-  //! @param set if true "set" mode is active, otherwise flase
+  //! @param set if true "set" mode is active, otherwise false
   //!
   //! @return bool true if conversion successful, otherwise false
   //----------------------------------------------------------------------------

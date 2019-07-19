@@ -54,10 +54,12 @@ public:
     std::string link_base = "/proc/self/fd/";
 
     const char* fd_path = "/proc/self/fd";
-    result.devices = result.filesystem = result.sockets = result.pipes = result. anon_inode, result.other = result.all = 0;
+    result.devices = result.filesystem = result.sockets =
+        result.pipes = result. anon_inode, result.other = result.all = 0;
 
     DIR *d = opendir(fd_path);
-    if(!d){
+
+    if (!d) {
       perror(fd_path);
       return false;
     }
@@ -65,31 +67,32 @@ public:
     struct dirent *dent;
     char linkbuffer[4096];
     
-    while((dent=readdir(d))!=NULL) {
+    while ((dent = readdir(d)) != NULL) {
       std::string link_name = link_base;
       link_name += dent->d_name;
       ssize_t lsize=0;
-      if ( (lsize = ::readlink(link_name.c_str(),linkbuffer, sizeof(linkbuffer))) > 0)
-      {
-	result.all++;
-	std::string target(linkbuffer,lsize);
-	if (target.substr(0,7) == "socket:") {
-	  result.sockets++;
-	} else if (target.substr(0,4) == "/dev/") {
-	  result.devices++;
-	} else if (target.substr(0,1) == "/") {
-	  result.filesystem++;
-	} else if (target.substr(0,5) == "pipe:") {
-	  result.pipes++;
-	} else if (target.substr(0,11) == "anon_inode:") {
-	  result.anon_inode++;
-	} else {
-	  result.other++;
-	}
+
+      if ((lsize = ::readlink(link_name.c_str(), linkbuffer, sizeof(linkbuffer))) > 0) {
+        result.all++;
+        std::string target(linkbuffer,lsize);
+
+        if (target.substr(0,7) == "socket:") {
+          result.sockets++;
+        } else if (target.substr(0,4) == "/dev/") {
+          result.devices++;
+        } else if (target.substr(0,1) == "/") {
+          result.filesystem++;
+        } else if (target.substr(0,5) == "pipe:") {
+          result.pipes++;
+        } else if (target.substr(0,11) == "anon_inode:") {
+          result.anon_inode++;
+        } else {
+          result.other++;
+        }
       } else {
-	// if we have a forked setuid program, we don't have the permission to resolve symlinks,
-	// we just count all fds
-	result.all++;
+        // If we have a forked setuid program, we don't have the permission to resolve symlinks,
+        // we just count all fds
+        result.all++;
       }
     }
 
