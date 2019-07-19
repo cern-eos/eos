@@ -417,7 +417,8 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
       mtime.tv_sec  = it.mtime().sec();
       mtime.tv_nsec = it.mtime().n_sec();
 
-      newfile->setFlags(it.flags());
+      // we can send flags or mode to store in flags ... sigh 
+      newfile->setFlags(it.mode() | it.flags());
       newfile->setCTime(ctime);
       newfile->setMTime(mtime);
       newfile->setCUid(it.uid());
