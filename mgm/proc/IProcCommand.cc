@@ -278,13 +278,13 @@ IProcCommand::CloseTemporaryOutputFiles()
 Json::Value
 IProcCommand::ConvertOutputToJsonFormat(std::string stdOut)
 {
+  using eos::common::StringConversion;
+  std::stringstream ss(stdOut);
   Json::Value jsonOut;
-  std::stringstream ss;
-  ss.str(stdOut);
+  std::string line;
 
   do {
     Json::Value jsonEntry;
-    std::string line;
     line.clear();
 
     if (!std::getline(ss, line)) {
@@ -298,43 +298,42 @@ IProcCommand::ConvertOutputToJsonFormat(std::string stdOut)
     XrdOucString sline = line.c_str();
 
     while (sline.replace("<n>", "n")) {}
-
     while (sline.replace("?configstatus@rw", "_rw")) {}
 
     line = sline.c_str();
     std::map <std::string, std::string> map;
-    eos::common::StringConversion::GetKeyValueMap(line.c_str(), map, "=", " ");
+    StringConversion::GetKeyValueMap(line.c_str(), map, "=", " ");
+
     // These values violate the JSON hierarchy and have to be rewritten
-    eos::common::StringConversion::ReplaceMapKey(map, "cfg.balancer",
+    StringConversion::ReplaceMapKey(map, "cfg.balancer",
         "cfg.balancer.status");
-    eos::common::StringConversion::ReplaceMapKey(map, "cfg.geotagbalancer",
+    StringConversion::ReplaceMapKey(map, "cfg.geotagbalancer",
         "cfg.geotagbalancer.status");
-    eos::common::StringConversion::ReplaceMapKey(map, "cfg.geobalancer",
+    StringConversion::ReplaceMapKey(map, "cfg.geobalancer",
         "cfg.geobalancer.status");
-    eos::common::StringConversion::ReplaceMapKey(map, "cfg.groupbalancer",
+    StringConversion::ReplaceMapKey(map, "cfg.groupbalancer",
         "cfg.groupbalancer.status");
-    eos::common::StringConversion::ReplaceMapKey(map, "cfg.wfe", "cfg.wfe.status");
-    eos::common::StringConversion::ReplaceMapKey(map, "cfg.lru", "cfg.lru.status");
-    eos::common::StringConversion::ReplaceMapKey(map, "stat.health",
-        "stat.health.status");
-    eos::common::StringConversion::ReplaceMapKey(map, "balancer",
-        "balancer.status");
-    eos::common::StringConversion::ReplaceMapKey(map, "converter",
-        "converter.status");
-    eos::common::StringConversion::ReplaceMapKey(map, "geotagbalancer",
+    StringConversion::ReplaceMapKey(map, "geotagbalancer",
         "geotagbalancer.status");
-    eos::common::StringConversion::ReplaceMapKey(map, "geobalancer",
+    StringConversion::ReplaceMapKey(map, "geobalancer",
         "geobalancer.status");
-    eos::common::StringConversion::ReplaceMapKey(map, "groupbalancer",
+    StringConversion::ReplaceMapKey(map, "groupbalancer",
         "groupbalancer.status");
+    StringConversion::ReplaceMapKey(map, "cfg.wfe", "cfg.wfe.status");
+    StringConversion::ReplaceMapKey(map, "cfg.lru", "cfg.lru.status");
+    StringConversion::ReplaceMapKey(map, "stat.drain", "stat.drain.status");
+    StringConversion::ReplaceMapKey(map, "stat.health","stat.health.status");
+    StringConversion::ReplaceMapKey(map, "balancer", "balancer.status");
+    StringConversion::ReplaceMapKey(map, "converter", "converter.status");
+
 
     for (auto it = map.begin(); it != map.end(); ++it) {
       std::vector<std::string> token;
-      eos::common::StringConversion::Tokenize(it->first, token, ".");
       char* conv;
-      double val;
       errno = 0;
-      val = strtod(it->second.c_str(), &conv);
+
+      StringConversion::Tokenize(it->first, token, ".");
+      double val = strtod(it->second.c_str(), &conv);
       std::string value;
 
       if (it->second.length()) {
