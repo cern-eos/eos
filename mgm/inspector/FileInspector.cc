@@ -201,7 +201,7 @@ void FileInspector::performCycleInMem(ThreadAssistant& assistant) noexcept {
       }
 
       // Get the attributes
-      eos_static_info("inspector-dir=\"%s\"", it->first.c_str());
+      eos_static_debug("inspector-dir=\"%s\"", it->first.c_str());
       // loop over all files
       XrdMgmOfsDirectory dir;
       int listrc = dir.open(it->first.c_str(), mVid, "ls.skip.directories=true");
