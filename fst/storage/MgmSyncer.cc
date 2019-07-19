@@ -76,6 +76,7 @@ Storage::MgmSyncer()
       // we enter this loop with the WrittenFilesQueueMutex locked
       time_t now = time(NULL);
       eos::common::FmdHelper fmd = gOFS.WrittenFilesQueue.front();
+      gOFS.WrittenFilesQueue.pop();
       gOFS.WrittenFilesQueueMutex.UnLock();
       eos_static_info("fxid=%08llx mtime=%llu", fmd.mProtoFmd.fid(),
                       fmd.mProtoFmd.mtime());
