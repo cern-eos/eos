@@ -1472,11 +1472,14 @@ XrdMqMessageOut::RetrieveMessages()
 
     if (message->Refs() <= 0) {
       // We can delete this message from the queue!
-      std::string msg_id = message->Get(XMQHEADER);
-      {
+      const char* ptr = message->Get(XMQHEADER);
+
+      if (ptr) {
+        std::string msg_id = message->Get(XMQHEADER);
         XrdSysMutexHelper scope_lock(gMqFS->mMsgsMutex);
         gMqFS->Messages.erase(msg_id.c_str());
       }
+
       message->procmutex.UnLock();
       // fprintf(stderr,"%s delete %llu \n", QueueName.c_str(),
       // (unsigned long long) message);
