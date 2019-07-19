@@ -62,8 +62,7 @@ FsckEntry::FsckEntry(eos::IFileMD::id_t fid,
                       eos::common::FileSystem::fsid_t fsid_trg ,
                       std::set<eos::common::FileSystem::fsid_t> exclude_srcs,
                       std::set<eos::common::FileSystem::fsid_t> exclude_dsts,
-                      bool drop_src,
-  const std::string & app_tag) {
+  bool drop_src, const std::string & app_tag) {
     return std::make_shared<FsckRepairJob>(fid, fsid_src, fsid_trg,
                                            exclude_srcs, exclude_dsts,
                                            drop_src, app_tag);
@@ -348,17 +347,16 @@ FsckEntry::RepairFstXsSzDiff()
   }
 
   bool all_repaired {true};
-  eos::common::FileSystem::fsid_t good_fsid = *good_fsids.begin();
 
   for (auto bad_fsid : bad_fsids) {
     // Trigger an fsck repair job (much like a drain job) doing a TPC
-    auto repair_job = mRepairFactory(mFid, good_fsid, 0, bad_fsids, {},
+    auto repair_job = mRepairFactory(mFid, bad_fsid, 0, {bad_fsids}, {},
                                      true, "fsck");
     repair_job->DoIt();
 
     if (repair_job->GetStatus() != FsckRepairJob::Status::OK) {
-      eos_err("msg=\"fst xs/size repair failed\" fid=%08llx bad_fsid=%lu "
-              "good_fsid=%lu", mFid, bad_fsid, good_fsid);
+      eos_err("msg=\"fst xs/size repair failed\" fid=%08llx bad_fsid=%lu",
+              mFid, bad_fsid);
       all_repaired = false;
     } else {
       eos_info("msg=\"fst xs/size repair successful\" fid=%08llx bad_fsid=%lu",
