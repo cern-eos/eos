@@ -67,10 +67,28 @@ TEST_F(VariousTests, FollyWithGloriousContinuations) {
 }
 
 TEST_F(VariousTests, FileCacheInvalidation) {
-  std::shared_ptr<eos::IFileMD> file = view()->createFile("/my-file.txt", true);
-  ASSERT_EQ(file->getId(), 1);
+  ASSERT_THROW(view()->getFile("/dir/my-file.txt", true), eos::MDException);
+
+  view()->createContainer("/dir", true);
+  std::shared_ptr<eos::IFileMD> file1 = view()->createFile("/dir/my-file.txt");
+  ASSERT_EQ(file1->getId(), 1);
   mdFlusher()->synchronize();
 
+  std::cout << qclient::describeRedisReply(qcl().exec("hdel", "2:map_files", "my-file.txt").get()) << std::endl;
+
+  eos::IFileMDPtr file2 = view()->getFile("/dir/my-file.txt");
+
+  // Cache not updated, view still thinks path is valid
+  ASSERT_EQ(file1.get(), file2.get());
+
+  file1.reset();
+  file2.reset();
+
+  fileSvc()->dropCachedFileMD(FileIdentifier(1));
+  containerSvc()->dropCachedContainerMD(ContainerIdentifier(2));
+
+  // cache dropped, should no longer be able to lookup file
+  ASSERT_THROW(view()->getFile("/dir/my-file.txt", true), eos::MDException);
 }
 
 TEST_F(VariousTests, CheckLocationInFsView) {
