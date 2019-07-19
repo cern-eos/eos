@@ -324,6 +324,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
             continue;
           }
 
+          // @todo(esindril): add id to tracker some validity
           std::shared_ptr<FsckEntry> job {
             new FsckEntry(fid, elem.first, err_fs.first, mQcl)};
           mThreadPool.PushTask<void>([job]() {
