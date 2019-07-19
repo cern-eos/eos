@@ -1080,7 +1080,7 @@ runtest "### Map ls    " unix 0 "" eos map ls
 runtest "### Map mkdir " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/map_test/
 runtest "### Touch     " unix 0 "" eos touch /eos/$EOS_TEST_INSTANCE/test/map_test/file1.dat
 runtest "### Stat      " unix 0 "" eos stat /eos/$EOS_TEST_INSTANCE/test/map_test/file1.dat
-runtest "### Ls        " unix 0 "" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/map_test/file1.dat
+runtest "### Ls        " unix 0 "" eos ls /eos/$EOS_TEST_INSTANCE/test/map_test/file1.dat
 runtest "### Map link  " unix 0 "" eos map link /store/ /eos/$EOS_TEST_INSTANCE/test/map_test/
 runtest "### Stat      " unix 0 "" eos stat /store/file1.dat
 runtest "### Ls        " unix 0 "" eos ls /store/file1.dat
