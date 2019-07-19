@@ -30,7 +30,6 @@
 #include <fcntl.h>
 #include "llfusexx.hh"
 #include "fusex/fusex.pb.h"
-#include "md/InodeGenerator.hh"
 #include "backend/backend.hh"
 #include "common/Logging.hh"
 #include "common/RWMutex.hh"
@@ -807,13 +806,6 @@ public:
     return want_zmq_connect.load();
   }
 
-  uint64_t make_inode(uint64_t remote_inode)
-  {
-    uint64_t local_ino = next_ino.inc();
-    vmaps().insert(remote_inode, local_ino);
-    return local_ino;
-  }
-
   bool should_flush_write_size()
   {
     XrdSysMutexHelper cLock(ConfigMutex);
@@ -889,8 +881,6 @@ private:
   bool appname;
   bool mdquery;
   std::string serverversion;
-
-  InodeGenerator next_ino;
 
   XrdSysCondVar mdflush;
 

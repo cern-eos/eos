@@ -82,7 +82,6 @@ metad::init(backend* _mdbackend)
   fuse_req_t req = 0;
   XrdSysMutexHelper mLock(mdmap);
   update(req, mdmap[1], "", true);
-  next_ino.init(EosFuse::Instance().getKV());
   mdmap.init(EosFuse::Instance().getKV());
   dentrymessaging = false;
   writesizeflush = false;
@@ -346,8 +345,7 @@ metad::mdx::convert(struct fuse_entry_param& e, double lifetime)
     shared_md tmd = EosFuse::Instance().mds.getlocal(NULL, local_ino);
 
     if (!tmd->id()) {
-      // this is an ugly fall-back hack, however this should not happen since we read the target hlnk node now in lookup
-      local_ino = EosFuse::Instance().mds.make_inode(mdino);
+      local_ino = mdino;
       e.attr.st_nlink = 2;
       eos_static_err("converting hard-link %s target inode %#lx remote %#lx not in cache, nlink set to %d",
                      name().c_str(), local_ino, mdino, e.attr.st_nlink);
@@ -501,12 +499,14 @@ metad::map_children_to_local(shared_md pmd)
       continue;
     }
 
-    if (!local_ino) {
-      local_ino = next_ino.inc();
+    shared_md md;
+
+    if (!mdmap.retrieveTS(local_ino, md)) {
+      local_ino = remote_ino;
       inomap.insert(remote_ino, local_ino);
       stat.inodes_inc();
       stat.inodes_ever_inc();
-      shared_md md = std::make_shared<mdx>();
+      md = std::make_shared<mdx>();
       mdmap.insertTS(local_ino, md);
     }
 
@@ -858,18 +858,14 @@ metad::get(fuse_req_t req,
 uint64_t
 metad::insert(fuse_req_t req, metad::shared_md md, std::string authid)
 {
-  uint64_t newinode = 0;
   {
-    newinode = next_ino.inc();
-    md->set_id(newinode);
-
     if (EOS_LOGS_DEBUG) {
       eos_static_debug("%s", dump_md(md, false).c_str());
     }
 
-    mdmap.insertTS(newinode, md);
+    mdmap.insertTS(md->id(), md);
   }
-  return newinode;
+  return md->id();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1057,6 +1053,7 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
     }
     return rc;
   } else {
+    md->set_id(md->md_ino());
     inomap.insert(md->md_ino(), md->id());
     md->setop_none();
   }
@@ -1718,7 +1715,7 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
     uint64_t p_ino = inomap.forward(md_pino);
 
     if (!p_ino) {
-      p_ino = next_ino.inc();
+      p_ino = md_pino;
       // it might happen that we don't know yet anything about this parent
       inomap.insert(md_pino, p_ino);
       eos_static_debug("msg=\"creating lookup entry for parent inode\" md-pino=%016lx pino=%016lx md-ino=%016lx ino=%016lx",
@@ -1726,11 +1723,10 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
     }
 
     if (is_new) {
-      if (!ino) {
-        // in this case we need to create a new one
-        uint64_t new_ino = insert(req, md, md->authid());
-        ino = new_ino;
-      }
+      // in this case we need to create a new one
+      md->set_id(md_ino);
+      uint64_t new_ino = insert(req, md, md->authid());
+      ino = new_ino;
     }
 
     if (!S_ISDIR(md->mode())) {
@@ -1998,12 +1994,9 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
 
         uint64_t new_ino = 0;
 
-        if (!(new_ino = inomap.forward(md->md_ino()))) {
-          // if the mapping was in the local KV, we know the mapping, but actually the md record is new in the mdmap
-          new_ino = insert(req, md, md->authid());
-        }
-
-        md->set_id(new_ino);
+        new_ino = inomap.forward(md->md_ino());
+	md->set_id(new_ino);
+	insert(req, md, md->authid());
 
         if (!listing) {
           p_ino = inomap.forward(md->md_pino());
@@ -2952,14 +2945,12 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                 // new file
                 md = std::make_shared<mdx>();
                 *md = rsp.md_();
-                uint64_t new_ino = insert(req, md, authid);
+		md->set_id(md_ino);
+                insert(req, md, authid);
                 uint64_t md_pino = md->md_pino();
                 std::string md_clientid = md->clientid();
                 uint64_t md_size = md->size();
                 md->Locker().Lock();
-                // add to mdmap
-                mdmap.insertTS(new_ino, md);
-                // add to parent
                 uint64_t pino = inomap.forward(md_pino);
                 shared_md pmd;
 
@@ -3075,8 +3066,13 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 void
 metad::vmap::insert(fuse_ino_t a, fuse_ino_t b)
 {
+  // weonly store ino=1 mappings
+  if ( ( a != 1) &&
+       ( b != 1) ) 
+    return;
+
   eos_static_info("inserting %llx <=> %llx", a, b);
-  //fprintf(stderr, "inserting %llx => %llx\n", a, b);
+
   XrdSysMutexHelper mLock(mMutex);
 
   if (fwd_map.count(a) && fwd_map[a] == b) {
@@ -3089,12 +3085,6 @@ metad::vmap::insert(fuse_ino_t a, fuse_ino_t b)
 
   fwd_map[a] = b;
   bwd_map[b] = a;
-  uint64_t a64 = a;
-  uint64_t b64 = b;
-
-  if (a != 1 && EosFuse::Instance().getKV()->put(a64, b64, "l")) {
-    throw std::runtime_error("REDIS backend failure - nextinode");
-  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -3160,16 +3150,7 @@ metad::vmap::forward(fuse_ino_t lookup)
   fuse_ino_t ino = (it == fwd_map.end()) ? 0 : it->second;
 
   if (!ino) {
-    uint64_t a64 = lookup;
-    uint64_t b64 = 0;
-
-    if (EosFuse::Instance().getKV()->get(a64, b64, "l")) {
-      return ino;
-    } else {
-      fwd_map[a64] = b64;
-      bwd_map[b64] = a64;
-      ino = b64;
-    }
+    return lookup;
   }
 
   return ino;
@@ -3181,7 +3162,7 @@ metad::vmap::backward(fuse_ino_t lookup)
 {
   XrdSysMutexHelper mLock(mMutex);
   auto it = bwd_map.find(lookup);
-  return (it == bwd_map.end()) ? 0 : it->second;
+  return (it == bwd_map.end()) ? lookup : it->second;
 }
 
 
