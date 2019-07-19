@@ -323,9 +323,10 @@ IProcCommand::ConvertOutputToJsonFormat(std::string stdOut)
     StringConversion::ReplaceMapKey(map, "cfg.lru", "cfg.lru.status");
     StringConversion::ReplaceMapKey(map, "stat.drain", "stat.drain.status");
     StringConversion::ReplaceMapKey(map, "stat.health","stat.health.status");
+    StringConversion::ReplaceMapKey(map, "wfe", "wfe.status");
+    StringConversion::ReplaceMapKey(map, "lru", "lru.status");
     StringConversion::ReplaceMapKey(map, "balancer", "balancer.status");
     StringConversion::ReplaceMapKey(map, "converter", "converter.status");
-
 
     for (auto it = map.begin(); it != map.end(); ++it) {
       std::vector<std::string> token;
@@ -336,15 +337,14 @@ IProcCommand::ConvertOutputToJsonFormat(std::string stdOut)
       double val = strtod(it->second.c_str(), &conv);
       std::string value;
 
+      if (token.empty()) {
+        continue;
+      }
+
       if (it->second.length()) {
         value = it->second.c_str();
       } else {
         value = "NULL";
-        continue;
-      }
-
-      if (token.empty()) {
-        continue;
       }
 
       auto* jep = &(jsonEntry[token[0]]);
