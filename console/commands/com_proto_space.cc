@@ -223,7 +223,7 @@ bool SpaceHelper::ParseCommand(const char* arg)
     status->set_mgmspace(token);
 
     if (tokenizer.NextToken(token)) {
-      if (token == "m") {
+      if (token == "-m") {
         status->set_outformat_m(true);
       } else {
         return false;
@@ -231,8 +231,6 @@ bool SpaceHelper::ParseCommand(const char* arg)
     }
 
     std::string contents = eos::common::StringConversion::StringFromShellCmd("cat /var/eos/md/stacktrace 2> /dev/null");
-
-
   }
   else if (token == "node-set") {
 
