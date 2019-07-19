@@ -33,7 +33,7 @@
 #ifndef __EOSMGM_MACROS__HH__
 #define __EOSMGM_MACROS__HH__
 
-#include "mgm/InFlightTracker.hh"
+#include "mgm/XrdMgmOfs.hh"
 
 USE_EOSMGMNAMESPACE
 
@@ -128,14 +128,14 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 //------------------------------------------------------------------------------
 #define MAYREDIRECT_ENOENT { if (gOFS->IsRedirect) {                           \
       int port {0};                                                            \
-      std::string host {""};                                           \
+      std::string host {""};                                                   \
       if (gOFS->HasRedirect(path, "ENOENT:*", host, port)) {                   \
-  XrdCl::URL url; url.SetParams(ininfo?ininfo:"");                 \
-  if (gOFS->Tried(url, host, "enoent"))              \
-    return gOFS->Emsg("redirect", error, ENOENT, "no such file or directory", path); \
-  return gOFS->Redirect(error, host.c_str(), port) ;           \
-      }                        \
-    }                              \
+        XrdCl::URL url; url.SetParams(ininfo?ininfo:"");                       \
+        if (gOFS->Tried(url, host, "enoent"))                                  \
+          return gOFS->Emsg("redirect", error, ENOENT, "no such file or directory", path); \
+        return gOFS->Redirect(error, host.c_str(), port) ;                     \
+      }                                                                        \
+    }                                                                          \
   }
 
 //------------------------------------------------------------------------------
@@ -318,18 +318,18 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
       if ((!Access::gAllowedGroups.count(vid.gid)) &&                         \
           (!Access::gAllowedUsers.count(vid.uid)) &&                          \
           (!Access::gAllowedHosts.count(vid.host)) &&                         \
-	  (!Access::gAllowedDomains.count(vid.getUserAtDomain()))) {	\
+          (!Access::gAllowedDomains.count(vid.getUserAtDomain()))) {  \
         eos_err("user access restricted - unauthorized identity vid.uid= "    \
                 "%d, vid.gid=%d, vid.host=\"%s\", vid.tident=\"%s\" for "     \
                 "path=\"%s\" user@domain=\"%s\"", vid.uid, vid.gid, vid.host.c_str(),            \
                 (vid.tident.c_str() ? vid.tident.c_str() : ""), inpath,       \
-                vid.getUserAtDomain().c_str());				      \
+                vid.getUserAtDomain().c_str());                               \
         return Emsg(epname, error, EACCES,"give access - user access "        \
                     "restricted - unauthorized identity used");               \
       }                                                                       \
     }                                                                         \
     if (Access::gAllowedDomains.size() &&                                     \
-	(!Access::gAllowedDomains.count("-")) &&	 		      \
+        (!Access::gAllowedDomains.count("-")) &&                              \
         (!Access::gAllowedDomains.count(vid.domain))) {                       \
       eos_err("domain access restricted - unauthorized identity "             \
               "vid.domain=\"%s\"for "                                         \
@@ -354,20 +354,20 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
       if ( (!Access::gAllowedGroups.count(vid.gid)) &&                        \
            (!Access::gAllowedUsers.count(vid.uid)) &&                         \
            (!Access::gAllowedHosts.count(vid.host)) &&                        \
-	   (!Access::gAllowedDomains.count(vid.getUserAtDomain()))) {	      \
+           (!Access::gAllowedDomains.count(vid.getUserAtDomain()))) {         \
         eos_err("user access restricted - unauthorized identity vid.uid="     \
                 "%d, vid.gid=%d, vid.host=\"%s\", vid.tident=\"%s\" for "     \
                 "path=\"%s\" user@domain=\"%s\"", vid.uid, vid.gid, vid.host.c_str(),            \
                 (vid.tident.c_str() ? vid.tident.c_str() : ""), inpath,       \
-		vid.getUserAtDomain().c_str());                               \
+                vid.getUserAtDomain().c_str());                               \
         retc = EACCES;                                                        \
         stdErr += "error: user access restricted - unauthorized identity used";\
         return SFS_OK;                                                        \
       }                                                                       \
     }                                                                         \
     if (Access::gAllowedDomains.size() &&                                     \
-	(!Access::gAllowedDomains.count("-")) &&			      \
-        (!Access::gAllowedDomains.count(vid.domain))) {			\
+        (!Access::gAllowedDomains.count("-")) &&                              \
+        (!Access::gAllowedDomains.count(vid.domain))) {           \
       eos_err("domain access restricted - unauthorized identity "             \
               "vid.domain=\"%s\"for "                                         \
               "path=\"%s\"", vid.domain.c_str(),                              \
@@ -377,5 +377,47 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
       return SFS_OK;                                                          \
     }                                                                         \
   }
+
+EOSMGMNAMESPACE_BEGIN
+
+//------------------------------------------------------------------------------
+//! Namespace map functionality i.e check validity of the paths, check for
+//! prefix and path rewrite options, remap path's names according to the
+//! configured path map.
+//!
+//! @param path input path, will hold the final re-mapped path
+//! @param ininfo optional opaque information
+//! @param vid virtual identify of the client
+//------------------------------------------------------------------------------
+void NamespaceMap(std::string& path, const char* ininfo,
+                  const eos::common::VirtualIdentity& vid);
+
+//------------------------------------------------------------------------------
+//! Bounce illegal path names
+//!
+//! @param path input path
+//! @param err_msg error message
+//! @param retc errno value
+//!
+//! @return true if request should be bounced, otherwise false
+//------------------------------------------------------------------------------
+bool ProcBounceIllegalNames(const std::string& path, std::string& err_check,
+                            int& errno_check);
+
+//------------------------------------------------------------------------------
+//! Bounce not-allowed-users in proc requests
+//!
+//! @param path input path
+//! @param vid virtual identity of the client
+//! @param err_msg error message
+//! @param retc errno value
+//!
+//! @return true if requests should be bounced, otherwise false
+//------------------------------------------------------------------------------
+bool ProcBounceNotAllowed(const std::string& path,
+                          const eos::common::VirtualIdentity& vid,
+                          std::string& err_check, int& errno_check);
+
+EOSMGMNAMESPACE_END
 
 #endif

@@ -37,8 +37,9 @@
 #include "mgm/proc/admin/SpaceCmd.hh"
 #include <google/protobuf/util/json_util.h>
 
-EOSMGMNAMESPACE_BEGIN
 
+EOSMGMNAMESPACE_BEGIN
+thread_local eos::common::LogId ProcInterface::tlLogId;
 std::mutex ProcInterface::mMutexCmds;
 std::list<std::unique_ptr<IProcCommand>> ProcInterface::mCmdToDel;
 std::unordered_map<std::string, std::unique_ptr<IProcCommand>>
@@ -54,9 +55,11 @@ eos::common::ThreadPool ProcInterface::sProcThreads(
 std::unique_ptr<IProcCommand>
 ProcInterface::GetProcCommand(const char* tident,
                               eos::common::VirtualIdentity& vid,
-                              const char* path, const char* opaque)
+                              const char* path, const char* opaque,
+                              const char* log_id)
 {
-  // Check if this is an already submitted command
+  tlLogId.SetLogId((log_id ? log_id : ""), vid, tident);
+  // Check if this is an already submmited command
   std::unique_ptr<IProcCommand> pcmd = GetSubmittedCmd(tident);
 
   if (pcmd) {
@@ -163,7 +166,7 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
 
   if (!eos::common::SymKey::Base64Decode(b64data, raw_pb)) {
     oss << "error: failed to base64decode request";
-    eos_static_err("%s", oss.str().c_str());
+    eos_thread_err("%s", oss.str().c_str());
     return cmd;
   }
 
@@ -172,14 +175,14 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
   if (!req.ParseFromString(raw_pb)) {
     oss << "error: failed to deserialize ProtocolBuffer object: "
         << raw_pb;
-    eos_static_err("%s", oss.str().c_str());
+    eos_thread_err("%s", oss.str().c_str());
     return cmd;
   }
 
   // Log the type of command that we received
   std::string json_out;
   (void) google::protobuf::util::MessageToJsonString(req, &json_out);
-  eos_static_info("cmd_proto=%s", json_out.c_str());
+  eos_thread_info("cmd_proto=%s", json_out.c_str());
 
   switch (req.command_case()) {
   case RequestProto::kAcl:
@@ -239,7 +242,7 @@ ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
     break;
 
   default:
-    eos_static_err("error: unknown request type");
+    eos_thread_err("error: unknown request type");
     break;
   }
 
@@ -277,7 +280,6 @@ ProcInterface::ProtoIsWriteAccess(const char* path, const char* opaque)
   // Log the type of command that we received
   std::string json_out;
   (void) google::protobuf::util::MessageToJsonString(req, &json_out);
-  eos_static_info("cmd_proto=%s", json_out.c_str());
 
   switch (req.command_case()) {
   case RequestProto::kAcl:

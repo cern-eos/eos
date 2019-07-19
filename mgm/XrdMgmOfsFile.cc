@@ -389,7 +389,7 @@ XrdMgmOfsFile::open(const char* inpath,
       return Emsg(epname, error, EPERM, "execute proc command - you don't have "
                   "the requested permissions for that operation (2)", path);
     } else {
-      mProcCmd = ProcInterface::GetProcCommand(tident, vid, path, ininfo);
+      mProcCmd = ProcInterface::GetProcCommand(tident, vid, path, ininfo, logId);
 
       if (mProcCmd) {
         mProcCmd->SetLogId(logId, vid, tident);

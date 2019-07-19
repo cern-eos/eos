@@ -255,10 +255,14 @@ protected:
   //! Check if operation forbidden
   //!
   //! @param inpath path of the request
+  //! @param err_check output error message
+  //! @param errno_check output errno in case of errors
   //!
-  //! @return SFS_OK if operation forbidden, SFS_ERROR if operation allowed
+  //! @return true if operation forbidded otherwise false
   //----------------------------------------------------------------------------
-  int IsOperationForbidden(const char* inpath);
+  bool IsOperationForbidden(const std::string& path,
+                            const eos::common::VirtualIdentity& vid,
+                            std::string& err_check, int& errno_check) const;
 
   //----------------------------------------------------------------------------
   //! Check if there is still an available slot for the current type of command

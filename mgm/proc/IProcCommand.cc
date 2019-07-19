@@ -25,7 +25,6 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/proc/IProcCommand.hh"
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/Access.hh"
 #include "mgm/Macros.hh"
 #include "namespace/interface/IView.hh"
 #include <google/protobuf/util/json_util.h>
@@ -455,11 +454,20 @@ IProcCommand::GetPathFromCid(XrdOucString& path, unsigned long long cid,
 //------------------------------------------------------------------------------
 // Check if operation forbidden
 //------------------------------------------------------------------------------
-int
-IProcCommand::IsOperationForbidden(const char* inpath)
+bool
+IProcCommand::IsOperationForbidden(const std::string& path,
+                                   const eos::common::VirtualIdentity& vid,
+                                   std::string& err_check, int& errno_check) const
 {
-  PROC_BOUNCE_NOT_ALLOWED;
-  return SFS_ERROR;
+  if (eos::mgm::ProcBounceIllegalNames(path, err_check, errno_check)) {
+    return true;
+  }
+
+  if (eos::mgm::ProcBounceNotAllowed(path, mVid, err_check, errno_check)) {
+    return true;
+  }
+
+  return false;
 }
 
 //------------------------------------------------------------------------------

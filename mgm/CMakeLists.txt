@@ -108,6 +108,7 @@ add_library(
   config/IConfigEngine.cc                           config/IConfigEngine.hh
   config/QuarkDBConfigEngine.cc                     config/QuarkDBConfigEngine.hh
   Access.cc
+  Macros.cc
   GeoTreeEngine.cc
   Messaging.cc
   VstMessaging.cc

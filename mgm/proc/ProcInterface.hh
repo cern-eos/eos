@@ -69,12 +69,14 @@ public:
   //! @param vid virtual id of the client
   //! @param path input path for proc command
   //! @param opaque input opaque information
+  //! @param log_id log id passed from the calling method
   //!
   //! @return ProcCommand object
   //----------------------------------------------------------------------------
   static std::unique_ptr<IProcCommand>
   GetProcCommand(const char* tident, eos::common::VirtualIdentity& vid,
-                 const char* path = 0, const char* opaque = 0);
+                 const char* path = 0, const char* opaque = 0,
+                 const char* log_id = 0);
 
   //----------------------------------------------------------------------------
   //! Check if a path is requesting a proc command
@@ -166,5 +168,6 @@ private:
   //! response
   static std::list<std::unique_ptr<IProcCommand>> mCmdToDel;
   static std::mutex mMutexCmds; ///< Mutex protecting access to the map above
+  static thread_local eos::common::LogId tlLogId; ///< Thread local log id
 };
 EOSMGMNAMESPACE_END
