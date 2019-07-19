@@ -68,7 +68,7 @@ private:
                    eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
-  //! Execute stat comand
+  //! Execute stat command
   //!
   //! @param stat stat subcommand proto object
   //! @param reply reply proto object
@@ -77,7 +77,7 @@ private:
                   eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
-  //! Execute master comand
+  //! Execute master command
   //!
   //! @param master master subcommand proto object
   //! @param reply reply proto object
@@ -86,7 +86,7 @@ private:
                     eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
-  //! Execute compact comand
+  //! Execute compact command
   //!
   //! @param compact compact subcommand proto object
   //! @param reply reply proto object
@@ -135,11 +135,11 @@ private:
   //! container
   //!
   //! @param cont container object
-  //! @param max_depth maxinum depth scanned for updating the tree size, 0
+  //! @param max_depth maximum depth scanned for updating the tree size, 0
   //!        means no limit
   //!
   //! @return list containing lists of subcontainers at each depth level
-  //!         starting with level 0 in front represenint the given container
+  //!         starting with level 0 in front representing the given container
   //! @note this function assumes a write lock on eosViewRWMutex
   //----------------------------------------------------------------------------
   std::list< std::list<eos::IContainerMD::id_t> >
@@ -147,7 +147,7 @@ private:
                                uint32_t max_depth = 0) const;
 
   //----------------------------------------------------------------------------
-  //! Recompute and update tree size of the given container assumming its
+  //! Recompute and update tree size of the given container assuming its
   //! subcontainers tree size values are correct and adding the size of files
   //! attached directly to the current container
   //!

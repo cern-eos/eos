@@ -160,7 +160,7 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Open temporary outputfiles for find commands
+  //! Open temporary output files for find commands
   //!
   //! @return true if successful otherwise false
   //----------------------------------------------------------------------------
@@ -351,7 +351,7 @@ private:
   //----------------------------------------------------------------------------
   //! Get list of archived files from the proc/archive directory
   //!
-  //! @param root root of subtree for which we collect archvied entries
+  //! @param root root of subtree for which we collect archived entries
   //!
   //! @return vector containing the full path of the directories currently
   //!         archived
@@ -442,7 +442,7 @@ private:
   //!        mtime or the ctime
   //! @param twindow_val time window timestamp
   //! @param excl_xattr set of extended attributes which are not enforced and
-  //         also not checked during the verification step
+  //!        also not checked during the verification step
   //!
   //! @return 0 if successful, otherwise errno. It sets the global retc in case
   //!         of error

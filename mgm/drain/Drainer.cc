@@ -256,7 +256,8 @@ Drainer::GetJobsInfo(std::string& out, const DrainHdrInfo& hdr_info,
       }
     }
   }
-  out =  table.GenerateTable(HEADER, selections).c_str();
+
+  out = table.GenerateTable(HEADER, selections).c_str();
   return true;
 }
 

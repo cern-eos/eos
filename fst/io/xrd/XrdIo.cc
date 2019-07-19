@@ -883,7 +883,7 @@ XrdIo::fileRemove(uint16_t timeout)
 }
 
 //------------------------------------------------------------------------------
-// Check for existance
+// Check for existence
 //------------------------------------------------------------------------------
 int
 XrdIo::fileExists()
@@ -902,7 +902,7 @@ XrdIo::fileExists()
       mLastErrNo  = status.errNo;
     } else {
       errno = EIO;
-      mLastErrMsg = "failed to check for existance";
+      mLastErrMsg = "failed to check for existence";
       mLastErrCode  = status.code;
       mLastErrNo  = status.errNo;
     }

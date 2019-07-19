@@ -57,7 +57,7 @@ message RequestProto {
 
   // Identifies which filed is filled in 
   required OperationType type = 1;
-  // Encrypted sha1 of the string represenation of the object excluding
+  // Encrypted sha1 of the string representation of the object excluding
   // the field 'hmac' which is to be considered as empty string ("") during
   // the computation and then updated at the end to the new value
   required string hmac = 2;

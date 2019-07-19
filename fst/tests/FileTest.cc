@@ -401,7 +401,7 @@ FileTest::DeleteFlagTest()
   status = mFile->Fcntl(arg, response);
   CPPUNIT_ASSERT(status.IsOK());
   delete response;
-  // Close the file and then test for its existance
+  // Close the file and then test for its existence
   status = mFile->Close();
   status = mFile->Open(file_url, OpenFlags::Read, Access::Mode::None);
   CPPUNIT_ASSERT(!status.IsOK());

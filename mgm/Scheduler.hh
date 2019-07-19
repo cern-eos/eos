@@ -54,11 +54,12 @@ public:
   virtual ~Scheduler();
 
   //! Types of placement policy
-  enum tPlctPolicy {kScattered, kHybrid, kGathered};
+  enum tPlctPolicy
+  { kScattered, kHybrid, kGathered };
 
   //! Types of scheduling
   enum tSchedType
-  { regular, draining};
+  { regular, draining };
 
   //! Arguments to place a file placement
   struct PlacementArguments {

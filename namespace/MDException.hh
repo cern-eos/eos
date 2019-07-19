@@ -73,7 +73,7 @@ public:
   }
 
   //------------------------------------------------------------------------
-  //! Get errno assosiated with the exception
+  //! Get errno associated with the exception
   //------------------------------------------------------------------------
   int getErrno() const
   {

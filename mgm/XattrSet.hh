@@ -18,7 +18,7 @@
 
 /************************************************************************
  * @file  XattrSet.hh                                                   *
- * @brief Serialize/deserialise a set to allow it to be stored as an    *
+ * @brief Serialize/deserialize a set to allow it to be stored as an    *
  *        extended attribute value (string) but manipulated as a set    *
  ************************************************************************/
 

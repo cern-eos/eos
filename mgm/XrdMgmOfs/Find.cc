@@ -103,10 +103,10 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
       }
 
       if (!gOFS->allow_public_access(Path.c_str(), vid)) {
-	stdErr += "error: public access level restriction - no access in  ";
-	stdErr += Path.c_str();
-	stdErr += "\n";
-	continue;
+        stdErr += "error: public access level restriction - no access in  ";
+        stdErr += Path.c_str();
+        stdErr += "\n";
+        continue;
       }
 
       if (cmd) {

@@ -176,7 +176,7 @@ public:
   virtual eos::console::ReplyProto ProcessRequest() noexcept = 0;
 
   //----------------------------------------------------------------------------
-  //! Lauch command asynchronously, creating the corresponding promise and
+  //! Launch command asynchronously, creating the corresponding promise and
   //! future
   //----------------------------------------------------------------------------
   virtual void LaunchJob() final;
@@ -229,7 +229,7 @@ protected:
   //!
   //! @param inpath path of the request
   //!
-  //! @return SFS_OK if operation forbidde, SFS_ERRRO if operation allowed
+  //! @return SFS_OK if operation forbidden, SFS_ERROR if operation allowed
   //----------------------------------------------------------------------------
   int IsOperationForbidden(const char* inpath);
 
