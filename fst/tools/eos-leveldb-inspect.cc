@@ -148,7 +148,7 @@ bool DumpFileInfo(eos::common::DbMap& db, const std::string& sfid)
 
   eos::common::FmdHelper fmd;
   fmd.mProtoFmd.ParseFromString(val.value);
-  auto opaque = fmd.FullFmdToEnv();
+  auto opaque = fmd.FmdToEnv();
   int envlen;
   std::string data {opaque->Env(envlen)};
   std::replace(data.begin(), data.end(), '&', ' ');
