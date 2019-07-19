@@ -28,48 +28,53 @@ EOSCOMMONNAMESPACE_BEGIN
 bool EnvToFstFmd(XrdOucEnv& env, FmdHelper& fmd)
 {
   // Check that all tags are present
-  if (!env.Get("id") ||
-      !env.Get("cid") ||
-      !env.Get("ctime") ||
-      !env.Get("ctime_ns") ||
-      !env.Get("mtime") ||
-      !env.Get("mtime_ns") ||
-      !env.Get("size") ||
-      !env.Get("lid") ||
-      !env.Get("uid") ||
-      !env.Get("gid")) {
-    return false;
+  std::set<std::string> tags {"id", "cid", "fsid", "ctime", "ctime_ns", "mtime",
+                              "mtime_ns", "atime", "atime_ns", "size", "disksize", "mgmsize", "lid",
+                              "uid", "gid", "filecxerror", "blockcxerror", "layouterror", "locations"};
+
+  for (const auto& tag : tags) {
+    if (env.Get(tag.c_str()) == nullptr) {
+      int envlen = 0;
+      eos_static_crit("msg=\"missing fields in fmd encoding\" field=%s "
+                      "encoding=\"%s\"", tag.c_str(), env.Env(envlen));
+      return false;
+    }
   }
 
   fmd.mProtoFmd.set_fid(strtoull(env.Get("id"), 0, 10));
   fmd.mProtoFmd.set_cid(strtoull(env.Get("cid"), 0, 10));
+  fmd.mProtoFmd.set_fsid(strtoull(env.Get("fsid"), 0, 10));
   fmd.mProtoFmd.set_ctime(strtoul(env.Get("ctime"), 0, 10));
   fmd.mProtoFmd.set_ctime_ns(strtoul(env.Get("ctime_ns"), 0, 10));
   fmd.mProtoFmd.set_mtime(strtoul(env.Get("mtime"), 0, 10));
   fmd.mProtoFmd.set_mtime_ns(strtoul(env.Get("mtime_ns"), 0, 10));
   fmd.mProtoFmd.set_size(strtoull(env.Get("size"), 0, 10));
+  fmd.mProtoFmd.set_disksize(strtoull(env.Get("disksize"), 0, 10));
   fmd.mProtoFmd.set_lid(strtoul(env.Get("lid"), 0, 10));
   fmd.mProtoFmd.set_uid((uid_t) strtoul(env.Get("uid"), 0, 10));
   fmd.mProtoFmd.set_gid((gid_t) strtoul(env.Get("gid"), 0, 10));
+  fmd.mProtoFmd.set_checksum(env.Get("checksum"));
 
-  if (env.Get("checksum")) {
-    fmd.mProtoFmd.set_checksum(env.Get("checksum"));
-
-    if (fmd.mProtoFmd.checksum() == "none") {
-      fmd.mProtoFmd.set_checksum("");
-    }
-  } else {
+  if (fmd.mProtoFmd.checksum() == "none") {
     fmd.mProtoFmd.set_checksum("");
   }
 
-  if (env.Get("diskchecksum")) {
-    fmd.mProtoFmd.set_diskchecksum(env.Get("diskchecksum"));
+  fmd.mProtoFmd.set_diskchecksum(env.Get("diskchecksum"));
 
-    if (fmd.mProtoFmd.diskchecksum() == "none") {
-      fmd.mProtoFmd.set_diskchecksum("");
-    }
-  } else {
+  if (fmd.mProtoFmd.diskchecksum() == "none") {
     fmd.mProtoFmd.set_diskchecksum("");
+  }
+
+  fmd.mProtoFmd.set_mgmchecksum(env.Get("mgmchecksum"));
+
+  if (fmd.mProtoFmd.mgmchecksum() == "none") {
+    fmd.mProtoFmd.set_mgmchecksum("");
+  }
+
+  fmd.mProtoFmd.set_locations(env.Get("locations"));
+
+  if (fmd.mProtoFmd.locations() == "none") {
+    fmd.mProtoFmd.set_locations("");
   }
 
   return true;
@@ -170,28 +175,6 @@ FmdHelper::FmdToEnv()
   std::ostringstream oss;
   oss << "id=" << mProtoFmd.fid()
       << "&cid=" << mProtoFmd.cid()
-      << "&ctime=" << mProtoFmd.ctime()
-      << "&ctime_ns=" << mProtoFmd.ctime_ns()
-      << "&mtime=" << mProtoFmd.mtime()
-      << "&mtime_ns=" << mProtoFmd.mtime_ns()
-      << "&size=" << mProtoFmd.size()
-      << "&checksum=" << mProtoFmd.checksum()
-      << "&diskchecksum=" << mProtoFmd.diskchecksum()
-      << "&lid=" << mProtoFmd.lid()
-      << "&uid=" << mProtoFmd.uid()
-      << "&gid=" << mProtoFmd.gid() << '&';
-  return std::unique_ptr<XrdOucEnv> (new XrdOucEnv(oss.str().c_str()));
-}
-
-//-------------------------------------------------------------------------------
-// Convert fmd object to env representation
-//-------------------------------------------------------------------------------
-std::unique_ptr<XrdOucEnv>
-FmdHelper::FullFmdToEnv()
-{
-  std::ostringstream oss;
-  oss << "id=" << mProtoFmd.fid()
-      << "&cid=" << mProtoFmd.cid()
       << "&fsid=" << mProtoFmd.fsid()
       << "&ctime=" << mProtoFmd.ctime()
       << "&ctime_ns=" << mProtoFmd.ctime_ns()
@@ -202,17 +185,40 @@ FmdHelper::FullFmdToEnv()
       << "&size=" << mProtoFmd.size()
       << "&disksize=" << mProtoFmd.disksize()
       << "&mgmsize=" << mProtoFmd.mgmsize()
-      << "&checksum=" << mProtoFmd.checksum()
-      << "&diskchecksum=" << mProtoFmd.diskchecksum()
-      << "&mgmchecksum=" << mProtoFmd.mgmchecksum()
       << "&lid=0x" << std::hex << mProtoFmd.lid() << std::dec
       << "&uid=" << mProtoFmd.uid()
       << "&gid=" << mProtoFmd.gid()
       << "&filecxerror=0x" << std::hex << mProtoFmd.filecxerror()
       << "&blockcxerror=0x" << mProtoFmd.blockcxerror()
-      << "&layouterror=0x" << mProtoFmd.layouterror()
-      << "&locations=" << std::dec << mProtoFmd.locations()
-      << '&';
+      << "&layouterror=0x" << mProtoFmd.layouterror();
+
+  // Take care at string fields since XrdOucEnv does not deal well with empty
+  // values
+  if (mProtoFmd.checksum().empty()) {
+    oss << "&checksum=none";
+  } else {
+    oss << "&checksum=" << mProtoFmd.checksum();
+  }
+
+  if (mProtoFmd.diskchecksum().empty()) {
+    oss << "&diskchecksum=none";
+  } else {
+    oss << "&diskchecksum=" << mProtoFmd.diskchecksum();
+  }
+
+  if (mProtoFmd.mgmchecksum().empty()) {
+    oss << "&mgmchecksum=none";
+  } else {
+    oss << "&mgmchecksum=" << mProtoFmd.mgmchecksum();
+  }
+
+  if (mProtoFmd.locations().empty()) {
+    oss << "&locations=none";
+  } else {
+    oss << "&locations=" << std::dec << mProtoFmd.locations();
+  }
+
+  oss << '&';
   return std::unique_ptr<XrdOucEnv>
          (new XrdOucEnv(oss.str().c_str()));
 }
