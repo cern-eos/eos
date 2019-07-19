@@ -143,7 +143,7 @@ TapeAwareGcFreeSpace::queryMgmForFreeBytes() {
     if(common::BootStatus::kBooted == fsSnapshot.mStatus &&
        common::ActiveStatus::kOnline == fsSnapshot.mActiveStatus &&
        common::ConfigStatus::kRW == fsSnapshot.mConfigStatus) {
-      freeBytes += fsSnapshot.mDiskFreeBytes;
+      freeBytes += (uint64_t)fsSnapshot.mDiskBavail * (uint64_t)fsSnapshot.mDiskBsize;
     }
   }
 
