@@ -2411,7 +2411,8 @@ metad::mdstackfree(ThreadAssistant& assistant)
 
           mdmap.UnLock();
         }
-      } while (swap_out_inodes > 0);
+      } while ( ( swap_out_inodes > 0) &&	
+		(!assistant.terminationRequested()) );
     }
   }
 
