@@ -26,11 +26,11 @@
 
 #include <set>
 #include <string>
-
 #include <iostream>
 
-namespace eos {
-namespace mgm {
+#include "mgm/Namespace.hh"
+
+EOSMGMNAMESPACE_BEGIN
 
 struct XattrSet {
   XattrSet() {}
@@ -68,4 +68,4 @@ struct XattrSet {
   std::set<std::string> values;
 };
 
-}} // namespace eos::mgm
+EOSMGMNAMESPACE_END
