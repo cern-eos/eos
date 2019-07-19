@@ -218,11 +218,38 @@ protected:
   //----------------------------------------------------------------------------
   //! Format console output string as json.
   //!
+  //! @note
+  //! This will work only if the given output follows <key>=<value> format.
+  //! Also, provided values must follow a proper JSON hierarchy !
+  //!
+  //! Although the function tries to correct some values,
+  //! the correction is not exhaustive.
+  //!
+  //! Valid example:
+  //! stat.drain.status=<value> / stat.drain.otherkey=<value>
+  //!
+  //! Invalid example:
+  //! stat.drain=<value> / stat.drain.status=<value> (will throw an exception)
+  //!
   //! @param stdOut console output string
   //!
   //! @return jsonOut json formatted output
   //----------------------------------------------------------------------------
-  static Json::Value ConvertOutputToJsonFormat(std::string stdOut);
+  static Json::Value ConvertOutputToJsonFormat(const std::string& stdOut);
+
+  //----------------------------------------------------------------------------
+  //! Create a JSON string from the command output, error and return code.
+  //!
+  //! @param out console output string
+  //! @param err console error string
+  //! @param retc console return code
+  //!
+  //! @return jsonOut json response string containing output, error
+  //!                 and return code
+  //----------------------------------------------------------------------------
+  std::string ResponseToJsonString(const std::string& out,
+                                   const std::string& err = "",
+                                   int rc = 0);
 
   //----------------------------------------------------------------------------
   //! Check if operation forbidden

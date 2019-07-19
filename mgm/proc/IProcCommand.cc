@@ -80,18 +80,10 @@ IProcCommand::open(const char* path, const char* info,
       std::ostringstream oss;
 
       if (mReqProto.format() == eos::console::RequestProto::JSON) {
-        Json::Value json;
+        std::string out = ResponseToJsonString(reply.std_out(),
+                                               reply.std_err(), reply.retc());
 
-        try {
-          json["result"] = ConvertOutputToJsonFormat(reply.std_out());
-          json["errormsg"] = reply.std_err();
-          json["retc"] = std::to_string(reply.retc());
-        } catch (Json::Exception const&) {
-          json["errormsg"] = "illegal string in json conversion";
-          json["retc"] = std::to_string(EFAULT);
-        }
-
-        oss << "mgm.proc.stdout=" << json
+        oss << "mgm.proc.stdout=" << out
             << "&mgm.proc.stderr=" << reply.std_err()
             << "&mgm.proc.retc=" << reply.retc();
       } else if (mReqProto.format() == eos::console::RequestProto::FUSE) {
@@ -276,7 +268,7 @@ IProcCommand::CloseTemporaryOutputFiles()
 // Format console output string as json
 //------------------------------------------------------------------------------
 Json::Value
-IProcCommand::ConvertOutputToJsonFormat(std::string stdOut)
+IProcCommand::ConvertOutputToJsonFormat(const std::string& stdOut)
 {
   using eos::common::StringConversion;
   std::stringstream ss(stdOut);
@@ -375,6 +367,29 @@ IProcCommand::ConvertOutputToJsonFormat(std::string stdOut)
   } while (true);
 
   return jsonOut;
+}
+
+//------------------------------------------------------------------------------
+// Create a JSON string from the command output, error and return code
+//------------------------------------------------------------------------------
+std::string
+IProcCommand::ResponseToJsonString(const std::string& out,
+                                   const std::string& err, int rc)
+{
+  Json::Value json;
+
+  try {
+    json["result"] = ConvertOutputToJsonFormat(out);
+    json["errormsg"] = err;
+    json["retc"] = std::to_string(rc);
+  } catch (Json::Exception& e) {
+    eos_err("Json conversion exception cmd_type=%s emsg=\"%s\"",
+            SSTR(mReqProto.command_case()).c_str(), e.what());
+    json["errormsg"] = "illegal string in json conversion";
+    json["retc"] = std::to_string(EFAULT);
+  }
+
+  return SSTR(json);
 }
 
 //------------------------------------------------------------------------------
