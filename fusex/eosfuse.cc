@@ -2432,11 +2432,6 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
         if (attrMap.count(k_mdino)) {
           uint64_t mdino = std::stoll(attrMap[k_mdino]);
           uint64_t local_ino = EosFuse::Instance().mds.vmaps().forward(mdino);
-
-          if (!local_ino) {
-            local_ino = EosFuse::Instance().mds.make_inode(mdino);
-          }
-
           metad::shared_md tmd = EosFuse::Instance().mds.get(req, local_ino, "");
         }
       }
@@ -3111,32 +3106,31 @@ EROFS  pathname refers to a file on a read-only filesystem.
           (*attrMap)[it.first] = it.second;
         }
 
-        md->set_id(Instance().mds.insert(req, md, pcap->authid()));
         md->set_nlink(2);
         md->set_creator(true);
-        std::string imply_authid = eos::common::StringConversion::random_uuidstring();
-        eos_static_info("generating implied authid %s => %s", pcap->authid().c_str(),
-                        imply_authid.c_str());
-        implied_cid = Instance().caps.imply(pcap, imply_authid, mode,
-                                            (fuse_ino_t) md->id());
-        md->cap_inc();
-        md->set_implied_authid(imply_authid);
-      }
 
-      if (!rc) {
 	md->set_type(md->EXCL);
+	std::string imply_authid = eos::common::StringConversion::random_uuidstring();
+	eos_static_info("generating implied authid %s => %s", pcap->authid().c_str(),
+			imply_authid.c_str());
+	
+	implied_cid = Instance().caps.imply(pcap, imply_authid, mode,
+					    (fuse_ino_t) md->id());
+	md->cap_inc();
+	md->set_implied_authid(imply_authid);
+
 	rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
 	md->set_type(md->MD);
 
-        if (!rc) {
+	if (!rc) {
+	  Instance().mds.insert(req, md, pcap->authid());
+
           memset(&e, 0, sizeof(e));
           md->convert(e, pcap->lifetime());
           md->lookup_inc();
           pmd->local_enoent().erase(name);
           eos_static_info("%s", md->dump(e).c_str());
-        } else {
-          Instance().getCap().forget(implied_cid);
-        }
+	}
       }
     }
   }
@@ -3988,36 +3982,34 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
           md->set_gid(pcap->gid());
 
-          md->set_id(Instance().mds.insert(req, md, pcap->authid()));
-
-          md->set_nlink(1);
-
-          md->set_creator(true);
-
-          // avoid lock-order violation
-          {
-            mLock.UnLock();
-            XrdSysMutexHelper mLockParent(pmd->Locker());
-            pmd->set_mtime(ts.tv_sec);
-            pmd->set_mtime_ns(ts.tv_nsec);
-
-            // get file inline size from parent attribute
-            if (pmd->attr().count("sys.file.inline.maxsize")) {
-              auto maxsize = (*pmd->mutable_attr())["sys.file.inline.maxsize"];
-              md->set_inlinesize(strtoull(maxsize.c_str(), 0, 10));
-            }
-
-            mLockParent.UnLock();
-            mLock.Lock(&md->Locker());
-          }
-
 	  md->set_type(md->EXCL);
 	  rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
 	  md->set_type(md->MD);
 
-          memset(&e, 0, sizeof(e));
+	  if (!rc) {
+	    Instance().mds.insert(req, md, pcap->authid());
+	    md->set_nlink(1);	    
+	    md->set_creator(true);
 
-          if (!rc) {
+	    // avoid lock-order violation
+	    {
+	      mLock.UnLock();
+	      XrdSysMutexHelper mLockParent(pmd->Locker());
+	      pmd->set_mtime(ts.tv_sec);
+	      pmd->set_mtime_ns(ts.tv_nsec);
+	      
+	      // get file inline size from parent attribute
+	      if (pmd->attr().count("sys.file.inline.maxsize")) {
+		auto maxsize = (*pmd->mutable_attr())["sys.file.inline.maxsize"];
+		md->set_inlinesize(strtoull(maxsize.c_str(), 0, 10));
+	      }
+	      
+	      mLockParent.UnLock();
+	      mLock.Lock(&md->Locker());
+	    }
+	    
+	    memset(&e, 0, sizeof(e));
+
             Instance().caps.book_inode(pcap);
 	    Instance().caps.open_writer_inode(pcap);
             md->convert(e, pcap->lifetime());
@@ -5461,7 +5453,6 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
       md->set_btime_ns(ts.tv_nsec);
       md->set_uid(pcap->uid());
       md->set_gid(pcap->gid());
-      md->set_id(Instance().mds.insert(req, md, pcap->authid()));
       md->lookup_inc();
 
       md->set_type(md->EXCL);
@@ -5469,6 +5460,7 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
       md->set_type(md->MD);
 
       if (rc) {
+	Instance().mds.insert(req, md, pcap->authid());
         pmd->local_enoent().erase(name);
       }
 
@@ -5591,8 +5583,10 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
         (*sAttrMap)[k_mdino] = std::to_string(tmd->md_ino());
         tmd->set_nlink(nlink + 1);
         tmLock.UnLock();
-        md->set_id(Instance().mds.insert(req, md, pcap->authid()));
         rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
+	if (!rc) {
+	  Instance().mds.insert(req, md, pcap->authid());
+	}
         md->set_target("");
         mLock.UnLock();
 
