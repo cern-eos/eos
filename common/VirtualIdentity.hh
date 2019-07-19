@@ -86,12 +86,12 @@ struct VirtualIdentity {
   //----------------------------------------------------------------------------
   //! Return user@domain string
   //----------------------------------------------------------------------------
-  std::string getUserAtDomain();
+  std::string getUserAtDomain() const;
 
   //----------------------------------------------------------------------------
   //! Return group@domain string
   //----------------------------------------------------------------------------
-  std::string getGroupAtDomain();
+  std::string getGroupAtDomain() const;
 
 };
 
