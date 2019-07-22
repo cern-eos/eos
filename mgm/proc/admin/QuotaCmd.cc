@@ -28,10 +28,7 @@
 #include "mgm/Stat.hh"
 #include "mgm/Quota.hh"
 
-
-
 EOSMGMNAMESPACE_BEGIN
-
 
 //------------------------------------------------------------------------------
 // Method implementing the specific behavior of the command executed by the
@@ -40,8 +37,6 @@ EOSMGMNAMESPACE_BEGIN
 eos::console::ReplyProto
 QuotaCmd::ProcessRequest() noexcept
 {
-
-
   eos::console::ReplyProto reply;
   eos::console::QuotaProto quota = mReqProto.quota();
   eos::console::QuotaProto::SubcmdCase subcmd = quota.subcmd_case();
@@ -67,13 +62,11 @@ QuotaCmd::ProcessRequest() noexcept
 //------------------------------------------------------------------------------
 // Execute lsuser subcommand
 //------------------------------------------------------------------------------
-void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser, eos::console::ReplyProto& reply) {
-
+void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser, eos::console::ReplyProto& reply)
+{
   std::string std_out, std_err;
-  int ret_c;
-
   XrdOucErrInfo mError;
-
+  int ret_c = 0;
 
   gOFS->MgmStats.Add("Quota", mVid.uid, mVid.gid, 1);
   std::string space = lsuser.space();
@@ -92,10 +85,9 @@ void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser, 
 
   eos_notice("quota ls (user)");
 
-  bool is_ok;
   XrdOucString out {""};
 
-  is_ok = Quota::PrintOut(space, out, mVid.uid, -1, lsuser.format(), true);
+  bool is_ok = Quota::PrintOut(space, out, mVid.uid, -1, lsuser.format(), true);
 
   if (is_ok && out.length()) {
     if (!lsuser.format()) {
@@ -130,19 +122,18 @@ void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser, 
   reply.set_std_out(std_out);
   reply.set_std_err(std_err);
   reply.set_retc(ret_c);
-
 }
 
 //------------------------------------------------------------------------------
 // Execute ls subcommand
 //------------------------------------------------------------------------------
-void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls, eos::console::ReplyProto& reply) {
-
+void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls, eos::console::ReplyProto& reply)
+{
   std::string std_out, std_err;
-  int ret_c;
+  bool canQuota;
+  int ret_c = 0;
 
   XrdOucErrInfo mError;
-
   int errc;
 
   gOFS->MgmStats.Add("Quota", mVid.uid, mVid.gid, 1);
@@ -159,9 +150,6 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls, eos::console
       space = sspace;
     }
   }
-
-
-  bool canQuota;
 
   if ((!mVid.uid) || mVid.hasUid(3) || mVid.hasGid(4)) { // @note no.03 before 'vid' was used, using 'mVid' now
     // root and admin can set quota
@@ -193,7 +181,6 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls, eos::console
     reply.set_std_err("error: you are not a quota administrator!\"");
     return;
   }
-
 
   eos_notice("quota ls");
 
@@ -229,16 +216,15 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls, eos::console
   reply.set_std_out(std_out);
   reply.set_std_err(std_err);
   reply.set_retc(ret_c);
-
 }
 
 //------------------------------------------------------------------------------
 // Execute set subcommand
 //------------------------------------------------------------------------------
-void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set, eos::console::ReplyProto& reply) {
-
+void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set, eos::console::ReplyProto& reply)
+{
   std::string std_out, std_err;
-  int ret_c;
+  int ret_c = 0;
 
   XrdOucErrInfo mError;
 
@@ -383,7 +369,6 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set, eos::cons
   reply.set_std_out(std_out);
   reply.set_std_err(std_err);
   reply.set_retc(ret_c);
-
 }
 
 //------------------------------------------------------------------------------
@@ -391,16 +376,14 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set, eos::cons
 //------------------------------------------------------------------------------
 void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm, eos::console::ReplyProto& reply)
 {
-
 //  std::string std_out, std_err;
-  int ret_c;
+  int ret_c = 0;
 
   XrdOucErrInfo mError;
 
   int errc;
   long id = 0;
   Quota::IdT id_type;// = Quota::IdT::kUid;
-
 
   gOFS->MgmStats.Add("Quota", mVid.uid, mVid.gid, 1);
   std::string space = rm.space();
@@ -516,7 +499,6 @@ void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm, eos::console
 //  reply.set_std_out(ret_msg);
 //  reply.set_std_err(ret_msg);
   reply.set_retc(ret_c);
-
 }
 
 //------------------------------------------------------------------------------
@@ -524,7 +506,6 @@ void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm, eos::console
 //------------------------------------------------------------------------------
 void QuotaCmd::RmnodeSubcmd(const eos::console::QuotaProto_RmnodeProto& rmnode, eos::console::ReplyProto& reply)
 {
-
   eos_notice("quota rmnode");
 
   if (mVid.uid != 0) {
@@ -549,9 +530,6 @@ void QuotaCmd::RmnodeSubcmd(const eos::console::QuotaProto_RmnodeProto& rmnode, 
     reply.set_retc(ret_c);
     reply.set_std_err(ret_msg);
   }
-
-
 }
-
 
 EOSMGMNAMESPACE_END
