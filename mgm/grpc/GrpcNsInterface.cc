@@ -385,7 +385,26 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
   std::shared_ptr<eos::IFileMD> newfile;
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
+  std::vector<folly::Future<eos::IFileMDPtr>> conflicts;
+  for(auto it : request->files()) {
+    if(it.id() <= 0) {
+      conflicts.emplace_back(eos::IFileMDPtr(nullptr)); // folly::makeFuture<eos::IFileMDPtr>(eos::IFileMDPtr(nullptr)));
+    }
+    else {
+      conflicts.emplace_back(gOFS->eosFileService->getFileMDFut(it.id()));
+    }
+  }
+
+  int counter = -1;
   for (auto it : request->files()) {
+    counter++;
+
+    if(!conflicts[counter].hasException() && conflicts[counter].get() != nullptr) {
+      eos_static_err("Attempted to create file with id=%llu, which already exists", it.id());
+      reply->add_retc(EINVAL);
+      continue;
+    }
+
     eos_static_info("creating path=%s id=%lx", it.path().c_str(), it.id());
     try {
       newfile = gOFS->eosView->createFile(it.path(), it.uid(), it.gid(), it.id());
@@ -441,7 +460,26 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
   std::shared_ptr<eos::IContainerMD> newdir;
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
+  std::vector<folly::Future<eos::IContainerMDPtr>> conflicts;
+  for(auto it : request->container()) {
+    if(it.id() <= 0) {
+      conflicts.emplace_back(eos::IContainerMDPtr(nullptr));
+    }
+    else {
+      conflicts.emplace_back(gOFS->eosDirectoryService->getContainerMDFut(it.id()));
+    }
+  }
+
+  int counter = -1;
   for (auto it : request->container()) {
+    counter++;
+
+    if(!conflicts[counter].hasException() && conflicts[counter].get() != nullptr) {
+      eos_static_err("Attempted to create container with id=%llu, which already exists", it.id());
+      reply->add_retc(EINVAL);
+      continue;
+    }
+
     eos_static_info("creating path=%s id=%lx", it.path().c_str(), it.id());
     try {
       newdir = gOFS->eosView->createContainer(it.path(), false, it.id());
