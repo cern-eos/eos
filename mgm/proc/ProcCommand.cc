@@ -536,42 +536,29 @@ ProcCommand::MakeResult()
           } else {
             json["result"] = jsonOut;
           }
-        } catch(Json::Exception const&) {
+        } catch (Json::Exception& e) {
+          eos_static_err("Json conversion exception cmd=%s subcmd=%s "
+                         "emsg=\"%s\"", mCmd.c_str(), mSubCmd.c_str(), e.what());
           json["errormsg"] = "illegal string in json conversion";
           json["retc"] = std::to_string(EFAULT);
         }
 
-        std::stringstream r;
-        r << json;
+        stdJson = SSTR(json).c_str();
+      }
 
-        if (mJsonCallback.length()) {
-          // JSONP
-          mResultStream = mJsonCallback.c_str();
-          mResultStream += "([\n";
-          mResultStream += r.str().c_str();
-          mResultStream += "\n]);";
-        } else {
-          // JSON
-          if (!vid.prot.beginswith("http")) {
-            mResultStream = "mgm.proc.json=";
-          }
-
-          mResultStream += r.str().c_str();
-        }
+      if (mJsonCallback.length()) {
+        // JSONP
+        mResultStream = mJsonCallback.c_str();
+        mResultStream += "([\n";
+        mResultStream += stdJson.c_str();
+        mResultStream += "\n]);";
       } else {
-        if (mJsonCallback.length()) {
-          // JSONP
-          mResultStream = mJsonCallback.c_str();
-          mResultStream += "([\n";
-          mResultStream += stdJson.c_str();
-          mResultStream += "\n]);";
-        } else {
-          if (!vid.prot.beginswith("http")) {
-            mResultStream = "mgm.proc.json=";
-          }
-
-          mResultStream += stdJson.c_str();
+        // JSON
+        if (!vid.prot.beginswith("http")) {
+          mResultStream = "mgm.proc.json=";
         }
+
+        mResultStream += stdJson.c_str();
       }
     }
 
