@@ -72,7 +72,7 @@ Policies are deleted by setting a space policy with `value=remove` e.g.
 .. code-block:: bash
 
    # delete a policy entry
-   eos space config default space.ppolicy.layout=remove
+   eos space config default space.policy.layout=remove
 
 
 Displaying space policies
