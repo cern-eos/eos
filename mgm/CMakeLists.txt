@@ -118,6 +118,7 @@ add_library(
   proc/ProcCommand.cc
   proc/proc_fs.cc
   proc/admin/Access.cc
+  proc/admin/AccessCmd.cc proc/admin/AccessCmd.hh
   proc/admin/Backup.cc
   proc/admin/Config.cc
   proc/admin/ConfigCmd.cc proc/admin/ConfigCmd.hh
@@ -127,7 +128,8 @@ add_library(
   proc/admin/Fsck.cc
   proc/admin/Fusex.cc
   proc/admin/GeoSched.cc
-  proc/admin/Group.cc proc/admin/GroupCmd.cc
+  proc/admin/Group.cc
+  proc/admin/GroupCmd.cc proc/admin/GroupCmd.hh
   proc/admin/Io.cc
   proc/admin/IoCmd.cc proc/admin/IoCmd.hh
   proc/admin/Node.cc

@@ -50,6 +50,7 @@ add_library(
   commands/helpers/RecycleHelper.cc commands/helpers/RecycleHelper.hh
   commands/HealthCommand.cc         commands/HealthCommand.hh
   commands/com_access.cc
+  commands/com_proto_access.cc
   commands/com_accounting.cc
   commands/com_archive.cc
   commands/com_attr.cc

@@ -36,6 +36,7 @@
 #include "mgm/proc/admin/QuotaCmd.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
 #include "mgm/proc/admin/ConfigCmd.hh"
+#include "mgm/proc/admin/AccessCmd.hh"
 #include <google/protobuf/util/json_util.h>
 
 
@@ -256,7 +257,11 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
     cmd.reset(new ConfigCmd(std::move(req), vid));
     break;
 
-  default:
+  case RequestProto::kAccess:
+    cmd.reset(new AccessCmd(std::move(req), vid));
+    break;
+
+    default:
     eos_static_err("error: unknown request type");
     break;
   }
@@ -357,7 +362,11 @@ ProcInterface::ProtoIsWriteAccess(const char* path, const char* opaque)
     return true; // @note (faluchet) to check
     break;
 
-  default:
+  case RequestProto::kAccess:
+    return true; // @note (faluchet) to check
+    break;
+
+    default:
     break;
   }
 

@@ -621,7 +621,8 @@ ProcCommand::Access()
         stdErr = "error: there is no global redirection defined";
         retc = EINVAL;
       }
-    } else {
+    }
+    else {
       if ((Access::gStallRules.count(std::string("*")) && ((type.length() == 0))) ||
           (Access::gStallRules.count(std::string("r:*")) && (type == "r")) ||
           (Access::gStallRules.count(std::string("w:*")) && (type == "w")) ||

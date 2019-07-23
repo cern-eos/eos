@@ -16,6 +16,7 @@ import "Node.proto";
 import "Quota.proto";
 import "Space.proto";
 import "Config.proto";
+import "Access.proto";
 
 //------------------------------------------------------------------------------
 // Request message sent to the server
@@ -49,6 +50,7 @@ message RequestProto {
     QuotaProto quota       = 15;
     SpaceProto space       = 16;
     ConfigProto config     = 17;
+    AccessProto access     = 18;
   }
 
   string Comment = 30;

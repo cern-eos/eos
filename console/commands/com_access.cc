@@ -47,32 +47,26 @@ com_access(char* arg1)
     ok = true;
     in += "&mgm.subcmd=ban";
   }
-
   if (subcmd == "unban") {
     in += "&mgm.subcmd=unban";
     ok = true;
   }
-
   if (subcmd == "allow") {
     in += "&mgm.subcmd=allow";
     ok = true;
   }
-
   if (subcmd == "unallow") {
     in += "&mgm.subcmd=unallow";
     ok = true;
   }
-
   if (subcmd == "ls") {
     in += "&mgm.subcmd=ls";
     ok = true;
   }
-
   if (subcmd == "set") {
     in += "&mgm.subcmd=set";
     ok = true;
   }
-
   if (subcmd == "rm") {
     in += "&mgm.subcmd=rm";
     ok = true;
@@ -96,7 +90,6 @@ com_access(char* arg1)
       option += maybeoption;
       maybeoption = subtokenizer.GetToken();
     }
-
     if (subcmd == "ls") {
       ok = true;
     }

@@ -1,0 +1,98 @@
+//------------------------------------------------------------------------------
+// File: Access.proto
+// Author: Fabio Luchetti - CERN
+//------------------------------------------------------------------------------
+
+syntax="proto3";
+package eos.console;
+
+message AccessProto {
+
+  message LsProto {
+    bool monitoring = 1; // [-m]
+    bool id2name = 2; // [-n]
+  }
+
+  message RmProto {
+    enum Rule {
+      NONE     = 0; // error
+      REDIRECT = 1;
+      STALL    = 2;
+      LIMIT    = 3;
+    }
+    Rule rule     = 1;
+    string key    = 2;
+  }
+
+  message SetProto {
+    enum Rule {
+      NONE     = 0; // error
+      REDIRECT = 1;
+      STALL    = 2;
+      LIMIT    = 3;
+    }
+    Rule rule     = 1;
+    string target = 2;
+    string key    = 3;
+  }
+
+  message BanProto {
+    enum IdType {
+      NOTYPE     = 0; // error
+      USER       = 1;
+      GROUP      = 2;
+      HOST       = 3;
+      DOMAINNAME = 4;
+    }
+    IdType idtype = 1;
+    string id = 2;
+  }
+
+  message UnbanProto {
+    enum IdType {
+      NOTYPE     = 0; // error
+      USER       = 1;
+      GROUP      = 2;
+      HOST       = 3;
+      DOMAINNAME = 4;
+    }
+    IdType idtype = 1;
+    string id = 2;
+  }
+
+  message AllowProto {
+    enum IdType {
+      NOTYPE     = 0; // error
+      USER       = 1;
+      GROUP      = 2;
+      HOST       = 3;
+      DOMAINNAME = 4;
+    }
+    IdType idtype = 1;
+    string id = 2;
+  }
+
+  message UnallowProto {
+    enum IdType {
+      NOTYPE     = 0; // error
+      USER       = 1;
+      GROUP      = 2;
+      HOST       = 3;
+      DOMAINNAME = 4;
+    }
+    IdType idtype = 1;
+    string id = 2;
+  }
+
+
+  oneof subcmd {
+    LsProto ls = 1;
+    RmProto rm = 2;
+    SetProto set = 3;
+    BanProto ban = 4;
+    UnbanProto unban = 5;
+    AllowProto allow = 6;
+    UnallowProto unallow = 7;
+  }
+
+}
