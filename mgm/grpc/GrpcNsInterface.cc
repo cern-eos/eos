@@ -399,6 +399,7 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
   for (auto it : request->files()) {
     counter++;
 
+    conflicts[counter].wait();
     if(!conflicts[counter].hasException() && conflicts[counter].get() != nullptr) {
       eos_static_err("Attempted to create file with id=%llu, which already exists", it.id());
       reply->add_retc(EINVAL);
@@ -474,6 +475,7 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
   for (auto it : request->container()) {
     counter++;
 
+    conflicts[counter].wait();
     if(!conflicts[counter].hasException() && conflicts[counter].get() != nullptr) {
       eos_static_err("Attempted to create container with id=%llu, which already exists", it.id());
       reply->add_retc(EINVAL);
