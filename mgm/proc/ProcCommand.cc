@@ -554,11 +554,12 @@ ProcCommand::MakeResult()
         mResultStream += "\n]);";
       } else {
         // JSON
-        if (!vid.prot.beginswith("http")) {
+        if (vid.prot.beginswith("http")) {
+          mResultStream = stdJson.c_str();
+        } else {
           mResultStream = "mgm.proc.json=";
+          mResultStream += XrdMqMessage::Seal(stdJson);
         }
-
-        mResultStream += stdJson.c_str();
       }
     }
 
