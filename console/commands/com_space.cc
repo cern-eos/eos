@@ -581,12 +581,13 @@ com_space_usage:
   fprintf(stdout,
           "       space config <space-name> space.geo.access.policy.read.exact=on|off    : if 'on' use exact matching geo replica (if available) , 'off' uses weighting [ for read case  ]\n");
   fprintf(stdout, "\n");
+  fprintf(stdout, 
+	  "       space config <space-name> space.policy.[layout|nstripes|checksum|blockchecksum|blocksize|remove]=<value>              : configure default file layout creation settings as a space policy - a value='remove' deletes the space policy\n\n");
+  
   fprintf(stdout,
           "       space config <space-name> fs.<key>=<value>                    : configure file system parameters for each filesystem in this space (see help of 'fs config' for details)\n");
   fprintf(stdout, "\n");
 
-  fprintf(stdout, 
-	  "       space config <space-name> policy.[layout|nstripes|checksum|blockchecksum|blocksize|remove]=<value>              : configure default file layout creation settings as a space policy - a value='remove' deletes the space policy\n\n");
   fprintf(stdout,
           "       space define <space-name> [<groupsize> [<groupmod>]]          : define how many filesystems can end up in one scheduling group <groupsize> [default=0]\n");
   fprintf(stdout, "\n");
