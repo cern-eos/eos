@@ -1117,6 +1117,16 @@ XrdMgmOfsFile::open(const char* inpath,
         fmd->setCTime(ctime);
       }
 
+      if (isCreation) {
+	// store the birth time as an extended attribute
+        eos::IFileMD::ctime_t ctime;
+	fmd->getCTime(ctime);
+	char btime[256];
+	snprintf(btime, sizeof(btime), "%lu.%lu", ctime.tv_sec, ctime.tv_nsec);
+	fmd->setAttribute("sys.eos.btime", btime);
+      }
+
+
       // if specified set an external temporary ETAG
       if (ext_etag.length()) {
         fmd->setAttribute("sys.tmp.etag", ext_etag);

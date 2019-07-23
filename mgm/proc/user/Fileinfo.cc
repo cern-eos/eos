@@ -229,16 +229,34 @@ ProcCommand::FileInfo(const char* path)
         }
 
         if (Monitoring || !outputFilter) {
+	    eos::IFileMD::XAttrMap xattrs = fmd_copy->getAttributes();
+
           bool showFullpath = (option.find("-fullpath") != STR_NPOS);
           bool showProxygroup = (option.find("-proxy") != STR_NPOS);
           char ctimestring[4096];
           char mtimestring[4096];
+	  char btimestring[4096];
+
           eos::IFileMD::ctime_t mtime;
           eos::IFileMD::ctime_t ctime;
+          eos::IFileMD::ctime_t btime;
+
+	  if (xattrs.count("sys.eos.btime")) {
+	    std::string key, val;
+	    eos::common::StringConversion::SplitKeyValue(xattrs["sys.eos.btime"], key, val, ".");
+	    btime.tv_sec = strtoul(key.c_str(), 0, 10);
+	    btime.tv_nsec = strtoul(val.c_str(), 0, 10);
+	  } else {
+	    btime.tv_sec = 0;
+	    btime.tv_nsec = 0;
+	  }
+
           fmd_copy->getCTime(ctime);
           fmd_copy->getMTime(mtime);
           time_t filectime = (time_t) ctime.tv_sec;
           time_t filemtime = (time_t) mtime.tv_sec;
+	  time_t filebtime = (time_t) btime.tv_sec;
+
           std::string etag, xs_spaces;
           eos::calculateEtag(fmd_copy.get(), etag);
           eos::appendChecksumOnStringAsHex(fmd_copy.get(), xs_spaces, ' ');
@@ -260,6 +278,10 @@ ProcCommand::FileInfo(const char* path)
             out << "Change: " << ctime_r(&filectime, ctimestring);
             out.seekp(-1, std::ios_base::end);
             out << " Timestamp: " << ctime.tv_sec << "." << ctime.tv_nsec
+		<< std::endl;
+            out << "Birth : " << ctime_r(&filebtime, btimestring);
+            out.seekp(-1, std::ios_base::end);
+            out << " Timestamp: " << btime.tv_sec << "." << btime.tv_nsec
                 << std::endl;
             out << "  CUid: " << fmd_copy->getCUid()
                 << " CGid: " << fmd_copy->getCGid()
@@ -292,6 +314,7 @@ ProcCommand::FileInfo(const char* path)
                 << " size=" << fmd_copy->getSize()
                 << " mtime=" << mtime.tv_sec << "." << mtime.tv_nsec
                 << " ctime=" << ctime.tv_sec << "." << ctime.tv_nsec
+                << " btime=" << btime.tv_sec << "." << btime.tv_nsec
                 << " clock=" << clock
                 << " mode=" << StringConversion::IntToOctal((int) fmd_copy->getFlags(), 4)
                 << " uid=" << fmd_copy->getCUid()
@@ -606,22 +629,40 @@ ProcCommand::DirInfo(const char* path)
       }
 
       if (Monitoring || !outputFilter) {
+	eos::IFileMD::XAttrMap xattrs = dmd_copy->getAttributes();
+
         char ctimestring[4096];
         char mtimestring[4096];
         char tmtimestring[4096];
+        char btimestring[4096];
         eos::IContainerMD::ctime_t ctime;
         eos::IContainerMD::mtime_t mtime;
         eos::IContainerMD::tmtime_t tmtime;
+	eos::IContainerMD::ctime_t btime;
+
         dmd_copy->getCTime(ctime);
         dmd_copy->getMTime(mtime);
         dmd_copy->getTMTime(tmtime);
+
+	if (xattrs.count("sys.eos.btime")) {
+	  std::string key, val;
+	  eos::common::StringConversion::SplitKeyValue(xattrs["sys.eos.btime"], key, val, ".");
+	  btime.tv_sec = strtoul(key.c_str(), 0, 10);
+	  btime.tv_nsec = strtoul(val.c_str(), 0, 10);
+	} else {
+	  btime.tv_sec = 0;
+	  btime.tv_nsec = 0;
+	}
+
         time_t filectime = (time_t) ctime.tv_sec;
         time_t filemtime = (time_t) mtime.tv_sec;
         time_t filetmtime = (time_t) tmtime.tv_sec;
+	time_t filebtime = (time_t) btime.tv_sec;
+
         char fid[32];
         snprintf(fid, 32, "%llu", (unsigned long long) dmd_copy->getId());
         std::string etag;
-        eos::calculateEtag(dmd_copy.get(), etag);
+        eos::calculateEtag(dmd_copy.get(), etag);	
 
         if (!Monitoring) {
           out << "  Directory: '" << spath << "'"
@@ -643,9 +684,13 @@ ProcCommand::DirInfo(const char* path)
           out.seekp(-1, std::ios_base::end);
           out << " Timestamp: " << ctime.tv_sec << "." << ctime.tv_nsec
               << std::endl;
-          out << "Sync:   " << ctime_r(&filetmtime, tmtimestring);
+          out << "Sync  : " << ctime_r(&filetmtime, tmtimestring);
           out.seekp(-1, std::ios_base::end);
           out << " Timestamp: " << tmtime.tv_sec << "." << tmtime.tv_nsec
+	      << std::endl;
+          out << "Birth : " << ctime_r(&filebtime, btimestring);
+          out.seekp(-1, std::ios_base::end);
+          out << " Timestamp: " << btime.tv_sec << "." << btime.tv_nsec
               << std::endl;
           out << "  CUid: " << dmd_copy->getCUid()
               << " CGid: " << dmd_copy->getCGid()
@@ -664,6 +709,8 @@ ProcCommand::DirInfo(const char* path)
               << " files=" << num_files
               << " mtime=" << mtime.tv_sec << "." << mtime.tv_nsec
               << " ctime=" << ctime.tv_sec << "." << ctime.tv_nsec
+              << " btime=" << btime.tv_sec << "." << btime.tv_nsec
+              << " stime=" << tmtime.tv_sec << "." << tmtime.tv_nsec
               << " clock=" << clock
               << " mode=" << StringConversion::IntToOctal((int) dmd_copy->getMode(), 4)
               << " uid=" << dmd_copy->getCUid()
@@ -675,7 +722,6 @@ ProcCommand::DirInfo(const char* path)
               << " pxid=" << hex_pid
               << " etag=" << etag
               << " ";
-          eos::IFileMD::XAttrMap xattrs = dmd_copy->getAttributes();
 
           for (const auto& elem : xattrs) {
             out << "xattrn=" << elem.first

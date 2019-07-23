@@ -349,6 +349,12 @@ XrdMgmOfs::_mkdir(const char* path,
           eos::IContainerMD::ctime_t ctime;
           newdir->getCTime(ctime);
           newdir->setMTime(ctime);
+
+	  // Store the birth time
+	  char btime[256];
+	  snprintf(btime, sizeof(btime), "%lu.%lu", ctime.tv_sec, ctime.tv_nsec);
+	  newdir->setAttribute("sys.eos.btime", btime);
+
           dir->setMTime(ctime);
           dir->notifyMTimeChange(gOFS->eosDirectoryService);
           // commit
@@ -401,6 +407,12 @@ XrdMgmOfs::_mkdir(const char* path,
     eos::IContainerMD::ctime_t ctime;
     newdir->getCTime(ctime);
     newdir->setMTime(ctime);
+    
+    // Store the birth time
+    char btime[256];
+    snprintf(btime, sizeof(btime), "%lu.%lu", ctime.tv_sec, ctime.tv_nsec);
+    newdir->setAttribute("sys.eos.btime", btime);
+
     dir->setMTime(ctime);
 
     // If not version directory, then inherit attributes

@@ -86,13 +86,20 @@ XrdMgmOfs::_touch(const char* path,
     }
 
     fmd->setMTimeNow();
+    eos::IFileMD::ctime_t mtime;
+    fmd->getMTime(mtime);
+
+    // store the birth time as an extended attribute                                                                           
+    char btime[256];
+    snprintf(btime, sizeof(btime), "%lu.%lu", mtime.tv_sec, mtime.tv_nsec);
+    fmd->setAttribute("sys.eos.btime", btime);
+
     gOFS->eosView->updateFileStore(fmd.get());
     unsigned long long cid = fmd->getContainerId();
     std::shared_ptr<eos::IContainerMD> cmd =
       gOFS->eosDirectoryService->getContainerMD(cid);
-    eos::IFileMD::ctime_t mtime;
-    fmd->getMTime(mtime);
     cmd->setMTime(mtime);
+   
     cmd->notifyMTimeChange(gOFS->eosDirectoryService);
 
     // Check if there is any quota node to be updated
