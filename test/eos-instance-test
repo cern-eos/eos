@@ -788,6 +788,7 @@ runtest "### Find       " unix 0 "" eos find -d "/eos/$EOS_TEST_INSTANCE/test | 
 ################################################################################
 # ATTRIBUTES
 ###################################################A############################
+categorie="attr"
 runtest "### Attr Set  " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test"
 runtest "### Attr Ls   " unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test | grep sys | wc -l | grep -w 5"
 runtest "### Attr Get  " unix 0 "" eos attr get "sys.forced.space /eos/$EOS_TEST_INSTANCE/test  | grep default"
@@ -837,6 +838,46 @@ runtest "### Attr Get  " unix 1 "" eos attr get user.attr.key "pxid:"
 runtest "### Rm        " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/file"
 
 ################################################################################
+# FILEINFO
+###################################################A############################
+categorie="fileinfo"
+runtest "### Mkdir      " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/"
+runtest "### Mkdir      " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirA/"
+runtest "### Mkdir      " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirB/"
+runtest "### Chmod      " unix 0 "" eos chmod -r "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/"
+runtest "### Attr Set   " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirA/"
+runtest "### Attr Set   " unix 0 "" eos attr set user.attr.key='value' "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirB/"
+runtest "### Upload     " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file\&symbol"
+runtest "### Upload     " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirA/fileA"
+#----------------------------------------------------------------------------
+# Test basic functionality (including JSON)
+#----------------------------------------------------------------------------
+runtest "### Fileinfo   " unix 0 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/ -m | grep container=2 | grep files=1"
+runtest "### Fileinfo   " unix 0 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirB/ -m | grep 'xattrn=user.attr.key' | grep xattrv=value"
+runtest "### Fileinfo   " unix 0 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirA/fileA -m | grep nrep=2"
+runtest "### Fileinfo   " unix 0 "" eosj fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file\&symbol | jq -r '.name' | grep -w 'file\&symbol'"
+runtest "### Fileinfo   " unix 0 "" eosj fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirB/ | jq -r '.xattr' | grep -w 'user.attr.key' | grep -w value"
+runtest "### Fileinfo   " unix 0 "" eosj fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirA/fileA -m | jq -r '.nstripes' | grep -w 2"
+#----------------------------------------------------------------------------
+# Test fid|fxid|pid|pxid identifiers
+#----------------------------------------------------------------------------
+pid=$($XROOTSYS/bin/eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/" | jq -r .id)
+pxid=$(printf "%x" $pid)
+fid=$($XROOTSYS/bin/eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file&symbol" | jq -r .id)
+fxid=$(printf "%x" $fid)
+#----------------------------------------------------------------------------
+runtest "### Fileinfo   " unix 0 "" eosj fileinfo "pid:${pid} | jq -r '.name' | grep -w fileinfo"
+runtest "### Fileinfo   " unix 0 "" eosj fileinfo "pxid:${pxid} | jq -r '.name' | grep -w fileinfo"
+runtest "### Fileinfo   " unix 0 "" eosj fileinfo "fid:${fid} | jq -r '.name' | grep -w 'file\&symbol'"
+runtest "### Fileinfo   " unix 0 "" eosj fileinfo "fxid:${fxid} | jq -r '.name' | grep -w 'file\&symbol'"
+#----------------------------------------------------------------------------
+runtest "### Rm         " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file\&symbol"
+runtest "### Rm         " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirA/fileA"
+runtest "### Rmdir      " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirA/"
+runtest "### Rmdir      " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirB/"
+runtest "### Rmdir      " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/"
+
+################################################################################
 # FIND
 ################################################################################
 #runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest"
@@ -872,6 +913,7 @@ runtest "### Rm        " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/file"
 ################################################################################
 # WFE
 ################################################################################
+categorie="wfe"
 runtest "### Space     " unix 0 "" eos space config "default space.wfe=on"
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe"
 runtest "### Touch     " unix 0 "" eos touch "/eos/$EOS_TEST_INSTANCE/test/instancetest/wfe/test1.dat"
