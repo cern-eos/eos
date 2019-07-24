@@ -455,6 +455,16 @@ private:
   void MoveToOrphans(const std::string& fpath) const;
 
   //----------------------------------------------------------------------------
+  //! Exclude unlinked locations from the given string representation
+  //!
+  //! @param slocations string of locations separated by commad with unlinked
+  //!        locations having an ! in front
+  //!
+  //! @return string with the linked locations excluded
+  //----------------------------------------------------------------------------
+  static std::string ExcludeUnlinkedLoc(const std::string& slocations);
+
+  //----------------------------------------------------------------------------
   //! Lock mutex corresponding to the given file systemd id
   //!
   //! @param fsid file system id

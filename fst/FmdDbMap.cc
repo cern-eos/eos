@@ -94,11 +94,13 @@ FmdDbMapHandler::EnvMgmToFmd(XrdOucEnv& env, eos::common::FmdHelper& fmd)
   fmd.mProtoFmd.set_uid((uid_t) strtoul(env.Get("uid"), 0, 10));
   fmd.mProtoFmd.set_gid((gid_t) strtoul(env.Get("gid"), 0, 10));
   fmd.mProtoFmd.set_mgmchecksum(env.Get("checksum"));
-  fmd.mProtoFmd.set_locations(env.Get("location") ? env.Get("location") : "");
+  // Store only the valid locations, exclude the unlinked ones
+  std::string locations = ExcludeUnlinkedLoc(env.Get("location") ?
+                          env.Get("location") : "");
+  fmd.mProtoFmd.set_locations(locations);
   size_t cslen = eos::common::LayoutId::GetChecksumLen(fmd.mProtoFmd.lid()) * 2;
-  fmd.mProtoFmd.set_mgmchecksum(std::string(fmd.mProtoFmd.mgmchecksum()).erase(
-                                  std::min(
-                                    fmd.mProtoFmd.mgmchecksum().length(), cslen)));
+  fmd.mProtoFmd.set_mgmchecksum(std::string(fmd.mProtoFmd.mgmchecksum()).erase
+                                (std::min(fmd.mProtoFmd.mgmchecksum().length(), cslen)));
   return true;
 }
 
@@ -1645,6 +1647,25 @@ FmdDbMapHandler::MoveToOrphans(const std::string& fpath) const
     eos_err("msg=\"failed to quarantine orphaned/unregistered\" "
             "fst-path=%s orphan-path=%s", fpath.c_str(), forphan.c_str());
   }
+}
+
+//------------------------------------------------------------------------------
+// Exclude unlinked locations from the given string representation
+//------------------------------------------------------------------------------
+std::string
+FmdDbMapHandler::ExcludeUnlinkedLoc(const std::string& slocations)
+{
+  std::ostringstream oss;
+  std::vector<std::string> location_vector;
+  eos::common::StringConversion::Tokenize(slocations, location_vector, ",");
+
+  for (const auto& elem : location_vector) {
+    if (!elem.empty() && elem[0] != '!') {
+      oss << elem << ",";
+    }
+  }
+
+  return oss.str();
 }
 
 EOSFSTNAMESPACE_END
