@@ -372,8 +372,8 @@ GrpcNsInterface::Access(eos::common::VirtualIdentity& vid, int mode,
 
 grpc::Status
 GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
-			    eos::rpc::InsertReply* reply,
-			    const eos::rpc::FileInsertRequest* request)
+                            eos::rpc::InsertReply* reply,
+                            const eos::rpc::FileInsertRequest* request)
 
 {
   if (!vid.sudoer) {
@@ -384,73 +384,75 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
 
   std::shared_ptr<eos::IFileMD> newfile;
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-
   std::vector<folly::Future<eos::IFileMDPtr>> conflicts;
-  for(auto it : request->files()) {
-    if(it.id() <= 0) {
-      conflicts.emplace_back(eos::IFileMDPtr(nullptr)); // folly::makeFuture<eos::IFileMDPtr>(eos::IFileMDPtr(nullptr)));
-    }
-    else {
+
+  for (auto it : request->files()) {
+    if (it.id() <= 0) {
+      conflicts.emplace_back(eos::IFileMDPtr(
+                               nullptr)); // folly::makeFuture<eos::IFileMDPtr>(eos::IFileMDPtr(nullptr)));
+    } else {
       conflicts.emplace_back(gOFS->eosFileService->getFileMDFut(it.id()));
     }
   }
 
   int counter = -1;
+
   for (auto it : request->files()) {
     counter++;
-
     conflicts[counter].wait();
-    if(!conflicts[counter].hasException() && conflicts[counter].get() != nullptr) {
-      eos_static_err("Attempted to create file with id=%llu, which already exists", it.id());
+
+    if (!conflicts[counter].hasException() && conflicts[counter].get() != nullptr) {
+      eos_static_err("Attempted to create file with id=%llu, which already exists",
+                     it.id());
       reply->add_retc(EINVAL);
       continue;
     }
 
     eos_static_info("creating path=%s id=%lx", it.path().c_str(), it.id());
+
     try {
       newfile = gOFS->eosView->createFile(it.path(), it.uid(), it.gid(), it.id());
-
       eos::IFileMD::ctime_t ctime;
       eos::IFileMD::ctime_t mtime;
       ctime.tv_sec  = it.ctime().sec();
       ctime.tv_nsec = it.ctime().n_sec();
       mtime.tv_sec  = it.mtime().sec();
       mtime.tv_nsec = it.mtime().n_sec();
-
-      // we can send flags or mode to store in flags ... sigh 
-      newfile->setFlags(it.mode() | it.flags());
+      newfile->setFlags(it.flags());
       newfile->setCTime(ctime);
       newfile->setMTime(mtime);
       newfile->setCUid(it.uid());
       newfile->setCGid(it.gid());
       newfile->setLayoutId(it.layout_id());
       newfile->setSize(it.size());
-      newfile->setChecksum(it.checksum().value().c_str(), it.checksum().value().size());
+      newfile->setChecksum(it.checksum().value().c_str(),
+                           it.checksum().value().size());
 
       for (auto attrit : it.xattrs()) {
-	      newfile->setAttribute(attrit.first, attrit.second);
+        newfile->setAttribute(attrit.first, attrit.second);
       }
 
-      for (auto locit : it.locations() ) {
-	      newfile->addLocation(locit);
+      for (auto locit : it.locations()) {
+        newfile->addLocation(locit);
       }
 
       gOFS->eosView->updateFileStore(newfile.get());
       reply->add_retc(0);
     } catch (eos::MDException& e) {
       eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-		       e.getErrno(), e.getMessage().str().c_str());
+                       e.getErrno(), e.getMessage().str().c_str());
       reply->add_retc(-1);
     }
   }
+
   return grpc::Status::OK;
 }
 
 
 grpc::Status
 GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
-			     eos::rpc::InsertReply* reply,
-			     const eos::rpc::ContainerInsertRequest* request)
+                                 eos::rpc::InsertReply* reply,
+                                 const eos::rpc::ContainerInsertRequest* request)
 
 {
   if (!vid.sudoer) {
@@ -461,32 +463,33 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
 
   std::shared_ptr<eos::IContainerMD> newdir;
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-
   std::vector<folly::Future<eos::IContainerMDPtr>> conflicts;
-  for(auto it : request->container()) {
-    if(it.id() <= 0) {
+
+  for (auto it : request->container()) {
+    if (it.id() <= 0) {
       conflicts.emplace_back(eos::IContainerMDPtr(nullptr));
-    }
-    else {
+    } else {
       conflicts.emplace_back(gOFS->eosDirectoryService->getContainerMDFut(it.id()));
     }
   }
 
   int counter = -1;
+
   for (auto it : request->container()) {
     counter++;
-
     conflicts[counter].wait();
-    if(!conflicts[counter].hasException() && conflicts[counter].get() != nullptr) {
-      eos_static_err("Attempted to create container with id=%llu, which already exists", it.id());
+
+    if (!conflicts[counter].hasException() && conflicts[counter].get() != nullptr) {
+      eos_static_err("Attempted to create container with id=%llu, which already exists",
+                     it.id());
       reply->add_retc(EINVAL);
       continue;
     }
 
     eos_static_info("creating path=%s id=%lx", it.path().c_str(), it.id());
+
     try {
       newdir = gOFS->eosView->createContainer(it.path(), false, it.id());
-
       eos::IContainerMD::ctime_t ctime;
       eos::IContainerMD::ctime_t mtime;
       eos::IContainerMD::ctime_t stime;
@@ -496,8 +499,8 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
       mtime.tv_nsec = it.mtime().n_sec();
       stime.tv_sec  = it.stime().sec();
       stime.tv_nsec = it.stime().n_sec();
-
-      newdir->setFlags(it.flags());
+      // we can send flags or mode to store in flags ... sigh
+      newdir->setFlags(it.mode() | it.flags());
       newdir->setCTime(ctime);
       newdir->setMTime(mtime);
       newdir->setTMTime(stime);
@@ -506,22 +509,21 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
       newdir->setMode(it.mode() | S_IFDIR);
 
       for (auto attrit : it.xattrs()) {
-	      newdir->setAttribute(attrit.first, attrit.second);
+        newdir->setAttribute(attrit.first, attrit.second);
       }
 
       gOFS->eosView->updateContainerStore(newdir.get());
       reply->add_retc(0);
     } catch (eos::MDException& e) {
       eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-		       e.getErrno(), e.getMessage().str().c_str());
+                       e.getErrno(), e.getMessage().str().c_str());
       reply->add_retc(e.getErrno());
     }
   }
+
   return grpc::Status::OK;
 }
 
 #endif
 
 EOSMGMNAMESPACE_END
-
-
