@@ -527,7 +527,7 @@ XrdMqClient::ReNewBrokerXrdClientReceiver(int i, ThreadAssistant* assistant)
   auto old_file = kBrokerXrdClientReceiver.Find(GetBrokerId(i).c_str());
 
   if (old_file) {
-    // Close old file with small timeout to avoid any hangs, blow it will be
+    // Close old file with small timeout to avoid any hangs, below it will be
     // automatically deleted
     (void) old_file->Close(1);
   }
@@ -626,6 +626,9 @@ XrdMqClient::AddBroker(const char* brokerurl,
                                 newBrokerUrl.c_str());
       return false;
     }
+
+    // @todo(esindril): properly open the XrdCl::File object to avoid calling
+    // ReNewBrokerXrdClientReceiver again later on
 
     try {
       kBrokerXrdClientSender.Add(GetBrokerId(kBrokerN).c_str(), fs);

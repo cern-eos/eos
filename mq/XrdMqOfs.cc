@@ -1170,7 +1170,7 @@ XrdMqOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
   // update broker time
   mh.GetTime(mh.kBrokerTime_sec, mh.kBrokerTime_nsec);
   // dump it
-  //mh.Print();
+  // mh.Print();
   // encode the new values
   mh.Encode();
   // replace the old header with the new one .... that's ugly :-(
@@ -1441,12 +1441,7 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
   }
 
   Matches.message->procmutex.UnLock();
-
-  if (Matches.matches > 0) {
-    return true;
-  } else {
-    return false;
-  }
+  return (Matches.matches > 0);
 }
 
 //------------------------------------------------------------------------------
