@@ -183,8 +183,7 @@ FileSystem::CleanTransactions()
           auto fMd = gFmdDbMapHandler.LocalGetFmd(fileid, GetId(), true);
 
           if (fMd) {
-            size_t valid_loc;
-            auto location_set = fMd->GetLocations(valid_loc);
+            auto location_set = fMd->GetLocations();
 
             if (location_set.count(GetId())) {
               // close that transaction and keep the file

@@ -93,12 +93,11 @@ FmdHelper::LayoutError(eos::common::FileSystem::fsid_t fsid)
     return eos::common::LayoutId::kOrphan;
   }
 
-  size_t valid_replicas = 0;
-  auto location_set = GetLocations(valid_replicas);
+  auto location_set = GetLocations();
   size_t nstripes = eos::common::LayoutId::GetStripeNumber(lid) + 1;
   int lerror = 0;
 
-  if (nstripes != valid_replicas) {
+  if (nstripes != location_set.size()) {
     lerror |= eos::common::LayoutId::kReplicaWrong;
   }
 
@@ -139,13 +138,12 @@ FmdHelper::Reset()
   mProtoFmd.set_locations("");
 }
 
-//---------------------------------------------------------------------------
-// Get the set of all file system id locations of the current file
-//---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Get set of valid (not unlinked) locations for the given fmd
+//------------------------------------------------------------------------------
 std::set<eos::common::FileSystem::fsid_t>
-FmdHelper::GetLocations(size_t& valid_replicas)
+FmdHelper::GetLocations() const
 {
-  valid_replicas = 0;
   std::vector<std::string> location_vector;
   eos::common::StringConversion::Tokenize(mProtoFmd.locations(), location_vector,
                                           ",");
@@ -153,12 +151,9 @@ FmdHelper::GetLocations(size_t& valid_replicas)
 
   for (size_t i = 0; i < location_vector.size(); i++) {
     if (location_vector[i].length()) {
-      // Unlinked locations have a '!' in front of the fsid
-      if (location_vector[i][0] == '!') {
-        location_set.insert(strtoul(location_vector[i].c_str() + 1, 0, 10));
-      } else {
+      // Exclude unlinked locations i.e. they have a ! in front
+      if (location_vector[i][0] != '!') {
         location_set.insert(strtoul(location_vector[i].c_str(), 0, 10));
-        ++valid_replicas;
       }
     }
   }

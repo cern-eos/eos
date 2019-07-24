@@ -637,18 +637,17 @@ Fsck::ReportFiles()
       }
     }
 
-    size_t valid_replicas = 0;
-    auto location_set = it->second.GetLocations(valid_replicas);
+    auto location_set = it->second.GetLocations();
     size_t nstripes = eos::common::LayoutId::GetStripeNumber(proto_fmd.lid()) + 1;
 
-    if (nstripes != valid_replicas) {
+    if (nstripes != location_set.size()) {
       if (proto_fmd.mgmsize() != 0) {
         // suppress 0 size files in the mgm
         fprintf(stderr,
                 "[Fsck] [ERROR] [ REPLICA ] fsid:%d cxid:%08lx fxid:%08lx "
                 "path:%s replica count wrong is=%lu expected=%lu\n",
                 fsId, proto_fmd.cid(), proto_fmd.fid(),
-                proto_fmd.checksum().c_str(), valid_replicas, nstripes);
+                proto_fmd.checksum().c_str(), location_set.size(), nstripes);
         errors["replica"]++;
       }
     }

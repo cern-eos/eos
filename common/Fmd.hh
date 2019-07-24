@@ -69,15 +69,11 @@ public:
   void Reset();
 
   //---------------------------------------------------------------------------
-  //! Get set of locations for the given fmd
-  //!
-  //! @param valid_replicas number of valid replicas <= size of the returned
-  //!        set i.e. replicas which are not unlinked
+  //! Get set of valid locations (not unlinked) for the given fmd
   //!
   //! @return set of file system ids representing the locations
   //---------------------------------------------------------------------------
-  std::set<eos::common::FileSystem::fsid_t>
-  GetLocations(size_t& valid_replicas);
+  std::set<eos::common::FileSystem::fsid_t> GetLocations() const;
 
   //---------------------------------------------------------------------------
   //! Convert fmd object to env representation
