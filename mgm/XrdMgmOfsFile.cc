@@ -1068,7 +1068,7 @@ XrdMgmOfsFile::open(const char* inpath,
   if (openOpaque->Get("eos.xattr")) {
     std::vector<std::string> xattr_keys;
     eos::common::StringConversion::GetKeyValueMap(openOpaque->Get("eos.xattr"),
-        ext_xattr_map, "=", "&", &xattr_keys);
+        ext_xattr_map, "=", "#", &xattr_keys);
 
     for (auto it = xattr_keys.begin(); it != xattr_keys.end(); ++it) {
       if (it->substr(0, 5) != "user.") {
@@ -1118,14 +1118,13 @@ XrdMgmOfsFile::open(const char* inpath,
       }
 
       if (isCreation) {
-	// store the birth time as an extended attribute
+        // store the birth time as an extended attribute
         eos::IFileMD::ctime_t ctime;
-	fmd->getCTime(ctime);
-	char btime[256];
-	snprintf(btime, sizeof(btime), "%lu.%lu", ctime.tv_sec, ctime.tv_nsec);
-	fmd->setAttribute("sys.eos.btime", btime);
+        fmd->getCTime(ctime);
+        char btime[256];
+        snprintf(btime, sizeof(btime), "%lu.%lu", ctime.tv_sec, ctime.tv_nsec);
+        fmd->setAttribute("sys.eos.btime", btime);
       }
-
 
       // if specified set an external temporary ETAG
       if (ext_etag.length()) {
