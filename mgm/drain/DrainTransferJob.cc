@@ -299,7 +299,8 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
     src_params << "&mgm.path=" << StringConversion::SealXrdOpaque(fdrain.mFullPath)
                << "&mgm.manager=" << gOFS->ManagerId.c_str()
                << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
-               << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, "eos/draining")
+               << "&mgm.sec="
+               << eos::common::SecEntity::ToKey(0, SSTR("eos/" << mAppTag).c_str())
                << "&eos.app=" << mAppTag
                << "&eos.ruid=0&eos.rgid=0";
   } else {
@@ -310,7 +311,8 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
                << "&mgm.path=" << StringConversion::SealXrdOpaque(fdrain.mFullPath)
                << "&mgm.manager=" << gOFS->ManagerId.c_str()
                << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
-               << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, "eos/draining")
+               << "&mgm.sec="
+               << eos::common::SecEntity::ToKey(0, SSTR("eos/" << mAppTag).c_str())
                << "&mgm.localprefix=" << src_snapshot.mPath.c_str()
                << "&mgm.fsid=" << src_snapshot.mId
                << "&mgm.sourcehostport=" << src_snapshot.mHostPort.c_str()
@@ -404,7 +406,8 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
                << "&mgm.cid=" << fdrain.mProto.cont_id()
                << "&mgm.manager=" << gOFS->ManagerId.c_str()
                << "&mgm.fsid=" << dst_snapshot.mId
-               << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, "eos/draining").c_str()
+               << "&mgm.sec="
+               << eos::common::SecEntity::ToKey(0, SSTR("eos/" << mAppTag).c_str())
                << "&eos.app=" << mAppTag;
   } else {
     dst_params << "mgm.access=write"
@@ -417,7 +420,8 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
                << "&mgm.path=" << StringConversion::SealXrdOpaque(fdrain.mFullPath.c_str())
                << "&mgm.manager=" << gOFS->ManagerId.c_str()
                << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
-               << "&mgm.sec=" << eos::common::SecEntity::ToKey(0, "eos/draining").c_str()
+               << "&mgm.sec="
+               << eos::common::SecEntity::ToKey(0, SSTR("eos/" << mAppTag).c_str())
                << "&mgm.localprefix=" << dst_snapshot.mPath.c_str()
                << "&mgm.fsid=" << dst_snapshot.mId
                << "&mgm.sourcehostport=" << dst_snapshot.mHostPort.c_str()
@@ -643,7 +647,7 @@ DrainTransferJob::UpdateMgmStats(Status status)
 {
   std::string tag_stats;
 
-  if (mAppTag == "drainer") {
+  if (mAppTag == "drain") {
     tag_stats = "DrainCentral";
   } else {
     tag_stats = "Unknown";

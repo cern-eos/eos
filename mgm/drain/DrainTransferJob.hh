@@ -139,7 +139,7 @@ public:
                    std::set<eos::common::FileSystem::fsid_t> exclude_srcs = {},
                    std::set<eos::common::FileSystem::fsid_t> exclude_dsts = {},
                    bool drop_src = true,
-                   const std::string& app_tag = "drainer"):
+                   const std::string& app_tag = "drain"):
     mAppTag(app_tag), mFileId(fid), mFsIdSource(fsid_src), mFsIdTarget(fsid_trg),
     mTxFsIdSource(fsid_src), mStatus(Status::Ready), mRainReconstruct(false),
     mDropSrc(drop_src)
