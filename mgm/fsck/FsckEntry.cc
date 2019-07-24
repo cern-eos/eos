@@ -364,10 +364,9 @@ FsckEntry::RepairFstXsSzDiff()
     }
   }
 
-  // @todo(esindril): after any fsck repair we should also trigger an MGM
-  // resync on all the replicas so that the locations get updated properly
-  // in the local DB of the FSTs. Not critical for the moment as we don't
-  // rely on this info for the time beging.
+  // Trigger an MGM resync on all the replicas so that the locations get
+  // updated properly in the local DB of the FST
+  ResyncFstMd(true);
   return all_repaired;
 }
 
