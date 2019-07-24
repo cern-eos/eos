@@ -228,7 +228,8 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
       stdErr = "error: broadcast failed\n";
     }
 
-    eos_info("msg=\"fsck reply size=%llu\"", stdOut.length());
+    eos_info("msg=\"fsck reply size=%llu\" data=%s", stdOut.length(),
+             stdOut.c_str());
     ResetErrorMaps();
     std::vector<std::string> lines;
     // Convert into a line-wise seperated array
@@ -319,12 +320,11 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
       for (const auto& elem : err_fs.second) {
         for (const auto& fid : elem.second) {
           if (mIdTracker.HasEntry(fid)) {
-            eos_info("msg=\"skip already scheduled fsck repair\" fid=%08llx",
-                     fid);
+            eos_debug("msg=\"skip already scheduled repair\" fid=%08llx", fid);
             continue;
           }
 
-          // @todo(esindril): add id to tracker some validity
+          mIdTracker.AddEntry(fid);
           std::shared_ptr<FsckEntry> job {
             new FsckEntry(fid, elem.first, err_fs.first, mQcl)};
           mThreadPool.PushTask<void>([job]() {

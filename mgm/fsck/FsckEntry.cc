@@ -311,10 +311,11 @@ FsckEntry::RepairFstXsSzDiff()
 
     xs_val = finfo->mFstFmd.mProtoFmd.diskchecksum();
     sz_val = finfo->mFstFmd.mProtoFmd.disksize();
-    eos_info("mgm_sz=%llu mgm_xs=%s fst_sz_sz=%llu fst_sz_disk=%llu, fst_xs=%s",
-             mMgmFmd.size(), mgm_xs_val.c_str(), finfo->mFstFmd.mProtoFmd.size(),
-             finfo->mFstFmd.mProtoFmd.disksize(),
-             finfo->mFstFmd.mProtoFmd.checksum().c_str());
+    eos_debug_lite("mgm_sz=%llu mgm_xs=%s fst_sz_sz=%llu fst_sz_disk=%llu, "
+                   "fst_xs=%s", mMgmFmd.size(), mgm_xs_val.c_str(),
+                   finfo->mFstFmd.mProtoFmd.size(),
+                   finfo->mFstFmd.mProtoFmd.disksize(),
+                   finfo->mFstFmd.mProtoFmd.checksum().c_str());
 
     // The disksize/xs must also match the original reference size/xs
     if ((mgm_xs_val == xs_val) && (mMgmFmd.size() == sz_val) &&
@@ -336,14 +337,6 @@ FsckEntry::RepairFstXsSzDiff()
     eos_err("msg=\"fst xs/size repair failed - no good replicas\" fid=%08llx",
             mFid);
     return false;
-  }
-
-  for (auto fsid : bad_fsids) {
-    eos_info("bad replica fsid=%lu", fsid);
-  }
-
-  for (auto fsid : good_fsids) {
-    eos_info("good replica fsid=%lu", fsid);
   }
 
   bool all_repaired {true};
