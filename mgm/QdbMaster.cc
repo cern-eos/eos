@@ -196,7 +196,7 @@ void
 QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
 {
   bool new_is_master = false;
-  std::string old_master;
+  std::string old_master_id;
   eos_notice("%s", "msg=\"set up booting stall rule\"");
   RemoveStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE);
   Access::StallInfo old_stall;
@@ -220,13 +220,13 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
       master_init_lease = std::stoull(getenv("EOS_QDB_MASTER_INIT_LEASE_MS"));
     }
 
-    old_master = GetMasterId();
+    old_master_id = GetMasterId();
     new_is_master = AcquireLeaseWithDelay();
     UpdateMasterId(GetLeaseHolder());
     eos_info("old_is_master=%s, is_master=%s, old_master_id=%s, master_id=%s",
              mIsMaster.load() ? "true" : "false",
              new_is_master ? "true" : "false",
-             old_master.c_str(), GetMasterId().c_str());
+             old_master_id.c_str(), GetMasterId().c_str());
 
     // Run one-off after boot
     if (mOneOff) {
@@ -268,8 +268,9 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
           new_master_id.clear();
         }
 
-        // We're still a slave, but there is a new master
-        if (old_master != new_master_id) {
+        // There was a change in the master identity or the current master
+        // could not update the lease
+        if (!new_master_id.empty() && (old_master_id != new_master_id)) {
           Access::SetMasterToSlaveRules(new_master_id);
         }
       }
@@ -465,7 +466,7 @@ QdbMaster::GetLeaseHolder()
   qclient::redisReplyPtr reply = f.get();
 
   if ((reply == nullptr) || (reply->type == REDIS_REPLY_NIL)) {
-    eos_debug("%s", "msg=\"lease-get is NULL\"");
+    eos_err("%s", "msg=\"lease-get is NULL\"");
     return holder;
   }
 
