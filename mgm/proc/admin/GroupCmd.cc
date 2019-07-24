@@ -60,37 +60,45 @@ void
 GroupCmd::LsSubcmd(const eos::console::GroupProto_LsProto& ls,
                    eos::console::ReplyProto& reply)
 {
-  std::string format;
+  using eos::console::GroupProto;
+  bool json_output = false;
   std::string list_format;
+  std::string format;
 
-  switch (ls.outformat()) {
-  case eos::console::GroupProto_LsProto::MONITORING:
-    format = FsView::GetGroupFormat("m");
-    break;
+  auto format_case = ls.outformat();
 
-  case eos::console::GroupProto_LsProto::IOGROUP:
-    format = FsView::GetGroupFormat("io");
-    break;
-
-  case eos::console::GroupProto_LsProto::IOFS:
-    format = FsView::GetGroupFormat("IO");
-    list_format = FsView::GetFileSystemFormat("io");
-    // @note in the old implementation was mOutFormat="io", but then mOutFormat
-    // never used again apparently
-    // ls.set_outformat(eos::console::GroupProto_LsProto::IOGROUP);
-    break;
-
-  case eos::console::GroupProto_LsProto::LISTING:
-    format = FsView::GetGroupFormat("l");
-    list_format = FsView::GetFileSystemFormat("l");
-    break;
-
-  default : // NONE
-    format = FsView::GetGroupFormat("");
-    break;
+  if ((format_case == GroupProto::LsProto::NONE) && WantsJsonOutput()) {
+    format_case = GroupProto::LsProto::MONITORING;
   }
 
-  // if not( -b || --brief )
+  switch (format_case) {
+    case GroupProto::LsProto::MONITORING:
+      format = FsView::GetGroupFormat("m");
+      json_output = WantsJsonOutput();
+      break;
+
+    case GroupProto::LsProto::IOGROUP:
+      format = FsView::GetGroupFormat("io");
+      break;
+
+    case GroupProto::LsProto::IOFS:
+      format = FsView::GetGroupFormat("IO");
+      list_format = FsView::GetFileSystemFormat("io");
+      // @note in the old implementation was mOutFormat="io", but then mOutFormat
+      // never used again apparently
+      // ls.set_outformat(eos::console::GroupProto_LsProto::IOGROUP);
+      break;
+
+    case GroupProto::LsProto::LISTING:
+      format = FsView::GetGroupFormat("l");
+      list_format = FsView::GetFileSystemFormat("l");
+      break;
+
+    default : // NONE
+      format = FsView::GetGroupFormat("");
+      break;
+  }
+
   if (!ls.outhost()) {
     if (format.find('S') != std::string::npos) {
       format.replace(format.find('S'), 1, "s");
@@ -105,6 +113,11 @@ GroupCmd::LsSubcmd(const eos::console::GroupProto_LsProto& ls,
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   FsView::gFsView.PrintGroups(output, format, list_format, ls.outdepth(),
                               ls.selection().c_str(), mReqProto.dontcolor());
+
+  if (json_output) {
+    output = ResponseToJsonString(output);
+  }
+
   reply.set_std_out(output.c_str());
   reply.set_retc(0);
 }

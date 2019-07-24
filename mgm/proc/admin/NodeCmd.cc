@@ -68,30 +68,39 @@ NodeCmd::ProcessRequest() noexcept
 //------------------------------------------------------------------------------
 // Execute ls subcommand
 //------------------------------------------------------------------------------
-void NodeCmd::LsSubcmd(const eos::console::NodeProto_LsProto& ls, eos::console::ReplyProto& reply) {
-
-  std::string format;
+void NodeCmd::LsSubcmd(const eos::console::NodeProto_LsProto& ls,
+                       eos::console::ReplyProto& reply)
+{
+  using eos::console::NodeProto;
+  bool json_output = false;
   std::string list_format;
+  std::string format;
 
-  switch (ls.outformat()) {
-    case eos::console::NodeProto_LsProto::LISTING:
+  auto format_case = ls.outformat();
+  if ((format_case == NodeProto::LsProto::NONE) && WantsJsonOutput()) {
+    format_case = NodeProto::LsProto::MONITORING;
+  }
+
+  switch (format_case) {
+    case NodeProto::LsProto::LISTING:
       format = FsView::GetNodeFormat("l");
       list_format = FsView::GetFileSystemFormat("l");
       break;
 
-    case eos::console::NodeProto_LsProto::MONITORING:
+    case NodeProto::LsProto::MONITORING:
       format = FsView::GetNodeFormat("m");
+      json_output = WantsJsonOutput();
       break;
 
-    case eos::console::NodeProto_LsProto::IO:
+    case NodeProto::LsProto::IO:
       format = FsView::GetNodeFormat("io");
       break;
 
-    case eos::console::NodeProto_LsProto::SYS:
+    case NodeProto::LsProto::SYS:
       format = FsView::GetNodeFormat("sys");
       break;
 
-    case eos::console::NodeProto_LsProto::FSCK:
+    case NodeProto::LsProto::FSCK:
       format = FsView::GetNodeFormat("fsck");
       break;
 
@@ -100,7 +109,6 @@ void NodeCmd::LsSubcmd(const eos::console::NodeProto_LsProto& ls, eos::console::
       break;
   }
 
-  // if not( -b || --brief )
   if (!ls.outhost()) {
     if (format.find('S') != std::string::npos) {
       format.replace(format.find('S'), 1, "s");
@@ -111,13 +119,17 @@ void NodeCmd::LsSubcmd(const eos::console::NodeProto_LsProto& ls, eos::console::
     }
   }
 
-  std::string std_out;
+  std::string output;
   eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
-  FsView::gFsView.PrintNodes(std_out, format, list_format, 0, ls.selection().c_str(), mReqProto.dontcolor());
+  FsView::gFsView.PrintNodes(output, format, list_format, 0,
+                             ls.selection().c_str(), mReqProto.dontcolor());
 
-  reply.set_std_out(std_out);
+  if (json_output) {
+    output = ResponseToJsonString(output);
+  }
+
+  reply.set_std_out(output);
   reply.set_retc(SFS_OK);
-
 }
 
 //------------------------------------------------------------------------------

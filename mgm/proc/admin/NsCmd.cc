@@ -309,8 +309,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
   size_t eosxd_locked_clients = 0;
   gOFS->zMQ->gFuseServer.Client().ClientStats(eosxd_nclients,
       eosxd_active_clients, eosxd_locked_clients);
+  bool monitoring = stat.monitor() || WantsJsonOutput();
 
-  if (stat.monitor()) {
+  if (monitoring) {
     oss << "uid=all gid=all ns.total.files=" << f << std::endl
         << "uid=all gid=all ns.total.directories=" << d << std::endl
         << "uid=all gid=all ns.current.fid=" << fid_now
@@ -495,7 +496,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << gOFS->mDrainEngine.GetThreadPoolInfo() << std::endl
         << line << std::endl;
 
-    if(gOFS->mTapeAwareGcDefaultSpaceEnable) {
+    if (gOFS->mTapeAwareGcDefaultSpaceEnable) {
       oss << "ALL      tgc stagerrms since boot         " << gOFS->mTapeAwareGc->getNbStagerrms()
           << std::endl
           << "ALL      tgc queue size                   " << gOFS->mTapeAwareGc->getLruQueueSize()
@@ -510,9 +511,14 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
 
   if (!stat.summary()) {
     XrdOucString stats_out;
-    gOFS->MgmStats.PrintOutTotal(stats_out, stat.groupids(), stat.monitor(),
+    gOFS->MgmStats.PrintOutTotal(stats_out, stat.groupids(), monitoring,
                                  stat.numericids());
     oss << stats_out.c_str();
+  }
+
+  if (WantsJsonOutput()) {
+    std::string out = ResponseToJsonString(oss.str(), err.str(), retc);
+    oss.clear(), oss.str(out);
   }
 
   reply.set_retc(retc);

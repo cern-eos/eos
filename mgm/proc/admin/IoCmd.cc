@@ -39,25 +39,25 @@ IoCmd::ProcessRequest() noexcept
   eos::console::IoProto::SubcmdCase subcmd = io.subcmd_case();
 
   switch (subcmd) {
-  case eos::console::IoProto::kStat:
-    StatSubcmd(io.stat(), reply);
-    break;
+    case eos::console::IoProto::kStat:
+      StatSubcmd(io.stat(), reply);
+      break;
 
-  case eos::console::IoProto::kEnable:
-    EnableSubcmd(io.enable(), reply);
-    break;
+    case eos::console::IoProto::kEnable:
+      EnableSubcmd(io.enable(), reply);
+      break;
 
-  case eos::console::IoProto::kReport:
-    ReportSubcmd(io.report(), reply);
-    break;
+    case eos::console::IoProto::kReport:
+      ReportSubcmd(io.report(), reply);
+      break;
 
-  case eos::console::IoProto::kNs:
-    NsSubcmd(io.ns(), reply);
-    break;
+    case eos::console::IoProto::kNs:
+      NsSubcmd(io.ns(), reply);
+      break;
 
-  default:
-    reply.set_retc(EINVAL);
-    reply.set_std_err("error: not supported");
+    default:
+      reply.set_retc(EINVAL);
+      reply.set_std_err("error: not supported");
   }
 
   return reply;
@@ -70,16 +70,21 @@ void IoCmd::StatSubcmd(const eos::console::IoProto_StatProto& stat,
                        eos::console::ReplyProto& reply)
 {
   XrdOucString out = "";
+  bool monitoring = stat.monitoring() || WantsJsonOutput();
 
   // If nothing is selected, we show the summary information
   if (!(stat.apps() || stat.domain() || stat.top() || stat.details())) {
     gOFS->IoStats->PrintOut(out, true, stat.details(),
-                            stat.monitoring(), stat.numerical(),
+                            monitoring, stat.numerical(),
                             stat.top(), stat.domain(), stat.apps());
   } else {
     gOFS->IoStats->PrintOut(out, stat.summary(), stat.details(),
-                            stat.monitoring(), stat.numerical(),
+                            monitoring, stat.numerical(),
                             stat.top(), stat.domain(), stat.apps());
+  }
+
+  if (WantsJsonOutput()) {
+    out = ResponseToJsonString(out.c_str()).c_str();
   }
 
   reply.set_std_out(out.c_str());
@@ -99,7 +104,8 @@ void IoCmd::EnableSubcmd(const eos::console::IoProto_EnableProto& enable,
     if ((!enable.reports()) && (!enable.namespacex())) {
       if (enable.upd_address().length()) {
         if (gOFS->IoStats->AddUdpTarget(enable.upd_address().c_str())) {
-          out += ("success: enabled IO udp target " + enable.upd_address()).c_str();
+          out += ("success: enabled IO udp target " +
+                  enable.upd_address()).c_str();
         } else {
           err += ("error: IO udp target was not configured " +
                   enable.upd_address()).c_str();
@@ -149,7 +155,8 @@ void IoCmd::EnableSubcmd(const eos::console::IoProto_EnableProto& enable,
     if ((!enable.reports()) && (!enable.namespacex())) {
       if (enable.upd_address().length()) {
         if (gOFS->IoStats->RemoveUdpTarget(enable.upd_address().c_str())) {
-          out += ("success: disabled IO udp target " + enable.upd_address()).c_str();
+          out += ("success: disabled IO udp target " +
+                  enable.upd_address()).c_str();
         } else {
           err += ("error: IO udp target was not configured " +
                   enable.upd_address()).c_str();
@@ -228,7 +235,7 @@ void IoCmd::NsSubcmd(const eos::console::IoProto_NsProto& ns,
 {
   std::string option;
 
-  if (ns.monitoring()) {
+  if (ns.monitoring() || WantsJsonOutput()) {
     option += "-m";
   }
 
@@ -249,28 +256,33 @@ void IoCmd::NsSubcmd(const eos::console::IoProto_NsProto& ns,
   }
 
   switch (ns.count()) {
-  case eos::console::IoProto_NsProto::ONEHUNDRED:
-    option += "-100";
-    break;
+    case eos::console::IoProto_NsProto::ONEHUNDRED:
+      option += "-100";
+      break;
 
-  case eos::console::IoProto_NsProto::ONETHOUSAND:
-    option += "-1000";
-    break;
+    case eos::console::IoProto_NsProto::ONETHOUSAND:
+      option += "-1000";
+      break;
 
-  case eos::console::IoProto_NsProto::TENTHOUSAND:
-    option += "-10000";
-    break;
+    case eos::console::IoProto_NsProto::TENTHOUSAND:
+      option += "-10000";
+      break;
 
-  case eos::console::IoProto_NsProto::ALL:
-    option += "-a";
-    break;
+    case eos::console::IoProto_NsProto::ALL:
+      option += "-a";
+      break;
 
-  default : // NONE
-    break;
+    default : // NONE
+      break;
   }
 
   XrdOucString out = "";
   gOFS->IoStats->PrintNs(out, option.c_str());
+
+  if (WantsJsonOutput()) {
+    out = ResponseToJsonString(out.c_str()).c_str();
+  }
+
   reply.set_std_out(out.c_str());
   reply.set_retc(0);
 }

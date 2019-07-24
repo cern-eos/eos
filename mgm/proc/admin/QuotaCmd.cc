@@ -86,11 +86,12 @@ void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser, 
   eos_notice("quota ls (user)");
 
   XrdOucString out {""};
+  auto monitoring = lsuser.format() || WantsJsonOutput();
 
-  bool is_ok = Quota::PrintOut(space, out, mVid.uid, -1, lsuser.format(), true);
+  bool is_ok = Quota::PrintOut(space, out, mVid.uid, -1, monitoring, true);
 
   if (is_ok && out.length()) {
-    if (!lsuser.format()) {
+    if (!monitoring) {
       std_out += ("\nBy user:" + out).c_str();
     } else {
       std_out += out.c_str();
@@ -103,11 +104,11 @@ void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser, 
   }
 
   out = "";
-  is_ok = Quota::PrintOut(space, out, -1, mVid.gid, lsuser.format(), true);
+  is_ok = Quota::PrintOut(space, out, -1, mVid.gid, monitoring, true);
   // mDoSort = false; @note no.02 was there in the old implementation, but looks like it is not actually needed anymore
 
   if (is_ok && out != "") {
-    if (!lsuser.format()) {
+    if (!monitoring) {
       std_out += ("\nBy group:" + out).c_str();
     } else {
       std_out += out.c_str();
@@ -117,6 +118,10 @@ void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser, 
       std_err += out.c_str();
       ret_c = EINVAL;
     }
+  }
+
+  if (WantsJsonOutput()) {
+    std_out = ResponseToJsonString(std_out, std_err, ret_c);
   }
 
   reply.set_std_out(std_out);
@@ -138,6 +143,7 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls, eos::console
 
   gOFS->MgmStats.Add("Quota", mVid.uid, mVid.gid, 1);
   std::string space = ls.space();
+  auto monitoring = ls.format() || WantsJsonOutput();
 
   if (!space.empty()) {
     // evt. correct the space variable to be a directory path (+/)
@@ -192,11 +198,11 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls, eos::console
 
   if ((uid != -1LL) && (gid != -1LL)) {
     // Print both uid and gid info
-    if (!Quota::PrintOut(space, out1, uid, -1LL, ls.format(), !ls.printid())) {
+    if (!Quota::PrintOut(space, out1, uid, -1LL, monitoring, !ls.printid())) {
       std_err = out1.c_str();
       ret_c = EINVAL;
     } else {
-      if (!Quota::PrintOut(space, out2, -1LL, gid, ls.format(), !ls.printid())) {
+      if (!Quota::PrintOut(space, out2, -1LL, gid, monitoring, !ls.printid())) {
         std_err = out2.c_str();
         ret_c = EINVAL;
       } else {
@@ -205,12 +211,16 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls, eos::console
     }
   } else {
     // Either uid or gid is printed
-    if (Quota::PrintOut(space, out1, uid, gid, ls.format(), !ls.printid())) {
+    if (Quota::PrintOut(space, out1, uid, gid, monitoring, !ls.printid())) {
       std_out = out1.c_str();
     } else {
       std_err = out1.c_str();
       ret_c = EINVAL;
     }
+  }
+
+  if (WantsJsonOutput()) {
+    std_out = ResponseToJsonString(std_out, std_err, ret_c);
   }
 
   reply.set_std_out(std_out);

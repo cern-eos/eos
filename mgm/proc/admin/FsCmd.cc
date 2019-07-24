@@ -347,24 +347,31 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto)
 std::string
 eos::mgm::FsCmd::List(const eos::console::FsProto::LsProto& lsProto)
 {
-  using eos::console::FsProto_LsProto;
+  using eos::console::FsProto;
+  bool json_output = false;
   std::string output;
 
   // Handle listing of drain jobs
-  if ((lsProto.display() == FsProto_LsProto::RUNNING_DRAIN_JOBS) ||
-      (lsProto.display() == FsProto_LsProto::FAILED_DRAIN_JOBS)) {
-    bool only_failed = (lsProto.display() == FsProto_LsProto::FAILED_DRAIN_JOBS);
+  if ((lsProto.display() == FsProto::LsProto::RUNNING_DRAIN_JOBS) ||
+      (lsProto.display() == FsProto::LsProto::FAILED_DRAIN_JOBS)) {
+    bool only_failed =
+      (lsProto.display() == FsProto::LsProto::FAILED_DRAIN_JOBS);
     eos::mgm::Drainer::DrainHdrInfo hdr_info;
 
     if (only_failed) {
-      hdr_info = {{"File id", "fid"}, {"Drain fsid", "fs_src"},
-        {"Dst fsid", "fs_dst"}, {"Error info", "err_msg"}
+      hdr_info = {{"File id",    "fid"},
+                  {"Drain fsid", "fs_src"},
+                  {"Dst fsid",   "fs_dst"},
+                  {"Error info", "err_msg"}
       };
     } else {
-      hdr_info = {{"File id", "fid"}, {"Drain fsid", "fs_src"},
-        {"Src fsid", "tx_fs_src"}, {"Dst fsid", "fs_dst"},
-        {"Start times", "start_timestamp"},
-        {"Progress", "progress"}, {"Avg.(MB/s)", "speed"}
+      hdr_info = {{"File id",     "fid"},
+                  {"Drain fsid",  "fs_src"},
+                  {"Src fsid",    "tx_fs_src"},
+                  {"Dst fsid",    "fs_dst"},
+                  {"Start times", "start_timestamp"},
+                  {"Progress",    "progress"},
+                  {"Avg.(MB/s)",  "speed"}
       };
     }
 
@@ -386,19 +393,33 @@ eos::mgm::FsCmd::List(const eos::console::FsProto::LsProto& lsProto)
     return output;
   }
 
-  auto displayModeString = DisplayModeToString(lsProto.display());
-  auto listFormat = FsView::GetFileSystemFormat(displayModeString);
+  auto display = lsProto.display();
+
+  if ((display == FsProto::LsProto::DEFAULT) && WantsJsonOutput()) {
+    display = FsProto::LsProto::MONITOR;
+  }
+
+  if (display == FsProto::LsProto::MONITOR) {
+    json_output = WantsJsonOutput();
+  }
+
+  auto display_string = DisplayModeToString(display);
+  auto format = FsView::GetFileSystemFormat(display_string);
 
   if (!lsProto.brief()) {
-    if (listFormat.find('S') != std::string::npos) {
-      listFormat.replace(listFormat.find('S'), 1, "s");
+    if (format.find('S') != std::string::npos) {
+      format.replace(format.find('S'), 1, "s");
     }
   }
 
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-  FsView::gFsView.PrintSpaces(output, "", listFormat, 0,
+  FsView::gFsView.PrintSpaces(output, "", format, 0,
                               lsProto.matchlist().c_str(),
-                              displayModeString, mReqProto.dontcolor());
+                              display_string, mReqProto.dontcolor());
+
+  if (json_output) {
+    output = ResponseToJsonString(output);
+  }
 
   return output;
 }

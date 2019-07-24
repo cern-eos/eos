@@ -86,48 +86,66 @@ SpaceCmd::ProcessRequest() noexcept
 //----------------------------------------------------------------------------
 // Execute ls subcommand
 //----------------------------------------------------------------------------
-void SpaceCmd::LsSubcmd(const eos::console::SpaceProto_LsProto& ls, eos::console::ReplyProto& reply) {
+void SpaceCmd::LsSubcmd(const eos::console::SpaceProto_LsProto& ls,
+                        eos::console::ReplyProto& reply)
+{
+  using eos::console::SpaceProto;
+  bool json_output = false;
+  std::string list_format;
+  std::string format;
 
-      std::string format;
-      std::string list_format;
+  auto format_case = ls.outformat();
 
-      switch (ls.outformat()) {
-        case eos::console::SpaceProto_LsProto::LISTING:
-          format = FsView::GetSpaceFormat("l");
-          list_format = FsView::GetFileSystemFormat("l");
-          break;
+  if ((format_case == SpaceProto::LsProto::NONE) && WantsJsonOutput()) {
+    format_case = SpaceProto::LsProto::MONITORING;
+  }
 
-        case eos::console::SpaceProto_LsProto::MONITORING:
-          format = FsView::GetSpaceFormat("m");
-          break;
+  switch (format_case) {
+    case SpaceProto::LsProto::LISTING:
+      format = FsView::GetSpaceFormat("l");
+      list_format = FsView::GetFileSystemFormat("l");
+      break;
 
-        case eos::console::SpaceProto_LsProto::IO:
-          format = FsView::GetSpaceFormat("io");
-          break;
+    case SpaceProto::LsProto::MONITORING:
+      format = FsView::GetSpaceFormat("m");
+      json_output = WantsJsonOutput();
+      break;
 
-        case eos::console::SpaceProto_LsProto::FSCK:
-          format = FsView::GetSpaceFormat("fsck");
-          break;
+    case SpaceProto::LsProto::IO:
+      format = FsView::GetSpaceFormat("io");
+      break;
 
-        default : // NONE
-          format = FsView::GetSpaceFormat("");
-          break;
-      }
+    case SpaceProto::LsProto::FSCK:
+      format = FsView::GetSpaceFormat("fsck");
+      break;
 
-      std::string std_out;
-      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-      FsView::gFsView.PrintSpaces(std_out, format, list_format, ls.outdepth(), ls.selection().c_str(), "", mReqProto.dontcolor());
+    default : // NONE
+      format = FsView::GetSpaceFormat("");
+      break;
+  }
 
-      reply.set_std_out(std_out);
+  std::string std_out;
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+  FsView::gFsView.PrintSpaces(std_out, format, list_format, ls.outdepth(),
+                              ls.selection().c_str(), "", mReqProto.dontcolor());
 
+  if (json_output) {
+    std_out = ResponseToJsonString(std_out);
+  }
+
+  reply.set_std_out(std_out);
+  reply.set_retc(0);
 }
 
 //----------------------------------------------------------------------------
 // Execute status subcommand
 //----------------------------------------------------------------------------
-void SpaceCmd::StatusSubcmd(const eos::console::SpaceProto_StatusProto& status, eos::console::ReplyProto& reply) {
-
-  const char* fmtstr = status.outformat_m() ? "%s=%s " : "%-32s := %s\n";
+void SpaceCmd::StatusSubcmd(const eos::console::SpaceProto_StatusProto& status,
+                            eos::console::ReplyProto& reply)
+{
+  std::string std_out;
+  bool monitoring = status.outformat_m() || WantsJsonOutput();
+  const char* fmtstr = (monitoring) ? "%s=%s " : "%-32s := %s\n";
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
   if (!FsView::gFsView.mSpaceView.count(status.mgmspace())) {
@@ -136,9 +154,7 @@ void SpaceCmd::StatusSubcmd(const eos::console::SpaceProto_StatusProto& status, 
     return;
   }
 
-  std::string std_out;
-
-  if (!status.outformat_m()) {
+  if (!monitoring) {
     std_out += "# ------------------------------------------------------------------------------------\n";
     std_out += "# Space Variables\n";
     std_out += "# ....................................................................................\n";
@@ -151,24 +167,30 @@ void SpaceCmd::StatusSubcmd(const eos::console::SpaceProto_StatusProto& status, 
   for (auto & i : keylist) {
     char line[32678];
 
-    if (((i == "nominalsize") || (i == "headroom")) && !status.outformat_m()) {
+    if (((i == "nominalsize") || (i == "headroom")) && !monitoring) {
       XrdOucString sizestring;
       // size printout
       snprintf(line, sizeof(line) - 1, fmtstr, i.c_str(),
-               eos::common::StringConversion::GetReadableSizeString(sizestring,
-                                                                    strtoull(
-                                                                        FsView::gFsView.mSpaceView[status.mgmspace()]->GetConfigMember(
-                                                                            i).c_str(), nullptr, 10), "B"));
+               eos::common::StringConversion::GetReadableSizeString(
+                 sizestring,
+                 strtoull(FsView::gFsView.mSpaceView[status.mgmspace()]
+                   ->GetConfigMember(i).c_str(), nullptr, 10),
+                 "B"));
     } else {
       snprintf(line, sizeof(line) - 1, fmtstr, i.c_str(),
-               FsView::gFsView.mSpaceView[status.mgmspace()]->GetConfigMember(i).c_str());
+               FsView::gFsView.mSpaceView[status.mgmspace()]
+                 ->GetConfigMember(i).c_str());
     }
 
     std_out += line;
   }
 
-  reply.set_std_out(std_out);
+  if (WantsJsonOutput()) {
+    std_out = ResponseToJsonString(std_out);
+  }
 
+  reply.set_std_out(std_out);
+  reply.set_retc(0);
 }
 
 //----------------------------------------------------------------------------
