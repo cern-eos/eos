@@ -1624,16 +1624,9 @@ FmdDbMapHandler::MoveToOrphans(const std::string& fpath) const
     return;
   }
 
-  std::string fs_mount {"/"};
   std::string fid_hex = cpath.GetName();
-
-  for (size_t i = 0; i < cpath_sz; ++i) {
-    fs_mount += cpath.GetSubPath(i);
-    fs_mount += "/";
-  }
-
   std::ostringstream oss;
-  oss << fs_mount << ".eosorphans/" << fid_hex;
+  oss << cpath.GetSubPath(cpath_sz - 2) << ".eosorphans/" << fid_hex;
   std::string forphan = oss.str();
   // Store the original path name as an extended attribute in case ...
   std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(fpath));
