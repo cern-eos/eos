@@ -252,13 +252,22 @@ protected:
                                    int rc = 0);
 
   //----------------------------------------------------------------------------
+  //! Indicate whether output should be in JSON format
+  //----------------------------------------------------------------------------
+  inline bool WantsJsonOutput()
+  {
+    return mReqProto.format() == eos::console::RequestProto::JSON;
+  }
+
+  //----------------------------------------------------------------------------
   //! Check if operation forbidden
   //!
-  //! @param inpath path of the request
+  //! @param path path of the request
+  //! @param vid client virtual identity
   //! @param err_check output error message
   //! @param errno_check output errno in case of errors
   //!
-  //! @return true if operation forbidded otherwise false
+  //! @return true if operation forbidden, false otherwise
   //----------------------------------------------------------------------------
   bool IsOperationForbidden(const std::string& path,
                             const eos::common::VirtualIdentity& vid,

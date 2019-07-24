@@ -78,14 +78,7 @@ IProcCommand::open(const char* path, const char* info,
     } else {
       std::ostringstream oss;
 
-      if (mReqProto.format() == eos::console::RequestProto::JSON) {
-        std::string out = ResponseToJsonString(reply.std_out(),
-                                               reply.std_err(), reply.retc());
-
-        oss << "mgm.proc.stdout=" << out
-            << "&mgm.proc.stderr=" << reply.std_err()
-            << "&mgm.proc.retc=" << reply.retc();
-      } else if (mReqProto.format() == eos::console::RequestProto::FUSE) {
+      if (mReqProto.format() == eos::console::RequestProto::FUSE) {
         // The proto dumpmd issued by the FST uses the FUSE format
         // (resync metadata, background Fsck and standalone Fsck)
         // @todo This format should be dropped once Quarkdb migration is complete
