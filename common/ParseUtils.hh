@@ -39,12 +39,13 @@ EOSCOMMONNAMESPACE_BEGIN
 //! Parse an int64 encoded in the given numerical base, return true if parsing
 //! was successful, false otherwise.
 //------------------------------------------------------------------------------
-inline bool parseInt64(const std::string& str, int64_t& ret, int base = 10)
+inline bool ParseInt64(const std::string& str, int64_t& ret, int base = 10)
 {
   char* endptr = NULL;
   ret = std::strtoll(str.c_str(), &endptr, base);
 
-  if (endptr != str.c_str() + str.size() || ret == std::numeric_limits<long long>::min() ||
+  if (endptr != str.c_str() + str.size() ||
+      ret == std::numeric_limits<long long>::min() ||
       ret == std::numeric_limits<long long>::max()) {
     return false;
   }
@@ -55,7 +56,8 @@ inline bool parseInt64(const std::string& str, int64_t& ret, int base = 10)
 //------------------------------------------------------------------------------
 //! Parse a long long - behave exactly the same as old XrdMq "GetLongLong".
 //------------------------------------------------------------------------------
-inline long long parseLongLong(const std::string& str) {
+inline long long ParseLongLong(const std::string& str)
+{
   if (str.length()) {
     errno = 0;
     long long ret = strtoll(str.c_str(), 0, 10);
@@ -71,7 +73,8 @@ inline long long parseLongLong(const std::string& str) {
 //------------------------------------------------------------------------------
 //! Parse a long long - behave exactly the same as old XrdMq "GetDouble".
 //------------------------------------------------------------------------------
-inline long long parseDouble(const std::string& str) {
+inline long long ParseDouble(const std::string& str)
+{
   if (str.length()) {
     return atof(str.c_str());
   }
@@ -105,7 +108,7 @@ inline bool ParseHostNamePort(const std::string& input, std::string& host,
     host = input.substr(0, pos - 1);
     int64_t ret = 0ll;
 
-    if (!parseInt64(input.substr(pos + 1), ret)) {
+    if (!ParseInt64(input.substr(pos + 1), ret)) {
       return false;
     }
 

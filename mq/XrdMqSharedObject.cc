@@ -296,7 +296,7 @@ XrdMqSharedHash::GetKeys()
 long long
 XrdMqSharedHash::GetLongLong(const char* key)
 {
-  return eos::common::parseLongLong(Get(key));
+  return eos::common::ParseLongLong(Get(key));
 }
 
 //------------------------------------------------------------------------------
@@ -305,7 +305,7 @@ XrdMqSharedHash::GetLongLong(const char* key)
 double
 XrdMqSharedHash::GetDouble(const char* key)
 {
-  return eos::common::parseDouble(Get(key));
+  return eos::common::ParseDouble(Get(key));
 }
 
 //------------------------------------------------------------------------------

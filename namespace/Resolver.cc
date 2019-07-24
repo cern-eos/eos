@@ -32,32 +32,40 @@ EOSNSNAMESPACE_BEGIN
 // Resolve a container specification message to a ContainerMD.
 // Assumes caller holds eosViewRWMutex.
 //------------------------------------------------------------------------------
-IContainerMDPtr Resolver::resolveContainer(IView *view, const ContainerSpecificationProto &proto) {
+IContainerMDPtr Resolver::resolveContainer(IView* view,
+    const ContainerSpecificationProto& proto)
+{
   ContainerSpecificationProto::ContainerCase type = proto.container_case();
 
-  switch(type) {
-    case ContainerSpecificationProto::kPath: {
-      return view->getContainer(proto.path());
-    }
-    case ContainerSpecificationProto::kCid: {
-      int64_t cid;
-      if(!eos::common::parseInt64(proto.cid(), cid)) {
-        throw_mdexception(EINVAL, "Unable to parse Container ID: " << proto.cid());
-      }
+  switch (type) {
+  case ContainerSpecificationProto::kPath: {
+    return view->getContainer(proto.path());
+  }
 
-      return view->getContainerMDSvc()->getContainerMD(cid);
-    }
-    case ContainerSpecificationProto::kCxid: {
-      int64_t cid;
-      if(!eos::common::parseInt64(proto.cxid(), cid, 16)) {
-        throw_mdexception(EINVAL, "Unable to parse Container ID: " << proto.cxid());
-      }
+  case ContainerSpecificationProto::kCid: {
+    int64_t cid;
 
-      return view->getContainerMDSvc()->getContainerMD(cid);
+    if (!eos::common::ParseInt64(proto.cid(), cid)) {
+      throw_mdexception(EINVAL, "Unable to parse Container ID: " << proto.cid());
     }
-    default: {
-      throw_mdexception(EINVAL, "Provided protobuf message is empty, unable to resolve container");
+
+    return view->getContainerMDSvc()->getContainerMD(cid);
+  }
+
+  case ContainerSpecificationProto::kCxid: {
+    int64_t cid;
+
+    if (!eos::common::ParseInt64(proto.cxid(), cid, 16)) {
+      throw_mdexception(EINVAL, "Unable to parse Container ID: " << proto.cxid());
     }
+
+    return view->getContainerMDSvc()->getContainerMD(cid);
+  }
+
+  default: {
+    throw_mdexception(EINVAL,
+                      "Provided protobuf message is empty, unable to resolve container");
+  }
   }
 }
 
@@ -65,21 +73,22 @@ IContainerMDPtr Resolver::resolveContainer(IView *view, const ContainerSpecifica
 // Parse FileIdentifier based on an string.
 // Recognizes "fid:", "fxid:", "ino:"
 //------------------------------------------------------------------------------
-FileIdentifier Resolver::retrieveFileIdentifier(XrdOucString &str) {
+FileIdentifier Resolver::retrieveFileIdentifier(XrdOucString& str)
+{
   uint64_t ret;
 
-  if(str.beginswith("fid:")) {
+  if (str.beginswith("fid:")) {
     return FileIdentifier(strtoull(str.c_str() + 4, 0, 10));
   }
 
-  if(str.beginswith("fxid:")) {
+  if (str.beginswith("fxid:")) {
     return FileIdentifier(strtoull(str.c_str() + 5, 0, 16));
   }
 
-  if(str.beginswith("ino:")) {
+  if (str.beginswith("ino:")) {
     ret = strtoull(str.c_str() + 4, 0, 16);
 
-    if(!eos::common::FileId::IsFileInode(ret)) {
+    if (!eos::common::FileId::IsFileInode(ret)) {
       return FileIdentifier(0);
     }
 

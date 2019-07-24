@@ -85,7 +85,6 @@ LRU::Options LRU::getOptions()
 {
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   LRU::Options opts;
-
   // Default options
   opts.enabled = false;
   opts.interval = std::chrono::minutes(30);
@@ -98,7 +97,7 @@ LRU::Options LRU::getOptions()
   std::string interval = getLRUIntervalConfig();
   int64_t intv = 0;
 
-  if (opts.enabled && (interval.empty() || !common::parseInt64(interval, intv))) {
+  if (opts.enabled && (interval.empty() || !common::ParseInt64(interval, intv))) {
     eos_static_crit("Unable to parse space config lru.interval option, disabling LRU!");
     opts.enabled = false;
   } else {
@@ -113,7 +112,7 @@ LRU::Options LRU::getOptions()
   // Set long interval in case LRU is de-activated, prevent the background
   // thread from spinning
   //----------------------------------------------------------------------------
-  if(!opts.enabled || opts.interval == std::chrono::seconds(0)) {
+  if (!opts.enabled || opts.interval == std::chrono::seconds(0)) {
     opts.interval = std::chrono::minutes(30);
   }
 
@@ -172,15 +171,14 @@ bool LRU::parseExpireMatchPolicy(const std::string& policy,
 //------------------------------------------------------------------------------
 // Perform a single LRU cycle, in-memory namespace
 //------------------------------------------------------------------------------
-void LRU::performCycleInMem(ThreadAssistant& assistant) noexcept {
+void LRU::performCycleInMem(ThreadAssistant& assistant) noexcept
+{
   // Do a slow find
   unsigned long long ndirs = 0;
-
   {
     RWMutexReadLock lock(gOFS->eosViewRWMutex);
     (unsigned long long) gOFS->eosDirectoryService->getNumContainers();
   }
-
   time_t ms = 1;
 
   if (ndirs > 10000000) {
@@ -221,9 +219,9 @@ void LRU::performCycleInMem(ThreadAssistant& assistant) noexcept {
 //------------------------------------------------------------------------------
 // Perform a single LRU cycle, QDB namespace
 //------------------------------------------------------------------------------
-void LRU::performCycleQDB(ThreadAssistant& assistant) noexcept {
+void LRU::performCycleQDB(ThreadAssistant& assistant) noexcept
+{
   eos_static_info("msg=\"start LRU scan on QDB\"");
-
   //----------------------------------------------------------------------------
   // Build exploration options..
   //----------------------------------------------------------------------------
@@ -235,20 +233,21 @@ void LRU::performCycleQDB(ThreadAssistant& assistant) noexcept {
   //----------------------------------------------------------------------------
   // Initialize qclient..
   //----------------------------------------------------------------------------
-  if(!mQcl) {
+  if (!mQcl) {
     mQcl.reset(new qclient::QClient(gOFS->mQdbContactDetails.members,
-      gOFS->mQdbContactDetails.constructOptions()));
+                                    gOFS->mQdbContactDetails.constructOptions()));
   }
 
   //----------------------------------------------------------------------------
   // Start exploring
   //----------------------------------------------------------------------------
   NamespaceExplorer explorer("/", opts, *(mQcl.get()),
-    static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor());
-
+                             static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor());
   NamespaceItem item;
-  while(explorer.fetch(item)) {
-    eos_static_info("lru-dir-qdb=\"%s\" attrs=%d", item.fullPath.c_str(), item.attrs.size());
+
+  while (explorer.fetch(item)) {
+    eos_static_info("lru-dir-qdb=\"%s\" attrs=%d", item.fullPath.c_str(),
+                    item.attrs.size());
     processDirectory(item.fullPath, 0, item.attrs);
   }
 }
@@ -273,11 +272,9 @@ void LRU::backgroundThread(ThreadAssistant& assistant) noexcept
 
     // Only a master needs to run LRU
     if (opts.enabled && gOFS->mMaster->IsMaster()) {
-
-      if(gOFS->eosView->inMemory()) {
+      if (gOFS->eosView->inMemory()) {
         performCycleInMem(assistant);
-      }
-      else {
+      } else {
         performCycleQDB(assistant);
       }
     }
@@ -295,7 +292,7 @@ void LRU::processDirectory(const std::string& dir, size_t contentSize,
   //----------------------------------------------------------------------------
   // No LRU on "/"
   //----------------------------------------------------------------------------
-  if(dir == "/" || dir == "") {
+  if (dir == "/" || dir == "") {
     return;
   }
 

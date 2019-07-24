@@ -37,7 +37,8 @@
 #endif
 #include <atomic>
 
-namespace qclient {
+namespace qclient
+{
 
 class SharedManager;
 class TransientSharedHash;
@@ -89,11 +90,13 @@ enum class ConfigStatus {
   kRW
 };
 
-inline bool operator<(ConfigStatus one, ConfigStatus two) {
+inline bool operator<(ConfigStatus one, ConfigStatus two)
+{
   return static_cast<int>(one) < static_cast<int>(two);
 }
 
-inline bool operator<=(ConfigStatus one, ConfigStatus two) {
+inline bool operator<=(ConfigStatus one, ConfigStatus two)
+{
   return static_cast<int>(one) <= static_cast<int>(two);
 }
 
@@ -115,7 +118,8 @@ class TransferQueue;
 //!
 //! However, the entire operation as a whole will NOT be atomic.
 //------------------------------------------------------------------------------
-class FileSystemUpdateBatch {
+class FileSystemUpdateBatch
+{
 public:
   //----------------------------------------------------------------------------
   //! Type definitions
@@ -152,7 +156,7 @@ public:
   //! If two racing setStringDurable are attempted on the same key, only one
   //! will survive, and all observers will agree as to which one survives.
   //----------------------------------------------------------------------------
-  void setStringDurable(const std::string &key, const std::string &value);
+  void setStringDurable(const std::string& key, const std::string& value);
 
   //----------------------------------------------------------------------------
   //! Set transient string. Depending on network instabilities,
@@ -163,28 +167,28 @@ public:
   //! try to modify the same value, it's possible that observers will not all
   //! converge on a single consistent value.
   //----------------------------------------------------------------------------
-  void setStringTransient(const std::string &key, const std::string &value);
+  void setStringTransient(const std::string& key, const std::string& value);
 
   //----------------------------------------------------------------------------
   //! Set local string. This node, and only this node will store the value,
   //! and only until process restart.
   //----------------------------------------------------------------------------
-  void setStringLocal(const std::string &key, const std::string &value);
+  void setStringLocal(const std::string& key, const std::string& value);
 
   //----------------------------------------------------------------------------
   //! Set durable int64_t - serialize as string automatically.
   //----------------------------------------------------------------------------
-  void setLongLongDurable(const std::string &key, int64_t value);
+  void setLongLongDurable(const std::string& key, int64_t value);
 
   //----------------------------------------------------------------------------
   //! Set transient int64_t - serialize as string automatically.
   //----------------------------------------------------------------------------
-  void setLongLongTransient(const std::string &key, int64_t value);
+  void setLongLongTransient(const std::string& key, int64_t value);
 
   //----------------------------------------------------------------------------
   //! Set local int64_t - serialize as string automatically.
   //----------------------------------------------------------------------------
-  void setLongLongLocal(const std::string &key, int64_t value);
+  void setLongLongLocal(const std::string& key, int64_t value);
 
   //----------------------------------------------------------------------------
   //! Get durable updates map
@@ -211,7 +215,8 @@ private:
 //------------------------------------------------------------------------------
 //! Describes how to locate an FST: host + port.
 //------------------------------------------------------------------------------
-class FstLocator {
+class FstLocator
+{
 public:
   //----------------------------------------------------------------------------
   //! Empty constructor
@@ -221,7 +226,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  FstLocator(const std::string &host, int port);
+  FstLocator(const std::string& host, int port);
 
   //----------------------------------------------------------------------------
   //! Get host
@@ -246,7 +251,7 @@ public:
   //----------------------------------------------------------------------------
   //! Try to parse from queuepath
   //----------------------------------------------------------------------------
-  static bool fromQueuePath(const std::string &queuepath, FstLocator &out);
+  static bool fromQueuePath(const std::string& queuepath, FstLocator& out);
 
 private:
   std::string mHost;
@@ -263,17 +268,18 @@ private:
 //! which has the following form:
 //! /eos/<host>:<port>/fst<storage_path>
 //------------------------------------------------------------------------------
-class FileSystemLocator {
+class FileSystemLocator
+{
 public:
   //! Storage type of the filesystem
   enum class StorageType {
-      Local,
-      Xrd,
-      S3,
-      WebDav,
-      HTTP,
-      HTTPS,
-      Unknown
+    Local,
+    Xrd,
+    S3,
+    WebDav,
+    HTTP,
+    HTTPS,
+    Unknown
   };
 
   //----------------------------------------------------------------------------
@@ -284,18 +290,18 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor, pass manually individual components
   //----------------------------------------------------------------------------
-  FileSystemLocator(const std::string &host, int port,
-    const std::string &storagepath);
+  FileSystemLocator(const std::string& host, int port,
+                    const std::string& storagepath);
 
   //----------------------------------------------------------------------------
   //! Try to parse a "queuepath"
   //----------------------------------------------------------------------------
-  static bool fromQueuePath(const std::string &queuepath, FileSystemLocator &out);
+  static bool fromQueuePath(const std::string& queuepath, FileSystemLocator& out);
 
   //----------------------------------------------------------------------------
   //! Parse storage type from storage path string
   //----------------------------------------------------------------------------
-  static StorageType parseStorageType(const std::string &storagepath);
+  static StorageType parseStorageType(const std::string& storagepath);
 
   //----------------------------------------------------------------------------
   //! Get host
@@ -355,7 +361,8 @@ private:
 //! - Space
 //! - Index
 //------------------------------------------------------------------------------
-class GroupLocator {
+class GroupLocator
+{
 public:
   //----------------------------------------------------------------------------
   //! Empty constructor
@@ -383,7 +390,7 @@ public:
   //! NOTE: In case parsing fails, "out" will still be filled
   //! with "description.0" to match legacy behaviour.
   //----------------------------------------------------------------------------
-  static bool parseGroup(const std::string &description, GroupLocator &out);
+  static bool parseGroup(const std::string& description, GroupLocator& out);
 
 private:
   std::string mGroup;
@@ -398,14 +405,15 @@ private:
 //! A FileSystemLocator can physically locate a FileSystem, but we still can't
 //! operate it on the MGM without knowing more information. (id, group, uuid)
 //------------------------------------------------------------------------------
-class FileSystemCoreParams {
+class FileSystemCoreParams
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  FileSystemCoreParams(uint32_t id, const FileSystemLocator &fsLocator,
-    const GroupLocator &grpLocator, const std::string &uuid,
-    ConfigStatus cfg);
+  FileSystemCoreParams(uint32_t id, const FileSystemLocator& fsLocator,
+                       const GroupLocator& grpLocator, const std::string& uuid,
+                       ConfigStatus cfg);
 
   //----------------------------------------------------------------------------
   //! Get locator
@@ -486,7 +494,7 @@ protected:
   BootStatus mInternalBootStatus;
 
   //! QClient shared manager - no ownership, can be null
-  qclient::SharedManager *mSharedManager = nullptr;
+  qclient::SharedManager* mSharedManager = nullptr;
 
   //! Store the last heartbeat time - set/get through
   //! the corresponding functions, not published on MQ.
@@ -561,7 +569,8 @@ public:
     time_t mGracePeriod;
     time_t mDrainPeriod;
 
-    bool hasHeartbeat() const {
+    bool hasHeartbeat() const
+    {
       time_t now = time(NULL);
 
       if ((now - mHeartBeatTime) < 60) {
@@ -588,7 +597,8 @@ public:
     double mNetOutRateMiB;
     long mGopen; // number of files open as data proxy
 
-    bool hasHeartbeat() const {
+    bool hasHeartbeat() const
+    {
       time_t now = time(NULL);
 
       if ((now - mHeartBeatTime) < 60) {
@@ -611,7 +621,7 @@ public:
   //!                  key-value pairs
   //! @param bc2mgm   If true we broad cast to the management server
   //----------------------------------------------------------------------------
-  FileSystem(const FileSystemLocator &locator,
+  FileSystem(const FileSystemLocator& locator,
              XrdMqSharedObjectManager* som, qclient::SharedManager* qsom,
              bool bc2mgm = false);
 
@@ -679,17 +689,17 @@ public:
   //----------------------------------------------------------------------------
   //! Apply the given batch of updates
   //----------------------------------------------------------------------------
-  bool applyBatch(const FileSystemUpdateBatch &batch);
+  bool applyBatch(const FileSystemUpdateBatch& batch);
 
   //----------------------------------------------------------------------------
   //! Apply the given core parameters
   //----------------------------------------------------------------------------
-  bool applyCoreParams(const FileSystemCoreParams &params);
+  bool applyCoreParams(const FileSystemCoreParams& params);
 
   //----------------------------------------------------------------------------
   //! Set a single local long long
   //----------------------------------------------------------------------------
-  bool setLongLongLocal(const std::string &key, int64_t value);
+  bool setLongLongLocal(const std::string& key, int64_t value);
 
   //----------------------------------------------------------------------------
   //! Open transaction to initiate bulk modifications on a file system
@@ -897,7 +907,7 @@ public:
   long long
   GetLongLong(const char* key)
   {
-    return parseLongLong(GetString(key));
+    return ParseLongLong(GetString(key));
   }
 
   //----------------------------------------------------------------------------
@@ -906,7 +916,7 @@ public:
   double
   GetDouble(const char* key)
   {
-    return parseDouble(GetString(key));
+    return ParseDouble(GetString(key));
   }
 
   //----------------------------------------------------------------------------

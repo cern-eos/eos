@@ -33,18 +33,19 @@ EOSCOMMONNAMESPACE_BEGIN;
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileSystemLocator::FileSystemLocator(const std::string &_host, int _port,
-  const std::string &_storagepath) : host(_host), port(_port),
-                                     storagepath(_storagepath) {
+FileSystemLocator::FileSystemLocator(const std::string& _host, int _port,
+                                     const std::string& _storagepath) : host(_host), port(_port),
+  storagepath(_storagepath)
+{
   storageType = FileSystemLocator::parseStorageType(_storagepath);
 }
 
 //------------------------------------------------------------------------------
 // Try to parse a "queuepath"
 //------------------------------------------------------------------------------
-bool FileSystemLocator::fromQueuePath(const std::string &queuepath,
-  FileSystemLocator &out) {
-
+bool FileSystemLocator::fromQueuePath(const std::string& queuepath,
+                                      FileSystemLocator& out)
+{
   std::string queue = queuepath;
 
   if (!startsWith(queue, "/eos/")) {
@@ -52,31 +53,32 @@ bool FileSystemLocator::fromQueuePath(const std::string &queuepath,
   }
 
   queue.erase(0, 5);
-
   //----------------------------------------------------------------------------
   // Chop /eos/, extract host+port
   //----------------------------------------------------------------------------
   size_t slashLocation = queue.find("/");
+
   if (slashLocation == std::string::npos) {
     return false;
   }
 
-  std::string hostPort = std::string(queue.begin(), queue.begin() + slashLocation);
+  std::string hostPort = std::string(queue.begin(),
+                                     queue.begin() + slashLocation);
   queue.erase(0, slashLocation);
-
   //----------------------------------------------------------------------------
   // Separate host from port
   //----------------------------------------------------------------------------
   size_t separator = hostPort.find(":");
+
   if (separator == std::string::npos) {
     return false;
   }
 
   out.host = std::string(hostPort.begin(), hostPort.begin() + separator);
-  hostPort.erase(0, separator+1);
-
+  hostPort.erase(0, separator + 1);
   int64_t port;
-  if (!parseInt64(hostPort, port)) {
+
+  if (!ParseInt64(hostPort, port)) {
     return false;
   }
 
@@ -98,6 +100,7 @@ bool FileSystemLocator::fromQueuePath(const std::string &queuepath,
   }
 
   out.storageType = FileSystemLocator::parseStorageType(out.storagepath);
+
   if (out.storageType == StorageType::Unknown) {
     return false;
   }
@@ -109,7 +112,8 @@ bool FileSystemLocator::fromQueuePath(const std::string &queuepath,
 //! Parse storage type from storage path string
 //----------------------------------------------------------------------------
 FileSystemLocator::StorageType FileSystemLocator::parseStorageType(
-    const std::string &storagepath) {
+  const std::string& storagepath)
+{
   if (storagepath.find("/") == 0) {
     return StorageType::Local;
   } else if (storagepath.find("root://") == 0) {
@@ -130,56 +134,64 @@ FileSystemLocator::StorageType FileSystemLocator::parseStorageType(
 //------------------------------------------------------------------------------
 // Get host
 //------------------------------------------------------------------------------
-std::string FileSystemLocator::getHost() const {
+std::string FileSystemLocator::getHost() const
+{
   return host;
 }
 
 //------------------------------------------------------------------------------
 // Get hostport, concatenated together as "host:port"
 //------------------------------------------------------------------------------
-std::string FileSystemLocator::getHostPort() const {
+std::string FileSystemLocator::getHostPort() const
+{
   return SSTR(host << ":" << port);
 }
 
 //------------------------------------------------------------------------------
 // Get queuepath
 //------------------------------------------------------------------------------
-std::string FileSystemLocator::getQueuePath() const {
+std::string FileSystemLocator::getQueuePath() const
+{
   return SSTR("/eos/" << host << ":" << port << "/fst" << storagepath);
 }
 
 //------------------------------------------------------------------------------
 // Get "FST queue", ie /eos/example.com:3002/fst
 //------------------------------------------------------------------------------
-std::string FileSystemLocator::getFSTQueue() const {
+std::string FileSystemLocator::getFSTQueue() const
+{
   return SSTR("/eos/" << host << ":" << port << "/fst");
 }
 
 //------------------------------------------------------------------------------
 // Get port
 //------------------------------------------------------------------------------
-int FileSystemLocator::getPort() const {
+int FileSystemLocator::getPort() const
+{
   return port;
 }
 
 //------------------------------------------------------------------------------
 // Get storage path
 //------------------------------------------------------------------------------
-std::string FileSystemLocator::getStoragePath() const {
+std::string FileSystemLocator::getStoragePath() const
+{
   return storagepath;
 }
 
 //----------------------------------------------------------------------------
 // Get storage type
 //----------------------------------------------------------------------------
-FileSystemLocator::StorageType FileSystemLocator::getStorageType() const {
+FileSystemLocator::StorageType FileSystemLocator::getStorageType() const
+{
   return storageType;
 }
 
 //----------------------------------------------------------------------------
 // Check whether filesystem is local or remote
 //----------------------------------------------------------------------------
-bool FileSystemLocator::isLocal() const {
+bool FileSystemLocator::isLocal() const
+{
   return storageType == StorageType::Local;
 }
 
@@ -187,8 +199,10 @@ bool FileSystemLocator::isLocal() const {
 // Get transient channel for this filesystem - that is, the channel through
 // which all transient, non-important information will be transmitted.
 //------------------------------------------------------------------------------
-std::string FileSystemLocator::getTransientChannel() const {
-  return SSTR("filesystem-transient||" << getHostPort() << "||" << getStoragePath());
+std::string FileSystemLocator::getTransientChannel() const
+{
+  return SSTR("filesystem-transient||" << getHostPort() << "||" <<
+              getStoragePath());
 }
 
 //------------------------------------------------------------------------------
@@ -199,21 +213,24 @@ FileSystemUpdateBatch::FileSystemUpdateBatch() {}
 //------------------------------------------------------------------------------
 // Set filesystem ID - durable.
 //------------------------------------------------------------------------------
-void FileSystemUpdateBatch::setId(fsid_t fsid) {
+void FileSystemUpdateBatch::setId(fsid_t fsid)
+{
   setLongLongDurable("id", fsid);
 }
 
 //------------------------------------------------------------------------------
 // Set the draining status - durable.
 //------------------------------------------------------------------------------
-void FileSystemUpdateBatch::setDrainStatus(DrainStatus status) {
+void FileSystemUpdateBatch::setDrainStatus(DrainStatus status)
+{
   setStringDurable("stat.drain", FileSystem::GetDrainStatusAsString(status));
 }
 
 //----------------------------------------------------------------------------
 // Set the draining status - local.
 //----------------------------------------------------------------------------
-void FileSystemUpdateBatch::setDrainStatusLocal(DrainStatus status) {
+void FileSystemUpdateBatch::setDrainStatusLocal(DrainStatus status)
+{
   setStringLocal("stat.drain", FileSystem::GetDrainStatusAsString(status));
 }
 
@@ -224,7 +241,9 @@ void FileSystemUpdateBatch::setDrainStatusLocal(DrainStatus status) {
 // eventually, and all updates are guaranteed to be applied in the same
 // order for all observers.
 //------------------------------------------------------------------------------
-void FileSystemUpdateBatch::setStringDurable(const std::string &key, const std::string &value) {
+void FileSystemUpdateBatch::setStringDurable(const std::string& key,
+    const std::string& value)
+{
   mDurableUpdates.emplace(key, value);
 }
 
@@ -237,7 +256,9 @@ void FileSystemUpdateBatch::setStringDurable(const std::string &key, const std::
 // try to modify the same value, it's possible that observers will not all
 // converge on a single consistent value.
 //------------------------------------------------------------------------------
-void FileSystemUpdateBatch::setStringTransient(const std::string &key, const std::string &value) {
+void FileSystemUpdateBatch::setStringTransient(const std::string& key,
+    const std::string& value)
+{
   mTransientUpdates.emplace(key, value);
 }
 
@@ -245,49 +266,63 @@ void FileSystemUpdateBatch::setStringTransient(const std::string &key, const std
 // Set local string. This node, and only this node will store the value,
 // and only until process restart.
 //------------------------------------------------------------------------------
-void FileSystemUpdateBatch::setStringLocal(const std::string &key, const std::string &value) {
+void FileSystemUpdateBatch::setStringLocal(const std::string& key,
+    const std::string& value)
+{
   mLocalUpdates.emplace(key, value);
 }
 
 //------------------------------------------------------------------------------
 // Set durable int64_t - serialize as string automatically.
 //------------------------------------------------------------------------------
-void FileSystemUpdateBatch::setLongLongDurable(const std::string &key, int64_t value) {
+void FileSystemUpdateBatch::setLongLongDurable(const std::string& key,
+    int64_t value)
+{
   return setStringDurable(key, std::to_string(value));
 }
 
 //------------------------------------------------------------------------------
 // Set transient int64_t - serialize as string automatically.
 //------------------------------------------------------------------------------
-void FileSystemUpdateBatch::setLongLongTransient(const std::string &key, int64_t value) {
+void FileSystemUpdateBatch::setLongLongTransient(const std::string& key,
+    int64_t value)
+{
   return setStringTransient(key, std::to_string(value));
 }
 
 //------------------------------------------------------------------------------
 // Set local int64_t - serialize as string automatically.
 //------------------------------------------------------------------------------
-void FileSystemUpdateBatch::setLongLongLocal(const std::string &key, int64_t value) {
+void FileSystemUpdateBatch::setLongLongLocal(const std::string& key,
+    int64_t value)
+{
   return setStringLocal(key, std::to_string(value));
 }
 
 //------------------------------------------------------------------------------
 // Get durable updates map
 //------------------------------------------------------------------------------
-const std::map<std::string, std::string>& FileSystemUpdateBatch::getDurableUpdates() const {
+const std::map<std::string, std::string>&
+FileSystemUpdateBatch::getDurableUpdates() const
+{
   return mDurableUpdates;
 }
 
 //------------------------------------------------------------------------------
 // Get transient updates map
 //------------------------------------------------------------------------------
-const std::map<std::string, std::string>& FileSystemUpdateBatch::getTransientUpdates() const {
+const std::map<std::string, std::string>&
+FileSystemUpdateBatch::getTransientUpdates() const
+{
   return mTransientUpdates;
 }
 
 //------------------------------------------------------------------------------
 // Get local updates map
 //------------------------------------------------------------------------------
-const std::map<std::string, std::string>& FileSystemUpdateBatch::getLocalUpdates() const {
+const std::map<std::string, std::string>&
+FileSystemUpdateBatch::getLocalUpdates() const
+{
   return mLocalUpdates;
 }
 
@@ -299,41 +334,46 @@ FstLocator::FstLocator() {}
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FstLocator::FstLocator(const std::string &host, int port)
-: mHost(host), mPort(port) {}
+FstLocator::FstLocator(const std::string& host, int port)
+  : mHost(host), mPort(port) {}
 
 //------------------------------------------------------------------------------
 // Get host
 //------------------------------------------------------------------------------
-std::string FstLocator::getHost() const {
+std::string FstLocator::getHost() const
+{
   return mHost;
 }
 
 //------------------------------------------------------------------------------
 // Get port
 //------------------------------------------------------------------------------
-int FstLocator::getPort() const {
+int FstLocator::getPort() const
+{
   return mPort;
 }
 
 //------------------------------------------------------------------------------
 // Get fst queuepath
 //------------------------------------------------------------------------------
-std::string FstLocator::getQueuePath() const {
+std::string FstLocator::getQueuePath() const
+{
   return SSTR("/eos/" << mHost << ":" << mPort << "/fst");
 }
 
 //------------------------------------------------------------------------------
 // Get host:port
 //------------------------------------------------------------------------------
-std::string FstLocator::getHostPort() const {
+std::string FstLocator::getHostPort() const
+{
   return SSTR(mHost << ":" << mPort);
 }
 
 //------------------------------------------------------------------------------
 // Try to parse from queuepath
 //------------------------------------------------------------------------------
-bool FstLocator::fromQueuePath(const std::string &queuepath, FstLocator &out) {
+bool FstLocator::fromQueuePath(const std::string& queuepath, FstLocator& out)
+{
   std::string queue = queuepath;
 
   if (!startsWith(queue, "/eos/")) {
@@ -341,31 +381,32 @@ bool FstLocator::fromQueuePath(const std::string &queuepath, FstLocator &out) {
   }
 
   queue.erase(0, 5);
-
   //----------------------------------------------------------------------------
   // Chop /eos/, extract host+port
   //----------------------------------------------------------------------------
   size_t slashLocation = queue.find("/");
+
   if (slashLocation == std::string::npos) {
     return false;
   }
 
-  std::string hostPort = std::string(queue.begin(), queue.begin() + slashLocation);
+  std::string hostPort = std::string(queue.begin(),
+                                     queue.begin() + slashLocation);
   queue.erase(0, slashLocation);
-
   //----------------------------------------------------------------------------
   // Separate host from port
   //----------------------------------------------------------------------------
   size_t separator = hostPort.find(":");
+
   if (separator == std::string::npos) {
     return false;
   }
 
   out.mHost = std::string(hostPort.begin(), hostPort.begin() + separator);
-  hostPort.erase(0, separator+1);
-
+  hostPort.erase(0, separator + 1);
   int64_t port;
-  if (!parseInt64(hostPort, port)) {
+
+  if (!ParseInt64(hostPort, port)) {
     return false;
   }
 
@@ -374,7 +415,7 @@ bool FstLocator::fromQueuePath(const std::string &queuepath, FstLocator &out) {
   //----------------------------------------------------------------------------
   // Chop "/fst/"
   //----------------------------------------------------------------------------
-  if(queue != "/fst") {
+  if (queue != "/fst") {
     return false;
   }
 
@@ -389,21 +430,24 @@ GroupLocator::GroupLocator() {}
 //------------------------------------------------------------------------------
 // Get group (space.index)
 //------------------------------------------------------------------------------
-std::string GroupLocator::getGroup() const {
+std::string GroupLocator::getGroup() const
+{
   return mGroup;
 }
 
 //------------------------------------------------------------------------------
 // Get space
 //------------------------------------------------------------------------------
-std::string GroupLocator::getSpace() const {
+std::string GroupLocator::getSpace() const
+{
   return mSpace;
 }
 
 //------------------------------------------------------------------------------
 // Get index
 //------------------------------------------------------------------------------
-int GroupLocator::getIndex() const {
+int GroupLocator::getIndex() const
+{
   return mIndex;
 }
 
@@ -413,15 +457,19 @@ int GroupLocator::getIndex() const {
 // NOTE: In case parsing fails, out will still be filled
 // with "description.0" to match legacy behaviour.
 //------------------------------------------------------------------------------
-bool GroupLocator::parseGroup(const std::string &description, GroupLocator &out) {
+bool GroupLocator::parseGroup(const std::string& description,
+                              GroupLocator& out)
+{
   size_t dot = description.find(".");
-  if(dot == std::string::npos) {
+
+  if (dot == std::string::npos) {
     out.mGroup = description;
     out.mSpace = description;
     out.mIndex = 0;
 
-    if(description != "spare") {
-      eos_static_crit("Unable to parse group: %s, assuming index is zero", description.c_str());
+    if (description != "spare") {
+      eos_static_crit("Unable to parse group: %s, assuming index is zero",
+                      description.c_str());
       return false;
     }
 
@@ -430,12 +478,13 @@ bool GroupLocator::parseGroup(const std::string &description, GroupLocator &out)
 
   out.mGroup = description;
   out.mSpace = std::string(description.c_str(), dot);
-
-  std::string index = std::string(description.begin()+dot+1, description.end());
+  std::string index = std::string(description.begin() + dot + 1,
+                                  description.end());
   int64_t idx;
 
-  if(!parseInt64(index, idx)) {
-    eos_static_crit("Could not parse integer index in group: %s", description.c_str());
+  if (!ParseInt64(index, idx)) {
+    eos_static_crit("Could not parse integer index in group: %s",
+                    description.c_str());
     out.mIndex = 0;
     return false;
   }
@@ -447,56 +496,65 @@ bool GroupLocator::parseGroup(const std::string &description, GroupLocator &out)
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileSystemCoreParams::FileSystemCoreParams(uint32_t id, const FileSystemLocator &fsLocator, const GroupLocator &grpLocator, const std::string &uuid, ConfigStatus cfg)
-: mFsId(id), mLocator(fsLocator), mGroup(grpLocator), mUuid(uuid), mConfigStatus(cfg) {}
+FileSystemCoreParams::FileSystemCoreParams(uint32_t id,
+    const FileSystemLocator& fsLocator, const GroupLocator& grpLocator,
+    const std::string& uuid, ConfigStatus cfg)
+  : mFsId(id), mLocator(fsLocator), mGroup(grpLocator), mUuid(uuid),
+    mConfigStatus(cfg) {}
 
 //------------------------------------------------------------------------------
 // Get locator
 //------------------------------------------------------------------------------
-const FileSystemLocator& FileSystemCoreParams::getLocator() const {
+const FileSystemLocator& FileSystemCoreParams::getLocator() const
+{
   return mLocator;
 }
 
 //------------------------------------------------------------------------------
 //! Get group locator
 //------------------------------------------------------------------------------
-const GroupLocator& FileSystemCoreParams::getGroupLocator() const {
+const GroupLocator& FileSystemCoreParams::getGroupLocator() const
+{
   return mGroup;
 }
 
 //------------------------------------------------------------------------------
 //! Get id
 //------------------------------------------------------------------------------
-uint32_t FileSystemCoreParams::getId() const {
+uint32_t FileSystemCoreParams::getId() const
+{
   return mFsId;
 }
 
 //------------------------------------------------------------------------------
 //! Get uuid
 //------------------------------------------------------------------------------
-std::string FileSystemCoreParams::getUuid() const {
+std::string FileSystemCoreParams::getUuid() const
+{
   return mUuid;
 }
 
 //------------------------------------------------------------------------------
 // Get current ConfigStatus
 //------------------------------------------------------------------------------
-ConfigStatus FileSystemCoreParams::getConfigStatus() const {
+ConfigStatus FileSystemCoreParams::getConfigStatus() const
+{
   return mConfigStatus;
 }
 
 //------------------------------------------------------------------------------
 // Get queuepath
 //------------------------------------------------------------------------------
-std::string FileSystemCoreParams::getQueuePath() const {
+std::string FileSystemCoreParams::getQueuePath() const
+{
   return mLocator.getQueuePath();
 }
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileSystem::FileSystem(const FileSystemLocator &locator,
-  XrdMqSharedObjectManager* som, qclient::SharedManager* qsom, bool bc2mgm)
+FileSystem::FileSystem(const FileSystemLocator& locator,
+                       XrdMqSharedObjectManager* som, qclient::SharedManager* qsom, bool bc2mgm)
 {
   mLocator = locator;
   mSharedManager = qsom;
@@ -538,7 +596,6 @@ FileSystem::FileSystem(const FileSystemLocator &locator,
         hash->Set("port", std::to_string(locator.getPort()).c_str());
         hash->Set("configstatus", "down");
         hash->Set("stat.drain", "nodrain");
-
         hash->CloseTransaction();
       }
 
@@ -553,18 +610,16 @@ FileSystem::FileSystem(const FileSystemLocator &locator,
       hash->Set("host", locator.getHost().c_str());
       hash->Set("port", std::to_string(locator.getPort()).c_str());
       hash->Set("stat.drain", "nodrain");
-
       hash->CloseTransaction();
       mSom->HashMutex.UnLockRead();
     }
 
     mDrainQueue = new TransferQueue(TransferQueueLocator(mLocator, "drainq"),
-      mSom, qsom, bc2mgm);
+                                    mSom, qsom, bc2mgm);
     mBalanceQueue = new TransferQueue(TransferQueueLocator(mLocator, "balanceq"),
-      mSom, qsom, bc2mgm);
+                                      mSom, qsom, bc2mgm);
     mExternQueue = new TransferQueue(TransferQueueLocator(mLocator, "externq"),
-      mSom, qsom, bc2mgm);
-
+                                     mSom, qsom, bc2mgm);
   } else {
     mDrainQueue = 0;
     mBalanceQueue = 0;
@@ -681,34 +736,42 @@ FileSystem::GetDrainStatusAsString(DrainStatus status)
 const char*
 FileSystem::GetConfigStatusAsString(ConfigStatus status)
 {
-  switch(status) {
-    case ConfigStatus::kUnknown: {
-      return "unknown";
-    }
-    case ConfigStatus::kOff: {
-      return "off";
-    }
-    case ConfigStatus::kEmpty: {
-      return "empty";
-    }
-    case ConfigStatus::kDrainDead: {
-      return "draindead";
-    }
-    case ConfigStatus::kDrain: {
-      return "drain";
-    }
-    case ConfigStatus::kRO: {
-      return "ro";
-    }
-    case ConfigStatus::kWO: {
-      return "wo";
-    }
-    case ConfigStatus::kRW: {
-      return "rw";
-    }
-    default: {
-      return "unknown";
-    }
+  switch (status) {
+  case ConfigStatus::kUnknown: {
+    return "unknown";
+  }
+
+  case ConfigStatus::kOff: {
+    return "off";
+  }
+
+  case ConfigStatus::kEmpty: {
+    return "empty";
+  }
+
+  case ConfigStatus::kDrainDead: {
+    return "draindead";
+  }
+
+  case ConfigStatus::kDrain: {
+    return "drain";
+  }
+
+  case ConfigStatus::kRO: {
+    return "ro";
+  }
+
+  case ConfigStatus::kWO: {
+    return "wo";
+  }
+
+  case ConfigStatus::kRW: {
+    return "rw";
+  }
+
+  default: {
+    return "unknown";
+  }
   }
 }
 
@@ -877,27 +940,31 @@ FileSystem::GetRegisterRequestString()
 //------------------------------------------------------------------------------
 // Apply the given batch of updates
 //------------------------------------------------------------------------------
-bool FileSystem::applyBatch(const FileSystemUpdateBatch &batch) {
+bool FileSystem::applyBatch(const FileSystemUpdateBatch& batch)
+{
   RWMutexReadLock lock(mSom->HashMutex);
   XrdMqSharedHash* hash = mSom->GetObject(mQueuePath.c_str(), "hash");
-  if(!hash) {
+
+  if (!hash) {
     return false;
   }
 
   hash->OpenTransaction();
-
   auto& durable = batch.getDurableUpdates();
-  for(auto it = durable.begin(); it != durable.end(); it++) {
+
+  for (auto it = durable.begin(); it != durable.end(); it++) {
     hash->Set(it->first.c_str(), it->second.c_str(), true);
   }
 
   auto& transient = batch.getTransientUpdates();
-  for(auto it = transient.begin(); it != transient.end(); it++) {
+
+  for (auto it = transient.begin(); it != transient.end(); it++) {
     hash->Set(it->first.c_str(), it->second.c_str(), true);
   }
 
   auto& local = batch.getLocalUpdates();
-  for(auto it = local.begin(); it != local.end(); it++) {
+
+  for (auto it = local.begin(); it != local.end(); it++) {
     hash->Set(it->first.c_str(), it->second.c_str(), false);
   }
 
@@ -908,19 +975,22 @@ bool FileSystem::applyBatch(const FileSystemUpdateBatch &batch) {
 //------------------------------------------------------------------------------
 // Apply the given core parameters
 //------------------------------------------------------------------------------
-bool FileSystem::applyCoreParams(const FileSystemCoreParams &params) {
+bool FileSystem::applyCoreParams(const FileSystemCoreParams& params)
+{
   FileSystemUpdateBatch batch;
   batch.setId(params.getId());
   batch.setStringDurable("uuid", params.getUuid());
   batch.setStringDurable("schedgroup", params.getGroupLocator().getGroup());
-  batch.setStringDurable("configstatus", GetConfigStatusAsString(params.getConfigStatus()));
+  batch.setStringDurable("configstatus",
+                         GetConfigStatusAsString(params.getConfigStatus()));
   return applyBatch(batch);
 }
 
 //------------------------------------------------------------------------------
 // Set a local long long
 //------------------------------------------------------------------------------
-bool FileSystem::setLongLongLocal(const std::string &key, int64_t value) {
+bool FileSystem::setLongLongLocal(const std::string& key, int64_t value)
+{
   common::FileSystemUpdateBatch batch;
   batch.setLongLongLocal(key, value);
   return this->applyBatch(batch);
@@ -943,23 +1013,21 @@ FileSystem::CreateConfig(std::string& key, std::string& val)
 //------------------------------------------------------------------------------
 // Retrieve FileSystem's core parameters
 //------------------------------------------------------------------------------
-FileSystemCoreParams FileSystem::getCoreParams() {
+FileSystemCoreParams FileSystem::getCoreParams()
+{
   RWMutexReadLock lock(mSom->HashMutex);
-
   XrdMqSharedHash* hash = mSom->GetObject(mQueuePath.c_str(), "hash");
 
-  if(!hash) {
-    return FileSystemCoreParams(0, FileSystemLocator(), GroupLocator(), "", ConfigStatus::kOff);
+  if (!hash) {
+    return FileSystemCoreParams(0, FileSystemLocator(), GroupLocator(), "",
+                                ConfigStatus::kOff);
   }
 
   fsid_t id = hash->GetUInt("id");
-
   GroupLocator groupLocator;
   GroupLocator::parseGroup(hash->Get("schedgroup"), groupLocator);
-
   std::string uuid = hash->Get("uuid");
   ConfigStatus cfg = GetConfigStatusFromString(hash->Get("configstatus").c_str());
-
   return FileSystemCoreParams(id, mLocator, groupLocator, uuid, cfg);
 }
 
@@ -992,12 +1060,10 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
     }
 
     fs.mPort = hash->Get("port");
-
     GroupLocator groupLocator;
     GroupLocator::parseGroup(fs.mGroup, groupLocator);
     fs.mSpace = groupLocator.getSpace();
     fs.mGroupIndex = groupLocator.getIndex();
-
     fs.mPath = mPath;
     fs.mErrMsg = hash->Get("stat.errmsg");
     fs.mGeoTag = hash->Get("stat.geotag");
@@ -1262,14 +1328,16 @@ FileSystem::GetActiveStatus(bool cached)
 //------------------------------------------------------------------------------
 // Get heartbeatTime
 //------------------------------------------------------------------------------
-time_t FileSystem::getLocalHeartbeatTime() const {
+time_t FileSystem::getLocalHeartbeatTime() const
+{
   return mHeartBeatTime;
 }
 
 //------------------------------------------------------------------------------
 // Set heartbeatTime
 //------------------------------------------------------------------------------
-void FileSystem::setLocalHeartbeatTime(time_t t) {
+void FileSystem::setLocalHeartbeatTime(time_t t)
+{
   mHeartBeatTime = t;
 }
 
