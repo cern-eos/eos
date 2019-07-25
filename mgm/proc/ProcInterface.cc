@@ -291,86 +291,90 @@ ProcInterface::ProtoIsWriteAccess(const char* path, const char* opaque)
   eos::console::RequestProto req;
 
   if (!req.ParseFromString(raw_pb)) {
-    oss << "error: failed to deserialize ProtocolBuffer object: "
-        << raw_pb;
+    oss << "error: failed to deserialize ProtocolBuffer object: " << raw_pb;
     eos_static_err("%s", oss.str().c_str());
     return false;
   }
 
   // Log the type of command that we received
   std::string json_out;
-  (void) google::protobuf::util::MessageToJsonString(req, &json_out);
+  (void)google::protobuf::util::MessageToJsonString(req, &json_out);
 
+  /* being conservative, true by default. Add false clauses explicitly */
   switch (req.command_case()) {
-  case RequestProto::kAcl:
-    return true;
-    break;
 
-  case RequestProto::kRm:
-    return true;
-    break;
-
-  case RequestProto::kStagerRm:
-    return true;
-    break;
-
-  case RequestProto::kRecycle:
-    return true;
-    break;
-
+  // always false
   case RequestProto::kNs:
-    return false;
-    break;
-
   case RequestProto::kFind:
-    return false;
-    break;
-
-  case RequestProto::kFs:
-    return false;
-    break;
-
-  case RequestProto::kRoute:
-    return false;
-    break;
-
   case RequestProto::kIo:
-    return false; // @note (faluchet) to check
-    break;
-
-  case RequestProto::kGroup:
-    return false; // @note (faluchet) to check
-    break;
-
   case RequestProto::kDebug:
-    return true; // @note (faluchet) to check
-    break;
-
-  case RequestProto::kNode:
-    return true; // @note (faluchet) to check
-    break;
-
-  case RequestProto::kQuota:
-    return true; // @note (faluchet) to check
-    break;
-
-  case RequestProto::kSpace:
-    return true; // @note (faluchet) to check
-    break;
-
   case RequestProto::kConfig:
-    return true; // @note (faluchet) to check
-    break;
+    return false;
 
+  // conditional on the subcommand
+  case RequestProto::kAcl:
+    switch (req.acl().op()) {
+    case eos::console::AclProto::NONE:
+    case eos::console::AclProto::LIST:
+      return false;
+    }
+  case RequestProto::kRecycle:
+    switch (req.recycle().subcmd_case()) {
+    case eos::console::RecycleProto::kLs:
+      return false;
+    }
+  case RequestProto::kFs:
+    switch (req.fs().subcmd_case()) {
+    case eos::console::FsProto::kClone:
+    case eos::console::FsProto::kCompare:
+    case eos::console::FsProto::kDumpmd:
+    case eos::console::FsProto::kLs:
+    case eos::console::FsProto::kStatus:
+      return false;
+    }
+  case RequestProto::kRoute:
+    switch (req.route().subcmd_case()) {
+    case eos::console::RouteProto::kList:
+      return false;
+    }
+  case RequestProto::kGroup:
+    switch (req.group().subcmd_case()) {
+    case eos::console::GroupProto::kLs:
+      return false;
+    }
+  case RequestProto::kNode:
+    switch (req.node().subcmd_case()) {
+    case eos::console::NodeProto::kLs:
+    case eos::console::NodeProto::kStatus:
+      return false;
+    }
+  case RequestProto::kQuota:
+    switch (req.quota().subcmd_case()) {
+    case eos::console::QuotaProto::kLs:
+    case eos::console::QuotaProto::kLsuser:
+      return false;
+    }
+  case RequestProto::kSpace:
+    switch (req.space().subcmd_case()) {
+    case eos::console::SpaceProto::kLs:
+    case eos::console::SpaceProto::kStatus:
+    case eos::console::SpaceProto::kNodeGet:
+      return false;
+    }
   case RequestProto::kAccess:
-    return true; // @note (faluchet) to check
-    break;
+    switch (req.access().subcmd_case()) {
+    case eos::console::AccessProto::kLs:
+      return false;
+    }
 
-    default:
-    break;
+  // always true
+  case RequestProto::kRm:
+  case RequestProto::kStagerRm:
+  case RequestProto::kDrain: // @note where is it?
+  default:
+    return true;
   }
 
-  return true;
 }
 
 //------------------------------------------------------------------------------
