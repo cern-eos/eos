@@ -335,6 +335,67 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Extract timespec from a timespec string representation.
+  //! Failed extraction will set the timespec structure to 0.
+  //! Timespec string format: tv_sec.tv_nsec
+  //!
+  //! Returns 0 for successful conversion, -1 otherwise
+  //!
+  //! Note: the function resets the value of errno
+  //----------------------------------------------------------------------------
+  static int
+  Timespec_from_TimespecStr(std::string timespec_str, struct timespec &ts)
+  {
+    const char *nptr = timespec_str.c_str();
+    size_t pos = timespec_str.find(".");
+    struct timespec lts{0, 0};
+    char *endptr = NULL;
+    errno = 0;
+
+    ts.tv_sec = ts.tv_nsec = 0;
+
+    if (pos == std::string::npos) {
+      lts.tv_sec = strtoull(nptr, &endptr, 10);
+    } else {
+      nptr = timespec_str.substr(0, pos).c_str();
+      lts.tv_sec = strtoull(nptr, &endptr, 10);
+
+      // Failed conversion or no digits found
+      if ((errno != 0) || (nptr == endptr)) {
+        return -1;
+      }
+
+      nptr = timespec_str.substr(pos + 1, 9).c_str();
+      lts.tv_nsec = strtoull(nptr, &endptr, 10);
+    }
+
+    // Failed conversion or no digits found
+    if ((errno != 0) || (nptr == endptr)) {
+      return -1;
+    }
+
+    ts = lts;
+    return 0;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Extract nanoseconds from a timespec string representation.
+  //! Timespec string format: tv_sec.tv_nsec
+  //!
+  //! Returns time in nanoseconds if successful, -1 otherwise
+  //!
+  //! Note: the function resets the value of errno
+  //----------------------------------------------------------------------------
+  static long long
+  Ns_from_TimespecStr(std::string timespec_str)
+  {
+    struct timespec ts;
+    int rc = Timespec_from_TimespecStr(timespec_str, ts);
+
+    return (rc == 0) ? (ts.tv_sec * 1000000000 + ts.tv_nsec) : -1;
+  }
+
+  //----------------------------------------------------------------------------
   //! Time Conversion Function for ISO8601 time strings
   //----------------------------------------------------------------------------
   static std::string
