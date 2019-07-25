@@ -30,6 +30,7 @@
 #include "mgm/TableFormatter/TableFormatterBase.hh"
 #include "mgm/TableFormatter/TableCell.hh"
 #include "common/LayoutId.hh"
+#include "common/Timing.hh"
 #include "common/Path.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/ContainerIterators.hh"
@@ -165,6 +166,7 @@ ProcCommand::FileInfo(const char* path)
       viewReadLock.Release();
       //-------------------------------------------
     } else {
+      using eos::common::Timing;
       using eos::common::FileId;
       using eos::common::LayoutId;
       using eos::common::StringConversion;
@@ -237,21 +239,14 @@ ProcCommand::FileInfo(const char* path)
           char btimestring[4096];
           eos::IFileMD::ctime_t mtime;
           eos::IFileMD::ctime_t ctime;
-          eos::IFileMD::ctime_t btime;
-
-          if (xattrs.count("sys.eos.btime")) {
-            std::string key, val;
-            eos::common::StringConversion::SplitKeyValue(xattrs["sys.eos.btime"], key, val,
-                ".");
-            btime.tv_sec = strtoul(key.c_str(), 0, 10);
-            btime.tv_nsec = strtoul(val.c_str(), 0, 10);
-          } else {
-            btime.tv_sec = 0;
-            btime.tv_nsec = 0;
-          }
-
+          eos::IFileMD::ctime_t btime {0, 0};
           fmd_copy->getCTime(ctime);
           fmd_copy->getMTime(mtime);
+
+          if (xattrs.count("sys.eos.btime")) {
+            Timing::Timespec_from_TimespecStr(xattrs["sys.eos.btime"], btime);
+          }
+
           time_t filectime = (time_t) ctime.tv_sec;
           time_t filemtime = (time_t) mtime.tv_sec;
           time_t filebtime = (time_t) btime.tv_sec;
@@ -330,7 +325,6 @@ ProcCommand::FileInfo(const char* path)
                 << " lid=" << FileId::Fid2Hex(fmd_copy->getLayoutId())
                 << " nrep=" << fmd_copy->getNumLocation()
                 << " ";
-            eos::IFileMD::XAttrMap xattrs = fmd_copy->getAttributes();
 
             for (const auto& elem : xattrs) {
               out << "xattrn=" << elem.first
@@ -404,7 +398,7 @@ ProcCommand::FileInfo(const char* path)
                   table_mq_header_exist = true;
                 }
 
-                //Build body
+                // Build body
                 if (table_mq_header_exist) {
                   TableData table_mq_data_temp;
 
@@ -581,6 +575,7 @@ ProcCommand::DirInfo(const char* path)
       viewReadLock.Release();
       //-------------------------------------------
     } else {
+      using eos::common::Timing;
       using eos::common::FileId;
       using eos::common::LayoutId;
       using eos::common::StringConversion;
@@ -634,26 +629,20 @@ ProcCommand::DirInfo(const char* path)
         eos::IContainerMD::ctime_t ctime;
         eos::IContainerMD::mtime_t mtime;
         eos::IContainerMD::tmtime_t tmtime;
-        eos::IContainerMD::ctime_t btime;
+        eos::IContainerMD::ctime_t btime {0, 0};
         dmd_copy->getCTime(ctime);
         dmd_copy->getMTime(mtime);
         dmd_copy->getTMTime(tmtime);
 
         if (xattrs.count("sys.eos.btime")) {
-          std::string key, val;
-          eos::common::StringConversion::SplitKeyValue(xattrs["sys.eos.btime"], key, val,
-              ".");
-          btime.tv_sec = strtoul(key.c_str(), 0, 10);
-          btime.tv_nsec = strtoul(val.c_str(), 0, 10);
-        } else {
-          btime.tv_sec = 0;
-          btime.tv_nsec = 0;
+          Timing::Timespec_from_TimespecStr(xattrs["sys.eos.btime"], btime);
         }
 
         time_t filectime = (time_t) ctime.tv_sec;
         time_t filemtime = (time_t) mtime.tv_sec;
         time_t filetmtime = (time_t) tmtime.tv_sec;
         time_t filebtime = (time_t) btime.tv_sec;
+
         char fid[32];
         snprintf(fid, 32, "%llu", (unsigned long long) dmd_copy->getId());
         std::string etag;
@@ -739,6 +728,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 {
   eos::IFileMD::ctime_t ctime;
   eos::IFileMD::ctime_t mtime;
+  eos::IFileMD::ctime_t btime {0, 0};
   eos_static_debug("fxid=%08llx", fid);
   Json::Value json;
   json["id"] = (Json::Value::UInt64) fid;
@@ -763,6 +753,13 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     fmd_copy->getMTime(mtime);
     unsigned long long nlink = (fmd_copy->isLink()) ? 1 :
                                fmd_copy->getNumLocation();
+    eos::IFileMD::XAttrMap xattrs = fmd_copy->getAttributes();
+
+    if (xattrs.count("sys.eos.btime")) {
+      eos::common::Timing::Timespec_from_TimespecStr(xattrs["sys.eos.btime"],
+                                                     btime);
+    }
+
     json["fxid"] = hex_fid.c_str();
     json["inode"] = (Json::Value::UInt64) eos::common::FileId::FidToInode(fid);
     json["ctime"] = (Json::Value::UInt64) ctime.tv_sec;
@@ -771,6 +768,8 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["atime_ns"] = (Json::Value::UInt64) ctime.tv_nsec;
     json["mtime"] = (Json::Value::UInt64) mtime.tv_sec;
     json["mtime_ns"] = (Json::Value::UInt64) mtime.tv_nsec;
+    json["btime"] = (Json::Value::UInt64) btime.tv_sec;
+    json["btime_ns"] = (Json::Value::UInt64) btime.tv_nsec;
     json["size"] = (Json::Value::UInt64) fmd_copy->getSize();
     json["uid"] = fmd_copy->getCUid();
     json["gid"] = fmd_copy->getCGid();
@@ -790,7 +789,6 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     }
 
     Json::Value jsonxattr;
-    eos::IFileMD::XAttrMap xattrs = fmd_copy->getAttributes();
 
     for (const auto& elem : xattrs) {
       jsonxattr[elem.first] = elem.second;
@@ -872,6 +870,7 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
   eos::IFileMD::ctime_t ctime;
   eos::IFileMD::ctime_t mtime;
   eos::IFileMD::ctime_t tmtime;
+  eos::IFileMD::ctime_t btime {0, 0};
   eos_static_debug("fxid=%08llx", fid);
   Json::Value json;
   json["id"] = (Json::Value::UInt64) fid;
@@ -886,9 +885,16 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     std::shared_ptr<eos::IContainerMD> cmd =
       gOFS->eosDirectoryService->getContainerMD(fid);
     std::string path = gOFS->eosView->getUri(cmd.get());
+    eos::IFileMD::XAttrMap xattrs = cmd->getAttributes();
     cmd->getCTime(ctime);
     cmd->getMTime(mtime);
     cmd->getTMTime(tmtime);
+
+    if (xattrs.count("sys.eos.btime")) {
+      eos::common::Timing::Timespec_from_TimespecStr(xattrs["sys.eos.btime"],
+                                                     btime);
+    }
+
     json["inode"] = (Json::Value::UInt64) fid;
     json["ctime"] = (Json::Value::UInt64) ctime.tv_sec;
     json["ctime_ns"] = (Json::Value::UInt64) ctime.tv_nsec;
@@ -898,6 +904,8 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["mtime_ns"] = (Json::Value::UInt64) mtime.tv_nsec;
     json["tmtime"] = (Json::Value::UInt64) tmtime.tv_sec;
     json["tmtime_ns"] = (Json::Value::UInt64) tmtime.tv_nsec;
+    json["btime"] = (Json::Value::UInt64) btime.tv_sec;
+    json["btime_ns"] = (Json::Value::UInt64) btime.tv_nsec;
     json["treesize"] = (Json::Value::UInt64) cmd->getTreeSize();
     json["uid"] = cmd->getCUid();
     json["gid"] = cmd->getCGid();
@@ -934,7 +942,6 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     }
 
     Json::Value jsonxattr;
-    eos::IFileMD::XAttrMap xattrs = cmd_copy->getAttributes();
 
     for (const auto& elem : xattrs) {
       jsonxattr[elem.first] = elem.second;
