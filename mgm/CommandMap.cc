@@ -23,14 +23,16 @@
 
 #include "mgm/CommandMap.hh"
 
-namespace {
+namespace
+{
 
 using namespace eos::mgm;
 
 std::map<std::string, FsctlCommand> fsctlCommandMap;
 
 struct fsctlMapInit {
-  fsctlMapInit() {
+  fsctlMapInit()
+  {
     fsctlCommandMap["access"] = FsctlCommand::access;
     fsctlCommandMap["adjustreplica"] = FsctlCommand::adjustreplica;
     fsctlCommandMap["checksum"] = FsctlCommand::checksum;
@@ -48,7 +50,6 @@ struct fsctlMapInit {
     fsctlCommandMap["open"] = FsctlCommand::open;
     fsctlCommandMap["readlink"] = FsctlCommand::readlink;
     fsctlCommandMap["redirect"] = FsctlCommand::redirect;
-    fsctlCommandMap["rewrite"] = FsctlCommand::rewrite;
     fsctlCommandMap["schedule2balance"] = FsctlCommand::schedule2balance;
     fsctlCommandMap["schedule2delete"] = FsctlCommand::schedule2delete;
     fsctlCommandMap["schedule2drain"] = FsctlCommand::schedule2drain;
@@ -67,10 +68,11 @@ struct fsctlMapInit {
 
 EOSMGMNAMESPACE_BEGIN
 
-FsctlCommand lookupFsctl(const std::string &cmd) {
+FsctlCommand lookupFsctl(const std::string& cmd)
+{
   auto it = fsctlCommandMap.find(cmd);
 
-  if(it == fsctlCommandMap.end()) {
+  if (it == fsctlCommandMap.end()) {
     return FsctlCommand::INVALID;
   }
 

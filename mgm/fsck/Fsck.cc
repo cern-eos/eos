@@ -605,7 +605,7 @@ Fsck::Report(std::string& out, const std::set<std::string> tags,
         out += " n=";
         out += sn;
 
-        if (printfid) {
+        if (display_fid) {
           out += " fxid=";
 
           for (auto fidit = emapit->second.cbegin();
@@ -700,7 +700,7 @@ Fsck::Report(std::string& out, const std::set<std::string> tags,
           out += " n=";
           out += sn;
 
-          if (printfid) {
+          if (display_fid) {
             out += " fxid=";
 
             for (auto fidit = efsmapit->second.cbegin();

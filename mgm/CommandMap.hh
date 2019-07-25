@@ -49,7 +49,6 @@ enum class FsctlCommand {
   open,
   readlink,
   redirect,
-  rewrite,
   schedule2balance,
   schedule2delete,
   schedule2drain,
@@ -62,7 +61,7 @@ enum class FsctlCommand {
   xattr
 };
 
-FsctlCommand lookupFsctl(const std::string &cmd);
+FsctlCommand lookupFsctl(const std::string& cmd);
 
 EOSMGMNAMESPACE_END
 
