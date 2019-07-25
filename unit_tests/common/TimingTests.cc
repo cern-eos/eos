@@ -31,13 +31,13 @@ EOSCOMMONTESTING_BEGIN
 
 TEST(Timing, LsFormat)
 {
-  using namespace eos::common;
+  using eos::common::Timing;
   time_t now = time(0);
   struct tm utc;
   struct tm* tm = gmtime_r(&now, &utc);
   std::string output;
   output = Timing::ToLsFormat(tm);
-  // Shoud contain the hour:minute
+  // Should contain the hour:minute
   ASSERT_TRUE(output.find(':') != std::string::npos);
   // 1 year ago
   tm->tm_year--;
@@ -112,7 +112,8 @@ TEST(IntervalStopwatch, BasicSanity) {
   ASSERT_EQ(stopwatch.timeRemainingInCycle(), std::chrono::milliseconds(0));
 }
 
-TEST(IntervalStopwatch, RestartIfExpired) {
+TEST(IntervalStopwatch, RestartIfExpired)
+{
   common::SteadyClock sc(true);
 
   IntervalStopwatch stopwatch(std::chrono::milliseconds(100), &sc);
