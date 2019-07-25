@@ -66,7 +66,7 @@ XrdMgmOfs::Drop(const char* path,
     try {
       fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
     } catch (...) {
-      eos_thread_warning("no meta record exists anymore for fid=%s", afid);
+      eos_thread_warning("no meta record exists anymore for fxid=%s", afid);
     }
 
     if (fmd) {
@@ -100,7 +100,7 @@ XrdMgmOfs::Drop(const char* path,
 
         // Drop the selected replicas
         for (const auto& id : drop_fsid) {
-          eos_thread_debug("removing location %u of fid=%s", id, afid);
+          eos_thread_debug("removing location %u of fxid=%s", id, afid);
           updatestore = false;
 
           if (fmd->hasLocation(id)) {
@@ -147,7 +147,7 @@ XrdMgmOfs::Drop(const char* path,
           }
         }
       } catch (...) {
-        eos_thread_warning("no meta record exists anymore for fid=%s", afid);
+        eos_thread_warning("no meta record exists anymore for fxid=%s", afid);
       }
     }
   } else {

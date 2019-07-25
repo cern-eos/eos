@@ -70,7 +70,7 @@ XrdMgmOfs::Rewrite(const char* path,
   }
 
   if (!IsEnabledAutoRepair) {
-    eos_thread_info("msg=\"suppressing auto-repair\" fid=\"%s\"",
+    eos_thread_info("msg=\"suppressing auto-repair\" fxid=\"%s\"",
                     (hexfid) ? hexfid : "<missing>");
   } else {
     eos::common::VirtualIdentity rvid = eos::common::VirtualIdentity::Root();
@@ -88,7 +88,7 @@ XrdMgmOfs::Rewrite(const char* path,
         fullpath = gOFS->eosView->getUri(fmd.get());
         spath = fullpath.c_str();
       } catch (eos::MDException& e) {
-        eos_thread_err("msg=\"no reference for file in namespace\" fid=%08llx", fid);
+        eos_thread_err("msg=\"no reference for file in namespace\" fxid=%08llx", fid);
         return Emsg(epname, error, EIO, "rewrite [EIO]", spath);
       }
     }

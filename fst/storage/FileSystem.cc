@@ -36,14 +36,13 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileSystem::FileSystem(const common::FileSystemLocator &locator,
+FileSystem::FileSystem(const common::FileSystemLocator& locator,
                        XrdMqSharedObjectManager* som,
-                       qclient::SharedManager *qsom):
+                       qclient::SharedManager* qsom):
   eos::common::FileSystem(locator, som, qsom, true),
   mScanDir()
 {
   std::string queuepath = locator.getQueuePath();
-
   last_blocks_free = 0;
   last_status_broadcast = 0;
   seqBandwidth = 0;
@@ -261,11 +260,10 @@ FileSystem::SyncTransactions(const char* manager)
 
         // try to sync this file from the MGM
         if (gFmdDbMapHandler.ResyncMgm(GetId(), fid, manager)) {
-          eos_static_info("msg=\"resync ok\" fsid=%lu fid=%08llx",
-                          (unsigned long) GetId(),
-                          fid);
+          eos_static_info("msg=\"resync ok\" fsid=%lu fxid=%08llx",
+                          (unsigned long) GetId(), fid);
         } else {
-          eos_static_err("msg=\"resync failed\" fsid=%lu fid=%08llx",
+          eos_static_err("msg=\"resync failed\" fsid=%lu fxid=%08llx",
                          (unsigned long) GetId(), fid);
           ok = false;
           continue;

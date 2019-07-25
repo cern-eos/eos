@@ -136,7 +136,7 @@ Storage::Verify()
     } else {
       if ((fMd->mProtoFmd.size() != (unsigned long long) statinfo.st_size)  ||
           (fMd->mProtoFmd.disksize() != (unsigned long long) statinfo.st_size)) {
-        eos_static_err("updating file size: path=%s fid=%s fs value %llu - changelog value %llu",
+        eos_static_err("updating file size: path=%s fxid=%s fs value %llu - changelog value %llu",
                        verifyfile->path.c_str(), hex_fid.c_str(), statinfo.st_size,
                        fMd->mProtoFmd.size());
         fMd->mProtoFmd.set_disksize(statinfo.st_size);
@@ -144,14 +144,14 @@ Storage::Verify()
       }
 
       if (fMd->mProtoFmd.lid() != verifyfile->lId) {
-        eos_static_err("updating layout id: path=%s fid=%s central value %u - changelog value %u",
+        eos_static_err("updating layout id: path=%s fxid=%s central value %u - changelog value %u",
                        verifyfile->path.c_str(), hex_fid.c_str(), verifyfile->lId,
                        fMd->mProtoFmd.lid());
         localUpdate = true;
       }
 
       if (fMd->mProtoFmd.cid() != verifyfile->cId) {
-        eos_static_err("updating container: path=%s fid=%s central value %llu - changelog value %llu",
+        eos_static_err("updating container: path=%s fxid=%s central value %llu - changelog value %llu",
                        verifyfile->path.c_str(), hex_fid.c_str(), verifyfile->cId,
                        fMd->mProtoFmd.cid());
         localUpdate = true;
@@ -201,7 +201,7 @@ Storage::Verify()
           }
 
           if (cxError) {
-            eos_static_err("checksum invalid   : path=%s fid=%s checksum=%s stored-checksum=%s",
+            eos_static_err("checksum invalid   : path=%s fxid=%s checksum=%s stored-checksum=%s",
                            verifyfile->path.c_str(), hex_fid.c_str(), checksummer->GetHexChecksum(),
                            fMd->mProtoFmd.checksum().c_str());
             fMd->mProtoFmd.set_checksum(computedchecksum);
@@ -220,7 +220,7 @@ Storage::Verify()
 
             localUpdate = true;
           } else {
-            eos_static_info("checksum OK        : path=%s fid=%s checksum=%s",
+            eos_static_info("checksum OK        : path=%s fxid=%s checksum=%s",
                             verifyfile->path.c_str(), hex_fid.c_str(),
                             checksummer->GetHexChecksum());
 

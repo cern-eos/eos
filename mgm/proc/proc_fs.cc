@@ -134,7 +134,6 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
   std::ostringstream out;
   std::ostringstream err;
   std::ostringstream warn;
-
   out << std::setfill('0');
   warn << std::setfill('0') << std::hex;
 
@@ -187,19 +186,20 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
           if (processPath) {
             try {
               std::string spath = gOFS->eosView->getUri(fmd.get());
-
               XrdOucString safepath = spath.c_str();
-              while (safepath.replace("&", "#AND#")) {}
-              fullpath = safepath.c_str();
 
-              safepath = eos::common::Path{spath.c_str()}.GetParentPath();
               while (safepath.replace("&", "#AND#")) {}
+
+              fullpath = safepath.c_str();
+              safepath = eos::common::Path{spath.c_str()} .GetParentPath();
+
+              while (safepath.replace("&", "#AND#")) {}
+
               containerpath = safepath.c_str();
-            } catch(eos::MDException& e) {
+            } catch (eos::MDException& e) {
               errno = e.getErrno();
-              eos_static_err("Couldn't retrieve path for fid=%llx "
-                             "errc=%d emsg=\"%s\"",
-                             (unsigned long long) it_fid->getElement(),
+              eos_static_err("Couldn't retrieve path for fxid=%08llx "
+                             "errc=%d emsg=\"%s\"", it_fid->getElement(),
                              e.getErrno(), e.getMessage().str().c_str());
             }
           }
@@ -226,6 +226,8 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
             }
 
             if (dumpfid) {
+              // @todo(esindril) this should use the fxid tag but for the
+              // moment we don't change it to avoid breaking scripts.
               out << (dumppath ? " " : "") << "fid=" << std::setw(8)
                   << std::hex << fmd->getId() << std::dec;
             }
@@ -240,18 +242,18 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
         }
       } catch (eos::MDException& e) {
         errno = e.getErrno();
-        eos_static_err("Couldn't retrieve meta data for fid=%llx errc=%d "
+        eos_static_err("Couldn't retrieve meta data for fxid=%llx errc=%d "
                        "emsg=\"%s\"", (unsigned long long) it_fid->getElement(),
                        e.getErrno(), e.getMessage().str().c_str());
       }
 
       if (!fmd) {
-        warn << "# warning: ghost entry fid=" << std::setw(8)
-             << it_fid->getElement() << endl;
+        warn << "# warning: ghost entry fxid=" << std::setw(8) << std::hex
+             << it_fid->getElement() << std::dec << endl;
         retc = EIDRM;
       } else if (processPath && containerpath.empty()) {
-        warn << "# warning: missing container for fid=" << std::setw(8)
-             << fmd->getId() << endl;
+        warn << "# warning: missing container for fxid=" << std::setw(8)
+             << std::hex << fmd->getId() << std::dec << endl;
         retc = EIDRM;
       }
     }
@@ -275,9 +277,9 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
           }
         } catch (eos::MDException& e) {
           errno = e.getErrno();
-          eos_static_err("Couldn't retrieve meta data for fid=%llx errc=%d "
-                         "emsg=\"%s\"", (unsigned long long) it_fid->getElement(),
-                         e.getErrno(), e.getMessage().str().c_str());
+          eos_static_err("Couldn't retrieve meta data for fxid=%08llx errc=%d "
+                         "emsg=\"%s\"", it_fid->getElement(), e.getErrno(),
+                         e.getMessage().str().c_str());
         }
       }
     }
@@ -290,7 +292,6 @@ proc_fs_dumpmd(std::string& sfsid, XrdOucString& option, XrdOucString& dp,
 
   stdOut += out.str().c_str();
   stdErr = err.str().c_str();
-
   return retc;
 }
 
@@ -319,17 +320,17 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
     FileSystem* fs = nullptr;
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
 
-    if(fsid) {
+    if (fsid) {
       // by filesystem id
       fs = FsView::gFsView.mIdView.lookupByID(fsid);
     }
 
-    if(!fs && FsView::gFsView.GetMapping(identifier)) {
+    if (!fs && FsView::gFsView.GetMapping(identifier)) {
       // by filesystem uuid
       fs = FsView::gFsView.mIdView.lookupByID(FsView::gFsView.GetMapping(identifier));
     }
 
-    if(!fs) {
+    if (!fs) {
       // by host:port:data name
       std::string path = identifier;
       size_t slashpos = identifier.find('/');
@@ -349,10 +350,10 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
 
         if (FsView::gFsView.mNodeView.count(identifier)) {
           for (auto it = FsView::gFsView.mNodeView[identifier]->begin();
-              it != FsView::gFsView.mNodeView[identifier]->end(); ++it) {
-
+               it != FsView::gFsView.mNodeView[identifier]->end(); ++it) {
             FileSystem* candidate = FsView::gFsView.mIdView.lookupByID(*it);
-            if(candidate && candidate->GetPath() == path) {
+
+            if (candidate && candidate->GetPath() == path) {
               fs = candidate;
             }
           }
@@ -535,7 +536,8 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
   int retc = 0;
   const std::string vid_hostname = vid_in.host;
   common::FileSystem::fsid_t fsid = atoi(sfsid.c_str());
-  common::ConfigStatus configStatus = common::FileSystem::GetConfigStatusFromString(configstatusStr.c_str());
+  common::ConfigStatus configStatus =
+    common::FileSystem::GetConfigStatusFromString(configstatusStr.c_str());
 
   if ((!nodename.length()) || (!mountpoint.length()) || (!space.length()) ||
       (!configstatusStr.length()) ||
@@ -570,9 +572,9 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
     if ((vid_in.prot == "sss") && (vid_in.uid != 0)) {
       if (!skip_hostname_match &&
           vid_hostname.compare(0, rnodename.length(),
-                                rnodename, 0, rnodename.length())) {
+                               rnodename, 0, rnodename.length())) {
         stdErr = "error: filesystems can only be configured as 'root' or "
-                  "from the server mounting them using sss protocol (1)\n";
+                 "from the server mounting them using sss protocol (1)\n";
         retc = EPERM;
         return retc;
       }
@@ -587,9 +589,9 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
   // queuepath = /eos/<host:port><path>
   std::string queuepath = nodename;
   queuepath += mountpoint;
-
   common::FileSystemLocator locator;
-  if(!common::FileSystemLocator::fromQueuePath(queuepath, locator)) {
+
+  if (!common::FileSystemLocator::fromQueuePath(queuepath, locator)) {
     eos_static_crit("could not parse queue path: %s", queuepath.c_str());
     stdErr += "error: could not parse queue path";
     retc = EINVAL;
@@ -622,11 +624,13 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
           stdErr += "error: conflict adding your uuid & id mapping";
           retc = EINVAL;
         } else {
-          fs = new FileSystem(locator, &gOFS->ObjectManager, eos::common::GlobalConfig::gConfig.QSOM());
+          fs = new FileSystem(locator, &gOFS->ObjectManager,
+                              eos::common::GlobalConfig::gConfig.QSOM());
         }
       } else {
         fsid = FsView::gFsView.CreateMapping(uuid);
-        fs = new FileSystem(locator, &gOFS->ObjectManager, eos::common::GlobalConfig::gConfig.QSOM());
+        fs = new FileSystem(locator, &gOFS->ObjectManager,
+                            eos::common::GlobalConfig::gConfig.QSOM());
       }
 
       XrdOucString sizestring;
@@ -653,9 +657,9 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
 
         if (FsView::gFsView.mSpaceView.count(splitspace)) {
           groupsize = atoi(FsView::gFsView.mSpaceView[splitspace]->GetMember(
-                           std::string("cfg.groupsize")).c_str());
+                             std::string("cfg.groupsize")).c_str());
           groupmod = atoi(FsView::gFsView.mSpaceView[splitspace]->GetMember(
-                          std::string("cfg.groupmod")).c_str());
+                            std::string("cfg.groupmod")).c_str());
         }
 
         if (splitgroup.length()) {
@@ -688,9 +692,9 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
               // Check if this node doesn't already have a filesystem in this group
               for (auto it = FsView::gFsView.mGroupView[snewgroup]->begin();
                    it != FsView::gFsView.mGroupView[snewgroup]->end(); ++it) {
-
                 FileSystem* entry = FsView::gFsView.mIdView.lookupByID(*it);
-                if(entry && entry->GetString("host") == fs->GetString("host")) {
+
+                if (entry && entry->GetString("host") == fs->GetString("host")) {
                   // This subgroup has already this host
                   exists = true;
                 }
@@ -698,7 +702,7 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
 
               if ((!exists) &&
                   (((FsView::gFsView.mGroupView[snewgroup]->size()) < groupsize) ||
-                  (groupsize == 0))) {
+                   (groupsize == 0))) {
                 // Great, there is still space here
                 splitgroup = newgroup;
                 break;
@@ -738,9 +742,8 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
         if (!retc) {
           common::GroupLocator groupLocator;
           common::GroupLocator::parseGroup(splitgroup, groupLocator);
-
-          common::FileSystemCoreParams params(fsid, locator, groupLocator, uuid, configStatus);
-
+          common::FileSystemCoreParams params(fsid, locator, groupLocator, uuid,
+                                              configStatus);
           fs->SetString("schedgroup", splitgroup.c_str());
 
           if (!FsView::gFsView.Register(fs, params)) {
@@ -941,7 +944,8 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
 
       for (auto it = grp->begin(); it != grp->end(); ++it) {
         FileSystem* entry = fs_view.mIdView.lookupByID(*it);
-        if(entry) {
+
+        if (entry) {
           qnode = entry->GetQueue();
 
           if (fs_qnode == qnode) {
@@ -987,13 +991,16 @@ int proc_mv_fs_group(FsView& fs_view, const std::string& src,
     paramlist.insert("headroom");
     paramlist.insert("drainperiod");
     paramlist.insert("graceperiod");
-    for ( auto it = paramlist.begin(); it != paramlist.end(); ++it) {
+
+    for (auto it = paramlist.begin(); it != paramlist.end(); ++it) {
       std::string value = it_space->second->GetConfigMember(*it);
+
       if (value.length()) {
-	int64_t uvalue = eos::common::StringConversion::GetSizeFromString(value.c_str());
-	fs->SetLongLong(it->c_str(),uvalue);
-	FsView::gFsView.StoreFsConfig(fs);
-	oss << "info: applying space config " << *it << "=" << value << std::endl;
+        int64_t uvalue = eos::common::StringConversion::GetSizeFromString(
+                           value.c_str());
+        fs->SetLongLong(it->c_str(), uvalue);
+        FsView::gFsView.StoreFsConfig(fs);
+        oss << "info: applying space config " << *it << "=" << value << std::endl;
       }
     }
 

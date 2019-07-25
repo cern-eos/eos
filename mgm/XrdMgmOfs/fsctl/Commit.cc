@@ -147,7 +147,7 @@ XrdMgmOfs::Commit(const char* path,
 
       // Check if fsid and fid are ok
       if (fmd->getId() != fid) {
-        eos_thread_notice("commit for fid=%08llx != fmd_fid=%08llx",
+        eos_thread_notice("commit for fxid=%08llx != fmd_fxid=%08llx",
                           fid, fmd->getId());
         gOFS->MgmStats.Add("CommitFailedFid", 0, 0, 1);
         return Emsg(epname, error, EINVAL,
@@ -157,7 +157,7 @@ XrdMgmOfs::Commit(const char* path,
 
       // Check if file is already unlinked from the visible namespace
       if (!(cid = fmd->getContainerId())) {
-        eos_thread_debug("commit for fid=%08llx but file is disconnected "
+        eos_thread_debug("commit for fxid=%08llx but file is disconnected "
                          "from any container", fmd->getId());
         gOFS->MgmStats.Add("CommitFailedUnlinked", 0, 0, 1);
         return Emsg(epname, error, EIDRM,
@@ -171,7 +171,7 @@ XrdMgmOfs::Commit(const char* path,
 
         // Check if we have this replica in the unlink list
         if (option["fusex"] && fmd->hasUnlinkedLocation((unsigned int) fsid)) {
-          eos_thread_err("suppressing possible recovery replica for fid=%08llx "
+          eos_thread_err("suppressing possible recovery replica for fxid=%08llx "
                          "on unlinked fsid=%llu - rejecting replica",
                          fmd->getId(), fsid);
           // This happens when a FUSEX recovery has been triggered.
@@ -205,7 +205,7 @@ XrdMgmOfs::Commit(const char* path,
       if (option["verifysize"]) {
         // Check if a file size change was detected
         if (fmd->getSize() != size) {
-          eos_thread_err("commit for fid=%08llx gave a file size change after "
+          eos_thread_err("commit for fxid=%08llx gave a file size change after "
                          "verification on fsid=%llu", fmd->getId(), fsid);
         }
       }
@@ -273,10 +273,9 @@ XrdMgmOfs::Commit(const char* path,
 
         // Check for versioning request
         if (option["versioning"]) {
-          eos_static_info("checked %s%s vfid=%08llx",
+          eos_static_info("checked %s%s vfxid=%08llx",
                           paths["versiondir"].GetParentPath(),
-                          paths["atomic"].GetPath(),
-                          vfid);
+                          paths["atomic"].GetPath(), vfid);
 
           // We purged the versions before during open, so we just simulate
           // a new one and do the final rename in a transaction

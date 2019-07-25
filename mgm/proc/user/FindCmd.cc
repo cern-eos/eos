@@ -100,7 +100,8 @@ static void printReplicas(std::ofstream& ss,
   for (auto lociter : fmd->getLocations()) {
     // lookup filesystem
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(lociter);
+    eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(
+                                            lociter);
 
     if (!filesystem) {
       continue;
@@ -149,12 +150,13 @@ static bool hasMixedSchedGroups(std::shared_ptr<eos::IFileMD>& fmd)
   for (auto lociter : fmd->getLocations()) {
     // ignore filesystem id 0
     if (!lociter) {
-      eos_static_err("fsid 0 found fid=%08llx", fmd->getId());
+      eos_static_err("fsid 0 found fxid=%08llx", fmd->getId());
       continue;
     }
 
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(lociter);
+    eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(
+                                            lociter);
 
     if (filesystem != nullptr) {
       sGroup = filesystem->GetString("schedgroup");
@@ -598,7 +600,7 @@ public:
     options.expansionDecider.reset(new PermissionFilter(vid));
     options.view = gOFS->eosView;
     explorer.reset(new NamespaceExplorer(path, options, *qcl,
-      static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor()) );
+                                         static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor()));
   }
 
   //----------------------------------------------------------------------------

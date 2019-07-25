@@ -487,7 +487,7 @@ WFE::Job::Load(std::string path2entry)
 
   if (s1 && s2) {
     mFid = eos::common::FileId::Hex2Fid(id.c_str());
-    eos_static_info("workflow=\"%s\" fid=%08llx", workflow.c_str(), mFid);
+    eos_static_info("workflow=\"%s\" fxid=%08llx", workflow.c_str(), mFid);
     {
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path2entry);
       eos::common::RWMutexReadLock rLock {gOFS->eosViewRWMutex};
@@ -1633,26 +1633,27 @@ int WFE::Job::HandleProtoMethodEvents(std::string& errorMsg,
 
 
 int
-WFE::Job::HandleProtoMethodPrepareEvent(const std::string &fullPath,
-                                        const char * const ininfo,
+WFE::Job::HandleProtoMethodPrepareEvent(const std::string& fullPath,
+                                        const char* const ininfo,
                                         std::string& errorMsg)
 {
   using namespace std::chrono;
-
   struct stat buf;
   XrdOucErrInfo errInfo;
   bool onDisk;
   bool onTape;
-
   EXEC_TIMING_BEGIN("Proto::Prepare");
   gOFS->MgmStats.Add("Proto::Prepare", 0, 0, 1);
 
   // Check if we have a disk replica and if not, whether it's on tape
-  if(gOFS->_stat(fullPath.c_str(), &buf, errInfo, mVid, nullptr, nullptr, false) == 0) {
-    onDisk = ((buf.st_mode & EOS_TAPE_MODE_T) ? buf.st_nlink-1 : buf.st_nlink) > 0;
-    onTape =  (buf.st_mode & EOS_TAPE_MODE_T) != 0;
+  if (gOFS->_stat(fullPath.c_str(), &buf, errInfo, mVid, nullptr, nullptr,
+                  false) == 0) {
+    onDisk = ((buf.st_mode & EOS_TAPE_MODE_T) ? buf.st_nlink - 1 : buf.st_nlink) >
+             0;
+    onTape = (buf.st_mode & EOS_TAPE_MODE_T) != 0;
   } else {
-    eos_static_err("Cannot determine file and disk replicas, not doing the prepare. Reason: %s", errInfo.getErrText());
+    eos_static_err("Cannot determine file and disk replicas, not doing the prepare. Reason: %s",
+                   errInfo.getErrText());
     MoveWithResults(EAGAIN);
     return EAGAIN;
   }
@@ -1660,50 +1661,58 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string &fullPath,
   uid_t cuid = 99;
   gid_t cgid = 99;
 
-  if(onDisk) {
-    eos_static_info("File %s is already on disk, nothing to prepare.", fullPath.c_str());
+  if (onDisk) {
+    eos_static_info("File %s is already on disk, nothing to prepare.",
+                    fullPath.c_str());
     MoveWithResults(SFS_OK);
     return SFS_OK;
-  } else if(!onTape) {
-    eos_static_err("File %s is not on disk nor on tape, cannot prepare it.", fullPath.c_str());
+  } else if (!onTape) {
+    eos_static_err("File %s is not on disk nor on tape, cannot prepare it.",
+                   fullPath.c_str());
     MoveWithResults(ENODATA);
     return ENODATA;
   } else {
     eos::common::RWMutexWriteLock lock;
     lock.Grab(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
-
     // Get the list of in-flight Prepare requests for this file (if any)
     XattrSet prepareReqIds;
-    if(fmd->hasAttribute(RETRIEVE_REQID_ATTR_NAME)) {
+
+    if (fmd->hasAttribute(RETRIEVE_REQID_ATTR_NAME)) {
       prepareReqIds.deserialize(fmd->getAttribute(RETRIEVE_REQID_ATTR_NAME));
     }
+
     bool isFirstPrepare = prepareReqIds.values.empty();
 
     try {
       // Get the new request ID from the opaque data and add it to the list
       XrdOucEnv opaque(ininfo);
       const char* const opaqueRequestId = opaque.Get("mgm.reqid");
-      if(opaqueRequestId == nullptr) { throw_mdexception(EINVAL, "Extended attribute mgm.reqid does not exist."); }
+
+      if (opaqueRequestId == nullptr) {
+        throw_mdexception(EINVAL, "Extended attribute mgm.reqid does not exist.");
+      }
+
       prepareReqIds.values.insert(opaqueRequestId);
       fmd->setAttribute(RETRIEVE_REQID_ATTR_NAME, prepareReqIds.serialize());
 
       // if we are the first to retrieve the file
-      if(isFirstPrepare) {
+      if (isFirstPrepare) {
         fmd->setAttribute(RETRIEVE_ERROR_ATTR_NAME, "");
         // Read these attributes here to optimize locking
         cuid = fmd->getCUid();
         cgid = fmd->getCGid();
         gOFS->eosView->updateFileStore(fmd.get());
       } else {
-        eos_static_info("File %s is already being retrieved by %u clients.", fullPath.c_str(), prepareReqIds.values.size()-1);
+        eos_static_info("File %s is already being retrieved by %u clients.",
+                        fullPath.c_str(), prepareReqIds.values.size() - 1);
         MoveWithResults(SFS_OK);
         return SFS_OK;
       }
-    } catch(eos::MDException& ex) {
+    } catch (eos::MDException& ex) {
       lock.Release();
       eos_static_err("Could not write attributes %s and %s for file %s. Not doing the retrieve.",
-        RETRIEVE_REQID_ATTR_NAME, RETRIEVE_ERROR_ATTR_NAME, fullPath.c_str());
+                     RETRIEVE_REQID_ATTR_NAME, RETRIEVE_ERROR_ATTR_NAME, fullPath.c_str());
       MoveWithResults(EAGAIN);
       return EAGAIN;
     }
@@ -1711,61 +1720,73 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string &fullPath,
 
   // If we reached this point: the file is not on disk, it is on tape, and this is the first Prepare
   // request for this file. Proceed with issuing the Prepare request to the tape back-end.
-
   cta::xrd::Request request;
   auto notification = request.mutable_notification();
-  notification->mutable_cli()->mutable_user()->set_username(GetUserName(mVid.uid));
-  notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(mVid.gid));
-  for(const auto& attribute : CollectAttributes(fullPath))
-  {
-    google::protobuf::MapPair<std::string, std::string> attr(attribute.first, attribute.second);
+  notification->mutable_cli()->mutable_user()->set_username(GetUserName(
+        mVid.uid));
+  notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(
+        mVid.gid));
+
+  for (const auto& attribute : CollectAttributes(fullPath)) {
+    google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
+        attribute.second);
     notification->mutable_file()->mutable_xattr()->insert(attr);
   }
+
   notification->mutable_wf()->set_event(cta::eos::Workflow::PREPARE);
   notification->mutable_file()->set_lpath(fullPath);
-  notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
+  notification->mutable_wf()->mutable_instance()->set_name(
+    gOFS->MgmOfsInstanceName.c_str());
   notification->mutable_file()->set_fid(mFid);
   notification->mutable_file()->mutable_owner()->set_username(GetUserName(cuid));
-  notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(cgid));
+  notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(
+        cgid));
   auto fxidString = StringConversion::FastUnsignedToAsciiHex(mFid);
   std::ostringstream destStream;
-  destStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:" << fxidString;
-  destStream << "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=" << RETRIEVE_WRITTEN_WORKFLOW_NAME;
+  destStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:"
+             << fxidString;
+  destStream << "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=" <<
+             RETRIEVE_WRITTEN_WORKFLOW_NAME;
   notification->mutable_transport()->set_dst_url(destStream.str());
   std::ostringstream errorReportStream;
   errorReportStream << "eosQuery://" << gOFS->HostName
-    << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
-    << "&mgm.logid=cta&mgm.event=" << RETRIEVE_FAILED_WORKFLOW_NAME
-    << "&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0&mgm.errmsg=";
-  notification->mutable_transport()->set_error_report_url(errorReportStream.str());
+                    << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
+                    << "&mgm.logid=cta&mgm.event=" << RETRIEVE_FAILED_WORKFLOW_NAME
+                    << "&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0&mgm.errmsg=";
+  notification->mutable_transport()->set_error_report_url(
+    errorReportStream.str());
   auto sendResult = SendProtoWFRequest(this, fullPath, request, errorMsg);
-
   // Create timestamp
-  std::string ctimestr(std::to_string(system_clock::to_time_t(system_clock::now())));
+  std::string ctimestr(std::to_string(system_clock::to_time_t(
+                                        system_clock::now())));
 
-  if(sendResult == 0) {
+  if (sendResult == 0) {
     // Update the timestamp of the last Prepare request that was successfully sent
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
+
     try {
       fmd->setAttribute(RETRIEVE_REQTIME_ATTR_NAME, ctimestr);
       gOFS->eosView->updateFileStore(fmd.get());
-    } catch(eos::MDException& ex) {
+    } catch (eos::MDException& ex) {
       // fail silently if we couldn't update the timestamp
     }
   } else {
-    if(errorMsg.empty()) { errorMsg = "Prepare handshake failed"; }
-    std::string errorMsgAttr = ctimestr + " -> " + errorMsg;
+    if (errorMsg.empty()) {
+      errorMsg = "Prepare handshake failed";
+    }
 
+    std::string errorMsgAttr = ctimestr + " -> " + errorMsg;
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
+
     try {
       // Delete the request ID from the extended attributes so it can be retried
       fmd->setAttribute(RETRIEVE_REQID_ATTR_NAME, "");
       fmd->setAttribute(RETRIEVE_REQTIME_ATTR_NAME, "");
       fmd->setAttribute(RETRIEVE_ERROR_ATTR_NAME, errorMsgAttr);
       gOFS->eosView->updateFileStore(fmd.get());
-    } catch(eos::MDException& ex) {}
+    } catch (eos::MDException& ex) {}
   }
 
   EXEC_TIMING_END("Proto::Prepare");
@@ -1774,13 +1795,12 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string &fullPath,
 
 
 int
-WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string &fullPath,
-                                             const char * const ininfo,
-                                             std::string &errorMsg)
+WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
+    const char* const ininfo,
+    std::string& errorMsg)
 {
   EXEC_TIMING_BEGIN("Proto::Prepare::Abort");
   gOFS->MgmStats.Add("Proto::Prepare::Abort", 0, 0, 1);
-
   XattrSet prepareReqIds;
   {
     eos::common::RWMutexWriteLock lock;
@@ -1788,13 +1808,13 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string &fullPath,
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
 
     try {
-      if(fmd->hasAttribute(RETRIEVE_REQID_ATTR_NAME)) {
+      if (fmd->hasAttribute(RETRIEVE_REQID_ATTR_NAME)) {
         prepareReqIds.deserialize(fmd->getAttribute(RETRIEVE_REQID_ATTR_NAME));
       }
-    } catch(...) {
+    } catch (...) {
       lock.Release();
       eos_static_err("Could not determine ongoing retrieves for file %s. Check the %s extended attribute",
-        fullPath.c_str(), RETRIEVE_REQID_ATTR_NAME);
+                     fullPath.c_str(), RETRIEVE_REQID_ATTR_NAME);
       MoveWithResults(EAGAIN);
       return EAGAIN;
     }
@@ -1803,24 +1823,27 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string &fullPath,
       // Remove the request ID from the list in the Xattr
       XrdOucEnv opaque(ininfo);
       const char* const opaqueRequestId = opaque.Get("mgm.reqid");
-      if(opaqueRequestId == nullptr) {
+
+      if (opaqueRequestId == nullptr) {
         throw_mdexception(EINVAL, "mgm.reqid not found in opaque data");
       }
-      if(prepareReqIds.values.erase(opaqueRequestId) != 1) {
+
+      if (prepareReqIds.values.erase(opaqueRequestId) != 1) {
         throw_mdexception(EINVAL, "Request ID not found in extended attributes");
       }
+
       fmd->setAttribute(RETRIEVE_REQID_ATTR_NAME, prepareReqIds.serialize());
       gOFS->eosView->updateFileStore(fmd.get());
-    } catch(eos::MDException &ex) {
+    } catch (eos::MDException& ex) {
       lock.Release();
       eos_static_err("Error accessing attribute %s for file %s: %s. Not doing the abort retrieve.",
-        RETRIEVE_REQID_ATTR_NAME, fullPath.c_str(), ex.what());
+                     RETRIEVE_REQID_ATTR_NAME, fullPath.c_str(), ex.what());
       MoveWithResults(EAGAIN);
       return EAGAIN;
     }
   }
 
-  if(!prepareReqIds.values.empty()) {
+  if (!prepareReqIds.values.empty()) {
     // There are other pending Prepare requests on this file, just return OK
     MoveWithResults(SFS_OK);
     return SFS_OK;
@@ -1829,13 +1852,17 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string &fullPath,
   // optimization for reduced memory IO during write lock
   cta::xrd::Request request;
   auto notification = request.mutable_notification();
-  notification->mutable_cli()->mutable_user()->set_username(GetUserName(mVid.uid));
-  notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(mVid.gid));
-  for (const auto& attribute : CollectAttributes(fullPath))
-  {
-    google::protobuf::MapPair<std::string, std::string> attr(attribute.first, attribute.second);
+  notification->mutable_cli()->mutable_user()->set_username(GetUserName(
+        mVid.uid));
+  notification->mutable_cli()->mutable_user()->set_groupname(GetGroupName(
+        mVid.gid));
+
+  for (const auto& attribute : CollectAttributes(fullPath)) {
+    google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
+        attribute.second);
     notification->mutable_file()->mutable_xattr()->insert(attr);
   }
+
   uid_t cuid = 99;
   gid_t cgid = 99;
   {
@@ -1845,62 +1872,68 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string &fullPath,
     cgid = fmd->getCGid();
   }
   notification->mutable_file()->mutable_owner()->set_username(GetUserName(cuid));
-  notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(cgid));
+  notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(
+        cgid));
   notification->mutable_wf()->set_event(cta::eos::Workflow::ABORT_PREPARE);
   notification->mutable_file()->set_lpath(fullPath);
-  notification->mutable_wf()->mutable_instance()->set_name(gOFS->MgmOfsInstanceName.c_str());
+  notification->mutable_wf()->mutable_instance()->set_name(
+    gOFS->MgmOfsInstanceName.c_str());
   notification->mutable_file()->set_fid(mFid);
   auto s_ret = SendProtoWFRequest(this, fullPath, request, errorMsg);
-  if(s_ret == 0) {
+
+  if (s_ret == 0) {
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
+
     try {
       // All Prepare requests cancelled by the user:
       // Delete the request time and error message from the extended attributes
       fmd->setAttribute(RETRIEVE_REQTIME_ATTR_NAME, "");
       fmd->setAttribute(RETRIEVE_ERROR_ATTR_NAME, "");
       gOFS->eosView->updateFileStore(fmd.get());
-    } catch(eos::MDException& ex) {}
+    } catch (eos::MDException& ex) {}
   }
+
   EXEC_TIMING_END("Proto::Prepare::Abort");
   return s_ret;
 }
 
 int
-WFE::Job::HandleProtoMethodEvictPrepareEvent(const std::string &fullPath,
-                                             const char * const ininfo,
-                                             std::string& errorMsg)
+WFE::Job::HandleProtoMethodEvictPrepareEvent(const std::string& fullPath,
+    const char* const ininfo,
+    std::string& errorMsg)
 {
   using namespace std::chrono;
-
   struct stat buf;
   XrdOucErrInfo errInfo;
   bool onDisk;
   bool onTape;
-
   EXEC_TIMING_BEGIN("Proto::EvictPrepare");
   gOFS->MgmStats.Add("Proto::EvictPrepare", 0, 0, 1);
-
   std::ostringstream preamble;
   preamble << "fxid=" << std::hex << mFid << " file=" << fullPath;
 
   // Check if we have a disk replica and if not, whether it's on tape
-  if(gOFS->_stat(fullPath.c_str(), &buf, errInfo, mVid, nullptr, nullptr, false) == 0) {
-    onDisk = ((buf.st_mode & EOS_TAPE_MODE_T) ? buf.st_nlink-1 : buf.st_nlink) > 0;
-    onTape =  (buf.st_mode & EOS_TAPE_MODE_T) != 0;
+  if (gOFS->_stat(fullPath.c_str(), &buf, errInfo, mVid, nullptr, nullptr,
+                  false) == 0) {
+    onDisk = ((buf.st_mode & EOS_TAPE_MODE_T) ? buf.st_nlink - 1 : buf.st_nlink) >
+             0;
+    onTape = (buf.st_mode & EOS_TAPE_MODE_T) != 0;
   } else {
     std::ostringstream msg;
-    msg << preamble.str() << " msg=\"Cannot determine file and disk replicas, not doing the evict. Reason: " << errInfo.getErrText() << "\"";
+    msg << preamble.str() <<
+        " msg=\"Cannot determine file and disk replicas, not doing the evict. Reason: "
+        << errInfo.getErrText() << "\"";
     eos_static_err(msg.str().c_str());
     MoveWithResults(EAGAIN);
     return EAGAIN;
   }
 
-  if(!onDisk) {
+  if (!onDisk) {
     std::ostringstream msg;
     msg << preamble.str() << " msg=\"File is not on disk, nothing to evict.\"";
     eos_static_info(msg.str().c_str());
-  } else if(!onTape) {
+  } else if (!onTape) {
     std::ostringstream msg;
     msg << preamble.str() << " msg=\"File is not on tape, cannot evict it.\"";
     eos_static_err(msg.str().c_str());
@@ -1909,13 +1942,15 @@ WFE::Job::HandleProtoMethodEvictPrepareEvent(const std::string &fullPath,
   } else {
     const auto result = StagerrmAsRoot(mFid);
 
-    if(0 == result.retc()) {
+    if (0 == result.retc()) {
       std::ostringstream msg;
-      msg << preamble.str() << " msg=\"Successfully issued stagerrm for evict_prepare event\"";
+      msg << preamble.str() <<
+          " msg=\"Successfully issued stagerrm for evict_prepare event\"";
       eos_static_info(msg.str().c_str());
     } else {
       std::ostringstream msg;
-      msg << preamble.str() << " msg=\"Failed to issue stagerrm for evict_prepare event\"";
+      msg << preamble.str() <<
+          " msg=\"Failed to issue stagerrm for evict_prepare event\"";
       eos_static_info(msg.str().c_str());
       MoveWithResults(EAGAIN);
       return EAGAIN;
@@ -1957,7 +1992,8 @@ WFE::Job::HandleProtoMethodCreateEvent(const std::string& fullPath,
   notification->mutable_file()->mutable_owner()->set_uid(cuid);
   notification->mutable_file()->mutable_owner()->set_gid(cgid);
   notification->mutable_file()->mutable_owner()->set_username(GetUserName(cuid));
-  notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(cgid));
+  notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(
+        cgid));
   notification->mutable_wf()->set_event(cta::eos::Workflow::CREATE);
   notification->mutable_wf()->mutable_instance()->set_name(
     gOFS->MgmOfsInstanceName.c_str());
@@ -2020,7 +2056,8 @@ WFE::Job::HandleProtoMethodCloseEvent(const std::string& event,
 }
 
 void
-WFE::Job::resetRetrieveIdListAndErrorMsg(const std::string &fullPath) {
+WFE::Job::resetRetrieveIdListAndErrorMsg(const std::string& fullPath)
+{
   std::string errorMsg;
 
   try {
@@ -2030,16 +2067,16 @@ WFE::Job::resetRetrieveIdListAndErrorMsg(const std::string &fullPath) {
     fmd->setAttribute(RETRIEVE_REQTIME_ATTR_NAME, "");
     fmd->setAttribute(RETRIEVE_ERROR_ATTR_NAME, "");
     gOFS->eosView->updateFileStore(fmd.get());
-
     return;
-  } catch (std::exception &se) {
+  } catch (std::exception& se) {
     errorMsg = se.what();
   } catch (...) {
     errorMsg = "Caught an unknown exception";
   }
 
   // Reaching this point means an exception was thrown and caught
-  eos_static_err("Could not reset retrieves counter and error attribute for file %s: %s", fullPath.c_str(), errorMsg.c_str());
+  eos_static_err("Could not reset retrieves counter and error attribute for file %s: %s",
+                 fullPath.c_str(), errorMsg.c_str());
 }
 
 int
@@ -2336,12 +2373,10 @@ console::ReplyProto
 WFE::Job::StagerrmAsRoot(const eos::IFileMD::id_t fid)
 {
   eos::common::VirtualIdentity rootVid = eos::common::VirtualIdentity::Root();
-
   eos::console::RequestProto req;
   eos::console::StagerRmProto* stagerRm = req.mutable_stagerrm();
   auto file = stagerRm->add_file();
   file->set_fid(fid);
-
   StagerRmCmd cmd(std::move(req), rootVid);
   return cmd.ProcessRequest();
 }

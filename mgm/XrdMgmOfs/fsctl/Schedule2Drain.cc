@@ -303,7 +303,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
           fmd->addLocation(it->second.second);
           gOFS->eosView->updateFileStore(fmd.get());
           eos_thread_info("msg=\"drained 0-size file\" "
-                          "fid=%08llx source-fsid=%u target-fsid=%u",
+                          "fxid=%08llx source-fsid=%u target-fsid=%u",
                           it->first, it->second.first, it->second.second);
         } else {
           // Check if this is an atomic file
@@ -312,7 +312,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
             fmd->removeLocation(it->second.first);
             gOFS->eosView->updateFileStore(fmd.get());
             eos_thread_info("msg=\"drained(unlinked) atomic upload file\" "
-                            "fid=%08llx source-fsid=%u target-fsid=%u",
+                            "fxid=%08llx source-fsid=%u target-fsid=%u",
                             it->first, it->second.first, it->second.second);
           } else {
             eos_thread_warning("msg=\"unexpected file in zero-move list "
@@ -400,7 +400,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
 
   for (size_t n = 0; n < group->size(); n++) {
     // Look for a filesystem in drain mode
-    FileSystem *fs1 = FsView::gFsView.mIdView.lookupByID(*group_iterator);
+    FileSystem* fs1 = FsView::gFsView.mIdView.lookupByID(*group_iterator);
     eos::common::DrainStatus drain_status = fs1->GetDrainStatus();
 
     if ((drain_status != eos::common::DrainStatus::kDraining) &&
@@ -457,12 +457,12 @@ XrdMgmOfs::Schedule2Drain(const char* path,
   for (auto it_fid = gOFS->eosFsView->getFileList(source_fsid);
        (it_fid && it_fid->valid()); it_fid->next()) {
     eos::IFileMD::id_t fid = it_fid->getElement();
-    eos_thread_debug("checking fid=%08llx", fid);
+    eos_thread_debug("checking fxid=%08llx", fid);
 
     // Check that the target does not have this file
     if (gOFS->eosFsView->hasFileId(fid, target_fsid)) {
       // Ignore file and move to the next
-      eos_static_debug("skip fid=%08llx - file exists on target fsid=%u",
+      eos_static_debug("skip fxid=%08llx - file exists on target fsid=%u",
                        fid, target_fsid);
       continue;
     }
@@ -472,7 +472,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
 
     if (gOFS->mDrainingTracker.HasEntry(fid)) {
       eos_thread_debug("msg=\"skip draining file scheduled during last hour\" "
-                       "fid=%08llx", fid);
+                       "fxid=%08llx", fid);
       continue;
     }
 
@@ -505,14 +505,14 @@ XrdMgmOfs::Schedule2Drain(const char* path,
     }
 
     if (!fmd) {
-      eos_thread_debug("skip fid=%08llx - cannot get fmd record", fid);
+      eos_thread_debug("skip fxid=%08llx - cannot get fmd record", fid);
       continue;
     }
 
     if (!size) {
       // This is a zero size file
       // We move the location by adding it to the static move map
-      eos_thread_info("cmd=schedule2drain msg=zero-move fid=%08llx source_fs=%u "
+      eos_thread_info("cmd=schedule2drain msg=zero-move fxid=%08llx source_fs=%u "
                       "target_fs=%u", fid, source_fsid, target_fsid);
       XrdSysMutexHelper zLock(sZeroMoveMutex);
       sZeroMove[fid] = std::make_pair(source_fsid, target_fsid);
@@ -521,7 +521,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
 
     if (fullpath.find(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) != std::string::npos) {
       // Drop a left-over atomic file instead of draining
-      eos_thread_info("cmd=schedule2drain msg=zero-move fid=%08llx source_fs=%u "
+      eos_thread_info("cmd=schedule2drain msg=zero-move fxid=%08llx source_fs=%u "
                       "target_fs=%u", fid, source_fsid, target_fsid);
       XrdSysMutexHelper zLock(sZeroMoveMutex);
       sZeroMove[fid] = std::make_pair(source_fsid, target_fsid);
@@ -588,7 +588,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
 
         if (rc) {
           // We schedule to retry the file after 60 seconds
-          eos_thread_err("cmd=schedule2drain msg=\"%s\" fid=%08llx retc=%d",
+          eos_thread_err("cmd=schedule2drain msg=\"%s\" fxid=%08llx retc=%d",
                          accError.getErrText(), fid, rc);
           gOFS->mDrainingTracker.AddEntry(fid, std::chrono::seconds(60));
           continue;
@@ -596,21 +596,22 @@ XrdMgmOfs::Schedule2Drain(const char* path,
       }
 
       if (size >= freebytes) {
-        eos_thread_warning("skip fid=%08llx - file size >= free bytes "
+        eos_thread_warning("skip fxid=%08llx - file size >= free bytes "
                            "fsize=%llu free_bytes=%llu", fid, size, freebytes);
         continue;
       }
 
       // We schedule fid from replica_source => target_fs
       unsigned int replica_fsid = locationfs[fsindex];
-      eos::common::FileSystem* replica_source_fs = FsView::gFsView.mIdView.lookupByID(replica_fsid);
+      eos::common::FileSystem* replica_source_fs = FsView::gFsView.mIdView.lookupByID(
+            replica_fsid);
 
-      if(!replica_source_fs) {
+      if (!replica_source_fs) {
         continue;
       }
 
       replica_source_fs->SnapShotFileSystem(replica_source_snapshot);
-      eos_thread_info("subcmd=scheduling fid=%08llx "
+      eos_thread_info("subcmd=scheduling fxid=%08llx "
                       "drain_fsid=%u replica_source_fsid=%u target_fsid=%u",
                       fid, source_fsid, replica_fsid, target_fsid);
       unsigned long target_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
@@ -659,7 +660,7 @@ XrdMgmOfs::Schedule2Drain(const char* path,
     txjob(new eos::common::TransferJob(full_capability.c_str()));
 
     if (target_fs->GetDrainQueue()->Add(txjob.get())) {
-      eos_thread_info("cmd=schedule2drain msg=queued fid=%08llx source_fs=%u "
+      eos_thread_info("cmd=schedule2drain msg=queued fxid=%08llx source_fs=%u "
                       "target_fs=%u", fid, source_fsid, target_fsid);
       eos_thread_debug("cmd=schedule2drain job=%s", full_capability.c_str());
       gOFS->mDrainingTracker.AddEntry(fid);

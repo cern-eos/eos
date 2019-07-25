@@ -78,7 +78,7 @@ Storage::MgmSyncer()
       struct Fmd fmd = gOFS.WrittenFilesQueue.front();
       gOFS.WrittenFilesQueue.pop();
       gOFS.WrittenFilesQueueMutex.UnLock();
-      eos_static_info("fid=%08llx mtime=%llu", fmd.fid(), fmd.mtime());
+      eos_static_info("fxid=%08llx mtime=%llu", fmd.fid(), fmd.mtime());
       // guarantee that we delay the check by atleast 60 seconds to wait for the commit of all recplias
       time_t delay = fmd.mtime() + 60 - now;
 
@@ -96,11 +96,11 @@ Storage::MgmSyncer()
       if (!isopenforwrite) {
         // now do the consistency check
         if (gFmdDbMapHandler.ResyncMgm(fmd.fsid(), fmd.fid(), nullptr)) {
-          eos_static_debug("msg=\"resync ok\" fsid=%lu fid=%08llx",
+          eos_static_debug("msg=\"resync ok\" fsid=%lu fxid=%08llx",
                            (unsigned long) fmd.fsid(), fmd.fid());
           gOFS.WrittenFilesQueueMutex.Lock();
         } else {
-          eos_static_err("msg=\"resync failed\" fsid=%lu fid=%08llx",
+          eos_static_err("msg=\"resync failed\" fsid=%lu fxid=%08llx",
                          (unsigned long) fmd.fsid(), fmd.fid());
           failure = true;
           gOFS.WrittenFilesQueueMutex.Lock(); // put back the lock and the entry

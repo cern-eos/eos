@@ -71,7 +71,7 @@ CommitHelper::check_filesystem(eos::common::VirtualIdentity& vid,
 
   if ((!fs) || (fs->GetConfigStatus() < eos::common::ConfigStatus::kDrain)) {
     eos_thread_err("msg=\"commit suppressed\" configstatus=%s subcmd=commit "
-                   "path=%s size=%s fid=%s fsid=%s dropfsid=%s checksum=%s"
+                   "path=%s size=%s fxid=%s fsid=%s dropfsid=%s checksum=%s"
                    " mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d oc-max=%d "
                    "oc-uuid=%s",
                    (fs ? eos::common::FileSystem::GetConfigStatusAsString(
@@ -186,7 +186,7 @@ CommitHelper::log_info(eos::common::VirtualIdentity& vid,
   tlLogId = thread_logid;
 
   if (cgi["checksum"].length()) {
-    eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%s "
+    eos_thread_info("subcmd=commit path=%s size=%s fxid=%s fsid=%s dropfsid=%s "
                     "checksum=%s mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d "
                     "oc-max=%d oc-uuid=%s",
                     cgi["path"].c_str(),
@@ -202,7 +202,7 @@ CommitHelper::log_info(eos::common::VirtualIdentity& vid,
                     params["oc_max"],
                     cgi["ocuuid"].c_str());
   } else {
-    eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%s "
+    eos_thread_info("subcmd=commit path=%s size=%s fxid=%s fsid=%s dropfsid=%s "
                     "mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d "
                     "oc-max=%d oc-uuid=%s",
                     cgi["path"].c_str(),
@@ -319,7 +319,7 @@ CommitHelper::validate_size(eos::common::VirtualIdentity& vid,
                             CommitHelper::option_t& option)
 {
   if (fmd->getSize() != size) {
-    eos_thread_err("replication for fid=%llu resulted in a different file "
+    eos_thread_err("replication for fxid=%08llx resulted in a different file "
                    "size on fsid=%llu - %llu vs %llu - rejecting replica", fmd->getId(), fsid,
                    fmd->getSize(), size);
     gOFS->MgmStats.Add("ReplicaFailedSize", 0, 0, 1);
@@ -372,7 +372,7 @@ CommitHelper::validate_checksum(eos::common::VirtualIdentity& vid,
   }
 
   if (cxError) {
-    eos_thread_err("replication for fid=%llu resulted in a different checksum "
+    eos_thread_err("replication for fxid=%08llx resulted in a different checksum "
                    "on fsid=%llu - rejecting replica", fmd->getId(), fsid);
     gOFS->MgmStats.Add("ReplicaFailedChecksum", 0, 0, 1);
 
@@ -383,7 +383,7 @@ CommitHelper::validate_checksum(eos::common::VirtualIdentity& vid,
       if (fmd->hasLocation((unsigned short) fsid)) {
         fmd->unlinkLocation((unsigned short) fsid);
         fmd->removeLocation((unsigned short) fsid);
-        eos_thread_err("replication for fid=%llu resulted in a different checksum "
+        eos_thread_err("replication for fxid=%08llx resulted in a different checksum "
                        "on fsid=%llu - dropping replica", fmd->getId(), fsid);
 
         try {
@@ -427,7 +427,7 @@ CommitHelper::log_verifychecksum(eos::common::VirtualIdentity& vid,
       }
 
       if (cxError) {
-        eos_thread_err("commit for fid=%llu gave a different checksum after "
+        eos_thread_err("commit for fxid=%08llx gave a different checksum after "
                        "verification on fsid=%llu", fmd->getId(), fsid);
       }
     }
@@ -728,7 +728,7 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
 
     if (!option["abort"]) {
       gOFS->eosView->renameFile(fmd.get(), paths["atomic"].GetName());
-      eos_thread_info("msg=\"de-atomize file\" fid=%llu atomic-name=%s "
+      eos_thread_info("msg=\"de-atomize file\" fxid=%08llx atomic-name=%s "
                       "final-name=%s", fmd->getId(), fmd->getName().c_str(),
                       paths["atomic"].GetName());
     }

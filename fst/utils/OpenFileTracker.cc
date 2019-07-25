@@ -21,9 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#define __STDC_FORMAT_MACROS
-#include <inttypes.h>
-
 #include "fst/utils/OpenFileTracker.hh"
 #include "common/Assert.hh"
 
@@ -37,7 +34,8 @@ OpenFileTracker::OpenFileTracker() {}
 //------------------------------------------------------------------------------
 // Mark that the given file ID, on the given filesystem ID, was just opened
 //------------------------------------------------------------------------------
-void OpenFileTracker::up(eos::common::FileSystem::fsid_t fsid, uint64_t fid) {
+void OpenFileTracker::up(eos::common::FileSystem::fsid_t fsid, uint64_t fid)
+{
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   mContents[fsid][fid]++;
 }
@@ -48,37 +46,43 @@ void OpenFileTracker::up(eos::common::FileSystem::fsid_t fsid, uint64_t fid) {
 // Prints warning in the logs if the value was about to go negative - it will
 // never go negative.
 //------------------------------------------------------------------------------
-void OpenFileTracker::down(eos::common::FileSystem::fsid_t fsid, uint64_t fid) {
+void OpenFileTracker::down(eos::common::FileSystem::fsid_t fsid, uint64_t fid)
+{
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-
   auto fsit = mContents.find(fsid);
-  if(fsit == mContents.end()) {
+
+  if (fsit == mContents.end()) {
     // Can happen if OpenFileTracker is misused
-    eos_static_crit("Could not find fsid=%" PRIu64 " when calling OpenFileTracker::down for fid=%" PRIu64, fsid, fid);
+    eos_static_crit("Could not find fsid=%lu when calling OpenFileTracker::down "
+                    "for fxid=%08llx", fsid, fid);
     return;
   }
 
   auto fidit = fsit->second.find(fid);
-  if(fidit == fsit->second.end()) {
+
+  if (fidit == fsit->second.end()) {
     // Can happen if OpenFileTracker is misused
-    eos_static_crit("Could not find fid=%" PRIu64 " when calling OpenFileTracker::down for fsid=%" PRIu64, fid, fsid);
+    eos_static_crit("Could not find fxid=%08llx when calling OpenFileTracker::down "
+                    "for fsid=%lu", fid, fsid);
     return;
   }
 
-  if(fidit->second == 1) {
+  if (fidit->second == 1) {
     // Last use, remove from map
     fsit->second.erase(fidit);
 
     // Also remove fs from top-level map?
-    if(fsit->second.empty()) {
+    if (fsit->second.empty()) {
       mContents.erase(fsit);
     }
 
     return;
   }
 
-  if(fidit->second < 1) {
-    eos_static_crit("Should never happen - encountered bogus value in OpenFileTracker::down for fsid=%" PRIu64 ", fid=%" PRIu64 " - dropping", fsid, fid);
+  if (fidit->second < 1) {
+    eos_static_crit("Should never happen - encountered bogus value in "
+                    "OpenFileTracker::down for fsid=%lu, fid=%08llx - dropping",
+                    fsid, fid);
     fsit->second.erase(fidit);
     return;
   }
@@ -90,23 +94,28 @@ void OpenFileTracker::down(eos::common::FileSystem::fsid_t fsid, uint64_t fid) {
 //------------------------------------------------------------------------------
 // Checks if the given file ID, on the given filesystem ID, is currently open
 //------------------------------------------------------------------------------
-bool OpenFileTracker::isOpen(eos::common::FileSystem::fsid_t fsid, uint64_t fid) const {
+bool OpenFileTracker::isOpen(eos::common::FileSystem::fsid_t fsid,
+                             uint64_t fid) const
+{
   return getUseCount(fsid, fid) > 0;
 }
 
 //----------------------------------------------------------------------------
 // Checks if the given file ID, on the given filesystem ID, is currently open
 //----------------------------------------------------------------------------
-int32_t OpenFileTracker::getUseCount(eos::common::FileSystem::fsid_t fsid, uint64_t fid) const {
+int32_t OpenFileTracker::getUseCount(eos::common::FileSystem::fsid_t fsid,
+                                     uint64_t fid) const
+{
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-
   auto fsit = mContents.find(fsid);
-  if(fsit == mContents.end()) {
+
+  if (fsit == mContents.end()) {
     return 0;
   }
 
   auto fidit = fsit->second.find(fid);
-  if(fidit == fsit->second.end()) {
+
+  if (fidit == fsit->second.end()) {
     return 0;
   }
 
@@ -116,7 +125,8 @@ int32_t OpenFileTracker::getUseCount(eos::common::FileSystem::fsid_t fsid, uint6
 //------------------------------------------------------------------------------
 // Checks if there's _any_ operation currently in progress
 //------------------------------------------------------------------------------
-bool OpenFileTracker::isAnyOpen() const {
+bool OpenFileTracker::isAnyOpen() const
+{
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   return ! mContents.empty();
 }
@@ -125,18 +135,18 @@ bool OpenFileTracker::isAnyOpen() const {
 // Get open file IDs of a filesystem, sorted by usecount
 //----------------------------------------------------------------------------
 std::map<size_t, std::set<uint64_t>> OpenFileTracker::getSortedByUsecount(
-  eos::common::FileSystem::fsid_t fsid) const {
-
+                                    eos::common::FileSystem::fsid_t fsid) const
+{
   std::map<size_t, std::set<uint64_t>> contentsSortedByUsecount;
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-
   auto fsit = mContents.find(fsid);
-  if(fsit == mContents.end()) {
+
+  if (fsit == mContents.end()) {
     // Filesystem has no open files
     return {};
   }
 
-  for(auto it = fsit->second.begin(); it != fsit->second.end(); it++) {
+  for (auto it = fsit->second.begin(); it != fsit->second.end(); it++) {
     contentsSortedByUsecount[it->second].insert(it->first);
   }
 
@@ -146,11 +156,13 @@ std::map<size_t, std::set<uint64_t>> OpenFileTracker::getSortedByUsecount(
 //----------------------------------------------------------------------------
 // Get number of distinct open files by filesystem
 //----------------------------------------------------------------------------
-int32_t OpenFileTracker::getOpenOnFilesystem(eos::common::FileSystem::fsid_t fsid) const {
+int32_t OpenFileTracker::getOpenOnFilesystem(eos::common::FileSystem::fsid_t
+    fsid) const
+{
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-
   auto fsit = mContents.find(fsid);
-  if(fsit == mContents.end()) {
+
+  if (fsit == mContents.end()) {
     return 0;
   }
 
@@ -161,14 +173,14 @@ int32_t OpenFileTracker::getOpenOnFilesystem(eos::common::FileSystem::fsid_t fsi
 // Get top hot files on current filesystem
 //------------------------------------------------------------------------------
 std::vector<OpenFileTracker::HotEntry> OpenFileTracker::getHotFiles(
-  eos::common::FileSystem::fsid_t fsid, size_t maxEntries) const {
-
+  eos::common::FileSystem::fsid_t fsid, size_t maxEntries) const
+{
   auto sorted = getSortedByUsecount(fsid);
   std::vector<HotEntry> results;
 
-  for(auto it = sorted.rbegin(); it != sorted.rend(); it++) {
-    for(auto it2 =  it->second.begin(); it2 != it->second.end(); it2++) {
-      if(results.size() >= maxEntries) {
+  for (auto it = sorted.rbegin(); it != sorted.rend(); it++) {
+    for (auto it2 =  it->second.begin(); it2 != it->second.end(); it2++) {
+      if (results.size() >= maxEntries) {
         goto done;
       }
 

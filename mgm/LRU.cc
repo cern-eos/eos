@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "common/Mapping.hh"
@@ -42,8 +41,6 @@
 
 //! Attribute name defining any LRU policy
 const char* LRU::gLRUPolicyPrefix = "sys.lru.*";
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -736,7 +733,7 @@ LRU::ConvertMatch(const char* dir,
 
               if (fmd->getLayoutId() == lid) {
                 eos_static_debug("msg=\"skipping conversion - file has already"
-                                 "the desired target layout\" fid=%08llx", fmd->getId());
+                                 "the desired target layout\" fxid=%08llx", fmd->getId());
                 continue;
               }
 
@@ -745,11 +742,11 @@ LRU::ConvertMatch(const char* dir,
                   // check that this file is smaller as the required size
                   if ((ssize_t)fmd->getSize() >= (-lMatchSizeMap[mit->first])) {
                     eos_static_debug("msg=\"skipping conversion - file is larger "
-                                     "than required\" fid=%08llx", fmd->getId());
+                                     "than required\" fxid=%08llx", fmd->getId());
                     continue;
                   } else {
                     eos_static_info("msg=\"converting according to age+size specification\" "
-                                    "path='%s' fid=%08llx required-size < %ld size=%ld layout:%08x :=> %08x",
+                                    "path='%s' fxid=%08llx required-size < %ld size=%ld layout:%08x :=> %08x",
                                     fullpath.c_str(), fmd->getId(), -lMatchSizeMap[mit->first],
                                     (ssize_t)fmd->getSize(), lid, fmd->getLayoutId());
                   }
@@ -759,24 +756,24 @@ LRU::ConvertMatch(const char* dir,
                   // check that this file is larger than the required size
                   if ((ssize_t)fmd->getSize() <= lMatchSizeMap[mit->first]) {
                     eos_static_debug("msg=\"skipping conversion - file is smaller "
-                                     "than required\" fid=%08llx", fmd->getId());
+                                     "than required\" fxid=%08llx", fmd->getId());
                     continue;
                   } else {
                     eos_static_info("msg=\"converting according to age+size specification\" "
-                                    "path='%s' fid=%08llx required-size > %ld size=%ld layout:%08x "
+                                    "path='%s' fxid=%08llx required-size > %ld size=%ld layout:%08x "
                                     ":=> %08x", fullpath.c_str(), fmd->getId(), lMatchSizeMap[mit->first],
                                     (ssize_t)fmd->getSize(), lid, fmd->getLayoutId());
                   }
                 }
               } else {
                 eos_static_info("msg=\"converting according to age specification\" path='%s' "
-                                "fid=%08llx layout:%08x :=> %08x", fullpath.c_str(),
+                                "fxid=%08llx layout:%08x :=> %08x", fullpath.c_str(),
                                 fmd->getId(), lid, fmd->getLayoutId());
               }
 
               // This entry can be converted
               eos_static_notice("msg=\"convert expired file\" path=\"%s\" "
-                                "ctime=%u policy-age=%u age=%u fid=%08llx "
+                                "ctime=%u policy-age=%u age=%u fxid=%08llx "
                                 "layout=\"%s\"", fullpath.c_str(), ctime.tv_sec,
                                 age, now - ctime.tv_sec, (unsigned long long) fmd->getId(),
                                 map[conv_attr].c_str());

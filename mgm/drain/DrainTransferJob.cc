@@ -1,5 +1,6 @@
 //------------------------------------------------------------------------------
 // @file DrainTransferJob.cc
+// @author Elvin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -54,12 +55,12 @@ DrainTransferJob::DoIt() noexcept
 {
   using eos::common::LayoutId;
   gOFS->MgmStats.Add("DrainCentralStarted", 0, 0, 1);
-  eos_debug_lite("msg=\"running drain job\" fsid_src=%i, fsid_dst=%i, fid=%08llx",
+  eos_debug_lite("msg=\"running drain job\" fsid_src=%i, fsid_dst=%i, fxid=%08llx",
                  mFsIdSource.load(), mFsIdTarget.load(), mFileId);
 
   if (mProgressHandler.ShouldCancel(0)) {
     gOFS->MgmStats.Add("DrainCentralFailed", 0, 0, 1);
-    ReportError(SSTR("msg=\"job cancelled before starting\" fid="
+    ReportError(SSTR("msg=\"job cancelled before starting\" fxid="
                      << eos::common::FileId::Fid2Hex(mFileId)));
     return;
   }
@@ -80,7 +81,7 @@ DrainTransferJob::DoIt() noexcept
   while (true) {
     if (!SelectDstFs(fdrain, dst_exclude_fsids)) {
       gOFS->MgmStats.Add("DrainCentralFailed", 0, 0, 1);
-      ReportError(SSTR("msg=\"failed to select destination file system\" fid="
+      ReportError(SSTR("msg=\"failed to select destination file system\" fxid="
                        << eos::common::FileId::Fid2Hex(mFileId)));
       return;
     }
@@ -166,7 +167,7 @@ DrainTransferJob::DoIt() noexcept
         }
       } else {
         gOFS->MgmStats.Add("DrainCentralSuccessful", 0, 0, 1);
-        eos_info("msg=\"drain successful\" logid=%s fid=%s",
+        eos_info("msg=\"drain successful\" logid=%s fxid=%s",
                  log_id.c_str(), eos::common::FileId::Fid2Hex(mFileId).c_str());
         mStatus = Status::OK;
         gOFS->mDrainingTracker.RemoveEntry(mFileId);
@@ -212,7 +213,7 @@ DrainTransferJob::GetFileInfo() const
         fdrain.mProto.add_locations(loc);
       }
     } catch (eos::MDException& e) {
-      oss << "fid=" << eos::common::FileId::Fid2Hex(mFileId)
+      oss << "fxid=" << eos::common::FileId::Fid2Hex(mFileId)
           << " errno=" << e.getErrno()
           << " msg=\"" << e.getMessage().str() << "\"";
       eos_err("%s", oss.str().c_str());
@@ -302,14 +303,14 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
     }
 
     if (!found) {
-      ReportError(SSTR("msg=\"no more replicas available\" " << "fid="
+      ReportError(SSTR("msg=\"no more replicas available\" " << "fxid="
                        << eos::common::FileId::Fid2Hex(fdrain.mProto.id())));
       return url_src;
     }
   } else {
     // For RAIN layouts we trigger a reconstruction only once
     if (mRainReconstruct) {
-      ReportError(SSTR("msg=\"fid=" << eos::common::FileId::Fid2Hex(
+      ReportError(SSTR("msg=\"fxid=" << eos::common::FileId::Fid2Hex(
                          fdrain.mProto.id())
                        << " rain reconstruct already failed\""));
       return url_src;
@@ -535,7 +536,7 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain,
   }
 
   if (!gGeoTreeEngine.getInfosFromFsIds(existing_repl, &fsid_geotags, 0, 0)) {
-    eos_err("msg=\"fid=%08llx failed to retrieve info for existing replicas\"",
+    eos_err("msg=\"fxid=%08llx failed to retrieve info for existing replicas\"",
             mFileId);
     return false;
   }
@@ -557,7 +558,7 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain,
                &fsid_geotags); // excludeGeoTags
 
   if (!res || new_repl.empty())  {
-    eos_err("msg=\"fid=%08llx could not place new replica\"", mFileId);
+    eos_err("msg=\"fxid=%08llx could not place new replica\"", mFileId);
     return false;
   }
 

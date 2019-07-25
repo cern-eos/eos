@@ -154,9 +154,7 @@ XrdFstOfs::XrdFstOfs() :
   // Initialize the google sparse hash maps
   gOFS.WNoDeleteOnCloseFid.clear_deleted_key();
   gOFS.WNoDeleteOnCloseFid.set_deleted_key(0);
-
-
-  setenv("EOSFSTOFS", std::to_string((unsigned long long)this).c_str(),1);
+  setenv("EOSFSTOFS", std::to_string((unsigned long long)this).c_str(), 1);
 
   if (getenv("EOS_FST_CALL_MANAGER_XRD_POOL")) {
     int max_size = 10;
@@ -739,11 +737,11 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
   // Enable experimental MQ on QDB? Note that any functionality not supported
   // will fallback to regular MQ, which is still required.
-  if(getenv("EOS_USE_MQ_ON_QDB")) {
+  if (getenv("EOS_USE_MQ_ON_QDB")) {
     eos_static_info("MQ on QDB - setting up SharedManager..");
     mQSOM.reset(new qclient::SharedManager(mQdbContactDetails.members,
-      mQdbContactDetails.constructOptions(),
-      mQdbContactDetails.constructSubscriptionOptions()));
+                                           mQdbContactDetails.constructOptions(),
+                                           mQdbContactDetails.constructSubscriptionOptions()));
   }
 
   // Create the specific listener class
@@ -821,7 +819,8 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     mHttpdPort = strtol(getenv("EOS_FST_HTTP_PORT"), 0, 10);
   }
 
-  Httpd.reset(new eos::fst::HttpServer(mHttpdPort));  
+  Httpd.reset(new eos::fst::HttpServer(mHttpdPort));
+
   if (mHttpdPort) {
     Httpd->Start();
   }
@@ -1523,7 +1522,8 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
                        true);
 
       if (!fmd) {
-        eos_static_err("msg=\"no FMD record found\" fid=%08llx fsid=%lu", fileid, fsid);
+        eos_static_err("msg=\"no FMD record found\" fxid=%08llx fsid=%lu", fileid,
+                       fsid);
         const char* err = "ERROR";
         error.setErrInfo(strlen(err) + 1, err);
         return SFS_DATA;
@@ -1704,13 +1704,12 @@ XrdFstOfs::MakeDeletionReport(eos::common::FileSystem::fsid_t fsid,
   char report[16384];
   snprintf(report, sizeof(report) - 1,
            "log=%s&"
-           "host=%s&fid=%08llx&fsid=%u&"
+           "host=%s&fid=%llu&fxid=%08llx&fsid=%u&"
            "dc_ts=%lu&dc_tns=%lu&"
            "dm_ts=%lu&dm_tns=%lu&"
            "da_ts=%lu&da_tns=%lu&"
            "dsize=%li&sec.app=deletion"
-           , this->logId
-           , gOFS.mHostName, fid, fsid
+           , this->logId, gOFS.mHostName, fid, fid, fsid
 #ifdef __APPLE__
            , deletion_stat.st_ctimespec.tv_sec
            , deletion_stat.st_ctimespec.tv_nsec

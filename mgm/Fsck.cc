@@ -509,7 +509,7 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
         out += sn;
 
         if (printfid) {
-          out += " fid=";
+          out += " fxid=";
 
           for (auto fidit = emapit->second.cbegin();
                fidit != emapit->second.cend(); ++fidit) {
@@ -607,7 +607,7 @@ Fsck::Report(XrdOucString& out, XrdOucString& err, XrdOucString option,
           out += sn;
 
           if (printfid) {
-            out += " fid=";
+            out += " fxid=";
 
             for (auto fidit = efsmapit->second.cbegin();
                  fidit != efsmapit->second.cend(); ++fidit) {
@@ -812,20 +812,20 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
           if (!lretc) {
             char outline[1024];
             snprintf(outline, sizeof(outline) - 1,
-                     "success: sending resync to fsid=%u fid=%08llx\n",
+                     "success: sending resync to fsid=%u fxid=%08llx\n",
                      efsmapit->first, *it);
             out += outline;
           } else {
             char outline[1024];
             snprintf(outline, sizeof(outline) - 1,
-                     "error: sending resync to fsid=%u failed for fid=%08llx\n",
+                     "error: sending resync to fsid=%u failed for fxid=%08llx\n",
                      efsmapit->first, *it);
             out += outline;
           }
         } else {
           char outline[1024];
           snprintf(outline, sizeof(outline) - 1,
-                   "error: no file meta data for fsid=%u failed for fid=%08llx\n",
+                   "error: no file meta data for fsid=%u failed for fxid=%08llx\n",
                    efsmapit->first, *it);
           out += outline;
         }
@@ -870,13 +870,13 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
         if (gOFS->DeleteExternal(efsmapit->first, *it)) {
           char outline[1024];
           snprintf(outline, sizeof(outline) - 1,
-                   "success: send unlink to fsid=%u fid=%08llx\n",
+                   "success: send unlink to fsid=%u fxid=%08llx\n",
                    efsmapit->first, *it);
           out += outline;
         } else {
           char errline[1024];
           snprintf(errline, sizeof(errline) - 1,
-                   "err: unable to send unlink to fsid=%u fid=%08llx\n",
+                   "err: unable to send unlink to fsid=%u fxid=%08llx\n",
                    efsmapit->first, *it);
           out += errline;
         }
@@ -886,13 +886,13 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
           if (gOFS->_dropstripe(spath.c_str(), *it, error, vid, efsmapit->first, false)) {
             char outline[1024];
             snprintf(outline, sizeof(outline) - 1,
-                     "error: unable to drop stripe on fsid=%u fid=%08llx\n",
+                     "error: unable to drop stripe on fsid=%u fxid=%08llx\n",
                      efsmapit->first, *it);
             out += outline;
           } else {
             char outline[1024];
             snprintf(outline, sizeof(outline) - 1,
-                     "success: send dropped stripe on fsid=%u fid=%08llx\n",
+                     "success: send dropped stripe on fsid=%u fxid=%08llx\n",
                      efsmapit->first, *it);
             out += outline;
           }
@@ -934,20 +934,20 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
           if (gOFS->DeleteExternal(efsmapit->first, *it)) {
             char outline[1024];
             snprintf(outline, sizeof(outline) - 1,
-                     "success: send unlink to fsid=%u fid=%08llx\n",
+                     "success: send unlink to fsid=%u fxid=%08llx\n",
                      efsmapit->first, *it);
             out += outline;
           } else {
             char errline[1024];
             snprintf(errline, sizeof(errline) - 1,
-                     "err: unable to send unlink to fsid=%u fid=%08llx\n",
+                     "err: unable to send unlink to fsid=%u fxid=%08llx\n",
                      efsmapit->first, *it);
             out += errline;
           }
         } else {
           char errline[1024];
           snprintf(errline, sizeof(errline) - 1,
-                   "err: not sending unlink to fsid=%u fid=%08llx - location exists!\n",
+                   "err: not sending unlink to fsid=%u fxid=%08llx - location exists!\n",
                    efsmapit->first, *it);
           out += errline;
         }
@@ -1048,13 +1048,13 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
           if (gOFS->DeleteExternal(efsmapit->first, *it)) {
             char outline[1024];
             snprintf(outline, sizeof(outline) - 1,
-                     "success: send unlink to fsid=%u fid=%08llx\n",
+                     "success: send unlink to fsid=%u fxid=%08llx\n",
                      efsmapit->first, *it);
             out += outline;
           } else {
             char errline[1024];
             snprintf(errline, sizeof(errline) - 1,
-                     "err: unable to send unlink to fsid=%u fid=%08llx\n",
+                     "err: unable to send unlink to fsid=%u fxid=%08llx\n",
                      efsmapit->first, *it);
             out += errline;
           }
@@ -1064,13 +1064,13 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
                                 efsmapit->first, false)) {
             char outline[1024];
             snprintf(outline, sizeof(outline) - 1,
-                     "error: unable to drop stripe on fsid=%u fid=%08llx\n",
+                     "error: unable to drop stripe on fsid=%u fxid=%08llx\n",
                      efsmapit->first, *it);
             out += outline;
           } else {
             char outline[1024];
             snprintf(outline, sizeof(outline) - 1,
-                     "success: send dropped stripe on fsid=%u fid=%08llx\n",
+                     "success: send dropped stripe on fsid=%u fxid=%08llx\n",
                      efsmapit->first, *it);
             out += outline;
           }
@@ -1110,7 +1110,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
       std::shared_ptr<eos::IFileMD> fmd;
       std::string path = "";
       time_t now = time(NULL);
-      out += "progress: checking fid=";
+      out += "progress: checking fxid=";
       out += (int) * it;
       out += "\n";
       eos::IFileMD::ctime_t ctime;
@@ -1134,18 +1134,18 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
           if (!gOFS->_rem(path.c_str(), error, vid)) {
             char outline[1024];
             snprintf(outline, sizeof(outline) - 1,
-                     "success: removed path=%s fid=%08llx\n",
+                     "success: removed path=%s fxid=%08llx\n",
                      path.c_str(), *it);
             out += outline;
           } else {
             char errline[1024];
             snprintf(errline, sizeof(errline) - 1,
-                     "err: unable to remove path=%s fid=%08llx\n",
+                     "err: unable to remove path=%s fxid=%08llx\n",
                      path.c_str(), *it);
             out += errline;
           }
         } else {
-          out += "skipping fid=";
+          out += "skipping fxid=";
           out += (int) * it;
           out += " - file is younger than 48 hours\n";
         }
@@ -1178,7 +1178,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
         if (fmd == nullptr) {
           char errline[1024];
           snprintf(errline, sizeof(errline) - 1,
-                   "error: unable to repair file fsid=%u fid=%08llx, could not get meta data\n",
+                   "error: unable to repair file fsid=%u fxid=%08llx, could not get meta data\n",
                    efsmapit.first, fid);
           out += errline;
           break;
@@ -1207,7 +1207,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
         if (!replicaAvailable) {
           char errline[1024];
           snprintf(errline, sizeof(errline) - 1,
-                   "error: unable to repair file fsid=%u fid=%08llx, no available file systems and replicas to use\n",
+                   "error: unable to repair file fsid=%u fxid=%08llx, no available file systems and replicas to use\n",
                    efsmapit.first, fid);
           out += errline;
           break;
@@ -1219,7 +1219,7 @@ Fsck::Repair(XrdOucString& out, XrdOucString& err, XrdOucString option)
         if (gOFS->_dropstripe(path.c_str(), fid, error, vid, efsmapit.first, true)) {
           char errline[1024];
           snprintf(errline, sizeof(errline) - 1,
-                   "error: unable to repair file fsid=%u fid=%08llx, could not drop it\n",
+                   "error: unable to repair file fsid=%u fxid=%08llx, could not drop it\n",
                    efsmapit.first, fid);
           out += errline;
         } else {
@@ -1431,10 +1431,9 @@ Fsck::PrintOfflineReplicas() const
        ++ua_it) {
     std::string host = "not configured";
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    FileSystem* fs = FsView::gFsView.mIdView.lookupByID(ua_it->first);
 
-    FileSystem *fs = FsView::gFsView.mIdView.lookupByID(ua_it->first);
-
-    if(fs) {
+    if (fs) {
       host = fs->GetString("hostport");
     }
 
@@ -1483,8 +1482,7 @@ Fsck::AccountOfflineFiles()
 
     for (const auto& loc : loc_vect) {
       if (loc) {
-
-        FileSystem *fs = FsView::gFsView.mIdView.lookupByID(loc);
+        FileSystem* fs = FsView::gFsView.mIdView.lookupByID(loc);
 
         if (fs) {
           eos::common::BootStatus bootstatus = fs->GetStatus(true);

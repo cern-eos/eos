@@ -229,34 +229,32 @@ ProcCommand::FileInfo(const char* path)
         }
 
         if (Monitoring || !outputFilter) {
-	    eos::IFileMD::XAttrMap xattrs = fmd_copy->getAttributes();
-
+          eos::IFileMD::XAttrMap xattrs = fmd_copy->getAttributes();
           bool showFullpath = (option.find("-fullpath") != STR_NPOS);
           bool showProxygroup = (option.find("-proxy") != STR_NPOS);
           char ctimestring[4096];
           char mtimestring[4096];
-	  char btimestring[4096];
-
+          char btimestring[4096];
           eos::IFileMD::ctime_t mtime;
           eos::IFileMD::ctime_t ctime;
           eos::IFileMD::ctime_t btime;
 
-	  if (xattrs.count("sys.eos.btime")) {
-	    std::string key, val;
-	    eos::common::StringConversion::SplitKeyValue(xattrs["sys.eos.btime"], key, val, ".");
-	    btime.tv_sec = strtoul(key.c_str(), 0, 10);
-	    btime.tv_nsec = strtoul(val.c_str(), 0, 10);
-	  } else {
-	    btime.tv_sec = 0;
-	    btime.tv_nsec = 0;
-	  }
+          if (xattrs.count("sys.eos.btime")) {
+            std::string key, val;
+            eos::common::StringConversion::SplitKeyValue(xattrs["sys.eos.btime"], key, val,
+                ".");
+            btime.tv_sec = strtoul(key.c_str(), 0, 10);
+            btime.tv_nsec = strtoul(val.c_str(), 0, 10);
+          } else {
+            btime.tv_sec = 0;
+            btime.tv_nsec = 0;
+          }
 
           fmd_copy->getCTime(ctime);
           fmd_copy->getMTime(mtime);
           time_t filectime = (time_t) ctime.tv_sec;
           time_t filemtime = (time_t) mtime.tv_sec;
-	  time_t filebtime = (time_t) btime.tv_sec;
-
+          time_t filebtime = (time_t) btime.tv_sec;
           std::string etag, xs_spaces;
           eos::calculateEtag(fmd_copy.get(), etag);
           eos::appendChecksumOnStringAsHex(fmd_copy.get(), xs_spaces, ' ');
@@ -278,7 +276,7 @@ ProcCommand::FileInfo(const char* path)
             out << "Change: " << ctime_r(&filectime, ctimestring);
             out.seekp(-1, std::ios_base::end);
             out << " Timestamp: " << ctime.tv_sec << "." << ctime.tv_nsec
-		<< std::endl;
+                << std::endl;
             out << "Birth : " << ctime_r(&filebtime, btimestring);
             out.seekp(-1, std::ios_base::end);
             out << " Timestamp: " << btime.tv_sec << "." << btime.tv_nsec
@@ -332,14 +330,12 @@ ProcCommand::FileInfo(const char* path)
                 << " lid=" << FileId::Fid2Hex(fmd_copy->getLayoutId())
                 << " nrep=" << fmd_copy->getNumLocation()
                 << " ";
+            eos::IFileMD::XAttrMap xattrs = fmd_copy->getAttributes();
 
-	    eos::IFileMD::XAttrMap xattrs = fmd_copy->getAttributes();
-	    
-	    for (const auto& elem : xattrs) {
-	      out << "xattrn=" << elem.first
-		  << " xattrv=" << elem.second << " ";
-	    }
-	    
+            for (const auto& elem : xattrs) {
+              out << "xattrn=" << elem.first
+                  << " xattrv=" << elem.second << " ";
+            }
           }
 
           eos::IFileMD::LocationVector::const_iterator lociter;
@@ -361,14 +357,15 @@ ProcCommand::FileInfo(const char* path)
           for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter) {
             // Ignore filesystem id 0
             if (!(*lociter)) {
-              eos_err("fsid 0 found fid=%08llx", fmd_copy->getId());
+              eos_err("fsid 0 found fxid=%08llx", fmd_copy->getId());
               continue;
             }
 
             XrdOucString location = "";
             location += (int) * lociter;
             eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-            eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(*lociter);
+            eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(
+                                                    *lociter);
 
             if (filesystem) {
               // For the fullpath option we output the physical location of the
@@ -629,8 +626,7 @@ ProcCommand::DirInfo(const char* path)
       }
 
       if (Monitoring || !outputFilter) {
-	eos::IFileMD::XAttrMap xattrs = dmd_copy->getAttributes();
-
+        eos::IFileMD::XAttrMap xattrs = dmd_copy->getAttributes();
         char ctimestring[4096];
         char mtimestring[4096];
         char tmtimestring[4096];
@@ -638,31 +634,30 @@ ProcCommand::DirInfo(const char* path)
         eos::IContainerMD::ctime_t ctime;
         eos::IContainerMD::mtime_t mtime;
         eos::IContainerMD::tmtime_t tmtime;
-	eos::IContainerMD::ctime_t btime;
-
+        eos::IContainerMD::ctime_t btime;
         dmd_copy->getCTime(ctime);
         dmd_copy->getMTime(mtime);
         dmd_copy->getTMTime(tmtime);
 
-	if (xattrs.count("sys.eos.btime")) {
-	  std::string key, val;
-	  eos::common::StringConversion::SplitKeyValue(xattrs["sys.eos.btime"], key, val, ".");
-	  btime.tv_sec = strtoul(key.c_str(), 0, 10);
-	  btime.tv_nsec = strtoul(val.c_str(), 0, 10);
-	} else {
-	  btime.tv_sec = 0;
-	  btime.tv_nsec = 0;
-	}
+        if (xattrs.count("sys.eos.btime")) {
+          std::string key, val;
+          eos::common::StringConversion::SplitKeyValue(xattrs["sys.eos.btime"], key, val,
+              ".");
+          btime.tv_sec = strtoul(key.c_str(), 0, 10);
+          btime.tv_nsec = strtoul(val.c_str(), 0, 10);
+        } else {
+          btime.tv_sec = 0;
+          btime.tv_nsec = 0;
+        }
 
         time_t filectime = (time_t) ctime.tv_sec;
         time_t filemtime = (time_t) mtime.tv_sec;
         time_t filetmtime = (time_t) tmtime.tv_sec;
-	time_t filebtime = (time_t) btime.tv_sec;
-
+        time_t filebtime = (time_t) btime.tv_sec;
         char fid[32];
         snprintf(fid, 32, "%llu", (unsigned long long) dmd_copy->getId());
         std::string etag;
-        eos::calculateEtag(dmd_copy.get(), etag);	
+        eos::calculateEtag(dmd_copy.get(), etag);
 
         if (!Monitoring) {
           out << "  Directory: '" << spath << "'"
@@ -687,7 +682,7 @@ ProcCommand::DirInfo(const char* path)
           out << "Sync  : " << ctime_r(&filetmtime, tmtimestring);
           out.seekp(-1, std::ios_base::end);
           out << " Timestamp: " << tmtime.tv_sec << "." << tmtime.tv_nsec
-	      << std::endl;
+              << std::endl;
           out << "Birth : " << ctime_r(&filebtime, btimestring);
           out.seekp(-1, std::ios_base::end);
           out << " Timestamp: " << btime.tv_sec << "." << btime.tv_nsec
@@ -744,7 +739,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 {
   eos::IFileMD::ctime_t ctime;
   eos::IFileMD::ctime_t mtime;
-  eos_static_debug("fid=%08llx", fid);
+  eos_static_debug("fxid=%08llx", fid);
   Json::Value json;
   json["id"] = (Json::Value::UInt64) fid;
   const std::string hex_fid = eos::common::FileId::Fid2Hex(fid);
@@ -812,7 +807,8 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     for (auto loc_it = loc_vect.begin(); loc_it != loc_vect.end(); ++loc_it) {
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
       Json::Value jsonfsinfo;
-      eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(*loc_it);
+      eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(
+                                              *loc_it);
 
       if (filesystem) {
         eos::common::FileSystem::fs_snapshot_t fs;
@@ -828,6 +824,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
           jsonfsinfo["fstpath"] = fstpath.c_str();
           jsonfsinfo["schedgroup"] = fs.mGroup;
           jsonfsinfo["status"] = eos::common::FileSystem::GetStatusAsString(fs.mStatus);
+
           if (!fs.mForceGeoTag.empty()) {
             jsonfsinfo["forcegeotag"] = fs.mForceGeoTag;
           }
@@ -875,7 +872,7 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
   eos::IFileMD::ctime_t ctime;
   eos::IFileMD::ctime_t mtime;
   eos::IFileMD::ctime_t tmtime;
-  eos_static_debug("fid=%08llx", fid);
+  eos_static_debug("fxid=%08llx", fid);
   Json::Value json;
   json["id"] = (Json::Value::UInt64) fid;
 

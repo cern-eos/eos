@@ -179,11 +179,11 @@ Messaging::Process(XrdMqMessage* newmessage)
     }
 
     if (!fsid) {
-      eos_err("msg=\"dropping resync\" fsid=%lu fid=%08llx",
+      eos_err("msg=\"dropping resync\" fsid=%lu fxid=%08llx",
               (unsigned long) fsid, fid);
     } else {
       if (!fid) {
-        eos_warning("msg=\"deleting fmd\" fsid=%lu fid=%08llx",
+        eos_warning("msg=\"deleting fmd\" fsid=%lu fxid=%08llx",
                     (unsigned long) fsid, fid);
         gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
       } else {

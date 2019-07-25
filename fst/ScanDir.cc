@@ -306,10 +306,10 @@ ScanDir::CheckFile(const std::string& fpath)
 
   if (mBgThread) {
     if (gOFS.openedForWriting.isOpen(mFsId, fid)) {
-      syslog(LOG_ERR, "skipping scan w-open file: localpath=%s fsid=%d fid=%08llx\n",
+      syslog(LOG_ERR, "skipping scan w-open file: localpath=%s fsid=%d fxid=%08llx\n",
              fpath.c_str(), mFsId, fid);
       eos_warning("msg=\"skipping scan of w-open file\" localpath=%s fsid=%d "
-                  "fid=%08llx", fpath.c_str(), mFsId, fid);
+                  "fxid=%08llx", fpath.c_str(), mFsId, fid);
       return;
     }
   }
@@ -456,10 +456,10 @@ ScanDir::UpdateLocalDB(const std::string& file_path,
   }
 
   if (filexs_error || blockxs_error || !fmd || orphaned) {
-    eos_notice("msg=\"resyncing from disk\" fsid=%d fid=%08llx", mFsId, fid);
+    eos_notice("msg=\"resyncing from disk\" fsid=%d fxid=%08llx", mFsId, fid);
     // ask the meta data handling class to update the error flags for this file
     gFmdDbMapHandler.ResyncDisk(file_path.c_str(), mFsId, false);
-    eos_notice("msg=\"resyncing from mgm\" fsid=%d fid=%08llx", mFsId, fid);
+    eos_notice("msg=\"resyncing from mgm\" fsid=%d fxid=%08llx", mFsId, fid);
     bool resynced = false;
     resynced = gFmdDbMapHandler.ResyncMgm(mFsId, fid, manager.c_str());
     fmd.reset(gFmdDbMapHandler.LocalGetFmd(fid, mFsId, 0, 0, 0, false, true));

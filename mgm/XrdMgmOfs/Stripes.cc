@@ -110,7 +110,8 @@ XrdMgmOfs::_verifystripe(const char* path,
 
   if (!errno) {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    eos::mgm::FileSystem* verifyfilesystem = FsView::gFsView.mIdView.lookupByID(fsid);
+    eos::mgm::FileSystem* verifyfilesystem = FsView::gFsView.mIdView.lookupByID(
+          fsid);
 
     if (!verifyfilesystem) {
       errno = EINVAL;
@@ -262,7 +263,6 @@ XrdMgmOfs::_dropstripe(const char* path,
       }
 
       fmd->removeLocation(fsid);
-
       // eraseEntry is only needed if the fsview is inconsistent with the
       // FileMD: It exists on the selected fsview, but not in the fmd locations.
       // Very rare case.
@@ -613,8 +613,10 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
                 "illegal source/target fsid", fmd->getName().c_str());
   }
 
-  eos::mgm::FileSystem* sourcefilesystem = FsView::gFsView.mIdView.lookupByID(sourcefsid);
-  eos::mgm::FileSystem* targetfilesystem = FsView::gFsView.mIdView.lookupByID(targetfsid);
+  eos::mgm::FileSystem* sourcefilesystem = FsView::gFsView.mIdView.lookupByID(
+        sourcefsid);
+  eos::mgm::FileSystem* targetfilesystem = FsView::gFsView.mIdView.lookupByID(
+        targetfsid);
 
   if (!sourcefilesystem) {
     errno = EINVAL;
@@ -764,12 +766,10 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
     target_cap += hex_fid.c_str();
     fullcapability += source_cap;
     fullcapability += target_cap;
-
     std::unique_ptr<eos::common::TransferJob> txjob(
       new eos::common::TransferJob(fullcapability.c_str()));
-
     bool sub = targetfilesystem->GetExternQueue()->Add(txjob.get());
-    eos_info("info=\"submitted transfer job\" subretc=%d fid=%s cap=%s\n",
+    eos_info("info=\"submitted transfer job\" subretc=%d fxid=%s cap=%s\n",
              sub, hex_fid.c_str(), fullcapability.c_str());
 
     if (!sub) {

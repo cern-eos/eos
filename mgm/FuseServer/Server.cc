@@ -343,7 +343,6 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
     dir.set_mtime_ns(mtime.tv_nsec);
     dir.set_ttime(tmtime.tv_sec);
     dir.set_ttime_ns(tmtime.tv_nsec);
-
     dir.set_atime(mtime.tv_sec);
     dir.set_atime_ns(mtime.tv_nsec);
     dir.set_size(cmd->getTreeSize());
@@ -1153,8 +1152,8 @@ Server::OpGetLs(const std::string& id,
         size_t n_caps = 0;
         size_t items_per_lock_cycle = 128;
         size_t items_cycled = 1;
+        gOFS->MgmStats.Add("Eosxd::ext::LS-Entry", vid.uid, vid.gid, map.size());
 
-	gOFS->MgmStats.Add("Eosxd::ext::LS-Entry", vid.uid, vid.gid, map.size());
         for (; it != map.end(); ++it) {
           // this is a map by inode
           (*parent)[it->second].set_md_ino(it->second);
@@ -1520,7 +1519,6 @@ Server::OpSetDirectory(const std::string& id,
     pmtime.tv_nsec = mtime.tv_nsec;
     cmd->setCTime(ctime);
     cmd->setMTime(mtime);
-
     // propagate mtime changes
     cmd->notifyMTimeChange(gOFS->eosDirectoryService);
 
@@ -1748,7 +1746,7 @@ Server::OpSetFile(const std::string& id,
         }
       }
 
-      eos_info("fid=%lx ino=%lx pino=%lx cpino=%lx update-file",
+      eos_info("fid=%08llx ino=%lx pino=%lx cpino=%lx update-file",
                (long) fid,
                (long) md.md_ino(),
                (long) md.md_pino(), (long) fmd->getContainerId());
@@ -1770,7 +1768,7 @@ Server::OpSetFile(const std::string& id,
                 k_nlink)) + 1 : 1;
 
       if (EOS_LOGS_DEBUG) {
-        eos_debug("hlnk fid=%#lx target name %s nlink %d create hard link %s",
+        eos_debug("hlnk fid=%08llx target name %s nlink %d create hard link %s",
                   (long) fid, fmd->getName().c_str(), nlink, md.name().c_str());
       }
 
@@ -1863,7 +1861,6 @@ Server::OpSetFile(const std::string& id,
       pcmd->addFile(fmd.get());
       eos_info("ino=%lx pino=%lx md-ino=%lx create-file", (long) md_ino,
                (long) md.md_pino(), md_ino);
-
     }
 
     fmd->setName(md.name());
@@ -2336,22 +2333,22 @@ Server::OpDeleteFile(const std::string& id,
           eos_info("hlnk nlink update on %s for %s now %ld",
                    gmd->getName().c_str(), fmd->getName().c_str(), nlink);
         } else { // remove target file as well if is a hidden inode
-
-	  if (gmd->getName().substr(0,13) == "...eos.ino...") {
-	    eos_info("hlnk unlink target %s for %s nlink %ld",
-		     gmd->getName().c_str(), fmd->getName().c_str(), nlink);
-	    pcmd->removeFile(gmd->getName());
-	    gmd->setContainerId(0);
-	    gmd->unlinkAllLocations();
-	    gOFS->eosFileService->updateStore(gmd.get());
-	  }
+          if (gmd->getName().substr(0, 13) == "...eos.ino...") {
+            eos_info("hlnk unlink target %s for %s nlink %ld",
+                     gmd->getName().c_str(), fmd->getName().c_str(), nlink);
+            pcmd->removeFile(gmd->getName());
+            gmd->setContainerId(0);
+            gmd->unlinkAllLocations();
+            gOFS->eosFileService->updateStore(gmd.get());
+          }
         }
       } else if (fmd->hasAttribute(
                    k_nlink)) { /* this is a genuine file, potentially with hard links */
         tgt_md_ino = eos::common::FileId::FidToInode(fmd->getId());
         long nlink = std::stol(fmd->getAttribute(k_nlink)) - 1;
 
-        if (nlink > 0) { // hard links exist, just rename the file so the inode does not disappear
+        if (nlink >
+            0) { // hard links exist, just rename the file so the inode does not disappear
           char nameBuf[256];
           snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", fmd->getId());
           std::string tmpName = nameBuf;

@@ -199,7 +199,6 @@ XrdMgmOfs::BalanceGetFsSrc(eos::common::FileSystem::fsid_t tgt_fsid,
   static const char* epname = "Schedule2Balance";
   // ------> FS read lock
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-
   eos::mgm::FileSystem* tgt_fs = FsView::gFsView.mIdView.lookupByID(tgt_fsid);
 
   if (!tgt_fs) {
@@ -374,7 +373,7 @@ XrdMgmOfs::Schedule2Balance(const char* path,
 
     // Check that the target does not have this file
     if (gOFS->eosFsView->hasFileId(fid, tgt_fsid)) {
-      eos_static_debug("msg=\"skip file existing on target fs\" fid=%08llx "
+      eos_static_debug("msg=\"skip file existing on target fs\" fxid=%08llx "
                        "tgt_fsid=%u", fid, tgt_fsid);
       continue;
     }
@@ -383,7 +382,7 @@ XrdMgmOfs::Schedule2Balance(const char* path,
     mBalancingTracker.DoCleanup();
 
     if (mBalancingTracker.HasEntry(fid)) {
-      eos_thread_debug("msg=\"skip recently scheduled file\" fid=%08llx", fid);
+      eos_thread_debug("msg=\"skip recently scheduled file\" fxid=%08llx", fid);
       continue;
     }
 
@@ -414,17 +413,17 @@ XrdMgmOfs::Schedule2Balance(const char* path,
     }
 
     if (!fmd) {
-      eos_thread_debug("msg=\"skip no fmd record found\"fid=%08llx", fid);
+      eos_thread_debug("msg=\"skip no fmd record found\"fxid=%08llx", fid);
       continue;
     }
 
     if (size == 0) {
-      eos_thread_debug("msg=\"skip zero size file\" fid=%08llx", fid);
+      eos_thread_debug("msg=\"skip zero size file\" fxid=%08llx", fid);
       continue;
     }
 
     if (size >= freebytes) {
-      eos_thread_warning("msg=\"skip file bigger than free bytes\" fid=%08llx "
+      eos_thread_warning("msg=\"skip file bigger than free bytes\" fxid=%08llx "
                          "fsize=%llu free_bytes=%llu", fid, size, freebytes);
       continue;
     }
@@ -433,7 +432,7 @@ XrdMgmOfs::Schedule2Balance(const char* path,
     // function and we have all the necessary info at the local scope
     ns_rd_lock.Release();
     // Schedule file transfer
-    eos_thread_info("subcmd=scheduling fid=%08llx src_fsid=%u tgt_fsid=%u",
+    eos_thread_info("subcmd=scheduling fxid=%08llx src_fsid=%u tgt_fsid=%u",
                     fid, src_fsid, tgt_fsid);
     using eos::common::LayoutId;
     unsigned long tgt_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
@@ -484,7 +483,7 @@ XrdMgmOfs::Schedule2Balance(const char* path,
 
       if (fs) {
         if (fs->GetBalanceQueue()->Add(txjob.get())) {
-          eos_thread_info("cmd=schedule2balance fid=%08llx source_fs=%u "
+          eos_thread_info("cmd=schedule2balance fxid=%08llx source_fs=%u "
                           "target_fs=%u", fid, src_fsid, tgt_fsid);
           eos_thread_debug("job=%s", full_capability.c_str());
           scheduled = true;

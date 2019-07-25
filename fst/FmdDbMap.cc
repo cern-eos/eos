@@ -95,9 +95,9 @@ FmdDbMapHandler::EnvMgmToFmd(XrdOucEnv& env, struct Fmd& fmd)
   fmd.set_gid((gid_t) strtoul(env.Get("gid"), 0, 10));
   fmd.set_mgmchecksum(env.Get("checksum"));
   fmd.set_locations(env.Get("location") ? env.Get("location") : "");
-
   size_t cslen = eos::common::LayoutId::GetChecksumLen(fmd.lid()) * 2;
-  fmd.set_mgmchecksum( std::string(fmd.mgmchecksum()).erase(std::min(fmd.mgmchecksum().length(), cslen)));
+  fmd.set_mgmchecksum(std::string(fmd.mgmchecksum()).erase(std::min(
+                        fmd.mgmchecksum().length(), cslen)));
   return true;
 }
 
@@ -134,11 +134,9 @@ FmdDbMapHandler::NsFileProtoToFmd(eos::ns::FileMdProto&& filemd,
   }
 
   size_t cslen = eos::common::LayoutId::GetChecksumLen(filemd.layout_id()) * 2;
-
-  // Truncate the checksum to the right string length                                                                          
+  // Truncate the checksum to the right string length
   str_xs.erase(std::min(str_xs.length(), cslen));
   fmd.set_mgmchecksum(str_xs);
-  
   std::string slocations;
 
   for (const auto& loc : filemd.locations()) {
@@ -211,17 +209,17 @@ again:
 
   if (status.IsOK()) {
     rc = 0;
-    eos_static_debug("got replica file meta data from mgm %s for fid=%08llx",
+    eos_static_debug("got replica file meta data from mgm %s for fxid=%08llx",
                      current_mgr.c_str(), fid);
   } else {
-    eos_static_err("msg=\"query error\" fid=%08llx status=%d code=%d", fid,
+    eos_static_err("msg=\"query error\" fxid=%08llx status=%d code=%d", fid,
                    status.status,
                    status.code);
 
     if ((status.code >= 100) &&
         (status.code <= 300)) {
       std::this_thread::sleep_for(std::chrono::seconds(1));
-      eos_static_info("msg=\"retry query\" fid=%08llx query=\"%s\"", fid,
+      eos_static_info("msg=\"retry query\" fxid=%08llx query=\"%s\"", fid,
                       fmdquery.c_str());
 
       if (!manager) {
@@ -239,7 +237,7 @@ again:
     }
 
     rc = ECOMM;
-    eos_static_err("Unable to retrieve meta data from mgm %s for fid=%08llx",
+    eos_static_err("Unable to retrieve meta data from mgm %s for fxid=%08llx",
                    current_mgr.c_str(), fid);
   }
 
@@ -249,7 +247,7 @@ again:
 
   // Check if response contains any data
   if (!response->GetBuffer()) {
-    eos_static_info("Unable to retrieve meta data from mgm %s for fid=%08llx, "
+    eos_static_info("Unable to retrieve meta data from mgm %s for fxid=%08llx, "
                     "result data is empty", current_mgr.c_str(), fid);
     return ENODATA;
   }
@@ -259,7 +257,7 @@ again:
   if ((sresult.find("getfmd: retc=0 ")) == std::string::npos) {
     // Remote side couldn't get the record
     eos_static_info("Unable to retrieve meta data on remote mgm %s for "
-                    "fid=%08llx - result=%s", current_mgr.c_str(), fid,
+                    "fxid=%08llx - result=%s", current_mgr.c_str(), fid,
                     response->GetBuffer());
     return ENODATA;
   } else {
@@ -272,7 +270,7 @@ again:
 
   if (!EnvMgmToFmd(fmdenv, fmd)) {
     int envlen;
-    eos_static_err("Failed to unparse file meta data %s for fid=%08llx",
+    eos_static_err("Failed to unparse file meta data %s for fxid=%08llx",
                    fmdenv.Env(envlen), fid);
     return EIO;
   }
@@ -339,11 +337,11 @@ FmdDbMapHandler::CallAutoRepair(const char* manager,
   status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response);
 
   if (status.IsOK()) {
-    eos_static_debug("msg=\"scheduled repair\" mgm=%s fid=%s",
+    eos_static_debug("msg=\"scheduled repair\" mgm=%s fxid=%s",
                      current_mgr.c_str(), hex_fid.c_str());
     rc = 0;
   } else {
-    eos_static_err("msg=\"failed to schedule repair\" mgm=%s fid=%s "
+    eos_static_err("msg=\"failed to schedule repair\" mgm=%s fxid=%s "
                    "err_msg=\"%s\"", current_mgr.c_str(), hex_fid.c_str(),
                    status.ToString().c_str());
     rc = ECOMM;
@@ -459,7 +457,7 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
                              bool isRW, bool force)
 {
   if (fid == 0) {
-    eos_warning("fid=0 requested for fsid=", fsid);
+    eos_warning("fxid=0 requested for fsid=", fsid);
     return 0;
   }
 
@@ -513,7 +511,7 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
                  (fmd->mProtoFmd.mgmsize() &&
                   (fmd->mProtoFmd.mgmsize() != 0xfffffffffff1ULL) &&
                   (fmd->mProtoFmd.mgmsize() != fmd->mProtoFmd.size())))) {
-              eos_crit("msg=\"size mismatch disk/mgm vs memory\" fid=%08llx "
+              eos_crit("msg=\"size mismatch disk/mgm vs memory\" fxid=%08llx "
                        "fsid=%lu size=%llu disksize=%llu mgmsize=%llu",
                        fid, (unsigned long) fsid, fmd->mProtoFmd.size(),
                        fmd->mProtoFmd.disksize(), fmd->mProtoFmd.mgmsize());
@@ -526,7 +524,7 @@ FmdDbMapHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
                 ((fmd->mProtoFmd.filecxerror() == 1) ||
                  (fmd->mProtoFmd.mgmchecksum().length() &&
                   (fmd->mProtoFmd.mgmchecksum() != fmd->mProtoFmd.checksum())))) {
-              eos_crit("msg=\"checksum error flagged/detected fid=%08llx "
+              eos_crit("msg=\"checksum error flagged/detected fxid=%08llx "
                        "fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s "
                        "filecxerror=%d blockcxerror=%d", fid,
                        (unsigned long) fsid, fmd->mProtoFmd.checksum().c_str(),
@@ -605,7 +603,7 @@ FmdDbMapHandler::LocalDeleteFmd(eos::common::FileId::fileid_t fid,
 
   if (LocalExistFmd(fid, fsid)) {
     if (mDbMap[fsid]->remove(eos::common::Slice((const char*)&fid, sizeof(fid)))) {
-      eos_err("unable to delete fid=%08llx from fst table", fid);
+      eos_err("unable to delete fxid=%08llx from fst table", fid);
       rc = false;
     }
   } else {
@@ -679,7 +677,7 @@ FmdDbMapHandler::UpdateFromDisk(eos::common::FileSystem::fsid_t fsid,
     return false;
   }
 
-  eos_debug("fsid=%lu fid=%08llx disksize=%llu diskchecksum=%s checktime=%llu "
+  eos_debug("fsid=%lu fxid=%08llx disksize=%llu diskchecksum=%s checktime=%llu "
             "fcxerror=%d bcxerror=%d flaglayouterror=%d",
             (unsigned long) fsid, fid, disksize, diskchecksum.c_str(), checktime,
             filecxerror, blockcxerror, flaglayouterror);
@@ -735,7 +733,7 @@ FmdDbMapHandler::UpdateFromMgm(eos::common::FileSystem::fsid_t fsid,
     return false;
   }
 
-  eos_debug("fsid=%lu fid=%08llx cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s",
+  eos_debug("fsid=%lu fxid=%08llx cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s",
             (unsigned long) fsid, fid, cid, lid, mgmsize, mgmchecksum.c_str());
   eos::common::RWMutexReadLock lock(mMapMutex);
   FsWriteLock wlock(fsid);
@@ -925,7 +923,7 @@ FmdDbMapHandler::ResyncDisk(const char* path,
                             (filecxError == "1") ? 1 : 0,
                             (blockcxError == "1") ? 1 : 0,
                             flaglayouterror)) {
-          eos_err("failed to update %s DB for fsid=%lu fid=%08llx",
+          eos_err("failed to update %s DB for fsid=%lu fxid=%08llx",
                   eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid, fid);
           retc = false;
         }
@@ -1025,11 +1023,11 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
 
   if ((!(rc = GetMgmFmd(manager, fid, fMd))) || (rc == ENODATA)) {
     if (rc == ENODATA) {
-      eos_warning("no such file on MGM for fid=%08llx", fid);
+      eos_warning("no such file on MGM for fxid=%08llx", fid);
       fMd.set_fid(fid);
 
       if (fid == 0) {
-        eos_warning("removing fid=0 entry");
+        eos_warning("removing fxid=0 entry");
         return LocalDeleteFmd(fMd.fid(), fsid);
       }
     }
@@ -1046,7 +1044,7 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
         if (fMd.layouterror() & LayoutId::kUnregistered) {
           // There is no replica supposed to be here and there is nothing on
           // disk, so remove it from the database
-          eos_warning("removing <ghost> entry for fid=%08llx on fsid=%lu", fid,
+          eos_warning("removing <ghost> entry for fxid=%08llx on fsid=%lu", fid,
                       (unsigned long) fsid);
           delete fmd;
           return LocalDeleteFmd(fMd.fid(), fsid);
@@ -1060,7 +1058,7 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
 
     if ((!fmd) && (rc == ENODATA)) {
       // No file on MGM and no file locally
-      eos_info("fsid=%lu fid=%08llx msg=\"file removed in the meanwhile\"",
+      eos_info("fsid=%lu fxid=%08llx msg=\"file removed in the meanwhile\"",
                fsid, fid);
       return true;
     }
@@ -1078,7 +1076,7 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
                          fMd.mgmchecksum(), fMd.uid(), fMd.gid(), fMd.ctime(),
                          fMd.ctime_ns(), fMd.mtime(), fMd.mtime_ns(),
                          fMd.layouterror(), fMd.locations())) {
-        eos_err("failed to update fmd for fid=%08llx", fid);
+        eos_err("failed to update fmd for fxid=%08llx", fid);
         delete fmd;
         return false;
       }
@@ -1086,7 +1084,7 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
       // Check if it exists on disk
       if (fmd->mProtoFmd.disksize() == 0xfffffffffff1ULL) {
         fMd.set_layouterror(fMd.layouterror() | LayoutId::kMissing);
-        eos_warning("found missing replica for fid=%08llx on fsid=%lu", fid,
+        eos_warning("found missing replica for fxid=%08llx on fsid=%lu", fid,
                     (unsigned long) fsid);
       }
 
@@ -1095,7 +1093,7 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
           (fmd->mProtoFmd.mgmsize() == 0xfffffffffff1ULL)) {
         // There is no replica supposed to be here and there is nothing on
         // disk, so remove it from the database
-        eos_warning("removing <ghost> entry for fid=%08llx on fsid=%lu", fid,
+        eos_warning("removing <ghost> entry for fxid=%08llx on fsid=%lu", fid,
                     (unsigned long) fsid);
         delete fmd;
         return LocalDeleteFmd(fMd.fid(), fsid);
@@ -1103,11 +1101,11 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
 
       delete fmd;
     } else {
-      eos_err("failed to create fmd for fid=%08llx", fid);
+      eos_err("failed to create fmd for fxid=%08llx", fid);
       return false;
     }
   } else {
-    eos_err("failed to retrieve MGM fmd for fid=%08llx", fid);
+    eos_err("failed to retrieve MGM fmd for fxid=%08llx", fid);
     return false;
   }
 
@@ -1157,7 +1155,7 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
           // Check if it exists on disk
           if (fmd->mProtoFmd.disksize() == 0xfffffffffff1ULL) {
             fMd.set_layouterror(fMd.layouterror() | LayoutId::kMissing);
-            eos_warning("found missing replica for fid=%08llx on fsid=%lu", fMd.fid(),
+            eos_warning("found missing replica for fxid=%08llx on fsid=%lu", fMd.fid(),
                         (unsigned long) fsid);
           }
 
@@ -1260,7 +1258,7 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contactDetails,
       // Check if it exists on disk
       if (local_fmd->mProtoFmd.disksize() == 0xfffffffffff1ULL) {
         ns_fmd.set_layouterror(ns_fmd.layouterror() | LayoutId::kMissing);
-        eos_warning("found missing replica for fid=%08llx on fsid=%lu",
+        eos_warning("found missing replica for fxid=%08llx on fsid=%lu",
                     ns_fmd.fid(), (unsigned long) fsid);
       }
 
@@ -1355,7 +1353,7 @@ FmdDbMapHandler::RemoveGhostEntries(const char* path,
             if ((errno == ENOENT) || (errno == ENOTDIR)) {
               if ((f.layouterror() & LayoutId::kOrphan) ||
                   (f.layouterror() & LayoutId::kUnregistered)) {
-                eos_static_info("msg=\"push back for deletion fid=%08llx\"", fid);
+                eos_static_info("msg=\"push back for deletion fxid=%08llx\"", fid);
                 to_delete.push_back(fid);
               }
             }
@@ -1370,10 +1368,10 @@ FmdDbMapHandler::RemoveGhostEntries(const char* path,
     // Delete ghost entries from local database
     for (const auto& id : to_delete) {
       if (LocalDeleteFmd(id, fsid)) {
-        eos_static_info("msg=\"removed FMD ghost entry fid=%08llx fsid=%d\"",
+        eos_static_info("msg=\"removed FMD ghost entry fxid=%08llx fsid=%d\"",
                         id, fsid);
       } else {
-        eos_static_err("msg=\"failed to removed FMD ghost entry fid=%08llx "
+        eos_static_err("msg=\"failed to removed FMD ghost entry fxid=%08llx "
                        "fsid=%d\"", id, fsid);
       }
     }

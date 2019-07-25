@@ -162,20 +162,21 @@ extern "C" {
 //------------------------------------------------------------------------------
   XrdSfsFileSystem*
   XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
-		      XrdSysLogger* lp,
-		      const char* configfn)
+                      XrdSysLogger* lp,
+                      const char* configfn)
   {
     if (gOFS) {
       // initialize filesystems only once
       return gOFS;
     }
+
     gMgmOfsEroute.SetPrefix("MgmOfs_");
     gMgmOfsEroute.logger(lp);
     static XrdMgmOfs myFS(&gMgmOfsEroute);
     XrdOucString vs = "MgmOfs (meta data redirector) ";
     vs += VERSION;
     gMgmOfsEroute.Say("++++++ (c) 2015 CERN/IT-DSS ", vs.c_str());
-    
+
     // Initialize the subsystems
     if (!myFS.Init(gMgmOfsEroute)) {
       return nullptr;
@@ -288,9 +289,8 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   eos::common::LogId::SetSingleShotLogId();
   mZmqContext = new zmq::context_t(1);
   IoStats.reset(new eos::mgm::Iostat());
-
   // export pointer to this object ... sigh ...
-  setenv("EOSMGMOFS", std::to_string((unsigned long long)this).c_str(),1);
+  setenv("EOSMGMOFS", std::to_string((unsigned long long)this).c_str(), 1);
 
   if (mHttpdPort)  {
     Httpd.reset(new eos::mgm::HttpServer(mHttpdPort));
@@ -683,19 +683,20 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   XrdOucString reqid(pargs.reqid);
   // Validate the event type
   std::string event;
-
   // Strip "quality of service" bits from pargs.opts so that only the action to
   // be taken is left
-  const int pargsOptsQoS = Prep_PMASK | Prep_SENDAOK | Prep_SENDERR | Prep_SENDACK | Prep_WMODE | Prep_COLOC |
-    Prep_FRESH;
+  const int pargsOptsQoS = Prep_PMASK | Prep_SENDAOK | Prep_SENDERR | Prep_SENDACK
+                           | Prep_WMODE | Prep_COLOC |
+                           Prep_FRESH;
   const int pargsOptsAction = pargs.opts & ~pargsOptsQoS;
-
 #if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
+
   // The XRootD prepare actions are mutually exclusive
-  switch(pargsOptsAction) {
+  switch (pargsOptsAction) {
   case 0: // No flags means stage file in from tape
   case Prep_STAGE:
     event = "sync::prepare";
+
     if (gOFS->IsFileSystem2) {
       // Override the XRootD-supplied request ID. The request ID can be any arbitrary string, so long as
       // it is guaranteed to be unique for each request.
@@ -706,36 +707,48 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       // This is a placeholder. To use this feature, EOS should generate a unique ID here.
       reqid = "eos:" + reqid;
     }
+
     break;
+
   case Prep_CANCEL:
     event = "sync::abort_prepare";
     break;
+
   case Prep_EVICT:
     event = "sync::evict_prepare";
     break;
+
   case Prep_FRESH:
     // Do not generate a workflow event for Prep_FRESH
     break;
+
   default:
     // More than one flag was set or there is an unknown flag
-    Emsg(epname, error, EINVAL, "prepare - invalid value for pargs.opts =", std::to_string(pargs.opts).c_str());
+    Emsg(epname, error, EINVAL, "prepare - invalid value for pargs.opts =",
+         std::to_string(pargs.opts).c_str());
     return SFS_ERROR;
   }
+
 #else
+
   // The XRootD prepare flags are mutually exclusive
-  switch(pargs.opts) {
+  switch (pargs.opts) {
   case 0: // No flags means stage file in from tape
   case Prep_STAGE:
     event = "sync::prepare";
     break;
+
   case Prep_FRESH:
     event = "sync::abort_prepare";
     break;
+
   default:
     // More than one flag was set or there is an unknown flag
-    Emsg(epname, error, EINVAL, "prepare - invalid value for pargs.opts =", std::to_string(pargs.opts).c_str());
+    Emsg(epname, error, EINVAL, "prepare - invalid value for pargs.opts =",
+         std::to_string(pargs.opts).c_str());
     return SFS_ERROR;
   }
+
 #endif
 
   // check that all files exist
@@ -776,7 +789,8 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
     eos::IContainerMD::XAttrMap attributes;
 
-    if (!event.empty() && _attr_ls(eos::common::Path(prep_path.c_str()).GetParentPath(), error, vid,
+    if (!event.empty() &&
+        _attr_ls(eos::common::Path(prep_path.c_str()).GetParentPath(), error, vid,
                  nullptr, attributes) == 0) {
       bool foundPrepareTag = false;
       std::string eventAttr = "sys.workflow." + event;
@@ -1216,11 +1230,12 @@ XrdMgmOfs::WriteRmRecord(const std::shared_ptr<eos::IFileMD>& fmd)
   fmd->getCTime(ctime);
   fmd->getMTime(mtime);
   snprintf(report, sizeof(report) - 1,
-           "log=%s&host=%s&fid=%08llx&ruid=%u&rgid=%udc_ts=%lu&dc_tns=%lu&"
-           "dm_ts=%lu&dm_tns=%lu&dsize=%lu&sec.app=rm", this->logId,
+           "log=%s&host=%s&fid=%llu&fxid=%08llx&ruid=%u&rgid=%udc_ts=%lu&"
+           "dc_tns=%lu&dm_ts=%lu&dm_tns=%lu&dsize=%lu&sec.app=rm", this->logId,
            gOFS->ManagerId.c_str(), (unsigned long long)fmd->getId(),
-           fmd->getCUid(), fmd->getCGid(), ctime.tv_sec, ctime.tv_nsec,
-           mtime.tv_sec, mtime.tv_nsec, fmd->getSize());
+           (unsigned long long)fmd->getId(), fmd->getCUid(), fmd->getCGid(),
+           ctime.tv_sec, ctime.tv_nsec, mtime.tv_sec, mtime.tv_nsec,
+           fmd->getSize());
   std::string record = report;
   IoStats->WriteRecord(record);
 }
@@ -1237,11 +1252,12 @@ XrdMgmOfs::WriteRecycleRecord(const std::shared_ptr<eos::IFileMD>& fmd)
   fmd->getCTime(ctime);
   fmd->getMTime(mtime);
   snprintf(report, sizeof(report) - 1,
-           "log=%s&host=%s&fid=%08llx&ruid=%u&rgid=%u&dc_ts=%lu&dc_tns=%lu&"
-           "dm_ts=%lu&dm_tns=%lu&dsize=%lu&sec.app=recycle", this->logId,
-           gOFS->ManagerId.c_str(), (unsigned long long)fmd->getId(),
-           fmd->getCUid(), fmd->getCGid(), ctime.tv_sec, ctime.tv_nsec,
-           mtime.tv_sec, mtime.tv_nsec, fmd->getSize());
+           "log=%s&host=%s&fid=%llu&fxid=%08llx&ruid=%u&rgid=%u&dc_ts=%lu&"
+           "dc_tns=%lu&dm_ts=%lu&dm_tns=%lu&dsize=%lu&sec.app=recycle",
+           this->logId, gOFS->ManagerId.c_str(), (unsigned long long)fmd->getId(),
+           (unsigned long long)fmd->getId(), fmd->getCUid(), fmd->getCGid(),
+           ctime.tv_sec, ctime.tv_nsec, mtime.tv_sec, mtime.tv_nsec,
+           fmd->getSize());
   std::string record = report;
   IoStats->WriteRecord(record);
 }
@@ -1306,54 +1322,85 @@ XrdMgmOfs::WaitUntilNamespaceIsBooted(ThreadAssistant& assistant)
 // Return string representation of prepare options
 //------------------------------------------------------------------------------
 std::string
-XrdMgmOfs::prepareOptsToString(const int opts) {
+XrdMgmOfs::prepareOptsToString(const int opts)
+{
   std::ostringstream result;
-
   const int priority = opts & Prep_PMASK;
-  switch(priority) {
+
+  switch (priority) {
   case Prep_PRTY0:
     result << "PRTY0";
     break;
+
   case Prep_PRTY1:
     result << "PRTY1";
     break;
+
   case Prep_PRTY2:
     result << "PRTY2";
     break;
+
   case Prep_PRTY3:
     result << "PRTY3";
     break;
+
   default:
     result << "PRTYUNKNOWN";
   }
 
   const int send_mask = 12;
   const int send = opts & send_mask;
-  switch(send) {
+
+  switch (send) {
   case 0:
     break;
+
   case Prep_SENDAOK:
     result << ",SENDAOK";
     break;
+
   case Prep_SENDERR:
     result << ",SENDERR";
     break;
+
   case Prep_SENDACK:
     result << ",SENDACK";
     break;
+
   default:
     result << ",SENDUNKNOWN";
   }
 
-  if(opts & Prep_WMODE) result << ",WMODE";
-  if(opts & Prep_STAGE) result << ",STAGE";
-  if(opts & Prep_COLOC) result << ",COLOC";
-  if(opts & Prep_FRESH) result << ",FRESH";
-#if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
-  if(opts & Prep_CANCEL) result << ",CANCEL";
-  if(opts & Prep_QUERY) result << ",QUERY";
-  if(opts & Prep_EVICT) result << ",EVICT";
-#endif
+  if (opts & Prep_WMODE) {
+    result << ",WMODE";
+  }
 
+  if (opts & Prep_STAGE) {
+    result << ",STAGE";
+  }
+
+  if (opts & Prep_COLOC) {
+    result << ",COLOC";
+  }
+
+  if (opts & Prep_FRESH) {
+    result << ",FRESH";
+  }
+
+#if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
+
+  if (opts & Prep_CANCEL) {
+    result << ",CANCEL";
+  }
+
+  if (opts & Prep_QUERY) {
+    result << ",QUERY";
+  }
+
+  if (opts & Prep_EVICT) {
+    result << ",EVICT";
+  }
+
+#endif
   return result.str();
 }
