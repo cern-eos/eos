@@ -1026,6 +1026,13 @@ Storage::CheckFilesystemFullness(FileSystem *fs,
                                  eos::common::FileSystem::fsid_t fsid)
 {
   long long freebytes = fs->GetLongLong("stat.statfs.freebytes");
+
+  /* watch out for stat.statfs.freebytes not yet set */
+  if (freebytes == 0 && fs->GetString("stat.statfs.freebytes").length() == 0) {
+      eos_static_info("stat.statfs.freebytes has not yet been defined, not setting file system fill status");
+      return;
+  }
+
   XrdSysMutexHelper lock(mFsFullMapMutex);
   // stop the writers if it get's critical under 5 GB space
   int full_gb = 5;
