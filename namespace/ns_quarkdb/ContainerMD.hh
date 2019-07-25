@@ -334,6 +334,45 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Get cloneId
+  //----------------------------------------------------------------------------
+  inline time_t
+  getCloneId() const
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return mCont.cloneid();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set cloneId
+  //----------------------------------------------------------------------------
+  inline void
+  setCloneId(time_t id)
+  {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+    mCont.set_cloneid(id);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get cloneFST
+  //----------------------------------------------------------------------------
+  inline const std::string
+  getCloneFST() const
+  {
+    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+    return mCont.clonefst();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set cloneFST
+  //----------------------------------------------------------------------------
+  void setCloneFST(const std::string& data) {
+    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+
+    mCont.set_clonefst(data);
+  }
+
+  //----------------------------------------------------------------------------
   //! Get mode
   //----------------------------------------------------------------------------
   inline mode_t

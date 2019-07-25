@@ -439,6 +439,56 @@ QuarkFileMD::setMTimeNow()
   clock_gettime(CLOCK_REALTIME, &tnow);
 #endif
   setMTime(tnow);
+  struct timespec default_ts = {0, 0};
+  setSyncTime(default_ts);
+}
+
+/* SyncTime: whenever the file is changed, SyncTime becomes MTime. It is only
+ * when mtime is set explicitely that the two diverge. Hence. the logic
+ * here is that if SyncTime is 0, use MTime. And reset SyncTime to
+ * zero when MTime is set to now (thus logically setting them both).
+ */
+
+//------------------------------------------------------------------------------
+// Get sync time, no lock
+//------------------------------------------------------------------------------
+void
+QuarkFileMD::getSyncTimeNoLock(ctime_t& stime) const
+{
+  (void) memcpy(&stime, mFile.stime().data(), sizeof(stime));
+  if (stime.tv_sec == 0)    /* fall back to mtime if default */
+      (void) memcpy(&stime, mFile.mtime().data(), sizeof(stime));
+}
+
+//------------------------------------------------------------------------------
+// Get sync time
+//------------------------------------------------------------------------------
+void
+QuarkFileMD::getSyncTime(ctime_t& stime) const
+{
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+  getSyncTimeNoLock(stime);
+}
+
+//------------------------------------------------------------------------------
+// Set sync time
+//------------------------------------------------------------------------------
+void
+QuarkFileMD::setSyncTime(ctime_t stime)
+{
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+  mFile.set_stime(&stime, sizeof(stime));
+}
+
+//------------------------------------------------------------------------------
+// Set sync time to now
+//------------------------------------------------------------------------------
+void
+QuarkFileMD::setSyncTimeNow()
+{
+  struct timespec tnow;
+  clock_gettime(CLOCK_REALTIME, &tnow);
+  setSyncTime(tnow);
 }
 
 //------------------------------------------------------------------------------

@@ -2169,9 +2169,11 @@ XrdMgmOfs::SetupProcFiles()
   procpathreconnect += "/reconnect";
   XrdOucString procpathmaster = MgmProcPath;
   procpathmaster += "/master";
+  XrdOucString clonePath(MgmProcPath + "/clone");
   XrdOucErrInfo error;
   eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
   std::shared_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IContainerMD> cmd;
 
   try {
     fmd.reset();
@@ -2224,6 +2226,10 @@ XrdMgmOfs::SetupProcFiles()
     fmd->setSize(4096);
     eosView->updateFileStore(fmd.get());
   }
+
+  try {
+    cmd = eosView->createContainer(clonePath.c_str());
+  } catch (eos::MDException& e) {};
 
   try {
     fmd.reset();

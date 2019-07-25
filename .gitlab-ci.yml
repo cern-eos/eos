@@ -124,6 +124,7 @@ before_script:
     - docker exec -i eos-mgm-test eos-instance-test-ci
     - docker exec -di eos-client1-test /bin/bash -c 'mkdir /eos1/; mount -t fuse eosxd /eos1/'
     - docker exec -di eos-client1-test /bin/bash -c 'mkdir /eos2/; mount -t fuse eosxd /eos2/'
+    - docker exec -i eos-client1-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch bash -c 'cd /eosclient-tests; git checkout clone_test; ./clone_test.sh'
     - docker exec -i -u eos-user eos-client1-test /bin/bash -c 'mkdir /eos1/dockertest/fusex_tests/; cd /eos1/dockertest/fusex_tests/; fusex-benchmark'
     # @todo(esindril): run "all" tests in schedule mode once these are properly supported
     # - if [ "$CI_PIPELINE_SOURCE" == "schedule" ]; then
