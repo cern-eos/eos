@@ -15,7 +15,7 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
-``v4.5.4 Citrine``
+``v4.5.3 Citrine``
 ===================
 
 2019-07-25
@@ -35,9 +35,13 @@ Bug
 Improvements
 ------------
 
-* Extend ns cache drop command to drop invidual entries
+* Extend ns cache drop command to drop individual entries
 * Move the following commands to the protobuf implementation: access, quota,
   config, node and space.
+* [EOS-3602] - Drop automatic conversion attempt from default output to JSON for
+  protobuf commands with JSON flag on. Each proto command will be
+  responsible of providing valid JSON output.
+* [EOS-3606] - Add birth time to a file's metadata when it is created/born
 
 
 ``v4.5.2 Citrine``
@@ -103,7 +107,7 @@ Improvement
   instead of "Permission denied"
 * [EOS-3519] - Add the possibility to do attr ls with the fid/pid
 * [EOS-3520] - add pid to the json output of file info
-* [EOS-2020] - Use Table Formatter for geosched show tree and snaphot commands output
+* [EOS-2020] - Use Table Formatter for geosched show tree and snapshot commands output
 * [EOS-3513] - Provide an exception when eos dumpmd <fsid> --path is not really empty
 * [EOS-3527] - FSCK dection tool: Classify size errors for not orphan files
 * [EOS-3531] - FSCK detection: Ignore size 0 files in the namespace in replica error detection
