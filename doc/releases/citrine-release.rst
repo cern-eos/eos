@@ -15,6 +15,30 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.5.4 Citrine``
+===================
+
+2019-07-25
+
+Bug
+---
+
+* [EOS-455] - RFE: drop either fid: or fxid:, use the other consistently
+* [EOS-3577] - Crash in ReplicationTracker
+* [EOS-3579] - io stat shows negative values (overflow?)
+* [EOS-3585] - eosxd crash below cap::capflush() / metad::cleanup()
+* [EOS-3604] - Apply path mapping for eos rm command
+* [EOS-3609] - Wrong json format in file info when & are in pathnames
+* Fix bug related to interference between logrotation and QdbMaster setup for
+  high-availability observed at JRC.
+
+Improvements
+------------
+
+* Extend ns cache drop command to drop invidual entries
+* Move the following commands to the protobuf implementation: access, quota,
+  config, node and space.
+
 
 ``v4.5.2 Citrine``
 ===================
