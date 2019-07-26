@@ -100,6 +100,49 @@ Messaging::Listen(ThreadAssistant& assistant) noexcept
   }
 }
 
+//----------------------------------------------------------------------------
+// Process heartbeat information based on the given advisory message
+//----------------------------------------------------------------------------
+void
+Messaging::ProcessIncomingHeartbeat(const std::string &nodequeue, bool online, time_t senderTimeSec)
+{
+  if (FsView::gFsView.mNodeView.count(nodequeue)) {
+    if (online) {
+      FsView::gFsView.mNodeView[nodequeue]->SetStatus("online");
+      FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(eos::common::ActiveStatus::kOnline);
+    } else {
+      FsView::gFsView.mNodeView[nodequeue]->SetStatus("offline");
+      FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(eos::common::ActiveStatus::kOffline);
+
+      // Propagate into filesystem states
+      for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
+            it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
+
+        FileSystem *entry = FsView::gFsView.mIdView.lookupByID(*it);
+        if(entry) {
+          entry->SetStatus(eos::common::BootStatus::kDown, false);
+        }
+      }
+    }
+
+    eos_debug("msg=\"setting heart beat to %llu for node queue=%s\"",
+            (unsigned long long) senderTimeSec,
+            nodequeue.c_str());
+
+    FsView::gFsView.mNodeView[nodequeue]->SetHeartBeat(senderTimeSec);
+
+    // Propagate into filesystems
+    for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
+      it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
+
+      FileSystem *entry = FsView::gFsView.mIdView.lookupByID(*it);
+      if(entry) {
+        entry->setLocalHeartbeatTime(senderTimeSec);
+      }
+    }
+  }
+}
+
 //------------------------------------------------------------------------------
 // Update based on advisory message
 //------------------------------------------------------------------------------
@@ -120,6 +163,7 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
     // =========| LockWrite
     eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
 
+    eos_static_info("Registering node queue %s ..", nodequeue.c_str());
     if (FsView::gFsView.RegisterNode(nodequeue.c_str())) {
       std::string nodeconfigname =
         eos::common::GlobalConfig::gConfig.QueuePrefixName(
@@ -133,86 +177,12 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
       }
     }
 
-    if (FsView::gFsView.mNodeView.count(nodequeue)) {
-      if (advmsg->kOnline) {
-        FsView::gFsView.mNodeView[nodequeue]->SetStatus("online");
-        FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(
-          eos::common::ActiveStatus::kOnline);
-      } else {
-        FsView::gFsView.mNodeView[nodequeue]->SetStatus("offline");
-        FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(
-          eos::common::ActiveStatus::kOffline);
-
-        // Propagate into filesystem states
-        for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
-             it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
-
-          FileSystem *entry = FsView::gFsView.mIdView.lookupByID(*it);
-          if(entry) {
-            entry->SetStatus(eos::common::BootStatus::kDown, false);
-          }
-        }
-      }
-
-      eos_info("msg=\"setting heart beat to %llu for node queue=%s\"",
-               (unsigned long long) advmsg->kMessageHeader.kSenderTime_sec,
-               nodequeue.c_str());
-      FsView::gFsView.mNodeView[nodequeue]->SetHeartBeat(
-        advmsg->kMessageHeader.kSenderTime_sec);
-
-      // Propagate into filesystems
-      for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
-           it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
-
-        FileSystem *entry = FsView::gFsView.mIdView.lookupByID(*it);
-        if(entry) {
-          entry->setLocalHeartbeatTime(advmsg->kMessageHeader.kSenderTime_sec);
-        }
-      }
-    }
-
+    ProcessIncomingHeartbeat(nodequeue, advmsg->kOnline, advmsg->kMessageHeader.kSenderTime_sec);
     // =========| UnLockWrite
     return true;
   } else {
     // here we can go just with a read lock
-    if (FsView::gFsView.mNodeView.count(nodequeue)) {
-      if (advmsg->kOnline) {
-        FsView::gFsView.mNodeView[nodequeue]->SetStatus("online");
-        FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(
-          eos::common::ActiveStatus::kOnline);
-      } else {
-        FsView::gFsView.mNodeView[nodequeue]->SetStatus("offline");
-        FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(
-          eos::common::ActiveStatus::kOffline);
-
-        // Propagate into filesystem states
-        for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
-             it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
-
-          FileSystem *entry = FsView::gFsView.mIdView.lookupByID(*it);
-          if(entry) {
-            entry->SetStatus(eos::common::BootStatus::kDown, false);
-          }
-        }
-      }
-
-      eos_debug("msg=\"setting heart beat to %llu for nodequeue=%s\"",
-                (unsigned long long) advmsg->kMessageHeader.kSenderTime_sec,
-                nodequeue.c_str());
-      FsView::gFsView.mNodeView[nodequeue]->SetHeartBeat(
-        advmsg->kMessageHeader.kSenderTime_sec);
-
-      // Propagate into filesystems
-      for (auto it = FsView::gFsView.mNodeView[nodequeue]->begin();
-           it != FsView::gFsView.mNodeView[nodequeue]->end(); ++it) {
-
-        FileSystem *entry = FsView::gFsView.mIdView.lookupByID(*it);
-        if(entry) {
-          entry->setLocalHeartbeatTime(advmsg->kMessageHeader.kSenderTime_sec);
-        }
-      }
-    }
-
+    ProcessIncomingHeartbeat(nodequeue, advmsg->kOnline, advmsg->kMessageHeader.kSenderTime_sec);
     FsView::gFsView.ViewMutex.UnLockRead(); // |========= UnLockRead
     return true;
   }

@@ -54,6 +54,13 @@ public:
   virtual bool Update(XrdAdvisoryMqMessage* advmsg);
 
   void Process(XrdMqMessage* newmessage);
+private:
+  //----------------------------------------------------------------------------
+  // Process heartbeat information based on the given advisory message
+  //----------------------------------------------------------------------------
+  void ProcessIncomingHeartbeat(const std::string &nodequeue, bool online,
+    time_t senderTimeSec);
+
 };
 
 EOSMGMNAMESPACE_END
