@@ -99,35 +99,41 @@ void QoSCmd::GetSubcmd(const eos::console::QoSProto_GetProto& get,
   eos::IFileMD::QoSAttrMap qosMap;
 
   for (const auto& key: get.key()) {
-    if (qosKeys.find(key) == qosKeys.end()) {
-      qosKeys.insert(key);
+    if (key == "all") {
+      qosKeys.clear();
+      break;
+    }
 
-      if (key == "cdmi") {
-        eos::IFileMD::QoSAttrMap cdmiMap;
+    qosKeys.insert(key);
+  }
 
-        if (gOFS->_qos_ls(spath.c_str(), errInfo, mVid, cdmiMap, true)) {
-          err << "error: " << errInfo.getErrText() << std::endl;
-          retc = errInfo.getErrInfo();
-          continue;
-        }
+  // Process specified keys
+  for (const auto& key: qosKeys) {
+    if (key == "cdmi") {
+      eos::IFileMD::QoSAttrMap cdmiMap;
 
-        qosMap.insert(cdmiMap.begin(), cdmiMap.end());
-      } else {
-        XrdOucString value;
-
-        if (gOFS->_qos_get(spath.c_str(), errInfo, mVid, key.c_str(), value)) {
-          err << "error: " << errInfo.getErrText() << std::endl;
-          retc = errInfo.getErrInfo();
-          continue;
-        }
-
-        qosMap[key] = value.c_str();
+      if (gOFS->_qos_ls(spath.c_str(), errInfo, mVid, cdmiMap, true)) {
+        err << "error: " << errInfo.getErrText() << std::endl;
+        retc = errInfo.getErrInfo();
+        continue;
       }
+
+      qosMap.insert(cdmiMap.begin(), cdmiMap.end());
+    } else {
+      XrdOucString value;
+
+      if (gOFS->_qos_get(spath.c_str(), errInfo, mVid, key.c_str(), value)) {
+        err << "error: " << errInfo.getErrText() << std::endl;
+        retc = errInfo.getErrInfo();
+        continue;
+      }
+
+      qosMap[key] = value.c_str();
     }
   }
 
   // No keys specified -- extract all
-  if (get.key_size() == 0) {
+  if (qosKeys.empty()) {
     if (gOFS->_qos_ls(spath.c_str(), errInfo, mVid, qosMap)) {
       err << "error: " << errInfo.getErrText() << std::endl;
       retc = errInfo.getErrInfo();
