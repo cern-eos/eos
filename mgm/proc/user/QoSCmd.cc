@@ -239,7 +239,10 @@ static int CheckIsFile(const char* path,
   }
 
   if (fileExists == XrdSfsFileExistNo) {
-    err_msg = "error: path does not point to a file or directory";
+    err_msg = "error: path does not point to a valid entry";
+    return EINVAL;
+  } else if (fileExists != XrdSfsFileExistIsFile) {
+    err_msg = "error: path does not point to a file";
     return EINVAL;
   }
 
