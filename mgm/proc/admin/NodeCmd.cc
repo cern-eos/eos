@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// File: NodeCmd.cc
-// Author: Fabio Luchetti - CERN
+// @file: NodeCmd.cc
+// @author: Fabio Luchetti - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -38,25 +38,33 @@ NodeCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
   eos::console::NodeProto node = mReqProto.node();
-  eos::console::NodeProto::SubcmdCase subcmd = node.subcmd_case();
 
-  if (subcmd == eos::console::NodeProto::kLs) {
+  switch (mReqProto.node().subcmd_case()) {
+  case eos::console::NodeProto::kLs:
     LsSubcmd(node.ls(), reply);
-  } else if (subcmd == eos::console::NodeProto::kRm) {
+    break;
+  case eos::console::NodeProto::kRm:
     RmSubcmd(node.rm(), reply);
-  } else if (subcmd == eos::console::NodeProto::kStatus) {
+    break;
+  case eos::console::NodeProto::kStatus:
     StatusSubcmd(node.status(), reply);
-  } else if (subcmd == eos::console::NodeProto::kConfig) {
+    break;
+  case eos::console::NodeProto::kConfig:
     ConfigSubcmd(node.config(), reply);
-  } else if (subcmd == eos::console::NodeProto::kRegisterx) {
+    break;
+  case eos::console::NodeProto::kRegisterx:
     RegisterSubcmd(node.registerx(), reply);
-  } else if (subcmd == eos::console::NodeProto::kSet) {
+    break;
+  case eos::console::NodeProto::kSet:
     SetSubcmd(node.set(), reply);
-  } else if (subcmd == eos::console::NodeProto::kTxgw) {
+    break;
+  case eos::console::NodeProto::kTxgw:
     TxgwSubcmd(node.txgw(), reply);
-  } else if (subcmd == eos::console::NodeProto::kProxygroup) {
+    break;
+  case eos::console::NodeProto::kProxygroup:
     ProxygroupSubcmd(node.proxygroup(), reply);
-  } else {
+    break;
+  default:
     reply.set_std_err("error: not supported");
     reply.set_retc(EINVAL);
   }
@@ -129,7 +137,7 @@ void NodeCmd::LsSubcmd(const eos::console::NodeProto_LsProto& ls,
   }
 
   reply.set_std_out(output);
-  reply.set_retc(SFS_OK);
+  reply.set_retc(0);
 }
 
 //------------------------------------------------------------------------------
@@ -143,7 +151,7 @@ void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm, eos::console::
     return;
   }
 
-  if (!rm.node().length()) {
+  if (rm.node().empty()) {
     reply.set_std_err("error: illegal parameter 'node'");
     reply.set_retc(EINVAL);
     return;
@@ -187,7 +195,7 @@ void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm, eos::console::
     }
   }
 
-  std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(FsNode::sGetConfigQueuePrefix(), nodename.c_str());
+  std::string nodeconfigname = eos::common::GlobalConfig::QueuePrefixName(FsNode::sGetConfigQueuePrefix(), nodename.c_str());
 
   if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(nodeconfigname.c_str())) {
     reply.set_std_err("error: unable to remove config of node '" + nodename + "'");
@@ -208,6 +216,7 @@ void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm, eos::console::
 
 
 }
+
 //------------------------------------------------------------------------------
 // Execute status subcommand
 //------------------------------------------------------------------------------
@@ -256,7 +265,7 @@ void NodeCmd::StatusSubcmd(const eos::console::NodeProto_StatusProto& status, eo
     std_out += line;
   }
   reply.set_std_out(std_out);
-  reply.set_retc(SFS_OK);
+  reply.set_retc(0);
 
 }
 
@@ -442,13 +451,11 @@ void NodeCmd::RegisterSubcmd(const eos::console::NodeProto_RegisterProto& regist
 
   if (XrdMqMessaging::gMessageClient.SendMessage(message, nodequeue.c_str())) {
     reply.set_std_out("success: sent global register message to all fst nodes");
-    reply.set_retc(SFS_OK);
+    reply.set_retc(0);
   } else {
     reply.set_std_err("error: could not send global fst register message!");
     reply.set_retc(EIO);
   }
-
-  return;
 
 }
 
@@ -458,7 +465,7 @@ void NodeCmd::RegisterSubcmd(const eos::console::NodeProto_RegisterProto& regist
 void NodeCmd::SetSubcmd(const eos::console::NodeProto_SetProto& set, eos::console::ReplyProto& reply) {
 
   std::string nodename = set.node();
-  const std::string status = set.node_state_switch();
+  const std::string& status = set.node_state_switch();
   std::string key = "status";
 
   if (!nodename.length() || !status.length()) {
@@ -545,7 +552,7 @@ void NodeCmd::SetSubcmd(const eos::console::NodeProto_SetProto& set, eos::consol
 void NodeCmd::TxgwSubcmd(const eos::console::NodeProto_TxgwProto& txgw, eos::console::ReplyProto& reply){
 
   std::string nodename = txgw.node();
-  const std::string status = txgw.node_txgw_switch();
+  const std::string& status = txgw.node_txgw_switch();
   std::string key = "txgw";
 
   if (!nodename.length() || !status.length()) {

@@ -76,7 +76,7 @@ ProcInterface::GetProcCommand(const char* tident,
 
     // New proc command implementation using ProtocolBuffer objects
     if (env.Get("mgm.cmd.proto")) {
-      pcmd = HandleProtobufRequest(path, opaque, vid);
+      pcmd = HandleProtobufRequest(opaque, vid);
     } else {
       pcmd.reset(new ProcCommand());
     }
@@ -155,8 +155,8 @@ ProcInterface::DropSubmittedCmd(const char* tident)
 //----------------------------------------------------------------------------
 // Handle protobuf request
 //----------------------------------------------------------------------------
-std::unique_ptr<IProcCommand>
-ProcInterface::HandleProtobufRequest(const char* path, const char* opaque,
+unique_ptr<IProcCommand>
+ProcInterface::HandleProtobufRequest(const char* opaque,
                                      eos::common::VirtualIdentity& vid)
 {
   using eos::console::RequestProto;
@@ -190,7 +190,7 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
 				       eos::common::VirtualIdentity& vid)
 {
   using eos::console::RequestProto;
-  std::unique_ptr<IProcCommand> cmd;
+  auto cmd = std::make_unique<IProcCommand>();
   // Log the type of command that we received
   std::string json_out;
   (void) google::protobuf::util::MessageToJsonString(req, &json_out);
@@ -198,67 +198,67 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
 
   switch (req.command_case()) {
   case RequestProto::kAcl:
-    cmd.reset(new AclCmd(std::move(req), vid));
+    cmd = std::make_unique<AclCmd>(std::move(req), vid);
     break;
 
   case RequestProto::kNs:
-    cmd.reset(new NsCmd(std::move(req), vid));
+    cmd = std::make_unique<NsCmd>(std::move(req), vid);
     break;
 
   case RequestProto::kFind:
-    cmd.reset(new FindCmd(std::move(req), vid));
+    cmd = std::make_unique<FindCmd>(std::move(req), vid);
     break;
 
   case RequestProto::kFs:
-    cmd.reset(new FsCmd(std::move(req), vid));
+    cmd = std::make_unique<FsCmd>(std::move(req), vid);
     break;
 
   case RequestProto::kRm:
-    cmd.reset(new RmCmd(std::move(req), vid));
+    cmd = std::make_unique<RmCmd>(std::move(req), vid);
     break;
 
   case RequestProto::kStagerRm:
-    cmd.reset(new StagerRmCmd(std::move(req), vid));
+    cmd = std::make_unique<StagerRmCmd>(std::move(req), vid);
     break;
 
   case RequestProto::kRoute:
-    cmd.reset(new RouteCmd(std::move(req), vid));
+    cmd = std::make_unique<RouteCmd>(std::move(req), vid);
     break;
 
   case RequestProto::kRecycle:
-    cmd.reset(new RecycleCmd(std::move(req), vid));
+    cmd = std::make_unique<RecycleCmd>(std::move(req), vid);
     break;
 
   case RequestProto::kIo:
-    cmd.reset(new IoCmd(std::move(req), vid));
+    cmd = std::make_unique<IoCmd>(std::move(req), vid);
     break;
 
   case RequestProto::kGroup:
-    cmd.reset(new GroupCmd(std::move(req), vid));
+    cmd = std::make_unique<GroupCmd>(std::move(req), vid);
     break;
 
   case RequestProto::kDebug:
-    cmd.reset(new DebugCmd(std::move(req), vid));
+    cmd = std::make_unique<DebugCmd>(std::move(req), vid);
     break;
 
   case RequestProto::kNode:
-    cmd.reset(new NodeCmd(std::move(req), vid));
+    cmd = std::make_unique<NodeCmd>(std::move(req), vid);
     break;
 
   case RequestProto::kQuota:
-    cmd.reset(new QuotaCmd(std::move(req), vid));
+    cmd = std::make_unique<QuotaCmd>(std::move(req), vid);
     break;
 
   case RequestProto::kSpace:
-    cmd.reset(new SpaceCmd(std::move(req), vid));
+    cmd = std::make_unique<SpaceCmd>(std::move(req), vid);
     break;
 
   case RequestProto::kConfig:
-    cmd.reset(new ConfigCmd(std::move(req), vid));
+    cmd = std::make_unique<ConfigCmd>(std::move(req), vid);
     break;
 
   case RequestProto::kAccess:
-    cmd.reset(new AccessCmd(std::move(req), vid));
+    cmd = std::make_unique<AccessCmd>(std::move(req), vid);
     break;
 
     default:
@@ -273,7 +273,7 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
 // Inspect protobuf request if this modifies the namespace
 //----------------------------------------------------------------------------
 bool
-ProcInterface::ProtoIsWriteAccess(const char* path, const char* opaque)
+ProcInterface::ProtoIsWriteAccess(const char* opaque)
 {
   using eos::console::RequestProto;
   std::unique_ptr<IProcCommand> cmd;
@@ -317,11 +317,15 @@ ProcInterface::ProtoIsWriteAccess(const char* path, const char* opaque)
     case eos::console::AclProto::NONE:
     case eos::console::AclProto::LIST:
       return false;
+    default:
+      return true;
     }
   case RequestProto::kRecycle:
     switch (req.recycle().subcmd_case()) {
     case eos::console::RecycleProto::kLs:
       return false;
+    default:
+      return true;
     }
   case RequestProto::kFs:
     switch (req.fs().subcmd_case()) {
@@ -331,28 +335,38 @@ ProcInterface::ProtoIsWriteAccess(const char* path, const char* opaque)
     case eos::console::FsProto::kLs:
     case eos::console::FsProto::kStatus:
       return false;
+      default:
+        return true;
     }
   case RequestProto::kRoute:
     switch (req.route().subcmd_case()) {
     case eos::console::RouteProto::kList:
       return false;
+      default:
+        return true;
     }
   case RequestProto::kGroup:
     switch (req.group().subcmd_case()) {
     case eos::console::GroupProto::kLs:
       return false;
+      default:
+        return true;
     }
   case RequestProto::kNode:
     switch (req.node().subcmd_case()) {
     case eos::console::NodeProto::kLs:
     case eos::console::NodeProto::kStatus:
       return false;
+      default:
+        return true;
     }
   case RequestProto::kQuota:
     switch (req.quota().subcmd_case()) {
     case eos::console::QuotaProto::kLs:
     case eos::console::QuotaProto::kLsuser:
       return false;
+      default:
+        return true;
     }
   case RequestProto::kSpace:
     switch (req.space().subcmd_case()) {
@@ -360,11 +374,15 @@ ProcInterface::ProtoIsWriteAccess(const char* path, const char* opaque)
     case eos::console::SpaceProto::kStatus:
     case eos::console::SpaceProto::kNodeGet:
       return false;
+      default:
+        return true;
     }
   case RequestProto::kAccess:
     switch (req.access().subcmd_case()) {
     case eos::console::AccessProto::kLs:
       return false;
+      default:
+        return true;
     }
 
   // always true
@@ -404,7 +422,7 @@ ProcInterface::IsWriteAccess(const char* path, const char* info)
   // Filter protobuf requests
   // @TODO: avoid parsing proto buf requests twice (here and later when running the request)
   if (procEnv.Get("mgm.cmd.proto")) {
-    return ProtoIsWriteAccess(inpath.c_str(), ininfo.c_str());
+    return ProtoIsWriteAccess(ininfo.c_str());
   }
 
   XrdOucString cmd = procEnv.Get("mgm.cmd");

@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// File: com_proto_debug.cc
-// Author: Fabio Luchetti - CERN
+// @file: com_proto_debug.cc
+// @author: Fabio Luchetti - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -43,7 +43,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~DebugHelper() = default;
+  ~DebugHelper() override = default;
 
   //----------------------------------------------------------------------------
   //! Parse command line input
@@ -65,57 +65,48 @@ bool DebugHelper::ParseCommand(const char* arg)
   tokenizer.GetLine();
   std::string token;
 
-  if (!tokenizer.NextToken(token)) {
-    return false;
-  }
-
-  if ((token == "-h") || (token == "--help")) {
-    return false;
-  }
+  if (!tokenizer.NextToken(token)) return false;
 
   if (token == "get") {
+
     eos::console::DebugProto_GetProto* get = debugproto->mutable_get();
     get->set_placeholder(true);
+
   } else if (token == "this") {
+
     debug = !debug;
     fprintf(stdout, "info: toggling shell debugmode to debug=%d\n", debug);
     eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
-
     if (debug) {
       g_logging.SetLogPriority(LOG_DEBUG);
     } else {
       g_logging.SetLogPriority(LOG_NOTICE);
     }
-
     mIsLocal = true;
+
   } else {
-    // token must be one of [debug info warning notice err crit alert emerg]
+
+    // token should be one of [debug info warning notice err crit alert emerg]
     eos::console::DebugProto_SetProto* set = debugproto->mutable_set();
     set->set_debuglevel(token);
 
     if (tokenizer.NextToken(token)) {
       if (token == "--filter") {
-        if (!tokenizer.NextToken(token)) {
-          return false;
-        }
-
+        if (!tokenizer.NextToken(token)) return false;
         set->set_filter(token);
       } else {
         set->set_nodename(token);
-
         if (tokenizer.NextToken(token)) {
           if (token != "--filter") {
             return false;
           } else {
-            if (!tokenizer.NextToken(token)) {
-              return false;
-            } else {
-              set->set_filter(token);
-            }
+            if (!tokenizer.NextToken(token)) return false;
+            set->set_filter(token);
           }
         }
       }
     }
+
   }
 
   return true;
@@ -133,15 +124,15 @@ com_protodebug(char* arg)
     return EINVAL;
   }
 
-  DebugHelper debug;
+  DebugHelper debugh;
 
-  if (!debug.ParseCommand(arg)) {
+  if (!debugh.ParseCommand(arg)) {
     com_debug_help();
     global_retc = EINVAL;
     return EINVAL;
   }
 
-  global_retc = debug.Execute();
+  global_retc = debugh.Execute();
   return global_retc;
 }
 
@@ -152,56 +143,37 @@ void com_debug_help()
 {
   std::ostringstream oss;
   oss
-      << "Usage: debug get|this|<level> [node-queue] [--filter <unitlist>]"
+      << " usage:\n"
+      << "debug get|this|<level> [node-queue] [--filter <unitlist>]\n"
+      << "'[eos] debug ...' allows to get or set the verbosity of the EOS log files in MGM and FST services.\n"
       << std::endl
-      << "'[eos] debug ...' allows to get or set the verbosity of the EOS log files in MGM and FST services."
+      << "Options:\n"
       << std::endl
+      << "debug get : retrieve the current log level for the mgm and fsts node-queue\n"
       << std::endl
-      << "Options: "
+      << "debug this : toggle EOS shell debug mode\n"
       << std::endl
+      << "debug  <level> [--filter <unitlist>] : set the MGM where the console is connected to into debug level <level>\n"
       << std::endl
-      << "debug get"
+      << "debug  <level> <node-queue> [--filter <unitlist>] : set the <node-queue> into debug level <level>.\n"
+      << "\t - <node-queue> are internal EOS names e.g. '/eos/<hostname>:<port>/fst'\n"
+      << "\t - <unitlist> is a comma separated list of strings of software units which should be filtered out in the message log!\n"
       << std::endl
-      << "\t : retrieve the current log level for the mgm and fsts node-queue"
+      << "The default filter list is:\n"
+      << "'Process,AddQuota,Update,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode,SharedHash,listenFsChange,placeNewReplicas,"
+      << "placeNewReplicasOneGroup,accessReplicas,accessReplicasOneGroup,accessHeadReplicaMultipleGroup,updateTreeInfo,updateAtomicPenalties,updateFastStructures,work'.\n"
       << std::endl
+      << "The allowed debug levels are:\n"
+      << "debug,info,warning,notice,err,crit,alert,emerg\n"
       << std::endl
-      << "debug this"
+      << "Examples:\n"
+      << "\t debug info *                         set MGM & all FSTs into debug mode 'info'\n"
       << std::endl
-      << "\t : toggle EOS shell debug mode"
+      << "\t debug err /eos/*/fst                 set all FSTs into debug mode 'info'\n"
       << std::endl
+      << "\t debug crit /eos/*/mgm                set MGM into debug mode 'crit'\n"
       << std::endl
-      << "debug  <level> [--filter <unitlist>]"
-      << std::endl
-      << "\t : set the MGM where the console is connected to into debug level <level>"
-      << std::endl
-      << std::endl
-      << "debug  <level> <node-queue> [--filter <unitlist>]"
-      << std::endl
-      << "\t : set the <node-queue> into debug level <level>."
-      << std::endl
-      << "\t - <node-queue> are internal EOS names e.g. '/eos/<hostname>:<port>/fst'"
-      << std::endl
-      << "\t - <unitlist> is a comma separated list of strings of software units which should be filtered out in the message log!"
-      << std::endl
-      << "\t   The default filter list is: 'Process,AddQuota,Update,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode,SharedHash,listenFsChange,"
-      << std::endl
-      << "\t   placeNewReplicas,placeNewReplicasOneGroup,accessReplicas,accessReplicasOneGroup,accessHeadReplicaMultipleGroup,updateTreeInfo,updateAtomicPenalties,updateFastStructures,work'."
-      << std::endl
-      << std::endl
-      << "The allowed debug levels are: debug info warning notice err crit alert emerg"
-      << std::endl
-      << std::endl
-      << "Examples:" << std::endl
-      << "  debug info *                         set MGM & all FSTs into debug mode 'info'"
-      << std::endl
-      << std::endl
-      << "  debug err /eos/*/fst                 set all FSTs into debug mode 'info'"
-      << std::endl
-      << std::endl
-      << "  debug crit /eos/*/mgm                set MGM into debug mode 'crit'" <<
-      std::endl
-      << std::endl
-      << "  debug debug --filter MgmOfsMessage   set MGM into debug mode 'debug' and filter only messages coming from unit 'MgmOfsMessage'."
+      << "\t debug debug --filter MgmOfsMessage   set MGM into debug mode 'debug' and filter only messages coming from unit 'MgmOfsMessage'.\n"
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }

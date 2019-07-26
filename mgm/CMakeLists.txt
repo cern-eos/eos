@@ -117,28 +117,20 @@ add_library(
   proc/ProcInterface.cc
   proc/ProcCommand.cc
   proc/proc_fs.cc
-  proc/admin/Access.cc
   proc/admin/AccessCmd.cc proc/admin/AccessCmd.hh
   proc/admin/Backup.cc
-  proc/admin/Config.cc
   proc/admin/ConfigCmd.cc proc/admin/ConfigCmd.hh
-  proc/admin/Debug.cc
   proc/admin/DebugCmd.cc proc/admin/DebugCmd.hh
   proc/admin/FsCmd.cc
   proc/admin/Fsck.cc
   proc/admin/Fusex.cc
   proc/admin/GeoSched.cc
-  proc/admin/Group.cc
   proc/admin/GroupCmd.cc proc/admin/GroupCmd.hh
-  proc/admin/Io.cc
   proc/admin/IoCmd.cc proc/admin/IoCmd.hh
-  proc/admin/Node.cc
   proc/admin/NodeCmd.cc proc/admin/NodeCmd.hh
   proc/admin/NsCmd.cc
-  proc/admin/Quota.cc
   proc/admin/QuotaCmd.cc proc/admin/QuotaCmd.hh
   proc/admin/Rtlog.cc
-  proc/admin/Space.cc
   proc/admin/SpaceCmd.cc proc/admin/SpaceCmd.hh
   proc/admin/StagerRmCmd.cc proc/admin/StagerRmCmd.hh
   proc/admin/Transfer.cc
@@ -162,7 +154,6 @@ add_library(
   proc/user/Member.cc
   proc/user/Mkdir.cc
   proc/user/Motd.cc
-  proc/user/Quota.cc
   proc/user/RecycleOld.cc
   proc/user/RecycleCmd.cc
   proc/user/Rm.cc

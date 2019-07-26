@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// File: com_proto_io.cc
-// Author: Fabio Luchetti - CERN
+// @file: com_proto_io.cc
+// @author: Fabio Luchetti - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -45,7 +45,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~IoHelper() = default;
+  ~IoHelper() override = default;
 
   //----------------------------------------------------------------------------
   //! Parse command line input
@@ -67,9 +67,7 @@ bool IoHelper::ParseCommand(const char* arg)
   tokenizer.GetLine();
   std::string token;
 
-  if (!tokenizer.NextToken(token)) {
-    return false;
-  }
+  if (!tokenizer.NextToken(token)) return false;
 
   // one of { stat, ns, report, enable, disable }
   if (token == "stat") {
@@ -122,21 +120,15 @@ bool IoHelper::ParseCommand(const char* arg)
       }
     }
   } else if (token == "report") {
-    if (!tokenizer.NextToken(token)) {
-      return false;
-    }
 
+    if (!tokenizer.NextToken(token)) return false;
     eos::console::IoProto_ReportProto* report = io->mutable_report();
     report->set_path(token);
+
   } else if (token == "enable" || token == "disable") {
+
     eos::console::IoProto_EnableProto* enable = io->mutable_enable();
-
-    if (token == "enable") {
-      enable->set_switchx(true);
-    } else {
-      enable->set_switchx(false);
-    }
-
+    enable->set_switchx(token == "enable");
     while (tokenizer.NextToken(token)) {
       if (token == "-r") {
         enable->set_reports(true);
@@ -145,7 +137,7 @@ bool IoHelper::ParseCommand(const char* arg)
       } else if (token == "-n") {
         enable->set_namespacex(true);
       } else if (token == "--udp") {
-        if (!(tokenizer.NextToken(token)) || (token.find("-") == 0)) {
+        if (!(tokenizer.NextToken(token)) || (token.find('-') == 0)) {
           return false;
         } else {
           enable->set_upd_address(token);
@@ -192,47 +184,40 @@ void com_io_help()
 {
   std::ostringstream oss;
   oss
-      << "usage: io stat [-l] [-a] [-m] [-n] [-t] [-d] [-x] : print io statistics"
+      << " usage:\n"
       << std::endl
-      << "\t  -l : show summary information (this is the default if -a,-t,-d,-x is not selected)"
+      << "io stat [-l] [-a] [-m] [-n] [-t] [-d] [-x] : print io statistics\n"
+      << "\t  -l : show summary information (this is the default if -a,-t,-d,-x is not selected)\n"
+      << "\t  -a : break down by uid/gid\n"
+      << "\t  -m : print in <key>=<val> monitoring format\n"
+      << "\t  -n : print numerical uid/gids\n"
+      << "\t  -t : print top user stats\n"
+      << "\t  -d : break down by domains\n"
+      << "\t  -x : break down by application\n"
       << std::endl
-      << "\t  -a : break down by uid/gid" << std::endl
-      << "\t  -m : print in <key>=<val> monitoring format" << std::endl
-      << "\t  -n : print numerical uid/gids" << std::endl
-      << "\t  -t : print top user stats" << std::endl
-      << "\t  -d : break down by domains" << std::endl
-      << "\t  -x : break down by application" << std::endl
+      << "io enable [-r] [-p] [-n] [--udp <address>] : enable collection of io statistics\n"
+      << "\t              -r : enable collection of io reports\n"
+      << "\t              -p : enable popularity accounting\n"
+      << "\t              -n : enable report namespace\n"
+      << "\t --udp <address> : add a UDP message target for io UDP packtes (the configured targets are shown by 'io stat -l)\n"
       << std::endl
-      << "       io enable [-r] [-p] [-n] [--udp <address>] : enable collection of io statistics"
+      << "io disable [-r] [-p] [-n] [--udp <address>] : disable collection of io statistics\n"
+      << "\t              -r : disable collection of io reports\n"
+      << "\t              -p : disable popularity accounting\n"
+      << "\t              -n : disable report namespace\n"
+      << "\t --udp <address> : remove a UDP message target for io UDP packtes (the configured targets are shown by 'io stat -l)\n"
       << std::endl
-      << "\t              -r : enable collection of io reports" << std::endl
-      << "\t              -p : enable popularity accounting" << std::endl
-      << "\t              -n : enable report namespace" << std::endl
-      << "\t --udp <address> : add a UDP message target for io UDP packtes (the configured targets are shown by 'io stat -l)"
+      << "io report <path> : show contents of report namespace for <path>\n"
       << std::endl
-      << std::endl
-      << "       io disable [-r] [-p] [-n] [--udp <address>] : disable collection of io statistics"
-      << std::endl
-      << "\t              -r : disable collection of io reports" << std::endl
-      << "\t              -p : disable popularity accounting" << std::endl
-      << "\t              -n : disable report namespace" << std::endl
-      << "\t --udp <address> : remove a UDP message target for io UDP packtes (the configured targets are shown by 'io stat -l)"
-      << std::endl
-      << std::endl
-      << "       io report <path> : show contents of report namespace for <path>" <<
-      std::endl
-      << std::endl
-      << "       io ns [-a] [-n] [-b] [-100|-1000|-10000] [-w] [-f] : show namespace IO ranking (popularity)"
-      << std::endl
-      << "\t      -a :  don't limit the output list" << std::endl
-      << "\t      -n :  show ranking by number of accesses" << std::endl
-      << "\t      -b :  show ranking by number of bytes" << std::endl
-      << "\t    -100 :  show the first 100 in the ranking" << std::endl
-      << "\t   -1000 :  show the first 1000 in the ranking" << std::endl
-      << "\t  -10000 :  show the first 10000 in the ranking" << std::endl
-      << "\t      -w :  show history for the last 7 days" << std::endl
-      << "\t      -f :  show the 'hotfiles' which are the files with highest number of present file opens"
-      << std::endl
+      << "io ns [-a] [-n] [-b] [-100|-1000|-10000] [-w] [-f] : show namespace IO ranking (popularity)\n"
+      << "\t      -a :  don't limit the output list\n"
+      << "\t      -n :  show ranking by number of accesses\n"
+      << "\t      -b :  show ranking by number of bytes\n"
+      << "\t    -100 :  show the first 100 in the ranking\n"
+      << "\t   -1000 :  show the first 1000 in the ranking\n"
+      << "\t  -10000 :  show the first 10000 in the ranking\n"
+      << "\t      -w :  show history for the last 7 days\n"
+      << "\t      -f :  show the 'hotfiles' which are the files with highest number of present file opens\n"
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }

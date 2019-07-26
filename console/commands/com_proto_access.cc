@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// File: com_proto_access.cc
-// Author: Fabio Luchetti - CERN
+// @file: com_proto_access.cc
+// @author: Fabio Luchetti - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,7 +22,6 @@
  ************************************************************************/
 
 #include "console/commands/ICmdHelper.hh"
-
 #include "common/StringTokenizer.hh"
 #include "console/ConsoleMain.hh"
 

@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// File: NodeCmd.hh
-// Author: Fabio Luchetti - CERN
+// @file: NodeCmd.hh
+// @author: Fabio Luchetti - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -48,7 +48,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~NodeCmd() = default;
+  ~NodeCmd() override = default;
 
   //----------------------------------------------------------------------------
   //! Method implementing the specific behaviour of the command executed by the
@@ -82,7 +82,7 @@ private:
   //! @param status status subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  void StatusSubcmd(const eos::console::NodeProto_StatusProto& status,
+  static void StatusSubcmd(const eos::console::NodeProto_StatusProto& status,
                  eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------

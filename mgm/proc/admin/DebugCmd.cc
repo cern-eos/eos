@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// File: DebugCmd.cc
-// Author: Fabio Luchetti - CERN
+// @file: DebugCmd.cc
+// @author: Fabio Luchetti - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -37,17 +37,14 @@ DebugCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
   eos::console::DebugProto debug = mReqProto.debug();
-  eos::console::DebugProto::SubcmdCase subcmd = debug.subcmd_case();
 
-  switch (subcmd) {
+  switch (mReqProto.debug().subcmd_case()) {
   case eos::console::DebugProto::kGet:
     GetSubcmd(debug.get(), reply);
     break;
-
   case eos::console::DebugProto::kSet:
     SetSubcmd(debug.set(), reply);
     break;
-
   default:
     reply.set_retc(EINVAL);
     reply.set_std_err("error: not supported");
@@ -62,29 +59,27 @@ DebugCmd::ProcessRequest() noexcept
 void DebugCmd::GetSubcmd(const eos::console::DebugProto_GetProto& get,
                          eos::console::ReplyProto& reply)
 {
-  std::ostringstream oss;
+  std::ostringstream std_out;
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
-  oss << "# ------------------------------------------------------------------------------------"
-      << std::endl
-      << "# Debug log level" << std::endl
-      << "# ...................................................................................."
-      << std::endl;
+  std_out << "# ------------------------------------------------------------------------------------\n"
+          << "# Debug log level\n"
+          << "# ....................................................................................\n";
   std::string priority = g_logging.GetPriorityString(g_logging.gPriorityLevel);
   std::for_each(priority.begin(), priority.end(), [](char& c) {
     c = ::tolower(static_cast<unsigned char>(c));
   });
-  oss << "/eos/" << gOFS->HostName << ':' << gOFS->ManagerPort << "/mgm := "
+  std_out << "/eos/" << gOFS->HostName << ':' << gOFS->ManagerPort << "/mgm := "
       << priority.c_str() << std::endl;
   auto nodes = FsView::gFsView.mNodeView;
 
-  for (auto node = nodes.begin(); node != nodes.end(); ++node) {
-    oss << node->first << " := "
-        << FsView::gFsView.mNodeView[node->first]->GetConfigMember("debug.state")
+  for (auto & node : nodes) {
+    std_out << node.first << " := "
+        << FsView::gFsView.mNodeView[node.first]->GetConfigMember("debug.state")
         << std::endl;
   }
 
-  reply.set_std_out(oss.str().c_str());
+  reply.set_std_out(std_out.str());
   reply.set_retc(0);
 }
 
@@ -118,10 +113,10 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
                          eos::console::ReplyProto& reply)
 {
   int ret_c {0};
-  std::string out, err;
+  std::ostringstream out, err;
 
   if (mVid.uid != 0) {
-    err = "error: you have to take role 'root' to execute this command";
+    err << "error: you have to take role 'root' to execute this command";
     ret_c = EPERM;
   } else {
     XrdMqMessage message("debug");
@@ -130,13 +125,13 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
     int nstars = 0;
     int npos = 0;
 
-    while ((npos = set.nodename().find("*", npos)) != STR_NPOS) {
+    while ((npos = set.nodename().find('*', npos)) != STR_NPOS) {
       npos++;
       nstars++;
     }
 
     if (nstars > 1) {
-      err = "error: debug level node can only contain one wildcard character (*) !";
+      err << "error: debug level node can only contain one wildcard character (*) !";
       ret_c = EINVAL;
     } else {
       body = PrepareMsg(set);
@@ -146,18 +141,18 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
       int debugval = g_logging.GetPriorityByString(set.debuglevel().c_str());
 
       if (debugval < 0) {
-        err = ("error: debug level " + set.debuglevel() + " is not known!").c_str();
+        err << "error: debug level " + set.debuglevel() + " is not known!";
         ret_c = EINVAL;
       } else {
-        if ((set.nodename() == "*") || (set.nodename() == "") ||
+        if ((set.nodename() == "*") || (set.nodename().empty()) ||
             (XrdOucString(set.nodename().c_str()) == gOFS->MgmOfsQueue)) {
           g_logging.SetLogPriority(debugval);
-          out = ("success: debug level is now <" + set.debuglevel() + '>').c_str();
+          out << "success: debug level is now <" + set.debuglevel() + '>';
           eos_static_notice("setting debug level to <%s>", set.debuglevel().c_str());
 
           if (set.filter().length()) {
             g_logging.SetFilter(set.filter().c_str());
-            out += (" filter=" + set.filter()).c_str();
+            out << " filter=" + set.filter();
             eos_static_notice("setting message logid filter to <%s>", set.filter().c_str());
           }
 
@@ -178,11 +173,11 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
           all_nodes = "/eos/*/fst";
 
           if (!Messaging::gMessageClient.SendMessage(message, all_nodes.c_str())) {
-            err = ("error: could not send debug level to nodes mgm.nodename=" +
+            err << ("error: could not send debug level to nodes mgm.nodename=" +
                    all_nodes + "\n").c_str();
             ret_c = EINVAL;
           } else {
-            out = ("success: switched to mgm.debuglevel=" + set.debuglevel() +
+            out << ("success: switched to mgm.debuglevel=" + set.debuglevel() +
                    " on nodes mgm.nodename=" + all_nodes + "\n").c_str();
             eos_static_notice("forwarding debug level <%s> to nodes mgm.nodename=%s",
                               set.debuglevel().c_str(), all_nodes.c_str());
@@ -193,20 +188,20 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
           // current instance. We're doing this only for the slave.
           (void) Messaging::gMessageClient.SendMessage(message,
               all_nodes.c_str());
-          out += ("success: switched to mgm.debuglevel=" + set.debuglevel() +
+          out << ("success: switched to mgm.debuglevel=" + set.debuglevel() +
                   " on nodes mgm.nodename=" + all_nodes).c_str();
           eos_static_notice("forwarding debug level <%s> to nodes mgm.nodename=%s",
                             set.debuglevel().c_str(), all_nodes.c_str());
           // }
         } else {
-          if (set.nodename() != "") {
+          if (!set.nodename().empty()) {
             // Send to the specified list
             if (!Messaging::gMessageClient.SendMessage(message, set.nodename().c_str())) {
-              err = ("error: could not send debug level to nodes mgm.nodename=" +
+              err << ("error: could not send debug level to nodes mgm.nodename=" +
                      set.nodename()).c_str();
               ret_c = EINVAL;
             } else {
-              out = ("success: switched to mgm.debuglevel=" + set.debuglevel() +
+              out << ("success: switched to mgm.debuglevel=" + set.debuglevel() +
                      " on nodes mgm.nodename=" + set.nodename()).c_str();
               eos_static_notice("forwarding debug level <%s> to nodes mgm.nodename=%s",
                                 set.debuglevel().c_str(), set.nodename().c_str());
@@ -217,9 +212,10 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
     }
   }
 
-  reply.set_std_out(out.c_str());
-  reply.set_std_err(err.c_str());
+  reply.set_std_out(out.str());
+  reply.set_std_err(err.str());
   reply.set_retc(ret_c);
+
 }
 
 EOSMGMNAMESPACE_END

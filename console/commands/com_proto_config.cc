@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// File: com_proto_config.cc
-// Author: Fabio Luchetti - CERN
+// @file: com_proto_config.cc
+// @author: Fabio Luchetti - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -38,14 +38,12 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  ConfigHelper()
-  {
-  }
+  ConfigHelper() = default;
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~ConfigHelper() = default;
+  ~ConfigHelper() override = default;
 
   //----------------------------------------------------------------------------
   //! Parse command line input
@@ -67,9 +65,7 @@ bool ConfigHelper::ParseCommand(const char* arg)
   tokenizer.GetLine();
   std::string token;
 
-  if (!tokenizer.NextToken(token)) {
-    return false;
-  }
+  if (!tokenizer.NextToken(token)) return false;
 
   if (token == "ls") {
 

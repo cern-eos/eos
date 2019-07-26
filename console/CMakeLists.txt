@@ -49,7 +49,6 @@ add_library(
   commands/helpers/AclHelper.cc     commands/helpers/AclHelper.hh
   commands/helpers/RecycleHelper.cc commands/helpers/RecycleHelper.hh
   commands/HealthCommand.cc         commands/HealthCommand.hh
-  commands/com_access.cc
   commands/com_proto_access.cc
   commands/com_accounting.cc
   commands/com_archive.cc
@@ -59,11 +58,9 @@ add_library(
   commands/com_chmod.cc
   commands/com_chown.cc
   commands/com_clear.cc
-  commands/com_config.cc
   commands/com_proto_config.cc
   commands/com_console.cc
   commands/com_cp.cc
-  commands/com_debug.cc
   commands/com_proto_debug.cc
   commands/com_file.cc
   commands/com_find.cc
@@ -72,12 +69,10 @@ add_library(
   commands/com_fuse.cc
   commands/com_fusex.cc
   commands/com_geosched.cc
-  commands/com_group.cc
   commands/com_proto_group.cc
   commands/com_health.cc
   commands/com_info.cc
   commands/com_inspector.cc
-  commands/com_io.cc
   commands/com_proto_io.cc
   commands/com_json.cc
   commands/com_license.cc
@@ -88,19 +83,16 @@ add_library(
   commands/com_mkdir.cc
   commands/com_motd.cc
   commands/com_mv.cc
-  commands/com_node.cc
   commands/com_proto_node.cc
   commands/com_print.cc
   commands/com_pwd.cc
   commands/com_quit.cc
-  commands/com_quota.cc
   commands/com_proto_quota.cc
   commands/com_reconnect.cc
   commands/com_rmdir.cc
   commands/com_role.cc
   commands/com_rtlog.cc
   commands/com_silent.cc
-  commands/com_space.cc
   commands/com_proto_space.cc
   commands/com_stat.cc
   commands/com_squash.cc
