@@ -97,7 +97,7 @@ private:
   //!
   //! @return string representation of the map, according to default output
   //----------------------------------------------------------------------------
-  std::string mapToDefaultOutput(const eos::IFileMD::QoSAttrMap& map);
+  std::string MapToDefaultOutput(const eos::IFileMD::QoSAttrMap& map);
 
   //----------------------------------------------------------------------------
   //! Process a QoS properties map into a JSON printable output
@@ -106,7 +106,7 @@ private:
   //!
   //! @return string representation of the map, according to JSON output
   //----------------------------------------------------------------------------
-  std::string mapToJSONOutput(const eos::IFileMD::QoSAttrMap& map);
+  std::string MapToJSONOutput(const eos::IFileMD::QoSAttrMap& map);
 };
 
 EOSMGMNAMESPACE_END
