@@ -1047,7 +1047,6 @@ XrdFstOfsFile::close()
                  " fsid=%lu fxid=%08llx", fMd->mProtoFmd.fsid(), fMd->mProtoFmd.fid());
       }
 
-
       // Delete the file - set the file to be deleted
       deleteOnClose = true;
       layOut->Remove();
@@ -2938,8 +2937,8 @@ XrdFstOfsFile::ProcessMixedOpaque()
   }
 
   mFsId = atoi(sfsid);
-  FileId::FidPrefix2FullPath(FileId::Fid2Hex(mFileId).c_str(),
-                             mLocalPrefix.c_str(), mFstPath);
+  mFstPath = FileId::FidPrefix2FullPath(FileId::Fid2Hex(mFileId).c_str(),
+                                        mLocalPrefix.c_str());
   return SFS_OK;
 }
 

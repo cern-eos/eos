@@ -391,6 +391,7 @@ public:
   XrdOucString eoscpTransferLog; ///< eoscp.log full path
   const char* mHostName; ///< FST hostname
   QdbContactDetails mQdbContactDetails; ///< QDB contact details
+  std::shared_ptr<qclient::QClient> mFsckQcl; ///< Qclient used for fsck
   bool mMqOnQdb; ///< Are we using QDB as an MQ?
   int mHttpdPort; ///< listening port of the http server
   std::unique_ptr<HttpServer> Httpd; //< Embedded http server if available

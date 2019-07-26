@@ -270,7 +270,7 @@ public:
   //--------------------------------------------------------------------------
   inline std::string GetFstPath()
   {
-    return mFstPath.c_str();
+    return mFstPath;
   }
 
   //--------------------------------------------------------------------------
@@ -338,7 +338,7 @@ public:
 protected:
   std::unique_ptr<XrdOucEnv> mOpenOpaque; ///< Open opaque info (encrypted)
   std::unique_ptr<XrdOucEnv> mCapOpaque; ///< Capability opaque info (decrypted)
-  XrdOucString mFstPath; ///< Physical path on the FST
+  std::string mFstPath; ///< Physical path on the FST
   off_t mBookingSize;
   off_t mTargetSize;
   off_t mMinSize;

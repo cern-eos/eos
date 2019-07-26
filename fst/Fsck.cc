@@ -539,8 +539,8 @@ Fsck::CheckFile(eos::common::FmdHelper& fMd, size_t nfiles)
 {
   char fxid[1024];
   sprintf(fxid, "%08lx", fMd.mProtoFmd.fid());
-  XrdOucString fullpath;
-  eos::common::FileId::FidPrefix2FullPath(fxid, dirPath.c_str(), fullpath);
+  std::string fullpath = eos::common::FileId::FidPrefix2FullPath(fxid,
+                         dirPath.c_str());
   struct stat buf;
 
   if (!silent) {
