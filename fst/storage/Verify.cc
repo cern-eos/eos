@@ -43,6 +43,7 @@ EOSFSTNAMESPACE_BEGIN
 void
 Storage::Verify()
 {
+  using eos::common::FileId;
   std::map<uint64_t, time_t> open_w_out;
 
   // Thread that verifies stored files
@@ -88,11 +89,10 @@ Storage::Verify()
     eos_static_debug("verifying File Id=%x on Fs=%u", verifyfile->fId,
                      verifyfile->fsId);
     // verify the file
-    const std::string hex_fid = eos::common::FileId::Fid2Hex(verifyfile->fId);
+    const std::string hex_fid = FileId::Fid2Hex(verifyfile->fId);
     XrdOucErrInfo error;
-    XrdOucString fstPath = "";
-    eos::common::FileId::FidPrefix2FullPath(hex_fid.c_str(),
-                                            verifyfile->localPrefix.c_str(), fstPath);
+    std::string fstPath = FileId::FidPrefix2FullPath(hex_fid.c_str(),
+                          verifyfile->localPrefix.c_str());
     {
       auto fMd = gFmdDbMapHandler.LocalGetFmd(verifyfile->fId,
                                               verifyfile->fsId, true);

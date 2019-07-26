@@ -128,30 +128,26 @@ public:
   //----------------------------------------------------------------------------
   //! Compute a path from a fid and localprefix
   //----------------------------------------------------------------------------
-  static void FidPrefix2FullPath(const char* hexstring, const char* localprefix,
-                                 XrdOucString& fullpath, unsigned int subindex = 0)
+  static std::string FidPrefix2FullPath(const char* hexstring,
+                                        const char* localprefix)
   {
-    if ((!hexstring) || (!localprefix)) {
-      fullpath = "";
-      return;
+    std::string fullpath;
+
+    if (!hexstring || !localprefix) {
+      return fullpath;
     }
 
     unsigned long long fid = Hex2Fid(hexstring);
-    char sfullpath[16384];
-    XrdOucString slocalprefix = localprefix;
+    std::string slocalprefix = localprefix;
 
-    if (!slocalprefix.endswith("/")) {
+    if (*slocalprefix.rbegin() != '/') {
       slocalprefix += "/";
     }
 
-    if (subindex) {
-      sprintf(sfullpath, "%s%08llx/%s.%u", slocalprefix.c_str(), fid / 10000,
-              hexstring, subindex);
-    } else {
-      sprintf(sfullpath, "%s%08llx/%s", slocalprefix.c_str(), fid / 10000, hexstring);
-    }
-
+    char sfullpath[16384];
+    sprintf(sfullpath, "%s%08llx/%s", slocalprefix.c_str(), fid / 10000, hexstring);
     fullpath = sfullpath;
+    return fullpath;
   }
 
   //----------------------------------------------------------------------------

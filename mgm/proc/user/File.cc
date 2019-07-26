@@ -1760,7 +1760,6 @@ ProcCommand::File()
 
             if (filesystem) {
               XrdOucString host;
-              XrdOucString fullpath = "";
               std::string hostport = filesystem->GetString("hostport");
               stdOut += "mgm.replica.url";
               stdOut += i;
@@ -1786,10 +1785,9 @@ ProcCommand::File()
               stdOut += "mgm.fstpath";
               stdOut += i;
               stdOut += "=";
-              eos::common::FileId::FidPrefix2FullPath(hex_fid.c_str(),
-                                                      filesystem->GetPath().c_str(),
-                                                      fullpath);
-              stdOut += fullpath;
+              stdOut +=
+                eos::common::FileId::FidPrefix2FullPath(hex_fid.c_str(),
+                    filesystem->GetPath().c_str()).c_str();
               stdOut += "&";
               stdOut += "mgm.nspath=";
               stdOut += ns_path.c_str();

@@ -1141,7 +1141,7 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
 // Resync all meta data from QuarkdDB
 //------------------------------------------------------------------------------
 bool
-FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contactDetails,
+FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contact_details,
                                   eos::common::FileSystem::fsid_t fsid)
 {
   using namespace std::chrono;
@@ -1156,8 +1156,8 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contactDetails,
   long long count = 250000;
   std::pair<std::string, std::vector<std::string>> reply;
   std::unique_ptr<qclient::QClient>
-  qcl(new qclient::QClient(contactDetails.members,
-                           contactDetails.constructOptions()));
+  qcl(new qclient::QClient(contact_details.members,
+                           contact_details.constructOptions()));
   qclient::QSet qset(*qcl.get(),  eos::RequestBuilder::keyFilesystemFiles(fsid));
   std::unordered_set<eos::IFileMD::id_t> file_ids;
 
@@ -1269,6 +1269,7 @@ bool
 FmdDbMapHandler::RemoveGhostEntries(const char* fs_root,
                                     eos::common::FileSystem::fsid_t fsid)
 {
+  using eos::common::FileId;
   eos_static_info("fsid=%lu", fsid);
   std::vector<eos::common::FileId::fileid_t> to_delete;
 
@@ -1296,9 +1297,8 @@ FmdDbMapHandler::RemoveGhostEntries(const char* fs_root,
 
         if (f.mProtoFmd.layouterror()) {
           struct stat buf;
-          XrdOucString fpath;
-          const std::string hex_fid = eos::common::FileId::Fid2Hex(fid);
-          eos::common::FileId::FidPrefix2FullPath(hex_fid.c_str(), fs_root, fpath);
+          const std::string hex_fid = FileId::Fid2Hex(fid);
+          std::string fpath = FileId::FidPrefix2FullPath(hex_fid.c_str(), fs_root);
           errno = 0;
 
           if (stat(fpath.c_str(), &buf)) {

@@ -151,6 +151,7 @@ FileSystem::GetStatfs()
 void
 FileSystem::CleanTransactions()
 {
+  using eos::common::FileId;
   DIR* tdir = opendir(GetTransactionDirectory());
 
   if (tdir) {
@@ -172,10 +173,9 @@ FileSystem::CleanTransactions()
       if (!stat(fulltransactionpath.c_str(), &buf)) {
         XrdOucString hexfid = name->d_name;
         XrdOucString localprefix = GetPath().c_str();
-        XrdOucString fstPath;
-        eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(), localprefix.c_str(),
-                                                fstPath);
-        unsigned long long fileid = eos::common::FileId::Hex2Fid(hexfid.c_str());
+        std::string fstPath = FileId::FidPrefix2FullPath(hexfid.c_str(),
+                              localprefix.c_str());
+        unsigned long long fileid = FileId::Hex2Fid(hexfid.c_str());
         // we allow to keep files open for 1 week
         bool isOpen = gOFS.openedForWriting.isOpen(GetId(), fileid);
 
@@ -224,6 +224,7 @@ FileSystem::CleanTransactions()
 bool
 FileSystem::SyncTransactions(const char* manager)
 {
+  using eos::common::FileId;
   bool ok = true;
   DIR* tdir = opendir(GetTransactionDirectory());
 
@@ -247,10 +248,8 @@ FileSystem::SyncTransactions(const char* manager)
         XrdOucString hexfid = name->d_name;
         std::string path = GetPath();
         const char* localprefix = path.c_str();
-        XrdOucString fstPath;
-        eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(),
-                                                localprefix, fstPath);
-        unsigned long long fid = eos::common::FileId::Hex2Fid(hexfid.c_str());
+        std::string fstPath = FileId::FidPrefix2FullPath(hexfid.c_str(), localprefix);
+        unsigned long long fid = FileId::Hex2Fid(hexfid.c_str());
 
         // try to sync this file from the MGM
         if (gFmdDbMapHandler.ResyncMgm(GetId(), fid, manager)) {

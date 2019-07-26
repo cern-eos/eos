@@ -1604,10 +1604,9 @@ int files::Lookup(filesystems& fsmap, bool verbose)
       }
 
       std::string prefix = fsmap.fs()[*loc]["path"];
-      XrdOucString fullpath;
-      eos::common::FileId::FidPrefix2FullPath(it->second.hexid.c_str(),
-                                              prefix.c_str(),
-                                              fullpath);
+      std::string fullpath =
+        eos::common::FileId::FidPrefix2FullPath(it->second.hexid.c_str(),
+            prefix.c_str());
 
       if (verbose) {
         fprintf(stdout, "[file] path=%s loc=%d fstpath=%s\n", it->first.c_str(), *loc,

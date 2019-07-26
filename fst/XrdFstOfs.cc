@@ -125,7 +125,7 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 XrdFstOfs::XrdFstOfs() :
-  eos::common::LogId(), mHostName(NULL), mMqOnQdb(false),
+  eos::common::LogId(), mHostName(NULL), mFsckQcl(nullptr), mMqOnQdb(false),
   mSimIoReadErr(false), mSimIoWriteErr(false), mSimXsReadErr(false),
   mSimXsWriteErr(false), mSimFmdOpenErr(false), mSimErrIoReadOff(0ull),
   mSimErrIoWriteOff(0ull)
@@ -649,6 +649,13 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     Eroute.Say("=====> fstofs.autoboot : true");
   } else {
     Eroute.Say("=====> fstofs.autoboot : false");
+  }
+
+  // Create the qclient shared by all file systems for doing the ns scan for
+  // the fsck consistency checks
+  if (!mQdbContactDetails.empty()) {
+    mFsckQcl.reset(new qclient::QClient(mQdbContactDetails.members,
+                                        mQdbContactDetails.constructOptions()));
   }
 
   if (!eos::fst::Config::gConfig.FstOfsBrokerUrl.endswith("/")) {
@@ -1323,7 +1330,7 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
                 unsigned long fsid, bool ignoreifnotexist)
 {
   EPNAME("rem");
-  XrdOucString fstPath = "";
+  std::string fstPath = "";
   const char* localprefix = 0;
   const char* hexfid = 0;
   const char* sfsid = 0;
@@ -1346,7 +1353,7 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
                        "open - no file system id in capability", path);
     }
 
-    eos::common::FileId::FidPrefix2FullPath(hexfid, localprefix, fstPath);
+    fstPath = eos::common::FileId::FidPrefix2FullPath(hexfid, localprefix);
     fid = eos::common::FileId::Hex2Fid(hexfid);
     fsid = atoi(sfsid);
   } else {

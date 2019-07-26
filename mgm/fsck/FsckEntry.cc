@@ -145,10 +145,9 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
     return;
   }
 
-  XrdOucString fpath_local;
-  FileId::FidPrefix2FullPath(FileId::Fid2Hex(mFid).c_str(),
-                             fst_local_path.c_str(),
-                             fpath_local);
+  std::string fpath_local = FileId::FidPrefix2FullPath(FileId::Fid2Hex(
+                              mFid).c_str(),
+                            fst_local_path.c_str());
   // Check that the file exists on disk
   XrdCl::StatInfo* stat_info_raw {nullptr};
   std::unique_ptr<XrdCl::StatInfo> stat_info;
@@ -615,6 +614,8 @@ FsckEntry::Repair()
     gOFS->MgmStats.Add("FsckRepairStarted", 0, 0, 1);
 
     if (CollectMgmInfo() == false) {
+      // @todo(esindril) or it could be a ghost fid entry still present in the
+      // file system map and we need to also drop it from there
       eos_err("msg=\"no repair action, file is orphan\", fid=%08llx fsid=%lu",
               mFid, mFsidErr);
       UpdateMgmStats(success);

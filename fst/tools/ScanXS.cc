@@ -66,7 +66,7 @@ main(int argc, char* argv[])
   eos::fst::ScanDir* sd =
     new eos::fst::ScanDir(dirName.c_str(), 0, &fstLoad, false, 10, 100, setxs);
   AssistedThread thread;
-  thread.reset(&eos::fst::ScanDir::Run, sd);
+  thread.reset(&eos::fst::ScanDir::RunDiskScan, sd);
   thread.blockUntilThreadJoins();
   delete sd;
 }

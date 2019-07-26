@@ -1030,8 +1030,8 @@ Storage::CheckFilesystemFullness(FileSystem* fs,
 
   /* watch out for stat.statfs.freebytes not yet set */
   if (freebytes == 0 && fs->GetString("stat.statfs.freebytes").length() == 0) {
-      eos_static_info("stat.statfs.freebytes has not yet been defined, not setting file system fill status");
-      return;
+    eos_static_info("stat.statfs.freebytes has not yet been defined, not setting file system fill status");
+    return;
   }
 
   XrdSysMutexHelper lock(mFsFullMapMutex);
@@ -1054,6 +1054,23 @@ Storage::CheckFilesystemFullness(FileSystem* fs,
   } else {
     mFsFullWarnMap[fsid] = false;
   }
+}
+
+//------------------------------------------------------------------------------
+// Get storage path for a particular file system id
+//------------------------------------------------------------------------------
+std::string
+Storage::GetStoragePath(eos::common::FileSystem::fsid_t fsid) const
+{
+  std::string path;
+  eos::common::RWMutexReadLock rd_lock(mFsMutex);
+  auto it = mFileSystemsMap.find(fsid);
+
+  if (it != mFileSystemsMap.end()) {
+    path = it->second->GetPath();
+  }
+
+  return path;
 }
 
 EOSFSTNAMESPACE_END

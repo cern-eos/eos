@@ -158,8 +158,17 @@ public:
     return (mBootingSet.find(fsid) != mBootingSet.end());
   }
 
+  //----------------------------------------------------------------------------
+  //! Get storage path for a particular file system id
+  //!
+  //! @param fsid file system id
+  //!
+  //! @return stoage path or empty string if unkown file system id
+  //----------------------------------------------------------------------------
+  std::string GetStoragePath(eos::common::FileSystem::fsid_t fsid) const;
+
 protected:
-  eos::common::RWMutex mFsMutex; ///< Mutex protecting access to the fs map
+  mutable eos::common::RWMutex mFsMutex; ///< Mutex protecting the fs map
   std::vector <FileSystem*> mFsVect; ///< Vector of filesystems
   //! Map of filesystem id to filesystem object
   std::map<eos::common::FileSystem::fsid_t, FileSystem*> mFileSystemsMap;

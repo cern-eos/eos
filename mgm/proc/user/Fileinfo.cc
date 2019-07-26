@@ -371,12 +371,11 @@ ProcCommand::FileInfo(const char* path)
             if (filesystem) {
               // For the fullpath option we output the physical location of the
               // replicas
-              XrdOucString fullpath;
+              std::string fullpath;
 
               if (showFullpath) {
-                FileId::FidPrefix2FullPath(hex_fid.c_str(),
-                                           filesystem->GetPath().c_str(),
-                                           fullpath);
+                fullpath = FileId::FidPrefix2FullPath(hex_fid.c_str(),
+                                                      filesystem->GetPath().c_str());
               }
 
               if (!Monitoring) {
@@ -654,7 +653,6 @@ ProcCommand::DirInfo(const char* path)
         time_t filemtime = (time_t) mtime.tv_sec;
         time_t filetmtime = (time_t) tmtime.tv_sec;
         time_t filebtime = (time_t) btime.tv_sec;
-
         char fid[32];
         snprintf(fid, 32, "%llu", (unsigned long long) dmd_copy->getId());
         std::string etag;
@@ -785,7 +783,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 
     if (xattrs.count("sys.eos.btime")) {
       eos::common::Timing::Timespec_from_TimespecStr(xattrs["sys.eos.btime"],
-                                                     btime);
+          btime);
     }
 
     if ((detached = path.empty())) {
@@ -845,9 +843,9 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
         eos::common::FileSystem::fs_snapshot_t fs;
 
         if (filesystem->SnapShotFileSystem(fs, true)) {
-          XrdOucString fstpath;
-          eos::common::FileId::FidPrefix2FullPath(hex_fid.c_str(), fs.mPath.c_str(),
-                                                  fstpath);
+          std::string fstpath =
+            eos::common::FileId::FidPrefix2FullPath(hex_fid.c_str(),
+                fs.mPath.c_str());
           jsonfsinfo["fsid"] = fs.mId;
           jsonfsinfo["geotag"] = filesystem->GetString("stat.geotag");
           jsonfsinfo["host"] = fs.mHost;
@@ -940,7 +938,7 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 
     if (xattrs.count("sys.eos.btime")) {
       eos::common::Timing::Timespec_from_TimespecStr(xattrs["sys.eos.btime"],
-                                                     btime);
+          btime);
     }
 
     if ((detached = path.empty())) {
