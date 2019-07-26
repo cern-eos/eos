@@ -106,8 +106,7 @@ void QoSCmd::GetSubcmd(const eos::console::QoSProto_GetProto& get,
         eos::IFileMD::QoSAttrMap cdmiMap;
 
         if (gOFS->_qos_ls(spath.c_str(), errInfo, mVid, cdmiMap, true)) {
-          err << "error: unable to list CDMI properties ["
-              << errInfo.getErrText() << "]" << std::endl;
+          err << "error: " << errInfo.getErrText() << std::endl;
           retc = errInfo.getErrInfo();
           continue;
         }
@@ -117,8 +116,7 @@ void QoSCmd::GetSubcmd(const eos::console::QoSProto_GetProto& get,
         XrdOucString value;
 
         if (gOFS->_qos_get(spath.c_str(), errInfo, mVid, key.c_str(), value)) {
-          err << "error: unable to get '" << key << "' property ["
-              << errInfo.getErrInfo() << "]" << std::endl;
+          err << "error: " << errInfo.getErrText() << std::endl;
           retc = errInfo.getErrInfo();
           continue;
         }
@@ -131,8 +129,7 @@ void QoSCmd::GetSubcmd(const eos::console::QoSProto_GetProto& get,
   // No keys specified -- extract all
   if (get.key_size() == 0) {
     if (gOFS->_qos_ls(spath.c_str(), errInfo, mVid, qosMap)) {
-      err << "error: unable to list QoS properties ["
-          << errInfo.getErrText() << "]" << std::endl;
+      err << "error: " << errInfo.getErrText() << std::endl;
       retc = errInfo.getErrInfo();
     }
   }

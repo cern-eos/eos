@@ -180,7 +180,7 @@ namespace
     try {
       path = gOFS->eosView->getUri(fmd.get());
     } catch (eos::MDException& e) {
-      eos_static_debug("Couldn't retrieve path for fid=%08llx "
+      eos_static_debug("msg=\"exception retrieving path\" fxid=%08llx "
                        "ec=%d emsg=\"%s\"", fmd->getId(),
                        e.getErrno(), e.getMessage().str().c_str());
     }
@@ -208,7 +208,7 @@ namespace
                             targetgeotag);
       placement = Scheduler::PlctPolicyString(plctplcy);
     } catch (eos::MDException& e) {
-      eos_static_debug("Couldn't retrieve path for fid=%08llx "
+      eos_static_debug("msg=\"exception retrieving path\" fxid=%08llx "
                        "ec=%d emsg=\"%s\"", fmd->getId(),
                        e.getErrno(), e.getMessage().str().c_str());
     }
@@ -239,7 +239,7 @@ XrdMgmOfs::_qos_ls(const char* path, XrdOucErrInfo& error,
   gOFS->MgmStats.Add("QoSLs", vid.uid, vid.gid, 1);
   errno = 0;
 
-  eos_info("list QoS values path=%s", path);
+  eos_info("msg=\"list QoS values\" path=%s only_cdmi=%d", path, only_cdmi);
 
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
   eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
@@ -250,14 +250,17 @@ XrdMgmOfs::_qos_ls(const char* path, XrdOucErrInfo& error,
                       : QoSGetter{fmd}.All();
   } catch (eos::MDException& e) {
     errno = e.getErrno();
-    eos_debug("Couldn't retrieve path for fid=%08llx ec=%d emsg=\"%s\"",
-              e.getErrno(), e.getMessage().str().c_str());
+    eos_debug("msg=\"exception retrieving file metadata\" path=%s "
+              "ec=%d emsg=\"%s\"", path, e.getErrno(),
+              e.getMessage().str().c_str());
   }
 
   EXEC_TIMING_END("QoSLs");
 
   if (errno) {
-    return Emsg(epname, error, errno, "list QoS values", path);
+    std::string keys = (only_cdmi) ? "cdmi" : "all";
+    return Emsg(epname, error, errno, "list QoS values",
+                SSTR("keys=" << keys << " path=" << path).c_str());
   }
 
   return SFS_OK;
@@ -277,10 +280,11 @@ XrdMgmOfs::_qos_get(const char* path, XrdOucErrInfo& error,
   gOFS->MgmStats.Add("QoSGet", vid.uid, vid.gid, 1);
   errno = 0;
 
-  eos_info("get QoS value path=%s key=%s", path, (key ? key : "(null)"));
+  eos_info("msg=\"get QoS value\" path=%s key=%s",
+           path, (key ? key : "(null)"));
 
   if (!key) {
-    return Emsg(epname, error, EINVAL, "get QoS value - empty key", path);
+    return Emsg(epname, error, EINVAL, "get QoS value - empty key");
   }
 
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
@@ -291,18 +295,21 @@ XrdMgmOfs::_qos_get(const char* path, XrdOucErrInfo& error,
     value = QoSGetter{fmd}.Get(key).c_str();
   } catch (eos::MDException& e) {
     errno = e.getErrno();
-    eos_debug("Couldn't retrieve path for fid=%08llx ec=%d emsg=\"%s\"",
-              e.getErrno(), e.getMessage().str().c_str());
+    eos_debug("msg=\"exception retrieving file metadata\" path=%s "
+              "ec=%d emsg=\"%s\"", path, e.getErrno(),
+              e.getMessage().str().c_str());
   }
 
   EXEC_TIMING_END("QoSGet");
 
   if (!value.length()) {
-    return Emsg(epname, error, EINVAL, "get QoS value - invalid key", path);
+    return Emsg(epname, error, EINVAL, "get QoS value - invalid key",
+                SSTR(key << " path=" << path).c_str());
   }
 
   if (errno) {
-    return Emsg(epname, error, errno, "get QoS value", path);
+    return Emsg(epname, error, errno, "get QoS value",
+                SSTR(key << " path=" << path).c_str());
   }
 
   return SFS_OK;
