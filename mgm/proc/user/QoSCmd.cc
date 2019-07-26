@@ -26,6 +26,10 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+// Helper function forward declaration
+static int CheckIsFile(const char*, eos::common::VirtualIdentity&,
+                       std::string&);
+
 //------------------------------------------------------------------------------
 // Method implementing the specific behaviour of the command executed
 //------------------------------------------------------------------------------
@@ -38,9 +42,9 @@ QoSCmd::ProcessRequest() noexcept
 
   if (subcmd == eos::console::QoSProto::kGet) {
     bool jsonOutput =
-        (mReqProto.format() == eos::console::RequestProto::JSON);
+      (mReqProto.format() == eos::console::RequestProto::JSON);
     GetSubcmd(qos.get(), reply, jsonOutput);
-  } else if(subcmd == eos::console::QoSProto::kSet) {
+  } else if (subcmd == eos::console::QoSProto::kSet) {
     SetSubcmd(qos.set(), reply);
   } else {
     reply.set_retc(EINVAL);
@@ -70,19 +74,13 @@ void QoSCmd::GetSubcmd(const eos::console::QoSProto_GetProto& get,
     return;
   }
 
-  XrdSfsFileExistence fileExists;
   XrdOucErrInfo errInfo;
+  std::string errmsg;
 
-  // Check for path existence
-  if (gOFS->_exists(spath.c_str(), fileExists, errInfo, mVid)) {
-    reply.set_std_err("error: unable to check for path existence");
-    reply.set_retc(errno);
-    return;
-  }
-
-  if (fileExists == XrdSfsFileExistNo) {
-    reply.set_std_err("error: path does not point to a file or directory");
-    reply.set_retc(EINVAL);
+  // Check path points to a valid file
+  if ((retc = CheckIsFile(spath.c_str(), mVid, errmsg))) {
+    reply.set_std_err(errmsg);
+    reply.set_retc(retc);
     return;
   }
 
@@ -141,12 +139,12 @@ void QoSCmd::GetSubcmd(const eos::console::QoSProto_GetProto& get,
   }
 
   // Format QoS properties map to desired output
-  out << (jsonOutput ?  mapToJSONOutput(qosMap)
-                     :  mapToDefaultOutput(qosMap));
+  out << (jsonOutput ? MapToJSONOutput(qosMap)
+                     : MapToDefaultOutput(qosMap));
 
   reply.set_retc(retc);
-  reply.set_std_out(out.str().c_str());
-  reply.set_std_err(err.str().c_str());
+  reply.set_std_out(out.str());
+  reply.set_std_err(err.str());
 }
 
 //------------------------------------------------------------------------------
@@ -162,7 +160,7 @@ void QoSCmd::SetSubcmd(const eos::console::QoSProto_SetProto& set,
 // Translate the identifier proto into a namespace path
 //------------------------------------------------------------------------------
 XrdOucString QoSCmd::PathFromIdentifierProto(
-    const eos::console::QoSProto_IdentifierProto& identifier)
+  const eos::console::QoSProto_IdentifierProto& identifier)
 {
   using eos::console::QoSProto;
   const auto& type = identifier.Identifier_case();
@@ -170,7 +168,7 @@ XrdOucString QoSCmd::PathFromIdentifierProto(
 
   if (type == QoSProto::IdentifierProto::kPath) {
     path = identifier.path().c_str();
-  } else if (type == QoSProto::IdentifierProto::kFileId ) {
+  } else if (type == QoSProto::IdentifierProto::kFileId) {
     GetPathFromFid(path, identifier.fileid(), "error: ");
   } else {
     stdErr = "error: received empty string path";
@@ -182,7 +180,7 @@ XrdOucString QoSCmd::PathFromIdentifierProto(
 //------------------------------------------------------------------------------
 // Process a QoS properties map into a default printable output
 //------------------------------------------------------------------------------
-std::string QoSCmd::mapToDefaultOutput(const eos::IFileMD::QoSAttrMap& map)
+std::string QoSCmd::MapToDefaultOutput(const eos::IFileMD::QoSAttrMap& map)
 {
   std::ostringstream out;
 
@@ -196,7 +194,7 @@ std::string QoSCmd::mapToDefaultOutput(const eos::IFileMD::QoSAttrMap& map)
 //------------------------------------------------------------------------------
 // Process a QoS properties map into a default printable output
 //------------------------------------------------------------------------------
-std::string QoSCmd::mapToJSONOutput(const eos::IFileMD::QoSAttrMap& map)
+std::string QoSCmd::MapToJSONOutput(const eos::IFileMD::QoSAttrMap& map)
 {
   Json::Value jsonOut, jsonCDMI;
 
@@ -215,7 +213,37 @@ std::string QoSCmd::mapToJSONOutput(const eos::IFileMD::QoSAttrMap& map)
   }
 
   return static_cast<std::ostringstream&>(
-      std::ostringstream() << jsonOut).str();
+    std::ostringstream() << jsonOut).str();
+}
+
+//------------------------------------------------------------------------------
+//! Check that the given path points to a valid file.
+//!
+//! @param path the path to check
+//! @param vid virtual identity of the client
+//! @param err_msg string to place error message
+//!
+//! @return 0 if path points to file, error code otherwise
+//------------------------------------------------------------------------------
+static int CheckIsFile(const char* path,
+                       eos::common::VirtualIdentity& vid,
+                       std::string& err_msg)
+{
+  XrdSfsFileExistence fileExists;
+  XrdOucErrInfo errInfo;
+
+  // Check for path existence
+  if (gOFS->_exists(path, fileExists, errInfo, vid)) {
+    err_msg = "error: unable to check for path existence";
+    return errInfo.getErrInfo();
+  }
+
+  if (fileExists == XrdSfsFileExistNo) {
+    err_msg = "error: path does not point to a file or directory";
+    return EINVAL;
+  }
+
+  return 0;
 }
 
 EOSMGMNAMESPACE_END
