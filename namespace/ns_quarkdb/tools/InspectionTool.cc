@@ -105,6 +105,12 @@ int main(int argc, char* argv[]) {
   stripediffSubcommand->add_flag("--time", printTime, "Print mtime and ctime of found files");
 
   //----------------------------------------------------------------------------
+  // Set-up one-replica-layout subcommand..
+  //----------------------------------------------------------------------------
+  auto oneReplicaLayoutSubcommand = app.add_subcommand("one-replica-layout", "Find all files whose layout asks for a single replica");
+  addClusterOptions(oneReplicaLayoutSubcommand, membersStr, memberValidator, password, passwordFile);
+
+  //----------------------------------------------------------------------------
   // Set-up check-orphans subcommand..
   //----------------------------------------------------------------------------
   auto checkOrphansSubcommand = app.add_subcommand("check-orphans", "Find files and directories with invalid parents");
@@ -213,6 +219,10 @@ int main(int argc, char* argv[]) {
 
   if(stripediffSubcommand->parsed()) {
     return inspector.stripediff(printTime, std::cout, std::cerr);
+  }
+
+  if(oneReplicaLayoutSubcommand->parsed()) {
+    return inspector.oneReplicaLayout(std::cout, std::cerr);
   }
 
   if(scanFilesSubcommand->parsed()) {
