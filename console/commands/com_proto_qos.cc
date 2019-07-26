@@ -56,7 +56,8 @@ public:
 // Parse command line input
 //------------------------------------------------------------------------------
 bool
-QoSHelper::ParseCommand(const char *arg) {
+QoSHelper::ParseCommand(const char* arg)
+{
   eos::console::QoSProto* qos = mReq.mutable_qos();
   eos::common::StringTokenizer tokenizer(arg);
   tokenizer.GetLine();
