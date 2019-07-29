@@ -80,17 +80,6 @@ TEST(RequestRateLimit, MultiThread)
     auto func = [&](int indx) noexcept {
       for (int i = 0; i < rate; ++i) {
         (void)rlimit->Allow();
-
-        // Only the last thread advances the time otherwise we get inaccurate
-        // time estimation. This happens since delays from different threads can
-        // overlap but the passing of time should be unique. Statistically this
-        // last thread is the worst off so the best candidate to advance the time.
-        if (indx == rate - 1) {
-          static uint64_t last_ts_us = start_us;
-          uint64_t adv_us = rlimit->mLastTimestampUs - last_ts_us;
-          last_ts_us = rlimit->mLastTimestampUs;
-          clock.advance(microseconds(adv_us));
-        }
       }
     };
 
