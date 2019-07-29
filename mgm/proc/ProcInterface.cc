@@ -190,7 +190,7 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
 				       eos::common::VirtualIdentity& vid)
 {
   using eos::console::RequestProto;
-  auto cmd = std::make_unique<IProcCommand>();
+  std::unique_ptr<IProcCommand> cmd;
   // Log the type of command that we received
   std::string json_out;
   (void) google::protobuf::util::MessageToJsonString(req, &json_out);
@@ -198,73 +198,74 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
 
   switch (req.command_case()) {
   case RequestProto::kAcl:
-    cmd = std::make_unique<AclCmd>(std::move(req), vid);
+    cmd.reset(new AclCmd(std::move(req), vid));
     break;
 
   case RequestProto::kNs:
-    cmd = std::make_unique<NsCmd>(std::move(req), vid);
+    cmd.reset(new NsCmd(std::move(req), vid));
     break;
 
   case RequestProto::kFind:
-    cmd = std::make_unique<FindCmd>(std::move(req), vid);
+    cmd.reset(new FindCmd(std::move(req), vid));
     break;
 
   case RequestProto::kFs:
-    cmd = std::make_unique<FsCmd>(std::move(req), vid);
+    cmd.reset(new FsCmd(std::move(req), vid));
     break;
 
   case RequestProto::kRm:
-    cmd = std::make_unique<RmCmd>(std::move(req), vid);
+    cmd.reset(new RmCmd(std::move(req), vid));
     break;
 
   case RequestProto::kStagerRm:
-    cmd = std::make_unique<StagerRmCmd>(std::move(req), vid);
+    cmd.reset(new StagerRmCmd(std::move(req), vid));
     break;
 
   case RequestProto::kRoute:
-    cmd = std::make_unique<RouteCmd>(std::move(req), vid);
+    cmd.reset(new RouteCmd(std::move(req), vid));
     break;
 
   case RequestProto::kRecycle:
-    cmd = std::make_unique<RecycleCmd>(std::move(req), vid);
+    cmd.reset(new RecycleCmd(std::move(req), vid));
     break;
 
   case RequestProto::kIo:
-    cmd = std::make_unique<IoCmd>(std::move(req), vid);
+    cmd.reset(new IoCmd(std::move(req), vid));
     break;
 
   case RequestProto::kGroup:
-    cmd = std::make_unique<GroupCmd>(std::move(req), vid);
+    cmd.reset(new GroupCmd(std::move(req), vid));
     break;
 
   case RequestProto::kDebug:
-    cmd = std::make_unique<DebugCmd>(std::move(req), vid);
+    cmd.reset(new DebugCmd(std::move(req), vid));
     break;
 
   case RequestProto::kNode:
-    cmd = std::make_unique<NodeCmd>(std::move(req), vid);
+    cmd.reset(new NodeCmd(std::move(req), vid));
     break;
 
   case RequestProto::kQuota:
-    cmd = std::make_unique<QuotaCmd>(std::move(req), vid);
+    cmd.reset(new QuotaCmd(std::move(req), vid));
     break;
 
   case RequestProto::kSpace:
-    cmd = std::make_unique<SpaceCmd>(std::move(req), vid);
+    cmd.reset(new SpaceCmd(std::move(req), vid));
     break;
 
   case RequestProto::kConfig:
-    cmd = std::make_unique<ConfigCmd>(std::move(req), vid);
+    cmd.reset(new ConfigCmd(std::move(req), vid));
     break;
 
   case RequestProto::kAccess:
-    cmd = std::make_unique<AccessCmd>(std::move(req), vid);
+    cmd.reset(new AccessCmd(std::move(req), vid));
     break;
 
-    default:
+  default:
     eos_static_err("error: unknown request type");
     break;
   }
+
 
   return cmd;
 }
