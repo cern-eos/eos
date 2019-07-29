@@ -100,7 +100,7 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   RequestRateLimit(bool fake_clock = false):
-    IRateLimit(fake_clock)
+    IRateLimit(fake_clock), mLastTimestampUs(0ull)
   {}
 
   //----------------------------------------------------------------------------
