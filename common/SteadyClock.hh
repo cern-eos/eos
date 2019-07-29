@@ -38,7 +38,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor: Specify whether we're faking time, or not.
   //----------------------------------------------------------------------------
-  SteadyClock(bool fake_) : fake(fake_) {}
+  SteadyClock(bool fake_) : mFake(fake_) {}
 
   //----------------------------------------------------------------------------
   //! Static now function - it's also possible to pass a nullptr
@@ -57,7 +57,7 @@ public:
   //----------------------------------------------------------------------------
   std::chrono::steady_clock::time_point getTime() const
   {
-    if (fake) {
+    if (mFake) {
       std::lock_guard<std::mutex> lock(mtx);
       return fakeTimepoint;
     }
@@ -86,8 +86,16 @@ public:
              point.time_since_epoch());
   }
 
+  //----------------------------------------------------------------------------
+  //! Check if this is a "fake" clock
+  //----------------------------------------------------------------------------
+  inline bool IsFake() const
+  {
+    return mFake;
+  }
+
 private:
-  bool fake;
+  bool mFake;
   mutable std::mutex mtx;
   std::chrono::steady_clock::time_point fakeTimepoint;
 };
