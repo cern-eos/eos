@@ -83,6 +83,7 @@ set(COMMON_UT_SRCS
   common/TimingTests.cc
   common/VariousTests.cc
   common/XrdConnPoolTests.cc
+  common/RateLimitTests.cc
 )
 
 set(FST_UT_SRCS
