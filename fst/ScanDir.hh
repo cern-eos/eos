@@ -28,6 +28,8 @@
 #include "common/FileId.hh"
 #include "common/AssistedThread.hh"
 #include "common/SteadyClock.hh"
+#include "namespace/interface/IFileMD.hh"
+#include <deque>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -65,11 +67,20 @@ public:
   void SetConfig(const std::string&, long long value);
 
   //------------------------------------------------------------------------------
-  //! Infinite loop doing the scanning and verification
+  //! Infinite loop doing the scanning and verification of disk entries
   //!
   //! @param assistant thread running the job
   //------------------------------------------------------------------------------
-  void Run(ThreadAssistant& assistant) noexcept;
+  void RunDiskScan(ThreadAssistant& assistant) noexcept;
+
+#ifndef _NOOFS
+  //------------------------------------------------------------------------------
+  //! Infinite loop doing the scanning of namespace entries
+  //!
+  //! @param assistant thread running the job
+  //------------------------------------------------------------------------------
+  void RunNsScan(ThreadAssistant& assistant) noexcept;
+#endif
 
   //----------------------------------------------------------------------------
   //! Method traversing all the files in the subtree and potentially rescanning
@@ -157,6 +168,29 @@ public:
   void EnforceAndAdjustScanRate(const off_t offset, const uint64_t open_ts_sec,
                                 int& scan_rate);
 
+#ifndef _NOOFS
+  //----------------------------------------------------------------------------
+  //! Collect all file ids present on the current file system from the NS view
+  //!
+  //! @param type can be either eos::fsview::sFilesSuffix or
+  //!        eos::fsview::sUnlinkedSuffix
+  //!
+  //! @return queue holding the file ids
+  //----------------------------------------------------------------------------
+  std::deque<eos::IFileMD::id_t> CollectNsFids(const std::string& type) const;
+
+  //----------------------------------------------------------------------------
+  //! Account for missing replicas
+  //----------------------------------------------------------------------------
+  void AccountMissing();
+
+  //----------------------------------------------------------------------------
+  //! Cleanup unlinked replicas which are older than 1 hour
+  //----------------------------------------------------------------------------
+  void CleanupUnlinked();
+
+#endif
+
   //----------------------------------------------------------------------------
   //! Print log message - depending on whether or not we run in standalone mode
   //! or inside the FST daemon
@@ -198,8 +232,8 @@ public:
   char* mBuffer; ///< Buffer used for reading
   uint32_t mBufferSize; ///< Size of the reading buffer
   bool mBgThread; ///< If true running as background thread inside the FST
-  AssistedThread mThread; ///< Thread doing the scanning
-  bool mFakeClock; ///< Mark if we're using a fake clock (testing)
+  AssistedThread mDiskThread; ///< Thread doing the scanning of the disk
+  AssistedThread mNsThread; ///< Thread doing the scanning of NS entries
   eos::common::SteadyClock mClock; ///< Clock wrapper also used for testing
 };
 

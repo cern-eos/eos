@@ -29,6 +29,8 @@
 #include "fst/FmdDbMap.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/io/FileIoPluginCommon.hh"
+#include "qclient/structures/QSet.hh"
+#include "namespace/ns_quarkdb/Constants.hh"
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -104,8 +106,7 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
   mRateBandwidth(ratebandwidth), mNumScannedFiles(0), mNumCorruptedFiles(0),
   mNumHWCorruptedFiles(0),  mTotalScanSize(0), mNumTotalFiles(0),
   mNumSkippedFiles(0), mBuffer(nullptr),
-  mBufferSize(0), mBgThread(bgthread), mFakeClock(fake_clock),
-  mClock(mFakeClock)
+  mBufferSize(0), mBgThread(bgthread), mClock(fake_clock)
 {
   long alignment = pathconf((mDirPath[0] != '/') ? "/" : mDirPath.c_str(),
                               _PC_REC_XFER_ALIGN);
@@ -126,7 +127,10 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
 
   if (mBgThread) {
     openlog("scandir", LOG_PID | LOG_NDELAY, LOG_USER);
-    mThread.reset(&ScanDir::Run, this);
+    mDiskThread.reset(&ScanDir::RunDiskScan, this);
+#ifndef _NOOFS
+    mNsThread.reset(&ScanDir::RunNsScan, this);
+#endif
   }
 }
 
@@ -136,7 +140,8 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
 ScanDir::~ScanDir()
 {
   if (mBgThread) {
-    mThread.join();
+    mDiskThread.join();
+    mNsThread.join();
     closelog();
   }
 
@@ -160,16 +165,129 @@ ScanDir::SetConfig(const std::string& key, long long value)
     mRescanIntervalSec = value;
   } else if (key == eos::common::SCAN_RERUNINTERVAL_NAME) {
     mRerunIntervalSec = value;
-    mThread.join();
-    mThread.reset(&ScanDir::Run, this);
+    mDiskThread.join();
+    mDiskThread.reset(&ScanDir::RunDiskScan, this);
   }
 }
+
+
+#ifndef _NOOFS
+//------------------------------------------------------------------------------
+// Infinite loop doing the scanning of namespace entries
+//------------------------------------------------------------------------------
+void
+ScanDir::RunNsScan(ThreadAssistant& assistant) noexcept
+{
+  using eos::common::FileId;
+  eos_info("%s", "msg=\"started the ns scan thread\"");
+
+  if (gOFS.mFsckQcl == nullptr) {
+    eos_notice("%s", "msg=\"no qclient present, skipping ns scan\"");
+    return;
+  }
+
+  // Wait for the corresponding file system to boot before starting
+  while (gOFS.Storage->IsFsBooting(mFsId)) {
+    assistant.wait_for(std::chrono::seconds(5));
+
+    if (assistant.terminationRequested()) {
+      eos_info("%s", "msg=\"stopping ns scan thread\"");
+      return;
+    }
+  }
+
+  AccountMissing();
+  CleanupUnlinked();
+}
+
+//----------------------------------------------------------------------------
+// Account for missing replicas
+//----------------------------------------------------------------------------
+void
+ScanDir:: AccountMissing()
+{
+  using eos::common::FileId;
+  struct stat info;
+  auto fids = CollectNsFids(eos::fsview::sFilesSuffix);
+  (void) fids;
+
+  while (!fids.empty()) {
+    // Tag any missing replicas
+    eos::IFileMD::id_t fid = fids.front();
+    fids.pop_front();
+    std::string fpath =
+      FileId::FidPrefix2FullPath(FileId::Fid2Hex(fid).c_str(),
+                                 gOFS.Storage->GetStoragePath(mFsId).c_str());
+
+    if (stat(fpath.c_str(), &info)) {
+      // Double check that this not a file which was deleted in the meantime
+      // @todo(esindril)
+      // File missing on disk - create fmd entry and mark it as missing
+      auto fmd = gFmdDbMapHandler.LocalGetFmd(fid, mFsId, true, true);
+      fmd->mProtoFmd.set_layouterror(fmd->mProtoFmd.layouterror() |
+                                     LayoutId::kMissing);
+      gFmdDbMapHandler.Commit(fmd.get());
+    }
+
+    // @todo(esindril) implement rate limiter for the entire FST
+  }
+}
+
+
+//----------------------------------------------------------------------------
+// Cleanup unlinked replicas which are older than 1 hour
+//----------------------------------------------------------------------------
+void
+ScanDir::CleanupUnlinked()
+{
+  // Loop over the unlinked files and force unlink them if older than 1 hour
+  auto unlinked_fids = CollectNsFids(eos::fsview::sUnlinkedSuffix);
+
+  while (!unlinked_fids.empty()) {
+    eos::IFileMD::id_t fid = unlinked_fids.front();
+    unlinked_fids.pop_front();
+    // @todo (esindril): finish implementation
+  }
+}
+
+//------------------------------------------------------------------------------
+// Collect all file ids present on the current file system from the NS view
+//------------------------------------------------------------------------------
+std::deque<eos::IFileMD::id_t>
+ScanDir::CollectNsFids(const std::string& type) const
+{
+  std::deque<eos::IFileMD::id_t> queue;
+
+  if ((type != eos::fsview::sFilesSuffix) &&
+      (type != eos::fsview::sUnlinkedSuffix)) {
+    eos_err("msg=\"unsupported type %s\"", type.c_str());
+    return queue;
+  }
+
+  std::ostringstream oss;
+  oss << eos::fsview::sPrefix << mFsId << type;
+  const std::string key = oss.str();
+  qclient::QSet qset(*gOFS.mFsckQcl.get(), key);
+
+  for (qclient::QSet::Iterator it = qset.getIterator(); it.valid(); it.next()) {
+    try {
+      queue.push_back(std::stoull(it.getElement()));
+    } catch (...) {
+      eos_err("msg=\"failed to convert fid entry\" data=\"%s\"",
+              it.getElement().c_str());
+    }
+  }
+
+  return queue;
+}
+
+#endif
 
 //------------------------------------------------------------------------------
 // Infinite loop doing the scanning
 //------------------------------------------------------------------------------
 void
-ScanDir::Run(ThreadAssistant& assistant) noexcept
+ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
 {
   using namespace std::chrono;
 
@@ -193,7 +311,7 @@ ScanDir::Run(ThreadAssistant& assistant) noexcept
     assistant.wait_for(std::chrono::seconds(5));
 
     if (assistant.terminationRequested()) {
-      eos_info("%s", "msg=\"stopping scan thread\"");
+      eos_info("%s", "msg=\"stopping disk scan thread\"");
       return;
     }
   }
@@ -480,7 +598,7 @@ ScanDir::DoRescan(const std::string& timestamp_sec) const
   uint64_t elapsed_sec {0ull};
 
   // Used only during testing
-  if (mFakeClock) {
+  if (mClock.IsFake()) {
     steady_clock::time_point old_ts(seconds(std::stoull(timestamp_sec)));
     steady_clock::time_point now_ts(mClock.getTime());
     elapsed_sec = duration_cast<seconds>(now_ts - old_ts).count();
@@ -663,7 +781,7 @@ ScanDir::GetTimestampSmearedSec() const
     (int64_t)(0.2 * mRescanIntervalSec.load());
   uint64_t ts_sec;
 
-  if (mFakeClock) {
+  if (mClock.IsFake()) {
     ts_sec = duration_cast<seconds>(mClock.getTime().time_since_epoch()).count();
   } else {
     ts_sec = duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
