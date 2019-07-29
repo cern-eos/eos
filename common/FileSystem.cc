@@ -582,7 +582,6 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
 {
   mLocator = locator;
   mSharedManager = qsom;
-  mQueue = locator.getFSTQueue();
   mSom = som;
   mInternalBootStatus = BootStatus::kDown;
   cActive = ActiveStatus::kOffline;
@@ -610,7 +609,7 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
 
       if (hash) {
         hash->OpenTransaction();
-        hash->Set("queue", mQueue.c_str());
+        hash->Set("queue", mLocator.getFSTQueue().c_str());
         hash->Set("queuepath", mLocator.getQueuePath().c_str());
         hash->Set("path", mLocator.getStoragePath().c_str());
         hash->Set("hostport", mLocator.getHostPort().c_str());
@@ -625,7 +624,7 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
     } else {
       hash->SetBroadCastQueue(broadcast.c_str());
       hash->OpenTransaction();
-      hash->Set("queue", mQueue.c_str());
+      hash->Set("queue", mLocator.getFSTQueue().c_str());
       hash->Set("queuepath", mLocator.getQueuePath().c_str());
       hash->Set("path", mLocator.getStoragePath().c_str());
       hash->Set("hostport", locator.getHostPort().c_str());
@@ -1067,8 +1066,8 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
 
   if ((hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash"))) {
     fs.mId = (fsid_t) hash->GetUInt("id");
-    fs.mQueue = mQueue;
-    fs.mQueuePath = mLocator.getQueuePath().c_str();
+    fs.mQueue = mLocator.getFSTQueue();
+    fs.mQueuePath = mLocator.getQueuePath();
     fs.mGroup = hash->Get("schedgroup");
     fs.mUuid = hash->Get("uuid");
     fs.mHost = hash->Get("host");

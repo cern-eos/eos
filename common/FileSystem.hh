@@ -478,9 +478,6 @@ protected:
   //! This filesystem's locator object
   FileSystemLocator mLocator;
 
-  //! Queue Name         = 'queue'          e.g. /eos/'host'/fst
-  std::string mQueue;
-
   //! Indicates that if the filesystem is deleted - the deletion should be
   //! broadcasted or not (only MGMs should broadcast deletion!)
   bool BroadCastDeletion;
@@ -979,7 +976,7 @@ public:
   std::string
   GetQueue()
   {
-    return mQueue;
+    return mLocator.getFSTQueue();
   }
 
   //----------------------------------------------------------------------------
