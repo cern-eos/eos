@@ -529,7 +529,7 @@ public:
     std::string mProxyGroup;
     std::string mS3Credentials;
     int8_t      mFileStickyProxyDepth;
-    std::string mPort;
+    int32_t mPort;
     std::string mGeoTag;
     std::string mForceGeoTag;
     size_t mPublishTimestamp;
@@ -601,7 +601,6 @@ public:
     double mNetEthRateMiB;
     double mNetInRateMiB;
     double mNetOutRateMiB;
-    long mGopen; // number of files open as data proxy
 
     bool hasHeartbeat() const
     {

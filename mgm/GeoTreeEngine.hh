@@ -259,12 +259,11 @@ class GeoTreeEngine : public eos::common::LogId
     size_t fsCount;
     size_t rOpen;
     size_t wOpen;
-    size_t gOpen; // number of files open as dataproxy (no data hosted on any local fs)
     double netOutWeight;
     double netInWeight;
     double diskUtilSum;
     size_t netSpeedClass;
-    nodeAgreg() : saturated(false), fsCount(0), rOpen(0), wOpen(0), gOpen(0),
+    nodeAgreg() : saturated(false), fsCount(0), rOpen(0), wOpen(0),
       netOutWeight(0.0), netInWeight(0.0), diskUtilSum(0.0), netSpeedClass(0) {};
   };
 //**********************************************************

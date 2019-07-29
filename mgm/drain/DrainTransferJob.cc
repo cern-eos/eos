@@ -374,7 +374,7 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
     oss_path << "/replicate:" << eos::common::FileId::Fid2Hex(mFileId);
     url_src.SetPath(oss_path.str());
     url_src.SetHostName(src_snapshot.mHost.c_str());
-    url_src.SetPort(stoi(src_snapshot.mPort));
+    url_src.SetPort(src_snapshot.mPort);
     src_cap << output_cap->Env(cap_len)
             << "&mgm.logid=" << log_id
             << "&source.url=root://" << src_snapshot.mHostPort.c_str()
@@ -494,7 +494,7 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
 
   url_dst.SetProtocol("root");
   url_dst.SetHostName(dst_snapshot.mHost.c_str());
-  url_dst.SetPort(stoi(dst_snapshot.mPort));
+  url_dst.SetPort(dst_snapshot.mPort);
   url_dst.SetUserName("daemon");
   url_dst.SetParams(oss_cap.str());
   std::ostringstream oss_path;

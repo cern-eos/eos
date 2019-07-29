@@ -1070,8 +1070,8 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
     fs.mQueuePath = mLocator.getQueuePath();
     fs.mGroup = hash->Get("schedgroup");
     fs.mUuid = hash->Get("uuid");
-    fs.mHost = hash->Get("host");
-    fs.mHostPort = hash->Get("hostport");
+    fs.mHost = mLocator.getHost();
+    fs.mHostPort = mLocator.getHostPort();
     fs.mProxyGroup = hash->Get("proxygroup");
     fs.mS3Credentials = hash->Get("s3credentials");
     fs.mFileStickyProxyDepth = -1;
@@ -1080,7 +1080,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
       fs.mFileStickyProxyDepth = hash->GetLongLong("filestickyproxydepth");
     }
 
-    fs.mPort = hash->Get("port");
+    fs.mPort = mLocator.getPort();
     GroupLocator groupLocator;
     GroupLocator::parseGroup(fs.mGroup, groupLocator);
     fs.mSpace = groupLocator.getSpace();
@@ -1163,7 +1163,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
     fs.mProxyGroup = "";
     fs.mS3Credentials = "";
     fs.mFileStickyProxyDepth = -1;
-    fs.mPort = "";
+    fs.mPort = 0;
     fs.mErrMsg = "";
     fs.mGeoTag = "";
     fs.mPublishTimestamp = 0;
@@ -1226,7 +1226,6 @@ FileSystem::SnapShotHost(XrdMqSharedObjectManager* som,
     host.mNetEthRateMiB = hash->GetDouble("stat.net.ethratemib");
     host.mNetInRateMiB  = hash->GetDouble("stat.net.inratemib");
     host.mNetOutRateMiB = hash->GetDouble("stat.net.outratemib");
-    host.mGopen = hash->GetLongLong("stat.dataproxy.gopen");
 
     if (dolock) {
       som->HashMutex.UnLockRead();
@@ -1248,7 +1247,6 @@ FileSystem::SnapShotHost(XrdMqSharedObjectManager* som,
     host.mNetEthRateMiB = 0;
     host.mNetInRateMiB  = 0;
     host.mNetOutRateMiB = 0;
-    host.mGopen = 0;
     return false;
   }
 }

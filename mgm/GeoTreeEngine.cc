@@ -2840,8 +2840,6 @@ bool GeoTreeEngine::updateTreeInfo(ProxyTMEBase* entry,
           na.saturated = true;  // network of the box is saturated
         }
       }
-
-      na.gOpen += hs->mGopen;
     }
 
     // contrary to the fs case, we don't deal with penalties here
@@ -3236,7 +3234,6 @@ void GeoTreeEngine::updateAtomicPenalties()
       std::vector<double>
       ropen(pPenaltySched.pMaxNetSpeedClass + 1, 0.0),
             wopen(pPenaltySched.pMaxNetSpeedClass + 1, 0.0),
-            gopen(pPenaltySched.pMaxNetSpeedClass + 1, 0.0),
             ulload(pPenaltySched.pMaxNetSpeedClass + 1, 0.0),
             dlload(pPenaltySched.pMaxNetSpeedClass + 1, 0.0),
             fscount(pPenaltySched.pMaxNetSpeedClass + 1, 0.0),
@@ -3287,7 +3284,6 @@ void GeoTreeEngine::updateAtomicPenalties()
           // (take into account only unsaturated boxes)
           ropen[it->second.netSpeedClass] += (it->second.rOpen);
           wopen[it->second.netSpeedClass] += (it->second.wOpen);
-          gopen[it->second.netSpeedClass] += (it->second.gOpen);
           ulload[it->second.netSpeedClass] += (1.0 - it->second.netOutWeight);
           dlload[it->second.netSpeedClass] += (1.0 - it->second.netInWeight);
           diskutil[it->second.netSpeedClass] += it->second.diskUtilSum;
@@ -3319,7 +3315,7 @@ void GeoTreeEngine::updateAtomicPenalties()
           // network penalty per file = the multiplication by the number of fs
           // is to take into account that the bw is shared between multiple fs
           double avgnetload = 0.5 * (ulload[netSpeedClass] + dlload[netSpeedClass]) /
-                              (ropen[netSpeedClass] + wopen[netSpeedClass] + gopen[netSpeedClass]);
+                              (ropen[netSpeedClass] + wopen[netSpeedClass]);
           double networkpenSched = avgnetload * (fscount[netSpeedClass] /
                                                  hostcount[netSpeedClass]);
           double networkpenGw    = avgnetload;
