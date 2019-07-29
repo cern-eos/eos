@@ -1845,8 +1845,8 @@ main(int argc, char* argv[])
 
       if (retc) {
         eos::common::error_retc_map(file->GetLastErrNo());
-        fprintf(stderr, "error: target file open failed - ernno=%d : %s\n", errno,
-                strerror(errno));
+        fprintf(stderr, "error: target file open failed - errno=%d : %s\n",
+                errno, strerror(errno));
         exit(-errno);
       }
 

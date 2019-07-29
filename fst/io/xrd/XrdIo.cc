@@ -226,11 +226,18 @@ XrdIo::fileOpen(XrdSfsFileOpenMode flags,
 
   if (!status.IsOK()) {
     mLastErrMsg = status.ToString().c_str();
-    mLastErrCode  = status.code;
-    mLastErrNo  = status.errNo;
+    mLastErrCode = status.code;
+    mLastErrNo = status.errNo;
     eos_err("error= \"open failed url=%s, errno=%i, errc=%i, msg=%s\"",
-            mTargetUrl.GetURL().c_str(), mLastErrNo, mLastErrCode, mLastErrMsg.c_str());
-    errno = status.errNo;
+            mTargetUrl.GetURL().c_str(), mLastErrNo, mLastErrCode,
+            mLastErrMsg.c_str());
+
+    if (!mLastErrNo) {
+      eos_warning("error encountered despite errno=0; setting errno=22");
+      mLastErrNo = EINVAL;
+    }
+    errno = mLastErrNo;
+
     return SFS_ERROR;
   } else {
     errno = 0;
