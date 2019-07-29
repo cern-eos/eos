@@ -484,9 +484,6 @@ protected:
   //! Queue Name         = 'queue'          e.g. /eos/'host'/fst
   std::string mQueue;
 
-  //! Filesystem Path e.g. /data01
-  std::string mPath;
-
   //! Indicates that if the filesystem is deleted - the deletion should be
   //! broadcasted or not (only MGMs should broadcast deletion!)
   bool BroadCastDeletion;
@@ -994,7 +991,7 @@ public:
   std::string
   GetPath()
   {
-    return mPath;
+    return mLocator.getStoragePath();
   }
 
   //----------------------------------------------------------------------------

@@ -57,7 +57,7 @@ FileSystem::FileSystem(const common::FileSystemLocator& locator,
   mTxMultiplexer.Add(mTxExternQueue);
   mTxMultiplexer.Run();
   mRecoverable = false;
-  mFileIO.reset(FileIoPlugin::GetIoObject(mPath));
+  mFileIO.reset(FileIoPlugin::GetIoObject(mLocator.getStoragePath()));
 }
 
 /*----------------------------------------------------------------------------*/

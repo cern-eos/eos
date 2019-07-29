@@ -584,7 +584,6 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
   mSharedManager = qsom;
   mQueuePath = locator.getQueuePath();
   mQueue = locator.getFSTQueue();
-  mPath = locator.getStoragePath();
   mSom = som;
   mInternalBootStatus = BootStatus::kDown;
   cActive = ActiveStatus::kOffline;
@@ -614,7 +613,7 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
         hash->OpenTransaction();
         hash->Set("queue", mQueue.c_str());
         hash->Set("queuepath", mQueuePath.c_str());
-        hash->Set("path", mPath.c_str());
+        hash->Set("path", mLocator.getStoragePath().c_str());
         hash->Set("hostport", locator.getHostPort().c_str());
         hash->Set("host", locator.getHost().c_str());
         hash->Set("port", std::to_string(locator.getPort()).c_str());
@@ -629,7 +628,7 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
       hash->OpenTransaction();
       hash->Set("queue", mQueue.c_str());
       hash->Set("queuepath", mQueuePath.c_str());
-      hash->Set("path", mPath.c_str());
+      hash->Set("path", mLocator.getStoragePath().c_str());
       hash->Set("hostport", locator.getHostPort().c_str());
       hash->Set("host", locator.getHost().c_str());
       hash->Set("port", std::to_string(locator.getPort()).c_str());
@@ -1088,7 +1087,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
     GroupLocator::parseGroup(fs.mGroup, groupLocator);
     fs.mSpace = groupLocator.getSpace();
     fs.mGroupIndex = groupLocator.getIndex();
-    fs.mPath = mPath;
+    fs.mPath = mLocator.getStoragePath();
     fs.mErrMsg = hash->Get("stat.errmsg");
     fs.mGeoTag = hash->Get("stat.geotag");
     fs.mForceGeoTag.clear();
