@@ -478,9 +478,6 @@ protected:
   //! This filesystem's locator object
   FileSystemLocator mLocator;
 
-  //! Queue Name/Path    = 'queue' + 'path' e.g. /eos/'host'/fst/data01
-  std::string mQueuePath;
-
   //! Queue Name         = 'queue'          e.g. /eos/'host'/fst
   std::string mQueue;
 
@@ -722,7 +719,7 @@ public:
     RWMutexReadLock lock(mSom->HashMutex);
     XrdMqSharedHash* hash = nullptr;
 
-    if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
+    if ((hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash"))) {
       hash->OpenTransaction();
       return true;
     } else {
@@ -739,7 +736,7 @@ public:
     RWMutexReadLock lock(mSom->HashMutex);
     XrdMqSharedHash* hash = nullptr;
 
-    if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
+    if ((hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash"))) {
       hash->CloseTransaction();
       return true;
     } else {
@@ -765,7 +762,7 @@ public:
     XrdMqSharedHash* hash = nullptr;
     RWMutexReadLock lock(mSom->HashMutex);
 
-    if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
+    if ((hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash"))) {
       hash->Set(key, str, broadcast);
       return true;
     } else {
@@ -800,7 +797,7 @@ public:
     XrdMqSharedHash* hash = nullptr;
     RWMutexReadLock lock(mSom->HashMutex);
 
-    if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
+    if ((hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash"))) {
       hash->Delete(key, broadcast);
       return true;
     } else {
@@ -866,7 +863,7 @@ public:
     XrdMqSharedHash* hash = nullptr;
     RWMutexReadLock lock(mSom->HashMutex);
 
-    if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
+    if ((hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash"))) {
       keys = hash->GetKeys();
       return true;
     } else {
@@ -889,7 +886,7 @@ public:
     XrdMqSharedHash* hash = nullptr;
     RWMutexReadLock lock(mSom->HashMutex);
 
-    if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
+    if ((hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash"))) {
       return hash->Get(skey);
     } else {
       return "";
@@ -905,7 +902,7 @@ public:
     XrdMqSharedHash* hash = nullptr;
     RWMutexReadLock lock(mSom->HashMutex);
 
-    if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
+    if ((hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash"))) {
       // avoid to return a string with a 0 pointer !
       return hash->GetAgeInSeconds(key);
     } else {
@@ -973,7 +970,7 @@ public:
   std::string
   GetQueuePath()
   {
-    return mQueuePath;
+    return mLocator.getQueuePath();
   }
 
   //----------------------------------------------------------------------------

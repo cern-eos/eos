@@ -582,7 +582,6 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
 {
   mLocator = locator;
   mSharedManager = qsom;
-  mQueuePath = locator.getQueuePath();
   mQueue = locator.getFSTQueue();
   mSom = som;
   mInternalBootStatus = BootStatus::kDown;
@@ -602,21 +601,21 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
     mSom->HashMutex.LockRead();
     XrdMqSharedHash* hash = nullptr;
 
-    if (!(hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
+    if (!(hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash"))) {
       mSom->HashMutex.UnLockRead();
       // create the hash object
-      mSom->CreateSharedHash(mQueuePath.c_str(), broadcast.c_str(), som);
+      mSom->CreateSharedHash(mLocator.getQueuePath().c_str(), broadcast.c_str(), som);
       mSom->HashMutex.LockRead();
-      hash = mSom->GetObject(mQueuePath.c_str(), "hash");
+      hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash");
 
       if (hash) {
         hash->OpenTransaction();
         hash->Set("queue", mQueue.c_str());
-        hash->Set("queuepath", mQueuePath.c_str());
+        hash->Set("queuepath", mLocator.getQueuePath().c_str());
         hash->Set("path", mLocator.getStoragePath().c_str());
-        hash->Set("hostport", locator.getHostPort().c_str());
-        hash->Set("host", locator.getHost().c_str());
-        hash->Set("port", std::to_string(locator.getPort()).c_str());
+        hash->Set("hostport", mLocator.getHostPort().c_str());
+        hash->Set("host", mLocator.getHost().c_str());
+        hash->Set("port", std::to_string(mLocator.getPort()).c_str());
         hash->Set("configstatus", "down");
         hash->Set("stat.drain", "nodrain");
         hash->CloseTransaction();
@@ -627,7 +626,7 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
       hash->SetBroadCastQueue(broadcast.c_str());
       hash->OpenTransaction();
       hash->Set("queue", mQueue.c_str());
-      hash->Set("queuepath", mQueuePath.c_str());
+      hash->Set("queuepath", mLocator.getQueuePath().c_str());
       hash->Set("path", mLocator.getStoragePath().c_str());
       hash->Set("hostport", locator.getHostPort().c_str());
       hash->Set("host", locator.getHost().c_str());
@@ -663,7 +662,7 @@ FileSystem::~FileSystem()
 {
   // remove the shared hash of this file system
   if (mSom) {
-    mSom->DeleteSharedHash(mQueuePath.c_str(), BroadCastDeletion);
+    mSom->DeleteSharedHash(mLocator.getQueuePath().c_str(), BroadCastDeletion);
   }
 
   if (mDrainQueue) {
@@ -966,7 +965,7 @@ FileSystem::GetRegisterRequestString()
 bool FileSystem::applyBatch(const FileSystemUpdateBatch& batch)
 {
   RWMutexReadLock lock(mSom->HashMutex);
-  XrdMqSharedHash* hash = mSom->GetObject(mQueuePath.c_str(), "hash");
+  XrdMqSharedHash* hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash");
 
   if (!hash) {
     return false;
@@ -1028,8 +1027,8 @@ FileSystem::CreateConfig(std::string& key, std::string& val)
 {
   key = val = "";
   RWMutexReadLock lock(mSom->HashMutex);
-  key = mQueuePath;
-  XrdMqSharedHash* hash = mSom->GetObject(mQueuePath.c_str(), "hash");
+  key = mLocator.getQueuePath();
+  XrdMqSharedHash* hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash");
   val = hash->SerializeWithFilter("stat.", true);
 }
 
@@ -1039,7 +1038,7 @@ FileSystem::CreateConfig(std::string& key, std::string& val)
 FileSystemCoreParams FileSystem::getCoreParams()
 {
   RWMutexReadLock lock(mSom->HashMutex);
-  XrdMqSharedHash* hash = mSom->GetObject(mQueuePath.c_str(), "hash");
+  XrdMqSharedHash* hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash");
 
   if (!hash) {
     return FileSystemCoreParams(0, FileSystemLocator(), GroupLocator(), "",
@@ -1066,10 +1065,10 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
 
   XrdMqSharedHash* hash = nullptr;
 
-  if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
+  if ((hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash"))) {
     fs.mId = (fsid_t) hash->GetUInt("id");
     fs.mQueue = mQueue;
-    fs.mQueuePath = mQueuePath;
+    fs.mQueuePath = mLocator.getQueuePath().c_str();
     fs.mGroup = hash->Get("schedgroup");
     fs.mUuid = hash->Get("uuid");
     fs.mHost = hash->Get("host");
@@ -1309,7 +1308,7 @@ FileSystem::Print(TableHeader& table_mq_header, TableData& table_mq_data,
   XrdMqSharedHash* hash = nullptr;
   RWMutexReadLock lock(mSom->HashMutex);
 
-  if ((hash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
+  if ((hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash"))) {
     hash->Print(table_mq_header, table_mq_data, listformat, filter);
   }
 }
