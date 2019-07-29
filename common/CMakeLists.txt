@@ -81,6 +81,7 @@ add_library(eosCommon-Objects OBJECT
   Report.cc
   StringTokenizer.cc
   CommentLog.cc
+  RateLimit.cc
   IntervalStopwatch.cc                                       IntervalStopwatch.hh
   VirtualIdentity.cc                                         VirtualIdentity.hh
   XrdConnPool.cc                                             XrdConnPool.hh
