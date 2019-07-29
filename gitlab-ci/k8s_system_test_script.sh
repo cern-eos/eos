@@ -79,7 +79,7 @@ kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \
 kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \
 	-- su - eos-user -c 'python /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci'
 
-if [ "$CI_JOB_NAME" != k8s_ubuntu_system_test ]; then
+if [ "$CI_JOB_NAME" != k8s_ubuntu_system ]; then
 	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \
 	-- /bin/bash -c 'eos fuse mount /eos_fuse; eos fuse mount /eos_fuse2;';
 	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \

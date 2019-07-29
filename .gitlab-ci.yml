@@ -237,12 +237,12 @@ before_script:
 .k8s_system_test_script_template: &k8s_system_test_script_template
   <<: *k8s_before_script_template
   script:
-    - if   [[ "$CI_JOB_NAME" == k8s_system_test ]]; then ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -n ${NAMESPACE};
-      elif [[ "$CI_JOB_NAME" == k8s_ubuntu_system_test ]]; then ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -u ubuntu_bionic_client_${IMAGE_TAG} -n ${NAMESPACE} -q;
-      elif [[ "$CI_JOB_NAME" == k8s_system_test_qdb* ]]; then ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -n ${NAMESPACE} -q;
+    - if   [[ "$CI_JOB_NAME" == k8s_system ]]; then ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -n ${NAMESPACE};
+      elif [[ "$CI_JOB_NAME" == k8s_ubuntu_system ]]; then ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -u ubuntu_bionic_client_${IMAGE_TAG} -n ${NAMESPACE} -q;
+      elif [[ "$CI_JOB_NAME" == k8s_system_qdb* ]]; then ./eos-on-k8s/create-all.sh -i ${IMAGE_TAG} -n ${NAMESPACE} -q;
       else echo "CI_JOB_NAME:$CI_JOB_NAME not found"; exit 1;
       fi
-    - if [[ "$CI_JOB_NAME" == k8s_ubuntu_system_test ]]; then ./gitlab-ci/k8s_system_test_script.sh --only-client ${NAMESPACE};
+    - if [[ "$CI_JOB_NAME" == k8s_ubuntu_system ]]; then ./gitlab-ci/k8s_system_test_script.sh --only-client ${NAMESPACE};
       else ./gitlab-ci/k8s_system_test_script.sh ${NAMESPACE};
       fi
   <<: *k8s_after_script_template
@@ -691,7 +691,7 @@ prod_docker_image_tag:
 # Kubernetes testing framework
 #-------------------------------------------------------------------------------
 
-k8s_system_test:
+k8s_system:
   stage: test
   <<: *k8s_system_test_script_template
   tags:
@@ -701,7 +701,7 @@ k8s_system_test:
   retry: 1
 
 
-k8s_system_test_qdb:
+k8s_system_qdb:
   stage: test
   <<: *k8s_system_test_script_template
   tags:
@@ -711,7 +711,7 @@ k8s_system_test_qdb:
   retry: 1
 
 
-k8s_system_test_qdb_xt: # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
+k8s_system_qdb_xt: # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
   stage: test
   <<: *k8s_system_test_script_template
   variables:
@@ -725,7 +725,7 @@ k8s_system_test_qdb_xt: # xt stands for xrd_testing. Must shorten to not hit HOS
   retry: 1
 
 
-k8s_ubuntu_system_test:
+k8s_ubuntu_system:
   stage: test
   <<: *k8s_system_test_script_template
   tags:
@@ -734,25 +734,23 @@ k8s_ubuntu_system_test:
   only:
     - dev
     - master
+    - tags
   allow_failure: true
   retry: 1
 
 
-k8s_unit_test:
+k8s_unit:
   stage: test
   <<: *k8s_unit_test_template
   tags:
     - shell-with-docker
     - k8s_node
-  only:
-    - dev
-    - master
   except:
     - schedules
   allow_failure: true
 
 
-k8s_unit_test_asan:
+k8s_unit_asan:
   stage: test
   <<: *k8s_unit_test_template
   variables:
@@ -765,21 +763,18 @@ k8s_unit_test_asan:
   allow_failure: true
 
 
-k8s_ns_unit_test:
+k8s_ns_unit:
   stage: test
   <<: *k8s_ns_unit_test_template
   tags:
     - shell-with-docker
     - k8s_node
-  only:
-    - dev
-    - master
   except:
     - schedules
   allow_failure: true
 
 
-k8s_ns_unit_test_asan:
+k8s_ns_unit_asan:
   stage: test
   <<: *k8s_ns_unit_test_template
   variables:
@@ -792,7 +787,7 @@ k8s_ns_unit_test_asan:
   allow_failure: true
 
 
-k8s_stress_test:
+k8s_stress:
   stage: test
   <<: *k8s_before_script_template
   script:
