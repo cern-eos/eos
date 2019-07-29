@@ -551,6 +551,30 @@ std::string FileSystemCoreParams::getQueuePath() const
 }
 
 //------------------------------------------------------------------------------
+// Get FST queue
+//------------------------------------------------------------------------------
+std::string FileSystemCoreParams::getFSTQueue() const
+{
+  return mLocator.getFSTQueue();
+}
+
+//------------------------------------------------------------------------------
+// Get group (space.index)
+//------------------------------------------------------------------------------
+std::string FileSystemCoreParams::getGroup() const
+{
+  return mGroup.getGroup();
+}
+
+//------------------------------------------------------------------------------
+// Get space
+//------------------------------------------------------------------------------
+std::string FileSystemCoreParams::getSpace() const
+{
+  return mGroup.getSpace();
+}
+
+//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 FileSystem::FileSystem(const FileSystemLocator& locator,

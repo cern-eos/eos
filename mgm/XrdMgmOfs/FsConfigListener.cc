@@ -214,13 +214,6 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
   // Need to take action on filesystem errors
   ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener", watch_errc,
                                        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  // Need to notify GeoTreeEngine when the proxygroups to which a node belongs to are changing
-  ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener", watch_proxygroups,
-                                       XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  // This one would be necessary to be equivalent to beryl but it's probably not needed =>
-  // Need to take action an filesystem errors
-  // ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener",watch_errc,
-  //                                      XrdMqSharedObjectChangeNotifier::kMqSubjectDeletion);
   // Need to apply remote configuration changes
   ok &= ObjectNotifier.SubscribesToSubject("fsconfiglistener",
         MgmConfigQueue.c_str(),

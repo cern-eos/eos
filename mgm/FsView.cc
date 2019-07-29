@@ -1576,65 +1576,65 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams &coreParams,
 
     // Align view by nodename (= MQ queue) e.g. /eos/<host>:<port>/fst
     // Check if we have already a node view
-    if (mNodeView.count(snapshot.mQueue)) {
-      mNodeView[snapshot.mQueue]->insert(snapshot.mId);
-      eos_debug("inserting into node view %s<=>%u", snapshot.mQueue.c_str(),
-                snapshot.mId);
+    if (mNodeView.count(coreParams.getFSTQueue())) {
+      mNodeView[coreParams.getFSTQueue()]->insert(coreParams.getId());
+      eos_debug("inserting into node view %s<=>%u", coreParams.getFSTQueue().c_str(),
+                coreParams.getId());
     } else {
-      FsNode* node = new FsNode(snapshot.mQueue.c_str());
-      mNodeView[snapshot.mQueue] = node;
-      node->insert(snapshot.mId);
+      FsNode* node = new FsNode(coreParams.getFSTQueue().c_str());
+      mNodeView[coreParams.getFSTQueue()] = node;
+      node->insert(coreParams.getId());
       node->SetNodeConfigDefault();
-      eos_debug("creating/inserting into node view %s<=>%u", snapshot.mQueue.c_str(),
-                snapshot.mId);
+      eos_debug("creating/inserting into node view %s<=>%u", coreParams.getFSTQueue().c_str(),
+                coreParams.getId());
     }
 
     // Align view by groupname
     // Check if we have already a group view
-    if (mGroupView.count(snapshot.mGroup)) {
-      mGroupView[snapshot.mGroup]->insert(snapshot.mId);
-      eos_debug("inserting into group view %s<=>%u", snapshot.mGroup.c_str(),
-                snapshot.mId);
+    if (mGroupView.count(coreParams.getGroup())) {
+      mGroupView[coreParams.getGroup()]->insert(coreParams.getId());
+      eos_debug("inserting into group view %s<=>%u", coreParams.getGroup().c_str(),
+                 coreParams.getId());
     } else {
-      FsGroup* group = new FsGroup(snapshot.mGroup.c_str());
-      mGroupView[snapshot.mGroup] = group;
-      group->insert(snapshot.mId);
-      group->mIndex = snapshot.mGroupIndex;
-      eos_debug("creating/inserting into group view %s<=>%u", snapshot.mGroup.c_str(),
-                snapshot.mId);
+      FsGroup* group = new FsGroup(coreParams.getGroup().c_str());
+      mGroupView[coreParams.getGroup()] = group;
+      group->insert(coreParams.getId());
+      group->mIndex = coreParams.getGroupLocator().getIndex();
+      eos_debug("creating/inserting into group view %s<=>%u", coreParams.getGroup().c_str(),
+                coreParams.getId());
     }
 
     if (registerInGeoTreeEngine &&
-        !gGeoTreeEngine.insertFsIntoGroup(fs, mGroupView[snapshot.mGroup], false)) {
+        !gGeoTreeEngine.insertFsIntoGroup(fs, mGroupView[coreParams.getGroup()], false)) {
       // Roll back the changes
       if (UnRegister(fs, false)) {
         eos_err("could not insert insert fs %u into GeoTreeEngine : fs was "
                 "unregistered and consistency is KEPT between FsView and "
-                "GeoTreeEngine", snapshot.mId);
+                "GeoTreeEngine", coreParams.getId());
       } else {
         eos_crit("could not insert insert fs %u into GeoTreeEngine : fs could "
                  "not be unregistered and consistency is BROKEN between FsView "
-                 "and GeoTreeEngine", snapshot.mId);
+                 "and GeoTreeEngine", coreParams.getId());
       }
 
       return false;
     }
 
-    mSpaceGroupView[snapshot.mSpace].insert(mGroupView[snapshot.mGroup]);
+    mSpaceGroupView[coreParams.getSpace()].insert(mGroupView[coreParams.getGroup()]);
 
     // Align view by spacename
     // Check if we have already a space view
-    if (mSpaceView.count(snapshot.mSpace)) {
-      mSpaceView[snapshot.mSpace]->insert(snapshot.mId);
-      eos_debug("inserting into space view %s<=>%u %x", snapshot.mSpace.c_str(),
-                snapshot.mId, fs);
+    if (mSpaceView.count(coreParams.getSpace())) {
+      mSpaceView[coreParams.getSpace()]->insert(coreParams.getId());
+      eos_debug("inserting into space view %s<=>%u %x", coreParams.getSpace().c_str(),
+                coreParams.getId(), fs);
     } else {
-      FsSpace* space = new FsSpace(snapshot.mSpace.c_str());
+      FsSpace* space = new FsSpace(coreParams.getSpace().c_str());
       std::string grp_sz = "0";
       std::string grp_mod = "24";
 
       // Special case of spare space with has size 0 and mod 0
-      if (snapshot.mSpace == "spare") {
+      if (coreParams.getSpace() == "spare") {
         grp_mod = "0";
       }
 
@@ -1644,14 +1644,14 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams &coreParams,
           (!space->SetConfigMember(std::string("groupmod"), grp_mod,
                                    true, "/eos/*/mgm", true))) {
         eos_err("failed setting space %s default config values",
-                snapshot.mSpace.c_str());
+                coreParams.getSpace().c_str());
         return false;
       }
 
-      mSpaceView[snapshot.mSpace] = space;
-      space->insert(snapshot.mId);
+      mSpaceView[coreParams.getSpace()] = space;
+      space->insert(coreParams.getId());
       eos_debug("creating/inserting into space view %s<=>%u %x",
-                snapshot.mSpace.c_str(), snapshot.mId, fs);
+                coreParams.getSpace().c_str(), coreParams.getId(), fs);
     }
   }
 
