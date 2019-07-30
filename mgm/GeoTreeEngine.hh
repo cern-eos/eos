@@ -412,18 +412,6 @@ class GeoTreeEngine : public eos::common::LogId
       drnPlacementTree->updateTree();
     }
 
-    void WriteSlowState(SlowTreeNode::TreeNodeStateFloat& slowState,
-                        SchedTreeBase::tFastTreeIdx idx) const
-    {
-      FastPlacementTree::FsData& fastState = placementTree->pNodes[idx].fsData;
-      slowState.dlScore = float(fastState.dlScore) / 255;
-      slowState.ulScore = float(fastState.ulScore) / 255;
-      slowState.mStatus = fastState.mStatus &
-                          ~eos::mgm::SchedTreeBase::Disabled; // we don't want to back proagate the disabled bit
-      slowState.fillRatio = float(fastState.fillRatio) / 255;
-      slowState.totalSpace = float(fastState.totalSpace);
-    }
-
     inline void applyDlScorePenalty(SchedTreeBase::tFastTreeIdx idx,
                                     const char& penalty, bool background)
     /**< Apply download score penalty */
@@ -452,16 +440,6 @@ class GeoTreeEngine : public eos::common::LogId
       if (!background) {
         AtomicAdd((*penalties)[idx].ulScorePenalty, penalty);
       }
-    }
-
-    inline bool isUlScorePos(SchedTreeBase::tFastTreeIdx idx)
-    {
-      return placementTree->pNodes[idx].fsData.ulScore > 0;
-    }
-
-    inline bool isDlScorePos(SchedTreeBase::tFastTreeIdx idx)
-    {
-      return placementTree->pNodes[idx].fsData.dlScore > 0;
     }
 
     inline SchedTreeBase::FastTreeInfo* getTreeInfo()
@@ -587,18 +565,6 @@ class GeoTreeEngine : public eos::common::LogId
       proxyAccessTree->updateTree();
     }
 
-    void WriteSlowState(SlowTreeNode::TreeNodeStateFloat& slowState,
-                        SchedTreeBase::tFastTreeIdx idx) const
-    {
-      FastPlacementTree::FsData& fastState = proxyAccessTree->pNodes[idx].fsData;
-      slowState.dlScore = float(fastState.dlScore) / 255;
-      slowState.ulScore = float(fastState.ulScore) / 255;
-      slowState.mStatus = fastState.mStatus &
-                          ~eos::mgm::SchedTreeBase::Disabled; // we don't want to back proagate the disabled bit
-      slowState.fillRatio = float(fastState.fillRatio) / 255;
-      slowState.totalSpace = float(fastState.totalSpace);
-    }
-
     inline void applyDlScorePenalty(SchedTreeBase::tFastTreeIdx idx,
                                     const char& penalty, bool background)
     {
@@ -617,16 +583,6 @@ class GeoTreeEngine : public eos::common::LogId
       if (!background) {
         AtomicAdd((*penalties)[idx].ulScorePenalty, penalty);
       }
-    }
-
-    inline bool isUlScorePos(SchedTreeBase::tFastTreeIdx idx)
-    {
-      return proxyAccessTree->pNodes[idx].fsData.ulScore > 0;
-    }
-
-    inline bool isDlScorePos(SchedTreeBase::tFastTreeIdx idx)
-    {
-      return proxyAccessTree->pNodes[idx].fsData.dlScore > 0;
     }
 
     inline SchedTreeBase::FastTreeInfo* getTreeInfo()

@@ -104,7 +104,6 @@ const map<string, int> GeoTreeEngine::gNotifKey2EnumSched = {
   make_pair("stat.net.outratemib", sfgOutratemib),
   make_pair("stat.errc", sfgErrc),
   make_pair("stat.publishtimestamp", sfgPubTmStmp),
-  make_pair("proxygroup", sfgPxyGrp)
 };
 
 const map<string, int> GeoTreeEngine::gNotifKey2EnumProxy = {

@@ -471,22 +471,6 @@ public:
   }
 
   bool
-  allocate(void* buffer, size_t bufSize, tFastTreeIdx size)
-  {
-    size_t memsize = (pStrLen + sizeof(tFastTreeIdx)) * size;
-
-    if (bufSize < memsize) {
-      return false;
-    }
-
-    pMaxSize = size;
-    pSelfAllocated = false;
-    pBuffer = (char*)buffer;
-    pNodeIdxs = (tFastTreeIdx*)(pBuffer + size * pStrLen);
-    return true;
-  }
-
-  bool
   get(const char* fsid, const tFastTreeIdx*& idx) const
   {
     if (!pSize) {
