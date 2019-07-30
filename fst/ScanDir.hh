@@ -28,7 +28,9 @@
 #include "common/FileId.hh"
 #include "common/AssistedThread.hh"
 #include "common/SteadyClock.hh"
+#include "common/RateLimit.hh"
 #include "namespace/interface/IFileMD.hh"
+#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include <deque>
 
 EOSFSTNAMESPACE_BEGIN
@@ -191,6 +193,22 @@ public:
 
 #endif
 
+  //! Default ns scan rate is bound by the number of IO ops a disk can handle
+  //! and we set it to half the average max IOOPS for HDD which is 100.
+  static constexpr unsigned long long sDefaultNsScanRate {50};
+
+  //----------------------------------------------------------------------------
+  //! Check if file is unlinked from the namespace and in the process of being
+  //! deleted from the disk. Files that are unlinked for more than 30 min
+  //! definetely have a problem and we don't account them as in the process of
+  //! being deleted.
+  //!
+  //! @param fid file identifier
+  //!
+  //! @return true if file is being deleted, otherwise false
+  //----------------------------------------------------------------------------
+  bool IsFileBeingDeleted(eos::IFileMD::id_t fid);
+
   //----------------------------------------------------------------------------
   //! Print log message - depending on whether or not we run in standalone mode
   //! or inside the FST daemon
@@ -235,6 +253,9 @@ public:
   AssistedThread mDiskThread; ///< Thread doing the scanning of the disk
   AssistedThread mNsThread; ///< Thread doing the scanning of NS entries
   eos::common::SteadyClock mClock; ///< Clock wrapper also used for testing
+  //! Rate limiter for ns scanning which actually limits the number of stat
+  //! requests send across the disks in one FSTs.
+  std::unique_ptr<eos::common::IRateLimit> mRateLimit;
 };
 
 EOSFSTNAMESPACE_END

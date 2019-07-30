@@ -488,6 +488,7 @@ public:
     long mScanRate; ///< Maximum scan rate in MB/s
     long mScanInterval; ///< Time after which a scanned file is rescanned
     long mScanRerunInterval; ///< Time after which the scanner runs again
+    long mScanRateNs; ///< Max ns scan rate in entries/s
     time_t mGracePeriod;
     time_t mDrainPeriod;
 

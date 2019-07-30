@@ -47,4 +47,7 @@ static constexpr auto SCAN_RATE_NAME = "scanrate";
 static constexpr auto SCAN_INTERVAL_NAME = "scaninterval";
 //! Time interval after which the scanner will rerun
 static constexpr auto SCAN_RERUNINTERVAL_NAME = "scanreruninterval";
+//! Maximum ns scan rate when it comes to stat requests done against the
+//! local disks on the FSTs
+static constexpr auto SCAN_RATE_NS_NAME = "scanratens";
 EOSCOMMONNAMESPACE_END

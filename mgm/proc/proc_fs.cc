@@ -368,6 +368,7 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
            (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) !=
             eos::common::ConfigStatus::kUnknown)) ||
           (((key == eos::common::SCAN_RATE_NAME) ||
+            (key == eos::common::SCAN_RATE_NS_NAME) ||
             (key == eos::common::SCAN_INTERVAL_NAME) ||
             (key == eos::common::SCAN_RERUNINTERVAL_NAME) ||
             (key == "headroom") || (key == "graceperiod") ||
