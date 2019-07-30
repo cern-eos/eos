@@ -454,7 +454,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_sysconfdir}/cron.d/eos-reports
 %{_sysconfdir}/logrotate.d/eos-logs
 %dir %attr(700,daemon,daemon) %{_localstatedir}/eos
-%dir %attr(700,daemon,daemon) %{_localstatedir}/html
+%dir %attr(700,daemon,daemon) %{_localstatedir}/eos/html
 %dir %attr(700,daemon,daemon) %{_localstatedir}/eos/wfe
 %dir %attr(700,daemon,daemon) %{_localstatedir}/eos/wfe/bash/
 %dir %attr(700,daemon,daemon) %{_localstatedir}/eos/ns-queue
