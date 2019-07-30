@@ -1,6 +1,8 @@
+#! /bin/bash
+
 #------------------------------------------------------------------------------
-# File eoscp-rain-test
-# Futhor Elvin-Alin Sindrilaru - CERN 2013
+# File: eoscp-rain-test
+# Author: Elvin-Alin Sindrilaru - CERN 2013
 #------------------------------------------------------------------------------
 
 #/************************************************************************
@@ -33,18 +35,16 @@
 #
 # The script does the following:
 #  - transforms the file into a RAIN layout
-#  - reconstructs the inital file from the stripes and checks using sum to see
-#    if the inital file and the reconstructed one match
+#  - reconstructs the initial file from the stripes and checks using sum to see
+#    if the initial file and the reconstructed one match
 #  - disable one by one each of the stripes i.e. use an empty dummy.rain file
-#    and reconstruct the inital file without any recovery of the stripe file
+#    and reconstruct the initial file without any recovery of the stripe file
 #  - the same as in the previous step but with the recovery of the stripe file.
 #    Note the "-f" flag passed to the eoscp command. This is also followed
 #    by a check of the original file and the reconstructed one but also of the
 #    original stripe and the reconstructed one i.e. the dummy.rain file
 #
 #------------------------------------------------------------------------------
-
-#! /bin/bash
 
 . /etc/init.d/functions
 

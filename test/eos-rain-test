@@ -1,3 +1,5 @@
+#!/bin/bash
+
 #------------------------------------------------------------------------------
 # File: eos-rain-test
 # Author: Elvin-Alin Sindrilaru - CERN
@@ -22,8 +24,8 @@
 # ************************************************************************/
 
 #------------------------------------------------------------------------------
-# Description: The script is used to test the RAIN-like layouts from EOS. 
-# Usage: 
+# Description: The script is used to test the RAIN-like layouts from EOS.
+# Usage:
 # eos-rain-test raiddp/raid6/archive/plain dir_test_files root://host//eos_raid_dir tmp_location_dir
 #  - first argument is the type of test made 
 #  - second arguments specifies the directory from which all files corresponding
@@ -37,14 +39,12 @@
 #
 # The script copies the files in the EOS directories which are using some form
 # of RAIN-layout and then tries to read them back and compares the checksum of 
-# the inital file put in EOS with the one read back. In the second stage, each
+# the initial file put in EOS with the one read back. In the second stage, each
 # file system in the EOS configuration is shutdown one by one and the file is 
-# read again from EOS to verify if the single stripe recovery mechanism is 
+# read again from EOS to verify if the single stripe recovery mechanism is
 # working properly. In the last stage, each two file systems are shutdown and
 # again the file is read out of EOS and the match with the original one is tested.
 #------------------------------------------------------------------------------
-
-#!/bin/bash
 
 . /etc/init.d/functions
 
@@ -261,9 +261,9 @@ done
 
 
 #...............................................................................
-# Disable each two FST's and redo the read tests...
+# Disable each two FSTs and redo the read tests...
 #...............................................................................
-echo "Disable each two FST's and redo the read tests..."
+echo "Disable each two FSTs and redo the read tests..."
 date
 # loop over all files in the pattern and test them in EOS
 for file in $ROOT_PATH/*.rain; do

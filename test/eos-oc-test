@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # ----------------------------------------------------------------------
 # File: eos-oc-test
 # Author: Andreas-Joachim Peters - CERN
@@ -20,8 +22,6 @@
 # * You should have received a copy of the GNU General Public License    *
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
-
-#!/bin/bash
 
 chunkedupload () {
   echo "# Testing Chunked upload"
@@ -70,4 +70,3 @@ if [ "$1" = "chunkedupload" ]; then
 fi
 
 exit -1
-

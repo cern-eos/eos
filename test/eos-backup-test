@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 # sample_backup backup -B /BackupPrefix [-P <parentId>] /eos/pathName
 # sample_backup restore -B /BackupPrefix -F /inputCatalog1[,/inputCatalog2[,...]] /outputDirectory

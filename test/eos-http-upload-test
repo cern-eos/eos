@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # ----------------------------------------------------------------------
 # File: eos-http-upload--test
 # Author: Andreas-Joachim Peters - CERN
@@ -21,7 +23,6 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-#!/bin/bash
 # usage: eos-http-upload-test rangeupload testfile /eos/dev/upload-directory/
 
 rangeupload () {
@@ -87,4 +88,3 @@ else
 fi
 
 exit -1
-

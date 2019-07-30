@@ -1,4 +1,5 @@
-#/usr/bin/env bash
+#!/usr/bin/env bash
+
 #------------------------------------------------------------------------------
 # File: eos-io-test
 # Author: Elvin-Alin Sindrilaru - CERN

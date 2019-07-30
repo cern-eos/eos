@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # ----------------------------------------------------------------------
 # File: xrdstress
 # Author: Elvin-Alin Sindrilaru - CERN
@@ -20,7 +22,6 @@
 # * You should have received a copy of the GNU General Public License    *
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
-#!/bin/bash
 
 # created this script file to set the 
 # XRD_ENABLEFORKHANDLERS before calling the c++ program
