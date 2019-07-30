@@ -207,7 +207,7 @@ public:
   //!
   //! @return true if file is being deleted, otherwise false
   //----------------------------------------------------------------------------
-  bool IsFileBeingDeleted(eos::IFileMD::id_t fid);
+  bool IsFileUnlinked(eos::IFileMD::id_t fid);
 
   //----------------------------------------------------------------------------
   //! Print log message - depending on whether or not we run in standalone mode

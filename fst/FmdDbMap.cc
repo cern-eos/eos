@@ -1151,31 +1151,23 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contact_details,
     return false;
   }
 
-  // @todo(esindril) use the qset iterator functionalit for scanning
-  // Collect all file ids on the desired file system
-  std::string cursor = "0";
-  long long count = 250000;
-  std::pair<std::string, std::vector<std::string>> reply;
-  std::unique_ptr<qclient::QClient>
-  qcl(new qclient::QClient(contact_details.members,
-                           contact_details.constructOptions()));
-  qclient::QSet qset(*qcl.get(),  eos::RequestBuilder::keyFilesystemFiles(fsid));
+  // Collect all file ids on the desired file syste
+  auto start = steady_clock::now();
+  qclient::QClient qcl(contact_details.members,
+                       contact_details.constructOptions());
+  qclient::QSet qset(qcl, eos::RequestBuilder::keyFilesystemFiles(fsid));
   std::unordered_set<eos::IFileMD::id_t> file_ids;
 
-  try {
-    do {
-      reply = qset.sscan(cursor, count);
-      cursor = reply.first;
-
-      for (const auto& elem : reply.second) {
-        file_ids.insert(std::stoull(elem));
-      }
-    } while (cursor != "0");
-  } catch (const std::runtime_error& e) {
-    // It means there are no records for the current file system
+  for (qclient::QSet::Iterator its = qset.getIterator(); its.valid();
+       its.next()) {
+    try {
+      file_ids.insert(std::stoull(its.getElement()));
+    } catch (...) {
+      eos_err("msg=\"failed to convert fid entry\" data=\"%s\"",
+              its.getElement().c_str());
+    }
   }
 
-  auto start = steady_clock::now();
   uint64_t total = file_ids.size();
   eos_info("msg=\"resyncing %llu files for file_system %u\"", total, fsid);
   uint64_t num_files = 0;
@@ -1185,8 +1177,7 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contact_details,
   // Pre-fetch the first 1000 files
   while ((it != file_ids.end()) && (num_files < 1000)) {
     ++num_files;
-    files.emplace_back(MetadataFetcher::getFileFromId(*qcl.get(),
-                       FileIdentifier(*it)));
+    files.emplace_back(MetadataFetcher::getFileFromId(qcl, FileIdentifier(*it)));
     ++it;
   }
 
@@ -1230,9 +1221,8 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contact_details,
     }
 
     if (it != file_ids.end()) {
+      files.emplace_back(MetadataFetcher::getFileFromId(qcl, FileIdentifier(*it)));
       ++num_files;
-      files.emplace_back(MetadataFetcher::getFileFromId(*qcl.get(),
-                         FileIdentifier(*it)));
       ++it;
     }
 
