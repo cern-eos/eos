@@ -184,7 +184,7 @@ public:
       return 0;
     }
     size = mResultStream.size();
-    return mResultStream.c_str();;
+    return mResultStream.c_str();
   }
 
 
@@ -220,7 +220,6 @@ public:
   int Member();
   int Mkdir();
   int Motd();
-  int Quota();
   int Recycle();
   int Rm();
   int Rmdir();
@@ -231,21 +230,13 @@ public:
   //----------------------------------------------------------------------------
   //! List of admin proc commands
   //----------------------------------------------------------------------------
-  int Access();
   int Chown();
-  int Config();
-  int Debug();
   int Drain();
   int Fsck();
   int Fusex();
   int GeoSched();
-  int Group();
-  int Io();
-  int Node();
   int Ns();
-  int AdminQuota();
   int Rtlog();
-  int Space();
   int Transfer();
   int Vid();
   int Vst();

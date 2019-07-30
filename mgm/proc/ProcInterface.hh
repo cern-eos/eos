@@ -90,7 +90,7 @@ public:
   //----------------------------------------------------------------------------
   //! Check if a proto proc command contains a 'write' action on the instance
   //----------------------------------------------------------------------------
-  static bool ProtoIsWriteAccess(const char* path, const char* info);
+  static bool ProtoIsWriteAccess(const char* opaque);
 
   //----------------------------------------------------------------------------
   //! Check if a proc command contains a 'write' action on the instance
@@ -158,9 +158,8 @@ private:
   //!
   //! @return unique pointer to ProcCommand object or null otherwise
   //----------------------------------------------------------------------------
-  static std::unique_ptr<IProcCommand>
-  HandleProtobufRequest(const char* path, const char* opaque,
-                        eos::common::VirtualIdentity& vid);
+  static unique_ptr<IProcCommand>
+  HandleProtobufRequest(const char* opaque, eos::common::VirtualIdentity& vid);
 
   //----------------------------------------------------------------------------
   //! Handle protobuf request

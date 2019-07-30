@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// File: DebugCmd.hh
-// Author: Fabio Luchetti - CERN
+// @file: DebugCmd.hh
+// @author: Fabio Luchetti - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -48,7 +48,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~DebugCmd() = default;
+  ~DebugCmd() override = default;
 
   //----------------------------------------------------------------------------
   //! Method implementing the specific behaviour of the command executed by the
@@ -63,7 +63,7 @@ private:
   //! @param get get subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  void GetSubcmd(const eos::console::DebugProto_GetProto& get,
+  static void GetSubcmd(const eos::console::DebugProto_GetProto& get,
                  eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------

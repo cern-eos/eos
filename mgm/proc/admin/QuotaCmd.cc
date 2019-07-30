@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// File: QuotaCmd.cc
-// Author: Fabio Luchetti - CERN
+// @file: QuotaCmd.cc
+// @author: Fabio Luchetti - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -39,19 +39,24 @@ QuotaCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
   eos::console::QuotaProto quota = mReqProto.quota();
-  eos::console::QuotaProto::SubcmdCase subcmd = quota.subcmd_case();
 
-  if (subcmd == eos::console::QuotaProto::kLsuser) {
+  switch (mReqProto.quota().subcmd_case()) {
+  case eos::console::QuotaProto::kLsuser:
     LsuserSubcmd(quota.lsuser(), reply);
-  } else if (subcmd == eos::console::QuotaProto::kLs) {
+    break;
+  case eos::console::QuotaProto::kLs:
     LsSubcmd(quota.ls(), reply);
-  } else if (subcmd == eos::console::QuotaProto::kSet) {
+    break;
+  case eos::console::QuotaProto::kSet:
     SetSubcmd(quota.set(), reply);
-  } else if (subcmd == eos::console::QuotaProto::kRm) {
+    break;
+  case eos::console::QuotaProto::kRm:
     RmSubcmd(quota.rm(), reply);
-  } else if (subcmd == eos::console::QuotaProto::kRmnode) {
+    break;
+  case eos::console::QuotaProto::kRmnode:
     RmnodeSubcmd(quota.rmnode(), reply);
-  } else {
+    break;
+  default:
     reply.set_retc(EINVAL);
     reply.set_std_err("error: not supported");
   }
@@ -64,21 +69,21 @@ QuotaCmd::ProcessRequest() noexcept
 //------------------------------------------------------------------------------
 void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser, eos::console::ReplyProto& reply)
 {
-  std::string std_out, std_err;
-  XrdOucErrInfo mError;
+  std::ostringstream std_out, std_err;
   int ret_c = 0;
 
   gOFS->MgmStats.Add("Quota", mVid.uid, mVid.gid, 1);
   std::string space = lsuser.space();
 
   if (!space.empty()) {
+    XrdOucErrInfo mError;
     // evt. correct the space variable to be a directory path (+/)
     struct stat buf{};
     std::string sspace = space;
     if (sspace[sspace.length() - 1] != '/') {
       sspace += '/';
     }
-    if (!gOFS->_stat(sspace.c_str(), &buf, mError, mVid, 0)) { // @note no.01 Where is the info in mError is going?
+    if (!gOFS->_stat(sspace.c_str(), &buf, mError, mVid, nullptr)) { // @note no.01 Where is the info in mError is going?
       space = sspace;
     }
   }
@@ -92,13 +97,13 @@ void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser, 
 
   if (is_ok && out.length()) {
     if (!monitoring) {
-      std_out += ("\nBy user:" + out).c_str();
+      std_out << ("\nBy user:" + out).c_str();
     } else {
-      std_out += out.c_str();
+      std_out << out.c_str();
     }
   } else {
     if (!is_ok) {
-      std_err += out.c_str();
+      std_err << out.c_str();
       ret_c = EINVAL;
     }
   }
@@ -109,23 +114,23 @@ void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser, 
 
   if (is_ok && out != "") {
     if (!monitoring) {
-      std_out += ("\nBy group:" + out).c_str();
+      std_out << ("\nBy group:" + out).c_str();
     } else {
-      std_out += out.c_str();
+      std_out << out.c_str();
     }
   } else {
     if (!is_ok) {
-      std_err += out.c_str();
+      std_err << out.c_str();
       ret_c = EINVAL;
     }
   }
 
   if (WantsJsonOutput()) {
-    std_out = ResponseToJsonString(std_out, std_err, ret_c);
+    std_out.str(ResponseToJsonString(std_out.str(), std_err.str(), ret_c));
   }
 
-  reply.set_std_out(std_out);
-  reply.set_std_err(std_err);
+  reply.set_std_out(std_out.str());
+  reply.set_std_err(std_err.str());
   reply.set_retc(ret_c);
 }
 
@@ -134,7 +139,7 @@ void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser, 
 //------------------------------------------------------------------------------
 void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls, eos::console::ReplyProto& reply)
 {
-  std::string std_out, std_err;
+  std::ostringstream std_out, std_err;
   bool canQuota;
   int ret_c = 0;
 
@@ -152,7 +157,7 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls, eos::console
     if (sspace[sspace.length() - 1] != '/') {
       sspace += '/';
     }
-    if (!gOFS->_stat(sspace.c_str(), &buf, mError, mVid, 0)) { // @note no.01
+    if (!gOFS->_stat(sspace.c_str(), &buf, mError, mVid, nullptr)) { // @note no.01
       space = sspace;
     }
   }
@@ -199,32 +204,32 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls, eos::console
   if ((uid != -1LL) && (gid != -1LL)) {
     // Print both uid and gid info
     if (!Quota::PrintOut(space, out1, uid, -1LL, monitoring, !ls.printid())) {
-      std_err = out1.c_str();
+      std_err.str(out1.c_str());
       ret_c = EINVAL;
     } else {
       if (!Quota::PrintOut(space, out2, -1LL, gid, monitoring, !ls.printid())) {
-        std_err = out2.c_str();
+        std_err.str(out2.c_str());
         ret_c = EINVAL;
       } else {
-        std_out = (out1 + out2).c_str();
+        std_out.str((out1 + out2).c_str());
       }
     }
   } else {
     // Either uid or gid is printed
     if (Quota::PrintOut(space, out1, uid, gid, monitoring, !ls.printid())) {
-      std_out = out1.c_str();
+      std_out.str(out1.c_str());
     } else {
-      std_err = out1.c_str();
+      std_err.str(out1.c_str());
       ret_c = EINVAL;
     }
   }
 
   if (WantsJsonOutput()) {
-    std_out = ResponseToJsonString(std_out, std_err, ret_c);
+    std_out.str(ResponseToJsonString(std_out.str(), std_err.str(), ret_c));
   }
 
-  reply.set_std_out(std_out);
-  reply.set_std_err(std_err);
+  reply.set_std_out(std_out.str());
+  reply.set_std_err(std_err.str());
   reply.set_retc(ret_c);
 }
 
@@ -233,14 +238,14 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls, eos::console
 //------------------------------------------------------------------------------
 void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set, eos::console::ReplyProto& reply)
 {
-  std::string std_out, std_err;
+  std::ostringstream std_out, std_err;
   int ret_c = 0;
 
   XrdOucErrInfo mError;
 
   int errc;
   long id = 0;
-  Quota::IdT id_type; // = Quota::IdT::kUid;
+  Quota::IdT id_type;
 
 
   gOFS->MgmStats.Add("Quota", mVid.uid, mVid.gid, 1);
@@ -253,7 +258,7 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set, eos::cons
     if (sspace[sspace.length() - 1] != '/') {
       sspace += '/';
     }
-    if (!gOFS->_stat(sspace.c_str(), &buf, mError, mVid, 0)) { // @note no.01
+    if (!gOFS->_stat(sspace.c_str(), &buf, mError, mVid, nullptr)) { // @note no.01
       space = sspace;
     }
   }
@@ -347,10 +352,10 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set, eos::cons
   } else if (set.maxbytes().length()) {
     // Set volume quota
     if (!Quota::SetQuotaTypeForId(space, id, id_type, Quota::Type::kVolume, size, msg, ret_c)) {
-      std_err = msg;
+      std_err.str(msg);
       return;
     } else {
-      std_out = msg;
+      std_out.str(msg);
     }
   }
 
@@ -363,10 +368,10 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set, eos::cons
   } else if (set.maxinodes().length()) {
     // Set inode quota
     if (!Quota::SetQuotaTypeForId(space, id, id_type, Quota::Type::kInode, inodes, msg, ret_c)) {
-      std_err += msg;
+      std_err << msg;
       return;
     } else {
-      std_out += msg;
+      std_out << msg;
     }
   }
 
@@ -376,8 +381,8 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set, eos::cons
     return;
   }
 
-  reply.set_std_out(std_out);
-  reply.set_std_err(std_err);
+  reply.set_std_out(std_out.str());
+  reply.set_std_err(std_err.str());
   reply.set_retc(ret_c);
 }
 
@@ -386,7 +391,6 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set, eos::cons
 //------------------------------------------------------------------------------
 void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm, eos::console::ReplyProto& reply)
 {
-//  std::string std_out, std_err;
   int ret_c = 0;
 
   XrdOucErrInfo mError;
@@ -405,7 +409,7 @@ void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm, eos::console
     if (sspace[sspace.length() - 1] != '/') {
       sspace += '/';
     }
-    if (!gOFS->_stat(sspace.c_str(), &buf, mError, mVid, 0)) { // @note no.01
+    if (!gOFS->_stat(sspace.c_str(), &buf, mError, mVid, nullptr)) { // @note no.01
       space = sspace;
     }
   }
@@ -465,7 +469,7 @@ void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm, eos::console
 
   if (rm.uid().length()) {
     id_type = Quota::IdT::kUid;
-    id = eos::common::Mapping::UserNameToUid(rm.uid().c_str(), errc);
+    id = eos::common::Mapping::UserNameToUid(rm.uid(), errc);
     if (errc == EINVAL) {
       reply.set_std_err("error: unable to translate uid=" + rm.uid());
       reply.set_retc(EINVAL);
@@ -473,7 +477,7 @@ void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm, eos::console
     }
   } else if (rm.gid().length()) {
     id_type = Quota::IdT::kGid;
-    id = eos::common::Mapping::GroupNameToGid(rm.gid().c_str(), errc);
+    id = eos::common::Mapping::GroupNameToGid(rm.gid(), errc);
     if (errc == EINVAL) {
       reply.set_std_err("error: unable to translate gid=" + rm.gid());
       reply.set_retc(EINVAL);

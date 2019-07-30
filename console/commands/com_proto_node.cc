@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// File: com_proto_node.cc
-// Author: Fabio Luchetti - CERN
+// @file: com_proto_node.cc
+// @author: Fabio Luchetti - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -45,7 +45,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~NodeHelper() = default;
+  ~NodeHelper() override = default;
 
   //----------------------------------------------------------------------------
   //! Parse command line input
@@ -67,9 +67,7 @@ bool NodeHelper::ParseCommand(const char* arg)
   tokenizer.GetLine();
   std::string token;
 
-  if (!tokenizer.NextToken(token)) {
-    return false;
-  }
+  if (!tokenizer.NextToken(token)) return false;
 
   // one of { ls, set, status, txgw, proxygroupadd|proxygrouprm|proxygroupclear, rm, config, register }
   if (token == "ls") {
@@ -129,7 +127,6 @@ bool NodeHelper::ParseCommand(const char* arg)
     txgw->set_node(token);
 
     if (!tokenizer.NextToken(token)) return false;
-
     if (token == "on" || token == "off") {
       txgw->set_node_txgw_switch(token);
     } else {

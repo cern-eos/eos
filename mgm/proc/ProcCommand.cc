@@ -237,26 +237,8 @@ ProcCommand::open(const char* inpath, const char* info,
     } else if (mCmd == "backup") {
       Backup();
       mDoSort = false;
-    } else if (mCmd == "access") {
-      Access();
-      mDoSort = false;
-    } else if (mCmd == "config") {
-      Config();
-      mDoSort = false;
-    } else if (mCmd == "node") {
-      Node();
-      mDoSort = false;
-    } else if (mCmd == "space") {
-      Space();
-      mDoSort = false;
     } else if (mCmd == "geosched") {
       GeoSched();
-      mDoSort = false;
-    } else if (mCmd == "group") {
-      Group();
-      mDoSort = false;
-    } else if (mCmd == "io") {
-      Io();
       mDoSort = false;
     } else if (mCmd == "fsck") {
       Fsck();
@@ -264,14 +246,9 @@ ProcCommand::open(const char* inpath, const char* info,
     } else if (mCmd == "fusex") {
       Fusex();
       mDoSort = false;
-    } else if (mCmd == "quota") {
-      AdminQuota();
-      mDoSort = false;
     } else if (mCmd == "transfer") {
       Transfer();
       mDoSort = false;
-    } else if (mCmd == "debug") {
-      Debug();
     } else if (mCmd == "vid") {
       Vid();
     } else if (mCmd == "vst") {
@@ -305,9 +282,6 @@ ProcCommand::open(const char* inpath, const char* info,
       mDoSort = false;
     } else if (mCmd == "version") {
       Version();
-      mDoSort = false;
-    } else if (mCmd == "quota") {
-      Quota();
       mDoSort = false;
     } else if (mCmd == "who") {
       Who();
