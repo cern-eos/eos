@@ -314,9 +314,7 @@ private:
   XrdSysCondVar balanceJobNotification;
 
   void GetBalanceSlotVariables(unsigned long long& nparalleltx,
-                               unsigned long long& ratex,
-                               std::string configqueue);
-
+                               unsigned long long& ratex);
 
   unsigned long long GetScheduledBalanceJobs(unsigned long long totalscheduled,
       unsigned long long& totalexecuted);

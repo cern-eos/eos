@@ -32,14 +32,12 @@ EOSFSTNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 void
 Storage::GetBalanceSlotVariables(unsigned long long& nparalleltx,
-                                 unsigned long long& ratetx,
-                                 std::string nodeconfigqueue)
+                                 unsigned long long& ratetx)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief get the parallel transfer and transfer rate settings
  * @param nparalleltx number of parallel transfers to run
  * @param ratex rate per transfer
- * @param nodeconfigqueue config queue to use
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -300,8 +298,7 @@ Storage::Balancer()
   // ---------------------------------------------------------------------------
   // wait for our configuration queue to be set
   // ---------------------------------------------------------------------------
-  std::string nodeconfigqueue =
-    eos::fst::Config::gConfig.getFstNodeConfigQueue("Balancer").c_str();
+  eos::fst::Config::gConfig.getFstNodeConfigQueue("Balancer");
 
   while (true) {
     time_t now = time(NULL);
@@ -321,7 +318,7 @@ Storage::Balancer()
     // -------------------------------------------------------------------------
 
     while (!nparalleltx) {
-      GetBalanceSlotVariables(nparalleltx, ratetx, nodeconfigqueue);
+      GetBalanceSlotVariables(nparalleltx, ratetx);
       last_config_update = time(NULL);
       std::this_thread::sleep_for(std::chrono::seconds(10));
     }
@@ -332,7 +329,7 @@ Storage::Balancer()
     // -------------------------------------------------------------------------
     if (!last_config_update ||
         (((long long)now - (long long)last_config_update) > 60)) {
-      GetBalanceSlotVariables(nparalleltx, ratetx, nodeconfigqueue);
+      GetBalanceSlotVariables(nparalleltx, ratetx);
       last_config_update = now;
     }
 
