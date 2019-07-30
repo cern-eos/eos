@@ -439,8 +439,8 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
       gOFS->eosView->updateFileStore(newfile.get());
       reply->add_retc(0);
     } catch (eos::MDException& e) {
-      eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                       e.getErrno(), e.getMessage().str().c_str());
+      eos_static_err("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                     e.getErrno(), e.getMessage().str().c_str());
       reply->add_retc(-1);
     }
   }
@@ -515,8 +515,8 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
       gOFS->eosView->updateContainerStore(newdir.get());
       reply->add_retc(0);
     } catch (eos::MDException& e) {
-      eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                       e.getErrno(), e.getMessage().str().c_str());
+      eos_static_err("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                     e.getErrno(), e.getMessage().str().c_str());
       reply->add_retc(e.getErrno());
     }
   }
