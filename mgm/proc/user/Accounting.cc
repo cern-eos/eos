@@ -21,12 +21,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/proc/ProcInterface.hh"
-#include "mgm/Quota.hh"
 #include "common/StringTokenizer.hh"
 #include "common/ExpiryCache.hh"
+#include "common/Logging.hh"
+#include "mgm/proc/ProcInterface.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/Quota.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -35,10 +36,10 @@ ProcCommand::Accounting()
 {
   static eos::common::ExpiryCache<std::string> accountingCache(
     std::chrono::seconds(600));
-  static const auto generateAccountingJson = [this](
-  eos::common::VirtualIdentity & vid) {
+  static const auto generateAccountingJson = [](
+    eos::common::VirtualIdentity & vid) {
     static const auto processAccountingAttribute = [](
-    std::pair<std::string, std::string> attr, Json::Value & storageShare) {
+      std::pair<std::string, std::string> attr, Json::Value & storageShare) {
       static auto accountingAttrPrefix = "sys.accounting";
 
       if (attr.first.find(accountingAttrPrefix) == 0) {
@@ -136,8 +137,7 @@ ProcCommand::Accounting()
     root["storageservice"]["storagecapacity"]["offline"]["totalsize"] = Json::UInt64{0};
     root["storageservice"]["storagecapacity"]["offline"]["usedsize"] = Json::UInt64{0};
 
-    Json::StyledWriter writer;
-    return new std::string(writer.write(root));
+    return new std::string(SSTR(root));
   };
 
   retc = SFS_OK;
