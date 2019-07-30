@@ -34,6 +34,7 @@
 #include "mgm/geotree/SchedulingSlowTree.hh"
 #include "mgm/TableFormatter/TableFormatterBase.hh"
 #include "common/Timing.hh"
+#include "common/FileSystem.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysAtomics.hh"
@@ -1735,12 +1736,11 @@ public:
   //   the file system to be inserted
   // @param group
   //   the group the file system belongs to
-  // @param updateFastStructures
-  //   should the fast structures be updated immediately without waiting for the next time frame
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool insertFsIntoGroup(FileSystem* fs , FsGroup* group);
+  bool insertFsIntoGroup(FileSystem* fs , FsGroup* group,
+    const common::FileSystemCoreParams &coreParams);
 
   // ---------------------------------------------------------------------------
   //! Remove a file system into the GeoTreeEngine

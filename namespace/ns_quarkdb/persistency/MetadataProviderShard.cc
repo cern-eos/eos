@@ -168,7 +168,6 @@ bool
 MetadataProviderShard::dropCachedContainerID(ContainerIdentifier id)
 {
   std::unique_lock<std::mutex> lock(mMutex);
-  eos_static_info("SENTINEL");
   return mContainerCache.remove(id);
 }
 

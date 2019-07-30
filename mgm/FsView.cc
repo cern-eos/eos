@@ -1605,7 +1605,7 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams &coreParams,
     }
 
     if (registerInGeoTreeEngine &&
-        !gGeoTreeEngine.insertFsIntoGroup(fs, mGroupView[coreParams.getGroup()])) {
+        !gGeoTreeEngine.insertFsIntoGroup(fs, mGroupView[coreParams.getGroup()], coreParams)) {
       // Roll back the changes
       if (UnRegister(fs, false)) {
         eos_err("could not insert insert fs %u into GeoTreeEngine : fs was "
@@ -1760,7 +1760,7 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
                   snapshot.mGroup.c_str(), snapshot.mId, fs);
       }
 
-      if (!gGeoTreeEngine.insertFsIntoGroup(fs, mGroupView[group])) {
+      if (!gGeoTreeEngine.insertFsIntoGroup(fs, mGroupView[group], fs->getCoreParams())) {
         if (fs->SetString("schedgroup", group.c_str()) && UnRegister(fs, false)) {
           if (oldgroup && fs->SetString("schedgroup", oldgroup->mName.c_str()) &&
               Register(fs, fs->getCoreParams())) {

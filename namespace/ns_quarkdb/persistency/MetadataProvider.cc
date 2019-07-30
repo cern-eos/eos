@@ -67,7 +67,6 @@ MetadataProvider::retrieveFileMD(FileIdentifier id)
 bool
 MetadataProvider::dropCachedFileID(FileIdentifier id)
 {
-  eos_static_info("SENTINEL");
   return pickShard(id)->dropCachedFileID(id);
 }
 

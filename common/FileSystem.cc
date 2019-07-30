@@ -551,6 +551,22 @@ std::string FileSystemCoreParams::getQueuePath() const
 }
 
 //------------------------------------------------------------------------------
+// Get host
+//------------------------------------------------------------------------------
+std::string FileSystemCoreParams::getHost() const
+{
+  return mLocator.getHost();
+}
+
+//------------------------------------------------------------------------------
+// Get hostport
+//------------------------------------------------------------------------------
+std::string FileSystemCoreParams::getHostPort() const
+{
+  return mLocator.getHostPort();
+}
+
+//------------------------------------------------------------------------------
 // Get FST queue
 //------------------------------------------------------------------------------
 std::string FileSystemCoreParams::getFSTQueue() const

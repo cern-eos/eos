@@ -174,8 +174,9 @@ bool GeoTreeEngine::forceRefresh()
   return result;
 }
 
-bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs ,
-                                      FsGroup* group)
+bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs,
+                                      FsGroup* group,
+                                      const common::FileSystemCoreParams &coreParams)
 {
   bool updateFastStruct = false;
   eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
@@ -263,8 +264,8 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs ,
     info.geotag = buffer;
   }
 
-  info.host = fsn.mHost;
-  info.hostport = fsn.mHostPort;
+  info.host = coreParams.getHost();
+  info.hostport = coreParams.getHostPort();
 
   if (info.host.empty()) {
     uuid_t uuid;
@@ -275,12 +276,9 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs ,
     info.host = buffer;
   }
 
-  info.netSpeedClass = (unsigned char)round(log10(fsn.mNetEthRateMiB * 8 * 1024 *
-                       1024 + 1));
-  info.netSpeedClass = info.netSpeedClass > 8 ? info.netSpeedClass - 8 :
-                       (unsigned char)0; // netSpeedClass 1 means 1Gbps
-  info.fsId = 0;
-  info.fsId = fsn.mId;
+  info.netSpeedClass = 1; // EthRateMiB not yet initialized at this point,
+                          // use placeholder value
+  info.fsId = coreParams.getId();
 
   if (!info.fsId) {
     mapEntry->slowTreeMutex.UnLockWrite();
