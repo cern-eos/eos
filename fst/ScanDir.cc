@@ -244,7 +244,7 @@ ScanDir:: AccountMissing()
 // being deleted.
 //------------------------------------------------------------------------------
 bool
-ScanDir::IsFileBeingDeleted(eos::IFileMD::id_t fid)
+ScanDir::IsFileUnlinked(eos::IFileMD::id_t fid)
 {
   // auto file_fut = eos::MetadataFetcher.getFileFromId(mFsckQcl.get(),
   //                                                    eos::FileIdentifier(fid));
