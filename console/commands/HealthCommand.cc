@@ -117,8 +117,8 @@ HealthCommand::HealthCommand(const char* comm)
 
 void HealthCommand::DeadNodesCheck()
 {
-  if (m_mgm_execute.ExecuteCommand("mgm.cmd=node&mgm.subcmd=ls&mgm.outformat=m",
-                                    true) != 0) {
+//  if (m_mgm_execute.ExecuteCommand("mgm.cmd=node&mgm.subcmd=ls&mgm.outformat=m", true) != 0) {
+  if (m_mgm_execute.ExecuteCommand("mgm.cmd.proto=cgQKAhAB", true) != 0) {
     throw std::string("MGMError: " + m_mgm_execute.GetError());
   }
 
@@ -192,16 +192,15 @@ void HealthCommand::TooFullForDrainingCheck()
     });
   }
 
-  for (auto group = m_group_data.begin();
-       group !=  m_group_data.end(); ++group) {
+  for (auto & group : m_group_data) {
     unsigned long long summed_free_space = 0;
     unsigned long long offline_used_space = 0;
 
-    for (auto fs = group->second.begin(); fs != group->second.end(); ++fs) {
-      if (fs->active != "online") {
-        offline_used_space += fs->used_bytes;
+    for (auto & fs : group.second) {
+      if (fs.active != "online") {
+        offline_used_space += fs.used_bytes;
       } else {
-        summed_free_space += fs->free_bytes - fs->headroom;
+        summed_free_space += fs.free_bytes - fs.headroom;
       }
     }
 
@@ -209,7 +208,7 @@ void HealthCommand::TooFullForDrainingCheck()
     std::string status = trigger ? "full" : "ok";
 
     if (trigger || m_all) {
-      data.emplace_back(std::make_tuple("FullDrainCheck", group->first.c_str(),
+      data.emplace_back(std::make_tuple("FullDrainCheck", group.first.c_str(),
                                      offline_used_space, summed_free_space, status));
     }
   }
@@ -269,21 +268,21 @@ void HealthCommand::PlacementContentionCheck()
   unsigned min_free_fs = 1024;
   std::string critical_group;
 
-  for (auto group = m_group_data.begin(); group != m_group_data.end(); ++group) {
+  for (auto & group : m_group_data) {
     unsigned int free_space_left = 0;
 
-    for (auto fs = group->second.begin(); fs !=  group->second.end(); ++fs) {
-      if (fs->free_bytes > uint64_t(2) * fs->headroom) {
+    for (auto & fs : group.second) {
+      if (fs.free_bytes > uint64_t(2) * fs.headroom) {
         ++free_space_left;
       }
     }
 
-    unsigned int full_fs = group->second.size() - free_space_left;
-    unsigned contention = 100 - (free_space_left * 1. / group->second.size()) * 100;
+    unsigned int full_fs = group.second.size() - free_space_left;
+    unsigned contention = 100 - (free_space_left * 1. / group.second.size()) * 100;
     std::string status;
     bool trigger = true;
 
-    if (group->second.size() < 4) {
+    if (group.second.size() < 4) {
       status = "warning: Less than 4 fs in group";
     } else if (free_space_left <= 2) {
       status = "full";
@@ -294,7 +293,7 @@ void HealthCommand::PlacementContentionCheck()
 
     if (trigger || m_all) {
       data.emplace_back(std::make_tuple("PlacementContentionCheck",
-                                     group->first.c_str(), free_space_left, full_fs, contention, status));
+                                     group.first.c_str(), free_space_left, full_fs, contention, status));
     }
 
     min = (contention < min) ? contention : min;
@@ -303,7 +302,7 @@ void HealthCommand::PlacementContentionCheck()
 
     if (free_space_left < min_free_fs) {
       min_free_fs = free_space_left;
-      critical_group = group->first;
+      critical_group = group.first;
     }
   }
 
@@ -327,7 +326,7 @@ void HealthCommand::PlacementContentionCheck()
 
   m_output << table.GenerateTable(HEADER).c_str();
   //! Summary
-  avg /= m_group_data.size();
+  avg = (m_group_data.empty() ? 0 : avg/m_group_data.size()) ;
   eos::mgm::TableFormatterBase table_summ(!isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO));
 
   if (!m_monitoring) {
