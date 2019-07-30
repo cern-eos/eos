@@ -380,7 +380,7 @@ public:
   //----------------------------------------------------------------------------
   uint64_t updateTreeSize(int64_t delta) override
   {
-    if ((delta < 0) && (std::llabs(delta) > pTreeSize)) {
+    if ((delta < 0) && (static_cast<uint64_t>(std::llabs(delta)) > pTreeSize)) {
       pTreeSize = 0;
     } else {
       pTreeSize += delta;

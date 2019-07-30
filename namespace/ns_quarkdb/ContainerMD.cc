@@ -646,8 +646,8 @@ QuarkContainerMD::updateTreeSize(int64_t delta)
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   uint64_t sz = mCont.tree_size();
 
-  // Avoid usigned underflow
-  if ((delta < 0) && (std::llabs(delta) > sz)) {
+  // Avoid negative tree size
+  if ((delta < 0) && (static_cast<uint64_t>(std::llabs(delta)) > sz)) {
     sz = 0;
   } else {
     sz += delta;
