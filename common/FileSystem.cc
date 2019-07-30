@@ -591,6 +591,66 @@ std::string FileSystemCoreParams::getSpace() const
 }
 
 //------------------------------------------------------------------------------
+//! Default constructor for fs_snapshot_t
+//------------------------------------------------------------------------------
+FileSystem::fs_snapshot_t::fs_snapshot_t()
+{
+  mId = 0;
+  mQueue = "";
+  mQueuePath = "";
+  mGroup = "";
+  mPath = "";
+  mUuid = "";
+  mHost = "";
+  mHostPort = "";
+  mProxyGroup = "";
+  mS3Credentials = "";
+  mFileStickyProxyDepth = -1;
+  mPort = 0;
+  mErrMsg = "";
+  mGeoTag = "";
+  mPublishTimestamp = 0;
+  mStatus = BootStatus::kDown;
+  mConfigStatus = ConfigStatus::kOff;
+  mDrainStatus = DrainStatus::kNoDrain;
+  mHeadRoom = 0;
+  mErrCode = 0;
+  mBootSentTime = 0;
+  mBootDoneTime = 0;
+  mHeartBeatTime = 0;
+  mDiskUtilization = 0;
+  mNetEthRateMiB = 0;
+  mNetInRateMiB = 0;
+  mNetOutRateMiB = 0;
+  mDiskWriteRateMb = 0;
+  mDiskReadRateMb = 0;
+  mDiskType = 0;
+  mDiskBsize = 0;
+  mDiskBlocks = 0;
+  mDiskBfree = 0;
+  mDiskBused = 0;
+  mDiskBavail = 0;
+  mDiskFiles = 0;
+  mDiskFfree = 0;
+  mDiskFused = 0;
+  mFiles = 0;
+  mDiskNameLen = 0;
+  mDiskRopen = 0;
+  mDiskWopen = 0;
+  mScanRate = 0;
+  mBalThresh = 0.0;
+}
+
+//------------------------------------------------------------------------------
+// "Absorb" all information contained within coreParams into this object.
+// Fields which are not present in coreParams (ie mNetInRateMiB) remain
+// unchanged.
+//------------------------------------------------------------------------------
+void FileSystem::fs_snapshot_t::fillFromCoreParams(const FileSystemCoreParams &coreParams) {
+
+}
+
+//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 FileSystem::FileSystem(const FileSystemLocator& locator,
@@ -1168,50 +1228,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
       mSom->HashMutex.UnLockRead();
     }
 
-    fs.mId = 0;
-    fs.mQueue = "";
-    fs.mQueuePath = "";
-    fs.mGroup = "";
-    fs.mPath = "";
-    fs.mUuid = "";
-    fs.mHost = "";
-    fs.mHostPort = "";
-    fs.mProxyGroup = "";
-    fs.mS3Credentials = "";
-    fs.mFileStickyProxyDepth = -1;
-    fs.mPort = 0;
-    fs.mErrMsg = "";
-    fs.mGeoTag = "";
-    fs.mPublishTimestamp = 0;
-    fs.mStatus = BootStatus::kDown;
-    fs.mConfigStatus = ConfigStatus::kOff;
-    fs.mDrainStatus = DrainStatus::kNoDrain;
-    fs.mHeadRoom = 0;
-    fs.mErrCode = 0;
-    fs.mBootSentTime = 0;
-    fs.mBootDoneTime = 0;
-    fs.mHeartBeatTime = 0;
-    fs.mDiskUtilization = 0;
-    fs.mNetEthRateMiB = 0;
-    fs.mNetInRateMiB = 0;
-    fs.mNetOutRateMiB = 0;
-    fs.mDiskWriteRateMb = 0;
-    fs.mDiskReadRateMb = 0;
-    fs.mDiskType = 0;
-    fs.mDiskBsize = 0;
-    fs.mDiskBlocks = 0;
-    fs.mDiskBfree = 0;
-    fs.mDiskBused = 0;
-    fs.mDiskBavail = 0;
-    fs.mDiskFiles = 0;
-    fs.mDiskFfree = 0;
-    fs.mDiskFused = 0;
-    fs.mFiles = 0;
-    fs.mDiskNameLen = 0;
-    fs.mDiskRopen = 0;
-    fs.mDiskWopen = 0;
-    fs.mScanRate = 0;
-    fs.mBalThresh = 0.0;
+    fs = {};
     return false;
   }
 }

@@ -633,8 +633,8 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
   }
 
   // snapshot the filesystems
-  eos::common::FileSystem::fs_snapshot source_snapshot;
-  eos::common::FileSystem::fs_snapshot target_snapshot;
+  eos::common::FileSystem::fs_snapshot_t source_snapshot;
+  eos::common::FileSystem::fs_snapshot_t target_snapshot;
   sourcefilesystem->SnapShotFileSystem(source_snapshot);
   targetfilesystem->SnapShotFileSystem(target_snapshot);
   // build a transfer capability

@@ -342,10 +342,10 @@ XrdMgmOfs::Schedule2Drain(const char* path,
   }
 
   eos::common::FileSystem::fsid_t source_fsid = 0;
-  eos::common::FileSystem::fs_snapshot source_snapshot;
-  eos::common::FileSystem::fs_snapshot replica_source_snapshot;
+  eos::common::FileSystem::fs_snapshot_t source_snapshot;
+  eos::common::FileSystem::fs_snapshot_t replica_source_snapshot;
   eos::common::FileSystem::fsid_t target_fsid = atoi(afsid);
-  eos::common::FileSystem::fs_snapshot target_snapshot;
+  eos::common::FileSystem::fs_snapshot_t target_snapshot;
   eos::common::FileSystem* target_fs = 0;
   unsigned long long freebytes = strtoull(afreebytes, 0, 10);
   eos_thread_info("cmd=schedule2drain fsid=%u freebytes=%llu logid=%s",

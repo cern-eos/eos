@@ -1962,8 +1962,8 @@ private:
   //!         otherwise SFS_ERROR
   //----------------------------------------------------------------------------
   int BalanceGetFsSrc(eos::common::FileSystem::fsid_t tgt_fsid,
-                      eos::common::FileSystem::fs_snapshot& tgt_snapshot,
-                      eos::common::FileSystem::fs_snapshot& src_snapshot,
+                      eos::common::FileSystem::fs_snapshot_t& tgt_snapshot,
+                      eos::common::FileSystem::fs_snapshot_t& src_snapshot,
                       XrdOucErrInfo& error);
 
 

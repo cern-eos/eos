@@ -180,7 +180,7 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs,
 {
   bool updateFastStruct = false;
   eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
-  FileSystem::fsid_t fsid = fs->GetId();
+  FileSystem::fsid_t fsid = coreParams.getId();
   SchedTME* mapEntry = 0;
   bool is_new_entry = false;
   {
@@ -309,13 +309,13 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs,
   }
 
   // ==== update the penalties vectors if necessary
-  if ((fsn.mId + 1) > pLatencySched.pFsId2LatencyStats.size()) {
+  if ((coreParams.getId() + 1) > pLatencySched.pFsId2LatencyStats.size()) {
     for (auto it = pPenaltySched.pCircFrCnt2FsPenalties.begin();
          it != pPenaltySched.pCircFrCnt2FsPenalties.end(); it++) {
-      it->resize(fsn.mId + 1);
+      it->resize(coreParams.getId() + 1);
     }
 
-    pLatencySched.pFsId2LatencyStats.resize(fsn.mId + 1);
+    pLatencySched.pFsId2LatencyStats.resize(coreParams.getId() + 1);
   }
 
   // ==== update the shared object notifications

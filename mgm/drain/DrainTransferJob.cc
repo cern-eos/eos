@@ -255,7 +255,7 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
   using eos::common::LayoutId;
   using eos::common::StringConversion;
   XrdCl::URL url_src;
-  eos::common::FileSystem::fs_snapshot src_snapshot;
+  eos::common::FileSystem::fs_snapshot_t src_snapshot;
   unsigned long lid = fdrain.mProto.layout_id();
   unsigned long target_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
 
@@ -398,7 +398,7 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
   using eos::common::LayoutId;
   using eos::common::StringConversion;
   XrdCl::URL url_dst;
-  eos::common::FileSystem::fs_snapshot dst_snapshot;
+  eos::common::FileSystem::fs_snapshot_t dst_snapshot;
   unsigned long lid = fdrain.mProto.layout_id();
   unsigned long target_lid = LayoutId::SetLayoutType(lid, LayoutId::kPlain);
 
@@ -516,7 +516,7 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain,
   unsigned int nfilesystems = 1;
   unsigned int ncollocatedfs = 0;
   std::vector<FileSystem::fsid_t> new_repl;
-  eos::common::FileSystem::fs_snapshot source_snapshot;
+  eos::common::FileSystem::fs_snapshot_t source_snapshot;
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
   eos::common::FileSystem* source_fs = FsView::gFsView.mIdView.lookupByID(
                                          mFsIdSource);

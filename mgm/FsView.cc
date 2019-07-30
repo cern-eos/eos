@@ -1554,7 +1554,7 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams &coreParams,
     return false;
   }
 
-  eos::common::FileSystem::fs_snapshot snapshot;
+  eos::common::FileSystem::fs_snapshot_t snapshot;
 
   if (fs->SnapShotFileSystem(snapshot)) {
     // Check if this is already in the view
@@ -1685,8 +1685,8 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
     return false;
   }
 
-  eos::common::FileSystem::fs_snapshot snapshot1;
-  eos::common::FileSystem::fs_snapshot snapshot;
+  eos::common::FileSystem::fs_snapshot_t snapshot1;
+  eos::common::FileSystem::fs_snapshot_t snapshot;
 
   if (fs->SnapShotFileSystem(snapshot1)) {
     fs->SetString("schedgroup", group.c_str());
@@ -1823,7 +1823,7 @@ FsView::UnRegister(FileSystem* fs, bool unregisterInGeoTreeEngine)
     FsView::gFsView.mConfigEngine->DeleteConfigValue("fs", key.c_str());
   }
 
-  eos::common::FileSystem::fs_snapshot snapshot;
+  eos::common::FileSystem::fs_snapshot_t snapshot;
 
   if (fs->SnapShotFileSystem(snapshot)) {
     // Remove view by filesystem object and filesystem id

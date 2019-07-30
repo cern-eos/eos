@@ -189,8 +189,8 @@ int issueFullCapability(XrdOucString source_cap, XrdOucString target_cap,
 //------------------------------------------------------------------------------
 int
 XrdMgmOfs::BalanceGetFsSrc(eos::common::FileSystem::fsid_t tgt_fsid,
-                           eos::common::FileSystem::fs_snapshot& tgt_snapshot,
-                           eos::common::FileSystem::fs_snapshot& src_snapshot,
+                           eos::common::FileSystem::fs_snapshot_t& tgt_snapshot,
+                           eos::common::FileSystem::fs_snapshot_t& src_snapshot,
                            XrdOucErrInfo& error)
 {
   // Static map with iterator position for the next group scheduling
@@ -338,8 +338,8 @@ XrdMgmOfs::Schedule2Balance(const char* path,
     return Emsg(epname, error, EINVAL, "schedule - missing parameters [EINVAL]");
   }
 
-  eos::common::FileSystem::fs_snapshot tgt_snapshot;
-  eos::common::FileSystem::fs_snapshot src_snapshot;
+  eos::common::FileSystem::fs_snapshot_t tgt_snapshot;
+  eos::common::FileSystem::fs_snapshot_t src_snapshot;
   eos::common::FileSystem::fsid_t tgt_fsid = atoi(afsid);
   unsigned long long freebytes = strtoull(afreebytes, 0, 10);
   eos_thread_info("cmd=schedule2balance fsid=%u freebytes=%llu logid=%s",

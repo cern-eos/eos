@@ -123,7 +123,7 @@ XrdMgmOfs::processGeotagChange(eos::common::FileSystem::fsid_t fsid,
         oldgeotag.c_str(), newgeotag.c_str());
         FsView::gFsView.ViewMutex.UnLockRead();
         eos::common::RWMutexWriteLock fs_rw_lock(FsView::gFsView.ViewMutex);
-        eos::common::FileSystem::fs_snapshot snapshot;
+        eos::common::FileSystem::fs_snapshot_t snapshot;
         fs->SnapShotFileSystem(snapshot);
 
         // Update node view tree structure

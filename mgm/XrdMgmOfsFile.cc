@@ -88,8 +88,8 @@ emsg(XrdOucErrInfo& error, int ec, const char *txt, const char *txt2) {
   error.setErrInfo(ec, sbuff);
   return SFS_ERROR;
 }
- 
-/* 
+
+/*
  * Auxiliary routine: creates the copy-on-write clone an intermediate directories
  */
 
@@ -119,7 +119,7 @@ XrdMgmOfsFile::create_cow(bool isDelete, uint64_t cloneId,
   } catch (eos::MDException& e) {
     dirMd = gOFS->eosView->createContainer(sbuff, true);
     dirMd->setMode(dmd->getMode());
-    
+
     eos::IFileMD::XAttrMap xattrs = dmd->getAttributes();
     for (const auto& a : xattrs) {
       if (a.first == "sys.acl" || a.first == "user.acl" || a.first == "sys.eval.useracl") {
@@ -154,7 +154,7 @@ XrdMgmOfsFile::create_cow(bool isDelete, uint64_t cloneId,
     gmd->setSize(fmd->getSize());
     gmd->setChecksum(fmd->getChecksum());
     gmd->setContainerId(dirMd->getId());
-    for (unsigned int i = 0; i < fmd->getNumLocation(); i++) 
+    for (unsigned int i = 0; i < fmd->getNumLocation(); i++)
       gmd->addLocation(fmd->getLocation(i));
 
     gOFS->eosFileService->updateStore(gmd.get());
@@ -2118,7 +2118,7 @@ XrdMgmOfsFile::open(const char* inpath,
       // -----------------------------------------------------------------------
       // get the original placement group of the first fs to reconstruct
       {
-        eos::common::FileSystem::fs_snapshot orig_snapshot;
+        eos::common::FileSystem::fs_snapshot_t orig_snapshot;
         // get an original filesystem which is not in the reconstruction list
         unsigned int orig_fs = 0;
 

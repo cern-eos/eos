@@ -831,7 +831,7 @@ bool proc_fs_can_mv(eos::mgm::FileSystem* fs, const std::string& dst,
                     XrdOucString& stdOut, XrdOucString& stdErr, bool force)
 {
   std::ostringstream oss;
-  FileSystem::fs_snapshot snapshot;
+  FileSystem::fs_snapshot_t snapshot;
 
   if (fs->SnapShotFileSystem(snapshot)) {
     if (dst.find('.') != std::string::npos) {

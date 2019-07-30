@@ -525,8 +525,7 @@ public:
   typedef uint32_t fsid_t;
 
   //! Snapshot Structure of a filesystem
-
-  typedef struct fs_snapshot {
+  struct fs_snapshot_t {
     fsid_t mId;
     std::string mQueue;
     std::string mQueuePath;
@@ -597,9 +596,20 @@ public:
       return false;
     }
 
-  } fs_snapshot_t;
+    //--------------------------------------------------------------------------
+    //! Empty constructor
+    //--------------------------------------------------------------------------
+    fs_snapshot_t();
 
-  typedef struct host_snapshot {
+    //--------------------------------------------------------------------------
+    //! "Absorb" all information contained within coreParams into this object.
+    //! Fields which are not present in coreParams (ie mNetInRateMiB) remain
+    //! unchanged.
+    //--------------------------------------------------------------------------
+    void fillFromCoreParams(const FileSystemCoreParams &coreParams);
+  };
+
+  struct host_snapshot_t {
     std::string mQueue;
     std::string mHost;
     std::string mHostPort;
@@ -623,8 +633,7 @@ public:
 
       return false;
     }
-
-  } host_snapshot_t;
+  };
 
   //----------------------------------------------------------------------------
   //! Constructor
