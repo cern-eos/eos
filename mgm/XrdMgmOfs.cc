@@ -683,13 +683,15 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   XrdOucString reqid(pargs.reqid);
   // Validate the event type
   std::string event;
+
+#if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
+
   // Strip "quality of service" bits from pargs.opts so that only the action to
   // be taken is left
   const int pargsOptsQoS = Prep_PMASK | Prep_SENDAOK | Prep_SENDERR | Prep_SENDACK
                            | Prep_WMODE | Prep_COLOC |
                            Prep_FRESH;
   const int pargsOptsAction = pargs.opts & ~pargsOptsQoS;
-#if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
 
   // The XRootD prepare actions are mutually exclusive
   switch (pargsOptsAction) {

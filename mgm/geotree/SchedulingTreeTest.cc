@@ -971,7 +971,7 @@ int mainFull()
     char buffer2[bufferSize];
     assert(froatrees[i % schedGroups.size()].copyToBuffer(buffer2,
            bufferSize) == 0);
-    FastROAccessTree* ftree2 = (FastROAccessTree*) buffer2;
+    // FastROAccessTree* ftree2 = (FastROAccessTree*) buffer2;
 
     // update the tree
     for (int k = 0; k < 3; k++) {
