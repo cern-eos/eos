@@ -1740,8 +1740,7 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool insertFsIntoGroup(FileSystem* fs , FsGroup* group,
-                         bool updateFastStructures = false);
+  bool insertFsIntoGroup(FileSystem* fs , FsGroup* group);
 
   // ---------------------------------------------------------------------------
   //! Remove a file system into the GeoTreeEngine

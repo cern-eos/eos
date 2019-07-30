@@ -175,9 +175,9 @@ bool GeoTreeEngine::forceRefresh()
 }
 
 bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs ,
-                                      FsGroup* group,
-                                      bool updateFastStruct)
+                                      FsGroup* group)
 {
+  bool updateFastStruct = false;
   eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
   FileSystem::fsid_t fsid = fs->GetId();
   SchedTME* mapEntry = 0;
