@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// @file: com_proto_group.cc
-// @author: Fabio Luchetti - CERN
+// File: com_proto_group.cc
+// Author: Fabio Luchetti - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -46,7 +46,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~GroupHelper() override = default;
+  ~GroupHelper() = default;
 
   //----------------------------------------------------------------------------
   //! Parse command line input
@@ -68,7 +68,9 @@ bool GroupHelper::ParseCommand(const char* arg)
   tokenizer.GetLine();
   std::string token;
 
-  if (!tokenizer.NextToken(token)) return false;
+  if (!tokenizer.NextToken(token)) {
+    return false;
+  }
 
   // one of { ls, rm, set }
   if (token == "ls") {
@@ -78,12 +80,13 @@ bool GroupHelper::ParseCommand(const char* arg)
       if (token == "-s") {
         mIsSilent = true;
       } else if (token == "-g") {
-        if (!tokenizer.NextToken(token) || !eos::common::StringTokenizer::IsUnsignedNumber(token)) {
+        if (!tokenizer.NextToken(token) || !tokenizer.IsUnsignedNumber(token)) {
           std::cerr << "error: geodepth was not provided or it does not have "
                     << "the correct value: geodepth should be a positive "
                     << "integer" << std::endl;
           return false;
         }
+
         ls->set_outdepth(std::stoi(token));
       } else if (token == "-b" || token == "--brief") {
         ls->set_outhost(true);
@@ -96,7 +99,7 @@ bool GroupHelper::ParseCommand(const char* arg)
         ls->set_outformat(eos::console::GroupProto_LsProto::IOGROUP);
       } else if (token == "--IO") {
         ls->set_outformat(eos::console::GroupProto_LsProto::IOFS);
-      } else if (token.find('-') != 0) { // does not begin with "-"
+      } else if (token.find("-") != 0) { // does not begin with "-"
         ls->set_selection(token);
       } else {
         return false;
@@ -104,24 +107,29 @@ bool GroupHelper::ParseCommand(const char* arg)
     }
 
   } else if (token == "rm") {
-
-    if (!tokenizer.NextToken(token)) return false;
-    eos::console::GroupProto_RmProto* rm = group->mutable_rm();
-    rm->set_group(token);
-
-  } else if (token == "set") {
-
-    if (!tokenizer.NextToken(token)) return false;
-
-    eos::console::GroupProto_SetProto* set = group->mutable_set();
-    set->set_group(token);
-    if (!tokenizer.NextToken(token)) return false;
-    if (token == "on" || token == "off") {
-      set->set_group_state(token);
-    } else {
+    if (!tokenizer.NextToken(token)) {
       return false;
     }
 
+    eos::console::GroupProto_RmProto* rm = group->mutable_rm();
+    rm->set_group(token);
+  } else if (token == "set") {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
+
+    eos::console::GroupProto_SetProto* set = group->mutable_set();
+    set->set_group(token);
+
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    } else {
+      if (token == "on" || token == "off") {
+        set->set_group_state(token);
+      } else {
+        return false;
+      }
+    }
   } else { // no proper subcommand
     return false;
   }
@@ -159,23 +167,28 @@ void com_group_help()
 {
   std::ostringstream oss;
   oss
-      << " usage:\n"
+      << "usage: group ls [-s] [-g <depth>] [-b|--brief] [-m|-l|--io] [<groups>] : list groups"
       << std::endl
-      << "group ls [-s] [-g <depth>] [-b|--brief] [-m|-l|--io] [<groups>] : list groups\n"
-      << "\t <groups> : list <groups> only, where <groups> is a substring match and can be a comma seperated list\n"
-      << "\t       -s : silent mode\n"
-      << "\t       -g : geo output - aggregate group information along the instance geotree down to <depth>\n"
-      << "\t       -b : brief output\n"
-      << "\t       -m : monitoring key=value output format\n"
-      << "\t       -l : long output - list also file systems after each group\n"
-      << "\t     --io : print IO statistics for the group\n"
-      << "\t     --IO : print IO statistics for each filesystem\n"
+      << "\t <groups> : list <groups> only, where <groups> is a substring match and can be a comma seperated list"
       << std::endl
-      << "group rm <group-name> : remove group\n"
+      << "\t       -s : silent mode" << std::endl
+      << "\t       -g : geo output - aggregate group information along the instance geotree down to <depth>"
       << std::endl
-      << "group set <group-name> on|off : activate/deactivate group\n"
-      << "\t  => when a group is (re-)enabled, the drain pull flag is recomputed for all filesystems within a group\n"
-      << "\t  => when a group is (re-)disabled, the drain pull flag is removed from all members in the group\n"
+      << "\t       -b : " << std::endl
+      << "\t       -m : monitoring key=value output format" << std::endl
+      << "\t       -l : long output - list also file systems after each group"
+      << std::endl
+      << "\t     --io : print IO statistics for the group" << std::endl
+      << "\t     --IO : print IO statistics for each filesystem" << std::endl
+      << std::endl
+      << "       group rm <group-name> : remove group" << std::endl
+      << std::endl
+      << "       group set <group-name> on|off : activate/deactivate group"
+      << std::endl
+      << "\t  => when a group is (re-)enabled, the drain pull flag is recomputed for all filesystems within a group"
+      << std::endl
+      << "\t  => when a group is (re-)disabled, the drain pull flag is removed from all members in the group"
+      << std::endl
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }

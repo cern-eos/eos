@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// @file: com_proto_quota.cc
-// @author: Fabio Luchetti - CERN
+// File: com_proto_quota.cc
+// Author: Fabio Luchetti - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -21,12 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <iomanip>
-#include <map>
-#include <random>
 
 #include "common/StringTokenizer.hh"
 #include "console/ConsoleMain.hh"
+#include <iomanip>
+#include <map>
 #include "console/commands/ICmdHelper.hh"
 
 
@@ -49,7 +48,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~QuotaHelper() override = default;
+  ~QuotaHelper() = default;
 
   //----------------------------------------------------------------------------
   //! Parse command line input
@@ -71,24 +70,24 @@ bool QuotaHelper::ParseCommand(const char* arg)
   tokenizer.GetLine();
   std::string token;
 
+
   tokenizer.NextToken(token);
 
   if (token == "" || token == "-m" || (token.find('/') == 0)) { // ... or begins with "/"
     // lsuser
+    std::string aux;
     eos::console::QuotaProto_LsuserProto* lsuser = quota->mutable_lsuser();
 
-    std::string aux_string;
-
     if (token == "") {
-      aux_string = DefaultRoute();
-      if ( aux_string.find('/') == 0 ) {
-        lsuser->set_space(aux_string);
+      aux = DefaultRoute();
+      if ( aux.find('/') == 0 ) {
+        lsuser->set_space(aux);
       }
     } else if (token == "-m") {
       lsuser->set_format(true);
-      aux_string = DefaultRoute();
-      if ( aux_string.find('/') == 0 ) {
-        lsuser->set_space(aux_string);
+      aux = DefaultRoute();
+      if ( aux.find('/') == 0 ) {
+        lsuser->set_space(aux);
       }
     } else if ( token.find('/') == 0 ) {
       lsuser->set_space(token);
@@ -240,16 +239,12 @@ bool QuotaHelper::ParseCommand(const char* arg)
 
     std::cout << "Do you really want to delete the quota node under path" << token << " ?\n";
     std::cout << "Confirm the deletion by typing => ";
-
-    // Seed with a real random value, if available
-    std::random_device rd;
-    // Choose a random 10-digits number
-    std::default_random_engine dre(rd());
-    std::uniform_int_distribution<long> uniform_dist(1000000000, 9999999999);
-    long random_long = uniform_dist(dre);
-    std::string random_confirmation_string = std::to_string(random_long);
-
-    std::cout << random_confirmation_string << std::endl;
+    std::string random_confirmation_string;
+    for (int i = 0; i < 10; i++) {
+      // coverity[DC.WEAK_CRYPTO]
+      random_confirmation_string += std::to_string((int)(9.0 * rand() / RAND_MAX));
+    }
+    std::cout << random_confirmation_string << '\n';
     std::cout << "                               => ";
 
     std::string in_string;
@@ -324,13 +319,13 @@ void com_quota_help() {
   };
 
   // Compute max width for command and description table
-  for (auto & map_cmd : map_cmds) {
-    if (col_size[0] < map_cmd.first.length()) {
-      col_size[0] = map_cmd.first.length() + 1;
+  for (auto it = map_cmds.begin(); it != map_cmds.end(); ++it) {
+    if (col_size[0] < it->first.length()) {
+      col_size[0] = it->first.length() + 1;
     }
 
-    if (col_size[1] < map_cmd.second.length()) {
-      col_size[1] = map_cmd.second.length() + 1;
+    if (col_size[1] < it->second.length()) {
+      col_size[1] = it->second.length() + 1;
     }
   }
 
@@ -341,12 +336,12 @@ void com_quota_help() {
   oss << usage_txt << std::endl;
 
   // Print the command and their description
-  for (auto & map_cmd : map_cmds) {
+  for (auto it = map_cmds.begin(); it != map_cmds.end(); ++it) {
     oss << std::setw(usage_txt.length()) << ""
         << std::setw(col_size[0]) << std::setiosflags(std::ios_base::left)
-        << map_cmd.first
+        << it->first
         << std::setw(col_size[1]) << std::setiosflags(std::ios_base::left)
-        << map_cmd.second
+        << it->second
         << std::endl;
   }
 

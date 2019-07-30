@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// @file: com_space_node.cc
-// @author: Fabio Luchetti - CERN
+// File: com_space_node.cc
+// Author: Fabio Luchetti - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -21,16 +21,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <streambuf>
-#include <string>
-#include <cerrno>
+#include "console/commands/ICmdHelper.hh"
 
-#include "XrdOuc/XrdOucEnv.hh"
+
+/*----------------------------------------------------------------------------*/
+#include "console/ConsoleMain.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringConversion.hh"
 #include "common/SymKeys.hh"
-#include "console/ConsoleMain.hh"
-#include "console/commands/ICmdHelper.hh"
+#include "XrdOuc/XrdOucEnv.hh"
+/*----------------------------------------------------------------------------*/
+#include <streambuf>
+#include <string>
+#include <cerrno>
 
 
 void com_space_help();
@@ -52,7 +55,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~SpaceHelper() override = default;
+  ~SpaceHelper() = default;
 
   //----------------------------------------------------------------------------
   //! Parse command line input
@@ -74,7 +77,9 @@ bool SpaceHelper::ParseCommand(const char* arg)
   tokenizer.GetLine();
   std::string token;
 
-  if (!tokenizer.NextToken(token)) return false;
+  if (!tokenizer.NextToken(token)) {
+    return false;
+  }
 
   if (token == "ls") {
     eos::console::SpaceProto_LsProto* ls = space->mutable_ls();
@@ -89,12 +94,7 @@ bool SpaceHelper::ParseCommand(const char* arg)
                     << "integer" << std::endl;
           return false;
         }
-        try {
-          ls->set_outdepth(std::stoi(token));
-        } catch (const std::exception& e) {
-          std::cerr << "error: argument needs to be numeric" << std::endl;
-          return false;
-        }
+        ls->set_outdepth(std::stoi(token));
       } else if (token == "-m") {
         mHighlight = false;
         ls->set_outformat(eos::console::SpaceProto_LsProto::MONITORING);

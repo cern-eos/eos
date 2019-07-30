@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// @file: AccessCmd.cc
-// @author: Fabio Luchetti - CERN
+// File: AccessCmd.cc
+// Author: Fabio Luchetti - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -382,7 +382,6 @@ void AccessCmd::LsSubcmd(const eos::console::AccessProto_LsProto& ls, eos::conso
 //! Execute rm subcommand
 //----------------------------------------------------------------------------
 void AccessCmd::RmSubcmd(const eos::console::AccessProto_RmProto& rm, eos::console::ReplyProto& reply) {
-
   std::ostringstream std_out {""};
   std::ostringstream std_err {""};
   int ret_c = 0;
@@ -400,13 +399,14 @@ void AccessCmd::RmSubcmd(const eos::console::AccessProto_RmProto& rm, eos::conso
           (Access::gRedirectionRules.count("ENOENT:*") && rm.key() == "ENOENT") ||
           (Access::gRedirectionRules.count("ENETUNREACH:*") && rm.key() == "ENETUNREACH"))) {
 
-      reply.set_std_err("error: there is no global redirection defined with such key: '" + rm.key() + '\'');
+      reply.set_std_err("error: there is no global redirection defined with such key: '" + rm.key() + "'");
       reply.set_retc(EINVAL);
       return;
 
     } else {
 
-      std_out.str("success: removing global redirection");
+      std_out.clear();
+      std_out << "success: removing global redirection";
       if (!rm.key().empty()) {
         std_out << " for <" << rm.key() << ">";
       }
@@ -423,7 +423,8 @@ void AccessCmd::RmSubcmd(const eos::console::AccessProto_RmProto& rm, eos::conso
         return;
       } else {
 
-        std_out.str("success: removing redirection");
+        std_out.clear();
+        std_out << "success: removing redirection ";
         if (!rm.key().empty()) {
           std_out << " for <" << rm.key() << ">";
         }
@@ -442,13 +443,14 @@ void AccessCmd::RmSubcmd(const eos::console::AccessProto_RmProto& rm, eos::conso
         (Access::gStallRules.count("ENETUNREACH:*") && rm.key() == "ENETUNREACH") ||
         !rm.key().empty())) {
 
-      reply.set_std_err("error: there is no global redirection defined with such key: '" + rm.key() + '\'');
+      reply.set_std_err("error: there is no global redirection defined with such key: '" + rm.key() + "'");
       reply.set_retc(EINVAL);
       return;
 
     } else {
 
-      std_out.str("success: removing global stall time");
+      std_out.clear();
+      std_out << "success: removing global stall time";
       if (!rm.key().empty()) {
         std_out << " for <" << rm.key() << ">";
       }
@@ -472,12 +474,14 @@ void AccessCmd::RmSubcmd(const eos::console::AccessProto_RmProto& rm, eos::conso
       } else {
 
         if ((rm.key().find("rate:user:") == 0) || (rm.key().find("rate:group:") == 0)) { // if rule is limit
-          std_out.str("success: removing limit");
+          std_out.clear();
+          std_out << "success: removing limit ";
           if (!rm.key().empty()) {
             std_out << " for <" << rm.key() << ">";
           }
         } else {
-          std_out.str("success: removing stall");
+          std_out.clear();
+          std_out << "success: removing stall ";
           if (!rm.key().empty()) {
             std_out << " for <" << rm.key() << ">";
           }
@@ -516,7 +520,7 @@ void AccessCmd::SetSubcmd(const eos::console::AccessProto_SetProto& set, eos::co
     if (! (set.key().empty() || set.key() == "r" || set.key() == "w" ||
            set.key() == "ENONET" || set.key() == "ENOENT" || set.key() == "ENETUNREACH") ) {
 
-      reply.set_std_err("error: there is no redirection to set with such key: '" + set.key() + '\'');
+      reply.set_std_err("error: there is no redirection to set with such key: '" + set.key() + "'");
       reply.set_retc(EINVAL);
       return;
 
@@ -535,7 +539,8 @@ void AccessCmd::SetSubcmd(const eos::console::AccessProto_SetProto& set, eos::co
 
       } else {
 
-        std_out.str("success: setting global redirection to '" + set.target() + '\'');
+        std_out.clear();
+        std_out << "success: setting global redirection to '" << set.target() << "'";
         if (!set.key().empty()) {
           std_out << " for <" << set.key() << ">";
         }
@@ -564,7 +569,7 @@ void AccessCmd::SetSubcmd(const eos::console::AccessProto_SetProto& set, eos::co
            set.key() == "r" || set.key() == "w" ||
            set.key() == "ENOENT" || set.key() == "ENONET" || set.key() == "ENETUNREACH") ) {
 
-      reply.set_std_err( "error: there is no redirection to set with such key: '" + set.key() + '\'');
+      reply.set_std_err( "error: there is no redirection to set with such key: '" + set.key() + "'");
       reply.set_retc(EINVAL);
       return;
 
@@ -611,7 +616,29 @@ void AccessCmd::SetSubcmd(const eos::console::AccessProto_SetProto& set, eos::co
 }
 
 
-// @note (faluchet) all this machinery (and more) should be done with templates and funct programming... Later
+// @todo (faluchet) all this machinery (and more) should be done with templates and functional programming... Later
+
+/*
+std::string idtype2str (int idtype) {
+
+  if (idtype == eos::console::AccessProto_BanProto_IdType_USER || idtype == eos::console::AccessProto::UnbanProto::USER ||
+      idtype == eos::console::AccessProto::AllowProto::USER || idtype == eos::console::AccessProto::UnallowProto::USER ) {
+    return "user";
+  } else if (idtype == eos::console::AccessProto::BanProto::GROUP || idtype == eos::console::AccessProto::UnbanProto::GROUP ||
+             idtype == eos::console::AccessProto::AllowProto::GROUP || idtype == eos::console::AccessProto::UnallowProto::GROUP ) {
+    return "group";
+  } else if (idtype == eos::console::AccessProto::BanProto::HOST || idtype == eos::console::AccessProto::UnbanProto::HOST ||
+             idtype == eos::console::AccessProto::AllowProto::HOST || idtype == eos::console::AccessProto::UnallowProto::HOST ) {
+    return "host";
+  } else if (idtype == eos::console::AccessProto::BanProto::DOMAINNAME || idtype == eos::console::AccessProto::UnbanProto::DOMAINNAME ||
+             idtype == eos::console::AccessProto::AllowProto::DOMAINNAME || idtype == eos::console::AccessProto::UnallowProto::DOMAINNAME ) {
+    return "domain";
+  } else {
+    return "";
+  }
+
+}
+*/
 
 void AccessCmd::aux (const string& sid, std::ostringstream& std_out, std::ostringstream& std_err, int& ret_c) {
 
@@ -626,7 +653,7 @@ void AccessCmd::aux (const string& sid, std::ostringstream& std_out, std::ostrin
   }
 
   if (Access::StoreAccessConfig()) {
-    std_out << "success: " << saction << " '" << sid << '\'';
+    std_out << "success: " << saction << " '" << sid << "'";
     ret_c = 0;
   } else {
     std_err << "error: unable to store access configuration";
@@ -657,7 +684,7 @@ void AccessCmd::BanSubcmd(const eos::console::AccessProto_BanProto& ban, eos::co
       Access::gBannedUsers.insert(uid);
       aux(ban.id(), std_out, std_err, ret_c);
     } else {
-      std_err << "error: no such user - cannot ban '" << ban.id() << '\'';
+      std_err << "error: no such user - cannot ban '" << ban.id() << "'";
       ret_c = EINVAL;
     }
   } break;
@@ -667,7 +694,7 @@ void AccessCmd::BanSubcmd(const eos::console::AccessProto_BanProto& ban, eos::co
       Access::gBannedGroups.insert(gid);
       aux(ban.id(), std_out, std_err, ret_c);
     } else {
-      std_err << "error: no such group - cannot ban '" << ban.id() << '\'';
+      std_err << "error: no such group - cannot ban '" << ban.id() << "'";
       ret_c = EINVAL;
     }
   } break;
@@ -721,7 +748,7 @@ void AccessCmd::UnbanSubcmd(const eos::console::AccessProto_UnbanProto& unban, e
         ret_c = ENOENT;
       }
     } else {
-      std_err << "error: no such user - cannot unban '" << unban.id() << '\'';
+      std_err << "error: no such user - cannot unban '" << unban.id() << "'";
       ret_c = EINVAL;
     }
 
@@ -738,7 +765,7 @@ void AccessCmd::UnbanSubcmd(const eos::console::AccessProto_UnbanProto& unban, e
         ret_c = ENOENT;
       }
     } else {
-      std_err << "error: no such group - cannot unban '" << unban.id() << '\'';
+      std_err << "error: no such group - cannot unban '" << unban.id() << "'";
       ret_c = EINVAL;
     }
 
@@ -799,7 +826,7 @@ void AccessCmd::AllowSubcmd(const eos::console::AccessProto_AllowProto& allow, e
       Access::gAllowedUsers.insert(uid);
       aux(allow.id(),std_out,std_err, ret_c);
     } else {
-      std_err << "error: no such user - cannot allow '" << allow.id() << '\'';
+      std_err << "error: no such user - cannot allow '" << allow.id() << "'";
       ret_c = EINVAL;
     }
 
@@ -811,7 +838,7 @@ void AccessCmd::AllowSubcmd(const eos::console::AccessProto_AllowProto& allow, e
       Access::gAllowedGroups.insert(gid);
       aux(allow.id(),std_out,std_err, ret_c);
     } else {
-      std_err << "error: no such group - cannot allow '" << allow.id() << '\'';
+      std_err << "error: no such group - cannot allow '" << allow.id() << "'";
       ret_c = EINVAL;
     }
 
@@ -871,7 +898,7 @@ void AccessCmd::UnallowSubcmd(const eos::console::AccessProto_UnallowProto& unal
         ret_c = ENOENT;
       }
     } else {
-      std_err << "error: no such user - cannot unallow '" << unallow.id() << '\'';
+      std_err << "error: no such user - cannot unallow '" << unallow.id() << "'";
       ret_c = EINVAL;
     }
 
@@ -889,7 +916,7 @@ void AccessCmd::UnallowSubcmd(const eos::console::AccessProto_UnallowProto& unal
         ret_c = ENOENT;
       }
     } else {
-      std_err << "error: no such group - cannot unallow '" << unallow.id() << '\'';
+      std_err << "error: no such group - cannot unallow '" << unallow.id() << "'";
       ret_c = EINVAL;
     }
 

@@ -54,6 +54,7 @@
 //------------------------------------------------------------------------------
 // Implemented commands
 //------------------------------------------------------------------------------
+//extern int com_access(char*);
 extern int com_protoaccess(char*);
 extern int com_acl(char*);
 extern int com_archive(char*);
@@ -63,6 +64,7 @@ extern int com_cd(char*);
 extern int com_chmod(char*);
 extern int com_chown(char*);
 extern int com_clear(char*);
+// extern int com_config(char*);
 extern int com_protoconfig(char*);
 extern int com_console(char*);
 extern int com_cp(char*);
@@ -71,6 +73,7 @@ extern int com_file(char*);
 extern int com_fileinfo(char*);
 extern int com_find(char*);
 extern int com_find_new(char*);
+//extern int com_fs(char*);
 extern int com_protofs(char*);
 extern int com_fsck(char*);
 extern int com_fuse(char*);
@@ -95,6 +98,7 @@ extern int com_protonode(char*);
 extern int com_ns(char*);
 extern int com_pwd(char*);
 extern int com_quit(char*);
+//extern int com_quota(char*);
 extern int com_protoquota(char*);
 extern int com_reconnect(char*);
 extern int com_protorecycle(char*);
@@ -105,7 +109,8 @@ extern int com_rmdir(char*);
 extern int com_role(char*);
 extern int com_rtlog(char*);
 extern int com_silent(char*);
-extern int com_protospace(char*);
+//extern int com_space(char*);
+ extern int com_protospace(char*);
 extern int com_stagerrm(char*);
 extern int com_stat(char*);
 extern int com_squash(char*);
@@ -125,6 +130,7 @@ extern int com_accounting(char*);
 // Command mapping array
 //------------------------------------------------------------------------------
 COMMAND commands[] = {
+//  { (char*) "access", com_access, (char*) "Access Interface"},
   { (char*) "access", com_protoaccess, (char*) "Access Interface"},
   { (char*) "accounting", com_accounting, (char*) "Accounting Interface"},
   { (char*) "acl", com_acl, (char*) "Acl Interface"},
@@ -135,6 +141,7 @@ COMMAND commands[] = {
   { (char*) "cd", com_cd, (char*) "Change directory"},
   { (char*) "chmod", com_chmod, (char*) "Mode Interface"},
   { (char*) "chown", com_chown, (char*) "Chown Interface"},
+//  { (char*) "config", com_config, (char*) "Configuration System"},
   { (char*) "config", com_protoconfig, (char*) "Configuration System"},
   { (char*) "console", com_console, (char*) "Run Error Console"},
   { (char*) "cp", com_cp, (char*) "Cp command"},
@@ -168,6 +175,7 @@ COMMAND commands[] = {
   { (char*) "ns", com_ns, (char*) "Namespace Interface"},
   { (char*) "pwd", com_pwd, (char*) "Print working directory"},
   { (char*) "quit", com_quit, (char*) "Exit from EOS console"},
+//  { (char*) "quota", com_quota, (char*) "Quota System configuration"},
   { (char*) "quota", com_protoquota, (char*) "Quota System configuration"},
   { (char*) "reconnect", com_reconnect, (char*) "Forces a re-authentication of the shell"},
   { (char*) "recycle", com_protorecycle, (char*) "Recycle Bin Functionality"},
@@ -177,6 +185,7 @@ COMMAND commands[] = {
   { (char*) "route", com_route, (char*) "Routing interface"},
   { (char*) "rtlog", com_rtlog, (char*) "Get realtime log output from mgm & fst servers"},
   { (char*) "silent", com_silent, (char*) "Toggle silent flag for stdout"},
+//  { (char*) "space", com_space, (char*) "Space configuration"},
   { (char*) "space", com_protospace, (char*) "Space configuration"},
   { (char*) "stagerrm", com_stagerrm, (char*) "Remove disk replicas of a file if it has tape replicas"},
   { (char*) "stat", com_stat, (char*) "Run 'stat' on a file or directory"},

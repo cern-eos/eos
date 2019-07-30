@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// @file: ConfigCmd.cc
-// @author: Fabio Luchetti - CERN
+// File: ConfigCmd.cc
+// Author: Fabio Luchetti - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -43,30 +43,23 @@ ConfigCmd::ProcessRequest() noexcept
 
   eos::console::ReplyProto reply;
   eos::console::ConfigProto config = mReqProto.config();
+  eos::console::ConfigProto::SubcmdCase subcmd = config.subcmd_case();
 
-  switch (mReqProto.config().subcmd_case()) {
-  case eos::console::ConfigProto::kLs:
+  if (subcmd == eos::console::ConfigProto::kLs) {
     LsSubcmd(config.ls(), reply);
-    break;
-  case eos::console::ConfigProto::kDump:
+  } else if (subcmd == eos::console::ConfigProto::kDump) {
     DumpSubcmd(config.dump(), reply);
-    break;
-  case eos::console::ConfigProto::kReset:
+  } else if (subcmd == eos::console::ConfigProto::kReset) {
     ResetSubcmd(config.reset(), reply);
-    break;
-  case eos::console::ConfigProto::kExp:
+  } else if (subcmd == eos::console::ConfigProto::kExp) {
     ExportSubcmd(config.exp(), reply);
-    break;
-  case eos::console::ConfigProto::kSave:
+  } else if (subcmd == eos::console::ConfigProto::kSave) {
     SaveSubcmd(config.save(), reply);
-    break;
-  case eos::console::ConfigProto::kLoad:
+  } else if (subcmd == eos::console::ConfigProto::kLoad) {
     LoadSubcmd(config.load(), reply);
-    break;
-  case eos::console::ConfigProto::kChangelog:
+  } else if (subcmd == eos::console::ConfigProto::kChangelog) {
     ChangelogSubcmd(config.changelog(), reply);
-    break;
-  default:
+  } else {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: not supported");
   }
@@ -81,6 +74,7 @@ void ConfigCmd::LsSubcmd(const eos::console::ConfigProto_LsProto& ls, eos::conso
 
   eos_notice("config ls");
   XrdOucString listing = "";
+//  std::string listing {""};
 
   if (!(gOFS->ConfEngine->ListConfigs(listing, ls.showbackup()))) {
     reply.set_std_err("error: listing of existing configs failed!");
@@ -214,8 +208,6 @@ void ConfigCmd::ChangelogSubcmd(const eos::console::ConfigProto_ChangelogProto& 
 
   gOFS->ConfEngine->Tail(changelog.lines(), std_out);
   eos_notice("config changelog");
-
-  reply.set_std_out(std_out.c_str());
 
 }
 

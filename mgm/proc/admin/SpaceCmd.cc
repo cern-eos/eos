@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// @file: SpaceCmd.cc
-// @author: Fabio Luchetti - CERN
+// File: SpaceCmd.cc
+// Author: Fabio Luchetti - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -48,45 +48,33 @@ SpaceCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
   eos::console::SpaceProto space = mReqProto.space();
+  eos::console::SpaceProto::SubcmdCase subcmd = space.subcmd_case();
 
-  switch (mReqProto.space().subcmd_case()) {
-  case eos::console::SpaceProto::kLs:
+  if (subcmd == eos::console::SpaceProto::kLs) {
     LsSubcmd(space.ls(), reply);
-    break;
-  case eos::console::SpaceProto::kSet:
+  } else if (subcmd == eos::console::SpaceProto::kSet) {
     SetSubcmd(space.set(), reply);
-    break;
-  case eos::console::SpaceProto::kStatus:
+  } else if (subcmd == eos::console::SpaceProto::kStatus) {
     StatusSubcmd(space.status(), reply);
-    break;
-  case eos::console::SpaceProto::kNodeSet:
+  } else if (subcmd == eos::console::SpaceProto::kNodeSet) {
     NodeSetSubcmd(space.nodeset(), reply);
-    break;
-  case eos::console::SpaceProto::kNodeGet:
+  } else if (subcmd == eos::console::SpaceProto::kNodeGet) {
     NodeGetSubcmd(space.nodeget(), reply);
-    break;
-  case eos::console::SpaceProto::kReset:
+  } else if (subcmd == eos::console::SpaceProto::kReset) {
     ResetSubcmd(space.reset(), reply);
-    break;
-  case eos::console::SpaceProto::kDefine:
+  } else if (subcmd == eos::console::SpaceProto::kDefine) {
     DefineSubcmd(space.define(), reply);
-    break;
-  case eos::console::SpaceProto::kConfig:
+  } else if (subcmd == eos::console::SpaceProto::kConfig) {
     ConfigSubcmd(space.config(), reply);
-    break;
-  case eos::console::SpaceProto::kQuota:
+  } else if (subcmd == eos::console::SpaceProto::kQuota) {
     QuotaSubcmd(space.quota(), reply);
-    break;
-  case eos::console::SpaceProto::kRm:
+  } else if (subcmd == eos::console::SpaceProto::kRm) {
     RmSubcmd(space.rm(), reply);
-    break;
-  case eos::console::SpaceProto::kTracker:
+  } else if (subcmd == eos::console::SpaceProto::kTracker) {
     TrackerSubcmd(space.tracker(), reply);
-    break;
-  case eos::console::SpaceProto::kInspector:
+  } else if (subcmd == eos::console::SpaceProto::kInspector) {
     InspectorSubcmd(space.inspector(), reply);
-    break;
-  default:
+  }else {
     reply.set_std_err("error: not supported");
     reply.set_retc(EINVAL);
   }
@@ -155,7 +143,7 @@ void SpaceCmd::LsSubcmd(const eos::console::SpaceProto_LsProto& ls,
 void SpaceCmd::StatusSubcmd(const eos::console::SpaceProto_StatusProto& status,
                             eos::console::ReplyProto& reply)
 {
-  std::ostringstream std_out;
+  std::string std_out;
   bool monitoring = status.outformat_m() || WantsJsonOutput();
   const char* fmtstr = (monitoring) ? "%s=%s " : "%-32s := %s\n";
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
@@ -167,9 +155,9 @@ void SpaceCmd::StatusSubcmd(const eos::console::SpaceProto_StatusProto& status,
   }
 
   if (!monitoring) {
-    std_out << "# ------------------------------------------------------------------------------------\n";
-    std_out << "# Space Variables\n";
-    std_out << "# ....................................................................................\n";
+    std_out += "# ------------------------------------------------------------------------------------\n";
+    std_out += "# Space Variables\n";
+    std_out += "# ....................................................................................\n";
   }
 
   std::vector <std::string> keylist;
@@ -194,14 +182,14 @@ void SpaceCmd::StatusSubcmd(const eos::console::SpaceProto_StatusProto& status,
                  ->GetConfigMember(i).c_str());
     }
 
-    std_out << line;
+    std_out += line;
   }
 
   if (WantsJsonOutput()) {
-    std_out.str(ResponseToJsonString(std_out.str()));
+    std_out = ResponseToJsonString(std_out);
   }
 
-  reply.set_std_out(std_out.str());
+  reply.set_std_out(std_out);
   reply.set_retc(0);
 }
 
@@ -210,7 +198,7 @@ void SpaceCmd::StatusSubcmd(const eos::console::SpaceProto_StatusProto& status,
 //----------------------------------------------------------------------------
 void SpaceCmd::SetSubcmd(const eos::console::SpaceProto_SetProto& set, eos::console::ReplyProto& reply) {
 
-  std::ostringstream std_out, std_err;
+  std::string std_out, std_err;
   int ret_c = 0;
 
   if ( mVid.uid != 0 ) {
@@ -240,7 +228,7 @@ void SpaceCmd::SetSubcmd(const eos::console::SpaceProto_SetProto& set, eos::cons
   std::map<std::string, FsGroup*>::const_iterator it1;
   for (it1 = FsView::gFsView.mGroupView.begin(); it1 != FsView::gFsView.mGroupView.end(); it1++) {
     if (!it1->second->SetConfigMember(key, status, true, "/eos/*/mgm")) {
-      std_err << "error: cannot set status in group <" + it1->first + ">\n";
+      std_err += "error: cannot set status in group <" + it1->first + ">\n";
       ret_c = EIO;
     }
   }
@@ -249,13 +237,13 @@ void SpaceCmd::SetSubcmd(const eos::console::SpaceProto_SetProto& set, eos::cons
   for (it2 = FsView::gFsView.mNodeView.begin();
        it2 != FsView::gFsView.mNodeView.end(); it2++) {
     if (!it2->second->SetConfigMember(key, status, true, "/eos/*/mgm")) {
-      std_err << "error: cannot set status for node <" + it2->first + ">\n";
+      std_err += "error: cannot set status for node <" + it2->first + ">\n";
       ret_c = EIO;
     }
   }
 
-  reply.set_std_out(std_out.str());
-  reply.set_std_err(std_err.str());
+  reply.set_std_out(std_out);
+  reply.set_std_err(std_err);
   reply.set_retc(ret_c);
 
 }
@@ -264,11 +252,6 @@ void SpaceCmd::SetSubcmd(const eos::console::SpaceProto_SetProto& set, eos::cons
 // Execute node-set subcommand
 //----------------------------------------------------------------------------
 void SpaceCmd::NodeSetSubcmd(const eos::console::SpaceProto_NodeSetProto& nodeset, eos::console::ReplyProto& reply) {
-
-  std::ostringstream std_out, std_err;
-  int ret_c = 0;
-
-  std::string val = nodeset.nodeset_value();
 
   if ( mVid.uid != 0 ) {
     reply.set_std_err("error: you have to take role 'root' to execute this command");
@@ -291,6 +274,11 @@ void SpaceCmd::NodeSetSubcmd(const eos::console::SpaceProto_NodeSetProto& nodese
     return;
   }
 
+  std::string std_out, std_err;
+  int ret_c = 0;
+
+  std::string val = nodeset.nodeset_value();
+
   {
     // loop over all nodes
     std::map<std::string, FsNode*>::const_iterator it;
@@ -304,13 +292,13 @@ void SpaceCmd::NodeSetSubcmd(const eos::console::SpaceProto_NodeSetProto& nodese
         XrdOucString fpath = iPath.GetPath();
 
         if (!fpath.beginswith("/var/eos/")) {
-          std_err.str(("error: cannot load requested file=" + file + " - only files under /var/eos/ can bo loaded\n").c_str());
+          std_err = ("error: cannot load requested file=" + file + " - only files under /var/eos/ can bo loaded\n").c_str();
           ret_c = EINVAL;
         } else {
           std::ifstream ifs(file.c_str(), std::ios::in | std::ios::binary);
 
           if (!ifs) {
-            std_err.str(("error: cannot load requested file=" + file).c_str());
+            std_err = ("error: cannot load requested file=" + file).c_str();
             ret_c = EINVAL;
           } else {
             val = std::string((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
@@ -318,19 +306,19 @@ void SpaceCmd::NodeSetSubcmd(const eos::console::SpaceProto_NodeSetProto& nodese
             XrdOucString val64;
             eos::common::SymKey::Base64Encode((char*) val.c_str(), val.length(), val64);
             val = ("base64:" + val64).c_str();
-            std_out << "success: loaded contents \n" + val;
+            std_out += "success: loaded contents \n" + val;
           }
         }
       }
       if (!ret_c && !it->second->SetConfigMember(nodeset.nodeset_key(), val, true, "/eos/*/mgm")) {
-        std_err << "error: cannot set node-set for node <" + it->first + ">\n";
+        std_err += "error: cannot set node-set for node <" + it->first + ">\n";
         ret_c = EIO;
       }
     }
   }
 
-  reply.set_std_out(std_out.str());
-  reply.set_std_err(std_err.str());
+  reply.set_std_out(std_out);
+  reply.set_std_err(std_err);
   reply.set_retc(ret_c);
 
 }
@@ -339,8 +327,6 @@ void SpaceCmd::NodeSetSubcmd(const eos::console::SpaceProto_NodeSetProto& nodese
 // Execute node-get subcommand
 //----------------------------------------------------------------------------
 void SpaceCmd::NodeGetSubcmd(const eos::console::SpaceProto_NodeGetProto& nodeget, eos::console::ReplyProto& reply) {
-
-  std::ostringstream std_out;
 
   if ( mVid.uid != 0 ) {
     reply.set_std_err("error: you have to take role 'root' to execute this command");
@@ -362,6 +348,7 @@ void SpaceCmd::NodeGetSubcmd(const eos::console::SpaceProto_NodeGetProto& nodege
     return;
   }
 
+  std::string std_out;
 
   {
     std::string val;
@@ -377,15 +364,15 @@ void SpaceCmd::NodeGetSubcmd(const eos::console::SpaceProto_NodeGetProto& nodege
         identical = false;
       }
       val = new_val;
-      std_out << "# [ " + (it->first).substr(0,it->first.find(':')) + " ]\n" + new_val + '\n';
+      std_out += "# [ " + (it->first).substr(0,it->first.find(':')) + " ]\n" + new_val + '\n';
 
     }
     if (identical) {
-      std_out.str("*:=" + val + '\n');
+      std_out = "*:=" + val + '\n';
     }
   }
 
-  reply.set_std_out(std_out.str());
+  reply.set_std_out(std_out);
 
 }
 
@@ -394,7 +381,7 @@ void SpaceCmd::NodeGetSubcmd(const eos::console::SpaceProto_NodeGetProto& nodege
 //----------------------------------------------------------------------------
 void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset, eos::console::ReplyProto& reply) {
 
-  std::ostringstream std_out, std_err;
+  std::string std_out, std_err;
   int ret_c = 0;
 
   eos::common::RWMutexReadLock fsViewLock(FsView::gFsView.ViewMutex);
@@ -402,38 +389,38 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset, eos
   if (reset.option() == eos::console::SpaceProto_ResetProto::DRAIN || reset.option() == eos::console::SpaceProto_ResetProto::NONE) {
     if (FsView::gFsView.mSpaceView.count(reset.mgmspace())) {
       FsView::gFsView.mSpaceView[reset.mgmspace()]->ResetDraining();
-      std_out << "info: reset draining in space '" + reset.mgmspace() + "'";
+      std_out += "info: reset draining in space '" + reset.mgmspace() + "'";
     } else {
-      std_err << "error: illegal space name";
+      std_err += "error: illegal space name";
       ret_c = EINVAL;
     }
   }
 
   if (reset.option() == eos::console::SpaceProto_ResetProto::EGROUP || reset.option() == eos::console::SpaceProto_ResetProto::NONE) {
     gOFS->EgroupRefresh->Reset();
-    std_out << "\ninfo: clear cached EGroup information ...";
+    std_out += "\ninfo: clear cached EGroup information ...";
   }
 
   switch (reset.option()) {
     case eos::console::SpaceProto_ResetProto::DRAIN: {
       if (FsView::gFsView.mSpaceView.count(reset.mgmspace())) {
         FsView::gFsView.mSpaceView[reset.mgmspace()]->ResetDraining();
-        std_out << "info: reset draining in space '" + reset.mgmspace() + "'";
+        std_out += "info: reset draining in space '" + reset.mgmspace() + "'";
       } else {
-        std_err << "error: illegal space name";
+        std_err += "error: illegal space name";
         ret_c = EINVAL;
       }
     } break;
 
     case eos::console::SpaceProto_ResetProto::EGROUP: {
       gOFS->EgroupRefresh->Reset();
-      std_out << "\ninfo: clear cached EGroup information ...";
+      std_out += "\ninfo: clear cached EGroup information ...";
     }  break;
 
     case eos::console::SpaceProto_ResetProto::NSFILESISTEMVIEW: {
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       gOFS->eosFsView->shrink();
-      std_out << "\ninfo: resized namespace filesystem view ...";
+      std_out += "\ninfo: resized namespace filesystem view ...";
     } break;
 
     case eos::console::SpaceProto_ResetProto::NSFILEMAP: {
@@ -441,9 +428,9 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset, eos
       if (eos_chlog_filesvc) {
         eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
         eos_chlog_filesvc->resize();
-        std_out << "\ninfo: resized namespace file map ...";
+        std_out += "\ninfo: resized namespace file map ...";
       } else {
-        std_out << "\n info: ns does not support file map resizing";
+        std_out += "\n info: ns does not support file map resizing";
       }
     } break;
 
@@ -452,9 +439,9 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset, eos
       if (eos_chlog_dirsvc) {
         eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
         eos_chlog_dirsvc->resize();
-        std_out << "\ninfo: resized namespace directory map ...";
+        std_out += "\ninfo: resized namespace directory map ...";
       } else {
-        std_out << "\ninfo: ns does not support directory map resizing";
+        std_out += "\ninfo: ns does not support directory map resizing";
       }
     } break;
 
@@ -467,44 +454,44 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset, eos
       if (eos_chlog_filesvc && eos_chlog_dirsvc) {
         eos_chlog_filesvc->resize();
         eos_chlog_dirsvc->resize();
-        std_out << "\ninfo: resized all namespace map ...";
+        std_out += "\ninfo: resized all namespace map ...";
       } else {
-        std_out << "\ninfo: ns does not support map resizing";
+        std_out += "\ninfo: ns does not support map resizing";
       }
     } break;
 
     case eos::console::SpaceProto_ResetProto::MAPPING: {
       eos::common::Mapping::Reset();
-      std_out << "\ninfo: clear all user/group uid/gid caches ...\n";
+      std_out += "\ninfo: clear all user/group uid/gid caches ...\n";
     } break;
 
     case eos::console::SpaceProto_ResetProto::SCHEDULEDRAIN: {
       gOFS->mDrainingTracker.Clear();
-      std_out.str("info: reset drain scheduling map in space '" + reset.mgmspace() + '\'');
+      std_out = "info: reset drain scheduling map in space '" + reset.mgmspace() + "'";
     } break;
 
     case eos::console::SpaceProto_ResetProto::SCHEDULEBALANCE: {
       gOFS->mBalancingTracker.Clear();
-      std_out.str("info: reset balance scheduling map in space '" + reset.mgmspace() + '\'');
+      std_out = "info: reset balance scheduling map in space '" + reset.mgmspace() + "'";
     } break;
 
     default: { // NONE - when NONE does cases DRAIN and EGROUP and MAPPING
       if (FsView::gFsView.mSpaceView.count(reset.mgmspace())) {
         FsView::gFsView.mSpaceView[reset.mgmspace()]->ResetDraining();
-        std_out << "info: reset draining in space '" + reset.mgmspace() + "'";
+        std_out += "info: reset draining in space '" + reset.mgmspace() + "'";
       } else {
-        std_err << "error: illegal space name";
+        std_err += "error: illegal space name";
         ret_c = EINVAL;
       }
       gOFS->EgroupRefresh->Reset();
-      std_out << "\ninfo: clear cached EGroup information ...";
+      std_out += "\ninfo: clear cached EGroup information ...";
       eos::common::Mapping::Reset();
-      std_out << "\ninfo: clear all user/group uid/gid caches ...\n";
+      std_out += "\ninfo: clear all user/group uid/gid caches ...\n";
     } break;
   }
 
-  reply.set_std_out(std_out.str());
-  reply.set_std_err(std_err.str());
+  reply.set_std_out(std_out);
+  reply.set_std_err(std_err);
   reply.set_retc(ret_c);
 
 }
@@ -564,12 +551,6 @@ void SpaceCmd::DefineSubcmd(const eos::console::SpaceProto_DefineProto& define, 
 //----------------------------------------------------------------------------
 void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config, eos::console::ReplyProto& reply) {
 
-  std::ostringstream std_out, std_err;
-  int ret_c = 0;
-
-  std::string key = config.mgmspace_key();
-  std::string value = config.mgmspace_value();
-
   if (mVid.uid != 0) {
     reply.set_std_err("error: you have to take role 'root' to execute this command");
     reply.set_retc(EPERM);
@@ -581,6 +562,13 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config, 
     reply.set_retc(EINVAL);
     return;
   }
+
+  std::string key = config.mgmspace_key();
+  std::string value = config.mgmspace_value();
+
+  std::string std_out, std_err;
+  int ret_c = 0;
+
 
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   FileSystem *fs = nullptr;
@@ -594,17 +582,17 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config, 
           if (value == "remove") {
             if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->DeleteConfigMember(key)) {
               ret_c = ENOENT;
-              std_err.str("error: key has not been deleted");
+              std_err = "error: key has not been deleted";
             } else {
-              std_out.str("success: removed space policy '" + key + "'\n");
+              std_out = "success: removed space policy '" + key + "'\n";
             }
           } else {
             // set a space policy parameters e.g. default placement attributes
             if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key, value, true, "/eos/*/mgm")) {
-              std_err.str("error: cannot set space config value");
               ret_c = EIO;
+              std_err = "error: cannot set space config value";
             } else {
-              std_out.str("success: configured policy in space='" + config.mgmspace_name() + "' as " + key + "='" + value + "'\n");
+              std_out = "success: configured policy in space='" + config.mgmspace_name() + "' as " + key + "='" + value + "'\n";
               ret_c = 0;
             }
           }
@@ -654,102 +642,101 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config, 
                 (key == "filearchivedgc")) {
               if ((value != "on") && (value != "off")) {
                 ret_c = EINVAL;
-                std_err.str("error: value has to either on or off");
+                std_err = "error: value has to either on or off";
               } else {
                 if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key, value, true, "/eos/*/mgm")) {
                   ret_c = EIO;
-                  std_err.str("error: cannot set space config value");
+                  std_err = "error: cannot set space config value";
                 } else {
                   if (key == "balancer") {
                     if (value == "on") {
-                      std_out << "success: balancer is enabled!";
+                      std_out += "success: balancer is enabled!";
                     } else {
-                      std_out << "success: balancer is disabled!";
+                      std_out += "success: balancer is disabled!";
                     }
                   }
 
                   if (key == "converter") {
                     if (value == "on") {
-                      std_out << "success: converter is enabled!";
+                      std_out += "success: converter is enabled!";
                     } else {
-                      std_out << "success: converter is disabled!";
+                      std_out += "success: converter is disabled!";
                     }
                   }
 
                   if (key == "tracker") {
                     if (value == "on") {
                       gOFS->mReplicationTracker->enable();
-                      std_out << "success: tracker is enabled!";
+                      std_out += "success: tracker is enabled!";
                     } else {
                       gOFS->mReplicationTracker->disable();
-                      std_out << "success: tracker is disabled!";
+                      std_out += "success: tracker is disabled!";
                     }
                   }
 
                   if (key == "inspector") {
                     if (value == "on") {
                       gOFS->mFileInspector->enable();
-                      std_out << "success: file inspector is enabled!";
+                      std_out += "success: file inspector is enabled!";
                     } else {
                       gOFS->mFileInspector->disable();
-                      std_out << "success: file inspector is disabled!";
+                      std_out += "success: file inspector is disabled!";
                     }
                   }
 
                   if (key == "autorepair") {
                     if (value == "on") {
-                      std_out << "success: auto-repair is enabled!";
+                      std_out += "success: auto-repair is enabled!";
                     } else {
-                      std_out << "success: auto-repair is disabled!";
+                      std_out += "success: auto-repair is disabled!";
                     }
                   }
 
                   if (key == "groupbalancer") {
                     if (value == "on") {
-                      std_out << "success: groupbalancer is enabled!";
+                      std_out += "success: groupbalancer is enabled!";
                     } else {
-                      std_out << "success: groupbalancer is disabled!";
+                      std_out += "success: groupbalancer is disabled!";
                     }
                   }
 
                   if (key == "geobalancer") {
                     if (value == "on") {
-                      std_out << "success: geobalancer is enabled!";
+                      std_out += "success: geobalancer is enabled!";
                     } else {
-                      std_out << "success: geobalancer is disabled!";
+                      std_out += "success: geobalancer is disabled!";
                     }
                   }
 
                   if (key == "geo.access.policy.read.exact") {
                     if (value == "on") {
-                      std_out << "success: geo access policy prefers the exact geo matching replica for reading!";
+                      std_out += "success: geo access policy prefers the exact geo matching replica for reading!";
                     } else {
-                      std_out << "success: geo access policy prefers with a weight the geo matching replica for reading!";
+                      std_out += "success: geo access policy prefers with a weight the geo matching replica for reading!";
                     }
                   }
 
                   if (key == "geo.access.policy.write.exact") {
                     if (value == "on") {
-                      std_out << "success: geo access policy prefers the exact geo matching replica for placements!";
+                      std_out += "success: geo access policy prefers the exact geo matching replica for placements!";
                     } else {
-                      std_out << "success: geo access policy prefers with a weight the geo matching replica for placements!";
+                      std_out += "success: geo access policy prefers with a weight the geo matching replica for placements!";
                     }
                   }
 
                   if (key == "scheduler.skip.overloaded") {
                     if (value == "on") {
-                      std_out << "success: scheduler skips overloaded eth-out nodes!";
+                      std_out += "success: scheduler skips overloaded eth-out nodes!";
                     } else {
-                      std_out << "success: scheduler does not skip overloaded eth-out nodes!";
+                      std_out += "success: scheduler does not skip overloaded eth-out nodes!";
                     }
                   }
 
                   if (key == "filearchivedgc") {
                     if (value == "on") {
-                      std_out << "success: 'file archived' garbage collector is enabled";
+                      std_out += "success: 'file archived' garbage collector is enabled";
                     } else {
-                      std_out << "success: 'file archived' garbage collector is disabled";
-                      std_out << "success: 'file archived' garbage collector is disabled";
+                      std_out += "success: 'file archived' garbage collector is disabled";
                     }
                   }
                 }
@@ -757,11 +744,11 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config, 
             } else if (key == "wfe") {
               if ((value != "on") && (value != "off") && (value != "paused")) {
                 ret_c = EINVAL;
-                std_err.str("error: value has to either on, paused or off");
+                std_err = "error: value has to either on, paused or off";
               } else {
                 if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key, value, true, "/eos/*/mgm")) {
                   ret_c = EIO;
-                  std_err.str("error: cannot set space config value");
+                  std_err = "error: cannot set space config value";
                 }
               }
             } else {
@@ -780,13 +767,13 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config, 
 
                 if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key, value, true, "/eos/*/mgm")) {
                   ret_c = EIO;
-                  std_err.str("error: cannot set space config value");
+                  std_err = "error: cannot set space config value";
                 } else {
-                  std_out.str("success: setting " + key + "=" + value);
+                  std_out = "success: setting " + key + "=" + value;
                 }
               } else {
                 ret_c = EINVAL;
-                std_err.str("error: value has to be a positiv number");
+                std_err = "error: value has to be a positiv number";
               }
             }
           }
@@ -810,12 +797,12 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config, 
           snprintf(ssize, sizeof(ssize) - 1, "%llu", size);
 
           if ((!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key, ssize, true, "/eos/*/mgm"))) {
-            std_err << "error: failed to set space parameter <" + key + ">\n";
+            std_err += "error: failed to set space parameter <" + key + ">\n";
             ret_c = EINVAL;
           }
         } else {
           if (key != "configstatus") {
-            std_err << "error: not an allowed parameter <" + key + ">\n";
+            std_err += "error: not an allowed parameter <" + key + ">\n";
             ret_c = EINVAL;
           }
         }
@@ -848,13 +835,13 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config, 
                 fs->SetLongLong(key.c_str(), eos::common::StringConversion::GetSizeFromString(value.c_str()));
                 FsView::gFsView.StoreFsConfig(fs);
               } else {
-                std_err << "error: not an allowed parameter <" + key + ">\n";
+                std_err += "error: not an allowed parameter <" + key + ">\n";
                 ret_c = EINVAL;
                 break;
               }
             }
           } else {
-            std_err << "error: cannot identify the filesystem by <" + config.mgmspace_name() + ">\n";
+            std_err += "error: cannot identify the filesystem by <" + config.mgmspace_name() + ">\n";
             ret_c = EINVAL;
           }
         }
@@ -864,12 +851,12 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config, 
       }
     } else {
       ret_c = EINVAL;
-      std_err.str("error: cannot find space <" + config.mgmspace_name() + ">");
+      std_err = "error: cannot find space <" + config.mgmspace_name() + ">";
     }
 
 
-  reply.set_std_out(std_out.str());
-  reply.set_std_err(std_err.str());
+  reply.set_std_out(std_out);
+  reply.set_std_err(std_err);
   reply.set_retc(ret_c);
 
 
@@ -971,16 +958,16 @@ void SpaceCmd::RmSubcmd(const eos::console::SpaceProto_RmProto& rm, eos::console
 //----------------------------------------------------------------------------
 void SpaceCmd::TrackerSubcmd(const eos::console::SpaceProto_TrackerProto& tracker, eos::console::ReplyProto& reply) {
 
-  std::ostringstream std_out;
+  std::string std_out;
 
   std::string tmp;
   gOFS->mReplicationTracker->Scan(2*86400, false, &tmp);
-  std_out << "# ------------------------------------------------------------------------------------\n";
-  std_out << tmp;
-  std_out << "# ------------------------------------------------------------------------------------\n";
+  std_out += "# ------------------------------------------------------------------------------------\n";
+  std_out += tmp;
+  std_out += "# ------------------------------------------------------------------------------------\n";
 
-  reply.set_std_out(std_out.str());
-  reply.set_retc(0);
+  reply.set_std_out(std_out);
+  reply.set_retc(SFS_OK);
 
 }
 
@@ -996,7 +983,7 @@ void SpaceCmd::InspectorSubcmd(const eos::console::SpaceProto_InspectorProto& in
   gOFS->mFileInspector->Dump(std_out, options);
 
   reply.set_std_out(std_out);
-  reply.set_retc(0);
+  reply.set_retc(SFS_OK);
 
 }
 

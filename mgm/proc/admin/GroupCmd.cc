@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// @file: GroupCmd.cc
-// @author: Fabio Luchetti - CERN
+// File: GroupCmd.cc
+// Author: Fabio Luchetti - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -37,18 +37,15 @@ GroupCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
   eos::console::GroupProto group = mReqProto.group();
+  eos::console::GroupProto::SubcmdCase subcmd = group.subcmd_case();
 
-  switch (mReqProto.group().subcmd_case()) {
-  case eos::console::GroupProto::kLs:
+  if (subcmd == eos::console::GroupProto::kLs) {
     LsSubcmd(group.ls(), reply);
-    break;
-  case eos::console::GroupProto::kRm:
+  } else if (subcmd == eos::console::GroupProto::kRm) {
     RmSubcmd(group.rm(), reply);
-    break;
-  case eos::console::GroupProto::kSet:
+  } else if (subcmd == eos::console::GroupProto::kSet) {
     SetSubcmd(group.set(), reply);
-    break;
-  default:
+  } else {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: not supported");
   }
@@ -170,7 +167,7 @@ GroupCmd::RmSubcmd(const eos::console::GroupProto_RmProto& rm,
   }
 
   std::string groupconfigname =
-    eos::common::GlobalConfig::QueuePrefixName
+    eos::common::GlobalConfig::gConfig.QueuePrefixName
     (FsGroup::sGetConfigQueuePrefix(), rm.group().c_str());
 
   if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash
@@ -216,12 +213,12 @@ GroupCmd::SetSubcmd(const eos::console::GroupProto_SetProto& set,
 
   eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
 
-  if (!FsView::gFsView.mGroupView.count(set.group())) {
+  if (!FsView::gFsView.mGroupView.count(set.group().c_str())) {
     reply.set_std_out(("info: creating group '" + set.group() + "'").c_str());
 
     if (!FsView::gFsView.RegisterGroup(set.group().c_str())) {
       std::string groupconfigname =
-        eos::common::GlobalConfig::QueuePrefixName
+        eos::common::GlobalConfig::gConfig.QueuePrefixName
         (gOFS->GroupConfigQueuePrefix.c_str(), set.group().c_str());
       reply.set_std_err(("error: cannot register group <" +
                          set.group() + ">").c_str());

@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// @file: SpaceCmd.hh
-// @author: Fabio Luchetti - CERN
+// File: SpaceCmd.hh
+// Author: Fabio Luchetti - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -48,7 +48,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~SpaceCmd() override = default;
+  virtual ~SpaceCmd() = default;
 
   //----------------------------------------------------------------------------
   //! Method implementing the specific behaviour of the command executed by the
@@ -73,7 +73,7 @@ private:
   //! @param tracker tracker subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  static void TrackerSubcmd(const eos::console::SpaceProto_TrackerProto& tracker,
+  void TrackerSubcmd(const eos::console::SpaceProto_TrackerProto& tracker,
                 eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
@@ -118,7 +118,7 @@ private:
   //! @param reset reset subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  static void ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
+  void ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
                 eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
@@ -163,7 +163,7 @@ private:
   //! @param inspector inspector subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  static void InspectorSubcmd(const eos::console::SpaceProto_InspectorProto& inspector,
+  void InspectorSubcmd(const eos::console::SpaceProto_InspectorProto& inspector,
                 eos::console::ReplyProto& reply);
 
 

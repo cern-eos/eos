@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// @file: IoCmd.hh
-// @author: Fabio Luchetti - CERN
+// File: IoCmd.hh
+// Author: Fabio Luchetti - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -48,7 +48,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~IoCmd() override = default;
+  virtual ~IoCmd() = default;
 
   //----------------------------------------------------------------------------
   //! Method implementing the specific behaviour of the command executed by the
@@ -72,7 +72,7 @@ private:
   //! @param enable enable subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  static void EnableSubcmd(const eos::console::IoProto_EnableProto& enable,
+  void EnableSubcmd(const eos::console::IoProto_EnableProto& enable,
                     eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
