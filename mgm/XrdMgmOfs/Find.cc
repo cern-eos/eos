@@ -225,7 +225,7 @@ _clone(std::shared_ptr<eos::IContainerMD> cmd, XrdOucErrInfo& out_error,
     if (! _cloneMD(cloneMd, cFlag, (cFlag == '+') ? newId : cloneId))
         return SFS_ERROR;
 
-    /* The eosViewRWMutex lock is expicitely grabbed (for '+') only at the "root" level of the tree and
+    /* The eosViewRWMutex lock is explicitly grabbed (for '+') only at the "root" level of the tree and
      * "quickly" released and re-grabbed at each directory in lower levels. Hence at deeper
      * recursion levels the lock is already held on entry */
     if (cFlag == '+') rwlock.Grab(gOFS->eosViewRWMutex);
@@ -278,9 +278,9 @@ _clone(std::shared_ptr<eos::IContainerMD> cmd, XrdOucErrInfo& out_error,
             eos::common::FileId::fileid_t clFid = eos::common::FileId::Hex2Fid(hex_fid.c_str());
             try {
               std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->getFileMD(clFid);
-              int rc = gOFS->_rem(gOFS->eosView->getUri(gmd.get()).c_str(), out_error, rootvid, "", false, true, true, true);
+              gOFS->_rem(gOFS->eosView->getUri(gmd.get()).c_str(), out_error, rootvid, "", false, true, true, true);
             } catch (eos::MDException& e) {
-              eos_static_info("msg=\"exception\" ec=%d Fid %#lx emsg=\"%s\"\n", e.getErrno(), clFid, e.getMessage().str().c_str());
+              eos_static_info("msg=\"exception\" ec=%d fid=%#lx emsg=\"%s\"\n", e.getErrno(), clFid, e.getMessage().str().c_str());
             }
           }
           continue;
@@ -355,7 +355,7 @@ _clone(std::shared_ptr<eos::IContainerMD> cmd, XrdOucErrInfo& out_error,
           }
         }
         for (auto it = files2zap.begin(); it != files2zap.end(); it++) {
-          eos_static_info("zapping file %s in %s", it->c_str(), ccmd->getName());
+          eos_static_info("zapping file %s in %s", it->c_str(), ccmd->getName().c_str());
           ccmd->removeFile(*it);
         }
         ctrs2remove.push_back(gOFS->eosView->getUri(ccmd.get()));
