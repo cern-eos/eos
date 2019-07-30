@@ -411,7 +411,14 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
     eos_static_info("creating path=%s id=%lx", it.path().c_str(), it.id());
 
     try {
-      newfile = gOFS->eosView->createFile(it.path(), it.uid(), it.gid(), it.id());
+      try {
+        newfile = gOFS->eosView->createFile(it.path(), it.uid(), it.gid(), it.id());
+      } catch (eos::MDException& e) {
+        std::ostringstream msg;
+        msg << "Failed to call gOFS->eosView->createFile(): " << e.getMessage().str();
+        e.getMessage().str(msg.str());
+        throw e;
+      }
       eos::IFileMD::ctime_t ctime;
       eos::IFileMD::ctime_t mtime;
       ctime.tv_sec  = it.ctime().sec();
@@ -436,7 +443,15 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
         newfile->addLocation(locit);
       }
 
-      gOFS->eosView->updateFileStore(newfile.get());
+      try {
+        gOFS->eosView->updateFileStore(newfile.get());
+      } catch (eos::MDException& e) {
+        std::ostringstream msg;
+        msg << "Failed to call gOFS->eosView->updateFileStore(): " << e.getMessage().str();
+        e.getMessage().str(msg.str());
+        throw e;
+      }
+
       reply->add_retc(0);
     } catch (eos::MDException& e) {
       eos_static_err("msg=\"exception\" ec=%d emsg=\"%s\" path=\"%s\" fxid=%08llx\n",
@@ -489,7 +504,14 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
     eos_static_info("creating path=%s id=%lx", it.path().c_str(), it.id());
 
     try {
-      newdir = gOFS->eosView->createContainer(it.path(), false, it.id());
+      try {
+        newdir = gOFS->eosView->createContainer(it.path(), false, it.id());
+      } catch (eos::MDException& e) {
+        std::ostringstream msg;
+        msg << "Failed to call gOFS->eosView->createContainer(): " << e.getMessage().str();
+        e.getMessage().str(msg.str());
+        throw e;
+      }
       eos::IContainerMD::ctime_t ctime;
       eos::IContainerMD::ctime_t mtime;
       eos::IContainerMD::ctime_t stime;
@@ -512,7 +534,14 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
         newdir->setAttribute(attrit.first, attrit.second);
       }
 
-      gOFS->eosView->updateContainerStore(newdir.get());
+      try {
+        gOFS->eosView->updateContainerStore(newdir.get());
+      } catch (eos::MDException& e) {
+        std::ostringstream msg;
+        msg << "Failed to call gOFS->eosView->updateContainerStore(): " << e.getMessage().str();
+        e.getMessage().str(msg.str());
+        throw e;
+      }
       reply->add_retc(0);
     } catch (eos::MDException& e) {
       eos_static_err("msg=\"exception\" ec=%d emsg=\"%s\" path=\"%s\" fxid=%08llx\n",
