@@ -23,22 +23,23 @@
 
 install(DIRECTORY DESTINATION /var/eos)
 install(DIRECTORY DESTINATION /var/log/eos)
-install(DIRECTORY DESTINATION /var/log/eos/archive/)
+install(DIRECTORY DESTINATION /var/log/eos/archive)
 install(DIRECTORY DESTINATION /var/log/eos/fuse)
 install(DIRECTORY DESTINATION /var/log/eos/fusex)
 install(DIRECTORY DESTINATION /var/cache/eos)
 install(DIRECTORY DESTINATION /var/cache/eos/fusex)
 install(DIRECTORY DESTINATION /var/www/eos/cgi-bin)
-install(DIRECTORY DESTINATION /var/log/eos/httpd/)
+install(DIRECTORY DESTINATION /var/log/eos/httpd)
 install(DIRECTORY DESTINATION /var/log/eos/tx)
 install(DIRECTORY DESTINATION /var/share/eos)
 install(DIRECTORY DESTINATION /var/run/eosd)
 install(DIRECTORY DESTINATION /var/run/eosd/credentials)
 install(DIRECTORY DESTINATION /var/run/eosd/credentials/store)
-install(DIRECTORY DESTINATION /var/eos/archive/)
-install(DIRECTORY DESTINATION /var/eos/wfe/)
-install(DIRECTORY DESTINATION /var/eos/wfe/bash/)
-install(DIRECTORY DESTINATION /var/eos/ns-queue/)
+install(DIRECTORY DESTINATION /var/eos/archive)
+install(DIRECTORY DESTINATION /var/eos/html)
+install(DIRECTORY DESTINATION /var/eos/wfe)
+install(DIRECTORY DESTINATION /var/eos/wfe/bash)
+install(DIRECTORY DESTINATION /var/eos/ns-queue)
 install(DIRECTORY DESTINATION /var/eos/ns-queue/default)
 
 if( MacOSX )
@@ -47,14 +48,14 @@ else()
   install(DIRECTORY DESTINATION /usr/lib/tmpfiles.d/)
 endif()
 
-install(SCRIPT chown.cmake)
-
-install(FILES
-  eos/wfe/bash/shell
-  DESTINATION /var/eos/wfe/bash/
-  PERMISSIONS OWNER_READ OWNER_EXECUTE
-	      GROUP_READ GROUP_EXECUTE
-	      WORLD_READ WORLD_EXECUTE SETUID)
+install(
+  CODE "FILE ( INSTALL ${CMAKE_CURRENT_SOURCE_DIR}/eos/wfe/bash/shell
+               DESTINATION /var/eos/wfe/bash
+               PERMISSIONS OWNER_READ OWNER_EXECUTE
+                      GROUP_READ GROUP_EXECUTE
+                      WORLD_READ WORLD_EXECUTE )"
+  SCRIPT chown.cmake
+)
 
 install(FILES
   eos/html/error.html
