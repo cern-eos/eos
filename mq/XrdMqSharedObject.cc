@@ -2769,8 +2769,9 @@ XrdMqSharedObjectManager::ParseEnvMessage(XrdMqMessage* message,
   int envlen;
 
   if (sDebug) {
+    char* senv = env.Env(envlen);
     fprintf(stderr, "XrdMqSharedObjectManager::ParseEnvMessage=> size=%d text=%s\n",
-            envlen, env.Env(envlen));
+            envlen, senv);
   }
 
   if (env.Get(XRDMQSHAREDHASH_SUBJECT)) {
