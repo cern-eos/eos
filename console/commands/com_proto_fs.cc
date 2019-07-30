@@ -135,7 +135,12 @@ void com_fs_help()
       << "      of all stored files every <seconds>. 0 disables scanning"
       << std::endl
       << "    scanrate=<MB/s>" << std::endl
-      << "      configure the maximum scan rate"
+      << "      maximum IO scan rate"
+      << std::endl
+      << "    scanratens=<entries/s>" << std::endl
+      << "      maximum scan rate of ns entries for the NS consistency. This"
+      << std::endl
+      << "      is bound by the maxium number of IOPS per disk."
       << std::endl
       << "    graceperiod=<seconds>" << std::endl
       << "      grace period before a filesystem with an operation error gets"

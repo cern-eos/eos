@@ -106,7 +106,7 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
   mRateBandwidth(ratebandwidth), mNumScannedFiles(0), mNumCorruptedFiles(0),
   mNumHWCorruptedFiles(0),  mTotalScanSize(0), mNumTotalFiles(0),
   mNumSkippedFiles(0), mBuffer(nullptr),
-  mBufferSize(0), mBgThread(bgthread), mClock(fake_clock)
+  mBufferSize(0), mBgThread(bgthread), mClock(fake_clock), mRateLimit(nullptr)
 {
   long alignment = pathconf((mDirPath[0] != '/') ? "/" : mDirPath.c_str(),
                               _PC_REC_XFER_ALIGN);
@@ -129,6 +129,8 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
     openlog("scandir", LOG_PID | LOG_NDELAY, LOG_USER);
     mDiskThread.reset(&ScanDir::RunDiskScan, this);
 #ifndef _NOOFS
+    mRateLimit.reset(new eos::common::RequestRateLimit());
+    mRateLimit->SetRatePerSecond(sDefaultNsScanRate);
     mNsThread.reset(&ScanDir::RunNsScan, this);
 #endif
   }
@@ -167,6 +169,8 @@ ScanDir::SetConfig(const std::string& key, long long value)
     mRerunIntervalSec = value;
     mDiskThread.join();
     mDiskThread.reset(&ScanDir::RunDiskScan, this);
+  } else if (key == eos::common::SCAN_RATE_NS_NAME) {
+    mRateLimit->SetRatePerSecond(value);
   }
 }
 
@@ -209,7 +213,6 @@ ScanDir:: AccountMissing()
   using eos::common::FileId;
   struct stat info;
   auto fids = CollectNsFids(eos::fsview::sFilesSuffix);
-  (void) fids;
 
   while (!fids.empty()) {
     // Tag any missing replicas
@@ -229,8 +232,23 @@ ScanDir:: AccountMissing()
       gFmdDbMapHandler.Commit(fmd.get());
     }
 
-    // @todo(esindril) implement rate limiter for the entire FST
+    // Rate limit enforced for the current disk
+    mRateLimit->Allow();
   }
+}
+
+//------------------------------------------------------------------------------
+// Check if file is unlinked from the namespace and in the process of being
+// deleted from the disk. Files that are unlinked for more than 30 min
+// definetely have a problem and we don't account them as in the process of
+// being deleted.
+//------------------------------------------------------------------------------
+bool
+ScanDir::IsFileBeingDeleted(eos::IFileMD::id_t fid)
+{
+  // auto file_fut = eos::MetadataFetcher.getFileFromId(mFsckQcl.get(),
+  //                                                    eos::FileIdentifier(fid));
+  return false;
 }
 
 

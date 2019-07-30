@@ -1198,7 +1198,8 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
   fs.mDiskRopen = (long) hash.getLongLong("stat.ropen");
   fs.mDiskWopen = (long) hash.getLongLong("stat.wopen");
   fs.mScanRate =  (long) hash->getLongLong(eos::common::SCAN_RATE_NAME);
-  fs.mScanInterval = (long) hash->getLongLong(eos::common::SCAN_INTERVAL_NAME);
+  fs.mScanRate =  (long) hash->getLongLong(eos::common::SCAN_RATE_NS_NAME);
+  fs.mScanInterval =  (long) hash->getLongLong(eos::common::SCAN_INTERVAL_NAME);
   fs.mScanRerunInterval = (long) hash->getLongLong(eos::common::SCAN_RERUNINTERVAL_NAME);
   fs.mGracePeriod = (time_t) hash.getLongLong("graceperiod");
   fs.mDrainPeriod = (time_t) hash.getLongLong("drainperiod");

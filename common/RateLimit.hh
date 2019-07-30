@@ -74,7 +74,7 @@ public:
   //!
   //! @return microseconds that the current thread was delayed
   //----------------------------------------------------------------------------
-  virtual uint64_t Allow(uint64_t permits) = 0;
+  virtual uint64_t Allow(uint64_t permits = 1) = 0;
 
   //----------------------------------------------------------------------------
   //! Get clock reference for testing purposes

@@ -70,7 +70,6 @@ NodeCmd::ProcessRequest() noexcept
   }
 
   return reply;
-
 }
 
 //------------------------------------------------------------------------------
@@ -112,9 +111,9 @@ void NodeCmd::LsSubcmd(const eos::console::NodeProto_LsProto& ls,
       format = FsView::GetNodeFormat("fsck");
       break;
 
-    default : // NONE
-      format = FsView::GetNodeFormat("");
-      break;
+  default : // NONE
+    format = FsView::GetNodeFormat("");
+    break;
   }
 
   if (!ls.outhost()) {
@@ -143,8 +142,9 @@ void NodeCmd::LsSubcmd(const eos::console::NodeProto_LsProto& ls,
 //------------------------------------------------------------------------------
 // Execute rm subcommand
 //------------------------------------------------------------------------------
-void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm, eos::console::ReplyProto& reply) {
-
+void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm,
+                       eos::console::ReplyProto& reply)
+{
   if (mVid.uid != 0 && mVid.prot != "sss") {
     reply.set_std_err("error: you have to take role 'root' to execute this command");
     reply.set_retc(EPERM);
@@ -162,6 +162,7 @@ void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm, eos::console::
   if ((nodename.find(':') == std::string::npos)) {
     nodename += ":1095"; // default eos fst port
   }
+
   if ((nodename.find("/eos/") == std::string::npos)) {
     nodename.insert(0, "/eos/");
     nodename.append("/fst");
@@ -183,12 +184,15 @@ void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm, eos::console::
   }
 
   // Remove a node only if all filesystems are in empty state
-  for (auto it = FsView::gFsView.mNodeView[nodename]->begin(); it != FsView::gFsView.mNodeView[nodename]->end(); ++it) {
+  for (auto it = FsView::gFsView.mNodeView[nodename]->begin();
+       it != FsView::gFsView.mNodeView[nodename]->end(); ++it) {
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
+
     if (fs) {
       // check the empty state
       if ((fs->GetConfigStatus(false) != eos::common::ConfigStatus::kEmpty)) {
-        reply.set_std_err("error: unable to remove node '" + nodename + "' - filesystems are not all in empty state - try to drain them or: node config <name> configstatus=empty\n");
+        reply.set_std_err("error: unable to remove node '" + nodename +
+                          "' - filesystems are not all in empty state - try to drain them or: node config <name> configstatus=empty\n");
         reply.set_retc(EBUSY);
         return;
       }
@@ -197,7 +201,8 @@ void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm, eos::console::
 
   std::string nodeconfigname = common::SharedHashLocator::makeForNode(nodename).getConfigQueue();
 
-  if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(nodeconfigname.c_str())) {
+  if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(
+        nodeconfigname.c_str())) {
     reply.set_std_err("error: unable to remove config of node '" + nodename + "'");
     reply.set_retc(EIO);
   } else {
@@ -213,76 +218,78 @@ void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm, eos::console::
            nodeconfigname.c_str());
   gOFS->ConfEngine->DeleteConfigValueByMatch("global", nodeconfigname.c_str());
   gOFS->ConfEngine->AutoSave();
-
-
 }
 
 //------------------------------------------------------------------------------
 // Execute status subcommand
 //------------------------------------------------------------------------------
-void NodeCmd::StatusSubcmd(const eos::console::NodeProto_StatusProto& status, eos::console::ReplyProto& reply) {
-
+void NodeCmd::StatusSubcmd(const eos::console::NodeProto_StatusProto& status,
+                           eos::console::ReplyProto& reply)
+{
   std::string nodename = status.node();
 
   if ((nodename.find(':') == std::string::npos)) {
     nodename += ":1095"; // default eos fst port
   }
+
   if ((nodename.find("/eos/") == std::string::npos)) {
     nodename.insert(0, "/eos/");
     nodename.append("/fst");
   }
 
   if (!FsView::gFsView.mNodeView.count(nodename)) {
-    reply.set_std_err("error: cannot find node - no node with name '" + nodename + "'");
+    reply.set_std_err("error: cannot find node - no node with name '" + nodename +
+                      "'");
     reply.set_retc(ENOENT);
     return;
   }
 
   eos::common::RWMutexWriteLock wr_lock(FsView::gFsView.ViewMutex);
-
   std::string std_out;
   std::vector<std::string> keylist;
-
-  std_out += "# ------------------------------------------------------------------------------------\n";
+  std_out +=
+    "# ------------------------------------------------------------------------------------\n";
   std_out += "# Node Variables\n";
-  std_out += "# ....................................................................................\n";
-
-
+  std_out +=
+    "# ....................................................................................\n";
   FsView::gFsView.mNodeView[nodename]->GetConfigKeys(keylist);
   std::sort(keylist.begin(), keylist.end());
 
-  for (auto & i : keylist) {
+  for (auto& i : keylist) {
     char line[2048];
     std::string val = FsView::gFsView.mNodeView[nodename]->GetConfigMember(i);
 
     if (val.substr(0, 7) == "base64:") {
       val = "base64:...";
     }
+
     if (val.length() > 1024) {
       val = "...";
     }
+
     snprintf(line, sizeof(line) - 1, "%-32s := %s\n", i.c_str(), val.c_str());
     std_out += line;
   }
+
   reply.set_std_out(std_out);
   reply.set_retc(0);
-
 }
 
 //------------------------------------------------------------------------------
 // Execute config subcommand
 //------------------------------------------------------------------------------
-void NodeCmd::ConfigSubcmd(const eos::console::NodeProto_ConfigProto& config, eos::console::ReplyProto& reply) {
-
+void NodeCmd::ConfigSubcmd(const eos::console::NodeProto_ConfigProto& config,
+                           eos::console::ReplyProto& reply)
+{
   if (mVid.uid != 0 && mVid.prot != "sss") {
     reply.set_std_err("error: you have to take role 'root' to execute this command");
     reply.set_retc(EPERM);
     return;
   }
 
-  if ( !config.node_name().length() ||
-       !config.node_key().length() ||
-       !config.node_value().length() ) {
+  if (!config.node_name().length() ||
+      !config.node_key().length() ||
+      !config.node_value().length()) {
     reply.set_std_err("error: invalid parameters");
     reply.set_retc(EINVAL);
     return;
@@ -294,7 +301,7 @@ void NodeCmd::ConfigSubcmd(const eos::console::NodeProto_ConfigProto& config, eo
 
   if ((config.node_name().find('*') != std::string::npos)) {
     // apply this to all nodes !
-    for (auto & it : FsView::gFsView.mNodeView) {
+    for (auto& it : FsView::gFsView.mNodeView) {
       nodes.push_back(it.second);
     }
   } else {
@@ -321,7 +328,7 @@ void NodeCmd::ConfigSubcmd(const eos::console::NodeProto_ConfigProto& config, eo
     return;
   }
 
-  for (auto & node : nodes) {
+  for (auto& node : nodes) {
     if (config.node_key() == "configstatus") {
       for (eos::common::FileSystem::fsid_t it : *node) {
         fs = FsView::gFsView.mIdView.lookupByID(it);
@@ -329,7 +336,7 @@ void NodeCmd::ConfigSubcmd(const eos::console::NodeProto_ConfigProto& config, eo
         if (fs) {
           // Check the allowed strings
           if ((eos::common::FileSystem::GetConfigStatusFromString(
-                  config.node_value().c_str()) != eos::common::ConfigStatus::kUnknown)) {
+                 config.node_value().c_str()) != eos::common::ConfigStatus::kUnknown)) {
             fs->SetString(config.node_key().c_str(), config.node_value().c_str());
 
             if (config.node_value() == "off") {
@@ -340,33 +347,32 @@ void NodeCmd::ConfigSubcmd(const eos::console::NodeProto_ConfigProto& config, eo
 
             FsView::gFsView.StoreFsConfig(fs);
           } else {
-            reply.set_std_err("error: not an allowed parameter <" + config.node_key() + ">\n");
+            reply.set_std_err("error: not an allowed parameter <" + config.node_key() +
+                              ">\n");
             reply.set_retc(EINVAL);
           }
         } else {
-          reply.set_std_err("error: cannot identify the filesystem by <" + config.node_name() + ">\n");
+          reply.set_std_err("error: cannot identify the filesystem by <" +
+                            config.node_name() + ">\n");
           reply.set_retc(EINVAL);
         }
       }
-
     } else if (config.node_key() == "gw.ntx") {
       int slots = std::stoi(config.node_value());
-
 
       if ((slots < 1) || (slots > 100)) {
         reply.set_std_err("error: number of gateway transfer slots must be between 1-100\n");
         reply.set_retc(EINVAL);
       } else {
         if (node->SetConfigMember(config.node_key(), config.node_value(), false)) {
-          reply.set_std_out("success: number of gateway transfer slots set to gw.ntx=" + std::to_string(slots) + "\n");
+          reply.set_std_out("success: number of gateway transfer slots set to gw.ntx=" +
+                            std::to_string(slots) + "\n");
         } else {
           reply.set_std_err("error: failed to store the config value gw.ntx\n");
           reply.set_retc(EFAULT);
         }
       }
-
     } else if (config.node_key() == "gw.rate") {
-
       int bw = std::stoi(config.node_value());
 
       if ((bw < 1) || (bw > 10000)) {
@@ -374,63 +380,59 @@ void NodeCmd::ConfigSubcmd(const eos::console::NodeProto_ConfigProto& config, eo
         reply.set_retc(EINVAL);
       } else {
         if (node->SetConfigMember(config.node_key(), config.node_value(), false)) {
-          reply.set_std_out("success: gateway transfer rate set to gw.rate=" + std::to_string(bw) + " Mb/s\n");
+          reply.set_std_out("success: gateway transfer rate set to gw.rate=" +
+                            std::to_string(bw) + " Mb/s\n");
         } else {
           reply.set_std_err("error: failed to store the config value gw.rate\n");
           reply.set_retc(EFAULT);
         }
       }
-
     } else if (config.node_key() == "error.simulation") {
-
       if (node->SetConfigMember(config.node_key(), config.node_value(), false)) {
-        reply.set_std_out("success: setting error simulation tag '" + config.node_value() += "'\n");
+        reply.set_std_out("success: setting error simulation tag '" +
+                          config.node_value() += "'\n");
       } else {
         reply.set_std_err("error: failed to store the error simulation tag\n");
         reply.set_retc(EFAULT);
       }
-
     } else if (config.node_key() == "publish.interval") {
-
       if (node->SetConfigMember(config.node_key(), config.node_value(), false)) {
-        reply.set_std_out("success: setting publish interval to '" + config.node_value() + "'\n");
+        reply.set_std_out("success: setting publish interval to '" + config.node_value()
+                          + "'\n");
       } else {
         reply.set_std_err("error: failed to store publish interval\n");
         reply.set_retc(EFAULT);
       }
-
     } else if (config.node_key() == "debug.level") {
-
       if (node->SetConfigMember(config.node_key(), config.node_value(), false)) {
-        reply.set_std_out("success: setting debug level to '" + config.node_value() + "'\n");
+        reply.set_std_out("success: setting debug level to '" + config.node_value() +
+                          "'\n");
       } else {
         reply.set_std_err("error: failed to store debug level interval\n");
         reply.set_retc(EFAULT);
       }
-
     } else {
       reply.set_std_err("error: the specified key is not known - consult the usage information of the command\n");
       reply.set_retc(EINVAL);
     }
-
   }
-
 }
 
 //------------------------------------------------------------------------------
 // Execute register subcommand
 //------------------------------------------------------------------------------
-void NodeCmd::RegisterSubcmd(const eos::console::NodeProto_RegisterProto& registerx, eos::console::ReplyProto& reply) {
-
+void NodeCmd::RegisterSubcmd(const eos::console::NodeProto_RegisterProto&
+                             registerx, eos::console::ReplyProto& reply)
+{
   if (mVid.uid != 0 && mVid.prot != "sss") {
     reply.set_std_err("error: you have to take role 'root' to execute this command");
     reply.set_retc(EPERM);
     return;
   }
 
-  if ( !registerx.node_name().length() ||
-       !registerx.node_path2register().length() ||
-       !registerx.node_space2register().length() ) {
+  if (!registerx.node_name().length() ||
+      !registerx.node_path2register().length() ||
+      !registerx.node_space2register().length()) {
     reply.set_std_err("error: invalid parameters");
     reply.set_retc(EINVAL);
     return;
@@ -440,13 +442,16 @@ void NodeCmd::RegisterSubcmd(const eos::console::NodeProto_RegisterProto& regist
   std::string msgbody = eos::common::FileSystem::GetRegisterRequestString();
   msgbody += "&mgm.path2register=" + registerx.node_path2register();
   msgbody += "&mgm.space2register=" + registerx.node_space2register();
-  if (registerx.node_force())
+
+  if (registerx.node_force()) {
     msgbody += "&mgm.force=true";
-  if (registerx.node_root())
+  }
+
+  if (registerx.node_root()) {
     msgbody += "&mgm.root=true";
+  }
 
   message.SetBody(msgbody.c_str());
-
   std::string nodequeue = "/eos/" + registerx.node_name() + "/fst";
 
   if (XrdMqMessaging::gMessageClient.SendMessage(message, nodequeue.c_str())) {
@@ -456,14 +461,14 @@ void NodeCmd::RegisterSubcmd(const eos::console::NodeProto_RegisterProto& regist
     reply.set_std_err("error: could not send global fst register message!");
     reply.set_retc(EIO);
   }
-
 }
 
 //------------------------------------------------------------------------------
 // Execute set subcommand
 //------------------------------------------------------------------------------
-void NodeCmd::SetSubcmd(const eos::console::NodeProto_SetProto& set, eos::console::ReplyProto& reply) {
-
+void NodeCmd::SetSubcmd(const eos::console::NodeProto_SetProto& set,
+                        eos::console::ReplyProto& reply)
+{
   std::string nodename = set.node();
   const std::string& status = set.node_state_switch();
   std::string key = "status";
@@ -477,6 +482,7 @@ void NodeCmd::SetSubcmd(const eos::console::NodeProto_SetProto& set, eos::consol
   if ((nodename.find(':') == std::string::npos)) {
     nodename += ":1095"; // default eos fst port
   }
+
   if ((nodename.find("/eos/") == std::string::npos)) {
     nodename.insert(0, "/eos/");
     nodename.append("/fst");
@@ -487,40 +493,47 @@ void NodeCmd::SetSubcmd(const eos::console::NodeProto_SetProto& set, eos::consol
   {
     // for sss + node identification
     rnodename.erase(0, 5);
-
     size_t dpos;
-    if ((dpos = rnodename.find(':')) != std::string::npos)
+
+    if ((dpos = rnodename.find(':')) != std::string::npos) {
       rnodename.erase(dpos);
-    if ((dpos = rnodename.find('.')) != std::string::npos)
+    }
+
+    if ((dpos = rnodename.find('.')) != std::string::npos) {
       rnodename.erase(dpos);
+    }
 
     size_t addpos = 0;
-    if ((addpos = tident.find('@')) != std::string::npos)
+
+    if ((addpos = tident.find('@')) != std::string::npos) {
       tident.erase(0, addpos + 1);
+    }
   }
-
   eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
-
   // If EOS_SKIP_SSS_HOSTNAME_MATCH env variable is set then we skip
   // the check below as this currently breaks the Kubernetes setup.
   bool skip_hostname_match = getenv("EOS_SKIP_SSS_HOSTNAME_MATCH") ? true : false;
 
-  if ( mVid.uid == 0 || mVid.prot == "sss" ) {
-    if ( mVid.uid != 0 && mVid.prot == "sss" ) {
-      if (!skip_hostname_match && tident.compare(0, tident.length(), rnodename, 0, tident.length())) {
-        reply.set_std_err("error: nodes can only be configured as 'root' or by connecting from the node itself using the sss protocol(1)\n");
+  if (mVid.uid == 0 || mVid.prot == "sss") {
+    if (mVid.uid != 0 && mVid.prot == "sss") {
+      if (!skip_hostname_match &&
+          tident.compare(0, tident.length(), rnodename, 0, tident.length())) {
+        reply.set_std_err("error: nodes can only be configured as 'root' or by "
+                          "connecting from the node itself using the sss protocol(1)\n");
         reply.set_retc(EPERM);
         return;
       }
     }
   } else {
-    reply.set_std_err("error: nodes can only be configured as 'root' or by connecting from the node itself using the sss protocol(2)\n");
+    reply.set_std_err("error: nodes can only be configured as 'root' or by "
+                      "connecting from the node itself using the sss protocol(2)\n");
     reply.set_retc(EPERM);
     return;
   }
 
   if (!FsView::gFsView.mNodeView.count(nodename)) {
     reply.set_std_out("info: creating node '" + nodename + "'");
+
     // reply.set_std_err("error: no such node '" + nodename + "'");
     // reply.set_retc(ENOENT);
     if (!FsView::gFsView.RegisterNode(nodename.c_str())) {
@@ -530,27 +543,36 @@ void NodeCmd::SetSubcmd(const eos::console::NodeProto_SetProto& set, eos::consol
     }
   }
 
+<<<<<<< HEAD
   if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status)) {
+=======
+  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status, true,
+      nodename)) {
+>>>>>>> ALL: Add "scanratens" parameter to the fs config command which controls the maximum
     reply.set_std_err("error: cannot set node config value");
     reply.set_retc(EIO);
     return;
   }
 
   // set also the manager name
+<<<<<<< HEAD
   if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager", gOFS->mMaster->GetMasterId(), true)) {
+=======
+  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager",
+      gOFS->mMaster->GetMasterId(), true, nodename, true)) {
+>>>>>>> ALL: Add "scanratens" parameter to the fs config command which controls the maximum
     reply.set_std_err("error: cannot set the manager name");
     reply.set_retc(EIO);
     return;
   }
-
-
 }
 
 //------------------------------------------------------------------------------
 // Execute txgw subcommand
 //------------------------------------------------------------------------------
-void NodeCmd::TxgwSubcmd(const eos::console::NodeProto_TxgwProto& txgw, eos::console::ReplyProto& reply){
-
+void NodeCmd::TxgwSubcmd(const eos::console::NodeProto_TxgwProto& txgw,
+                         eos::console::ReplyProto& reply)
+{
   std::string nodename = txgw.node();
   const std::string& status = txgw.node_txgw_switch();
   std::string key = "txgw";
@@ -564,6 +586,7 @@ void NodeCmd::TxgwSubcmd(const eos::console::NodeProto_TxgwProto& txgw, eos::con
   if ((nodename.find(':') == std::string::npos)) {
     nodename += ":1095"; // default eos fst port
   }
+
   if ((nodename.find("/eos/") == std::string::npos)) {
     nodename.insert(0, "/eos/");
     nodename.append("/fst");
@@ -574,27 +597,32 @@ void NodeCmd::TxgwSubcmd(const eos::console::NodeProto_TxgwProto& txgw, eos::con
   {
     // for sss + node identification
     rnodename.erase(0, 5);
-
     size_t dpos;
-    if ((dpos = rnodename.find(':')) != std::string::npos)
+
+    if ((dpos = rnodename.find(':')) != std::string::npos) {
       rnodename.erase(dpos);
-    if ((dpos = rnodename.find('.')) != std::string::npos)
+    }
+
+    if ((dpos = rnodename.find('.')) != std::string::npos) {
       rnodename.erase(dpos);
+    }
 
     size_t addpos = 0;
-    if ((addpos = tident.find('@')) != std::string::npos)
+
+    if ((addpos = tident.find('@')) != std::string::npos) {
       tident.erase(0, addpos + 1);
+    }
   }
-
   eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
-
   // If EOS_SKIP_SSS_HOSTNAME_MATCH env variable is set then we skip
   // the check below as this currently breaks the Kubernetes setup.
-  bool skip_hostname_match = (getenv("EOS_SKIP_SSS_HOSTNAME_MATCH")) ? true : false;
+  bool skip_hostname_match = (getenv("EOS_SKIP_SSS_HOSTNAME_MATCH")) ? true :
+                             false;
 
-  if ( mVid.uid == 0 || mVid.prot == "sss" ) {
-    if ( mVid.uid != 0 && mVid.prot == "sss" ) {
-      if (!skip_hostname_match && tident.compare(0, tident.length(), rnodename, 0, tident.length())) {
+  if (mVid.uid == 0 || mVid.prot == "sss") {
+    if (mVid.uid != 0 && mVid.prot == "sss") {
+      if (!skip_hostname_match &&
+          tident.compare(0, tident.length(), rnodename, 0, tident.length())) {
         reply.set_std_err("error: nodes can only be configured as 'root' or by connecting from the node itself using the sss protocol(1)\n");
         reply.set_retc(EPERM);
         return;
@@ -608,6 +636,7 @@ void NodeCmd::TxgwSubcmd(const eos::console::NodeProto_TxgwProto& txgw, eos::con
 
   if (!FsView::gFsView.mNodeView.count(nodename)) {
     reply.set_std_out("info: creating node '" + nodename + "'");
+
     // reply.set_std_err("error: no such node '" + nodename + "'");
     // reply.set_retc(ENOENT);
     if (!FsView::gFsView.RegisterNode(nodename.c_str())) {
@@ -617,34 +646,46 @@ void NodeCmd::TxgwSubcmd(const eos::console::NodeProto_TxgwProto& txgw, eos::con
     }
   }
 
+<<<<<<< HEAD
 
   if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status)) {
+=======
+  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status, true,
+      nodename)) {
+>>>>>>> ALL: Add "scanratens" parameter to the fs config command which controls the maximum
     reply.set_std_err("error: cannot set node config value");
     reply.set_retc(EIO);
     return;
   }
 
   // set also the manager name
+<<<<<<< HEAD
   if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager", gOFS->mMaster->GetMasterId(), true)) {
+=======
+  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager",
+      gOFS->mMaster->GetMasterId(), true, nodename, true)) {
+>>>>>>> ALL: Add "scanratens" parameter to the fs config command which controls the maximum
     reply.set_std_err("error: cannot set the manager name");
     reply.set_retc(EIO);
     return;
   }
-
 }
 
 //------------------------------------------------------------------------------
 // Execute proxygroup subcommand
 //------------------------------------------------------------------------------
-void NodeCmd::ProxygroupSubcmd(const eos::console::NodeProto_ProxygroupProto& proxygroup, eos::console::ReplyProto& reply){
-
+void NodeCmd::ProxygroupSubcmd(const eos::console::NodeProto_ProxygroupProto&
+                               proxygroup, eos::console::ReplyProto& reply)
+{
   std::string nodename = proxygroup.node();
-  std::string status = (proxygroup.node_proxygroup().length()) ? proxygroup.node_proxygroup(): "clear";
+  std::string status = (proxygroup.node_proxygroup().length()) ?
+                       proxygroup.node_proxygroup() : "clear";
   std::string key = "proxygroup";
-  eos::console::NodeProto_ProxygroupProto::Action action = proxygroup.node_action();
+  eos::console::NodeProto_ProxygroupProto::Action action =
+    proxygroup.node_action();
 
-
-  if (status.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890._-") != std::string::npos) {
+  if (status.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890._-")
+      != std::string::npos) {
     status.clear();
   }
 
@@ -657,6 +698,7 @@ void NodeCmd::ProxygroupSubcmd(const eos::console::NodeProto_ProxygroupProto& pr
   if ((nodename.find(':') == std::string::npos)) {
     nodename += ":1095"; // default eos fst port
   }
+
   if ((nodename.find("/eos/") == std::string::npos)) {
     nodename.insert(0, "/eos/");
     nodename.append("/fst");
@@ -667,27 +709,32 @@ void NodeCmd::ProxygroupSubcmd(const eos::console::NodeProto_ProxygroupProto& pr
   {
     // for sss + node identification
     rnodename.erase(0, 5);
-
     size_t dpos;
-    if ((dpos = rnodename.find(':')) != std::string::npos)
+
+    if ((dpos = rnodename.find(':')) != std::string::npos) {
       rnodename.erase(dpos);
-    if ((dpos = rnodename.find('.')) != std::string::npos)
+    }
+
+    if ((dpos = rnodename.find('.')) != std::string::npos) {
       rnodename.erase(dpos);
+    }
 
     size_t addpos = 0;
-    if ((addpos = tident.find('@')) != std::string::npos)
+
+    if ((addpos = tident.find('@')) != std::string::npos) {
       tident.erase(0, addpos + 1);
+    }
   }
-
   eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
-
   // If EOS_SKIP_SSS_HOSTNAME_MATCH env variable is set then we skip
   // the check below as this currently breaks the Kubernetes setup.
-  bool skip_hostname_match = (getenv("EOS_SKIP_SSS_HOSTNAME_MATCH")) ? true : false;
+  bool skip_hostname_match = (getenv("EOS_SKIP_SSS_HOSTNAME_MATCH")) ? true :
+                             false;
 
-  if ( mVid.uid == 0 || mVid.prot == "sss" ) {
-    if ( mVid.uid != 0 && mVid.prot == "sss" ) {
-      if (!skip_hostname_match && tident.compare(0, tident.length(), rnodename, 0, tident.length())) {
+  if (mVid.uid == 0 || mVid.prot == "sss") {
+    if (mVid.uid != 0 && mVid.prot == "sss") {
+      if (!skip_hostname_match &&
+          tident.compare(0, tident.length(), rnodename, 0, tident.length())) {
         reply.set_std_err("error: nodes can only be configured as 'root' or by connecting from the node itself using the sss protocol(1)\n");
         reply.set_retc(EPERM);
         return;
@@ -701,6 +748,7 @@ void NodeCmd::ProxygroupSubcmd(const eos::console::NodeProto_ProxygroupProto& pr
 
   if (!FsView::gFsView.mNodeView.count(nodename)) {
     reply.set_std_out("info: creating node '" + nodename + "'");
+
     // reply.set_std_err("error: no such node '" + nodename + "'");
     // reply.set_retc(ENOENT);
     if (!FsView::gFsView.RegisterNode(nodename.c_str())) {
@@ -711,7 +759,8 @@ void NodeCmd::ProxygroupSubcmd(const eos::console::NodeProto_ProxygroupProto& pr
   }
 
   // we need to take the previous version of groupproxys to update it
-  std::string proxygroups = FsView::gFsView.mNodeView[nodename]->GetConfigMember(key);
+  std::string proxygroups = FsView::gFsView.mNodeView[nodename]->GetConfigMember(
+                              key);
   eos_static_debug(" old proxygroups value %s", proxygroups.c_str());
   // find a previous occurence
   std::set<std::string> groups;
@@ -720,7 +769,8 @@ void NodeCmd::ProxygroupSubcmd(const eos::console::NodeProto_ProxygroupProto& pr
   if (!proxygroups.empty()) {
     do {
       pos2 = proxygroups.find(',', pos1);
-      groups.insert(proxygroups.substr(pos1, pos2 == std::string::npos ? std::string::npos : pos2 - pos1));
+      groups.insert(proxygroups.substr(pos1,
+                                       pos2 == std::string::npos ? std::string::npos : pos2 - pos1));
       pos1 = pos2;
 
       if (pos1 != std::string::npos) {
@@ -732,7 +782,6 @@ void NodeCmd::ProxygroupSubcmd(const eos::console::NodeProto_ProxygroupProto& pr
   if (action == eos::console::NodeProto_ProxygroupProto::CLEAR) {
     proxygroups = "";
   } else {
-
     if (action == eos::console::NodeProto_ProxygroupProto::ADD) {
       groups.insert(status);
     } else if (action == eos::console::NodeProto_ProxygroupProto::RM) {
@@ -741,7 +790,7 @@ void NodeCmd::ProxygroupSubcmd(const eos::console::NodeProto_ProxygroupProto& pr
 
     proxygroups.clear();
 
-    for (const auto & group : groups) {
+    for (const auto& group : groups) {
       proxygroups.append(group + ",");
     }
 
@@ -753,18 +802,27 @@ void NodeCmd::ProxygroupSubcmd(const eos::console::NodeProto_ProxygroupProto& pr
   eos_static_debug(" new proxygroups value %s", proxygroups.c_str());
   status = proxygroups;
 
+<<<<<<< HEAD
   if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status)) {
+=======
+  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status, true,
+      nodename)) {
+>>>>>>> ALL: Add "scanratens" parameter to the fs config command which controls the maximum
     reply.set_std_err("error: cannot set node config value");
     reply.set_retc(EIO);
     return;
   }
 
   // set also the manager name
+<<<<<<< HEAD
   if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager", gOFS->mMaster->GetMasterId(), true)) {
+=======
+  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager",
+      gOFS->mMaster->GetMasterId(), true, nodename, true)) {
+>>>>>>> ALL: Add "scanratens" parameter to the fs config command which controls the maximum
     reply.set_std_err("error: cannot set the manager name");
     reply.set_retc(EIO);
     return;
   }
-
 }
 EOSMGMNAMESPACE_END

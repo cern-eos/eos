@@ -46,9 +46,11 @@ Storage::getFSTConfigValue(const std::string &key, std::string &value) const {
 }
 
 bool
-Storage::getFSTConfigValue(const std::string &key, unsigned long long &value) {
+Storage::getFSTConfigValue(const std::string& key, unsigned long long& value)
+{
   std::string strVal;
-  if(!getFSTConfigValue(key, strVal)) {
+
+  if (!getFSTConfigValue(key, strVal)) {
     return false;
   }
 
@@ -126,6 +128,7 @@ Storage::processIncomingFstConfigurationChange(const std::string &key, const std
 
       g_logging.SetLogPriority(debugval);
     }
+
     return;
   }
 
@@ -228,6 +231,7 @@ Storage::processIncomingFsConfigurationChange(fst::FileSystem *targetFs, const s
     }
   } else {
     if ((key == eos::common::SCAN_RATE_NAME) ||
+        (key == eos::common::SCAN_RATE_NS_NAME) ||
         (key == eos::common::SCAN_INTERVAL_NAME) ||
         (key == eos::common::SCAN_RERUNINTERVAL_NAME)) {
       long long value = targetFs->GetLongLong(key.c_str());
@@ -278,6 +282,7 @@ Storage::Communicator(ThreadAssistant& assistant)
   std::string watch_id = "id";
   std::string watch_bootsenttime = "bootsenttime";
   std::string watch_scanrate = eos::common::SCAN_RATE_NAME;
+  std::string watch_scanrate_ns = eos::common::SCAN_RATE_NS_NAME;
   std::string watch_scaninterval = eos::common::SCAN_INTERVAL_NAME;
   std::string watch_scanreruninterval = eos::common::SCAN_RERUNINTERVAL_NAME;
   std::string watch_symkey = "symkey";
@@ -295,6 +300,8 @@ Storage::Communicator(ThreadAssistant& assistant)
   ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_bootsenttime,
         XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
   ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_scanrate,
+        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_scanrate_ns,
         XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
   ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_scaninterval,
         XrdMqSharedObjectChangeNotifier::kMqSubjectModification);

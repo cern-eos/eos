@@ -1151,6 +1151,7 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contact_details,
     return false;
   }
 
+  // @todo(esindril) use the qset iterator functionalit for scanning
   // Collect all file ids on the desired file system
   std::string cursor = "0";
   long long count = 250000;
