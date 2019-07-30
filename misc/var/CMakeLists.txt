@@ -59,9 +59,7 @@ install(FILES
 install(FILES
   eos/html/error.html
   DESTINATION /var/eos/html/
-  PERMISSIONS OWNER_READ OWNER_EXECUTE
-	      GROUP_READ GROUP_EXECUTE
-	      WORLD_READ WORLD_EXECUTE)
+  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
 
 install(FILES
   eos/test/fuse/untar/untar.tgz
