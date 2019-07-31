@@ -765,10 +765,10 @@ public:
   //--------------------------------------------------------------------------
   //! Get checksum type from string representation
   //--------------------------------------------------------------------------
-  static eChecksum
+  static int
   GetChecksumFromString(const std::string& checksum)
   {
-    if (checksum == "adler") {
+    if ((checksum == "adler") || (checksum == "adler32")) {
       return kAdler;
     } else if (checksum == "crc32") {
       return kCRC32;
@@ -776,7 +776,7 @@ public:
       return kCRC32C;
     } else if (checksum == "md5") {
       return kMD5;
-    } else if (checksum == "sha") {
+    } else if ((checksum == "sha") || (checksum == "sha1")) {
       return kSHA1;
     } else if (checksum == "crc64") {
       return kCRC64;
@@ -784,9 +784,11 @@ public:
       return kSHA256;
     } else if (checksum == "xxhash64") {
       return kXXHASH64;
-    } else {
+    } else if (checksum == "none") {
       return kNone;
     }
+
+    return -1;
   }
 
   //--------------------------------------------------------------------------
