@@ -646,8 +646,18 @@ FileSystem::fs_snapshot_t::fs_snapshot_t()
 // Fields which are not present in coreParams (ie mNetInRateMiB) remain
 // unchanged.
 //------------------------------------------------------------------------------
-void FileSystem::fs_snapshot_t::fillFromCoreParams(const FileSystemCoreParams &coreParams) {
-
+void FileSystem::fs_snapshot_t::fillFromCoreParams(const FileSystemCoreParams &coreParams)
+{
+  mId = coreParams.getId();
+  mQueue = coreParams.getFSTQueue();
+  mQueuePath = coreParams.getQueuePath();
+  mGroup = coreParams.getGroup();
+  mPath = coreParams.getLocator().getStoragePath();
+  mUuid = coreParams.getUuid();
+  mHost = coreParams.getHost();
+  mHostPort = coreParams.getHostPort();
+  mPort = coreParams.getLocator().getPort();
+  mConfigStatus = coreParams.getConfigStatus();
 }
 
 //------------------------------------------------------------------------------

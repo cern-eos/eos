@@ -352,6 +352,7 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs,
   }
 
   // update all the information about this new node
+  fsn.fillFromCoreParams(coreParams);
   if (!updateTreeInfo(mapEntry, &fsn, ~sfgGeotag & ~sfgId & ~sfgHost , 0, node)) {
     mapEntry->slowTreeMutex.UnLockWrite();
     pTreeMapMutex.LockRead();
