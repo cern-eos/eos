@@ -233,6 +233,22 @@ public:
     }
   }
 
+  //----------------------------------------------------------------------------
+  //! Return placement policy from string representation
+  //----------------------------------------------------------------------------
+  static int PlctPolicyFromString(const std::string& placement)
+  {
+    if (placement == "scattered") {
+      return kScattered;
+    } else if (placement == "hybrid") {
+      return kHybrid;
+    } else if (placement == "gathered") {
+      return kGathered;
+    }
+
+    return -1;
+  }
+
 protected:
 
   static XrdSysMutex pMapMutex; //< protect the following scheduling state maps
