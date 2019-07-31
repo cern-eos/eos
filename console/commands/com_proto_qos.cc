@@ -174,7 +174,15 @@ void com_qos_help()
   oss << "Usage: qos get <identifier> [<key>]        : get QoS property of item" << std::endl
       << "       qos set <identifier> <key>=<value>  : set QoS property of item" << std::endl
       << std::endl
-      << "Note: <identifier> = fid|fxid|path"
+      << "Note: <identifier> = fid|fxid|path" << std::endl
+      << "      Recognized `qos get` keys: all | cdmi | checksum | disksize | layout |" << std::endl
+      << "                                 id | path | placement | redundancy | size" << std::endl
+      << std::endl
+      << "      Allowed `qos set` properties:" << std::endl
+      << "          checksum  = none | adler32 | crc32 | crc32c | md5 | sha1" << std::endl
+      << "          layout    = plain | replica | raiddp | raid5 | raid6 | qrain | archive" << std::endl
+      << "          placement = gathered | hybrid | scattered" << std::endl
+      << "          replica   = integer between 1 - 16"
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }
