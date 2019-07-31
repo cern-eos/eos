@@ -182,7 +182,6 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
 
         for (auto it = FsView::gFsView.mNodeView[node]->begin();
              it != FsView::gFsView.mNodeView[node]->end(); ++it) {
-
           FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
 
           if (fs != nullptr) {
@@ -205,10 +204,9 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
 
       if (fsid) {
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-
         fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
-        if(!fs) {
+        if (!fs) {
           errStream << "error: cannot boot filesystem - no filesystem with fsid=";
           errStream << sfsid.c_str();
           mRetC = ENOENT;
@@ -505,9 +503,9 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
       if (FsView::gFsView.mNodeView.count(queue)) {
         for (auto it = FsView::gFsView.mNodeView[queue]->begin();
              it != FsView::gFsView.mNodeView[queue]->end(); ++it) {
+          FileSystem* fs = FsView::gFsView.mIdView.lookupByID(*it);
 
-          FileSystem *fs = FsView::gFsView.mIdView.lookupByID(*it);
-          if(fs && fs->GetPath() == mount) {
+          if (fs && fs->GetPath() == mount) {
             // this is the filesystem
             fsid = *it;
           }
@@ -527,7 +525,6 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
     const std::string dotted_line =
       "# ------------------------------------------------------------------------------------\n";
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
 
     if (fs) {
@@ -565,7 +562,7 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
           nfids = gOFS->eosFsView->getNumFilesOnFs(fsid);
 
           for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
-              (it_fid && it_fid->valid()); it_fid->next()) {
+               (it_fid && it_fid->valid()); it_fid->next()) {
             std::shared_ptr<eos::IFileMD> fmd =
               gOFS->eosFileService->getFileMD(it_fid->getElement());
 
@@ -576,7 +573,8 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
               for (auto& loc : fmd->getLocations()) {
                 if (loc) {
                   FileSystem* repfs = FsView::gFsView.mIdView.lookupByID(loc);
-                  if(repfs) {
+
+                  if (repfs) {
                     eos::common::FileSystem::fs_snapshot_t snapshot;
                     repfs->SnapShotFileSystem(snapshot, false);
 
@@ -647,7 +645,7 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
           outStream << line;
           snprintf(line, sizeof(line) - 1, "%-32s := %10s (%.02f%%)\n",
                    "files inaccessible", eos::common::StringConversion::GetSizeString(sizestring,
-                    nfids_inaccessible), nfids ? (100.0 * nfids_inaccessible) / nfids : 100.0);
+                       nfids_inaccessible), nfids ? (100.0 * nfids_inaccessible) / nfids : 100.0);
           outStream << line;
           snprintf(line, sizeof(line) - 1, "%-32s := %10s\n", "files pending deletion",
                    eos::common::StringConversion::GetSizeString(sizestring, nfids_todelete));
@@ -699,7 +697,7 @@ FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto)
       try {
         fileids.push_back(it_fid->getElement());
       } catch (eos::MDException& e) {
-        eos_err("Could not get metadata for file %ul, ignoring it",
+        eos_err("msg=\"failed to get metadata, ignore it\" fxid=%08llx",
                 it_fid->getElement());
       }
     }
@@ -710,8 +708,8 @@ FsCmd::DropFiles(const eos::console::FsProto::DropFilesProto& dropfilesProto)
 
     if (gOFS->_dropstripe("", fid, errInfo, mVid, dropfilesProto.fsid(),
                           dropfilesProto.force()) != 0) {
-      eos_err("Could not delete file replica %ul on filesystem %u", fid,
-              dropfilesProto.fsid());
+      eos_err("msg=\"failed to  delete replica\" fxid=%08llx fsid=%lu",
+              fid, dropfilesProto.fsid());
     } else {
       filesDeleted++;
     }
