@@ -21,8 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "QoSCmd.hh"
+#include "common/LayoutId.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/Scheduler.hh"
+#include "QoSCmd.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -153,7 +155,61 @@ void QoSCmd::GetSubcmd(const eos::console::QoSProto_GetProto& get,
 void QoSCmd::SetSubcmd(const eos::console::QoSProto_SetProto& set,
                        eos::console::ReplyProto& reply)
 {
+  std::ostringstream out;
+  std::ostringstream err;
+  XrdOucString spath;
+  int retc = 0;
 
+  spath = PathFromIdentifierProto(set.identifier());
+
+  if (!spath.length()) {
+    reply.set_std_err(stdErr.c_str());
+    reply.set_retc(ENOENT);
+    return;
+  }
+
+  XrdOucErrInfo errInfo;
+  std::string errmsg;
+
+  // Check path points to a valid file
+  if ((retc = CheckIsFile(spath.c_str(), mVid, errmsg))) {
+    reply.set_std_err(errmsg);
+    reply.set_retc(retc);
+    return;
+  }
+
+  for (const auto& pair: set.pair()) {
+    if (!IsValidPair(pair.key(), pair.value())) {
+      err << "error: invalid QoS property "
+          << pair.key() << "=" << pair.value() << std::endl;
+      retc = EINVAL;
+      continue;
+    }
+
+  }
+
+  reply.set_retc(retc);
+  reply.set_std_out(out.str());
+  reply.set_std_err(err.str());
+}
+
+//----------------------------------------------------------------------------
+// Check the given <key>=<value> is a valid QoS property.
+//----------------------------------------------------------------------------
+bool QoSCmd::IsValidPair(const std::string& key, const std::string& value)
+{
+  if (key == "placement") {
+    return Scheduler::PlctPolicyFromString(value) != -1;
+  } else if (key == "layout") {
+    return eos::common::LayoutId::GetLayoutFromString(value) != -1;
+  } else if (key == "checksum") {
+    return eos::common::LayoutId::GetChecksumFromString(value) != -1;
+  } else if (key == "replica") {
+    int number = std::stoi(value);
+    return (number >= 1 && number <= 16);
+  }
+
+  return false;
 }
 
 //------------------------------------------------------------------------------
