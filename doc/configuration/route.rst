@@ -78,15 +78,15 @@ A link is removed using the `route unlink` command. Only a path needs to be spec
 Displaying current links
 ------------------------
 
-The `route ls` command shows current active links. If a remote MGM is uncontactable for some reason, an asterisk will
-be displayed next to the MGM specification.
+The `route ls` command shows current active links. An asterix is displayed in
+front of the MGM node which acts as a master for that paricular mapping.
 
 .. code-block:: bash
 
     EOS Console [root://localhost] |/> route ls
-    /eos/test-namespace-1/ => test-mgm-1:1094:8000
-    /eos/test-namespace-1/test-namespace-3/ => test-mgm-3:1094:8000
-    /eos/test-namespace-2/ => test-mgm-2:1094:8000
+    /eos/test-namespace-1/ => *test-mgm-1:1094:8000
+    /eos/test-namespace-1/test-namespace-3/ => *test-mgm-3:1094:8000
+    /eos/test-namespace-2/ => *test-mgm-2:1094:8000
 
 
 Making links visible to clients
