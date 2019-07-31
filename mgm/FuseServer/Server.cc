@@ -35,7 +35,6 @@
 #include "mgm/Quota.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/XrdMgmOfsFile.hh"
 #include "mgm/ZMQ.hh"
 #include "mgm/Stat.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
@@ -2365,15 +2364,10 @@ Server::OpDeleteFile(const std::string& id,
         }
       }
 
-      uint64_t cloneId;
-      if (doDelete && ( ((cloneId = fmd->getCloneId()) == 0) || !(fmd->getCloneFST().empty()) )) {
+      if (doDelete) {
         pcmd->removeFile(fmd->getName());
         fmd->setContainerId(0);
         fmd->unlinkAllLocations();
-        gOFS->WriteRmRecord(fmd);
-      } else if (doDelete) {        /* delete, but clone first */
-        XrdOucErrInfo error;
-        XrdMgmOfsFile::create_cow(true, cloneId, pcmd, fmd, vid, error);
         gOFS->WriteRmRecord(fmd);
       }
 

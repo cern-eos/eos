@@ -452,51 +452,6 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
   }
 
-  char *sCloneFST = mCapOpaque->Get("mgm.cloneFST");
-  if (sCloneFST) {
-    XrdOucString mcFstPath;
-    eos::common::FileId::FidPrefix2FullPath(sCloneFST, mLocalPrefix.c_str(), mcFstPath);
-    struct stat clone_stat;
-    int clonerc = ::stat(mcFstPath.c_str(), &clone_stat) ? errno : 0;
-
-    eos_info("fstpath=%s clonepath=%s clonerc=%d len=%d", mFstPath.c_str(), mcFstPath.c_str(), clonerc, clonerc ? -1 : clone_stat.st_size);
-
-    /* clone handling:
-     * if read-write and clone does not exist, create it
-     * if read-only switch to clone if it exists    (note: if several clones were allowed, we'd might have to search!)
-     */
-    FmdHelper* gMd;
-    if (isRW && clonerc != 0) { /* for RW, only if clone not yet created */
-      if (open_mode & SFS_O_TRUNC) {
-        /* rename data file to clone, it will be re-created */
-        int rc = ::rename(mFstPath.c_str(), mcFstPath.c_str()) ? errno : 0;
-        eos_info("copy-on-write: rename %s %s rc=%d",mFstPath.c_str(), mcFstPath.c_str(), rc);
-      } else {
-        /* copy data file to clone before modyfying */
-        char sbuff[1024];
-        snprintf(sbuff, sizeof(sbuff), "cp --preserve=xattr,ownership,mode --reflink=auto %s %s", mFstPath.c_str(), mcFstPath.c_str());
-        int rc = system(sbuff);
-        eos_info("copy-on-write: %s rc=%d", sbuff, rc);
-      }
-
-      /* Populate local DB (future reads need it) */
-      unsigned long long clFid = eos::common::FileId::Hex2Fid(sCloneFST);
-      gMd = gFmdDbMapHandler.LocalGetFmd(clFid, mFsId, vid.uid, vid.gid, mLid, isRW);
- 
-      gMd->mProtoFmd.set_checksum(fMd->mProtoFmd.checksum());
-      gMd->mProtoFmd.set_diskchecksum(fMd->mProtoFmd.diskchecksum());
-      gMd->mProtoFmd.set_mgmchecksum(fMd->mProtoFmd.mgmchecksum());
-      if (!gFmdDbMapHandler.Commit(gMd)) {
-        eos_err("copy-on-write unable to commit meta data to local database");
-        (void) gOFS.Emsg(epname, this->error, EIO,
-                "copy-on-write - unable to commit meta data", mNsPath.c_str());
-      }
-    } else {
-      gMd = fMd;
-    }
-    eos_debug("fid %lld cs %s diskcs %s mgmcs %s", gMd->mProtoFmd.fid(), gMd->mProtoFmd.checksum().c_str(), gMd->mProtoFmd.diskchecksum().c_str(), gMd->mProtoFmd.mgmchecksum().c_str());
-  }
-
   XrdOucString oss_opaque = "";
   oss_opaque += "&mgm.lid=";
   oss_opaque += std::to_string(mLid).c_str();
