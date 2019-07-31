@@ -29,7 +29,9 @@
 #include "common/Mapping.hh"
 #include "mgm/FileSystem.hh"
 #include "mgm/FsView.hh"
+#include "namespace/interface/IFileMD.hh"
 #include "XrdSec/XrdSecEntity.hh"
+#include <set>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -129,30 +131,33 @@ int proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
 //------------------------------------------------------------------------------
 //! Clear unlinked files from the filesystem
 //!
-//! @param id id of the filesystem
-//! @param stdOut normal output string
-//! @param stdErr error output string
+//! @param fsid filesystem id
+//! @param out normal output string
+//! @param err error output string
 //! @param vid_in virtual identify of the client
 //!
 //! @return 0 if successful, otherwise error code value
 //------------------------------------------------------------------------------
-int proc_fs_dropdeletion(const std::string& id, XrdOucString& stdOut,
-                         XrdOucString& stdErr,
-                         eos::common::VirtualIdentity& vid_in);
+int proc_fs_dropdeletion(const eos::common::FileSystem::fsid_t& id,
+                         const eos::common::VirtualIdentity& vid_in,
+                         std::string& out, std::string& err);
 
 //------------------------------------------------------------------------------
 //! Drop ghost entries from a filesystem view (file ids without meta data objects)
 //!
-//! @param id id of the filesystem
-//! @param stdOut normal output string
-//! @param stdErr error output string
+//! @param fsid filesystem id
+//! @param fids explicit set of fids to be checked and dropped if they are
+//!        ghosts entries
+//! @param out normal output string
+//! @param err error output string
 //! @param vid_in virtual identify of the client
 //!
 //! @return 0 if successful, otherwise error code value
 //------------------------------------------------------------------------------
-int proc_fs_dropghosts(const std::string& id, XrdOucString& stdOut,
-                       XrdOucString& stdErr,
-                       eos::common::VirtualIdentity& vid_in);
+int proc_fs_dropghosts(const eos::common::FileSystem::fsid_t& fsid,
+                       const std::set<eos::IFileMD::id_t>& fids,
+                       const eos::common::VirtualIdentity& vid_in,
+                       std::string& out, std::string& err);
 
 
 //------------------------------------------------------------------------------

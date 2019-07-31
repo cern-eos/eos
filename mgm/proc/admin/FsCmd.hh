@@ -65,9 +65,9 @@ private:
 
   int Rm(const eos::console::FsProto::RmProto& rmProto);
 
-  int DropDeletion(const eos::console::FsProto::DropDeletionProto& dropdelProto);
+  int DropDeletion(const eos::console::FsProto::DropDeletionProto& drop_del);
 
-  int DropGhosts(const eos::console::FsProto::DropGhostsProto& dropghostsProto);
+  int DropGhosts(const eos::console::FsProto::DropGhostsProto& drop_ghosts);
 
   int Add(const eos::console::FsProto::AddProto& addProto);
 

@@ -100,7 +100,7 @@ XrdMgmOfs::Drop(const char* path,
 
         // Drop the selected replicas
         for (const auto& id : drop_fsid) {
-          eos_thread_debug("removing location %u of fxid=%s", id, afid);
+          eos_thread_debug("msg=\"remove location\" fxid=%s fsid=%s", id, afid);
           updatestore = false;
 
           if (fmd->hasLocation(id)) {
