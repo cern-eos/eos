@@ -312,21 +312,21 @@ IProcCommand::ConvertOutputToJsonFormat(const std::string& stdOut)
     StringConversion::ReplaceMapKey(map, "balancer", "balancer.status");
     StringConversion::ReplaceMapKey(map, "converter", "converter.status");
 
-    for (auto it = map.begin(); it != map.end(); ++it) {
+    for (auto & it : map) {
       std::vector<std::string> token;
       char* conv;
       errno = 0;
 
-      StringConversion::Tokenize(it->first, token, ".");
-      double val = strtod(it->second.c_str(), &conv);
+      StringConversion::Tokenize(it.first, token, ".");
+      double val = strtod(it.second.c_str(), &conv);
       std::string value;
 
       if (token.empty()) {
         continue;
       }
 
-      if (it->second.length()) {
-        value = it->second.c_str();
+      if (it.second.length()) {
+        value = it.second;
       } else {
         value = "NULL";
       }
@@ -345,8 +345,8 @@ IProcCommand::ConvertOutputToJsonFormat(const std::string& stdOut)
       XrdMqMessage::Seal(svalue);
       value = svalue.c_str();
 
-      if (errno || (!val && (conv  == it->second.c_str())) ||
-          ((conv - it->second.c_str()) != (long long)it->second.length())) {
+      if (errno || (!val && (conv  == it.second.c_str())) ||
+          ((conv - it.second.c_str()) != (long long)it.second.length())) {
         // non numeric
         (*jep) = value;
       } else {
@@ -486,7 +486,12 @@ IProcCommand::HasSlot()
         eos::console::RequestProto::kRoute,
         eos::console::RequestProto::kIo,
         eos::console::RequestProto::kGroup,
-        eos::console::RequestProto::kDebug
+        eos::console::RequestProto::kDebug,
+        eos::console::RequestProto::kNode,
+        eos::console::RequestProto::kQuota,
+        eos::console::RequestProto::kSpace,
+        eos::console::RequestProto::kConfig,
+        eos::console::RequestProto::kAccess,
   }) {
       mCmdsExecuting.emplace(type, 0ull);
     }
