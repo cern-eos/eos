@@ -175,7 +175,7 @@ void com_fs_help()
       << "  fs dropghosts <fsid> [--fxid fid1 [fid2] ...]\n"
       << "    drop file ids (hex) without a corresponding metadata object in\n"
       << "    the namespace that are still accounted in the file system view.\n"
-      << "    If no fid is provided then all fids on the file system are checked.\n"
+      << "    If no fxid is provided then all fids on the file system are checked.\n"
       << std::endl
       << "  fs dropfiles <fsid> [-f]" << std::endl
       << "    drop all files on the filesystem" << std::endl
