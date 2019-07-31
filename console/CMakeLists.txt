@@ -108,6 +108,8 @@ add_library(
   commands/com_who.cc
   commands/com_proto_acl.cc
   commands/com_proto_fs.cc
+  #@todo (esindril) drop com_quota when move to 5.0.0
+  commands/com_quota.cc
   #@todo (esindril) drop com_rm when we drop beryl_aquamarine
   commands/com_rm.cc
   commands/com_proto_rm.cc

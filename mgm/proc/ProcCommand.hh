@@ -183,6 +183,7 @@ public:
       size = 0;
       return 0;
     }
+
     size = mResultStream.size();
     return mResultStream.c_str();
   }
@@ -226,10 +227,12 @@ public:
   int Version();
   int Who();
   int Whoami();
+  int Quota();
 
   //----------------------------------------------------------------------------
   //! List of admin proc commands
   //----------------------------------------------------------------------------
+  int AdminQuota();
   int Chown();
   int Drain();
   int Fsck();

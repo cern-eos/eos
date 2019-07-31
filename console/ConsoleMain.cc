@@ -120,6 +120,7 @@ extern int com_vst(char*);
 extern int com_whoami(char*);
 extern int com_who(char*);
 extern int com_accounting(char*);
+extern int com_quota(char*);
 
 //------------------------------------------------------------------------------
 // Command mapping array

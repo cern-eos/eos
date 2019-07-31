@@ -136,6 +136,8 @@ add_library(
   proc/admin/Transfer.cc
   proc/admin/Vid.cc
   proc/admin/Vst.cc
+  proc/admin/Quota.cc
+  proc/user/Quota.cc
   proc/user/Accounting.cc
   proc/user/AclCmd.cc
   proc/user/Attr.cc

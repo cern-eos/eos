@@ -29,7 +29,7 @@
 #include "console/ConsoleMain.hh"
 #include "console/commands/ICmdHelper.hh"
 
-
+extern int com_quota(char*);
 void com_quota_help();
 
 //------------------------------------------------------------------------------
@@ -70,38 +70,39 @@ bool QuotaHelper::ParseCommand(const char* arg)
   eos::common::StringTokenizer tokenizer(arg);
   tokenizer.GetLine();
   std::string token;
-
   tokenizer.NextToken(token);
 
-  if (token == "" || token == "-m" || (token.find('/') == 0)) { // ... or begins with "/"
+  if (token == "" || token == "-m" ||
+      (token.find('/') == 0)) { // ... or begins with "/"
     // lsuser
     eos::console::QuotaProto_LsuserProto* lsuser = quota->mutable_lsuser();
-
     std::string aux_string;
 
     if (token == "") {
       aux_string = DefaultRoute();
-      if ( aux_string.find('/') == 0 ) {
+
+      if (aux_string.find('/') == 0) {
         lsuser->set_space(aux_string);
       }
     } else if (token == "-m") {
       lsuser->set_format(true);
       aux_string = DefaultRoute();
-      if ( aux_string.find('/') == 0 ) {
+
+      if (aux_string.find('/') == 0) {
         lsuser->set_space(aux_string);
       }
-    } else if ( token.find('/') == 0 ) {
+    } else if (token.find('/') == 0) {
       lsuser->set_space(token);
       tokenizer.NextToken(token);
-      if ( token == "-m" ) {
+
+      if (token == "-m") {
         lsuser->set_format(true);
       }
     }
-    return true;
-  }
-  else if ( token == "ls" ) {
 
-    eos::console::QuotaProto_LsProto *ls = quota->mutable_ls();
+    return true;
+  } else if (token == "ls") {
+    eos::console::QuotaProto_LsProto* ls = quota->mutable_ls();
 
     while (tokenizer.NextToken(token)) {
       if (token == "--uid" || token == "-u") {
@@ -130,7 +131,10 @@ bool QuotaHelper::ParseCommand(const char* arg)
           }
         } else if (token.find('/') == 0) {
           ls->set_space(token);
-          if (tokenizer.NextToken(token)) { // for convenience can omit --path and use /some/path/ as *last* argument - e.g. quota ls /eos/ ...
+
+          // for convenience can omit --path and use /some/path/ as *last*
+          // argument - e.g. quota ls /eos/ ...
+          if (tokenizer.NextToken(token)) {
             return false;
           }
         }
@@ -138,9 +142,8 @@ bool QuotaHelper::ParseCommand(const char* arg)
         return false;
       }
     }
-  }
-  else if ( token == "set" ) {
-    eos::console::QuotaProto_SetProto *set = quota->mutable_set();
+  } else if (token == "set") {
+    eos::console::QuotaProto_SetProto* set = quota->mutable_set();
 
     while (tokenizer.NextToken(token)) {
       if (token == "--uid" || token == "-u") {
@@ -176,7 +179,10 @@ bool QuotaHelper::ParseCommand(const char* arg)
           }
         } else if (token.find('/') == 0) {
           set->set_space(token);
-          if (tokenizer.NextToken(token)) { // for convenience can omit --path and use /some/path/ as *last* argument - e.g. quota set /eos/ ...
+
+          // for convenience can omit --path and use /some/path/ as *last*
+          // argument - e.g. quota set /eos/ ...
+          if (tokenizer.NextToken(token)) {
             return false;
           }
         }
@@ -184,9 +190,8 @@ bool QuotaHelper::ParseCommand(const char* arg)
         return false;
       }
     }
-  }
-  else if ( token == "rm" ) {
-    eos::console::QuotaProto_RmProto *rm = quota->mutable_rm();
+  } else if (token == "rm") {
+    eos::console::QuotaProto_RmProto* rm = quota->mutable_rm();
 
     while (tokenizer.NextToken(token)) {
       if (token == "--uid" || token == "-u") {
@@ -205,8 +210,7 @@ bool QuotaHelper::ParseCommand(const char* arg)
         rm->set_type(eos::console::QuotaProto_RmProto::VOLUME);
       } else if (token == "--inode" || token == "-i") {
         rm->set_type(eos::console::QuotaProto_RmProto::INODE);
-      }
-      else if (token == "--path" || token == "-p" || (token.find('/') == 0)) {
+      } else if (token == "--path" || token == "-p" || (token.find('/') == 0)) {
         if (token == "--path" || token == "-p") {
           if (tokenizer.NextToken(token)) {
             rm->set_space(token);
@@ -215,7 +219,10 @@ bool QuotaHelper::ParseCommand(const char* arg)
           }
         } else if (token.find('/') == 0) {
           rm->set_space(token);
-          if (tokenizer.NextToken(token)) { // for convenience can omit --path and use /some/path/ as *last* argument - e.g. quota rm /eos/ ...
+
+          // for convenience can omit --path and use /some/path/ as *last*
+          // argument - e.g. quota rm /eos/ ...
+          if (tokenizer.NextToken(token)) {
             return false;
           }
         }
@@ -223,10 +230,8 @@ bool QuotaHelper::ParseCommand(const char* arg)
         return false;
       }
     }
-
-  }
-  else if ( token == "rmnode" ) {
-    eos::console::QuotaProto_RmnodeProto *rmnode = quota->mutable_rmnode();
+  } else if (token == "rmnode") {
+    eos::console::QuotaProto_RmnodeProto* rmnode = quota->mutable_rmnode();
 
     if (token == "--path" || token == "-p") {
       if (tokenizer.NextToken(token)) {
@@ -235,12 +240,12 @@ bool QuotaHelper::ParseCommand(const char* arg)
         return false;
       }
     } else { // no proper argument
-        return false;
+      return false;
     }
 
-    std::cout << "Do you really want to delete the quota node under path" << token << " ?\n";
+    std::cout << "Do you really want to delete the quota node under path" << token
+              << " ?\n";
     std::cout << "Confirm the deletion by typing => ";
-
     // Seed with a real random value, if available
     std::random_device rd;
     // Choose a random 10-digits number
@@ -248,10 +253,8 @@ bool QuotaHelper::ParseCommand(const char* arg)
     std::uniform_int_distribution<long> uniform_dist(1000000000, 9999999999);
     long random_long = uniform_dist(dre);
     std::string random_confirmation_string = std::to_string(random_long);
-
     std::cout << random_confirmation_string << std::endl;
     std::cout << "                               => ";
-
     std::string in_string;
     std::cin >> in_string;
 
@@ -261,21 +264,18 @@ bool QuotaHelper::ParseCommand(const char* arg)
       std::cout << "\nDeletion aborted!\n";
       return false;
     }
-
-  }
-  else { // no proper subcommand
+  } else { // no proper subcommand
     return false;
   }
 
   return true;
-
 }
 
 //------------------------------------------------------------------------------
 // quota command entry point
 //------------------------------------------------------------------------------
-int com_protoquota(char* arg) {
-
+int com_protoquota(char* arg)
+{
   if (wants_help(arg)) {
     com_quota_help();
     global_retc = EINVAL;
@@ -290,41 +290,53 @@ int com_protoquota(char* arg) {
     return EINVAL;
   }
 
-  global_retc = quota.Execute();
+  global_retc = quota.Execute(false);
+
+  // Provide compatibility in case the server does not support the protobuf
+  // implementation ie. < 4.5.0
+  if (global_retc) {
+    if (quota.GetError().find("Cannot allocate memory") != std::string::npos) {
+      global_retc = com_quota(arg);
+    } else {
+      std::cerr << quota.GetError();
+    }
+  }
+
   return global_retc;
 }
 
 //------------------------------------------------------------------------------
 // Print help message
 //------------------------------------------------------------------------------
-void com_quota_help() {
+void com_quota_help()
+{
   std::ostringstream oss;
   std::vector<std::uint32_t> col_size = {0, 0};
   std::map<std::string, std::string> map_cmds = {
-      {
-          "quota [<path>]",
-          ": show personal quota for all or only the quota node responsible for <path>"
-      },
-      {
-          "quota ls [-n] [-m] [-u <uid>] [-g <gid>] [[-p] <path>]",
-          ": list configured quota and quota node(s)"
-      },
-      {
-          "quota set -u <uid>|-g <gid> [-v <bytes>] [-i <inodes>] [[-p] <path>]",
-          ": set volume and/or inode quota by uid or gid"
-      },
-      {
-          "quota rm -u <uid>|-g <gid> [-v] [-i] [[-p] <path>]",
-          ": remove configured quota type(s) for uid/gid in path"
-      },
-      {
-          "quota rmnode -p <path>",
-          ": remove quota node and every defined quota on that node"
-      }
+    {
+      "quota [<path>]",
+      ": show personal quota for all or only the quota node responsible for <path>"
+    },
+    {
+      "quota ls [-n] [-m] [-u <uid>] [-g <gid>] [[-p] <path>]",
+      ": list configured quota and quota node(s)"
+    },
+    {
+      "quota set -u <uid>|-g <gid> [-v <bytes>] [-i <inodes>] [[-p] <path>]",
+      ": set volume and/or inode quota by uid or gid"
+    },
+    {
+      "quota rm -u <uid>|-g <gid> [-v] [-i] [[-p] <path>]",
+      ": remove configured quota type(s) for uid/gid in path"
+    },
+    {
+      "quota rmnode -p <path>",
+      ": remove quota node and every defined quota on that node"
+    }
   };
 
   // Compute max width for command and description table
-  for (auto & map_cmd : map_cmds) {
+  for (auto& map_cmd : map_cmds) {
     if (col_size[0] < map_cmd.first.length()) {
       col_size[0] = map_cmd.first.length() + 1;
     }
@@ -341,7 +353,7 @@ void com_quota_help() {
   oss << usage_txt << std::endl;
 
   // Print the command and their description
-  for (auto & map_cmd : map_cmds) {
+  for (auto& map_cmd : map_cmds) {
     oss << std::setw(usage_txt.length()) << ""
         << std::setw(col_size[0]) << std::setiosflags(std::ios_base::left)
         << map_cmd.first

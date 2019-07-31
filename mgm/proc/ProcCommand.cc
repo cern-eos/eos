@@ -257,6 +257,9 @@ ProcCommand::open(const char* inpath, const char* info,
     } else if (mCmd == "rtlog") {
       Rtlog();
       mDoSort = false;
+    } else if (mCmd == "quota") {
+      AdminQuota();
+      mDoSort = false;
     } else {
       // command is not implemented
       stdErr += "error: no such admin command '";
@@ -326,6 +329,9 @@ ProcCommand::open(const char* inpath, const char* info,
       Chmod();
     } else if (mCmd == "recycle") {
       Recycle();
+      mDoSort = false;
+    } else if (mCmd == "quota") {
+      Quota();
       mDoSort = false;
     } else {
       // Command not implemented
