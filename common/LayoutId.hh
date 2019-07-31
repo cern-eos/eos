@@ -151,7 +151,7 @@ public:
   };
 
   //--------------------------------------------------------------------------
-  //! Get a reed solomon layout by number of redundancystripess
+  //! Get a reed solomon layout by number of redundancy stripes
   //--------------------------------------------------------------------------
   static int
   GetReedSLayoutByParity(int redundancystripes)
@@ -439,7 +439,7 @@ public:
   }
 
   //--------------------------------------------------------------------------
-  //! Test for RAIN layout e.g. raid6,archive,qrain
+  //! Test for RAIN layout e.g. raid6, archive, qrain
   //--------------------------------------------------------------------------
   static bool
   IsRain(unsigned long layout)
@@ -657,8 +657,8 @@ public:
   }
 
   //--------------------------------------------------------------------------
-  //! Return multiplication factor for a given layout e.g. the physical space
-  //! factor for a given layout
+  //! Return multiplication factor for a given layout
+  //! E.g. the physical space factor for a given layout
   //--------------------------------------------------------------------------
   static double
   GetSizeFactor(unsigned long layout)
@@ -958,6 +958,48 @@ public:
   }
 
   //--------------------------------------------------------------------------
+  //! Return layout type from string representation
+  //--------------------------------------------------------------------------
+  static int
+  GetLayoutFromString(const string& layout)
+  {
+    if (layout == "plain") {
+      return kPlain;
+    } else if (layout == "replica") {
+      return kReplica;
+    } else if (layout == "raiddp") {
+      return kRaidDP;
+    } else if (layout == "raid5") {
+      return kRaid5;
+    } else if (layout == "raid6") {
+      return kRaid6;
+    } else if (layout == "qrain") {
+      return kQrain;
+    } else if (layout == "archive") {
+      return kArchive;
+    }
+
+    return -1;
+  }
+
+  //--------------------------------------------------------------------------
+  //! Return layout type enum from env definition
+  //--------------------------------------------------------------------------
+  static unsigned long
+  GetLayoutFromEnv(XrdOucEnv& env)
+  {
+    const char* val = 0;
+
+    if ((val = env.Get("eos.layout.type"))) {
+      int layout = GetLayoutFromString(val);
+
+      return (layout != -1) ? layout : kPlain;
+    }
+
+    return kPlain;
+  }
+
+  //--------------------------------------------------------------------------
   //! Return layout stripe number as string
   //--------------------------------------------------------------------------
   static std::string
@@ -1109,41 +1151,6 @@ public:
     }
 
     return 0;
-  }
-
-  //--------------------------------------------------------------------------
-  //! Return layout type enum from env definition
-  //--------------------------------------------------------------------------
-  static unsigned long
-  GetLayoutFromEnv(XrdOucEnv& env)
-  {
-    const char* val = 0;
-
-    if ((val = env.Get("eos.layout.type"))) {
-      XrdOucString typ = val;
-
-      if (typ == "replica") {
-        return kReplica;
-      }
-
-      if (typ == "raiddp") {
-        return kRaidDP;
-      }
-
-      if (typ == "raid6") {
-        return kRaid6;
-      }
-
-      if (typ == "archive") {
-        return kArchive;
-      }
-
-      if (typ == "qrain") {
-        return kQrain;
-      }
-    }
-
-    return kPlain;
   }
 
   //----------------------------------------------------------------------------
