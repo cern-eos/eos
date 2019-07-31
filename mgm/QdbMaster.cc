@@ -369,9 +369,6 @@ QdbMaster::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
 
   if (gOFS->MgmConfigAutoLoad.length()) {
     eos_static_info("autoload config=%s", gOFS->MgmConfigAutoLoad.c_str());
-//        XrdOucString configloader = "mgm.config.file=";
-//        configloader += gOFS->MgmConfigAutoLoad;
-//        XrdOucEnv configenv(configloader.c_str());
     std::string configenv = gOFS->MgmConfigAutoLoad.c_str();
     XrdOucString stdErr = "";
 

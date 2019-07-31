@@ -288,10 +288,6 @@ public:
     return SSTR(key);
   }
 
-  //----------------------------------------------------------------------------
-  //! Check if config key matches filter options as given in opt
-  //----------------------------------------------------------------------------
-  static bool CheckFilterMatch(XrdOucString& option, const std::string& key);
 
   //----------------------------------------------------------------------------
   //! Publish the given configuration change

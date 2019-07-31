@@ -556,10 +556,8 @@ FileConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
 
   while (getline(infile, sline)) {
     // Filter according to user specification
-    if (CheckFilterMatch(pinfo.option, sline)) {
-      out += sline.c_str();
-      out += "\n";
-    }
+    out += sline.c_str();
+    out += "\n";
   }
 }
 

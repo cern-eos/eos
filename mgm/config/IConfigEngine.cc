@@ -196,29 +196,6 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val, void* arg)
   return 0;
 }
 
-//------------------------------------------------------------------------------
-// Check if config key matches filter options as given in opt
-//------------------------------------------------------------------------------
-bool
-IConfigEngine::CheckFilterMatch(XrdOucString& option, const std::string& key)
-{
-  if (((option.find("v") != STR_NPOS) &&
-       (eos::common::startsWith(key, "vid:"))) ||
-      ((option.find("f") != STR_NPOS) && (eos::common::startsWith(key, "fs:")))  ||
-      ((option.find("q") != STR_NPOS) && (eos::common::startsWith(key, "quota:"))) ||
-      ((option.find("p") != STR_NPOS) && (eos::common::startsWith(key, "policy:"))) ||
-      ((option.find("c") != STR_NPOS) &&
-       (eos::common::startsWith(key, "comment-"))) ||
-      ((option.find("g") != STR_NPOS) && (eos::common::startsWith(key, "global:"))) ||
-      ((option.find("m") != STR_NPOS) && (eos::common::startsWith(key, "map:"))) ||
-      ((option.find("r") != STR_NPOS) && (eos::common::startsWith(key, "route:"))) ||
-      ((option.find("s") != STR_NPOS) &&
-       (eos::common::startsWith(key, "geosched:")))) {
-    return true;
-  }
-
-  return false;
-}
 
 //------------------------------------------------------------------------------
 // Publish the given configuration change
@@ -456,6 +433,7 @@ IConfigEngine::DumpConfig(XrdOucString& out, const std::string& filename) {
     XrdSysMutexHelper lock(mMutex);
     for(auto & sConfigDefinition : sConfigDefinitions) {
       eos_static_debug("%s => %s", sConfigDefinition.first.c_str(), sConfigDefinition.second.c_str());
+      out += (sConfigDefinition.first + " => " + sConfigDefinition.second + "\n").c_str();
     }
     while (out.replace("&", " ")) {}
   }

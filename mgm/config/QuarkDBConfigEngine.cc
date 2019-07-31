@@ -137,7 +137,6 @@ bool
 QuarkDBConfigEngine::LoadConfig(const std::string& filename, XrdOucString& err,
                                 bool apply_stall_redirect)
 {
-//  const char* name = env.Get("mgm.config.file");
   eos_notice("loading name=%s ", filename.c_str());
 
   if (filename.empty()) {
@@ -330,12 +329,10 @@ QuarkDBConfigEngine::FilterConfig(PrintInfo& pinfo, XrdOucString& out,
 
   for (auto it = q_hash.getIterator(); it.valid(); it.next()) {
     // Filter according to user specification
-    if (CheckFilterMatch(pinfo.option, it.getKey())) {
-      out += it.getKey().c_str();
-      out += " => ";
-      out += it.getValue().c_str();
-      out += "\n";
-    }
+    out += it.getKey().c_str();
+    out += " => ";
+    out += it.getValue().c_str();
+    out += "\n";
   }
 }
 
