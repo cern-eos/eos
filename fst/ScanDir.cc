@@ -200,15 +200,18 @@ ScanDir::RunNsScan(ThreadAssistant& assistant) noexcept
     }
   }
 
-  AccountMissing();
-  CleanupUnlinked();
+  while (!assistant.terminationRequested()) {
+    AccountMissing();
+    CleanupUnlinked();
+    // @todo(esindril) run this every x days/weeks
+  }
 }
 
 //----------------------------------------------------------------------------
 // Account for missing replicas
 //----------------------------------------------------------------------------
 void
-ScanDir:: AccountMissing()
+ScanDir::AccountMissing()
 {
   using eos::common::FileId;
   struct stat info;
@@ -224,12 +227,21 @@ ScanDir:: AccountMissing()
 
     if (stat(fpath.c_str(), &info)) {
       // Double check that this not a file which was deleted in the meantime
-      // @todo(esindril)
-      // File missing on disk - create fmd entry and mark it as missing
-      auto fmd = gFmdDbMapHandler.LocalGetFmd(fid, mFsId, true, true);
-      fmd->mProtoFmd.set_layouterror(fmd->mProtoFmd.layouterror() |
-                                     LayoutId::kMissing);
-      gFmdDbMapHandler.Commit(fmd.get());
+      try {
+        if (IsBeingDeleted(fid) == false)  {
+          // File missing on disk - create fmd entry and mark it as missing
+          eos_info("msg=\"account for missing replica\" fxid=%08llx fsid=%lu",
+                   fid, mFsId);
+          auto fmd = gFmdDbMapHandler.LocalGetFmd(fid, mFsId, true, true);
+          fmd->mProtoFmd.set_layouterror(fmd->mProtoFmd.layouterror() |
+                                         LayoutId::kMissing);
+          gFmdDbMapHandler.Commit(fmd.get());
+        }
+      } catch (eos::MDException& e) {
+        // No file on disk, no ns file metadata object but we have a ghost entry
+        // in the file system view - delete it
+        // @todo (esindril) drop ghost fid entry
+      }
     }
 
     // Rate limit enforced for the current disk
@@ -237,35 +249,75 @@ ScanDir:: AccountMissing()
   }
 }
 
-//------------------------------------------------------------------------------
-// Check if file is unlinked from the namespace and in the process of being
-// deleted from the disk. Files that are unlinked for more than 30 min
-// definetely have a problem and we don't account them as in the process of
-// being deleted.
-//------------------------------------------------------------------------------
-bool
-ScanDir::IsFileUnlinked(eos::IFileMD::id_t fid)
-{
-  // auto file_fut = eos::MetadataFetcher.getFileFromId(mFsckQcl.get(),
-  //                                                    eos::FileIdentifier(fid));
-  return false;
-}
-
-
 //----------------------------------------------------------------------------
-// Cleanup unlinked replicas which are older than 1 hour
+// Cleanup unlinked replicas older than 10 min still laying around
 //----------------------------------------------------------------------------
 void
 ScanDir::CleanupUnlinked()
 {
-  // Loop over the unlinked files and force unlink them if older than 1 hour
+  using eos::common::FileId;
+  // Loop over the unlinked files and force unlink them if too old
   auto unlinked_fids = CollectNsFids(eos::fsview::sUnlinkedSuffix);
 
   while (!unlinked_fids.empty()) {
     eos::IFileMD::id_t fid = unlinked_fids.front();
     unlinked_fids.pop_front();
-    // @todo (esindril): finish implementation
+
+    try {
+      if (IsBeingDeleted(fid) == false) {
+        // Put the fid in the queue of files to be deleted and this should
+        // clean both the disk file and update the namespace entry
+        eos_info("msg=\"resubmit for deletion\" fxid=%08llx fsid=%lu",
+                 fid, mFsId);
+        // @todo(esindril)
+      }
+    } catch (eos::MDException& e) {
+      // There is no file metadata object so we delete any potential file from
+      // the local disk and also drop the ghost entry from the file system view
+      eos_info("msg=\"cleanup ghost unlinked file\" fxid=%08llx fsid=%lu",
+               fid, mFsId);
+      std::string fpath =
+        FileId::FidPrefix2FullPath(FileId::Fid2Hex(fid).c_str(),
+                                   gOFS.Storage->GetStoragePath(mFsId).c_str());
+      // @todo(esindril)
+    }
+
+    mRateLimit->Allow();
   }
+}
+
+//------------------------------------------------------------------------------
+// Check if file is unlinked from the namespace and in the process of being
+// deleted from the disk. Files that are unlinked for more than 10 min
+// definetely have a problem and we don't account them as in the process of
+// being deleted.
+//------------------------------------------------------------------------------
+bool
+ScanDir::IsBeingDeleted(eos::IFileMD::id_t fid) const
+{
+  using namespace std::chrono;
+  constexpr seconds max_delay_unlink {600};
+  auto file_fut = eos::MetadataFetcher::getFileFromId(*gOFS.mFsckQcl.get(),
+                  eos::FileIdentifier(fid));
+  // Throws an exception if file metadata object doesn't exist
+  eos::ns::FileMdProto fmd = file_fut.get();
+
+  if (fmd.cont_id() == 0ull) {
+    // File is detached from parent i.e. being deleted
+    auto now_sec = duration_cast<seconds>
+                   (mClock.getTime().time_since_epoch()).count();
+    eos::IFileMD::ctime_t ctime;
+    (void) memcpy(&ctime, fmd.ctime().data(), sizeof(ctime));
+
+    // Unlink triggers an update of the ctime so we check that this was done
+    // recently otherwise we consider it a candidate for fsck
+    if ((now_sec > ctime.tv_sec) &&
+        (now_sec - ctime.tv_sec <= max_delay_unlink.count())) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 //------------------------------------------------------------------------------
