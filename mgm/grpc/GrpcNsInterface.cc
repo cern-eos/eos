@@ -417,7 +417,7 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
         std::ostringstream msg;
         msg << "Failed to call gOFS->eosView->createFile(): " << e.getMessage().str();
         e.getMessage().str(msg.str());
-        throw e;
+        throw;
       }
       eos::IFileMD::ctime_t ctime;
       eos::IFileMD::ctime_t mtime;
@@ -449,7 +449,7 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
         std::ostringstream msg;
         msg << "Failed to call gOFS->eosView->updateFileStore(): " << e.getMessage().str();
         e.getMessage().str(msg.str());
-        throw e;
+        throw;
       }
 
       reply->add_retc(0);
@@ -510,7 +510,7 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
         std::ostringstream msg;
         msg << "Failed to call gOFS->eosView->createContainer(): " << e.getMessage().str();
         e.getMessage().str(msg.str());
-        throw e;
+        throw;
       }
       eos::IContainerMD::ctime_t ctime;
       eos::IContainerMD::ctime_t mtime;
@@ -540,7 +540,7 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
         std::ostringstream msg;
         msg << "Failed to call gOFS->eosView->updateContainerStore(): " << e.getMessage().str();
         e.getMessage().str(msg.str());
-        throw e;
+        throw;
       }
       reply->add_retc(0);
     } catch (eos::MDException& e) {
