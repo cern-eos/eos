@@ -116,12 +116,12 @@ FsCmd::Add(const eos::console::FsProto::AddProto& addProto)
   std::string mountpoint = addProto.mountpoint();
   std::string space = addProto.schedgroup();
   std::string configstatus = addProto.status();
-  XrdOucString outLocal, errLocal;
-  mRetC = proc_fs_add(sfsid, uuid, nodequeue, mountpoint, space, configstatus,
-                     outLocal, errLocal, mVid);
-  mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
-  mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
-  return mRetC;
+  XrdOucString out, err;
+  retc = proc_fs_add(sfsid, uuid, nodequeue, mountpoint, space, configstatus,
+                     out, err, mVid);
+  mOut = out.c_str() != nullptr ? out.c_str() : "";
+  mErr = err.c_str() != nullptr ? err.c_str() : "";
+  return retc;
 }
 
 //------------------------------------------------------------------------------
@@ -259,47 +259,43 @@ FsCmd::Config(const eos::console::FsProto::ConfigProto& configProto)
   auto key = configProto.key();
   auto value = configProto.value();
   std::string identifier = std::to_string(configProto.fsid());
-  XrdOucString outLocal, errLocal;
-  mRetC = proc_fs_config(identifier, key, value, outLocal, errLocal,
+  XrdOucString out, err;
+  retc = proc_fs_config(identifier, key, value, out, err,
                         mVid, mComment.c_str());
-  mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
-  mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
-  return mRetC;
+  mOut = out.c_str() != nullptr ? out.c_str() : "";
+  mErr = err.c_str() != nullptr ? err.c_str() : "";
+  return retc;
 }
 
 //------------------------------------------------------------------------------
 // Dropdeletion subcommand
 //------------------------------------------------------------------------------
 int
-FsCmd::DropDeletion(const eos::console::FsProto::DropDeletionProto&
-                    dropdelProto)
+FsCmd::DropDeletion(const eos::console::FsProto::DropDeletionProto& drop_del)
 {
-  XrdOucString outLocal, errLocal;
+  std::string out, err;
   eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
-  mRetC = proc_fs_dropdeletion(std::to_string(dropdelProto.fsid()), outLocal,
-                              errLocal, mVid);
-  mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
-  mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
-  return mRetC;
+  retc = proc_fs_dropdeletion(drop_del.fsid(), mVid, out, err);
+  mOut = out;
+  mErr = err;
+  return retc;
 }
-
 
 //------------------------------------------------------------------------------
 // DropGhosts subcommand
 //------------------------------------------------------------------------------
 int
-FsCmd::DropGhosts(const eos::console::FsProto::DropGhostsProto&
-                  dropghostsProto)
+FsCmd::DropGhosts(const eos::console::FsProto::DropGhostsProto& drop_ghosts)
 {
-  XrdOucString outLocal, errLocal;
+  std::string out, err;
+  std::set<eos::IFileMD::id_t> fids;
+  fids.insert(drop_ghosts.fids().cbegin(), drop_ghosts.fids().cend());
   eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
-  mRetC = proc_fs_dropghosts(std::to_string(dropghostsProto.fsid()), outLocal,
-                            errLocal, mVid);
-  mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
-  mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
-  return mRetC;
+  retc = proc_fs_dropghosts(drop_ghosts.fsid(), fids, mVid, out, err);
+  mOut = out;
+  mErr = err;
+  return retc;
 }
-
 
 //------------------------------------------------------------------------------
 // Dumpmd subcommand
@@ -307,7 +303,7 @@ FsCmd::DropGhosts(const eos::console::FsProto::DropGhostsProto&
 int
 FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto)
 {
-  XrdOucString outLocal, errLocal;
+  XrdOucString out, err;
 
   if ((mVid.uid == 0) || (mVid.prot == "sss")) {
     // Stall if the namespace is still booting
@@ -322,21 +318,21 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto)
     XrdOucString df = dumpmdProto.showfid() ? "1" : "0";
     XrdOucString ds = dumpmdProto.showsize() ? "1" : "0";
     size_t entries = 0;
-    mRetC = SemaphoreProtectedProcDumpmd(sfsid, option, dp, df, ds, outLocal,
-                                        errLocal, entries);
+    retc = SemaphoreProtectedProcDumpmd(sfsid, option, dp, df, ds, out,
+                                        err, entries);
 
     if (!mRetC) {
       gOFS->MgmStats.Add("DumpMd", mVid.uid, mVid.gid, entries);
     }
   } else {
-    mRetC = EPERM;
-    errLocal = "error: you have to take role 'root' or connect via 'sss' "
-               "to execute this command";
+    retc = EPERM;
+    err = "error: you have to take role 'root' or connect via 'sss' "
+          "to execute this command";
   }
 
-  mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
-  mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
-  return mRetC;
+  mOut = out.c_str() != nullptr ? out.c_str() : "";
+  mErr = err.c_str() != nullptr ? err.c_str() : "";
+  return retc;
 }
 
 //------------------------------------------------------------------------------
@@ -432,10 +428,10 @@ FsCmd::Mv(const eos::console::FsProto::MvProto& mvProto)
     std::string source = mvProto.src();
     std::string dest = mvProto.dst();
     bool force = mvProto.force();
-    XrdOucString outLocal, errLocal;
-    mRetC = proc_fs_mv(source, dest, outLocal, errLocal, mVid, force);
-    mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
-    mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
+    XrdOucString out, err;
+    retc = proc_fs_mv(source, dest, out, err, mVid, force);
+    mOut = out.c_str() != nullptr ? out.c_str() : "";
+    mErr = err.c_str() != nullptr ? err.c_str() : "";
   } else {
     mRetC = EPERM;
     mErr = "error: you have to take role 'root' to execute this command";
@@ -462,12 +458,12 @@ FsCmd::Rm(const eos::console::FsProto::RmProto& rmProto)
     mountpoint = hostmountpoint.substr(splitAt + 4);
   }
 
-  XrdOucString outLocal, errLocal;
+  XrdOucString out, err;
   eos::common::RWMutexWriteLock wr_lock(FsView::gFsView.ViewMutex);
-  mRetC = proc_fs_rm(nodequeue, mountpoint, id, outLocal, errLocal, mVid);
-  mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
-  mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
-  return mRetC;
+  retc = proc_fs_rm(nodequeue, mountpoint, id, out, err, mVid);
+  mOut = out.c_str() != nullptr ? out.c_str() : "";
+  mErr = err.c_str() != nullptr ? err.c_str() : "";
+  return retc;
 }
 
 //------------------------------------------------------------------------------

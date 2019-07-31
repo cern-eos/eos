@@ -118,8 +118,7 @@ FsHelper::ParseCommand(const char* arg)
         }
       }
     }
-  }
-  else if (cmd == "boot") {
+  } else if (cmd == "boot") {
     using eos::console::FsProto_BootProto;
     FsProto_BootProto* boot = fs->mutable_boot();
 
@@ -162,8 +161,7 @@ FsHelper::ParseCommand(const char* arg)
         }
       }
     }
-  }
-  else if (cmd == "clone") {
+  } else if (cmd == "clone") {
     auto* clone = fs->mutable_clone();
 
     if (!(option = tokenizer.GetToken())) {
@@ -193,8 +191,7 @@ FsHelper::ParseCommand(const char* arg)
         return false;
       }
     }
-  }
-  else if (cmd == "compare") {
+  } else if (cmd == "compare") {
     auto* compare = fs->mutable_compare();
 
     if (!(option = tokenizer.GetToken())) {
@@ -224,8 +221,7 @@ FsHelper::ParseCommand(const char* arg)
         return false;
       }
     }
-  }
-  else if (cmd == "config") {
+  } else if (cmd == "config") {
     using eos::console::FsProto_ConfigProto;
     FsProto_ConfigProto* config = fs->mutable_config();
 
@@ -269,8 +265,7 @@ FsHelper::ParseCommand(const char* arg)
       config->set_key(soption.substr(0, pos));
       config->set_value(soption.substr(pos + 1));
     }
-  }
-  else if (cmd == "dropdeletion") {
+  } else if (cmd == "dropdeletion") {
     using eos::console::FsProto_DropDeletionProto;
     FsProto_DropDeletionProto* dropdel = fs->mutable_dropdel();
 
@@ -287,8 +282,7 @@ FsHelper::ParseCommand(const char* arg)
         return false;
       }
     }
-  }
-  else if (cmd == "dropghosts") {
+  } else if (cmd == "dropghosts") {
     using eos::console::FsProto_DropGhostsProto;
     FsProto_DropGhostsProto* dropghosts = fs->mutable_dropghosts();
 
@@ -304,9 +298,26 @@ FsHelper::ParseCommand(const char* arg)
         std::cerr << "error: fsid needs to be numeric" << std::endl;
         return false;
       }
+
+      // Parse optional list of explicit fids
+      if (tokenizer.NextToken(soption)) {
+        if (soption != "--fxid") {
+          std::cerr << "error: unknown option \"" << soption << "\"" << std::endl;
+          return false;
+        }
+
+        // Now parse the list of fids
+        while (tokenizer.NextToken(soption)) {
+          try {
+            dropghosts->add_fids(std::stoull(soption, 0, 16));
+          } catch (std::exception& e) {
+            std::cerr << "error: fxid needs to be (hex) numeric" << std::endl;
+            return false;
+          }
+        }
+      }
     }
-  }
-  else if (cmd == "dropfiles") {
+  } else if (cmd == "dropfiles") {
     using eos::console::FsProto_DropFilesProto;
     FsProto_DropFilesProto* dropfiles = fs->mutable_dropfiles();
 
@@ -337,8 +348,7 @@ FsHelper::ParseCommand(const char* arg)
 
       mNeedsConfirmation = true;
     }
-  }
-  else if (cmd == "dumpmd") {
+  } else if (cmd == "dumpmd") {
     using eos::console::FsProto_DumpMdProto;
     FsProto_DumpMdProto* dumpmd = fs->mutable_dumpmd();
 
@@ -378,8 +388,7 @@ FsHelper::ParseCommand(const char* arg)
         }
       }
     }
-  }
-  else if (cmd == "mv") {
+  } else if (cmd == "mv") {
     using eos::console::FsProto_MvProto;
     FsProto_MvProto* mv = fs->mutable_mv();
 
@@ -406,8 +415,7 @@ FsHelper::ParseCommand(const char* arg)
       soption = option;
       mv->set_dst(soption);
     }
-  }
-  else if (cmd == "ls") {
+  } else if (cmd == "ls") {
     using eos::console::FsProto_LsProto;
     FsProto_LsProto* ls = fs->mutable_ls();
 

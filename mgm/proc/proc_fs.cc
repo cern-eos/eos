@@ -1383,94 +1383,91 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
 // Clean unlinked files from filesystem
 //-------------------------------------------------------------------------------
 int
-proc_fs_dropdeletion(const std::string& id, XrdOucString& stdOut,
-                     XrdOucString& stdErr,
-                     eos::common::VirtualIdentity& vid_in)
+proc_fs_dropdeletion(const eos::common::FileSystem::fsid_t& fsid,
+                     const eos::common::VirtualIdentity& vid_in,
+                     std::string& out, std::string& err)
 {
-  int retc = 0;
-  eos::common::FileSystem::fsid_t fsid = 0;
-
-  if (id.length()) {
-    fsid = atoi(id.c_str());
+  if (fsid == 0ul) {
+    err = "error: no such filesystem fsid=0";
+    return EINVAL;
   }
 
-  if (fsid) {
-    if ((vid_in.uid != 0)) {
-      stdErr = "error: filesystem deletions can oly be dropped as 'root'\n";
-      retc = EPERM;
-    } else {
-      eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex);
+  if ((vid_in.uid != 0)) {
+    err = "error: command can only be executed by 'root'";
+    return EPERM;
+  }
 
-      if (gOFS->eosFsView->clearUnlinkedFileList(fsid)) {
-        stdOut += "success: dropped deletions on fsid=";
-        stdOut += id.c_str();
-      } else {
-        stdErr = "error: there is no deletion list for fsid=";
-        stdErr += id.c_str();
-      }
-    }
+  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+
+  if (gOFS->eosFsView->clearUnlinkedFileList(fsid)) {
+    out = SSTR("success: dropped deletions on fsid=" << fsid).c_str();
   } else {
-    stdErr = "error: there is no filesystem defined with fsid=";
-    stdErr += id.c_str();
-    stdErr += " ";
-    retc = EINVAL;
+    out = SSTR("note: there is no deletion list for fsid=" << fsid).c_str();
   }
 
-  return retc;
+  return 0;
 }
 
 //-------------------------------------------------------------------------------
 // Clean ghost entries in a filesystem view
 //-------------------------------------------------------------------------------
 int
-proc_fs_dropghosts(const std::string& id, XrdOucString& stdOut,
-                   XrdOucString& stdErr,
-                   eos::common::VirtualIdentity& vid_in)
+proc_fs_dropghosts(const eos::common::FileSystem::fsid_t& fsid,
+                   const std::set<eos::IFileMD::id_t>& set_fids,
+                   const eos::common::VirtualIdentity& vid_in,
+                   std::string& out, std::string& err)
 {
-  int retc = 0;
-  eos::common::FileSystem::fsid_t fsid = 0;
-
-  if (id.length()) {
-    fsid = atoi(id.c_str());
+  if (fsid == 0ul) {
+    err = "error: no such filesystem fsid=0";
+    return EINVAL;
   }
 
-  if (fsid) {
-    if ((vid_in.uid != 0)) {
-      stdErr = "error: filesystems view ghosts can only be removed as 'root'\n";
-      retc = EPERM;
-    } else {
-      eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex);
-      std::vector<uint64_t> todelete;
-      std::shared_ptr<eos::IFileMD> fmd;
+  if ((vid_in.uid != 0)) {
+    err = "error: command can only be executed by 'root'";
+    return EPERM;
+  }
 
-      for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
-           (it_fid && it_fid->valid()); it_fid->next()) {
-        try {
-          fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
-        } catch (eos::MDException& e) {
-          if (e.getErrno() == ENOENT) {
-            stdOut += "# removing id: ";
-            stdOut += std::to_string(it_fid->getElement()).c_str();
-            stdOut += "\n";
-            todelete.push_back(it_fid->getElement());
-          }
+  std::set<eos::IFileMD::id_t> to_delete;
+
+  if (set_fids.empty()) {
+    // We check all the files on that filesystem
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+
+    for (auto it_fid = gOFS->eosFsView->getFileList(fsid);
+         (it_fid && it_fid->valid()); it_fid->next()) {
+      try {
+        auto fmd = gOFS->eosFileService->getFileMD(it_fid->getElement());
+      } catch (eos::MDException& e) {
+        if (e.getErrno() == ENOENT) {
+          out += SSTR("# removing id: " << it_fid->getElement() << "\n").c_str();
+          to_delete.insert(it_fid->getElement());
         }
       }
-
-      for (auto it : todelete) {
-        gOFS->eosFsView->eraseEntry(fsid, it);
-      }
-
-      stdOut += "success: dropped ghost entries from fsid=";
-      stdOut += id.c_str();
     }
   } else {
-    stdErr = "error: there is no filesystem defined with fsid=";
-    stdErr += id.c_str();
-    stdErr += " ";
-    retc = EINVAL;
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+
+    for (const auto& fid : set_fids) {
+      try {
+        auto fmd = gOFS->eosFileService->getFileMD(fid);
+      } catch (eos::MDException& e) {
+        if (e.getErrno() == ENOENT) {
+          out += SSTR("# removing id: " << fid << "\n").c_str();
+          to_delete.insert(fid);
+        }
+      }
+    }
   }
 
-  return retc;
+  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+
+  for (const auto& fid : to_delete) {
+    gOFS->eosFsView->eraseEntry(fsid, fid);
+  }
+
+  out += SSTR("success: dropped " << to_delete.size()
+              << " ghost entries from fsid=" << fsid).c_str();
+  return 0;
 }
+
 EOSMGMNAMESPACE_END

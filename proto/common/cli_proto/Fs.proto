@@ -45,6 +45,7 @@ message FsProto {
 
   message DropGhostsProto {
     uint64 Fsid = 1;
+    repeated uint64 Fids = 2;
   }
 
   message DropFilesProto {
