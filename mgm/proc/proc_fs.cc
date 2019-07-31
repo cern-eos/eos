@@ -642,10 +642,6 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
 
       if (fs) {
         // We want one atomic update with all the parameters defined
-        fs->OpenTransaction();
-        fs->SetId(fsid);
-        fs->SetString("uuid", uuid.c_str());
-        fs->SetString("configstatus", configstatusStr.c_str());
         std::string splitspace;
         std::string splitgroup;
         unsigned int groupsize = 0;
@@ -742,11 +738,11 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
         if (!retc) {
           common::GroupLocator groupLocator;
           common::GroupLocator::parseGroup(splitgroup, groupLocator);
-          common::FileSystemCoreParams params(fsid, locator, groupLocator, uuid,
+          common::FileSystemCoreParams coreParams(fsid, locator, groupLocator, uuid,
                                               configStatus);
           fs->SetString("schedgroup", splitgroup.c_str());
 
-          if (!FsView::gFsView.Register(fs, params)) {
+          if (!FsView::gFsView.Register(fs, coreParams)) {
             // Remove mapping
             if (FsView::gFsView.RemoveMapping(fsid, uuid)) {
               stdOut += "\nsuccess: unmapped '";
@@ -774,8 +770,6 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
           stdErr += "error: cannot allocate filesystem object";
           retc = ENOMEM;
         }
-
-        fs->CloseTransaction(); // close all the definitions and broadcast
       }
     }
   } else {

@@ -232,6 +232,7 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs,
   // create new TreeNodeInfo/TreeNodeState pair and update its data
   eos::common::FileSystem::fs_snapshot_t fsn;
   fs->SnapShotFileSystem(fsn, true);
+  fsn.fillFromCoreParams(coreParams);
   // check if there is still some space for a new fs
   {
     size_t depth = 1;
@@ -352,7 +353,6 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs,
   }
 
   // update all the information about this new node
-  fsn.fillFromCoreParams(coreParams);
   if (!updateTreeInfo(mapEntry, &fsn, ~sfgGeotag & ~sfgId & ~sfgHost , 0, node)) {
     mapEntry->slowTreeMutex.UnLockWrite();
     pTreeMapMutex.LockRead();

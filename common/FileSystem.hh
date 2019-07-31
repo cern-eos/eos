@@ -726,40 +726,6 @@ public:
   bool setLongLongLocal(const std::string& key, int64_t value);
 
   //----------------------------------------------------------------------------
-  //! Open transaction to initiate bulk modifications on a file system
-  //----------------------------------------------------------------------------
-  bool
-  OpenTransaction()
-  {
-    RWMutexReadLock lock(mSom->HashMutex);
-    XrdMqSharedHash* hash = nullptr;
-
-    if ((hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash"))) {
-      hash->OpenTransaction();
-      return true;
-    } else {
-      return false;
-    }
-  }
-
-  //----------------------------------------------------------------------------
-  //! Close transaction to finish modifications on a file system
-  //----------------------------------------------------------------------------
-  bool
-  CloseTransaction()
-  {
-    RWMutexReadLock lock(mSom->HashMutex);
-    XrdMqSharedHash* hash = nullptr;
-
-    if ((hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash"))) {
-      hash->CloseTransaction();
-      return true;
-    } else {
-      return false;
-    }
-  }
-
-  //----------------------------------------------------------------------------
   //! Set a filesystem ID.
   //----------------------------------------------------------------------------
   bool

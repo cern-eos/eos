@@ -1655,6 +1655,7 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams &coreParams,
     }
   }
 
+  fs->applyCoreParams(coreParams);
   StoreFsConfig(fs);
   return true;
 }
