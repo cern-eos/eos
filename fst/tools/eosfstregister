@@ -1,82 +1,98 @@
 #!/usr/bin/perl
+
 use POSIX ":sys_wait_h";
-use Time::HiRes qw( usleep );
+use Time::HiRes qw(usleep);
 use File::Basename;
 
 my $eosowner = "daemon";
-
-#my $fst=`service eos status fst >& /dev/null`;
 
 print "###########################\n";
 print "# <eosfstregister> v1.0.0\n";
 print "###########################\n";
 
+sub usage() {
+    printf STDERR "usage: eosfstregister [-i] [-r] [--force] [<host[:port]>] <mount-prefix> [<space1>:<nfilesystems1>] [<space2>:<nfilesystems2>] [-h|--help]\n";
+    printf STDERR "                       -r : allows to register file systems mounted on the root partition\n";
+    printf STDERR "                       -i : ignore if one of the filesystems has already a filesystem id stored and continue\n";
+    printf STDERR "                  --force : delete old filesystem files and force registration of the new filesystem\n";
+    printf STDERR " hint: if <mount-prefix> ends with '/' subdirectories are scanned in this directory, \n";
+    printf STDERR "       if <mount-prefix> does not end with '/' directories starting with <mount-prefix> are scanned ( e.g. /data* )\n";
+    printf STDERR "       if <space>='spare' all filesystems will be registered without scheduling group and you can move them in to production via 'fs mv spare <prod-space>'\n";
+}
+
+#my $fst=`service eos status fst >& /dev/null`;
+#
 #if (!$fst) {
 #    printf STDERR "warning: stopping your fst service first ...\n";
 #    my $fststop=`service eos stop fst>& /dev/null`;
 #}
 
-sub usage() {
-    printf STDERR  "usage: eosfstregister [-i] [-r] [--force] [<host[:port]>] <mount-prefix> [<space1>:<nfilesystems1>] [<space2>:<nfilesystems2>] [-h|--help]\n";
-    printf STDERR  "                       -r : allows to register file systems mounted on the root partition\n";
-    printf STDERR  "                       -i : ignore if one of the filesystems has already a filesystem id stored and continue\n";
-    printf STDERR  " hint: if <mount-prefix> ends with '/' subdirectories are scanned in this directory, \n";
-    printf STDERR  "       if <mount-prefix> does not end with '/' directories starting with <mount-prefix> are scanned ( e.g. /data* )\n";
-    printf STDERR  "       if <space>='spare' all filesystems will be registered without scheduling group and you can move them in to production via 'fs mv spare <prod-space>'\n";
-}
-
 my $hostname = `hostname -f`;
 chomp $hostname;
-my $ignoreerrors=0;
-my $allowroot=0;
-my $force=0;
 
-for ( my $arg = 0; $arg < $#ARGV+1; $arg++) {
-    if ( ($ARGV[$arg] =~ /^-h/ ) ||
-	 ($ARGV[$arg] =~ /^--h/ )) {
-	usage();
-	exit(-1);
+#################################################
+# Process optional flag arguments
+#################################################
+
+my $ignoreerrors = 0;
+my $allowroot = 0;
+my $force = 0;
+
+for (my $arg = 0; $arg < $#ARGV + 1; $arg++) {
+    if (($ARGV[$arg] =~ /^-h/) ||
+        ($ARGV[$arg] =~ /^--h/)) {
+        usage();
+        exit(-1);
     }
-    if ( ($ARGV[$arg] =~ /-i/ ) ) {
-	$ignoreerrors = 1;
-	splice (@ARGV, $arg,1);
+
+    if (($ARGV[$arg] =~ /-i/)) {
+        $ignoreerrors = 1;
+        splice(@ARGV, $arg, 1);
     }
-    if (( $ARGV[$arg] =~ /--force/ )) {
-	$force = 1;
-	splice (@ARGV, $arg,1);
+
+    if (($ARGV[$arg] =~ /--force/)) {
+        $force = 1;
+        splice(@ARGV, $arg, 1);
     }
-	
-    if (( $ARGV[$arg] =~ /-r/ ) ) {
+
+    if (($ARGV[$arg] =~ /-r/)) {
         $allowroot = 1;
-	splice (@ARGV, $arg,1);
+        splice(@ARGV, $arg, 1);
     }
 
-#    print "$ARGV[$arg]\n";
+    #print "$ARGV[$arg]\n";
 }
-       
 
-my $mgmurl    = shift @ARGV;
+#################################################
+# Process MGM URL and mount point arguments
+#################################################
+
+my $mgmurl = shift @ARGV;
 my $mountprefix;
 
-if ( $mgmurl =~/^\// ) {
-    my $redirector=`test -r /etc/sysconfig/eos && . /etc/sysconfig/eos && echo \$EOS_MGM_URL`;
+if ($mgmurl =~ /^\//) {
+    my $redirector = `test -r /etc/sysconfig/eos && . /etc/sysconfig/eos && echo \$EOS_MGM_URL`;
     chomp $redirector;
+
     if ($redirector eq "") {
-        $redirector=`test -r /etc/sysconfig/eos_env && source /etc/sysconfig/eos_env && echo \$EOS_MGM_URL`;
+        $redirector = `test -r /etc/sysconfig/eos_env && source /etc/sysconfig/eos_env && echo \$EOS_MGM_URL`;
         chomp $redirector;
+
         if ($redirector ne "") {
             if ($redirector !~ /^root:\/\/*/) {
                 $redirector = "root://" . $redirector;
             }
-        } else {
+        }
+        else {
             printf STDERR "error: cannot automatically determine to which MGM I should connect - set it via EOS_MGM_URL in /etc/sysconfig/eos or CDB_CLUSTER variable in /etc/quattor_install_info!\n";
         }
     }
 
-    #automatic host configuration
+    # automatic host configuration
     $mountprefix = $mgmurl;
     $mgmurl = $redirector;
-} else {
+}
+else {
     $mgmurl = "root://" . $mgmurl;
     $mountprefix = shift @ARGV;
 }
@@ -84,40 +100,13 @@ if ( $mgmurl =~/^\// ) {
 chomp $mgmurl;
 chomp $mountprefix;
 
-my $policy;
-my $npfsdefined=0;
-my $phash;
-my $grep = "";
-
-my @spacearray;
-do {
-    $policy = (shift @ARGV or "");
-    $policy =~ /(\w*):(\d*)/;
-    my $space=$1;
-    my $nspace=$2;
-    if ( ($policy ne "") && (($space eq "") || ($nspace eq "") ) ) {
-	printf STDERR "error: policy definition seems illegal!\n";
-	usage();
-	exit(-3);
-    }
-    $npfsdefined += int($nspace);
-    for (my $i=0; $i < $nspace; $i++) {
-        if ($space eq "spare" ) {
-            push @spacearray, "$space";
-        } else {
-            push @spacearray, "$space.$i";
-        }
-    }
-} while($policy ne "");
-
-
-if ( $mgmurl eq "") {
+if ($mgmurl eq "") {
     printf STDERR "error: you have to provide a manager name <host>[:<port>]\n";
     usage();
     exit(-1);
 }
 
-if ( $mountprefix eq "") {
+if ($mountprefix eq "") {
     printf STDERR "error: you have to provide a mountprefix as the first argument!\n";
     usage();
     exit(-1);
@@ -125,10 +114,59 @@ if ( $mountprefix eq "") {
 
 #print "Listing mount prefix <$mountprefix> ...\n";
 
+#####################################################
+# Validate space:nfilesystems pairs
+# and count number of filesystems to assign
+#####################################################
+
+my $policy;
+my $npfsdefined = 0;
+my @spacearray;
+
+do {
+    $policy = (shift @ARGV or "");
+    $policy =~ /(\w*):(\d*)/;
+    my $space = $1;
+    my $nspace = $2;
+
+    if (($policy ne "") && (($space eq "") || ($nspace eq ""))) {
+        printf STDERR "error: policy definition seems illegal!\n";
+        usage();
+        exit(-3);
+    }
+
+    $npfsdefined += int($nspace);
+    for (my $i = 0; $i < $nspace; $i++) {
+        if ($space eq "spare") {
+            push @spacearray, "$space";
+        }
+        else {
+            push @spacearray, "$space.$i";
+        }
+    }
+} while ($policy ne "");
+
+
+#####################################################
+# Grep all entries matching mount-prefix.
+#
+# Scenarios:
+#  1. mountprefix ends with '/': E.g. /data01/
+#     - mountprefix stays as it is
+#
+#  2. mountprefix points to a pattern: E.g. /data01
+#     - establish basedir: /
+#     - establish search pattern: data01
+#     - add a filesystem for each directory
+#       which matches <basedir>/<pattern>
+#       E.g.: /data01 /data011 /data012
+#####################################################
+
 my @filesystems;
+my $pattern = "";
 
 if (!($mountprefix =~ /\/$/)) {
-    $grep = basename($mountprefix);
+    $pattern = basename($mountprefix);
     $mountprefix = dirname($mountprefix);
 }
 
@@ -140,38 +178,41 @@ open IN, "ls -1 $mountprefix| ";
 
 while (<IN>) {
     chomp $_;
+
     if ("$_" eq "lost+found") {
-	next;
+        next;
     }
 
-    if ( ! -d "$mountprefix/$_" ) {
-	next;
+    if (!-d "$mountprefix/$_") {
+        next;
     }
 
-    if ( $_ =~ /^\./ ) {
-	next;
+    if ($_ =~ /^\./) {
+        next;
     }
 
-    if ($grep ne "") {
-	if (!($_ =~ /^$grep/)) {
-	    next;
-	}
+    if (($pattern ne "") && (!($_ =~ /^$pattern/))) {
+        next;
     }
 
-#    print "Registering: $mountprefix/$_\n";
+    #print "Registering: $mountprefix/$_\n";
     if ($mountprefix eq "/") {
-	push @filesystems, "/$_";
-    } else {
-	push @filesystems, "$mountprefix/$_";
+        push @filesystems, "/$_";
+    }
+    else {
+        push @filesystems, "$mountprefix/$_";
     }
 }
 
-if ($#filesystems <0) {
+if ($#filesystems < 0) {
     printf STDERR "error: I didn't see any directory inside your mount prefix [ $#filesystems ]!\n";
     exit(-2);
 }
 
-my $nfilesystems = $#filesystems+1;
+# Number of filesystems must equal policy definitions
+# (the sum of nfilesystems from space:nfilesystems pairs)
+
+my $nfilesystems = $#filesystems + 1;
 
 if ("$nfilesystems" ne "$npfsdefined") {
     printf STDERR "error: Your policy definitions don't match the number of file systems I have found [ #filesystem = $nfilesystems #fspolicies = $npfsdefined ]\n";
@@ -179,63 +220,69 @@ if ("$nfilesystems" ne "$npfsdefined") {
     exit(-1);
 }
 
-my $cnt=0;
-foreach ( @filesystems ) {
+#####################################################
+# Register filesystems which matched the mount-prefix
+#####################################################
 
-    my ($root_dev,$root_ino,$root_mode,$root_nlink,$root_uid,$root_gid,$root_rdev,$root_size, $root_atime,$root_mtime,$root_ctime,$root_blksize,$root_blocks) = stat("/");
-    my ($reg_dev,$reg_ino,$reg_mode,$reg_nlink,$reg_uid,$reg_gid,$reg_rdev,$reg_size, $reg_atime,$reg_mtime,$reg_ctime,$reg_blksize,$reg_blocks) = stat("$_");
+my $cnt = 0;
+foreach (@filesystems) {
+
+    my ($root_dev, $root_ino, $root_mode, $root_nlink, $root_uid, $root_gid, $root_rdev, $root_size, $root_atime, $root_mtime, $root_ctime, $root_blksize, $root_blocks) = stat("/");
+    my ($reg_dev, $reg_ino, $reg_mode, $reg_nlink, $reg_uid, $reg_gid, $reg_rdev, $reg_size, $reg_atime, $reg_mtime, $reg_ctime, $reg_blksize, $reg_blocks) = stat("$_");
     if (!$allowroot) {
-        if ( "$root_dev" eq "$reg_dev" ) {
-            printf STDERR "error: filesystem $_ is on the root parition ... use '-r' if you really want to register it\n";
+        if ("$root_dev" eq "$reg_dev") {
+            printf STDERR "error: filesystem $_ is on the root partition ... use '-r' if you really want to register it\n";
             next;
         }
     }
 
-    my $uuid="";
-    my $fsid=0;
+    my $uuid = "";
+    my $fsid = 0;
     print $_;
 
-    if ( $force ) {
-	unlink "$_/.eosfsuuid";
-	unlink "$_/.eosfsid";
+    if ($force) {
+        unlink "$_/.eosfsuuid";
+        unlink "$_/.eosfsid";
     }
 
-    if ( ! -e "$_/.eosfsuuid" ) {
-	$uuid = `uuidgen`;
-	chomp $uuid;
-	system("echo $uuid > $_/.eosfsuuid; chown $eosowner.$eosowner $_/.eosfsuuid");
-    } else {
-	$uuid = `cat $_/.eosfsuuid`;
-	chomp $uuid;
+    if (!-e "$_/.eosfsuuid") {
+        $uuid = `uuidgen`;
+        chomp $uuid;
+        system("echo $uuid > $_/.eosfsuuid; chown $eosowner.$eosowner $_/.eosfsuuid");
+    }
+    else {
+        $uuid = `cat $_/.eosfsuuid`;
+        chomp $uuid;
     }
 
-    if ( ! -e "$_/.eosfsid" ) {
-	$fsid="undef";
-    } else {
-	$fsid = `cat $_/.eosfsid`;
-	chomp $fsid;
+    if (!-e "$_/.eosfsid") {
+        $fsid = "undef";
+    }
+    else {
+        $fsid = `cat $_/.eosfsid`;
+        chomp $fsid;
     }
 
     if ($fsid ne "undef") {
-	printf STDERR "error: filesystem $_ is already labeled with fsid=$fsid - remove the file $_/.eosfsid if you want to register with new fsid\n";
-	if (!$ignoreerrors) {
-	    exit(-4);
-	}
+        printf STDERR "error: filesystem $_ is already labeled with fsid=$fsid - remove the file $_/.eosfsid if you want to register with new fsid\n";
+        if (!$ignoreerrors) {
+            exit(-4);
+        }
     }
     printf " : uuid=$uuid fsid=$fsid\n";
-    
-    my $cmd=0;
-    if (!($cmd=fork())) {
-	system("unset EOS_MGM_URL; env XrdSecPROTOCOL=sss eos -b $mgmurl fs add $uuid $hostname:1095 $_ $spacearray[$cnt] rw");
-	system("unset EOS_MGM_URL; env XrdSecPROTOCOL=sss eos -b $mgmurl fs boot $uuid");
-	exit(0);
+
+    my $cmd = 0;
+    if (!($cmd = fork())) {
+        system("unset EOS_MGM_URL; env XrdSecPROTOCOL=sss eos -b $mgmurl fs add $uuid $hostname:1095 $_ $spacearray[$cnt] rw");
+        system("unset EOS_MGM_URL; env XrdSecPROTOCOL=sss eos -b $mgmurl fs boot $uuid");
+        exit(0);
     }
 
-    for (my $i=0; $i< 40; $i++) {
-	waitpid(-1, WNOHANG);
-	if ( kill 0, $cmd ) {
-	    usleep(250000);
-	}
+    for (my $i = 0; $i < 40; $i++) {
+        waitpid(-1, WNOHANG);
+        if (kill 0, $cmd) {
+            usleep(250000);
+        }
     }
 
     $cnt++;
