@@ -26,6 +26,7 @@ Bug
 
 * [EOS-3622] - eoscp is not propagating the error code.
 * [EOS-3629] - Provide fallback for the quota command to old implementation
+* [EOS-3631] - port flag is ignored on eosfstregister script
 * [EOS-3632] - mv on FUSEX deterministically loose data
 * [EOS-3633] - Many new commands are not compatible with old server version
 
