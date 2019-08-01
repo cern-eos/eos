@@ -136,44 +136,44 @@ EosFuse::UsageGet()
   std::string usage = "usage CLI   : eosxd get <key> [<path>]\n";
   usage += "\n";
   usage +=
-          "                     eos.btime <path>                   : show inode birth time\n";
+    "                     eos.btime <path>                   : show inode birth time\n";
   usage +=
-          "                     eos.ttime <path>                   : show lastest mtime in tree\n";
+    "                     eos.ttime <path>                   : show lastest mtime in tree\n";
   usage +=
-          "                     eos.tsize <path>                   : show size of directory tree\n";
+    "                     eos.tsize <path>                   : show size of directory tree\n";
   usage +=
-          "                     eos.dsize <path>                   : show total size of files inside a directory \n";
+    "                     eos.dsize <path>                   : show total size of files inside a directory \n";
   usage +=
-          "                     eos.name <path>                    : show EOS instance name for given path\n";
+    "                     eos.name <path>                    : show EOS instance name for given path\n";
   usage +=
-          "                     eos.md_ino <path>                  : show inode number valid on MGM \n";
+    "                     eos.md_ino <path>                  : show inode number valid on MGM \n";
   usage +=
-          "                     eos.hostport <path>                : show MGM connection host + port for given path\n";
+    "                     eos.hostport <path>                : show MGM connection host + port for given path\n";
   usage +=
-          "                     eos.mgmurl <path>                  : show MGM URL for a given path\n";
+    "                     eos.mgmurl <path>                  : show MGM URL for a given path\n";
   usage +=
-          "                     eos.stats <path>                   : show mount statistics\n";
+    "                     eos.stats <path>                   : show mount statistics\n";
   usage +=
-          "                     eos.stacktrace <path>              : test thread stack trace functionality\n";
+    "                     eos.stacktrace <path>              : test thread stack trace functionality\n";
   usage +=
-          "                     eos.quota <path>                   : show user quota information for a given path\n";
+    "                     eos.quota <path>                   : show user quota information for a given path\n";
   usage +=
-          "                     eos.reconnect <mount>              : reconnect and dump the connection credentials\n";
+    "                     eos.reconnect <mount>              : reconnect and dump the connection credentials\n";
   usage +=
-          "                     eos.reconnectparent <mount>        : reconnect parent process and dump the connection credentials\n";
+    "                     eos.reconnectparent <mount>        : reconnect parent process and dump the connection credentials\n";
   usage +=
-          "                     eos.identity <mount>               : show credential assignment of the calling process\n";
+    "                     eos.identity <mount>               : show credential assignment of the calling process\n";
   usage +=
-          "                     eos.identityparent <mount>         : show credential assignment of the executing shell\n";
+    "                     eos.identityparent <mount>         : show credential assignment of the executing shell\n";
   usage += "\n";
   usage +=
-          " as root             system.eos.md  <path>              : dump meta data for given path\n";
+    " as root             system.eos.md  <path>              : dump meta data for given path\n";
   usage +=
-          "                     system.eos.cap <path>              : dump cap for given path\n";
+    "                     system.eos.cap <path>              : dump cap for given path\n";
   usage +=
-          "                     system.eos.caps <mount>            : dump all caps\n";
+    "                     system.eos.caps <mount>            : dump all caps\n";
   usage +=
-          "                     system.eos.vmap <mount>            : dump virtual inode translation table\n";
+    "                     system.eos.vmap <mount>            : dump virtual inode translation table\n";
   usage += "\n";
   return usage;
 }
@@ -186,15 +186,15 @@ EosFuse::UsageSet()
   std::string usage = "usage CLI   : eosxd set <key> <value> [<path>]\n";
   usage += "\n";
   usage +=
-          " as root             system.eos.debug <level> <mount>   : set debug level with <level>=notice|info|debug\n";
+    " as root             system.eos.debug <level> <mount>   : set debug level with <level>=notice|info|debug\n";
   usage +=
-          "                     system.eos.dropcap - <mount>       : drop capability of the given path\n";
+    "                     system.eos.dropcap - <mount>       : drop capability of the given path\n";
   usage +=
-          "                     system.eos.dropcaps - <mount>      : drop call capabilities for given mount\n";
+    "                     system.eos.dropcaps - <mount>      : drop call capabilities for given mount\n";
   usage +=
-          "                     system.eos.resetstat - <mount>     : reset the statistic counters\n";
+    "                     system.eos.resetstat - <mount>     : reset the statistic counters\n";
   usage +=
-          "                     system.eos.log <mode> <mount>      : make log file public or private with <mode>=public|private\n";
+    "                     system.eos.log <mode> <mount>      : make log file public or private with <mode>=public|private\n";
   usage += "\n";
   return usage;
 }
@@ -205,15 +205,15 @@ std::string
 EosFuse::UsageMount()
 {
   std::string usage =
-          "usage FS    : eosxd -ofsname=<host><remote-path> <mnt-path>\n";
+    "usage FS    : eosxd -ofsname=<host><remote-path> <mnt-path>\n";
   usage +=
-          "                     eosxd -ofsname=<config-name> <mnt-path>\n";
+    "                     eosxd -ofsname=<config-name> <mnt-path>\n";
   usage +=
-          "                        with configuration file /etc/eos/fuse.<config-name>.conf\n";
+    "                        with configuration file /etc/eos/fuse.<config-name>.conf\n";
   usage +=
-          "                     mount -t fuse eosxd -ofsname=<host><remote-path> <mnt-path>\n";
+    "                     mount -t fuse eosxd -ofsname=<host><remote-path> <mnt-path>\n";
   usage +=
-          "                     mount -t fuse eosxd -ofsname=<config-name> <mnt-path>\n";
+    "                     mount -t fuse eosxd -ofsname=<config-name> <mnt-path>\n";
   usage += "\n";
   return usage;
 }
@@ -224,7 +224,7 @@ std::string
 EosFuse::UsageHelp()
 {
   std::string usage =
-          "usage HELP  : eosxd [-h|--help|help]                    : get help\n";
+    "usage HELP  : eosxd [-h|--help|help]                    : get help\n";
   return usage;
 }
 
@@ -384,9 +384,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   xrdcl_options.push_back("RequestTimeout");
   xrdcl_options.push_back("StreamTimeout");
   xrdcl_options.push_back("RedirectLimit");
-
   std::string mountpoint;
-
   config.options.foreground = 0;
   config.options.automounted = 0;
 
@@ -467,6 +465,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
       size_t pos_colon;
       std::string remotemount;
+
       if ((pos_colon = fsname.find(":")) != std::string::npos) {
         remotemount = fsname.substr(pos_colon + 1);
         fsname.erase(pos_colon);
@@ -482,21 +481,23 @@ EosFuse::run(int argc, char* argv[], void* userdata)
 
     if (!root.isMember("mdcachedir")) {
       if (geteuid()) {
-	root["mdcachedir"] = "/var/tmp/eos/fusex/md-cache/";
+        root["mdcachedir"] = "/var/tmp/eos/fusex/md-cache/";
       } else {
-	root["mdcachedir"] = "/var/cache/eos/fusex/md-cache/";
+        root["mdcachedir"] = "/var/cache/eos/fusex/md-cache/";
       }
-      
+
       fprintf(stderr, "# enabling swapping inodes with md-cache in '%s'\n",
-	      root["mdcachedir"].asString().c_str());
+              root["mdcachedir"].asString().c_str());
     }
 
     // apply some default settings for undefined entries.
     {
       if (!root.isMember("name")) {
         XrdOucString id = mountpoint.c_str();
+
         while (id.replace("/", "-")) {
         }
+
         fsname += id.c_str();
         root["name"] = fsname;
       }
@@ -681,1019 +682,1006 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     if (!root["options"].isMember("submounts")) {
       root["options"]["submounts"] = 0;
 
-    if (!root["options"].isMember("inmemory-inodes")) {
-      root["options"]["inmemory-inodes"] = 16384;
-    }
+      if (!root["options"].isMember("inmemory-inodes")) {
+        root["options"]["inmemory-inodes"] = 16384;
+      }
 
-    // xrdcl default options
-    XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
-    XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionWindow", 10);
-    XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 0);
-    XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 60);
-    XrdCl::DefaultEnv::GetEnv()->PutInt("RequestTimeout", 30);
-    XrdCl::DefaultEnv::GetEnv()->PutInt("StreamTimeout", 60);
-    XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 3);
+      // xrdcl default options
+      XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
+      XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionWindow", 10);
+      XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 0);
+      XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 60);
+      XrdCl::DefaultEnv::GetEnv()->PutInt("RequestTimeout", 30);
+      XrdCl::DefaultEnv::GetEnv()->PutInt("StreamTimeout", 60);
+      XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 3);
 
-    for (auto it = xrdcl_options.begin(); it != xrdcl_options.end(); ++it) {
-      if (root["xrdcl"].isMember(*it)) {
-        XrdCl::DefaultEnv::GetEnv()->PutInt(it->c_str(),
-                                            root["xrdcl"][it->c_str()].asInt());
+      for (auto it = xrdcl_options.begin(); it != xrdcl_options.end(); ++it) {
+        if (root["xrdcl"].isMember(*it)) {
+          XrdCl::DefaultEnv::GetEnv()->PutInt(it->c_str(),
+                                              root["xrdcl"][it->c_str()].asInt());
 
-        if (*it == "RequestTimeout") {
-          int rtimeout = root["xrdcl"][it->c_str()].asInt();
+          if (*it == "RequestTimeout") {
+            int rtimeout = root["xrdcl"][it->c_str()].asInt();
 
-          if (rtimeout > XrdCl::Proxy::chunk_timeout()) {
-            XrdCl::Proxy::chunk_timeout(rtimeout + 60);
+            if (rtimeout > XrdCl::Proxy::chunk_timeout()) {
+              XrdCl::Proxy::chunk_timeout(rtimeout + 60);
+            }
           }
         }
       }
-    }
 
-    if (root["xrdcl"].isMember("LogLevel")) {
-      XrdCl::DefaultEnv::GetEnv()->PutString("LogLevel",
-                                             root["xrdcl"]["LogLevel"].asString());
-      setenv((char*) "XRD_LOGLEVEL", root["xrdcl"]["LogLevel"].asString().c_str(), 1);
-      XrdCl::DefaultEnv::ReInitializeLogging();
-    }
+      if (root["xrdcl"].isMember("LogLevel")) {
+        XrdCl::DefaultEnv::GetEnv()->PutString("LogLevel",
+                                               root["xrdcl"]["LogLevel"].asString());
+        setenv((char*) "XRD_LOGLEVEL", root["xrdcl"]["LogLevel"].asString().c_str(), 1);
+        XrdCl::DefaultEnv::ReInitializeLogging();
+      }
 
-    // recovery setting
-    if (!root["recovery"].isMember("read")) {
-      root["recovery"]["read"] = 1;
-    }
+      // recovery setting
+      if (!root["recovery"].isMember("read")) {
+        root["recovery"]["read"] = 1;
+      }
 
-    if (!root["recovery"].isMember("read-open")) {
-      root["recovery"]["read-open"] = 1;
-    }
+      if (!root["recovery"].isMember("read-open")) {
+        root["recovery"]["read-open"] = 1;
+      }
 
-    if (!root["recovery"].isMember("read-open-noserver")) {
-      root["recovery"]["read-open-noserver"] = 1;
-    }
+      if (!root["recovery"].isMember("read-open-noserver")) {
+        root["recovery"]["read-open-noserver"] = 1;
+      }
 
-    if (!root["recovery"].isMember("read-open-noserver-retrywindow")) {
-      root["recovery"]["read-open-noserver-retrywindow"] = 10800;
-    }
+      if (!root["recovery"].isMember("read-open-noserver-retrywindow")) {
+        root["recovery"]["read-open-noserver-retrywindow"] = 10800;
+      }
 
-    if (!root["recovery"].isMember("write")) {
-      root["recovery"]["write"] = 1;
-    }
+      if (!root["recovery"].isMember("write")) {
+        root["recovery"]["write"] = 1;
+      }
 
-    if (!root["recovery"].isMember("write-open")) {
-      root["recovery"]["write-open"] = 1;
-    }
+      if (!root["recovery"].isMember("write-open")) {
+        root["recovery"]["write-open"] = 1;
+      }
 
-    if (!root["recovery"].isMember("write-open-noserver")) {
-      root["recovery"]["write-open-noserver"] = 1;
-    }
+      if (!root["recovery"].isMember("write-open-noserver")) {
+        root["recovery"]["write-open-noserver"] = 1;
+      }
 
-    if (!root["recovery"].isMember("write-open-noserver-retrywindow")) {
-      root["recovery"]["write-open-noserver-retrywindow"] = 10800;
-    }
+      if (!root["recovery"].isMember("write-open-noserver-retrywindow")) {
+        root["recovery"]["write-open-noserver-retrywindow"] = 10800;
+      }
 
-    // fuzzing settings
-    if (!root["fuzzing"].isMember("open-async-submit")) {
-      root["fuzzing"]["open-async-submit"] = 0;
-    }
+      // fuzzing settings
+      if (!root["fuzzing"].isMember("open-async-submit")) {
+        root["fuzzing"]["open-async-submit"] = 0;
+      }
 
-    if (!root["fuzzing"].isMember("open-async-return")) {
-      root["fuzzing"]["open-async-return"] = 0;
-    }
+      if (!root["fuzzing"].isMember("open-async-return")) {
+        root["fuzzing"]["open-async-return"] = 0;
+      }
 
-    if (!root["fuzzing"].isMember("open-async-submit-fatal")) {
-      root["fuzzing"]["open-async-submit-fatal"] = 0;
-    }
+      if (!root["fuzzing"].isMember("open-async-submit-fatal")) {
+        root["fuzzing"]["open-async-submit-fatal"] = 0;
+      }
 
-    if (!root["fuzzing"].isMember("open-async-return-fatal")) {
-      root["fuzzing"]["open-async-return-fatal"] = 0;
-    }
+      if (!root["fuzzing"].isMember("open-async-return-fatal")) {
+        root["fuzzing"]["open-async-return-fatal"] = 0;
+      }
 
-    config.name = root["name"].asString();
-    config.hostport = root["hostport"].asString();
-    config.remotemountdir = root["remotemountdir"].asString();
-    config.localmountdir = root["localmountdir"].asString();
-    config.statfilesuffix = root["statfilesuffix"].asString();
-    config.statfilepath = root["statfilepath"].asString();
-    config.appname = "fuse";
+      config.name = root["name"].asString();
+      config.hostport = root["hostport"].asString();
+      config.remotemountdir = root["remotemountdir"].asString();
+      config.localmountdir = root["localmountdir"].asString();
+      config.statfilesuffix = root["statfilesuffix"].asString();
+      config.statfilepath = root["statfilepath"].asString();
+      config.appname = "fuse";
 
-    if (root["appname"].asString().length()) {
-      if (root["appname"].asString().find("&") == std::string::npos) {
-        config.appname += "::";
-        config.appname += root["appname"].asString();
-      } else {
-        fprintf(stderr, "error: appname cannot contain '&' character!\n");
+      if (root["appname"].asString().length()) {
+        if (root["appname"].asString().find("&") == std::string::npos) {
+          config.appname += "::";
+          config.appname += root["appname"].asString();
+        } else {
+          fprintf(stderr, "error: appname cannot contain '&' character!\n");
+          exit(EINVAL);
+        }
+      }
+
+      config.options.debug = root["options"]["debug"].asInt();
+      config.options.debuglevel = root["options"]["debuglevel"].asInt();
+      config.options.enable_backtrace = root["options"]["backtrace"].asInt();
+      config.options.libfusethreads = root["options"]["libfusethreads"].asInt();
+      config.options.md_kernelcache = root["options"]["md-kernelcache"].asInt();
+      config.options.md_kernelcache_enoent_timeout =
+        root["options"]["md-kernelcache.enoent.timeout"].asDouble();
+      config.options.md_backend_timeout =
+        root["options"]["md-backend.timeout"].asDouble();
+      config.options.md_backend_put_timeout =
+        root["options"]["md-backend.put.timeout"].asDouble();
+      config.options.data_kernelcache = root["options"]["data-kernelcache"].asInt();
+      config.options.rename_is_sync = root["options"]["rename-is-sync"].asInt();
+      config.options.rmdir_is_sync = root["options"]["rmdir-is-sync"].asInt();
+      config.options.global_flush = root["options"]["global-flush"].asInt();
+      config.options.flush_wait_open = root["options"]["flush-wait-open"].asInt();
+      config.options.global_locking = root["options"]["global-locking"].asInt();
+      config.options.overlay_mode = strtol(
+                                      root["options"]["overlay-mode"].asString().c_str(), 0, 8);
+      config.options.fdlimit = root["options"]["fd-limit"].asInt();
+      config.options.rm_rf_protect_levels =
+        root["options"]["rm-rf-protect-levels"].asInt();
+      config.options.rm_rf_bulk =
+        root["options"]["rm-rf-bulk"].asInt();
+      config.options.show_tree_size = root["options"]["show-tree-size"].asInt();
+      config.options.cpu_core_affinity = root["options"]["cpu-core-affinity"].asInt();
+      config.options.no_xattr = root["options"]["no-xattr"].asInt();
+      config.options.no_hardlinks = root["options"]["no-link"].asInt();
+      config.options.write_size_flush_interval =
+        root["options"]["write-size-flush-interval"].asInt();
+      config.options.inmemory_inodes = root["options"]["inmemory-inodes"].asInt();
+
+      if (config.options.no_xattr) {
+        disable_xattr();
+      }
+
+      if (config.options.no_hardlinks) {
+        disable_link();
+      }
+
+      config.options.nocache_graceperiod =
+        root["options"]["nocache-graceperiod"].asInt();
+      config.options.leasetime = root["options"]["leasetime"].asInt();
+      config.options.submounts = root["options"]["submounts"].asInt();
+      config.recovery.read = root["recovery"]["read"].asInt();
+      config.recovery.read_open = root["recovery"]["read-open"].asInt();
+      config.recovery.read_open_noserver =
+        root["recovery"]["read-open-noserver"].asInt();
+      config.recovery.read_open_noserver_retrywindow =
+        root["recovery"]["read-open-noserver-retrywindow"].asInt();
+      config.recovery.write = root["recovery"]["write"].asInt();
+      config.recovery.write_open = root["recovery"]["write-open"].asInt();
+      config.recovery.write_open_noserver =
+        root["recovery"]["write-open-noserver"].asInt();
+      config.recovery.write_open_noserver_retrywindow =
+        root["recovery"]["write-open-noserver-retrywindow"].asInt();
+      config.fuzzing.open_async_submit = root["fuzzing"]["open-async-submit"].asInt();
+      config.fuzzing.open_async_return = root["fuzzing"]["open-async-return"].asInt();
+      config.fuzzing.read_async_return = root["fuzzing"]["read-async-return"].asInt();
+      config.fuzzing.open_async_submit_fatal = (bool)
+          root["fuzzing"]["open-async-submit-fatal"].asInt();
+      config.fuzzing.open_async_return_fatal = (bool)
+          root["fuzzing"]["open-async-return-fatal"].asInt();
+      XrdCl::Fuzzing::Configure(config.fuzzing.open_async_submit,
+                                config.fuzzing.open_async_return,
+                                config.fuzzing.open_async_submit_fatal,
+                                config.fuzzing.open_async_return_fatal,
+                                config.fuzzing.read_async_return);
+      config.mdcachedir = root["mdcachedir"].asString();
+      config.mqtargethost = root["mdzmqtarget"].asString();
+      config.mqidentity = root["mdzmqidentity"].asString();
+      config.mqname = config.mqidentity;
+      config.auth.fuse_shared = root["auth"]["shared-mount"].asInt();
+      config.auth.use_user_krb5cc = root["auth"]["krb5"].asInt();
+      config.auth.ignore_containerization =
+        root["auth"]["ignore-containerization"].asInt();
+      config.auth.use_user_gsiproxy = root["auth"]["gsi"].asInt();
+      config.auth.use_user_sss = root["auth"]["sss"].asInt();
+      config.auth.credentialStore = root["auth"]["credential-store"].asString();
+
+      if (config.auth.use_user_sss) {
+        // store keytab location for this mount
+        setenv("XrdSecSSSKT", root["auth"]["ssskeytab"].asString().c_str(), 1);
+      }
+
+      config.auth.tryKrb5First = !((bool)root["auth"]["gsi-first"].asInt());
+      config.auth.environ_deadlock_timeout =
+        root["auth"]["environ-deadlock-timeout"].asInt();
+      config.auth.forknoexec_heuristic = root["auth"]["forknoexec-heuristic"].asInt();
+
+      if (config.auth.environ_deadlock_timeout <= 0) {
+        config.auth.environ_deadlock_timeout = 500;
+      }
+
+      config.inliner.max_size = root["inline"]["max-size"].asInt();
+      config.inliner.default_compressor =
+        root["inline"]["default-compressor"].asString();
+
+      if ((config.inliner.default_compressor != "none") &&
+          (config.inliner.default_compressor != "zlib")) {
+        std::cerr <<
+                  "inline default compressor value can only be 'none' or 'zlib'."
+                  << std::endl;
         exit(EINVAL);
       }
-    }
 
-    config.options.debug = root["options"]["debug"].asInt();
-    config.options.debuglevel = root["options"]["debuglevel"].asInt();
-    config.options.enable_backtrace = root["options"]["backtrace"].asInt();
-    config.options.libfusethreads = root["options"]["libfusethreads"].asInt();
-    config.options.md_kernelcache = root["options"]["md-kernelcache"].asInt();
-    config.options.md_kernelcache_enoent_timeout =
-            root["options"]["md-kernelcache.enoent.timeout"].asDouble();
-    config.options.md_backend_timeout =
-            root["options"]["md-backend.timeout"].asDouble();
-    config.options.md_backend_put_timeout =
-            root["options"]["md-backend.put.timeout"].asDouble();
-    config.options.data_kernelcache = root["options"]["data-kernelcache"].asInt();
-    config.options.rename_is_sync = root["options"]["rename-is-sync"].asInt();
-    config.options.rmdir_is_sync = root["options"]["rmdir-is-sync"].asInt();
-    config.options.global_flush = root["options"]["global-flush"].asInt();
-    config.options.flush_wait_open = root["options"]["flush-wait-open"].asInt();
-    config.options.global_locking = root["options"]["global-locking"].asInt();
-    config.options.overlay_mode = strtol(
-                                         root["options"]["overlay-mode"].asString().c_str(), 0, 8);
-    config.options.fdlimit = root["options"]["fd-limit"].asInt();
-    config.options.rm_rf_protect_levels =
-            root["options"]["rm-rf-protect-levels"].asInt();
-    config.options.rm_rf_bulk =
-            root["options"]["rm-rf-bulk"].asInt();
-    config.options.show_tree_size = root["options"]["show-tree-size"].asInt();
-    config.options.cpu_core_affinity = root["options"]["cpu-core-affinity"].asInt();
-    config.options.no_xattr = root["options"]["no-xattr"].asInt();
-    config.options.no_hardlinks = root["options"]["no-link"].asInt();
-    config.options.write_size_flush_interval =
-      root["options"]["write-size-flush-interval"].asInt();
-    config.options.inmemory_inodes = root["options"]["inmemory-inodes"].asInt();
+      for (Json::Value::iterator it = root["options"]["no-fsync"].begin();
+           it != root["options"]["no-fsync"].end(); ++it) {
+        config.options.no_fsync_suffixes.push_back(it->asString());
+        no_fsync_list += it->asString();
+        no_fsync_list += ",";
+      }
 
-    if (config.options.no_xattr) {
-      disable_xattr();
-    }
-
-    if (config.options.no_hardlinks) {
-      disable_link();
-    }
-
-    config.options.nocache_graceperiod =
-            root["options"]["nocache-graceperiod"].asInt();
-    config.options.leasetime = root["options"]["leasetime"].asInt();
-
-    config.options.submounts = root["options"]["submounts"].asInt();
-
-    config.recovery.read = root["recovery"]["read"].asInt();
-    config.recovery.read_open = root["recovery"]["read-open"].asInt();
-    config.recovery.read_open_noserver =
-            root["recovery"]["read-open-noserver"].asInt();
-    config.recovery.read_open_noserver_retrywindow =
-            root["recovery"]["read-open-noserver-retrywindow"].asInt();
-    config.recovery.write = root["recovery"]["write"].asInt();
-    config.recovery.write_open = root["recovery"]["write-open"].asInt();
-    config.recovery.write_open_noserver =
-            root["recovery"]["write-open-noserver"].asInt();
-    config.recovery.write_open_noserver_retrywindow =
-            root["recovery"]["write-open-noserver-retrywindow"].asInt();
-    config.fuzzing.open_async_submit = root["fuzzing"]["open-async-submit"].asInt();
-    config.fuzzing.open_async_return = root["fuzzing"]["open-async-return"].asInt();
-    config.fuzzing.read_async_return = root["fuzzing"]["read-async-return"].asInt();
-    config.fuzzing.open_async_submit_fatal = (bool)
-            root["fuzzing"]["open-async-submit-fatal"].asInt();
-    config.fuzzing.open_async_return_fatal = (bool)
-            root["fuzzing"]["open-async-return-fatal"].asInt();
-    XrdCl::Fuzzing::Configure(config.fuzzing.open_async_submit,
-                              config.fuzzing.open_async_return,
-                              config.fuzzing.open_async_submit_fatal,
-                              config.fuzzing.open_async_return_fatal,
-                              config.fuzzing.read_async_return);
-    config.mdcachedir = root["mdcachedir"].asString();
-    config.mqtargethost = root["mdzmqtarget"].asString();
-    config.mqidentity = root["mdzmqidentity"].asString();
-    config.mqname = config.mqidentity;
-    config.auth.fuse_shared = root["auth"]["shared-mount"].asInt();
-    config.auth.use_user_krb5cc = root["auth"]["krb5"].asInt();
-    config.auth.ignore_containerization = root["auth"]["ignore-containerization"].asInt();
-    config.auth.use_user_gsiproxy = root["auth"]["gsi"].asInt();
-    config.auth.use_user_sss = root["auth"]["sss"].asInt();
-    config.auth.credentialStore = root["auth"]["credential-store"].asString();
-
-    if (config.auth.use_user_sss) {
-      // store keytab location for this mount
-      setenv("XrdSecSSSKT", root["auth"]["ssskeytab"].asString().c_str(), 1);
-    }
-
-    config.auth.tryKrb5First = !((bool)root["auth"]["gsi-first"].asInt());
-    config.auth.environ_deadlock_timeout =
-            root["auth"]["environ-deadlock-timeout"].asInt();
-    config.auth.forknoexec_heuristic = root["auth"]["forknoexec-heuristic"].asInt();
-
-    if (config.auth.environ_deadlock_timeout <= 0) {
-      config.auth.environ_deadlock_timeout = 500;
-    }
-
-    config.inliner.max_size = root["inline"]["max-size"].asInt();
-    config.inliner.default_compressor =
-            root["inline"]["default-compressor"].asString();
-
-    if ((config.inliner.default_compressor != "none") &&
-        (config.inliner.default_compressor != "zlib")) {
-      std::cerr <<
-              "inline default compressor value can only be 'none' or 'zlib'."
-              << std::endl;
-      exit(EINVAL);
-    }
-
-    for (Json::Value::iterator it = root["options"]["no-fsync"].begin();
-         it != root["options"]["no-fsync"].end(); ++it) {
-      config.options.no_fsync_suffixes.push_back(it->asString());
-      no_fsync_list += it->asString();
-      no_fsync_list += ",";
-    }
-
-    // reset mdcachedir if compiled without rocksdb support
+      // reset mdcachedir if compiled without rocksdb support
 #ifndef ROCKSDB_FOUND
-    if (!config.mdcachedir.empty()) {
-      std::cerr <<
-              "Options mdcachedir is unavailable, fusex was compiled without rocksdb support."
-              << std::endl;
-      config.mdcachedir="";
-    }
+
+      if (!config.mdcachedir.empty()) {
+        std::cerr <<
+                  "Options mdcachedir is unavailable, fusex was compiled without rocksdb support."
+                  << std::endl;
+        config.mdcachedir = "";
+      }
 
 #endif
-
-    if (config.mdcachedir.length()) {
-      // add the instance name to all cache directories
-      if (config.mdcachedir.rfind("/") != (config.mdcachedir.size() - 1)) {
-        config.mdcachedir += "/";
-      }
-
-      config.mdcachedir += config.name.length() ? config.name : "default";
-    }
-
-    // default settings
-    if (!config.statfilesuffix.length()) {
-      config.statfilesuffix = "stats";
-    }
-
-    if (!config.mqtargethost.length()) {
-      std::string h = config.hostport;
-
-      if (h.find(":") != std::string::npos) {
-        h.erase(h.find(":"));
-      }
-
-      config.mqtargethost = "tcp://" + h + ":1100";
-    }
-
-    {
-      config.mqidentity.insert(0, "fuse://");
-      config.mqidentity += "@";
-      char hostname[4096];
-
-      if (gethostname(hostname, sizeof(hostname))) {
-        fprintf(stderr, "error: failed to get hostname!\n");
-        exit(EINVAL);
-      }
-
-      config.clienthost = hostname;
-      config.mqidentity += hostname;
-      char suuid[40];
-      uuid_t uuid;
-      uuid_generate_time(uuid);
-      uuid_unparse(uuid, suuid);
-      config.clientuuid = suuid;
-      config.mqidentity += "//";
-      config.mqidentity += suuid;
-      config.mqidentity += ":";
-      char spid[16];
-      snprintf(spid, sizeof(spid), "%d", getpid());
-      config.mqidentity += spid;
 
       if (config.mdcachedir.length()) {
-	config.mdcachedir += "/";
-	config.mdcachedir += suuid;
+        // add the instance name to all cache directories
+        if (config.mdcachedir.rfind("/") != (config.mdcachedir.size() - 1)) {
+          config.mdcachedir += "/";
+        }
+
+        config.mdcachedir += config.name.length() ? config.name : "default";
       }
-    }
 
-    if (config.options.fdlimit > 0) {
-      struct rlimit newrlimit;
-      newrlimit.rlim_cur = config.options.fdlimit;
-      newrlimit.rlim_max = config.options.fdlimit;
-
-      if ((setrlimit(RLIMIT_NOFILE, &newrlimit) != 0) && (!geteuid())) {
-        fprintf(stderr, "warning: unable to set fd limit to %lu - errno %d\n",
-                config.options.fdlimit, errno);
+      // default settings
+      if (!config.statfilesuffix.length()) {
+        config.statfilesuffix = "stats";
       }
-    }
 
-    struct rlimit nofilelimit;
+      if (!config.mqtargethost.length()) {
+        std::string h = config.hostport;
 
-    if (getrlimit(RLIMIT_NOFILE, &nofilelimit) != 0) {
-      fprintf(stderr, "error: unable to get fd limit - errno %d\n", errno);
-      exit(EINVAL);
-    }
+        if (h.find(":") != std::string::npos) {
+          h.erase(h.find(":"));
+        }
 
-    fprintf(stderr, "# File descriptor limit: %lu soft, %lu hard\n",
-            nofilelimit.rlim_cur, nofilelimit.rlim_max);
-    // store the current limit
-    config.options.fdlimit = nofilelimit.rlim_cur;
-    // data caching configuration
-    cconfig.type = cache_t::INVALID;
+        config.mqtargethost = "tcp://" + h + ":1100";
+      }
 
-    cconfig.clean_on_startup = true;
+      {
+        config.mqidentity.insert(0, "fuse://");
+        config.mqidentity += "@";
+        char hostname[4096];
 
-    if (root["cache"]["type"].asString() == "disk") {
-      cconfig.type = cache_t::DISK;
-    } else if (root["cache"]["type"].asString() == "memory") {
-      cconfig.type = cache_t::MEMORY;
-    } else {
-      if (root["cache"]["type"].asString().length()) {
-        fprintf(stderr, "error: invalid cache type configuration\n");
+        if (gethostname(hostname, sizeof(hostname))) {
+          fprintf(stderr, "error: failed to get hostname!\n");
+          exit(EINVAL);
+        }
+
+        config.clienthost = hostname;
+        config.mqidentity += hostname;
+        char suuid[40];
+        uuid_t uuid;
+        uuid_generate_time(uuid);
+        uuid_unparse(uuid, suuid);
+        config.clientuuid = suuid;
+        config.mqidentity += "//";
+        config.mqidentity += suuid;
+        config.mqidentity += ":";
+        char spid[16];
+        snprintf(spid, sizeof(spid), "%d", getpid());
+        config.mqidentity += spid;
+
+        if (config.mdcachedir.length()) {
+          config.mdcachedir += "/";
+          config.mdcachedir += suuid;
+        }
+      }
+
+      if (config.options.fdlimit > 0) {
+        struct rlimit newrlimit;
+        newrlimit.rlim_cur = config.options.fdlimit;
+        newrlimit.rlim_max = config.options.fdlimit;
+
+        if ((setrlimit(RLIMIT_NOFILE, &newrlimit) != 0) && (!geteuid())) {
+          fprintf(stderr, "warning: unable to set fd limit to %lu - errno %d\n",
+                  config.options.fdlimit, errno);
+        }
+      }
+
+      struct rlimit nofilelimit;
+
+      if (getrlimit(RLIMIT_NOFILE, &nofilelimit) != 0) {
+        fprintf(stderr, "error: unable to get fd limit - errno %d\n", errno);
         exit(EINVAL);
-      } else {
+      }
+
+      fprintf(stderr, "# File descriptor limit: %lu soft, %lu hard\n",
+              nofilelimit.rlim_cur, nofilelimit.rlim_max);
+      // store the current limit
+      config.options.fdlimit = nofilelimit.rlim_cur;
+      // data caching configuration
+      cconfig.type = cache_t::INVALID;
+      cconfig.clean_on_startup = true;
+
+      if (root["cache"]["type"].asString() == "disk") {
         cconfig.type = cache_t::DISK;
-      }
-    }
-
-    if (!root["cache"].isMember("read-ahead-bytes-nominal")) {
-      root["cache"]["read-ahead-bytes-nominal"] = 256 * 1024;
-    }
-
-    if (!root["cache"].isMember("read-ahead-bytes-max")) {
-      root["cache"]["read-ahead-bytes-max"] = 2 * 1024 * 1024;
-    }
-
-    if (!root["cache"].isMember("read-ahead-blocks-max")) {
-      root["cache"]["read-ahead-blocks-max"] = 16;
-    }
-
-    if (!root["cache"].isMember("read-ahead-strategy")) {
-      root["cache"]["read-ahead-strategy"] = "dynamic";
-    }
-
-    // auto-scale read-ahead and write-back buffer
-    uint64_t best_io_buffer_size = meminfo.get().totalram / 8;
-
-    if (best_io_buffer_size > 128 * 1024 * 1024) {
-      best_io_buffer_size = 128 * 1024 * 1024;
-    } else {
-      // we take 1/8 of the total available memory, if we don't have one GB available
-      best_io_buffer_size /= 8;
-    }
-
-    if (!root["cache"].isMember("max-read-ahead-buffer")) {
-      fprintf(stderr, "# allowing max read-ahead buffers of %lu bytes\n",
-              best_io_buffer_size);
-      root["cache"]["max-read-ahead-buffer"] = (Json::Value::UInt64)
-              best_io_buffer_size;
-    }
-
-    if (!root["cache"].isMember("max-write-buffer")) {
-      fprintf(stderr, "# allowing max write-back buffers of %lu bytes\n",
-              best_io_buffer_size);
-      root["cache"]["max-write-buffer"] = (Json::Value::UInt64)best_io_buffer_size;
-    }
-
-    cconfig.location = root["cache"]["location"].asString();
-    cconfig.journal = root["cache"]["journal"].asString();
-    cconfig.default_read_ahead_size =
-            root["cache"]["read-ahead-bytes-nominal"].asInt();
-    cconfig.max_read_ahead_size = root["cache"]["read-ahead-bytes-max"].asInt();
-    cconfig.max_read_ahead_blocks = root["cache"]["read-ahead-blocks-max"].asInt();
-    cconfig.read_ahead_strategy = root["cache"]["read-ahead-strategy"].asString();
-
-    if ((cconfig.read_ahead_strategy != "none") &&
-        (cconfig.read_ahead_strategy != "static") &&
-        (cconfig.read_ahead_strategy != "dynamic")) {
-      fprintf(stderr,
-              "error: invalid read-ahead-strategy specified - only 'none' 'static' 'dynamic' allowed\n");
-      exit(EINVAL);
-    }
-
-    cconfig.max_inflight_read_ahead_buffer_size =
-            root["cache"]["max-read-ahead-buffer"].asInt();
-    cconfig.max_inflight_write_buffer_size =
-            root["cache"]["max-write-buffer"].asInt();
-
-
-    // set defaults for journal and file-start cache
-    if (geteuid()) {
-      if (!cconfig.location.length()) {
-        cconfig.location = "/var/tmp/eos/fusex/cache/";
-        cconfig.location += getenv("USER");
-        cconfig.location += "/";
+      } else if (root["cache"]["type"].asString() == "memory") {
+        cconfig.type = cache_t::MEMORY;
+      } else {
+        if (root["cache"]["type"].asString().length()) {
+          fprintf(stderr, "error: invalid cache type configuration\n");
+          exit(EINVAL);
+        } else {
+          cconfig.type = cache_t::DISK;
+        }
       }
 
-      if (!cconfig.journal.length()) {
-        cconfig.journal = "/var/tmp/eos/fusex/cache/";
-        cconfig.journal += getenv("USER");
-        cconfig.journal += "/";
+      if (!root["cache"].isMember("read-ahead-bytes-nominal")) {
+        root["cache"]["read-ahead-bytes-nominal"] = 256 * 1024;
       }
 
-      // default cache size 512 MB
-      if (!root["cache"]["size-mb"].asString().length()) {
-        root["cache"]["size-mb"] = 512;
+      if (!root["cache"].isMember("read-ahead-bytes-max")) {
+        root["cache"]["read-ahead-bytes-max"] = 2 * 1024 * 1024;
       }
 
-      // default cache size 64k inodes
-      if (!root["cache"]["size-ino"].asString().length()) {
-        root["cache"]["size-ino"] = 65536;
+      if (!root["cache"].isMember("read-ahead-blocks-max")) {
+        root["cache"]["read-ahead-blocks-max"] = 16;
       }
 
-      // default journal cache size 2 G
-      if (!root["cache"]["journal-mb"].asString().length()) {
-        root["cache"]["journal-mb"] = 2048;
+      if (!root["cache"].isMember("read-ahead-strategy")) {
+        root["cache"]["read-ahead-strategy"] = "dynamic";
       }
 
-      // default journal size 64k inodes
-      if (!root["cache"]["journal-ino"].asString().length()) {
-        root["cache"]["journal-ino"] = 65536;
+      // auto-scale read-ahead and write-back buffer
+      uint64_t best_io_buffer_size = meminfo.get().totalram / 8;
+
+      if (best_io_buffer_size > 128 * 1024 * 1024) {
+        best_io_buffer_size = 128 * 1024 * 1024;
+      } else {
+        // we take 1/8 of the total available memory, if we don't have one GB available
+        best_io_buffer_size /= 8;
       }
 
-      // default cleaning threshold
-      if (!root["cache"]["clean-threshold"].asString().length()) {
-        root["cache"]["clean-threshold"] = 85.0;
+      if (!root["cache"].isMember("max-read-ahead-buffer")) {
+        fprintf(stderr, "# allowing max read-ahead buffers of %lu bytes\n",
+                best_io_buffer_size);
+        root["cache"]["max-read-ahead-buffer"] = (Json::Value::UInt64)
+            best_io_buffer_size;
       }
 
-      if (!root["cache"]["file-cache-max-kb"].asString().length()) {
-        root["cache"]["file-cache-max-kb"] = 256;
-      }
-    } else {
-      if (!cconfig.location.length()) {
-        cconfig.location = "/var/cache/eos/fusex/cache/";
+      if (!root["cache"].isMember("max-write-buffer")) {
+        fprintf(stderr, "# allowing max write-back buffers of %lu bytes\n",
+                best_io_buffer_size);
+        root["cache"]["max-write-buffer"] = (Json::Value::UInt64)best_io_buffer_size;
       }
 
-      if (!cconfig.journal.length()) {
-        cconfig.journal = "/var/cache/eos/fusex/cache/";
+      cconfig.location = root["cache"]["location"].asString();
+      cconfig.journal = root["cache"]["journal"].asString();
+      cconfig.default_read_ahead_size =
+        root["cache"]["read-ahead-bytes-nominal"].asInt();
+      cconfig.max_read_ahead_size = root["cache"]["read-ahead-bytes-max"].asInt();
+      cconfig.max_read_ahead_blocks = root["cache"]["read-ahead-blocks-max"].asInt();
+      cconfig.read_ahead_strategy = root["cache"]["read-ahead-strategy"].asString();
+
+      if ((cconfig.read_ahead_strategy != "none") &&
+          (cconfig.read_ahead_strategy != "static") &&
+          (cconfig.read_ahead_strategy != "dynamic")) {
+        fprintf(stderr,
+                "error: invalid read-ahead-strategy specified - only 'none' 'static' 'dynamic' allowed\n");
+        exit(EINVAL);
       }
 
-      // default cache size 1 GB
-      if (!root["cache"]["size-mb"].asString().length()) {
-        root["cache"]["size-mb"] = 1000;
+      cconfig.max_inflight_read_ahead_buffer_size =
+        root["cache"]["max-read-ahead-buffer"].asInt();
+      cconfig.max_inflight_write_buffer_size =
+        root["cache"]["max-write-buffer"].asInt();
+
+      // set defaults for journal and file-start cache
+      if (geteuid()) {
+        if (!cconfig.location.length()) {
+          cconfig.location = "/var/tmp/eos/fusex/cache/";
+          cconfig.location += getenv("USER");
+          cconfig.location += "/";
+        }
+
+        if (!cconfig.journal.length()) {
+          cconfig.journal = "/var/tmp/eos/fusex/cache/";
+          cconfig.journal += getenv("USER");
+          cconfig.journal += "/";
+        }
+
+        // default cache size 512 MB
+        if (!root["cache"]["size-mb"].asString().length()) {
+          root["cache"]["size-mb"] = 512;
+        }
+
+        // default cache size 64k inodes
+        if (!root["cache"]["size-ino"].asString().length()) {
+          root["cache"]["size-ino"] = 65536;
+        }
+
+        // default journal cache size 2 G
+        if (!root["cache"]["journal-mb"].asString().length()) {
+          root["cache"]["journal-mb"] = 2048;
+        }
+
+        // default journal size 64k inodes
+        if (!root["cache"]["journal-ino"].asString().length()) {
+          root["cache"]["journal-ino"] = 65536;
+        }
+
+        // default cleaning threshold
+        if (!root["cache"]["clean-threshold"].asString().length()) {
+          root["cache"]["clean-threshold"] = 85.0;
+        }
+
+        if (!root["cache"]["file-cache-max-kb"].asString().length()) {
+          root["cache"]["file-cache-max-kb"] = 256;
+        }
+      } else {
+        if (!cconfig.location.length()) {
+          cconfig.location = "/var/cache/eos/fusex/cache/";
+        }
+
+        if (!cconfig.journal.length()) {
+          cconfig.journal = "/var/cache/eos/fusex/cache/";
+        }
+
+        // default cache size 1 GB
+        if (!root["cache"]["size-mb"].asString().length()) {
+          root["cache"]["size-mb"] = 1000;
+        }
+
+        // default cache size 64k indoes
+        if (!root["cache"]["size-ino"].asString().length()) {
+          root["cache"]["size-ino"] = 65536;
+        }
+
+        // default cleaning threshold
+        if (!root["cache"]["clean-threshold"].asString().length()) {
+          root["cache"]["clean-threshold"] = 85.0;
+        }
+
+        if (!root["cache"]["file-cache-max-kb"].asString().length()) {
+          root["cache"]["file-cache-max-kb"] = 256;
+        }
       }
 
-      // default cache size 64k indoes
-      if (!root["cache"]["size-ino"].asString().length()) {
-        root["cache"]["size-ino"] = 65536;
+      if (cconfig.location == "OFF") {
+        // disable file-start cache
+        cconfig.location = "";
       }
 
-      // default cleaning threshold
-      if (!root["cache"]["clean-threshold"].asString().length()) {
-        root["cache"]["clean-threshold"] = 85.0;
+      if (cconfig.journal == "OFF") {
+        // disable journal
+        cconfig.journal = "";
       }
 
-      if (!root["cache"]["file-cache-max-kb"].asString().length()) {
-        root["cache"]["file-cache-max-kb"] = 256;
+      if (cconfig.location.length()) {
+        if (cconfig.location.rfind("/") != (cconfig.location.size() - 1)) {
+          cconfig.location += "/";
+        }
+
+        cconfig.location += config.name.length() ? config.name : "default";
       }
 
-    }
+      if (cconfig.journal.length()) {
+        if (cconfig.journal.rfind("/") != (cconfig.journal.size() - 1)) {
+          cconfig.journal += "/";
+        }
 
-    if (cconfig.location == "OFF") {
-      // disable file-start cache
-      cconfig.location = "";
-    }
-
-    if (cconfig.journal == "OFF") {
-      // disable journal
-      cconfig.journal = "";
-    }
-
-    if (cconfig.location.length()) {
-      if (cconfig.location.rfind("/") != (cconfig.location.size() - 1)) {
-        cconfig.location += "/";
+        cconfig.journal += config.name.length() ? config.name : "default";
       }
 
-      cconfig.location += config.name.length() ? config.name : "default";
-    }
+      config.auth.credentialStore += config.name.length() ? config.name : "default";
+      // apply some defaults for all existing options
+      // by default create all the specified cache paths
+      std::string mk_cachedir = "mkdir -p " + config.mdcachedir;
+      std::string mk_journaldir = "mkdir -p " + cconfig.journal;
+      std::string mk_locationdir = "mkdir -p " + cconfig.location;
+      std::string mk_credentialdir = "mkdir -p " + config.auth.credentialStore;
 
-    if (cconfig.journal.length()) {
-      if (cconfig.journal.rfind("/") != (cconfig.journal.size() - 1)) {
-        cconfig.journal += "/";
+      if (config.mdcachedir.length()) {
+        system(mk_cachedir.c_str());
+        size_t slashes = std::count(config.mdcachedir.begin(), config.mdcachedir.end(),
+                                    '/');
+
+        // just some paranoid safety to avoid wiping by accident something we didn't intend to wipe
+        if ((slashes > 2)  &&
+            config.mdcachedir[config.mdcachedir.length() - 37] == '/') {
+          config.mdcachedir_unlink = config.mdcachedir;
+        }
       }
 
-      cconfig.journal += config.name.length() ? config.name : "default";
-    }
-
-    config.auth.credentialStore += config.name.length() ? config.name : "default";
-    // apply some defaults for all existing options
-    // by default create all the specified cache paths
-    std::string mk_cachedir = "mkdir -p " + config.mdcachedir;
-    std::string mk_journaldir = "mkdir -p " + cconfig.journal;
-    std::string mk_locationdir = "mkdir -p " + cconfig.location;
-    std::string mk_credentialdir = "mkdir -p " + config.auth.credentialStore;
-
-    if (config.mdcachedir.length()) {
-      system(mk_cachedir.c_str());
-      size_t slashes = std::count(config.mdcachedir.begin(), config.mdcachedir.end(), '/');
-      
-      // just some paranoid safety to avoid wiping by accident something we didn't intend to wipe
-      if ( (slashes > 2)  && 
-	   config.mdcachedir[config.mdcachedir.length()-37] == '/') {
-	config.mdcachedir_unlink = config.mdcachedir;
+      if (cconfig.journal.length()) {
+        system(mk_journaldir.c_str());
       }
-    }
 
-    if (cconfig.journal.length()) {
-      system(mk_journaldir.c_str());
-    }
+      if (cconfig.location.length()) {
+        system(mk_locationdir.c_str());
+      }
 
-    if (cconfig.location.length()) {
-      system(mk_locationdir.c_str());
-    }
+      if (config.auth.credentialStore.length()) {
+        system(mk_credentialdir.c_str());
+      }
 
-    if (config.auth.credentialStore.length()) {
-      system(mk_credentialdir.c_str());
-    }
-
-
-    // make the cache directories private to root
-    chmod_to_700_or_die(config.mdcachedir);
-    chmod_to_700_or_die(cconfig.journal);
-    chmod_to_700_or_die(cconfig.location);
-    chmod_to_700_or_die(config.auth.credentialStore);
-
-    {
-      char list[64];
-
+      // make the cache directories private to root
+      chmod_to_700_or_die(config.mdcachedir);
+      chmod_to_700_or_die(cconfig.journal);
+      chmod_to_700_or_die(cconfig.location);
+      chmod_to_700_or_die(config.auth.credentialStore);
+      {
+        char list[64];
 #ifndef __APPLE__
-      if (::listxattr(cconfig.location.c_str(), list, sizeof(list))) {
+
+        if (::listxattr(cconfig.location.c_str(), list, sizeof(list))) {
 #else
-      if (::listxattr(cconfig.location.c_str(), list, sizeof(list),0)) {
+
+        if (::listxattr(cconfig.location.c_str(), list, sizeof(list), 0)) {
 #endif
-        if (errno == ENOTSUP) {
-          fprintf(stderr,
-                  "error: eosxd requires XATTR support on partition %s errno=%d\n",
-                  cconfig.location.c_str(), errno);
-          exit(-1);
-        }
-      }
-    }
 
-    cconfig.total_file_cache_size = root["cache"]["size-mb"].asUInt64() * 1024 *
-            1024;
-    cconfig.total_file_cache_inodes = root["cache"]["size-ino"].asUInt64();
-    cconfig.total_file_journal_size = root["cache"]["journal-mb"].asUInt64() *
-            1024 * 1024;
-    cconfig.total_file_journal_inodes = root["cache"]["journal-ino"].asUInt64();
-    cconfig.per_file_cache_max_size = root["cache"]["file-cache-max-kb"].asUInt64()
-            * 1024;
-    cconfig.per_file_journal_max_size =
-            root["cache"]["file-journal-max-kb"].asUInt64() * 1024;
-    cconfig.clean_threshold = root["cache"]["clean-threshold"].asDouble();
-    int rc = 0;
-
-    if ((rc = cachehandler::instance().init(cconfig))) {
-      exit(rc);
-    }
-  }
-  {
-    if (!mountpoint.length()) {
-      // we allow to take the mountpoint from the json file if it is not given on the command line
-      fuse_opt_add_arg(&args, config.localmountdir.c_str());
-      mountpoint = config.localmountdir.c_str();
-    } else {
-      config.localmountdir = mountpoint;
-    }
-
-    if (mountpoint.length()) {
-      DIR* d = 0;
-      struct stat d_stat;
-
-      // sanity check of the mount directory
-      if (!(d = ::opendir(mountpoint.c_str()))) {
-        // check for a broken mount
-        if ((errno == ENOTCONN) || (errno == ENOENT)) {
-          // force an 'umount -l '
-          std::string systemline = "umount -l ";
-          systemline += mountpoint;
-          fprintf(stderr, "# dead mount detected - forcing '%s'\n", systemline.c_str());
-          system(systemline.c_str());
-        }
-
-        if (stat(mountpoint.c_str(), &d_stat)) {
-          if (errno == ENOENT) {
-            fprintf(stderr, "error: mountpoint '%s' does not exist\n", mountpoint.c_str());
-            exit(-1);
-          } else {
-            fprintf(stderr, "error: failed to stat '%s' - errno = %d\n", mountpoint.c_str(),
-                    errno);
+          if (errno == ENOTSUP) {
+            fprintf(stderr,
+                    "error: eosxd requires XATTR support on partition %s errno=%d\n",
+                    cconfig.location.c_str(), errno);
             exit(-1);
           }
         }
-      } else {
-        closedir(d);
+      }
+
+      cconfig.total_file_cache_size = root["cache"]["size-mb"].asUInt64() * 1024 *
+                                      1024;
+      cconfig.total_file_cache_inodes = root["cache"]["size-ino"].asUInt64();
+      cconfig.total_file_journal_size = root["cache"]["journal-mb"].asUInt64() *
+                                        1024 * 1024;
+      cconfig.total_file_journal_inodes = root["cache"]["journal-ino"].asUInt64();
+      cconfig.per_file_cache_max_size = root["cache"]["file-cache-max-kb"].asUInt64()
+                                        * 1024;
+      cconfig.per_file_journal_max_size =
+        root["cache"]["file-journal-max-kb"].asUInt64() * 1024;
+      cconfig.clean_threshold = root["cache"]["clean-threshold"].asDouble();
+      int rc = 0;
+
+      if ((rc = cachehandler::instance().init(cconfig))) {
+        exit(rc);
       }
     }
-  }
-  std::string nodelay = getenv("XRD_NODELAY") ? getenv("XRD_NODELAY") : "";
-
-  if (nodelay == "1") {
-    fprintf(stderr, "# Running with XRD_NODELAY=1 (nagle algorithm is disabled)\n");
-  } else {
-    putenv((char*) "XRD_NODELAY=1");
-    fprintf(stderr, "# Disabling nagle algorithm (XRD_NODELAY=1)\n");
-  }
-
-  if (!getenv("MALLOC_CONF")) {
-    fprintf(stderr, "# Setting MALLOC_CONF=dirty_decay_ms:0\n");
-    putenv((char*) "MALLOC_CONF=dirty_decay_ms:0");
-  } else {
-    fprintf(stderr, "# MALLOC_CONF=%s\n", getenv("MALLOC_CONF"));
-  }
-
-  int debug;
-
-
-  {
-    // C-style fuse configuration optionss
-
-    struct eosxd_options
     {
-      int autofs;
-    };
+      if (!mountpoint.length()) {
+        // we allow to take the mountpoint from the json file if it is not given on the command line
+        fuse_opt_add_arg(&args, config.localmountdir.c_str());
+        mountpoint = config.localmountdir.c_str();
+      } else {
+        config.localmountdir = mountpoint;
+      }
 
-    struct eosxd_options fuse_opts;
-    fuse_opts.autofs = 0;
+      if (mountpoint.length()) {
+        DIR* d = 0;
+        struct stat d_stat;
 
+        // sanity check of the mount directory
+        if (!(d = ::opendir(mountpoint.c_str()))) {
+          // check for a broken mount
+          if ((errno == ENOTCONN) || (errno == ENOENT)) {
+            // force an 'umount -l '
+            std::string systemline = "umount -l ";
+            systemline += mountpoint;
+            fprintf(stderr, "# dead mount detected - forcing '%s'\n", systemline.c_str());
+            system(systemline.c_str());
+          }
+
+          if (stat(mountpoint.c_str(), &d_stat)) {
+            if (errno == ENOENT) {
+              fprintf(stderr, "error: mountpoint '%s' does not exist\n", mountpoint.c_str());
+              exit(-1);
+            } else {
+              fprintf(stderr, "error: failed to stat '%s' - errno = %d\n", mountpoint.c_str(),
+                      errno);
+              exit(-1);
+            }
+          }
+        } else {
+          closedir(d);
+        }
+      }
+    }
+    std::string nodelay = getenv("XRD_NODELAY") ? getenv("XRD_NODELAY") : "";
+
+    if (nodelay == "1") {
+      fprintf(stderr, "# Running with XRD_NODELAY=1 (nagle algorithm is disabled)\n");
+    } else {
+      putenv((char*) "XRD_NODELAY=1");
+      fprintf(stderr, "# Disabling nagle algorithm (XRD_NODELAY=1)\n");
+    }
+
+    if (!getenv("MALLOC_CONF")) {
+      fprintf(stderr, "# Setting MALLOC_CONF=dirty_decay_ms:0\n");
+      putenv((char*) "MALLOC_CONF=dirty_decay_ms:0");
+    } else {
+      fprintf(stderr, "# MALLOC_CONF=%s\n", getenv("MALLOC_CONF"));
+    }
+
+    int debug;
+    {
+      // C-style fuse configuration optionss
+      struct eosxd_options {
+        int autofs;
+      };
+      struct eosxd_options fuse_opts;
+      fuse_opts.autofs = 0;
 #define OPTION(t, p)    \
   { t, offsetof(struct eosxd_options, p), 1 }
+      static struct fuse_opt eosxd_options_spec[] = {
+        OPTION("autofs", autofs),
+        FUSE_OPT_END
+      };
 
-    static struct fuse_opt eosxd_options_spec[] = {
-                                                   OPTION("autofs", autofs),
-                                                   FUSE_OPT_END
-    };
+      if (fuse_opt_parse(&args, &fuse_opts, eosxd_options_spec, NULL) == -1) {
+        exit(errno ? errno : -1);
+      }
 
-    if (fuse_opt_parse(&args, &fuse_opts, eosxd_options_spec, NULL) == -1) {
+      if (fuse_parse_cmdline(&args, &local_mount_dir, NULL, &debug) == -1) {
+        exit(errno ? errno : -1);
+      }
+
+      config.options.automounted = fuse_opts.autofs;
+    }
+
+    if ((fusechan = fuse_mount(local_mount_dir, &args)) == NULL) {
+      fprintf(stderr, "error: fuse_mount failed\n");
       exit(errno ? errno : -1);
     }
 
-    if (fuse_parse_cmdline(&args, &local_mount_dir, NULL, &debug) == -1) {
-      exit(errno ? errno : -1);
-    }
-
-    config.options.automounted = fuse_opts.autofs;
-  }
-
-
-  if ((fusechan = fuse_mount(local_mount_dir, &args)) == NULL) {
-    fprintf(stderr, "error: fuse_mount failed\n");
-    exit(errno ? errno : -1);
-  }
-
-  if (fuse_daemonize(config.options.foreground) != -1) {
+    if (fuse_daemonize(config.options.foreground) != -1) {
 #ifndef __APPLE__
+      eos::common::ShellCmd cmd("echo eos::common::ShellCmd init 2>&1");
+      eos::common::cmd_status st = cmd.wait(5);
+      int rc = st.exit_code;
 
-    eos::common::ShellCmd cmd("echo eos::common::ShellCmd init 2>&1");
-    eos::common::cmd_status st = cmd.wait(5);
-
-    int rc = st.exit_code;
-
-    if (rc) {
-      fprintf(stderr,
-              "warning: failed to run shell command\n");
-    }
-
-    if (!geteuid()) {
-      // change the priority of this process to maximum
-      if (setpriority(PRIO_PROCESS, getpid(), -PRIO_MAX / 2) < 0) {
+      if (rc) {
         fprintf(stderr,
-                "error: failed to renice this process '%u', to maximum priority '%d'\n",
-                getpid(), -PRIO_MAX / 2);
+                "warning: failed to run shell command\n");
       }
 
-      if (config.options.cpu_core_affinity > 0) {
-        cpu_set_t cpuset;
-        CPU_ZERO(&cpuset);
-        CPU_SET(config.options.cpu_core_affinity - 1, &cpuset);
-        sched_setaffinity(getpid(), sizeof(cpu_set_t), &cpuset);
-        fprintf(stderr, "# Setting CPU core affinity to core %d\n",
-                config.options.cpu_core_affinity - 1);
+      if (!geteuid()) {
+        // change the priority of this process to maximum
+        if (setpriority(PRIO_PROCESS, getpid(), -PRIO_MAX / 2) < 0) {
+          fprintf(stderr,
+                  "error: failed to renice this process '%u', to maximum priority '%d'\n",
+                  getpid(), -PRIO_MAX / 2);
+        }
+
+        if (config.options.cpu_core_affinity > 0) {
+          cpu_set_t cpuset;
+          CPU_ZERO(&cpuset);
+          CPU_SET(config.options.cpu_core_affinity - 1, &cpuset);
+          sched_setaffinity(getpid(), sizeof(cpu_set_t), &cpuset);
+          fprintf(stderr, "# Setting CPU core affinity to core %d\n",
+                  config.options.cpu_core_affinity - 1);
+        }
       }
-    }
 
 #endif
-    fusexrdlogin::initializeProcessCache(config.auth);
+      fusexrdlogin::initializeProcessCache(config.auth);
 
-    if (config.options.foreground) {
-      if (nodelay != "1") {
-        fprintf(stderr,
-                "# warning: nagle algorithm is still enabled (export XRD_NODELAY=1 before running in foreground)\n");
-      }
-    }
-
-    // Open log file
-    if (getuid()) {
-      char logfile[1024];
-
-      if (getenv("EOS_FUSE_LOGFILE")) {
-        snprintf(logfile, sizeof(logfile) - 1, "%s",
-                 getenv("EOS_FUSE_LOGFILE"));
-      } else {
-        snprintf(logfile, sizeof(logfile) - 1, "/tmp/eos-fuse.%d.log",
-                 getuid());
-      }
-
-      config.logfilepath = logfile;
-
-      if (!config.statfilepath.length()) {
-        config.statfilepath = logfile;
-        config.statfilepath += ".";
-        config.statfilepath += config.statfilesuffix;
-      }
-
-      // Running as a user ... we log into /tmp/eos-fuse.$UID.log
-      if (!(fstderr = freopen(logfile, "a+", stderr))) {
-        fprintf(stdout, "error: cannot open log file %s\n", logfile);
-      } else {
-        if (::chmod(logfile, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) {
-          fprintf(stderr, "error: cannot change permission of log file %s\n", logfile);
-          exit(-1);
+      if (config.options.foreground) {
+        if (nodelay != "1") {
+          fprintf(stderr,
+                  "# warning: nagle algorithm is still enabled (export XRD_NODELAY=1 before running in foreground)\n");
         }
       }
-    } else {
-      // Running as root ... we log into /var/log/eos/fuse
-      std::string log_path = "/var/log/eos/fusex/fuse.";
 
-      if (getenv("EOS_FUSE_LOG_PREFIX") || fsname.length()) {
-        if (getenv("EOS_FUSE_LOG_PREFIX")) {
-          log_path += getenv("EOS_FUSE_LOG_PREFIX");
+      // Open log file
+      if (getuid()) {
+        char logfile[1024];
+
+        if (getenv("EOS_FUSE_LOGFILE")) {
+          snprintf(logfile, sizeof(logfile) - 1, "%s",
+                   getenv("EOS_FUSE_LOGFILE"));
         } else {
-          log_path += fsname;
+          snprintf(logfile, sizeof(logfile) - 1, "/tmp/eos-fuse.%d.log",
+                   getuid());
         }
 
-        if (!config.statfilepath.length()) config.statfilepath = log_path +
+        config.logfilepath = logfile;
+
+        if (!config.statfilepath.length()) {
+          config.statfilepath = logfile;
+          config.statfilepath += ".";
+          config.statfilepath += config.statfilesuffix;
+        }
+
+        // Running as a user ... we log into /tmp/eos-fuse.$UID.log
+        if (!(fstderr = freopen(logfile, "a+", stderr))) {
+          fprintf(stdout, "error: cannot open log file %s\n", logfile);
+        } else {
+          if (::chmod(logfile, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) {
+            fprintf(stderr, "error: cannot change permission of log file %s\n", logfile);
+            exit(-1);
+          }
+        }
+      } else {
+        // Running as root ... we log into /var/log/eos/fuse
+        std::string log_path = "/var/log/eos/fusex/fuse.";
+
+        if (getenv("EOS_FUSE_LOG_PREFIX") || fsname.length()) {
+          if (getenv("EOS_FUSE_LOG_PREFIX")) {
+            log_path += getenv("EOS_FUSE_LOG_PREFIX");
+          } else {
+            log_path += fsname;
+          }
+
+          if (!config.statfilepath.length()) config.statfilepath = log_path +
                 "." + config.statfilesuffix;
 
-        log_path += ".log";
-      } else {
-        if (!config.statfilepath.length()) config.statfilepath = log_path +
+          log_path += ".log";
+        } else {
+          if (!config.statfilepath.length()) config.statfilepath = log_path +
                 config.statfilesuffix;
 
-        log_path += "log";
-      }
+          log_path += "log";
+        }
 
-      eos::common::Path cPath(log_path.c_str());
-      cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IROTH);
-      config.logfilepath = log_path;
-      ;
+        eos::common::Path cPath(log_path.c_str());
+        cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IROTH);
+        config.logfilepath = log_path;
+        ;
 
-      if (!(fstderr = freopen(cPath.GetPath(), "a+", stderr))) {
-        fprintf(stderr, "error: cannot open log file %s\n", cPath.GetPath());
-      } else if (::chmod(cPath.GetPath(), S_IRUSR | S_IWUSR)) {
-        fprintf(stderr, "error: failed to chmod %s\n", cPath.GetPath());
-      }
-    }
-
-    if (fstderr) {
-      setvbuf(fstderr, (char*) NULL, _IONBF, 0);
-    }
-
-    eos::common::Logging::GetInstance().SetUnit("FUSE@eosxd");
-    eos::common::Logging::GetInstance().gShortFormat = true;
-    eos::common::Logging::GetInstance().SetFilter("DumpStatistic");
-    eos::common::Logging::GetInstance().SetIndexSize(512);
-
-    if (config.options.debug) {
-      eos::common::Logging::GetInstance().SetLogPriority(LOG_DEBUG);
-    } else {
-      if (config.options.debuglevel) {
-        eos::common::Logging::GetInstance().SetLogPriority(config.options.debuglevel);
-      } else {
-        eos::common::Logging::GetInstance().SetLogPriority(LOG_INFO);
-      }
-    }
-    eos::common::Logging::GetInstance().SetIndexSize(512);
-    eos::common::Logging::GetInstance().EnableRateLimiter();
-
-    // initialize mKV in case no cache is configured to act as no-op
-    mKV.reset(new RedisKV());
-#ifdef ROCKSDB_FOUND
-
-    if (!config.mdcachedir.empty()) {
-      RocksKV* kv = new RocksKV();
-
-      if (kv->connect(config.name, config.mdcachedir) != 0) {
-        fprintf(stderr, "error: failed to open rocksdb KV cache - path=%s",
-                config.mdcachedir.c_str());
-        exit(EINVAL);
-      }
-
-      mKV.reset(kv);
-    }
-
-#endif
-
-    mdbackend.init(config.hostport, config.remotemountdir,
-                   config.options.md_backend_timeout,
-                   config.options.md_backend_put_timeout);
-    mds.init(&mdbackend);
-    caps.init(&mdbackend, &mds);
-    datas.init();
-
-    if (config.mqtargethost.length()) {
-      if (mds.connect(config.mqtargethost, config.mqidentity, config.mqname,
-                      config.clienthost, config.clientuuid)) {
-        fprintf(stderr,
-                "error: failed to connect to mgm/zmq - connect-string=%s connect-identity=%s connect-name=%s",
-                config.mqtargethost.c_str(), config.mqidentity.c_str(), config.mqname.c_str());
-        exit(EINVAL);
-      }
-    }
-
-    if (cachehandler::instance().init_daemonized()) {
-      exit(errno);
-    }
-
-    fusestat.Add("getattr", 0, 0, 0);
-    fusestat.Add("setattr", 0, 0, 0);
-    fusestat.Add("setattr:chown", 0, 0, 0);
-    fusestat.Add("setattr:chmod", 0, 0, 0);
-    fusestat.Add("setattr:utimes", 0, 0, 0);
-    fusestat.Add("setattr:truncate", 0, 0, 0);
-    fusestat.Add("lookup", 0, 0, 0);
-    fusestat.Add("opendir", 0, 0, 0);
-    fusestat.Add("readdir", 0, 0, 0);
-    fusestat.Add("releasedir", 0, 0, 0);
-    fusestat.Add("statfs", 0, 0, 0);
-    fusestat.Add("mknod", 0, 0, 0);
-    fusestat.Add("mkdir", 0, 0, 0);
-    fusestat.Add("rm", 0, 0, 0);
-    fusestat.Add("unlink", 0, 0, 0);
-    fusestat.Add("rmdir", 0, 0, 0);
-    fusestat.Add("rename", 0, 0, 0);
-    fusestat.Add("access", 0, 0, 0);
-    fusestat.Add("open", 0, 0, 0);
-    fusestat.Add("create", 0, 0, 0);
-    fusestat.Add("read", 0, 0, 0);
-    fusestat.Add("write", 0, 0, 0);
-    fusestat.Add("release", 0, 0, 0);
-    fusestat.Add("fsync", 0, 0, 0);
-    fusestat.Add("forget", 0, 0, 0);
-    fusestat.Add("flush", 0, 0, 0);
-    fusestat.Add("getxattr", 0, 0, 0);
-    fusestat.Add("setxattr", 0, 0, 0);
-    fusestat.Add("listxattr", 0, 0, 0);
-    fusestat.Add("removexattr", 0, 0, 0);
-    fusestat.Add("readlink", 0, 0, 0);
-    fusestat.Add("symlink", 0, 0, 0);
-    fusestat.Add("link", 0, 0, 0);
-    fusestat.Add(__SUM__TOTAL__, 0, 0, 0);
-    tDumpStatistic.reset(&EosFuse::DumpStatistic, this);
-    tStatCirculate.reset(&EosFuse::StatCirculate, this);
-    tMetaCacheFlush.reset(&metad::mdcflush, &mds);
-    tMetaSizeFlush.reset(&metad::mdsizeflush, &mds);
-    tMetaStackFree.reset(&metad::mdstackfree, &mds);
-    tMetaCommunicate.reset(&metad::mdcommunicate, &mds);
-    tCapFlush.reset(&cap::capflush, &caps);
-    eos_static_warning("********************************************************************************");
-    eos_static_warning("eosxd started version %s - FUSE protocol version %d",
-                       VERSION, FUSE_USE_VERSION);
-    eos_static_warning("eos-instance-url       := %s", config.hostport.c_str());
-    eos_static_warning("thread-pool            := %s",
-                       config.options.libfusethreads ? "libfuse" : "custom");
-    eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
-    eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
-    eos_static_warning("fd-limit               := %lu", config.options.fdlimit);
-    if (config.auth.use_user_sss) {
-      eos_static_warning("sss-keytabfile         := %s", config.ssskeytab.c_str());
-    }
-
-    eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d",
-                       config.options.enable_backtrace,
-                       config.options.md_kernelcache,
-                       config.options.md_kernelcache_enoent_timeout,
-                       config.options.md_backend_timeout,
-                       config.options.md_backend_put_timeout,
-                       config.options.data_kernelcache,
-                       config.options.rename_is_sync,
-                       config.options.rmdir_is_sync,
-                       config.options.global_flush,
-                       config.options.flush_wait_open,
-                       config.options.global_locking,
-                       no_fsync_list.c_str(),
-                       config.options.overlay_mode,
-                       config.options.show_tree_size,
-                       config.options.cpu_core_affinity,
-                       config.options.no_xattr,
-                       config.options.no_hardlinks,
-                       config.options.nocache_graceperiod,
-                       config.options.rm_rf_protect_levels,
-                       config.options.rm_rf_bulk,
-                       config.options.leasetime,
-                       config.options.write_size_flush_interval,
-                       config.options.submounts,
-                       config.options.inmemory_inodes
-		       );
-    eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d rh-blocks:%d max-rh-buffer=%lu max-wr-buffer=%lu tot-size=%ld tot-ino=%ld jc-size=%ld jc-ino=%ld dc-loc:%s jc-loc:%s clean-thrs:%02f%%%",
-                       cconfig.read_ahead_strategy.c_str(),
-                       cconfig.default_read_ahead_size,
-                       cconfig.max_read_ahead_size,
-                       cconfig.max_read_ahead_blocks,
-                       cconfig.max_inflight_read_ahead_buffer_size,
-                       cconfig.max_inflight_write_buffer_size,
-                       cconfig.total_file_cache_size,
-                       cconfig.total_file_cache_inodes,
-                       cconfig.total_file_journal_size,
-                       cconfig.total_file_journal_inodes,
-                       cconfig.location.c_str(),
-                       cconfig.journal.c_str(),
-                       cconfig.clean_threshold);
-    eos_static_warning("read-recovery          := enabled:%d ropen:%d ropen-noserv:%d ropen-noserv-window:%u",
-                       config.recovery.read,
-                       config.recovery.read_open,
-                       config.recovery.read_open_noserver,
-                       config.recovery.read_open_noserver_retrywindow);
-    eos_static_warning("write-recovery         := enabled:%d wopen:%d wopen-noserv:%d wopen-noserv-window:%u",
-                       config.recovery.write,
-                       config.recovery.write_open,
-                       config.recovery.write_open_noserver,
-                       config.recovery.write_open_noserver_retrywindow);
-    eos_static_warning("file-inlining          := emabled:%d max-size=%lu compressor=%s",
-                       config.inliner.max_size ? 1 : 0,
-                       config.inliner.max_size,
-                       config.inliner.default_compressor.c_str());
-    eos_static_warning("fuzzing                := open-async-submit:%lu(fatal:%lu) open-async-return:%lu(fatal:%lu) read-async-return:%lu",
-                       config.fuzzing.open_async_submit,
-                       config.fuzzing.open_async_submit_fatal,
-                       config.fuzzing.open_async_return,
-                       config.fuzzing.open_async_return_fatal,
-                       config.fuzzing.read_async_return);
-    std::string xrdcl_option_string;
-    std::string xrdcl_option_loglevel;
-
-    for (auto it = xrdcl_options.begin(); it != xrdcl_options.end(); ++it) {
-      xrdcl_option_string += *it;
-      xrdcl_option_string += ":";
-      int value = 0;
-      std::string svalue;
-      XrdCl::DefaultEnv::GetEnv()->GetInt(it->c_str(), value);
-      xrdcl_option_string += eos::common::StringConversion::GetSizeString(svalue,
-                                                                          (unsigned long long) value);
-      xrdcl_option_string += " ";
-    }
-
-    XrdCl::DefaultEnv::GetEnv()->GetString("LogLevel", xrdcl_option_loglevel);
-    eos_static_warning("xrdcl-options          := %s log-level='%s' fusex-chunk-timeout=%d",
-                       xrdcl_option_string.c_str(), xrdcl_option_loglevel.c_str(),
-                       XrdCl::Proxy::sChunkTimeout);
-    fusesession = fuse_lowlevel_new(&args,
-                                    &(get_operations()),
-                                    sizeof(operations), NULL);
-
-    if ((fusesession != NULL)) {
-      if (fuse_set_signal_handlers(fusesession) != -1) {
-        fuse_session_add_chan(fusesession, fusechan);
-
-        if (getenv("EOS_FUSE_NO_MT") &&
-            (!strcmp(getenv("EOS_FUSE_NO_MT"), "1"))) {
-          err = fuse_session_loop(fusesession);
-        } else {
-#if ( FUSE_USE_VERSION <= 28 )
-          err = fuse_session_loop_mt(fusesession);
-#else
-
-          if (config.options.libfusethreads) {
-            err = fuse_session_loop_mt(fusesession);
-          } else {
-            EosFuseSessionLoop loop(10, 20, 10, 20);
-            err = loop.Loop(fusesession);
-          }
-	  
-#endif
+        if (!(fstderr = freopen(cPath.GetPath(), "a+", stderr))) {
+          fprintf(stderr, "error: cannot open log file %s\n", cPath.GetPath());
+        } else if (::chmod(cPath.GetPath(), S_IRUSR | S_IWUSR)) {
+          fprintf(stderr, "error: failed to chmod %s\n", cPath.GetPath());
         }
       }
-    }
-    
-    eos_static_warning("eosxd stopped version %s - FUSE protocol version %d",
-                       VERSION, FUSE_USE_VERSION);
-    eos_static_warning("********************************************************************************");
-    tDumpStatistic.join();
-    tStatCirculate.join();
-    tMetaCacheFlush.join();
-    tMetaSizeFlush.join();
-    tMetaStackFree.join();
-    tMetaCommunicate.join();
-    tCapFlush.join();
 
-
-    if (config.mdcachedir_unlink.length()) {
-      // clean rocksdb directory
-      std::string rmline = "rm -rf ";
-      rmline += config.mdcachedir_unlink.c_str();
-      system(rmline.c_str());
-    }
-
-    if (Instance().Config().options.submounts) {
-      Mounter().terminate();
-    }
-
-    // remove the session and channel object after all threads are joined
-    if (fusesession) {
-      fuse_remove_signal_handlers(fusesession);
-
-      if (fusechan) {
-        fuse_session_remove_chan(fusechan);
+      if (fstderr) {
+        setvbuf(fstderr, (char*) NULL, _IONBF, 0);
       }
 
-      fuse_session_destroy(fusesession);
+      eos::common::Logging::GetInstance().SetUnit("FUSE@eosxd");
+      eos::common::Logging::GetInstance().gShortFormat = true;
+      eos::common::Logging::GetInstance().SetFilter("DumpStatistic");
+      eos::common::Logging::GetInstance().SetIndexSize(512);
+
+      if (config.options.debug) {
+        eos::common::Logging::GetInstance().SetLogPriority(LOG_DEBUG);
+      } else {
+        if (config.options.debuglevel) {
+          eos::common::Logging::GetInstance().SetLogPriority(config.options.debuglevel);
+        } else {
+          eos::common::Logging::GetInstance().SetLogPriority(LOG_INFO);
+        }
+      }
+
+      eos::common::Logging::GetInstance().SetIndexSize(512);
+      eos::common::Logging::GetInstance().EnableRateLimiter();
+      // initialize mKV in case no cache is configured to act as no-op
+      mKV.reset(new RedisKV());
+#ifdef ROCKSDB_FOUND
+
+      if (!config.mdcachedir.empty()) {
+        RocksKV* kv = new RocksKV();
+
+        if (kv->connect(config.name, config.mdcachedir) != 0) {
+          fprintf(stderr, "error: failed to open rocksdb KV cache - path=%s",
+                  config.mdcachedir.c_str());
+          exit(EINVAL);
+        }
+
+        mKV.reset(kv);
+      }
+
+#endif
+      mdbackend.init(config.hostport, config.remotemountdir,
+                     config.options.md_backend_timeout,
+                     config.options.md_backend_put_timeout);
+      mds.init(&mdbackend);
+      caps.init(&mdbackend, &mds);
+      datas.init();
+
+      if (config.mqtargethost.length()) {
+        if (mds.connect(config.mqtargethost, config.mqidentity, config.mqname,
+                        config.clienthost, config.clientuuid)) {
+          fprintf(stderr,
+                  "error: failed to connect to mgm/zmq - connect-string=%s connect-identity=%s connect-name=%s",
+                  config.mqtargethost.c_str(), config.mqidentity.c_str(), config.mqname.c_str());
+          exit(EINVAL);
+        }
+      }
+
+      if (cachehandler::instance().init_daemonized()) {
+        exit(errno);
+      }
+
+      fusestat.Add("getattr", 0, 0, 0);
+      fusestat.Add("setattr", 0, 0, 0);
+      fusestat.Add("setattr:chown", 0, 0, 0);
+      fusestat.Add("setattr:chmod", 0, 0, 0);
+      fusestat.Add("setattr:utimes", 0, 0, 0);
+      fusestat.Add("setattr:truncate", 0, 0, 0);
+      fusestat.Add("lookup", 0, 0, 0);
+      fusestat.Add("opendir", 0, 0, 0);
+      fusestat.Add("readdir", 0, 0, 0);
+      fusestat.Add("releasedir", 0, 0, 0);
+      fusestat.Add("statfs", 0, 0, 0);
+      fusestat.Add("mknod", 0, 0, 0);
+      fusestat.Add("mkdir", 0, 0, 0);
+      fusestat.Add("rm", 0, 0, 0);
+      fusestat.Add("unlink", 0, 0, 0);
+      fusestat.Add("rmdir", 0, 0, 0);
+      fusestat.Add("rename", 0, 0, 0);
+      fusestat.Add("access", 0, 0, 0);
+      fusestat.Add("open", 0, 0, 0);
+      fusestat.Add("create", 0, 0, 0);
+      fusestat.Add("read", 0, 0, 0);
+      fusestat.Add("write", 0, 0, 0);
+      fusestat.Add("release", 0, 0, 0);
+      fusestat.Add("fsync", 0, 0, 0);
+      fusestat.Add("forget", 0, 0, 0);
+      fusestat.Add("flush", 0, 0, 0);
+      fusestat.Add("getxattr", 0, 0, 0);
+      fusestat.Add("setxattr", 0, 0, 0);
+      fusestat.Add("listxattr", 0, 0, 0);
+      fusestat.Add("removexattr", 0, 0, 0);
+      fusestat.Add("readlink", 0, 0, 0);
+      fusestat.Add("symlink", 0, 0, 0);
+      fusestat.Add("link", 0, 0, 0);
+      fusestat.Add(__SUM__TOTAL__, 0, 0, 0);
+      tDumpStatistic.reset(&EosFuse::DumpStatistic, this);
+      tStatCirculate.reset(&EosFuse::StatCirculate, this);
+      tMetaCacheFlush.reset(&metad::mdcflush, &mds);
+      tMetaSizeFlush.reset(&metad::mdsizeflush, &mds);
+      tMetaStackFree.reset(&metad::mdstackfree, &mds);
+      tMetaCommunicate.reset(&metad::mdcommunicate, &mds);
+      tCapFlush.reset(&cap::capflush, &caps);
+      eos_static_warning("********************************************************************************");
+      eos_static_warning("eosxd started version %s - FUSE protocol version %d",
+                         VERSION, FUSE_USE_VERSION);
+      eos_static_warning("eos-instance-url       := %s", config.hostport.c_str());
+      eos_static_warning("thread-pool            := %s",
+                         config.options.libfusethreads ? "libfuse" : "custom");
+      eos_static_warning("zmq-connection         := %s", config.mqtargethost.c_str());
+      eos_static_warning("zmq-identity           := %s", config.mqidentity.c_str());
+      eos_static_warning("fd-limit               := %lu", config.options.fdlimit);
+
+      if (config.auth.use_user_sss) {
+        eos_static_warning("sss-keytabfile         := %s", config.ssskeytab.c_str());
+      }
+
+      eos_static_warning("options                := backtrace=%d md-cache:%d md-enoent:%.02f md-timeout:%.02f md-put-timeout:%.02f data-cache:%d rename-sync:%d rmdir-sync:%d flush:%d flush-w-open:%d locking:%d no-fsync:%s ol-mode:%03o show-tree-size:%d core-affinity:%d no-xattr:%d no-link:%d nocache-graceperiod:%d rm-rf-protect-level=%d rm-rf-bulk=%d t(lease)=%d t(size-flush)=%d submounts=%d ino(in-mem)=%d",
+                         config.options.enable_backtrace,
+                         config.options.md_kernelcache,
+                         config.options.md_kernelcache_enoent_timeout,
+                         config.options.md_backend_timeout,
+                         config.options.md_backend_put_timeout,
+                         config.options.data_kernelcache,
+                         config.options.rename_is_sync,
+                         config.options.rmdir_is_sync,
+                         config.options.global_flush,
+                         config.options.flush_wait_open,
+                         config.options.global_locking,
+                         no_fsync_list.c_str(),
+                         config.options.overlay_mode,
+                         config.options.show_tree_size,
+                         config.options.cpu_core_affinity,
+                         config.options.no_xattr,
+                         config.options.no_hardlinks,
+                         config.options.nocache_graceperiod,
+                         config.options.rm_rf_protect_levels,
+                         config.options.rm_rf_bulk,
+                         config.options.leasetime,
+                         config.options.write_size_flush_interval,
+                         config.options.submounts,
+                         config.options.inmemory_inodes
+                        );
+      eos_static_warning("cache                  := rh-type:%s rh-nom:%d rh-max:%d rh-blocks:%d max-rh-buffer=%lu max-wr-buffer=%lu tot-size=%ld tot-ino=%ld jc-size=%ld jc-ino=%ld dc-loc:%s jc-loc:%s clean-thrs:%02f%%%",
+                         cconfig.read_ahead_strategy.c_str(),
+                         cconfig.default_read_ahead_size,
+                         cconfig.max_read_ahead_size,
+                         cconfig.max_read_ahead_blocks,
+                         cconfig.max_inflight_read_ahead_buffer_size,
+                         cconfig.max_inflight_write_buffer_size,
+                         cconfig.total_file_cache_size,
+                         cconfig.total_file_cache_inodes,
+                         cconfig.total_file_journal_size,
+                         cconfig.total_file_journal_inodes,
+                         cconfig.location.c_str(),
+                         cconfig.journal.c_str(),
+                         cconfig.clean_threshold);
+      eos_static_warning("read-recovery          := enabled:%d ropen:%d ropen-noserv:%d ropen-noserv-window:%u",
+                         config.recovery.read,
+                         config.recovery.read_open,
+                         config.recovery.read_open_noserver,
+                         config.recovery.read_open_noserver_retrywindow);
+      eos_static_warning("write-recovery         := enabled:%d wopen:%d wopen-noserv:%d wopen-noserv-window:%u",
+                         config.recovery.write,
+                         config.recovery.write_open,
+                         config.recovery.write_open_noserver,
+                         config.recovery.write_open_noserver_retrywindow);
+      eos_static_warning("file-inlining          := emabled:%d max-size=%lu compressor=%s",
+                         config.inliner.max_size ? 1 : 0,
+                         config.inliner.max_size,
+                         config.inliner.default_compressor.c_str());
+      eos_static_warning("fuzzing                := open-async-submit:%lu(fatal:%lu) open-async-return:%lu(fatal:%lu) read-async-return:%lu",
+                         config.fuzzing.open_async_submit,
+                         config.fuzzing.open_async_submit_fatal,
+                         config.fuzzing.open_async_return,
+                         config.fuzzing.open_async_return_fatal,
+                         config.fuzzing.read_async_return);
+      std::string xrdcl_option_string;
+      std::string xrdcl_option_loglevel;
+
+      for (auto it = xrdcl_options.begin(); it != xrdcl_options.end(); ++it) {
+        xrdcl_option_string += *it;
+        xrdcl_option_string += ":";
+        int value = 0;
+        std::string svalue;
+        XrdCl::DefaultEnv::GetEnv()->GetInt(it->c_str(), value);
+        xrdcl_option_string += eos::common::StringConversion::GetSizeString(svalue,
+                               (unsigned long long) value);
+        xrdcl_option_string += " ";
+      }
+
+      XrdCl::DefaultEnv::GetEnv()->GetString("LogLevel", xrdcl_option_loglevel);
+      eos_static_warning("xrdcl-options          := %s log-level='%s' fusex-chunk-timeout=%d",
+                         xrdcl_option_string.c_str(), xrdcl_option_loglevel.c_str(),
+                         XrdCl::Proxy::sChunkTimeout);
+      fusesession = fuse_lowlevel_new(&args,
+                                      &(get_operations()),
+                                      sizeof(operations), NULL);
+
+      if ((fusesession != NULL)) {
+        if (fuse_set_signal_handlers(fusesession) != -1) {
+          fuse_session_add_chan(fusesession, fusechan);
+
+          if (getenv("EOS_FUSE_NO_MT") &&
+              (!strcmp(getenv("EOS_FUSE_NO_MT"), "1"))) {
+            err = fuse_session_loop(fusesession);
+          } else {
+#if ( FUSE_USE_VERSION <= 28 )
+            err = fuse_session_loop_mt(fusesession);
+#else
+
+            if (config.options.libfusethreads) {
+              err = fuse_session_loop_mt(fusesession);
+            } else {
+              EosFuseSessionLoop loop(10, 20, 10, 20);
+              err = loop.Loop(fusesession);
+            }
+
+#endif
+          }
+        }
+      }
+
+      eos_static_warning("eosxd stopped version %s - FUSE protocol version %d",
+                         VERSION, FUSE_USE_VERSION);
+      eos_static_warning("********************************************************************************");
+      tDumpStatistic.join();
+      tStatCirculate.join();
+      tMetaCacheFlush.join();
+      tMetaSizeFlush.join();
+      tMetaStackFree.join();
+      tMetaCommunicate.join();
+      tCapFlush.join();
+
+      if (config.mdcachedir_unlink.length()) {
+        // clean rocksdb directory
+        std::string rmline = "rm -rf ";
+        rmline += config.mdcachedir_unlink.c_str();
+        system(rmline.c_str());
+      }
+
+      if (Instance().Config().options.submounts) {
+        Mounter().terminate();
+      }
+
+      // remove the session and channel object after all threads are joined
+      if (fusesession) {
+        fuse_remove_signal_handlers(fusesession);
+
+        if (fusechan) {
+          fuse_session_remove_chan(fusechan);
+        }
+
+        fuse_session_destroy(fusesession);
+      }
+
+      fuse_unmount(local_mount_dir, fusechan);
+      mKV.reset();
+    } else {
+      fprintf(stderr, "error: failed to daemonize\n");
+      exit(errno ? errno : -1);
     }
-    
-    fuse_unmount(local_mount_dir, fusechan);
-    mKV.reset();
-  } else {
-    fprintf(stderr, "error: failed to daemonize\n");
-    exit(errno ? errno : -1);
-  }
-  
-  return err ? 1 : 0;
+
+    return err ? 1 : 0;
   }
 }
 
@@ -1718,7 +1706,6 @@ EosFuse::umounthandler(int sig, siginfo_t* si, void* ctx)
   signal(SIGSEGV, SIG_DFL);
   signal(SIGABRT, SIG_DFL);
   signal(SIGTERM, SIG_DFL);
-
 #ifndef __APPLE__
   pthread_t thread = pthread_self();
   pthread_kill(thread, sig);
@@ -1758,13 +1745,14 @@ EosFuse::init(void* userdata, struct fuse_conn_info* conn)
       snprintf(msg, sizeof(msg), "failed to install SEGV handler");
       throw std::runtime_error(msg);
     }
+
     if (EosFuse::instance().config.options.enable_backtrace == 2) {
       setenv("EOS_ENABLE_BACKWARD_STACKTRACE", "1", 1);
     }
   }
 
   conn->want |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS |
-          FUSE_CAP_BIG_WRITES;
+                FUSE_CAP_BIG_WRITES;
 }
 
 void
@@ -1826,7 +1814,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
              this->mds.vmaps().size(),
              this->caps.size(),
              this->Tracker().size()
-             );
+            );
     sout += ino_stat;
     std::string s1;
     std::string s2;
@@ -1880,20 +1868,20 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                getpid(),
                this->sizeLogFile(),
                eos::common::StringConversion::GetReadableSizeString(s3,
-                                                                    XrdCl::Proxy::sWrBufferManager.inflight(), "b"),
+                   XrdCl::Proxy::sWrBufferManager.inflight(), "b"),
                eos::common::StringConversion::GetReadableSizeString(s4,
-                                                                    XrdCl::Proxy::sWrBufferManager.queued(), "b"),
+                   XrdCl::Proxy::sWrBufferManager.queued(), "b"),
                XrdCl::Proxy::sWrBufferManager.nobuf(),
                eos::common::StringConversion::GetReadableSizeString(s5,
-                                                                    XrdCl::Proxy::sRaBufferManager.inflight(), "b"),
+                   XrdCl::Proxy::sRaBufferManager.inflight(), "b"),
                eos::common::StringConversion::GetReadableSizeString(s6,
-                                                                    XrdCl::Proxy::sRaBufferManager.queued(), "b"),
+                   XrdCl::Proxy::sRaBufferManager.queued(), "b"),
                XrdCl::Proxy::sRaBufferManager.xoff(),
                XrdCl::Proxy::sRaBufferManager.nobuf(),
                eos::common::StringConversion::GetReadableSizeString(s7,
-                                                                    data::datax::sBufferManager.inflight(), "b"),
+                   data::datax::sBufferManager.inflight(), "b"),
                eos::common::StringConversion::GetReadableSizeString(s8,
-                                                                    data::datax::sBufferManager.queued(), "b"),
+                   data::datax::sBufferManager.queued(), "b"),
                VERSION,
                FUSE_USE_VERSION,
                start_time,
@@ -1913,7 +1901,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                EosFuse::Instance().mds.server_version().c_str(),
                EosFuse::Instance().Config().options.automounted,
                this->Tracker().blocked_ms()
-               );
+              );
     }
     sout += ino_stat;
     std::ofstream dumpfile(EosFuse::Instance().config.statfilepath);
@@ -1958,9 +1946,8 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     } else {
       fuse_ino_t cap_ino = S_ISDIR(md->mode()) ? ino : md->pid();
       cap::shared_cap pcap = Instance().caps.acquire(req, cap_ino ? cap_ino : 1,
-                                                     S_IFDIR | X_OK | R_OK);
+                             S_IFDIR | X_OK | R_OK);
       double cap_lifetime = 0;
-
       XrdSysMutexHelper capLock(pcap->Locker());
 
       if (pcap->errc()) {
@@ -1968,6 +1955,7 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
         capLock.UnLock();
       } else {
         cap_lifetime = pcap->lifetime();
+
         if (md->needs_refresh()) {
           md->Locker().UnLock();
           std::string authid = pcap->authid();
@@ -1979,7 +1967,7 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
             rc = md->deleted() ? ENOENT : md->err();
           }
         } else {
-	  capLock.UnLock();
+          capLock.UnLock();
         }
 
         if (!rc) {
@@ -2054,7 +2042,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
                || (op & FUSE_SET_ATTR_MTIME)
                || (op & FUSE_SET_ATTR_ATIME_NOW)
                || (op & FUSE_SET_ATTR_MTIME_NOW)
-               ) {
+              ) {
       // retrieve cap for write
       pcap = Instance().caps.acquire(req, cap_ino,
                                      W_OK);
@@ -2194,11 +2182,11 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
       }
 
       if (
-          (op & FUSE_SET_ATTR_ATIME)
-          || (op & FUSE_SET_ATTR_MTIME)
-          || (op & FUSE_SET_ATTR_ATIME_NOW)
-          || (op & FUSE_SET_ATTR_MTIME_NOW)
-          ) {
+        (op & FUSE_SET_ATTR_ATIME)
+        || (op & FUSE_SET_ATTR_MTIME)
+        || (op & FUSE_SET_ATTR_ATIME_NOW)
+        || (op & FUSE_SET_ATTR_MTIME_NOW)
+      ) {
         /*
         EACCES Search permission is denied for one of the directories in
         the  path  prefix  of  path
@@ -2325,7 +2313,8 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
               data::data_fh* io = (data::data_fh*) fi->fh;
 
               if (io) {
-                if (!md->creator() || (md->creator() && ((off_t) md->size() != attr->st_size))) {
+                if (!md->creator() || (md->creator() &&
+                                       ((off_t) md->size() != attr->st_size))) {
                   // no need to truncate if we still have the creator key
                   eos_static_debug("ftruncate size=%lu", (size_t) attr->st_size);
                   rc |= io->ioctx()->truncate(req, attr->st_size);
@@ -2346,7 +2335,8 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
               std::string cookie = md->Cookie();
               data::shared_data io = Instance().datas.get(req, md->id(), md);
 
-              if (!md->creator() || (md->creator() && ((off_t) md->size() != attr->st_size))) {
+              if (!md->creator() || (md->creator() &&
+                                     ((off_t) md->size() != attr->st_size))) {
                 rc = io->attach(req, cookie, true);
                 eos_static_debug("calling truncate");
                 rc |= io->truncate(req, attr->st_size);
@@ -2365,7 +2355,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
             }
 
             if (!rc) {
-              ssize_t size_change = (int64_t) (attr->st_size) - (int64_t) md->size();
+              ssize_t size_change = (int64_t)(attr->st_size) - (int64_t) md->size();
 
               if (size_change > 0) {
                 Instance().caps.book_volume(pcap, size_change);
@@ -2424,7 +2414,7 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
       eos_static_info("%s", md->dump(e).c_str());
       md->lookup_inc();
       cap::shared_cap pcap = Instance().caps.acquire(req, parent,
-                                                     R_OK);
+                             R_OK);
       {
         auto attrMap = md->attr();
 
@@ -2445,7 +2435,7 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
         e.entry_timeout = Instance().Config().options.md_kernelcache_enoent_timeout;
       } else {
         cap::shared_cap pcap = Instance().caps.acquire(req, parent,
-                                                       R_OK);
+                               R_OK);
         e.entry_timeout = pcap->lifetime();
         metad::shared_md pmd = Instance().mds.getlocal(req, parent);
 
@@ -2501,7 +2491,7 @@ EosFuse::listdir(fuse_req_t req, fuse_ino_t ino, metad::shared_md& md)
   fuse_id id(req);
   // retrieve cap
   cap::shared_cap pcap = Instance().caps.acquire(req, ino,
-                                                 S_IFDIR | X_OK | R_OK, true);
+                         S_IFDIR | X_OK | R_OK, true);
   XrdSysMutexHelper cLock(pcap->Locker());
 
   if (pcap->errc()) {
@@ -2517,11 +2507,11 @@ EosFuse::listdir(fuse_req_t req, fuse_ino_t ino, metad::shared_md& md)
       rc = EIO;
     } else {
       if (!md->pid() && (md->id() != 1)) {
-	if (md->err()) {
-	  rc = md->err();
-	} else {
-	  rc = ENOENT;
-	}
+        if (md->err()) {
+          rc = md->err();
+        } else {
+          rc = ENOENT;
+        }
       }
     }
   }
@@ -2540,14 +2530,12 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
   eos_static_debug("");
   EXEC_TIMING_BEGIN(__func__);
   ADD_FUSE_STAT(__func__, req);
-
   fuse_ino_t pino = 0;
   std::string name;
   int rc = 0;
   fuse_id id(req);
   metad::shared_md md;
   bool do_listdir = true;
-
   {
     Track::Monitor mon(__func__, Instance().Tracker(), ino);
 
@@ -2570,11 +2558,13 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
               rc = Instance().mds.rmrf(req, md);
             }
           }
+
           if (!rc) {
             if (!md->get_rmrf()) {
               if (EOS_LOGS_DEBUG) {
                 eos_static_warning("rm-rf marks for deletion");
               }
+
               md->set_rmrf();
             }
           } else {
@@ -2587,16 +2577,18 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
         }
 
         if (!rc) {
-
           metad::shared_md pmd = Instance().mds.getlocal(req, md->pid());
 
           if (pmd) {
-            pmd->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(name));
-            pmd->mutable_children()->erase(eos::common::StringConversion::EncodeInvalidUTF8(name));
+            pmd->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(
+                                          name));
+            pmd->mutable_children()->erase(eos::common::StringConversion::EncodeInvalidUTF8(
+                                             name));
             pino = pmd->id();
           }
 
           rc = 0;
+
           if (EOS_LOGS_DEBUG) {
             eos_static_debug("rm-rf returns 0");
           }
@@ -2656,18 +2648,17 @@ EosFuse::opendir(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
 int
 /* -------------------------------------------------------------------------- */
 EosFuse::readdir_filler(fuse_req_t req, EosFuse::opendir_t* md,
-                        mode_t&pmd_mode, uint64_t&pmd_id)
+                        mode_t& pmd_mode, uint64_t& pmd_id)
 /* -------------------------------------------------------------------------- */
 {
   int rc = 0;
   metad::shared_md pmd = md->md;
   // avoid to have more than one md object locked at a time
   XrdSysMutexHelper mLock(pmd->Locker());
-
   pmd_id = pmd->id();
   pmd_mode = pmd->mode();
 
-  // make sure, the meta-data object contains listing information 
+  // make sure, the meta-data object contains listing information
   // it might have been invalidated by a callback)
 
   do {
@@ -2687,15 +2678,14 @@ EosFuse::readdir_filler(fuse_req_t req, EosFuse::opendir_t* md,
        (md->pmd_mtime.tv_nsec != (int64_t) pmd->mtime_ns()))) {
     auto pmap = pmd->local_children();
     auto it = pmap.begin();
-
     // make a copy of the listing for subsequent readdir operations
     eos_static_debug("copying children map");
     md->pmd_children.clear();
-
     bool fillchildset = false;
 
-    if (!md->readdir_items.size())
+    if (!md->readdir_items.size()) {
       fillchildset = true;
+    }
 
     std::set<std::string> listing_diff;
 
@@ -2703,9 +2693,11 @@ EosFuse::readdir_filler(fuse_req_t req, EosFuse::opendir_t* md,
       if (!fillchildset) {
         listing_diff.insert(it->first);
       }
+
       std::string encname = eos::common::StringConversion::EncodeInvalidUTF8(
-                                                                             it->first);
+                              it->first);
       md->pmd_children[encname] = it->second;
+
       if (fillchildset) {
         md->readdir_items.push_back(encname);
       }
@@ -2718,7 +2710,7 @@ EosFuse::readdir_filler(fuse_req_t req, EosFuse::opendir_t* md,
       }
     }
 
-    // append all new items 
+    // append all new items
     for (auto i = listing_diff.begin(); i != listing_diff.end(); ++i) {
       md->readdir_items.push_back(*i);
     }
@@ -2750,9 +2742,7 @@ EBADF  Invalid directory stream descriptor fi->fh
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
   ADD_FUSE_STAT(__func__, req);
-
   EXEC_TIMING_BEGIN(__func__);
-
   int rc = 0;
   fuse_id id(req);
 
@@ -2765,22 +2755,17 @@ EBADF  Invalid directory stream descriptor fi->fh
     metad::shared_md pmd = md->md;
     mode_t pmd_mode;
     uint64_t pmd_id;
-
     // refresh the current directory state
     rc = readdir_filler(req, md, pmd_mode, pmd_id);
-
     // only one readdir at a time
     XrdSysMutexHelper lLock(md->items_lock);
-
     eos_static_info("off=%lu size-%lu", off, md->pmd_children.size());
     fuse_ino_t cino = pmd_id;
     struct stat stbuf;
     memset(&stbuf, 0, sizeof(struct stat));
-    
     md->b.reset();
-   
     // ---------------------------------------------------------------------- //
-    // root directory has only . while all the other have . and .. 
+    // root directory has only . while all the other have . and ..
     // ---------------------------------------------------------------------- //
     size_t off_shift = (cino > 1) ? 2 : 1;
 
@@ -2792,7 +2777,6 @@ EBADF  Invalid directory stream descriptor fi->fh
       std::string bname = ".";
       eos_static_debug("list: %#lx %s", cino, bname.c_str());
       mode_t mode = pmd_mode;
-
       stbuf.st_ino = cino;
       stbuf.st_mode = mode;
       size_t a_size = fuse_add_direntry(req, md->b.ptr, size - md->b.size,
@@ -2807,9 +2791,10 @@ EBADF  Invalid directory stream descriptor fi->fh
     // ".."
     // ---------------------------------------------------------------------- //
     if (off == 1) {
-      // at offset=1 add the '..' directory 
+      // at offset=1 add the '..' directory
       metad::shared_md ppmd = Instance().mds.get(req, pmd->pid(), "", true, 0, 0,
-                                                 true);
+                              true);
+
       // don't add a '..' at root
       if ((cino > 1) && ppmd && (ppmd->id() == pmd->pid())) {
         fuse_ino_t cino = 0;
@@ -2821,12 +2806,10 @@ EBADF  Invalid directory stream descriptor fi->fh
         }
         std::string bname = "..";
         eos_static_debug("list: %#lx %s", cino, bname.c_str());
-
         stbuf.st_ino = cino;
         stbuf.st_mode = mode;
-
         size_t a_size = fuse_add_direntry(req, md->b.ptr, size - md->b.size,
-                                          bname.c_str(), &stbuf, ++off); 
+                                          bname.c_str(), &stbuf, ++off);
         eos_static_info("name=%s ino=%08lx mode=%#lx bytes=%u/%u",
                         bname.c_str(), cino, mode, a_size, size - md->b.size);
         md->b.ptr += a_size;
@@ -2843,7 +2826,6 @@ EBADF  Invalid directory stream descriptor fi->fh
     for (size_t i = off - off_shift; i < md->readdir_items.size(); ++i) {
       std::string d_name = md->readdir_items[i];
       std::string bname = eos::common::StringConversion::DecodeInvalidUTF8(d_name);
-
       auto it = md->pmd_children.find(d_name);
       fuse_ino_t cino = it->second;
       metad::shared_md cmd = Instance().mds.get(req, cino, "", 0, 0, 0, true);
@@ -2852,7 +2834,7 @@ EBADF  Invalid directory stream descriptor fi->fh
 
       if (strncmp(d_name.c_str(), "...eos.ino...",
                   13) == 0) { /* hard link deleted inodes */
-	off++;
+        off++;
         continue;
       }
 
@@ -2881,7 +2863,7 @@ EBADF  Invalid directory stream descriptor fi->fh
 
           stbuf.st_ino = local_ino;
           metad::shared_md target = Instance().mds.get(req, local_ino, "", 0, 0, 0,
-                                                       true);
+                                    true);
           mode = target->mode();
         }
       }
@@ -2889,14 +2871,13 @@ EBADF  Invalid directory stream descriptor fi->fh
       size_t a_size = fuse_add_direntry(req, md->b.ptr, size - md->b.size,
                                         bname.c_str(), &stbuf, ++off);
 
-
       if (EOS_LOGS_DEBUG) {
         eos_static_debug("name=%s id=%#lx ino=%#lx mode=%#o bytes=%u/%u ",
                          bname.c_str(), cino, stbuf.st_ino, mode, a_size, size - md->b.size);
       }
 
       if (a_size > (size - md->b.size)) {
-	off--;
+        off--;
         break;
       }
 
@@ -3038,13 +3019,12 @@ EROFS  pathname refers to a file on a read-only filesystem.
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
   Track::Monitor mon(__func__, Instance().Tracker(), parent, true);
-
   int rc = 0;
   fuse_id id(req);
   struct fuse_entry_param e;
   // do a parent check
   cap::shared_cap pcap = Instance().caps.acquire(req, parent,
-                                                 S_IFDIR | X_OK | W_OK, true);
+                         S_IFDIR | X_OK | W_OK, true);
 
   if (pcap->errc()) {
     rc = pcap->errc();
@@ -3061,7 +3041,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
         {
           XrdSysMutexHelper pLock(pmd->Locker());
           auto it = pmd->get_todelete().find(
-                                             eos::common::StringConversion::EncodeInvalidUTF8(name));
+                      eos::common::StringConversion::EncodeInvalidUTF8(name));
 
           if ((it != pmd->get_todelete().end()) && it->second) {
             del_ino = it->second;
@@ -3108,29 +3088,25 @@ EROFS  pathname refers to a file on a read-only filesystem.
 
         md->set_nlink(2);
         md->set_creator(true);
+        md->set_type(md->EXCL);
+        std::string imply_authid = eos::common::StringConversion::random_uuidstring();
+        eos_static_info("generating implied authid %s => %s", pcap->authid().c_str(),
+                        imply_authid.c_str());
+        implied_cid = Instance().caps.imply(pcap, imply_authid, mode,
+                                            (fuse_ino_t) md->id());
+        md->cap_inc();
+        md->set_implied_authid(imply_authid);
+        rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
+        md->set_type(md->MD);
 
-	md->set_type(md->EXCL);
-	std::string imply_authid = eos::common::StringConversion::random_uuidstring();
-	eos_static_info("generating implied authid %s => %s", pcap->authid().c_str(),
-			imply_authid.c_str());
-	
-	implied_cid = Instance().caps.imply(pcap, imply_authid, mode,
-					    (fuse_ino_t) md->id());
-	md->cap_inc();
-	md->set_implied_authid(imply_authid);
-
-	rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
-	md->set_type(md->MD);
-
-	if (!rc) {
-	  Instance().mds.insert(req, md, pcap->authid());
-
+        if (!rc) {
+          Instance().mds.insert(req, md, pcap->authid());
           memset(&e, 0, sizeof(e));
           md->convert(e, pcap->lifetime());
           md->lookup_inc();
           pmd->local_enoent().erase(name);
           eos_static_info("%s", md->dump(e).c_str());
-	}
+        }
       }
     }
   }
@@ -3209,7 +3185,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
   fuse_id id(req);
   // retrieve cap
   cap::shared_cap pcap = Instance().caps.acquire(req, parent,
-                                                 S_IFDIR | X_OK | D_OK, true);
+                         S_IFDIR | X_OK | D_OK, true);
 
   if (pcap->errc()) {
     rc = pcap->errc();
@@ -3251,7 +3227,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
         } else {
           del_ino = md->id();
           int nlink =
-                  0; /* nlink has 0-origin (0 = simple file, 1 = inode has two names) */
+            0; /* nlink has 0-origin (0 = simple file, 1 = inode has two names) */
           auto attrMap = md->attr();
           pmd = Instance().mds.get(req, parent, pcap->authid());
 
@@ -3431,7 +3407,7 @@ EROFS  pathname refers to a directory on a read-only filesystem.
   fuse_id id(req);
   // retrieve cap
   cap::shared_cap pcap = Instance().caps.acquire(req, parent,
-                                                 S_IFDIR | X_OK | D_OK, true);
+                         S_IFDIR | X_OK | D_OK, true);
 
   if (pcap->errc()) {
     rc = pcap->errc();
@@ -3530,9 +3506,9 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
   fuse_id id(req);
   // do a parent check
   cap::shared_cap p1cap = Instance().caps.acquire(req, parent,
-                                                  S_IFDIR | R_OK, true);
+                          S_IFDIR | R_OK, true);
   cap::shared_cap p2cap = Instance().caps.acquire(req, newparent,
-                                                  S_IFDIR | W_OK, true);
+                          S_IFDIR | W_OK, true);
 
   if (p1cap->errc()) {
     rc = p1cap->errc();
@@ -3567,6 +3543,21 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
         rc = md->deleted() ? ENOENT : md->err();
       } else {
         md_ino = md->id();
+      }
+
+      // If this is a move between directories of a directory then make sure
+      // there is no destination directory with the same name that is not
+      // empty.
+      if (S_ISDIR(md->mode()) && (p1md->id() != p2md->id())) {
+        metad::shared_md dst_same_name = Instance().mds.lookup(req, newparent, name);
+
+        if (dst_same_name) {
+          XrdSysMutexHelper dst_dir_lock(dst_same_name->Locker());
+
+          if (dst_same_name->local_children().size()) {
+            rc = ENOTEMPTY;
+          }
+        }
       }
     }
 
@@ -3682,14 +3673,20 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       rc = md->deleted() ? ENOENT : md->err();
     } else {
       fuse_ino_t cap_ino = md->pid();
-      if (md->attr().count("user.acl")) /* file with own ACL */
-        cap_ino = md->id();
-      cap::shared_cap pcap = Instance().caps.acquire(req, cap_ino, mode);
 
+      if (md->attr().count("user.acl")) { /* file with own ACL */
+        cap_ino = md->id();
+      }
+
+      cap::shared_cap pcap = Instance().caps.acquire(req, cap_ino, mode);
       XrdSysMutexHelper capLock(pcap->Locker());
+
       if (EOS_LOGS_DEBUG) {
         eos_static_debug("id=%#lx cap-ino=%#lx mode=%#o", md->id(), cap_ino, mode);
-        if ((!S_ISDIR(md->mode())) && md->attr().count("user.acl")) eos_static_debug("file cap %s", pcap->dump().c_str());
+
+        if ((!S_ISDIR(md->mode())) && md->attr().count("user.acl")) {
+          eos_static_debug("file cap %s", pcap->dump().c_str());
+        }
       }
 
       if (pcap->errc()) {
@@ -3701,20 +3698,20 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
           if (!(pquota = Instance().caps.has_quota(pcap, 1024 * 1024))) {
             rc = EDQUOT;
           } else {
-	    Instance().caps.open_writer_inode(pcap);
-	  }
+            Instance().caps.open_writer_inode(pcap);
+          }
         }
 
         if (!rc) {
-	  int cache_flag = 0;
+          int cache_flag = 0;
           std::string md_name = md->name();
           uint64_t md_ino = md->md_ino();
           uint64_t md_pino = md->md_pino();
           std::string cookie = md->Cookie();
 
-	  if (md->attr().count("sys.file.cache")) {
-	    cache_flag |= O_CACHE;
-	  }
+          if (md->attr().count("sys.file.cache")) {
+            cache_flag |= O_CACHE;
+          }
 
           capLock.UnLock();
           struct fuse_entry_param e;
@@ -3722,7 +3719,7 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
           md->convert(e, pcap->lifetime());
           mLock.UnLock();
           data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(),
-                                                                           md), md, (mode == U_OK));
+                              md), md, (mode == U_OK));
           capLock.Lock(&pcap->Locker());
           io->set_authid(pcap->authid());
 
@@ -3742,10 +3739,8 @@ EosFuse::open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
                                   md_pino,
                                   req,
                                   (mode == U_OK));
-
-
-	  
-          bool outdated = (io->ioctx()->attach(req, cookie, fi->flags | cache_flag ) == EKEYEXPIRED);
+          bool outdated = (io->ioctx()->attach(req, cookie,
+                                               fi->flags | cache_flag) == EKEYEXPIRED);
           fi->keep_cache = outdated ? 0 : Instance().Config().options.data_kernelcache;
 
           if (md->creator()) {
@@ -3897,7 +3892,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
     fuse_id id(req);
     // do a parent check
     cap::shared_cap pcap = Instance().caps.acquire(req, parent,
-                                                   S_IFDIR | W_OK, true);
+                           S_IFDIR | W_OK, true);
     struct fuse_entry_param e;
     XrdSysMutexHelper capLock(pcap->Locker());
 
@@ -3922,7 +3917,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
           {
             XrdSysMutexHelper pLock(pmd->Locker());
             auto it = pmd->get_todelete().find(
-                                               eos::common::StringConversion::EncodeInvalidUTF8(name));
+                        eos::common::StringConversion::EncodeInvalidUTF8(name));
 
             if ((it != pmd->get_todelete().end()) && it->second) {
               del_ino = it->second;
@@ -3982,36 +3977,35 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
           md->set_gid(pcap->gid());
 
-	  md->set_type(md->EXCL);
-	  rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
-	  md->set_type(md->MD);
+          md->set_type(md->EXCL);
 
-	  if (!rc) {
-	    Instance().mds.insert(req, md, pcap->authid());
-	    md->set_nlink(1);	    
-	    md->set_creator(true);
+          rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
 
-	    // avoid lock-order violation
-	    {
-	      mLock.UnLock();
-	      XrdSysMutexHelper mLockParent(pmd->Locker());
-	      pmd->set_mtime(ts.tv_sec);
-	      pmd->set_mtime_ns(ts.tv_nsec);
-	      
-	      // get file inline size from parent attribute
-	      if (pmd->attr().count("sys.file.inline.maxsize")) {
-		auto maxsize = (*pmd->mutable_attr())["sys.file.inline.maxsize"];
-		md->set_inlinesize(strtoull(maxsize.c_str(), 0, 10));
-	      }
-	      
-	      mLockParent.UnLock();
-	      mLock.Lock(&md->Locker());
-	    }
-	    
-	    memset(&e, 0, sizeof(e));
+          md->set_type(md->MD);
 
+          if (!rc) {
+            Instance().mds.insert(req, md, pcap->authid());
+            md->set_nlink(1);
+            md->set_creator(true);
+            // avoid lock-order violation
+            {
+              mLock.UnLock();
+              XrdSysMutexHelper mLockParent(pmd->Locker());
+              pmd->set_mtime(ts.tv_sec);
+              pmd->set_mtime_ns(ts.tv_nsec);
+
+              // get file inline size from parent attribute
+              if (pmd->attr().count("sys.file.inline.maxsize")) {
+                auto maxsize = (*pmd->mutable_attr())["sys.file.inline.maxsize"];
+                md->set_inlinesize(strtoull(maxsize.c_str(), 0, 10));
+              }
+
+              mLockParent.UnLock();
+              mLock.Lock(&md->Locker());
+            }
+            memset(&e, 0, sizeof(e));
             Instance().caps.book_inode(pcap);
-	    Instance().caps.open_writer_inode(pcap);
+            Instance().caps.open_writer_inode(pcap);
             md->convert(e, pcap->lifetime());
             md->lookup_inc();
 
@@ -4034,7 +4028,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
               std::string cookie = md->Cookie();
               mLock.UnLock();
               data::data_fh* io = data::data_fh::Instance(Instance().datas.get(req, md->id(),
-                                                                               md), md, true);
+                                  md), md, true);
               io->set_authid(pcap->authid());
               io->set_maxfilesize(pcap->max_file_size());
               io->cap_ = pcap;
@@ -4366,18 +4360,23 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     if (io->has_update()) {
       auto map = io->md->attr();
       cap::shared_cap pcap;
+
       if (map.count("user.acl") > 0) { /* file has it's own ACL */
         cap::shared_cap ccap = Instance().caps.acquire(req, io->md->id(), W_OK, true);
         rc = ccap->errc();
-        if (rc == 0)
+
+        if (rc == 0) {
           pcap = Instance().caps.acquire(req, io->md->pid(), S_IFDIR | X_OK, true);
-      } else
+        }
+      } else {
         pcap = Instance().caps.acquire(req, io->md->pid(), S_IFDIR | W_OK, true);
-      
+      }
 
       XrdSysMutexHelper capLock(pcap->Locker());
 
-      if (rc == 0 && pcap->errc() != 0) rc = pcap->errc();
+      if (rc == 0 && pcap->errc() != 0) {
+        rc = pcap->errc();
+      }
 
       if (rc == 0) {
         {
@@ -4391,7 +4390,7 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
 
           eos_static_debug("booking %ld bytes on cap ", size_change);
         }
-	capLock.UnLock();
+        capLock.UnLock();
         struct timespec tsnow;
         eos::common::Timing::GetTimeSpec(tsnow);
 
@@ -4415,7 +4414,7 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
 
         std::string cookie = io->md->Cookie();
         io->ioctx()->store_cookie(cookie);
-	capLock.Lock(&pcap->Locker());
+        capLock.Lock(&pcap->Locker());
 
         if (!Instance().caps.has_quota(pcap, 0)) {
           // we signal an error to the client if the quota get's exceeded although
@@ -4467,7 +4466,8 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
   eos::common::Timing timing(__func__);
   COMMONTIMING("_start_", &timing);
   std::string key = xattr_name;
-  eos_static_debug("ino=%#x %s", ino, key.c_str()); /* key in case xattr_name == NULL */
+  eos_static_debug("ino=%#x %s", ino,
+                   key.c_str()); /* key in case xattr_name == NULL */
   ADD_FUSE_STAT(__func__, req);
   EXEC_TIMING_BEGIN(__func__);
   Track::Monitor mon(__func__, Instance().Tracker(), ino);
@@ -4548,13 +4548,14 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
         if ((key == s_acl_a) || (key == s_acl_d)) {
           rc = ENOATTR;
         }
+
 #ifdef __APPLE__
         else
 
           // don't return any finder attribute
           if (key.substr(0, s_apple.length()) == s_apple) {
-          rc = ENOATTR;
-        }
+            rc = ENOATTR;
+          }
 
 #endif
       }
@@ -4573,22 +4574,22 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
         Logbook logbook(true);
         const struct fuse_ctx* ctx = fuse_req_ctx(req);
         ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
-                                                                        ctx->uid, ctx->gid, true, logbook);
+                                   ctx->uid, ctx->gid, true, logbook);
         value = logbook.toString();
       } else if (key == "eos.reconnectparent") {
         const struct fuse_ctx* ctx = fuse_req_ctx(req);
         ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
-                                                                        ctx->uid, ctx->gid, false);
+                                   ctx->uid, ctx->gid, false);
         pid_t ppid = snapshot->getProcessInfo().getParentId();
         Logbook logbook(true);
         ProcessSnapshot snapshotParent =
-                fusexrdlogin::processCache->retrieve(ppid,
-                                                     ctx->uid, ctx->gid, true, logbook);
+          fusexrdlogin::processCache->retrieve(ppid,
+                                               ctx->uid, ctx->gid, true, logbook);
         value = logbook.toString();
       } else if (key == "eos.identity") {
         const struct fuse_ctx* ctx = fuse_req_ctx(req);
         ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
-                                                                        ctx->uid, ctx->gid, false);
+                                   ctx->uid, ctx->gid, false);
 
         if (snapshot) {
           value = snapshot->getBoundIdentity()->describe();
@@ -4596,11 +4597,11 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
       } else if (key == "eos.identityparent") {
         const struct fuse_ctx* ctx = fuse_req_ctx(req);
         ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
-                                                                        ctx->uid, ctx->gid, false);
+                                   ctx->uid, ctx->gid, false);
         pid_t ppid = snapshot->getProcessInfo().getParentId();
         ProcessSnapshot snapshotParent =
-                fusexrdlogin::processCache->retrieve(
-                                                     ppid, ctx->uid, ctx->gid, false);
+          fusexrdlogin::processCache->retrieve(
+            ppid, ctx->uid, ctx->gid, false);
 
         if (snapshotParent) {
           value = snapshotParent->getBoundIdentity()->describe();
@@ -4614,15 +4615,15 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
         } else {
           auto map = md->attr();
 
-	  if (key.substr(0, 8) == "eos.sys.") {
-	    key.erase(0,4);
-	  }
+          if (key.substr(0, 8) == "eos.sys.") {
+            key.erase(0, 4);
+          }
 
           if (key.substr(0, 4) == "eos.") {
             if (key == "eos.md_ino") {
               std::string md_ino;
               value = eos::common::StringConversion::GetSizeString(md_ino,
-                                                                   (unsigned long long) md->md_ino());
+                      (unsigned long long) md->md_ino());
             }
 
             if (key == "eos.btime") {
@@ -4633,38 +4634,44 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
 
             if (key == "eos.ttime") {
               char ttime[256];
-	      if (S_ISDIR(md->mode())) {
-		snprintf(ttime, sizeof(ttime), "%lu.%lu", md->ttime(), md->ttime_ns());
-	      } else {
-		snprintf(ttime, sizeof(ttime), "%lu.%lu", md->mtime(), md->mtime_ns());
-	      }
+
+              if (S_ISDIR(md->mode())) {
+                snprintf(ttime, sizeof(ttime), "%lu.%lu", md->ttime(), md->ttime_ns());
+              } else {
+                snprintf(ttime, sizeof(ttime), "%lu.%lu", md->mtime(), md->mtime_ns());
+              }
+
               value = ttime;
             }
 
             if (key == "eos.tsize") {
               char tsize[256];
-	      snprintf(tsize, sizeof(tsize), "%lu", md->size());
+              snprintf(tsize, sizeof(tsize), "%lu", md->size());
               value = tsize;
             }
 
             if (key == "eos.dsize") {
-	      uint64_t sumsize=0;	      
-	      mLock.UnLock();
-	      rc = listdir(req, ino, md);
-	      if (!rc) {
-		for (auto it = md->local_children().begin(); it != md->local_children().end(); ++it) {
-		  fuse_ino_t cino = it->second;
-		  metad::shared_md cmd = Instance().mds.get(req, cino, "", 0, 0, 0, true);
-		  XrdSysMutexHelper mLock(cmd->Locker());
-		  if (cmd->id()) {
-		    if (S_ISREG(cmd->mode())) {
-		      sumsize += cmd->size();
-		    }
-		  }
-		}
-	      }
+              uint64_t sumsize = 0;
+              mLock.UnLock();
+              rc = listdir(req, ino, md);
+
+              if (!rc) {
+                for (auto it = md->local_children().begin(); it != md->local_children().end();
+                     ++it) {
+                  fuse_ino_t cino = it->second;
+                  metad::shared_md cmd = Instance().mds.get(req, cino, "", 0, 0, 0, true);
+                  XrdSysMutexHelper mLock(cmd->Locker());
+
+                  if (cmd->id()) {
+                    if (S_ISREG(cmd->mode())) {
+                      sumsize += cmd->size();
+                    }
+                  }
+                }
+              }
+
               char dsize[256];
-	      snprintf(dsize, sizeof(dsize), "%lu", sumsize);
+              snprintf(dsize, sizeof(dsize), "%lu", sumsize);
               value = dsize;
             }
 
@@ -4676,12 +4683,12 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
               value = Instance().statsout.get();
             }
 
-	    if (key == "eos.url.xroot") {
-	      value = "root://";
-	      value += Instance().Config().hostport;
-	      value += "/";
-	      value += md->fullpath().c_str();
-	    }
+            if (key == "eos.url.xroot") {
+              value = "root://";
+              value += Instance().Config().hostport;
+              value += "/";
+              value += md->fullpath().c_str();
+            }
 
             if (key == "eos.quota") {
               pcap = Instance().caps.acquire(req, ino,
@@ -4703,7 +4710,7 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
                          q->inode_quota(),
                          pcap->max_file_size(),
                          Instance().Config().hostport.c_str(),
-			 q->writer());
+                         q->writer());
                 value = qline;
               }
             }
@@ -4723,32 +4730,39 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
 #ifdef RICHACL_FOUND
 
               if (key == s_racl) {
-                struct richacl *a = NULL;
+                struct richacl* a = NULL;
+
                 if (map.count("user.acl") > 0 && map["user.acl"].length() > 0) {
                   const char* eosacl = map["user.acl"].c_str();
                   eos_static_debug("eosacl '%s'", eosacl);
-                  if (!S_ISDIR(md->mode()) || map.count("sys.eval.useracl") > 0)
+
+                  if (!S_ISDIR(md->mode()) || map.count("sys.eval.useracl") > 0) {
                     a = eos2racl(eosacl, md);
+                  }
                 }
 
                 metad::shared_md pmd = Instance().mds.getlocal(req, md->pid());
+
                 if (pmd != NULL) {
                   /* decode parent ACL for merge */
                   auto pmap = pmd->attr();
+                  struct richacl* pa = NULL;
 
-                  struct richacl *pa = NULL;
                   if (pmap.count("sys.eval.useracl") > 0 && pmap.count("user.acl") > 0) {
-                    const char *peosacl = pmap["user.acl"].c_str();
+                    const char* peosacl = pmap["user.acl"].c_str();
                     pa = eos2racl(peosacl, pmd);
                   }
 
                   if (pa == NULL) {
                     pa = richacl_from_mode(md->mode()); /* Always returns an ACL */
                   }
+
                   a = richacl_merge_parent(a, md, pa, pmd);
                   richacl_free(pa);
 
-                  if (a == NULL) rc = ENOMEM; /* a has been freed */
+                  if (a == NULL) {
+                    rc = ENOMEM;  /* a has been freed */
+                  }
 
                   if (rc == 0) {
                     size_t sz = richacl_xattr_size(a);
@@ -4770,10 +4784,10 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
               } else
 #endif /*RICHACL_FOUND*/
                 if (!map.count(key)) {
-                rc = ENOATTR;
-              } else {
-                value = map[key];
-              }
+                  rc = ENOATTR;
+                } else {
+                  value = map[key];
+                }
             }
 
             if (size != 0) {
@@ -4918,10 +4932,10 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
     if (fuse_req_ctx(req)->uid == 0) {
       if (key.substr(0, s_resetstat.length()) == s_resetstat) {
         local_setxattr = true;
-	Instance().getFuseStat().Clear();
-	fuse_reply_err(req, 0);
-	// avoid to show this call in stats again
-	return ;
+        Instance().getFuseStat().Clear();
+        fuse_reply_err(req, 0);
+        // avoid to show this call in stats again
+        return ;
       }
     } else {
       rc = EPERM;
@@ -4966,87 +4980,94 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
         static std::string s_apple = "com.apple";
         static std::string s_racl = "system.richacl";
 
-	if (key.substr(0,4) == "eos.") {
-	  // eos attributes are silently ignored
-	  rc = 0;
-	}  else 
-	  // ignore silently any security attribute
-	  if (key.substr(0, s_sec.length()) == s_sec) {
-	    rc = 0;
-	  } else 
-	    // ignore silently any posix acl attribute
-	    if (key == s_acl) {
-	      rc = 0;
-	    } 
-	
+        if (key.substr(0, 4) == "eos.") {
+          // eos attributes are silently ignored
+          rc = 0;
+        }  else
+
+          // ignore silently any security attribute
+          if (key.substr(0, s_sec.length()) == s_sec) {
+            rc = 0;
+          } else
+
+            // ignore silently any posix acl attribute
+            if (key == s_acl) {
+              rc = 0;
+            }
+
 #ifdef __APPLE__
-	    else
-	      // ignore silently any finder attribute
-	      if (key.substr(0, s_apple.length()) == s_apple) {
-		rc = 0;
-	      }
+            else
+
+              // ignore silently any finder attribute
+              if (key.substr(0, s_apple.length()) == s_apple) {
+                rc = 0;
+              }
+
 #endif
 #ifdef RICHACL_FOUND
-        else if (key == s_racl) {
-          struct richacl* a = richacl_from_xattr(xattr_value, size);
-          richacl_compute_max_masks(a);
-          if (EOS_LOGS_DEBUG) {
-            char* a_t = richacl_to_text(a, RICHACL_TEXT_SHOW_MASKS);
-            eos_static_debug("acl a_t '%s' ", a_t);
-            free(a_t);
-          }
+              else if (key == s_racl) {
+                struct richacl* a = richacl_from_xattr(xattr_value, size);
+                richacl_compute_max_masks(a);
 
-          int new_mode = richacl_masks_to_mode(a);
+                if (EOS_LOGS_DEBUG) {
+                  char* a_t = richacl_to_text(a, RICHACL_TEXT_SHOW_MASKS);
+                  eos_static_debug("acl a_t '%s' ", a_t);
+                  free(a_t);
+                }
 
-          char eosAcl[512];
-          racl2eos(a, eosAcl, sizeof(eosAcl), md);
-          eos_static_debug("acl eosacl '%s'", eosAcl);
-          auto map = md->mutable_attr();
+                int new_mode = richacl_masks_to_mode(a);
+                char eosAcl[512];
+                racl2eos(a, eosAcl, sizeof(eosAcl), md);
+                eos_static_debug("acl eosacl '%s'", eosAcl);
+                auto map = md->mutable_attr();
+                rc = 0; /* assume green light */
 
-          rc = 0; /* assume green light */
-          // assert user acls are enabled
-          if (!map->count("sys.eval.useracl")) {
-            if (S_ISDIR(md->mode()))
-              rc = EPERM;
-            else {
-              metad::shared_md pmd = Instance().mds.getlocal(req, md->pid());
-              auto pmap = pmd->mutable_attr();
-              if (pmap->count("sys.eval.useracl") == 0)
-                rc = EPERM;
-            }
-          }
-          if (rc == 0) {
-            new_mode |= (md->mode() & ~0777);
-            eos_static_debug("set new mode %#o", new_mode);
-            md->set_mode(new_mode);
-            (*map)["user.acl"] = std::string(eosAcl);
+                // assert user acls are enabled
+                if (!map->count("sys.eval.useracl")) {
+                  if (S_ISDIR(md->mode())) {
+                    rc = EPERM;
+                  } else {
+                    metad::shared_md pmd = Instance().mds.getlocal(req, md->pid());
+                    auto pmap = pmd->mutable_attr();
 
-            Instance().mds.update(req, md, pcap->authid());
-            pcap->invalidate();
+                    if (pmap->count("sys.eval.useracl") == 0) {
+                      rc = EPERM;
+                    }
+                  }
+                }
 
-            if (Instance().mds.has_flush(ino)) {
-              Instance().mds.wait_flush(req, md); // wait for upstream flush
-            }
-          }
-        }
+                if (rc == 0) {
+                  new_mode |= (md->mode() & ~0777);
+                  eos_static_debug("set new mode %#o", new_mode);
+                  md->set_mode(new_mode);
+                  (*map)["user.acl"] = std::string(eosAcl);
+                  Instance().mds.update(req, md, pcap->authid());
+                  pcap->invalidate();
+
+                  if (Instance().mds.has_flush(ino)) {
+                    Instance().mds.wait_flush(req, md); // wait for upstream flush
+                  }
+                }
+              }
+
 #endif /*RICHACL_FOUND*/
-        else {
-          auto map = md->mutable_attr();
-          bool exists = false;
+              else {
+                auto map = md->mutable_attr();
+                bool exists = false;
 
-          if ((*map).count(key)) {
-            exists = true;
-          }
+                if ((*map).count(key)) {
+                  exists = true;
+                }
 
-          if (exists && (flags == XATTR_CREATE)) {
-            rc = EEXIST;
-          } else if (!exists && (flags == XATTR_REPLACE)) {
-            rc = ENOATTR;
-          } else {
-            (*map)[key] = value;
-            Instance().mds.update(req, md, pcap->authid());
-          }
-        }
+                if (exists && (flags == XATTR_CREATE)) {
+                  rc = EEXIST;
+                } else if (!exists && (flags == XATTR_REPLACE)) {
+                  rc = ENOATTR;
+                } else {
+                  (*map)[key] = value;
+                  Instance().mds.update(req, md, pcap->authid());
+                }
+              }
       }
     }
   }
@@ -5101,44 +5122,44 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
       for (auto it = map.begin(); it != map.end(); ++it) {
         attrlistsize += it->first.length() + 1;
 
-	if (it->first.substr(0,4) == "sys.") {
-	  attrlist += "eos.";
-	  attrlistsize += strlen("eos.");
-	}
+        if (it->first.substr(0, 4) == "sys.") {
+          attrlist += "eos.";
+          attrlistsize += strlen("eos.");
+        }
 
-	attrlist += it->first;
+        attrlist += it->first;
         attrlist += '\0';
       }
 
       {
-	// add 'eos.btime'
-	attrlist += "eos.btime";
-	attrlist += '\0';
-	attrlistsize += strlen("eos.btime") + 1;
-	// add 'eos.ttime'
-	attrlist += "eos.ttime";
-	attrlist += '\0';
-	attrlistsize += strlen("eos.ttime") + 1;
-	// add 'eos.tsize'
-	attrlist += "eos.tsize";
-	attrlist += '\0';
-	attrlistsize += strlen("eos.tszie") + 1;
-	// add "eos.url.xroot";
-	attrlist += "eos.url.xroot";
-	attrlist += '\0';
-	attrlistsize += strlen("eos.url.xroot") + 1;
+        // add 'eos.btime'
+        attrlist += "eos.btime";
+        attrlist += '\0';
+        attrlistsize += strlen("eos.btime") + 1;
+        // add 'eos.ttime'
+        attrlist += "eos.ttime";
+        attrlist += '\0';
+        attrlistsize += strlen("eos.ttime") + 1;
+        // add 'eos.tsize'
+        attrlist += "eos.tsize";
+        attrlist += '\0';
+        attrlistsize += strlen("eos.tszie") + 1;
+        // add "eos.url.xroot";
+        attrlist += "eos.url.xroot";
+        attrlist += '\0';
+        attrlistsize += strlen("eos.url.xroot") + 1;
       }
 
       {
-	// for files add 'eos.checksum'
-	if (S_ISREG(md->mode())) {
-	  attrlist += "eos.checksum";
-	  attrlist += '\0';
-	  attrlistsize += strlen("eos.checksum") + 1;
-	  attrlist += "eos.md_ino";
-	  attrlist += '\0';
-	  attrlistsize += strlen("eos.md_ino") + 1;
-	}
+        // for files add 'eos.checksum'
+        if (S_ISREG(md->mode())) {
+          attrlist += "eos.checksum";
+          attrlist += '\0';
+          attrlistsize += strlen("eos.checksum") + 1;
+          attrlist += "eos.md_ino";
+          attrlist += '\0';
+          attrlistsize += strlen("eos.md_ino") + 1;
+        }
       }
 
       if (size != 0) {
@@ -5212,38 +5233,40 @@ EosFuse::removexattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name)
 
         // ignore silently any posix acl attribute
         if (key == s_acl) {
-        rc = 0;
-      }
-#ifdef __APPLE__
-      else
+          rc = 0;
+        }
 
-        // ignore silently any finder attribute
-        if (key.substr(0, s_apple.length()) == s_apple) {
-        rc = 0;
-      }
+#ifdef __APPLE__
+        else
+
+          // ignore silently any finder attribute
+          if (key.substr(0, s_apple.length()) == s_apple) {
+            rc = 0;
+          }
+
 #endif
-      else {
+          else {
 #ifdef RICHACL_FOUND
 
-        if (key == s_racl) {
-          key = "user.acl";
-        }
+            if (key == s_racl) {
+              key = "user.acl";
+            }
 
 #endif
-        auto map = md->mutable_attr();
-        bool exists = false;
+            auto map = md->mutable_attr();
+            bool exists = false;
 
-        if ((*map).count(key)) {
-          exists = true;
-        }
+            if ((*map).count(key)) {
+              exists = true;
+            }
 
-        if (!exists) {
-          rc = ENOATTR;
-        } else {
-          (*map).erase(key);
-          Instance().mds.update(req, md, pcap->authid());
-        }
-      }
+            if (!exists) {
+              rc = ENOATTR;
+            } else {
+              (*map).erase(key);
+              Instance().mds.update(req, md, pcap->authid());
+            }
+          }
     }
   }
 
@@ -5293,52 +5316,51 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
   fuse_id id(req);
   cap::shared_cap pcap;
   metad::shared_md md;
-
   md = Instance().mds.get(req, ino);
-  
+
   if (!md->id() || md->deleted()) {
     rc = md->deleted() ? ENOENT : md->err();
   } else {
     pcap = Instance().caps.acquire(req, md->pid(),
-				   R_OK, true);
-    
+                                   R_OK, true);
+
     if (pcap->errc()) {
       rc = pcap->errc();
     } else {
       XrdSysMutexHelper mLock(md->Locker());
-      
+
       if (!md->id() || md->deleted()) {
-	rc = ENOENT;
+        rc = ENOENT;
       } else {
-	if (!(md->mode() & S_IFLNK)) {
-	  // no a link
-	  rc = EINVAL;
-	} else {
-	  target = md->target();
-	}
+        if (!(md->mode() & S_IFLNK)) {
+          // no a link
+          rc = EINVAL;
+        } else {
+          target = md->target();
+        }
       }
     }
-    
+
     if (Instance().Config().options.submounts) {
       if (target.substr(0, 6) == "mount:") {
-	std::string env;
-	
-	// if not shared, set the caller credentials
-	if (0) {
-	  env = fusexrdlogin::environment(req);
-	}
-	
-	std::string localpath = Instance().Prefix(Instance().mds.calculateLocalPath(
-										    md));
-	rc = Instance().Mounter().mount(target, localpath, env);
+        std::string env;
+
+        // if not shared, set the caller credentials
+        if (0) {
+          env = fusexrdlogin::environment(req);
+        }
+
+        std::string localpath = Instance().Prefix(Instance().mds.calculateLocalPath(
+                                  md));
+        rc = Instance().Mounter().mount(target, localpath, env);
       }
-      
+
       if (target.substr(0, 11) == "squashfuse:") {
-	std::string env;
-	//    env = fusexrdlogin::environment(req);
-	std::string localpath = Instance().Prefix(Instance().mds.calculateLocalPath(
-										    md));
-	rc = Instance().Mounter().squashfuse(target, localpath, env);
+        std::string env;
+        //    env = fusexrdlogin::environment(req);
+        std::string localpath = Instance().Prefix(Instance().mds.calculateLocalPath(
+                                  md));
+        rc = Instance().Mounter().squashfuse(target, localpath, env);
       }
     }
   }
@@ -5404,7 +5426,7 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
   struct fuse_entry_param e;
   // do a parent check
   cap::shared_cap pcap = Instance().caps.acquire(req, parent,
-                                                 S_IFDIR | W_OK, true);
+                         S_IFDIR | W_OK, true);
 
   if (pcap->errc()) {
     rc = pcap->errc();
@@ -5418,14 +5440,13 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
     if (md->id() && !md->deleted()) {
       rc = EEXIST;
     } else {
-
       {
         uint64_t del_ino = 0;
         // logic avoiding a create/unlink/create sync/async race
         {
           XrdSysMutexHelper pLock(pmd->Locker());
           auto it = pmd->get_todelete().find(
-                                             eos::common::StringConversion::EncodeInvalidUTF8(name));
+                      eos::common::StringConversion::EncodeInvalidUTF8(name));
 
           if ((it != pmd->get_todelete().end()) && it->second) {
             del_ino = it->second;
@@ -5436,7 +5457,6 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
           Instance().mds.wait_deleted(req, del_ino);
         }
       }
-
       md->set_mode(S_IRWXU | S_IRWXG | S_IRWXO | S_IFLNK);
       md->set_target(link);
       md->set_err(0);
@@ -5454,13 +5474,12 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
       md->set_uid(pcap->uid());
       md->set_gid(pcap->gid());
       md->lookup_inc();
-
       md->set_type(md->EXCL);
       rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
       md->set_type(md->MD);
 
       if (rc) {
-	Instance().mds.insert(req, md, pcap->authid());
+        Instance().mds.insert(req, md, pcap->authid());
         pmd->local_enoent().erase(name);
       }
 
@@ -5502,7 +5521,7 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
   struct fuse_entry_param e;
   // do a parent check
   cap::shared_cap pcap = Instance().caps.acquire(req, parent,
-                                                 S_IFDIR | W_OK, true);
+                         S_IFDIR | W_OK, true);
 
   if (pcap->errc()) {
     rc = pcap->errc();
@@ -5523,7 +5542,7 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
         {
           XrdSysMutexHelper pLock(pmd->Locker());
           auto it = pmd->get_todelete().find(
-                                             eos::common::StringConversion::EncodeInvalidUTF8(newname));
+                      eos::common::StringConversion::EncodeInvalidUTF8(newname));
 
           if ((it != pmd->get_todelete().end()) && it->second) {
             del_ino = it->second;
@@ -5534,7 +5553,6 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
           Instance().mds.wait_deleted(req, del_ino);
         }
       }
-
       tmd = Instance().mds.get(req, ino, pcap->authid()); /* link target */
 
       if (tmd->id() == 0 || tmd->deleted()) {
@@ -5584,9 +5602,11 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
         tmd->set_nlink(nlink + 1);
         tmLock.UnLock();
         rc = Instance().mds.add_sync(req, pmd, md, pcap->authid());
-	if (!rc) {
-	  Instance().mds.insert(req, md, pcap->authid());
-	}
+
+        if (!rc) {
+          Instance().mds.insert(req, md, pcap->authid());
+        }
+
         md->set_target("");
         mLock.UnLock();
 
@@ -5747,18 +5767,15 @@ EosFuse::getHbStat(eos::fusex::statistics& hbs)
     hbs.set_total_ram_mb(meminfo.getref().totalram / 1000.0 / 1000.0);
     hbs.set_load1(1.0 * meminfo.getref().loads[0] / (1 << SI_LOAD_SHIFT));
   }
-
   {
     XrdSysMutexHelper sLock(getFuseStat().Mutex);
     hbs.set_rbytes(getFuseStat().GetTotal("rbytes"));
     hbs.set_wbytes(getFuseStat().GetTotal("wbytes"));
-    hbs.set_nio(getFuseStat().GetOps());  
+    hbs.set_nio(getFuseStat().GetOps());
     hbs.set_rd_rate_60_mb(getFuseStat().GetTotalAvg60("rbytes") / 1000.0 / 1000.0);
     hbs.set_wr_rate_60_mb(getFuseStat().GetTotalAvg60("wbytes") / 1000.0 / 1000.0);
     hbs.set_iops_60(getFuseStat().GetTotalAvg60(":sum"));
   }
-
-
   hbs.set_wr_buf_mb(XrdCl::Proxy::sWrBufferManager.inflight() / 1000.0 / 1000.0);
   hbs.set_ra_buf_mb(XrdCl::Proxy::sRaBufferManager.inflight() / 1000.0 / 1000.0);
   hbs.set_xoff(Instance().datas.get_xoff());
@@ -5777,7 +5794,7 @@ EosFuse::isRecursiveRm(fuse_req_t req, bool forced, bool notverbose)
 #ifndef __APPLE__
   const struct fuse_ctx* ctx = fuse_req_ctx(req);
   ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(ctx->pid,
-                                                                  ctx->uid, ctx->gid, false);
+                             ctx->uid, ctx->gid, false);
 
   if (snapshot->getProcessInfo().getRmInfo().isRm() &&
       snapshot->getProcessInfo().getRmInfo().isRecursive()) {
@@ -5813,7 +5830,7 @@ EosFuse::TrackMgm(const std::string& lasturl)
   std::string sport;
   newmgm += ":";
   newmgm += eos::common::StringConversion::GetSizeString(sport,
-                                                         (unsigned long long) lastUrl.GetPort());
+            (unsigned long long) lastUrl.GetPort());
   eos_static_debug("current-mgm:%s last-url:%s", currentmgm.c_str(),
                    newmgm.c_str());
 
@@ -5855,5 +5872,5 @@ EosFuse::Prefix(std::string path)
     fullpath.pop_back();
   }
 
-  return(fullpath + path);
+  return (fullpath + path);
 }

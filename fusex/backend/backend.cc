@@ -177,7 +177,9 @@ backend::getMD(fuse_req_t req,
 /* -------------------------------------------------------------------------- */
 {
   // return's the inode of path in inode and rc=0 for success, otherwise errno
-  std::string requestURL = getURL(req, path, "fuseX" , "getfusex", listing ? "LS" : "GET", authid, listing? true : false);
+  std::string requestURL = getURL(req, path, "fuseX" , "getfusex",
+                                  listing ? "LS" : "GET", authid, listing ? true : false);
+
   if (listing || !use_mdquery()) {
     return fetchResponse(requestURL, contv);
   } else {
@@ -196,8 +198,10 @@ backend::getMD(fuse_req_t req,
                std::string authid
               )
 {
-  std::string requestURL = getURL(req, inode, name, "fuseX" , "getfusex", listing ? "LS" : "GET",
-                                  authid, listing? true : false);
+  std::string requestURL = getURL(req, inode, name, "fuseX" , "getfusex",
+                                  listing ? "LS" : "GET",
+                                  authid, listing ? true : false);
+
   if (listing || !use_mdquery()) {
     return fetchResponse(requestURL, contv);
   } else {
@@ -217,8 +221,10 @@ backend::getMD(fuse_req_t req,
               )
 /* -------------------------------------------------------------------------- */
 {
-  std::string requestURL = getURL(req, inode, myclock, "fuseX" , "getfusex", listing ? "LS" : "GET",
+  std::string requestURL = getURL(req, inode, myclock, "fuseX" , "getfusex",
+                                  listing ? "LS" : "GET",
                                   authid, listing ? true : false);
+
   if (listing || !use_mdquery()) {
     return fetchResponse(requestURL, contv);
   } else {
@@ -235,7 +241,8 @@ backend::getCAP(fuse_req_t req,
 /* -------------------------------------------------------------------------- */
 {
   uint64_t myclock = (uint64_t) time(NULL);
-  std::string requestURL = getURL(req, inode, myclock, "fuseX", "getfusex", "GETCAP", "", true);
+  std::string requestURL = getURL(req, inode, myclock, "fuseX", "getfusex",
+                                  "GETCAP", "", true);
   return fetchResponse(requestURL, contv);
 }
 
@@ -244,8 +251,8 @@ backend::getCAP(fuse_req_t req,
 int
 /* -------------------------------------------------------------------------- */
 backend::fetchQueryResponse(std::string& requestURL,
-			    std::vector<eos::fusex::container>& contv
-			    )
+                            std::vector<eos::fusex::container>& contv
+                           )
 /* -------------------------------------------------------------------------- */
 {
   XrdCl::URL url(requestURL);
@@ -260,7 +267,7 @@ backend::fetchQueryResponse(std::string& requestURL,
   if (status.IsOK()) {
     eos_static_debug("%x", bresponse);
     eos_static_debug("response-size=%d",
-		     bresponse ? bresponse->GetSize() : 0);
+                     bresponse ? bresponse->GetSize() : 0);
 
     if (bresponse && bresponse->GetBuffer()) {
       off_t offset = 0;
@@ -268,53 +275,55 @@ backend::fetchQueryResponse(std::string& requestURL,
       std::string response(bresponse->GetBuffer(), bresponse->GetSize());
 
       if (EOS_LOGS_DEBUG)
-	eos_static_debug("result-dump=%s",
-			 eos::common::StringConversion::string_to_hex(response).c_str());
-    
+        eos_static_debug("result-dump=%s",
+                         eos::common::StringConversion::string_to_hex(response).c_str());
+
       do {
-	cont.Clear();
-	
-	if ((response.size() - offset) > 10) {
-	  std::string slen = response.substr(1 + offset, 8);
-	  size_t len = strtoll(slen.c_str(), 0, 16);
-	  eos_static_debug("len=%llu offset=%llu", len, offset);
-	  
-	  if (!len) {
-	    eos_static_debug("response had illegal length");
-	    return EINVAL;
-	  }
-	  
-	  std::string item;
-	  item.assign(response.c_str() + offset + 10, len);
-	  offset += (10 + len);
-	  
-	  if (cont.ParseFromString(item)) {
-	    eos_static_debug("response parsing OK");
-	    
-	    if ((cont.type() != cont.MD) &&
-		(cont.type() != cont.MDMAP) &&
-		(cont.type() != cont.CAP)) {
-	      eos_static_debug("wrong response type");
-	      return EINVAL;
-	    }
-	    
-	    contv.push_back(cont);
-	    eos_static_debug("parsed %ld/%ld", offset, response.size());
-	    
-	    if (offset == (off_t) response.size()) {
-	      break;
-	    }
-	  } else {
-	    eos_static_debug("response parsing FAILED");
-	    return EIO;
-	  }
-	} else {
-	  eos_static_err("fatal protocol parsing error");
-	  return EINVAL;
-	};
+        cont.Clear();
+
+        if ((response.size() - offset) > 10) {
+          std::string slen = response.substr(1 + offset, 8);
+          size_t len = strtoll(slen.c_str(), 0, 16);
+          eos_static_debug("len=%llu offset=%llu", len, offset);
+
+          if (!len) {
+            eos_static_debug("response had illegal length");
+            return EINVAL;
+          }
+
+          std::string item;
+          item.assign(response.c_str() + offset + 10, len);
+          offset += (10 + len);
+
+          if (cont.ParseFromString(item)) {
+            eos_static_debug("response parsing OK");
+
+            if ((cont.type() != cont.MD) &&
+                (cont.type() != cont.MDMAP) &&
+                (cont.type() != cont.CAP)) {
+              eos_static_debug("wrong response type");
+              return EINVAL;
+            }
+
+            contv.push_back(cont);
+            eos_static_debug("parsed %ld/%ld", offset, response.size());
+
+            if (offset == (off_t) response.size()) {
+              break;
+            }
+          } else {
+            eos_static_debug("response parsing FAILED");
+            return EIO;
+          }
+        } else {
+          eos_static_err("fatal protocol parsing error");
+          return EINVAL;
+        };
       } while (1);
+
       return 0;
     }
+
     eos_static_debug("");
   } else {
     if (status.errNo == XErrorCode::kXR_NotFound) {
@@ -323,26 +332,30 @@ backend::fetchQueryResponse(std::string& requestURL,
       errno = ENOENT;
       return ENOENT;
     }
+
     if (status.code == XrdCl::errAuthFailed) {
       eos_static_debug("");
       // this is an authentication error which results in permission denied
       errno = EPERM;
       return EPERM;
     }
+
     // all the other errors are reported back
     if (status.errNo) {
       errno = XrdCl::Proxy::status2errno(status);
       eos_static_err("error=status is not ok : errno=%d", errno);
-      
+
       // xrootd does not transport E2BIG ... sigh
       if (errno == ENAMETOOLONG) {
-	errno = E2BIG;
+        errno = E2BIG;
       }
-      
+
       return errno;
     }
+
     eos_static_debug("");
   }
+
   return EIO;
 }
 
@@ -365,13 +378,15 @@ backend::fetchResponse(std::string& requestURL,
   rbuff.reserve(kPAGE);
   uint32_t bytesread = 0;
 
-
   do {
     struct timespec ts;
     eos::common::Timing::GetTimeSpec(ts, true);
+
     // the MD get operation is implemented via a stream: open/read/close
-    if (EOS_LOGS_DEBUG)
+    if (EOS_LOGS_DEBUG) {
       eos_static_debug("opening %s", requestURL.c_str());
+    }
+
     status = file->Open(requestURL.c_str(),
                         XrdCl::OpenFlags::Flags::Read);
     double exec_time_sec = 1.0 * eos::common::Timing::GetCoarseAgeInNs(&ts,
@@ -387,9 +402,10 @@ backend::fetchResponse(std::string& requestURL,
     if (!status.IsOK()) {
       // check if we got an inlined response in an error object
       std::string b64response = status.GetErrorMessage();
-      if (b64response.substr(0,6) == "base64") {
-	eos::common::SymKey::DeBase64(b64response, response);
-	goto has_response;
+
+      if (b64response.substr(0, 6) == "base64") {
+        eos::common::SymKey::DeBase64(b64response, response);
+        goto has_response;
       }
 
       // in case of any failure
@@ -400,12 +416,12 @@ backend::fetchResponse(std::string& requestURL,
         return ENOENT;
       }
 
-      if (status.IsFatal() || EOS_LOGS_DEBUG || (status.errNo != kXR_NotAuthorized) ) {
-	eos_static_err("fetch-exec-ms=%.02f sum-query-exec-ms=%.02f ok=%d err=%d fatal=%d status-code=%d err-no=%d",
-		       exec_time_sec * 1000.0, total_exec_time_sec * 1000.0, status.IsOK(),
-		       status.IsError(), status.IsFatal(), status.code, status.errNo);
-	eos_static_err("error=status is NOT ok : %s %d %d", status.ToString().c_str(),
-		       status.code, status.errNo);
+      if (status.IsFatal() || EOS_LOGS_DEBUG || (status.errNo != kXR_NotAuthorized)) {
+        eos_static_err("fetch-exec-ms=%.02f sum-query-exec-ms=%.02f ok=%d err=%d fatal=%d status-code=%d err-no=%d",
+                       exec_time_sec * 1000.0, total_exec_time_sec * 1000.0, status.IsOK(),
+                       status.IsError(), status.IsFatal(), status.code, status.errNo);
+        eos_static_err("error=status is NOT ok : %s %d %d", status.ToString().c_str(),
+                       status.code, status.errNo);
       }
 
       if (status.code == XrdCl::errAuthFailed) {
@@ -447,9 +463,10 @@ backend::fetchResponse(std::string& requestURL,
       // all the other errors are reported back
       if (status.errNo) {
         errno = XrdCl::Proxy::status2errno(status);
-	if ( (status.errNo != EPERM) ) {
-	  eos_static_err("error=status is not ok : errno=%d", errno);
-	}
+
+        if ((status.errNo != EPERM)) {
+          eos_static_err("error=status is not ok : errno=%d", errno);
+        }
 
         // xrootd does not transport E2BIG ... sigh
         if (errno == ENAMETOOLONG) {
@@ -492,8 +509,7 @@ backend::fetchResponse(std::string& requestURL,
     eos_static_debug("rbytes=%lu offset=%llu", bytesread, offset);
   } while (bytesread);
 
- has_response:
-
+has_response:
   eos_static_debug("response-size=%u response=%s",
                    response.size(), response.c_str());
   //eos_static_debug("response-dump=%s", eos::common::StringConversion::string_to_hex(response).c_str());
@@ -566,7 +582,6 @@ backend::rmRf(fuse_req_t req, eos::fusex::md* md)
   }
 
   query["eos.app"] = get_appname();
-
   query["fuse.v"] = std::to_string(FUSEPROTOCOLVERSION);
 
   if (req) {
@@ -609,14 +624,14 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
 {
   XrdCl::URL url;
   XrdCl::URL::ParamsMap query;
+  bool was_bound = false;
 
-  bool was_bound=false;
   if (!(id.getid())) {
     id.bind();
   } else {
-    was_bound=true;
+    was_bound = true;
   }
-  
+
   {
     // update host + port NOW
     XrdCl::URL lurl("root://" + hostport);
@@ -625,12 +640,9 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
 
   id.getid()->query["eos.app"] = get_appname();
   id.getid()->query["fuse.v"] = std::to_string(FUSEPROTOCOLVERSION);
-
   id.getid()->url.SetParams(id.getid()->query);
-
-
-  eos_static_debug("identity bound url=%s was-bound=%d", id.getid()->url.GetURL().c_str(), was_bound);
-
+  eos_static_debug("identity bound url=%s was-bound=%d",
+                   id.getid()->url.GetURL().c_str(), was_bound);
   // temporary add the authid to be used for that request
   md->set_authid(authid);
   md->set_clientuuid(clientuuid);
@@ -663,9 +675,11 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
   std::string prefix = "/?fusex:";
   arg.Append(prefix.c_str(), prefix.length());
   arg.Append(mdstream.c_str(), mdstream.length());
-  eos_static_debug("query: url=%s path=%s length=%d", id.getid()->url.GetURL().c_str(),
+  eos_static_debug("query: url=%s path=%s length=%d",
+                   id.getid()->url.GetURL().c_str(),
                    prefix.c_str(), mdstream.length());
-  XrdCl::XRootDStatus status = Query(id.getid()->url, XrdCl::QueryCode::OpaqueFile, arg,
+  XrdCl::XRootDStatus status = Query(id.getid()->url,
+                                     XrdCl::QueryCode::OpaqueFile, arg,
                                      response, put_timeout);
   eos_static_info("sync-response");
   eos_static_debug("response-size=%d",
@@ -793,6 +807,7 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
     }
 
     if (status.code == XrdCl::errErrorResponse) {
+      eos_static_err("errno=%i", status.errNo);
       return mapErrCode(status.errNo);
     } else {
       return EIO;
@@ -812,9 +827,7 @@ backend::doLock(fuse_req_t req,
   url.SetPath("/dummy");
   XrdCl::URL::ParamsMap query;
   fusexrdlogin::loginurl(url, query, req, 0);
-
   query["fuse.v"] = std::to_string(FUSEPROTOCOLVERSION);
-
   url.SetParams(query);
   md.set_clientuuid(clientuuid);
   std::string mdstream;
@@ -914,10 +927,10 @@ backend::doLock(fuse_req_t req,
 /* -------------------------------------------------------------------------- */
 std::string
 /* -------------------------------------------------------------------------- */
-backend::getURL(fuse_req_t req, const std::string& path, std::string cmd, 
-		std::string pcmd, std::string op,
-                std::string authid, 
-		bool setinline)
+backend::getURL(fuse_req_t req, const std::string& path, std::string cmd,
+                std::string pcmd, std::string op,
+                std::string authid,
+                bool setinline)
 /* -------------------------------------------------------------------------- */
 {
   XrdCl::URL url("root://" + hostport);
@@ -929,9 +942,11 @@ backend::getURL(fuse_req_t req, const std::string& path, std::string cmd,
   query["mgm.path"] = eos::common::StringConversion::curl_escaped(mount + path);
   query["mgm.op"] = op;
   query["mgm.uuid"] = clientuuid;
+
   if (setinline) {
     query["mgm.inline"] = 1;
   }
+
   if (req) {
     query["mgm.cid"] = cap::capx::getclientid(req);
   }
@@ -955,7 +970,8 @@ backend::getURL(fuse_req_t req, const std::string& path, std::string cmd,
 /* -------------------------------------------------------------------------- */
 std::string
 /* -------------------------------------------------------------------------- */
-backend::getURL(fuse_req_t req, uint64_t inode, const std::string& name, std::string cmd, 
+backend::getURL(fuse_req_t req, uint64_t inode, const std::string& name,
+                std::string cmd,
                 std::string pcmd, std::string op, std::string authid, bool setinline)
 {
   XrdCl::URL url("root://" + hostport);
@@ -984,7 +1000,6 @@ backend::getURL(fuse_req_t req, uint64_t inode, const std::string& name, std::st
   }
 
   query["fuse.v"] = std::to_string(FUSEPROTOCOLVERSION);
-
   fusexrdlogin::loginurl(url, query, req, inode);
   url.SetParams(query);
   return url.GetURL();
@@ -993,8 +1008,8 @@ backend::getURL(fuse_req_t req, uint64_t inode, const std::string& name, std::st
 /* -------------------------------------------------------------------------- */
 std::string
 /* -------------------------------------------------------------------------- */
-backend::getURL(fuse_req_t req, uint64_t inode, uint64_t clock, std::string cmd, 
-		std::string pcmd, std::string op,
+backend::getURL(fuse_req_t req, uint64_t inode, uint64_t clock, std::string cmd,
+                std::string pcmd, std::string op,
                 std::string authid, bool setinline)
 /* -------------------------------------------------------------------------- */
 {
@@ -1026,7 +1041,6 @@ backend::getURL(fuse_req_t req, uint64_t inode, uint64_t clock, std::string cmd,
   }
 
   query["fuse.v"] = std::to_string(FUSEPROTOCOLVERSION);
-
   fusexrdlogin::loginurl(url, query, req, inode);
   url.SetParams(query);
   return url.GetURL();
@@ -1048,7 +1062,6 @@ backend::statvfs(fuse_req_t req,
   query["eos.app"] = get_appname();
   query["path"] = "/";
   query["fuse.v"] = std::to_string(FUSEPROTOCOLVERSION);
-
   fusexrdlogin::loginurl(url, query, req, 0);
   url.SetParams(query);
   std::string sarg = url.GetPathWithParams();
@@ -1062,10 +1075,9 @@ backend::statvfs(fuse_req_t req,
   static XrdSysMutex statmutex;
   static time_t laststat = 0;
   errno = 0;
-
   {
     XrdSysMutexHelper sLock(statmutex);
-    
+
     if ((time(NULL) - laststat) < ((15 + (int) 5.0 * rand() / RAND_MAX))) {
       stbuf->f_bsize = 4096;
       stbuf->f_frsize = 4096;
@@ -1080,7 +1092,6 @@ backend::statvfs(fuse_req_t req,
       return errno;
     }
   }
-
   XrdCl::Buffer arg;
   arg.FromString(sarg);
   XrdCl::Buffer* response = 0;
@@ -1099,7 +1110,6 @@ backend::statvfs(fuse_req_t req,
     }
 
     XrdSysMutexHelper sLock(statmutex);
-
     int items = sscanf(response->GetBuffer(),
                        "%s retc=%d f_avail_bytes=%llu f_avail_files=%llu "
                        "f_max_bytes=%llu f_max_files=%llu",
@@ -1136,8 +1146,8 @@ backend::statvfs(fuse_req_t req,
 int
 /* -------------------------------------------------------------------------- */
 backend::getChecksum(fuse_req_t req,
-			uint64_t inode, 
-			std::string& checksum_return)
+                     uint64_t inode,
+                     std::string& checksum_return)
 /* -------------------------------------------------------------------------- */
 {
   fuse_id id(req);
@@ -1158,9 +1168,7 @@ backend::getChecksum(fuse_req_t req,
   XrdCl::Buffer arg;
   arg.FromString(sarg);
   XrdCl::Buffer* response = 0;
-  
   eos_static_debug("query: url=%s", url.GetURL().c_str());
-
   XrdCl::XRootDStatus status = Query(url, XrdCl::QueryCode::OpaqueFile, arg,
                                      response, put_timeout);
   eos_static_info("sync-response");
@@ -1173,43 +1181,48 @@ backend::getChecksum(fuse_req_t req,
       checksum_response.assign(response->GetBuffer(), response->GetSize());
       eos_static_debug("response=%s", checksum_response.c_str());
       char checksum[1023];
-      int retc=0;
-      size_t items = sscanf(checksum_response.c_str(), "checksum: %1023s retc=%i", checksum, &retc);
+      int retc = 0;
+      size_t items = sscanf(checksum_response.c_str(), "checksum: %1023s retc=%i",
+                            checksum, &retc);
+
       if (items != 2) {
-	size_t items = sscanf(checksum_response.c_str(), "checksum:  retc=%i", &retc);
-	if (items == 1) {
-	  if (retc == ENOENT) {
-	    // an old server might not be able to call getChecksum by file id, we return an empty one in that case
-	    checksum_return = "unknown";
-	  } else {
-	    delete response;
-	    return retc;
-	  }
-	} else {
-	  delete response;
-	  return ENODATA;
-	}
+        size_t items = sscanf(checksum_response.c_str(), "checksum:  retc=%i", &retc);
+
+        if (items == 1) {
+          if (retc == ENOENT) {
+            // an old server might not be able to call getChecksum by file id, we return an empty one in that case
+            checksum_return = "unknown";
+          } else {
+            delete response;
+            return retc;
+          }
+        } else {
+          delete response;
+          return ENODATA;
+        }
       } else {
-	if (retc) {
-	  if (retc == ENOENT) {
-	    checksum_return = "unknown";
-	  } else {
-	    delete response;
-	    return ENODATA;
-	  }
-	} else {
-	  checksum_return = checksum;
-	}
+        if (retc) {
+          if (retc == ENOENT) {
+            checksum_return = "unknown";
+          } else {
+            delete response;
+            return ENODATA;
+          }
+        } else {
+          checksum_return = checksum;
+        }
       }
     }
-    if (response) 
+
+    if (response) {
       delete response;
+    }
 
     return 0;
   } else {
     eos_static_err("query resulted in error for ino=%lx url=%s rc=%d", inode,
                    url.GetURL().c_str(),
-		   (status.code == XrdCl::errErrorResponse)?mapErrCode(status.errNo):EIO);
+                   (status.code == XrdCl::errErrorResponse) ? mapErrCode(status.errNo) : EIO);
 
     if (status.code == XrdCl::errErrorResponse) {
       return mapErrCode(status.errNo);

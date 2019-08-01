@@ -1411,34 +1411,40 @@ Server::OpSetDirectory(const std::string& id,
           }
         }
         op = MOVE;
-        // create a broadcast md object with the authid of the source directory, the target is the standard authid for notification
+        // create a broadcast md object with the authid of the source directory,
+        // the target is the standard authid for notification
         mv_md.set_authid(md.mv_authid());
-        eos_info("moving %lx => %lx", cmd->getParentId(), md.md_pino());
+        // If the destination exists, we have to remove it if it's empty
+        std::shared_ptr<eos::IContainerMD> exist_target_cmd = pcmd->findContainer(
+              md.name());
+
+        if (exist_target_cmd) {
+          if (exist_target_cmd->getNumFiles() + exist_target_cmd->getNumContainers()) {
+            // Fatal error we have to fail that rename
+            eos_err("msg=\"failed move, destination exist and not empty\""
+                    " name=%s cxid=%08llx", md.name(), md.md_ino());
+            return ENOTEMPTY;
+          }
+
+          try {
+            // Remove it via the directory service
+            eos_info("msg=\"mv delete empty destination\" name=%s cxid=%08llx",
+                     md.name().c_str(), md.md_ino());
+            pcmd->removeContainer(md.name());
+            gOFS->eosDirectoryService->removeContainer(exist_target_cmd.get());
+          }  catch (eos::MDException& e) {
+            eos_crit("msg=\"got an exception while trying to remove a container"
+                     " which we saw before\" name=%s cxid=%08llx",
+                     md.name().c_str(), md.md_ino());
+          }
+        }
+
+        eos_info("msg=\"mv detach source from parent\" moving %lx => %lx",
+                 cmd->getParentId(), md.md_pino());
         cpcmd = gOFS->eosDirectoryService->getContainerMD(cmd->getParentId());
         cpcmd->removeContainer(cmd->getName());
         gOFS->eosView->updateContainerStore(cpcmd.get());
         cmd->setName(md.name());
-        std::shared_ptr<eos::IContainerMD> exist_target_cmd;
-
-        try {
-          // if the target exists, we have to remove it
-          exist_target_cmd = pcmd->findContainer(md.name());
-
-          if (exist_target_cmd) {
-            if (exist_target_cmd->getNumFiles() + exist_target_cmd->getNumContainers()) {
-              // that is a fatal error we have to fail that rename
-              eos_err("ino=%lx target exists and is not empty", (long) md.md_ino());
-              return ENOTEMPTY;
-            }
-
-            // remove it via the directory service
-            pcmd->removeContainer(md.name());
-            gOFS->eosDirectoryService->removeContainer(exist_target_cmd.get());
-          }
-        } catch (eos::MDException& e) {
-          // it might not exist, that is fine
-        }
-
         pcmd->addContainer(cmd.get());
         gOFS->eosView->updateContainerStore(pcmd.get());
       }
