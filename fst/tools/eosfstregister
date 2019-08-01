@@ -11,10 +11,11 @@ print "# <eosfstregister> v1.0.0\n";
 print "###########################\n";
 
 sub usage() {
-    printf STDERR "usage: eosfstregister [-i] [-r] [--force] [<host[:port]>] <mount-prefix> [<space1>:<nfilesystems1>] [<space2>:<nfilesystems2>] [-h|--help]\n";
+    printf STDERR "usage: eosfstregister [-i] [-r] [--force] [--port <port>] [<host[:port]>] <mount-prefix> [<space1>:<nfilesystems1>] [<space2>:<nfilesystems2>] [-h|--help]\n";
     printf STDERR "                       -r : allows to register file systems mounted on the root partition\n";
     printf STDERR "                       -i : ignore if one of the filesystems has already a filesystem id stored and continue\n";
     printf STDERR "                  --force : delete old filesystem files and force registration of the new filesystem\n";
+    printf STDERR "                   --port : the FST port\n";
     printf STDERR " hint: if <mount-prefix> ends with '/' subdirectories are scanned in this directory, \n";
     printf STDERR "       if <mount-prefix> does not end with '/' directories starting with <mount-prefix> are scanned ( e.g. /data* )\n";
     printf STDERR "       if <space>='spare' all filesystems will be registered without scheduling group and you can move them in to production via 'fs mv spare <prod-space>'\n";
@@ -37,12 +38,23 @@ chomp $hostname;
 my $ignoreerrors = 0;
 my $allowroot = 0;
 my $force = 0;
+my $fstport = 1095;
 
 for (my $arg = 0; $arg < $#ARGV + 1; $arg++) {
     if (($ARGV[$arg] =~ /^-h/) ||
         ($ARGV[$arg] =~ /^--h/)) {
         usage();
         exit(-1);
+    }
+
+    if (($ARGV[$arg] =~ /--port/)) {
+        $fstport = $ARGV[$arg + 1];
+
+        if (!($fstport =~ /^\d+$/)) {
+            printf STDERR "error: provided port=$fstport is not valid\n";
+            exit(-1);
+        }
+        splice(@ARGV, $arg, 2);
     }
 
     if (($ARGV[$arg] =~ /-i/)) {
@@ -273,7 +285,7 @@ foreach (@filesystems) {
 
     my $cmd = 0;
     if (!($cmd = fork())) {
-        system("unset EOS_MGM_URL; env XrdSecPROTOCOL=sss eos -b $mgmurl fs add $uuid $hostname:1095 $_ $spacearray[$cnt] rw");
+        system("unset EOS_MGM_URL; env XrdSecPROTOCOL=sss eos -b $mgmurl fs add $uuid $hostname:$fstport $_ $spacearray[$cnt] rw");
         system("unset EOS_MGM_URL; env XrdSecPROTOCOL=sss eos -b $mgmurl fs boot $uuid");
         exit(0);
     }
