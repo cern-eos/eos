@@ -24,7 +24,6 @@
 #include <streambuf>
 #include <string>
 #include <cerrno>
-
 #include "XrdOuc/XrdOucEnv.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringConversion.hh"
@@ -32,7 +31,7 @@
 #include "console/ConsoleMain.hh"
 #include "console/commands/ICmdHelper.hh"
 
-
+extern int com_space(char*);
 void com_space_help();
 
 //------------------------------------------------------------------------------
@@ -74,7 +73,9 @@ bool SpaceHelper::ParseCommand(const char* arg)
   tokenizer.GetLine();
   std::string token;
 
-  if (!tokenizer.NextToken(token)) return false;
+  if (!tokenizer.NextToken(token)) {
+    return false;
+  }
 
   if (token == "ls") {
     eos::console::SpaceProto_LsProto* ls = space->mutable_ls();
@@ -83,12 +84,14 @@ bool SpaceHelper::ParseCommand(const char* arg)
       if (token == "-s") {
         mIsSilent = true;
       } else if (token == "-g") {
-        if (!tokenizer.NextToken(token) || !eos::common::StringTokenizer::IsUnsignedNumber(token)) {
+        if (!tokenizer.NextToken(token) ||
+            !eos::common::StringTokenizer::IsUnsignedNumber(token)) {
           std::cerr << "error: geodepth was not provided or it does not have "
                     << "the correct value: geodepth should be a positive "
                     << "integer" << std::endl;
           return false;
         }
+
         try {
           ls->set_outdepth(std::stoi(token));
         } catch (const std::exception& e) {
@@ -110,17 +113,12 @@ bool SpaceHelper::ParseCommand(const char* arg)
         return false;
       }
     }
-
-  }
-  else if (token == "tracker") {
+  } else if (token == "tracker") {
     eos::console::SpaceProto_TrackerProto* tracker = space->mutable_tracker();
     tracker->set_mgmspace("default");
-
-  }
-  else if (token == "inspector") {
-    eos::console::SpaceProto_InspectorProto *inspector = space->mutable_inspector();
+  } else if (token == "inspector") {
+    eos::console::SpaceProto_InspectorProto* inspector = space->mutable_inspector();
     inspector->set_mgmspace("default");
-
     std::string options;
 
     while (tokenizer.NextToken(token)) {
@@ -138,13 +136,14 @@ bool SpaceHelper::ParseCommand(const char* arg)
         return false;
       }
     }
+
     inspector->set_options(options);
+  } else if (token == "reset") {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
-  }
-  else if (token == "reset") {
-
-    if (!tokenizer.NextToken(token)) return false;
-    eos::console::SpaceProto_ResetProto *reset = space->mutable_reset();
+    eos::console::SpaceProto_ResetProto* reset = space->mutable_reset();
     reset->set_mgmspace(token);
 
     while (tokenizer.NextToken(token)) {
@@ -170,13 +169,12 @@ bool SpaceHelper::ParseCommand(const char* arg)
         return false;
       }
     }
+  } else if (token == "define") {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
-  }
-  else if (token == "define") {
-
-    if (!tokenizer.NextToken(token)) return false;
-
-    eos::console::SpaceProto_DefineProto *define = space->mutable_define();
+    eos::console::SpaceProto_DefineProto* define = space->mutable_define();
     define->set_mgmspace(token);
 
     if (!tokenizer.NextToken(token)) {
@@ -184,21 +182,24 @@ bool SpaceHelper::ParseCommand(const char* arg)
       define->set_groupmod(24);
     } else {
       define->set_groupsize(std::stoi(token));
+
       if (!tokenizer.NextToken(token)) {
         define->set_groupmod(24);
       } else {
         define->set_groupsize(std::stoi(token));
       }
     }
+  } else if (token == "set") {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
-  }
-  else if (token == "set") {
-    if (!tokenizer.NextToken(token)) return false;
-
-    eos::console::SpaceProto_SetProto *set = space->mutable_set();
+    eos::console::SpaceProto_SetProto* set = space->mutable_set();
     set->set_mgmspace(token);
 
-    if (!tokenizer.NextToken(token)) return false;
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
     if (token == "on") {
       set->set_state_switch(true);
@@ -207,19 +208,19 @@ bool SpaceHelper::ParseCommand(const char* arg)
     } else {
       return false;
     }
+  } else if (token == "rm") {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
-  }
-  else if (token == "rm") {
-
-    if (!tokenizer.NextToken(token)) return false;
-    eos::console::SpaceProto_RmProto *rm = space->mutable_rm();
+    eos::console::SpaceProto_RmProto* rm = space->mutable_rm();
     rm->set_mgmspace(token);
+  } else if (token == "status") {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
-  }
-  else if (token == "status") {
-    if (!tokenizer.NextToken(token)) return false;
-
-    eos::console::SpaceProto_StatusProto *status = space->mutable_status();
+    eos::console::SpaceProto_StatusProto* status = space->mutable_status();
     status->set_mgmspace(token);
 
     if (tokenizer.NextToken(token)) {
@@ -230,64 +231,77 @@ bool SpaceHelper::ParseCommand(const char* arg)
       }
     }
 
-    std::string contents = eos::common::StringConversion::StringFromShellCmd("cat /var/eos/md/stacktrace 2> /dev/null");
-  }
-  else if (token == "node-set") {
+    std::string contents =
+      eos::common::StringConversion::StringFromShellCmd("cat /var/eos/md/stacktrace 2> /dev/null");
+  } else if (token == "node-set") {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
-    if (!tokenizer.NextToken(token)) return false;
     eos::console::SpaceProto_NodeSetProto* nodeset = space->mutable_nodeset();
     nodeset->set_mgmspace(token);
 
-    if (!tokenizer.NextToken(token)) return false;
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
+
     nodeset->set_nodeset_key(token);
 
-    if (!tokenizer.NextToken(token)) return false;
-
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
     if (token.find('/') == 0) { // if begins with "/"
       std::ifstream ifs(token, std::ios::in | std::ios::binary);
+
       if (!ifs) {
         std::cerr << "error: unable to read " << token << " - errno=" << errno << '\n';
         return false;
       }
 
-      std::string val = std::string((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+      std::string val = std::string((std::istreambuf_iterator<char>(ifs)),
+                                    std::istreambuf_iterator<char>());
+
       if (val.length() > 512) {
-        std::cerr << "error: the file contents exceeds 0.5 kB - configure a file hosted on the MGM using file:<mgm-path>\n";
+        std::cerr <<
+                  "error: the file contents exceeds 0.5 kB - configure a file hosted on the MGM using file:<mgm-path>\n";
         return false;
       }
 
       // store the value b64 encoded
       XrdOucString val64;
       eos::common::SymKey::Base64Encode((char*) val.c_str(), val.length(), val64);
+
       while (val64.replace("=", ":")) {}
 
-      nodeset->set_nodeset_value( std::string (("base64:"+val64).c_str()));
-
-
+      nodeset->set_nodeset_value(std::string(("base64:" + val64).c_str()));
     } else {
       nodeset->set_nodeset_value(token);
     }
+  } else if (token == "node-get") {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
-  }
-  else if (token == "node-get") {
-    if (!tokenizer.NextToken(token)) return false;
-
-    eos::console::SpaceProto_NodeGetProto *nodeget = space->mutable_nodeget();
+    eos::console::SpaceProto_NodeGetProto* nodeget = space->mutable_nodeget();
     nodeget->set_mgmspace(token);
 
-    if (!tokenizer.NextToken(token)) return false;
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
     nodeget->set_nodeget_key(token);
+  } else if (token == "quota") {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
-  }
-  else if (token == "quota") {
-    if (!tokenizer.NextToken(token)) return false;
-
-    eos::console::SpaceProto_QuotaProto *quota = space->mutable_quota();
+    eos::console::SpaceProto_QuotaProto* quota = space->mutable_quota();
     quota->set_mgmspace(token);
 
-    if (!tokenizer.NextToken(token)) return false;
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
     if (token == "on") {
       quota->set_quota_switch(true);
@@ -296,27 +310,29 @@ bool SpaceHelper::ParseCommand(const char* arg)
     } else {
       return false;
     }
-
-
-  }
-  else if (token == "config") {
-
-    if (!tokenizer.NextToken(token)) return false;
+  } else if (token == "config") {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
     eos::console::SpaceProto_ConfigProto* config = space->mutable_config();
     config->set_mgmspace_name(token);
 
-    if (!tokenizer.NextToken(token)) return false;
-    std::string::size_type pos = token.find('=');
-    if (pos != std::string::npos && count(token.begin(), token.end(), '=') == 1 ) { // contains 1 and only 1 '='. It expects a token like <key>=<value>
-      config->set_mgmspace_key(token.substr(0, pos));
-      config->set_mgmspace_value(token.substr(pos+1, token.length()-1));
-    } else {
+    if (!tokenizer.NextToken(token)) {
       return false;
     }
 
-  }
-  else { // no proper subcommand
+    std::string::size_type pos = token.find('=');
+
+    if (pos != std::string::npos &&
+        count(token.begin(), token.end(),
+              '=') == 1) {  // contains 1 and only 1 '='. It expects a token like <key>=<value>
+      config->set_mgmspace_key(token.substr(0, pos));
+      config->set_mgmspace_value(token.substr(pos + 1, token.length() - 1));
+    } else {
+      return false;
+    }
+  } else { // no proper subcommand
     return false;
   }
 
@@ -342,7 +358,18 @@ int com_protospace(char* arg)
     return EINVAL;
   }
 
-  global_retc = space.Execute();
+  global_retc = space.Execute(false);
+
+  // Provide compatibility in case the server does not support the protobuf
+  // implementation ie. < 4.5.0
+  if (global_retc) {
+    if (space.GetError().find("Cannot allocate memory") != std::string::npos) {
+      global_retc = com_space(arg);
+    } else {
+      std::cerr << space.GetError();
+    }
+  }
+
   return global_retc;
 }
 
@@ -435,5 +462,4 @@ void com_space_help()
       << "space quota <space-name> on|off : enable/disable quota\n"
       << std::endl;
   std::cerr << oss.str() << std::endl;
-
 }

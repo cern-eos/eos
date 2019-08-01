@@ -27,6 +27,7 @@
 #include "console/ConsoleMain.hh"
 #include "console/commands/ICmdHelper.hh"
 
+extern int com_group(char*);
 void com_group_help();
 
 //------------------------------------------------------------------------------
@@ -68,7 +69,9 @@ bool GroupHelper::ParseCommand(const char* arg)
   tokenizer.GetLine();
   std::string token;
 
-  if (!tokenizer.NextToken(token)) return false;
+  if (!tokenizer.NextToken(token)) {
+    return false;
+  }
 
   // one of { ls, rm, set }
   if (token == "ls") {
@@ -78,12 +81,14 @@ bool GroupHelper::ParseCommand(const char* arg)
       if (token == "-s") {
         mIsSilent = true;
       } else if (token == "-g") {
-        if (!tokenizer.NextToken(token) || !eos::common::StringTokenizer::IsUnsignedNumber(token)) {
+        if (!tokenizer.NextToken(token) ||
+            !eos::common::StringTokenizer::IsUnsignedNumber(token)) {
           std::cerr << "error: geodepth was not provided or it does not have "
                     << "the correct value: geodepth should be a positive "
                     << "integer" << std::endl;
           return false;
         }
+
         ls->set_outdepth(std::stoi(token));
       } else if (token == "-b" || token == "--brief") {
         ls->set_outhost(true);
@@ -102,26 +107,30 @@ bool GroupHelper::ParseCommand(const char* arg)
         return false;
       }
     }
-
   } else if (token == "rm") {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
-    if (!tokenizer.NextToken(token)) return false;
     eos::console::GroupProto_RmProto* rm = group->mutable_rm();
     rm->set_group(token);
-
   } else if (token == "set") {
-
-    if (!tokenizer.NextToken(token)) return false;
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
     eos::console::GroupProto_SetProto* set = group->mutable_set();
     set->set_group(token);
-    if (!tokenizer.NextToken(token)) return false;
+
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
+
     if (token == "on" || token == "off") {
       set->set_group_state(token);
     } else {
       return false;
     }
-
   } else { // no proper subcommand
     return false;
   }
@@ -148,7 +157,18 @@ int com_protogroup(char* arg)
     return EINVAL;
   }
 
-  global_retc = group.Execute();
+  global_retc = group.Execute(false);
+
+  // Provide compatibility in case the server does not support the protobuf
+  // implementation ie. < 4.5.0
+  if (global_retc) {
+    if (group.GetError().find("Cannot allocate memory") != std::string::npos) {
+      global_retc = com_group(arg);
+    } else {
+      std::cerr << group.GetError();
+    }
+  }
+
   return global_retc;
 }
 

@@ -25,7 +25,7 @@
 #include "common/StringTokenizer.hh"
 #include "console/commands/ICmdHelper.hh"
 
-
+extern int com_node(char*);
 void com_node_help();
 
 //------------------------------------------------------------------------------
@@ -67,7 +67,9 @@ bool NodeHelper::ParseCommand(const char* arg)
   tokenizer.GetLine();
   std::string token;
 
-  if (!tokenizer.NextToken(token)) return false;
+  if (!tokenizer.NextToken(token)) {
+    return false;
+  }
 
   // one of { ls, set, status, txgw, proxygroupadd|proxygrouprm|proxygroupclear, rm, config, register }
   if (token == "ls") {
@@ -95,70 +97,94 @@ bool NodeHelper::ParseCommand(const char* arg)
         return false;
       }
     }
+  } else if (token == "rm") {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
-  }
-  else if (token == "rm") {
-    if (!tokenizer.NextToken(token)) return false;
     eos::console::NodeProto_RmProto* rm = node->mutable_rm();
     rm->set_node(token);
-  }
-  else if (token == "status") {
-    if (!tokenizer.NextToken(token)) return false;
+  } else if (token == "status") {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
+
     eos::console::NodeProto_StatusProto* status = node->mutable_status();
     status->set_node(token);
-  }
-  else if (token == "set") {
-    if (!tokenizer.NextToken(token)) return false;
+  } else if (token == "set") {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
     eos::console::NodeProto_SetProto* set = node->mutable_set();
     set->set_node(token);
 
-    if (!tokenizer.NextToken(token)) return false;
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
+
     if (token == "on" || token == "off") {
       set->set_node_state_switch(token);
     } else {
       return false;
     }
-  }
-  else if (token == "txgw") {
-    if (!tokenizer.NextToken(token)) return false;
+  } else if (token == "txgw") {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
     eos::console::NodeProto_TxgwProto* txgw = node->mutable_txgw();
     txgw->set_node(token);
 
-    if (!tokenizer.NextToken(token)) return false;
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
+
     if (token == "on" || token == "off") {
       txgw->set_node_txgw_switch(token);
     } else {
       return false;
     }
-
-  }
-  else if (token == "config") {
-    if (!tokenizer.NextToken(token)) return false;
+  } else if (token == "config") {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
     eos::console::NodeProto_ConfigProto* config = node->mutable_config();
     config->set_node_name(token);
 
-    if (!tokenizer.NextToken(token)) return false;
-    std::string::size_type pos = token.find('=');
-    if (pos != std::string::npos && count(token.begin(), token.end(), '=') == 1 ) { // contains 1 and only 1 '='. It expects a token like <key>=<value>
-      config->set_node_key(token.substr(0, pos));
-      config->set_node_value(token.substr(pos+1, token.length()-1));
-    } else {
+    if (!tokenizer.NextToken(token)) {
       return false;
     }
 
-  }
-  else if (token == "register") {
-    if (!tokenizer.NextToken(token)) return false;
+    std::string::size_type pos = token.find('=');
+
+    if (pos != std::string::npos &&
+        count(token.begin(), token.end(),
+              '=') == 1) {  // contains 1 and only 1 '='. It expects a token like <key>=<value>
+      config->set_node_key(token.substr(0, pos));
+      config->set_node_value(token.substr(pos + 1, token.length() - 1));
+    } else {
+      return false;
+    }
+  } else if (token == "register") {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
     eos::console::NodeProto_RegisterProto* registerx = node->mutable_registerx();
     registerx->set_node_name(token);
 
-    if (!tokenizer.NextToken(token)) return false;
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
+
     registerx->set_node_path2register(token);
-    if (!tokenizer.NextToken(token)) return false;
+
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
+
     registerx->set_node_space2register(token);
 
     // repeats twice to (eventually) parse both flags.
@@ -171,6 +197,7 @@ bool NodeHelper::ParseCommand(const char* arg)
         return false;
       }
     }
+
     if (tokenizer.NextToken(token)) {
       if (token == "--force") {
         registerx->set_node_force(true);
@@ -180,11 +207,10 @@ bool NodeHelper::ParseCommand(const char* arg)
         return false;
       }
     }
-
-  }
-  else if (token == "proxygroupadd" || token == "proxygrouprm" || token == "proxygroupclear") {
-
-    eos::console::NodeProto_ProxygroupProto* proxygroup = node->mutable_proxygroup();
+  } else if (token == "proxygroupadd" || token == "proxygrouprm" ||
+             token == "proxygroupclear") {
+    eos::console::NodeProto_ProxygroupProto* proxygroup =
+      node->mutable_proxygroup();
 
     if (token == "proxygroupadd") {
       proxygroup->set_node_action(eos::console::NodeProto_ProxygroupProto::ADD);
@@ -203,6 +229,7 @@ bool NodeHelper::ParseCommand(const char* arg)
     } else {
       if (tokenizer.NextToken(token)) {
         proxygroup->set_node_proxygroup(token);
+
         if (tokenizer.NextToken(token)) {
           proxygroup->set_node(token);
         } else {
@@ -212,8 +239,7 @@ bool NodeHelper::ParseCommand(const char* arg)
         return false;
       }
     }
-  }
-  else { // no proper subcommand
+  } else { // no proper subcommand
     return false;
   }
 
@@ -239,7 +265,18 @@ int com_protonode(char* arg)
     return EINVAL;
   }
 
-  global_retc = node.Execute();
+  global_retc = node.Execute(false);
+
+  // Provide compatibility in case the server does not support the protobuf
+  // implementation ie. < 4.5.0
+  if (global_retc) {
+    if (node.GetError().find("Cannot allocate memory") != std::string::npos) {
+      global_retc = com_node(arg);
+    } else {
+      std::cerr << node.GetError();
+    }
+  }
+
   return global_retc;
 }
 
@@ -297,5 +334,4 @@ void com_node_help()
       << "node status <queue-name>|<host:port> : print's all defined variables for a node\n"
       << std::endl;
   std::cerr << oss.str() << std::endl;
-
 }

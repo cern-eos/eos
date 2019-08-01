@@ -22,11 +22,10 @@
  ************************************************************************/
 
 #include "console/commands/ICmdHelper.hh"
-
 #include "common/StringTokenizer.hh"
 #include "console/ConsoleMain.hh"
 
-
+extern int com_config(char*);
 void com_config_help();
 
 //------------------------------------------------------------------------------
@@ -65,11 +64,12 @@ bool ConfigHelper::ParseCommand(const char* arg)
   tokenizer.GetLine();
   std::string token;
 
-  if (!tokenizer.NextToken(token)) return false;
+  if (!tokenizer.NextToken(token)) {
+    return false;
+  }
 
   if (token == "ls") {
-
-    eos::console::ConfigProto_LsProto *ls = config->mutable_ls();
+    eos::console::ConfigProto_LsProto* ls = config->mutable_ls();
 
     if (tokenizer.NextToken(token)) {
       if (token == "--backup" || token == "-b") {
@@ -78,31 +78,29 @@ bool ConfigHelper::ParseCommand(const char* arg)
         return false;
       }
     }
-
-  }
-  else if (token == "dump") {
-    eos::console::ConfigProto_DumpProto *dump = config->mutable_dump();
+  } else if (token == "dump") {
+    eos::console::ConfigProto_DumpProto* dump = config->mutable_dump();
 
     if (tokenizer.NextToken(token)) {
       dump->set_file(token);
     }
+  } else if (token == "reset") {
+    if (tokenizer.NextToken(token)) {
+      return false;  // no need for more arguments
+    }
 
-  }
-  else if (token == "reset") {
+    eos::console::ConfigProto_ResetProto* reset = config->mutable_reset(); // @note
+  } else if (token == "export") {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
-    if (tokenizer.NextToken(token)) return false; // no need for more arguments
-    eos::console::ConfigProto_ResetProto *reset = config->mutable_reset(); // @note
-
-  }
-  else if (token == "export") {
-
-    if (!tokenizer.NextToken(token)) return false;
-
-    eos::console::ConfigProto_ExportProto *exp = config->mutable_exp();
+    eos::console::ConfigProto_ExportProto* exp = config->mutable_exp();
 
     // either "<file> or <file> -f
     if (token.find('-') != 0) { // does not begins with '-'
       exp->set_file(token);
+
       if (tokenizer.NextToken(token)) {
         if (token == "-f") {
           exp->set_force(true);
@@ -113,14 +111,13 @@ bool ConfigHelper::ParseCommand(const char* arg)
     } else {
       return false;
     }
+  } else if (token == "save") {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
+    eos::console::ConfigProto_SaveProto* save = config->mutable_save();
 
-  }
-  else if (token == "save") {
-
-    if (!tokenizer.NextToken(token)) return false;
-
-    eos::console::ConfigProto_SaveProto *save = config->mutable_save();
     if (token.find('-') != 0) {
       save->set_file(token);
     } else {
@@ -128,8 +125,8 @@ bool ConfigHelper::ParseCommand(const char* arg)
     }
 
     while (tokenizer.NextToken(token)) {
-      if (token == "-c" || token == "--comment") { // put the comment in the mReq object
-
+      if (token == "-c" ||
+          token == "--comment") { // put the comment in the mReq object
         std::string sline = arg;
 
         if (token == "-c") {
@@ -140,32 +137,31 @@ bool ConfigHelper::ParseCommand(const char* arg)
         } else if (token == "--comment") {
           parse_comment(sline.c_str(), token);
         }
+
         mReq.set_comment(token);
         tokenizer.NextToken(token); // skip comment text
-
-      } else if ( token == "-f") {
+      } else if (token == "-f") {
         save->set_force(true);
       } else {
         return false;
       }
     }
+  } else if (token == "load") {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
-
-  }
-  else if (token == "load") {
-
-    if (!tokenizer.NextToken(token)) return false;
-
-    eos::console::ConfigProto_LoadProto *load = config->mutable_load();
+    eos::console::ConfigProto_LoadProto* load = config->mutable_load();
     load->set_file(token);
-
-  }
-  else if (token == "changelog") {
-
-    eos::console::ConfigProto_ChangelogProto *changelog = config->mutable_changelog();
+  } else if (token == "changelog") {
+    eos::console::ConfigProto_ChangelogProto* changelog =
+      config->mutable_changelog();
 
     if (tokenizer.NextToken(token)) {
-      if (token.find('-') == 0) token.erase(0); // remove first char to allow both -100 and 100
+      if (token.find('-') == 0) {
+        token.erase(0);  // remove first char to allow both -100 and 100
+      }
+
       try {
         changelog->set_lines(std::stoi(token));
       } catch (const std::exception& e) {
@@ -175,9 +171,7 @@ bool ConfigHelper::ParseCommand(const char* arg)
     } else {
       changelog->set_lines(10);
     }
-
-  }
-  else { // no proper subcommand
+  } else { // no proper subcommand
     return false;
   }
 
@@ -203,7 +197,18 @@ int com_protoconfig(char* arg)
     return EINVAL;
   }
 
-  global_retc = config.Execute();
+  global_retc = config.Execute(false);
+
+  // Provide compatibility in case the server does not support the protobuf
+  // implementation ie. < 4.5.0
+  if (global_retc) {
+    if (config.GetError().find("Cannot allocate memory") != std::string::npos) {
+      global_retc = com_config(arg);
+    } else {
+      std::cerr << config.GetError();
+    }
+  }
+
   return global_retc;
 }
 
@@ -237,5 +242,4 @@ void com_config_help()
       << "\t -f : overwrite existing config name and create a timestamped backup\n"
       << "\t -c : add a comment entry to the config\n";
   std::cerr << oss.str() << std::endl;
-
 }

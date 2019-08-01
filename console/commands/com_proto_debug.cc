@@ -26,6 +26,7 @@
 #include "console/ConsoleMain.hh"
 #include "console/commands/ICmdHelper.hh"
 
+extern int com_debug(char*);
 void com_debug_help();
 
 //------------------------------------------------------------------------------
@@ -65,48 +66,53 @@ bool DebugHelper::ParseCommand(const char* arg)
   tokenizer.GetLine();
   std::string token;
 
-  if (!tokenizer.NextToken(token)) return false;
+  if (!tokenizer.NextToken(token)) {
+    return false;
+  }
 
   if (token == "get") {
-
     eos::console::DebugProto_GetProto* get = debugproto->mutable_get();
     get->set_placeholder(true);
-
   } else if (token == "this") {
-
     debug = !debug;
     fprintf(stdout, "info: toggling shell debugmode to debug=%d\n", debug);
     eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
+
     if (debug) {
       g_logging.SetLogPriority(LOG_DEBUG);
     } else {
       g_logging.SetLogPriority(LOG_NOTICE);
     }
+
     mIsLocal = true;
-
   } else {
-
     // token should be one of [debug info warning notice err crit alert emerg]
     eos::console::DebugProto_SetProto* set = debugproto->mutable_set();
     set->set_debuglevel(token);
 
     if (tokenizer.NextToken(token)) {
       if (token == "--filter") {
-        if (!tokenizer.NextToken(token)) return false;
+        if (!tokenizer.NextToken(token)) {
+          return false;
+        }
+
         set->set_filter(token);
       } else {
         set->set_nodename(token);
+
         if (tokenizer.NextToken(token)) {
           if (token != "--filter") {
             return false;
           } else {
-            if (!tokenizer.NextToken(token)) return false;
+            if (!tokenizer.NextToken(token)) {
+              return false;
+            }
+
             set->set_filter(token);
           }
         }
       }
     }
-
   }
 
   return true;
@@ -124,15 +130,26 @@ com_protodebug(char* arg)
     return EINVAL;
   }
 
-  DebugHelper debugh;
+  DebugHelper debug;
 
-  if (!debugh.ParseCommand(arg)) {
+  if (!debug.ParseCommand(arg)) {
     com_debug_help();
     global_retc = EINVAL;
     return EINVAL;
   }
 
-  global_retc = debugh.Execute();
+  global_retc = debug.Execute(false);
+
+  // Provide compatibility in case the server does not support the protobuf
+  // implementation ie. < 4.5.0
+  if (global_retc) {
+    if (debug.GetError().find("Cannot allocate memory") != std::string::npos) {
+      global_retc = com_debug(arg);
+    } else {
+      std::cerr << debug.GetError();
+    }
+  }
+
   return global_retc;
 }
 

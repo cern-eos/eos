@@ -26,6 +26,7 @@
 #include "console/ConsoleMain.hh"
 #include "console/commands/ICmdHelper.hh"
 
+extern int com_io(char*);
 void com_io_help();
 
 //------------------------------------------------------------------------------
@@ -67,7 +68,9 @@ bool IoHelper::ParseCommand(const char* arg)
   tokenizer.GetLine();
   std::string token;
 
-  if (!tokenizer.NextToken(token)) return false;
+  if (!tokenizer.NextToken(token)) {
+    return false;
+  }
 
   // one of { stat, ns, report, enable, disable }
   if (token == "stat") {
@@ -120,15 +123,16 @@ bool IoHelper::ParseCommand(const char* arg)
       }
     }
   } else if (token == "report") {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
-    if (!tokenizer.NextToken(token)) return false;
     eos::console::IoProto_ReportProto* report = io->mutable_report();
     report->set_path(token);
-
   } else if (token == "enable" || token == "disable") {
-
     eos::console::IoProto_EnableProto* enable = io->mutable_enable();
     enable->set_switchx(token == "enable");
+
     while (tokenizer.NextToken(token)) {
       if (token == "-r") {
         enable->set_reports(true);
@@ -173,7 +177,18 @@ int com_protoio(char* arg)
     return EINVAL;
   }
 
-  global_retc = io.Execute();
+  global_retc = io.Execute(false);
+
+  // Provide compatibility in case the server does not support the protobuf
+  // implementation ie. < 4.5.0
+  if (global_retc) {
+    if (io.GetError().find("Cannot allocate memory") != std::string::npos) {
+      global_retc = com_io(arg);
+    } else {
+      std::cerr << io.GetError();
+    }
+  }
+
   return global_retc;
 }
 

@@ -25,7 +25,7 @@
 #include "common/StringTokenizer.hh"
 #include "console/ConsoleMain.hh"
 
-
+extern int com_access(char*);
 void com_access_help();
 
 //------------------------------------------------------------------------------
@@ -64,11 +64,12 @@ bool AccessHelper::ParseCommand(const char* arg)
   tokenizer.GetLine();
   std::string token;
 
-  if (!tokenizer.NextToken(token)) return false;
+  if (!tokenizer.NextToken(token)) {
+    return false;
+  }
 
   if (token == "ls") {
-
-    eos::console::AccessProto_LsProto *ls = access->mutable_ls();
+    eos::console::AccessProto_LsProto* ls = access->mutable_ls();
 
     while (tokenizer.NextToken(token)) {
       if (token == "-m") {
@@ -79,17 +80,19 @@ bool AccessHelper::ParseCommand(const char* arg)
         return false;
       }
     }
+  } else if (token == "rm") {
+    eos::console::AccessProto_RmProto* rm = access->mutable_rm();
 
-  }
-  else if (token == "rm") {
-
-    eos::console::AccessProto_RmProto *rm = access->mutable_rm();
-    if (!tokenizer.NextToken(token)) return false;
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
     if (token == "redirect") {
       rm->set_rule(eos::console::AccessProto_RmProto::REDIRECT);
+
       if (tokenizer.NextToken(token)) {
-        if (token == "r" || token == "w" || token == "ENOENT" || token == "ENONET" || token == "ENETUNREACH") {
+        if (token == "r" || token == "w" || token == "ENOENT" || token == "ENONET" ||
+            token == "ENETUNREACH") {
           rm->set_key(token);
         } else {
           return false;
@@ -97,8 +100,10 @@ bool AccessHelper::ParseCommand(const char* arg)
       }
     } else if (token == "stall") {
       rm->set_rule(eos::console::AccessProto_RmProto::STALL);
+
       if (tokenizer.NextToken(token)) {
-        if (token == "r" || token == "w" || token == "ENOENT" || token == "ENONET" || token == "ENETUNREACH") {
+        if (token == "r" || token == "w" || token == "ENOENT" || token == "ENONET" ||
+            token == "ENETUNREACH") {
           rm->set_key(token);
         } else {
           return false;
@@ -106,27 +111,39 @@ bool AccessHelper::ParseCommand(const char* arg)
       }
     } else if (token == "limit") {
       rm->set_rule(eos::console::AccessProto_RmProto::LIMIT);
-      if (!tokenizer.NextToken(token)) return false;
-      if (!(token.find("rate:user:") || token.find("rate:group:")) && token.find(':', 11)) {
+
+      if (!tokenizer.NextToken(token)) {
         return false;
       }
+
+      if (!(token.find("rate:user:") || token.find("rate:group:")) &&
+          token.find(':', 11)) {
+        return false;
+      }
+
       rm->set_key(token);
     } else {
       return false;
     }
+  } else if (token == "set") {
+    eos::console::AccessProto_SetProto* set = access->mutable_set();
 
-  }
-  else if (token == "set") {
-
-    eos::console::AccessProto_SetProto *set = access->mutable_set();
-    if (!tokenizer.NextToken(token)) return false;
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
     if (token == "redirect") {
       set->set_rule(eos::console::AccessProto_SetProto::REDIRECT);
-      if (!tokenizer.NextToken(token)) return false;
+
+      if (!tokenizer.NextToken(token)) {
+        return false;
+      }
+
       set->set_target(token);
+
       if (tokenizer.NextToken(token)) {
-        if (token == "r" || token == "w" || token == "ENOENT" || token == "ENONET" || token == "ENETUNREACH") {
+        if (token == "r" || token == "w" || token == "ENOENT" || token == "ENONET" ||
+            token == "ENETUNREACH") {
           set->set_key(token);
         } else {
           return false;
@@ -134,10 +151,16 @@ bool AccessHelper::ParseCommand(const char* arg)
       }
     } else if (token == "stall") {
       set->set_rule(eos::console::AccessProto_SetProto::STALL);
-      if (!tokenizer.NextToken(token)) return false;
+
+      if (!tokenizer.NextToken(token)) {
+        return false;
+      }
+
       set->set_target(token);
+
       if (tokenizer.NextToken(token)) {
-        if (token == "r" || token == "w" || token == "ENOENT" || token == "ENONET" || token == "ENETUNREACH") {
+        if (token == "r" || token == "w" || token == "ENOENT" || token == "ENONET" ||
+            token == "ENETUNREACH") {
           set->set_key(token);
         } else {
           return false;
@@ -145,80 +168,123 @@ bool AccessHelper::ParseCommand(const char* arg)
       }
     } else if (token == "limit") {
       set->set_rule(eos::console::AccessProto_SetProto::LIMIT);
-      if (!tokenizer.NextToken(token)) return false;
-      set->set_target(token);
-      if (!tokenizer.NextToken(token)) return false;
-      if (!(token.find("rate:user:") || token.find("rate:group:")) && token.find(':', 11)) {
+
+      if (!tokenizer.NextToken(token)) {
         return false;
       }
-      set->set_key(token);
 
+      set->set_target(token);
+
+      if (!tokenizer.NextToken(token)) {
+        return false;
+      }
+
+      if (!(token.find("rate:user:") || token.find("rate:group:")) &&
+          token.find(':', 11)) {
+        return false;
+      }
+
+      set->set_key(token);
+    } else {
+      return false;
+    }
+  } else if (token == "ban") {
+    eos::console::AccessProto_BanProto* ban = access->mutable_ban();
+
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
+
+    if (token == "user") {
+      ban->set_idtype(eos::console::AccessProto_BanProto::USER);
+    } else if (token == "group") {
+      ban->set_idtype(eos::console::AccessProto_BanProto::GROUP);
+    } else if (token == "host") {
+      ban->set_idtype(eos::console::AccessProto_BanProto::HOST);
+    } else if (token == "domain") {
+      ban->set_idtype(eos::console::AccessProto_BanProto::DOMAINNAME);
     } else {
       return false;
     }
 
-  }
-  else if (token == "ban" ) {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
-    eos::console::AccessProto_BanProto *ban = access->mutable_ban();
-
-    if (!tokenizer.NextToken(token)) return false;
-    if (token == "user") ban->set_idtype(eos::console::AccessProto_BanProto::USER);
-    else if (token == "group") ban->set_idtype(eos::console::AccessProto_BanProto::GROUP);
-    else if (token == "host") ban->set_idtype(eos::console::AccessProto_BanProto::HOST);
-    else if (token == "domain") ban->set_idtype(eos::console::AccessProto_BanProto::DOMAINNAME);
-    else return false;
-
-    if (!tokenizer.NextToken(token)) return false;
     ban->set_id(token);
+  } else if (token == "unban") {
+    eos::console::AccessProto_UnbanProto* unban = access->mutable_unban();
 
-  }
-  else if (token == "unban" ) {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
-    eos::console::AccessProto_UnbanProto *unban = access->mutable_unban();
+    if (token == "user") {
+      unban->set_idtype(eos::console::AccessProto_UnbanProto::USER);
+    } else if (token == "group") {
+      unban->set_idtype(eos::console::AccessProto_UnbanProto::GROUP);
+    } else if (token == "host") {
+      unban->set_idtype(eos::console::AccessProto_UnbanProto::HOST);
+    } else if (token == "domain") {
+      unban->set_idtype(eos::console::AccessProto_UnbanProto::DOMAINNAME);
+    } else {
+      return false;
+    }
 
-    if (!tokenizer.NextToken(token)) return false;
-    if (token == "user") unban->set_idtype(eos::console::AccessProto_UnbanProto::USER);
-    else if (token == "group") unban->set_idtype(eos::console::AccessProto_UnbanProto::GROUP);
-    else if (token == "host") unban->set_idtype(eos::console::AccessProto_UnbanProto::HOST);
-    else if (token == "domain") unban->set_idtype(eos::console::AccessProto_UnbanProto::DOMAINNAME);
-    else return false;
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
-    if (!tokenizer.NextToken(token)) return false;
     unban->set_id(token);
+  } else if (token == "allow") {
+    eos::console::AccessProto_AllowProto* allow = access->mutable_allow();
 
-  }
-  else if (token == "allow" ) {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
-    eos::console::AccessProto_AllowProto *allow = access->mutable_allow();
+    if (token == "user") {
+      allow->set_idtype(eos::console::AccessProto_AllowProto::USER);
+    } else if (token == "group") {
+      allow->set_idtype(eos::console::AccessProto_AllowProto::GROUP);
+    } else if (token == "host") {
+      allow->set_idtype(eos::console::AccessProto_AllowProto::HOST);
+    } else if (token == "domain") {
+      allow->set_idtype(eos::console::AccessProto_AllowProto::DOMAINNAME);
+    } else {
+      return false;
+    }
 
-    if (!tokenizer.NextToken(token)) return false;
-    if (token == "user") allow->set_idtype(eos::console::AccessProto_AllowProto::USER);
-    else if (token == "group") allow->set_idtype(eos::console::AccessProto_AllowProto::GROUP);
-    else if (token == "host") allow->set_idtype(eos::console::AccessProto_AllowProto::HOST);
-    else if (token == "domain") allow->set_idtype(eos::console::AccessProto_AllowProto::DOMAINNAME);
-    else return false;
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
-    if (!tokenizer.NextToken(token)) return false;
     allow->set_id(token);
+  } else if (token == "unallow") {
+    eos::console::AccessProto_UnallowProto* unallow = access->mutable_unallow();
 
-  }
-  else if (token == "unallow" ) {
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
-    eos::console::AccessProto_UnallowProto *unallow = access->mutable_unallow();
+    if (token == "user") {
+      unallow->set_idtype(eos::console::AccessProto_UnallowProto::USER);
+    } else if (token == "group") {
+      unallow->set_idtype(eos::console::AccessProto_UnallowProto::GROUP);
+    } else if (token == "host") {
+      unallow->set_idtype(eos::console::AccessProto_UnallowProto::HOST);
+    } else if (token == "domain") {
+      unallow->set_idtype(eos::console::AccessProto_UnallowProto::DOMAINNAME);
+    } else {
+      return false;
+    }
 
-    if (!tokenizer.NextToken(token)) return false;
-    if (token == "user") unallow->set_idtype(eos::console::AccessProto_UnallowProto::USER);
-    else if (token == "group") unallow->set_idtype(eos::console::AccessProto_UnallowProto::GROUP);
-    else if (token == "host") unallow->set_idtype(eos::console::AccessProto_UnallowProto::HOST);
-    else if (token == "domain") unallow->set_idtype(eos::console::AccessProto_UnallowProto::DOMAINNAME);
-    else return false;
+    if (!tokenizer.NextToken(token)) {
+      return false;
+    }
 
-    if (!tokenizer.NextToken(token)) return false;
     unallow->set_id(token);
-
-  }
-  else { // no proper subcommand
+  } else { // no proper subcommand
     return false;
   }
 
@@ -244,7 +310,18 @@ int com_protoaccess(char* arg)
     return EINVAL;
   }
 
-  global_retc = access.Execute();
+  global_retc = access.Execute(false);
+
+  // Provide compatibility in case the server does not support the protobuf
+  // implementation ie. < 4.5.0
+  if (global_retc) {
+    if (access.GetError().find("Cannot allocate memory") != std::string::npos) {
+      global_retc = com_access(arg);
+    } else {
+      std::cerr << access.GetError();
+    }
+  }
+
   return global_retc;
 }
 
@@ -332,5 +409,4 @@ void com_access_help()
       << " access set limit 2000 rate:group:zp:Stat       : Limit the stat rate for the zp group to 2kHz\n"
       <<  "access rm limit rate:user:*:OpenRead           : Removes the defined limit\n";
   std::cerr << oss.str() << std::endl;
-
 }
