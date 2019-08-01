@@ -15,6 +15,26 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.5.4 Citrine``
+===================
+
+2019-08-01
+
+Bug
+---
+
+* [EOS-3622] - eoscp is not propagating the error code.
+* [EOS-3629] - Provide fallback for the quota command to old implementation
+* [EOS-3632] - mv on FUSEX deterministically loose data
+* [EOS-3633] - Many new commands are not compatible with old server version
+
+Question
+---------
+
+* [EOS-3626] - eos mgm cannot contact to external eos instance via eos route
+
+
 ``v4.5.3 Citrine``
 ===================
 
