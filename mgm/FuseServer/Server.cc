@@ -1421,8 +1421,8 @@ Server::OpSetDirectory(const std::string& id,
         if (exist_target_cmd) {
           if (exist_target_cmd->getNumFiles() + exist_target_cmd->getNumContainers()) {
             // Fatal error we have to fail that rename
-            eos_err("msg=\"failed move, destination exist and not empty\""
-                    " name=%s cxid=%08llx", md.name(), md.md_ino());
+            eos_err("msg=\"failed move, destination exists and not empty\""
+                    " name=%s cxid=%08llx", md.name().c_str(), md.md_ino());
             return ENOTEMPTY;
           }
 
