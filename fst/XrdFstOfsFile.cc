@@ -3106,7 +3106,7 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
       }
 
       if (exp_org != cur_org) {
-        eos_err("tpc origin missmatch tpc_org=%s, cached_org=%s",
+        eos_err("tpc origin mismatch tpc_org=%s, cached_org=%s",
                 tpc_org.c_str(), gOFS.TpcMap[mIsTpcDst][tpc_key].org.c_str());
         return gOFS.Emsg(epname, error, EPERM, "open - tpc origin mismatch",
                          mNsPath.c_str());
