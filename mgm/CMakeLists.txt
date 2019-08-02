@@ -272,7 +272,6 @@ add_dependencies(XrdEosMgm-Objects EosAuthProto-Objects)
 add_dependencies(XrdEosMgm-Objects XrdSsiPbEosCta-Objects)
 
 target_compile_definitions(XrdEosMgm-Objects PUBLIC
-  -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 set_target_properties(

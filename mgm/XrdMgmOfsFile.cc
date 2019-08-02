@@ -2592,16 +2592,6 @@ XrdMgmOfsFile::read(XrdSfsFileOffset offset,
     return 0;
   }
 
-  // Make sure the offset is not too large
-  //
-#if _FILE_OFFSET_BITS!=64
-
-  if (offset > 0x000000007fffffff) {
-    return Emsg(epname, error, EFBIG, "read", fileName.c_str());
-  }
-
-#endif
-
   if (mProcCmd) {
     return mProcCmd->read(offset, buff, blen);
   }
@@ -2644,15 +2634,6 @@ XrdMgmOfsFile::write(XrdSfsFileOffset offset,
 /*----------------------------------------------------------------------------*/
 {
   static const char* epname = "write";
-  // Make sure the offset is not too large
-  //
-#if _FILE_OFFSET_BITS!=64
-
-  if (offset > 0x000000007fffffff) {
-    return Emsg(epname, error, EFBIG, "write", fileName.c_str());
-  }
-
-#endif
   return Emsg(epname, error, EOPNOTSUPP, "write", fileName.c_str());
 }
 
@@ -2746,14 +2727,6 @@ XrdMgmOfsFile::truncate(XrdSfsFileOffset flen)
 /*----------------------------------------------------------------------------*/
 {
   static const char* epname = "trunc";
-  // Make sure the offset is not too larg
-#if _FILE_OFFSET_BITS!=64
-
-  if (flen > 0x000000007fffffff) {
-    return Emsg(epname, error, EFBIG, "truncate", fileName.c_str());
-  }
-
-#endif
   return Emsg(epname, error, EOPNOTSUPP, "truncate", fileName.c_str());
 }
 
