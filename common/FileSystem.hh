@@ -1003,7 +1003,7 @@ public:
   //----------------------------------------------------------------------------
   FileSystemCoreParams getCoreParams();
 
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Snapshots all variables of a filesystem into a snapshot struct
   //!
   //! @param fs snapshot struct to be filled
@@ -1011,10 +1011,10 @@ public:
   //!               to be locked or not
   //!
   //! @return true if successful, otherwise false
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   bool SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock = true);
 
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Snapshots all variables of a filesystem into a snapshot struct
   //!
   //! @param fs snapshot struct to be filled
@@ -1022,7 +1022,7 @@ public:
   //!               to be locked or not
   //!
   //! @return true if successful, otherwise false
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   static bool SnapShotHost(XrdMqSharedObjectManager* som,
                            const std::string& queue,
                            FileSystem::host_snapshot_t& fs,

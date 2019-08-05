@@ -2484,24 +2484,6 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
         stn->pNodeState.mStatus &= ~SchedTreeBase::Balancing;
       }
     }
-
-    if (balancer) {
-      if (ftIdx) {
-        setOneStateVarStatusInAllFastTrees(SchedTreeBase::Balancer);
-      }
-
-      if (stn) {
-        stn->pNodeState.mStatus |= SchedTreeBase::Balancer;
-      }
-    } else {
-      if (ftIdx) {
-        unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Balancer);
-      }
-
-      if (stn) {
-        stn->pNodeState.mStatus &= ~SchedTreeBase::Balancer;
-      }
-    }
   }
 
   if (keys & sfgBlkavailb) {

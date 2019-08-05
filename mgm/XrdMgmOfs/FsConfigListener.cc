@@ -205,7 +205,6 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
   // setup the modifications which the fs listener thread is waiting for
   std::string watch_errc = "stat.errc";
   std::string watch_geotag = "stat.geotag";
-  std::string watch_proxygroups = "proxygroups";
   bool ok = true;
   // Need to notify the FsView when a geotag changes to keep the tree structure
   // up-to-date
@@ -308,23 +307,8 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
           if(fsid != 0 && !newgeotag.empty()) {
             processGeotagChange(fsid, newgeotag);
           }
-
-        } else if (key == watch_proxygroups) {
-          // This is a dataproxy / dataep status update
-          eos::common::FileSystem::host_snapshot_t hsn;
-          eos::common::FileSystem::SnapShotHost(&gOFS->ObjectManager, queue, hsn, true);
-
-          std::string hostport = "/eos/" + queue.substr(queue.rfind('/') + 1) + "/fst";
-          eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-
-          if (eos::mgm::FsView::gFsView.mNodeView.count(hostport)) {
-            eos::mgm::FsNode* node = eos::mgm::FsView::gFsView.mNodeView[hostport];
-            eos::mgm::gGeoTreeEngine.matchHostPxyGr(node, hsn.mProxyGroups, false, false);
-          } else {
-            eos_err("msg=\"no FsNode object associated with queue=%s and hostport=%s\"",
-                    queue.c_str(), hostport.c_str());
-          }
-        } else {
+        }
+        else {
           // This is a filesystem status error
           if (gOFS->mMaster->IsMaster()) {
             // only an MGM master needs to initiate draining

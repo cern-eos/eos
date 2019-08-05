@@ -612,13 +612,6 @@ int mainFull()
             balancingfs[idx].insert(info.fsId);
             maxBcingToBcerSimil[idx][info.fsId] = 0;
           }
-
-          if (r > 7 * (RAND_MAX / 8)) {
-            state.mStatus = (SchedTreeBase::tStatus)(state.mStatus |
-                            SchedTreeBase::Balancer);
-            balancerfs[idx].insert(info.fsId);
-            nAvailableFsBlcPlct++;
-          }
         }
       }
 
@@ -1056,9 +1049,6 @@ int mainFull()
     assert(fsize);
     drainers[idx].resize(fsize);
     balancers[idx].resize(128);
-    fsize = fptrees[idx].findFreeSlotsAll(&balancers[idx][0], balancers[idx].size(),
-                                          0, false,
-                                          SchedTreeBase::Balancer);
     assert(fsize);
     drainers[idx].resize(fsize);
   }

@@ -148,7 +148,7 @@ public:
   // it MUST be necessary to the decision making process
   //enum tStatus { Drainer = 1<<1, Draining = 1<<2, Balancer = 1<<3, Balancing = 1<<4, Available = 1<<5, Readable = 1<<6, Writable = 1<<7, All = ~0, None = 0 };
   enum tStatus
-  { Drainer = 1, Draining = 1 << 1, Balancer = 1 << 2, Balancing = 1 << 3, Available = 1 << 4, Readable = 1 << 5, Writable = 1 << 6, Disabled = 1 << 7, All = ~0, None = 0};
+  { Drainer = 1, Draining = 1 << 1, Balancing = 1 << 3, Available = 1 << 4, Readable = 1 << 5, Writable = 1 << 6, Disabled = 1 << 7, All = ~0, None = 0};
   static std::string fsStatusToStr(int16_t s)
   {
     std::string out = "";
@@ -159,10 +159,6 @@ public:
 
     if (!(s & Available)) {
       out = out + "Unv";
-    }
-
-    if (s & Balancer) {
-      out = out + "Bin";
     }
 
     if (s & Balancing) {
