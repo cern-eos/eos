@@ -29,6 +29,8 @@
 #define LOOP_15 100
 #define LOOP_16 100
 #define LOOP_17 1234
+#define LOOP_18 100
+#define LOOP_19 100
 
 int main(int argc, char* argv[])
 {
@@ -567,7 +569,7 @@ int main(int argc, char* argv[])
       }
     }
 
-    COMMONTIMING("rename-circular-loop", &tm);
+    COMMONTIMING("create-lockf-loop", &tm);
   }
 
   // ------------------------------------------------------------------------ //
@@ -752,6 +754,82 @@ int main(int argc, char* argv[])
     COMMONTIMING("readdir-loop", &tm);
   }
 
+  // ------------------------------------------------------------------------ //
+  testno = 18;
+
+  if ((testno >= test_start) && (testno <= test_stop)) {
+    fprintf(stderr, ">>> test %04d\n", testno);
+
+    int fd = creat("lockme", S_IRWXU);
+    if (ftruncate(fd, 1000)) {
+      fprintf(stderr,"[test=%3d] errno=%d\n", testno, errno);
+      exit(testno);
+    }
+
+    close(fd);
+    fd = open("lockme", 0, 0);
+
+    struct flock fl;
+    memset(&fl, 0, sizeof(fl));
+
+    fl.l_type = F_RDLCK;
+    fl.l_whence = SEEK_SET;
+    fl.l_start = 100;
+    fl.l_len = 100;
+    fl.l_pid = 0;
+
+    for (size_t i = 0; i < LOOP_18; i++) {
+
+      int do_shared_lock  = fcntl(fd, F_SETLKW, &fl);
+      
+      if ( do_shared_lock == -1) {
+        fprintf(stderr, "[test=%3d] shared lock failed errno=%d\n", testno, errno);
+        exit(testno);
+      }
+    }
+
+    close(fd);
+    unlink("lockme");
+    
+    COMMONTIMING("shared-lock-loop", &tm);
+  }
+
+  // ------------------------------------------------------------------------ //
+  testno = 19;
+
+  if ((testno >= test_start) && (testno <= test_stop)) {
+    fprintf(stderr, ">>> test %04d\n", testno);
+
+    int fd = creat("lockme", S_IRWXU);
+    if (ftruncate(fd, 1000)) {
+      fprintf(stderr,"[test=%3d] errno=%d\n", testno, errno);
+      exit(testno);
+    }
+
+    struct flock fl;
+    memset(&fl, 0, sizeof(fl));
+
+    fl.l_type = F_WRLCK;
+    fl.l_whence = SEEK_SET;
+    fl.l_start = 100;
+    fl.l_len = 100;
+    fl.l_pid = 0;
+
+    for (size_t i = 0; i < LOOP_18; i++) {
+
+      int do_shared_lock  = fcntl(fd, F_SETLKW, &fl);
+      
+      if ( do_shared_lock == -1) {
+        fprintf(stderr, "[test=%3d] exclusive lock failed errno=%d\n", testno, errno);
+        exit(testno);
+      }
+    }
+
+    close(fd);
+    unlink("lockme");
+    
+    COMMONTIMING("exclusive-lock-loop", &tm);
+  }
 
   tm.Print();
   fprintf(stdout, "realtime = %.02f", tm.RealTime());
