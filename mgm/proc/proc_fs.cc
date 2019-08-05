@@ -740,7 +740,6 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
           common::GroupLocator::parseGroup(splitgroup, groupLocator);
           common::FileSystemCoreParams coreParams(fsid, locator, groupLocator, uuid,
                                               configStatus);
-          fs->SetString("schedgroup", splitgroup.c_str());
 
           if (!FsView::gFsView.Register(fs, coreParams)) {
             // Remove mapping

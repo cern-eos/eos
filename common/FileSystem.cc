@@ -1220,8 +1220,6 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
     fs.mDiskNameLen = (long) hash->GetLongLong("stat.statfs.namelen");
     fs.mDiskRopen = (long) hash->GetLongLong("stat.ropen");
     fs.mDiskWopen = (long) hash->GetLongLong("stat.wopen");
-    fs.mWeightRead = 1.0;
-    fs.mWeightWrite = 1.0;
     fs.mScanRate = (time_t) hash->GetLongLong("scanrate");
     fs.mScanInterval = (time_t) hash->GetLongLong("scaninterval");
     fs.mGracePeriod = (time_t) hash->GetLongLong("graceperiod");

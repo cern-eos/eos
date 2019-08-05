@@ -560,8 +560,6 @@ public:
     double mNetEthRateMiB;
     double mNetInRateMiB;
     double mNetOutRateMiB;
-    double mWeightRead;
-    double mWeightWrite;
     double mNominalFilled;
     double mDiskFilled;
     long long mDiskCapacity;

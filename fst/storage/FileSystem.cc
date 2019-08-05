@@ -42,7 +42,6 @@ FileSystem::FileSystem(const common::FileSystemLocator& locator,
   eos::common::FileSystem(locator, som, qsom, true),
   mScanDir()
 {
-  std::string queuepath = locator.getQueuePath();
   last_blocks_free = 0;
   last_status_broadcast = 0;
   seqBandwidth = 0;
