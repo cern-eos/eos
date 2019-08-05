@@ -1652,13 +1652,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       tMetaCommunicate.join();
       tCapFlush.join();
 
-      if (config.mdcachedir_unlink.length()) {
-        // clean rocksdb directory
-        std::string rmline = "rm -rf ";
-        rmline += config.mdcachedir_unlink.c_str();
-        system(rmline.c_str());
-      }
-
       if (Instance().Config().options.submounts) {
         Mounter().terminate();
       }
@@ -1675,7 +1668,15 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
 
       fuse_unmount(local_mount_dir, fusechan);
+
       mKV.reset();
+
+      if (config.mdcachedir_unlink.length()) {
+        // clean rocksdb directory
+        std::string rmline = "rm -rf ";
+        rmline += config.mdcachedir_unlink.c_str();
+        system(rmline.c_str());
+      }
     } else {
       fprintf(stderr, "error: failed to daemonize\n");
       exit(errno ? errno : -1);
