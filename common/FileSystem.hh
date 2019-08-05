@@ -479,6 +479,20 @@ private:
 };
 
 //------------------------------------------------------------------------------
+//! Check if given heartbeat timestamp is recent enough
+//------------------------------------------------------------------------------
+inline bool isHeartbeatRecent(time_t heartbeatTime)
+{
+  time_t now = time(NULL);
+
+  if ((now - heartbeatTime) < 60) {
+    return true;
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
 //! Base Class abstracting the internal representation of a filesystem inside
 //! the MGM and FST
 //------------------------------------------------------------------------------
@@ -584,14 +598,7 @@ public:
 
     bool hasHeartbeat() const
     {
-      time_t now = time(NULL);
-
-      if ((now - mHeartBeatTime) < 60) {
-        // we allow some time drift plus overload delay of 60 seconds
-        return true;
-      }
-
-      return false;
+      return isHeartbeatRecent(mHeartBeatTime);
     }
 
     //--------------------------------------------------------------------------
@@ -622,14 +629,7 @@ public:
 
     bool hasHeartbeat() const
     {
-      time_t now = time(NULL);
-
-      if ((now - mHeartBeatTime) < 60) {
-        // we allow some time drift plus overload delay of 60 seconds
-        return true;
-      }
-
-      return false;
+      return isHeartbeatRecent(mHeartBeatTime);
     }
   };
 
