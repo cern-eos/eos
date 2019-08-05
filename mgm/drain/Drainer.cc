@@ -256,7 +256,6 @@ Drainer::GetJobsInfo(std::string& out, const DrainHdrInfo& hdr_info,
       }
     }
   }
-
   out = table.GenerateTable(HEADER, selections).c_str();
   return true;
 }
@@ -308,7 +307,9 @@ Drainer::WaitForAllDrainToStop()
       for (const auto& fs_elem : node_elem.second) {
         fs_elem->SignalStop();
       }
+    }
 
+    for (auto& node_elem : mDrainFs) {
       for (const auto& fs_elem : node_elem.second) {
         while (fs_elem->IsRunning()) {
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -386,8 +387,8 @@ Drainer::HandleQueued()
     auto pair = lst.front();
     lst.pop_front();
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(pair.first);
+
     if (fs && !StartFsDrain(fs, pair.second, msg)) {
       eos_err("msg=\"failed to start pending drain src_fsid=%lu\""
               " msg=\"%s\"", pair.first, msg.c_str());
