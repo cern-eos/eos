@@ -273,7 +273,7 @@ XrdMgmOfs::BalanceGetFsSrc(eos::common::FileSystem::fsid_t tgt_fsid,
         (src_snapshot.mStatus != eos::common::BootStatus::kBooted) ||
         (src_snapshot.mConfigStatus < eos::common::ConfigStatus::kRO) ||
         (src_snapshot.mErrCode != 0) ||
-        (src_fs->GetActiveStatus(src_snapshot) ==
+        (src_snapshot.GetActiveStatus() ==
          eos::common::ActiveStatus::kOffline)) {
       src_fs = nullptr;
       // Whenever we jump a filesystem we advance also the cyclic group
