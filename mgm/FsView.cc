@@ -2254,10 +2254,7 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
           continue;
         }
 
-        eos::common::FileSystem::fs_snapshot_t snapshot;
-        snapshot.mHeartBeatTime = it->second->getLocalHeartbeatTime();
-
-        if (!snapshot.hasHeartbeat()) {
+        if (!it->second->hasHeartbeat()) {
           // mark as offline
           if (it->second->GetActiveStatus() != eos::common::ActiveStatus::kOffline) {
             it->second->SetActiveStatus(eos::common::ActiveStatus::kOffline);

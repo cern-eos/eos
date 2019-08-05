@@ -1401,4 +1401,12 @@ void FileSystem::setLocalHeartbeatTime(time_t t)
   mHeartBeatTime = t;
 }
 
+//----------------------------------------------------------------------------
+//! Check if local heartbeat is recent enough
+//----------------------------------------------------------------------------
+bool FileSystem::hasHeartbeat() const
+{
+  return isHeartbeatRecent(mHeartBeatTime);
+}
+
 EOSCOMMONNAMESPACE_END;
