@@ -431,7 +431,37 @@ target_link_libraries(XrdEosFst-Static PUBLIC
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
-install(TARGETS EosFstOss XrdEosFst
+#-------------------------------------------------------------------------------
+# @todo(esindril): Remove this once XrdTpc properly supports loading fslib
+# without the -4 prefix. 
+add_library(XrdEosFst-4 MODULE
+  $<TARGET_OBJECTS:XrdEosFst-Objects>
+  $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>)
+
+target_compile_definitions(XrdEosFst PUBLIC
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
+
+target_link_libraries(XrdEosFst-4 PRIVATE
+  eosCommon
+  eosCommonServer
+  EosFstIo-Static
+  EosNsCommon
+  eosCapability-Static
+  ${Z_LIBRARY}
+  ${UUID_LIBRARIES}
+  ${ATTR_LIBRARIES}
+  ${GLIBC_RT_LIBRARY}
+  ${GLIBC_DL_LIBRARY}
+  ${PROTOBUF_LIBRARY}
+  ${NCURSES_LIBRARIES}
+  ${XROOTD_CL_LIBRARY}
+  ${XROOTD_UTILS_LIBRARY}
+  ${XROOTD_SSI_LIBRARY}
+  ${OPENSSL_CRYPTO_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT})
+#-------------------------------------------------------------------------------
+
+install(TARGETS EosFstOss XrdEosFst XrdEosFst-4
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
