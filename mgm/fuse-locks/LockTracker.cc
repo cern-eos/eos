@@ -249,9 +249,10 @@ LockSet::lslocks(const std::string& owner)
   std::set<pid_t> owner_pids;
 
   for (auto it = locks.begin(); it != locks.end(); ++it) {
-    fprintf(stderr, "lock: owner=%s (%s) pid=%u true=%d\n", it->owner().c_str(),
-            owner.c_str(), it->pid(),
-            (it->owner() == owner));
+    // fprintf(stderr, "lock: owner=%s (%s) pid=%u true=%d\n", it->owner().c_str(),
+    //	      owner.c_str(), it->pid(),
+    //	      (it->owner() == owner));
+    // }
 
     if (it->owner() == owner) {
       owner_pids.insert(it->pid());
