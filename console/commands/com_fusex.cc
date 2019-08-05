@@ -161,8 +161,12 @@ com_fusex(char* arg1)
             if (option == "-l") {
               options += "l";
             } else {
-              goto com_fusex_usage;
-            }
+	      if (option == "-k") {
+		options += "k";
+	      } else {
+		goto com_fusex_usage;
+	      }
+	    }
           }
         }
       }
@@ -185,6 +189,8 @@ com_fusex_usage:
           "                -l                                                   -  break down by client host and show statistics \n");
   fprintf(stdout,
           "                -f                                                   -  show ongoing flush locks\n");
+  fprintf(stdout,
+          "                -k                                                   -  show R/W locks\n");
 
   fprintf(stdout,
           "                -m                                                   -  show monitoring output format\n");

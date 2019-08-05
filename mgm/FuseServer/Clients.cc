@@ -314,7 +314,7 @@ FuseServer::Clients::Print(std::string& out, std::string options)
       lockup = "vacant";
     }
 
-    if (!options.length() || (options.find("l") != std::string::npos)) {
+    if (options.find("m") == std::string::npos) {
       snprintf(formatline, sizeof(formatline),
                "client : %-8s %32s %-8s %-8s %s %.02f %.02f %36s p=%u caps=%lu fds=%u %s %s %s mount=%s \n",
                it->second.heartbeat().name().c_str(),
@@ -478,52 +478,55 @@ FuseServer::Clients::Print(std::string& out, std::string options)
       out += formatline;
     }
 
-    std::map<uint64_t, std::set < pid_t>> rlocks;
-    std::map<uint64_t, std::set < pid_t>> wlocks;
-    gOFS->zMQ->gFuseServer.Locks().lsLocks(it->second.heartbeat().uuid(), rlocks,
-                                           wlocks);
 
-    for (auto rit = rlocks.begin(); rit != rlocks.end(); ++rit) {
-      if (rit->second.size()) {
-        snprintf(formatline, sizeof(formatline), "      t:rlock i:%016lx p:",
-                 rit->first);
-        out += formatline;
-        std::string pidlocks;
-
-        for (auto pit = rit->second.begin(); pit != rit->second.end(); ++pit) {
-          if (pidlocks.length()) {
-            pidlocks += ",";
-          }
-
-          char spid[16];
-          snprintf(spid, sizeof(spid), "%u", *pit);
-          pidlocks += spid;
-        }
-
-        out += pidlocks;
-        out += "\n";
+    if (options.find("k") != std::string::npos) {
+      std::map<uint64_t, std::set < pid_t>> rlocks;
+      std::map<uint64_t, std::set < pid_t>> wlocks;
+      gOFS->zMQ->gFuseServer.Locks().lsLocks(it->second.heartbeat().uuid(), rlocks,
+					     wlocks);
+      
+      for (auto rit = rlocks.begin(); rit != rlocks.end(); ++rit) {
+	if (rit->second.size()) {
+	  snprintf(formatline, sizeof(formatline), "      t:rlock i:%016lx p:",
+		   rit->first);
+	  out += formatline;
+	  std::string pidlocks;
+	  
+	  for (auto pit = rit->second.begin(); pit != rit->second.end(); ++pit) {
+	    if (pidlocks.length()) {
+	      pidlocks += ",";
+	    }
+	    
+	    char spid[16];
+	    snprintf(spid, sizeof(spid), "%u", *pit);
+	    pidlocks += spid;
+	  }
+	  
+	  out += pidlocks;
+	  out += "\n";
+	}
       }
-    }
+      
+      for (auto wit = wlocks.begin(); wit != wlocks.end(); ++wit) {
+	if (wit->second.size()) {
+	  snprintf(formatline, sizeof(formatline), "      t:wlock i:%016lx p:",
+		   wit->first);
+	  out += formatline;
+	  std::string pidlocks;
+	  
+	  for (auto pit = wit->second.begin(); pit != wit->second.end(); ++pit) {
+	    if (pidlocks.length()) {
+	      pidlocks += ",";
+	    }
 
-    for (auto wit = wlocks.begin(); wit != wlocks.end(); ++wit) {
-      if (wit->second.size()) {
-        snprintf(formatline, sizeof(formatline), "      t:wlock i:%016lx p:",
-                 wit->first);
-        out += formatline;
-        std::string pidlocks;
-
-        for (auto pit = wit->second.begin(); pit != wit->second.end(); ++pit) {
-          if (pidlocks.length()) {
-            pidlocks += ",";
-          }
-
-          char spid[16];
-          snprintf(spid, sizeof(spid), "%u", *pit);
-          pidlocks += spid;
-        }
-
-        out += pidlocks;
-        out += "\n";
+	    char spid[16];
+	    snprintf(spid, sizeof(spid), "%u", *pit);
+	    pidlocks += spid;
+	  }
+	  
+	  out += pidlocks;
+	  out += "\n";
+	}
       }
     }
   }

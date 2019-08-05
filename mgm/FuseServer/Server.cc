@@ -298,6 +298,7 @@ Server::Print(std::string& out, std::string options)
   if (
     (options.find("m") != std::string::npos) ||
     (options.find("l") != std::string::npos) ||
+    (options.find("k") != std::string::npos) ||
     !options.length()) {
     Client().Print(out, options);
   }
