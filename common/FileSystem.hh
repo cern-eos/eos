@@ -872,23 +872,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Get the string value by key.
-  //----------------------------------------------------------------------------
-  double
-  GetAge(const char* key)
-  {
-    XrdMqSharedHash* hash = nullptr;
-    RWMutexReadLock lock(mSom->HashMutex);
-
-    if ((hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash"))) {
-      // avoid to return a string with a 0 pointer !
-      return hash->GetAgeInSeconds(key);
-    } else {
-      return 0;
-    }
-  }
-
-  //----------------------------------------------------------------------------
   //! Get a long long value by key
   //----------------------------------------------------------------------------
   long long
@@ -1047,6 +1030,11 @@ public:
   //! Get heartbeatTime
   //----------------------------------------------------------------------------
   time_t getLocalHeartbeatTime() const;
+
+  //----------------------------------------------------------------------------
+  //! Get local heartbeat delta
+  //----------------------------------------------------------------------------
+  int getLocalHeartbeatDelta() const;
 
   //----------------------------------------------------------------------------
   //! Set heartbeatTime

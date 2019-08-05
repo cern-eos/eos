@@ -1005,15 +1005,14 @@ Iostat::PrintNs(XrdOucString& out, XrdOucString option)
 
       std::string r_open_hotfiles = fs->GetString("stat.ropen.hotfiles");
       std::string w_open_hotfiles = fs->GetString("stat.wopen.hotfiles");
-      double age_r = fs->GetAge("stat.ropen.hotfiles");
-      double age_w = fs->GetAge("stat.wopen.hotfiles");
+      bool hasHeartbeat = fs->hasHeartbeat();
 
       // we only show the reports from the last minute, there could be pending values
-      if ((age_r > 60)) {
+      if (!hasHeartbeat) {
         r_open_hotfiles = "";
       }
 
-      if ((age_w > 60)) {
+      if (!hasHeartbeat) {
         w_open_hotfiles = "";
       }
 

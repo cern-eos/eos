@@ -1394,6 +1394,14 @@ time_t FileSystem::getLocalHeartbeatTime() const
 }
 
 //------------------------------------------------------------------------------
+// Get local heartbeat delta
+//------------------------------------------------------------------------------
+int FileSystem::getLocalHeartbeatDelta() const
+{
+  return time(NULL) - mHeartBeatTime;
+}
+
+//------------------------------------------------------------------------------
 // Set heartbeatTime
 //------------------------------------------------------------------------------
 void FileSystem::setLocalHeartbeatTime(time_t t)
