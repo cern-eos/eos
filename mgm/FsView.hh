@@ -760,6 +760,7 @@ public:
   //! @param start_heartbeat control whether heartbeat thread is started - for
   //!                        testing purposes
   //----------------------------------------------------------------------------
+  // FsView(bool start_heartbeat = true):
   FsView() : mConfigEngine(nullptr)
   {
     MgmConfigQueueName = "";

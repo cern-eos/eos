@@ -2369,10 +2369,17 @@ BaseView::GetMember(const std::string& member) const
     std::string cfg_member = member;
     std::string val = "???";
     cfg_member.erase(0, tag.length());
+    {
+      RWMutexReadLock rd_lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+      std::string node_cfg_name =
+        eos::common::GlobalConfig::gConfig.QueuePrefixName(GetConfigQueuePrefix(),
+            mName.c_str());
+      XrdMqSharedHash* hash =
+        eos::common::GlobalConfig::gConfig.Get(node_cfg_name.c_str());
 
-    std::string value = GetConfigMember(cfg_member);
-    if(!value.empty()) {
-      val = value;
+      if (hash) {
+        val = hash->Get(cfg_member.c_str());
+      }
     }
 
     // It's otherwise hard to get the default into place
