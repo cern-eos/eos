@@ -155,6 +155,7 @@ void QoSCmd::GetSubcmd(const eos::console::QoSProto_GetProto& get,
 void QoSCmd::SetSubcmd(const eos::console::QoSProto_SetProto& set,
                        eos::console::ReplyProto& reply)
 {
+  using eos::common::LayoutId;
   std::ostringstream out;
   std::ostringstream err;
   XrdOucString spath;
@@ -178,14 +179,49 @@ void QoSCmd::SetSubcmd(const eos::console::QoSProto_SetProto& set,
     return;
   }
 
+  int layout = -1;
+  int checksum = -1;
+  int nstripes = -1;
+  std::string policy = "";
+
   for (const auto& pair: set.pair()) {
-    if (!IsValidPair(pair.key(), pair.value())) {
+    const auto& key = pair.key();
+    const auto& value = pair.value();
+
+    if (!IsValidPair(key, value)) {
       err << "error: invalid QoS property "
-          << pair.key() << "=" << pair.value() << std::endl;
+          << key << "=" << value << std::endl;
       retc = EINVAL;
       continue;
     }
 
+    // Extract new layout components
+    if (key == "layout") {
+      layout = LayoutId::GetLayoutFromString(value);
+    } else if (key == "replica") {
+      nstripes = std::stoi(value);
+    } else if (key == "checksum") {
+      checksum = LayoutId::GetChecksumFromString(value);
+    } else if (key == "placement") {
+      policy = value;
+    }
+  }
+
+  if ((layout == -1) && (checksum == -1) &&
+      (nstripes == -1) && (policy.empty())) {
+    reply.set_std_err("error: no valid QoS properties found");
+    reply.set_retc(EINVAL);
+    return;
+  }
+
+  std::string conversion_id = "";
+
+  if (gOFS->_qos_set(spath.c_str(), errInfo, mVid, conversion_id,
+                     layout, nstripes, checksum, policy)) {
+    err << "error: " << errInfo.getErrText() << std::endl;
+    retc = errInfo.getErrInfo();
+  } else {
+    out << "scheduled QoS conversion job: " << conversion_id;
   }
 
   reply.set_retc(retc);
