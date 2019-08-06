@@ -1934,6 +1934,33 @@ VirtualIdentity Mapping::Someone(const std::string& name)
   return vid;
 }
 
+//------------------------------------------------------------------------------
+//! Function returning a VID from a uid/gid pair
+//------------------------------------------------------------------------------
+VirtualIdentity Mapping::Someone(uid_t uid, gid_t gid)
+{
+  VirtualIdentity vid;
+  vid = VirtualIdentity::Nobody();
+  int errc = 0;
+  
+  vid.uid = uid;
+  vid.gid = gid;
+  vid.uid_list = {uid,99};
+  vid.gid_list = {uid,99};
+  vid.sudoer = false;
+
+  vid.uid_string = UidToUserName(uid, errc);
+  if (!errc) {
+    vid.name = vid.uid_string.c_str();
+  } else {
+    vid.name = UidAsString(uid).c_str();
+  }
+  vid.gid_string = GidToGroupName(gid, errc);
+  vid.tident = std::string(vid.uid_string + "@grpc").c_str();
+
+  return vid;
+}
+
 
 /*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END

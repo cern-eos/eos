@@ -1,0 +1,309 @@
+#!/bin/bash
+
+instance=${1:=dev}
+authkey=`uuidgen`;
+creator="nobody"
+description="this is a manila test share"
+id="99";
+group_id="99";
+egroup="eos-admins.cern.ch"
+admin_egroup="eos-admins.cern.ch"
+location="localhost"
+quota="100"
+name="share-1"
+protocol="eos"
+failed=0
+
+echo "----------------------------------------------------------------------"
+echo "# NO AUTH KEY"
+echo "----------------------------------------------------------------------"
+eos-grpc-manila --command create --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 1 && failed=1
+echo "# response:$response - expect 1"
+
+eos vid set map -grpc key:$authkey vuid:11
+eos vid ls
+
+echo "----------------------------------------------------------------------"
+echo "# NO SUDO"
+echo "----------------------------------------------------------------------"
+eos-grpc-manila --command create --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 1 && failed=1
+echo "# response:$response - expect 1"
+
+eos vid set membership 11 +sudo
+
+echo "----------------------------------------------------------------------"
+echo "# NO OPENSTACK DIR"
+echo "----------------------------------------------------------------------"
+eos-grpc-manila --command create --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 195 && failed=1
+echo "# response:$response - expect 195"
+
+eos mkdir /eos/$instance/proc/openstack/
+
+echo "----------------------------------------------------------------------"
+echo "# NO SHARE DIRECTORY SETTING"
+echo "----------------------------------------------------------------------"
+eos-grpc-manila --command create --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 237 && failed=1
+echo "# response:$response - expect 237"
+
+
+eos attr set manila.prefix=/eos/$instance/openstack/manila-test/ /eos/$instance/proc/openstack/
+
+echo "----------------------------------------------------------------------"
+echo "# NO SHARE DIRECTORY "
+echo "----------------------------------------------------------------------"
+eos-grpc-manila --command create --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 254 && failed=1
+echo "# response:$response - expect 254"
+
+eos mkdir -p /eos/$instance/openstack/manila-test/
+
+echo "----------------------------------------------------------------------"
+echo "# EXISTING SHARE DIRECTORY - missing args"
+echo "----------------------------------------------------------------------"
+eos-grpc-manila --command create --params "authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 234 && failed=1
+echo "# response:$response - expect 234"
+
+eos-grpc-manila --command create --params "creator:$creator,authkey:$authkey,description:$description,name:$name,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 234 && failed=1
+echo "# response:$response - expect 234"
+
+eos-grpc-manila --command create --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 234 && failed=1
+echo "# response:$response - expect 234"
+
+eos-grpc-manila --command create --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 234 && failed=1
+echo "# response:$response - expect 234"
+
+eos-grpc-manila --command create --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:$group_id,egroup:$egroup,admin_egroup:$admin_egroup"
+
+response=$?
+test $response -ne 234 && failed=1
+echo "# response:$response - expect 234"
+
+echo "----------------------------------------------------------------------"
+echo "# CREATE SHARE DIRECTORY"
+echo "----------------------------------------------------------------------"
+eos-grpc-manila --command create --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 1 && failed=1
+echo "# response:$response - expect 1"
+
+eos attr ls /eos/$instance/openstack/manila-test/n/nobody/share-1
+eos find -d /eos/$instance/openstack/
+eos quota ls /eos/$instance/openstack/manila-test/
+
+echo "----------------------------------------------------------------------"
+echo "# DELETE SHARE DIRECTORY - forbidden"
+echo "----------------------------------------------------------------------"
+
+eos-grpc-manila --command delete --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 255 && failed=1
+echo "# response:$response - expect 255"
+
+echo "----------------------------------------------------------------------"
+echo "# DELETE SHARE DIRECTORY - allowed"
+echo "----------------------------------------------------------------------"
+
+eos attr set manila.deletion=1 /eos/$instance/proc/openstack/
+
+eos-grpc-manila --command delete --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 1 && failed=1
+echo "# response:$response - expect 1"
+
+echo "----------------------------------------------------------------------"
+echo "# CREATE NEXT SHARE DIRECTORY"
+echo "----------------------------------------------------------------------"
+creator="adm"
+id="2"
+group_id="2"
+name="share-2"
+
+quota="50"
+eos-grpc-manila --command create --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 1 && failed=1
+echo "# response:$response - expect 1"
+
+eos quota ls /eos/$instance/openstack/manila-test/
+eos find -d /eos/$instance/openstack/
+
+echo "----------------------------------------------------------------------"
+echo "# EXTEND SHARE DIRECTORY - allowed"
+echo "----------------------------------------------------------------------"
+
+quota="100"
+eos-grpc-manila --command extend --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 1 && failed=1
+echo "# response:$response - expect 1"
+
+eos quota ls /eos/$instance/openstack/manila-test/
+
+echo "----------------------------------------------------------------------"
+echo "# SHRINK SHARE DIRECTORY - allowed"
+echo "----------------------------------------------------------------------"
+
+quota="75"
+eos-grpc-manila --command shrink --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 1 && failed=1
+echo "# response:$response - expect 1"
+
+eos quota ls /eos/$instance/openstack/manila-test/
+
+echo "----------------------------------------------------------------------"
+echo "# UNMANAGE SHARE DIRECTORY"
+echo "----------------------------------------------------------------------"
+
+eos-grpc-manila --command unmanage --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 1 && failed=1
+echo "# response:$response - expect 1"
+
+echo "----------------------------------------------------------------------"
+echo "# SHRINK ON UNMANAGE SHARE DIRECTORY - not allowed"
+echo "----------------------------------------------------------------------"
+eos attr ls /eos/$instance/openstack/manila-test/a/adm/share-2
+eos-grpc-manila --command shrink --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 237 && failed=1
+echo "# response:$response - expect 237"
+
+echo "----------------------------------------------------------------------"
+echo "# EXTEND ON UNMANAGE SHARE DIRECTORY - not allowed"
+echo "----------------------------------------------------------------------"
+eos attr ls /eos/$instance/openstack/manila-test/a/adm/share-2
+eos-grpc-manila --command extend --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 237 && failed=1
+echo "# response:$response - expect 237"
+
+echo "----------------------------------------------------------------------"
+echo "# UNMANAGE SHARE DIRECTORY - not managed anymore"
+echo "----------------------------------------------------------------------"
+
+eos-grpc-manila --command unmanage --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 234 && failed=1
+echo "# response:$response - expect 234"
+
+echo "----------------------------------------------------------------------"
+echo "# MANAGE SHARE DIRECTORY"
+echo "----------------------------------------------------------------------"
+
+eos-grpc-manila --command manage --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 1 && failed=1
+echo "# response:$response - expect 1"
+
+quota=10
+
+echo "----------------------------------------------------------------------"
+echo "# SHRINK ON MANAGEG SHARE DIRECTORY - allowed"
+echo "----------------------------------------------------------------------"
+eos attr ls /eos/$instance/openstack/manila-test/a/adm/share-2
+eos-grpc-manila --command shrink --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 1 && failed=1
+echo "# response:$response - expect 1"
+
+eos quota ls /eos/$instance/openstack/manila-test/
+
+
+echo "----------------------------------------------------------------------"
+echo "# CAPACITY ON MANAGEG SHARE DIRECTORY - allowed"
+echo "----------------------------------------------------------------------"
+eos attr ls /eos/$instance/openstack/manila-test/a/adm/share-2
+eos-grpc-manila --command capacity --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 1 && failed=1
+echo "# response:$response - expect 1"
+
+echo "----------------------------------------------------------------------"
+echo "# DELETE SHARE DIRECTORY - allowed"
+echo "----------------------------------------------------------------------"
+
+eos-grpc-manila --command delete --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 1 && failed=1
+echo "# response:$response - expect 1"
+
+echo "----------------------------------------------------------------------"
+echo "# EXTEND SHARE DIRECTORY - non existing"
+echo "----------------------------------------------------------------------"
+
+quota="200"
+name="missing"
+eos-grpc-manila --command extend --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 254 && failed=1
+echo "# response:$response - expect 254"
+
+echo "----------------------------------------------------------------------"
+echo "# SHRINK SHARE DIRECTORY - non existing"
+echo "----------------------------------------------------------------------"
+
+quota="25"
+name="missing"
+eos-grpc-manila --command shrink --params "creator:$creator,authkey:$authkey,protocol:$protocol,description:$description,name:$name,id:$id,group_id:$group_id,quota:$quota,egroup:$egroup,admin_egroup:$admin_egroup,location:$location"
+
+response=$?
+test $response -ne 254 && failed=1
+echo "# response:$response - expect 254"
+
+# cleanup
+echo "----------------------------------------------------------------------"
+eos rmdir /eos/$instance/proc/openstack/
+eos quota rmnode --really-want -p /eos/$instance/openstack/manila-test/
+eos rm -r /eos/$instance/openstack/manila-test/
+eos rmdir /eos/$instance/openstack/
+eos vid set membership 11 -sudo
+eos vid rm grpc:\"key:$authkey\":uid
+eos vid ls
+
+echo "----------------------------------------------------------------------"
+test $failed -eq 1 && echo "RESULT: some manila tests failed" || echo "RESULT: all manila tests passwd"
+echo "----------------------------------------------------------------------"
+test $failed -eq 1 && exit -1
+exit 0

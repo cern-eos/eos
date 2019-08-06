@@ -25,7 +25,10 @@
 #include "GrpcNsInterface.hh"
 /*----------------------------------------------------------------------------*/
 #include "common/LayoutId.hh"
+#include "common/SymKeys.hh"
 #include "mgm/Acl.hh"
+#include "mgm/proc/IProcCommand.hh"
+#include "mgm/proc/user/RmCmd.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/MDException.hh"
 #include "namespace/interface/ContainerIterators.hh"
@@ -41,7 +44,8 @@ EOSMGMNAMESPACE_BEGIN
 grpc::Status
 GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
                        grpc::ServerWriter<eos::rpc::MDResponse>* writer,
-                       const eos::rpc::MDRequest* request, bool check_perms)
+                       const eos::rpc::MDRequest* request, bool check_perms, 
+		       bool lock)
 {
   if (request->type() == eos::rpc::FILE) {
     // stream file meta data
@@ -65,8 +69,10 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
     } else {
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, request->id().path());
     }
-
+    
+    if (lock) {
     viewReadLock.Grab(gOFS->eosViewRWMutex);
+    }
 
     if (fid) {
       try {
@@ -164,9 +170,14 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
     if (!cid) {
       eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView,
           request->id().path());
+    } else {
+      eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, 
+					     cid);
     }
 
-    viewReadLock.Grab(gOFS->eosViewRWMutex);
+    if (lock) {
+      viewReadLock.Grab(gOFS->eosViewRWMutex);
+    }
 
     if (cid) {
       try {
@@ -234,10 +245,29 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
 }
 
 grpc::Status
-GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& vid,
+GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
                           grpc::ServerWriter<eos::rpc::MDResponse>* writer,
-                          const eos::rpc::MDRequest* request)
+                          const eos::rpc::MDRequest* request, 
+			  bool streamparent,
+			  std::vector<uint64_t>* childdirs)
 {
+  eos::common::VirtualIdentity vid = ivid;
+
+  if (request->role().uid() || request->role().gid()) {
+    if ((ivid.uid != request->role().uid()) || (ivid.gid != request->role().gid())) {
+      if (!ivid.sudoer) {
+	return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
+			    std::string("Ask an admin to map your auth key to a sudo'er account - permission denied"));
+      } else {
+	vid = eos::common::Mapping::Someone(request->role().uid(),
+					    request->role().gid());
+	
+      }
+    } 
+  } else {
+    // we don't implement sudo to root
+  }
+
   // stream container meta data
   eos::common::RWMutexReadLock viewReadLock;
   std::shared_ptr<eos::IContainerMD> cmd;
@@ -256,6 +286,9 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& vid,
   if (!cid) {
     eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
         request->id().path());
+  } else {
+    eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView,
+        cid);
   }
 
   viewReadLock.Grab(gOFS->eosViewRWMutex);
@@ -273,6 +306,7 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& vid,
   } else {
     try {
       cmd = gOFS->eosView->getContainer(request->id().path());
+      cid = cmd->getId();
       path = gOFS->eosView->getUri(cmd.get());
     } catch (eos::MDException& e) {
       errno = e.getErrno();
@@ -282,48 +316,131 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& vid,
     }
   }
 
-  // stream the requested container
-  eos::rpc::MDRequest c_dir;
-  c_dir.mutable_id()->set_id(cid);
-  c_dir.set_type(eos::rpc::CONTAINER);
   grpc::Status status;
-  status = GetMD(vid, writer, &c_dir, true);
 
-  if (!status.ok()) {
-    return status;
+  if (streamparent && (request->type() != eos::rpc::FILE)) {
+    // stream the requested container
+    eos::rpc::MDRequest c_dir;
+    c_dir.mutable_id()->set_id(cid);
+    c_dir.set_type(eos::rpc::CONTAINER);
+    status = GetMD(vid, writer, &c_dir, true, false);
+    
+    if (!status.ok()) {
+      return status;
+    }
   }
 
   bool first = true;
 
-  // stream all the children files
-  for (auto it = eos::FileMapIterator(cmd); it.valid(); it.next()) {
-    eos::rpc::MDRequest c_file;
-    c_file.mutable_id()->set_id(it.value());
-    c_file.set_type(eos::rpc::FILE);
-    status = GetMD(vid, writer, &c_file, first);
-
-    if (!status.ok()) {
-      return status;
+  // stream for listing and file type
+  if (request->type() != eos::rpc::CONTAINER) {
+    // stream all the children files
+    for (auto it = eos::FileMapIterator(cmd); it.valid(); it.next()) {
+      eos::rpc::MDRequest c_file;
+      c_file.mutable_id()->set_id(it.value());
+      c_file.set_type(eos::rpc::FILE);
+      status = GetMD(vid, writer, &c_file, first);
+      
+      if (!status.ok()) {
+	return status;
+      }
+      
+      first = false;
     }
-
-    first = false;
   }
 
   // stream all the children container
   for (auto it = eos::ContainerMapIterator(cmd); it.valid(); it.next()) {
-    eos::rpc::MDRequest c_dir;
-    c_dir.mutable_id()->set_id(it.value());
-    c_dir.set_type(eos::rpc::CONTAINER);
-    status = GetMD(vid, writer, &c_dir, first);
-
-    if (!status.ok()) {
-      return status;
+    if (request->type() != eos::rpc::FILE) {
+      // stream for listing and container type
+      eos::rpc::MDRequest c_dir;
+      c_dir.mutable_id()->set_id(it.value());
+      c_dir.set_type(eos::rpc::CONTAINER);
+      status = GetMD(vid, writer, &c_dir, first);
+      
+      if (!status.ok()) {
+	return status;
+      }
     }
 
+    if (childdirs) {
+      childdirs->push_back(it.value());
+    }
     first = false;
   }
 
   // finished streaming
+  return grpc::Status::OK;
+}
+
+grpc::Status
+GrpcNsInterface::Find(eos::common::VirtualIdentity& vid,
+		      grpc::ServerWriter<eos::rpc::MDResponse>* writer,
+		      const eos::rpc::FindRequest* request)
+{
+  std::string path;
+
+  std::vector< std::vector<uint64_t> > found_dirs;
+
+  found_dirs.resize(1);
+  found_dirs[0].resize(1);
+  found_dirs[0][0] = 0;
+
+  uint64_t deepness = 0;
+
+  // find for a single directory
+  if (request->maxdepth() == 0) {
+    grpc::Status status = grpc::Status::OK;
+    eos::rpc::MDRequest c_dir;
+    *( c_dir.mutable_id() ) = request->id();
+    if (request->type() != eos::rpc::FILE) {
+      c_dir.set_type(eos::rpc::CONTAINER);
+      status = GetMD(vid, writer, &c_dir, true, false);
+    } 
+    return status;
+  }
+
+  // find for multiple directories/files
+
+  do {
+    bool streamparent = false;
+    found_dirs.resize(deepness + 2);
+
+    // loop over all directories in that deepness
+    for (unsigned int i = 0; i < found_dirs[deepness].size(); i++) {
+      uint64_t id = found_dirs[deepness][i];
+      eos::rpc::MDRequest lrequest;
+      if ( (deepness == 0 ) && (id == 0 ) ) {
+	// that is the root of a find
+	*(lrequest.mutable_id()) = request->id();
+	eos_static_warning("%s %llu %llu", lrequest.id().path().c_str(), 
+			   lrequest.id().id(),
+			   lrequest.id().ino());
+	streamparent = true;
+      } else {
+	lrequest.mutable_id()->set_id(id);
+	streamparent = false;
+      }
+      
+      lrequest.set_type(request->type());
+      *(lrequest.mutable_role()) = request->role();
+      std::vector<uint64_t> children;
+      grpc::Status status = StreamMD(vid, writer, &lrequest, streamparent, &children);
+      if (!status.ok()) {
+	return status;
+      }
+      for (auto const& value: children) {
+	// stream dirs under path into cpath
+	found_dirs[deepness + 1].push_back(value);
+      }
+    }
+
+    deepness++;
+    if (deepness >= request->maxdepth()) {
+      break;
+    }
+  } while (found_dirs[deepness].size());
+
   return grpc::Status::OK;
 }
 
@@ -551,6 +668,622 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
   }
 
   return grpc::Status::OK;
+}
+
+grpc::Status 
+GrpcNsInterface::Exec(eos::common::VirtualIdentity& ivid,
+		      eos::rpc::NSResponse* reply,
+		      const eos::rpc::NSRequest* request)
+{
+  eos::common::VirtualIdentity vid = ivid;
+
+  if (request->role().uid() || request->role().gid()) {
+    if ((ivid.uid != request->role().uid()) || (ivid.gid != request->role().gid())) {
+      if (!ivid.sudoer) {
+	reply->mutable_error()->set_code(EPERM);
+	reply->mutable_error()->set_msg("Ask an admin to map your auth key to a sudo'er account - permissi\
+on denied");
+	return grpc::Status::OK;
+      } else {
+	vid = eos::common::Mapping::Someone(request->role().uid(),
+					    request->role().gid());
+	
+      }
+    }
+  } else {
+    // we don't implement sudo to root
+  }
+
+  switch(request->command_case()) {
+  case eos::rpc::NSRequest::kMkdir:
+    return Mkdir(vid, reply->mutable_error() ,&(request->mkdir()));
+    break;
+  case eos::rpc::NSRequest::kRmdir:
+    return Rmdir(vid, reply->mutable_error() ,&(request->rmdir()));
+    break;
+  case eos::rpc::NSRequest::kTouch:
+    return Touch(vid, reply->mutable_error() ,&(request->touch()));
+  break;
+  case eos::rpc::NSRequest::kUnlink:
+    return Unlink(vid, reply->mutable_error() ,&(request->unlink()));
+    break;
+  case eos::rpc::NSRequest::kRm:
+    return Rm(vid, reply->mutable_error() ,&(request->rm()));
+    break;
+  case eos::rpc::NSRequest::kRename:
+    return Rename(vid, reply->mutable_error() ,&(request->rename()));
+    break;
+  case eos::rpc::NSRequest::kSymlink:
+    return Symlink(vid, reply->mutable_error() ,&(request->symlink()));
+    break;
+  case eos::rpc::NSRequest::kXattr:
+    return SetXAttr(vid, reply->mutable_error() ,&(request->xattr()));
+    break;
+  case eos::rpc::NSRequest::kVersion:
+    return Version(vid, reply->mutable_version() ,&(request->version()));
+    break;
+  case eos::rpc::NSRequest::kRecycle:
+    return Recycle(vid, reply->mutable_recycle() ,&(request->recycle()));
+    break;
+  case eos::rpc::NSRequest::kChown:
+    return Chown(vid, reply->mutable_error() ,&(request->chown()));
+    break;
+  case eos::rpc::NSRequest::kChmod:
+    return Chmod(vid, reply->mutable_error() ,&(request->chmod()));
+    break;
+  default:
+    reply->mutable_error()->set_code(EINVAL);
+    reply->mutable_error()->set_msg("error: command not supported");
+    break;
+  }
+  return grpc::Status::OK;
+}
+
+grpc::Status 
+GrpcNsInterface::Mkdir(eos::common::VirtualIdentity& vid,
+		       eos::rpc::NSResponse::ErrorResponse* reply,
+		       const eos::rpc::NSRequest::MkdirRequest* request)
+{
+  mode_t mode = request->mode();
+  
+  if (request->recursive()){
+    mode |= SFS_O_MKPTH;
+  }
+  
+  std::string path;
+
+  path = request->id().path();
+
+  if (path.empty()) {
+    reply->set_code(EINVAL);
+    reply->set_msg("error:path is empty");
+    return grpc::Status::OK;
+  }
+
+  XrdOucErrInfo error;
+  errno = 0;
+  if (gOFS->_mkdir(path.c_str(), mode, error, vid, (const char*) 0)) {
+    reply->set_code(errno);
+    reply->set_msg(error.getErrText());
+    return grpc::Status::OK;
+  }
+  if (errno == EEXIST) {
+    reply->set_code(EEXIST);
+    std::string msg = "info: directory existed already '";
+    msg += path.c_str();
+    msg += "'";
+    reply->set_msg(msg);
+  } else {
+    reply->set_code(0);
+    std::string msg = "info: created directory '";
+    msg += path.c_str();
+    msg += "'";
+    reply->set_msg(msg);
+  }
+  return grpc::Status::OK;
+}
+
+grpc::Status GrpcNsInterface::Rmdir(eos::common::VirtualIdentity& vid,
+				    eos::rpc::NSResponse::ErrorResponse* reply,
+				    const eos::rpc::NSRequest::RmdirRequest* request)
+{
+  std::string path;
+
+  path = request->id().path();
+
+  if (path.empty()) {
+    try {
+      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+      path = 
+        gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(request->id().id()).get());
+    } catch (eos::MDException& e) {
+      path = "";
+      errno = e.getErrno();
+    }
+  }
+
+  if (path.empty()) {
+    if (request->id().id()) {
+      reply->set_code(ENOENT);
+      reply->set_msg("error: directory id does not exist");
+      return grpc::Status::OK;
+    } else {
+      reply->set_code(EINVAL);
+      reply->set_msg("error: path is empty");
+      return grpc::Status::OK;
+    }
+  }
+
+
+  XrdOucErrInfo error;
+  errno = 0;
+  if (gOFS->_remdir(path.c_str(), error, vid, (const char*) 0)) {
+    reply->set_code(errno);
+    reply->set_msg(error.getErrText());
+    return grpc::Status::OK;
+  }
+
+  reply->set_code(0);
+  std::string msg = "info: deleted directory '";
+  msg += path.c_str();
+  msg += "'";
+  reply->set_msg(msg);
+  return grpc::Status::OK;
+}
+
+grpc::Status GrpcNsInterface::Touch(eos::common::VirtualIdentity& vid,
+				    eos::rpc::NSResponse::ErrorResponse* reply,
+				    const eos::rpc::NSRequest::TouchRequest* request)
+{
+  std::string path;
+
+  path = request->id().path();
+
+  if (path.empty()) {
+    reply->set_code(EINVAL);
+    reply->set_msg("error:path is empty");
+    return grpc::Status::OK;
+  }
+
+  XrdOucErrInfo error;
+  errno = 0;
+  if (gOFS->_touch(path.c_str(), error, vid, (const char*) 0)) {
+    reply->set_code(errno);
+    reply->set_msg(error.getErrText());
+    return grpc::Status::OK;
+  }
+
+  reply->set_code(0);
+  std::string msg = "info: touched file '";
+  msg += path.c_str();
+  msg += "'";
+  reply->set_msg(msg);
+  return grpc::Status::OK;}
+
+
+grpc::Status GrpcNsInterface::Unlink(eos::common::VirtualIdentity& vid,
+				     eos::rpc::NSResponse::ErrorResponse* reply,
+				     const eos::rpc::NSRequest::UnlinkRequest* request)
+{
+  bool norecycle = false;
+
+  if (request->norecycle()){
+    norecycle = true;
+  }
+
+
+  std::string path;
+
+  path = request->id().path();
+
+  if (path.empty()) {
+    try {
+      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+      path = 
+        gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(request->id().id()).get());
+    } catch (eos::MDException& e) {
+      path = "";
+      errno = e.getErrno();
+    }
+  }
+
+  if (path.empty()) {
+    if (request->id().id()) {
+      reply->set_code(ENOENT);
+      reply->set_msg("error: directory id does not exist");
+      return grpc::Status::OK;
+    } else {
+      reply->set_code(EINVAL);
+      reply->set_msg("error: path is empty");
+      return grpc::Status::OK;
+    }
+  }
+
+  XrdOucErrInfo error;
+  errno = 0;
+  if (gOFS->_rem(path.c_str(), error, vid, (const char*) 0, false, false, norecycle)) {
+    reply->set_code(errno);
+    reply->set_msg(error.getErrText());
+    return grpc::Status::OK;
+  }
+
+  reply->set_code(0);
+  std::string msg = "info: unlinked file '";
+  msg += path.c_str();
+  msg += "'";
+  reply->set_msg(msg);
+  return grpc::Status::OK;
+}
+
+grpc::Status GrpcNsInterface::Rm(eos::common::VirtualIdentity& vid,
+				 eos::rpc::NSResponse::ErrorResponse* reply,
+				 const eos::rpc::NSRequest::RmRequest* request)
+{
+  eos::console::RequestProto req;
+
+  if (!request->id().path().empty()) {
+    req.mutable_rm()->set_path(request->id().path());
+  } else {
+    if (request->id().type() == eos::rpc::FILE) {
+      req.mutable_rm()->set_fileid(request->id().id());
+    } else {
+      req.mutable_rm()->set_containerid(request->id().id());
+    }
+  }
+
+  if (request->recursive()) {
+    req.mutable_rm()->set_recursive(true);
+  } 
+
+  if (request->norecycle()) {
+    req.mutable_rm()->set_bypassrecycle(true);
+  }
+    
+  eos::mgm::RmCmd rmcmd(std::move(req), vid);
+
+  eos::console::ReplyProto preply = rmcmd.ProcessRequest();
+
+  if (preply.retc())
+  {
+    reply->set_code(preply.retc());
+    reply->set_msg(preply.std_err());
+    return grpc::Status::OK;
+  }
+
+  reply->set_code(0);
+  std::string msg="info: ";
+  msg += "deleted directory tree '";
+  if (!request->id().path().empty()) {
+    msg += request->id().path().c_str();
+  } else {
+    std::stringstream s;
+    s << std::hex << request->id().id();
+    msg += s.str().c_str();
+  }
+  
+  reply->set_msg(msg);
+  return grpc::Status::OK;
+}
+
+grpc::Status GrpcNsInterface::Rename(eos::common::VirtualIdentity& vid,
+				     eos::rpc::NSResponse::ErrorResponse* reply,
+				     const eos::rpc::NSRequest::RenameRequest* request)
+{
+  std::string path;
+  std::string target;
+
+  path = request->id().path();
+  target = request->target();
+
+  if (path.empty()) {
+    reply->set_code(EINVAL);
+    reply->set_msg("error:path is empty");
+    return grpc::Status::OK;
+  }
+
+  if (target.empty()) {
+    reply->set_code(EINVAL);
+    reply->set_msg("error:target is empty");
+    return grpc::Status::OK;
+  }
+
+  XrdOucErrInfo error;
+  errno = 0;
+  if (gOFS->_rename(
+		    path.c_str(), 
+		    target.c_str(), 
+		    error,
+		    vid)) {
+    reply->set_code(errno);
+    reply->set_msg(error.getErrText());
+    return grpc::Status::OK;
+  }
+
+  reply->set_code(0);
+  std::string msg = "info: renamed '";
+  msg += path.c_str();
+  msg += "' to '";
+  msg +=target.c_str();
+  msg += "'";
+
+  reply->set_msg(msg);
+  return grpc::Status::OK;
+}
+
+grpc::Status GrpcNsInterface::Symlink(eos::common::VirtualIdentity& vid,
+				      eos::rpc::NSResponse::ErrorResponse* reply,
+				      const eos::rpc::NSRequest::SymlinkRequest* request)
+{
+  std::string path;
+  std::string target;
+
+  path = request->id().path();
+  target = request->target();
+
+  if (path.empty()) {
+    reply->set_code(EINVAL);
+    reply->set_msg("error:path is empty");
+    return grpc::Status::OK;
+  }
+
+  if (target.empty()) {
+    reply->set_code(EINVAL);
+    reply->set_msg("error:target is empty");
+    return grpc::Status::OK;
+  }
+
+  XrdOucErrInfo error;
+  errno = 0;
+  if (gOFS->_symlink(
+		    path.c_str(), 
+		    target.c_str(), 
+		    error,
+		    vid)) {
+    reply->set_code(errno);
+    reply->set_msg(error.getErrText());
+    return grpc::Status::OK;
+  }
+
+  reply->set_code(0);
+  std::string msg = "info: symlinked '";
+  msg += path.c_str();
+  msg += "' to '";
+  msg += target.c_str();
+  msg += "'";
+
+  reply->set_msg(msg);
+  return grpc::Status::OK;
+}
+
+grpc::Status GrpcNsInterface::SetXAttr(eos::common::VirtualIdentity& vid,
+				       eos::rpc::NSResponse::ErrorResponse* reply,
+				       const eos::rpc::NSRequest::SetXAttrRequest* request)
+{
+  std::string path;
+
+  path = request->id().path();
+
+  if (path.empty()) {
+    if (request->id().type() == eos::rpc::FILE) {
+      try {
+	eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+	path = 
+	  gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(request->id().id()).get());
+      } catch (eos::MDException& e) {
+	path = "";
+	errno = e.getErrno();
+      }
+    } else {
+      try {
+	eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+	path = 
+	  gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(request->id().id()).get());
+      } catch (eos::MDException& e) {
+	path = "";
+	errno = e.getErrno();
+      }
+    }
+
+    if (path.empty()) {
+      reply->set_code(EINVAL);
+      reply->set_msg("error:path is empty");
+      return grpc::Status::OK;
+    }
+  }
+
+  XrdOucErrInfo error;
+  errno = 0;
+
+  for ( auto it = request->xattrs().begin(); it != request->xattrs().end(); ++it) {
+    std::string key = it->first;
+    std::string value = it->second;
+    std::string b64value;
+    eos::common::SymKey::Base64Encode(value.c_str(), value.length(), b64value);
+    if (gOFS->_attr_set(path.c_str(), error, vid, (const char*) 0,key.c_str(), b64value.c_str())) {
+      reply->set_code(errno);
+      reply->set_msg(error.getErrText());
+      return grpc::Status::OK;
+    }
+  }
+
+  reply->set_code(0);
+  std::string msg = "info: setxattr on '";
+  msg += path.c_str();
+  msg += "'";
+  reply->set_msg(msg);
+  return grpc::Status::OK;
+}
+
+grpc::Status GrpcNsInterface::Version(eos::common::VirtualIdentity& vid,
+				      eos::rpc::NSResponse::VersionResponse* reply,
+				      const eos::rpc::NSRequest::VersionRequest* request)
+{
+  reply->set_code(EINVAL);
+  reply->set_msg("error: command is currently not supported");
+  return grpc::Status::OK;
+}
+
+grpc::Status GrpcNsInterface::Recycle(eos::common::VirtualIdentity& vid,
+				      eos::rpc::NSResponse::RecycleResponse* reply,
+				      const eos::rpc::NSRequest::RecycleRequest* request)
+{
+  reply->set_code(EINVAL);
+  reply->set_msg("error: command is currently not supported");
+  return grpc::Status::OK;
+}
+
+
+grpc::Status 
+GrpcNsInterface::Chown(eos::common::VirtualIdentity& vid,
+		       eos::rpc::NSResponse::ErrorResponse* reply,
+		       const eos::rpc::NSRequest::ChownRequest* request)
+{
+  std::string path;
+
+  path = request->id().path();
+
+  if (path.empty()) {
+    if (request->id().type() == eos::rpc::FILE) {
+      try {
+	eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+	path = 
+	  gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(request->id().id()).get());
+      } catch (eos::MDException& e) {
+	path = "";
+	errno = e.getErrno();
+      }
+    } else {
+      try {
+	eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+	path = 
+	  gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(request->id().id()).get());
+      } catch (eos::MDException& e) {
+	path = "";
+	errno = e.getErrno();
+      }
+    }
+
+    if (path.empty()) {
+      reply->set_code(EINVAL);
+      reply->set_msg("error:path is empty");
+      return grpc::Status::OK;
+    }
+  }
+
+  XrdOucErrInfo error;
+  errno = 0;
+  uid_t uid = request->owner().uid();
+  gid_t gid = request->owner().gid();
+  std::string user = request->owner().username();
+  std::string group = request->owner().groupname();
+
+  if (!user.empty()) {
+    int errc = 0;
+    uid = eos::common::Mapping::UserNameToUid(user,errc);
+    if (errc) {
+      reply->set_code(EINVAL);
+      std::string msg = "error: unable to translate username to uid '";
+      msg += user;
+      msg += "'";
+      reply->set_msg(msg);
+      return grpc::Status::OK;
+    }
+  }
+  if (!group.empty()) {
+    int errc = 0;
+    gid = eos::common::Mapping::GroupNameToGid(group, errc);
+    if (errc) {
+      reply->set_code(EINVAL);
+      std::string msg = "error: unable to translate groupname to gid '";
+      msg += group;
+      msg += "'";
+      reply->set_msg(msg);
+      return grpc::Status::OK;
+    }
+  }
+
+  if (gOFS->_chown(path.c_str(), 
+		   uid, 
+		   gid,
+		   error, vid, (const char*) 0)) {
+    reply->set_code(errno);
+    reply->set_msg(error.getErrText());
+    return grpc::Status::OK;
+  }
+
+  reply->set_code(0);
+  std::string msg = "info: chown file '";
+  msg += path.c_str();
+  msg += "' uid=";
+  msg += std::to_string(uid);
+  msg += "' gid=";
+  msg += std::to_string(gid);
+			
+  reply->set_msg(msg);
+  return grpc::Status::OK;
+}
+
+grpc::Status 
+GrpcNsInterface::Chmod(eos::common::VirtualIdentity& vid,
+		       eos::rpc::NSResponse::ErrorResponse* reply,
+		       const eos::rpc::NSRequest::ChmodRequest* request)
+{
+  std::string path;
+
+  path = request->id().path();
+
+  if (path.empty()) {
+    if (request->id().type() == eos::rpc::FILE) {
+      try {
+	eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+	path = 
+	  gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(request->id().id()).get());
+      } catch (eos::MDException& e) {
+	path = "";
+	errno = e.getErrno();
+      }
+    } else {
+      try {
+	eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+	path = 
+	  gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(request->id().id()).get());
+      } catch (eos::MDException& e) {
+	path = "";
+	errno = e.getErrno();
+      }
+    }
+
+    if (path.empty()) {
+      reply->set_code(EINVAL);
+      reply->set_msg("error:path is empty");
+      return grpc::Status::OK;
+    }
+  }
+
+  XrdOucErrInfo error;
+  errno = 0;
+  mode_t mode = request->mode();
+
+  XrdSfsMode sfsmode = mode;
+
+  if (gOFS->_chmod(path.c_str(), 
+		   sfsmode,
+		   error, vid, (const char*) 0)) {
+    reply->set_code(errno);
+    reply->set_msg(error.getErrText());
+    return grpc::Status::OK;
+  }
+
+  reply->set_code(0);
+  std::string msg = "info: chmod file '";
+  msg += path.c_str();
+  msg += "' mode=";
+  std::stringstream s;
+  s << std::oct << mode;
+  msg += s.str().c_str();
+  reply->set_msg(msg);
+  return grpc::Status::OK;
+
 }
 
 #endif

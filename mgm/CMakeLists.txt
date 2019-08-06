@@ -234,6 +234,7 @@ add_library(
   Workflow.cc
   grpc/GrpcServer.cc   grpc/GrpcServer.hh
   grpc/GrpcNsInterface.cc   grpc/GrpcNsInterface.hh
+  grpc/GrpcManilaInterface.cc   grpc/GrpcManilaInterface.hh
   http/HttpServer.cc
   http/HttpHandler.cc
   http/s3/S3Handler.cc

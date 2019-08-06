@@ -62,7 +62,16 @@ public:
   std::string Ping(const std::string& payload);
 
   std::string Md(const std::string& path, uint64_t id = 0, uint64_t ino = 0,
-                 bool list = false);
+                 bool list = false, bool printonly = false);
+
+  std::string Find(const std::string& path, uint64_t id = 0, uint64_t ino = 0,
+		   bool files = true, bool dirs = true, uint64_t depth=0 , bool printonly = false);
+
+  int ManilaRequest(const eos::rpc::ManilaRequest& request,
+		    eos::rpc::ManilaResponse& reply);
+
+  int Exec(const eos::rpc::NSRequest& request,
+	    eos::rpc::NSResponse& reply);
 
   int FileInsert(const std::vector<std::string>& paths);
   int ContainerInsert(const std::vector<std::string>& paths);
