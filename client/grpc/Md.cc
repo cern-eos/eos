@@ -96,6 +96,10 @@ int main(int argc, const char* argv[])
       return usage(argv[0]);
     }
   }
+  
+  if (path.empty()) {
+    return usage(argv[0]);
+  }
 
   std::unique_ptr<eos::client::GrpcClient> eosgrpc =
     eos::client::GrpcClient::Create(
@@ -111,8 +115,7 @@ int main(int argc, const char* argv[])
 
   std::chrono::steady_clock::time_point watch_global =
     std::chrono::steady_clock::now();
-  std::string reply = eosgrpc->Md(path, 0, 0, listing);
-  std::cout << reply << std::endl;
+  std::string reply = eosgrpc->Md(path, 0, 0, listing, true);
   std::chrono::microseconds elapsed_global =
     std::chrono::duration_cast<std::chrono::microseconds>
     (std::chrono::steady_clock::now() - watch_global);

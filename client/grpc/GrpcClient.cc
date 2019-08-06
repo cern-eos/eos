@@ -50,11 +50,18 @@ using eos::rpc::PingRequest;
 using eos::rpc::PingReply;
 using eos::rpc::MDRequest;
 using eos::rpc::MDResponse;
+using eos::rpc::FindRequest;
+using eos::rpc::NSRequest;
+using eos::rpc::NSResponse;
 using eos::rpc::FileInsertRequest;
 using eos::rpc::ContainerInsertRequest;
 using eos::rpc::InsertReply;
 using eos::rpc::ContainerMdProto;
 using eos::rpc::FileMdProto;
+using eos::rpc::ManilaRequest;
+using eos::rpc::ManilaResponse;
+
+
 
 std::string GrpcClient::Ping(const std::string& payload)
 {
@@ -97,11 +104,36 @@ std::string GrpcClient::Ping(const std::string& payload)
   }
 }
 
+int 
+GrpcClient::ManilaRequest(const eos::rpc::ManilaRequest& request, 
+			  eos::rpc::ManilaResponse& reply)
+{
+  ClientContext context;
+  CompletionQueue cq;
+  Status status;
+  std::unique_ptr<ClientAsyncResponseReader<ManilaResponse> > rpc(
+    stub_->AsyncManilaServerRequest(&context, request, &cq));
+  rpc->Finish(&reply, &status, (void*) 1);
+  void* got_tag;
+  bool ok = false;
+  GPR_ASSERT(cq.Next(&got_tag, &ok));
+  GPR_ASSERT(got_tag == (void*) 1);
+  GPR_ASSERT(ok);
+
+  // Act upon the status of the actual RPC.
+  if (status.ok()) {
+    return reply.code();
+  } else {
+    return -1;
+  }
+}
+
 std::string
 GrpcClient::Md(const std::string& path,
                uint64_t id,
                uint64_t ino,
-               bool list)
+               bool list, 
+	       bool printonly)
 {
   MDRequest request;
 
@@ -131,6 +163,7 @@ GrpcClient::Md(const std::string& path,
     stub_->AsyncMD(&context, request, &cq, (void*) 1));
   void* got_tag;
   bool ok = false;
+  
   bool ret = cq.Next(&got_tag, &ok);
 
   while (1) {
@@ -148,7 +181,88 @@ GrpcClient::Md(const std::string& path,
     std::string jsonstring;
     google::protobuf::util::MessageToJsonString(response,
         &jsonstring, options);
-    responsestring += jsonstring;
+    if (printonly) {
+      std::cout << jsonstring << std::endl;
+    } else {
+      responsestring += jsonstring;
+    }
+  }
+
+  if (!status.ok()) {
+    std::cerr << "error: " << status.error_message() << std::endl;
+  }
+
+  return responsestring;
+}
+
+std::string
+GrpcClient::Find(const std::string& path,
+		 uint64_t id, 
+		 uint64_t ino,
+		 bool files, 
+		 bool dirs, 
+		 uint64_t depth, 
+		 bool printonly)
+{
+  FindRequest request;
+  if (files && !dirs) {
+    // query files
+    request.set_type(eos::rpc::FILE);
+  } else if (dirs && !files) {
+    // query container
+    request.set_type(eos::rpc::CONTAINER);
+  } else {
+    // query files & container
+    request.set_type(eos::rpc::LISTING);
+  }
+
+  if (path.length()) {
+    request.mutable_id()->set_path(path);
+  } else if (id) {
+    request.mutable_id()->set_id(id);
+  } else if (ino) {
+    request.mutable_id()->set_ino(ino);
+  } else {
+    return "";
+  }
+
+  if (depth) {
+    request.set_maxdepth(depth);
+  }
+
+  request.set_authkey(token());
+
+  MDResponse response;
+  ClientContext context;
+  std::string responsestring;
+  CompletionQueue cq;
+  Status status;
+  std::unique_ptr<ClientAsyncReader<MDResponse> > rpc(
+    stub_->AsyncFind(&context, request, &cq, (void*) 1));
+  void* got_tag;
+  bool ok = false;
+  bool ret = cq.Next(&got_tag, &ok);
+
+  while (1) {
+    rpc->Read(&response, (void*) 1);
+    ok = false;
+    ret = cq.Next(&got_tag, &ok);
+
+    if (!ret || !ok || got_tag != (void*) 1) {
+      break;
+    }
+
+    google::protobuf::util::JsonPrintOptions options;
+    options.add_whitespace = true;
+    options.always_print_primitive_fields = true;
+    std::string jsonstring;
+    google::protobuf::util::MessageToJsonString(response,
+        &jsonstring, options);
+    if (printonly) {
+      std::cout << jsonstring << std::endl;
+    } else {
+      responsestring += jsonstring;
+    }
   }
 
   if (!status.ok()) {
@@ -370,6 +484,31 @@ GrpcClient::Create(std::string endpoint,
   p->set_token(token);
   return p;
 }
+
+int 
+GrpcClient::Exec(const eos::rpc::NSRequest& request, 
+		  eos::rpc::NSResponse& reply)
+{
+  ClientContext context;
+  CompletionQueue cq;
+  Status status;
+  std::unique_ptr<ClientAsyncResponseReader<NSResponse> > rpc(
+    stub_->AsyncExec(&context, request, &cq));
+  rpc->Finish(&reply, &status, (void*) 1);
+  void* got_tag;
+  bool ok = false;
+  GPR_ASSERT(cq.Next(&got_tag, &ok));
+  GPR_ASSERT(got_tag == (void*) 1);
+  GPR_ASSERT(ok);
+  
+  // Act upon the status of the actual RPC.
+  if (status.ok()) {
+    return reply.error().code();
+  } else {
+    return -1;
+  }
+}
+
 //#endif
 
 

@@ -185,7 +185,7 @@ XrdMgmOfs::_mkdir(const char* path,
       // Admin can always create a directory
       if (stdpermcheck && (!dir->access(vid.uid, vid.gid, X_OK | W_OK))) {
         errno = EPERM;
-        return Emsg(epname, error, EPERM, "create parent directory",
+        return Emsg(epname, error, EPERM, "access(XW) parent directory",
                     cPath.GetParentPath());
       }
 

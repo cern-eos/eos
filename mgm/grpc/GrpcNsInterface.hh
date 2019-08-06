@@ -51,11 +51,18 @@ public:
 
   static grpc::Status GetMD(eos::common::VirtualIdentity& vid,
                             grpc::ServerWriter<eos::rpc::MDResponse>* writer,
-                            const eos::rpc::MDRequest* request, bool check_perms = true);
+                            const eos::rpc::MDRequest* request, bool check_perms = true, 
+			    bool lock=true);
 
   static grpc::Status StreamMD(eos::common::VirtualIdentity& vid,
                                grpc::ServerWriter<eos::rpc::MDResponse>* writer,
-                               const eos::rpc::MDRequest* request);
+                               const eos::rpc::MDRequest* request, 
+			       bool streamparent = true, 
+			       std::vector<uint64_t>* childdirs = 0);
+
+  static grpc::Status Find(eos::common::VirtualIdentity& vid,
+			   grpc::ServerWriter<eos::rpc::MDResponse>* writer,
+			   const eos::rpc::FindRequest* request);
 
   static grpc::Status FileInsert(eos::common::VirtualIdentity& vid,
                                  eos::rpc::InsertReply* reply,
@@ -68,6 +75,57 @@ public:
                                       const eos::rpc::ContainerInsertRequest* request);
 
 
+  static grpc::Status Exec(eos::common::VirtualIdentity& vid,
+			    eos::rpc::NSResponse* reply,
+			    const eos::rpc::NSRequest* request);
+			  
+  static grpc::Status Mkdir(eos::common::VirtualIdentity& vid, 
+			    eos::rpc::NSResponse::ErrorResponse* reply,
+			    const eos::rpc::NSRequest::MkdirRequest* request);
+
+  static grpc::Status Rmdir(eos::common::VirtualIdentity& vid, 
+			    eos::rpc::NSResponse::ErrorResponse* reply,
+			    const eos::rpc::NSRequest::RmdirRequest* request);
+
+  static grpc::Status Touch(eos::common::VirtualIdentity& vid, 
+			    eos::rpc::NSResponse::ErrorResponse* reply,
+			    const eos::rpc::NSRequest::TouchRequest* request);
+
+  static grpc::Status Unlink(eos::common::VirtualIdentity& vid, 
+			    eos::rpc::NSResponse::ErrorResponse* reply,
+			    const eos::rpc::NSRequest::UnlinkRequest* request);
+
+  static grpc::Status Rm(eos::common::VirtualIdentity& vid, 
+			 eos::rpc::NSResponse::ErrorResponse* reply,
+			 const eos::rpc::NSRequest::RmRequest* request);
+  
+  static grpc::Status Rename(eos::common::VirtualIdentity& vid, 
+			    eos::rpc::NSResponse::ErrorResponse* reply,
+			    const eos::rpc::NSRequest::RenameRequest* request);
+  
+  static grpc::Status Symlink(eos::common::VirtualIdentity& vid, 
+			    eos::rpc::NSResponse::ErrorResponse* reply,
+			    const eos::rpc::NSRequest::SymlinkRequest* request);
+
+  static grpc::Status SetXAttr(eos::common::VirtualIdentity& vid, 
+			       eos::rpc::NSResponse::ErrorResponse* reply,
+			       const eos::rpc::NSRequest::SetXAttrRequest* request);
+
+  static grpc::Status Version(eos::common::VirtualIdentity& vid, 
+			      eos::rpc::NSResponse::VersionResponse* reply,
+			      const eos::rpc::NSRequest::VersionRequest* request);
+
+  static grpc::Status Recycle(eos::common::VirtualIdentity& vid, 
+			      eos::rpc::NSResponse::RecycleResponse* reply,
+			      const eos::rpc::NSRequest::RecycleRequest* request);
+
+  static grpc::Status Chown(eos::common::VirtualIdentity& vid, 
+			    eos::rpc::NSResponse::ErrorResponse* reply,
+			    const eos::rpc::NSRequest::ChownRequest* request);
+  
+  static grpc::Status Chmod(eos::common::VirtualIdentity& vid, 
+			    eos::rpc::NSResponse::ErrorResponse* reply,
+			    const eos::rpc::NSRequest::ChmodRequest* request);
 
   static bool Access(eos::common::VirtualIdentity& vid, int mode,
                      std::shared_ptr<eos::IContainerMD> cmd);
