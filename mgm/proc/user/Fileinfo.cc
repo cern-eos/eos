@@ -141,8 +141,8 @@ ProcCommand::FileInfo(const char* path)
         errno = e.getErrno();
         stdErr = "error: cannot retrieve file meta data - ";
         stdErr += e.getMessage().str().c_str();
-        eos_debug("caught exception %d %s\n", e.getErrno(),
-                  e.getMessage().str().c_str());
+        eos_debug("msg=\"exception retrieving file metadata\" ec=%d "
+                  "emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
       }
     } else {
       // reference by path
@@ -156,8 +156,8 @@ ProcCommand::FileInfo(const char* path)
         errno = e.getErrno();
         stdErr = "error: cannot retrieve file meta data - ";
         stdErr += e.getMessage().str().c_str();
-        eos_debug("caught exception %d %s\n", e.getErrno(),
-                  e.getMessage().str().c_str());
+        eos_debug("msg=\"exception retrieving file metadata\" ec=%d "
+                  "emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
       }
     }
 
@@ -351,7 +351,8 @@ ProcCommand::FileInfo(const char* path)
           for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter) {
             // Ignore filesystem id 0
             if (!(*lociter)) {
-              eos_err("fsid 0 found fxid=%08llx", fmd_copy->getId());
+              eos_err("msg=\"found file on fsid=0\" fxid=%08llx",
+                      fmd_copy->getId());
               continue;
             }
 
@@ -453,13 +454,13 @@ ProcCommand::FileInfo(const char* path)
 
                     if (!acsargs.isValid()) {
                       // there is something wrong in the arguments of file access
-                      eos_static_err("open - invalid access argument");
+                      eos_static_err("msg=\"open - invalid access argument\"");
                     }
 
                     schedretc = Quota::FileAccess(&acsargs);
 
                     if (schedretc) {
-                      eos_static_warning("cannot schedule the proxy");
+                      eos_static_warning("msg=\"cannot schedule the proxy\"");
                     }
                   }
 
@@ -551,8 +552,8 @@ ProcCommand::DirInfo(const char* path)
         errno = e.getErrno();
         stdErr = "error: cannot retrieve directory meta data - ";
         stdErr += e.getMessage().str().c_str();
-        eos_debug("caught exception %d %s\n", e.getErrno(),
-                  e.getMessage().str().c_str());
+        eos_debug("msg=\"exception retrieving container metadata\" ec=%d "
+                  "emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
       }
     } else {
       // reference by path
@@ -565,8 +566,8 @@ ProcCommand::DirInfo(const char* path)
         errno = e.getErrno();
         stdErr = "error: cannot retrieve directory meta data - ";
         stdErr += e.getMessage().str().c_str();
-        eos_debug("caught exception %d %s\n", e.getErrno(),
-                  e.getMessage().str().c_str());
+        eos_debug("msg=\"exception retrieving container metadata\" ec=%d "
+                  "emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
       }
     }
 
@@ -729,7 +730,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
   eos::IFileMD::ctime_t ctime;
   eos::IFileMD::ctime_t mtime;
   eos::IFileMD::ctime_t btime {0, 0};
-  eos_static_debug("fxid=%08llx", fid);
+  eos_static_debug("msg=\"JSON fileinfo\" fxid=%08llx", fid);
   Json::Value json;
   json["id"] = (Json::Value::UInt64) fid;
   const std::string hex_fid = eos::common::FileId::Fid2Hex(fid);
@@ -843,7 +844,8 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["etag"] = etag;
   } catch (eos::MDException& e) {
     errno = e.getErrno();
-    eos_static_debug("caught exception %d %s\n", e.getErrno(),
+    eos_static_debug("msg=\"exception during JSON fileinfo\" ec=%d "
+                     "emsg=\"%s\"\n", e.getErrno(),
                      e.getMessage().str().c_str());
     json["errc"] = errno;
     json["errmsg"] = e.getMessage().str().c_str();
@@ -871,7 +873,7 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
   eos::IFileMD::ctime_t mtime;
   eos::IFileMD::ctime_t tmtime;
   eos::IFileMD::ctime_t btime {0, 0};
-  eos_static_debug("fxid=%08llx", fid);
+  eos_static_debug("msg=\"JSON dirinfo\" fxid=%08llx", fid);
   Json::Value json;
   json["id"] = (Json::Value::UInt64) fid;
 
@@ -956,7 +958,8 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["etag"] = etag;
   } catch (eos::MDException& e) {
     errno = e.getErrno();
-    eos_static_debug("caught exception %d %s\n", e.getErrno(),
+    eos_static_debug("msg=\"exception during JSON dirinfo\" ec=%d "
+                     "emsg=\"%s\"\n", e.getErrno(),
                      e.getMessage().str().c_str());
     json["errc"] = errno;
     json["errmsg"] = e.getMessage().str().c_str();
