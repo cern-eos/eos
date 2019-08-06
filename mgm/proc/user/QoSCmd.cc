@@ -41,13 +41,13 @@ QoSCmd::ProcessRequest() noexcept
   eos::console::ReplyProto reply;
   eos::console::QoSProto qos = mReqProto.qos();
   const auto& subcmd = qos.subcmd_case();
+  bool jsonOutput =
+    (mReqProto.format() == eos::console::RequestProto::JSON);
 
   if (subcmd == eos::console::QoSProto::kGet) {
-    bool jsonOutput =
-      (mReqProto.format() == eos::console::RequestProto::JSON);
     GetSubcmd(qos.get(), reply, jsonOutput);
   } else if (subcmd == eos::console::QoSProto::kSet) {
-    SetSubcmd(qos.set(), reply);
+    SetSubcmd(qos.set(), reply, jsonOutput);
   } else {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: command not supported");
@@ -153,7 +153,8 @@ void QoSCmd::GetSubcmd(const eos::console::QoSProto_GetProto& get,
 // Execute set subcommand
 //------------------------------------------------------------------------------
 void QoSCmd::SetSubcmd(const eos::console::QoSProto_SetProto& set,
-                       eos::console::ReplyProto& reply)
+                       eos::console::ReplyProto& reply,
+                       bool jsonOutput)
 {
   using eos::common::LayoutId;
   std::ostringstream out;
@@ -189,9 +190,8 @@ void QoSCmd::SetSubcmd(const eos::console::QoSProto_SetProto& set,
     const auto& value = pair.value();
 
     if (!IsValidPair(key, value)) {
-      err << "error: invalid QoS property "
+      err << "warning: invalid QoS property "
           << key << "=" << value << std::endl;
-      retc = EINVAL;
       continue;
     }
 
@@ -220,8 +220,15 @@ void QoSCmd::SetSubcmd(const eos::console::QoSProto_SetProto& set,
                      layout, nstripes, checksum, policy)) {
     err << "error: " << errInfo.getErrText() << std::endl;
     retc = errInfo.getErrInfo();
-  } else {
+  }
+
+  if (!retc && !jsonOutput) {
     out << "scheduled QoS conversion job: " << conversion_id;
+  } else if (jsonOutput) {
+    Json::Value jsonOut;
+    jsonOut["retc"] = (Json::Value::UInt64) retc;
+    jsonOut["conversionid"] = (retc) ? "null" : conversion_id;
+    out << jsonOut;
   }
 
   reply.set_retc(retc);
