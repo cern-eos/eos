@@ -363,4 +363,13 @@ QuarkContainerMDSvc::getCacheStatistics()
   return mMetadataProvider->getContainerMDCacheStats();
 }
 
+//------------------------------------------------------------------------------
+// Blacklist IDs below the given threshold
+//------------------------------------------------------------------------------
+void
+QuarkContainerMDSvc::blacklistBelow(ContainerIdentifier id)
+{
+  mUnifiedInodeProvider->blacklistContainerId(id.getUnderlyingUInt64());
+}
+
 EOSNSNAMESPACE_END

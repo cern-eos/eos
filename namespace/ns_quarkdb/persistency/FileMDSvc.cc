@@ -325,4 +325,12 @@ CacheStatistics QuarkFileMDSvc::getCacheStatistics()
   return mMetadataProvider->getFileMDCacheStats();
 }
 
+//------------------------------------------------------------------------------
+// Blacklist IDs below the given threshold
+//------------------------------------------------------------------------------
+void QuarkFileMDSvc::blacklistBelow(FileIdentifier id)
+{
+  mUnifiedInodeProvider.blacklistFileId(id.getUnderlyingUInt64());
+}
+
 EOSNSNAMESPACE_END

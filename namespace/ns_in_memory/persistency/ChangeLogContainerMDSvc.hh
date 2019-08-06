@@ -358,6 +358,12 @@ public:
     return {};
   }
 
+  //----------------------------------------------------------------------------
+  //! Blacklist IDs below the given threshold - no-op for in-memory namespace
+  //----------------------------------------------------------------------------
+  virtual void blacklistBelow(ContainerIdentifier id) override {}
+
+
 private:
   //--------------------------------------------------------------------------
   // Placeholder for the record info

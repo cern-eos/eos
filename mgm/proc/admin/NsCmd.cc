@@ -74,6 +74,8 @@ NsCmd::ProcessRequest() noexcept
     QuotaSizeSubcmd(ns.quota(), reply);
   } else if (subcmd == eos::console::NsProto::kDrain) {
     DrainSizeSubcmd(ns.drain(), reply);
+  } else if (subcmd == eos::console::NsProto::kReserve) {
+    ReserveIdsSubCmd(ns.reserve(), reply);
   } else {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: not supported");
@@ -871,6 +873,22 @@ NsCmd::DrainSizeSubcmd(const eos::console::NsProto_DrainSizeProto& drain,
 {
   gOFS->mDrainEngine.SetMaxThreadPoolSize(drain.max_num());
   reply.set_retc(0);
+}
+
+//------------------------------------------------------------------------------
+// Execute reserve ids command
+//------------------------------------------------------------------------------
+void
+NsCmd::ReserveIdsSubCmd(const eos::console::NsProto_ReserveIdsProto& reserve,
+                        eos::console::ReplyProto& reply)
+{
+  if(reserve.fileid() > 0) {
+    gOFS->eosFileService->blacklistBelow(FileIdentifier(reserve.fileid()));
+  }
+
+  if(reserve.containerid() > 0) {
+    gOFS->eosDirectoryService->blacklistBelow(ContainerIdentifier(reserve.containerid()));
+  }
 }
 
 EOSMGMNAMESPACE_END

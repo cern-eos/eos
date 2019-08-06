@@ -131,6 +131,15 @@ private:
                        eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
+  //! Execute reserve ids command
+  //!
+  //! @param cache cache subcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void ReserveIdsSubCmd(const eos::console::NsProto_ReserveIdsProto& reserve,
+                   eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
   //! Do a breadth first search of all the subcontainers under the given
   //! container
   //!

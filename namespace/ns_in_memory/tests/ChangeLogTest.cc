@@ -132,6 +132,7 @@ public:
     return {};
   }
 
+  virtual void blacklistBelow(eos::FileIdentifier id) {}
 };
 
 //------------------------------------------------------------------------------

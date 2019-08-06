@@ -166,6 +166,11 @@ public:
   //----------------------------------------------------------------------------
   virtual CacheStatistics getCacheStatistics() override;
 
+  //----------------------------------------------------------------------------
+  //! Blacklist IDs below the given threshold
+  //----------------------------------------------------------------------------
+  virtual void blacklistBelow(FileIdentifier id) override;
+
 private:
   typedef std::list<IFileMDChangeListener*> ListenerList;
   //! Interval for backend flush of consistent file ids

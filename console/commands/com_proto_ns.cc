@@ -22,6 +22,7 @@
 
 #include "common/StringTokenizer.hh"
 #include "common/StringConversion.hh"
+#include "common/ParseUtils.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/ICmdHelper.hh"
 
@@ -391,6 +392,32 @@ NsHelper::ParseCommand(const char* arg)
 
       drain_sz->set_max_num(max_num_threads);
     }
+  } else if (cmd == "reserve-ids") {
+    using eos::console::NsProto_ReserveIdsProto;
+    NsProto_ReserveIdsProto* reserve = ns->mutable_reserve();
+
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    }
+
+    int64_t fileID = 0;
+    if(!eos::common::ParseInt64(option, fileID) || fileID < 0) {
+      return false;
+    }
+
+    // ---
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    }
+
+    int64_t containerID = 0;
+    if(!eos::common::ParseInt64(option, containerID) || containerID < 0) {
+      return false;
+    }
+
+    reserve->set_fileid(fileID);
+    reserve->set_containerid(containerID);
+
   } else if (cmd == "") {
     eos::console::NsProto_StatProto* stat = ns->mutable_stat();
     stat->set_summary(true);
@@ -509,6 +536,12 @@ void com_ns_help()
       << std::endl
       << "  ns max_drain_threads <num>" << std::endl
       << "    set the max number of threads in the drain pool, default 400, minimum 4"
+      << std::endl
+      << std::endl
+      << "  ns reserve-ids <file id> <container id>" << std::endl
+      << "    blacklist file and container IDs below the given threshold. The namespace" << std::endl
+      << "    will not allocate any file or container with IDs less than, or equal to the" << std::endl
+      << "    given blacklist thresholds." << std::endl
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }

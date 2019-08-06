@@ -178,6 +178,12 @@ public:
   //! Retrieve file metadata cache statistics
   //----------------------------------------------------------------------------
   virtual CacheStatistics getCacheStatistics() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Blacklist IDs below the given threshold
+  //----------------------------------------------------------------------------
+  virtual void blacklistBelow(ContainerIdentifier id) = 0;
+
 };
 
 EOSNSNAMESPACE_END

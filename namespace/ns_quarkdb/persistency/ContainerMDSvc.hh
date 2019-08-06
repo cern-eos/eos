@@ -196,6 +196,11 @@ public:
   //----------------------------------------------------------------------------
   virtual CacheStatistics getCacheStatistics() override;
 
+  //----------------------------------------------------------------------------
+  //! Blacklist IDs below the given threshold
+  //----------------------------------------------------------------------------
+  virtual void blacklistBelow(ContainerIdentifier id) override;
+
 private:
   typedef std::list<IContainerMDChangeListener*> ListenerList;
 

@@ -87,14 +87,20 @@ message NsProto {
     uint64 max_num = 1;
   }
 
+  message ReserveIdsProto {
+    uint64 fileId = 1;
+    uint64 containerId = 2;
+  }
+
   oneof subcmd {
-    StatProto stat       = 1;
-    MutexProto mutex     = 2;
-    CompactProto compact = 3;
-    MasterProto master   = 4;
-    TreeSizeProto tree   = 5;
-    CacheProto cache     = 6;
-    QuotaSizeProto quota = 7;
-    DrainSizeProto drain = 8;
+    StatProto stat          = 1;
+    MutexProto mutex        = 2;
+    CompactProto compact    = 3;
+    MasterProto master      = 4;
+    TreeSizeProto tree      = 5;
+    CacheProto cache        = 6;
+    QuotaSizeProto quota    = 7;
+    DrainSizeProto drain    = 8;
+    ReserveIdsProto reserve = 9;
   }
 }
