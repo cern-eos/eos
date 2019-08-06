@@ -66,12 +66,10 @@ target_sources(EosMgmProto-Objects PUBLIC
 #-------------------------------------------------------------------------------
 # EosMgmHttp library
 #-------------------------------------------------------------------------------
-
 add_library(
   EosMgmHttp-Objects OBJECT
   http/xrdhttp/EosMgmHttpHandler.hh
-  http/xrdhttp/EosMgmHttpHandler.cc
-)
+  http/xrdhttp/EosMgmHttpHandler.cc)
 
 set_target_properties(
   EosMgmHttp-Objects
@@ -80,16 +78,12 @@ set_target_properties(
 
 add_dependencies(EosMgmHttp-Objects EosAuthProto-Objects)
 
-add_library(EosMgmHttp MODULE
-  $<TARGET_OBJECTS:EosMgmHttp-Objects>
-)
+add_library(EosMgmHttp MODULE $<TARGET_OBJECTS:EosMgmHttp-Objects>)
 
-target_link_libraries(
-  EosMgmHttp PUBLIC
+target_link_libraries( EosMgmHttp PUBLIC
   XrdHttp-4
   eosCommon
-  eosCommonServer
-)
+  eosCommonServer)
 
 install(
   TARGETS EosMgmHttp
