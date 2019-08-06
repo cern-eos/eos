@@ -966,6 +966,27 @@ public:
                const char* key,
                XrdOucString& value);
 
+  //----------------------------------------------------------------------------
+  //! Schedule QoS properties for a given entry - low-level API
+  //! If no value is provided for a QoS property, it will be left unchanged.
+  //!
+  //! @param path the entry path
+  //! @param out_error error object
+  //! @param vid virtual identity of the client
+  //! @param conversion_id will hold the name of the conversion file
+  //! @param layout desired layout type
+  //! @param nstripes desired number of stripes
+  //! @param checksum desired checkum type
+  //! @param policy desired placement policy
+  //!
+  //! @return SFS_OK if success, otherwise SFS_ERROR
+  //----------------------------------------------------------------------------
+  int _qos_set(const char* path, XrdOucErrInfo& out_error,
+               eos::common::VirtualIdentity& vid,
+               std::string& conversion_id,
+               int layout = -1, int nstripes = -1,
+               int checksum = -1, std::string policy = "");
+
   // ---------------------------------------------------------------------------
   // drop stripe by vid
   // ---------------------------------------------------------------------------
