@@ -1702,23 +1702,45 @@ Server::OpSetFile(const std::string& id,
           if (EOS_LOGS_DEBUG) {
             eos_debug("removing previous file in move %s", md.name().c_str());
           }
+	  
+	  eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();	  
+	  // recycle bin - not for hardlinked files or hardlinks!
+	  if (attrmap.count(Recycle::gRecyclingAttribute) &&
+	      (!ofmd->hasAttribute(k_mdino)) &&
+	      (!ofmd->hasAttribute(k_nlink))) {
+	    // translate to a path name and call the complex deletion function
+	    // this is vulnerable to a hard to trigger race conditions
+	    std::string fullpath = gOFS->eosView->getUri(ofmd.get());
+	    gOFS->WriteRecycleRecord(ofmd);
+	    gOFS->eosViewRWMutex.UnLockWrite();
+	    XrdOucErrInfo error;
+	    (void) gOFS->_rem(fullpath.c_str(), error, vid, "", false, false,
+			      false, true, false);
+	    gOFS->eosViewRWMutex.LockWrite();
+	  } else {
+	    // no recycle bin
+	    try {
+	      pcmd->removeFile(md.name());
+	      
+	      eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+	      
+	      // free previous quota
+	      if (quotanode) {
+		quotanode->removeFile(ofmd.get());
+	      }
+	      
+	      // unlink the existing file 
+	      ofmd->setContainerId(0);
+            ofmd->unlinkAllLocations();
+            gOFS->eosFileService->updateStore(ofmd.get());
+	    } catch (eos::MDException& e) {
+	    }
+	  }
+	}
 
-          try {
-            pcmd->removeFile(md.name());
-            gOFS->eosFileService->removeFile(ofmd.get());
-            eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
-
-            // free previous quota
-            if (quotanode) {
-              quotanode->removeFile(ofmd.get());
-            }
-          } catch (eos::MDException& e) {
-          }
-        }
-
-        pcmd->addFile(fmd.get());
-        gOFS->eosView->updateFileStore(fmd.get());
-        gOFS->eosView->updateContainerStore(pcmd.get());
+	pcmd->addFile(fmd.get());
+	gOFS->eosView->updateFileStore(fmd.get());
+	gOFS->eosView->updateContainerStore(pcmd.get());
       } else {
         if (fmd->getName() != md.name()) {
           // this indicates a file rename
@@ -1735,21 +1757,40 @@ Server::OpSetFile(const std::string& id,
             if (EOS_LOGS_DEBUG) {
               eos_debug("removing previous file in update %s", md.name().c_str());
             }
-
-            try {
-              pcmd->removeFile(md.name());
-              gOFS->eosFileService->removeFile(ofmd.get());
-              eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
-
-              // free previous quota
-              if (quotanode) {
-                quotanode->removeFile(ofmd.get());
-              }
-            } catch (eos::MDException& e) {
-            }
-          }
-
-          gOFS->eosView->renameFile(fmd.get(), md.name());
+	    
+	    eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();	  
+	    // recycle bin - not for hardlinked files or hardlinks!
+	    if (attrmap.count(Recycle::gRecyclingAttribute) &&
+		(!ofmd->hasAttribute(k_mdino)) &&
+		(!ofmd->hasAttribute(k_nlink))) {
+	      // translate to a path name and call the complex deletion function
+	      // this is vulnerable to a hard to trigger race conditions
+	      std::string fullpath = gOFS->eosView->getUri(ofmd.get());
+	      gOFS->WriteRecycleRecord(ofmd);
+	      gOFS->eosViewRWMutex.UnLockWrite();
+	      XrdOucErrInfo error;
+	      (void) gOFS->_rem(fullpath.c_str(), error, vid, "", false, false,
+				false, true, false);
+	      gOFS->eosViewRWMutex.LockWrite();
+	    } else {
+	      try {
+		pcmd->removeFile(md.name());
+		eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
+		
+		// free previous quota
+		if (quotanode) {
+		  quotanode->removeFile(ofmd.get());
+		}
+		
+		// unlink the existing file 
+		ofmd->setContainerId(0);
+		ofmd->unlinkAllLocations();
+		gOFS->eosFileService->updateStore(ofmd.get());
+	      } catch (eos::MDException& e) {
+	      }
+	    }	    
+	    gOFS->eosView->renameFile(fmd.get(), md.name());
+	  }
         }
       }
 
