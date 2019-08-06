@@ -82,12 +82,12 @@ The following tags compose a rule:
    i   set the immutable flag    
    === =========================================================================
 
-Actually, every single-letter permission can be explicitely denied ('!'), e.g. '!w!r'.
+Actually, every single-letter permission can be explicitely denied ('!'), e.g. '!w!r, or re-granted ('+').
 Denials persist after all other rules have been evaluated, i.e. in 'u:fred:!w!r,g:fredsgroup:wrx' the user "fred"
 is denied reading and writing although the group he is in has read+write access.
-Only 'd' and 'u' can be re-granted even when previously (!) denied by specyfing  '+d' and '+u',
-which makes sense for example when sys.acl and then user.acl are evaluated: sys.acl='u:fred:!d' and user.acl='u:fred:+d'
-means the user "fred" is granted the 'd' right anyway.
+Rights can be re-granted (in sys.acl only) even when denied by specyfing e.g. '+d'. Hence,
+when sys.acl='g:admins:+d' and then user.acl='z:!d' are evaluated,
+the group "admins" is granted the 'd' right although it is denied to everybody else.
 
 A complex example is shown here:
 

@@ -141,7 +141,6 @@ Acl::Set(std::string sysacl, std::string useracl,
   mCanArchive = false;
   mCanPrepare = false;
 
-if (EOS_LOGS_DEBUG) eos_static_debug("acl='%s' length=%d allowUserAcl=%d", acl.c_str(), acl.length(), allowUserAcl);
   // no acl definition
   if (!acl.length()) {
     return;
@@ -150,10 +149,20 @@ if (EOS_LOGS_DEBUG) eos_static_debug("acl='%s' length=%d allowUserAcl=%d", acl.c
   int errc = 0;
   std::vector<std::string> rules;
   std::string delimiter = ",";
-  eos::common::StringConversion::Tokenize(acl, rules, delimiter);
+  eos::common::StringConversion::Tokenize(sysacl, rules, delimiter);
+  int num_sysacl_rules = rules.size();     /* number of entries in sysacl, used to limit "+" (reallow) */
+  if (allowUserAcl)
+    eos::common::StringConversion::Tokenize(useracl, rules, delimiter);     /* append to rules */
+  if (EOS_LOGS_DEBUG)
+    eos_static_debug("sysacl %s (%d entries), useracl %s, total %d entries", sysacl.c_str(), num_sysacl_rules, useracl.c_str(), rules.size());
+
   std::vector<std::string>::const_iterator it;
   XrdOucString sizestring1;
   XrdOucString sizestring2;
+
+  char denials[256], reallows[256];
+  memset(denials, 0, sizeof(denials));        /* start with no denials */
+  memset(reallows, 0, sizeof(reallows));      /* nor reallows */
 
   for (size_t n_gid = 0; n_gid < vid.gid_list.size(); ++n_gid) {
     gid_t chk_gid = vid.gid_list[n_gid];
@@ -185,7 +194,7 @@ if (EOS_LOGS_DEBUG) eos_static_debug("acl='%s' length=%d allowUserAcl=%d", acl.c
       groupname = "_INVAL_";
     }
 
-if (EOS_LOGS_DEBUG) eos_static_debug("username '%s' groupname '%s'", username.c_str(), groupname.c_str());
+    if (EOS_LOGS_DEBUG) eos_static_debug("username '%s' groupname '%s'", username.c_str(), groupname.c_str());
     std::string usr_name_tag = "u:";
     usr_name_tag += username;
     usr_name_tag += ":";
@@ -199,11 +208,10 @@ if (EOS_LOGS_DEBUG) eos_static_debug("username '%s' groupname '%s'", username.c_
     if (EOS_LOGS_DEBUG) eos_static_debug("%s %s %s %s %s", usertag.c_str(), grouptag.c_str(),
                      usr_name_tag.c_str(), grp_name_tag.c_str(), keytag.c_str());
     // Rule interpretation logic
-    char denials[256];
-    memset(denials, 0, sizeof(denials));        /* start with no denials */
-
+    int sysacl_rules_remaining = num_sysacl_rules;
     for (it = rules.begin(); it != rules.end(); it++) {
       bool egroupmatch = false;
+      sysacl_rules_remaining -= 1;                    /* when negative, we're in user.acl */
 
       // Check for e-group membership
       if (!it->compare(0, strlen("egroup:"), "egroup:")) {
@@ -260,177 +268,173 @@ if (EOS_LOGS_DEBUG) eos_static_debug("username '%s' groupname '%s'", username.c_
           }
 
           switch (c) {
-          case '!':
-            deny = true;
-            continue;
+            case '!':
+              deny = true;
+              continue;
 
-          case '+':
-            reallow = true;
-            continue;
+            case '+':
+              reallow = true;
+              continue;
 
-          case 'a': // 'a' defines archiving permission
-            mCanArchive = !deny;
-            break;
+            case 'a': // 'a' defines archiving permission
+              mCanArchive = !deny;
+              break;
 
-          case 'r': // 'r' defines read permission
-            mCanRead = !deny;
-            break;
+            case 'r': // 'r' defines read permission
+              mCanRead = !deny;
+              break;
 
-          case 'x': // 'x' defines browsing permission
-            mCanBrowse = !deny;
-            break;
+            case 'x': // 'x' defines browsing permission
+              mCanBrowse = !deny;
+              break;
 
-          case 'p': // 'p' defines workflow permission
-            mCanPrepare = !deny;
-            break;
+            case 'p': // 'p' defines workflow permission
+              mCanPrepare = !deny;
+              break;
 
-          case 'm': // 'm' defines mode change permission
-            if (deny) {
-              mCanNotChmod = true;
-            } else {
-              mCanChmod = true;
-            }
-
-            break;
-
-          case 'c': // 'c' defines owner change permission (for directories)
-            if (sysacl.find(*it) !=
-                std::string::npos) { // this is only valid if specified as a sysacl
-              mCanChown = true;
-            } else {
-              eos_static_debug("'%c' right ignored on user.acl", c);
-            }
-
-            break;
-
-          case 'd': // '!d' forbids deletion
-            if (deny && !mCanDelete) {
-              mCanNotDelete = true;
-            } else if (reallow) {
-              mCanDelete = true;
-              mCanNotDelete = false;
-              mCanWriteOnce = false;
-              denials['d'] = 0;               /* drop denial, 'd' and 'u' are "odd" */
-            }
-
-            break;
-
-          case 'u':// '!u' denies update, 'u' and '+u' add update. '!+u' and '+!u' would *deny* updates
-            mCanUpdate = !deny;
-
-            if (mCanUpdate && reallow) {
-              denials['u'] = 0;  /* drop denial, 'd' and 'u' are "odd" */
-            }
-
-            break;
-
-          case 'w': // 'wo' defines write once permissions, 'w' defines write permissions if 'wo' is not granted
-            if ((s + 1)[0] == 'o') {  /* this is a 'wo' */
-              s++;
-              c = 'W';        /* for the denial entry */
-              mCanWriteOnce = !deny;
-            } else {
-              if (!mCanWriteOnce) {
-                mCanWrite = !deny;
+            case 'm': // 'm' defines mode change permission
+              if (deny) {
+                mCanNotChmod = true;
+              } else {
+                mCanChmod = true;
               }
-            }
+              break;
 
-            break;
+            case 'c': // 'c' defines owner change permission (for directories)
+              if (sysacl_rules_remaining >= 0) { // this is only valid if specified as a sysacl
+                mCanChown = true;
+              } else {
+                eos_static_debug("'%c' right ignored on user.acl", c);
+              }
+              break;
 
-          case 'q':
-            if (sysacl.find(*it) != std::string::npos) {
-              mCanSetQuota = !deny;
-            }
+            case 'd': // '!d' forbids deletion
+              if (deny && !mCanDelete) {
+                mCanNotDelete = true;
+              } else if (reallow) {
+                if (sysacl_rules_remaining < 0) {
+                  eos_static_info("'+d' ignored in user acl '%s'", entry[2].c_str());
+                  reallow = 0;        /* ignore the reallow */
+                  break;
+                }
+                mCanDelete = true;
+                mCanNotDelete = false;
+                mCanWriteOnce = false;
+                denials['d'] = 0;               /* drop denial, 'd' and 'u' are "odd" */
+              }
+              break;
 
-            break;
+            case 'u':// '!u' denies update, 'u' and '+u' add update. '!+u' and '+!u' would *deny* updates
+              mCanUpdate = !deny;
 
-          case 'i': // 'i' makes directories immutable
-            mIsMutable = deny;
-            break;
+              if (mCanUpdate && reallow) {
+                denials['u'] = 0;  /* drop denial, 'd' and 'u' are "odd" */
+              }
+              break;
+
+            case 'w': // 'wo' defines write once permissions, 'w' defines write permissions if 'wo' is not granted
+              if ((s + 1)[0] == 'o') {  /* this is a 'wo' */
+                s++;
+                c = 'W';        /* for the denial entry */
+                mCanWriteOnce = !deny;
+              } else {
+                if (!mCanWriteOnce) {
+                  mCanWrite = !deny;
+                }
+              }
+              break;
+
+            case 'q':
+              if (sysacl_rules_remaining >= 0) { // this is only valid if specified as a sysacl
+                mCanSetQuota = !deny;
+              }
+              break;
+
+            case 'i': // 'i' makes directories immutable
+              mIsMutable = deny;
+              break;
           }
 
           mHasAcl = true;
 
-          if (deny) {
-            denials[c] = 1;  /* remember the denials */
+          if (reallow) {
+            reallows[c] = 1;    /* remember reallows */
+          } else if (deny) {
+            denials[c] = 1;     /* remember denials */
           }
 
           deny = reallow = false;           /* reset for next permission char */
         }
       }
     }
+  }
 
-    /* Finally, process denials: they take precedence over turn-off/turn-on in other ACL entries */
-    if (denials['a']) {
-      mCanArchive = false;
-      eos_static_debug("deny a");
-    }
+  /* Now that all ACLs have been parsed, handle re-allows and denials */
+  char rights[] = "arxpmcWwdui";
+  unsigned char r;
+  for (int i = 0; (r = rights[i]); i++) {
+    bool is_allowed;
+    if (reallows[r]) {
+        denials[r] = 0;
+        is_allowed = true;
+        eos_static_debug("reallow %c", r);
+    } else if (denials[r]) {        /* re-allows beat denials */
+        is_allowed = false;
+        if (r != 'W') eos_static_debug("deny %c", r);
+    } else continue;
 
-    if (denials['r']) {
-      mCanRead = false;
-      mCanNotRead = true;
-      eos_static_debug("deny r");
+    switch (r) {
+      case 'a':
+        mCanArchive = is_allowed;
+        break;
+      case 'r':
+        mCanRead = is_allowed;
+        mCanNotRead = !is_allowed;
+        break;
+      case 'x':
+        mCanBrowse = is_allowed;
+        mCanNotBrowse = !is_allowed;
+        break;
+      case 'p':
+        mCanPrepare = is_allowed;
+        break;
+      case 'm':
+        mCanNotChmod = !is_allowed;
+        break;
+      case 'c':
+        mCanChown = is_allowed;
+        break;
+      case 'W':
+        mCanWriteOnce = is_allowed;
+        eos_static_debug("writeonce %d", mCanWriteOnce);
+        break;
+      case 'w':
+        mCanWrite = is_allowed;
+        mCanNotWrite = !is_allowed;
+        /* if mCanWrite, grant mCanUpdate implicitely unless 'u' explicitely denied */
+        if (mCanWrite) mCanUpdate = true;   /* 'u' is checked after 'w', this could be reverted */
+        break;
+      case 'd':
+        mCanNotDelete = !is_allowed;
+        break;
+      case 'u':
+        mCanUpdate = is_allowed;
+        mCanNotUpdate = !is_allowed;
+        break;
+      case 'i':
+        mIsMutable = !is_allowed;
+        break;
     }
+  }
 
-    if (denials['x']) {
-      mCanBrowse = false;
-      mCanNotBrowse = true;
-      eos_static_debug("deny x");
-    }
-
-    if (denials['p']) {
-      mCanPrepare = false;
-      eos_static_debug("deny p");
-    }
-
-    if (denials['m']) {
-      mCanNotChmod = true;
-      eos_static_debug("deny m");
-    }
-
-    if (denials['c']) {
-      mCanChown = false;
-      eos_static_debug("deny c");
-    }
-
-    if (denials['W']) {
-      mCanWriteOnce = false;
-      eos_static_debug("deny writeonce");
-    }
-
-    if (denials['w']) {
-      mCanWrite = false;
-      mCanNotWrite = true;
-      eos_static_debug("deny w");
-    } else if (mCanWrite) {         /* if mCanWrite, grant mCanUpdate implicitely *unless* 'u' is denied */
-      mCanUpdate = true;            /* this could be reverted a few lines further down were 'u' denied */
-    }
-
-    if (denials['d']) {
-      mCanNotDelete = true;
-      eos_static_debug("deny d");
-    }
-
-    if (denials['u']) {
-      mCanUpdate = false;
-      mCanNotUpdate = true;
-      eos_static_debug("deny u");
-    }
-
-    if (denials['i']) {
-      mIsMutable = true;
-      eos_static_debug("deny i");
-    }
-
-    if (EOS_LOGS_DEBUG) {
-      eos_static_debug(
-        "mCanRead %d mCanNotRead %d mCanWrite %d mCanNotWrite %d mCanWriteOnce %d mCanUpdate %d mCanNotUpdate %d "
-        "mCanBrowse %d mCanNotBrowse %d mCanChmod %d mCanChown %d mCanNotDelete %d mCanNotChmod %d "
-        "mCanDelete %d mCanSetQuota %d mHasAcl %d mHasEgroup %d mIsMutable %d mCanArchive %d mCanPrepare %d",
-        mCanRead, mCanNotRead, mCanWrite, mCanNotWrite, mCanWriteOnce, mCanUpdate, mCanNotUpdate,
-        mCanBrowse, mCanNotBrowse, mCanChmod, mCanChown, mCanNotDelete, mCanNotChmod,
-        mCanDelete, mCanSetQuota, mHasAcl, mHasEgroup, mIsMutable, mCanArchive, mCanPrepare);
-    }
+  if (EOS_LOGS_DEBUG) {
+    eos_static_debug(
+      "mCanRead %d mCanNotRead %d mCanWrite %d mCanNotWrite %d mCanWriteOnce %d mCanUpdate %d mCanNotUpdate %d "
+      "mCanBrowse %d mCanNotBrowse %d mCanChmod %d mCanChown %d mCanNotDelete %d mCanNotChmod %d "
+      "mCanDelete %d mCanSetQuota %d mHasAcl %d mHasEgroup %d mIsMutable %d mCanArchive %d mCanPrepare %d",
+      mCanRead, mCanNotRead, mCanWrite, mCanNotWrite, mCanWriteOnce, mCanUpdate, mCanNotUpdate,
+      mCanBrowse, mCanNotBrowse, mCanChmod, mCanChown, mCanNotDelete, mCanNotChmod,
+      mCanDelete, mCanSetQuota, mHasAcl, mHasEgroup, mIsMutable, mCanArchive, mCanPrepare);
   }
 }
 
