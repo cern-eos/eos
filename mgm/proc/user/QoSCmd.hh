@@ -76,9 +76,11 @@ private:
   //!
   //! @param set set subcommand proto object
   //! @param reply reply proto object
+  //! @param jsonOutput flag to print output in JSON format
   //----------------------------------------------------------------------------
   void SetSubcmd(const eos::console::QoSProto_SetProto& set,
-                 eos::console::ReplyProto& reply);
+                 eos::console::ReplyProto& reply,
+                 bool jsonOutput = false);
 
   //----------------------------------------------------------------------------
   //! Check the given <key>=<value> is a valid QoS property
