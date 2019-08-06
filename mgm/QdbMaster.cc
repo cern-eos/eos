@@ -330,6 +330,7 @@ QdbMaster::MasterToSlave()
   eos_info("%s", "msg=\"master to slave transition\"");
   RemoveStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE);
   mIsMaster = false;
+  gOFS->mDrainEngine.Stop();
   Access::StallInfo old_stall; // to be discarded
   Access::StallInfo new_stall("*", "5", "master->slave transition", true);
   Access::SetStallRule(new_stall, old_stall);
@@ -346,7 +347,6 @@ QdbMaster::MasterToSlave()
 
   DisableNsCaching();
   Access::SetMasterToSlaveRules(new_master_id);
-  gOFS->mDrainEngine.Stop();
   gOFS->mTracker.SetAcceptingRequests(true);
 }
 
