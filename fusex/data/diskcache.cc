@@ -114,8 +114,9 @@ diskcache::location(std::string& path, bool mkpath)
 /* -------------------------------------------------------------------------- */
 {
   char cache_path[1024 + 20];
-  snprintf(cache_path, sizeof(cache_path), "%s/%08lx/%08lX.dc",
-	   sLocation.c_str(), ino / 10000, ino);
+  snprintf(cache_path, sizeof(cache_path), "%s/%03lX/%08lX.dc",
+	   sLocation.c_str(), 
+	   (ino > 0x0fffffff)? (ino >> 28) % 4096 : ino %4096, ino);
 
   if (mkpath) {
     eos::common::Path cPath(cache_path);
