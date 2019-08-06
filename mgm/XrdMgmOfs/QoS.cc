@@ -314,3 +314,120 @@ XrdMgmOfs::_qos_get(const char* path, XrdOucErrInfo& error,
 
   return SFS_OK;
 }
+
+//----------------------------------------------------------------------------
+// Schedule QoS properties for a given entry - low-level API
+// If no value is provided for a QoS property, it will be left unchanged.
+//----------------------------------------------------------------------------
+int
+XrdMgmOfs::_qos_set(const char* path, XrdOucErrInfo& error,
+                    eos::common::VirtualIdentity& vid,
+                    std::string& conversion_id,
+                    int layout, int nstripes,
+                    int checksum, std::string policy)
+{
+  using eos::common::LayoutId;
+  static const char* epname = "qos_set";
+  EXEC_TIMING_BEGIN("QoSSet");
+  gOFS->MgmStats.Add("QoSSet", vid.uid, vid.gid, 1);
+  errno = 0;
+
+  eos_info("msg=\"set QoS - initial values\" path=%s layout=%d nstripes=%d "
+           "checksum=%d policy=%s", path, layout, nstripes,
+           checksum, policy.c_str());
+
+  std::shared_ptr<eos::IFileMD> fmd = 0;
+  eos::common::FileId::fileid_t fileid = 0;
+  eos::IFileMD::location_t fsid = 0;
+  LayoutId::layoutid_t layoutid = 0;
+  unsigned long current_layout = 0;
+  unsigned long current_checksumid = 0;
+  unsigned long current_nstripes = 0;
+
+  {
+    eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
+    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+
+    try {
+      fmd = gOFS->eosView->getFile(path);
+      fileid = fmd->getId();
+      layoutid = fmd->getLayoutId();
+
+      // Extract current QoS properties
+      current_layout = LayoutId::GetLayoutType(layoutid);
+      current_checksumid = LayoutId::GetChecksum(layoutid);
+      current_nstripes = LayoutId::GetStripeNumber(layoutid) + 1;
+
+      if (fmd->getNumLocation()) {
+        const auto& locations_vect = fmd->getLocations();
+        fsid = *(locations_vect.begin());
+      }
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      eos_debug("msg=\"exception retrieving file metadata\" path=%s "
+                "ec=%d emsg=\"%s\"", path, e.getErrno(),
+                e.getMessage().str().c_str());
+    }
+  }
+
+  if (!fmd) {
+    return Emsg(epname, error, errno, "retrieve file metadata", path);
+  }
+
+  // Extract current scheduling space
+  std::string space = "";
+
+  {
+    eos::common::RWMutexReadLock rlock(FsView::gFsView.ViewMutex);
+    auto filesystem = FsView::gFsView.mIdView.lookupByID(fsid);
+
+    if (!filesystem) {
+      return Emsg(epname, error, errno, "retrieve filesystem location", path);
+    }
+
+    space = filesystem->GetString("schedgroup");
+    size_t ppos = space.find(".");
+    if (ppos != std::string::npos) {
+      space.erase(ppos);
+    }
+  }
+
+  layout = (layout != -1) ? layout : current_layout;
+  nstripes = (nstripes != -1) ? nstripes : current_nstripes;
+  checksum = (checksum != -1) ? checksum : current_checksumid;
+
+  // Generate layout id
+  layoutid = LayoutId::GetId(layout, checksum, nstripes,
+                             LayoutId::k4M, LayoutId::kCRC32C,
+                             LayoutId::GetRedundancyStripeNumber(layoutid));
+
+  // Generate conversion id
+  conversion_id = SSTR(
+    std::hex << std::setw(16) << std::setfill('0') << fileid
+    << ":" << space
+    << "#" << std::setw(8) << std::setfill('0') << layoutid
+    << (policy.length() ? ("~" + policy) : ""));
+
+  eos_info("msg=\"set QoS - final values\" path=%s layout=%d nstripes=%d "
+           "checksum=%d policy=%s space=%s conversion_file=%s",
+           path, layout, nstripes, checksum, policy.c_str(),
+           space.c_str(), conversion_id.c_str());
+
+  // Create conversion job
+  std::string conversion_file = SSTR(
+    gOFS->MgmProcConversionPath.c_str() << "/" << conversion_id);
+  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+
+  if (gOFS->_touch(conversion_file.c_str(), error, rootvid, 0)) {
+    return Emsg(epname, error, errno, "create QoS conversion job",
+                conversion_id.c_str());
+  }
+
+  EXEC_TIMING_END("QoSGet");
+
+  if (errno) {
+    return Emsg(epname, error, errno, "set QoS properties", path);
+  }
+
+  return SFS_OK;
+}
