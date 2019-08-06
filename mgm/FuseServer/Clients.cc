@@ -635,6 +635,8 @@ FuseServer::Clients::Evict(std::string& uuid, std::string reason, std::vector<st
     eos::common::RWMutexReadLock lLock(*this);
     
     if (!mUUIDView.count(uuid)) {
+      // even if this uuid does not exist we can use it to remove stale locks
+      gOFS->zMQ->gFuseServer.Locks().dropLocks(uuid);
       return ENOENT;
     }
     
