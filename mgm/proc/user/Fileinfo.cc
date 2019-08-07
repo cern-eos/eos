@@ -738,13 +738,27 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
   try {
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
     eos::common::RWMutexReadLock viewReadLock;
+    std::shared_ptr<eos::IFileMD> fmd;
+    std::string path = SSTR("fid:" << fid);
 
     if (dolock) {
       viewReadLock.Grab(gOFS->eosViewRWMutex);
     }
 
-    std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(fid);
-    std::string path = gOFS->eosView->getUri(fmd.get());
+    try {
+      fmd = gOFS->eosFileService->getFileMD(fid);
+      path = gOFS->eosView->getUri(fmd.get());
+    } catch (eos::MDException& e) {
+      eos_static_debug("msg=\"exception retrieving file metadata\" ec=%d "
+                       "emsg=\"%s\"\n", e.getErrno(),
+                       e.getMessage().str().c_str());
+
+      if (!fmd) {
+        viewReadLock.Release();
+        std::rethrow_exception(std::current_exception());
+      }
+    }
+
     std::shared_ptr<eos::IFileMD> fmd_copy(fmd->clone());
     fmd.reset();
     viewReadLock.Release();
@@ -879,14 +893,27 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 
   try {
     eos::common::RWMutexReadLock viewReadLock;
+    std::shared_ptr<eos::IContainerMD> cmd;
+    std::string path = SSTR("pid:" << fid);
 
     if (dolock) {
       viewReadLock.Grab(gOFS->eosViewRWMutex);
     }
 
-    std::shared_ptr<eos::IContainerMD> cmd =
-      gOFS->eosDirectoryService->getContainerMD(fid);
-    std::string path = gOFS->eosView->getUri(cmd.get());
+    try {
+      cmd = gOFS->eosDirectoryService->getContainerMD(fid);
+      path = gOFS->eosView->getUri(cmd.get());
+    } catch (eos::MDException& e) {
+      eos_static_debug("msg=\"exception retrieving container metadata\" "
+                       "ec=%d emsg=\"%s\"\n", e.getErrno(),
+                       e.getMessage().str().c_str());
+
+      if (!cmd) {
+        viewReadLock.Release();
+        std::rethrow_exception(std::current_exception());
+      }
+    }
+
     eos::IFileMD::XAttrMap xattrs = cmd->getAttributes();
     cmd->getCTime(ctime);
     cmd->getMTime(mtime);
