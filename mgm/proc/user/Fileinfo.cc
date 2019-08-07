@@ -120,6 +120,7 @@ ProcCommand::FileInfo(const char* path)
 {
   XrdOucString option = pOpaque->Get("mgm.file.info.option");
   XrdOucString spath = path;
+  bool detached = false;
   uint64_t clock = 0;
   {
     eos::common::RWMutexReadLock viewReadLock;
@@ -132,11 +133,12 @@ ProcCommand::FileInfo(const char* path)
       //-------------------------------------------
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
       viewReadLock.Grab(gOFS->eosViewRWMutex);
+      std::string nspath;
 
       try {
         fmd = gOFS->eosFileService->getFileMD(fid, &clock);
-        std::string fullpath = gOFS->eosView->getUri(fmd.get());
-        spath = fullpath.c_str();
+        nspath = gOFS->eosView->getUri(fmd.get());
+        spath = nspath.c_str();
       } catch (eos::MDException& e) {
         errno = e.getErrno();
         stdErr = "error: cannot retrieve file meta data - ";
@@ -144,6 +146,9 @@ ProcCommand::FileInfo(const char* path)
         eos_debug("msg=\"exception retrieving file metadata\" ec=%d "
                   "emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
       }
+
+      // Detect detached state for fid/fxid reference
+      detached = nspath.empty();
     } else {
       // reference by path
       //-------------------------------------------
@@ -320,6 +325,7 @@ ProcCommand::FileInfo(const char* path)
                 << " xstype=" << LayoutId::GetChecksumString(fmd_copy->getLayoutId())
                 << " xs=" << xs
                 << " etag=" << etag
+                << " detached=" << detached
                 << " layout=" << LayoutId::GetLayoutTypeString(fmd_copy->getLayoutId())
                 << " nstripes=" << (LayoutId::GetStripeNumber(fmd_copy->getLayoutId()) + 1)
                 << " lid=" << FileId::Fid2Hex(fmd_copy->getLayoutId())
@@ -522,6 +528,7 @@ ProcCommand::DirInfo(const char* path)
 {
   XrdOucString option = pOpaque->Get("mgm.file.info.option");
   XrdOucString spath = path;
+  bool detached = false;
   uint64_t clock = 0;
   {
     eos::common::RWMutexReadLock viewReadLock;
@@ -543,11 +550,12 @@ ProcCommand::DirInfo(const char* path)
       // reference by pid+pxid
       //-------------------------------------------
       viewReadLock.Grab(gOFS->eosViewRWMutex);
+      std::string nspath;
 
       try {
         dmd = gOFS->eosDirectoryService->getContainerMD(fid, &clock);
-        std::string fullpath = gOFS->eosView->getUri(dmd.get());
-        spath = fullpath.c_str();
+        nspath = gOFS->eosView->getUri(dmd.get());
+        spath = nspath.c_str();
       } catch (eos::MDException& e) {
         errno = e.getErrno();
         stdErr = "error: cannot retrieve directory meta data - ";
@@ -555,6 +563,9 @@ ProcCommand::DirInfo(const char* path)
         eos_debug("msg=\"exception retrieving container metadata\" ec=%d "
                   "emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
       }
+
+      // Detect detached state for pid/pxid reference
+      detached = nspath.empty();
     } else {
       // reference by path
       //-------------------------------------------
@@ -706,6 +717,7 @@ ProcCommand::DirInfo(const char* path)
               << " pid=" << dmd_copy->getParentId()
               << " pxid=" << hex_pid
               << " etag=" << etag
+              << " detached=" << detached
               << " ";
 
           for (const auto& elem : xattrs) {
@@ -739,7 +751,8 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
     eos::common::RWMutexReadLock viewReadLock;
     std::shared_ptr<eos::IFileMD> fmd;
-    std::string path = SSTR("fid:" << fid);
+    std::string path;
+    bool detached;
 
     if (dolock) {
       viewReadLock.Grab(gOFS->eosViewRWMutex);
@@ -775,6 +788,10 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
                                                      btime);
     }
 
+    if ((detached = path.empty())) {
+      path = SSTR("fid:" << fid);
+    }
+
     json["fxid"] = hex_fid.c_str();
     json["inode"] = (Json::Value::UInt64) eos::common::FileId::FidToInode(fid);
     json["ctime"] = (Json::Value::UInt64) ctime.tv_sec;
@@ -792,6 +809,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["nlink"] = (Json::Value::UInt64) nlink;
     json["name"] = fmd_copy->getName();
     json["path"] = path;
+    json["detached"] = detached;
     json["pid"] = (Json::Value::UInt64) fmd_copy->getContainerId();
     json["layout"] = eos::common::LayoutId::GetLayoutTypeString(
                        fmd_copy->getLayoutId());
@@ -894,7 +912,8 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
   try {
     eos::common::RWMutexReadLock viewReadLock;
     std::shared_ptr<eos::IContainerMD> cmd;
-    std::string path = SSTR("pid:" << fid);
+    std::string path;
+    bool detached;
 
     if (dolock) {
       viewReadLock.Grab(gOFS->eosViewRWMutex);
@@ -924,6 +943,10 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
                                                      btime);
     }
 
+    if ((detached = path.empty())) {
+      path = SSTR("pid:" << fid);
+    }
+
     json["inode"] = (Json::Value::UInt64) fid;
     json["ctime"] = (Json::Value::UInt64) ctime.tv_sec;
     json["ctime_ns"] = (Json::Value::UInt64) ctime.tv_nsec;
@@ -942,6 +965,7 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["nlink"] = 1;
     json["name"] = cmd->getName();
     json["path"] = path;
+    json["detached"] = detached;
     json["pid"] = (Json::Value::UInt64) cmd->getParentId();
     json["nndirectories"] = (int)cmd->getNumContainers();
     json["nfiles"] = (int)cmd->getNumFiles();

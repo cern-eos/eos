@@ -847,8 +847,8 @@ runtest "### Mkdir      " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/inst
 runtest "### Chmod      " unix 0 "" eos chmod -r "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/"
 runtest "### Attr Set   " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirA/"
 runtest "### Attr Set   " unix 0 "" eos attr set user.attr.key='value' "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirB/"
-runtest "### Upload     " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file\&symbol"
-runtest "### Upload     " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirA/fileA"
+runtest "### Upload     " unix 0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file\&symbol"
+runtest "### Upload     " unix 0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirA/fileA"
 #----------------------------------------------------------------------------
 # Test basic functionality (including JSON)
 #----------------------------------------------------------------------------
@@ -875,6 +875,22 @@ runtest "### Rm         " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instanc
 runtest "### Rm         " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirA/fileA"
 runtest "### Rmdir      " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirA/"
 runtest "### Rmdir      " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirB/"
+#----------------------------------------------------------------------------
+# Test detached flag
+#----------------------------------------------------------------------------
+runtest "### Upload     " unix 0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file1"
+runtest "### Upload     " unix 0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file2"
+runtest "### Fileinfo   " unix 0 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file1 -m | grep -w detached=0"
+runtest "### Fileinfo   " unix 0 "" eosj fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file1 | jq -r '.detached' | grep false"
+#----------------------------------------------------------------------------
+fid=$($XROOTSYS/bin/eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file1" | jq -r .id)
+runtest "### Rm         " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file1"
+runtest "### Fileinfo   " unix 0 "" eos fileinfo "fid:${fid} -m | grep -w detached=1"
+#----------------------------------------------------------------------------
+fid=$($XROOTSYS/bin/eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file2" | jq -r .id)
+runtest "### Rm         " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/file2"
+runtest "### Fileinfo   " unix 0 "" eosj fileinfo "fid:${fid} | jq -r '.detached' | grep true"
+#----------------------------------------------------------------------------
 runtest "### Rmdir      " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/"
 
 ################################################################################
@@ -1052,7 +1068,7 @@ runtest "### Attr      " unix 0 "" eos attr rm sys.acl /eos/$EOS_TEST_INSTANCE/t
 runtest "### Attr      " unix 0 "" eos attr set sys.eval.useracl=1 /eos/$EOS_TEST_INSTANCE/test/instancetest/
 
 # "runtest H" with sss-auth secures "not sudoer" and group list contains 99 where needed... without H the former fails, with unix-auth the latter (gids=[2] hence hasAcl=0)
-# ACL impact: no ACL or user neither granted nor denied -> dir mode bits 
+# ACL impact: no ACL or user neither granted nor denied -> dir mode bits
 # ACL denials: override except for u/d for file owner
 
 runtest   "### Attr      " unix 0 "" eos debug debug '\*'
@@ -1157,9 +1173,9 @@ runtest "### Upload    " unix 0 "EOSROLE='-r 0 0'" eos cp /etc/passwd /eos/$EOS_
 runtest "### Chmod     " unix 0 "" eos chmod 700 /eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/
 runtest "### Symlink-S " unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/passwd
 runtest "### Chown     " unix 0 "" eos chown -h 99:99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/passwd"
-runtest "### Download  " unix 0 "EOSROLE='-r 0 0'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/passwd" - 
-runtest "### Download  " unix 0 "EOSROLE='-r 0 0'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/passwd" - 
-runtest "### Download  " unix 1 "EOSROLE='-r 99 99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/passwd" - 
+runtest "### Download  " unix 0 "EOSROLE='-r 0 0'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/passwd" -
+runtest "### Download  " unix 0 "EOSROLE='-r 0 0'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/passwd" -
+runtest "### Download  " unix 1 "EOSROLE='-r 99 99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/passwd" -
 runtest "### Download  " unix 1 "EOSROLE='-r 99 99'" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/passwd" -
 runtest "### Rm        " unix 0 "" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/link-sniffer/passwd
 runtest "### Rm        " unix 0 "" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/link-source/passwd
@@ -1517,7 +1533,7 @@ if [ $NUM_FST -ge 6 ]; then
    runtest "### Attr      " unix 0 "" eos attr set sys.forced.layout=raid6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6"
    runtest "### Attr      " unix 0 "" eos attr set sys.forced.nstripes=6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6"
 
-   # Qrain test (4 parity stripes ) 
+   # Qrain test (4 parity stripes )
    runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain"
    runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain"
    runtest "### Attr      " unix 0 "" eos attr set sys.forced.checksum=crc32c "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain"
@@ -1525,7 +1541,7 @@ if [ $NUM_FST -ge 6 ]; then
    runtest "### Attr      " unix 0 "" eos attr set sys.forced.blocksize=1M "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain"
    runtest "### Attr      " unix 0 "" eos attr set sys.forced.layout=qrain "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain"
    runtest "### Attr      " unix 0 "" eos attr set sys.forced.nstripes=6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain"
-   
+
 
    runtest "### RaiddpTest " unix 0 "" eos_rain "raiddp" "$EOS_TEST_RAIN_DIR" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp" "$EOS_TEST_RAIN_TMP"
    # Sleep two seconds between the tests as disabling/enabling a FST is not that fast
