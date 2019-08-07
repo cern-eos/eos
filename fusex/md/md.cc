@@ -2856,12 +2856,9 @@ metad::mdcommunicate(ThreadAssistant& assistant)
               std::string md_clientid;
               std::string old_name;
 
-              // MD update logic
-              if (ino) {
+	      if (mdmap.retrieveTS(ino, md)) {
                 eos_static_notice("md-update: (existing) remote-ino=%#lx ino=%#lx authid=%s",
                                   md_ino, ino, authid.c_str());
-                mdmap.retrieveOrCreateTS(ino, md);
-
                 // updated file MD
                 if (EOS_LOGS_DEBUG) {
                   eos_static_debug("%s op=%d", md->dump().c_str(), md->getop());
