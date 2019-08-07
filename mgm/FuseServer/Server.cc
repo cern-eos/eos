@@ -1731,8 +1731,8 @@ Server::OpSetFile(const std::string& id,
 	      
 	      // unlink the existing file 
 	      ofmd->setContainerId(0);
-            ofmd->unlinkAllLocations();
-            gOFS->eosFileService->updateStore(ofmd.get());
+	      ofmd->unlinkAllLocations();
+	      gOFS->eosFileService->updateStore(ofmd.get());
 	    } catch (eos::MDException& e) {
 	    }
 	  }
@@ -1789,8 +1789,8 @@ Server::OpSetFile(const std::string& id,
 	      } catch (eos::MDException& e) {
 	      }
 	    }	    
-	    gOFS->eosView->renameFile(fmd.get(), md.name());
 	  }
+	  gOFS->eosView->renameFile(fmd.get(), md.name());
         }
       }
 
