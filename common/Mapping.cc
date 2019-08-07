@@ -1916,5 +1916,24 @@ std::string Mapping::VidToString(VirtualIdentity& vid)
   return std::string(vids);
 }
 
+//------------------------------------------------------------------------------
+//! Function returning a VID from a name
+//------------------------------------------------------------------------------
+VirtualIdentity Mapping::Someone(const std::string& name)
+{
+  VirtualIdentity vid;
+  vid = VirtualIdentity::Nobody();
+  int errc = 0;
+  uid_t uid = UserNameToUid(name, errc);
+  if (!errc) {
+    vid.uid = uid;
+    vid.uid_string = name;
+    vid.name = name.c_str();
+    vid.tident = std::string(name + "@grpc").c_str();
+  }
+  return vid;
+}
+
+
 /*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END

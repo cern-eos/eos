@@ -315,6 +315,11 @@ public:
     RWMutexReadLock lock(gMapMutex);
     return Mapping::gNobodyAccessTreeDeepness;
   }
+
+  // ---------------------------------------------------------------------------
+  //! Get a VID from a name
+  // ---------------------------------------------------------------------------
+  static VirtualIdentity Someone(const std::string& name);
 };
 
 /*----------------------------------------------------------------------------*/
