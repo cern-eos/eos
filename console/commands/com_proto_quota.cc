@@ -232,19 +232,29 @@ bool QuotaHelper::ParseCommand(const char* arg)
     }
   } else if (token == "rmnode") {
     eos::console::QuotaProto_RmnodeProto* rmnode = quota->mutable_rmnode();
+    tokenizer.NextToken(token);
 
-    if (token == "--path" || token == "-p") {
-      if (tokenizer.NextToken(token)) {
+    if (token == "--path" || token == "-p" || (token.find('/') == 0)) {
+      if (token == "--path" || token == "-p") {
+        if (tokenizer.NextToken(token)) {
+          rmnode->set_space(token);
+        } else {
+          return false;
+        }
+      } else if (token.find('/') == 0) {
         rmnode->set_space(token);
-      } else {
-        return false;
+
+        // for convenience, the --path / -p flags can be omitted
+        if (tokenizer.NextToken(token)) {
+          return false;
+        }
       }
     } else { // no proper argument
       return false;
     }
 
-    std::cout << "Do you really want to delete the quota node under path" << token
-              << " ?\n";
+    std::cout << "Do you really want to delete the quota node under path: "
+              << rmnode->space() << " ?" << std::endl;
     std::cout << "Confirm the deletion by typing => ";
     // Seed with a real random value, if available
     std::random_device rd;
@@ -330,7 +340,7 @@ void com_quota_help()
       ": remove configured quota type(s) for uid/gid in path"
     },
     {
-      "quota rmnode -p <path>",
+      "quota rmnode [-p] <path>",
       ": remove quota node and every defined quota on that node"
     }
   };
@@ -396,7 +406,7 @@ void com_quota_help()
       std::endl
       << std::setw(indent_len) << ""
       << "=> for convenience all commands can just use <path> as last argument "
-      << "ommitting the -p|--path e.g. quota ls /eos/ ..." << std::endl
+      << "omitting the -p|--path e.g. quota ls /eos/ ..." << std::endl
       << std::setw(indent_len) << ""
       << "=> if <path> is not terminated with a '/' it is assumed to be a file "
       << "so it won't match the quota node with <path>/ !" << std::endl;
