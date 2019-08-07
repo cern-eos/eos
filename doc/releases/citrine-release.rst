@@ -15,9 +15,36 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.5.5 Citrine``
+===================
+
+2019-08-01
+
 
 ``v4.5.4 Citrine``
 ===================
+
+2019-08-07
+
+Bug
+---
+
+* [EOS-3536] - fix hard-link cleanup problems seen with 'rm -rf' on git repositories
+* [EOS-3644] - adjust eosxd cache path filename hashing for physical inodes
+* [EOS-3643] - avoid ghost entries when files are overwritten and support reycle bin for those
+
+
+Improvements
+------------
+
+* [EOS-3638] - introduce file info detached field
+* speed-up shutdown for drain jobs
+* implement ns-reserve-id command
+* don't print byte-range locks per client ( get it with '-k' option ) 
+* filesytem class refactoring
+* clean-up empty eosxd cache directories
+* support proc results larger than 2G
+* timeout eosxd connections after 24h
 
 2019-08-01
 
