@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __CREDENTIALFINDER__HH__
-#define __CREDENTIALFINDER__HH__
+#ifndef FUSEX_CREDENTIAL_FINDER_HH
+#define FUSEX_CREDENTIAL_FINDER_HH
 
 #include "UserCredentials.hh"
 #include "SecurityChecker.hh"
@@ -272,7 +272,9 @@ class BoundIdentity
 {
 public:
 
-  BoundIdentity() { }
+  BoundIdentity() {
+    creationTime = std::chrono::steady_clock::now();
+  }
 
   LoginIdentifier& getLogin()
   {
@@ -294,6 +296,12 @@ public:
     return &creds;
   }
 
+  std::chrono::seconds getAge() const {
+    return std::chrono::duration_cast<std::chrono::seconds>(
+      std::chrono::steady_clock::now() - creationTime
+    );
+  }
+
   //----------------------------------------------------------------------------
   // Describe object as string
   //----------------------------------------------------------------------------
@@ -307,6 +315,7 @@ public:
 private:
   LoginIdentifier login;
   TrustedCredentials creds;
+  std::chrono::steady_clock::time_point creationTime;
 };
 
 // A class to read and parse environment values

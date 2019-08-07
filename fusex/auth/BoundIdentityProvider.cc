@@ -410,5 +410,9 @@ bool BoundIdentityProvider::checkValidity(const JailInformation& jail,
     return false;
   }
 
+  if(identity.getAge() > std::chrono::hours(24)) {
+    return false;
+  }
+
   return validator.checkValidity(jail, *identity.getCreds());
 }
