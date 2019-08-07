@@ -1809,6 +1809,15 @@ Server::OpSetFile(const std::string& id,
       gOFS->eosDirectoryService->updateStore(pcmd.get());
       uint64_t clock = 0;
       Cap().BroadcastMD(md, tgt_md_ino, md_pino, clock, pt_mtime);
+
+      {
+	// broadcast the new hardlink around
+	eos::fusex::md g_md;
+	uint64_t g_ino = eos::common::FileId::FidToInode(gmd->getId());
+	if (FillFileMD(g_ino, g_md, vid)) {
+	  Cap().BroadcastMD(g_md, g_ino, md_pino, 0, pt_mtime);
+	}
+      }
       return 0;
     } else {
       // file creation
