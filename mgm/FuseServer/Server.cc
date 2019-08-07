@@ -1800,6 +1800,12 @@ Server::OpSetFile(const std::string& id,
       resp.mutable_ack_()->set_code(resp.ack_().OK);
       resp.mutable_ack_()->set_transactionid(md.reqid());
       resp.mutable_ack_()->set_md_ino(eos::common::FileId::FidToInode(gmd->getId()));
+
+      // prepare to broadcast the new hardlink around, need to create an md object with the hardlink 
+      eos::fusex::md g_md;
+      uint64_t g_ino = eos::common::FileId::FidToInode(gmd->getId());
+      FillFileMD(g_ino, g_md, vid);
+
       // release the namespace lock before serialization/broadcasting
       lock.Release();
       resp.SerializeToString(response);
@@ -1807,17 +1813,11 @@ Server::OpSetFile(const std::string& id,
       pt_mtime.tv_sec = md.mtime();
       pt_mtime.tv_nsec = md.mtime_ns();
       gOFS->eosDirectoryService->updateStore(pcmd.get());
+
       uint64_t clock = 0;
       Cap().BroadcastMD(md, tgt_md_ino, md_pino, clock, pt_mtime);
+      Cap().BroadcastMD(g_md, g_ino, md_pino, clock, pt_mtime);
 
-      {
-	// broadcast the new hardlink around
-	eos::fusex::md g_md;
-	uint64_t g_ino = eos::common::FileId::FidToInode(gmd->getId());
-	if (FillFileMD(g_ino, g_md, vid)) {
-	  Cap().BroadcastMD(g_md, g_ino, md_pino, 0, pt_mtime);
-	}
-      }
       return 0;
     } else {
       // file creation
