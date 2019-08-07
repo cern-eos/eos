@@ -3237,49 +3237,22 @@ EROFS  pathname refers to a file on a read-only filesystem.
             uint64_t local_ino = Instance().mds.vmaps().forward(mdino);
             tmd = Instance().mds.get(req, local_ino,
                                      pcap->authid()); /* the target of the link */
-            attrMap = tmd->attr();
             hardlink_target_ino = tmd->id();
+
+	    {
+	      // if a hardlink is deleted, we should remove the local shadow entry
+	      char nameBuf[256];
+	      snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", hardlink_target_ino);
+	      std::string newname = nameBuf;
+	      XrdSysMutexHelper pLock(pmd->Locker());
+	      if (pmd->local_children().count(eos::common::StringConversion::EncodeInvalidUTF8(newname))) {
+		pmd->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(newname));
+		pmd->set_nchildren(pmd->nchildren()-1);
+	      }
+	    }
           }
 
-          if (tmd) {
-            // update the counting on the target
-            auto attrMap = tmd->attr();
-
-            if (attrMap.count(k_nlink)) {
-              nlink = std::stol(attrMap[k_nlink]);
-
-              // do the counting locally
-              if (nlink > 0) {
-                auto wAttrMap = tmd->mutable_attr();
-                (*wAttrMap)[k_nlink] = std::to_string(nlink - 1);
-                eos_static_debug("setting link count to %d-1", nlink);
-              }
-
-              tmd->set_nlink(nlink);
-            }
-          } else {
-            if (attrMap.count(k_nlink)) {
-              nlink = std::stol(attrMap[k_nlink]);
-
-              if (nlink != 0) {
-                tmd = md;
-              }
-
-              if (nlink > 0) {
-                auto wAttrMap = tmd->mutable_attr();
-                (*wAttrMap)[k_nlink] = std::to_string(nlink - 1);
-                eos_static_debug("setting link count to %d-1", nlink);
-              }
-
-              if (tmd) {
-                tmd->set_nlink(nlink);
-              }
-            }
-          }
-
-          if (nlink <= 0) { /* don't bother updating, this is a real delete */
-            freesize = md->size();
-          }
+	  freesize = md->size();
 
           if (EOS_LOGS_DEBUG) {
             eos_static_debug("hlnk unlink %s new nlink %d %s", name, nlink,
@@ -3293,25 +3266,13 @@ EROFS  pathname refers to a file on a read-only filesystem.
             Instance().datas.unlink(req, md->id());
           }
 
-          if (md != tmd) {
-            Instance().mds.remove(req, pmd, md, pcap->authid());
+	  Instance().mds.remove(req, pmd, md, pcap->authid());
 
-            if (tmd && (tmd->nlink() == 0)) {
-              // delete the target locally
-              XrdSysMutexHelper lLock(tmd->Locker());
-              Instance().mds.remove(req, pmd, tmd, pcap->authid(), false);
-            }
-          } else {
-            // if a hardlink target is deleted, we create a shadow entry until all
-            // references are removed
-            char nameBuf[256];
-            snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", md->md_ino());
-            std::string newname = nameBuf;
-            md->Locker().UnLock();
-            Instance().mds.mv(req, pmd, pmd, md, newname, pcap->authid(),
-                              pcap->authid());
-            md->Locker().Lock();
-          }
+	  if (attrMap.count(k_nlink)) {
+	    // this is a target for hardlinks and we want to invalidate in the kernel cache
+	    hardlink_target_ino = md->id();
+	    md->force_refresh();
+	  }
         }
       }
     }
@@ -3322,6 +3283,11 @@ EROFS  pathname refers to a file on a read-only filesystem.
 
         if (del_ino) {
           Instance().mds.wait_deleted(req, del_ino);
+	  if (hardlink_target_ino) {
+	    // refetch a possible shadow inode and unmask the local deletion
+	    metad::shared_md smd = EosFuse::Instance().mds.get(req, del_ino, "");
+	    smd->setop_none();
+	  }
         }
       }
 

@@ -186,7 +186,7 @@ metad::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
     // --------------------------------------------------
     // STEP 2: check if we hold a cap for that directory
     // --------------------------------------------------
-    if (pmd->cap_count()) {
+    if (pmd->cap_count() && !pmd->needs_refresh()) {
       // --------------------------------------------------
       // if we have a cap and we listed this directory, we trust the child information
       // --------------------------------------------------
@@ -595,6 +595,11 @@ metad::get(fuse_req_t req,
     if (!mdmap.retrieveTS(ino, md)) {
       md = std::make_shared<mdx>();
       md->set_md_ino(inomap.backward(ino));
+    } else {
+      if (ino != 1) {
+	// we need this to refetch a hard link target which was removed server side
+	md->set_md_ino(ino);
+      }
     }
 
     if (EOS_LOGS_DEBUG) {
@@ -652,7 +657,7 @@ metad::get(fuse_req_t req,
         // files are covered by the CAP of the parent, so if there is a cap
         // on the parent we can return this entry right away
         if (mdmap.retrieveTS(md_pid, pmd)) {
-          if (pmd && pmd->id() && pmd->cap_count()) {
+          if (pmd && pmd->id() && pmd->cap_count() && !md->needs_refresh()) {
             return md;
           }
         }
@@ -661,7 +666,7 @@ metad::get(fuse_req_t req,
 
     XrdSysMutexHelper mLock(md->Locker());
 
-    if ((md->id() != 1) && !md->pid()) {
+    if ((md->id() != 1) && !md->pid() && !md->needs_refresh()) {
       // this must have been generated locally, we return this entry
       eos_static_info("returning generated entry");
 

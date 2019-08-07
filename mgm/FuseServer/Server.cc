@@ -2343,12 +2343,17 @@ Server::OpDeleteFile(const std::string& id,
             eos::common::FileId::InodeToFid(tgt_md_ino), &clock);
         long nlink = std::stol(gmd->getAttribute(k_nlink)) - 1;
 
-        if (nlink > 0) {
-          gmd->setAttribute(k_nlink, std::to_string(nlink));
-          gOFS->eosFileService->updateStore(gmd.get());
-          eos_info("hlnk nlink update on %s for %s now %ld",
-                   gmd->getName().c_str(), fmd->getName().c_str(), nlink);
-        } else { // remove target file as well if is a hidden inode
+	if (nlink) {
+	  gmd->setAttribute(k_nlink, std::to_string(nlink));
+	} else {
+	  gmd->removeAttribute(k_nlink);
+	}
+
+	gOFS->eosFileService->updateStore(gmd.get());
+	eos_info("hlnk nlink update on %s for %s now %ld",
+		 gmd->getName().c_str(), fmd->getName().c_str(), nlink);
+
+	if (nlink <=0) {
           if (gmd->getName().substr(0, 13) == "...eos.ino...") {
             eos_info("hlnk unlink target %s for %s nlink %ld",
                      gmd->getName().c_str(), fmd->getName().c_str(), nlink);
@@ -2361,12 +2366,12 @@ Server::OpDeleteFile(const std::string& id,
       } else if (fmd->hasAttribute(
                    k_nlink)) { /* this is a genuine file, potentially with hard links */
         tgt_md_ino = eos::common::FileId::FidToInode(fmd->getId());
-        long nlink = std::stol(fmd->getAttribute(k_nlink)) - 1;
+        long nlink = std::stol(fmd->getAttribute(k_nlink));
 
         if (nlink >
             0) { // hard links exist, just rename the file so the inode does not disappear
           char nameBuf[256];
-          snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", fmd->getId());
+          snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", tgt_md_ino);
           std::string tmpName = nameBuf;
           fmd->setAttribute(k_nlink, std::to_string(nlink));
           eos_info("hlnk unlink rename %s=>%s new nlink %d",
