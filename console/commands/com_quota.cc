@@ -271,8 +271,17 @@ com_quota(char* arg1)
   if (subcommand == "rmnode") {
     XrdOucString in = "mgm.cmd=quota&mgm.subcmd=rmnode";
     XrdOucString space = "";
+    bool dontask = false;
 
     do {
+      if (arg == "--really-want") {
+	fprintf(stderr,"arg: %s\n", arg.c_str());
+	arg = subtokenizer.GetToken();
+	fprintf(stderr,"arg: %s\n", arg.c_str());
+	dontask = true;
+	continue;
+      }
+
       if ((arg == "--path") || (arg == "-p")) {
         space = subtokenizer.GetToken();
 
@@ -292,21 +301,25 @@ com_quota(char* arg1)
       goto com_quota_usage;
     }
 
-    string s;
-    fprintf(stdout, "Do you really want to delete the quota node under path %s?\n",
-            space.c_str());
-    fprintf(stdout, "Confirm the deletion by typing => ");
-    XrdOucString confirmation = "";
+    std::string s;
+    std::string sconfirmation;
 
-    for (int i = 0; i < 10; i++) {
-      // coverity[DC.WEAK_CRYPTO]
-      confirmation += (int)(9.0 * rand() / RAND_MAX);
+    if (!dontask) {
+      fprintf(stdout, "Do you really want to delete the quota node under path %s?\n",
+	      space.c_str());
+      fprintf(stdout, "Confirm the deletion by typing => ");
+      XrdOucString confirmation = "";
+      
+      for (int i = 0; i < 10; i++) {
+	// coverity[DC.WEAK_CRYPTO]
+	confirmation += (int)(9.0 * rand() / RAND_MAX);
+      }
+      
+      fprintf(stdout, "%s\n", confirmation.c_str());
+      fprintf(stdout, "                               => ");
+      getline(std::cin, s);
+      sconfirmation = confirmation.c_str();
     }
-
-    fprintf(stdout, "%s\n", confirmation.c_str());
-    fprintf(stdout, "                               => ");
-    getline(std::cin, s);
-    std::string sconfirmation = confirmation.c_str();
 
     if (s == sconfirmation) {
       fprintf(stdout, "\nSending deletion request to server ...\n");

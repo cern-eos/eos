@@ -231,8 +231,14 @@ bool QuotaHelper::ParseCommand(const char* arg)
       }
     }
   } else if (token == "rmnode") {
+    bool dontask = false;
     eos::console::QuotaProto_RmnodeProto* rmnode = quota->mutable_rmnode();
     tokenizer.NextToken(token);
+
+    if (token == "--really-want") {
+      dontask = true;
+      tokenizer.NextToken(token);
+    }
 
     if (token == "--path" || token == "-p" || (token.find('/') == 0)) {
       if (token == "--path" || token == "-p") {
@@ -253,22 +259,26 @@ bool QuotaHelper::ParseCommand(const char* arg)
       return false;
     }
 
-    std::cout << "Do you really want to delete the quota node under path: "
-              << rmnode->space() << " ?" << std::endl;
-    std::cout << "Confirm the deletion by typing => ";
-    // Seed with a real random value, if available
-    std::random_device rd;
-    // Choose a random 10-digits number
-    std::default_random_engine dre(rd());
-    std::uniform_int_distribution<long> uniform_dist(1000000000, 9999999999);
-    long random_long = uniform_dist(dre);
-    std::string random_confirmation_string = std::to_string(random_long);
-    std::cout << random_confirmation_string << std::endl;
-    std::cout << "                               => ";
     std::string in_string;
-    std::cin >> in_string;
+    std::string random_confirmation_string;
 
-    if (in_string == random_confirmation_string) {
+    if (!dontask) {
+      std::cout << "Do you really want to delete the quota node under path: "
+		<< rmnode->space() << " ?" << std::endl;
+      std::cout << "Confirm the deletion by typing => ";
+      // Seed with a real random value, if available
+      std::random_device rd;
+      // Choose a random 10-digits number
+      std::default_random_engine dre(rd());
+      std::uniform_int_distribution<long> uniform_dist(1000000000, 9999999999);
+      long random_long = uniform_dist(dre);
+      random_confirmation_string = std::to_string(random_long);
+      std::cout << random_confirmation_string << std::endl;
+      std::cout << "                               => ";
+      std::cin >> in_string;
+    }
+
+    if (dontask || (in_string == random_confirmation_string)) {
       std::cout << "\nSending deletion request to server ...\n";
     } else {
       std::cout << "\nDeletion aborted!\n";
