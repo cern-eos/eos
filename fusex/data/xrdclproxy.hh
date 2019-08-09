@@ -211,6 +211,13 @@ public:
     max_inflight_size = _max_inflight_size;
   }
 
+  void reset() 
+  {
+    XrdSysMutexHelper lLock(this);
+    inflight_size = 0;
+    inflight_buffers = 0;
+  }
+
   shared_buffer get_buffer(size_t size, bool blocking = true)
   {
     // make sure, we don't have more buffers in flight than max_inflight_size

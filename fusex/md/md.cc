@@ -2671,7 +2671,11 @@ metad::mdcommunicate(ThreadAssistant& assistant)
 		    }
 		    hb.mutable_heartbeat_()->set_log(sendlog);
 		  } else {
-		    if (rsp.evict_().reason().find("log2big") != std::string::npos) {
+		    if (rsp.evict_().reason().find("resetbuffer") != std::string::npos) {
+		      eos_static_warning("MGM asked us to reset the buffer in flight");
+		      XrdCl::Proxy::sWrBufferManager.reset();
+		      XrdCl::Proxy::sRaBufferManager.reset();
+		    } else if (rsp.evict_().reason().find("log2big") != std::string::npos) {
 		      // we were asked to truncate our logfile
 		      EosFuse::Instance().truncateLogFile();
 		    } else {

@@ -213,6 +213,9 @@ com_fusex_usage:
 	  "                                                                     - if reason contains the keyword 'stacktrace' the client will send a self-stacktrace with the next heartbeat message and it will be stored in /var/log/eos/mgm/eosxd-stacktraces.log e.g. evict <uuid> stacktrace\n");
   fprintf(stdout, 
 	  "                                                                     - if reason contains the keyword 'sendlog' the client will send max. the last 512 lines of each log level and the log will be stored in /var/log/eos/mgm/eosxd-logtraces.log e.g. evict <uuid> sendlog\n");
+  fprintf(stdout, 
+	  "                                                                     - if reason contains the keyword 'resetbuffer' the client will reset the read-ahead and write-buffers in flight and possibly unlock a locked mount point");
+
   fprintf(stdout, "\n");
 
   fprintf(stdout,
