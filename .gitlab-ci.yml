@@ -20,7 +20,6 @@ before_script:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
-    - yum install -y https://dl.fedoraproject.org/pub/epel/7/x86_64/Packages/p/python36-3.6.8-1.el7.x86_64.rpm https://dl.fedoraproject.org/pub/epel/7/x86_64/Packages/p/python36-libs-3.6.8-1.el7.x86_64.rpm
     - yum install --nogpg -y gcc-c++ cmake3 make rpm-build which git yum-plugin-priorities ccache epel-release rpm-sign
     - git submodule update --init --recursive
     - mkdir build ; cd build/
