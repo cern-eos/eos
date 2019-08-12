@@ -82,7 +82,7 @@ public:
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  TrustedCredentials(const UserCredentials& uc_, time_t mtime_,
+  TrustedCredentials(const UserCredentials& uc_, struct timespec mtime_,
     const std::string& intercepted) {
     initialize(uc_, mtime_, intercepted);
   }
@@ -114,14 +114,14 @@ public:
     uc = UserCredentials::MakeNobody();
     initialized = false;
     invalidated = false;
-    mtime = 0;
+    mtime = {0, 0};
     interceptedPath.clear();
   }
 
   //----------------------------------------------------------------------------
   // Re-initialize contents.
   //----------------------------------------------------------------------------
-  void initialize(const UserCredentials& uc_, time_t mtime_,
+  void initialize(const UserCredentials& uc_, struct timespec mtime_,
     const std::string& intercepted) {
 
     uc = uc_;
@@ -237,7 +237,7 @@ public:
   //----------------------------------------------------------------------------
   // Accessor for mtime
   //----------------------------------------------------------------------------
-  time_t getMTime() const {
+  struct timespec getMTime() const {
     return mtime;
   }
 
@@ -252,7 +252,7 @@ public:
   std::string describe() const {
     std::stringstream ss;
     ss << uc.describe() << std::endl;
-    ss << "mtime: " << mtime << std::endl;
+    ss << "mtime: " << mtime.tv_sec << "." << mtime.tv_nsec << std::endl;
     ss << "intercepted path: " << interceptedPath << std::endl;
     return ss.str();
   }
@@ -262,7 +262,7 @@ private:
 
   bool initialized;
   mutable std::atomic<bool> invalidated;
-  time_t mtime;
+  struct timespec mtime;
   std::string interceptedPath;
 };
 

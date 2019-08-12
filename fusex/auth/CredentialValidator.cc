@@ -167,7 +167,7 @@ bool CredentialValidator::validate(const JailInformation &jail,
   //----------------------------------------------------------------------------
   if(uc.type == CredentialType::SSS || uc.type == CredentialType::NOBODY) {
     LOGBOOK_INSERT(scope, "Credential type does not need validation - accepting");
-    out.initialize(uc, 0, "");
+    out.initialize(uc, {0, 0}, "");
     return true;
   }
 
@@ -218,7 +218,7 @@ bool CredentialValidator::validate(const JailInformation &jail,
     }
 
     krb5_free_context(krb_ctx);
-    out.initialize(uc, 0, "");
+    out.initialize(uc, {0, 0}, "");
     return true;
   }
 
@@ -265,6 +265,15 @@ bool CredentialValidator::validate(const JailInformation &jail,
 }
 
 //------------------------------------------------------------------------------
+// Check two given timespecs for equality
+//------------------------------------------------------------------------------
+static bool checkTimespecEquality(const struct timespec &t1,
+  const struct timespec &t2) {
+
+  return t1.tv_sec == t2.tv_sec && t1.tv_nsec == t2.tv_nsec;
+}
+
+//------------------------------------------------------------------------------
 // Is the given TrustedCredentials object still valid? Reasons for
 // invalidation:
 //
@@ -302,7 +311,7 @@ bool CredentialValidator::checkValidity(const JailInformation& jail,
     return false;
   }
 
-  if(info.mtime != tc.getMTime()) {
+  if(!checkTimespecEquality(info.mtime, tc.getMTime())) {
     //--------------------------------------------------------------------------
     // File was modified
     //--------------------------------------------------------------------------

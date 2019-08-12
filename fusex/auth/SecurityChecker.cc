@@ -40,7 +40,7 @@ SecurityChecker::SecurityChecker(bool ij) : ignoreJails(ij) {}
 // data is faked.
 //------------------------------------------------------------------------------
 void SecurityChecker::inject(const JailIdentifier& jail,
-  const std::string& path, uid_t uid, mode_t mode, time_t mtime)
+  const std::string& path, uid_t uid, mode_t mode, struct timespec mtime)
 {
   std::lock_guard<std::mutex> lock(mtx);
   useInjectedData = true;
@@ -59,7 +59,7 @@ SecurityChecker::Info SecurityChecker::lookupInjected(
   if (it == injections.end()) return {};
 
   if(!checkPermissions(it->second.uid, it->second.mode, uid)) {
-    return Info(CredentialState::kBadPermissions, -1);
+    return Info(CredentialState::kBadPermissions, {0, 0} );
   }
 
   return Info(CredentialState::kOk, it->second.mtime);
@@ -118,10 +118,10 @@ SecurityChecker::Info SecurityChecker::lookupLocalJail(const std::string& path,
   if(!checkPermissions(filestat.st_uid, filestat.st_mode, uid)) {
     eos_static_alert("Uid %d is asking to use credentials '%s', but file "
       "belongs to uid %d! Refusing.", uid, path.c_str(), filestat.st_uid);
-    return Info(CredentialState::kBadPermissions, -1);
+    return Info(CredentialState::kBadPermissions, {0, 0} );
   }
 
-  return Info(CredentialState::kOk, filestat.st_mtime);
+  return Info(CredentialState::kOk, filestat.st_mtim);
 }
 
 //------------------------------------------------------------------------------
@@ -139,7 +139,7 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
 
   if(!jailfd.ok()) {
     eos_static_alert("Opening jail '%s' failed", jailPath.c_str());
-    return Info(CredentialState::kCannotStat, -1);
+    return Info(CredentialState::kCannotStat, {0, 0} );
   }
 
   //----------------------------------------------------------------------------
@@ -149,7 +149,7 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
   ScopedFsUidSetter uidSetter(uid, gid);
   if(!uidSetter.IsOk()) {
     eos_static_alert("Setting uid,gid to %d,%d failed", uid, gid);
-    return Info(CredentialState::kCannotStat, -1);
+    return Info(CredentialState::kCannotStat, {0, 0} );
   }
 #endif
 
@@ -163,7 +163,7 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
     //--------------------------------------------------------------------------
     // User is attempting to open a relative path ?! No.
     //--------------------------------------------------------------------------
-    return Info(CredentialState::kCannotStat, -1);
+    return Info(CredentialState::kCannotStat, {0, 0} );
   }
 
   FileDescriptor current = std::move(jailfd);
@@ -173,14 +173,14 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
     // ".." in path? Disallow for now.
     //--------------------------------------------------------------------------
     if(splitPath[i] == "..") {
-      return Info(CredentialState::kCannotStat, -1);
+      return Info(CredentialState::kCannotStat, {0, 0} );
     }
 
     FileDescriptor next(openat(current.getFD(), splitPath[i].c_str(),
       O_DIRECTORY | O_NOFOLLOW | O_RDONLY));
 
     if(!next.ok()) {
-      return Info(CredentialState::kCannotStat, -1);
+      return Info(CredentialState::kCannotStat, {0, 0} );
     }
 
     current = std::move(next);
@@ -193,7 +193,7 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
     O_NOFOLLOW | O_RDONLY));
 
   if(!fileFd.ok()) {
-    return Info(CredentialState::kCannotStat, -1);
+    return Info(CredentialState::kCannotStat, {0, 0} );
   }
 
   //----------------------------------------------------------------------------
@@ -201,11 +201,11 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
   //----------------------------------------------------------------------------
   struct stat filestat;
   if (::fstat(fileFd.getFD(), &filestat) != 0) {
-    return Info(CredentialState::kCannotStat, -1);
+    return Info(CredentialState::kCannotStat, {0, 0} );
   }
 
   if(!checkPermissions(filestat.st_uid, filestat.st_mode, uid)) {
-    return Info(CredentialState::kBadPermissions, -1);
+    return Info(CredentialState::kBadPermissions, {0, 0} );
   }
 
   //----------------------------------------------------------------------------
@@ -219,7 +219,7 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
   //----------------------------------------------------------------------------
   // We have the contents, return.
   //----------------------------------------------------------------------------
-  return Info::WithContents(filestat.st_mtime, contents);
+  return Info::WithContents(filestat.st_mtim, contents);
 }
 
 //------------------------------------------------------------------------------

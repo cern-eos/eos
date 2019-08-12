@@ -30,23 +30,23 @@ TEST(SecurityChecker, BasicSanity)
   localJail.sameJailAsThisPid = true;
 
   SecurityChecker checker(false);
-  checker.inject(localJail.id, "/tmp/ayy/lmao", 1337, 0455, 42);
+  checker.inject(localJail.id, "/tmp/ayy/lmao", 1337, 0455, {42, 42} );
   ASSERT_EQ(checker.lookup(localJail, "/tmp/aaa", 1000, 1000),
-            SecurityChecker::Info(CredentialState::kCannotStat, -1));
+            SecurityChecker::Info(CredentialState::kCannotStat, {0, 0} ));
   ASSERT_EQ(checker.lookup(localJail, "/tmp/ayy/lmao", 1000, 1000),
-            SecurityChecker::Info(CredentialState::kBadPermissions, -1));
+            SecurityChecker::Info(CredentialState::kBadPermissions, {0, 0} ));
   ASSERT_EQ(checker.lookup(localJail, "/tmp/ayy/lmao", 1337, 1000),
-            SecurityChecker::Info(CredentialState::kBadPermissions, -1));
-  checker.inject(localJail.id, "/tmp/123", 1234, 0400, 42);
+            SecurityChecker::Info(CredentialState::kBadPermissions, {0, 0} ));
+  checker.inject(localJail.id, "/tmp/123", 1234, 0400, {42, 42} );
   ASSERT_EQ(checker.lookup(localJail, "/tmp/123", 1000, 1000),
-            SecurityChecker::Info(CredentialState::kBadPermissions, -1));
+            SecurityChecker::Info(CredentialState::kBadPermissions, {0, 0} ));
   ASSERT_EQ(checker.lookup(localJail, "/tmp/123", 1234, 1000),
-            SecurityChecker::Info(CredentialState::kOk, 42));
+            SecurityChecker::Info(CredentialState::kOk, {42, 42} ));
   ASSERT_EQ(checker.lookup(localJail, "/tmp/234", 1234, 1000),
-            SecurityChecker::Info(CredentialState::kCannotStat, -1));
-  checker.inject(localJail.id, "/tmp/123", 1111, 0700, 37);
+            SecurityChecker::Info(CredentialState::kCannotStat, {0, 0} ));
+  checker.inject(localJail.id, "/tmp/123", 1111, 0700, {37, 37} );
   ASSERT_EQ(checker.lookup(localJail, "/tmp/123", 1111, 1000),
-            SecurityChecker::Info(CredentialState::kOk, 37));
+            SecurityChecker::Info(CredentialState::kOk, {37, 37} ));
   ASSERT_EQ(checker.lookup(localJail, "/tmp/123", 1112, 1000),
-            SecurityChecker::Info(CredentialState::kBadPermissions, -1));
+            SecurityChecker::Info(CredentialState::kBadPermissions, {0, 0} ));
 }

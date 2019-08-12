@@ -72,10 +72,10 @@ public:
 
   struct Info {
     CredentialState state;
-    time_t mtime;
+    struct timespec mtime;
     std::string contents;
 
-    static Info Ok(time_t mtime)
+    static Info Ok(struct timespec mtime)
     {
       Info ret;
       ret.state = CredentialState::kOk;
@@ -87,7 +87,7 @@ public:
     {
       Info ret;
       ret.state = CredentialState::kBadPermissions;
-      ret.mtime = -1;
+      ret.mtime = {0, 0};
       return ret;
     }
 
@@ -95,11 +95,11 @@ public:
     {
       Info ret;
       ret.state = CredentialState::kCannotStat;
-      ret.mtime = -1;
+      ret.mtime = {0, 0};
       return ret;
     }
 
-    static Info WithContents(time_t mtime, const std::string& contents)
+    static Info WithContents(struct timespec mtime, const std::string& contents)
     {
       Info ret;
       ret.state = CredentialState::kOkWithContents;
@@ -108,15 +108,16 @@ public:
       return ret;
     }
 
-    Info() : state(CredentialState::kCannotStat), mtime(-1) { }
+    Info() : state(CredentialState::kCannotStat), mtime{0, 0} { }
 
-    Info(CredentialState st, time_t mt) : state(st), mtime(mt) { }
+    Info(CredentialState st, struct timespec mt) : state(st), mtime(mt) { }
 
     bool operator==(const Info& other) const
     {
-      return state == other.state &&
-             mtime == other.mtime &&
-             contents == other.contents;
+      return state          ==  other.state           &&
+             mtime.tv_sec   ==  other.mtime. tv_sec   &&
+             mtime.tv_nsec  ==  other.mtime.tv_nsec   &&
+             contents       ==  other.contents;
     }
   };
 
@@ -125,7 +126,7 @@ public:
   // data is faked.
   //----------------------------------------------------------------------------
   void inject(const JailIdentifier& jail, const std::string& path, uid_t uid,
-              mode_t mode, time_t mtime);
+              mode_t mode, struct timespec mtime);
 
   //----------------------------------------------------------------------------
   // Lookup given path, interpreted in the context of the given jail.
@@ -165,11 +166,11 @@ private:
   struct InjectedData {
     uid_t uid;
     mode_t mode;
-    time_t mtime;
+    struct timespec mtime;
 
     InjectedData() { }
 
-    InjectedData(uid_t u, mode_t md, time_t mt) : uid(u), mode(md), mtime(mt) { }
+    InjectedData(uid_t u, mode_t md, struct timespec mt) : uid(u), mode(md), mtime(mt) { }
   };
 
   struct InjectedRequest {
