@@ -31,6 +31,17 @@
 #include <iostream>
 
 //------------------------------------------------------------------------------
+// Portability helper: Extract timespec from stat struct
+//------------------------------------------------------------------------------
+struct timespec extractTimespec(const struct stat &st) {
+#ifdef __APPLE__
+  return st.st_mtimespec;
+#else
+  return st.st_mtim;
+#endif
+}
+
+//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 SecurityChecker::SecurityChecker(bool ij) : ignoreJails(ij) {}
@@ -121,7 +132,7 @@ SecurityChecker::Info SecurityChecker::lookupLocalJail(const std::string& path,
     return Info(CredentialState::kBadPermissions, {0, 0} );
   }
 
-  return Info(CredentialState::kOk, filestat.st_mtim);
+  return Info(CredentialState::kOk, extractTimespec(filestat));
 }
 
 //------------------------------------------------------------------------------
@@ -219,7 +230,7 @@ SecurityChecker::Info SecurityChecker::lookupNonLocalJail(
   //----------------------------------------------------------------------------
   // We have the contents, return.
   //----------------------------------------------------------------------------
-  return Info::WithContents(filestat.st_mtim, contents);
+  return Info::WithContents(extractTimespec(filestat), contents);
 }
 
 //------------------------------------------------------------------------------
