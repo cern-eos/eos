@@ -207,7 +207,18 @@ public:
   //!
   //! @return true if file is being deleted, otherwise false
   //----------------------------------------------------------------------------
-  bool IsBeingDeleted(eos::IFileMD::id_t fid) const;
+  bool IsBeingDeleted(const eos::IFileMD::id_t fid) const;
+
+  //----------------------------------------------------------------------------
+  //! Drop ghost fid from the given file system id
+  //!
+  //! @param fsid file system id
+  //! @param fid file identifier
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool DropGhostFid(const eos::common::FileSystem::fsid_t fsid,
+                    const eos::IFileMD::id_t fid) const;
 
   //----------------------------------------------------------------------------
   //! Print log message - depending on whether or not we run in standalone mode
