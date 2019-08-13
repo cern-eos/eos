@@ -90,6 +90,10 @@ ICmdHelper::ExecuteWithoutPrint(bool add_route)
     oss << "&eos.rgid=" << mGlobalOpts.mGroupRole;
   }
 
+  if (mGlobalOpts.mForceSss) {
+    oss << "&xrd.wantprot=sss";
+  }
+
   return RawExecute(oss.str());
 }
 
