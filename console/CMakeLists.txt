@@ -49,6 +49,7 @@ add_library(
   commands/helpers/AclHelper.cc     commands/helpers/AclHelper.hh
   commands/helpers/RecycleHelper.cc commands/helpers/RecycleHelper.hh
   commands/helpers/FsckHelper.cc    commands/helpers/FsckHelper.hh
+  commands/helpers/NodeHelper.cc    commands/helpers/NodeHelper.hh
   commands/HealthCommand.cc         commands/HealthCommand.hh
   commands/com_accounting.cc
   commands/com_archive.cc

@@ -21,10 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <algorithm>
+
 #include "HealthCommand.hh"
-#include "common/StringTokenizer.hh"
+#include "console/commands/helpers/NodeHelper.hh"
 #include "console/commands/helpers/FsHelper.hh"
+#include "common/StringTokenizer.hh"
+#include <algorithm>
 
 std::string HealthCommand::GetValueWrapper::GetValue(const std::string& key)
 {
@@ -117,17 +119,20 @@ HealthCommand::HealthCommand(const char* comm)
 
 void HealthCommand::DeadNodesCheck()
 {
-//  if (m_mgm_execute.ExecuteCommand("mgm.cmd=node&mgm.subcmd=ls&mgm.outformat=m", true) != 0) {
-  if (m_mgm_execute.ExecuteCommand("mgm.cmd.proto=cgQKAhAB", true) != 0) {
-    throw std::string("MGMError: " + m_mgm_execute.GetError());
+  NodeHelper node_cmd;
+  node_cmd.ParseCommand("ls -m");
+
+  if (node_cmd.ExecuteWithoutPrint()) {
+    throw std::string("MGMError: " + node_cmd.GetError());
   }
 
-  std::string ret = m_mgm_execute.GetResult();
+  std::string ret = node_cmd.GetResult();
   std::string line;
   std::istringstream splitter(ret);
   std::string format_s = !m_monitoring ? "s" : "os";
   std::string format_ss = !m_monitoring ? "-s" : "os";
-  eos::mgm::TableFormatterBase table(!isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO));
+  eos::mgm::TableFormatterBase table(!isatty(STDOUT_FILENO) ||
+                                     !isatty(STDERR_FILENO));
 
   if (!m_monitoring) {
     table.SetHeader({
@@ -173,7 +178,8 @@ void HealthCommand::TooFullForDrainingCheck()
   std::string format_ss = !m_monitoring ? "-s" : "os";
   std::string format_l = !m_monitoring ? "+l" : "ol";
   std::string unit = !m_monitoring ? "B" : "";
-  eos::mgm::TableFormatterBase table(!isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO));
+  eos::mgm::TableFormatterBase table(!isatty(STDOUT_FILENO) ||
+                                     !isatty(STDERR_FILENO));
 
   if (!m_monitoring) {
     table.SetHeader({
@@ -192,11 +198,11 @@ void HealthCommand::TooFullForDrainingCheck()
     });
   }
 
-  for (auto & group : m_group_data) {
+  for (auto& group : m_group_data) {
     unsigned long long summed_free_space = 0;
     unsigned long long offline_used_space = 0;
 
-    for (auto & fs : group.second) {
+    for (auto& fs : group.second) {
       if (fs.active != "online") {
         offline_used_space += fs.used_bytes;
       } else {
@@ -209,7 +215,7 @@ void HealthCommand::TooFullForDrainingCheck()
 
     if (trigger || m_all) {
       data.emplace_back(std::make_tuple("FullDrainCheck", group.first.c_str(),
-                                     offline_used_space, summed_free_space, status));
+                                        offline_used_space, summed_free_space, status));
     }
   }
 
@@ -241,7 +247,8 @@ void HealthCommand::PlacementContentionCheck()
   std::string format_ss = !m_monitoring ? "-s" : "os";
   std::string format_l = !m_monitoring ? "l" : "ol";
   std::string unit = !m_monitoring ? "%" : "";
-  eos::mgm::TableFormatterBase table(!isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO));
+  eos::mgm::TableFormatterBase table(!isatty(STDOUT_FILENO) ||
+                                     !isatty(STDERR_FILENO));
 
   if (!m_monitoring) {
     table.SetHeader({
@@ -268,10 +275,10 @@ void HealthCommand::PlacementContentionCheck()
   unsigned min_free_fs = 1024;
   std::string critical_group;
 
-  for (auto & group : m_group_data) {
+  for (auto& group : m_group_data) {
     unsigned int free_space_left = 0;
 
-    for (auto & fs : group.second) {
+    for (auto& fs : group.second) {
       if (fs.free_bytes > uint64_t(2) * fs.headroom) {
         ++free_space_left;
       }
@@ -293,7 +300,7 @@ void HealthCommand::PlacementContentionCheck()
 
     if (trigger || m_all) {
       data.emplace_back(std::make_tuple("PlacementContentionCheck",
-                                     group.first.c_str(), free_space_left, full_fs, contention, status));
+                                        group.first.c_str(), free_space_left, full_fs, contention, status));
     }
 
     min = (contention < min) ? contention : min;
@@ -326,8 +333,9 @@ void HealthCommand::PlacementContentionCheck()
 
   m_output << table.GenerateTable(HEADER).c_str();
   //! Summary
-  avg = (m_group_data.empty() ? 0 : avg/m_group_data.size()) ;
-  eos::mgm::TableFormatterBase table_summ(!isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO));
+  avg = (m_group_data.empty() ? 0 : avg / m_group_data.size()) ;
+  eos::mgm::TableFormatterBase table_summ(!isatty(STDOUT_FILENO) ||
+                                          !isatty(STDERR_FILENO));
 
   if (!m_monitoring) {
     table_summ.SetHeader({
