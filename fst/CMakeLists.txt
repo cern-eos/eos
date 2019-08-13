@@ -367,6 +367,7 @@ add_dependencies(XrdEosFst-Objects EosFstProto-Objects)
 add_dependencies(XrdEosFst-Objects EosCliProto-Objects)
 add_dependencies(XrdEosFst-Objects EosNsQuarkdbProto-Objects)
 add_dependencies(XrdEosFst-Objects XrdSsiPbEosCta-Objects)
+add_dependencies(XrdEosFst-Objects EosConsoleHelpers-Objects)
 
 set_target_properties(
   XrdEosFst-Objects PROPERTIES
@@ -377,14 +378,16 @@ target_compile_definitions(XrdEosFst-Objects PUBLIC
 
 add_library(XrdEosFst MODULE
   $<TARGET_OBJECTS:XrdEosFst-Objects>
-  $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>)
+  $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>
+  $<TARGET_OBJECTS:EosConsoleHelpers-Objects>)
 
 target_compile_definitions(XrdEosFst PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 add_library(XrdEosFst-Static STATIC
   $<TARGET_OBJECTS:XrdEosFst-Objects>
-  $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>)
+  $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>
+  $<TARGET_OBJECTS:EosConsoleHelpers-Objects>)
 
 target_compile_definitions(XrdEosFst-Static PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
@@ -432,7 +435,8 @@ target_link_libraries(XrdEosFst-Static PUBLIC
 # without the -4 prefix. 
 add_library(XrdEosFst-4 MODULE
   $<TARGET_OBJECTS:XrdEosFst-Objects>
-  $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>)
+  $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>
+  $<TARGET_OBJECTS:EosConsoleHelpers-Objects>)
 
 target_compile_definitions(XrdEosFst PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})

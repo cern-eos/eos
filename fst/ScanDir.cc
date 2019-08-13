@@ -24,13 +24,14 @@
 #include "fst/ScanDir.hh"
 #include "common/Path.hh"
 #include "common/Constants.hh"
+#include "console/commands/helpers/FsHelper.hh"
 #include "fst/Config.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/FmdDbMap.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/io/FileIoPluginCommon.hh"
-#include "qclient/structures/QSet.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
+#include "qclient/structures/QSet.hh"
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -287,13 +288,37 @@ ScanDir::CleanupUnlinked()
 }
 
 //------------------------------------------------------------------------------
+// Drop ghost fid from the given file system id
+//------------------------------------------------------------------------------
+bool
+ScanDir::DropGhostFid(const eos::common::FileSystem::fsid_t fsid,
+                      const eos::IFileMD::id_t fid) const
+{
+  GlobalOptions opts;
+  opts.mForceSss = true;
+  FsHelper fs_cmd(opts);
+
+  if (fs_cmd.ParseCommand(SSTR("fs dropghosts " << fsid
+                               << " --fid " << fid).c_str())) {
+    eos_err("%s", "msg=\"failed to parse fs dropghosts command\"");
+    return false;
+  }
+
+  if (fs_cmd.ExecuteWithoutPrint()) {
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
 // Check if file is unlinked from the namespace and in the process of being
 // deleted from the disk. Files that are unlinked for more than 10 min
 // definetely have a problem and we don't account them as in the process of
 // being deleted.
 //------------------------------------------------------------------------------
 bool
-ScanDir::IsBeingDeleted(eos::IFileMD::id_t fid) const
+ScanDir::IsBeingDeleted(const eos::IFileMD::id_t fid) const
 {
   using namespace std::chrono;
   constexpr seconds max_delay_unlink {600};
