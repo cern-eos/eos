@@ -2498,14 +2498,10 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
     auto nominal = fs->mNominalFilled;
     auto filled = fs->mDiskFilled;
     auto threshold = fs->mBalThresh;
-    bool balancing = false, balancer = false;
+    bool balancing = false;
 
     if (nominal && ((filled - threshold) >= nominal)) {
       balancing = true;
-    }
-
-    if (nominal && ((filled + threshold) <= nominal)) {
-      balancer = true;
     }
 
     if (balancing) {

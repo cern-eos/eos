@@ -22,13 +22,13 @@
  ************************************************************************/
 
 #pragma once
+#include "console/GlobalOptions.hh"
+#include "common/StringConversion.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
-#include <string>
 #include <vector>
 #include <math.h>
-#include "common/StringConversion.hh"
 #include <map>
 #include <iostream>
 #include <memory>
@@ -60,8 +60,11 @@ extern int output_result(XrdOucEnv* result, bool highlighting = true);
 extern void command_result_stdout_to_vector(std::vector<std::string>&
     string_vector);
 extern XrdOucEnv* CommandEnv;
+// Structure used for the protobuf impelmentation to pass down the global
+// options that are set before parsing the actual command
+extern GlobalOptions gGlobalOpts;
 
-using namespace XrdCl; 
+using namespace XrdCl;
 
 //------------------------------------------------------------------------------
 //! Send client command to the MGM
@@ -116,7 +119,7 @@ int Run(int argc, char* argv[]);
 //!
 //! @return processed path identifier
 //------------------------------------------------------------------------------
-const char* path_identifier(const char *in, bool escapeand = false);
+const char* path_identifier(const char* in, bool escapeand = false);
 
 //------------------------------------------------------------------------------
 //! Check if input matches pattern and extract the file id if possible
@@ -200,35 +203,40 @@ bool CheckMgmOnline(const std::string& uri);
 //------------------------------------------------------------------------------
 std::string DefaultRoute();
 
-
-
-
 //------------------------------------------------------------------------------
 //! API to load the filesystem configuration of an instance
 //------------------------------------------------------------------------------
 
-class filesystems {
+class filesystems
+{
 public:
   filesystems() {}
   ~filesystems() {}
 
-  typedef std::map<int, std::map<std::string,std::string>> filesystemmap_t;
+  typedef std::map<int, std::map<std::string, std::string>> filesystemmap_t;
   typedef std::map<int, std::shared_ptr<XrdCl::FileSystem>> clientmap_t;
   int Connect();
-  int Load(bool verbose=false);
+  int Load(bool verbose = false);
 
-  filesystemmap_t& fs() { return fsmap;    }
-  clientmap_t& clients() {return clientmap; }
+  filesystemmap_t& fs()
+  {
+    return fsmap;
+  }
+  clientmap_t& clients()
+  {
+    return clientmap;
+  }
 private:
   filesystemmap_t fsmap;
   clientmap_t clientmap;
 };
 
-class files {
-public: 
+class files
+{
+public:
   files() {}
   ~files() {}
-  
+
   struct fileentry {
     int expired;
     int nrep;
@@ -240,9 +248,12 @@ public:
     std::set<int> wrongsize_locations;
   };
 
-  int Find(const char* path, bool verbose=false);
-  int Lookup(filesystems& fsmap, bool verbose=false);
-  size_t Size() { return filemap.size(); }
+  int Find(const char* path, bool verbose = false);
+  int Lookup(filesystems& fsmap, bool verbose = false);
+  size_t Size()
+  {
+    return filemap.size();
+  }
   int Report(size_t expect_replica);
 
   class SyncResponseHandler: public ResponseHandler
@@ -252,13 +263,16 @@ public:
       pStatus(0),
       pResponse(0),
       pCondVar(0),
-      pPath(path), 
-      pFsid(fsid){ pStartTime = time(NULL);}
+      pPath(path),
+      pFsid(fsid)
+    {
+      pStartTime = time(NULL);
+    }
 
     virtual ~SyncResponseHandler() {}
 
-    virtual void HandleResponse( XRootDStatus *status,
-				 AnyObject    *response )
+    virtual void HandleResponse(XRootDStatus* status,
+                                AnyObject*    response)
     {
       XrdSysCondVarHelper scopedLock(pCondVar);
       pStatus = status;
@@ -266,38 +280,57 @@ public:
       pCondVar.Broadcast();
     }
 
-    XRootDStatus *GetStatus() { return pStatus; }
-
-    bool HasStatus() {
-      XrdSysCondVarHelper scopedLock(pCondVar);
-      if (pStatus) 
-	return true;
-      else 
-	return false;
+    XRootDStatus* GetStatus()
+    {
+      return pStatus;
     }
 
-    AnyObject *GetResponse() { return pResponse; } 
+    bool HasStatus()
+    {
+      XrdSysCondVarHelper scopedLock(pCondVar);
+
+      if (pStatus) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+
+    AnyObject* GetResponse()
+    {
+      return pResponse;
+    }
 
     void WaitForResponse()
     {
       XrdSysCondVarHelper scopedLock(pCondVar);
+
       while (pStatus == 0) {
-	pCondVar.Wait();
+        pCondVar.Wait();
       }
     }
 
-    const char* GetPath() { return pPath.c_str(); }
+    const char* GetPath()
+    {
+      return pPath.c_str();
+    }
 
-    int         GetFsid() { return pFsid; }
+    int         GetFsid()
+    {
+      return pFsid;
+    }
 
-    size_t      GetAge()  { return time(NULL) - pStartTime; }
+    size_t      GetAge()
+    {
+      return time(NULL) - pStartTime;
+    }
 
   private:
-    SyncResponseHandler(const SyncResponseHandler &other);
-    SyncResponseHandler &operator = (const SyncResponseHandler &other);
+    SyncResponseHandler(const SyncResponseHandler& other);
+    SyncResponseHandler& operator = (const SyncResponseHandler& other);
 
-    XRootDStatus    *pStatus;
-    AnyObject       *pResponse;
+    XRootDStatus*    pStatus;
+    AnyObject*       pResponse;
     XrdSysCondVar    pCondVar;
     std::string      pPath;
     int              pFsid;

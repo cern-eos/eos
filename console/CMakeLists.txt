@@ -38,18 +38,20 @@ add_subdirectory(tests)
 # eos executable
 #-------------------------------------------------------------------------------
 add_library(
+  EosConsoleHelpers-Objects OBJECT
+  commands/ICmdHelper.cc            commands/ICmdHelper.hh
+  commands/helpers/FsHelper.cc      commands/helpers/FsHelper.hh
+  commands/helpers/RecycleHelper.cc commands/helpers/RecycleHelper.hh
+  commands/helpers/FsckHelper.cc    commands/helpers/FsckHelper.hh
+  commands/helpers/NodeHelper.cc    commands/helpers/NodeHelper.hh)
+
+add_library(
   EosConsoleCommands-Objects OBJECT
   ConsoleMain.cc  ConsoleMain.hh
   ConsolePipe.cc  ConsolePipe.hh
   ConsoleCompletion.cc ConsoleCompletion.hh
   RegexUtil.cc RegexUtil.hh
-  MgmExecute.cc MgmExecute.hh
-  commands/ICmdHelper.cc            commands/ICmdHelper.hh
-  commands/helpers/FsHelper.cc      commands/helpers/FsHelper.hh
   commands/helpers/AclHelper.cc     commands/helpers/AclHelper.hh
-  commands/helpers/RecycleHelper.cc commands/helpers/RecycleHelper.hh
-  commands/helpers/FsckHelper.cc    commands/helpers/FsckHelper.hh
-  commands/helpers/NodeHelper.cc    commands/helpers/NodeHelper.hh
   commands/HealthCommand.cc         commands/HealthCommand.hh
   commands/com_accounting.cc
   commands/com_archive.cc
@@ -135,22 +137,20 @@ add_library(
   commands/com_proto_access.cc
   commands/com_proto_fsck.cc)
 
-add_dependencies(EosConsoleCommands-Objects EosCliProto-Objects)
-add_dependencies(EosConsoleCommands-Objects EosFstProto-Objects)
+add_dependencies(EosConsoleHelpers-Objects EosCliProto-Objects)
+add_dependencies(EosConsoleHelpers-Objects EosFstProto-Objects)
+add_dependencies(EosConsoleCommands-Objects EosConsoleHelpers-Objects)
 
-target_compile_definitions(
-  EosConsoleCommands-Objects PUBLIC
-  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
-
-set_target_properties(
-  EosConsoleCommands-Objects
-  PROPERTIES
+set_target_properties(EosConsoleHelpers-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-add_executable(
-  eos
+set_target_properties(EosConsoleCommands-Objects PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
+
+add_executable(eos
   ConsoleMainExecutable.cc
   $<TARGET_OBJECTS:EosCliProto-Objects>
+  $<TARGET_OBJECTS:EosConsoleHelpers-Objects>
   $<TARGET_OBJECTS:EosConsoleCommands-Objects>)
 
 #-------------------------------------------------------------------------------

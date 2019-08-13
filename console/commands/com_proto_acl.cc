@@ -40,7 +40,7 @@ int com_acl(char* arg)
     return EINVAL;
   }
 
-  AclHelper acl;
+  AclHelper acl(gGlobalOpts);
 
   if (!acl.ParseCommand(arg)) {
     com_acl_help();

@@ -120,30 +120,27 @@ FsckHelper::ParseCommand(const char* arg)
       type->assign(soption);
     }
   } else if (cmd == "search") {
-    if ((option = tokenizer.GetToken()) == nullptr) {
-      return false;
-    }
-
-    size_t nrep = 0;
-    std::string path = option;
-
-    if ((option = tokenizer.GetToken())) {
-      try {
-        nrep = std::stoul(option);
-      } catch (...) {
-        // ignore
-      }
-    }
-
-    filesystems fs;
-    fs.Load();
-    fs.Connect();
-    files f;
-    f.Find(path.c_str());
-    std::cout << "# found " << f.Size() << " files" << std::endl;
-    f.Lookup(fs);
-    f.Report(nrep);
-    mIsLocal = true;
+    // if ((option = tokenizer.GetToken()) == nullptr) {
+    //   return false;
+    // }
+    // size_t nrep = 0;
+    // std::string path = option;
+    // if ((option = tokenizer.GetToken())) {
+    //   try {
+    //     nrep = std::stoul(option);
+    //   } catch (...) {
+    //     // ignore
+    //   }
+    // }
+    // filesystems fs;
+    // fs.Load();
+    // fs.Connect();
+    // files f;
+    // f.Find(path.c_str());
+    // std::cout << "# found " << f.Size() << " files" << std::endl;
+    // f.Lookup(fs);
+    // f.Report(nrep);
+    // mIsLocal = true;
   } else {
     return false;
   }

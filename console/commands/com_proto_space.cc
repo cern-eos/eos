@@ -42,11 +42,15 @@ class SpaceHelper : public ICmdHelper
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param opts global options
   //----------------------------------------------------------------------------
-  SpaceHelper()
+  SpaceHelper(const GlobalOptions& opts):
+    ICmdHelper(opts)
   {
     mIsAdmin = true;
   }
+
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
@@ -348,7 +352,7 @@ int com_protospace(char* arg)
     return EINVAL;
   }
 
-  SpaceHelper space;
+  SpaceHelper space(gGlobalOpts);
 
   if (!space.ParseCommand(arg)) {
     com_space_help();

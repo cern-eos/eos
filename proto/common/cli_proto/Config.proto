@@ -16,9 +16,6 @@ message ConfigProto {
     string file   = 1;
   }
 
-  message ResetProto {
-  }
-
   message ExportProto {
     string file  = 1;
     bool force = 2;
@@ -37,11 +34,10 @@ message ConfigProto {
     uint64 lines = 1;
   }
 
-
   oneof subcmd {
     LsProto ls = 1;
     DumpProto dump = 2;
-    ResetProto reset = 3;
+    bool reset = 3;
     ExportProto exp = 4;
     SaveProto save = 5;
     LoadProto load = 6;

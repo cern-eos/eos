@@ -40,7 +40,6 @@ EOSMGMNAMESPACE_BEGIN
 eos::console::ReplyProto
 ConfigCmd::ProcessRequest() noexcept
 {
-
   eos::console::ReplyProto reply;
   eos::console::ConfigProto config = mReqProto.config();
 
@@ -48,24 +47,31 @@ ConfigCmd::ProcessRequest() noexcept
   case eos::console::ConfigProto::kLs:
     LsSubcmd(config.ls(), reply);
     break;
+
   case eos::console::ConfigProto::kDump:
     DumpSubcmd(config.dump(), reply);
     break;
+
   case eos::console::ConfigProto::kReset:
-    ResetSubcmd(config.reset(), reply);
+    ResetSubcmd(reply);
     break;
+
   case eos::console::ConfigProto::kExp:
     ExportSubcmd(config.exp(), reply);
     break;
+
   case eos::console::ConfigProto::kSave:
     SaveSubcmd(config.save(), reply);
     break;
+
   case eos::console::ConfigProto::kLoad:
     LoadSubcmd(config.load(), reply);
     break;
+
   case eos::console::ConfigProto::kChangelog:
     ChangelogSubcmd(config.changelog(), reply);
     break;
+
   default:
     reply.set_retc(EINVAL);
     reply.set_std_err("error: not supported");
@@ -77,8 +83,9 @@ ConfigCmd::ProcessRequest() noexcept
 //----------------------------------------------------------------------------
 // Execute ls subcommand
 //----------------------------------------------------------------------------
-void ConfigCmd::LsSubcmd(const eos::console::ConfigProto_LsProto& ls, eos::console::ReplyProto& reply) {
-
+void ConfigCmd::LsSubcmd(const eos::console::ConfigProto_LsProto& ls,
+                         eos::console::ReplyProto& reply)
+{
   eos_notice("config ls");
   XrdOucString listing = "";
 
@@ -88,14 +95,14 @@ void ConfigCmd::LsSubcmd(const eos::console::ConfigProto_LsProto& ls, eos::conso
   } else {
     reply.set_std_out(listing.c_str());
   }
-
 }
 
 //----------------------------------------------------------------------------
 // Execute dump subcommand
 //----------------------------------------------------------------------------
-void ConfigCmd::DumpSubcmd(const eos::console::ConfigProto_DumpProto& dump, eos::console::ReplyProto& reply) {
-
+void ConfigCmd::DumpSubcmd(const eos::console::ConfigProto_DumpProto& dump,
+                           eos::console::ReplyProto& reply)
+{
   eos_notice("config dump");
   XrdOucString sdump = "";
 
@@ -105,38 +112,36 @@ void ConfigCmd::DumpSubcmd(const eos::console::ConfigProto_DumpProto& dump, eos:
   } else {
     reply.set_std_out(sdump.c_str());
   }
-
 }
 
 //----------------------------------------------------------------------------
 // Execute reset subcommand
 //----------------------------------------------------------------------------
-void ConfigCmd::ResetSubcmd(const eos::console::ConfigProto_ResetProto& reset, eos::console::ReplyProto& reply) {
-
-  if ( mVid.uid != 0 ) {
+void ConfigCmd::ResetSubcmd(eos::console::ReplyProto& reply)
+{
+  if (mVid.uid != 0) {
     reply.set_std_err("error: you have to take role 'root' to execute this command");
     reply.set_retc(EPERM);
     return;
   }
 
   eos_notice("config reset");
-
   gOFS->ConfEngine->ResetConfig();
   reply.set_std_out("success: configuration has been reset(cleaned)!");
-
-
 }
 
 //----------------------------------------------------------------------------
 // Execute export subcommand
 //----------------------------------------------------------------------------
-void ConfigCmd::ExportSubcmd(const eos::console::ConfigProto_ExportProto& exp, eos::console::ReplyProto& reply) {
-
+void ConfigCmd::ExportSubcmd(const eos::console::ConfigProto_ExportProto& exp,
+                             eos::console::ReplyProto& reply)
+{
   if (gOFS->MgmOfsConfigEngineType == "file") {
     reply.set_std_err("error: this command is available only with ConfigEngine type 'quarkdb'");
     reply.set_retc(EINVAL);
     return;
   }
+
   if ((mVid.uid != 0)) {
     reply.set_std_err("error: you have to take role 'root' to execute this command");
     reply.set_retc(EPERM);
@@ -145,23 +150,22 @@ void ConfigCmd::ExportSubcmd(const eos::console::ConfigProto_ExportProto& exp, e
 
   eos_notice("config export: %s", exp.ShortDebugString().c_str());
   eos::mgm::ConfigResetMonitor fsview_cfg_reset_monitor;
-
   XrdOucString std_err;
+
   if (!gOFS->ConfEngine->PushToQuarkDB(exp.file(), exp.force(), std_err)) {
     reply.set_std_err(std_err.c_str());
     reply.set_retc(errno);
   } else {
     reply.set_std_out("success: configuration successfully exported!");
   }
-
 }
 
 //----------------------------------------------------------------------------
 // Execute save subcommand
 //----------------------------------------------------------------------------
-void ConfigCmd::SaveSubcmd(const eos::console::ConfigProto_SaveProto& save, eos::console::ReplyProto& reply) {
-
-
+void ConfigCmd::SaveSubcmd(const eos::console::ConfigProto_SaveProto& save,
+                           eos::console::ReplyProto& reply)
+{
   if ((mVid.uid != 0)) {
     reply.set_std_err("error: you have to take role 'root' to execute this command");
     reply.set_retc(EPERM);
@@ -169,22 +173,23 @@ void ConfigCmd::SaveSubcmd(const eos::console::ConfigProto_SaveProto& save, eos:
   }
 
   eos_notice("config save: %s", save.ShortDebugString().c_str());
-
   XrdOucString std_err;
-  if (!gOFS->ConfEngine->SaveConfig(save.file(), save.force(), false, mReqProto.comment(), std_err)) {
+
+  if (!gOFS->ConfEngine->SaveConfig(save.file(), save.force(), false,
+                                    mReqProto.comment(), std_err)) {
     reply.set_std_err(std_err.c_str());
     reply.set_retc(errno);
-    } else {
+  } else {
     reply.set_std_out("success: configuration successfully saved!");
-    }
-
+  }
 }
 
 //----------------------------------------------------------------------------
 // Execute load subcommand
 //----------------------------------------------------------------------------
-void ConfigCmd::LoadSubcmd(const eos::console::ConfigProto_LoadProto& load, eos::console::ReplyProto& reply) {
-
+void ConfigCmd::LoadSubcmd(const eos::console::ConfigProto_LoadProto& load,
+                           eos::console::ReplyProto& reply)
+{
   if ((mVid.uid != 0)) {
     reply.set_std_err("error: you have to take role 'root' to execute this command");
     reply.set_retc(EPERM);
@@ -193,32 +198,27 @@ void ConfigCmd::LoadSubcmd(const eos::console::ConfigProto_LoadProto& load, eos:
 
   eos_notice("config load: %s", load.ShortDebugString().c_str());
   eos::mgm::ConfigResetMonitor fsview_cfg_reset_monitor;
-
   XrdOucString std_err;
+
   if (!gOFS->ConfEngine->LoadConfig(load.file(), std_err)) {
     reply.set_std_err(std_err.c_str());
     reply.set_retc(errno);
   } else {
     reply.set_std_out("success: configuration successfully loaded!");
   }
-
-
 }
 
 //----------------------------------------------------------------------------
 // Execute changelog subcommand
 //----------------------------------------------------------------------------
-void ConfigCmd::ChangelogSubcmd(const eos::console::ConfigProto_ChangelogProto& changelog, eos::console::ReplyProto& reply) {
-
+void ConfigCmd::ChangelogSubcmd(const eos::console::ConfigProto_ChangelogProto&
+                                changelog,
+                                eos::console::ReplyProto& reply)
+{
   XrdOucString std_out;
-
   gOFS->ConfEngine->Tail(changelog.lines(), std_out);
   eos_notice("config changelog");
-
   reply.set_std_out(std_out.c_str());
-
 }
-
-
 
 EOSMGMNAMESPACE_END

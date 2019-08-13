@@ -38,7 +38,7 @@ int com_protorecycle(char* arg)
     return EINVAL;
   }
 
-  RecycleHelper recycle;
+  RecycleHelper recycle(gGlobalOpts);
 
   if (!recycle.ParseCommand(arg)) {
     com_recycle_help();

@@ -246,9 +246,12 @@ bool
 AclHelper::SetDefaultRole()
 {
   eos::console::AclProto* acl = mReq.mutable_acl();
+  XrdOucString cmd("mgm.cmd=whoami");
+  std::unique_ptr<XrdOucEnv> env(client_command(cmd, false, nullptr));
+  std::string result = (env->Get("mgm.proc.stdout") ? env->Get("mgm.proc.stdout")
+                        : "");
 
-  if (!mMgmExec.ExecuteCommand("mgm.cmd=whoami", false)) {
-    std::string result = mMgmExec.GetResult();
+  if (!result.empty()) {
     size_t pos = 0;
 
     if ((pos = result.find("uid=")) != std::string::npos) {

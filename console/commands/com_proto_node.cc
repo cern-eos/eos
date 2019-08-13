@@ -38,7 +38,7 @@ int com_protonode(char* arg)
     return EINVAL;
   }
 
-  NodeHelper node;
+  NodeHelper node(gGlobalOpts);
 
   if (!node.ParseCommand(arg)) {
     com_node_help();

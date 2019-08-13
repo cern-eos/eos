@@ -37,8 +37,11 @@ class RmHelper: public ICmdHelper
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param opts global options
   //----------------------------------------------------------------------------
-  RmHelper()
+  RmHelper(const GlobalOptions& opts):
+    ICmdHelper(opts)
   {
     mIsAdmin = false;
   }
@@ -136,7 +139,7 @@ int com_protorm(char* arg)
     return EINVAL;
   }
 
-  RmHelper rm;
+  RmHelper rm(gGlobalOpts);
 
   if (!rm.ParseCommand(arg)) {
     com_rm_help();

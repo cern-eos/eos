@@ -37,8 +37,12 @@ class RouteHelper: public ICmdHelper
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param opts global options
   //----------------------------------------------------------------------------
-  RouteHelper() = default;
+  RouteHelper(const GlobalOptions& opts):
+    ICmdHelper(opts)
+  {}
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -220,7 +224,7 @@ int com_route(char* arg)
     return EINVAL;
   }
 
-  RouteHelper route;
+  RouteHelper route(gGlobalOpts);
 
   if (!route.ParseCommand(arg)) {
     com_route_help();

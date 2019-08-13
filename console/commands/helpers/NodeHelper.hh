@@ -32,8 +32,12 @@ class NodeHelper : public ICmdHelper
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param opts global options
   //----------------------------------------------------------------------------
-  NodeHelper() {
+  NodeHelper(const GlobalOptions& opts):
+    ICmdHelper(opts)
+  {
     mIsAdmin = true;
   }
 

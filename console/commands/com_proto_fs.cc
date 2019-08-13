@@ -38,7 +38,7 @@ int com_protofs(char* arg)
     return EINVAL;
   }
 
-  FsHelper fs;
+  FsHelper fs(gGlobalOpts);
 
   if (!fs.ParseCommand(arg)) {
     com_fs_help();

@@ -36,8 +36,12 @@ class AccessHelper : public ICmdHelper
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param opts global options
   //----------------------------------------------------------------------------
-  AccessHelper() = default;
+  AccessHelper(const GlobalOptions& opts):
+    ICmdHelper(opts)
+  {}
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -302,7 +306,7 @@ int com_protoaccess(char* arg)
     return EINVAL;
   }
 
-  AccessHelper access;
+  AccessHelper access(gGlobalOpts);
 
   if (!access.ParseCommand(arg)) {
     com_access_help();

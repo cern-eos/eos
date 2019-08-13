@@ -32,8 +32,11 @@ class FsHelper: public ICmdHelper
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param opts global options
   //----------------------------------------------------------------------------
-  FsHelper()
+  FsHelper(const GlobalOptions& opts):
+    ICmdHelper(opts)
   {
     mIsAdmin = true;
   }

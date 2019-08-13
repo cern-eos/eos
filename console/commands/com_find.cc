@@ -826,8 +826,11 @@ class FindHelper : public ICmdHelper
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param opts global options
   //----------------------------------------------------------------------------
-  FindHelper()
+  FindHelper(const GlobalOptions& opts):
+    ICmdHelper(opts)
   {
     mIsAdmin = false;
   }
@@ -1441,7 +1444,7 @@ com_find_new(char* arg)
     return EINVAL;
   }
 
-  FindHelper find;
+  FindHelper find(gGlobalOpts);
   // Handle differently if it's an xroot, file or as3 path
   std::string argStr(arg);
   auto xrootAt = argStr.rfind("root://");

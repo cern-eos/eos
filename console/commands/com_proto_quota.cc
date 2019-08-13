@@ -40,8 +40,12 @@ class QuotaHelper : public ICmdHelper
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param opts global options
   //----------------------------------------------------------------------------
-  QuotaHelper() = default;
+  QuotaHelper(const GlobalOptions& opts):
+    ICmdHelper(opts)
+  {}
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -298,7 +302,7 @@ int com_protoquota(char* arg)
     return EINVAL;
   }
 
-  QuotaHelper quota;
+  QuotaHelper quota(gGlobalOpts);
 
   if (!quota.ParseCommand(arg)) {
     com_quota_help();

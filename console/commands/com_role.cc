@@ -21,10 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 #include "common/StringTokenizer.hh"
-/*----------------------------------------------------------------------------*/
 
 /* Set the client user and group role */
 int
@@ -48,6 +46,8 @@ com_role(char* arg)
     goto com_role_usage;
   }
 
+  gGlobalOpts.mUserRole = user_role.c_str();
+  gGlobalOpts.mGroupRole = group_role.c_str();
   return (0);
 com_role_usage:
   fprintf(stdout,

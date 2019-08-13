@@ -112,6 +112,7 @@ set(UT_FST_SRCS
 add_executable(
   eos-unit-tests
   ${UT_SRCS}
+  $<TARGET_OBJECTS:EosConsoleHelpers-Objects>
   $<TARGET_OBJECTS:EosConsoleCommands-Objects>)
 
 target_link_libraries(

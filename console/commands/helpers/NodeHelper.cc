@@ -23,6 +23,7 @@
 
 #include "console/commands/helpers/NodeHelper.hh"
 #include "common/StringTokenizer.hh"
+#include <algorithm>
 
 //------------------------------------------------------------------------------
 // Parse command line input
@@ -125,9 +126,9 @@ bool NodeHelper::ParseCommand(const char* arg)
 
     std::string::size_type pos = token.find('=');
 
-    if (pos != std::string::npos &&
-        count(token.begin(), token.end(),
-              '=') == 1) {  // contains 1 and only 1 '='. It expects a token like <key>=<value>
+    // contains 1 and only 1 '='. It expects a token like <key>=<value>
+    if ((pos != std::string::npos) &&
+        (std::count(token.begin(), token.end(), '=') == 1)) {
       config->set_node_key(token.substr(0, pos));
       config->set_node_value(token.substr(pos + 1, token.length() - 1));
     } else {
