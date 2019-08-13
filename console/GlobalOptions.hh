@@ -33,4 +33,5 @@ struct GlobalOptions {
   std::string mGroupRole {""};
   std::string mComment {""};
   bool mJsonFormat {false};
+  bool mForceSss {false};
 };
