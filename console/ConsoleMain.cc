@@ -220,6 +220,7 @@ bool pipemode = false;
 bool runpipe = false;
 bool ispipe = false;
 bool json = false;
+GlobalOptions gGlobalOpts;
 
 eos::common::IoPipe iopipe;
 int retcfd = 0;
@@ -717,6 +718,7 @@ Run(int argc, char* argv[])
     serveruri = getenv("EOS_MGM_URL");
   }
 
+  gGlobalOpts.mMgmUri = serveruri.c_str();
   XrdOucString urole = "";
   XrdOucString grole = "";
   bool selectedrole = false;
@@ -1140,6 +1142,7 @@ execute_line(char* line)
   }
 
   global_comment = comment.c_str();
+  gGlobalOpts.mComment = comment.c_str();
   // Isolate the command word from the rest of the arguments
   std::list<std::string> tokens = eos::common::StringTokenizer::split
                                   <std::list<std::string>>(line_without_comment.c_str(), ' ');
@@ -1440,7 +1443,6 @@ std::string DefaultRoute()
 
   return default_route;
 }
-
 
 //------------------------------------------------------------------------------
 // Load current filesystems into a map

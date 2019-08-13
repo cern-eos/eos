@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
 #include "common/StringTokenizer.hh"
 #include "common/Path.hh"
 #include "console/ConsoleMain.hh"
@@ -38,8 +37,12 @@ class GroupHelper : public ICmdHelper
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param opts global options
   //----------------------------------------------------------------------------
-  GroupHelper() = default;
+  GroupHelper(const GlobalOptions& opts):
+    ICmdHelper(opts)
+  {}
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -145,7 +148,7 @@ int com_protogroup(char* arg)
     return EINVAL;
   }
 
-  GroupHelper group;
+  GroupHelper group(gGlobalOpts);
 
   if (!group.ParseCommand(arg)) {
     com_group_help();

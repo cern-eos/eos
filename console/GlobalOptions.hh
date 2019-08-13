@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file FsckHelper.hh
+//! @file GlobalOptions.hh
 //! @author Elvin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
@@ -22,36 +22,15 @@
  ************************************************************************/
 
 #pragma once
-#include "console/commands/ICmdHelper.hh"
+#include <string>
 
 //------------------------------------------------------------------------------
-//! Class FsckHelper
+//! Struct GlobalOptions
 //------------------------------------------------------------------------------
-class FsckHelper: public ICmdHelper
-{
-public:
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //!
-  //! @param opts global options
-  //----------------------------------------------------------------------------
-  FsckHelper(const GlobalOptions& opts):
-    ICmdHelper(opts)
-  {
-    mIsAdmin = true;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  ~FsckHelper() = default;
-
-  //----------------------------------------------------------------------------
-  //! Parse command line input
-  //!
-  //! @param arg input
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool ParseCommand(const char* arg) override;
+struct GlobalOptions {
+  std::string mMgmUri {""};
+  std::string mUserRole {""};
+  std::string mGroupRole {""};
+  std::string mComment {""};
+  bool mJsonFormat {false};
 };

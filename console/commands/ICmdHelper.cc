@@ -1,5 +1,6 @@
 //------------------------------------------------------------------------------
 //! @file ICmdHelper.cc
+//! @author Elvin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -23,7 +24,8 @@
 #include "console/commands/ICmdHelper.hh"
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
-
+#include "XrdCl/XrdClFile.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include <sstream>
 
 //------------------------------------------------------------------------------
@@ -38,11 +40,11 @@ ICmdHelper::Execute(bool print_err, bool add_route)
 
   int retc = ExecuteWithoutPrint(add_route);
 
-  if (!mIsSilent && !mMgmExec.GetResult().empty()) {
+  if (!mIsSilent && !mOutcome.result.empty()) {
     std::cout << GetResult();
   }
 
-  if (print_err && !mMgmExec.GetError().empty()) {
+  if (print_err && !mOutcome.error.empty()) {
     std::cerr << GetError();
   }
 
@@ -75,8 +77,136 @@ ICmdHelper::ExecuteWithoutPrint(bool add_route)
     AddRouteInfo(cmd);
   }
 
-  return mMgmExec.ExecuteCommand(cmd.c_str(), mIsAdmin);
+  std::ostringstream oss;
+  oss << mGlobalOpts.mMgmUri
+      << (mIsAdmin ? "//proc/admin/" : "//proc/user/") << "?"
+      << cmd;
+
+  if (!mGlobalOpts.mUserRole.empty()) {
+    oss << "&eos.ruid=" << mGlobalOpts.mUserRole;
+  }
+
+  if (!mGlobalOpts.mGroupRole.empty()) {
+    oss << "&eos.rgid=" << mGlobalOpts.mGroupRole;
+  }
+
+  return RawExecute(oss.str());
 }
+
+//------------------------------------------------------------------------------
+// Execute command using the xrootd client
+//------------------------------------------------------------------------------
+int
+ICmdHelper::RawExecute(const std::string& full_url)
+{
+  if (mSimulationMode) {
+    if (mSimulatedData.front().expectedCommand != full_url) {
+      mSimulationErrors +=
+        SSTR("Expected command '" << mSimulatedData.front().expectedCommand
+             << "', received '" << full_url << "'");
+      return EIO;
+    }
+
+    // Command is OK
+    mOutcome = mSimulatedData.front().outcome;
+    mSimulatedData.pop();
+    return mOutcome.errc;
+  }
+
+  std::ostringstream oss;
+  std::unique_ptr<XrdCl::File> client {new XrdCl::File()};
+  XrdCl::XRootDStatus status = client->Open(oss.str().c_str(),
+                               XrdCl::OpenFlags::Read);
+
+  if (status.IsOK()) {
+    off_t offset = 0;
+    uint32_t nbytes = 0;
+    char buffer[4096 + 1];
+    status = client->Read(offset, 4096, buffer, nbytes);
+
+    while (status.IsOK() && (nbytes > 0)) {
+      buffer[nbytes] = 0;
+      oss << buffer;
+      offset += nbytes;
+      status = client->Read(offset, 4096, buffer, nbytes);
+    }
+
+    status = client->Close();
+  } else {
+    int retc = status.GetShellCode();
+
+    if (status.errNo) {
+      retc = status.errNo;
+    }
+
+    oss << "mgm.proc.stdout="
+        << "&mgm.proc.stderr=" << "error: errc=" << retc
+        << " msg=\"" << status.ToString() << "\""
+        << "&mgm.proc.retc=" << retc;
+  }
+
+  return ProcessResponse(oss.str());
+}
+
+//------------------------------------------------------------------------------
+// Process MGM response
+//------------------------------------------------------------------------------
+int ICmdHelper::ProcessResponse(const std::string& response)
+{
+  if (response.empty()) {
+    mOutcome.error = "error: failed to read proc response";
+    mOutcome.errc = EIO;
+    return mOutcome.errc;
+  }
+
+  mOutcome.errc = 0;
+  std::vector<std::pair<std::string, size_t>> tags {
+    std::make_pair("mgm.proc.stdout=", -1),
+    std::make_pair("&mgm.proc.stderr=", -1),
+    std::make_pair("&mgm.proc.retc=", -1)
+  };
+
+  for (auto& elem : tags) {
+    elem.second = response.find(elem.first);
+  }
+
+  if ((tags[0].second == std::string::npos) &&
+      (tags[1].second == std::string::npos)) {
+    // This is a "FUSE" format response that only contains the stdout without
+    // error message or return code
+    mOutcome.result = response;
+    return mOutcome.errc;
+  }
+
+  // Parse stdout.
+  if (tags[0].second != std::string::npos) {
+    if (tags[1].second != std::string::npos) {
+      mOutcome.result = response.substr(tags[0].first.length(),
+                                        tags[1].second - tags[1].first.length() + 1);
+    } else {
+      mOutcome.result = response.substr(tags[0].first.length(),
+                                        tags[2].second - tags[2].first.length() - 1);
+    }
+  }
+
+  // Parse stderr
+  if (tags[1].second != std::string::npos) {
+    mOutcome.error = response.substr(tags[1].second + tags[1].first.length(),
+                                     tags[2].second - (tags[1].second + tags[1].first.length()));
+  }
+
+  // Parse return code
+  try {
+    mOutcome.errc = std::stoi(response.substr(tags[2].second +
+                              tags[2].first.length()));
+  } catch (...) {
+    mOutcome.error = "error: failed to parse response from server";
+    return EINVAL;
+  }
+
+  return mOutcome.errc;
+}
+
 
 //------------------------------------------------------------------------------
 // Method used for user confirmation of the specified command
@@ -114,7 +244,7 @@ std::string
 ICmdHelper::GetResult()
 {
   // Add new line if necessary
-  std::string out = mMgmExec.GetResult();
+  std::string out = mOutcome.result;
 
   if (*out.rbegin() != '\n') {
     out += '\n';
@@ -130,13 +260,49 @@ std::string
 ICmdHelper::GetError()
 {
   // Add new line if necessary
-  std::string err = mMgmExec.GetError();
+  std::string err = mOutcome.error;
 
   if (*err.rbegin() != '\n') {
     err += '\n';
   }
 
   return err;
+}
+
+//------------------------------------------------------------------------------
+// Guess a default 'route' e.g. home directory
+//------------------------------------------------------------------------------
+std::string
+ICmdHelper::DefaultRoute()
+{
+  std::string default_route = "";
+
+  // add a default 'route' for the command
+  if (getenv("EOSHOME")) {
+    default_route = getenv("EOSHOME");
+  } else {
+    char default_home[4096];
+    std::string username;
+
+    if (getenv("EOSUSER")) {
+      username = getenv("EOSUSER");
+    }
+
+    if (getenv("USER")) {
+      username = getenv("USER");
+    }
+
+    if (username.length()) {
+      snprintf(default_home, sizeof(default_home), "/eos/user/%s/%s/",
+               username.substr(0, 1).c_str(), username.c_str());
+      fprintf(stderr,
+              "# pre-configuring default route to %s\n# -use $EOSHOME variable to override\n",
+              default_home);
+      default_route = default_home;
+    }
+  }
+
+  return default_route;
 }
 
 //------------------------------------------------------------------------------

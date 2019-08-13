@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
 #include "HealthCommand.hh"
+#include "console/ConsoleMain.hh"
 #include "console/commands/helpers/NodeHelper.hh"
 #include "console/commands/helpers/FsHelper.hh"
 #include "common/StringTokenizer.hh"
@@ -119,7 +119,7 @@ HealthCommand::HealthCommand(const char* comm)
 
 void HealthCommand::DeadNodesCheck()
 {
-  NodeHelper node_cmd;
+  NodeHelper node_cmd(gGlobalOpts);
   node_cmd.ParseCommand("ls -m");
 
   if (node_cmd.ExecuteWithoutPrint()) {
@@ -374,7 +374,7 @@ void HealthCommand::PlacementContentionCheck()
 
 void HealthCommand::GetGroupsInfo()
 {
-  FsHelper fs;
+  FsHelper fs(gGlobalOpts);
   fs.ParseCommand("ls -m");
 
   if (fs.ExecuteWithoutPrint() != 0) {

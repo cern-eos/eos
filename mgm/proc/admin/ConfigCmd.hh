@@ -41,7 +41,7 @@ public:
   //! @param vid client virtual identity
   //----------------------------------------------------------------------------
   explicit ConfigCmd(eos::console::RequestProto&& req,
-                    eos::common::VirtualIdentity& vid):
+                     eos::common::VirtualIdentity& vid):
     IProcCommand(std::move(req), vid, false)
   {}
 
@@ -74,16 +74,14 @@ private:
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
   void DumpSubcmd(const eos::console::ConfigProto_DumpProto& dump,
-                eos::console::ReplyProto& reply);
+                  eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Execute reset subcommand
   //!
-  //! @param reset reset subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  void ResetSubcmd(const eos::console::ConfigProto_ResetProto& reset,
-                eos::console::ReplyProto& reply);
+  void ResetSubcmd(eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Execute export subcommand
@@ -92,7 +90,7 @@ private:
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
   void ExportSubcmd(const eos::console::ConfigProto_ExportProto& exp,
-                eos::console::ReplyProto& reply);
+                    eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Execute save subcommand
@@ -101,7 +99,7 @@ private:
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
   void SaveSubcmd(const eos::console::ConfigProto_SaveProto& save,
-                eos::console::ReplyProto& reply);
+                  eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Execute load subcommand
@@ -110,7 +108,7 @@ private:
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
   void LoadSubcmd(const eos::console::ConfigProto_LoadProto& load,
-                eos::console::ReplyProto& reply);
+                  eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Execute changelog subcommand
@@ -119,7 +117,7 @@ private:
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
   void ChangelogSubcmd(const eos::console::ConfigProto_ChangelogProto& changelog,
-                eos::console::ReplyProto& reply);
+                       eos::console::ReplyProto& reply);
 
 
 };

@@ -38,8 +38,12 @@ public:
 
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param opts global options
   //----------------------------------------------------------------------------
-  DebugHelper() = default;
+  DebugHelper(const GlobalOptions& opts):
+    ICmdHelper(opts)
+  {}
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -130,7 +134,7 @@ com_protodebug(char* arg)
     return EINVAL;
   }
 
-  DebugHelper debug;
+  DebugHelper debug(gGlobalOpts);
 
   if (!debug.ParseCommand(arg)) {
     com_debug_help();

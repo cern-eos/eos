@@ -36,8 +36,11 @@ class NsHelper: public ICmdHelper
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param opts global options
   //----------------------------------------------------------------------------
-  NsHelper()
+  NsHelper(const GlobalOptions& opts):
+    ICmdHelper(opts)
   {
     mIsAdmin = true;
   }
@@ -439,7 +442,7 @@ int com_ns(char* arg)
     return EINVAL;
   }
 
-  NsHelper ns;
+  NsHelper ns(gGlobalOpts);
 
   if (!ns.ParseCommand(arg)) {
     com_ns_help();

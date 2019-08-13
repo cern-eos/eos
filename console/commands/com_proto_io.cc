@@ -37,8 +37,12 @@ class IoHelper : public ICmdHelper
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param opts global options
   //----------------------------------------------------------------------------
-  IoHelper() = default;
+  IoHelper(const GlobalOptions& opts):
+    ICmdHelper(opts)
+  {}
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -166,7 +170,7 @@ int com_protoio(char* arg)
     return EINVAL;
   }
 
-  IoHelper io;
+  IoHelper io(gGlobalOpts);
 
   if (!io.ParseCommand(arg)) {
     com_io_help();

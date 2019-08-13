@@ -32,8 +32,12 @@ class RecycleHelper: public ICmdHelper
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param opts global options
   //----------------------------------------------------------------------------
-  RecycleHelper() = default;
+  RecycleHelper(const GlobalOptions& opts):
+    ICmdHelper(opts)
+  {}
 
   //----------------------------------------------------------------------------
   //! Destructor

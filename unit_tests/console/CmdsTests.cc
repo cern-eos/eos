@@ -26,17 +26,23 @@
 #include "console/commands/helpers/RecycleHelper.hh"
 #include "unistd.h"
 
+GlobalOptions opts;
+
 TEST(AclHelper, RouteFromPathAppeneded)
 {
-  AclHelper acl;
+  AclHelper acl(opts);
   acl.ParseCommand("--user u:1001=rwx /eos/devtest/");
-  const std::string proto_msg = ( !isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO)) ?
-      "Eh0IAioKdToxMDAxPXJ3eDINL2Vvcy9kZXZ0ZXN0L/gBAQ" : "Eh0IAioKdToxMDAxPXJ3eDINL2Vvcy9kZXZ0ZXN0Lw";
-  acl.mMgmExec.InjectSimulated("mgm.cmd.proto=" + proto_msg + "==&eos.route=/eos/devtest/", {"", "", 0});
+  const std::string proto_msg = (!isatty(STDOUT_FILENO) ||
+                                 !isatty(STDERR_FILENO)) ?
+                                "Eh0IAioKdToxMDAxPXJ3eDINL2Vvcy9kZXZ0ZXN0L/gBAQ" :
+                                "Eh0IAioKdToxMDAxPXJ3eDINL2Vvcy9kZXZ0ZXN0Lw";
+  acl.InjectSimulated("//proc/user/?mgm.cmd.proto=" + proto_msg +
+                      "==&eos.route=/eos/devtest/", {"", "", 0});
   ASSERT_EQ(acl.Execute(true, true), 0);
   // Setting EOSHOME env variable should make no difference
   setenv("EOSHOME", "/eos/home/test/", 1);
-  acl.mMgmExec.InjectSimulated("mgm.cmd.proto=" + proto_msg + "==&eos.route=/eos/devtest/", {"", "", 0});
+  acl.InjectSimulated("//proc/user/?mgm.cmd.proto=" + proto_msg +
+                      "==&eos.route=/eos/devtest/", {"", "", 0});
   ASSERT_EQ(acl.Execute(true, true), 0);
   unsetenv("EOSHOME");
 }
@@ -47,38 +53,40 @@ TEST(RecycleHelper, RouteFromEnvAppended)
   const std::string username = cuserid(nullptr);
   std::ostringstream oss_route;
   oss_route << "/eos/user/" << username[0] << "/" << username << "/";
-  RecycleHelper recycle;
+  RecycleHelper recycle(opts);
   recycle.ParseCommand("ls");
-  const std::string proto_msg = ( !isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO)) ?
+  const std::string proto_msg = (!isatty(STDOUT_FILENO) ||
+                                 !isatty(STDERR_FILENO)) ?
                                 "UgQKAggB+AEB" : "UgQKAggB";
+
   if (getenv("USER")) {
-    recycle.mMgmExec.InjectSimulated("mgm.cmd.proto=" + proto_msg + "&eos.route=" +
-                                     oss_route.str(),
+    recycle.InjectSimulated("//proc/user/?mgm.cmd.proto=" + proto_msg
+                            + "&eos.route=" + oss_route.str(),
     {"", "", 0});
   } else {
     // Inside the docker container the USER env is not set
-    recycle.mMgmExec.InjectSimulated("mgm.cmd.proto=" + proto_msg, {"", "", 0});
+    recycle.InjectSimulated("mgm.cmd.proto=" + proto_msg, {"", "", 0});
   }
 
   ASSERT_EQ(recycle.Execute(false, true), 0);
   // Setting EOSHOME env variable should update the eos.route
   setenv("EOSHOME", "/eos/home/test/", 1);
-  recycle.mMgmExec.InjectSimulated("mgm.cmd.proto=" + proto_msg + "&eos.route=/eos/home/test/",
-  {"", "", 0});
+  recycle.InjectSimulated("//proc/user/?mgm.cmd.proto=" + proto_msg
+                          + "&eos.route=/eos/home/test/", {"", "", 0});
   ASSERT_EQ(recycle.Execute(false, true), 0);
   unsetenv("EOSHOME");
   // Setting EOSUSER env variable should update eos.route to point to the old
   // /eos/user/username[0]/username/ where username=getenv("EOSUSER")
   setenv("EOSUSER", "dummy", 1);
   unsetenv("USER"); // otherwise USER has precedence
-  recycle.mMgmExec.InjectSimulated("mgm.cmd.proto=" + proto_msg + "&eos.route=/eos/user/d/dummy/",
-  {"", "", 0});
+  recycle.InjectSimulated("//proc/user/?mgm.cmd.proto=" + proto_msg +
+                          "&eos.route=/eos/user/d/dummy/", {"", "", 0});
   ASSERT_EQ(recycle.Execute(false, true), 0);
   unsetenv("EOSUSER");
   // The same should happend if USER is set
   setenv("USER", "other_dummy", 1);
-  recycle.mMgmExec.InjectSimulated("mgm.cmd.proto=" + proto_msg + "&eos.route=/eos/user/o/other_dummy/",
-  {"", "", 0});
+  recycle.InjectSimulated("//proc/user/?mgm.cmd.proto=" + proto_msg +
+                          "&eos.route=/eos/user/o/other_dummy/", {"", "", 0});
   ASSERT_EQ(recycle.Execute(false, true), 0);
   unsetenv("USER");
 }

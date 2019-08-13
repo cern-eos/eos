@@ -36,8 +36,11 @@ class StagerRmHelper: public ICmdHelper
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param opts global options
   //----------------------------------------------------------------------------
-  StagerRmHelper()
+  StagerRmHelper(const GlobalOptions& opts):
+    ICmdHelper(opts)
   {
     mIsAdmin = false;
   }
@@ -99,7 +102,7 @@ int com_stagerrm(char* arg)
     return EINVAL;
   }
 
-  StagerRmHelper stagerRm;
+  StagerRmHelper stagerRm(gGlobalOpts);
 
   if (!stagerRm.ParseCommand(arg)) {
     com_stagerrm_help();

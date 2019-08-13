@@ -36,8 +36,12 @@ class ConfigHelper : public ICmdHelper
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param opts global options
   //----------------------------------------------------------------------------
-  ConfigHelper() = default;
+  ConfigHelper(const GlobalOptions& opts):
+    ICmdHelper(opts)
+  {}
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -89,7 +93,7 @@ bool ConfigHelper::ParseCommand(const char* arg)
       return false;  // no need for more arguments
     }
 
-    eos::console::ConfigProto_ResetProto* reset = config->mutable_reset(); // @note
+    config->set_reset(true);
   } else if (token == "export") {
     if (!tokenizer.NextToken(token)) {
       return false;
@@ -189,7 +193,7 @@ int com_protoconfig(char* arg)
     return EINVAL;
   }
 
-  ConfigHelper config;
+  ConfigHelper config(gGlobalOpts);
 
   if (!config.ParseCommand(arg)) {
     com_config_help();
