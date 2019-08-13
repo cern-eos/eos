@@ -138,7 +138,8 @@ public:         // [+] prevents '+' interpreted as "one or more"
   // Set Acls by interpreting the attribute map
   //----------------------------------------------------------------------------
   void SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
-    const eos::common::VirtualIdentity& vid, eos::IFileMD::XAttrMap *attrmapF = NULL);
+    const eos::common::VirtualIdentity& vid,
+    eos::IFileMD::XAttrMap *attrmapF = NULL, bool sysaclOnly = false);
 
   //----------------------------------------------------------------------------
   //! Enter system and user definition + identity used for ACL interpretation

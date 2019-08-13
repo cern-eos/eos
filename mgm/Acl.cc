@@ -72,18 +72,23 @@ Acl::Acl(const char* path, XrdOucErrInfo& error,
 //------------------------------------------------------------------------------
 void
 Acl::SetFromAttrMap(const eos::IContainerMD::XAttrMap& attrmap,
-                    const eos::common::VirtualIdentity& vid, eos::IFileMD::XAttrMap *attrmapF)
+                    const eos::common::VirtualIdentity& vid, eos::IFileMD::XAttrMap *attrmapF,
+                    bool sysaclOnly)
 {
-  bool evalUseracl;
+  bool evalUseracl = false;
   std::string useracl = "";
 
-  if (attrmapF != NULL && attrmapF->count("user.acl") > 0) {
-      evalUseracl = true;
-      useracl = (*attrmapF)["user.acl"];
-  } else {
-    auto it = attrmap.find("user.acl");
-    evalUseracl = (it != attrmap.end());
-    if (evalUseracl) useracl = it->second;
+  if (!sysaclOnly) {
+    if (attrmapF != NULL && attrmapF->count("user.acl") > 0) {
+      evalUseracl = attrmapF->count("sys.eval.useracl") > 0;
+      if (evalUseracl) useracl = (*attrmapF)["user.acl"];
+    } else {
+      evalUseracl = attrmap.count("sys.eval.useracl") > 0;
+      auto it = attrmap.find("user.acl");
+      if (it != attrmap.end()) {
+        useracl = it->second;
+      }
+    }
   }
 
   std::string sysAcl;
@@ -301,11 +306,8 @@ Acl::Set(std::string sysacl, std::string useracl,
               break;
 
             case 'c': // 'c' defines owner change permission (for directories)
-              if (sysacl_rules_remaining >= 0) { // this is only valid if specified as a sysacl
-                mCanChown = true;
-              } else {
-                eos_static_debug("'%c' right ignored on user.acl", c);
-              }
+              /* pass here; but chown imposes further restrictions, like limited to sys.acl */
+              mCanChown = true;
               break;
 
             case 'd': // '!d' forbids deletion

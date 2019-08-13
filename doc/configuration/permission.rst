@@ -210,13 +210,13 @@ ACL rule.
 
 .. warning::
 
-   Deletion only works, if directories are empty!
+   Deletion only works if directories are empty!
 
 Directory Permission Modification
 +++++++++++++++++++++++++++++++++
 
-A user can modify the UNIX permissions if he/she is the owner of the file 
-and/or the parent directory ACL rules grant the 'm' rights. 
+A user can modify the UNIX permissions if they are the owner of the file 
+and/or the parent directory ACL rules grant the 'm' right. 
 
 .. note::
 
@@ -226,19 +226,20 @@ and/or the parent directory ACL rules grant the 'm' rights.
 Directory ACL Modification
 ++++++++++++++++++++++++++
 
-A user can modify the system ACL, if he/she is member of the SUDO group. 
-A user can modify a user ACL, if he/she is the owner of the directory or 
-member of the SUDO group.
+A user can modify a directory's system ACL, if they are a member of the SUDO group. 
+A user can modify a directory's user ACL, if they are the owner of the directory or 
+a member of the SUDO group.
 
 Directory Ownership
 +++++++++++++++++++
 
 The root, admin user and admin group role can always change the directory 
 owner and group. 
+A normal user can change the directory owner if the system ACL allows this, or if the user ACL allows it *and* they change the owner to themselves.
 
 .. warning:: 
 
-   Non priviledged users can not change the ownership.
+   Otherwise, only priviledged users can alter the ownership.
 
 Quota Permission
 ++++++++++++++++

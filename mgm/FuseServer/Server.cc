@@ -1800,6 +1800,13 @@ Server::OpSetFile(const std::string& id,
         }
       }
 
+      if (!vid.sudoer && (uid_t)md.uid() != fmd->getCUid()) {
+        /* chown is under control of container sys.acl if a vanilla user chowns to other than themselves */
+        Acl acl;
+        acl.SetFromAttrMap(pcmd->getAttributes(), vid, NULL, true);
+        if (!acl.CanChown()) return EPERM;
+      }
+
       eos_info("fid=%08llx ino=%lx pino=%lx cpino=%lx update-file",
                (long) fid,
                (long) md.md_ino(),
