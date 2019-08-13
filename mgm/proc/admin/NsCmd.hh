@@ -138,7 +138,7 @@ private:
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
   void ReserveIdsSubCmd(const eos::console::NsProto_ReserveIdsProto& reserve,
-                   eos::console::ReplyProto& reply);
+                        eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Do a breadth first search of all the subcontainers under the given
@@ -164,6 +164,13 @@ private:
   //! @param cont container object
   //----------------------------------------------------------------------------
   void UpdateTreeSize(eos::IContainerMDPtr cont) const;
+
+  //----------------------------------------------------------------------------
+  //! Apply text highlighting to ns output
+  //!
+  //! @param text to be highlighted
+  //----------------------------------------------------------------------------
+  void TextHighlight(std::string& text) const;
 };
 
 EOSMGMNAMESPACE_END

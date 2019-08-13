@@ -39,10 +39,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  GroupHelper()
-  {
-    mHighlight = true;
-  }
+  GroupHelper() = default;
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -93,7 +90,6 @@ bool GroupHelper::ParseCommand(const char* arg)
       } else if (token == "-b" || token == "--brief") {
         ls->set_outhost(true);
       } else if (token == "-m") {
-        mHighlight = false;
         ls->set_outformat(eos::console::GroupProto_LsProto::MONITORING);
       } else if (token == "-l") {
         ls->set_outformat(eos::console::GroupProto_LsProto::LISTING);

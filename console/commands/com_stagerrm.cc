@@ -40,7 +40,6 @@ public:
   StagerRmHelper()
   {
     mIsAdmin = false;
-    mHighlight = true;
   }
 
   //----------------------------------------------------------------------------
@@ -59,10 +58,10 @@ public:
 };
 
 bool
-StagerRmHelper::ParseCommand(const char* arg) {
+StagerRmHelper::ParseCommand(const char* arg)
+{
   eos::console::StagerRmProto* stagerRm = mReq.mutable_stagerrm();
   eos::common::StringTokenizer tokenizer(arg);
-
   XrdOucString path = tokenizer.GetLine();
   path = tokenizer.GetToken();
 
@@ -72,8 +71,8 @@ StagerRmHelper::ParseCommand(const char* arg) {
 
     if (path != "") {
       auto file = stagerRm->add_file();
-
       auto fid = 0ull;
+
       if (Path2FileDenominator(path, fid)) {
         file->set_fid(fid);
       } else {
@@ -87,7 +86,6 @@ StagerRmHelper::ParseCommand(const char* arg) {
 
   // at least 1 path has to be given
   return stagerRm->file_size() > 0;
-
 }
 
 //------------------------------------------------------------------------------
@@ -113,7 +111,8 @@ int com_stagerrm(char* arg)
   return global_retc;
 }
 
-void com_stagerrm_help() {
+void com_stagerrm_help()
+{
   std::ostringstream oss;
   oss << "Usage: stagerrm <path>|fid:<fid-dec>]|fxid:<fid-hex> [<path>|fid:<fid-dec>]|fxid:<fid-hex>] ..."
       << std::endl

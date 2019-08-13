@@ -41,10 +41,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuotaHelper()
-  {
-    mHighlight = true;
-  }
+  QuotaHelper() = default;
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -118,7 +115,6 @@ bool QuotaHelper::ParseCommand(const char* arg)
           return false;
         }
       } else if (token == "-m") {
-        mHighlight = false;
         ls->set_format(true);
       } else if (token == "-n") {
         ls->set_printid(true);

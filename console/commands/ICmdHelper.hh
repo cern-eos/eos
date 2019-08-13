@@ -37,7 +37,7 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   ICmdHelper():
-    mMgmExec(), mReq(), mIsAdmin(false), mHighlight(false), mIsSilent(false)
+    mMgmExec(), mReq(), mIsAdmin(false), mIsSilent(false)
   {
     if (json) {
       mReq.set_format(eos::console::RequestProto::JSON);
@@ -48,12 +48,10 @@ public:
       global_comment = "";
     }
 
-    if ( !isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO)) {
+    if (!isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO)) {
       mReq.set_dontcolor(true);
     }
-
-
-    }
+  }
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -136,7 +134,6 @@ protected:
 
   eos::console::RequestProto mReq; ///< Generic request object send to the MGM
   bool mIsAdmin; ///< If true execute as admin, otherwise as user
-  bool mHighlight; ///< If true apply text highlighting to output
   bool mIsSilent; ///< If true execute command but don't display anything
   //! If true it requires a strong user confirmation before executing the command
   bool mNeedsConfirmation {false};

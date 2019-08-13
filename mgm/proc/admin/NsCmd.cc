@@ -502,6 +502,13 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
   if (WantsJsonOutput()) {
     std::string out = ResponseToJsonString(oss.str(), err.str(), retc);
     oss.clear(), oss.str(out);
+  } else {
+    if (!monitoring && (mReqProto.dontcolor() == false)) {
+      std::string out = oss.str();
+      oss.clear();
+      TextHighlight(out);
+      oss.str(out);
+    }
   }
 
   reply.set_retc(retc);
@@ -786,14 +793,15 @@ NsCmd::CacheSubcmd(const eos::console::NsProto_CacheProto& cache,
     map_cfg[sMaxSizeCacheDirs] = std::to_string(UINT64_MAX);
     gOFS->eosFileService->configure(map_cfg);
     gOFS->eosDirectoryService->configure(map_cfg);
-  } else if(cache.op() == NsProto_CacheProto::DROP_SINGLE_FILE) {
-    bool found = gOFS->eosFileService->dropCachedFileMD(FileIdentifier(cache.single_to_drop()));
+  } else if (cache.op() == NsProto_CacheProto::DROP_SINGLE_FILE) {
+    bool found = gOFS->eosFileService->dropCachedFileMD(FileIdentifier(
+                   cache.single_to_drop()));
     reply.set_retc(!found);
-  } else if(cache.op() == NsProto_CacheProto::DROP_SINGLE_CONTAINER) {
-    bool found = gOFS->eosDirectoryService->dropCachedContainerMD(ContainerIdentifier(cache.single_to_drop()));
+  } else if (cache.op() == NsProto_CacheProto::DROP_SINGLE_CONTAINER) {
+    bool found = gOFS->eosDirectoryService->dropCachedContainerMD(
+                   ContainerIdentifier(cache.single_to_drop()));
     reply.set_retc(!found);
   }
-
 }
 
 //------------------------------------------------------------------------------
@@ -859,13 +867,43 @@ void
 NsCmd::ReserveIdsSubCmd(const eos::console::NsProto_ReserveIdsProto& reserve,
                         eos::console::ReplyProto& reply)
 {
-  if(reserve.fileid() > 0) {
+  if (reserve.fileid() > 0) {
     gOFS->eosFileService->blacklistBelow(FileIdentifier(reserve.fileid()));
   }
 
-  if(reserve.containerid() > 0) {
-    gOFS->eosDirectoryService->blacklistBelow(ContainerIdentifier(reserve.containerid()));
+  if (reserve.containerid() > 0) {
+    gOFS->eosDirectoryService->blacklistBelow(ContainerIdentifier(
+          reserve.containerid()));
   }
 }
+
+//------------------------------------------------------------------------------
+// Apply text highlighting to ns output
+//------------------------------------------------------------------------------
+void
+NsCmd::TextHighlight(std::string& text) const
+{
+  XrdOucString tmp = text.c_str();
+  // Color replacements
+  tmp.replace("[booted]", "\033[1m[booted]\033[0m");
+  tmp.replace("[down]", "\033[49;31m[down]\033[0m");
+  tmp.replace("[failed]", "\033[49;31m[failed]\033[0m");
+  tmp.replace("[booting]", "\033[49;32m[booting]\033[0m");
+  tmp.replace("[compacting]", "\033[49;34m[compacting]\033[0m");
+  // Replication highlighting
+  tmp.replace("master-rw", "\033[49;31mmaster-rw\033[0m");
+  tmp.replace("master-ro", "\033[49;34mmaster-ro\033[0m");
+  tmp.replace("slave-ro", "\033[1mslave-ro\033[0m");
+  tmp.replace("=ok", "=\033[49;32mok\033[0m");
+  tmp.replace("=compacting", "=\033[49;32mcompacting\033[0m");
+  tmp.replace("=off", "=\033[49;34moff\033[0m");
+  tmp.replace("=blocked", "=\033[49;34mblocked\033[0m");
+  tmp.replace("=wait", "=\033[49;34mwait\033[0m");
+  tmp.replace("=starting", "=\033[49;34mstarting\033[0m");
+  tmp.replace("=true", "=\033[49;32mtrue\033[0m");
+  tmp.replace("=false", "=\033[49;31mfalse\033[0m");
+  text = tmp.c_str();
+}
+
 
 EOSMGMNAMESPACE_END
