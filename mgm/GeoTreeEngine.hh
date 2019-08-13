@@ -32,7 +32,7 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/FsView.hh"
 #include "mgm/geotree/SchedulingSlowTree.hh"
-#include "mgm/TableFormatter/TableFormatterBase.hh"
+#include "common/table_formatter/TableFormatterBase.hh"
 #include "common/Timing.hh"
 #include "common/FileSystem.hh"
 /*----------------------------------------------------------------------------*/
@@ -311,16 +311,16 @@ class GeoTreeEngine : public eos::common::LogId
       fs2TreeIdx->selfAllocate(SchedTreeBase::sGetMaxNodeCount());
       rOAccessTree->pFs2Idx
         = rWAccessTree->pFs2Idx
-            = drnAccessTree->pFs2Idx
-              = placementTree->pFs2Idx
-                  = drnPlacementTree->pFs2Idx
-                    = fs2TreeIdx;
+          = drnAccessTree->pFs2Idx
+            = placementTree->pFs2Idx
+              = drnPlacementTree->pFs2Idx
+                = fs2TreeIdx;
       rOAccessTree->pTreeInfo
         = rWAccessTree->pTreeInfo
-            = drnAccessTree->pTreeInfo
-              = placementTree->pTreeInfo
-                  = drnPlacementTree->pTreeInfo
-                    = treeInfo;
+          = drnAccessTree->pTreeInfo
+            = placementTree->pTreeInfo
+              = drnPlacementTree->pTreeInfo
+                = treeInfo;
       tag2NodeIdx = new GeoTag2NodeIdxMap;
       tag2NodeIdx->selfAllocate(SchedTreeBase::sGetMaxNodeCount());
     }
@@ -391,16 +391,16 @@ class GeoTreeEngine : public eos::common::LogId
       // update the information in the FastTrees to point to the copy
       target->rOAccessTree->pFs2Idx
         = target->rWAccessTree->pFs2Idx
-            = target->drnAccessTree->pFs2Idx
-              = target->placementTree->pFs2Idx
-                  = target->drnPlacementTree->pFs2Idx
-                    = target->fs2TreeIdx;
+          = target->drnAccessTree->pFs2Idx
+            = target->placementTree->pFs2Idx
+              = target->drnPlacementTree->pFs2Idx
+                = target->fs2TreeIdx;
       target->rOAccessTree->pTreeInfo
         = target->rWAccessTree->pTreeInfo
-            = target->drnAccessTree->pTreeInfo
-              = target->placementTree->pTreeInfo
-                  = target->drnPlacementTree->pTreeInfo
-                    = target->treeInfo;
+          = target->drnAccessTree->pTreeInfo
+            = target->placementTree->pTreeInfo
+              = target->drnPlacementTree->pTreeInfo
+                = target->treeInfo;
       return true;
     }
 
@@ -1146,7 +1146,7 @@ protected:
   void updateAtomicPenalties();
 
   /// Trees update management
-  void listenFsChange(ThreadAssistant &assistant);
+  void listenFsChange(ThreadAssistant& assistant);
 
   /// Clean
   void checkPendingDeletionsFs()
@@ -1308,7 +1308,6 @@ protected:
     }
 
     T* tree = (T*)tlGeoBuffer;
-
     // place the existing replicas
     size_t nAdjustCollocatedReplicas = nFinalCollocatedReplicas;
 
@@ -1410,11 +1409,13 @@ protected:
       SchedTreeBase::tFastTreeIdx startidx = (k < nNewReplicas -
                                               nAdjustCollocatedReplicas) ? 0 : startFromNode;
 
-      if (!tree->findFreeSlot(idx, startidx, true /*allow uproot if necessary*/, true, false)) {
+      if (!tree->findFreeSlot(idx, startidx, true /*allow uproot if necessary*/, true,
+                              false)) {
         eos_debug("could not find a new slot for a replica in the fast tree");
         stringstream ss;
         ss << (*tree);
-        eos_debug("iteration number %lu fast tree used for placement is: \n %s", k, ss.str().c_str());
+        eos_debug("iteration number %lu fast tree used for placement is: \n %s", k,
+                  ss.str().c_str());
         return false;
       }
 
@@ -1727,7 +1728,7 @@ public:
   //   true if success false else
   // ---------------------------------------------------------------------------
   bool insertFsIntoGroup(FileSystem* fs , FsGroup* group,
-    const common::FileSystemCoreParams &coreParams);
+                         const common::FileSystemCoreParams& coreParams);
 
   // ---------------------------------------------------------------------------
   //! Remove a file system into the GeoTreeEngine
@@ -2113,7 +2114,8 @@ public:
       return true;
     }
 
-    return pAccessGeotagMapping.showMapping(output, "AccessGeotagMapping", monitoring);
+    return pAccessGeotagMapping.showMapping(output, "AccessGeotagMapping",
+                                            monitoring);
   }
 
   // ---------------------------------------------------------------------------
@@ -2189,7 +2191,8 @@ public:
       return true;
     }
 
-    return pAccessProxygroup.showMapping(output, "AccessProxygroupMapping", monitoring);
+    return pAccessProxygroup.showMapping(output, "AccessProxygroupMapping",
+                                         monitoring);
   }
   //! [public member functions]
 

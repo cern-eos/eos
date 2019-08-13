@@ -24,7 +24,7 @@
 #ifndef __HEALTHCOMMAND__HH__
 #define __HEALTHCOMMAND__HH__
 
-#include "mgm/TableFormatter/TableFormatterBase.hh"
+#include "common/table_formatter/TableFormatterBase.hh"
 #include "console/MgmExecute.hh"
 #include "console/ICommand.hh"
 #include "console/RegexUtil.hh"

@@ -27,11 +27,11 @@
 #include "mq/XrdMqClient.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysSemWait.hh"
-#include "mgm/TableFormatter/TableCell.hh"
 #include "common/AssistedThread.hh"
 #include "common/StringConversion.hh"
 #include "common/RWMutex.hh"
 #include "common/Logging.hh"
+#include "common/table_formatter/TableCell.hh"
 #include <string>
 #include <map>
 #include <vector>

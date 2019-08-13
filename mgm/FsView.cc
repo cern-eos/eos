@@ -32,7 +32,7 @@
 #include "mgm/Converter.hh"
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/config/ConfigParsing.hh"
-#include "mgm/TableFormatter/TableFormatterBase.hh"
+#include "common/table_formatter/TableFormatterBase.hh"
 #include "common/StringConversion.hh"
 #include "common/Assert.hh"
 #include "mq/SharedHashWrapper.hh"
@@ -1590,7 +1590,8 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams& coreParams,
       mNodeView[coreParams.getFSTQueue()] = node;
       node->insert(coreParams.getId());
       node->SetNodeConfigDefault();
-      eos_debug("creating/inserting into node view %s<=>%u", coreParams.getFSTQueue().c_str(),
+      eos_debug("creating/inserting into node view %s<=>%u",
+                coreParams.getFSTQueue().c_str(),
                 coreParams.getId());
     }
 
@@ -1599,18 +1600,20 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams& coreParams,
     if (mGroupView.count(coreParams.getGroup())) {
       mGroupView[coreParams.getGroup()]->insert(coreParams.getId());
       eos_debug("inserting into group view %s<=>%u", coreParams.getGroup().c_str(),
-                 coreParams.getId());
+                coreParams.getId());
     } else {
       FsGroup* group = new FsGroup(coreParams.getGroup().c_str());
       mGroupView[coreParams.getGroup()] = group;
       group->insert(coreParams.getId());
       group->mIndex = coreParams.getGroupLocator().getIndex();
-      eos_debug("creating/inserting into group view %s<=>%u", coreParams.getGroup().c_str(),
+      eos_debug("creating/inserting into group view %s<=>%u",
+                coreParams.getGroup().c_str(),
                 coreParams.getId());
     }
 
     if (registerInGeoTreeEngine &&
-        !gGeoTreeEngine.insertFsIntoGroup(fs, mGroupView[coreParams.getGroup()], coreParams)) {
+        !gGeoTreeEngine.insertFsIntoGroup(fs, mGroupView[coreParams.getGroup()],
+                                          coreParams)) {
       // Roll back the changes
       if (UnRegister(fs, false)) {
         eos_err("could not insert insert fs %u into GeoTreeEngine : fs was "
@@ -1625,7 +1628,8 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams& coreParams,
       return false;
     }
 
-    mSpaceGroupView[coreParams.getSpace()].insert(mGroupView[coreParams.getGroup()]);
+    mSpaceGroupView[coreParams.getSpace()].insert(
+      mGroupView[coreParams.getGroup()]);
 
     // Align view by spacename
     // Check if we have already a space view
@@ -1764,7 +1768,8 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
                   snapshot.mGroup.c_str(), snapshot.mId, fs);
       }
 
-      if (!gGeoTreeEngine.insertFsIntoGroup(fs, mGroupView[group], fs->getCoreParams())) {
+      if (!gGeoTreeEngine.insertFsIntoGroup(fs, mGroupView[group],
+                                            fs->getCoreParams())) {
         if (fs->SetString("schedgroup", group.c_str()) && UnRegister(fs, false)) {
           if (oldgroup && fs->SetString("schedgroup", oldgroup->mName.c_str()) &&
               Register(fs, fs->getCoreParams())) {
@@ -2355,9 +2360,9 @@ BaseView::GetMember(const std::string& member) const
     std::string cfg_member = member;
     std::string val = "???";
     cfg_member.erase(0, tag.length());
-
     std::string value = GetConfigMember(cfg_member);
-    if(!value.empty()) {
+
+    if (!value.empty()) {
       val = value;
     }
 

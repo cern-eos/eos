@@ -244,60 +244,71 @@ bool TableFormatterBase::GenerateBody(const TableString& selections)
 
         // Generate tree
         unsigned tree = row[i].Tree();
+
         if (1 <= tree && tree <= 7) {
-          size_t tree_name_length=0; //Length of name above the tree cell in same column
+          size_t tree_name_length = 0; //Length of name above the tree cell in same column
+
           if (1 <= tree && tree <= 5) {
-            for (int j=row_size;j>=0;j--) {
+            for (int j = row_size; j >= 0; j--) {
               if (mData[j][i].Tree() == 0) {
-                tree_name_length=mData[j][i].Length();
+                tree_name_length = mData[j][i].Length();
                 break;
               }
             }
           }
-          
+
           size_t tree_cell_width = std::get<1>(mHeader[i]);
-          size_t tree_cell_spaces = tree_cell_width - tree_name_length/2;
-          tree_cell_spaces = (tree_cell_spaces<2)?2:tree_cell_spaces;
+          size_t tree_cell_spaces = tree_cell_width - tree_name_length / 2;
+          tree_cell_spaces = (tree_cell_spaces < 2) ? 2 : tree_cell_spaces;
           std::string arrow {};
-          if (tree == 1){ // "│   "
+
+          if (tree == 1) { // "│   "
             arrow = mBorderTree[tree];
             tree_cell_width += 2;
-            for (size_t j=0; j<tree_cell_spaces-1; j++)
+
+            for (size_t j = 0; j < tree_cell_spaces - 1; j++) {
               arrow += " ";
-          } else if (tree == 2 || tree == 3){ // "└─▶", "├─▶"
+            }
+          } else if (tree == 2 || tree == 3) { // "└─▶", "├─▶"
             arrow = mBorderTree[tree];
             tree_cell_width += 2;
-            for (size_t j=0; j<tree_cell_spaces-2; j++){
+
+            for (size_t j = 0; j < tree_cell_spaces - 2; j++) {
               arrow += mBorderTree[4];
               tree_cell_width += 2;
             }
+
             arrow += mBorderTree[5];
             tree_cell_width += 2;
-          } else if (tree == 4 || tree == 5){ // "└──", "├──"
-            arrow = mBorderTree[tree-2];
+          } else if (tree == 4 || tree == 5) { // "└──", "├──"
+            arrow = mBorderTree[tree - 2];
             tree_cell_width += 2;
-            for (size_t j=0; j<tree_cell_spaces-1; j++){
+
+            for (size_t j = 0; j < tree_cell_spaces - 1; j++) {
               arrow += mBorderTree[4];
               tree_cell_width += 2;
             }
-          } else if (tree == 6){  // "───"
-            for (size_t j=0; j<std::get<1>(mHeader[i])+1; j++){
+          } else if (tree == 6) { // "───"
+            for (size_t j = 0; j < std::get<1>(mHeader[i]) + 1; j++) {
               arrow += mBorderTree[4];
               tree_cell_width += 2;
             }
-          } else if (tree == 7){  // "──▶"
-            for (size_t j=0; j<std::get<1>(mHeader[i]); j++){
+          } else if (tree == 7) { // "──▶"
+            for (size_t j = 0; j < std::get<1>(mHeader[i]); j++) {
               arrow += mBorderTree[4];
               tree_cell_width += 2;
             }
+
             arrow += mBorderTree[5];
             tree_cell_width += 2;
           }
+
           output.width(tree_cell_width);
           output << arrow;
         } else {
           // Generate cell
           size_t cellspace_width = std::get<1>(mHeader[i]) - row[i].Length();
+
           if (std::get<2>(mHeader[i]).find("-") == std::string::npos) {
             row[i].Print(output, cellspace_width, 0);
           } else {
@@ -412,7 +423,6 @@ void TableFormatterBase::AddString(std::string string)
 TableFormatterColor TableFormatterBase::ChangeColor(std::string header,
     std::string value)
 {
-
   if (mDontColor) {
     return DEFAULT;
   }

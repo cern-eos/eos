@@ -509,6 +509,7 @@ unsigned TableCell::Tree()
   if (mSelectedValue == TypeContainingValue::TREE) {
     return mTree;
   }
+
   return 0;
 }
 
