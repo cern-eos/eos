@@ -25,7 +25,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Master.hh"
 #include "mgm/FsView.hh"
-#include "mgm/TableFormatter/TableFormatterBase.hh"
+#include "common/table_formatter/TableFormatterBase.hh"
 #include "common/ThreadPool.hh"
 #include "namespace/interface/IView.hh"
 #include <sstream>

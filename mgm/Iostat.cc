@@ -22,7 +22,7 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "mgm/TableFormatter/TableFormatterBase.hh"
+#include "common/table_formatter/TableFormatterBase.hh"
 #include "common/Report.hh"
 #include "common/Path.hh"
 #include "common/JeMallocHandler.hh"

@@ -253,8 +253,6 @@ add_library(
   geotree/SchedulingTreeTest.cc
   geotree/SchedulingSlowTree.cc
   geotree/SchedulingTreeCommon.cc
-  TableFormatter/TableFormatterBase.cc
-  TableFormatter/TableCell.cc
   tracker/ReplicationTracker.cc
   inspector/FileInspector.cc
   ${FUSEX_SRCS})
@@ -342,9 +340,7 @@ add_executable(
   testschedulingtree
   geotree/SchedulingTreeTest.cc
   geotree/SchedulingSlowTree.cc
-  geotree/SchedulingTreeCommon.cc
-  TableFormatter/TableFormatterBase.cc
-  TableFormatter/TableCell.cc)
+  geotree/SchedulingTreeCommon.cc)
 
 target_link_libraries(
   testschedulingtree

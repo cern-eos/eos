@@ -149,8 +149,6 @@ set_target_properties(
 add_executable(
   eos
   ConsoleMainExecutable.cc
-  # @TODO (esindril) Add the table formatter in common
-  ${CMAKE_SOURCE_DIR}/mgm/TableFormatter/TableFormatterBase.cc
   $<TARGET_OBJECTS:EosCliProto-Objects>
   $<TARGET_OBJECTS:EosConsoleCommands-Objects>)
 

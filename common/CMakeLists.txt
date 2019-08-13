@@ -91,7 +91,8 @@ add_library(eosCommon-Objects OBJECT
   plugin_manager/Plugin.hh
   plugin_manager/PluginManager.cc
   plugin_manager/DynamicLibrary.cc
-  ${CMAKE_SOURCE_DIR}/mgm/TableFormatter/TableCell.cc)
+  table_formatter/TableCell.cc
+  table_formatter/TableFormatterBase.cc)
 
 set_target_properties(eosCommon-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)

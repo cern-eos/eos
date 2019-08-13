@@ -24,7 +24,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/Policy.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/TableFormatter/TableFormatterBase.hh"
+#include "common/table_formatter/TableFormatterBase.hh"
 #include "namespace/interface/IView.hh"
 #include <errno.h>
 
@@ -2178,14 +2178,16 @@ Quota::GetQuotaInfo(SpaceQuota* squota, uid_t uid, gid_t gid,
 // Get logical max and free bytes for the given space
 //------------------------------------------------------------------------------
 void
-Quota::GetStatfs(const std::string& path, unsigned long long& maxbytes, unsigned long long& freebytes)
+Quota::GetStatfs(const std::string& path, unsigned long long& maxbytes,
+                 unsigned long long& freebytes)
 {
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
-  SpaceQuota* space = GetResponsibleSpaceQuota(path);  
+  SpaceQuota* space = GetResponsibleSpaceQuota(path);
+
   if (space) {
     space->Refresh();
-    maxbytes = space->GetQuota(SpaceQuota::kAllGroupBytesTarget,0);
-    freebytes = maxbytes - space->GetQuota(SpaceQuota::kAllGroupBytesIs,0);
+    maxbytes = space->GetQuota(SpaceQuota::kAllGroupBytesTarget, 0);
+    freebytes = maxbytes - space->GetQuota(SpaceQuota::kAllGroupBytesIs, 0);
     maxbytes /= space->GetLayoutSizeFactor();
     freebytes /= space->GetLayoutSizeFactor();
   } else {

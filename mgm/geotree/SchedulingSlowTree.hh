@@ -31,7 +31,7 @@
 #define DEFINE_TREECOMMON_MACRO
 #include "mgm/geotree/SchedulingFastTree.hh"
 #include "mgm/geotree/SchedulingTreeCommon.hh"
-#include "mgm/TableFormatter/TableFormatterBase.hh"
+#include "common/table_formatter/TableFormatterBase.hh"
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -132,9 +132,9 @@ public:
                         std::string group, unsigned& geo_depth_max, bool useColors = false,
                         unsigned prefix1 = 0, unsigned prefix2 = 0);
   void recursiveDisplayAccess(std::set<std::tuple<unsigned, unsigned, unsigned,
-                                       unsigned, std::string, std::string>>& data_access,
-                                       unsigned& geo_depth_max, unsigned prefix1 = 0,
-                                       unsigned prefix2 = 0);
+                              unsigned, std::string, std::string>>& data_access,
+                              unsigned& geo_depth_max, unsigned prefix1 = 0,
+                              unsigned prefix2 = 0);
 };
 
 inline std::ostream& operator << (std::ostream& os,
@@ -204,7 +204,8 @@ public:
   }
   void display(std::set<std::tuple<std::string, unsigned, unsigned,
                TableFormatterColor, unsigned, unsigned, std::string, std::string,
-               int, int, std::string>>& data_tree, unsigned& geo_depth_max, bool useColors = false);
+               int, int, std::string>>& data_tree, unsigned& geo_depth_max,
+               bool useColors = false);
   void displayAccess(std::set<std::tuple<unsigned, unsigned, unsigned,
                      unsigned, std::string, std::string>>& data_access,
                      unsigned& geo_depth_max);

@@ -45,7 +45,8 @@ int MgmExecute::process(const std::string& response)
     elem.second = response.find(elem.first);
   }
 
-  if (tags[0].second == std::string::npos && tags[1].second == std::string::npos) {
+  if ((tags[0].second == std::string::npos) &&
+      (tags[1].second == std::string::npos)) {
     // This is a "FUSE" format response that only contains the stdout without
     // error message or return code
     mOutcome.result = response;
@@ -53,29 +54,29 @@ int MgmExecute::process(const std::string& response)
   }
 
   // Parse stdout.
-  if(tags[0].second != std::string::npos) {
-    if(tags[1].second != std::string::npos) {
+  if (tags[0].second != std::string::npos) {
+    if (tags[1].second != std::string::npos) {
       mOutcome.result = response.substr(tags[0].first.length(),
-                                tags[1].second - tags[1].first.length() + 1);
+                                        tags[1].second - tags[1].first.length() + 1);
       rstdout = mOutcome.result.c_str();
-    }
-    else {
+    } else {
       mOutcome.result = response.substr(tags[0].first.length(),
-                                tags[2].second - tags[2].first.length() - 1);
+                                        tags[2].second - tags[2].first.length() - 1);
       rstdout = mOutcome.result.c_str();
     }
   }
 
   // Parse stderr
-  if(tags[1].second != std::string::npos) {
+  if (tags[1].second != std::string::npos) {
     mOutcome.error = response.substr(tags[1].second + tags[1].first.length(),
-                             tags[2].second - (tags[1].second + tags[1].first.length()));
+                                     tags[2].second - (tags[1].second + tags[1].first.length()));
     rstderr = mOutcome.error.c_str();
   }
 
   // Parse return code
   try {
-    mOutcome.errc = std::stoi(response.substr(tags[2].second + tags[2].first.length()));
+    mOutcome.errc = std::stoi(response.substr(tags[2].second +
+                              tags[2].first.length()));
   } catch (...) {
     rstderr = "error: failed to parse response from server";
     return EINVAL;
@@ -90,10 +91,10 @@ int MgmExecute::process(const std::string& response)
 //------------------------------------------------------------------------------
 int MgmExecute::ExecuteCommand(const char* command, bool is_admin)
 {
-  if(mSimulationMode) {
-    if(mSimulatedData.front().expectedCommand != command) {
+  if (mSimulationMode) {
+    if (mSimulatedData.front().expectedCommand != command) {
       mSimulationErrors += SSTR("Expected command '" <<
-        mSimulatedData.front().expectedCommand << "', received '" << command << "'");
+                                mSimulatedData.front().expectedCommand << "', received '" << command << "'");
       return EIO;
     }
 
@@ -104,7 +105,7 @@ int MgmExecute::ExecuteCommand(const char* command, bool is_admin)
   }
 
   std::string reply;
-  XrdOucString command_xrd = XrdOucString(command);
+  XrdOucString command_xrd(command);
   // Discard XrdOucEnv response as this is used by the old type of commands and
   // reply on parsing the string reply
   std::unique_ptr<XrdOucEnv> response(client_command(command_xrd, is_admin,

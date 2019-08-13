@@ -262,7 +262,7 @@ AclHelper::SetDefaultRole()
       return true;
     }
 
-    std::cerr << "error: failed to get uid form whoami command" << std::endl;
+    std::cerr << "error: failed to get uid from whoami command" << std::endl;
     return false;
   }
 
