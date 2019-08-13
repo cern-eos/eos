@@ -40,7 +40,6 @@ public:
   NsHelper()
   {
     mIsAdmin = true;
-    mHighlight = true;
   }
 
   //----------------------------------------------------------------------------
@@ -401,7 +400,8 @@ NsHelper::ParseCommand(const char* arg)
     }
 
     int64_t fileID = 0;
-    if(!eos::common::ParseInt64(option, fileID) || fileID < 0) {
+
+    if (!eos::common::ParseInt64(option, fileID) || fileID < 0) {
       return false;
     }
 
@@ -411,13 +411,13 @@ NsHelper::ParseCommand(const char* arg)
     }
 
     int64_t containerID = 0;
-    if(!eos::common::ParseInt64(option, containerID) || containerID < 0) {
+
+    if (!eos::common::ParseInt64(option, containerID) || containerID < 0) {
       return false;
     }
 
     reserve->set_fileid(fileID);
     reserve->set_containerid(containerID);
-
   } else if (cmd == "") {
     eos::console::NsProto_StatProto* stat = ns->mutable_stat();
     stat->set_summary(true);
@@ -527,11 +527,13 @@ void com_ns_help()
       << std::endl
       << std::endl
       << "  ns cache drop-single-file <id of file to drop>" << std::endl
-      << "    force refresh of the given FileMD by dropping it from the cache" << std::endl
+      << "    force refresh of the given FileMD by dropping it from the cache" <<
+      std::endl
       << std::endl
       << std::endl
       << "  ns cache drop-single-container <id of container to drop>" << std::endl
-      << "    force refresh of the given ContainerMD by dropping it from the cache" << std::endl
+      << "    force refresh of the given ContainerMD by dropping it from the cache" <<
+      std::endl
       << std::endl
       << std::endl
       << "  ns max_drain_threads <num>" << std::endl
@@ -539,8 +541,10 @@ void com_ns_help()
       << std::endl
       << std::endl
       << "  ns reserve-ids <file id> <container id>" << std::endl
-      << "    blacklist file and container IDs below the given threshold. The namespace" << std::endl
-      << "    will not allocate any file or container with IDs less than, or equal to the" << std::endl
+      << "    blacklist file and container IDs below the given threshold. The namespace"
+      << std::endl
+      << "    will not allocate any file or container with IDs less than, or equal to the"
+      << std::endl
       << "    given blacklist thresholds." << std::endl
       << std::endl;
   std::cerr << oss.str() << std::endl;

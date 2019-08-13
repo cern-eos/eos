@@ -40,7 +40,6 @@ public:
   NodeHelper()
   {
     mIsAdmin = true;
-    mHighlight = true;
   }
 
   //----------------------------------------------------------------------------
@@ -82,7 +81,6 @@ bool NodeHelper::ParseCommand(const char* arg)
       } else if (token == "-b" || token == "--brief") {
         ls->set_outhost(true);
       } else if (token == "-m") {
-        mHighlight = false;
         ls->set_outformat(eos::console::NodeProto_LsProto::MONITORING);
       } else if (token == "-l") {
         ls->set_outformat(eos::console::NodeProto_LsProto::LISTING);

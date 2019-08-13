@@ -46,9 +46,7 @@ public:
   SpaceHelper()
   {
     mIsAdmin = true;
-    mHighlight = true;
   }
-
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
@@ -100,7 +98,6 @@ bool SpaceHelper::ParseCommand(const char* arg)
           return false;
         }
       } else if (token == "-m") {
-        mHighlight = false;
         ls->set_outformat(eos::console::SpaceProto_LsProto::MONITORING);
       } else if (token == "-l") {
         ls->set_outformat(eos::console::SpaceProto_LsProto::LISTING);

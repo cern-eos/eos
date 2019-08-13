@@ -39,10 +39,6 @@ ICmdHelper::Execute(bool print_err, bool add_route)
   int retc = ExecuteWithoutPrint(add_route);
 
   if (!mIsSilent && !mMgmExec.GetResult().empty()) {
-    if (mHighlight) {
-      TextHighlight(mMgmExec.GetResult());
-    }
-
     std::cout << GetResult();
   }
 
@@ -80,36 +76,6 @@ ICmdHelper::ExecuteWithoutPrint(bool add_route)
   }
 
   return mMgmExec.ExecuteCommand(cmd.c_str(), mIsAdmin);
-}
-
-//------------------------------------------------------------------------------
-// Apply highlighting to text
-//------------------------------------------------------------------------------
-void
-ICmdHelper::TextHighlight(std::string& text)
-{
-  if (global_highlighting) {
-    XrdOucString tmp = text.c_str();
-    // Color replacements
-    tmp.replace("[booted]", "\033[1m[booted]\033[0m");
-    tmp.replace("[down]", "\033[49;31m[down]\033[0m");
-    tmp.replace("[failed]", "\033[49;31m[failed]\033[0m");
-    tmp.replace("[booting]", "\033[49;32m[booting]\033[0m");
-    tmp.replace("[compacting]", "\033[49;34m[compacting]\033[0m");
-    // Replication highlighting
-    tmp.replace("master-rw", "\033[49;31mmaster-rw\033[0m");
-    tmp.replace("master-ro", "\033[49;34mmaster-ro\033[0m");
-    tmp.replace("slave-ro", "\033[1mslave-ro\033[0m");
-    tmp.replace("=ok", "=\033[49;32mok\033[0m");
-    tmp.replace("=compacting", "=\033[49;32mcompacting\033[0m");
-    tmp.replace("=off", "=\033[49;34moff\033[0m");
-    tmp.replace("=blocked", "=\033[49;34mblocked\033[0m");
-    tmp.replace("=wait", "=\033[49;34mwait\033[0m");
-    tmp.replace("=starting", "=\033[49;34mstarting\033[0m");
-    tmp.replace("=true", "=\033[49;32mtrue\033[0m");
-    tmp.replace("=false", "=\033[49;31mfalse\033[0m");
-    text = tmp.c_str();
-  }
 }
 
 //------------------------------------------------------------------------------
