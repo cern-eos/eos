@@ -25,7 +25,6 @@
 #define __HEALTHCOMMAND__HH__
 
 #include "common/table_formatter/TableFormatterBase.hh"
-#include "console/MgmExecute.hh"
 #include "console/ICommand.hh"
 #include "console/RegexUtil.hh"
 #include <cstdlib>
@@ -104,7 +103,6 @@ public:
     std::string GetValue(const std::string& key);
   };
 
-  MgmExecute m_mgm_execute; ///< Object for communication with MGM
   GroupsInfo m_group_data; ///< Storing necessary data
   char* m_comm; ///< Input command
   bool m_monitoring; ///< Indicator for monitoring mode

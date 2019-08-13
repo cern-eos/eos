@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "HealthCommand.hh"
+#include "console/ConsoleMain.hh"
 #include <iostream>
 
 int com_health(char* arg1)
