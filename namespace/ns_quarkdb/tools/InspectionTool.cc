@@ -74,8 +74,10 @@ int main(int argc, char* argv[]) {
   addClusterOptions(dumpSubcommand, membersStr, memberValidator, password, passwordFile);
 
   std::string dumpPath;
+  bool relativePaths = false;
   dumpSubcommand->add_option("--path", dumpPath, "The target path to dump")
     ->required();
+  dumpSubcommand->add_flag("--relative-paths", relativePaths, "Print paths relative to --path");
 
   //----------------------------------------------------------------------------
   // Set-up scan-directories subcommand..
@@ -202,7 +204,7 @@ int main(int argc, char* argv[]) {
   // Dispatch subcommand
   //----------------------------------------------------------------------------
   if(dumpSubcommand->parsed()) {
-    return inspector.dump(dumpPath, std::cout);
+    return inspector.dump(dumpPath, relativePaths, std::cout);
   }
 
   if(namingConflictsSubcommand->parsed()) {
