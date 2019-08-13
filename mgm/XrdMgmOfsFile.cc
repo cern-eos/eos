@@ -39,7 +39,6 @@
 #include "mgm/Acl.hh"
 #include "mgm/Workflow.hh"
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/tgc/TapeAwareGc.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/txengine/TransferEngine.hh"
 #include "mgm/Recycle.hh"
@@ -2412,10 +2411,6 @@ XrdMgmOfsFile::open(const char* inpath,
       } catch (eos::MDException& ex) {
       }
     }
-  }
-
-  if (nullptr != fmd) {
-    gOFS->mTapeAwareGc->fileOpened(path, *fmd);
   }
 
   // Also trigger synchronous create workflow event if it's defined

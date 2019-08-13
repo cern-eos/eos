@@ -28,7 +28,6 @@
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Macros.hh"
-#include "mgm/tgc/TapeAwareGc.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
 
@@ -248,8 +247,6 @@ XrdMgmOfs::Commit(const char* path,
       if (!CommitHelper::commit_fmd(vid, cid, fmd, option, emsg)) {
         return Emsg(epname, error, errno, "commit filesize change", emsg.c_str());
       }
-
-      gOFS->mTapeAwareGc->fileReplicaCommitted(cgi["path"], *fmd);
     }
     {
       eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();

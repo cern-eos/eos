@@ -248,11 +248,6 @@ add_library(
   geotree/SchedulingTreeCommon.cc
   TableFormatter/TableFormatterBase.cc
   TableFormatter/TableCell.cc
-  tgc/TapeAwareGc.cc
-  tgc/TapeAwareGcFreeSpace.cc
-  tgc/TapeAwareGcLru.cc
-  tgc/TapeAwareGcSpaceNotFound.cc
-  tgc/TapeAwareGcUtils.cc
   tracker/ReplicationTracker.cc
   inspector/FileInspector.cc
   ${FUSEX_SRCS})

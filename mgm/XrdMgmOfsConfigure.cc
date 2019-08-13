@@ -52,7 +52,6 @@
 #include "mgm/Messaging.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/inspector/FileInspector.hh"
-#include "mgm/tgc/TapeAwareGc.hh"
 #include "common/StacktraceHere.hh"
 #include "common/plugin_manager/PluginManager.hh"
 #include "common/CommentLog.hh"
@@ -627,23 +626,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
               mIsCentralDrain = true;
             }
           }
-        }
-
-        if (!strcmp("tapeawaregc.defaultspace.enable", var)) {
-          if ((!(val = Config.GetWord())) ||
-              (strcmp("true", val) && strcmp("false", val) &&
-               strcmp("1", val) && strcmp("0", val))) {
-            Eroute.Emsg("Config",
-                        "argument for tapeawaregc.defaultspace.enable illegal or missing. "
-                        "Must be <true>, <false>, <1> or <0>!");
-          } else {
-            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
-              mTapeAwareGcDefaultSpaceEnable = true;
-            }
-          }
-
-          Eroute.Say("=====> mgmofs.tapeawaregc.defaultspace.enable : ",
-                     mTapeAwareGcDefaultSpaceEnable ? "true" : "false");
         }
 
         if (!strcmp("authorize", var)) {
@@ -1928,13 +1910,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Start the drain engine
   if (mIsCentralDrain) {
     mDrainEngine.Start();
-  }
-
-  mTapeAwareGc.reset(new TapeAwareGc());
-
-  // Only if configured to do so, enable the tape aware garbage collector
-  if (mTapeAwareGcDefaultSpaceEnable) {
-    mTapeAwareGc->enable();
   }
 
   return NoGo;

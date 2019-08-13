@@ -643,8 +643,6 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config, 
               (key == "geo.access.policy.read.exact") ||
               (key == "geo.access.policy.write.exact") ||
               (key == "filearchivedgc") ||
-              (key == "tapeawaregc.spacequeryperiodsecs") ||
-              (key == "tapeawaregc.minfreebytes") ||
               (key == "balancer.threshold")) {
             if ((key == "balancer") || (key == "converter") || (key == "tracker") || (key == "inspector") ||
                 (key == "autorepair") || (key == "lru") ||

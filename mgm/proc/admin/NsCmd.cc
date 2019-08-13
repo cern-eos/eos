@@ -40,7 +40,6 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Stat.hh"
-#include "mgm/tgc/TapeAwareGc.hh"
 #include "mgm/Master.hh"
 #include "mgm/ZMQ.hh"
 #include <sstream>
@@ -368,18 +367,6 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << (int)(time(NULL) - gOFS->mStartTime) << std::endl
         << "uid=all gid=all "
         << gOFS->mDrainEngine.GetThreadPoolInfo() << std::endl;
-
-    if (gOFS->mTapeAwareGcDefaultSpaceEnable) {
-      // Number of successful stagerrms since boot
-      oss << "uid=all gid=all tgc.stagerrms="
-          << gOFS->mTapeAwareGc->getNbStagerrms() << std::endl
-          << "uid=all gid=all tgc.queuesize="
-          << gOFS->mTapeAwareGc->getLruQueueSize() << std::endl
-          << "uid=all gid=all tgc.freebytes.default="
-          << gOFS->mTapeAwareGc->getDefaultSpaceFreeBytes() << std::endl
-          << "uid=all gid=all tgc.freespacequerytimestamp.default="
-          << gOFS->mTapeAwareGc->getDefaultSpaceFreeSpaceQueryTimestamp() << std::endl;
-    }
   } else {
     std::string line = "# ------------------------------------------------------"
                        "------------------------------";
@@ -497,18 +484,6 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "ALL      drain info                       "
         << gOFS->mDrainEngine.GetThreadPoolInfo() << std::endl
         << line << std::endl;
-
-    if (gOFS->mTapeAwareGcDefaultSpaceEnable) {
-      oss << "ALL      tgc stagerrms since boot         " << gOFS->mTapeAwareGc->getNbStagerrms()
-          << std::endl
-          << "ALL      tgc queue size                   " << gOFS->mTapeAwareGc->getLruQueueSize()
-          << std::endl
-          << "ALL      tgc freebytes default            " << gOFS->mTapeAwareGc->getDefaultSpaceFreeBytes()
-          << std::endl
-          << "ALL      tgc freequerytimestamp default   " << gOFS->mTapeAwareGc->getDefaultSpaceFreeSpaceQueryTimestamp()
-          << std::endl
-          << line << std::endl;
-    }
   }
 
   if (!stat.summary()) {

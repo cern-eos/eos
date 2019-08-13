@@ -31,7 +31,6 @@ space
     space config <space-name> space.drainperiod=<sec>             : configure the default drain  period if not defined on a filesystem (see fs for details)
     space config <space-name> space.graceperiod=<sec>             : configure the default grace  period if not defined on a filesystem (see fs for details)
     space config <space-name> space.filearchivedgc=on|off         : enable/disable the 'file archived' garbage collector [ default=off ]
-    space config <space-name> space.tapeawaregc.minfreebytes=<#>  : configure the minimum number of free bytes a space should have before the tape aware GC kicks in [ default=0 ]
     space config <space-name> space.autorepair=on|off             : enable auto-repair of faulty replica's/files (the converter has to be enabled too)
     => size can be given also like 10T, 20G, 2P ... without space before the unit
     space config <space-name> space.geo.access.policy.write.exact=on|off   : if 'on' use exact matching geo replica (if available) , 'off' uses weighting [ for write case ]
