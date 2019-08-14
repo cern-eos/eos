@@ -76,7 +76,7 @@ public:
       opendir_cnt.store(0, std::memory_order_seq_cst);
       lock_remote = true;
       cap_count_reset();
-      refresh = false;
+      clear_refresh();
       rmrf = false;
       inline_size = 0;
       _lru_prev.store(0, std::memory_order_seq_cst);
@@ -288,20 +288,21 @@ public:
       inline_size = inlinesize;
     }
 
-    void force_refresh()
+    void force_refresh()      
     {
-      refresh = true;
+      refresh.store(1, std::memory_order_seq_cst);
     }
 
     bool needs_refresh() const
     {
-      return refresh;
+      return refresh.load()?true:false;
     }
 
     void clear_refresh()
     {
-      refresh = false;
+      refresh.store(0, std::memory_order_seq_cst);
     }
+
     void set_lru_prev(uint64_t prev)
     {
       _lru_prev.store(prev, std::memory_order_seq_cst);
@@ -346,7 +347,7 @@ public:
     std::atomic<int> cap_cnt;
     std::atomic<int> opendir_cnt;
     bool lock_remote;
-    bool refresh;
+    std::atomic<int> refresh;
     bool rmrf;
     uint64_t inline_size;
     std::vector<struct flock> locktable;
