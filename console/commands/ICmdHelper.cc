@@ -119,7 +119,7 @@ ICmdHelper::RawExecute(const std::string& full_url)
 
   std::ostringstream oss;
   std::unique_ptr<XrdCl::File> client {new XrdCl::File()};
-  XrdCl::XRootDStatus status = client->Open(oss.str().c_str(),
+  XrdCl::XRootDStatus status = client->Open(full_url.c_str(),
                                XrdCl::OpenFlags::Read);
 
   if (status.IsOK()) {
