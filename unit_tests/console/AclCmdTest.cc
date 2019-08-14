@@ -38,8 +38,8 @@ TEST(ICmdHelper, ResponseParsingFull)
   ASSERT_EQ(
     exec.ProcessResponse("mgm.proc.stdout=123&mgm.proc.stderr=345&mgm.proc.retc=3"),
     3);
-  ASSERT_EQ(exec.GetResult(), "123");
-  ASSERT_EQ(exec.GetError(), "345");
+  ASSERT_EQ(exec.GetResult(), "123\n");
+  ASSERT_EQ(exec.GetError(), "345\n");
   ASSERT_EQ(exec.GetErrc(), 3);
 }
 
@@ -47,8 +47,8 @@ TEST(ICmdHelper, ResponseParsingStdoutAndErrc)
 {
   AclHelper exec(opts);
   ASSERT_EQ(exec.ProcessResponse("mgm.proc.stdout=123&mgm.proc.retc=999"), 999);
-  ASSERT_EQ(exec.GetResult(), "123");
-  ASSERT_EQ(exec.GetError(), "");
+  ASSERT_EQ(exec.GetResult(), "123\n");
+  ASSERT_EQ(exec.GetError(), "\n");
   ASSERT_EQ(exec.GetErrc(), 999);
 }
 
@@ -57,8 +57,8 @@ TEST(ICmdHelper, ResponseParsingStderrAndErrc)
   AclHelper exec(opts);
   ASSERT_EQ(
     exec.ProcessResponse("&mgm.proc.stderr=this is stderr&mgm.proc.retc=2"), 2);
-  ASSERT_EQ(exec.GetResult(), "");
-  ASSERT_EQ(exec.GetError(), "this is stderr");
+  ASSERT_EQ(exec.GetResult(), "\n");
+  ASSERT_EQ(exec.GetError(), "this is stderr\n");
   ASSERT_EQ(exec.GetErrc(), 2);
 }
 
@@ -68,8 +68,8 @@ TEST(ICmdHelper, ResponseParsingEmptyStdout)
   ASSERT_EQ(
     exec.ProcessResponse("mgm.proc.stdout=&mgm.proc.stderr=345&mgm.proc.retc=3"),
     3);
-  ASSERT_EQ(exec.GetResult(), "");
-  ASSERT_EQ(exec.GetError(), "345");
+  ASSERT_EQ(exec.GetResult(), "\n");
+  ASSERT_EQ(exec.GetError(), "345\n");
   ASSERT_EQ(exec.GetErrc(), 3);
 }
 
@@ -79,8 +79,8 @@ TEST(ICmdHelper, ResponseParsingEmptyStderr)
   ASSERT_EQ(
     exec.ProcessResponse("mgm.proc.stdout=123&mgm.proc.stderr=&mgm.proc.retc=3"),
     3);
-  ASSERT_EQ(exec.GetResult(), "123");
-  ASSERT_EQ(exec.GetError(), "");
+  ASSERT_EQ(exec.GetResult(), "123\n");
+  ASSERT_EQ(exec.GetError(), "\n");
   ASSERT_EQ(exec.GetErrc(), 3);
 }
 
@@ -88,8 +88,8 @@ TEST(ICmdHelper, ResponseParsingPlain)
 {
   AclHelper exec(opts);
   ASSERT_EQ(exec.ProcessResponse("aaaaaaa"), 0);
-  ASSERT_EQ(exec.GetResult(), "aaaaaaa");
-  ASSERT_EQ(exec.GetError(), "");
+  ASSERT_EQ(exec.GetResult(), "aaaaaaa\n");
+  ASSERT_EQ(exec.GetError(), "\n");
   ASSERT_EQ(exec.GetErrc(), 0);
 }
 
@@ -101,8 +101,8 @@ TEST(ICmdHelper, SimpleSimulation)
   exec.InjectSimulated("mgm.cmd=ayy&mgm.subcmd=lmao", {"12345"});
   ASSERT_FALSE(exec.CheckSimulationSuccessful(message));
   ASSERT_EQ(exec.RawExecute("mgm.cmd=ayy&mgm.subcmd=lmao"), 0);
-  ASSERT_EQ(exec.GetResult(), "12345");
-  ASSERT_EQ(exec.GetError(), "");
+  ASSERT_EQ(exec.GetResult(), "12345\n");
+  ASSERT_EQ(exec.GetError(), "\n");
   ASSERT_EQ(exec.GetErrc(), 0);
   ASSERT_TRUE(exec.CheckSimulationSuccessful(message));
 }
@@ -119,25 +119,25 @@ TEST(ICmdHelper, ComplexSimulation)
   exec.InjectSimulated("mgm.cmd=ayy1&mgm.subcmd=lmao1", {"234567"});
   ASSERT_FALSE(exec.CheckSimulationSuccessful(message));
   ASSERT_EQ(exec.RawExecute("mgm.cmd=ayy1&mgm.subcmd=lmao1"), 0);
-  ASSERT_EQ(exec.GetResult(), "12345");
-  ASSERT_EQ(exec.GetError(), "some error");
+  ASSERT_EQ(exec.GetResult(), "12345\n");
+  ASSERT_EQ(exec.GetError(), "some error\n");
   ASSERT_EQ(exec.GetErrc(), 0);
   ASSERT_EQ(exec.RawExecute("mgm.cmd=ayy2&mgm.subcmd=lmao2"), 0);
-  ASSERT_EQ(exec.GetResult(), "23456");
-  ASSERT_EQ(exec.GetError(), "");
+  ASSERT_EQ(exec.GetResult(), "23456\n");
+  ASSERT_EQ(exec.GetError(), "\n");
   ASSERT_EQ(exec.GetErrc(), 0);
   ASSERT_EQ(exec.RawExecute("mgm.cmd=ayy2&mgm.subcmd=lmao2"), 0);
-  ASSERT_EQ(exec.GetResult(), "999");
-  ASSERT_EQ(exec.GetError(), "error 2");
+  ASSERT_EQ(exec.GetResult(), "999\n");
+  ASSERT_EQ(exec.GetError(), "error 2\n");
   ASSERT_EQ(exec.GetErrc(), 0);
   ASSERT_EQ(exec.RawExecute("mgm.cmd=ayy3&mgm.subcmd=lmao3"), 987);
-  ASSERT_EQ(exec.GetResult(), "888");
-  ASSERT_EQ(exec.GetError(), "error 3");
+  ASSERT_EQ(exec.GetResult(), "888\n");
+  ASSERT_EQ(exec.GetError(), "error 3\n");
   ASSERT_EQ(exec.GetErrc(), 987);
   ASSERT_FALSE(exec.CheckSimulationSuccessful(message));
   ASSERT_EQ(exec.RawExecute("mgm.cmd=ayy1&mgm.subcmd=lmao1"), 0);
-  ASSERT_EQ(exec.GetResult(), "234567");
-  ASSERT_EQ(exec.GetError(), "");
+  ASSERT_EQ(exec.GetResult(), "234567\n");
+  ASSERT_EQ(exec.GetError(), "\n");
   ASSERT_EQ(exec.GetErrc(), 0);
   ASSERT_TRUE(exec.CheckSimulationSuccessful(message));
 }
@@ -150,8 +150,8 @@ TEST(ICmdHelper, FailedSimulation)
   exec.InjectSimulated("mgm.cmd=ayy1&mgm.subcmd=lmao1", {"12345", "some error"});
   exec.InjectSimulated("mgm.cmd=ayy2&mgm.subcmd=lmao2", {"23456"});
   ASSERT_EQ(exec.RawExecute("mgm.cmd=ayy1&mgm.subcmd=lmao1"), 0);
-  ASSERT_EQ(exec.GetResult(), "12345");
-  ASSERT_EQ(exec.GetError(), "some error");
+  ASSERT_EQ(exec.GetResult(), "12345\n");
+  ASSERT_EQ(exec.GetError(), "some error\n");
   ASSERT_EQ(exec.GetErrc(), 0);
   ASSERT_EQ(exec.RawExecute("mgm.cmd=ayy3&mgm.subcmd=lmao3"), EIO);
   std::cout << message << std::endl;
