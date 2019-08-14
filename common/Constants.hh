@@ -42,12 +42,14 @@ static constexpr auto ARCHIVE_FAILED_WORKFLOW_NAME = "sync::archive_failed";
 static constexpr auto WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS = "=";
 static constexpr auto WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR = ";;;";
 //! Max rate in MB/s at which the scanner should run
-static constexpr auto SCAN_RATE_NAME = "scanrate";
+static constexpr auto SCAN_IO_RATE_NAME = "scanrate";
 //! Time interval after which a scanned filed is rescanned
-static constexpr auto SCAN_INTERVAL_NAME = "scaninterval";
+static constexpr auto SCAN_ENTRY_INTERVAL_NAME = "scaninterval";
 //! Time interval after which the scanner will rerun
-static constexpr auto SCAN_RERUNINTERVAL_NAME = "scanreruninterval";
+static constexpr auto SCAN_DISK_INTERVAL_NAME = "scan_disk_interval";
 //! Maximum ns scan rate when it comes to stat requests done against the
 //! local disks on the FSTs
-static constexpr auto SCAN_RATE_NS_NAME = "scanratens";
+static constexpr auto SCAN_NS_RATE_NAME = "scan_ns_rate";
+//! Time interval after which the ns scanner will rerun
+static constexpr auto SCAN_NS_INTERVAL_NAME = "scan_ns_interval";
 EOSCOMMONNAMESPACE_END

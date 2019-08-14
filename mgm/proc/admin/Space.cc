@@ -67,10 +67,9 @@ ProcCommand::Space()
 
   if (mSubCmd == "inspector") {
     std::string output;
-
-    std::string options = (pOpaque->Get("mgm.options")) ? pOpaque->Get("mgm.options") : "";
+    std::string options = (pOpaque->Get("mgm.options")) ?
+                          pOpaque->Get("mgm.options") : "";
     gOFS->mFileInspector->Dump(output, options);
-
     stdOut += output.c_str();
     retc = 0;
   }
@@ -402,10 +401,12 @@ ProcCommand::Space()
 
   if (mSubCmd == "define") {
     if (pVid->uid == 0) {
-
-      std::string spacename = (pOpaque->Get("mgm.space")) ? pOpaque->Get("mgm.space") : "";
-      std::string groupsize = (pOpaque->Get("mgm.space.groupsize")) ? pOpaque->Get("mgm.space.groupsize") : "";
-      std::string groupmod = (pOpaque->Get("mgm.space.groupmod")) ? pOpaque->Get("mgm.space.groupmod") : "";
+      std::string spacename = (pOpaque->Get("mgm.space")) ? pOpaque->Get("mgm.space")
+                              : "";
+      std::string groupsize = (pOpaque->Get("mgm.space.groupsize")) ?
+                              pOpaque->Get("mgm.space.groupsize") : "";
+      std::string groupmod = (pOpaque->Get("mgm.space.groupmod")) ?
+                             pOpaque->Get("mgm.space.groupmod") : "";
       int gsize = atoi(groupsize.c_str());
       int gmod = atoi(groupmod.c_str());
       char line[1024];
@@ -514,9 +515,6 @@ ProcCommand::Space()
 	    } else {
 	      if ((key == "nominalsize") ||
 		  (key == "headroom") ||
-		  (key == eos::common::SCAN_RATE_NAME) ||
-		  (key == eos::common::SCAN_INTERVAL_NAME) ||
-		  (key == eos::common::SCAN_RERUNINTERVAL_NAME) ||
 		  (key == "graceperiod") ||
 		  (key == "drainperiod") ||
 		  (key == "balancer") ||
@@ -547,8 +545,14 @@ ProcCommand::Space()
 		  (key == "geo.access.policy.read.exact") ||
 		  (key == "geo.access.policy.write.exact") ||
 		  (key == "filearchivedgc") ||
-		  (key == "balancer.threshold")) {
-		if ((key == "balancer") || (key == "converter") || (key == "tracker") || (key == "inspector") ||
+		  (key == "balancer.threshold") ||
+                  (key == eos::common::SCAN_IO_RATE_NAME) ||
+                  (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
+                  (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
+                  (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
+                  (key == eos::common::SCAN_NS_RATE_NAME)) {
+		if ((key == "balancer") || (key == "converter") ||
+                    (key == "tracker") || (key == "inspector") ||
 		    (key == "autorepair") || (key == "lru") ||
 		    (key == "groupbalancer") || (key == "geobalancer") ||
 		    (key == "geo.access.policy.read.exact") ||
@@ -706,12 +710,14 @@ ProcCommand::Space()
             gOFS->ConfEngine->SetAutoSave(false);
 
             // Store these as a global parameters of the space
-            if (((key == eos::common::SCAN_RATE_NAME) ||
-                 (key == eos::common::SCAN_INTERVAL_NAME) ||
-                 (key == eos::common::SCAN_RERUNINTERVAL_NAME) ||
-                 (key == "headroom") ||
-                 (key == "graceperiod") ||
-                 (key == "drainperiod"))) {
+            if ((key == "headroom") ||
+                (key == "graceperiod") ||
+                (key == "drainperiod") ||
+                (key == eos::common::SCAN_IO_RATE_NAME) ||
+                (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
+                (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
+                (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
+                (key == eos::common::SCAN_NS_RATE_NAME)) {
               unsigned long long size = eos::common::StringConversion::GetSizeFromString(
                                           value.c_str());
               char ssize[1024];
@@ -754,11 +760,12 @@ ProcCommand::Space()
                   errno = 0;
                   eos::common::StringConversion::GetSizeFromString(value.c_str());
 
-                  if (((key == eos::common::SCAN_RATE_NAME) ||
-                       (key == eos::common::SCAN_INTERVAL_NAME) ||
-                       (key == eos::common::SCAN_RERUNINTERVAL_NAME) ||
-                       (key == "headroom") || (key == "graceperiod") ||
-                       (key == "drainperiod"))  && (!errno)) {
+                  if (((key == "headroom") || (key == "graceperiod") || (key == "drainperiod") ||
+                       (key == eos::common::SCAN_IO_RATE_NAME) ||
+                       (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
+                       (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
+                       (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
+                       (key == eos::common::SCAN_NS_RATE_NAME)) && (!errno)) {
                     fs->SetLongLong(key.c_str(),
                                     eos::common::StringConversion::GetSizeFromString(value.c_str()));
                     FsView::gFsView.StoreFsConfig(fs);

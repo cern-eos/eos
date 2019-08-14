@@ -82,7 +82,7 @@ TEST(ScanDir, TimestampSmeared)
   eos::common::FileSystem::fsid_t fsid = 1;
   eos::fst::ScanDir sd(path.c_str(), fsid, nullptr, false, 0, 50, true);
   int interval = 300;
-  sd.SetConfig(eos::common::SCAN_INTERVAL_NAME, interval);
+  sd.SetConfig(eos::common::SCAN_ENTRY_INTERVAL_NAME, interval);
   auto& clock = sd.GetClock();
   clock.advance(seconds(5000));
 

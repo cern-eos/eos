@@ -485,10 +485,11 @@ public:
     long mDiskNameLen;
     long mDiskRopen;
     long mDiskWopen;
-    long mScanRate; ///< Maximum scan rate in MB/s
-    long mScanInterval; ///< Time after which a scanned file is rescanned
-    long mScanRerunInterval; ///< Time after which the scanner runs again
-    long mScanRateNs; ///< Max ns scan rate in entries/s
+    long mScanIoRate; ///< Maximum scan rate in MB/s
+    long mScanEntryInterval; ///< Time after which a scanned file is rescanned
+    long mScanDiskInterval; ///< Time after which the disk scanner runs again
+    long mScanNsInterval; ///< Time after which the disk scanner runs again
+    long mScanNsRate; ///< Max ns scan rate in entries/s
     time_t mGracePeriod;
     time_t mDrainPeriod;
 
@@ -515,7 +516,7 @@ public:
     //! Fields which are not present in coreParams (ie mNetInRateMiB) remain
     //! unchanged.
     //--------------------------------------------------------------------------
-    void fillFromCoreParams(const FileSystemCoreParams &coreParams);
+    void fillFromCoreParams(const FileSystemCoreParams& coreParams);
   };
 
   struct host_snapshot_t {

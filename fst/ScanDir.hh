@@ -244,13 +244,14 @@ public:
   eos::fst::Load* mFstLoad; ///< Object for providing load information
   eos::common::FileSystem::fsid_t mFsId; ///< Corresponding file system id
   std::string mDirPath; ///< Root directory used by the scanner
+  std::atomic<int> mRateBandwidth; ///< Max scan IO rate in MB/s
   //! Time interval after which a file is rescanned in seconds, if 0 then
   //! rescanning is completely disabled
-  std::atomic<uint64_t> mRescanIntervalSec;
-  //! Time interval after which the scanner will run again, default 4h
-  std::atomic<uint64_t> mRerunIntervalSec;
-  std::atomic<int> mRateBandwidth; ///< Max scan rate in MB/s
-
+  std::atomic<uint64_t> mEntryIntervalSec;
+  //! Time interval after which the disk scanner will run again, default 4h
+  std::atomic<uint64_t> mDiskIntervalSec;
+  //! Time interval after which the sn scanner will run again, default 3 days
+  std::atomic<uint64_t> mNsIntervalSec;
   // Statistics
   long int mNumScannedFiles;
   long int mNumCorruptedFiles;
