@@ -2410,12 +2410,13 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
     md = Instance().mds.lookup(req, parent, name);
 
     if (md->id() && !md->deleted()) {
+      cap::shared_cap pcap = Instance().caps.acquire(req, parent,
+                             R_OK);
+
       XrdSysMutexHelper mLock(md->Locker());
       md->set_pid(parent);
       eos_static_info("%s", md->dump(e).c_str());
       md->lookup_inc();
-      cap::shared_cap pcap = Instance().caps.acquire(req, parent,
-                             R_OK);
       {
         auto attrMap = md->attr();
 

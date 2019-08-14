@@ -1,10 +1,9 @@
 #!/bin/bash
 
-USAGE="usage: eos-test-fusex-messaging <mnt1-prefix> [<mnt2-prefix> <mgm-url> <mgm-prefix>]"
+USAGE="usage: eos-test-fusex-messaging <mnt1-prefix> [<mnt2-prefix> <period> <mgm-url> <mgm-prefix>]"
 
 [[ -z "$1" ]] && echo $USAGE  && exit -1
 [[ -z "$2" ]] && echo $USAGE && exit -1
-[[ -z "$3" ]] && echo $USAGE && exit -1
 
 
 mnt1=$1

@@ -1623,6 +1623,7 @@ metad::cleanup(shared_md md)
         if (!in_flush && !EosFuse::Instance().datas.has(cmd->id())) {
           // clean-only entries, which are not in the flush queue and not open
           inval_files.push_back(it->second);
+	  cmd->force_refresh();
         }
       }
 
@@ -1742,36 +1743,31 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
     }
 
     {
-      if (!pmd || (((!S_ISDIR(md->mode())) && !pmd->cap_count())) ||
-          (!md->cap_count())) {
-        // don't wipe capp'ed meta-data, local state has to be used, since we get remote-invalidated in case we are out-of-date
-        if ((cont.md_().clock() >= md->clock())) {
-          eos_static_info("overwriting clock MD %#lx => %#lx", md->clock(),
-                          cont.md_().clock());
-          size_t local_size = md->size();
-          uint64_t local_mtime = md->mtime();
-          uint64_t local_mtime_ns = md->mtime_ns();
-          md->CopyFrom(cont.md_());
-
-          if (EosFuse::Instance().datas.has(ino, true)) {
-            // see if this file is open for write, because in that case
-            // we have to keep the local size information and modification times
-            md->set_size(local_size);
-            md->set_mtime(local_mtime);
-            md->set_mtime_ns(local_mtime_ns);
-          }
-        } else {
-          eos_static_warning("deferring MD overwrite local-ino=%016lx remote-ino=%016lx ",
-                             (long) ino, (long) md_ino);
-        }
-
-        md->set_nchildren(md->local_children().size());
-
-        if (EOS_LOGS_DEBUG) {
-          eos_static_debug("store md for local-ino=%016lx remote-ino=%016lx -",
-                           (long) ino, (long) md_ino);
-          eos_static_debug("%s", md->dump().c_str());
-        }
+      if (!has_flush(ino)
+	  ) {
+	size_t local_size = md->size();
+	uint64_t local_mtime = md->mtime();
+	uint64_t local_mtime_ns = md->mtime_ns();
+	md->CopyFrom(cont.md_());
+	
+	if (EosFuse::Instance().datas.has(ino, true)) {
+	  // see if this file is open for write, because in that case
+	  // we have to keep the local size information and modification times
+	  md->set_size(local_size);
+	  md->set_mtime(local_mtime);
+	  md->set_mtime_ns(local_mtime_ns);
+	}
+      } else {
+	eos_static_warning("deferring MD overwrite local-ino=%016lx remote-ino=%016lx ",
+			   (long) ino, (long) md_ino);
+      }
+      
+      md->set_nchildren(md->local_children().size());
+      
+      if (EOS_LOGS_DEBUG) {
+	eos_static_debug("store md for local-ino=%016lx remote-ino=%016lx -",
+			 (long) ino, (long) md_ino);
+	eos_static_debug("%s", md->dump().c_str());
       }
     }
 
@@ -1817,42 +1813,17 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
               shared_md child_pmd;
 
               if (mdmap.retrieveTS(p_ino, child_pmd)) {
-                if (child_pmd->cap_count()) {
-                  // if we have a cap for the parent of a file, we don't need to get an
-                  // update, we receive it via an asynchronous broadcast
-                  if (EOS_LOGS_DEBUG)
-                    eos_static_debug("skipping md for file child local-ino=%#lx remote-ino=%016lx",
-                                     ino, map->first);
-
-                  // but eventually refresh the cap
-                  if (map->second.has_capability()) {
-                    // store cap
-                    EosFuse::Instance().getCap().store(req, cap_received);
-                    md->cap_inc();
-                  }
-
-                  // don't modify existing local meta-data
+		if (cap_received.id()) {
+		  // store cap
+		  EosFuse::Instance().getCap().store(req, cap_received);
+		  md->cap_inc();
+		}
+		// don't overwrite md to be flushed
+		if (has_flush(ino))
                   continue;
-                } else {
-                  if (pmd && pmd->id() && pmd->cap_count()) {
-                    if (EOS_LOGS_DEBUG)
-                      eos_static_debug("skipping md for dir child local-ino=%#lx remote-ino=%016lx",
-                                       ino, map->first);
-
-                    // but eventually refresh the cap
-                    if (map->second.has_capability()) {
-                      // store cap
-                      EosFuse::Instance().getCap().store(req, cap_received);
-                      md->cap_inc();
-                    }
-
-                    // don't modify existing local meta-data
-                    continue;
-                  }
-                }
               }
             }
-
+	    
             md->Locker().Lock();
           } else {
             md->Locker().Lock();
