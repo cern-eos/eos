@@ -49,7 +49,8 @@ public:
   XrdOucString managerId;
   XrdOucString opaque;
 
-  Deletion (std::vector<unsigned long long> &idvector, unsigned long fsid, const char* localprefix, const char* managerid, const char* inopaque)
+  Deletion(std::vector<unsigned long long>& idvector, unsigned long fsid,
+           const char* localprefix, const char* managerid, const char* inopaque)
   {
     fIdVector = idvector;
     fsId = fsid;
@@ -59,7 +60,7 @@ public:
   }
 
   static Deletion*
-  Create (XrdOucEnv* capOpaque)
+  Create(XrdOucEnv* capOpaque)
   {
     // decode the opaque tags
     const char* localprefix = 0;
@@ -69,10 +70,8 @@ public:
     const char* sfsid = 0;
     const char* smanager = 0;
     std::vector <unsigned long long> idvector;
-
     unsigned long long fileid = 0;
     unsigned long fsid = 0;
-
     localprefix = capOpaque->Get("mgm.localprefix");
     hexfids = capOpaque->Get("mgm.fids");
     sfsid = capOpaque->Get("mgm.fsid");
@@ -80,39 +79,40 @@ public:
     access = capOpaque->Get("mgm.access");
 
     // permission check
-    if (access != "delete")
+    if (access != "delete") {
       return 0;
+    }
 
-    if (!localprefix || !hexfids.length() || !sfsid || !smanager)
-    {
+    if (!localprefix || !hexfids.length() || !sfsid || !smanager) {
       return 0;
     }
 
     int envlen;
-    while (hexfids.replace(",", " "))
-    {
+
+    while (hexfids.replace(",", " ")) {
     };
+
     XrdOucTokenizer subtokenizer((char*) hexfids.c_str());
+
     subtokenizer.GetLine();
-    while (1)
-    {
+
+    while (1) {
       hexfid = subtokenizer.GetToken();
-      if (hexfid.length())
-      {
+
+      if (hexfid.length()) {
         fileid = eos::common::FileId::Hex2Fid(hexfid.c_str());
         idvector.push_back(fileid);
-      }
-      else
-      {
+      } else {
         break;
       }
     }
 
     fsid = atoi(sfsid);
-    return new Deletion(idvector, fsid, localprefix, smanager, capOpaque->Env(envlen));
+    return new Deletion(idvector, fsid, localprefix, smanager,
+                        capOpaque->Env(envlen));
   };
 
-  ~Deletion () { };
+  ~Deletion() { };
 };
 
 EOSFSTNAMESPACE_END
