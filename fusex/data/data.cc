@@ -2706,6 +2706,7 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                   if ((!(*it)->unlinked()) && fit->second->HadFailures(msg)) {
                     // let's see if the initial OpenAsync got a timeout, this we should retry always
                     XrdCl::XRootDStatus status = fit->second->opening_state();
+		    bool rescue = true;
 
                     if (
                       (status.code == XrdCl::errConnectionError) ||
@@ -2724,8 +2725,7 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                       map[fit->first] = newproxy;
                       continue;
                     } else {
-
-		      eos_static_warning("OpenAsync failed with kXR_noserver - trying recovery - ino:%16lx err-code:%d", (*it)->id(), status.code);
+		      eos_static_warning("OpenAsync failed - trying recovery - ino:%16lx err-code:%d", (*it)->id(), status.code);
 					 
 		      if (status.errNo == kXR_noserver) {
 			int tret = 0;
@@ -2751,6 +2751,11 @@ data::dmap::ioflush(ThreadAssistant& assistant)
 
                       eos_static_warning("giving up OpenAsync request - ino:%16lx err-code:%d",
                                          (*it)->id(), status.code);
+
+		      if ( (status.errNo == kXR_overQuota) ) {
+			// don't preserve these files, they got an application error beforehand
+			rescue = false;
+		      }
                     }
 
                     // ---------------------------------------------------------
@@ -2758,23 +2763,26 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                     // we can put everything we have cached in a save place for
                     // manual recovery and tag the error message
                     // ---------------------------------------------------------
-                    std::string file_rescue_location;
-                    std::string journal_rescue_location;
-                    int dt = (*it)->file()->file() ? (*it)->file()->file()->rescue(
-                               file_rescue_location) : 0;
-                    int jt = (*it)->file()->journal() ? (*it)->file()->journal()->rescue(
-                               journal_rescue_location) : 0;
 
-                    if (!dt || !jt) {
-                      const char* cmsg =
-                        eos_static_crit("ino:%16lx msg=%s file-recovery=%s journal-recovery=%s",
-                                        (*it)->id(),
-                                        msg.c_str(),
-                                        (!dt) ? file_rescue_location.c_str() : "<none>",
-                                        (!jt) ? journal_rescue_location.c_str() : "<none>");
-                      (*it)->recoverystack().push_back(cmsg);
-                    }
-                  }
+		    if (rescue) {
+		      std::string file_rescue_location;
+		      std::string journal_rescue_location;
+		      int dt = (*it)->file()->file() ? (*it)->file()->file()->rescue(
+										     file_rescue_location) : 0;
+		      int jt = (*it)->file()->journal() ? (*it)->file()->journal()->rescue(
+											   journal_rescue_location) : 0;
+		      
+		      if (!dt || !jt) {
+			const char* cmsg =
+			  eos_static_crit("ino:%16lx msg=%s file-recovery=%s journal-recovery=%s",
+					  (*it)->id(),
+					  msg.c_str(),
+					  (!dt) ? file_rescue_location.c_str() : "<none>",
+					  (!jt) ? journal_rescue_location.c_str() : "<none>");
+			(*it)->recoverystack().push_back(cmsg);
+		      }
+		    }
+		  }
 
                   eos_static_info("deleting xrdclproxyrw state=%d %d", fit->second->stateTS(),
                                   fit->second->IsClosed());
