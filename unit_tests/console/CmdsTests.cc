@@ -65,7 +65,7 @@ TEST(RecycleHelper, RouteFromEnvAppended)
     {"", "", 0});
   } else {
     // Inside the docker container the USER env is not set
-    recycle.InjectSimulated("mgm.cmd.proto=" + proto_msg, {"", "", 0});
+    recycle.InjectSimulated("//proc/user/?mgm.cmd.proto=" + proto_msg, {"", "", 0});
   }
 
   ASSERT_EQ(recycle.Execute(false, true), 0);
