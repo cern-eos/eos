@@ -367,10 +367,11 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
       if (((key == "configstatus") &&
            (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) !=
             eos::common::ConfigStatus::kUnknown)) ||
-          (((key == eos::common::SCAN_RATE_NAME) ||
-            (key == eos::common::SCAN_RATE_NS_NAME) ||
-            (key == eos::common::SCAN_INTERVAL_NAME) ||
-            (key == eos::common::SCAN_RERUNINTERVAL_NAME) ||
+          (((key == eos::common::SCAN_IO_RATE_NAME) ||
+            (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
+            (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
+            (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
+            (key == eos::common::SCAN_NS_RATE_NAME) ||
             (key == "headroom") || (key == "graceperiod") ||
             (key == "drainperiod") || (key == "proxygroup") ||
             (key == "filestickyproxydepth") || (key == "forcegeotag") ||
@@ -409,9 +410,11 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
           return retc;
         }
 
-        if ((key == eos::common::SCAN_RATE_NAME) ||
-            (key == eos::common::SCAN_INTERVAL_NAME) ||
-            (key == eos::common::SCAN_RERUNINTERVAL_NAME) ||
+        if ((key == eos::common::SCAN_IO_RATE_NAME) ||
+            (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
+            (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
+            (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
+            (key == eos::common::SCAN_NS_RATE_NAME) ||
             (key == "headroom") || (key == "graceperiod") ||
             (key == "drainperiod")) {
           fs->SetLongLong(key.c_str(),
@@ -745,7 +748,7 @@ proc_fs_add(std::string& sfsid, std::string& uuid, std::string& nodename,
           common::GroupLocator groupLocator;
           common::GroupLocator::parseGroup(splitgroup, groupLocator);
           common::FileSystemCoreParams coreParams(fsid, locator, groupLocator, uuid,
-                                              configStatus);
+                                                  configStatus);
 
           if (!FsView::gFsView.Register(fs, coreParams)) {
             // Remove mapping

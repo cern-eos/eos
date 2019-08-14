@@ -447,7 +447,11 @@ FileSystem::fs_snapshot_t::fs_snapshot_t()
   mDiskNameLen = 0;
   mDiskRopen = 0;
   mDiskWopen = 0;
-  mScanRate = 0;
+  mScanIoRate = 0;
+  mScanEntryInterval = 0;
+  mScanDiskInterval = 0;
+  mScanNsInterval = 0;
+  mScanNsRate = 0;
   mBalThresh = 0.0;
 }
 
@@ -456,7 +460,8 @@ FileSystem::fs_snapshot_t::fs_snapshot_t()
 // Fields which are not present in coreParams (ie mNetInRateMiB) remain
 // unchanged.
 //------------------------------------------------------------------------------
-void FileSystem::fs_snapshot_t::fillFromCoreParams(const FileSystemCoreParams &coreParams)
+void FileSystem::fs_snapshot_t::fillFromCoreParams(const FileSystemCoreParams&
+    coreParams)
 {
   mId = coreParams.getId();
   mQueue = coreParams.getFSTQueue();
@@ -1101,7 +1106,6 @@ FileSystem::CreateConfig(std::string& key, std::string& val)
 FileSystemCoreParams FileSystem::getCoreParams()
 {
   mq::SharedHashWrapper hash(mHashLocator);
-
   std::string id;
   if(!hash.get("id", id) || id.empty()) {
     return FileSystemCoreParams(0, FileSystemLocator(), GroupLocator(), "",
@@ -1197,10 +1201,12 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
   fs.mDiskNameLen = (long) hash.getLongLong("stat.statfs.namelen");
   fs.mDiskRopen = (long) hash.getLongLong("stat.ropen");
   fs.mDiskWopen = (long) hash.getLongLong("stat.wopen");
-  fs.mScanRate =  (long) hash->getLongLong(eos::common::SCAN_RATE_NAME);
-  fs.mScanRate =  (long) hash->getLongLong(eos::common::SCAN_RATE_NS_NAME);
-  fs.mScanInterval =  (long) hash->getLongLong(eos::common::SCAN_INTERVAL_NAME);
-  fs.mScanRerunInterval = (long) hash->getLongLong(eos::common::SCAN_RERUNINTERVAL_NAME);
+  fs.mScanIoRate = (long) hash->getLongLong(eos::common::SCAN_IO_RATE_NAME);
+  fs.mScanEntryInterval = (long)hash->getLongLong
+    (eos::common::SCAN_ENTRY_INTERVAL_NAME);
+  fs.mScanDiskInterval = (long)hash->getLongLong(eos::common::SCAN_DISK_INTERVAL_NAME);
+  fs.mScanNsInterval = (long)hash->getLongLong(eos::common::SCAN_NS_INTERVAL_NAME);
+  fs.mScanNsRate = (long)hash->getLongLong(eos::common::SCAN_NS_RATE_NAME);
   fs.mGracePeriod = (time_t) hash.getLongLong("graceperiod");
   fs.mDrainPeriod = (time_t) hash.getLongLong("drainperiod");
   fs.mBalThresh   = hash.getDouble("stat.balance.threshold");

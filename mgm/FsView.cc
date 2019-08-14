@@ -868,24 +868,31 @@ FsSpace::FsSpace(const char* name)
       SetConfigMember("drainperiod", "86400");
     }
 
-    // Set the scan rate by default to 100 MB/s
-    if (GetConfigMember(eos::common::SCAN_RATE_NAME).empty()) {
-      SetConfigMember(eos::common::SCAN_RATE_NAME, "100", true, "/eos/*/mgm");
+    // Set the scan IO rate by default to 100 MB/s
+    if (GetConfigMember(eos::common::SCAN_IO_RATE_NAME).empty()) {
+      SetConfigMember(eos::common::SCAN_IO_RATE_NAME, "100", true, "/eos/*/mgm");
     }
 
-    // Set the ns scan rate by default to 50 entries per second
-    if (GetConfigMember(eos::common::SCAN_RATE_NS_NAME).empty()) {
-      SetConfigMember(eos::common::SCAN_RATE_NS_NAME, "50", true, "/eos/*/mgm");
+    // Set the scan entry interval by default to 1 week
+    if (GetConfigMember(eos::common::SCAN_ENTRY_INTERVAL_NAME).empty()) {
+      SetConfigMember(eos::common::SCAN_ENTRY_INTERVAL_NAME, "604800", true,
+                      "/eos/*/mgm");
     }
 
-    // Set the scan interval by default to 1 week
-    if (GetConfigMember(eos::common::SCAN_INTERVAL_NAME).empty()) {
-      SetConfigMember(eos::common::SCAN_INTERVAL_NAME, "604800", true, "/eos/*/mgm");
+    // Set the scan disk rerun interval by default to 4 hours
+    if (GetConfigMember(eos::common::SCAN_DISK_INTERVAL_NAME).empty()) {
+      SetConfigMember(eos::common::SCAN_DISK_INTERVAL_NAME, "14400", true,
+                      "/eos/*/mgm");
     }
 
-    // Set the scan rerun interval by default to 4 hours
-    if (GetConfigMember(eos::common::SCAN_RERUNINTERVAL_NAME).empty()) {
-      SetConfigMember(eos::common::SCAN_RERUNINTERVAL_NAME, "14400", true,
+    // Set the scan ns rate by default to 50 entries per second
+    if (GetConfigMember(eos::common::SCAN_NS_RATE_NAME).empty()) {
+      SetConfigMember(eos::common::SCAN_NS_RATE_NAME, "50", true, "/eos/*/mgm");
+    }
+
+    // Set the scan ns rerun interval by default to 3 days
+    if (GetConfigMember(eos::common::SCAN_NS_INTERVAL_NAME).empty()) {
+      SetConfigMember(eos::common::SCAN_NS_INTERVAL_NAME, "259200", true,
                       "/eos/*/mgm");
     }
 
@@ -3683,36 +3690,44 @@ FsSpace::ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs, bool force)
   eos::common::FileSystem::fs_snapshot_t snapshot;
 
   if (fs->SnapShotFileSystem(snapshot, false)) {
-    if (force || (!snapshot.mScanRate)) {
-      if (GetConfigMember(eos::common::SCAN_RATE_NAME).length()) {
-        fs->SetString(eos::common::SCAN_RATE_NAME,
-                      GetConfigMember(eos::common::SCAN_RATE_NAME).c_str());
+    if (force || (!snapshot.mScanIoRate)) {
+      if (GetConfigMember(eos::common::SCAN_IO_RATE_NAME).length()) {
+        fs->SetString(eos::common::SCAN_IO_RATE_NAME,
+                      GetConfigMember(eos::common::SCAN_IO_RATE_NAME).c_str());
         modified = true;
       }
     }
 
-    if (force || (!snapshot.mScanRateNs)) {
-      if (GetConfigMember(eos::common::SCAN_RATE_NS_NAME).length()) {
-        fs->SetString(eos::common::SCAN_RATE_NS_NAME,
-                      GetConfigMember(eos::common::SCAN_RATE_NS_NAME).c_str());
-        modified = true;
-      }
-    }
-
-    if (force || (!snapshot.mScanInterval)) {
+    if (force || (!snapshot.mScanEntryInterval)) {
       // try to apply the default
-      if (GetConfigMember(eos::common::SCAN_INTERVAL_NAME).length()) {
+      if (GetConfigMember(eos::common::SCAN_ENTRY_INTERVAL_NAME).length()) {
         modified = true;
-        fs->SetString(eos::common::SCAN_INTERVAL_NAME,
-                      GetConfigMember(eos::common::SCAN_INTERVAL_NAME).c_str());
+        fs->SetString(eos::common::SCAN_ENTRY_INTERVAL_NAME,
+                      GetConfigMember(eos::common::SCAN_ENTRY_INTERVAL_NAME).c_str());
       }
     }
 
-    if (force || (!snapshot.mScanRerunInterval)) {
-      if (GetConfigMember(eos::common::SCAN_RERUNINTERVAL_NAME).length()) {
+    if (force || (!snapshot.mScanDiskInterval)) {
+      if (GetConfigMember(eos::common::SCAN_DISK_INTERVAL_NAME).length()) {
         modified = true;
-        fs->SetString(eos::common::SCAN_RERUNINTERVAL_NAME,
-                      GetConfigMember(eos::common::SCAN_RERUNINTERVAL_NAME).c_str());
+        fs->SetString(eos::common::SCAN_DISK_INTERVAL_NAME,
+                      GetConfigMember(eos::common::SCAN_DISK_INTERVAL_NAME).c_str());
+      }
+    }
+
+    if (force || (!snapshot.mScanNsInterval)) {
+      if (GetConfigMember(eos::common::SCAN_NS_INTERVAL_NAME).length()) {
+        modified = true;
+        fs->SetString(eos::common::SCAN_NS_INTERVAL_NAME,
+                      GetConfigMember(eos::common::SCAN_NS_INTERVAL_NAME).c_str());
+      }
+    }
+
+    if (force || (!snapshot.mScanNsRate)) {
+      if (GetConfigMember(eos::common::SCAN_NS_RATE_NAME).length()) {
+        fs->SetString(eos::common::SCAN_NS_RATE_NAME,
+                      GetConfigMember(eos::common::SCAN_NS_RATE_NAME).c_str());
+        modified = true;
       }
     }
 

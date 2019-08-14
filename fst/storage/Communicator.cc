@@ -218,8 +218,8 @@ Storage::processIncomingFsConfigurationChange(fst::FileSystem *targetFs, const s
         RunBootThread(targetFs);
       } else {
         eos_static_info("queue=%s status=%d check=%lld msg='skip boot - we are already booted'",
-          queue.c_str(), targetFs->GetStatus(),
-          targetFs->GetLongLong("bootcheck"));
+                        queue.c_str(), targetFs->GetStatus(),
+                        targetFs->GetLongLong("bootcheck"));
         targetFs->SetStatus(eos::common::BootStatus::kBooted);
       }
     } else {
@@ -230,12 +230,13 @@ Storage::processIncomingFsConfigurationChange(fst::FileSystem *targetFs, const s
       RunBootThread(targetFs);
     }
   } else {
-    if ((key == eos::common::SCAN_RATE_NAME) ||
-        (key == eos::common::SCAN_RATE_NS_NAME) ||
-        (key == eos::common::SCAN_INTERVAL_NAME) ||
-        (key == eos::common::SCAN_RERUNINTERVAL_NAME)) {
+    if ((key == eos::common::SCAN_IO_RATE_NAME) ||
+        (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
+        (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
+        (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
+        (key == eos::common::SCAN_NS_RATE_NAME)) {
       long long value = targetFs->GetLongLong(key.c_str());
-      
+
       if (value > 0) {
         targetFs->ConfigScanner(&mFstLoad, key.c_str(), value);
       }
@@ -281,10 +282,11 @@ Storage::Communicator(ThreadAssistant& assistant)
   eos_static_info("Communicator activated ...");
   std::string watch_id = "id";
   std::string watch_bootsenttime = "bootsenttime";
-  std::string watch_scanrate = eos::common::SCAN_RATE_NAME;
-  std::string watch_scanrate_ns = eos::common::SCAN_RATE_NS_NAME;
-  std::string watch_scaninterval = eos::common::SCAN_INTERVAL_NAME;
-  std::string watch_scanreruninterval = eos::common::SCAN_RERUNINTERVAL_NAME;
+  std::string watch_scan_io_rate = eos::common::SCAN_IO_RATE_NAME;
+  std::string watch_scan_entry_interval = eos::common::SCAN_ENTRY_INTERVAL_NAME;
+  std::string watch_scan_disk_interval = eos::common::SCAN_DISK_INTERVAL_NAME;
+  std::string watch_scan_ns_interval = eos::common::SCAN_NS_INTERVAL_NAME;
+  std::string watch_scan_ns_rate = eos::common::SCAN_NS_RATE_NAME;
   std::string watch_symkey = "symkey";
   std::string watch_manager = "manager";
   std::string watch_publishinterval = "publish.interval";
@@ -299,14 +301,18 @@ Storage::Communicator(ThreadAssistant& assistant)
         XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
   ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_bootsenttime,
         XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_scanrate,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_scanrate_ns,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_scaninterval,
+  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_scan_io_rate,
         XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
   ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",
-        watch_scanreruninterval,
+        watch_scan_entry_interval,
+        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",
+        watch_scan_disk_interval,
+        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",
+        watch_scan_ns_interval,
+        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_scan_ns_rate,
         XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
   ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_symkey,
         XrdMqSharedObjectChangeNotifier::kMqSubjectModification);

@@ -103,8 +103,9 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
                  long int file_rescan_interval, int ratebandwidth,
                  bool fake_clock) :
   mFstLoad(fstload), mFsId(fsid), mDirPath(dirpath),
-  mRescanIntervalSec(file_rescan_interval), mRerunIntervalSec(4 * 3600),
-  mRateBandwidth(ratebandwidth), mNumScannedFiles(0), mNumCorruptedFiles(0),
+  mRateBandwidth(ratebandwidth), mEntryIntervalSec(file_rescan_interval),
+  mDiskIntervalSec(4 * 3600), mNsIntervalSec(3 * 24 * 3600),
+  mNumScannedFiles(0), mNumCorruptedFiles(0),
   mNumHWCorruptedFiles(0),  mTotalScanSize(0), mNumTotalFiles(0),
   mNumSkippedFiles(0), mBuffer(nullptr),
   mBufferSize(0), mBgThread(bgthread), mClock(fake_clock), mRateLimit(nullptr)
@@ -162,19 +163,24 @@ ScanDir::SetConfig(const std::string& key, long long value)
   eos_info("msg=\"update scanner configuration\" key=\"%s\" value=\"%s\"",
            key.c_str(), std::to_string(value).c_str());
 
-  if (key == eos::common::SCAN_RATE_NAME) {
+  if (key == eos::common::SCAN_IO_RATE_NAME) {
     mRateBandwidth = (int) value;
-  } else if (key == eos::common::SCAN_INTERVAL_NAME) {
-    mRescanIntervalSec = value;
-  } else if (key == eos::common::SCAN_RERUNINTERVAL_NAME) {
-    mRerunIntervalSec = value;
+  } else if (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) {
+    mEntryIntervalSec = value;
+  } else if (key == eos::common::SCAN_DISK_INTERVAL_NAME) {
+    mDiskIntervalSec = value;
     mDiskThread.join();
     mDiskThread.reset(&ScanDir::RunDiskScan, this);
-  } else if (key == eos::common::SCAN_RATE_NS_NAME) {
+  } else if (key == eos::common::SCAN_NS_INTERVAL_NAME) {
+#ifndef _NOOFS
+    mNsIntervalSec = value;
+    mNsThread.join();
+    mNsThread.reset(&ScanDir::RunNsScan, this);
+#endif
+  } else if (key == eos::common::SCAN_NS_RATE_NAME) {
     mRateLimit->SetRatePerSecond(value);
   }
 }
-
 
 #ifndef _NOOFS
 //------------------------------------------------------------------------------
@@ -430,7 +436,7 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
 
   if (mBgThread) {
     // Get a random smearing and avoid that all start at the same time! 0-4 hours
-    size_t sleeper = (1.0 * mRerunIntervalSec * random() / RAND_MAX);
+    size_t sleeper = (1.0 * mDiskIntervalSec * random() / RAND_MAX);
     assistant.wait_for(seconds(sleeper));
   }
 
@@ -459,7 +465,7 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
 
     if (mBgThread) {
       // Run again after (default) 4 hours
-      assistant.wait_for(std::chrono::seconds(mRerunIntervalSec));
+      assistant.wait_for(std::chrono::seconds(mDiskIntervalSec));
       // @todo(esindril): this will not be needed anymore once we drop the
       // local db. If needed we could add it as an individual command
       // Call the ghost entry clean-up function
@@ -697,7 +703,7 @@ ScanDir::DoRescan(const std::string& timestamp_sec) const
   using namespace std::chrono;
 
   if (!timestamp_sec.compare("")) {
-    if (mRescanIntervalSec == 0ull) {
+    if (mEntryIntervalSec == 0ull) {
       return false;
     } else {
       // Check the first time if scanner is not completely disabled
@@ -718,10 +724,10 @@ ScanDir::DoRescan(const std::string& timestamp_sec) const
     elapsed_sec = duration_cast<seconds>(now_ts - old_ts).count();
   }
 
-  if (elapsed_sec < mRescanIntervalSec) {
+  if (elapsed_sec < mEntryIntervalSec) {
     return false;
   } else {
-    if (mRescanIntervalSec) {
+    if (mEntryIntervalSec) {
       return true;
     } else {
       return false;
@@ -879,7 +885,7 @@ ScanDir::EnforceAndAdjustScanRate(const off_t offset,
 }
 
 //------------------------------------------------------------------------------
-// Get timestamp smeared +/-20% of mRescanIntervalSec around the current
+// Get timestamp smeared +/-20% of mEntryIntervalSec around the current
 // timestamp value
 //------------------------------------------------------------------------------
 std::string
@@ -887,8 +893,8 @@ ScanDir::GetTimestampSmearedSec() const
 {
   using namespace std::chrono;
   int64_t smearing =
-    (int64_t)(0.2 * 2 * mRescanIntervalSec.load() * random() / RAND_MAX) -
-    (int64_t)(0.2 * mRescanIntervalSec.load());
+    (int64_t)(0.2 * 2 * mEntryIntervalSec.load() * random() / RAND_MAX) -
+    (int64_t)(0.2 * mEntryIntervalSec.load());
   uint64_t ts_sec;
 
   if (mClock.IsFake()) {
