@@ -241,7 +241,10 @@ ScanDir::AccountMissing()
       } catch (eos::MDException& e) {
         // No file on disk, no ns file metadata object but we have a ghost entry
         // in the file system view - delete it
-        // @todo (esindril) drop ghost fid entry
+        if (!DropGhostFid(mFsId, fid)) {
+          eos_err("msg=\"failed to drop ghost entry\" fxid=%08llx fsid=%lu",
+                  fid, mFsId);
+        }
       }
     }
 
@@ -280,7 +283,19 @@ ScanDir::CleanupUnlinked()
       std::string fpath =
         FileId::FidPrefix2FullPath(FileId::Fid2Hex(fid).c_str(),
                                    gOFS.Storage->GetStoragePath(mFsId).c_str());
-      // @todo(esindril)
+      // Drop the file from disk and local DB
+      XrdOucErrInfo tmp_err;
+
+      if (gOFS._rem("/DELETION_FSCK", tmp_err, nullptr, nullptr, fpath.c_str(),
+                    fid, mFsId, true)) {
+        eos_err("msg=\"failed remove local file\" path=%s fxid=%08llx fsid=%lu",
+                fpath.c_str(), fid, mFsId);
+      }
+
+      if (!DropGhostFid(mFsId, fid)) {
+        eos_err("msg=\"failed to drop ghost entry\" fxid=%08llx fsid=%lu",
+                fid, mFsId);
+      }
     }
 
     mRateLimit->Allow();
