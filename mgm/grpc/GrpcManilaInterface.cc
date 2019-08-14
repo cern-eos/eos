@@ -679,7 +679,7 @@ GrpcManilaInterface::GetCapacityShare(eos::rpc::ManilaResponse* reply,
 			    true);
 
   if (!max_bytes && config.count("manila.max_quota")) {
-    max_bytes = config("manila.max_quota");
+    max_bytes = strtoull(config["manila.max_quota"].c_str(), 0, 10);
   }
 
   reply->set_total_used( (max_bytes - free_bytes)/ (1000ll*1000ll*1000ll) );
