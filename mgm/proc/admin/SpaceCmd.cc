@@ -512,8 +512,9 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset, eos
 //----------------------------------------------------------------------------
 // Execute define subcommand
 //----------------------------------------------------------------------------
-void SpaceCmd::DefineSubcmd(const eos::console::SpaceProto_DefineProto& define, eos::console::ReplyProto& reply) {
-
+void SpaceCmd::DefineSubcmd(const eos::console::SpaceProto_DefineProto& define,
+                            eos::console::ReplyProto& reply)
+{
   if (mVid.uid != 0) {
     reply.set_std_err("error: you have to take role 'root' to execute this command");
     reply.set_retc(EPERM);
@@ -525,38 +526,40 @@ void SpaceCmd::DefineSubcmd(const eos::console::SpaceProto_DefineProto& define, 
     reply.set_retc(EINVAL);
     return;
   }
-  if (define.groupsize() < 0 || (define.groupsize() > 1024)) {
+
+  if ((define.groupsize() < 0) || (define.groupsize() > 1024)) {
     reply.set_std_err("error: <groupsize> must be a positive integer (<=1024)!");
     reply.set_retc(EINVAL);
     return;
   }
-  if (define.groupmod() < 0 || (define.groupmod() > 256)) {
+
+  if ((define.groupmod() < 0) || (define.groupmod() > 256)) {
     reply.set_std_err("error: <groupmod> must be a positive integer (<=256)!");
     reply.set_retc(EINVAL);
     return;
   }
 
-
   eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
 
   if (!FsView::gFsView.mSpaceView.count(define.mgmspace())) {
-
     reply.set_std_out("info: creating space '" + define.mgmspace() + "'");
 
     if (!FsView::gFsView.RegisterSpace(define.mgmspace().c_str())) {
       reply.set_std_err("error: cannot register space <" + define.mgmspace() + ">");
       reply.set_retc(EIO);
-    } else {
-      // set this new space parameters
-      if ((!FsView::gFsView.mSpaceView[define.mgmspace()]->SetConfigMember(std::string("groupsize"), std::to_string(define.groupsize()), true, "/eos/*/mgm")) ||
-          (!FsView::gFsView.mSpaceView[define.mgmspace()]->SetConfigMember(std::string("groupmod"), std::to_string(define.groupmod()), true, "/eos/*/mgm"))) {
-        reply.set_retc(EIO);
-        reply.set_std_err("error: cannot set space config value");
-      }
+      return;
     }
-
   }
 
+  // Set the new space parameters
+  auto space = FsView::gFsView.mSpaceView[define.mgmspace()];
+  if ((!space->SetConfigMember("groupsize", std::to_string(define.groupsize()),
+                               true, "/eos/*/mgm")) ||
+      (!space->SetConfigMember("groupmod", std::to_string(define.groupmod()),
+                               true, "/eos/*/mgm"))) {
+    reply.set_std_err("error: cannot set space config value");
+    reply.set_retc(EIO);
+  }
 }
 
 //----------------------------------------------------------------------------
