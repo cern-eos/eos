@@ -1047,6 +1047,12 @@ Server::prefetchMD(const eos::fusex::md& md)
     Prefetcher::prefetchInodeAndWait(gOFS->eosView, md.md_ino());
   } else if (md.operation() == md.LS) {
     Prefetcher::prefetchInodeWithChildrenAndWait(gOFS->eosView, md.md_ino());
+  } else if (md.operation() == md.DELETE) {
+    Prefetcher::prefetchInodeWithChildrenAndWait(gOFS->eosView, md.md_pino());
+
+    if(S_ISDIR(md.mode())) {
+      Prefetcher::prefetchInodeWithChildrenAndWait(gOFS->eosView, md.md_ino());
+    }
   }
 }
 
@@ -1702,8 +1708,8 @@ Server::OpSetFile(const std::string& id,
           if (EOS_LOGS_DEBUG) {
             eos_debug("removing previous file in move %s", md.name().c_str());
           }
-	  
-	  eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();	  
+
+	  eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
 	  // recycle bin - not for hardlinked files or hardlinks!
 	  if (attrmap.count(Recycle::gRecyclingAttribute) &&
 	      (!ofmd->hasAttribute(k_mdino)) &&
@@ -1721,15 +1727,15 @@ Server::OpSetFile(const std::string& id,
 	    // no recycle bin
 	    try {
 	      pcmd->removeFile(md.name());
-	      
+
 	      eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
-	      
+
 	      // free previous quota
 	      if (quotanode) {
 		quotanode->removeFile(ofmd.get());
 	      }
-	      
-	      // unlink the existing file 
+
+	      // unlink the existing file
 	      ofmd->setContainerId(0);
 	      ofmd->unlinkAllLocations();
 	      gOFS->eosFileService->updateStore(ofmd.get());
@@ -1757,8 +1763,8 @@ Server::OpSetFile(const std::string& id,
             if (EOS_LOGS_DEBUG) {
               eos_debug("removing previous file in update %s", md.name().c_str());
             }
-	    
-	    eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();	  
+
+	    eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
 	    // recycle bin - not for hardlinked files or hardlinks!
 	    if (attrmap.count(Recycle::gRecyclingAttribute) &&
 		(!ofmd->hasAttribute(k_mdino)) &&
@@ -1776,19 +1782,19 @@ Server::OpSetFile(const std::string& id,
 	      try {
 		pcmd->removeFile(md.name());
 		eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
-		
+
 		// free previous quota
 		if (quotanode) {
 		  quotanode->removeFile(ofmd.get());
 		}
-		
-		// unlink the existing file 
+
+		// unlink the existing file
 		ofmd->setContainerId(0);
 		ofmd->unlinkAllLocations();
 		gOFS->eosFileService->updateStore(ofmd.get());
 	      } catch (eos::MDException& e) {
 	      }
-	    }	    
+	    }
 	  }
 	  gOFS->eosView->renameFile(fmd.get(), md.name());
         }
@@ -1842,7 +1848,7 @@ Server::OpSetFile(const std::string& id,
       resp.mutable_ack_()->set_transactionid(md.reqid());
       resp.mutable_ack_()->set_md_ino(eos::common::FileId::FidToInode(gmd->getId()));
 
-      // prepare to broadcast the new hardlink around, need to create an md object with the hardlink 
+      // prepare to broadcast the new hardlink around, need to create an md object with the hardlink
       eos::fusex::md g_md;
       uint64_t g_ino = eos::common::FileId::FidToInode(gmd->getId());
       FillFileMD(g_ino, g_md, vid);
