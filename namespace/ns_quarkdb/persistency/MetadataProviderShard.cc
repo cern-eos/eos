@@ -110,6 +110,16 @@ folly::Future<IFileMDPtr>
 MetadataProviderShard::retrieveFileMD(FileIdentifier id)
 {
   std::unique_lock<std::mutex> lock(mMutex);
+
+  // Are we asking for fid=0? Illegal, short-circuit without even contacting
+  // QDB. Indicates possible bug elsewhere in the MGM.
+  if(id == FileIdentifier(0)) {
+    eos_static_warning("Attempted to retrieve fid=0!");
+    return folly::makeFuture<IFileMDPtr>
+            (make_mdexception(ENOENT, "File #" << id.getUnderlyingUInt64()
+            << " does not exist (fid=0 is illegal)"));
+  }
+
   // A FileMD can be in three states: Not in cache, inside in-flight cache,
   // and cached. Is it inside in-flight cache?
   auto it = mInFlightFiles.find(id);
