@@ -208,18 +208,20 @@ void SpaceCmd::StatusSubcmd(const eos::console::SpaceProto_StatusProto& status,
 //----------------------------------------------------------------------------
 // Execute set subcommand
 //----------------------------------------------------------------------------
-void SpaceCmd::SetSubcmd(const eos::console::SpaceProto_SetProto& set, eos::console::ReplyProto& reply) {
+void SpaceCmd::SetSubcmd(const eos::console::SpaceProto_SetProto& set,
+                         eos::console::ReplyProto& reply)
+{
 
   std::ostringstream std_out, std_err;
   int ret_c = 0;
 
-  if ( mVid.uid != 0 ) {
+  if (mVid.uid != 0) {
     reply.set_std_err("error: you have to take role 'root' to execute this command");
     reply.set_retc(EPERM);
     return;
   }
 
-  if ( set.mgmspace().empty() ) {
+  if (set.mgmspace().empty()) {
     reply.set_std_err("error: illegal parameters");
     reply.set_retc(EINVAL);
     return;
@@ -236,28 +238,19 @@ void SpaceCmd::SetSubcmd(const eos::console::SpaceProto_SetProto& set, eos::cons
   std::string key = "status";
   std::string status = (set.state_switch()) ? "on" : "off";
 
-  // loop over all groups
-  std::map<std::string, FsGroup*>::const_iterator it1;
-  for (it1 = FsView::gFsView.mGroupView.begin(); it1 != FsView::gFsView.mGroupView.end(); it1++) {
-    if (!it1->second->SetConfigMember(key, status)) {
-      std_err << "error: cannot set status in group <" + it1->first + ">\n";
-      ret_c = EIO;
-    }
-  }
-  // loop over all nodes
-  std::map<std::string, FsNode *>::const_iterator it2;
-  for (it2 = FsView::gFsView.mNodeView.begin();
-       it2 != FsView::gFsView.mNodeView.end(); it2++) {
-    if (!it2->second->SetConfigMember(key, status)) {
-      std_err << "error: cannot set status for node <" + it2->first + ">\n";
-      ret_c = EIO;
+  // Loop over all groups within this space
+  if (FsView::gFsView.mSpaceGroupView.count(set.mgmspace())) {
+    for (auto& group: FsView::gFsView.mSpaceGroupView.at(set.mgmspace())) {
+      if (!group->SetConfigMember(key, status)) {
+        std_err << "error: cannot set status in group <" << group->mName << ">\n";
+        ret_c = EIO;
+      }
     }
   }
 
   reply.set_std_out(std_out.str());
   reply.set_std_err(std_err.str());
   reply.set_retc(ret_c);
-
 }
 
 //----------------------------------------------------------------------------
