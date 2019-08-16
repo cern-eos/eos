@@ -122,7 +122,7 @@ int Inspector::scanDirs(std::ostream &out, std::ostream &err) {
       break;
     }
 
-    out << "cid=" << proto.id() << " name=" << proto.name() << std::endl;
+    out << "cid=" << proto.id() << " name=" << proto.name() << " parent=" << proto.parent_id() << std::endl;
     containerScanner.next();
   }
 
