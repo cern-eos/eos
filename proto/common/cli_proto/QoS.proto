@@ -14,6 +14,10 @@ message QoSProto {
     string value = 2;
   }
 
+  message ListProto {
+    string classname = 1;
+  }
+
   message GetProto {
     IdentifierProto identifier = 1;
     repeated string key = 2;
@@ -25,7 +29,8 @@ message QoSProto {
   }
 
   oneof subcmd {
-    GetProto get = 1;
-    SetProto set = 2;
+    ListProto list = 1;
+    GetProto get = 2;
+    SetProto set = 3;
   }
 }

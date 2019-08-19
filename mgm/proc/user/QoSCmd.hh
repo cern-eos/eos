@@ -61,6 +61,17 @@ public:
 
 private:
   //----------------------------------------------------------------------------
+  //! Execute list subcommand
+  //!
+  //! @param list list subcommand proto object
+  //! @param reply reply proto object
+  //! @param jsonOutput flag to print output in JSON format
+  //----------------------------------------------------------------------------
+  void ListSubcmd(const eos::console::QoSProto_ListProto& list,
+                  eos::console::ReplyProto& reply,
+                  bool jsonOutput = false);
+
+  //----------------------------------------------------------------------------
   //! Execute get subcommand
   //!
   //! @param get get subcommand proto object
