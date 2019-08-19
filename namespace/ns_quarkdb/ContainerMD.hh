@@ -80,11 +80,6 @@ public:
   void InheritChildren(const IContainerMD& other) override;
 
   //----------------------------------------------------------------------------
-  //! Assignment operator
-  //----------------------------------------------------------------------------
-  QuarkContainerMD& operator=(const QuarkContainerMD& other);
-
-  //----------------------------------------------------------------------------
   //! Set services
   //----------------------------------------------------------------------------
   void setServices(IFileMDSvc* file_svc, IContainerMDSvc* cont_svc);

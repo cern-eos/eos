@@ -102,14 +102,6 @@ QuarkContainerMD::clone() const
 //------------------------------------------------------------------------------
 QuarkContainerMD::QuarkContainerMD(const QuarkContainerMD& other)
 {
-  *this = other;
-}
-
-//------------------------------------------------------------------------------
-// Assignment operator
-//------------------------------------------------------------------------------
-QuarkContainerMD& QuarkContainerMD::operator= (const QuarkContainerMD& other)
-{
   mCont    = other.mCont;
   pContSvc = other.pContSvc;
   pFileSvc = other.pFileSvc;
@@ -118,7 +110,6 @@ QuarkContainerMD& QuarkContainerMD::operator= (const QuarkContainerMD& other)
   pFlusher = other.pFlusher;
   pDirsKey = other.pDirsKey;
   pFilesKey = other.pFilesKey;
-  return *this;
 }
 
 //------------------------------------------------------------------------------
