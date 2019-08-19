@@ -168,6 +168,8 @@ add_library(
   proc/user/Version.cc
   proc/user/Who.cc
   proc/user/Whoami.cc
+  qos/QoSConfig.cc                                  qos/QoSConfig.hh
+  qos/QoSClass.hh
   Quota.cc
   Scheduler.cc
   Vid.cc
