@@ -44,7 +44,7 @@ EOSMGMNAMESPACE_BEGIN
 grpc::Status
 GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
                        grpc::ServerWriter<eos::rpc::MDResponse>* writer,
-                       const eos::rpc::MDRequest* request, bool check_perms, 
+                       const eos::rpc::MDRequest* request, bool check_perms,
 		       bool lock)
 {
   if (request->type() == eos::rpc::FILE) {
@@ -69,7 +69,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
     } else {
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, request->id().path());
     }
-    
+
     if (lock) {
     viewReadLock.Grab(gOFS->eosViewRWMutex);
     }
@@ -171,7 +171,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
       eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView,
           request->id().path());
     } else {
-      eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, 
+      eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView,
 					     cid);
     }
 
@@ -247,7 +247,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
 grpc::Status
 GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
                           grpc::ServerWriter<eos::rpc::MDResponse>* writer,
-                          const eos::rpc::MDRequest* request, 
+                          const eos::rpc::MDRequest* request,
 			  bool streamparent,
 			  std::vector<uint64_t>* childdirs)
 {
@@ -261,9 +261,9 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
       } else {
 	vid = eos::common::Mapping::Someone(request->role().uid(),
 					    request->role().gid());
-	
+
       }
-    } 
+    }
   } else {
     // we don't implement sudo to root
   }
@@ -324,7 +324,7 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
     c_dir.mutable_id()->set_id(cid);
     c_dir.set_type(eos::rpc::CONTAINER);
     status = GetMD(vid, writer, &c_dir, true, false);
-    
+
     if (!status.ok()) {
       return status;
     }
@@ -340,11 +340,11 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
       c_file.mutable_id()->set_id(it.value());
       c_file.set_type(eos::rpc::FILE);
       status = GetMD(vid, writer, &c_file, first);
-      
+
       if (!status.ok()) {
 	return status;
       }
-      
+
       first = false;
     }
   }
@@ -357,7 +357,7 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
       c_dir.mutable_id()->set_id(it.value());
       c_dir.set_type(eos::rpc::CONTAINER);
       status = GetMD(vid, writer, &c_dir, first);
-      
+
       if (!status.ok()) {
 	return status;
       }
@@ -396,7 +396,7 @@ GrpcNsInterface::Find(eos::common::VirtualIdentity& vid,
     if (request->type() != eos::rpc::FILE) {
       c_dir.set_type(eos::rpc::CONTAINER);
       status = GetMD(vid, writer, &c_dir, true, false);
-    } 
+    }
     return status;
   }
 
@@ -413,7 +413,7 @@ GrpcNsInterface::Find(eos::common::VirtualIdentity& vid,
       if ( (deepness == 0 ) && (id == 0 ) ) {
 	// that is the root of a find
 	*(lrequest.mutable_id()) = request->id();
-	eos_static_warning("%s %llu %llu", lrequest.id().path().c_str(), 
+	eos_static_warning("%s %llu %llu", lrequest.id().path().c_str(),
 			   lrequest.id().id(),
 			   lrequest.id().ino());
 	streamparent = true;
@@ -421,7 +421,7 @@ GrpcNsInterface::Find(eos::common::VirtualIdentity& vid,
 	lrequest.mutable_id()->set_id(id);
 	streamparent = false;
       }
-      
+
       lrequest.set_type(request->type());
       *(lrequest.mutable_role()) = request->role();
       std::vector<uint64_t> children;
@@ -495,6 +495,7 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
 {
   if (!vid.sudoer) {
     // block every one who is not a sudoer
+    reply->add_message("Not a sudoer, refusing to run command");
     reply->add_retc(EPERM);
     return grpc::Status::OK;
   }
@@ -519,8 +520,11 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
     conflicts[counter].wait();
 
     if (!conflicts[counter].hasException() && conflicts[counter].get() != nullptr) {
-      eos_static_err("Attempted to create file with id=%llu, which already exists",
-                     it.id());
+      std::ostringstream ss;
+      ss << "Attempted to create file with id=" << it.id() << ", which already exists";
+
+      eos_static_err("%s", ss.str().c_str());
+      reply->add_message(ss.str());
       reply->add_retc(EINVAL);
       continue;
     }
@@ -569,10 +573,12 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
         throw;
       }
 
+      reply->add_message("");
       reply->add_retc(0);
     } catch (eos::MDException& e) {
       eos_static_err("msg=\"exception\" ec=%d emsg=\"%s\" path=\"%s\" fxid=%08llx\n",
                      e.getErrno(), e.getMessage().str().c_str(), it.path().c_str(), it.id());
+      reply->add_message(SSTR("Failed to insert fid=" << it.id() << ", errno=" << e.getErrno() << ", path=" << it.path() << ": " << e.getMessage().str()));
       reply->add_retc(-1);
     }
   }
@@ -589,6 +595,7 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
 {
   if (!vid.sudoer) {
     // block every one who is not a sudoer
+    reply->add_message("Not a sudoer, refusing to run command");
     reply->add_retc(EPERM);
     return grpc::Status::OK;
   }
@@ -612,8 +619,10 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
     conflicts[counter].wait();
 
     if (!conflicts[counter].hasException() && conflicts[counter].get() != nullptr) {
-      eos_static_err("Attempted to create container with id=%llu, which already exists",
-                     it.id());
+      std::ostringstream ss;
+      ss << "Attempted to create container with id=" << it.id() << ", which already exists";
+      eos_static_err("%s", ss.str().c_str());
+      reply->add_message(ss.str());
       reply->add_retc(EINVAL);
       continue;
     }
@@ -659,10 +668,13 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
         e.getMessage().str(msg.str());
         throw;
       }
+
+      reply->add_message("");
       reply->add_retc(0);
     } catch (eos::MDException& e) {
       eos_static_err("msg=\"exception\" ec=%d emsg=\"%s\" path=\"%s\" fxid=%08llx\n",
                      e.getErrno(), e.getMessage().str().c_str(), it.path().c_str(), it.id());
+      reply->add_message(SSTR("Failed to insert cid=" << it.id() << ", errno=" << e.getErrno() << ", path=" << it.path() << ": " << e.getMessage().str()));
       reply->add_retc(e.getErrno());
     }
   }
@@ -670,7 +682,7 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
   return grpc::Status::OK;
 }
 
-grpc::Status 
+grpc::Status
 GrpcNsInterface::Exec(eos::common::VirtualIdentity& ivid,
 		      eos::rpc::NSResponse* reply,
 		      const eos::rpc::NSRequest* request)
@@ -687,7 +699,7 @@ on denied");
       } else {
 	vid = eos::common::Mapping::Someone(request->role().uid(),
 					    request->role().gid());
-	
+
       }
     }
   } else {
@@ -739,17 +751,17 @@ on denied");
   return grpc::Status::OK;
 }
 
-grpc::Status 
+grpc::Status
 GrpcNsInterface::Mkdir(eos::common::VirtualIdentity& vid,
 		       eos::rpc::NSResponse::ErrorResponse* reply,
 		       const eos::rpc::NSRequest::MkdirRequest* request)
 {
   mode_t mode = request->mode();
-  
+
   if (request->recursive()){
     mode |= SFS_O_MKPTH;
   }
-  
+
   std::string path;
 
   path = request->id().path();
@@ -794,7 +806,7 @@ grpc::Status GrpcNsInterface::Rmdir(eos::common::VirtualIdentity& vid,
   if (path.empty()) {
     try {
       eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
-      path = 
+      path =
         gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(request->id().id()).get());
     } catch (eos::MDException& e) {
       path = "";
@@ -879,7 +891,7 @@ grpc::Status GrpcNsInterface::Unlink(eos::common::VirtualIdentity& vid,
   if (path.empty()) {
     try {
       eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
-      path = 
+      path =
         gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(request->id().id()).get());
     } catch (eos::MDException& e) {
       path = "";
@@ -933,12 +945,12 @@ grpc::Status GrpcNsInterface::Rm(eos::common::VirtualIdentity& vid,
 
   if (request->recursive()) {
     req.mutable_rm()->set_recursive(true);
-  } 
+  }
 
   if (request->norecycle()) {
     req.mutable_rm()->set_bypassrecycle(true);
   }
-    
+
   eos::mgm::RmCmd rmcmd(std::move(req), vid);
 
   eos::console::ReplyProto preply = rmcmd.ProcessRequest();
@@ -960,7 +972,7 @@ grpc::Status GrpcNsInterface::Rm(eos::common::VirtualIdentity& vid,
     s << std::hex << request->id().id();
     msg += s.str().c_str();
   }
-  
+
   reply->set_msg(msg);
   return grpc::Status::OK;
 }
@@ -990,8 +1002,8 @@ grpc::Status GrpcNsInterface::Rename(eos::common::VirtualIdentity& vid,
   XrdOucErrInfo error;
   errno = 0;
   if (gOFS->_rename(
-		    path.c_str(), 
-		    target.c_str(), 
+		    path.c_str(),
+		    target.c_str(),
 		    error,
 		    vid)) {
     reply->set_code(errno);
@@ -1035,8 +1047,8 @@ grpc::Status GrpcNsInterface::Symlink(eos::common::VirtualIdentity& vid,
   XrdOucErrInfo error;
   errno = 0;
   if (gOFS->_symlink(
-		    path.c_str(), 
-		    target.c_str(), 
+		    path.c_str(),
+		    target.c_str(),
 		    error,
 		    vid)) {
     reply->set_code(errno);
@@ -1067,7 +1079,7 @@ grpc::Status GrpcNsInterface::SetXAttr(eos::common::VirtualIdentity& vid,
     if (request->id().type() == eos::rpc::FILE) {
       try {
 	eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
-	path = 
+	path =
 	  gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(request->id().id()).get());
       } catch (eos::MDException& e) {
 	path = "";
@@ -1076,7 +1088,7 @@ grpc::Status GrpcNsInterface::SetXAttr(eos::common::VirtualIdentity& vid,
     } else {
       try {
 	eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
-	path = 
+	path =
 	  gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(request->id().id()).get());
       } catch (eos::MDException& e) {
 	path = "";
@@ -1133,7 +1145,7 @@ grpc::Status GrpcNsInterface::Recycle(eos::common::VirtualIdentity& vid,
 }
 
 
-grpc::Status 
+grpc::Status
 GrpcNsInterface::Chown(eos::common::VirtualIdentity& vid,
 		       eos::rpc::NSResponse::ErrorResponse* reply,
 		       const eos::rpc::NSRequest::ChownRequest* request)
@@ -1146,7 +1158,7 @@ GrpcNsInterface::Chown(eos::common::VirtualIdentity& vid,
     if (request->id().type() == eos::rpc::FILE) {
       try {
 	eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
-	path = 
+	path =
 	  gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(request->id().id()).get());
       } catch (eos::MDException& e) {
 	path = "";
@@ -1155,7 +1167,7 @@ GrpcNsInterface::Chown(eos::common::VirtualIdentity& vid,
     } else {
       try {
 	eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
-	path = 
+	path =
 	  gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(request->id().id()).get());
       } catch (eos::MDException& e) {
 	path = "";
@@ -1202,8 +1214,8 @@ GrpcNsInterface::Chown(eos::common::VirtualIdentity& vid,
     }
   }
 
-  if (gOFS->_chown(path.c_str(), 
-		   uid, 
+  if (gOFS->_chown(path.c_str(),
+		   uid,
 		   gid,
 		   error, vid, (const char*) 0)) {
     reply->set_code(errno);
@@ -1218,12 +1230,12 @@ GrpcNsInterface::Chown(eos::common::VirtualIdentity& vid,
   msg += std::to_string(uid);
   msg += "' gid=";
   msg += std::to_string(gid);
-			
+
   reply->set_msg(msg);
   return grpc::Status::OK;
 }
 
-grpc::Status 
+grpc::Status
 GrpcNsInterface::Chmod(eos::common::VirtualIdentity& vid,
 		       eos::rpc::NSResponse::ErrorResponse* reply,
 		       const eos::rpc::NSRequest::ChmodRequest* request)
@@ -1236,7 +1248,7 @@ GrpcNsInterface::Chmod(eos::common::VirtualIdentity& vid,
     if (request->id().type() == eos::rpc::FILE) {
       try {
 	eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
-	path = 
+	path =
 	  gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(request->id().id()).get());
       } catch (eos::MDException& e) {
 	path = "";
@@ -1245,7 +1257,7 @@ GrpcNsInterface::Chmod(eos::common::VirtualIdentity& vid,
     } else {
       try {
 	eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
-	path = 
+	path =
 	  gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(request->id().id()).get());
       } catch (eos::MDException& e) {
 	path = "";
@@ -1266,7 +1278,7 @@ GrpcNsInterface::Chmod(eos::common::VirtualIdentity& vid,
 
   XrdSfsMode sfsmode = mode;
 
-  if (gOFS->_chmod(path.c_str(), 
+  if (gOFS->_chmod(path.c_str(),
 		   sfsmode,
 		   error, vid, (const char*) 0)) {
     reply->set_code(errno);
