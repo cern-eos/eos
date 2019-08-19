@@ -49,12 +49,16 @@ mgmofs.metalog /var/eos/md
 mgmofs.txdir /var/eos/tx
 mgmofs.authdir /var/eos/auth
 mgmofs.archivedir /var/eos/archive
+mgmofs.qosdir /var/eos/qos
 
 # report store path
 mgmofs.reportstorepath /var/eos/report
 
 # this defines the default config to load
 mgmofs.autoloadconfig default
+
+# QoS configuration file
+mgmofs.qoscfg /var/eos/qos/qos.conf
 
 #-------------------------------------------------------------------------------
 # Config Engine Configuration
