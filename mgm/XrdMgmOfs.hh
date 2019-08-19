@@ -110,6 +110,8 @@
 #include "mgm/proc/admin/SpaceCmd.hh"
 #include "mgm/drain/Drainer.hh"
 #include "mgm/IdTrackerWithValidity.hh"
+#include "mgm/qos/QoSConfig.hh"
+#include "mgm/qos/QoSClass.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/INamespaceGroup.hh"
@@ -1497,6 +1499,8 @@ public:
   XrdOucString MgmConfigAutoLoad;
   //! Directory where tmp. archive transfer files are saved
   XrdOucString MgmArchiveDir;
+  XrdOucString MgmQoSDir; ///< Directory where QoS config files are stored
+  XrdOucString MgmQoSConfigFile; ///< Name of the QoS config file
   XrdOucString MgmProcPath; ///< Directory with proc files
   //! Directory with conversion files (used as temporary files when a layout
   //! is changed using third party copy)
@@ -1565,6 +1569,7 @@ public:
   //! /var/log/eos/error.log if <true>
   bool ErrorLog;
   bool NsInQDB = true; ///< True if we're using the QDB namespace.
+  bool MgmQoSEnabled; ///< True if QoS support is enabled
 
   //----------------------------------------------------------------------------
   // Namespace variables
@@ -1788,6 +1793,9 @@ public:
 
   //! Global path routing
   std::unique_ptr<PathRouting> mRouting; ///< Path routing mechanism
+
+  //! Global QoS Classes map
+  std::map<std::string, eos::mgm::QoSClass> mQoSClassMap;
 
   XrdMqSharedObjectManager ObjectManager; ///< Shared Hash/Queue ObjectManager
   //! Shared Hash/Queue Object Change Notifier
