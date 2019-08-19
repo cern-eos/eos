@@ -24,6 +24,8 @@
 #include "common/LayoutId.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Scheduler.hh"
+#include "mgm/qos/QoSClass.hh"
+#include "mgm/qos/QoSConfig.hh"
 #include "QoSCmd.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -44,7 +46,9 @@ QoSCmd::ProcessRequest() noexcept
   bool jsonOutput =
     (mReqProto.format() == eos::console::RequestProto::JSON);
 
-  if (subcmd == eos::console::QoSProto::kGet) {
+  if (subcmd == eos::console::QoSProto::kList) {
+    ListSubcmd(qos.list(), reply, jsonOutput);
+  } else if (subcmd == eos::console::QoSProto::kGet) {
     GetSubcmd(qos.get(), reply, jsonOutput);
   } else if (subcmd == eos::console::QoSProto::kSet) {
     SetSubcmd(qos.set(), reply, jsonOutput);
@@ -54,6 +58,59 @@ QoSCmd::ProcessRequest() noexcept
   }
 
   return reply;
+}
+
+//------------------------------------------------------------------------------
+// Execute list subcommand
+//------------------------------------------------------------------------------
+void QoSCmd::ListSubcmd(const eos::console::QoSProto_ListProto& list,
+                        eos::console::ReplyProto& reply,
+                        bool jsonOutput)
+{
+  std::ostringstream out;
+
+  if (!gOFS->MgmQoSEnabled) {
+    reply.set_std_err("error: QoS support is disabled");
+    reply.set_retc(ENOTSUP);
+    return;
+  }
+
+  if (list.classname().empty()) {
+    // List available QoS classes
+    if (!jsonOutput) {
+      if (gOFS->mQoSClassMap.empty()) {
+        out << "No QoS classes defined";
+      } else {
+        out << "Available QoS classes: [";
+        for (const auto& it: gOFS->mQoSClassMap) {
+          out << " " << it.first << ",";
+        }
+        out.seekp(-1, std::ios_base::end);
+        out << " ]";
+      }
+    } else {
+      Json::Value json = Json::arrayValue;
+      for (const auto& it: gOFS->mQoSClassMap) {
+        json.append(it.first);
+      }
+
+      out << Json::StyledWriter().write(json);
+    }
+  } else {
+    // List properties of the given QoS class
+    if (!gOFS->mQoSClassMap.count(list.classname())) {
+      reply.set_std_err("error: QoS class not found");
+      reply.set_retc(EINVAL);
+      return;
+    }
+
+    auto qos = gOFS->mQoSClassMap.at(list.classname());
+    out <<
+        (jsonOutput ? Json::StyledWriter().write(QoSConfig::QoSClassToJson(qos))
+                    : QoSConfig::QoSClassToString(qos));
+  }
+
+  reply.set_std_out(out.str());
 }
 
 //------------------------------------------------------------------------------
