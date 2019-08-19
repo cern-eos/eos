@@ -176,12 +176,7 @@ private:
   //! Interval for backend flush of consistent file ids
   static std::chrono::seconds sFlushInterval;
 
-  //----------------------------------------------------------------------------
-  //! Attach a broken file to lost+found
-  //----------------------------------------------------------------------------
-  void attachBroken(const std::string& parent, IFileMD* file);
-
-  //----------------------------------------------------------------------------
+ //----------------------------------------------------------------------------
   //! Safety check to make sure there are nofile entries in the backend with
   //! ids bigger than the max file id. If there is any problem this will throw
   //! an eos::MDException.

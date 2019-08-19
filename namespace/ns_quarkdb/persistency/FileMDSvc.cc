@@ -250,27 +250,6 @@ QuarkFileMDSvc::getNumFiles()
 }
 
 //------------------------------------------------------------------------------
-// Attach a broken file to lost+found
-//------------------------------------------------------------------------------
-void
-QuarkFileMDSvc::attachBroken(const std::string& parent, IFileMD* file)
-{
-  std::ostringstream s1, s2;
-  std::shared_ptr<IContainerMD> parentCont =
-    pContSvc->getLostFoundContainer(parent);
-  s1 << file->getContainerId();
-  std::shared_ptr<IContainerMD> cont = parentCont->findContainer(s1.str());
-
-  if (!cont) {
-    cont = pContSvc->createInParent(s1.str(), parentCont.get());
-  }
-
-  s2 << file->getName() << "." << file->getId();
-  file->setName(s2.str());
-  cont->addFile(file);
-}
-
-//------------------------------------------------------------------------------
 // Add file listener
 //------------------------------------------------------------------------------
 void
