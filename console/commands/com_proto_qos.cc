@@ -97,7 +97,13 @@ QoSHelper::ParseCommand(const char* arg)
     return false;
   }
 
-  if (token == "get") {
+  if (token == "list") {
+    eos::console::QoSProto_ListProto* list = qos->mutable_list();
+
+    if (tokenizer.NextToken(token)) {
+      list->set_classname(token);
+    }
+  } else if (token == "get") {
     eos::console::QoSProto_GetProto* get = qos->mutable_get();
     XrdOucString path;
 
@@ -171,7 +177,9 @@ int com_qos(char* arg)
 void com_qos_help()
 {
   std::ostringstream oss;
-  oss << "Usage: qos get <identifier> [<key>]        : get QoS property of item" << std::endl
+  oss << "Usage: qos list <identifier> [<name>]      : list available QoS classes" << std::endl
+      << "                                             If <name> is provided, list the properties of the given class" << std::endl
+      << "       qos get <identifier> [<key>]        : get QoS property of item" << std::endl
       << "       qos set <identifier> <key>=<value>  : set QoS property of item" << std::endl
       << std::endl
       << "Note: <identifier> = fid|fxid|path" << std::endl
