@@ -53,6 +53,7 @@ set(MGM_UT_SRCS
   mgm/HttpTests.cc
   mgm/LockTrackerTests.cc
   mgm/LRUTests.cc
+  mgm/QoSClassTests.cc
   mgm/ProcFsTests.cc
   mgm/RoutingTests.cc
   mgm/IdTrackerTests.cc
