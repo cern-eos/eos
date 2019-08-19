@@ -37,6 +37,7 @@ install(DIRECTORY DESTINATION /var/run/eosd/credentials)
 install(DIRECTORY DESTINATION /var/run/eosd/credentials/store)
 install(DIRECTORY DESTINATION /var/eos/archive)
 install(DIRECTORY DESTINATION /var/eos/html)
+install(DIRECTORY DESTINATION /var/eos/qos)
 install(DIRECTORY DESTINATION /var/eos/wfe)
 install(DIRECTORY DESTINATION /var/eos/wfe/bash)
 install(DIRECTORY DESTINATION /var/eos/ns-queue)
@@ -60,6 +61,11 @@ install(
 install(FILES
   eos/html/error.html
   DESTINATION /var/eos/html/
+  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
+
+install(FILES
+  eos/qos/qos.conf
+  DESTINATION /var/eos/qos/
   PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
 
 install(FILES
