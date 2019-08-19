@@ -131,6 +131,12 @@ int main(int argc, char* argv[]) {
   addClusterOptions(checkFsViewExtraSubcommand, membersStr, memberValidator, password, passwordFile);
 
   //----------------------------------------------------------------------------
+  // Set-up check-shadow-directories subcommand..
+  //----------------------------------------------------------------------------
+  auto checkShadowDirectories = app.add_subcommand("check-shadow-directories", "Check for naming conflicts between directories inside the same subdirectory");
+  addClusterOptions(checkShadowDirectories, membersStr, memberValidator, password, passwordFile);
+
+  //----------------------------------------------------------------------------
   // Set-up print subcommand..
   //----------------------------------------------------------------------------
   auto printSubcommand = app.add_subcommand("print", "Print everything known about a given file, or container");
@@ -241,6 +247,10 @@ int main(int argc, char* argv[]) {
 
   if(checkFsViewExtraSubcommand->parsed()) {
     return inspector.checkFsViewExtra(std::cout, std::cerr);
+  }
+
+  if(checkShadowDirectories->parsed()) {
+    return inspector.checkShadowDirectories(std::cout, std::cerr);
   }
 
   if(changeFidSubcommand->parsed()) {

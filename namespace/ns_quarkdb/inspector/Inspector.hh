@@ -86,6 +86,11 @@ public:
   int checkFsViewExtra(std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
+  //! Search for shadow directories
+  //----------------------------------------------------------------------------
+  int checkShadowDirectories(std::ostream &out, std::ostream &err);
+
+  //----------------------------------------------------------------------------
   // Find files with layout = 1 replica
   //----------------------------------------------------------------------------
   int oneReplicaLayout(std::ostream &out, std::ostream &err);

@@ -27,6 +27,7 @@
 #include "namespace/ns_quarkdb/persistency/FileSystemIterator.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemHandler.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
+#include "namespace/Constants.hh"
 #include "common/LayoutId.hh"
 #include "common/IntervalStopwatch.hh"
 #include <folly/executors/IOThreadPoolExecutor.h>
@@ -716,6 +717,45 @@ int Inspector::checkFsViewExtra(std::ostream &out, std::ostream &err) {
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Search for shadow directories
+//------------------------------------------------------------------------------
+int Inspector::checkShadowDirectories(std::ostream& out, std::ostream& err)
+{
+  ContainerScanner containerScanner(mQcl);
+  common::IntervalStopwatch stopwatch(std::chrono::seconds(10));
+
+  eos::ns::ContainerMdProto prevContainer;
+
+  while (containerScanner.valid()) {
+    eos::ns::ContainerMdProto proto;
+    if (!containerScanner.getItem(proto)) {
+      break;
+    }
+
+    if(proto.parent_id() != 0 && proto.name() == prevContainer.name() && proto.parent_id() == prevContainer.parent_id()) {
+      out << "id=" << proto.id()
+          << " name=" << proto.name()
+          << " parent=" << proto.parent_id()
+          << " mtime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.mtime()))
+          << " ctime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.ctime()))
+          << " is-quotanode=" << (proto.flags() & QUOTA_NODE_FLAG)
+          << " conflicts-with=" << prevContainer.id()
+          << std::endl;
+    }
+
+    prevContainer = std::move(proto);
+    containerScanner.next();
+  }
+
+  std::string errorString;
+  if(containerScanner.hasError(errorString)) {
+    err << errorString;
+    return 1;
+  }
+
+  return 0;
+}
 
 //------------------------------------------------------------------------------
 // Print out _everything_ known about the given file.
