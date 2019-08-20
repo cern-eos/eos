@@ -26,6 +26,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/LayoutId.hh"
 #include "common/SymKeys.hh"
+#include "common/Path.hh"
 #include "mgm/Acl.hh"
 #include "mgm/proc/IProcCommand.hh"
 #include "mgm/proc/user/RmCmd.hh"
@@ -491,7 +492,6 @@ grpc::Status
 GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
                             eos::rpc::InsertReply* reply,
                             const eos::rpc::FileInsertRequest* request)
-
 {
   if (!vid.sudoer) {
     // block every one who is not a sudoer
@@ -591,7 +591,6 @@ grpc::Status
 GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
                                  eos::rpc::InsertReply* reply,
                                  const eos::rpc::ContainerInsertRequest* request)
-
 {
   if (!vid.sudoer) {
     // block every one who is not a sudoer
@@ -613,6 +612,7 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
   }
 
   int counter = -1;
+  bool inherit = request->inherit_md();
 
   for (auto it : request->container()) {
     counter++;
@@ -627,7 +627,8 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
       continue;
     }
 
-    eos_static_info("creating path=%s id=%lx", it.path().c_str(), it.id());
+    eos_static_info("creating path=%s id=%lx inherit_md=%d",
+                    it.path().c_str(), it.id(), inherit);
 
     try {
       try {
@@ -638,6 +639,7 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
         e.getMessage().str(msg.str());
         throw;
       }
+
       eos::IContainerMD::ctime_t ctime;
       eos::IContainerMD::ctime_t mtime;
       eos::IContainerMD::ctime_t stime;
@@ -656,12 +658,44 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
       newdir->setCGid(it.gid());
       newdir->setMode(it.mode() | S_IFDIR);
 
+      std::shared_ptr<eos::IContainerMD> parent;
+
+      if (inherit) {
+        eos::common::Path cPath(it.path());
+
+        try {
+          parent = gOFS->eosView->getContainer(cPath.GetParentPath());
+        } catch (eos::MDException& e) {
+          std::ostringstream msg;
+          msg << "Failed to call parent gOFS->eosView->getContainer(): " << e.getMessage().str();
+          e.getMessage().str(msg.str());
+          throw;
+        }
+
+        if (it.mode() == 0) {
+          newdir->setMode(parent->getMode());
+        }
+
+        for (const auto& attrit: parent->getAttributes()) {
+          newdir->setAttribute(attrit.first, attrit.second);
+        }
+      }
+
+      newdir->setAttribute("sys.eos.btime",
+                           SSTR(ctime.tv_sec << "." << ctime.tv_nsec));
+
       for (auto attrit : it.xattrs()) {
         newdir->setAttribute(attrit.first, attrit.second);
       }
 
       try {
         gOFS->eosView->updateContainerStore(newdir.get());
+
+        if (parent) {
+          parent->setMTime(ctime);
+          parent->notifyMTimeChange(gOFS->eosDirectoryService);
+          gOFS->eosView->updateContainerStore(parent.get());
+        }
       } catch (eos::MDException& e) {
         std::ostringstream msg;
         msg << "Failed to call gOFS->eosView->updateContainerStore(): " << e.getMessage().str();
@@ -692,14 +726,13 @@ GrpcNsInterface::Exec(eos::common::VirtualIdentity& ivid,
   if (request->role().uid() || request->role().gid()) {
     if ((ivid.uid != request->role().uid()) || (ivid.gid != request->role().gid())) {
       if (!ivid.sudoer) {
-	reply->mutable_error()->set_code(EPERM);
-	reply->mutable_error()->set_msg("Ask an admin to map your auth key to a sudo'er account - permissi\
-on denied");
-	return grpc::Status::OK;
+        reply->mutable_error()->set_code(EPERM);
+        reply->mutable_error()->set_msg(
+          "Ask an admin to map your auth key to a sudo'er account - permission denied");
+        return grpc::Status::OK;
       } else {
-	vid = eos::common::Mapping::Someone(request->role().uid(),
-					    request->role().gid());
-
+        vid = eos::common::Mapping::Someone(request->role().uid(),
+                                            request->role().gid());
       }
     }
   } else {
@@ -825,7 +858,6 @@ grpc::Status GrpcNsInterface::Rmdir(eos::common::VirtualIdentity& vid,
       return grpc::Status::OK;
     }
   }
-
 
   XrdOucErrInfo error;
   errno = 0;
