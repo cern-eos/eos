@@ -180,11 +180,12 @@ void com_qos_help()
   oss << "Usage: qos list <identifier> [<name>]      : list available QoS classes" << std::endl
       << "                                             If <name> is provided, list the properties of the given class" << std::endl
       << "       qos get <identifier> [<key>]        : get QoS property of item" << std::endl
+      << "                                             If no <key> is provided, defaults to 'all'" << std::endl
       << "       qos set <identifier> <key>=<value>  : set QoS property of item" << std::endl
       << std::endl
       << "Note: <identifier> = fid|fxid|path" << std::endl
-      << "      Recognized `qos get` keys: all | cdmi | checksum | disksize | layout |" << std::endl
-      << "                                 id | path | placement | redundancy | size" << std::endl
+      << "      Recognized `qos get` keys: all | cdmi | checksum | class | disksize |" << std::endl
+      << "                                 layout | id | path | placement | redundancy | size" << std::endl
       << std::endl
       << "      Allowed `qos set` properties:" << std::endl
       << "          checksum  = none | adler32 | crc32 | crc32c | md5 | sha1" << std::endl
