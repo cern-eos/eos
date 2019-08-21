@@ -80,14 +80,16 @@ namespace
     std::shared_ptr<eos::IFileMD> fmd; ///< pointer to file metadata
     ///< dispatch table based on QoS key word
     std::map<std::string, std::function<std::string()>> dispatch {
-      { "checksum",   [this](){ return QoSGetter::ChecksumType(); } },
-      { "disksize",   [this](){ return QoSGetter::DiskSize();     } },
-      { "layout",     [this](){ return QoSGetter::LayoutType();   } },
-      { "id",         [this](){ return QoSGetter::Id();           } },
-      { "path",       [this](){ return QoSGetter::Path();         } },
-      { "placement",  [this](){ return QoSGetter::Placement();    } },
-      { "redundancy", [this](){ return QoSGetter::Redundancy();   } },
-      { "size",       [this](){ return QoSGetter::Size();         } }
+      { "checksum",    [this](){ return QoSGetter::ChecksumType(); } },
+      { "current_qos", [this](){ return QoSGetter::Attr("user.eos.qos.class");  } },
+      { "disksize",    [this](){ return QoSGetter::DiskSize();     } },
+      { "layout",      [this](){ return QoSGetter::LayoutType();   } },
+      { "id",          [this](){ return QoSGetter::Id();           } },
+      { "path",        [this](){ return QoSGetter::Path();         } },
+      { "placement",   [this](){ return QoSGetter::Placement();    } },
+      { "redundancy",  [this](){ return QoSGetter::Redundancy();   } },
+      { "size",        [this](){ return QoSGetter::Size();         } },
+      { "target_qos",  [this](){ return QoSGetter::Attr("user.eos.qos.target"); } },
     };
   };
 
@@ -112,10 +114,10 @@ namespace
     std::string sgeotags = "";
     size_t count = 0;
 
-    cdmiMap["cdmi_data_redundancy_provided"] =
+    cdmiMap[CDMI_REDUNDANCY_TAG] =
         std::to_string(eos::common::LayoutId::GetRedundancyStripeNumber(
             fmd->getLayoutId()));
-    cdmiMap["cdmi_latency_provided"] = "100";
+    cdmiMap[CDMI_LATENCY_TAG] = "100";
 
     for (auto& location: fmd->getLocations()) {
       std::string geotag = "null";
@@ -135,7 +137,7 @@ namespace
       }
     }
 
-    cdmiMap["cdmi_geographic_placement_provided"] = sgeotags;
+    cdmiMap[CDMI_PLACEMENT_TAG] = sgeotags;
 
     return cdmiMap;
   }
