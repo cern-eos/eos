@@ -176,7 +176,7 @@ bool GeoTreeEngine::forceRefresh()
 
 bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs,
                                       FsGroup* group,
-                                      const common::FileSystemCoreParams &coreParams)
+                                      const common::FileSystemCoreParams& coreParams)
 {
   bool updateFastStruct = false;
   eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
@@ -278,7 +278,7 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs,
   }
 
   info.netSpeedClass = 1; // EthRateMiB not yet initialized at this point,
-                          // use placeholder value
+  // use placeholder value
   info.fsId = coreParams.getId();
 
   if (!info.fsId) {
@@ -369,6 +369,7 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs,
 
   mapEntry->fs2SlowTreeNode[fsid] = node;
   mapEntry->slowTreeModified = true;
+  mapEntry->group = group;
 
   // update the fast structures now if requested
   if (updateFastStruct) {
@@ -392,7 +393,6 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs,
   // ==== update the entry in the map
   {
     pTreeMapMutex.LockWrite();
-    mapEntry->group = group;
     pGroup2SchedTME[group] = mapEntry;
     pFs2SchedTME[fsid] = mapEntry;
     pFsId2FsPtr[fsid] = fs;
@@ -785,14 +785,14 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
   // Set for tree: group, num of line, depth, color, prefix_1, prefix_2,
   //               geotag[::fsid], host, leavs count, nodes count, status
   std::set<std::tuple<std::string, unsigned, unsigned, TableFormatterColor,
-              unsigned, unsigned, std::string, std::string,
-              int, int, std::string>> data_tree;
+      unsigned, unsigned, std::string, std::string,
+      int, int, std::string>> data_tree;
   // Set for snapshot: group, num of line, depth, color, prefix_1, prefix_2,
   //                   operation, operation_short, fsid, geotag/host,
   //                   free, repl, pidx, status, ulSc, dlSc, filR, totS
   std::set<std::tuple<std::string, unsigned, unsigned, TableFormatterColor,
-              unsigned, unsigned, std::string, std::string, unsigned, std::string,
-              int, int, int, std::string, int, int, int, double>> data_snapshot;
+      unsigned, unsigned, std::string, std::string, unsigned, std::string,
+      int, int, int, std::string, int, int, int, double>> data_snapshot;
 
   for (auto it = pGroup2SchedTME.begin(); it != pGroup2SchedTME.end(); it++) {
     if (dispTree && (schedgroup.empty() || schedgroup == "*" ||
@@ -847,13 +847,13 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
   // ==== run through the map of file systems
   for (auto it = pPxyGrp2DpTME.begin(); it != pPxyGrp2DpTME.end(); it++) {
     if (dispTree &&
-        (schedgroup.empty() || schedgroup == "*" || (schedgroup == it->first)) ) {
+        (schedgroup.empty() || schedgroup == "*" || (schedgroup == it->first))) {
       std::string group_name = it->first + "(proxy)";
       it->second->slowTree->display(data_tree, geo_depth_max, useColors);
     }
 
     if (dispSnaps &&
-        (schedgroup.empty() || schedgroup == "*" || (schedgroup == it->first)) ) {
+        (schedgroup.empty() || schedgroup == "*" || (schedgroup == it->first))) {
       unsigned geo_depth_max_temp = 0;
       it->second->foregroundFastStruct->proxyAccessTree->recursiveDisplay(
         data_snapshot, geo_depth_max, "Proxy group", "proxy", useColors);
@@ -867,12 +867,14 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
   TableHeader table_header;
   table_header.push_back(std::make_tuple("group", 6, format_ss));
   table_header.push_back(std::make_tuple("geotag", 6, format_ss));
-  if (!monitoring && geo_depth_max>1) {
-    for (unsigned i=1; i<geo_depth_max; i++) {
+
+  if (!monitoring && geo_depth_max > 1) {
+    for (unsigned i = 1; i < geo_depth_max; i++) {
       std::string name = "lev" + std::to_string(i);
       table_header.push_back(std::make_tuple(name, 4, format_ss));
     }
   }
+
   table_header.push_back(std::make_tuple("fsid", 4, format_l));
   table_header.push_back(std::make_tuple("node", 12, format_s));
   table_header.push_back(std::make_tuple("branches", 5, format_l));
@@ -880,53 +882,72 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
   table_header.push_back(std::make_tuple("sum", 3, format_l));
   table_header.push_back(std::make_tuple("status", 6, format_s));
   table_tree.SetHeader(table_header);
+  unsigned prefix[geo_depth_max + 1];
 
-  unsigned prefix[geo_depth_max +1];
   for (auto it : data_tree) {
     unsigned geo_depth = 0;
     std::string geotag_temp = std::get<6>(it);
-    while (geotag_temp.find("::") != std::string::npos){
-      geotag_temp.erase(0, geotag_temp.find("::")+2);
+
+    while (geotag_temp.find("::") != std::string::npos) {
+      geotag_temp.erase(0, geotag_temp.find("::") + 2);
       geo_depth++;
     }
 
     TableData table_data;
     table_data.emplace_back();
+
     // Print group (depth=1)
     if (std::get<2>(it) == 1) {
-      for (unsigned i=0; i<geo_depth_max+1; i++)
+      for (unsigned i = 0; i < geo_depth_max + 1; i++) {
         prefix[i] = 0;
+      }
+
       table_tree.AddSeparator();
-      table_data.back().push_back(TableCell(std::get<0>(it), format_s, "", false, std::get<3>(it)));
-      for (unsigned i=0; i<geo_depth_max+2; i++) {
-        table_data.back().push_back(TableCell("", format_s, "", true)); // blank cell after group
-        if (monitoring && i==2) break;
+      table_data.back().push_back(TableCell(std::get<0>(it), format_s, "", false,
+                                            std::get<3>(it)));
+
+      for (unsigned i = 0; i < geo_depth_max + 2; i++) {
+        table_data.back().push_back(TableCell("", format_s, "",
+                                              true)); // blank cell after group
+
+        if (monitoring && i == 2) {
+          break;
+        }
       }
     }
-
     // Print geotag (depth=2)
     else if (std::get<2>(it) == 2) {
       if (!monitoring) {
         if (geo_depth == 0) {
           prefix[0] = std::get<5>(it);
           table_data.back().push_back(TableCell(prefix[0], "t"));
-          table_data.back().push_back(TableCell(std::get<6>(it), format_s, "", false, std::get<3>(it)));
-          for (unsigned i=0; i<geo_depth_max-1; i++) // after arrows
+          table_data.back().push_back(TableCell(std::get<6>(it), format_s, "", false,
+                                                std::get<3>(it)));
+
+          for (unsigned i = 0; i < geo_depth_max - 1; i++) { // after arrows
             table_data.back().push_back(TableCell("", format_s, "", true));
+          }
         } else {
-          prefix[geo_depth-1] = std::get<4>(it);
+          prefix[geo_depth - 1] = std::get<4>(it);
           prefix[geo_depth] = std::get<5>(it);
-          for (unsigned i=0; i<=geo_depth; i++) // arrows
+
+          for (unsigned i = 0; i <= geo_depth; i++) { // arrows
             table_data.back().push_back(TableCell(prefix[i], "t"));
-          std::string name = std::get<6>(it).substr(std::get<6>(it).rfind("::")+2);
-          table_data.back().push_back(TableCell(name, format_s, "", false, std::get<3>(it)));
-          for (unsigned i=1; i<geo_depth_max-geo_depth; i++)
+          }
+
+          std::string name = std::get<6>(it).substr(std::get<6>(it).rfind("::") + 2);
+          table_data.back().push_back(TableCell(name, format_s, "", false,
+                                                std::get<3>(it)));
+
+          for (unsigned i = 1; i < geo_depth_max - geo_depth; i++) {
             table_data.back().push_back(TableCell("", format_s));
+          }
         }
       } else {
         table_data.back().push_back(TableCell(std::get<0>(it), format_s));
         table_data.back().push_back(TableCell(std::get<6>(it), format_s));
       }
+
       table_data.back().push_back(TableCell("", format_s, "", true));
       table_data.back().push_back(TableCell("", format_s, "", true));
     }
@@ -934,35 +955,45 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
     else if (std::get<2>(it) == 3) {
       if (!monitoring) {
         if (geo_depth > 0) {
-          prefix[geo_depth-1] = std::get<4>(it);
+          prefix[geo_depth - 1] = std::get<4>(it);
           prefix[geo_depth] = std::get<5>(it);
-          for (unsigned i=0; i<=geo_depth; i++) { // arrows
-            unsigned arrow = (i==geo_depth && geo_depth_max-geo_depth>0) ? prefix[i]+2 : prefix[i];
+
+          for (unsigned i = 0; i <= geo_depth; i++) { // arrows
+            unsigned arrow = (i == geo_depth &&
+                              geo_depth_max - geo_depth > 0) ? prefix[i] + 2 : prefix[i];
             table_data.back().push_back(TableCell(arrow, "t"));
           }
-          for (unsigned i=0; i<geo_depth_max-geo_depth; i++) { // extended arrows
-            unsigned arrow = (i==geo_depth_max-geo_depth-1) ? 7 : 6;
+
+          for (unsigned i = 0; i < geo_depth_max - geo_depth; i++) { // extended arrows
+            unsigned arrow = (i == geo_depth_max - geo_depth - 1) ? 7 : 6;
             table_data.back().push_back(TableCell(arrow, "t"));
           }
         }
       } else {
-        std::string geotag = std::get<6>(it).substr(0,std::get<6>(it).rfind("::"));
+        std::string geotag = std::get<6>(it).substr(0, std::get<6>(it).rfind("::"));
         table_data.back().push_back(TableCell(std::get<0>(it), format_s));
         table_data.back().push_back(TableCell(geotag, format_s));
       }
-      unsigned fsid = std::atoi(std::get<6>(it).substr(std::get<6>(it).rfind("::")+2).c_str());
-      table_data.back().push_back(TableCell(fsid, format_l, "", false, std::get<3>(it)));
-      table_data.back().push_back(TableCell(std::get<7>(it), format_s, "", false, std::get<3>(it)));
+
+      unsigned fsid = std::atoi(std::get<6>(it).substr(std::get<6>
+                                (it).rfind("::") + 2).c_str());
+      table_data.back().push_back(TableCell(fsid, format_l, "", false,
+                                            std::get<3>(it)));
+      table_data.back().push_back(TableCell(std::get<7>(it), format_s, "", false,
+                                            std::get<3>(it)));
     }
+
     // Print other columns
-    table_data.back().push_back(TableCell(std::get<9>(it)-std::get<8>(it), format_l));
+    table_data.back().push_back(TableCell(std::get<9>(it) - std::get<8>(it),
+                                          format_l));
     table_data.back().push_back(TableCell(std::get<8>(it), format_l));
     table_data.back().push_back(TableCell(std::get<9>(it), format_l));
-    table_data.back().push_back(TableCell(std::get<10>(it), format_s, "", (std::get<2>(it) != 3)));
+    table_data.back().push_back(TableCell(std::get<10>(it), format_s, "",
+                                          (std::get<2>(it) != 3)));
     table_tree.AddRows(table_data);
   }
-  ostr << table_tree.GenerateTable(HEADER).c_str();
 
+  ostr << table_tree.GenerateTable(HEADER).c_str();
   // Output for "geosched show snapshot"
   std::string geotag = "";
   size_t operation_count = 0;
@@ -971,12 +1002,14 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
   snapshot_header.push_back(std::make_tuple("group", 6, format_ss));
   snapshot_header.push_back(std::make_tuple("operation", 6, format_ss));
   snapshot_header.push_back(std::make_tuple("geotag", 6, format_ss));
-  if (!monitoring && geo_depth_max>1) {
-    for (unsigned i=1; i<geo_depth_max; i++) {
+
+  if (!monitoring && geo_depth_max > 1) {
+    for (unsigned i = 1; i < geo_depth_max; i++) {
       std::string name = "lev" + std::to_string(i);
       snapshot_header.push_back(std::make_tuple(name, 2, format_ss));
     }
   }
+
   snapshot_header.push_back(std::make_tuple("fsid", 4, format_l));
   snapshot_header.push_back(std::make_tuple("node", 12, format_s));
   snapshot_header.push_back(std::make_tuple("free", 4, format_l));
@@ -988,90 +1021,124 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
   snapshot_header.push_back(std::make_tuple("filR", 4, format_l));
   snapshot_header.push_back(std::make_tuple("totS", 4, format_lll));
   table_snapshot.SetHeader(snapshot_header);
-
   set<std::string> operations;
+
   for (auto it : data_snapshot) { // we need count of used operations
     operations.insert(std::get<6>(it));
   }
+
   unsigned geo_depth = 0;
+
   for (auto it : data_snapshot) {
     if (std::get<2>(it) == 2) {
       geo_depth = 0;
       std::string geotag_temp = std::get<9>(it);
-      while (geotag_temp.find("::") != std::string::npos){
-        geotag_temp.erase(0, geotag_temp.find("::")+2);
+
+      while (geotag_temp.find("::") != std::string::npos) {
+        geotag_temp.erase(0, geotag_temp.find("::") + 2);
         geo_depth++;
       }
     }
+
     TableData table_data;
     table_data.emplace_back();
+
     // Print group (depth=1)
     if (std::get<2>(it) == 1) {
-      for (unsigned i=0; i<geo_depth_max+1; i++)
+      for (unsigned i = 0; i < geo_depth_max + 1; i++) {
         prefix[i] = 0;
+      }
+
       if (!monitoring) {
-        if (schedgroup == "*" || std::get<6>(it) == "Placement" || std::get<1>(it) == 0) {
+        if (schedgroup == "*" || std::get<6>(it) == "Placement" ||
+            std::get<1>(it) == 0) {
           table_snapshot.AddSeparator();
-          table_data.back().push_back(TableCell(std::get<0>(it), format_s, "", false, std::get<3>(it)));
+          table_data.back().push_back(TableCell(std::get<0>(it), format_s, "", false,
+                                                std::get<3>(it)));
           table_data.emplace_back();
           operation_count = 0;
         }
+
         operation_count++;
-        unsigned tree_arrow = (schedgroup == "*" || operation_count == operations.size()) ? 2 : 3;
+        unsigned tree_arrow = (schedgroup == "*" ||
+                               operation_count == operations.size()) ? 2 : 3;
         table_data.back().push_back(TableCell(tree_arrow, "t"));
-        table_data.back().push_back(TableCell(std::get<6>(it), format_s, "", false, std::get<3>(it)));
+        table_data.back().push_back(TableCell(std::get<6>(it), format_s, "", false,
+                                              std::get<3>(it)));
       } else {
         table_data.back().push_back(TableCell(std::get<0>(it), format_s));
         table_data.back().push_back(TableCell(std::get<7>(it), format_s));
       }
-      for (unsigned i=0; i<geo_depth_max+2; i++) {
-        table_data.back().push_back(TableCell("", format_s, "", true)); // blank cell after group
-        if (monitoring && i==2) break;
+
+      for (unsigned i = 0; i < geo_depth_max + 2; i++) {
+        table_data.back().push_back(TableCell("", format_s, "",
+                                              true)); // blank cell after group
+
+        if (monitoring && i == 2) {
+          break;
+        }
       }
     }
     // Print geotag (depth=2)
     else if (std::get<2>(it) == 2) {
       geotag = std::get<9>(it);
+
       if (!monitoring) {
-        unsigned tree_arrow = (schedgroup == "*" || operation_count == operations.size()) ? 0 : 1;
+        unsigned tree_arrow = (schedgroup == "*" ||
+                               operation_count == operations.size()) ? 0 : 1;
         table_data.back().push_back(TableCell(tree_arrow, "t"));
+
         if (geo_depth == 0) {
           prefix[0] = std::get<5>(it);
           table_data.back().push_back(TableCell(prefix[0], "t"));
-          table_data.back().push_back(TableCell(geotag, format_s, "", false, std::get<3>(it)));
-          for (unsigned i=0; i<geo_depth_max-1; i++) // after arrows
+          table_data.back().push_back(TableCell(geotag, format_s, "", false,
+                                                std::get<3>(it)));
+
+          for (unsigned i = 0; i < geo_depth_max - 1; i++) { // after arrows
             table_data.back().push_back(TableCell("", format_s, "", true));
+          }
         } else {
-          prefix[geo_depth-1] = std::get<4>(it);
+          prefix[geo_depth - 1] = std::get<4>(it);
           prefix[geo_depth] = std::get<5>(it);
-          for (unsigned i=0; i<=geo_depth; i++) // arrows
+
+          for (unsigned i = 0; i <= geo_depth; i++) { // arrows
             table_data.back().push_back(TableCell(prefix[i], "t"));
-          std::string name = geotag.substr(geotag.rfind("::")+2);
-          table_data.back().push_back(TableCell(name, format_s, "", false, std::get<3>(it)));
-          for (unsigned i=1; i<geo_depth_max-geo_depth; i++)
+          }
+
+          std::string name = geotag.substr(geotag.rfind("::") + 2);
+          table_data.back().push_back(TableCell(name, format_s, "", false,
+                                                std::get<3>(it)));
+
+          for (unsigned i = 1; i < geo_depth_max - geo_depth; i++) {
             table_data.back().push_back(TableCell("", format_s));
+          }
         }
       } else {
         table_data.back().push_back(TableCell(std::get<0>(it), format_s));
         table_data.back().push_back(TableCell(std::get<7>(it), format_s));
         table_data.back().push_back(TableCell(geotag, format_s));
       }
+
       table_data.back().push_back(TableCell("", format_s, "", true));
       table_data.back().push_back(TableCell("", format_s, "", true));
     }
     // Print fsid and node (depth=3)
     else if (std::get<2>(it) == 3) {
       if (!monitoring) {
-        unsigned tree_arrow = (schedgroup == "*" || operation_count == operations.size()) ? 0 : 1;
+        unsigned tree_arrow = (schedgroup == "*" ||
+                               operation_count == operations.size()) ? 0 : 1;
         table_data.back().push_back(TableCell(tree_arrow, "t"));
         prefix[geo_depth] = std::get<4>(it);
-        prefix[geo_depth+1] = std::get<5>(it);
-        for (unsigned i=0; i<=geo_depth+1; i++) { // arrows
-          unsigned arrow = (i==geo_depth+1 && geo_depth_max-geo_depth-1>0) ? prefix[i]+2 : prefix[i];
+        prefix[geo_depth + 1] = std::get<5>(it);
+
+        for (unsigned i = 0; i <= geo_depth + 1; i++) { // arrows
+          unsigned arrow = (i == geo_depth + 1 &&
+                            geo_depth_max - geo_depth - 1 > 0) ? prefix[i] + 2 : prefix[i];
           table_data.back().push_back(TableCell(arrow, "t"));
         }
-        for (unsigned i=0; i<geo_depth_max-geo_depth-1; i++) { // extended arrow
-          unsigned arrow = (i==geo_depth_max-geo_depth-2) ? 7 : 6;
+
+        for (unsigned i = 0; i < geo_depth_max - geo_depth - 1; i++) { // extended arrow
+          unsigned arrow = (i == geo_depth_max - geo_depth - 2) ? 7 : 6;
           table_data.back().push_back(TableCell(arrow, "t"));
         }
       } else {
@@ -1079,9 +1146,13 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
         table_data.back().push_back(TableCell(std::get<7>(it), format_s));
         table_data.back().push_back(TableCell(geotag, format_s));
       }
-      table_data.back().push_back(TableCell(std::get<8>(it), format_l, "", false, std::get<3>(it)));
-      table_data.back().push_back(TableCell(std::get<9>(it), format_s, "", false, std::get<3>(it)));
+
+      table_data.back().push_back(TableCell(std::get<8>(it), format_l, "", false,
+                                            std::get<3>(it)));
+      table_data.back().push_back(TableCell(std::get<9>(it), format_s, "", false,
+                                            std::get<3>(it)));
     }
+
     // Print other columns
     table_data.back().push_back(TableCell(std::get<10>(it), format_l));
     table_data.back().push_back(TableCell(std::get<11>(it), format_l));
@@ -1093,8 +1164,8 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
     table_data.back().push_back(TableCell(std::get<17>(it), format_lll));
     table_snapshot.AddRows(table_data);
   }
-  ostr << table_snapshot.GenerateTable(HEADER).c_str();
 
+  ostr << table_snapshot.GenerateTable(HEADER).c_str();
   info = ostr.str();
 }
 
@@ -2075,7 +2146,7 @@ void GeoTreeEngine::StopUpdater()
   gUpdaterStarted = false;
 }
 
-void GeoTreeEngine::listenFsChange(ThreadAssistant &assistant)
+void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
 {
   gUpdaterStarted = true;
   gOFS->ObjectNotifier.BindCurrentThread("geotreeengine");
@@ -2086,7 +2157,7 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant &assistant)
     eos_info("GeoTreeEngine updater is starting...");
   }
 
-  while(!assistant.terminationRequested()) {
+  while (!assistant.terminationRequested()) {
     while (sem_wait(&gUpdaterPauseSem)) {
       if (EINTR != errno) {
         throw "sem_wait() failed";
@@ -2094,7 +2165,6 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant &assistant)
     }
 
     gOFS->ObjectNotifier.tlSubscriber->mSubjSem.Wait(1);
-
     // to be sure that we won't try to access a removed fs
     pAddRmFsMutex.LockWrite();
     // we always take a lock to take something from the queue and then release it
@@ -2181,10 +2251,9 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant &assistant)
 
     gOFS->ObjectNotifier.tlSubscriber->mSubjMtx.UnLock();
     pAddRmFsMutex.UnLockWrite();
-
     // Do the processing
-    common::IntervalStopwatch stopwatch((std::chrono::milliseconds(pTimeFrameDurationMs)));
-
+    common::IntervalStopwatch stopwatch((std::chrono::milliseconds(
+                                           pTimeFrameDurationMs)));
     {
       // Do it before tree info to leave some time to the other threads
       checkPendingDeletionsFs();
@@ -2379,7 +2448,8 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
       if (stn) {
         stn->pNodeState.mStatus |= (SchedTreeBase::Readable | SchedTreeBase::Writable);
       }
-    } else if (status == common::ConfigStatus::kRO || status == common::ConfigStatus::kDrain) {
+    } else if (status == common::ConfigStatus::kRO ||
+               status == common::ConfigStatus::kDrain) {
       if (ftIdx) {
         setOneStateVarStatusInAllFastTrees(SchedTreeBase::Readable);
         unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Writable);
@@ -3002,15 +3072,15 @@ bool GeoTreeEngine::updateTreeInfo(const map<string, int>& updatesFs,
   // => PROXYGROUPS
   for (auto it = updatesDp.begin(); it != updatesDp.end(); ++it) {
     eos::common::FileSystem::host_snapshot_t hs;
-    if(!eos::common::FileSystem::SnapShotHost(&gOFS->ObjectManager, it->first, hs,
-                                          true) || hs.mHostPort.empty()) {
+
+    if (!eos::common::FileSystem::SnapShotHost(&gOFS->ObjectManager, it->first, hs,
+        true) || hs.mHostPort.empty()) {
       eos_warning("Inconsistency : Trying to update an unregistered host. "
                   "Should not happen.");
       continue;
     }
 
     std::string host = hs.mHostPort;
-
     pPxyTreeMapMutex.LockRead();
 
     if (!pPxyHost2DpTMEs.count(hs.mHostPort)) {
@@ -4536,8 +4606,9 @@ bool GeoTreeEngine::AccessStruct::clearMapping(const std::string& geotag,
   return true;
 }
 
-bool GeoTreeEngine::AccessStruct::showMapping(XrdOucString* output, std::string operation,
-                                              bool monitoring)
+bool GeoTreeEngine::AccessStruct::showMapping(XrdOucString* output,
+    std::string operation,
+    bool monitoring)
 {
   RWMutexReadLock lock(accessMutex);
 
@@ -4547,59 +4618,73 @@ bool GeoTreeEngine::AccessStruct::showMapping(XrdOucString* output, std::string 
     std::string format_ss = !monitoring ? "-s" : "os";
     // Set for tree: num of line, depth, prefix_1, prefix_2, fullGeotag, proxygroup/direct
     std::set<std::tuple<unsigned, unsigned, unsigned, unsigned, std::string, std::string>>
-      data_access;
+        data_access;
     accessST->displayAccess(data_access, geo_depth_max);
-
     TableFormatterBase table_access;
     TableHeader table_header;
     table_header.push_back(std::make_tuple("operation", 6, format_ss));
     table_header.push_back(std::make_tuple("geotag", 6, format_ss));
+
     if (!monitoring) {
-      if (geo_depth_max>1) {
-        for (unsigned i=1; i<geo_depth_max; i++) {
+      if (geo_depth_max > 1) {
+        for (unsigned i = 1; i < geo_depth_max; i++) {
           std::string name = "lev" + std::to_string(i);
           table_header.push_back(std::make_tuple(name, 4, format_ss));
         }
       }
+
       table_header.push_back(std::make_tuple("fullGeotag", 6, format_s));
     }
+
     table_header.push_back(std::make_tuple("mapping", 6, format_s));
     table_access.SetHeader(table_header);
+    unsigned prefix[geo_depth_max + 1];
 
-    unsigned prefix[geo_depth_max +1];
     for (auto it : data_access) {
       if (!monitoring) {
         unsigned geo_depth = 0;
         std::string geotag_temp = std::get<4>(it);
-        while (geotag_temp.find("::") != std::string::npos){
-          geotag_temp.erase(0, geotag_temp.find("::")+2);
+
+        while (geotag_temp.find("::") != std::string::npos) {
+          geotag_temp.erase(0, geotag_temp.find("::") + 2);
           geo_depth++;
         }
 
         TableData table_data;
         table_data.emplace_back();
+
         // Print operation (depth=1)
         if (std::get<1>(it) == 1) {
           table_data.back().push_back(TableCell(operation, "s"));
         }
         // Print geotag (depth=2 or 3)
         else if (std::get<1>(it) == 2 || std::get<1>(it) == 3) {
-          if (geo_depth > 0)
-            prefix[geo_depth-1] = std::get<2>(it);
+          if (geo_depth > 0) {
+            prefix[geo_depth - 1] = std::get<2>(it);
+          }
+
           prefix[geo_depth] = std::get<3>(it);
-          for (unsigned i=0; i<=geo_depth; i++) // arrows
+
+          for (unsigned i = 0; i <= geo_depth; i++) { // arrows
             table_data.back().push_back(TableCell(prefix[i], "t"));
+          }
+
           std::string geotag = std::get<4>(it);
-          geotag = (geo_depth > 0) ? geotag.substr(geotag.rfind("::")+2) : geotag;
+          geotag = (geo_depth > 0) ? geotag.substr(geotag.rfind("::") + 2) : geotag;
           table_data.back().push_back(TableCell(geotag, "s"));
-          for (unsigned i=0; i<geo_depth_max-geo_depth-1; i++) // blank cell after geotag
+
+          for (unsigned i = 0; i < geo_depth_max - geo_depth - 1;
+               i++) { // blank cell after geotag
             table_data.back().push_back(TableCell("", "s"));
+          }
         }
+
         // Print other columns
         if (!std::get<5>(it).empty()) {
           table_data.back().push_back(TableCell(std::get<4>(it), "s"));
           table_data.back().push_back(TableCell(std::get<5>(it), "s"));
         }
+
         table_access.AddRows(table_data);
       }
       // Monitoring
