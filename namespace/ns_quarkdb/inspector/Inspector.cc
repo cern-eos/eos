@@ -23,6 +23,7 @@
 #include "namespace/ns_quarkdb/inspector/FileScanner.hh"
 #include "namespace/ns_quarkdb/inspector/Printing.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
+#include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb/persistency/FileSystemIterator.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemHandler.hh"
@@ -123,7 +124,7 @@ int Inspector::scanDirs(std::ostream &out, std::ostream &err) {
       break;
     }
 
-    out << "cid=" << proto.id() << " name=" << proto.name() << " parent=" << proto.parent_id() << std::endl;
+    out << "cid=" << proto.id() << " name=" << proto.name() << " parent=" << proto.parent_id() << " uid=" << proto.uid() << std::endl;
     containerScanner.next();
   }
 
@@ -149,7 +150,7 @@ int Inspector::scanFileMetadata(std::ostream &out, std::ostream &err) {
       break;
     }
 
-    out << "fid=" << proto.id() << " name=" << proto.name() << " pid=" << proto.cont_id() << std::endl;
+    out << "fid=" << proto.id() << " name=" << proto.name() << " pid=" << proto.cont_id() << " uid=" << proto.uid() << std::endl;
     fileScanner.next();
   }
 
@@ -159,6 +160,30 @@ int Inspector::scanFileMetadata(std::ostream &out, std::ostream &err) {
     return 1;
   }
 
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Forcefully overwrite the given ContainerMD - USE WITH CAUTION
+//------------------------------------------------------------------------------
+int Inspector::overwriteContainerMD(uint64_t id, uint64_t parentId, const std::string &name, std::ostream &out, std::ostream &err) {
+  eos::ns::ContainerMdProto val;
+
+  val.set_id(id);
+  val.set_parent_id(parentId);
+  val.set_name(name);
+
+  QuarkContainerMD containerMD;
+  containerMD.initialize(std::move(val), {}, {} );
+  RedisRequest req = RequestBuilder::writeContainerProto(&containerMD);
+
+  out << "---- SENDING THE FOLLOWING REQUEST TO QDB:" << std::endl;
+  for(size_t i = 0; i < req.size(); i++) {
+    out << i << ".\"" << escapeNonPrintable(req[i]) << "\"" << std::endl;;
+  }
+
+  out << "---- RESPONSE:" << std::endl;
+  out << qclient::describeRedisReply(mQcl.execute(req).get()) << std::endl;
   return 0;
 }
 

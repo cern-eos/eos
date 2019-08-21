@@ -68,6 +68,11 @@ public:
   //----------------------------------------------------------------------------
   int scanFileMetadata(std::ostream &out, std::ostream &err);
 
+ //----------------------------------------------------------------------------
+  //! Forcefully overwrite the given ContainerMD - USE WITH CAUTION
+  //----------------------------------------------------------------------------
+  int overwriteContainerMD(uint64_t id, uint64_t parentId, const std::string &name, std::ostream &out, std::ostream &err);
+
   //----------------------------------------------------------------------------
   //! Check intra-container conflicts, such as a container having two entries
   //! with the name name.

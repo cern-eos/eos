@@ -137,6 +137,25 @@ int main(int argc, char* argv[]) {
   addClusterOptions(checkShadowDirectories, membersStr, memberValidator, password, passwordFile);
 
   //----------------------------------------------------------------------------
+  // Set-up overwrite-container subcommand..
+  //----------------------------------------------------------------------------
+  auto overwriteContainerSubcommand = app.add_subcommand("overwrite-container", "Overwrite the given ContainerMD - USE WITH CAUTION");
+  addClusterOptions(overwriteContainerSubcommand, membersStr, memberValidator, password, passwordFile);
+
+  uint64_t cid;
+  uint64_t parent;
+  std::string containerName;
+
+  overwriteContainerSubcommand->add_option("--cid", cid, "Specify which container ID to overwrite")
+    ->required();
+
+  overwriteContainerSubcommand->add_option("--parent-id", parent, "Specify which ID to set as parent")
+    ->required();
+
+  overwriteContainerSubcommand->add_option("--name", containerName, "Specify the container's name")
+    ->required();
+
+  //----------------------------------------------------------------------------
   // Set-up print subcommand..
   //----------------------------------------------------------------------------
   auto printSubcommand = app.add_subcommand("print", "Print everything known about a given file, or container");
@@ -259,6 +278,10 @@ int main(int argc, char* argv[]) {
 
   if(renameFidSubcommand->parsed()) {
     return inspector.renameFid(fid, newParent, newName, std::cout, std::cerr);
+  }
+
+  if(overwriteContainerSubcommand->parsed()) {
+    return inspector.overwriteContainerMD(cid, parent, containerName, std::cout, std::cerr);
   }
 
   std::cerr << "No subcommand was supplied - should never reach here" << std::endl;
