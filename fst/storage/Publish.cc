@@ -413,7 +413,7 @@ Storage::getFsStatistics(FileSystem *fs, bool publishInconsistencyStats) {
 bool Storage::publishFsStatistics(FileSystem *fs, bool publishInconsistencyStats) {
   if(!fs) {
     eos_static_crit("asked to publish statistics for a null filesystem");
-    return {};
+    return false;
   }
 
   eos::common::FileSystem::fsid_t fsid = fs->GetId();
@@ -421,7 +421,7 @@ bool Storage::publishFsStatistics(FileSystem *fs, bool publishInconsistencyStats
   if(!fsid) {
     // during the boot phase we can find a filesystem without ID
     eos_static_warning("asked to publish statistics for filesystem with fsid=0");
-    return {};
+    return false;
   }
 
   common::FileSystemUpdateBatch batch;
