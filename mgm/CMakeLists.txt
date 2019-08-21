@@ -76,9 +76,11 @@ set_target_properties(
   PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
+add_dependencies(EosMgmHttp-Objects EosProtobuf)
 add_dependencies(EosMgmHttp-Objects EosAuthProto-Objects)
 
-add_library(EosMgmHttp MODULE $<TARGET_OBJECTS:EosMgmHttp-Objects>)
+add_library(EosMgmHttp MODULE
+  $<TARGET_OBJECTS:EosMgmHttp-Objects>)
 
 target_link_libraries( EosMgmHttp PUBLIC
   XrdHttp-4
