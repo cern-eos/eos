@@ -63,9 +63,11 @@ namespace
     //--------------------------------------------------------------------------
     std::string Get(const std::string& key) const;
 
+  private:
     //--------------------------------------------------------------------------
     // Methods retrieving a particular QoS property
     //--------------------------------------------------------------------------
+    std::string Attr(const char* key) const;
     std::string ChecksumType() const;
     std::string DiskSize() const;
     std::string LayoutType() const;
@@ -155,6 +157,17 @@ namespace
   //----------------------------------------------------------------------------
   // Methods retrieving a particular QoS property
   //----------------------------------------------------------------------------
+
+  std::string QoSGetter::Attr(const char* key) const {
+    std::string value = "null";
+    const auto& attrMap = fmd->getAttributes();
+
+    if (attrMap.count(key)) {
+      value = attrMap.at(key);
+    }
+
+    return value;
+  }
 
   std::string QoSGetter::ChecksumType() const {
     return eos::common::LayoutId::GetChecksumStringReal(fmd->getLayoutId());
