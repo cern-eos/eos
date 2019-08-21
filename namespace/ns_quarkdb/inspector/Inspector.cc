@@ -792,12 +792,41 @@ int Inspector::printContainerMD(uint64_t cid, std::ostream& out, std::ostream& e
   try {
     val = MetadataFetcher::getContainerFromId(mQcl, ContainerIdentifier(cid)).get();
   } catch (const MDException& e) {
-    err << "Error while fetching metadata for FileMD #" << cid << ": " << e.what()
+    err << "Error while fetching metadata for ContainerMD #" << cid << ": " << e.what()
         << std::endl;
-    return 1;
   }
 
   Printing::printMultiline(val, out);
+
+  IContainerMD::FileMap fileMap;
+  IContainerMD::FileMap containerMap;
+
+  try {
+    fileMap = MetadataFetcher::getFileMap(mQcl, ContainerIdentifier(cid)).get();
+  } catch (const MDException& e) {
+    err << "Error while fetching file map for ContainerMD #" << cid << ": " << e.what()
+        << std::endl;
+  }
+
+  try {
+    containerMap = MetadataFetcher::getContainerMap(mQcl, ContainerIdentifier(cid)).get();
+  } catch (const MDException& e) {
+    err << "Error while fetching container map for ContainerMD #" << cid << ": " << e.what()
+        << std::endl;
+  }
+
+  std::cout << "------------------------------------------------" << std::endl;
+  std::cout << "FileMap:" << std::endl;
+  for(auto it = fileMap.begin(); it != fileMap.end(); it++) {
+    std::cout << it->first << ": " << it->second << std::endl;
+  }
+
+  std::cout << "------------------------------------------------" << std::endl;
+  std::cout << "ContainerMap:" << std::endl;
+  for(auto it = containerMap.begin(); it != containerMap.end(); it++) {
+    std::cout << it->first << ": " << it->second << std::endl;
+  }
+
   return 0;
 }
 
