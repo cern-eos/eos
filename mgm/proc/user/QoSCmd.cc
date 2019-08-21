@@ -156,7 +156,10 @@ void QoSCmd::GetSubcmd(const eos::console::QoSProto_GetProto& get,
   eos::IFileMD::QoSAttrMap qosMap;
 
   for (const auto& key: get.key()) {
-    if (key == "all") {
+    if (key == "class") {
+      qosKeys.insert({"current_qos", "target_qos"});
+      continue;
+    } else if (key == "all") {
       qosKeys.clear();
       break;
     }
@@ -195,6 +198,12 @@ void QoSCmd::GetSubcmd(const eos::console::QoSProto_GetProto& get,
       err << "error: " << errInfo.getErrText() << std::endl;
       retc = errInfo.getErrInfo();
     }
+  }
+
+  // Avoid showing an empty target QoS field
+  if ((qosMap.count("target_qos")) &&
+      (qosMap.at("target_qos") == "null")) {
+    qosMap.erase("target_qos");
   }
 
   // Format QoS properties map to desired output
