@@ -132,11 +132,14 @@ PathRouting::Reroute(const char* inpath, const char* ininfo,
     return Status::NOROUTING;
   }
 
+  path = eos::common::StringConversion::curl_unescaped(path.c_str()).c_str();
+  eos::common::Path cPath(path.c_str());
+  path = cPath.GetPath();
+
   if (path.back() != '/') {
     path += '/';
   }
 
-  path = eos::common::StringConversion::curl_unescaped(path.c_str()).c_str();
   eos_debug("path=%s map_route_size=%d", path.c_str(), mPathRoute.size());
   eos::common::RWMutexReadLock route_rd_lock(mPathRouteMutex);
 
@@ -149,8 +152,6 @@ PathRouting::Reroute(const char* inpath, const char* ininfo,
 
   if (it == mPathRoute.end()) {
     // Try to find the longest possible match
-    eos::common::Path cPath(path.c_str());
-
     if (!cPath.GetSubPathSize()) {
       eos_debug("path=%s has no subpath", path.c_str());
       return Status::NOROUTING;

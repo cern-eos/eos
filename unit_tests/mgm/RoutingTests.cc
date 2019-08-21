@@ -26,13 +26,13 @@
 #include "mgm/PathRouting.hh"
 
 //------------------------------------------------------------------------------
-// Test basic RoutEndpoint construction and parsing
+// Test basic RouteEndpoint construction and parsing
 //------------------------------------------------------------------------------
 TEST(Routing, Construction)
 {
-  using namespace eos::mgm;
+  using eos::mgm::RouteEndpoint;
   using eos::mgm::PathRouting;
-  std::string stat_info;
+
   eos::mgm::PathRouting route(std::chrono::seconds(0));
   std::vector<std::string> inputs {
     "eos_dummy1.cern.ch:1094:8000",
@@ -63,18 +63,18 @@ TEST(Routing, Construction)
   }
 
   ASSERT_TRUE(route.Remove("/eos/"));
-  ASSERT_FALSE(route.Remove("/eos/unkown/dir/"));
+  ASSERT_FALSE(route.Remove("/eos/unknown/dir/"));
   route.Clear();
 }
 
 //------------------------------------------------------------------------------
-// Test basic
+// Test routing functionality
 //------------------------------------------------------------------------------
-TEST(Routing, StallRedirect)
+TEST(Routing, Functionality)
 {
-  using namespace eos::mgm;
+  using eos::mgm::RouteEndpoint;
   using eos::mgm::PathRouting;
-  std::string stat_info;
+
   // Routing without async updates
   eos::mgm::PathRouting route(std::chrono::seconds(0));
   std::vector<std::string> inputs {
@@ -86,25 +86,30 @@ TEST(Routing, StallRedirect)
 
   // Add several routes to test out the routing
   for (const auto& input : inputs) {
-    ++count;
     RouteEndpoint endpoint;
-    endpoint.mIsOnline.store(true); // for testin purposes
+    endpoint.mIsOnline.store(true);
     ASSERT_TRUE(endpoint.ParseFromString(input));
-    ASSERT_TRUE(route.Add("/eos/dir" + std::to_string(count) + "/",
+    ASSERT_TRUE(route.Add("/eos/dir" + std::to_string(++count) + "/",
                           std::move(endpoint)));
   }
 
   eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
+  std::string stat_info;
   std::string host;
   int port;
+
   ASSERT_TRUE(PathRouting::Status::NOROUTING ==
               route.Reroute("", nullptr, vid, host, port, stat_info));
   ASSERT_TRUE(PathRouting::Status::NOROUTING ==
               route.Reroute("/", nullptr, vid, host, port, stat_info));
   ASSERT_TRUE(PathRouting::Status::NOROUTING ==
-              route.Reroute("/unkown", nullptr, vid, host, port, stat_info));
+              route.Reroute("/unknown", nullptr, vid, host, port, stat_info));
   ASSERT_TRUE(PathRouting::Status::NOROUTING ==
               route.Reroute("/eos/", nullptr, vid, host, port, stat_info));
+  ASSERT_TRUE(PathRouting::Status::NOROUTING ==
+                route.Reroute("/", "&mgm.fsid=3452&mgm.fid=0e98cc49&mgm.localprefix=/data13",
+                              vid, host, port, stat_info));
+
   // Test http/https redirection
   vid.prot = "http";
   ASSERT_TRUE(PathRouting::Status::REROUTE ==
@@ -113,30 +118,28 @@ TEST(Routing, StallRedirect)
               route.Reroute("/eos/dir1", nullptr, vid, host, port, stat_info));
   ASSERT_TRUE(host == "eos_dummy1.cern.ch");
   ASSERT_TRUE(port == 8000);
+
   vid.prot = "https";
   ASSERT_TRUE(PathRouting::Status::REROUTE ==
               route.Reroute("/eos/dir1", nullptr, vid, host, port, stat_info));
   ASSERT_TRUE(host == "eos_dummy1.cern.ch");
   ASSERT_TRUE(port == 8000);
+
   // Test xrd redirection
   vid.prot = "";
   ASSERT_TRUE(PathRouting::Status::REROUTE ==
               route.Reroute("/eos/dir2", nullptr, vid, host, port, stat_info));
   ASSERT_TRUE(host == "eos_dummy2.cern.ch");
   ASSERT_TRUE(port == 2094);
-  // Test redirection diven a longer path
+
+  // Test redirection given a longer path
   ASSERT_TRUE(PathRouting::Status::REROUTE ==
               route.Reroute("/eos/dir3/subdir1/subdir2", nullptr, vid, host,
                             port, stat_info));
   ASSERT_TRUE(host == "eos_dummy3.cern.ch");
   ASSERT_TRUE(port == 3094);
-  ASSERT_TRUE(PathRouting::Status::NOROUTING == route.Reroute("/",
-              "&mgm.fsid=3452&mgm.fid=0e98cc49&mgm.localprefix=/data13",
-              vid, host, port, stat_info));
-  ASSERT_TRUE(PathRouting::Status::NOROUTING == route.Reroute("/",
-              "", vid, host, port, stat_info));
 
-  // Put all endpoints as not online and not master to trigger stall response
+  // Put all endpoints as offline and not master to trigger stall response
   for (const auto& input : inputs) {
     RouteEndpoint endpoint;
     endpoint.mIsOnline.store(false);
@@ -148,6 +151,8 @@ TEST(Routing, StallRedirect)
   ASSERT_TRUE(PathRouting::Status::STALL ==
               route.Reroute("/eos/dir/multi_ep/", nullptr, vid, host, port,
                             stat_info));
+
+  // Add online endpoint to trigger rerouting
   RouteEndpoint endpoint;
   endpoint.mIsOnline.store(true);
   endpoint.mIsMaster.store(true);
@@ -158,5 +163,73 @@ TEST(Routing, StallRedirect)
                             stat_info));
   ASSERT_STREQ("eos_dummy5.cern.ch", host.c_str());
   ASSERT_EQ(5094, port);
+
+  // Assert empty routing
+  route.Clear();
+  ASSERT_TRUE(PathRouting::Status::NOROUTING ==
+              route.Reroute("/eos/dir1", nullptr, vid, host, port, stat_info));
+
+  std::string listing = "not-empty";
+  route.GetListing("", listing);
+  ASSERT_STREQ("", listing.c_str());
+}
+
+//------------------------------------------------------------------------------
+// Test routing functionality
+//------------------------------------------------------------------------------
+TEST(Routing, SpecialPaths)
+{
+  using eos::mgm::RouteEndpoint;
+  using eos::mgm::PathRouting;
+
+  eos::mgm::PathRouting route(std::chrono::seconds(0));
+  eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
+  std::string stat_info;
+  std::string host;
+  int port;
+
+  RouteEndpoint endpoint1;
+  endpoint1.mIsOnline.store(true);
+  ASSERT_TRUE(endpoint1.ParseFromString("eos_instance.cern.ch:1094:8000"));
+  ASSERT_TRUE(route.Add("/eos/instance/", std::move(endpoint1)));
+
+  RouteEndpoint endpoint2;
+  endpoint2.mIsOnline.store(true);
+  ASSERT_TRUE(endpoint2.ParseFromString("eos_specific.cern.ch:1094:8000"));
+  ASSERT_TRUE(route.Add("/eos/instance/a/atest/", std::move(endpoint2)));
+
+  ASSERT_TRUE(PathRouting::Status::REROUTE ==
+                route.Reroute("/eos/instance/a/atest/.", nullptr, vid, host, port,
+                              stat_info));
+  ASSERT_STREQ("eos_specific.cern.ch", host.c_str());
+
+  ASSERT_TRUE(PathRouting::Status::REROUTE ==
+              route.Reroute("/eos/instance/a/atest/subdir/.", nullptr, vid, host, port,
+                            stat_info));
+  ASSERT_STREQ("eos_specific.cern.ch", host.c_str());
+
+  ASSERT_TRUE(PathRouting::Status::REROUTE ==
+              route.Reroute("/eos/instance/a/./atest/", nullptr, vid, host, port,
+                            stat_info));
+  ASSERT_STREQ("eos_specific.cern.ch", host.c_str());
+
+  ASSERT_TRUE(PathRouting::Status::REROUTE ==
+              route.Reroute("/eos/instance/a/atest/subdir/..", nullptr, vid, host, port,
+                            stat_info));
+  ASSERT_STREQ("eos_specific.cern.ch", host.c_str());
+
+  ASSERT_TRUE(PathRouting::Status::REROUTE ==
+              route.Reroute("/eos/instance/a/atest/..", nullptr, vid, host, port,
+                            stat_info));
+  ASSERT_STREQ("eos_instance.cern.ch", host.c_str());
+
+  ASSERT_TRUE(PathRouting::Status::REROUTE ==
+              route.Reroute("/eos/instance/a/../atest/..", nullptr, vid, host, port,
+                            stat_info));
+  ASSERT_STREQ("eos_instance.cern.ch", host.c_str());
+
+  ASSERT_TRUE(PathRouting::Status::NOROUTING ==
+              route.Reroute("/eos/instance/../a/atest/", nullptr, vid, host, port,
+                            stat_info));
   route.Clear();
 }

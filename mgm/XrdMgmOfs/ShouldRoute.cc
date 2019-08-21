@@ -42,7 +42,7 @@ XrdMgmOfs::ShouldRoute(const char* function, int accessmode,
     return false;
   }
 
-  // Might happend during shutdown
+  // Might happen during shutdown
   if (mRouting == nullptr) {
     return false;
   }

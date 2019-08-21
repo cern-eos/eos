@@ -140,7 +140,7 @@ public:
 private:
   std::string mFqdn; ///< Redirection host fqdn
   uint32_t mXrdPort; ///< Redirection xrootd port
-  uint32_t mHttpPort; ///< Redirectoin http port
+  uint32_t mHttpPort; ///< Redirection http port
 };
 
 EOSMGMNAMESPACE_END
