@@ -404,8 +404,8 @@ GroupBalancer::scheduleTransfer(eos::common::FileId::fileid_t fid,
 {
   if ((mGroupSizes.count(sourceGroup->mName) == 0) ||
       (mGroupSizes.count(targetGroup->mName) == 0)) {
-    eos_static_err("Source: %s or target: %s group no longer in the group "
-                   "sizes map");
+    eos_static_err("msg=\"no src/trg group in map\" src_group=%s trg_group=%s",
+                   sourceGroup->mName.c_str(), targetGroup->mName.c_str());
     return;
   }
 
@@ -419,7 +419,9 @@ GroupBalancer::scheduleTransfer(eos::common::FileId::fileid_t fid,
   }
 
   if (!gOFS->_touch(fileName.c_str(), mError, rootvid, 0)) {
-    eos_static_info("scheduledfile=%s", fileName.c_str());
+    eos_static_info("scheduledfile=%s src_group=%s trg_group=%s",
+                    fileName.c_str(), sourceGroup->mName.c_str(),
+                    targetGroup->mName.c_str());
   } else {
     eos_static_err("msg=\"failed to schedule transfer\" schedulingfile=\"%s\"",
                    fileName.c_str());
@@ -463,9 +465,9 @@ GroupBalancer::chooseFidFromGroup(FsGroup* group)
     rndIndex = getRandom(validFsIndexes.size() - 1);
     std::advance(fs_it, validFsIndexes[rndIndex]);
     fsid = *fs_it;
-
     // Accept only active file systems
     FileSystem* target = FsView::gFsView.mIdView.lookupByID(fsid);
+
     if (target && target->GetActiveStatus() == eos::common::ActiveStatus::kOnline) {
       fsid_size = gOFS->eosFsView->getNumFilesOnFs(fsid);
 
