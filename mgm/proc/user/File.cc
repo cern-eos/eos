@@ -255,7 +255,7 @@ ProcCommand::File()
       }
 
       if (sendresync == "1") {
-	doresync = true;
+        doresync = true;
       }
 
       XrdOucString fsidfilter = pOpaque->Get("mgm.file.verify.filterid");
@@ -340,67 +340,69 @@ ProcCommand::File()
               acceptfound = true;
             }
 
-	    if (doresync) {
-	      int lretc = gOFS->SendResync(fileid, (int) * it);
-	      if (!lretc) {
-		stdOut += "success: sending FMD resync to fsid=";
-		stdOut += (int) * it;
+            if (doresync) {
+              int lretc = gOFS->SendResync(fileid, (int) * it);
+
+              if (!lretc) {
+                stdOut += "success: sending FMD resync to fsid=";
+                stdOut += (int) * it;
                 stdOut += " for path=";
                 stdOut += spath;
                 stdOut += "\n";
               } else {
-		stdErr = "error: failed to send FMD resync to fsid=";
-		stdErr += (int) * it;
-		stdErr += "\n";
+                stdErr = "error: failed to send FMD resync to fsid=";
+                stdErr += (int) * it;
+                stdErr += "\n";
                 retc = errno;
               }
-	    } else {
-	      if (isRAIN) {
-		int lretc = gOFS->SendResync(fileid, (int) * it);
-		if (!lretc) {
-		  stdOut += "success: sending resync for RAIN layout to fsid=";
-		  stdOut += (int) * it;
-		  stdOut += " for path=";
-		  stdOut += spath;
-		  stdOut += "\n";
-		} else {
-		  retc = errno;
-		}
-	      } else {
-		// rain layouts only resync meta data records
-		int lretc = gOFS->_verifystripe(spath.c_str(), *mError, vid,
-						(unsigned long) * it, option);
+            } else {
+              if (isRAIN) {
+                int lretc = gOFS->SendResync(fileid, (int) * it);
 
-		if (!lretc) {
-		  stdOut += "success: sending verify to fsid= ";
-		  stdOut += (int) * it;
-		  stdOut += " for path=";
-		  stdOut += spath;
-		  stdOut += "\n";
-		} else {
-		  retc = errno;
-		}
-	      }
-	    }
+                if (!lretc) {
+                  stdOut += "success: sending resync for RAIN layout to fsid=";
+                  stdOut += (int) * it;
+                  stdOut += " for path=";
+                  stdOut += spath;
+                  stdOut += "\n";
+                } else {
+                  retc = errno;
+                }
+              } else {
+                // rain layouts only resync meta data records
+                int lretc = gOFS->_verifystripe(spath.c_str(), *mError, vid,
+                                                (unsigned long) * it, option);
 
-	    // -------------------------------------------------------------------
-	    // we want to be able to force the registration and verification of a
-	    // not registered replica
-	    // -------------------------------------------------------------------
-	    if (acceptfsid && (!acceptfound)) {
-	      int lretc = gOFS->_verifystripe(spath.c_str(), *mError, vid,
-					      (unsigned long) acceptfsid, option);
+                if (!lretc) {
+                  stdOut += "success: sending verify to fsid= ";
+                  stdOut += (int) * it;
+                  stdOut += " for path=";
+                  stdOut += spath;
+                  stdOut += "\n";
+                } else {
+                  retc = errno;
+                }
+              }
+            }
 
-	      if (!lretc) {
-		stdOut += "success: sending forced verify to fsid= ";
-		stdOut += acceptfsid;
-		stdOut += " for path=";
-		stdOut += spath;
-		stdOut += "\n";
-	      } else {
-		retc = errno;
-	      }
-	    }
+            // -------------------------------------------------------------------
+            // we want to be able to force the registration and verification of a
+            // not registered replica
+            // -------------------------------------------------------------------
+            if (acceptfsid && (!acceptfound)) {
+              int lretc = gOFS->_verifystripe(spath.c_str(), *mError, vid,
+                                              (unsigned long) acceptfsid, option);
+
+              if (!lretc) {
+                stdOut += "success: sending forced verify to fsid= ";
+                stdOut += acceptfsid;
+                stdOut += " for path=";
+                stdOut += spath;
+                stdOut += "\n";
+              } else {
+                retc = errno;
+              }
+            }
           }
         }
 
@@ -1300,11 +1302,13 @@ ProcCommand::File()
             int nreponline = 0;
             int ngroupmix = 0;
             eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+            // Give priority to healthy file systems during scheduling
+            std::vector<unsigned int> sourcefs;
 
             for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter) {
               // ignore filesystem id 0
               if (!(*lociter)) {
-                eos_err("fsid 0 found fid=%08llx", fmd->getId());
+                eos_err("msg=\"file with filesystem id 0\" fxid=%08llx", fmd->getId());
                 continue;
               }
 
@@ -1332,6 +1336,10 @@ ProcCommand::File()
                     (snapshot.mStatus == eos::common::BootStatus::kBooted)) {
                   // This is an accessible replica
                   nreponline++;
+                  sourcefs.insert(sourcefs.begin(), *lociter);
+                } else {
+                  // Give less priority to unhealthy file systems
+                  sourcefs.push_back(*lociter);
                 }
               }
             }
@@ -1370,7 +1378,6 @@ ProcCommand::File()
               // Fill the existing locations
               std::vector<unsigned int> selectedfs;
               std::vector<unsigned int> unavailfs;
-              std::vector<unsigned int> sourcefs = fmd->getLocations();
               std::string tried_cgi;
               // Now we just need to ask for <n> targets
               int layoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica,
@@ -1490,7 +1497,6 @@ ProcCommand::File()
 
                   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
                   FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(*lociter);
-
                   eos::common::FileSystem::fs_snapshot_t fs;
 
                   if (filesystem && filesystem->SnapShotFileSystem(fs, true)) {
@@ -1537,7 +1543,8 @@ ProcCommand::File()
                       }
 
                       // fill the map containing only the candidates
-                      limitedstatemap.insert(std::pair<common::ConfigStatus, int>(state, sit->second));
+                      limitedstatemap.insert(std::pair<common::ConfigStatus, int>(state,
+                                             sit->second));
                     }
 
                     for (
@@ -1578,7 +1585,8 @@ ProcCommand::File()
                       }
 
                       // fill the map containing only the candidates
-                      limitedstatemap.insert(std::pair<common::ConfigStatus, int>(state, sit->second));
+                      limitedstatemap.insert(std::pair<common::ConfigStatus, int>(state,
+                                             sit->second));
                     }
 
                     for (auto lit = limitedstatemap.begin(); lit != limitedstatemap.end(); ++lit) {
@@ -1747,7 +1755,8 @@ ProcCommand::File()
             }
 
             eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-            eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(*lociter);
+            eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(
+                                                    *lociter);
 
             if (filesystem) {
               XrdOucString host;
