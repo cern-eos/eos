@@ -1442,3 +1442,20 @@ TEST(FutureVectorIterator, BasicSanity) {
   ASSERT_FALSE(fvi.fetchNext(val));
   ASSERT_TRUE(fvi.isReady());
 }
+
+TEST_F(VariousTests, QuotanodeCorruption) {
+  IContainerMDPtr cont = view()->createContainer("/a/b/c/d/e/f/g", true);
+  ASSERT_EQ(cont->getId(), 8);
+  ASSERT_EQ(cont->getParentId(), 7);
+
+  ASSERT_EQ(view()->getQuotaNode(cont.get()), nullptr);
+  cont->setParentId(999);
+  containerSvc()->updateStore(cont.get());
+  ASSERT_EQ(view()->getQuotaNode(cont.get()), nullptr);
+
+  shut_down_everything();
+
+  cont = containerSvc()->getContainerMD(8);
+  ASSERT_EQ(cont->getParentId(), 999);
+  ASSERT_EQ(view()->getQuotaNode(cont.get()), nullptr);
+}

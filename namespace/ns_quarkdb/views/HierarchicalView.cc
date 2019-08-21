@@ -1008,15 +1008,22 @@ QuarkHierarchicalView::getQuotaNode(const IContainerMD* container, bool search)
     throw ex;
   }
 
-  // Search for the node
-  std::shared_ptr<IContainerMD> current =
-    pContainerSvc->getContainerMD(container->getId());
+  std::shared_ptr<IContainerMD> current;
 
-  if (search) {
-    while (current->getName() != pRoot->getName() &&
-           (current->getFlags() & QUOTA_NODE_FLAG) == 0) {
-      current = pContainerSvc->getContainerMD(current->getParentId());
+  // Search for the node
+  try {
+    current = pContainerSvc->getContainerMD(container->getId());
+
+    if (search) {
+      while (current->getName() != pRoot->getName() &&
+             (current->getFlags() & QUOTA_NODE_FLAG) == 0) {
+        current = pContainerSvc->getContainerMD(current->getParentId());
+      }
     }
+  }
+  catch(...) {
+    eos_static_crit("Attempted to get quota node of possibly detached container with cid=%llu", container->getId());
+    return nullptr;
   }
 
   // We have either found a quota node or reached root without finding one
