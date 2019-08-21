@@ -54,6 +54,24 @@ inline bool ParseInt64(const std::string& str, int64_t& ret, int base = 10)
 }
 
 //------------------------------------------------------------------------------
+//! Parse an uint64 encoded in the given numerical base, return true if parsing
+//! was successful, false otherwise.
+//------------------------------------------------------------------------------
+inline bool ParseUInt64(const std::string& str, uint64_t& ret, int base = 10)
+{
+  char* endptr = NULL;
+  ret = std::strtoull(str.c_str(), &endptr, base);
+
+  if (endptr != str.c_str() + str.size() ||
+      ret == std::numeric_limits<unsigned long long>::min() ||
+      ret == std::numeric_limits<unsigned long long>::max()) {
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
 //! Parse a long long - behave exactly the same as old XrdMq "GetLongLong".
 //------------------------------------------------------------------------------
 inline long long ParseLongLong(const std::string& str)

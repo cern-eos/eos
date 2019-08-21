@@ -783,11 +783,30 @@ int Inspector::checkShadowDirectories(std::ostream& out, std::ostream& err)
 }
 
 //------------------------------------------------------------------------------
+// Print out _everything_ known about the given directory.
+//------------------------------------------------------------------------------
+int Inspector::printContainerMD(uint64_t cid, std::ostream& out, std::ostream& err)
+{
+  eos::ns::ContainerMdProto val;
+
+  try {
+    val = MetadataFetcher::getContainerFromId(mQcl, ContainerIdentifier(cid)).get();
+  } catch (const MDException& e) {
+    err << "Error while fetching metadata for FileMD #" << cid << ": " << e.what()
+        << std::endl;
+    return 1;
+  }
+
+  Printing::printMultiline(val, out);
+  return 0;
+}
+
+//------------------------------------------------------------------------------
 // Print out _everything_ known about the given file.
 //------------------------------------------------------------------------------
 int Inspector::printFileMD(uint64_t fid, std::ostream& out, std::ostream& err)
 {
-    eos::ns::FileMdProto val;
+  eos::ns::FileMdProto val;
 
   try {
     val = MetadataFetcher::getFileFromId(mQcl, FileIdentifier(fid)).get();

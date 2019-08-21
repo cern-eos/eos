@@ -151,6 +151,12 @@ public:
   //----------------------------------------------------------------------------
   int printFileMD(uint64_t fid, std::ostream &out, std::ostream &err);
 
+  //----------------------------------------------------------------------------
+  //! Print out _everything_ known about the given directory.
+  //----------------------------------------------------------------------------
+  int printContainerMD(uint64_t cid, std::ostream& out, std::ostream& err);
+
+
 private:
   qclient::QClient &mQcl;
 

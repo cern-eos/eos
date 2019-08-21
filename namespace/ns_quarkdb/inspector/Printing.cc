@@ -84,6 +84,22 @@ static std::string serializeTime(const T& bytes) {
   return ss.str();
 }
 
+//----------------------------------------------------------------------------
+// Print the given ContainerMd protobuf using multiple lines, full information
+//----------------------------------------------------------------------------
+void Printing::printMultiline(const eos::ns::ContainerMdProto &proto, std::ostream &stream) {
+  stream << "ID: " << proto.id() << std::endl;
+  stream << "Parent ID: " << proto.parent_id() << std::endl;
+  stream << "Name: " << proto.name() << std::endl;
+  stream << "uid: " << proto.uid() << ", gid: " << proto.gid() << std::endl;
+  stream << "ctime: " << serializeTime(proto.ctime()) << std::endl;
+  stream << "mtime: " << serializeTime(proto.mtime()) << std::endl;
+  stream << "stime: " << serializeTime(proto.stime()) << std::endl;
+  stream << "Tree size: " << proto.tree_size() << std::endl;
+  stream << "Mode: " << proto.mode() << std::endl;
+  stream << "Flags: " << proto.flags() << std::endl;
+}
+
 //------------------------------------------------------------------------------
 // Print the given FileMd protobuf using multiple lines, full information
 //------------------------------------------------------------------------------

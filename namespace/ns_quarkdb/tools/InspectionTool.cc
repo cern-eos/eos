@@ -12,13 +12,14 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
  * GNU General Public License for more details.                         *
  *                                                                      *
- * You should have received a copy of the GNU General Public License    *
+  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/ns_quarkdb/inspector/Inspector.hh"
 #include "common/PasswordHandler.hh"
+#include "common/ParseUtils.hh"
 #include "CLI11.hpp"
 #include <qclient/QClient.hh>
 
@@ -30,6 +31,19 @@ struct MemberValidator : public CLI::Validator {
       qclient::Members members;
       if(!members.parse(str)) {
         return SSTR("Could not parse members: '" << str << "'. Expected format is a comma-separated list of servers: example1:1111,example2:2222");
+      }
+
+      return std::string();
+    };
+  }
+};
+
+struct IdValidator : public CLI::Validator {
+  IdValidator() : Validator("ID") {
+    func_ = [](const std::string &str) {
+      uint64_t parsed;
+      if(!eos::common::ParseUInt64(str, parsed)) {
+        return SSTR("Could not parse id, was expecting uint64_t: '" << str << "'");
       }
 
       return std::string();
@@ -142,7 +156,7 @@ int main(int argc, char* argv[]) {
   auto overwriteContainerSubcommand = app.add_subcommand("overwrite-container", "Overwrite the given ContainerMD - USE WITH CAUTION");
   addClusterOptions(overwriteContainerSubcommand, membersStr, memberValidator, password, passwordFile);
 
-  uint64_t cid;
+  uint64_t cid = 0;
   uint64_t parent;
   std::string containerName;
 
@@ -161,8 +175,12 @@ int main(int argc, char* argv[]) {
   auto printSubcommand = app.add_subcommand("print", "Print everything known about a given file, or container");
   addClusterOptions(printSubcommand, membersStr, memberValidator, password, passwordFile);
 
-  uint64_t fid;
-  printSubcommand->add_option("--fid", fid, "Specify the FileMD to print, through its ID (decimal form)");
+  uint64_t fid = 0;
+
+  auto idGroup = printSubcommand->add_option_group("ID", "Specify what to print");
+  idGroup->add_option("--fid", fid, "Specify the FileMD to print, through its ID (decimal form)");
+  idGroup->add_option("--cid", cid, "Specify the ContainerMD to print, through its ID (decimal form)");
+  idGroup->require_option(1, 1);
 
   //----------------------------------------------------------------------------
   // Change fid protobuf properties
@@ -237,7 +255,11 @@ int main(int argc, char* argv[]) {
   }
 
   if(printSubcommand->parsed()) {
-    return inspector.printFileMD(fid, std::cout, std::cerr);
+    if(fid > 0) {
+      return inspector.printFileMD(fid, std::cout, std::cerr);
+    }
+
+    return inspector.printContainerMD(cid, std::cout, std::cerr);
   }
 
   if(scanDirsSubcommand->parsed()) {

@@ -41,6 +41,11 @@ public:
   static std::string printMultiline(const eos::ns::FileMdProto &proto);
 
   //----------------------------------------------------------------------------
+  //! Print the given ContainerMd protobuf using multiple lines, full information
+  //----------------------------------------------------------------------------
+  static void printMultiline(const eos::ns::ContainerMdProto &proto, std::ostream &stream);
+
+  //----------------------------------------------------------------------------
   //! timespec to fileinfo: Convert a timespec into
   //! "Wed Nov 11 15:38:31 2015 Timestamp: 1447252711.38412918"
   //----------------------------------------------------------------------------
