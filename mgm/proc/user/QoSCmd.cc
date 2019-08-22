@@ -246,44 +246,17 @@ void QoSCmd::SetSubcmd(const eos::console::QoSProto_SetProto& set,
     return;
   }
 
-  int layout = -1;
-  int checksum = -1;
-  int nstripes = -1;
-  std::string policy = "";
-
-  for (const auto& pair: set.pair()) {
-    const auto& key = pair.key();
-    const auto& value = pair.value();
-
-    if (!IsValidPair(key, value)) {
-      err << "warning: invalid QoS property "
-          << key << "=" << value << std::endl;
-      continue;
-    }
-
-    // Extract new layout components
-    if (key == "layout") {
-      layout = LayoutId::GetLayoutFromString(value);
-    } else if (key == "replica") {
-      nstripes = std::stoi(value);
-    } else if (key == "checksum") {
-      checksum = LayoutId::GetChecksumFromString(value);
-    } else if (key == "placement") {
-      policy = value;
-    }
-  }
-
-  if ((layout == -1) && (checksum == -1) &&
-      (nstripes == -1) && (policy.empty())) {
-    reply.set_std_err("error: no valid QoS properties found");
+  if (!gOFS->mQoSClassMap.count(set.classname())) {
+    reply.set_std_err(SSTR("error: unrecognized QoS class name '"
+                             << set.classname() << "'"));
     reply.set_retc(EINVAL);
     return;
   }
 
+  auto qos = gOFS->mQoSClassMap.at(set.classname());
   std::string conversion_id = "";
 
-  if (gOFS->_qos_set(spath.c_str(), errInfo, mVid, conversion_id,
-                     layout, nstripes, checksum, policy)) {
+  if (gOFS->_qos_set(spath.c_str(), errInfo, mVid, qos, conversion_id)) {
     err << "error: " << errInfo.getErrText() << std::endl;
     retc = errInfo.getErrInfo();
   }
@@ -300,25 +273,6 @@ void QoSCmd::SetSubcmd(const eos::console::QoSProto_SetProto& set,
   reply.set_retc(retc);
   reply.set_std_out(out.str());
   reply.set_std_err(err.str());
-}
-
-//----------------------------------------------------------------------------
-// Check the given <key>=<value> is a valid QoS property.
-//----------------------------------------------------------------------------
-bool QoSCmd::IsValidPair(const std::string& key, const std::string& value)
-{
-  if (key == "placement") {
-    return Scheduler::PlctPolicyFromString(value) != -1;
-  } else if (key == "layout") {
-    return eos::common::LayoutId::GetLayoutFromString(value) != -1;
-  } else if (key == "checksum") {
-    return eos::common::LayoutId::GetChecksumFromString(value) != -1;
-  } else if (key == "replica") {
-    int number = std::stoi(value);
-    return (number >= 1 && number <= 16);
-  }
-
-  return false;
 }
 
 //------------------------------------------------------------------------------
