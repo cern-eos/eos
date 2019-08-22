@@ -350,7 +350,7 @@ Storage::Communicator(ThreadAssistant& assistant)
         if (queue == Config::gConfig.getFstNodeConfigQueue("communicator", false)) {
           processIncomingFstConfigurationChange(key.c_str());
         } else {
-          mFsMutex.LockRead();
+          eos::common::RWMutexWriteLock fsMutexLock(mFsMutex);
 
           auto targetFsIt = mQueue2FsMap.find(queue.c_str());
           fst::FileSystem *targetFs = nullptr;
@@ -368,13 +368,9 @@ Storage::Communicator(ThreadAssistant& assistant)
                 unsigned int fsid = hash->GetUInt(key.c_str());
                 gOFS.ObjectManager.HashMutex.UnLockRead();
 
-                mFsMutex.UnLockRead();
-                mFsMutex.LockWrite();
                 // setup the reverse lookup by id
                 mFileSystemsMap[fsid] = targetFs;
                 eos_static_info("setting reverse lookup for fsid %u", fsid);
-                mFsMutex.UnLockWrite();
-                mFsMutex.LockRead();
 
                 // check if we are autobooting
                 if (eos::fst::Config::gConfig.autoBoot &&
@@ -425,8 +421,6 @@ Storage::Communicator(ThreadAssistant& assistant)
                            "existing for modification %s;%s",
                            queue.c_str(), key.c_str());
           }
-
-          mFsMutex.UnLockRead();
         }
 
         gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
