@@ -238,8 +238,7 @@ private:
 
   void processIncomingFstConfigurationChange(const std::string &key);
   void processIncomingFstConfigurationChange(const std::string &key, const std::string &value);
-
-  void processIncomingFsConfigurationChange(const std::string &queuepath, const std::string &key, const std::string &value);
+  void processIncomingFsConfigurationChange(const std::string &queue, const std::string &key);
 
   void Scrub();
   void Trim();
