@@ -174,7 +174,7 @@ int Inspector::overwriteContainerMD(uint64_t id, uint64_t parentId, const std::s
   val.set_name(name);
 
   QuarkContainerMD containerMD;
-  containerMD.initialize(std::move(val), {}, {} );
+  containerMD.initialize(std::move(val), IContainerMD::FileMap(), IContainerMD::ContainerMap() );
   RedisRequest req = RequestBuilder::writeContainerProto(&containerMD);
 
   out << "---- SENDING THE FOLLOWING REQUEST TO QDB:" << std::endl;
