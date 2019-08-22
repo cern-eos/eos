@@ -189,6 +189,7 @@ ScanDir::SetConfig(const std::string& key, long long value)
 void
 ScanDir::RunNsScan(ThreadAssistant& assistant) noexcept
 {
+  using namespace std::chrono;
   using eos::common::FileId;
   eos_info("%s", "msg=\"started the ns scan thread\"");
 
@@ -207,10 +208,15 @@ ScanDir::RunNsScan(ThreadAssistant& assistant) noexcept
     }
   }
 
+  // Get a random smearing and avoid that all start at the same time
+  size_t sleep_sec = (1.0 * mNsIntervalSec * random() / RAND_MAX);
+  eos_info("msg=\"delay ns scan thread by %llu seconds\"", sleep_sec);
+  assistant.wait_for(seconds(sleep_sec));
+
   while (!assistant.terminationRequested()) {
     AccountMissing();
     CleanupUnlinked();
-    // @todo(esindril) run this every x days/weeks
+    assistant.wait_for(seconds(mNsIntervalSec));
   }
 }
 
@@ -223,6 +229,7 @@ ScanDir::AccountMissing()
   using eos::common::FileId;
   struct stat info;
   auto fids = CollectNsFids(eos::fsview::sFilesSuffix);
+  eos_info("msg=\"scanning %llu attached namespace entries\"", fids.size());
 
   while (!fids.empty()) {
     // Tag any missing replicas
@@ -268,6 +275,8 @@ ScanDir::CleanupUnlinked()
   using eos::common::FileId;
   // Loop over the unlinked files and force unlink them if too old
   auto unlinked_fids = CollectNsFids(eos::fsview::sUnlinkedSuffix);
+  eos_info("msg=\"scanning %llu unlinked namespace entries\"",
+           unlinked_fids.size());
 
   while (!unlinked_fids.empty()) {
     eos::IFileMD::id_t fid = unlinked_fids.front();
@@ -381,7 +390,7 @@ ScanDir::CollectNsFids(const std::string& type) const
   }
 
   std::ostringstream oss;
-  oss << eos::fsview::sPrefix << mFsId << type;
+  oss << eos::fsview::sPrefix << mFsId << ":" << type;
   const std::string key = oss.str();
   qclient::QSet qset(*gOFS.mFsckQcl.get(), key);
 
