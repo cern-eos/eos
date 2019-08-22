@@ -59,38 +59,58 @@ Storage::getFSTConfigValue(const std::string &key, unsigned long long &value) {
 }
 
 //------------------------------------------------------------------------------
-// Process incoming configuration change
+// Register a filesystem based on the given queuepath
 //------------------------------------------------------------------------------
 void
-Storage::processIncomingFstConfigurationChange(const std::string &key) {
-  std::string tmpValue;
+Storage::registerFilesystem(const std::string &queuepath) {
+  eos::common::RWMutexWriteLock lock(mFsMutex);
 
-  if(!getFSTConfigValue(key.c_str(), tmpValue)) {
+  if(mQueue2FsMap.count(queuepath) != 0) {
+    // fs is already registered
     return;
   }
 
+  common::FileSystemLocator locator;
+  if(!common::FileSystemLocator::fromQueuePath(queuepath, locator)) {
+    eos_static_crit("Unable to parse queuepath: %s", queuepath.c_str());
+    return;
+  }
+
+  FileSystem* fs = new FileSystem(locator, &gOFS.ObjectManager, gOFS.mQSOM.get());
+  mQueue2FsMap[queuepath] = fs;
+  mFsVect.push_back(fs);
+  mFileSystemsMap[fs->GetId()] = fs;
+  eos_static_info("setting up filesystem %s", queuepath.c_str());
+  fs->SetStatus(eos::common::BootStatus::kDown);
+}
+
+//------------------------------------------------------------------------------
+// Process incoming configuration change
+//------------------------------------------------------------------------------
+void
+Storage::processIncomingFstConfigurationChange(const std::string &key, const std::string &value) {
   if (key == "symkey") {
-    eos_static_info("symkey=%s", tmpValue.c_str());
-    eos::common::gSymKeyStore.SetKey64(tmpValue.c_str(), 0);
+    eos_static_info("symkey=%s", value.c_str());
+    eos::common::gSymKeyStore.SetKey64(value.c_str(), 0);
     return;
   }
 
   if (key == "manager") {
-    eos_static_info("manager=%s", tmpValue.c_str());
+    eos_static_info("manager=%s", value.c_str());
     XrdSysMutexHelper lock(Config::gConfig.Mutex);
-    Config::gConfig.Manager = tmpValue.c_str();
+    Config::gConfig.Manager = value.c_str();
     return;
   }
 
   if (key == "publish.interval") {
-    eos_static_info("publish.interval=%s", tmpValue.c_str());
+    eos_static_info("publish.interval=%s", value.c_str());
     XrdSysMutexHelper lock(Config::gConfig.Mutex);
-    Config::gConfig.PublishInterval = atoi(tmpValue.c_str());
+    Config::gConfig.PublishInterval = atoi(value.c_str());
     return;
   }
 
   if (key == "debug.level") {
-    std::string debuglevel = tmpValue;
+    std::string debuglevel = value;
     eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
     int debugval = g_logging.GetPriorityByString(debuglevel.c_str());
 
@@ -111,16 +131,15 @@ Storage::processIncomingFstConfigurationChange(const std::string &key) {
 
   // creation/deletion of gateway transfer queue
   if (key == "txgw") {
-    std::string gw = tmpValue;
-    eos_static_info("txgw=%s", gw.c_str());
+    eos_static_info("txgw=%s", value.c_str());
 
-    if (gw == "off") {
+    if (value == "off") {
       // just stop the multiplexer
       mGwMultiplexer.Stop();
       eos_static_info("Stopping transfer multiplexer");
     }
 
-    if (gw == "on") {
+    if (value == "on") {
       mGwMultiplexer.Run();
       eos_static_info("Starting transfer multiplexer");
     }
@@ -130,7 +149,7 @@ Storage::processIncomingFstConfigurationChange(const std::string &key) {
 
   if (key == "gw.rate") {
     // modify the rate settings of the gw multiplexer
-    std::string rate = tmpValue;
+    std::string rate = value;
     eos_static_info("cmd=set gw.rate=%s", rate.c_str());
     mGwMultiplexer.SetBandwidth(atoi(rate.c_str()));
     return;
@@ -138,21 +157,40 @@ Storage::processIncomingFstConfigurationChange(const std::string &key) {
 
   if (key == "gw.ntx") {
     // modify the parallel transfer settings of the gw multiplexer
-    std::string ntx = tmpValue;
+    std::string ntx = value;
     eos_static_info("cmd=set gw.ntx=%s", ntx.c_str());
     mGwMultiplexer.SetSlots(atoi(ntx.c_str()));
     return;
   }
 
   if (key == "error.simulation") {
-    std::string value = tmpValue;
-    eos_static_info("cmd=set error.simulation=%s", tmpValue.c_str());
-    gOFS.SetSimulationError(tmpValue.c_str());
+    eos_static_info("cmd=set error.simulation=%s", value.c_str());
+    gOFS.SetSimulationError(value.c_str());
+    return;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Process incoming FST-level configuration change
+//------------------------------------------------------------------------------
+void
+Storage::processIncomingFstConfigurationChange(const std::string &key) {
+  std::string value;
+
+  if(!getFSTConfigValue(key.c_str(), value)) {
     return;
   }
 
+  processIncomingFstConfigurationChange(key, value);
 }
 
+//------------------------------------------------------------------------------
+// Process incoming filesystem-level configuration change
+//------------------------------------------------------------------------------
+void
+Storage::processIncomingFsConfigurationChange(const std::string &queuepath, const std::string &key, const std::string &value) {
+  // TODO
+}
 
 //------------------------------------------------------------------------------
 // Communicator
@@ -267,24 +305,7 @@ Storage::Communicator(ThreadAssistant& assistant)
                           event.mSubject.c_str(), Config::gConfig.FstQueue.c_str());
         }
 
-        eos::common::RWMutexWriteLock lock(mFsMutex);
-        FileSystem* fs = 0;
-
-        if (!(mQueue2FsMap.count(queue.c_str()))) {
-
-          common::FileSystemLocator locator;
-          if(!common::FileSystemLocator::fromQueuePath(queue.c_str(), locator)) {
-            eos_static_crit("Unable to parse queuepath: %s", queue.c_str());
-            continue;
-          }
-
-          fs = new FileSystem(locator, &gOFS.ObjectManager, gOFS.mQSOM.get());
-          mQueue2FsMap[queue.c_str()] = fs;
-          mFsVect.push_back(fs);
-          mFileSystemsMap[fs->GetId()] = fs;
-          eos_static_info("setting up filesystem %s", queue.c_str());
-          fs->SetStatus(eos::common::BootStatus::kDown);
-        }
+        registerFilesystem(queue.c_str());
 
         gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
         continue;
@@ -328,8 +349,6 @@ Storage::Communicator(ThreadAssistant& assistant)
 
         if (queue == Config::gConfig.getFstNodeConfigQueue("communicator", false)) {
           processIncomingFstConfigurationChange(key.c_str());
-
-
         } else {
           mFsMutex.LockRead();
 
