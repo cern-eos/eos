@@ -352,7 +352,12 @@ Storage::Communicator(ThreadAssistant& assistant)
         } else {
           mFsMutex.LockRead();
 
-          if ((mQueue2FsMap.count(queue.c_str()))) {
+          auto targetFsIt = mQueue2FsMap.find(queue.c_str());
+          fst::FileSystem *targetFs = nullptr;
+          if(targetFsIt != mQueue2FsMap.end()) targetFs = targetFsIt->second;
+
+          if (targetFsIt != mQueue2FsMap.end() && targetFs) {
+
             eos_static_info("got modification on <subqueue>=%s <key>=%s", queue.c_str(),
                             key.c_str());
             gOFS.ObjectManager.HashMutex.LockRead();
@@ -363,66 +368,51 @@ Storage::Communicator(ThreadAssistant& assistant)
                 unsigned int fsid = hash->GetUInt(key.c_str());
                 gOFS.ObjectManager.HashMutex.UnLockRead();
 
-                if ((!mFileSystemsMap.count(fsid)) ||
-                    (mFileSystemsMap[fsid] != mQueue2FsMap[queue.c_str()])) {
-                  mFsMutex.UnLockRead();
-                  mFsMutex.LockWrite();
-                  // setup the reverse lookup by id
-                  mFileSystemsMap[fsid] = mQueue2FsMap[queue.c_str()];
-                  eos_static_info("setting reverse lookup for fsid %u", fsid);
-                  mFsMutex.UnLockWrite();
-                  mFsMutex.LockRead();
-                }
+                mFsMutex.UnLockRead();
+                mFsMutex.LockWrite();
+                // setup the reverse lookup by id
+                mFileSystemsMap[fsid] = targetFs;
+                eos_static_info("setting reverse lookup for fsid %u", fsid);
+                mFsMutex.UnLockWrite();
+                mFsMutex.LockRead();
 
                 // check if we are autobooting
                 if (eos::fst::Config::gConfig.autoBoot &&
-                    (mQueue2FsMap[queue.c_str()]->GetStatus() <= eos::common::BootStatus::kDown) &&
-                    (mQueue2FsMap[queue.c_str()]->GetConfigStatus() >
-                     eos::common::ConfigStatus::kOff)) {
+                    (targetFs->GetStatus() <= eos::common::BootStatus::kDown) &&
+                    (targetFs->GetConfigStatus() > eos::common::ConfigStatus::kOff)) {
                   // start a boot thread
-                  RunBootThread(mQueue2FsMap[queue.c_str()]);
+                  RunBootThread(targetFs);
                 }
               } else {
                 gOFS.ObjectManager.HashMutex.UnLockRead();
 
                 if (key == "bootsenttime") {
                   // Request to (re-)boot a filesystem
-                  if (mQueue2FsMap.count(queue.c_str())) {
-                    if ((mQueue2FsMap[queue.c_str()]->GetInternalBootStatus() ==
-                         eos::common::BootStatus::kBooted)) {
-                      if (mQueue2FsMap[queue.c_str()]->GetLongLong("bootcheck")) {
-                        eos_static_info("queue=%s status=%d check=%lld msg='boot enforced'",
-                                        queue.c_str(), mQueue2FsMap[queue.c_str()]->GetStatus(),
-                                        mQueue2FsMap[queue.c_str()]->GetLongLong("bootcheck"));
-                        RunBootThread(mQueue2FsMap[queue.c_str()]);
-                      } else {
-                        eos_static_info("queue=%s status=%d check=%lld msg='skip boot - we are already booted'",
-                                        queue.c_str(), mQueue2FsMap[queue.c_str()]->GetStatus(),
-                                        mQueue2FsMap[queue.c_str()]->GetLongLong("bootcheck"));
-                        mQueue2FsMap[queue.c_str()]->SetStatus(eos::common::BootStatus::kBooted);
-                      }
+                  if (targetFs->GetInternalBootStatus() == eos::common::BootStatus::kBooted) {
+                    if (targetFs->GetLongLong("bootcheck")) {
+                      eos_static_info("queue=%s status=%d check=%lld msg='boot enforced'",
+                                      queue.c_str(), targetFs->GetStatus(),
+                                      targetFs->GetLongLong("bootcheck"));
+                      RunBootThread(targetFs);
                     } else {
-                      eos_static_info("queue=%s status=%d check=%lld msg='booting - we are not booted yet'",
-                                      queue.c_str(), mQueue2FsMap[queue.c_str()]->GetStatus(),
-                                      mQueue2FsMap[queue.c_str()]->GetLongLong("bootcheck"));
-                      // start a boot thread;
-                      RunBootThread(mQueue2FsMap[queue.c_str()]);
+                      eos_static_info("queue=%s status=%d check=%lld msg='skip boot - we are already booted'",
+                                      queue.c_str(), targetFs->GetStatus(),
+                                      targetFs->GetLongLong("bootcheck"));
+                      targetFs->SetStatus(eos::common::BootStatus::kBooted);
                     }
                   } else {
-                    eos_static_err("got boot time update on not existant filesystem %s",
-                                   queue.c_str());
+                    eos_static_info("queue=%s status=%d check=%lld msg='booting - we are not booted yet'",
+                                    queue.c_str(), targetFs->GetStatus(),
+                                    targetFs->GetLongLong("bootcheck"));
+                    // start a boot thread;
+                    RunBootThread(targetFs);
                   }
                 } else {
                   if ((key == "scaninterval") || (key == "scanrate")) {
-                    auto it_fs = mQueue2FsMap.find(queue.c_str());
+                    long long value = targetFs->GetLongLong(key.c_str());
 
-                    if (it_fs != mQueue2FsMap.end()) {
-                      FileSystem* fs = it_fs->second;
-                      long long value = fs->GetLongLong(key.c_str());
-
-                      if (value > 0) {
-                        fs->ConfigScanner(&mFstLoad, key.c_str(), value);
-                      }
+                    if (value > 0) {
+                      targetFs->ConfigScanner(&mFstLoad, key.c_str(), value);
                     }
                   }
                 }
