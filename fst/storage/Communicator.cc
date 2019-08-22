@@ -192,75 +192,68 @@ Storage::processIncomingFsConfigurationChange(const std::string &queue, const st
   eos::common::RWMutexWriteLock fsMutexLock(mFsMutex);
 
   auto targetFsIt = mQueue2FsMap.find(queue.c_str());
-  fst::FileSystem *targetFs = nullptr;
-  if(targetFsIt != mQueue2FsMap.end()) targetFs = targetFsIt->second;
+  if(targetFsIt == mQueue2FsMap.end() || targetFsIt->second == nullptr) {
+    eos_static_err("illegal subject found - no filesystem object existing for modification %s;%s", queue.c_str(), key.c_str());
+    return;
+  }
 
-  if (targetFsIt != mQueue2FsMap.end() && targetFs) {
+  fst::FileSystem *targetFs = targetFsIt->second;
+  eos_static_info("got modification on <subqueue>=%s <key>=%s", queue.c_str(),
+    key.c_str());
 
-    eos_static_info("got modification on <subqueue>=%s <key>=%s", queue.c_str(),
-      key.c_str());
-    gOFS.ObjectManager.HashMutex.LockRead();
-    XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(), "hash");
+  eos::common::RWMutexReadLock hashMutexLock(gOFS.ObjectManager.HashMutex);
+  XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(), "hash");
 
-    if (hash) {
-      if (key == "id") {
-        unsigned int fsid = hash->GetUInt(key.c_str());
-        gOFS.ObjectManager.HashMutex.UnLockRead();
+  if(!hash) {
+    eos_static_err("Could not get shared hash for %s;%s", queue.c_str(), key.c_str());
+    return;
+  }
 
-                // setup the reverse lookup by id
-        mFileSystemsMap[fsid] = targetFs;
-        eos_static_info("setting reverse lookup for fsid %u", fsid);
+  std::string value = hash->Get(key);
+  hashMutexLock.Release();
 
-                // check if we are autobooting
-        if (eos::fst::Config::gConfig.autoBoot &&
-          (targetFs->GetStatus() <= eos::common::BootStatus::kDown) &&
-          (targetFs->GetConfigStatus() > eos::common::ConfigStatus::kOff)) {
-                  // start a boot thread
-          RunBootThread(targetFs);
+  if (key == "id") {
+    unsigned int fsid = atoi(value.c_str());
+
+    // setup the reverse lookup by id
+    mFileSystemsMap[fsid] = targetFs;
+    eos_static_info("setting reverse lookup for fsid %u", fsid);
+
+    // check if we are autobooting
+    if (eos::fst::Config::gConfig.autoBoot &&
+      (targetFs->GetStatus() <= eos::common::BootStatus::kDown) &&
+      (targetFs->GetConfigStatus() > eos::common::ConfigStatus::kOff)) {
+      // start a boot thread
+      RunBootThread(targetFs);
+    }
+  } else if (key == "bootsenttime") {
+    // Request to (re-)boot a filesystem
+    if (targetFs->GetInternalBootStatus() == eos::common::BootStatus::kBooted) {
+      if (targetFs->GetLongLong("bootcheck")) {
+        eos_static_info("queue=%s status=%d check=%lld msg='boot enforced'",
+          queue.c_str(), targetFs->GetStatus(),
+          targetFs->GetLongLong("bootcheck"));
+        RunBootThread(targetFs);
+      } else {
+        eos_static_info("queue=%s status=%d check=%lld msg='skip boot - we are already booted'",
+          queue.c_str(), targetFs->GetStatus(),
+          targetFs->GetLongLong("bootcheck"));
+        targetFs->SetStatus(eos::common::BootStatus::kBooted);
       }
     } else {
-      gOFS.ObjectManager.HashMutex.UnLockRead();
-
-      if (key == "bootsenttime") {
-                  // Request to (re-)boot a filesystem
-        if (targetFs->GetInternalBootStatus() == eos::common::BootStatus::kBooted) {
-          if (targetFs->GetLongLong("bootcheck")) {
-            eos_static_info("queue=%s status=%d check=%lld msg='boot enforced'",
-              queue.c_str(), targetFs->GetStatus(),
-              targetFs->GetLongLong("bootcheck"));
-            RunBootThread(targetFs);
-          } else {
-            eos_static_info("queue=%s status=%d check=%lld msg='skip boot - we are already booted'",
-              queue.c_str(), targetFs->GetStatus(),
-              targetFs->GetLongLong("bootcheck"));
-            targetFs->SetStatus(eos::common::BootStatus::kBooted);
-          }
-        } else {
-          eos_static_info("queue=%s status=%d check=%lld msg='booting - we are not booted yet'",
-            queue.c_str(), targetFs->GetStatus(),
-            targetFs->GetLongLong("bootcheck"));
-                    // start a boot thread;
-          RunBootThread(targetFs);
-        }
-      } else {
-        if ((key == "scaninterval") || (key == "scanrate")) {
-          long long value = targetFs->GetLongLong(key.c_str());
-
-          if (value > 0) {
-            targetFs->ConfigScanner(&mFstLoad, key.c_str(), value);
-          }
-        }
-      }
+        eos_static_info("queue=%s status=%d check=%lld msg='booting - we are not booted yet'",
+          queue.c_str(), targetFs->GetStatus(),
+          targetFs->GetLongLong("bootcheck"));
+      // start a boot thread;
+      RunBootThread(targetFs);
     }
-  } else {
-    gOFS.ObjectManager.HashMutex.UnLockRead();
-  }
-} else {
-  eos_static_err("illegal subject found - no filesystem object "
-   "existing for modification %s;%s",
-   queue.c_str(), key.c_str());
-}
+  } else if ((key == "scaninterval") || (key == "scanrate")) {
+    long long value = targetFs->GetLongLong(key.c_str());
 
+    if (value > 0) {
+      targetFs->ConfigScanner(&mFstLoad, key.c_str(), value);
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -377,7 +370,6 @@ Storage::Communicator(ThreadAssistant& assistant)
         }
 
         registerFilesystem(queue.c_str());
-
         gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
         continue;
       }
@@ -415,8 +407,6 @@ Storage::Communicator(ThreadAssistant& assistant)
           key.erase(0, dpos + 1);
           queue.erase(dpos);
         }
-
-        std::string tmpValue;
 
         if (queue == Config::gConfig.getFstNodeConfigQueue("communicator", false)) {
           processIncomingFstConfigurationChange(key.c_str());
