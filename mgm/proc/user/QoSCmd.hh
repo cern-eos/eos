@@ -94,16 +94,6 @@ private:
                  bool jsonOutput = false);
 
   //----------------------------------------------------------------------------
-  //! Check the given <key>=<value> is a valid QoS property
-  //!
-  //! @param key QoS key
-  //! @param value QoS value
-  //!
-  //! @return true if pair is valid, false otherwise
-  //----------------------------------------------------------------------------
-  bool IsValidPair(const std::string& key, const std::string& value);
-
-  //----------------------------------------------------------------------------
   //! Translate the proto identifier into a namespace path
   //!
   //! @param identifier identifier proto object
