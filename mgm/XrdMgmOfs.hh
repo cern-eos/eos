@@ -975,19 +975,15 @@ public:
   //! @param path the entry path
   //! @param out_error error object
   //! @param vid virtual identity of the client
+  //! @param qos desired QoS class
   //! @param conversion_id will hold the name of the conversion file
-  //! @param layout desired layout type
-  //! @param nstripes desired number of stripes
-  //! @param checksum desired checkum type
-  //! @param policy desired placement policy
   //!
   //! @return SFS_OK if success, otherwise SFS_ERROR
   //----------------------------------------------------------------------------
   int _qos_set(const char* path, XrdOucErrInfo& out_error,
                eos::common::VirtualIdentity& vid,
-               std::string& conversion_id,
-               int layout = -1, int nstripes = -1,
-               int checksum = -1, std::string policy = "");
+               const eos::mgm::QoSClass& qos,
+               std::string& conversion_id);
 
   // ---------------------------------------------------------------------------
   // drop stripe by vid

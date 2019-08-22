@@ -238,6 +238,30 @@ namespace
   std::string QoSGetter::Size()  const {
     return std::to_string(fmd->getSize());
   }
+
+  //----------------------------------------------------------------------------
+  //! Helper function to check the given <key>=<value> is a valid QoS property
+  //!
+  //! @param key QoS key
+  //! @param value QoS value
+  //!
+  //! @return true if pair is valid, false otherwise
+  //----------------------------------------------------------------------------
+  bool IsValidQoSProperty(const std::string& key, const std::string& value)
+  {
+    if (key == "placement") {
+      return Scheduler::PlctPolicyFromString(value) != -1;
+    } else if (key == "layout") {
+      return eos::common::LayoutId::GetLayoutFromString(value) != -1;
+    } else if (key == "checksum") {
+      return eos::common::LayoutId::GetChecksumFromString(value) != -1;
+    } else if (key == "replica") {
+      int number = std::stoi(value);
+      return (number >= 1 && number <= 16);
+    }
+
+    return false;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -337,9 +361,8 @@ XrdMgmOfs::_qos_get(const char* path, XrdOucErrInfo& error,
 int
 XrdMgmOfs::_qos_set(const char* path, XrdOucErrInfo& error,
                     eos::common::VirtualIdentity& vid,
-                    std::string& conversion_id,
-                    int layout, int nstripes,
-                    int checksum, std::string policy)
+                    const eos::mgm::QoSClass& qos,
+                    std::string& conversion_id)
 {
   using eos::common::LayoutId;
   static const char* epname = "qos_set";
@@ -347,9 +370,18 @@ XrdMgmOfs::_qos_set(const char* path, XrdOucErrInfo& error,
   gOFS->MgmStats.Add("QoSSet", vid.uid, vid.gid, 1);
   errno = 0;
 
-  eos_info("msg=\"set QoS - initial values\" path=%s layout=%d nstripes=%d "
-           "checksum=%d policy=%s", path, layout, nstripes,
-           checksum, policy.c_str());
+  eos_info("msg=\"set QoS class\" path=%s qos_class=%s",
+           path, qos.name.c_str());
+
+  // Validate QoS class properties
+  for (const auto& it: qos.attributes) {
+    if (!IsValidQoSProperty(it.first, it.second)) {
+      eos_static_err("msg=\"invalid QoS property %s=%s\"",
+                     it.first.c_str(), it.second.c_str());
+      return Emsg(epname, error, EINVAL,
+                  "set QoS class due to invalid fields", it.first.c_str());
+    }
+  }
 
   std::shared_ptr<eos::IFileMD> fmd = 0;
   eos::common::FileId::fileid_t fileid = 0;
@@ -389,11 +421,16 @@ XrdMgmOfs::_qos_set(const char* path, XrdOucErrInfo& error,
     return Emsg(epname, error, errno, "retrieve file metadata", path);
   }
 
+  // Abort if current QoS is same as target QoS
+  if (QoSGetter{fmd}.Get("current_qos") == qos.name) {
+    return Emsg(epname, error, EINVAL,
+                "set QoS class identical with current class", path);
+  }
+
   // Extract current scheduling space
   std::string space = "";
-
   {
-    eos::common::RWMutexReadLock rlock(FsView::gFsView.ViewMutex);
+    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
     auto filesystem = FsView::gFsView.mIdView.lookupByID(fsid);
 
     if (!filesystem) {
@@ -407,12 +444,29 @@ XrdMgmOfs::_qos_set(const char* path, XrdOucErrInfo& error,
     }
   }
 
-  layout = (layout != -1) ? layout : current_layout;
-  nstripes = (nstripes != -1) ? nstripes : current_nstripes;
-  checksum = (checksum != -1) ? checksum : current_checksumid;
+  // Extract new layout components from QoS class
+  int layout = -1;
+  int checksumid = -1;
+  int nstripes = -1;
+  std::string policy = "";
+
+  for (const auto& it: qos.attributes) {
+    if (it.first == "layout") {
+      layout = LayoutId::GetLayoutFromString(it.second);
+    } else if (it.first == "replica") {
+      nstripes = std::stoi(it.second);
+    } else if (it.first == "checksum") {
+      checksumid = LayoutId::GetChecksumFromString(it.second);
+    } else if (it.first == "placement") {
+      policy = it.second;
+    }
+  }
 
   // Generate layout id
-  layoutid = LayoutId::GetId(layout, checksum, nstripes,
+  layout = (layout != -1) ? layout : current_layout;
+  nstripes = (nstripes != -1) ? nstripes : current_nstripes;
+  checksumid = (checksumid != -1) ? checksumid : current_checksumid;
+  layoutid = LayoutId::GetId(layout, checksumid, nstripes,
                              LayoutId::k4M, LayoutId::kCRC32C,
                              LayoutId::GetRedundancyStripeNumber(layoutid));
 
@@ -423,10 +477,10 @@ XrdMgmOfs::_qos_set(const char* path, XrdOucErrInfo& error,
     << "#" << std::setw(8) << std::setfill('0') << layoutid
     << (policy.length() ? ("~" + policy) : ""));
 
-  eos_info("msg=\"set QoS - final values\" path=%s layout=%d nstripes=%d "
-           "checksum=%d policy=%s space=%s conversion_file=%s",
-           path, layout, nstripes, checksum, policy.c_str(),
-           space.c_str(), conversion_id.c_str());
+  eos_info("msg=\"set QoS class - scheduling conversion job\" path=%s "
+           "layout=%d nstripes=%d checksum=%d policy=%s space=%s "
+           "conversion_file=%s", path, layout, nstripes, checksumid,
+           policy.c_str(), space.c_str(), conversion_id.c_str());
 
   // Create conversion job
   std::string conversion_file = SSTR(
@@ -438,7 +492,20 @@ XrdMgmOfs::_qos_set(const char* path, XrdOucErrInfo& error,
                 conversion_id.c_str());
   }
 
-  EXEC_TIMING_END("QoSGet");
+  // Add the target QoS attribute
+  try {
+    eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
+    fmd = gOFS->eosView->getFile(path);
+    fmd->setAttribute("user.eos.qos.target", qos.name);
+    eosView->updateFileStore(fmd.get());
+  } catch (eos::MDException& e) {
+    errno = e.getErrno();
+    eos_debug("msg=\"exception setting extended attributes\" path=%s "
+              "ec=%d emsg=\"%s\"", path, e.getErrno(),
+              e.getMessage().str().c_str());
+  }
+
+  EXEC_TIMING_END("QoSSet");
 
   if (errno) {
     return Emsg(epname, error, errno, "set QoS properties", path);
