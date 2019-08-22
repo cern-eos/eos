@@ -246,6 +246,12 @@ void QoSCmd::SetSubcmd(const eos::console::QoSProto_SetProto& set,
     return;
   }
 
+  if (!gOFS->MgmQoSEnabled) {
+    reply.set_std_err("error: QoS support is disabled");
+    reply.set_retc(ENOTSUP);
+    return;
+  }
+
   if (!gOFS->mQoSClassMap.count(set.classname())) {
     reply.set_std_err(SSTR("error: unrecognized QoS class name '"
                              << set.classname() << "'"));
