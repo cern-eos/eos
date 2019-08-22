@@ -129,17 +129,20 @@ void com_fs_help()
       << "    headroom=<size>" << std::endl
       << "      headroom to keep per filesystem. <size> can be (>0)[BMGT]"
       << std::endl
-      << "    scaninterval=<seconds>" << std::endl
-      << "      configure a scanner thread to recheck the file & block checksum"
-      << std::endl
-      << "      of all stored files every <seconds>. 0 disables scanning"
+      << "    scaninterval=<seconds>\n"
+      << "      entry rescan interval (default 7 days), 0 disables scanning"
       << std::endl
       << "    scanrate=<MB/s>" << std::endl
-      << "      maximum IO scan rate"
+      << "      maximum IO scan rate per filesystem"
       << std::endl
-      << "    scanratens=<entries/s>" << std::endl
-      << "      maximum scan rate of ns entries for the NS consistency. This"
+      << "    scan_disk_interval=<seconds>\n"
+      << "      disk consistency thread scan interval (default 4h)"
       << std::endl
+      << "    scan_ns_interval=<seconds>\n"
+      << "      namespace consistency thread scan interval (default 3 days)"
+      << std::endl
+      << "    scan_ns_rate=<entries/s>\n"
+      << "      maximum scan rate of ns entries for the NS consistency. This\n"
       << "      is bound by the maxium number of IOPS per disk."
       << std::endl
       << "    graceperiod=<seconds>" << std::endl
