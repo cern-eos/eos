@@ -62,16 +62,18 @@ Storage::getFSTConfigValue(const std::string& key, unsigned long long& value)
 // Register a filesystem based on the given queuepath
 //------------------------------------------------------------------------------
 void
-Storage::registerFilesystem(const std::string &queuepath) {
+Storage::registerFilesystem(const std::string& queuepath)
+{
   eos::common::RWMutexWriteLock lock(mFsMutex);
 
-  if(mQueue2FsMap.count(queuepath) != 0) {
+  if (mQueue2FsMap.count(queuepath) != 0) {
     // fs is already registered
     return;
   }
 
   common::FileSystemLocator locator;
-  if(!common::FileSystemLocator::fromQueuePath(queuepath, locator)) {
+
+  if (!common::FileSystemLocator::fromQueuePath(queuepath, locator)) {
     eos_static_crit("Unable to parse queuepath: %s", queuepath.c_str());
     return;
   }
@@ -177,10 +179,11 @@ Storage::processIncomingFstConfigurationChange(const std::string &key, const std
 // Process incoming FST-level configuration change
 //------------------------------------------------------------------------------
 void
-Storage::processIncomingFstConfigurationChange(const std::string &key) {
+Storage::processIncomingFstConfigurationChange(const std::string& key)
+{
   std::string value;
 
-  if(!getFSTConfigValue(key.c_str(), value)) {
+  if (!getFSTConfigValue(key.c_str(), value)) {
     return;
   }
 
@@ -196,15 +199,14 @@ void
 Storage::processIncomingFsConfigurationChange(fst::FileSystem *targetFs, const std::string &queue, const std::string &key, const std::string &value) {
   if (key == "id") {
     unsigned int fsid = atoi(value.c_str());
-
     // setup the reverse lookup by id
     mFileSystemsMap[fsid] = targetFs;
     eos_static_info("setting reverse lookup for fsid %u", fsid);
 
     // check if we are autobooting
     if (eos::fst::Config::gConfig.autoBoot &&
-      (targetFs->GetStatus() <= eos::common::BootStatus::kDown) &&
-      (targetFs->GetConfigStatus() > eos::common::ConfigStatus::kOff)) {
+        (targetFs->GetStatus() <= eos::common::BootStatus::kDown) &&
+        (targetFs->GetConfigStatus() > eos::common::ConfigStatus::kOff)) {
       // start a boot thread
       RunBootThread(targetFs);
     }
@@ -213,8 +215,8 @@ Storage::processIncomingFsConfigurationChange(fst::FileSystem *targetFs, const s
     if (targetFs->GetInternalBootStatus() == eos::common::BootStatus::kBooted) {
       if (targetFs->GetLongLong("bootcheck")) {
         eos_static_info("queue=%s status=%d check=%lld msg='boot enforced'",
-          queue.c_str(), targetFs->GetStatus(),
-          targetFs->GetLongLong("bootcheck"));
+                        queue.c_str(), targetFs->GetStatus(),
+                        targetFs->GetLongLong("bootcheck"));
         RunBootThread(targetFs);
       } else {
         eos_static_info("queue=%s status=%d check=%lld msg='skip boot - we are already booted'",
@@ -237,7 +239,7 @@ Storage::processIncomingFsConfigurationChange(fst::FileSystem *targetFs, const s
         (key == eos::common::SCAN_NS_RATE_NAME)) {
       long long value = targetFs->GetLongLong(key.c_str());
 
-      if (value > 0) {
+      if (value >= 0) {
         targetFs->ConfigScanner(&mFstLoad, key.c_str(), value);
       }
     }
