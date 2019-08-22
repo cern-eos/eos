@@ -186,32 +186,11 @@ Storage::processIncomingFstConfigurationChange(const std::string &key) {
 
 //------------------------------------------------------------------------------
 // Process incoming filesystem-level configuration change
+//
+// Requires mFsMutex to be write-locked.
 //------------------------------------------------------------------------------
 void
-Storage::processIncomingFsConfigurationChange(const std::string &queue, const std::string &key) {
-  eos::common::RWMutexWriteLock fsMutexLock(mFsMutex);
-
-  auto targetFsIt = mQueue2FsMap.find(queue.c_str());
-  if(targetFsIt == mQueue2FsMap.end() || targetFsIt->second == nullptr) {
-    eos_static_err("illegal subject found - no filesystem object existing for modification %s;%s", queue.c_str(), key.c_str());
-    return;
-  }
-
-  fst::FileSystem *targetFs = targetFsIt->second;
-  eos_static_info("got modification on <subqueue>=%s <key>=%s", queue.c_str(),
-    key.c_str());
-
-  eos::common::RWMutexReadLock hashMutexLock(gOFS.ObjectManager.HashMutex);
-  XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(), "hash");
-
-  if(!hash) {
-    eos_static_err("Could not get shared hash for %s;%s", queue.c_str(), key.c_str());
-    return;
-  }
-
-  std::string value = hash->Get(key);
-  hashMutexLock.Release();
-
+Storage::processIncomingFsConfigurationChange(fst::FileSystem *targetFs, const std::string &queue, const std::string &key, const std::string &value) {
   if (key == "id") {
     unsigned int fsid = atoi(value.c_str());
 
@@ -254,6 +233,37 @@ Storage::processIncomingFsConfigurationChange(const std::string &queue, const st
       targetFs->ConfigScanner(&mFstLoad, key.c_str(), value);
     }
   }
+}
+
+//------------------------------------------------------------------------------
+// Process incoming filesystem-level configuration change
+//------------------------------------------------------------------------------
+void
+Storage::processIncomingFsConfigurationChange(const std::string &queue, const std::string &key) {
+  eos::common::RWMutexWriteLock fsMutexLock(mFsMutex);
+
+  auto targetFsIt = mQueue2FsMap.find(queue.c_str());
+  if(targetFsIt == mQueue2FsMap.end() || targetFsIt->second == nullptr) {
+    eos_static_err("illegal subject found - no filesystem object existing for modification %s;%s", queue.c_str(), key.c_str());
+    return;
+  }
+
+  fst::FileSystem *targetFs = targetFsIt->second;
+  eos_static_info("got modification on <subqueue>=%s <key>=%s", queue.c_str(),
+    key.c_str());
+
+  eos::common::RWMutexReadLock hashMutexLock(gOFS.ObjectManager.HashMutex);
+  XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(), "hash");
+
+  if(!hash) {
+    eos_static_err("Could not get shared hash for %s;%s", queue.c_str(), key.c_str());
+    return;
+  }
+
+  std::string value = hash->Get(key);
+  hashMutexLock.Release();
+
+  return processIncomingFsConfigurationChange(targetFs, queue, key, value);
 }
 
 //------------------------------------------------------------------------------

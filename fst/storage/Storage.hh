@@ -241,6 +241,9 @@ private:
 
   void processIncomingFsConfigurationChange(const std::string &queue, const std::string &key);
 
+  // requires mFsMutex write-locked
+  void processIncomingFsConfigurationChange(fst::FileSystem *targetFs, const std::string &queue, const std::string &key, const std::string &value);
+
   void Scrub();
   void Trim();
   void Remover();
