@@ -675,7 +675,6 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   }
   gOFS->MgmStats.Add("Prepare", vid.uid, vid.gid, 1);
   std::string cmd = "mgm.pcmd=event";
-  int retc = SFS_OK;
   std::list<std::pair<char**, char**>> pathsWithPrepare;
   // Initialise the request ID for the Prepare request to the one provided by XRootD
   XrdOucString reqid(pargs.reqid);
@@ -884,32 +883,21 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     args.Arg1Len = prep_path.length();
     args.Arg2 = prep_info.c_str();
     args.Arg2Len = prep_info.length();
-    auto ret_wfe = XrdMgmOfs::FSctl(SFS_FSCTL_PLUGIN, args,
-                                    error, &lClient);
-    std::string errMsg = "prepare - synchronous prepare workflow error";
+    auto ret_wfe = XrdMgmOfs::FSctl(SFS_FSCTL_PLUGIN, args, error, &lClient);
 
-    if (error.getErrTextLen()) {
-      // avoid to pass an error twice through ::Emsg but put the proper return code
-      if (ret_wfe != SFS_DATA) {
-        error.setErrCode(ret_wfe);
-        return SFS_ERROR;
-      }
-    }
-
+    // Log errors but continue to process the rest of the files in the list
     if (ret_wfe != SFS_DATA) {
-      retc = Emsg(epname, error, ret_wfe,
-                  errMsg.c_str(), prep_path.c_str());
+      Emsg(epname, error, ret_wfe, "prepare - synchronous prepare workflow error", prep_path.c_str());
     }
   }
 
+  int retc = SFS_OK;
 #if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
-
   // If we generated our own request ID, return it to the client
   if (gOFS->IsFileSystem2 && (pargs.opts & Prep_STAGE)) {
     error.setErrInfo(reqid.length() + 1, reqid.c_str());
     retc = SFS_DATA;
   }
-
 #endif
   EXEC_TIMING_END("Prepare");
   return retc;
