@@ -9,11 +9,6 @@ message QoSProto {
     }
   }
 
-  message KVPairProto {
-    string key = 1;
-    string value = 2;
-  }
-
   message ListProto {
     string classname = 1;
   }
@@ -25,7 +20,7 @@ message QoSProto {
 
   message SetProto {
     IdentifierProto identifier = 1;
-    repeated KVPairProto pair = 2;
+    string classname = 2;
   }
 
   oneof subcmd {

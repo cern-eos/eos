@@ -78,21 +78,6 @@ QoSHelper::ParseCommand(const char* arg)
     return identifier;
   };
 
-  // Lambda function to parse and set QoS <key>=<value> pair
-  auto parseKVPair = [](std::string token) {
-    eos::console::QoSProto_KVPairProto* pair = NULL;
-    size_t pos = token.find('=');
-
-    if ((pos != std::string::npos) &&
-        (pos > 0) && (pos < token.length() - 1)) {
-      pair = new eos::console::QoSProto_KVPairProto {};
-      pair->set_key(token.substr(0, pos));
-      pair->set_value(token.substr(pos + 1));
-    }
-
-    return pair;
-  };
-
   if (!tokenizer.NextToken(token)) {
     return false;
   }
@@ -126,21 +111,11 @@ QoSHelper::ParseCommand(const char* arg)
 
     set->set_allocated_identifier(parseIdentifier(path));
 
-    while (tokenizer.NextToken(token)) {
-      auto kvPair = parseKVPair(token);
-
-      if (kvPair == NULL) {
-        std::cerr << "error: invalid pair '" << token.c_str()
-                  << "'" << std::endl;
-        return false;
-      }
-
-      set->mutable_pair()->AddAllocated(kvPair);
-    }
-
-    if (set->pair_size() == 0) {
+    if (!tokenizer.NextToken(token)) {
       return false;
     }
+
+    set->set_classname(token);
   } else {
     return false;
   }
@@ -181,7 +156,7 @@ void com_qos_help()
       << "                                             If <name> is provided, list the properties of the given class" << std::endl
       << "       qos get <identifier> [<key>]        : get QoS property of item" << std::endl
       << "                                             If no <key> is provided, defaults to 'all'" << std::endl
-      << "       qos set <identifier> <key>=<value>  : set QoS property of item" << std::endl
+      << "       qos set <identifier> <class>        : set QoS class of item" << std::endl
       << std::endl
       << "Note: <identifier> = fid|fxid|path" << std::endl
       << "      Recognized `qos get` keys: all | cdmi | checksum | class | disksize |" << std::endl
