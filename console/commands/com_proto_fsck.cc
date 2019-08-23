@@ -78,7 +78,6 @@ void com_fsck_help()
       << "    report consistency check results, with the following options"
       << std::endl
       << "    -a         : break down statistics per file system" << std::endl
-      << "    -h         : display explanation for individual tags" << std::endl
       << "    -i         : display file identifiers" << std::endl
       << "    -l         : display logical file name" << std::endl
       << "    -j|--json  : display in JSON output format" << std::endl
@@ -126,13 +125,6 @@ void com_fsck_help()
       << "     replace-damaged-replicas : drop damaged replicas of a files and replace"
       << std::endl
       << "                                with healthy ones if possible"
-      << std::endl
-      << std::endl
-      << "  fsck search <path> [<num_expected_replicas>]" << std::endl
-      << "     do a forward FSCK scan from the namespace to the FSTs - this will report missing"
-      << std::endl
-      << "     files and show files which are lost - the search path needs to be restricted since"
-      << std::endl
-      << "     all the results stay in memory - don't use /eos/!" << std::endl;
+      << std::endl;
   std::cerr << oss.str() << std::endl;
 }

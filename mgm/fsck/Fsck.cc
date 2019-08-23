@@ -314,6 +314,8 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
       }
     }
 
+    // @todo(esindril) create struct for errors and use swap to collect them
+    // do that we avoid the iterator invalidation and the long locks
     eos::common::RWMutexReadLock rd_lock(mErrMutex);
 
     for (const auto& err_fs : eFsMap) {
@@ -356,7 +358,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
     eos_info("%s", "msg=\"loop in fsck repair thread\"");
   }
 
-  // Wait that there are not more jobs in the queue
+  // Wait that there are no more jobs in the queue
   while (mThreadPool.GetQueueSize()) {
     assistant.wait_for(std::chrono::seconds(1));
   }
@@ -380,9 +382,8 @@ Fsck::PrintOut(std::string& out) const
 bool
 Fsck::Report(std::string& out, const std::set<std::string> tags,
              bool display_per_fs,  bool display_fid, bool display_lfn,
-             bool display_json, bool display_help)
+             bool display_json)
 {
-  // @todo(esindril) add display_help info
   eos::common::RWMutexReadLock rd_lock(mErrMutex);
   char stimestamp[1024];
   snprintf(stimestamp, sizeof(stimestamp) - 1, "%lu", (unsigned long) eTimeStamp);
