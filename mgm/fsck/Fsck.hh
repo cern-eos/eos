@@ -107,13 +107,12 @@ public:
   //! @param display_fid if true then display file identifiers
   //! @param display_lfn if true then display logical file name
   //! @param display_json if true then dispaly info in json format
-  //! @param display_help if true then display help info about the tags
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool Report(std::string& output, const std::set<std::string> tags,
               bool display_per_fs,  bool display_fid, bool display_lfn,
-              bool display_json, bool display_help);
+              bool display_json);
 
   //----------------------------------------------------------------------------
   //! Method ot issue a repair action
@@ -209,7 +208,7 @@ private:
   eos::common::ThreadPool mThreadPool; ///< Thread pool for fsck repair jobs
   AssistedThread mRepairThread; ///< Thread repair jobs to the thread pool
   AssistedThread mCollectorThread; ///< Thread collecting errors
-  ///< Fids with repaired in the last hour
+  //! Fids repaired in the last hour
   IdTrackerWithValidity<eos::IFileMD::id_t> mIdTracker;
   std::shared_ptr<qclient::QClient> mQcl; ///< QClient object for metadata
 

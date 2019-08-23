@@ -47,14 +47,6 @@ FsckCmd::ProcessRequest() noexcept
     std::string output;
     gOFS->mFsckEngine->PrintOut(output);
     reply.set_std_out(std::move(output));
-  } else if (subcmd == eos::console::FsckProto::kConfig) {
-    const eos::console::FsckProto::ConfigProto& config = fsck.config();
-
-    if (!gOFS->mFsckEngine->Config(config.key(), config.value())) {
-      reply.set_retc(EINVAL);
-      reply.set_std_err(SSTR("error: failed to set " << config.key()
-                             << "=" << config.value()).c_str());
-    }
   } else if (subcmd == eos::console::FsckProto::kEnable) {
     const eos::console::FsckProto::EnableProto& enable = fsck.enable();
 
@@ -72,6 +64,14 @@ FsckCmd::ProcessRequest() noexcept
       reply.set_retc(EALREADY);
       reply.set_std_err("error: fsck already disabled");
     }
+  } else if (subcmd == eos::console::FsckProto::kConfig) {
+    const eos::console::FsckProto::ConfigProto& config = fsck.config();
+
+    if (!gOFS->mFsckEngine->Config(config.key(), config.value())) {
+      reply.set_retc(EINVAL);
+      reply.set_std_err(SSTR("error: failed to set " << config.key()
+                             << "=" << config.value()).c_str());
+    }
   } else if (subcmd == eos::console::FsckProto::kReport) {
     const eos::console::FsckProto::ReportProto& report = fsck.report();
     std::set<std::string> tags;
@@ -85,7 +85,7 @@ FsckCmd::ProcessRequest() noexcept
 
     if (gOFS->mFsckEngine->Report(out, tags, report.display_per_fs(),
                                   report.display_fid(), report.display_lfn(),
-                                  report.display_json(), report.display_help())) {
+                                  report.display_json())) {
       reply.set_std_out(out);
     } else {
       reply.set_retc(EINVAL);

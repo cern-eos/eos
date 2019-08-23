@@ -38,7 +38,9 @@ FsckHelper::ParseCommand(const char* arg)
   option = tokenizer.GetToken();
   std::string cmd = (option ? option : "");
 
-  if (cmd == "enable") {
+  if (cmd == "stat") {
+    fsck->set_stat(true);
+  } else if (cmd == "enable") {
     eos::console::FsckProto::EnableProto* enable = fsck->mutable_enable();
     enable->set_interval(0ul);
 
@@ -52,8 +54,6 @@ FsckHelper::ParseCommand(const char* arg)
     }
   } else if (cmd == "disable") {
     fsck->set_disable(true);
-  } else if (cmd == "stat") {
-    fsck->set_stat(true);
   } else if (cmd == "config") {
     if ((option = tokenizer.GetToken()) == nullptr) {
       return false;
@@ -88,8 +88,6 @@ FsckHelper::ParseCommand(const char* arg)
         report->set_display_lfn(true);
       } else if ((soption == "-j") || (soption == "--json")) {
         report->set_display_json(true);
-      } else if (soption == "-h") {
-        report->set_display_help(true);
       } else if (soption == "--error") {
         // Now parse the tags until end of line
         while ((option = tokenizer.GetToken())) {
@@ -119,28 +117,6 @@ FsckHelper::ParseCommand(const char* arg)
       std::string* type = repair->add_types();
       type->assign(soption);
     }
-  } else if (cmd == "search") {
-    // if ((option = tokenizer.GetToken()) == nullptr) {
-    //   return false;
-    // }
-    // size_t nrep = 0;
-    // std::string path = option;
-    // if ((option = tokenizer.GetToken())) {
-    //   try {
-    //     nrep = std::stoul(option);
-    //   } catch (...) {
-    //     // ignore
-    //   }
-    // }
-    // filesystems fs;
-    // fs.Load();
-    // fs.Connect();
-    // files f;
-    // f.Find(path.c_str());
-    // std::cout << "# found " << f.Size() << " files" << std::endl;
-    // f.Lookup(fs);
-    // f.Report(nrep);
-    // mIsLocal = true;
   } else {
     return false;
   }
