@@ -1035,7 +1035,7 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
     if (mdqueue.count(pmd->id())) {
       mdflush.UnLock();
       eos_static_info("waiting for parent directory to be synced upstream parent-ino= %#lx ino=%#lx",
-                      md->id(), pmd->id());
+                      pmd->id(), md->id());
       std::this_thread::sleep_for(std::chrono::microseconds(500));
     } else {
       mdflush.UnLock();
@@ -1050,6 +1050,7 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
     inomap.erase_bwd(md->id());
     md->setop_none();
     md->set_err(rc);
+    if (md->id()) 
     {
       if (mdmap.eraseTS(md->id())) {
         stat.inodes_dec();
@@ -3545,7 +3546,10 @@ metad::pmap::eraseTS(fuse_ino_t ino)
     EosFuse::Instance().mds.stats().inodes_stacked_dec();
   }
 
-  this->erase(it);
+  if (exists) {
+    this->erase(it);
+  }
+
   return exists;
 }
 
