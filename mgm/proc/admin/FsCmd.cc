@@ -117,11 +117,11 @@ FsCmd::Add(const eos::console::FsProto::AddProto& addProto)
   std::string space = addProto.schedgroup();
   std::string configstatus = addProto.status();
   XrdOucString outLocal, errLocal;
-  retc = proc_fs_add(sfsid, uuid, nodequeue, mountpoint, space, configstatus,
+  mRetC = proc_fs_add(sfsid, uuid, nodequeue, mountpoint, space, configstatus,
                      outLocal, errLocal, mVid);
   mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
   mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
-  return retc;
+  return mRetC;
 }
 
 //------------------------------------------------------------------------------
@@ -166,7 +166,7 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
           }
         }
       } else {
-        retc = EPERM;
+        mRetC = EPERM;
         errStream << "error: you have to take role 'root' to execute this command";
       }
     } else if (node.length()) {
@@ -176,7 +176,7 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
       if (!FsView::gFsView.mNodeView.count(node)) {
         errStream << "error: cannot boot node - no node with name=";
         errStream << node.c_str();
-        retc = ENOENT;
+        mRetC = ENOENT;
       } else {
         outStream << "success: boot message sent to";
 
@@ -211,7 +211,7 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
         if(!fs) {
           errStream << "error: cannot boot filesystem - no filesystem with fsid=";
           errStream << sfsid.c_str();
-          retc = ENOENT;
+          mRetC = ENOENT;
         }
       } else if (fsuuid.length()) {
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
@@ -221,7 +221,7 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
         } else {
           errStream << "error: cannot boot filesystem - no filesystem with uuid=";
           errStream << fsuuid.c_str();
-          retc = ENOENT;
+          mRetC = ENOENT;
         }
       }
 
@@ -235,21 +235,21 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
         outStream << fs->GetString("host").c_str();
         outStream << ":";
         outStream << fs->GetString("path").c_str();
-      } else if (!retc) {
+      } else if (!mRetC) {
         // Should not get here
         errStream << "error: could not retrieve filesystem";
-        retc = ENOENT;
+        mRetC = ENOENT;
       }
     }
   } else {
-    retc = EPERM;
+    mRetC = EPERM;
     errStream << "error: you have to take role 'root' or connect via 'sss' "
               "to execute this command";
   }
 
   mOut = outStream.str();
   mErr = errStream.str();
-  return retc;
+  return mRetC;
 }
 
 //------------------------------------------------------------------------------
@@ -262,11 +262,11 @@ FsCmd::Config(const eos::console::FsProto::ConfigProto& configProto)
   auto value = configProto.value();
   std::string identifier = std::to_string(configProto.fsid());
   XrdOucString outLocal, errLocal;
-  retc = proc_fs_config(identifier, key, value, outLocal, errLocal,
+  mRetC = proc_fs_config(identifier, key, value, outLocal, errLocal,
                         mVid, mComment.c_str());
   mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
   mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
-  return retc;
+  return mRetC;
 }
 
 //------------------------------------------------------------------------------
@@ -278,11 +278,11 @@ FsCmd::DropDeletion(const eos::console::FsProto::DropDeletionProto&
 {
   XrdOucString outLocal, errLocal;
   eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
-  retc = proc_fs_dropdeletion(std::to_string(dropdelProto.fsid()), outLocal,
+  mRetC = proc_fs_dropdeletion(std::to_string(dropdelProto.fsid()), outLocal,
                               errLocal, mVid);
   mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
   mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
-  return retc;
+  return mRetC;
 }
 
 
@@ -295,11 +295,11 @@ FsCmd::DropGhosts(const eos::console::FsProto::DropGhostsProto&
 {
   XrdOucString outLocal, errLocal;
   eos::common::RWMutexReadLock rd_lock(FsView::gFsView.ViewMutex);
-  retc = proc_fs_dropghosts(std::to_string(dropghostsProto.fsid()), outLocal,
+  mRetC = proc_fs_dropghosts(std::to_string(dropghostsProto.fsid()), outLocal,
                             errLocal, mVid);
   mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
   mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
-  return retc;
+  return mRetC;
 }
 
 
@@ -324,21 +324,21 @@ FsCmd::DumpMd(const eos::console::FsProto::DumpMdProto& dumpmdProto)
     XrdOucString df = dumpmdProto.showfid() ? "1" : "0";
     XrdOucString ds = dumpmdProto.showsize() ? "1" : "0";
     size_t entries = 0;
-    retc = SemaphoreProtectedProcDumpmd(sfsid, option, dp, df, ds, outLocal,
+    mRetC = SemaphoreProtectedProcDumpmd(sfsid, option, dp, df, ds, outLocal,
                                         errLocal, entries);
 
-    if (!retc) {
+    if (!mRetC) {
       gOFS->MgmStats.Add("DumpMd", mVid.uid, mVid.gid, entries);
     }
   } else {
-    retc = EPERM;
+    mRetC = EPERM;
     errLocal = "error: you have to take role 'root' or connect via 'sss' "
                "to execute this command";
   }
 
   mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
   mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
-  return retc;
+  return mRetC;
 }
 
 //------------------------------------------------------------------------------
@@ -435,15 +435,15 @@ FsCmd::Mv(const eos::console::FsProto::MvProto& mvProto)
     std::string dest = mvProto.dst();
     bool force = mvProto.force();
     XrdOucString outLocal, errLocal;
-    retc = proc_fs_mv(source, dest, outLocal, errLocal, mVid, force);
+    mRetC = proc_fs_mv(source, dest, outLocal, errLocal, mVid, force);
     mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
     mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
   } else {
-    retc = EPERM;
+    mRetC = EPERM;
     mErr = "error: you have to take role 'root' to execute this command";
   }
 
-  return retc;
+  return mRetC;
 }
 
 //------------------------------------------------------------------------------
@@ -466,10 +466,10 @@ FsCmd::Rm(const eos::console::FsProto::RmProto& rmProto)
 
   XrdOucString outLocal, errLocal;
   eos::common::RWMutexWriteLock wr_lock(FsView::gFsView.ViewMutex);
-  retc = proc_fs_rm(nodequeue, mountpoint, id, outLocal, errLocal, mVid);
+  mRetC = proc_fs_rm(nodequeue, mountpoint, id, outLocal, errLocal, mVid);
   mOut = outLocal.c_str() != nullptr ? outLocal.c_str() : "";
   mErr = errLocal.c_str() != nullptr ? errLocal.c_str() : "";
-  return retc;
+  return mRetC;
 }
 
 //------------------------------------------------------------------------------
@@ -517,8 +517,8 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
       if (!fsid) {
         errStream << "error: no such filesystem " << queuepath;
         mErr = errStream.str();
-        retc = ENOENT;
-        return retc;
+        mRetC = ENOENT;
+        return mRetC;
       }
     } else {
       fsid = statusProto.fsid();
@@ -664,21 +664,21 @@ FsCmd::Status(const eos::console::FsProto::StatusProto& statusProto)
         }
       }
 
-      retc = 0;
+      mRetC = 0;
     } else {
       errStream << "error: cannot find filesystem - no filesystem with fsid=";
       errStream << fsid;
-      retc = ENOENT;
+      mRetC = ENOENT;
     }
   } else {
-    retc = EPERM;
+    mRetC = EPERM;
     errStream << "error: you have to take role 'root' to execute this command "
               "or connect via sss";
   }
 
   mOut = outStream.str();
   mErr = errStream.str();
-  return retc;
+  return mRetC;
 }
 
 //------------------------------------------------------------------------------

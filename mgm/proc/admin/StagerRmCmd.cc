@@ -36,34 +36,35 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
   std::ostringstream errStream;
-  retc = 0;
+  int ret_c = 0;
   const auto& stagerRm = mReqProto.stagerrm();
   XrdOucErrInfo errInfo;
   eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
 
   for (auto i = 0; i < stagerRm.file_size(); i++) {
     const auto& file = stagerRm.file(i);
-    XrdOucString path;
+    std::string path;
+    std::string err;
 
     switch (file.File_case()) {
     case eos::console::StagerRmProto::FileProto::kPath:
-      path = file.path().c_str();
+      path = file.path();
 
       if (0 == path.length()) {
         errStream << "error: Received an empty string path" << std::endl;
-        retc = EINVAL;
+        ret_c = EINVAL;
         continue;
       }
 
       break;
 
     case eos::console::StagerRmProto::FileProto::kFid:
-      GetPathFromFid(path, file.fid(), "error: ");
+      GetPathFromFid(path, file.fid(), err);
 
       if (0 == path.length()) {
         errStream << "error: Received an unknown fid: value=" << file.fid() <<
                   std::endl;
-        retc = EINVAL;
+        ret_c = EINVAL;
         continue;
       }
 
@@ -72,9 +73,8 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
     default:
       errStream << "error: Received a file with neither a path nor an fid" <<
                 std::endl;
-      retc = EINVAL;
+        ret_c = EINVAL;
       continue;
-      break;
     }
 
     // check that we have the correct permission
@@ -84,7 +84,7 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
     if (gOFS->_access(cPath.GetParentPath(), P_OK, errInfo, mVid, "") != 0) {
       errStream << "error: you don't have 'p' acl flag permission on path '"
                 << cPath.GetParentPath() << "'" << std::endl;
-      retc = EPERM;
+      ret_c = EPERM;
       continue;
     }
 
@@ -95,17 +95,17 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
     if (gOFS->_exists(path.c_str(), file_exists, errInfo, mVid, nullptr)) {
       errStream << "error: unable to run exists on path '" << path << "'" <<
                 std::endl;
-      retc = errno;
+      ret_c = errno;
       continue;
     }
 
     if (file_exists == XrdSfsFileExistNo) {
       errStream << "error: no such file with path '" << path << "'" << std::endl;
-      retc = ENODATA;
+      ret_c = ENODATA;
       continue;
     } else if (file_exists == XrdSfsFileExistIsDirectory) {
       errStream << "error: given path is a directory '" << path << "'" << std::endl;
-      retc = EINVAL;
+      ret_c = EINVAL;
       continue;
     }
 
@@ -115,14 +115,14 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
                     false) != 0) {
       errStream << "error: unable to run stat for replicas on path '" << path << "'"
                 << std::endl;
-      retc = EINVAL;
+      ret_c = EINVAL;
       continue;
     }
 
     // we don't remove anything if it's not on tape
     if ((buf.st_mode & EOS_TAPE_MODE_T) == 0) {
       errStream << "error: no tape replicas for file '" << path << "'" << std::endl;
-      retc = EINVAL;
+      ret_c = EINVAL;
       continue;
     }
 
@@ -133,7 +133,7 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
                      path.c_str(), errInfo.getErrText());
       errStream << "error: could not delete all replicas of '" << path << "'" <<
                 std::endl;
-      retc = SFS_ERROR;
+      ret_c = SFS_ERROR;
     } else {
       // reset the retrieves counter in case of success
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
@@ -150,9 +150,9 @@ eos::mgm::StagerRmCmd::ProcessRequest() noexcept
     }
   }
 
-  reply.set_retc(retc);
+  reply.set_retc(ret_c);
   reply.set_std_err(errStream.str());
-  reply.set_std_out(retc == 0 ?
+  reply.set_std_out(ret_c == 0 ?
                     "success: removed all replicas for all given files" : "");
   return reply;
 }

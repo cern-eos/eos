@@ -956,7 +956,7 @@ void SpaceCmd::RmSubcmd(const eos::console::SpaceProto_RmProto& rm, eos::console
 
   if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(spaceconfigname.c_str())) {
     reply.set_std_err("error: unable to remove config of space '" + rm.mgmspace() + "'");
-    retc = EIO;
+    reply.set_retc(EIO);
   } else {
     if (FsView::gFsView.UnRegisterSpace(rm.mgmspace().c_str())) {
       reply.set_std_out("success: removed space '" + rm.mgmspace() + "'");

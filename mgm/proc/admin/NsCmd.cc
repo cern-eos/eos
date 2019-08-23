@@ -520,14 +520,12 @@ NsCmd::MasterSubcmd(const eos::console::NsProto_MasterProto& master,
       if (!master->DisableRemoteCheck()) {
         reply.set_std_err("warning: master heartbeat was already disabled!");
         reply.set_retc(EINVAL);
-        retc = EINVAL;
       } else {
         reply.set_std_out("success: disabled master heartbeat check");
       }
     } else {
       reply.set_std_err("error: operation supported by master object");
       reply.set_retc(ENOTSUP);
-      retc = ENOTSUP;
     }
   } else if (master.op() == NsProto_MasterProto::ENABLE) {
     // Enable the master heart beat thread to do remote checks
@@ -543,7 +541,6 @@ NsCmd::MasterSubcmd(const eos::console::NsProto_MasterProto& master,
     } else {
       reply.set_std_err("error: operation supported by master object");
       reply.set_retc(ENOTSUP);
-      retc = ENOTSUP;
     }
   } else if (master.op() == NsProto_MasterProto::LOG) {
     std::string out;
@@ -578,7 +575,6 @@ NsCmd::CompactSubcmd(const eos::console::NsProto_CompactProto& compact,
   if (master == nullptr) {
     reply.set_std_err("error: operation supported by master object");
     reply.set_retc(ENOTSUP);
-    retc = ENOTSUP;
     return;
   }
 

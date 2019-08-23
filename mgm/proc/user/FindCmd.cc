@@ -751,6 +751,8 @@ eos::console::ReplyProto
 eos::mgm::FindCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
+  XrdOucString m_err {""};
+
 
   if (!OpenTemporaryOutputFiles()) {
     reply.set_retc(EIO);
@@ -831,7 +833,7 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
     std::map<std::string, std::set<std::string>>* found =
           findResultProvider->getFoundMap();
 
-    if (gOFS->_find(spath.c_str(), errInfo, stdErr, mVid, (*found),
+    if (gOFS->_find(spath.c_str(), errInfo, m_err, mVid, (*found),
                     attributekey.length() ? attributekey.c_str() : nullptr,
                     attributevalue.length() ? attributevalue.c_str() : nullptr,
                     nofiles, 0, true, finddepth,
@@ -840,8 +842,8 @@ eos::mgm::FindCmd::ProcessRequest() noexcept
       reply.set_retc(errno);
       return reply;
     } else {
-      if (stdErr.length()) {
-        ofstderrStream << stdErr;
+      if (m_err.length()) {
+        ofstderrStream << m_err;
         reply.set_retc(E2BIG);
       }
     }

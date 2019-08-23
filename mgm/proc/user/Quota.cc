@@ -30,7 +30,7 @@
 EOSMGMNAMESPACE_BEGIN
 
 int
-ProcCommand::Quota()
+ProcCommand::UserQuota()
 {
   using eos::common::Mapping;
   using eos::common::StringConversion;

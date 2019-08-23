@@ -100,6 +100,7 @@ private:
   static XrdSysSemaphore mSemaphore;
   std::string mOut; ///< Command output string
   std::string mErr; ///< Command error output string
+  int mRetC; ///< Command return code
 };
 
 EOSMGMNAMESPACE_END

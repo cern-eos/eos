@@ -236,7 +236,7 @@ public:
   int Version();
   int Who();
   int Whoami();
-  int Quota();
+  int UserQuota();
 
   //----------------------------------------------------------------------------
   //! List of admin proc commands

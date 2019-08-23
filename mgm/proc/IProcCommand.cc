@@ -101,7 +101,7 @@ IProcCommand::open(const char* path, const char* info,
         (void) google::protobuf::util::MessageToJsonString(mReqProto, &argsJson);
 
         if (!gOFS->mCommentLog->Add(mTimestamp, "", "", argsJson.c_str(),
-                                    mComment.c_str(), stdErr.c_str(),
+                                    mComment.c_str(), stdErr.c_str(), // @note stErr or reply.std_err()?
                                     reply.retc())) {
           eos_err("failed to log to comments logbook");
         }
@@ -387,9 +387,10 @@ IProcCommand::ResponseToJsonString(const std::string& out,
 //------------------------------------------------------------------------------
 // Retrieve the file's full path given its numeric id
 //------------------------------------------------------------------------------
+// drop when we drop non-proto commands using it
 void
 IProcCommand::GetPathFromFid(XrdOucString& path, unsigned long long fid,
-                             const std::string& err_msg)
+                             const std::string& err_msg_prefix)
 {
   if (path == "") {
     if (fid == 0ULL) {
@@ -405,7 +406,7 @@ IProcCommand::GetPathFromFid(XrdOucString& path, unsigned long long fid,
       path = XrdOucString(temp.c_str());
     } catch (eos::MDException& e) {
       errno = e.getErrno();
-      stdErr = err_msg.c_str();
+      stdErr = err_msg_prefix.c_str();
       stdErr += e.getMessage().str().c_str();
       stdErr += "\n";
       eos_debug("caught exception %d %s\n",
@@ -414,18 +415,42 @@ IProcCommand::GetPathFromFid(XrdOucString& path, unsigned long long fid,
   }
 }
 
+int
+IProcCommand::GetPathFromFid(std::string& path, unsigned long long fid,
+                             std::string& err_msg)
+{
+  if (path.empty()) {
+    if (fid == 0ULL) {
+      err_msg += "error: fid unknown!";
+      return errno;
+    }
+
+    try {
+      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+      std::string temp = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
+      path = temp;
+      return 0;
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
+      err_msg = "error: " + e.getMessage().str() + '\n';
+      return errno;
+    }
+  }
+}
+
 //------------------------------------------------------------------------------
 // Retrieve the container's full path given its numeric id
 //------------------------------------------------------------------------------
+// drop when we drop non-proto commands using it
 void
 IProcCommand::GetPathFromCid(XrdOucString& path, unsigned long long cid,
-                             const std::string& err_msg)
+                             const std::string& err_msg_prefix)
 {
   if (path == "") {
     if (cid == 0ULL) {
       stdErr += "error: cid unknown!";
       retc = errno;
-      return;
     }
 
     try {
@@ -435,11 +460,35 @@ IProcCommand::GetPathFromCid(XrdOucString& path, unsigned long long cid,
       path = XrdOucString(temp.c_str());
     } catch (eos::MDException& e) {
       errno = e.getErrno();
-      stdErr = err_msg.c_str();
+      stdErr = err_msg_prefix.c_str();
       stdErr += e.getMessage().str().c_str();
       stdErr += "\n";
       eos_debug("caught exception %d %s\n",
                 e.getErrno(), e.getMessage().str().c_str());
+    }
+  }
+}
+
+int
+IProcCommand::GetPathFromCid(std::string& path, unsigned long long cid,
+                             std::string& err_msg)
+{
+  if (path.empty()) {
+    if (cid == 0ULL) {
+      err_msg += "error: cid unknown!";
+      return errno;
+    }
+
+    try {
+      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+      std::string temp = gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(cid).get());
+      path = temp;
+      return 0;
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
+      err_msg = "error: " + e.getMessage().str() + '\n';
+      return errno;
     }
   }
 }

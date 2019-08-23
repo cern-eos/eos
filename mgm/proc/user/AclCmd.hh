@@ -194,6 +194,9 @@ private:
   //! @return std::string representation of ACL
   //----------------------------------------------------------------------------
   static std::string AclBitmaskToString(const unsigned short in);
+
+  std::string mErr; ///< Command error output string
+
 };
 
 EOSMGMNAMESPACE_END

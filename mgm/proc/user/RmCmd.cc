@@ -36,6 +36,8 @@ eos::console::ReplyProto
 eos::mgm::RmCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
+  XrdOucString m_err {""};
+  int ret_c;
   std::ostringstream outStream;
   std::ostringstream errStream;
   eos::console::RmProto rm = mReqProto.rm();
@@ -44,20 +46,21 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
   std::string spath;
 
   if (rm.path().empty()) {
-    XrdOucString pathOut = "";
+    std::string pathOut;
+    std::string err_msg;
 
     if (rm.fileid()) {
-      GetPathFromFid(pathOut, rm.fileid(), "error: ");
+      GetPathFromFid(pathOut, rm.fileid(), err_msg);
     }
 
     if (rm.containerid()) {
-      GetPathFromCid(pathOut, rm.containerid(), "error: ");
+      GetPathFromCid(pathOut, rm.containerid(), err_msg);
     }
 
-    spath = pathOut.c_str();
+    spath = pathOut;
 
     if (!spath.length()) {
-      reply.set_std_err(stdErr.c_str());
+      reply.set_std_err(err_msg);
       reply.set_retc(ENOENT);
       return reply;
     }
@@ -70,7 +73,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
   int errno_check = 0;
 
   // Enforce path checks and identity access rights
-  if (IsOperationForbidden(spath.c_str(), mVid, err_check, errno_check)) {
+  if (IsOperationForbidden(spath, mVid, err_check, errno_check)) {
     eos_err("msg=\"operation forbidden\" path=\"%s\" serr_msg=\"%s\" errno=%i",
             spath.c_str(), err_check.c_str(), errno_check);
     reply.set_std_err(err_check);
@@ -91,7 +94,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
 
   if (spath.empty()) {
     errStream << "error: you have to give a path name to call 'rm'";
-    retc = EINVAL;
+    ret_c = EINVAL;
   } else {
     if (spath.find('*') != std::string::npos) {
       // this is wildcard deletion
@@ -106,9 +109,8 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
 
     if (gOFS->_exists(spath.c_str(), file_exists, errInfo, mVid, nullptr)) {
       errStream << "error: unable to run exists on path '" << spath << "'";
-      retc = errno;
       reply.set_std_err(errStream.str());
-      reply.set_retc(retc);
+      reply.set_retc(errno);
       return reply;
     }
 
@@ -179,9 +181,9 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
       std::set<std::string>::const_iterator fileit;
       errInfo.clear();
 
-      if (gOFS->_find(spath.c_str(), errInfo, stdErr, mVid, found)) {
+      if (gOFS->_find(spath.c_str(), errInfo, m_err, mVid, found)) {
         errStream << "error: unable to list directory '" << spath << "'";
-        retc = errno;
+        ret_c = errno;
       } else {
         XrdOucString recyclingAttribute = "";
 
@@ -233,9 +235,8 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
               if (gOFS->_rem(fspath.c_str(), errInfo, mVid, nullptr, true)) {
                 errStream << "error: unable to remove file '" << fspath << "'"
                           << " - bulk deletion aborted" << std::endl;
-                retc = errno;
                 reply.set_std_err(errStream.str());
-                reply.set_retc(retc);
+                reply.set_retc(errno);
                 return reply;
               }
             }
@@ -256,9 +257,8 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
                 && (errno != ENOENT)) {
               errStream << "error: unable to remove directory '" << rfoundit->first << "'"
                         << " - bulk deletion aborted" << std::endl;
-              retc = errno;
               reply.set_std_err(errStream.str());
-              reply.set_retc(retc);
+              reply.set_retc(errno);
               return reply;
             }
           }
@@ -269,9 +269,8 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
 
           if (gOFS->_stat(spath.c_str(), &buf, errInfo, mVid, "")) {
             errStream << "error: failed to stat bulk deletion directory '" << spath << "'";
-            retc = errno;
             reply.set_std_err(errStream.str());
-            reply.set_retc(retc);
+            reply.set_retc(errno);
             return reply;
           }
 
@@ -318,7 +317,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
                              force)) {
                 errStream << "error: unable to remove file '" << fspath.c_str() << "'"
                           << std::endl;
-                retc = errno;
+                ret_c = errno;
               }
             }
           }
@@ -339,7 +338,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
                 errStream << "error: unable to remove directory "
                           << "'" << rfoundit->first.c_str() << "'" << std::endl
                           << "reason: " << errInfo.getErrText() << std::endl;
-                retc = errno;
+                ret_c = errno;
               }
             }
           }
@@ -353,13 +352,13 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
                        force) && (errno != ENOENT)) {
           errStream << "error: unable to remove file/directory '" << it << "'"
                     << std::endl;
-          retc |= errno;
+          ret_c |= errno;
         }
       }
     }
   }
 
-  reply.set_retc(retc);
+  reply.set_retc(ret_c);
   reply.set_std_out(outStream.str());
   reply.set_std_err(errStream.str());
   return reply;

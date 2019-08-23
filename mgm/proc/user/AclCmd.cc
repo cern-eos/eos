@@ -51,9 +51,9 @@ AclCmd::ProcessRequest() noexcept
     GetAcls(acl.path(), acl_val, acl.sys_acl());
 
     if (acl_val.empty()) {
-      stdErr = "error: ";
-      stdErr += std::strerror(ENODATA);
-      reply.set_std_err(stdErr.c_str());
+      mErr = "error: ";
+      mErr += std::strerror(ENODATA);
+      reply.set_std_err(mErr);
       reply.set_retc(ENODATA);
     } else {
       // Convert to username if possible, ignore errors
@@ -67,7 +67,7 @@ AclCmd::ProcessRequest() noexcept
     reply.set_std_out("");
 
     if (retc) {
-      reply.set_std_err(stdErr.c_str());
+      reply.set_std_err(mErr);
     }
   } else {
     reply.set_retc(EINVAL);
@@ -102,9 +102,12 @@ AclCmd::GetAcls(const std::string& path, std::string& acl, bool is_sys,
 int
 AclCmd::ModifyAcls(const eos::console::AclProto& acl)
 {
+
+  XrdOucString m_err {""};
+
   // Parse acl modification command into bitmask rule format
   if (!ParseRule(acl.rule())) {
-    stdErr = "error: failed to parse input rule or unknown id";
+    mErr = "error: failed to parse input rule or unknown id";
     return EINVAL;
   }
 
@@ -115,11 +118,12 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
     // @todo (esindril): get list of all directories recursively
     XrdOucErrInfo error;
     std::map<std::string, std::set<std::string>> dirs;
-    stdErr.erase();
-    (void) gOFS->_find(acl.path().c_str(), error, stdErr, mVid, dirs, nullptr,
+    m_err.erase();
+    (void) gOFS->_find(acl.path().c_str(), error, m_err, mVid, dirs, nullptr,
                        nullptr, true, 0, false, 0, nullptr, false);
 
-    if (stdErr.length()) {
+    if (m_err.length()) {
+      mErr = m_err.c_str();
       return EINVAL;
     }
 
@@ -145,9 +149,9 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
     // Set xattr without taking the namespace lock
     if (gOFS->_attr_set(elem.c_str(), error, mVid, 0, acl_key.c_str(),
                         new_acl_val.c_str(), false)) {
-      stdErr = "error: failed to set new acl for path=";
-      stdErr += elem.c_str();
-      eos_err("%s", stdErr.c_str());
+      mErr = "error: failed to set new acl for path=";
+      mErr += elem.c_str();
+      eos_err("%s", mErr.c_str());
       return errno;
     }
   }
@@ -442,7 +446,7 @@ bool AclCmd::ParseRule(const std::string& input)
     srule = std::string(input.begin() + pos_equal + 1, input.end());
 
     if (!GetRuleBitmask(srule, mSet)) {
-      stdErr = "error: failed to get input rule as bitmask";
+      mErr = "error: failed to get input rule as bitmask";
       return false;
     }
   } else {
@@ -455,7 +459,7 @@ bool AclCmd::ParseRule(const std::string& input)
       id = std::string(input.begin(), input.begin() + pos_del_last);
 
       if (!CheckCorrectId(id)) {
-        stdErr = "error: input rule has incorrect format for id";
+        mErr = "error: input rule has incorrect format for id";
         return false;
       }
 
@@ -472,7 +476,7 @@ bool AclCmd::ParseRule(const std::string& input)
       srule = std::string(input.begin() + pos_del_last + 1, input.end());
 
       if (!GetRuleBitmask(srule, mSet)) {
-        stdErr = "error: failed to get input rule as bitmask";
+        mErr = "error: failed to get input rule as bitmask";
         return false;
       }
     } else {

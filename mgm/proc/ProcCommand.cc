@@ -331,7 +331,7 @@ ProcCommand::open(const char* inpath, const char* info,
       Recycle();
       mDoSort = false;
     } else if (mCmd == "quota") {
-      Quota();
+      UserQuota();
       mDoSort = false;
     } else {
       // Command not implemented
