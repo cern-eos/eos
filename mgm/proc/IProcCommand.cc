@@ -392,27 +392,11 @@ void
 IProcCommand::GetPathFromFid(XrdOucString& path, unsigned long long fid,
                              const std::string& err_msg_prefix)
 {
-  if (path == "") {
-    if (fid == 0ULL) {
-      stdErr += "error: fid unknown!";
-      retc = errno;
-      return;
-    }
-
-    try {
-      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
-      std::string temp =
-        gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
-      path = XrdOucString(temp.c_str());
-    } catch (eos::MDException& e) {
-      errno = e.getErrno();
-      stdErr = err_msg_prefix.c_str();
-      stdErr += e.getMessage().str().c_str();
-      stdErr += "\n";
-      eos_debug("caught exception %d %s\n",
-                e.getErrno(), e.getMessage().str().c_str());
-    }
-  }
+  std::string serr;
+  std::string spath(path.c_str());
+  retc = GetPathFromFid(spath, fid, serr);
+  path = spath.c_str();
+  stdErr = serr.c_str();
 }
 
 int
@@ -437,6 +421,7 @@ IProcCommand::GetPathFromFid(std::string& path, unsigned long long fid,
       return errno;
     }
   }
+  return EINVAL;
 }
 
 //------------------------------------------------------------------------------
@@ -447,26 +432,11 @@ void
 IProcCommand::GetPathFromCid(XrdOucString& path, unsigned long long cid,
                              const std::string& err_msg_prefix)
 {
-  if (path == "") {
-    if (cid == 0ULL) {
-      stdErr += "error: cid unknown!";
-      retc = errno;
-    }
-
-    try {
-      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
-      std::string temp =
-        gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(cid).get());
-      path = XrdOucString(temp.c_str());
-    } catch (eos::MDException& e) {
-      errno = e.getErrno();
-      stdErr = err_msg_prefix.c_str();
-      stdErr += e.getMessage().str().c_str();
-      stdErr += "\n";
-      eos_debug("caught exception %d %s\n",
-                e.getErrno(), e.getMessage().str().c_str());
-    }
-  }
+  std::string serr;
+  std::string spath(path.c_str());
+  retc = GetPathFromCid(spath, cid, serr);
+  path = spath.c_str();
+  stdErr = serr.c_str();
 }
 
 int
@@ -491,6 +461,7 @@ IProcCommand::GetPathFromCid(std::string& path, unsigned long long cid,
       return errno;
     }
   }
+  return EINVAL;
 }
 
 //------------------------------------------------------------------------------
