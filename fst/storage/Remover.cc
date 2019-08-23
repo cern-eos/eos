@@ -48,34 +48,34 @@ Storage::Remover()
     while ((to_del = GetDeletion())) {
       eos_static_debug("%u files to delete", GetNumDeletions());
 
-      for (unsigned int j = 0; j < to_del->fIdVector.size(); ++j) {
-        eos_static_debug("Deleting file_id=%llu on fs_id=%u", to_del->fIdVector[j],
-                         to_del->fsId);
-        const std::string hex_fid = eos::common::FileId::Fid2Hex(to_del->fIdVector[j]);
+      for (unsigned int j = 0; j < to_del->mFidVect.size(); ++j) {
+        eos_static_debug("Deleting file_id=%llu on fs_id=%u", to_del->mFidVect[j],
+                         to_del->mFsid);
+        const std::string hex_fid = eos::common::FileId::Fid2Hex(to_del->mFidVect[j]);
         XrdOucErrInfo error;
         XrdOucString capOpaqueString = "/?mgm.pcmd=drop";
         XrdOucString OpaqueString = "";
         OpaqueString += "&mgm.fsid=";
-        OpaqueString += (int) to_del->fsId;
+        OpaqueString += (int) to_del->mFsid;
         OpaqueString += "&mgm.fid=";
         OpaqueString += hex_fid.c_str();
         OpaqueString += "&mgm.localprefix=";
-        OpaqueString += to_del->localPrefix;
+        OpaqueString += to_del->mLocalPrefix;
         XrdOucEnv Opaque(OpaqueString.c_str());
         capOpaqueString += OpaqueString;
 
         if ((gOFS._rem("/DELETION", error, (const XrdSecEntity*) 0, &Opaque,
                        0, 0, 0, true) != SFS_OK)) {
           eos_static_warning("unable to remove fid %s fsid %lu localprefix=%s",
-                             hex_fid.c_str(), to_del->fsId, to_del->localPrefix.c_str());
+                             hex_fid.c_str(), to_del->mFsid, to_del->mLocalPrefix.c_str());
         }
 
         // Update the manager
         int rc = gOFS.CallManager(&error, 0, 0 , capOpaqueString);
 
         if (rc) {
-          eos_static_err("unable to drop file id %s fsid %u at manager %s",
-                         hex_fid.c_str(), to_del->fsId, to_del->managerId.c_str());
+          eos_static_err("unable to drop file id %s fsid %u", hex_fid.c_str(),
+                         to_del->mFsid);
         }
       }
     }
