@@ -694,18 +694,15 @@ FmdDbMapHandler::UpdateWithScanInfo(eos::common::FileSystem::fsid_t fsid,
 
   // Check if we have this file in the local DB, if not, we resync first
   // the disk and then the MGM meta data
-  bool orphaned = false;
+  bool layout_err = false;
   auto fmd = LocalGetFmd(fid, fsid, true);
 
   if (fmd) {
-    // Real orphans and unregistered replicas get rechecked
-    if ((fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kOrphan) ||
-        (fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered)) {
-      orphaned = true;
-    }
+    // Entries with layout errors get rechecked
+    layout_err = (fmd->LayoutError(fsid) != 0);
   }
 
-  if ((fmd == nullptr) || filexs_err || blockxs_err || orphaned) {
+  if ((fmd == nullptr) || filexs_err || blockxs_err || layout_err) {
     eos_notice("msg=\"resyncing from disk and mgm\" fsid=%d fid=%08llx", fsid, fid);
     ResyncDisk(fpath.c_str(), fsid, true, scan_sz, scan_xs_hex);
     bool resynced = ResyncMgm(fsid, fid, manager.c_str());
