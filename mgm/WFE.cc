@@ -1689,8 +1689,10 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string& fullPath,
       XrdOucEnv opaque(ininfo);
       const char* const opaqueRequestId = opaque.Get("mgm.reqid");
 
-      if (opaqueRequestId == nullptr) {
-        throw_mdexception(EINVAL, "Extended attribute mgm.reqid does not exist.");
+      if(opaqueRequestId == nullptr) {
+        throw_mdexception(EINVAL, "mgm.reqid does not exist in opaque data.");
+      } else if(*opaqueRequestId == '\0') {
+        throw_mdexception(EINVAL, "mgm.reqid has no value set in opaque data.");
       }
 
       prepareReqIds.values.insert(opaqueRequestId);
@@ -1825,7 +1827,9 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
       const char* const opaqueRequestId = opaque.Get("mgm.reqid");
 
       if (opaqueRequestId == nullptr) {
-        throw_mdexception(EINVAL, "mgm.reqid not found in opaque data");
+        throw_mdexception(EINVAL, "mgm.reqid does not exist in opaque data.");
+      } else if(*opaqueRequestId == '\0') {
+        throw_mdexception(EINVAL, "mgm.reqid has no value set in opaque data.");
       }
 
       if (prepareReqIds.values.erase(opaqueRequestId) != 1) {
