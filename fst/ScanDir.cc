@@ -28,6 +28,7 @@
 #include "fst/Config.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/FmdDbMap.hh"
+#include "fst/Deletion.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
@@ -288,7 +289,10 @@ ScanDir::CleanupUnlinked()
         // clean both the disk file and update the namespace entry
         eos_info("msg=\"resubmit for deletion\" fxid=%08llx fsid=%lu",
                  fid, mFsId);
-        // @todo(esindril)
+        std::vector<unsigned long long> id_vect {fid};
+        auto deletion = std::make_unique<Deletion>
+                        (id_vect, mFsId, gOFS.Storage->GetStoragePath(mFsId).c_str());
+        gOFS.Storage->AddDeletion(std::move(deletion));
       }
     } catch (eos::MDException& e) {
       // There is no file metadata object so we delete any potential file from

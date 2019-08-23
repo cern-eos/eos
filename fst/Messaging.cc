@@ -141,8 +141,7 @@ Messaging::Process(XrdMqMessage* newmessage)
     } else {
       int envlen = 0;
       eos_debug("opaque is %s", capOpaque->Env(envlen));
-      std::unique_ptr<Deletion> new_del;
-      new_del.reset(Deletion::Create(capOpaque));
+      std::unique_ptr<Deletion> new_del = Deletion::Create(capOpaque);
       delete capOpaque;
 
       if (new_del) {

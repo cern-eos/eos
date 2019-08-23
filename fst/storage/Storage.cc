@@ -833,7 +833,7 @@ Storage::GetNumDeletions()
   XrdSysMutexHelper scope_lock(mDeletionsMutex);
 
   for (auto it = mListDeletions.cbegin(); it != mListDeletions.cend(); ++it) {
-    total += (*it)->fIdVector.size();
+    total += (*it)->mFidVect.size();
   }
 
   return total;

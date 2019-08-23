@@ -21,73 +21,67 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_DELETION_HH__
-#define __EOSFST_DELETION_HH__
-/*----------------------------------------------------------------------------*/
+#pragma once
 #include "fst/Namespace.hh"
 #include "common/FileId.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
-/*----------------------------------------------------------------------------*/
 #include <vector>
-
-class XrdOucEnv;
-
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//! Class Deletion
+//------------------------------------------------------------------------------
 class Deletion
 {
 public:
-  std::vector<unsigned long long> fIdVector;
-  unsigned long fsId;
-  XrdOucString localPrefix;
-  XrdOucString managerId;
-  XrdOucString opaque;
+  std::vector<unsigned long long> mFidVect;
+  unsigned long mFsid;
+  XrdOucString mLocalPrefix;
 
-  Deletion(std::vector<unsigned long long>& idvector, unsigned long fsid,
-           const char* localprefix, const char* managerid, const char* inopaque)
-  {
-    fIdVector = idvector;
-    fsId = fsid;
-    localPrefix = localprefix;
-    managerId = managerid;
-    opaque = inopaque;
-  }
+  //------------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param id_vect file ids to delete
+  //! @param fsid filesystem id
+  //! @param local_prerfix filesystem local prefix path
+  //------------------------------------------------------------------------------
+  Deletion(std::vector<unsigned long long>& id_vect, unsigned long fsid,
+           const char* local_prefix):
+    mFidVect(id_vect), mFsid(fsid), mLocalPrefix(local_prefix)
+  {}
 
-  static Deletion*
+  //------------------------------------------------------------------------------
+  //! Destructor
+  //------------------------------------------------------------------------------
+  ~Deletion() = default;
+
+  //------------------------------------------------------------------------------
+  //! Create deletion object from the provided opaque information
+  //!
+  //! @param opaque opaque info
+  //!
+  //! @return deletion object
+  //------------------------------------------------------------------------------
+  static std::unique_ptr<Deletion>
   Create(XrdOucEnv* capOpaque)
   {
-    // decode the opaque tags
     const char* localprefix = 0;
     XrdOucString hexfids = "";
     XrdOucString hexfid = "";
     XrdOucString access = "";
     const char* sfsid = 0;
-    const char* smanager = 0;
     std::vector <unsigned long long> idvector;
-    unsigned long long fileid = 0;
-    unsigned long fsid = 0;
     localprefix = capOpaque->Get("mgm.localprefix");
     hexfids = capOpaque->Get("mgm.fids");
     sfsid = capOpaque->Get("mgm.fsid");
-    smanager = capOpaque->Get("mgm.manager");
     access = capOpaque->Get("mgm.access");
 
-    // permission check
-    if (access != "delete") {
-      return 0;
+    if ((access != "delete") || !localprefix || !hexfids.length() || !sfsid) {
+      return nullptr;
     }
-
-    if (!localprefix || !hexfids.length() || !sfsid || !smanager) {
-      return 0;
-    }
-
-    int envlen;
 
     while (hexfids.replace(",", " ")) {
     };
@@ -96,25 +90,19 @@ public:
 
     subtokenizer.GetLine();
 
-    while (1) {
+    while (true) {
       hexfid = subtokenizer.GetToken();
 
       if (hexfid.length()) {
-        fileid = eos::common::FileId::Hex2Fid(hexfid.c_str());
-        idvector.push_back(fileid);
+        idvector.push_back(eos::common::FileId::Hex2Fid(hexfid.c_str()));
       } else {
         break;
       }
     }
 
-    fsid = atoi(sfsid);
-    return new Deletion(idvector, fsid, localprefix, smanager,
-                        capOpaque->Env(envlen));
-  };
-
-  ~Deletion() { };
+    unsigned long fsid = atoi(sfsid);
+    return std::make_unique<Deletion>(idvector, fsid, localprefix);
+  }
 };
 
 EOSFSTNAMESPACE_END
-
-#endif
