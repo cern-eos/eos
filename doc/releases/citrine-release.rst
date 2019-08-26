@@ -15,13 +15,33 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
-``v4.5.5 Citrine``
+``v4.5.6 Citrine``
 ===================
 
-2019-08-01
+2019-08-26
+
+Bug
+----
+
+* [EOS-3315] - eos file adjustreplica selects bad replica for replication
+* [EOS-3572] - Crash while reloading the config in eoslhcb
+* [EOS-3575] - EOSCMS - killed by SIGSEGV (around eos::mgm::GeoTreeEngine::applyBranchDisablings)
+* [EOS-3669] - Wrong Routing when target path has .../.
+* [EOS-3678] - space define command doesn't set groupmod
+* [EOS-3687] - getQuotaNode throws an exception when called on a detached container, instead of returning nullptr
+
+New Feature
+------------
+
+* [EOS-3682] - gRPC container insert does not inherit extended attributes
+
+Improvement
+------------
+
+* [EOS-3474] - GroupBalancer logging
 
 
-``v4.5.4 Citrine``
+``v4.5.5 Citrine``
 ===================
 
 2019-08-07
@@ -40,11 +60,15 @@ Improvements
 * [EOS-3638] - introduce file info detached field
 * speed-up shutdown for drain jobs
 * implement ns-reserve-id command
-* don't print byte-range locks per client ( get it with '-k' option ) 
+* don't print byte-range locks per client ( get it with '-k' option )
 * filesytem class refactoring
 * clean-up empty eosxd cache directories
 * support proc results larger than 2G
 * timeout eosxd connections after 24h
+
+
+``v4.5.4 Citrine``
+===================
 
 2019-08-01
 
