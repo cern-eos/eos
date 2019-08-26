@@ -2097,13 +2097,6 @@ public:
                       bool updateFastStructures = true);
 
   // ---------------------------------------------------------------------------
-  //! Rebuild all the proxy trees in the GeotreeEngine
-  // @return
-  //   true if success false else
-  // ---------------------------------------------------------------------------
-  bool rebuildAllPxyGr(bool updateFastStructures = true);
-
-  // ---------------------------------------------------------------------------
   //! Set an access geotag mapping.
   // @param geotag
   //   geotag of the accesser

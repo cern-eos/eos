@@ -1336,7 +1336,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   AllConfigQueue += "/all/";
   FstConfigQueue = configbasequeue;
   FstConfigQueue += "/fst/";
-  SpaceConfigQueuePrefix = configbasequeue;
+
+  XrdOucString SpaceConfigQueuePrefix = configbasequeue;
   SpaceConfigQueuePrefix += "/space/";
   NodeConfigQueuePrefix = "/config/";
   NodeConfigQueuePrefix += MgmOfsInstanceName.c_str();
@@ -1350,6 +1351,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   ObjectNotifier.SetShareObjectManager(&ObjectManager);
   // we need to set the shared object manager to be used
   eos::common::GlobalConfig::gConfig.SetSOM(&ObjectManager);
+  eos::common::GlobalConfig::gConfig.setInstanceName(MgmOfsInstanceName.c_str());
+
   // set the object manager to listener only
   ObjectManager.EnableBroadCast(false);
   // setup the modifications which the fs listener thread is waiting for
@@ -2234,5 +2237,5 @@ XrdMgmOfs::SetupGlobalConfig()
 
   std::string out;
   eos::common::GlobalConfig::gConfig.PrintBroadCastMap(out);
-  fprintf(stderr, "%s", out.c_str());
+  eos_static_info("MQ broadcast map: %s", out.c_str());
 }

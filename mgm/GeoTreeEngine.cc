@@ -168,7 +168,7 @@ bool GeoTreeEngine::forceRefresh()
   // signal a pause to the background updating
   PauseUpdater();
   // do the refreshes
-  bool result = forceRefreshSched() && rebuildAllPxyGr();
+  bool result = forceRefreshSched();
   // signal a resume to the background updating
   ResumeUpdater();
   return result;
@@ -4443,42 +4443,6 @@ bool GeoTreeEngine::matchHostPxyGr(FsNode* host , const std::string& status,
     }
 
     eos_debug("success");
-  }
-
-  return true;
-}
-
-bool GeoTreeEngine::rebuildAllPxyGr(bool updateFastStructures)
-{
-  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-  auto som = eos::common::GlobalConfig::gConfig.SOM();
-  som->HashMutex.LockRead();
-  std::vector<std::string> vproxygroups;
-
-  for (auto it = FsView::gFsView.mNodeView.begin();
-       it != FsView::gFsView.mNodeView.end(); it++) {
-    XrdMqSharedHash* hash = NULL;
-    std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(
-                                   it->second->GetConfigQueuePrefix(), it->first.c_str());
-
-    if ((hash = som->GetObject(nodeconfigname.c_str(), "hash"))) {
-      if (hash) {
-        vproxygroups.push_back(hash->Get("proxygroups"));
-      }
-    } else {
-      eos_static_warning("cannot read config queue for node %s", it->first.c_str());
-    }
-  }
-
-  som->HashMutex.UnLockRead();
-  auto vit = vproxygroups.begin();
-
-  for (auto it = FsView::gFsView.mNodeView.begin();
-       it != FsView::gFsView.mNodeView.end(); it++) {
-    if (!matchHostPxyGr(it->second, *(vit++), false, false)) {
-      eos_static_err("updating proxy tree for node %s failed!", it->first.c_str());
-      return false;
-    }
   }
 
   return true;

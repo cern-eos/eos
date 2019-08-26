@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "common/GlobalConfig.hh"
+#include "common/Assert.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -35,6 +36,8 @@ bool
 GlobalConfig::AddConfigQueue(const char* configqueue,
                              const char* broadcastqueue)
 {
+  eos_static_info("Adding config queue: %s => %s", configqueue, broadcastqueue);
+
   std::string lConfigQueue = configqueue;
   std::string lBroadCastQueue = broadcastqueue;
   XrdMqSharedHash* lHash = 0;
@@ -99,6 +102,29 @@ GlobalConfig::QueuePrefixName(const char* prefix, const char* queuename)
   std::string out = prefix;
   out += eos::common::StringConversion::GetHostPortFromQueue(queuename).c_str();
   return out;
+}
+
+//------------------------------------------------------------------------------
+// Set eos instance name - call this only once
+//------------------------------------------------------------------------------
+void
+GlobalConfig::setInstanceName(const std::string &name)
+{
+  eos_static_info("Setting global instance name => %s", name.c_str());
+
+  eos_assert(mInstanceName.empty());
+  eos_assert(!name.empty());
+  mInstanceName = name;
+}
+
+//------------------------------------------------------------------------------
+// Get eos instance name
+//------------------------------------------------------------------------------
+std::string
+GlobalConfig::getInstanceName() const
+{
+  eos_assert(!mInstanceName.empty());
+  return mInstanceName;
 }
 
 EOSCOMMONNAMESPACE_END
