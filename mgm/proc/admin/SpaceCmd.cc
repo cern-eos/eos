@@ -239,7 +239,7 @@ void SpaceCmd::SetSubcmd(const eos::console::SpaceProto_SetProto& set, eos::cons
   // loop over all groups
   std::map<std::string, FsGroup*>::const_iterator it1;
   for (it1 = FsView::gFsView.mGroupView.begin(); it1 != FsView::gFsView.mGroupView.end(); it1++) {
-    if (!it1->second->SetConfigMember(key, status, true, "/eos/*/mgm")) {
+    if (!it1->second->SetConfigMember(key, status)) {
       std_err << "error: cannot set status in group <" + it1->first + ">\n";
       ret_c = EIO;
     }

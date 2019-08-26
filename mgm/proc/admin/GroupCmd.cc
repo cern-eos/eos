@@ -232,7 +232,7 @@ GroupCmd::SetSubcmd(const eos::console::GroupProto_SetProto& set,
 
   // Set this new group to offline
   if (!FsView::gFsView.mGroupView[set.group()]->SetConfigMember
-      (key, set.group_state(), true, "/eos/*/mgm")) {
+      (key, set.group_state())) {
     reply.set_std_err("error: cannot set config status");
     reply.set_retc(EIO);
     return;

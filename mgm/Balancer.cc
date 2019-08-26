@@ -136,8 +136,7 @@ Balancer::Balance(ThreadAssistant& assistant) noexcept
           std::string brunning = srunning;
 
           if ((*git)->GetConfigMember("stat.balancing.running") != brunning) {
-            (*git)->SetConfigMember("stat.balancing.running",
-                                    brunning, false, "", true);
+            (*git)->SetConfigMember("stat.balancing.running", brunning, true);
           }
         }
 
@@ -150,11 +149,9 @@ Balancer::Balance(ThreadAssistant& assistant) noexcept
           avg = (*git)->AverageDouble("stat.statfs.filled", false);
 
           if (has_drainjob) {
-            (*git)->SetConfigMember("stat.balancing", "drainwait", false,
-                                    "", true);
+            (*git)->SetConfigMember("stat.balancing", "drainwait", true);
           } else {
-            (*git)->SetConfigMember("stat.balancing", "balancing", false,
-                                    "", true);
+            (*git)->SetConfigMember("stat.balancing", "balancing", true);
           }
 
           for (auto fsit = (*git)->begin(); fsit != (*git)->end(); ++fsit) {
@@ -220,8 +217,7 @@ Balancer::Balance(ThreadAssistant& assistant) noexcept
                 }
 
                 if ((*git)->GetConfigMember("stat.balancing") != "idle")
-                  (*git)->SetConfigMember("stat.balancing", "idle",
-                                          false, "", true);
+                  (*git)->SetConfigMember("stat.balancing", "idle", true);
               }
             }
           }
@@ -242,8 +238,7 @@ Balancer::Balance(ThreadAssistant& assistant) noexcept
 
         for (auto git = set_fsgrps.begin(); git != set_fsgrps.end(); ++git) {
           if ((*git)->GetConfigMember("stat.balancing.running") != "0") {
-            (*git)->SetConfigMember("stat.balancing.running", "0", false,
-                                    "", true);
+            (*git)->SetConfigMember("stat.balancing.running", "0", true);
           }
 
           for (auto fsit = (*git)->begin(); fsit != (*git)->end(); ++fsit) {
@@ -264,8 +259,7 @@ Balancer::Balance(ThreadAssistant& assistant) noexcept
           }
 
           if ((*git)->GetConfigMember("stat.balancing") != "idle") {
-            (*git)->SetConfigMember("stat.balancing", "idle", false,
-                                    "", true);
+            (*git)->SetConfigMember("stat.balancing", "idle", true);
           }
         }
       }
