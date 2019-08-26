@@ -3511,6 +3511,30 @@ metad::pmap::swap_in(fuse_ino_t ino, shared_md md)
 }
 
 /* -------------------------------------------------------------------------- */
+int
+metad::pmap::swap_rm(fuse_ino_t ino)
+{
+  // delete from the external KV store
+  if (store) {
+    std::string md_key = "md.";
+    md_key += std::to_string(ino);
+
+    if (store->erase(md_key)) {
+      return EIO;
+    }
+
+    std::string md_state_key = "mds.";
+    md_state_key += std::to_string(ino);
+    
+    if (store->erase(md_state_key)) {
+      return EIO;
+    }
+  }
+  return 0;
+}
+
+
+/* -------------------------------------------------------------------------- */
 void
 metad::pmap::insertTS(fuse_ino_t ino, shared_md& md)
 {
@@ -3549,6 +3573,8 @@ metad::pmap::eraseTS(fuse_ino_t ino)
   if (exists) {
     this->erase(it);
   }
+ 
+  swap_rm(ino); // ignore return code
 
   return exists;
 }

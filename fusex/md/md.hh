@@ -443,7 +443,7 @@ public:
 
     int swap_out(shared_md md);
     int swap_in(fuse_ino_t ino, shared_md md);
-
+    int swap_rm(fuse_ino_t ino);
 
   private:
     uint64_t lru_first;
