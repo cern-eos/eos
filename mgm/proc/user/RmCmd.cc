@@ -36,10 +36,10 @@ eos::console::ReplyProto
 eos::mgm::RmCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
-  XrdOucString m_err {""};
-  int ret_c;
   std::ostringstream outStream;
   std::ostringstream errStream;
+  XrdOucString m_err {""};
+  int ret_c = 0;
   eos::console::RmProto rm = mReqProto.rm();
   auto recursive = rm.recursive();
   auto force = rm.bypassrecycle();
