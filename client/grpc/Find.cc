@@ -9,7 +9,46 @@ int usage(const char* prog)
   fprintf(stderr, "usage: %s [--key <ssl-key-file> "
           "--cert <ssl-cert-file> "
           "--ca <ca-cert-file>] "
-          "[--endpoint <host:port>] [--token <auth-token>] [--depth <depth>] [-f | -d] <path>\n", prog);
+          "[--endpoint <host:port>] [--token <auth-token>] [--depth <depth>] [--select <filter-string>] [-f | -d] <path>\n", prog);
+
+  fprintf(stderr, " <filter-string> is setup as \"key1:val1,key2:val2,key3:val3 ... where keyN:valN is one of \n");
+  fprintf(stderr, ""
+	  "                    owner-root:1|0\n"
+	  "                    group-root:1|0\n"
+	  "                    owner:<uid>\n"
+	  "                    group:<gid>\n"
+	  "                    regex-filename:<regex>\n"
+	  "                    regex-dirname:<regex>\n"
+	  "                    zero-size:1|0\n"
+	  "                    min-size:<min>\n"
+	  "                    max-size:<max>\n"
+	  "                    min-children:<min>\n"
+	  "                    max-children:<max>\n"
+	  "                    zero-children:1|0\n"
+	  "                    min-locations:<min>\n"
+	  "                    max-locations:<max>\n"
+	  "                    zero-locations:1|0\n"
+	  "                    min-unlinked_locations:<min>\n"
+	  "                    max-unlinked_locations:<max\n"
+	  "                    zero-unlinked_locations:1|0\n"
+	  "                    min-treesize:<min>\n"
+	  "                    max-treesize:<max>\n"
+	  "                    zero-treesize:1|0\n"
+	  "                    min-ctime:<unixtst>\n"
+	  "                    max-ctime:<unixtst>\n"
+	  "                    zero-ctime:1|0\n"
+	  "                    min-mtime:<unixtst>\n"
+	  "                    max-mtime:<unixtst>\n"
+	  "                    zero-mtime:1|0\n"
+	  "                    min-stime:<unixtst>\n"
+	  "                    max-stime:<unixtst>\n"
+	  "                    zero-stime:1|0\n"
+	  "                    layoutid:<layoudid>\n"
+	  "                    flags:<flags>\n"
+	  "                    symlink:1|0\n"
+	  "                    checksum-type:<cksname>\n"
+	  "                    checksum-value:<cksvalue>\n"
+	  "                    xattr:<key>=<val>\n");
   return -1;
 }
 
@@ -24,6 +63,8 @@ int main(int argc, const char* argv[])
   std::string certfile;
   std::string cafile;
   std::string path = "";
+  std::string select;
+
   bool files = false;
   bool dirs  = false;
   uint64_t depth = 1024;
@@ -91,6 +132,16 @@ int main(int argc, const char* argv[])
       }
     }
 
+    if (option == "--select") {
+      if (argc > i + 1) {
+        select = argv[i+1];
+        ++i;
+        continue;
+      } else {
+        return usage(argv[0]);
+      }
+    }
+
 
     if (option == "-f") {
       files = true;
@@ -142,7 +193,7 @@ int main(int argc, const char* argv[])
 
   std::chrono::steady_clock::time_point watch_global =
     std::chrono::steady_clock::now();
-  std::string reply = eosgrpc->Find(path, 0, 0, files, dirs, depth, true);
+  std::string reply = eosgrpc->Find(path, select, 0, 0, files, dirs, depth, true);
   std::chrono::microseconds elapsed_global =
     std::chrono::duration_cast<std::chrono::microseconds>
     (std::chrono::steady_clock::now() - watch_global);

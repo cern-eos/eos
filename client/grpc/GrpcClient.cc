@@ -197,6 +197,7 @@ GrpcClient::Md(const std::string& path,
 
 std::string
 GrpcClient::Find(const std::string& path,
+		 const std::string& filter, 
 		 uint64_t id, 
 		 uint64_t ino,
 		 bool files, 
@@ -232,25 +233,96 @@ GrpcClient::Find(const std::string& path,
 
   request.set_authkey(token());
 
-  //  request.mutable_selection()->mutable_size()->set_zero(true);
-  //  request.mutable_selection()->mutable_size()->set_zero(true);
 
-  //  request.mutable_selection()->mutable_children()->set_min(1);
-  //  request.mutable_selection()->mutable_children()->set_max(2);
-  
-  //  request.mutable_selection()->set_owner_root(true);
-  //  request.mutable_selection()->set_group_root(true);
+  if (filter.length()) {
+    // enable filtering 
+    request.mutable_selection()->set_select(true);
 
-  //  request.mutable_selection()->set_owner(1);
-  //  request.mutable_selection()->set_group(1);
+    std::map<std::string,std::string> filtermap;
+    eos::common::StringConversion::GetKeyValueMap(filter.c_str(), 
+		   filtermap);
 
-  //  request.mutable_selection()->set_regexp_filename("(.*).sh$");
-
-  //  request.mutable_selection()->set_regexp_dirname("^Xrd*");
-  //  (*(request.mutable_selection()->mutable_xattr()))["sys.eos.btime"] = "";
-  //  (*(request.mutable_selection()->mutable_xattr()))["sys.eos.btime"] = "1";
-
-  //  request.mutable_selection()->set_select(true);
+    for ( auto const& x : filtermap ) {
+      if (x.first == "owner-root") {
+	  request.mutable_selection()->set_owner_root(strtoul(x.second.c_str(),0,10)?true:false);
+      }  else if (x.first == "group-root") {
+	request.mutable_selection()->set_group_root(strtoul(x.second.c_str(),0,10)?true:false);
+      } else if (x.first == "owner") {
+	request.mutable_selection()->set_owner(strtoul(x.second.c_str(),0,10));
+      } else if (x.first == "group") {
+	request.mutable_selection()->set_group(strtoul(x.second.c_str(),0,10));
+      } else if (x.first == "regex-filename") {
+	request.mutable_selection()->set_regexp_filename(x.second);
+      } else if (x.first == "regex-dirname") {
+	request.mutable_selection()->set_regexp_dirname(x.second);
+      } else if (x.first == "zero-size") {
+	request.mutable_selection()->mutable_size()->set_zero(strtoul(x.second.c_str(),0,10)?true:false);
+      } else if (x.first == "min-size") {
+	request.mutable_selection()->mutable_size()->set_min(strtoul(x.second.c_str(),0,10));
+      } else if (x.first == "max-size") {
+	request.mutable_selection()->mutable_size()->set_max(strtoul(x.second.c_str(),0,10));
+      } else if (x.first == "min-children") {
+	request.mutable_selection()->mutable_children()->set_min(strtoul(x.second.c_str(),0,10));
+      } else if (x.first == "max-children") {
+	request.mutable_selection()->mutable_children()->set_max(strtoul(x.second.c_str(),0,10));
+      } else if (x.first == "zero-children") {
+	request.mutable_selection()->mutable_children()->set_zero(strtoul(x.second.c_str(),0,10)?true:false);} else if (x.first == "min-locations") {
+	request.mutable_selection()->mutable_locations()->set_min(strtoul(x.second.c_str(),0,10));
+      } else if (x.first == "max-locations") {
+	request.mutable_selection()->mutable_locations()->set_max(strtoul(x.second.c_str(),0,10));
+      } else if (x.first == "zero-locations") {
+	request.mutable_selection()->mutable_locations()->set_zero(strtoul(x.second.c_str(),0,10)?true:false);
+      } else if (x.first == "min-unlinked_locations") {
+	request.mutable_selection()->mutable_unlinked_locations()->set_min(strtoul(x.second.c_str(),0,10));
+      } else if (x.first == "max-unlinked_locations") {
+	request.mutable_selection()->mutable_unlinked_locations()->set_max(strtoul(x.second.c_str(),0,10));
+      } else if (x.first == "zero-unlinked_locations") {
+	request.mutable_selection()->mutable_unlinked_locations()->set_zero(strtoul(x.second.c_str(),0,10)?true:false);
+      } else if (x.first == "min-treesize") {
+	request.mutable_selection()->mutable_treesize()->set_min(strtoul(x.second.c_str(),0,10));
+      } else if (x.first == "max-treesize") {
+	request.mutable_selection()->mutable_treesize()->set_max(strtoul(x.second.c_str(),0,10));
+      } else if (x.first == "zero-treesize") {
+	request.mutable_selection()->mutable_treesize()->set_zero(strtoul(x.second.c_str(),0,10)?true:false);
+      } else if (x.first == "min-ctime") {
+	request.mutable_selection()->mutable_ctime()->set_min(strtoul(x.second.c_str(),0,10));
+      } else if (x.first == "max-ctime") {
+	request.mutable_selection()->mutable_ctime()->set_max(strtoul(x.second.c_str(),0,10));
+      } else if (x.first == "zero-ctime") {
+	request.mutable_selection()->mutable_ctime()->set_zero(strtoul(x.second.c_str(),0,10)?true:false);
+      } else if (x.first == "min-mtime") {
+	request.mutable_selection()->mutable_mtime()->set_min(strtoul(x.second.c_str(),0,10));
+      } else if (x.first == "max-mtime") {
+	request.mutable_selection()->mutable_mtime()->set_max(strtoul(x.second.c_str(),0,10));
+      } else if (x.first == "zero-mtime") {
+	request.mutable_selection()->mutable_mtime()->set_zero(strtoul(x.second.c_str(),0,10)?true:false);
+      } else if (x.first == "min-stime") {
+	request.mutable_selection()->mutable_stime()->set_min(strtoul(x.second.c_str(),0,10));
+      } else if (x.first == "max-stime") {
+	request.mutable_selection()->mutable_stime()->set_max(strtoul(x.second.c_str(),0,10));
+      } else if (x.first == "zero-stime") {
+	request.mutable_selection()->mutable_stime()->set_zero(strtoul(x.second.c_str(),0,10)?true:false);
+      } else if (x.first == "layoutid") {
+	request.mutable_selection()->set_layoutid(strtoull(x.second.c_str(),0,10));
+      } else if (x.first == "flags") {
+	request.mutable_selection()->set_flags(strtoull(x.second.c_str(),0,10));
+      } else if (x.first == "symlink") {
+	request.mutable_selection()->set_symlink(strtoul(x.second.c_str(),0,10)?true:false);
+      } else if (x.first == "checksum-type") {
+	request.mutable_selection()->mutable_checksum()->set_type(x.second);
+      } else if (x.first == "checksum-value") {
+	request.mutable_selection()->mutable_checksum()->set_value(x.second);
+      } else if (x.first == "xattr") {
+	std::string key;
+	std::string val;
+	eos::common::StringConversion::SplitKeyValue(x.second, key, val, "=");
+	(*(request.mutable_selection()->mutable_xattr()))[key] = val;
+      } else {
+	std::cerr << "error: unknown filter '" << x.first << ":" << x.second << "'" << std::endl;
+	return "";
+      }
+    }
+  }
 
   MDResponse response;
   ClientContext context;
