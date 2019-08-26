@@ -765,6 +765,10 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config, 
                 if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key, value)) {
                   ret_c = EIO;
                   std_err.str("error: cannot set space config value");
+                } else {
+                  std::string status = (value == "on") ? "enabled" :
+                                       (value == "off" ? "disabled" : "paused");
+                  std_out << "success: wfe is " << status << "!";
                 }
               }
             } else {
@@ -789,7 +793,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config, 
                 }
               } else {
                 ret_c = EINVAL;
-                std_err.str("error: value has to be a positiv number");
+                std_err.str("error: value has to be a positive number");
               }
             }
           }
