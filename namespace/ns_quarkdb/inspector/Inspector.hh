@@ -80,6 +80,11 @@ public:
   int checkNamingConflicts(std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
+  //! Search for files / containers with cursed names
+  //----------------------------------------------------------------------------
+  int checkCursedNames(std::ostream &out, std::ostream &err);
+
+  //----------------------------------------------------------------------------
   //! Search for holes in FsView: Items which should be in FsView according to
   //! FMD locations / unlinked locations, but are not there.
   //----------------------------------------------------------------------------

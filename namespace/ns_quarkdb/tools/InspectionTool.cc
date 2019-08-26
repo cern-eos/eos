@@ -112,6 +112,12 @@ int main(int argc, char* argv[]) {
   addClusterOptions(namingConflictsSubcommand, membersStr, memberValidator, password, passwordFile);
 
   //----------------------------------------------------------------------------
+  // Set-up check-cursed-names subcommand..
+  //----------------------------------------------------------------------------
+  auto cursedNamesSubcommand = app.add_subcommand("check-cursed-names", "Scan through the namespace to find files / containers with invalid names");
+  addClusterOptions(cursedNamesSubcommand, membersStr, memberValidator, password, passwordFile);
+
+  //----------------------------------------------------------------------------
   // Set-up stripediff subcommand..
   //----------------------------------------------------------------------------
   auto stripediffSubcommand = app.add_subcommand("stripediff", "Find files which have non-nominal number of stripes (replicas)");
@@ -252,6 +258,10 @@ int main(int argc, char* argv[]) {
 
   if(namingConflictsSubcommand->parsed()) {
     return inspector.checkNamingConflicts(std::cout, std::cerr);
+  }
+
+  if(cursedNamesSubcommand->parsed()) {
+    return inspector.checkCursedNames(std::cout, std::cerr);
   }
 
   if(printSubcommand->parsed()) {

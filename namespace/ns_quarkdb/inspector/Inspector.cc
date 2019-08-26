@@ -208,11 +208,6 @@ void Inspector::checkContainerConflicts(uint64_t parentContainer,
       break;
     }
 
-    if (proto.name() == "." || proto.name() == ".." ||  proto.name().find("/") != std::string::npos) {
-      out << "Container " << proto.id() << " has cursed name: '" << proto.name() <<
-          "'" << std::endl;
-    }
-
     auto conflict = containerMap.find(proto.name());
 
     if (conflict != containerMap.end()) {
@@ -244,11 +239,6 @@ void Inspector::checkFileConflicts(uint64_t parentContainer,
 
     if (parentContainer != proto.cont_id()) {
       break;
-    }
-
-    if (proto.name() == "." || proto.name() == ".." || proto.name().find("/") != std::string::npos) {
-      out << "File " << proto.id() << " has cursed name: '" << proto.name() << "'" <<
-          std::endl;
     }
 
     auto conflict = fileMap.find(proto.name());
@@ -444,6 +434,47 @@ int Inspector::checkNamingConflicts(std::ostream& out, std::ostream& err)
   }
 
 out:
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+//! Search for files / containers with cursed names
+//------------------------------------------------------------------------------
+int Inspector::checkCursedNames(std::ostream &out, std::ostream &err) {
+  ContainerScanner containerScanner(mQcl);
+  while(containerScanner.valid()) {
+    eos::ns::ContainerMdProto proto;
+    if (!containerScanner.getItem(proto)) {
+      break;
+    }
+
+    if (proto.name() == "." || proto.name() == ".." ||  proto.name().find("/") != std::string::npos) {
+      out << "cid=" << proto.id() << " cursed-name=" << proto.name() << std::endl;
+    }
+
+    containerScanner.next();
+  }
+
+  FileScanner fileScanner(mQcl);
+  while(fileScanner.valid()) {
+    eos::ns::FileMdProto proto;
+    if (!fileScanner.getItem(proto)) {
+      break;
+    }
+
+    if (proto.name() == "." || proto.name() == ".." ||  proto.name().find("/") != std::string::npos) {
+      out << "fid=" << proto.id() << " cursed-name=" << proto.name() << std::endl;
+    }
+
+    fileScanner.next();
+  }
+
+  std::string errorString;
+  if(containerScanner.hasError(errorString) || fileScanner.hasError(errorString)) {
+    err << errorString;
+    return 1;
+  }
+
   return 0;
 }
 
