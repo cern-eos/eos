@@ -49,6 +49,13 @@ class GrpcNsInterface
 {
 public:
 
+  static bool Filter(std::shared_ptr<eos::IFileMD> fmd,
+		     const eos::rpc::MDSelection& filter);
+
+  static bool Filter(std::shared_ptr<eos::IContainerMD> cmd,
+		     const eos::rpc::MDSelection& filter);
+
+
   static grpc::Status GetMD(eos::common::VirtualIdentity& vid,
                             grpc::ServerWriter<eos::rpc::MDResponse>* writer,
                             const eos::rpc::MDRequest* request, bool check_perms = true, 

@@ -232,6 +232,26 @@ GrpcClient::Find(const std::string& path,
 
   request.set_authkey(token());
 
+  //  request.mutable_selection()->mutable_size()->set_zero(true);
+  //  request.mutable_selection()->mutable_size()->set_zero(true);
+
+  //  request.mutable_selection()->mutable_children()->set_min(1);
+  //  request.mutable_selection()->mutable_children()->set_max(2);
+  
+  //  request.mutable_selection()->set_owner_root(true);
+  //  request.mutable_selection()->set_group_root(true);
+
+  //  request.mutable_selection()->set_owner(1);
+  //  request.mutable_selection()->set_group(1);
+
+  //  request.mutable_selection()->set_regexp_filename("(.*).sh$");
+
+  //  request.mutable_selection()->set_regexp_dirname("^Xrd*");
+  //  (*(request.mutable_selection()->mutable_xattr()))["sys.eos.btime"] = "";
+  //  (*(request.mutable_selection()->mutable_xattr()))["sys.eos.btime"] = "1";
+
+  //  request.mutable_selection()->set_select(true);
+
   MDResponse response;
   ClientContext context;
   std::string responsestring;

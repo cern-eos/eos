@@ -30,18 +30,399 @@
 #include "mgm/Acl.hh"
 #include "mgm/proc/IProcCommand.hh"
 #include "mgm/proc/user/RmCmd.hh"
+#include "mgm/XrdMgmOfs.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/MDException.hh"
 #include "namespace/interface/ContainerIterators.hh"
 
-#include "mgm/XrdMgmOfs.hh"
-
+#include <regex.h>
 /*----------------------------------------------------------------------------*/
 
 
 EOSMGMNAMESPACE_BEGIN
 
 #ifdef EOS_GRPC
+
+bool
+GrpcNsInterface::Filter(std::shared_ptr<eos::IFileMD> md,
+		   const eos::rpc::MDSelection& filter)
+{
+  errno = 0;
+  // see if filtering is enabled
+  if (!filter.select())
+    return false;
+
+  eos::IFileMD::ctime_t ctime;
+  eos::IFileMD::ctime_t mtime;
+  md->getCTime(ctime);
+  md->getMTime(mtime);  
+
+  // empty file
+  if (filter.size().zero()) {
+    if (!md->getSize()) {
+      // accepted
+    } else {
+      return true;
+    }
+  } else {
+    if ( (filter.size().min() <= md->getSize()) && 
+	 ( (md->getSize() <= filter.size().max()) || (!filter.size().max())) ) {
+      // accepted
+    } else {
+      return true;
+    }
+  }
+
+  if (filter.ctime().zero()) {
+    if (!ctime.tv_sec && !ctime.tv_nsec) {
+      // accepted
+    } else {
+      return true;
+    }
+  } else {
+    if ( (filter.ctime().min() <= (uint64_t)(ctime.tv_sec)) &&
+	 ( (filter.ctime().max() >= (uint64_t)(ctime.tv_sec)) || (!filter.ctime().max()) ) ) {
+      // accepted
+    } else {
+      return true;
+    }
+  }
+
+  if (filter.mtime().zero()) {
+    if (!mtime.tv_sec && !mtime.tv_nsec) {
+      // accepted
+    } else {
+      return true;
+    }
+  } else {
+    if ( (filter.mtime().min() <= (uint64_t)(mtime.tv_sec)) &&
+	 ( (filter.mtime().max() >= (uint64_t)(mtime.tv_sec)) || (!filter.mtime().max()) ) ) {
+      // accepted
+    } else {
+      return true;
+    }
+  }
+
+  if (filter.mtime().zero()) {
+    if (!mtime.tv_sec && !mtime.tv_nsec) {
+      // accepted
+    } else {
+      return true;
+    }
+  } else {
+    if ( (filter.mtime().min() <= (uint64_t)(mtime.tv_sec)) &&
+	 ( (filter.mtime().max() >= (uint64_t)(mtime.tv_sec)) || (!filter.mtime().max()) ) ) {
+      // accepted
+    } else {
+      return true;
+    }
+  }
+
+  if (filter.locations().zero()) {
+    if (!mtime.tv_sec && !mtime.tv_nsec) {
+      // accepted
+    } else {
+      return true;
+    }
+  } else {
+    if ( (filter.locations().min() <= (uint64_t)(mtime.tv_sec)) &&
+	 ( (filter.locations().max() >= (uint64_t)(mtime.tv_sec)) || (!filter.locations().max()) ) ) {
+      // accepted
+    } else {
+      return true;
+    }
+  }
+
+  if (filter.owner_root()) {
+    if (!md->getCUid()) {
+      // accepted
+    } else {
+      return true;
+    }
+  } else {
+    if (filter.owner()) {
+      if (filter.owner() == md->getCUid()) {
+	// accepted
+      } else {
+	return true;
+      }
+    }
+  }
+
+  if (filter.group_root()) {
+    if (!md->getCGid()) {
+      // accepted
+    } else {
+      return true;
+    }
+  } else {
+    if (filter.group()) {
+      if (filter.group() == md->getCGid()) {
+	// accepted
+      } else {
+	return true;
+      }
+    }
+  } 
+
+  if (filter.layoutid()) {
+    if (md->getLayoutId() != filter.layoutid()) {
+      return true;
+    }
+  }
+
+  if (filter.flags()) {
+    if (md->getFlags() != filter.flags()) {
+      return true;
+    }
+  }
+
+  if (filter.symlink()) {
+    if (!md->isLink()) {
+      return true;
+    }
+  }
+
+  if (filter.checksum().type().length()) {
+    if (filter.checksum().type() !=  eos::common::LayoutId::GetChecksumStringReal(md->getLayoutId())) {
+      return true;
+    }
+  }
+
+  if (filter.checksum().value().length()) {
+    std::string cks(md->getChecksum().getDataPtr(), md->getChecksum().size());
+    if (filter.checksum().value() != cks) {
+      return true;
+    }
+  }
+
+  eos::IFileMD::XAttrMap xattr = md->getAttributes();
+  for (const auto& elem : filter.xattr()) {
+    if (xattr.count(elem.first)) {
+      if (elem.second.length()) {
+	if (xattr[elem.first] == elem.second) {
+	  // accepted
+	} else {
+	  return true;
+	}
+      } else {
+        // accepted
+      }
+    } else {
+      return true;
+    }
+  }
+
+  if (filter.regexp_filename().length()) {
+    int regexErrorCode;
+    int result;
+    regex_t regex;
+    std::string regexString = filter.regexp_filename();
+
+    regexErrorCode = regcomp(&regex, regexString.c_str(), REG_EXTENDED);
+
+    if (regexErrorCode) {
+      regfree(&regex);
+      errno = EINVAL;
+      return true;
+    }
+
+    result = regexec(&regex, md->getName().c_str(), 0, NULL, 0);
+    regfree(&regex);
+    if (result == 0) {
+      // accepted
+    } else if (result == REG_NOMATCH) {
+      return true;
+    } else {
+      errno = ENOMEM;
+      return true;
+    }
+  }
+  return false;;
+}
+
+bool 
+GrpcNsInterface::Filter(std::shared_ptr<eos::IContainerMD> md,
+			const eos::rpc::MDSelection& filter)
+
+{    
+  errno = 0;
+  // see if filtering is enabled
+  if (!filter.select())
+    return false;
+
+  eos::IContainerMD::ctime_t ctime;
+  eos::IContainerMD::ctime_t mtime;
+  eos::IContainerMD::ctime_t stime;
+  md->getCTime(ctime);
+  md->getMTime(mtime);
+  md->getTMTime(stime);
+
+  size_t nchildren = md->getNumContainers() + md->getNumFiles();
+  uint64_t treesize = md->getTreeSize();
+
+  // empty file
+  if (filter.children().zero()) {
+    if (!nchildren) {
+      // accepted
+    } else {
+      return true;
+    }
+  } else {
+    if ( (filter.children().min() <= nchildren) && 
+	 ((nchildren <= filter.children().max()) || (!filter.children().max())) ) {
+      // accepted
+    } else {
+      return true;
+    }
+  }
+
+  if (filter.treesize().zero()) {
+    if (!treesize) {
+      // accepted
+    } else {
+      return true;
+    }
+  } else {
+    if ( (filter.treesize().min() <= treesize) && 
+	 ((treesize <= filter.treesize().max()) || (!filter.treesize().max())) ) {
+      // accepted
+    } else {
+      return true;
+    }
+  }
+
+  if (filter.ctime().zero()) {
+    if (!ctime.tv_sec && !ctime.tv_nsec) {
+      // accepted
+    } else {
+      return true;
+    }
+  } else {
+    if ( (filter.ctime().min() <= (uint64_t)(ctime.tv_sec)) &&
+	 ( (filter.ctime().max() >= (uint64_t)(ctime.tv_sec)) || (!filter.ctime().max()) ) ) {
+      // accepted
+    } else {
+      return true;
+    }
+  }
+
+  if (filter.mtime().zero()) {
+    if (!mtime.tv_sec && !mtime.tv_nsec) {
+      // accepted
+    } else {
+      return true;
+    }
+  } else {
+    if ( (filter.mtime().min() <= (uint64_t)(mtime.tv_sec)) &&
+	 ( (filter.mtime().max() >= (uint64_t)(mtime.tv_sec)) || (!filter.mtime().max()) ) ) {
+      // accepted
+    } else {
+      return true;
+    }
+  }
+
+  if (filter.stime().zero()) {
+    if (!stime.tv_sec && !stime.tv_nsec) {
+      // accepted
+    } else {
+      return true;
+    }
+  } else {
+    if ( (filter.stime().min() <= (uint64_t)(stime.tv_sec)) &&
+	 ( (filter.stime().max() >= (uint64_t)(stime.tv_sec)) || (!filter.stime().max()) ) ) {
+      // accepted
+    } else {
+      return true;
+    }
+  }
+
+  if (filter.owner_root()) {
+    if (!md->getCUid()) {
+      // accepted
+    } else {
+      return true;
+    }
+  } else {
+    if (filter.owner()) {
+      if (filter.owner() == md->getCUid()) {
+	// accepted
+      } else {
+	return true;
+      }
+    }
+  }
+
+  if (filter.group_root()) {
+    if (!md->getCGid()) {
+      // accepted
+    } else {
+      return true;
+    }
+  } else {
+    if (filter.group()) {
+      if (filter.group() == md->getCGid()) {
+	// accepted
+      } else {
+	return true;
+      }
+    }
+  } 
+
+  if (filter.flags()) {
+    if (md->getFlags() != filter.flags()) {
+      return true;
+    }
+  }
+
+  eos::IContainerMD::XAttrMap xattr = md->getAttributes();
+  for (const auto& elem : filter.xattr()) {
+    if (xattr.count(elem.first)) {
+      if (elem.second.length()) {
+	if (xattr[elem.first] == elem.second) {
+	  // accepted
+	} else {
+	  return true;
+	}
+      } else {
+        // accepted
+      }
+    } else {
+      return true;
+    }
+  }
+
+  if (filter.regexp_dirname().length()) {
+    int regexErrorCode;
+    int result;
+    regex_t regex;
+    std::string regexString = filter.regexp_dirname();
+
+    regexErrorCode = regcomp(&regex, regexString.c_str(), REG_EXTENDED);
+
+    if (regexErrorCode) {
+      regfree(&regex);
+      errno = EINVAL;
+      return true;
+    }
+
+    result = regexec(&regex, md->getName().c_str(), 0, NULL, 0);
+    regfree(&regex);
+    if (result == 0) {
+      // accepted
+    } else if (result == REG_NOMATCH) {
+      return true;
+    } else {
+      errno = ENOMEM;
+      return true;
+    }
+  }
+  return false;
+}
+
+
+
+
 grpc::Status
 GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
                        grpc::ServerWriter<eos::rpc::MDResponse>* writer,
@@ -110,6 +491,11 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
                           "access to parent container denied");
     }
 
+    if (Filter(fmd, request->selection())) {
+      // short-cut for filtered MD
+      return grpc::Status::OK;
+    }
+    
     // create GRPC protobuf object
     eos::rpc::MDResponse gRPCResponse;
     gRPCResponse.set_type(eos::rpc::FILE);
@@ -209,6 +595,11 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
                           "access to parent container denied");
     }
 
+    if (Filter(cmd, request->selection())) {
+      // short-cut for filtered MD
+      return grpc::Status::OK;
+    }
+
     // create GRPC protobuf object
     eos::rpc::MDResponse gRPCResponse;
     gRPCResponse.set_type(eos::rpc::CONTAINER);
@@ -246,8 +637,8 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
 }
 
 grpc::Status
-GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
-                          grpc::ServerWriter<eos::rpc::MDResponse>* writer,
+GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid, 
+                         grpc::ServerWriter<eos::rpc::MDResponse>* writer,
                           const eos::rpc::MDRequest* request,
 			  bool streamparent,
 			  std::vector<uint64_t>* childdirs)
@@ -322,6 +713,7 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
   if (streamparent && (request->type() != eos::rpc::FILE)) {
     // stream the requested container
     eos::rpc::MDRequest c_dir;
+    c_dir.mutable_selection()->CopyFrom(request->selection());
     c_dir.mutable_id()->set_id(cid);
     c_dir.set_type(eos::rpc::CONTAINER);
     status = GetMD(vid, writer, &c_dir, true, false);
@@ -338,6 +730,7 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
     // stream all the children files
     for (auto it = eos::FileMapIterator(cmd); it.valid(); it.next()) {
       eos::rpc::MDRequest c_file;
+      c_file.mutable_selection()->CopyFrom(request->selection());
       c_file.mutable_id()->set_id(it.value());
       c_file.set_type(eos::rpc::FILE);
       status = GetMD(vid, writer, &c_file, first);
@@ -356,6 +749,7 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
       // stream for listing and container type
       eos::rpc::MDRequest c_dir;
       c_dir.mutable_id()->set_id(it.value());
+      c_dir.mutable_selection()->CopyFrom(request->selection());
       c_dir.set_type(eos::rpc::CONTAINER);
       status = GetMD(vid, writer, &c_dir, first);
 
@@ -395,6 +789,7 @@ GrpcNsInterface::Find(eos::common::VirtualIdentity& vid,
     eos::rpc::MDRequest c_dir;
     *( c_dir.mutable_id() ) = request->id();
     if (request->type() != eos::rpc::FILE) {
+      c_dir.mutable_selection()->CopyFrom(request->selection());
       c_dir.set_type(eos::rpc::CONTAINER);
       status = GetMD(vid, writer, &c_dir, true, false);
     }
@@ -424,6 +819,7 @@ GrpcNsInterface::Find(eos::common::VirtualIdentity& vid,
       }
 
       lrequest.set_type(request->type());
+      lrequest.mutable_selection()->CopyFrom(request->selection());
       *(lrequest.mutable_role()) = request->role();
       std::vector<uint64_t> children;
       grpc::Status status = StreamMD(vid, writer, &lrequest, streamparent, &children);
