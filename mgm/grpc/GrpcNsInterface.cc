@@ -650,7 +650,7 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
       stime.tv_sec  = it.stime().sec();
       stime.tv_nsec = it.stime().n_sec();
       // we can send flags or mode to store in flags ... sigh
-      newdir->setFlags(it.mode() | it.flags());
+      newdir->setFlags(it.flags());
       newdir->setCTime(ctime);
       newdir->setMTime(mtime);
       newdir->setTMTime(stime);
