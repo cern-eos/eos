@@ -344,7 +344,7 @@ Drainer::UpdateFromSpaceConfig()
       if (space.second->GetConfigMember("drainer.node.nfs") != "") {
         max_drain_fs = atoi(space.second->GetConfigMember("drainer.node.nfs").c_str());
       } else {
-        space.second->SetConfigMember("drainer.node.nfs", "5", true, "/eos/*/mgm");
+        space.second->SetConfigMember("drainer.node.nfs", "5");
       }
 
       // Set the space configuration

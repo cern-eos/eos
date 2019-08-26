@@ -248,7 +248,7 @@ void SpaceCmd::SetSubcmd(const eos::console::SpaceProto_SetProto& set, eos::cons
   std::map<std::string, FsNode *>::const_iterator it2;
   for (it2 = FsView::gFsView.mNodeView.begin();
        it2 != FsView::gFsView.mNodeView.end(); it2++) {
-    if (!it2->second->SetConfigMember(key, status, true, "/eos/*/mgm")) {
+    if (!it2->second->SetConfigMember(key, status)) {
       std_err << "error: cannot set status for node <" + it2->first + ">\n";
       ret_c = EIO;
     }
@@ -322,7 +322,7 @@ void SpaceCmd::NodeSetSubcmd(const eos::console::SpaceProto_NodeSetProto& nodese
           }
         }
       }
-      if (!ret_c && !it->second->SetConfigMember(nodeset.nodeset_key(), val, true, "/eos/*/mgm")) {
+      if (!ret_c && !it->second->SetConfigMember(nodeset.nodeset_key(), val)) {
         std_err << "error: cannot set node-set for node <" + it->first + ">\n";
         ret_c = EIO;
       }
@@ -553,10 +553,8 @@ void SpaceCmd::DefineSubcmd(const eos::console::SpaceProto_DefineProto& define,
 
   // Set the new space parameters
   auto space = FsView::gFsView.mSpaceView[define.mgmspace()];
-  if ((!space->SetConfigMember("groupsize", std::to_string(define.groupsize()),
-                               true, "/eos/*/mgm")) ||
-      (!space->SetConfigMember("groupmod", std::to_string(define.groupmod()),
-                               true, "/eos/*/mgm"))) {
+  if ((!space->SetConfigMember("groupsize", std::to_string(define.groupsize()))) ||
+      (!space->SetConfigMember("groupmod", std::to_string(define.groupmod())))) {
     reply.set_std_err("error: cannot set space config value");
     reply.set_retc(EIO);
   }
@@ -603,7 +601,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config, 
             }
           } else {
             // set a space policy parameters e.g. default placement attributes
-            if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key, value, true, "/eos/*/mgm")) {
+            if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key, value)) {
               std_err.str("error: cannot set space config value");
               ret_c = EIO;
             } else {
@@ -657,7 +655,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config, 
                 ret_c = EINVAL;
                 std_err.str("error: value has to either on or off");
               } else {
-                if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key, value, true, "/eos/*/mgm")) {
+                if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key, value)) {
                   ret_c = EIO;
                   std_err.str("error: cannot set space config value");
                 } else {
@@ -760,7 +758,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config, 
                 ret_c = EINVAL;
                 std_err.str("error: value has to either on, paused or off");
               } else {
-                if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key, value, true, "/eos/*/mgm")) {
+                if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key, value)) {
                   ret_c = EIO;
                   std_err.str("error: cannot set space config value");
                 }
@@ -779,7 +777,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config, 
                   value = ssize;
                 }
 
-                if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key, value, true, "/eos/*/mgm")) {
+                if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key, value)) {
                   ret_c = EIO;
                   std_err.str("error: cannot set space config value");
                 } else {
@@ -810,7 +808,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config, 
           char ssize[1024];
           snprintf(ssize, sizeof(ssize) - 1, "%llu", size);
 
-          if ((!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key, ssize, true, "/eos/*/mgm"))) {
+          if ((!FsView::gFsView.mSpaceView[config.mgmspace_name()]->SetConfigMember(key, ssize))) {
             std_err << "error: failed to set space parameter <" + key + ">\n";
             ret_c = EINVAL;
           }
@@ -899,7 +897,7 @@ void SpaceCmd::QuotaSubcmd(const eos::console::SpaceProto_QuotaProto& quota, eos
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
   if (FsView::gFsView.mSpaceView.count(quota.mgmspace())) {
-    if (!FsView::gFsView.mSpaceView[quota.mgmspace()]->SetConfigMember(key, onoff, true, "/eos/*/mgm")) {
+    if (!FsView::gFsView.mSpaceView[quota.mgmspace()]->SetConfigMember(key, onoff)) {
       reply.set_std_err("error: cannot set space config value");
       reply.set_retc(EIO);
 

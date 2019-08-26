@@ -539,12 +539,7 @@ Converter::PublishActiveJobs()
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   char sactive[256];
   snprintf(sactive, sizeof(sactive) - 1, "%lu", mActiveJobs);
-  FsView::gFsView.mSpaceView[mSpaceName.c_str()]->SetConfigMember
-  ("stat.converter.active",
-   sactive,
-   true,
-   "/eos/*/mgm",
-   true);
+  FsView::gFsView.mSpaceView[mSpaceName.c_str()]->SetConfigMember("stat.converter.active", sactive, true);
 }
 
 //------------------------------------------------------------------------------

@@ -2484,12 +2484,7 @@ WFE::PublishActiveJobs()
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   char sactive[256];
   snprintf(sactive, sizeof(sactive) - 1, "%u", GetActiveJobs());
-  FsView::gFsView.mSpaceView["default"]->SetConfigMember
-  ("stat.wfe.active",
-   sactive,
-   true,
-   "/eos/*/mgm",
-   true);
+  FsView::gFsView.mSpaceView["default"]->SetConfigMember("stat.wfe.active", sactive, true);
 }
 
 IContainerMD::XAttrMap

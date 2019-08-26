@@ -553,10 +553,8 @@ public:
   //! Set a member variable
   //----------------------------------------------------------------------------
   bool SetConfigMember(std::string key, string value,
-                       bool create = false,
-                       std::string broadcastqueue = "",
                        bool isstatus = false) {
-    return SetConfigMemberInternal(key, value, create, broadcastqueue, isstatus);
+    return SetConfigMemberInternal(key, value, true, "/eos/*/mgm", isstatus);
   }
 
   //----------------------------------------------------------------------------

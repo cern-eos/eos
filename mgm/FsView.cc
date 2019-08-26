@@ -819,147 +819,147 @@ FsSpace::FsSpace(const char* name)
     // Set default balancing variables
     // Disable autorepair by default
     if (GetConfigMember("autorepair").empty()) {
-      SetConfigMember("autorepair", "off", true, "/eos/*/mgm");
+      SetConfigMember("autorepair", "off");
     }
 
     // Disable balancing by default
     if (GetConfigMember("balancer").empty()) {
-      SetConfigMember("balancer", "off", true, "/eos/*/mgm");
+      SetConfigMember("balancer", "off");
     }
 
     // Set deviation treshold
     if (GetConfigMember("balancer.threshold").empty()) {
-      SetConfigMember("balancer.threshold", "20", true, "/eos/*/mgm");
+      SetConfigMember("balancer.threshold", "20");
     }
 
     // Set balancing rate per balancing stream
     if (GetConfigMember("balancer.node.rate").empty()) {
-      SetConfigMember("balancer.node.rate", "25", true, "/eos/*/mgm");
+      SetConfigMember("balancer.node.rate", "25");
     }
 
     // Set parallel balancing streams per node
     if (GetConfigMember("balancer.node.ntx").empty()) {
-      SetConfigMember("balancer.node.ntx", "2", true, "/eos/*/mgm");
+      SetConfigMember("balancer.node.ntx", "2");
     }
 
     // Set drain rate per drain stream
     if (GetConfigMember("drain.node.rate").empty()) {
-      SetConfigMember("drainer.node.rate", "25", true, "/eos/*/mgm");
+      SetConfigMember("drainer.node.rate", "25");
     }
 
     // Set parallel draining streams per node
     if (GetConfigMember("drainer.node.ntx").empty()) {
-      SetConfigMember("drainer.node.ntx", "2", true, "/eos/*/mgm");
+      SetConfigMember("drainer.node.ntx", "2");
     }
 
     // Set the grace period before drain start on opserror to 1 day
     if (GetConfigMember("graceperiod").empty()) {
-      SetConfigMember("graceperiod", "86400", true, "/eos/*/mgm");
+      SetConfigMember("graceperiod", "86400");
     }
 
     // Set the time for a drain by default to 1 day
     if (GetConfigMember("drainperiod").empty()) {
-      SetConfigMember("drainperiod", "86400", true, "/eos/*/mgm");
+      SetConfigMember("drainperiod", "86400");
     }
 
     // Set the scan rate by default to 100 MB/s
     if (GetConfigMember("scanrate").empty()) {
-      SetConfigMember("scanrate", "100", true, "/eos/*/mgm");
+      SetConfigMember("scanrate", "100");
     }
 
     // Set the scan interval by default to 1 week
     if (GetConfigMember("scaninterval").empty()) {
-      SetConfigMember("scaninterval", "604800", true, "/eos/*/mgm");
+      SetConfigMember("scaninterval", "604800");
     }
 
     // Disable quota by default
     if (GetConfigMember("quota").empty()) {
-      SetConfigMember("quota", "off", true, "/eos/*/mgm");
+      SetConfigMember("quota", "off");
     }
 
     // Set the group modulo to 0
     if (GetConfigMember("groupmod").empty()) {
-      SetConfigMember("groupmod", "0", true, "/eos/*/mgm");
+      SetConfigMember("groupmod", "0");
     }
 
     // Set the group size to 0
     if (GetConfigMember("groupsize").empty()) {
-      SetConfigMember("groupsize", "0", true, "/eos/*/mgm");
+      SetConfigMember("groupsize", "0");
     }
 
     // Disable converter by default
     if (GetConfigMember("converter").empty()) {
-      SetConfigMember("converter", "off", true, "/eos/*/mgm");
+      SetConfigMember("converter", "off");
     }
 
     // Set two converter streams by default
     if (GetConfigMember("converter.ntx").empty()) {
-      SetConfigMember("converter.ntx", "2", true, "/eos/*/mgm");
+      SetConfigMember("converter.ntx", "2");
     }
 
     if (GetConfigMember("groupbalancer").empty()) {
-      SetConfigMember("groupbalancer", "off", true, "/eos/*/mgm");
+      SetConfigMember("groupbalancer", "off");
     }
 
     // Set the groupbalancer max number of scheduled files by default
     if (GetConfigMember("groupbalancer.ntx").empty()) {
-      SetConfigMember("groupbalancer.ntx", "10", true, "/eos/*/mgm");
+      SetConfigMember("groupbalancer.ntx", "10");
     }
 
     // Set the groupbalancer threshold by default
     if (GetConfigMember("groupbalancer.threshold").empty()) {
-      SetConfigMember("groupbalancer.threshold", "5", true, "/eos/*/mgm");
+      SetConfigMember("groupbalancer.threshold", "5");
     }
 
     if (GetConfigMember("geobalancer").empty()) {
-      SetConfigMember("geobalancer", "off", true, "/eos/*/mgm");
+      SetConfigMember("geobalancer", "off");
     }
 
     // Set the geobalancer max number of scheduled files by default
     if (GetConfigMember("geobalancer.ntx").empty()) {
-      SetConfigMember("geobalancer.ntx", "10", true, "/eos/*/mgm");
+      SetConfigMember("geobalancer.ntx", "10");
     }
 
     // Set the geobalancer threshold by default
     if (GetConfigMember("geobalancer.threshold").empty()) {
-      SetConfigMember("geobalancer.threshold", "5", true, "/eos/*/mgm");
+      SetConfigMember("geobalancer.threshold", "5");
     }
 
     // Disable lru by default
     if (GetConfigMember("lru").empty()) {
-      SetConfigMember("converter", "off", true, "/eos/*/mgm");
+      SetConfigMember("converter", "off");
     }
 
     // Set one week lru interval by default
     if (GetConfigMember("lru.interval") == "604800") {
-      SetConfigMember("converter.ntx", "2", true, "/eos/*/mgm");
+      SetConfigMember("converter.ntx", "2");
     }
 
     // Set the wfe off by default
     if (GetConfigMember("wfe").empty()) {
-      SetConfigMember("wfe", "off", true, "/eos/*/mgm");
+      SetConfigMember("wfe", "off");
     }
 
     // Set the wfe interval by default
     if (GetConfigMember("wfe.interval").empty()) {
-      SetConfigMember("wfe.interval", "10", true, "/eos/*/mgm");
+      SetConfigMember("wfe.interval", "10");
     }
 
     // Set the wfe ntx by default
     if (GetConfigMember("wfe.ntx").empty()) {
-      SetConfigMember("wfe.ntx", "1", true, "/eos/*/mgm");
+      SetConfigMember("wfe.ntx", "1");
     }
 
     // Disable the 'file archived' garbage collector by default
     if (GetConfigMember("filearchivedgc").empty()) {
-      SetConfigMember("filearchivedgc", "off", false, "/eos/*/mgm");
+      SetConfigMember("filearchivedgc", "off");
     }
   }
 
   if (mName == std::string("default")) {
     // Disable tracker by default
     if (GetConfigMember("tracker").empty()) {
-      SetConfigMember("tracker", "off", true, "/eos/*/mgm");
+      SetConfigMember("tracker", "off");
     }
   }
 }
@@ -1625,10 +1625,8 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams &coreParams,
       }
 
       // Set new space default parameters
-      if ((!space->SetConfigMember(std::string("groupsize"), grp_sz,
-                                   true, "/eos/*/mgm", true)) ||
-          (!space->SetConfigMember(std::string("groupmod"), grp_mod,
-                                   true, "/eos/*/mgm", true))) {
+      if ((!space->SetConfigMember(std::string("groupsize"), grp_sz, true)) ||
+          (!space->SetConfigMember(std::string("groupmod"), grp_mod, true))) {
         eos_err("failed setting space %s default config values",
                 coreParams.getSpace().c_str());
         return false;
@@ -2396,8 +2394,7 @@ FsNode::SetNodeConfigDefault()
 {
   // Define the manager ID
   if (!(GetConfigMember("manager").length())) {
-    SetConfigMember("manager", gOFS->mMaster->GetMasterId(), true,
-                    mName.c_str(), true);
+    SetConfigMember("manager", gOFS->mMaster->GetMasterId(), true);
   }
 
   // By default set 2 balancing streams per node
