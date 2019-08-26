@@ -75,6 +75,8 @@ public:
 
   int erase(uint64_t key, const std::string& name_space = "i") override;
 
+  int clean_stores(const std::string& storedir, const std::string& newdb) { return 0; }
+
   std::string prefix(const std::string& key)
   {
     return mPrefix + key;

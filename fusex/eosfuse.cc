@@ -385,6 +385,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   xrdcl_options.push_back("StreamTimeout");
   xrdcl_options.push_back("RedirectLimit");
   std::string mountpoint;
+  std::string store_directory;
   config.options.foreground = 0;
   config.options.automounted = 0;
 
@@ -919,6 +920,9 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         config.mdcachedir += config.name.length() ? config.name : "default";
       }
 
+      // the store directory is the tree before we append individual UUIDs for each mount
+      store_directory = config.mdcachedir;
+
       // default settings
       if (!config.statfilesuffix.length()) {
         config.statfilesuffix = "stats";
@@ -1446,8 +1450,11 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       mKV.reset(new RedisKV());
 #ifdef ROCKSDB_FOUND
 
-      if (!config.mdcachedir.empty()) {
+      if (!config.mdcachedir.empty()) {	
         RocksKV* kv = new RocksKV();
+
+	// clean old stale DBs
+	kv->clean_stores(store_directory,config.clientuuid);
 
         if (kv->connect(config.name, config.mdcachedir) != 0) {
           fprintf(stderr, "error: failed to open rocksdb KV cache - path=%s",

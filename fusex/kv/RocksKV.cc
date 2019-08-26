@@ -32,6 +32,11 @@
 #include "common/Logging.hh"
 #include "misc/longstring.hh"
 
+#include <sys/types.h>
+#include <dirent.h>
+#include <regex>
+#include <fstream>
+
 /* -------------------------------------------------------------------------- */
 static bool
 /* -------------------------------------------------------------------------- */
@@ -268,7 +273,49 @@ RocksKV::put(uint64_t key, uint64_t value, const std::string& name_space)
 int
 /* -------------------------------------------------------------------------- */
 RocksKV::erase(uint64_t key, const std::string& name_space)
-/* -------------------------------------------------------------------------- */
 {
   return this->erase(buildKey(key, name_space));
+}
+
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+RocksKV::clean_stores(const std::string& storedir, const std::string& newdb) 
+{
+  DIR* dir;
+  struct dirent *ent;
+
+  if ((dir = ::opendir(storedir.c_str())) != NULL) {
+    while ((ent = ::readdir (dir)) != NULL) {
+      std::string entry = ent->d_name;
+      if ( (entry == ".") || (entry == "..") ) {
+	continue;
+      }
+      if (entry == newdb) {
+	continue;
+      }
+      if (!entry.length()) {
+	continue;
+      }
+      struct stat buf;
+      std::string dbdir = storedir;
+      dbdir += "/";
+      dbdir += entry;
+
+      if (!stat(dbdir.c_str(), &buf)) {
+	// check if this is a directory
+	if (S_ISDIR(buf.st_mode)) {
+	  // cleanup this old directory
+	  std::string rmline = "rm -rf ";
+	  rmline += dbdir;
+	  system(rmline.c_str());
+	  fprintf(stderr,"###### cleaning stale cache directory '%s'\n", 
+		  dbdir.c_str());
+	}
+      }
+    }
+    ::closedir(dir);
+  }
+  
+  return 0;
 }
