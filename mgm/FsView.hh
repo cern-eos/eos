@@ -369,14 +369,6 @@ public:
   virtual std::string GetMember(const std::string& member) const;
 
   //----------------------------------------------------------------------------
-  //! Set a member variable in a view
-  //----------------------------------------------------------------------------
-  virtual bool SetConfigMember(std::string key, string value,
-                               bool create = false,
-                               std::string broadcastqueue = "",
-                               bool isstatus = false);
-
-  //----------------------------------------------------------------------------
   //! Return a configuration member
   //----------------------------------------------------------------------------
   virtual std::string GetConfigMember(std::string key) const;
@@ -509,6 +501,16 @@ public:
   ConsiderCount(bool lock,
                 const std::set<eos::common::FileSystem::fsid_t>* subset);
 
+protected:
+
+  //----------------------------------------------------------------------------
+  //! Set a member variable in a view
+  //----------------------------------------------------------------------------
+  bool SetConfigMemberInternal(std::string key, string value,
+                       bool create = false,
+                       std::string broadcastqueue = "",
+                       bool isstatus = false);
+
 private:
   time_t mHeartBeat; ///< Last heartbeat time
   std::string mStatus; ///< Status (meaning depends on inheritor)
@@ -546,6 +548,16 @@ public:
   //! @param name name of the space to construct
   //----------------------------------------------------------------------------
   FsSpace(const char* name);
+
+  //----------------------------------------------------------------------------
+  //! Set a member variable
+  //----------------------------------------------------------------------------
+  bool SetConfigMember(std::string key, string value,
+                       bool create = false,
+                       std::string broadcastqueue = "",
+                       bool isstatus = false) {
+    return SetConfigMemberInternal(key, value, create, broadcastqueue, isstatus);
+  }
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -613,6 +625,16 @@ public:
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~FsGroup() = default;
+
+  //----------------------------------------------------------------------------
+  //! Set a member variable
+  //----------------------------------------------------------------------------
+  bool SetConfigMember(std::string key, string value,
+                       bool create = false,
+                       std::string broadcastqueue = "",
+                       bool isstatus = false) {
+    return SetConfigMemberInternal(key, value, create, broadcastqueue, isstatus);
+  }
 
   //----------------------------------------------------------------------------
   //! Return index of the group
@@ -684,6 +706,16 @@ public:
   static const char* sGetConfigQueuePrefix()
   {
     return gConfigQueuePrefix.c_str();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set a member variable
+  //----------------------------------------------------------------------------
+  bool SetConfigMember(std::string key, string value,
+                       bool create = false,
+                       std::string broadcastqueue = "",
+                       bool isstatus = false) {
+    return SetConfigMemberInternal(key, value, create, broadcastqueue, isstatus);
   }
 
   //----------------------------------------------------------------------------

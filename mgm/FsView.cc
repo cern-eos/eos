@@ -2510,7 +2510,7 @@ FsNode::SetActiveStatus(eos::common::ActiveStatus active)
 // => is used to set status variables on config queues (baseview queues)
 //------------------------------------------------------------------------------
 bool
-BaseView::SetConfigMember(std::string key, std::string value, bool create,
+BaseView::SetConfigMemberInternal(std::string key, std::string value, bool create,
                           std::string broadcastqueue, bool isstatus)
 {
   bool success = false;
