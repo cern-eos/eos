@@ -2399,12 +2399,12 @@ FsNode::SetNodeConfigDefault()
 
   // By default set 2 balancing streams per node
   if (!(GetConfigMember("stat.balance.ntx").length())) {
-    SetConfigMember("stat.balance.ntx", "2", true, mName.c_str(), true);
+    SetConfigMember("stat.balance.ntx", "2", true);
   }
 
   // By default set 25 MB/s stream balancing rate
   if (!(GetConfigMember("stat.balance.rate").length())) {
-    SetConfigMember("stat.balance.rate", "25", true, mName.c_str(), true);
+    SetConfigMember("stat.balance.rate", "25", true);
   }
 
   // Set the default sym key from the sym key store
@@ -2412,34 +2412,34 @@ FsNode::SetNodeConfigDefault()
 
   // Store the sym key as configuration member
   if (!(GetConfigMember("symkey").length())) {
-    SetConfigMember("symkey", symkey->GetKey64(), true, mName.c_str(), true);
+    SetConfigMember("symkey", symkey->GetKey64(), true);
   }
 
   // Set the default debug level to notice
   if (!(GetConfigMember("debug.level").length())) {
-    SetConfigMember("debug.level", "info", true, mName.c_str(), true);
+    SetConfigMember("debug.level", "info", true);
   }
 
   // Set by default as no transfer gateway
   if ((GetConfigMember("txgw") != "on") && (GetConfigMember("txgw") != "off")) {
-    SetConfigMember("txgw", "off", true, mName.c_str(), true);
+    SetConfigMember("txgw", "off", true);
   }
 
   // set by default 10 transfers per gateway node
   if ((strtol(GetConfigMember("gw.ntx").c_str(), 0, 10) == 0) ||
       (strtol(GetConfigMember("gw.ntx").c_str(), 0, 10) == LONG_MAX)) {
-    SetConfigMember("gw.ntx", "10", true, mName.c_str(), true);
+    SetConfigMember("gw.ntx", "10", true);
   }
 
   // Set by default the gateway stream transfer speed to 120 Mb/s
   if ((strtol(GetConfigMember("gw.rate").c_str(), 0, 10) == 0) ||
       (strtol(GetConfigMember("gw.rate").c_str(), 0, 10) == LONG_MAX)) {
-    SetConfigMember("gw.rate", "120", true, mName.c_str(), true);
+    SetConfigMember("gw.rate", "120", true);
   }
 
   // Set by default the MGM domain e.g. same geographical position as the MGM
   if (!(GetConfigMember("domain").length())) {
-    SetConfigMember("domain", "MGM", true, mName.c_str(), true);
+    SetConfigMember("domain", "MGM", true);
   }
 }
 
@@ -2494,9 +2494,9 @@ bool
 FsNode::SetActiveStatus(eos::common::ActiveStatus active)
 {
   if (active == eos::common::ActiveStatus::kOnline) {
-    return SetConfigMember("stat.active", "online", true, mName.c_str(), true);
+    return SetConfigMember("stat.active", "online", true);
   } else {
-    return SetConfigMember("stat.active", "offline", true, mName.c_str(), true);
+    return SetConfigMember("stat.active", "offline", true);
   }
 }
 
@@ -2953,8 +2953,7 @@ FsView::BroadcastMasterId(const std::string master_id)
 
   for (auto it = FsView::gFsView.mNodeView.begin();
        it != FsView::gFsView.mNodeView.end(); ++it) {
-    it->second->SetConfigMember("manager", master_id, true,
-                                it->first, true);
+    it->second->SetConfigMember("manager", master_id, true);
   }
 }
 

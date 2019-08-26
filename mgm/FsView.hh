@@ -670,8 +670,7 @@ public:
   {
     mName = name;
     mType = "nodesview";
-    SetConfigMember("stat.hostport", GetMember("hostport"), true, mName.c_str(),
-                    false);
+    SetConfigMember("stat.hostport", GetMember("hostport"), false);
     mGwQueue = new eos::common::TransferQueue(
       eos::common::TransferQueueLocator(mName, "txq"),
       eos::common::GlobalConfig::gConfig.SOM(),
@@ -708,10 +707,8 @@ public:
   //! Set a member variable
   //----------------------------------------------------------------------------
   bool SetConfigMember(std::string key, string value,
-                       bool create = false,
-                       std::string broadcastqueue = "",
                        bool isstatus = false) {
-    return SetConfigMemberInternal(key, value, create, broadcastqueue, isstatus);
+    return SetConfigMemberInternal(key, value, true, mName.c_str(), isstatus);
   }
 
   //----------------------------------------------------------------------------

@@ -530,14 +530,14 @@ void NodeCmd::SetSubcmd(const eos::console::NodeProto_SetProto& set, eos::consol
     }
   }
 
-  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status, true, nodename)) {
+  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status)) {
     reply.set_std_err("error: cannot set node config value");
     reply.set_retc(EIO);
     return;
   }
 
   // set also the manager name
-  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager", gOFS->mMaster->GetMasterId(), true, nodename, true)) {
+  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager", gOFS->mMaster->GetMasterId(), true)) {
     reply.set_std_err("error: cannot set the manager name");
     reply.set_retc(EIO);
     return;
@@ -618,14 +618,14 @@ void NodeCmd::TxgwSubcmd(const eos::console::NodeProto_TxgwProto& txgw, eos::con
   }
 
 
-  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status, true, nodename)) {
+  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status)) {
     reply.set_std_err("error: cannot set node config value");
     reply.set_retc(EIO);
     return;
   }
 
   // set also the manager name
-  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager", gOFS->mMaster->GetMasterId(), true, nodename, true)) {
+  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager", gOFS->mMaster->GetMasterId(), true)) {
     reply.set_std_err("error: cannot set the manager name");
     reply.set_retc(EIO);
     return;
@@ -753,14 +753,14 @@ void NodeCmd::ProxygroupSubcmd(const eos::console::NodeProto_ProxygroupProto& pr
   eos_static_debug(" new proxygroups value %s", proxygroups.c_str());
   status = proxygroups;
 
-  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status, true, nodename)) {
+  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status)) {
     reply.set_std_err("error: cannot set node config value");
     reply.set_retc(EIO);
     return;
   }
 
   // set also the manager name
-  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager", gOFS->mMaster->GetMasterId(), true, nodename, true)) {
+  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager", gOFS->mMaster->GetMasterId(), true)) {
     reply.set_std_err("error: cannot set the manager name");
     reply.set_retc(EIO);
     return;

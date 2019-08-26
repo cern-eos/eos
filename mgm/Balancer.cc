@@ -165,20 +165,17 @@ Balancer::Balance(ThreadAssistant& assistant) noexcept
                   // Broadcast the rate & stream configuration if changed
                   if (node->GetConfigMember("stat.balance.ntx") !=
                       SpaceNodeTransfers) {
-                    node->SetConfigMember("stat.balance.ntx", SpaceNodeTransfers,
-                                          false, "", true);
+                    node->SetConfigMember("stat.balance.ntx", SpaceNodeTransfers, true);
                   }
 
                   if (node->GetConfigMember("stat.balance.rate") !=
                       SpaceNodeTransferRate) {
-                    node->SetConfigMember("stat.balance.rate", SpaceNodeTransferRate,
-                                          false, "", true);
+                    node->SetConfigMember("stat.balance.rate", SpaceNodeTransferRate, true);
                   }
 
                   if (node->GetConfigMember("stat.balance.threshold") !=
                       SpaceNodeThreshold) {
-                    node->SetConfigMember("stat.balance.threshold", SpaceNodeThreshold,
-                                          false, "", true);
+                    node->SetConfigMember("stat.balance.threshold", SpaceNodeThreshold, true);
                   }
                 }
               }

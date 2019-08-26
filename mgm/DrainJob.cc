@@ -199,13 +199,11 @@ DrainJob::SetSpaceNode()
           if (node) {
             // broadcast the rate & stream configuration if changed
             if (node->GetConfigMember("stat.drain.ntx") != SpaceNodeTransfers) {
-              node->SetConfigMember("stat.drain.ntx",
-                                    SpaceNodeTransfers, false, "", true);
+              node->SetConfigMember("stat.drain.ntx", SpaceNodeTransfers, true);
             }
 
             if (node->GetConfigMember("stat.drain.rate") != SpaceNodeTransferRate) {
-              node->SetConfigMember("stat.drain.rate",
-                                    SpaceNodeTransferRate, false, "", true);
+              node->SetConfigMember("stat.drain.rate", SpaceNodeTransferRate, true);
             }
           }
         }
