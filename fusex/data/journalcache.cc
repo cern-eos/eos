@@ -63,8 +63,10 @@ journalcache::~journalcache()
 
     }
     
-    jDirCleaner->get_external_tree().change(detachstat.st_size - attachstat.st_size,
-					    0);
+    if (jDirCleaner) {
+      jDirCleaner->get_external_tree().change(detachstat.st_size - attachstat.st_size,
+					      0);
+    }
 
     if (!(flags & O_CACHE)) {
       // only clean write caches
@@ -151,7 +153,9 @@ int journalcache::attach(fuse_req_t req, std::string& cookie, int _flags)
 
     if (stat(path.c_str(), &attachstat)) {
       // a new file
-      jDirCleaner->get_external_tree().change(0, 1);
+      if (jDirCleaner) {
+	jDirCleaner->get_external_tree().change(0, 1);
+      }
     }
 
 
@@ -187,7 +191,9 @@ int journalcache::unlink()
       rc = ::unlink(path.c_str());
       if (!rc) {
         // a deleted file
-	jDirCleaner->get_external_tree().change(-buf.st_size, -1);
+	if (jDirCleaner) {
+	  jDirCleaner->get_external_tree().change(-buf.st_size, -1);
+	}
       }
     }
   }
@@ -415,8 +421,10 @@ int journalcache::truncate(off_t offset, bool invalidate)
     journal.clear();
     cachesize = 0;
     if (!::ftruncate(fd, 0)) {
-      jDirCleaner->get_external_tree().change(detachstat.st_size - attachstat.st_size,
-					      0);
+      if (jDirCleaner) {
+	jDirCleaner->get_external_tree().change(detachstat.st_size - attachstat.st_size,
+						0);
+      }
       attachstat.st_size = offset;
     }
   }
