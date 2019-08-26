@@ -453,7 +453,8 @@ void com_space_help()
       << std::endl
       << "space tracker : print all file replication tracking entries\n"
       << std::endl
-      << "space set <space-name> on|off : enable/disable all groups under that space ( not the nodes !) \n"
+      << "space set <space-name> on|off : enable/disable all groups under that space\n"
+      << "                                => <on> value will enable all nodes, <off> value won't affect nodes\n"
       << std::endl
       << "space rm <space-name> : remove space\n"
       << std::endl

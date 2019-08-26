@@ -248,6 +248,17 @@ void SpaceCmd::SetSubcmd(const eos::console::SpaceProto_SetProto& set,
     }
   }
 
+  // Enable all nodes if 'on' request
+  if (set.state_switch()) {
+    for (auto& node: FsView::gFsView.mNodeView) {
+      if (!node.second->SetConfigMember(key, status)) {
+        std_err << "error: cannot set status=on in node <"
+                << node.second->mName<< ">\n";
+        ret_c = EIO;
+      }
+    }
+  }
+
   reply.set_std_out(std_out.str());
   reply.set_std_err(std_err.str());
   reply.set_retc(ret_c);
