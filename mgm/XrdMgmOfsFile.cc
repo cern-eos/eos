@@ -106,6 +106,12 @@ XrdMgmOfsFile::open(const char* inpath,
   BOUNCE_ILLEGAL_NAMES;
   BOUNCE_NOT_ALLOWED;
   XrdOucString spath = path;
+
+  if (!spath.beginswith("/proc/") && spath.endswith("/")) {
+    return Emsg(epname, error, EISDIR,
+		"open - you specified a directory as target file name", path);
+  }
+
   int open_flag = 0;
   int isRW = 0;
   int isRewrite = 0;

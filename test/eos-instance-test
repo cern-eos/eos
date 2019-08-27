@@ -541,6 +541,10 @@ runtest "### Rename    " unix 1 "" eos "file rename /eos/$EOS_TEST_INSTANCE/test
 runtest "### Rename    " unix 0 "" eos "file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/rename.dir /eos/$EOS_TEST_INSTANCE/test/instancetest/rename"
 runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.rename"
 runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-ODeos.space=default"
+runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
+runtest "### Stat      " unix 1 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd/"
+runtest "### Upload    " unix 1 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd/" "-ODeos.space=default"
+runtest "### Upload    " unix 1 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd/" "-f"
 runtest "### Rmdir     " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/rename"
 
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/a\&b"

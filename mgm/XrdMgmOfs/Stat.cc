@@ -177,6 +177,12 @@ XrdMgmOfs::_stat(const char* path,
   try {
     fmd = gOFS->eosView->getFile(cPath.GetPath(), follow);
 
+    // if a stat comes with file/ return an error
+    if ( std::string(path).back() == '/' ) {
+      errno = EISDIR;
+      return Emsg(epname, error, errno, "stat", cPath.GetPath());
+    }
+
     if (uri) {
       *uri = gOFS->eosView->getUri(fmd.get());
     }
