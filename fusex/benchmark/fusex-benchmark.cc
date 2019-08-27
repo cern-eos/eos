@@ -291,7 +291,7 @@ int main(int argc, char* argv[])
           exit(testno);
         } else {
           if ((size_t) buf.st_size != i) {
-            fprintf(stderr, "[test=%03d] falsed size linear truncate i=%lu size=%lu\n",
+            fprintf(stderr, "[test=%03d] failed size linear truncate i=%lu size=%lu\n",
                     testno, i, buf.st_size);
             exit(testno);
           }
@@ -832,5 +832,5 @@ int main(int argc, char* argv[])
   }
 
   tm.Print();
-  fprintf(stdout, "realtime = %.02f", tm.RealTime());
+  fprintf(stdout, "realtime = %.02f\n", tm.RealTime());
 }
