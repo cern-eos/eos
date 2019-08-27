@@ -348,6 +348,10 @@ eos_io() {
    echo eos-io-test root://$EOS_TEST_REDIRECTOR/$1 $2 >& $EOSLASTLOG; eval eos-io-test root://$EOS_TEST_REDIRECTOR/$1 $2 >> $EOSCERTLOG 2>&1
 }
 
+
+eos_rename() {
+   echo eos-rename-test $1 $EOS_TEST_REDIRECTOR; eval eos-rename-test $1 $EOS_TEST_REDIRECTOR >> $EOSCERTLOG 2>&1
+}
 shell() {
     echo $* >& $EOSLASTLOG; eval $* >> $EOSCERTLOG 2>&1
 }
@@ -553,6 +557,8 @@ runtest "### RmGroup   " unix 0 "" eos "group rm __test__"
 
 runtest "### MkNode    " unix 0 "" eos "node set __test__ on"
 runtest "### RmNode    " unix 0 "" eos "node rm __test__"
+runtest "### eos-rename" unix 0 "" eos_rename "/eos/$EOS_TEST_INSTANCE/test/instancetest/rename-test"
+runtest "### Rm        " unix 0 "" eos rm -rf "/eos/$EOS_TEST_INSTANCE/test/instancetest/rename-test"
 
 # --------------------------
 # Constrain minimum file size

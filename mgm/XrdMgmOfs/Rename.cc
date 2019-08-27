@@ -217,11 +217,14 @@ XrdMgmOfs::_rename(const char* old_name,
                    bool fusexcast)
 {
   static const char* epname = "_rename";
+
   eos_info("source=%s target=%s overwrite=%d", old_name, new_name, overwrite);
   errno = 0;
   EXEC_TIMING_BEGIN("Rename");
-  eos::common::Path oPath(old_name);
+
   eos::common::Path nPath(new_name);
+  eos::common::Path oPath(old_name);
+
   std::string oP = oPath.GetParentPath();
   std::string nP = nPath.GetParentPath();
 
@@ -247,6 +250,8 @@ XrdMgmOfs::_rename(const char* old_name,
   bool findOk = false;
   bool quotaMove = false;
   XrdSfsFileExistence file_exists;
+  
+  std::string new_path = new_name;
 
   if (_exists(old_name, file_exists, error, vid, infoN)) {
     errno = ENOENT;
@@ -310,6 +315,11 @@ XrdMgmOfs::_rename(const char* old_name,
 
   if (!_exists(new_name, file_exists, error, vid, infoN)) {
     if (file_exists == XrdSfsFileExistIsFile) {
+      if (new_path.back() == '/') {
+	errno = ENOTDIR;
+	return Emsg(epname, error, ENOTDIR,"rename - target is a not directory");
+      }
+
       if (overwrite && renameFile) {
         // Check if we are renaming a version to the primary copy
         bool keepversion = false;
@@ -333,8 +343,24 @@ XrdMgmOfs::_rename(const char* old_name,
     }
 
     if (file_exists == XrdSfsFileExistIsDirectory) {
-      errno = EEXIST;
-      return Emsg(epname, error, EEXIST, "rename - target directory name exists");
+      // append the previous last name to the target path
+      if (new_path.back() != '/') {
+	new_path += "/";
+      }
+      new_path += oPath.GetName();
+      new_name = new_path.c_str();
+      nPath = new_path;
+      nP = nPath.GetParentPath();
+    }
+  } else {
+    if (!renameDir) {
+      if (new_path.back() == '/') {
+	// append the previous last name to the target path - nevertheless the parent won't exist
+	new_path += oPath.GetName();
+	new_name = new_path.c_str();
+	nPath = new_path;
+	nP = nPath.GetParentPath();
+      }
     }
   }
 

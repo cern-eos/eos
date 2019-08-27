@@ -1,0 +1,64 @@
+#!/bin/bash
+set -x #echo on
+
+prefix=$1
+host=${2-"localhost"}
+url=root://$host
+
+test -z "$1" && exit -1
+
+eos rm -r $prefix/t_source/
+eos rm -r $prefix/t_target/
+eos mkdir -p $prefix/
+eos chown adm:adm $prefix/
+xrdfs $url mkdir $prefix/t_source/ || exit -2
+xrdfs $url mkdir $prefix/t_source/d1 || exit -2
+xrdfs $url mkdir $prefix/t_source/d1/c1 || exit -2
+xrdfs $url mkdir $prefix/t_source/d2 || exit -2
+xrdfs $url mkdir $prefix/t_source/d3 || exit -2
+xrdfs $url mkdir $prefix/t_source/d4 || exit -2
+xrdfs $url mkdir $prefix/t_source/d5 || exit -2
+xrdfs $url mkdir $prefix/t_target/ || exit -2
+xrdfs $url mkdir $prefix/t_target/d1 || exit -2
+xrdfs $url mkdir $prefix/t_target/d2 || exit -2
+xrdfs $url mkdir $prefix/t_target/d3 || exit -2
+xrdfs $url mkdir $prefix/t_target/e1 || exit -2
+
+xrdcp /etc/passwd $url/$prefix/t_source/f1 || exit -3
+xrdcp /etc/passwd $url/$prefix/t_source/f2 || exit -3
+xrdcp /etc/passwd $url/$prefix/t_source/f3 || exit -3
+xrdcp /etc/passwd $url/$prefix/t_source/f4 || exit -3
+xrdcp /etc/passwd $url/$prefix/t_source/f5 || exit -3
+xrdcp /etc/passwd $url/$prefix/t_source/f6 || exit -3
+xrdcp /etc/passwd $url/$prefix/t_target/t1 || exit -3
+xrdcp /etc/passwd $url/$prefix/t_target/t2 || exit -3
+
+
+
+# dir to dir
+xrdfs $url/ mv $prefix/t_source/_d1 $prefix/t_target/ && exit -4
+xrdfs $url/ mv $prefix/t_source/_d1 $prefix/t_target/nodir/ && exit -4
+
+xrdfs $url/ mv $prefix/t_source/d1 $prefix/t_target/ || exit -4
+xrdfs $url/ mv $prefix/t_source/d2 $prefix/t_target/d1/ || exit -4
+xrdfs $url/ mv $prefix/t_source/d3 $prefix/t_target/d2 || exit -4
+xrdfs $url/ mv $prefix/t_source/d4 $prefix/t_target/n4 || exit -4
+eos find $prefix
+
+# dir to file
+xrdfs $url/ mv $prefix/t_source/d5 $prefix/t_target/t1 && exit -5
+xrdfs $url/ mv $prefix/t_source/d5 $prefix/t_target/t1/ && exit -5
+eos find $prefix
+
+# file to dir
+xrdfs $url/ mv $prefix/t_source/f1 $prefix/t_target/ || exit -6
+xrdfs $url/ mv $prefix/t_source/f2 $prefix/t_target || exit -6
+xrdfs $url/ mv $prefix/t_source/f3 $prefix/t_target/_d3 || exit -6
+xrdfs $url/ mv $prefix/t_source/f4 $prefix/t_target/_d3/ && exit -6
+eos find $prefix
+
+# file to file
+xrdfs $url/ mv $prefix/t_source/f5 $prefix/t_target/t1 || exit -7 
+xrdfs $url/ mv $prefix/t_source/f6 $prefix/t_target/t2/ && exit -7
+eos find $prefix
+exit 0
