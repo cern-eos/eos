@@ -15,6 +15,7 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
 ``v4.5.6 Citrine``
 ===================
 
@@ -26,8 +27,9 @@ Bug
 * [EOS-3315] - eos file adjustreplica selects bad replica for replication
 * [EOS-3572] - Crash while reloading the config in eoslhcb
 * [EOS-3575] - EOSCMS - killed by SIGSEGV (around eos::mgm::GeoTreeEngine::applyBranchDisablings)
-* [EOS-3669] - Wrong Routing when target path has .../.
+* [EOS-3669] - Wrong Routing when target path ends as <path>/.
 * [EOS-3678] - space define command doesn't set groupmod
+* [EOS-3680] - Space set subcommand affects all groups and nodes
 * [EOS-3687] - getQuotaNode throws an exception when called on a detached container, instead of returning nullptr
 
 New Feature
