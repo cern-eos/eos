@@ -3186,6 +3186,10 @@ metad::pmap::retrieve(fuse_ino_t ino, shared_md& ret)
   auto it = this->find(ino);
 
   if (it == this->end()) {
+    if (!ret) {
+      ret = std::make_shared<mdx>();
+      ret->set_err(ENOENT);
+    }
     return false;
   }
 
