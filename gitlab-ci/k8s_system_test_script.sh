@@ -61,7 +61,7 @@ fi
 kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \
 	-- git clone https://gitlab.cern.ch/dss/eosclient-tests.git
 kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \
-	-- /bin/bash -c 'atd; at now <<< "mkdir /eos1/; mount -t fuse eosxd /eos1/; mkdir /eos2/; mount -t fuse eosxd /eos2/;"'
+	-- /bin/bash -c 'atd; at now <<< "mkdir /eos1/; mount -t fuse eosxd -ofsname=mount-1 /eos1/; mkdir /eos2/; mount -t fuse eosxd -ofsname=mount-2 /eos2/;"'
 kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \
 	-- /bin/bash -c 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos1/dockertest/ ]] || [[ ! -d /eos2/dockertest/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
 kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \
