@@ -276,11 +276,7 @@ public:
 
     // recompute /..$
     if (fullPath.endswith("/..")) {
-      int spos = fullPath.rfind("/", fullPath.length() - 4);
-
-      if (spos != STR_NPOS) {
-        fullPath.erase(spos + 1);
-      }
+      fullPath += "/";
     }
 
     if (!fullPath.beginswith("/")) {
@@ -297,12 +293,20 @@ public:
 
     // convert /..
     while ((bppos = fullPath.find("/../")) != STR_NPOS) {
+      // Erase beginning /../
+      if (bppos == 0) {
+        fullPath.erase(0, 3);
+        continue;
+      }
+
       int spos = fullPath.rfind("/", bppos - 1);
 
       if (spos != STR_NPOS) {
         fullPath.erase(bppos, 4);
         fullPath.erase(spos + 1, bppos - spos - 1);
       } else {
+        // Should not reach this as there will be
+        // at least the starting '/'
         fullPath = "/";
         break;
       }

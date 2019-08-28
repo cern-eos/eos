@@ -111,6 +111,7 @@ TEST(Path, PathParsing)
   ASSERT_STREQ(Path("/../../../").GetPath(), "/");
 
   // Mix of dots and directories
+  ASSERT_STREQ(Path("/../eos/").GetPath(), "/eos");
   ASSERT_STREQ(Path("/./eos/../").GetPath(), "/");
   ASSERT_STREQ(Path("/eos/../unit/test/").GetPath(), "/unit/test");
   ASSERT_STREQ(Path("/eos/../unit/./test/./").GetPath(), "/unit/test");
@@ -119,13 +120,13 @@ TEST(Path, PathParsing)
   // Trailing dots
   ASSERT_STREQ(Path("/eos/test/.").GetPath(), "/eos/test");
   ASSERT_STREQ(Path("/eos/test/..").GetPath(), "/eos/");
-  //ASSERT_STREQ(Path("/eos/test/dir/../../").GetPath(), "/eos/");
-  //ASSERT_STREQ(Path("/eos/test/dir/../../../").GetPath(), "/");
-  //ASSERT_STREQ(Path("/eos/test/dir/../../../../").GetPath(), "/");
-  //ASSERT_STREQ(Path("/eos/test/dir/.././../").GetPath(), "/eos/");
-  //ASSERT_STREQ(Path("/eos/test/dir/.././../../").GetPath(), "/");
-  //ASSERT_STREQ(Path("/eos/test/dir/.././.././../").GetPath(), "/");
-  //ASSERT_STREQ(Path("/eos/test/dir/subdir/.././.././../").GetPath(), "/eos/");
+  ASSERT_STREQ(Path("/eos/test/dir/../../").GetPath(), "/eos/");
+  ASSERT_STREQ(Path("/eos/test/dir/../../../").GetPath(), "/");
+  ASSERT_STREQ(Path("/eos/test/dir/../../../../").GetPath(), "/");
+  ASSERT_STREQ(Path("/eos/test/dir/.././../").GetPath(), "/eos/");
+  ASSERT_STREQ(Path("/eos/test/dir/.././../../").GetPath(), "/");
+  ASSERT_STREQ(Path("/eos/test/dir/.././.././../").GetPath(), "/");
+  ASSERT_STREQ(Path("/eos/test/dir/subdir/.././.././../").GetPath(), "/eos/");
 
   Path path("//eos//example//file");
   ASSERT_STREQ(path.GetName(), "file");
