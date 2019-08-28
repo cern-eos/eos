@@ -954,7 +954,6 @@ Requires: xrootd-python >= %{xrootd_version_min}
 Requires: xrootd-python >= %{xrootd_version_min}
 %endif
 
-
 %description -n eos-archive
 The EOS archive daemon.
 
@@ -979,32 +978,49 @@ The EOS archive daemon.
 case "$1" in
   1)
     # Initial installation
-    /sbin/chkconfig --add eosarchived
     echo "Starting EOS archive services"
-    /sbin/service eosarchived restart > /dev/null 2>&1 || :
+    %if %{use_systemd}
+      systemctl daemon-reload > /dev/null 2>&1 || :
+      systemctl restart eosarchived > /dev/null 2>&1 || :
+    %else
+      /sbin/chkconfig --add eosarchived
+      /sbin/service eosarchived restart > /dev/null 2>&1 || :
+    %endif
   ;;
   2)
     # Upgrade
-    echo "Stopping EOS archive services"
-    /sbin/service eosarchived stop > /dev/null 2>&1 || :
-    /sbin/chkconfig --del eosarchived
-    # In case runlevels changed
-    /sbin/chkconfig --add eosarchived
+    %if %{use_systemd}
+      echo "Restarting EOS archive services"
+      systemctl daemon-reload > /dev/null 2>&1 || :
+      systemctl restart eosarchived > /dev/null 2>&1 || :
+    %else
+      echo "Stopping EOS archive services"
+      /sbin/service eosarchived stop > /dev/null 2>&1 || :
+      # In case runlevels changed
+      /sbin/chkconfig --del eosarchived
+      /sbin/chkconfig --add eosarchived
+    %endif
   ;;
 esac
 
 %preun -n eos-archive
 case "$1" in
   0)
-    # Un-install
+    # Uninstall
     echo "Stopping EOS archive services"
-    /sbin/service eosarchived stop > /dev/null 2>&1 || :
-    /sbin/chkconfig --del eosarchived || :
+    %if %{use_systemd}
+      systemctl stop eosarchived > /dev/null 2>&1 || :
+    %else
+      /sbin/service eosarchived stop > /dev/null 2>&1 || :
+      /sbin/chkconfig --del eosarchived || :
+    %endif
   ;;
   1)
     # Upgrade
-    echo "Starting EOS archive services"
-    /sbin/service eosarchived restart > /dev/null 2>&1 || :
+    %if %{use_systemd} == 0
+      echo "Starting EOS archive services"
+      /sbin/service eosarchived restart > /dev/null 2>&1 || :
+    %endif
   ;;
 esac
 
