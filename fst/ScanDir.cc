@@ -105,7 +105,7 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
   mSetChecksum(setchecksum), mBuffer(nullptr), mBufferSize(0),
   mBgThread(bgthread), mForcedScan(false), mClock(fake_clock)
 {
-  size_t alignment = pathconf((mDirPath[0] != '/') ? "/" : mDirPath.c_str(),
+  long alignment = pathconf((mDirPath[0] != '/') ? "/" : mDirPath.c_str(),
                               _PC_REC_XFER_ALIGN);
 
   if (alignment > 0) {
@@ -117,8 +117,7 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
       std::abort();
     }
   } else {
-    fprintf(stderr, "error: OS does not provide alignment\n");
-    std::abort();
+    fprintf(stderr, "error: OS does not provide alignment or path does not exist\n");
   }
 
   if (mBgThread) {
