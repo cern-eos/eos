@@ -117,6 +117,8 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
       std::abort();
     }
   } else {
+    mBufferSize = 256*1024;
+    mBuffer = (char*) malloc(mBufferSize);
     fprintf(stderr, "error: OS does not provide alignment or path does not exist\n");
   }
 
