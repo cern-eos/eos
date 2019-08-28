@@ -14,12 +14,15 @@ eos chown adm:adm $prefix/
 xrdfs $url mkdir $prefix/t_source/ || exit -2
 xrdfs $url mkdir $prefix/t_source/d1 || exit -2
 xrdfs $url mkdir $prefix/t_source/d1/c1 || exit -2
+xrdfs $url mkdir $prefix/t_source/d1c1 || exit -2
 xrdfs $url mkdir $prefix/t_source/d2 || exit -2
 xrdfs $url mkdir $prefix/t_source/d3 || exit -2
 xrdfs $url mkdir $prefix/t_source/d4 || exit -2
 xrdfs $url mkdir $prefix/t_source/d5 || exit -2
 xrdfs $url mkdir $prefix/t_target/ || exit -2
 xrdfs $url mkdir $prefix/t_target/d1 || exit -2
+xrdfs $url mkdir $prefix/t_target/d1c1 || exit -2
+xrdfs $url mkdir $prefix/t_target/d1c1/c1 || exit -2
 xrdfs $url mkdir $prefix/t_target/d2 || exit -2
 xrdfs $url mkdir $prefix/t_target/d3 || exit -2
 xrdfs $url mkdir $prefix/t_target/e1 || exit -2
@@ -40,6 +43,7 @@ xrdfs $url/ mv $prefix/t_source/_d1 $prefix/t_target/ && exit -4
 xrdfs $url/ mv $prefix/t_source/_d1 $prefix/t_target/nodir/ && exit -4
 
 xrdfs $url/ mv $prefix/t_source/d1 $prefix/t_target/ || exit -4
+xrdfs $url/ mv $prefix/t_source/d1c1 $prefix/t_target/ && exit -4
 xrdfs $url/ mv $prefix/t_source/d2 $prefix/t_target/d1/ || exit -4
 xrdfs $url/ mv $prefix/t_source/d3 $prefix/t_target/d2 || exit -4
 xrdfs $url/ mv $prefix/t_source/d4 $prefix/t_target/n4 || exit -4

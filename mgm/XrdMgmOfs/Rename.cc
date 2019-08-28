@@ -351,6 +351,21 @@ XrdMgmOfs::_rename(const char* old_name,
       new_name = new_path.c_str();
       nPath = new_path;
       nP = nPath.GetParentPath();
+
+      // check if this directory exists already
+      if (!_exists(new_name, file_exists, error, vid, infoN)) {
+	if (file_exists == XrdSfsFileExistIsFile) {
+	  errno = EEXIST;
+	  return Emsg(epname, error, EEXIST, "rename - target directory is an existing file");
+	}
+
+	if (file_exists == XrdSfsFileExistIsDirectory) {
+	  // Delete the existing target, if it empty it will work, otherwise it will fail
+	  if (gOFS->_remdir(new_name, error, vid, infoN)) {
+	    return SFS_ERROR;
+	  }
+	}
+      }
     }
   } else {
     if (!renameDir) {
