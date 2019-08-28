@@ -73,6 +73,7 @@ set(COMMON_UT_SRCS
   common/LoggingTests.cc
   common/LoggingTestsUtils.cc
   common/MappingTests.cc
+  common/PathTests.cc
   common/RWMutexTest.cc
   common/StringConversionTests.cc
   common/StringTokenizerTests.cc
