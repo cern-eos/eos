@@ -34,6 +34,7 @@
 #include "common/Logging.hh"
 #include "common/GlobalConfig.hh"
 #include "common/TransferQueue.hh"
+#include "common/Locators.hh"
 #ifndef __APPLE__
 #include <sys/vfs.h>
 #else
@@ -344,8 +345,8 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  BaseView():
-    mHeartBeat(0), mStatus("unknown"), mInQueue(0)
+  BaseView(const common::SharedHashLocator &locator ):
+    mLocator(locator), mHeartBeat(0), mStatus("unknown"), mInQueue(0)
   {}
 
   //----------------------------------------------------------------------------
@@ -508,8 +509,9 @@ protected:
   //----------------------------------------------------------------------------
   bool SetConfigMemberInternal(std::string key, string value,
                        bool create = false,
-                       std::string broadcastqueue = "",
                        bool isstatus = false);
+
+  common::SharedHashLocator mLocator; ///< Locator for shared hash
 
 private:
   time_t mHeartBeat; ///< Last heartbeat time
@@ -554,7 +556,7 @@ public:
   //----------------------------------------------------------------------------
   bool SetConfigMember(std::string key, string value,
                        bool isstatus = false) {
-    return SetConfigMemberInternal(key, value, true, "/eos/*/mgm", isstatus);
+    return SetConfigMemberInternal(key, value, true, isstatus);
   }
 
   //----------------------------------------------------------------------------
@@ -612,7 +614,9 @@ public:
   //! Constructor
   //! @param name name of the group e.g. 'default.0'
   //----------------------------------------------------------------------------
-  FsGroup(const char* name):
+  FsGroup(const char* name)
+  : BaseView(common::SharedHashLocator(eos::common::GlobalConfig::gConfig. getInstanceName(),
+    common::SharedHashLocator::Type::kGroup, name)),
     mIndex(0)
   {
     mName = name;
@@ -629,7 +633,7 @@ public:
   //----------------------------------------------------------------------------
   bool SetConfigMember(const std::string &key, const std::string &value,
                        bool isstatus = false) {
-    return SetConfigMemberInternal(key, value, true, "/eos/*/mgm", isstatus);
+    return SetConfigMemberInternal(key, value, true, isstatus);
   }
 
   //----------------------------------------------------------------------------
@@ -667,6 +671,8 @@ public:
   //! @param name nodeview name
   //----------------------------------------------------------------------------
   explicit FsNode(const char* name)
+  : BaseView(common::SharedHashLocator(eos::common::GlobalConfig::gConfig. getInstanceName(),
+    common::SharedHashLocator::Type::kNode, name))
   {
     mName = name;
     mType = "nodesview";
@@ -708,7 +714,7 @@ public:
   //----------------------------------------------------------------------------
   bool SetConfigMember(std::string key, string value,
                        bool isstatus = false) {
-    return SetConfigMemberInternal(key, value, true, mName.c_str(), isstatus);
+    return SetConfigMemberInternal(key, value, true, isstatus);
   }
 
   //----------------------------------------------------------------------------

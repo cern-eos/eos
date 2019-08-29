@@ -34,6 +34,7 @@
 #include "mgm/config/ConfigParsing.hh"
 #include "mgm/TableFormatter/TableFormatterBase.hh"
 #include "common/StringConversion.hh"
+#include "common/Assert.hh"
 
 using eos::common::RWMutexReadLock;
 
@@ -807,6 +808,8 @@ LongLongAggregator::aggregateNodes(
 // Constructor
 //----------------------------------------------------------------------------
 FsSpace::FsSpace(const char* name)
+: BaseView(common::SharedHashLocator(eos::common::GlobalConfig::gConfig. getInstanceName(),
+  common::SharedHashLocator::Type::kSpace, name))
 {
   mName = name;
   mType = "spaceview";
@@ -2450,11 +2453,7 @@ bool
 FsNode::SnapShotHost(FileSystem::host_snapshot_t& host, bool dolock)
 {
   auto som = eos::common::GlobalConfig::gConfig.SOM();
-
-  std::string node_cfg_name = eos::common::GlobalConfig::gConfig.QueuePrefixName(
-                                GetConfigQueuePrefix(), mName.c_str());
-
-  return eos::common::FileSystem::SnapShotHost(som, node_cfg_name, host, dolock);
+  return eos::common::FileSystem::SnapShotHost(som, mLocator.getConfigQueue(), host, dolock);
 }
 
 //------------------------------------------------------------------------------
@@ -2508,25 +2507,22 @@ FsNode::SetActiveStatus(eos::common::ActiveStatus active)
 //------------------------------------------------------------------------------
 bool
 BaseView::SetConfigMemberInternal(std::string key, std::string value, bool create,
-                          std::string broadcastqueue, bool isstatus)
+                          bool isstatus)
 {
   bool success = false;
   eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
-  std::string node_cfg_name = eos::common::GlobalConfig::gConfig.QueuePrefixName(
-                                GetConfigQueuePrefix(), mName.c_str());
-  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
-                            node_cfg_name.c_str());
+  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(mLocator.getConfigQueue().c_str());
 
   if (!hash && create) {
     eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
 
-    if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(node_cfg_name.c_str(),
-        broadcastqueue.c_str())) {
+    if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(mLocator.getConfigQueue().c_str(),
+        mLocator.getBroadcastQueue().c_str())) {
       success = false;
     }
 
     eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
-    hash = eos::common::GlobalConfig::gConfig.Get(node_cfg_name.c_str());
+    hash = eos::common::GlobalConfig::gConfig.Get(mLocator.getConfigQueue().c_str());
   }
 
   if (hash) {
@@ -2537,13 +2533,13 @@ BaseView::SetConfigMemberInternal(std::string key, std::string value, bool creat
 
       if (value == "on") {
         // we have to register this queue into the gw set for fast lookups
-        FsView::gFsView.mGwNodes.insert(broadcastqueue);
+        FsView::gFsView.mGwNodes.insert(mLocator.getBroadcastQueue());
         // clear the queue if a machine is enabled
         // @todo (esindril): Clear also takes the HashMutex lock again - this
         // is undefined behaviour !!!
-        FsView::gFsView.mNodeView[broadcastqueue]->mGwQueue->Clear();
+        FsView::gFsView.mNodeView[mLocator.getBroadcastQueue()]->mGwQueue->Clear();
       } else {
-        FsView::gFsView.mGwNodes.erase(broadcastqueue);
+        FsView::gFsView.mGwNodes.erase(mLocator.getBroadcastQueue());
       }
     }
   }
@@ -2552,6 +2548,7 @@ BaseView::SetConfigMemberInternal(std::string key, std::string value, bool creat
 
   // Register in the configuration engine
   if ((!isstatus) && FsView::gFsView.mConfigEngine) {
+    std::string node_cfg_name = mLocator.getConfigQueue();
     node_cfg_name += "#";
     node_cfg_name += key;
     std::string confval = value;
@@ -2569,10 +2566,8 @@ std::string
 BaseView::GetConfigMember(std::string key) const
 {
   RWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-  std::string node_cfg_name = eos::common::GlobalConfig::gConfig.QueuePrefixName(
-                                GetConfigQueuePrefix(), mName.c_str());
   XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
-                            node_cfg_name.c_str());
+                            mLocator.getConfigQueue().c_str());
 
   if (hash) {
     return hash->Get(key.c_str());
@@ -2588,14 +2583,10 @@ bool
 BaseView::DeleteConfigMember(std::string key) const
 {
   bool deleted=false;
-  std::string node_cfg_name;
+  std::string node_cfg_name = mLocator.getConfigQueue();
   {
     eos::common::RWMutexWriteLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-    node_cfg_name = eos::common::GlobalConfig::gConfig.QueuePrefixName(
-										   GetConfigQueuePrefix(), mName.c_str());
-    XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
-								   node_cfg_name.c_str());
-
+    XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(node_cfg_name.c_str());
 
     if (hash) {
       deleted = hash->Delete(key.c_str());
@@ -2619,10 +2610,8 @@ bool
 BaseView::GetConfigKeys(std::vector<std::string>& keys)
 {
   RWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-  std::string node_cfg_name = eos::common::GlobalConfig::gConfig.QueuePrefixName(
-                                GetConfigQueuePrefix(), mName.c_str());
   XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
-                            node_cfg_name.c_str());
+    mLocator.getConfigQueue().c_str());
 
   if (hash) {
     keys = hash->GetKeys();
