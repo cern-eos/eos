@@ -18,4 +18,5 @@ Using EOS
    using/systemd
    using/tpc
    using/fusex
+   using/versions
 
