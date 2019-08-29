@@ -502,14 +502,13 @@ public:
   ConsiderCount(bool lock,
                 const std::set<eos::common::FileSystem::fsid_t>* subset);
 
-protected:
-
   //----------------------------------------------------------------------------
   //! Set a member variable in a view
   //----------------------------------------------------------------------------
-  bool SetConfigMemberInternal(std::string key, string value,
-                       bool create = false,
+  bool SetConfigMember(std::string key, string value,
                        bool isstatus = false);
+
+protected:
 
   common::SharedHashLocator mLocator; ///< Locator for shared hash
 
@@ -550,14 +549,6 @@ public:
   //! @param name name of the space to construct
   //----------------------------------------------------------------------------
   FsSpace(const char* name);
-
-  //----------------------------------------------------------------------------
-  //! Set a member variable
-  //----------------------------------------------------------------------------
-  bool SetConfigMember(std::string key, string value,
-                       bool isstatus = false) {
-    return SetConfigMemberInternal(key, value, true, isstatus);
-  }
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -627,14 +618,6 @@ public:
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~FsGroup() = default;
-
-  //----------------------------------------------------------------------------
-  //! Set a member variable
-  //----------------------------------------------------------------------------
-  bool SetConfigMember(const std::string &key, const std::string &value,
-                       bool isstatus = false) {
-    return SetConfigMemberInternal(key, value, true, isstatus);
-  }
 
   //----------------------------------------------------------------------------
   //! Return index of the group
@@ -707,14 +690,6 @@ public:
   static const char* sGetConfigQueuePrefix()
   {
     return gConfigQueuePrefix.c_str();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Set a member variable
-  //----------------------------------------------------------------------------
-  bool SetConfigMember(std::string key, string value,
-                       bool isstatus = false) {
-    return SetConfigMemberInternal(key, value, true, isstatus);
   }
 
   //----------------------------------------------------------------------------

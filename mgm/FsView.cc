@@ -2506,14 +2506,14 @@ FsNode::SetActiveStatus(eos::common::ActiveStatus active)
 // => is used to set status variables on config queues (baseview queues)
 //------------------------------------------------------------------------------
 bool
-BaseView::SetConfigMemberInternal(std::string key, std::string value, bool create,
+BaseView::SetConfigMember(std::string key, std::string value,
                           bool isstatus)
 {
   bool success = false;
   eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
   XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(mLocator.getConfigQueue().c_str());
 
-  if (!hash && create) {
+  if (!hash) {
     eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
 
     if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(mLocator.getConfigQueue().c_str(),
