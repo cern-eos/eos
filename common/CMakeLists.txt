@@ -71,6 +71,7 @@ add_library(eosCommon-Objects OBJECT
   PthreadRWMutex.cc
   ClockGetTime.cc
   StacktraceHere.cc
+  Locators.cc
   Logging.cc
   StringConversion.cc
   Statfs.cc

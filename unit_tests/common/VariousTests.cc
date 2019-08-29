@@ -24,6 +24,7 @@
 #include "common/Statfs.hh"
 #include "common/FileSystem.hh"
 #include "common/TransferQueue.hh"
+#include "common/Locators.hh"
 #include "Namespace.hh"
 #include "gtest/gtest.h"
 #include <list>
@@ -158,6 +159,20 @@ TEST(FstLocator, FromQueuePath) {
   ASSERT_EQ(locator.getPort(), 1111);
   ASSERT_EQ(locator.getHostPort(), "example.com:1111");
   ASSERT_EQ(locator.getQueuePath(), "/eos/example.com:1111/fst");
+}
+
+TEST(SharedHashLocator, BasicSanity) {
+  SharedHashLocator locator("eosdev", SharedHashLocator::Type::kSpace, "default");
+  ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/space/default");
+  ASSERT_EQ(locator.getBroadcastQueue(), "/eos/*/mgm");
+
+  locator = SharedHashLocator("eosdev", SharedHashLocator::Type::kGroup, "default.0");
+  ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/group/default.0");
+  ASSERT_EQ(locator.getBroadcastQueue(), "/eos/*/mgm");
+
+  locator = SharedHashLocator("eosdev", SharedHashLocator::Type::kNode, "/eos/example.com:3003/fst");
+  ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/node/example.com:3003");
+  ASSERT_EQ(locator.getBroadcastQueue(), "/eos/example.com:3003/fst");
 }
 
 EOSCOMMONTESTING_END
