@@ -204,6 +204,7 @@ XrdMgmOfs::PurgeVersion(const char* versiondir,
   int listrc = directory.open(versiondir, rootvid, (const char*) 0);
   eos_info("listrc=%d max-version=%d", listrc, max_versions);
 
+
   if (!listrc && !max_versions) {
     // We use the rm -r proc function to do the clean-up to have the recycle
     // functionality involved for version directories
@@ -223,9 +224,13 @@ XrdMgmOfs::PurgeVersion(const char* versiondir,
 
   int success = 0;
 
+  std::map<uint64_t, std::string> version_by_age;
+  std::vector<std::string> versions;
+
   if (!listrc) {
-    std::vector<std::string> versions;
     const char* val = 0;
+
+    time_t now = time(NULL);
 
     while ((val = directory.nextEntry())) {
       std::string entryname = val;
@@ -235,10 +240,58 @@ XrdMgmOfs::PurgeVersion(const char* versiondir,
       }
 
       versions.push_back(entryname);
+      struct stat buf;
+      // get age information for this entry
+
+      std::string mtime, inode;
+
+      eos::common::StringConversion::SplitKeyValue(entryname, mtime, inode, ".");
+
+      uint64_t stmtime = strtoull(mtime.c_str(),0,10);
+      ssize_t age = (ssize_t)(now) - stmtime;
+      if ( age > 0 ) {
+	version_by_age[age] = entryname;
+      }
     }
 
+    const uint64_t age_bins[12] = { 0, 86400 * 1, 86400 * 2, 86400 * 3, 86400 * 4, 86400 * 5, 86400 * 6, 86400 * 7,
+				    86400 * 14, 86400 * 21, 86400 * 28, 0xffffffffffffffff };
+    
+    std::map<int, int> age_map;
+    std::set<std::string> keep_set;
+
+    for (auto x = version_by_age.rbegin();  x != version_by_age.rend(); x++) {
+      for (size_t i = 0; i < 12 ; ++i) {
+	if (EOS_LOGS_DEBUG) {
+	  eos_static_debug("bin %llu", age_bins[i]);
+	}
+
+	if ( (x->first >= age_bins[i]) &&
+	     (x->first < age_bins[i+1]) ) {
+	  if (EOS_LOGS_DEBUG) {
+	    eos_static_info("map %lu %lu", x->first, i);
+	  }
+	  if (age_map[i] == 0) {
+	    // mark the olderst version in a bin to keep
+	    keep_set.insert(x->second);
+	  }
+	  age_map[i]++;
+	}
+      }
+    }
+
+    if (EOS_LOGS_DEBUG) {
+      for (size_t i = 0 ; i< 12 -1 ; ++i) {
+	eos_static_info("age: < %lu days : %lu", age_bins[i+1]/86400, age_map[i]);
+      }
+    }
+
+    // if we have more versions than defined, clean the ones, which can be cleaned
     if ((int) versions.size() > max_versions) {
       for (size_t i = 0; i < (versions.size() - max_versions); ++i) {
+	if (keep_set.count(versions[i])) {
+	  continue;
+	}
         std::string deletionpath = path;
         deletionpath += "/";
         deletionpath += versions[i];
@@ -246,6 +299,7 @@ XrdMgmOfs::PurgeVersion(const char* versiondir,
                               false, false);
       }
     }
+
 
     if (success == SFS_OK) {
       eos_info("dir=\"%s\" msg=\"purging ok\" old-versions=%d new-versions=%d",
