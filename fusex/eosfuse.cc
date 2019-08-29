@@ -4380,10 +4380,10 @@ EosFuse::flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
 
         // actually do the flush
         if ((rc = io->ioctx()->flush(req))) {
+          // if we have a flush error, we don't update the MD record
           invalidate_inode = true;
           io->md->set_size(io->opensize());
         } else {
-          // if we have a flush error, we don't update the MD record
           Instance().mds.update(req, io->md, io->authid());
         }
 
