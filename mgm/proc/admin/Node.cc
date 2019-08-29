@@ -320,8 +320,7 @@ ProcCommand::Node()
             }
           }
 
-          std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(
-                                         FsNode::sGetConfigQueuePrefix(), nodename.c_str());
+          std::string nodeconfigname = common::SharedHashLocator::makeForNode(nodename).getConfigQueue();
 
           if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(
                 nodeconfigname.c_str())) {

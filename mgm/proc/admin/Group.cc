@@ -88,9 +88,7 @@ ProcCommand::Group()
           stdOut += "'";
 
           if (!FsView::gFsView.RegisterGroup(groupname.c_str())) {
-            std::string groupconfigname =
-              eos::common::GlobalConfig::gConfig.QueuePrefixName(
-                gOFS->GroupConfigQueuePrefix.c_str(), groupname.c_str());
+            std::string groupconfigname = common::SharedHashLocator::makeForGroup(groupname);
             retc = EIO;
             stdErr = "error: cannot register group <";
             stdErr += groupname.c_str();
@@ -202,9 +200,7 @@ ProcCommand::Group()
             }
           }
 
-          std::string groupconfigname =
-            eos::common::GlobalConfig::gConfig.QueuePrefixName(
-              FsGroup::sGetConfigQueuePrefix(), groupname.c_str());
+          std::string groupconfigname = common::SharedHashLocator::makeForGroup(groupname);
 
           if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(
                 groupconfigname.c_str())) {

@@ -195,7 +195,7 @@ void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm, eos::console::
     }
   }
 
-  std::string nodeconfigname = eos::common::GlobalConfig::QueuePrefixName(FsNode::sGetConfigQueuePrefix(), nodename.c_str());
+  std::string nodeconfigname = common::SharedHashLocator::makeForNode(nodename).getConfigQueue();
 
   if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(nodeconfigname.c_str())) {
     reply.set_std_err("error: unable to remove config of node '" + nodename + "'");

@@ -548,7 +548,7 @@ ProcCommand::Space()
 		  (key == "geo.access.policy.write.exact") ||
 		  (key == "filearchivedgc") ||
 		  (key == "balancer.threshold")) {
-		if ((key == "balancer") || (key == "converter") || (key == "tracker") || (key == "inspector") || 
+		if ((key == "balancer") || (key == "converter") || (key == "tracker") || (key == "inspector") ||
 		    (key == "autorepair") || (key == "lru") ||
 		    (key == "groupbalancer") || (key == "geobalancer") ||
 		    (key == "geo.access.policy.read.exact") ||
@@ -578,7 +578,7 @@ ProcCommand::Space()
 			  stdOut += "success: converter is disabled!";
 			}
 		      }
-		      
+
 		      if (key == "tracker") {
 			if (value == "on") {
 			  gOFS->mReplicationTracker->enable();
@@ -598,7 +598,7 @@ ProcCommand::Space()
 			  stdOut += "success: file inspector is disabled!";
 			}
 		      }
-		      
+
 		      if (key == "autorepair") {
 			if (value == "on") {
 			  stdOut += "success: auto-repair is enabled!";
@@ -860,9 +860,7 @@ ProcCommand::Space()
             }
           }
 
-          std::string spaceconfigname =
-            eos::common::GlobalConfig::gConfig.QueuePrefixName(
-              FsSpace::sGetConfigQueuePrefix(), spacename.c_str());
+          std::string spaceconfigname = common::SharedHashLocator::makeForSpace(spacename);
 
           if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(
                 spaceconfigname.c_str())) {

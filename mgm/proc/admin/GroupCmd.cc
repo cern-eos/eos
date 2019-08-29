@@ -169,9 +169,7 @@ GroupCmd::RmSubcmd(const eos::console::GroupProto_RmProto& rm,
     }
   }
 
-  std::string groupconfigname =
-    eos::common::GlobalConfig::QueuePrefixName
-    (FsGroup::sGetConfigQueuePrefix(), rm.group().c_str());
+  std::string groupconfigname = common::SharedHashLocator::makeForGroup(rm.group()).getConfigQueue();
 
   if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash
       (groupconfigname.c_str())) {
@@ -220,9 +218,7 @@ GroupCmd::SetSubcmd(const eos::console::GroupProto_SetProto& set,
     reply.set_std_out(("info: creating group '" + set.group() + "'").c_str());
 
     if (!FsView::gFsView.RegisterGroup(set.group().c_str())) {
-      std::string groupconfigname =
-        eos::common::GlobalConfig::QueuePrefixName
-        (gOFS->GroupConfigQueuePrefix.c_str(), set.group().c_str());
+      std::string groupconfigname = common::SharedHashLocator::makeForGroup(set.group()).getConfigQueue();
       reply.set_std_err(("error: cannot register group <" +
                          set.group() + ">").c_str());
       reply.set_retc(EIO);

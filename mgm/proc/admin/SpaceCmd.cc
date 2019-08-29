@@ -958,7 +958,7 @@ void SpaceCmd::RmSubcmd(const eos::console::SpaceProto_RmProto& rm, eos::console
     }
   }
 
-  std::string spaceconfigname = eos::common::GlobalConfig::QueuePrefixName(FsSpace::sGetConfigQueuePrefix(), rm.mgmspace().c_str());
+  std::string spaceconfigname = common::SharedHashLocator::makeForSpace(rm.mgmspace()).getConfigQueue();
 
   if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(spaceconfigname.c_str())) {
     reply.set_std_err("error: unable to remove config of space '" + rm.mgmspace() + "'");

@@ -607,8 +607,7 @@ public:
   //! @param name name of the group e.g. 'default.0'
   //----------------------------------------------------------------------------
   FsGroup(const char* name)
-  : BaseView(common::SharedHashLocator(common::InstanceName::get(),
-    common::SharedHashLocator::Type::kGroup, name)),
+  : BaseView(common::SharedHashLocator::makeForGroup(name)),
     mIndex(0)
   {
     mName = name;
@@ -655,8 +654,7 @@ public:
   //! @param name nodeview name
   //----------------------------------------------------------------------------
   explicit FsNode(const char* name)
-  : BaseView(common::SharedHashLocator(common::InstanceName::get(),
-    common::SharedHashLocator::Type::kNode, name))
+  : BaseView(common::SharedHashLocator::makeForNode(name))
   {
     mName = name;
     mType = "nodesview";
