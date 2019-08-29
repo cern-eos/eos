@@ -65,6 +65,7 @@ set_target_properties(EosCrc32c-Static PROPERTIES
 #-------------------------------------------------------------------------------
 add_library(eosCommon-Objects OBJECT
   SymKeys.cc
+  InstanceName.cc
   Mapping.cc
   RWMutex.cc
   SharedMutex.cc

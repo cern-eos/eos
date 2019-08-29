@@ -137,25 +137,12 @@ public:
     mQsom = qsom;
   }
 
-  //----------------------------------------------------------------------------
-  //! Set eos instance name - call this only once
-  //----------------------------------------------------------------------------
-  void setInstanceName(const std::string &name);
-
-  //----------------------------------------------------------------------------
-  //! Get eos instance name
-  //----------------------------------------------------------------------------
-  std::string getInstanceName() const;
-
 private:
   XrdMqSharedObjectManager* mSom; ///< Pointer to the global object manager
   qclient::SharedManager* mQsom = nullptr;
 
   //! Hash storing which config queue get's broadcasted where ...
   std::map<std::string, std::string> mBroadCastQueueMap;
-
-  //! Stores current eos instance name
-  std::string mInstanceName;
 
 };
 

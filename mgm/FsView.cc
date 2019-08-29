@@ -808,7 +808,7 @@ LongLongAggregator::aggregateNodes(
 // Constructor
 //----------------------------------------------------------------------------
 FsSpace::FsSpace(const char* name)
-: BaseView(common::SharedHashLocator(eos::common::GlobalConfig::gConfig. getInstanceName(),
+: BaseView(common::SharedHashLocator(common::InstanceName::get(),
   common::SharedHashLocator::Type::kSpace, name))
 {
   mName = name;

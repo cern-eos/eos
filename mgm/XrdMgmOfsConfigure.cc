@@ -59,6 +59,7 @@
 #include "common/JeMallocHandler.hh"
 #include "common/PasswordHandler.hh"
 #include "common/ShellCmd.hh"
+#include "common/InstanceName.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IView.hh"
@@ -1351,7 +1352,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   ObjectNotifier.SetShareObjectManager(&ObjectManager);
   // we need to set the shared object manager to be used
   eos::common::GlobalConfig::gConfig.SetSOM(&ObjectManager);
-  eos::common::GlobalConfig::gConfig.setInstanceName(MgmOfsInstanceName.c_str());
+  eos::common::InstanceName::set(MgmOfsInstanceName.c_str());
 
   // set the object manager to listener only
   ObjectManager.EnableBroadCast(false);

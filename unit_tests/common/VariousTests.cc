@@ -25,6 +25,7 @@
 #include "common/FileSystem.hh"
 #include "common/TransferQueue.hh"
 #include "common/Locators.hh"
+#include "common/InstanceName.hh"
 #include "Namespace.hh"
 #include "gtest/gtest.h"
 #include <list>
@@ -173,6 +174,11 @@ TEST(SharedHashLocator, BasicSanity) {
   locator = SharedHashLocator("eosdev", SharedHashLocator::Type::kNode, "/eos/example.com:3003/fst");
   ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/node/example.com:3003");
   ASSERT_EQ(locator.getBroadcastQueue(), "/eos/example.com:3003/fst");
+}
+
+TEST(InstanceName, BasicSanity) {
+  common::InstanceName::set("eosdev");
+  ASSERT_EQ(common::InstanceName::get(), "eosdev");
 }
 
 EOSCOMMONTESTING_END

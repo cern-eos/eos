@@ -35,6 +35,7 @@
 #include "common/GlobalConfig.hh"
 #include "common/TransferQueue.hh"
 #include "common/Locators.hh"
+#include "common/InstanceName.hh"
 #ifndef __APPLE__
 #include <sys/vfs.h>
 #else
@@ -606,7 +607,7 @@ public:
   //! @param name name of the group e.g. 'default.0'
   //----------------------------------------------------------------------------
   FsGroup(const char* name)
-  : BaseView(common::SharedHashLocator(eos::common::GlobalConfig::gConfig. getInstanceName(),
+  : BaseView(common::SharedHashLocator(common::InstanceName::get(),
     common::SharedHashLocator::Type::kGroup, name)),
     mIndex(0)
   {
@@ -654,7 +655,7 @@ public:
   //! @param name nodeview name
   //----------------------------------------------------------------------------
   explicit FsNode(const char* name)
-  : BaseView(common::SharedHashLocator(eos::common::GlobalConfig::gConfig. getInstanceName(),
+  : BaseView(common::SharedHashLocator(common::InstanceName::get(),
     common::SharedHashLocator::Type::kNode, name))
   {
     mName = name;
