@@ -1271,13 +1271,14 @@ com_file_usage:
   fprintf(stdout, "file version <path> [purge-version] :\n");
   fprintf(stdout,
           "                                                  create a new version of a file by cloning\n");
+  fprintf(stdout,
+          "       <purge-version> : defines the max. number of versions to keep\n");
+
   fprintf(stdout, "file versions [grab-version] :\n");
   fprintf(stdout,
           "                                                  list versions of a file\n");
   fprintf(stdout,
-          "                                                  grab a version of a file\n");
-  fprintf(stdout,
-          "       <purge-version> : defines the max. number of versions to keep\n");
+          "                                                  grab a version [grab-version] of a file\n");
   fprintf(stdout, "\n");
   fprintf(stdout,
           "                         if not specified it will add a new version without purging any previous version\n");
