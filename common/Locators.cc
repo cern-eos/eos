@@ -25,6 +25,7 @@
 #include "common/Locators.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
+#include "common/InstanceName.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -56,6 +57,12 @@ SharedHashLocator::SharedHashLocator(const std::string &instanceName, Type type,
     }
   }
 }
+
+//------------------------------------------------------------------------------
+//! Constructor: Same as above, but auto-discover instance name.
+//------------------------------------------------------------------------------
+SharedHashLocator::SharedHashLocator(Type type, const std::string &name)
+: SharedHashLocator(InstanceName::get(), type, name) {}
 
 //------------------------------------------------------------------------------
 // Get "config queue" for shared hash

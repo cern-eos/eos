@@ -52,6 +52,11 @@ public:
     const std::string &name);
 
   //----------------------------------------------------------------------------
+  //! Constructor: Same as above, but auto-discover instance name.
+  //----------------------------------------------------------------------------
+  SharedHashLocator(Type type, const std::string &name);
+
+  //----------------------------------------------------------------------------
   //! Get "config queue" for shared hash
   //----------------------------------------------------------------------------
   std::string getConfigQueue() const;

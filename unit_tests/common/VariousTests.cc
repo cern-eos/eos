@@ -181,4 +181,12 @@ TEST(InstanceName, BasicSanity) {
   ASSERT_EQ(common::InstanceName::get(), "eosdev");
 }
 
+TEST(SharedHashLocator, AutoInstanceName) {
+  common::InstanceName::set("eosdev");
+
+  SharedHashLocator locator(SharedHashLocator::Type::kSpace, "default");
+  ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/space/default");
+  ASSERT_EQ(locator.getBroadcastQueue(), "/eos/*/mgm");
+}
+
 EOSCOMMONTESTING_END
