@@ -2373,7 +2373,12 @@ data::datax::truncate(fuse_req_t req, off_t offset)
   }
 
   if (mFile->file()) {
-    dt = mFile->file()->truncate(0);
+    if (offset <= mFile->file()->prefetch_size()) {
+      // if the truncate falls into the file cache size, we have disable it because
+      // subsequent writes can stamp a whole inside the file cache
+      dt = mFile->file()->truncate(0);
+      remove_file_cache();
+    }
   }
 
   // if we have a journal it tracks the truncation size

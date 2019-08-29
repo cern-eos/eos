@@ -107,6 +107,10 @@ public:
       return mFile;
     }
 
+    void remove_file_cache() {
+      mFile->disable_file_cache();
+    }
+
     int flags()
     {
       return mFlags;

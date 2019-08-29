@@ -79,6 +79,12 @@ public:
     caching = false;
   }
 
+  void disable_file_cache()
+  {
+    delete _file;
+    _file = 0;
+  }
+
   bool is_caching()
   {
     return caching;
