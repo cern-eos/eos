@@ -57,6 +57,13 @@ public:
   SharedHashLocator(Type type, const std::string &name);
 
   //----------------------------------------------------------------------------
+  //! Convenience "Constructors": Make locator for space, group, node
+  //----------------------------------------------------------------------------
+  static SharedHashLocator makeForSpace(const std::string &name);
+  static SharedHashLocator makeForGroup(const std::string &name);
+  static SharedHashLocator makeForNode(const std::string &name);
+
+  //----------------------------------------------------------------------------
   //! Get "config queue" for shared hash
   //----------------------------------------------------------------------------
   std::string getConfigQueue() const;

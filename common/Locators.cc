@@ -65,6 +65,21 @@ SharedHashLocator::SharedHashLocator(Type type, const std::string &name)
 : SharedHashLocator(InstanceName::get(), type, name) {}
 
 //------------------------------------------------------------------------------
+//! Convenience "Constructors": Make locator for space, group, node
+//------------------------------------------------------------------------------
+SharedHashLocator SharedHashLocator::makeForSpace(const std::string &name) {
+  return SharedHashLocator(Type::kSpace, name);
+}
+
+SharedHashLocator SharedHashLocator::makeForGroup(const std::string &name) {
+  return SharedHashLocator(Type::kGroup, name);
+}
+
+SharedHashLocator SharedHashLocator::makeForNode(const std::string &name) {
+  return SharedHashLocator(Type::kNode, name);
+}
+
+//------------------------------------------------------------------------------
 // Get "config queue" for shared hash
 //------------------------------------------------------------------------------
 std::string SharedHashLocator::getConfigQueue() const {

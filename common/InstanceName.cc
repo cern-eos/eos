@@ -48,4 +48,11 @@ std::string InstanceName::get() {
   return mInstanceName;
 }
 
+//------------------------------------------------------------------------------
+// Clear stored instance name - used in unit tests
+//------------------------------------------------------------------------------
+void InstanceName::clear() {
+  mInstanceName.clear();
+}
+
 EOSCOMMONNAMESPACE_END
