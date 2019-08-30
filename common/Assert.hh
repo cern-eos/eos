@@ -23,8 +23,8 @@
 
 #pragma once
 
-#include <cstdlib>
+#include <unistd.h>
 
-#define eos_assert(condition) if(!((condition))) { std::cerr << "assertion violation in " << __PRETTY_FUNCTION__ << " at " << __FILE__ << ":" << __LINE__ << ", condition is not true: " << #condition << std::endl; std::quick_exit(1); }
+#define eos_assert(condition) if(!((condition))) { std::cerr << "assertion violation in " << __PRETTY_FUNCTION__ << " at " << __FILE__ << ":" << __LINE__ << ", condition is not true: " << #condition << std::endl; _exit(1); }
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
