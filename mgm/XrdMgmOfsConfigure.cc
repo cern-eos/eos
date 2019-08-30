@@ -1338,13 +1338,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   FstConfigQueue = configbasequeue;
   FstConfigQueue += "/fst/";
 
-  XrdOucString SpaceConfigQueuePrefix = configbasequeue;
-  SpaceConfigQueuePrefix += "/space/";
-  NodeConfigQueuePrefix = "/config/";
-  NodeConfigQueuePrefix += MgmOfsInstanceName.c_str();
-  NodeConfigQueuePrefix += "/node/";
-  GroupConfigQueuePrefix = configbasequeue;
-  GroupConfigQueuePrefix += "/group/";
   FsView::gFsView.SetConfigQueues(MgmConfigQueue.c_str());
   ObjectNotifier.SetShareObjectManager(&ObjectManager);
   // we need to set the shared object manager to be used

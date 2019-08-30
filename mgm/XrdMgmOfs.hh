@@ -1401,10 +1401,6 @@ public:
   ///< Name of the cluster-wide broadcasted shared hash
   XrdOucString AllConfigQueue;
   XrdOucString FstConfigQueue; ///< name of the fst-wide broadcasted shared hash
-  //! Name of the prefix for node configuration
-  XrdOucString NodeConfigQueuePrefix;
-  ///< Name of the prefix for group configuration
-  XrdOucString GroupConfigQueuePrefix;
   //!  Directory containing the transfer database and archive
   XrdOucString MgmTxDir;
   XrdOucString MgmAuthDir; ///< Directory containing exported authentication token
