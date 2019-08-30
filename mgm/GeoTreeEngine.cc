@@ -28,6 +28,7 @@
 #include "mgm/TableFormatter/TableFormatterBase.hh"
 #include "common/FileSystem.hh"
 #include "common/IntervalStopwatch.hh"
+#include "common/Assert.hh"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -2977,38 +2978,9 @@ bool GeoTreeEngine::updateTreeInfo(const map<string, int>& updatesFs,
 
   // => SCHED
   for (auto it = updatesFs.begin(); it != updatesFs.end(); ++it) {
-    gOFS->ObjectManager.HashMutex.LockRead();
-    XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(it->first.c_str(),
-                            "hash");
-
-    if (!hash) {
-      eos_warning("Inconsistency : Trying to access a deleted fs. Should not "
-                  "happen because any reference to a fs is cleaned from the "
-                  "updates buffer ehen the fs is being removed.");
-      gOFS->ObjectManager.HashMutex.UnLockRead();
-      continue;
-    }
-
-    FileSystem::fsid_t fsid = (FileSystem::fsid_t) hash->GetLongLong("id");
-
-    if (!fsid) {
-      eos_warning("Inconsistency : Trying to update an unregistered fs. Should "
-                  "not happen.");
-      gOFS->ObjectManager.HashMutex.UnLockRead();
-      continue;
-    }
-
-    gOFS->ObjectManager.HashMutex.UnLockRead();
     pTreeMapMutex.LockRead();
 
-    if (!pFsId2FsPtr.count(fsid)) {
-      eos_warning("Inconsistency: Trying to access an existing fs which is not "
-                  "referenced in the GeoTreeEngine anymore");
-      pTreeMapMutex.UnLockRead();
-      continue;
-    }
-
-    eos::common::FileSystem* filesystem = pFsId2FsPtr[fsid];
+    eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByQueuePath(it->first);
 
     if (!filesystem) {
       eos_err("update : Invalid FileSystem Entry, skipping this update");
@@ -3018,6 +2990,8 @@ bool GeoTreeEngine::updateTreeInfo(const map<string, int>& updatesFs,
 
     eos::common::FileSystem::fs_snapshot_t fs;
     filesystem->SnapShotFileSystem(fs, true);
+
+    FileSystem::fsid_t fsid = fs.mId;
 
     if (!pFs2SchedTME.count(fsid)) {
       eos_err("update : TreeEntryMap has been removed, skipping this update");
