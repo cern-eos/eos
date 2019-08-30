@@ -71,6 +71,8 @@ public:
     }
   };
 
+  // TODO Some dummy default
+  static constexpr size_t sDefaultMaxSize = 128 * 1024 * 1024ll;
 
   journalcache(fuse_ino_t _ino);
   virtual ~journalcache();

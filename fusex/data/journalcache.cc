@@ -33,8 +33,10 @@
 #include <algorithm>
 #include <iostream>
 
+constexpr size_t journalcache::sDefaultMaxSize;
+
 std::string journalcache::sLocation;
-size_t journalcache::sMaxSize = 128 * 1024 * 1024ll; // TODO Some dummy default
+size_t journalcache::sMaxSize = journalcache::sDefaultMaxSize;
 
 shared_ptr<dircleaner> journalcache::jDirCleaner;
 
