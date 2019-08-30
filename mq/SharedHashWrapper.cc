@@ -89,6 +89,15 @@ std::string SharedHashWrapper::get(const std::string &key) {
 }
 
 //------------------------------------------------------------------------------
+// Query the given key, return if retrieval successful
+//------------------------------------------------------------------------------
+bool SharedHashWrapper::get(const std::string &key, std::string &value) {
+  if(!mHash) return false;
+  value = mHash->Get(key.c_str());
+  return true;
+}
+
+//------------------------------------------------------------------------------
 // Delete the given key
 //------------------------------------------------------------------------------
 bool SharedHashWrapper::del(const std::string &key) {

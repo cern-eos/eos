@@ -74,6 +74,7 @@
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/inspector/FileInspector.hh"
 #include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
+#include "mq/SharedHashWrapper.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/utils/Stat.hh"

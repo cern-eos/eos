@@ -31,16 +31,7 @@
 // Get key from MGM config queue
 //------------------------------------------------------------------------------
 bool XrdMgmOfs::getMGMConfigValue(const std::string &key, std::string &value) {
-  eos::common::RWMutexReadLock lock(gOFS->ObjectManager.HashMutex);
-
-  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.GetGlobalHash();
-
-  if(!hash) {
-    return false;
-  }
-
-  value = hash->Get(key.c_str());
-  return true;
+  return eos::mq::SharedHashWrapper::makeGlobalMgmHash().get(key, value);
 }
 
 //------------------------------------------------------------------------------

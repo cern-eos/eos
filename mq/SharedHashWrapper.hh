@@ -70,6 +70,11 @@ public:
   std::string get(const std::string &key);
 
   //----------------------------------------------------------------------------
+  //! Query the given key, return if retrieval successful
+  //----------------------------------------------------------------------------
+  bool get(const std::string &key, std::string &value);
+
+  //----------------------------------------------------------------------------
   //! Delete the given key
   //----------------------------------------------------------------------------
   bool del(const std::string &key);
