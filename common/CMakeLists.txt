@@ -158,6 +158,7 @@ if (Linux)
     ShellExecutor.cc
     ShellCmd.cc
     FileSystem.cc
+    ../mq/SharedHashWrapper.cc  ../mq/SharedHashWrapper.hh
     TransferQueue.cc
     TransferJob.cc
     sqlite/sqlite3.c

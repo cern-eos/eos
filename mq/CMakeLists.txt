@@ -36,7 +36,6 @@ include_directories(
 #-------------------------------------------------------------------------------
 add_library(XrdMqClient-Objects OBJECT
   XrdMqTiming.hh
-  SharedHashWrapper.cc  SharedHashWrapper.hh
   XrdMqClient.cc        XrdMqClient.hh
   XrdMqMessage.cc       XrdMqMessage.hh
   XrdMqMessaging.cc     XrdMqMessaging.hh
