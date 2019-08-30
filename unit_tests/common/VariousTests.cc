@@ -191,4 +191,10 @@ TEST(SharedHashLocator, AutoInstanceName) {
   common::InstanceName::clear();
 }
 
+TEST(SharedHashLocator, GlobalMgmHash) {
+  SharedHashLocator locator("eostest", SharedHashLocator::Type::kGlobalConfigHash, "");
+  ASSERT_EQ(locator.getConfigQueue(), "/config/eostest/mgm");
+  ASSERT_EQ(locator.getBroadcastQueue(), "/eos/*/mgm");
+}
+
 EOSCOMMONTESTING_END

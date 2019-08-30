@@ -55,6 +55,11 @@ SharedHashLocator::SharedHashLocator(const std::string &instanceName, Type type,
       mBroadcastQueue = SSTR("/eos/" << hostPort << "/fst");
       break;
     }
+    case Type::kGlobalConfigHash: {
+      mMqSharedHashPath = SSTR("/config/" << instanceName << "/mgm");
+      mBroadcastQueue = "/eos/*/mgm";
+      break;
+    }
   }
 }
 
@@ -77,6 +82,10 @@ SharedHashLocator SharedHashLocator::makeForGroup(const std::string &name) {
 
 SharedHashLocator SharedHashLocator::makeForNode(const std::string &name) {
   return SharedHashLocator(Type::kNode, name);
+}
+
+SharedHashLocator SharedHashLocator::makeForGlobalHash() {
+  return SharedHashLocator(Type::kGlobalConfigHash, "");
 }
 
 //------------------------------------------------------------------------------

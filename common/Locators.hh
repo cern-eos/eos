@@ -40,7 +40,8 @@ public:
   enum class Type {
     kSpace,
     kGroup,
-    kNode
+    kNode,
+    kGlobalConfigHash
   };
 
   //----------------------------------------------------------------------------
@@ -62,6 +63,7 @@ public:
   static SharedHashLocator makeForSpace(const std::string &name);
   static SharedHashLocator makeForGroup(const std::string &name);
   static SharedHashLocator makeForNode(const std::string &name);
+  static SharedHashLocator makeForGlobalHash();
 
   //----------------------------------------------------------------------------
   //! Get "config queue" for shared hash
