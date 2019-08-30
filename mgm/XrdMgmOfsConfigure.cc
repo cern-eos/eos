@@ -1345,10 +1345,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   NodeConfigQueuePrefix += "/node/";
   GroupConfigQueuePrefix = configbasequeue;
   GroupConfigQueuePrefix += "/group/";
-  FsView::gFsView.SetConfigQueues(MgmConfigQueue.c_str(),
-                                  NodeConfigQueuePrefix.c_str(),
-                                  GroupConfigQueuePrefix.c_str(),
-                                  SpaceConfigQueuePrefix.c_str());
+  FsView::gFsView.SetConfigQueues(MgmConfigQueue.c_str());
   ObjectNotifier.SetShareObjectManager(&ObjectManager);
   // we need to set the shared object manager to be used
   eos::common::GlobalConfig::gConfig.SetSOM(&ObjectManager);

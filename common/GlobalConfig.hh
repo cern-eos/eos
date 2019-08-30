@@ -50,15 +50,6 @@ public:
   static GlobalConfig gConfig; ///< Singleton for convenience
 
   //----------------------------------------------------------------------------
-  //! Join the prefix with the hostport name extracted from the queue name.
-  //!E.g. /eos/eostest/space + /eos/host1:port1/fst = /eos/eostest/space/host1:port1
-  //!
-  //! @param prefix
-  //! @param queuename
-  //----------------------------------------------------------------------------
-  static std::string QueuePrefixName(const char* prefix, const char* queuename);
-
-  //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   GlobalConfig(): mSom(nullptr) {};

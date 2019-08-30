@@ -92,16 +92,4 @@ GlobalConfig::Get(const char* configqueue)
   return mSom->GetObject(lConfigQueue.c_str(), "hash");
 }
 
-//------------------------------------------------------------------------------
-// Join the prefix with the hostport name extracted from the queue name.
-// E.g. /eos/eostest/space + /eos/host1:port1/fst = /eos/eostest/space/host1:port1
-//------------------------------------------------------------------------------
-std::string
-GlobalConfig::QueuePrefixName(const char* prefix, const char* queuename)
-{
-  std::string out = prefix;
-  out += eos::common::StringConversion::GetHostPortFromQueue(queuename).c_str();
-  return out;
-}
-
 EOSCOMMONNAMESPACE_END

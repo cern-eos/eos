@@ -356,16 +356,6 @@ public:
   virtual ~BaseView() = default;
 
   //----------------------------------------------------------------------------
-  //! Return the configuration queue prefix
-  //!
-  //! @return return the configuration prefix
-  //----------------------------------------------------------------------------
-  virtual const char* GetConfigQueuePrefix() const
-  {
-    return "";
-  }
-
-  //----------------------------------------------------------------------------
   //! Return a member variable in the view
   //----------------------------------------------------------------------------
   virtual std::string GetMember(const std::string& member) const;
@@ -374,7 +364,6 @@ public:
   //! Return a configuration member
   //----------------------------------------------------------------------------
   virtual std::string GetConfigMember(std::string key) const;
-
 
   //----------------------------------------------------------------------------
   //! Delete a configuration member
@@ -531,14 +520,6 @@ public:
   static std::atomic<bool> gDisableDefaults;
   static std::string gConfigQueuePrefix; ///<  Configuration queue prefix
 
-  //----------------------------------------------------------------------------
-  //! Get the configuration queeu prefix
-  //----------------------------------------------------------------------------
-  static const char* sGetConfigQueuePrefix()
-  {
-    return gConfigQueuePrefix.c_str();
-  }
-
   Balancer* mBalancer; ///< Threaded object supervising space balancing
   Converter* mConverter; ///< Threaded object running layout conversion jobs
   GroupBalancer* mGroupBalancer; ///< Threaded object running group balancing
@@ -567,14 +548,6 @@ public:
   void Join();
 
   //----------------------------------------------------------------------------
-  //! Get the configuration queue prefix
-  //----------------------------------------------------------------------------
-  virtual const char* GetConfigQueuePrefix() const
-  {
-    return gConfigQueuePrefix.c_str();
-  }
-
-  //----------------------------------------------------------------------------
   //! Apply the default space parameters
   //----------------------------------------------------------------------------
   bool ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs, bool force = false);
@@ -592,16 +565,6 @@ class FsGroup : public BaseView
 {
   friend class FsView;
 public:
-  static std::string gConfigQueuePrefix; ///< Configuration queue prefix
-
-  //----------------------------------------------------------------------------
-  //! Return the configuration queue prefix
-  //----------------------------------------------------------------------------
-  static const char* sGetConfigQueuePrefix()
-  {
-    return gConfigQueuePrefix.c_str();
-  }
-
   //----------------------------------------------------------------------------
   //! Constructor
   //! @param name name of the group e.g. 'default.0'
@@ -627,14 +590,6 @@ public:
     return mIndex;
   }
 
-  //----------------------------------------------------------------------------
-  //! Return the configuration queue prefix (virtual function)
-  //----------------------------------------------------------------------------
-  virtual const char* GetConfigQueuePrefix() const
-  {
-    return gConfigQueuePrefix.c_str();
-  }
-
 protected:
   unsigned int mIndex; ///< Group index i.e 0,1,2,3 ...
 };
@@ -645,7 +600,6 @@ protected:
 class FsNode : public BaseView
 {
 public:
-  static std::string gConfigQueuePrefix; ///< Configuration queue prefix
   eos::common::TransferQueue* mGwQueue; ///< Gateway transfer queue
 
   //----------------------------------------------------------------------------
@@ -673,23 +627,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return a member variable
   //----------------------------------------------------------------------------
-  virtual std::string GetMember(const std::string& name) const;
-
-  //----------------------------------------------------------------------------
-  //! Return the configuration queue prefix (virtual function)
-  //----------------------------------------------------------------------------
-  virtual const char* GetConfigQueuePrefix() const
-  {
-    return gConfigQueuePrefix.c_str();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Return the configuration queue prefix
-  //----------------------------------------------------------------------------
-  static const char* sGetConfigQueuePrefix()
-  {
-    return gConfigQueuePrefix.c_str();
-  }
+  virtual std::string GetMember(const std::string& name) const override;
 
   //----------------------------------------------------------------------------
   //! Snapshoting
@@ -965,14 +903,8 @@ public:
   //----------------------------------------------------------------------------
   //! Set config queues
   //----------------------------------------------------------------------------
-  void SetConfigQueues(const char* mgmconfigqueue,
-                       const char* nodeconfigqueue,
-                       const char* groupconfigqueue,
-                       const char* spaceconfigqueue)
+  void SetConfigQueues(const char* mgmconfigqueue)
   {
-    FsSpace::gConfigQueuePrefix = spaceconfigqueue;
-    FsGroup::gConfigQueuePrefix = groupconfigqueue;
-    FsNode::gConfigQueuePrefix = nodeconfigqueue;
     MgmConfigQueueName = mgmconfigqueue;
   }
 

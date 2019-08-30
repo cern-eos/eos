@@ -41,9 +41,6 @@ using eos::common::RWMutexReadLock;
 EOSMGMNAMESPACE_BEGIN
 
 FsView FsView::gFsView;
-std::string FsSpace::gConfigQueuePrefix;
-std::string FsGroup::gConfigQueuePrefix;
-std::string FsNode::gConfigQueuePrefix;
 std::atomic<bool> FsSpace::gDisableDefaults {false};
 
 //------------------------------------------------------------------------------
