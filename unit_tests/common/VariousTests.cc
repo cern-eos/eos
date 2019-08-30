@@ -197,4 +197,17 @@ TEST(SharedHashLocator, GlobalMgmHash) {
   ASSERT_EQ(locator.getBroadcastQueue(), "/eos/*/mgm");
 }
 
+TEST(SharedHashLocator, ForFilesystem) {
+  FileSystemLocator fsLocator;
+  ASSERT_TRUE(FileSystemLocator::fromQueuePath("/eos/somehost.cern.ch:1095/fst/data05", fsLocator));
+
+  SharedHashLocator hashLocator(fsLocator, true);
+  ASSERT_EQ(hashLocator.getConfigQueue(), "/eos/somehost.cern.ch:1095/fst/data05");
+  ASSERT_EQ(hashLocator.getBroadcastQueue(), "/eos/*/mgm");
+
+  hashLocator = SharedHashLocator(fsLocator, false);
+  ASSERT_EQ(hashLocator.getConfigQueue(), "/eos/somehost.cern.ch:1095/fst/data05");
+  ASSERT_EQ(hashLocator.getBroadcastQueue(), "/eos/somehost.cern.ch:1095/fst");
+}
+
 EOSCOMMONTESTING_END

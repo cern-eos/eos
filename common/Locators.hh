@@ -30,6 +30,104 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+//! Describes how to physically locate a filesystem:
+//!   - Host + port of the corresponding FST
+//!   - Storage path of the filesystem
+//!   - Type of access (remote or local)
+//!
+//! Filesystem locators can also be constructed from a queuepath
+//! which has the following form:
+//! /eos/<host>:<port>/fst<storage_path>
+//------------------------------------------------------------------------------
+class FileSystemLocator
+{
+public:
+  //! Storage type of the filesystem
+  enum class StorageType {
+    Local,
+    Xrd,
+    S3,
+    WebDav,
+    HTTP,
+    HTTPS,
+    Unknown
+  };
+
+  //----------------------------------------------------------------------------
+  //! Empty constructor
+  //----------------------------------------------------------------------------
+  FileSystemLocator() {}
+
+  //----------------------------------------------------------------------------
+  //! Constructor, pass manually individual components
+  //----------------------------------------------------------------------------
+  FileSystemLocator(const std::string& host, int port,
+                    const std::string& storagepath);
+
+  //----------------------------------------------------------------------------
+  //! Try to parse a "queuepath"
+  //----------------------------------------------------------------------------
+  static bool fromQueuePath(const std::string& queuepath, FileSystemLocator& out);
+
+  //----------------------------------------------------------------------------
+  //! Parse storage type from storage path string
+  //----------------------------------------------------------------------------
+  static StorageType parseStorageType(const std::string& storagepath);
+
+  //----------------------------------------------------------------------------
+  //! Get host
+  //----------------------------------------------------------------------------
+  std::string getHost() const;
+
+  //----------------------------------------------------------------------------
+  //! Get port
+  //----------------------------------------------------------------------------
+  int getPort() const;
+
+  //----------------------------------------------------------------------------
+  //! Get hostport, concatenated together as "host:port"
+  //----------------------------------------------------------------------------
+  std::string getHostPort() const;
+
+  //----------------------------------------------------------------------------
+  //! Get queuepath
+  //----------------------------------------------------------------------------
+  std::string getQueuePath() const;
+
+  //----------------------------------------------------------------------------
+  //! Get "FST queue", ie /eos/example.com:3002/fst
+  //----------------------------------------------------------------------------
+  std::string getFSTQueue() const;
+
+  //----------------------------------------------------------------------------
+  //! Get storage path
+  //----------------------------------------------------------------------------
+  std::string getStoragePath() const;
+
+  //----------------------------------------------------------------------------
+  //! Get storage type
+  //----------------------------------------------------------------------------
+  StorageType getStorageType() const;
+
+  //----------------------------------------------------------------------------
+  //! Check whether filesystem is local or remote
+  //----------------------------------------------------------------------------
+  bool isLocal() const;
+
+  //----------------------------------------------------------------------------
+  //! Get transient channel for this filesystem - that is, the channel through
+  //! which all transient, non-important information will be transmitted.
+  //----------------------------------------------------------------------------
+  std::string getTransientChannel() const;
+
+private:
+  std::string host;
+  int32_t port = 0;
+  std::string storagepath;
+  StorageType storageType;
+};
+
+//------------------------------------------------------------------------------
 //! This type helps figure out how to locate the appropriate shared hash for
 //! a given node / group / space.
 //!
@@ -41,7 +139,8 @@ public:
     kSpace,
     kGroup,
     kNode,
-    kGlobalConfigHash
+    kGlobalConfigHash,
+    kFilesystem
   };
 
   //----------------------------------------------------------------------------
@@ -56,6 +155,12 @@ public:
   //! Constructor: Same as above, but auto-discover instance name.
   //----------------------------------------------------------------------------
   SharedHashLocator(Type type, const std::string &name);
+
+  //----------------------------------------------------------------------------
+  //! Constructor: Special case for FileSystems, as they work a bit differently
+  //! than the rest.
+  //----------------------------------------------------------------------------
+  SharedHashLocator(const FileSystemLocator &fsLocator, bool bc2mgm);
 
   //----------------------------------------------------------------------------
   //! Convenience "Constructors": Make locator for space, group, node
