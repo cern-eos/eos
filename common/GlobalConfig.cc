@@ -23,6 +23,7 @@
 
 #include "common/GlobalConfig.hh"
 #include "common/Assert.hh"
+#include "common/InstanceName.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -90,6 +91,23 @@ GlobalConfig::Get(const char* configqueue)
 {
   std::string lConfigQueue = configqueue;
   return mSom->GetObject(lConfigQueue.c_str(), "hash");
+}
+
+//------------------------------------------------------------------------------
+// Get a pointer to the hash storing the global MGM configuration
+//------------------------------------------------------------------------------
+XrdMqSharedHash*
+GlobalConfig::GetGlobalHash()
+{
+  return Get(GetGlobalMgmConfigQueue().c_str());
+}
+
+//------------------------------------------------------------------------------
+// Get the global MGM configuration queue
+//------------------------------------------------------------------------------
+std::string
+GlobalConfig::GetGlobalMgmConfigQueue() const {
+  return SSTR("/config/" << InstanceName::get() << "/mgm");
 }
 
 EOSCOMMONNAMESPACE_END

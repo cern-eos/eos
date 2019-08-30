@@ -705,7 +705,6 @@ public:
   //----------------------------------------------------------------------------
   FsView() : mConfigEngine(nullptr)
   {
-    MgmConfigQueueName = "";
     mHeartBeatThread.reset(&FsView::HeartBeatCheck, this);
   }
 
@@ -901,14 +900,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Set config queues
-  //----------------------------------------------------------------------------
-  void SetConfigQueues(const char* mgmconfigqueue)
-  {
-    MgmConfigQueueName = mgmconfigqueue;
-  }
-
-  //----------------------------------------------------------------------------
   //! Set the configuration engine object
   //----------------------------------------------------------------------------
   void SetConfigEngine(IConfigEngine* engine)
@@ -957,7 +948,6 @@ private:
   AssistedThread mHeartBeatThread; ///< Thread monitoring heart-beats
   //! Object to map between fsid <-> uuid
   FilesystemUuidMapper mFilesystemMapper;
-  std::string MgmConfigQueueName; ///< MGM configuration queue name
 };
 
 //------------------------------------------------------------------------------

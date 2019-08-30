@@ -204,7 +204,7 @@ void IConfigEngine::publishConfigChange(const std::string &key, const std::strin
   eos_notice("Publishing configuration change %s => %s", key.c_str(), value.c_str());
 
   eos::common::RWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(gOFS->MgmConfigQueue.c_str());
+  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.GetGlobalHash();
 
   if (hash) {
     XrdOucString repval = value.c_str();
@@ -221,7 +221,7 @@ void IConfigEngine::publishConfigDeletion(const std::string &key) {
   eos_static_info("Publishing deletion of configuration key %s", key.c_str());
 
   eos::common::RWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(gOFS->MgmConfigQueue.c_str());
+  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.GetGlobalHash();
 
   if (hash) {
     hash->Delete(key.c_str());

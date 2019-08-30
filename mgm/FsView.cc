@@ -2180,19 +2180,19 @@ FsView::FindByQueuePath(std::string& queuepath)
 bool
 FsView::SetGlobalConfig(std::string key, std::string value)
 {
-  std::string ckey {""};
+  std::string ckey;
+
   {
     // We need to store this in the shared hash between MGMs
     RWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-    XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
-                              MgmConfigQueueName.c_str());
+    XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.GetGlobalHash();
 
     if (hash) {
       hash->Set(key.c_str(), value.c_str());
     }
 
     // register in the configuration engine
-    ckey = MgmConfigQueueName.c_str();
+    ckey = eos::common::GlobalConfig::gConfig.GetGlobalMgmConfigQueue();
     ckey += "#";
     ckey += key;
   }
@@ -2212,8 +2212,7 @@ std::string
 FsView::GetGlobalConfig(std::string key)
 {
   RWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
-                            MgmConfigQueueName.c_str());
+  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.GetGlobalHash();
 
   if (hash) {
     return hash->Get(key.c_str());

@@ -1338,7 +1338,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   FstConfigQueue = configbasequeue;
   FstConfigQueue += "/fst/";
 
-  FsView::gFsView.SetConfigQueues(MgmConfigQueue.c_str());
   ObjectNotifier.SetShareObjectManager(&ObjectManager);
   // we need to set the shared object manager to be used
   eos::common::GlobalConfig::gConfig.SetSOM(&ObjectManager);

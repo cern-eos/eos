@@ -33,8 +33,7 @@
 bool XrdMgmOfs::getMGMConfigValue(const std::string &key, std::string &value) {
   eos::common::RWMutexReadLock lock(gOFS->ObjectManager.HashMutex);
 
-  XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(
-    MgmConfigQueue.c_str(), "hash");
+  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.GetGlobalHash();
 
   if(!hash) {
     return false;
