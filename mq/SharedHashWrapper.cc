@@ -51,6 +51,13 @@ SharedHashWrapper::SharedHashWrapper(const common::SharedHashLocator &locator)
 }
 
 //------------------------------------------------------------------------------
+// "Constructor" for global MGM hash
+//------------------------------------------------------------------------------
+SharedHashWrapper SharedHashWrapper::makeGlobalMgmHash() {
+  return SharedHashWrapper(common::SharedHashLocator::makeForGlobalHash());
+}
+
+//------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
 SharedHashWrapper::~SharedHashWrapper() {
@@ -79,6 +86,23 @@ bool SharedHashWrapper::set(const std::string &key, const std::string &value) {
 std::string SharedHashWrapper::get(const std::string &key) {
   if(!mHash) return "";
   return mHash->Get(key.c_str());
+}
+
+//------------------------------------------------------------------------------
+// Delete the given key
+//------------------------------------------------------------------------------
+bool SharedHashWrapper::del(const std::string &key) {
+  if(!mHash) return false;
+  return mHash->Delete(key.c_str());
+}
+
+//------------------------------------------------------------------------------
+// Get all keys in hash
+//------------------------------------------------------------------------------
+bool SharedHashWrapper::getKeys(std::vector<std::string> &out) {
+  if(!mHash) return false;
+  out = mHash->GetKeys();
+  return true;
 }
 
 EOSMQNAMESPACE_END

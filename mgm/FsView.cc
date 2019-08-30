@@ -2184,13 +2184,7 @@ FsView::SetGlobalConfig(std::string key, std::string value)
   std::string ckey;
 
   {
-    // We need to store this in the shared hash between MGMs
-    RWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-    XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.GetGlobalHash();
-
-    if (hash) {
-      hash->Set(key.c_str(), value.c_str());
-    }
+    mq::SharedHashWrapper::makeGlobalMgmHash().set(key, value);
 
     // register in the configuration engine
     ckey = eos::common::GlobalConfig::gConfig.GetGlobalMgmConfigQueue();
@@ -2212,14 +2206,7 @@ FsView::SetGlobalConfig(std::string key, std::string value)
 std::string
 FsView::GetGlobalConfig(std::string key)
 {
-  RWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.GetGlobalHash();
-
-  if (hash) {
-    return hash->Get(key.c_str());
-  }
-
-  return "";
+  return mq::SharedHashWrapper::makeGlobalMgmHash().get(key);
 }
 
 //------------------------------------------------------------------------------
@@ -2550,19 +2537,11 @@ BaseView::GetConfigMember(std::string key) const
 bool
 BaseView::DeleteConfigMember(std::string key) const
 {
-  bool deleted=false;
-  std::string node_cfg_name = mLocator.getConfigQueue();
-  {
-    eos::common::RWMutexWriteLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-    XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(node_cfg_name.c_str());
-
-    if (hash) {
-      deleted = hash->Delete(key.c_str());
-    }
-  }
+  bool deleted = mq::SharedHashWrapper(mLocator).del(key);
 
   // Delete in the configuration engine
   if ( FsView::gFsView.mConfigEngine ) {
+    std::string node_cfg_name = mLocator.getConfigQueue();
     node_cfg_name += "#";
     node_cfg_name += key;
     FsView::gFsView.mConfigEngine->DeleteConfigValue("global", node_cfg_name.c_str());
@@ -2577,16 +2556,7 @@ BaseView::DeleteConfigMember(std::string key) const
 bool
 BaseView::GetConfigKeys(std::vector<std::string>& keys)
 {
-  RWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
-    mLocator.getConfigQueue().c_str());
-
-  if (hash) {
-    keys = hash->GetKeys();
-    return true;
-  }
-
-  return false;
+  return mq::SharedHashWrapper(mLocator).getKeys(keys);
 }
 
 //------------------------------------------------------------------------------

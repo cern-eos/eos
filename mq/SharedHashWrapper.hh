@@ -28,6 +28,7 @@
 #include "common/Locators.hh"
 #include "common/RWMutex.hh"
 #include <string>
+#include <vector>
 
 class XrdMqSharedHash;
 
@@ -42,6 +43,11 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   SharedHashWrapper(const common::SharedHashLocator &locator);
+
+  //----------------------------------------------------------------------------
+  //! "Constructor" for global MGM hash
+  //----------------------------------------------------------------------------
+  static SharedHashWrapper makeGlobalMgmHash();
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -62,6 +68,16 @@ public:
   //! Query the given key
   //----------------------------------------------------------------------------
   std::string get(const std::string &key);
+
+  //----------------------------------------------------------------------------
+  //! Delete the given key
+  //----------------------------------------------------------------------------
+  bool del(const std::string &key);
+
+  //----------------------------------------------------------------------------
+  //! Get all keys in hash
+  //----------------------------------------------------------------------------
+  bool getKeys(std::vector<std::string> &out);
 
 
 private:

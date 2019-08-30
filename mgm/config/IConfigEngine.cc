@@ -36,6 +36,7 @@
 #include "mgm/PathRouting.hh"
 #include "mgm/Fsck.hh"
 #include "common/StringUtils.hh"
+#include "mq/SharedHashWrapper.hh"
 #include <sstream>
 
 EOSMGMNAMESPACE_BEGIN
@@ -203,15 +204,10 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val, void* arg)
 void IConfigEngine::publishConfigChange(const std::string &key, const std::string &value) {
   eos_notice("Publishing configuration change %s => %s", key.c_str(), value.c_str());
 
-  eos::common::RWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.GetGlobalHash();
+  XrdOucString repval = value.c_str();
+  while (repval.replace("&", " ")) {}
 
-  if (hash) {
-    XrdOucString repval = value.c_str();
-    while (repval.replace("&", " ")) {}
-
-    hash->Set(key.c_str(), repval.c_str());
-  }
+  mq::SharedHashWrapper::makeGlobalMgmHash().set(key, repval.c_str());
 }
 
 //------------------------------------------------------------------------------
@@ -219,13 +215,7 @@ void IConfigEngine::publishConfigChange(const std::string &key, const std::strin
 //------------------------------------------------------------------------------
 void IConfigEngine::publishConfigDeletion(const std::string &key) {
   eos_static_info("Publishing deletion of configuration key %s", key.c_str());
-
-  eos::common::RWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.GetGlobalHash();
-
-  if (hash) {
-    hash->Delete(key.c_str());
-  }
+  mq::SharedHashWrapper::makeGlobalMgmHash().del(key);
 }
 
 //------------------------------------------------------------------------------
