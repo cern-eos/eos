@@ -26,6 +26,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/LayoutId.hh"
 #include "common/SymKeys.hh"
+#include "common/Timing.hh"
 #include "common/Path.hh"
 #include "mgm/Acl.hh"
 #include "mgm/proc/IProcCommand.hh"
@@ -1077,8 +1078,10 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
         }
       }
 
+      struct timespec now;
+      eos::common::Timing::GetTimeSpec(now);
       newdir->setAttribute("sys.eos.btime",
-                           SSTR(ctime.tv_sec << "." << ctime.tv_nsec));
+                           SSTR(now.tv_sec << "." << now.tv_nsec));
 
       for (auto attrit : it.xattrs()) {
         newdir->setAttribute(attrit.first, attrit.second);
