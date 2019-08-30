@@ -109,7 +109,7 @@ set_target_properties(
 
 add_executable(eos-fusex-ioverify
 	ioverify.cc
-	)
+)
 
 target_link_libraries(
   eos-fusex-ioverify
@@ -122,9 +122,6 @@ set_target_properties(
   COMPILE_FLAGS ${COMPILE_FLAGS_FOR_TEST_EXECUTABLES}
 )
 
-install(
-  TARGETS eos-fusex-ioverify
-  DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
-  PERMISSIONS OWNER_READ OWNER_EXECUTE
-              GROUP_READ GROUP_EXECUTE
-              WORLD_READ WORLD_EXECUTE)
+install(TARGETS
+	eos-fusex-ioverify eos-fusex-tests
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
