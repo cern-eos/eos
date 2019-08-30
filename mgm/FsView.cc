@@ -35,6 +35,7 @@
 #include "mgm/TableFormatter/TableFormatterBase.hh"
 #include "common/StringConversion.hh"
 #include "common/Assert.hh"
+#include "mq/SharedHashWrapper.hh"
 
 using eos::common::RWMutexReadLock;
 
@@ -2504,42 +2505,22 @@ bool
 BaseView::SetConfigMember(std::string key, std::string value,
                           bool isstatus)
 {
-  bool success = false;
-  eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
-  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(mLocator.getConfigQueue().c_str());
+  bool success = mq::SharedHashWrapper(mLocator).set(key, value);
 
-  if (!hash) {
-    eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
+  if (key == "txgw") {
+    eos::common::RWMutexWriteLock gwlock(FsView::gFsView.GwMutex);
 
-    if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(mLocator.getConfigQueue().c_str(),
-        mLocator.getBroadcastQueue().c_str())) {
-      success = false;
-    }
-
-    eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
-    hash = eos::common::GlobalConfig::gConfig.Get(mLocator.getConfigQueue().c_str());
-  }
-
-  if (hash) {
-    success = hash->Set(key.c_str(), value.c_str());
-
-    if (key == "txgw") {
-      eos::common::RWMutexWriteLock gwlock(FsView::gFsView.GwMutex);
-
-      if (value == "on") {
-        // we have to register this queue into the gw set for fast lookups
-        FsView::gFsView.mGwNodes.insert(mLocator.getBroadcastQueue());
-        // clear the queue if a machine is enabled
-        // @todo (esindril): Clear also takes the HashMutex lock again - this
-        // is undefined behaviour !!!
-        FsView::gFsView.mNodeView[mLocator.getBroadcastQueue()]->mGwQueue->Clear();
-      } else {
-        FsView::gFsView.mGwNodes.erase(mLocator.getBroadcastQueue());
-      }
+    if (value == "on") {
+      // we have to register this queue into the gw set for fast lookups
+      FsView::gFsView.mGwNodes.insert(mLocator.getBroadcastQueue());
+      // clear the queue if a machine is enabled
+      // @todo (esindril): Clear also takes the HashMutex lock again - this
+      // is undefined behaviour !!!
+      FsView::gFsView.mNodeView[mLocator.getBroadcastQueue()]->mGwQueue->Clear();
+    } else {
+      FsView::gFsView.mGwNodes.erase(mLocator.getBroadcastQueue());
     }
   }
-
-  eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
 
   // Register in the configuration engine
   if ((!isstatus) && FsView::gFsView.mConfigEngine) {
@@ -2560,15 +2541,7 @@ BaseView::SetConfigMember(std::string key, std::string value,
 std::string
 BaseView::GetConfigMember(std::string key) const
 {
-  RWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
-                            mLocator.getConfigQueue().c_str());
-
-  if (hash) {
-    return hash->Get(key.c_str());
-  }
-
-  return std::string();
+  return mq::SharedHashWrapper(mLocator).get(key);
 }
 
 //------------------------------------------------------------------------------

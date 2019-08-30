@@ -443,11 +443,6 @@ class GeoTreeEngine : public eos::common::LogId
       }
     }
 
-    inline SchedTreeBase::FastTreeInfo* getTreeInfo()
-    {
-      return treeInfo;
-    }
-
     inline bool buildFastStructures(SlowTree* slowTree)
     {
       return slowTree->buildFastStrcturesSched(
@@ -584,11 +579,6 @@ class GeoTreeEngine : public eos::common::LogId
       if (!background) {
         AtomicAdd((*penalties)[idx].ulScorePenalty, penalty);
       }
-    }
-
-    inline SchedTreeBase::FastTreeInfo* getTreeInfo()
-    {
-      return treeInfo;
     }
 
     inline bool buildFastStructures(SlowTree* slowTree)
