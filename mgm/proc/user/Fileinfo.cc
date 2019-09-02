@@ -961,7 +961,8 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["treesize"] = (Json::Value::UInt64) cmd->getTreeSize();
     json["uid"] = cmd->getCUid();
     json["gid"] = cmd->getCGid();
-    json["mode"] = cmd->getFlags();
+    json["flags"] = cmd->getFlags();
+    json["mode"] = cmd->getMode();
     json["nlink"] = 1;
     json["name"] = cmd->getName();
     json["path"] = path;
