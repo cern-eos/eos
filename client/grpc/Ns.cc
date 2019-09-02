@@ -10,7 +10,22 @@ int usage(const char* prog)
   fprintf(stderr, "usage: %s [--key <ssl-key-file> "
           "--cert <ssl-cert-file> "
           "--ca <ca-cert-file>] "
-          "[--endpoint <host:port>] [--token <auth-token>] [--uid] [--gid] [--norecycle] [-r] [--target <target>] -p <path> <command>\n", prog);
+          "[--endpoint <host:port>] [--token <auth-token>] [--xattr <key:val>] [--mode <mode>] [--uid <uid>] [--gid <gid>] [--norecycle] [-r] [--max-version <max-version>] [--target <target>] -p <path> <command>\n", prog);
+
+  fprintf(stderr,
+	  "                         -p <path> mkdir \n"
+	  "                    [-r] -p <path> rmdir \n"
+	  "                         -p <path> touch \n"
+	  "           [--norecycle] -p <path> rm \n"
+	  "       --target <target> -p <path> rename \n"
+	  "       --target <target> -p <path> symlink \n"
+	  "       --xattr <key=val> -p <path> setxattr \n"
+	  " --uid <uid> --gid <gid> -p <path> chown \n"
+	  "           --mode <mode> -p <path> chmod \n"
+	  "    [--max-version <max> -p <path> create-version \n"
+	  "                         -p <path> list-version \n"
+	  "    [--max-version <max> -p <path> purge-version \n");
+	  
   return -1;
 }
 
@@ -27,7 +42,9 @@ int main(int argc, const char* argv[])
   std::string cmd = "";
   std::string path = "";
   std::string target = "";
-
+  std::string xattr = "";
+  mode_t mode = 0775;
+  int64_t max_version = -1;
   uid_t uid = 0;
   gid_t gid = 0;
   bool recursive = false;
@@ -126,6 +143,36 @@ int main(int argc, const char* argv[])
       }
     }
 
+    if (option == "--mode") {
+      if (argc > i + 1) {
+	mode = strtol(argv[i+1],0,8);
+	++i;
+	continue;
+      } else {
+	return usage(argv[0]);
+      }
+    }
+
+    if (option == "--max-version") {
+      if (argc > i + 1) {
+	max_version = strtol(argv[i+1],0,10);
+	++i;
+	continue;
+      } else {
+	return usage(argv[0]);
+      }
+    }
+
+    if (option == "--xattr") {
+      if (argc > i + 1) {
+	xattr = argv[i+1];
+	++i;
+	continue;
+      } else {
+	return usage(argv[0]);
+      }
+    }
+
     if (option == "-r") {
       recursive = true;
       continue;
@@ -189,7 +236,7 @@ int main(int argc, const char* argv[])
     if (recursive) {
       request.mutable_mkdir()->set_recursive(true);
     }
-    request.mutable_mkdir()->set_mode(755);
+    request.mutable_mkdir()->set_mode(mode);
   } else if (cmd == "rmdir") {
     request.mutable_rmdir()->mutable_id()->set_path(path);
   } else if (cmd == "touch") {
@@ -216,14 +263,28 @@ int main(int argc, const char* argv[])
     request.mutable_symlink()->set_target(target);
   } else if (cmd == "setxattr") {
     request.mutable_xattr()->mutable_id()->set_path(path);
-    (*(request.mutable_xattr()->mutable_xattrs()))["user.test1"] = "sys1";
-    (*(request.mutable_xattr()->mutable_xattrs()))["user.test2"] = "user2";
+    std::string key, val;
+    eos::common::StringConversion::SplitKeyValue(xattr, key, val, "=");
+
+    (*(request.mutable_xattr()->mutable_xattrs()))[key] = val;
+
   } else if (cmd == "chown") {
     // run as root
     request.mutable_chown()->mutable_id()->set_path(path);
   } else if (cmd == "chmod") {
     request.mutable_chmod()->mutable_id()->set_path(path);
-    request.mutable_chmod()->set_mode(0777);
+    request.mutable_chmod()->set_mode(mode);
+  } else if (cmd == "create-version") {
+    request.mutable_version()->set_cmd(eos::rpc::NSRequest::VersionRequest::CREATE);
+    request.mutable_version()->mutable_id()->set_path(path);
+    request.mutable_version()->set_maxversion(max_version);
+  } else if (cmd == "list-version") {
+    request.mutable_version()->set_cmd(eos::rpc::NSRequest::VersionRequest::LIST);
+    request.mutable_version()->mutable_id()->set_path(path);
+  } else if (cmd == "purge-version") {
+    request.mutable_version()->set_cmd(eos::rpc::NSRequest::VersionRequest::PURGE);
+    request.mutable_version()->mutable_id()->set_path(path);
+    request.mutable_version()->set_maxversion(max_version);
   }
 
   google::protobuf::util::MessageToJsonString(request,
