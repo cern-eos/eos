@@ -260,7 +260,7 @@ before_script:
     - if [[ "$CI_JOB_NAME" =~ "asan" ]]; then export LSAN_OPTIONS="suppressions=/var/eos/test/LeakSanitizer.supp" ; else export LSAN_OPTIONS="" ; fi
     - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm1) -- bash -c "LSAN_OPTIONS=${LSAN_OPTIONS} eos-unit-tests"
     - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm1) -- bash -c "LSAN_OPTIONS=${LSAN_OPTIONS} eos-fst-unit-tests"
-    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm1) -- bash -c "LSAN_OPTIONS=${LSAN_OPTIONS} eos-fusex-tests"
+    - kubectl exec -n $NAMESPACE -i $(kubectl get pods -n $NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=eos-mgm1) -- bash -c "export LSAN_OPTIONS=${LSAN_OPTIONS}; eos-fusex-tests" # invoked command must contain a parent PID, hence the need for 2 commands to force a shell context
   <<: *k8s_after_script_template
 
 .k8s_ns_unit_test_template: &k8s_ns_unit_test_template
