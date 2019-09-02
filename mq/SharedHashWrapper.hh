@@ -62,7 +62,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set key-value pair
   //----------------------------------------------------------------------------
-  bool set(const std::string &key, const std::string &value);
+  bool set(const std::string &key, const std::string &value, bool broadcast = true);
 
   //----------------------------------------------------------------------------
   //! Query the given key
@@ -77,7 +77,7 @@ public:
   //----------------------------------------------------------------------------
   //! Delete the given key
   //----------------------------------------------------------------------------
-  bool del(const std::string &key);
+  bool del(const std::string &key, bool broadcast = true);
 
   //----------------------------------------------------------------------------
   //! Get all keys in hash

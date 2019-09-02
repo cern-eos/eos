@@ -27,6 +27,7 @@
 #include "common/TransferQueue.hh"
 #include "common/StringUtils.hh"
 #include "common/ParseUtils.hh"
+#include "common/Assert.hh"
 
 EOSCOMMONNAMESPACE_BEGIN;
 
@@ -490,8 +491,8 @@ void FileSystem::fs_snapshot_t::fillFromCoreParams(const FileSystemCoreParams &c
 //------------------------------------------------------------------------------
 FileSystem::FileSystem(const FileSystemLocator& locator,
                        XrdMqSharedObjectManager* som, qclient::SharedManager* qsom, bool bc2mgm)
+: mLocator(locator), mHashLocator(locator, bc2mgm)
 {
-  mLocator = locator;
   mSharedManager = qsom;
   mSom = som;
   mInternalBootStatus = BootStatus::kDown;
@@ -501,11 +502,7 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
   cActiveTime = 0;
   cStatusTime = 0;
   cConfigTime = 0;
-  std::string broadcast = locator.getFSTQueue();
-
-  if (bc2mgm) {
-    broadcast = "/eos/*/mgm";
-  }
+  std::string broadcast = mHashLocator.getBroadcastQueue();
 
   if (mSom) {
     mSom->HashMutex.LockRead();

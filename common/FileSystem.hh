@@ -27,6 +27,7 @@
 #include "common/Namespace.hh"
 #include "common/ParseUtils.hh"
 #include "common/Locators.hh"
+#include "mq/SharedHashWrapper.hh"
 #include "mq/XrdMqSharedObject.hh"
 #include <string>
 #include <stdint.h>
@@ -405,6 +406,9 @@ protected:
   //! This filesystem's locator object
   FileSystemLocator mLocator;
 
+  //! Locator for shared hash
+  SharedHashLocator mHashLocator;
+
   //! Indicates that if the filesystem is deleted - the deletion should be
   //! broadcasted or not (only MGMs should broadcast deletion!)
   bool BroadCastDeletion;
@@ -646,8 +650,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set a key-value pair in a filesystem and evt. broadcast it.
   //----------------------------------------------------------------------------
-  bool
-  SetString(const char* key, const char* str, bool broadcast = true)
+  bool SetString(const char* key, const char* str, bool broadcast = true)
   {
     XrdMqSharedHash* hash = nullptr;
     RWMutexReadLock lock(mSom->HashMutex);

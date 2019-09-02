@@ -154,11 +154,9 @@ install(TARGETS eosCommon
 #-------------------------------------------------------------------------------
 if (Linux)
   add_library(eosCommonServer-Objects OBJECT
-    GlobalConfig.cc
     ShellExecutor.cc
     ShellCmd.cc
     FileSystem.cc
-    ../mq/SharedHashWrapper.cc  ../mq/SharedHashWrapper.hh
     TransferQueue.cc
     TransferJob.cc
     sqlite/sqlite3.c

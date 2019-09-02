@@ -75,9 +75,9 @@ void SharedHashWrapper::releaseLocks() {
 //------------------------------------------------------------------------------
 // Set key-value pair
 //------------------------------------------------------------------------------
-bool SharedHashWrapper::set(const std::string &key, const std::string &value) {
+bool SharedHashWrapper::set(const std::string &key, const std::string &value, bool broadcast) {
   if(!mHash) return false;
-  return mHash->Set(key.c_str(), value.c_str());
+  return mHash->Set(key.c_str(), value.c_str(), broadcast);
 }
 
 //------------------------------------------------------------------------------
@@ -100,9 +100,9 @@ bool SharedHashWrapper::get(const std::string &key, std::string &value) {
 //------------------------------------------------------------------------------
 // Delete the given key
 //------------------------------------------------------------------------------
-bool SharedHashWrapper::del(const std::string &key) {
+bool SharedHashWrapper::del(const std::string &key, bool broadcast) {
   if(!mHash) return false;
-  return mHash->Delete(key.c_str());
+  return mHash->Delete(key.c_str(), broadcast);
 }
 
 //------------------------------------------------------------------------------
