@@ -630,11 +630,6 @@ public:
   virtual std::string GetMember(const std::string& name) const override;
 
   //----------------------------------------------------------------------------
-  //! Snapshoting
-  //----------------------------------------------------------------------------
-  bool SnapShotHost(FileSystem::host_snapshot_t& host, bool dolock);
-
-  //----------------------------------------------------------------------------
   //! Get active status
   //----------------------------------------------------------------------------
   eos::common::ActiveStatus GetActiveStatus();

@@ -1504,9 +1504,6 @@ protected:
 
   bool updateTreeInfo(SchedTME* entry, eos::common::FileSystem::fs_snapshot_t* fs,
                       int keys, SchedTreeBase::tFastTreeIdx ftidx = 0 , SlowTreeNode* stn = NULL);
-  bool updateTreeInfo(ProxyTMEBase* entry,
-                      eos::common::FileSystem::host_snapshot_t* fs, int keys,
-                      SchedTreeBase::tFastTreeIdx ftidx = 0 , SlowTreeNode* stn = NULL);
   bool updateTreeInfo(const map<string, int>& updatesFs,
                       const map<string, int>& updatesDp);
   //bool updateTreeInfoFs(const map<string,int> &updatesFs);

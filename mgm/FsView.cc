@@ -2430,16 +2430,6 @@ FsNode::SetNodeConfigDefault()
 }
 
 //------------------------------------------------------------------------------
-// Get host snapshot
-//------------------------------------------------------------------------------
-bool
-FsNode::SnapShotHost(FileSystem::host_snapshot_t& host, bool dolock)
-{
-  auto som = eos::common::GlobalConfig::gConfig.SOM();
-  return eos::common::FileSystem::SnapShotHost(som, mLocator.getConfigQueue(), host, dolock);
-}
-
-//------------------------------------------------------------------------------
 // Get member
 //------------------------------------------------------------------------------
 std::string

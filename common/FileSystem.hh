@@ -852,20 +852,6 @@ public:
   bool SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock = true);
 
   //----------------------------------------------------------------------------
-  //! Snapshots all variables of a filesystem into a snapshot struct
-  //!
-  //! @param fs snapshot struct to be filled
-  //! @param dolock indicates if the shared hash representing the filesystem has
-  //!               to be locked or not
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  static bool SnapShotHost(XrdMqSharedObjectManager* som,
-                           const std::string& queue,
-                           FileSystem::host_snapshot_t& fs,
-                           bool dolock = true);
-
-  //----------------------------------------------------------------------------
   //! Function printing the file system info to the table
   //----------------------------------------------------------------------------
   void Print(TableHeader& table_mq_header, TableData& table_mq_data,

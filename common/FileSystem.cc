@@ -1096,57 +1096,6 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
   }
 }
 
-//------------------------------------------------------------------------------
-// Snapshots all variables of a filesystem into a snapshot struct
-//------------------------------------------------------------------------------
-bool
-FileSystem::SnapShotHost(XrdMqSharedObjectManager* som,
-                         const std::string& queue,
-                         FileSystem::host_snapshot_t& host, bool dolock)
-{
-  if (dolock) {
-    som->HashMutex.LockRead();
-  }
-
-  XrdMqSharedHash* hash = NULL;
-
-  if ((hash = som->GetObject(queue.c_str(), "hash"))) {
-    host.mQueue = queue;
-    host.mHost        = hash->Get("host");
-    host.mHostPort      = hash->Get("hostport");
-    host.mGeoTag        = hash->Get("stat.geotag");
-    host.mProxyGroups   = hash->Get("proxygroups");
-    host.mPublishTimestamp = hash->GetLongLong("stat.publishtimestamp");
-    host.mActiveStatus = GetActiveStatusFromString(
-                           hash->Get("stat.active").c_str());
-    host.mNetEthRateMiB = hash->GetDouble("stat.net.ethratemib");
-    host.mNetInRateMiB  = hash->GetDouble("stat.net.inratemib");
-    host.mNetOutRateMiB = hash->GetDouble("stat.net.outratemib");
-
-    if (dolock) {
-      som->HashMutex.UnLockRead();
-    }
-
-    return true;
-  } else {
-    if (dolock) {
-      som->HashMutex.UnLockRead();
-    }
-
-    host.mQueue = queue;
-    host.mHost = "";
-    host.mHostPort = "";
-    host.mGeoTag        = "";
-    host.mProxyGroups   = "";
-    host.mPublishTimestamp = 0;
-    host.mActiveStatus = ActiveStatus::kOffline;
-    host.mNetEthRateMiB = 0;
-    host.mNetInRateMiB  = 0;
-    host.mNetOutRateMiB = 0;
-    return false;
-  }
-}
-
 //----------------------------------------------------------------------------
 // Return the configuration status (via cache)
 //----------------------------------------------------------------------------
