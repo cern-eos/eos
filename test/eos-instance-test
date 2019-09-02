@@ -1380,6 +1380,7 @@ runtest "### Attr Ls   " unix 0 "EOSROLE='-r 99 99'" eos attr ls "/eos/$EOS_TEST
 runtest "### Rmdir     " unix 0 "EOSROLE='-r 99 99'" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.bla"
 runtest "### Attr Set  " unix 0 "" eos attr set sys.versioning=3 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
 runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+usleep 1100000 # force the first file to fall in a different tv_sec interval
 runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
 runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
 runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
@@ -1388,6 +1389,7 @@ runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file version /eos/$EOS_
 runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file version /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd 99
 runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 5"
 runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file purge /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd 4
+exit
 runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 4"
 runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file purge /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd -1
 runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 3"
