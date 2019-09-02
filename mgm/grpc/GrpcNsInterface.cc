@@ -32,9 +32,11 @@
 #include "mgm/proc/IProcCommand.hh"
 #include "mgm/proc/user/RmCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/XrdMgmOfsDirectory.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/MDException.hh"
 #include "namespace/interface/ContainerIterators.hh"
+
 
 #include <regex.h>
 /*----------------------------------------------------------------------------*/
@@ -1211,6 +1213,18 @@ GrpcNsInterface::Mkdir(eos::common::VirtualIdentity& vid,
     reply->set_msg(error.getErrText());
     return grpc::Status::OK;
   }
+
+  XrdSfsMode sfsmode = mode;
+
+  // the mkdir command always inherits the parent mode setting and ignores the mode parameter
+  if (gOFS->_chmod(path.c_str(),
+		   sfsmode,
+		   error, vid, (const char*) 0)) {
+    reply->set_code(errno);
+    reply->set_msg(error.getErrText());
+    return grpc::Status::OK;
+  }
+
   if (errno == EEXIST) {
     reply->set_code(EEXIST);
     std::string msg = "info: directory existed already '";
@@ -1561,8 +1575,145 @@ grpc::Status GrpcNsInterface::Version(eos::common::VirtualIdentity& vid,
 				      eos::rpc::NSResponse::VersionResponse* reply,
 				      const eos::rpc::NSRequest::VersionRequest* request)
 {
-  reply->set_code(EINVAL);
-  reply->set_msg("error: command is currently not supported");
+  /*
+  message VersionRequest {
+    enum VERSION_CMD {
+      CREATE= 0;
+      PURGE = 1;
+      LIST = 2;
+    }
+    MDId id = 1;
+    VERSION_CMD cmd = 2;
+    int maxversion = 3;
+  }
+  */
+
+  std::string path;
+  uint64_t fid = 0;
+
+  path = request->id().path();
+
+  if (path.empty()) {
+    if (request->id().ino()) {
+      // get by inode
+      fid = eos::common::FileId::InodeToFid(request->id().ino());
+    } else if (request->id().id()) {
+      // get by fileid
+      fid = request->id().id();
+    }
+
+    try {
+      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+      path =
+	gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
+    } catch (eos::MDException& e) {
+      path = "";
+      errno = e.getErrno();
+    }
+
+    if (path.empty()) {
+      reply->set_code(EINVAL);
+      reply->set_msg("error:path is empty");
+      return grpc::Status::OK;
+    }
+  }
+
+  std::string vpath;
+  eos::common::Path cPath(path.c_str());
+  vpath += cPath.GetParentPath();
+  vpath += EOS_COMMON_PATH_VERSION_PREFIX;
+  vpath += cPath.GetName();
+  vpath += "/";
+  
+  if ( request->cmd() == eos::rpc::NSRequest::VersionRequest::CREATE ) {
+    // create a new version
+    ProcCommand cmd;
+    XrdOucErrInfo error;
+    XrdOucString info = "mgm.cmd=file&mgm.subcmd=version&mgm.purge.version=";
+    info += std::to_string(request->maxversion()).c_str();
+    if (fid) {
+      info += "&mgm.file.id=";
+      info += std::to_string(fid).c_str();
+    } else {
+      // this has a problem with '&' encoding, prefer to use create by fid ..
+      info += "&mgm.path=";
+      info += path.c_str();
+    }
+    cmd.open("/proc/user", info.c_str(), vid, &error);
+    cmd.close();
+    int rc = cmd.GetRetc();
+
+    if (rc) {
+      std::string msg = "Creation failed: ";
+      msg += cmd.GetStdErr();
+      reply->set_code( (rc>0) ? -rc:rc);
+      reply->set_msg(msg);
+      return grpc::Status::OK;
+    } else {
+      std::string msg = "info: created new version for path='";
+      msg += path;
+      msg += "'";
+      reply->set_msg(msg);
+      return grpc::Status::OK;
+    }
+  } else {
+    if ( request->cmd() == eos::rpc::NSRequest::VersionRequest::PURGE) {
+      // purge versions
+      XrdOucErrInfo error;
+      int rc = gOFS->PurgeVersion(vpath.c_str(), 
+				  error,
+				  request->maxversion());
+      if (rc) {
+	reply->set_code(errno);
+	reply->set_msg(error.getErrText());
+      } else {
+	reply->set_code(0);
+	std::string msg;
+	msg = "info: purged versions of path='";
+	msg += path;
+	msg += "' to maxversion=";
+	msg += std::to_string(request->maxversion());
+	reply->set_msg(msg);
+      }
+    } else {
+      if ( request->cmd() == eos::rpc::NSRequest::VersionRequest::LIST) {
+	// list versions
+	XrdMgmOfsDirectory directory;
+        int listrc = directory.open(vpath.c_str(), vid, (const char*) 0);
+        if (!listrc) {
+          const char* val = 0;
+          while ((val = directory.nextEntry())) {
+	    std::string entryname = val;
+
+            if ((entryname == ".") || (entryname == "..")) {
+              continue;
+	    }
+	    
+	    eos::rpc::NSResponse::VersionResponse::VersionInfo info;
+	    std::string smtime,sfid;
+	    eos::common::StringConversion::SplitKeyValue(entryname, smtime, sfid, ".");
+
+	    uint64_t mtime = strtoull(smtime.c_str(),0,10);
+	    uint64_t fid = strtoull(sfid.c_str(),0,16);
+	    uint64_t inode = eos::common::FileId::FidToInode(fid);
+	    std::string fullpath= vpath + "/";
+	    fullpath += entryname;
+	    info.mutable_mtime()->set_sec(mtime);
+	    info.mutable_id()->set_id(fid);
+	    info.mutable_id()->set_ino(inode);
+	    info.mutable_id()->set_path(fullpath);
+	    info.mutable_id()->set_type(eos::rpc::FILE);
+	    auto new_version = reply->add_versions();
+	    new_version->CopyFrom(info);
+          }
+        }
+      } else {
+	reply->set_code(EINVAL);
+	reply->set_msg("error: command is not supported");
+      }
+    }
+  }
+
   return grpc::Status::OK;
 }
 
