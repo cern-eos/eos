@@ -430,7 +430,7 @@ grpc::Status
 GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
                        grpc::ServerWriter<eos::rpc::MDResponse>* writer,
                        const eos::rpc::MDRequest* request, bool check_perms,
-		       bool lock)
+                       bool lock)
 {
   if (request->type() == eos::rpc::FILE) {
     // stream file meta data
@@ -614,6 +614,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
     gRPCResponse.mutable_cmd()->set_gid(cmd->getCGid());
     gRPCResponse.mutable_cmd()->set_tree_size(cmd->getTreeSize());
     gRPCResponse.mutable_cmd()->set_flags(cmd->getFlags());
+    gRPCResponse.mutable_cmd()->set_mode(cmd->getMode());
     eos::IContainerMD::ctime_t ctime;
     eos::IContainerMD::ctime_t mtime;
     eos::IContainerMD::ctime_t stime;
