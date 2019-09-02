@@ -650,18 +650,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set a key-value pair in a filesystem and evt. broadcast it.
   //----------------------------------------------------------------------------
-  bool SetString(const char* key, const char* str, bool broadcast = true)
-  {
-    XrdMqSharedHash* hash = nullptr;
-    RWMutexReadLock lock(mSom->HashMutex);
-
-    if ((hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash"))) {
-      hash->Set(key, str, broadcast);
-      return true;
-    } else {
-      return false;
-    }
-  }
+  bool SetString(const char* key, const char* str, bool broadcast = true);
 
   //----------------------------------------------------------------------------
   //! Set a double value by name and evt. broadcast it.
@@ -684,19 +673,7 @@ public:
   //----------------------------------------------------------------------------
   //! Remove a key from a filesystem and evt. broadcast it.
   //----------------------------------------------------------------------------
-  bool
-  RemoveKey(const char* key, bool broadcast = true)
-  {
-    XrdMqSharedHash* hash = nullptr;
-    RWMutexReadLock lock(mSom->HashMutex);
-
-    if ((hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash"))) {
-      hash->Delete(key, broadcast);
-      return true;
-    } else {
-      return false;
-    }
-  }
+  bool RemoveKey(const char* key, bool broadcast = true);
 
   //----------------------------------------------------------------------------
   //! Set the filesystem status.
@@ -741,41 +718,12 @@ public:
   //----------------------------------------------------------------------------
   //! Get all keys in a vector of strings.
   //----------------------------------------------------------------------------
-  bool
-  GetKeys(std::vector<std::string>& keys)
-  {
-    XrdMqSharedHash* hash = nullptr;
-    RWMutexReadLock lock(mSom->HashMutex);
-
-    if ((hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash"))) {
-      keys = hash->GetKeys();
-      return true;
-    } else {
-      return false;
-    }
-  }
+  bool GetKeys(std::vector<std::string>& keys);
 
   //----------------------------------------------------------------------------
   //! Get the string value by key
   //----------------------------------------------------------------------------
-  std::string
-  GetString(const char* key)
-  {
-    std::string skey = key;
-
-    if (skey == "<n>") {
-      return "1";
-    }
-
-    XrdMqSharedHash* hash = nullptr;
-    RWMutexReadLock lock(mSom->HashMutex);
-
-    if ((hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash"))) {
-      return hash->Get(skey);
-    } else {
-      return "";
-    }
-  }
+  std::string GetString(const char* key);
 
   //----------------------------------------------------------------------------
   //! Get a long long value by key

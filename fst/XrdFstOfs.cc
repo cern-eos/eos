@@ -41,6 +41,7 @@
 #include "common/Constants.hh"
 #include "common/StringConversion.hh"
 #include "common/XattrCompat.hh"
+#include "mq/SharedHashWrapper.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
@@ -827,6 +828,8 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
   eos_notice("FST_HOST=%s FST_PORT=%ld FST_HTTP_PORT=%d VERSION=%s RELEASE=%s KEYTABADLER=%s",
              mHostName, myPort, mHttpdPort, VERSION, RELEASE, kt_cks.c_str());
+
+  eos::mq::SharedHashWrapper::initialize(&ObjectManager);
   return 0;
 }
 

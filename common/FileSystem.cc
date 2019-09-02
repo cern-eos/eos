@@ -926,6 +926,40 @@ bool FileSystem::setLongLongLocal(const std::string& key, int64_t value)
 }
 
 //------------------------------------------------------------------------------
+// Set a key-value pair in a filesystem and evt. broadcast it.
+//------------------------------------------------------------------------------
+bool FileSystem::SetString(const char* key, const char* str, bool broadcast) {
+  return mq::SharedHashWrapper(mHashLocator).set(key, str, broadcast);
+}
+
+//------------------------------------------------------------------------------
+// Remove a key from a filesystem and evt. broadcast it.
+//------------------------------------------------------------------------------
+bool FileSystem::RemoveKey(const char* key, bool broadcast) {
+  return mq::SharedHashWrapper(mHashLocator).del(key, broadcast);
+}
+
+//------------------------------------------------------------------------------
+// Get all keys in a vector of strings.
+//------------------------------------------------------------------------------
+bool FileSystem::GetKeys(std::vector<std::string>& keys) {
+  return mq::SharedHashWrapper(mHashLocator).getKeys(keys);
+}
+
+//------------------------------------------------------------------------------
+// Get the string value by key
+//------------------------------------------------------------------------------
+std::string FileSystem::GetString(const char* key) {
+  std::string skey = key;
+
+  if (skey == "<n>") {
+    return "1";
+  }
+
+  return mq::SharedHashWrapper(mHashLocator).get(key);
+}
+
+//------------------------------------------------------------------------------
 // Store a configuration key-val pair.
 // Internally, these keys are not prefixed with 'stat.'
 //------------------------------------------------------------------------------
@@ -944,20 +978,19 @@ FileSystem::CreateConfig(std::string& key, std::string& val)
 //------------------------------------------------------------------------------
 FileSystemCoreParams FileSystem::getCoreParams()
 {
-  RWMutexReadLock lock(mSom->HashMutex);
-  XrdMqSharedHash* hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash");
+  mq::SharedHashWrapper hash(mHashLocator);
 
-  if (!hash) {
+  std::string id;
+  if(!hash.get("id", id) || id.empty()) {
     return FileSystemCoreParams(0, FileSystemLocator(), GroupLocator(), "",
                                 ConfigStatus::kOff);
   }
 
-  fsid_t id = hash->GetUInt("id");
   GroupLocator groupLocator;
-  GroupLocator::parseGroup(hash->Get("schedgroup"), groupLocator);
-  std::string uuid = hash->Get("uuid");
-  ConfigStatus cfg = GetConfigStatusFromString(hash->Get("configstatus").c_str());
-  return FileSystemCoreParams(id, mLocator, groupLocator, uuid, cfg);
+  GroupLocator::parseGroup(hash.get("schedgroup"), groupLocator);
+  std::string uuid = hash.get("uuid");
+  ConfigStatus cfg = GetConfigStatusFromString(hash.get("configstatus").c_str());
+  return FileSystemCoreParams(atoi(id.c_str()), mLocator, groupLocator, uuid, cfg);
 }
 
 //------------------------------------------------------------------------------

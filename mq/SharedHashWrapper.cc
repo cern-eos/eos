@@ -31,10 +31,13 @@ XrdMqSharedObjectManager* SharedHashWrapper::mSom;
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-SharedHashWrapper::SharedHashWrapper(const common::SharedHashLocator &locator)
+SharedHashWrapper::SharedHashWrapper(const common::SharedHashLocator &locator, bool takeLock)
 : mLocator(locator) {
 
-  mReadLock.Grab(mSom->HashMutex);
+  if(takeLock) {
+    mReadLock.Grab(mSom->HashMutex);
+  }
+
   mHash = mSom->GetObject(mLocator.getConfigQueue().c_str(), "hash");
 
   if (!mHash) {
