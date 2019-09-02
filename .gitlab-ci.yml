@@ -439,7 +439,6 @@ build_fedora_rawhide:
     - fedora_rawhide
   only:
     - schedules
-  when: manual
 
 
 build_ubuntu_bionic:
