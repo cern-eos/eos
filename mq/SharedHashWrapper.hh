@@ -31,6 +31,7 @@
 #include <vector>
 
 class XrdMqSharedHash;
+class XrdMqSharedObjectManager;
 
 EOSMQNAMESPACE_BEGIN
 
@@ -84,11 +85,18 @@ public:
   //----------------------------------------------------------------------------
   bool getKeys(std::vector<std::string> &out);
 
+  //----------------------------------------------------------------------------
+  //! Initialize, set shared manager.
+  //! Call this function before using any SharedHashWrapper!
+  //----------------------------------------------------------------------------
+  static void initialize(XrdMqSharedObjectManager *som);
 
 private:
   common::SharedHashLocator mLocator;
   common::RWMutexReadLock mReadLock;
   XrdMqSharedHash *mHash;
+
+  static XrdMqSharedObjectManager *mSom;
 };
 
 EOSMQNAMESPACE_END

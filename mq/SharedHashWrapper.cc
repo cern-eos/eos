@@ -22,9 +22,11 @@
  ************************************************************************/
 
 #include "SharedHashWrapper.hh"
-#include "common/GlobalConfig.hh"
+#include "mq/XrdMqSharedObject.hh"
 
 EOSMQNAMESPACE_BEGIN
+
+XrdMqSharedObjectManager* SharedHashWrapper::mSom;
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -32,8 +34,8 @@ EOSMQNAMESPACE_BEGIN
 SharedHashWrapper::SharedHashWrapper(const common::SharedHashLocator &locator)
 : mLocator(locator) {
 
-  mReadLock.Grab(common::GlobalConfig::gConfig.SOM()->HashMutex);
-  mHash = eos::common::GlobalConfig::gConfig.Get(mLocator.getConfigQueue().c_str());
+  mReadLock.Grab(mSom->HashMutex);
+  mHash = mSom->GetObject(mLocator.getConfigQueue().c_str(), "hash");
 
   if (!mHash) {
     //--------------------------------------------------------------------------
@@ -41,13 +43,12 @@ SharedHashWrapper::SharedHashWrapper(const common::SharedHashLocator &locator)
     //--------------------------------------------------------------------------
     mReadLock.Release();
 
-    eos::common::GlobalConfig::gConfig.AddConfigQueue(mLocator.getConfigQueue().c_str(),
-      mLocator.getBroadcastQueue().c_str());
+    mSom->CreateSharedHash(mLocator.getConfigQueue().c_str(),
+      mLocator.getBroadcastQueue().c_str(), mSom);
 
-    mReadLock.Grab(common::GlobalConfig::gConfig.SOM()->HashMutex);
-    mHash = eos::common::GlobalConfig::gConfig.Get(mLocator.getConfigQueue().c_str());
+    mReadLock.Grab(mSom->HashMutex);
+    mHash = mSom->GetObject(mLocator.getConfigQueue().c_str(), "hash");
   }
-
 }
 
 //------------------------------------------------------------------------------
@@ -112,6 +113,14 @@ bool SharedHashWrapper::getKeys(std::vector<std::string> &out) {
   if(!mHash) return false;
   out = mHash->GetKeys();
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Initialize, set shared manager.
+// Call this function before using any SharedHashWrapper!
+//------------------------------------------------------------------------------
+void SharedHashWrapper::initialize(XrdMqSharedObjectManager *som) {
+  mSom = som;
 }
 
 EOSMQNAMESPACE_END

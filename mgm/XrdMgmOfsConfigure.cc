@@ -64,6 +64,7 @@
 #include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
+#include "mq/SharedHashWrapper.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysPlugin.hh"
@@ -1338,6 +1339,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // we need to set the shared object manager to be used
   eos::common::GlobalConfig::gConfig.SetSOM(&ObjectManager);
   eos::common::InstanceName::set(MgmOfsInstanceName.c_str());
+  eos::mq::SharedHashWrapper::initialize(&ObjectManager);
 
   // set the object manager to listener only
   ObjectManager.EnableBroadCast(false);

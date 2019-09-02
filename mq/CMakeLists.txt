@@ -36,7 +36,6 @@ include_directories(
 #-------------------------------------------------------------------------------
 add_library(XrdMqClient-Objects OBJECT
   XrdMqTiming.hh
-  ../common/GlobalConfig.cc
   SharedHashWrapper.cc  SharedHashWrapper.hh
   XrdMqClient.cc        XrdMqClient.hh
   XrdMqMessage.cc       XrdMqMessage.hh

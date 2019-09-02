@@ -79,11 +79,6 @@ public:
   XrdMqSharedHash* Get(const char* configqueue);
 
   //----------------------------------------------------------------------------
-  //! Get a pointer to the hash storing the global MGM configuration
-  //----------------------------------------------------------------------------
-  XrdMqSharedHash* GetGlobalHash();
-
-  //----------------------------------------------------------------------------
   //! Get the global MGM configuration queue
   //----------------------------------------------------------------------------
   std::string GetGlobalMgmConfigQueue() const;
