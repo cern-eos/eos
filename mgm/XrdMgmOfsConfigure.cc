@@ -1333,10 +1333,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   configbasequeue += MgmOfsInstanceName.c_str();
   MgmConfigQueue = configbasequeue;
   MgmConfigQueue += "/mgm/";
-  AllConfigQueue = configbasequeue;
-  AllConfigQueue += "/all/";
-  FstConfigQueue = configbasequeue;
-  FstConfigQueue += "/fst/";
 
   ObjectNotifier.SetShareObjectManager(&ObjectManager);
   // we need to set the shared object manager to be used
@@ -2210,22 +2206,21 @@ XrdMgmOfs::SetupProcFiles()
 void
 XrdMgmOfs::SetupGlobalConfig()
 {
-  if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(MgmConfigQueue.c_str(),
-      "/eos/*/mgm")) {
-    eos_crit("Cannot add global config queue %s\n", MgmConfigQueue.c_str());
+  std::string configQueue = SSTR("/config/" << eos::common::InstanceName::get() << "/mgm/");
+  if(!eos::common::GlobalConfig::gConfig.SOM()->CreateSharedHash(
+    configQueue.c_str(), "/eos/*/mgm")) {
+    eos_crit("Cannot add global config queue %s\n", configQueue.c_str());
   }
 
-  if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(AllConfigQueue.c_str(),
-      "/eos/*")) {
-    eos_crit("Cannot add global config queue %s\n", AllConfigQueue.c_str());
+  configQueue = SSTR("/config/" << eos::common::InstanceName::get() << "/all/");
+  if(!eos::common::GlobalConfig::gConfig.SOM()->CreateSharedHash(
+    configQueue.c_str(), "/eos/*")) {
+    eos_crit("Cannot add global config queue %s\n", configQueue.c_str());
   }
 
-  if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(FstConfigQueue.c_str(),
-      "/eos/*/fst")) {
-    eos_crit("Cannot add global config queue %s\n", FstConfigQueue.c_str());
+  configQueue = SSTR("/config/" << eos::common::InstanceName::get() << "/fst/");
+  if(!eos::common::GlobalConfig::gConfig.SOM()->CreateSharedHash(
+    configQueue.c_str(), "/eos/*/fst")) {
+    eos_crit("Cannot add global config queue %s\n", configQueue.c_str());
   }
-
-  std::string out;
-  eos::common::GlobalConfig::gConfig.PrintBroadCastMap(out);
-  eos_static_info("MQ broadcast map: %s", out.c_str());
 }

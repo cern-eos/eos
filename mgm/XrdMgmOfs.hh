@@ -1398,9 +1398,6 @@ public:
   ///< Path to namespace changelog file for directories
   XrdOucString MgmNsDirChangeLogFile;
   XrdOucString MgmConfigQueue; ///< name of the mgm-wide broadcasted shared hash
-  ///< Name of the cluster-wide broadcasted shared hash
-  XrdOucString AllConfigQueue;
-  XrdOucString FstConfigQueue; ///< name of the fst-wide broadcasted shared hash
   //!  Directory containing the transfer database and archive
   XrdOucString MgmTxDir;
   XrdOucString MgmAuthDir; ///< Directory containing exported authentication token
