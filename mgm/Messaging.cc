@@ -165,14 +165,8 @@ Messaging::Update(XrdAdvisoryMqMessage* advmsg)
 
     eos_static_info("Registering node queue %s ..", nodequeue.c_str());
     if (FsView::gFsView.RegisterNode(nodequeue.c_str())) {
-      common::SharedHashLocator locator = common::SharedHashLocator::makeForNode(nodequeue);
-
-      if (!eos::common::GlobalConfig::gConfig.Get(locator.getConfigQueue().c_str())) {
-        if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(locator.getConfigQueue().c_str(),
-            locator.getBroadcastQueue().c_str())) {
-          eos_static_crit("cannot add node config queue %s", locator.getConfigQueue().c_str());
-        }
-      }
+      // Just initialize config queue, taken care by constructor
+      mq::SharedHashWrapper(common::SharedHashLocator::makeForNode(nodequeue));
     }
 
     ProcessIncomingHeartbeat(nodequeue, advmsg->kOnline, advmsg->kMessageHeader.kSenderTime_sec);
