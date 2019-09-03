@@ -50,6 +50,15 @@ public:
     CredentialValidator& validator);
 
   //----------------------------------------------------------------------------
+  // Destructor.
+  //----------------------------------------------------------------------------
+  ~BoundIdentityProvider()
+  {
+    delete sssRegistry;
+    sssRegistry = nullptr;
+  }
+
+  //----------------------------------------------------------------------------
   // Attempt to produce a BoundIdentity object out of given environment
   // variables. If not possible, return nullptr.
   //----------------------------------------------------------------------------
