@@ -348,10 +348,14 @@ eos_io() {
    echo eos-io-test root://$EOS_TEST_REDIRECTOR/$1 $2 >& $EOSLASTLOG; eval eos-io-test root://$EOS_TEST_REDIRECTOR/$1 $2 >> $EOSCERTLOG 2>&1
 }
 
-
 eos_rename() {
    echo eos-rename-test $1 $EOS_TEST_REDIRECTOR; eval eos-rename-test $1 $EOS_TEST_REDIRECTOR >> $EOSCERTLOG 2>&1
 }
+
+eos_grpc() {
+   echo eos-grpc-test $1 ; eval eos-grpc-test $1 >> $EOSCERTLOG 2>&1
+}
+
 shell() {
     echo $* >& $EOSLASTLOG; eval $* >> $EOSCERTLOG 2>&1
 }
@@ -1389,10 +1393,9 @@ runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file version /eos/$EOS_
 runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file version /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd 99
 runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 5"
 runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file purge /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd 4
-exit
-runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 4"
+runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 5"
 runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file purge /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd -1
-runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 3"
+runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 4"
 runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file purge /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd 0
 runtest "### Stat      " unix 1 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd"
 runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
@@ -1401,13 +1404,14 @@ runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/insta
 runtest "### Rm        " unix 0 "EOSROLE='-r 99 99'" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
 runtest "### Stat      " unix 1 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd"
 runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+usleep 1100000 # force the first file to fall in a different tv_sec interval
 runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
 runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
 runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
 runtest "### Find Purge" unix 0 "EOSROLE='-r 99 99'" eos find --purge -1 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
-runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 4"
-runtest "### Find Purge" unix 0 "EOSROLE='-r 99 99'" eos find --purge 2 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
 runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 3"
+runtest "### Find Purge" unix 0 "EOSROLE='-r 99 99'" eos find --purge 1 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
+runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 2"
 runtest "### Find Purge" unix 0 "EOSROLE='-r 99 99'" eos find --purge 0 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
 runtest "### Stat      " unix 1 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd"
 runtest "### Cleanup"    unix 2 "" eos rm  "-r /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning"
@@ -1545,6 +1549,15 @@ runtest "### Find      " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/
 # Clean up the files created in owncloud tests
 #----------------------------------------------------------------------------
 runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc"
+
+
+################################################################################
+# GRPC tests
+################################################################################
+# ------------------------------------------------------------------------------
+categorie="grpc"
+# ------------------------------------------------------------------------------
+runtest "### eos-grpc  " unix 0 "" eos_grpc "/eos/$EOS_TEST_INSTANCE/test/instancetest/grpc.dir/"
 
 ################################################################################
 # RAIN-LIKE LAYOUT TESTS FOR WR/RD AND RECOVERY
