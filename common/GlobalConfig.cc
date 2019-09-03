@@ -31,69 +31,6 @@ GlobalConfig
 GlobalConfig::gConfig; //! Singleton for global configuration access
 
 //------------------------------------------------------------------------------
-// Add a configuration queue
-//------------------------------------------------------------------------------
-bool
-GlobalConfig::AddConfigQueue(const char* configqueue,
-                             const char* broadcastqueue)
-{
-  eos_static_info("Adding config queue: %s => %s", configqueue, broadcastqueue);
-
-  std::string lConfigQueue = configqueue;
-  std::string lBroadCastQueue = broadcastqueue;
-  XrdMqSharedHash* lHash = 0;
-
-  if (mSom) {
-    mSom->HashMutex.LockRead();
-
-    if (!(lHash = mSom->GetObject(lConfigQueue.c_str(), "hash"))) {
-      mSom->HashMutex.UnLockRead();
-
-      // Create the hash object
-      if (mSom->CreateSharedHash(lConfigQueue.c_str(), lBroadCastQueue.c_str(),
-                                 mSom)) {
-        mSom->HashMutex.LockRead();
-        lHash = mSom->GetObject(lConfigQueue.c_str(), "hash");
-        mBroadCastQueueMap[lConfigQueue] = lBroadCastQueue;
-        mSom->HashMutex.UnLockRead();
-      } else {
-        lHash = 0;
-      }
-    } else {
-      mSom->HashMutex.UnLockRead();
-    }
-  }
-
-  return (lHash) ? true : false;
-}
-
-//------------------------------------------------------------------------------
-// Print the broad cast mapping to the given string
-//------------------------------------------------------------------------------
-void
-GlobalConfig::PrintBroadCastMap(std::string& out)
-{
-  std::map<std::string, std::string>::const_iterator it;
-
-  for (it = mBroadCastQueueMap.begin(); it != mBroadCastQueueMap.end(); it++) {
-    char line[1024];
-    snprintf(line, sizeof(line) - 1, "# config [%-32s] == broad cast ==> [%s]\n",
-             it->first.c_str(), it->second.c_str());
-    out += line;
-  }
-}
-
-//------------------------------------------------------------------------------
-// Get a pointer to the hash storing a configuration queue
-//------------------------------------------------------------------------------
-XrdMqSharedHash*
-GlobalConfig::Get(const char* configqueue)
-{
-  std::string lConfigQueue = configqueue;
-  return mSom->GetObject(lConfigQueue.c_str(), "hash");
-}
-
-//------------------------------------------------------------------------------
 // Get the global MGM configuration queue
 //------------------------------------------------------------------------------
 std::string

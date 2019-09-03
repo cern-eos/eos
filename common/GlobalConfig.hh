@@ -60,25 +60,6 @@ public:
   ~GlobalConfig() = default;
 
   //----------------------------------------------------------------------------
-  //! Add a configuration queue and the queue where to broad cast changes
-  //!
-  //! @param configqueue name of the configuration queue e.g. /eos/<host:port>/mgm
-  //! @param broadcastqueue name of the queue where to broadcast  e.g. /eos/'*'/mgm
-  //!
-  //! @return true if success false if failed
-  //----------------------------------------------------------------------------
-  bool AddConfigQueue(const char* configqueue, const char* broadcastqueue);
-
-  //----------------------------------------------------------------------------
-  //! Get a pointer to the hash storing a configuration queue
-  //!
-  //! @param configqueue name of the configuration queue
-  //!
-  //! @return pointer to a shared hash representing a configuration queue
-  //----------------------------------------------------------------------------
-  XrdMqSharedHash* Get(const char* configqueue);
-
-  //----------------------------------------------------------------------------
   //! Get the global MGM configuration queue
   //----------------------------------------------------------------------------
   std::string GetGlobalMgmConfigQueue() const;
@@ -98,13 +79,6 @@ public:
   {
     return mQsom;
   }
-
-  //----------------------------------------------------------------------------
-  //! Print the broad cast mapping to the given string
-  //!
-  //! @param out reference to a string where to print
-  //----------------------------------------------------------------------------
-  void PrintBroadCastMap(std::string& out);
 
   //----------------------------------------------------------------------------
   //! Reset the global config
@@ -136,10 +110,6 @@ public:
 private:
   XrdMqSharedObjectManager* mSom; ///< Pointer to the global object manager
   qclient::SharedManager* mQsom = nullptr;
-
-  //! Hash storing which config queue get's broadcasted where ...
-  std::map<std::string, std::string> mBroadCastQueueMap;
-
 };
 
 EOSCOMMONNAMESPACE_END
