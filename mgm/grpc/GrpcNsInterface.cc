@@ -1552,12 +1552,22 @@ grpc::Status GrpcNsInterface::SetXAttr(eos::common::VirtualIdentity& vid,
   XrdOucErrInfo error;
   errno = 0;
 
+  // setting keys
   for ( auto it = request->xattrs().begin(); it != request->xattrs().end(); ++it) {
     std::string key = it->first;
     std::string value = it->second;
     std::string b64value;
-    eos::common::SymKey::Base64Encode(value.c_str(), value.length(), b64value);
+    eos::common::SymKey::Base64(value, b64value);
     if (gOFS->_attr_set(path.c_str(), error, vid, (const char*) 0,key.c_str(), b64value.c_str())) {
+      reply->set_code(errno);
+      reply->set_msg(error.getErrText());
+      return grpc::Status::OK;
+    }
+  }
+
+  // deleting keys
+  for ( auto i = 0; i < request->keystodelete().size(); i++) {
+    if (gOFS->_attr_rem(path.c_str(), error, vid, (const char*) 0, request->keystodelete()[i].c_str())) {
       reply->set_code(errno);
       reply->set_msg(error.getErrText());
       return grpc::Status::OK;

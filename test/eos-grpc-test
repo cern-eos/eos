@@ -1,0 +1,108 @@
+#!/bin/bash
+set -x #echo on
+
+prefix=$1
+host=${2-"localhost"}
+url=root://$host
+
+test -z "$1" && exit -1
+
+authkey=12345678
+
+eos vid set map -grpc key:$authkey vuid:11
+eos vid set map -grpc key:$authkey vgid:11
+eos vid set membership 11 +sudo
+eos vid set membership 11 -uids 3
+eos vid set membership 11 -gids 4
+eos rm -r $prefix/t_grpc/
+eos mkdir -p $prefix/t_grpc/
+eos chown 11:11 $prefix/t_grpc/
+eos chmod 700 $prefix/t_grpc/
+
+# fail by permission
+eos-grpc-ns --uid 100 --token $authkey -p $prefix/t_grpc/grpc_dir mkdir && exit -1
+eos-grpc-ns --uid 100 --token $authkey -p $prefix/t_grpc/grpc_dir rmdir && exit -1
+eos-grpc-ns --uid 100 --token $authkey -p $prefix/t_grpc/grpc_file touch && exit -1
+eos-grpc-ns --uid 100 --token $authkey -p $prefix/t_grpc/grpc_file unlink && exit -1
+
+# succeed
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/grpc_dir mkdir || exit -2
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/grpc_dir rmdir || exit -2
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/grpc_file touch || exit -2
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/grpc_file unlink || exit -2
+
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/level1/ mkdir || exit -3
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/level1/level2/ mkdir || exit -3
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/level1/level2/level3 touch || exit -3
+# fail by name
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/level -r rm && exit -3
+# fail by not empty
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/level1  rm && exit -3
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/level1 -r rm || exit -3
+
+# rename
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/grpc_file touch || exit -4
+eos-grpc-ns --token $authkey --target $prefix/t_grpc/grpc_renamed -p $prefix/t_grpc/grpc_file rename || exit -4
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/grpc_file unlink && exit -4
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/grpc_renamed unlink || exit -4
+
+# symlink
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/grpc_dir mkdir || exit -5
+eos-grpc-ns --token $authkey --target $prefix/t_grpc/grpc_symlink_dir -p $prefix/t_grpc/grpc_dir symlink && exit -6
+eos-grpc-ns --token $authkey --target $prefix/t_grpc/grpc_dir -p $prefix/t_grpc/grpc_symlink_dir symlink || exit -6
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/grpc_symlink_dir unlink || exit -6
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/grpc_dir rmdir || exit -6
+
+# setxattr
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/grpc_file touch || exit -7
+eos-grpc-ns --token $authkey --xattr user.foo=bar -p $prefix/t_grpc/grpc_file setxattr || exit -7
+eos attr ls $prefix/t_grpc/grpc_file | grep user.foo | grep bar || exit -7
+# delete xattr
+eos-grpc-ns --token $authkey --xattr \!user.foo= -p $prefix/t_grpc/grpc_file setxattr || exit -7
+eos attr ls $prefix/t_grpc/grpc_file | grep user.foo && exit -7
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/grpc_file unlink || exit -7
+
+#chown 
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/chown mkdir || exit -8
+eos-grpc-ns --uid 0 --gid 0 --token $authkey --owner-uid 1 --owner-gid 2 -p $prefix/t_grpc/chown chown || exit -8
+eos ls -la $prefix/t_grpc/chown
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/chown rmdir || exit -8
+
+#chmod
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/chmod mkdir || exit -9
+eos-grpc-ns --mode 644 --token $authkey -p $prefix/t_grpc/chmod chmod || exit -9
+eos ls -la $prefix/t_grpc/chmod
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/chmod rmdir || exit -9
+
+#versioning
+eos chmod 777 $prefix/t_grpc/ || exit -10
+eos attr set sys.versioning=3 $prefix/t_grpc/
+eos cp /etc/passwd $prefix/t_grpc/file || exit -10
+usleep 1200000
+eos cp /etc/passwd $prefix/t_grpc/file || exit -10
+eos cp /etc/passwd $prefix/t_grpc/file || exit -10
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/file create-version || exit -10
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/file create-version || exit -10
+eos find $prefix/t_grpc/|| exit -10
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/file list-version || exit -10
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/file list-version | grep ino | wc -l | grep -w 5 || exit -10
+eos-grpc-ns --token $authkey --max-version 99 -p $prefix/t_grpc/file create-version || exit -10
+eos find $prefix/t_grpc/ || exit -10
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/file list-version | grep ino | wc -l | grep -w 6 || exit -10
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/file purge-version || exit -10
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/file list-version | grep ino | wc -l | grep -w 5 || exit -10
+eos find $prefix/t_grpc/ || exit -10
+eos-grpc-ns --token $authkey --max-version 1 -p $prefix/t_grpc/file purge-version || exit -10
+eos find $prefix/t_grpc/ || exit -10
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/file list-version | grep ino | wc -l | grep -w 3 || exit -10
+eos-grpc-ns --token $authkey --max-version 0 -p $prefix/t_grpc/file purge-version || exit -10
+eos find $prefix/t_grpc/ || exit -10
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/file list-version | grep ino | wc -l | grep -w 1 || exit -10
+eos-grpc-ns --token $authkey -p $prefix/t_grpc/file unlink || exit -10
+eos rmdir $prefix/t_grpc/
+
+eos vid rm vid:grpc:\"key:12345678\":gid
+eos vid rm vid:grpc:\"key:12345678\":uid
+eos vid set membership 11 -sudo
+eos vid rm membership 11
+exit 0

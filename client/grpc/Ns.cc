@@ -10,21 +10,22 @@ int usage(const char* prog)
   fprintf(stderr, "usage: %s [--key <ssl-key-file> "
           "--cert <ssl-cert-file> "
           "--ca <ca-cert-file>] "
-          "[--endpoint <host:port>] [--token <auth-token>] [--xattr <key:val>] [--mode <mode>] [--uid <uid>] [--gid <gid>] [--norecycle] [-r] [--max-version <max-version>] [--target <target>] -p <path> <command>\n", prog);
+          "[--endpoint <host:port>] [--token <auth-token>] [--xattr <key:val>] [--mode <mode>] [--uid <uid>] [--gid <gid>] [--owner-uid <uid>] [--owner-gid <gid] [--norecycle] [-r] [--max-version <max-version>] [--target <target>] -p <path> <command>\n", prog);
 
   fprintf(stderr,
-	  "                         -p <path> mkdir \n"
-	  "                    [-r] -p <path> rmdir \n"
-	  "                         -p <path> touch \n"
-	  "           [--norecycle] -p <path> rm \n"
-	  "       --target <target> -p <path> rename \n"
-	  "       --target <target> -p <path> symlink \n"
-	  "       --xattr <key=val> -p <path> setxattr \n"
-	  " --uid <uid> --gid <gid> -p <path> chown \n"
-	  "           --mode <mode> -p <path> chmod \n"
-	  "    [--max-version <max> -p <path> create-version \n"
-	  "                         -p <path> list-version \n"
-	  "    [--max-version <max> -p <path> purge-version \n");
+	  "                                     -p <path> mkdir \n"
+	  "                                [-r] -p <path> rmdir \n"
+	  "                                     -p <path> touch \n"
+	  "                       [--norecycle] -p <path> rm \n"
+	  "                   --target <target> -p <path> rename \n"
+	  "                   --target <target> -p <path> symlink \n"
+	  "                   --xattr <key=val> -p <path> setxattr # sets key=val \n"
+	  "                     --xattr <!key=> -p <path> setxattr # deletes key\n"
+	  " --owner-uid <uid> --owner-gid <gid> -p <path> chown \n"
+	  "                       --mode <mode> -p <path> chmod \n"
+	  "                [--max-version <max> -p <path> create-version \n"
+	  "                                     -p <path> list-version \n"
+	  "                [--max-version <max> -p <path> purge-version \n");
 	  
   return -1;
 }
@@ -47,6 +48,8 @@ int main(int argc, const char* argv[])
   int64_t max_version = -1;
   uid_t uid = 0;
   gid_t gid = 0;
+  uid_t owner_uid = 0;
+  gid_t owner_gid = 0;
   bool recursive = false;
   bool norecycle = false;
 
@@ -116,6 +119,26 @@ int main(int argc, const char* argv[])
     if (option == "--gid") {
       if (argc > i + 1) {
 	gid = strtoul(argv[i + 1],0,10);
+	++i;
+	continue;
+      } else {
+	return usage(argv[0]);
+      }
+    }
+
+    if (option == "--owner-uid") {
+      if (argc > i + 1) {
+	owner_uid = strtoul(argv[i + 1],0,10);
+	++i;
+	continue;
+      } else {
+	return usage(argv[0]);
+      }
+    }
+
+    if (option == "--owner-gid") {
+      if (argc > i + 1) {
+	owner_gid = strtoul(argv[i + 1],0,10);
 	++i;
 	continue;
       } else {
@@ -265,12 +288,19 @@ int main(int argc, const char* argv[])
     request.mutable_xattr()->mutable_id()->set_path(path);
     std::string key, val;
     eos::common::StringConversion::SplitKeyValue(xattr, key, val, "=");
-
-    (*(request.mutable_xattr()->mutable_xattrs()))[key] = val;
-
+    if (key.front() == '!') {
+      // add as a deletion key
+      auto x = request.mutable_xattr()->add_keystodelete();
+      *x = key.substr(1);
+    } else {
+      // add as a new attribute key
+      (*(request.mutable_xattr()->mutable_xattrs()))[key] = val;
+    }
   } else if (cmd == "chown") {
     // run as root
     request.mutable_chown()->mutable_id()->set_path(path);
+    request.mutable_chown()->mutable_owner()->set_uid(owner_uid);
+    request.mutable_chown()->mutable_owner()->set_gid(owner_gid);
   } else if (cmd == "chmod") {
     request.mutable_chmod()->mutable_id()->set_path(path);
     request.mutable_chmod()->set_mode(mode);
@@ -292,8 +322,11 @@ int main(int argc, const char* argv[])
   
   std::cout << "request: " << std::endl << jsonstring << std::endl;
   
+  int retc = EIO;
   if (eosgrpc->Exec(request, reply)) {
     std::cerr << "grpc request failed" << std::endl;
+  } else {
+    retc = reply.error().code();
   }
   
   jsonstring = "";
@@ -307,5 +340,5 @@ int main(int argc, const char* argv[])
     (std::chrono::steady_clock::now() - watch_global);
   std::cout << "request took " << elapsed_global.count() <<
             " micro seconds" << std::endl;
-  return 0;
+  return retc;
 }
