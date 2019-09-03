@@ -1045,6 +1045,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_bindir}/eos-mq-feeder
 %{_bindir}/eos-grpc-ping
 %{_bindir}/eos-grpc-md
+%{_bindir}/eos-grpc-ns
 %{_bindir}/eos-grpc-insert
 %{_sbindir}/eos-mq-tests
 %{_sbindir}/eos-instance-test
