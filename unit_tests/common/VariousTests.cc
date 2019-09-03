@@ -232,4 +232,26 @@ TEST(SharedHashLocator, Initialization) {
   ASSERT_TRUE(locator.empty());
 }
 
+TEST(SharedHashLocator, Parsing) {
+  SharedHashLocator locator;
+  ASSERT_TRUE(SharedHashLocator::fromConfigQueue("/config/eosdev/space/default", locator));
+  ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/space/default");
+  ASSERT_EQ(locator.getBroadcastQueue(), "/eos/*/mgm");
+
+  ASSERT_FALSE(SharedHashLocator::fromConfigQueue("/config/eosdev/space/default/aa", locator));
+  ASSERT_FALSE(SharedHashLocator::fromConfigQueue("/config/eosdev/space", locator));
+
+  ASSERT_TRUE(SharedHashLocator::fromConfigQueue("/config/eosdev/group/default.0", locator));
+  ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/group/default.0");
+  ASSERT_EQ(locator.getBroadcastQueue(), "/eos/*/mgm");
+
+  ASSERT_TRUE(SharedHashLocator::fromConfigQueue("/config/eosdev/node/example.com:3003", locator));
+  ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/node/example.com:3003");
+  ASSERT_EQ(locator.getBroadcastQueue(), "/eos/example.com:3003/fst");
+
+  ASSERT_TRUE(SharedHashLocator::fromConfigQueue("/config/eosdev/mgm", locator));
+  ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/mgm");
+  ASSERT_EQ(locator.getBroadcastQueue(), "/eos/*/mgm");
+}
+
 EOSCOMMONTESTING_END

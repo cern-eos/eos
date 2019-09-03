@@ -25,6 +25,7 @@
 #include "common/Locators.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
+#include "common/StringTokenizer.hh"
 #include "common/InstanceName.hh"
 #include "common/Assert.hh"
 #include "common/FileSystem.hh"
@@ -310,5 +311,70 @@ std::string SharedHashLocator::getBroadcastQueue() const {
 bool SharedHashLocator::empty() const {
   return !mInitialized;
 }
+
+//------------------------------------------------------------------------------
+// Produce SharedHashLocator by parsing config queue
+//------------------------------------------------------------------------------
+bool SharedHashLocator::fromConfigQueue(const std::string &configQueue, SharedHashLocator &out) {
+  std::vector<std::string> parts =
+    common::StringTokenizer::split<std::vector<std::string>>(configQueue, '/');
+
+  std::reverse(parts.begin(), parts.end());
+
+  if(parts.empty() || parts.back() != "config") {
+    return false;
+  }
+  parts.pop_back();
+
+  if(parts.empty()) {
+    return false;
+  }
+
+  SharedHashLocator::Type type;
+  std::string instanceName = parts.back();
+  parts.pop_back();
+
+  if(parts.empty()) {
+    return false;
+  }
+  else if(parts.back() == "node") {
+    type = Type::kNode;
+  }
+  else if(parts.back() == "space") {
+    type = Type::kSpace;
+  }
+  else if(parts.back() == "group") {
+    type = Type::kGroup;
+  }
+  else if(parts.back() == "mgm" && parts.size() == 1u) {
+    type = Type::kGlobalConfigHash;
+    out = SharedHashLocator(instanceName, type, "");
+    return true;
+  }
+  else {
+    return false;
+  }
+
+  parts.pop_back();
+
+  if(parts.empty()) {
+    return false;
+  }
+
+  std::string name = parts.back();
+  parts.pop_back();
+
+  if(!parts.empty()) {
+    return false;
+  }
+
+  if(instanceName.empty() || name.empty()) {
+    return false;
+  }
+
+  out = SharedHashLocator(instanceName, type, name);
+  return true;
+}
+
 
 EOSCOMMONNAMESPACE_END

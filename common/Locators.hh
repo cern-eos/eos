@@ -190,6 +190,11 @@ public:
   //----------------------------------------------------------------------------
   bool empty() const;
 
+  //----------------------------------------------------------------------------
+  //! Produce SharedHashLocator by parsing config queue
+  //----------------------------------------------------------------------------
+  static bool fromConfigQueue(const std::string &configQueue, SharedHashLocator &out);
+
 private:
   bool mInitialized;
 
