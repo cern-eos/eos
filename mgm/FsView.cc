@@ -2777,7 +2777,6 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
   std::string pathdelimiter = "/";
   eos::common::StringConversion::Tokenize(configqueue, tokens, delimiter);
   eos::common::StringConversion::Tokenize(configqueue, paths, pathdelimiter);
-  bool success = false;
 
   if (tokens.size() != 2) {
     eos_static_err("the key definition of config <%s> is invalid", key);
@@ -2789,72 +2788,40 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
     return false;
   }
 
-  eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
-  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
-                            tokens[0].c_str());
+  common::SharedHashLocator locator;
+  if(!common::SharedHashLocator::fromConfigQueue(tokens[0], locator)) {
+    eos_static_err("could not understand global configuration: %s", tokens[0].c_str());
+    return false;
+  }
 
-  if (!hash) {
-    eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
+  mq::SharedHashWrapper hash(locator);
+  bool success = hash.set(tokens[1].c_str(), val.c_str());
+  hash.releaseLocks();
 
-    // create a global config queue
-    if ((tokens[0].find("/node/")) != std::string::npos) {
+  // Here we build a set with the gw nodes for fast lookup in the TransferEngine
+  if ((tokens[0].find("/node/")) != std::string::npos) {
+    if (tokens[1] == "txgw") {
       std::string broadcast = "/eos/";
       broadcast += paths[paths.size() - 1];
       size_t dashpos = 0;
 
-      // remote the #<variable>
+      // Remote the #<variable>
       if ((dashpos = broadcast.find("#")) != std::string::npos) {
         broadcast.erase(dashpos);
       }
 
       broadcast += "/fst";
+      // The node might not yet exist!
+      FsView::gFsView.RegisterNode(broadcast.c_str());
+      eos::common::RWMutexWriteLock gwlock(GwMutex);
 
-      if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(tokens[0].c_str(),
-          broadcast.c_str())) {
-        eos_static_err("cannot create config queue <%s>", tokens[0].c_str());
-      }
-    } else {
-      if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(tokens[0].c_str(),
-          "/eos/*/mgm")) {
-        eos_static_err("cannot create config queue <%s>", tokens[0].c_str());
-      }
-    }
-
-    eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
-    hash = eos::common::GlobalConfig::gConfig.Get(tokens[0].c_str());
-  }
-
-  if (hash) {
-    success = hash->Set(tokens[1].c_str(), val.c_str());
-    eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
-
-    // Here we build a set with the gw nodes for fast lookup in the TransferEngine
-    if ((tokens[0].find("/node/")) != std::string::npos) {
-      if (tokens[1] == "txgw") {
-        std::string broadcast = "/eos/";
-        broadcast += paths[paths.size() - 1];
-        size_t dashpos = 0;
-
-        // Remote the #<variable>
-        if ((dashpos = broadcast.find("#")) != std::string::npos) {
-          broadcast.erase(dashpos);
-        }
-
-        broadcast += "/fst";
-        // The node might not yet exist!
-        FsView::gFsView.RegisterNode(broadcast.c_str());
-        eos::common::RWMutexWriteLock gwlock(GwMutex);
-
-        if (val == "on") {
-          // we have to register this queue into the gw set for fast lookups
-          FsView::gFsView.mGwNodes.insert(broadcast.c_str());
-        } else {
-          FsView::gFsView.mGwNodes.erase(broadcast.c_str());
-        }
+      if (val == "on") {
+        // we have to register this queue into the gw set for fast lookups
+        FsView::gFsView.mGwNodes.insert(broadcast.c_str());
+      } else {
+        FsView::gFsView.mGwNodes.erase(broadcast.c_str());
       }
     }
-  } else {
-    eos_static_err("there is no global config for queue <%s>", tokens[0].c_str());
   }
 
   return success;
