@@ -26,6 +26,7 @@
 
 #include "common/Namespace.hh"
 #include <string>
+#include <shared_mutex>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -49,12 +50,18 @@ public:
   static std::string get();
 
   //----------------------------------------------------------------------------
+  //! Has the instance name been set?
+  //----------------------------------------------------------------------------
+  static bool empty();
+
+  //----------------------------------------------------------------------------
   //! Clear stored instance name - used in unit tests
   //----------------------------------------------------------------------------
   static void clear();
 
 private:
   static std::string mInstanceName;
+  static std::shared_timed_mutex mMutex;
 };
 
 EOSCOMMONNAMESPACE_END

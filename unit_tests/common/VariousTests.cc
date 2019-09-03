@@ -187,9 +187,12 @@ TEST(SharedHashLocator, NodeWithHostport) {
 }
 
 TEST(InstanceName, BasicSanity) {
+  ASSERT_TRUE(common::InstanceName::empty());
   common::InstanceName::set("eosdev");
+  ASSERT_FALSE(common::InstanceName::empty());
   ASSERT_EQ(common::InstanceName::get(), "eosdev");
   common::InstanceName::clear();
+  ASSERT_TRUE(common::InstanceName::empty());
 }
 
 TEST(SharedHashLocator, AutoInstanceName) {
