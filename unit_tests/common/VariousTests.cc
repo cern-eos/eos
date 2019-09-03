@@ -176,6 +176,12 @@ TEST(SharedHashLocator, BasicSanity) {
   ASSERT_EQ(locator.getBroadcastQueue(), "/eos/example.com:3003/fst");
 }
 
+TEST(SharedHashLocator, NodeWithHostport) {
+  SharedHashLocator locator("eosdev", SharedHashLocator::Type::kNode, "example.com:3003");
+  ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/node/example.com:3003");
+  ASSERT_EQ(locator.getBroadcastQueue(), "/eos/example.com:3003/fst");
+}
+
 TEST(InstanceName, BasicSanity) {
   common::InstanceName::set("eosdev");
   ASSERT_EQ(common::InstanceName::get(), "eosdev");
