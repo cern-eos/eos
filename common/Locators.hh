@@ -144,6 +144,11 @@ public:
   };
 
   //----------------------------------------------------------------------------
+  //! Empty constructor
+  //----------------------------------------------------------------------------
+  SharedHashLocator();
+
+  //----------------------------------------------------------------------------
   //! Constructor: Pass the EOS instance name, BaseView type, and name.
   //!
   //! Once we drop the MQ entirely, the instance name can be removed.
@@ -180,8 +185,14 @@ public:
   //----------------------------------------------------------------------------
   std::string getBroadcastQueue() const;
 
+  //----------------------------------------------------------------------------
+  //! Check if this object is actually pointing to something
+  //----------------------------------------------------------------------------
+  bool empty() const;
 
 private:
+  bool mInitialized;
+
   std::string mInstanceName;
   Type mType;
   std::string mName;

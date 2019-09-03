@@ -208,13 +208,20 @@ std::string FileSystemLocator::getTransientChannel() const
 }
 
 //------------------------------------------------------------------------------
+// Empty constructor
+//------------------------------------------------------------------------------
+SharedHashLocator::SharedHashLocator() {
+  mInitialized = false;
+}
+
+//------------------------------------------------------------------------------
 // Constructor: Pass the EOS instance name, BaseView type, and name.
 //
 // Once we drop the MQ entirely, the instance name can be removed.
 //------------------------------------------------------------------------------
 SharedHashLocator::SharedHashLocator(const std::string &instanceName, Type type,
     const std::string &name)
-: mInstanceName(instanceName), mType(type), mName(name) {
+: mInitialized(true), mInstanceName(instanceName), mType(type), mName(name) {
 
   switch(type) {
     case Type::kSpace: {
@@ -255,6 +262,7 @@ SharedHashLocator::SharedHashLocator(Type type, const std::string &name)
 // than the rest.
 //------------------------------------------------------------------------------
 SharedHashLocator::SharedHashLocator(const FileSystemLocator &fsLocator, bool bc2mgm) {
+  mInitialized = true;
   mMqSharedHashPath = fsLocator.getQueuePath();
   mBroadcastQueue = fsLocator.getFSTQueue();
 
@@ -296,5 +304,11 @@ std::string SharedHashLocator::getBroadcastQueue() const {
   return mBroadcastQueue;
 }
 
+//----------------------------------------------------------------------------
+// Check if this object is actually pointing to something
+//----------------------------------------------------------------------------
+bool SharedHashLocator::empty() const {
+  return !mInitialized;
+}
 
 EOSCOMMONNAMESPACE_END

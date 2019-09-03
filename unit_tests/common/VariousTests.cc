@@ -164,20 +164,24 @@ TEST(FstLocator, FromQueuePath) {
 
 TEST(SharedHashLocator, BasicSanity) {
   SharedHashLocator locator("eosdev", SharedHashLocator::Type::kSpace, "default");
+  ASSERT_FALSE(locator.empty());
   ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/space/default");
   ASSERT_EQ(locator.getBroadcastQueue(), "/eos/*/mgm");
 
   locator = SharedHashLocator("eosdev", SharedHashLocator::Type::kGroup, "default.0");
+  ASSERT_FALSE(locator.empty());
   ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/group/default.0");
   ASSERT_EQ(locator.getBroadcastQueue(), "/eos/*/mgm");
 
   locator = SharedHashLocator("eosdev", SharedHashLocator::Type::kNode, "/eos/example.com:3003/fst");
+  ASSERT_FALSE(locator.empty());
   ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/node/example.com:3003");
   ASSERT_EQ(locator.getBroadcastQueue(), "/eos/example.com:3003/fst");
 }
 
 TEST(SharedHashLocator, NodeWithHostport) {
   SharedHashLocator locator("eosdev", SharedHashLocator::Type::kNode, "example.com:3003");
+  ASSERT_FALSE(locator.empty());
   ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/node/example.com:3003");
   ASSERT_EQ(locator.getBroadcastQueue(), "/eos/example.com:3003/fst");
 }
@@ -192,6 +196,7 @@ TEST(SharedHashLocator, AutoInstanceName) {
   common::InstanceName::set("eosdev");
 
   SharedHashLocator locator(SharedHashLocator::Type::kSpace, "default");
+  ASSERT_FALSE(locator.empty());
   ASSERT_EQ(locator.getConfigQueue(), "/config/eosdev/space/default");
   ASSERT_EQ(locator.getBroadcastQueue(), "/eos/*/mgm");
   common::InstanceName::clear();
@@ -199,6 +204,7 @@ TEST(SharedHashLocator, AutoInstanceName) {
 
 TEST(SharedHashLocator, GlobalMgmHash) {
   SharedHashLocator locator("eostest", SharedHashLocator::Type::kGlobalConfigHash, "");
+  ASSERT_FALSE(locator.empty());
   ASSERT_EQ(locator.getConfigQueue(), "/config/eostest/mgm");
   ASSERT_EQ(locator.getBroadcastQueue(), "/eos/*/mgm");
 }
@@ -208,12 +214,19 @@ TEST(SharedHashLocator, ForFilesystem) {
   ASSERT_TRUE(FileSystemLocator::fromQueuePath("/eos/somehost.cern.ch:1095/fst/data05", fsLocator));
 
   SharedHashLocator hashLocator(fsLocator, true);
+  ASSERT_FALSE(hashLocator.empty());
   ASSERT_EQ(hashLocator.getConfigQueue(), "/eos/somehost.cern.ch:1095/fst/data05");
   ASSERT_EQ(hashLocator.getBroadcastQueue(), "/eos/*/mgm");
 
   hashLocator = SharedHashLocator(fsLocator, false);
+  ASSERT_FALSE(hashLocator.empty());
   ASSERT_EQ(hashLocator.getConfigQueue(), "/eos/somehost.cern.ch:1095/fst/data05");
   ASSERT_EQ(hashLocator.getBroadcastQueue(), "/eos/somehost.cern.ch:1095/fst");
+}
+
+TEST(SharedHashLocator, Initialization) {
+  SharedHashLocator locator;
+  ASSERT_TRUE(locator.empty());
 }
 
 EOSCOMMONTESTING_END
