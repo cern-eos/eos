@@ -1,2 +1,5 @@
 # Suppress known leak in XrdOfs object
 leak:XrdOfs::XrdOfs()
+
+# Suppress malloc leak in OpenSSL
+leak:CRYPTO_malloc
