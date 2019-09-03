@@ -481,23 +481,17 @@ Storage::Publish(ThreadAssistant& assistant)
           }
         }
 
-        {
-          std::map<std::string, std::string> fstStats = getFSTStatistics(tmp_name,
-              netspeed);
-          // set node status values
-          gOFS.ObjectManager.HashMutex.LockRead();
-          // we received a new symkey
-          XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(
-                                    Config::gConfig.getFstNodeConfigQueue("Publish").c_str(),
-                                    "hash");
+        std::map<std::string, std::string> fstStats = getFSTStatistics(tmp_name,
+          netspeed);
 
-          if (hash) {
-            for (auto it = fstStats.begin(); it != fstStats.end(); it++) {
-              hash->Set(it->first.c_str(), it->second.c_str());
-            }
+        // set node status values
+        common::SharedHashLocator locator = Config::gConfig.getNodeHashLocator("Publish");
+        if(!locator.empty()) {
+          mq::SharedHashWrapper hash(locator, true, false);
+
+          for (auto it = fstStats.begin(); it != fstStats.end(); it++) {
+            hash.set(it->first, it->second);
           }
-
-          gOFS.ObjectManager.HashMutex.UnLockRead();
         }
 
         gOFS.ObjectManager.CloseMuxTransaction();
