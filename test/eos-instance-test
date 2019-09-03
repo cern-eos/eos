@@ -446,7 +446,7 @@ runtest () {
           if [ $res -eq 2 ] ; then success; ((success++)); fi
           END=$(date +%s.%N)
           DIFF=$(echo "$END - $START" | bc)
-          echo "                         in $DIFF seconds"
+          echo "                         in $DIFF seconds ($ret)"
         fi
         echo "--------------------------------------------------------------------------------------------------------------------"
         EOS_TEST_REDIRECTOR=$redir
