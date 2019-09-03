@@ -25,6 +25,7 @@
 #define __EOSFST_CONFIG_HH__
 /*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
+#include "common/Locators.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -81,6 +82,10 @@ public:
 
   XrdOucString getFstNodeConfigQueue(const std::string& location = "",
                                      bool blocking = true);
+
+  common::SharedHashLocator getNodeHashLocator(const std::string& location = "",
+                                     bool blocking = true);
+
   void setFstNodeConfigQueue(const XrdOucString& value);
   std::chrono::seconds getPublishInterval();
 
@@ -92,6 +97,7 @@ private:
   //! Queue holding this node's configuration settings
   XrdOucString FstNodeConfigQueue;
   std::atomic<bool> configQueueInitialized {false};
+  eos::common::SharedHashLocator mNodeHashLocator;
 
   // Random number generator
   std::mutex generatorMutex;

@@ -43,7 +43,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  SharedHashWrapper(const common::SharedHashLocator &locator, bool takeLock = true);
+  SharedHashWrapper(const common::SharedHashLocator &locator, bool takeLock = true, bool create = true);
 
   //----------------------------------------------------------------------------
   //! "Constructor" for global MGM hash

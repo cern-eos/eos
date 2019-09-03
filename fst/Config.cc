@@ -23,7 +23,10 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/Config.hh"
+#include <vector>
 #include "common/Logging.hh"
+#include "common/InstanceName.hh"
+#include "common/StringTokenizer.hh"
 #include <thread>
 #include <chrono>
 
@@ -47,7 +50,29 @@ XrdOucString Config::getFstNodeConfigQueue(const std::string& location,
 void Config::setFstNodeConfigQueue(const XrdOucString& value)
 {
   FstNodeConfigQueue = value;
+
+  std::vector<std::string> parts = common::StringTokenizer::split<std::vector<std::string>>(value.c_str(), '/');
+  common::InstanceName::set(parts[1]);
+
+  mNodeHashLocator = common::SharedHashLocator(parts[1],
+    common::SharedHashLocator::Type::kNode, parts[3]);
+
   configQueueInitialized = true;
+}
+
+common::SharedHashLocator Config::getNodeHashLocator(const std::string& location,
+    bool blocking)
+{
+  while (!configQueueInitialized && blocking) {
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    eos_static_info("Waiting for config queue in %s ... ", location.c_str());
+  }
+
+  if(configQueueInitialized) {
+    return mNodeHashLocator;
+  }
+
+  return {};
 }
 
 std::chrono::seconds Config::getPublishInterval()

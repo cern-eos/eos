@@ -31,7 +31,7 @@ XrdMqSharedObjectManager* SharedHashWrapper::mSom;
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-SharedHashWrapper::SharedHashWrapper(const common::SharedHashLocator &locator, bool takeLock)
+SharedHashWrapper::SharedHashWrapper(const common::SharedHashLocator &locator, bool takeLock, bool create)
 : mLocator(locator) {
 
   if(takeLock) {
@@ -40,7 +40,7 @@ SharedHashWrapper::SharedHashWrapper(const common::SharedHashLocator &locator, b
 
   mHash = mSom->GetObject(mLocator.getConfigQueue().c_str(), "hash");
 
-  if (!mHash) {
+  if (!mHash && create) {
     //--------------------------------------------------------------------------
     // Shared hash does not exist, create
     //--------------------------------------------------------------------------

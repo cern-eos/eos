@@ -25,6 +25,8 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/storage/FileSystem.hh"
 #include "common/SymKeys.hh"
+#include "common/Assert.hh"
+#include "mq/SharedHashWrapper.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -33,18 +35,13 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 bool
 Storage::getFSTConfigValue(const std::string &key, std::string &value) const {
-  eos::common::RWMutexReadLock lock(gOFS.ObjectManager.HashMutex);
-
-  XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(
-    Config::gConfig.getFstNodeConfigQueue("getConfigValue", false).c_str(),
-    "hash");
-
-  if(!hash) {
+  common::SharedHashLocator locator = Config::gConfig.getNodeHashLocator("getConfigValue", false);
+  if(locator.empty()) {
     return false;
   }
 
-  value = hash->Get(key.c_str());
-  return true;
+  mq::SharedHashWrapper hash(locator, true, false);
+  return hash.get(key, value);
 }
 
 bool
@@ -89,6 +86,8 @@ Storage::registerFilesystem(const std::string &queuepath) {
 //------------------------------------------------------------------------------
 void
 Storage::processIncomingFstConfigurationChange(const std::string &key, const std::string &value) {
+  eos_static_info("FST configuration change - key=%s, value=%s", key.c_str(), value.c_str());
+
   if (key == "symkey") {
     eos_static_info("symkey=%s", value.c_str());
     eos::common::gSymKeyStore.SetKey64(value.c_str(), 0);
@@ -252,17 +251,15 @@ Storage::processIncomingFsConfigurationChange(const std::string &queue, const st
   eos_static_info("got modification on <subqueue>=%s <key>=%s", queue.c_str(),
     key.c_str());
 
-  eos::common::RWMutexReadLock hashMutexLock(gOFS.ObjectManager.HashMutex);
-  XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(), "hash");
+  mq::SharedHashWrapper hash(targetFs->getHashLocator());
 
-  if(!hash) {
-    eos_static_err("Could not get shared hash for %s;%s", queue.c_str(), key.c_str());
+  std::string value;
+  if(!hash.get(key, value)) {
+    eos_static_err("Could not lookup key=%s for %s", key.c_str(), queue.c_str());
     return;
   }
 
-  std::string value = hash->Get(key);
-  hashMutexLock.Release();
-
+  hash.releaseLocks();
   return processIncomingFsConfigurationChange(targetFs, queue, key, value);
 }
 
