@@ -150,7 +150,7 @@ ProcCommand::Space()
 
             for (it = FsView::gFsView.mGroupView.begin();
                  it != FsView::gFsView.mGroupView.end(); it++) {
-              if (!it->second->SetConfigMember(key, status, true, "/eos/*/mgm")) {
+              if (!it->second->SetConfigMember(key, status)) {
                 stdErr += "error: cannot set status in group <";
                 stdErr += it->first.c_str();
                 stdErr += ">\n";
@@ -164,7 +164,7 @@ ProcCommand::Space()
 
             for (it = FsView::gFsView.mNodeView.begin();
                  it != FsView::gFsView.mNodeView.end(); it++) {
-              if (!it->second->SetConfigMember(key, status, true, "/eos/*/mgm")) {
+              if (!it->second->SetConfigMember(key, status)) {
                 stdErr += "error: cannot set status for node <";
                 stdErr += it->first.c_str();
                 stdErr += ">\n";
@@ -240,7 +240,7 @@ ProcCommand::Space()
                 }
               }
 
-              if (!retc && !it->second->SetConfigMember(key, val, true, "/eos/*/mgm")) {
+              if (!retc && !it->second->SetConfigMember(key, val)) {
                 stdErr += "error: cannot set node-set for node <";
                 stdErr += it->first.c_str();
                 stdErr += ">\n";
@@ -449,9 +449,9 @@ ProcCommand::Space()
         if (!retc) {
           // set this new space parameters
           if ((!FsView::gFsView.mSpaceView[spacename]->SetConfigMember(
-                 std::string("groupsize"), groupsize, true, "/eos/*/mgm")) ||
+                 std::string("groupsize"), groupsize)) ||
               (!FsView::gFsView.mSpaceView[spacename]->SetConfigMember(
-                 std::string("groupmod"), groupmod, true, "/eos/*/mgm"))) {
+                 std::string("groupmod"), groupmod))) {
             retc = EIO;
             stdErr = "error: cannot set space config value";
           }
@@ -497,8 +497,7 @@ ProcCommand::Space()
 		}
 	      }  else {
 		// set a space policy parameters e.g. default placement attributes
-		if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value, true,
-									     "/eos/*/mgm")) {
+		if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value)) {
 		  retc = EIO;
 		  stdErr = "error: cannot set space config value";
 		} else {
@@ -558,8 +557,7 @@ ProcCommand::Space()
 		    retc = EINVAL;
 		    stdErr = "error: value has to either on or off";
 		  } else {
-		    if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value, true,
-										 "/eos/*/mgm")) {
+		    if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value)) {
 		      retc = EIO;
 		      stdErr = "error: cannot set space config value";
 		    } else {
@@ -661,8 +659,7 @@ ProcCommand::Space()
 		    retc = EINVAL;
 		    stdErr = "error: value has to either on, paused or off";
 		  } else {
-		    if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value, true,
-										 "/eos/*/mgm")) {
+		    if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value)) {
 		      retc = EIO;
 		      stdErr = "error: cannot set space config value";
 		    }
@@ -682,8 +679,7 @@ ProcCommand::Space()
 		      value = ssize;
 		    }
 
-		    if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value, true,
-										 "/eos/*/mgm")) {
+		    if (!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, value)) {
 		      retc = EIO;
 		      stdErr = "error: cannot set space config value";
 		    } else {
@@ -717,8 +713,7 @@ ProcCommand::Space()
               char ssize[1024];
               snprintf(ssize, sizeof(ssize) - 1, "%llu", size);
 
-              if ((!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, ssize, true,
-                   "/eos/*/mgm"))) {
+              if ((!FsView::gFsView.mSpaceView[identifier]->SetConfigMember(key, ssize))) {
                 stdErr += "error: failed to set space parameter <";
                 stdErr += key.c_str();
                 stdErr += ">\n";
@@ -810,8 +805,7 @@ ProcCommand::Space()
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
         if (FsView::gFsView.mSpaceView.count(spacename)) {
-          if (!FsView::gFsView.mSpaceView[spacename]->SetConfigMember(key, onoff, true,
-              "/eos/*/mgm")) {
+          if (!FsView::gFsView.mSpaceView[spacename]->SetConfigMember(key, onoff)) {
             retc = EIO;
             stdErr = "error: cannot set space config value";
           }
@@ -828,8 +822,7 @@ ProcCommand::Space()
 
   if (mSubCmd == "rm") {
     if (pVid->uid == 0) {
-      std::string spacename = (pOpaque->Get("mgm.space")) ? pOpaque->Get("mgm.space")
-                              : "";
+      std::string spacename = (pOpaque->Get("mgm.space")) ? pOpaque->Get("mgm.space") : "";
 
       if ((!spacename.length())) {
         stdErr = "error: illegal parameters";
@@ -860,7 +853,7 @@ ProcCommand::Space()
             }
           }
 
-          std::string spaceconfigname = common::SharedHashLocator::makeForSpace(spacename);
+          std::string spaceconfigname = common::SharedHashLocator::makeForSpace(spacename).getConfigQueue();
 
           if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(
                 spaceconfigname.c_str())) {

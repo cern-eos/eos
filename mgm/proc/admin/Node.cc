@@ -252,15 +252,13 @@ ProcCommand::Node()
           status = proxygroups;
         }
 
-        if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status, true,
-            nodename)) {
+        if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status)) {
           retc = EIO;
           stdErr = "error: cannot set node config value";
         }
 
         // set also the manager name
-        if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager",
-            gOFS->mMaster->GetMasterId(), true, nodename, true)) {
+        if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager", gOFS->mMaster->GetMasterId(), true)) {
           retc = EIO;
           stdErr = "error: cannot set the manager name";
         }

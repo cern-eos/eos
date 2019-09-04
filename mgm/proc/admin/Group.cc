@@ -88,7 +88,7 @@ ProcCommand::Group()
           stdOut += "'";
 
           if (!FsView::gFsView.RegisterGroup(groupname.c_str())) {
-            std::string groupconfigname = common::SharedHashLocator::makeForGroup(groupname);
+            std::string groupconfigname = common::SharedHashLocator::makeForGroup(groupname).getConfigQueue();
             retc = EIO;
             stdErr = "error: cannot register group <";
             stdErr += groupname.c_str();
@@ -99,7 +99,7 @@ ProcCommand::Group()
         if (!retc) {
           // Set this new group to offline
           if (!FsView::gFsView.mGroupView[groupname]->SetConfigMember
-              (key, status, true, "/eos/*/mgm")) {
+              (key, status)) {
             stdErr = "error: cannot set config status";
             retc = EIO;
           }
@@ -200,7 +200,7 @@ ProcCommand::Group()
             }
           }
 
-          std::string groupconfigname = common::SharedHashLocator::makeForGroup(groupname);
+          std::string groupconfigname = common::SharedHashLocator::makeForGroup(groupname).getConfigQueue();
 
           if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(
                 groupconfigname.c_str())) {

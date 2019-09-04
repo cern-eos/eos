@@ -257,7 +257,27 @@ ProcCommand::open(const char* inpath, const char* info,
     } else if (mCmd == "rtlog") {
       Rtlog();
       mDoSort = false;
-    } else if (mCmd == "quota") {
+    } else if (mCmd == "access") { // @todo (faluchet) drop when move to 5.0.0
+      Access();
+      mDoSort = false;
+    } else if (mCmd == "config") { // @todo (faluchet) drop when move to 5.0.0
+      Config();
+      mDoSort = false;
+    } else if (mCmd == "node") { // @todo (faluchet) drop when move to 5.0.0
+      Node();
+      mDoSort = false;
+    } else if (mCmd == "space") { // @todo (faluchet) drop when move to 5.0.0
+      Space();
+      mDoSort = false;
+    } else if (mCmd == "group") { // @todo (faluchet) drop when move to 5.0.0
+      Group();
+      mDoSort = false;
+    } else if (mCmd == "io") { // @todo (faluchet) drop when move to 5.0.0
+      Io();
+      mDoSort = false;
+    } else if (mCmd == "debug") { // @todo (faluchet) drop when move to 5.0.0
+      Debug();
+    } else if (mCmd == "quota") { // @todo (faluchet) drop when move to 5.0.0
       AdminQuota();
       mDoSort = false;
     } else {
@@ -330,7 +350,7 @@ ProcCommand::open(const char* inpath, const char* info,
     } else if (mCmd == "recycle") {
       Recycle();
       mDoSort = false;
-    } else if (mCmd == "quota") {
+    } else if (mCmd == "quota") { // @todo (faluchet) drop when move to 5.0.0
       UserQuota();
       mDoSort = false;
     } else {

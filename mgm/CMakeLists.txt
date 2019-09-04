@@ -113,27 +113,34 @@ add_library(
   proc/ProcInterface.cc
   proc/ProcCommand.cc
   proc/proc_fs.cc
-  proc/admin/AccessCmd.cc proc/admin/AccessCmd.hh
   proc/admin/Backup.cc
-  proc/admin/ConfigCmd.cc proc/admin/ConfigCmd.hh
-  proc/admin/DebugCmd.cc proc/admin/DebugCmd.hh
   proc/admin/FsCmd.cc
   proc/admin/Fsck.cc
   proc/admin/Fusex.cc
   proc/admin/GeoSched.cc
-  proc/admin/GroupCmd.cc proc/admin/GroupCmd.hh
-  proc/admin/IoCmd.cc proc/admin/IoCmd.hh
-  proc/admin/NodeCmd.cc proc/admin/NodeCmd.hh
   proc/admin/NsCmd.cc
-  proc/admin/QuotaCmd.cc proc/admin/QuotaCmd.hh
   proc/admin/Rtlog.cc
-  proc/admin/SpaceCmd.cc proc/admin/SpaceCmd.hh
   proc/admin/StagerRmCmd.cc proc/admin/StagerRmCmd.hh
   proc/admin/Transfer.cc
   proc/admin/Vid.cc
   proc/admin/Vst.cc
-  proc/admin/Quota.cc
-  proc/user/Quota.cc
+  proc/admin/Access.cc # @todo (faluchet) drop when move to 5.0.0
+  proc/admin/AccessCmd.cc proc/admin/AccessCmd.hh
+  proc/admin/Config.cc # @todo (faluchet) drop when move to 5.0.0
+  proc/admin/ConfigCmd.cc proc/admin/ConfigCmd.hh
+  proc/admin/Debug.cc # @todo (faluchet) drop when move to 5.0.0
+  proc/admin/DebugCmd.cc proc/admin/DebugCmd.hh
+  proc/admin/Group.cc # @todo (faluchet) drop when move to 5.0.0
+  proc/admin/GroupCmd.cc proc/admin/GroupCmd.hh
+  proc/admin/Io.cc # @todo (faluchet) drop when move to 5.0.0
+  proc/admin/IoCmd.cc proc/admin/IoCmd.hh
+  proc/admin/Node.cc # @todo (faluchet) drop when move to 5.0.0
+  proc/admin/NodeCmd.cc proc/admin/NodeCmd.hh
+  proc/admin/Space.cc # @todo (faluchet) drop when move to 5.0.0
+  proc/admin/SpaceCmd.cc proc/admin/SpaceCmd.hh
+  proc/admin/Quota.cc # @todo (faluchet) drop when move to 5.0.0
+  proc/admin/QuotaCmd.cc proc/admin/QuotaCmd.hh
+  proc/user/Quota.cc # @todo (faluchet) drop when move to 5.0.0
   proc/user/Accounting.cc
   proc/user/AclCmd.cc
   proc/user/Attr.cc
