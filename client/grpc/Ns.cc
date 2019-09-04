@@ -10,7 +10,7 @@ int usage(const char* prog)
   fprintf(stderr, "usage: %s [--key <ssl-key-file> "
           "--cert <ssl-cert-file> "
           "--ca <ca-cert-file>] "
-          "[--endpoint <host:port>] [--token <auth-token>] [--xattr <key:val>] [--mode <mode>] [--uid <uid>] [--gid <gid>] [--owner-uid <uid>] [--owner-gid <gid] [--norecycle] [-r] [--max-version <max-version>] [--target <target>] -p <path> <command>\n", prog);
+          "[--endpoint <host:port>] [--token <auth-token>] [--xattr <key:val>] [--mode <mode>] [--uid <uid>] [--gid <gid>] [--owner-uid <uid>] [--owner-gid <gid] [--acl <acl>] [--sysacl] [--norecycle] [-r] [--max-version <max-version>] [--target <target>] -p <path> <command>\n", prog);
 
   fprintf(stderr,
 	  "                                     -p <path> mkdir \n"
@@ -23,6 +23,7 @@ int usage(const char* prog)
 	  "                     --xattr <!key=> -p <path> setxattr # deletes key\n"
 	  " --owner-uid <uid> --owner-gid <gid> -p <path> chown \n"
 	  "                       --mode <mode> -p <path> chmod \n"
+	  "       [--sysacl] [-r] [--acl <acl>] -p <path> acl \n"
 	  "                [--max-version <max> -p <path> create-version \n"
 	  "                                     -p <path> list-version \n"
 	  "                [--max-version <max> -p <path> purge-version \n");
@@ -44,6 +45,7 @@ int main(int argc, const char* argv[])
   std::string path = "";
   std::string target = "";
   std::string xattr = "";
+  std::string acl = "";
   mode_t mode = 0775;
   int64_t max_version = -1;
   uid_t uid = 0;
@@ -52,6 +54,7 @@ int main(int argc, const char* argv[])
   gid_t owner_gid = 0;
   bool recursive = false;
   bool norecycle = false;
+  bool sysacl = false;
 
   for (auto i = 1; i < argc; ++i) {
     std::string option = argv[i];
@@ -166,6 +169,16 @@ int main(int argc, const char* argv[])
       }
     }
 
+    if (option == "--acl") {
+      if (argc > i + 1) {
+	acl = argv[i+1];
+	++i;
+	continue;
+      } else {
+	return usage(argv[0]);
+      }
+    }
+
     if (option == "--mode") {
       if (argc > i + 1) {
 	mode = strtol(argv[i+1],0,8);
@@ -198,6 +211,11 @@ int main(int argc, const char* argv[])
 
     if (option == "-r") {
       recursive = true;
+      continue;
+    }
+
+    if (option == "--sysacl") {
+      sysacl = true;
       continue;
     }
 
@@ -315,6 +333,24 @@ int main(int argc, const char* argv[])
     request.mutable_version()->set_cmd(eos::rpc::NSRequest::VersionRequest::PURGE);
     request.mutable_version()->mutable_id()->set_path(path);
     request.mutable_version()->set_maxversion(max_version);
+  } else if (cmd == "acl") {
+    if (acl.empty()) {
+      // list acl
+      request.mutable_acl()->set_cmd(eos::rpc::NSRequest::AclRequest::LIST);
+    } else {
+      // modify acl
+      request.mutable_acl()->set_cmd(eos::rpc::NSRequest::AclRequest::MODIFY);
+      request.mutable_acl()->set_rule(acl);
+    }
+    request.mutable_acl()->mutable_id()->set_path(path);
+    if (recursive) {
+      request.mutable_acl()->set_recursive(true);
+    }
+    if (sysacl) {
+      request.mutable_acl()->set_type(eos::rpc::NSRequest::AclRequest::SYS_ACL);
+    } else {
+      request.mutable_acl()->set_type(eos::rpc::NSRequest::AclRequest::USER_ACL);
+    }
   }
 
   google::protobuf::util::MessageToJsonString(request,

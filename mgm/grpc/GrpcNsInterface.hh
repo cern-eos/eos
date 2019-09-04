@@ -134,6 +134,10 @@ public:
 			    eos::rpc::NSResponse::ErrorResponse* reply,
 			    const eos::rpc::NSRequest::ChmodRequest* request);
 
+  static grpc::Status Acl(eos::common::VirtualIdentity& vid, 
+			  eos::rpc::NSResponse::AclResponse* reply,
+			  const eos::rpc::NSRequest::AclRequest* request);
+  
   static bool Access(eos::common::VirtualIdentity& vid, int mode,
                      std::shared_ptr<eos::IContainerMD> cmd);
 

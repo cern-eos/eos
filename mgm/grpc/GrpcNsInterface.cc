@@ -30,6 +30,7 @@
 #include "common/Path.hh"
 #include "mgm/Acl.hh"
 #include "mgm/proc/IProcCommand.hh"
+#include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/RmCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
@@ -1178,6 +1179,9 @@ GrpcNsInterface::Exec(eos::common::VirtualIdentity& ivid,
   case eos::rpc::NSRequest::kChmod:
     return Chmod(vid, reply->mutable_error() ,&(request->chmod()));
     break;
+  case eos::rpc::NSRequest::kAcl:
+    return Acl(vid, reply->mutable_acl() ,&(request->acl()));
+    break;
   default:
     reply->mutable_error()->set_code(EINVAL);
     reply->mutable_error()->set_msg("error: command not supported");
@@ -1891,6 +1895,109 @@ GrpcNsInterface::Chmod(eos::common::VirtualIdentity& vid,
 
 }
 
+
+grpc::Status
+GrpcNsInterface::Acl(eos::common::VirtualIdentity& vid,
+		     eos::rpc::NSResponse::AclResponse* reply,
+		     const eos::rpc::NSRequest::AclRequest* request)
+{
+  
+
+  eos::console::RequestProto req;
+
+  std::string path;
+  uint64_t fid = 0;
+  uint64_t cid = 0;
+
+  path = request->id().path();
+
+  if (path.empty()) {
+    if (request->id().ino()) {
+      // get by inode
+      if (request->id().type() == eos::rpc::FILE) {
+	fid = eos::common::FileId::InodeToFid(request->id().ino());
+      } else {
+	cid = request->id().ino();
+      }
+    } else if (request->id().id()) {
+      // get by id
+      if (request->id().type() == eos::rpc::FILE) {
+	fid = request->id().id();
+      } else {
+	cid = request->id().id();
+      }
+    }
+
+    try {
+      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+      if (fid) {
+	path =
+	  gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
+      } else {
+	path =
+	  gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(cid).get());
+      }
+    } catch (eos::MDException& e) {
+      path = "";
+      errno = e.getErrno();
+    }
+
+    if (path.empty()) {
+      reply->set_code(EINVAL);
+      reply->set_msg("error:path is empty");
+      return grpc::Status::OK;
+    }
+  }
+
+  // transformt the proto request
+
+  if (request->type() == eos::rpc::NSRequest::AclRequest::SYS_ACL) {
+    req.mutable_acl()->set_sys_acl(true);
+  }
+
+  req.mutable_acl()->set_path(path);
+  req.mutable_acl()->set_recursive(request->recursive());
+
+  if (request->cmd() == eos::rpc::NSRequest::AclRequest::MODIFY) {
+    req.mutable_acl()->set_op(eos::console::AclProto::MODIFY);
+  }
+
+  if (request->cmd() == eos::rpc::NSRequest::AclRequest::LIST) {
+    req.mutable_acl()->set_op(eos::console::AclProto::LIST);
+  }
+
+  req.mutable_acl()->set_rule(request->rule());
+
+  eos::mgm::AclCmd aclcmd(std::move(req), vid);
+  eos::console::ReplyProto preply = aclcmd.ProcessRequest();
+
+  if (preply.retc())
+  {
+    reply->set_code(preply.retc());
+    reply->set_msg(preply.std_err());
+    return grpc::Status::OK;
+  } else {
+    if (request->cmd() == eos::rpc::NSRequest::AclRequest::MODIFY) {
+      // retrieve the current version of the acls now
+      req.mutable_acl()->set_op(eos::console::AclProto::LIST);
+      eos::mgm::AclCmd aclcmd(std::move(req), vid);
+      eos::console::ReplyProto preply = aclcmd.ProcessRequest();
+      if (preply.retc()) {
+	reply->set_code(preply.retc());
+	reply->set_msg(preply.std_err());
+	return grpc::Status::OK;
+      } else {
+	reply->set_rule(preply.std_out());
+      }
+    } else {
+      reply->set_rule(preply.std_out());
+    }
+  }
+
+  reply->set_code(0);
+
+  return grpc::Status::OK;
+}
 #endif
 
 EOSMGMNAMESPACE_END
