@@ -401,6 +401,13 @@ void com_space_help()
       << "space config <space-name> space.drainer.node.nfs=<#>                  : configure the number of max draining filesystems per node (Valid only for central drain)  [ default=5 ]\n"
       << "space config <space-name> space.drainer.retries=<#>                   : configure the number of retry for the draining process (Valid only for central drain)     [ default=1 ]\n"
       << "space config <space-name> space.drainer.fs.ntx=<#>                    : configure the number of parallel draining transfers per fs (Valid only for central drain) [ default=5 ]\n"
+      << "space config <space-name> space.groupbalancer=on|off                  : enable/disable the group balancer [ default=off ]\n"
+      << "space config <space-name> space.groupbalancer.ntx=<ntx>               : configure the numebr of parallel group balancer jobs [ default=0 ]\n"
+      << "space config <space-name> space.groupbalancer.threshold=<threshold>   : configure the threshold when a group is balanced [ default=0 ] ( taken from dev(filled) parameter in 'group ls'\n"
+      << "space config <space-name> space.geobalancer=on|off                    : enable/disable the geo balancer [ default=off ]\n"
+      << "space config <space-name> space.geobalancer.ntx=<ntx>                 : configure the numebr of parallel geobalancer jobs [ default=0 ]\n"
+      << "space config <space-name> space.geobalancer.threshold=<threshold>     : configure the threshold when a geotag is balanced [ default=0 ] \n"
+
       << "space config <space-name> space.lru=on|off                            : enable/disable the LRU policy engine [ default=off ]\n"
       << "space config <space-name> space.lru.interval=<sec>                    : configure the default lru scan interval\n"
       << "space config <space-name> space.wfe=on|off|paused                     : enable/disable the Workflow Engine [ default=off ]\n"
