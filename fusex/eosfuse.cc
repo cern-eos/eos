@@ -2838,6 +2838,11 @@ EBADF  Invalid directory stream descriptor fi->fh
       auto it = md->pmd_children.find(d_name);
       fuse_ino_t cino = it->second;
       metad::shared_md cmd = Instance().mds.get(req, cino, "", 0, 0, 0, true);
+
+      if (!cmd) {
+	continue;
+      }
+	
       eos_static_debug("list: %#lx %s (d=%d)", cino, it->first.c_str(),
                        cmd->deleted());
 
