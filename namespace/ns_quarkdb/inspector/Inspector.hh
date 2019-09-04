@@ -101,6 +101,11 @@ public:
   int checkShadowDirectories(std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
+  //! Check for corrupted ...eos.ino... hardlink-simulation files
+  //----------------------------------------------------------------------------
+  int checkSimulatedHardlinks(std::ostream &out, std::ostream &err);
+
+  //----------------------------------------------------------------------------
   // Find files with layout = 1 replica
   //----------------------------------------------------------------------------
   int oneReplicaLayout(std::ostream &out, std::ostream &err);

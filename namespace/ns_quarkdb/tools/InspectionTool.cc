@@ -157,6 +157,12 @@ int main(int argc, char* argv[]) {
   addClusterOptions(checkShadowDirectories, membersStr, memberValidator, password, passwordFile);
 
   //----------------------------------------------------------------------------
+  // Set-up check-simulated-hardlinks subcommand..
+  //----------------------------------------------------------------------------
+  auto checkSimulatedHardlinks = app.add_subcommand("check-simulated-hardlinks", "Check for corruption in simulated hardlinks");
+  addClusterOptions(checkSimulatedHardlinks, membersStr, memberValidator, password, passwordFile);
+
+  //----------------------------------------------------------------------------
   // Set-up overwrite-container subcommand..
   //----------------------------------------------------------------------------
   auto overwriteContainerSubcommand = app.add_subcommand("overwrite-container", "Overwrite the given ContainerMD - USE WITH CAUTION");
@@ -302,6 +308,10 @@ int main(int argc, char* argv[]) {
 
   if(checkShadowDirectories->parsed()) {
     return inspector.checkShadowDirectories(std::cout, std::cerr);
+  }
+
+  if(checkSimulatedHardlinks->parsed()) {
+    return inspector.checkSimulatedHardlinks(std::cout, std::cerr);
   }
 
   if(changeFidSubcommand->parsed()) {

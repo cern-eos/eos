@@ -31,6 +31,8 @@
 #include "namespace/Constants.hh"
 #include "common/LayoutId.hh"
 #include "common/IntervalStopwatch.hh"
+#include "common/InodeTranslator.hh"
+#include "common/ParseUtils.hh"
 #include <folly/executors/IOThreadPoolExecutor.h>
 #include <qclient/QClient.hh>
 #include <google/protobuf/util/json_util.h>
@@ -814,6 +816,98 @@ int Inspector::checkShadowDirectories(std::ostream& out, std::ostream& err)
 }
 
 //------------------------------------------------------------------------------
+// Helper class to run next on destruction
+//------------------------------------------------------------------------------
+class NextGuard {
+public:
+  NextGuard(FileScanner &sc) : scanner(sc) {}
+  ~NextGuard() {
+    scanner.next();
+  }
+
+private:
+  FileScanner &scanner;
+};
+
+//------------------------------------------------------------------------------
+// Cross-check inode use counts against hardlink mappings
+//------------------------------------------------------------------------------
+void crossCheckHardlinkMaps(std::map<uint64_t, int64_t> &inodeUseCount,
+  std::map<uint64_t, uint64_t> &hardlinkMapping, uint64_t parent, std::ostream &out) {
+
+  for(auto it = hardlinkMapping.begin(); it != hardlinkMapping.end(); it++) {
+    auto useCount = inodeUseCount.find(it->second);
+
+    if(useCount == inodeUseCount.end()) {
+      out << "id=" << it->first << " parent=" << parent << " invalid-target=" << it->second << std::endl;
+    }
+    else {
+      inodeUseCount[it->first]--;
+    }
+  }
+
+  for(auto it = inodeUseCount.begin(); it != inodeUseCount.end(); it++) {
+    if(it->second != 0) {
+      out << "id=" << it->first << " parent=" << parent << " reference-count-diff=" << it->second << std::endl;
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Check for corrupted ...eos.ino... hardlink-simulation files
+//------------------------------------------------------------------------------
+int Inspector::checkSimulatedHardlinks(std::ostream &out, std::ostream &err) {
+  FileScanner fileScanner(mQcl);
+  common::InodeTranslator translator;
+
+  std::map<uint64_t, int64_t> inodeUseCount;
+  std::map<uint64_t, uint64_t> hardlinkMapping;
+  uint64_t currentContainer = 0;
+
+  while (fileScanner.valid()) {
+    eos::ns::FileMdProto proto;
+    if (!fileScanner.getItem(proto)) {
+      break;
+    }
+
+    NextGuard nextGuard(fileScanner);
+
+    if(proto.cont_id() == 0) {
+      continue;
+    }
+
+    if(proto.id() != currentContainer) {
+      crossCheckHardlinkMaps(inodeUseCount, hardlinkMapping, currentContainer, out);
+      inodeUseCount.clear();
+      hardlinkMapping.clear();
+    }
+
+    currentContainer = proto.cont_id();
+
+    auto it = proto.xattrs().find("sys.eos.mdino");
+    if(it != proto.xattrs().end()) {
+      uint64_t inode = 0;
+      if(!common::ParseUInt64(it->second.c_str(), inode)) {
+        err << "Could not parse sys.eos.mdino: " << it->second.c_str() << std::endl;
+        continue;
+      }
+
+      uint64_t target = translator.InodeToFid(inode);
+      hardlinkMapping[proto.id()] = target;
+      continue;
+    }
+
+    it = proto.xattrs().find("sys.eos.nlink");
+    if(it != proto.xattrs().end()) {
+      size_t count = atoi(it->second.c_str());
+      inodeUseCount[proto.id()] = count;
+    }
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
 // Print out _everything_ known about the given directory.
 //------------------------------------------------------------------------------
 int Inspector::printContainerMD(uint64_t cid, std::ostream& out, std::ostream& err)
@@ -846,16 +940,16 @@ int Inspector::printContainerMD(uint64_t cid, std::ostream& out, std::ostream& e
         << std::endl;
   }
 
-  std::cout << "------------------------------------------------" << std::endl;
-  std::cout << "FileMap:" << std::endl;
+  out << "------------------------------------------------" << std::endl;
+  out << "FileMap:" << std::endl;
   for(auto it = fileMap.begin(); it != fileMap.end(); it++) {
-    std::cout << it->first << ": " << it->second << std::endl;
+    out << it->first << ": " << it->second << std::endl;
   }
 
-  std::cout << "------------------------------------------------" << std::endl;
-  std::cout << "ContainerMap:" << std::endl;
+  out << "------------------------------------------------" << std::endl;
+  out << "ContainerMap:" << std::endl;
   for(auto it = containerMap.begin(); it != containerMap.end(); it++) {
-    std::cout << it->first << ": " << it->second << std::endl;
+    out << it->first << ": " << it->second << std::endl;
   }
 
   return 0;
