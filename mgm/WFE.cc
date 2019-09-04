@@ -2039,6 +2039,18 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
                    fullPath.c_str(), errorMsg.c_str(), sendRc);
   }
 
+  try {
+    // remove tape location
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+    auto fmd = gOFS->eosFileService->getFileMD(mFid);
+    fmd->unlinkLocation(TAPE_FS_ID);
+    fmd->removeLocation(TAPE_FS_ID);
+    gOFS->eosView->updateFileStore(fmd.get());
+  } catch (eos::MDException& ex) {
+    eos_static_err("msg=\"Failed to unlink tape location for file %s",
+		   fullPath.c_str());
+  }
+
   EXEC_TIMING_END("Proto::Delete");
   return SFS_OK; // Ignore any failure in notifying the protocol buffer endpoint
 }
@@ -2135,10 +2147,14 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string& event,
     {
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       auto fmd = gOFS->eosFileService->getFileMD(mFid);
-      fmd->addLocation(TAPE_FS_ID);
-      // Reset the error message
-      fmd->setAttribute(ARCHIVE_ERROR_ATTR_NAME, "");
-      gOFS->eosView->updateFileStore(fmd.get());
+      try {
+	fmd->addLocation(TAPE_FS_ID);
+	// Reset the error message
+	fmd->setAttribute(ARCHIVE_ERROR_ATTR_NAME, "");
+	gOFS->eosView->updateFileStore(fmd.get());
+      } catch (eos::MDException& ex) {
+	// fail silently - file could have been removed already
+      }
     }
 
     if (GetFileArchivedGCEnabled("default")) {
