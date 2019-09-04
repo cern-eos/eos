@@ -486,7 +486,6 @@ macosx_dmg:
       - osx_artifacts/
   tags:
     - macosx-shell
-  allow_failure: true
 
 
 clone_docker:
