@@ -3254,15 +3254,6 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const Fmd& fmd, uint32_t ownerUid,
   notification->mutable_wf()->mutable_instance()->set_name(instanceName);
   notification->mutable_file()->set_lpath(fullPath);
   notification->mutable_file()->set_fid(fmd.fid());
-  // The 4 entries below will be deleted
-  notification->mutable_file()->mutable_owner()->set_username(
-    ownerName); // DEPRECATED
-  notification->mutable_file()->mutable_owner()->set_groupname(
-    ownerGroupName); // DEPRECATED
-  notification->mutable_file()->mutable_cks()->set_type(
-    eos::common::LayoutId::GetChecksumString(fmd.lid())); // DEPRECATED
-  notification->mutable_file()->mutable_cks()->set_value(
-    fmd.checksum()); // DEPRECATED
   auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(
                       fmd.fid());
   std::string ctaArchiveFileId = "none";

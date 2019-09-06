@@ -1740,9 +1740,8 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string& fullPath,
   notification->mutable_wf()->mutable_instance()->set_name(
     gOFS->MgmOfsInstanceName.c_str());
   notification->mutable_file()->set_fid(mFid);
-  notification->mutable_file()->mutable_owner()->set_username(GetUserName(cuid));
-  notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(
-        cgid));
+  notification->mutable_file()->mutable_owner()->set_uid(cuid);
+  notification->mutable_file()->mutable_owner()->set_gid(cgid);
   auto fxidString = StringConversion::FastUnsignedToAsciiHex(mFid);
   std::ostringstream destStream;
   destStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:"
@@ -1875,9 +1874,8 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
     cuid = fmd->getCUid();
     cgid = fmd->getCGid();
   }
-  notification->mutable_file()->mutable_owner()->set_username(GetUserName(cuid));
-  notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(
-        cgid));
+  notification->mutable_file()->mutable_owner()->set_uid(cuid);
+  notification->mutable_file()->mutable_owner()->set_gid(cgid);
   notification->mutable_wf()->set_event(cta::eos::Workflow::ABORT_PREPARE);
   notification->mutable_file()->set_lpath(fullPath);
   notification->mutable_wf()->mutable_instance()->set_name(
@@ -1995,9 +1993,6 @@ WFE::Job::HandleProtoMethodCreateEvent(const std::string& fullPath,
   }
   notification->mutable_file()->mutable_owner()->set_uid(cuid);
   notification->mutable_file()->mutable_owner()->set_gid(cgid);
-  notification->mutable_file()->mutable_owner()->set_username(GetUserName(cuid));
-  notification->mutable_file()->mutable_owner()->set_groupname(GetGroupName(
-        cgid));
   notification->mutable_wf()->set_event(cta::eos::Workflow::CREATE);
   notification->mutable_wf()->mutable_instance()->set_name(
     gOFS->MgmOfsInstanceName.c_str());
