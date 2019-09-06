@@ -23,6 +23,7 @@
 
 #include "SharedHashWrapper.hh"
 #include "mq/XrdMqSharedObject.hh"
+#include "common/ParseUtils.hh"
 
 EOSMQNAMESPACE_BEGIN
 
@@ -90,6 +91,20 @@ bool SharedHashWrapper::set(const std::string &key, const std::string &value, bo
 std::string SharedHashWrapper::get(const std::string &key) {
   if(!mHash) return "";
   return mHash->Get(key.c_str());
+}
+
+//------------------------------------------------------------------------------
+// Query the given key - convert to long long automatically
+//------------------------------------------------------------------------------
+long long SharedHashWrapper::getLongLong(const std::string &key) {
+  return eos::common::ParseLongLong(get(key));
+}
+
+//----------------------------------------------------------------------------
+// Query the given key - convert to double automatically
+//----------------------------------------------------------------------------
+double SharedHashWrapper::getDouble(const std::string &key) {
+  return eos::common::ParseDouble(get(key));
 }
 
 //------------------------------------------------------------------------------

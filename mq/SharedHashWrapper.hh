@@ -27,6 +27,7 @@
 #include "mq/Namespace.hh"
 #include "common/Locators.hh"
 #include "common/RWMutex.hh"
+#include "mgm/TableFormatter/TableCell.hh"
 #include <string>
 #include <vector>
 
@@ -69,6 +70,16 @@ public:
   //! Query the given key
   //----------------------------------------------------------------------------
   std::string get(const std::string &key);
+
+  //----------------------------------------------------------------------------
+  //! Query the given key - convert to long long automatically
+  //----------------------------------------------------------------------------
+  long long getLongLong(const std::string &key);
+
+  //----------------------------------------------------------------------------
+  //! Query the given key - convert to double automatically
+  //----------------------------------------------------------------------------
+  double getDouble(const std::string &key);
 
   //----------------------------------------------------------------------------
   //! Query the given key, return if retrieval successful
