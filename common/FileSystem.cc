@@ -1154,12 +1154,8 @@ void
 FileSystem::Print(TableHeader& table_mq_header, TableData& table_mq_data,
                   std::string listformat, const std::string& filter)
 {
-  XrdMqSharedHash* hash = nullptr;
-  RWMutexReadLock lock(mSom->HashMutex);
-
-  if ((hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash"))) {
-    hash->Print(table_mq_header, table_mq_data, listformat, filter);
-  }
+  mq::SharedHashWrapper hash(mHashLocator);
+  hash.print(table_mq_header, table_mq_data, listformat, filter);
 }
 
 //----------------------------------------------------------------------------
