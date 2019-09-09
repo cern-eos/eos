@@ -198,7 +198,6 @@ private:
       std::set <eos::common::FileId::fileid_t> > > eFsMap;
   //! Error summary map storing "<error-name>"=>[fid1,fid2,fid3...]"
   std::map<std::string, std::set <eos::common::FileId::fileid_t> > eMap;
-  std::map<std::string, unsigned long long > eCount;
   //! Unavailable filesystems map
   std::map<eos::common::FileSystem::fsid_t, unsigned long long > eFsUnavail;
   //! Dark filesystem map - filesystems referenced by a file but not configured
