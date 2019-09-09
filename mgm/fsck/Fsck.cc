@@ -45,8 +45,9 @@ const char* Fsck::gFsckInterval = "fsckinterval";
 //------------------------------------------------------------------------------
 Fsck::Fsck():
   mShowOffline(false), mShowDarkFiles(false), mStartProcessing(false),
-  mEnabled(false), mRunInterval(std::chrono::minutes(30)), mRunning(false),
-  eTimeStamp(0),
+  mRunRepairThread(false), mEnabled(false),
+  mRunInterval(std::chrono::minutes(30)),
+  mRunning(false), eTimeStamp(0),
   mThreadPool(std::thread::hardware_concurrency(), 20, 10, 6, 5, "fsck"),
   mIdTracker(std::chrono::minutes(10), std::chrono::hours(2)), mQcl(nullptr)
 {}
@@ -77,7 +78,11 @@ Fsck::Start(int interval_min)
     }
 
     mCollectorThread.reset(&Fsck::CollectErrs, this);
-    mRepairThread.reset(&Fsck::RepairErrs, this);
+
+    if (mRunRepairThread) {
+      mRepairThread.reset(&Fsck::RepairErrs, this);
+    }
+
     mRunning = true;
     mEnabled = "true";
     return StoreFsckConfig();
@@ -176,6 +181,14 @@ Fsck::Config(const std::string& key, const std::string& value)
       eos_err("msg=\"failed to convert max-queued-jobs\" value=%s",
               value.c_str());
     }
+  } else if (key == "toggle-repair") {
+    if (mRunRepairThread == true) {
+      mRepairThread.join();
+    } else {
+      mRepairThread.reset(&Fsck::RepairErrs, this);
+    }
+
+    mRunRepairThread = !mRunRepairThread;
   } else {
     return false;
   }
@@ -209,6 +222,7 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
     }
 
     Log("Filesystems to check: %lu", FsView::gFsView.GetNumFileSystems());
+    Log("Repair thread status: %s", (mRunRepairThread ? "running" : "stopped"));
     // Broadcast fsck request and collect responses
     XrdOucString broadcastresponsequeue = gOFS->MgmOfsBrokerUrl;
     broadcastresponsequeue += "-fsck-";

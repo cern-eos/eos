@@ -62,11 +62,10 @@ FsckHelper::ParseCommand(const char* arg)
     std::string key = option;
     std::string value {""};
 
-    if ((option = tokenizer.GetToken()) == nullptr) {
-      return false;
+    if ((option = tokenizer.GetToken()) != nullptr) {
+      value = option;
     }
 
-    value = option;
     eos::console::FsckProto::ConfigProto* config = fsck->mutable_config();
     config->set_key(key);
     config->set_value(value);

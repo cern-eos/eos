@@ -185,6 +185,7 @@ private:
   std::atomic<bool> mShowOffline; ///< Flag to display offline files/replicas
   std::atomic<bool> mShowDarkFiles; ///< Flag to display dark files
   std::atomic<bool> mStartProcessing; ///< Notification flag for repair thread
+  std::atomic<bool> mRunRepairThread; //< Mark if the repair thread is running
   mutable XrdOucString mLog; ///< In-memory FSCK log
   mutable XrdSysMutex mLogMutex; ///< Mutex protecting the in-memory log
   XrdOucString mEnabled; ///< True if collection thread is active
