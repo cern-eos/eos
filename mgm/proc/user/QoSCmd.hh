@@ -97,11 +97,13 @@ private:
   //! Translate the proto identifier into a namespace path
   //!
   //! @param identifier identifier proto object
+  //! @param err_msg string to place error message
   //!
   //! @return path of identifier or empty string if translation failed
   //----------------------------------------------------------------------------
-  XrdOucString PathFromIdentifierProto(
-      const eos::console::QoSProto_IdentifierProto& identifier);
+  std::string PathFromIdentifierProto(
+    const eos::console::QoSProto_IdentifierProto& identifier,
+    std::string& err_msg);
 
   //----------------------------------------------------------------------------
   //! Process a QoS properties map into a default printable output
