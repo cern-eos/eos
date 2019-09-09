@@ -16,6 +16,31 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.5.7 Citrine``
+===================
+
+2019-09-09
+
+Bug
+----
+
+* Fix bug in the MgmSync process which could crash the FST
+* [EOS-3633] - Many new commands are not compatible with old server version
+* [EOS-3696] - shell: "cd ../../" does nothing?
+* [EOS-3705] - Error when updating eos-archive
+* [EOS-3703] - FST not starting if mountpoint not present
+* [EOS-3684] - eosxd crash in debug() in EosFuse::readdir()
+* [EOS-3608] - Wrong help for space policy and no error message
+
+Improvement
+------------
+
+* [EOS-2725] - Missing usage example for some space parameters
+* [EOS-3694] - Add eos-fusex-tests to the pipeline
+* [EOS-3706] - Add 1m,1w,daily timebins to versioning similiar to DFS
+* GRPC: Add version command implementation and other ns related operations
+
+
 ``v4.5.6 Citrine``
 ===================
 
