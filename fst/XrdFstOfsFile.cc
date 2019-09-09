@@ -3255,7 +3255,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const eos::common::FmdHelper& fmd,
   notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
   notification->mutable_wf()->mutable_instance()->set_name(instanceName);
   notification->mutable_file()->set_lpath(fullPath);
-  notification->mutable_file()->set_fid(fmd.fid());
+  notification->mutable_file()->set_fid(fmd.mProtoFmd.fid());
   auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(
                       fmd.mProtoFmd.fid());
   std::string ctaArchiveFileId = "none";

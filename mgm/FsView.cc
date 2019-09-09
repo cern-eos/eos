@@ -812,7 +812,7 @@ LongLongAggregator::aggregateNodes(
 // Constructor
 //----------------------------------------------------------------------------
 FsSpace::FsSpace(const char* name)
-: BaseView(common::SharedHashLocator::makeForSpace(name))
+  : BaseView(common::SharedHashLocator::makeForSpace(name))
 {
   mName = name;
   mType = "spaceview";
@@ -870,30 +870,27 @@ FsSpace::FsSpace(const char* name)
 
     // Set the scan IO rate by default to 100 MB/s
     if (GetConfigMember(eos::common::SCAN_IO_RATE_NAME).empty()) {
-      SetConfigMember(eos::common::SCAN_IO_RATE_NAME, "100", true, "/eos/*/mgm");
+      SetConfigMember(eos::common::SCAN_IO_RATE_NAME, "100");
     }
 
     // Set the scan entry interval by default to 1 week
     if (GetConfigMember(eos::common::SCAN_ENTRY_INTERVAL_NAME).empty()) {
-      SetConfigMember(eos::common::SCAN_ENTRY_INTERVAL_NAME, "604800", true,
-                      "/eos/*/mgm");
+      SetConfigMember(eos::common::SCAN_ENTRY_INTERVAL_NAME, "604800");
     }
 
     // Set the scan disk rerun interval by default to 4 hours
     if (GetConfigMember(eos::common::SCAN_DISK_INTERVAL_NAME).empty()) {
-      SetConfigMember(eos::common::SCAN_DISK_INTERVAL_NAME, "14400", true,
-                      "/eos/*/mgm");
+      SetConfigMember(eos::common::SCAN_DISK_INTERVAL_NAME, "14400");
     }
 
     // Set the scan ns rate by default to 50 entries per second
     if (GetConfigMember(eos::common::SCAN_NS_RATE_NAME).empty()) {
-      SetConfigMember(eos::common::SCAN_NS_RATE_NAME, "50", true, "/eos/*/mgm");
+      SetConfigMember(eos::common::SCAN_NS_RATE_NAME, "50");
     }
 
     // Set the scan ns rerun interval by default to 3 days
     if (GetConfigMember(eos::common::SCAN_NS_INTERVAL_NAME).empty()) {
-      SetConfigMember(eos::common::SCAN_NS_INTERVAL_NAME, "259200", true,
-                      "/eos/*/mgm");
+      SetConfigMember(eos::common::SCAN_NS_INTERVAL_NAME, "259200");
     }
 
     // Disable quota by default
@@ -2210,10 +2207,8 @@ bool
 FsView::SetGlobalConfig(std::string key, std::string value)
 {
   std::string ckey;
-
   {
     mq::SharedHashWrapper::makeGlobalMgmHash().set(key, value);
-
     // register in the configuration engine
     ckey = eos::common::GlobalConfig::gConfig.GetGlobalMgmConfigQueue();
     ckey += "#";
@@ -2558,7 +2553,7 @@ BaseView::DeleteConfigMember(std::string key) const
   bool deleted = mq::SharedHashWrapper(mLocator).del(key);
 
   // Delete in the configuration engine
-  if ( FsView::gFsView.mConfigEngine ) {
+  if (FsView::gFsView.mConfigEngine) {
     std::string node_cfg_name = mLocator.getConfigQueue();
     node_cfg_name += "#";
     node_cfg_name += key;
@@ -2821,8 +2816,10 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
   }
 
   common::SharedHashLocator locator;
-  if(!common::SharedHashLocator::fromConfigQueue(tokens[0], locator)) {
-    eos_static_err("could not understand global configuration: %s", tokens[0].c_str());
+
+  if (!common::SharedHashLocator::fromConfigQueue(tokens[0], locator)) {
+    eos_static_err("could not understand global configuration: %s",
+                   tokens[0].c_str());
     return false;
   }
 

@@ -43,27 +43,35 @@ NodeCmd::ProcessRequest() noexcept
   case eos::console::NodeProto::kLs:
     LsSubcmd(node.ls(), reply);
     break;
+
   case eos::console::NodeProto::kRm:
     RmSubcmd(node.rm(), reply);
     break;
+
   case eos::console::NodeProto::kStatus:
     StatusSubcmd(node.status(), reply);
     break;
+
   case eos::console::NodeProto::kConfig:
     ConfigSubcmd(node.config(), reply);
     break;
+
   case eos::console::NodeProto::kRegisterx:
     RegisterSubcmd(node.registerx(), reply);
     break;
+
   case eos::console::NodeProto::kSet:
     SetSubcmd(node.set(), reply);
     break;
+
   case eos::console::NodeProto::kTxgw:
     TxgwSubcmd(node.txgw(), reply);
     break;
+
   case eos::console::NodeProto::kProxygroup:
     ProxygroupSubcmd(node.proxygroup(), reply);
     break;
+
   default:
     reply.set_std_err("error: not supported");
     reply.set_retc(EINVAL);
@@ -82,34 +90,34 @@ void NodeCmd::LsSubcmd(const eos::console::NodeProto_LsProto& ls,
   bool json_output = false;
   std::string list_format;
   std::string format;
-
   auto format_case = ls.outformat();
+
   if ((format_case == NodeProto::LsProto::NONE) && WantsJsonOutput()) {
     format_case = NodeProto::LsProto::MONITORING;
   }
 
   switch (format_case) {
-    case NodeProto::LsProto::LISTING:
-      format = FsView::GetNodeFormat("l");
-      list_format = FsView::GetFileSystemFormat("l");
-      break;
+  case NodeProto::LsProto::LISTING:
+    format = FsView::GetNodeFormat("l");
+    list_format = FsView::GetFileSystemFormat("l");
+    break;
 
-    case NodeProto::LsProto::MONITORING:
-      format = FsView::GetNodeFormat("m");
-      json_output = WantsJsonOutput();
-      break;
+  case NodeProto::LsProto::MONITORING:
+    format = FsView::GetNodeFormat("m");
+    json_output = WantsJsonOutput();
+    break;
 
-    case NodeProto::LsProto::IO:
-      format = FsView::GetNodeFormat("io");
-      break;
+  case NodeProto::LsProto::IO:
+    format = FsView::GetNodeFormat("io");
+    break;
 
-    case NodeProto::LsProto::SYS:
-      format = FsView::GetNodeFormat("sys");
-      break;
+  case NodeProto::LsProto::SYS:
+    format = FsView::GetNodeFormat("sys");
+    break;
 
-    case NodeProto::LsProto::FSCK:
-      format = FsView::GetNodeFormat("fsck");
-      break;
+  case NodeProto::LsProto::FSCK:
+    format = FsView::GetNodeFormat("fsck");
+    break;
 
   default : // NONE
     format = FsView::GetNodeFormat("");
@@ -199,7 +207,8 @@ void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm,
     }
   }
 
-  std::string nodeconfigname = common::SharedHashLocator::makeForNode(nodename).getConfigQueue();
+  std::string nodeconfigname = common::SharedHashLocator::makeForNode(
+                                 nodename).getConfigQueue();
 
   if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(
         nodeconfigname.c_str())) {
@@ -543,24 +552,15 @@ void NodeCmd::SetSubcmd(const eos::console::NodeProto_SetProto& set,
     }
   }
 
-<<<<<<< HEAD
   if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status)) {
-=======
-  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status, true,
-      nodename)) {
->>>>>>> ALL: Add "scanratens" parameter to the fs config command which controls the maximum
     reply.set_std_err("error: cannot set node config value");
     reply.set_retc(EIO);
     return;
   }
 
   // set also the manager name
-<<<<<<< HEAD
-  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager", gOFS->mMaster->GetMasterId(), true)) {
-=======
   if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager",
-      gOFS->mMaster->GetMasterId(), true, nodename, true)) {
->>>>>>> ALL: Add "scanratens" parameter to the fs config command which controls the maximum
+      gOFS->mMaster->GetMasterId(), true)) {
     reply.set_std_err("error: cannot set the manager name");
     reply.set_retc(EIO);
     return;
@@ -646,25 +646,15 @@ void NodeCmd::TxgwSubcmd(const eos::console::NodeProto_TxgwProto& txgw,
     }
   }
 
-<<<<<<< HEAD
-
   if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status)) {
-=======
-  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status, true,
-      nodename)) {
->>>>>>> ALL: Add "scanratens" parameter to the fs config command which controls the maximum
     reply.set_std_err("error: cannot set node config value");
     reply.set_retc(EIO);
     return;
   }
 
   // set also the manager name
-<<<<<<< HEAD
-  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager", gOFS->mMaster->GetMasterId(), true)) {
-=======
   if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager",
-      gOFS->mMaster->GetMasterId(), true, nodename, true)) {
->>>>>>> ALL: Add "scanratens" parameter to the fs config command which controls the maximum
+      gOFS->mMaster->GetMasterId(), true)) {
     reply.set_std_err("error: cannot set the manager name");
     reply.set_retc(EIO);
     return;
@@ -802,24 +792,15 @@ void NodeCmd::ProxygroupSubcmd(const eos::console::NodeProto_ProxygroupProto&
   eos_static_debug(" new proxygroups value %s", proxygroups.c_str());
   status = proxygroups;
 
-<<<<<<< HEAD
   if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status)) {
-=======
-  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status, true,
-      nodename)) {
->>>>>>> ALL: Add "scanratens" parameter to the fs config command which controls the maximum
     reply.set_std_err("error: cannot set node config value");
     reply.set_retc(EIO);
     return;
   }
 
   // set also the manager name
-<<<<<<< HEAD
-  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager", gOFS->mMaster->GetMasterId(), true)) {
-=======
   if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager",
-      gOFS->mMaster->GetMasterId(), true, nodename, true)) {
->>>>>>> ALL: Add "scanratens" parameter to the fs config command which controls the maximum
+      gOFS->mMaster->GetMasterId(), true)) {
     reply.set_std_err("error: cannot set the manager name");
     reply.set_retc(EIO);
     return;

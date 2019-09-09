@@ -27,7 +27,7 @@
 #include "mq/Namespace.hh"
 #include "common/Locators.hh"
 #include "common/RWMutex.hh"
-#include "mgm/TableFormatter/TableCell.hh"
+#include "common/table_formatter/TableCell.hh"
 #include <string>
 #include <vector>
 #include <map>
@@ -40,7 +40,8 @@ EOSMQNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Compatibility class for shared hashes - work in progress.
 //------------------------------------------------------------------------------
-class SharedHashWrapper {
+class SharedHashWrapper
+{
 public:
 
   //----------------------------------------------------------------------------
@@ -78,7 +79,8 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  SharedHashWrapper(const common::SharedHashLocator &locator, bool takeLock = true, bool create = true);
+  SharedHashWrapper(const common::SharedHashLocator& locator,
+                    bool takeLock = true, bool create = true);
 
   //----------------------------------------------------------------------------
   //! "Constructor" for global MGM hash
@@ -98,7 +100,8 @@ public:
   //----------------------------------------------------------------------------
   //! Set key-value pair
   //----------------------------------------------------------------------------
-  bool set(const std::string &key, const std::string &value, bool broadcast = true);
+  bool set(const std::string& key, const std::string& value,
+           bool broadcast = true);
 
   //----------------------------------------------------------------------------
   //! Set key-value batch
@@ -108,32 +111,32 @@ public:
   //----------------------------------------------------------------------------
   //! Query the given key
   //----------------------------------------------------------------------------
-  std::string get(const std::string &key);
+  std::string get(const std::string& key);
 
   //----------------------------------------------------------------------------
   //! Query the given key - convert to long long automatically
   //----------------------------------------------------------------------------
-  long long getLongLong(const std::string &key);
+  long long getLongLong(const std::string& key);
 
   //----------------------------------------------------------------------------
   //! Query the given key - convert to double automatically
   //----------------------------------------------------------------------------
-  double getDouble(const std::string &key);
+  double getDouble(const std::string& key);
 
   //----------------------------------------------------------------------------
   //! Query the given key, return if retrieval successful
   //----------------------------------------------------------------------------
-  bool get(const std::string &key, std::string &value);
+  bool get(const std::string& key, std::string& value);
 
   //----------------------------------------------------------------------------
   //! Delete the given key
   //----------------------------------------------------------------------------
-  bool del(const std::string &key, bool broadcast = true);
+  bool del(const std::string& key, bool broadcast = true);
 
   //----------------------------------------------------------------------------
   //! Get all keys in hash
   //----------------------------------------------------------------------------
-  bool getKeys(std::vector<std::string> &out);
+  bool getKeys(std::vector<std::string>& out);
 
   //----------------------------------------------------------------------------
   //! Get all hash contents as a map
@@ -144,14 +147,14 @@ public:
   //! Initialize, set shared manager.
   //! Call this function before using any SharedHashWrapper!
   //----------------------------------------------------------------------------
-  static void initialize(XrdMqSharedObjectManager *som);
+  static void initialize(XrdMqSharedObjectManager* som);
 
 private:
   common::SharedHashLocator mLocator;
   common::RWMutexReadLock mReadLock;
-  XrdMqSharedHash *mHash;
+  XrdMqSharedHash* mHash;
 
-  static XrdMqSharedObjectManager *mSom;
+  static XrdMqSharedObjectManager* mSom;
 };
 
 EOSMQNAMESPACE_END
