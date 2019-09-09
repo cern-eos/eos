@@ -264,7 +264,6 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
           for (auto it = fids.cbegin(); it != fids.cend(); ++it) {
             eFsMap[err_tag][fsid].insert(*it);
             eMap[err_tag].insert(*it);
-            eCount[err_tag]++;
           }
         }
       } else {
@@ -1409,7 +1408,6 @@ Fsck::ResetErrorMaps()
   eos::common::RWMutexWriteLock wr_lock(mErrMutex);
   eFsMap.clear();
   eMap.clear();
-  eCount.clear();
   eFsUnavail.clear();
   eFsDark.clear();
   eTimeStamp = time(NULL);
@@ -1461,7 +1459,6 @@ Fsck::AccountOfflineReplicas()
           eFsUnavail[fsid]++;
           eFsMap["rep_offline"][fsid].insert(it_fid->getElement());
           eMap["rep_offline"].insert(it_fid->getElement());
-          eCount["rep_offline"]++;
         }
       } catch (eos::MDException& e) {
         errno = e.getErrno();
@@ -1506,7 +1503,6 @@ Fsck::AccountNoReplicaFiles()
 
       if (fmd && (!fmd->isLink())) {
         eMap["zero_replica"].insert(it_fid->getElement());
-        eCount["zero_replica"]++;
       }
 
       if (!needLockThroughout) {
@@ -1606,19 +1602,16 @@ Fsck::AccountOfflineFiles()
     if (layout_type == LayoutId::kReplica) {
       if (offlinelocations == nlocations) {
         eMap["file_offline"].insert(*it);
-        eCount["file_offline"]++;
       }
     } else if (layout_type >= LayoutId::kArchive) {
       // Proper condition for RAIN layout
       if (offlinelocations > LayoutId::GetRedundancyStripeNumber(lid)) {
         eMap["file_offline"].insert(*it);
-        eCount["file_offline"]++;
       }
     }
 
     if (offlinelocations && (offlinelocations != nlocations)) {
       eMap["adjust_replica"].insert(*it);
-      eCount["adjust_replica"]++;
     }
   }
 }
@@ -1632,16 +1625,14 @@ Fsck::PrintErrorsSummary() const
 {
   eos::common::RWMutexReadLock rd_lock(mErrMutex);
 
-  for (auto emapit = eMap.cbegin(); emapit != eMap.cend(); ++emapit) {
+  for (const auto& elem_type : eFsMap) {
     uint64_t count {0ull};
-    auto it = eCount.find(emapit->first);
 
-    if (it != eCount.end()) {
-      count = it->second;
+    for (const auto& elem_errs : elem_type.second) {
+      count += elem_errs.second.size();
     }
 
-    Log("%-30s : %llu (%llu)", emapit->first.c_str(), emapit->second.size(),
-        count);
+    Log("%-30s : %llu", elem_type.first.c_str(), count);
   }
 }
 
