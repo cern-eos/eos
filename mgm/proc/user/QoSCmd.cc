@@ -122,29 +122,28 @@ void QoSCmd::GetSubcmd(const eos::console::QoSProto_GetProto& get,
 {
   std::ostringstream out;
   std::ostringstream err;
-  XrdOucString spath;
+  XrdOucErrInfo errInfo;
+  std::string errmsg;
+  std::string path;
   int retc = 0;
 
-  spath = PathFromIdentifierProto(get.identifier());
+  path = PathFromIdentifierProto(get.identifier(), errmsg);
 
-  if (!spath.length()) {
-    reply.set_std_err(stdErr.c_str());
-    reply.set_retc(ENOENT);
+  if (!path.length()) {
+    reply.set_std_err(errmsg);
+    reply.set_retc(errno);
     return;
   }
 
-  XrdOucErrInfo errInfo;
-  std::string errmsg;
-
   // Check path points to a valid file
-  if ((retc = CheckIsFile(spath.c_str(), mVid, errmsg))) {
+  if ((retc = CheckIsFile(path.c_str(), mVid, errmsg))) {
     reply.set_std_err(errmsg);
     reply.set_retc(retc);
     return;
   }
 
   // Check for access permission
-  if (gOFS->_access(spath.c_str(), R_OK, errInfo, mVid, 0)) {
+  if (gOFS->_access(path.c_str(), R_OK, errInfo, mVid, 0)) {
     err << "error: " << errInfo.getErrText();
     reply.set_std_err(err.str().c_str());
     reply.set_retc(errInfo.getErrInfo());
@@ -172,7 +171,7 @@ void QoSCmd::GetSubcmd(const eos::console::QoSProto_GetProto& get,
     if (key == "cdmi") {
       eos::IFileMD::QoSAttrMap cdmiMap;
 
-      if (gOFS->_qos_ls(spath.c_str(), errInfo, mVid, cdmiMap, true)) {
+      if (gOFS->_qos_ls(path.c_str(), errInfo, mVid, cdmiMap, true)) {
         err << "error: " << errInfo.getErrText() << std::endl;
         retc = errInfo.getErrInfo();
         continue;
@@ -182,7 +181,7 @@ void QoSCmd::GetSubcmd(const eos::console::QoSProto_GetProto& get,
     } else {
       XrdOucString value;
 
-      if (gOFS->_qos_get(spath.c_str(), errInfo, mVid, key.c_str(), value)) {
+      if (gOFS->_qos_get(path.c_str(), errInfo, mVid, key.c_str(), value)) {
         err << "error: " << errInfo.getErrText() << std::endl;
         retc = errInfo.getErrInfo();
         continue;
@@ -194,7 +193,7 @@ void QoSCmd::GetSubcmd(const eos::console::QoSProto_GetProto& get,
 
   // No keys specified -- extract all
   if (qosKeys.empty()) {
-    if (gOFS->_qos_ls(spath.c_str(), errInfo, mVid, qosMap)) {
+    if (gOFS->_qos_ls(path.c_str(), errInfo, mVid, qosMap)) {
       err << "error: " << errInfo.getErrText() << std::endl;
       retc = errInfo.getErrInfo();
     }
@@ -225,22 +224,21 @@ void QoSCmd::SetSubcmd(const eos::console::QoSProto_SetProto& set,
   using eos::common::LayoutId;
   std::ostringstream out;
   std::ostringstream err;
-  XrdOucString spath;
+  XrdOucErrInfo errInfo;
+  std::string errmsg;
+  std::string path;
   int retc = 0;
 
-  spath = PathFromIdentifierProto(set.identifier());
+  path = PathFromIdentifierProto(set.identifier(), errmsg);
 
-  if (!spath.length()) {
-    reply.set_std_err(stdErr.c_str());
-    reply.set_retc(ENOENT);
+  if (!path.length()) {
+    reply.set_std_err(errmsg);
+    reply.set_retc(errno);
     return;
   }
 
-  XrdOucErrInfo errInfo;
-  std::string errmsg;
-
   // Check path points to a valid file
-  if ((retc = CheckIsFile(spath.c_str(), mVid, errmsg))) {
+  if ((retc = CheckIsFile(path.c_str(), mVid, errmsg))) {
     reply.set_std_err(errmsg);
     reply.set_retc(retc);
     return;
@@ -262,7 +260,7 @@ void QoSCmd::SetSubcmd(const eos::console::QoSProto_SetProto& set,
   auto qos = gOFS->mQoSClassMap.at(set.classname());
   std::string conversion_id = "";
 
-  if (gOFS->_qos_set(spath.c_str(), errInfo, mVid, qos, conversion_id)) {
+  if (gOFS->_qos_set(path.c_str(), errInfo, mVid, qos, conversion_id)) {
     err << "error: " << errInfo.getErrText() << std::endl;
     retc = errInfo.getErrInfo();
   }
@@ -284,19 +282,20 @@ void QoSCmd::SetSubcmd(const eos::console::QoSProto_SetProto& set,
 //------------------------------------------------------------------------------
 // Translate the identifier proto into a namespace path
 //------------------------------------------------------------------------------
-XrdOucString QoSCmd::PathFromIdentifierProto(
-  const eos::console::QoSProto_IdentifierProto& identifier)
+std::string QoSCmd::PathFromIdentifierProto(
+  const eos::console::QoSProto_IdentifierProto& identifier,
+  std::string& err_msg)
 {
   using eos::console::QoSProto;
   const auto& type = identifier.Identifier_case();
-  XrdOucString path = "";
+  std::string path = "";
 
   if (type == QoSProto::IdentifierProto::kPath) {
     path = identifier.path().c_str();
   } else if (type == QoSProto::IdentifierProto::kFileId) {
-    GetPathFromFid(path, identifier.fileid(), "error: ");
+    GetPathFromFid(path, identifier.fileid(), err_msg);
   } else {
-    stdErr = "error: received empty string path";
+    err_msg = "error: received empty string path";
   }
 
   return path;
