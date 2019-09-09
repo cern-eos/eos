@@ -67,11 +67,13 @@ void com_fsck_help()
       << "  fsck stat" << std::endl
       << "    print summary of consistency checks" << std::endl
       << std::endl
-      << "  fsck config <key> <value>" << std::endl
+      << "  fsck config <key> [<value>]" << std::endl
       << "    configure the fsck with the following possible options:"
       << std::endl
       << "    show-dark-files : yes/no [default no]" << std::endl
       << "    show-offline    : yes/no [default no]" << std::endl
+      << "    toggle-repair   : start/stop repair thread, no <value> required"
+      << std::endl
       << std::endl
       << "  fsck report [-a] [-h] [-i] [-l] [-j|--json] [--error <tag1> <tag2> ...]"
       << std::endl
