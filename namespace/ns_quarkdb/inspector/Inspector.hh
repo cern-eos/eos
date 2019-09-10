@@ -60,7 +60,7 @@ public:
   //! Scan all directories in the namespace, and print out some information
   //! about each one. (even potentially unreachable directories)
   //----------------------------------------------------------------------------
-  int scanDirs(std::ostream &out, std::ostream &err);
+  int scanDirs(bool onlyNoAttrs, std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
   //! Scan all file metadata in the namespace, and print out some information
@@ -68,7 +68,7 @@ public:
   //----------------------------------------------------------------------------
   int scanFileMetadata(std::ostream &out, std::ostream &err);
 
- //----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Forcefully overwrite the given ContainerMD - USE WITH CAUTION
   //----------------------------------------------------------------------------
   int overwriteContainerMD(uint64_t id, uint64_t parentId, const std::string &name, std::ostream &out, std::ostream &err);

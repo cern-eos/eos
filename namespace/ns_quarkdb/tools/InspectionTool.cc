@@ -104,6 +104,9 @@ int main(int argc, char* argv[]) {
   auto scanDirsSubcommand = app.add_subcommand("scan-dirs", "Dump the full list of container metadata across the entire namespace");
   addClusterOptions(scanDirsSubcommand, membersStr, memberValidator, password, passwordFile);
 
+  bool onlyNoAttrs = false;
+  scanDirsSubcommand->add_flag("--only-no-attrs", onlyNoAttrs, "Only show directories which have no extended attributes whatsoever");
+
   //----------------------------------------------------------------------------
   // Set-up scan-files subcommand..
   //----------------------------------------------------------------------------
@@ -284,7 +287,7 @@ int main(int argc, char* argv[]) {
   }
 
   if(scanDirsSubcommand->parsed()) {
-    return inspector.scanDirs(std::cout, std::cerr);
+    return inspector.scanDirs(onlyNoAttrs, std::cout, std::cerr);
   }
 
   if(stripediffSubcommand->parsed()) {
