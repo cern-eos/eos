@@ -94,7 +94,7 @@ bool Inspector::checkConnection(std::string& err)
 // Dump contents of the given path. ERRNO-like integer return value, 0
 // means no error.
 //------------------------------------------------------------------------------
-int Inspector::dump(const std::string& dumpPath, bool relative, std::ostream& out)
+int Inspector::dump(const std::string& dumpPath, bool relative, bool rawPaths, std::ostream& out)
 {
   ExplorationOptions explorerOpts;
   std::unique_ptr<folly::Executor> executor(new folly::IOThreadPoolExecutor(4));
@@ -102,11 +102,15 @@ int Inspector::dump(const std::string& dumpPath, bool relative, std::ostream& ou
   NamespaceItem item;
 
   while (explorer.fetch(item)) {
+    if(!rawPaths) {
+      out << "path=";
+    }
+
     if(relative) {
-      out << "path=" << item.fullPath.substr(dumpPath.size()) << std::endl;
+      out << item.fullPath.substr(dumpPath.size()) << std::endl;
     }
     else {
-      out << "path=" << item.fullPath << std::endl;
+      out << item.fullPath << std::endl;
     }
   }
 
