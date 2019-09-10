@@ -88,6 +88,7 @@ Storage::MgmSyncer()
                          delay);
         std::this_thread::sleep_for(std::chrono::seconds(delay));
         gOFS.WrittenFilesQueueMutex.Lock();
+        gOFS.WrittenFilesQueue.push(fmd);
         continue;
       }
 
