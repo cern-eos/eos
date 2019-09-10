@@ -162,6 +162,18 @@ public:
   void RepairErrs(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
+  //! Try to repair a given entry
+  //!
+  //! @param fid file identifier
+  //! @param async if true then submit the job to the repair thread if it's
+  //!        enabled
+  //! @param err_msg output message
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool RepairEntry(eos::IFileMD::id_t fid, bool async, std::string& out_msg);
+
+  //----------------------------------------------------------------------------
   //! Set max size of thread pool used for fsck repair jobs
   //!
   //! @param max max value

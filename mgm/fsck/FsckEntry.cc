@@ -108,7 +108,7 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
 {
   using eos::common::FileId;
 
-  if (mFstFileInfo.find(fsid) != mFstFileInfo.end()) {
+  if ((fsid == 0ull) || (mFstFileInfo.find(fsid) != mFstFileInfo.end())) {
     return;
   }
 
@@ -239,7 +239,7 @@ FsckEntry::RepairMgmXsSzDiff()
   if (mgm_xs_sz_match) {
     eos_warning("msg=\"mgm xs/size repair skip - found replica with matching "
                 "xs and size\" fid=%08llx", mFid);
-    return false;
+    return true;
   }
 
   if (disk_xs_sz_match && sz_val) {
@@ -579,6 +579,11 @@ bool
 FsckEntry::DropReplica(eos::common::FileSystem::fsid_t fsid) const
 {
   bool retc = true;
+
+  if (fsid == 0ull) {
+    return retc;
+  }
+
   eos_info("msg=\"drop (unregistered) replica\" fid=%08llx fsid=%lu",
            mFid, fsid);
 
