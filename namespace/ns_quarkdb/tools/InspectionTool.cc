@@ -90,11 +90,13 @@ int main(int argc, char* argv[]) {
   std::string dumpPath;
   bool relativePaths = false;
   bool rawPaths = false;
+  bool noDirs = false;
 
   dumpSubcommand->add_option("--path", dumpPath, "The target path to dump")
     ->required();
   dumpSubcommand->add_flag("--relative-paths", relativePaths, "Print paths relative to --path");
   dumpSubcommand->add_flag("--raw-paths", rawPaths, "Print the raw paths without path= in front, and nothing else");
+  dumpSubcommand->add_flag("--no-dirs", noDirs, "Don't print directories, only files");
 
   //----------------------------------------------------------------------------
   // Set-up scan-directories subcommand..
@@ -262,7 +264,7 @@ int main(int argc, char* argv[]) {
   // Dispatch subcommand
   //----------------------------------------------------------------------------
   if(dumpSubcommand->parsed()) {
-    return inspector.dump(dumpPath, relativePaths, rawPaths, std::cout);
+    return inspector.dump(dumpPath, relativePaths, rawPaths, noDirs, std::cout);
   }
 
   if(namingConflictsSubcommand->parsed()) {
