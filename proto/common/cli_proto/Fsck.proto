@@ -16,7 +16,8 @@ message FsckProto {
   }
 
   message RepairProto {
-    repeated string types = 1;
+    bool async = 1;
+    uint64 fid = 2;
   }
 
   message ConfigProto {
