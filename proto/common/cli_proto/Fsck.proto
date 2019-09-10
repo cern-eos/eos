@@ -9,7 +9,7 @@ message FsckProto {
 
   message ReportProto {
     bool display_per_fs = 1;
-    bool display_fid = 2;
+    bool display_fxid = 2;
     bool display_lfn = 3;
     bool display_json = 4;
     repeated string tags = 5;

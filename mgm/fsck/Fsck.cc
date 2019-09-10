@@ -222,7 +222,6 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
     }
 
     Log("Filesystems to check: %lu", FsView::gFsView.GetNumFileSystems());
-    Log("Repair thread status: %s", (mRunRepairThread ? "running" : "stopped"));
     // Broadcast fsck request and collect responses
     XrdOucString broadcastresponsequeue = gOFS->MgmOfsBrokerUrl;
     broadcastresponsequeue += "-fsck-";
@@ -263,7 +262,6 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
           // Add the fids into the error maps
           for (auto it = fids.cbegin(); it != fids.cend(); ++it) {
             eFsMap[err_tag][fsid].insert(*it);
-            eMap[err_tag].insert(*it);
           }
         }
       } else {
@@ -385,8 +383,10 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
 void
 Fsck::PrintOut(std::string& out) const
 {
+  out = "Repair thread status: ";
+  out += (mRunRepairThread ? "running\n" : "stopped\n");
   XrdSysMutexHelper lock(mLogMutex);
-  out = mLog.c_str();
+  out += mLog.c_str();
 }
 
 //------------------------------------------------------------------------------
@@ -394,378 +394,274 @@ Fsck::PrintOut(std::string& out) const
 //------------------------------------------------------------------------------
 bool
 Fsck::Report(std::string& out, const std::set<std::string> tags,
-             bool display_per_fs,  bool display_fid, bool display_lfn,
+             bool display_per_fs, bool display_fxid, bool display_lfn,
              bool display_json)
 {
+  std::ostringstream oss;
   eos::common::RWMutexReadLock rd_lock(mErrMutex);
-  char stimestamp[1024];
-  snprintf(stimestamp, sizeof(stimestamp) - 1, "%lu", (unsigned long) eTimeStamp);
 
   if (display_json) {
-    // json output format
-    out += "{\n";
-    // put the check timestamp
-    out += "  \"timestamp\": ";
-    out += stimestamp;
-    out += ",\n";
-
-    if (!display_per_fs) {
-      // Dump global table
-      for (auto emapit = eMap.cbegin(); emapit != eMap.cend(); ++emapit) {
-        if (!tags.empty() && (tags.find(emapit->first) == tags.end())) {
-          continue;  // skip unselected
-        }
-
-        char sn[1024];
-        snprintf(sn, sizeof(sn) - 1, "%llu",
-                 (unsigned long long) emapit->second.size());
-        out += "  \"";
-        out += emapit->first.c_str();
-        out += "\": {\n";
-        out += "    \"n\":\"";
-        out += sn;
-        out += "\",\n";
-
-        if (display_fid) {
-          out += "    \"fxid\": [";
-
-          for (auto fidit = emapit->second.cbegin();
-               fidit != emapit->second.cend(); ++fidit) {
-            out += eos::common::FileId::Fid2Hex(*fidit).c_str();
-            out += ",";
-          }
-
-          if (*out.rbegin() == ',') {
-            out.erase(out.length() - 1);
-          }
-
-          out += "]\n";
-        }
-
-        if (display_lfn) {
-          out += "    \"lfn\": [";
-          std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
-
-          for (fidit = emapit->second.begin();
-               fidit != emapit->second.end();
-               fidit++) {
-            std::shared_ptr<eos::IFileMD> fmd;
-            eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *fidit);
-            eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-
-            try {
-              fmd = gOFS->eosFileService->getFileMD(*fidit);
-              std::string fullpath = gOFS->eosView->getUri(fmd.get());
-              out += "\"";
-              out += fullpath.c_str();
-              out += "\"";
-            } catch (eos::MDException& e) {
-              out += "\"undefined\"";
-            }
-
-            out += ",";
-          }
-
-          if (*out.rbegin() == ',') {
-            out.erase(out.length() - 1);
-          }
-
-          out += "]\n";
-        }
-
-        if (out.find(",\n") == (out.length() - 2)) {
-          out.erase(out.length() - 2);
-          out += "\n";
-        }
-
-        out += "  },\n";
-      }
-    } else {
-      // Do output per filesystem
-      for (auto emapit = eMap.cbegin(); emapit != eMap.cend(); ++emapit) {
-        if (!tags.empty() && (tags.find(emapit->first) == tags.end())) {
-          continue;  // skip unselected
-        }
-
-        // Loop over errors
-        char sn[1024];
-        snprintf(sn, sizeof(sn) - 1, "%llu",
-                 (unsigned long long) emapit->second.size());
-        out += "  \"";
-        out += emapit->first.c_str();
-        out += "\": {\n";
-        out += "    \"n\":\"";
-        out += sn;
-        out += "\",\n";
-        out += "    \"fsid\":";
-        out += " {\n";
-        std::map < eos::common::FileSystem::fsid_t,
-            std::set < eos::common::FileId::fileid_t >> ::const_iterator efsmapit;
-
-        for (efsmapit = eFsMap[emapit->first].begin();
-             efsmapit != eFsMap[emapit->first].end();
-             efsmapit++) {
-          if (emapit->first == "zero_replica") {
-            // This we cannot break down by filesystem id
-            continue;
-          }
-
-          // Loop over filesystems
-          out += "      \"";
-          out += (int) efsmapit->first;
-          out += "\": {\n";
-          snprintf(sn, sizeof(sn) - 1,
-                   "%llu",
-                   (unsigned long long) efsmapit->second.size());
-          out += "        \"n\": ";
-          out += sn;
-          out += ",\n";
-
-          if (display_fid) {
-            out += "        \"fxid\": [";
-            std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
-
-            for (fidit = efsmapit->second.begin();
-                 fidit != efsmapit->second.end(); fidit++) {
-              out += eos::common::FileId::Fid2Hex(*fidit).c_str();
-              out += ",";
-            }
-
-            if (*out.rbegin() == ',') {
-              out.erase(out.length() - 1);
-            }
-
-            out += "]\n";
-          }
-
-          if (display_lfn) {
-            out += "        \"lfn\": [";
-            std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
-
-            for (fidit = efsmapit->second.begin();
-                 fidit != efsmapit->second.end();
-                 fidit++) {
-              eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *fidit);
-              eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-
-              try {
-                auto fmd = gOFS->eosFileService->getFileMD(*fidit);
-                std::string fullpath = gOFS->eosView->getUri(fmd.get());
-                out += "\"";
-                out += fullpath.c_str();
-                out += "\"";
-              } catch (eos::MDException& e) {
-                out += "\"undefined\"";
-              }
-
-              out += ",";
-            }
-
-            if (*out.rbegin() == ',') {
-              out.erase(out.length() - 1);
-            }
-
-            out += "]\n";
-          }
-
-          if (out.find(",\n") == (out.length() - 2)) {
-            out.erase(out.length() - 2);
-            out += "\n";
-          }
-
-          out += "      },\n";
-        }
-
-        out += "    },\n";
-      }
-    }
-
-    // List shadow filesystems
-    if (!eFsDark.empty()) {
-      out += "  \"shadow_fsid\": [";
-
-      for (auto fsit = eFsDark.begin(); fsit != eFsDark.end(); fsit++) {
-        char sfsid[1024];
-        snprintf(sfsid, sizeof(sfsid) - 1, "%lu", (unsigned long) fsit->first);
-        out += sfsid;
-        out += ",";
-      }
-
-      if (*out.rbegin() == ',') {
-        out.erase(out.length() - 1);
-      }
-
-      out += "  ]\n";
-      out += "}\n";
-    }
+    ReportJsonFormat(oss, tags, display_per_fs, display_fxid, display_lfn);
   } else {
-    // greppable format
-    if (!display_per_fs) {
-      for (auto emapit = eMap.cbegin(); emapit != eMap.cend(); ++emapit) {
-        if (!tags.empty() && (tags.find(emapit->first) == tags.end())) {
-          continue;  // skip unselected
-        }
+    ReportMonitorFormat(oss, tags, display_per_fs, display_fxid, display_lfn);
+  }
 
-        char sn[1024];
-        snprintf(sn, sizeof(sn) - 1,
-                 "%llu",
-                 (unsigned long long) emapit->second.size());
-        out += "timestamp=";
-        out += stimestamp;
-        out += " ";
-        out += "tag=\"";
-        out += emapit->first.c_str();
-        out += "\"";
-        out += " n=";
-        out += sn;
+  out = oss.str();
+  return true;
+}
 
-        if (display_fid) {
-          out += " fxid=";
+//------------------------------------------------------------------------------
+// Get the require format for the given file identifier. Empty if no format
+// requested.
+//------------------------------------------------------------------------------
+std::string
+Fsck::GetFidFormat(eos::IFileMD::id_t fid, bool display_fxid, bool
+                   display_lfn) const
+{
+  if (display_fxid) {
+    return eos::common::FileId::Fid2Hex(fid);
+  } else if (display_lfn) {
+    eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
-          for (auto fidit = emapit->second.cbegin();
-               fidit != emapit->second.cend(); ++fidit) {
-            out += eos::common::FileId::Fid2Hex(*fidit).c_str();
-            out += ",";
-          }
-
-          if (*out.rbegin() == ',') {
-            out.erase(out.length() - 1);
-          }
-
-          out += "\n";
-        }
-
-        if (display_lfn) {
-          out += " lfn=";
-
-          for (auto fidit = emapit->second.cbegin();
-               fidit != emapit->second.cend(); fidit++) {
-            eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *fidit);
-            eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-
-            try {
-              auto fmd = gOFS->eosFileService->getFileMD(*fidit);
-              std::string fullpath = gOFS->eosView->getUri(fmd.get());
-              out += "\"";
-              out += fullpath.c_str();
-              out += "\"";
-            } catch (eos::MDException& e) {
-              out += "\"undefined\"";
-            }
-
-            out += ",";
-          }
-
-          if (*out.rbegin() == ',') {
-            out.erase(out.length() - 1);
-          }
-
-          out += "\n";
-        }
-
-        // List shadow filesystems
-        if (!eFsDark.empty()) {
-          out += " shadow_fsid=";
-
-          for (auto fsit = eFsDark.cbegin(); fsit != eFsDark.cend(); ++fsit) {
-            char sfsid[1024];
-            snprintf(sfsid, sizeof(sfsid) - 1,
-                     "%lu",
-                     (unsigned long) fsit->first);
-            out += sfsid;
-            out += ",";
-          }
-
-          if (*out.rbegin() == ',') {
-            out.erase(out.length() - 1);
-          }
-
-          out += "\n";
-        }
-      }
-    } else {
-      // Do output per filesystem
-      for (auto emapit = eMap.cbegin(); emapit != eMap.cend(); ++emapit) {
-        if (!tags.empty() && (tags.find(emapit->first) == tags.end())) {
-          continue;  // skip unselected
-        }
-
-        // Loop over filesystems
-        for (auto efsmapit = eFsMap[emapit->first].cbegin();
-             efsmapit != eFsMap[emapit->first].cend(); ++efsmapit) {
-          if (emapit->first == "zero_replica") {
-            // This we cannot break down by filesystem id
-            continue;
-          }
-
-          char sn[1024];
-          out += "timestamp=";
-          out += stimestamp;
-          out += " ";
-          out += "tag=\"";
-          out += emapit->first.c_str();
-          out += "\"";
-          out += " ";
-          out += "fsid=";
-          out += (int) efsmapit->first;
-          snprintf(sn, sizeof(sn) - 1,
-                   "%llu",
-                   (unsigned long long) efsmapit->second.size());
-          out += " n=";
-          out += sn;
-
-          if (display_fid) {
-            out += " fxid=";
-
-            for (auto fidit = efsmapit->second.cbegin();
-                 fidit != efsmapit->second.cend(); ++fidit) {
-              out += eos::common::FileId::Fid2Hex(*fidit).c_str();
-              out += ",";
-            }
-
-            if (*out.rbegin() == ',') {
-              out.erase(out.length() - 1);
-            }
-
-            out += "\n";
-          } else {
-            if (display_lfn) {
-              out += " lfn=";
-
-              for (auto fidit = efsmapit->second.cbegin();
-                   fidit != efsmapit->second.cend(); ++fidit) {
-                eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, *fidit);
-                eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-
-                try {
-                  auto fmd = gOFS->eosFileService->getFileMD(*fidit);
-                  std::string fullpath = gOFS->eosView->getUri(fmd.get());
-                  out += "\"";
-                  out += fullpath.c_str();
-                  out += "\"";
-                } catch (eos::MDException& e) {
-                  out += "\"undefined\"";
-                }
-
-                out += ",";
-              }
-
-              if (*out.rbegin() == ',') {
-                out.erase(out.length() - 1);
-              }
-
-              out += "\n";
-            } else {
-              out += "\n";
-            }
-          }
-        }
-      }
+    try {
+      auto fmd = gOFS->eosFileService->getFileMD(fid);
+      return gOFS->eosView->getUri(fmd.get());
+    } catch (eos::MDException& e) {
+      return "undefined";
     }
   }
 
-  return true;
+  return "";
 }
+
+//------------------------------------------------------------------------------
+// Create report in JSON format
+//------------------------------------------------------------------------------
+void
+Fsck::ReportJsonFormat(std::ostringstream& oss,
+                       const std::set<std::string> tags,
+                       bool display_per_fs, bool display_fxid,
+                       bool display_lfn) const
+{
+  Json::Value json;
+
+  if (display_per_fs) {
+    // Display per file system
+    std::map<eos::common::FileSystem::fsid_t,
+        std::map<std::string, std::set<unsigned long long>>> fs_fxid;
+
+    for (const auto& elem_map : eFsMap) {
+      if (!tags.empty() && (tags.find(elem_map.first) == tags.end())) {
+        continue;  // skip unselected
+      }
+
+      for (const auto& elem : elem_map.second) {
+        for (const auto& fxid : elem.second) {
+          fs_fxid[elem.first][elem_map.first].insert(fxid);
+        }
+      }
+    }
+
+    for (const auto& elem : fs_fxid) {
+      for (auto it = elem.second.begin(); it != elem.second.end(); ++it) {
+        Json::Value json_entry;
+        json_entry["timestamp"] = (Json::Value::UInt64)eTimeStamp;
+        json_entry["fsid"] = (int) elem.first;
+        json_entry["tag"] = it->first.c_str();
+        json_entry["count"] = (int) it->second.size();
+
+        if (!display_fxid && !display_lfn) {
+          json.append(json_entry);
+          continue;
+        }
+
+        Json::Value json_ids;
+
+        for (auto it_fid = it->second.begin();
+             it_fid != it->second.end(); ++it_fid) {
+          if (!display_fxid && !display_lfn) {
+            json.append(json_entry);
+            continue;
+          }
+
+          json_ids.append(GetFidFormat(*it_fid, display_fxid, display_lfn));
+        }
+
+        if (display_fxid) {
+          json_entry["fxid"] = json_ids;
+        } else if (display_lfn) {
+          json_entry["lfn"] = json_ids;
+        }
+
+        json.append(json_entry);
+      }
+    }
+  } else {
+    for (const auto& elem_map : eFsMap) {
+      if (!tags.empty() && (tags.find(elem_map.first) == tags.end())) {
+        continue;  // skip unselected
+      }
+
+      Json::Value json_entry;
+      json_entry["timestamp"] = (Json::Value::UInt64) eTimeStamp;
+      json_entry["tag"] = elem_map.first;
+      uint64_t count {0ull};
+      Json::Value json_ids;
+      std::set<unsigned long long> added_fids;
+
+      for (const auto& elem : elem_map.second) {
+        for (auto it = elem.second.begin(); it != elem.second.end(); ++it) {
+          if (added_fids.find(*it) != added_fids.end()) {
+            continue;
+          }
+
+          added_fids.insert(*it);
+          ++count;
+
+          if (!display_fxid && !display_lfn) {
+            continue;
+          }
+
+          json_ids.append(GetFidFormat(*it, display_fxid, display_lfn));
+        }
+      }
+
+      if (display_fxid) {
+        json_entry["count"] = (Json::Value::UInt64)count;
+        json_entry["fxid"] = json_ids;
+      } else if (display_lfn) {
+        json_entry["count"] = (Json::Value::UInt64)count;
+        json_entry["lfn"] = json_ids;
+      } else {
+        json_entry["count"] = (Json::Value::UInt64)count;
+      }
+
+      json.append(json_entry);
+    }
+  }
+
+  // List shadow filesystems
+  if (!eFsDark.empty()) {
+    for (auto fsit = eFsDark.begin(); fsit != eFsDark.end(); fsit++) {
+      Json::Value json_entry;
+      json_entry["timestamp"] = (Json::Value::UInt64) eTimeStamp;
+      json_entry["tag"] = "shadow_fsid";
+      json_entry["fsid"] = (Json::Value::UInt64)fsit->first;
+      json_entry["count"] = (Json::Value::UInt64)fsit->second;
+      json.append(json_entry);
+    }
+  }
+
+  oss << json;
+}
+
+//------------------------------------------------------------------------------
+// Create report in monitor format
+//------------------------------------------------------------------------------
+void
+Fsck::ReportMonitorFormat(std::ostringstream& oss,
+                          const std::set<std::string> tags,
+                          bool display_per_fs, bool display_fxid,
+                          bool display_lfn) const
+{
+  if (display_per_fs) {
+    // Display per file system
+    std::map<eos::common::FileSystem::fsid_t,
+        std::map<std::string, std::set<unsigned long long>>> fs_fxid;
+
+    for (const auto& elem_map : eFsMap) {
+      if (!tags.empty() && (tags.find(elem_map.first) == tags.end())) {
+        continue;  // skip unselected
+      }
+
+      for (const auto& elem : elem_map.second) {
+        for (const auto& fxid : elem.second) {
+          fs_fxid[elem.first][elem_map.first].insert(fxid);
+        }
+      }
+    }
+
+    for (const auto& elem : fs_fxid) {
+      for (auto it = elem.second.begin(); it != elem.second.end(); ++it) {
+        oss << "timestamp=" << eTimeStamp << " fsid=" << elem.first
+            << " tag=\"" << it->first << "\" count=" << it->second.size();
+
+        if (display_fxid) {
+          oss << " fxid=";
+        } else if (display_lfn) {
+          oss << " lfn=";
+        } else {
+          oss << std::endl;
+          continue;
+        }
+
+        for (auto it_fid = it->second.begin();
+             it_fid != it->second.end(); ++it_fid) {
+          oss << GetFidFormat(*it_fid, display_fxid, display_lfn);
+
+          if (it_fid != std::prev(it->second.end())) {
+            oss << ", ";
+          }
+        }
+
+        oss << std::endl;
+      }
+    }
+  } else {
+    for (const auto& elem_map : eFsMap) {
+      if (!tags.empty() && (tags.find(elem_map.first) == tags.end())) {
+        continue;  // skip unselected
+      }
+
+      oss << "timestamp=" << eTimeStamp << " tag=\"" << elem_map.first << "\"";
+      std::set<unsigned long long> added_fids;
+      std::ostringstream oss_ids;
+      uint64_t count {0ull};
+
+      for (const auto& elem : elem_map.second) {
+        for (auto it = elem.second.begin(); it != elem.second.end(); ++it) {
+          if (added_fids.find(*it) != added_fids.end()) {
+            continue;
+          } else {
+            added_fids.insert(*it);
+          }
+
+          ++count;
+
+          if (!display_fxid && !display_lfn) {
+            continue;
+          }
+
+          oss_ids << GetFidFormat(*it, display_fxid, display_lfn);
+
+          if (it != std::prev(elem.second.end())) {
+            oss_ids << ", ";
+          }
+        }
+      }
+
+      oss << " count=" << count;
+
+      if (display_fxid) {
+        oss << " fxid=";
+      } else if (display_lfn) {
+        oss << " lfn=";
+      }
+
+      oss << oss_ids.str() << std::endl;
+    }
+  }
+
+  // List shadow filesystems
+  if (!eFsDark.empty()) {
+    for (auto fsit = eFsDark.begin(); fsit != eFsDark.end(); ++fsit) {
+      oss << "timestamp=" << eTimeStamp << " tag=\"shadow_fsid\""
+          << " fsid=" << fsit->first << " count=" << fsit->second;
+    }
+  }
+}
+
 
 //------------------------------------------------------------------------------
 // Method to issue a repair action
@@ -1458,7 +1354,6 @@ Fsck::AccountOfflineReplicas()
              (it_fid && it_fid->valid()); it_fid->next()) {
           eFsUnavail[fsid]++;
           eFsMap["rep_offline"][fsid].insert(it_fid->getElement());
-          eMap["rep_offline"].insert(it_fid->getElement());
         }
       } catch (eos::MDException& e) {
         errno = e.getErrno();
@@ -1502,7 +1397,7 @@ Fsck::AccountNoReplicaFiles()
       }
 
       if (fmd && (!fmd->isLink())) {
-        eMap["zero_replica"].insert(it_fid->getElement());
+        eFsMap["zero_replica"][0].insert(it_fid->getElement());
       }
 
       if (!needLockThroughout) {
@@ -1554,8 +1449,21 @@ Fsck::AccountOfflineFiles()
   std::set <eos::common::FileId::fileid_t> fid2check;
   {
     eos::common::RWMutexReadLock rd_lock(mErrMutex);
-    fid2check.insert(eMap["rep_offline"].begin(), eMap["rep_offline"].end());
-    fid2check.insert(eMap["rep_diff_n"].begin(), eMap["rep_diff_n"].end());
+    auto it_offline = eFsMap.find("rep_offline");
+
+    if (it_offline != eFsMap.end()) {
+      for (const auto& elem : it_offline->second) {
+        fid2check.insert(elem.second.begin(), elem.second.end());
+      }
+    }
+
+    auto it_diff_n = eFsMap.find("rep_diff_n");
+
+    if (it_diff_n != eFsMap.end()) {
+      for (const auto& elem : it_diff_n->second) {
+        fid2check.insert(elem.second.begin(), elem.second.end());
+      }
+    }
   }
 
   for (auto it = fid2check.begin(); it != fid2check.end(); ++it) {
@@ -1601,17 +1509,17 @@ Fsck::AccountOfflineFiles()
 
     if (layout_type == LayoutId::kReplica) {
       if (offlinelocations == nlocations) {
-        eMap["file_offline"].insert(*it);
+        eFsMap["file_offline"][0].insert(*it);
       }
     } else if (layout_type >= LayoutId::kArchive) {
       // Proper condition for RAIN layout
       if (offlinelocations > LayoutId::GetRedundancyStripeNumber(lid)) {
-        eMap["file_offline"].insert(*it);
+        eFsMap["file_offline"][0].insert(*it);
       }
     }
 
     if (offlinelocations && (offlinelocations != nlocations)) {
-      eMap["adjust_replica"].insert(*it);
+      eFsMap["adjust_replica"][0].insert(*it);
     }
   }
 }

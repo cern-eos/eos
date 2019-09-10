@@ -84,7 +84,7 @@ FsckCmd::ProcessRequest() noexcept
     std::string out;
 
     if (gOFS->mFsckEngine->Report(out, tags, report.display_per_fs(),
-                                  report.display_fid(), report.display_lfn(),
+                                  report.display_fxid(), report.display_lfn(),
                                   report.display_json())) {
       reply.set_std_out(out);
     } else {
