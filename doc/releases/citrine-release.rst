@@ -24,7 +24,13 @@ This release is based on XRootD V4 and IPV6 enabled.
 Bug
 ----
 
-* Fix FST metadata synchronization with the MGM info when delay is not respected
+* FST: Fix FST metadata synchronization with the MGM info when delay is not respected
+
+Improvement
+-----------
+
+* FUSEX: Enable safe mode by default - when a file is created the client always gets
+  feedback if the FST open didn't work.
 
 
 ``v4.5.7 Citrine``
