@@ -16,6 +16,17 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.5.8 Citrine``
+===================
+
+2019-09-10
+
+Bug
+----
+
+* Fix FST metadata synchronization with the MGM info when delay is not respected
+
+
 ``v4.5.7 Citrine``
 ===================
 
