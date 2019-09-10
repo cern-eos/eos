@@ -23,6 +23,7 @@
 
 #include "console/commands/helpers/FsckHelper.hh"
 #include "common/StringTokenizer.hh"
+#include "common/FileId.hh"
 
 //------------------------------------------------------------------------------
 // Parse command line input
@@ -98,23 +99,28 @@ FsckHelper::ParseCommand(const char* arg)
       }
     }
   } else if (cmd == "repair") {
-    std::set<std::string> allowed_types {"--checksum", "--checksum-commit",
-                                         "--resync", "--unlink-unregistered", "--unlink-orphans",
-                                         "--adjust-replicas", "--adjust-replicas-nodrop",
-                                         "--drop-missing-replicas", "--unlink-zero-replicas",
-                                         "--replace-damaged-replicas", "--all"};
     eos::console::FsckProto::RepairProto* repair = fsck->mutable_repair();
 
-    while ((option = tokenizer.GetToken())) {
-      soption = option;
+    if (((option = tokenizer.GetToken()) == nullptr) ||
+        (strcmp(option, "--fxid") != 0)) {
+      return false;
+    }
 
-      if (allowed_types.find(soption) == allowed_types.end()) {
-        std::cerr << "error: unknown type of error " << soption << std::endl;
-        return false;
-      }
+    if (((option = tokenizer.GetToken()) == nullptr)) {
+      return false;
+    }
 
-      std::string* type = repair->add_types();
-      type->assign(soption);
+    uint64_t fid = eos::common::FileId::Hex2Fid(option);
+
+    if (fid == 0ull) {
+      return false;
+    }
+
+    repair->set_fid(fid);
+
+    if (((option = tokenizer.GetToken()) != nullptr) &&
+        (strcmp(option, "--async") == 0)) {
+      repair->set_async(true);
     }
   } else {
     return false;

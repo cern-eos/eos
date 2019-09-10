@@ -86,47 +86,10 @@ void com_fsck_help()
       << "    --error    : dispaly information about the following error tags"
       << std::endl
       << std::endl
-      << "  fsck repair [--checksum|--checksum-commit|--resync|--unlink-unregistered|"
-      << std::endl
-      << "               --unlink-orphans|--adjust-replicas[-nodrop]|--drop-missing-replicas|"
-      << std::endl
-      << "               --unlink-zero-replicas|--replace-damaged-replicas|--all]"
-      << std::endl
-      << "    trigger the repair procedure for the various types of errors. Options:"
-      << std::endl
-      << "    checksum                  : issue 'verify' operation on all files with checksum errors"
-      << std::endl
-      << "    checksum-commit           : issue 'verify' operation on all files with checkusm errors"
-      << std::endl
-      << "                                and force a commit of size and checksum to the MGM"
-      << std::endl
-      << "    resync                    : issue a 'resync' operation on all files with any errors."
-      << std::endl
-      << "                                This will resync the MGM metadata to the storage node and will clean-up"
-      << std::endl
-      << "                                'ghost' entries from the FST metadata cache."
-      << std::endl
-      << "     unlink-unregistered      : unlink replicas which are not connected to their"
-      << std::endl
-      << "                                logical name"
-      << std::endl
-      << "     unlink-orphans           : unlink replicas which don't belong to any logical name"
-      << std::endl
-      << "     adjust-replicas          : try to fix all replica inconsistencies. If 'nodrop' is used"
-      << std::endl
-      << "                                replicas are only added and never removed"
-      << std::endl
-      << "     drop-missing-replicas    : drop replicas from the namespace if they can not"
-      << std::endl
-      << "                                be found on disk"
-      << std::endl
-      << "     unlink-zero-replicas     : drop all files that have no replicas attached"
-      << std::endl
-      << "                                and are older than 48 hours"
-      << std::endl
-      << "     replace-damaged-replicas : drop damaged replicas of a files and replace"
-      << std::endl
-      << "                                with healthy ones if possible"
+      << "  fsck repair --fxid <val> [--async]\n"
+      << "    repair the given file if there are any errors\n"
+      << "    --fxid  : hexadecimal file identifier\n"
+      << "    --async : job queued and ran by the repair thread if enabled\n"
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }
