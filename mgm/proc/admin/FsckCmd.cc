@@ -94,18 +94,12 @@ FsckCmd::ProcessRequest() noexcept
   } else if (subcmd == eos::console::FsckProto::kRepair) {
     std::string out;
     const eos::console::FsckProto::RepairProto& repair = fsck.repair();
-    std::set<std::string> options;
 
-    // Collect all the tags
-    for (const auto& elem : repair.types()) {
-      options.insert(elem);
-    }
-
-    if (gOFS->mFsckEngine->Repair(out, options)) {
+    if (gOFS->mFsckEngine->RepairEntry(repair.fid(), repair.async(), out)) {
       reply.set_std_out(out);
     } else {
-      reply.set_retc(EINVAL);
       reply.set_std_err(out);
+      reply.set_retc(EINVAL);
     }
   } else {
     reply.set_retc(EINVAL);

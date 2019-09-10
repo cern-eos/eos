@@ -378,6 +378,37 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
 }
 
 //------------------------------------------------------------------------------
+// Try to repair a given entry
+//------------------------------------------------------------------------------
+bool
+Fsck::RepairEntry(eos::IFileMD::id_t fid, bool async, std::string& out_msg)
+{
+  if (fid == 0ull) {
+    eos_err("%s", "msg=\"not such file id 0\"");
+    return false;
+  }
+
+  std::shared_ptr<FsckEntry> job {
+    new FsckEntry(fid, 0, "none", mQcl)};
+
+  if (async) {
+    out_msg = "msg=\"repair job submitted\"";
+    mThreadPool.PushTask<void>([job]() {
+      return job->Repair();
+    });
+  } else {
+    if (!job->Repair()) {
+      out_msg = "msg=\"repair job failed\"";
+      return false;
+    } else {
+      out_msg = "msg=\"repair successful\"";
+    }
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
 // Print the current log output
 //------------------------------------------------------------------------------
 void
@@ -480,11 +511,6 @@ Fsck::ReportJsonFormat(std::ostringstream& oss,
 
         for (auto it_fid = it->second.begin();
              it_fid != it->second.end(); ++it_fid) {
-          if (!display_fxid && !display_lfn) {
-            json.append(json_entry);
-            continue;
-          }
-
           json_ids.append(GetFidFormat(*it_fid, display_fxid, display_lfn));
         }
 
@@ -506,35 +532,25 @@ Fsck::ReportJsonFormat(std::ostringstream& oss,
       Json::Value json_entry;
       json_entry["timestamp"] = (Json::Value::UInt64) eTimeStamp;
       json_entry["tag"] = elem_map.first;
-      uint64_t count {0ull};
       Json::Value json_ids;
-      std::set<unsigned long long> added_fids;
+      std::set<unsigned long long> fids;
 
       for (const auto& elem : elem_map.second) {
         for (auto it = elem.second.begin(); it != elem.second.end(); ++it) {
-          if (added_fids.find(*it) != added_fids.end()) {
-            continue;
-          }
-
-          added_fids.insert(*it);
-          ++count;
-
-          if (!display_fxid && !display_lfn) {
-            continue;
-          }
-
-          json_ids.append(GetFidFormat(*it, display_fxid, display_lfn));
+          fids.insert(*it);
         }
       }
 
+      for (auto it = fids.begin(); it != fids.end(); ++it) {
+        json_ids.append(*it);
+      }
+
+      json_entry["count"] = (Json::Value::UInt64)fids.size();
+
       if (display_fxid) {
-        json_entry["count"] = (Json::Value::UInt64)count;
         json_entry["fxid"] = json_ids;
       } else if (display_lfn) {
-        json_entry["count"] = (Json::Value::UInt64)count;
         json_entry["lfn"] = json_ids;
-      } else {
-        json_entry["count"] = (Json::Value::UInt64)count;
       }
 
       json.append(json_entry);
@@ -615,41 +631,31 @@ Fsck::ReportMonitorFormat(std::ostringstream& oss,
       }
 
       oss << "timestamp=" << eTimeStamp << " tag=\"" << elem_map.first << "\"";
-      std::set<unsigned long long> added_fids;
-      std::ostringstream oss_ids;
-      uint64_t count {0ull};
+      std::set<unsigned long long> fids;
 
       for (const auto& elem : elem_map.second) {
         for (auto it = elem.second.begin(); it != elem.second.end(); ++it) {
-          if (added_fids.find(*it) != added_fids.end()) {
-            continue;
-          } else {
-            added_fids.insert(*it);
-          }
-
-          ++count;
-
-          if (!display_fxid && !display_lfn) {
-            continue;
-          }
-
-          oss_ids << GetFidFormat(*it, display_fxid, display_lfn);
-
-          if (it != std::prev(elem.second.end())) {
-            oss_ids << ", ";
-          }
+          fids.insert(*it);
         }
       }
 
-      oss << " count=" << count;
+      oss << " count=" << fids.size();
 
       if (display_fxid) {
         oss << " fxid=";
       } else if (display_lfn) {
         oss << " lfn=";
+      } else {
+        continue;
       }
 
-      oss << oss_ids.str() << std::endl;
+      for (auto it = fids.begin(); it != fids.end(); ++it) {
+        oss << GetFidFormat(*it, display_fxid, display_lfn);
+
+        if (it != std::prev(fids.end())) {
+          oss << ", ";
+        }
+      }
     }
   }
 
