@@ -104,14 +104,14 @@ public:
   //! @param output output string
   //! @param tags set of tags for which the report should be generated
   //! @param display_per_fs if true then display information per file system
-  //! @param display_fid if true then display file identifiers
+  //! @param display_fxid if true then display file identifiers
   //! @param display_lfn if true then display logical file name
   //! @param display_json if true then dispaly info in json format
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool Report(std::string& output, const std::set<std::string> tags,
-              bool display_per_fs,  bool display_fid, bool display_lfn,
+              bool display_per_fs,  bool display_fxid, bool display_lfn,
               bool display_json);
 
   //----------------------------------------------------------------------------
@@ -211,6 +211,49 @@ private:
   //! Fids repaired in the last hour
   IdTrackerWithValidity<eos::IFileMD::id_t> mIdTracker;
   std::shared_ptr<qclient::QClient> mQcl; ///< QClient object for metadata
+
+  //----------------------------------------------------------------------------
+  //! Create report in JSON format
+  //!
+  //! @param output output string
+  //! @param tags set of tags for which the report should be generated
+  //! @param display_per_fs if true then display information per file system
+  //! @param display_fxid if true then display file identifiers
+  //! @param display_lfn if true then display logical file name
+  //----------------------------------------------------------------------------
+  void ReportJsonFormat(std::ostringstream& output,
+                        const std::set<std::string> tags,
+                        bool display_per_fs, bool display_fxid,
+                        bool display_lfn) const;
+
+  //----------------------------------------------------------------------------
+  //! Create report in monitor format
+  //!
+  //! @param output output string
+  //! @param tags set of tags for which the report should be generated
+  //! @param display_per_fs if true then display information per file system
+  //! @param display_fxid if true then display file identifiers
+  //! @param display_lfn if true then display logical file name
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  void ReportMonitorFormat(std::ostringstream& output,
+                           const std::set<std::string> tags,
+                           bool display_per_fs, bool display_fxid,
+                           bool display_lfn) const;
+
+  //----------------------------------------------------------------------------
+  //! Get the require format for the given file identifier. Empty if no format
+  //! requested
+  //!
+  //! @param fid file identifier
+  //! @param display_fxid if true display the hex format
+  //! @param display_lfn if true then display the URI if available
+  //!
+  //! @return string representation
+  //----------------------------------------------------------------------------
+  std::string GetFidFormat(eos::IFileMD::id_t fid, bool display_fxid, bool
+                           display_lfn) const;
 
   //----------------------------------------------------------------------------
   //! Reset all collected errors in the error map

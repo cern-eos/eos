@@ -82,7 +82,7 @@ FsckHelper::ParseCommand(const char* arg)
       if (soption == "-a") {
         report->set_display_per_fs(true);
       } else if (soption == "-i") {
-        report->set_display_fid(true);
+        report->set_display_fxid(true);
       } else if (soption == "-l") {
         report->set_display_lfn(true);
       } else if ((soption == "-j") || (soption == "--json")) {
