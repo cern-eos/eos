@@ -1142,101 +1142,88 @@ FileSystemCoreParams FileSystem::getCoreParams()
 bool
 FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
 {
-  if (dolock) {
-    mSom->HashMutex.LockRead();
-  }
+  mq::SharedHashWrapper hash(mHashLocator, dolock, false);
 
-  XrdMqSharedHash* hash = nullptr;
-
-  if ((hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash"))) {
-    fs.mId = (fsid_t) hash->GetUInt("id");
-    fs.mQueue = mLocator.getFSTQueue();
-    fs.mQueuePath = mLocator.getQueuePath();
-    fs.mGroup = hash->Get("schedgroup");
-    fs.mUuid = hash->Get("uuid");
-    fs.mHost = mLocator.getHost();
-    fs.mHostPort = mLocator.getHostPort();
-    fs.mProxyGroup = hash->Get("proxygroup");
-    fs.mS3Credentials = hash->Get("s3credentials");
-    fs.mFileStickyProxyDepth = -1;
-
-    if (hash->Get("filestickyproxydepth").size()) {
-      fs.mFileStickyProxyDepth = hash->GetLongLong("filestickyproxydepth");
-    }
-
-    fs.mPort = mLocator.getPort();
-    GroupLocator groupLocator;
-    GroupLocator::parseGroup(fs.mGroup, groupLocator);
-    fs.mSpace = groupLocator.getSpace();
-    fs.mGroupIndex = groupLocator.getIndex();
-    fs.mPath = mLocator.getStoragePath();
-    fs.mErrMsg = hash->Get("stat.errmsg");
-    fs.mGeoTag = hash->Get("stat.geotag");
-    fs.mForceGeoTag.clear();
-
-    if (hash->Get("forcegeotag").size()) {
-      std::string forceGeoTag = hash->Get("forcegeotag");
-
-      if (forceGeoTag != "<none>") {
-        fs.mGeoTag = forceGeoTag;
-        fs.mForceGeoTag = forceGeoTag;
-      }
-    }
-
-    fs.mPublishTimestamp = (size_t)hash->GetLongLong("stat.publishtimestamp");
-    fs.mStatus = GetStatusFromString(hash->Get("stat.boot").c_str());
-    fs.mConfigStatus = GetConfigStatusFromString(
-                         hash->Get("configstatus").c_str());
-    fs.mDrainStatus = GetDrainStatusFromString(hash->Get("stat.drain").c_str());
-    fs.mActiveStatus = GetActiveStatusFromString(hash->Get("stat.active").c_str());
-    //headroom can be configured as KMGTP so the string should be properly converted
-    fs.mHeadRoom = StringConversion::GetSizeFromString(hash->Get("headroom"));
-    fs.mErrCode = (unsigned int) hash->GetLongLong("stat.errc");
-    fs.mBootSentTime = (time_t) hash->GetLongLong("stat.bootsenttime");
-    fs.mBootDoneTime = (time_t) hash->GetLongLong("stat.bootdonetime");
-    fs.mHeartBeatTime = mHeartBeatTime;
-    fs.mDiskUtilization = hash->GetDouble("stat.disk.load");
-    fs.mNetEthRateMiB = hash->GetDouble("stat.net.ethratemib");
-    fs.mNetInRateMiB = hash->GetDouble("stat.net.inratemib");
-    fs.mNetOutRateMiB = hash->GetDouble("stat.net.outratemib");
-    fs.mDiskWriteRateMb = hash->GetDouble("stat.disk.writeratemb");
-    fs.mDiskReadRateMb = hash->GetDouble("stat.disk.readratemb");
-    fs.mDiskType = (long) hash->GetLongLong("stat.statfs.type");
-    fs.mDiskFreeBytes = hash->GetLongLong("stat.statfs.freebytes");
-    fs.mDiskCapacity = hash->GetLongLong("stat.statfs.capacity");
-    fs.mDiskBsize = (long) hash->GetLongLong("stat.statfs.bsize");
-    fs.mDiskBlocks = (long) hash->GetLongLong("stat.statfs.blocks");
-    fs.mDiskBfree = (long) hash->GetLongLong("stat.statfs.bfree");
-    fs.mDiskBused = (long) hash->GetLongLong("stat.statfs.bused");
-    fs.mDiskBavail = (long) hash->GetLongLong("stat.statfs.bavail");
-    fs.mDiskFiles = (long) hash->GetLongLong("stat.statfs.files");
-    fs.mDiskFfree = (long) hash->GetLongLong("stat.statfs.ffree");
-    fs.mDiskFused = (long) hash->GetLongLong("stat.statfs.fused");
-    fs.mDiskFilled = (double) hash->GetDouble("stat.statfs.filled");
-    fs.mNominalFilled = (double) hash->GetDouble("stat.nominal.filled");
-    fs.mFiles = (long) hash->GetLongLong("stat.usedfiles");
-    fs.mDiskNameLen = (long) hash->GetLongLong("stat.statfs.namelen");
-    fs.mDiskRopen = (long) hash->GetLongLong("stat.ropen");
-    fs.mDiskWopen = (long) hash->GetLongLong("stat.wopen");
-    fs.mScanRate = (time_t) hash->GetLongLong("scanrate");
-    fs.mScanInterval = (time_t) hash->GetLongLong("scaninterval");
-    fs.mGracePeriod = (time_t) hash->GetLongLong("graceperiod");
-    fs.mDrainPeriod = (time_t) hash->GetLongLong("drainperiod");
-    fs.mBalThresh   = hash->GetDouble("stat.balance.threshold");
-
-    if (dolock) {
-      mSom->HashMutex.UnLockRead();
-    }
-
-    return true;
-  } else {
-    if (dolock) {
-      mSom->HashMutex.UnLockRead();
-    }
-
+  std::string tmp;
+  if(!hash.get("id", tmp)) {
     fs = {};
     return false;
   }
+
+  fs.mId = hash.getLongLong("id");
+  fs.mQueue = mLocator.getFSTQueue();
+  fs.mQueuePath = mLocator.getQueuePath();
+  fs.mGroup = hash.get("schedgroup");
+  fs.mUuid = hash.get("uuid");
+  fs.mHost = mLocator.getHost();
+  fs.mHostPort = mLocator.getHostPort();
+  fs.mProxyGroup = hash.get("proxygroup");
+  fs.mS3Credentials = hash.get("s3credentials");
+  fs.mFileStickyProxyDepth = -1;
+
+  if (hash.get("filestickyproxydepth").size()) {
+    fs.mFileStickyProxyDepth = hash.getLongLong("filestickyproxydepth");
+  }
+
+  fs.mPort = mLocator.getPort();
+  GroupLocator groupLocator;
+  GroupLocator::parseGroup(fs.mGroup, groupLocator);
+  fs.mSpace = groupLocator.getSpace();
+  fs.mGroupIndex = groupLocator.getIndex();
+  fs.mPath = mLocator.getStoragePath();
+  fs.mErrMsg = hash.get("stat.errmsg");
+  fs.mGeoTag = hash.get("stat.geotag");
+  fs.mForceGeoTag.clear();
+
+  if (hash.get("forcegeotag").size()) {
+    std::string forceGeoTag = hash.get("forcegeotag");
+
+    if (forceGeoTag != "<none>") {
+      fs.mGeoTag = forceGeoTag;
+      fs.mForceGeoTag = forceGeoTag;
+    }
+  }
+
+  fs.mPublishTimestamp = (size_t) hash.getLongLong("stat.publishtimestamp");
+  fs.mStatus = GetStatusFromString(hash.get("stat.boot").c_str());
+  fs.mConfigStatus = GetConfigStatusFromString(hash.get("configstatus").c_str());
+  fs.mDrainStatus = GetDrainStatusFromString(hash.get("stat.drain").c_str());
+  fs.mActiveStatus = GetActiveStatusFromString(hash.get("stat.active").c_str());
+  //headroom can be configured as KMGTP so the string should be properly converted
+  fs.mHeadRoom = StringConversion::GetSizeFromString(hash.get("headroom"));
+  fs.mErrCode = (unsigned int) hash.getLongLong("stat.errc");
+  fs.mBootSentTime = (time_t) hash.getLongLong("stat.bootsenttime");
+  fs.mBootDoneTime = (time_t) hash.getLongLong("stat.bootdonetime");
+  fs.mHeartBeatTime = mHeartBeatTime;
+  fs.mDiskUtilization = hash.getDouble("stat.disk.load");
+  fs.mNetEthRateMiB = hash.getDouble("stat.net.ethratemib");
+  fs.mNetInRateMiB = hash.getDouble("stat.net.inratemib");
+  fs.mNetOutRateMiB = hash.getDouble("stat.net.outratemib");
+  fs.mDiskWriteRateMb = hash.getDouble("stat.disk.writeratemb");
+  fs.mDiskReadRateMb = hash.getDouble("stat.disk.readratemb");
+  fs.mDiskType = (long) hash.getLongLong("stat.statfs.type");
+  fs.mDiskFreeBytes = hash.getLongLong("stat.statfs.freebytes");
+  fs.mDiskCapacity = hash.getLongLong("stat.statfs.capacity");
+  fs.mDiskBsize = (long) hash.getLongLong("stat.statfs.bsize");
+  fs.mDiskBlocks = (long) hash.getLongLong("stat.statfs.blocks");
+  fs.mDiskBfree = (long) hash.getLongLong("stat.statfs.bfree");
+  fs.mDiskBused = (long) hash.getLongLong("stat.statfs.bused");
+  fs.mDiskBavail = (long) hash.getLongLong("stat.statfs.bavail");
+  fs.mDiskFiles = (long) hash.getLongLong("stat.statfs.files");
+  fs.mDiskFfree = (long) hash.getLongLong("stat.statfs.ffree");
+  fs.mDiskFused = (long) hash.getLongLong("stat.statfs.fused");
+  fs.mDiskFilled = (double) hash.getDouble("stat.statfs.filled");
+  fs.mNominalFilled = (double) hash.getDouble("stat.nominal.filled");
+  fs.mFiles = (long) hash.getLongLong("stat.usedfiles");
+  fs.mDiskNameLen = (long) hash.getLongLong("stat.statfs.namelen");
+  fs.mDiskRopen = (long) hash.getLongLong("stat.ropen");
+  fs.mDiskWopen = (long) hash.getLongLong("stat.wopen");
+  fs.mScanRate = (time_t) hash.getLongLong("scanrate");
+  fs.mScanInterval = (time_t) hash.getLongLong("scaninterval");
+  fs.mGracePeriod = (time_t) hash.getLongLong("graceperiod");
+  fs.mDrainPeriod = (time_t) hash.getLongLong("drainperiod");
+  fs.mBalThresh   = hash.getDouble("stat.balance.threshold");
+  return true;
 }
 
 //----------------------------------------------------------------------------
