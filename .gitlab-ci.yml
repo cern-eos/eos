@@ -1048,6 +1048,7 @@ rpm_stable_artifacts:
     - docker_node
   only:
     - tags
+  dependencies: []
   when: manual
 
 
