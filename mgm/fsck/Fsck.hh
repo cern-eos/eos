@@ -115,17 +115,6 @@ public:
               bool display_json);
 
   //----------------------------------------------------------------------------
-  //! Method ot issue a repair action
-  //!
-  //! @param out output of the repair action
-  //! @param options set of error types to be repaired
-  //!
-  //! @return true if successful, otherwise false and out contains the error
-  //!         message
-  //----------------------------------------------------------------------------
-  bool Repair(std::string& out, const std::set<std::string>& options);
-
-  //----------------------------------------------------------------------------
   //! Clear the in-memory log
   //----------------------------------------------------------------------------
   void ClearLog();
@@ -208,8 +197,6 @@ private:
   std::map<std::string,
       std::map<eos::common::FileSystem::fsid_t,
       std::set <eos::common::FileId::fileid_t> > > eFsMap;
-  //! Error summary map storing "<error-name>"=>[fid1,fid2,fid3...]"
-  std::map<std::string, std::set <eos::common::FileId::fileid_t> > eMap;
   //! Unavailable filesystems map
   std::map<eos::common::FileSystem::fsid_t, unsigned long long > eFsUnavail;
   //! Dark filesystem map - filesystems referenced by a file but not configured
