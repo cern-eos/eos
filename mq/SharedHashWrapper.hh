@@ -30,6 +30,7 @@
 #include "mgm/TableFormatter/TableCell.hh"
 #include <string>
 #include <vector>
+#include <map>
 
 class XrdMqSharedHash;
 class XrdMqSharedObjectManager;
