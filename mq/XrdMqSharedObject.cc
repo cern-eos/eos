@@ -31,7 +31,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <algorithm>
-#include <curl/curl.h>
 
 using eos::common::RWMutexReadLock;
 using eos::common::RWMutexWriteLock;
@@ -291,6 +290,24 @@ XrdMqSharedHash::GetKeys()
 }
 
 //------------------------------------------------------------------------------
+// Get a copy of all the keys + values
+//
+// @return map containing all the key-value pairs in the hash
+//------------------------------------------------------------------------------
+std::map<std::string, std::string>
+XrdMqSharedHash::GetContents()
+{
+  std::map<std::string, std::string> contents;
+  RWMutexReadLock rd_lock(*mStoreMutex);
+
+  for (auto it = mStore.begin(); it != mStore.end(); ++it) {
+    contents.emplace(it->first, it->second.GetValue());
+  }
+
+  return contents;
+}
+
+//------------------------------------------------------------------------------
 // Get key value as long long
 //------------------------------------------------------------------------------
 long long
@@ -315,60 +332,6 @@ unsigned int
 XrdMqSharedHash::GetUInt(const char* key)
 {
   return (unsigned int) GetLongLong(key);
-}
-
-//-------------------------------------------------------------------------------
-// Serializes hash contents as follows 'key1=val1 key2=val2 ... keyn=valn'
-// but return only keys that don't start with filter_prefix. If specified,
-// string literal values will be curl encoded
-//-------------------------------------------------------------------------------
-std::string
-XrdMqSharedHash::SerializeWithFilter(const char* filter_prefix,
-                                     bool encode_strings)
-{
-  std::string key {""};
-  std::string val {""};
-  std::ostringstream oss;
-  CURL* curl = curl_easy_init();
-
-  if (curl) {
-    RWMutexReadLock rd_lock(*mStoreMutex);
-
-    for (auto it = mStore.begin(); it != mStore.end(); ++it) {
-      key = it->first.c_str();
-
-      // @todo(esindril): This should be removed in version 5.0.0. Exclude old
-      // drainstatus indicator which is not saved in the config anymore.
-      if (key == "drainstatus") {
-        continue;
-      }
-
-      if (((filter_prefix == nullptr) || (strlen(filter_prefix) == 0)) ||
-          (key.find(filter_prefix) != 0)) {
-        val = it->second.GetValue();
-
-        if (curl && encode_strings) {
-          if ((val[0] == '"') && (val[val.length() - 1] == '"')) {
-            std::string to_encode = val.substr(1, val.length() - 2);
-            char* encoded = curl_easy_escape(curl, to_encode.c_str(), 0);
-
-            if (encoded) {
-              val = '"';
-              val += encoded;
-              val += '"';
-              curl_free(encoded);
-            }
-          }
-        }
-
-        oss << key << "=" << val.c_str() << " ";
-      }
-    }
-
-    curl_easy_cleanup(curl);
-  }
-
-  return oss.str();
 }
 
 //------------------------------------------------------------------------------

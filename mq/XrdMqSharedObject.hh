@@ -264,6 +264,13 @@ public:
   std::vector<std::string> GetKeys();
 
   //----------------------------------------------------------------------------
+  //! Get a copy of all the keys + values
+  //!
+  //! @return map containing all the key-value pairs in the hash
+  //----------------------------------------------------------------------------
+  std::map<std::string, std::string> GetContents();
+
+  //----------------------------------------------------------------------------
   //! Set broadcast queue
   //!
   //! @param bcast_queue broadcast queue
@@ -326,19 +333,6 @@ public:
   //! @param broadcast if true then broadcast the deletions
   //----------------------------------------------------------------------------
   void Clear(bool broadcast = true);
-
-  //----------------------------------------------------------------------------
-  //! Serializes hash contents as follows 'key1=val1 key2=val2 ... keyn=valn'
-  //! but return only keys that don't start with filter_prefix. If specified,
-  //! the string values will be curl encoded
-  //!
-  //! @param filter_prefix prefix used for filtering keys
-  //! @param encode_strings curl encode string literal values
-  //!
-  //! @return string representation of the content for the hash
-  //----------------------------------------------------------------------------
-  std::string SerializeWithFilter(const char* filter_prefix = "",
-                                  bool encode_strings = false);
 
   //----------------------------------------------------------------------------
   //! Set entry in hash map

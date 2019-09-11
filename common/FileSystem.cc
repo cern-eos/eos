@@ -28,6 +28,7 @@
 #include "common/StringUtils.hh"
 #include "common/ParseUtils.hh"
 #include "common/Assert.hh"
+#include <curl/curl.h>
 
 EOSCOMMONNAMESPACE_BEGIN;
 
@@ -967,6 +968,62 @@ std::string FileSystem::GetString(const char* key) {
 }
 
 //------------------------------------------------------------------------------
+// Serializes hash contents as follows 'key1=val1 key2=val2 ... keyn=valn'
+// but return only keys that don't start with filter_prefix. If specified,
+// the string values will be curl encoded
+//
+// @param filter_prefix prefix used for filtering keys
+// @param encode_strings curl encode string literal values
+//
+// @return string representation of the content for the hash
+//------------------------------------------------------------------------------
+static std::string serializeWithFilter(
+  const std::map<std::string, std::string> &contents, const char* filter_prefix) {
+
+  std::string key;
+  std::string val;
+  std::ostringstream oss;
+  CURL* curl = curl_easy_init();
+
+  if (curl) {
+    for (auto it = contents.begin(); it != contents.end(); it++) {
+      key = it->first.c_str();
+
+      // @todo(esindril): This should be removed in version 5.0.0. Exclude old
+      // drainstatus indicator which is not saved in the config anymore.
+      if (key == "drainstatus") {
+        continue;
+      }
+
+      if (((filter_prefix == nullptr) || (strlen(filter_prefix) == 0)) ||
+          (key.find(filter_prefix) != 0)) {
+        val = it->second;
+
+        if (curl) {
+          if ((val[0] == '"') && (val[val.length() - 1] == '"')) {
+            std::string to_encode = val.substr(1, val.length() - 2);
+            char* encoded = curl_easy_escape(curl, to_encode.c_str(), 0);
+
+            if (encoded) {
+              val = '"';
+              val += encoded;
+              val += '"';
+              curl_free(encoded);
+            }
+          }
+        }
+
+        oss << key << "=" << val.c_str() << " ";
+      }
+    }
+
+    curl_easy_cleanup(curl);
+  }
+
+  return oss.str();
+}
+
+//------------------------------------------------------------------------------
 // Store a configuration key-val pair.
 // Internally, these keys are not prefixed with 'stat.'
 //------------------------------------------------------------------------------
@@ -977,7 +1034,7 @@ FileSystem::CreateConfig(std::string& key, std::string& val)
   RWMutexReadLock lock(mSom->HashMutex);
   key = mLocator.getQueuePath();
   XrdMqSharedHash* hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash");
-  val = hash->SerializeWithFilter("stat.", true);
+  val = serializeWithFilter(hash->GetContents(), "stat.");
 }
 
 //------------------------------------------------------------------------------
