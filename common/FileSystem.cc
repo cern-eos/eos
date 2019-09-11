@@ -1153,11 +1153,12 @@ static void printOntoTable(mq::SharedHashWrapper &hash, TableHeader& table_mq_he
 void
 FileSystem::CreateConfig(std::string& key, std::string& val)
 {
-  key = val = "";
-  RWMutexReadLock lock(mSom->HashMutex);
   key = mLocator.getQueuePath();
-  XrdMqSharedHash* hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash");
-  val = serializeWithFilter(hash->GetContents(), "stat.");
+  val.clear();
+
+  std::map<std::string, std::string> contents;
+  mq::SharedHashWrapper(mHashLocator).getContents(contents);
+  val = serializeWithFilter(contents, "stat.");
 }
 
 //------------------------------------------------------------------------------

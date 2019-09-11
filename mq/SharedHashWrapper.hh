@@ -97,6 +97,11 @@ public:
   bool getKeys(std::vector<std::string> &out);
 
   //----------------------------------------------------------------------------
+  //! Get all hash contents as a map
+  //----------------------------------------------------------------------------
+  bool getContents(std::map<std::string, std::string> &out);
+
+  //----------------------------------------------------------------------------
   //! Initialize, set shared manager.
   //! Call this function before using any SharedHashWrapper!
   //----------------------------------------------------------------------------

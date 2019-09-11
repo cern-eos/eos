@@ -134,6 +134,15 @@ bool SharedHashWrapper::getKeys(std::vector<std::string> &out) {
 }
 
 //------------------------------------------------------------------------------
+// Get all hash contents as a map
+//------------------------------------------------------------------------------
+bool SharedHashWrapper::getContents(std::map<std::string, std::string> &out) {
+  if(!mHash) return false;
+  out = mHash->GetContents();
+  return true;
+}
+
+//------------------------------------------------------------------------------
 // Initialize, set shared manager.
 // Call this function before using any SharedHashWrapper!
 //------------------------------------------------------------------------------
