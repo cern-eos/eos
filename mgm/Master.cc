@@ -1063,7 +1063,6 @@ Master::Activate(std::string& stdOut, std::string& stdErr, int transitiontype)
                                   gOFS->MgmConfigAutoLoad.c_str()));
         std::string configenv = gOFS->MgmConfigAutoLoad.c_str();
         XrdOucString stdErr = "";
-
         // Take care of setting the config engine for FsView to null while
         // applying the config otherwise we deadlock since the FsView will
         // try to set config keys
@@ -1728,6 +1727,14 @@ Master::BootNamespace()
     namespaceConfig["qdb_password"] = gOFS->mQdbPassword;
     namespaceConfig["qdb_flusher_md"] = SSTR(instance_id << "_md");
     namespaceConfig["qdb_flusher_quota"] = SSTR(instance_id << "_quota");
+
+    // Forbit running as slave with the QDB namespace when the legacy master-
+    // slave setup is still enabled
+    if (IsMaster() == false) {
+      eos_crit("%s", "msg=\"not allowed to run as slave with QDB namespace "
+               "while the legacy HA setup is still enabled\"");
+      return false;
+    }
   }
 
   if (!gOFS->namespaceGroup->initialize(&gOFS->eosViewRWMutex,
