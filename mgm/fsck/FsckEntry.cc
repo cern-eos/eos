@@ -25,6 +25,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
 #include "mgm/Stat.hh"
+#include "mgm/proc/proc_fs.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "common/StringConversion.hh"
@@ -619,12 +620,15 @@ FsckEntry::Repair()
     gOFS->MgmStats.Add("FsckRepairStarted", 0, 0, 1);
 
     if (CollectMgmInfo() == false) {
-      // @todo(esindril) or it could be a ghost fid entry still present in the
-      // file system map and we need to also drop it from there
       eos_err("msg=\"no repair action, file is orphan\", fid=%08llx fsid=%lu",
               mFid, mFsidErr);
       UpdateMgmStats(success);
       (void) DropReplica(mFsidErr);
+      // This could be a ghost fid entry still present in the file system map
+      // and we need to also drop it from there
+      std::string out, err;
+      auto root_vid = eos::common::VirtualIdentity::Root();
+      (void) proc_fs_dropghosts(mFsidErr, {mFid}, root_vid, out, err);
       return success;
     }
 
