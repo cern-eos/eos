@@ -42,12 +42,6 @@ fi
 ################################################################################
 # Execute system tests
 ################################################################################
-
-kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm1) \
-	-- eos chmod 2777 /eos/dockertest/
-kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm1) \
-	-- eos vid enable krb5
-
 # Execute full suite of instance tests if ONLY_CLIENT flag is not defined
 if [[ -z $ONLY_CLIENT ]]; then
 	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm1) \
