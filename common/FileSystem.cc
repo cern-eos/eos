@@ -1024,6 +1024,129 @@ static std::string serializeWithFilter(
 }
 
 //------------------------------------------------------------------------------
+// Print contents onto a table: Originally implemented in XrdMqSharedHash.
+//
+// Format contents of the hash map to be displayed using the table object.
+//
+// @param table_mq_header table header
+// @param talbe_md_data table data
+// @param format format has to be provided as a chain separated by "|" of
+//        the following tags
+// "key=<key>:width=<width>:format=[+][-][slfo]:unit=<unit>:tag=<tag>:condition=<key>=<val>"
+// -> to print a key of the attached children
+// "sep=<seperator>" -> to put a seperator
+// "header=1" -> to put a header with description on top - this must be the
+//               first format tag.
+// "indent=<n>" -> indent the output
+// The formats are:
+// 's' : print as string
+// 'S' : print as short string (truncated after .)
+// 'l' : print as long long
+// 'f' : print as double
+// 'o' : print as <key>=<val>
+// '-' : left align the printout
+// '+' : convert numbers into k,M,G,T,P ranges
+// The unit is appended to every number:
+// e.g. 1500 with unit=B would end up as '1.5 kB'
+// "tag=<tag>" -> use <tag> instead of the variable name to print the header
+// @param filter to filter out hash content
+//------------------------------------------------------------------------------
+static void printOntoTable(mq::SharedHashWrapper &hash, TableHeader& table_mq_header,
+  TableData& table_mq_data, std::string format, const std::string &filter) {
+
+  using eos::common::StringConversion;
+  std::vector<std::string> formattoken;
+  StringConversion::Tokenize(format, formattoken, "|");
+  table_mq_data.emplace_back();
+
+  for (unsigned int i = 0; i < formattoken.size(); ++i) {
+    std::vector<std::string> tagtoken;
+    std::map<std::string, std::string> formattags;
+    StringConversion::Tokenize(formattoken[i], tagtoken, ":");
+
+    for (unsigned int j = 0; j < tagtoken.size(); ++j) {
+      std::vector<std::string> keyval;
+      StringConversion::Tokenize(tagtoken[j], keyval, "=");
+
+      if (keyval.size() >= 2) {
+        formattags[keyval[0]] = keyval[1];
+      }
+    }
+
+    if (formattags.count("format")) {
+      unsigned int width = atoi(formattags["width"].c_str());
+      std::string format = formattags["format"];
+      std::string unit = formattags["unit"];
+
+      // Normal member printout
+      if (formattags.count("key")) {
+        if (format.find("s") != std::string::npos) {
+          table_mq_data.back().push_back(
+            TableCell(hash.get(formattags["key"]), format));
+        }
+
+        if ((format.find("S")) != std::string::npos) {
+          std::string shortstring = hash.get(formattags["key"].c_str());
+          const size_t pos = shortstring.find(".");
+
+          if (pos != std::string::npos) {
+            shortstring.erase(pos);
+          }
+
+          table_mq_data.back().push_back(TableCell(shortstring, format));
+        }
+
+        if ((format.find("l")) != std::string::npos) {
+          table_mq_data.back().push_back(
+            TableCell(hash.getLongLong(formattags["key"].c_str()), format, unit));
+        }
+
+        if ((format.find("f")) != std::string::npos) {
+          table_mq_data.back().push_back(
+            TableCell(hash.getDouble(formattags["key"].c_str()), format, unit));
+        }
+
+        XrdOucString name = formattags["key"].c_str();
+
+        if (format.find("o") == std::string::npos) {  //only for table output
+          name.replace("stat.", "");
+          name.replace("stat.statfs.", "");
+
+          if (formattags.count("tag")) {
+            name = formattags["tag"].c_str();
+          }
+        }
+
+        table_mq_header.push_back(std::make_tuple(name.c_str(), width, format));
+      }
+    }
+  }
+
+  //we check for filters
+  bool toRemove = false;
+
+  if (filter.find("d") != string::npos) {
+    std::string drain = hash.get("stat.drain");
+
+    if (drain == "nodrain") {
+      toRemove = true;
+    }
+  }
+
+  if (filter.find("e") != string::npos) {
+    int err = (int) hash.getLongLong("stat.errc");
+
+    if (err == 0) {
+      toRemove = true;
+    }
+  }
+
+  if (toRemove) {
+    table_mq_data.pop_back();
+  }
+}
+
+//------------------------------------------------------------------------------
 // Store a configuration key-val pair.
 // Internally, these keys are not prefixed with 'stat.'
 //------------------------------------------------------------------------------
@@ -1212,7 +1335,7 @@ FileSystem::Print(TableHeader& table_mq_header, TableData& table_mq_data,
                   std::string listformat, const std::string& filter)
 {
   mq::SharedHashWrapper hash(mHashLocator);
-  hash.print(table_mq_header, table_mq_data, listformat, filter);
+  printOntoTable(hash, table_mq_header, table_mq_data, listformat, filter);
 }
 
 //----------------------------------------------------------------------------

@@ -102,38 +102,6 @@ public:
   //----------------------------------------------------------------------------
   static void initialize(XrdMqSharedObjectManager *som);
 
-  //----------------------------------------------------------------------------
-  //! Print contents onto a table: Compatibility function, originally
-  //! implemented in XrdMqSharedHash.
-  //!
-  //! Format contents of the hash map to be displayed using the table object.
-  //!
-  //! @param table_mq_header table header
-  //! @param talbe_md_data table data
-  //! @param format format has to be provided as a chain separated by "|" of
-  //!        the following tags
-  //! "key=<key>:width=<width>:format=[+][-][slfo]:unit=<unit>:tag=<tag>:condition=<key>=<val>"
-  //! -> to print a key of the attached children
-  //! "sep=<seperator>" -> to put a seperator
-  //! "header=1" -> to put a header with description on top - this must be the
-  //!               first format tag.
-  //! "indent=<n>" -> indent the output
-  //! The formats are:
-  //! 's' : print as string
-  //! 'S' : print as short string (truncated after .)
-  //! 'l' : print as long long
-  //! 'f' : print as double
-  //! 'o' : print as <key>=<val>
-  //! '-' : left align the printout
-  //! '+' : convert numbers into k,M,G,T,P ranges
-  //! The unit is appended to every number:
-  //! e.g. 1500 with unit=B would end up as '1.5 kB'
-  //! "tag=<tag>" -> use <tag> instead of the variable name to print the header
-  //! @param filter to filter out hash content
-  //----------------------------------------------------------------------------
-  void print(TableHeader& table_mq_header, TableData& table_mq_data,
-    std::string format, const std::string &filter);
-
 private:
   common::SharedHashLocator mLocator;
   common::RWMutexReadLock mReadLock;
