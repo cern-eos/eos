@@ -219,7 +219,7 @@ before_script:
       else
         IMAGE_TAG="${BASETAG}${CI_PIPELINE_ID}";
       fi;
-    - git clone https://gitlab.cern.ch/faluchet/eos-on-k8s.git
+    - git clone https://gitlab.cern.ch/eos/eos-on-k8s.git
 
 
 .k8s_after_script_template: &k8s_after_script_template
