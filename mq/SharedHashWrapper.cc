@@ -85,6 +85,51 @@ bool SharedHashWrapper::set(const std::string &key, const std::string &value, bo
   return mHash->Set(key.c_str(), value.c_str(), broadcast);
 }
 
+//--------------------------------------------------------------------------
+// Set durable value
+//--------------------------------------------------------------------------
+void SharedHashWrapper::Batch::setDurable(const std::string& key, const std::string& value) {
+  mDurableUpdates[key] = value;
+}
+
+//--------------------------------------------------------------------------
+// Set transient value
+//--------------------------------------------------------------------------
+void SharedHashWrapper::Batch::setTransient(const std::string& key, const std::string& value) {
+  mTransientUpdates[key] = value;
+}
+
+//------------------------------------------------------------------------------
+// Set local value
+//------------------------------------------------------------------------------
+void SharedHashWrapper::Batch::setLocal(const std::string& key, const std::string& value) {
+  mLocalUpdates[key] = value;
+}
+
+//------------------------------------------------------------------------------
+//! Set key-value batch
+//------------------------------------------------------------------------------
+bool SharedHashWrapper::set(const Batch &batch) {
+  if(!mHash) return false;
+
+  mHash->OpenTransaction();
+
+  for (auto it = batch.mDurableUpdates.begin(); it != batch.mDurableUpdates.end(); it++) {
+    mHash->Set(it->first.c_str(), it->second.c_str(), true);
+  }
+
+  for (auto it = batch.mTransientUpdates.begin(); it != batch.mTransientUpdates.end(); it++) {
+    mHash->Set(it->first.c_str(), it->second.c_str(), true);
+  }
+
+  for (auto it = batch.mLocalUpdates.begin(); it != batch.mLocalUpdates.end(); it++) {
+    mHash->Set(it->first.c_str(), it->second.c_str(), false);
+  }
+
+  mHash->CloseTransaction();
+  return true;
+}
+
 //------------------------------------------------------------------------------
 // Query the given key
 //------------------------------------------------------------------------------

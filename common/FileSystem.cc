@@ -71,7 +71,7 @@ void FileSystemUpdateBatch::setDrainStatusLocal(DrainStatus status)
 void FileSystemUpdateBatch::setStringDurable(const std::string& key,
     const std::string& value)
 {
-  mDurableUpdates.emplace(key, value);
+  mBatch.setDurable(key, value);
 }
 
 //------------------------------------------------------------------------------
@@ -86,7 +86,7 @@ void FileSystemUpdateBatch::setStringDurable(const std::string& key,
 void FileSystemUpdateBatch::setStringTransient(const std::string& key,
     const std::string& value)
 {
-  mTransientUpdates.emplace(key, value);
+  mBatch.setTransient(key, value);
 }
 
 //------------------------------------------------------------------------------
@@ -96,7 +96,7 @@ void FileSystemUpdateBatch::setStringTransient(const std::string& key,
 void FileSystemUpdateBatch::setStringLocal(const std::string& key,
     const std::string& value)
 {
-  mLocalUpdates.emplace(key, value);
+  mBatch.setLocal(key, value);
 }
 
 //------------------------------------------------------------------------------
@@ -129,28 +129,10 @@ void FileSystemUpdateBatch::setLongLongLocal(const std::string& key,
 //------------------------------------------------------------------------------
 // Get durable updates map
 //------------------------------------------------------------------------------
-const std::map<std::string, std::string>&
-FileSystemUpdateBatch::getDurableUpdates() const
+const mq::SharedHashWrapper::Batch&
+FileSystemUpdateBatch::getBatch() const
 {
-  return mDurableUpdates;
-}
-
-//------------------------------------------------------------------------------
-// Get transient updates map
-//------------------------------------------------------------------------------
-const std::map<std::string, std::string>&
-FileSystemUpdateBatch::getTransientUpdates() const
-{
-  return mTransientUpdates;
-}
-
-//------------------------------------------------------------------------------
-// Get local updates map
-//------------------------------------------------------------------------------
-const std::map<std::string, std::string>&
-FileSystemUpdateBatch::getLocalUpdates() const
-{
-  return mLocalUpdates;
+  return mBatch;
 }
 
 //------------------------------------------------------------------------------
@@ -879,34 +861,7 @@ FileSystem::GetRegisterRequestString()
 //------------------------------------------------------------------------------
 bool FileSystem::applyBatch(const FileSystemUpdateBatch& batch)
 {
-  RWMutexReadLock lock(mSom->HashMutex);
-  XrdMqSharedHash* hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash");
-
-  if (!hash) {
-    return false;
-  }
-
-  hash->OpenTransaction();
-  auto& durable = batch.getDurableUpdates();
-
-  for (auto it = durable.begin(); it != durable.end(); it++) {
-    hash->Set(it->first.c_str(), it->second.c_str(), true);
-  }
-
-  auto& transient = batch.getTransientUpdates();
-
-  for (auto it = transient.begin(); it != transient.end(); it++) {
-    hash->Set(it->first.c_str(), it->second.c_str(), true);
-  }
-
-  auto& local = batch.getLocalUpdates();
-
-  for (auto it = local.begin(); it != local.end(); it++) {
-    hash->Set(it->first.c_str(), it->second.c_str(), false);
-  }
-
-  hash->CloseTransaction();
-  return true;
+  return mq::SharedHashWrapper(mHashLocator).set(batch.getBatch());
 }
 
 //------------------------------------------------------------------------------

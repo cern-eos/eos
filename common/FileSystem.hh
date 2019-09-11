@@ -193,25 +193,12 @@ public:
   void setLongLongLocal(const std::string& key, int64_t value);
 
   //----------------------------------------------------------------------------
-  //! Get durable updates map
+  //! Get MQ update batch
   //----------------------------------------------------------------------------
-  const std::map<std::string, std::string>& getDurableUpdates() const;
-
-  //----------------------------------------------------------------------------
-  //! Get transient updates map
-  //----------------------------------------------------------------------------
-  const std::map<std::string, std::string>& getTransientUpdates() const;
-
-  //----------------------------------------------------------------------------
-  //! Get local updates map
-  //----------------------------------------------------------------------------
-  const std::map<std::string, std::string>& getLocalUpdates() const;
-
+  const mq::SharedHashWrapper::Batch& getBatch() const;
 
 private:
-  std::map<std::string, std::string> mDurableUpdates;
-  std::map<std::string, std::string> mTransientUpdates;
-  std::map<std::string, std::string> mLocalUpdates;
+  mq::SharedHashWrapper::Batch mBatch;
 };
 
 //------------------------------------------------------------------------------
