@@ -342,6 +342,8 @@ Acl::Set(std::string sysacl, std::string useracl,
               } else {
                 if (!mCanWriteOnce) {
                   mCanWrite = !deny;
+		  // by default 'w' adds update rights
+		  mCanUpdate = !deny;
                 }
               }
               break;
