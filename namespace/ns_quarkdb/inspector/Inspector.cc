@@ -28,6 +28,7 @@
 #include "namespace/ns_quarkdb/persistency/FileSystemIterator.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemHandler.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
+#include "namespace/utils/Checksum.hh"
 #include "namespace/Constants.hh"
 #include "common/LayoutId.hh"
 #include "common/IntervalStopwatch.hh"
@@ -1003,7 +1004,7 @@ static std::string serializeRequest(const RedisRequest &req) {
 //------------------------------------------------------------------------------
 // Change the given fid - USE WITH CAUTION
 //------------------------------------------------------------------------------
-int Inspector::changeFid(uint64_t fid, uint64_t newParent, std::ostream &out, std::ostream &err) {
+int Inspector::changeFid(uint64_t fid, uint64_t newParent, const std::string &newChecksum, std::ostream &out, std::ostream &err) {
   eos::ns::FileMdProto val;
 
   try {
@@ -1022,6 +1023,21 @@ int Inspector::changeFid(uint64_t fid, uint64_t newParent, std::ostream &out, st
     ok = true;
     err << "    Container ID: " << val.cont_id() << " --> " << newParent << std::endl;
     val.set_cont_id(newParent);
+  }
+
+  if(!newChecksum.empty()) {
+    std::string existingChecksum;
+    eos::appendChecksumOnStringProtobuf(val, existingChecksum);
+
+    std::string newChecksumBytes;
+    if(!eos::hexArrayToByteArray(newChecksum.c_str(), newChecksum.size(), newChecksumBytes)) {
+      err << "Error: Could not decode checksum, needs to be in hex: " << newChecksum << std::endl;
+      return 1;
+    }
+
+    ok = true;
+    err << "    Checksum: " << existingChecksum << " --> " << newChecksum << std::endl;
+    val.set_checksum(newChecksumBytes.c_str(), newChecksumBytes.size());
   }
 
   if(!ok) {

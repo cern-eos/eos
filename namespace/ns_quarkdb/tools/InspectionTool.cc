@@ -171,12 +171,54 @@ int main(int argc, char* argv[]) {
   addClusterOptions(checkSimulatedHardlinks, membersStr, memberValidator, password, passwordFile);
 
   //----------------------------------------------------------------------------
+  // Set-up print subcommand..
+  //----------------------------------------------------------------------------
+  auto printSubcommand = app.add_subcommand("print", "Print everything known about a given file, or container");
+  addClusterOptions(printSubcommand, membersStr, memberValidator, password, passwordFile);
+
+  uint64_t fid = 0;
+  uint64_t cid = 0;
+
+  auto idGroup = printSubcommand->add_option_group("ID", "Specify what to print");
+  idGroup->add_option("--fid", fid, "Specify the FileMD to print, through its ID (decimal form)");
+  idGroup->add_option("--cid", cid, "Specify the ContainerMD to print, through its ID (decimal form)");
+  idGroup->require_option(1, 1);
+
+  //----------------------------------------------------------------------------
+  // Change fid protobuf properties
+  //----------------------------------------------------------------------------
+  auto changeFidSubcommand = app.add_subcommand("change-fid", "[DANGEROUS] Change specified properties of a single fid. Better know what you're doing before using this!");
+  addClusterOptions(changeFidSubcommand, membersStr, memberValidator, password, passwordFile);
+
+  uint64_t newParent = 0;
+  std::string newChecksum;
+
+  changeFidSubcommand->add_option("--fid", fid, "Specify the FileMD to print, through its ID (decimal form)")
+  ->required();
+
+  changeFidSubcommand->add_option("--new-parent", newParent, "Change the parent container of the specified fid. This _DOES NOT_ modify the respective container maps, only the protobuf FMD!");
+  changeFidSubcommand->add_option("--new-checksum", newChecksum, "Change the checksum of the specified fid.");
+
+  //----------------------------------------------------------------------------
+  // Rename a fid from its current location
+  //----------------------------------------------------------------------------
+  std::string newName;
+
+  auto renameFidSubcommand = app.add_subcommand("rename-fid", "[DANGEROUS] Rename a file onto the specified container ID - the respective container maps are modified as well.");
+  addClusterOptions(renameFidSubcommand, membersStr, memberValidator, password, passwordFile);
+
+  renameFidSubcommand->add_option("--fid", fid, "Specify the FileMD to rename")
+    ->required();
+  renameFidSubcommand->add_option("--destination-cid", newParent, "The destination container ID in which to put the FileMD")
+    ->required();
+  renameFidSubcommand->add_option("--new-pathname", newName, "The new name of the specified fid - must only contain alphanumeric characters, and can be left empty");
+
+  //----------------------------------------------------------------------------
   // Set-up overwrite-container subcommand..
   //----------------------------------------------------------------------------
-  auto overwriteContainerSubcommand = app.add_subcommand("overwrite-container", "Overwrite the given ContainerMD - USE WITH CAUTION");
+  auto overwriteContainerSubcommand = app.add_subcommand("overwrite-container", "[DANGEROUS] Overwrite the given ContainerMD - USE WITH CAUTION");
   addClusterOptions(overwriteContainerSubcommand, membersStr, memberValidator, password, passwordFile);
 
-  uint64_t cid = 0;
   uint64_t parent;
   std::string containerName;
 
@@ -189,42 +231,7 @@ int main(int argc, char* argv[]) {
   overwriteContainerSubcommand->add_option("--name", containerName, "Specify the container's name")
     ->required();
 
-  //----------------------------------------------------------------------------
-  // Set-up print subcommand..
-  //----------------------------------------------------------------------------
-  auto printSubcommand = app.add_subcommand("print", "Print everything known about a given file, or container");
-  addClusterOptions(printSubcommand, membersStr, memberValidator, password, passwordFile);
 
-  uint64_t fid = 0;
-
-  auto idGroup = printSubcommand->add_option_group("ID", "Specify what to print");
-  idGroup->add_option("--fid", fid, "Specify the FileMD to print, through its ID (decimal form)");
-  idGroup->add_option("--cid", cid, "Specify the ContainerMD to print, through its ID (decimal form)");
-  idGroup->require_option(1, 1);
-
-  //----------------------------------------------------------------------------
-  // Change fid protobuf properties
-  //----------------------------------------------------------------------------
-  auto changeFidSubcommand = app.add_subcommand("change-fid", "Change specified properties of a single fid. Better know what you're doing before using this!");
-  addClusterOptions(changeFidSubcommand, membersStr, memberValidator, password, passwordFile);
-
-  uint64_t newParent = 0;
-  changeFidSubcommand->add_option("--fid", fid, "Specify the FileMD to print, through its ID (decimal form)");
-  changeFidSubcommand->add_option("--new-parent", newParent, "Change the parent container of the specified fid. This _DOES NOT_ modify the respective container maps, only the protobuf FMD!");
-
-  //----------------------------------------------------------------------------
-  // Rename a fid from its current location
-  //----------------------------------------------------------------------------
-  std::string newName;
-
-  auto renameFidSubcommand = app.add_subcommand("rename-fid", "Rename a file onto the specified container ID - the respective container maps are modified as well.");
-  addClusterOptions(renameFidSubcommand, membersStr, memberValidator, password, passwordFile);
-
-  renameFidSubcommand->add_option("--fid", fid, "Specify the FileMD to rename")
-    ->required();
-  renameFidSubcommand->add_option("--destination-cid", newParent, "The destination container ID in which to put the FileMD")
-    ->required();
-  renameFidSubcommand->add_option("--new-pathname", newName, "The new name of the specified fid - must only contain alphanumeric characters, and can be left empty");
 
   //----------------------------------------------------------------------------
   // Parse..
@@ -323,7 +330,7 @@ int main(int argc, char* argv[]) {
   }
 
   if(changeFidSubcommand->parsed()) {
-    return inspector.changeFid(fid, newParent, std::cout, std::cerr);
+    return inspector.changeFid(fid, newParent, newChecksum, std::cout, std::cerr);
   }
 
   if(renameFidSubcommand->parsed()) {
