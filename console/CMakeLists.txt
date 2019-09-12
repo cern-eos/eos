@@ -95,7 +95,6 @@ add_library(
   commands/com_transfer.cc
   commands/com_version.cc
   commands/com_vid.cc
-  commands/com_vst.cc
   commands/com_whoami.cc
   commands/com_who.cc
   commands/com_proto_acl.cc

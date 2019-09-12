@@ -251,9 +251,6 @@ ProcCommand::open(const char* inpath, const char* info,
       mDoSort = false;
     } else if (mCmd == "vid") {
       Vid();
-    } else if (mCmd == "vst") {
-      Vst();
-      mDoSort = false;
     } else if (mCmd == "rtlog") {
       Rtlog();
       mDoSort = false;

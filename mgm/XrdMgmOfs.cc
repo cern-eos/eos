@@ -62,7 +62,6 @@
 #include "mgm/PathRouting.hh"
 #include "mgm/Macros.hh"
 #include "mgm/GeoTreeEngine.hh"
-#include "mgm/VstMessaging.hh"
 #include "mgm/Egroup.hh"
 #include "mgm/http/HttpServer.hh"
 #include "mgm/ZMQ.hh"
@@ -249,7 +248,7 @@ extern "C" {
 //------------------------------------------------------------------------------
 XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   ConfigFN(0), ConfEngine(0), CapabilityEngine(0),
-  mCapabilityValidity(3600), MgmOfsMessaging(0), MgmOfsVstMessaging(0),
+  mCapabilityValidity(3600), MgmOfsMessaging(0),
   ManagerPort(1094), LinuxStatsStartup{0}, HostName(0), HostPref(0),
   mNamespaceState(NamespaceState::kDown), mFileInitTime(0),
   mTotalInitTime(time(nullptr)), mStartTime(time(nullptr)), Shutdown(false),
@@ -416,12 +415,6 @@ XrdMgmOfs::OrderlyShutdown()
 
   eos_warning("%s", "msg=\"stopping the transfer engine threads\"");
   gTransferEngine.Stop();
-  eos_warning("%s", "msg=\"stopping VST messaging\"");
-
-  if (MgmOfsVstMessaging) {
-    delete MgmOfsVstMessaging;
-    MgmOfsVstMessaging = nullptr;
-  }
 
   eos_warning("%s", "msg=\"stopping fs listener thread\"");
   auto stop_fsconfiglistener = std::thread([&]() {

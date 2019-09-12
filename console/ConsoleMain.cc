@@ -116,7 +116,6 @@ extern int com_transfer(char*);
 extern int com_touch(char*);
 extern int com_version(char*);
 extern int com_vid(char*);
-extern int com_vst(char*);
 extern int com_whoami(char*);
 extern int com_who(char*);
 extern int com_accounting(char*);
@@ -189,7 +188,6 @@ COMMAND commands[] = {
   { (char*) "transfer", com_transfer, (char*) "Transfer Interface"},
   { (char*) "version", com_version, (char*) "Verbose client/server version"},
   { (char*) "vid", com_vid, (char*) "Virtual ID System Configuration"},
-  { (char*) "vst", com_vst, (char*) "Virtual Storage Interface"},
   { (char*) "whoami", com_whoami, (char*) "Determine how we are mapped on server side"},
   { (char*) "who", com_who, (char*) "Statistics about connected users"},
   { (char*) "?", com_help, (char*) "Synonym for 'help'"},

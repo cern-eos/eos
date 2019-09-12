@@ -107,7 +107,6 @@ add_library(
   Macros.cc
   GeoTreeEngine.cc
   Messaging.cc
-  VstMessaging.cc
   Policy.cc
   proc/IProcCommand.cc
   proc/ProcInterface.cc
@@ -123,7 +122,6 @@ add_library(
   proc/admin/StagerRmCmd.cc proc/admin/StagerRmCmd.hh
   proc/admin/Transfer.cc
   proc/admin/Vid.cc
-  proc/admin/Vst.cc
   proc/admin/Access.cc # @todo (faluchet) drop when move to 5.0.0
   proc/admin/AccessCmd.cc proc/admin/AccessCmd.hh
   proc/admin/Config.cc # @todo (faluchet) drop when move to 5.0.0
@@ -172,7 +170,6 @@ add_library(
   Scheduler.cc
   Vid.cc
   FsView.cc
-  VstView.cc
   XrdMgmOfsConfigure.cc
   XrdMgmOfsFile.cc
   XrdMgmOfsDirectory.cc
