@@ -53,6 +53,9 @@ SharedHashWrapper::SharedHashWrapper(const common::SharedHashLocator &locator, b
     mReadLock.Grab(mSom->HashMutex);
     mHash = mSom->GetObject(mLocator.getConfigQueue().c_str(), "hash");
   }
+  else if(mHash) {
+    mHash->SetBroadCastQueue(mLocator.getBroadcastQueue().c_str());
+  }
 }
 
 //------------------------------------------------------------------------------

@@ -488,43 +488,21 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
   std::string broadcast = mHashLocator.getBroadcastQueue();
 
   if (mSom) {
-    mSom->HashMutex.LockRead();
-    XrdMqSharedHash* hash = nullptr;
+    mq::SharedHashWrapper::Batch updateBatch;
+    updateBatch.setDurable("queue", mLocator.getFSTQueue());
+    updateBatch.setDurable("queuepath", mLocator.getQueuePath());
+    updateBatch.setDurable("path", mLocator.getStoragePath());
+    updateBatch.setDurable("hostport", locator.getHostPort());
+    updateBatch.setDurable("host", locator.getHost());
+    updateBatch.setDurable("port", std::to_string(locator.getPort()));
 
-    if (!(hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash"))) {
-      mSom->HashMutex.UnLockRead();
-      // create the hash object
-      mSom->CreateSharedHash(mLocator.getQueuePath().c_str(), broadcast.c_str(), som);
-      mSom->HashMutex.LockRead();
-      hash = mSom->GetObject(mLocator.getQueuePath().c_str(), "hash");
+    updateBatch.setTransient("stat.drain", "nodrain");
 
-      if (hash) {
-        hash->OpenTransaction();
-        hash->Set("queue", mLocator.getFSTQueue().c_str());
-        hash->Set("queuepath", mLocator.getQueuePath().c_str());
-        hash->Set("path", mLocator.getStoragePath().c_str());
-        hash->Set("hostport", mLocator.getHostPort().c_str());
-        hash->Set("host", mLocator.getHost().c_str());
-        hash->Set("port", std::to_string(mLocator.getPort()).c_str());
-        hash->Set("configstatus", "down");
-        hash->Set("stat.drain", "nodrain");
-        hash->CloseTransaction();
-      }
-
-      mSom->HashMutex.UnLockRead();
-    } else {
-      hash->SetBroadCastQueue(broadcast.c_str());
-      hash->OpenTransaction();
-      hash->Set("queue", mLocator.getFSTQueue().c_str());
-      hash->Set("queuepath", mLocator.getQueuePath().c_str());
-      hash->Set("path", mLocator.getStoragePath().c_str());
-      hash->Set("hostport", locator.getHostPort().c_str());
-      hash->Set("host", locator.getHost().c_str());
-      hash->Set("port", std::to_string(locator.getPort()).c_str());
-      hash->Set("stat.drain", "nodrain");
-      hash->CloseTransaction();
-      mSom->HashMutex.UnLockRead();
+    if(!bc2mgm) {
+      updateBatch.setDurable("configstatus", "down");
     }
+
+    mq::SharedHashWrapper(mHashLocator).set(updateBatch);
 
     mDrainQueue = new TransferQueue(TransferQueueLocator(mLocator, "drainq"),
                                     mSom, qsom, bc2mgm);
