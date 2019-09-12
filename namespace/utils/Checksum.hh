@@ -99,6 +99,41 @@ namespace eos
     return appendChecksumOnStringAsHexNoFmd(proto.layout_id(), checksumBuffer, out, separator, overrideLength);
   }
 
+  inline bool hexArrayToByteArray(const char* hexArray, size_t sz, std::string &byteArray) {
+    byteArray.clear();
+
+    if(sz == 0) {
+      return true;
+    }
+
+    if(sz % 2 != 0) {
+      return false;
+    }
+
+    for(size_t i = 0; i < sz; i += 2) {
+      char *endptr = nullptr;
+
+      char tmpArray[3];
+      tmpArray[0] = hexArray[i];
+      tmpArray[1] = hexArray[i+1];
+      tmpArray[3] = 0x00;
+
+      char byte = static_cast<char>(strtol(tmpArray, &endptr, 16));
+      byteArray.push_back(byte);
+
+      if(endptr != tmpArray+2) {
+        byteArray.clear();
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  inline bool hexArrayToByteArray(const std::string &hexArray, std::string &byteArray) {
+    return hexArrayToByteArray(hexArray.c_str(), hexArray.size(), byteArray);
+  }
+
 }
 
 #endif

@@ -639,6 +639,34 @@ TEST_F(VariousTests, ChecksumFormatting) {
   ASSERT_FALSE(eos::appendChecksumOnStringAsHex(nullptr, out));
 }
 
+TEST(HexToByteString, Edgecases) {
+  std::string byteArray;
+
+  ASSERT_FALSE(eos::hexArrayToByteArray("chickens", byteArray));
+
+  ASSERT_TRUE(eos::hexArrayToByteArray("", byteArray));
+  ASSERT_EQ(byteArray, "");
+
+  ASSERT_FALSE(eos::hexArrayToByteArray("deadbeeg", byteArray));
+}
+
+TEST(HexToByteString, BasicSanity) {
+  std::string byteArray;
+  ASSERT_TRUE(eos::hexArrayToByteArray("deadbeef", byteArray));
+  ASSERT_EQ(byteArray.size(), 4);
+  ASSERT_EQ(byteArray[0], '\xde');
+  ASSERT_EQ(byteArray[1], '\xad');
+  ASSERT_EQ(byteArray[2], '\xbe');
+  ASSERT_EQ(byteArray[3], '\xef');
+
+  std::string tmp;
+  ASSERT_TRUE(eos::hexArrayToByteArray("DEADBEEF", tmp));
+  ASSERT_EQ(tmp, byteArray);
+
+  ASSERT_TRUE(eos::hexArrayToByteArray("DeAdbEEf", tmp));
+  ASSERT_EQ(tmp, byteArray);
+}
+
 namespace eos {
 
 TEST_F(VariousTests, EtagFormatting) {
