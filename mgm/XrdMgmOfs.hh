@@ -67,7 +67,6 @@
  * - Balancer
  * - Iostat
  * - Messaging
- * - Vst
  * - Deletion
  * - Filesystem Listener
  * - Httpd
@@ -153,8 +152,6 @@ namespace eos
 {
 namespace mgm
 {
-class MgmOfsVstMessaging;
-class VstMessaging;
 class IConfigEngine;
 class HttpServer;
 class GrpcServer;
@@ -1364,11 +1361,9 @@ public:
   uint64_t mCapabilityValidity; ///< Time in seconds the capability is valid
   XrdOucString MgmOfsBroker; ///< Url of the message broker without MGM subject
   XrdOucString MgmOfsBrokerUrl; ///< Url of the message broker with MGM subject
-  XrdOucString MgmOfsVstBrokerUrl; ///< Url of the message broker
   XrdOucString MgmArchiveDstUrl; ////< URL where all archives are saved
   XrdOucString MgmArchiveSvcClass; ////< CASTOR svcClass for archive transfers
   Messaging* MgmOfsMessaging; ///< messaging interface class
-  VstMessaging* MgmOfsVstMessaging; ///< admin messaging interface class
   //! Queue where we are sending to by default
   XrdOucString MgmDefaultReceiverQueue;
   XrdOucString MgmOfsName; ///< mount point of the filesystem

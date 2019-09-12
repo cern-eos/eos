@@ -68,6 +68,5 @@ Client Commands
   clicommands/transfer
   clicommands/version
   clicommands/vid
-  clicommands/vst
   clicommands/who
   clicommands/whoami

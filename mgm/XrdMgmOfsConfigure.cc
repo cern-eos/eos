@@ -39,7 +39,6 @@
 #include "mgm/drain/Drainer.hh"
 #include "mgm/config/FileConfigEngine.hh"
 #include "mgm/config/QuarkDBConfigEngine.hh"
-#include "mgm/VstMessaging.hh"
 #include "mgm/Egroup.hh"
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/http/HttpServer.hh"
@@ -295,16 +294,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmAuthDir = "";
   MgmArchiveDir = "";
   IoReportStorePath = "/var/tmp/eos/report";
-  MgmOfsVstBrokerUrl = "";
   MgmArchiveDstUrl = "";
   MgmArchiveSvcClass = "default";
   eos::common::StringConversion::InitLookupTables();
   // Enable TPC on the MGM for 0-size files
   XrdOucEnv::Export("XRDTPC", "1");
-
-  if (getenv("EOS_VST_BROKER_URL")) {
-    MgmOfsVstBrokerUrl = getenv("EOS_VST_BROKER_URL");
-  }
 
   if (getenv("EOS_ARCHIVE_URL")) {
     MgmArchiveDstUrl = getenv("EOS_ARCHIVE_URL");
@@ -1040,12 +1034,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     return 1;
   }
 
-  if (MgmOfsVstBrokerUrl.length() && (!MgmOfsVstBrokerUrl.endswith("//eos/"))) {
-    Eroute.Say("Config error: the vst broker url has to be of the form "
-               "<root://<hostname>[:<port>]//");
-    return 1;
-  }
-
   if (!MgmMetaLogDir.length()) {
     Eroute.Say("Config error: meta data log directory is not defined : "
                "mgm.metalog=</var/eos/md/>");
@@ -1078,13 +1066,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmDefaultReceiverQueue += "*/fst";
   MgmOfsBrokerUrl += HostName;
   MgmOfsBrokerUrl += "/mgm";
-
-  if (MgmOfsVstBrokerUrl.length()) {
-    MgmOfsVstBrokerUrl += MgmOfsInstanceName;
-    MgmOfsVstBrokerUrl += "/";
-    MgmOfsVstBrokerUrl += HostName;
-    MgmOfsVstBrokerUrl += "/vst";
-  }
 
   MgmOfsQueue = "/eos/";
   MgmOfsQueue += ManagerId;
@@ -1663,20 +1644,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
 
     MgmOfsMessaging->SetLogId("MgmOfsMessaging");
-
-    if (MgmOfsVstBrokerUrl.length() &&
-        (getenv("EOS_VST_BROKER_ENABLE") &&
-         (strcmp(getenv("EOS_VST_BROKER_ENABLE"), "1")))) {
-      MgmOfsVstMessaging = new VstMessaging(MgmOfsVstBrokerUrl.c_str(),
-                                            "/eos/*/vst", true, true, 0);
-
-      if (!MgmOfsVstMessaging->StartListenerThread()) {
-        eos_crit("%s", "msg=\"vst messaging failed to start listening thread\"");
-        return 1;
-      }
-
-      MgmOfsVstMessaging->SetLogId("MgmOfsVstMessaging");
-    }
 
     // Create the ZMQ processor used especially for fuse
     XrdOucString zmq_port = "tcp://*:";

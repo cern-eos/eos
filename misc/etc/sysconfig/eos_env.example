@@ -246,19 +246,6 @@ EOS_PSS_PATH=/
 # EOS_QUARKDB_PASSWD=password_must_be_atleast_32_characters
 
 #-------------------------------------------------------------------------------
-# Global Vstl Configuration
-#-------------------------------------------------------------------------------
-
-# Define the global broker for subscription
-# EOS_VST_BROKER_URL=root://eos.cern.ch:1099//eos/
-
-# Enable subscription to the global broker if desired
-# EOS_VST_BROKER_ENABLE=1
-
-# Define which client we trust for querying this MGM
-# EOS_VST_TRUSTED_HOST=eos.cern.ch
-
-#-------------------------------------------------------------------------------
 # Archive configuration
 #-------------------------------------------------------------------------------
 

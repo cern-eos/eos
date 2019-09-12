@@ -250,7 +250,6 @@ public:
   int Rtlog();
   int Transfer();
   int Vid();
-  int Vst();
   int Access(); // @todo (faluchet) drop when move to 5.0.0
   int Config(); // @todo (faluchet) drop when move to 5.0.0
   int Debug(); // @todo (faluchet) drop when move to 5.0.0
