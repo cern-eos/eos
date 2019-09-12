@@ -57,7 +57,6 @@ add_library(
   commands/com_chmod.cc
   commands/com_chown.cc
   commands/com_clear.cc
-  commands/com_console.cc
   commands/com_cp.cc
   commands/com_file.cc
   commands/com_find.cc
