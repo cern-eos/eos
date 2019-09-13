@@ -116,7 +116,7 @@ namespace eos
       char tmpArray[3];
       tmpArray[0] = hexArray[i];
       tmpArray[1] = hexArray[i+1];
-      tmpArray[3] = 0x00;
+      tmpArray[2] = 0x00;
 
       char byte = static_cast<char>(strtol(tmpArray, &endptr, 16));
       byteArray.push_back(byte);

@@ -639,7 +639,7 @@ TEST_F(VariousTests, ChecksumFormatting) {
   ASSERT_FALSE(eos::appendChecksumOnStringAsHex(nullptr, out));
 }
 
-TEST(HexToByteString, Edgecases) {
+TEST(HexToByteString, EdgeCases) {
   std::string byteArray;
 
   ASSERT_FALSE(eos::hexArrayToByteArray("chickens", byteArray));
