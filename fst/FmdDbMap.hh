@@ -323,6 +323,18 @@ public:
   bool ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
                     const char* manager);
 
+  //------------------------------------------------------------------------------
+  //! Resync file meta data from QuarkDB into local database
+  //!
+  //! @param fid file identifier
+  //! @param fsid file system identifier
+  //! @param qcl QClient object used to connect to QuarkDB (this should have a
+  //!        preference to connect to followers as it's doing only read ops.)
+  //------------------------------------------------------------------------------
+  bool ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
+                         eos::common::FileSystem::fsid_t fsid,
+                         std::shared_ptr<qclient::QClient> qcl);
+
   //----------------------------------------------------------------------------
   //! Resync all meta data from QuarkdDB
   //!
