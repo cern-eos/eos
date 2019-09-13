@@ -35,7 +35,6 @@
 EOSMGMNAMESPACE_BEGIN
 
 std::string QdbMaster::sLeaseKey {"master_lease"};
-std::chrono::milliseconds QdbMaster::sLeaseTimeout {15000};
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -190,6 +189,34 @@ QdbMaster::BootNamespace()
 }
 
 //------------------------------------------------------------------------------
+// Configure QDB lease timeouts
+//------------------------------------------------------------------------------
+void
+QdbMaster::ConfigureTimeouts(uint64_t& master_init_lease)
+{
+  if (getenv("EOS_QDB_MASTER_INIT_LEASE_MS")) {
+    master_init_lease = std::stoull(getenv("EOS_QDB_MASTER_INIT_LEASE_MS"));
+  }
+
+  if (getenv("EOS_QDB_MASTER_LEASE_MS")) {
+    mLeaseValidity = std::chrono::milliseconds
+                     (std::stoull(getenv("EOS_QDB_MASTER_LEASE_MS")));
+
+    if (mLeaseValidity > std::chrono::minutes(5)) {
+      eos_warning("%s", "msg=\"QDB master lease validity set to the "
+                  "maximum of 5 minutes\"");
+      mLeaseValidity = std::chrono::minutes(5);
+    }
+
+    if (master_init_lease < (uint64_t)mLeaseValidity.count()) {
+      eos_warning("%s", "msg=\"QDB master init lease validity modified"
+                  " to the value of the QDB master lease\"");
+      master_init_lease = mLeaseValidity.count();
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 // Thread supervising the master/slave status
 //------------------------------------------------------------------------------
 void
@@ -197,6 +224,8 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
 {
   bool new_is_master = false;
   std::string old_master_id;
+  uint64_t master_init_lease = 30000; // 30 seconds
+  ConfigureTimeouts(master_init_lease);
   eos_notice("%s", "msg=\"set up booting stall rule\"");
   RemoveStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE);
   Access::StallInfo old_stall;
@@ -214,12 +243,6 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
 
   // Loop updating the master status
   while (!assistant.terminationRequested()) {
-    uint64_t master_init_lease = 30000; // 30 seconds
-
-    if (getenv("EOS_QDB_MASTER_INIT_LEASE_MS")) {
-      master_init_lease = std::stoull(getenv("EOS_QDB_MASTER_INIT_LEASE_MS"));
-    }
-
     old_master_id = GetMasterId();
     new_is_master = AcquireLeaseWithDelay();
     UpdateMasterId(GetLeaseHolder());
@@ -278,7 +301,7 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
 
     // If there is a master then wait a bit
     if (!GetMasterId().empty()) {
-      std::chrono::milliseconds wait_ms(sLeaseTimeout.count() / 2);
+      std::chrono::milliseconds wait_ms(mLeaseValidity.count() / 2);
       assistant.wait_for(wait_ms);
     }
   }
@@ -393,12 +416,11 @@ bool
 QdbMaster::AcquireLease(uint64_t validity_msec)
 {
   using eos::common::StringConversion;
-  std::string stimeout = (validity_msec ? StringConversion::stringify(
-                            validity_msec) :
-                          StringConversion::stringify(sLeaseTimeout.count()));
+  std::string timeout = std::to_string(validity_msec ? validity_msec :
+                                       mLeaseValidity.count());
   eos::common::IntervalStopwatch stop_watch;
   std::future<qclient::redisReplyPtr> f =
-    mQcl->exec("lease-acquire", sLeaseKey, mIdentity, stimeout);
+    mQcl->exec("lease-acquire", sLeaseKey, mIdentity, timeout);
   qclient::redisReplyPtr reply = f.get();
   eos_info("msg=\"qclient acquire lease call took %llums\"",
            stop_watch.timeIntoCycle().count());
@@ -497,12 +519,15 @@ bool
 QdbMaster::SetMasterId(const std::string& hostname, int port,
                        std::string& err_msg)
 {
+  using namespace std::chrono;
   std::string new_id = hostname + std::to_string(port);
 
   if (mIsMaster) {
     if (new_id != mIdentity) {
+      // Introduce delay in acquiring the lease so that we give the opportunity
+      // to other nodes to become the master
       mAcquireDelay = time(nullptr) + 2 *
-                      std::chrono::duration_cast<std::chrono::seconds>(sLeaseTimeout).count();
+                      duration_cast<seconds>(mLeaseValidity).count();
     }
   } else {
     err_msg = "error: currently this node is not acting as a master";
