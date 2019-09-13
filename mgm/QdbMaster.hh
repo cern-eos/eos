@@ -39,7 +39,6 @@ class QdbMaster: public IMaster
 {
 public:
   static std::string sLeaseKey;
-  static std::chrono::milliseconds sLeaseTimeout;
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -224,6 +223,13 @@ private:
   //----------------------------------------------------------------------------
   void EnableNsCaching();
 
+  //----------------------------------------------------------------------------
+  //! Configure QDB lease timeouts/validity
+  //!
+  //! @param master_init_lease lease timeout used during a transition
+  //----------------------------------------------------------------------------
+  void ConfigureTimeouts(uint64_t& master_init_lease);
+
   std::atomic<bool> mOneOff; ///< Flag to mark that supervisor ran once
   std::string mIdentity; ///< MGM identity hostname:port
   mutable std::mutex mMutexId; ///< Mutex for the master identity
@@ -236,6 +242,8 @@ private:
   AssistedThread mThread; ///< Supervisor thread updating master/slave state
   std::unique_ptr<qclient::QClient>
   mQcl; ///< qclient for talking to the QDB cluster
+  //! Time for which a lease is aquired
+  std::chrono::milliseconds mLeaseValidity {15000};
 };
 
 EOSMGMNAMESPACE_END
