@@ -703,7 +703,7 @@ FmdDbMapHandler::UpdateWithScanInfo(eos::common::FileSystem::fsid_t fsid,
   }
 
   if ((fmd == nullptr) || filexs_err || blockxs_err || layout_err) {
-    eos_notice("msg=\"resyncing from disk and mgm\" fsid=%d fid=%08llx", fsid, fid);
+    eos_notice("msg=\"resyncing disk and mgm info\" fsid=%d fid=%08llx", fsid, fid);
     ResyncDisk(fpath.c_str(), fsid, true, scan_sz, scan_xs_hex);
     bool resynced = ResyncMgm(fsid, fid, manager.c_str());
     fmd = LocalGetFmd(fid, fsid, true);
@@ -719,7 +719,7 @@ FmdDbMapHandler::UpdateWithScanInfo(eos::common::FileSystem::fsid_t fsid,
     }
   } else {
     // Update the size and checksum of the file on disk
-    eos_notice("msg=\"resync from disk with scan info\" fsid=%d fid=%08llx",
+    eos_notice("msg=\"resync disk with scan info\" fsid=%d fid=%08llx",
                fsid, fid);
     ResyncDisk(fpath.c_str(), fsid, false, scan_sz, scan_xs_hex);
   }
@@ -1032,6 +1032,7 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
       // Check if it exists on disk
       if (fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) {
         fMd.mProtoFmd.set_layouterror(fMd.mProtoFmd.layouterror() | LayoutId::kMissing);
+        // @todo(esindril): update the Fmd entry in the local db
         eos_warning("msg=\"found missing replica\" fxid=%08llx on fsid=%lu",
                     fid, fsid);
       }
@@ -1134,6 +1135,61 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
   return true;
 }
 
+
+//------------------------------------------------------------------------------
+// Resync file meta data from QuarkDB into local database
+//------------------------------------------------------------------------------
+bool
+FmdDbMapHandler::ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
+                                   eos::common::FileSystem::fsid_t fsid,
+                                   std::shared_ptr<qclient::QClient> qcl)
+{
+  eos::common::FmdHelper ns_fmd;
+  auto file_fut = eos::MetadataFetcher::getFileFromId(*qcl.get(),
+                  eos::FileIdentifier(fid));
+
+  try {
+    NsFileProtoToFmd(file_fut.get(), ns_fmd);
+  } catch (const eos::MDException& e) {
+    eos_err("msg=\"failed to get metadata from QDB: %s\"", e.what());
+  }
+
+  // Mark any possible layout error, if fid not found in QDB then this is
+  // marked as orphan
+  ns_fmd.mProtoFmd.set_layouterror(ns_fmd.LayoutError(fsid));
+  // Get an existing local record without creating the record!!!
+  std::unique_ptr<eos::common::FmdHelper> local_fmd {
+    LocalGetFmd(fid, fsid, true, false)};
+
+  if (!local_fmd) {
+    // Create the local record
+    if (!(local_fmd = LocalGetFmd(fid, fsid, true, true))) {
+      eos_err("msg=\"failed to create local fmd entry\" fxid=%08llx", fid);
+      return false;
+    }
+  }
+
+  // If file does not exist on disk then mark as missing
+  if (local_fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) {
+    ns_fmd.mProtoFmd.set_layouterror(ns_fmd.mProtoFmd.layouterror() |
+                                     LayoutId::kMissing);
+    eos_warning("msg=\"mark missing replica\" fxid=%08llx fsid=%lu", fid, fsid);
+  }
+
+  if (!UpdateWithMgmInfo(fsid, fid, ns_fmd.mProtoFmd.cid(),
+                         ns_fmd.mProtoFmd.lid(), ns_fmd.mProtoFmd.mgmsize(),
+                         ns_fmd.mProtoFmd.mgmchecksum(), ns_fmd.mProtoFmd.uid(),
+                         ns_fmd.mProtoFmd.gid(), ns_fmd.mProtoFmd.ctime(),
+                         ns_fmd.mProtoFmd.ctime_ns(), ns_fmd.mProtoFmd.mtime(),
+                         ns_fmd.mProtoFmd.mtime_ns(), ns_fmd.mProtoFmd.layouterror(),
+                         ns_fmd.mProtoFmd.locations())) {
+    eos_err("msg=\"failed to update fmd with qdb info\" fxid=%08llx", fid);
+    return false;
+  }
+
+  return true;
+}
+
 //------------------------------------------------------------------------------
 // Resync all meta data from QuarkdDB
 //------------------------------------------------------------------------------
@@ -1148,7 +1204,7 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contact_details,
     return false;
   }
 
-  // Collect all file ids on the desired file syste
+  // Collect all file ids on the desired file system
   auto start = steady_clock::now();
   qclient::QClient qcl(contact_details.members,
                        contact_details.constructOptions());
@@ -1169,56 +1225,64 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contact_details,
   eos_info("msg=\"resyncing %llu files for file_system %u\"", total, fsid);
   uint64_t num_files = 0;
   auto it = file_ids.begin();
-  std::list<folly::Future<eos::ns::FileMdProto>> files;
+  std::list<std::pair<eos::common::FileId::fileid_t,
+      folly::Future<eos::ns::FileMdProto>>> files;
 
   // Pre-fetch the first 1000 files
   while ((it != file_ids.end()) && (num_files < 1000)) {
     ++num_files;
-    files.emplace_back(MetadataFetcher::getFileFromId(qcl, FileIdentifier(*it)));
+    files.emplace_back(*it, MetadataFetcher::getFileFromId(qcl,
+                       FileIdentifier(*it)));
     ++it;
   }
 
   while (!files.empty()) {
     eos::common::FmdHelper ns_fmd;
+    eos::common::FileId::fileid_t fid = files.front().first;
 
     try {
-      NsFileProtoToFmd(files.front().get(), ns_fmd);
+      NsFileProtoToFmd(files.front().second.get(), ns_fmd);
     } catch (const eos::MDException& e) {
       eos_err("msg=\"failed to get metadata from QDB: %s\"", e.what());
-      files.pop_front();
-      continue;
     }
 
     files.pop_front();
-    auto local_fmd = LocalGetFmd(ns_fmd.mProtoFmd.fid(), fsid, true, true,
-                                 ns_fmd.mProtoFmd.uid(), ns_fmd.mProtoFmd.gid(),
-                                 ns_fmd.mProtoFmd.lid());
+    // Mark any possible layout error, if fid not found in QDB then this is
+    // marked as orphan
     ns_fmd.mProtoFmd.set_layouterror(ns_fmd.LayoutError(fsid));
+    // Get an existing local record without creating the record!!!
+    std::unique_ptr<eos::common::FmdHelper> local_fmd {
+      LocalGetFmd(fid, fsid, true, false)};
 
-    if (local_fmd) {
-      // Check if it exists on disk
-      if (local_fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) {
-        ns_fmd.mProtoFmd.set_layouterror(ns_fmd.mProtoFmd.layouterror() |
-                                         LayoutId::kMissing);
-        eos_warning("msg=\"found missing replica for fxid=%08llx on fsid=%lu\"",
-                    ns_fmd.mProtoFmd.fid(), fsid);
+    if (!local_fmd) {
+      // Create the local record
+      if (!(local_fmd = LocalGetFmd(fid, fsid, true, true))) {
+        eos_err("msg=\"failed to create local fmd entry\" fxid=%08llx", fid);
+        continue;
       }
+    }
 
-      if (!UpdateWithMgmInfo(fsid, ns_fmd.mProtoFmd.fid(), ns_fmd.mProtoFmd.cid(),
-                             ns_fmd.mProtoFmd.lid(), ns_fmd.mProtoFmd.mgmsize(),
-                             ns_fmd.mProtoFmd.mgmchecksum(), ns_fmd.mProtoFmd.uid(),
-                             ns_fmd.mProtoFmd.gid(), ns_fmd.mProtoFmd.ctime(),
-                             ns_fmd.mProtoFmd.ctime_ns(), ns_fmd.mProtoFmd.mtime(),
-                             ns_fmd.mProtoFmd.mtime_ns(), ns_fmd.mProtoFmd.layouterror(),
-                             ns_fmd.mProtoFmd.locations())) {
-        eos_err("failed to update fid %llu", ns_fmd.mProtoFmd.fid());
-      }
-    } else {
-      eos_err("failed to get/create local fid %llu", ns_fmd.mProtoFmd.fid());
+    // If file does not exist on disk then mark as missing
+    if (local_fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) {
+      ns_fmd.mProtoFmd.set_layouterror(ns_fmd.mProtoFmd.layouterror() |
+                                       LayoutId::kMissing);
+      eos_warning("msg=\"mark missing replica\" fxid=%08llx fsid=%lu", fid, fsid);
+    }
+
+    if (!UpdateWithMgmInfo(fsid, fid, ns_fmd.mProtoFmd.cid(),
+                           ns_fmd.mProtoFmd.lid(), ns_fmd.mProtoFmd.mgmsize(),
+                           ns_fmd.mProtoFmd.mgmchecksum(), ns_fmd.mProtoFmd.uid(),
+                           ns_fmd.mProtoFmd.gid(), ns_fmd.mProtoFmd.ctime(),
+                           ns_fmd.mProtoFmd.ctime_ns(), ns_fmd.mProtoFmd.mtime(),
+                           ns_fmd.mProtoFmd.mtime_ns(), ns_fmd.mProtoFmd.layouterror(),
+                           ns_fmd.mProtoFmd.locations())) {
+      eos_err("msg=\"failed to update fmd with qdb info\" fxid=%08llx", fid);
+      continue;
     }
 
     if (it != file_ids.end()) {
-      files.emplace_back(MetadataFetcher::getFileFromId(qcl, FileIdentifier(*it)));
+      files.emplace_back(*it, MetadataFetcher::getFileFromId(qcl,
+                         FileIdentifier(*it)));
       ++num_files;
       ++it;
     }
