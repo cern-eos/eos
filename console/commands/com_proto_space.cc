@@ -45,6 +45,7 @@ public:
   //----------------------------------------------------------------------------
   SpaceHelper()
   {
+    mIsAdmin = true;
     mHighlight = true;
   }
 
@@ -407,7 +408,6 @@ void com_space_help()
       << "space config <space-name> space.geobalancer=on|off                    : enable/disable the geo balancer [ default=off ]\n"
       << "space config <space-name> space.geobalancer.ntx=<ntx>                 : configure the numebr of parallel geobalancer jobs [ default=0 ]\n"
       << "space config <space-name> space.geobalancer.threshold=<threshold>     : configure the threshold when a geotag is balanced [ default=0 ] \n"
-
       << "space config <space-name> space.lru=on|off                            : enable/disable the LRU policy engine [ default=off ]\n"
       << "space config <space-name> space.lru.interval=<sec>                    : configure the default lru scan interval\n"
       << "space config <space-name> space.wfe=on|off|paused                     : enable/disable the Workflow Engine [ default=off ]\n"
