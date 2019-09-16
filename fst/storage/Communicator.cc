@@ -35,9 +35,12 @@ EOSFSTNAMESPACE_BEGIN
 // Get configuration value from global FST config
 //------------------------------------------------------------------------------
 bool
-Storage::getFSTConfigValue(const std::string &key, std::string &value) const {
-  common::SharedHashLocator locator = Config::gConfig.getNodeHashLocator("getConfigValue", false);
-  if(locator.empty()) {
+Storage::getFSTConfigValue(const std::string& key, std::string& value) const
+{
+  common::SharedHashLocator locator =
+    Config::gConfig.getNodeHashLocator("getConfigValue", false);
+
+  if (locator.empty()) {
     return false;
   }
 
@@ -82,7 +85,8 @@ Storage::registerFilesystem(const std::string& queuepath)
   mQueue2FsMap[queuepath] = fs;
   mFsVect.push_back(fs);
   mFileSystemsMap[fs->GetId()] = fs;
-  eos_static_info("setting up filesystem %s", queuepath.c_str());
+  eos_static_info("msg=\"setting up filesystem\" qpath=\"%s\" fsid=%lu",
+                  queuepath.c_str(), fs->GetId());
   fs->SetStatus(eos::common::BootStatus::kDown);
 }
 
@@ -90,8 +94,11 @@ Storage::registerFilesystem(const std::string& queuepath)
 // Process incoming configuration change
 //------------------------------------------------------------------------------
 void
-Storage::processIncomingFstConfigurationChange(const std::string &key, const std::string &value) {
-  eos_static_info("FST configuration change - key=%s, value=%s", key.c_str(), value.c_str());
+Storage::processIncomingFstConfigurationChange(const std::string& key,
+    const std::string& value)
+{
+  eos_static_info("FST configuration change - key=%s, value=%s", key.c_str(),
+                  value.c_str());
 
   if (key == "symkey") {
     eos_static_info("symkey=%s", value.c_str());
@@ -196,7 +203,9 @@ Storage::processIncomingFstConfigurationChange(const std::string& key)
 // Requires mFsMutex to be write-locked.
 //------------------------------------------------------------------------------
 void
-Storage::processIncomingFsConfigurationChange(fst::FileSystem *targetFs, const std::string &queue, const std::string &key, const std::string &value) {
+Storage::processIncomingFsConfigurationChange(fst::FileSystem* targetFs,
+    const std::string& queue, const std::string& key, const std::string& value)
+{
   if (key == "id") {
     unsigned int fsid = atoi(value.c_str());
     // setup the reverse lookup by id
@@ -250,23 +259,25 @@ Storage::processIncomingFsConfigurationChange(fst::FileSystem *targetFs, const s
 // Process incoming filesystem-level configuration change
 //------------------------------------------------------------------------------
 void
-Storage::processIncomingFsConfigurationChange(const std::string &queue, const std::string &key) {
+Storage::processIncomingFsConfigurationChange(const std::string& queue,
+    const std::string& key)
+{
   eos::common::RWMutexWriteLock fsMutexLock(mFsMutex);
-
   auto targetFsIt = mQueue2FsMap.find(queue.c_str());
-  if(targetFsIt == mQueue2FsMap.end() || targetFsIt->second == nullptr) {
-    eos_static_err("illegal subject found - no filesystem object existing for modification %s;%s", queue.c_str(), key.c_str());
+
+  if (targetFsIt == mQueue2FsMap.end() || targetFsIt->second == nullptr) {
+    eos_static_err("illegal subject found - no filesystem object existing for modification %s;%s",
+                   queue.c_str(), key.c_str());
     return;
   }
 
-  fst::FileSystem *targetFs = targetFsIt->second;
+  fst::FileSystem* targetFs = targetFsIt->second;
   eos_static_info("got modification on <subqueue>=%s <key>=%s", queue.c_str(),
-    key.c_str());
-
+                  key.c_str());
   mq::SharedHashWrapper hash(targetFs->getHashLocator());
-
   std::string value;
-  if(!hash.get(key, value)) {
+
+  if (!hash.get(key, value)) {
     eos_static_err("Could not lookup key=%s for %s", key.c_str(), queue.c_str());
     return;
   }
