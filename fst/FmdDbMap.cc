@@ -669,59 +669,33 @@ FmdDbMapHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
 // Update local fmd with info from the scanner
 //------------------------------------------------------------------------------
 void
-FmdDbMapHandler::UpdateWithScanInfo(eos::common::FileSystem::fsid_t fsid,
+FmdDbMapHandler::UpdateWithScanInfo(eos::common::FileId::fileid_t fid,
+                                    eos::common::FileSystem::fsid_t fsid,
                                     const std::string& fpath,
                                     uint64_t scan_sz,
                                     const std::string& scan_xs_hex,
-                                    bool filexs_err, bool blockxs_err)
+                                    std::shared_ptr<qclient::QClient> qcl)
 {
-  eos::common::Path cPath(fpath.c_str());
-  eos::common::FileId::fileid_t fid {0ull};
+  eos_debug("msg=\"resyncing qdb and disk info\" fxid=%08llx fsid=%d",
+            fid, fsid);
 
-  try {
-    fid = std::stoull(cPath.GetName(), 0, 16);
-  } catch (...) {
-    eos_err("msg=\"failed to extract fid\" path=%s", fpath.c_str());
+  if (!ResyncFileFromQdb(fid, fsid, fpath, qcl)) {
     return;
   }
 
-  std::string manager = eos::fst::Config::gConfig.GetManager();
+  int rd_rc = ResyncDisk(fpath.c_str(), fsid, false, scan_sz, scan_xs_hex);
 
-  if (manager.empty()) {
-    eos_err("msg=\"no manager hostname info available\"");
-    return;
-  }
+  if (!rd_rc) {
+    if (rd_rc == ENOENT) {
+      // File no longer on disk - mark it as missing
+      auto fmd = LocalGetFmd(fid, fsid, true);
 
-  // Check if we have this file in the local DB, if not, we resync first
-  // the disk and then the MGM meta data
-  bool layout_err = false;
-  auto fmd = LocalGetFmd(fid, fsid, true);
-
-  if (fmd) {
-    // Entries with layout errors get rechecked
-    layout_err = (fmd->LayoutError(fsid) != 0);
-  }
-
-  if ((fmd == nullptr) || filexs_err || blockxs_err || layout_err) {
-    eos_notice("msg=\"resyncing disk and mgm info\" fsid=%d fid=%08llx", fsid, fid);
-    ResyncDisk(fpath.c_str(), fsid, true, scan_sz, scan_xs_hex);
-    bool resynced = ResyncMgm(fsid, fid, manager.c_str());
-    fmd = LocalGetFmd(fid, fsid, true);
-
-    if (resynced && fmd) {
-      if ((fmd->mProtoFmd.layouterror() &  eos::common::LayoutId::kOrphan) ||
-          ((fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kUnregistered) &&
-           (!(fmd->mProtoFmd.layouterror() & eos::common::LayoutId::kReplicaWrong)))) {
-        MoveToOrphans(fpath);
-        gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
-        return;
+      if (fmd) {
+        fmd->mProtoFmd.set_layouterror(fmd->mProtoFmd.layouterror() |
+                                       LayoutId::kMissing);
+        Commit(fmd.get());
       }
     }
-  } else {
-    // Update the size and checksum of the file on disk
-    eos_notice("msg=\"resync disk with scan info\" fsid=%d fid=%08llx",
-               fsid, fid);
-    ResyncDisk(fpath.c_str(), fsid, false, scan_sz, scan_xs_hex);
   }
 }
 
@@ -813,7 +787,7 @@ FmdDbMapHandler::ResetMgmInformation(eos::common::FileSystem::fsid_t fsid)
 //------------------------------------------------------------------------------
 // Resync a single entry from disk
 //------------------------------------------------------------------------------
-bool
+int
 FmdDbMapHandler::ResyncDisk(const char* path,
                             eos::common::FileSystem::fsid_t fsid,
                             bool flaglayouterror,
@@ -825,15 +799,15 @@ FmdDbMapHandler::ResyncDisk(const char* path,
 
   if (fid == 0) {
     eos_err("%s", "msg=\"unable to sync fid=0\"");
-    return false;
+    return EINVAL;
   }
 
   std::unique_ptr<eos::fst::FileIo>
   io(eos::fst::FileIoPluginHelper::GetIoObject(path));
 
   if (io == nullptr) {
-    eos_err("msg=\"failed to get IO object\" paht=%s", path);
-    return false;
+    eos_crit("msg=\"failed to get IO object\" path=%s", path);
+    return ENOMEM;
   }
 
   struct stat buf;
@@ -878,16 +852,16 @@ FmdDbMapHandler::ResyncDisk(const char* path,
     if (!UpdateWithDiskInfo(fsid, fid, disk_size, disk_xs_hex, check_ts_sec,
                             (filexs_err == "1"), (blockxs_err == "1"),
                             flaglayouterror)) {
-      eos_err("msg=\"failed to update DB\" dbpath=%s fsid=%lu fxid=%08llx",
+      eos_err("msg=\"failed to update DB\" dbpath=%s fxid=%08llx fsid=%lu",
               eos::common::DbMap::getDbType().c_str(), fsid, fid);
       return false;
     }
   } else {
     eos_err("msg=\"failed stat or entry is not a file\" path=%s", path);
-    return false;
+    return ENOENT;
   }
 
-  return true;
+  return 0;
 }
 
 //------------------------------------------------------------------------------
@@ -1139,11 +1113,20 @@ FmdDbMapHandler::ResyncAllMgm(eos::common::FileSystem::fsid_t fsid,
 //------------------------------------------------------------------------------
 // Resync file meta data from QuarkDB into local database
 //------------------------------------------------------------------------------
-bool
+int
 FmdDbMapHandler::ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
                                    eos::common::FileSystem::fsid_t fsid,
+                                   const std::string& fpath,
                                    std::shared_ptr<qclient::QClient> qcl)
 {
+  using eos::common::FileId;
+
+  if (qcl == nullptr) {
+    eos_notice("msg=\"no qclient present, skipping file resync\" fxid=%08llx"
+               " fid=%lu", fid, fsid);
+    return EINVAL;
+  }
+
   eos::common::FmdHelper ns_fmd;
   auto file_fut = eos::MetadataFetcher::getFileFromId(*qcl.get(),
                   eos::FileIdentifier(fid));
@@ -1164,9 +1147,17 @@ FmdDbMapHandler::ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
   if (!local_fmd) {
     // Create the local record
     if (!(local_fmd = LocalGetFmd(fid, fsid, true, true))) {
-      eos_err("msg=\"failed to create local fmd entry\" fxid=%08llx", fid);
-      return false;
+      eos_err("msg=\"failed to create local fmd entry\" fxid=%08llx fsid=%llu",
+              fid, fsid);
+      return EINVAL;
     }
+  }
+
+  // Orphan files get moved to a special directory .eosorphans
+  if (ns_fmd.mProtoFmd.layouterror() & eos::common::LayoutId::kOrphan) {
+    MoveToOrphans(fpath);
+    gFmdDbMapHandler.LocalDeleteFmd(fid, fsid);
+    return ENOENT;
   }
 
   // If file does not exist on disk then mark as missing
@@ -1184,10 +1175,10 @@ FmdDbMapHandler::ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
                          ns_fmd.mProtoFmd.mtime_ns(), ns_fmd.mProtoFmd.layouterror(),
                          ns_fmd.mProtoFmd.locations())) {
     eos_err("msg=\"failed to update fmd with qdb info\" fxid=%08llx", fid);
-    return false;
+    return EINVAL;
   }
 
-  return true;
+  return 0;
 }
 
 //------------------------------------------------------------------------------

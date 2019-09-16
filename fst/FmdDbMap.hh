@@ -241,17 +241,21 @@ public:
   //----------------------------------------------------------------------------
   //! Update local fmd with info from the scanner
   //!
+  //! @param fid file identifier
   //! @param fsid file system id
   //! @param fpath local file path
   //! @param scan_sz size of the file computed by the scanner
   //! @param scan_xs_hex hex checksum of the file computed by the scanner
-  //! @param filexs_err true if file has checksum error, otherwise false
-  //! @param blockxs_err true if file has block checksum error, otherwise false
+  //! @param qcl QClient used to communicate to QDB backend
+  //!
+  //! @note: the qclient should favor followers as we're doing only read
+  //!        operations and this should reduce the load on the master QDB
   //----------------------------------------------------------------------------
-  void UpdateWithScanInfo(eos::common::FileSystem::fsid_t fsid,
+  void UpdateWithScanInfo(eos::common::FileId::fileid_t fid,
+                          eos::common::FileSystem::fsid_t fsid,
                           const std::string& fpath,
                           uint64_t scan_sz, const std::string& scan_xs_hex,
-                          bool filexs_err, bool blockxs_err);
+                          std::shared_ptr<qclient::QClient> qcl);
 
   //----------------------------------------------------------------------------
   //! Reset disk information for all files stored on a particular file system
@@ -280,12 +284,12 @@ public:
   //! @param scan_sz size of file computed by the scanner
   //! @param scan_xs_hex hex checksum of the file computed by the scanner
   //!
-  //! @return true if successful, otherwise false
+  //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
-  bool ResyncDisk(const char* fstpath,
-                  eos::common::FileSystem::fsid_t fsid,
-                  bool flaglayouterror, uint64_t scan_sz = 0ull,
-                  const std::string& scan_xs_hex = "");
+  int ResyncDisk(const char* fstpath,
+                 eos::common::FileSystem::fsid_t fsid,
+                 bool flaglayouterror, uint64_t scan_sz = 0ull,
+                 const std::string& scan_xs_hex = "");
 
   //----------------------------------------------------------------------------
   //! Resync files under path into local database
@@ -328,12 +332,16 @@ public:
   //!
   //! @param fid file identifier
   //! @param fsid file system identifier
+  //! @param fpath local file path
   //! @param qcl QClient object used to connect to QuarkDB (this should have a
   //!        preference to connect to followers as it's doing only read ops.)
+  //!
+  //! @return 0 if successful, otherwise errno
   //------------------------------------------------------------------------------
-  bool ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
-                         eos::common::FileSystem::fsid_t fsid,
-                         std::shared_ptr<qclient::QClient> qcl);
+  int ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
+                        eos::common::FileSystem::fsid_t fsid,
+                        const std::string& fpath,
+                        std::shared_ptr<qclient::QClient> qcl);
 
   //----------------------------------------------------------------------------
   //! Resync all meta data from QuarkdDB

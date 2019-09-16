@@ -836,7 +836,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
   eos_notice("FST_HOST=%s FST_PORT=%ld FST_HTTP_PORT=%d VERSION=%s RELEASE=%s KEYTABADLER=%s",
              mHostName, myPort, mHttpdPort, VERSION, RELEASE, kt_cks.c_str());
-
   eos::mq::SharedHashWrapper::initialize(&ObjectManager);
   return 0;
 }
@@ -1259,7 +1258,7 @@ XrdFstOfs::SendFsck(XrdMqMessage* message)
     }
   }
 
-  eos_info("reply=%s", stdOut.c_str());
+  eos_debug("msg=\"fsck reply\" data=\"%s\"", stdOut.c_str());
 
   if (stdOut.length()) {
     XrdMqMessage repmessage("fsck reply message");
