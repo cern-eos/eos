@@ -648,6 +648,7 @@ Fsck::ReportMonitorFormat(std::ostringstream& oss,
       } else if (display_lfn) {
         oss << " lfn=";
       } else {
+        oss << std::endl;
         continue;
       }
 
