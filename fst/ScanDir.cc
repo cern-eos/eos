@@ -112,7 +112,7 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
   mBufferSize(0), mBgThread(bgthread), mClock(fake_clock), mRateLimit(nullptr)
 {
   long alignment = pathconf((mDirPath[0] != '/') ? "/" : mDirPath.c_str(),
-                              _PC_REC_XFER_ALIGN);
+                            _PC_REC_XFER_ALIGN);
 
   if (alignment > 0) {
     mBufferSize = 256 * alignment;
@@ -123,9 +123,10 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
       std::abort();
     }
   } else {
-    mBufferSize = 256*1024;
+    mBufferSize = 256 * 1024;
     mBuffer = (char*) malloc(mBufferSize);
-    fprintf(stderr, "error: OS does not provide alignment or path does not exist\n");
+    fprintf(stderr,
+            "error: OS does not provide alignment or path does not exist\n");
   }
 
   if (mBgThread) {
@@ -445,6 +446,11 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
     }
   }
 
+  if (gOFS.mFsckQcl == nullptr) {
+    eos_notice("%s", "msg=\"no qclient present, skipping disk scan\"");
+    return;
+  }
+
 #endif
 
   if (mBgThread) {
@@ -652,8 +658,8 @@ ScanDir::CheckFile(const std::string& fpath)
 #ifndef _NOOFS
 
   if (mBgThread) {
-    gFmdDbMapHandler.UpdateWithScanInfo(mFsId, fpath, scan_size, scan_xs_hex,
-                                        filexs_err, blockxs_err);
+    gFmdDbMapHandler.UpdateWithScanInfo(fid, mFsId, fpath, scan_size,
+                                        scan_xs_hex, gOFS.mFsckQcl);
   }
 
 #endif
