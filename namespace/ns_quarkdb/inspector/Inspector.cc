@@ -464,8 +464,10 @@ int Inspector::checkCursedNames(std::ostream &out, std::ostream &err) {
       break;
     }
 
-    if (proto.name() == "." || proto.name() == ".." ||  proto.name().find("/") != std::string::npos) {
-      out << "cid=" << proto.id() << " cursed-name=" << proto.name() << std::endl;
+    if(proto.id() != 1) {
+      if (proto.name() == "." || proto.name() == ".." ||  proto.name().find("/") != std::string::npos) {
+        out << "cid=" << proto.id() << " cursed-name=" << proto.name() << std::endl;
+      }
     }
 
     containerScanner.next();
