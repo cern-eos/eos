@@ -454,7 +454,18 @@ out:
 }
 
 //------------------------------------------------------------------------------
-//! Search for files / containers with cursed names
+// Check if file / container name is cursed
+//------------------------------------------------------------------------------
+static bool isCursedName(const std::string &name) {
+  if (name == "." || name == ".." || name.find("/") != std::string::npos) {
+    return true;
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Search for files / containers with cursed names
 //------------------------------------------------------------------------------
 int Inspector::checkCursedNames(std::ostream &out, std::ostream &err) {
   ContainerScanner containerScanner(mQcl);
@@ -464,10 +475,8 @@ int Inspector::checkCursedNames(std::ostream &out, std::ostream &err) {
       break;
     }
 
-    if(proto.id() != 1) {
-      if (proto.name() == "." || proto.name() == ".." ||  proto.name().find("/") != std::string::npos) {
-        out << "cid=" << proto.id() << " cursed-name=" << proto.name() << std::endl;
-      }
+    if(proto.id() != 1 && isCursedName(proto.name())) {
+      out << "cid=" << proto.id() << " cursed-name=" << proto.name() << std::endl;
     }
 
     containerScanner.next();
@@ -480,7 +489,7 @@ int Inspector::checkCursedNames(std::ostream &out, std::ostream &err) {
       break;
     }
 
-    if (proto.name() == "." || proto.name() == ".." ||  proto.name().find("/") != std::string::npos) {
+    if (isCursedName(proto.name())) {
       out << "fid=" << proto.id() << " cursed-name=" << proto.name() << std::endl;
     }
 
