@@ -480,7 +480,7 @@ void FileSystem::fs_snapshot_t::fillFromCoreParams(const FileSystemCoreParams&
 //------------------------------------------------------------------------------
 FileSystem::FileSystem(const FileSystemLocator& locator,
                        XrdMqSharedObjectManager* som, qclient::SharedManager* qsom, bool bc2mgm)
-: mLocator(locator), mHashLocator(locator, bc2mgm)
+  : mLocator(locator), mHashLocator(locator, bc2mgm)
 {
   mSharedManager = qsom;
   mSom = som;
@@ -501,15 +501,13 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
     updateBatch.setDurable("hostport", locator.getHostPort());
     updateBatch.setDurable("host", locator.getHost());
     updateBatch.setDurable("port", std::to_string(locator.getPort()));
-
     updateBatch.setTransient("stat.drain", "nodrain");
 
-    if(!bc2mgm) {
+    if (!bc2mgm) {
       updateBatch.setDurable("configstatus", "down");
     }
 
     mq::SharedHashWrapper(mHashLocator).set(updateBatch);
-
     mDrainQueue = new TransferQueue(TransferQueueLocator(mLocator, "drainq"),
                                     mSom, qsom, bc2mgm);
     mBalanceQueue = new TransferQueue(TransferQueueLocator(mLocator, "balanceq"),
@@ -555,7 +553,8 @@ FileSystem::~FileSystem()
 //------------------------------------------------------------------------------
 // Get underlying hash locator
 //------------------------------------------------------------------------------
-SharedHashLocator FileSystem::getHashLocator() const {
+SharedHashLocator FileSystem::getHashLocator() const
+{
   return mHashLocator;
 }
 
@@ -875,28 +874,32 @@ bool FileSystem::setLongLongLocal(const std::string& key, int64_t value)
 //------------------------------------------------------------------------------
 // Set a key-value pair in a filesystem and evt. broadcast it.
 //------------------------------------------------------------------------------
-bool FileSystem::SetString(const char* key, const char* str, bool broadcast) {
+bool FileSystem::SetString(const char* key, const char* str, bool broadcast)
+{
   return mq::SharedHashWrapper(mHashLocator).set(key, str, broadcast);
 }
 
 //------------------------------------------------------------------------------
 // Remove a key from a filesystem and evt. broadcast it.
 //------------------------------------------------------------------------------
-bool FileSystem::RemoveKey(const char* key, bool broadcast) {
+bool FileSystem::RemoveKey(const char* key, bool broadcast)
+{
   return mq::SharedHashWrapper(mHashLocator).del(key, broadcast);
 }
 
 //------------------------------------------------------------------------------
 // Get all keys in a vector of strings.
 //------------------------------------------------------------------------------
-bool FileSystem::GetKeys(std::vector<std::string>& keys) {
+bool FileSystem::GetKeys(std::vector<std::string>& keys)
+{
   return mq::SharedHashWrapper(mHashLocator).getKeys(keys);
 }
 
 //------------------------------------------------------------------------------
 // Get the string value by key
 //------------------------------------------------------------------------------
-std::string FileSystem::GetString(const char* key) {
+std::string FileSystem::GetString(const char* key)
+{
   std::string skey = key;
 
   if (skey == "<n>") {
@@ -917,8 +920,8 @@ std::string FileSystem::GetString(const char* key) {
 // @return string representation of the content for the hash
 //------------------------------------------------------------------------------
 static std::string serializeWithFilter(
-  const std::map<std::string, std::string> &contents, const char* filter_prefix) {
-
+  const std::map<std::string, std::string>& contents, const char* filter_prefix)
+{
   std::string key;
   std::string val;
   std::ostringstream oss;
@@ -990,9 +993,10 @@ static std::string serializeWithFilter(
 // "tag=<tag>" -> use <tag> instead of the variable name to print the header
 // @param filter to filter out hash content
 //------------------------------------------------------------------------------
-static void printOntoTable(mq::SharedHashWrapper &hash, TableHeader& table_mq_header,
-  TableData& table_mq_data, std::string format, const std::string &filter) {
-
+static void printOntoTable(mq::SharedHashWrapper& hash,
+                           TableHeader& table_mq_header,
+                           TableData& table_mq_data, std::string format, const std::string& filter)
+{
   using eos::common::StringConversion;
   std::vector<std::string> formattoken;
   StringConversion::Tokenize(format, formattoken, "|");
@@ -1094,7 +1098,6 @@ FileSystem::CreateConfig(std::string& key, std::string& val)
 {
   key = mLocator.getQueuePath();
   val.clear();
-
   std::map<std::string, std::string> contents;
   mq::SharedHashWrapper(mHashLocator).getContents(contents);
   val = serializeWithFilter(contents, "stat.");
@@ -1107,7 +1110,8 @@ FileSystemCoreParams FileSystem::getCoreParams()
 {
   mq::SharedHashWrapper hash(mHashLocator);
   std::string id;
-  if(!hash.get("id", id) || id.empty()) {
+
+  if (!hash.get("id", id) || id.empty()) {
     return FileSystemCoreParams(0, FileSystemLocator(), GroupLocator(), "",
                                 ConfigStatus::kOff);
   }
@@ -1116,7 +1120,8 @@ FileSystemCoreParams FileSystem::getCoreParams()
   GroupLocator::parseGroup(hash.get("schedgroup"), groupLocator);
   std::string uuid = hash.get("uuid");
   ConfigStatus cfg = GetConfigStatusFromString(hash.get("configstatus").c_str());
-  return FileSystemCoreParams(atoi(id.c_str()), mLocator, groupLocator, uuid, cfg);
+  return FileSystemCoreParams(atoi(id.c_str()), mLocator, groupLocator, uuid,
+                              cfg);
 }
 
 //------------------------------------------------------------------------------
@@ -1126,9 +1131,9 @@ bool
 FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
 {
   mq::SharedHashWrapper hash(mHashLocator, dolock, false);
-
   std::string tmp;
-  if(!hash.get("id", tmp)) {
+
+  if (!hash.get("id", tmp)) {
     fs = {};
     return false;
   }
@@ -1201,12 +1206,13 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
   fs.mDiskNameLen = (long) hash.getLongLong("stat.statfs.namelen");
   fs.mDiskRopen = (long) hash.getLongLong("stat.ropen");
   fs.mDiskWopen = (long) hash.getLongLong("stat.wopen");
-  fs.mScanIoRate = (long) hash->getLongLong(eos::common::SCAN_IO_RATE_NAME);
-  fs.mScanEntryInterval = (long)hash->getLongLong
-    (eos::common::SCAN_ENTRY_INTERVAL_NAME);
-  fs.mScanDiskInterval = (long)hash->getLongLong(eos::common::SCAN_DISK_INTERVAL_NAME);
-  fs.mScanNsInterval = (long)hash->getLongLong(eos::common::SCAN_NS_INTERVAL_NAME);
-  fs.mScanNsRate = (long)hash->getLongLong(eos::common::SCAN_NS_RATE_NAME);
+  fs.mScanIoRate = (long) hash.getLongLong(eos::common::SCAN_IO_RATE_NAME);
+  fs.mScanEntryInterval = (long)hash.getLongLong
+                          (eos::common::SCAN_ENTRY_INTERVAL_NAME);
+  fs.mScanDiskInterval = (long)hash.getLongLong(
+                           eos::common::SCAN_DISK_INTERVAL_NAME);
+  fs.mScanNsInterval = (long)hash.getLongLong(eos::common::SCAN_NS_INTERVAL_NAME);
+  fs.mScanNsRate = (long)hash.getLongLong(eos::common::SCAN_NS_RATE_NAME);
   fs.mGracePeriod = (time_t) hash.getLongLong("graceperiod");
   fs.mDrainPeriod = (time_t) hash.getLongLong("drainperiod");
   fs.mBalThresh   = hash.getDouble("stat.balance.threshold");
