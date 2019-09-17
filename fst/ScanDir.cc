@@ -244,7 +244,16 @@ ScanDir::AccountMissing()
     if (stat(fpath.c_str(), &info)) {
       // Double check that this not a file which was deleted in the meantime
       try {
-        if (IsBeingDeleted(fid) == false)  {
+        if (IsBeingDeleted(fid)) {
+          // Give it one more kick by drop the file from disk and the local db
+          XrdOucErrInfo tmp_err;
+
+          if (gOFS._rem("/DELETION_FSCK", tmp_err, nullptr, nullptr, fpath.c_str(),
+                        fid, mFsId, true)) {
+            eos_err("msg=\"failed to remove local file\" path=%s fxid=%08llx "
+                    "fsid=%lu", fpath.c_str(), fid, mFsId);
+          }
+        } else {
           // File missing on disk - create fmd entry and mark it as missing
           eos_info("msg=\"account for missing replica\" fxid=%08llx fsid=%lu",
                    fid, mFsId);
@@ -356,28 +365,11 @@ bool
 ScanDir::IsBeingDeleted(const eos::IFileMD::id_t fid) const
 {
   using namespace std::chrono;
-  constexpr seconds max_delay_unlink {600};
   auto file_fut = eos::MetadataFetcher::getFileFromId(*gOFS.mFsckQcl.get(),
                   eos::FileIdentifier(fid));
   // Throws an exception if file metadata object doesn't exist
   eos::ns::FileMdProto fmd = file_fut.get();
-
-  if (fmd.cont_id() == 0ull) {
-    // File is detached from parent i.e. being deleted
-    auto now_sec = duration_cast<seconds>
-                   (mClock.getTime().time_since_epoch()).count();
-    eos::IFileMD::ctime_t ctime;
-    (void) memcpy(&ctime, fmd.ctime().data(), sizeof(ctime));
-
-    // Unlink triggers an update of the ctime so we check that this was done
-    // recently otherwise we consider it a candidate for fsck
-    if ((now_sec > ctime.tv_sec) &&
-        (now_sec - ctime.tv_sec <= max_delay_unlink.count())) {
-      return true;
-    }
-  }
-
-  return false;
+  return (fmd.cont_id() == 0ull);
 }
 
 //------------------------------------------------------------------------------

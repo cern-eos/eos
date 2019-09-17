@@ -620,7 +620,7 @@ FsckEntry::Repair()
     gOFS->MgmStats.Add("FsckRepairStarted", 0, 0, 1);
 
     if (CollectMgmInfo() == false) {
-      eos_err("msg=\"no repair action, file is orphan\", fid=%08llx fsid=%lu",
+      eos_err("msg=\"no repair action, file is orphan\" fid=%08llx fsid=%lu",
               mFid, mFsidErr);
       UpdateMgmStats(success);
       (void) DropReplica(mFsidErr);
@@ -630,6 +630,12 @@ FsckEntry::Repair()
       auto root_vid = eos::common::VirtualIdentity::Root();
       (void) proc_fs_dropghosts(mFsidErr, {mFid}, root_vid, out, err);
       return success;
+    }
+
+    if (mMgmFmd.cont_id() == 0ull) {
+      eos_info("msg=\"no repair action, file is being deleted\" fid=%08llx",
+               mFid);
+      return true;
     }
 
     CollectAllFstInfo();
