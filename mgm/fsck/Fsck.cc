@@ -659,6 +659,8 @@ Fsck::ReportMonitorFormat(std::ostringstream& oss,
           oss << ", ";
         }
       }
+
+      oss << std::endl;
     }
   }
 
