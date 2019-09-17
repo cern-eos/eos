@@ -635,8 +635,8 @@ FmdDbMapHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
     return false;
   }
 
-  eos_debug("fsid=%lu fxid=%08llx cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s",
-            (unsigned long) fsid, fid, cid, lid, mgmsize, mgmchecksum.c_str());
+  eos_debug("fxid=%08llx fsid=%lu cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s",
+            fid, fsid, cid, lid, mgmsize, mgmchecksum.c_str());
   eos::common::FmdHelper valfmd;
   eos::common::RWMutexReadLock map_rd_lock(mMapMutex);
   FsWriteLock fs_wr_lock(fsid);
@@ -676,16 +676,16 @@ FmdDbMapHandler::UpdateWithScanInfo(eos::common::FileId::fileid_t fid,
                                     const std::string& scan_xs_hex,
                                     std::shared_ptr<qclient::QClient> qcl)
 {
-  eos_debug("msg=\"resyncing qdb and disk info\" fxid=%08llx fsid=%d",
+  eos_debug("msg=\"resyncing qdb and disk info\" fxid=%08llx fsid=%lu",
             fid, fsid);
 
-  if (!ResyncFileFromQdb(fid, fsid, fpath, qcl)) {
+  if (ResyncFileFromQdb(fid, fsid, fpath, qcl)) {
     return;
   }
 
   int rd_rc = ResyncDisk(fpath.c_str(), fsid, false, scan_sz, scan_xs_hex);
 
-  if (!rd_rc) {
+  if (rd_rc) {
     if (rd_rc == ENOENT) {
       // File no longer on disk - mark it as missing
       auto fmd = LocalGetFmd(fid, fsid, true);
