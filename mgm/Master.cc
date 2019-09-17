@@ -1586,23 +1586,19 @@ Master::MasterRO2Slave()
     try {
       if (gOFS->eosFsView) {
         gOFS->eosFsView->finalize();
-        delete gOFS->eosFsView;
         gOFS->eosFsView = nullptr;
       }
 
       if (gOFS->eosContainerAccounting) {
-        delete gOFS->eosContainerAccounting;
         gOFS->eosContainerAccounting = nullptr;
       }
 
       if (gOFS->eosSyncTimeAccounting) {
-        delete gOFS->eosSyncTimeAccounting;
         gOFS->eosSyncTimeAccounting = nullptr;
       }
 
       if (gOFS->eosView) {
         gOFS->eosView->finalize();
-        delete gOFS->eosView;
         gOFS->eosView = nullptr;
       }
     } catch (eos::MDException& e) {
@@ -2191,23 +2187,19 @@ Master::RebootSlaveNamespace()
     try {
       if (gOFS->eosFsView) {
         gOFS->eosFsView->finalize();
-        delete gOFS->eosFsView;
         gOFS->eosFsView = nullptr;
       }
 
       if (gOFS->eosContainerAccounting) {
-        delete gOFS->eosContainerAccounting;
         gOFS->eosContainerAccounting = nullptr;
       }
 
       if (gOFS->eosSyncTimeAccounting) {
-        delete gOFS->eosSyncTimeAccounting;
         gOFS->eosSyncTimeAccounting = nullptr;
       }
 
       if (gOFS->eosView) {
         gOFS->eosView->finalize();
-        delete gOFS->eosView;
         gOFS->eosView = nullptr;
       }
     } catch (eos::MDException& e) {
