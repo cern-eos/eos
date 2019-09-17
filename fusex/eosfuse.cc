@@ -2018,6 +2018,8 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
   fuse_id id(req);
   cap::shared_cap pcap;
   metad::shared_md md;
+  bool md_update_sync = false;     /* wait for MD update for return code */
+
   md = Instance().mds.get(req, ino);
   md->Locker().Lock();
 
@@ -2185,6 +2187,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
             Instance().mds.wait_flush(req, md);
           }
         }
+        md_update_sync = true;
 
         EXEC_TIMING_END("setattr:chown");
       }
@@ -2381,6 +2384,19 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
     }
   }
 
+  if (md_update_sync && rc == 0) {
+    if (Instance().mds.has_flush(md->id())) {
+      Instance().mds.wait_flush(req, md);
+    }
+    md->setop_update();
+    Instance().mds.update(req, md, pcap->authid());
+    if (Instance().mds.has_flush(md->id())) {
+      Instance().mds.wait_flush(req, md);
+    }
+    if (EOS_LOGS_DEBUG) eos_static_debug("id %ld err %d op %d del %d", md->id(), md->err(), md->getop(), md->deleted());
+    rc = md->deleted() ? ENOENT : md->err();
+  }
+
   if (rc) {
     md->Locker().UnLock();
     fuse_reply_err(req, rc);
@@ -2389,7 +2405,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
     memset(&e, 0, sizeof(e));
     md->convert(e, pcap->lifetime());
     eos_static_info("%s", md->dump(e).c_str());
-    Instance().mds.update(req, md, pcap->authid());
+    if (!md_update_sync) Instance().mds.update(req, md, pcap->authid());
     md->Locker().UnLock();
     fuse_reply_attr(req, &e.attr, e.attr_timeout);
   }

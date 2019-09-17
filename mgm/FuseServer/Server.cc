@@ -568,7 +568,7 @@ Server::FillContainerCAP(uint64_t id,
   dir.mutable_capability()->set_id(id);
 
   if (EOS_LOGS_DEBUG) {
-    eos_debug("container-id=%#llx", id);
+    eos_debug("container-id=%#llx vid.sudoer %d dir.uid %u name %s", id, vid.sudoer, (uid_t) dir.uid(), dir.name().c_str());
   }
 
   struct timespec ts;
@@ -651,6 +651,8 @@ Server::FillContainerCAP(uint64_t id,
     // look at ACLs
     std::string sysacl = (*(dir.mutable_attr()))["sys.acl"];
     std::string useracl = (*(dir.mutable_attr()))["user.acl"];
+    if (EOS_LOGS_DEBUG)
+        eos_debug("name='%s' sysacl='%s' useracl='%s' count(sys.eval.useracl)=%d", dir.name().c_str(), sysacl.c_str(), useracl.c_str(), dir.attr().count("sys.eval.useracl"));
 
     if (sysacl.length() || useracl.length()) {
       bool evaluseracl = (!S_ISDIR(dir.mode())) ||
@@ -662,8 +664,8 @@ Server::FillContainerCAP(uint64_t id,
               evaluseracl);
 
       if (EOS_LOGS_DEBUG)
-        eos_debug("cap id=%lld evaluseracl %d CanRead %d CanWrite %d CanChmod %d CanChown %d CanUpdate %d CanNotDelete %d",
-                  id, evaluseracl, acl.CanRead(), acl.CanWrite(), acl.CanChmod(), acl.CanChown(),
+        eos_debug("cap id=%lld name %s evaluseracl %d CanRead %d CanWrite %d CanChmod %d CanChown %d CanUpdate %d CanNotDelete %d",
+                  id, dir.name().c_str(), evaluseracl, acl.CanRead(), acl.CanWrite(), acl.CanChmod(), acl.CanChown(),
                   acl.CanUpdate(), acl.CanNotDelete());
 
       if (acl.IsMutable()) {
@@ -1464,6 +1466,16 @@ Server::OpSetDirectory(const std::string& id,
         gOFS->eosView->renameContainer(cmd.get(), md.name());
       }
 
+      if (cmd->getCUid() != md.uid() /* a chown */ && !vid.sudoer && (uid_t)md.uid() != vid.uid) {
+        /* chown is under control of container sys.acl only, if a vanilla user chowns to other than themselves */
+        Acl acl;
+	    eos::IContainerMD::XAttrMap attrmap = cmd->getAttributes();
+        if (EOS_LOGS_DEBUG)
+            eos_debug("sysacl '%s' useracl '%s' evaluseracl %d (ignored)", attrmap["sys.acl"].c_str(), attrmap["user.acl"].c_str(), attrmap.count("sys.eval.useracl"));
+        acl.SetFromAttrMap(attrmap, vid, NULL, true /* sysacl-only */);
+        if (!acl.CanChown()) return EPERM;
+      }
+
       if (pcmd->getMode() & S_ISGID) {
         sgid_mode = S_ISGID;
       }
@@ -1800,10 +1812,15 @@ Server::OpSetFile(const std::string& id,
         }
       }
 
-      if (!vid.sudoer && (uid_t)md.uid() != fmd->getCUid()) {
-        /* chown is under control of container sys.acl if a vanilla user chowns to other than themselves */
+      if (EOS_LOGS_DEBUG)
+          eos_debug("vid.sudoer %d vid.uid %u md.uid() %u fmd->getCUid() %u", vid.sudoer, vid.uid, (uid_t)md.uid(), fmd->getCUid());
+      if (fmd->getCUid() != md.uid() /* a chown */ && !vid.sudoer && (uid_t)md.uid() != vid.uid) {
+        /* chown is under control of container sys.acl only, if a vanilla user chowns to other than themselves */
         Acl acl;
-        acl.SetFromAttrMap(pcmd->getAttributes(), vid, NULL, true);
+	    eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
+        if (EOS_LOGS_DEBUG)
+            eos_debug("sysacl '%s' useracl '%s' (ignored) evaluseracl %d", attrmap["sys.acl"].c_str(), attrmap["user.acl"].c_str(), attrmap.count("sys.eval.useracl"));
+        acl.SetFromAttrMap(attrmap, vid, NULL, true /* sysacl-only */);
         if (!acl.CanChown()) return EPERM;
       }
 
@@ -1811,8 +1828,8 @@ Server::OpSetFile(const std::string& id,
                (long) fid,
                (long) md.md_ino(),
                (long) md.md_pino(), (long) fmd->getContainerId());
-    } else if (strncmp(md.target().c_str(), "////hlnk",
-                       8) == 0) { /* creation of a hard link */
+    } else if (strncmp(md.target().c_str(), "////hlnk", 8) == 0) {
+      /* creation of a hard link */
       uint64_t tgt_md_ino = atoll(md.target().c_str() + 8);
 
       if (pcmd->findContainer(

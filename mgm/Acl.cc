@@ -159,7 +159,7 @@ Acl::Set(std::string sysacl, std::string useracl,
   if (allowUserAcl)
     eos::common::StringConversion::Tokenize(useracl, rules, delimiter);     /* append to rules */
   if (EOS_LOGS_DEBUG)
-    eos_static_debug("sysacl %s (%d entries), useracl %s, total %d entries", sysacl.c_str(), num_sysacl_rules, useracl.c_str(), rules.size());
+    eos_static_debug("sysacl '%s' (%d entries), useracl '%s', total %d entries", sysacl.c_str(), num_sysacl_rules, useracl.c_str(), rules.size());
 
   std::vector<std::string>::const_iterator it;
   XrdOucString sizestring1;
@@ -342,8 +342,7 @@ Acl::Set(std::string sysacl, std::string useracl,
               } else {
                 if (!mCanWriteOnce) {
                   mCanWrite = !deny;
-		  // by default 'w' adds update rights
-		  mCanUpdate = !deny;
+                  mCanUpdate = !deny; // by default 'w' adds update rights
                 }
               }
               break;

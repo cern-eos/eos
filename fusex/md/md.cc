@@ -886,7 +886,7 @@ metad::wait_flush(fuse_req_t req, metad::shared_md md)
         if (has_flush(md->id())) {
           // if a deletion was issued, OP state is md->RM not md->NONE hence we would never leave this loop
           continue;
-	}
+        }
       }
       break;
     }
