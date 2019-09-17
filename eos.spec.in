@@ -970,6 +970,11 @@ The EOS archive daemon.
 %dir %attr(755,eosarchi,c3) %{_localstatedir}/eos/archive/
 %dir %attr(755,eosarchi,c3) %{_localstatedir}/log/eos/archive/
 
+%pre -n eos-archive
+echo "Make sure eosarchi user and c3 group exist"
+getent group c3 >/dev/null 2>&1 || groupadd -r -g 1028 c3
+getent passwd eosarchi >/dev/null 2>&1 || useradd -r -u 72811 eosarchi
+
 %post -n eos-archive
 case "$1" in
   1)
