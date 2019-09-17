@@ -2324,24 +2324,43 @@ XrdFstOfsFile::DoTpcTransfer()
   std::unique_ptr< std::vector<char> > buffer(
     new std::vector<char>(tpcIO.GetBlockSize()));
   eos_info("msg=\"tpc pull\" ");
+  struct stat st_info;
 
-  do {
+  if (tpcIO.fileStat(&st_info)) {
+    eos_err("%s", "msg=\"failed to stat remote file\" src_url=%s",
+            src_url.c_str());
+    XrdSysMutexHelper scope_lock(mTpcJobMutex);
+    mTpcState = kTpcDone;
+    mTpcRetc = EIO;
+    mTpcInfo.Reply(SFS_ERROR, mTpcRetc, "sync - TPC remote stat failed");
+    return 0;
+  }
+
+  int64_t file_size = st_info.st_size;
+  int64_t nread {0ull};
+
+  while (offset < file_size) {
     // Read the remote file in chunks and check after each chunk if the TPC
     // has been aborted already
+    if (file_size - offset >= tpcIO.GetBlockSize()) {
+      nread = tpcIO.GetBlockSize();
+    } else {
+      nread = file_size - offset;
+    }
+
     if (getenv("EOS_FST_TPC_READASYNC")) {
       // @note this way of reading asynchronously in the buffer without waiting
       // for the async requests works properly only if readahead is enabled.
       // Otherwise, one must call fileWaitAsyncIO().
-      rbytes = tpcIO.fileReadAsync(offset, &((*buffer)[0]),
-                                   tpcIO.GetBlockSize(), true, 30);
+      rbytes = tpcIO.fileReadAsync(offset, &((*buffer)[0]), nread, true, 30);
     } else {
-      rbytes = tpcIO.fileRead(offset, &((*buffer)[0]), tpcIO.GetBlockSize());
+      rbytes = tpcIO.fileRead(offset, &((*buffer)[0]), nread);
     }
 
     eos_debug("msg=\"tpc read\" rbytes=%lli request=%llu",
               rbytes, tpcIO.GetBlockSize());
 
-    if (rbytes == -1) {
+    if ((rbytes == -1) || (rbytes != nread)) {
       (void) tpcIO.fileClose();
       eos_err("msg=\"tpc transfer terminated - remote read failed\"");
       XrdSysMutexHelper scope_lock(mTpcJobMutex);
@@ -2353,27 +2372,25 @@ XrdFstOfsFile::DoTpcTransfer()
       return 0;
     }
 
-    if (rbytes > 0) {
-      // Write the buffer out through the local object
-      wbytes = write(offset, &((*buffer)[0]), rbytes);
-      eos_debug("msg=\"tpc write\" wbytes=%llu", wbytes);
+    // Write the buffer out through the local object
+    wbytes = write(offset, &((*buffer)[0]), rbytes);
+    eos_debug("msg=\"tpc write\" wbytes=%llu", wbytes);
 
-      if (offset / eight_gb != (offset + rbytes) /  eight_gb) {
-        eos_info("msg=\"tcp write\" offset=%llu", offset);
-      }
-
-      if (rbytes != wbytes) {
-        (void) tpcIO.fileClose();
-        eos_err("%s", "msg=\"tpc transfer terminated - local write failed\"");
-        XrdSysMutexHelper scope_lock(mTpcJobMutex);
-        mTpcState = kTpcDone;
-        mTpcRetc = EIO;
-        mTpcInfo.Reply(SFS_ERROR, mTpcRetc, "sync - TPC local write failed");
-        return 0;
-      }
-
-      offset += rbytes;
+    if (offset / eight_gb != (offset + rbytes) /  eight_gb) {
+      eos_info("msg=\"tcp write\" offset=%llu", offset);
     }
+
+    if (rbytes != wbytes) {
+      (void) tpcIO.fileClose();
+      eos_err("%s", "msg=\"tpc transfer terminated - local write failed\"");
+      XrdSysMutexHelper scope_lock(mTpcJobMutex);
+      mTpcState = kTpcDone;
+      mTpcRetc = EIO;
+      mTpcInfo.Reply(SFS_ERROR, mTpcRetc, "sync - TPC local write failed");
+      return 0;
+    }
+
+    offset += rbytes;
 
     // Got an "ofs.tpc cancel" request from the client who triggered it
     if (mTpcCancel) {
@@ -2398,7 +2415,7 @@ XrdFstOfsFile::DoTpcTransfer()
                      "by diconnect");
       return 0;
     }
-  } while (rbytes > 0);
+  }
 
   // Close the remote file
   eos_info("msg=\"done tpc transfer, close remote file\" src_url=%s",
