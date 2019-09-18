@@ -73,10 +73,9 @@ XrdMgmOfs::_chown(const char* path,
     eos::IContainerMD::XAttrMap attrmap;
     eos::common::Path cPath(path);
     cmd = gOFS->eosView->getContainer(path, !nodereference);
-    eos::common::Path pPath(gOFS->eosView->getUri(cmd.get()).c_str());
-    eos::IContainerMD::XAttrMap::const_iterator it;
+    eos::listAttributes(gOFS->eosView, cmd.get(), attrmap, false);
+
     // ACL and permission check
-    gOFS->_attr_ls(pPath.GetParentPath(), error, vid, 0, attrmap, false);
     Acl acl;
     if (uid == vid.uid) {   /* allow user.acl only if current user is new owner, prevents DNS attack by quota */
         acl.SetFromAttrMap(attrmap, vid);  /* also takes care of eval.useracl */
@@ -84,7 +83,6 @@ XrdMgmOfs::_chown(const char* path,
         acl.Set(attrmap["sys.acl"], "", vid, false);
     }
     eos_static_debug("sys.acl %s acl.CanChown() %d", attrmap["sys.acl"].c_str(), acl.CanChown());
-    cmd = gOFS->eosView->getContainer(path, !nodereference);
 
     if (((vid.uid) && (!vid.hasUid(3) && !vid.hasGid(4) ) &&
          !acl.CanChown()) ||

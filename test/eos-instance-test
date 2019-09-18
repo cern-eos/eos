@@ -1108,12 +1108,12 @@ runtest   "### Chown     " unix 0 "" eos chown 2:2 /eos/$EOS_TEST_INSTANCE/test/
 runtest H "### Rm        " sss  1 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k     # fail: dir not owned, no ACL
 runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:nobody:rwx!d /eos/$EOS_TEST_INSTANCE/test/instancetest
 runtest H "### Rm        " sss  1 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k     # fail: dir not owned, ACL denies delete
-runtest H "### Attr      " unix 0 "" eos whoami
+runtest H "### Attr      " unix 0 "" eos whoami         # running as user 2:2
 runtest   "### Mkdir     " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl
 runtest   "### Chown     " unix 0 "" eos chown 1:1 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl
-runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:2:rwxc /eos/$EOS_TEST_INSTANCE/test/instancetest               # the 'c'-right should be ignored on user.acl
+runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:2:rwxc /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl       # the 'c'-right should be ignored on user.acl
 runtest H "### Chown     " sss  1 "" eos chown 99 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl                         # fail: 'c' must only effective in sys.acl
-runtest   "### Attr      " unix 0 "" eos attr set sys.acl=u:2:c /eos/$EOS_TEST_INSTANCE/test/instancetest
+runtest   "### Attr      " unix 0 "" eos attr set sys.acl=u:2:c /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl
 runtest H "### Chown     " sss  0 "" eos chown 99 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl                         # should work with 'c' in sys.acl
 runtest   "### Chown     " unix 0 "" eos chown root /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest   "### Attr      " unix 0 "" eos attr set user.acl=u:99:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest               # the 'c'-right should be ignored on user.acl
@@ -1162,13 +1162,13 @@ runtest H "### Chown     " sss  0 "EOSROLE='-r 99 99'" eos chown 98 /eos/$EOS_TE
 runtest   "### Attr      " unix 0 "" eos attr rm sys.acl /eos/$EOS_TEST_INSTANCE/test/instancetest
 runtest H "### Chown     " sss  0 "EOSROLE='-r 99 99'" eos chown 99 /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k       # chown to self should work in user.acl
 
-# chown on directory - the ACL that applies is that of the directory's *parent*
+# chown on directory - the ACL that applies is that of the directory itself
 runtest   "### Chown     " unix 0 "" eos chown 99:99 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl                      # same tests with a directory
-runtest   "### Attr      " unix 0 "" eos attr set user.acl=g:99:rwxc /eos/$EOS_TEST_INSTANCE/test/instancetest              # 'c' (chown) in user.acl 
+runtest   "### Attr      " unix 0 "" eos attr set user.acl=g:99:rwxc /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl      # 'c' (chown) in user.acl 
 runtest H "### Chown     " sss  1 "EOSROLE='-r 99 99'" eos chown 98 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl       # fail: user.acl cannot grant this chown
-runtest   "### Attr      " unix 0 "" eos attr set sys.acl=g:99:c /eos/$EOS_TEST_INSTANCE/test/instancetest                  # 'c' (chown) in sys.ascl 
+runtest   "### Attr      " unix 0 "" eos attr set sys.acl=g:99:c /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl          # 'c' (chown) in sys.ascl 
 runtest H "### Chown     " sss  0 "EOSROLE='-r 99 99'" eos chown 98 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl
-runtest   "### Attr      " unix 0 "" eos attr rm sys.acl /eos/$EOS_TEST_INSTANCE/test/instancetest                          # rm sys.acl, user.acl remains
+runtest   "### Attr      " unix 0 "" eos attr set sys.acl= /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl                # rm sys.acl, user.acl remains
 runtest H "### Chown     " sss  0 "EOSROLE='-r 99 99'" eos chown 99 /eos/$EOS_TEST_INSTANCE/test/instancetest/testAcl       # chown to self should work in user.acl
 
 # date +%s.%N;exit

@@ -1466,7 +1466,7 @@ Server::OpSetDirectory(const std::string& id,
         gOFS->eosView->renameContainer(cmd.get(), md.name());
       }
 
-      if (cmd->getCUid() != md.uid() /* a chown */ && !vid.sudoer && (uid_t)md.uid() != vid.uid) {
+      if (cmd->getCUid() != (uid_t)md.uid() /* a chown */ && !vid.sudoer && (uid_t)md.uid() != vid.uid) {
         /* chown is under control of container sys.acl only, if a vanilla user chowns to other than themselves */
         Acl acl;
 	    eos::IContainerMD::XAttrMap attrmap = cmd->getAttributes();
@@ -1814,7 +1814,7 @@ Server::OpSetFile(const std::string& id,
 
       if (EOS_LOGS_DEBUG)
           eos_debug("vid.sudoer %d vid.uid %u md.uid() %u fmd->getCUid() %u", vid.sudoer, vid.uid, (uid_t)md.uid(), fmd->getCUid());
-      if (fmd->getCUid() != md.uid() /* a chown */ && !vid.sudoer && (uid_t)md.uid() != vid.uid) {
+      if (fmd->getCUid() != (uid_t)md.uid() /* a chown */ && !vid.sudoer && (uid_t)md.uid() != vid.uid) {
         /* chown is under control of container sys.acl only, if a vanilla user chowns to other than themselves */
         Acl acl;
 	    eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
