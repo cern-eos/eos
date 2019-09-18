@@ -221,7 +221,7 @@ function configure_fsck() {
 # Check that we collected all the errors that we expect
 function check_all_errors_collected() {
   # Allow for at most MAX_DELAY seconds to collect all the errors
-  local MAX_DELAY=120
+  local MAX_DELAY=180
   local START_TIME=$(date +%s)
   while
     local CURRENT_TIME=$(date +%s)
@@ -327,8 +327,9 @@ check_all_errors_collected
 exec_cmd eos-client1-test "eos -r 0 0 fsck config toggle-repair"
 
 # Wait at most 3 minutes for all the errors to be repaired
-local MAX_DELAY=180
-local START_TIME=$(date +%s)
+MAX_DELAY=180
+START_TIME=$(date +%s)
+
 while
   local CURRENT_TIME=$(date +%s)
   local HAS_ERRORS=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i")
