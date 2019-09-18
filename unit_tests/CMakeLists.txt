@@ -119,6 +119,7 @@ target_link_libraries(
   qclient
   XrdEosMgm-Static
   ${READLINE_LIBRARY}
+  ${JSONCPP_LIBRARIES}
   ${XROOTD_SERVER_LIBRARY})
 
 install(TARGETS

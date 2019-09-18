@@ -27,6 +27,7 @@ include_directories(
   ${Z_INCLUDE_DIRS}
   ${PROTOBUF_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
+  ${JSONCPP_INCLUDE_DIR}
   ${NCURSES_INCLUDE_DIRS}
   ${ZMQ_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
@@ -83,6 +84,7 @@ add_library(eosCommon-Objects OBJECT
   VirtualIdentity.cc                                         VirtualIdentity.hh
   XrdConnPool.cc                                             XrdConnPool.hh
   XrdErrorMap.cc                                             XrdErrorMap.hh
+  OAuth.cc                                                   OAuth.hh
   JeMallocHandler.cc
   plugin_manager/Plugin.hh
   plugin_manager/PluginManager.cc
@@ -105,6 +107,7 @@ set(EOSCOMMON_LIBS
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
   ${NCURSES_LIBRARY}
+  ${JSONCPP_LIBRARIES}
   ${PROTOBUF_LIBRARY}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
@@ -182,6 +185,7 @@ if (Linux)
     ${UUID_LIBRARIES}
     ${ATTR_LIBRARIES}
     ${NCURSES_LIBRARY}
+    ${JSONCPP_LIBRARIES}
     ${LEVELDB_LIBRARIES}
     ${GLIBC_RT_LIBRARY}
     ${XROOTD_CL_LIBRARY}

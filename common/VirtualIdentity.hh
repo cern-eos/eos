@@ -51,6 +51,9 @@ struct VirtualIdentity {
   std::string geolocation;
   std::string app;
   std::string key;
+  std::string email;
+  std::string fullname;
+  std::string federation;
   bool sudoer;
 
   //----------------------------------------------------------------------------
