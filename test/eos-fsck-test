@@ -260,6 +260,12 @@ function check_all_errors_collected() {
   done
 }
 
+# Cleanup the files and directories at the MGM
+function cleanup() {
+  exec_cmd eos-client1-test "eos -r 0 0 rm -rF ${EOS_ROOT}/fsck"
+  exec_cmd eos-client1-test "eos -r 0 0 fsck disable"
+}
+
 # Set up global variables
 IS_DOCKER=false
 NAMESPACE=""
@@ -330,6 +336,7 @@ while
   if [[ -z "${HAS_ERRORS}" ]]; then
     if (( $((${CURRENT_TIME} - ${START_TIME})) >= ${MAX_DELAY} )); then
       echo "error: some errors where not repaired"
+      cleanup
       exit 1
     else
       echo "info: sleep for 5 seconds waiting for errors to be repaired"
@@ -343,6 +350,4 @@ do
   :
 done
 
-# Clean up EOS space
-exec_cmd eos-client1-test "eos -r 0 0 rm -rF ${EOS_ROOT}/fsck"
-exec_cmd eos-client1-test "eos -r 0 0 fsck disable"
+cleanup
