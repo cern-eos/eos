@@ -139,12 +139,12 @@ Fsck::ApplyFsckConfig()
     mRunInterval = std::chrono::minutes(interval);
   }
 
-  Log("enabled=%s", (mEnabled ? mEnabled.c_str() : "off");
-      Log("check interval=%d minutes",
-          std::chrono::duration_cast<std::chrono::minutes>(mRunInterval).count());
+  Log("enabled=%s", (mEnabled.length() ? mEnabled.c_str() : "off"));
+  Log("check interval=%d minutes",
+      std::chrono::duration_cast<std::chrono::minutes>(mRunInterval).count());
 
   if (mEnabled == "true") {
-  Start();
+    Start();
   } else {
     Stop();
   }
