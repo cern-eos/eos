@@ -207,7 +207,8 @@ private:
   eos::common::ThreadPool mThreadPool; ///< Thread pool for fsck repair jobs
   AssistedThread mRepairThread; ///< Thread repair jobs to the thread pool
   AssistedThread mCollectorThread; ///< Thread collecting errors
-  //! Fids repaired in the last hour
+  //! Fids repaired in the current loop, the validity is not actually used since
+  //! we clear the tracker list at each round.
   IdTrackerWithValidity<eos::IFileMD::id_t> mIdTracker;
   std::shared_ptr<qclient::QClient> mQcl; ///< QClient object for metadata
 

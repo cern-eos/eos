@@ -334,9 +334,12 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
       eos::common::RWMutexReadLock rd_lock(mErrMutex);
       local_emap.insert(eFsMap.begin(), eFsMap.end());
     }
+    std::list<std::string> err_priority {"unreg_n", "rep_diff_n",
+                                         "rep_missing_n", "m_mem_sz_diff", "m_cx_diff", "d_mem_sz_diff",
+                                         "d_mem_sz_diff"};
 
-    for (const auto& err_fs : local_emap) {
-      for (const auto& elem : err_fs.second) {
+    for (const auto& err_type : err_priority) {
+      for (const auto& elem : local_emap[err_type]) {
         for (const auto& fid : elem.second) {
           if (mIdTracker.HasEntry(fid)) {
             eos_debug("msg=\"skip already scheduled repair\" fid=%08llx", fid);
@@ -345,7 +348,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
 
           mIdTracker.AddEntry(fid);
           std::shared_ptr<FsckEntry> job {
-            new FsckEntry(fid, elem.first, err_fs.first, mQcl)};
+            new FsckEntry(fid, elem.first, err_type, mQcl)};
           mThreadPool.PushTask<void>([job]() {
             return job->Repair();
           });
@@ -367,6 +370,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
       }
     }
 
+    mIdTracker.Clear();
     mStartProcessing = false;
     eos_info("%s", "msg=\"loop in fsck repair thread\"");
   }
