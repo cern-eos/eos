@@ -192,12 +192,14 @@ int main(int argc, char* argv[]) {
 
   uint64_t newParent = 0;
   std::string newChecksum;
+  int64_t newSize = -1;
 
   changeFidSubcommand->add_option("--fid", fid, "Specify the FileMD to print, through its ID (decimal form)")
   ->required();
 
   changeFidSubcommand->add_option("--new-parent", newParent, "Change the parent container of the specified fid. This _DOES NOT_ modify the respective container maps, only the protobuf FMD!");
   changeFidSubcommand->add_option("--new-checksum", newChecksum, "Change the checksum of the specified fid.");
+  changeFidSubcommand->add_option("--new-size", newSize, "Change the size of the specified fid.");
 
   //----------------------------------------------------------------------------
   // Rename a fid from its current location
@@ -330,7 +332,7 @@ int main(int argc, char* argv[]) {
   }
 
   if(changeFidSubcommand->parsed()) {
-    return inspector.changeFid(fid, newParent, newChecksum, std::cout, std::cerr);
+    return inspector.changeFid(fid, newParent, newChecksum, newSize, std::cout, std::cerr);
   }
 
   if(renameFidSubcommand->parsed()) {

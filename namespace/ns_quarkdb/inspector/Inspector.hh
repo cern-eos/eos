@@ -123,7 +123,7 @@ public:
   //----------------------------------------------------------------------------
   //! Change the given fid - USE WITH CAUTION
   //----------------------------------------------------------------------------
-  int changeFid(uint64_t id, uint64_t newParent, const std::string &newChecksum, std::ostream &out, std::ostream &err);
+  int changeFid(uint64_t id, uint64_t newParent, const std::string &newChecksum, int64_t newSize, std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
   //! Rename the given fid fully, taking care of the container maps as well
