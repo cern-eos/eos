@@ -66,6 +66,10 @@ std::map<std::string, uid_t> Mapping::gPhysicalUserIdCache;
 std::map<std::string, gid_t> Mapping::gPhysicalGroupIdCache;
 
 Mapping::ip_cache Mapping::gIpCache(300);
+
+OAuth Mapping::gOAuth;
+
+
 /*----------------------------------------------------------------------------*/
 /**
  * Initialize Google maps
@@ -85,6 +89,9 @@ Mapping::Init()
       !strcmp("1", getenv("EOS_FUSE_NO_ROOT_SQUASH"))) {
     gRootSquash = false;
   }
+
+  gOAuth.Init();
+
 }
 
 //------------------------------------------------------------------------------
@@ -726,45 +733,57 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     std::vector<std::string> vtident;
     eos::common::StringConversion::Tokenize(client->tident, vtident, "@");
 
-    if (vtident.size() == 2) {
-      maptident += vtident[1];
-    }
-
-    maptident += "\":uid";
-    eos_static_info("%d %s %s %s", vtident.size(), client->tident,
-                    maptident.c_str(), wildcardmaptident.c_str());
-
-    if (gVirtualUidMap.count(maptident.c_str()) ||
-        gVirtualUidMap.count(wildcardmaptident.c_str())) {
-      // if this is an allowed gateway, map according to client name or authkey
-      std::string uidkey = "sss:\"";
-      uidkey += "key:";
-      uidkey += keyname;
-      uidkey += "\":uid";
-      vid.uid = 99;
-      vid.uid_list.clear();
-      vid.uid_list.push_back(99);
-
-      if (gVirtualUidMap.count(uidkey.c_str())) {
-        vid.uid = gVirtualUidMap[uidkey.c_str()];
-        vid.uid_list.push_back(vid.uid);
+    std::string oauthname;
+    // check for OAuth contents
+    if ( (oauthname = gOAuth.Handle(keyname, vid)).empty() ||
+	 // enable/disable oauth2 mapping
+	 !gVirtualUidMap.count("oauth2:\"<pwd>\":uid") ) {
+      // treat as mapping key
+      if (vtident.size() == 2) {
+	maptident += vtident[1];
       }
-
-      std::string gidkey = "sss:\"";
-      gidkey += "key:";
-      gidkey += keyname;
-      gidkey += "\":gid";
-      vid.gid = 99;
-      vid.gid_list.clear();
-      vid.gid_list.push_back(99);
-
-      if (gVirtualGidMap.count(gidkey.c_str())) {
-        vid.gid = gVirtualGidMap[gidkey.c_str()];
-        vid.gid_list.push_back(vid.gid);
+      
+      maptident += "\":uid";
+      eos_static_info("%d %s %s %s", vtident.size(), client->tident,
+		      maptident.c_str(), wildcardmaptident.c_str());
+      
+      if (gVirtualUidMap.count(maptident.c_str()) ||
+	  gVirtualUidMap.count(wildcardmaptident.c_str())) {
+	// if this is an allowed gateway, map according to client name or authkey
+	std::string uidkey = "sss:\"";
+	uidkey += "key:";
+	uidkey += keyname;
+	uidkey += "\":uid";
+	vid.uid = 99;
+	vid.uid_list.clear();
+	vid.uid_list.push_back(99);
+	
+	if (gVirtualUidMap.count(uidkey.c_str())) {
+	  vid.uid = gVirtualUidMap[uidkey.c_str()];
+	  vid.uid_list.push_back(vid.uid);
+	}
+	
+	std::string gidkey = "sss:\"";
+	gidkey += "key:";
+	gidkey += keyname;
+	gidkey += "\":gid";
+	vid.gid = 99;
+	vid.gid_list.clear();
+	vid.gid_list.push_back(99);
+	
+	if (gVirtualGidMap.count(gidkey.c_str())) {
+	  vid.gid = gVirtualGidMap[gidkey.c_str()];
+	  vid.gid_list.push_back(vid.gid);
+	}
+      } else {
+	// we are nobody if we are not an authorized host
+	vid = VirtualIdentity::Nobody();
+	vid.prot = "sss";
       }
     } else {
-      // we are nobody if we are not an authorized host
-      vid = VirtualIdentity::Nobody();
+      // map oauthname
+      Mapping::getPhysicalIds(oauthname.c_str(), vid);
+      vid.prot="oauth2";
     }
   }
 
@@ -1961,6 +1980,19 @@ VirtualIdentity Mapping::Someone(uid_t uid, gid_t gid)
   return vid;
 }
 
+//------------------------------------------------------------------------------
+//! Function testing if an OAUTH2 resource is allowed by the configuration
+//------------------------------------------------------------------------------
+bool
+Mapping::IsOAuth2Resource(const std::string& resource)
+{
+  eos::common::RWMutexReadLock lock(eos::common::Mapping::gMapMutex);
+  std::string uidkey = "oauth2:\"";
+  uidkey += "key:";
+  uidkey += resource;
+  uidkey += "\":uid";
+  return gVirtualUidMap.count(uidkey.c_str());
+}
 
 /*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END

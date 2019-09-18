@@ -168,7 +168,7 @@ Vid::Set(const char* value, bool storeConfig)
 
     if ((auth != "voms") && (auth != "krb5") && (auth != "sss") &&
         (auth != "unix") && (auth != "tident") && (auth != "gsi") &&
-        (auth != "https") && (auth != "grpc")) {
+        (auth != "https") && (auth != "grpc") && (auth != "oauth2")) {
       eos_static_err("invalid auth mode");
       return false;
     }
@@ -467,7 +467,7 @@ Vid::Rm(XrdOucEnv& env,
 
       if ((auth != "voms") && (auth != "krb5") && (auth != "sss") &&
           (auth != "unix") && (auth != "tident") && (auth != "gsi") &&
-          (auth != "https") && (auth != "grpc")) {
+          (auth != "https") && (auth != "grpc") && (auth != "oauth2")) {
         eos_static_err("invalid auth mode");
         break;
       }

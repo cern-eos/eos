@@ -27,6 +27,7 @@
 
 #include "common/Namespace.hh"
 #include "common/RWMutex.hh"
+#include "common/OAuth.hh"
 #include "common/VirtualIdentity.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucHash.hh"
@@ -217,6 +218,11 @@ public:
   static ip_cache gIpCache;
 
   // ---------------------------------------------------------------------------
+  //! OAuth interface
+  // ---------------------------------------------------------------------------
+  static OAuth gOAuth;
+
+  // ---------------------------------------------------------------------------
   //! Function to expire unused ActiveTident entries by default after 1 day
   // ---------------------------------------------------------------------------
   static void ActiveExpire(int interval = 300, bool force = false);
@@ -325,6 +331,12 @@ public:
   //! Get a VID from a uid/gid pari
   // ---------------------------------------------------------------------------
   static VirtualIdentity Someone(uid_t uid, gid_t gid);
+
+  // ---------------------------------------------------------------------------
+  //! Check if a resource is allowed for OAUTH2
+    // ---------------------------------------------------------------------------
+  static bool IsOAuth2Resource(const std::string& resource);
+
 };
 
 /*----------------------------------------------------------------------------*/

@@ -113,8 +113,30 @@ ProcCommand::Whoami()
     }
     
     if (pVid->key.length()) {
-      stdOut += " key=";
-      stdOut += pVid->key.c_str();
+      if (pVid->prot == "sss") {
+	stdOut += " key=";
+	stdOut += pVid->key.c_str();
+      } else {
+	stdOut += " key=<oauth2>";
+      }
+    }
+
+    if (pVid->fullname.length()) {
+      stdOut += " fullname='";
+      stdOut += pVid->fullname.c_str();
+      stdOut += "'";
+    }
+
+    if (pVid->federation.length()) {
+      stdOut += " federation='";
+      stdOut += pVid->federation.c_str();
+      stdOut += "'";
+    }
+
+    if (pVid->email.length()) {
+      stdOut += " email='";
+      stdOut += pVid->email.c_str();
+      stdOut += "'";
     }
   }
 

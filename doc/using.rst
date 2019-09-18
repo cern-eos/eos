@@ -19,4 +19,5 @@ Using EOS
    using/tpc
    using/fusex
    using/versions
+   using/oauth2
 
