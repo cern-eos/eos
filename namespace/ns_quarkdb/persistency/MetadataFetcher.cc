@@ -580,4 +580,114 @@ MetadataFetcher::locationExistsInFsView(qclient::QClient& qcl, FileIdentifier id
     key, SSTR(id.getUnderlyingUInt64())).then(parseBoolResponse);
 }
 
+//------------------------------------------------------------------------------
+// Helper class to resolve a Container's full path
+//------------------------------------------------------------------------------
+class FullPathResolver : public qclient::QCallback
+{
+public:
+  //----------------------------------------------------------------------------
+  // Constructor
+  //----------------------------------------------------------------------------
+  FullPathResolver(qclient::QClient &qcl, ContainerIdentifier cont)
+  : mQcl(qcl), mContainerID(cont) {}
+
+  //----------------------------------------------------------------------------
+  // Initialize, fire off first request
+  //----------------------------------------------------------------------------
+  folly::Future<std::string> initialize() {
+    folly::Future<std::string> fut = mPromise.getFuture();
+
+    if(mContainerID == ContainerIdentifier(1)) {
+      // Short-circuit lookup, return "/"
+      set_value();
+      return fut;
+    }
+
+    mQcl.execCB(this, RequestBuilder::readContainerProto(mContainerID));
+    return fut;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Handle response
+  //----------------------------------------------------------------------------
+  virtual void handleResponse(redisReplyPtr&& reply) override {
+    if (!reply) {
+      return set_exception(EFAULT, "QuarkDB backend not available!");
+    }
+
+    if(reply->type != REDIS_REPLY_STRING) {
+      return set_exception(EFAULT, SSTR("Received unexpected response: "
+                                        << qclient::describeRedisReply(reply)));
+    }
+
+    eos::ns::ContainerMdProto proto;
+    MDStatus status = Serialization::deserialize(reply->str, reply->len, proto);
+
+    if(!status.ok()) {
+      return set_exception(status);
+    }
+
+    mPathStack.emplace_front(proto.name());
+
+    if(proto.parent_id() == 1) {
+      // We're done
+      return set_value();
+    }
+
+    // Lookup next chunk
+    mQcl.execCB(this, RequestBuilder::readContainerProto(ContainerIdentifier(proto.parent_id())));
+  }
+
+  //----------------------------------------------------------------------------
+  // Return exception by passing it to the promise
+  //----------------------------------------------------------------------------
+  void set_exception(const MDStatus& status) {
+    return set_exception(status.getErrno(), status.getError());
+  }
+
+  //----------------------------------------------------------------------------
+  // Return exception by passing it to the promise
+  //----------------------------------------------------------------------------
+  void set_exception(int err, const std::string& msg) {
+    mPromise.setException(
+      make_mdexception(err, SSTR("Error while reconstructing full path of container #" << mContainerID.getUnderlyingUInt64()
+                                 << " from QDB: " << msg)));
+    delete this; // harakiri
+  }
+
+  //----------------------------------------------------------------------------
+  // Set value, we're done
+  //----------------------------------------------------------------------------
+  void set_value() {
+    std::ostringstream ss;
+    ss << "/";
+
+    for(size_t i = 0; i < mPathStack.size(); i++) {
+      ss << mPathStack[i] << "/";
+    }
+
+    mPromise.setValue(ss.str());
+    delete this;
+  }
+
+private:
+  qclient::QClient& mQcl;
+  ContainerIdentifier mContainerID;
+  std::deque<std::string> mPathStack;
+  folly::Promise<std::string> mPromise;
+};
+
+
+
+//------------------------------------------------------------------------------
+// Resolve container's full path. Throws an exception if this is a container
+// detached from "/".
+//------------------------------------------------------------------------------
+folly::Future<std::string>
+MetadataFetcher::resolveFullPath(qclient::QClient& qcl, ContainerIdentifier containerID) {
+  FullPathResolver *resolver = new FullPathResolver(qcl, containerID);
+  return resolver->initialize();
+}
+
 EOSNSNAMESPACE_END

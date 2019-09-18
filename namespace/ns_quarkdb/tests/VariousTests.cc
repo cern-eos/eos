@@ -168,6 +168,21 @@ TEST_F(VariousTests, CheckLocationInFsView) {
   ASSERT_FALSE(fsIter.valid());
 }
 
+TEST_F(VariousTests, ReconstructContainerPath) {
+  std::shared_ptr<eos::IContainerMD> cont = view()->createContainer("/eos/a/b/c/d/e", true);
+  mdFlusher()->synchronize();
+
+  ASSERT_EQ(cont->getId(), 7);
+
+  ASSERT_EQ("/",  eos::MetadataFetcher::resolveFullPath(qcl(), ContainerIdentifier(1)).get());
+  ASSERT_EQ("/eos/",  eos::MetadataFetcher::resolveFullPath(qcl(), ContainerIdentifier(2)).get());
+  ASSERT_EQ("/eos/a/",  eos::MetadataFetcher::resolveFullPath(qcl(), ContainerIdentifier(3)).get());
+  ASSERT_EQ("/eos/a/b/",  eos::MetadataFetcher::resolveFullPath(qcl(), ContainerIdentifier(4)).get());
+  ASSERT_EQ("/eos/a/b/c/",  eos::MetadataFetcher::resolveFullPath(qcl(), ContainerIdentifier(5)).get());
+  ASSERT_EQ("/eos/a/b/c/d/",  eos::MetadataFetcher::resolveFullPath(qcl(), ContainerIdentifier(6)).get());
+  ASSERT_EQ("/eos/a/b/c/d/e/",  eos::MetadataFetcher::resolveFullPath(qcl(), ContainerIdentifier(7)).get());
+}
+
 TEST_F(VariousTests, BasicSanity) {
   std::shared_ptr<eos::IContainerMD> root = view()->getContainer("/");
   ASSERT_EQ(root->getId(), 1);
