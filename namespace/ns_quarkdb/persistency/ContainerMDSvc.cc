@@ -121,7 +121,7 @@ QuarkContainerMDSvc::SafetyCheck()
 {
   std::string blob;
   IContainerMD::id_t free_id = getFirstFreeId();
-  std::list<uint64_t> offsets  = {1, 10, 50, 100, 501, 1001, 11000, 50000,
+  std::vector<uint64_t> offsets  = {1, 10, 50, 100, 501, 1001, 11000, 50000,
                                   100000, 150199, 200001, 1000002, 2000123
                                  };
   std::vector<folly::Future<eos::ns::ContainerMdProto>> futs;
@@ -143,7 +143,7 @@ QuarkContainerMDSvc::SafetyCheck()
     // Uh-oh, this is bad.
     MDException e(EEXIST);
     e.getMessage()  << __FUNCTION__ << " FATAL: Risk of data loss, found "
-                    << "container with id bigger than max container id";
+                    << "container (" << free_id + offsets[i] << ") with id bigger than max container id (" << free_id << ")";
     throw e;
   }
 }
