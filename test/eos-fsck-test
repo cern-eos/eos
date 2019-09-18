@@ -126,7 +126,7 @@ function corrupt_d_mem_sz_diff() {
 # Corrupt file to generate m_mem_sz_diff
 function corrupt_m_mem_sz_diff() {
   # Use the eos-ns-inspect tool to corrupt the MGM file size
-  local QDB_CLUSTER=$(exec_cmd eos-mgm-test "cat /etc/xrd.cf.mgm | grep \"mgmofs.qdbcluster\" | awk '{print $2;}'")
+  local QDB_CLUSTER=$(exec_cmd eos-mgm-test "cat /etc/xrd.cf.mgm | grep \"^mgmofs.qdbcluster\" | awk '{print \$2;}'")
   exec_cmd eos-client1-test "eos-ns-inspect change-fid --members ${QDB_CLUSTER} --fid $(( 16#${FXID_M_MEM_SZ_DIFF} )) --new-size 1234568"
   exec_cmd eos-client1-test "eos -r 0 0 ns cache drop-single-file $(( 16#${FXID_M_MEM_SZ_DIFF} ))"
 }
@@ -144,7 +144,7 @@ function corrupt_d_cx_diff() {
 # Corrupt file to generate m_cx_diff
 function corrupt_m_cx_diff() {
   # Use the eos-ns-inspect tool to corrupt the MGM checksum value
-  local QDB_CLUSTER=$(exec_cmd eos-mgm-test "cat /etc/xrd.cf.mgm | grep \"mgmofs.qdbcluster\" | awk '{print $2;}'")
+  local QDB_CLUSTER=$(exec_cmd eos-mgm-test "cat /etc/xrd.cf.mgm | grep \"^mgmofs.qdbcluster\" | awk '{print \$2;}'")
   exec_cmd eos-client1-test "eos-ns-inspect change-fid --members ${QDB_CLUSTER} --fid $(( 16#${FXID_M_CX_DIFF} )) --new-checksum 12345678"
   exec_cmd eos-client1-test "eos -r 0 0 ns cache drop-single-file $(( 16#${FXID_M_CX_DIFF} ))"
 }
@@ -209,9 +209,9 @@ function corrupt_unreg() {
 function configure_fsck() {
   # First reduce the scan interval on the FSTs
   for i in {1..7}; do
-    exec_cmd eos-client1-test  "eos -r 0 0 fs config ${i} scan_disk_interval=100;\
-                                eos -r 0 0 fs config ${i} scan_ns_interval=100;\
-                                eos -r 0 0 fs config ${i} scaninterval=100"
+    exec_cmd eos-client1-test  "eos -r 0 0 fs config ${i} scan_disk_interval=60;\
+                                eos -r 0 0 fs config ${i} scan_ns_interval=60;\
+                                eos -r 0 0 fs config ${i} scaninterval=60"
   done
 
   # Reduce the interval when the fsck collection thread runs
@@ -228,7 +228,7 @@ function check_all_errors_collected() {
     local FOUND_D_MEM_SZ_DIFF=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i | grep ${FXID_D_MEM_SZ_DIFF}")
     local FOUND_M_MEM_SZ_DIFF=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i | grep ${FXID_M_MEM_SZ_DIFF}")
     local FOUND_D_CX_DIFF=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i | grep ${FXID_D_CX_DIFF}")
-    # @todo(esindril) local FOUND_M_CX_DIFF=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i | grep ${FXID_M_CX_DIFF}")
+    local FOUND_M_CX_DIFF=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i | grep ${FXID_M_CX_DIFF}")
     local FOUND_UNREG=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i | grep ${FXID_UNREG}")
     local FOUND_REP_MISSING=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i | grep ${FXID_REP_MISSING}")
     local FOUND_REP_DIFF_UNDER=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i | grep ${FXID_REP_DIFF_UNDER}")
@@ -236,7 +236,7 @@ function check_all_errors_collected() {
     # @todo(esindril) local FOUND_ORPHAN=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i | grep ${FXID_ORPHAN}")
 
     if [[ -z "${FOUND_D_MEM_SZ_DIFF}"  ||
-#          -z "${FOUND_M_MEM_SZ_DIFF}"  ||
+          -z "${FOUND_M_MEM_SZ_DIFF}"  ||
           -z "${FOUND_D_CX_DIFF}"      ||
           -z "${FOUND_UNREG}"          ||
           -z "${FOUND_REP_MISSING}"    ||
@@ -320,11 +320,29 @@ check_all_errors_collected
 # correct all the discovered errors
 exec_cmd eos-client1-test "eos -r 0 0 fsck config toggle-repair"
 
-sleep 100
+# Wait at most 3 minutes for all the errors to be repaired
+local MAX_DELAY=180
+local START_TIME=$(date +%s)
+while
+  local CURRENT_TIME=$(date +%s)
+  local HAS_ERRORS=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i")
 
-exec_cmd eos-client1-test "eos -r 0 0 fsck report | grep . && echo 1 || echo 0"
-
-echo "Return value is: $?"
+  if [[ -z "${HAS_ERRORS}" ]]; then
+    if (( $((${CURRENT_TIME} - ${START_TIME})) >= ${MAX_DELAY} )); then
+      echo "error: some errors where not repaired"
+      exit 1
+    else
+      echo "info: sleep for 5 seconds waiting for errors to be repaired"
+      sleep 5
+    fi
+  else
+    echo "info: all errors were repaired"
+    false # to end the loop
+  fi
+do
+  :
+done
 
 # Clean up EOS space
-exec_cmd eos-client1-test "eos rm -rF ${EOS_ROOT}/fsck
+exec_cmd eos-client1-test "eos -r 0 0 rm -rF ${EOS_ROOT}/fsck"
+exec_cmd eos-client1-test "eos -r 0 0 fsck disable"
