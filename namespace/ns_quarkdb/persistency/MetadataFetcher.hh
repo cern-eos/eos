@@ -190,6 +190,13 @@ public:
   locationExistsInFsView(qclient::QClient& qcl, FileIdentifier id, int64_t location,
                    bool unlinked);
 
+  //----------------------------------------------------------------------------
+  //! Resolve container's full path. Throws an exception if this is a container
+  //! detached from "/".
+  //----------------------------------------------------------------------------
+  static folly::Future<std::string>
+  resolveFullPath(qclient::QClient& qcl, ContainerIdentifier containerID);
+
 private:
   //----------------------------------------------------------------------------
   //! Construct hmap key of subcontainers in container
