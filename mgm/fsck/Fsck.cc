@@ -335,8 +335,9 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
       local_emap.insert(eFsMap.begin(), eFsMap.end());
     }
     std::list<std::string> err_priority {"unreg_n", "rep_diff_n",
-                                         "rep_missing_n", "m_mem_sz_diff", "m_cx_diff", "d_mem_sz_diff",
-                                         "d_mem_sz_diff"};
+                                         "rep_missing_n", "m_mem_sz_diff",
+                                         "m_cx_diff", "d_mem_sz_diff",
+                                         "d_cx_diff"};
 
     for (const auto& err_type : err_priority) {
       for (const auto& elem : local_emap[err_type]) {
