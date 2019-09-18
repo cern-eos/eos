@@ -642,9 +642,9 @@ FmdDbMapHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
   FsWriteLock fs_wr_lock(fsid);
   (void)LocalRetrieveFmd(fid, fsid, valfmd);
   valfmd.mProtoFmd.set_mgmsize(mgmsize);
-  valfmd.mProtoFmd.set_size(mgmsize);
-  //valfmd.mProtoFmd.set_checksum(mgmchecksum);
   valfmd.mProtoFmd.set_mgmchecksum(mgmchecksum);
+  //valfmd.mProtoFmd.set_size(mgmsize);
+  //valfmd.mProtoFmd.set_checksum(mgmchecksum);
   valfmd.mProtoFmd.set_cid(cid);
   valfmd.mProtoFmd.set_lid(lid);
   valfmd.mProtoFmd.set_uid(uid);
@@ -660,8 +660,6 @@ FmdDbMapHandler::UpdateWithMgmInfo(eos::common::FileSystem::fsid_t fsid,
   valfmd.mProtoFmd.set_mgmchecksum(std::string(
                                      valfmd.mProtoFmd.mgmchecksum()).erase
                                    (std::min(valfmd.mProtoFmd.mgmchecksum().length(), cslen)));
-  // valfmd.mProtoFmd.set_checksum(std::string(valfmd.mProtoFmd.checksum()).erase
-  //                     (std::min(valfmd.mProtoFmd.checksum().length(), cslen)));
   return LocalPutFmd(fid, fsid, valfmd);
 }
 
