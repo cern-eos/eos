@@ -530,13 +530,11 @@ void com_ns_help()
       << std::endl
       << std::endl
       << "  ns cache drop-single-file <id of file to drop>" << std::endl
-      << "    force refresh of the given FileMD by dropping it from the cache" <<
-      std::endl
+      << "    force refresh of the given FileMD by dropping it from the cache"
       << std::endl
       << std::endl
       << "  ns cache drop-single-container <id of container to drop>" << std::endl
-      << "    force refresh of the given ContainerMD by dropping it from the cache" <<
-      std::endl
+      << "    force refresh of the given ContainerMD by dropping it from the cache"
       << std::endl
       << std::endl
       << "  ns max_drain_threads <num>" << std::endl
