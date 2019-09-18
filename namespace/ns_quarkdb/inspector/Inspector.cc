@@ -1015,7 +1015,7 @@ static std::string serializeRequest(const RedisRequest &req) {
 //------------------------------------------------------------------------------
 // Change the given fid - USE WITH CAUTION
 //------------------------------------------------------------------------------
-int Inspector::changeFid(uint64_t fid, uint64_t newParent, const std::string &newChecksum, std::ostream &out, std::ostream &err) {
+int Inspector::changeFid(uint64_t fid, uint64_t newParent, const std::string &newChecksum, int64_t newSize, std::ostream &out, std::ostream &err) {
   eos::ns::FileMdProto val;
 
   try {
@@ -1049,6 +1049,12 @@ int Inspector::changeFid(uint64_t fid, uint64_t newParent, const std::string &ne
     ok = true;
     err << "    Checksum: " << existingChecksum << " --> " << newChecksum << std::endl;
     val.set_checksum(newChecksumBytes.c_str(), newChecksumBytes.size());
+  }
+
+  if(newSize >= 0) {
+    ok = true;
+    err << "    Size: " << val.size() << " --> " << newSize << std::endl;
+    val.set_size(newSize);
   }
 
   if(!ok) {
