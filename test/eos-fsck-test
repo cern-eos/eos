@@ -142,7 +142,9 @@ function corrupt_d_cx_diff() {
 # Corrupt file to generate m_cx_diff
 function corrupt_m_cx_diff() {
   # Use the eos-ns-inspect tool to corrupt the MGM checksum value
-  :
+  local QDB_CLUSTER=$(exec_cmd eos-mgm-test "cat /etc/xrd.cf.mgm | grep \"mgmofs.qdbcluster\" | awk '{print $2;}'")
+  exec_cmd eos-client1-test "eos-ns-inspect change-fid --members ${QDB_CLUSTER} --fid $(( 16#${FXID_M_CX_DIFF} )) --new-checksum 12345678"
+  exec_cmd eos-client1-test "eos -r 0 0 ns cache drop-single-file $(( 16#${FXID_M_CX_DIFF} ))"
 }
 
 # Corrupt file to generate rep_missing_n error
@@ -298,7 +300,7 @@ create_test_files
 
 # Create different type of corruptions for different files
 corrupt_d_mem_sz_diff
-# corrupt_m_mem_sz_diff
+#corrupt_m_mem_sz_diff
 corrupt_d_cx_diff
 corrupt_m_cx_diff
 corrupt_rep_missing_n
