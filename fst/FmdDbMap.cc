@@ -990,6 +990,13 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
                       fMd.mProtoFmd.lid());
 
     if (fmd) {
+      // Check if it exists on disk
+      if (fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) {
+        fMd.mProtoFmd.set_layouterror(fMd.mProtoFmd.layouterror() | LayoutId::kMissing);
+        eos_warning("msg=\"mark missing replica\" fxid=%08llx on fsid=%lu",
+                    fid, fsid);
+      }
+
       if (!UpdateWithMgmInfo(fsid, fMd.mProtoFmd.fid(), fMd.mProtoFmd.cid(),
                              fMd.mProtoFmd.lid(), fMd.mProtoFmd.mgmsize(),
                              fMd.mProtoFmd.mgmchecksum(), fMd.mProtoFmd.uid(),
@@ -999,14 +1006,6 @@ FmdDbMapHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
                              fMd.mProtoFmd.locations())) {
         eos_err("msg=\"failed to update fmd with mgm info\" fxid=%08llx", fid);
         return false;
-      }
-
-      // Check if it exists on disk
-      if (fmd->mProtoFmd.disksize() == eos::common::FmdHelper::UNDEF) {
-        fMd.mProtoFmd.set_layouterror(fMd.mProtoFmd.layouterror() | LayoutId::kMissing);
-        // @todo(esindril): update the Fmd entry in the local db
-        eos_warning("msg=\"found missing replica\" fxid=%08llx on fsid=%lu",
-                    fid, fsid);
       }
 
       // Check if it exists on disk and at the mgm
