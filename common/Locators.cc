@@ -211,7 +211,8 @@ std::string FileSystemLocator::getTransientChannel() const
 //------------------------------------------------------------------------------
 // Empty constructor
 //------------------------------------------------------------------------------
-SharedHashLocator::SharedHashLocator() {
+SharedHashLocator::SharedHashLocator()
+{
   mInitialized = false;
 }
 
@@ -220,54 +221,61 @@ SharedHashLocator::SharedHashLocator() {
 //
 // Once we drop the MQ entirely, the instance name can be removed.
 //------------------------------------------------------------------------------
-SharedHashLocator::SharedHashLocator(const std::string &instanceName, Type type,
-    const std::string &name)
-: mInitialized(true), mInstanceName(instanceName), mType(type), mName(name) {
+SharedHashLocator::SharedHashLocator(const std::string& instanceName, Type type,
+                                     const std::string& name)
+  : mInitialized(true), mInstanceName(instanceName), mType(type), mName(name)
+{
+  switch (type) {
+  case Type::kSpace: {
+    mMqSharedHashPath = SSTR("/config/" << instanceName << "/space/" << name);
+    mBroadcastQueue = "/eos/*/mgm";
+    break;
+  }
 
-  switch(type) {
-    case Type::kSpace: {
-      mMqSharedHashPath = SSTR("/config/" << instanceName << "/space/" << name);
-      mBroadcastQueue = "/eos/*/mgm";
-      break;
-    }
-    case Type::kGroup: {
-      mMqSharedHashPath = SSTR("/config/" << instanceName << "/group/" << name);
-      mBroadcastQueue = "/eos/*/mgm";
-      break;
-    }
-    case Type::kNode: {
-      std::string hostPort = eos::common::StringConversion::GetHostPortFromQueue(name.c_str()).c_str();
-      mMqSharedHashPath = SSTR("/config/" << instanceName << "/node/" << hostPort);
-      mBroadcastQueue = SSTR("/eos/" << hostPort << "/fst");
-      break;
-    }
-    case Type::kGlobalConfigHash: {
-      mMqSharedHashPath = SSTR("/config/" << instanceName << "/mgm");
-      mBroadcastQueue = "/eos/*/mgm";
-      break;
-    }
-    default: {
-      eos_assert("should never reach here");
-    }
+  case Type::kGroup: {
+    mMqSharedHashPath = SSTR("/config/" << instanceName << "/group/" << name);
+    mBroadcastQueue = "/eos/*/mgm";
+    break;
+  }
+
+  case Type::kNode: {
+    std::string hostPort = eos::common::StringConversion::GetHostPortFromQueue(
+                             name.c_str()).c_str();
+    mMqSharedHashPath = SSTR("/config/" << instanceName << "/node/" << hostPort);
+    mBroadcastQueue = SSTR("/eos/" << hostPort << "/fst");
+    break;
+  }
+
+  case Type::kGlobalConfigHash: {
+    mMqSharedHashPath = SSTR("/config/" << instanceName << "/mgm/");
+    mBroadcastQueue = "/eos/*/mgm";
+    break;
+  }
+
+  default: {
+    eos_assert("should never reach here");
+  }
   }
 }
 
 //------------------------------------------------------------------------------
 //! Constructor: Same as above, but auto-discover instance name.
 //------------------------------------------------------------------------------
-SharedHashLocator::SharedHashLocator(Type type, const std::string &name)
-: SharedHashLocator(InstanceName::get(), type, name) {}
+SharedHashLocator::SharedHashLocator(Type type, const std::string& name)
+  : SharedHashLocator(InstanceName::get(), type, name) {}
 
 //------------------------------------------------------------------------------
 // Constructor: Special case for FileSystems, as they work a bit differently
 // than the rest.
 //------------------------------------------------------------------------------
-SharedHashLocator::SharedHashLocator(const FileSystemLocator &fsLocator, bool bc2mgm) {
+SharedHashLocator::SharedHashLocator(const FileSystemLocator& fsLocator,
+                                     bool bc2mgm)
+{
   mInitialized = true;
   mMqSharedHashPath = fsLocator.getQueuePath();
   mBroadcastQueue = fsLocator.getFSTQueue();
 
-  if(bc2mgm) {
+  if (bc2mgm) {
     mBroadcastQueue = "/eos/*/mgm";
   }
 }
@@ -275,58 +283,67 @@ SharedHashLocator::SharedHashLocator(const FileSystemLocator &fsLocator, bool bc
 //------------------------------------------------------------------------------
 //! Convenience "Constructors": Make locator for space, group, node
 //------------------------------------------------------------------------------
-SharedHashLocator SharedHashLocator::makeForSpace(const std::string &name) {
+SharedHashLocator SharedHashLocator::makeForSpace(const std::string& name)
+{
   return SharedHashLocator(Type::kSpace, name);
 }
 
-SharedHashLocator SharedHashLocator::makeForGroup(const std::string &name) {
+SharedHashLocator SharedHashLocator::makeForGroup(const std::string& name)
+{
   return SharedHashLocator(Type::kGroup, name);
 }
 
-SharedHashLocator SharedHashLocator::makeForNode(const std::string &name) {
+SharedHashLocator SharedHashLocator::makeForNode(const std::string& name)
+{
   return SharedHashLocator(Type::kNode, name);
 }
 
-SharedHashLocator SharedHashLocator::makeForGlobalHash() {
+SharedHashLocator SharedHashLocator::makeForGlobalHash()
+{
   return SharedHashLocator(Type::kGlobalConfigHash, "");
 }
 
 //------------------------------------------------------------------------------
 // Get "config queue" for shared hash
 //------------------------------------------------------------------------------
-std::string SharedHashLocator::getConfigQueue() const {
+std::string SharedHashLocator::getConfigQueue() const
+{
   return mMqSharedHashPath;
 }
 
 //------------------------------------------------------------------------------
 // Get "broadcast queue" for shared hash
 //------------------------------------------------------------------------------
-std::string SharedHashLocator::getBroadcastQueue() const {
+std::string SharedHashLocator::getBroadcastQueue() const
+{
   return mBroadcastQueue;
 }
 
 //----------------------------------------------------------------------------
 // Check if this object is actually pointing to something
 //----------------------------------------------------------------------------
-bool SharedHashLocator::empty() const {
+bool SharedHashLocator::empty() const
+{
   return !mInitialized;
 }
 
 //------------------------------------------------------------------------------
 // Produce SharedHashLocator by parsing config queue
 //------------------------------------------------------------------------------
-bool SharedHashLocator::fromConfigQueue(const std::string &configQueue, SharedHashLocator &out) {
+bool SharedHashLocator::fromConfigQueue(const std::string& configQueue,
+                                        SharedHashLocator& out)
+{
   std::vector<std::string> parts =
     common::StringTokenizer::split<std::vector<std::string>>(configQueue, '/');
-
   std::reverse(parts.begin(), parts.end());
 
-  if(parts.empty() || parts.back() != "config") {
+  if (parts.empty() || parts.back() != "config") {
     return false;
   }
+
   parts.pop_back();
 
-  if(parts.empty()) {
+  if (parts.empty()) {
     return false;
   }
 
@@ -334,41 +351,36 @@ bool SharedHashLocator::fromConfigQueue(const std::string &configQueue, SharedHa
   std::string instanceName = parts.back();
   parts.pop_back();
 
-  if(parts.empty()) {
+  if (parts.empty()) {
     return false;
-  }
-  else if(parts.back() == "node") {
+  } else if (parts.back() == "node") {
     type = Type::kNode;
-  }
-  else if(parts.back() == "space") {
+  } else if (parts.back() == "space") {
     type = Type::kSpace;
-  }
-  else if(parts.back() == "group") {
+  } else if (parts.back() == "group") {
     type = Type::kGroup;
-  }
-  else if(parts.back() == "mgm" && parts.size() == 1u) {
+  } else if (parts.back() == "mgm" && parts.size() == 1u) {
     type = Type::kGlobalConfigHash;
     out = SharedHashLocator(instanceName, type, "");
     return true;
-  }
-  else {
+  } else {
     return false;
   }
 
   parts.pop_back();
 
-  if(parts.empty()) {
+  if (parts.empty()) {
     return false;
   }
 
   std::string name = parts.back();
   parts.pop_back();
 
-  if(!parts.empty()) {
+  if (!parts.empty()) {
     return false;
   }
 
-  if(instanceName.empty() || name.empty()) {
+  if (instanceName.empty() || name.empty()) {
     return false;
   }
 
