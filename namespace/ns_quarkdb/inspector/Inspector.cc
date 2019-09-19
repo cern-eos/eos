@@ -948,6 +948,13 @@ int Inspector::printContainerMD(uint64_t cid, std::ostream& out, std::ostream& e
 
   Printing::printMultiline(val, out);
 
+  try {
+    std::string fullPath = MetadataFetcher::resolveFullPath(mQcl, ContainerIdentifier(val.id())).get();
+    out << "Full path: " << fullPath << std::endl;
+  } catch(const MDException& e) {
+    err << "Full path: Could not reconstruct" << std::endl;
+  }
+
   IContainerMD::FileMap fileMap;
   IContainerMD::FileMap containerMap;
 
