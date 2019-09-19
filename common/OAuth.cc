@@ -107,7 +107,7 @@ OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken, const std
     
     if (cache != mOAuthInfo.end()) {
       time_t ctime = strtoull(cache->second["ctime"].c_str(),0,10);
-      time_t etime = strtoull(cache->second["ctime"].c_str(),0,10);
+      time_t etime = strtoull(cache->second["etime"].c_str(),0,10);
 
       if ( (!etime) || (etime > now)) {
 	if ( (now - ctime) < cache_validity_time ) {
@@ -135,7 +135,11 @@ OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken, const std
     auth += accesstoken;
     auto chunk = curl_slist_append(NULL, auth.c_str());
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
-    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+
+    if (EOS_LOGS_DEBUG) {
+      curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+    }
+
     curl_easy_perform(curl);
 
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
@@ -146,10 +150,12 @@ OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken, const std
       Json::Reader jsonReader;
 
       if (jsonReader.parse(*httpData.get(), jsonData)) {
-	std::cerr << "Successfully parsed JSON data" << std::endl;
-	std::cerr << "\nJSON data received:" << std::endl;
-	std::cerr << jsonData.toStyledString() << std::endl;
-	
+	if (EOS_LOGS_DEBUG) {
+	  std::cerr << "Successfully parsed JSON data" << std::endl;
+	  std::cerr << "\nJSON data received:" << std::endl;
+	  std::cerr << jsonData.toStyledString() << std::endl;
+	}
+
 	if (jsonData.isMember("name")) {
 	  info["name"] = jsonData["name"].asString();
 	}
@@ -171,7 +177,7 @@ OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken, const std
 
 	// cache this entry
 	info["ctime"] = std::to_string(time(NULL));
-	info["etime"] = expires?std::to_string(expires):std::to_string(expires + cache_validity_time);
+	info["etime"] = expires?std::to_string(expires):std::to_string(now + cache_validity_time);
 
 	eos::common::RWMutexWriteLock(mOAuthMutex);
 	mOAuthInfo[tokenhash] = info;
@@ -228,8 +234,8 @@ OAuth::Handle(const std::string& info, eos::common::VirtualIdentity& vid)
 uint64_t
 OAuth::Hash(const std::string& token) 
 {
-  std::cerr << "hashing token: " << token << std::endl;
-  std::cerr << "hash: " <<  Murmur3::MurmurHasher<std::string> {}(token) << std::endl;
+  //  std::cerr << "hashing token: " << token << std::endl;
+  //  std::cerr << "hash: " <<  Murmur3::MurmurHasher<std::string> {}(token) << std::endl;
   return Murmur3::MurmurHasher<std::string> {} (token);
 }
 
