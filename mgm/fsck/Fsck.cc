@@ -25,8 +25,9 @@
 #include "mgm/fsck/FsckEntry.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
-#include "common/StringConversion.hh"
 #include "common/Mapping.hh"
+#include "common/StringConversion.hh"
+#include "common/StringTokenizer.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Master.hh"
 #include "mgm/Messaging.hh"
@@ -37,16 +38,21 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-const char* Fsck::gFsckEnabled = "fsck";
-const char* Fsck::gFsckInterval = "fsckinterval";
+const std::string Fsck::sFsckKey
+{"fsck"
+};
+const std::string Fsck::sCollectKey {"toggle-collect"};
+const std::string Fsck::sCollectIntervalKey {"collect-interval-min"};
+const std::string Fsck::sRepairKey {"toggle-repair"};
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 Fsck::Fsck():
   mShowOffline(false), mShowDarkFiles(false), mStartProcessing(false),
-  mCollectEnabled(false), mRepairEnabled(false),
-  mCollectInterval(std::chrono::minutes(30)), eTimeStamp(0),
+  mCollectEnabled(false), mRepairEnabled(false), mCollectRunning(false),
+  mRepairRunning(false), mCollectInterval(std::chrono::minutes(30)),
+  eTimeStamp(0),
   mThreadPool(std::thread::hardware_concurrency(), 20, 10, 6, 5, "fsck"),
   mIdTracker(std::chrono::minutes(10), std::chrono::hours(2)), mQcl(nullptr)
 {}
@@ -66,11 +72,46 @@ void Fsck::Stop()
 void
 Fsck::ApplyFsckConfig()
 {
+  using eos::common::StringTokenizer;
+  // Parse config of the form: key1=val1 key2=val2 etc.
+  std::string config = FsView::gFsView.GetGlobalConfig(sFsckKey);
+  eos_info("data=\"%s\"", config.c_str());
+  std::map<std::string, std::string> kv_map;
+  auto pairs = StringTokenizer::split<std::list<std::string>>(config, ' ');
+
+  for (const auto& pair : pairs) {
+    auto kv = StringTokenizer::split<std::vector<std::string>>(pair, '=');
+
+    if (kv.empty()) {
+      eos_err("msg=\"unknown fsck config data\" data=\"%s\"", config.c_str());
+      continue;
+    }
+
+    if (kv.size() == 1) {
+      kv.emplace_back("");
+    }
+
+    kv_map.emplace(kv[0], kv[1]);
+  }
+
+  // Apply the configuration to the fsck engine
   std::string msg;
-  std::string collect_enabled = FsView::gFsView.GetGlobalConfig(gFsckEnabled);
-  std::string key = (collect_enabled == "true" ? "toggle-error-collection" : "");
-  std::string collect_interval = FsView::gFsView.GetGlobalConfig(gFsckInterval);
-  Config(key, collect_interval, msg);
+
+  if (kv_map.count(sCollectKey)) {
+    mCollectEnabled = (kv_map[sCollectKey] == "1");
+
+    if (mCollectEnabled != mCollectRunning) {
+      Config(sCollectKey, kv_map[sCollectIntervalKey], msg);
+    }
+
+    if (kv_map.count(sRepairKey)) {
+      mRepairEnabled = (kv_map[sRepairKey] == "1");
+
+      if (mRepairEnabled != mRepairRunning) {
+        Config(sRepairKey, "", msg);
+      }
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -79,13 +120,11 @@ Fsck::ApplyFsckConfig()
 bool
 Fsck::StoreFsckConfig()
 {
-  bool ok = true;
-  std::string interval_min = std::to_string
-                             (std::chrono::duration_cast<std::chrono::minutes>(mCollectInterval).count());
-  ok &= FsView::gFsView.SetGlobalConfig(gFsckEnabled,
-                                        (mCollectEnabled ? "true" : "false"));
-  ok &= FsView::gFsView.SetGlobalConfig(gFsckInterval, interval_min.c_str());
-  return ok;
+  std::ostringstream oss;
+  oss << sCollectKey << "=" << mCollectEnabled << " "
+      << sCollectIntervalKey << "=" << mCollectInterval.count() << " "
+      << sRepairKey << "=" << mRepairEnabled;
+  return FsView::gFsView.SetGlobalConfig(sFsckKey, oss.str());
 }
 
 //------------------------------------------------------------------------------
@@ -106,8 +145,10 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
     }
   }
 
-  if (key == "toggle-error-collection") {
-    if (mCollectEnabled) {
+  if (key == sCollectKey) {
+    mCollectEnabled = ! mCollectRunning;
+
+    if (mCollectRunning) {
       mRepairThread.join();
       mCollectorThread.join();
     } else {
@@ -137,10 +178,17 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
       return false;
     }
 
+    mRepairEnabled = ! mRepairRunning;
+
     if (mRepairEnabled) {
       mRepairThread.join();
     } else {
       mRepairThread.reset(&Fsck::RepairErrs, this);
+    }
+
+    if (!StoreFsckConfig()) {
+      msg = "error: failed to store fsck configuration changes";
+      return false;
     }
   } else if (key == "show-dark-files") {
     mShowDarkFiles = (value == "yes");
@@ -166,13 +214,13 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
 void
 Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
 {
+  mCollectRunning = true;
   eos_info("%s", "msg=\"started fsck collector thread\"");
-  mCollectEnabled = true;
 
   if (mQcl == nullptr) {
     eos_err("%s", "msg=\"failed to fsck repair thread without a qclient\"");
     Log("Fsck error collection disabled, missing QuarkDB configuration");
-    mCollectEnabled = false;
+    mCollectRunning = false;
     return;
   }
 
@@ -188,9 +236,9 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
 
       if (assistant.terminationRequested()) {
         eos_info("%s", "msg=\"stopped fsck collector thread\"");
-        mCollectEnabled = false;
         Log("Stop error collection");
         PublishLogs();
+        mCollectRunning = false;
         return;
       }
     }
@@ -268,7 +316,7 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
   }
 
   ResetErrorMaps();
-  mCollectEnabled = false;
+  mCollectRunning = false;
 }
 
 //------------------------------------------------------------------------------
@@ -277,13 +325,13 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
 void
 Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
 {
+  mRepairRunning = true;
   eos_info("%s", "msg=\"started fsck repair thread\"");
-  mRepairEnabled = true;
 
   if (mQcl == nullptr) {
     eos_err("%s", "msg=\"failed to fsck repair thread without a qclient\"");
     Log("Fsck error repair disabled, missing QuarkDB configuration");
-    mRepairEnabled = false;
+    mRepairRunning = false;
     return;
   }
 
@@ -296,7 +344,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
 
       if (assistant.terminationRequested()) {
         eos_info("%s", "msg=\"stopped fsck repair thread\"");
-        mRepairEnabled = false;
+        mRepairRunning = false;
         return;
       }
     }
@@ -307,7 +355,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
 
       if (assistant.terminationRequested()) {
         eos_info("%s", "msg=\"stopped fsck repair thread\"");
-        mRepairEnabled = false;
+        mRepairRunning = false;
         return;
       }
     }
@@ -352,7 +400,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
             }
 
             eos_info("%s", "msg=\"stopped fsck repair thread\"");
-            mRepairEnabled = false;
+            mRepairRunning = false;
             return;
           }
         }
@@ -370,7 +418,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
   }
 
   eos_info("%s", "msg=\"stopped fsck repair thread\"");
-  mRepairEnabled = false;
+  mRepairRunning = false;
 }
 
 //------------------------------------------------------------------------------
