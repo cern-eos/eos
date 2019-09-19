@@ -41,20 +41,6 @@ FsckHelper::ParseCommand(const char* arg)
 
   if (cmd == "stat") {
     fsck->set_stat(true);
-  } else if (cmd == "enable") {
-    eos::console::FsckProto::EnableProto* enable = fsck->mutable_enable();
-    enable->set_interval(0ul);
-
-    // There is an interval specified
-    if ((option = tokenizer.GetToken())) {
-      try {
-        enable->set_interval(std::stoul(option));
-      } catch (...) {
-        // set by default to 0
-      }
-    }
-  } else if (cmd == "disable") {
-    fsck->set_disable(true);
   } else if (cmd == "config") {
     if ((option = tokenizer.GetToken()) == nullptr) {
       return false;

@@ -55,25 +55,20 @@ int com_proto_fsck(char* arg)
 void com_fsck_help()
 {
   std::ostringstream oss;
-  oss << "Usage: fsck [stat|enable|disable|report|repair|search]" << std::endl
-      << "    control and display file system check information" << std::endl
+  oss << "Usage: fsck [stat|config|report|repair]\n"
+      << "    control and display file system check information\n"
       << std::endl
-      << "  fsck enable [<interval>]" << std::endl
-      << "    enable fsck with interval in minutes (default 30 minutes)" << std::endl
+      << "  fsck stat\n"
+      << "    print summary of consistency checks\n"
       << std::endl
-      << "  fsck disable" << std::endl
-      << "    disable fsck" << std::endl
-      << std::endl
-      << "  fsck stat" << std::endl
-      << "    print summary of consistency checks" << std::endl
-      << std::endl
-      << "  fsck config <key> [<value>]" << std::endl
+      << "  fsck config <key> [<value>]\n" << std::endl
       << "    configure the fsck with the following possible options:"
       << std::endl
-      << "    show-dark-files : yes/no [default no]" << std::endl
-      << "    show-offline    : yes/no [default no]" << std::endl
-      << "    toggle-repair   : start/stop repair thread, no <value> required"
-      << std::endl
+      << "    toggle-error-collect : enable/disable error collection thread, <value> represents\n"
+      << "                           the collection interval in minutes [default 30]\n"
+      << "    toggle-repair        : enable/disable repair thread, no <value> required"
+      << "    show-dark-files      : yes/no [default no]\n"
+      << "    show-offline         : yes/no [default no]\n"
       << std::endl
       << "  fsck report [-a] [-h] [-i] [-l] [-j|--json] [--error <tag1> <tag2> ...]"
       << std::endl

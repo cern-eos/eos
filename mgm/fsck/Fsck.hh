@@ -66,19 +66,15 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~Fsck();
+  ~Fsck()
+  {
+    Stop();
+  }
 
   //----------------------------------------------------------------------------
-  //! Start the collection thread
-  //!
-  //! @param interval_min check interval in minutes
+  //! Stop all fsck related threads and activities
   //----------------------------------------------------------------------------
-  bool Start(int interval_min = 0);
-
-  //----------------------------------------------------------------------------
-  //! Stop the collection thread
-  //----------------------------------------------------------------------------
-  bool Stop(bool store = true);
+  void Stop();
 
   //----------------------------------------------------------------------------
   //! Print function to display FSCK results
@@ -92,11 +88,12 @@ public:
   //!
   //! @param key key to be modified
   //! @param value value
+  //! @param msg optional message in case of failure
   //!
   //! @param return true if configuration change applied successfully, otherwise
   //!         false
   //----------------------------------------------------------------------------
-  bool Config(const std::string& key, const std::string& value);
+  bool Config(const std::string& key, const std::string& value, std::string& msg);
 
   //----------------------------------------------------------------------------
   //! Method to create a report
@@ -115,9 +112,9 @@ public:
               bool display_json);
 
   //----------------------------------------------------------------------------
-  //! Clear the in-memory log
+  //! Publish newly collected error information
   //----------------------------------------------------------------------------
-  void ClearLog();
+  void PublishLogs();
 
   //----------------------------------------------------------------------------
   //! Write a log message to the in-memory log
@@ -186,12 +183,12 @@ private:
   std::atomic<bool> mShowOffline; ///< Flag to display offline files/replicas
   std::atomic<bool> mShowDarkFiles; ///< Flag to display dark files
   std::atomic<bool> mStartProcessing; ///< Notification flag for repair thread
-  std::atomic<bool> mRunRepairThread; //< Mark if the repair thread is running
-  mutable XrdOucString mLog; ///< In-memory FSCK log
+  std::atomic<bool> mCollectEnabled; //< Mark if the err collection is enabled
+  std::atomic<bool> mRepairEnabled; //< Mark if the repair thread is enabled
+  mutable std::string mLog, mTmpLog; ///< In-memory fsck log
   mutable XrdSysMutex mLogMutex; ///< Mutex protecting the in-memory log
-  XrdOucString mEnabled; ///< True if collection thread is active
-  std::chrono::seconds mRunInterval; ///< Interval between FSCK collection loops
-  bool mRunning; ///< True if collection thread is currently running
+  std::chrono::seconds
+  mCollectInterval; ///< Interval between FSCK collection loops
   mutable eos::common::RWMutex mErrMutex; ///< Mutex protecting all map obj
   //! Error detail map storing "<error-name>=><fsid>=>[fid1,fid2,fid3...]"
   std::map<std::string,
@@ -205,7 +202,8 @@ private:
   time_t eTimeStamp; ///< Timestamp of collection
   uint64_t mMaxQueuedJobs {(uint64_t)1e5}; ///< Max number of queued jobs (100k)
   eos::common::ThreadPool mThreadPool; ///< Thread pool for fsck repair jobs
-  AssistedThread mRepairThread; ///< Thread repair jobs to the thread pool
+  AssistedThread
+  mRepairThread; ///< Thread repair submitting jobs to the thread pool
   AssistedThread mCollectorThread; ///< Thread collecting errors
   //! Fids repaired in the current loop, the validity is not actually used since
   //! we clear the tracker list at each round.
