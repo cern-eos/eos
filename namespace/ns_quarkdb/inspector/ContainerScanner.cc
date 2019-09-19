@@ -18,19 +18,20 @@
 
 #include "namespace/ns_quarkdb/inspector/ContainerScanner.hh"
 #include "namespace/ns_quarkdb/persistency/Serialization.hh"
+#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ContainerScanner::ContainerScanner(qclient::QClient &qcl)
+ContainerScannerPrimitive::ContainerScannerPrimitive(qclient::QClient &qcl)
 : mIterator(&qcl, "eos-container-md") { }
 
 //------------------------------------------------------------------------------
 // Is the iterator valid?
 //------------------------------------------------------------------------------
-bool ContainerScanner::valid() const {
+bool ContainerScannerPrimitive::valid() const {
   if(!mError.empty()) {
     return false;
   }
@@ -41,14 +42,14 @@ bool ContainerScanner::valid() const {
 //----------------------------------------------------------------------------
 // Advance iterator - only call when valid() == true
 //----------------------------------------------------------------------------
-void ContainerScanner::next() {
+void ContainerScannerPrimitive::next() {
   mIterator.next();
 }
 
 //------------------------------------------------------------------------------
 // Is there an error?
 //------------------------------------------------------------------------------
-bool ContainerScanner::hasError(std::string &err) const {
+bool ContainerScannerPrimitive::hasError(std::string &err) const {
   if(!mError.empty()) {
     err = mError;
     return true;
@@ -60,7 +61,7 @@ bool ContainerScanner::hasError(std::string &err) const {
 //------------------------------------------------------------------------------
 // Get current element
 //------------------------------------------------------------------------------
-bool ContainerScanner::getItem(eos::ns::ContainerMdProto &item) {
+bool ContainerScannerPrimitive::getItem(eos::ns::ContainerMdProto &item, std::string *path) {
   if(!valid()) {
     return false;
   }
@@ -73,6 +74,10 @@ bool ContainerScanner::getItem(eos::ns::ContainerMdProto &item) {
     return false;
   }
 
+  if(path) {
+    *path = item.name();
+  }
+
   mScanned++;
   return true;
 }
@@ -80,8 +85,116 @@ bool ContainerScanner::getItem(eos::ns::ContainerMdProto &item) {
 //------------------------------------------------------------------------------
 // Get number of elements scanned so far
 //------------------------------------------------------------------------------
-uint64_t ContainerScanner::getScannedSoFar() const {
+uint64_t ContainerScannerPrimitive::getScannedSoFar() const {
   return mScanned;
 }
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+ContainerScanner::ContainerScanner(qclient::QClient &qcl, bool fullPaths)
+: mScanner(qcl), mQcl(qcl), mFullPaths(fullPaths) {
+  if(mFullPaths) {
+    ensureItemDequeFull();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Is the iterator valid?
+//------------------------------------------------------------------------------
+bool ContainerScanner::valid() const {
+  if(mFullPaths) {
+    return !mItemDeque.empty();
+  }
+  else {
+    return mScanner.valid();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Advance iterator - only call when valid() == true
+//------------------------------------------------------------------------------
+void ContainerScanner::next() {
+  if(mFullPaths) {
+    if(valid()) {
+      mItemDeque.pop_front();
+      ensureItemDequeFull();
+    }
+  }
+  else {
+    return mScanner.next();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Ensure our item deque contanis a sufficient number of pending items
+//------------------------------------------------------------------------------
+void ContainerScanner::ensureItemDequeFull() {
+  if(!mFullPaths) return;
+
+  while(mScanner.valid() && mItemDeque.size() < 500) {
+    eos::ns::ContainerMdProto item;
+    if(mScanner.getItem(item)) {
+      mItemDeque.emplace_back(std::move(item),
+        MetadataFetcher::resolveFullPath(mQcl, ContainerIdentifier(item.id())));
+    }
+
+    mScanner.next();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Is there an error?
+//------------------------------------------------------------------------------
+bool ContainerScanner::hasError(std::string &err) const {
+  if(mFullPaths) {
+    return !mItemDeque.empty() && mScanner.hasError(err);
+  }
+  else {
+    return mScanner.hasError(err);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Get number of elements scanned so far
+//------------------------------------------------------------------------------
+uint64_t ContainerScanner::getScannedSoFar() const {
+  if(mFullPaths) {
+    return mScanned;
+  }
+  else{
+    return mScanner.getScannedSoFar();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Get current element
+//------------------------------------------------------------------------------
+bool ContainerScanner::getItem(eos::ns::ContainerMdProto &item, std::string *path) {
+  if(mFullPaths) {
+    if(!valid()) {
+      return false;
+    }
+
+    item = mItemDeque.front().proto;
+
+    if(path != nullptr) {
+      mItemDeque.front().fullPath.wait();
+      if(!mItemDeque.front().fullPath.hasException()) {
+        *path = mItemDeque.front().fullPath.get();
+      }
+      else {
+        *path = item.name();
+      }
+    }
+
+    mScanned++;
+    return true;
+  }
+  else {
+    return mScanner.getItem(item, path);
+  }
+}
+
 
 EOSNSNAMESPACE_END

@@ -25,6 +25,7 @@
 #include "namespace/Namespace.hh"
 #include "proto/ContainerMd.pb.h"
 #include <qclient/structures/QLocalityHash.hh>
+#include <folly/futures/Future.h>
 
 namespace qclient {
   class QClient;
@@ -33,14 +34,14 @@ namespace qclient {
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! ContainerScanner class
+//! ContainerScannerPrimitive class: No support for full paths
 //------------------------------------------------------------------------------
-class ContainerScanner {
+class ContainerScannerPrimitive {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  ContainerScanner(qclient::QClient &qcl);
+  ContainerScannerPrimitive(qclient::QClient &qcl);
 
   //----------------------------------------------------------------------------
   //! Is the iterator valid?
@@ -60,7 +61,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get current element
   //----------------------------------------------------------------------------
-  bool getItem(eos::ns::ContainerMdProto &item);
+  bool getItem(eos::ns::ContainerMdProto &item, std::string *path = nullptr);
 
   //----------------------------------------------------------------------------
   //! Get number of elements scanned so far
@@ -70,6 +71,63 @@ public:
 private:
   qclient::QLocalityHash::Iterator mIterator;
   std::string mError;
+  uint64_t mScanned = 0;
+};
+
+//------------------------------------------------------------------------------
+//! ContainerScanner class: Optional support for full paths
+//------------------------------------------------------------------------------
+class ContainerScanner {
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  ContainerScanner(qclient::QClient &qcl, bool fullPaths = false);
+
+  //----------------------------------------------------------------------------
+  //! Is the iterator valid?
+  //----------------------------------------------------------------------------
+  bool valid() const;
+
+  //----------------------------------------------------------------------------
+  //! Advance iterator - only call when valid() == true
+  //----------------------------------------------------------------------------
+  void next();
+
+  //----------------------------------------------------------------------------
+  //! Is there an error?
+  //----------------------------------------------------------------------------
+  bool hasError(std::string &err) const;
+
+  //----------------------------------------------------------------------------
+  //! Get current element
+  //----------------------------------------------------------------------------
+  bool getItem(eos::ns::ContainerMdProto &item, std::string *path = nullptr);
+
+  //----------------------------------------------------------------------------
+  //! Get number of elements scanned so far
+  //----------------------------------------------------------------------------
+  uint64_t getScannedSoFar() const;
+
+private:
+  //----------------------------------------------------------------------------
+  //! Ensure our item deque contanis a sufficient number of pending items
+  //----------------------------------------------------------------------------
+  void ensureItemDequeFull();
+
+  ContainerScannerPrimitive mScanner;
+  qclient::QClient &mQcl;
+  bool mFullPaths;
+
+  struct Item {
+    eos::ns::ContainerMdProto proto;
+    folly::Future<std::string> fullPath;
+
+    Item(eos::ns::ContainerMdProto &&pr, folly::Future<std::string> &&path)
+    : proto(std::move(pr)), fullPath(std::move(path)) {}
+  };
+
+  std::deque<Item> mItemDeque;
   uint64_t mScanned = 0;
 };
 
