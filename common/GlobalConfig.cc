@@ -34,8 +34,9 @@ GlobalConfig::gConfig; //! Singleton for global configuration access
 // Get the global MGM configuration queue
 //------------------------------------------------------------------------------
 std::string
-GlobalConfig::GetGlobalMgmConfigQueue() const {
-  return SSTR("/config/" << InstanceName::get() << "/mgm");
+GlobalConfig::GetGlobalMgmConfigQueue() const
+{
+  return SSTR("/config/" << InstanceName::get() << "/mgm/");
 }
 
 EOSCOMMONNAMESPACE_END
