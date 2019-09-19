@@ -590,7 +590,7 @@ void QuarkDBConfigEngine::storeIntoQuarkDB(const std::string& name)
 
     if (!parser.ok() || parser.value() != 1) {
       eos_static_crit("Unexpected response from QDB when storing configuration "
-                      "value: ERR=%s, value=d", parser.err().c_str(),
+                      "value: ERR=%s, value=%d", parser.err().c_str(),
                       parser.value());
     }
   }
