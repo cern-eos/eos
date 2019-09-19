@@ -473,6 +473,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionWindow", 5);
   XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 1);
   XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 0);
+  XrdCl::DefaultEnv::GetEnv()->PutInt("MetalinkProcessing", 0);
   // Extract the manager from the config file
   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
 
