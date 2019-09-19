@@ -105,7 +105,10 @@ int main(int argc, char* argv[]) {
   addClusterOptions(scanDirsSubcommand, membersStr, memberValidator, password, passwordFile);
 
   bool onlyNoAttrs = false;
+  bool fullPaths = false;
+
   scanDirsSubcommand->add_flag("--only-no-attrs", onlyNoAttrs, "Only show directories which have no extended attributes whatsoever");
+  scanDirsSubcommand->add_flag("--full-paths", fullPaths, "Show full container paths, if possible");
 
   //----------------------------------------------------------------------------
   // Set-up scan-files subcommand..
@@ -296,7 +299,7 @@ int main(int argc, char* argv[]) {
   }
 
   if(scanDirsSubcommand->parsed()) {
-    return inspector.scanDirs(onlyNoAttrs, std::cout, std::cerr);
+    return inspector.scanDirs(onlyNoAttrs, fullPaths, std::cout, std::cerr);
   }
 
   if(stripediffSubcommand->parsed()) {

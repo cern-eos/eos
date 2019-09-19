@@ -181,6 +181,8 @@ TEST_F(VariousTests, ReconstructContainerPath) {
   ASSERT_EQ("/eos/a/b/c/",  eos::MetadataFetcher::resolveFullPath(qcl(), ContainerIdentifier(5)).get());
   ASSERT_EQ("/eos/a/b/c/d/",  eos::MetadataFetcher::resolveFullPath(qcl(), ContainerIdentifier(6)).get());
   ASSERT_EQ("/eos/a/b/c/d/e/",  eos::MetadataFetcher::resolveFullPath(qcl(), ContainerIdentifier(7)).get());
+
+  ASSERT_THROW(eos::MetadataFetcher::resolveFullPath(qcl(), ContainerIdentifier(8)).get(), eos::MDException) ;
 }
 
 TEST_F(VariousTests, BasicSanity) {

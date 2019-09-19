@@ -38,8 +38,6 @@
 #include <qclient/QClient.hh>
 #include <google/protobuf/util/json_util.h>
 
-#define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
-
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
@@ -126,12 +124,14 @@ int Inspector::dump(const std::string& dumpPath, bool relative, bool rawPaths, b
 // Scan all directories in the namespace, and print out some information
 // about each one. (even potentially unreachable directories)
 //------------------------------------------------------------------------------
-int Inspector::scanDirs(bool onlyNoAttrs, std::ostream &out, std::ostream &err) {
-  ContainerScanner containerScanner(mQcl);
+int Inspector::scanDirs(bool onlyNoAttrs, bool fullPaths, std::ostream &out, std::ostream &err) {
+  ContainerScanner containerScanner(mQcl, fullPaths);
 
   while(containerScanner.valid()) {
     eos::ns::ContainerMdProto proto;
-    if (!containerScanner.getItem(proto)) {
+    std::string path;
+
+    if (!containerScanner.getItem(proto, &path)) {
       break;
     }
 
@@ -140,7 +140,7 @@ int Inspector::scanDirs(bool onlyNoAttrs, std::ostream &out, std::ostream &err) 
       continue;
     }
 
-    out << "cid=" << proto.id() << " name=" << proto.name() << " parent=" << proto.parent_id() << " uid=" << proto.uid() << std::endl;
+    out << "cid=" << proto.id() << " name=" << path << " parent=" << proto.parent_id() << " uid=" << proto.uid() << std::endl;
     containerScanner.next();
   }
 
