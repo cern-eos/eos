@@ -536,6 +536,7 @@ runtest "### Rename    " unix 1 "" eos "file rename /eos/$EOS_TEST_INSTANCE/test
 runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-ODeos.space=default"
 runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.meta4" "-ODeos.space=default"
 runtest "### Upload    " unix 0 "XRD_METALINKPROCESSING=0" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.meta4"
+runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.meta4"
 runtest "### Chmod     " unix 0 "" eos chmod "755" "/eos/$EOS_TEST_INSTANCE/test/instancetest"
 runtest "### Rename    " unix 1 "EOSROLE='-r 99 99'" eos file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.rename
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest"
