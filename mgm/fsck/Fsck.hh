@@ -193,8 +193,8 @@ private:
   std::atomic<bool> mRepairRunning; ///< Mark fi collector is running
   mutable std::string mLog, mTmpLog; ///< In-memory fsck log
   mutable XrdSysMutex mLogMutex; ///< Mutex protecting the in-memory log
-  std::chrono::seconds
-  mCollectInterval; ///< Interval between FSCK collection loops
+  ///< Interval between FSCK collection loops
+  std::chrono::minutes mCollectInterval;
   mutable eos::common::RWMutex mErrMutex; ///< Mutex protecting all map obj
   //! Error detail map storing "<error-name>=><fsid>=>[fid1,fid2,fid3...]"
   std::map<std::string,
