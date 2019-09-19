@@ -47,30 +47,19 @@ FsckCmd::ProcessRequest() noexcept
     std::string output;
     gOFS->mFsckEngine->PrintOut(output);
     reply.set_std_out(std::move(output));
-  } else if (subcmd == eos::console::FsckProto::kEnable) {
-    const eos::console::FsckProto::EnableProto& enable = fsck.enable();
-
-    if (gOFS->mFsckEngine->Start(enable.interval())) {
-      reply.set_std_out("success: fsck enabled");
-    } else {
-      reply.set_retc(EALREADY);
-      reply.set_std_err("error: fsck already enabled, to change the <interval>"
-                        " setting you need to stop if first");
-    }
-  } else if (subcmd == eos::console::FsckProto::kDisable) {
-    if (gOFS->mFsckEngine->Stop()) {
-      reply.set_std_out("success: fsck disabled");
-    } else {
-      reply.set_retc(EALREADY);
-      reply.set_std_err("error: fsck already disabled");
-    }
   } else if (subcmd == eos::console::FsckProto::kConfig) {
     const eos::console::FsckProto::ConfigProto& config = fsck.config();
+    std::string msg;
 
-    if (!gOFS->mFsckEngine->Config(config.key(), config.value())) {
+    if (!gOFS->mFsckEngine->Config(config.key(), config.value(), msg)) {
       reply.set_retc(EINVAL);
-      reply.set_std_err(SSTR("error: failed to set " << config.key()
-                             << "=" << config.value()).c_str());
+
+      if (msg.empty()) {
+        reply.set_std_err(SSTR("error: failed to set " << config.key()
+                               << "=" << config.value()).c_str());
+      } else {
+        reply.set_std_err(msg);
+      }
     }
   } else if (subcmd == eos::console::FsckProto::kReport) {
     const eos::console::FsckProto::ReportProto& report = fsck.report();

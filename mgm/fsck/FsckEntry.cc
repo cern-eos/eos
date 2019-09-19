@@ -240,6 +240,8 @@ FsckEntry::RepairMgmXsSzDiff()
   if (mgm_xs_sz_match) {
     eos_warning("msg=\"mgm xs/size repair skip - found replica with matching "
                 "xs and size\" fid=%08llx", mFid);
+    // The local info stored on of the the FSTs is wrong, trigger a resync
+    ResyncFstMd(false);
     return true;
   }
 

@@ -355,7 +355,7 @@ QdbMaster::MasterToSlave()
   RemoveStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE);
   mIsMaster = false;
   gOFS->mDrainEngine.Stop();
-  gOFS->mFsckEngine->Stop(false);
+  gOFS->mFsckEngine->Stop();
   Access::StallInfo old_stall; // to be discarded
   Access::StallInfo new_stall("*", "5", "master->slave transition", true);
   Access::SetStallRule(new_stall, old_stall);
@@ -384,7 +384,7 @@ QdbMaster::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
 {
   static std::mutex sequential_mutex;
   std::unique_lock<std::mutex> lock(sequential_mutex);
-  gOFS->mFsckEngine->Stop(false);
+  gOFS->mFsckEngine->Stop();
   gOFS->mDrainEngine.Stop();
   gOFS->mDrainEngine.Start();
   gOFS->ConfEngine->SetConfigDir(gOFS->MgmConfigDir.c_str());

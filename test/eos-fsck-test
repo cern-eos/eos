@@ -331,8 +331,8 @@ MAX_DELAY=180
 START_TIME=$(date +%s)
 
 while
-  local CURRENT_TIME=$(date +%s)
-  local HAS_ERRORS=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i")
+  CURRENT_TIME=$(date +%s)
+  HAS_ERRORS=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i")
 
   if [[ -z "${HAS_ERRORS}" ]]; then
     if (( $((${CURRENT_TIME} - ${START_TIME})) >= ${MAX_DELAY} )); then

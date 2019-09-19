@@ -2,9 +2,9 @@ syntax="proto3";
 package eos.console;
 
 message FsckProto {
-
-  message EnableProto {
-   uint32 interval = 1;
+  message ConfigProto {
+    string key = 1;
+    string value = 2;
   }
 
   message ReportProto {
@@ -20,17 +20,10 @@ message FsckProto {
     uint64 fid = 2;
   }
 
-  message ConfigProto {
-    string key = 1;
-    string value = 2;
-  }
-
   oneof subcmd {
     bool stat = 1;
-    bool disable = 2;
-    EnableProto enable = 3;
-    ReportProto report = 4;
-    RepairProto repair = 5;
-    ConfigProto config = 6;
+    ConfigProto config = 2;
+    ReportProto report = 3;
+    RepairProto repair = 4;
   }
 }
