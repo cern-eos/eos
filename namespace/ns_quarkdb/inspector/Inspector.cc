@@ -1003,6 +1003,14 @@ int Inspector::printFileMD(uint64_t fid, std::ostream& out, std::ostream& err)
   }
 
   Printing::printMultiline(val, out);
+
+  try {
+    std::string fullPath = MetadataFetcher::resolveFullPath(mQcl, ContainerIdentifier(val.cont_id())).get();
+    out << "Full path: " << fullPath << val.name() << std::endl;
+  } catch(const MDException& e) {
+    err << "Full path: Could not reconstruct" << std::endl;
+  }
+
   return 0;
 }
 
