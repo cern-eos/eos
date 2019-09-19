@@ -53,11 +53,6 @@ EOSMGMNAMESPACE_BEGIN
 class Fsck: public eos::common::LogId
 {
 public:
-  //! Key used in the configuration engine to store the enable status
-  static const char* gFsckEnabled;
-  //! Key used in the configuration engine to store the check interval
-  static const char* gFsckInterval;
-
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -180,11 +175,22 @@ public:
   }
 
 private:
+  //! Key used in the configuration engine to store the fsck config
+  static const std::string sFsckKey;
+  //! Key used to store the status of the collector thread in the config
+  static const std::string sCollectKey;
+  //! Key used to store the collection interval in the config
+  static const std::string sCollectIntervalKey;
+  //! Key used to store the status of the repair thread in the config
+  static const std::string sRepairKey;
+
   std::atomic<bool> mShowOffline; ///< Flag to display offline files/replicas
   std::atomic<bool> mShowDarkFiles; ///< Flag to display dark files
   std::atomic<bool> mStartProcessing; ///< Notification flag for repair thread
-  std::atomic<bool> mCollectEnabled; //< Mark if the err collection is enabled
-  std::atomic<bool> mRepairEnabled; //< Mark if the repair thread is enabled
+  std::atomic<bool> mCollectEnabled; ///< Mark if the err collection is enabled
+  std::atomic<bool> mRepairEnabled; ///< Mark if the repair thread is enabled
+  std::atomic<bool> mCollectRunning; ///< Mark fi collector is running
+  std::atomic<bool> mRepairRunning; ///< Mark fi collector is running
   mutable std::string mLog, mTmpLog; ///< In-memory fsck log
   mutable XrdSysMutex mLogMutex; ///< Mutex protecting the in-memory log
   std::chrono::seconds
