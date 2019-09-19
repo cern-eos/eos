@@ -527,6 +527,8 @@ main(int argc, char* argv[])
   extern char* optarg;
   extern int optind;
 
+  XrdCl::DefaultEnv::GetEnv()->PutInt("MetalinkProcessing", 0);
+
   while ((c = getopt(argc, argv,
                      "nshxdvlipfce:P:X:b:m:u:g:t:S:D:5aA:r:N:L:RT:O:V0")) != -1) {
     switch (c) {

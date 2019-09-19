@@ -650,6 +650,7 @@ public:
     set_state(CLOSED);
     XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
     env->PutInt("TimeoutResolution", 1);
+    env->PutInt("MetalinkProcessing", 0);
     XReadAheadStrategy = NONE;
     XReadAheadMin = 4 * 1024;
     XReadAheadNom = 256 * 1204;
