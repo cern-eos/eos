@@ -77,7 +77,7 @@ class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId
 public:
 
   //! Minimum file size for which async close is triggered
-  static constexpr uint64_t msMinSizeAsyncClose {2 * (2 ^ 30)}; // 2GB
+  static constexpr uint64_t msMinSizeAsyncClose {2u * 1024 * 1024 * 1024}; // 2GB
   static constexpr uint16_t msDefaultTimeout {300};
   static int LayoutReadCB(eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd);
   static int FileIoReadCB(eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd);
