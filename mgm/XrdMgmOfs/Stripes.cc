@@ -63,109 +63,108 @@ XrdMgmOfs::_verifystripe(const char* path,
   eos_debug("verify");
   eos::common::Path cPath(path);
   std::string attr_path;
-  // ---------------------------------------------------------------------------
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  {
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
-  try {
-    dh = gOFS->eosView->getContainer(cPath.GetParentPath());
-    attr_path = gOFS->eosView->getUri(dh.get());
-    dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh.get()));
-  } catch (eos::MDException& e) {
-    dh.reset();
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-              e.getMessage().str().c_str());
-  }
-
-  // Check permissions
-  if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK))) {
-    if (!errno) {
-      errno = EPERM;
-    }
-  } else {
-    // only root can delete a detached replica
-    if (vid.uid) {
-      errno = EPERM;
-    }
-  }
-
-  if (errno) {
-    return Emsg(epname, error, errno, "verify stripe", path);
-  }
-
-  // Get attributes
-  gOFS->_attr_ls(attr_path.c_str(), error, vid, 0, attrmap, false);
-
-  // Get the file
-  try {
-    fmd = gOFS->eosView->getFile(path);
-    fid = fmd->getId();
-    lid = fmd->getLayoutId();
-    cid = fmd->getContainerId();
-  } catch (eos::MDException& e) {
-    fmd.reset();
-    errno = e.getErrno();
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-              e.getErrno(), e.getMessage().str().c_str());
-  }
-
-  if (!errno) {
-    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    eos::mgm::FileSystem* verifyfilesystem = FsView::gFsView.mIdView.lookupByID(
-          fsid);
-
-    if (!verifyfilesystem) {
-      errno = EINVAL;
-      return Emsg(epname, error, ENOENT,
-                  "verify stripe - filesystem does not exist",
-                  fmd->getName().c_str());
+    try {
+      dh = gOFS->eosView->getContainer(cPath.GetParentPath());
+      attr_path = gOFS->eosView->getUri(dh.get());
+      dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh.get()));
+    } catch (eos::MDException& e) {
+      dh.reset();
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+                e.getMessage().str().c_str());
     }
 
-    XrdOucString receiver = verifyfilesystem->GetQueue().c_str();
-    XrdOucString opaquestring = "";
-    // build the opaquestring contents
-    opaquestring += "&mgm.localprefix=";
-    opaquestring += verifyfilesystem->GetPath().c_str();
-    opaquestring += "&mgm.fid=";
-    const std::string hex_fid = eos::common::FileId::Fid2Hex(fid);
-    opaquestring += hex_fid.c_str();
-    opaquestring += "&mgm.manager=";
-    opaquestring += gOFS->ManagerId.c_str();
-    opaquestring += "&mgm.access=verify";
-    opaquestring += "&mgm.fsid=";
-    opaquestring += (int) verifyfilesystem->GetId();
-
-    if (attrmap.count("user.tag")) {
-      opaquestring += "&mgm.container=";
-      opaquestring += attrmap["user.tag"].c_str();
-    }
-
-    XrdOucString sizestring = "";
-    opaquestring += "&mgm.cid=";
-    opaquestring += eos::common::StringConversion::GetSizeString(sizestring, cid);
-    opaquestring += "&mgm.path=";
-    XrdOucString safepath = path;
-
-    while (safepath.replace("&", "#AND#")) {}
-
-    opaquestring += safepath;
-    opaquestring += "&mgm.lid=";
-    opaquestring += lid;
-
-    if (option.length()) {
-      opaquestring += option;
-    }
-
-    XrdMqMessage message("verifycation");
-    XrdOucString msgbody = "mgm.cmd=verify";
-    msgbody += opaquestring;
-    message.SetBody(msgbody.c_str());
-
-    if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
-      eos_static_err("unable to send verification message to %s", receiver.c_str());
-      errno = ECOMM;
+    // Check permissions
+    if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK))) {
+      if (!errno) {
+        errno = EPERM;
+      }
     } else {
-      errno = 0;
+      // only root can delete a detached replica
+      if (vid.uid) {
+        errno = EPERM;
+      }
     }
+
+    if (errno) {
+      return Emsg(epname, error, errno, "verify stripe", path);
+    }
+
+    // Get attributes
+    gOFS->_attr_ls(attr_path.c_str(), error, vid, 0, attrmap, false);
+
+    // Get the file
+    try {
+      fmd = gOFS->eosView->getFile(path);
+      fid = fmd->getId();
+      lid = fmd->getLayoutId();
+      cid = fmd->getContainerId();
+    } catch (eos::MDException& e) {
+      fmd.reset();
+      errno = e.getErrno();
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                e.getErrno(), e.getMessage().str().c_str());
+      return Emsg(epname, error, errno,
+                  "verify stripe - not file metadata", path);
+    }
+  }
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+  eos::mgm::FileSystem* verifyfilesystem = FsView::gFsView.mIdView.lookupByID(
+        fsid);
+
+  if (!verifyfilesystem) {
+    errno = EINVAL;
+    return Emsg(epname, error, ENOENT,
+                "verify stripe - filesystem does not exist", path);
+  }
+
+  XrdOucString receiver = verifyfilesystem->GetQueue().c_str();
+  XrdOucString opaquestring = "";
+  // build the opaquestring contents
+  opaquestring += "&mgm.localprefix=";
+  opaquestring += verifyfilesystem->GetPath().c_str();
+  opaquestring += "&mgm.fid=";
+  const std::string hex_fid = eos::common::FileId::Fid2Hex(fid);
+  opaquestring += hex_fid.c_str();
+  opaquestring += "&mgm.manager=";
+  opaquestring += gOFS->ManagerId.c_str();
+  opaquestring += "&mgm.access=verify";
+  opaquestring += "&mgm.fsid=";
+  opaquestring += (int) verifyfilesystem->GetId();
+
+  if (attrmap.count("user.tag")) {
+    opaquestring += "&mgm.container=";
+    opaquestring += attrmap["user.tag"].c_str();
+  }
+
+  XrdOucString sizestring = "";
+  opaquestring += "&mgm.cid=";
+  opaquestring += eos::common::StringConversion::GetSizeString(sizestring, cid);
+  opaquestring += "&mgm.path=";
+  XrdOucString safepath = path;
+
+  while (safepath.replace("&", "#AND#")) {}
+
+  opaquestring += safepath;
+  opaquestring += "&mgm.lid=";
+  opaquestring += lid;
+
+  if (option.length()) {
+    opaquestring += option;
+  }
+
+  XrdMqMessage message("verifycation");
+  XrdOucString msgbody = "mgm.cmd=verify";
+  msgbody += opaquestring;
+  message.SetBody(msgbody.c_str());
+
+  if (!Messaging::gMessageClient.SendMessage(message, receiver.c_str())) {
+    eos_static_err("unable to send verification message to %s", receiver.c_str());
+    errno = ECOMM;
+  } else {
+    errno = 0;
   }
 
   EXEC_TIMING_END("VerifyStripe");
