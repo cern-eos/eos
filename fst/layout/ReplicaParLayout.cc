@@ -101,7 +101,7 @@ ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode,
   }
 
   // Define the replication head
-  eos_info("replica_head=%i, replica_index = %i", replica_head, replica_index);
+  eos_info("replica_head=%i, replica_index=%i", replica_head, replica_index);
 
   if (replica_index == replica_head) {
     is_head_server = true;

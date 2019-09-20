@@ -76,7 +76,7 @@ class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId
 
 public:
 
-  //! Minimum file size for which async close is trig
+  //! Minimum file size for which async close is triggered
   static constexpr uint64_t msMinSizeAsyncClose {2 * (2 ^ 30)}; // 2GB
   static constexpr uint16_t msDefaultTimeout {300};
   static int LayoutReadCB(eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd);
@@ -282,7 +282,8 @@ public:
     kOfsSimulatedIoError = 4 //! simulated IO error
   };
 
-  std::unique_ptr<eos::common::FmdHelper> mFmd; ///< In-memory file meta data object
+  std::unique_ptr<eos::common::FmdHelper>
+  mFmd; ///< In-memory file meta data object
   std::unique_ptr<eos::fst::CheckSum> mCheckSum; ///< Checksum object
   // @todo(esindril) this is not properly enforced everywhere ...
   XrdSysMutex mChecksumMutex; ///< Mutex protecting the checksum class
