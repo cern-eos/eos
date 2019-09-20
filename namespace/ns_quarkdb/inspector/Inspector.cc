@@ -328,7 +328,9 @@ int Inspector::oneReplicaLayout(std::ostream &out, std::ostream &err) {
     }
 
     if(expected == 1 && size != 0) {
-      out << "id=" << proto.id() << " container=" << proto.cont_id() << " size=" << size << " actual-stripes=" << actual << " expected-stripes=" << expected << " unlinked-stripes=" << unlinked <<  " locations=" << serializeLocations(proto.locations()) << " unlinked-locations=" << serializeLocations(proto.unlink_locations());
+      out << "id=" << proto.id();
+      out << " name=" << proto.name();
+      out << " container=" << proto.cont_id() << " size=" << size << " actual-stripes=" << actual << " expected-stripes=" << expected << " unlinked-stripes=" << unlinked <<  " locations=" << serializeLocations(proto.locations()) << " unlinked-locations=" << serializeLocations(proto.unlink_locations());
       out << " mtime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.mtime()));
       out << " ctime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.ctime()));
       out << std::endl;
@@ -476,7 +478,7 @@ int Inspector::checkCursedNames(std::ostream &out, std::ostream &err) {
     }
 
     if(proto.id() != 1 && isCursedName(proto.name())) {
-      out << "cid=" << proto.id() << " cursed-name=" << proto.name() << std::endl;
+      out << "cid=" << proto.id() << " cursed-name=" << escapeNonPrintable(proto.name()) << std::endl;
     }
 
     containerScanner.next();
@@ -490,7 +492,7 @@ int Inspector::checkCursedNames(std::ostream &out, std::ostream &err) {
     }
 
     if (isCursedName(proto.name())) {
-      out << "fid=" << proto.id() << " cursed-name=" << proto.name() << std::endl;
+      out << "fid=" << proto.id() << " cursed-name=" << escapeNonPrintable(proto.name()) << std::endl;
     }
 
     fileScanner.next();
