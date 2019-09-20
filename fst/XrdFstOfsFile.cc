@@ -352,7 +352,6 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
                      "simulated error");
   }
 
-  eos_info("fstpath=%s", mFstPath.c_str());
   mFmd = gFmdDbMapHandler.LocalGetFmd(mFileId, mFsId, vid.uid, vid.gid,
                                       mLid, mIsRW, isRepairRead);
 
@@ -496,7 +495,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   // For RAIN layouts we enable full file checksum only at the entry server for
   // write operations. For the rest of the cases we rely on the block and parity
   // checking.
-  if (eos::common::LayoutId::IsRain(mLid) && !(mIsRW && mLayout->IsEntryServer())) {
+  if (eos::common::LayoutId::IsRain(mLid) && !(mIsRW &&
+      mLayout->IsEntryServer())) {
     mCheckSum.reset(nullptr);
   }
 
@@ -832,11 +832,11 @@ XrdFstOfsFile::stat(struct stat* buf)
   // overwrite st_dev
   buf->st_dev = nsec;
 #ifdef __APPLE__
-  eos_info("path=%s inode=%lu size=%lu mtime=%lu.%lu", mNsPath.c_str(), mFileId,
+  eos_info("path=%s fxid=%08llx size=%lu mtime=%lu.%lu", mNsPath.c_str(), mFileId,
            (unsigned long) buf->st_size, buf->st_mtimespec.tv_sec,
            buf->st_dev & 0x7ffffff);
 #else
-  eos_info("path=%s inode=%lu size=%lu mtime=%lu.%lu", mNsPath.c_str(), mFileId,
+  eos_info("path=%s fxid=%08llx size=%lu mtime=%lu.%lu", mNsPath.c_str(), mFileId,
            (unsigned long) buf->st_size, buf->st_mtim.tv_sec, buf->st_dev & 0x7ffffff);
 #endif
   return rc;
@@ -950,15 +950,16 @@ XrdFstOfsFile::close()
 {
   // Close happening the in the same XRootD thread
   if (viaDelete || mWrDelete || mIsDevNull || (mIsRW == false) ||
-      (mIsRW && mMaxOffsetWritten <= msMinSizeAsyncClose)) {
+      (mIsRW && (mMaxOffsetWritten > msMinSizeAsyncClose))) {
     return _close();
   }
 
   // Delegate close to a different thread while the client is waiting for the
   // callback (SFS_STARTED). This only happens for written files with size
   // bigger than msMinSizeAsyncClose (2GB).
-  eos_info("msg=\"close delegated to async thread \" fid=%llu ns_path=\"%s\" "
-           "fs_path=\"%s\"", mFileId, mNsPath.c_str(), mFstPath.c_str());
+  eos_info("msg=\"close delegated to async thread \" fxid=%08llx "
+           "ns_path=\"%s\" fs_path=\"%s\"", mFileId, mNsPath.c_str(),
+           mFstPath.c_str());
   // Create a close callback and put the client in waiting mode
   mCloseCb.reset(new XrdOucCallBack());
   mCloseCb->Init(&error);
@@ -1191,7 +1192,6 @@ XrdFstOfsFile::_close()
             mFmd->mProtoFmd.set_blockcxerror(0);
             mFmd->mProtoFmd.set_locations(""); // reset locations
             mFmd->mProtoFmd.set_mtime(statinfo.st_mtime);
-
 #ifdef __APPLE__
             mFmd->mProtoFmd.set_mtime_ns(0);
 #else
@@ -1689,15 +1689,16 @@ XrdFstOfsFile::_close()
             eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR, nullptr);
         std::string errMsgBackFromWfEndpoint;
         const int notifyRc = NotifyProtoWfEndPointClosew(*mFmd.get(),
-                                                         mEventOwnerUid,
-                                                         mEventOwnerGid,
-                                                         mEventRequestor,
-                                                         mEventRequestorGroup,
-                                                         mEventInstance,
-                                                         mCapOpaque->Get("mgm.path"),
-                                                         mCapOpaque->Get("mgm.manager"),
-                                                         attributes,
-                                                         errMsgBackFromWfEndpoint);
+                             mEventOwnerUid,
+                             mEventOwnerGid,
+                             mEventRequestor,
+                             mEventRequestorGroup,
+                             mEventInstance,
+                             mCapOpaque->Get("mgm.path"),
+                             mCapOpaque->Get("mgm.manager"),
+                             attributes,
+                             errMsgBackFromWfEndpoint);
+
         if (0 == notifyRc) {
           this->error.setErrCode(0);
           eos_info("Return code rc=%i errc=%d", SFS_OK, error.getErrInfo());
@@ -2846,7 +2847,7 @@ XrdFstOfsFile::VerifyChecksum()
 
     if (mCheckSum->NeedsRecalculation()) {
       if ((!mIsRW) && ((sFwdBytes + sBwdBytes)
-                      || (mCheckSum->GetMaxOffset() != openSize))) {
+                       || (mCheckSum->GetMaxOffset() != openSize))) {
         // We don't rescan files if they are read non-sequential or only
         // partially
         eos_debug("info=\"skipping checksum (re-scan) for non-sequential "
@@ -2859,7 +2860,7 @@ XrdFstOfsFile::VerifyChecksum()
                 mCheckSum->GetMaxOffset(), openSize);
 
       if (((!mIsRW) && ((mCheckSum->GetMaxOffset() != openSize) ||
-                       (!mCheckSum->GetMaxOffset())))) {
+                        (!mCheckSum->GetMaxOffset())))) {
         eos_debug("info=\"skipping checksum (re-scan) for access without any IO or "
                   "partial sequential read IO from the beginning...\"");
         mCheckSum.reset(nullptr);
@@ -3070,53 +3071,87 @@ XrdFstOfsFile::DoTpcTransfer()
   int64_t wbytes = 0;
   off_t offset = 0;
   constexpr uint64_t eight_gb = 8 * (2 ^ 30);
-  std::unique_ptr< std::vector<char> > buffer(
-    new std::vector<char>(tpcIO.GetBlockSize()));
+  std::unique_ptr< std::vector<char> > buffer
+  (new std::vector<char>(tpcIO.GetBlockSize()));
   eos_info("msg=\"tpc pull\" ");
+  struct stat st_info;
 
-  do {
+  if (tpcIO.fileStat(&st_info)) {
+    eos_err("%s", "msg=\"failed to stat remote file\" src_url=%s",
+            src_url.c_str());
+    XrdSysMutexHelper scope_lock(mTpcJobMutex);
+    mTpcState = kTpcDone;
+    mTpcRetc = EIO;
+    mTpcInfo.Reply(SFS_ERROR, mTpcRetc, "sync - TPC remote stat failed");
+    return 0;
+  }
+
+  int64_t file_size = st_info.st_size;
+  int64_t nread {0ull};
+
+  while (offset < file_size) {
     // Read the remote file in chunks and check after each chunk if the TPC
     // has been aborted already
-    // @note this way of reading asynchronously in the buffer without waiting
-    // for the async requests works properly only if readahead is enabled.
-    // Otherwise, one must call fileWaitAsyncIO().
-    rbytes = tpcIO.fileReadAsync(offset, &((*buffer)[0]),
-                                 tpcIO.GetBlockSize(), true, 30);
+    if (file_size - offset >= tpcIO.GetBlockSize()) {
+      nread = tpcIO.GetBlockSize();
+    } else {
+      nread = file_size - offset;
+    }
+
+    if (getenv("EOS_FST_TPC_READASYNC")) {
+      // @note this way of reading asynchronously in the buffer without waiting
+      // for the async requests works properly only if readahead is enabled.
+      // Otherwise, one must call fileWaitAsyncIO().
+      rbytes = tpcIO.fileReadAsync(offset, &((*buffer)[0]), nread, true, 30);
+    } else {
+      rbytes = tpcIO.fileRead(offset, &((*buffer)[0]), nread);
+    }
+
     eos_debug("msg=\"tpc read\" rbytes=%lli request=%llu",
               rbytes, tpcIO.GetBlockSize());
 
-    if (rbytes == -1) {
+    if ((rbytes == -1) || (rbytes != nread)) {
       (void) tpcIO.fileClose();
       eos_err("msg=\"tpc transfer terminated - remote read failed\"");
       XrdSysMutexHelper scope_lock(mTpcJobMutex);
       mTpcState = kTpcDone;
       mTpcRetc = EIO;
-      mTpcInfo.Reply(SFS_ERROR, EIO,
+      mTpcInfo.Reply(SFS_ERROR, mTpcRetc,
                      SSTR("sync - TPC remote read failed src_url="
                           << src_url).c_str());
       return 0;
     }
 
-    if (rbytes > 0) {
-      // Write the buffer out through the local object
-      wbytes = write(offset, &((*buffer)[0]), rbytes);
-      eos_debug("msg=\"tpc write\" wbytes=%llu", wbytes);
+    // Write the buffer out through the local object
+    wbytes = write(offset, &((*buffer)[0]), rbytes);
+    eos_debug("msg=\"tpc write\" wbytes=%llu", wbytes);
 
-      if (offset / eight_gb != (offset + rbytes) /  eight_gb) {
-        eos_info("msg=\"tcp write\" offset=%llu", offset);
-      }
+    if (offset / eight_gb != (offset + rbytes) /  eight_gb) {
+      eos_info("msg=\"tcp write\" offset=%llu", offset);
+    }
 
-      if (rbytes != wbytes) {
-        (void) tpcIO.fileClose();
-        eos_err("msg=\"tpc transfer terminated - local write failed\"");
-        XrdSysMutexHelper scope_lock(mTpcJobMutex);
-        mTpcState = kTpcDone;
-        mTpcRetc = EIO;
-        mTpcInfo.Reply(SFS_ERROR, EIO, "sync - TPC local write failed");
-        return 0;
-      }
+    if (rbytes != wbytes) {
+      (void) tpcIO.fileClose();
+      eos_err("%s", "msg=\"tpc transfer terminated - local write failed\"");
+      XrdSysMutexHelper scope_lock(mTpcJobMutex);
+      mTpcState = kTpcDone;
+      mTpcRetc = EIO;
+      mTpcInfo.Reply(SFS_ERROR, mTpcRetc, "sync - TPC local write failed");
+      return 0;
+    }
 
-      offset += rbytes;
+    offset += rbytes;
+
+    // Got an "ofs.tpc cancel" request from the client who triggered it
+    if (mTpcCancel) {
+      eos_err("%s", "msg=\"tpc transfer cancelled by the client\"");
+      XrdSysMutexHelper scope_lock(mTpcJobMutex);
+      mTpcState = kTpcDone;
+      mTpcRetc = ECANCELED;
+      mTpcInfo.Reply(SFS_ERROR, mTpcRetc,
+                     SSTR("sync - TPC cancelled by client src_url="
+                          << src_url).c_str());
+      return 0;
     }
 
     // Check validity of the TPC key
@@ -3126,11 +3161,11 @@ XrdFstOfsFile::DoTpcTransfer()
       XrdSysMutexHelper scope_lock(mTpcJobMutex);
       mTpcState = kTpcDone;
       mTpcRetc = ECONNABORTED;
-      mTpcInfo.Reply(SFS_ERROR, ECONNABORTED, "sync - TPC session closed "
+      mTpcInfo.Reply(SFS_ERROR, mTpcRetc, "sync - TPC session closed "
                      "by diconnect");
       return 0;
     }
-  } while (rbytes > 0);
+  }
 
   // Close the remote file
   eos_info("msg=\"done tpc transfer, close remote file\" src_url=%s",

@@ -78,9 +78,7 @@ Storage::MgmSyncer()
       eos::common::FmdHelper fmd = gOFS.WrittenFilesQueue.front();
       gOFS.WrittenFilesQueue.pop();
       gOFS.WrittenFilesQueueMutex.UnLock();
-      eos_static_info("fxid=%08llx mtime=%llu", fmd.mProtoFmd.fid(),
-                      fmd.mProtoFmd.mtime());
-      // guarantee that we delay the check by atleast 60 seconds to wait
+      // Guarantee that we delay the check by atleast 60 seconds to wait
       // for the commit of all recplias
       time_t delay = fmd.mProtoFmd.mtime() + 60 - now;
 
@@ -94,6 +92,8 @@ Storage::MgmSyncer()
         continue;
       }
 
+      eos_static_info("fxid=%08llx mtime=%llu", fmd.mProtoFmd.fid(),
+                      fmd.mProtoFmd.mtime());
       bool isopenforwrite = gOFS.openedForWriting.isOpen(fmd.mProtoFmd.fsid(),
                             fmd.mProtoFmd.fid());
 
