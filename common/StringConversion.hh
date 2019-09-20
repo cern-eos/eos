@@ -136,7 +136,7 @@ public:
   //! @return array of chars holding the binary data representaion of the
   //!         checksum or nullptr if there were any errors
   //----------------------------------------------------------------------------
-  static std::unique_ptr<char>
+  static std::unique_ptr<char[]>
   Hex2BinDataChar(const std::string& shex, size_t& out_size);
 
   // ---------------------------------------------------------------------------

@@ -233,11 +233,11 @@ StringConversion::BinData2HexString(const char* buf, const size_t buf_len,
 //------------------------------------------------------------------------------
 // Convert checksum hex representation to binary string
 //------------------------------------------------------------------------------
-std::unique_ptr<char>
+std::unique_ptr<char[]>
 StringConversion::Hex2BinDataChar(const std::string& shex, size_t& out_size)
 {
   out_size = 0;
-  std::unique_ptr<char> buf {new char[SHA_DIGEST_LENGTH]};
+  std::unique_ptr<char[]> buf {new char[SHA_DIGEST_LENGTH]};
 
   if ((buf == nullptr) || shex.empty()) {
     return nullptr;
