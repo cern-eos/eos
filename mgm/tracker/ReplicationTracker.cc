@@ -375,6 +375,12 @@ ReplicationTracker::Scan(uint64_t atomic_age, bool cleanup, std::string* out)
 	      return;
 	    }
 	  } else {
+
+	    if (reason == "ENOENT") {
+	      // mark for tag deletion
+	      flag_deletion = 1;
+	    }
+
 	    eos_static_info("key=%s age=%lu (s) delete=%d rep=%lu/%lu atomic=%d reason=%s uri='%s'", 
 			    entry.c_str(), 
 			    age,
