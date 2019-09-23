@@ -390,8 +390,6 @@ Storage::getFsStatistics(FileSystem* fs, bool publishInconsistencyStats)
   output["stat.geotag"] = getGeotag();
   output["stat.publishtimestamp"] = std::to_string(
                                       eos::common::getEpochInMilliseconds().count());
-  output["stat.drainer.running"] = std::to_string(
-                                     fs->GetDrainQueue()->GetRunningAndQueued());
   output["stat.balancer.running"] = std::to_string(
                                       fs->GetBalanceQueue()->GetRunningAndQueued());
   output["stat.disk.iops"] = std::to_string(fs->getIOPS());
@@ -424,8 +422,10 @@ bool Storage::publishFsStatistics(FileSystem* fs,
   }
 
   common::FileSystemUpdateBatch batch;
-  std::map<std::string, std::string> fsStats = getFsStatistics(fs, publishInconsistencyStats);
-  for(auto it = fsStats.begin(); it != fsStats.end(); it++) {
+  std::map<std::string, std::string> fsStats = getFsStatistics(fs,
+      publishInconsistencyStats);
+
+  for (auto it = fsStats.begin(); it != fsStats.end(); it++) {
     batch.setStringTransient(it->first, it->second);
   }
 
@@ -460,9 +460,9 @@ Storage::Publish(ThreadAssistant& assistant)
     // Should we publish consistency stats during this cycle?
     //--------------------------------------------------------------------------
     bool publishConsistencyStats = consistencyStatsStopwatch.restartIfExpired();
-    std::chrono::milliseconds randomizedReportInterval = eos::fst::Config::gConfig.getRandomizedPublishInterval();
+    std::chrono::milliseconds randomizedReportInterval =
+      eos::fst::Config::gConfig.getRandomizedPublishInterval();
     common::IntervalStopwatch stopwatch(randomizedReportInterval);
-
     {
       // run through our defined filesystems and publish with a MuxTransaction all changes
       eos::common::RWMutexReadLock lock(mFsMutex);
@@ -481,11 +481,12 @@ Storage::Publish(ThreadAssistant& assistant)
         }
 
         std::map<std::string, std::string> fstStats = getFSTStatistics(tmp_name,
-          netspeed);
-
+            netspeed);
         // set node status values
-        common::SharedHashLocator locator = Config::gConfig.getNodeHashLocator("Publish");
-        if(!locator.empty()) {
+        common::SharedHashLocator locator =
+          Config::gConfig.getNodeHashLocator("Publish");
+
+        if (!locator.empty()) {
           mq::SharedHashWrapper hash(locator, true, false);
 
           for (auto it = fstStats.begin(); it != fstStats.end(); it++) {

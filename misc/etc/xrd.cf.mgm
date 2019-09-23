@@ -96,9 +96,6 @@ mgmofs.nslib /usr/lib64/libEosNsInMemory.so
 #mgmofs.qdbcluster localhost:7777
 #mgmofs.qdbpassword_file /etc/eos.keytab
 
-# Enable central draining to be use with Quarkdb namespace
-#mgmofs.centraldrain true
-
 #-------------------------------------------------------------------------------
 # Configuration for the MGM workflow engine
 #-------------------------------------------------------------------------------

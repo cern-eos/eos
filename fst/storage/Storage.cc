@@ -210,16 +210,6 @@ Storage::Storage(const char* meta_dir)
   }
 
   mThreadSet.insert(tid);
-  eos_info("starting filesystem drainer thread");
-
-  if ((rc = XrdSysThread::Run(&tid, Storage::StartFsDrainer,
-                              static_cast<void*>(this),
-                              0, "Drainer Thread"))) {
-    eos_crit("cannot start drainer thread");
-    mZombie = true;
-  }
-
-  mThreadSet.insert(tid);
   eos_info("starting filesystem transaction cleaner thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartFsCleaner,
@@ -654,17 +644,6 @@ Storage::StartFsBalancer(void* pp)
 {
   Storage* storage = (Storage*) pp;
   storage->Balancer();
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-// Start drainer thread
-//------------------------------------------------------------------------------
-void*
-Storage::StartFsDrainer(void* pp)
-{
-  Storage* storage = (Storage*) pp;
-  storage->Drainer();
   return 0;
 }
 

@@ -225,7 +225,6 @@ private:
   static void* StartFsErrorReport(void* pp);
   static void* StartFsVerify(void* pp);
   static void* StartFsBalancer(void* pp);
-  static void* StartFsDrainer(void* pp);
   static void* StartFsCleaner(void* pp);
   static void* StartMgmSyncer(void* pp);
   static void* StartBoot(void* pp);
@@ -254,17 +253,20 @@ private:
   void Communicator(ThreadAssistant& assistant);
   void QdbCommunicator(QdbContactDetails contactDetails,
                        ThreadAssistant& assistant);
-  bool getFSTConfigValue(const std::string &key, std::string &value) const;
-  bool getFSTConfigValue(const std::string &key, unsigned long long &value);
-  void registerFilesystem(const std::string &queuepath);
+  bool getFSTConfigValue(const std::string& key, std::string& value) const;
+  bool getFSTConfigValue(const std::string& key, unsigned long long& value);
+  void registerFilesystem(const std::string& queuepath);
 
-  void processIncomingFstConfigurationChange(const std::string &key);
-  void processIncomingFstConfigurationChange(const std::string &key, const std::string &value);
+  void processIncomingFstConfigurationChange(const std::string& key);
+  void processIncomingFstConfigurationChange(const std::string& key,
+      const std::string& value);
 
-  void processIncomingFsConfigurationChange(const std::string &queue, const std::string &key);
+  void processIncomingFsConfigurationChange(const std::string& queue,
+      const std::string& key);
 
   // requires mFsMutex write-locked
-  void processIncomingFsConfigurationChange(fst::FileSystem *targetFs, const std::string &queue, const std::string &key, const std::string &value);
+  void processIncomingFsConfigurationChange(fst::FileSystem* targetFs,
+      const std::string& queue, const std::string& key, const std::string& value);
 
   void Scrub();
   void Trim();
@@ -278,7 +280,6 @@ private:
     const QdbContactDetails& cd, ThreadAssistant& assistant);
 
   void Balancer();
-  void Drainer();
   void Cleaner();
   void MgmSyncer();
   void Boot(FileSystem* fs);
@@ -358,71 +359,6 @@ private:
                                   unsigned long long ratetx);
 
   bool GetBalanceJob(unsigned int index);
-
-  //----------------------------------------------------------------------------
-  //! Drain related methods and attributes
-  //----------------------------------------------------------------------------
-  XrdSysCondVar drainJobNotification;
-
-  //----------------------------------------------------------------------------
-  //! Get the number of parallel transfers and transfer rate settings
-  //!
-  //! @param nparalleltx number of parallel transfers to run
-  //! @param ratex rate per transfer
-  //! @param nodeconfigqueue config queue to use
-  //----------------------------------------------------------------------------
-  void GetDrainSlotVariables(unsigned long long& nparalleltx,
-                             unsigned long long& ratex,
-                             std::string configqueue);
-
-  //----------------------------------------------------------------------------
-  //! Get the number of already scheduled jobs
-  //!
-  //! @param totalscheduled the total number of scheduled jobs
-  //! @param totalexecuted the total number of executed jobs
-  //! @return number of scheduled jobs
-  //!
-  //! The time delay from scheduling on MGM and appearing in the queue on the FST
-  //! creates an accounting problem. The returned value is the currently known
-  //! value on the FST which can be wrong e.g. too small!
-  //----------------------------------------------------------------------------
-  unsigned long long GetScheduledDrainJobs(unsigned long long totalscheduled,
-      unsigned long long& totalexecuted);
-
-  //----------------------------------------------------------------------------
-  //! Wait that there is a free slot to schedule a new drain
-  //!
-  //! @param nparalleltx number of parallel transfers
-  //! @param totalscheduled number of total scheduled transfers
-  //! @param totalexecuted number of total executed transfers
-  //!
-  //! @return number of used drain slots
-  //----------------------------------------------------------------------------
-  unsigned long long WaitFreeDrainSlot(unsigned long long& nparalleltx,
-                                       unsigned long long& totalscheduled,
-                                       unsigned long long& totalexecuted);
-
-  //----------------------------------------------------------------------------
-  //! Get the list of filesystems which are in drain mode in current group
-  //!
-  //! @param drainfsvector result vector with the indices of draining filesystems
-  //! @param cycler cyclic index guaranteeing round-robin selection
-  //!
-  //! @return true if there is any filesystem in drain mode
-  //----------------------------------------------------------------------------
-  bool GetFileSystemInDrainMode(std::vector<unsigned int>& drainfsvector,
-                                unsigned int& cycler,
-                                unsigned long long nparalleltx,
-                                unsigned long long ratetx);
-
-  //----------------------------------------------------------------------------
-  //! Get drain job for the requested filesystem
-  //!
-  //! @param index index in the filesystem vector
-  //!
-  //! @return true if scheduled otherwise false
-  //----------------------------------------------------------------------------
-  bool GetDrainJob(unsigned int index);
 
   //----------------------------------------------------------------------------
   //! Check if node is active i.e. the stat.active

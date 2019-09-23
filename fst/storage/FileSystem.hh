@@ -61,8 +61,8 @@ public:
   //-----------------------------------------------------------------------------
   //! Constructor
   //-----------------------------------------------------------------------------
-  FileSystem(const common::FileSystemLocator &locator,
-             XrdMqSharedObjectManager* som, qclient::SharedManager *qsom);
+  FileSystem(const common::FileSystemLocator& locator,
+             XrdMqSharedObjectManager* som, qclient::SharedManager* qsom);
 
   //-----------------------------------------------------------------------------
   //! Destructor
@@ -100,12 +100,6 @@ public:
   GetTransactionDirectory()
   {
     return transactionDirectory.c_str();
-  }
-
-  TransferQueue*
-  GetDrainQueue()
-  {
-    return mTxDrainQueue;
   }
 
   TransferQueue*
@@ -268,7 +262,6 @@ private:
   //! Internal boot state not stored in the shared hash
   std::atomic<eos::common::BootStatus> mLocalBootStatus;
 
-  TransferQueue* mTxDrainQueue;
   TransferQueue* mTxBalanceQueue;
   TransferQueue* mTxExternQueue;
   TransferMultiplexer mTxMultiplexer;
