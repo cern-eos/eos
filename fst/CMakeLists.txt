@@ -334,7 +334,7 @@ set(XRDEOSFST_SRCS
   # Storage interface
   storage/Balancer.cc
   storage/Cleaner.cc             storage/Communicator.cc
-  storage/Drainer.cc             storage/ErrorReport.cc
+  storage/ErrorReport.cc
   storage/FileSystem.cc          storage/MgmSyncer.cc
   storage/Publish.cc             storage/Remover.cc
   storage/Report.cc              storage/Scrub.cc

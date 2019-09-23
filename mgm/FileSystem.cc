@@ -28,62 +28,6 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Start a drain job on this filesystem
- * @return true if started otherwise false
- */
-/*----------------------------------------------------------------------------*/
-bool
-FileSystem::StartDrainJob()
-{
-  if (!ShouldBroadCast()) {
-    // this is a filesystem on a ro-slave MGM e.g. it does not drain
-    return true;
-  }
-
-  // check if there is already a drainjob
-  mDrainJobMutex.Lock();
-
-  if (mDrainJob) {
-    mDrainJobMutex.UnLock();
-    return false;
-  }
-
-  // no drain job
-  mDrainJob = new DrainJob(GetId(), true);
-  mDrainJobMutex.UnLock();
-  return true;
-}
-
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Stop a drain job on this filesystem
- * @return true if stopped otherwise false
- */
-/*----------------------------------------------------------------------------*/
-bool
-FileSystem::StopDrainJob()
-{
-  eos::common::ConfigStatus isstatus = GetConfigStatus();
-
-  if ((isstatus == common::ConfigStatus::kDrainDead) || (isstatus == common::ConfigStatus::kDrain)) {
-    // if this is in drain mode, we leave the drain job
-    return false;
-  }
-
-  XrdSysMutexHelper lock(mDrainJobMutex);
-
-  if (mDrainJob) {
-    delete mDrainJob;
-    mDrainJob = 0;
-    SetDrainStatus(eos::common::DrainStatus::kNoDrain);
-    return true;
-  }
-
-  return false;
-}
-
 //----------------------------------------------------------------------------
 // Set the configuration status of a file system. This can be used to trigger
 // the draining.
@@ -94,65 +38,27 @@ FileSystem::SetConfigStatus(eos::common::ConfigStatus new_status)
   using eos::mgm::FsView;
   using eos::common::DrainStatus;
   eos::common::ConfigStatus old_status = GetConfigStatus();
+  int drain_tx = IsDrainTransition(old_status, new_status);
 
-  if (gOFS->mIsCentralDrain) {
-    int drain_tx = IsDrainTransition(old_status, new_status);
-
-    // Only master drains
-    if (ShouldBroadCast()) {
-      std::string out_msg;
-
-      if (drain_tx > 0) {
-        if (!gOFS->mDrainEngine.StartFsDrain(this, 0, out_msg)) {
-          eos_static_err("%s", out_msg.c_str());
-          return false;
-        }
-      } else {
-        if (!gOFS->mDrainEngine.StopFsDrain(this, out_msg)) {
-          eos_static_debug("%s", out_msg.c_str());
-          // // Drain already stopped make sure we also update the drain status
-          // // if this was a finished drain ie. has status drained or failed
-          // DrainStatus st = GetDrainStatus();
-          // if ((st == DrainStatus::kDrained) ||
-          //     (st == DrainStatus::kDrainFailed)) {
-          //   SetDrainStatus(eos::common::DrainStatus::kNoDrain);
-          // }
-        }
-      }
-    }
-  } else {
-    if ((old_status == common::ConfigStatus::kDrainDead) || (old_status == common::ConfigStatus::kDrain)) {
-      // Stop draining
-      XrdSysMutexHelper scop_lock(mDrainJobMutex);
-
-      if (mDrainJob) {
-        delete mDrainJob;
-        mDrainJob = 0;
-        SetDrainStatus(eos::common::DrainStatus::kNoDrain);
-      }
-    }
-
-    if ((new_status == common::ConfigStatus::kDrain) || (new_status == common::ConfigStatus::kDrainDead)) {
-      // Create a drain job
-      XrdSysMutexHelper scope_lock(mDrainJobMutex);
-
-      // Check if there is still a drain job
-      if (mDrainJob) {
-        delete mDrainJob;
-        mDrainJob = 0;
-      }
-
-      if (ShouldBroadCast()) {
-        mDrainJob = new DrainJob(GetId());
-      } else {
-        // this is a filesystem on a ro-slave MGM e.g. it does not drain
+  // Only master drains
+  if (ShouldBroadCast()) {
+    std::string out_msg;
+    
+    if (drain_tx > 0) {
+      if (!gOFS->mDrainEngine.StartFsDrain(this, 0, out_msg)) {
+        eos_static_err("%s", out_msg.c_str());
+        return false;
       }
     } else {
-      if (new_status == common::ConfigStatus::kEmpty) {
-        SetDrainStatus(eos::common::DrainStatus::kDrained);
-        SetLongLong("stat.drainprogress", 100);
-      } else {
-        SetDrainStatus(eos::common::DrainStatus::kNoDrain);
+      if (!gOFS->mDrainEngine.StopFsDrain(this, out_msg)) {
+        eos_static_debug("%s", out_msg.c_str());
+        // // Drain already stopped make sure we also update the drain status
+        // // if this was a finished drain ie. has status drained or failed
+        // DrainStatus st = GetDrainStatus();
+        // if ((st == DrainStatus::kDrained) ||
+        //     (st == DrainStatus::kDrainFailed)) {
+        //   SetDrainStatus(eos::common::DrainStatus::kNoDrain);
+        // }
       }
     }
   }

@@ -30,7 +30,8 @@
 //------------------------------------------------------------------------------
 // Get key from MGM config queue
 //------------------------------------------------------------------------------
-bool XrdMgmOfs::getMGMConfigValue(const std::string &key, std::string &value) {
+bool XrdMgmOfs::getMGMConfigValue(const std::string& key, std::string& value)
+{
   return eos::mq::SharedHashWrapper::makeGlobalMgmHash().get(key, value);
 }
 
@@ -289,9 +290,9 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
           // Geotag update
           eos::common::FileSystem::fsid_t fsid = 0;
           std::string newgeotag;
-          FileSystem *fs = FsView::gFsView.mIdView.lookupByQueuePath(queue);
+          FileSystem* fs = FsView::gFsView.mIdView.lookupByQueuePath(queue);
 
-          if(fs) {
+          if (fs) {
             fsid = (eos::common::FileSystem::fsid_t) fs->GetLongLong("id");
             newgeotag = fs->GetString("stat.geotag");
           }
@@ -309,11 +310,11 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
             std::string bootstatus = "";
             eos::common::ConfigStatus cfgstatus = eos::common::ConfigStatus::kOff;
             eos::common::BootStatus bstatus = eos::common::BootStatus::kDown;
-
             // read the id from the hash and the current error value
             eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-            FileSystem *fs = FsView::gFsView.mIdView.lookupByQueuePath(queue);
-            if(fs) {
+            FileSystem* fs = FsView::gFsView.mIdView.lookupByQueuePath(queue);
+
+            if (fs) {
               fsid = (eos::common::FileSystem::fsid_t) fs->GetLongLong("id");
               errc = (int) fs->GetLongLong("stat.errc");
               configstatus = fs->GetString("configstatus");
@@ -328,14 +329,6 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
                 (bstatus == eos::common::BootStatus::kOpsError)) {
               // Case when we take action and explicitly ask to start a drain job
               fs->SetConfigStatus(eos::common::ConfigStatus::kDrain);
-            }
-
-            if (fs && fsid && (errc == 0)) {
-              if (!gOFS->mIsCentralDrain) {
-                // Make sure there is no drain job triggered by a previous
-                // filesystem errc!=0
-                fs->StopDrainJob();
-              }
             }
           }
         }

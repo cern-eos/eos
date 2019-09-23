@@ -259,8 +259,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mStatsTid(0), mFrontendPort(0), mNumAuthThreads(0),
   zMQ(nullptr), Authorization(0), MgmStatsPtr(new eos::mgm::Stat()),
   MgmStats(*MgmStatsPtr), mFsckEngine(new Fsck()), mMaster(nullptr),
-  mRouting(new eos::mgm::PathRouting()),
-  mIsCentralDrain(false), mLRUEngine(new eos::mgm::LRU()),
+  mRouting(new eos::mgm::PathRouting()), mLRUEngine(new eos::mgm::LRU()),
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr), UTF8(false), mFstGwHost(""),
   mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
   mFusexPort(1100), mGRPCPort(50051),
@@ -411,7 +410,6 @@ XrdMgmOfs::OrderlyShutdown()
 
   eos_warning("%s", "msg=\"stopping the transfer engine threads\"");
   gTransferEngine.Stop();
-
   eos_warning("%s", "msg=\"stopping fs listener thread\"");
   auto stop_fsconfiglistener = std::thread([&]() {
     mFsConfigTid.join();
@@ -670,9 +668,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   XrdOucString reqid(pargs.reqid);
   // Validate the event type
   std::string event;
-
 #if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
-
   // Strip "quality of service" bits from pargs.opts so that only the action to
   // be taken is left
   const int pargsOptsQoS = Prep_PMASK | Prep_SENDAOK | Prep_SENDERR | Prep_SENDACK
@@ -877,17 +873,20 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
     // Log errors but continue to process the rest of the files in the list
     if (ret_wfe != SFS_DATA) {
-      Emsg(epname, error, ret_wfe, "prepare - synchronous prepare workflow error", prep_path.c_str());
+      Emsg(epname, error, ret_wfe, "prepare - synchronous prepare workflow error",
+           prep_path.c_str());
     }
   }
 
   int retc = SFS_OK;
 #if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
+
   // If we generated our own request ID, return it to the client
   if (gOFS->IsFileSystem2 && (pargs.opts & Prep_STAGE)) {
     error.setErrInfo(reqid.length() + 1, reqid.c_str());
     retc = SFS_DATA;
   }
+
 #endif
   EXEC_TIMING_END("Prepare");
   return retc;

@@ -611,19 +611,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           Eroute.Say("=====> mgmofs.authlib : ", mAuthLib.c_str());
         }
 
-        if (!strcmp("centraldrain", var)) {
-          if ((!(val = Config.GetWord())) ||
-              (strcmp("true", val) && strcmp("false", val) &&
-               strcmp("1", val) && strcmp("0", val))) {
-            Eroute.Emsg("Config", "argument 2 for centraldrain illegal or missing. "
-                        "Must be <true>, <false>, <1> or <0>!");
-          } else {
-            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
-              mIsCentralDrain = true;
-            }
-          }
-        }
-
         if (!strcmp("authorize", var)) {
           if ((!(val = Config.GetWord())) ||
               (strcmp("true", val) && strcmp("false", val) &&
@@ -1066,7 +1053,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmDefaultReceiverQueue += "*/fst";
   MgmOfsBrokerUrl += HostName;
   MgmOfsBrokerUrl += "/mgm";
-
   MgmOfsQueue = "/eos/";
   MgmOfsQueue += ManagerId;
   MgmOfsQueue += "/mgm";
@@ -1315,13 +1301,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   configbasequeue += MgmOfsInstanceName.c_str();
   MgmConfigQueue = configbasequeue;
   MgmConfigQueue += "/mgm/";
-
   ObjectNotifier.SetShareObjectManager(&ObjectManager);
   // we need to set the shared object manager to be used
   eos::common::GlobalConfig::gConfig.SetSOM(&ObjectManager);
   eos::common::InstanceName::set(MgmOfsInstanceName.c_str());
   eos::mq::SharedHashWrapper::initialize(&ObjectManager);
-
   // set the object manager to listener only
   ObjectManager.EnableBroadCast(false);
   // setup the modifications which the fs listener thread is waiting for
@@ -1644,7 +1628,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
 
     MgmOfsMessaging->SetLogId("MgmOfsMessaging");
-
     // Create the ZMQ processor used especially for fuse
     XrdOucString zmq_port = "tcp://*:";
     zmq_port += (int) mFusexPort;
@@ -1864,12 +1847,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // if there is no FST sending update
   gGeoTreeEngine.forceRefresh();
   gGeoTreeEngine.StartUpdater();
-
   // Start the drain engine
-  if (mIsCentralDrain) {
-    mDrainEngine.Start();
-  }
-
+  mDrainEngine.Start();
   return NoGo;
 }
 /*----------------------------------------------------------------------------*/
@@ -2027,7 +2006,6 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("DrainCentralStarted", 0, 0, 0);
   MgmStats.Add("DrainCentralSuccessful", 0, 0, 0);
   MgmStats.Add("DrainCentralFailed", 0, 0, 0);
-  MgmStats.Add("Schedule2Drain", 0, 0, 0);
   MgmStats.Add("Schedule2Balance", 0, 0, 0);
   MgmStats.Add("SchedulingFailedBalance", 0, 0, 0);
   MgmStats.Add("SchedulingFailedDrain", 0, 0, 0);
@@ -2175,21 +2153,25 @@ XrdMgmOfs::SetupProcFiles()
 void
 XrdMgmOfs::SetupGlobalConfig()
 {
-  std::string configQueue = SSTR("/config/" << eos::common::InstanceName::get() << "/mgm/");
-  if(!eos::common::GlobalConfig::gConfig.SOM()->CreateSharedHash(
-    configQueue.c_str(), "/eos/*/mgm")) {
+  std::string configQueue = SSTR("/config/" << eos::common::InstanceName::get() <<
+                                 "/mgm/");
+
+  if (!eos::common::GlobalConfig::gConfig.SOM()->CreateSharedHash(
+        configQueue.c_str(), "/eos/*/mgm")) {
     eos_crit("Cannot add global config queue %s\n", configQueue.c_str());
   }
 
   configQueue = SSTR("/config/" << eos::common::InstanceName::get() << "/all/");
-  if(!eos::common::GlobalConfig::gConfig.SOM()->CreateSharedHash(
-    configQueue.c_str(), "/eos/*")) {
+
+  if (!eos::common::GlobalConfig::gConfig.SOM()->CreateSharedHash(
+        configQueue.c_str(), "/eos/*")) {
     eos_crit("Cannot add global config queue %s\n", configQueue.c_str());
   }
 
   configQueue = SSTR("/config/" << eos::common::InstanceName::get() << "/fst/");
-  if(!eos::common::GlobalConfig::gConfig.SOM()->CreateSharedHash(
-    configQueue.c_str(), "/eos/*/fst")) {
+
+  if (!eos::common::GlobalConfig::gConfig.SOM()->CreateSharedHash(
+        configQueue.c_str(), "/eos/*/fst")) {
     eos_crit("Cannot add global config queue %s\n", configQueue.c_str());
   }
 }

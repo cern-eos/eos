@@ -1629,7 +1629,6 @@ public:
   //! Shared Hash/Queue Object Change Notifier
   XrdMqSharedObjectChangeNotifier ObjectNotifier;
   Drainer mDrainEngine; ///< Centralized draining
-  bool mIsCentralDrain; ///< Flag to mark central draining
   std::unique_ptr<HttpServer> Httpd; ///<  Http daemon if available
 
   std::unique_ptr<GrpcServer> GRPCd; ///< GRPC server
@@ -1974,16 +1973,6 @@ private:
                       XrdOucErrInfo& error,
                       eos::common::VirtualIdentity& vid,
                       const XrdSecEntity* client);
-
-  //----------------------------------------------------------------------------
-  //! Schedule a drain transfer
-  //----------------------------------------------------------------------------
-  int Schedule2Drain(const char* path,
-                     const char* ininfo,
-                     XrdOucEnv& env,
-                     XrdOucErrInfo& error,
-                     eos::common::VirtualIdentity& vid,
-                     const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
   //! Virtual filesystem stat

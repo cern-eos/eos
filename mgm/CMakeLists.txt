@@ -193,7 +193,6 @@ add_library(
   XrdMgmOfs/fsctl/Redirect.cc
   XrdMgmOfs/fsctl/Schedule2Balance.cc
   XrdMgmOfs/fsctl/Schedule2Delete.cc
-  XrdMgmOfs/fsctl/Schedule2Drain.cc
   XrdMgmOfs/fsctl/Stat.cc
   XrdMgmOfs/fsctl/Statvfs.cc
   XrdMgmOfs/fsctl/Symlink.cc

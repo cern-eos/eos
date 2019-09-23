@@ -65,23 +65,15 @@ public:
   //! @param queue associated to a filesystem like /eos/<host:port>/fst
   //! @param som external shared object manager object
   //----------------------------------------------------------------------------
-  FileSystem(const common::FileSystemLocator &locator,
-             XrdMqSharedObjectManager* som, qclient::SharedManager *qsom) :
-    eos::common::FileSystem(locator, som, qsom), mDrainJob(0)
+  FileSystem(const common::FileSystemLocator& locator,
+             XrdMqSharedObjectManager* som, qclient::SharedManager* qsom) :
+    eos::common::FileSystem(locator, som, qsom)
   {}
 
   //----------------------------------------------------------------------------
   //! Destructor - needs to kill any on-going drain jobs
   //----------------------------------------------------------------------------
-  virtual ~FileSystem()
-  {
-    XrdSysMutexHelper lock(mDrainJobMutex);
-
-    if (mDrainJob) {
-      delete mDrainJob;
-      mDrainJob = 0;
-    }
-  }
+  virtual ~FileSystem() = default;
 
   //----------------------------------------------------------------------------
   //! @brief Return the current broadcasting setting
@@ -119,25 +111,6 @@ public:
   //! @return true if successful otherwise false
   //----------------------------------------------------------------------------
   bool SetString(const char* key, const char* str, bool broadcast = true);
-
-  //----------------------------------------------------------------------------
-  // starts a drain job with the opserror flag -
-  // this is triggered by stat.errc!= 0 via the FsListener Thread
-  //----------------------------------------------------------------------------
-  bool StartDrainJob();
-
-  //----------------------------------------------------------------------------
-  // stops  a drain job with the opserror flag -
-  // this is triggered by stat.errc = 0 via the FsListener Thread
-  //----------------------------------------------------------------------------
-  bool StopDrainJob();
-
-private:
-  /// Mutex protecting the DrainJob object in a filesystem
-  XrdSysMutex mDrainJobMutex;
-
-  /// Drainjob object associated with a filesystem
-  DrainJob* mDrainJob;
 };
 
 EOSMGMNAMESPACE_END

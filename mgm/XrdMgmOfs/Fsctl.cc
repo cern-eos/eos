@@ -325,10 +325,6 @@ XrdMgmOfs::FSctl(const int cmd,
       return XrdMgmOfs::Schedule2Delete(path, ininfo, env, error, vid, client);
     }
 
-    case FsctlCommand::schedule2drain: {
-      return XrdMgmOfs::Schedule2Drain(path, ininfo, env, error, vid, client);
-    }
-
     case FsctlCommand::stat: {
       return XrdMgmOfs::FuseStat(path, ininfo, env, error, vid, client);
     }

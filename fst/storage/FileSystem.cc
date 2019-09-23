@@ -48,10 +48,8 @@ FileSystem::FileSystem(const common::FileSystemLocator& locator,
   IOPS = 0;
   transactionDirectory = "";
   mLocalBootStatus = eos::common::BootStatus::kDown;
-  mTxDrainQueue = new TransferQueue(&mDrainQueue);
   mTxBalanceQueue = new TransferQueue(&mBalanceQueue);
   mTxExternQueue = new TransferQueue(&mExternQueue);
-  mTxMultiplexer.Add(mTxDrainQueue);
   mTxMultiplexer.Add(mTxBalanceQueue);
   mTxMultiplexer.Add(mTxExternQueue);
   mTxMultiplexer.Run();
@@ -69,9 +67,6 @@ FileSystem::~FileSystem()
   // @todo we accept this tiny memory leak to be able to let running
   // transfers callback their queue
   // -> we don't delete them here!
-  //  if (mTxDrainQueue) {
-  //    delete mTxDrainQueue;
-  //  }
   //  if (mTxBalanceQueue) {
   //    delete mTxBalanceQueue;
   //  }
