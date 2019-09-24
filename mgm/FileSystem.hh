@@ -25,7 +25,7 @@
 #define __EOSMGM_FILESYSTEM_HH__
 
 #include "common/FileSystem.hh"
-#include "mgm/DrainJob.hh"
+#include "mgm/Namespace.hh"
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -36,8 +36,6 @@
  */
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
-
-class DrainJob;
 
 //------------------------------------------------------------------------------
 //! Class representing a filesystem on the MGM

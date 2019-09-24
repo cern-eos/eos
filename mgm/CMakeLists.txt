@@ -200,7 +200,6 @@ add_library(
   XrdMgmOfs/fsctl/Utimes.cc
   XrdMgmOfs/fsctl/Version.cc
   XrdMgmOfs/fsctl/Xattr.cc
-  DrainJob.cc
   Balancer.cc
   CommandMap.cc
   FileSystem.cc
