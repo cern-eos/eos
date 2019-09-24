@@ -53,6 +53,8 @@ using eos::rpc::MDResponse;
 using eos::rpc::FindRequest;
 using eos::rpc::NSRequest;
 using eos::rpc::NSResponse;
+using eos::rpc::NsStatRequest;
+using eos::rpc::NsStatResponse;
 using eos::rpc::FileInsertRequest;
 using eos::rpc::ContainerInsertRequest;
 using eos::rpc::InsertReply;
@@ -575,6 +577,31 @@ GrpcClient::Create(std::string endpoint,
   p->set_ssl(ssl);
   p->set_token(token);
   return p;
+}
+
+int
+GrpcClient::NsStat(const eos::rpc::NsStatRequest& request,
+                   eos::rpc::NsStatResponse& reply)
+{
+  ClientContext context;
+  CompletionQueue cq;
+  Status status;
+  std::unique_ptr<ClientAsyncResponseReader<NsStatResponse>> rpc(
+    stub_->AsyncNsStat(&context, request, &cq));
+  rpc->Finish(&reply, &status, (void*) 1);
+
+  void* got_tag;
+  bool ok = false;
+  GPR_ASSERT(cq.Next(&got_tag, &ok));
+  GPR_ASSERT(got_tag == (void*) 1);
+  GPR_ASSERT(ok);
+
+  // Act upon the status of the actual RPC
+  if (status.ok()) {
+    return reply.code();
+  } else {
+    return -1;
+  }
 }
 
 int 

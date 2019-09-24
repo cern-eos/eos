@@ -70,6 +70,9 @@ public:
   int ManilaRequest(const eos::rpc::ManilaRequest& request,
 		    eos::rpc::ManilaResponse& reply);
 
+  int NsStat(const eos::rpc::NsStatRequest& request,
+             eos::rpc::NsStatResponse& reply);
+
   int Exec(const eos::rpc::NSRequest& request,
 	    eos::rpc::NSResponse& reply);
 
