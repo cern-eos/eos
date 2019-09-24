@@ -862,6 +862,14 @@ private:
 void crossCheckHardlinkMaps(std::map<uint64_t, int64_t> &inodeUseCount,
   std::map<uint64_t, uint64_t> &hardlinkMapping, uint64_t parent, std::ostream &out) {
 
+  std::set<uint64_t> zeroGroup;
+
+  for(auto it = inodeUseCount.begin(); it != inodeUseCount.end(); it++) {
+    if(it->second == 0) {
+      zeroGroup.insert(it->first);
+    }
+  }
+
   for(auto it = hardlinkMapping.begin(); it != hardlinkMapping.end(); it++) {
     auto useCount = inodeUseCount.find(it->second);
 
@@ -876,7 +884,12 @@ void crossCheckHardlinkMaps(std::map<uint64_t, int64_t> &inodeUseCount,
   for(auto it = inodeUseCount.begin(); it != inodeUseCount.end(); it++) {
     if(it->second != 0) {
       out << "id=" << it->first << " parent=" << parent << " reference-count-diff=" << it->second << std::endl;
+      zeroGroup.erase(it->first);
     }
+  }
+
+  for(auto it = zeroGroup.begin(); it != zeroGroup.end(); it++) {
+      out << "id=" << *it << " parent=" << parent << " true-zero-count" << std::endl;
   }
 }
 
