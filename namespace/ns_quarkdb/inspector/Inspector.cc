@@ -869,7 +869,7 @@ void crossCheckHardlinkMaps(std::map<uint64_t, int64_t> &inodeUseCount,
       out << "id=" << it->first << " parent=" << parent << " invalid-target=" << it->second << std::endl;
     }
     else {
-      inodeUseCount[it->first]--;
+      inodeUseCount[it->second]--;
     }
   }
 
