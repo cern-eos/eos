@@ -903,7 +903,7 @@ int Inspector::checkSimulatedHardlinks(std::ostream &out, std::ostream &err) {
       continue;
     }
 
-    if(proto.id() != currentContainer) {
+    if(proto.cont_id() != currentContainer) {
       crossCheckHardlinkMaps(inodeUseCount, hardlinkMapping, currentContainer, out);
       inodeUseCount.clear();
       hardlinkMapping.clear();
