@@ -28,6 +28,9 @@
 #include "common/SymKeys.hh"
 #include "common/Timing.hh"
 #include "common/Path.hh"
+#include "common/LinuxFds.hh"
+#include "common/LinuxStat.hh"
+#include "common/LinuxMemConsumption.hh"
 #include "mgm/Acl.hh"
 #include "mgm/proc/IProcCommand.hh"
 #include "mgm/proc/user/AclCmd.hh"
@@ -887,6 +890,63 @@ GrpcNsInterface::Access(eos::common::VirtualIdentity& vid, int mode,
   }
 
   return permok;
+}
+
+grpc::Status
+GrpcNsInterface::NsStat(eos::common::VirtualIdentity& vid,
+                        eos::rpc::NsStatResponse* reply,
+                        const eos::rpc::NsStatRequest* request)
+{
+  if (!vid.sudoer) {
+    // Block everyone who is not a sudoer
+    reply->set_emsg("Not a sudoer, refusing to run command");
+    reply->set_code(EPERM);
+    return grpc::Status::OK;
+  }
+
+  reply->set_state(namespaceStateToString(gOFS->mNamespaceState));
+  reply->set_nfiles(gOFS->eosFileService->getNumFiles());
+  reply->set_ncontainers(gOFS->eosDirectoryService->getNumContainers());
+  // Namespace must be booted to reach this code --> we can use TotalInitTime
+  reply->set_boot_time(gOFS->mTotalInitTime);
+  reply->set_current_fid(gOFS->eosFileService->getFirstFreeId());
+  reply->set_current_cid(gOFS->eosDirectoryService->getFirstFreeId());
+
+  int retc = 0;
+  std::ostringstream err;
+  eos::common::LinuxFds::linux_fds_t fds;
+  eos::common::LinuxStat::linux_stat_t pstat;
+  eos::common::LinuxMemConsumption::linux_mem_t mem;
+
+  // Lambda function to store error and return code
+  auto storeError = [&err, &retc](const std::string& msg) {
+    err << "error: " << msg << std::endl;
+    retc = errno;
+  };
+
+  if (!eos::common::LinuxMemConsumption::GetMemoryFootprint(mem)) {
+    storeError("failed to get memory usage information");
+  }
+
+  if (!eos::common::LinuxStat::GetStat(pstat)) {
+    storeError("failed to get process stat information");
+  }
+
+  if (!eos::common::LinuxFds::GetFdUsage(fds)) {
+    storeError("failed to get process fd information");
+  }
+
+  reply->set_mem_virtual(mem.vmsize);
+  reply->set_mem_resident(mem.resident);
+  reply->set_mem_share(mem.share);
+  reply->set_mem_growth(pstat.vsize - gOFS->LinuxStatsStartup.vsize);
+  reply->set_threads(pstat.threads);
+  reply->set_fds(fds.all);
+  reply->set_uptime(time(NULL) - gOFS->mStartTime);
+  reply->set_emsg(err.str());
+  reply->set_code(retc);
+
+  return grpc::Status::OK;
 }
 
 grpc::Status

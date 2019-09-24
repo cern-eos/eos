@@ -71,16 +71,17 @@ public:
 			   grpc::ServerWriter<eos::rpc::MDResponse>* writer,
 			   const eos::rpc::FindRequest* request);
 
+  static grpc::Status NsStat(eos::common::VirtualIdentity& vid,
+                             eos::rpc::NsStatResponse* reply,
+                             const eos::rpc::NsStatRequest* request);
+
   static grpc::Status FileInsert(eos::common::VirtualIdentity& vid,
                                  eos::rpc::InsertReply* reply,
                                  const eos::rpc::FileInsertRequest* request);
 
-
-
   static grpc::Status ContainerInsert(eos::common::VirtualIdentity& vid,
                                       eos::rpc::InsertReply* reply,
                                       const eos::rpc::ContainerInsertRequest* request);
-
 
   static grpc::Status Exec(eos::common::VirtualIdentity& vid,
 			    eos::rpc::NSResponse* reply,
