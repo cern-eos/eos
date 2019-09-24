@@ -20,7 +20,6 @@
 #include <iostream>
 #include <iomanip>
 #include <getopt.h>
-#include <json/json.h>
 #include "client/grpc/GrpcClient.hh"
 
 int usage(const char* name)
