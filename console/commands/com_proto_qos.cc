@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/StringTokenizer.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/ICmdHelper.hh"
 
@@ -34,13 +35,15 @@ class QoSHelper: public ICmdHelper
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param opts global options
   //----------------------------------------------------------------------------
-  QoSHelper() = default;
+  QoSHelper(const GlobalOptions& opts) : ICmdHelper(opts) {}
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~QoSHelper() = default;
+  ~QoSHelper() override = default;
 
   //----------------------------------------------------------------------------
   //! Parse command line input
@@ -134,7 +137,7 @@ int com_qos(char* arg)
     return EINVAL;
   }
 
-  QoSHelper qos;
+  QoSHelper qos(gGlobalOpts);
 
   if (!qos.ParseCommand(arg)) {
     com_qos_help();
