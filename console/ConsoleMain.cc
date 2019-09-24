@@ -788,6 +788,7 @@ Run(int argc, char* argv[])
       runpipe = false;
       argindex++;
       in1 = argv[argindex];
+      gGlobalOpts.mJsonFormat = true;
     }
 
     if ((in1 == "fuse")) {
