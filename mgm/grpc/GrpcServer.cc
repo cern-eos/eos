@@ -137,6 +137,20 @@ class RequestServiceImpl final : public Eos::Service
     return GrpcNsInterface::Find(vid, writer, request);
   }
 
+  Status NsStat(ServerContext* context,
+                const eos::rpc::NsStatRequest* request,
+                eos::rpc::NsStatResponse* reply) override
+  {
+    eos_static_info("grpc::nsstat::request from client peer=%s ip=%s DN=%s token=%s",
+                    context->peer().c_str(), GrpcServer::IP(context).c_str(),
+                    GrpcServer::DN(context).c_str(), request->authkey().c_str());
+    eos::common::VirtualIdentity vid;
+    GrpcServer::Vid(context, vid, request->authkey());
+    WAIT_BOOT;
+
+    return GrpcNsInterface::NsStat(vid, reply, request);
+  }
+
   Status ManilaServerRequest(ServerContext* context,
 			     const eos::rpc::ManilaRequest* request,
 			     eos::rpc::ManilaResponse* reply) override
