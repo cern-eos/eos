@@ -89,6 +89,13 @@ add_executable(
   $<TARGET_OBJECTS:EosGrpcClient-Objects>
 )
 
+add_executable(
+  eos-grpc-ns-stat
+  grpc/NsStat.cc
+  $<TARGET_OBJECTS:EosGrpcProto-Objects>
+  $<TARGET_OBJECTS:EosGrpcClient-Objects>
+)
+
 #-------------------------------------------------------------------------------
 # Add dependency which guarantees that the protocol buffer files are generated
 # when we build the "eos" executable.
@@ -159,6 +166,16 @@ target_link_libraries(
   ${CMAKE_THREAD_LIBS_INIT}
   eosCommon)
 
+target_link_libraries(
+  eos-grpc-ns-stat PUBLIC
+  ${RT_LIBRARIES}
+  ${NCURSES_LIBRARY}
+  ${PROTOBUF_LIBRARY}
+  ${GRPC_LIBRARY}
+  ${GRPC_GRPC++_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT}
+  eosCommon)
+
 set_target_properties(
   eos PROPERTIES
   INSTALL_RPATH "${EOS_RPATH}"
@@ -168,7 +185,8 @@ set_target_properties(
   INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 install(
-  TARGETS eos-grpc-ping eos-grpc-md eos-grpc-insert eos-grpc-manila eos-grpc-ns eos-grpc-find
+  TARGETS eos-grpc-ping eos-grpc-md eos-grpc-insert eos-grpc-manila
+          eos-grpc-ns eos-grpc-find eos-grpc-ns-stat
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
