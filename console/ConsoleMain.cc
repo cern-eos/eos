@@ -32,7 +32,6 @@
 #include "common/Path.hh"
 #include "common/IoPipe.hh"
 #include "common/SymKeys.hh"
-#include "common/Logging.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringConversion.hh"
 #include "common/StringUtils.hh"
@@ -973,11 +972,6 @@ Run(int argc, char* argv[])
     execute_line((char*) cmdline.c_str());
     silent = false;
   }
-
-  /* configure logging */
-  eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
-  g_logging.SetUnit("eos");
-  g_logging.SetLogPriority(LOG_NOTICE);
 
   /* install a shutdown handler */
   //signal(SIGINT, exit_handler);

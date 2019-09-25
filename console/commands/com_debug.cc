@@ -22,7 +22,6 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "common/Logging.hh"
 #include "common/StringTokenizer.hh"
 #include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
@@ -42,14 +41,6 @@ com_debug(char* arg1)
     if (level == "this") {
       debug = !debug;
       fprintf(stdout, "info: toggling shell debugmode to debug=%d\n", debug);
-      eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
-
-      if (debug) {
-        g_logging.SetLogPriority(LOG_DEBUG);
-      } else {
-        g_logging.SetLogPriority(LOG_NOTICE);
-      }
-
       return (0);
     }
 

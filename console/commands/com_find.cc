@@ -26,7 +26,6 @@
 #include "console/commands/ICmdHelper.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringConversion.hh"
-#include "common/Logging.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 /*----------------------------------------------------------------------------*/
