@@ -22,7 +22,6 @@
  ************************************************************************/
 
 #include "common/StringTokenizer.hh"
-#include "common/Logging.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/ICmdHelper.hh"
 
@@ -80,14 +79,6 @@ bool DebugHelper::ParseCommand(const char* arg)
   } else if (token == "this") {
     debug = !debug;
     fprintf(stdout, "info: toggling shell debugmode to debug=%d\n", debug);
-    eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
-
-    if (debug) {
-      g_logging.SetLogPriority(LOG_DEBUG);
-    } else {
-      g_logging.SetLogPriority(LOG_NOTICE);
-    }
-
     mIsLocal = true;
   } else {
     // token should be one of [debug info warning notice err crit alert emerg]
