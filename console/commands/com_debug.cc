@@ -39,8 +39,8 @@ com_debug(char* arg1)
 
   if ((level != "-h") && (level != "--help")) {
     if (level == "this") {
-      debug = !debug;
-      fprintf(stdout, "info: toggling shell debugmode to debug=%d\n", debug);
+      global_debug = !global_debug;
+      fprintf(stdout, "info: toggling shell debugmode to debug=%d\n", global_debug);
       return (0);
     }
 

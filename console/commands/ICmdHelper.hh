@@ -24,6 +24,7 @@
 #include "proto/ConsoleRequest.pb.h"
 #include "console/GlobalOptions.hh"
 #include <queue>
+#include <iostream>
 #include <unistd.h>
 
 //------------------------------------------------------------------------------
@@ -194,6 +195,13 @@ public:
   //! on purpose in ConsoleMain but will be dropped from there in the future.
   //----------------------------------------------------------------------------
   std::string DefaultRoute();
+
+  //----------------------------------------------------------------------------
+  //! Print debug message to console
+  //----------------------------------------------------------------------------
+  inline void PrintDebugMsg(const std::string& message) const {
+    std::cout << "> " << message << std::endl;
+  }
 
   eos::console::RequestProto mReq; ///< Generic request object send to the MGM
   bool mIsAdmin; ///< If true execute as admin, otherwise as user

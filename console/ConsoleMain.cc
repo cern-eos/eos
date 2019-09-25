@@ -210,11 +210,11 @@ XrdOucString global_comment = "";
 
 int global_retc = 0;
 bool global_highlighting = true;
+bool global_debug = false;
 bool interactive = true;
 bool hasterminal = true;
 bool silent = false;
 bool timing = false;
-bool debug = false;
 bool pipemode = false;
 bool runpipe = false;
 bool ispipe = false;
@@ -548,6 +548,11 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
 
   path += "?";
   path += in;
+
+  if (global_debug) {
+    printf("> %s\n", path.c_str());
+  }
+
   XrdCl::OpenFlags::Flags flags_xrdcl = XrdCl::OpenFlags::Read;
   std::unique_ptr<XrdCl::File> client {new XrdCl::File()};
   XrdCl::XRootDStatus status = client->Open(path.c_str(), flags_xrdcl);
@@ -572,8 +577,8 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
       mytiming.Print();
     }
 
-    if (debug) {
-      printf("out=%s\n", out.c_str());
+    if (global_debug) {
+      printf("> %s\n", out.c_str());
     }
 
     CommandEnv = new XrdOucEnv(out.c_str());
@@ -728,6 +733,11 @@ Run(int argc, char* argv[])
     runpipe = true;
   } else {
     runpipe = false;
+  }
+
+  if (getenv("EOS_CONSOLE_DEBUG")) {
+    global_debug = true;
+    gGlobalOpts.mDebug = true;
   }
 
   if (!retc) {

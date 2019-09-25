@@ -1325,7 +1325,7 @@ int run_command(const char* cmdline, std::vector<XrdOucString>& result)
   int rc;
 
   if (!fp) {
-    fprintf(stderr, "error: failed executing command %s\n", (debug) ? cmdline : "");
+    fprintf(stderr, "error: failed executing command %s\n", cmdline);
     return errno;
   }
 
