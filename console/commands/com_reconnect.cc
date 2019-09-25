@@ -62,10 +62,6 @@ com_reconnect(char* arg1)
     }
      */
 
-    if (debug) {
-      fprintf(stdout, "debug: %s\n", path.c_str());
-    }
-
     return (0);
   } else {
     fprintf(stdout,

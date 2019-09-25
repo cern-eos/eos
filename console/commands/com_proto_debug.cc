@@ -77,8 +77,9 @@ bool DebugHelper::ParseCommand(const char* arg)
     eos::console::DebugProto_GetProto* get = debugproto->mutable_get();
     get->set_placeholder(true);
   } else if (token == "this") {
-    debug = !debug;
-    fprintf(stdout, "info: toggling shell debugmode to debug=%d\n", debug);
+    global_debug = !global_debug;
+    gGlobalOpts.mDebug = global_debug;
+    fprintf(stdout, "info: toggling shell debugmode to debug=%d\n", global_debug);
     mIsLocal = true;
   } else {
     // token should be one of [debug info warning notice err crit alert emerg]

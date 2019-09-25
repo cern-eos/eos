@@ -94,6 +94,10 @@ ICmdHelper::ExecuteWithoutPrint(bool add_route)
     oss << "&xrd.wantprot=sss";
   }
 
+  if (mGlobalOpts.mDebug) {
+    PrintDebugMsg(oss.str());
+  }
+
   return RawExecute(oss.str());
 }
 
@@ -161,6 +165,10 @@ int ICmdHelper::ProcessResponse(const std::string& response)
     mOutcome.error = "error: failed to read proc response";
     mOutcome.errc = EIO;
     return mOutcome.errc;
+  }
+
+  if (mGlobalOpts.mDebug) {
+    PrintDebugMsg(response);
   }
 
   mOutcome.errc = 0;

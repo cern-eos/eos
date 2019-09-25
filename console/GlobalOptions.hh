@@ -34,4 +34,5 @@ struct GlobalOptions {
   std::string mComment {""};
   bool mJsonFormat {false};
   bool mForceSss {false};
+  bool mDebug {false};
 };
