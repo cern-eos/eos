@@ -229,7 +229,7 @@ public:
   XrdOucString mLocalPrefix; ///< Prefix on the local storage
   XrdOucString mRedirectManager; ///< Manager host where we bounce back
   XrdOucString mSecString; ///< string containing security summary
-  XrdOucString mEtag; ///< Current and new ETag (recomputed in close)
+  std::string mEtag; ///< Current and new ETag (recomputed in close)
   unsigned long long mFileId; //! file id
   unsigned long mFsId; //! file system id
   unsigned long mLid; //! layout id
