@@ -1372,13 +1372,7 @@ XrdFstOfsFile::_close()
     }
 
     // Recompute our ETag
-    // If there is a checksum we use the checksum, otherwise we return inode+mtime
-    if (mCheckSum) {
-      eos::calculateEtagInodeAndChecksum(mCheckSum->GetName(), mFmd->mProtoFmd, mEtag);
-    } else {
-      // use inode + mtime
-      eos::calculateEtagInodeAndMtime(mFmd->mProtoFmd.fid(), mFmd->mProtoFmd.mtime(), mEtag);
-    }
+    eos::calculateEtag(mCheckSum != nullptr, mFmd->mProtoFmd, mEtag);
 
     int closerc = 0; // return of the close
     brc = rc; // return before the close

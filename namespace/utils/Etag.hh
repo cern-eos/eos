@@ -49,11 +49,14 @@ namespace eos
   void calculateEtag(IContainerMD *cmd, std::string &out);
 
   //----------------------------------------------------------------------------
-  //! Calculate etag based on checksum type + fst fmdproto.
-  //! TODO(gbitzes): Maybe checksumType is not needed? Maybe we can derive
-  //! checksum type from layout id of fmdproto?
+  //! Calculate etag - supply flag to indicate whether to use checksum or not.
   //----------------------------------------------------------------------------
-  void calculateEtagInodeAndChecksum(const std::string &checksumType, const fst::FmdBase &fmdBase, std::string &out);
+  void calculateEtag(bool useChecksum, const fst::FmdBase &fmdBase, std::string &out);
+
+  //----------------------------------------------------------------------------
+  //! Calculate etag based on fst fmdproto - assume checksum exists.
+  //----------------------------------------------------------------------------
+  void calculateEtagInodeAndChecksum(const fst::FmdBase &fmdBase, std::string &out);
 
   //----------------------------------------------------------------------------
   //! Calculate etag based on inode + mtime.
