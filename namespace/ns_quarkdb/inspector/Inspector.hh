@@ -131,32 +131,6 @@ public:
   int renameFid(uint64_t id, uint64_t newParent, const std::string& newName, std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
-  //! Check naming conflicts, only for containers, and only for the given
-  //! parent ID.
-  //----------------------------------------------------------------------------
-  void checkContainerConflicts(uint64_t parentContainer,
-    std::map<std::string, uint64_t> &containerMap,
-    ContainerScanner &scanner,
-    std::ostream &out, std::ostream &err);
-
-  //----------------------------------------------------------------------------
-  //! Check naming conflicts, only for files, and only for the given
-  //! parent ID.
-  //----------------------------------------------------------------------------
-  void checkFileConflicts(uint64_t parentContainer,
-    std::map<std::string, uint64_t> &fileMap,
-    FileScanner &scanner,
-    std::ostream &out, std::ostream &err);
-
-  //----------------------------------------------------------------------------
-  //! Check if there's naming conflicts between files and containers.
-  //----------------------------------------------------------------------------
-  void checkDifferentMaps(const std::map<std::string, uint64_t> &containerMap,
-    const std::map<std::string, uint64_t> &fileMap,
-    uint64_t parentContainer,
-    std::ostream &out);
-
-  //----------------------------------------------------------------------------
   //! Print out _everything_ known about the given file.
   //----------------------------------------------------------------------------
   int printFileMD(uint64_t fid, std::ostream &out, std::ostream &err);

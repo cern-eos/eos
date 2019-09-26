@@ -203,92 +203,6 @@ int Inspector::overwriteContainerMD(uint64_t id, uint64_t parentId, const std::s
   return 0;
 }
 
-//----------------------------------------------------------------------------
-// Check naming conflicts, only for containers, and only for the given
-// parent ID.
-//----------------------------------------------------------------------------
-void Inspector::checkContainerConflicts(uint64_t parentContainer,
-                                        std::map<std::string, uint64_t>& containerMap,
-                                        ContainerScanner& scanner,
-                                        std::ostream& out, std::ostream& err)
-{
-  containerMap.clear();
-  eos::ns::ContainerMdProto proto;
-
-  for (; scanner.valid(); scanner.next()) {
-    if (!scanner.getItem(proto)) {
-      break;
-    }
-
-    if (parentContainer != proto.parent_id()) {
-      break;
-    }
-
-    auto conflict = containerMap.find(proto.name());
-
-    if (conflict != containerMap.end()) {
-      out << "Detected conflict for '" << proto.name() << "' in container " <<
-          parentContainer << ", between containers " << conflict->second << " and " <<
-          proto.id() << std::endl;
-    }
-
-    containerMap[proto.name()] = proto.id();
-  }
-}
-
-//----------------------------------------------------------------------------
-// Check naming conflicts, only for files, and only for the given
-// parent ID.
-//----------------------------------------------------------------------------
-void Inspector::checkFileConflicts(uint64_t parentContainer,
-                                   std::map<std::string, uint64_t>& fileMap,
-                                   FileScanner& scanner,
-                                   std::ostream& out, std::ostream& err)
-{
-  fileMap.clear();
-  eos::ns::FileMdProto proto;
-
-  for (; scanner.valid(); scanner.next()) {
-    if (!scanner.getItem(proto)) {
-      break;
-    }
-
-    if (parentContainer != proto.cont_id()) {
-      break;
-    }
-
-    auto conflict = fileMap.find(proto.name());
-
-    if (conflict != fileMap.end()) {
-      out << "Detected conflict for '" << proto.name() << "' in container " <<
-          parentContainer << ", betewen files " << conflict->second << " and " <<
-          proto.id() << std::endl;
-    }
-
-    fileMap[proto.name()] = proto.id();
-  }
-}
-
-
-//------------------------------------------------------------------------------
-// Check if there's naming conflicts between files and containers.
-//------------------------------------------------------------------------------
-void Inspector::checkDifferentMaps(const std::map<std::string, uint64_t>&
-                                   containerMap,
-                                   const std::map<std::string, uint64_t>& fileMap, uint64_t parentContainer,
-                                   std::ostream& out)
-{
-  for (auto it = containerMap.begin(); it != containerMap.end(); it++) {
-    auto conflict = fileMap.find(it->first);
-
-    if (conflict != fileMap.end()) {
-      out << "Detected conflict for '" << conflict->first << "' in container " <<
-          parentContainer << ", between container " << it->second << " and file " <<
-          conflict->second << std::endl;
-    }
-  }
-}
-
 //------------------------------------------------------------------------------
 // Serialize locations vector
 //------------------------------------------------------------------------------
@@ -391,6 +305,64 @@ int Inspector::stripediff(bool printTime, std::ostream &out, std::ostream &err) 
   return 0;
 }
 
+class ConflictSet {
+public:
+  std::set<uint64_t> files;
+  std::set<uint64_t> containers;
+
+  bool hasConflict() const {
+    return (files.size() + containers.size()) > 1;
+  }
+
+  std::string serializeFiles() const {
+    return serialize(files);
+  }
+
+  std::string serializeContainers() const {
+    return serialize(containers);
+  }
+
+private:
+  static std::string serialize(const std::set<uint64_t> &target) {
+    std::ostringstream ss;
+
+    for(auto it = target.begin(); it != target.end(); it++) {
+      if(std::next(it) == target.end()) {
+        ss << *it;
+      }
+      else {
+        ss << *it << ",";
+      }
+    }
+
+    return ss.str();
+  }
+};
+
+//------------------------------------------------------------------------------
+// Find conflicts
+//------------------------------------------------------------------------------
+void findConflicts(std::ostream& out, uint64_t parentContainer, const std::map<std::string, ConflictSet> &nameMapping) {
+  for(auto it = nameMapping.begin(); it != nameMapping.end(); it++) {
+    const ConflictSet &conflictSet = it->second;
+
+    if(conflictSet.hasConflict()) {
+      std::ostringstream ss;
+      ss << "name=" << it->first << " under-container=" << parentContainer;
+
+      if(!conflictSet.files.empty()) {
+        ss << " conflicting-files=" << conflictSet.serializeFiles();
+      }
+
+      if(!conflictSet.containers.empty()) {
+        ss << " conflicting-containers=" << conflictSet.serializeContainers();
+      }
+
+      out << ss.str() << std::endl;
+    }
+  }
+}
+
 //------------------------------------------------------------------------------
 // Check intra-container conflicts, such as a container having two entries
 // with the name name.
@@ -402,48 +374,43 @@ int Inspector::checkNamingConflicts(std::ostream& out, std::ostream& err)
   FileScanner fileScanner(mQcl);
   common::IntervalStopwatch stopwatch(std::chrono::seconds(10));
 
+  eos::ns::FileMdProto fileProto;
+  fileProto.set_cont_id(0);
+
+  uint64_t currentParentId = 0;
+
   while (containerScanner.valid()) {
     eos::ns::ContainerMdProto proto;
     if (!containerScanner.getItem(proto)) {
       break;
     }
 
-    std::map<std::string, uint64_t> containerMap;
-    checkContainerConflicts(proto.parent_id(), containerMap, containerScanner, out,
-                            err);
-    eos::ns::FileMdProto fileProto;
-
-    if (!fileScanner.getItem(fileProto)) {
-      break;
+    if(proto.parent_id() == 0) {
+      containerScanner.next();
+      continue;
     }
 
-    //--------------------------------------------------------------------------
-    // Bring file scanner at-least-or-after our current parent container, while
-    // checking for file conflicts in the way
-    //--------------------------------------------------------------------------
-    while (proto.parent_id() > fileProto.cont_id()) {
-      std::map<std::string, uint64_t> fileMap;
-      checkFileConflicts(fileProto.cont_id(), fileMap, fileScanner, out, err);
-      fileScanner.next();
+    uint64_t currentParentId = proto.parent_id();
+    std::map<std::string, ConflictSet> nameMapping;
 
-      if (!fileScanner.getItem(fileProto)) {
-        goto out;
+    while(containerScanner.valid() && proto.parent_id() == currentParentId) {
+      nameMapping[proto.name()].containers.insert(proto.id());
+
+      containerScanner.next();
+      containerScanner.getItem(proto);
+    }
+
+    while(fileScanner.valid() && fileProto.cont_id() <= currentParentId) {
+      if(fileProto.cont_id() == currentParentId) {
+        nameMapping[fileProto.name()].files.insert(fileProto.id());
       }
+
+      fileScanner.next();
+      fileScanner.getItem(fileProto);
     }
 
-    //--------------------------------------------------------------------------
-    // Check for conflicts between files and containers
-    //--------------------------------------------------------------------------
-    if (proto.parent_id() == fileProto.cont_id()) {
-      std::map<std::string, uint64_t> fileMap;
-      checkFileConflicts(fileProto.cont_id(), fileMap, fileScanner, out, err);
-      checkDifferentMaps(containerMap, fileMap, fileProto.cont_id(), out);
-    }
-
-    if (stopwatch.restartIfExpired()) {
-      err << "Progress: Processed " << containerScanner.getScannedSoFar() <<
-          " containers, " << fileScanner.getScannedSoFar() << " files" << std::endl;
-    }
+    findConflicts(out, currentParentId, nameMapping);
+    nameMapping.clear();
   }
 
   if(containerScanner.hasError(errorString) || fileScanner.hasError(errorString)) {
