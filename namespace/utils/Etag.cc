@@ -30,12 +30,24 @@
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+// Calculate etag - supply flag to indicate whether to use checksum or not.
+//------------------------------------------------------------------------------
+void calculateEtag(bool useChecksum, const fst::FmdBase &fmdBase, std::string &out) {
+  if(useChecksum) {
+    return calculateEtagInodeAndChecksum(fmdBase, out);
+  }
+  else {
+    return calculateEtagInodeAndMtime(fmdBase.fid(), fmdBase.mtime(), out);
+  }
+}
+
+//------------------------------------------------------------------------------
 // Calculate etag based on checksum type + fst fmdproto.
 // TODO(gbitzes): Maybe checksumType is not needed? Maybe we can derive
 // checksum type from layout id of fmdproto?
 //------------------------------------------------------------------------------
-void calculateEtagInodeAndChecksum(const std::string &checksumType, const fst::FmdBase &fmdBase, std::string &out) {
-  if(strcmp(checksumType.c_str(), "md5")) {
+void calculateEtagInodeAndChecksum(const fst::FmdBase &fmdBase, std::string &out) {
+  if(eos::common::LayoutId::GetChecksum(fmdBase.lid()) == eos::common::LayoutId::kMD5) {
     // use inode + checksum
     char setag[256];
     snprintf(setag, sizeof(setag) - 1, "\"%llu:%s\"",
