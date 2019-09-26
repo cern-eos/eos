@@ -30,6 +30,23 @@
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+// Compatibility hack: Use old inodes below 34B, and new above.
+//
+// The old inode scheme breaks down once it reaches 34B files.
+// Yes this is kinda awful.
+//------------------------------------------------------------------------------
+static uint64_t findInode(uint64_t fid) {
+  uint64_t threshold = 34'000'000'000ull;
+
+  if(fid < threshold) {
+    return common::FileId::LegacyFidToInode(fid);
+  }
+  else {
+    return common::FileId::NewFidToInode(fid);
+  }
+}
+
+//------------------------------------------------------------------------------
 // Calculate etag - supply flag to indicate whether to use checksum or not.
 //------------------------------------------------------------------------------
 void calculateEtag(bool useChecksum, const fst::FmdBase &fmdBase, std::string &out) {
@@ -51,7 +68,7 @@ void calculateEtagInodeAndChecksum(const fst::FmdBase &fmdBase, std::string &out
     // use inode + checksum
     char setag[256];
     snprintf(setag, sizeof(setag) - 1, "\"%llu:%s\"",
-              eos::common::FileId::FidToInode((unsigned long long) fmdBase.fid()),
+              (unsigned long long) findInode(fmdBase.fid()),
               fmdBase.checksum().c_str());
     out = setag;
   } else {
@@ -67,11 +84,9 @@ void calculateEtagInodeAndChecksum(const fst::FmdBase &fmdBase, std::string &out
 // Calculate etag based on inode + mtime.
 //------------------------------------------------------------------------------
 void calculateEtagInodeAndMtime(uint64_t fid, uint64_t mtimeSec, std::string &out) {
-  unsigned long long inodeNumber = eos::common::FileId::FidToInode(fid);
-
   char setag[256];
   snprintf(setag, sizeof(setag) - 1, "\"%llu:%llu\"",
-          (unsigned long long) inodeNumber,
+          (unsigned long long) findInode(fid),
           (unsigned long long) mtimeSec);
   out = setag;
 }
@@ -93,7 +108,6 @@ void calculateEtag(const eos::ns::FileMdProto &proto, std::string &out) {
   // Nope. Is there a checksum?
   //----------------------------------------------------------------------------
   size_t cxlen = eos::common::LayoutId::GetChecksumLen(proto.layout_id());
-  unsigned long long inodeNumber = eos::common::FileId::FidToInode(proto.id());
 
   if(cxlen > 0) {
     //--------------------------------------------------------------------------
@@ -107,7 +121,7 @@ void calculateEtag(const eos::ns::FileMdProto &proto, std::string &out) {
     }
     else {
       char setag[256];
-      snprintf(setag, sizeof(setag) - 1, "\"%llu:", (unsigned long long) inodeNumber);
+      snprintf(setag, sizeof(setag) - 1, "\"%llu:", (unsigned long long) findInode(proto.id()));
       out = setag;
       eos::appendChecksumOnStringProtobuf(proto, out);
       out += "\"";
@@ -143,7 +157,6 @@ void calculateEtag(const IFileMD *const fmd, std::string &out) {
   // Nope. Is there a checksum?
   //----------------------------------------------------------------------------
   size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
-  unsigned long long inodeNumber = eos::common::FileId::FidToInode(fmd->getId());
 
   if(cxlen > 0) {
     //--------------------------------------------------------------------------
@@ -157,7 +170,7 @@ void calculateEtag(const IFileMD *const fmd, std::string &out) {
     }
     else {
       char setag[256];
-      snprintf(setag, sizeof(setag) - 1, "\"%llu:", (unsigned long long) inodeNumber);
+      snprintf(setag, sizeof(setag) - 1, "\"%llu:", (unsigned long long) findInode(fmd->getId()));
       out = setag;
       eos::appendChecksumOnStringAsHex(fmd, out);
       out += "\"";
