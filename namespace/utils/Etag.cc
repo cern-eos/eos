@@ -24,12 +24,48 @@
 #include "namespace/utils/Etag.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "common/FileId.hh"
+#include "common/Fmd.hh"
 #include "namespace/utils/Checksum.hh"
 
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Calculate etag for the given FileMD.
+// Calculate etag based on checksum type + fst fmdproto.
+// TODO(gbitzes): Maybe checksumType is not needed? Maybe we can derive
+// checksum type from layout id of fmdproto?
+//------------------------------------------------------------------------------
+void calculateEtagInodeAndChecksum(const std::string &checksumType, const fst::FmdBase &fmdBase, std::string &out) {
+  if(strcmp(checksumType.c_str(), "md5")) {
+    // use inode + checksum
+    char setag[256];
+    snprintf(setag, sizeof(setag) - 1, "\"%llu:%s\"",
+              eos::common::FileId::FidToInode((unsigned long long) fmdBase.fid()),
+              fmdBase.checksum().c_str());
+    out = setag;
+  } else {
+    // use checksum, S3 wants the pure MD5
+    char setag[256];
+    snprintf(setag, sizeof(setag) - 1, "\"%s\"",
+             fmdBase.checksum().c_str());
+    out = setag;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Calculate etag based on inode + mtime.
+//------------------------------------------------------------------------------
+void calculateEtagInodeAndMtime(uint64_t fid, uint64_t mtimeSec, std::string &out) {
+  unsigned long long inodeNumber = eos::common::FileId::FidToInode(fid);
+
+  char setag[256];
+  snprintf(setag, sizeof(setag) - 1, "\"%llu:%llu\"",
+          (unsigned long long) inodeNumber,
+          (unsigned long long) mtimeSec);
+  out = setag;
+}
+
+//------------------------------------------------------------------------------
+// Calculate etag for the given FileMD.
 //------------------------------------------------------------------------------
 void calculateEtag(const eos::ns::FileMdProto &proto, std::string &out) {
   //----------------------------------------------------------------------------
@@ -73,17 +109,13 @@ void calculateEtag(const eos::ns::FileMdProto &proto, std::string &out) {
   //----------------------------------------------------------------------------
   eos::IFileMD::ctime_t mtime;
   (void) memcpy(&mtime, proto.mtime().data(), sizeof(eos::IFileMD::ctime_t));
+  calculateEtagInodeAndMtime(proto.id(), mtime.tv_sec, out);
 
-  char setag[256];
-  snprintf(setag, sizeof(setag) - 1, "\"%llu:%llu\"",
-          (unsigned long long) inodeNumber,
-          (unsigned long long) mtime.tv_sec);
-  out = setag;
   return;
 }
 
 //------------------------------------------------------------------------------
-//! Calculate etag for the given FileMD.
+// Calculate etag for the given FileMD.
 //------------------------------------------------------------------------------
 void calculateEtag(const IFileMD *const fmd, std::string &out) {
   //----------------------------------------------------------------------------
@@ -127,17 +159,12 @@ void calculateEtag(const IFileMD *const fmd, std::string &out) {
   //----------------------------------------------------------------------------
   eos::IFileMD::ctime_t mtime;
   fmd->getCTime(mtime);
-
-  char setag[256];
-  snprintf(setag, sizeof(setag) - 1, "\"%llu:%llu\"",
-          (unsigned long long) inodeNumber,
-          (unsigned long long) mtime.tv_sec);
-  out = setag;
+  calculateEtagInodeAndMtime(fmd->getId(), mtime.tv_sec, out);
   return;
 }
 
 //----------------------------------------------------------------------------
-//! Calculate etag for the given ContainerMD.
+// Calculate etag for the given ContainerMD.
 //----------------------------------------------------------------------------
 void calculateEtag(IContainerMD *cmd, std::string &out) {
   //----------------------------------------------------------------------------

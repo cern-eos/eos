@@ -29,6 +29,9 @@
 
 namespace eos
 {
+  namespace fst {
+    class FmdBase;
+  }
 
   class IFileMD;
   class IContainerMD;
@@ -44,6 +47,18 @@ namespace eos
   //! TODO(gbitzes): Make cmd const?
   //----------------------------------------------------------------------------
   void calculateEtag(IContainerMD *cmd, std::string &out);
+
+  //----------------------------------------------------------------------------
+  //! Calculate etag based on checksum type + fst fmdproto.
+  //! TODO(gbitzes): Maybe checksumType is not needed? Maybe we can derive
+  //! checksum type from layout id of fmdproto?
+  //----------------------------------------------------------------------------
+  void calculateEtagInodeAndChecksum(const std::string &checksumType, const fst::FmdBase &fmdBase, std::string &out);
+
+  //----------------------------------------------------------------------------
+  //! Calculate etag based on inode + mtime.
+  //----------------------------------------------------------------------------
+  void calculateEtagInodeAndMtime(uint64_t fid, uint64_t mtimeSec, std::string &out);
 
 }
 
