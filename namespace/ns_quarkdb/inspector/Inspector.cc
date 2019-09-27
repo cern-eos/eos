@@ -182,7 +182,7 @@ int Inspector::scanFileMetadata(std::ostream &out, std::ostream &err) {
 //------------------------------------------------------------------------------
 // Forcefully overwrite the given ContainerMD - USE WITH CAUTION
 //------------------------------------------------------------------------------
-int Inspector::overwriteContainerMD(uint64_t id, uint64_t parentId, const std::string &name, std::ostream &out, std::ostream &err) {
+int Inspector::overwriteContainerMD(bool dryRun, uint64_t id, uint64_t parentId, const std::string &name, std::ostream &out, std::ostream &err) {
   eos::ns::ContainerMdProto val;
 
   val.set_id(id);
@@ -196,6 +196,11 @@ int Inspector::overwriteContainerMD(uint64_t id, uint64_t parentId, const std::s
   out << "---- SENDING THE FOLLOWING REQUEST TO QDB:" << std::endl;
   for(size_t i = 0; i < req.size(); i++) {
     out << i << ".\"" << escapeNonPrintable(req[i]) << "\"" << std::endl;;
+  }
+
+  if(dryRun) {
+    out << "---- DRY RUN, CHANGES NOT APPLIED" << std::endl;
+    return 0;
   }
 
   out << "---- RESPONSE:" << std::endl;
@@ -1033,7 +1038,7 @@ static std::string serializeRequest(const RedisRequest &req) {
 //------------------------------------------------------------------------------
 // Change the given fid - USE WITH CAUTION
 //------------------------------------------------------------------------------
-int Inspector::changeFid(uint64_t fid, uint64_t newParent, const std::string &newChecksum, int64_t newSize, std::ostream &out, std::ostream &err) {
+int Inspector::changeFid(bool dryRun, uint64_t fid, uint64_t newParent, const std::string &newChecksum, int64_t newSize, std::ostream &out, std::ostream &err) {
   eos::ns::FileMdProto val;
 
   try {
@@ -1089,6 +1094,11 @@ int Inspector::changeFid(uint64_t fid, uint64_t newParent, const std::string &ne
     out << i << ".\"" << escapeNonPrintable(req[i]) << "\"" << std::endl;;
   }
 
+  if(dryRun) {
+    out << "---- DRY RUN, CHANGES NOT APPLIED" << std::endl;
+    return 0;
+  }
+
   out << "---- RESPONSE:" << std::endl;
   out << qclient::describeRedisReply(mQcl.execute(req).get()) << std::endl;
 
@@ -1109,7 +1119,7 @@ static std::string toYesOrNo(bool val) {
 //------------------------------------------------------------------------------
 // Rename the given fid fully, taking care of the container maps as well
 //------------------------------------------------------------------------------
-int Inspector::renameFid(uint64_t fid, uint64_t newParent, const std::string &newName, std::ostream &out, std::ostream &err) {
+int Inspector::renameFid(bool dryRun, uint64_t fid, uint64_t newParent, const std::string &newName, std::ostream &out, std::ostream &err) {
   eos::ns::FileMdProto val;
 
   try {
@@ -1164,6 +1174,11 @@ int Inspector::renameFid(uint64_t fid, uint64_t newParent, const std::string &ne
 
   for(size_t i = 0; i < requests.size(); i++) {
     out << i+1 << ". " << serializeRequest(requests[i]) << std::endl;
+  }
+
+  if(dryRun) {
+    out << "------------------------------------------------------ DRY RUN, CHANGES NOT APPLIED" << std::endl;
+    return 0;
   }
 
   out << "------------------------------------------------------ Output" << std::endl;

@@ -68,6 +68,13 @@ void addClusterOptions(CLI::App *subcmd, std::string &membersStr, MemberValidato
   passwordGroup->require_option(0, 1);
 }
 
+//------------------------------------------------------------------------------
+// Control dry-run, common to all dangerous commands
+//----------------------------------------------------------------------------
+void addDryRun(CLI::App *subcmd, bool& noDryRun) {
+  subcmd->add_flag("--no-dry-run", noDryRun, "Execute changes for real.\nIf not supplied, planned changes are only shown and not applied.");
+}
+
 int main(int argc, char* argv[]) {
   CLI::App app("Tool to inspect contents of the QuarkDB-based EOS namespace.");
   app.require_subcommand();
@@ -80,6 +87,8 @@ int main(int argc, char* argv[]) {
 
   std::string password;
   std::string passwordFile;
+
+  bool noDryRun = false;
 
   //----------------------------------------------------------------------------
   // Set-up dump subcommand..
@@ -195,6 +204,7 @@ int main(int argc, char* argv[]) {
   //----------------------------------------------------------------------------
   auto changeFidSubcommand = app.add_subcommand("change-fid", "[DANGEROUS] Change specified properties of a single fid. Better know what you're doing before using this!");
   addClusterOptions(changeFidSubcommand, membersStr, memberValidator, password, passwordFile);
+  addDryRun(changeFidSubcommand, noDryRun);
 
   uint64_t newParent = 0;
   std::string newChecksum;
@@ -214,6 +224,7 @@ int main(int argc, char* argv[]) {
 
   auto renameFidSubcommand = app.add_subcommand("rename-fid", "[DANGEROUS] Rename a file onto the specified container ID - the respective container maps are modified as well.");
   addClusterOptions(renameFidSubcommand, membersStr, memberValidator, password, passwordFile);
+  addDryRun(renameFidSubcommand, noDryRun);
 
   renameFidSubcommand->add_option("--fid", fid, "Specify the FileMD to rename")
     ->required();
@@ -226,6 +237,7 @@ int main(int argc, char* argv[]) {
   //----------------------------------------------------------------------------
   auto overwriteContainerSubcommand = app.add_subcommand("overwrite-container", "[DANGEROUS] Overwrite the given ContainerMD - USE WITH CAUTION");
   addClusterOptions(overwriteContainerSubcommand, membersStr, memberValidator, password, passwordFile);
+  addDryRun(overwriteContainerSubcommand, noDryRun);
 
   uint64_t parent;
   std::string containerName;
@@ -249,6 +261,8 @@ int main(int argc, char* argv[]) {
   } catch (const CLI::ParseError &e) {
     return app.exit(e);
   }
+
+  bool dryRun = !noDryRun;
 
   //----------------------------------------------------------------------------
   // Validate --password and --password-file options..
@@ -338,15 +352,15 @@ int main(int argc, char* argv[]) {
   }
 
   if(changeFidSubcommand->parsed()) {
-    return inspector.changeFid(fid, newParent, newChecksum, newSize, std::cout, std::cerr);
+    return inspector.changeFid(dryRun, fid, newParent, newChecksum, newSize, std::cout, std::cerr);
   }
 
   if(renameFidSubcommand->parsed()) {
-    return inspector.renameFid(fid, newParent, newName, std::cout, std::cerr);
+    return inspector.renameFid(dryRun, fid, newParent, newName, std::cout, std::cerr);
   }
 
   if(overwriteContainerSubcommand->parsed()) {
-    return inspector.overwriteContainerMD(cid, parent, containerName, std::cout, std::cerr);
+    return inspector.overwriteContainerMD(dryRun, cid, parent, containerName, std::cout, std::cerr);
   }
 
   std::cerr << "No subcommand was supplied - should never reach here" << std::endl;

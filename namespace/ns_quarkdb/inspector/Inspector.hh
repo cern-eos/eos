@@ -71,7 +71,7 @@ public:
   //----------------------------------------------------------------------------
   //! Forcefully overwrite the given ContainerMD - USE WITH CAUTION
   //----------------------------------------------------------------------------
-  int overwriteContainerMD(uint64_t id, uint64_t parentId, const std::string &name, std::ostream &out, std::ostream &err);
+  int overwriteContainerMD(bool dryRun, uint64_t id, uint64_t parentId, const std::string &name, std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
   //! Check intra-container conflicts, such as a container having two entries
@@ -123,12 +123,12 @@ public:
   //----------------------------------------------------------------------------
   //! Change the given fid - USE WITH CAUTION
   //----------------------------------------------------------------------------
-  int changeFid(uint64_t id, uint64_t newParent, const std::string &newChecksum, int64_t newSize, std::ostream &out, std::ostream &err);
+  int changeFid(bool dryRun, uint64_t id, uint64_t newParent, const std::string &newChecksum, int64_t newSize, std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
   //! Rename the given fid fully, taking care of the container maps as well
   //----------------------------------------------------------------------------
-  int renameFid(uint64_t id, uint64_t newParent, const std::string& newName, std::ostream &out, std::ostream &err);
+  int renameFid(bool dryRun, uint64_t id, uint64_t newParent, const std::string& newName, std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
   //! Print out _everything_ known about the given file.
