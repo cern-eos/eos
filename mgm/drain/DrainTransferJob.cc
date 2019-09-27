@@ -26,6 +26,7 @@
 #include "mgm/FsView.hh"
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/Stat.hh"
+#include "mgm/proc/proc_fs.hh"
 #include "authz/XrdCapability.hh"
 #include "common/SecEntity.hh"
 #include "common/LayoutId.hh"
@@ -71,7 +72,15 @@ DrainTransferJob::DoIt() noexcept
   try {
     fdrain = GetFileInfo();
   } catch (const eos::MDException& e) {
-    ReportError(std::string(e.what()));
+    // This could be a ghost fid entry still present in the file system map
+    // and we need to also drop it from there
+    std::string out, err;
+    auto root_vid = eos::common::VirtualIdentity::Root();
+    (void) proc_fs_dropghosts(mFsIdSource, {mFileId}, root_vid, out, err);
+    eos_info("msg=\"drain ghost entry successful\" fxid=%s",
+             eos::common::FileId::Fid2Hex(mFileId).c_str());
+    mStatus = Status::OK;
+    gOFS->mDrainingTracker.RemoveEntry(mFileId);
     UpdateMgmStats(mStatus);
     return;
   }
@@ -89,6 +98,7 @@ DrainTransferJob::DoIt() noexcept
         (LayoutId::GetLayoutType(fdrain.mProto.layout_id()) ==
          LayoutId::kReplica)) {
       mStatus = DrainZeroSizeFile(fdrain);
+      gOFS->mDrainingTracker.RemoveEntry(mFileId);
       UpdateMgmStats(mStatus);
       return;
     }
