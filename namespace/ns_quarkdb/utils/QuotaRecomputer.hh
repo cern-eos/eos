@@ -27,12 +27,14 @@
 #include "namespace/Namespace.hh"
 #include "namespace/MDException.hh"
 
-namespace qclient {
-  class QClient;
+namespace qclient
+{
+class QClient;
 }
 
-namespace folly {
-  class Executor;
+namespace folly
+{
+class Executor;
 }
 
 EOSNSNAMESPACE_BEGIN
@@ -49,18 +51,24 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuotaRecomputer(IView *view, qclient::QClient *qcl, folly::Executor *exec);
+  QuotaRecomputer(qclient::QClient* qcl, folly::Executor* exec);
 
   //----------------------------------------------------------------------------
   //! Given a quotanode, re-calculate the quota values,
   //! store into QuotaNodeCore.
+  //!
+  //! @param cont_uri quota node container uri
+  //! @param cont_id quota node container id
+  //! @param core quota node object info
+  //!
+  //! @return status
   //----------------------------------------------------------------------------
-  MDStatus recompute(IContainerMDPtr quotanode, QuotaNodeCore &core);
+  MDStatus recompute(const std::string& cont_uri,
+                     const eos::IContainerMD::id_t cont_id, QuotaNodeCore& core);
 
 private:
-  IView *mView;
-  qclient::QClient *mQcl;
-  folly::Executor *mExecutor;
+  qclient::QClient* mQcl;
+  folly::Executor* mExecutor;
 };
 
 EOSNSNAMESPACE_END

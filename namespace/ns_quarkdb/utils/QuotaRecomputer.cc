@@ -32,9 +32,9 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuotaRecomputer::QuotaRecomputer(IView *view, qclient::QClient *qcl,
-  folly::Executor *exec)
-: mView(view), mQcl(qcl), mExecutor(exec) {}
+QuotaRecomputer::QuotaRecomputer(qclient::QClient* qcl,
+                                 folly::Executor* exec)
+  : mQcl(qcl), mExecutor(exec) {}
 
 //------------------------------------------------------------------------------
 // Filtering class for NamespaceExplorer to ignore sub-quotanodes when
@@ -48,7 +48,7 @@ public:
   virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto& proto,
                                      const eos::IContainerMD::XAttrMap& attrs) override
   {
-    if(proto.id() == rootContainer) {
+    if (proto.id() == rootContainer) {
       return true; // always expand root, no matter what
     }
 
@@ -67,28 +67,21 @@ private:
 // Given a quotanode, re-calculate the quota values,
 // store into QuotaNodeCore.
 //------------------------------------------------------------------------------
-MDStatus QuotaRecomputer::recompute(IContainerMDPtr quotanode, QuotaNodeCore &qnc) {
+MDStatus QuotaRecomputer::recompute(const std::string& cont_uri,
+                                    const eos::IContainerMD::id_t cont_id,
+                                    QuotaNodeCore& qnc)
+{
   // Reset qnc contents
   qnc = {};
 
-  if(!quotanode) {
-    return MDStatus(EINVAL, "Received null quotanode!");
-  }
-
-  if ((quotanode->getFlags() & eos::QUOTA_NODE_FLAG) == 0) {
-    return MDStatus(EINVAL, "Specified directory is not a quota node");
-  }
-
-  if(mView->inMemory()) {
-    return MDStatus(EINVAL, "Quota recomputation is only availbale for QDB namespace");
+  if (cont_id == 0ull) {
+    return MDStatus(EINVAL, "error: requested computation for cid=0");
   }
 
   ExplorationOptions options;
   options.depthLimit = 2048;
-  options.expansionDecider.reset(new QuotaNodeFilter(quotanode->getId()));
-  NamespaceExplorer explorer(mView->getUri(quotanode.get()),
-                             options,
-                             *mQcl, mExecutor);
+  options.expansionDecider.reset(new QuotaNodeFilter(cont_id));
+  NamespaceExplorer explorer(cont_uri, options, *mQcl, mExecutor);
   NamespaceItem item;
 
   while (explorer.fetch(item)) {
@@ -98,12 +91,8 @@ MDStatus QuotaRecomputer::recompute(IContainerMDPtr quotanode, QuotaNodeCore &qn
       uint64_t physicalSize = item.fileMd.size() *
                               eos::common::LayoutId::GetSizeFactor(item.fileMd.layout_id());
       // Account file.
-      qnc.addFile(
-        item.fileMd.uid(),
-        item.fileMd.gid(),
-        logicalSize,
-        physicalSize
-      );
+      qnc.addFile(item.fileMd.uid(), item.fileMd.gid(), logicalSize,
+                  physicalSize);
     }
   }
 
