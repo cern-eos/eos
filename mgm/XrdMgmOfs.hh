@@ -1668,7 +1668,7 @@ private:
   //! Tracker for balanced fids
   eos::mgm::IdTrackerWithValidity<eos::IFileMD::id_t> mBalancingTracker;
   //! Tracker for drained fids
-  eos::mgm::IdTrackerWithValidity<eos::IFileMD::id_t> mDrainingTracker;
+  eos::mgm::IdTrackerWithValidity<eos::IFileMD::id_t> mDrainTracker;
   ///< uuid to directory obj. mapping
   std::map<std::string, XrdMgmOfsDirectory*> mMapDirs;
   std::map<std::string, XrdMgmOfsFile*> mMapFiles; ///< uuid to file obj. mapping

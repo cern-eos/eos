@@ -80,7 +80,6 @@ DrainTransferJob::DoIt() noexcept
     eos_info("msg=\"drain ghost entry successful\" fxid=%s",
              eos::common::FileId::Fid2Hex(mFileId).c_str());
     mStatus = Status::OK;
-    gOFS->mDrainingTracker.RemoveEntry(mFileId);
     UpdateMgmStats(mStatus);
     return;
   }
@@ -98,7 +97,6 @@ DrainTransferJob::DoIt() noexcept
         (LayoutId::GetLayoutType(fdrain.mProto.layout_id()) ==
          LayoutId::kReplica)) {
       mStatus = DrainZeroSizeFile(fdrain);
-      gOFS->mDrainingTracker.RemoveEntry(mFileId);
       UpdateMgmStats(mStatus);
       return;
     }
@@ -108,7 +106,8 @@ DrainTransferJob::DoIt() noexcept
     XrdCl::URL url_src = BuildTpcSrc(fdrain, log_id);
     XrdCl::URL url_dst = BuildTpcDst(fdrain, log_id);
 
-    // When no more sources are available the url_src is empty
+    // When no more sources are available the url_src is empty and mStatus is
+    // properly set
     if (!url_src.IsValid() || !url_dst.IsValid()) {
       UpdateMgmStats(mStatus);
       return;
@@ -170,7 +169,6 @@ DrainTransferJob::DoIt() noexcept
         eos_info("msg=\"drain successful\" logid=%s fxid=%s",
                  log_id.c_str(), eos::common::FileId::Fid2Hex(mFileId).c_str());
         mStatus = Status::OK;
-        gOFS->mDrainingTracker.RemoveEntry(mFileId);
         UpdateMgmStats(mStatus);
         return;
       }
@@ -181,7 +179,6 @@ DrainTransferJob::DoIt() noexcept
   }
 
   mStatus = Status::Failed;
-  gOFS->mDrainingTracker.RemoveEntry(mFileId);
   UpdateMgmStats(mStatus);
   return;
 }
