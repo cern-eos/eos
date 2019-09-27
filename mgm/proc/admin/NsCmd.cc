@@ -730,6 +730,13 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
   try {
     eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
     auto cont = gOFS->eosDirectoryService->getContainerMD(cont_id);
+
+    if ((cont->getFlags() & eos::QUOTA_NODE_FLAG) == 0) {
+      reply.set_std_err("error: directory is not a quota node (anymore)");
+      reply.set_retc(EINVAL);
+      return;
+    }
+
     eos::IQuotaNode* quotaNode = gOFS->eosView->getQuotaNode(cont.get());
     quotaNode->replaceCore(qnc);
   } catch (const eos::MDException& e) {

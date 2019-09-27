@@ -638,21 +638,11 @@ TEST_F(HierarchicalViewF, QuotaRecomputation)
   mdFlusher()->synchronize();
   eos::QuotaNodeCore qnc;
   eos::QuotaRecomputer recomputer(&(qcl()), executor());
-  eos::MDStatus status = recomputer.recompute(view()->getUri(notquota1.get()),
-                         notquota1->getId(), qnc);
-  ASSERT_FALSE(status.ok());
-  ASSERT_EQ(status.getErrno(), EINVAL);
-  ASSERT_EQ(status.getError(), "Specified directory is not a quota node");
-  status = recomputer.recompute(view()->getUri(notquota2.get()),
-                                notquota2->getId(), qnc);
-  ASSERT_FALSE(status.ok());
-  ASSERT_EQ(status.getErrno(), EINVAL);
-  ASSERT_EQ(status.getError(), "Specified directory is not a quota node");
   // Simple, non-nested case first: quota2
   eos::IQuotaNode* qn2 = view()->registerQuotaNode(quota2.get());
   ASSERT_NE(qn2, nullptr);
-  status = recomputer.recompute(view()->getUri(quota2.get()),
-                                quota2->getId(), qnc);
+  eos::MDStatus status = recomputer.recompute(view()->getUri(quota2.get()),
+                         quota2->getId(), qnc);
   ASSERT_TRUE(status.ok());
   ASSERT_EQ(status.getErrno(), 0);
   ASSERT_EQ(status.getError(), "");
