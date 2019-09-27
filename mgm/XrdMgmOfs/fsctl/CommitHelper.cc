@@ -303,7 +303,7 @@ CommitHelper::check_commit_params(CommitHelper::cgi_t& cgi)
 void
 CommitHelper::remove_scheduler(unsigned long long fid)
 {
-  gOFS->mDrainingTracker.RemoveEntry(fid);
+  gOFS->mDrainTracker.RemoveEntry(fid);
   gOFS->mBalancingTracker.RemoveEntry(fid);
 }
 
