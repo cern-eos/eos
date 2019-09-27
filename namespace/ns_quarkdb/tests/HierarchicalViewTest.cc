@@ -115,11 +115,14 @@ TEST_F(HierarchicalViewF, LoadTest)
   std::shared_ptr<eos::IContainerMD> container =
     view()->getContainer("/test/embed/embed1");
   ASSERT_EQ(view()->getUri(container.get()), "/test/embed/embed1/");
-  ASSERT_EQ(view()->getUriFut(container->getIdentifier()).get(), "/test/embed/embed1/");
+  ASSERT_EQ(view()->getUriFut(container->getIdentifier()).get(),
+            "/test/embed/embed1/");
   ASSERT_EQ(view()->getUri(file.get()), "/test/embed/embed1/file3");
-  ASSERT_EQ(view()->getUriFut(file->getIdentifier()).get(), "/test/embed/embed1/file3");
+  ASSERT_EQ(view()->getUriFut(file->getIdentifier()).get(),
+            "/test/embed/embed1/file3");
   ASSERT_THROW(view()->getUri((eos::IFileMD*)nullptr), eos::MDException);
-  ASSERT_THROW(view()->getUriFut(eos::FileIdentifier(9999999)).get(), eos::MDException);
+  ASSERT_THROW(view()->getUriFut(eos::FileIdentifier(9999999)).get(),
+               eos::MDException);
   std::shared_ptr<eos::IFileMD> toBeDeleted =
     view()->getFile("/test/embed/embed1/file2");
   toBeDeleted->addLocation(12);
@@ -472,7 +475,6 @@ TEST_F(HierarchicalViewF, LostContainerTest)
     s6 << "/test/embed/embed2/conflict_file" << i;
     eos::IFileMDPtr embed1F = view()->createFile(s1.str());
     ASSERT_EQ(view()->getParentContainer(embed1F.get()).get(), cont1);
-
     view()->createFile(s2.str());
     view()->createFile(s3.str());
     view()->createFile(s4.str());
@@ -582,21 +584,19 @@ TEST_F(HierarchicalViewF, QuotaRecomputation)
   eos::IContainerMDPtr quota1 = view()->createContainer("/quota1", true);
   eos::IContainerMDPtr quota2 = view()->createContainer("/quota2", true);
   eos::IContainerMDPtr quota3 = view()->createContainer("/quota1/quota3", true);
-
   eos::IContainerMDPtr notquota1 = view()->createContainer("/not-a-quota", true);
-  eos::IContainerMDPtr notquota2 = view()->createContainer("/quota1/not-a-quota-either", true);
-
+  eos::IContainerMDPtr notquota2 =
+    view()->createContainer("/quota1/not-a-quota-either", true);
   containerSvc()->updateStore(quota1.get());
   containerSvc()->updateStore(quota2.get());
   containerSvc()->updateStore(quota3.get());
-
   unsigned long layoutId = eos::common::LayoutId::GetId(
-    eos::common::LayoutId::kReplica,
-    eos::common::LayoutId::kMD5,
-    2,
-    eos::common::LayoutId::k4k);
+                             eos::common::LayoutId::kReplica,
+                             eos::common::LayoutId::kMD5,
+                             2,
+                             eos::common::LayoutId::k4k);
 
-  for(size_t i = 0; i < 10; i++) {
+  for (size_t i = 0; i < 10; i++) {
     eos::IFileMDPtr file = view()->createFile(SSTR("/quota1/f" << i), true);
     file->setSize(1337);
     file->setLayoutId(layoutId);
@@ -606,12 +606,12 @@ TEST_F(HierarchicalViewF, QuotaRecomputation)
   }
 
   layoutId = eos::common::LayoutId::GetId(
-    eos::common::LayoutId::kReplica,
-    eos::common::LayoutId::kMD5,
-    3,
-    eos::common::LayoutId::k4k);
+               eos::common::LayoutId::kReplica,
+               eos::common::LayoutId::kMD5,
+               3,
+               eos::common::LayoutId::k4k);
 
-  for(size_t i = 0; i < 15; i++) {
+  for (size_t i = 0; i < 15; i++) {
     eos::IFileMDPtr file = view()->createFile(SSTR("/quota1/quota3/f" << i), true);
     file->setSize(1338);
     file->setLayoutId(layoutId);
@@ -621,12 +621,12 @@ TEST_F(HierarchicalViewF, QuotaRecomputation)
   }
 
   layoutId = eos::common::LayoutId::GetId(
-    eos::common::LayoutId::kReplica,
-    eos::common::LayoutId::kMD5,
-    5,
-    eos::common::LayoutId::k4k);
+               eos::common::LayoutId::kReplica,
+               eos::common::LayoutId::kMD5,
+               5,
+               eos::common::LayoutId::k4k);
 
-  for(size_t i = 0; i < 17; i++) {
+  for (size_t i = 0; i < 17; i++) {
     eos::IFileMDPtr file = view()->createFile(SSTR("/quota2/f" << i), true);
     file->setSize(133);
     file->setLayoutId(layoutId);
@@ -636,34 +636,31 @@ TEST_F(HierarchicalViewF, QuotaRecomputation)
   }
 
   mdFlusher()->synchronize();
-
   eos::QuotaNodeCore qnc;
-  eos::QuotaRecomputer recomputer(view(), &(qcl()), executor());
-
-  eos::MDStatus status = recomputer.recompute(notquota1, qnc);
+  eos::QuotaRecomputer recomputer(&(qcl()), executor());
+  eos::MDStatus status = recomputer.recompute(view()->getUri(notquota1.get()),
+                         notquota1->getId(), qnc);
   ASSERT_FALSE(status.ok());
   ASSERT_EQ(status.getErrno(), EINVAL);
   ASSERT_EQ(status.getError(), "Specified directory is not a quota node");
-
-  status = recomputer.recompute(notquota2, qnc);
+  status = recomputer.recompute(view()->getUri(notquota2.get()),
+                                notquota2->getId(), qnc);
   ASSERT_FALSE(status.ok());
   ASSERT_EQ(status.getErrno(), EINVAL);
   ASSERT_EQ(status.getError(), "Specified directory is not a quota node");
-
   // Simple, non-nested case first: quota2
   eos::IQuotaNode* qn2 = view()->registerQuotaNode(quota2.get());
   ASSERT_NE(qn2, nullptr);
-
-  status = recomputer.recompute(quota2, qnc);
+  status = recomputer.recompute(view()->getUri(quota2.get()),
+                                quota2->getId(), qnc);
   ASSERT_TRUE(status.ok());
   ASSERT_EQ(status.getErrno(), 0);
   ASSERT_EQ(status.getError(), "");
 
-  for(size_t i = 0; i < 17; i++) {
+  for (size_t i = 0; i < 17; i++) {
     ASSERT_EQ(qnc.getUsedSpaceByUser(i), 133);
     ASSERT_EQ(qnc.getPhysicalSpaceByUser(i), 133 * 5);
     ASSERT_EQ(qnc.getNumFilesByUser(i), 1);
-
     ASSERT_EQ(qnc.getUsedSpaceByGroup(i), 0);
     ASSERT_EQ(qnc.getPhysicalSpaceByGroup(i), 0);
     ASSERT_EQ(qnc.getNumFilesByGroup(i), 0);
@@ -672,32 +669,31 @@ TEST_F(HierarchicalViewF, QuotaRecomputation)
   ASSERT_EQ(qnc.getUsedSpaceByGroup(9000), 17 * 133);
   ASSERT_EQ(qnc.getPhysicalSpaceByGroup(9000), 17 * 133 * 5);
   ASSERT_EQ(qnc.getNumFilesByGroup(9000), 17);
-
   // quota1 + quota3
   eos::IQuotaNode* qn1p3 = view()->registerQuotaNode(quota1.get());
   ASSERT_NE(qn1p3, nullptr);
-
-  status = recomputer.recompute(quota1, qnc);
+  status = recomputer.recompute(view()->getUri(quota1.get()),
+                                quota1->getId(), qnc);
   ASSERT_TRUE(status.ok());
   ASSERT_EQ(status.getErrno(), 0);
   ASSERT_EQ(status.getError(), "");
 
   // uid0 and uid1 have 3 files each
-  for(size_t i = 0; i < 2; i++) {
+  for (size_t i = 0; i < 2; i++) {
     ASSERT_EQ(qnc.getUsedSpaceByUser(i), 1337 * 3);
     ASSERT_EQ(qnc.getPhysicalSpaceByUser(i), 1337 * 3 * 2);
     ASSERT_EQ(qnc.getNumFilesByUser(i), 3);
   }
 
   // uid2 and uid3 and 2 files each
-  for(size_t i = 2; i < 4; i++) {
+  for (size_t i = 2; i < 4; i++) {
     ASSERT_EQ(qnc.getUsedSpaceByUser(i), 1337 * 2);
     ASSERT_EQ(qnc.getPhysicalSpaceByUser(i), 1337 * 2 * 2);
     ASSERT_EQ(qnc.getNumFilesByUser(i), 2);
   }
 
   // gid0 and gid1 have 5 each
-  for(size_t i = 0; i < 2; i++) {
+  for (size_t i = 0; i < 2; i++) {
     ASSERT_EQ(qnc.getUsedSpaceByGroup(i), 1337 * 5);
     ASSERT_EQ(qnc.getPhysicalSpaceByGroup(i), 1337 * 2 * 5);
     ASSERT_EQ(qnc.getNumFilesByGroup(i), 5);
@@ -706,50 +702,46 @@ TEST_F(HierarchicalViewF, QuotaRecomputation)
   ASSERT_EQ(qnc.getUsedSpaceByUser(100), 1338 * 15);
   ASSERT_EQ(qnc.getPhysicalSpaceByUser(100), 1338 * 15 * 3);
   ASSERT_EQ(qnc.getNumFilesByUser(100), 15);
-
   ASSERT_EQ(qnc.getUsedSpaceByGroup(200), 1338 * 15);
   ASSERT_EQ(qnc.getPhysicalSpaceByGroup(200), 1338 * 15 * 3);
   ASSERT_EQ(qnc.getNumFilesByGroup(200), 15);
-
   // register quota3, measure
   eos::IQuotaNode* qn3 = view()->registerQuotaNode(quota3.get());
   ASSERT_NE(qn3, nullptr);
-
-  status = recomputer.recompute(quota3, qnc);
+  status = recomputer.recompute(view()->getUri(quota3.get()),
+                                quota3->getId(), qnc);
   ASSERT_TRUE(status.ok());
   ASSERT_EQ(status.getErrno(), 0);
   ASSERT_EQ(status.getError(), "");
-
   ASSERT_EQ(qnc.getUsedSpaceByUser(100), 1338 * 15);
   ASSERT_EQ(qnc.getPhysicalSpaceByUser(100), 1338 * 15 * 3);
   ASSERT_EQ(qnc.getNumFilesByUser(100), 15);
-
   ASSERT_EQ(qnc.getUsedSpaceByGroup(200), 1338 * 15);
   ASSERT_EQ(qnc.getPhysicalSpaceByGroup(200), 1338 * 15 * 3);
   ASSERT_EQ(qnc.getNumFilesByGroup(200), 15);
-
   // measure quota1 _on its own_, without embedded quota3
-  status = recomputer.recompute(quota1, qnc);
+  status = recomputer.recompute(view()->getUri(quota1.get()),
+                                quota1->getId(), qnc);
   ASSERT_TRUE(status.ok());
   ASSERT_EQ(status.getErrno(), 0);
   ASSERT_EQ(status.getError(), "");
 
   // uid0 and uid1 have 3 files each
-  for(size_t i = 0; i < 2; i++) {
+  for (size_t i = 0; i < 2; i++) {
     ASSERT_EQ(qnc.getUsedSpaceByUser(i), 1337 * 3);
     ASSERT_EQ(qnc.getPhysicalSpaceByUser(i), 1337 * 3 * 2);
     ASSERT_EQ(qnc.getNumFilesByUser(i), 3);
   }
 
   // uid2 and uid3 and 2 files each
-  for(size_t i = 2; i < 4; i++) {
+  for (size_t i = 2; i < 4; i++) {
     ASSERT_EQ(qnc.getUsedSpaceByUser(i), 1337 * 2);
     ASSERT_EQ(qnc.getPhysicalSpaceByUser(i), 1337 * 2 * 2);
     ASSERT_EQ(qnc.getNumFilesByUser(i), 2);
   }
 
   // gid0 and gid1 have 5 each
-  for(size_t i = 0; i < 2; i++) {
+  for (size_t i = 0; i < 2; i++) {
     ASSERT_EQ(qnc.getUsedSpaceByGroup(i), 1337 * 5);
     ASSERT_EQ(qnc.getPhysicalSpaceByGroup(i), 1337 * 2 * 5);
     ASSERT_EQ(qnc.getNumFilesByGroup(i), 5);
@@ -758,7 +750,6 @@ TEST_F(HierarchicalViewF, QuotaRecomputation)
   ASSERT_EQ(qnc.getUsedSpaceByUser(100), 0);
   ASSERT_EQ(qnc.getPhysicalSpaceByUser(100), 0);
   ASSERT_EQ(qnc.getNumFilesByUser(100), 0);
-
   ASSERT_EQ(qnc.getUsedSpaceByGroup(200), 0);
   ASSERT_EQ(qnc.getPhysicalSpaceByGroup(200), 0);
   ASSERT_EQ(qnc.getNumFilesByGroup(200), 0);
@@ -768,13 +759,10 @@ TEST_F(HierarchicalViewF, CustomContainerId)
 {
   eos::IContainerMDPtr c32 = view()->createContainer("/c32", false, 32);
   ASSERT_EQ(c32->getId(), 32);
-
   eos::IContainerMDPtr root = view()->getContainer("/");
   ASSERT_EQ(root->getId(), 1);
-
   eos::IContainerMDPtr child = root->findContainer("c32");
   ASSERT_EQ(child.get(), c32.get());
-
   eos::IContainerMDPtr c33 = view()->createContainer("/c33", true);
   ASSERT_EQ(c33->getId(), 33);
 }
@@ -783,8 +771,6 @@ TEST_F(HierarchicalViewF, CustomFileId)
 {
   eos::IFileMDPtr f999 = view()->createFile("/f999", 5, 5, 999);
   ASSERT_EQ(f999->getId(), 999);
-
   eos::IFileMDPtr f1000 = view()->createFile("/f1000", 0, 0, 0);
   ASSERT_EQ(f1000->getId(), 1000);
 }
-

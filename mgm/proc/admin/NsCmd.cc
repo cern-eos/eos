@@ -682,22 +682,43 @@ void
 NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
                        eos::console::ReplyProto& reply)
 {
-  std::shared_ptr<IContainerMD> cont;
-
-  try {
-    cont = eos::Resolver::resolveContainer(gOFS->eosView, tree.container());
-  } catch (const eos::MDException& e) {
-    reply.set_std_err(SSTR(e.what()));
-    reply.set_retc(e.getErrno());
+  if (gOFS->eosView->inMemory()) {
+    reply.set_std_err("error: quota recomputation is only available for "
+                      "QDB namespace");
+    reply.set_retc(EINVAL);
     return;
   }
 
-  eos::QuotaRecomputer recomputer(gOFS->eosView,
-                                  eos::BackendClient::getInstance(gOFS->mQdbContactDetails,
-                                      "quota-recomputation"),
-                                  static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor());
+  std::string cont_uri {""};
+  eos::IContainerMD::id_t cont_id {0ull};
+  {
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+    std::shared_ptr<IContainerMD> cont {nullptr};
+
+    try {
+      cont = eos::Resolver::resolveContainer(gOFS->eosView, tree.container());
+    } catch (const eos::MDException& e) {
+      reply.set_std_err(SSTR(e.what()));
+      reply.set_retc(e.getErrno());
+      return;
+    }
+
+    if ((cont->getFlags() & eos::QUOTA_NODE_FLAG) == 0) {
+      reply.set_std_err("error: directory is not a quota node");
+      reply.set_retc(EINVAL);
+      return;
+    }
+
+    cont_uri = gOFS->eosView->getUri(cont.get());
+    cont_id = cont->getId();
+  }
+  // Recompute the quota node
   QuotaNodeCore qnc;
-  eos::MDStatus status = recomputer.recompute(cont, qnc);
+  eos::QuotaRecomputer recomputer(eos::BackendClient::getInstance(
+                                    gOFS->mQdbContactDetails,
+                                    "quota-recomputation"),
+                                  static_cast<QuarkNamespaceGroup*>(gOFS->namespaceGroup.get())->getExecutor());
+  eos::MDStatus status = recomputer.recompute(cont_uri, cont_id, qnc);
 
   if (!status.ok()) {
     reply.set_std_err(status.getError());
@@ -705,8 +726,10 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
     return;
   }
 
+  // Update the quota note
   try {
     eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+    auto cont = gOFS->eosDirectoryService->getContainerMD(cont_id);
     eos::IQuotaNode* quotaNode = gOFS->eosView->getQuotaNode(cont.get());
     quotaNode->replaceCore(qnc);
   } catch (const eos::MDException& e) {
