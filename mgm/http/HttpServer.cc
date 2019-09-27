@@ -237,14 +237,25 @@ HttpServer::XrdHttpHandler(std::string& method,
   WAIT_BOOT;
   headers["client-real-ip"] = "NOIPLOOKUP";
   headers["client-real-host"] = client.host;
+  headers["x-real-ip"] = client.host;
 
   if (client.moninfo && strlen(client.moninfo)) {
     headers["ssl_client_s_dn"] = client.moninfo;
-    headers["x-real-ip"] = client.host;
+  }
+
+  // If request contains a bearer token then we need to update the
+  // "remote-user" header to the real identity of the client as it
+  // was embedded in the bearer token and then saved in client.name;
+  auto it = headers.find("authorization");
+
+  if (it != headers.end()) {
+    if ((it->second.find("Bearer") == 0) && (client.name != nullptr)) {
+      headers["remote-user"] = client.name;
+    }
   }
 
   eos::common::VirtualIdentity* vid = Authenticate(headers);
-  eos_static_info("request=%s client-real-ip=%s client-real-host=%s vid.uid=%s vid.gid=%s vid.host=%s vid.dn=%s vid.tident=%s\n",
+  eos_static_info("request=%s client-real-ip=%s client-real-host=%s vid.uid=%s vid.gid=%s vid.host=%s vid.dn=%s vid.tident=%s",
                   method.c_str(), headers["client-real-ip"].c_str(),
                   headers["client-real-host"].c_str(),
                   vid->uid_string.c_str(), vid->gid_string.c_str(), vid->host.c_str(),

@@ -324,7 +324,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
           (!Access::gAllowedUsers.count(vid.uid)) &&                          \
           (!Access::gAllowedHosts.count(vid.host)) &&                         \
           (!Access::gAllowedDomains.count(vid.getUserAtDomain()))) {  \
-        eos_err("user access restricted - unauthorized identity vid.uid= "    \
+        eos_err("user access restricted - unauthorized identity vid.uid="    \
                 "%d, vid.gid=%d, vid.host=\"%s\", vid.tident=\"%s\" for "     \
                 "path=\"%s\" user@domain=\"%s\"", vid.uid, vid.gid, vid.host.c_str(),            \
                 (vid.tident.c_str() ? vid.tident.c_str() : ""), inpath,       \

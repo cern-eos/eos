@@ -50,7 +50,6 @@
 #include "common/Mapping.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdSys/XrdSysLogger.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include <string.h>
 #include <sys/syslog.h>

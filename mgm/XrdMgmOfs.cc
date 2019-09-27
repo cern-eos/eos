@@ -294,7 +294,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   setenv("EOSMGMOFS", std::to_string((unsigned long long)this).c_str(), 1);
 
   if (mHttpdPort)  {
-    Httpd.reset(new eos::mgm::HttpServer(mHttpdPort));
+    mHttpd.reset(new eos::mgm::HttpServer(mHttpdPort));
   }
 
   if (mGRPCPort) {
@@ -407,9 +407,9 @@ XrdMgmOfs::OrderlyShutdown()
     EgroupRefresh.reset();
   }
 
-  if (Httpd) {
+  if (mHttpd) {
     eos_warning("%s", "msg=\"stopping and deleting HTTP daemon\"");
-    Httpd.reset();
+    mHttpd.reset();
   }
 
   eos_warning("%s", "msg=\"stopping the transfer engine threads\"");

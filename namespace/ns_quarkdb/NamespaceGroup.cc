@@ -39,27 +39,25 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuarkNamespaceGroup::QuarkNamespaceGroup() {
+QuarkNamespaceGroup::QuarkNamespaceGroup()
+{
   mExecutor.reset(new folly::IOThreadPoolExecutor(48));
 }
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-QuarkNamespaceGroup::~QuarkNamespaceGroup() {
+QuarkNamespaceGroup::~QuarkNamespaceGroup()
+{
   mCacheRefreshListener.reset();
-
   mSyncAccounting.reset();
   mContainerAccounting.reset();
   mFilesystemView.reset();
-
   mHierarchicalView.reset();
   mFileService.reset();
   mContainerService.reset();
-
   mMetadataFlusher.reset();
   mQuotaFlusher.reset();
-
   mQClient.reset();
   mExecutor.reset();
 }
@@ -71,48 +69,53 @@ QuarkNamespaceGroup::~QuarkNamespaceGroup() {
 // Initialization may fail - in such case, "false" will be returned, and
 // "err" will be filled out.
 //------------------------------------------------------------------------------
-bool QuarkNamespaceGroup::initialize(eos::common::RWMutex* nsMtx, const std::map<std::string, std::string> &config, std::string &err) {
+bool QuarkNamespaceGroup::initialize(eos::common::RWMutex* nsMtx,
+                                     const std::map<std::string, std::string>& config,
+                                     std::string& err)
+{
   mNsMutex = nsMtx;
-
   // Mandatory configuration option: queue_path
   auto it = config.find("queue_path");
-  if(it == config.end()) {
+
+  if (it == config.end()) {
     err = "configuration key queue_path not found!";
     return false;
   }
 
   queuePath = it->second;
-
   // Mandatory configuration option: qdb_cluster
   it = config.find("qdb_cluster");
-  if(it == config.end()) {
+
+  if (it == config.end()) {
     err = "configuration key qdb_cluster not found!";
     return false;
   }
 
-  if(!contactDetails.members.parse(it->second)) {
+  if (!contactDetails.members.parse(it->second)) {
     err = "could not parse qdb_cluster!";
     return false;
   }
 
   // Optional configuration option: qdb_password
   it = config.find("qdb_password");
-  if(it != config.end()) {
+
+  if (it != config.end()) {
     contactDetails.password = it->second;
   }
 
   // Mandatory configuration: qdb_flusher_md
   it = config.find("qdb_flusher_md");
-  if(it == config.end()) {
+
+  if (it == config.end()) {
     err = "configuration key qdb_flusher_md not found!";
     return false;
   }
 
   flusherMDTag = it->second;
-
   // Mandatory configuration: qdb_flusher_quota
   it = config.find("qdb_flusher_quota");
-  if(it == config.end()) {
+
+  if (it == config.end()) {
     err = "configuration key qdb_flusher_quota not found!";
     return false;
   }
@@ -130,15 +133,17 @@ bool QuarkNamespaceGroup::initialize(eos::common::RWMutex* nsMtx, const std::map
 //------------------------------------------------------------------------------
 // Initialize file and container services
 //------------------------------------------------------------------------------
-void QuarkNamespaceGroup::initializeFileAndContainerServices() {
+void QuarkNamespaceGroup::initializeFileAndContainerServices()
+{
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
-  if(!mFileService) {
+  if (!mFileService) {
     mFileService.reset(new QuarkFileMDSvc(getQClient(), getMetadataFlusher()));
   }
 
-  if(!mContainerService) {
-    mContainerService.reset(new QuarkContainerMDSvc(getQClient(), getMetadataFlusher()));
+  if (!mContainerService) {
+    mContainerService.reset(new QuarkContainerMDSvc(getQClient(),
+                            getMetadataFlusher()));
   }
 
   mContainerService->setFileMDService(mFileService.get());
@@ -148,10 +153,11 @@ void QuarkNamespaceGroup::initializeFileAndContainerServices() {
 //------------------------------------------------------------------------------
 // Provide file service
 //------------------------------------------------------------------------------
-IFileMDSvc* QuarkNamespaceGroup::getFileService() {
+IFileMDSvc* QuarkNamespaceGroup::getFileService()
+{
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
-  if(!mFileService) {
+  if (!mFileService) {
     initializeFileAndContainerServices();
   }
 
@@ -161,10 +167,11 @@ IFileMDSvc* QuarkNamespaceGroup::getFileService() {
 //------------------------------------------------------------------------------
 // Provide container service
 //------------------------------------------------------------------------------
-IContainerMDSvc* QuarkNamespaceGroup::getContainerService() {
+IContainerMDSvc* QuarkNamespaceGroup::getContainerService()
+{
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
-  if(!mContainerService) {
+  if (!mContainerService) {
     initializeFileAndContainerServices();
   }
 
@@ -174,11 +181,13 @@ IContainerMDSvc* QuarkNamespaceGroup::getContainerService() {
 //------------------------------------------------------------------------------
 // Provide hieararchical view
 //------------------------------------------------------------------------------
-IView* QuarkNamespaceGroup::getHierarchicalView() {
+IView* QuarkNamespaceGroup::getHierarchicalView()
+{
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
-  if(!mHierarchicalView) {
-    mHierarchicalView.reset(new QuarkHierarchicalView(getQClient(), getQuotaFlusher()));
+  if (!mHierarchicalView) {
+    mHierarchicalView.reset(new QuarkHierarchicalView(getQClient(),
+                            getQuotaFlusher()));
     mHierarchicalView->setFileMDSvc(getFileService());
     mHierarchicalView->setContainerMDSvc(getContainerService());
   }
@@ -189,11 +198,13 @@ IView* QuarkNamespaceGroup::getHierarchicalView() {
 //------------------------------------------------------------------------------
 // Provide filesystem view
 //------------------------------------------------------------------------------
-IFsView* QuarkNamespaceGroup::getFilesystemView() {
+IFsView* QuarkNamespaceGroup::getFilesystemView()
+{
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
-  if(!mFilesystemView) {
-    mFilesystemView.reset(new QuarkFileSystemView(getQClient(), getMetadataFlusher()));
+  if (!mFilesystemView) {
+    mFilesystemView.reset(new QuarkFileSystemView(getQClient(),
+                          getMetadataFlusher()));
     getFileService()->addChangeListener(mFilesystemView.get());
   }
 
@@ -203,11 +214,13 @@ IFsView* QuarkNamespaceGroup::getFilesystemView() {
 //------------------------------------------------------------------------------
 // Provide container accounting view
 //------------------------------------------------------------------------------
-IFileMDChangeListener* QuarkNamespaceGroup::getContainerAccountingView() {
+IFileMDChangeListener* QuarkNamespaceGroup::getContainerAccountingView()
+{
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
-  if(!mContainerAccounting) {
-    mContainerAccounting.reset(new QuarkContainerAccounting(getContainerService(), mNsMutex));
+  if (!mContainerAccounting) {
+    mContainerAccounting.reset(new QuarkContainerAccounting(getContainerService(),
+                               mNsMutex));
     getFileService()->addChangeListener(mContainerAccounting.get());
     getContainerService()->setContainerAccounting(mContainerAccounting.get());
   }
@@ -218,11 +231,13 @@ IFileMDChangeListener* QuarkNamespaceGroup::getContainerAccountingView() {
 //------------------------------------------------------------------------------
 // Provide sync time accounting view
 //------------------------------------------------------------------------------
-IContainerMDChangeListener* QuarkNamespaceGroup::getSyncTimeAccountingView() {
+IContainerMDChangeListener* QuarkNamespaceGroup::getSyncTimeAccountingView()
+{
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
-  if(!mSyncAccounting) {
-    mSyncAccounting.reset(new QuarkSyncTimeAccounting(getContainerService(), mNsMutex));
+  if (!mSyncAccounting) {
+    mSyncAccounting.reset(new QuarkSyncTimeAccounting(getContainerService(),
+                          mNsMutex));
     getContainerService()->addChangeListener(mSyncAccounting.get());
   }
 
@@ -232,17 +247,19 @@ IContainerMDChangeListener* QuarkNamespaceGroup::getSyncTimeAccountingView() {
 //------------------------------------------------------------------------------
 // Provide quota stats
 //------------------------------------------------------------------------------
-IQuotaStats* QuarkNamespaceGroup::getQuotaStats() {
+IQuotaStats* QuarkNamespaceGroup::getQuotaStats()
+{
   return getHierarchicalView()->getQuotaStats();
 }
 
 //------------------------------------------------------------------------------
 // Get metadata flusher
 //------------------------------------------------------------------------------
-MetadataFlusher* QuarkNamespaceGroup::getMetadataFlusher() {
+MetadataFlusher* QuarkNamespaceGroup::getMetadataFlusher()
+{
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
-  if(!mMetadataFlusher) {
+  if (!mMetadataFlusher) {
     std::string path = SSTR(queuePath << "/" << flusherMDTag);
     mMetadataFlusher.reset(new MetadataFlusher(path, contactDetails));
   }
@@ -253,10 +270,11 @@ MetadataFlusher* QuarkNamespaceGroup::getMetadataFlusher() {
 //------------------------------------------------------------------------------
 // Get quota flusher
 //------------------------------------------------------------------------------
-MetadataFlusher* QuarkNamespaceGroup::getQuotaFlusher() {
+MetadataFlusher* QuarkNamespaceGroup::getQuotaFlusher()
+{
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
-  if(!mQuotaFlusher) {
+  if (!mQuotaFlusher) {
     std::string path = SSTR(queuePath << "/" << flusherQuotaTag);
     mQuotaFlusher.reset(new MetadataFlusher(path, contactDetails));
   }
@@ -267,11 +285,13 @@ MetadataFlusher* QuarkNamespaceGroup::getQuotaFlusher() {
 //------------------------------------------------------------------------------
 // Get generic qclient object for light-weight tasks
 //------------------------------------------------------------------------------
-qclient::QClient* QuarkNamespaceGroup::getQClient() {
+qclient::QClient* QuarkNamespaceGroup::getQClient()
+{
   std::lock_guard<std::recursive_mutex> lock(mMutex);
 
-  if(!mQClient) {
-    mQClient = std::make_unique<qclient::QClient>(contactDetails.members, contactDetails.constructOptions());
+  if (!mQClient) {
+    mQClient = std::make_unique<qclient::QClient>(contactDetails.members,
+               contactDetails.constructOptions());
   }
 
   return mQClient.get();
@@ -280,7 +300,8 @@ qclient::QClient* QuarkNamespaceGroup::getQClient() {
 //------------------------------------------------------------------------------
 // Get folly executor
 //------------------------------------------------------------------------------
-folly::Executor* QuarkNamespaceGroup::getExecutor() {
+folly::Executor* QuarkNamespaceGroup::getExecutor()
+{
   std::lock_guard<std::recursive_mutex> lock(mMutex);
   return mExecutor.get();
 }

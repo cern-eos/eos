@@ -1668,7 +1668,7 @@ public:
   //! Shared Hash/Queue Object Change Notifier
   XrdMqSharedObjectChangeNotifier ObjectNotifier;
   Drainer mDrainEngine; ///< Centralized draining
-  std::unique_ptr<HttpServer> Httpd; ///<  Http daemon if available
+  std::unique_ptr<HttpServer> mHttpd; ///<  Http daemon if available
 
   std::unique_ptr<GrpcServer> GRPCd; ///< GRPC server
 

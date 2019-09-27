@@ -1816,8 +1816,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   // create the 'default' quota space which is needed if quota is disabled!
-  if (Httpd) {
-    if (!Httpd->Start()) {
+  if (mHttpd) {
+    if (!mHttpd->Start()) {
       eos_warning("msg=\"cannot start httpd daemon\"");
     }
   }
