@@ -447,7 +447,7 @@ int Inspector::checkNamingConflicts(bool onePerLine, std::ostream& out, std::ost
 // Check if file / container name is cursed
 //------------------------------------------------------------------------------
 static bool isCursedName(const std::string &name) {
-  if (name == "." || name == ".." || name.find("/") != std::string::npos) {
+  if (name == "" || name == "." || name == ".." || name.find("/") != std::string::npos) {
     return true;
   }
 
