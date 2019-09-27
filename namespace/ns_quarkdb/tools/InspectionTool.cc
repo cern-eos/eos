@@ -108,6 +108,35 @@ int main(int argc, char* argv[]) {
   dumpSubcommand->add_flag("--no-dirs", noDirs, "Don't print directories, only files");
 
   //----------------------------------------------------------------------------
+  // Set-up print subcommand..
+  //----------------------------------------------------------------------------
+  auto printSubcommand = app.add_subcommand("print", "Print everything known about a given file, or container");
+  addClusterOptions(printSubcommand, membersStr, memberValidator, password, passwordFile);
+
+  uint64_t fid = 0;
+  uint64_t cid = 0;
+
+  auto idGroup = printSubcommand->add_option_group("ID", "Specify what to print");
+  idGroup->add_option("--fid", fid, "Specify the FileMD to print, through its ID (decimal form)");
+  idGroup->add_option("--cid", cid, "Specify the ContainerMD to print, through its ID (decimal form)");
+  idGroup->require_option(1, 1);
+
+  //----------------------------------------------------------------------------
+  // Set-up stripediff subcommand..
+  //----------------------------------------------------------------------------
+  auto stripediffSubcommand = app.add_subcommand("stripediff", "Find files which have non-nominal number of stripes (replicas)");
+  addClusterOptions(stripediffSubcommand, membersStr, memberValidator, password, passwordFile);
+
+  bool printTime = false;
+  stripediffSubcommand->add_flag("--time", printTime, "Print mtime and ctime of found files");
+
+  //----------------------------------------------------------------------------
+  // Set-up one-replica-layout subcommand..
+  //----------------------------------------------------------------------------
+  auto oneReplicaLayoutSubcommand = app.add_subcommand("one-replica-layout", "Find all files whose layout asks for a single replica");
+  addClusterOptions(oneReplicaLayoutSubcommand, membersStr, memberValidator, password, passwordFile);
+
+  //----------------------------------------------------------------------------
   // Set-up scan-directories subcommand..
   //----------------------------------------------------------------------------
   auto scanDirsSubcommand = app.add_subcommand("scan-dirs", "Dump the full list of container metadata across the entire namespace");
@@ -141,21 +170,6 @@ int main(int argc, char* argv[]) {
   addClusterOptions(cursedNamesSubcommand, membersStr, memberValidator, password, passwordFile);
 
   //----------------------------------------------------------------------------
-  // Set-up stripediff subcommand..
-  //----------------------------------------------------------------------------
-  auto stripediffSubcommand = app.add_subcommand("stripediff", "Find files which have non-nominal number of stripes (replicas)");
-  addClusterOptions(stripediffSubcommand, membersStr, memberValidator, password, passwordFile);
-
-  bool printTime = false;
-  stripediffSubcommand->add_flag("--time", printTime, "Print mtime and ctime of found files");
-
-  //----------------------------------------------------------------------------
-  // Set-up one-replica-layout subcommand..
-  //----------------------------------------------------------------------------
-  auto oneReplicaLayoutSubcommand = app.add_subcommand("one-replica-layout", "Find all files whose layout asks for a single replica");
-  addClusterOptions(oneReplicaLayoutSubcommand, membersStr, memberValidator, password, passwordFile);
-
-  //----------------------------------------------------------------------------
   // Set-up check-orphans subcommand..
   //----------------------------------------------------------------------------
   auto checkOrphansSubcommand = app.add_subcommand("check-orphans", "Find files and directories with invalid parents");
@@ -184,20 +198,6 @@ int main(int argc, char* argv[]) {
   //----------------------------------------------------------------------------
   auto checkSimulatedHardlinks = app.add_subcommand("check-simulated-hardlinks", "Check for corruption in simulated hardlinks");
   addClusterOptions(checkSimulatedHardlinks, membersStr, memberValidator, password, passwordFile);
-
-  //----------------------------------------------------------------------------
-  // Set-up print subcommand..
-  //----------------------------------------------------------------------------
-  auto printSubcommand = app.add_subcommand("print", "Print everything known about a given file, or container");
-  addClusterOptions(printSubcommand, membersStr, memberValidator, password, passwordFile);
-
-  uint64_t fid = 0;
-  uint64_t cid = 0;
-
-  auto idGroup = printSubcommand->add_option_group("ID", "Specify what to print");
-  idGroup->add_option("--fid", fid, "Specify the FileMD to print, through its ID (decimal form)");
-  idGroup->add_option("--cid", cid, "Specify the ContainerMD to print, through its ID (decimal form)");
-  idGroup->require_option(1, 1);
 
   //----------------------------------------------------------------------------
   // Change fid protobuf properties
