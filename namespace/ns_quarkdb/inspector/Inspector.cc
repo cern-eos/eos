@@ -322,6 +322,20 @@ public:
     return serialize(containers);
   }
 
+  void printMultipleLines(const std::string &name, uint64_t parentContainer, std::ostream &out) const {
+    if(!hasConflict()) {
+      return;
+    }
+
+    for(auto it = files.begin(); it != files.end(); it++) {
+      out << "name=" << name << " under-container=" << parentContainer << " conflicting-file=" << *it << std::endl;
+    }
+
+    for(auto it = containers.begin(); it != containers.end(); it++) {
+      out << "name=" << name << "  under-container=" << parentContainer << " conflicting-container=" << *it << std::endl;
+    }
+  }
+
   void printSingleLine(const std::string &name, uint64_t parentContainer,  std::ostream &out) const {
     if(!hasConflict()) {
       return;
@@ -363,7 +377,13 @@ private:
 void findConflicts(bool onePerLine, std::ostream& out, uint64_t parentContainer, const std::map<std::string, ConflictSet> &nameMapping) {
   for(auto it = nameMapping.begin(); it != nameMapping.end(); it++) {
     const ConflictSet &conflictSet = it->second;
-    conflictSet.printSingleLine(it->first, parentContainer, out);
+
+    if(!onePerLine) {
+      conflictSet.printSingleLine(it->first, parentContainer, out);
+    }
+    else {
+      conflictSet.printMultipleLines(it->first, parentContainer, out);
+    }
   }
 }
 
@@ -380,8 +400,6 @@ int Inspector::checkNamingConflicts(bool onePerLine, std::ostream& out, std::ost
 
   eos::ns::FileMdProto fileProto;
   fileProto.set_cont_id(0);
-
-  uint64_t currentParentId = 0;
 
   while (containerScanner.valid()) {
     eos::ns::ContainerMdProto proto;
@@ -422,7 +440,6 @@ int Inspector::checkNamingConflicts(bool onePerLine, std::ostream& out, std::ost
     return 1;
   }
 
-out:
   return 0;
 }
 
