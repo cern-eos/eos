@@ -77,7 +77,7 @@ public:
   //! Check intra-container conflicts, such as a container having two entries
   //! with the name name.
   //----------------------------------------------------------------------------
-  int checkNamingConflicts(std::ostream &out, std::ostream &err);
+  int checkNamingConflicts(bool onePerLine, std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
   //! Search for files / containers with cursed names

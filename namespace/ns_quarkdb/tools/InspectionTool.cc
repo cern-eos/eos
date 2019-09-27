@@ -122,6 +122,9 @@ int main(int argc, char* argv[]) {
   auto namingConflictsSubcommand = app.add_subcommand("check-naming-conflicts", "Scan through the entire namespace looking for naming conflicts");
   addClusterOptions(namingConflictsSubcommand, membersStr, memberValidator, password, passwordFile);
 
+  bool onePerLine = false;
+  namingConflictsSubcommand->add_flag("--one-per-line", onePerLine, "Don't group results in a single line - useful to count how many conflicts there are in total");
+
   //----------------------------------------------------------------------------
   // Set-up check-cursed-names subcommand..
   //----------------------------------------------------------------------------
@@ -283,7 +286,7 @@ int main(int argc, char* argv[]) {
   }
 
   if(namingConflictsSubcommand->parsed()) {
-    return inspector.checkNamingConflicts(std::cout, std::cerr);
+    return inspector.checkNamingConflicts(onePerLine, std::cout, std::cerr);
   }
 
   if(cursedNamesSubcommand->parsed()) {
