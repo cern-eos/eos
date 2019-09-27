@@ -322,6 +322,24 @@ public:
     return serialize(containers);
   }
 
+  void printSingleLine(const std::string &name, uint64_t parentContainer,  std::ostream &out) const {
+    if(!hasConflict()) {
+      return;
+    }
+
+    out << "name=" << name << " under-container=" << parentContainer;
+
+    if(!files.empty()) {
+      out << " conflicting-files=" << serializeFiles();
+    }
+
+    if(!containers.empty()) {
+      out << " conflicting-containers=" << serializeContainers();
+    }
+
+    out << std::endl;
+  }
+
 private:
   static std::string serialize(const std::set<uint64_t> &target) {
     std::ostringstream ss;
@@ -342,24 +360,10 @@ private:
 //------------------------------------------------------------------------------
 // Find conflicts
 //------------------------------------------------------------------------------
-void findConflicts(std::ostream& out, uint64_t parentContainer, const std::map<std::string, ConflictSet> &nameMapping) {
+void findConflicts(bool onePerLine, std::ostream& out, uint64_t parentContainer, const std::map<std::string, ConflictSet> &nameMapping) {
   for(auto it = nameMapping.begin(); it != nameMapping.end(); it++) {
     const ConflictSet &conflictSet = it->second;
-
-    if(conflictSet.hasConflict()) {
-      std::ostringstream ss;
-      ss << "name=" << it->first << " under-container=" << parentContainer;
-
-      if(!conflictSet.files.empty()) {
-        ss << " conflicting-files=" << conflictSet.serializeFiles();
-      }
-
-      if(!conflictSet.containers.empty()) {
-        ss << " conflicting-containers=" << conflictSet.serializeContainers();
-      }
-
-      out << ss.str() << std::endl;
-    }
+    conflictSet.printSingleLine(it->first, parentContainer, out);
   }
 }
 
@@ -367,7 +371,7 @@ void findConflicts(std::ostream& out, uint64_t parentContainer, const std::map<s
 // Check intra-container conflicts, such as a container having two entries
 // with the name name.
 //------------------------------------------------------------------------------
-int Inspector::checkNamingConflicts(std::ostream& out, std::ostream& err)
+int Inspector::checkNamingConflicts(bool onePerLine, std::ostream& out, std::ostream& err)
 {
   std::string errorString;
   ContainerScanner containerScanner(mQcl);
@@ -409,7 +413,7 @@ int Inspector::checkNamingConflicts(std::ostream& out, std::ostream& err)
       fileScanner.getItem(fileProto);
     }
 
-    findConflicts(out, currentParentId, nameMapping);
+    findConflicts(onePerLine, out, currentParentId, nameMapping);
     nameMapping.clear();
   }
 
