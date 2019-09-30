@@ -405,9 +405,6 @@ protected:
   //! to avoid race conditions in deletion.
   XrdMqSharedObjectManager* mSom;
 
-  //! Handle to the drain queue
-  TransferQueue* mDrainQueue;
-
   //! Handle to the balance queue
   TransferQueue* mBalanceQueue;
 
@@ -736,15 +733,6 @@ public:
   GetDouble(const char* key)
   {
     return ParseDouble(GetString(key));
-  }
-
-  //----------------------------------------------------------------------------
-  //! Return handle to the drain queue.
-  //----------------------------------------------------------------------------
-  TransferQueue*
-  GetDrainQueue()
-  {
-    return mDrainQueue;
   }
 
   //----------------------------------------------------------------------------
