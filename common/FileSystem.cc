@@ -508,14 +508,11 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
     }
 
     mq::SharedHashWrapper(mHashLocator).set(updateBatch);
-    mDrainQueue = new TransferQueue(TransferQueueLocator(mLocator, "drainq"),
-                                    mSom, qsom, bc2mgm);
     mBalanceQueue = new TransferQueue(TransferQueueLocator(mLocator, "balanceq"),
                                       mSom, qsom, bc2mgm);
     mExternQueue = new TransferQueue(TransferQueueLocator(mLocator, "externq"),
                                      mSom, qsom, bc2mgm);
   } else {
-    mDrainQueue = 0;
     mBalanceQueue = 0;
     mExternQueue = 0;
   }
@@ -535,10 +532,6 @@ FileSystem::~FileSystem()
   // remove the shared hash of this file system
   if (mSom) {
     mSom->DeleteSharedHash(mLocator.getQueuePath().c_str(), BroadCastDeletion);
-  }
-
-  if (mDrainQueue) {
-    delete mDrainQueue;
   }
 
   if (mBalanceQueue) {
