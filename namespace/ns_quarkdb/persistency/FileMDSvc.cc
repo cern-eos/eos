@@ -29,6 +29,7 @@
 #include "namespace/ns_quarkdb/ConfigurationParser.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/utils/StringConvertion.hh"
+#include "common/StacktraceHere.hh"
 #include <numeric>
 
 EOSNSNAMESPACE_BEGIN
@@ -213,6 +214,11 @@ QuarkFileMDSvc::createFile(IFileMD::id_t id)
 void
 QuarkFileMDSvc::updateStore(IFileMD* obj)
 {
+  if(obj->getName() == "") {
+    eos_static_crit("updateFileStore called on file with empty name; id=%llu, parent=%llu, trace=%s", obj->getId(), obj->getContainerId(), common::getStacktrace().c_str());
+    // eventually throw, once we understand how this happens
+  }
+
   pFlusher->execute(RequestBuilder::writeFileProto(obj));
 
   // If file is detached then add it to the list of orphans
