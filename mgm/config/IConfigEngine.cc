@@ -201,10 +201,13 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val, void* arg)
 //------------------------------------------------------------------------------
 // Publish the given configuration change
 //------------------------------------------------------------------------------
-void IConfigEngine::publishConfigChange(const std::string &key, const std::string &value) {
-  eos_notice("Publishing configuration change %s => %s", key.c_str(), value.c_str());
-
+void IConfigEngine::publishConfigChange(const std::string& key,
+                                        const std::string& value)
+{
+  eos_info("msg=\"publish configuration change\" key=\"%s\" val=\"%s\"",
+           key.c_str(), value.c_str());
   XrdOucString repval = value.c_str();
+
   while (repval.replace("&", " ")) {}
 
   mq::SharedHashWrapper::makeGlobalMgmHash().set(key, repval.c_str());
@@ -213,8 +216,10 @@ void IConfigEngine::publishConfigChange(const std::string &key, const std::strin
 //------------------------------------------------------------------------------
 // Publish the deletion of the given configuration key
 //------------------------------------------------------------------------------
-void IConfigEngine::publishConfigDeletion(const std::string &key) {
-  eos_static_info("Publishing deletion of configuration key %s", key.c_str());
+void IConfigEngine::publishConfigDeletion(const std::string& key)
+{
+  eos_info("msg=\"publish deletion of configuration\" key=\"%s\"",
+           key.c_str());
   mq::SharedHashWrapper::makeGlobalMgmHash().del(key);
 }
 
@@ -413,21 +418,24 @@ IConfigEngine::ParseConfig(XrdOucString& inconfig, XrdOucString& err)
 // Dump method for selective configuration printing
 //------------------------------------------------------------------------------
 bool
-IConfigEngine::DumpConfig(XrdOucString& out, const std::string& filename) {
-
+IConfigEngine::DumpConfig(XrdOucString& out, const std::string& filename)
+{
   struct PrintInfo pinfo;
   pinfo.out = &out;
   pinfo.option = "";
 
   if (filename.empty()) {
     XrdSysMutexHelper lock(mMutex);
-    for(auto & sConfigDefinition : sConfigDefinitions) {
-      eos_static_debug("%s => %s", sConfigDefinition.first.c_str(), sConfigDefinition.second.c_str());
-      out += (sConfigDefinition.first + " => " + sConfigDefinition.second + "\n").c_str();
+
+    for (auto& sConfigDefinition : sConfigDefinitions) {
+      eos_static_debug("%s => %s", sConfigDefinition.first.c_str(),
+                       sConfigDefinition.second.c_str());
+      out += (sConfigDefinition.first + " => " + sConfigDefinition.second +
+              "\n").c_str();
     }
+
     while (out.replace("&", " ")) {}
-  }
-  else {
+  } else {
     FilterConfig(pinfo, out, filename.c_str());
   }
 
@@ -436,7 +444,7 @@ IConfigEngine::DumpConfig(XrdOucString& out, const std::string& filename) {
 }
 
 
-    //------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Reset the configuration
 //------------------------------------------------------------------------------
 void
