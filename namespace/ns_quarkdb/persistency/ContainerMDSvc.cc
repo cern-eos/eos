@@ -28,6 +28,7 @@
 #include "namespace/ns_quarkdb/ConfigurationParser.hh"
 #include "common/Assert.hh"
 #include "common/Logging.hh"
+#include "common/StacktraceHere.hh"
 #include <memory>
 #include <numeric>
 
@@ -220,6 +221,11 @@ QuarkContainerMDSvc::createContainer(IContainerMD::id_t id)
 void
 QuarkContainerMDSvc::updateStore(IContainerMD* obj)
 {
+  if(obj->getName() == "") {
+    eos_static_crit("updateContainerStore called on container with empty name; id=%llu, parent=%llu, trace=%s", obj->getId(), obj->getParentId(), common::getStacktrace().c_str());
+    // eventually throw, once we understand how this happens
+  }
+
   pFlusher->execute(RequestBuilder::writeContainerProto(obj));
 }
 

@@ -40,6 +40,7 @@ std::string getStacktrace()
 std::string getStacktrace()
 {
   if(getenv("EOS_ENABLE_BACKWARD_STACKTRACE")) {
+    // Very heavy-weight stacktrace, only use during development.
     std::ostringstream ss;
     backward::StackTrace st;
     st.load_here(128);
@@ -94,19 +95,19 @@ std::string getStacktrace()
       if (status == 0) {
         o << "[bt]: (" << i << ") " << messages[i] << " : "
         << real_name << "+" << offset_begin << offset_end
-        << std::endl;
+        << " ";
       }
       // otherwise, output the mangled function name
       else {
         o << "[bt]: (" << i << ") " << messages[i] << " : "
         << mangled_name << "+" << offset_begin << offset_end
-        << std::endl;
+        << " ";
       }
       free(real_name);
     }
     // otherwise, print the whole line
     else {
-      o << "[bt]: (" << i << ") " << messages[i] << std::endl;
+      o << "[bt]: (" << i << ") " << messages[i] << " ";
     }
   }
 
