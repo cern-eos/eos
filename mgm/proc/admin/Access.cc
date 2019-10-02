@@ -151,17 +151,12 @@ ProcCommand::Access()
 
       if (!errc) {
         if (Access::gBannedUsers.count(uid)) {
-          if (Access::StoreAccessConfig()) {
-            Access::gBannedUsers.erase(uid);
+          Access::gBannedUsers.erase(uid);
 
-            if (Access::StoreAccessConfig()) {
-              stdOut = "success: unban user '", stdOut += user.c_str();
-              stdOut += "'";
-              retc = 0;
-            } else {
-              stdErr = "error: unable to store access configuration";
-              retc = EIO;
-            }
+          if (Access::StoreAccessConfig()) {
+            stdOut = "success: unban user '", stdOut += user.c_str();
+            stdOut += "'";
+            retc = 0;
           } else {
             stdErr = "error: unable to store access configuration";
             retc = EIO;
@@ -340,17 +335,12 @@ ProcCommand::Access()
 
       if (!errc) {
         if (Access::gAllowedUsers.count(uid)) {
-          if (Access::StoreAccessConfig()) {
-            Access::gAllowedUsers.erase(uid);
+          Access::gAllowedUsers.erase(uid);
 
-            if (Access::StoreAccessConfig()) {
-              stdOut = "success: unallow user '", stdOut += user.c_str();
-              stdOut += "'";
-              retc = 0;
-            } else {
-              stdErr = "error: unable to store access configuration";
-              retc = EIO;
-            }
+          if (Access::StoreAccessConfig()) {
+            stdOut = "success: unallow user '", stdOut += user.c_str();
+            stdOut += "'";
+            retc = 0;
           } else {
             stdErr = "error: unable to store access configuration";
             retc = EIO;
@@ -621,8 +611,7 @@ ProcCommand::Access()
         stdErr = "error: there is no global redirection defined";
         retc = EINVAL;
       }
-    }
-    else {
+    } else {
       if ((Access::gStallRules.count(std::string("*")) && ((type.length() == 0))) ||
           (Access::gStallRules.count(std::string("r:*")) && (type == "r")) ||
           (Access::gStallRules.count(std::string("w:*")) && (type == "w")) ||
