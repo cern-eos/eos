@@ -136,7 +136,7 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs,
       // Check if we have reached the max fs per node for this node
       if (it_drainfs->second.size() >=
           MaxDrainFsInParallel(src_snapshot.mSpace)) {
-        fs->SetDrainStatus(eos::common::DrainStatus::kDrainWait, false);
+        fs->SetDrainStatus(eos::common::DrainStatus::kDrainWait);
         mPending.push_back(std::make_pair(src_fsid, dst_fsid));
         return true;
       }
@@ -188,7 +188,7 @@ Drainer::StopFsDrain(eos::mgm::FileSystem* fs, std::string& err)
       (void) mPending.erase(it_pending);
     }
 
-    fs->SetDrainStatus(eos::common::DrainStatus::kNoDrain, false);
+    fs->SetDrainStatus(eos::common::DrainStatus::kNoDrain);
   } else {
     (*it)->SignalStop();
   }

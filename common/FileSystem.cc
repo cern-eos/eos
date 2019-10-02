@@ -46,14 +46,6 @@ void FileSystemUpdateBatch::setId(fsid_t fsid)
   setLongLongDurable("id", fsid);
 }
 
-//------------------------------------------------------------------------------
-// Set the draining status - durable.
-//------------------------------------------------------------------------------
-void FileSystemUpdateBatch::setDrainStatus(DrainStatus status)
-{
-  setStringDurable("stat.drain", FileSystem::GetDrainStatusAsString(status));
-}
-
 //----------------------------------------------------------------------------
 // Set the draining status - local.
 //----------------------------------------------------------------------------
@@ -501,7 +493,7 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
     updateBatch.setDurable("hostport", locator.getHostPort());
     updateBatch.setDurable("host", locator.getHost());
     updateBatch.setDurable("port", std::to_string(locator.getPort()));
-    updateBatch.setTransient("stat.drain", "nodrain");
+    updateBatch.setLocal("stat.drain", "nodrain");
 
     if (!bc2mgm) {
       updateBatch.setDurable("configstatus", "down");
