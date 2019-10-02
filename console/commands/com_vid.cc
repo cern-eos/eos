@@ -181,8 +181,8 @@ com_vid(char* arg1)
         goto com_vid_usage;
       }
 
-      if (type.beginswith("-h") || type.beginswith("=-h")) {
-        goto com_vid_usage;
+      if ( (type.beginswith("-h") || type.beginswith("=-h")) && (type!= "-https")) {
+	goto com_vid_usage;
       }
 
       bool hastype = false;
