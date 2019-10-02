@@ -139,11 +139,6 @@ public:
   void setId(fsid_t fsid);
 
   //----------------------------------------------------------------------------
-  //! Set the draining status - durable.
-  //----------------------------------------------------------------------------
-  void setDrainStatus(DrainStatus status);
-
-  //----------------------------------------------------------------------------
   //! Set the draining status - local.
   //----------------------------------------------------------------------------
   void setDrainStatusLocal(DrainStatus status);
@@ -694,9 +689,9 @@ public:
   //! Set the draining status
   //----------------------------------------------------------------------------
   bool
-  SetDrainStatus(DrainStatus status, bool broadcast = true)
+  SetDrainStatus(DrainStatus status)
   {
-    return SetString("stat.drain", GetDrainStatusAsString(status), broadcast);
+    return SetString("stat.drain", GetDrainStatusAsString(status), false);
   }
 
   //----------------------------------------------------------------------------
