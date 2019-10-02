@@ -24,15 +24,10 @@
 #ifndef __EOSFST_TRANSFERQUEUE__
 #define __EOSFST_TRANSFERQUEUE__
 
-/* ------------------------------------------------------------------------- */
 #include "fst/Namespace.hh"
 #include "common/TransferQueue.hh"
-/* ------------------------------------------------------------------------- */
-/* ------------------------------------------------------------------------- */
 #include <string>
 #include <pthread.h>
-
-/* ------------------------------------------------------------------------- */
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -40,24 +35,20 @@ class TransferQueue
 {
 private:
   eos::common::TransferQueue** mQueue;
-
   size_t nslots, bandwidth;
-
   size_t mJobsRunning;
   unsigned long long mJobsDone;
-
   XrdSysMutex mJobsRunningMutex;
   XrdSysMutex mBandwidthMutex;
   XrdSysMutex mSlotsMutex;
   XrdSysMutex mCallbackMutex;
-
   XrdSysCondVar* mJobEndCallback;
 
 public:
-
   TransferQueue(eos::common::TransferQueue** queue,
                 int slots = 2, int band = 100);
-  ~TransferQueue();
+
+  ~TransferQueue() = default;
 
   eos::common::TransferQueue*
   GetQueue()
@@ -91,7 +82,6 @@ public:
     XrdSysMutexHelper lock_jobs(mJobsRunningMutex);
     mJobsRunning--;
     mJobsDone++;
-
     // signal a call-back condition variable
     {
       XrdSysMutexHelper lock_cb(mCallbackMutex);

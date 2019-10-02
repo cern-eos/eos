@@ -32,13 +32,6 @@
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// Constructor
-//------------------------------------------------------------------------------
-TransferMultiplexer::TransferMultiplexer()
-{
-}
-
-//------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
 TransferMultiplexer::~TransferMultiplexer()
@@ -108,54 +101,65 @@ TransferMultiplexer::SetSlots(size_t slots)
 // Multiplexer thread loop
 //------------------------------------------------------------------------------
 void
-TransferMultiplexer::ThreadLoop(ThreadAssistant &assistant)
+TransferMultiplexer::ThreadLoop(ThreadAssistant& assistant) noexcept
 {
-  std::string sTmp, src, dest;
-  eos_static_info("running transfer multiplexer with %d queues", mQueues.size());
+  eos_info("msg=\"starting transfer multiplexer with %d queues\"",
+           mQueues.size());
 
-  while(!assistant.terminationRequested()) {
-    eos::common::RWMutexReadLock lock(mMutex);
+  while (!assistant.terminationRequested()) {
+    {
+      eos::common::RWMutexReadLock lock(mMutex);
 
-    for (size_t i = 0; i < mQueues.size(); i++) {
-      while (mQueues[i]->GetQueue()->Size()) {
+      for (size_t i = 0; i < mQueues.size(); i++) {
+        while (mQueues[i]->GetQueue()->Size()) {
+          if (assistant.terminationRequested()) {
+            break;
+          }
 
-        if(assistant.terminationRequested()) break;
+          // look in all registered queues
+          // take an entry from the queue
+          int freeslots = mQueues[i]->GetSlots() - mQueues[i]->GetRunning();
 
-        // look in all registered queues
-        // take an entry from the queue
-        int freeslots = mQueues[i]->GetSlots() - mQueues[i]->GetRunning();
+          if (freeslots <= 0) {
+            break;
+          }
 
-        if (freeslots <= 0) {
-          break;
-        }
+          eos_info("Found %u transfers in queue %s", (unsigned int)
+                   mQueues[i]->GetQueue()->Size(),
+                   mQueues[i]->GetQueue()->getQueuePath().c_str());
+          std::unique_ptr<eos::common::TransferJob> cjob = mQueues[i]->GetQueue()->Get();
 
-        eos_static_info("Found %u transfers in queue %s", (unsigned int)
-                        mQueues[i]->GetQueue()->Size(), mQueues[i]->GetQueue()->getQueuePath().c_str());
-        std::unique_ptr<eos::common::TransferJob> cjob = mQueues[i]->GetQueue()->Get();
+          if (!cjob) {
+            eos_err("%s", "msg=\"no transfer job created\"");
+            break;
+          }
 
-        if (!cjob) {
-          eos_static_err("No transfer job created");
-          break;
-        }
-
-        XrdOucString out = "";
-        cjob->PrintOut(out);
-        eos_static_info("New transfer %s", out.c_str());
-        //create new TransferJob and submit it to the scheduler
-        TransferJob* job = new TransferJob(mQueues[i], std::move(cjob),
+          XrdOucString out = "";
+          cjob->PrintOut(out);
+          eos_info("msg=\"new transfer %s\"", out.c_str());
+          //create new TransferJob and submit it to the scheduler
+          TransferJob* job = new TransferJob(mQueues[i], std::move(cjob),
                                              mQueues[i]->GetBandwidth());
-        gOFS.TransferSchedulerMutex.Lock();
-        gOFS.TransferScheduler->Schedule(job);
-        gOFS.TransferSchedulerMutex.UnLock();
-        mQueues[i]->IncRunning();
+          gOFS.TransferSchedulerMutex.Lock();
+          gOFS.TransferScheduler->Schedule(job);
+          gOFS.TransferSchedulerMutex.UnLock();
+          mQueues[i]->IncRunning();
+        }
       }
     }
-
     assistant.wait_for(std::chrono::milliseconds(100));
   }
 
   // Wait that the scheduler is empty, otherwise we might have callbacks
   // to our queues
+  eos_notice("%s", "msg=\"wait for all scheduled jobs to finish\"");
+  XrdSysMutexHelper lock(gOFS.TransferSchedulerMutex);
+
+  while (gOFS.TransferScheduler->Active()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  }
+
+  eos_notice("%s", "msg=\"stopped transfer multiplexer\"");
 }
 
 EOSFSTNAMESPACE_END

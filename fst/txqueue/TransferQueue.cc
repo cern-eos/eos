@@ -21,14 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/* ------------------------------------------------------------------------- */
 #include "fst/txqueue/TransferQueue.hh"
 #include "fst/txqueue/TransferJob.hh"
 #include "common/Logging.hh"
-/* ------------------------------------------------------------------------- */
 #include <cstdio>
-
-/* ------------------------------------------------------------------------- */
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -43,9 +39,6 @@ TransferQueue::TransferQueue(eos::common::TransferQueue** queue,
   bandwidth = band;
   mJobEndCallback = 0;
 }
-
-/* ------------------------------------------------------------------------- */
-TransferQueue::~TransferQueue() { }
 
 /* ------------------------------------------------------------------------- */
 size_t
@@ -78,4 +71,5 @@ TransferQueue::SetSlots(size_t slots)
   XrdSysMutexHelper lock(mSlotsMutex);
   nslots = slots;
 }
+
 EOSFSTNAMESPACE_END
