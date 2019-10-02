@@ -331,7 +331,8 @@ private:
   GeoTreeElement* pRoot;   ///< The root branch of the tree
   //! All the elements of the tree collected by depth
   std::vector<std::set<GeoTreeElement*, GeoTreeNodeOrderHelper > > pLevels;
-  mutable std::map<fsid_t, GeoTreeElement*> pLeaves; ///< All the leaves of the tree
+  mutable std::map<fsid_t, GeoTreeElement*>
+  pLeaves; ///< All the leaves of the tree
 };
 
 //------------------------------------------------------------------------------
@@ -346,7 +347,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  BaseView(const common::SharedHashLocator &locator ):
+  BaseView(const common::SharedHashLocator& locator):
     mLocator(locator), mHeartBeat(0), mStatus("unknown"), mInQueue(0)
   {}
 
@@ -440,7 +441,7 @@ public:
   //!
   //! Call with fsview lock at-least-read locked.
   //----------------------------------------------------------------------------
-  bool shouldConsiderForStatistics(FileSystem *fs);
+  bool shouldConsiderForStatistics(FileSystem* fs);
 
   //----------------------------------------------------------------------------
   //! Calculate the sum of <param> as long long
@@ -570,8 +571,8 @@ public:
   //! @param name name of the group e.g. 'default.0'
   //----------------------------------------------------------------------------
   FsGroup(const char* name)
-  : BaseView(common::SharedHashLocator::makeForGroup(name)),
-    mIndex(0)
+    : BaseView(common::SharedHashLocator::makeForGroup(name)),
+      mIndex(0)
   {
     mName = name;
     mType = "groupview";
@@ -608,7 +609,7 @@ public:
   //! @param name nodeview name
   //----------------------------------------------------------------------------
   explicit FsNode(const char* name)
-  : BaseView(common::SharedHashLocator::makeForNode(name))
+    : BaseView(common::SharedHashLocator::makeForNode(name))
   {
     mName = name;
     mType = "nodesview";
@@ -719,7 +720,8 @@ public:
   //!
   //! @return true if done, otherwise false
   //----------------------------------------------------------------------------
-  bool Register(FileSystem* fs, const common::FileSystemCoreParams &coreParams, bool registerInGeoTreeEngine = true);
+  bool Register(FileSystem* fs, const common::FileSystemCoreParams& coreParams,
+                bool registerInGeoTreeEngine = true);
 
   //----------------------------------------------------------------------------
   //! Move a filesystem to another group
@@ -869,7 +871,8 @@ public:
 
   void PrintSpaces(std::string& out, const std::string& headerformat,
                    const std::string& listformat, unsigned int geodepth = 0,
-                   const char* selection = 0, const std::string&  filter = "", bool dont_color = false);
+                   const char* selection = 0, const std::string&  filter = "",
+                   bool dont_color = false);
 
   //----------------------------------------------------------------------------
   //! Clear all mappings and filesystem objects obtaining locks
@@ -915,12 +918,12 @@ public:
   //----------------------------------------------------------------------------
   //! Set a global configuration key-val pair
   //----------------------------------------------------------------------------
-  bool SetGlobalConfig(std::string key, std::string value);
+  bool SetGlobalConfig(const std::string& key, const std::string& value);
 
   //----------------------------------------------------------------------------
   //! Get a global configuration value
   //----------------------------------------------------------------------------
-  std::string GetGlobalConfig(std::string key);
+  std::string GetGlobalConfig(const std::string& key);
 
   //----------------------------------------------------------------------------
   //! Broadcast new manager id to all the FST nodes
