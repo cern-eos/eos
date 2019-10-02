@@ -26,6 +26,7 @@
 
 #include "fst/Namespace.hh"
 #include "common/RWMutex.hh"
+#include "common/Logging.hh"
 #include "common/AssistedThread.hh"
 #include <vector>
 
@@ -36,13 +37,13 @@ class TransferQueue;
 //------------------------------------------------------------------------------
 //! Class TransferMultiplexer
 //------------------------------------------------------------------------------
-class TransferMultiplexer
+class TransferMultiplexer: public eos::common::LogId
 {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  TransferMultiplexer();
+  TransferMultiplexer() = default;
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -84,7 +85,7 @@ public:
   //----------------------------------------------------------------------------
   //! Multiplexer thread loop.
   //----------------------------------------------------------------------------
-  void ThreadLoop(ThreadAssistant &assistant);
+  void ThreadLoop(ThreadAssistant& assistant) noexcept;
 
 private:
   eos::common::RWMutex mMutex;
