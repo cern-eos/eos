@@ -161,14 +161,14 @@ QuarkDBConfigEngine::LoadConfig(const std::string& filename, XrdOucString& err,
     mChangelog->AddEntry("loaded config", filename, "successfully");
     return true;
   }
-
 }
 
 //------------------------------------------------------------------------------
 // Store the current configuration to a given file or QuarkDB
 //------------------------------------------------------------------------------
 bool
-QuarkDBConfigEngine::SaveConfig(std::string filename, bool overwrite, bool autosave, const std::string& comment, XrdOucString& err)
+QuarkDBConfigEngine::SaveConfig(std::string filename, bool overwrite,
+                                bool autosave, const std::string& comment, XrdOucString& err)
 {
   using namespace std::chrono;
   auto start = steady_clock::now();
@@ -214,7 +214,8 @@ QuarkDBConfigEngine::SaveConfig(std::string filename, bool overwrite, bool autos
   auto end = steady_clock::now();
   auto duration = end - start;
   eos_notice("msg=\"saved config\" name=\"%s\" comment=\"%s\" force=%d duration=\"%llu ms\"",
-             filename.c_str(), comment.c_str(), overwrite, duration_cast<milliseconds>(duration).count());
+             filename.c_str(), comment.c_str(), overwrite,
+             duration_cast<milliseconds>(duration).count());
   return true;
 }
 
@@ -365,22 +366,22 @@ void
 QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
                                     const char* val, bool not_bcast)
 {
-  // QuarkDB does not accept empty values
+  // If val is null or empty we don't save anything
   if ((val == nullptr) || (strlen(val) == 0)) {
     return;
   }
 
-  std::string configname = formFullKey(prefix, key);
-  eos_debug("%s => %s", key, val);
+  eos_debug("msg=\"store config\" key=\"%s\" val=\"%s\"", key, val);
+  std::string config_key = formFullKey(prefix, key);
   {
     XrdSysMutexHelper lock(mMutex);
-    sConfigDefinitions[configname] = val;
+    sConfigDefinitions[config_key] = val;
   }
 
   // In case the change is not coming from a broacast we can can broadcast it
   if (mBroadcast && not_bcast) {
     // Make this value visible between MGM's
-    publishConfigChange(configname.c_str(), val);
+    publishConfigChange(config_key.c_str(), val);
   }
 
   // In case is not coming from a broadcast we can add it to the changelog
@@ -407,20 +408,20 @@ void
 QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
                                        bool not_bcast)
 {
-  std::string configname = formFullKey(prefix, key);
+  std::string config_key = formFullKey(prefix, key);
 
   // In case the change is not coming from a broacast we can can broadcast it
   if (mBroadcast && not_bcast) {
     // Make this value visible between MGM's
-    publishConfigDeletion(configname.c_str());
+    publishConfigDeletion(config_key.c_str());
   }
 
   {
     XrdSysMutexHelper lock(mMutex);
-    sConfigDefinitions.erase(configname);
+    sConfigDefinitions.erase(config_key);
   }
 
-  // In case is not coming from a broadcast we can add it to the changelog
+  // If it's not coming from a broadcast we can add it to the changelog
   if (not_bcast) {
     mChangelog->AddEntry("del config", formFullKey(prefix, key), "");
   }
@@ -443,10 +444,11 @@ QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
 // Dump a configuration to QuarkDB from the current loaded config
 //------------------------------------------------------------------------------
 bool
-QuarkDBConfigEngine::PushToQuarkDB(const std::string& filename, bool overwrite, XrdOucString& err)
+QuarkDBConfigEngine::PushToQuarkDB(const std::string& filename, bool overwrite,
+                                   XrdOucString& err)
 {
-
-  if (filename.empty() || (strstr(filename.c_str(), EOSMGMCONFIGENGINE_EOS_SUFFIX) == nullptr)) {
+  if (filename.empty() ||
+      (strstr(filename.c_str(), EOSMGMCONFIGENGINE_EOS_SUFFIX) == nullptr)) {
     err = "error: please give the full path to the config file";
     return false;
   }
@@ -522,7 +524,6 @@ QuarkDBConfigEngine::PushToQuarkDB(const std::string& filename, bool overwrite, 
     err += "\"!";
     return false;
   }
-
 }
 
 //------------------------------------------------------------------------------

@@ -2204,20 +2204,25 @@ FsView::FindByQueuePath(std::string& queuepath)
 // Set global config
 //------------------------------------------------------------------------------
 bool
-FsView::SetGlobalConfig(std::string key, std::string value)
+FsView::SetGlobalConfig(const std::string& key, const std::string& value)
 {
-  std::string ckey;
-  {
+  using eos::common::GlobalConfig;
+  std::string ckey = SSTR(GlobalConfig::gConfig.GetGlobalMgmConfigQueue()
+                          << "#" << key);
+
+  if (value.empty()) {
+    mq::SharedHashWrapper::makeGlobalMgmHash().del(key);
+  } else {
     mq::SharedHashWrapper::makeGlobalMgmHash().set(key, value);
-    // register in the configuration engine
-    ckey = eos::common::GlobalConfig::gConfig.GetGlobalMgmConfigQueue();
-    ckey += "#";
-    ckey += key;
   }
 
   if (FsView::gFsView.mConfigEngine) {
-    FsView::gFsView.mConfigEngine->SetConfigValue("global", ckey.c_str(),
-        value.c_str());
+    if (value.empty()) {
+      FsView::gFsView.mConfigEngine->DeleteConfigValue("global", ckey.c_str());
+    } else {
+      FsView::gFsView.mConfigEngine->SetConfigValue("global", ckey.c_str(),
+          value.c_str());
+    }
   }
 
   return true;
@@ -2227,7 +2232,7 @@ FsView::SetGlobalConfig(std::string key, std::string value)
 // Get global config
 //------------------------------------------------------------------------------
 std::string
-FsView::GetGlobalConfig(std::string key)
+FsView::GetGlobalConfig(const std::string& key)
 {
   return mq::SharedHashWrapper::makeGlobalMgmHash().get(key);
 }
