@@ -609,7 +609,7 @@ DrainTransferJob::GetInfo(const std::list<std::string>& tags) const
 
   for (const auto& tag : tags) {
     // We only support the following tags
-    if (tag == "fid") {
+    if (tag == "fxid") {
       info.push_back(eos::common::FileId::Fid2Hex(mFileId));
     } else if (tag == "fs_src") {
       info.push_back(fmt::to_string(mFsIdSource));
