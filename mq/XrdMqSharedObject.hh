@@ -591,7 +591,7 @@ public:
 
   // If true, creation/deletion subjects are filled and SubjectsSem gets posted
   // for every new creation/deletion.
-  bool mEnableQueue;
+  std::atomic<bool> mEnableQueue;
 
   typedef enum {
     kMqSubjectNothing = -1,

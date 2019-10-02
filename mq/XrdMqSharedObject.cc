@@ -1926,11 +1926,13 @@ XrdMqSharedObjectChangeNotifier::StartNotifyCurrentThread()
     }
   }
 
-  for (int type = 0; type < 5; ++type)
+  for (int type = 0; type < 5; ++type) {
     for (auto it = tlSubscriber->WatchSubjectsXKeys[type].begin();
-         it != tlSubscriber->WatchSubjectsXKeys[type].end(); ++it)
+         it != tlSubscriber->WatchSubjectsXKeys[type].end(); ++it) {
       StartNotifySubjectsAndKeys(tlSubscriber, it->first, it->second,
                                  static_cast<XrdMqSharedObjectChangeNotifier::notification_t>(type));
+    }
+  }
 
   tlSubscriber->Notify = true;
   return true;
@@ -2095,11 +2097,14 @@ noexcept
 
             for (auto it2 = it->second.mSubscribers.begin();
                  it2 != it->second.mSubscribers.end(); ++it2) {
-              (*it2)->mSubjMtx.Lock();
-              (*it2)->NotificationSubjects.push_back(event);
-              (*it2)->mSubjMtx.UnLock();
-              notifiedSubscribersForCurrentEvent.insert(*it2);
-              notifiedSubscribers.insert(*it2);
+              if (notifiedSubscribersForCurrentEvent.count(*it2) == 0) {
+                // Don't notify twice for the same event
+                (*it2)->mSubjMtx.Lock();
+                (*it2)->NotificationSubjects.push_back(event);
+                (*it2)->mSubjMtx.UnLock();
+                notifiedSubscribersForCurrentEvent.insert(*it2);
+                notifiedSubscribers.insert(*it2);
+              }
             }
           }
         }
@@ -2279,9 +2284,8 @@ XrdMqSharedObjectChangeNotifier::Stop()
 // Constructor
 //------------------------------------------------------------------------------
 XrdMqSharedObjectManager::XrdMqSharedObjectManager():
-  mDumperFile("")
+  mEnableQueue(false), mDumperFile("")
 {
-  mEnableQueue = false;
   AutoReplyQueue = "";
   AutoReplyQueueDerive = false;
   IsMuxTransaction = false;
@@ -2460,7 +2464,7 @@ XrdMqSharedObjectManager::DeleteSharedQueue(const char* subject, bool broadcast)
   if ((mQueueSubjects.count(ss) > 0)) {
     if (mBroadcast && broadcast) {
       XrdOucString txmessage = "";
-      mHashSubjects[ss]->MakeRemoveEnvHeader(txmessage);
+      mQueueSubjects[ss].MakeRemoveEnvHeader(txmessage);
       XrdMqMessage message("XrdMqSharedHashMessage");
       message.SetBody(txmessage.c_str());
       message.MarkAsMonitor();
