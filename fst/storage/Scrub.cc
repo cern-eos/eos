@@ -36,7 +36,7 @@ void
 Storage::Scrub()
 {
   // create a 1M pattern
-  eos_static_info("Creating Scrubbing pattern ...");
+  eos_info("%s", "msg=\"create scrubbing pattern ...\"");
 
   for (int i = 0; i < 1024 * 1024 / 8; i += 2) {
     mScrubPattern[0][i] = 0xaaaa5555aaaa5555ULL;
@@ -45,89 +45,87 @@ Storage::Scrub()
     mScrubPattern[1][i + 1] = 0xaaaa5555aaaa5555ULL;
   }
 
-  eos_static_info("Start Scrubbing ...");
+  eos_info("%s", "msg=\"start scrubbing\"");
 
   // this thread reads the oldest files and checks their integrity
-  while (1) {
+  while (true) {
     time_t start = time(0);
-    unsigned int nfs = 0;
+    std::set<eos::common::FileSystem::fsid_t> fsids;
+    // Collect all file system ids registered
     {
-      eos::common::RWMutexReadLock lock(mFsMutex);
-      nfs = mFsVect.size();
-      eos_static_debug("FileSystem Vector %u", nfs);
+      eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
+
+      for (const auto& elem : mFsMap) {
+        fsids.insert(elem.first);
+      }
     }
+    eos_debug("msg=\"running on %lu file systems\"", fsids.size());
+    std::string path {""};
+    uint64_t free {0ull};
+    uint64_t blocks {0ull};
+    bool direct_io = false;
+    eos::common::BootStatus boot_st;
+    eos::common::ConfigStatus config_st;
 
-    for (unsigned int i = 0; i < nfs; i++) {
-      mFsMutex.LockRead();
+    for (auto fsid : fsids) {
+      {
+        eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
+        auto it = mFsMap.find(fsid);
 
-      if (i < mFsVect.size()) {
-        std::string path = mFsVect[i]->GetPath();
-
-        if (!mFsVect[i]->GetStatfs()) {
-          mFsMutex.UnLockRead();
-          eos_static_info("GetStatfs failed");
+        if (it == mFsMap.end()) {
+          eos_warning("msg=\"skip removed file system\" fsid=%lu", fsid);
           continue;
         }
 
-        unsigned long long free =
-          mFsVect[i]->GetStatfs()->GetStatfs()->f_bfree;
-        unsigned long long blocks =
-          mFsVect[i]->GetStatfs()->GetStatfs()->f_blocks;
-        // disable direct IO for ZFS filesystems
-        bool direct_io = (mFsVect[i]->GetStatfs()->GetStatfs()->f_type !=
-                          0x2fc12fc1);
-        unsigned long id = mFsVect[i]->GetId();
-        eos::common::BootStatus bootstatus = mFsVect[i]->GetStatus();
-        eos::common::ConfigStatus configstatus = mFsVect[i]->GetConfigStatus();
-        mFsMutex.UnLockRead();
+        auto fs = it->second;
+        path = fs->GetPath();
 
-        if (!id) {
+        if (fs->GetStatfs() == nullptr) {
+          eos_notice("msg=\"statfs failed on file system\" fsid=%lu path=\"%s\"",
+                     fsid, path.c_str());
           continue;
         }
 
-        // check if there is a lable on the disk and if the configuration shows the same fsid
-        if ((bootstatus == eos::common::BootStatus::kBooted) &&
-            (configstatus >= eos::common::ConfigStatus::kRO) &&
-            (!CheckLabel(mFsVect[i]->GetPath(), mFsVect[i]->GetId(),
-                         mFsVect[i]->GetString("uuid"), true))) {
-          mFsVect[i]->BroadcastError(EIO,
-                                     "filesystem seems to be not mounted anymore");
+        free = fs->GetStatfs()->GetStatfs()->f_bfree;
+        blocks = fs->GetStatfs()->GetStatfs()->f_blocks;
+        // Disable direct IO for ZFS
+        direct_io = (fs->GetStatfs()->GetStatfs()->f_type != 0x2fc12fc1);
+        boot_st = fs->GetStatus();
+        config_st = fs->GetConfigStatus();
+      }
+
+      // Skip scrubbing file systems for which either of the following
+      // conditions hold:
+      // - not a local file system (i.e. remote)
+      // - not in writable mode
+      // - not booted
+      if (path.empty() || (path[0] != '/') ||
+          (config_st < eos::common::ConfigStatus::kWO) ||
+          (boot_st != eos::common::BootStatus::kBooted)) {
+        continue;
+      }
+
+      struct stat buf;
+
+      std::string no_scrub = path + "/" + ".eosnoscrub";
+
+      if (!::stat(no_scrub.c_str(), &buf)) {
+        eos_debug("msg=\"scrub is disabled, remove %s to activate\"",
+                  no_scrub.c_str());
+        continue;
+      }
+
+      if (ScrubFs(path.c_str(), free, blocks, fsid, direct_io)) {
+        // Filesystem has errors
+        eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
+        auto it = mFsMap.find(fsid);
+
+        if (it == mFsMap.end()) {
+          eos_warning("msg=\"skip removed file system\" fsid=%lu", fsid);
           continue;
         }
 
-        // don't scrub on filesystems which are not in writable mode!
-        if (configstatus < eos::common::ConfigStatus::kWO) {
-          continue;
-        }
-
-        // don't scrub on filesystems which are not booted
-        if (bootstatus != eos::common::BootStatus::kBooted) {
-          continue;
-        }
-
-        // don't scrub filesystems which are 'remote'
-        if (path[0] != '/') {
-          continue;
-        }
-
-	struct stat buf;
-	std::string no_scrub = path + "/" + ".eosnoscrub";
-	if (!::stat(no_scrub.c_str(), &buf)) {
-	  eos_static_debug("scrub is disabled - remove %s to activate", no_scrub.c_str());
-	} else {
-	  if (ScrubFs(path.c_str(), free, blocks, id, direct_io)) {
-	    // filesystem has errors!
-	    mFsMutex.LockRead();
-
-	    if ((i < mFsVect.size()) && mFsVect[i]) {
-	      mFsVect[i]->BroadcastError(EIO, "filesystem probe error detected");
-	    }
-
-	    mFsMutex.UnLockRead();
-	  }
-	}
-      } else {
-        mFsMutex.UnLockRead();
+        it->second->BroadcastError(EIO, "filesystem probe error detected");
       }
     }
 
@@ -135,7 +133,7 @@ Storage::Scrub()
     int nsleep = ((300) - (stop - start));
 
     if (nsleep > 0) {
-      eos_static_debug("Scrubber will pause for %u seconds", nsleep);
+      eos_debug("msg=\"scrubber will pause for %u seconds\"", nsleep);
       std::this_thread::sleep_for(std::chrono::seconds(nsleep));
     }
   }

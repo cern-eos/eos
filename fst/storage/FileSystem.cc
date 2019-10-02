@@ -40,19 +40,19 @@ FileSystem::FileSystem(const common::FileSystemLocator& locator,
                        XrdMqSharedObjectManager* som,
                        qclient::SharedManager* qsom):
   eos::common::FileSystem(locator, som, qsom, true),
-  mScanDir()
+  mStableId(0ul), mScanDir(nullptr), mFileIO(nullptr), mTxDirectory("")
 {
   last_blocks_free = 0;
   last_status_broadcast = 0;
   seqBandwidth = 0;
   IOPS = 0;
-  transactionDirectory = "";
   mLocalBootStatus = eos::common::BootStatus::kDown;
   mTxBalanceQueue = new TransferQueue(&mBalanceQueue);
   mTxExternQueue = new TransferQueue(&mExternQueue);
-  mTxMultiplexer.Add(mTxBalanceQueue);
-  mTxMultiplexer.Add(mTxExternQueue);
-  mTxMultiplexer.Run();
+  mTxMultiplexer = std::make_unique<TransferMultiplexer>();
+  mTxMultiplexer->Add(mTxBalanceQueue);
+  mTxMultiplexer->Add(mTxExternQueue);
+  mTxMultiplexer->Run();
   mRecoverable = false;
   mFileIO.reset(FileIoPlugin::GetIoObject(mLocator.getStoragePath()));
 }
@@ -62,18 +62,16 @@ FileSystem::~FileSystem()
 {
   mScanDir.release();
   mFileIO.release();
-  gFmdDbMapHandler.ShutdownDB(GetId());
-  // ----------------------------------------------------------------------------
-  // @todo we accept this tiny memory leak to be able to let running
-  // transfers callback their queue
-  // -> we don't delete them here!
-  //  if (mTxBalanceQueue) {
-  //    delete mTxBalanceQueue;
-  //  }
-  //  if (mTxExternQueue) {
-  //    delete mTxExternQueue;
-  //  }
-  // ----------------------------------------------------------------------------
+  gFmdDbMapHandler.ShutdownDB(mStableId);
+  mTxMultiplexer.reset();
+
+  if (mTxBalanceQueue) {
+    delete mTxBalanceQueue;
+  }
+
+  if (mTxExternQueue) {
+    delete mTxExternQueue;
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -125,7 +123,7 @@ FileSystem::GetStatfs()
   if ((!statFs) && GetPath().length()) {
     eos_err("cannot statfs");
     BroadcastError("cannot statfs");
-    return 0;
+    return nullptr;
   } else {
     eos_static_debug("ec=%d error=%s recover=%d", GetStatus(),
                      GetString("stat.errmsg").c_str(), mRecoverable);
@@ -172,17 +170,17 @@ FileSystem::CleanTransactions()
                               localprefix.c_str());
         unsigned long long fileid = FileId::Hex2Fid(hexfid.c_str());
         // we allow to keep files open for 1 week
-        bool isOpen = gOFS.openedForWriting.isOpen(GetId(), fileid);
+        bool isOpen = gOFS.openedForWriting.isOpen(mStableId, fileid);
 
         if ((buf.st_mtime < (time(NULL) - (7 * 86400))) && (!isOpen)) {
-          auto fMd = gFmdDbMapHandler.LocalGetFmd(fileid, GetId(), true);
+          auto fMd = gFmdDbMapHandler.LocalGetFmd(fileid, mStableId, true);
 
           if (fMd) {
             auto location_set = fMd->GetLocations();
 
-            if (location_set.count(GetId())) {
+            if (location_set.count(mStableId)) {
               // close that transaction and keep the file
-              gOFS.Storage->CloseTransaction(GetId(), fileid);
+              gOFS.Storage->CloseTransaction(mStableId, fileid);
               continue;
             }
           }
@@ -190,13 +188,10 @@ FileSystem::CleanTransactions()
           eos_static_info("action=delete transaction=%llx fstpath=%s",
                           sname.c_str(),
                           fulltransactionpath.c_str());
-          // -------------------------------------------------------------------------------------------------------
-          // clean-up this file locally
-          // -------------------------------------------------------------------------------------------------------
+          // Clean-up this file locally
           XrdOucErrInfo error;
-          int retc = gOFS._rem("/CLEANTRANSACTIONS",
-                               error, 0, 0, fstPath.c_str(),
-                               fileid, GetId(), true);
+          int retc = gOFS._rem("/CLEANTRANSACTIONS", error, 0, 0,
+                               fstPath.c_str(), fileid, mStableId, true);
 
           if (retc) {
             eos_static_debug("deletion failed for %s", fstPath.c_str());
@@ -247,12 +242,12 @@ FileSystem::SyncTransactions(const char* manager)
         unsigned long long fid = FileId::Hex2Fid(hexfid.c_str());
 
         // try to sync this file from the MGM
-        if (gFmdDbMapHandler.ResyncMgm(GetId(), fid, manager)) {
+        if (gFmdDbMapHandler.ResyncMgm(mStableId, fid, manager)) {
           eos_static_info("msg=\"resync ok\" fsid=%lu fxid=%08llx",
-                          (unsigned long) GetId(), fid);
+                          mStableId, fid);
         } else {
           eos_static_err("msg=\"resync failed\" fsid=%lu fxid=%08llx",
-                         (unsigned long) GetId(), fid);
+                         mStableId, fid);
           ok = false;
           continue;
         }
@@ -283,9 +278,9 @@ FileSystem::ConfigScanner(Load* fst_load, const std::string& key,
 
   // If not running then create scanner thread with default parameters
   if (mScanDir == nullptr) {
-    mScanDir.reset(new ScanDir(GetPath().c_str(), GetId(), fst_load, true));
+    mScanDir.reset(new ScanDir(GetPath().c_str(), mStableId, fst_load, true));
     eos_info("msg=\"started ScanDir thread with default parameters\" fsid=%d",
-             GetId());
+             mStableId);
   }
 
   mScanDir->SetConfig(key, value);

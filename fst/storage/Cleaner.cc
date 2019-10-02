@@ -27,45 +27,38 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Cleaner thread
+//------------------------------------------------------------------------------
 void
 Storage::Cleaner()
 {
-  eos_static_info("Start Cleaner ...");
-  // we have to wait that we know our node config queue
+  eos_info("%s", "msg=\"start cleaner\"");
+  // Wait that we know our node config queue
   std::string nodeconfigqueue =
     eos::fst::Config::gConfig.getFstNodeConfigQueue("Cleaner").c_str();
 
   while (true) {
-    eos_static_notice("msg=\"cleaning transactions\"");
-    XrdOucString manager;
-    {
-      XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
-      manager = eos::fst::Config::gConfig.Manager.c_str();
-    }
-    unsigned int nfs = 0;
-    {
-      eos::common::RWMutexReadLock lock(mFsMutex);
-      nfs = mFsVect.size();
-    }
+    eos_notice("%s", "msg=\"cleaning transactions\"");
+    std::string manager = eos::fst::Config::gConfig.GetManager();
 
-    if (manager.length()) {
-      for (unsigned int i = 0; i < nfs; i++) {
-        eos::common::RWMutexReadLock lock(mFsMutex);
+    if (manager.empty()) {
+      eos_err("%s", "msg=\"don't know the manager name\"");
+    } else {
+      eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
 
-        if (i < mFsVect.size()) {
-          if (mFsVect[i]->GetStatus() == eos::common::BootStatus::kBooted) {
-            if (mFsVect[i]->SyncTransactions(manager.c_str())) {
-              mFsVect[i]->CleanTransactions();
-            }
+      for (const auto& elem : mFsMap) {
+        auto fs = elem.second;
+
+        if (fs->GetStatus() == eos::common::BootStatus::kBooted) {
+          if (fs->SyncTransactions(manager.c_str())) {
+            fs->CleanTransactions();
           }
         }
       }
-    } else {
-      eos_static_err("msg=\"don't know the manager name\"");
     }
 
-    // go to sleep for a day since we allow a transaction to stay for 1 week
+    // Sleep for a day since we allow a transaction to stay for 1 week
     std::this_thread::sleep_for(std::chrono::hours(24));
   }
 }

@@ -1209,23 +1209,22 @@ XrdFstOfs::SendFsck(XrdMqMessage* message)
 {
   XrdOucString stdOut = "";
   // loop over filesystems
-  eos::common::RWMutexReadLock fsLock(gOFS.Storage->mFsMutex);
+  eos::common::RWMutexReadLock fs_rd_lock(gOFS.Storage->mFsMutex);
 
-  for (unsigned int i = 0; i < gOFS.Storage->mFsVect.size(); i++) {
-    XrdSysMutexHelper ISLock(
-      gOFS.Storage->mFsVect[i]->InconsistencyStatsMutex);
+  for (const auto& elem : gOFS.Storage->mFsMap) {
+    auto fs = elem.second;
+    XrdSysMutexHelper ISLock(fs->InconsistencyStatsMutex);
     std::map<std::string, std::set<eos::common::FileId::fileid_t> >* icset =
-      gOFS.Storage->mFsVect[i]->GetInconsistencySets();
+      fs->GetInconsistencySets();
 
     for (auto icit = icset->begin(); icit != icset->end(); icit++) {
       char stag[4096];
-      eos::common::FileSystem::fsid_t fsid =
-        gOFS.Storage->mFsVect[i]->GetId();
+      eos::common::FileSystem::fsid_t fsid = fs->GetStableId();
       snprintf(stag, sizeof(stag) - 1, "%s@%lu", icit->first.c_str(),
                (unsigned long) fsid);
       stdOut += stag;
 
-      if (gOFS.Storage->mFsVect[i]->GetStatus() != eos::common::BootStatus::kBooted) {
+      if (fs->GetStatus() != eos::common::BootStatus::kBooted) {
         // we don't report filesystems which are not booted!
         continue;
       }

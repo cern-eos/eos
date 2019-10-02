@@ -192,7 +192,7 @@ static std::string getNumberOfTCPSockets(const std::string& tmpname)
 // Get statistics about this FST, used for publishing
 //------------------------------------------------------------------------------
 std::map<std::string, std::string>
-Storage::getFSTStatistics(const std::string& tmpfile,
+Storage::GetFstStatistics(const std::string& tmpfile,
                           unsigned long long netspeed)
 {
   eos::common::LinuxStat::linux_stat_t osstat;
@@ -299,7 +299,7 @@ static void insertStatfs(struct statfs* statfs,
 // Get statistics about this FileSystem, used for publishing
 //------------------------------------------------------------------------------
 std::map<std::string, std::string>
-Storage::getFsStatistics(FileSystem* fs, bool publishInconsistencyStats)
+Storage::GetFsStatistics(FileSystem* fs, bool publishInconsistencyStats)
 {
   if (!fs) {
     eos_static_crit("asked to publish statistics for a null filesystem");
@@ -405,11 +405,11 @@ Storage::getFsStatistics(FileSystem* fs, bool publishInconsistencyStats)
 //------------------------------------------------------------------------------
 // Publish statistics about the given filesystem
 //------------------------------------------------------------------------------
-bool Storage::publishFsStatistics(FileSystem* fs,
+bool Storage::PublishFsStatistics(FileSystem* fs,
                                   bool publishInconsistencyStats)
 {
   if (!fs) {
-    eos_static_crit("asked to publish statistics for a null filesystem");
+    eos_static_crit("%s", "msg=\"asked to publish statistics for a null fs\"");
     return false;
   }
 
@@ -417,12 +417,12 @@ bool Storage::publishFsStatistics(FileSystem* fs,
 
   if (!fsid) {
     // during the boot phase we can find a filesystem without ID
-    eos_static_warning("asked to publish statistics for filesystem with fsid=0");
+    eos_static_warning("%s", "msg=\"asked to publish statistics for fsid=0\"");
     return false;
   }
 
   common::FileSystemUpdateBatch batch;
-  std::map<std::string, std::string> fsStats = getFsStatistics(fs,
+  std::map<std::string, std::string> fsStats = GetFsStatistics(fs,
       publishInconsistencyStats);
 
   for (auto it = fsStats.begin(); it != fsStats.end(); it++) {
@@ -439,7 +439,7 @@ bool Storage::publishFsStatistics(FileSystem* fs,
 void
 Storage::Publish(ThreadAssistant& assistant)
 {
-  eos_static_info("Publisher activated ...");
+  eos_static_info("%s", "msg=\"publisher activated\"");
   // Get our network speed
   std::string tmp_name = makeTemporaryFile();
 
@@ -456,33 +456,31 @@ Storage::Publish(ThreadAssistant& assistant)
   common::IntervalStopwatch consistencyStatsStopwatch(sConsistencyTimeout);
 
   while (!assistant.terminationRequested()) {
-    //--------------------------------------------------------------------------
     // Should we publish consistency stats during this cycle?
-    //--------------------------------------------------------------------------
     bool publishConsistencyStats = consistencyStatsStopwatch.restartIfExpired();
     std::chrono::milliseconds randomizedReportInterval =
       eos::fst::Config::gConfig.getRandomizedPublishInterval();
     common::IntervalStopwatch stopwatch(randomizedReportInterval);
     {
       // run through our defined filesystems and publish with a MuxTransaction all changes
-      eos::common::RWMutexReadLock lock(mFsMutex);
+      eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
 
       if (!gOFS.ObjectManager.OpenMuxTransaction()) {
         eos_static_err("cannot open mux transaction");
       } else {
-        // copy out statfs info
-        for (size_t i = 0; i < mFsVect.size(); i++) {
-          bool success = publishFsStatistics(mFsVect[i], publishConsistencyStats);
+        // Copy out statfs info
+        for (const auto& elem : mFsMap) {
+          auto fs = elem.second;
+          bool success = PublishFsStatistics(fs, publishConsistencyStats);
 
-          if (!success && mFsVect[i]) {
+          if (!success && fs) {
             eos_static_err("cannot set net parameters on filesystem %s",
-                           mFsVect[i]->GetPath().c_str());
+                           fs->GetPath().c_str());
           }
         }
 
-        std::map<std::string, std::string> fstStats = getFSTStatistics(tmp_name,
-            netspeed);
-        // set node status values
+        auto fstStats = GetFstStatistics(tmp_name, netspeed);
+        // Set node status values
         common::SharedHashLocator locator =
           Config::gConfig.getNodeHashLocator("Publish");
 
@@ -520,16 +518,12 @@ Storage::Publish(ThreadAssistant& assistant)
 void Storage::QdbPublish(const QdbContactDetails& cd,
                          ThreadAssistant& assistant)
 {
-  //----------------------------------------------------------------------------
   // Fetch a qclient object, decide on which channel to use
-  //----------------------------------------------------------------------------
   std::unique_ptr<qclient::QClient> qcl = std::make_unique<qclient::QClient>
                                           (cd.members, cd.constructOptions());
   std::string channel = SSTR("fst-stats:" <<
                              eos::fst::Config::gConfig.FstHostPort);
-  //----------------------------------------------------------------------------
   // Setup required variables..
-  //----------------------------------------------------------------------------
   std::string tmp_name = makeTemporaryFile();
   unsigned long long netspeed = getNetspeed(tmp_name);
 
@@ -537,45 +531,33 @@ void Storage::QdbPublish(const QdbContactDetails& cd,
     return;
   }
 
-  //----------------------------------------------------------------------------
   // Main loop
-  //----------------------------------------------------------------------------
   common::IntervalStopwatch consistencyStatsStopwatch(sConsistencyTimeout);
 
   while (!assistant.terminationRequested()) {
-    //--------------------------------------------------------------------------
     // Should we publish consistency stats during this cycle?
-    //--------------------------------------------------------------------------
     bool publishConsistencyStats = consistencyStatsStopwatch.restartIfExpired();
-    //--------------------------------------------------------------------------
     // Publish FST stats
-    //--------------------------------------------------------------------------
-    std::map<std::string, std::string> fstStats = getFSTStatistics(tmp_name,
+    std::map<std::string, std::string> fstStats = GetFstStatistics(tmp_name,
         netspeed);
     qcl->exec("publish", channel, qclient::Formatting::serialize(fstStats));
-    //--------------------------------------------------------------------------
     // Publish individual fs stats
-    //--------------------------------------------------------------------------
-    eos::common::RWMutexReadLock lock(mFsMutex);
+    eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
 
-    for (size_t i = 0; i < mFsVect.size(); i++) {
-      std::map<std::string, std::string> fsStats = getFsStatistics(mFsVect[i],
+    for (const auto& elem : mFsMap) {
+      auto fs = elem.second;
+      std::map<std::string, std::string> fsStats = GetFsStatistics(fs,
           publishConsistencyStats);
-      eos::common::FileSystem::fsid_t fsid = mFsVect[i]->GetId();
-      std::string fsChannel = SSTR("fs-" << fsid);
+      std::string fsChannel = SSTR("fs-" << elem.first);
       qcl->exec("publish", fsChannel, qclient::Formatting::serialize(fsStats));
     }
 
-    lock.Release();
-    //--------------------------------------------------------------------------
+    fs_rd_lock.Release();
     // Sleep until next cycle
-    //--------------------------------------------------------------------------
     assistant.wait_for(eos::fst::Config::gConfig.getRandomizedPublishInterval());
   }
 
-  //----------------------------------------------------------------------------
   // Cleanup temporary file
-  //----------------------------------------------------------------------------
   (void) unlink(tmp_name.c_str());
 }
 

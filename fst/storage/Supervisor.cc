@@ -21,81 +21,71 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/storage/FileSystem.hh"
 
-
-/*----------------------------------------------------------------------------*/
-
 EOSFSTNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Supervisor thread
+//------------------------------------------------------------------------------
 void
 Storage::Supervisor()
 {
-  // this thread does an automatic self-restart if this storage node has filesystems configured but they don't boot
-  // - this can happen by a timing issue during the autoboot phase
+  // this thread does an automatic self-restart if this storage node has
+  // filesystems configured but they don't boot - this can happen by a
+  //timing issue during the autoboot phase
   eos_static_info("Supervisor activated ...");
 
-  while (1) {
+  while (true) {
+    size_t ndown = 0;
+    size_t nfs = 0;
     {
-      size_t ndown = 0;
-      size_t nfs = 0;
-      {
-        eos::common::RWMutexReadLock lock(mFsMutex);
-        nfs = mFsVect.size();
+      eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
 
-        for (size_t i = 0; i < mFsVect.size(); i++) {
-          if (!mFsVect[i]) {
-            continue;
-          } else {
-            eos::common::BootStatus bootstatus = mFsVect[i]->GetStatus();
-            eos::common::ConfigStatus configstatus = mFsVect[i]->GetConfigStatus();
+      for (const auto& elem : mFsMap) {
+        auto fs = elem.second;
+        eos::common::BootStatus bootstatus = fs->GetStatus();
+        eos::common::ConfigStatus configstatus = fs->GetConfigStatus();
 
-            if ((bootstatus == eos::common::BootStatus::kDown) &&
-                (configstatus > eos::common::ConfigStatus::kDrain)) {
-              ndown++;
-            }
-          }
+        if ((bootstatus == eos::common::BootStatus::kDown) &&
+            (configstatus > eos::common::ConfigStatus::kDrain)) {
+          ++ndown;
         }
+      }
+    }
 
-        if (ndown) {
-          // we give one more minute to get things going
-          std::this_thread::sleep_for(std::chrono::seconds(10));
-          ndown = 0;
-          {
-            // check the status a second time
-            eos::common::RWMutexReadLock lock(mFsMutex);
-            nfs = mFsVect.size();
+    if (ndown) {
+      // We give one more minute to get things going
+      std::this_thread::sleep_for(std::chrono::seconds(60));
+      ndown = 0;
+      {
+        eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
+        nfs = mFsMap.size();
 
-            for (size_t i = 0; i < mFsVect.size(); i++) {
-              if (!mFsVect[i]) {
-                continue;
-              } else {
-                eos::common::BootStatus bootstatus = mFsVect[i]->GetStatus();
-                eos::common::ConfigStatus configstatus = mFsVect[i]->GetConfigStatus();
+        for (const auto& elem : mFsMap) {
+          auto fs = elem.second;
+          eos::common::BootStatus bootstatus = fs->GetStatus();
+          eos::common::ConfigStatus configstatus = fs->GetConfigStatus();
 
-                if ((bootstatus == eos::common::BootStatus::kDown) &&
-                    (configstatus > eos::common::ConfigStatus::kDrain)) {
-                  ndown++;
-                }
-              }
-            }
-          }
-
-          if (ndown == nfs) {
-            // shutdown this daemon
-            eos_static_alert("found %d/%d filesystems in <down> status - committing suicide !",
-                             ndown, nfs);
-            std::this_thread::sleep_for(std::chrono::seconds(10));
-            kill(getpid(), SIGQUIT);
+          if ((bootstatus == eos::common::BootStatus::kDown) &&
+              (configstatus > eos::common::ConfigStatus::kDrain)) {
+            ++ndown;
           }
         }
       }
-      std::this_thread::sleep_for(std::chrono::seconds(60));
+
+      if (ndown == nfs) {
+        // shutdown this daemon
+        eos_static_alert("found %d/%d filesystems in <down> status - committing suicide !",
+                         ndown, nfs);
+        std::this_thread::sleep_for(std::chrono::seconds(10));
+        kill(getpid(), SIGQUIT);
+      }
     }
+
+    std::this_thread::sleep_for(std::chrono::seconds(60));
   }
 }
 
