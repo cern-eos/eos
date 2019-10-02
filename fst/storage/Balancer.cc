@@ -41,8 +41,8 @@ Storage::GetBalanceSlotVariables(unsigned long long& nparalleltx,
  */
 /*----------------------------------------------------------------------------*/
 {
-  getFSTConfigValue("stat.balance.ntx", nparalleltx);
-  getFSTConfigValue("stat.balance.rate", ratetx);
+  GetFstConfigValue("stat.balance.ntx", nparalleltx);
+  GetFstConfigValue("stat.balance.rate", ratetx);
 
   if (nparalleltx == 0) {
     nparalleltx = 0;
@@ -52,7 +52,8 @@ Storage::GetBalanceSlotVariables(unsigned long long& nparalleltx,
     ratetx = 25;
   }
 
-  eos_static_debug("nparalleltransfers=%llu transferrate=%llu", nparalleltx, ratetx);
+  eos_static_debug("nparalleltransfers=%llu transferrate=%llu", nparalleltx,
+                   ratetx);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -170,7 +171,7 @@ Storage::GetFileSystemInBalanceMode(std::vector<unsigned int>& balancefsvector,
 
     if (index < mFsVect.size()) {
       std::string path = mFsVect[index]->GetPath();
-      unsigned long id = mFsVect[index]->GetId();
+      unsigned long id = mFsVect[index]->GetStableId();
       eos_static_debug("FileSystem %lu ", id);
       double nominal =
         mFsVect[index]->GetDouble("stat.nominal.filled");
@@ -240,7 +241,7 @@ Storage::GetBalanceJob(unsigned int index)
 {
   unsigned long long freebytes =
     mFsVect[index]->GetLongLong("stat.statfs.freebytes");
-  unsigned long id = mFsVect[index]->GetId();
+  unsigned long id = mFsVect[index]->GetStableId();
   XrdOucErrInfo error;
   XrdOucString managerQuery = "/?";
   managerQuery += "mgm.pcmd=schedule2balance";

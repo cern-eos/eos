@@ -78,7 +78,7 @@ public:
   //----------------------------------------------------------------------------
   void Monitor(FSs& fss, eos::common::RWMutex& mtx)
   {
-    eos_info("FST Partition Monitor activated ...");
+    eos_info("%s", "msg=\"fst partition monitor activated\"");
     struct statvfs buf;
     char buffer[256];
 
@@ -86,7 +86,7 @@ public:
       // Get info about filesystem where mPath is located
       if (statvfs(mPath.c_str(), &buf) == -1) {
         char* errorMessage = strerror_r(errno, buffer, 256);
-        eos_err("statvfs failed, error=\"%s\" ", errorMessage);
+        eos_err("msg=\"statvfs failed\" error=\"%s\" ", errorMessage);
         continue;
       }
 
@@ -95,9 +95,9 @@ public:
       double free_percentage = ((buf.f_bfree * 1.) / buf.f_blocks) * 100.;
 
       if (free_percentage < mSpaceThreshold) {
-        eos_crit("partition holding %s is almost full, FSTs set to read-only "
-                 "mode - please take action", mPath.c_str());
-        eos::common::RWMutexReadLock lock(mtx);
+        eos_crit("msg=\"partition holding %s is almost full, FSTs set to "
+                 "read-only mode - please take action\"", mPath.c_str());
+        eos::common::RWMutexReadLock fs_rd_lock(mtx);
 
         for (auto fs = fss.begin(); fs != fss.end(); ++fs) {
           if ((*fs)->GetConfigStatus() != eos::common::ConfigStatus::kRO) {

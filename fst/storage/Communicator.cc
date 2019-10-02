@@ -35,7 +35,7 @@ EOSFSTNAMESPACE_BEGIN
 // Get configuration value from global FST config
 //------------------------------------------------------------------------------
 bool
-Storage::getFSTConfigValue(const std::string& key, std::string& value) const
+Storage::GetFstConfigValue(const std::string& key, std::string& value) const
 {
   common::SharedHashLocator locator =
     Config::gConfig.getNodeHashLocator("getConfigValue", false);
@@ -49,11 +49,11 @@ Storage::getFSTConfigValue(const std::string& key, std::string& value) const
 }
 
 bool
-Storage::getFSTConfigValue(const std::string& key, unsigned long long& value)
+Storage::GetFstConfigValue(const std::string& key, unsigned long long& value)
 {
   std::string strVal;
 
-  if (!getFSTConfigValue(key, strVal)) {
+  if (!GetFstConfigValue(key, strVal)) {
     return false;
   }
 
@@ -62,40 +62,88 @@ Storage::getFSTConfigValue(const std::string& key, unsigned long long& value)
 }
 
 //------------------------------------------------------------------------------
-// Register a filesystem based on the given queuepath
+// Unregister file system given a queue path
 //------------------------------------------------------------------------------
 void
-Storage::registerFilesystem(const std::string& queuepath)
+Storage::UnregisterFileSystem(const std::string& queuepath)
 {
-  eos::common::RWMutexWriteLock lock(mFsMutex);
+  eos::common::RWMutexWriteLock fs_wr_lock(mFsMutex);
+  auto it = std::find_if(mFsVect.begin(), mFsVect.end(), [&](FileSystem * fs) {
+    return (fs->GetQueuePath() == queuepath);
+  });
 
-  if (mQueue2FsMap.count(queuepath) != 0) {
-    // fs is already registered
+  if (it == mFsVect.end()) {
+    eos_warning("msg=\"file system is already removed\" qpath=%s",
+                queuepath.c_str());
+    return;
+  }
+
+  auto fs = *it;
+  mFsVect.erase(it);
+  auto it_map = std::find_if(mFsMap.begin(),
+  mFsMap.end(), [&](const auto & pair) {
+    return (pair.second->GetQueuePath() == queuepath);
+  });
+
+  if (it_map == mFsMap.end()) {
+    eos_warning("msg=\"file system missing from map\" qpath=%s",
+                queuepath.c_str());
+  } else {
+    mFsMap.erase(it_map);
+  }
+
+  eos_info("msg=\"deleting file system\" qpath=%s", fs->GetQueuePath().c_str());
+  delete fs;
+}
+
+//------------------------------------------------------------------------------
+// Register file system
+//------------------------------------------------------------------------------
+void
+Storage::RegisterFileSystem(const std::string& queuepath)
+{
+  auto it = std::find_if(mFsVect.begin(), mFsVect.end(),
+  [&](FileSystem * fs) {
+    return (fs->GetQueuePath() == queuepath);
+  });
+
+  if (it != mFsVect.end()) {
+    eos_warning("msg=\"file system is already registered\" qpath=%s",
+                queuepath.c_str());
     return;
   }
 
   common::FileSystemLocator locator;
 
   if (!common::FileSystemLocator::fromQueuePath(queuepath, locator)) {
-    eos_static_crit("Unable to parse queuepath: %s", queuepath.c_str());
+    eos_crit("msg=\"failed to parse queuepath\" qpath=%s",
+             queuepath.c_str());
     return;
   }
 
-  FileSystem* fs = new FileSystem(locator, &gOFS.ObjectManager, gOFS.mQSOM.get());
-  mQueue2FsMap[queuepath] = fs;
-  mFsVect.push_back(fs);
-  mFileSystemsMap[fs->GetId()] = fs;
-  eos_static_info("msg=\"setting up filesystem\" qpath=\"%s\" fsid=%lu",
-                  queuepath.c_str(), fs->GetId());
+  fst::FileSystem* fs = new fst::FileSystem(locator, &gOFS.ObjectManager,
+      gOFS.mQSOM.get());
   fs->SetStatus(eos::common::BootStatus::kDown);
+  mFsVect.push_back(fs);
+
+  if (fs->GetId() == 0ul) {
+    eos_info("msg=\"partially register file system\" qpath=\"%s\"",
+             queuepath.c_str());
+    return;
+  }
+
+  eos_info("msg=\"fully register filesystem\" qpath=\"%s\" fsid=%lu",
+           queuepath.c_str(), fs->GetId());
+  fs->SetStableId(fs->GetId());
+  mFsMap[fs->GetId()] = fs;
 }
 
 //------------------------------------------------------------------------------
 // Process incoming configuration change
 //------------------------------------------------------------------------------
 void
-Storage::processIncomingFstConfigurationChange(const std::string& key,
-    const std::string& value)
+Storage::ProcessFstConfigChange(const std::string& key,
+                                const std::string& value)
 {
   eos_static_info("FST configuration change - key=%s, value=%s", key.c_str(),
                   value.c_str());
@@ -186,15 +234,15 @@ Storage::processIncomingFstConfigurationChange(const std::string& key,
 // Process incoming FST-level configuration change
 //------------------------------------------------------------------------------
 void
-Storage::processIncomingFstConfigurationChange(const std::string& key)
+Storage::ProcessFstConfigChange(const std::string& key)
 {
   std::string value;
 
-  if (!getFSTConfigValue(key.c_str(), value)) {
+  if (!GetFstConfigValue(key.c_str(), value)) {
     return;
   }
 
-  processIncomingFstConfigurationChange(key, value);
+  ProcessFstConfigChange(key, value);
 }
 
 //------------------------------------------------------------------------------
@@ -203,20 +251,14 @@ Storage::processIncomingFstConfigurationChange(const std::string& key)
 // Requires mFsMutex to be write-locked.
 //------------------------------------------------------------------------------
 void
-Storage::processIncomingFsConfigurationChange(fst::FileSystem* targetFs,
-    const std::string& queue, const std::string& key, const std::string& value)
+Storage::ProcessFsConfigChange(fst::FileSystem* targetFs,
+                               const std::string& queue, const std::string& key, const std::string& value)
 {
   if (key == "id") {
-    unsigned int fsid = atoi(value.c_str());
-    // setup the reverse lookup by id
-    mFileSystemsMap[fsid] = targetFs;
-    eos_static_info("setting reverse lookup for fsid %u", fsid);
-
-    // check if we are autobooting
+    // Check if we are autobooting
     if (eos::fst::Config::gConfig.autoBoot &&
         (targetFs->GetStatus() <= eos::common::BootStatus::kDown) &&
         (targetFs->GetConfigStatus() > eos::common::ConfigStatus::kOff)) {
-      // start a boot thread
       RunBootThread(targetFs);
     }
   } else if (key == "bootsenttime") {
@@ -259,31 +301,55 @@ Storage::processIncomingFsConfigurationChange(fst::FileSystem* targetFs,
 // Process incoming filesystem-level configuration change
 //------------------------------------------------------------------------------
 void
-Storage::processIncomingFsConfigurationChange(const std::string& queue,
-    const std::string& key)
+Storage::ProcessFsConfigChange(const std::string& queuepath,
+                               const std::string& key)
 {
-  eos::common::RWMutexWriteLock fsMutexLock(mFsMutex);
-  auto targetFsIt = mQueue2FsMap.find(queue.c_str());
+  eos::common::RWMutexWriteLock fs_wr_lock(mFsMutex);
+  auto it = std::find_if(mFsMap.begin(), mFsMap.end(), [&](const auto & pair) {
+    return (pair.second->GetQueuePath() == queuepath);
+  });
 
-  if (targetFsIt == mQueue2FsMap.end() || targetFsIt->second == nullptr) {
-    eos_static_err("illegal subject found - no filesystem object existing for modification %s;%s",
-                   queue.c_str(), key.c_str());
-    return;
+  if (it == mFsMap.end()) {
+    // If file system does not exist in the map and this an "id" info then
+    // it could be that we have a partially registered file system
+    if (key == "id") {
+      auto itv = std::find_if(mFsVect.begin(), mFsVect.end(),
+      [&](fst::FileSystem * fs) {
+        return (fs->GetQueuePath() == queuepath);
+      });
+
+      if (itv == mFsVect.end()) {
+        eos_err("msg=\"no file system for id modification\" qpath=\"%s\" "
+                "key=\"%s\"", queuepath.c_str(), key.c_str());
+        return;
+      }
+
+      fst::FileSystem* fs = *itv;
+      fs->SetStableId(fs->GetId());
+      it = mFsMap.emplace(fs->GetId(), fs).first;
+      eos_info("msg=\"fully register file system\" qpath=%s fsid=%lu",
+               queuepath.c_str(), fs->GetId());
+    } else {
+      eos_err("msg=\"no file system for modification\" qpath=\"%s\" "
+              "key=\"%s\"", queuepath.c_str(), key.c_str());
+      return;
+    }
   }
 
-  fst::FileSystem* targetFs = targetFsIt->second;
-  eos_static_info("got modification on <subqueue>=%s <key>=%s", queue.c_str(),
-                  key.c_str());
-  mq::SharedHashWrapper hash(targetFs->getHashLocator());
+  eos_info("msg=\"process modification\" qpath=\"%s\" key=\"%s\"",
+           queuepath.c_str(), key.c_str());
+  fst::FileSystem* fs = it->second;
+  mq::SharedHashWrapper hash(fs->getHashLocator());
   std::string value;
 
   if (!hash.get(key, value)) {
-    eos_static_err("Could not lookup key=%s for %s", key.c_str(), queue.c_str());
+    eos_err("msg=\"no such key in hash\" qpath=\"%s\" key=\"%s\"",
+            queuepath.c_str(), key.c_str());
     return;
   }
 
   hash.releaseLocks();
-  return processIncomingFsConfigurationChange(targetFs, queue, key, value);
+  return ProcessFsConfigChange(fs, queuepath, key, value);
 }
 
 //------------------------------------------------------------------------------
@@ -292,7 +358,7 @@ Storage::processIncomingFsConfigurationChange(const std::string& queue,
 void
 Storage::Communicator(ThreadAssistant& assistant)
 {
-  eos_static_info("Communicator activated ...");
+  eos_static_info("%s", "msg=\"starting communicator thread\"");
   std::string watch_id = "id";
   std::string watch_bootsenttime = "bootsenttime";
   std::string watch_scan_io_rate = eos::common::SCAN_IO_RATE_NAME;
@@ -346,6 +412,8 @@ Storage::Communicator(ThreadAssistant& assistant)
         XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
   ok &= gOFS.ObjectNotifier.SubscribesToSubjectRegex("communicator", watch_regex,
         XrdMqSharedObjectChangeNotifier::kMqSubjectCreation);
+  ok &= gOFS.ObjectNotifier.SubscribesToSubjectRegex("communicator", watch_regex,
+        XrdMqSharedObjectChangeNotifier::kMqSubjectDeletion);
 
   if (!ok) {
     eos_crit("error subscribing to shared objects change notifications");
@@ -363,7 +431,6 @@ Storage::Communicator(ThreadAssistant& assistant)
     // wait for new filesystem definitions
     gOFS.ObjectNotifier.tlSubscriber->mSubjSem.Wait();
     XrdSysThread::CancelPoint();
-    eos_static_debug("received shared object notification ...");
     // we always take a lock to take something from the queue and then release it
     gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
 
@@ -372,8 +439,8 @@ Storage::Communicator(ThreadAssistant& assistant)
       event = gOFS.ObjectNotifier.tlSubscriber->NotificationSubjects.front();
       gOFS.ObjectNotifier.tlSubscriber->NotificationSubjects.pop_front();
       gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.UnLock();
-      eos_static_info("FST shared object notification subject is %s",
-                      event.mSubject.c_str());
+      eos_static_info("msg=\"shared object notification\" type=%i subject=\"%s\"",
+                      event.mType, event.mSubject.c_str());
       XrdOucString queue = event.mSubject.c_str();
 
       if (event.mType == XrdMqSharedObjectManager::kMqSubjectCreation) {
@@ -406,12 +473,9 @@ Storage::Communicator(ThreadAssistant& assistant)
 
           gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
           continue;
-        } else {
-          eos_static_info("received creation notification of subject <%s> - we are <%s>",
-                          event.mSubject.c_str(), Config::gConfig.FstQueue.c_str());
         }
 
-        registerFilesystem(queue.c_str());
+        RegisterFileSystem(queue.c_str());
         gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
         continue;
       }
@@ -425,16 +489,15 @@ Storage::Communicator(ThreadAssistant& assistant)
         }
 
         if (!queue.beginswith(Config::gConfig.FstQueue)) {
-          eos_static_err("illegal subject found in deletion list <%s> - we are <%s>",
-                         event.mSubject.c_str(), Config::gConfig.FstQueue.c_str());
+          eos_static_err("msg=\"illegal deletion subject\" subject=\"%s\" "
+                         "own_id=\"%s\"", event.mSubject.c_str(),
+                         Config::gConfig.FstQueue.c_str());
           gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
           continue;
         } else {
-          eos_static_info("received deletion notification of subject <%s> - we are <%s>",
-                          event.mSubject.c_str(), Config::gConfig.FstQueue.c_str());
+          UnregisterFileSystem(event.mSubject);
         }
 
-        // we don't delete filesystem objects anymore ...
         gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
         continue;
       }
@@ -451,9 +514,9 @@ Storage::Communicator(ThreadAssistant& assistant)
         }
 
         if (queue == Config::gConfig.getFstNodeConfigQueue("communicator", false)) {
-          processIncomingFstConfigurationChange(key.c_str());
+          ProcessFstConfigChange(key.c_str());
         } else {
-          processIncomingFsConfigurationChange(queue.c_str(), key.c_str());
+          ProcessFsConfigChange(queue.c_str(), key.c_str());
         }
 
         gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();

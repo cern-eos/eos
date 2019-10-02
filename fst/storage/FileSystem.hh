@@ -69,10 +69,41 @@ public:
   //-----------------------------------------------------------------------------
   ~FileSystem();
 
-  void
-  SetTransactionDirectory(const char* tx)
+  //-----------------------------------------------------------------------------
+  //! Set stable id - the once that doesn't change if the shared hash object
+  //! get deleted.
+  //!
+  //! @param id file system identifier
+  //-----------------------------------------------------------------------------
+  inline void SetStableId(eos::common::FileSystem::fsid_t id)
   {
-    transactionDirectory = tx;
+    mStableId = id;
+  }
+
+  //-----------------------------------------------------------------------------
+  //! Get stable id value
+  //-----------------------------------------------------------------------------
+  inline eos::common::FileSystem::fsid_t GetStableId()
+  {
+    return mStableId;
+  }
+
+  //-----------------------------------------------------------------------------
+  //! Set location of the transaction directory
+  //!
+  //! @param tx transaction directory path
+  //-----------------------------------------------------------------------------
+  inline void SetTransactionDirectory(const char* tx)
+  {
+    mTxDirectory = tx;
+  }
+
+  //-----------------------------------------------------------------------------
+  //! Get path for the transaction directory
+  //-----------------------------------------------------------------------------
+  inline const char* GetTransactionDirectory() const
+  {
+    return mTxDirectory.c_str();
   }
 
   void CleanTransactions();
@@ -96,19 +127,13 @@ public:
     return GetString("path");
   }
 
-  const char*
-  GetTransactionDirectory()
-  {
-    return transactionDirectory.c_str();
-  }
-
-  TransferQueue*
+  inline TransferQueue*
   GetBalanceQueue()
   {
     return mTxBalanceQueue;
   }
 
-  TransferQueue*
+  inline TransferQueue*
   GetExternQueue()
   {
     return mTxExternQueue;
@@ -253,25 +278,23 @@ public:
   }
 
 private:
+  //! Stable file system id irrespective of the shared hash status
+  eos::common::FileSystem::fsid_t mStableId;
   std::unique_ptr<eos::fst::ScanDir> mScanDir; ///< Filesystem scanner
   std::unique_ptr<FileIo> mFileIO; ///< File used for statfs calls
-  XrdOucString transactionDirectory;
-
+  std::unique_ptr<TransferMultiplexer> mTxMultiplexer;
+  TransferQueue* mTxBalanceQueue;
+  TransferQueue* mTxExternQueue;
+  std::string mTxDirectory;
   unsigned long last_blocks_free;
   time_t last_status_broadcast;
   //! Internal boot state not stored in the shared hash
   std::atomic<eos::common::BootStatus> mLocalBootStatus;
-
-  TransferQueue* mTxBalanceQueue;
-  TransferQueue* mTxExternQueue;
-  TransferMultiplexer mTxMultiplexer;
   std::map<std::string, size_t> inconsistency_stats;
   std::map<std::string, std::set<eos::common::FileId::fileid_t> >
   inconsistency_sets;
-
   long long seqBandwidth; // measurement of sequential bandwidth
   int IOPS; // measurement of IOPS
-
   bool mRecoverable; // true if a filesystem was booted and then set to ops error
 };
 

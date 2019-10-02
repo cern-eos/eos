@@ -1373,7 +1373,6 @@ XrdFstOfsFile::_close()
 
     // Recompute our ETag
     eos::calculateEtag(mCheckSum != nullptr, mFmd->mProtoFmd, mEtag);
-
     int closerc = 0; // return of the close
     brc = rc; // return before the close
     rc |= ModifiedWhileInUse();
@@ -1447,13 +1446,13 @@ XrdFstOfsFile::_close()
     {
       eos::common::RWMutexReadLock lock(gOFS.Storage->mFsMutex);
 
-      if (gOFS.Storage->mFileSystemsMap.count(mFsId) &&
-          gOFS.Storage->mFileSystemsMap[mFsId]->GetConfigStatus() <
+      if (gOFS.Storage->mFsMap.count(mFsId) &&
+          gOFS.Storage->mFsMap[mFsId]->GetConfigStatus() <
           eos::common::ConfigStatus::kDrain) {
         eos_notice("msg=\"failing transfer because filesystem has non-"
                    "operational state\" path=%s state=%s", mNsPath.c_str(),
                    eos::common::FileSystem::GetConfigStatusAsString
-                   (gOFS.Storage->mFileSystemsMap[mFsId]->GetConfigStatus()));
+                   (gOFS.Storage->mFsMap[mFsId]->GetConfigStatus()));
         deleteOnClose = true;
       }
     }
@@ -2326,8 +2325,8 @@ XrdFstOfsFile::ProcessMixedOpaque()
     mFsId = atoi(sfsid ? sfsid : "0");
     eos::common::RWMutexReadLock lock(gOFS.Storage->mFsMutex);
 
-    if (mFsId && gOFS.Storage->mFileSystemsMap.count(mFsId)) {
-      mLocalPrefix = gOFS.Storage->mFileSystemsMap[mFsId]->GetPath().c_str();
+    if (mFsId && gOFS.Storage->mFsMap.count(mFsId)) {
+      mLocalPrefix = gOFS.Storage->mFsMap[mFsId]->GetPath().c_str();
     }
   }
 

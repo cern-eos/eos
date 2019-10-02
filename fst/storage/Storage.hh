@@ -171,9 +171,7 @@ protected:
   mutable eos::common::RWMutex mFsMutex; ///< Mutex protecting the fs map
   std::vector <FileSystem*> mFsVect; ///< Vector of filesystems
   //! Map of filesystem id to filesystem object
-  std::map<eos::common::FileSystem::fsid_t, FileSystem*> mFileSystemsMap;
-  //! Map of filesystem queue to filesystem object
-  std::map<std::string, FileSystem*> mQueue2FsMap;
+  std::map<eos::common::FileSystem::fsid_t, FileSystem*> mFsMap;
 
 private:
   static constexpr std::chrono::seconds sConsistencyTimeout {10};
@@ -232,19 +230,33 @@ private:
   //----------------------------------------------------------------------------
   //! Get statistics about this FileSystem, used for publishing
   //----------------------------------------------------------------------------
-  std::map<std::string, std::string> getFsStatistics(
+  std::map<std::string, std::string> GetFsStatistics(
     FileSystem* fs, bool publishInconsistencyStats);
 
   //----------------------------------------------------------------------------
   //! Get statistics about this FST, used for publishing
   //----------------------------------------------------------------------------
-  std::map<std::string, std::string> getFSTStatistics(
+  std::map<std::string, std::string> GetFstStatistics(
     const std::string& tmpfile, unsigned long long netspeed);
 
   //----------------------------------------------------------------------------
   //! Publish statistics about the given filesystem
   //----------------------------------------------------------------------------
-  bool publishFsStatistics(FileSystem* fs, bool publishInconsistencyStats);
+  bool PublishFsStatistics(FileSystem* fs, bool publishInconsistencyStats);
+
+  //----------------------------------------------------------------------------
+  //! Register file system for which we know we have file fsid info available
+  //!
+  //! @param queuepath file system queuepath identifier
+  //----------------------------------------------------------------------------
+  void RegisterFileSystem(const std::string& queuepath);
+
+  //----------------------------------------------------------------------------
+  //! Unregister file system given a queue path
+  //!
+  //! @param queuepath file system queuepath identifier
+  //----------------------------------------------------------------------------
+  void UnregisterFileSystem(const std::string& queuepath);
 
   //----------------------------------------------------------------------------
   //! Worker threads implementation
@@ -253,20 +265,19 @@ private:
   void Communicator(ThreadAssistant& assistant);
   void QdbCommunicator(QdbContactDetails contactDetails,
                        ThreadAssistant& assistant);
-  bool getFSTConfigValue(const std::string& key, std::string& value) const;
-  bool getFSTConfigValue(const std::string& key, unsigned long long& value);
-  void registerFilesystem(const std::string& queuepath);
+  bool GetFstConfigValue(const std::string& key, std::string& value) const;
+  bool GetFstConfigValue(const std::string& key, unsigned long long& value);
 
-  void processIncomingFstConfigurationChange(const std::string& key);
-  void processIncomingFstConfigurationChange(const std::string& key,
-      const std::string& value);
+  void ProcessFstConfigChange(const std::string& key);
+  void ProcessFstConfigChange(const std::string& key,
+                              const std::string& value);
 
-  void processIncomingFsConfigurationChange(const std::string& queue,
-      const std::string& key);
+  void ProcessFsConfigChange(const std::string& queue,
+                             const std::string& key);
 
   // requires mFsMutex write-locked
-  void processIncomingFsConfigurationChange(fst::FileSystem* targetFs,
-      const std::string& queue, const std::string& key, const std::string& value);
+  void ProcessFsConfigChange(fst::FileSystem* targetFs,
+                             const std::string& queue, const std::string& key, const std::string& value);
 
   void Scrub();
   void Trim();

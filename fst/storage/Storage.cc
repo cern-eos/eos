@@ -736,8 +736,8 @@ Storage::RunBootThread(FileSystem* fs)
         retc = true;
         XrdSysMutexHelper tsLock(mThreadsMutex);
         mThreadSet.insert(tid);
-        eos_notice("msg=\"started boot thread\" fsid=%ld",
-                   (unsigned long) info->filesystem->GetId());
+        eos_notice("msg=\"started boot thread\" fsid=%lu",
+                   info->filesystem->GetId());
       }
     }
   }
@@ -751,7 +751,7 @@ Storage::RunBootThread(FileSystem* fs)
 bool
 Storage::OpenTransaction(unsigned int fsid, unsigned long long fid)
 {
-  FileSystem* fs = mFileSystemsMap[fsid];
+  FileSystem* fs = mFsMap[fsid];
 
   if (fs) {
     return fs->OpenTransaction(fid);
@@ -766,7 +766,7 @@ Storage::OpenTransaction(unsigned int fsid, unsigned long long fid)
 bool
 Storage::CloseTransaction(unsigned int fsid, unsigned long long fid)
 {
-  FileSystem* fs = mFileSystemsMap[fsid];
+  FileSystem* fs = mFsMap[fsid];
 
   if (fs) {
     return fs->CloseTransaction(fid);
@@ -824,7 +824,7 @@ Storage::GetNumDeletions()
 FileSystem*
 Storage::GetFileSystemById(eos::common::FileSystem::fsid_t fsid)
 {
-  return mFileSystemsMap[fsid];
+  return mFsMap[fsid];
 }
 
 //------------------------------------------------------------------------------
@@ -985,7 +985,7 @@ bool
 Storage::IsNodeActive() const
 {
   std::string status;
-  getFSTConfigValue("stat.active", status);
+  GetFstConfigValue("stat.active", status);
 
   if (status == "online") {
     return true;
@@ -1043,9 +1043,9 @@ Storage::GetStoragePath(eos::common::FileSystem::fsid_t fsid) const
 {
   std::string path;
   eos::common::RWMutexReadLock rd_lock(mFsMutex);
-  auto it = mFileSystemsMap.find(fsid);
+  auto it = mFsMap.find(fsid);
 
-  if (it != mFileSystemsMap.end()) {
+  if (it != mFsMap.end()) {
     path = it->second->GetPath();
   }
 
