@@ -866,6 +866,13 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
 
   if (req && fuse_req_interrupted(req)) {
     eos_warning("request interrupted");
+    // clean-up pending in-memory requests
+    if (iswrite) {
+      XrdCl::Proxy* proxy = mFile->xrdiorw(req);
+      if (proxy) {
+	proxy->WriteQueue().clear();
+      }
+    }
     return EINTR;
   }
 
@@ -901,6 +908,7 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
       eos_err("unrecoverable error - code=%d errNo=%d", 
 	      proxy->opening_state().code,
 	      proxy->opening_state().errNo);      
+      proxy->WriteQueue().clear();
       return XrdCl::Proxy::status2errno(proxy->opening_state());
     }
 
@@ -933,6 +941,7 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
       eos_err("unrecoverable error - code=%d errNo=%d", 
 	      proxy->opening_state().code,
 	      proxy->opening_state().errNo);    
+      proxy->WriteQueue().clear();
       return XrdCl::Proxy::status2errno(proxy->opening_state());
     }
 
@@ -1266,6 +1275,7 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy*& proxy,
 
   if (proxy->WaitOpen(req) == EINTR) {
     eos_warning("request interrupted");
+    proxy->WriteQueue().clear();
     return EINTR;
   }
 
@@ -1290,7 +1300,7 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy*& proxy,
                EosFuse::Instance().Config().recovery.write_open_noserver);
 
       // there is no server to read that file
-      if (!EosFuse::Instance().Config().recovery.write_open_noserver) { // might be disabled
+      if (!EosFuse::Instance().Config().recovery.write_open_noserver) { // might be disable
         return ENETUNREACH;
       }
     }
@@ -1316,6 +1326,7 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy*& proxy,
 
     if ((req && fuse_req_interrupted(req)) || (newproxy->WaitOpen(req) == EINTR)) {
       eos_warning("request interrupted");
+      proxy->WriteQueue().clear();
       return EINTR;
     }
 
@@ -1353,6 +1364,7 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy*& proxy,
 
           if (req && fuse_req_interrupted(req)) {
             eos_warning("request interrupted");
+	    proxy->WriteQueue().clear();
             return EINTR;
           }
         }
@@ -1416,7 +1428,10 @@ data::datax::recover_write(fuse_req_t req)
   // check if we have a problem with the open
   XrdCl::XRootDStatus status = proxy->WaitOpen();
 
-  if (status.IsFatal()) {
+  if ( status.IsFatal() ||
+       ( proxy->opening_state().IsError() &&
+	 ! proxy->opening_state_should_retry() )
+       ) {
     // error useless to retry
     proxy->WriteQueue().clear();
     proxy->ChunkMap().clear();
