@@ -114,13 +114,6 @@ XrdMgmOfs::Version(eos::common::FileId::fileid_t fid,
     if (gOFS->_mkdir(vpath.c_str(), 0, error, fidvid, (const char*) 0)) {
       return Emsg(epname, error, errno, "create version directory", path.c_str());
     }
-
-    // Remove any directory attribute here - sort of obsolete since we don't
-    // create them in first place anymore, let's just keep it
-    if (gOFS->_attr_clear(vpath.c_str(), error, fidvid, (const char*) 0, true)) {
-      return Emsg(epname, error, errno, "clear version directory attributes",
-                  path.c_str());
-    }
   }
 
   // Rename to the version directory target
