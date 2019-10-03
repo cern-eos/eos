@@ -48,8 +48,12 @@ Storage::GetFstConfigValue(const std::string& key, std::string& value) const
   return hash.get(key, value);
 }
 
+//------------------------------------------------------------------------------
+// Get configuration value from global FST config
+//------------------------------------------------------------------------------
 bool
-Storage::GetFstConfigValue(const std::string& key, unsigned long long& value)
+Storage::GetFstConfigValue(const std::string& key,
+                           unsigned long long& value) const
 {
   std::string strVal;
 
@@ -252,7 +256,8 @@ Storage::ProcessFstConfigChange(const std::string& key)
 //------------------------------------------------------------------------------
 void
 Storage::ProcessFsConfigChange(fst::FileSystem* targetFs,
-                               const std::string& queue, const std::string& key, const std::string& value)
+                               const std::string& queue,
+                               const std::string& key, const std::string& value)
 {
   if (key == "id") {
     // Check if we are autobooting
@@ -319,32 +324,33 @@ Storage::ProcessFsConfigChange(const std::string& queuepath,
       });
 
       if (itv == mFsVect.end()) {
-        eos_err("msg=\"no file system for id modification\" qpath=\"%s\" "
-                "key=\"%s\"", queuepath.c_str(), key.c_str());
+        eos_static_err("msg=\"no file system for id modification\" "
+                       "qpath=\"%s\" key=\"%s\"", queuepath.c_str(),
+                       key.c_str());
         return;
       }
 
       fst::FileSystem* fs = *itv;
       fs->SetStableId(fs->GetId());
       it = mFsMap.emplace(fs->GetId(), fs).first;
-      eos_info("msg=\"fully register file system\" qpath=%s fsid=%lu",
-               queuepath.c_str(), fs->GetId());
+      eos_static_info("msg=\"fully register file system\" qpath=%s fsid=%lu",
+                      queuepath.c_str(), fs->GetId());
     } else {
-      eos_err("msg=\"no file system for modification\" qpath=\"%s\" "
-              "key=\"%s\"", queuepath.c_str(), key.c_str());
+      eos_static_err("msg=\"no file system for modification\" qpath=\"%s\" "
+                     "key=\"%s\"", queuepath.c_str(), key.c_str());
       return;
     }
   }
 
-  eos_info("msg=\"process modification\" qpath=\"%s\" key=\"%s\"",
-           queuepath.c_str(), key.c_str());
+  eos_static_info("msg=\"process modification\" qpath=\"%s\" key=\"%s\"",
+                  queuepath.c_str(), key.c_str());
   fst::FileSystem* fs = it->second;
   mq::SharedHashWrapper hash(fs->getHashLocator());
   std::string value;
 
   if (!hash.get(key, value)) {
-    eos_err("msg=\"no such key in hash\" qpath=\"%s\" key=\"%s\"",
-            queuepath.c_str(), key.c_str());
+    eos_static_err("msg=\"no such key in hash\" qpath=\"%s\" key=\"%s\"",
+                   queuepath.c_str(), key.c_str());
     return;
   }
 
@@ -359,100 +365,64 @@ void
 Storage::Communicator(ThreadAssistant& assistant)
 {
   eos_static_info("%s", "msg=\"starting communicator thread\"");
-  std::string watch_id = "id";
-  std::string watch_bootsenttime = "bootsenttime";
-  std::string watch_scan_io_rate = eos::common::SCAN_IO_RATE_NAME;
-  std::string watch_scan_entry_interval = eos::common::SCAN_ENTRY_INTERVAL_NAME;
-  std::string watch_scan_disk_interval = eos::common::SCAN_DISK_INTERVAL_NAME;
-  std::string watch_scan_ns_interval = eos::common::SCAN_NS_INTERVAL_NAME;
-  std::string watch_scan_ns_rate = eos::common::SCAN_NS_RATE_NAME;
-  std::string watch_symkey = "symkey";
-  std::string watch_manager = "manager";
-  std::string watch_publishinterval = "publish.interval";
-  std::string watch_debuglevel = "debug.level";
-  std::string watch_gateway = "txgw";
-  std::string watch_gateway_rate = "gw.rate";
-  std::string watch_gateway_ntx = "gw.ntx";
-  std::string watch_error_simulation = "error.simulation";
-  std::string watch_regex = ".*";
+  std::set<std::string> watch_modification_keys { "id", "bootsenttime",
+      eos::common::SCAN_IO_RATE_NAME, eos::common::SCAN_ENTRY_INTERVAL_NAME,
+      eos::common::SCAN_DISK_INTERVAL_NAME, eos::common::SCAN_NS_INTERVAL_NAME,
+      eos::common::SCAN_NS_RATE_NAME, "symkey", "manager", "publish.interval",
+      "debug.level", "txgw", "gw.rate", "gw.ntx", "error.simulation"};
   bool ok = true;
-  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_id,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_bootsenttime,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_scan_io_rate,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",
-        watch_scan_entry_interval,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",
-        watch_scan_disk_interval,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",
-        watch_scan_ns_interval,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_scan_ns_rate,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_symkey,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_manager,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_publishinterval,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_debuglevel,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_gateway,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_gateway_rate,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", watch_gateway_ntx,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",
-        watch_error_simulation,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+
+  for (const auto& key : watch_modification_keys) {
+    ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", key,
+          XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  }
+
+  std::string watch_regex = ".*";
   ok &= gOFS.ObjectNotifier.SubscribesToSubjectRegex("communicator", watch_regex,
         XrdMqSharedObjectChangeNotifier::kMqSubjectCreation);
   ok &= gOFS.ObjectNotifier.SubscribesToSubjectRegex("communicator", watch_regex,
         XrdMqSharedObjectChangeNotifier::kMqSubjectDeletion);
 
   if (!ok) {
-    eos_crit("error subscribing to shared objects change notifications");
+    eos_crit("%s", "msg=\"error subscribing to shared object change "
+             "notifications\"");
   }
 
   gOFS.ObjectNotifier.BindCurrentThread("communicator");
 
   if (!gOFS.ObjectNotifier.StartNotifyCurrentThread()) {
-    eos_crit("error starting shared objects change notifications");
+    eos_crit("%s", "msg=\"error starting shared object change notifier\"");
   }
 
-  XrdSysThread::SetCancelDeferred();
-
-  while (true) {
-    // wait for new filesystem definitions
+  while (!assistant.terminationRequested()) {
+    // Wait for new filesystem definitions
     gOFS.ObjectNotifier.tlSubscriber->mSubjSem.Wait();
-    XrdSysThread::CancelPoint();
-    // we always take a lock to take something from the queue and then release it
-    gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
 
-    while (gOFS.ObjectNotifier.tlSubscriber->NotificationSubjects.size()) {
+    do {
+      if (assistant.terminationRequested()) {
+        break;
+      }
+
       XrdMqSharedObjectManager::Notification event;
-      event = gOFS.ObjectNotifier.tlSubscriber->NotificationSubjects.front();
-      gOFS.ObjectNotifier.tlSubscriber->NotificationSubjects.pop_front();
-      gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.UnLock();
+      {
+        // Take an event from the queue under lock
+        XrdSysMutexHelper lock(gOFS.ObjectNotifier.tlSubscriber->mSubjMtx);
+
+        if (gOFS.ObjectNotifier.tlSubscriber->NotificationSubjects.size() == 0) {
+          break;
+        } else {
+          event = gOFS.ObjectNotifier.tlSubscriber->NotificationSubjects.front();
+          gOFS.ObjectNotifier.tlSubscriber->NotificationSubjects.pop_front();
+        }
+      }
       eos_static_info("msg=\"shared object notification\" type=%i subject=\"%s\"",
                       event.mType, event.mSubject.c_str());
       XrdOucString queue = event.mSubject.c_str();
 
       if (event.mType == XrdMqSharedObjectManager::kMqSubjectCreation) {
-        // Handle subject creation
-        if (queue == Config::gConfig.FstQueueWildcard) {
-          gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
-          continue;
-        }
-
-        if ((queue.find("/txqueue/") != STR_NPOS)) {
-          // this is a transfer queue we, don't need to take action
-          gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
+        // Skip fst wildcard queue creation and txqueue
+        if ((queue == Config::gConfig.FstQueueWildcard) ||
+            (queue.find("/txqueue/") != STR_NPOS)) {
           continue;
         }
 
@@ -465,46 +435,28 @@ Storage::Communicator(ThreadAssistant& assistant)
             // access to it since it's name depends on the instance name and
             // we don't know (yet)
             Config::gConfig.setFstNodeConfigQueue(queue);
-            eos_static_info("storing config queue name <%s>", queue.c_str());
+            eos_static_info("msg=\"storing config queue name\" qpath=\"%s\"",
+                            queue.c_str());
           } else {
-            eos_static_info("no action on creation of subject <%s> - we are <%s>",
-                            event.mSubject.c_str(), Config::gConfig.FstQueue.c_str());
+            eos_static_info("msg=\"no action on subject creation\" qpath=\"%s\" "
+                            "own_id=\"%s\"", queue.c_str(),
+                            Config::gConfig.FstQueue.c_str());
           }
 
-          gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
           continue;
         }
 
         RegisterFileSystem(queue.c_str());
-        gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
-        continue;
-      }
-
-      if (event.mType == XrdMqSharedObjectManager::kMqSubjectDeletion) {
-        // Handle subject deletion
-        if ((queue.find("/txqueue/") != STR_NPOS)) {
-          // this is a transfer queue we, don't need to take action
-          gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
-          continue;
-        }
-
-        if (!queue.beginswith(Config::gConfig.FstQueue)) {
-          eos_static_err("msg=\"illegal deletion subject\" subject=\"%s\" "
-                         "own_id=\"%s\"", event.mSubject.c_str(),
-                         Config::gConfig.FstQueue.c_str());
-          gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
+      } else if (event.mType == XrdMqSharedObjectManager::kMqSubjectDeletion) {
+        // Skip txqueue and deletions that don't concern us
+        if ((queue.find("/txqueue/") != STR_NPOS) ||
+            (queue.beginswith(Config::gConfig.FstQueue) == false)) {
           continue;
         } else {
           UnregisterFileSystem(event.mSubject);
         }
-
-        gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
-        continue;
-      }
-
-      if (event.mType == XrdMqSharedObjectManager::kMqSubjectModification) {
-        // Handle subject modification
-        // seperate <path> from <key>
+      } else if (event.mType == XrdMqSharedObjectManager::kMqSubjectModification) {
+        // Handle subject modification, seperate <path> from <key>
         XrdOucString key = queue;
         int dpos = 0;
 
@@ -518,17 +470,9 @@ Storage::Communicator(ThreadAssistant& assistant)
         } else {
           ProcessFsConfigChange(queue.c_str(), key.c_str());
         }
-
-        gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.Lock();
-        continue;
       }
-    }
-
-    gOFS.ObjectNotifier.tlSubscriber->mSubjMtx.UnLock();
-    XrdSysThread::CancelPoint();
+    } while (true);
   }
-
-  XrdSysThread::SetCancelOn();
 }
 
 //------------------------------------------------------------------------------
