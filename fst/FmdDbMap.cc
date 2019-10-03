@@ -825,7 +825,14 @@ FmdDbMapHandler::ResyncDisk(const char* path,
       scheck_stamp.erase(10);
     }
 
-    unsigned long check_ts_sec = std::stoul(scheck_stamp);
+    unsigned long check_ts_sec {0ul};
+
+    try {
+      check_ts_sec = std::stoul(scheck_stamp);
+    } catch (...) {
+      // ignore
+    }
+
     std::string disk_xs_hex;
     off_t disk_size {0ull};
 
