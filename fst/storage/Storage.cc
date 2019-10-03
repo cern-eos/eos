@@ -330,7 +330,7 @@ Storage::Boot(FileSystem* fs)
     eos_info("msg=\"waiting to know manager\"");
 
     if (cnt > 20) {
-      eos_static_alert("didn't receive manager name, aborting");
+      eos_static_alert("%s", "msg=\"didn't receive manager name, aborting\"");
       std::this_thread::sleep_for(std::chrono::seconds(10));
       XrdFstOfs::xrdfstofs_shutdown(1);
     }
@@ -414,6 +414,9 @@ Storage::Boot(FileSystem* fs)
                     eos::common::FileSystem::kBootResync);
   bool resyncdisk = (fs->GetLongLong("bootcheck") >=
                      eos::common::FileSystem::kBootForced);
+  // If we see the bootcheck resyncflag for the filesystem, we resync with
+  // the mgm. Remove the bootcheck flag.
+  fs->SetLongLong("bootcheck", 0);
   eos_info("msg=\"start disk synchronisation\" fsid=%u", fsid);
 
   // Sync only local disks
@@ -436,10 +439,6 @@ Storage::Boot(FileSystem* fs)
   } else {
     eos_info("msg=\"skipped disk synchronisization\" fsid=%u", fsid);
   }
-
-  // If we see the stat.bootcheck resyncflag for the filesystem, we resync with
-  // the mgm. Remove the bootcheck flag.
-  fs->SetLongLong("bootcheck", 0);
 
   if (resyncmgm) {
     eos_info("msg=\"start mgm synchronisation\" fsid=%u", fsid);
