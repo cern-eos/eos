@@ -278,8 +278,15 @@ XrdMgmOfs::Commit(const char* path,
           // a new one and do the final rename in a transaction
           if (vfid) {
             XrdOucString versionedname = "";
-            gOFS->Version(vfid, error, rootvid, 0xffff, &versionedname, true);
-            paths["version"].Init(versionedname.c_str());
+	    if (gOFS->Version(vfid, error, rootvid, 0xffff, &versionedname, true)) {
+	      eos_static_crit("versioning failed %s/%s vfxid=%08lxx",
+			      paths["versiondir"].GetParentPath(),
+			      paths["atomic"].GetPath(), vfid);
+	      const char* errmsg = "commit - versioning failed";
+	      return Emsg(epname, error, EREMCHG, errmsg, paths["atomic"].GetName());
+	    } else {
+	      paths["version"].Init(versionedname.c_str());
+	    }
           }
         }
 
