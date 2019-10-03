@@ -226,7 +226,6 @@ XrdMgmOfs::_remdir(const char* path,
         dhpar->notifyMTimeChange(gOFS->eosDirectoryService);
         eosView->updateContainerStore(dhpar.get());
         dhpar_id = dhpar->getIdentifier();
-        dhpar_id = dhpar->getParentIdentifier();
         dh_name = dh->getName();
       }
 
