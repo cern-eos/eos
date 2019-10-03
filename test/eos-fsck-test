@@ -268,7 +268,7 @@ function cleanup() {
 
 # Set up global variables
 IS_DOCKER=false
-NAMESPACE=""
+K8S_NAMESPACE=""
 
 if [[ $# -lt 2 ]]; then
   echo "error: invalid number of arguments"
@@ -293,6 +293,9 @@ else
 fi
 
 if [[ "${IS_DOCKER}" == false ]]; then
+  # @todo(faluchet) remove when poper support for k8s is added
+  exit 0
+
   # For the Kubernetes setup we also need a namespace argument
   if [[ $# -le 3 ]]; then
     echo "error: missing Kubernetes namespace argument"
@@ -300,7 +303,7 @@ if [[ "${IS_DOCKER}" == false ]]; then
     exit 1
   fi
 
-  NAMESPACE="$3"
+  K8S_NAMESPACE="$3"
 fi
 
 # Create test file

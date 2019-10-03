@@ -45,11 +45,11 @@ fi
 # Execute full suite of instance tests if ONLY_CLIENT flag is not defined
 if [[ -z $ONLY_CLIENT ]]; then
 	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm1) \
-	-- sed -i 's/eos-mq-test.eoscluster.cern.ch/eos-mq/g' /usr/sbin/eos-instance-test-ci # @todo tmp, then re-code the files
+	-- sed -i 's/eos-mq-test.eoscluster.cern.ch/eos-mq/g' /usr/sbin/eos-instance-test-ci --type k8s ${NAMESPACE} # @todo tmp, then re-code the files
 	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm1) \
 	-- sed -i "s/eos-fst4-test.eoscluster.cern.ch/eos-fst4.eos-fst4.${NAMESPACE}.svc.cluster.local/g" /usr/sbin/eos-drain-test # @todo tmp, then re-code the files
 	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm1) \
-	-- eos-instance-test-ci
+	-- eos-instance-test-ci --type k8s ${NAMESPACE}
 fi
 
 kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \
