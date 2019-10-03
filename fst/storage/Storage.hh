@@ -265,19 +265,35 @@ private:
   void Communicator(ThreadAssistant& assistant);
   void QdbCommunicator(QdbContactDetails contactDetails,
                        ThreadAssistant& assistant);
+
+  //------------------------------------------------------------------------------
+  //! Get configuration value from global FST config
+  //!
+  //! @param key configuration key
+  //! @param value output configuration value as string
+  //!
+  //! @return true if config key found, otherwise false
+  //------------------------------------------------------------------------------
   bool GetFstConfigValue(const std::string& key, std::string& value) const;
-  bool GetFstConfigValue(const std::string& key, unsigned long long& value);
+
+  //------------------------------------------------------------------------------
+  //! Get configuration value from global FST config
+  //!
+  //! @param key configuration key
+  //! @param value output configuration value as ull
+  //!
+  //! @return true if config key found, otherwise false
+  //------------------------------------------------------------------------------
+  bool GetFstConfigValue(const std::string& key, unsigned long long& value) const;
 
   void ProcessFstConfigChange(const std::string& key);
   void ProcessFstConfigChange(const std::string& key,
                               const std::string& value);
-
   void ProcessFsConfigChange(const std::string& queue,
                              const std::string& key);
-
   // requires mFsMutex write-locked
-  void ProcessFsConfigChange(fst::FileSystem* targetFs,
-                             const std::string& queue, const std::string& key, const std::string& value);
+  void ProcessFsConfigChange(fst::FileSystem* targetFs, const std::string& queue,
+                             const std::string& key, const std::string& value);
 
   void Scrub();
   void Trim();
