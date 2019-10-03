@@ -18,23 +18,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # ******************************************************************************
 
-function usage() {
-  echo "usage: $(basename $0) --type docker/k8s <k8s_namespace>"
-  echo "       docker : script runs in a Docker based setup"
-  echo "       k8s    : script runs in a Kubernetes setup and requires a namespace argument"
-}
-
-# Check minimal input
-if [[ $# -lt 2 ]]; then
-  echo "error: invalid number of arguments"
-  usage
-  exit 1
-fi
-
-# Running FSCK tests
-echo "Runing FSCK tests ..."
-eos-fsck-test "$@"
-
 echo "Running MQ tests ..."
 eos-mq-tests eos-mq-test.eoscluster.cern.ch
 
