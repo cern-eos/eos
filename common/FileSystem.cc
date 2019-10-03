@@ -1165,7 +1165,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
   //headroom can be configured as KMGTP so the string should be properly converted
   fs.mHeadRoom = StringConversion::GetSizeFromString(hash.get("headroom"));
   fs.mErrCode = (unsigned int) hash.getLongLong("stat.errc");
-  fs.mBootSentTime = (time_t) hash.getLongLong("stat.bootsenttime");
+  fs.mBootSentTime = (time_t) hash.getLongLong("bootsenttime");
   fs.mBootDoneTime = (time_t) hash.getLongLong("stat.bootdonetime");
   fs.mHeartBeatTime = mHeartBeatTime;
   fs.mDiskUtilization = hash.getDouble("stat.disk.load");
