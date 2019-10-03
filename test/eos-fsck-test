@@ -215,7 +215,7 @@ function configure_fsck() {
   done
 
   # Reduce the interval when the fsck collection thread runs
-  exec_cmd eos-client1-test  "eos -r 0 0 fsck enable 1;"
+  exec_cmd eos-client1-test  "eos -r 0 0 fsck toggle-collect 1;"
 }
 
 # Check that we collected all the errors that we expect
@@ -263,7 +263,7 @@ function check_all_errors_collected() {
 # Cleanup the files and directories at the MGM
 function cleanup() {
   exec_cmd eos-client1-test "eos -r 0 0 rm -rF ${EOS_ROOT}/fsck"
-  exec_cmd eos-client1-test "eos -r 0 0 fsck disable"
+  exec_cmd eos-client1-test "eos -r 0 0 fsck toggle-collect"
 }
 
 # Set up global variables
