@@ -228,7 +228,6 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
 
   while (!assistant.terminationRequested()) {
     Log("Start error collection");
-    ResetErrorMaps();
 
     // Don't run fsck if we are not a master
     while (!gOFS->mMaster->IsMaster()) {
@@ -237,8 +236,9 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
       if (assistant.terminationRequested()) {
         eos_info("%s", "msg=\"stopped fsck collector thread\"");
         Log("Stop error collection");
-        PublishLogs();
         mCollectRunning = false;
+        ResetErrorMaps();
+        PublishLogs();
         return;
       }
     }
@@ -264,6 +264,7 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
       stdErr = "error: broadcast failed\n";
     }
 
+    decltype(eFsMap) tmp_err_map;
     std::vector<std::string> lines;
     // Convert into a line-wise seperated array
     eos::common::StringConversion::StringToLineVector((char*) stdOut.c_str(),
@@ -277,17 +278,24 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
       if (eos::common::StringConversion::ParseStringIdSet((char*)
           lines[nlines].c_str(), err_tag, fsid, fids)) {
         if (fsid) {
-          eos::common::RWMutexWriteLock wr_lock(mErrMutex);
-
           // Add the fids into the error maps
           for (auto it = fids.cbegin(); it != fids.cend(); ++it) {
-            eFsMap[err_tag][fsid].insert(*it);
+            tmp_err_map[err_tag][fsid].insert(*it);
           }
         }
       } else {
         eos_err("msg=\"cannot parse fsck response\" msg=\"%s\"",
                 lines[nlines].c_str());
       }
+    }
+
+    {
+      // Swap in the new list of errors and clear the rest
+      eos::common::RWMutexWriteLock wr_lock(mErrMutex);
+      std::swap(tmp_err_map, eFsMap);
+      eFsUnavail.clear();
+      eFsDark.clear();
+      eTimeStamp = time(NULL);
     }
 
     // @note accounting the offline replicas/files is a heavy ns op.
@@ -300,7 +308,7 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
     AccountNoReplicaFiles();
     PrintErrorsSummary();
 
-    // @note the following operation is heavy for the qdb ns
+    // @note the following operation is a heavy ns op.
     if (mShowDarkFiles) {
       AccountDarkFiles();
     }
@@ -315,8 +323,8 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
     assistant.wait_for(mCollectInterval);
   }
 
-  ResetErrorMaps();
   mCollectRunning = false;
+  ResetErrorMaps();
 }
 
 //------------------------------------------------------------------------------
@@ -471,27 +479,6 @@ Fsck::PrintOut(std::string& out) const
 }
 
 //------------------------------------------------------------------------------
-// Return the current FSCK report
-//------------------------------------------------------------------------------
-bool
-Fsck::Report(std::string& out, const std::set<std::string> tags,
-             bool display_per_fs, bool display_fxid, bool display_lfn,
-             bool display_json)
-{
-  std::ostringstream oss;
-  eos::common::RWMutexReadLock rd_lock(mErrMutex);
-
-  if (display_json) {
-    ReportJsonFormat(oss, tags, display_per_fs, display_fxid, display_lfn);
-  } else {
-    ReportMonitorFormat(oss, tags, display_per_fs, display_fxid, display_lfn);
-  }
-
-  out = oss.str();
-  return true;
-}
-
-//------------------------------------------------------------------------------
 // Get the require format for the given file identifier. Empty if no format
 // requested.
 //------------------------------------------------------------------------------
@@ -514,6 +501,27 @@ Fsck::GetFidFormat(eos::IFileMD::id_t fid, bool display_fxid, bool
   }
 
   return "";
+}
+
+//------------------------------------------------------------------------------
+// Return the current FSCK report
+//------------------------------------------------------------------------------
+bool
+Fsck::Report(std::string& out, const std::set<std::string> tags,
+             bool display_per_fs, bool display_fxid, bool display_lfn,
+             bool display_json)
+{
+  std::ostringstream oss;
+  eos::common::RWMutexReadLock rd_lock(mErrMutex);
+
+  if (display_json) {
+    ReportJsonFormat(oss, tags, display_per_fs, display_fxid, display_lfn);
+  } else {
+    ReportMonitorFormat(oss, tags, display_per_fs, display_fxid, display_lfn);
+  }
+
+  out = oss.str();
+  return true;
 }
 
 //------------------------------------------------------------------------------
