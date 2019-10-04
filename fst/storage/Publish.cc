@@ -306,7 +306,7 @@ Storage::GetFsStatistics(FileSystem* fs, bool publishInconsistencyStats)
     return {};
   }
 
-  eos::common::FileSystem::fsid_t fsid = fs->GetId();
+  eos::common::FileSystem::fsid_t fsid = fs->GetLocalId();
 
   if (!fsid) {
     // during the boot phase we can find a filesystem without ID
@@ -413,7 +413,7 @@ bool Storage::PublishFsStatistics(FileSystem* fs,
     return false;
   }
 
-  eos::common::FileSystem::fsid_t fsid = fs->GetId();
+  eos::common::FileSystem::fsid_t fsid = fs->GetLocalId();
 
   if (!fsid) {
     // during the boot phase we can find a filesystem without ID

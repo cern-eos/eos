@@ -70,22 +70,37 @@ public:
   ~FileSystem();
 
   //-----------------------------------------------------------------------------
-  //! Set stable id - the once that doesn't change if the shared hash object
-  //! get deleted.
-  //!
-  //! @param id file system identifier
+  //! Set local id as it was published by the MGM the first time, this won't
+  //! change throughout the lifetime of this object.
   //-----------------------------------------------------------------------------
-  inline void SetStableId(eos::common::FileSystem::fsid_t id)
+  inline void SetLocalId()
   {
-    mStableId = id;
+    mLocalId = GetId();
   }
 
   //-----------------------------------------------------------------------------
-  //! Get stable id value
+  //! Get local id value
   //-----------------------------------------------------------------------------
-  inline eos::common::FileSystem::fsid_t GetStableId()
+  inline eos::common::FileSystem::fsid_t GetLocalId() const
   {
-    return mStableId;
+    return mLocalId;
+  }
+
+  //-----------------------------------------------------------------------------
+  //! Set local uuid as it was published by the MGM the first time, this won't
+  //! change throughout the lifetime of this object.
+  //-----------------------------------------------------------------------------
+  inline void SetLocalUuid()
+  {
+    mLocalUuid = GetString("uuid");
+  }
+
+  //-----------------------------------------------------------------------------
+  //! Get local id value
+  //-----------------------------------------------------------------------------
+  inline std::string GetLocalUuid() const
+  {
+    return mLocalUuid;;
   }
 
   //-----------------------------------------------------------------------------
@@ -118,14 +133,6 @@ public:
   //! @param value configuration value
   //-----------------------------------------------------------------------------
   void ConfigScanner(Load* fst_load, const std::string& key, long long value);
-
-  //-----------------------------------------------------------------------------
-  //! Get file system mount path
-  //-----------------------------------------------------------------------------
-  inline std::string GetPath()
-  {
-    return GetString("path");
-  }
 
   inline TransferQueue*
   GetBalanceQueue()
@@ -278,8 +285,12 @@ public:
   }
 
 private:
-  //! Stable file system id irrespective of the shared hash status
-  eos::common::FileSystem::fsid_t mStableId;
+  //! Local file system id irrespective of the shared hash status, populated
+  //! the first time the id is broadcasted from the mgm
+  eos::common::FileSystem::fsid_t mLocalId;
+  //! Local file system uuid irrespective of the shared hash status, populated
+  //! the first time the *id* is broadcasted from the mgm
+  std::string mLocalUuid;
   std::unique_ptr<eos::fst::ScanDir> mScanDir; ///< Filesystem scanner
   std::unique_ptr<FileIo> mFileIO; ///< File used for statfs calls
   std::unique_ptr<TransferMultiplexer> mTxMultiplexer;

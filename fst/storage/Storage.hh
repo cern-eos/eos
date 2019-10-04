@@ -169,7 +169,7 @@ public:
 
 protected:
   mutable eos::common::RWMutex mFsMutex; ///< Mutex protecting the fs map
-  std::vector <FileSystem*> mFsVect; ///< Vector of filesystems
+  std::vector <fst::FileSystem*> mFsVect; ///< Vector of filesystems
   //! Map of filesystem id to filesystem object
   std::map<eos::common::FileSystem::fsid_t, FileSystem*> mFsMap;
 

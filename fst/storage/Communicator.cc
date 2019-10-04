@@ -138,8 +138,9 @@ Storage::RegisterFileSystem(const std::string& queuepath)
 
   eos_info("msg=\"fully register filesystem\" qpath=\"%s\" fsid=%lu",
            queuepath.c_str(), fs->GetId());
-  fs->SetStableId(fs->GetId());
-  mFsMap[fs->GetId()] = fs;
+  fs->SetLocalId();
+  fs->SetLocalUuid();
+  mFsMap[fs->GetLocalId()] = fs;
 }
 
 //------------------------------------------------------------------------------
@@ -331,10 +332,11 @@ Storage::ProcessFsConfigChange(const std::string& queuepath,
       }
 
       fst::FileSystem* fs = *itv;
-      fs->SetStableId(fs->GetId());
-      it = mFsMap.emplace(fs->GetId(), fs).first;
+      fs->SetLocalId();
+      fs->SetLocalUuid();
+      it = mFsMap.emplace(fs->GetLocalId(), fs).first;
       eos_static_info("msg=\"fully register file system\" qpath=%s fsid=%lu",
-                      queuepath.c_str(), fs->GetId());
+                      queuepath.c_str(), fs->GetLocalId());
     } else {
       eos_static_err("msg=\"no file system for modification\" qpath=\"%s\" "
                      "key=\"%s\"", queuepath.c_str(), key.c_str());

@@ -337,8 +337,8 @@ Storage::Boot(FileSystem* fs)
   } while (true);
 
   eos_info("msg=\"manager known\" manager=\"%s\"", manager.c_str());
-  eos::common::FileSystem::fsid_t fsid = fs->GetId();
-  std::string uuid = fs->GetString("uuid");
+  eos::common::FileSystem::fsid_t fsid = fs->GetLocalId();
+  std::string uuid = fs->GetLocalUuid();
   eos_info("booting filesystem %s id=%u uuid=%s", fs->GetQueuePath().c_str(),
            (unsigned int) fsid, uuid.c_str());
 
@@ -495,7 +495,7 @@ Storage::Boot(FileSystem* fs)
     transactionDirectory = mMetaDir.c_str();
     transactionDirectory += "/.eostransaction";
     transactionDirectory += "-";
-    transactionDirectory += (int) fs->GetId();
+    transactionDirectory += (int) fs->GetLocalId();
   } else {
     transactionDirectory += "/.eostransaction";
   }
@@ -533,7 +533,7 @@ Storage::Boot(FileSystem* fs)
     orphanDirectory = mMetaDir.c_str();
     orphanDirectory += "/.eosorphans";
     orphanDirectory += "-";
-    orphanDirectory += (int) fs->GetId();
+    orphanDirectory += (int) fs->GetLocalId();
   } else {
     orphanDirectory += "/.eosorphans";
   }
@@ -690,7 +690,7 @@ Storage::StartBoot(void* pp)
     info->storage->Boot(info->filesystem);
     // Remove from the set containing the ids of booting filesystems
     XrdSysMutexHelper bootLock(info->storage->mBootingMutex);
-    info->storage->mBootingSet.erase(info->filesystem->GetId());
+    info->storage->mBootingSet.erase(info->filesystem->GetLocalId());
     XrdSysMutexHelper tsLock(info->storage->mThreadsMutex);
     info->storage->mThreadSet.erase(XrdSysThread::ID());
     delete info;
@@ -711,13 +711,13 @@ Storage::RunBootThread(FileSystem* fs)
     XrdSysMutexHelper bootLock(mBootingMutex);
 
     // Check if this filesystem is currently already booting
-    if (mBootingSet.count(fs->GetId())) {
+    if (mBootingSet.count(fs->GetLocalId())) {
       eos_warning("discard boot request: filesytem fsid=%lu is currently booting",
-                  (unsigned long) fs->GetId());
+                  (unsigned long) fs->GetLocalId());
       return retc;
     } else {
       // Insert into the set of booting filesystems
-      mBootingSet.insert(fs->GetId());
+      mBootingSet.insert(fs->GetLocalId());
     }
 
     BootThreadInfo* info = new BootThreadInfo();
@@ -730,13 +730,13 @@ Storage::RunBootThread(FileSystem* fs)
       if ((XrdSysThread::Run(&tid, Storage::StartBoot, static_cast<void*>(info),
                              0, "Booter"))) {
         eos_crit("cannot start boot thread");
-        mBootingSet.erase(fs->GetId());
+        mBootingSet.erase(fs->GetLocalId());
       } else {
         retc = true;
         XrdSysMutexHelper tsLock(mThreadsMutex);
         mThreadSet.insert(tid);
         eos_notice("msg=\"started boot thread\" fsid=%lu",
-                   info->filesystem->GetId());
+                   info->filesystem->GetLocalId());
       }
     }
   }
