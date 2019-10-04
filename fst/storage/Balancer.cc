@@ -171,7 +171,7 @@ Storage::GetFileSystemInBalanceMode(std::vector<unsigned int>& balancefsvector,
 
     if (index < mFsVect.size()) {
       std::string path = mFsVect[index]->GetPath();
-      unsigned long id = mFsVect[index]->GetStableId();
+      unsigned long id = mFsVect[index]->GetLocalId();
       eos_static_debug("FileSystem %lu ", id);
       double nominal =
         mFsVect[index]->GetDouble("stat.nominal.filled");
@@ -241,7 +241,7 @@ Storage::GetBalanceJob(unsigned int index)
 {
   unsigned long long freebytes =
     mFsVect[index]->GetLongLong("stat.statfs.freebytes");
-  unsigned long id = mFsVect[index]->GetStableId();
+  unsigned long id = mFsVect[index]->GetLocalId();
   XrdOucErrInfo error;
   XrdOucString managerQuery = "/?";
   managerQuery += "mgm.pcmd=schedule2balance";

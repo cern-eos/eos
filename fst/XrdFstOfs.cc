@@ -1219,7 +1219,7 @@ XrdFstOfs::SendFsck(XrdMqMessage* message)
 
     for (auto icit = icset->begin(); icit != icset->end(); icit++) {
       char stag[4096];
-      eos::common::FileSystem::fsid_t fsid = fs->GetStableId();
+      eos::common::FileSystem::fsid_t fsid = fs->GetLocalId();
       snprintf(stag, sizeof(stag) - 1, "%s@%lu", icit->first.c_str(),
                (unsigned long) fsid);
       stdOut += stag;
