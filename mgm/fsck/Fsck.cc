@@ -180,7 +180,7 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
 
     mRepairEnabled = ! mRepairRunning;
 
-    if (mRepairEnabled) {
+    if (mRepairRunning) {
       mRepairThread.join();
     } else {
       mRepairThread.reset(&Fsck::RepairErrs, this);
