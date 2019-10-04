@@ -149,7 +149,12 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
     mCollectEnabled = ! mCollectRunning;
 
     if (mCollectRunning) {
-      mRepairThread.join();
+      // Stop also repair thread if it's running
+      if (mRepairRunning) {
+        mRepairThread.join();
+        mRepairEnabled = false;
+      }
+
       mCollectorThread.join();
     } else {
       // If value is present then it represents the collection interval
@@ -325,6 +330,7 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
 
   mCollectRunning = false;
   ResetErrorMaps();
+  eos_info("%s", "msg=\"stopped fsck collector thread\"");
 }
 
 //------------------------------------------------------------------------------
@@ -425,8 +431,8 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
     assistant.wait_for(std::chrono::seconds(1));
   }
 
-  eos_info("%s", "msg=\"stopped fsck repair thread\"");
   mRepairRunning = false;
+  eos_info("%s", "msg=\"stopped fsck repair thread\"");
 }
 
 //------------------------------------------------------------------------------
@@ -1008,6 +1014,8 @@ Fsck::PrintErrorsSummary() const
   for (const auto& elem_type : eFsMap) {
     uint64_t count {0ull};
 
+    // @todo (esindril) maybe we could display unique fxid errors since this
+    // accounts also for duplicates
     for (const auto& elem_errs : elem_type.second) {
       count += elem_errs.second.size();
     }
