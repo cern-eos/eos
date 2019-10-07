@@ -807,6 +807,16 @@ public:
     return want_zmq_connect.load();
   }
 
+  void set_is_visible(int val)
+  {
+    fusex_visible.store(val, std::memory_order_seq_cst);
+  }
+
+  int is_visible()
+  {
+    return fusex_visible.load();
+  }
+
   bool should_flush_write_size()
   {
     XrdSysMutexHelper cLock(ConfigMutex);
@@ -900,6 +910,7 @@ private:
   std::string zmq_clientuuid;
   std::mutex zmq_socket_mutex;
   std::atomic<int> want_zmq_connect;
+  std::atomic<int> fusex_visible;
   backend* mdbackend;
 };
 
