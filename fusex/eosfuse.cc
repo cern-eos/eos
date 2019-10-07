@@ -1473,6 +1473,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       caps.init(&mdbackend, &mds);
       datas.init();
 
+
       if (config.mqtargethost.length()) {
         if (mds.connect(config.mqtargethost, config.mqidentity, config.mqname,
                         config.clienthost, config.clientuuid)) {
@@ -1528,6 +1529,17 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       tMetaStackFree.reset(&metad::mdstackfree, &mds);
       tMetaCommunicate.reset(&metad::mdcommunicate, &mds);
       tCapFlush.reset(&cap::capflush, &caps);
+
+      // wait that we get our heartbeat sent ...
+      for (size_t i=0; i<50; ++i) {
+	if (mds.is_visible()) {
+	  break;
+	} else {
+	  eos_static_notice("waiting for established heart-beat : %u", i);
+          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	}
+      }
+      
       eos_static_warning("********************************************************************************");
       eos_static_warning("eosxd started version %s - FUSE protocol version %d",
                          VERSION, FUSE_USE_VERSION);
@@ -4931,8 +4943,6 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
         // avoid to show this call in stats again
         return ;
       }
-    } else {
-      rc = EPERM;
     }
 
     if (key.substr(0, s_log.length()) == s_log) {

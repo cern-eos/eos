@@ -56,6 +56,7 @@ metad::metad() : mdflush(0), mdqueue_max_backlog(1000),
   md->set_pid(1);
   stat.inodes_inc();
   stat.inodes_ever_inc();
+  set_is_visible(0);
   mdbackend = 0;
   mdmap.insertTS(1, md);
 }
@@ -3029,6 +3030,9 @@ metad::mdcommunicate(ThreadAssistant& assistant)
       std::string hbstream;
       hb.SerializeToString(&hbstream);
       z_socket->send(hbstream.c_str(), hbstream.length());
+      if (!is_visible()) {
+	set_is_visible(1);
+      }
       hb.mutable_heartbeat_()->clear_log();
       hb.mutable_heartbeat_()->clear_trace();
 
