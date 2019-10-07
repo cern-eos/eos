@@ -124,7 +124,7 @@ fi
 
 # Now test the draindead mode, for this we simulate a fmd open error on the
 # targeted file system
-#eos node config eos-fst4-test.eoscluster.cern.ch:1095 error.simulation=fmd_open
+#eos node config eos-fst4.eoscluster.cern.ch:1095 error.simulation=fmd_open
 #eos fs config 4 configstatus=draindead
 #eos fs ls | grep " 4 " | grep "draindead" | grep "prepare\|draining"
 
@@ -142,7 +142,7 @@ fi
 #    echo "Draindead file system 4 successfully drained"
 #fi
 
-#eos node config eos-fst4-test.eoscluster.cern.ch:1095 error.simulation=none
+#eos node config eos-fst4.eoscluster.cern.ch:1095 error.simulation=none
 #eos fs config 4 configstatus=rw
 
 # Remove all the files and directories
