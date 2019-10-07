@@ -64,35 +64,35 @@ function exec_cmd_docker() {
 function create_test_files() {
   EOS_ROOT=/eos/dockertest
 
-  exec_cmd eos-client1-test "dd if=/dev/urandom of=/tmp/test_file.dat bs=1M count=10"
-  exec_cmd eos-client1-test "eos -r 0 0 mkdir ${EOS_ROOT}/fsck; eos -r 0 0 attr set default=replica ${EOS_ROOT}/fsck"
+  exec_cmd eos-cli1 "dd if=/dev/urandom of=/tmp/test_file.dat bs=1M count=10"
+  exec_cmd eos-cli1 "eos -r 0 0 mkdir ${EOS_ROOT}/fsck; eos -r 0 0 attr set default=replica ${EOS_ROOT}/fsck"
   # Create one file per type of fsck error and trip whitespaces
-  exec_cmd eos-client1-test "xrdcp -f -d 1 /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_ROOT}/fsck/file_d_mem_sz_diff.dat"
-  FXID_D_MEM_SZ_DIFF=$(exec_cmd eos-client1-test "eos fileinfo ${EOS_ROOT}/fsck/file_d_mem_sz_diff.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};'")
+  exec_cmd eos-cli1 "xrdcp -f -d 1 /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_ROOT}/fsck/file_d_mem_sz_diff.dat"
+  FXID_D_MEM_SZ_DIFF=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_ROOT}/fsck/file_d_mem_sz_diff.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};'")
   FXID_D_MEM_SZ_DIFF=$(echo "${FXID_D_MEM_SZ_DIFF}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-  exec_cmd eos-client1-test "xrdcp -f -d 1 /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_ROOT}/fsck/file_m_mem_sz_diff.dat"
-  FXID_M_MEM_SZ_DIFF=$(exec_cmd eos-client1-test "eos fileinfo ${EOS_ROOT}/fsck/file_m_mem_sz_diff.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};'")
+  exec_cmd eos-cli1 "xrdcp -f -d 1 /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_ROOT}/fsck/file_m_mem_sz_diff.dat"
+  FXID_M_MEM_SZ_DIFF=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_ROOT}/fsck/file_m_mem_sz_diff.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};'")
   FXID_M_MEM_SZ_DIFF=$(echo "${FXID_M_MEM_SZ_DIFF}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-  exec_cmd eos-client1-test "xrdcp -f -d 1 /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_ROOT}/fsck/file_d_cx_diff.dat"
-  FXID_D_CX_DIFF=$(exec_cmd eos-client1-test "eos fileinfo ${EOS_ROOT}/fsck/file_d_cx_diff.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};'")
+  exec_cmd eos-cli1 "xrdcp -f -d 1 /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_ROOT}/fsck/file_d_cx_diff.dat"
+  FXID_D_CX_DIFF=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_ROOT}/fsck/file_d_cx_diff.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};'")
   FXID_D_CX_DIFF=$(echo "${FXID_D_CX_DIFF}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-  exec_cmd eos-client1-test "xrdcp -f -d 1 /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_ROOT}/fsck/file_m_cx_diff.dat"
-  FXID_M_CX_DIFF=$(exec_cmd eos-client1-test "eos fileinfo ${EOS_ROOT}/fsck/file_m_cx_diff.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};'")
+  exec_cmd eos-cli1 "xrdcp -f -d 1 /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_ROOT}/fsck/file_m_cx_diff.dat"
+  FXID_M_CX_DIFF=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_ROOT}/fsck/file_m_cx_diff.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};'")
   FXID_M_CX_DIFF=$(echo "${FXID_M_CX_DIFF}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-  exec_cmd eos-client1-test "xrdcp -f -d 1 /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_ROOT}/fsck/file_unreg.dat"
-  FXID_UNREG=$(exec_cmd eos-client1-test "eos fileinfo ${EOS_ROOT}/fsck/file_unreg.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};'")
+  exec_cmd eos-cli1 "xrdcp -f -d 1 /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_ROOT}/fsck/file_unreg.dat"
+  FXID_UNREG=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_ROOT}/fsck/file_unreg.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};'")
   FXID_UNREG=$(echo "${FXID_UNREG}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-  exec_cmd eos-client1-test "xrdcp -f -d 1 /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_ROOT}/fsck/file_rep_missing.dat"
-  FXID_REP_MISSING=$(exec_cmd eos-client1-test "eos fileinfo ${EOS_ROOT}/fsck/file_rep_missing.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};'")
+  exec_cmd eos-cli1 "xrdcp -f -d 1 /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_ROOT}/fsck/file_rep_missing.dat"
+  FXID_REP_MISSING=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_ROOT}/fsck/file_rep_missing.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};'")
   FXID_REP_MISSING=$(echo "${FXID_REP_MISSING}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-  exec_cmd eos-client1-test "xrdcp -f -d 1 /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_ROOT}/fsck/file_rep_diff_under.dat"
-  FXID_REP_DIFF_UNDER=$(exec_cmd eos-client1-test "eos fileinfo ${EOS_ROOT}/fsck/file_rep_diff_under.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};'")
+  exec_cmd eos-cli1 "xrdcp -f -d 1 /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_ROOT}/fsck/file_rep_diff_under.dat"
+  FXID_REP_DIFF_UNDER=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_ROOT}/fsck/file_rep_diff_under.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};'")
   FXID_REP_DIFF_UNDER=$(echo "${FXID_REP_DIFF_UNDER}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-  exec_cmd eos-client1-test "xrdcp -f -d 1 /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_ROOT}/fsck/file_rep_diff_over.dat"
-  FXID_REP_DIFF_OVER=$(exec_cmd eos-client1-test "eos fileinfo ${EOS_ROOT}/fsck/file_rep_diff_over.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};'")
+  exec_cmd eos-cli1 "xrdcp -f -d 1 /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_ROOT}/fsck/file_rep_diff_over.dat"
+  FXID_REP_DIFF_OVER=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_ROOT}/fsck/file_rep_diff_over.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};'")
   FXID_REP_DIFF_OVER=$(echo "${FXID_REP_DIFF_OVER}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-  exec_cmd eos-client1-test "xrdcp -f -d 1 /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_ROOT}/fsck/file_orphan.dat"
-  FXID_ORPHAN=$(exec_cmd eos-client1-test "eos fileinfo ${EOS_ROOT}/fsck/file_orphan.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};'")
+  exec_cmd eos-cli1 "xrdcp -f -d 1 /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_ROOT}/fsck/file_orphan.dat"
+  FXID_ORPHAN=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_ROOT}/fsck/file_orphan.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};'")
   FXID_ORPHAN=$(echo "${FXID_ORPHAN}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
 
   # If any of the FXID_* variables are empty then we have a problem
@@ -110,66 +110,66 @@ function create_test_files() {
   fi
 
   # Cleanup generated test file
-  exec_cmd eos-client1-test "rm -rf /tmp/test_file.dat"
+  exec_cmd eos-cli1 "rm -rf /tmp/test_file.dat"
 }
 
 # Corrupt file to generate d_mem_sz_diff error
 function corrupt_d_mem_sz_diff() {
-  local CMD_OUT=$(exec_cmd eos-client1-test "eos fileinfo fxid:${FXID_D_MEM_SZ_DIFF} -m --fullpath | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '{if (\$1 ==\"fsid\" || \$1 ==\"fullpath\") {print \$2};}' | tail -n2")
+  local CMD_OUT=$(exec_cmd eos-cli1 "eos fileinfo fxid:${FXID_D_MEM_SZ_DIFF} -m --fullpath | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '{if (\$1 ==\"fsid\" || \$1 ==\"fullpath\") {print \$2};}' | tail -n2")
   # Extract the fxid and local path, trim the input
   local FSID=$(echo "${CMD_OUT}" | head -n1 | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
   local LPATH=$(echo "${CMD_OUT}" | tail -n1)
   echo "Fsid: ${FSID}, local_path=${LPATH}"
-  exec_cmd "eos-fst${FSID}-test" "echo \"dummy\" >> ${LPATH}"
+  exec_cmd "eos-fst${FSID}" "echo \"dummy\" >> ${LPATH}"
 }
 
 # Corrupt file to generate m_mem_sz_diff
 function corrupt_m_mem_sz_diff() {
   # Use the eos-ns-inspect tool to corrupt the MGM file size
-  local QDB_CLUSTER=$(exec_cmd eos-mgm-test "cat /etc/xrd.cf.mgm | grep \"^mgmofs.qdbcluster\" | awk '{print \$2;}'")
-  exec_cmd eos-client1-test "eos-ns-inspect change-fid --no-dry-run --members ${QDB_CLUSTER} --fid $(( 16#${FXID_M_MEM_SZ_DIFF} )) --new-size 1234568"
-  exec_cmd eos-client1-test "eos -r 0 0 ns cache drop-single-file $(( 16#${FXID_M_MEM_SZ_DIFF} ))"
+  local QDB_CLUSTER=$(exec_cmd eos-mgm1 "cat /etc/xrd.cf.mgm | grep \"^mgmofs.qdbcluster\" | awk '{print \$2;}'")
+  exec_cmd eos-cli1 "eos-ns-inspect change-fid --no-dry-run --members ${QDB_CLUSTER} --fid $(( 16#${FXID_M_MEM_SZ_DIFF} )) --new-size 1234568"
+  exec_cmd eos-cli1 "eos -r 0 0 ns cache drop-single-file $(( 16#${FXID_M_MEM_SZ_DIFF} ))"
 }
 
 # Corrupt file to generate d_cx_diff error
 function corrupt_d_cx_diff() {
-  local CMD_OUT=$(exec_cmd eos-client1-test "eos fileinfo fxid:${FXID_D_CX_DIFF} -m --fullpath | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '{if (\$1 ==\"fsid\" || \$1 ==\"fullpath\") {print \$2};}' | tail -n2")
+  local CMD_OUT=$(exec_cmd eos-cli1 "eos fileinfo fxid:${FXID_D_CX_DIFF} -m --fullpath | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '{if (\$1 ==\"fsid\" || \$1 ==\"fullpath\") {print \$2};}' | tail -n2")
   # Extract the fxid and local path, trim the input
   local FSID=$(echo "${CMD_OUT}" | head -n1 | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
   local LPATH=$(echo "${CMD_OUT}" | tail -n1)
   # Corrupt the checkusm of the file by writing random bytes to it
-  exec_cmd "eos-fst${FSID}-test" "dd if=/dev/urandom of=${LPATH} bs=1M count=10"
+  exec_cmd "eos-fst${FSID}" "dd if=/dev/urandom of=${LPATH} bs=1M count=10"
 }
 
 # Corrupt file to generate m_cx_diff
 function corrupt_m_cx_diff() {
   # Use the eos-ns-inspect tool to corrupt the MGM checksum value
-  local QDB_CLUSTER=$(exec_cmd eos-mgm-test "cat /etc/xrd.cf.mgm | grep \"^mgmofs.qdbcluster\" | awk '{print \$2;}'")
-  exec_cmd eos-client1-test "eos-ns-inspect change-fid --no-dry-run --members ${QDB_CLUSTER} --fid $(( 16#${FXID_M_CX_DIFF} )) --new-checksum 12345678"
-  exec_cmd eos-client1-test "eos -r 0 0 ns cache drop-single-file $(( 16#${FXID_M_CX_DIFF} ))"
+  local QDB_CLUSTER=$(exec_cmd eos-mgm1 "cat /etc/xrd.cf.mgm | grep \"^mgmofs.qdbcluster\" | awk '{print \$2;}'")
+  exec_cmd eos-cli1 "eos-ns-inspect change-fid --no-dry-run --members ${QDB_CLUSTER} --fid $(( 16#${FXID_M_CX_DIFF} )) --new-checksum 12345678"
+  exec_cmd eos-cli1 "eos -r 0 0 ns cache drop-single-file $(( 16#${FXID_M_CX_DIFF} ))"
 }
 
 # Corrupt file to generate rep_missing_n error
 function corrupt_rep_missing_n {
- local CMD_OUT=$(exec_cmd eos-client1-test "eos fileinfo fxid:${FXID_REP_MISSING} -m --fullpath | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '{if (\$1 ==\"fsid\" || \$1 ==\"fullpath\") {print \$2};}' | tail -n2")
+ local CMD_OUT=$(exec_cmd eos-cli1 "eos fileinfo fxid:${FXID_REP_MISSING} -m --fullpath | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '{if (\$1 ==\"fsid\" || \$1 ==\"fullpath\") {print \$2};}' | tail -n2")
   # Extract the fxid and local path, trim the input
   local FSID=$(echo "${CMD_OUT}" | head -n1 | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
   local LPATH=$(echo "${CMD_OUT}" | tail -n1)
-  exec_cmd "eos-fst${FSID}-test" "rm -rf ${LPATH}"
+  exec_cmd "eos-fst${FSID}" "rm -rf ${LPATH}"
 }
 
 # Corrupt file to generate rep_diff_under error
 function corrupt_rep_diff_under() {
-  local CMD_OUT=$(exec_cmd eos-client1-test "eos fileinfo fxid:${FXID_REP_DIFF_UNDER} -m --fullpath | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '{if (\$1 ==\"fsid\" || \$1 ==\"fullpath\") {print \$2};}' | tail -n2")
+  local CMD_OUT=$(exec_cmd eos-cli1 "eos fileinfo fxid:${FXID_REP_DIFF_UNDER} -m --fullpath | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '{if (\$1 ==\"fsid\" || \$1 ==\"fullpath\") {print \$2};}' | tail -n2")
   # Extract the fxid and local path, trim the input
   local FSID=$(echo "${CMD_OUT}" | head -n1 | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
   local LPATH=$(echo "${CMD_OUT}" | tail -n1)
-  exec_cmd eos-client1-test "eos -r 0 0 file drop fxid:${FXID_REP_DIFF_UNDER} ${FSID}"
+  exec_cmd eos-cli1 "eos -r 0 0 file drop fxid:${FXID_REP_DIFF_UNDER} ${FSID}"
 }
 
 # Corrupt file to generate rep_diff_over error
 function corrupt_rep_diff_over() {
-  local CMD_OUT=$(exec_cmd eos-client1-test "eos fileinfo fxid:${FXID_REP_DIFF_OVER} -m --fullpath | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '{if (\$1 ==\"fsid\") {print \$2};}' | tail -n2")
+  local CMD_OUT=$(exec_cmd eos-cli1 "eos fileinfo fxid:${FXID_REP_DIFF_OVER} -m --fullpath | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '{if (\$1 ==\"fsid\") {print \$2};}' | tail -n2")
   # Extract the fxid and local path, trim the input
   local VECT_FSID=( $(echo "${CMD_OUT}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//') )
   echo "Used locations: ${VECT_FSID[@]}"
@@ -194,28 +194,28 @@ function corrupt_rep_diff_over() {
     exit 1
   fi
 
-  exec_cmd eos-client1-test "eos -r 0 0 file replicate fxid:${FXID_REP_DIFF_OVER} ${VECT_FSID[0]} ${NEW_FSID}"
+  exec_cmd eos-cli1 "eos -r 0 0 file replicate fxid:${FXID_REP_DIFF_OVER} ${VECT_FSID[0]} ${NEW_FSID}"
 }
 
 # Corrupt file to generate file_unreg error
 function corrupt_unreg() {
-  local CMD_OUT=$(exec_cmd eos-client1-test "eos fileinfo fxid:${FXID_UNREG} -m --fullpath | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '{if (\$1 ==\"fsid\" || \$1 ==\"fullpath\") {print \$2};}' | tail -n2")
+  local CMD_OUT=$(exec_cmd eos-cli1 "eos fileinfo fxid:${FXID_UNREG} -m --fullpath | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '{if (\$1 ==\"fsid\" || \$1 ==\"fullpath\") {print \$2};}' | tail -n2")
   # Extract the fxid and local path, trim the input
   local FSID=$(echo "${CMD_OUT}" | head -n1 | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-  exec_cmd eos-client1-test "eos -r 0 0 file drop fxid:${FXID_UNREG} ${FSID} -f"
+  exec_cmd eos-cli1 "eos -r 0 0 file drop fxid:${FXID_UNREG} ${FSID} -f"
 }
 
 # Configure fsck to run more often and reduce the scan times
 function configure_fsck() {
   # First reduce the scan interval on the FSTs
   for i in {1..7}; do
-    exec_cmd eos-client1-test  "eos -r 0 0 fs config ${i} scan_disk_interval=60;\
+    exec_cmd eos-cli1  "eos -r 0 0 fs config ${i} scan_disk_interval=60;\
                                 eos -r 0 0 fs config ${i} scan_ns_interval=60;\
                                 eos -r 0 0 fs config ${i} scaninterval=60"
   done
 
   # Reduce the interval when the fsck collection thread runs
-  exec_cmd eos-client1-test  "eos -r 0 0 fsck config toggle-collect 1;"
+  exec_cmd eos-cli1  "eos -r 0 0 fsck config toggle-collect 1;"
 }
 
 # Check that we collected all the errors that we expect
@@ -225,15 +225,15 @@ function check_all_errors_collected() {
   local START_TIME=$(date +%s)
   while
     local CURRENT_TIME=$(date +%s)
-    local FOUND_D_MEM_SZ_DIFF=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i | grep ${FXID_D_MEM_SZ_DIFF}")
-    local FOUND_M_MEM_SZ_DIFF=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i | grep ${FXID_M_MEM_SZ_DIFF}")
-    local FOUND_D_CX_DIFF=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i | grep ${FXID_D_CX_DIFF}")
-    local FOUND_M_CX_DIFF=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i | grep ${FXID_M_CX_DIFF}")
-    local FOUND_UNREG=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i | grep ${FXID_UNREG}")
-    local FOUND_REP_MISSING=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i | grep ${FXID_REP_MISSING}")
-    local FOUND_REP_DIFF_UNDER=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i | grep ${FXID_REP_DIFF_UNDER}")
-    local FOUND_REP_DIFF_OVER=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i | grep ${FXID_REP_DIFF_OVER}")
-    # @todo(esindril) local FOUND_ORPHAN=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i | grep ${FXID_ORPHAN}")
+    local FOUND_D_MEM_SZ_DIFF=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_D_MEM_SZ_DIFF}")
+    local FOUND_M_MEM_SZ_DIFF=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_M_MEM_SZ_DIFF}")
+    local FOUND_D_CX_DIFF=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_D_CX_DIFF}")
+    local FOUND_M_CX_DIFF=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_M_CX_DIFF}")
+    local FOUND_UNREG=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_UNREG}")
+    local FOUND_REP_MISSING=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_REP_MISSING}")
+    local FOUND_REP_DIFF_UNDER=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_REP_DIFF_UNDER}")
+    local FOUND_REP_DIFF_OVER=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_REP_DIFF_OVER}")
+    # @todo(esindril) local FOUND_ORPHAN=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_ORPHAN}")
 
     if [[ -z "${FOUND_D_MEM_SZ_DIFF}"  ||
           -z "${FOUND_M_MEM_SZ_DIFF}"  ||
@@ -262,9 +262,9 @@ function check_all_errors_collected() {
 
 # Cleanup the files and directories at the MGM
 function cleanup() {
-  exec_cmd eos-client1-test "eos -r 0 0 rm -rF \"${EOS_ROOT}/fsck/*\""
-  exec_cmd eos-client1-test "eos -r 0 0 rmdir  ${EOS_ROOT}/fsck/"
-  exec_cmd eos-client1-test "eos -r 0 0 fsck config toggle-collect"
+  exec_cmd eos-cli1 "eos -r 0 0 rm -rF \"${EOS_ROOT}/fsck/*\""
+  exec_cmd eos-cli1 "eos -r 0 0 rmdir  ${EOS_ROOT}/fsck/"
+  exec_cmd eos-cli1 "eos -r 0 0 fsck config toggle-collect"
 }
 
 # Set up global variables
@@ -328,7 +328,7 @@ check_all_errors_collected
 
 # Enable the repair thread and allow a delay of 2 minutes to
 # correct all the discovered errors
-exec_cmd eos-client1-test "eos -r 0 0 fsck config toggle-repair"
+exec_cmd eos-cli1 "eos -r 0 0 fsck config toggle-repair"
 
 # Wait at most 3 minutes for all the errors to be repaired
 MAX_DELAY=180
@@ -336,7 +336,7 @@ START_TIME=$(date +%s)
 
 while
   CURRENT_TIME=$(date +%s)
-  HAS_ERRORS=$(exec_cmd eos-client1-test "eos -r 0 0 fsck report -i")
+  HAS_ERRORS=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i")
 
   if [[ -z "${HAS_ERRORS}" ]]; then
     if (( $((${CURRENT_TIME} - ${START_TIME})) >= ${MAX_DELAY} )); then
