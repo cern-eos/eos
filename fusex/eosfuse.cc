@@ -1844,9 +1844,14 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
     std::string s6;
     std::string s7;
     std::string s8;
+    std::string blocker;
     {
       std::lock_guard<std::mutex> lock(meminfo.mutex());
       XrdSysMutexHelper sLock(getFuseStat().Mutex);
+
+
+      double blocked_ms = this->Tracker().blocked_ms(blocker);
+
       snprintf(ino_stat, sizeof(ino_stat),
                "ALL        threads             := %llu\n"
                "ALL        visze               := %s\n"
@@ -1880,7 +1885,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                "ALL        client-uuid         := %s\n"
                "ALL        server-version      := %s\n"
                "ALL        automounted         := %d\n"
-               "ALL        max-inode-lock-ms   := %.02f\n"
+               "ALL        max-inode-lock-ms   := %.02f [%s]\n"
                "# -----------------------------------------------------------------------------------------------------------\n",
                osstat.threads,
                eos::common::StringConversion::GetReadableSizeString(s1, osstat.vsize, "b"),
@@ -1920,7 +1925,8 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                EosFuse::Instance().config.clientuuid.c_str(),
                EosFuse::Instance().mds.server_version().c_str(),
                EosFuse::Instance().Config().options.automounted,
-               this->Tracker().blocked_ms()
+	       blocked_ms,
+	       blocker.c_str()
               );
     }
     sout += ino_stat;

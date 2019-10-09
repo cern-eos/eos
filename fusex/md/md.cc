@@ -2996,7 +2996,9 @@ metad::mdcommunicate(ThreadAssistant& assistant)
       if (!(cnt % (60 / interval))) {
         // we send a statistics update every 60 heartbeats
         EosFuse::Instance().getHbStat((*hb.mutable_statistics_()));
-	hb.mutable_statistics_()->set_blockedms(EosFuse::Instance().Tracker().blocked_ms());
+	std::string blocker;
+	hb.mutable_statistics_()->set_blockedms(EosFuse::Instance().Tracker().blocked_ms(blocker));
+	hb.mutable_statistics_()->set_blockedfunc(blocker);
       } else {
         hb.clear_statistics_();
       }

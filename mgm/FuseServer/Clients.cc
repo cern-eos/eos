@@ -283,6 +283,7 @@ FuseServer::Clients::Print(std::string& out, std::string options)
 
     std::string idle;
     std::string lockup;
+    std::string lockfunc;
 
     // preset the idle string
     if (idletime > 300) {
@@ -307,16 +308,19 @@ FuseServer::Clients::Print(std::string& out, std::string options)
       idle = "act";
     }
 
-    if ( it->second.statistics().blockedms() > (5*1000*60) ) {
+    //    if ( it->second.statistics().blockedms() > (5*1000*60) ) {
+    if ( it->second.statistics().blockedms() > (5*1000) ) {
       // a mutex hanging for longer than 5 minutes marks a client as locked up
-      lockup = "locked";
+      lockup = "locked:";
+      lockup += it->second.statistics().blockedfunc();
+      lockfunc = it->second.statistics().blockedfunc();
     } else {
       lockup = "vacant";
     }
 
     if (options.find("m") == std::string::npos) {
       snprintf(formatline, sizeof(formatline),
-               "client : %-8s %32s %-8s %-8s %s %.02f %.02f %36s p=%u caps=%lu fds=%u %s %s %s mount=%s \n",
+               "client : %-8s %32s %-8s %-8s %s %.02f %.02f %36s p=%u caps=%lu fds=%u %s [%s] %s mount=%s \n",
                it->second.heartbeat().name().c_str(),
                it->second.heartbeat().host().c_str(),
                it->second.heartbeat().version().c_str(),
@@ -367,7 +371,7 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                "......   ra-nobuf     : %lu\n"
                "......   wr-nobuf     : %lu\n"
                "......   idle         : %ld\n"
-	       "......   blockedms    : %.02f\n",
+	       "......   blockedms    : %.02f [%s]\n",
                it->second.statistics().inodes(),
                it->second.statistics().inodes_todelete(),
                it->second.statistics().inodes_backlog(),
@@ -395,7 +399,8 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                it->second.statistics().ranobuf(),
                it->second.statistics().wrnobuf(),
                idletime,
-	       it->second.statistics().blockedms()
+	       it->second.statistics().blockedms(),
+	       it->second.statistics().blockedfunc().c_str()
               );
       out += formatline;
     }
@@ -430,7 +435,8 @@ FuseServer::Clients::Print(std::string& out, std::string options)
 	       "ra-nobuf=%lu "
 	       "wr-nobuf=%lu "
 	       "idle=%ld "
-	       "blockedms=%f\n",
+	       "blockedms=%f "
+	       "blockedfunc=%s\n",
 	       it->second.heartbeat().name().c_str(),
 	       it->second.heartbeat().host().c_str(),
 	       it->second.heartbeat().version().c_str(),
@@ -473,7 +479,8 @@ FuseServer::Clients::Print(std::string& out, std::string options)
 	       it->second.statistics().ranobuf(),
 	       it->second.statistics().wrnobuf(),
 	       idletime,
-	       it->second.statistics().blockedms()
+	       it->second.statistics().blockedms(),
+	       it->second.statistics().blockedfunc().length()?it->second.statistics().blockedfunc().c_str():"none"
 	       );
       out += formatline;
     }
