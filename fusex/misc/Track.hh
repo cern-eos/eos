@@ -48,6 +48,7 @@ public:
     std::atomic<size_t> openr;
     std::atomic<size_t> openw;
     std::atomic<uint64_t> attachtime;
+    const char* caller;
   } meta_t;
 
   Track() { }
@@ -117,9 +118,10 @@ public:
     return iNodes.size();
   }
 
-  double blocked_ms() {
+  double blocked_ms(std::string& function) {
     // return's the time of the longest blocked mutex
     double max_blocked = 0;
+    function = "";
     // get current time
     auto now = std::chrono::steady_clock::now();
 
@@ -131,6 +133,7 @@ public:
 	  (now.time_since_epoch()).count() - it.second->attachtime;
 	if (is_blocked > max_blocked) {
 	  max_blocked = is_blocked;
+	  function = it.second->caller;
 	}
       }
     }
@@ -180,6 +183,7 @@ public:
 	  eos_static_debug("trylock caller=%s self=%lld in=%llu exclusive=%d", caller,
 			   thread_id(), ino, exclusive);
         this->me = tracker.Attach(ino, exclusive);
+	this->me->caller = caller;
         this->ino = ino;
         this->caller = caller;
         this->exclusive = exclusive;
