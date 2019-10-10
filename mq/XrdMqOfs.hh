@@ -412,7 +412,8 @@ private:
   std::string mQdbCluster; ///< Quarkdb cluster info host1:port1 host2:port2 ..
   std::string mQdbPassword; ///< Quarkdb cluster password
   eos::QdbContactDetails mQdbContactDetails; ///< QuarkDB contact details
-  std::unique_ptr<qclient::QClient> mQcl; ///< qclient for talking to the QDB cluster
+  std::unique_ptr<qclient::QClient>
+  mQcl; ///< qclient for talking to the QDB cluster
   std::string mMasterId; ///< Current master id in <fqdn>:<port> format
   std::string mMgmId; ///< MGM id <host>:1094 format
 
@@ -501,6 +502,12 @@ private:
   {
     return 0;
   }
+
+private:
+  //! During startup we don't need to wait for a master id and we just accept
+  //! any connection while during normal operations during a HA switch we need
+  //! to wait for a new master to get elected.
+  std::atomic<bool> mWaitForMaster;
 };
 
 #endif
