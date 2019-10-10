@@ -1864,20 +1864,21 @@ FsView::UnRegister(FileSystem* fs, bool unregisterInGeoTreeEngine)
 
       if (unregisterInGeoTreeEngine
           && !gGeoTreeEngine.removeFsFromGroup(fs, group, false)) {
-        if (Register(fs, fs->getCoreParams(), false))
+        if (Register(fs, fs->getCoreParams(), false)) {
           eos_err("could not remove fs %u from GeoTreeEngine : fs was "
                   "registered back and consistency is KEPT between FsView "
                   "and GeoTreeEngine", snapshot.mId);
-        else
+        } else {
           eos_crit("could not remove fs %u from GeoTreeEngine : fs could not "
                    "be registered back and consistency is BROKEN between "
                    "FsView and GeoTreeEngine", snapshot.mId);
+        }
 
         return false;
       }
 
       group->erase(snapshot.mId);
-      eos_debug("unregister group %s from group view",
+      eos_debug("msg=\"unregister group %s from group view\"",
                 group->GetMember("name").c_str());
 
       if (!group->size()) {
@@ -1891,7 +1892,7 @@ FsView::UnRegister(FileSystem* fs, bool unregisterInGeoTreeEngine)
     if (mSpaceView.count(snapshot.mSpace)) {
       FsSpace* space = mSpaceView[snapshot.mSpace];
       space->erase(snapshot.mId);
-      eos_debug("unregister space %s from space view",
+      eos_debug("msg=\"unregister space %s from space view\"",
                 space->GetMember("name").c_str());
 
       if (!space->size()) {

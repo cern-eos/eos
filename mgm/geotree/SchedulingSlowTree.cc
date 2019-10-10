@@ -44,13 +44,15 @@ ostream& SlowTreeNode::display(ostream& os) const
   return os;
 }
 
-void SlowTreeNode::recursiveDisplay(std::set<std::tuple<std::string, unsigned, unsigned,
-                                    TableFormatterColor,unsigned, unsigned, std::string,
-                                    std::string, int, int, std::string>>& data_tree,
-                                    std::string group, unsigned& geo_depth_max,
-                                    bool useColors, unsigned prefix1, unsigned prefix2)
+void SlowTreeNode::recursiveDisplay(
+  std::set<std::tuple<std::string, unsigned, unsigned,
+  TableFormatterColor, unsigned, unsigned, std::string,
+  std::string, int, int, std::string>>& data_tree,
+  std::string group, unsigned& geo_depth_max,
+  bool useColors, unsigned prefix1, unsigned prefix2)
 {
   TableFormatterColor color = NONE;
+
   if (useColors) {
     bool isReadable = (pNodeState.mStatus & Readable);
     bool isDisabled = (pNodeState.mStatus & Disabled);
@@ -82,8 +84,8 @@ void SlowTreeNode::recursiveDisplay(std::set<std::tuple<std::string, unsigned, u
   if (pChildren.empty()) {
     // Print fsid and node (depth=3)
     data_tree.insert(std::make_tuple(group, data_tree.size(), 3, color,
-                     prefix1, prefix2, pNodeInfo.fullGeotag, pNodeInfo.host,
-                     pLeavesCount, pNodeCount, fsStatusToStr(pNodeState.mStatus)));
+                                     prefix1, prefix2, pNodeInfo.fullGeotag, pNodeInfo.host,
+                                     pLeavesCount, pNodeCount, fsStatusToStr(pNodeState.mStatus)));
   } else {
     // Print group (depth=1) and geotag (depth=2)
     unsigned depth = (prefix1 == 0 && prefix2 == 0) ? 1 : 2;
@@ -91,19 +93,22 @@ void SlowTreeNode::recursiveDisplay(std::set<std::tuple<std::string, unsigned, u
     data_tree.insert(std::make_tuple(group, data_tree.size(), depth, color,
                                      prefix1, prefix2, pNodeInfo.fullGeotag,
                                      "", pLeavesCount, pNodeCount, ""));
-
     // How geotag is deep
     unsigned geo_depth = 1;
     std::string geotag_temp = pNodeInfo.fullGeotag;
-    while (geotag_temp.find("::") != std::string::npos){
-      geotag_temp.erase(0, geotag_temp.find("::")+2);
+
+    while (geotag_temp.find("::") != std::string::npos) {
+      geotag_temp.erase(0, geotag_temp.find("::") + 2);
       geo_depth++;
     }
+
     geo_depth_max = (geo_depth_max < geo_depth) ? geo_depth : geo_depth_max;
 
     for (auto it = pChildren.begin(); it != pChildren.end(); it++) {
       unsigned prefix1_temp = (prefix2 == 3) ? 1 : 0;
-      if (it != pChildren.end() && ++tNodeMap::const_iterator(it) == pChildren.end()) {
+
+      if (it != pChildren.end() &&
+          ++tNodeMap::const_iterator(it) == pChildren.end()) {
         // final branch
         it->second->recursiveDisplay(data_tree, group, geo_depth_max,
                                      useColors, prefix1_temp, 2);
@@ -116,33 +121,38 @@ void SlowTreeNode::recursiveDisplay(std::set<std::tuple<std::string, unsigned, u
   }
 }
 
-void SlowTreeNode::recursiveDisplayAccess(std::set<std::tuple<unsigned, unsigned, unsigned,
-                                              unsigned, std::string, std::string>>& data_access,
-                                              unsigned& geo_depth_max, unsigned prefix1,
-                                              unsigned prefix2)
+void SlowTreeNode::recursiveDisplayAccess(
+  std::set<std::tuple<unsigned, unsigned, unsigned,
+  unsigned, std::string, std::string>>& data_access,
+  unsigned& geo_depth_max, unsigned prefix1,
+  unsigned prefix2)
 {
   // How geotag is deep
   unsigned geo_depth = 1;
   std::string geotag_temp = pNodeInfo.fullGeotag;
-  while (geotag_temp.find("::") != std::string::npos){
-    geotag_temp.erase(0, geotag_temp.find("::")+2);
+
+  while (geotag_temp.find("::") != std::string::npos) {
+    geotag_temp.erase(0, geotag_temp.find("::") + 2);
     geo_depth++;
   }
+
   geo_depth_max = (geo_depth_max < geo_depth) ? geo_depth : geo_depth_max;
 
   if (pChildren.empty()) {
     if (pNodeInfo.proxygroup.size()) { // leavs
       data_access.insert(std::make_tuple(data_access.size(), 3, prefix1, prefix2,
-                         pNodeInfo.fullGeotag, pNodeInfo.proxygroup));
+                                         pNodeInfo.fullGeotag, pNodeInfo.proxygroup));
     }
   } else {
-      unsigned depth = (prefix1 == 0 && prefix2 == 0) ? 1 : 2;
-      data_access.insert(std::make_tuple(data_access.size(), depth, prefix1, prefix2,
-                         pNodeInfo.fullGeotag, pNodeInfo.proxygroup));
+    unsigned depth = (prefix1 == 0 && prefix2 == 0) ? 1 : 2;
+    data_access.insert(std::make_tuple(data_access.size(), depth, prefix1, prefix2,
+                                       pNodeInfo.fullGeotag, pNodeInfo.proxygroup));
 
     for (auto it = pChildren.begin(); it != pChildren.end(); it++) {
       unsigned prefix1_temp = (prefix2 == 3) ? 1 : 0;
-      if (it != pChildren.end() && ++tNodeMap::const_iterator(it) == pChildren.end()) {
+
+      if (it != pChildren.end() &&
+          ++tNodeMap::const_iterator(it) == pChildren.end()) {
         // final branch
         it->second->recursiveDisplayAccess(data_access, geo_depth_max, prefix1_temp, 2);
       } else {
@@ -294,8 +304,6 @@ SlowTreeNode* SlowTree::insert(const TreeNodeInfo* info,
 
 bool SlowTree::remove(const TreeNodeInfo* info, bool addFsIdLevel)
 {
-  ostringstream oss;
-
   if (info->geotag.empty()) {
     return false;  // should not be used with empty fullgeotag
   }
@@ -320,6 +328,8 @@ bool SlowTree::remove(const TreeNodeInfo* info, bool addFsIdLevel)
     geoTagAtom = fullgeotag.substr(ppos, pos - ppos - 2); // take "::" into account
 
     if (!node->pChildren.count(geoTagAtom)) {
+      eos_static_err("msg=\"no matching leaf found with geotag=%s",
+                     geoTagAtom.c_str());
       return false;  // no matching leaf found!
     }
 
@@ -364,7 +374,10 @@ SlowTreeNode* SlowTree::moveToNewGeoTag(SlowTreeNode* node,
                                         const std::string newGeoTag)
 {
   if (node->pChildren.size()) {
-    return NULL;  // this function can only move a leaf. Moving a branch would involve running throuh the branch and get all the leaves.
+    // This can only move a leaf. Moving a branch would involve running throuh
+    // the branch and get all the leaves.
+    eos_static_err("%s", "msg=\"failed move since node has children\"");
+    return NULL;
   }
 
   TreeNodeInfo info = node->pNodeInfo;
@@ -373,6 +386,7 @@ SlowTreeNode* SlowTree::moveToNewGeoTag(SlowTreeNode* node,
                 node->pNodeInfo.fullGeotag.rfind("::"));
 
   if (!remove(&info)) {
+    eos_static_err("%s", "msg=\"failed remove\"");
     return NULL;
   }
 
@@ -652,9 +666,10 @@ bool SlowTree::buildFastStrcturesSched(
   }
 
   fs2idx->pSize = fs2idxMap.size();
-  froat->pFs2Idx = frwat->pFs2Idx = fpt->pFs2Idx = fdat->pFs2Idx = fdpt->pFs2Idx = fs2idx;
-  froat->pTreeInfo = frwat->pTreeInfo = fpt->pTreeInfo = fdat->pTreeInfo = fdpt->pTreeInfo = fastinfo;
-
+  froat->pFs2Idx = frwat->pFs2Idx = fpt->pFs2Idx = fdat->pFs2Idx = fdpt->pFs2Idx =
+                                      fs2idx;
+  froat->pTreeInfo = frwat->pTreeInfo = fpt->pTreeInfo = fdat->pTreeInfo =
+                                          fdpt->pTreeInfo = fastinfo;
   __EOSMGM_TREECOMMON_CHK2__
   fpt->checkConsistency(0, true);
   __EOSMGM_TREECOMMON_CHK2__

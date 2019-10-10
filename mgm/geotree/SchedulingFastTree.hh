@@ -1115,10 +1115,6 @@ protected:
                    &pNodes[pBranches[right].sonIdx].fileData);
   }
 
-  std::ostream&
-  recursiveDisplay(std::ostream& os, const FastTreeInfo& info,
-                   const std::string& prefix, tFastTreeIdx node) const;
-
   inline tFastTreeIdx
   getRandomBranch(const tFastTreeIdx& node, bool* visited = NULL) const
   {
@@ -1578,7 +1574,6 @@ public:
         //_mFillRatio += pNodes[childNode].fsData.fillRatio *
         //               pNodes[childNode].fsData.totalSpace;
         _mFillRatio += pNodes[childNode].fsData.fillRatio;
-
         count++;
         // Not a good idea to propagate the availability as we want to be able
         // to make a branch as unavailable regardless of the status of the leaves
@@ -1988,46 +1983,48 @@ public:
     }
 
     tFastTreeIdx& nbChildren = pNodes[node].treeData.childrenCount;
+
     if (!nbChildren) {
       // Print fsid and node (depth=3)
       data_snapshot.insert(std::make_tuple(group, data_snapshot.size(), 3, color,
-                            prefix1, prefix2, operation, operation_short,
-                            (*pTreeInfo)[node].fsId,
-                            (*pTreeInfo)[node].host,
-                            pNodes[node].fileData.freeSlotsCount,
-                            pNodes[node].fileData.takenSlotsCount,
-                            pNodes[node].fileData.lastHighestPriorityOffset,
-                            fsStatusToStr(pNodes[node].fsData.mStatus),
-                            pNodes[node].fsData.ulScore,
-                            pNodes[node].fsData.dlScore,
-                            pNodes[node].fsData.fillRatio,
-                            pNodes[node].fsData.totalSpace));
+                                           prefix1, prefix2, operation, operation_short,
+                                           (*pTreeInfo)[node].fsId,
+                                           (*pTreeInfo)[node].host,
+                                           pNodes[node].fileData.freeSlotsCount,
+                                           pNodes[node].fileData.takenSlotsCount,
+                                           pNodes[node].fileData.lastHighestPriorityOffset,
+                                           fsStatusToStr(pNodes[node].fsData.mStatus),
+                                           pNodes[node].fsData.ulScore,
+                                           pNodes[node].fsData.dlScore,
+                                           pNodes[node].fsData.fillRatio,
+                                           pNodes[node].fsData.totalSpace));
     } else {
       // Print group (depth=1) and geotag (depth=2)
       unsigned depth = (prefix1 == 0 && prefix2 == 0) ? 1 : 2;
       group = (prefix1 == 0 && prefix2 == 0) ? (*pTreeInfo)[node].geotag : group;
       data_snapshot.insert(std::make_tuple(group, data_snapshot.size(), depth, color,
-                            prefix1, prefix2, operation, operation_short, 0,
-                            (*pTreeInfo)[node].fullGeotag,
-                            pNodes[node].fileData.freeSlotsCount,
-                            pNodes[node].fileData.takenSlotsCount,
-                            pNodes[node].fileData.lastHighestPriorityOffset,
-                            intermediateStatusToStr(pNodes[node].fsData.mStatus),
-                            pNodes[node].fsData.ulScore,
-                            pNodes[node].fsData.dlScore,
-                            pNodes[node].fsData.fillRatio,
-                            pNodes[node].fsData.totalSpace));
-
+                                           prefix1, prefix2, operation, operation_short, 0,
+                                           (*pTreeInfo)[node].fullGeotag,
+                                           pNodes[node].fileData.freeSlotsCount,
+                                           pNodes[node].fileData.takenSlotsCount,
+                                           pNodes[node].fileData.lastHighestPriorityOffset,
+                                           intermediateStatusToStr(pNodes[node].fsData.mStatus),
+                                           pNodes[node].fsData.ulScore,
+                                           pNodes[node].fsData.dlScore,
+                                           pNodes[node].fsData.fillRatio,
+                                           pNodes[node].fsData.totalSpace));
       // How many deep is geotag
       unsigned geo_depth = 1;
       std::string geotag_temp = (*pTreeInfo)[node].fullGeotag;
-      while (geotag_temp.find("::") != std::string::npos){
-        geotag_temp.erase(0, geotag_temp.find("::")+2);
+
+      while (geotag_temp.find("::") != std::string::npos) {
+        geotag_temp.erase(0, geotag_temp.find("::") + 2);
         geo_depth++;
       }
-      geo_depth_max = (geo_depth_max < geo_depth) ? geo_depth : geo_depth_max;
 
+      geo_depth_max = (geo_depth_max < geo_depth) ? geo_depth : geo_depth_max;
       tFastTreeIdx& firstBranchIdx = pNodes[node].treeData.firstBranchIdx;
+
       for (tFastTreeIdx branchIdx = firstBranchIdx;
            branchIdx < firstBranchIdx + nbChildren; branchIdx++) {
         tFastTreeIdx childIdx = pBranches[branchIdx].sonIdx;
@@ -2413,7 +2410,7 @@ template<typename T1, typename T2, typename T3>
 inline std::ostream&
 operator <<(std::ostream& os, const FastTree<T1, T2, T3>& tree)
 {
-//  return tree.recursiveDisplay(os);
+  //return tree.recursiveDisplay(os);
   return os;
 }
 

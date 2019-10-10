@@ -481,7 +481,8 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem* fs, FsGroup* group,
   const SlowTreeNode* intree = mapEntry->fs2SlowTreeNode[fsid];
   info = intree->pNodeInfo;
   info.geotag = intree->pNodeInfo.fullGeotag;
-  eos_debug("SlowNodeTree to be removed is %lu   %s   %s   %s",
+  eos_debug("msg=\"remove from SlowNodeTree\" fsid=%lu host=\"%s\" "
+            "geotag=\"%s\" fullgeotag=\"%s\"",
             (unsigned long)intree->pNodeInfo.fsId,
             intree->pNodeInfo.host.c_str(),
             intree->pNodeInfo.geotag.c_str(),
@@ -2315,14 +2316,14 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
     FileSystem::fsid_t fsid = fs->mId;
 
     if (!fsid) {
-      eos_err("could not get the FsId");
+      eos_err("%s", "msg=\"skip update for fsid=0\"");
       return false;
     }
 
     entry->slowTreeMutex.LockWrite();
 
     if (!entry->fs2SlowTreeNode.count(fsid)) {
-      eos_err("could not get the slowtree node");
+      eos_err("msg=\"no such slowtree node fsid=%lu\"", fsid);
       entry->slowTreeMutex.UnLockWrite();
       return false;
     }
@@ -2342,13 +2343,14 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
       if (!newNode) {
         stringstream ss;
         ss << (*entry->slowTree);
-        eos_err("error changing geotag in slowtree : move is %s => %s and slowtree is \n%s\n",
-                oldGeoTag.c_str(), newGeoTag.c_str(), ss.str().c_str());
+        eos_err("error changing geotag in slowtree : move is \"%s\" => \"%s\" "
+                "and slowtree is \n%s\n", oldGeoTag.c_str(), newGeoTag.c_str(),
+                ss.str().c_str());
         entry->slowTreeMutex.UnLockWrite();
         return false;
       }
 
-      eos_debug("geotag change detected : old geotag is %s   new geotag is %s",
+      eos_debug("geotag change detected : old geotag is \"%s\" new geotag is \"%s\"",
                 oldGeoTag.c_str(), newGeoTag.c_str());
       entry->slowTreeModified = true;
       entry->fs2SlowTreeNode[fsid] = newNode;
@@ -2759,8 +2761,8 @@ bool GeoTreeEngine::updateTreeInfo(const map<string, int>& updatesFs,
   // => SCHED
   for (auto it = updatesFs.begin(); it != updatesFs.end(); ++it) {
     pTreeMapMutex.LockRead();
-
-    eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByQueuePath(it->first);
+    eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByQueuePath(
+                                            it->first);
 
     if (!filesystem) {
       eos_err("update : Invalid FileSystem Entry, skipping this update");
@@ -2770,7 +2772,6 @@ bool GeoTreeEngine::updateTreeInfo(const map<string, int>& updatesFs,
 
     eos::common::FileSystem::fs_snapshot_t fs;
     filesystem->SnapShotFileSystem(fs, true);
-
     FileSystem::fsid_t fsid = fs.mId;
 
     if (!pFs2SchedTME.count(fsid)) {

@@ -62,25 +62,24 @@ class Converter;
 //! Base class representing any element in a GeoTree
 //------------------------------------------------------------------------------
 struct GeoTreeElement {
+
+  //------------------------------------------------------------------------------
+  //! Destructor
+  //------------------------------------------------------------------------------
+  ~GeoTreeElement();
+
   //! Pointer to father node in the tree
   GeoTreeElement* mFather;
-
   //! Tag token for example BBB in AA::BBB:CC
   std::string mTagToken;
-
   //! Full geo tag for example AA::BBB:CC in AA::BBB:CC
   std::string mFullTag;
-
   //! An auxiliary numbering to run the aggregator
   mutable size_t mId;
-
   //! All the FileSystems attached to this node of the tree
   std::set<eos::common::FileSystem::fsid_t> mFsIds;
-
-  /// Map geoTreeTag -> son branches
+  //! Map geoTreeTag -> son branches
   std::map<std::string , GeoTreeElement*> mSons;
-
-  ~GeoTreeElement();
 };
 
 //------------------------------------------------------------------------------
@@ -679,9 +678,6 @@ class FsView : public eos::common::LogId
   // accessing mConfigEngine. Should be refactored.
   friend class BaseView;
 public:
-  //! Central draining status
-  enum class DrainType {Central, Distributed, Unknown};
-
   //! Static singleton object hosting the filesystem view object
   static FsView gFsView;
 
