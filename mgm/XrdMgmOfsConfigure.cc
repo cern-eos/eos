@@ -1311,6 +1311,38 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // setup the modifications which the fs listener thread is waiting for
   ObjectManager.SetDebug(false);
 
+  // Disable some features if we are only a redirector
+  if (!MgmRedirector) {
+    // Create the specific listener class
+    MgmOfsMessaging = new Messaging(MgmOfsBrokerUrl.c_str(),
+                                    MgmDefaultReceiverQueue.c_str(),
+                                    true, true, &ObjectManager);
+
+    if (!MgmOfsMessaging->StartListenerThread()) {
+      eos_crit("%s", "msg=\"messaging failed to start listening thread\"");
+      return 1;
+    }
+
+    MgmOfsMessaging->SetLogId("MgmOfsMessaging");
+    // Create the ZMQ processor used especially for fuse
+    XrdOucString zmq_port = "tcp://*:";
+    zmq_port += (int) mFusexPort;
+    zMQ = new ZMQ(zmq_port.c_str());
+
+    if (!zMQ) {
+      Eroute.Emsg("Config", "cannto start ZMQ processor");
+      return 1;
+    }
+
+    zMQ->ServeFuse();
+    ObjectManager.SetAutoReplyQueueDerive(true);
+    ObjectManager.CreateSharedHash("/eos/*", "/eos/*/fst");
+    XrdOucString dumperfile = MgmMetaLogDir;
+    dumperfile += "/so.mgm.dump.";
+    dumperfile += ManagerId;
+    ObjectManager.StartDumper(dumperfile.c_str());
+  }
+
   if ((getenv("EOS_USE_MQ_ON_QDB") != 0)) {
     eos_static_info("MQ on QDB - setting up SharedManager..");
     // Using QDB as MQ? Currently experimental - functionality not switched over
@@ -1600,7 +1632,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
 
     if (NsInQDB) {
-      // only supported in QDB
       SetupProcFiles();
     }
   }
@@ -1614,39 +1645,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   std::ostringstream oss;
   oss << "ipc://" << MgmArchiveDir.c_str() << "archive_frontend.ipc";
   mArchiveEndpoint = oss.str();
-
-  // Disable some features if we are only a redirector
-  if (!MgmRedirector) {
-    // Create the specific listener class
-    MgmOfsMessaging = new Messaging(MgmOfsBrokerUrl.c_str(),
-                                    MgmDefaultReceiverQueue.c_str(),
-                                    true, true, &ObjectManager);
-
-    if (!MgmOfsMessaging->StartListenerThread()) {
-      eos_crit("%s", "msg=\"messaging failed to start listening thread\"");
-      return 1;
-    }
-
-    MgmOfsMessaging->SetLogId("MgmOfsMessaging");
-    // Create the ZMQ processor used especially for fuse
-    XrdOucString zmq_port = "tcp://*:";
-    zmq_port += (int) mFusexPort;
-    zMQ = new ZMQ(zmq_port.c_str());
-
-    if (!zMQ) {
-      Eroute.Emsg("Config", "cannto start ZMQ processor");
-      return 1;
-    }
-
-    zMQ->ServeFuse();
-    ObjectManager.SetAutoReplyQueueDerive(true);
-    ObjectManager.CreateSharedHash("/eos/*", "/eos/*/fst");
-    XrdOucString dumperfile = MgmMetaLogDir;
-    dumperfile += "/so.mgm.dump.";
-    dumperfile += ManagerId;
-    ObjectManager.StartDumper(dumperfile.c_str());
-  }
-
   // This sleep is needed otherwise nodes/fs do not register properly
   // with the MGM. ??!!??
   std::this_thread::sleep_for(std::chrono::seconds(2));
@@ -1654,10 +1652,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   std::string stdOut;
   std::string stdErr;
 
-  if (!mMaster->ApplyMasterConfig(stdOut, stdErr,
-                                  Master::Transition::Type::kMasterToMaster)) {
-    Eroute.Emsg("Config", "failed to apply master configuration");
-    return 1;
+  if (!NsInQDB) {
+    if (!mMaster->ApplyMasterConfig(stdOut, stdErr,
+                                    Master::Transition::Type::kMasterToMaster)) {
+      Eroute.Emsg("Config", "failed to apply master configuration");
+      return 1;
+    }
   }
 
   if (!MgmRedirector) {
