@@ -278,7 +278,7 @@ public:
   void
   SetLogId(const char* newlogid, const char* td)
   {
-    if (newlogid != logId) {
+    if (newlogid && (newlogid != logId)) {
       snprintf(logId, sizeof(logId) - 1, "%s", newlogid);
     }
 

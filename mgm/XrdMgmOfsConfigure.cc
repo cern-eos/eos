@@ -2158,20 +2158,23 @@ XrdMgmOfs::SetupGlobalConfig()
 
   if (!eos::common::GlobalConfig::gConfig.SOM()->CreateSharedHash(
         configQueue.c_str(), "/eos/*/mgm")) {
-    eos_crit("Cannot add global config queue %s\n", configQueue.c_str());
+    eos_crit("msg=\"cannot add global config queue\" qpath=\"%s\"",
+             configQueue.c_str());
   }
 
   configQueue = SSTR("/config/" << eos::common::InstanceName::get() << "/all/");
 
   if (!eos::common::GlobalConfig::gConfig.SOM()->CreateSharedHash(
         configQueue.c_str(), "/eos/*")) {
-    eos_crit("Cannot add global config queue %s\n", configQueue.c_str());
+    eos_crit("msg=\"cannot add global config queue\" qpath=\"%s\"",
+             configQueue.c_str());
   }
 
   configQueue = SSTR("/config/" << eos::common::InstanceName::get() << "/fst/");
 
   if (!eos::common::GlobalConfig::gConfig.SOM()->CreateSharedHash(
         configQueue.c_str(), "/eos/*/fst")) {
-    eos_crit("Cannot add global config queue %s\n", configQueue.c_str());
+    eos_crit("msg=\"cannot add global config queue\" qpath=\"%s\"",
+             configQueue.c_str());
   }
 }
