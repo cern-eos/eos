@@ -260,6 +260,8 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
 
   for (int i = 0; i < kBrokerN; i++) {
     XrdOucString rhostport;
+    // @todo(esindril) when the MQ master changes one should also update the
+    // broker URL
     XrdCl::URL url(GetBrokerUrl(i, rhostport)->c_str());
 
     if (!url.IsValid()) {
@@ -420,9 +422,14 @@ XrdMqClient::RecvMessage(ThreadAssistant* assistant)
     XrdCl::StatInfo* stinfo = nullptr;
 
     while (!file->Stat(true, stinfo, timeout).IsOK()) {
-      fprintf(stderr, "XrdMqClient::RecvMessage => Stat failed\n");
+      std::string old_srv, new_srv;
+      (void) file->GetProperty("DataServer", old_srv);
       ReNewBrokerXrdClientReceiver(0, assistant);
       file = GetBrokerXrdClientReceiver(0);
+      (void) file->GetProperty("DataServer", new_srv);
+      fprintf(stderr,
+              "XrdMqClient::RecvMessage => stat failed old_srv:%s, new_srv:%s\n",
+              old_srv.c_str(), new_srv.c_str());
 
       if (assistant) {
         assistant->wait_for(std::chrono::seconds(2));

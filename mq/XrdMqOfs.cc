@@ -89,9 +89,9 @@ XrdMqOfsFile::open(const char* queuename, XrdSfsFileOpenMode openMode,
 {
   EPNAME("open");
   tident = error.getErrUser();
+  eos_info_lite("connecting queue: %s", queuename);
   MAYREDIRECT;
   mQueueName = queuename;
-  eos_info_lite("connecting queue: %s", mQueueName.c_str());
   XrdSysMutexHelper scope_lock(gMqFS->mQueueOutMutex);
 
   //  printf("%s %s %s\n",mQueueName.c_str(),gMqFS->QueuePrefix.c_str(),opaque);
