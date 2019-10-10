@@ -46,7 +46,7 @@ constexpr std::chrono::seconds Storage::sConsistencyTimeout;
 //
 // This is to keep the entry in the hash, even if no opened files exist.
 //------------------------------------------------------------------------------
-static std::string hotFilesToString(
+static std::string HotFilesToString(
   const std::vector<eos::fst::OpenFileTracker::HotEntry>& entries)
 {
   if (entries.size() == 0u) {
@@ -68,7 +68,7 @@ static std::string hotFilesToString(
 //------------------------------------------------------------------------------
 // Retrieve net speed
 //------------------------------------------------------------------------------
-static uint64_t getNetspeed(const std::string& tmpname)
+static uint64_t GetNetSpeed(const std::string& tmpname)
 {
   if (getenv("EOS_FST_NETWORK_SPEED")) {
     return strtoull(getenv("EOS_FST_NETWORK_SPEED"), nullptr, 10);
@@ -106,7 +106,7 @@ static uint64_t getNetspeed(const std::string& tmpname)
 //------------------------------------------------------------------------------
 // Retrieve uptime
 //------------------------------------------------------------------------------
-static std::string getUptime(const std::string& tmpname)
+static std::string GetUptime(const std::string& tmpname)
 {
   eos::common::ShellCmd cmd(SSTR("uptime | tr -d \"\n\" > " << tmpname));
   eos::common::cmd_status rc = cmd.wait(5);
@@ -124,7 +124,7 @@ static std::string getUptime(const std::string& tmpname)
 //------------------------------------------------------------------------------
 // Retrieve xrootd version
 //------------------------------------------------------------------------------
-static std::string getXrootdVersion()
+static std::string GetXrootdVersion()
 {
   XrdOucString v = XrdVERSIONINFOVAR(XrdgetProtocol).vStr;
   int pos = v.find(" ");
@@ -139,27 +139,15 @@ static std::string getXrootdVersion()
 //------------------------------------------------------------------------------
 // Retrieve eos version
 //------------------------------------------------------------------------------
-static std::string getEosVersion()
+static std::string GetEosVersion()
 {
   return SSTR(VERSION << "-" << RELEASE);
 }
 
 //------------------------------------------------------------------------------
-// Retrieve node geotag - must be maximum 8 characters
-//------------------------------------------------------------------------------
-static std::string getGeotag()
-{
-  if (getenv("EOS_GEOTAG")) {
-    return getenv("EOS_GEOTAG");
-  }
-
-  return "dfgeotag";
-}
-
-//------------------------------------------------------------------------------
 // Retrieve FST network interface
 //------------------------------------------------------------------------------
-static std::string getNetworkInterface()
+static std::string GetNetworkInterface()
 {
   if (getenv("EOS_FST_NETWORK_INTERFACE")) {
     return getenv("EOS_FST_NETWORK_INTERFACE");
@@ -172,7 +160,7 @@ static std::string getNetworkInterface()
 // Retrieve number of TCP sockets in the system
 // TODO: Change return value to integer..
 //------------------------------------------------------------------------------
-static std::string getNumberOfTCPSockets(const std::string& tmpname)
+static std::string GetNumOfTcpSockets(const std::string& tmpname)
 {
   std::string command = SSTR("cat /proc/net/tcp | wc -l | tr -d \"\n\" > " <<
                              tmpname);
@@ -211,19 +199,19 @@ Storage::GetFstStatistics(const std::string& tmpfile,
   // number of active threads on this machine
   output["stat.sys.threads"] = SSTR(osstat.threads);
   // eos version
-  output["stat.sys.eos.version"] = getEosVersion();
+  output["stat.sys.eos.version"] = GetEosVersion();
   // xrootd version
-  output["stat.sys.xrootd.version"] = getXrootdVersion();
+  output["stat.sys.xrootd.version"] = GetXrootdVersion();
   // adler32 of keytab
   output["stat.sys.keytab"] = eos::fst::Config::gConfig.KeyTabAdler.c_str();
   // machine uptime
-  output["stat.sys.uptime"] = getUptime(tmpfile);
+  output["stat.sys.uptime"] = GetUptime(tmpfile);
   // active TCP sockets
-  output["stat.sys.sockets"] = getNumberOfTCPSockets(tmpfile);
+  output["stat.sys.sockets"] = GetNumOfTcpSockets(tmpfile);
   // startup time of the FST daemon
   output["stat.sys.eos.start"] = eos::fst::Config::gConfig.StartDate.c_str();
   // FST geotag
-  output["stat.geotag"] = getGeotag();
+  output["stat.geotag"] = gOFS.GetGeoTag();
   // http port
   output["http.port"] = SSTR(gOFS.mHttpdPort);
   // debug level
@@ -234,10 +222,10 @@ Storage::GetFstStatistics(const std::string& tmpfile,
   // net info
   output["stat.net.ethratemib"] = SSTR(netspeed / (8 * 1024 * 1024));
   output["stat.net.inratemib"] = SSTR(
-                                   mFstLoad.GetNetRate(getNetworkInterface().c_str(),
+                                   mFstLoad.GetNetRate(GetNetworkInterface().c_str(),
                                        "rxbytes") / 1024.0 / 1024.0);
   output["stat.net.outratemib"] = SSTR(
-                                    mFstLoad.GetNetRate(getNetworkInterface().c_str(),
+                                    mFstLoad.GetNetRate(GetNetworkInterface().c_str(),
                                         "txbytes") / 1024.0 / 1024.0);
   // publish timestamp
   output["stat.publishtimestamp"] = SSTR(
@@ -387,7 +375,7 @@ Storage::GetFsStatistics(FileSystem* fs, bool publishInconsistencyStats)
   output["stat.wopen"] = std::to_string(w_open);
   output["stat.usedfiles"] = std::to_string(gFmdDbMapHandler.GetNumFiles(fsid));
   output["stat.boot"] = fs->GetStatusAsString(fs->GetStatus());
-  output["stat.geotag"] = getGeotag();
+  output["stat.geotag"] = gOFS.GetGeoTag();
   output["stat.publishtimestamp"] = std::to_string(
                                       eos::common::getEpochInMilliseconds().count());
   output["stat.balancer.running"] = std::to_string(
@@ -395,9 +383,9 @@ Storage::GetFsStatistics(FileSystem* fs, bool publishInconsistencyStats)
   output["stat.disk.iops"] = std::to_string(fs->getIOPS());
   output["stat.disk.bw"] = std::to_string(fs->getSeqBandwidth()); // in MB
   output["stat.http.port"] = std::to_string(gOFS.mHttpdPort);
-  output["stat.ropen.hotfiles"] = hotFilesToString(
+  output["stat.ropen.hotfiles"] = HotFilesToString(
                                     gOFS.openedForReading.getHotFiles(fsid, 10));
-  output["stat.wopen.hotfiles"] = hotFilesToString(
+  output["stat.wopen.hotfiles"] = HotFilesToString(
                                     gOFS.openedForWriting.getHotFiles(fsid, 10));
   return output;
 }
@@ -447,7 +435,7 @@ Storage::Publish(ThreadAssistant& assistant)
     return;
   }
 
-  unsigned long long netspeed = getNetspeed(tmp_name);
+  unsigned long long netspeed = GetNetSpeed(tmp_name);
   eos_static_info("publishing:networkspeed=%.02f GB/s",
                   1.0 * netspeed / 1000000000.0);
   // The following line acts as a barrier that prevents progress
@@ -525,7 +513,7 @@ void Storage::QdbPublish(const QdbContactDetails& cd,
                              eos::fst::Config::gConfig.FstHostPort);
   // Setup required variables..
   std::string tmp_name = makeTemporaryFile();
-  unsigned long long netspeed = getNetspeed(tmp_name);
+  unsigned long long netspeed = GetNetSpeed(tmp_name);
 
   if (tmp_name.empty()) {
     return;

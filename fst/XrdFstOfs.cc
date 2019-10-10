@@ -40,6 +40,7 @@
 #include "common/eos_cta_pb/EosCtaAlertHandler.hh"
 #include "common/Constants.hh"
 #include "common/StringConversion.hh"
+#include "common/StringTokenizer.hh"
 #include "common/XattrCompat.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "XrdNet/XrdNetOpts.hh"
@@ -306,10 +307,10 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
 //------------------------------------------------------------------------------
 XrdFstOfs::XrdFstOfs() :
   eos::common::LogId(), mHostName(NULL), mMqOnQdb(false), mHttpd(nullptr),
-  mCloseThreadPool(8, 64, 5, 6, 5, "async_close"), mMgmXrdPool(nullptr),
-  mSimIoReadErr(false), mSimIoWriteErr(false), mSimXsReadErr(false),
-  mSimXsWriteErr(false), mSimFmdOpenErr(false), mSimErrIoReadOff(0ull),
-  mSimErrIoWriteOff(0ull)
+  mGeoTag("nogeotag"), mCloseThreadPool(8, 64, 5, 6, 5, "async_close"),
+  mMgmXrdPool(nullptr), mSimIoReadErr(false), mSimIoWriteErr(false),
+  mSimXsReadErr(false), mSimXsWriteErr(false), mSimFmdOpenErr(false),
+  mSimErrIoReadOff(0ull), mSimErrIoWriteOff(0ull)
 {
   Eroute = 0;
   Messaging = 0;
@@ -723,6 +724,12 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   }
 
   Eroute.Say("=====> eoscp-log : ", eoscpTransferLog.c_str());
+
+  if (!UpdateSanitizedGeoTag()) {
+    eos_static_err("%s", "msg=\"failed to update geotag, wrongly formatted\"");
+    return SFS_ERROR;
+  }
+
   // Compute checksum of the keytab file
   std::string kt_cks = GetKeytabChecksum("/etc/eos.keytab");
   eos::fst::Config::gConfig.KeyTabAdler = kt_cks.c_str();
@@ -865,6 +872,50 @@ XrdFstOfs::SetSimulationError(const std::string& input)
   } else if (input.find("fmd_open") == 0) {
     mSimFmdOpenErr = true;
   }
+}
+
+//------------------------------------------------------------------------------
+// Update geotag value from the EOS_GEOTAG env variable and sanitize the
+// input
+//------------------------------------------------------------------------------
+bool
+XrdFstOfs::UpdateSanitizedGeoTag()
+{
+  const char* ptr = getenv("EOS_GEOTAG");
+
+  if (ptr == nullptr) {
+    return true;
+  }
+
+  std::string tmp_tag(ptr);
+  // Make sure the new geotag is properly formatted and respects the contraints
+  auto tokens = eos::common::StringTokenizer::split<std::vector<std::string>>
+                (tmp_tag, ':');
+  tmp_tag.clear();
+
+  for (const auto& token : tokens) {
+    if (token.empty()) {
+      continue;
+    }
+
+    if (token.length() > 8) {
+      eos_static_err("msg=\"token in geotag longer than 8 chars\" geotag=\"%s\"",
+                     ptr);
+      return false;
+    }
+
+    tmp_tag += token;
+    tmp_tag += "::";
+  }
+
+  if (tmp_tag.length() <= 2) {
+    eos_static_err("%s", "msg=\"empty geotag\"");
+    return false;
+  }
+
+  tmp_tag.erase(tmp_tag.length() - 2);
+  mGeoTag = tmp_tag;
+  return true;
 }
 
 //------------------------------------------------------------------------------
