@@ -89,6 +89,7 @@ XrdMqOfsFile::open(const char* queuename, XrdSfsFileOpenMode openMode,
 {
   EPNAME("open");
   tident = error.getErrUser();
+  SetLogId(nullptr, tident);
   eos_info_lite("connecting queue: %s", queuename);
   MAYREDIRECT;
   mQueueName = queuename;
@@ -146,7 +147,6 @@ int
 XrdMqOfsFile::stat(struct stat* buf)
 {
   EPNAME("stat");
-  ZTRACE(read, "fstat");
   int port = 0;
   XrdOucString host = "";
 
@@ -1134,9 +1134,9 @@ XrdMqOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
   char ipath[XRDMQOFS_FSCTLPATHLEN + 1];
   static const char* epname = "FSctl";
   const char* tident = error.getErrUser();
+  SetLogId(nullptr, tident);
+  eos_static_debug("arg1=\"%s\" arg2=\"%s\"", args.Arg1, args.Arg2);
   MAYREDIRECT;
-  // Accept only plugin calls!
-  ZTRACE(fsctl, "Calling FSctl");
 
   if (cmd != SFS_FSCTL_PLUGIN) {
     gMqFS->Emsg(epname, error, EINVAL, "to call FSctl - not supported", "");
@@ -1174,8 +1174,6 @@ XrdMqOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
     opaque.assign(args.Arg2, 0, args.Arg2Len);
   }
 
-  ZTRACE(fsctl, path.c_str());
-  ZTRACE(fsctl, opaque.c_str());
   XrdSmartOucEnv* env = new XrdSmartOucEnv(opaque.c_str());
 
   if (!env) {
@@ -1326,8 +1324,6 @@ XrdMqOfs::Deliver(XrdMqOfsMatches& Matches)
           (!msg_out->AdvisoryQuery)) {
         continue;
       } else {
-        ZTRACE(fsctl, "Adding Advisory Message to Queuename: " <<
-               msg_out->QueueName.c_str());
         matched_out_queues.push_back(msg_out);
       }
     }
