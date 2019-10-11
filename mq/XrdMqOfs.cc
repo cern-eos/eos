@@ -1133,7 +1133,7 @@ XrdMqOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
 {
   char ipath[XRDMQOFS_FSCTLPATHLEN + 1];
   static const char* epname = "FSctl";
-  const char* tident = error.getErrUser();
+  const char* tident = client->tident;
   SetLogId(nullptr, tident);
   eos_static_debug("arg1=\"%s\" arg2=\"%s\"", args.Arg1, args.Arg2);
   MAYREDIRECT;

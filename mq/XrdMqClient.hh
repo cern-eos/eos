@@ -55,22 +55,18 @@ public:
   ~XrdMqClient();
 
   //----------------------------------------------------------------------------
-  //! Subscribe to a particular queue
-  //!
-  //! @param queue queue name
+  //! Subscribe to the brokers
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool Subscribe(const char* queue = 0);
+  bool Subscribe();
 
   //----------------------------------------------------------------------------
-  //! Unsubscribe from a particular queue
-  //!
-  //! @param queue queue name
+  //! Unsubscribe from brokers
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool Unsubscribe(const char* queue = 0);
+  bool Unsubscribe();
 
   //----------------------------------------------------------------------------
   //! Send message
@@ -141,7 +137,7 @@ public:
 
   XrdMqMessage* RecvMessage(ThreadAssistant* assistant = nullptr);
 
-  XrdOucString* GetBrokerUrl(int i, XrdOucString& rhostport);
+  XrdOucString* GetBrokerUrl(int i);
 
   XrdOucString GetBrokerId(int i);
 
@@ -161,11 +157,40 @@ public:
 
   void Disconnect();
 
+  //----------------------------------------------------------------------------
+  //! Get and reset the new mq broker flag
+  //!
+  //! @return true if the client was redirected to a new broker, otherwise false
+  //----------------------------------------------------------------------------
+  inline bool GetAndResetNewMqFlag()
+  {
+    return std::atomic_exchange(&mNewMqBroker, false);
+  }
 
+  //----------------------------------------------------------------------------
+  //! Convenience operator to send a message
+  //----------------------------------------------------------------------------
   bool operator << (XrdMqMessage& msg)
   {
     return (*this).SendMessage(msg);
   }
+
+
+private:
+  static XrdSysMutex Mutex;
+  XrdOucHash <XrdOucString> kBrokerUrls;
+  XrdOucHash <XrdCl::File> kBrokerXrdClientReceiver;
+  XrdOucHash <XrdCl::FileSystem> kBrokerXrdClientSender;
+
+  XrdOucString kMessageBuffer;
+  int kBrokerN;
+  XrdOucString kClientId;
+  XrdOucString kDefaultReceiverQueue;
+  char* kRecvBuffer;
+  int kRecvBufferAlloc;
+  size_t kInternalBufferPosition;
+  bool kInitOK;
+  std::atomic<bool> mNewMqBroker {false};
 
   //----------------------------------------------------------------------------
   //! Response handler class to clean-up asynchronous callbacks which are
@@ -174,16 +199,15 @@ public:
   class DiscardResponseHandler : public XrdCl::ResponseHandler
   {
   public:
-
     //--------------------------------------------------------------------------
     //! Constructor
     //--------------------------------------------------------------------------
-    DiscardResponseHandler() { }
+    DiscardResponseHandler() = default;
 
     //--------------------------------------------------------------------------
     //! Destructor
     //--------------------------------------------------------------------------
-    virtual ~DiscardResponseHandler() { }
+    virtual ~DiscardResponseHandler() = default;
 
     //--------------------------------------------------------------------------
     //! Handle response method. See XrdClFile.hh class for signature.
@@ -207,21 +231,6 @@ public:
   };
 
   static DiscardResponseHandler gDiscardResponseHandler;
-
-private:
-  static XrdSysMutex Mutex;
-  XrdOucHash <XrdOucString> kBrokerUrls;
-  XrdOucHash <XrdCl::File> kBrokerXrdClientReceiver;
-  XrdOucHash <XrdCl::FileSystem> kBrokerXrdClientSender;
-
-  XrdOucString kMessageBuffer;
-  int kBrokerN;
-  XrdOucString kClientId;
-  XrdOucString kDefaultReceiverQueue;
-  char* kRecvBuffer;
-  int kRecvBufferAlloc;
-  size_t kInternalBufferPosition;
-  bool kInitOK;
 };
 
 
