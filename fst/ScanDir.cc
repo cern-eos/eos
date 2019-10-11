@@ -170,14 +170,20 @@ ScanDir::SetConfig(const std::string& key, long long value)
   } else if (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) {
     mEntryIntervalSec = value;
   } else if (key == eos::common::SCAN_DISK_INTERVAL_NAME) {
-    mDiskIntervalSec = value;
-    mDiskThread.join();
-    mDiskThread.reset(&ScanDir::RunDiskScan, this);
+    if (mDiskIntervalSec != value) {
+      mDiskIntervalSec = value;
+      mDiskThread.join();
+      mDiskThread.reset(&ScanDir::RunDiskScan, this);
+    }
   } else if (key == eos::common::SCAN_NS_INTERVAL_NAME) {
 #ifndef _NOOFS
-    mNsIntervalSec = value;
-    mNsThread.join();
-    mNsThread.reset(&ScanDir::RunNsScan, this);
+
+    if (mNsIntervalSec != value) {
+      mNsIntervalSec = value;
+      mNsThread.join();
+      mNsThread.reset(&ScanDir::RunNsScan, this);
+    }
+
 #endif
   } else if (key == eos::common::SCAN_NS_RATE_NAME) {
     mRateLimit->SetRatePerSecond(value);
