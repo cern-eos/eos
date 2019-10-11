@@ -23,8 +23,10 @@
 
 #pragma once
 #include "namespace/Namespace.hh"
+#include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include <string>
 #include <map>
+#include <vector>
 
 namespace qclient {
   class QClient;
@@ -126,6 +128,11 @@ public:
   int changeFid(bool dryRun, uint64_t id, uint64_t newParent, const std::string &newChecksum, int64_t newSize, std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
+  //! Rename the given cid fully, taking care of the container maps as well
+  //----------------------------------------------------------------------------
+  int renameCid(bool dryRun, uint64_t cid, uint64_t newParent, const std::string &newName, std::ostream &out, std::ostream &err);
+
+  //----------------------------------------------------------------------------
   //! Rename the given fid fully, taking care of the container maps as well
   //----------------------------------------------------------------------------
   int renameFid(bool dryRun, uint64_t id, uint64_t newParent, const std::string& newName, std::ostream &out, std::ostream &err);
@@ -143,6 +150,13 @@ public:
 
 private:
   qclient::QClient &mQcl;
+
+  //----------------------------------------------------------------------------
+  //! Run the given write batch towards QDB - print the requests, as well as
+  //! the output.
+  //----------------------------------------------------------------------------
+  void executeRequestBatch(const std::vector<RedisRequest> &requestBatch, bool dryRun, std::ostream& out, std::ostream& err);
+
 
 };
 
