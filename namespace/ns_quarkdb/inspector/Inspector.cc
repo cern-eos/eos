@@ -953,7 +953,7 @@ int Inspector::checkSimulatedHardlinks(std::ostream &out, std::ostream &err) {
 //------------------------------------------------------------------------------
 // Print out _everything_ known about the given directory.
 //------------------------------------------------------------------------------
-int Inspector::printContainerMD(uint64_t cid, std::ostream& out, std::ostream& err)
+int Inspector::printContainerMD(uint64_t cid, bool withParents, std::ostream& out, std::ostream& err)
 {
   eos::ns::ContainerMdProto val;
 
@@ -1002,13 +1002,18 @@ int Inspector::printContainerMD(uint64_t cid, std::ostream& out, std::ostream& e
     out << it->first << ": " << it->second << std::endl;
   }
 
+  if(withParents && val.parent_id() != 0 && val.id() != val.parent_id()) {
+    out << std::endl << std::endl << std::endl << std::endl << std::endl;
+    return printContainerMD(val.parent_id(), withParents, out, err);
+  }
+
   return 0;
 }
 
 //------------------------------------------------------------------------------
 // Print out _everything_ known about the given file.
 //------------------------------------------------------------------------------
-int Inspector::printFileMD(uint64_t fid, std::ostream& out, std::ostream& err)
+int Inspector::printFileMD(uint64_t fid, bool withParents, std::ostream& out, std::ostream& err)
 {
   eos::ns::FileMdProto val;
 
@@ -1027,6 +1032,11 @@ int Inspector::printFileMD(uint64_t fid, std::ostream& out, std::ostream& err)
     out << "Full path: " << fullPath << val.name() << std::endl;
   } catch(const MDException& e) {
     err << "Full path: Could not reconstruct" << std::endl;
+  }
+
+  if(withParents && val.cont_id() != 0) {
+    out << std::endl << std::endl << std::endl << std::endl << std::endl;
+    return printContainerMD(val.cont_id(), withParents, out, err);
   }
 
   return 0;

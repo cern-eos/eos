@@ -102,6 +102,7 @@ int main(int argc, char* argv[]) {
   bool noDirs = false;
   bool showSize = false;
   bool showMtime = false;
+  bool withParents = false;
 
   dumpSubcommand->add_option("--path", dumpPath, "The target path to dump")
     ->required();
@@ -116,6 +117,7 @@ int main(int argc, char* argv[]) {
   //----------------------------------------------------------------------------
   auto printSubcommand = app.add_subcommand("print", "Print everything known about a given file, or container");
   addClusterOptions(printSubcommand, membersStr, memberValidator, password, passwordFile);
+  printSubcommand->add_flag("--with-parents", withParents, "Show detailed information for each parent container as well");
 
   uint64_t fid = 0;
   uint64_t cid = 0;
@@ -326,10 +328,10 @@ int main(int argc, char* argv[]) {
 
   if(printSubcommand->parsed()) {
     if(fid > 0) {
-      return inspector.printFileMD(fid, std::cout, std::cerr);
+      return inspector.printFileMD(fid, withParents, std::cout, std::cerr);
     }
 
-    return inspector.printContainerMD(cid, std::cout, std::cerr);
+    return inspector.printContainerMD(cid, withParents, std::cout, std::cerr);
   }
 
   if(scanDirsSubcommand->parsed()) {
