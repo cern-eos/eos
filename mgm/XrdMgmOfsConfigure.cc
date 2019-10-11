@@ -1394,7 +1394,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   // Create different type of master object depending on the ns implementation
-  if ((getenv("EOS_USE_QDB_MASTER") != 0) && NsInQDB) {
+  // and environment options
+  bool use_qdb_master = false;
+
+  if (NsInQDB && getenv("EOS_USE_QDB_MASTER")) {
+    use_qdb_master = true;
     mMaster.reset(new eos::mgm::QdbMaster(mQdbContactDetails, ManagerId.c_str()));
   } else {
     mMaster.reset(new eos::mgm::Master());
@@ -1649,7 +1653,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   std::string stdOut;
   std::string stdErr;
 
-  if (!NsInQDB) {
+  if (use_qdb_master == false) {
     if (!mMaster->ApplyMasterConfig(stdOut, stdErr,
                                     Master::Transition::Type::kMasterToMaster)) {
       Eroute.Emsg("Config", "failed to apply master configuration");
