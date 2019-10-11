@@ -44,6 +44,11 @@ Messaging::Listen(ThreadAssistant& assistant) noexcept
   while (!assistant.terminationRequested()) {
     new_msg.reset(XrdMqMessaging::gMessageClient.RecvMessage(&assistant));
 
+    // We were redirected to a new MQ endponint request broadcast
+    if (XrdMqMessaging::gMessageClient.GetAndResetNewMqFlag()) {
+      gOFS.RequestBroadcasts();
+    }
+
     if (new_msg) {
       Process(new_msg.get());
     } else {

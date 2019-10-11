@@ -1826,7 +1826,7 @@ void
 XrdFstOfs::RequestBroadcasts()
 {
   using eos::fst::Config;
-  eos_notice("sending broadcasts ...");
+  eos_notice("%s", "msg=\"requesting broadcasts\"");
   // Create a wildcard broadcast
   XrdMqSharedHash* hash = 0;
   XrdMqSharedQueue* queue = 0;
