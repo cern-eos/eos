@@ -140,12 +140,12 @@ public:
   //----------------------------------------------------------------------------
   //! Print out _everything_ known about the given file.
   //----------------------------------------------------------------------------
-  int printFileMD(uint64_t fid, std::ostream &out, std::ostream &err);
+  int printFileMD(uint64_t fid, bool withParents, std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
   //! Print out _everything_ known about the given directory.
   //----------------------------------------------------------------------------
-  int printContainerMD(uint64_t cid, std::ostream& out, std::ostream& err);
+  int printContainerMD(uint64_t cid, bool withParents, std::ostream& out, std::ostream& err);
 
 
 private:
