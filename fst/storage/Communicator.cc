@@ -77,8 +77,8 @@ Storage::UnregisterFileSystem(const std::string& queuepath)
   });
 
   if (it == mFsVect.end()) {
-    eos_warning("msg=\"file system is already removed\" qpath=%s",
-                queuepath.c_str());
+    eos_static_warning("msg=\"file system is already removed\" qpath=%s",
+                       queuepath.c_str());
     return;
   }
 
@@ -90,13 +90,14 @@ Storage::UnregisterFileSystem(const std::string& queuepath)
   });
 
   if (it_map == mFsMap.end()) {
-    eos_warning("msg=\"file system missing from map\" qpath=%s",
-                queuepath.c_str());
+    eos_static_warning("msg=\"file system missing from map\" qpath=%s",
+                       queuepath.c_str());
   } else {
     mFsMap.erase(it_map);
   }
 
-  eos_info("msg=\"deleting file system\" qpath=%s", fs->GetQueuePath().c_str());
+  eos_static_info("msg=\"deleting file system\" qpath=%s",
+                  fs->GetQueuePath().c_str());
   delete fs;
 }
 
@@ -106,40 +107,49 @@ Storage::UnregisterFileSystem(const std::string& queuepath)
 void
 Storage::RegisterFileSystem(const std::string& queuepath)
 {
+  eos::common::RWMutexWriteLock fs_wr_lock(mFsMutex);
   auto it = std::find_if(mFsVect.begin(), mFsVect.end(),
   [&](FileSystem * fs) {
     return (fs->GetQueuePath() == queuepath);
   });
 
   if (it != mFsVect.end()) {
-    eos_warning("msg=\"file system is already registered\" qpath=%s",
-                queuepath.c_str());
+    eos_static_warning("msg=\"file system is already registered\" qpath=%s",
+                       queuepath.c_str());
     return;
   }
 
   common::FileSystemLocator locator;
 
   if (!common::FileSystemLocator::fromQueuePath(queuepath, locator)) {
-    eos_crit("msg=\"failed to parse queuepath\" qpath=%s",
-             queuepath.c_str());
+    eos_static_crit("msg=\"failed to parse queuepath\" qpath=%s",
+                    queuepath.c_str());
     return;
   }
 
   fst::FileSystem* fs = new fst::FileSystem(locator, &gOFS.ObjectManager,
       gOFS.mQSOM.get());
   fs->SetStatus(eos::common::BootStatus::kDown);
+  fs->SetLocalId();
+  fs->SetLocalUuid();
   mFsVect.push_back(fs);
+  eos_static_info("msg=\"fully register filesystem\" qpath=\"%s\" fsid=%lu "
+                  "uuid=\"%s\"", queuepath.c_str(), fs->GetLocalId(),
+                  fs->GetLocalUuid().c_str());
 
-  if (fs->GetId() == 0ul) {
-    eos_info("msg=\"partially register file system\" qpath=\"%s\"",
-             queuepath.c_str());
+  if (fs->GetLocalId() == 0ul) {
+    eos_static_info("msg=\"partially register file system\" qpath=\"%s\"",
+                    queuepath.c_str());
     return;
   }
 
-  eos_info("msg=\"fully register filesystem\" qpath=\"%s\" fsid=%lu",
-           queuepath.c_str(), fs->GetId());
-  fs->SetLocalId();
-  fs->SetLocalUuid();
+  if (mFsMap.find(fs->GetLocalId()) != mFsMap.end()) {
+    eos_static_crit("msg=\"trying to register already existing file system\" "
+                    " fsid=%lu uuid=\"%s\"", fs->GetLocalId(),
+                    fs->GetLocalUuid().c_str());
+    std::abort();
+  }
+
   mFsMap[fs->GetLocalId()] = fs;
 }
 
