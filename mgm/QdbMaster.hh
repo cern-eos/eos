@@ -243,7 +243,7 @@ private:
   std::unique_ptr<qclient::QClient>
   mQcl; ///< qclient for talking to the QDB cluster
   //! Time for which a lease is aquired
-  std::chrono::milliseconds mLeaseValidity {15000};
+  std::chrono::milliseconds mLeaseValidity {10000};
 };
 
 EOSMGMNAMESPACE_END
