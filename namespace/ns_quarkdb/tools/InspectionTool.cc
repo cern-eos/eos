@@ -234,7 +234,20 @@ int main(int argc, char* argv[]) {
     ->required();
   renameFidSubcommand->add_option("--destination-cid", newParent, "The destination container ID in which to put the FileMD")
     ->required();
-  renameFidSubcommand->add_option("--new-pathname", newName, "The new name of the specified fid - must only contain alphanumeric characters, and can be left empty");
+  renameFidSubcommand->add_option("--new-name", newName, "The new name of the specified fid - must only contain alphanumeric characters, and can be left empty to preserve old name");
+
+  //----------------------------------------------------------------------------
+  // Rename a cid from its current location
+  //----------------------------------------------------------------------------
+  auto renameCidSubcommand = app.add_subcommand("rename-cid", "[DANGEROUS] Rename a container onto the specified container ID - the respective container maps are modified as well.");
+  addClusterOptions(renameCidSubcommand, membersStr, memberValidator, password, passwordFile);
+  addDryRun(renameCidSubcommand, noDryRun);
+
+  renameCidSubcommand->add_option("--cid", cid, "Specify the FileMD to rename")
+    ->required();
+  renameCidSubcommand->add_option("--destination-cid", newParent, "The destination container ID in which to put the FileMD")
+    ->required();
+  renameCidSubcommand->add_option("--new-name", newName, "The new name of the specified cid - must only contain alphanumeric characters, and can be left empty to preserve old name");
 
   //----------------------------------------------------------------------------
   // Set-up overwrite-container subcommand..
@@ -361,6 +374,10 @@ int main(int argc, char* argv[]) {
 
   if(renameFidSubcommand->parsed()) {
     return inspector.renameFid(dryRun, fid, newParent, newName, std::cout, std::cerr);
+  }
+
+  if(renameCidSubcommand->parsed()) {
+    return inspector.renameCid(dryRun, cid, newParent, newName, std::cout, std::cerr);
   }
 
   if(overwriteContainerSubcommand->parsed()) {

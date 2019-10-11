@@ -962,7 +962,6 @@ int Inspector::printContainerMD(uint64_t cid, std::ostream& out, std::ostream& e
   } catch (const MDException& e) {
     err << "Error while fetching metadata for ContainerMD #" << cid << ": " << e.what()
         << std::endl;
-    return 1;
   }
 
   Printing::printMultiline(val, out);
@@ -1128,6 +1127,80 @@ static std::string toYesOrNo(bool val) {
 }
 
 //------------------------------------------------------------------------------
+// Rename the given cid fully, taking care of the container maps as well.
+//------------------------------------------------------------------------------
+int Inspector::renameCid(bool dryRun, uint64_t cid, uint64_t newParent, const std::string &newName, std::ostream &out, std::ostream &err) {
+  eos::ns::ContainerMdProto val;
+  bool protoExists = false;
+
+  try {
+    val = MetadataFetcher::getContainerFromId(mQcl, ContainerIdentifier(cid)).get();
+    protoExists = true;
+  } catch(const MDException &e) {
+    val.set_id(cid);
+    err << "Error while fetching metadata for ContainerMD #" << cid << ": " << e.what();
+  }
+
+  out << "------------------------------------------------------ Container overview" << std::endl;
+
+  bool parentExists = false;
+  IContainerMD::ContainerMap parentContainermap;
+  bool containermapEntryExists = false;
+  bool containermapEntryValid = false;
+  std::string oldName = "";
+  uint64_t oldContainer = 0;
+
+  if(protoExists) {
+    Printing::printMultiline(val, out);
+
+    parentExists = MetadataFetcher::doesContainerMdExist(mQcl, ContainerIdentifier(val.parent_id())).get();
+    parentContainermap = MetadataFetcher::getContainerMap(mQcl, ContainerIdentifier(val.parent_id())).get();
+    containermapEntryExists = parentContainermap.find(val.name()) != parentContainermap.end();
+    containermapEntryValid = (parentContainermap[val.name()] == val.id());
+    oldName = val.name();
+    oldContainer = val.parent_id();
+
+    out << "------------------------------------------------------ Sanity check" << std::endl;
+    out << "Parent (" << (val.parent_id()) << ") exists? " << toYesOrNo(parentExists) << std::endl;
+    out << "Containermap entry exists? " << toYesOrNo(containermapEntryExists) << std::endl;
+
+    if(containermapEntryExists) {
+      out << "Containermap entry (" << val.name() << " -> " << parentContainermap[val.name()] << ") valid? " << toYesOrNo(containermapEntryValid) << std::endl;
+    }
+  }
+  else {
+    out << "Protobuf for cid=" << cid << " does not exist!" << std::endl;
+  }
+
+  if(!protoExists && newName.empty()) {
+    out << "Name needs to be specified if original container did not exist! Aborting operation." << std::endl;
+    return 1;
+  }
+
+  val.set_parent_id(newParent);
+  if(!newName.empty()) {
+    val.set_name(newName);
+  }
+
+  std::vector<RedisRequest> requests;
+
+  QuarkContainerMD containerMD;
+  containerMD.initialize(std::move(val), IContainerMD::FileMap(), IContainerMD::ContainerMap());
+  requests.emplace_back(RequestBuilder::writeContainerProto(&containerMD));
+
+  if(containermapEntryExists && containermapEntryValid) {
+    RedisRequest req = {"HDEL", SSTR(oldContainer << constants::sMapDirsSuffix), oldName};
+    requests.emplace_back(req);
+  }
+
+  RedisRequest req = {"HSET", SSTR(newParent << constants::sMapDirsSuffix), containerMD.getName(), SSTR(containerMD.getId()) };
+  requests.emplace_back(req);
+
+  executeRequestBatch(requests, dryRun, out, err);
+  return 0;
+}
+
+//------------------------------------------------------------------------------
 // Rename the given fid fully, taking care of the container maps as well
 //------------------------------------------------------------------------------
 int Inspector::renameFid(bool dryRun, uint64_t fid, uint64_t newParent, const std::string &newName, std::ostream &out, std::ostream &err) {
@@ -1168,7 +1241,6 @@ int Inspector::renameFid(bool dryRun, uint64_t fid, uint64_t newParent, const st
     val.set_name(newName);
   }
 
-  out << "------------------------------------------------------ QDB commands to execute" << std::endl;
 
   std::vector<RedisRequest> requests;
   QuarkFileMD fileMD;
@@ -1183,16 +1255,25 @@ int Inspector::renameFid(bool dryRun, uint64_t fid, uint64_t newParent, const st
   RedisRequest req = {"HSET", SSTR(newParent << constants::sMapFilesSuffix), fileMD.getName(), SSTR(fileMD.getId()) };
   requests.emplace_back(req);
 
+  executeRequestBatch(requests, dryRun, out, err);
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Run the given write batch towards QDB - print the requests, as well as the
+// output.
+//------------------------------------------------------------------------------
+void Inspector::executeRequestBatch(const std::vector<RedisRequest> &requests, bool dryRun, std::ostream& out, std::ostream& err) {
+  out << "------------------------------------------------------ QDB commands to execute" << std::endl;
+
   for(size_t i = 0; i < requests.size(); i++) {
     out << i+1 << ". " << serializeRequest(requests[i]) << std::endl;
   }
 
   if(dryRun) {
     out << "------------------------------------------------------ DRY RUN, CHANGES NOT APPLIED" << std::endl;
-    return 0;
+    return;
   }
-
-  out << "------------------------------------------------------ Output" << std::endl;
 
   std::vector<std::future<qclient::redisReplyPtr>> replies;
   for(size_t i = 0; i < requests.size(); i++) {
@@ -1202,9 +1283,6 @@ int Inspector::renameFid(bool dryRun, uint64_t fid, uint64_t newParent, const st
   for(size_t i = 0; i < requests.size(); i++) {
     out << i+1 << ". " << qclient::describeRedisReply(replies[i].get()) << std::endl;
   }
-
-  return 0;
 }
-
 
 EOSNSNAMESPACE_END
