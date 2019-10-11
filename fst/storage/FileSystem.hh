@@ -287,7 +287,7 @@ public:
 private:
   //! Local file system id irrespective of the shared hash status, populated
   //! the first time the id is broadcasted from the mgm
-  eos::common::FileSystem::fsid_t mLocalId;
+  eos::common::FileSystem::fsid_t mLocalId {0ull};
   //! Local file system uuid irrespective of the shared hash status, populated
   //! the first time the *id* is broadcasted from the mgm
   std::string mLocalUuid;
