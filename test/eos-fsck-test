@@ -24,23 +24,6 @@ function usage() {
   echo "       k8s    : script runs in a Kubernetes setup and requires a namespace argument"
 }
 
-# Get name of the Pod given the "namespace" and the "label" paramenters.
-# $1 : Kubernetes namespace
-# $2 : label selector specifying attributes for a Kubernetes object
-## Example of admitted labels are {eos-mgm1, eos-mq, eos-fst1, eos-fst2 ... }, mirroring eos-roles
-# refs :https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
-function get_podname() {
-  local NAMESPACE=$1
-  local LABEL=$2
-
-  if [[ -z "${NAMESPACE}" || -z "${LABEL}" ]]; then
-    echo "error: get_podname called with invalid/empty arguments"
-    exit 1
-  fi
-
-  kubectl get pods --namespace=${NAMESPACE} --no-headers -o custom-columns=":metadata.name" -l app=${LABEL}
-}
-
 # Forward the given command to the proper executor Docker or Kubernetes. Gets
 # as argument a container name and a shell command to be executed
 function exec_cmd() {
@@ -56,6 +39,14 @@ function exec_cmd() {
 function exec_cmd_docker() {
   set -o xtrace
   docker exec -i $1 /bin/bash -l -c "${@:2}"
+  set +o xtrace
+}
+
+# Execute command in Kubernetes setup where the first argument is the name of the Pod
+# and the rest is the command to be executed
+function exec_cmd_k8s() {
+  set -o xtrace
+  kubectl exec --namespace=$K8S_NAMESPACE $(kubectl get pods --namespace=$K8S_NAMESPACE --no-headers -o custom-columns=":metadata.name" -l app=$1) -- /bin/bash -l -c "${@:2}"
   set +o xtrace
 }
 
@@ -294,16 +285,12 @@ else
 fi
 
 if [[ "${IS_DOCKER}" == false ]]; then
-  # @todo(faluchet) remove when poper support for k8s is added
-  exit 0
-
   # For the Kubernetes setup we also need a namespace argument
-  if [[ $# -le 3 ]]; then
+  if [[ $# -lt 3 ]]; then
     echo "error: missing Kubernetes namespace argument"
     usage
     exit 1
   fi
-
   K8S_NAMESPACE="$3"
 fi
 
