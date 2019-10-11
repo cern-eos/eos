@@ -1645,9 +1645,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   std::ostringstream oss;
   oss << "ipc://" << MgmArchiveDir.c_str() << "archive_frontend.ipc";
   mArchiveEndpoint = oss.str();
-  // This sleep is needed otherwise nodes/fs do not register properly
-  // with the MGM. ??!!??
-  std::this_thread::sleep_for(std::chrono::seconds(2));
   // Hook to the appropriate config file
   std::string stdOut;
   std::string stdErr;
