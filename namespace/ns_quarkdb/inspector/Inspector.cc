@@ -962,6 +962,7 @@ int Inspector::printContainerMD(uint64_t cid, std::ostream& out, std::ostream& e
   } catch (const MDException& e) {
     err << "Error while fetching metadata for ContainerMD #" << cid << ": " << e.what()
         << std::endl;
+    return 1;
   }
 
   Printing::printMultiline(val, out);
