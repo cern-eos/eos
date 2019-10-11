@@ -838,11 +838,11 @@ bool FileSystem::applyBatch(const FileSystemUpdateBatch& batch)
 bool FileSystem::applyCoreParams(const FileSystemCoreParams& params)
 {
   FileSystemUpdateBatch batch;
-  batch.setId(params.getId());
   batch.setStringDurable("uuid", params.getUuid());
   batch.setStringDurable("schedgroup", params.getGroupLocator().getGroup());
   batch.setStringDurable("configstatus",
                          GetConfigStatusAsString(params.getConfigStatus()));
+  batch.setId(params.getId());
   return applyBatch(batch);
 }
 
