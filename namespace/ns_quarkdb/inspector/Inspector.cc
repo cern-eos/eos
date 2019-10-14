@@ -1127,7 +1127,7 @@ int Inspector::fixDetachedParentContainer(bool dryRun, uint64_t cid, const std::
   eos_assert(!MetadataFetcher::doesContainerMdExist(mQcl, ContainerIdentifier(val.parent_id())).get());
 
   // Go
-  std::string newName = SSTR("recovered|id=" << val.id() << "|name=" << val.name() << "|detached-parent=" << val.parent_id());
+  std::string newName = SSTR("recovered-dir|id=" << val.id() << "|name=" << val.name() << "|detached-parent=" << val.parent_id());
   return renameCid(dryRun, val.id(), destination.getUnderlyingUInt64(), newName, out, err);
 }
 
@@ -1135,23 +1135,65 @@ int Inspector::fixDetachedParentContainer(bool dryRun, uint64_t cid, const std::
 // Attempt to fix detached parent
 //------------------------------------------------------------------------------
 int Inspector::fixDetachedParentFile(bool dryRun, uint64_t fid, const std::string &destinationPath, std::ostream &out, std::ostream &err) {
-  // TODO
-  return 1;
   //----------------------------------------------------------------------------
   // Ensure given file exists..
   //----------------------------------------------------------------------------
-  // eos::ns::FileMdProto val;
+  eos::ns::FileMdProto val;
 
-  // try {
-  //   val = MetadataFetcher::getFileFromId(mQcl, FileIdentifier(fid)).get();
-  // } catch(const MDException& e) {
-  //   err << "Error while fetching metadata for FileMD #" << fid << ": " << e.what()
-  //       << std::endl;
-  //   return 1;
-  // }
+  try {
+    val = MetadataFetcher::getFileFromId(mQcl, FileIdentifier(fid)).get();
+  } catch(const MDException& e) {
+    err << "Error while fetching metadata for FileMD #" << fid << ": " << e.what()
+        << std::endl;
+    return 1;
+  }
 
+  //----------------------------------------------------------------------------
+  // Ensure given destination path is sane
+  //----------------------------------------------------------------------------
+  ContainerIdentifier destination;
 
-  // return fixDetachedParentContainer(dryRun, val.cont_id(), destinationPath, out, err);
+  try {
+    FileOrContainerIdentifier id = MetadataFetcher::resolvePathToID(mQcl, destinationPath).get();
+
+    if(id.isFile()) {
+      out << "Destination path '" << destinationPath << "' is a file, not a directory." << std::endl;
+      return 1;
+    }
+
+    destination = id.toContainerIdentifier();
+  }
+  catch(const MDException& e) {
+    out << "Destination path '" << destinationPath << "' does not exist." << std::endl;
+    return 1;
+  }
+
+  if(destination == ContainerIdentifier(1) || destination == ContainerIdentifier(2) || destination == ContainerIdentifier(3)) {
+    out << "Destination path '" << destinationPath << "' does not look like a good place, too top-level." << std::endl;
+    return 1;
+  }
+
+  //----------------------------------------------------------------------------
+  // If immediate parent is not missing,
+  // switch over to fixDetachedParentContainer
+  //----------------------------------------------------------------------------
+  if(MetadataFetcher::doesContainerMdExist(mQcl, ContainerIdentifier(val.cont_id())).get()) {
+    out << "File #" << val.id() << " not detached, but one of its parents might be." << std::endl;
+    out << "Continuing search onto its parent, container #" << val.cont_id() << "..." << std::endl;
+    return fixDetachedParentContainer(dryRun, val.cont_id(), destinationPath, out, err);
+  }
+
+  //----------------------------------------------------------------------------
+  // Immediate parent is missing, rename fid itself.
+  //----------------------------------------------------------------------------
+  out << "Found detached file #" << val.id() << ", its direct parent #" << val.cont_id() << " is missing." << std::endl;
+
+  // Paranoid check
+  eos_assert(!MetadataFetcher::doesContainerMdExist(mQcl, ContainerIdentifier(val.cont_id())).get());
+
+  // Go
+  std::string newName = SSTR("recovered-file|id=" << val.id() << "|name=" << val.name() << "|detached-parent=" << val.cont_id());
+  return renameFid(dryRun, val.id(), destination.getUnderlyingUInt64(), newName, out, err);
 }
 
 //------------------------------------------------------------------------------
