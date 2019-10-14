@@ -500,8 +500,6 @@ private:
 
   bool mBlocking;
   IRWMutex* mMutexImpl;
-  pthread_rwlock_t rwlock;
-  pthread_rwlockattr_t attr;
   struct timespec wlocktime;
   std::atomic<uint64_t> mRdLockCounter;
   std::atomic<uint64_t> mWrLockCounter;

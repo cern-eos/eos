@@ -238,7 +238,7 @@ public:
   //!
   //! @return MGM directory object
   //----------------------------------------------------------------------------
-  XrdSfsDirectory* newDir(char* user = 0, int MonID = 0);
+  XrdSfsDirectory* newDir(char* user = 0, int MonID = 0) override;
 
   //----------------------------------------------------------------------------
   //! Return a MGM file object
@@ -248,7 +248,7 @@ public:
   //!
   //! @return MGM file object
   //----------------------------------------------------------------------------
-  XrdSfsFile* newFile(char* user = 0, int MonID = 0);
+  XrdSfsFile* newFile(char* user = 0, int MonID = 0) override;
 
   //----------------------------------------------------------------------------
   //! Meta data functions
@@ -261,7 +261,7 @@ public:
   //!
   //! @param client client's identify (see common description)
   //----------------------------------------------------------------------------
-  virtual void Disc(const XrdSecEntity* client = 0);
+  virtual void Disc(const XrdSecEntity* client = 0) override;
 
   //----------------------------------------------------------------------------
   // Chmod by client
@@ -270,7 +270,7 @@ public:
             XrdSfsMode Mode,
             XrdOucErrInfo& out_error,
             const XrdSecEntity* client = 0,
-            const char* opaque = 0);
+            const char* opaque = 0) override;
 
   // ---------------------------------------------------------------------------
   // chmod by vid
@@ -300,7 +300,7 @@ public:
              const char* Path,
              XrdOucErrInfo& out_error,
              const XrdSecEntity* client = 0,
-             const char* opaque = 0);
+             const char* opaque = 0) override;
 
   // ---------------------------------------------------------------------------
   // check if file exists by client
@@ -309,7 +309,7 @@ public:
              XrdSfsFileExistence& exists_flag,
              XrdOucErrInfo& out_error,
              const XrdSecEntity* client = 0,
-             const char* opaque = 0);
+             const char* opaque = 0) override;
 
   // ---------------------------------------------------------------------------
   // check if file exists by client bypassing authorization/mapping/bouncing
@@ -336,7 +336,7 @@ public:
   int FSctl(const int cmd,
             XrdSfsFSctl& args,
             XrdOucErrInfo& error,
-            const XrdSecEntity* client);
+            const XrdSecEntity* client) override;
 
   // ---------------------------------------------------------------------------
   // fsctl
@@ -344,14 +344,14 @@ public:
   int fsctl(const int cmd,
             const char* args,
             XrdOucErrInfo& out_error,
-            const XrdSecEntity* client = 0);
+            const XrdSecEntity* client = 0) override;
 
   // ---------------------------------------------------------------------------
   //! get stats function (fake ok)
   // ---------------------------------------------------------------------------
 
   int
-  getStats(char* buff, int blen)
+  getStats(char* buff, int blen) override
   {
     return 0;
   }
@@ -361,7 +361,7 @@ public:
   //!
   //! @return return a version string
   //----------------------------------------------------------------------------
-  const char* getVersion();
+  const char* getVersion() override;
 
 
   // ---------------------------------------------------------------------------
@@ -371,7 +371,7 @@ public:
             XrdSfsMode Mode,
             XrdOucErrInfo& out_error,
             const XrdSecEntity* client = 0,
-            const char* opaque = 0)
+            const char* opaque = 0) override
   {
     return mkdir(dirName, Mode, out_error, client, opaque, 0);
   }
@@ -400,7 +400,7 @@ public:
   //----------------------------------------------------------------------------
   int prepare(XrdSfsPrep& pargs,
               XrdOucErrInfo& out_error,
-              const XrdSecEntity* client = 0);
+              const XrdSecEntity* client = 0) override;
 
   // ---------------------------------------------------------------------------
   // delete file
@@ -408,7 +408,7 @@ public:
   int rem(const char* path,
           XrdOucErrInfo& out_error,
           const XrdSecEntity* client = 0,
-          const char* opaque = 0);
+          const char* opaque = 0) override;
 
   // ---------------------------------------------------------------------------
   // delete file by vid
@@ -474,7 +474,7 @@ public:
   int remdir(const char* dirName,
              XrdOucErrInfo& out_error,
              const XrdSecEntity* client = 0,
-             const char* opaque = 0);
+             const char* opaque = 0) override;
 
   // ---------------------------------------------------------------------------
   // delete dir by vid
@@ -493,7 +493,7 @@ public:
              XrdOucErrInfo& out_error,
              const XrdSecEntity* client = 0,
              const char* opaqueO = 0,
-             const char* opaqueN = 0);
+             const char* opaqueN = 0) override;
 
   // ---------------------------------------------------------------------------
   // rename file by vid
@@ -650,7 +650,7 @@ public:
   //! @return SFS_ERROR and EOPNOTSUPP
   //----------------------------------------------------------------------------
   int truncate(const char*, XrdSfsFileOffset, XrdOucErrInfo&, const XrdSecEntity*,
-               const char*);
+               const char*) override;
 
   // ---------------------------------------------------------------------------
   // check access permissions

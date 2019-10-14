@@ -71,15 +71,16 @@ public:
 
   int erase(uint64_t key, const std::string& name_space = "i") override;
 
-  int clean_stores(const std::string& storedir, const std::string& newdb) override;
+  int clean_stores(const std::string& storedir,
+                   const std::string& newdb) override;
 
   std::string prefix(const std::string& key)
   {
     return mPrefix + key;
   }
 
-  std::string statistics() { 
-    
+  std::string statistics() override
+  {
     return options.statistics->ToString();
     //return std::string("##### cache size is ") + std::to_string(table_options.block_cache->GetUsage());
   }

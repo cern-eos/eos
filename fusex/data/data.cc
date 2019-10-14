@@ -212,14 +212,14 @@ data::datax::flush(fuse_req_t req)
 {
   eos_info("");
   XrdSysMutexHelper lLock(mLock);
-
   bool flush_wait_open = false;
+
   if (mFlags & O_CREAT) {
-    flush_wait_open = (EosFuse::Instance().Config().options.flush_wait_open == 
-		       EosFuse::Instance().Config().options.kWAIT_FLUSH_ON_CREATE) ? true : false;
+    flush_wait_open = (EosFuse::Instance().Config().options.flush_wait_open ==
+                       EosFuse::Instance().Config().options.kWAIT_FLUSH_ON_CREATE) ? true : false;
   } else {
-    flush_wait_open = (EosFuse::Instance().Config().options.flush_wait_open != 
-		       EosFuse::Instance().Config().options.kWAIT_FLUSH_NEVER) ? true: false;
+    flush_wait_open = (EosFuse::Instance().Config().options.flush_wait_open !=
+                       EosFuse::Instance().Config().options.kWAIT_FLUSH_NEVER) ? true : false;
   }
 
   return flush_nolock(req, flush_wait_open, false);
@@ -481,15 +481,21 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
     // preserve the sync flag
     add_O_SYNC = true;
   }
-  if (mFlags & O_CREAT) { 
+
+  if (mFlags & O_CREAT) {
     // preserve the creat flag
     add_O_CREAT = true;
   }
 
   mFlags = flags;
 
-  if (add_O_SYNC) mFlags |= O_SYNC;
-  if (add_O_CREAT) mFlags |= O_CREAT;
+  if (add_O_SYNC) {
+    mFlags |= O_SYNC;
+  }
+
+  if (add_O_CREAT) {
+    mFlags |= O_CREAT;
+  }
 
   // check for file inlining only for the first attach call
   if ((!inline_buffer) && (EosFuse::Instance().Config().inliner.max_size ||
@@ -580,8 +586,9 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
   }
 
   int bcache = mFile->file() ? mFile->file()->attach(freq, cookie, isRW) : 0;
-  int jcache = mFile->journal() ? ((isRW || (mFlags & O_CACHE)) ? mFile->journal()->attach(freq, cookie,
-                                   flags) : 0) : 0;
+  int jcache = mFile->journal() ? ((isRW ||
+                                    (mFlags & O_CACHE)) ? mFile->journal()->attach(freq, cookie,
+                                        flags) : 0) : 0;
 
   if (bcache < 0) {
     char msg[1024];
@@ -621,11 +628,12 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 
       mFile->xrdiorw(freq)->attach();
     }
+
     // when someone attaches a writer, we have to drop all the read-ahead buffers because we might get stale information in readers
     for (auto fit = mFile->get_xrdioro().begin();
-	 fit != mFile->get_xrdioro().end(); ++fit) {
+         fit != mFile->get_xrdioro().end(); ++fit) {
       if (fit->second->IsOpen()) {
-	fit->second->DropReadAhead();
+        fit->second->DropReadAhead();
       }
     }
   } else {
@@ -666,9 +674,10 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
       mFile->xrdioro(freq)->OpenAsync(mRemoteUrlRO.c_str(), targetFlags, mode, 0);
     } else {
       if (mFile->has_xrdiorw(freq)) {
-	// we have to drop all existing read-ahead buffers to avoid reading outdated buffers
-	mFile->xrdioro(freq)->DropReadAhead();
+        // we have to drop all existing read-ahead buffers to avoid reading outdated buffers
+        mFile->xrdioro(freq)->DropReadAhead();
       }
+
       mFile->xrdioro(freq)->attach();
     }
   }
@@ -866,13 +875,16 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
 
   if (req && fuse_req_interrupted(req)) {
     eos_warning("request interrupted");
+
     // clean-up pending in-memory requests
     if (iswrite) {
       XrdCl::Proxy* proxy = mFile->xrdiorw(req);
+
       if (proxy) {
-	proxy->WriteQueue().clear();
+        proxy->WriteQueue().clear();
       }
     }
+
     return EINTR;
   }
 
@@ -902,16 +914,15 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
     }
 
     XrdCl::Proxy* proxy = mFile->xrdiorw(req);
-    
-    if ( proxy->opening_state().IsError() &&
-	 ! proxy->opening_state_should_retry() ) {
-      eos_err("unrecoverable error - code=%d errNo=%d", 
-	      proxy->opening_state().code,
-	      proxy->opening_state().errNo);      
+
+    if (proxy->opening_state().IsError() &&
+        ! proxy->opening_state_should_retry()) {
+      eos_err("unrecoverable error - code=%d errNo=%d",
+              proxy->opening_state().code,
+              proxy->opening_state().errNo);
       proxy->WriteQueue().clear();
       return XrdCl::Proxy::status2errno(proxy->opening_state());
     }
-
 
     switch (proxy->stateTS()) {
     case XrdCl::Proxy::FAILED:
@@ -936,11 +947,11 @@ data::datax::TryRecovery(fuse_req_t req, bool iswrite)
 
     XrdCl::Proxy* proxy = mFile->xrdioro(req);
 
-    if ( proxy->opening_state().IsError() &&
-	 ! proxy->opening_state_should_retry() ) {
-      eos_err("unrecoverable error - code=%d errNo=%d", 
-	      proxy->opening_state().code,
-	      proxy->opening_state().errNo);    
+    if (proxy->opening_state().IsError() &&
+        ! proxy->opening_state_should_retry()) {
+      eos_err("unrecoverable error - code=%d errNo=%d",
+              proxy->opening_state().code,
+              proxy->opening_state().errNo);
       proxy->WriteQueue().clear();
       return XrdCl::Proxy::status2errno(proxy->opening_state());
     }
@@ -1154,13 +1165,12 @@ data::datax::try_ropen(fuse_req_t req, XrdCl::Proxy*& proxy,
       return XrdCl::Proxy::status2errno(status);
     }
 
-    if ( (status.errNo == kXR_overQuota) || 
-	 (status.errNo == kXR_NoSpace) ) {
+    if ((status.errNo == kXR_overQuota) ||
+        (status.errNo == kXR_NoSpace)) {
       // error useless to retry - this can happen if the open tries to reattach a file without locations and the user is out of quota
       eos_crit("recover read-open errno=%d", XrdCl::Proxy::status2errno(status));
       return XrdCl::Proxy::status2errno(status);
     }
-
 
     eos_warning("recover reopening file for read");
     // retrieve the 'tried' information to apply this for the file-reopening to exclude already knowns 'bad' locations
@@ -1314,7 +1324,7 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy*& proxy,
       return XrdCl::Proxy::status2errno(status);
     }
 
-    if ( (status.errNo == kXR_overQuota) ) {
+    if (status.errNo == kXR_overQuota) {
       // error useless to retry - no quota anymore
       eos_crit("recover write-open errno=%d", XrdCl::Proxy::status2errno(status));
       return XrdCl::Proxy::status2errno(status);
@@ -1366,7 +1376,7 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::Proxy*& proxy,
 
           if (req && fuse_req_interrupted(req)) {
             eos_warning("request interrupted");
-	    proxy->WriteQueue().clear();
+            proxy->WriteQueue().clear();
             return EINTR;
           }
         }
@@ -1430,10 +1440,10 @@ data::datax::recover_write(fuse_req_t req)
   // check if we have a problem with the open
   XrdCl::XRootDStatus status = proxy->WaitOpen();
 
-  if ( status.IsFatal() ||
-       ( proxy->opening_state().IsError() &&
-	 ! proxy->opening_state_should_retry() )
-       ) {
+  if (status.IsFatal() ||
+      (proxy->opening_state().IsError() &&
+       ! proxy->opening_state_should_retry())
+     ) {
     // error useless to retry
     proxy->WriteQueue().clear();
     proxy->ChunkMap().clear();
@@ -1893,22 +1903,21 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
       if (mFile->journal()) {
         // retrieve all journal chunks matching our range
         chunks = ((mFile->journal()))->get_chunks(offset + br, count - br);
-
-	bool first_matching_chunk = true;
+        bool first_matching_chunk = true;
 
         for (auto it = chunks.begin(); it != chunks.end(); ++it) {
           eos_err("offset=%ld count=%lu overlay-chunk offset=%ld size=%lu\n", offset,
                   count, it->offset, it->size);
           // overlay journal contents again over the remote contents
           ssize_t ljr = mFile->journal()->pread((char*) buf + br +
-                                                (it->offset - offset - br ), it->size, it->offset);
+                                                (it->offset - offset - br), it->size, it->offset);
 
           if (ljr >= 0) {
-	    if (first_matching_chunk) {
-	      // initialize the remaing unwritten buffer with zero's the first time we have a match since results could be sparse
-	      memset( (char*) buf + br + bytesRead, 0, count-br-bytesRead);
-	      first_matching_chunk = false;
-	    }
+            if (first_matching_chunk) {
+              // initialize the remaing unwritten buffer with zero's the first time we have a match since results could be sparse
+              memset((char*) buf + br + bytesRead, 0, count - br - bytesRead);
+              first_matching_chunk = false;
+            }
 
             // check if the journal contents extends the remote read
             ssize_t chunkread = it->offset + it->size - offset - br;
@@ -1919,28 +1928,30 @@ data::datax::pread(fuse_req_t req, void* buf, size_t count, off_t offset)
           }
         }
 
-	if (mFile->journal()) {
-	  eos_info("offset=%ld count=%lu journal-max=%ld\n", offset, count, mFile->journal()->get_max_offset());
-	  // check if there is a chunk in the journal which extends the file size, 
-	  // so we have to extend the read
-	  if (mFile->journal()->get_max_offset() > (off_t)( offset + br + bytesRead ) ) {
-	    if ( mFile->journal()->get_max_offset() > (off_t)( offset  + count )) {
-	      // the last journal entry extends over the requested range, we got all bytes
-	      bytesRead = count;
-	    } else {
-	      //  this should not be required, because logically we cannot get here
-	      bytesRead = mFile->journal()->get_max_offset() - offset;
-	    }
-	  }
-	}
+        if (mFile->journal()) {
+          eos_info("offset=%ld count=%lu journal-max=%ld\n", offset, count,
+                   mFile->journal()->get_max_offset());
+
+          // check if there is a chunk in the journal which extends the file size,
+          // so we have to extend the read
+          if (mFile->journal()->get_max_offset() > (off_t)(offset + br + bytesRead)) {
+            if (mFile->journal()->get_max_offset() > (off_t)(offset  + count)) {
+              // the last journal entry extends over the requested range, we got all bytes
+              bytesRead = count;
+            } else {
+              //  this should not be required, because logically we cannot get here
+              bytesRead = mFile->journal()->get_max_offset() - offset;
+            }
+          }
+        }
       }
 
       eos_info("count=%lu read-bytes=%lu", count, br + bytesRead);
-      
-      if ( (size_t)(br + bytesRead)  > count) {
-	return count; 
+
+      if ((size_t)(br + bytesRead)  > count) {
+        return count;
       } else {
-	return (br + bytesRead);
+        return (br + bytesRead);
       }
 
       return (br + bytesRead);
@@ -2171,9 +2182,11 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
 
   if (mFile->file()) {
     br = mFile->file()->pread(buf, count, offset);
+
     if (EOS_LOGS_DEBUG) {
       eos_debug("disk-read:%ld", br);
     }
+
     if (br < 0) {
       return br;
     }
@@ -2193,11 +2206,11 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
       }
 
       if (br == (ssize_t) count) {
-	
-	if (mFile->journal() && (mFlags & O_CACHE)) {
-	  // optionally populate the read journal cache
-	  mFile->journal()->pwrite(buf,count,offset);
-	}
+        if (mFile->journal() && (mFlags & O_CACHE)) {
+          // optionally populate the read journal cache
+          mFile->journal()->pwrite(buf, count, offset);
+        }
+
         return br;
       }
     }
@@ -2274,13 +2287,16 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
     while (1) {
       // if the recovery failed already once, we continue to silently return this error
       if (!can_recover_read()) {
-	errno = XrdCl::Proxy::status2errno(status);
-	if (EOS_LOGS_DEBUG) {
-	  eos_debug("sync remote-io failed msg=\"%s\" previously - recovery disabled", status.ToString().c_str());
-	}
-	return -1;
+        errno = XrdCl::Proxy::status2errno(status);
+
+        if (EOS_LOGS_DEBUG) {
+          eos_debug("sync remote-io failed msg=\"%s\" previously - recovery disabled",
+                    status.ToString().c_str());
+        }
+
+        return -1;
       }
-            
+
       proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(
                 req); // recovery might change the proxy object
       status = proxy->Read(offset + br + jr,
@@ -2330,7 +2346,7 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
                    count, it->offset, it->size);
           // overlay journal contents again over the remote contents
           ssize_t ljr = mFile->journal()->pread((char*) buf + br +
-                                                (it->offset - offset - br ), it->size, it->offset);
+                                                (it->offset - offset - br), it->size, it->offset);
 
           if (ljr >= 0) {
             // check if the journal contents extends the remote read
@@ -2342,31 +2358,33 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
           }
         }
 
-	eos_info("offset=%ld count=%lu bytes-read=%lu journal-max=%ld\n", offset, count, bytesRead, mFile->journal()->get_max_offset());
-	// check if there is a chunk in the journal which extends the file size, 
-	// so we have to extend the read
-	if (mFile->journal()->get_max_offset() > (off_t)( offset + br + bytesRead ) ) {
-	  if ( mFile->journal()->get_max_offset() > (off_t)( offset  + count )) {
-	    // the last journal entry extends over the requested range, we got all bytes
-	    bytesRead = count;
-	  } else {
-	    //  this should not be required, because logically we cannot get here
-	    bytesRead = mFile->journal()->get_max_offset() - offset;
-	  }
-	}
+        eos_info("offset=%ld count=%lu bytes-read=%lu journal-max=%ld\n", offset, count,
+                 bytesRead, mFile->journal()->get_max_offset());
+
+        // check if there is a chunk in the journal which extends the file size,
+        // so we have to extend the read
+        if (mFile->journal()->get_max_offset() > (off_t)(offset + br + bytesRead)) {
+          if (mFile->journal()->get_max_offset() > (off_t)(offset  + count)) {
+            // the last journal entry extends over the requested range, we got all bytes
+            bytesRead = count;
+          } else {
+            //  this should not be required, because logically we cannot get here
+            bytesRead = mFile->journal()->get_max_offset() - offset;
+          }
+        }
       }
 
       eos_info("count=%lu read-bytes=%lu", count, br + bytesRead);
-      
+
       if (mFile->journal() && (mFlags & O_CACHE)) {
-	// optionally populate the read journal cache
-	mFile->journal()->pwrite(buf, br + bytesRead, offset);
+        // optionally populate the read journal cache
+        mFile->journal()->pwrite(buf, br + bytesRead, offset);
       }
 
-      if ( (size_t)(br + bytesRead)  > count) {
-	return count; 
+      if ((size_t)(br + bytesRead)  > count) {
+        return count;
       } else {
-	return (br + bytesRead);
+        return (br + bytesRead);
       }
     } else {
       errno = XrdCl::Proxy::status2errno(status);
@@ -2755,7 +2773,7 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                   if ((!(*it)->unlinked()) && fit->second->HadFailures(msg)) {
                     // let's see if the initial OpenAsync got a timeout, this we should retry always
                     XrdCl::XRootDStatus status = fit->second->opening_state();
-		    bool rescue = true;
+                    bool rescue = true;
 
                     if (
                       (status.code == XrdCl::errConnectionError) ||
@@ -2770,14 +2788,16 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                       newproxy->OpenAsync(fit->second->url(), fit->second->flags(),
                                           fit->second->mode(), 0);
                       newproxy->inherit_attached(fit->second);
-                      delete (fit->second);
+                      delete(fit->second);
                       map[fit->first] = newproxy;
                       continue;
                     } else {
-		      eos_static_warning("OpenAsync failed - trying recovery - ino:%16lx err-code:%d", (*it)->id(), status.code);
-					 
-		      if (status.errNo == kXR_noserver) {
-			int tret = 0;
+                      eos_static_warning("OpenAsync failed - trying recovery - ino:%16lx err-code:%d",
+                                         (*it)->id(), status.code);
+
+                      if (status.errNo == kXR_noserver) {
+                        int tret = 0;
+
                         if (!(tret = (*it)->TryRecovery(0, true))) {
                           (*it)->recoverystack().push_back(
                             eos_static_silent("hint='success TryRecovery'"));
@@ -2790,21 +2810,21 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                           } else {
                             (*it)->recoverystack().push_back(
                               eos_static_silent("hint='success journalflush'"));
-			    continue;
+                            continue;
                           }
                         } else {
                           (*it)->recoverystack().push_back(
                             eos_static_silent("errno='%d' hint='failed TryRecovery", tret));
                         }
-		      }
+                      }
 
                       eos_static_warning("giving up OpenAsync request - ino:%16lx err-code:%d",
                                          (*it)->id(), status.code);
 
-		      if ( (status.errNo == kXR_overQuota) ) {
-			// don't preserve these files, they got an application error beforehand
-			rescue = false;
-		      }
+                      if (status.errNo == kXR_overQuota) {
+                        // don't preserve these files, they got an application error beforehand
+                        rescue = false;
+                      }
                     }
 
                     // ---------------------------------------------------------
@@ -2813,25 +2833,25 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                     // manual recovery and tag the error message
                     // ---------------------------------------------------------
 
-		    if (rescue) {
-		      std::string file_rescue_location;
-		      std::string journal_rescue_location;
-		      int dt = (*it)->file()->file() ? (*it)->file()->file()->rescue(
-										     file_rescue_location) : 0;
-		      int jt = (*it)->file()->journal() ? (*it)->file()->journal()->rescue(
-											   journal_rescue_location) : 0;
-		      
-		      if (!dt || !jt) {
-			const char* cmsg =
-			  eos_static_crit("ino:%16lx msg=%s file-recovery=%s journal-recovery=%s",
-					  (*it)->id(),
-					  msg.c_str(),
-					  (!dt) ? file_rescue_location.c_str() : "<none>",
-					  (!jt) ? journal_rescue_location.c_str() : "<none>");
-			(*it)->recoverystack().push_back(cmsg);
-		      }
-		    }
-		  }
+                    if (rescue) {
+                      std::string file_rescue_location;
+                      std::string journal_rescue_location;
+                      int dt = (*it)->file()->file() ? (*it)->file()->file()->rescue(
+                                 file_rescue_location) : 0;
+                      int jt = (*it)->file()->journal() ? (*it)->file()->journal()->rescue(
+                                 journal_rescue_location) : 0;
+
+                      if (!dt || !jt) {
+                        const char* cmsg =
+                          eos_static_crit("ino:%16lx msg=%s file-recovery=%s journal-recovery=%s",
+                                          (*it)->id(),
+                                          msg.c_str(),
+                                          (!dt) ? file_rescue_location.c_str() : "<none>",
+                                          (!jt) ? journal_rescue_location.c_str() : "<none>");
+                        (*it)->recoverystack().push_back(cmsg);
+                      }
+                    }
+                  }
 
                   eos_static_info("deleting xrdclproxyrw state=%d %d", fit->second->stateTS(),
                                   fit->second->IsClosed());

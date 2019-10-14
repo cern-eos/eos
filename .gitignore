@@ -44,3 +44,4 @@ kineticio-dist.tgz
 .project
 .vscode
 nbproject
+my_clang_cache.cmake

@@ -125,7 +125,7 @@ class RequestServiceImpl final : public Eos::Service
   }
 
   Status Find(ServerContext* context, const eos::rpc::FindRequest* request,
-	      ServerWriter<eos::rpc::MDResponse>* writer) override
+              ServerWriter<eos::rpc::MDResponse>* writer) override
   {
     eos_static_info("grpc::find from client peer=%s ip=%s DN=%s token=%s",
                     context->peer().c_str(), GrpcServer::IP(context).c_str(),
@@ -133,7 +133,6 @@ class RequestServiceImpl final : public Eos::Service
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
-
     return GrpcNsInterface::Find(vid, writer, request);
   }
 
@@ -147,52 +146,43 @@ class RequestServiceImpl final : public Eos::Service
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
-
     return GrpcNsInterface::NsStat(vid, reply, request);
   }
 
   Status ManilaServerRequest(ServerContext* context,
-			     const eos::rpc::ManilaRequest* request,
-			     eos::rpc::ManilaResponse* reply) override
+                             const eos::rpc::ManilaRequest* request,
+                             eos::rpc::ManilaResponse* reply) override
   {
     std::string jsonstring;
     google::protobuf::util::JsonPrintOptions options;
     options.add_whitespace = true;
     options.always_print_primitive_fields = true;
-
     google::protobuf::util::MessageToJsonString(*request,
-						&jsonstring, options);
-
+        &jsonstring, options);
     eos_static_notice("grpc::manila::server::request from client peer=%s ip=%s DN=%s token=%s type=%d \nrequest:\n%s",
-		      context->peer().c_str(), GrpcServer::IP(context).c_str(),
-		      GrpcServer::DN(context).c_str(), request->auth_key().c_str(),
-		      request->request_type(),
-		      jsonstring.c_str());
+                      context->peer().c_str(), GrpcServer::IP(context).c_str(),
+                      GrpcServer::DN(context).c_str(), request->auth_key().c_str(),
+                      request->request_type(),
+                      jsonstring.c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->auth_key());
-
     WAIT_BOOT;
-
     Status st = GrpcManilaInterface::Process(vid, reply, request);
-
-    
     google::protobuf::util::MessageToJsonString(*reply,
-						&jsonstring, options);
-
+        &jsonstring, options);
     eos_static_notice("\nreply:\n%s", jsonstring.c_str());
     return st;
   }
 
   Status Exec(ServerContext* context,
-	      const eos::rpc::NSRequest* request,
-	      eos::rpc::NSResponse* reply) override
+              const eos::rpc::NSRequest* request,
+              eos::rpc::NSResponse* reply) override
   {
     eos_static_info("grpc::exec::request from client peer=%s ip=%s DN=%s token=%s",
                     context->peer().c_str(), GrpcServer::IP(context).c_str(),
                     GrpcServer::DN(context).c_str(), request->authkey().c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
-
     WAIT_BOOT;
     return GrpcNsInterface::Exec(vid, reply, request);
   }
@@ -355,6 +345,10 @@ GrpcServer::Run(ThreadAssistant& assistant) noexcept
   builder.RegisterService(&service);
   mServer = builder.BuildAndStart();
   mServer->Wait();
+#else
+  // Make the compiler happy
+  (void) mPort;
+  (void) mSSL;
 #endif
 }
 
