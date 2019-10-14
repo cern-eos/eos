@@ -92,7 +92,7 @@ FsckHelper::ParseCommand(const char* arg)
       return false;
     }
 
-    if (((option = tokenizer.GetToken()) == nullptr)) {
+    if ((option = tokenizer.GetToken()) == nullptr) {
       return false;
     }
 

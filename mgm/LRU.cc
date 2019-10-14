@@ -174,7 +174,7 @@ void LRU::performCycleInMem(ThreadAssistant& assistant) noexcept
   unsigned long long ndirs = 0;
   {
     RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    (unsigned long long) gOFS->eosDirectoryService->getNumContainers();
+    ndirs = gOFS->eosDirectoryService->getNumContainers();
   }
   time_t ms = 1;
 

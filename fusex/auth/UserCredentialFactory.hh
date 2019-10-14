@@ -27,7 +27,7 @@
 #include "CredentialFinder.hh"
 #include <vector>
 
-class UserCredentials;
+struct UserCredentials;
 class LogbookScope;
 
 //------------------------------------------------------------------------------
@@ -39,64 +39,65 @@ using SearchOrder = std::vector<UserCredentials>;
 //! This class knows how to translate credential strings into SearchOrder.
 //! (ie krb:/tmp/my-path,defaults) -> SearchOrder object
 //------------------------------------------------------------------------------
-class UserCredentialFactory {
+class UserCredentialFactory
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  UserCredentialFactory(const CredentialConfig &config);
+  UserCredentialFactory(const CredentialConfig& config);
 
   //----------------------------------------------------------------------------
   //! Parse a string, convert into SearchOrder
   //----------------------------------------------------------------------------
-  SearchOrder parse(LogbookScope &scope, const JailIdentifier& id,
-    const Environment &env, uid_t uid, gid_t gid);
+  SearchOrder parse(LogbookScope& scope, const JailIdentifier& id,
+                    const Environment& env, uid_t uid, gid_t gid);
 
   //----------------------------------------------------------------------------
   //! Given a single entry of the search path, try to parse and fill out a
   //! single UserCredentials object
   //----------------------------------------------------------------------------
-  bool parseSingle(LogbookScope &scope, const std::string &str,
-    const JailIdentifier &id, const Environment& env, uid_t uid, gid_t gid,
-    SearchOrder &out);
+  bool parseSingle(LogbookScope& scope, const std::string& str,
+                   const JailIdentifier& id, const Environment& env, uid_t uid, gid_t gid,
+                   SearchOrder& out);
 
   //----------------------------------------------------------------------------
   //! Append defaults into given SearchOrder
   //----------------------------------------------------------------------------
-  void addDefaultsFromEnv(const JailIdentifier &id, const Environment& env,
-    uid_t uid, gid_t gid, SearchOrder &out);
+  void addDefaultsFromEnv(const JailIdentifier& id, const Environment& env,
+                          uid_t uid, gid_t gid, SearchOrder& out);
 
 private:
 
   //----------------------------------------------------------------------------
   //! Append krb5 UserCredentials built from X509_USER_PROXY-equivalent string.
   //----------------------------------------------------------------------------
-  void addx509(const JailIdentifier &id, const std::string& path, uid_t uid,
-    gid_t gid, SearchOrder &out);
+  void addx509(const JailIdentifier& id, const std::string& path, uid_t uid,
+               gid_t gid, SearchOrder& out);
 
   //----------------------------------------------------------------------------
   //! Append krb5 UserCredentials built from KRB5CCNAME-equivalent string.
   //----------------------------------------------------------------------------
-  void addKrb5(const JailIdentifier &id, std::string path, uid_t uid,
-    gid_t gid, SearchOrder &out);
+  void addKrb5(const JailIdentifier& id, std::string path, uid_t uid,
+               gid_t gid, SearchOrder& out);
 
   //----------------------------------------------------------------------------
   //! Append UserCredentials object built from KRB5CCNAME
   //----------------------------------------------------------------------------
-  void addKrb5FromEnv(const JailIdentifier &id, const Environment& env,
-    uid_t uid, gid_t gid, SearchOrder &out);
+  void addKrb5FromEnv(const JailIdentifier& id, const Environment& env,
+                      uid_t uid, gid_t gid, SearchOrder& out);
 
   //----------------------------------------------------------------------------
   //! Append UserCredentials object built from X509_USER_PROXY
   //----------------------------------------------------------------------------
-  void addx509FromEnv(const JailIdentifier &id, const Environment& env,
-    uid_t uid, gid_t gid, SearchOrder &out);
+  void addx509FromEnv(const JailIdentifier& id, const Environment& env,
+                      uid_t uid, gid_t gid, SearchOrder& out);
 
   //----------------------------------------------------------------------------
   //! Append UserCredentials object built from krb5, and x509 env variables
   //----------------------------------------------------------------------------
-  void addKrb5AndX509FromEnv(const JailIdentifier &id, const Environment &env,
-    uid_t uid, gid_t gid, SearchOrder &out);
+  void addKrb5AndX509FromEnv(const JailIdentifier& id, const Environment& env,
+                             uid_t uid, gid_t gid, SearchOrder& out);
 
   CredentialConfig config;
 };

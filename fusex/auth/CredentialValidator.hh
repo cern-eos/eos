@@ -28,8 +28,8 @@
 
 class TrustedCredentials;
 class SecurityChecker;
-class UserCredentials;
-class JailInformation;
+struct UserCredentials;
+struct JailInformation;
 class UuidStore;
 class LogbookScope;
 
@@ -40,20 +40,21 @@ class LogbookScope;
 // UserCredentials is built from user-provided data, and thus cannot be
 // trusted before validation checks.
 //------------------------------------------------------------------------------
-class CredentialValidator {
+class CredentialValidator
+{
 public:
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  CredentialValidator(SecurityChecker &chk, UuidStore &credentialStore);
+  CredentialValidator(SecurityChecker& chk, UuidStore& credentialStore);
 
   //----------------------------------------------------------------------------
   // Validate the given set of UserCredentials, promote into TrustedCredentials,
   // if possible. Return true if promotion succeeded.
   //----------------------------------------------------------------------------
-  bool validate(const JailInformation &jail,
-    const UserCredentials &uc, TrustedCredentials &out,
-    LogbookScope &scope);
+  bool validate(const JailInformation& jail,
+                const UserCredentials& uc, TrustedCredentials& out,
+                LogbookScope& scope);
 
   //----------------------------------------------------------------------------
   // Is the given TrustedCredentials object still valid? Reasons for
@@ -62,17 +63,17 @@ public:
   // - The underlying credential file on disk has changed.
   // - Reconnection
   //----------------------------------------------------------------------------
-  bool checkValidity(const JailInformation &jail,
-    const TrustedCredentials &out);
+  bool checkValidity(const JailInformation& jail,
+                     const TrustedCredentials& out);
 
   //----------------------------------------------------------------------------
   // Should the given keyring be usable by this uid?
   //----------------------------------------------------------------------------
-  bool checkKeyringUID(const std::string &keyring, uid_t uid);
+  bool checkKeyringUID(const std::string& keyring, uid_t uid);
 
 private:
-  SecurityChecker &checker;
-  UuidStore &credentialStore;
+  SecurityChecker& checker;
+  UuidStore& credentialStore;
 };
 
 #endif
