@@ -325,7 +325,7 @@ while
   CURRENT_TIME=$(date +%s)
   HAS_ERRORS=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i")
 
-  if [[ -z "${HAS_ERRORS}" ]]; then
+  if [[ ! -z "${HAS_ERRORS}" ]]; then
     if (( $((${CURRENT_TIME} - ${START_TIME})) >= ${MAX_DELAY} )); then
       echo "error: some errors where not repaired"
       cleanup
