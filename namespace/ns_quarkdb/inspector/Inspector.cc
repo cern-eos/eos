@@ -1056,9 +1056,37 @@ static std::string serializeRequest(const RedisRequest &req) {
 }
 
 //------------------------------------------------------------------------------
+//! Check if given path is a good choice as a destination for repaired
+//! files / containers
+//------------------------------------------------------------------------------
+bool Inspector::isDestinationPathSane(const std::string &path, ContainerIdentifier &cid, std::ostream &out) {
+  try {
+    FileOrContainerIdentifier id = MetadataFetcher::resolvePathToID(mQcl, path).get();
+
+    if(id.isFile()) {
+      out << "Destination path '" << path << "' is a file, not a directory." << std::endl;
+      return false;
+    }
+
+    cid = id.toContainerIdentifier();
+  }
+  catch(const MDException& e) {
+    out << "Destination path '" << path << "' does not exist." << std::endl;
+    return false;
+  }
+
+  if(cid == ContainerIdentifier(1) || cid == ContainerIdentifier(2) || cid == ContainerIdentifier(3)) {
+    out << "Destination path '" << path << "' does not look like a good place, too top-level." << std::endl;
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
 // Attempt to fix detached parent
 //------------------------------------------------------------------------------
-int Inspector::fixDetachedParentContainer(bool dryRun, uint64_t cid, const std::string &newPath, std::ostream &out, std::ostream &err) {
+int Inspector::fixDetachedParentContainer(bool dryRun, uint64_t cid, const std::string &destinationPath, std::ostream &out, std::ostream &err) {
   //----------------------------------------------------------------------------
   // Ensure given container exists
   //----------------------------------------------------------------------------
@@ -1071,24 +1099,7 @@ int Inspector::fixDetachedParentContainer(bool dryRun, uint64_t cid, const std::
   // Ensure given destination path is sane
   //----------------------------------------------------------------------------
   ContainerIdentifier destination;
-
-  try {
-    FileOrContainerIdentifier id = MetadataFetcher::resolvePathToID(mQcl, newPath).get();
-
-    if(id.isFile()) {
-      out << "Destination path '" << newPath << "' is a file, not a directory." << std::endl;
-      return 1;
-    }
-
-    destination = id.toContainerIdentifier();
-  }
-  catch(const MDException& e) {
-    out << "Destination path '" << newPath << "' does not exist." << std::endl;
-    return 1;
-  }
-
-  if(destination == ContainerIdentifier(1) || destination == ContainerIdentifier(2) || destination == ContainerIdentifier(3)) {
-    out << "Destination path '" << newPath << "' does not look like a good place, too top-level." << std::endl;
+  if(!isDestinationPathSane(destinationPath, destination, out)) {
     return 1;
   }
 
@@ -1152,24 +1163,7 @@ int Inspector::fixDetachedParentFile(bool dryRun, uint64_t fid, const std::strin
   // Ensure given destination path is sane
   //----------------------------------------------------------------------------
   ContainerIdentifier destination;
-
-  try {
-    FileOrContainerIdentifier id = MetadataFetcher::resolvePathToID(mQcl, destinationPath).get();
-
-    if(id.isFile()) {
-      out << "Destination path '" << destinationPath << "' is a file, not a directory." << std::endl;
-      return 1;
-    }
-
-    destination = id.toContainerIdentifier();
-  }
-  catch(const MDException& e) {
-    out << "Destination path '" << destinationPath << "' does not exist." << std::endl;
-    return 1;
-  }
-
-  if(destination == ContainerIdentifier(1) || destination == ContainerIdentifier(2) || destination == ContainerIdentifier(3)) {
-    out << "Destination path '" << destinationPath << "' does not look like a good place, too top-level." << std::endl;
+  if(!isDestinationPathSane(destinationPath, destination, out)) {
     return 1;
   }
 

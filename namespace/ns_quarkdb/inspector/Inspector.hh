@@ -158,6 +158,12 @@ private:
   qclient::QClient &mQcl;
 
   //----------------------------------------------------------------------------
+  //! Check if given path is a good choice as a destination for repaired
+  //! files / containers
+  //----------------------------------------------------------------------------
+  bool isDestinationPathSane(const std::string &path, ContainerIdentifier &cid, std::ostream& out);
+
+  //----------------------------------------------------------------------------
   //! Run the given write batch towards QDB - print the requests, as well as
   //! the output.
   //----------------------------------------------------------------------------
