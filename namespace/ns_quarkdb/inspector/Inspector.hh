@@ -123,6 +123,12 @@ public:
   int checkOrphans(std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
+  //! Fix detached parent
+  //----------------------------------------------------------------------------
+  int fixDetachedParentContainer(bool dryRun, uint64_t cid, const std::string &destinationPath, std::ostream &out, std::ostream &err);
+  int fixDetachedParentFile(bool dryRun, uint64_t fid, const std::string &destinationPath, std::ostream &out, std::ostream &err);
+
+  //----------------------------------------------------------------------------
   //! Change the given fid - USE WITH CAUTION
   //----------------------------------------------------------------------------
   int changeFid(bool dryRun, uint64_t id, uint64_t newParent, const std::string &newChecksum, int64_t newSize, std::ostream &out, std::ostream &err);
