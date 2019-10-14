@@ -305,6 +305,10 @@ TEST_F(VariousTests, BasicSanity) {
   ASSERT_EQ(ContainerIdentifier(subdir2->getId()), eos::MetadataFetcher::getContainerIDFromName(qcl(), ContainerIdentifier(2), "subdir2").get());
   ASSERT_EQ(ContainerIdentifier(subdir3->getId()), eos::MetadataFetcher::getContainerIDFromName(qcl(), ContainerIdentifier(2), "subdir3").get());
 
+  ASSERT_EQ(subdir1->getId(), eos::MetadataFetcher::getContainerFromName(qcl(), ContainerIdentifier(2), "subdir1").get().id());
+  ASSERT_EQ(subdir2->getId(), eos::MetadataFetcher::getContainerFromName(qcl(), ContainerIdentifier(2), "subdir2").get().id());
+  ASSERT_EQ(subdir3->getId(), eos::MetadataFetcher::getContainerFromName(qcl(), ContainerIdentifier(2), "subdir3").get().id());
+
   IContainerMD::ContainerMap containerMap = eos::MetadataFetcher::getContainerMap(qcl(), ContainerIdentifier(subdir1->getId())).get();
   IContainerMD::FileMap fileMap = eos::MetadataFetcher::getContainerMap(qcl(), ContainerIdentifier(subdir1->getId())).get();
 

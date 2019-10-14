@@ -552,6 +552,26 @@ MetadataFetcher::getContainerIDFromName(qclient::QClient& qcl,
 }
 
 //------------------------------------------------------------------------------
+// Resolve FileMdProto from parent ID + name
+//------------------------------------------------------------------------------
+folly::Future<eos::ns::FileMdProto>
+MetadataFetcher::getFileFromName(qclient::QClient& qcl, ContainerIdentifier parent_id,
+                                 const std::string& name) {
+  return getFileIDFromName(qcl, parent_id, name)
+         .then(std::bind(getFileFromId, std::ref(qcl), _1));
+}
+
+//----------------------------------------------------------------------------
+//! Resolve ContainerMdProto from parent ID + name
+//----------------------------------------------------------------------------
+folly::Future<eos::ns::ContainerMdProto>
+MetadataFetcher::getContainerFromName(qclient::QClient& qcl, ContainerIdentifier parent_id,
+                                      const std::string& name) {
+  return getContainerIDFromName(qcl, parent_id, name)
+         .then(std::bind(getContainerFromId, std::ref(qcl), _1));
+}
+
+//------------------------------------------------------------------------------
 // Parse bool response
 //------------------------------------------------------------------------------
 bool parseBoolResponse(redisReplyPtr reply) {

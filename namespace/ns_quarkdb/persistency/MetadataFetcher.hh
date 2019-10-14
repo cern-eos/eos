@@ -184,6 +184,20 @@ public:
                          const std::string& name);
 
   //----------------------------------------------------------------------------
+  //! Resolve FileMdProto from parent ID + name
+  //----------------------------------------------------------------------------
+  static folly::Future<eos::ns::FileMdProto>
+  getFileFromName(qclient::QClient& qcl, ContainerIdentifier parent_id,
+                const std::string& name);
+
+  //----------------------------------------------------------------------------
+  //! Resolve ContainerMdProto from parent ID + name
+  //----------------------------------------------------------------------------
+  static folly::Future<eos::ns::ContainerMdProto>
+  getContainerFromName(qclient::QClient& qcl, ContainerIdentifier parent_id,
+                const std::string& name);
+
+  //----------------------------------------------------------------------------
   //! Is the given location of a FileID contained in the FsView?
   //----------------------------------------------------------------------------
   static folly::Future<bool>
