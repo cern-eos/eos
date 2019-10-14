@@ -216,6 +216,23 @@ public:
     return ContainerIdentifier(val);
   }
 
+  //----------------------------------------------------------------------------
+  //! Equality operators
+  //----------------------------------------------------------------------------
+  bool operator==(const FileOrContainerIdentifier& other) const
+  {
+    return val == other.val && isEmpty == other.isEmpty && file == other.file;
+  }
+
+  bool operator==(const FileIdentifier& other) const {
+    return *this == FileOrContainerIdentifier(other);
+  }
+
+  bool operator==(const ContainerIdentifier& other) const {
+    return *this == FileOrContainerIdentifier(other);
+  }
+
+
 private:
   uint64_t val;
   bool isEmpty;

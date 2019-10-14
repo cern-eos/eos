@@ -211,6 +211,12 @@ public:
   static folly::Future<std::string>
   resolveFullPath(qclient::QClient& qcl, ContainerIdentifier containerID);
 
+  //----------------------------------------------------------------------------
+  //! Resolve a path to an ID - no symlink support yet.
+  //----------------------------------------------------------------------------
+  static folly::Future<FileOrContainerIdentifier>
+  resolvePathToID(qclient::QClient& qcl, const std::string &path);
+
 private:
   //----------------------------------------------------------------------------
   //! Construct hmap key of subcontainers in container

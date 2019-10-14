@@ -28,6 +28,7 @@
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/Serialization.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
+#include "namespace/utils/PathProcessor.hh"
 #include "qclient/QClient.hh"
 
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
@@ -707,6 +708,113 @@ private:
 folly::Future<std::string>
 MetadataFetcher::resolveFullPath(qclient::QClient& qcl, ContainerIdentifier containerID) {
   FullPathResolver *resolver = new FullPathResolver(qcl, containerID);
+  return resolver->initialize();
+}
+
+//------------------------------------------------------------------------------
+// Helper class to resolve a path to an ID - no symlink support yet.
+//------------------------------------------------------------------------------
+class ReversePathResolver {
+public:
+  //----------------------------------------------------------------------------
+  // Constructor
+  //----------------------------------------------------------------------------
+  ReversePathResolver(qclient::QClient &qcl, const std::string &path)
+  : mQcl(qcl), mPath(path) {
+    eos::PathProcessor::insertChunksIntoDeque(mPathStack, path);
+  }
+
+  //----------------------------------------------------------------------------
+  // Initialize, fire off first request
+  //----------------------------------------------------------------------------
+  folly::Future<FileOrContainerIdentifier> initialize() {
+    folly::Future<FileOrContainerIdentifier> fut = mPromise.getFuture();
+
+    if(mPathStack.size() == 0) {
+      set_value(ContainerIdentifier(1));
+    }
+    else {
+      startNextRound(ContainerIdentifier(1));
+    }
+
+    return fut;
+  }
+
+  void handleIncomingFile(eos::ns::FileMdProto proto) {
+    return set_value(FileIdentifier(proto.id()));
+  }
+
+  void handleIncomingContainer(eos::ns::ContainerMdProto proto) {
+    mPathStack.pop_front();
+
+    if(mPathStack.empty()) {
+      return set_value(ContainerIdentifier(proto.id()));
+    }
+
+    startNextRound(ContainerIdentifier(proto.id()));
+  }
+
+  void handleIncomingFileError(const folly::exception_wrapper &e) {
+    mPromise.setException(e);
+    delete this; // harakiri
+  }
+
+  void handleIncomingContainerError(ContainerIdentifier parent, const folly::exception_wrapper &e) {
+    if(mPathStack.size() == 1) {
+      MetadataFetcher::getFileFromName(mQcl, parent, mPathStack.front())
+      .then(std::bind(&ReversePathResolver::handleIncomingFile, this, _1))
+      .onError([this](const folly::exception_wrapper & e) {
+        handleIncomingFileError(e);
+      });
+      return;
+    }
+
+    mPromise.setException(e);
+    delete this; // harakiri
+  }
+
+  //----------------------------------------------------------------------------
+  // Return exception by passing it to the promise
+  //----------------------------------------------------------------------------
+  void set_exception(int err, const std::string& msg) {
+    mPromise.setException(
+      make_mdexception(err, SSTR("Error while resolving path " << mPath <<
+                                 " from QDB: " << msg)));
+    delete this; // harakiri
+  }
+
+  //----------------------------------------------------------------------------
+  // Set value, we're done
+  //----------------------------------------------------------------------------
+  void set_value(FileOrContainerIdentifier outcome) {
+    mPromise.setValue(outcome);
+    delete this;
+  }
+
+private:
+  //----------------------------------------------------------------------------
+  // Start next asynchronous round
+  //----------------------------------------------------------------------------
+  void startNextRound(ContainerIdentifier parent) {
+    MetadataFetcher::getContainerFromName(mQcl, parent, mPathStack.front())
+    .then(std::bind(&ReversePathResolver::handleIncomingContainer, this, _1))
+    .onError([this, parent](const folly::exception_wrapper & e) {
+      handleIncomingContainerError(parent, e);
+    });
+  }
+
+  qclient::QClient& mQcl;
+  std::string mPath;
+  std::deque<std::string> mPathStack;
+  folly::Promise<FileOrContainerIdentifier> mPromise;
+};
+
+//------------------------------------------------------------------------------
+// Resolve a path to an ID.
+//------------------------------------------------------------------------------
+folly::Future<FileOrContainerIdentifier>
+MetadataFetcher::resolvePathToID(qclient::QClient& qcl, const std::string &path) {
+  ReversePathResolver *resolver = new ReversePathResolver(qcl, path);
   return resolver->initialize();
 }
 

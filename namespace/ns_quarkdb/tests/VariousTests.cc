@@ -170,9 +170,12 @@ TEST_F(VariousTests, CheckLocationInFsView) {
 
 TEST_F(VariousTests, ReconstructContainerPath) {
   std::shared_ptr<eos::IContainerMD> cont = view()->createContainer("/eos/a/b/c/d/e", true);
-  mdFlusher()->synchronize();
+  std::shared_ptr<eos::IFileMD> file = view()->createFile("/eos/a/b/c/d/e/my-file");
 
   ASSERT_EQ(cont->getId(), 7);
+  ASSERT_EQ(file->getId(), 1);
+
+  mdFlusher()->synchronize();
 
   ASSERT_EQ("/",  eos::MetadataFetcher::resolveFullPath(qcl(), ContainerIdentifier(1)).get());
   ASSERT_EQ("/eos/",  eos::MetadataFetcher::resolveFullPath(qcl(), ContainerIdentifier(2)).get());
@@ -181,8 +184,19 @@ TEST_F(VariousTests, ReconstructContainerPath) {
   ASSERT_EQ("/eos/a/b/c/",  eos::MetadataFetcher::resolveFullPath(qcl(), ContainerIdentifier(5)).get());
   ASSERT_EQ("/eos/a/b/c/d/",  eos::MetadataFetcher::resolveFullPath(qcl(), ContainerIdentifier(6)).get());
   ASSERT_EQ("/eos/a/b/c/d/e/",  eos::MetadataFetcher::resolveFullPath(qcl(), ContainerIdentifier(7)).get());
-
   ASSERT_THROW(eos::MetadataFetcher::resolveFullPath(qcl(), ContainerIdentifier(8)).get(), eos::MDException) ;
+
+  ASSERT_EQ(eos::MetadataFetcher::resolvePathToID(qcl(), "/").get(), ContainerIdentifier(1));
+  ASSERT_EQ(eos::MetadataFetcher::resolvePathToID(qcl(), "/eos").get(), ContainerIdentifier(2));
+  ASSERT_EQ(eos::MetadataFetcher::resolvePathToID(qcl(), "/eos/a").get(), ContainerIdentifier(3));
+  ASSERT_EQ(eos::MetadataFetcher::resolvePathToID(qcl(), "/eos/a/b").get(), ContainerIdentifier(4));
+  ASSERT_EQ(eos::MetadataFetcher::resolvePathToID(qcl(), "/eos/a/b/c").get(), ContainerIdentifier(5));
+  ASSERT_EQ(eos::MetadataFetcher::resolvePathToID(qcl(), "/eos/a/b/c/d").get(), ContainerIdentifier(6));
+  ASSERT_EQ(eos::MetadataFetcher::resolvePathToID(qcl(), "/eos/a/b/c/d/e").get(), ContainerIdentifier(7));
+
+  ASSERT_EQ(eos::MetadataFetcher::resolvePathToID(qcl(), "/eos/a/b/c/d/e/my-file").get(), FileIdentifier(1));
+  ASSERT_THROW(eos::MetadataFetcher::resolvePathToID(qcl(), "/aaaaaaa").get(), eos::MDException);
+  ASSERT_THROW(eos::MetadataFetcher::resolvePathToID(qcl(), "/eos/aaaaaaa").get(), eos::MDException);
 }
 
 TEST_F(VariousTests, BasicSanity) {
