@@ -133,8 +133,8 @@ Storage::RegisterFileSystem(const std::string& queuepath)
   fs->SetLocalId();
   fs->SetLocalUuid();
   mFsVect.push_back(fs);
-  eos_static_info("msg=\"fully register filesystem\" qpath=\"%s\" fsid=%lu "
-                  "uuid=\"%s\"", queuepath.c_str(), fs->GetLocalId(),
+  eos_static_info("msg=\"attempt file system registration\" qpath=\"%s\" "
+                  "fsid=%lu uuid=\"%s\"", queuepath.c_str(), fs->GetLocalId(),
                   fs->GetLocalUuid().c_str());
 
   if (fs->GetLocalId() == 0ul) {
@@ -144,8 +144,8 @@ Storage::RegisterFileSystem(const std::string& queuepath)
   }
 
   if (mFsMap.find(fs->GetLocalId()) != mFsMap.end()) {
-    eos_static_crit("msg=\"trying to register already existing file system\" "
-                    " fsid=%lu uuid=\"%s\"", fs->GetLocalId(),
+    eos_static_crit("msg=\"trying to register an already existing file system\" "
+                    "fsid=%lu uuid=\"%s\"", fs->GetLocalId(),
                     fs->GetLocalUuid().c_str());
     std::abort();
   }
@@ -344,6 +344,16 @@ Storage::ProcessFsConfigChange(const std::string& queuepath,
       fst::FileSystem* fs = *itv;
       fs->SetLocalId();
       fs->SetLocalUuid();
+      eos_static_info("msg=\"attempt file system registration\" qpath=\"%s\" "
+                      "fsid=%lu uuid=\"%s\"", queuepath.c_str(), fs->GetLocalId(),
+                      fs->GetLocalUuid().c_str());
+
+      if (fs->GetLocalId() == 0ul) {
+        eos_static_info("msg=\"defer file system registration\" qpath=\"%s\"",
+                        queuepath.c_str());
+        return;
+      }
+
       it = mFsMap.emplace(fs->GetLocalId(), fs).first;
       eos_static_info("msg=\"fully register file system\" qpath=%s fsid=%lu",
                       queuepath.c_str(), fs->GetLocalId());
