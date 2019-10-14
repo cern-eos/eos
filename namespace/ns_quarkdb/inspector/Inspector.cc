@@ -1056,6 +1056,105 @@ static std::string serializeRequest(const RedisRequest &req) {
 }
 
 //------------------------------------------------------------------------------
+// Attempt to fix detached parent
+//------------------------------------------------------------------------------
+int Inspector::fixDetachedParentContainer(bool dryRun, uint64_t cid, const std::string &newPath, std::ostream &out, std::ostream &err) {
+  //----------------------------------------------------------------------------
+  // Ensure given container exists
+  //----------------------------------------------------------------------------
+  if(!MetadataFetcher::doesContainerMdExist(mQcl, ContainerIdentifier(cid)).get()) {
+    out << "Container #" << cid << " does not exist." << std::endl;
+    return 1;
+  }
+
+  //----------------------------------------------------------------------------
+  // Ensure given destination path is sane
+  //----------------------------------------------------------------------------
+  ContainerIdentifier destination;
+
+  try {
+    FileOrContainerIdentifier id = MetadataFetcher::resolvePathToID(mQcl, newPath).get();
+
+    if(id.isFile()) {
+      out << "Destination path '" << newPath << "' is a file, not a directory." << std::endl;
+      return 1;
+    }
+
+    destination = id.toContainerIdentifier();
+  }
+  catch(const MDException& e) {
+    out << "Destination path '" << newPath << "' does not exist." << std::endl;
+    return 1;
+  }
+
+  if(destination == ContainerIdentifier(1) || destination == ContainerIdentifier(2) || destination == ContainerIdentifier(3)) {
+    out << "Destination path '" << newPath << "' does not look like a good place, too top-level." << std::endl;
+    return 1;
+  }
+
+  //----------------------------------------------------------------------------
+  // Try and figure out what the problem with the given container is
+  //----------------------------------------------------------------------------
+  out << "Finding all parents of Container #" << cid << "..." << std::endl;
+
+  uint64_t nextToCheck = cid;
+  uint64_t lastGood = cid;
+
+  eos::ns::ContainerMdProto val;
+  while(nextToCheck != 0 && nextToCheck != 1) {
+    try {
+      val = MetadataFetcher::getContainerFromId(mQcl, ContainerIdentifier(nextToCheck)).get();
+      out << val.name() << ": #" << val.id() << " with parent #" << val.parent_id() << std::endl;
+      lastGood = nextToCheck;
+      nextToCheck = val.parent_id();
+    }
+    catch(const MDException& e) {
+      break;
+    }
+  }
+
+  if(nextToCheck == 1 || nextToCheck == 0) {
+    err << "Unable to continue - given container (" << cid << ") looks fine? No changes have been made." << std::endl;
+    return 1;
+  }
+
+  //----------------------------------------------------------------------------
+  // One of its parents is detached from the main tree, rename
+  //----------------------------------------------------------------------------
+  out << std::endl << std::endl << "Found detached container #" << val.id() << " since its parent #" << val.parent_id() << " does not exist." << std::endl;
+
+  // Paranoid check
+  eos_assert(!MetadataFetcher::doesContainerMdExist(mQcl, ContainerIdentifier(val.parent_id())).get());
+
+  // Go
+  std::string newName = SSTR("recovered|id=" << val.id() << "|name=" << val.name() << "|detached-parent=" << val.parent_id());
+  return renameCid(dryRun, val.id(), destination.getUnderlyingUInt64(), newName, out, err);
+}
+
+//------------------------------------------------------------------------------
+// Attempt to fix detached parent
+//------------------------------------------------------------------------------
+int Inspector::fixDetachedParentFile(bool dryRun, uint64_t fid, const std::string &destinationPath, std::ostream &out, std::ostream &err) {
+  // TODO
+  return 1;
+  //----------------------------------------------------------------------------
+  // Ensure given file exists..
+  //----------------------------------------------------------------------------
+  // eos::ns::FileMdProto val;
+
+  // try {
+  //   val = MetadataFetcher::getFileFromId(mQcl, FileIdentifier(fid)).get();
+  // } catch(const MDException& e) {
+  //   err << "Error while fetching metadata for FileMD #" << fid << ": " << e.what()
+  //       << std::endl;
+  //   return 1;
+  // }
+
+
+  // return fixDetachedParentContainer(dryRun, val.cont_id(), destinationPath, out, err);
+}
+
+//------------------------------------------------------------------------------
 // Change the given fid - USE WITH CAUTION
 //------------------------------------------------------------------------------
 int Inspector::changeFid(bool dryRun, uint64_t fid, uint64_t newParent, const std::string &newChecksum, int64_t newSize, std::ostream &out, std::ostream &err) {

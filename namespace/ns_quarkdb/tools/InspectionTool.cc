@@ -206,6 +206,23 @@ int main(int argc, char* argv[]) {
   addClusterOptions(checkSimulatedHardlinks, membersStr, memberValidator, password, passwordFile);
 
   //----------------------------------------------------------------------------
+  // Set-up fix-detached-parent subcommand..
+  //----------------------------------------------------------------------------
+  auto fixDetachedParent = app.add_subcommand("fix-detached-parent", "[CAUTION] Attempt to fix a detached parent of the given fid / cid, by re-creating said parent in a given destination");
+  addClusterOptions(fixDetachedParent, membersStr, memberValidator, password, passwordFile);
+  addDryRun(fixDetachedParent, noDryRun);
+
+  std::string destinationPath;
+  fixDetachedParent->add_option("--destination-path", destinationPath, "Path in which the detached file / container will be stored.")
+    ->required();
+
+  auto idGroup2 = fixDetachedParent->add_option_group("ID", "Specify what to fix");
+  // idGroup2->add_option("--fid", fid, "Fix the parents of the given file ID (decimal form)");
+  idGroup2->add_option("--cid", cid, "Fix the parents of the given container ID (decimal form)");
+  idGroup2->add_option("--fid", fid, "Fix the parents of the given file ID (decimal form)");
+  idGroup2->require_option(1, 1);
+
+  //----------------------------------------------------------------------------
   // Change fid protobuf properties
   //----------------------------------------------------------------------------
   auto changeFidSubcommand = app.add_subcommand("change-fid", "[DANGEROUS] Change specified properties of a single fid. Better know what you're doing before using this!");
@@ -228,7 +245,7 @@ int main(int argc, char* argv[]) {
   //----------------------------------------------------------------------------
   std::string newName;
 
-  auto renameFidSubcommand = app.add_subcommand("rename-fid", "[DANGEROUS] Rename a file onto the specified container ID - the respective container maps are modified as well.");
+  auto renameFidSubcommand = app.add_subcommand("rename-fid", "[DANGEROUS] Rename a file onto the specified container ID - the respective container maps are modified.");
   addClusterOptions(renameFidSubcommand, membersStr, memberValidator, password, passwordFile);
   addDryRun(renameFidSubcommand, noDryRun);
 
@@ -241,7 +258,7 @@ int main(int argc, char* argv[]) {
   //----------------------------------------------------------------------------
   // Rename a cid from its current location
   //----------------------------------------------------------------------------
-  auto renameCidSubcommand = app.add_subcommand("rename-cid", "[DANGEROUS] Rename a container onto the specified container ID - the respective container maps are modified as well.");
+  auto renameCidSubcommand = app.add_subcommand("rename-cid", "[DANGEROUS] Rename a container onto the specified container ID - the respective container maps are modified.");
   addClusterOptions(renameCidSubcommand, membersStr, memberValidator, password, passwordFile);
   addDryRun(renameCidSubcommand, noDryRun);
 
@@ -368,6 +385,15 @@ int main(int argc, char* argv[]) {
 
   if(checkSimulatedHardlinks->parsed()) {
     return inspector.checkSimulatedHardlinks(std::cout, std::cerr);
+  }
+
+  if(fixDetachedParent->parsed()) {
+    if(cid > 0) {
+      return inspector.fixDetachedParentContainer(dryRun, cid, destinationPath, std::cout, std::cerr);
+    }
+    else {
+      return inspector.fixDetachedParentFile(dryRun, fid, destinationPath, std::cout, std::cerr);
+    }
   }
 
   if(changeFidSubcommand->parsed()) {
