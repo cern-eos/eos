@@ -181,7 +181,7 @@ install(
   TARGETS eosxd
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 
-if (FUSE3_FOUND)
+if (FUSE3a_FOUND)
   add_executable(
     eosxd3
     main.cc
