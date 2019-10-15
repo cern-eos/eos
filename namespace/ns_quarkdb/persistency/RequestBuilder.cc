@@ -131,6 +131,20 @@ RedisRequest RequestBuilder::getNumberOfFiles()
 }
 
 //------------------------------------------------------------------------------
+// Generate a cache-invalidation notification for a particular fid
+//------------------------------------------------------------------------------
+RedisRequest RequestBuilder::notifyCacheInvalidationFid(FileIdentifier id) {
+  return {"PUBLISH", constants::sCacheInvalidationFidChannel, SSTR(id.getUnderlyingUInt64()) };
+}
+
+//------------------------------------------------------------------------------
+// Generate a cache-invalidation notification for a particular cid
+//------------------------------------------------------------------------------
+RedisRequest RequestBuilder::notifyCacheInvalidationCid(ContainerIdentifier id) {
+  return {"PUBLISH", constants::sCacheInvalidationCidChannel, SSTR(id.getUnderlyingUInt64()) };
+}
+
+//------------------------------------------------------------------------------
 //! Get key for files contained within a filesystem.
 //------------------------------------------------------------------------------
 std::string RequestBuilder::keyFilesystemFiles(IFileMD::location_t location)
