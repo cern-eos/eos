@@ -54,7 +54,7 @@ CacheRefreshListener::~CacheRefreshListener() {}
 // Process incoming fid invalidation
 //------------------------------------------------------------------------------
 void CacheRefreshListener::processIncomingFidInvalidation(qclient::Message &&msg) {
-  eos_static_info("Received invalidation message for fid=%s", msg.getPayload());
+  eos_static_info("Received invalidation message for fid=%s", msg.getPayload().c_str());
 
   uint64_t fid;
 
@@ -67,7 +67,7 @@ void CacheRefreshListener::processIncomingFidInvalidation(qclient::Message &&msg
 // Process incoming cid invalidation
 //------------------------------------------------------------------------------
 void CacheRefreshListener::processIncomingCidInvalidation(qclient::Message &&msg) {
-  eos_static_info("Received invalidation message for cid=%s", msg.getPayload());
+  eos_static_info("Received invalidation message for cid=%s", msg.getPayload().c_str());
 
   uint64_t cid;
 
