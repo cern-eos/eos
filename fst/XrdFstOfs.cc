@@ -757,7 +757,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   if (getenv("EOS_USE_MQ_ON_QDB")) {
     eos_static_info("MQ on QDB - setting up SharedManager..");
     mQSOM.reset(new qclient::SharedManager(mQdbContactDetails.members,
-                                           mQdbContactDetails.constructOptions(),
                                            mQdbContactDetails.constructSubscriptionOptions()));
   }
 
