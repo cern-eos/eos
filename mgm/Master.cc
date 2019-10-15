@@ -1865,6 +1865,8 @@ Master::BootNamespace()
     MasterLog(eos_notice("eos directory view configure stopped after %d seconds",
                          (tstop - tstart)));
 
+    gOFS->namespaceGroup->startCacheRefreshListener();
+
     if (!IsMaster()) {
       fRunningState = Run::State::kIsRunningSlave;
       MasterLog(eos_notice("running in slave mode"));

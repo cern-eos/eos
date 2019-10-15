@@ -171,6 +171,12 @@ public:
   //----------------------------------------------------------------------------
   virtual void blacklistBelow(FileIdentifier id) override;
 
+  //----------------------------------------------------------------------------
+  //! Get pointer to metadata provider
+  //----------------------------------------------------------------------------
+  MetadataProvider* getMetadataProvider();
+
+
 private:
   typedef std::list<IFileMDChangeListener*> ListenerList;
   //! Interval for backend flush of consistent file ids

@@ -171,6 +171,8 @@ QdbMaster::BootNamespace()
     return false;;
   }
 
+  gOFS->namespaceGroup->startCacheRefreshListener();
+
   gOFS->mFileInitTime = time(nullptr) - gOFS->mFileInitTime;
   gOFS->mTotalInitTime = time(nullptr) - gOFS->mTotalInitTime;
   gOFS->mNamespaceState = NamespaceState::kBooted;

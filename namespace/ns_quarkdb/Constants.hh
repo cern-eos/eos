@@ -65,6 +65,13 @@ static const std::string sMaxSizeCacheFiles {"max_size_cache_files"};
 static const std::string sMaxNumCacheDirs {"max_num_cache_dirs"};
 //! Tag for max size (bytes) of dir/container entries cached at the MGM
 static const std::string sMaxSizeCacheDirs {"max_size_cache_dirs"};
+
+//! Channel for incoming fid cache invalidation notifications
+static const std::string sCacheInvalidationFidChannel {"eos-md-cache-invalidation-fid"};
+//! Channel for incoming cid cache invalidation notifications
+static const std::string sCacheInvalidationCidChannel {"eos-md-cache-invalidation-cid"};
+
+
 }
 
 //! Variable associated with the QuotaView

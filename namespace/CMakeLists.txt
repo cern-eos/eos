@@ -100,6 +100,7 @@ add_library(
   ns_quarkdb/views/HierarchicalView.cc                    ns_quarkdb/views/HierarchicalView.hh
 
   ns_quarkdb/BackendClient.cc                             ns_quarkdb/BackendClient.hh
+  ns_quarkdb/CacheRefreshListener.cc                      ns_quarkdb/CacheRefreshListener.hh
   ns_quarkdb/ContainerMD.cc                               ns_quarkdb/ContainerMD.hh
   ns_quarkdb/FileMD.cc                                    ns_quarkdb/FileMD.hh
                                                           ns_quarkdb/LRU.hh
