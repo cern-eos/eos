@@ -1231,21 +1231,10 @@ int Inspector::changeFid(bool dryRun, uint64_t fid, uint64_t newParent, const st
 
   QuarkFileMD fileMD;
   fileMD.initialize(std::move(val));
-  RedisRequest req = RequestBuilder::writeFileProto(&fileMD);
 
-  out << "---- SENDING THE FOLLOWING REQUEST TO QDB:" << std::endl;
-  for(size_t i = 0; i < req.size(); i++) {
-    out << i << ".\"" << escapeNonPrintable(req[i]) << "\"" << std::endl;;
-  }
-
-  if(dryRun) {
-    out << "---- DRY RUN, CHANGES NOT APPLIED" << std::endl;
-    return 0;
-  }
-
-  out << "---- RESPONSE:" << std::endl;
-  out << qclient::describeRedisReply(mQcl.execute(req).get()) << std::endl;
-
+  std::vector<RedisRequest> requests;
+  requests.emplace_back(RequestBuilder::writeFileProto(&fileMD));
+  executeRequestBatch(requests, dryRun, out, err);
   return 0;
 }
 
