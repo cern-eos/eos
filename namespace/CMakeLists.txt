@@ -105,6 +105,7 @@ add_library(
   ns_quarkdb/FileMD.cc                                    ns_quarkdb/FileMD.hh
                                                           ns_quarkdb/LRU.hh
   ns_quarkdb/NamespaceGroup.cc                            ns_quarkdb/NamespaceGroup.hh
+  ns_quarkdb/VersionEnforcement.cc                        ns_quarkdb/VersionEnforcement.hh
 )
 
 add_dependencies(EosNsCommon-Objects EosCliProto-Objects)

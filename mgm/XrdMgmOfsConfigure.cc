@@ -1349,7 +1349,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     // to QDB will still use the old MQ.
     qclient::SharedManager* sm = new qclient::SharedManager(
       mQdbContactDetails.members,
-      mQdbContactDetails.constructOptions(),
       mQdbContactDetails.constructSubscriptionOptions());
     eos::common::GlobalConfig::gConfig.setQSharedManager(sm);
   }

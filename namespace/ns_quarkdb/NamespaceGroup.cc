@@ -31,6 +31,7 @@
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
 #include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
 #include "namespace/ns_quarkdb/CacheRefreshListener.hh"
+#include "namespace/ns_quarkdb/VersionEnforcement.hh"
 #include <folly/executors/IOThreadPoolExecutor.h>
 
 EOSNSNAMESPACE_BEGIN
@@ -118,6 +119,10 @@ bool QuarkNamespaceGroup::initialize(eos::common::RWMutex* nsMtx, const std::map
 
   flusherQuotaTag = it->second;
 
+  if(!enforceQuarkDBVersion(getQClient())) {
+    err = "QuarkDB is either down, or running an outdated version.";
+    return false;
+  }
 
   return true;
 }
