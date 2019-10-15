@@ -201,21 +201,10 @@ int Inspector::overwriteContainerMD(bool dryRun, uint64_t id, uint64_t parentId,
 
   QuarkContainerMD containerMD;
   containerMD.initialize(std::move(val), IContainerMD::FileMap(), IContainerMD::ContainerMap() );
-  RedisRequest req = RequestBuilder::writeContainerProto(&containerMD);
 
-  out << "---- SENDING THE FOLLOWING REQUEST TO QDB:" << std::endl;
-  for(size_t i = 0; i < req.size(); i++) {
-    out << i << ".\"" << escapeNonPrintable(req[i]) << "\"" << std::endl;;
-  }
-
-  if(dryRun) {
-    out << "---- DRY RUN, CHANGES NOT APPLIED" << std::endl;
-    return 0;
-  }
-
-  out << "---- RESPONSE:" << std::endl;
-  out << qclient::describeRedisReply(mQcl.execute(req).get()) << std::endl;
-  return 0;
+  std::vector<RedisRequest> requests;
+  requests.emplace_back(RequestBuilder::writeContainerProto(&containerMD));
+  executeRequestBatch(requests, dryRun, out, err);
 }
 
 //------------------------------------------------------------------------------
