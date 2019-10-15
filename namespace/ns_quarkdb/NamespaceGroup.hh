@@ -46,6 +46,7 @@ class QuarkContainerAccounting;
 class QuarkSyncTimeAccounting;
 class QuarkQuotaStats;
 class MetadataFlusher;
+class CacheRefreshListener;
 
 //------------------------------------------------------------------------------
 //! Class to hold ownership of all QuarkDB-namespace objects.
@@ -134,6 +135,11 @@ public:
   //----------------------------------------------------------------------------
   folly::Executor* getExecutor();
 
+  //----------------------------------------------------------------------------
+  //! Start cache refresh listener
+  //----------------------------------------------------------------------------
+  void startCacheRefreshListener() override final;
+
 private:
   //----------------------------------------------------------------------------
   // Configuration
@@ -173,6 +179,7 @@ private:
   std::unique_ptr<QuarkFileSystemView> mFilesystemView;
   std::unique_ptr<QuarkContainerAccounting> mContainerAccounting;
   std::unique_ptr<QuarkSyncTimeAccounting> mSyncAccounting;
+  std::unique_ptr<CacheRefreshListener> mCacheRefreshListener;
 
 };
 

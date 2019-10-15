@@ -30,6 +30,7 @@
 #include "namespace/ns_quarkdb/accounting/SyncTimeAccounting.hh"
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
 #include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
+#include "namespace/ns_quarkdb/CacheRefreshListener.hh"
 #include <folly/executors/IOThreadPoolExecutor.h>
 
 EOSNSNAMESPACE_BEGIN
@@ -45,6 +46,8 @@ QuarkNamespaceGroup::QuarkNamespaceGroup() {
 // Destructor
 //------------------------------------------------------------------------------
 QuarkNamespaceGroup::~QuarkNamespaceGroup() {
+  mCacheRefreshListener.reset();
+
   mSyncAccounting.reset();
   mContainerAccounting.reset();
   mFilesystemView.reset();
@@ -275,6 +278,17 @@ qclient::QClient* QuarkNamespaceGroup::getQClient() {
 folly::Executor* QuarkNamespaceGroup::getExecutor() {
   std::lock_guard<std::recursive_mutex> lock(mMutex);
   return mExecutor.get();
+}
+
+//------------------------------------------------------------------------------
+// Start cache refresh listener
+//------------------------------------------------------------------------------
+void QuarkNamespaceGroup::startCacheRefreshListener() {
+  std::lock_guard<std::recursive_mutex> lock(mMutex);
+
+  if(!mCacheRefreshListener) {
+    mCacheRefreshListener.reset(new CacheRefreshListener(contactDetails, mFileService->getMetadataProvider()));
+  }
 }
 
 EOSNSNAMESPACE_END

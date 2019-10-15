@@ -318,4 +318,11 @@ void QuarkFileMDSvc::blacklistBelow(FileIdentifier id)
   mUnifiedInodeProvider.blacklistFileId(id.getUnderlyingUInt64());
 }
 
+//------------------------------------------------------------------------------
+// Get pointer to metadata provider
+//------------------------------------------------------------------------------
+MetadataProvider* QuarkFileMDSvc::getMetadataProvider() {
+  return mMetadataProvider.get();
+}
+
 EOSNSNAMESPACE_END

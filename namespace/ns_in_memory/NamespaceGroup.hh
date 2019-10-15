@@ -104,6 +104,11 @@ public:
     return true;
   }
 
+  //----------------------------------------------------------------------------
+  //! Start cache refresh listener - no-op for in-memory namespace
+  //----------------------------------------------------------------------------
+  virtual void startCacheRefreshListener() override final {}
+
 
 private:
   //----------------------------------------------------------------------------
