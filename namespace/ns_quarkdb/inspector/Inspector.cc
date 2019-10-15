@@ -1138,7 +1138,7 @@ int Inspector::fixDetachedParentContainer(bool dryRun, uint64_t cid, const std::
   eos_assert(!MetadataFetcher::doesContainerMdExist(mQcl, ContainerIdentifier(val.parent_id())).get());
 
   // Go
-  std::string newName = SSTR("recovered-dir|id=" << val.id() << "|name=" << val.name() << "|detached-parent=" << val.parent_id());
+  std::string newName = SSTR("recovered-dir___id=" << val.id() << "___name=" << val.name() << "___detached-parent=" << val.parent_id());
   return renameCid(dryRun, val.id(), destination.getUnderlyingUInt64(), newName, out, err);
 }
 
@@ -1186,7 +1186,7 @@ int Inspector::fixDetachedParentFile(bool dryRun, uint64_t fid, const std::strin
   eos_assert(!MetadataFetcher::doesContainerMdExist(mQcl, ContainerIdentifier(val.cont_id())).get());
 
   // Go
-  std::string newName = SSTR("recovered-file|id=" << val.id() << "|name=" << val.name() << "|detached-parent=" << val.cont_id());
+  std::string newName = SSTR("recovered-file___id=" << val.id() << "___name=" << val.name() << "___detached-parent=" << val.cont_id());
   return renameFid(dryRun, val.id(), destination.getUnderlyingUInt64(), newName, out, err);
 }
 
@@ -1424,6 +1424,8 @@ void Inspector::executeRequestBatch(const std::vector<RedisRequest> &requests, b
   for(size_t i = 0; i < requests.size(); i++) {
     replies.push_back(mQcl.execute(requests[i]));
   }
+
+  out << "------------------------------------------------------ Replies" << std::endl;
 
   for(size_t i = 0; i < requests.size(); i++) {
     out << i+1 << ". " << qclient::describeRedisReply(replies[i].get()) << std::endl;
