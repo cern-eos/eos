@@ -37,6 +37,13 @@ EOSNSNAMESPACE_BEGIN
 class ContainerScanner;
 class FileScanner;
 
+struct CacheNotifications {
+  CacheNotifications() {}
+
+  std::vector<uint64_t> fids;
+  std::vector<uint64_t> cids;
+};
+
 //------------------------------------------------------------------------------
 //! Inspector class
 //------------------------------------------------------------------------------
@@ -167,7 +174,7 @@ private:
   //! Run the given write batch towards QDB - print the requests, as well as
   //! the output.
   //----------------------------------------------------------------------------
-  void executeRequestBatch(const std::vector<RedisRequest> &requestBatch, bool dryRun, std::ostream& out, std::ostream& err);
+  void executeRequestBatch(const std::vector<RedisRequest> &requestBatch, const CacheNotifications &notif, bool dryRun, std::ostream& out, std::ostream& err);
 
 
 };

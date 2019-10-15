@@ -204,7 +204,7 @@ int Inspector::overwriteContainerMD(bool dryRun, uint64_t id, uint64_t parentId,
 
   std::vector<RedisRequest> requests;
   requests.emplace_back(RequestBuilder::writeContainerProto(&containerMD));
-  executeRequestBatch(requests, dryRun, out, err);
+  executeRequestBatch(requests, {}, dryRun, out, err);
 }
 
 //------------------------------------------------------------------------------
@@ -1234,7 +1234,7 @@ int Inspector::changeFid(bool dryRun, uint64_t fid, uint64_t newParent, const st
 
   std::vector<RedisRequest> requests;
   requests.emplace_back(RequestBuilder::writeFileProto(&fileMD));
-  executeRequestBatch(requests, dryRun, out, err);
+  executeRequestBatch(requests, {}, dryRun, out, err);
   return 0;
 }
 
@@ -1306,6 +1306,7 @@ int Inspector::renameCid(bool dryRun, uint64_t cid, uint64_t newParent, const st
   }
 
   std::vector<RedisRequest> requests;
+  CacheNotifications notifications;
 
   QuarkContainerMD containerMD;
   containerMD.initialize(std::move(val), IContainerMD::FileMap(), IContainerMD::ContainerMap());
@@ -1313,13 +1314,16 @@ int Inspector::renameCid(bool dryRun, uint64_t cid, uint64_t newParent, const st
 
   if(containermapEntryExists && containermapEntryValid) {
     RedisRequest req = {"HDEL", SSTR(oldContainer << constants::sMapDirsSuffix), oldName};
+    notifications.cids.emplace_back(oldContainer);
     requests.emplace_back(req);
   }
 
   RedisRequest req = {"HSET", SSTR(newParent << constants::sMapDirsSuffix), containerMD.getName(), SSTR(containerMD.getId()) };
+  notifications.cids.emplace_back(newParent);
+  notifications.cids.emplace_back(containerMD.getId());
   requests.emplace_back(req);
 
-  executeRequestBatch(requests, dryRun, out, err);
+  executeRequestBatch(requests, notifications, dryRun, out, err);
   return 0;
 }
 
@@ -1366,6 +1370,8 @@ int Inspector::renameFid(bool dryRun, uint64_t fid, uint64_t newParent, const st
 
 
   std::vector<RedisRequest> requests;
+  CacheNotifications notifications;
+
   QuarkFileMD fileMD;
   fileMD.initialize(std::move(val));
   requests.emplace_back(RequestBuilder::writeFileProto(&fileMD));
@@ -1373,12 +1379,16 @@ int Inspector::renameFid(bool dryRun, uint64_t fid, uint64_t newParent, const st
   if(filemapEntryExists && filemapEntryValid) {
     RedisRequest req = {"HDEL", SSTR(oldContainer << constants::sMapFilesSuffix), oldName};
     requests.emplace_back(req);
+    notifications.cids.emplace_back(oldContainer);
   }
 
   RedisRequest req = {"HSET", SSTR(newParent << constants::sMapFilesSuffix), fileMD.getName(), SSTR(fileMD.getId()) };
   requests.emplace_back(req);
 
-  executeRequestBatch(requests, dryRun, out, err);
+  notifications.cids.emplace_back(newParent);
+  notifications.fids.emplace_back(fileMD.getId());
+
+  executeRequestBatch(requests, notifications, dryRun, out, err);
   return 0;
 }
 
@@ -1386,11 +1396,28 @@ int Inspector::renameFid(bool dryRun, uint64_t fid, uint64_t newParent, const st
 // Run the given write batch towards QDB - print the requests, as well as the
 // output.
 //------------------------------------------------------------------------------
-void Inspector::executeRequestBatch(const std::vector<RedisRequest> &requests, bool dryRun, std::ostream& out, std::ostream& err) {
+void Inspector::executeRequestBatch(const std::vector<RedisRequest> &requests, const CacheNotifications &notif, bool dryRun, std::ostream& out, std::ostream& err) {
   out << "------------------------------------------------------ QDB commands to execute" << std::endl;
 
   for(size_t i = 0; i < requests.size(); i++) {
     out << i+1 << ". " << serializeRequest(requests[i]) << std::endl;
+  }
+
+  std::vector<RedisRequest> cacheNotifications;
+
+  if(notif.cids.size() + notif.fids.size() != 0) {
+    out << "------------------------------------------------------ Cache notifications" << std::endl;
+    for(size_t i = 0; i < notif.cids.size(); i++) {
+      cacheNotifications.emplace_back(RequestBuilder::notifyCacheInvalidationCid(ContainerIdentifier(notif.cids[i])));
+    }
+
+    for(size_t i = 0; i < notif.fids.size(); i++) {
+      cacheNotifications.emplace_back(RequestBuilder::notifyCacheInvalidationFid(FileIdentifier(notif.fids[i])));
+    }
+
+    for(size_t i = 0; i < cacheNotifications.size(); i++) {
+      out << i+1 << ". " << serializeRequest(cacheNotifications[i]) << std::endl;
+    }
   }
 
   if(dryRun) {
@@ -1399,14 +1426,28 @@ void Inspector::executeRequestBatch(const std::vector<RedisRequest> &requests, b
   }
 
   std::vector<std::future<qclient::redisReplyPtr>> replies;
+  std::vector<std::future<qclient::redisReplyPtr>> notificationReplies;
+
   for(size_t i = 0; i < requests.size(); i++) {
     replies.push_back(mQcl.execute(requests[i]));
   }
 
+  for(size_t i = 0; i < cacheNotifications.size(); i++) {
+    notificationReplies.push_back(mQcl.execute(cacheNotifications[i]));
+  }
+
   out << "------------------------------------------------------ Replies" << std::endl;
 
-  for(size_t i = 0; i < requests.size(); i++) {
+  for(size_t i = 0; i < replies.size(); i++) {
     out << i+1 << ". " << qclient::describeRedisReply(replies[i].get()) << std::endl;
+  }
+
+  if(!notificationReplies.empty()) {
+    out << "------------------------------------------------------ Notification replies" << std::endl;
+
+    for(size_t i = 0; i < notificationReplies.size(); i++) {
+      out << i+1 << ". " << qclient::describeRedisReply(notificationReplies[i].get()) << std::endl;
+    }
   }
 }
 

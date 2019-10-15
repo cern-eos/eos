@@ -90,6 +90,16 @@ public:
   static RedisRequest getNumberOfFiles();
 
   //----------------------------------------------------------------------------
+  //! Generate a cache-invalidation notification for a particular fid
+  //----------------------------------------------------------------------------
+  static RedisRequest notifyCacheInvalidationFid(FileIdentifier id);
+
+  //----------------------------------------------------------------------------
+  //! Generate a cache-invalidation notification for a particular cid
+  //----------------------------------------------------------------------------
+  static RedisRequest notifyCacheInvalidationCid(ContainerIdentifier id);
+
+  //----------------------------------------------------------------------------
   //! Get key for files contained within a filesystem.
   //----------------------------------------------------------------------------
   static std::string keyFilesystemFiles(IFileMD::location_t location);
