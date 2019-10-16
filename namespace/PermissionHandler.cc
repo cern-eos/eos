@@ -29,7 +29,8 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Convert "user" mode_t permission bits to internally-used representation.
 //------------------------------------------------------------------------------
-char PermissionHandler::convertModetUser(mode_t mode) {
+char PermissionHandler::convertModetUser(mode_t mode)
+{
   char perms = 0;
 
   if ((mode & S_IRUSR) != 0u) {
@@ -50,7 +51,8 @@ char PermissionHandler::convertModetUser(mode_t mode) {
 //------------------------------------------------------------------------------
 //! Convert "group" mode_t permission bits to internally-used representation.
 //------------------------------------------------------------------------------
-char PermissionHandler::convertModetGroup(mode_t mode) {
+char PermissionHandler::convertModetGroup(mode_t mode)
+{
   char perms = 0;
 
   if ((mode & S_IRGRP) != 0u) {
@@ -71,7 +73,8 @@ char PermissionHandler::convertModetGroup(mode_t mode) {
 //------------------------------------------------------------------------------
 //! Convert "other" mode_t permission bits to internally-used representation.
 //------------------------------------------------------------------------------
-char PermissionHandler::convertModetOther(mode_t mode) {
+char PermissionHandler::convertModetOther(mode_t mode)
+{
   char perms = 0;
 
   if ((mode & S_IROTH) != 0u) {
@@ -92,7 +95,8 @@ char PermissionHandler::convertModetOther(mode_t mode) {
 //------------------------------------------------------------------------------
 //! Check permissions and decide whether to allow or not.
 //------------------------------------------------------------------------------
-bool PermissionHandler::checkPerms(char actual, char requested) {
+bool PermissionHandler::checkPerms(char actual, char requested)
+{
   for (int i = 0; i < 3; ++i) {
     if ((requested & (1 << i)) != 0) {
       if ((actual & (1 << i)) == 0) {
@@ -108,7 +112,8 @@ bool PermissionHandler::checkPerms(char actual, char requested) {
 //! Convert requested permissions to internal representation. Ready to pass
 //! onto checkPerms then.
 //------------------------------------------------------------------------------
-char PermissionHandler::convertRequested(mode_t requested) {
+char PermissionHandler::convertRequested(mode_t requested)
+{
   char convFlags = 0;
 
   if ((requested & R_OK) != 0) {
@@ -129,27 +134,36 @@ char PermissionHandler::convertRequested(mode_t requested) {
 //------------------------------------------------------------------------------
 //! Parse octal mask
 //------------------------------------------------------------------------------
-bool PermissionHandler::parseOctalMask(const std::string &str, mode_t &out) {
-  char *endptr = NULL;
-  out = strtoll(str.c_str(), &endptr, 8);
-  if(endptr != str.c_str() + str.size() || out == LLONG_MIN || out == LONG_LONG_MAX) {
+bool PermissionHandler::parseOctalMask(const std::string& str, mode_t& out)
+{
+  try {
+    size_t pos = 0;
+    out = std::stol(str, &pos, 8);
+
+    if (pos != str.length()) {
+      return false;
+    }
+
+    return true;
+  } catch (...) {
     return false;
   }
-  return true;
 }
 
 //------------------------------------------------------------------------------
 //! Convert requested permissions to internal representation. Ready to pass
 //! onto checkPerms then.
 //------------------------------------------------------------------------------
-mode_t PermissionHandler::filterWithSysMask(const std::string &sysmask, mode_t mode) {
-  if(sysmask.empty()) {
+mode_t PermissionHandler::filterWithSysMask(const std::string& sysmask,
+    mode_t mode)
+{
+  if (sysmask.empty()) {
     return mode;
   }
 
   mode_t mask;
 
-  if(!parseOctalMask(sysmask, mask)) {
+  if (!parseOctalMask(sysmask, mask)) {
     // un-parseable mask, ignore
     return mode;
   }
