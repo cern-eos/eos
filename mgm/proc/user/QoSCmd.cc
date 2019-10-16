@@ -89,9 +89,10 @@ void QoSCmd::ListSubcmd(const eos::console::QoSProto_ListProto& list,
         out << " ]";
       }
     } else {
-      Json::Value json = Json::arrayValue;
+      Json::Value json;
+      json["name"] = Json::arrayValue;
       for (const auto& it: gOFS->mQoSClassMap) {
-        json.append(it.first);
+        json["name"].append(it.first);
       }
 
       out << Json::StyledWriter().write(json);
