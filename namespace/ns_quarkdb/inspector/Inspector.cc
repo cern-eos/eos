@@ -849,39 +849,58 @@ private:
 };
 
 //------------------------------------------------------------------------------
+// Hardlink information
+//------------------------------------------------------------------------------
+struct HardlinkInfo {
+  HardlinkInfo() {}
+  HardlinkInfo(uint64_t t, const std::string &n) : target(t), name(n) {}
+
+  uint64_t target;
+  std::string name;
+};
+
+struct InodeUseCount {
+  InodeUseCount() : count(0) {}
+  InodeUseCount(int64_t c, const std::string &n) : count(c), name(n) {}
+
+  int64_t count;
+  std::string name;
+};
+
+//------------------------------------------------------------------------------
 // Cross-check inode use counts against hardlink mappings
 //------------------------------------------------------------------------------
-void crossCheckHardlinkMaps(std::map<uint64_t, int64_t> &inodeUseCount,
-  std::map<uint64_t, uint64_t> &hardlinkMapping, uint64_t parent, std::ostream &out) {
+void crossCheckHardlinkMaps(std::map<uint64_t, InodeUseCount> &inodeUseCount,
+  std::map<uint64_t, HardlinkInfo> &hardlinkMapping, uint64_t parent, std::ostream &out) {
 
   std::set<uint64_t> zeroGroup;
 
   for(auto it = inodeUseCount.begin(); it != inodeUseCount.end(); it++) {
-    if(it->second == 0) {
+    if(it->second.count == 0) {
       zeroGroup.insert(it->first);
     }
   }
 
   for(auto it = hardlinkMapping.begin(); it != hardlinkMapping.end(); it++) {
-    auto useCount = inodeUseCount.find(it->second);
+    auto useCount = inodeUseCount.find(it->second.target);
 
     if(useCount == inodeUseCount.end()) {
-      out << "id=" << it->first << " parent=" << parent << " invalid-target=" << it->second << std::endl;
+      out << "id=" << it->first << " name=" << it->second.name << " parent=" << parent << " invalid-target=" << it->second.target << std::endl;
     }
     else {
-      inodeUseCount[it->second]--;
+      inodeUseCount[it->second.target].count--;
     }
   }
 
   for(auto it = inodeUseCount.begin(); it != inodeUseCount.end(); it++) {
-    if(it->second != 0) {
-      out << "id=" << it->first << " parent=" << parent << " reference-count-diff=" << it->second << std::endl;
+    if(it->second.count != 0) {
+      out << "id=" << it->first << " name=" << it->second.name << " parent=" << parent << " reference-count-diff=" << it->second.count << std::endl;
       zeroGroup.erase(it->first);
     }
   }
 
   for(auto it = zeroGroup.begin(); it != zeroGroup.end(); it++) {
-      out << "id=" << *it << " parent=" << parent << " true-zero-count" << std::endl;
+      out << "id=" << *it << " name=" << inodeUseCount[*it].name  << " parent=" << parent << " true-zero-count" << std::endl;
   }
 }
 
@@ -892,8 +911,8 @@ int Inspector::checkSimulatedHardlinks(std::ostream &out, std::ostream &err) {
   FileScanner fileScanner(mQcl);
   common::InodeTranslator translator;
 
-  std::map<uint64_t, int64_t> inodeUseCount;
-  std::map<uint64_t, uint64_t> hardlinkMapping;
+  std::map<uint64_t, InodeUseCount> inodeUseCount;
+  std::map<uint64_t, HardlinkInfo> hardlinkMapping;
   uint64_t currentContainer = 0;
 
   while (fileScanner.valid()) {
@@ -925,14 +944,14 @@ int Inspector::checkSimulatedHardlinks(std::ostream &out, std::ostream &err) {
       }
 
       uint64_t target = translator.InodeToFid(inode);
-      hardlinkMapping[proto.id()] = target;
+      hardlinkMapping[proto.id()] = HardlinkInfo(target, proto.name());
       continue;
     }
 
     it = proto.xattrs().find("sys.eos.nlink");
     if(it != proto.xattrs().end()) {
       size_t count = atoi(it->second.c_str());
-      inodeUseCount[proto.id()] = count;
+      inodeUseCount[proto.id()] = InodeUseCount(count, proto.name());
     }
   }
 
