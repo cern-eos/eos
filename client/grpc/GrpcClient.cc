@@ -26,6 +26,7 @@
 #include "proto/Rpc.grpc.pb.h"
 #include "common/StringConversion.hh"
 #include "common/Timing.hh"
+#include "common/Path.hh"
 /*----------------------------------------------------------------------------*/
 #include <grpcpp/grpcpp.h>
 #include <grpc/support/log.h>
@@ -205,7 +206,8 @@ GrpcClient::Find(const std::string& path,
 		 bool files, 
 		 bool dirs, 
 		 uint64_t depth, 
-		 bool printonly)
+		 bool printonly, 
+		 const std::string& exportfs)
 {
   FindRequest request;
   if (files && !dirs) {
@@ -346,16 +348,21 @@ GrpcClient::Find(const std::string& path,
       break;
     }
 
-    google::protobuf::util::JsonPrintOptions options;
-    options.add_whitespace = true;
-    options.always_print_primitive_fields = true;
-    std::string jsonstring;
-    google::protobuf::util::MessageToJsonString(response,
-        &jsonstring, options);
-    if (printonly) {
-      std::cout << jsonstring << std::endl;
+    if (!exportfs.empty()) {
+      responsestring = ExportFs(response,exportfs);
     } else {
-      responsestring += jsonstring;
+      google::protobuf::util::JsonPrintOptions options;
+      options.add_whitespace = true;
+      options.always_print_primitive_fields = true;
+      std::string jsonstring;
+      google::protobuf::util::MessageToJsonString(response,
+						  &jsonstring, options);
+
+      if (printonly) {
+	std::cout << jsonstring << std::endl;
+      } else {
+	responsestring += jsonstring;
+      }
     }
   }
 
@@ -626,6 +633,42 @@ GrpcClient::Exec(const eos::rpc::NSRequest& request,
   } else {
     return -1;
   }
+}
+
+std::string
+GrpcClient::ExportFs(const eos::rpc::MDResponse& response, const std::string& exportfs) 
+{
+  bool first=false;
+  if (response.type() == eos::rpc::CONTAINER) {
+    if (!tree.size()) {
+      first = true;
+      tree[response.cmd().id()] = response.cmd().name() + "/";
+    } else {
+      first = false;
+      tree[response.cmd().id()] = tree[response.cmd().parent_id()] + response.cmd().name() + "/";
+    }
+    fprintf(stderr,"%s\n",tree[response.cmd().id()].c_str());
+
+    if (!first) {
+      std::string target = exportfs + "/" + tree[response.cmd().id()];
+      eos::common::Path cPath(target.c_str());
+      
+      if (!cPath.MakeParentPath(755)) {
+	fprintf(stderr,"error: failed to created '%s'\n", cPath.GetParentPath());
+	exit(errno);
+      }
+      int rc = mkdir(cPath.GetPath(),755);
+      if (rc) {
+	fprintf(stderr,"error: failed to created '%s'\n", cPath.GetPath());
+	exit(errno);
+      }
+    }
+  }
+
+  if (response.type() == eos::rpc::FILE) {
+    fprintf(stderr,"%s\n",(tree[response.fmd().cont_id()] + response.fmd().name()).c_str());
+  }
+  return "";
 }
 
 //#endif

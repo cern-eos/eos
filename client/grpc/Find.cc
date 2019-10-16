@@ -9,7 +9,7 @@ int usage(const char* prog)
   fprintf(stderr, "usage: %s [--key <ssl-key-file> "
           "--cert <ssl-cert-file> "
           "--ca <ca-cert-file>] "
-          "[--endpoint <host:port>] [--token <auth-token>] [--depth <depth>] [--select <filter-string>] [-f | -d] <path>\n", prog);
+          "[--endpoint <host:port>] [--token <auth-token>] [--export <exportfs>] [--depth <depth>] [--select <filter-string>] [-f | -d] <path>\n", prog);
 
   fprintf(stderr, " <filter-string> is setup as \"key1:val1,key2:val2,key3:val3 ... where keyN:valN is one of \n");
   fprintf(stderr, ""
@@ -68,6 +68,7 @@ int main(int argc, const char* argv[])
   bool files = false;
   bool dirs  = false;
   uint64_t depth = 1024;
+  std::string exportfs = "";
 
   for (auto i = 1; i < argc; ++i) {
     std::string option = argv[i];
@@ -115,6 +116,16 @@ int main(int argc, const char* argv[])
     if (option == "--token") {
       if (argc > i + 1) {
         token = argv[i + 1];
+        ++i;
+        continue;
+      } else {
+        return usage(argv[0]);
+      }
+    }
+
+    if (option == "--export") {
+      if (argc > i + 1) {
+        exportfs = argv[i + 1];
         ++i;
         continue;
       } else {
@@ -193,7 +204,7 @@ int main(int argc, const char* argv[])
 
   std::chrono::steady_clock::time_point watch_global =
     std::chrono::steady_clock::now();
-  std::string reply = eosgrpc->Find(path, select, 0, 0, files, dirs, depth, true);
+  std::string reply = eosgrpc->Find(path, select, 0, 0, files, dirs, depth, true, exportfs);
   std::chrono::microseconds elapsed_global =
     std::chrono::duration_cast<std::chrono::microseconds>
     (std::chrono::steady_clock::now() - watch_global);
