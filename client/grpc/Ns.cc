@@ -24,6 +24,7 @@ int usage(const char* prog)
 	  " --owner-uid <uid> --owner-gid <gid> -p <path> chown \n"
 	  "                       --mode <mode> -p <path> chmod \n"
 	  "       [--sysacl] [-r] [--acl <acl>] -p <path> acl \n"
+	  "     --ztoken <token> | [--acl] [-r] -p <path> token\n"
 	  "                [--max-version <max> -p <path> create-version \n"
 	  "                                     -p <path> list-version \n"
 	  "                [--max-version <max> -p <path> purge-version \n");
@@ -55,6 +56,7 @@ int main(int argc, const char* argv[])
   bool recursive = false;
   bool norecycle = false;
   bool sysacl = false;
+  std::string eostoken = "";
 
   for (auto i = 1; i < argc; ++i) {
     std::string option = argv[i];
@@ -224,6 +226,16 @@ int main(int argc, const char* argv[])
       continue;
     }
 
+    if (option == "--ztoken") {
+      if (argc > i + 1) {
+	eostoken = argv[i+1];
+	++i;
+	continue;
+      } else {
+	return usage(argv[0]);
+      }
+    }
+
     cmd = option;
 
     if (argc > (i + 1)) {
@@ -237,7 +249,7 @@ int main(int argc, const char* argv[])
     }
   }
 
-  if (cmd.empty() || path.empty()) {
+  if (cmd.empty() || (path.empty() && eostoken.empty())) {
     return usage(argv[0]);
   }
 
@@ -350,6 +362,22 @@ int main(int argc, const char* argv[])
       request.mutable_acl()->set_type(eos::rpc::NSRequest::AclRequest::SYS_ACL);
     } else {
       request.mutable_acl()->set_type(eos::rpc::NSRequest::AclRequest::USER_ACL);
+    }
+  } else if (cmd == "token") {
+    request.mutable_token()->mutable_token()->mutable_token()->set_expires(time(NULL) + 300);
+    if (!path.empty()) {
+      request.mutable_token()->mutable_token()->mutable_token()->set_path(path);
+    }
+    if (recursive) {
+      request.mutable_token()->mutable_token()->mutable_token()->set_allowtree(true);
+    }
+    if (acl.empty()) {
+      request.mutable_token()->mutable_token()->mutable_token()->set_permission("rx");
+    } else {
+      request.mutable_token()->mutable_token()->mutable_token()->set_permission(acl);
+    }
+    if (!eostoken.empty()) {
+      request.mutable_token()->mutable_token()->mutable_token()->set_vtoken(eostoken);
     }
   }
 

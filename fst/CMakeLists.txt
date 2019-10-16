@@ -179,7 +179,6 @@ add_library(EosFstIo SHARED
 
 target_link_libraries(EosFstIo PUBLIC
   eosCommon
-  EosProtobuf
   EosCrc32c-Static
   jerasure-static
   ${Z_LIBRARY}
@@ -245,11 +244,7 @@ add_executable(eoscp txqueue/eoscp.cc)
 target_compile_definitions(eoscp PRIVATE
   -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
-if(Linux)
-  target_link_libraries(eoscp PRIVATE EosFstIo-Static ${XROOTD_CL_LIBRARY})
-else()
-  target_link_libraries(eoscp PRIVATE EosFstIo ${XROOTD_CL_LIBRARY})
-endif()
+target_link_libraries(eoscp PRIVATE EosFstIo ${XROOTD_CL_LIBRARY})
 
 set_target_properties(
   eoscp PROPERTIES
@@ -473,8 +468,7 @@ add_executable(eos-leveldb-inspect
   tools/eos-leveldb-inspect.cc)
 
 target_link_libraries(eos-leveldb-inspect
-  eosCommonServer-Static
-  EosProtobuf-Static)
+  eosCommonServer)
 
 add_executable(eos-check-blockxs
   tools/CheckBlockXS.cc
@@ -511,15 +505,15 @@ target_compile_options(eos-ioping PRIVATE -std=gnu99)
 target_link_libraries(eos-ioping PRIVATE ${GLIBC_M_LIBRARY} ${GLIBC_RT_LIBRARY})
 
 target_link_libraries(eos-check-blockxs PRIVATE
-  EosFstIo-Static
+  EosFstIo
   ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(eos-compute-blockxs PRIVATE
-  EosFstIo-Static
+  EosFstIo
   ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(eos-adler32 PRIVATE
-  EosFstIo-Static
+  EosFstIo
   ${CMAKE_THREAD_LIBS_INIT} )
 
 target_link_libraries(eos-scan-fs PRIVATE

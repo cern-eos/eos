@@ -43,7 +43,9 @@ add_library(
   commands/helpers/FsHelper.cc      commands/helpers/FsHelper.hh
   commands/helpers/RecycleHelper.cc commands/helpers/RecycleHelper.hh
   commands/helpers/FsckHelper.cc    commands/helpers/FsckHelper.hh
-  commands/helpers/NodeHelper.cc    commands/helpers/NodeHelper.hh)
+  commands/helpers/NodeHelper.cc    commands/helpers/NodeHelper.hh
+  commands/helpers/TokenHelper.cc   commands/helpers/TokenHelper.hh
+)
 
 add_library(
   EosConsoleCommands-Objects OBJECT
@@ -94,6 +96,7 @@ add_library(
   commands/com_test.cc
   commands/com_timing.cc
   commands/com_touch.cc
+  commands/com_proto_token.cc
   commands/com_tracker.cc
   commands/com_transfer.cc
   commands/com_version.cc
@@ -170,7 +173,7 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
-  EosFstIo-Static)
+  EosFstIo XrdMqClient)
 
 install(PROGRAMS eosadmin
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})

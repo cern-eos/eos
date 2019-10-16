@@ -113,6 +113,8 @@ extern int com_timing(char*);
 extern int com_tracker(char*);
 extern int com_transfer(char*);
 extern int com_touch(char*);
+extern int com_proto_token(char*);
+extern int com_prot_token(char*);
 extern int com_version(char*);
 extern int com_vid(char*);
 extern int com_whoami(char*);
@@ -183,6 +185,7 @@ COMMAND commands[] = {
   { (char*) "test", com_test, (char*) "Run performance test"},
   { (char*) "timing", com_timing, (char*) "Toggle timing flag for execution time measurement"},
   { (char*) "touch", com_touch, (char*) "Touch a file"},
+  { (char*) "token", com_proto_token, (char*) "Token interface"},
   { (char*) "tracker", com_tracker, (char*) "Interact with File Tracker"},
   { (char*) "transfer", com_transfer, (char*) "Transfer Interface"},
   { (char*) "version", com_version, (char*) "Verbose client/server version"},
@@ -534,6 +537,12 @@ client_command(XrdOucString& in, bool is_admin, std::string* reply)
     in += global_comment;
     global_comment = "";
   }
+
+  if (getenv("EOSAUTHZ")) {
+    in += "&authz=";
+    in += getenv("EOSAUTHZ");
+  }
+
 
   XrdMqTiming mytiming("eos");
   TIMING("start", &mytiming);

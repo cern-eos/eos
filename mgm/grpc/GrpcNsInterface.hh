@@ -138,6 +138,11 @@ public:
   static grpc::Status Acl(eos::common::VirtualIdentity& vid, 
 			  eos::rpc::NSResponse::AclResponse* reply,
 			  const eos::rpc::NSRequest::AclRequest* request);
+
+
+  static grpc::Status Token(eos::common::VirtualIdentity& vid, 
+			    eos::rpc::NSResponse::ErrorResponse* reply,
+			    const eos::rpc::NSRequest::TokenRequest* request);
   
   static bool Access(eos::common::VirtualIdentity& vid, int mode,
                      std::shared_ptr<eos::IContainerMD> cmd);

@@ -776,6 +776,24 @@ public:
     }
   }
 
+
+  //------------------------------------------------------------------------------
+  //! Replace multiple characters in a string
+  //------------------------------------------------------------------------------
+  static void Replace(std::string& subject,
+		      const char a,
+		      const char b ) 
+  {
+    if (subject.empty())
+      return;
+  
+    for (size_t i = 0; i< subject.size(); ++i) {
+      if (subject[i] == a) {
+	subject[i] = b;
+      }
+    }
+  }
+
   //----------------------------------------------------------------------------
   //! Check if a string is a valid UTF-8 string
   //----------------------------------------------------------------------------

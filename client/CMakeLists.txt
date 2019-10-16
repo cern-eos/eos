@@ -109,7 +109,7 @@ target_link_libraries(
   ${GRPC_LIBRARY}
   ${GRPC_GRPC++_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
-  eosCommon)
+  eosCommon )
 
 target_link_libraries(
   eos-grpc-md PUBLIC
@@ -120,7 +120,7 @@ target_link_libraries(
   ${GRPC_LIBRARY}
   ${GRPC_GRPC++_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
-  eosCommon)
+  eosCommon )
 
 target_link_libraries(
   eos-grpc-find PUBLIC
@@ -131,7 +131,7 @@ target_link_libraries(
   ${GRPC_LIBRARY}
   ${GRPC_GRPC++_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
-  eosCommon)
+  eosCommon )
 
 target_link_libraries(
   eos-grpc-ns PUBLIC
@@ -142,7 +142,7 @@ target_link_libraries(
   ${GRPC_LIBRARY}
   ${GRPC_GRPC++_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
-  eosCommon)
+  eosCommon )
 
 target_link_libraries(
   eos-grpc-insert PUBLIC
@@ -153,7 +153,7 @@ target_link_libraries(
   ${GRPC_LIBRARY}
   ${GRPC_GRPC++_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
-  eosCommon)
+  eosCommon )
 
 target_link_libraries(
   eos-grpc-manila PUBLIC
@@ -164,7 +164,7 @@ target_link_libraries(
   ${GRPC_LIBRARY}
   ${GRPC_GRPC++_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
-  eosCommon)
+  eosCommon )
 
 target_link_libraries(
   eos-grpc-ns-stat PUBLIC
@@ -174,7 +174,7 @@ target_link_libraries(
   ${GRPC_LIBRARY}
   ${GRPC_GRPC++_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
-  eosCommon)
+  eosCommon )
 
 set_target_properties(
   eos PROPERTIES

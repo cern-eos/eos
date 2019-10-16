@@ -90,7 +90,7 @@ target_link_libraries(eos-udp-dumper)
 
 target_link_libraries(
   eos-io-tool
-  EosFstIo-Static
+  EosFstIo
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_SERVER_LIBRARY}
   ${PROTOBUF_LIBRARY}
@@ -107,7 +107,7 @@ target_link_libraries(
 target_link_libraries(
   eoschecksumbench
   eosCommon
-  EosFstIo-Static
+  EosFstIo
   ${XROOTD_POSIX_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
@@ -138,7 +138,7 @@ install(
 install(
   PROGRAMS xrdstress eos-instance-test eos-instance-test-ci fuse/eos-fuse-test
            eos-rain-test eoscp-rain-test eos-io-test eos-oc-test eos-drain-test
-           eos-http-upload-test eos-mq-tests eos-rename-test eos-grpc-test eos-fsck-test
+           eos-http-upload-test eos-mq-tests eos-rename-test eos-grpc-test eos-fsck-test eos-token-test
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   PERMISSIONS OWNER_READ OWNER_EXECUTE
               GROUP_READ GROUP_EXECUTE

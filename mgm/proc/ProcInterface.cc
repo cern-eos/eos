@@ -25,6 +25,7 @@
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/FindCmd.hh"
 #include "mgm/proc/user/RmCmd.hh"
+#include "mgm/proc/user/TokenCmd.hh"
 #include "mgm/proc/user/RouteCmd.hh"
 #include "mgm/proc/user/RecycleCmd.hh"
 #include "mgm/proc/admin/FsCmd.hh"
@@ -219,6 +220,10 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
     cmd.reset(new RmCmd(std::move(req), vid));
     break;
 
+  case RequestProto::kToken:
+    cmd.reset(new TokenCmd(std::move(req), vid));
+    break;
+
   case RequestProto::kStagerRm:
     cmd.reset(new StagerRmCmd(std::move(req), vid));
     break;
@@ -316,6 +321,8 @@ ProcInterface::ProtoIsWriteAccess(const char* opaque)
   case RequestProto::kIo:
   case RequestProto::kDebug:
   case RequestProto::kConfig:
+  case RequestProto::kToken:
+
     return false;
 
   // conditional on the subcommand

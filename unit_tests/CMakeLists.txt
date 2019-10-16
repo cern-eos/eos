@@ -84,6 +84,7 @@ set(COMMON_UT_SRCS
   common/VariousTests.cc
   common/XrdConnPoolTests.cc
   common/RateLimitTests.cc
+  common/EosTokenTests.cc
 )
 
 set(FST_UT_SRCS
@@ -139,7 +140,7 @@ target_link_libraries(
   gtest_main
   gmock
   qclient
-  XrdEosFst-Static)
+  XrdEosFst-Static EosProtobuf)
 
 install(TARGETS
   eos-fst-unit-tests

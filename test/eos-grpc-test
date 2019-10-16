@@ -114,3 +114,9 @@ eos vid rm vid:grpc:\"key:12345678\":uid
 eos vid set membership 11 -sudo
 eos vid rm membership 11
 exit 0
+
+
+#token
+eos-grpc-ns --token --acl rwx $authkey -p $prefix/t_grpc/ || exit -12
+
+

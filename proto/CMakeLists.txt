@@ -59,12 +59,38 @@ set_target_properties(EosFstProto-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------
+# Generate protobol buffer object for the CLI
+#-------------------------------------------------------------------------------
+PROTOBUF_GENERATE_CPP(REQ_SRCS REQ_HDRS common/cli_proto/ConsoleRequest.proto)
+PROTOBUF_GENERATE_CPP(REP_SRCS REP_HDRS common/cli_proto/ConsoleReply.proto)
+PROTOBUF_GENERATE_CPP(RECY_SRCS RECY_HDRS common/cli_proto/Recycle.proto)
+PROTOBUF_GENERATE_CPP(ACL_SRCS ACL_HDRS common/cli_proto/Acl.proto)
+PROTOBUF_GENERATE_CPP(NS_SRCS NS_HDRS common/cli_proto/Ns.proto)
+PROTOBUF_GENERATE_CPP(DRAIN_SRCS DRAIN_HDRS common/cli_proto/Drain.proto)
+PROTOBUF_GENERATE_CPP(FIND_SRCS FIND_HDRS common/cli_proto/Find.proto)
+PROTOBUF_GENERATE_CPP(FS_SRCS FS_HDRS common/cli_proto/Fs.proto)
+PROTOBUF_GENERATE_CPP(RM_SRCS RM_HDRS common/cli_proto/Rm.proto)
+PROTOBUF_GENERATE_CPP(TOKEN_SRCS TOKEN_HDRS common/cli_proto/Token.proto)
+PROTOBUF_GENERATE_CPP(STAGER_RM_SRCS STAGER_RM_HDRS common/cli_proto/StagerRm.proto)
+PROTOBUF_GENERATE_CPP(ROUTE_SRCS ROUTE_HDRS common/cli_proto/Route.proto)
+PROTOBUF_GENERATE_CPP(IO_SRCS IO_HDRS common/cli_proto/Io.proto)
+PROTOBUF_GENERATE_CPP(GROUP_SRCS GROUP_HDRS common/cli_proto/Group.proto)
+PROTOBUF_GENERATE_CPP(DEBUG_SRCS DEBUG_HDRS common/cli_proto/Debug.proto)
+PROTOBUF_GENERATE_CPP(NODE_SRCS NODE_HDRS common/cli_proto/Node.proto)
+PROTOBUF_GENERATE_CPP(QUOTA_SRCS QUOTA_HDRS common/cli_proto/Quota.proto)
+PROTOBUF_GENERATE_CPP(SPACE_SRCS SPACE_HDRS common/cli_proto/Space.proto)
+PROTOBUF_GENERATE_CPP(CONFIG_SRCS CONFIG_HDRS common/cli_proto/Config.proto)
+PROTOBUF_GENERATE_CPP(ACCESS_SRCS ACCESS_HDRS common/cli_proto/Access.proto)
+PROTOBUF_GENERATE_CPP(FSCK_SRCS FSCK_HDRS common/cli_proto/Fsck.proto)
+PROTOBUF_GENERATE_CPP(GRPC_SRCS GRPC_HDRS ${CMAKE_SOURCE_DIR}/common/grpc-proto/protobuf/Rpc.proto)
+
+#-------------------------------------------------------------------------------
 # Generate protobol buffer object for GRPC
 #-------------------------------------------------------------------------------
 if (GRPC_FOUND)
   set(GRPC_PROTOS ${CMAKE_SOURCE_DIR}/common/grpc-proto/protobuf/Rpc.proto)
   set(GRPC_PROTOBUF_PATH "${CMAKE_BINARY_DIR}/proto/")
-  PROTOBUF_GENERATE_CPP(GRPC_SRCS GRPC_HDRS ${GRPC_PROTOS})
+#  PROTOBUF_GENERATE_CPP(GRPC_SRCS GRPC_HDRS ${GRPC_PROTOS})
   grpc_generate_cpp(GRPC_SVC_SRCS GRPC_SVC_HDRS ${GRPC_PROTOBUF_PATH} ${GRPC_PROTOS})
 
   set(GRPC_SRCS ${GRPC_SRCS} PARENT_SCOPE)
@@ -80,8 +106,6 @@ if (GRPC_FOUND)
     PROPERTIES GENERATED TRUE)
 
   add_library(EosGrpcProto-Objects OBJECT
-    ${GRPC_SRCS}
-    ${GRPC_HDRS}
     ${GRPC_SVC_SRCS}
     ${GRPC_SVC_HDRS})
 
@@ -89,41 +113,18 @@ if (GRPC_FOUND)
     POSITION_INDEPENDENT_CODE TRUE)
 endif()
 
-#-------------------------------------------------------------------------------
-# Generate protobol buffer object for the CLI
-#-------------------------------------------------------------------------------
-PROTOBUF_GENERATE_CPP(REQ_SRCS REQ_HDRS common/cli_proto/ConsoleRequest.proto)
-PROTOBUF_GENERATE_CPP(REP_SRCS REP_HDRS common/cli_proto/ConsoleReply.proto)
-PROTOBUF_GENERATE_CPP(RECY_SRCS RECY_HDRS common/cli_proto/Recycle.proto)
-PROTOBUF_GENERATE_CPP(ACL_SRCS ACL_HDRS common/cli_proto/Acl.proto)
-PROTOBUF_GENERATE_CPP(NS_SRCS NS_HDRS common/cli_proto/Ns.proto)
-PROTOBUF_GENERATE_CPP(DRAIN_SRCS DRAIN_HDRS common/cli_proto/Drain.proto)
-PROTOBUF_GENERATE_CPP(FIND_SRCS FIND_HDRS common/cli_proto/Find.proto)
-PROTOBUF_GENERATE_CPP(FS_SRCS FS_HDRS common/cli_proto/Fs.proto)
-PROTOBUF_GENERATE_CPP(RM_SRCS RM_HDRS common/cli_proto/Rm.proto)
-PROTOBUF_GENERATE_CPP(STAGER_RM_SRCS STAGER_RM_HDRS common/cli_proto/StagerRm.proto)
-PROTOBUF_GENERATE_CPP(ROUTE_SRCS ROUTE_HDRS common/cli_proto/Route.proto)
-PROTOBUF_GENERATE_CPP(IO_SRCS IO_HDRS common/cli_proto/Io.proto)
-PROTOBUF_GENERATE_CPP(GROUP_SRCS GROUP_HDRS common/cli_proto/Group.proto)
-PROTOBUF_GENERATE_CPP(DEBUG_SRCS DEBUG_HDRS common/cli_proto/Debug.proto)
-PROTOBUF_GENERATE_CPP(NODE_SRCS NODE_HDRS common/cli_proto/Node.proto)
-PROTOBUF_GENERATE_CPP(QUOTA_SRCS QUOTA_HDRS common/cli_proto/Quota.proto)
-PROTOBUF_GENERATE_CPP(SPACE_SRCS SPACE_HDRS common/cli_proto/Space.proto)
-PROTOBUF_GENERATE_CPP(CONFIG_SRCS CONFIG_HDRS common/cli_proto/Config.proto)
-PROTOBUF_GENERATE_CPP(ACCESS_SRCS ACCESS_HDRS common/cli_proto/Access.proto)
-PROTOBUF_GENERATE_CPP(FSCK_SRCS FSCK_HDRS common/cli_proto/Fsck.proto)
 
 set(CLI_PROTO_SRCS
   ${REQ_SRCS} ${REP_SRCS} ${RECY_SRCS} ${ACL_SRCS} ${NS_SRCS} ${DRAIN_SRCS} ${FIND_SRCS} 
-  ${FS_SRCS} ${RM_SRCS} ${STAGER_RM_SRCS} ${ROUTE_SRCS} ${IO_SRCS} ${GROUP_SRCS} 
+  ${FS_SRCS} ${RM_SRCS} ${TOKEN_SRCS} ${STAGER_RM_SRCS} ${ROUTE_SRCS} ${IO_SRCS} ${GROUP_SRCS} 
   ${DEBUG_SRCS} ${NODE_SRCS} ${QUOTA_SRCS} ${SPACE_SRCS} ${CONFIG_SRCS} ${ACCESS_SRCS}
-  ${FSCK_SRCS})
+  ${FSCK_SRCS} ${SHARE_SRCS} ${GRPC_SRCS})
 
 set(CLI_PROTO_HDRS
   ${REQ_HDRS} ${REP_HDRS} ${RECY_HDRS} ${ACL_HDRS} ${NS_HDRS} ${DRAIN_HDRS} ${FIND_HDRS}
-  ${FS_HDRS} ${RM_HDRS} ${STAGER_RM_HDRS} ${ROUTE_HDRS} ${IO_HDRS} ${GROUP_HDRS}
+  ${FS_HDRS} ${RM_HDRS} ${TOKEN_HDRS} ${STAGER_RM_HDRS} ${ROUTE_HDRS} ${IO_HDRS} ${GROUP_HDRS}
   ${DEBUG_HDRS} ${NODE_HDRS} ${QUOTA_HDRS} ${SPACE_HDRS} ${CONFIG_HDRS} ${ACCESS_HDRS}
-  ${FSCK_HDRS})
+  ${FSCK_HDRS} ${SHARE_HDRS} ${GRPC_HDRS})
 
 set_source_files_properties(
   ${CLI_PROTO_SRCS} ${CLI_PROTO_HDRS}
@@ -152,7 +153,6 @@ else ()
     $<TARGET_OBJECTS:EosCliProto-Objects>)
 
   target_link_libraries(EosProtobuf PUBLIC
-    eosCommon
     ${PROTOBUF_LIBRARIES})
 endif ()
 
@@ -169,7 +169,6 @@ if (GRPC_FOUND)
     $<TARGET_OBJECTS:EosCliProto-Objects>)
 
   target_link_libraries(EosProtobuf-Static PRIVATE
-    eosCommon-Static
     ${PROTOBUF_LIBARIES}
     ${GRPC_GRPC++_LIBRARY_STATIC})
 else ()

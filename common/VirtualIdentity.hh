@@ -23,8 +23,10 @@
 
 #include "common/Namespace.hh"
 #include <vector>
+#include <memory>
 #include <string>
 #include <XrdOuc/XrdOucString.hh>
+#include "common/token/Token.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -54,8 +56,10 @@ struct VirtualIdentity {
   std::string email;
   std::string fullname;
   std::string federation;
+  std::string scope;
   bool sudoer;
-
+  std::shared_ptr<Token> token;
+  
   //----------------------------------------------------------------------------
   //! Constructor - assign to "nobody" by default
   //----------------------------------------------------------------------------
@@ -96,6 +100,10 @@ struct VirtualIdentity {
   //----------------------------------------------------------------------------
   std::string getGroupAtDomain() const;
 
+  //----------------------------------------------------------------------------
+  //! Return a vid trace string
+  //----------------------------------------------------------------------------
+  std::string getTrace() const;
 };
 
 EOSCOMMONNAMESPACE_END

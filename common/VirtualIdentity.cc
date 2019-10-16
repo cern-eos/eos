@@ -22,6 +22,9 @@
  ************************************************************************/
 
 #include "common/VirtualIdentity.hh"
+#include "common/Timing.hh"
+#include <iostream>
+#include <sstream>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -118,6 +121,20 @@ std::string
 VirtualIdentity::getGroupAtDomain() const
 {
   return gid_string + "@" + domain;
+}
+
+//----------------------------------------------------------------------------
+// Return vid trace string
+//----------------------------------------------------------------------------
+
+std::string
+VirtualIdentity::getTrace() const
+{
+  std::stringstream ss;
+  
+  time_t now = time(NULL);
+  ss << "[" << eos::common::Timing::ltime(now) << "] uid:" << uid << "[" << uid_string << "] gid:" << gid << "[" << gid_string << "] tident:" << tident.c_str() << " name:" << name << " dn:" << dn << " prot:" << prot << " host:" << host << " domain:" << domain << " geo:" << geolocation << " sudo:" << sudoer;
+  return ss.str();
 }
 
 EOSCOMMONNAMESPACE_END

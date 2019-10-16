@@ -37,6 +37,7 @@
 #include "common/Assert.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "common/Constants.hh"
+#include "common/token/EosTok.hh"
 
 using eos::common::RWMutexReadLock;
 
@@ -2819,6 +2820,12 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
   if (paths.size() < 1) {
     eos_static_err("the queue name does not contain any /");
     return false;
+  }
+
+  // apply a new token generation value
+  if (tokens[1]=="token.generation") {
+    eos_static_info("token-generation := %s", val.c_str());
+    eos::common::EosTok::sTokenGeneration = strtoull(val.c_str(), 0, 10);
   }
 
   common::SharedHashLocator locator;

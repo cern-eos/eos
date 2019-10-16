@@ -23,6 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
+#include "common/StringTokenizer.hh"
 /*----------------------------------------------------------------------------*/
 
 /* Determine the mapping on server side */
@@ -30,6 +31,17 @@ int
 com_whoami(char* arg)
 {
   XrdOucString in = "mgm.cmd=whoami";
+
+  eos::common::StringTokenizer subtokenizer(arg);
+  subtokenizer.GetLine();
+  XrdOucString token = subtokenizer.GetToken();
+
+
+  if (token.length()) {
+    in += "&authz=";
+    in += token;
+  }
+
   global_retc = output_result(client_command(in));
   return (0);
 }

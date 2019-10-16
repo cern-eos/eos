@@ -23,6 +23,7 @@
 
 #include "common/Path.hh"
 #include "common/Constants.hh"
+#include "common/token/EosTok.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/inspector/FileInspector.hh"
@@ -545,7 +546,8 @@ ProcCommand::Space()
                   (key == "geo.access.policy.read.exact") ||
                   (key == "geo.access.policy.write.exact") ||
                   (key == "filearchivedgc") ||
-                  (key == "balancer.threshold") ||
+		  (key == "balancer.threshold") ||
+		  (key == "token.generation") ||
                   (key == eos::common::SCAN_IO_RATE_NAME) ||
                   (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
                   (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
@@ -693,6 +695,9 @@ ProcCommand::Space()
                       stdOut += "=";
                       stdOut += value.c_str();
                     }
+		    if (( key == "token.generation" )) {
+		      eos::common::EosTok::sTokenGeneration = strtoull(value.c_str(), 0, 0);
+		    }
                   } else {
                     retc = EINVAL;
                     stdErr = "error: value has to be a positiv number";

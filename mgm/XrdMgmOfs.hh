@@ -1389,8 +1389,8 @@ public:
   //! is changed using third party copy)
   XrdOucString MgmProcConversionPath;
   XrdOucString MgmProcWorkflowPath; ///< Directory with workflows
-  XrdOucString
-  MgmProcTrackerPath; ///< Directory with file creations which are not consistent (yet)
+  XrdOucString MgmProcTrackerPath; ///< Directory with file creations which are not consistent (yet)
+  XrdOucString MgmProcTokenPath; ///< Directory storing the token generation as ext attribute and vouchers
   //! Full path to the master indication proc file
   XrdOucString MgmProcMasterPath;
   XrdOucString MgmProcArchivePath; ///< EOS directory where archive dir inodes

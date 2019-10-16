@@ -90,7 +90,7 @@ int journalcache::location(std::string& path, bool mkpath)
     eos::common::Path cPath(cache_path);
 
     if (!cPath.MakeParentPath(S_IRWXU)) {
-      return errno;
+      return -errno;
     }
   }
 
@@ -164,7 +164,7 @@ int journalcache::attach(fuse_req_t req, std::string& cookie, int _flags)
     fd = open(path.c_str(), O_CREAT | O_RDWR, S_IRWXU);
 
     if (fd < 0) {
-      return errno;
+      return -errno;
     }
 
     cachesize = read_journal();

@@ -29,7 +29,10 @@ include_directories(
   ${FOLLY_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
-  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src)
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src
+  ${CMAKE_BINARY_DIR}
+  ${PROTOBUF_INCLUDE_DIRS}
+  )
 
 #-------------------------------------------------------------------------------
 # XrdMqClient-Objects

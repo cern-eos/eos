@@ -122,7 +122,7 @@ diskcache::location(std::string& path, bool mkpath)
     eos::common::Path cPath(cache_path);
 
     if (!cPath.MakeParentPath(S_IRWXU)) {
-      return errno;
+      return -errno;
     }
   }
 

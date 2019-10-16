@@ -94,9 +94,17 @@ XrdMgmOfsFile::open(const char* inpath,
   const char* tident = error.getErrUser();
   errno = 0;
   EXEC_TIMING_BEGIN("Open");
+  XrdOucString spath = inpath;
+  XrdOucString sinfo = ininfo;
+
   SetLogId(logId, tident);
   {
     EXEC_TIMING_BEGIN("IdMap");
+    if (spath.beginswith("/zteos64:")) {
+      sinfo += "&authz=";
+      sinfo += spath.c_str()+1;
+      ininfo = sinfo.c_str();
+    }
     eos::common::Mapping::IdMap(client, ininfo, tident, vid);
     EXEC_TIMING_END("IdMap");
   }
@@ -105,7 +113,7 @@ XrdMgmOfsFile::open(const char* inpath,
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
   BOUNCE_NOT_ALLOWED;
-  XrdOucString spath = path;
+  spath = path;
 
   if (!spath.beginswith("/proc/") && spath.endswith("/")) {
     return Emsg(epname, error, EISDIR,
@@ -433,7 +441,10 @@ XrdMgmOfsFile::open(const char* inpath,
 
   eos_debug("msg=\"authorize done\"");
   eos::common::Path cPath(path);
-
+  
+  // indicate the scope for a possible token
+  vid.scope = cPath.GetPath();
+  
   // prevent any access to a recycling bin for writes
   if (isRW && cPath.GetFullPath().beginswith(Recycle::gRecyclingPrefix.c_str())) {
     return Emsg(epname, error, EPERM,
@@ -642,6 +653,7 @@ XrdMgmOfsFile::open(const char* inpath,
     // ACL and permission check
     // -------------------------------------------------------------------------
     eos::IFileMD::XAttrMap attrmapF;
+
     gOFS->_attr_ls(cPath.GetPath(), error, vid, 0, attrmapF, false);
     acl.SetFromAttrMap(attrmap, vid, &attrmapF);
     eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d",
@@ -881,6 +893,9 @@ XrdMgmOfsFile::open(const char* inpath,
               }
             }
 
+	    fmd->setAttribute("sys.utrace", logId);
+	    fmd->setAttribute("sys.vtrace",vid.getTrace());
+				
             if (ref_fmd) {
               // If we have a target file we tag the latest atomic upload name
               // on a temporary attribute

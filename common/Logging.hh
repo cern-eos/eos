@@ -316,8 +316,13 @@ public:
     vid = vid_in;
     snprintf(cident, sizeof(cident), "%s", td);
 
-    if (newlogid != logId) {
-      snprintf(logId, sizeof(logId), "%s", newlogid);
+    if (vid.token && vid.token->Valid()) {
+      // use the voucher as logging ID
+      snprintf(logId, sizeof(logId), "%s", vid.token->Voucher().c_str());
+    } else {
+      if (newlogid != logId) {
+	snprintf(logId, sizeof(logId), "%s", newlogid);
+      }
     }
   }
 

@@ -23,7 +23,10 @@
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
-  ${XROOTD_INCLUDE_DIRS})
+  ${XROOTD_INCLUDE_DIRS}
+  ${CMAKE_BINARY_DIR}
+  ${PROTOBUF_INCLUDE_DIRS}
+)
 
 #-------------------------------------------------------------------------------
 # Create sync executables

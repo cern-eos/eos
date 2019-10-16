@@ -57,7 +57,7 @@ add_executable(
 
 target_link_libraries(
   eos-benchmark
-  EosFstIo-Static
+  EosFstIo
   ${XROOTD_CL_LIBRARY}
   ${PROTOBUF_LIBRARY}
   ${UUID_LIBRARIES}

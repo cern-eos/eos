@@ -93,6 +93,10 @@ ICmdHelper::ExecuteWithoutPrint(bool add_route)
   if (mGlobalOpts.mForceSss) {
     oss << "&xrd.wantprot=sss";
   }
+  
+  if (getenv("EOSAUTHZ")) {
+    oss << "&authz=" << getenv("EOSAUTHZ");
+  }
 
   if (mGlobalOpts.mDebug) {
     PrintDebugMsg(oss.str());
@@ -338,6 +342,10 @@ ICmdHelper::AddRouteInfo(std::string& cmd)
 
   case RequestProto::kAcl:
     oss << "&eos.route=" << mReq.acl().path();
+    break;
+
+  case RequestProto::kToken:
+    oss << "&eos.route=" << mReq.token().path();
     break;
 
   case RequestProto::kRm:

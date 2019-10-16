@@ -153,7 +153,7 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //! @param vid virtual id to match ACL
   //! @param allowUserAcl if true evaluate the user acl for permissions
   //----------------------------------------------------------------------------
-  void Set(std::string sysacl, std::string useracl,
+  void Set(std::string sysacl, std::string useracl, std::string tokenacl,
            const eos::common::VirtualIdentity& vid,
            bool allowUserAcl = false);
 
@@ -268,6 +268,13 @@ public:         // [+] prevents '+' interpreted as "one or more"
   {
     return mCanPrepare;
   }
+
+  //----------------------------------------------------------------------------
+  //! Extract an ACL from a token
+  //----------------------------------------------------------------------------
+
+  inline std::string TokenAcl(const eos::common::VirtualIdentity& vid) const;
+
 
 private:
   bool mCanRead; ///< acl allows read access

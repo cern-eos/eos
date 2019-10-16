@@ -592,13 +592,13 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 
   if (bcache < 0) {
     char msg[1024];
-    snprintf(msg, sizeof(msg), "attach to cache failed - ino=%#lx", id());
+    snprintf(msg, sizeof(msg), "attach to cache failed - ino=%#lx errno=%d", id(), errno);
     throw std::runtime_error(msg);
   }
 
   if (jcache < 0) {
     char msg[1024];
-    snprintf(msg, sizeof(msg), "attach to journal failed - ino=%#lx", id());
+    snprintf(msg, sizeof(msg), "attach to journal failed - ino=%#lx errno=%d", id(), errno);
     throw std::runtime_error(msg);
   }
 

@@ -36,6 +36,7 @@
 #include "namespace/interface/IView.hh"
 #include "common/Constants.hh"
 #include "common/StringTokenizer.hh"
+#include "common/token/EosTok.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -696,6 +697,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             (key == "geo.access.policy.read.exact") ||
             (key == "geo.access.policy.write.exact") ||
             (key == "filearchivedgc") ||
+	    (key == "token.generation") ||
             (key == "balancer.threshold") ||
             (key == eos::common::SCAN_IO_RATE_NAME) ||
             (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
@@ -857,6 +859,9 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                 std_err.str("error: cannot set space config value");
               } else {
                 std_out.str("success: setting " + key + "=" + value);
+		if (( key == "token.generation" )) {
+		  eos::common::EosTok::sTokenGeneration = strtoull(value.c_str(), 0, 0);
+		}
               }
             } else {
               ret_c = EINVAL;

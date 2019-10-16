@@ -35,6 +35,7 @@
 #include "mgm/proc/IProcCommand.hh"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/RmCmd.hh"
+#include "mgm/proc/user/TokenCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "namespace/Prefetcher.hh"
@@ -1242,6 +1243,9 @@ GrpcNsInterface::Exec(eos::common::VirtualIdentity& ivid,
   case eos::rpc::NSRequest::kAcl:
     return Acl(vid, reply->mutable_acl() ,&(request->acl()));
     break;
+  case eos::rpc::NSRequest::kToken:
+    return Token(vid, reply->mutable_error(), &(request->token()));
+    break;
   default:
     reply->mutable_error()->set_code(EINVAL);
     reply->mutable_error()->set_msg("error: command not supported");
@@ -2058,6 +2062,49 @@ GrpcNsInterface::Acl(eos::common::VirtualIdentity& vid,
 
   return grpc::Status::OK;
 }
+
+
+grpc::Status 
+GrpcNsInterface::Token(eos::common::VirtualIdentity& vid,
+		       eos::rpc::NSResponse::ErrorResponse* reply,
+		       const eos::rpc::NSRequest::TokenRequest* request)
+{
+  eos::console::RequestProto req;
+
+  // translate the grpc request proto to a console request proto
+  req.mutable_token()->set_path(request->token().token().path());
+  req.mutable_token()->set_permission(request->token().token().permission());
+  req.mutable_token()->set_owner(request->token().token().owner());
+  req.mutable_token()->set_group(request->token().token().group());
+  req.mutable_token()->set_expires(request->token().token().expires());
+  req.mutable_token()->set_generation(request->token().token().generation());
+  req.mutable_token()->set_allowtree(request->token().token().allowtree());
+  req.mutable_token()->set_vtoken(request->token().token().vtoken());
+  for ( int i = 0; i < request->token().token().origins_size(); ++i ) {
+    const eos::rpc::ShareAuth& auth = request->token().token().origins(i);
+    eos::console::TokenAuth* newauth = req.mutable_token()->add_origins();
+    newauth->set_host(auth.host());
+    newauth->set_prot(auth.prot());
+    newauth->set_name(auth.name());
+  }
+
+  eos::mgm::TokenCmd tokencmd(std::move(req), vid);
+
+  // reuse the CLI implementation
+  eos::console::ReplyProto preply = tokencmd.ProcessRequest();
+
+  if (preply.retc())
+  {
+    reply->set_code(preply.retc());
+    reply->set_msg(preply.std_err());
+    return grpc::Status::OK;
+  }
+
+  reply->set_code(0);
+  reply->set_msg(preply.std_out());
+  return grpc::Status::OK;
+}
+
 #endif
 
 EOSMGMNAMESPACE_END

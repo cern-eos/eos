@@ -212,6 +212,11 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
   } else {                                                              \
     while(store_path.replace("#AND#","&")){}                            \
   }                                                                     \
+  if (vid.token && vid.token->Valid()) {				\
+    if (!strncmp(path,"/zteos64:",9)) {					\
+      store_path = vid.token->Path().c_str();				\
+    }									\
+  }									\
   if ( inpath && ( !(ininfo) || (ininfo && (!strstr(ininfo,"eos.prefix"))))) { \
     XrdOucString iinpath=store_path;                                    \
     gOFS->PathRemap(iinpath.c_str(),store_path);                        \

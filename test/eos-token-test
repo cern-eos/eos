@@ -1,0 +1,102 @@
+#!/bin/bash
+set -x #echo on
+prefix=$1
+host=${2-"localhost"}
+url=root://$host
+
+test -z "$1" && exit -1
+
+# cleanup
+eos rm -r $prefix/t_token/
+
+
+# make a private token test directory
+eos mkdir -p $prefix/t_token/
+eos chown 99:99 $prefix/
+eos chown 11:11 $prefix/t_token/
+eos chmod 700 $prefix/t_token/
+eos chmod 700 $prefix/
+
+now=`date +%s`
+let later=$now+300
+
+###############################################################################################
+# single file token - test 1
+FILETOKEN=`eos token --path $prefix/t_token/file.1 --expires $later`
+# fail because of read-only permission
+xrdcp /etc/passwd "root://localhost/$prefix/t_token/file.1" && exit -1
+xrdcp /etc/passwd "root://localhost/$prefix/t_token/file.1?authz=$FILETOKEN" && exit -1
+FILETOKEN=`eos token --path $prefix/t_token/file.1 --expires $later --permission rwx`
+# fail because of path mismatch in token
+xrdcp /etc/passwd "root://localhost/$prefix/t_token/file.wrong?authz=$FILETOKEN" && exit -1
+xrdcp /etc/passwd "root://localhost/$prefix/t_token/?authz=$FILETOKEN" && exit -1
+
+# succeed upload with CGI token
+xrdcp /etc/passwd "root://localhost/$prefix/t_token/file.1?authz=$FILETOKEN" || exit -1
+# succeed overwrite with CGI token
+xrdcp /etc/passwd "root://localhost/$prefix/t_token/file.1?authz=$FILETOKEN" -f || exit -1
+# succeed upload with token path
+xrdcp /etc/passwd "root://localhost//$FILETOKEN" -f || exit -1
+# cleanup token test directory
+#eos rm -r $prefix/t_token/
+
+###############################################################################################
+# single file token for a specific user- test 2
+
+FILETOKEN=`eos token --path $prefix/t_token/file.2 --expires $later --owner nobody --group nobody --permission rwx`
+# succeed upload with CGI token
+xrdcp /etc/passwd "root://localhost/$prefix/t_token/file.1?authz=$FILETOKEN" && exit -2
+xrdcp /etc/passwd "root://localhost/$prefix/t_token/file.2?authz=$FILETOKEN" || exit -2
+# succeed upload with token path
+xrdcp /etc/passwd "root://localhost//$FILETOKEN" -f || exit -2
+
+eos ls -la $prefix/t_token/
+echo OK all passed
+
+
+###############################################################################################
+# directory token - test 3
+DIRTOKEN=`eos token --path $prefix/t_token/ --permission rwx --expires $later`
+# fail because of wrong path
+xrdcp /etc/passwd "root://localhost/$prefix/file.3?authz=$DIRTOKEN" -f && exit -3
+# fail becuase of missing tree flag
+xrdcp /etc/passwd "root://localhost/$prefix/t_token/file.3?authz=$DIRTOKEN" -f && exit -3
+xrdcp /etc/passwd "root://localhost/$prefix/t_token/dir.1/file.3?authz=$DIRTOKEN" -f && exit -3
+DIRTOKEN=`eos token --path $prefix/t_token/ --permission rwx --expires $later --tree`
+eos token --token $DIRTOKEN
+# succeed with tree flag
+xrdcp /etc/passwd "root://localhost/$prefix/t_token/file.3?authz=$DIRTOKEN" -f || exit -3
+xrdcp /etc/passwd "root://localhost/$prefix/t_token/dir.1/file.3?authz=$DIRTOKEN" -f || exit -3
+xrdcp /etc/passwd "root://localhost/$prefix/t_token/dir.2/dir.2.1/file.4?authz=$DIRTOKEN" -f || exit -3
+
+###############################################################################################
+# directory token for a specific user - test 4
+DIRTOKEN=`eos token --path $prefix/t_token/ --permission rwx --expires $later --owner nobody --group nobody`
+# succeed because of unix permissions
+xrdcp /etc/passwd "root://localhost/$prefix/file.4?authz=$DIRTOKEN" -f || exit -4
+# fail becuase of missing tree flag
+xrdcp /etc/passwd "root://localhost/$prefix/t_token/file.4?authz=$DIRTOKEN" -f && exit -4
+xrdcp /etc/passwd "root://localhost/$prefix/t_token/dir.3/file.4?authz=$DIRTOKEN" -f && exit -4
+DIRTOKEN=`eos token --path $prefix/t_token/ --permission rwx --expires $later --tree --owner nobody --group nobody`
+eos token --token $DIRTOKEN
+# succeed with tree flag
+xrdcp /etc/passwd "root://localhost/$prefix/t_token/file.5?authz=$DIRTOKEN" -f || exit -4
+xrdcp /etc/passwd "root://localhost/$prefix/t_token/dir.3/file.5?authz=$DIRTOKEN" -f || exit -4
+xrdcp /etc/passwd "root://localhost/$prefix/t_token/dir.4/dir.2.1/file.6?authz=$DIRTOKEN" -f || exit -4
+
+eos find  $prefix/t_token/
+eos ls -la $prefix/t_token/
+eos ls -la $prefix/t_token/dir.1/
+eos ls -la $prefix/t_token/dir.2/
+eos ls -la $prefix/t_token/dir.3/
+eos ls -la $prefix/t_token/dir.4
+
+
+###############################################################################################
+# directory token for mkdir/rmdir operations - test 5
+DIRTOKEN=`eos token --path $prefix/t_token/ --permission rwx --expires $later`
+env EOSAUTHZ=$DIRTOKEN eos mkdir -p $prefix/t_token/tree.1/tree.2 || exit -5
+
+
+# cleanup
+eos rm -r $prefix/t_token/

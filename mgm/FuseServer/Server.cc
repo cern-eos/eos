@@ -357,6 +357,11 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
     eos::IFileMD::XAttrMap xattrs = cmd->getAttributes();
 
     for (const auto& elem : xattrs) {
+      if ( (elem.first) == "sys.vtrace") 
+	continue;
+      if ( (elem.first) == "sys.utrace")
+	continue;
+
       (*dir.mutable_attr())[elem.first] = elem.second;
 
       if ((elem.first) == "eos.btime") {
@@ -492,6 +497,11 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
         continue;
       }
 
+      if ( (elem.first) == "sys.vtrace") 
+	continue;
+      if ( (elem.first) == "sys.utrace")
+	continue;
+	  
       (*file.mutable_attr())[elem.first] = elem.second;
 
       if ((elem.first) == "sys.eos.btime") {
@@ -657,8 +667,7 @@ Server::FillContainerCAP(uint64_t id,
     if (sysacl.length() || useracl.length()) {
       bool evaluseracl = (!S_ISDIR(dir.mode())) ||
                          dir.attr().count("sys.eval.useracl") > 0;
-      Acl acl;
-      acl.Set(sysacl,
+      Acl acl(sysacl,
               useracl,
               vid,
               evaluseracl);
@@ -1575,6 +1584,7 @@ Server::OpSetDirectory(const std::string& id,
       char btime[256];
       snprintf(btime, sizeof(btime), "%lu.%lu", md.btime(), md.btime_ns());
       cmd->setAttribute("sys.eos.btime", btime);
+      cmd->setAttribute("sys.vtrace",vid.getTrace());
     }
 
     if (op != UPDATE && md.pmtime()) {
@@ -1948,6 +1958,11 @@ Server::OpSetFile(const std::string& id,
       pcmd->addFile(fmd.get());
       eos_info("ino=%lx pino=%lx md-ino=%lx create-file", (long) md_ino,
                (long) md.md_pino(), md_ino);
+      // store the birth time as an extended attribute
+      char btime[256];
+      snprintf(btime, sizeof(btime), "%lu.%lu", md.btime(), md.btime_ns());
+      fmd->setAttribute("sys.eos.btime", btime);
+      fmd->setAttribute("sys.vtrace",vid.getTrace());
     }
 
     fmd->setName(md.name());
@@ -1994,10 +2009,6 @@ Server::OpSetFile(const std::string& id,
       pt_mtime.tv_sec = pt_mtime.tv_nsec = 0;
     }
 
-    // store the birth time as an extended attribute
-    char btime[256];
-    snprintf(btime, sizeof(btime), "%lu.%lu", md.btime(), md.btime_ns());
-    fmd->setAttribute("sys.eos.btime", btime);
     gOFS->eosFileService->updateStore(fmd.get());
 
     if (op != UPDATE) {
@@ -2158,6 +2169,7 @@ Server::OpSetLink(const std::string& id,
       char btime[256];
       snprintf(btime, sizeof(btime), "%lu.%lu", md.btime(), md.btime_ns());
       fmd->setAttribute("sys.eos.btime", btime);
+      fmd->setAttribute("sys.vtrace",vid.getTrace());
     }
 
     struct timespec pt_mtime;

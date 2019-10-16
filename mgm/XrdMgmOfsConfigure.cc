@@ -1383,6 +1383,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmProcWorkflowPath += "/workflow";
   MgmProcTrackerPath = MgmProcPath;
   MgmProcTrackerPath += "/tracker";
+  MgmProcTokenPath = MgmProcPath;
+  MgmProcTokenPath += "/token";
   Recycle::gRecyclingPrefix.insert(0, MgmProcPath.c_str());
   instancepath += subpath;
   // Initialize user mapping
@@ -1630,6 +1632,27 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         Eroute.Emsg("Config", "cannot set the /eos/../proc/creation directory mode "
                     "to initial mode");
         eos_crit("cannot set the /eos/../proc/creation directory mode to 700");
+        return 1;
+      }
+    }
+
+    // Create token directory
+    try {
+      eosmd = gOFS->eosView->getContainer(MgmProcTokenPath.c_str());
+    } catch (const eos::MDException& e) {
+      eosmd = nullptr;
+    }
+
+    if (!eosmd) {
+      try {
+        eosmd = gOFS->eosView->createContainer(MgmProcTokenPath.c_str(), true);
+        eosmd->setMode(S_IFDIR | S_IRWXU);
+        eosmd->setCUid(0); // token directory is owned by root
+        gOFS->eosView->updateContainerStore(eosmd.get());
+      } catch (const eos::MDException& e) {
+        Eroute.Emsg("Config", "cannot set the /eos/../proc/token directory mode "
+                    "to initial mode");
+        eos_crit("cannot set the /eos/../proc/token directory mode to 700");
         return 1;
       }
     }

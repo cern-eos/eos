@@ -356,6 +356,10 @@ eos_grpc() {
    echo eos-grpc-test $1 ; eval eos-grpc-test $1 >> $EOSCERTLOG 2>&1
 }
 
+eos_token() {
+   echo eos-token-test $1 ; eval eos-token-test $1 >> $EOSCERTLOG 2>&1
+}
+
 shell() {
     echo $* >& $EOSLASTLOG; eval $* >> $EOSCERTLOG 2>&1
 }
@@ -1562,6 +1566,14 @@ runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/ins
 categorie="grpc"
 # ------------------------------------------------------------------------------
 runtest "### eos-grpc  " unix 0 "" eos_grpc "/eos/$EOS_TEST_INSTANCE/test/instancetest/grpc.dir/"
+
+################################################################################
+# Token tests
+################################################################################
+# ------------------------------------------------------------------------------
+categorie="token"
+# ------------------------------------------------------------------------------
+runtest "### eos-token  " unix 0 "" eos_grpc "/eos/$EOS_TEST_INSTANCE/test/instancetest/token.dir/"
 
 ################################################################################
 # RAIN-LIKE LAYOUT TESTS FOR WR/RD AND RECOVERY
