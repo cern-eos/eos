@@ -111,8 +111,9 @@ namespace
   //----------------------------------------------------------------------------
   eos::IFileMD::QoSAttrMap QoSGetter::CDMI() {
     eos::IFileMD::QoSAttrMap cdmiMap;
-    std::string sgeotags = "";
+    std::ostringstream ssgeotags;
     size_t count = 0;
+    ssgeotags << "[";
 
     cdmiMap[CDMI_REDUNDANCY_TAG] =
         std::to_string(eos::common::LayoutId::GetRedundancyStripeNumber(
@@ -130,14 +131,15 @@ namespace
         geotag = filesystem->GetString("stat.geotag");
       }
 
-      sgeotags += geotag;
+      ssgeotags << " " << geotag;
 
       if (++count < fmd->getNumLocation()) {
-        sgeotags += " ";
+        ssgeotags << ",";
       }
     }
 
-    cdmiMap[CDMI_PLACEMENT_TAG] = sgeotags;
+    ssgeotags << " ]";
+    cdmiMap[CDMI_PLACEMENT_TAG] = ssgeotags.str();
 
     return cdmiMap;
   }
