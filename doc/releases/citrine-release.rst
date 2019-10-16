@@ -15,6 +15,22 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.5.10 Citrine``
+===================
+
+2019-10-16
+
+Bug
+----
+
+* [EOS-3736] - FST registration causing locking issue
+* [EOS-3737] - Possible eos file verify commands causing deadlock while restarting mgm
+* [EOS-3774] - FUSEX: fix recovery problem when files are truncated to 0 size
+* FUSEX: fix rc=EPERM for setxattr if not called by uid=0
+* FUSEX: fix possible out-of-memory scenario when applications keep writing on fatal
+  error conditions like out-of-quota
+
+
 ``v4.5.9 Citrine``
 ===================
 
@@ -695,10 +711,10 @@ Bug
 * [EOS-3276] - Inconsistent behavior (and doc) for "eos fs config" and "eos node config"
 * [EOS-3296] - eoscp crash while copying 'opaque_info' data
 * [EOS-3299] - Workaround for XRootD TPC bug in Converter which leads to data loss.
-	       This is not a definitive fix.
+               This is not a definitive fix.
 * [EOS-3280] - Logrotate rpm dependency missing for eos-server package
 * [EOS-3303] - Implement InheritChildren method for the QuarkContainerMD which otherwise
-	       crashes the MGM for commands like "eos --json fileinfo /path/to/dir/".
+               crashes the MGM for commands like "eos --json fileinfo /path/to/dir/".
 
 Improvement
 ------------
@@ -2441,7 +2457,7 @@ Bugfix
 -------
 
 - FUSE: when using krb5 or x509, allow both krb5/x509 and unix so that authentication
-	does not fail on the fst (using only unix) when using XRootD >= 4.4
+        does not fail on the fst (using only unix) when using XRootD >= 4.4
 
 
 ``v0.4.30 Citrine``
@@ -2453,9 +2469,9 @@ Bugfix
 -------
 
 - SPEC: Add workaround in the %posttrans section of the eos-fuse-core package
-	to keep all the necessary files and directories when doing an update.
+        to keep all the necessary files and directories when doing an update.
 - CMAKE: Remove the /var/eos directory from the eos-fuse-core package and fix
-	type in directory name.
+        type in directory name.
 
 ``v0.4.29 Citrine``
 ===================
