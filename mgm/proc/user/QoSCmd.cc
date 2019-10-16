@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "common/LayoutId.hh"
+#include "common/StringConversion.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Scheduler.hh"
 #include "mgm/qos/QoSClass.hh"
@@ -321,24 +322,52 @@ std::string QoSCmd::MapToDefaultOutput(const eos::IFileMD::QoSAttrMap& map)
 //------------------------------------------------------------------------------
 std::string QoSCmd::MapToJSONOutput(const eos::IFileMD::QoSAttrMap& map)
 {
-  Json::Value jsonOut, jsonCDMI;
+  Json::Value jsonOut, jsonCDMI, jsonPlacement;
+  jsonPlacement = Json::arrayValue;
+
+  // Parse the placement array string into JSON Array
+  // Format: [ location, location, ... ]
+  auto parsePlacementArray = [&jsonPlacement](std::string placement) {
+    size_t start = placement.find("[");
+    size_t end = placement.find("]");
+
+    if ((start == std::string::npos) || (end == std::string::npos)) {
+      return;
+    }
+
+    std::vector<std::string> locations;
+    placement = placement.substr(start + 1, end - 1).c_str();
+    eos::common::StringConversion::ReplaceStringInPlace(placement, ",", " ");
+    eos::common::StringConversion::Tokenize(placement, locations);
+
+    for (const auto& location: locations) {
+      jsonPlacement.append(location);
+    }
+  };
 
   for (const auto& it: map) {
     XrdOucString key = it.first.c_str();
 
     if (key.beginswith("cdmi_")) {
-      jsonCDMI[it.first] = it.second;
+      if (key == CDMI_PLACEMENT_TAG) {
+        parsePlacementArray(it.second);
+      } else {
+        jsonCDMI[it.first] = it.second;
+      }
     } else {
       jsonOut[it.first] = it.second;
     }
+  }
+
+  if (map.count(CDMI_PLACEMENT_TAG)) {
+    jsonCDMI[CDMI_PLACEMENT_TAG] = jsonPlacement;
   }
 
   if (!jsonCDMI.empty()) {
     jsonOut["metadata"] = jsonCDMI;
   }
 
-  return static_cast<std::ostringstream&>(
-    std::ostringstream() << jsonOut).str();
+  return Json::StyledWriter().write(jsonOut);
 }
 
 //------------------------------------------------------------------------------
