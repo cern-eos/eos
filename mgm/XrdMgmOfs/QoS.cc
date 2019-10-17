@@ -33,6 +33,12 @@ namespace
   //! The class takes as input a file metadata pointer,
   //! which it will use to query for properties.
   //!
+  //! The "qos_class" property retrieval mechanism:
+  //!
+  //! Initially, an attempt is made to retrieve it from extended attributes.
+  //! If that fails, an attempt is made to match the list of attributes
+  //! against a defined QoS class. If no match is found, "null" is returned.
+  //!
   //! The class should be called under lock to ensure thread safety.
   //----------------------------------------------------------------------------
   class QoSGetter
@@ -69,6 +75,7 @@ namespace
     //--------------------------------------------------------------------------
     std::string Attr(const char* key) const;
     std::string ChecksumType() const;
+    std::string Class() const;
     std::string DiskSize() const;
     std::string LayoutType() const;
     std::string Id() const;
@@ -81,7 +88,7 @@ namespace
     ///< dispatch table based on QoS key word
     std::map<std::string, std::function<std::string()>> dispatch {
       { "checksum",    [this](){ return QoSGetter::ChecksumType(); } },
-      { "current_qos", [this](){ return QoSGetter::Attr("user.eos.qos.class");  } },
+      { "current_qos", [this](){ return QoSGetter::Class();        } },
       { "disksize",    [this](){ return QoSGetter::DiskSize();     } },
       { "layout",      [this](){ return QoSGetter::LayoutType();   } },
       { "id",          [this](){ return QoSGetter::Id();           } },
@@ -241,6 +248,39 @@ namespace
     return std::to_string(fmd->getSize());
   }
 
+  std::string QoSGetter::Class() const {
+    std::string qos_class = QoSGetter::Attr("user.eos.qos.class");
+
+    if (qos_class == "null") {
+      eos::IFileMD::QoSAttrMap attributes;
+
+      attributes["checksum"] = QoSGetter::ChecksumType();
+      attributes["layout"] = QoSGetter::LayoutType();
+      attributes["placement"] = QoSGetter::Placement();
+      attributes["replica"] = QoSGetter::Redundancy();
+
+      for (const auto& it_class: gOFS->mQoSClassMap) {
+        const auto& class_attributes = it_class.second.attributes;
+        bool match = true;
+
+        for (auto it = attributes.begin();
+             it != attributes.end() && match; it++) {
+          if ((!class_attributes.count(it->first)) ||
+              (class_attributes.at(it->first) != it->second)) {
+            match = false;
+          }
+        }
+
+        if (match) {
+          qos_class = it_class.second.name;
+          break;
+        }
+      }
+    }
+
+    return qos_class;
+  }
+
   //----------------------------------------------------------------------------
   //! Helper function to check the given <key>=<value> is a valid QoS property
   //!
@@ -283,9 +323,9 @@ XrdMgmOfs::_qos_ls(const char* path, XrdOucErrInfo& error,
   eos_info("msg=\"list QoS values\" path=%s only_cdmi=%d", path, only_cdmi);
 
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
-  eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
 
   try {
+    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
     std::shared_ptr<eos::IFileMD> fmd = gOFS->eosView->getFile(path);
     map = (only_cdmi) ? QoSGetter{fmd}.CDMI()
                       : QoSGetter{fmd}.All();
@@ -294,6 +334,33 @@ XrdMgmOfs::_qos_ls(const char* path, XrdOucErrInfo& error,
     eos_debug("msg=\"exception retrieving file metadata\" path=%s "
               "ec=%d emsg=\"%s\"", path, e.getErrno(),
               e.getMessage().str().c_str());
+  }
+
+  // Check if identified QoS class needs to be updated
+  if (!errno && !only_cdmi && map["current_qos"] != "null") {
+    eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
+
+    try {
+      std::shared_ptr<eos::IFileMD> fmd = gOFS->eosView->getFile(path);
+      std::string current_qos;
+
+      if (fmd->hasAttribute("user.eos.qos.class")) {
+        current_qos = fmd->getAttribute("user.eos.qos.class");
+      }
+
+      if (map["current_qos"] != current_qos) {
+        eos_info("msg=\"setting QoS class match in extended attributes\" "
+                 "path=%s qos_class=%s", path, map["current_qos"].c_str());
+
+        fmd->setAttribute("user.eos.qos.class", map["current_qos"]);
+        eosView->updateFileStore(fmd.get());
+      }
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      eos_debug("msg=\"exception setting extended attributes\" path=%s "
+                "ec=%d emsg=\"%s\"", path, e.getErrno(),
+                e.getMessage().str().c_str());
+    }
   }
 
   EXEC_TIMING_END("QoSLs");
@@ -329,9 +396,9 @@ XrdMgmOfs::_qos_get(const char* path, XrdOucErrInfo& error,
   }
 
   eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
-  eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
 
   try {
+    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
     std::shared_ptr<eos::IFileMD> fmd = gOFS->eosView->getFile(path);
     value = QoSGetter{fmd}.Get(key).c_str();
   } catch (eos::MDException& e) {
@@ -339,6 +406,33 @@ XrdMgmOfs::_qos_get(const char* path, XrdOucErrInfo& error,
     eos_debug("msg=\"exception retrieving file metadata\" path=%s "
               "ec=%d emsg=\"%s\"", path, e.getErrno(),
               e.getMessage().str().c_str());
+  }
+
+  // Check if identified QoS class needs to be updated
+  if (!errno && !strcmp(key, "current_qos") && value != "null") {
+    eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
+
+    try {
+      std::shared_ptr<eos::IFileMD> fmd = gOFS->eosView->getFile(path);
+      XrdOucString current_qos;
+
+      if (fmd->hasAttribute("user.eos.qos.class")) {
+        current_qos = fmd->getAttribute("user.eos.qos.class").c_str();
+      }
+
+      if (value != current_qos) {
+        eos_info("msg=\"setting QoS class match in extended attributes\" "
+                 "path=%s qos_class=%s", path, value.c_str());
+
+        fmd->setAttribute("user.eos.qos.class", value.c_str());
+        eosView->updateFileStore(fmd.get());
+      }
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      eos_debug("msg=\"exception setting extended attributes\" path=%s "
+                "ec=%d emsg=\"%s\"", path, e.getErrno(),
+                e.getMessage().str().c_str());
+    }
   }
 
   EXEC_TIMING_END("QoSGet");
