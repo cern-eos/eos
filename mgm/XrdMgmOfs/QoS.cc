@@ -118,35 +118,28 @@ namespace
   //----------------------------------------------------------------------------
   eos::IFileMD::QoSAttrMap QoSGetter::CDMI() {
     eos::IFileMD::QoSAttrMap cdmiMap;
-    std::ostringstream ssgeotags;
-    size_t count = 0;
-    ssgeotags << "[";
+    std::string qos_name = QoSGetter::Get("current_qos");
 
-    cdmiMap[CDMI_REDUNDANCY_TAG] =
-        std::to_string(eos::common::LayoutId::GetRedundancyStripeNumber(
-            fmd->getLayoutId()));
-    cdmiMap[CDMI_LATENCY_TAG] = "100";
+    if (gOFS->mQoSClassMap.count(qos_name)) {
+      const QoSClass qos_class = gOFS->mQoSClassMap.at(qos_name);
+      std::ostringstream splacement;
+      size_t count = 0;
 
-    for (auto& location: fmd->getLocations()) {
-      std::string geotag = "null";
+      splacement << "[";
+      for (auto& location: qos_class.locations) {
+        splacement << " " << location;
 
-      eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-      eos::common::FileSystem* filesystem =
-          FsView::gFsView.mIdView.lookupByID(location);
-
-      if (filesystem) {
-        geotag = filesystem->GetString("stat.geotag");
+        if (++count < qos_class.locations.size()) {
+          splacement << ",";
+        }
       }
 
-      ssgeotags << " " << geotag;
+      splacement << " ]";
 
-      if (++count < fmd->getNumLocation()) {
-        ssgeotags << ",";
-      }
+      cdmiMap[CDMI_REDUNDANCY_TAG] = std::to_string(qos_class.cdmi_redundancy);
+      cdmiMap[CDMI_LATENCY_TAG] = std::to_string(qos_class.cdmi_latency);
+      cdmiMap[CDMI_PLACEMENT_TAG] = splacement.str();
     }
-
-    ssgeotags << " ]";
-    cdmiMap[CDMI_PLACEMENT_TAG] = ssgeotags.str();
 
     return cdmiMap;
   }
