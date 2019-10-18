@@ -163,7 +163,7 @@ void com_qos_help()
       << std::endl
       << "Note: <identifier> = fid|fxid|path" << std::endl
       << "      Recognized `qos get` keys: all | cdmi | checksum | class | disksize |" << std::endl
-      << "                                 layout | id | path | placement | redundancy | size" << std::endl
+      << "                                 layout | id | path | placement | replica | size" << std::endl
       << std::endl
       << "      Allowed `qos set` properties:" << std::endl
       << "          checksum  = none | adler32 | crc32 | crc32c | md5 | sha1" << std::endl
