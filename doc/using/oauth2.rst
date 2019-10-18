@@ -14,7 +14,7 @@ To enable OAUTH2 token translation, one has to configure the resource endpoint a
    # allow an oauth2 resource in requests
    eos vid set map -oauth2 key:oauthresource.web.cern.ch/api/User vuid:0
    # allow an oauth2 resource in requests (OIDC infrastructure)
-   eos vid set map -oauth2 key:auth.cern.ch/auth/realms/cern/protocol/openid-connect/userinfo
+   eos vid set map -oauth2 key:auth.cern.ch/auth/realms/cern/protocol/openid-connect/userinfo vuid:0
 
    
 All XRootD based clients can add the oauth2 token in the endorsement environment variable for sss authentication.
@@ -23,7 +23,7 @@ All XRootD based clients can add the oauth2 token in the endorsement environment
 
    XrdSecsssENDORSEMENT=oauth2:<access_token>:<oauth-resource>
  
-To use OAUTH2 has to configure/force clients to use sss authentication:
+A requirement to use OAUTH2 is to configure/force clients to use sss authentication:
 
 .. code-block:: bash
 
@@ -42,8 +42,7 @@ To use OAUTH2 has to configure/force clients to use sss authentication:
     env XrdSecsssENDORSEMENT=oauth2:...
     ls /eos/ 
    
-One has to create an sss key for this communication, however the sss key user can be banned on the instance e.g.
-
+One has to create an sss key for this communication, however the sss key user can be banned on the instance:
 Client and server should share an sss key for a user, which is actually not authorized to use the instance e.g.
 
 .. code-block:: bash
