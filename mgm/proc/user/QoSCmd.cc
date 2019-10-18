@@ -322,27 +322,32 @@ std::string QoSCmd::MapToDefaultOutput(const eos::IFileMD::QoSAttrMap& map)
 //------------------------------------------------------------------------------
 std::string QoSCmd::MapToJSONOutput(const eos::IFileMD::QoSAttrMap& map)
 {
-  Json::Value jsonOut, jsonCDMI, jsonPlacement;
-  jsonPlacement = Json::arrayValue;
+  static std::set<std::string> storage_attributes = { "checksum", "layout",
+                                                      "replica", "placement" };
+  Json::Value jsonOut, jsonCDMI, jsonAttributes;
 
   // Parse the placement array string into JSON Array
   // Format: [ location, location, ... ]
-  auto parsePlacementArray = [&jsonPlacement](std::string placement) {
-    size_t start = placement.find("[");
-    size_t end = placement.find("]");
+  auto parsePlacementArray = [](std::string splacement) -> Json::Value {
+    Json::Value placement = Json::arrayValue;
+
+    size_t start = splacement.find("[");
+    size_t end = splacement.find("]");
 
     if ((start == std::string::npos) || (end == std::string::npos)) {
-      return;
+      return placement;
     }
 
     std::vector<std::string> locations;
-    placement = placement.substr(start + 1, end - 1).c_str();
-    eos::common::StringConversion::ReplaceStringInPlace(placement, ",", " ");
-    eos::common::StringConversion::Tokenize(placement, locations);
+    splacement = splacement.substr(start + 1, end - 1).c_str();
+    eos::common::StringConversion::ReplaceStringInPlace(splacement, ",", " ");
+    eos::common::StringConversion::Tokenize(splacement, locations);
 
     for (const auto& location: locations) {
-      jsonPlacement.append(location);
+      placement.append(location);
     }
+
+    return placement;
   };
 
   for (const auto& it: map) {
@@ -350,17 +355,19 @@ std::string QoSCmd::MapToJSONOutput(const eos::IFileMD::QoSAttrMap& map)
 
     if (key.beginswith("cdmi_")) {
       if (key == CDMI_PLACEMENT_TAG) {
-        parsePlacementArray(it.second);
+        jsonCDMI[CDMI_PLACEMENT_TAG] = parsePlacementArray(it.second);
       } else {
         jsonCDMI[it.first] = it.second;
       }
+    } else if (storage_attributes.count(it.first)) {
+        jsonAttributes[it.first] = it.second;
     } else {
       jsonOut[it.first] = it.second;
     }
   }
 
-  if (map.count(CDMI_PLACEMENT_TAG)) {
-    jsonCDMI[CDMI_PLACEMENT_TAG] = jsonPlacement;
+  if (!jsonAttributes.empty()) {
+    jsonOut["attributes"] = jsonAttributes;
   }
 
   if (!jsonCDMI.empty()) {
