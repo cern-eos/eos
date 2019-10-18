@@ -160,6 +160,10 @@ int main(int argc, char* argv[]) {
   auto scanFilesSubcommand = app.add_subcommand("scan-files", "Dump the full list of file metadata across the entire namespace");
   addClusterOptions(scanFilesSubcommand, membersStr, memberValidator, password, passwordFile);
 
+  bool onlySizes = false;
+
+  scanFilesSubcommand->add_flag("--only-sizes", onlySizes, "Only print file sizes, once per line.");
+
   //----------------------------------------------------------------------------
   // Set-up check-naming-conflicts subcommand..
   //----------------------------------------------------------------------------
@@ -364,7 +368,7 @@ int main(int argc, char* argv[]) {
   }
 
   if(scanFilesSubcommand->parsed()) {
-    return inspector.scanFileMetadata(std::cout, std::cerr);
+    return inspector.scanFileMetadata(onlySizes, std::cout, std::cerr);
   }
 
   if(checkOrphansSubcommand->parsed()) {

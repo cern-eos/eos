@@ -167,7 +167,7 @@ int Inspector::scanDirs(bool onlyNoAttrs, bool fullPaths, std::ostream &out, std
 // Scan all file metadata in the namespace, and print out some information
 // about each one. (even potentially unreachable ones)
 //------------------------------------------------------------------------------
-int Inspector::scanFileMetadata(std::ostream &out, std::ostream &err) {
+int Inspector::scanFileMetadata(bool onlySizes, std::ostream &out, std::ostream &err) {
   FileScanner fileScanner(mQcl);
 
   while(fileScanner.valid()) {
@@ -176,7 +176,13 @@ int Inspector::scanFileMetadata(std::ostream &out, std::ostream &err) {
       break;
     }
 
-    out << "fid=" << proto.id() << " name=" << proto.name() << " pid=" << proto.cont_id() << " uid=" << proto.uid() << std::endl;
+    if(!onlySizes) {
+      out << "fid=" << proto.id() << " name=" << proto.name() << " pid=" << proto.cont_id() << " uid=" << proto.uid() << " size=" << proto.size() << std::endl;
+    }
+    else {
+      out << proto.size() << std::endl;
+    }
+
     fileScanner.next();
   }
 

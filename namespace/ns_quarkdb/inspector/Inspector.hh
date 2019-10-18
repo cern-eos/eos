@@ -75,7 +75,7 @@ public:
   //! Scan all file metadata in the namespace, and print out some information
   //! about each one. (even potentially unreachable directories)
   //----------------------------------------------------------------------------
-  int scanFileMetadata(std::ostream &out, std::ostream &err);
+  int scanFileMetadata(bool onlySizes, std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
   //! Forcefully overwrite the given ContainerMD - USE WITH CAUTION
