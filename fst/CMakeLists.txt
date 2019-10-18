@@ -395,7 +395,7 @@ target_compile_definitions(XrdEosFst-Static PUBLIC
 target_link_libraries(XrdEosFst PRIVATE
   eosCommon
   eosCommonServer
-  EosFstIo-Static
+  EosFstIo
   EosNsCommon
   eosCapability-Static
   ${Z_LIBRARY}
@@ -444,7 +444,7 @@ target_compile_definitions(XrdEosFst PUBLIC
 target_link_libraries(XrdEosFst-4 PRIVATE
   eosCommon
   eosCommonServer
-  EosFstIo-Static
+  EosFstIo
   EosNsCommon
   eosCapability-Static
   ${Z_LIBRARY}
