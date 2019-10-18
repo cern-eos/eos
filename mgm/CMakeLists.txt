@@ -83,9 +83,9 @@ add_library(EosMgmHttp MODULE
   $<TARGET_OBJECTS:EosMgmHttp-Objects>)
 
 target_link_libraries( EosMgmHttp PUBLIC
-  XrdHttp-4
   eosCommon
-  eosCommonServer)
+  eosCommonServer
+  ${XROOTD_HTTP_UTILS_LIBRARY})
 
 install(
   TARGETS EosMgmHttp

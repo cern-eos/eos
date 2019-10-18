@@ -273,8 +273,7 @@ if(NOT CLIENT)
 add_library(
   EosFstHttp-Objects OBJECT
   http/xrdhttp/EosFstHttpHandler.hh
-  http/xrdhttp/EosFstHttpHandler.cc
-)
+  http/xrdhttp/EosFstHttpHandler.cc)
 
 set_target_properties(
   EosFstHttp-Objects
@@ -282,16 +281,14 @@ set_target_properties(
   POSITION_INDEPENDENT_CODE TRUE)
 
 add_library(EosFstHttp MODULE
-  $<TARGET_OBJECTS:EosFstHttp-Objects>
-)
+  $<TARGET_OBJECTS:EosFstHttp-Objects>)
 
 
 target_link_libraries(
   EosFstHttp PUBLIC
-  XrdHttp-4
   eosCommon
   eosCommonServer
-)
+  ${XROOTD_HTTP_UTILS_LIBRARY})
 
 install(
   TARGETS EosFstHttp
