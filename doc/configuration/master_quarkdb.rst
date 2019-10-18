@@ -50,6 +50,7 @@ by default when the MGM daemon is started it will create an empty config map in 
 and this one needs to be deleted before the export command is launched.
 
 .. code-block:: bash
+
    redis-cli keys "eos-config*" | awk '{print "redis-cli -p 7777 del "$1;}' | sh -x
 
 After running the export command there should be a key entry in QuarkDB with the
@@ -59,7 +60,9 @@ To have the QuarkDB HA setup working properly one also needs to set the followin
 environment variable for both the MGM and MQ daemons:
 
 .. code-block:: bash
+
    EOS_USE_QDB_MASTER=1
+
 
 Master-slave status
 -------------------
