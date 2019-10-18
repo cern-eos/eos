@@ -25,6 +25,7 @@ Bug
 
 * [EOS-3736] - FST registration causing locking issue
 * [EOS-3737] - Possible eos file verify commands causing deadlock while restarting mgm
+* [EOS-3710] - TPC from castor/ceph to EOS not working
 * [EOS-3774] - FUSEX: fix recovery problem when files are truncated to 0 size
 * FUSEX: fix rc=EPERM for setxattr if not called by uid=0
 * FUSEX: fix possible out-of-memory scenario when applications keep writing on fatal
