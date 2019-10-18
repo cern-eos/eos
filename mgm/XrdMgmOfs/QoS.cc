@@ -81,7 +81,7 @@ namespace
     std::string Id() const;
     std::string Path() const;
     std::string Placement() const;
-    std::string Redundancy() const;
+    std::string Replica() const;
     std::string Size() const;
 
     std::shared_ptr<eos::IFileMD> fmd; ///< pointer to file metadata
@@ -94,7 +94,7 @@ namespace
       { "id",          [this](){ return QoSGetter::Id();           } },
       { "path",        [this](){ return QoSGetter::Path();         } },
       { "placement",   [this](){ return QoSGetter::Placement();    } },
-      { "redundancy",  [this](){ return QoSGetter::Redundancy();   } },
+      { "replica",     [this](){ return QoSGetter::Replica();      } },
       { "size",        [this](){ return QoSGetter::Size();         } },
       { "target_qos",  [this](){ return QoSGetter::Attr("user.eos.qos.target"); } },
     };
@@ -240,8 +240,8 @@ namespace
     return placement;
   }
 
-  std::string QoSGetter::Redundancy() const {
-    return eos::common::LayoutId::GetStripeNumberString(fmd->getLayoutId());
+  std::string QoSGetter::Replica() const {
+    return std::to_string(fmd->getNumLocation());
   }
 
   std::string QoSGetter::Size()  const {
@@ -257,7 +257,7 @@ namespace
       attributes["checksum"] = QoSGetter::ChecksumType();
       attributes["layout"] = QoSGetter::LayoutType();
       attributes["placement"] = QoSGetter::Placement();
-      attributes["replica"] = QoSGetter::Redundancy();
+      attributes["replica"] = QoSGetter::Replica();
 
       for (const auto& it_class: gOFS->mQoSClassMap) {
         const auto& class_attributes = it_class.second.attributes;
