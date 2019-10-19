@@ -251,7 +251,7 @@ ScanDir::AccountMissing()
       // Double check that this not a file which was deleted in the meantime
       try {
         if (IsBeingDeleted(fid)) {
-          // Give it one more kick by drop the file from disk and the local db
+          // Give it one more kick by dropping the file from disk and db
           XrdOucErrInfo tmp_err;
 
           if (gOFS._rem("/DELETION_FSCK", tmp_err, nullptr, nullptr, fpath.c_str(),
@@ -264,9 +264,12 @@ ScanDir::AccountMissing()
           eos_info("msg=\"account for missing replica\" fxid=%08llx fsid=%lu",
                    fid, mFsId);
           auto fmd = gFmdDbMapHandler.LocalGetFmd(fid, mFsId, true, true);
-          fmd->mProtoFmd.set_layouterror(fmd->mProtoFmd.layouterror() |
-                                         LayoutId::kMissing);
-          gFmdDbMapHandler.Commit(fmd.get());
+          
+          if (fmd) {
+            fmd->mProtoFmd.set_layouterror(fmd->mProtoFmd.layouterror() |
+                                           LayoutId::kMissing);
+            gFmdDbMapHandler.Commit(fmd.get());
+          }
         }
       } catch (eos::MDException& e) {
         // No file on disk, no ns file metadata object but we have a ghost entry
