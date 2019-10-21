@@ -1655,6 +1655,12 @@ XrdMgmOfsFile::open(const char* inpath,
               fmd = gOFS->eosView->getFile(creation_path);
             }
 
+	    if (!fmd) {
+	      errno = ENOENT;
+	      gOFS->MgmStats.Add("OpenFailedENOENT", vid.uid, vid.gid, 1);
+	      return Emsg(epname, error, errno, "open file - file is not existing");
+	    }
+
             if (isRecreation) {
               fmd->unlinkAllLocations();
             }
