@@ -5,7 +5,7 @@
 Using Eos Tokens for Authorization
 ==================================
 
-To prepare for upcoming requirements to implement various types of token technologies, we have implemeneted a generic EOS mechanism to delegate permissions to a token bearer with s.c. EOS tokens.
+We provide a generic EOS mechanism to delegate permissions to a token bearer with s.c. EOS tokens. 
 
 The JSON representation of an EOS token looks like shown here:
 
@@ -17,7 +17,7 @@ The JSON representation of an EOS token looks like shown here:
      "expires": "1571319146",
      "owner": "",
      "group": "",
-     "generation": "0",
+     "generation": "1",
      "path": "/eos/dev/token",
      "allowtree": false,
      "vtoken": "",
@@ -37,6 +37,17 @@ owner and group information, which means, that the creations will be accounted o
 Tokens are signed, zlib compressed, base64url encoded with a replacement of the '+' and '/' characters with '-' and '_'  and a URL encodign of the '=' character to avoid interferences/confusion with directory and file names.
 
 The ``voucher`` field is tagged on the file when a file has been created and is also used as the logging id for this file upload. The ``requester`` field reports when, by whom and how a token has been generated.
+
+
+Enabling Token Issuing
+----------------------
+
+To enable issuing of tokens, the space configuration value ``token.enegeration`` has to be set unequal to 0.
+
+.. code-block:: bash
+
+   eos space config default space.token.generation=1
+
    
 Token creation
 --------------
@@ -79,7 +90,7 @@ The CLI interface to show the contents of a token is shown here:
      "expires": "1600000000",
      "owner": "",
      "group": "",
-     "generation": "0",
+     "generation": "1",
      "path": "/eos/myfile",
      "allowtree": false,
      "origins": []

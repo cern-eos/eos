@@ -56,6 +56,13 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
   // a sudoer or root can ask for any token
   // ----------------------------------------------------------------------------------------------
 
+
+  if (!eos::common::EosTok::sTokenGeneration) {
+    reply.set_retc(EPERM);
+    reply.set_std_err("error: change the generation value != 0 e.g. using eos space config default space.token.generation=1 to enable token creation");
+    return reply;
+  }
+
   eos_static_info("root=%d sudoer=%d uid=%u gid=%u", mVid.hasUid(0), mVid.sudoer, mVid.uid, mVid.gid);
 
   if (token.vtoken().empty()) {

@@ -20,6 +20,12 @@ eos chmod 700 $prefix/
 now=`date +%s`
 let later=$now+300
 
+
+###############################################################################################
+# dis-/en-able token generation
+eos space config default space.token.generation=0
+eos token --path $prefix/t_token/file.1 --expires $later && exit -1
+eos space config default space.token.generation=1
 ###############################################################################################
 # single file token - test 1
 FILETOKEN=`eos token --path $prefix/t_token/file.1 --expires $later`
