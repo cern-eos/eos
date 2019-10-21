@@ -4,4 +4,8 @@ usr/lib/libXrdMqClient.so.*
 usr/lib/libXrdMqClient.so
 usr/lib/libeosCommon.so.*
 usr/lib/libeosCommon.so
+usr/lib/libEosProtobuf.so.*
+usr/lib/libEosProtobuf.s
+usr/lib/libEosFstIo.so.*
+usr/lib/libEosFstIo.so
 etc/fuse.conf.eos
