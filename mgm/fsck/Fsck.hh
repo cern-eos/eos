@@ -185,6 +185,7 @@ private:
   static const std::string sRepairKey;
 
   std::atomic<bool> mShowOffline; ///< Flag to display offline files/replicas
+  std::atomic<bool> mShowNoReplica; ///< Flag to display no replica files
   std::atomic<bool> mShowDarkFiles; ///< Flag to display dark files
   std::atomic<bool> mStartProcessing; ///< Notification flag for repair thread
   std::atomic<bool> mCollectEnabled; ///< Mark if the err collection is enabled

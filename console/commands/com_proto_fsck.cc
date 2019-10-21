@@ -69,6 +69,7 @@ void com_fsck_help()
       << "    toggle-repair   : enable/disable repair thread, no <value> required"
       << "    show-dark-files : yes/no [default no]\n"
       << "    show-offline    : yes/no [default no]\n"
+      << "    show-no-replica : yes/no [default no]\n"
       << std::endl
       << "  fsck report [-a] [-h] [-i] [-l] [-j|--json] [--error <tag1> <tag2> ...]"
       << std::endl

@@ -49,9 +49,10 @@ const std::string Fsck::sRepairKey {"toggle-repair"};
 // Constructor
 //------------------------------------------------------------------------------
 Fsck::Fsck():
-  mShowOffline(false), mShowDarkFiles(false), mStartProcessing(false),
-  mCollectEnabled(false), mRepairEnabled(false), mCollectRunning(false),
-  mRepairRunning(false), mCollectInterval(std::chrono::minutes(30)),
+  mShowOffline(false), mShowNoReplica(false), mShowDarkFiles(false),
+  mStartProcessing(false), mCollectEnabled(false), mRepairEnabled(false),
+  mCollectRunning(false), mRepairRunning(false),
+  mCollectInterval(std::chrono::minutes(30)),
   eTimeStamp(0),
   mThreadPool(std::thread::hardware_concurrency(), 20, 10, 6, 5, "fsck"),
   mIdTracker(std::chrono::minutes(10), std::chrono::hours(2)), mQcl(nullptr)
@@ -199,6 +200,8 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
     mShowDarkFiles = (value == "yes");
   } else if (key == "show-offline") {
     mShowOffline = (value == "yes");
+  } else if (key == "show-no-replica") {
+    mShowNoReplica = (value == "yes");
   } else if (key == "max-queued-jobs") {
     try {
       mMaxQueuedJobs = std::stoull(value);
@@ -310,7 +313,11 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
       AccountOfflineFiles();
     }
 
-    AccountNoReplicaFiles();
+    // @note no replicas can be a really long list (e.g. PPS)
+    if (mShowNoReplica) {
+      AccountNoReplicaFiles();
+    }
+
     PrintErrorsSummary();
 
     // @note the following operation is a heavy ns op.
