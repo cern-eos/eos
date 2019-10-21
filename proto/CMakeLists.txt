@@ -126,13 +126,14 @@ if (GRPC_FOUND)
     ${GRPC_SVC_HDRS}
     PROPERTIES GENERATED TRUE)
 
-  add_dependencies(EosGrpcProto-Objects EosCliProto-Objects)
   add_library(EosGrpcProto-Objects OBJECT
     ${GRPC_SVC_SRCS}
     ${GRPC_SVC_HDRS})
 
   set_target_properties(EosGrpcProto-Objects PROPERTIES
     POSITION_INDEPENDENT_CODE TRUE)
+
+  add_dependencies(EosGrpcProto-Objects EosCliProto-Objects)
 endif()
 
 if (GRPC_FOUND)
