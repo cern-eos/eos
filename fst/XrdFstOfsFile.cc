@@ -2936,20 +2936,20 @@ XrdFstOfsFile::VerifyChecksum()
       bool isopenforwrite = gOFS.openedForWriting.isOpen(mFsId, mFileId);
 
       if (isopenforwrite) {
-        eos_info("(read)  disabling checksum check: file is currently written");
+        eos_info("%s", "msg=\"read disable checksum check, file being written");
         return false;
       }
 
-      eos_info("(read)  checksum type: %s checksum hex: %s fmd-checksum: %s",
-               mCheckSum->GetName(),
-               mCheckSum->GetHexChecksum(),
-               mFmd->mProtoFmd.checksum().c_str());
-      std::string calculatedchecksum = mCheckSum->GetHexChecksum();
+      std::string computed_xs = mCheckSum->GetHexChecksum();
+      eos_info("msg=\"read checksum info\" xs_type=%s xs_computed=%s "
+               "xs_local=%s fxid=%08llx fsid=%lu", mCheckSum->GetName(),
+               computed_xs.c_str(), mFmd->mProtoFmd.checksum().c_str(),
+               mFileId, mFsId);
 
       // We might fetch an unitialized value, so that is not to be considered
       // a checksum error yet.
       if (mFmd->mProtoFmd.checksum() != "none") {
-        if (calculatedchecksum != mFmd->mProtoFmd.checksum().c_str()) {
+        if (computed_xs != mFmd->mProtoFmd.checksum().c_str()) {
           checksumerror = true;
         }
       }
