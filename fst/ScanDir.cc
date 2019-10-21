@@ -264,7 +264,7 @@ ScanDir::AccountMissing()
           eos_info("msg=\"account for missing replica\" fxid=%08llx fsid=%lu",
                    fid, mFsId);
           auto fmd = gFmdDbMapHandler.LocalGetFmd(fid, mFsId, true, true);
-          
+
           if (fmd) {
             fmd->mProtoFmd.set_layouterror(fmd->mProtoFmd.layouterror() |
                                            LayoutId::kMissing);
@@ -813,6 +813,12 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
     }
 
     if (nread) {
+      if (nread > mBufferSize) {
+        eos_err("msg=\"read returned more than the buffer size\" buff_sz=%llu "
+                "nread=%lli\"", mBufferSize, nread);
+        return false;
+      }
+
       if (blockXS && (blockxs_err == false)) {
         if (!blockXS->CheckBlockSum(offset, mBuffer, nread)) {
           blockxs_err = true;
