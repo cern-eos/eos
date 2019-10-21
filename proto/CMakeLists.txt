@@ -84,39 +84,9 @@ PROTOBUF_GENERATE_CPP(ACCESS_SRCS ACCESS_HDRS common/cli_proto/Access.proto)
 PROTOBUF_GENERATE_CPP(FSCK_SRCS FSCK_HDRS common/cli_proto/Fsck.proto)
 PROTOBUF_GENERATE_CPP(GRPC_SRCS GRPC_HDRS ${CMAKE_SOURCE_DIR}/common/grpc-proto/protobuf/Rpc.proto)
 
-#-------------------------------------------------------------------------------
-# Generate protobol buffer object for GRPC
-#-------------------------------------------------------------------------------
-if (GRPC_FOUND)
-  set(GRPC_PROTOS ${CMAKE_SOURCE_DIR}/common/grpc-proto/protobuf/Rpc.proto)
-  set(GRPC_PROTOBUF_PATH "${CMAKE_BINARY_DIR}/proto/")
-#  PROTOBUF_GENERATE_CPP(GRPC_SRCS GRPC_HDRS ${GRPC_PROTOS})
-  grpc_generate_cpp(GRPC_SVC_SRCS GRPC_SVC_HDRS ${GRPC_PROTOBUF_PATH} ${GRPC_PROTOS})
-
-  set(GRPC_SRCS ${GRPC_SRCS} PARENT_SCOPE)
-  set(GRPC_HDRS ${GRPC_HDRS} PARENT_SCOPE)
-  set(GRPC_SVC_SRCS ${GRPC_SVC_SRCS} PARENT_SCOPE)
-  set(GRPC_SVC_HDRS ${GRPC_SVC_HDRS} PARENT_SCOPE)
-
-  set_source_files_properties(
-    ${GRPC_SRCS}
-    ${GRPC_HDRS}
-    ${GRPC_SVC_SRCS}
-    ${GRPC_SVC_HDRS}
-    PROPERTIES GENERATED TRUE)
-
-  add_library(EosGrpcProto-Objects OBJECT
-    ${GRPC_SVC_SRCS}
-    ${GRPC_SVC_HDRS})
-
-  set_target_properties(EosGrpcProto-Objects PROPERTIES
-    POSITION_INDEPENDENT_CODE TRUE)
-endif()
-
-
 set(CLI_PROTO_SRCS
-  ${REQ_SRCS} ${REP_SRCS} ${RECY_SRCS} ${ACL_SRCS} ${NS_SRCS} ${DRAIN_SRCS} ${FIND_SRCS} 
-  ${FS_SRCS} ${RM_SRCS} ${TOKEN_SRCS} ${STAGER_RM_SRCS} ${ROUTE_SRCS} ${IO_SRCS} ${GROUP_SRCS} 
+  ${REQ_SRCS} ${REP_SRCS} ${RECY_SRCS} ${ACL_SRCS} ${NS_SRCS} ${DRAIN_SRCS} ${FIND_SRCS}
+  ${FS_SRCS} ${RM_SRCS} ${TOKEN_SRCS} ${STAGER_RM_SRCS} ${ROUTE_SRCS} ${IO_SRCS} ${GROUP_SRCS}
   ${DEBUG_SRCS} ${NODE_SRCS} ${QUOTA_SRCS} ${SPACE_SRCS} ${CONFIG_SRCS} ${ACCESS_SRCS}
   ${FSCK_SRCS} ${SHARE_SRCS} ${GRPC_SRCS})
 
@@ -135,6 +105,35 @@ add_library(EosCliProto-Objects OBJECT
 
 set_target_properties(EosCliProto-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
+
+#-------------------------------------------------------------------------------
+# Generate protobol buffer object for GRPC
+#-------------------------------------------------------------------------------
+if (GRPC_FOUND)
+  set(GRPC_PROTOS ${CMAKE_SOURCE_DIR}/common/grpc-proto/protobuf/Rpc.proto)
+  set(GRPC_PROTOBUF_PATH "${CMAKE_BINARY_DIR}/proto/")
+  grpc_generate_cpp(GRPC_SVC_SRCS GRPC_SVC_HDRS ${GRPC_PROTOBUF_PATH} ${GRPC_PROTOS})
+
+  set(GRPC_SRCS ${GRPC_SRCS} PARENT_SCOPE)
+  set(GRPC_HDRS ${GRPC_HDRS} PARENT_SCOPE)
+  set(GRPC_SVC_SRCS ${GRPC_SVC_SRCS} PARENT_SCOPE)
+  set(GRPC_SVC_HDRS ${GRPC_SVC_HDRS} PARENT_SCOPE)
+
+  set_source_files_properties(
+    ${GRPC_SRCS}
+    ${GRPC_HDRS}
+    ${GRPC_SVC_SRCS}
+    ${GRPC_SVC_HDRS}
+    PROPERTIES GENERATED TRUE)
+
+  add_dependencies(EosGrpcProto-Objects EosCliProto-Objects)
+  add_library(EosGrpcProto-Objects OBJECT
+    ${GRPC_SVC_SRCS}
+    ${GRPC_SVC_HDRS})
+
+  set_target_properties(EosGrpcProto-Objects PROPERTIES
+    POSITION_INDEPENDENT_CODE TRUE)
+endif()
 
 if (GRPC_FOUND)
   add_library(EosProtobuf SHARED
