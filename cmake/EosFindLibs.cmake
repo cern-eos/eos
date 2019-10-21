@@ -28,7 +28,7 @@ option(PACKAGEONLY "Build without dependencies" OFF)
 option(FUSEXCLIENT "Build FUSEX client" OFF)
 option(CLIENT "Build only client packages" OFF)
 option(BUILD_XRDCL_RAIN_PLUGIN "Enable XrdCl RAIN plugin" OFF)
-set(EOS_RPATH "/usr/lib64/;/lib64/")
+set(EOS_RPATH "/usr/lib64/;/lib64/;/usr/lib/;/lib/")
 
 if(NOT PACKAGEONLY)
   if(Linux)
