@@ -30,7 +30,7 @@ namespace
   //----------------------------------------------------------------------------
   //! Helper class for retrieving QoS properties.
   //!
-  //! The class takes as input a file metadata pointer,
+  //! The class takes as input an entry metadata pointer,
   //! which it will use to query for properties.
   //!
   //! The "qos_class" property retrieval mechanism:
@@ -41,13 +41,14 @@ namespace
   //!
   //! The class should be called under lock to ensure thread safety.
   //----------------------------------------------------------------------------
+  template<typename T>
   class QoSGetter
   {
   public:
     //--------------------------------------------------------------------------
     //! Constructor
     //--------------------------------------------------------------------------
-    QoSGetter(std::shared_ptr<eos::IFileMD> _fmd) : fmd(_fmd) {}
+    QoSGetter(T _md) : md(_md) {}
 
     //--------------------------------------------------------------------------
     //! Destructor
@@ -84,7 +85,7 @@ namespace
     std::string Replica() const;
     std::string Size() const;
 
-    std::shared_ptr<eos::IFileMD> fmd; ///< pointer to file metadata
+    T md; ///< pointer to entry metadata
     ///< dispatch table based on QoS key word
     std::map<std::string, std::function<std::string()>> dispatch {
       { "checksum",    [this](){ return QoSGetter::ChecksumType(); } },
@@ -103,7 +104,8 @@ namespace
   //----------------------------------------------------------------------------
   // Retrieve all QoS properties
   //----------------------------------------------------------------------------
-  eos::IFileMD::QoSAttrMap QoSGetter::All() {
+  template<typename T>
+  eos::IFileMD::QoSAttrMap QoSGetter<T>::All() {
     eos::IFileMD::QoSAttrMap qosMap = CDMI();
 
     for (auto& it: dispatch) {
@@ -116,7 +118,8 @@ namespace
   //----------------------------------------------------------------------------
   // Retrieve CDMI-specific QoS properties
   //----------------------------------------------------------------------------
-  eos::IFileMD::QoSAttrMap QoSGetter::CDMI() {
+  template<typename T>
+  eos::IFileMD::QoSAttrMap QoSGetter<T>::CDMI() {
     eos::IFileMD::QoSAttrMap cdmiMap;
     std::string qos_name = QoSGetter::Get("current_qos");
 
@@ -147,7 +150,8 @@ namespace
   //----------------------------------------------------------------------------
   // Retrieve QoS property by key
   //----------------------------------------------------------------------------
-  std::string QoSGetter::Get(const std::string& key) const {
+  template<typename T>
+  std::string QoSGetter<T>::Get(const std::string& key) const {
     std::string value = "";
     auto it = dispatch.find(key);
 
@@ -160,57 +164,122 @@ namespace
 
   //----------------------------------------------------------------------------
   // Methods retrieving a particular QoS property
+  //
+  // Depending on the property, they are implemened via templated
+  // or specialized templated functions.
   //----------------------------------------------------------------------------
 
-  std::string QoSGetter::Attr(const char* key) const {
+  //----------------------------------------------------------------------------
+  // Retrieve extended attributes
+  //----------------------------------------------------------------------------
+  template<typename T>
+  std::string QoSGetter<T>::Attr(const char* key) const {
     std::string value = "null";
-    const auto& attrMap = fmd->getAttributes();
 
-    if (attrMap.count(key)) {
-      value = attrMap.at(key);
+    if (md->hasAttribute(key)) {
+      value = md->getAttribute(key);
     }
 
     return value;
   }
 
-  std::string QoSGetter::ChecksumType() const {
-    return eos::common::LayoutId::GetChecksumStringReal(fmd->getLayoutId());
+  //----------------------------------------------------------------------------
+  // Retrieve checksum type
+  //----------------------------------------------------------------------------
+  template<>
+  std::string QoSGetter<eos::IFileMDPtr>::ChecksumType() const {
+    return eos::common::LayoutId::GetChecksumStringReal(md->getLayoutId());
   }
 
-  std::string QoSGetter::DiskSize() const {
-    uint64_t physicalSize = fmd->getSize() *
-        eos::common::LayoutId::GetSizeFactor(fmd->getLayoutId());
+  template<>
+  std::string QoSGetter<eos::IContainerMDPtr>::ChecksumType() const {
+    std::string value = QoSGetter::Attr("sys.forced.checksum");
+    int checksum_id = eos::common::LayoutId::GetChecksumFromString(value);
+    return eos::common::LayoutId::GetChecksumStringReal(checksum_id);
+  }
+
+  //----------------------------------------------------------------------------
+  // Retrieve size
+  //----------------------------------------------------------------------------
+  template<>
+  std::string QoSGetter<eos::IFileMDPtr>::Size()  const {
+    return std::to_string(md->getSize());
+  }
+
+  template<>
+  std::string QoSGetter<eos::IContainerMDPtr>::Size() const {
+    return std::to_string(md->getTreeSize());
+  }
+
+  //----------------------------------------------------------------------------
+  // Retrieve disk size
+  //----------------------------------------------------------------------------
+  template<>
+  std::string QoSGetter<eos::IFileMDPtr>::DiskSize() const {
+    uint64_t physicalSize = md->getSize() *
+        eos::common::LayoutId::GetSizeFactor(md->getLayoutId());
     return std::to_string(physicalSize);
   }
 
-  std::string QoSGetter::LayoutType() const {
-    return eos::common::LayoutId::GetLayoutTypeString(fmd->getLayoutId());
+  template<>
+  std::string QoSGetter<eos::IContainerMDPtr>::DiskSize() const {
+    return QoSGetter::Size();
   }
 
-  std::string QoSGetter::Id() const {
-    return std::to_string(fmd->getId());
+  //----------------------------------------------------------------------------
+  // Retrieve layout type
+  //----------------------------------------------------------------------------
+  template<>
+  std::string QoSGetter<eos::IFileMDPtr>::LayoutType() const {
+    return eos::common::LayoutId::GetLayoutTypeString(md->getLayoutId());
   }
 
-  std::string QoSGetter::Path() const {
+  template<>
+  std::string QoSGetter<eos::IContainerMDPtr>::LayoutType() const {
+    return QoSGetter::Attr("sys.forced.layout");
+  }
+
+  //----------------------------------------------------------------------------
+  // Retrieve id
+  //----------------------------------------------------------------------------
+  template<typename T>
+  std::string QoSGetter<T>::Id() const {
+    return std::to_string(md->getId());
+  }
+
+  //----------------------------------------------------------------------------
+  // Retrieve path
+  //----------------------------------------------------------------------------
+  template<typename T>
+  std::string QoSGetter<T>::Path() const {
     std::string path = "null";
 
     try {
-      path = gOFS->eosView->getUri(fmd.get());
+      path = gOFS->eosView->getUri(md.get());
     } catch (eos::MDException& e) {
       eos_static_debug("msg=\"exception retrieving path\" fxid=%08llx "
-                       "ec=%d emsg=\"%s\"", fmd->getId(),
+                       "ec=%d emsg=\"%s\"", md->getId(),
                        e.getErrno(), e.getMessage().str().c_str());
     }
 
     return path;
   }
 
-  std::string QoSGetter::Placement() const {
+  //----------------------------------------------------------------------------
+  // Retrieve placement
+  //----------------------------------------------------------------------------
+  template<typename T>
+  std::string QoSGetter<T>::Placement() const {
     std::string placement = "null";
 
     try {
-      std::string path = gOFS->eosView->getUri(fmd.get());
-      eos::common::Path cPath(path);
+      std::string path = gOFS->eosView->getUri(md.get());
+
+      // Ugly type check
+      // (avoids specialized template helper function for path deduction)
+      if (std::is_same<T, eos::IFileMDPtr>::value) {
+        path = eos::common::Path(path).GetParentPath();
+      }
 
       eos::mgm::Scheduler::tPlctPolicy plctplcy;
       eos::common::VirtualIdentity vid;
@@ -219,29 +288,38 @@ namespace
       XrdOucEnv env;
 
       eos::IContainerMD::XAttrMap attrmap;
-      gOFS->_attr_ls(cPath.GetParentPath(), error, vid, 0, attrmap, false);
+      gOFS->_attr_ls(path.c_str(), error, vid, 0, attrmap, false);
 
-      Policy::GetPlctPolicy(cPath.GetParentPath(), attrmap, vid, env, plctplcy,
+      Policy::GetPlctPolicy(path.c_str(), attrmap, vid, env, plctplcy,
                             targetgeotag);
       placement = Scheduler::PlctPolicyString(plctplcy);
     } catch (eos::MDException& e) {
       eos_static_debug("msg=\"exception retrieving path\" fxid=%08llx "
-                       "ec=%d emsg=\"%s\"", fmd->getId(),
+                       "ec=%d emsg=\"%s\"", md->getId(),
                        e.getErrno(), e.getMessage().str().c_str());
     }
 
     return placement;
   }
 
-  std::string QoSGetter::Replica() const {
-    return std::to_string(fmd->getNumLocation());
+  //----------------------------------------------------------------------------
+  // Retrieve replica
+  //----------------------------------------------------------------------------
+  template<>
+  std::string QoSGetter<eos::IFileMDPtr>::Replica() const {
+    return std::to_string(md->getNumLocation());
   }
 
-  std::string QoSGetter::Size()  const {
-    return std::to_string(fmd->getSize());
+  template<>
+  std::string QoSGetter<eos::IContainerMDPtr>::Replica() const {
+    return QoSGetter::Attr("sys.forced.nstripes");
   }
 
-  std::string QoSGetter::Class() const {
+  //----------------------------------------------------------------------------
+  // Retrieve QoS class
+  //----------------------------------------------------------------------------
+  template<typename T>
+  std::string QoSGetter<T>::Class() const {
     std::string qos_class = QoSGetter::Attr("user.eos.qos.class");
 
     if (qos_class == "null") {
@@ -297,6 +375,25 @@ namespace
 
     return false;
   }
+
+  //----------------------------------------------------------------------------
+  //! Helper function to extract a QoS property,
+  //! given the entry metadata object and the key
+  //!
+  //! @param md the ile or container metadata object
+  //! @param key the QoS key
+  //!
+  //! @return the request QoS property
+  //----------------------------------------------------------------------------
+  std::string QoSValueFromMd(const eos::FileOrContainerMD& md,
+                             const char* key)
+  {
+    if (md.file) {
+      return QoSGetter<eos::IFileMDPtr>{md.file}.Get(key);
+    }
+
+    return QoSGetter<eos::IContainerMDPtr>{md.container}.Get(key);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -315,38 +412,50 @@ XrdMgmOfs::_qos_ls(const char* path, XrdOucErrInfo& error,
 
   eos_info("msg=\"list QoS values\" path=%s only_cdmi=%d", path, only_cdmi);
 
-  eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
+  eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path);
+  std::string cmd_retrieved_qos;
 
   try {
     eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
-    std::shared_ptr<eos::IFileMD> fmd = gOFS->eosView->getFile(path);
-    map = (only_cdmi) ? QoSGetter{fmd}.CDMI()
-                      : QoSGetter{fmd}.All();
+    eos::FileOrContainerMD md = gOFS->eosView->getItem(path).get();
+
+    if (md.file) {
+      map = (only_cdmi) ? QoSGetter<eos::IFileMDPtr>{md.file}.CDMI()
+                        : QoSGetter<eos::IFileMDPtr>{md.file}.All();
+    } else {
+      map = (only_cdmi) ? QoSGetter<eos::IContainerMDPtr>{md.container}.CDMI()
+                        : QoSGetter<eos::IContainerMDPtr>{md.container}.All();
+
+      if (map.count("current_qos") && map["current_qos"] != "null") {
+        cmd_retrieved_qos = map["current_qos"];
+      }
+    }
   } catch (eos::MDException& e) {
     errno = e.getErrno();
-    eos_debug("msg=\"exception retrieving file metadata\" path=%s "
+    eos_debug("msg=\"exception retrieving item metadata\" path=%s "
               "ec=%d emsg=\"%s\"", path, e.getErrno(),
               e.getMessage().str().c_str());
   }
 
   // Check if identified QoS class needs to be updated
-  if (!errno && !only_cdmi && map["current_qos"] != "null") {
+  // Note: applies only to containers
+  if (!errno && cmd_retrieved_qos.length()) {
     eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
 
     try {
-      std::shared_ptr<eos::IFileMD> fmd = gOFS->eosView->getFile(path);
-      std::string current_qos;
+      eos::IContainerMDPtr cmd = gOFS->eosView->getContainer(path);
+      std::string attr_qos;
 
-      if (fmd->hasAttribute("user.eos.qos.class")) {
-        current_qos = fmd->getAttribute("user.eos.qos.class");
+      if (cmd->hasAttribute("user.eos.qos.class")) {
+        attr_qos = cmd->getAttribute("user.eos.qos.class");
       }
 
-      if (map["current_qos"] != current_qos) {
+      if (cmd_retrieved_qos != attr_qos) {
         eos_info("msg=\"setting QoS class match in extended attributes\" "
-                 "path=%s qos_class=%s", path, map["current_qos"].c_str());
+                 "path=%s qos_class=%s", path, cmd_retrieved_qos.c_str());
 
-        fmd->setAttribute("user.eos.qos.class", map["current_qos"]);
-        eosView->updateFileStore(fmd.get());
+        cmd->setAttribute("user.eos.qos.class", cmd_retrieved_qos);
+        eosView->updateContainerStore(cmd.get());
       }
     } catch (eos::MDException& e) {
       errno = e.getErrno();
@@ -388,37 +497,43 @@ XrdMgmOfs::_qos_get(const char* path, XrdOucErrInfo& error,
     return Emsg(epname, error, EINVAL, "get QoS value - empty key");
   }
 
-  eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
+  eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path);
+  std::string cmd_retrieved_qos;
 
   try {
     eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
-    std::shared_ptr<eos::IFileMD> fmd = gOFS->eosView->getFile(path);
-    value = QoSGetter{fmd}.Get(key).c_str();
+    eos::FileOrContainerMD md = gOFS->eosView->getItem(path).get();
+    value = QoSValueFromMd(md, key).c_str();
+
+    if (md.container && !strcmp(key, "current_qos") && value != "null") {
+      cmd_retrieved_qos = value.c_str();
+    }
   } catch (eos::MDException& e) {
     errno = e.getErrno();
-    eos_debug("msg=\"exception retrieving file metadata\" path=%s "
+    eos_debug("msg=\"exception retrieving item metadata\" path=%s "
               "ec=%d emsg=\"%s\"", path, e.getErrno(),
               e.getMessage().str().c_str());
   }
 
   // Check if identified QoS class needs to be updated
-  if (!errno && !strcmp(key, "current_qos") && value != "null") {
+  // Note: applies only to containers
+  if (!errno && cmd_retrieved_qos.length()) {
     eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
 
     try {
-      std::shared_ptr<eos::IFileMD> fmd = gOFS->eosView->getFile(path);
-      XrdOucString current_qos;
+      eos::IContainerMDPtr cmd = gOFS->eosView->getContainer(path);
+      std::string attr_qos;
 
-      if (fmd->hasAttribute("user.eos.qos.class")) {
-        current_qos = fmd->getAttribute("user.eos.qos.class").c_str();
+      if (cmd->hasAttribute("user.eos.qos.class")) {
+        attr_qos = cmd->getAttribute("user.eos.qos.class").c_str();
       }
 
-      if (value != current_qos) {
+      if (cmd_retrieved_qos != attr_qos) {
         eos_info("msg=\"setting QoS class match in extended attributes\" "
                  "path=%s qos_class=%s", path, value.c_str());
 
-        fmd->setAttribute("user.eos.qos.class", value.c_str());
-        eosView->updateFileStore(fmd.get());
+        cmd->setAttribute("user.eos.qos.class", value.c_str());
+        eosView->updateContainerStore(cmd.get());
       }
     } catch (eos::MDException& e) {
       errno = e.getErrno();
@@ -472,19 +587,47 @@ XrdMgmOfs::_qos_set(const char* path, XrdOucErrInfo& error,
     }
   }
 
-  std::shared_ptr<eos::IFileMD> fmd = 0;
-  eos::common::FileId::fileid_t fileid = 0;
-  eos::IFileMD::location_t fsid = 0;
-  LayoutId::layoutid_t layoutid = 0;
-  unsigned long current_layout = 0;
-  unsigned long current_checksumid = 0;
-  unsigned long current_nstripes = 0;
+  eos::FileOrContainerMD md;
+  std::string current_qos;
 
-  {
-    eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
+  eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path);
+
+  try {
     eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+    md = gOFS->eosView->getItem(path).get();
+    current_qos = QoSValueFromMd(md, "current_qos");
+  } catch (eos::MDException& e) {
+    errno = e.getErrno();
+    eos_debug("msg=\"exception retrieving file metadata\" path=%s "
+              "ec=%d emsg=\"%s\"", path, e.getErrno(),
+              e.getMessage().str().c_str());
+  }
+
+  if (!md.file && !md.container) {
+    return Emsg(epname, error, errno, "retrieve item metadata", path);
+  }
+
+  // Abort if current QoS is same as target QoS
+  if (current_qos == qos.name) {
+    return Emsg(epname, error, EINVAL,
+                "set QoS class identical with current class", path);
+  }
+
+  if (md.file) {
+    // For files:
+    //   - create a new conversion job,
+    //   - store the QoS target extended attributes
+
+    eos::IFileMDPtr fmd = 0;
+    eos::common::FileId::fileid_t fileid = 0;
+    eos::IFileMD::location_t fsid = 0;
+    LayoutId::layoutid_t layoutid = 0;
+    unsigned long current_layout = 0;
+    unsigned long current_checksumid = 0;
+    unsigned long current_nstripes = 0;
 
     try {
+      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
       fmd = gOFS->eosView->getFile(path);
       fileid = fmd->getId();
       layoutid = fmd->getLayoutId();
@@ -503,95 +646,102 @@ XrdMgmOfs::_qos_set(const char* path, XrdOucErrInfo& error,
       eos_debug("msg=\"exception retrieving file metadata\" path=%s "
                 "ec=%d emsg=\"%s\"", path, e.getErrno(),
                 e.getMessage().str().c_str());
-    }
-  }
-
-  if (!fmd) {
-    return Emsg(epname, error, errno, "retrieve file metadata", path);
-  }
-
-  // Abort if current QoS is same as target QoS
-  if (QoSGetter{fmd}.Get("current_qos") == qos.name) {
-    return Emsg(epname, error, EINVAL,
-                "set QoS class identical with current class", path);
-  }
-
-  // Extract current scheduling space
-  std::string space = "";
-  {
-    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-    auto filesystem = FsView::gFsView.mIdView.lookupByID(fsid);
-
-    if (!filesystem) {
-      return Emsg(epname, error, errno, "retrieve filesystem location", path);
+      return Emsg(epname, error, e.getErrno(), "retrieve file metadata", path);
     }
 
-    space = filesystem->GetString("schedgroup");
-    size_t ppos = space.find(".");
-    if (ppos != std::string::npos) {
-      space.erase(ppos);
+    // Extract current scheduling space
+    std::string space = "";
+    {
+      eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+      auto filesystem = FsView::gFsView.mIdView.lookupByID(fsid);
+
+      if (!filesystem) {
+        return Emsg(epname, error, errno, "retrieve filesystem location", path);
+      }
+
+      space = filesystem->GetString("schedgroup");
+      size_t ppos = space.find(".");
+      if (ppos != std::string::npos) {
+        space.erase(ppos);
+      }
     }
-  }
 
-  // Extract new layout components from QoS class
-  int layout = -1;
-  int checksumid = -1;
-  int nstripes = -1;
-  std::string policy = "";
+    // Extract new layout components from QoS class
+    int layout = -1;
+    int checksumid = -1;
+    int nstripes = -1;
+    std::string policy = "";
 
-  for (const auto& it: qos.attributes) {
-    if (it.first == "layout") {
-      layout = LayoutId::GetLayoutFromString(it.second);
-    } else if (it.first == "replica") {
-      nstripes = std::stoi(it.second);
-    } else if (it.first == "checksum") {
-      checksumid = LayoutId::GetChecksumFromString(it.second);
-    } else if (it.first == "placement") {
-      policy = it.second;
+    for (const auto& it: qos.attributes) {
+      if (it.first == "layout") {
+        layout = LayoutId::GetLayoutFromString(it.second);
+      } else if (it.first == "replica") {
+        nstripes = std::stoi(it.second);
+      } else if (it.first == "checksum") {
+        checksumid = LayoutId::GetChecksumFromString(it.second);
+      } else if (it.first == "placement") {
+        policy = it.second;
+      }
     }
-  }
 
-  // Generate layout id
-  layout = (layout != -1) ? layout : current_layout;
-  nstripes = (nstripes != -1) ? nstripes : current_nstripes;
-  checksumid = (checksumid != -1) ? checksumid : current_checksumid;
-  layoutid = LayoutId::GetId(layout, checksumid, nstripes,
-                             LayoutId::k4M, LayoutId::kCRC32C,
-                             LayoutId::GetRedundancyStripeNumber(layoutid));
+    // Generate layout id
+    layout = (layout != -1) ? layout : current_layout;
+    nstripes = (nstripes != -1) ? nstripes : current_nstripes;
+    checksumid = (checksumid != -1) ? checksumid : current_checksumid;
+    layoutid = LayoutId::GetId(layout, checksumid, nstripes,
+                               LayoutId::k4M, LayoutId::kCRC32C,
+                               LayoutId::GetRedundancyStripeNumber(layoutid));
 
-  // Generate conversion id
-  conversion_id = SSTR(
-    std::hex << std::setw(16) << std::setfill('0') << fileid
-    << ":" << space
-    << "#" << std::setw(8) << std::setfill('0') << layoutid
-    << (policy.length() ? ("~" + policy) : ""));
+    // Generate conversion id
+    conversion_id = SSTR(
+      std::hex << std::setw(16) << std::setfill('0') << fileid
+               << ":" << space
+               << "#" << std::setw(8) << std::setfill('0') << layoutid
+               << (policy.length() ? ("~" + policy) : ""));
 
-  eos_info("msg=\"set QoS class - scheduling conversion job\" path=%s "
-           "layout=%d nstripes=%d checksum=%d policy=%s space=%s "
-           "conversion_file=%s", path, layout, nstripes, checksumid,
-           policy.c_str(), space.c_str(), conversion_id.c_str());
+    eos_info("msg=\"set QoS class - scheduling conversion job\" path=%s "
+             "layout=%d nstripes=%d checksum=%d policy=%s space=%s "
+             "conversion_file=%s", path, layout, nstripes, checksumid,
+             policy.c_str(), space.c_str(), conversion_id.c_str());
 
-  // Create conversion job
-  std::string conversion_file = SSTR(
-    gOFS->MgmProcConversionPath.c_str() << "/" << conversion_id);
-  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+    // Create conversion job
+    std::string conversion_file = SSTR(
+      gOFS->MgmProcConversionPath.c_str() << "/" << conversion_id);
+    eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
 
-  if (gOFS->_touch(conversion_file.c_str(), error, rootvid, 0)) {
-    return Emsg(epname, error, errno, "create QoS conversion job",
-                conversion_id.c_str());
-  }
+    if (gOFS->_touch(conversion_file.c_str(), error, rootvid, 0)) {
+      return Emsg(epname, error, errno, "create QoS conversion job",
+                  conversion_id.c_str());
+    }
 
-  // Add the target QoS attribute
-  try {
-    eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
-    fmd = gOFS->eosView->getFile(path);
-    fmd->setAttribute("user.eos.qos.target", qos.name);
-    eosView->updateFileStore(fmd.get());
-  } catch (eos::MDException& e) {
-    errno = e.getErrno();
-    eos_debug("msg=\"exception setting extended attributes\" path=%s "
-              "ec=%d emsg=\"%s\"", path, e.getErrno(),
-              e.getMessage().str().c_str());
+    // Add the target QoS attribute
+    try {
+      eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
+      fmd = gOFS->eosView->getFile(path);
+      fmd->setAttribute("user.eos.qos.target", qos.name);
+      eosView->updateFileStore(fmd.get());
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      eos_debug("msg=\"exception setting extended attributes\" path=%s "
+                "ec=%d emsg=\"%s\"", path, e.getErrno(),
+                e.getMessage().str().c_str());
+    }
+  } else {
+    // For containers, only set the QoS target extended attribute
+    try {
+      eos::common::RWMutexWriteLock wlock(gOFS->eosViewRWMutex);
+      eos::IContainerMDPtr cmd = gOFS->eosView->getContainer(path);
+      cmd->setAttribute("user.eos.qos.target", qos.name);
+      eosView->updateContainerStore(cmd.get());
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      eos_debug("msg=\"exception setting extended attributes\" path=%s "
+                "ec=%d emsg=\"%s\"", path, e.getErrno(),
+                e.getMessage().str().c_str());
+      return Emsg(epname, error, e.getErrno(), "set extended attributes", path);
+    }
+
+    conversion_id = SSTR(path << "|" << qos.name);
   }
 
   EXEC_TIMING_END("QoSSet");
