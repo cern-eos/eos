@@ -1467,7 +1467,6 @@ ProcCommand::File()
                 stdErr = "error: create new replicas => cannot place replicas: ";
                 stdErr += spath;
                 stdErr += "\n";
-                retc = ENONET;
               }
             } else {
               // we do this only if we didn't create replicas in the section before,
