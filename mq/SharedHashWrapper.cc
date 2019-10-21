@@ -32,10 +32,11 @@ XrdMqSharedObjectManager* SharedHashWrapper::mSom;
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-SharedHashWrapper::SharedHashWrapper(const common::SharedHashLocator &locator, bool takeLock, bool create)
-: mLocator(locator) {
-
-  if(takeLock) {
+SharedHashWrapper::SharedHashWrapper(const common::SharedHashLocator& locator,
+                                     bool takeLock, bool create)
+  : mLocator(locator)
+{
+  if (takeLock) {
     mReadLock.Grab(mSom->HashMutex);
   }
 
@@ -46,14 +47,11 @@ SharedHashWrapper::SharedHashWrapper(const common::SharedHashLocator &locator, b
     // Shared hash does not exist, create
     //--------------------------------------------------------------------------
     mReadLock.Release();
-
     mSom->CreateSharedHash(mLocator.getConfigQueue().c_str(),
-      mLocator.getBroadcastQueue().c_str(), mSom);
-
+                           mLocator.getBroadcastQueue().c_str(), mSom);
     mReadLock.Grab(mSom->HashMutex);
     mHash = mSom->GetObject(mLocator.getConfigQueue().c_str(), "hash");
-  }
-  else if(mHash) {
+  } else if (mHash) {
     mHash->SetBroadCastQueue(mLocator.getBroadcastQueue().c_str());
   }
 }
@@ -61,21 +59,24 @@ SharedHashWrapper::SharedHashWrapper(const common::SharedHashLocator &locator, b
 //------------------------------------------------------------------------------
 // "Constructor" for global MGM hash
 //------------------------------------------------------------------------------
-SharedHashWrapper SharedHashWrapper::makeGlobalMgmHash() {
+SharedHashWrapper SharedHashWrapper::makeGlobalMgmHash()
+{
   return SharedHashWrapper(common::SharedHashLocator::makeForGlobalHash());
 }
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-SharedHashWrapper::~SharedHashWrapper() {
+SharedHashWrapper::~SharedHashWrapper()
+{
   releaseLocks();
 }
 
 //------------------------------------------------------------------------------
 // Release any interal locks - DO NOT use this object any further
 //------------------------------------------------------------------------------
-void SharedHashWrapper::releaseLocks() {
+void SharedHashWrapper::releaseLocks()
+{
   mHash = nullptr;
   mReadLock.Release();
 }
@@ -83,83 +84,128 @@ void SharedHashWrapper::releaseLocks() {
 //------------------------------------------------------------------------------
 // Set key-value pair
 //------------------------------------------------------------------------------
-bool SharedHashWrapper::set(const std::string &key, const std::string &value, bool broadcast) {
-  if(!mHash) return false;
+bool SharedHashWrapper::set(const std::string& key, const std::string& value,
+                            bool broadcast)
+{
+  if (!mHash) {
+    return false;
+  }
+
   return mHash->Set(key.c_str(), value.c_str(), broadcast);
 }
 
 //--------------------------------------------------------------------------
 // Set durable value
 //--------------------------------------------------------------------------
-void SharedHashWrapper::Batch::setDurable(const std::string& key, const std::string& value) {
+void SharedHashWrapper::Batch::SetDurable(const std::string& key,
+    const std::string& value)
+{
   mDurableUpdates[key] = value;
 }
 
 //--------------------------------------------------------------------------
 // Set transient value
 //--------------------------------------------------------------------------
-void SharedHashWrapper::Batch::setTransient(const std::string& key, const std::string& value) {
+void SharedHashWrapper::Batch::SetTransient(const std::string& key,
+    const std::string& value)
+{
   mTransientUpdates[key] = value;
 }
 
 //------------------------------------------------------------------------------
 // Set local value
 //------------------------------------------------------------------------------
-void SharedHashWrapper::Batch::setLocal(const std::string& key, const std::string& value) {
+void SharedHashWrapper::Batch::SetLocal(const std::string& key,
+                                        const std::string& value)
+{
   mLocalUpdates[key] = value;
 }
 
 //------------------------------------------------------------------------------
 //! Set key-value batch
 //------------------------------------------------------------------------------
-bool SharedHashWrapper::set(const Batch &batch) {
-  if(!mHash) return false;
+bool SharedHashWrapper::set(const Batch& batch)
+{
+  if (!mHash) {
+    return false;
+  }
 
+  // @note this is a hack to avoid boot failures on the FST side when a new fs
+  // is registered. The problem is that the FST expects all config parameters
+  // to be available in the shared hash onec it receives an update for the fs id
+  // This can only be achieved if we make sure the "id" is the last update the
+  // FST receives after applying all the rest from the current batch.
+  std::map<std::string, std::string>::const_iterator it_id;
+  bool has_id_update = false;
   mHash->OpenTransaction();
 
-  for (auto it = batch.mDurableUpdates.begin(); it != batch.mDurableUpdates.end(); it++) {
+  for (auto it = batch.mDurableUpdates.begin(); it != batch.mDurableUpdates.end();
+       it++) {
+    if (it->first != "id") {
+      mHash->Set(it->first.c_str(), it->second.c_str(), true);
+    } else {
+      has_id_update = true;
+      it_id = it;
+    }
+  }
+
+  for (auto it = batch.mTransientUpdates.begin();
+       it != batch.mTransientUpdates.end(); it++) {
     mHash->Set(it->first.c_str(), it->second.c_str(), true);
   }
 
-  for (auto it = batch.mTransientUpdates.begin(); it != batch.mTransientUpdates.end(); it++) {
-    mHash->Set(it->first.c_str(), it->second.c_str(), true);
-  }
-
-  for (auto it = batch.mLocalUpdates.begin(); it != batch.mLocalUpdates.end(); it++) {
+  for (auto it = batch.mLocalUpdates.begin(); it != batch.mLocalUpdates.end();
+       it++) {
     mHash->Set(it->first.c_str(), it->second.c_str(), false);
   }
 
   mHash->CloseTransaction();
+
+  // If there is an id update make sure this is the last one sent
+  if (has_id_update) {
+    mHash->Set(it_id->first.c_str(), it_id->second.c_str(), true);
+  }
+
   return true;
 }
 
 //------------------------------------------------------------------------------
 // Query the given key
 //------------------------------------------------------------------------------
-std::string SharedHashWrapper::get(const std::string &key) {
-  if(!mHash) return "";
+std::string SharedHashWrapper::get(const std::string& key)
+{
+  if (!mHash) {
+    return "";
+  }
+
   return mHash->Get(key.c_str());
 }
 
 //------------------------------------------------------------------------------
 // Query the given key - convert to long long automatically
 //------------------------------------------------------------------------------
-long long SharedHashWrapper::getLongLong(const std::string &key) {
+long long SharedHashWrapper::getLongLong(const std::string& key)
+{
   return eos::common::ParseLongLong(get(key));
 }
 
 //----------------------------------------------------------------------------
 // Query the given key - convert to double automatically
 //----------------------------------------------------------------------------
-double SharedHashWrapper::getDouble(const std::string &key) {
+double SharedHashWrapper::getDouble(const std::string& key)
+{
   return eos::common::ParseDouble(get(key));
 }
 
 //------------------------------------------------------------------------------
 // Query the given key, return if retrieval successful
 //------------------------------------------------------------------------------
-bool SharedHashWrapper::get(const std::string &key, std::string &value) {
-  if(!mHash) return false;
+bool SharedHashWrapper::get(const std::string& key, std::string& value)
+{
+  if (!mHash) {
+    return false;
+  }
+
   value = mHash->Get(key.c_str());
   return true;
 }
@@ -167,16 +213,24 @@ bool SharedHashWrapper::get(const std::string &key, std::string &value) {
 //------------------------------------------------------------------------------
 // Delete the given key
 //------------------------------------------------------------------------------
-bool SharedHashWrapper::del(const std::string &key, bool broadcast) {
-  if(!mHash) return false;
+bool SharedHashWrapper::del(const std::string& key, bool broadcast)
+{
+  if (!mHash) {
+    return false;
+  }
+
   return mHash->Delete(key.c_str(), broadcast);
 }
 
 //------------------------------------------------------------------------------
 // Get all keys in hash
 //------------------------------------------------------------------------------
-bool SharedHashWrapper::getKeys(std::vector<std::string> &out) {
-  if(!mHash) return false;
+bool SharedHashWrapper::getKeys(std::vector<std::string>& out)
+{
+  if (!mHash) {
+    return false;
+  }
+
   out = mHash->GetKeys();
   return true;
 }
@@ -184,8 +238,12 @@ bool SharedHashWrapper::getKeys(std::vector<std::string> &out) {
 //------------------------------------------------------------------------------
 // Get all hash contents as a map
 //------------------------------------------------------------------------------
-bool SharedHashWrapper::getContents(std::map<std::string, std::string> &out) {
-  if(!mHash) return false;
+bool SharedHashWrapper::getContents(std::map<std::string, std::string>& out)
+{
+  if (!mHash) {
+    return false;
+  }
+
   out = mHash->GetContents();
   return true;
 }
@@ -194,7 +252,8 @@ bool SharedHashWrapper::getContents(std::map<std::string, std::string> &out) {
 // Initialize, set shared manager.
 // Call this function before using any SharedHashWrapper!
 //------------------------------------------------------------------------------
-void SharedHashWrapper::initialize(XrdMqSharedObjectManager *som) {
+void SharedHashWrapper::initialize(XrdMqSharedObjectManager* som)
+{
   mSom = som;
 }
 

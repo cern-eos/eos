@@ -47,7 +47,8 @@ public:
   //----------------------------------------------------------------------------
   //! Update batch object
   //----------------------------------------------------------------------------
-  class Batch {
+  class Batch
+  {
   public:
     //--------------------------------------------------------------------------
     //! Constructor
@@ -57,17 +58,17 @@ public:
     //--------------------------------------------------------------------------
     //! Set durable value
     //--------------------------------------------------------------------------
-    void setDurable(const std::string& key, const std::string& value);
+    void SetDurable(const std::string& key, const std::string& value);
 
     //--------------------------------------------------------------------------
     //! Set transient value
     //--------------------------------------------------------------------------
-    void setTransient(const std::string& key, const std::string& value);
+    void SetTransient(const std::string& key, const std::string& value);
 
     //--------------------------------------------------------------------------
     //! Set local value
     //--------------------------------------------------------------------------
-    void setLocal(const std::string& key, const std::string& value);
+    void SetLocal(const std::string& key, const std::string& value);
 
   private:
     friend class SharedHashWrapper;
@@ -106,7 +107,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set key-value batch
   //----------------------------------------------------------------------------
-  bool set(const Batch &batch);
+  bool set(const Batch& batch);
 
   //----------------------------------------------------------------------------
   //! Query the given key
@@ -141,7 +142,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get all hash contents as a map
   //----------------------------------------------------------------------------
-  bool getContents(std::map<std::string, std::string> &out);
+  bool getContents(std::map<std::string, std::string>& out);
 
   //----------------------------------------------------------------------------
   //! Initialize, set shared manager.

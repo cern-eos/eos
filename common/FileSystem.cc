@@ -64,7 +64,7 @@ void FileSystemUpdateBatch::setDrainStatusLocal(DrainStatus status)
 void FileSystemUpdateBatch::setStringDurable(const std::string& key,
     const std::string& value)
 {
-  mBatch.setDurable(key, value);
+  mBatch.SetDurable(key, value);
 }
 
 //------------------------------------------------------------------------------
@@ -79,7 +79,7 @@ void FileSystemUpdateBatch::setStringDurable(const std::string& key,
 void FileSystemUpdateBatch::setStringTransient(const std::string& key,
     const std::string& value)
 {
-  mBatch.setTransient(key, value);
+  mBatch.SetTransient(key, value);
 }
 
 //------------------------------------------------------------------------------
@@ -89,7 +89,7 @@ void FileSystemUpdateBatch::setStringTransient(const std::string& key,
 void FileSystemUpdateBatch::setStringLocal(const std::string& key,
     const std::string& value)
 {
-  mBatch.setLocal(key, value);
+  mBatch.SetLocal(key, value);
 }
 
 //------------------------------------------------------------------------------
@@ -487,16 +487,16 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
 
   if (mSom) {
     mq::SharedHashWrapper::Batch updateBatch;
-    updateBatch.setDurable("queue", mLocator.getFSTQueue());
-    updateBatch.setDurable("queuepath", mLocator.getQueuePath());
-    updateBatch.setDurable("path", mLocator.getStoragePath());
-    updateBatch.setDurable("hostport", locator.getHostPort());
-    updateBatch.setDurable("host", locator.getHost());
-    updateBatch.setDurable("port", std::to_string(locator.getPort()));
-    updateBatch.setLocal("stat.drain", "nodrain");
+    updateBatch.SetDurable("queue", mLocator.getFSTQueue());
+    updateBatch.SetDurable("queuepath", mLocator.getQueuePath());
+    updateBatch.SetDurable("path", mLocator.getStoragePath());
+    updateBatch.SetDurable("hostport", locator.getHostPort());
+    updateBatch.SetDurable("host", locator.getHost());
+    updateBatch.SetDurable("port", std::to_string(locator.getPort()));
+    updateBatch.SetLocal("stat.drain", "nodrain");
 
     if (!bc2mgm) {
-      updateBatch.setDurable("configstatus", "down");
+      updateBatch.SetDurable("configstatus", "down");
     }
 
     mq::SharedHashWrapper(mHashLocator).set(updateBatch);
