@@ -32,8 +32,8 @@
 EOSMGMNAMESPACE_BEGIN
 
 // Helper function forward declaration
-static int CheckIsFile(const char*, eos::common::VirtualIdentity&,
-                       std::string&);
+static int CheckValidIdentifier(const char*, eos::common::VirtualIdentity&,
+                                std::string&);
 
 //------------------------------------------------------------------------------
 // Method implementing the specific behaviour of the command executed
@@ -137,8 +137,8 @@ void QoSCmd::GetSubcmd(const eos::console::QoSProto_GetProto& get,
     return;
   }
 
-  // Check path points to a valid file
-  if ((retc = CheckIsFile(path.c_str(), mVid, errmsg))) {
+  // Check path points to a valid entry
+  if ((retc = CheckValidIdentifier(path.c_str(), mVid, errmsg))) {
     reply.set_std_err(errmsg);
     reply.set_retc(retc);
     return;
@@ -239,8 +239,8 @@ void QoSCmd::SetSubcmd(const eos::console::QoSProto_SetProto& set,
     return;
   }
 
-  // Check path points to a valid file
-  if ((retc = CheckIsFile(path.c_str(), mVid, errmsg))) {
+  // Check path points to a valid entry
+  if ((retc = CheckValidIdentifier(path.c_str(), mVid, errmsg))) {
     reply.set_std_err(errmsg);
     reply.set_retc(retc);
     return;
@@ -378,7 +378,7 @@ std::string QoSCmd::MapToJSONOutput(const eos::IFileMD::QoSAttrMap& map)
 }
 
 //------------------------------------------------------------------------------
-//! Check that the given path points to a valid file.
+//! Check that the given path points to a valid entry.
 //!
 //! @param path the path to check
 //! @param vid virtual identity of the client
@@ -386,9 +386,9 @@ std::string QoSCmd::MapToJSONOutput(const eos::IFileMD::QoSAttrMap& map)
 //!
 //! @return 0 if path points to file, error code otherwise
 //------------------------------------------------------------------------------
-static int CheckIsFile(const char* path,
-                       eos::common::VirtualIdentity& vid,
-                       std::string& err_msg)
+static int CheckValidIdentifier(const char* path,
+                                eos::common::VirtualIdentity& vid,
+                                std::string& err_msg)
 {
   XrdSfsFileExistence fileExists;
   XrdOucErrInfo errInfo;
@@ -402,8 +402,9 @@ static int CheckIsFile(const char* path,
   if (fileExists == XrdSfsFileExistNo) {
     err_msg = "error: path does not point to a valid entry";
     return EINVAL;
-  } else if (fileExists != XrdSfsFileExistIsFile) {
-    err_msg = "error: path does not point to a file";
+  } else if ((fileExists != XrdSfsFileExistIsFile) &&
+             (fileExists != XrdSfsFileExistIsDirectory)) {
+    err_msg = "error: path does not point to a file or container";
     return EINVAL;
   }
 
