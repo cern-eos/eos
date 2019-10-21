@@ -129,8 +129,7 @@ ProcCommand::FileInfo(const char* path)
     if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
       unsigned long long fid = Resolver::retrieveFileIdentifier(
                                  spath).getUnderlyingUInt64();
-      // reference by fid+fxid
-      //-------------------------------------------
+      // Reference by fid+fxid
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
       viewReadLock.Grab(gOFS->eosViewRWMutex);
       std::string nspath;
@@ -138,7 +137,12 @@ ProcCommand::FileInfo(const char* path)
       try {
         fmd = gOFS->eosFileService->getFileMD(fid, &clock);
         nspath = gOFS->eosView->getUri(fmd.get());
-        spath = nspath.c_str();
+
+        if (fmd->isLink()) {
+          spath = gOFS->eosView->getRealPath(nspath).c_str();
+        } else {
+          spath = nspath.c_str();
+        }
       } catch (eos::MDException& e) {
         errno = e.getErrno();
         stdErr = "error: cannot retrieve file meta data - ";
@@ -150,13 +154,19 @@ ProcCommand::FileInfo(const char* path)
       // Detect detached state for fid/fxid reference
       detached = nspath.empty();
     } else {
-      // reference by path
-      //-------------------------------------------
+      // Reference by path
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, spath.c_str());
       viewReadLock.Grab(gOFS->eosViewRWMutex);
 
       try {
         fmd = gOFS->eosView->getFile(spath.c_str());
+        std::string nspath = gOFS->eosView->getUri(fmd.get());
+
+        if (fmd->isLink()) {
+          spath = gOFS->eosView->getRealPath(nspath).c_str();
+        } else {
+          spath = nspath.c_str();
+        }
       } catch (eos::MDException& e) {
         errno = e.getErrno();
         stdErr = "error: cannot retrieve file meta data - ";
