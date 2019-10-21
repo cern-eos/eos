@@ -140,7 +140,6 @@ add_library(
   commands/com_proto_access.cc
   commands/com_proto_fsck.cc)
 
-add_dependencies(EosConsoleHelpers-Objects EosCliProto-Objects)
 add_dependencies(EosConsoleHelpers-Objects EosFstProto-Objects)
 add_dependencies(EosConsoleCommands-Objects EosConsoleHelpers-Objects)
 
@@ -152,7 +151,6 @@ set_target_properties(EosConsoleCommands-Objects PROPERTIES
 
 add_executable(eos
   ConsoleMainExecutable.cc
-  $<TARGET_OBJECTS:EosCliProto-Objects>
   $<TARGET_OBJECTS:EosConsoleHelpers-Objects>
   $<TARGET_OBJECTS:EosConsoleCommands-Objects>)
 

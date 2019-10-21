@@ -131,7 +131,8 @@ set(EOSCOMMON_LIBS
 add_library(eosCommon SHARED $<TARGET_OBJECTS:eosCommon-Objects>)
 
 target_link_libraries(eosCommon PUBLIC
-  ${EOSCOMMON_LIBS} EosProtobuf
+  EosProtobuf
+  ${EOSCOMMON_LIBS}
 )
 
 set_target_properties(eosCommon PROPERTIES
