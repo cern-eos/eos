@@ -760,26 +760,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
                                            mQdbContactDetails.constructSubscriptionOptions()));
   }
 
-  // Create the specific listener class
-  Messaging = new eos::fst::Messaging(
-    eos::fst::Config::gConfig.FstOfsBrokerUrl.c_str(),
-    eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str(),
-    false, false, &ObjectManager);
-
-  if (!Messaging) {
-    Eroute.Emsg("Config", "cannot allocate messaging object");
-    NoGo = 1;
-    return NoGo;
-  }
-
-  Messaging->SetLogId("FstOfsMessaging", "<service>");
-
-  if (!Messaging->StartListenerThread() || Messaging->IsZombie()) {
-    Eroute.Emsg("Config", "cannot create messaging object(thread)");
-    NoGo = 1;
-    return NoGo;
-  }
-
   // Setup auth dir
   {
     XrdOucString scmd = "mkdir -p ";
@@ -820,6 +800,26 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
   if (!ObjectNotifier.Start()) {
     eos_crit("error starting the shared object change notifier");
+  }
+
+// Create the specific listener class
+  Messaging = new eos::fst::Messaging(
+    eos::fst::Config::gConfig.FstOfsBrokerUrl.c_str(),
+    eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str(),
+    false, false, &ObjectManager);
+
+  if (!Messaging) {
+    Eroute.Emsg("Config", "cannot allocate messaging object");
+    NoGo = 1;
+    return NoGo;
+  }
+
+  Messaging->SetLogId("FstOfsMessaging", "<service>");
+
+  if (!Messaging->StartListenerThread() || Messaging->IsZombie()) {
+    Eroute.Emsg("Config", "cannot create messaging object(thread)");
+    NoGo = 1;
+    return NoGo;
   }
 
   RequestBroadcasts();

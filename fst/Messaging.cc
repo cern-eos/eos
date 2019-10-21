@@ -75,13 +75,13 @@ Messaging::Process(XrdMqMessage* newmessage)
 
     if (!result) {
       if (error != "no subject in message body") {
-        eos_info("%s", error.c_str());
+        eos_info("msg=\"%s\" body=\"%s\"", error.c_str(), saction.c_str());
       } else {
         eos_debug("%s", error.c_str());
       }
-    } else {
-      return;
     }
+
+    return;
   }
 
   if (cmd == "debug") {
