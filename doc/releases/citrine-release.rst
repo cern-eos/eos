@@ -15,6 +15,17 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.5.11 Citrine``
+===================
+
+2019-10-22
+
+Bug
+----
+
+* MGM: fix rare lockups observed due to wrong expectation of an exception thrown
+
+
 ``v4.5.10 Citrine``
 ===================
 
