@@ -40,8 +40,9 @@ XrdOucString Config::getFstNodeConfigQueue(const std::string& location,
     bool blocking)
 {
   while (!configQueueInitialized && blocking) {
+    eos_static_info("msg=\"waiting for config queue in %s ...\"",
+                    location.c_str());
     std::this_thread::sleep_for(std::chrono::seconds(2));
-    eos_static_info("Waiting for config queue in %s ... ", location.c_str());
   }
 
   return FstNodeConfigQueue;
@@ -50,17 +51,16 @@ XrdOucString Config::getFstNodeConfigQueue(const std::string& location,
 void Config::setFstNodeConfigQueue(const XrdOucString& value)
 {
   FstNodeConfigQueue = value;
-
-  std::vector<std::string> parts = common::StringTokenizer::split<std::vector<std::string>>(value.c_str(), '/');
+  std::vector<std::string> parts =
+    common::StringTokenizer::split<std::vector<std::string>>(value.c_str(), '/');
   common::InstanceName::set(parts[1]);
-
   mNodeHashLocator = common::SharedHashLocator(parts[1],
-    common::SharedHashLocator::Type::kNode, parts[3]);
-
+                     common::SharedHashLocator::Type::kNode, parts[3]);
   configQueueInitialized = true;
 }
 
-common::SharedHashLocator Config::getNodeHashLocator(const std::string& location,
+common::SharedHashLocator Config::getNodeHashLocator(const std::string&
+    location,
     bool blocking)
 {
   while (!configQueueInitialized && blocking) {
@@ -68,7 +68,7 @@ common::SharedHashLocator Config::getNodeHashLocator(const std::string& location
     eos_static_info("Waiting for config queue in %s ... ", location.c_str());
   }
 
-  if(configQueueInitialized) {
+  if (configQueueInitialized) {
     return mNodeHashLocator;
   }
 
