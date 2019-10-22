@@ -4700,7 +4700,7 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
               value += Instance().Config().hostport;
               value += "/";
               value += md->fullpath().c_str();
-            }
+	    }
 
             if (key == "eos.quota") {
               pcap = Instance().caps.acquire(req, ino,
@@ -4801,15 +4801,15 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
                   value = map[key];
                 }
             }
-
-            if (size != 0) {
-              if (value.size() > size) {
-                rc = ERANGE;
-              }
-            }
-          }
+	  }
         }
       }
+    }
+  }
+
+  if (!rc && (size != 0)) {
+    if (value.size() > size) {
+      rc = ERANGE;
     }
   }
 
