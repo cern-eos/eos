@@ -118,6 +118,10 @@ public:
                                "lower than 1MHz");
     }
 
+    if (rate < 1) {
+      rate = 1;
+    }
+
     mRate = rate;
     mRateIntervalUs = 1000000 / rate;
   }
