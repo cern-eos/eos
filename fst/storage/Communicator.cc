@@ -137,7 +137,7 @@ Storage::RegisterFileSystem(const std::string& queuepath)
                   "fsid=%lu uuid=\"%s\"", queuepath.c_str(), fs->GetLocalId(),
                   fs->GetLocalUuid().c_str());
 
-  if (fs->GetLocalId() == 0ul) {
+  if ((fs->GetLocalId() == 0ul) || fs->GetLocalUuid().empty()) {
     eos_static_info("msg=\"partially register file system\" qpath=\"%s\"",
                     queuepath.c_str());
     return;
@@ -348,7 +348,7 @@ Storage::ProcessFsConfigChange(const std::string& queuepath,
                       "fsid=%lu uuid=\"%s\"", queuepath.c_str(), fs->GetLocalId(),
                       fs->GetLocalUuid().c_str());
 
-      if (fs->GetLocalId() == 0ul) {
+      if ((fs->GetLocalId() == 0ul) || fs->GetLocalUuid().empty()) {
         eos_static_info("msg=\"defer file system registration\" qpath=\"%s\"",
                         queuepath.c_str());
         return;
