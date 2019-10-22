@@ -79,9 +79,9 @@ Messaging::Process(XrdMqMessage* newmessage)
       } else {
         eos_debug("%s", error.c_str());
       }
+    } else {
+      return;
     }
-
-    return;
   }
 
   if (cmd == "debug") {
