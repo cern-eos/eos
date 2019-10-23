@@ -890,7 +890,8 @@ ScanDir::EnforceAndAdjustScanRate(const off_t offset,
     uint64_t now_ts_sec = duration_cast<seconds>
                           (mClock.getTime().time_since_epoch()).count();
     uint64_t scan_duration = now_ts_sec - open_ts_sec;
-    uint64_t expect_duration = (uint64_t)((1.0 * offset / scan_rate) / 1000.0);
+    uint64_t expect_duration = (uint64_t)((1.0 * offset) /
+                                          (scan_rate * 1024 * 1024));
 
     if (expect_duration > scan_duration) {
       std::this_thread::sleep_for(milliseconds(expect_duration - scan_duration));

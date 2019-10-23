@@ -146,9 +146,8 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
     return;
   }
 
-  std::string fpath_local = FileId::FidPrefix2FullPath(FileId::Fid2Hex(
-                              mFid).c_str(),
-                            fst_local_path.c_str());
+  std::string fpath_local = FileId::FidPrefix2FullPath
+                            (FileId::Fid2Hex(mFid).c_str(), fst_local_path.c_str());
   // Check that the file exists on disk
   XrdCl::StatInfo* stat_info_raw {nullptr};
   std::unique_ptr<XrdCl::StatInfo> stat_info;
@@ -159,8 +158,8 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
   stat_info.reset(stat_info_raw);
 
   if (!status.IsOK()) {
-    eos_err("msg=\"failed stat\" fxid=%08llx, local_path=%s", mFid,
-            fpath_local.c_str());
+    eos_err("msg=\"failed stat\" fxid=%08llx fsid=%lu local_path=%s", mFid,
+            fsid, fpath_local.c_str());
 
     if (status.code == XrdCl::errOperationExpired) {
       mFstFileInfo.emplace(fsid, std::make_unique<FstFileInfoT>("",
