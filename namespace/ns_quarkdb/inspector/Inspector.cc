@@ -1218,6 +1218,17 @@ int Inspector::fixShadowFile(bool dryRun, uint64_t fid, const std::string &desti
     return 1;
   }
 
+  if(!filemapEntryExists) {
+    out << "Detected problem: Filemap entry does not exist." << std::endl;
+  }
+  else if(!filemapEntryValid) {
+    out << "Detected problem: Filemap entry is not valid, and instead points to fid " << cidFilemap[val.name()] << std::endl;
+  }
+
+  if(containerMapConflict) {
+    out << "Detected problem: Conflict with containermap entry, points to cid " << cidContainermap[val.name()] << std::endl;
+  }
+
   // Go
   std::string newName = SSTR("recovered-file___id=" << val.id() << "___name=" << val.name() << "___naming-conflict-in-parent=" << val.cont_id());
   return renameFid(dryRun, val.id(), destination.getUnderlyingUInt64(), newName, out, err);
