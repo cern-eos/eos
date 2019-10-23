@@ -289,7 +289,7 @@ ICmdHelper::GetError()
 // Guess a default 'route' e.g. home directory
 //------------------------------------------------------------------------------
 std::string
-ICmdHelper::DefaultRoute()
+ICmdHelper::DefaultRoute(bool verbose)
 {
   std::string default_route = "";
 
@@ -311,9 +311,14 @@ ICmdHelper::DefaultRoute()
     if (username.length()) {
       snprintf(default_home, sizeof(default_home), "/eos/user/%s/%s/",
                username.substr(0, 1).c_str(), username.c_str());
-      fprintf(stderr,
-              "# pre-configuring default route to %s\n# -use $EOSHOME variable to override\n",
-              default_home);
+
+      if (verbose) {
+        fprintf(stderr,
+                "# pre-configuring default route to %s\n"
+                "# -use $EOSHOME variable to override\n",
+                default_home);
+      }
+
       default_route = default_home;
     }
   }
@@ -355,6 +360,14 @@ ICmdHelper::AddRouteInfo(std::string& cmd)
       }
     } else {
       oss << "&eos.route=" << mReq.rm().path();
+    }
+
+    break;
+
+  case RequestProto::kQuota:
+    if (mReq.quota().subcmd_case() ==
+        eos::console::QuotaProto::kLsuser) {
+      oss << "&eos.route=" << mReq.quota().lsuser().space();
     }
 
     break;

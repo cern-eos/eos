@@ -80,14 +80,14 @@ bool QuotaHelper::ParseCommand(const char* arg)
     std::string aux_string;
 
     if (token == "") {
-      aux_string = DefaultRoute();
+      aux_string = DefaultRoute(false);
 
       if (aux_string.find('/') == 0) {
         lsuser->set_space(aux_string);
       }
     } else if (token == "-m") {
       lsuser->set_format(true);
-      aux_string = DefaultRoute();
+      aux_string = DefaultRoute(false);
 
       if (aux_string.find('/') == 0) {
         lsuser->set_space(aux_string);
@@ -310,7 +310,7 @@ int com_protoquota(char* arg)
     return EINVAL;
   }
 
-  global_retc = quota.Execute(false);
+  global_retc = quota.Execute(false, true);
 
   // Provide compatibility in case the server does not support the protobuf
   // implementation ie. < 4.5.0

@@ -193,8 +193,11 @@ public:
   //----------------------------------------------------------------------------
   //! Guess a default 'route' e.g. home directory - this code is duplicated
   //! on purpose in ConsoleMain but will be dropped from there in the future.
+  //!
+  //! @param verbose flag indicating whether to print selected route
+  //! @return the computed default route
   //----------------------------------------------------------------------------
-  std::string DefaultRoute();
+  std::string DefaultRoute(bool verbose = true);
 
   //----------------------------------------------------------------------------
   //! Print debug message to console
