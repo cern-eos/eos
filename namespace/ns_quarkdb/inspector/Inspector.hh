@@ -135,6 +135,11 @@ public:
   int fixDetachedParentContainer(bool dryRun, uint64_t cid, const std::string &destinationPath, std::ostream &out, std::ostream &err);
   int fixDetachedParentFile(bool dryRun, uint64_t fid, const std::string &destinationPath, std::ostream &out, std::ostream &err);
 
+  //------------------------------------------------------------------------------
+  //! Fix naming conflict
+  //------------------------------------------------------------------------------
+  int fixShadowFile(bool dryRun, uint64_t fid, const std::string &destinationPath, std::ostream &out, std::ostream &err);
+
   //----------------------------------------------------------------------------
   //! Change the given fid - USE WITH CAUTION
   //----------------------------------------------------------------------------

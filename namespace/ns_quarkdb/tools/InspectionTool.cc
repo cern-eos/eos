@@ -212,7 +212,7 @@ int main(int argc, char* argv[]) {
   //----------------------------------------------------------------------------
   // Set-up fix-detached-parent subcommand..
   //----------------------------------------------------------------------------
-  auto fixDetachedParent = app.add_subcommand("fix-detached-parent", "[CAUTION] Attempt to fix a detached parent of the given fid / cid, by re-creating said parent in a given destination");
+  auto fixDetachedParent = app.add_subcommand("fix-detached-parent", "[CAUTION] Attempt to fix a detached parent of the given fid / cid,\nby re-creating said parent in a given destination");
   addClusterOptions(fixDetachedParent, membersStr, memberValidator, password, passwordFile);
   addDryRun(fixDetachedParent, noDryRun);
 
@@ -225,6 +225,19 @@ int main(int argc, char* argv[]) {
   idGroup2->add_option("--cid", cid, "Fix the parents of the given container ID (decimal form)");
   idGroup2->add_option("--fid", fid, "Fix the parents of the given file ID (decimal form)");
   idGroup2->require_option(1, 1);
+
+  //----------------------------------------------------------------------------
+  // Set-up fix-naming-conflict subcommand..
+  //----------------------------------------------------------------------------
+  auto fixShadowFileSubcommand = app.add_subcommand("fix-shadow-file", "[CAUTION] Attempt to fix a shadowed file.\nIf the given fid is indeed shadowed by a different fid / cid, it's moved to the given destination.");
+  addClusterOptions(fixShadowFileSubcommand, membersStr, memberValidator, password, passwordFile);
+  addDryRun(fixShadowFileSubcommand, noDryRun);
+
+  fixShadowFileSubcommand->add_option("--destination-path", destinationPath, "Path in which the conflicting file will be stored.")
+    ->required();
+
+  fixShadowFileSubcommand->add_option("--fid", fid, "Specify the suspected shadowed file")
+    ->required();
 
   //----------------------------------------------------------------------------
   // Change fid protobuf properties
@@ -398,6 +411,10 @@ int main(int argc, char* argv[]) {
     else {
       return inspector.fixDetachedParentFile(dryRun, fid, destinationPath, std::cout, std::cerr);
     }
+  }
+
+  if(fixShadowFileSubcommand->parsed()) {
+    return inspector.fixShadowFile(dryRun, fid, destinationPath, std::cout, std::cerr);
   }
 
   if(changeFidSubcommand->parsed()) {

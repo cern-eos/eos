@@ -63,6 +63,17 @@ static std::string escapeNonPrintable(const std::string &str) {
 }
 
 //------------------------------------------------------------------------------
+// Turn bool to yes / no
+//------------------------------------------------------------------------------
+static std::string toYesOrNo(bool val) {
+  if(val) {
+    return "Yes";
+  }
+
+  return "No";
+}
+
+//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 Inspector::Inspector(qclient::QClient& qcl) : mQcl(qcl) { }
@@ -1157,6 +1168,62 @@ int Inspector::fixDetachedParentContainer(bool dryRun, uint64_t cid, const std::
 }
 
 //------------------------------------------------------------------------------
+// Attempt to fix naming conflict
+//------------------------------------------------------------------------------
+int Inspector::fixShadowFile(bool dryRun, uint64_t fid, const std::string &destinationPath, std::ostream &out, std::ostream &err) {
+  //----------------------------------------------------------------------------
+  // Ensure given file exists..
+  //----------------------------------------------------------------------------
+  eos::ns::FileMdProto val;
+
+  try {
+    val = MetadataFetcher::getFileFromId(mQcl, FileIdentifier(fid)).get();
+  } catch(const MDException& e) {
+    err << "Error while fetching metadata for FileMD #" << fid << ": " << e.what()
+        << std::endl;
+    return 1;
+  }
+
+  //----------------------------------------------------------------------------
+  // Ensure given destination path is sane
+  //----------------------------------------------------------------------------
+  ContainerIdentifier destination;
+  if(!isDestinationPathSane(destinationPath, destination, out)) {
+    return 1;
+  }
+
+  //----------------------------------------------------------------------------
+  // Ensure the given fid is indeed shadowed
+  //----------------------------------------------------------------------------
+  bool cidExists = MetadataFetcher::doesContainerMdExist(mQcl, ContainerIdentifier(val.cont_id())).get();
+  IContainerMD::FileMap cidFilemap = MetadataFetcher::getFileMap(mQcl, ContainerIdentifier(val.cont_id())).get();
+  bool filemapEntryExists = cidFilemap.find(val.name()) != cidFilemap.end();
+  bool filemapEntryValid = (cidFilemap[val.name()] == val.id());
+
+  IContainerMD::ContainerMap cidContainermap = MetadataFetcher::getContainerMap(mQcl, ContainerIdentifier(val.cont_id())).get();
+  bool containerMapConflict = cidContainermap.find(val.name()) != cidContainermap.end();
+
+  out << "Parent exists? " << toYesOrNo(cidExists) << std::endl;
+  out << "Filemap entry exists? " << toYesOrNo(filemapEntryExists) << std::endl;
+  out << "Filemap entry valid? " << toYesOrNo(filemapEntryValid) << std::endl;
+  out << "Containermap conflict? " << toYesOrNo(containerMapConflict) << std::endl;
+
+  if(!cidExists) {
+    err << "Parent container does not exist, use fix-detached-parent." << std::endl;
+    return 1;
+  }
+
+  if(filemapEntryExists && filemapEntryValid && !containerMapConflict) {
+    err << "File looks fine? No naming conflict detected, nothing to be done." << std::endl;
+    return 1;
+  }
+
+  // Go
+  std::string newName = SSTR("recovered-file___id=" << val.id() << "___name=" << val.name() << "___naming-conflict-in-parent=" << val.cont_id());
+  return renameFid(dryRun, val.id(), destination.getUnderlyingUInt64(), newName, out, err);
+}
+
+//------------------------------------------------------------------------------
 // Attempt to fix detached parent
 //------------------------------------------------------------------------------
 int Inspector::fixDetachedParentFile(bool dryRun, uint64_t fid, const std::string &destinationPath, std::ostream &out, std::ostream &err) {
@@ -1261,17 +1328,6 @@ int Inspector::changeFid(bool dryRun, uint64_t fid, uint64_t newParent, const st
   requests.emplace_back(RequestBuilder::writeFileProto(&fileMD));
   executeRequestBatch(requests, {}, dryRun, out, err);
   return 0;
-}
-
-//------------------------------------------------------------------------------
-// Turn bool to yes / no
-//------------------------------------------------------------------------------
-static std::string toYesOrNo(bool val) {
-  if(val) {
-    return "Yes";
-  }
-
-  return "No";
 }
 
 //------------------------------------------------------------------------------
