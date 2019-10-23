@@ -1140,7 +1140,7 @@ clean_k8s_cluster:
     - kubectl get pods --all-namespaces | 
       grep -E 'ImagePullBackOff|ErrImagePull|Evicted' | 
       awk '{print $2 " --namespace=" $1}' | 
-      xargs kubectl delete po
+      xargs --no-run-if-empty kubectl delete pods
     - kubectl get namespaces --no-headers -o custom-columns=":metadata.name,:.metadata.creationTimestamp" | 
       grep -v 'default\|kube-public\|kube-system' | 
       awk '$2 <= "'$( date --utc -d "3 days ago" +"%Y-%m-%dT%H:%M:%SZ" )'" { print $1 }' | 
