@@ -186,7 +186,8 @@ void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm,
 
   // Remove a node only if it has no heartbeat anymore
   if ((time(nullptr) - FsView::gFsView.mNodeView[nodename]->GetHeartBeat()) < 5) {
-    reply.set_std_err("error: this node was still sending a heartbeat < 5 seconds ago - stop the FST daemon first!\n");
+    reply.set_std_err("error: this node was still sending a heartbeat < 5 "
+                      "seconds ago - stop the FST daemon first!");
     reply.set_retc(EBUSY);
     return;
   }
@@ -200,7 +201,8 @@ void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm,
       // check the empty state
       if ((fs->GetConfigStatus(false) != eos::common::ConfigStatus::kEmpty)) {
         reply.set_std_err("error: unable to remove node '" + nodename +
-                          "' - filesystems are not all in empty state - try to drain them or: node config <name> configstatus=empty\n");
+                          "' - filesystems are not all in empty state - try "
+                          "to drain them or: node config <name> configstatus=empty");
         reply.set_retc(EBUSY);
         return;
       }
@@ -333,7 +335,7 @@ void NodeCmd::ConfigSubcmd(const eos::console::NodeProto_ConfigProto& config,
 
   if (nodes.empty()) {
     reply.set_retc(EINVAL);
-    reply.set_std_err("error: cannot find node <" + config.node_name() + ">\n");
+    reply.set_std_err("error: cannot find node <" + config.node_name() + ">");
     return;
   }
 
@@ -356,13 +358,13 @@ void NodeCmd::ConfigSubcmd(const eos::console::NodeProto_ConfigProto& config,
 
             FsView::gFsView.StoreFsConfig(fs);
           } else {
-            reply.set_std_err("error: not an allowed parameter <" + config.node_key() +
-                              ">\n");
+            reply.set_std_err("error: not an allowed parameter <" +
+                              config.node_key() + ">");
             reply.set_retc(EINVAL);
           }
         } else {
           reply.set_std_err("error: cannot identify the filesystem by <" +
-                            config.node_name() + ">\n");
+                            config.node_name() + ">");
           reply.set_retc(EINVAL);
         }
       }
@@ -370,14 +372,14 @@ void NodeCmd::ConfigSubcmd(const eos::console::NodeProto_ConfigProto& config,
       int slots = std::stoi(config.node_value());
 
       if ((slots < 1) || (slots > 100)) {
-        reply.set_std_err("error: number of gateway transfer slots must be between 1-100\n");
+        reply.set_std_err("error: number of gateway transfer slots must be between 1-100");
         reply.set_retc(EINVAL);
       } else {
         if (node->SetConfigMember(config.node_key(), config.node_value(), false)) {
           reply.set_std_out("success: number of gateway transfer slots set to gw.ntx=" +
-                            std::to_string(slots) + "\n");
+                            std::to_string(slots));
         } else {
-          reply.set_std_err("error: failed to store the config value gw.ntx\n");
+          reply.set_std_err("error: failed to store the config value gw.ntx");
           reply.set_retc(EFAULT);
         }
       }
@@ -385,43 +387,44 @@ void NodeCmd::ConfigSubcmd(const eos::console::NodeProto_ConfigProto& config,
       int bw = std::stoi(config.node_value());
 
       if ((bw < 1) || (bw > 10000)) {
-        reply.set_std_err("error: gateway transfer speed must be 1-10000 (MB/s)\n");
+        reply.set_std_err("error: gateway transfer speed must be 1-10000 (MB/s)");
         reply.set_retc(EINVAL);
       } else {
         if (node->SetConfigMember(config.node_key(), config.node_value(), false)) {
           reply.set_std_out("success: gateway transfer rate set to gw.rate=" +
-                            std::to_string(bw) + " Mb/s\n");
+                            std::to_string(bw) + " Mb/s");
         } else {
-          reply.set_std_err("error: failed to store the config value gw.rate\n");
+          reply.set_std_err("error: failed to store the config value gw.rate");
           reply.set_retc(EFAULT);
         }
       }
     } else if (config.node_key() == "error.simulation") {
       if (node->SetConfigMember(config.node_key(), config.node_value(), false)) {
         reply.set_std_out("success: setting error simulation tag '" +
-                          config.node_value() += "'\n");
+                          config.node_value() += "'");
       } else {
-        reply.set_std_err("error: failed to store the error simulation tag\n");
+        reply.set_std_err("error: failed to store the error simulation tag");
         reply.set_retc(EFAULT);
       }
     } else if (config.node_key() == "publish.interval") {
       if (node->SetConfigMember(config.node_key(), config.node_value(), false)) {
-        reply.set_std_out("success: setting publish interval to '" + config.node_value()
-                          + "'\n");
+        reply.set_std_out("success: setting publish interval to '" +
+                          config.node_value() + "'");
       } else {
-        reply.set_std_err("error: failed to store publish interval\n");
+        reply.set_std_err("error: failed to store publish interval");
         reply.set_retc(EFAULT);
       }
     } else if (config.node_key() == "debug.level") {
       if (node->SetConfigMember(config.node_key(), config.node_value(), false)) {
-        reply.set_std_out("success: setting debug level to '" + config.node_value() +
-                          "'\n");
+        reply.set_std_out("success: setting debug level to '" +
+                          config.node_value() + "'");
       } else {
-        reply.set_std_err("error: failed to store debug level interval\n");
+        reply.set_std_err("error: failed to store debug level interval");
         reply.set_retc(EFAULT);
       }
     } else {
-      reply.set_std_err("error: the specified key is not known - consult the usage information of the command\n");
+      reply.set_std_err("error: the specified key is not known - consult the "
+                        "usage information of the command");
       reply.set_retc(EINVAL);
     }
   }
@@ -528,14 +531,14 @@ void NodeCmd::SetSubcmd(const eos::console::NodeProto_SetProto& set,
       if (!skip_hostname_match &&
           tident.compare(0, tident.length(), rnodename, 0, tident.length())) {
         reply.set_std_err("error: nodes can only be configured as 'root' or by "
-                          "connecting from the node itself using the sss protocol(1)\n");
+                          "connecting from the node itself using the sss protocol(1)");
         reply.set_retc(EPERM);
         return;
       }
     }
   } else {
     reply.set_std_err("error: nodes can only be configured as 'root' or by "
-                      "connecting from the node itself using the sss protocol(2)\n");
+                      "connecting from the node itself using the sss protocol(2)");
     reply.set_retc(EPERM);
     return;
   }
@@ -623,13 +626,15 @@ void NodeCmd::TxgwSubcmd(const eos::console::NodeProto_TxgwProto& txgw,
     if (mVid.uid != 0 && mVid.prot == "sss") {
       if (!skip_hostname_match &&
           tident.compare(0, tident.length(), rnodename, 0, tident.length())) {
-        reply.set_std_err("error: nodes can only be configured as 'root' or by connecting from the node itself using the sss protocol(1)\n");
+        reply.set_std_err("error: nodes can only be configured as 'root' or by "
+                          "connecting from the node itself using the sss protocol(1)");
         reply.set_retc(EPERM);
         return;
       }
     }
   } else {
-    reply.set_std_err("error: nodes can only be configured as 'root' or by connecting from the node itself using the sss protocol(2)\n");
+    reply.set_std_err("error: nodes can only be configured as 'root' or by "
+                      "connecting from the node itself using the sss protocol(2)");
     reply.set_retc(EPERM);
     return;
   }
@@ -637,8 +642,6 @@ void NodeCmd::TxgwSubcmd(const eos::console::NodeProto_TxgwProto& txgw,
   if (!FsView::gFsView.mNodeView.count(nodename)) {
     reply.set_std_out("info: creating node '" + nodename + "'");
 
-    // reply.set_std_err("error: no such node '" + nodename + "'");
-    // reply.set_retc(ENOENT);
     if (!FsView::gFsView.RegisterNode(nodename.c_str())) {
       reply.set_std_err("error: cannot register node <" + nodename + ">");
       reply.set_retc(EIO);
@@ -725,13 +728,15 @@ void NodeCmd::ProxygroupSubcmd(const eos::console::NodeProto_ProxygroupProto&
     if (mVid.uid != 0 && mVid.prot == "sss") {
       if (!skip_hostname_match &&
           tident.compare(0, tident.length(), rnodename, 0, tident.length())) {
-        reply.set_std_err("error: nodes can only be configured as 'root' or by connecting from the node itself using the sss protocol(1)\n");
+        reply.set_std_err("error: nodes can only be configured as 'root' or by "
+                          "connecting from the node itself using the sss protocol(1)");
         reply.set_retc(EPERM);
         return;
       }
     }
   } else {
-    reply.set_std_err("error: nodes can only be configured as 'root' or by connecting from the node itself using the sss protocol(2)\n");
+    reply.set_std_err("error: nodes can only be configured as 'root' or by "
+                      "connecting from the node itself using the sss protocol(2)");
     reply.set_retc(EPERM);
     return;
   }
