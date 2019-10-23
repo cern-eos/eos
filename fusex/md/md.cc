@@ -2790,15 +2790,19 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                 }
 
                 // invalidate children
-                if (md && md->id()) {
-                  // force an update of the metadata with next access
-                  eos_static_info("md=%16x", md->id());
-                  cleanup(md);
-
-                  if (EOS_LOGS_DEBUG) {
-                    eos_static_debug("%s", dump_md(md).c_str());
-                  }
-                }
+                if (md) {
+		  if ( md->id()) {
+		    // force an update of the metadata with next access
+		    eos_static_info("md=%16x", md->id());
+		    cleanup(md);
+		    
+		    if (EOS_LOGS_DEBUG) {
+		      eos_static_debug("%s", dump_md(md).c_str());
+		    }
+		  } else {
+		    md->Locker().UnLock();
+		  }
+		}
               } else {
                 // there might have been several caps and the first has wiped already the MD,
                 // still we want to remove the cap entry
