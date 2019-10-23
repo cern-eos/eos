@@ -88,7 +88,7 @@ void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser, 
     }
   }
 
-  eos_notice("quota ls (user)");
+  eos_notice("msg=\"quota ls (user)\" space=%s", space.c_str());
 
   // Early return if routing should happen
   if (ShouldRoute(space, reply)) {
@@ -108,7 +108,7 @@ void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser, 
     }
   } else {
     if (!is_ok) {
-      std_err << out.c_str();
+      std_err << out.c_str() << std::endl;
       ret_c = EINVAL;
     }
   }
@@ -198,7 +198,7 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls, eos::console
     return;
   }
 
-  eos_notice("quota ls");
+  eos_notice("msg=\"quota ls\" space=%s", space.c_str());
 
   XrdOucString out1 {""};
   XrdOucString out2 {""};
