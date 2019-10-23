@@ -1049,7 +1049,7 @@ XrdFstOfsFile::_close()
 
     if ((viaDelete || mWrDelete) &&
         ((isCreation || (isReplication && mIsRW) || mIsInjection ||
-          mRainReconstruct || IsChunkedUpload()) && (!mFusex))) {
+          IsChunkedUpload()) && (!mFusex))) {
       // It is closed by the destructor e.g. no proper close
       // or the specified checksum does not match the computed one
       if (viaDelete) {
