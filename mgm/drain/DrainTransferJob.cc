@@ -215,7 +215,7 @@ DrainTransferJob::GetFileInfo() const
       fdrain.mProto.add_locations(loc);
     }
   } catch (eos::MDException& e) {
-    eos_err("%s", SSTR("fid=" << eos::common::FileId::Fid2Hex(mFileId)
+    eos_err("%s", SSTR("fxid=" << eos::common::FileId::Fid2Hex(mFileId)
                        << " errno=" << e.getErrno()
                        << " msg=\"" << e.getMessage().str() << "\"").c_str());
     throw e;

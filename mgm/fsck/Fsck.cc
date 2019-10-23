@@ -399,7 +399,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
       for (const auto& elem : local_emap[err_type]) {
         for (const auto& fid : elem.second) {
           if (mIdTracker.HasEntry(fid)) {
-            eos_debug("msg=\"skip already scheduled repair\" fid=%08llx", fid);
+            eos_debug("msg=\"skip already scheduled repair\" fxid=%08llx", fid);
             continue;
           }
 

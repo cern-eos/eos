@@ -159,7 +159,7 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
   stat_info.reset(stat_info_raw);
 
   if (!status.IsOK()) {
-    eos_err("msg=\"failed stat\" fid=%08llx, local_path=%s", mFid,
+    eos_err("msg=\"failed stat\" fxid=%08llx, local_path=%s", mFid,
             fpath_local.c_str());
 
     if (status.code == XrdCl::errOperationExpired) {
@@ -206,7 +206,7 @@ FsckEntry::RepairMgmXsSzDiff()
     auto& finfo = it->second;
 
     if (finfo->mFstErr != FstErr::None) {
-      eos_err("msg=\"unavailable replica info\" fid=%08llx fsid=%lu",
+      eos_err("msg=\"unavailable replica info\" fxid=%08llx fsid=%lu",
               mFid, it->first);
       disk_xs_sz_match = false;
       break;
@@ -239,7 +239,7 @@ FsckEntry::RepairMgmXsSzDiff()
 
   if (mgm_xs_sz_match) {
     eos_warning("msg=\"mgm xs/size repair skip - found replica with matching "
-                "xs and size\" fid=%08llx", mFid);
+                "xs and size\" fxid=%08llx", mFid);
     // The local info stored on of the the FSTs is wrong, trigger a resync
     ResyncFstMd(false);
     return true;
@@ -248,6 +248,13 @@ FsckEntry::RepairMgmXsSzDiff()
   if (disk_xs_sz_match && sz_val) {
     size_t out_sz;
     auto xs_binary = StringConversion::Hex2BinDataChar(xs_val, out_sz);
+
+    if (xs_binary == nullptr) {
+      eos_err("msg=\"mgm xs/size repair failed due to disk checksum conversion "
+              "error\" fxid=%08llx disk_xs=\"%s\"", mFid, xs_val.c_str());
+      return false;
+    }
+
     eos::Buffer xs_buff;
     xs_buff.putData(xs_binary.get(), SHA_DIGEST_LENGTH);
 
@@ -261,7 +268,7 @@ FsckEntry::RepairMgmXsSzDiff()
         fmd->setSize(sz_val);
         gOFS->eosView->updateFileStore(fmd.get());
       } catch (const eos::MDException& e) {
-        eos_err("msg=\"mgm xs/size repair failed - no such filemd\" fid=%08llx", mFid);
+        eos_err("msg=\"mgm xs/size repair failed - no such filemd\" fxid=%08llx", mFid);
         return false;
       }
     } else {
@@ -270,11 +277,11 @@ FsckEntry::RepairMgmXsSzDiff()
       mMgmFmd.set_size(sz_val);
     }
 
-    eos_info("msg=\"mgm xs/size repair successful\" fid=%08llx old_mgm_xs=\"%s\" "
+    eos_info("msg=\"mgm xs/size repair successful\" fxid=%08llx old_mgm_xs=\"%s\" "
              "new_mgm_xs=\"%s\"", mFid, mgm_xs_val.c_str(), xs_val.c_str());
   } else {
     eos_err("msg=\"mgm xs/size repair failed - no all disk xs/size match\" "
-            "fid=%08llx", mFid);
+            "fxid=%08llx", mFid);
   }
 
   return disk_xs_sz_match;
@@ -305,7 +312,7 @@ FsckEntry::RepairFstXsSzDiff()
     auto& finfo = it->second;
 
     if (finfo->mFstErr != FstErr::None) {
-      eos_err("msg=\"unavailable replica info\" fid=%08llx fsid=%lu",
+      eos_err("msg=\"unavailable replica info\" fxid=%08llx fsid=%lu",
               mFid, it->first);
       bad_fsids.insert(it->first);
       continue;
@@ -330,13 +337,13 @@ FsckEntry::RepairFstXsSzDiff()
   }
 
   if (bad_fsids.empty()) {
-    eos_warning("msg=\"fst xs/size repair skip - no bad replicas\" fid=%08llx",
+    eos_warning("msg=\"fst xs/size repair skip - no bad replicas\" fxid=%08llx",
                 mFid);
     return true;
   }
 
   if (good_fsids.empty()) {
-    eos_err("msg=\"fst xs/size repair failed - no good replicas\" fid=%08llx",
+    eos_err("msg=\"fst xs/size repair failed - no good replicas\" fxid=%08llx",
             mFid);
     return false;
   }
@@ -350,11 +357,11 @@ FsckEntry::RepairFstXsSzDiff()
     repair_job->DoIt();
 
     if (repair_job->GetStatus() != FsckRepairJob::Status::OK) {
-      eos_err("msg=\"fst xs/size repair failed\" fid=%08llx bad_fsid=%lu",
+      eos_err("msg=\"fst xs/size repair failed\" fxid=%08llx bad_fsid=%lu",
               mFid, bad_fsid);
       all_repaired = false;
     } else {
-      eos_info("msg=\"fst xs/size repair successful\" fid=%08llx bad_fsid=%lu",
+      eos_info("msg=\"fst xs/size repair successful\" fxid=%08llx bad_fsid=%lu",
                mFid, bad_fsid);
     }
   }
@@ -387,7 +394,7 @@ FsckEntry::RepairReplicaInconsistencies()
 
   // Account for missing replicas from MGM's perspective
   for (const auto& fsid : mMgmFmd.locations()) {
-    eos_info("fid=%08llx fsid=%lu", mFid, fsid);
+    eos_info("fxid=%08llx fsid=%lu", mFid, fsid);
     auto it = mFstFileInfo.find(fsid);
 
     if ((it == mFstFileInfo.end()) ||
@@ -444,11 +451,11 @@ FsckEntry::RepairReplicaInconsistencies()
         fmd->unlinkLocation(drop_fsid);
         fmd->removeLocation(drop_fsid);
         gOFS->eosView->updateFileStore(fmd.get());
-        eos_info("msg=\"remove missing replica\" fid=%08llx drop_fsid=%lu",
+        eos_info("msg=\"remove missing replica\" fxid=%08llx drop_fsid=%lu",
                  mFid, drop_fsid);
       } catch (const eos::MDException& e) {
         eos_err("msg=\"replica inconsistency repair failed, no file metadata\" "
-                "fid=%08llx", mFid);
+                "fxid=%08llx", mFid);
         return false;
       }
     }
@@ -500,11 +507,11 @@ FsckEntry::RepairReplicaInconsistencies()
             auto fmd = gOFS->eosFileService->getFileMD(mFid);
             fmd->addLocation(new_fsid);
             gOFS->eosView->updateFileStore(fmd.get());
-            eos_info("msg=\"attached unregistered replica\" fid=%08llx "
+            eos_info("msg=\"attached unregistered replica\" fxid=%08llx "
                      "new_fsid=%lu", mFid, new_fsid);
           } catch (const eos::MDException& e) {
             eos_err("msg=\"unregistered replica repair failed, no file metadata\" "
-                    "fid=%08llx", mFid);
+                    "fxid=%08llx", mFid);
             return false;
           }
         }
@@ -525,11 +532,11 @@ FsckEntry::RepairReplicaInconsistencies()
         repair_job->DoIt();
 
         if (repair_job->GetStatus() != FsckRepairJob::Status::OK) {
-          eos_err("msg=\"replica inconsistency repair failed\" fid=%08llx "
+          eos_err("msg=\"replica inconsistency repair failed\" fxid=%08llx "
                   "src_fsid=%lu", mFid, good_fsid);
           return false;
         } else {
-          eos_info("msg=\"replica inconsistency repair successful\" fid=%08llx "
+          eos_info("msg=\"replica inconsistency repair successful\" fxid=%08llx "
                    "src_fsid=%lu", mFid, good_fsid);
         }
 
@@ -537,7 +544,7 @@ FsckEntry::RepairReplicaInconsistencies()
       }
 
       if (num_actual_rep < num_expected_rep) {
-        eos_err("msg=\"replica inconsistency repair failed\" fid=%08llx", mFid);
+        eos_err("msg=\"replica inconsistency repair failed\" fxid=%08llx", mFid);
         return false;
       }
     }
@@ -545,14 +552,14 @@ FsckEntry::RepairReplicaInconsistencies()
 
   // Discard unregistered/bad replicas
   for (auto fsid : to_drop) {
-    eos_info("msg=\"droping replica\" fid=%08llx fsid=%lu", mFid, fsid);
+    eos_info("msg=\"droping replica\" fxid=%08llx fsid=%lu", mFid, fsid);
     (void) DropReplica(fsid);
     // Drop also from the local map of FST fmd info
     mFstFileInfo.erase(fsid);
   }
 
   ResyncFstMd(true);
-  eos_info("msg=\"file replicas consistent\" fid=%08llx", mFid);
+  eos_info("msg=\"file replicas consistent\" fxid=%08llx", mFid);
   return true;
 }
 
@@ -587,12 +594,12 @@ FsckEntry::DropReplica(eos::common::FileSystem::fsid_t fsid) const
     return retc;
   }
 
-  eos_info("msg=\"drop (unregistered) replica\" fid=%08llx fsid=%lu",
+  eos_info("msg=\"drop (unregistered) replica\" fxid=%08llx fsid=%lu",
            mFid, fsid);
 
   // Send external deletion to the FST
   if (gOFS && !gOFS->DeleteExternal(fsid, mFid)) {
-    eos_err("msg=\"failed to send unlink to FST\" fid=%08llx fsid=%lu",
+    eos_err("msg=\"failed to send unlink to FST\" fxid=%08llx fsid=%lu",
             mFid, fsid);
     retc = false;
   }
@@ -602,7 +609,7 @@ FsckEntry::DropReplica(eos::common::FileSystem::fsid_t fsid) const
   eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
 
   if (gOFS && gOFS->_dropstripe("", mFid, err, vid, fsid, true)) {
-    eos_err("msg=\"failed to drop replicas from ns\" fid=%08llx fsid=%lu",
+    eos_err("msg=\"failed to drop replicas from ns\" fxid=%08llx fsid=%lu",
             mFid, fsid);
   }
 
@@ -622,7 +629,7 @@ FsckEntry::Repair()
     gOFS->MgmStats.Add("FsckRepairStarted", 0, 0, 1);
 
     if (CollectMgmInfo() == false) {
-      eos_err("msg=\"no repair action, file is orphan\" fid=%08llx fsid=%lu",
+      eos_err("msg=\"no repair action, file is orphan\" fxid=%08llx fsid=%lu",
               mFid, mFsidErr);
       UpdateMgmStats(success);
       (void) DropReplica(mFsidErr);
@@ -635,7 +642,7 @@ FsckEntry::Repair()
     }
 
     if (mMgmFmd.cont_id() == 0ull) {
-      eos_info("msg=\"no repair action, file is being deleted\" fid=%08llx",
+      eos_info("msg=\"no repair action, file is being deleted\" fxid=%08llx",
                mFid);
       return true;
     }
@@ -702,11 +709,11 @@ FsckEntry::GetFstFmd(std::unique_ptr<FstFileInfoT>& finfo,
 
   if (!status.IsOK()) {
     if (status.code == XrdCl::errOperationExpired) {
-      eos_err("msg=\"timeout file metadata query\" fid=%08llx fsid=%lu",
+      eos_err("msg=\"timeout file metadata query\" fxid=%08llx fsid=%lu",
               mFid, fsid);
       finfo->mFstErr = FstErr::NoContact;
     } else {
-      eos_err("msg=\"failed file metadata query\" fid=08llx fsid=%lu",
+      eos_err("msg=\"failed file metadata query\" fxid=08llx fsid=%lu",
               mFid, fsid);
       finfo->mFstErr = FstErr::NoFmdInfo;
     }
@@ -716,7 +723,7 @@ FsckEntry::GetFstFmd(std::unique_ptr<FstFileInfoT>& finfo,
 
   if ((response == nullptr) ||
       (strncmp(response->GetBuffer(), "ERROR", 5) == 0)) {
-    eos_err("msg=\"no local fst metadata present\" fid=%08llx fsid=%lu",
+    eos_err("msg=\"no local fst metadata present\" fxid=%08llx fsid=%lu",
             mFid, fsid);
     finfo->mFstErr = FstErr::NoFmdInfo;
     return false;
