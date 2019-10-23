@@ -44,10 +44,11 @@ implementation and the configuration engine:
   mgmofs.qdbcluster eos-mgm-1.cern.ch:7777 eos-mgm-2.cern.ch:7777 eos-mgm-3.cern.ch:7777
   mgmofs.qdbpassword_file /etc/eos.keytab
 
-Start the MGM and use the ``eos config export <path_to_config_file>`` to export the
+Start the MGM and use the ``eos config export [-f] <path_to_config_file>`` to export the
 configuration stored in the pointed file to the current instance of QuarkDB. Note that
 by default when the MGM daemon is started it will create an empty config map in QuarkDB
-and this one needs to be deleted before the export command is launched.
+and this one needs to be deleted before the export command is launched. This can also be
+achieved by using the "-f" (force overwrite) flag in the "eos config export" command.
 
 .. code-block:: bash
 
