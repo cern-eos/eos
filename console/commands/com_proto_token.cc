@@ -45,7 +45,7 @@ int com_proto_token(char* arg)
     return EINVAL;
   }
   
-  global_retc = token.Execute();
+  global_retc = token.Execute(true, true);
   return global_retc;
 }
 
