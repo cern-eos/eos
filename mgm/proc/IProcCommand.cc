@@ -69,6 +69,23 @@ IProcCommand::open(const char* path, const char* info,
   } else {
     eos::console::ReplyProto reply = mFuture.get();
 
+    // Routing redirect encountered
+    if (reply.retc() == SFS_REDIRECT) {
+      eos_notice("msg=\"routing redirect\" path=%s hostport=%s:%d "
+                 "stall_timeout=%d", mRoutingInfo.path.c_str(),
+                 mRoutingInfo.host.c_str(), mRoutingInfo.port,
+                 mRoutingInfo.stall_timeout);
+
+      if (mRoutingInfo.stall_timeout) {
+        std::string stall_msg = "No master MGM available";
+        return gOFS->Stall(*error, mRoutingInfo.stall_timeout,
+                           stall_msg.c_str());
+      }
+
+      return gOFS->Redirect(*error, mRoutingInfo.host.c_str(),
+                            mRoutingInfo.port);
+    }
+
     // Output is written in file
     if (!ofstdoutStreamFilename.empty() && !ofstderrStreamFilename.empty()) {
       ifstdoutStream.open(ofstdoutStreamFilename, std::ifstream::in);
@@ -478,6 +495,29 @@ IProcCommand::IsOperationForbidden(const std::string& path,
 
   if (eos::mgm::ProcBounceNotAllowed(path, mVid, err_check, errno_check)) {
     return true;
+  }
+
+  return false;
+}
+
+//----------------------------------------------------------------------------
+// Fill routing information if a routing redirect should happen
+//----------------------------------------------------------------------------
+bool
+IProcCommand::ShouldRoute(const std::string& path,
+                          eos::console::ReplyProto& reply)
+{
+  eos_debug("msg=\"applying routing\" path=%s is_redirect=%d",
+            path.c_str(), gOFS->IsRedirect);
+
+  if (gOFS->IsRedirect) {
+    if (gOFS->ShouldRoute(__FUNCTION__, 0, mVid, path.c_str(), 0,
+                          mRoutingInfo.host, mRoutingInfo.port,
+                          mRoutingInfo.stall_timeout)) {
+      mRoutingInfo.path = path;
+      reply.set_retc(SFS_REDIRECT);
+      return true;
+    }
   }
 
   return false;

@@ -48,7 +48,8 @@ public:
   //----------------------------------------------------------------------------
   IProcCommand():
     mHasSlot(false), mExecRequest(false), mReqProto(), mDoAsync(false),
-    mForceKill(false), mVid(), mComment(), stdOut(""), stdErr(""), stdJson(),
+    mForceKill(false), mVid(), mComment(), mRoutingInfo(),
+    stdOut(""), stdErr(""), stdJson(""),
     retc(0), mTmpResp()
   {
     mTimestamp = time(NULL);
@@ -281,12 +282,37 @@ protected:
                             std::string& err_check, int& errno_check) const;
 
   //----------------------------------------------------------------------------
+  //! Check if a routing redirect should happen.
+  //!
+  //! @note
+  //! In case routing is needed, fills the routing info object
+  //! and sets the reply return code to SFS_REDIRECT.
+  //!
+  //! @param path path to route
+  //! @param reply the reply proto object
+  //!
+  //! @return true if should route, false otherwise
+  //----------------------------------------------------------------------------
+  bool ShouldRoute(const std::string& path,
+                   eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
   //! Check if there is still an available slot for the current type of command
   //! in the queue served by the thread pool
   //!
   //! @return true if command can be queued, otherwise false
   //----------------------------------------------------------------------------
   bool HasSlot();
+
+  //----------------------------------------------------------------------------
+  //! Store routing information
+  //----------------------------------------------------------------------------
+  struct RoutingInfo {
+    std::string path;
+    std::string host;
+    int port;
+    int stall_timeout;
+  };
 
   static std::atomic_uint_least64_t uuid;
   //! Map of command types to number of commands actually queued
@@ -303,6 +329,7 @@ protected:
   eos::common::VirtualIdentity mVid; ///< Copy of original vid
   time_t mTimestamp; ///< Timestamp of the proc command
   XrdOucString mComment; ///< Comment issued by the user for the proc command
+  RoutingInfo mRoutingInfo; ///< Routing information of the proc command
   XrdOucString stdOut; ///< stdOut returned by proc command
   XrdOucString stdErr; ///< stdErr returned by proc command
   XrdOucString stdJson; ///< JSON output returned by proc command
