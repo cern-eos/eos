@@ -6,19 +6,25 @@ require {
 	type var_log_t;
 	type var_run_t;
 	type automount_t;
+	type automount_var_run_t;
 	type mount_t;
 	type sshd_t;
 	type su_exec_t;
 	type tmp_t;
-	class lnk_file { read getattr };
+	type var_spool_t;
+	type user_tmp_t;
+	class lnk_file { read getattr create };
 	class dir add_name;
-	class file { write read create setattr getattr };
+	class file { write read create setattr getattr unlink };
 	class process { getpgid };
 	class fifo_file { create unlink open };
 }
 
 #============= automount_t ==============
 allow automount_t initrc_tmp_t:file write;
+allow automount_t automount_var_run_t:lnk_file create;
+allow automount_t user_tmp_t:file { create unlink };
+allow automount_t var_spool_t:lnk_file { create read };
 
 #============= mount_t ==============
 allow mount_t var_log_t:dir add_name;
