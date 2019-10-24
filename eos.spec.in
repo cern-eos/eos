@@ -906,6 +906,8 @@ Group: Applications/File
 
 %description -n eos-fusex-cern-autofs
 The autofs mounter for CERN EOS user/project mounting
+
+%files -n eos-fusex-cern-autofs
 %defattr(-, root, root, -)
 /sbin/automount.cern.eos
 
