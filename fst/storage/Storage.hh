@@ -174,7 +174,8 @@ protected:
   std::map<eos::common::FileSystem::fsid_t, FileSystem*> mFsMap;
 
 private:
-  static constexpr std::chrono::seconds sConsistencyTimeout {10};
+  //! Publish inconsistency statistics once every two hours
+  static constexpr std::chrono::minutes sConsistencyTimeout {120};
   bool mZombie; ///< State of the node
   XrdOucString mMetaDir; ///< Path to meta directory
   unsigned long long* mScrubPattern[2];

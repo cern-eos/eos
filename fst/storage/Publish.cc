@@ -38,7 +38,7 @@ XrdVERSIONINFOREF(XrdgetProtocol);
 
 EOSFSTNAMESPACE_BEGIN
 
-constexpr std::chrono::seconds Storage::sConsistencyTimeout;
+constexpr std::chrono::minutes Storage::sConsistencyTimeout;
 
 //------------------------------------------------------------------------------
 // Serialize hot files vector into std::string
@@ -306,13 +306,10 @@ Storage::GetFsStatistics(FileSystem* fs, bool publishInconsistencyStats)
 
   // Publish inconsistency statistics?
   if (publishInconsistencyStats &&
-      fs->GetStatus() == eos::common::BootStatus::kBooted) {
+      (fs->GetStatus() == eos::common::BootStatus::kBooted)) {
     XrdSysMutexHelper ISLock(fs->InconsistencyStatsMutex);
     gFmdDbMapHandler.GetInconsistencyStatistics(
-      fsid,
-      *fs->GetInconsistencyStats(),
-      *fs->GetInconsistencySets()
-    );
+      fsid, *fs->GetInconsistencyStats(), *fs->GetInconsistencySets());
 
     for (auto it = fs->GetInconsistencyStats()->begin();
          it != fs->GetInconsistencyStats()->end(); it++) {
@@ -436,34 +433,45 @@ Storage::Publish(ThreadAssistant& assistant)
   }
 
   unsigned long long netspeed = GetNetSpeed(tmp_name);
-  eos_static_info("publishing:networkspeed=%.02f GB/s",
+  eos_static_info("msg=\"publish networkspeed=%.02f GB/s\"",
                   1.0 * netspeed / 1000000000.0);
   // The following line acts as a barrier that prevents progress
-  // until the config queue becomes known.
+  // until the config queue becomes known
   eos::fst::Config::gConfig.getFstNodeConfigQueue("Publish");
-  common::IntervalStopwatch consistencyStatsStopwatch(sConsistencyTimeout);
+  common::IntervalStopwatch consistency_stopwatch(sConsistencyTimeout);
 
   while (!assistant.terminationRequested()) {
     // Should we publish consistency stats during this cycle?
-    bool publishConsistencyStats = consistencyStatsStopwatch.restartIfExpired();
+    bool pub_consistency = consistency_stopwatch.restartIfExpired();
     std::chrono::milliseconds randomizedReportInterval =
       eos::fst::Config::gConfig.getRandomizedPublishInterval();
     common::IntervalStopwatch stopwatch(randomizedReportInterval);
     {
-      // run through our defined filesystems and publish with a MuxTransaction all changes
+      // Publish with a MuxTransaction all file system changes
       eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
 
       if (!gOFS.ObjectManager.OpenMuxTransaction()) {
-        eos_static_err("cannot open mux transaction");
+        eos_static_err("%s", "msg=\"cannot open mux transaction\"");
       } else {
-        // Copy out statfs info
+        std::map<eos::fst::FileSystem*, std::future<bool>> map_futures;
+        // Copy out statfs info - this could be done in parallel to speed-up
+
         for (const auto& elem : mFsMap) {
           auto fs = elem.second;
-          bool success = PublishFsStatistics(fs, publishConsistencyStats);
 
-          if (!success && fs) {
-            eos_static_err("cannot set net parameters on filesystem %s",
-                           fs->GetPath().c_str());
+          if (!fs) {
+            continue;
+          }
+
+          map_futures.emplace(fs, std::async(std::launch::async,
+                                             &Storage::PublishFsStatistics,
+                                             this, fs, pub_consistency));
+        }
+
+        for (auto& elem : map_futures) {
+          if (elem.second.get() == false) {
+            eos_static_err("msg=\"failed to publish fs stats\" fspath=%s",
+                           elem.first->GetPath().c_str());
           }
         }
 
@@ -486,8 +494,9 @@ Storage::Publish(ThreadAssistant& assistant)
     std::chrono::milliseconds sleepTime = stopwatch.timeRemainingInCycle();
 
     if (sleepTime == std::chrono::milliseconds(0)) {
-      eos_static_warning("Publisher cycle exceeded %d milliseconds - took %d milliseconds",
-                         randomizedReportInterval.count(), stopwatch.timeIntoCycle());
+      eos_static_warning("msg=\"publisher cycle exceeded %d millisec - took %d "
+                         "millisec", randomizedReportInterval.count(),
+                         stopwatch.timeIntoCycle());
     } else {
       assistant.wait_for(sleepTime);
     }
@@ -520,11 +529,11 @@ void Storage::QdbPublish(const QdbContactDetails& cd,
   }
 
   // Main loop
-  common::IntervalStopwatch consistencyStatsStopwatch(sConsistencyTimeout);
+  common::IntervalStopwatch consistency_stopwatch(sConsistencyTimeout);
 
   while (!assistant.terminationRequested()) {
     // Should we publish consistency stats during this cycle?
-    bool publishConsistencyStats = consistencyStatsStopwatch.restartIfExpired();
+    bool pub_consistency = consistency_stopwatch.restartIfExpired();
     // Publish FST stats
     std::map<std::string, std::string> fstStats = GetFstStatistics(tmp_name,
         netspeed);
@@ -535,7 +544,7 @@ void Storage::QdbPublish(const QdbContactDetails& cd,
     for (const auto& elem : mFsMap) {
       auto fs = elem.second;
       std::map<std::string, std::string> fsStats = GetFsStatistics(fs,
-          publishConsistencyStats);
+          pub_consistency);
       std::string fsChannel = SSTR("fs-" << elem.first);
       qcl->exec("publish", fsChannel, qclient::Formatting::serialize(fsStats));
     }

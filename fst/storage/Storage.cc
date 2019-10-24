@@ -1006,9 +1006,10 @@ Storage::CheckFilesystemFullness(FileSystem* fs,
 {
   long long freebytes = fs->GetLongLong("stat.statfs.freebytes");
 
-  /* watch out for stat.statfs.freebytes not yet set */
+  // Watch out for stat.statfs.freebytes not yet set
   if (freebytes == 0 && fs->GetString("stat.statfs.freebytes").length() == 0) {
-    eos_static_info("stat.statfs.freebytes has not yet been defined, not setting file system fill status");
+    eos_static_info("%s", "msg=\"stat.statfs.freebytes has not yet been "
+                    "defined, not setting file system fill status\"");
     return;
   }
 
