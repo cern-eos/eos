@@ -489,7 +489,7 @@ com_squash_usage:
 	  "       squash relabel <path>                                              : relable a squashfs image link e.g. after an image move in the namespace\n");
 
   fprintf(stdout, 
-	  "       squash roll <path>                                                 : will create a squash package form the EOS directory pointed by <path\n");
+	  "       squash roll <path>                                                 : will create a squash package from the EOS directory pointed by <path\n");
   fprintf(stdout, 
 	  "       squash unroll <path>                                               : will store the squash package contents unpacked into the EOS package directory\n");
   global_retc = EINVAL;
