@@ -38,7 +38,7 @@ com_squash(char* arg1)
   XrdOucString cmd = "";
   XrdOucString path = "";
   XrdOucString option = "";
-
+  XrdOucString fulloption = "";
   bool ok = false;
   const int len = 4096;
   char username[len];
@@ -56,21 +56,22 @@ com_squash(char* arg1)
   do {
     cmd = subtokenizer.GetToken();
     path = subtokenizer.GetToken();
-
+    
     if (!cmd.length()) {
       goto com_squash_usage;
     }
-
+    
     if (cmd == "--help") {
       goto com_squash_usage;
     }
-
+    
     if (cmd == "-h") {
       goto com_squash_usage;
     }
 
     if (path.length() && (path[0] == '-')) {
       option = path[1];
+      fulloption = path;
       path = subtokenizer.GetToken();
     }
 
@@ -126,6 +127,57 @@ com_squash(char* arg1)
             packagepath.GetPath());
     fprintf(stderr, "info: when done run 'eos squash pack %s' to create an "
             "image file and a smart link in EOS!\n", packagepath.GetPath());
+  }
+  
+  if (cmd == "install") {
+    if (fulloption.beginswith("--curl=")) {
+      ok = true;
+      std::string url = fulloption.c_str() + 7;
+      if (fulloption.endswith(".tgz") ||
+	  fulloption.endswith(".tar.gz")) {
+	int sub_rc = 0;
+	// squash rm
+	std::string subcommand = "rm ";
+	subcommand += path.c_str();
+	com_squash((char*)subcommand.c_str());
+	sub_rc |= global_retc;
+	// squash new
+	subcommand = "new ";
+	subcommand += path.c_str();
+	com_squash((char*)subcommand.c_str());
+	sub_rc |= global_retc;
+	// download
+	std::string shellcmd="cd "; 
+	shellcmd += path.c_str();
+	shellcmd += ";";
+	shellcmd += "curl ";
+	shellcmd += url;
+	shellcmd += " /dev/stdout | ";
+	shellcmd += "tar xvzf -";
+	
+	int rc = system(shellcmd.c_str());
+	if (WEXITSTATUS(rc)) {
+	  fprintf(stderr, "error: curl download failed with retc='%d'\n", WEXITSTATUS(rc));
+	  global_retc = WEXITSTATUS(rc);
+	  return (0);
+	}
+	// squash pack
+	subcommand = "pack ";
+	subcommand += path.c_str();
+	com_squash((char*)subcommand.c_str());
+	sub_rc |= global_retc;
+	if (sub_rc) {
+	  global_retc = sub_rc;
+	  return 0;
+	}
+      } else {
+	fprintf(stderr,"error: suffix of '%s' is not supported\n", url.c_str());
+	global_retc = EINVAL;
+	return (0);
+      }
+    } else {
+      goto com_squash_usage;
+    }
   }
 
   if (cmd == "pack") {
@@ -471,27 +523,37 @@ com_squash(char* arg1)
 com_squash_usage:
   fprintf(stdout,
           "usage: squash new <path>                                                  : create a new squashfs under <path>\n");
+  fprintf(stdout,"\n");
   fprintf(stdout,
           "       squash pack [-f] <path>                                            : pack a squashfs image\n");
   fprintf(stdout, 
 	  "                                                                            -f will recreate the package but keeps the symbolic link locally\n");         
+  fprintf(stdout,"\n");
 
   fprintf(stdout,
           "       squash unpack [-f] <path>                                          : unpack a squashfs image for modification\n");
   fprintf(stdout, 
-	  "                                                                          : -f will atomically update the local package\n");
+	  "                                                                            -f will atomically update the local package\n");
+  fprintf(stdout,"\n");
   
   fprintf(stdout,
           "       squash info <path>                                                 : squashfs information about <path>\n");
+  fprintf(stdout,"\n");
   fprintf(stdout,
           "       squash rm <path>                                                   : delete a squashfs attached image and its smart link\n");
+  fprintf(stdout,"\n");
   fprintf(stdout,       
 	  "       squash relabel <path>                                              : relable a squashfs image link e.g. after an image move in the namespace\n");
+  fprintf(stdout,"\n");
 
   fprintf(stdout, 
 	  "       squash roll <path>                                                 : will create a squash package from the EOS directory pointed by <path\n");
+  fprintf(stdout,"\n");
   fprintf(stdout, 
 	  "       squash unroll <path>                                               : will store the squash package contents unpacked into the EOS package directory\n");
+  fprintf(stdout,"\n");
+  fprintf(stdout, 
+	  "       squash install --curl=https://<package>.tgz|.tar.gz <path>         : create a squashfs package from a web archive under <path>\n");
   global_retc = EINVAL;
   return (0);
 }
