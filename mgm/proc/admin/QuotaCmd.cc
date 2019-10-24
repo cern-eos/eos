@@ -90,6 +90,11 @@ void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser, 
 
   eos_notice("quota ls (user)");
 
+  // Early return if routing should happen
+  if (ShouldRoute(space, reply)) {
+    return;
+  }
+
   XrdOucString out {""};
   auto monitoring = lsuser.format() || WantsJsonOutput();
 
