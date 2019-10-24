@@ -802,6 +802,7 @@ Group: Applications/File
 
 Requires: eos-fusex-core = @CPACK_PACKAGE_VERSION@
 Requires: eos-fusex-selinux = @CPACK_PACKAGE_VERSION@
+Requires: eos-fusex-cern-autofs = @CPACK_PACKAGE_VERSION@
 
 %description -n eos-fusex
 The new EOS fuse client bundle.
@@ -893,6 +894,20 @@ if [ "$1" -ge "1" ]; then # Upgrade
     /usr/sbin/semodule -i %{_datarootdir}/selinux/$VARIANT/eosfuse.pp || :
   done
 fi
+
+
+#-------------------------------------------------------------------------------
+# Package eos-fusex-cern-autofs 
+#-------------------------------------------------------------------------------
+
+%package -n eos-fusex-cern-autofs
+Summary: The autofs mounter for CERN EOS user/project mounting
+Group: Applications/File
+
+%description -n eos-fusex-cern-autofs
+The autofs mounter for CERN EOS user/project mounting
+%defattr(-, root, root, -)
+/sbin/automount.cern.eos
 
 %if %{?_with_server:1}%{!?_with_server:0}
 #-------------------------------------------------------------------------------
