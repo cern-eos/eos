@@ -114,9 +114,9 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
       if (stall_timeout) {                                                    \
         return gOFS->Stall(error, stall_timeout, stall_msg.c_str());          \
       } else {                                                                \
-  XrdCl::URL url; url.SetParams(ininfo?ininfo:"");          \
-  if (gOFS->Tried(url, host, "enoent"))             \
-    return gOFS->Emsg("redirect", error, ENOENT, "no such file or directory", path); \
+        XrdCl::URL url; url.SetParams(ininfo?ininfo:"");                      \
+        if (gOFS->Tried(url, host, "enoent"))                                 \
+          return gOFS->Emsg("redirect", error, ENOENT, "no such file or directory", path); \
         return gOFS->Redirect(error, host.c_str(), port);                     \
       }                                                                       \
     }                                                                         \
