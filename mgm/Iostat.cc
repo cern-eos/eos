@@ -26,11 +26,13 @@
 #include "common/Report.hh"
 #include "common/Path.hh"
 #include "common/JeMallocHandler.hh"
+#include "common/Logging.hh"
 #include "mgm/Iostat.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
+#include "mq/ReportListener.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysDNS.hh"
 /*----------------------------------------------------------------------------*/
@@ -49,7 +51,6 @@ Iostat::Iostat():
   mReport(true), mReportNamespace(false), mReportPopularity(true)
 {
   mRunning = false;
-  mInit = false;
   mStoreFileName = "";
   // push default domains to watch TODO: make generic
   IoDomains.insert(".ch");
@@ -155,22 +156,7 @@ Iostat::StoreIostatConfig()
 bool
 Iostat::Start()
 {
-  if (!mInit) {
-    XrdOucString queue = gOFS->MgmOfsBroker;
-    queue += gOFS->HostName;
-    queue += "/report";
-    queue.replace("root://", "root://daemon@");
-
-    if (!mClient.AddBroker(queue.c_str())) {
-      eos_static_err("failed to add broker %s", queue.c_str());
-      return false;
-    }
-
-    mInit = true;
-  }
-
   if (!mRunning) {
-    mClient.Subscribe();
     mReceivingThread.reset(&Iostat::Receive, this);
     mRunning = true;
     return true;
@@ -186,7 +172,6 @@ Iostat::Stop()
   if (mRunning) {
     mRunning = false;
     mReceivingThread.join();
-    mClient.Unsubscribe();
     return true;
   } else {
     return false;
@@ -204,21 +189,24 @@ Iostat::~Iostat()
 void
 Iostat::Receive(ThreadAssistant& assistant) noexcept
 {
-  while (!assistant.terminationRequested()) {
-    XrdMqMessage* newmessage = 0;
+  mq::ReportListener listener(gOFS->MgmOfsBroker.c_str(), gOFS->HostName);
 
-    while ((newmessage = mClient.RecvMessage(&assistant))) {
+  while (!assistant.terminationRequested()) {
+    std::string newmessage;
+
+    while (listener.fetch(newmessage, assistant)) {
       if (assistant.terminationRequested()) {
         break;
       }
 
-      XrdOucString body = newmessage->GetBody();
+      XrdOucString body = newmessage.c_str();
 
       while (body.replace("&&", "&")) {
       }
 
       XrdOucEnv ioreport(body.c_str());
-      eos::common::Report* report = new eos::common::Report(ioreport);
+      std::unique_ptr<eos::common::Report> report(new eos::common::Report(ioreport));
+
       Add("bytes_read", report->uid, report->gid, report->rb, report->ots,
           report->cts);
       Add("bytes_read", report->uid, report->gid, report->rvb_sum, report->ots,
@@ -262,7 +250,7 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
         XrdSysMutexHelper mLock(mBcastMutex);
 
         if (mUdpPopularityTarget.size()) {
-          UdpBroadCast(report);
+          UdpBroadCast(report.get());
         }
       }
 
@@ -432,9 +420,6 @@ Iostat::Receive(ThreadAssistant& assistant) noexcept
           }
         }
       }
-
-      delete report;
-      delete newmessage;
     }
 
     assistant.wait_for(std::chrono::seconds(1));

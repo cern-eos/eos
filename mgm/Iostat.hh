@@ -25,10 +25,7 @@
 #define __EOSMGM_IOSTAT__HH__
 
 #include "mgm/Namespace.hh"
-#include "mq/XrdMqClient.hh"
-#include "common/Logging.hh"
 #include "common/AssistedThread.hh"
-#include "XrdSys/XrdSysPthread.hh"
 #include <google/sparse_hash_map>
 #include <sys/types.h>
 #include <string>
@@ -186,9 +183,6 @@ public:
 
   static FILE* gOpenReportFD;
   bool mRunning;
-  bool mInit;
-
-  XrdMqClient mClient;
 
   Iostat();
   ~Iostat();
