@@ -870,6 +870,7 @@ Run(int argc, char* argv[])
 
     if (in1.beginswith("root://")) {
       serveruri = argv[argindex];
+      gGlobalOpts.mMgmUri = serveruri.c_str();
       argindex++;
       in1 = argv[argindex];
     }
