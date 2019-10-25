@@ -112,7 +112,6 @@ XrdMgmOfs::_rem(const char* path,
   // Perform the actual deletion
   errno = 0;
   XrdSfsFileExistence file_exists;
-
   vid.scope = path;
 
   if ((_exists(path, file_exists, error, vid, 0))) {
@@ -319,6 +318,12 @@ XrdMgmOfs::_rem(const char* path,
         // TODO: this can be dropped if you use the unlinkFile which takes
         // as argument the IFileMD object
         fmd = gOFS->eosFileService->getFileMD(fmd->getId());
+
+        // Drop the TAPE_FS_ID which otherwise would prevent the
+        // file metadata cleanup
+        if (fmd->hasUnlinkedLocation(eos::common::TAPE_FS_ID)) {
+          fmd->removeLocation(eos::common::TAPE_FS_ID);
+        }
 
         if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation())) {
           gOFS->eosView->removeFile(fmd.get());
