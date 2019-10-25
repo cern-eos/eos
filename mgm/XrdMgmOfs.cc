@@ -873,8 +873,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
     // Log errors but continue to process the rest of the files in the list
     if (ret_wfe != SFS_DATA) {
-      Emsg(epname, error, ret_wfe, "prepare - synchronous prepare workflow error",
-           prep_path.c_str());
+      eos_err("Unable to prepare - synchronous prepare workflow error %s; %s", prep_path.c_str(), error.getErrText());
     }
   }
 
