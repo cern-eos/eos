@@ -48,7 +48,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //!
-  //! @param upd_timeout async thread update insterval
+  //! @param upd_timeout async thread update interval
   //----------------------------------------------------------------------------
   PathRouting(std::chrono::seconds upd_timeout = std::chrono::seconds(5)):
     mTimeout(upd_timeout)
@@ -70,10 +70,10 @@ public:
   //!
   //! @param inpath path to route
   //! @param ininfo opaque information
-  //! @param vid user virtual idenity
+  //! @param vid user virtual identity
   //! @param host redirection host
   //! @param port redirection port
-  //! @param stat_info stat info string to be agregated by MgmStats
+  //! @param stat_info stat info string to be aggregated by MgmStats
   //!
   //! @return Status enum representing the state of the routing
   //----------------------------------------------------------------------------

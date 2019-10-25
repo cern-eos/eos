@@ -77,6 +77,9 @@ IProcCommand::open(const char* path, const char* info,
                  mRoutingInfo.stall_timeout);
 
       if (mRoutingInfo.stall_timeout) {
+        // Force re-execution of the command upon return from stall
+        mExecRequest = false;
+
         std::string stall_msg = "No master MGM available";
         return gOFS->Stall(*error, mRoutingInfo.stall_timeout,
                            stall_msg.c_str());

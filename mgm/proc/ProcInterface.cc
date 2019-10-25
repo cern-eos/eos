@@ -61,7 +61,7 @@ ProcInterface::GetProcCommand(const char* tident,
                               const char* log_id)
 {
   tlLogId.SetLogId((log_id ? log_id : ""), vid, tident);
-  // Check if this is an already submmited command
+  // Check if this is an already submitted command
   std::unique_ptr<IProcCommand> pcmd = GetSubmittedCmd(tident);
 
   if (pcmd) {
