@@ -25,7 +25,7 @@
 #include "console/ConsoleMain.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysLogger.hh"
-#include "mq/XrdMqClient.hh"
+#include "mq/ErrorReportListener.hh"
 /*----------------------------------------------------------------------------*/
 
 #include <sys/types.h>
@@ -66,49 +66,14 @@ com_console(char* arg)
     }
   }
 
-  XrdMqClient mqc;
-
-  if (!mqc.IsInitOK()) {
-    fprintf(stderr, "error: failed to initialize MQ Client\n");
-    exit(-1);
-  }
-
-  XrdMqMessage message("");
-  message.Configure(0);
-  XrdOucString broker = serveruri;
-
-  if (!broker.endswith("//")) {
-    if (!broker.endswith("/")) {
-      broker += ":1097//";
-    } else {
-      broker.erase(broker.length() - 2);
-      broker += ":1097//";
-    }
-  } else {
-    broker.erase(broker.length() - 3);
-    broker += ":1097//";
-  }
-
-  broker += "eos/";
-  broker += getenv("HOSTNAME");
-  broker += ":";
-  broker += (int) getpid();
-  broker += ":";
-  broker += (int) getppid();
-  broker += "/errorreport";
-
-  if (!mqc.AddBroker(broker.c_str())) {
-    fprintf(stderr, "error: failed to add broker %s\n", broker.c_str());
-    exit(-1);
-  }
-
-  mqc.Subscribe();
+  eos::mq::ErrorReportListener listener(serveruri.c_str(), getenv("HOSTNAME"));
 
   while (1) {
-    XrdMqMessage* newmessage = mqc.RecvMessage();
+    std::string newmessage;
+    listener.fetch(newmessage);
 
-    if (newmessage) {
-      XrdOucString line = newmessage->GetBody();
+    if (!newmessage.empty()) {
+      XrdOucString line = newmessage.c_str();
 
       if (global_highlighting) {
         static std::string textnormal("\033[0m");
@@ -145,8 +110,6 @@ com_console(char* arg)
         fprintf(stdout, "%s\n", line.c_str());
         fflush(stdout);
       }
-
-      delete newmessage;
     } else {
       XrdSysTimer sleeper;
       sleeper.Wait(100);
