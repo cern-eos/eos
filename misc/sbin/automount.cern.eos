@@ -107,7 +107,7 @@ if [ $isinit -eq 0 ]; then
 fi
 
  
-grep -ci '%%' <<< $1 >& /dev/null
+grep -ci ':-:' <<< $1 >& /dev/null
 issoftware=$?
 grep -ci 'home-' <<< $1 >& /dev/null
 ishome=$?
@@ -117,7 +117,7 @@ isproject=$?
 if [ $issoftware -eq 0 ] ; then 
     # mount a software package
     test -e $SPOOL/squashfs/$1 || mkdir -p $SPOOL/squashfs/$1
-    realpath=`echo $1 | sed s/'%%'/'\/'/g` 
+    realpath=`echo $1 | sed s/':-:'/'\/'/g` 
     instance=`echo $realpath | cut -d "@" -f1`
     image=`echo $realpath | cut -d "@" -f2-1024`
     echo "-fstype=squashfs,loop,ro :$image"
