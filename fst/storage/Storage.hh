@@ -232,7 +232,7 @@ private:
   //! Get statistics about this FileSystem, used for publishing
   //----------------------------------------------------------------------------
   std::map<std::string, std::string>
-  GetFsStatistics(fst::FileSystem* fs, bool publishInconsistencyStats);
+  GetFsStatistics(fst::FileSystem* fs);
 
   //----------------------------------------------------------------------------
   //! Get statistics about this FST, used for publishing
@@ -243,7 +243,7 @@ private:
   //----------------------------------------------------------------------------
   //! Publish statistics about the given filesystem
   //----------------------------------------------------------------------------
-  bool PublishFsStatistics(fst::FileSystem* fs, bool publishInconsistencyStats);
+  bool PublishFsStatistics(fst::FileSystem* fs);
 
   //----------------------------------------------------------------------------
   //! Register file system for which we know we have file fsid info available

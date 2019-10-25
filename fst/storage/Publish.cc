@@ -287,7 +287,7 @@ static void insertStatfs(struct statfs* statfs,
 // Get statistics about this FileSystem, used for publishing
 //------------------------------------------------------------------------------
 std::map<std::string, std::string>
-Storage::GetFsStatistics(FileSystem* fs, bool publishInconsistencyStats)
+Storage::GetFsStatistics(FileSystem* fs)
 {
   if (!fs) {
     eos_static_crit("asked to publish statistics for a null filesystem");
@@ -304,9 +304,8 @@ Storage::GetFsStatistics(FileSystem* fs, bool publishInconsistencyStats)
 
   std::map<std::string, std::string> output;
 
-  // Publish inconsistency statistics?
-  if (publishInconsistencyStats &&
-      (fs->GetStatus() == eos::common::BootStatus::kBooted)) {
+  // Publish inconsistency statistics
+  if (fs->GetStatus() == eos::common::BootStatus::kBooted) {
     output = fs->CollectInconsistencyStats("stat.fsck");
   }
 
@@ -382,8 +381,7 @@ Storage::GetFsStatistics(FileSystem* fs, bool publishInconsistencyStats)
 //------------------------------------------------------------------------------
 // Publish statistics about the given filesystem
 //------------------------------------------------------------------------------
-bool Storage::PublishFsStatistics(FileSystem* fs,
-                                  bool publishInconsistencyStats)
+bool Storage::PublishFsStatistics(FileSystem* fs)
 {
   if (!fs) {
     eos_static_crit("%s", "msg=\"asked to publish statistics for a null fs\"");
@@ -399,8 +397,7 @@ bool Storage::PublishFsStatistics(FileSystem* fs,
   }
 
   common::FileSystemUpdateBatch batch;
-  std::map<std::string, std::string> fsStats = GetFsStatistics(fs,
-      publishInconsistencyStats);
+  std::map<std::string, std::string> fsStats = GetFsStatistics(fs);
 
   for (auto it = fsStats.begin(); it != fsStats.end(); it++) {
     batch.setStringTransient(it->first, it->second);
@@ -430,11 +427,8 @@ Storage::Publish(ThreadAssistant& assistant)
   // The following line acts as a barrier that prevents progress
   // until the config queue becomes known
   eos::fst::Config::gConfig.getFstNodeConfigQueue("Publish");
-  common::IntervalStopwatch consistency_stopwatch(sConsistencyTimeout);
 
   while (!assistant.terminationRequested()) {
-    // Should we publish consistency stats during this cycle?
-    bool pub_consistency = consistency_stopwatch.restartIfExpired();
     std::chrono::milliseconds randomizedReportInterval =
       eos::fst::Config::gConfig.getRandomizedPublishInterval();
     common::IntervalStopwatch stopwatch(randomizedReportInterval);
@@ -457,7 +451,7 @@ Storage::Publish(ThreadAssistant& assistant)
 
           map_futures.emplace(fs, std::async(std::launch::async,
                                              &Storage::PublishFsStatistics,
-                                             this, fs, pub_consistency));
+                                             this, fs));
         }
 
         for (auto& elem : map_futures) {
@@ -524,8 +518,6 @@ void Storage::QdbPublish(const QdbContactDetails& cd,
   common::IntervalStopwatch consistency_stopwatch(sConsistencyTimeout);
 
   while (!assistant.terminationRequested()) {
-    // Should we publish consistency stats during this cycle?
-    bool pub_consistency = consistency_stopwatch.restartIfExpired();
     // Publish FST stats
     std::map<std::string, std::string> fstStats = GetFstStatistics(tmp_name,
         netspeed);
@@ -535,8 +527,7 @@ void Storage::QdbPublish(const QdbContactDetails& cd,
 
     for (const auto& elem : mFsMap) {
       auto fs = elem.second;
-      std::map<std::string, std::string> fsStats = GetFsStatistics(fs,
-          pub_consistency);
+      std::map<std::string, std::string> fsStats = GetFsStatistics(fs);
       std::string fsChannel = SSTR("fs-" << elem.first);
       qcl->exec("publish", fsChannel, qclient::Formatting::serialize(fsStats));
     }
