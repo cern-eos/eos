@@ -1258,34 +1258,32 @@ void
 XrdFstOfs::SendFsck(XrdMqMessage* message)
 {
   XrdOucString stdOut = "";
-  // loop over filesystems
   eos::common::RWMutexReadLock fs_rd_lock(gOFS.Storage->mFsMutex);
 
   for (const auto& elem : gOFS.Storage->mFsMap) {
     auto fs = elem.second;
-    XrdSysMutexHelper ISLock(fs->InconsistencyStatsMutex);
-    std::map<std::string, std::set<eos::common::FileId::fileid_t> >* icset =
-      fs->GetInconsistencySets();
 
-    for (auto icit = icset->begin(); icit != icset->end(); icit++) {
+    // Don't report filesystems which are not booted!
+    if (fs->GetStatus() != eos::common::BootStatus::kBooted) {
+      continue;
+    }
+
+    eos::common::FileSystem::fsid_t fsid = fs->GetLocalId();
+    eos::common::RWMutexReadLock rd_lock(fs->mInconsistencyMutex);
+    const auto& icset = fs->GetInconsistencySets();
+
+    for (auto icit = icset.cbegin(); icit != icset.cend(); ++icit) {
       char stag[4096];
-      eos::common::FileSystem::fsid_t fsid = fs->GetLocalId();
       snprintf(stag, sizeof(stag) - 1, "%s@%lu", icit->first.c_str(),
                (unsigned long) fsid);
       stdOut += stag;
 
-      if (fs->GetStatus() != eos::common::BootStatus::kBooted) {
-        // we don't report filesystems which are not booted!
-        continue;
-      }
-
-      for (auto fit = icit->second.begin(); fit != icit->second.end(); fit++) {
+      for (auto fit = icit->second.cbegin(); fit != icit->second.cend(); ++fit) {
         // Don't report files which are currently write-open
         if (gOFS.openedForWriting.isOpen(fsid, *fit)) {
           continue;
         }
 
-        // loop over all fids
         char sfid[4096];
         snprintf(sfid, sizeof(sfid) - 1, ":%08llx", *fit);
         stdOut += sfid;
@@ -1297,8 +1295,8 @@ XrdFstOfs::SendFsck(XrdMqMessage* message)
           repmessage.MarkAsMonitor();
 
           if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
-            eos_err("msg=\"unable to send fsck reply message\" dst=%s",
-                    message->kMessageHeader.kSenderId.c_str());
+            eos_static_err("msg=\"unable to send fsck reply message\" dst=%s",
+                           message->kMessageHeader.kSenderId.c_str());
           }
 
           stdOut = stag;
@@ -1309,7 +1307,7 @@ XrdFstOfs::SendFsck(XrdMqMessage* message)
     }
   }
 
-  eos_debug("msg=\"fsck reply\" data=\"%s\"", stdOut.c_str());
+  eos_static_debug("msg=\"fsck reply\" data=\"%s\"", stdOut.c_str());
 
   if (stdOut.length()) {
     XrdMqMessage repmessage("fsck reply message");
@@ -1317,8 +1315,8 @@ XrdFstOfs::SendFsck(XrdMqMessage* message)
     repmessage.MarkAsMonitor();
 
     if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message)) {
-      eos_err("unable to send fsck reply message to %s",
-              message->kMessageHeader.kSenderId.c_str());
+      eos_static_err("msg=\"unable to send fsck reply message\" dst=%s",
+                     message->kMessageHeader.kSenderId.c_str());
     }
   }
 }

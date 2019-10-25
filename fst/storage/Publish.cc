@@ -307,15 +307,7 @@ Storage::GetFsStatistics(FileSystem* fs, bool publishInconsistencyStats)
   // Publish inconsistency statistics?
   if (publishInconsistencyStats &&
       (fs->GetStatus() == eos::common::BootStatus::kBooted)) {
-    XrdSysMutexHelper ISLock(fs->InconsistencyStatsMutex);
-    gFmdDbMapHandler.GetInconsistencyStatistics(
-      fsid, *fs->GetInconsistencyStats(), *fs->GetInconsistencySets());
-
-    for (auto it = fs->GetInconsistencyStats()->begin();
-         it != fs->GetInconsistencyStats()->end(); it++) {
-      std::string sname = SSTR("stat.fsck." << it->first);
-      output[sname] = std::to_string(it->second);
-    }
+    output = fs->CollectInconsistencyStats("stat.fsck");
   }
 
   // Publish statfs

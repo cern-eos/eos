@@ -29,6 +29,7 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/FmdDbMap.hh"
 #include "fst/Deletion.hh"
+#include "fst/storage/FileSystem.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
@@ -461,6 +462,10 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
   }
 
   while (!assistant.terminationRequested()) {
+#ifndef _NOOFS
+    auto fs = gOFS.Storage->GetFileSystemById(mFsId);
+    fs->UpdateInconsistencyInfo();
+#endif
     mNumScannedFiles =  mTotalScanSize =  mNumCorruptedFiles = 0;
     mNumHWCorruptedFiles =  mNumTotalFiles = mNumSkippedFiles = 0;
     auto start_ts = mClock.getTime();

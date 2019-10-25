@@ -352,5 +352,41 @@ FileSystem::IoPing()
   eos_info("bw=%lld iops=%d", seqBandwidth, IOPS);
 }
 
+//------------------------------------------------------------------------------
+// Collect inconsistency statistics about the current file system
+//------------------------------------------------------------------------------
+std::map<std::string, std::string>
+FileSystem::CollectInconsistencyStats(const std::string prefix) const
+{
+  std::map<std::string, std::string> out;
+  eos::common::RWMutexReadLock rd_lock(mInconsistencyMutex);
+
+  for (const auto& elem : mInconsistencyStats) {
+    out[prefix + elem.first] = std::to_string(elem.second);
+  }
+
+  return out;
+}
+
+//------------------------------------------------------------------------------
+// Update inconsistency info about the current file system
+//------------------------------------------------------------------------------
+void
+FileSystem::UpdateInconsistencyInfo()
+{
+  decltype(mInconsistencyStats) tmp_stats;
+  decltype(mInconsistencySets) tmp_sets;
+
+  if (!gFmdDbMapHandler.GetInconsistencyStatistics(mLocalId, tmp_stats,
+      tmp_sets)) {
+    eos_static_err("msg=\"failed to get inconsistency statistics\" fsid=%lu",
+                   mLocalId);
+    return;
+  }
+
+  eos::common::RWMutexWriteLock wr_lock(mInconsistencyMutex);
+  mInconsistencyStats.swap(tmp_stats);
+  mInconsistencySets.swap(tmp_sets);
+}
 
 EOSFSTNAMESPACE_END

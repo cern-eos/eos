@@ -113,7 +113,7 @@ public:
   //!
   //! @return associated filesystem object or NULL
   //----------------------------------------------------------------------------
-  FileSystem* GetFileSystemById(eos::common::FileSystem::fsid_t fsid);
+  fst::FileSystem* GetFileSystemById(eos::common::FileSystem::fsid_t fsid);
 
   //----------------------------------------------------------------------------
   //! Open transaction operation for file fid on filesystem fsid
@@ -171,7 +171,7 @@ protected:
   mutable eos::common::RWMutex mFsMutex; ///< Mutex protecting the fs map
   std::vector <fst::FileSystem*> mFsVect; ///< Vector of filesystems
   //! Map of filesystem id to filesystem object
-  std::map<eos::common::FileSystem::fsid_t, FileSystem*> mFsMap;
+  std::map<eos::common::FileSystem::fsid_t, fst::FileSystem*> mFsMap;
 
 private:
   //! Publish inconsistency statistics once every two hours
@@ -209,7 +209,7 @@ private:
   //! Struct BootThreadInfo
   struct BootThreadInfo {
     Storage* storage;
-    FileSystem* filesystem;
+    fst::FileSystem* filesystem;
   };
 
   //----------------------------------------------------------------------------
@@ -231,8 +231,8 @@ private:
   //----------------------------------------------------------------------------
   //! Get statistics about this FileSystem, used for publishing
   //----------------------------------------------------------------------------
-  std::map<std::string, std::string> GetFsStatistics(
-    FileSystem* fs, bool publishInconsistencyStats);
+  std::map<std::string, std::string>
+  GetFsStatistics(fst::FileSystem* fs, bool publishInconsistencyStats);
 
   //----------------------------------------------------------------------------
   //! Get statistics about this FST, used for publishing
@@ -243,7 +243,7 @@ private:
   //----------------------------------------------------------------------------
   //! Publish statistics about the given filesystem
   //----------------------------------------------------------------------------
-  bool PublishFsStatistics(FileSystem* fs, bool publishInconsistencyStats);
+  bool PublishFsStatistics(fst::FileSystem* fs, bool publishInconsistencyStats);
 
   //----------------------------------------------------------------------------
   //! Register file system for which we know we have file fsid info available
@@ -310,7 +310,7 @@ private:
   void Balancer();
   void Cleaner();
   void MgmSyncer();
-  void Boot(FileSystem* fs);
+  void Boot(fst::FileSystem* fs);
 
   //----------------------------------------------------------------------------
   //! Scrub filesystem
@@ -335,7 +335,7 @@ private:
   //!
   //! @return true if boot thread started successfully, otherwise false
   //----------------------------------------------------------------------------
-  bool RunBootThread(FileSystem* fs);
+  bool RunBootThread(fst::FileSystem* fs);
 
   //----------------------------------------------------------------------------
   //! Write file system label files (.eosid and .eosuuid) according to the
@@ -400,7 +400,7 @@ private:
   //!
   //! Parameter i is the index into mFsVect.
   //----------------------------------------------------------------------------
-  void CheckFilesystemFullness(FileSystem* fs,
+  void CheckFilesystemFullness(fst::FileSystem* fs,
                                eos::common::FileSystem::fsid_t fsid);
 
 
