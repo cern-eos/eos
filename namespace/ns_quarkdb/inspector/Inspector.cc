@@ -222,6 +222,7 @@ int Inspector::overwriteContainerMD(bool dryRun, uint64_t id, uint64_t parentId,
   std::vector<RedisRequest> requests;
   requests.emplace_back(RequestBuilder::writeContainerProto(&containerMD));
   executeRequestBatch(requests, {}, dryRun, out, err);
+  return 0;
 }
 
 //------------------------------------------------------------------------------
@@ -1134,14 +1135,12 @@ int Inspector::fixDetachedParentContainer(bool dryRun, uint64_t cid, const std::
   out << "Finding all parents of Container #" << cid << "..." << std::endl;
 
   uint64_t nextToCheck = cid;
-  uint64_t lastGood = cid;
 
   eos::ns::ContainerMdProto val;
   while(nextToCheck != 0 && nextToCheck != 1) {
     try {
       val = MetadataFetcher::getContainerFromId(mQcl, ContainerIdentifier(nextToCheck)).get();
       out << val.name() << ": #" << val.id() << " with parent #" << val.parent_id() << std::endl;
-      lastGood = nextToCheck;
       nextToCheck = val.parent_id();
     }
     catch(const MDException& e) {
