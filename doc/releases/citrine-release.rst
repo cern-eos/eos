@@ -15,6 +15,22 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.5.12 Citrine``
+===================
+
+2019-10-28
+
+Bug
+----
+
+* [EOS-3792] - eos quota not redirecting to proper home
+
+Improvement
+-----------
+
+* [EOS-3800] - Routing mechanism of proto commands
+
+
 ``v4.5.11 Citrine``
 ===================
 
