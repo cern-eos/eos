@@ -147,7 +147,7 @@ AclHelper::ParseCommand(const char* arg)
   bool type_set = false;
 
   // Get opts
-  while ((temp = tokenizer.GetToken()) != 0) {
+  while ((temp = tokenizer.GetToken(false)) != 0) {
     // Trimming
     token = std::string(temp);
     token.erase(std::find_if(token.rbegin(), token.rend(),
@@ -207,7 +207,7 @@ AclHelper::ParseCommand(const char* arg)
 
         acl->set_rule(token);
 
-        if ((temp = tokenizer.GetToken()) != 0) {
+        if ((temp = tokenizer.GetToken(false)) != 0) {
           token = std::string(temp);
           token.erase(std::find_if(token.rbegin(), token.rend(),
                                    std::not1(std::ptr_fun<int, int> (std::isspace))).base(),
