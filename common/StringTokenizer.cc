@@ -227,9 +227,9 @@ StringTokenizer::IsUnsignedNumber(const std::string& str)
 // Get next token and return it in the supplied string
 //------------------------------------------------------------------------------
 bool
-StringTokenizer::NextToken(std::string& token)
+StringTokenizer::NextToken(std::string& token, bool escapeand)
 {
-  const char* tmp = GetToken();
+  const char* tmp = GetToken(escapeand);
 
   if (tmp == nullptr) {
     token = "";

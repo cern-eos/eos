@@ -108,10 +108,11 @@ public:
   //! Get next token and return it in the supplied string
   //!
   //! @param token the next token or empty string if nothing found
+  //! @param escapeand if true escape & with #AND#
   //!
   //! @return true if token retrieved, otherwise false
   //----------------------------------------------------------------------------
-  bool NextToken(std::string& token);
+  bool NextToken(std::string& token, bool escapeand = true);
 
   //----------------------------------------------------------------------------
   //! Split given string based on the delimiter
