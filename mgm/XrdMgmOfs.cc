@@ -36,6 +36,7 @@
 #include "common/plugin_manager/Plugin.hh"
 #include "common/plugin_manager/DynamicLibrary.hh"
 #include "common/plugin_manager/PluginManager.hh"
+#include "common/Strerror_r_wrapper.hh"
 #include "namespace/Constants.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/utils/Checksum.hh"
@@ -929,16 +930,15 @@ XrdMgmOfs::Emsg(const char* pfx,
                 const char* op,
                 const char* target)
 {
-  char* etext, buffer[4096], unkbuff[64];
+  char etext[128], buffer[4096];
 
   // Get the reason for the error
   if (ecode < 0) {
     ecode = -ecode;
   }
 
-  if (!(etext = strerror(ecode))) {
-    sprintf(unkbuff, "reason unknown (%d)", ecode);
-    etext = unkbuff;
+  if (eos::common::strerror_r(ecode, etext, sizeof(etext))) {
+    sprintf(etext, "reason unknown (%d)", ecode);
   }
 
   // Format the error message

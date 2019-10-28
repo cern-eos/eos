@@ -24,6 +24,7 @@
 #include "mgm/Acl.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "common/StringTokenizer.hh"
+#include "common/ErrnoToString.hh"
 #include <unistd.h>
 #include <getopt.h>
 #include <functional>
@@ -52,7 +53,7 @@ AclCmd::ProcessRequest() noexcept
 
     if (acl_val.empty()) {
       mErr = "error: ";
-      mErr += std::strerror(ENODATA);
+      mErr += eos::common::ErrnoToString(ENODATA);
       reply.set_std_err(mErr);
       reply.set_retc(ENODATA);
     } else {
@@ -102,7 +103,6 @@ AclCmd::GetAcls(const std::string& path, std::string& acl, bool is_sys,
 int
 AclCmd::ModifyAcls(const eos::console::AclProto& acl)
 {
-
   XrdOucString m_err {""};
 
   // Parse acl modification command into bitmask rule format

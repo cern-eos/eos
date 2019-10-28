@@ -87,14 +87,15 @@ add_library(eosCommon-Objects OBJECT
   XrdConnPool.cc                                             XrdConnPool.hh
   XrdErrorMap.cc                                             XrdErrorMap.hh
   OAuth.cc                                                   OAuth.hh
+  Strerror_r_wrapper.cc
+  ErrnoToString.cc
   JeMallocHandler.cc
   plugin_manager/Plugin.hh
   plugin_manager/PluginManager.cc
   plugin_manager/DynamicLibrary.cc
   table_formatter/TableCell.cc
   table_formatter/TableFormatterBase.cc
-  token/EosTok.cc
-)
+  token/EosTok.cc)
 
 set_target_properties(eosCommon-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)

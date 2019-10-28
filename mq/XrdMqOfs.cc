@@ -35,6 +35,7 @@
 #include "mq/XrdMqMessage.hh"
 #include "mq/XrdMqOfsTrace.hh"
 #include "common/PasswordHandler.hh"
+#include "common/Strerror_r_wrapper.hh"
 #include "namespace/ns_quarkdb/BackendClient.hh"
 #include <pwd.h>
 #include <grp.h>
@@ -1063,16 +1064,15 @@ int XrdMqOfs::Emsg(const char*    pfx,    // Message prefix value
                    const char*    op,     // Operation being performed
                    const char*    target) // The target (e.g., fname)
 {
-  char* etext, buffer[4096], unkbuff[64];
+  char etext[128], buffer[4096];
 
   // Get the reason for the error
   if (ecode < 0) {
     ecode = -ecode;
   }
 
-  if (!(etext = strerror(ecode))) {
-    sprintf(unkbuff, "reason unknown (%d)", ecode);
-    etext = unkbuff;
+  if (eos::common::strerror_r(ecode, etext, sizeof(etext))) {
+    snprintf(etext, sizeof(etext), "reason unknown (%d)", ecode);
   }
 
   // Format the error message

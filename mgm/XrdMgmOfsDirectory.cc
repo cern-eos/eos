@@ -22,7 +22,6 @@
  ************************************************************************/
 
 #include "mgm/XrdMgmOfsDirectory.hh"
-#include "XrdOuc/XrdOucEnv.hh"
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfsTrace.hh"
 #include "mgm/XrdMgmOfsSecurity.hh"
@@ -30,10 +29,12 @@
 #include "mgm/Access.hh"
 #include "mgm/Acl.hh"
 #include "common/Path.hh"
+#include "common/Strerror_r_wrapper.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/interface/ContainerIterators.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -115,18 +116,16 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
   static const char* epname = "opendir";
   XrdOucEnv Open_Env(info);
   errno = 0;
-
   EXEC_TIMING_BEGIN("OpenDir");
   eos::common::Path cPath(dir_path);
 
   // Skip printout when listing the /eos/<instance/proc/conversion dir
   if ((strstr(dir_path, "/proc/conversion") == nullptr) && (info != nullptr)) {
-    eos_info("name=opendir path=%s name=%s prot=%s uid=%u gid=%u", cPath.GetPath(), vid.name.c_str(), vid.prot.c_str(), vid.uid, vid.gid);
+    eos_info("name=opendir path=%s name=%s prot=%s uid=%u gid=%u", cPath.GetPath(),
+             vid.name.c_str(), vid.prot.c_str(), vid.uid, vid.gid);
   }
 
   gOFS->MgmStats.Add("OpenDir", vid.uid, vid.gid, 1);
-
-
   XrdOucEnv env(info);
   // Open the directory
   bool permok = false;
@@ -165,24 +164,24 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
       dh_list.clear();
 
       if (!env.Get("ls.skip.files")) {
-	// Collect all file names
-	for (auto it = eos::FileMapIterator(dh); it.valid(); it.next()) {
-	  dh_list.insert(it.key());
-	}
+        // Collect all file names
+        for (auto it = eos::FileMapIterator(dh); it.valid(); it.next()) {
+          dh_list.insert(it.key());
+        }
       }
 
       if (!env.Get("ls.skip.directories")) {
-	// Collect all subcontainers
-	for (auto it = eos::ContainerMapIterator(dh); it.valid(); it.next()) {
-	  dh_list.insert(it.key());
-	}
-	
-	dh_list.insert(".");
-	
-	// The root dir has no .. entry
-	if (strcmp(dir_path, "/")) {
-	  dh_list.insert("..");
-	}
+        // Collect all subcontainers
+        for (auto it = eos::ContainerMapIterator(dh); it.valid(); it.next()) {
+          dh_list.insert(it.key());
+        }
+
+        dh_list.insert(".");
+
+        // The root dir has no .. entry
+        if (strcmp(dir_path, "/")) {
+          dh_list.insert("..");
+        }
       }
 
       dh_it = dh_list.begin();
@@ -208,12 +207,12 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
     return Emsg(epname, error, errno,
                 "open directory", cPath.GetPath());
   }
-  
-  if (!gOFS->allow_public_access(cPath.GetPath(),vid)) {
-    errno = EACCES;
-    return Emsg(epname, error, EACCES, "access - public access level restriction", cPath.GetPath());
-  }
 
+  if (!gOFS->allow_public_access(cPath.GetPath(), vid)) {
+    errno = EACCES;
+    return Emsg(epname, error, EACCES, "access - public access level restriction",
+                cPath.GetPath());
+  }
 
   dirName = dir_path;
   EXEC_TIMING_END("OpenDir");
@@ -272,23 +271,17 @@ XrdMgmOfsDirectory::Emsg(const char* pfx,
  */
 /*----------------------------------------------------------------------------*/
 {
-  char* etext, buffer[4096], unkbuff[64];
+  char etext[128], buffer[4096];
 
-  // ---------------------------------------------------------------------------
-  // Get the reason for the error
-  // ---------------------------------------------------------------------------
   if (ecode < 0) {
     ecode = -ecode;
   }
 
-  if (!(etext = strerror(ecode))) {
-    sprintf(unkbuff, "reason unknown (%d)", ecode);
-    etext = unkbuff;
+  if (eos::common::strerror_r(ecode, etext, sizeof(etext))) {
+    snprintf(etext, sizeof(etext), "reason unknown (%d)", ecode);
   }
 
-  // ---------------------------------------------------------------------------
   // Format the error message
-  // ---------------------------------------------------------------------------
   snprintf(buffer, sizeof(buffer), "Unable to %s %s; %s", op, target, etext);
 
   if (ecode == ENOENT) {
@@ -297,15 +290,7 @@ XrdMgmOfsDirectory::Emsg(const char* pfx,
     eos_err("Unable to %s %s; %s", op, target, etext);
   }
 
-  // ---------------------------------------------------------------------------
-  // Print it out if debugging is enabled
-  // ---------------------------------------------------------------------------
-#ifndef NODEBUG
-  //   XrdMgmOfs::eDest->Emsg(pfx, buffer);
-#endif
-  // ---------------------------------------------------------------------------
   // Place the error message in the error object and return
-  // ---------------------------------------------------------------------------
   einfo.setErrInfo(ecode, buffer);
   return SFS_ERROR;
 }

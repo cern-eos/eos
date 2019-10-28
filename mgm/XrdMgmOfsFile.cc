@@ -28,6 +28,7 @@
 #include "common/SecEntity.hh"
 #include "common/StackTrace.hh"
 #include "common/ParseUtils.hh"
+#include "common/Strerror_r_wrapper.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -96,15 +97,16 @@ XrdMgmOfsFile::open(const char* inpath,
   EXEC_TIMING_BEGIN("Open");
   XrdOucString spath = inpath;
   XrdOucString sinfo = ininfo;
-
   SetLogId(logId, tident);
   {
     EXEC_TIMING_BEGIN("IdMap");
+
     if (spath.beginswith("/zteos64:")) {
       sinfo += "&authz=";
-      sinfo += spath.c_str()+1;
+      sinfo += spath.c_str() + 1;
       ininfo = sinfo.c_str();
     }
+
     eos::common::Mapping::IdMap(client, ininfo, tident, vid);
     EXEC_TIMING_END("IdMap");
   }
@@ -117,7 +119,7 @@ XrdMgmOfsFile::open(const char* inpath,
 
   if (!spath.beginswith("/proc/") && spath.endswith("/")) {
     return Emsg(epname, error, EISDIR,
-		"open - you specified a directory as target file name", path);
+                "open - you specified a directory as target file name", path);
   }
 
   int open_flag = 0;
@@ -441,10 +443,9 @@ XrdMgmOfsFile::open(const char* inpath,
 
   eos_debug("msg=\"authorize done\"");
   eos::common::Path cPath(path);
-  
   // indicate the scope for a possible token
   vid.scope = cPath.GetPath();
-  
+
   // prevent any access to a recycling bin for writes
   if (isRW && cPath.GetFullPath().beginswith(Recycle::gRecyclingPrefix.c_str())) {
     return Emsg(epname, error, EPERM,
@@ -653,7 +654,6 @@ XrdMgmOfsFile::open(const char* inpath,
     // ACL and permission check
     // -------------------------------------------------------------------------
     eos::IFileMD::XAttrMap attrmapF;
-
     gOFS->_attr_ls(cPath.GetPath(), error, vid, 0, attrmapF, false);
     acl.SetFromAttrMap(attrmap, vid, &attrmapF);
     eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d",
@@ -893,9 +893,9 @@ XrdMgmOfsFile::open(const char* inpath,
               }
             }
 
-	    fmd->setAttribute("sys.utrace", logId);
-	    fmd->setAttribute("sys.vtrace",vid.getTrace());
-				
+            fmd->setAttribute("sys.utrace", logId);
+            fmd->setAttribute("sys.vtrace", vid.getTrace());
+
             if (ref_fmd) {
               // If we have a target file we tag the latest atomic upload name
               // on a temporary attribute
@@ -1670,11 +1670,11 @@ XrdMgmOfsFile::open(const char* inpath,
               fmd = gOFS->eosView->getFile(creation_path);
             }
 
-	    if (!fmd) {
-	      errno = ENOENT;
-	      gOFS->MgmStats.Add("OpenFailedENOENT", vid.uid, vid.gid, 1);
-	      return Emsg(epname, error, errno, "open file - file is not existing");
-	    }
+            if (!fmd) {
+              errno = ENOENT;
+              gOFS->MgmStats.Add("OpenFailedENOENT", vid.uid, vid.gid, 1);
+              return Emsg(epname, error, errno, "open file - file is not existing");
+            }
 
             if (isRecreation) {
               fmd->unlinkAllLocations();
@@ -2794,16 +2794,15 @@ XrdMgmOfsFile::Emsg(const char* pfx,
                     const char* op,
                     const char* target)
 {
-  char* etext, buffer[4096], unkbuff[64];
+  char etext[128], buffer[4096];
 
   // Get the reason for the error
   if (ecode < 0) {
     ecode = -ecode;
   }
 
-  if (!(etext = strerror(ecode))) {
-    sprintf(unkbuff, "reason unknown (%d)", ecode);
-    etext = unkbuff;
+  if (eos::common::strerror_r(ecode, etext, sizeof(etext))) {
+    sprintf(etext, "reason unknown (%d)", ecode);
   }
 
   // Format the error message
