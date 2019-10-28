@@ -160,6 +160,7 @@ add_executable(eos
 #-------------------------------------------------------------------------------
 target_link_libraries(
   eos PUBLIC
+  EosFstIo XrdMqClient
   ${Z_LIBRARY}
   ${RT_LIBRARIES}
   ${UUID_LIBRARIES}
@@ -170,8 +171,7 @@ target_link_libraries(
   ${XROOTD_POSIX_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT}
-  EosFstIo XrdMqClient)
+  ${CMAKE_THREAD_LIBS_INIT})
 
 install(PROGRAMS eosadmin
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
