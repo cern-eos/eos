@@ -217,49 +217,42 @@ PathRouting::GetListing(const std::string& path, std::string& out) const
   std::ostringstream oss;
   eos::common::RWMutexReadLock route_rd_lock(mPathRouteMutex);
 
-  // List all paths
-  if (path.empty()) {
-    for (const auto& elem : mPathRoute) {
-      oss << elem.first << " => ";
+  auto printRoute =
+    [&oss](const std::pair<const std::string, std::list<RouteEndpoint>>& route) {
       bool first = true;
+      oss << route.first << " => ";
 
-      for (const auto& endp : elem.second) {
+      for (const auto& endpoint: route.second) {
         if (!first) {
           oss << ",";
         }
 
-        if (endp.mIsMaster.load()) {
+        if (!endpoint.mIsOnline.load()) {
+          oss << "_";
+        } else if (endpoint.mIsMaster.load()) {
           oss << "*";
         }
 
-        oss << endp.ToString();
+        oss << endpoint.ToString();
         first = false;
       }
 
       oss << std::endl;
+    };
+
+  // List all paths
+  if (path.empty()) {
+    for (const auto& elem : mPathRoute) {
+      printRoute(elem);
     }
   } else {
     auto it = mPathRoute.find(path);
 
     if (it == mPathRoute.end()) {
       return false;
-    } else {
-      oss << it->first << " => ";
-      bool first = true;
-
-      for (const auto& endp : it->second) {
-        if (!first) {
-          oss << ",";
-        }
-
-        if (endp.mIsMaster.load()) {
-          oss << "*";
-        }
-
-        oss << endp.ToString();
-        first = false;
-      }
     }
+
+    printRoute(*it);
   }
 
   out = oss.str();

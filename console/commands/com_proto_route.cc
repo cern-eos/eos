@@ -247,14 +247,18 @@ void com_route_help()
       << std::endl
       << std::endl
       << "  route ls [<path>]" << std::endl
-      << "    list all routings or the one matching for the given path"
+      << "    list all routes or the one matching for the given path"
+      << std::endl
+      << "      * as the first character means the node is a master"
+      << std::endl
+      << "      _ as the first character means the node is offline"
       << std::endl
       << std::endl
       << "  route link <path> <dst_host>[:<xrd_port>[:<http_port>]],..."
       << std::endl
       << "    create routing from <path> to destination host. If the xrd_port"
       << std::endl
-      << "    is ommited the default 1094 is used, if the http_port is ommited"
+      << "    is omitted the default 1094 is used, if the http_port is omitted"
       << std::endl
       << "    the default 8000 is used. Several dst_hosts can be specified by"
       << std::endl
