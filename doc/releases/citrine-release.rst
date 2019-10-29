@@ -19,7 +19,7 @@ This release is based on XRootD V4 and IPV6 enabled.
 ``v4.6.0 Citrine``
 ===================
 
-2019-10-29
+2019-10-30
 
 Bug
 ----
@@ -42,6 +42,7 @@ Bug
 * [EOS-3802] - eos acl not setting acl's
 * [EOS-3803] - FUSEX client says "Directory not empty" on removal (bad caching?)
 * [EOS-3805] - EOS client links against system XRootD instead of eos-xrootd
+* [EOS-3806] - eoscp won't copy the file if the 'extra' stripes are missing
 
 Task
 ----
