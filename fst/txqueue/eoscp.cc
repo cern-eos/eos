@@ -998,13 +998,13 @@ main(int argc, char* argv[])
             // given as input to the command line
             //...................................................................
             if (opaque_info) {
-              opaque_info += 2;
               LayoutId::layoutid_t layout = openOpaque->GetInt("mgm.lid");
               std::string orig_file = file_path;
 
               if (eos::common::LayoutId::GetLayoutType(layout) ==
                   eos::common::LayoutId::kRaidDP) {
                 nsrc = eos::common::LayoutId::GetStripeNumber(layout) + 1;
+                nparitystripes = 2;
                 isRaidTransfer = true;
                 isSrcRaid = true;
                 src_location.clear();
@@ -1177,6 +1177,7 @@ main(int argc, char* argv[])
   //............................................................................
   gettimeofday(&abs_start_time, &tz);
   bool got_rain_flags = false;
+  int raid_url_failed_count = 0;
 
   if (!replicamode) {
     for (int i = 0; i < nsrc; i++) {
@@ -1192,14 +1193,19 @@ main(int argc, char* argv[])
       }
       break;
 
+      // TODO: Improve stat call for RAID_ACCESS
+      //         - should stat the FST file physical path
+      //         - stat_failed should affect even RAID access
+      //       Possible merge with XRD_ACCESS stat call
       case RAID_ACCESS:
         if (!got_rain_flags) {
           XrdCl::URL url(src_location[i].first);
 
           if (!url.IsValid()) {
-            fprintf(stderr, "error: the url address is not valid url=%s\n",
+            fprintf(stderr, "warn: the url address is not valid url=%s\n",
                     src_location[i].first.c_str());
-            exit(-EPERM);
+            raid_url_failed_count++;
+            continue;
           }
 
           XrdCl::FileSystem fs(url);
@@ -1286,13 +1292,17 @@ main(int argc, char* argv[])
   //............................................................................
   // Start consistency check
   //............................................................................
+  if ((isRaidTransfer) && (raid_url_failed_count > nparitystripes)) {
+    fprintf(stderr,
+            "error: not enough replicas for XROOT(RAIDIO) read");
+    exit(-EINVAL);
+  }
+
   if ((!isRaidTransfer) && (nsrc > 1)) {
-    for (int i = 0; i < nsrc; i++) {
-      for (int j = 0; j < nsrc; j++) {
-        if (st[i].st_size != st[j].st_size) {
-          fprintf(stderr, "error: source files differ in size !\n");
-          exit(-EINVAL);
-        }
+    for (int i = 1; i < nsrc; i++) {
+      if (st[0].st_size != st[i].st_size) {
+        fprintf(stderr, "error: source files differ in size !\n");
+        exit(-EINVAL);
       }
     }
   }
@@ -1645,7 +1655,7 @@ main(int argc, char* argv[])
 
       if (retc) {
         eos::common::error_retc_map(file->GetLastErrNo());
-        fprintf(stderr, "error: source file open failed - ernno=%d : %s\n", errno,
+        fprintf(stderr, "error: source file open failed - errno=%d : %s\n", errno,
                 strerror(errno));
         exit(-errno);
       }
@@ -1886,7 +1896,7 @@ main(int argc, char* argv[])
 
       if (retc) {
         eos::common::error_retc_map(file->GetLastErrNo());
-        fprintf(stderr, "error: target file open failed - ernno=%d : %s\n", errno,
+        fprintf(stderr, "error: target file open failed - errno=%d : %s\n", errno,
                 strerror(errno));
         exit(-errno);
       }
@@ -2145,7 +2155,7 @@ main(int argc, char* argv[])
       switch (dst_type[i]) {
       case LOCAL_ACCESS:
       case CONSOLE_ACCESS:
-        nwrite = write(dst_handler[i].first, ptr_buffer, nread);
+        write(dst_handler[i].first, ptr_buffer, nread);
         nwrite = nread;
         break;
 
@@ -2224,7 +2234,7 @@ main(int argc, char* argv[])
           uint16_t error_type = ptr_handler->WaitOK();
 
           if (error_type != XrdCl::errNone) {
-            fprintf(stderr, "Error while doing the asyn writing.\n");
+            fprintf(stderr, "Error while doing the async writing.\n");
             write_error = true;
           }
         }
@@ -2399,9 +2409,9 @@ main(int argc, char* argv[])
   }
 
   if (debug) {
-    fprintf(stderr, "[eoscp] # Total read wait time is: %f miliseconds. \n",
+    fprintf(stderr, "[eoscp] # Total read wait time is: %f milliseconds. \n",
             read_wait);
-    fprintf(stderr, "[eoscp] # Total write wait time is: %f miliseconds. \n",
+    fprintf(stderr, "[eoscp] # Total write wait time is: %f milliseconds. \n",
             write_wait);
   }
 
