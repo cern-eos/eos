@@ -1601,9 +1601,9 @@ int WFE::Job::HandleProtoMethodEvents(std::string& errorMsg,
       return std::toupper(c);
     }
                   );
-    eos_static_info("%s %s %s %s", mActions[0].mWorkflow.c_str(),
+    eos_static_info("%s %s %s %s fxid=%08llx", mActions[0].mWorkflow.c_str(),
                     eventUpperCase.c_str(),
-                    fullPath.c_str(), gOFS->ProtoWFEndPoint.c_str());
+                    fullPath.c_str(), gOFS->ProtoWFEndPoint.c_str(), mFid);
   }
 
   if (event == "sync::prepare" || event == "prepare") {
