@@ -15,13 +15,53 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.6.0 Citrine``
+===================
+
+2019-10-29
+
+Bug
+----
+
+* [EOS-2990] - FSCK on QuarkDB causes higher latency
+* [EOS-3437] - FST crash around eos::common::DbMapTypes::Tlogentry::~Tlogentry()
+* [EOS-3469] - no replica information on file check but the physical file is there
+* [EOS-3470] - eos verify: unable to verify ... no local MD stored
+* [EOS-3497] - Avoid ghost entries to fail the draining of a disk
+* [EOS-3689] - MGM crashed in XrdCl::Utils::CheckTPCLite()
+* [EOS-3726] - FST crash in eos::fst::Adler::Add (negative "length")
+* [EOS-3736] - FST registration causing locking issue
+* [EOS-3743] - 'eos fs rm' triggers the following error: "cannot set net parameters on filesystem"
+* [EOS-3751] - weird behavior of the geoscheduler when some FSTs changed the geotag
+* [EOS-3783] - Miniconda2-latest-Linux-x86_64.sh - no exec bit for 'python' from archive
+* [EOS-3790] - MGM gets stuck when using local QuarkDB MD lock
+* [EOS-3791] - Transfers timeout on EOS\CERNBox home folders A G J K W
+* [EOS-3792] - eos quota not redirecting to proper home
+* [EOS-3799] - XrdMgmOfs::Emsg() calls strerror() which is NOT thread safe
+* [EOS-3802] - eos acl not setting acl's
+* [EOS-3803] - FUSEX client says "Directory not empty" on removal (bad caching?)
+* [EOS-3805] - EOS client links against system XRootD instead of eos-xrootd
+
+Task
+----
+
+* [EOS-3583] - Repair logs (useful metadata)
+* [EOS-3591] - 'file info' resolves symlinks and displays info of the referenced file
+* [EOS-3710] - TPC from castor/ceph to EOS not working
+
+Improvement
+-----------
+
+* [EOS-3371] - RFE: update "user.eos.filecxerror" on FST checksum verification failures
+* [EOS-3750] - Change error message for adjustreplica
+
+
 ``v4.5.12 Citrine``
 ===================
 
 2019-10-28
-
-Bug
-----
+=======
 
 * [EOS-3792] - eos quota not redirecting to proper home
 
