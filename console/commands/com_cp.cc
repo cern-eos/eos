@@ -39,7 +39,7 @@ int
 com_cp_usage()
 {
   fprintf(stdout,
-          "Usage: cp [--async] [--atomic] [--rate=<rate>] [--streams=<n>] [--depth=<d>] [--checksum] [--no-overwrite|-k] [--preserve|-p] [--recursive|-r|-R] [-s|--silent] [-a] [-n] [-S] [-d] <src> <dst>\n");
+          "Usage: cp [--async] [--atomic] [--rate=<rate>] [--streams=<n>] [--depth=<d>] [--checksum] [--no-overwrite|-k] [--preserve|-p] [--recursive|-r|-R] [-s|--silent] [-a] [-n] [-S] [-d[=][<lvl>] <src> <dst>\n");
   fprintf(stdout, "'[eos] cp ..' provides copy functionality to EOS.\n");
   fprintf(stdout,
           "          <src>|<dst> can be root://<host>/<path>, a local path /tmp/../ or an eos path /eos/ in the connected instance\n");
@@ -58,7 +58,7 @@ com_cp_usage()
   fprintf(stdout, "       -n              : hide progress bar\n");
   fprintf(stdout, "       -S              : print summary\n");
   fprintf(stdout,
-          "   -d | --debug          : enable debug information\n");
+          "   -d | --debug          : enable debug information (optional <lvl>=1|2|3)\n");
   fprintf(stdout,
           "   -s | --silent         : no output outside error messages\n");
   fprintf(stdout,
@@ -139,6 +139,7 @@ int do_stat(const char* path, Protocol protocol, struct stat& buf);
 int check_protocol_tool(const char* path);
 Protocol get_protocol(XrdOucString path);
 const char* protocol_to_string(Protocol protocol);
+int parse_debug_level(XrdOucString option);
 
 /* eos cp command */
 int
@@ -159,6 +160,7 @@ com_cp(char* argin)
   bool append = false;
   bool makeparent = false;
   bool debug = false;
+  int debug_level = 0;
   bool checksums = false;
   bool silent = false;
   bool nooverwrite = false;
@@ -216,7 +218,11 @@ com_cp(char* argin)
       nooverwrite = true;
     } else if (option == "--checksum") {
       checksums = true;
-    } else if ((option == "-d") || (option == "--debug")) {
+    } else if ((option.beginswith("-d")) || (option.beginswith("--debug"))) {
+      if ((debug_level = parse_debug_level(option)) < 0) {
+        return com_cp_usage();
+      }
+
       debug = true;
     } else if ((option == "--preserve") || (option == "-P")) {
       preserve = true;
@@ -1003,27 +1009,31 @@ com_cp(char* argin)
     //------------------------------------
     cmdtext += "eoscp ";
 
-    if (append)                 {
+    if (append) {
       cmdtext += "-a ";
     }
 
-    if (!summary)               {
+    if (debug_level) {
+      cmdtext += (debug_level == 1) ? "-v " : "-d ";
+    }
+
+    if (!summary) {
       cmdtext += "-s ";
     }
 
-    if (makeparent)             {
+    if (makeparent) {
       cmdtext += "-p ";
     }
 
-    if (noprogress)             {
+    if (noprogress) {
       cmdtext += "-n ";
     }
 
-    if (nooverwrite)            {
+    if (nooverwrite) {
       cmdtext += "-x ";
     }
 
-    if (transfersize.length())  {
+    if (transfersize.length()) {
       cmdtext += "-T ";
     }
 
@@ -1653,4 +1663,37 @@ const char* protocol_to_string(Protocol protocol)
   }
 
   return "unknown";
+}
+
+/**
+ * Parse and returns debug level from option string or -1 if invalid.
+ * Option format: -d[=][1|2|3]
+ */
+int parse_debug_level(XrdOucString option)
+{
+  if (option.beginswith("-d")) {
+    option.erase(0, 2);
+  } else if (option.beginswith("--debug")) {
+    option.erase(0, 7);
+  }
+
+  if (option.length() && ((option[0] == ' ') || (option[0] == '='))) {
+    option.erase(0, 1);
+  }
+
+  if (!option.length()) {
+    return 0;
+  }
+
+  int level = 0;
+  try {
+    level = std::stoul(option.c_str());
+  } catch (...) { }
+
+  if (level < 1 || level > 3) {
+    fprintf(stderr, "error: invalid value for <debug level>=%s\n", option.c_str());
+    return -1;
+  }
+
+  return level - 1;
 }
