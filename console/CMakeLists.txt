@@ -160,7 +160,7 @@ add_executable(eos
 #-------------------------------------------------------------------------------
 target_link_libraries(
   eos PUBLIC
-  EosFstIo XrdMqClient
+  EosFstIo-Static
   ${Z_LIBRARY}
   ${RT_LIBRARIES}
   ${UUID_LIBRARIES}
