@@ -1747,7 +1747,8 @@ WFE::Job::HandleProtoMethodPrepareEvent(const std::string& fullPath,
   destStream << "root://" << gOFS->HostName << "/" << fullPath << "?eos.lfn=fxid:"
              << fxidString;
   destStream << "&eos.ruid=0&eos.rgid=0&eos.injection=1&eos.workflow=" <<
-             RETRIEVE_WRITTEN_WORKFLOW_NAME;
+             RETRIEVE_WRITTEN_WORKFLOW_NAME <<
+             "&eos.layout.noforce=true&eos.space=" << gOFS->mPrepareDestSpace;
   notification->mutable_transport()->set_dst_url(destStream.str());
   std::ostringstream errorReportStream;
   errorReportStream << "eosQuery://" << gOFS->HostName
