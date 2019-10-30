@@ -103,3 +103,8 @@ mgmofs.nslib /usr/lib64/libEosNsInMemory.so
 # The SSI protocol buffer endpoint for notification messages from "proto" workflow actions
 #mgmofs.protowfendpoint HOSTNAME.2NDLEVEL.TOPLEVEL:10955
 #mgmofs.protowfresource /SSI_RESOURCE
+
+#-------------------------------------------------------------------------------
+# Configuration for prepare
+#-------------------------------------------------------------------------------
+#mgmofs.prepare.dest.space default

@@ -1441,6 +1441,7 @@ public:
   bool IsStall; ///< true if the Stall function should be called to send a wait
   bool mAuthorize; ///< Determine if the authorization should be applied or not
   std::string mAuthLib; ///< Path to authorization library
+  std::string mPrepareDestSpace; ///< Space to be used when retrieving files from tape
   //!  Acts only as a redirector, disables many components in the MGM
   bool MgmRedirector;
   //! Mgm writes error log with cluster collected file into

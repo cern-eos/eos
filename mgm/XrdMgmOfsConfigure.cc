@@ -296,6 +296,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   IoReportStorePath = "/var/tmp/eos/report";
   MgmArchiveDstUrl = "";
   MgmArchiveSvcClass = "default";
+  mPrepareDestSpace = "default";
   eos::common::StringConversion::InitLookupTables();
   // Enable TPC on the MGM for 0-size files
   XrdOucEnv::Export("XRDTPC", "1");
@@ -609,6 +610,16 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           }
 
           Eroute.Say("=====> mgmofs.authlib : ", mAuthLib.c_str());
+        }
+
+        if (!strcmp("prepare.dest.space", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for prepare.dest.space is missing.");
+            NoGo = 1;
+          } else {
+            mPrepareDestSpace = val;
+            Eroute.Say("=====> mgmofs.prepare.dest.space : ", mPrepareDestSpace.c_str());
+          }
         }
 
         if (!strcmp("authorize", var)) {
