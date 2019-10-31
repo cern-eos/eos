@@ -140,7 +140,7 @@ target_link_libraries(
   gtest_main
   gmock
   qclient
-  XrdEosFst-Static EosProtobuf)
+  XrdEosFst-Static)
 
 install(TARGETS
   eos-fst-unit-tests
