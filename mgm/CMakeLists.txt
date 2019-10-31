@@ -76,15 +76,15 @@ set_target_properties(
   PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-add_dependencies(EosMgmHttp-Objects EosProtobuf)
+#add_dependencies(EosMgmHttp-Objects EosProtobuf)
 add_dependencies(EosMgmHttp-Objects EosAuthProto-Objects)
 
 add_library(EosMgmHttp MODULE
   $<TARGET_OBJECTS:EosMgmHttp-Objects>)
 
-target_link_libraries( EosMgmHttp PUBLIC
-  eosCommon
-  eosCommonServer
+target_link_libraries(EosMgmHttp PUBLIC
+  EosCommon
+  EosCommonServer
   ${XROOTD_HTTP_UTILS_LIBRARY})
 
 install(
@@ -260,9 +260,13 @@ add_library(
 # Add dependency to protobuf objects so we guarantee that the protocol
 # buffer files are generated when we try to build XrdEosMgm
 #-------------------------------------------------------------------------------
-add_dependencies(XrdEosMgm-Objects EosProtobuf)
+add_dependencies(XrdEosMgm-Objects EosCliProto-Objects)
 add_dependencies(XrdEosMgm-Objects EosAuthProto-Objects)
 add_dependencies(XrdEosMgm-Objects XrdSsiPbEosCta-Objects)
+
+if (GRPC_FOUND)
+  add_dependencies(XrdEosMgm-Objects EosGrpcProto-Objects)
+endif ()
 
 target_compile_definitions(XrdEosMgm-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
@@ -288,10 +292,9 @@ endif()
 
 target_link_libraries(
   XrdEosMgm PUBLIC
-  EosProtobuf
   qclient
-  eosCommon
-  eosCommonServer
+  EosCommon
+  EosCommonServer
   EosNsCommon
   eosCapability-Static
   bfd
@@ -343,7 +346,7 @@ add_executable(
 
 target_link_libraries(
   testschedulingtree
-  eosCommon
+  EosCommon
   ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
@@ -363,7 +366,7 @@ if(Linux)
   target_link_libraries(
     XrdEosMgm-Static PUBLIC
     EosNsCommon-Static
-    eosCommonServer-Static
+    EosCommonServer-Static
     eosCapability-Static
     ${FOLLY_LIBRARIES}
     ${Z_LIBRARY}

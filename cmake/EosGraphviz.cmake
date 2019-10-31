@@ -1,11 +1,11 @@
 # ----------------------------------------------------------------------
 # File: CMakeLists.txt
-# Author: Andreas-Joachim Peters - CERN
+# Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
 # ----------------------------------------------------------------------
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
-# * Copyright (C) 2011 CERN/Switzerland                                  *
+# * Copyright (C) 2019 CERN/Switzerland                                  *
 # *                                                                      *
 # * This program is free software: you can redistribute it and/or modify *
 # * it under the terms of the GNU General Public License as published by *
@@ -21,35 +21,27 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(
-  ${CMAKE_SOURCE_DIR}
-  ${XROOTD_INCLUDE_DIRS}
-  ${CMAKE_BINARY_DIR})
-
 #-------------------------------------------------------------------------------
-# Create sync executables
+# Search for dependencies
 #-------------------------------------------------------------------------------
-add_executable(eosfilesync eosfilesync.cc)
-add_executable(eosdirsync eosdirsync.cc)
+find_program(DOT_EXE "dot")
 
-target_link_libraries(
-  eosdirsync
-  EosCommon-Static
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY})
+if(DOT_EXE)
+    message(STATUS "dot found: ${DOT_EXE}")
+else()
+    message(STATUS "dot not found!")
+endif()
 
-target_link_libraries(
-  eosfilesync
-  EosCommon-Static
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY})
+set(DOT_OUTPUT_TYPE "pdf" CACHE STRING "Build a dependency graph. Options are dot output types: ps, png, pdf..." )
 
-install(
-  TARGETS eosfilesync eosdirsync
-  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+if(DOT_EXE)
+  add_custom_target(dependency-graph
+    COMMAND ${CMAKE_COMMAND} ${CMAKE_SOURCE_DIR} --graphviz=${CMAKE_BINARY_DIR}/graphviz/${PROJECT_NAME}.dot
+    COMMAND ${DOT_EXE} -T${DOT_OUTPUT_TYPE} ${CMAKE_BINARY_DIR}/graphviz/${PROJECT_NAME}.dot -o ${CMAKE_BINARY_DIR}/${PROJECT_NAME}.${DOT_OUTPUT_TYPE})
 
-install(
-  PROGRAMS eossh-timeout
-  DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
+  add_custom_command(
+    TARGET dependency-graph POST_BUILD
+    COMMAND ;
+    COMMENT
+    "Dependency graph generated and located at ${CMAKE_BINARY_DIR}/${PROJECT_NAME}.${DOT_OUTPUT_TYPE}")
+endif()

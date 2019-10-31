@@ -41,12 +41,11 @@ add_library(
   EosNsQuarkdb MODULE
   NsQuarkdbPlugin.cc     NsQuarkdbPlugin.hh)
 
-add_dependencies(EosNsQuarkdb EosProtobuf)
+add_dependencies(EosNsQuarkdb EosNsQuarkdbProto-Objects)
 
 target_link_libraries(
   EosNsQuarkdb
   EosNsCommon
-  eosCommon
   EosCrc32c-Static
   qclient
   rocksdb
@@ -76,17 +75,14 @@ add_executable(eos-ns-convert
 target_link_libraries(eos-ns-convert
   jemalloc
   qclient
-  ${FOLLY_LIBRARIES}
-  eosCommon
+  EosCommon
   EosCrc32c-Static
   EosNsInMemory-Static
-  EosProtobuf)
+  ${FOLLY_LIBRARIES})
 
 add_executable(eos-dump-proto-md tools/EosDumpProtoMd.cc)
 
 target_link_libraries(eos-dump-proto-md
-  EosCrc32c-Static
-  eosCommon
   EosNsCommon-Static
   ${PROTOBUF_LIBRARY})
 
@@ -94,16 +90,12 @@ add_executable(eos-ns-convert-to-locality-hashes tools/EosConvertToLocalityHashe
 
 target_link_libraries(eos-ns-convert-to-locality-hashes
   EosNsCommon-Static
-  eosCommon-Static
-  EosCrc32c-Static
   ${PROTOBUF_LIBRARY})
 
 add_executable(eos-ns-inspect tools/InspectionTool.cc)
 
 target_link_libraries(eos-ns-inspect
-  EosNsCommon-Static
-  eosCommon-Static
-  ${PROTOBUF_LIBRARY})
+  EosNsCommon-Static)
 
 install(TARGETS eos-ns-convert eos-dump-proto-md eos-ns-convert-to-locality-hashes eos-ns-inspect
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}

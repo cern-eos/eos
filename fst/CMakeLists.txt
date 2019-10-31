@@ -178,7 +178,7 @@ add_library(EosFstIo SHARED
   $<TARGET_OBJECTS:EosFstIo-Objects>)
 
 target_link_libraries(EosFstIo PUBLIC
-  eosCommon
+  EosCommon
   EosCrc32c-Static
   jerasure-static
   ${Z_LIBRARY}
@@ -242,7 +242,7 @@ add_executable(eoscp txqueue/eoscp.cc)
 target_compile_definitions(eoscp PRIVATE
   -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
-target_link_libraries(eoscp PRIVATE EosFstIo ${XROOTD_CL_LIBRARY})
+target_link_libraries(eoscp PRIVATE EosFstIo-Static)
 
 set_target_properties(
   eoscp PROPERTIES
@@ -279,8 +279,8 @@ add_library(EosFstHttp MODULE
 
 target_link_libraries(
   EosFstHttp PUBLIC
-  eosCommon
-  eosCommonServer
+  EosCommon
+  EosCommonServer
   ${XROOTD_HTTP_UTILS_LIBRARY})
 
 install(
@@ -300,7 +300,7 @@ add_library(EosFstOss MODULE
   ${CMAKE_SOURCE_DIR}/common/LayoutId.hh)
 
 target_link_libraries(EosFstOss PRIVATE
-  eosCommon
+  EosCommon
   EosCrc32c-Static
   ${UUID_LIBRARIES}
   ${XROOTD_SERVER_LIBRARY})
@@ -386,8 +386,8 @@ target_compile_definitions(XrdEosFst-Static PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 target_link_libraries(XrdEosFst PRIVATE
-  eosCommon
-  eosCommonServer
+  EosCommon
+  EosCommonServer
   EosFstIo
   EosNsCommon
   eosCapability-Static
@@ -405,7 +405,7 @@ target_link_libraries(XrdEosFst PRIVATE
   ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(XrdEosFst-Static PUBLIC
-  eosCommonServer-Static
+  EosCommonServer-Static
   EosFstIo-Static
   EosNsCommon-Static
   eosCapability-Static
@@ -433,8 +433,8 @@ target_compile_definitions(XrdEosFst PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 target_link_libraries(XrdEosFst-4 PRIVATE
-  eosCommon
-  eosCommonServer
+  EosCommon
+  EosCommonServer
   EosFstIo
   EosNsCommon
   eosCapability-Static
@@ -464,7 +464,7 @@ add_executable(eos-leveldb-inspect
   tools/eos-leveldb-inspect.cc)
 
 target_link_libraries(eos-leveldb-inspect
-  eosCommonServer)
+  EosCommonServer)
 
 add_executable(eos-check-blockxs
   tools/CheckBlockXS.cc
@@ -513,12 +513,12 @@ target_link_libraries(eos-adler32 PRIVATE
   ${CMAKE_THREAD_LIBS_INIT} )
 
 target_link_libraries(eos-scan-fs PRIVATE
-  eosCommonServer
+  EosCommonServer
   EosFstIo
   EosNsCommon-Static)
 
 target_link_libraries(eos-fsck-fs PRIVATE
-  eosCommonServer
+  EosCommonServer
   EosFstIo
   EosNsCommon-Static)
 

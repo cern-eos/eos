@@ -242,6 +242,11 @@ add_custom_target(
   COMMAND sudo ../utils/eos-osx-package.sh ${CPACK_PACKAGE_VERSION})
 
 #-------------------------------------------------------------------------------
+# Custom target to build graphviz for all target
+#-------------------------------------------------------------------------------
+include(EosGraphviz)
+
+#-------------------------------------------------------------------------------
 # Print project summary
 #-------------------------------------------------------------------------------
 include(EosSummary)

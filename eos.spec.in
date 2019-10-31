@@ -400,12 +400,9 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_sbindir}/eos-iops
 %{_sbindir}/eos-leveldb-inspect
 %{_sbindir}/eos-filter-stacktrace
-%{_libdir}/libEosProtobuf.so.%{version}
-%{_libdir}/libEosProtobuf.so.%{major_version}
-%{_libdir}/libEosProtobuf.so
-%{_libdir}/libeosCommonServer.so.%{version}
-%{_libdir}/libeosCommonServer.so.%{major_version}
-%{_libdir}/libeosCommonServer.so
+%{_libdir}/libEosCommonServer.so.%{version}
+%{_libdir}/libEosCommonServer.so.%{major_version}
+%{_libdir}/libEosCommonServer.so
 %{_libdir}/libEosFstIo.so.%{version}
 %{_libdir}/libEosFstIo.so.%{major_version}
 %{_libdir}/libEosFstIo.so
@@ -610,9 +607,9 @@ The EOS shell client.
 %{_libdir}/libXrdMqClient.so.%{version}
 %{_libdir}/libXrdMqClient.so.%{major_version}
 %{_libdir}/libXrdMqClient.so
-%{_libdir}/libeosCommon.so.%{version}
-%{_libdir}/libeosCommon.so.%{major_version}
-%{_libdir}/libeosCommon.so
+%{_libdir}/libEosCommon.so.%{version}
+%{_libdir}/libEosCommon.so.%{major_version}
+%{_libdir}/libEosCommon.so
 %{_sysconfdir}/bash_completion.d/eos
 
 # This file is required by both the eos-fuse and eos-fusex package, therefore

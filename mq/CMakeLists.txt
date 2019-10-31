@@ -64,7 +64,7 @@ set(XRD_MQ_CLIENT_LIBS
 add_library(XrdMqClient SHARED $<TARGET_OBJECTS:XrdMqClient-Objects>)
 
 target_link_libraries(XrdMqClient PUBLIC
-  eosCommon
+  EosCommon
   ${XRD_MQ_CLIENT_LIBS})
 
 set_target_properties(
@@ -76,7 +76,7 @@ set_target_properties(
 add_library(XrdMqClient-Static STATIC $<TARGET_OBJECTS:XrdMqClient-Objects>)
 
 target_link_libraries(XrdMqClient-Static PUBLIC
-  eosCommon-Static
+  EosCommon-Static
   ${XRD_MQ_CLIENT_LIBS})
 
 set_target_properties(
@@ -94,7 +94,7 @@ add_library(XrdMqOfs MODULE
 
 target_link_libraries(
   XrdMqOfs PRIVATE
-  eosCommon
+  EosCommon
   qclient
   ${UUID_LIBRARIES}
   ${NCURSES_LIBRARIES}

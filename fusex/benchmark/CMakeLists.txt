@@ -30,7 +30,7 @@ add_executable(fusex-benchmark
   ${CMAKE_SOURCE_DIR}/common/ShellCmd.cc)
 
 target_link_libraries(fusex-benchmark
-  eosCommon
+  EosCommon
   ${CMAKE_THREAD_LIBS_INIT})
 
 install(

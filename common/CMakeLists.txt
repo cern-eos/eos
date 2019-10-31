@@ -33,8 +33,8 @@ include_directories(
   ${SPARSEHASH_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIRS}
   ${LIBBFD_INCLUDE_DIRS}
-  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
-)
+  ${CURL_INCLUDE_DIRS}
+  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include)
 
 #-------------------------------------------------------------------------------
 # CTA integration related operations
@@ -62,9 +62,9 @@ set_target_properties(EosCrc32c-Static PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------
-# eosCommon-Objects
+# EosCommon-Objects
 #-------------------------------------------------------------------------------
-add_library(eosCommon-Objects OBJECT
+add_library(EosCommon-Objects OBJECT
   Fmd.cc
   SymKeys.cc
   InstanceName.cc
@@ -97,16 +97,16 @@ add_library(eosCommon-Objects OBJECT
   table_formatter/TableFormatterBase.cc
   token/EosTok.cc)
 
-set_target_properties(eosCommon-Objects PROPERTIES
+set_target_properties(EosCommon-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------
 # Add dependency to protobuf objects so we guarantee that the protocol
 # buffer files are generated when we try to build XrdEosFst
 #-------------------------------------------------------------------------------
-add_dependencies(eosCommon-Objects EosFstProto-Objects EosCliProto-Objects)
+add_dependencies(EosCommon-Objects EosFstProto-Objects EosCliProto-Objects)
 
-target_compile_definitions(eosCommon-Objects PUBLIC
+target_compile_definitions(EosCommon-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 set(EOSCOMMON_LIBS
@@ -120,57 +120,85 @@ set(EOSCOMMON_LIBS
   ${ATTR_LIBRARIES}
   ${NCURSES_LIBRARY}
   ${JSONCPP_LIBRARIES}
-  ${PROTOBUF_LIBRARY}
+  ${PROTOBUF_LIBRARIES}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
 #-------------------------------------------------------------------------------
-# eosCommon and eosCommon-Static library
+# EosCommon and EosCommon-Static library
 #-------------------------------------------------------------------------------
-add_library(eosCommon SHARED $<TARGET_OBJECTS:eosCommon-Objects>)
+if (GRPC_FOUND)
+  add_library(EosCommon SHARED
+    $<TARGET_OBJECTS:EosCommon-Objects>
+    $<TARGET_OBJECTS:EosCliProto-Objects>
+    $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
+    $<TARGET_OBJECTS:EosFstProto-Objects>
+    $<TARGET_OBJECTS:EosGrpcProto-Objects>)
 
-target_link_libraries(eosCommon PUBLIC
-  EosProtobuf
-  ${EOSCOMMON_LIBS}
-)
+  target_link_libraries(EosCommon PUBLIC
+    ${GRPC_GRPC++_LIBRARY})
+else ()
+  add_library(EosCommon SHARED
+    $<TARGET_OBJECTS:EosCommon-Objects>
+    $<TARGET_OBJECTS:EosCliProto-Objects>
+    $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
+    $<TARGET_OBJECTS:EosFstProto-Objects>)
+endif ()
 
-set_target_properties(eosCommon PROPERTIES
+target_link_libraries(EosCommon PUBLIC
+  ${EOSCOMMON_LIBS})
+
+set_target_properties(EosCommon PROPERTIES
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
   MACOSX_RPATH TRUE)
 
-target_compile_definitions(eosCommon PUBLIC
+target_compile_definitions(EosCommon PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
-target_include_directories(eosCommon PUBLIC ${CURL_INCLUDE_DIRS})
+if (GRPC_FOUND)
+  add_library(EosCommon-Static STATIC
+    $<TARGET_OBJECTS:EosCommon-Objects>
+    $<TARGET_OBJECTS:EosCliProto-Objects>
+    $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
+    $<TARGET_OBJECTS:EosFstProto-Objects>
+    $<TARGET_OBJECTS:EosGrpcProto-Objects>)
 
-add_library(eosCommon-Static STATIC $<TARGET_OBJECTS:eosCommon-Objects>)
+  target_link_libraries(EosCommon-Static PRIVATE
+    ${GRPC_GRPC++_LIBRARY_STATIC})
+else ()
+  add_library(EosCommon-Static STATIC
+    $<TARGET_OBJECTS:EosCommon-Objects>
+    $<TARGET_OBJECTS:EosCliProto-Objects>
+    $<TARGET_OBJECTS:EosNsQuarkdbProto-Objects>
+    $<TARGET_OBJECTS:EosFstProto-Objects>)
+endif ()
 
-target_link_libraries(eosCommon-Static PUBLIC
+target_link_libraries(EosCommon-Static PUBLIC
   ${EOSCOMMON_LIBS})
 
-set_target_properties(eosCommon-Static PROPERTIES
+set_target_properties(EosCommon-Static PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-target_compile_definitions(eosCommon-Static PUBLIC
+target_compile_definitions(EosCommon-Static PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
-target_include_directories(eosCommon-Static PUBLIC
+target_include_directories(EosCommon-Static PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
   $<INSTALL_INTERFACE:include>)
 
-install(TARGETS eosCommon
+install(TARGETS EosCommon
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
 #-------------------------------------------------------------------------------
-# eosCommonServer and eosCommonServer-Static libraries
+# EosCommonServer and EosCommonServer-Static libraries
 #-------------------------------------------------------------------------------
 if (Linux)
-  add_library(eosCommonServer-Objects OBJECT
+  add_library(EosCommonServer-Objects OBJECT
     ShellExecutor.cc
     ShellCmd.cc
     FileSystem.cc
@@ -188,13 +216,15 @@ if (Linux)
     stringencoders/modp_numtoa.c
    )
 
-  set_target_properties(eosCommonServer-Objects PROPERTIES
+  set_target_properties(EosCommonServer-Objects PROPERTIES
     POSITION_INDEPENDENT_CODE TRUE)
 
-  target_compile_definitions(eosCommonServer-Objects PUBLIC
+  target_compile_definitions(EosCommonServer-Objects PUBLIC
     -DSQLITE_NO_SYNC=1)
 
   set(EOSCOMMONSERVER_LIBS
+    fmt
+    qclient
     ${Z_LIBRARY}
     ${ZMQ_LIBRARIES}
     ${UUID_LIBRARIES}
@@ -205,48 +235,44 @@ if (Linux)
     ${GLIBC_RT_LIBRARY}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
-    ${OPENSSL_CRYPTO_LIBRARY}
-    qclient
-    fmt
-  )
+    ${OPENSSL_CRYPTO_LIBRARY})
 
   if(MICROHTTPD_FOUND)
     LIST(APPEND EOSCOMMONSERVER_LIBS "${MICROHTTPD_LIBRARIES}")
   endif()
 
-  add_library(eosCommonServer SHARED
-    $<TARGET_OBJECTS:eosCommonServer-Objects>)
+  add_library(EosCommonServer SHARED
+    $<TARGET_OBJECTS:EosCommonServer-Objects>)
 
-  target_link_libraries(eosCommonServer PUBLIC
+  target_link_libraries(EosCommonServer PUBLIC
     XrdMqClient
-    EosProtobuf
     ${EOSCOMMONSERVER_LIBS})
 
-  set_target_properties(eosCommonServer PROPERTIES
+  set_target_properties(EosCommonServer PROPERTIES
     VERSION ${VERSION}
     SOVERSION ${VERSION_MAJOR}
     MACOSX_RPATH TRUE)
 
-  target_compile_definitions(eosCommonServer PUBLIC
+  target_compile_definitions(EosCommonServer PUBLIC
     -DSQLITE_NO_SYNC=1)
 
   target_include_directories(
-    eosCommonServer PUBLIC ${LEVELDB_INCLUDE_DIRS})
+    EosCommonServer PUBLIC ${LEVELDB_INCLUDE_DIRS})
 
-  add_library(eosCommonServer-Static STATIC
-    $<TARGET_OBJECTS:eosCommonServer-Objects>)
+  add_library(EosCommonServer-Static STATIC
+    $<TARGET_OBJECTS:EosCommonServer-Objects>)
 
-  target_link_libraries(eosCommonServer-Static PUBLIC
+  target_link_libraries(EosCommonServer-Static PUBLIC
     XrdMqClient-Static
     ${EOSCOMMONSERVER_LIBS})
 
-  target_compile_definitions(eosCommonServer-Static PUBLIC
+  target_compile_definitions(EosCommonServer-Static PUBLIC
     -DSQLITE_NO_SYNC=1)
 
   target_include_directories(
-    eosCommonServer-Static PUBLIC ${LEVELDB_INCLUDE_DIRS})
+    EosCommonServer-Static PUBLIC ${LEVELDB_INCLUDE_DIRS})
 
-  install(TARGETS eosCommonServer
+  install(TARGETS EosCommonServer
     LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
@@ -264,16 +290,16 @@ if(NOT CLIENT AND Linux)
     ${DBMAPTEST_HDRS})
 
   target_link_libraries(dbmaptestburn PRIVATE
-    eosCommon
-    eosCommonServer
+    EosCommon
+    EosCommonServer
     ${CMAKE_THREAD_LIBS_INIT})
 
   target_link_libraries(mutextest PRIVATE
-    eosCommon-Static
+    EosCommon-Static
     ${CMAKE_THREAD_LIBS_INIT})
 
   target_link_libraries(dbmaptestfunc PRIVATE
-    eosCommon
-    eosCommonServer
+    EosCommon
+    EosCommonServer
     ${CMAKE_THREAD_LIBS_INIT})
 endif()

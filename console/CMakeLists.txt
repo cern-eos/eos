@@ -161,11 +161,8 @@ add_executable(eos
 target_link_libraries(
   eos PUBLIC
   EosFstIo-Static
-  ${UUID_LIBRARIES}
-  ${NCURSES_LIBRARY}
   ${READLINE_LIBRARY}
-  ${XROOTD_POSIX_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT})
+  ${XROOTD_POSIX_LIBRARY})
 
 install(PROGRAMS eosadmin
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})

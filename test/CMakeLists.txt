@@ -83,8 +83,8 @@ target_link_libraries(xrdcpposixcache ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIB
 target_link_libraries(xrdcppartial ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
 target_link_libraries(xrdcpupdate ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
 target_link_libraries(xrdcpslowwriter ${XROOTD_CL_LIBRARY})
-target_link_libraries(eoshashbench eosCommon ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(testhmacsha256 eosCommon ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(eoshashbench EosCommon ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(testhmacsha256 EosCommon ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(eos-open-trunc-update ${XROOTD_CL_LIBRARY} ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
 target_link_libraries(eos-udp-dumper)
 
@@ -106,11 +106,8 @@ target_link_libraries(
 
 target_link_libraries(
   eoschecksumbench
-  eosCommon
   EosFstIo
-  ${XROOTD_POSIX_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT})
+  ${XROOTD_POSIX_LIBRARY})
 
 set_target_properties(xrdstress.exe PROPERTIES COMPILE_FLAGS "-std=gnu++0x -D_FILE_OFFSET_BITS=64")
 set_target_properties(xrdcpabort PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
@@ -145,4 +142,4 @@ install(
               WORLD_READ WORLD_EXECUTE)
 
 add_executable(threadpooltest ThreadPoolTest.cc)
-target_link_libraries(threadpooltest PRIVATE eosCommon)
+target_link_libraries(threadpooltest PRIVATE EosCommon)

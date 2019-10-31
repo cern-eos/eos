@@ -49,7 +49,6 @@ target_link_libraries(
   eos-ns-quarkdb-tests
   gtest
   gmock_main
-  eosCommon-Static
   EosNsCommon-Static
   ${CMAKE_THREAD_LIBS_INIT})
 
@@ -69,8 +68,7 @@ target_compile_options(
 
 target_link_libraries(
   eosnsbench
-  EosNsCommon-Static
-  eosCommon-Static)
+  EosNsCommon-Static)
 
 install(
   TARGETS
