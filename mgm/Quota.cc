@@ -220,7 +220,13 @@ long long
 SpaceQuota::GetQuota(unsigned long tag, unsigned long id)
 {
   XrdSysMutexHelper scope_lock(mMutex);
-  return static_cast<long long>(mMapIdQuota[Index(tag, id)]);
+
+  auto it = mMapIdQuota.find(Index(tag, id));
+  if(it != mMapIdQuota.end()) {
+    return static_cast<long long>(it->second);
+  }
+
+  return 0;
 }
 
 //------------------------------------------------------------------------------
