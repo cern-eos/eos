@@ -109,7 +109,7 @@ target_link_libraries(
   ${GRPC_LIBRARY}
   ${GRPC_GRPC++_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
-  eosCommon )
+  EosCommon )
 
 target_link_libraries(
   eos-grpc-md PUBLIC
@@ -120,7 +120,7 @@ target_link_libraries(
   ${GRPC_LIBRARY}
   ${GRPC_GRPC++_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
-  eosCommon )
+  EosCommon )
 
 target_link_libraries(
   eos-grpc-find PUBLIC
@@ -131,7 +131,7 @@ target_link_libraries(
   ${GRPC_LIBRARY}
   ${GRPC_GRPC++_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
-  eosCommon )
+  EosCommon )
 
 target_link_libraries(
   eos-grpc-ns PUBLIC
@@ -142,7 +142,7 @@ target_link_libraries(
   ${GRPC_LIBRARY}
   ${GRPC_GRPC++_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
-  eosCommon )
+  EosCommon )
 
 target_link_libraries(
   eos-grpc-insert PUBLIC
@@ -153,7 +153,7 @@ target_link_libraries(
   ${GRPC_LIBRARY}
   ${GRPC_GRPC++_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
-  eosCommon )
+  EosCommon )
 
 target_link_libraries(
   eos-grpc-manila PUBLIC
@@ -164,7 +164,7 @@ target_link_libraries(
   ${GRPC_LIBRARY}
   ${GRPC_GRPC++_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
-  eosCommon )
+  EosCommon )
 
 target_link_libraries(
   eos-grpc-ns-stat PUBLIC
@@ -174,15 +174,7 @@ target_link_libraries(
   ${GRPC_LIBRARY}
   ${GRPC_GRPC++_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
-  eosCommon )
-
-set_target_properties(
-  eos PROPERTIES
-  INSTALL_RPATH "${EOS_RPATH}"
-  SKIP_RPATH FALSE
-  SKIP_BUILD_RPATH FALSE
-  BUILD_WITH_INSTALL_RPATH TRUE
-  INSTALL_RPATH_USE_LINK_PATH TRUE)
+  EosCommon )
 
 install(
   TARGETS eos-grpc-ping eos-grpc-md eos-grpc-insert eos-grpc-manila

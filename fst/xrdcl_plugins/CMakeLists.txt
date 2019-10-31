@@ -28,8 +28,7 @@ add_library(
 
 target_link_libraries(
   EosRainClient
-  eosCommon
-  EosFstIo-Static
+  EosFstIo
   ${XROOTD_CL_LIBRARY})
 
 set_target_properties(

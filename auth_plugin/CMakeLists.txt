@@ -112,7 +112,7 @@ add_library(
 
 target_link_libraries(
   EosAuthOfs PRIVATE
-  eosCommon
+  EosCommon
   ${ZMQ_LIBRARIES}
   ${XROOTD_CL_LIBRARY}
   ${PROTOBUF_LIBRARY}
