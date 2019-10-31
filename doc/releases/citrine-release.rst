@@ -16,6 +16,18 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.6.1 Citrine``
+===================
+
+2019-10-31
+
+Bug
+---
+
+* Fix wrong linking in the eos-client package
+* General restructuring of the link dependencies
+
+
 ``v4.6.0 Citrine``
 ===================
 
