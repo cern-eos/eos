@@ -1,3 +1,5 @@
 usr/bin/eos
 usr/bin/eoscp
+usr/lib/libEosCommon.so.*
+usr/lib/libEosCommon.so
 etc/fuse.conf.eos
