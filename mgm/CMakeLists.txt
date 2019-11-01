@@ -202,6 +202,9 @@ add_library(
   Balancer.cc
   CommandMap.cc
   FileSystem.cc
+  convert/ConversionInfo.cc
+  convert/ConversionJob.cc
+  convert/ConverterDriver.cc
   drain/DrainFs.cc
   drain/DrainTransferJob.cc
   drain/Drainer.cc
