@@ -69,10 +69,10 @@ void ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
         auto conversion_info = ConversionInfo::parseConversionString(it->second);
 
         if (conversion_info != nullptr) {
-          auto job = std::make_shared<ConversionJob>(*conversion_info.get());
+          auto job = std::make_shared<ConversionJob>(fid, *conversion_info.get());
 
-          if (!gOFS->mConvertingTracker.HasEntry(conversion_info->fid)) {
-            gOFS->mConvertingTracker.AddEntry(conversion_info->fid);
+          if (!gOFS->mConvertingTracker.HasEntry(fid)) {
+            gOFS->mConvertingTracker.AddEntry(fid);
             mThreadPool.PushTask<void>([job]() { return job->DoIt(); });
             eos::common::RWMutexWriteLock wlock(mJobsMutex);
             mJobsRunning.push_back(job);
