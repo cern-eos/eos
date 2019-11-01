@@ -287,13 +287,15 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mStatsTid(0), mFrontendPort(0), mNumAuthThreads(0),
   zMQ(nullptr), mExtAuthz(nullptr), MgmStatsPtr(new eos::mgm::Stat()),
   MgmStats(*MgmStatsPtr), mFsckEngine(new Fsck()), mMaster(nullptr),
-  mRouting(new eos::mgm::PathRouting()), mLRUEngine(new eos::mgm::LRU()),
+  mRouting(new eos::mgm::PathRouting()), mConverterDriver(),
+  mLRUEngine(new eos::mgm::LRU()),
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr), UTF8(false), mFstGwHost(""),
   mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
   mFusexPort(1100), mGRPCPort(50051),
   mRdrBuffPool(2 * eos::common::KB, eos::common::MB, 8, 64),
   mBalancingTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
   mDrainTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
+  mConvertingTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
   mJeMallocHandler(new eos::common::JeMallocHandler()),
   mDoneOrderlyShutdown(false)
 {
@@ -430,6 +432,9 @@ XrdMgmOfs::OrderlyShutdown()
     eos_warning("%s", "msg=\"stopping and deleting the WFE engine\"");
     WFEPtr.reset();
   }
+
+  eos_warning("%s", "msg=\"stopping abd deleting the Converter engine\"");
+  mConverterDriver.reset();
 
   eos_warning("%s", "msg=\"stopping and deleting the LRU engine\"");
   mLRUEngine.reset();

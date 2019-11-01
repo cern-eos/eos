@@ -109,6 +109,7 @@
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
 #include "mgm/drain/Drainer.hh"
+#include "mgm/convert/ConverterDriver.hh"
 #include "mgm/IdTrackerWithValidity.hh"
 #include "mgm/qos/QoSConfig.hh"
 #include "mgm/qos/QoSClass.hh"
@@ -168,6 +169,8 @@ class PathRouting;
 class CommitHelper;
 class ReplicationTracker;
 class FileInspector;
+class ConversionJob;
+class ConverterDriver;
 }
 
 namespace eos::mgm::tgc
@@ -219,6 +222,8 @@ public:
   friend class eos::mgm::Drainer;
   friend class eos::mgm::DrainFs;
   friend class eos::mgm::DrainTransferJob;
+  friend class eos::mgm::ConversionJob;
+  friend class eos::mgm::ConverterDriver;
   friend class eos::mgm::SpaceCmd;
 
   //----------------------------------------------------------------------------
@@ -1770,6 +1775,7 @@ public:
 
   std::unique_ptr<eos::mq::MessagingRealm> mMessagingRealm;
   Drainer mDrainEngine; ///< Centralized draining
+  std::unique_ptr<ConverterDriver> mConverterDriver; ///< Converter driver
   std::unique_ptr<HttpServer> mHttpd; ///<  Http daemon if available
 
   std::unique_ptr<GrpcServer> GRPCd; ///< GRPC server
@@ -1827,6 +1833,8 @@ private:
   eos::mgm::IdTrackerWithValidity<eos::IFileMD::id_t> mBalancingTracker;
   //! Tracker for drained fids
   eos::mgm::IdTrackerWithValidity<eos::IFileMD::id_t> mDrainTracker;
+  //! Tracker for converted fids
+  eos::mgm::IdTrackerWithValidity<eos::IFileMD::id_t> mConvertingTracker;
   ///< uuid to directory obj. mapping
   std::map<std::string, XrdMgmOfsDirectory*> mMapDirs;
   std::map<std::string, XrdMgmOfsFile*> mMapFiles; ///< uuid to file obj. mapping
