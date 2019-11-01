@@ -1170,6 +1170,14 @@ XrdMgmOfs::FuseXCastRefresh(eos::ContainerIdentifier id,
     id.getUnderlyingUInt64(), parentid.getUnderlyingUInt64());
 }
 
+void
+XrdMgmOfs::FuseXCastRefresh(eos::FileIdentifier id,
+                            eos::ContainerIdentifier parentid)
+{
+  gOFS->zMQ->gFuseServer.Cap().BroadcastRefreshFromExternal(
+    eos::common::FileId::FidToInode(id.getUnderlyingUInt64()), parentid.getUnderlyingUInt64());
+}
+
 //----------------------------------------------------------------------------
 // Check if name space is booted
 //----------------------------------------------------------------------------

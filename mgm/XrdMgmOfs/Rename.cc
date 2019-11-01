@@ -441,6 +441,7 @@ XrdMgmOfs::_rename(const char* old_name,
             if (fusexcast) {
               gOFS->FuseXCastContainer(dir->getIdentifier());
               gOFS->FuseXCastRefresh(dir->getIdentifier(), dir->getParentIdentifier());
+	      gOFS->FuseXCastRefresh(file->getIdentifier(), dir->getIdentifier());
             }
           }
         } else {
@@ -463,6 +464,8 @@ XrdMgmOfs::_rename(const char* old_name,
               gOFS->FuseXCastContainer(newdir->getIdentifier());
               gOFS->FuseXCastRefresh(dir->getIdentifier(), dir->getParentIdentifier());
               gOFS->FuseXCastRefresh(newdir->getIdentifier(), newdir->getParentIdentifier());
+	      gOFS->FuseXCastDeletion(dir->getIdentifier(), oPath.GetName());
+	      gOFS->FuseXCastRefresh(file->getIdentifier(), newdir->getIdentifier());
             }
 
             file->setName(nPath.GetName());

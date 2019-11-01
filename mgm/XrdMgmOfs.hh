@@ -1570,6 +1570,16 @@ public:
   void FuseXCastRefresh(eos::ContainerIdentifier id,
                         eos::ContainerIdentifier parentid);
 
+
+  //----------------------------------------------------------------------------
+  //! Cast a refresh message to all fusex clients regarding a meta data refresh
+  //!
+  //! @param id file identifier
+  //!
+  //----------------------------------------------------------------------------
+  void FuseXCastRefresh(eos::FileIdentifier id,
+                        eos::ContainerIdentifier parentid);
+
   //----------------------------------------------------------------------------
   //! Setup /eos/<instance>/proc files
   //----------------------------------------------------------------------------
