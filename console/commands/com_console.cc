@@ -68,7 +68,7 @@ com_console(char* arg)
 
   char c_hostname[256] = {0};
 
-  if (gethostname(c_hostname, sizeof(c_hostname)) || strlen(c_hostname)) {
+  if (gethostname(c_hostname, sizeof(c_hostname)) || !strlen(c_hostname)) {
     fprintf(stderr, "error: failed to retrieve hostname errno=%d", errno);
     exit(-1);
   }
