@@ -1956,6 +1956,14 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   gGeoTreeEngine.StartUpdater();
   // Start the drain engine
   mDrainEngine.Start();
+
+  // Start the Converter driver
+  if (getenv("EOS_CONVERTER_DRIVER") != nullptr) {
+    eos_info("msg=\"starting Converter Engine\"");
+    mConverterDriver.reset(new eos::mgm::ConverterDriver(mQdbContactDetails));
+    mConverterDriver->Start();
+  }
+
   return NoGo;
 }
 /*----------------------------------------------------------------------------*/
