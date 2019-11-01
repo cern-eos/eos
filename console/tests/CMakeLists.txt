@@ -37,7 +37,9 @@ add_library(
 
 target_link_libraries(EosConsoleTests PUBLIC
   EosFstIo
-  ZMQ::ZMQ)
+  ZMQ::ZMQ
+  XROOTD::POSIX
+  READLINE::READLINE)
 
 install(
   TARGETS EosConsoleTests
