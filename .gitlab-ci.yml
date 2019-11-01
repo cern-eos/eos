@@ -1005,7 +1005,7 @@ rpm_commit_artifacts:
     - docker_node
   except:
     - tags
-  retry: 2
+  allow_failure: true
   when: manual
 
 
