@@ -122,7 +122,8 @@ public:
   //!
   //! @param fid the file id to convert
   //----------------------------------------------------------------------------
-  ConversionJob(const ConversionInfo& conversion_info);
+  ConversionJob(const eos::IFileMD::id_t fid,
+                const ConversionInfo& conversion_info);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -163,7 +164,8 @@ public:
   //----------------------------------------------------------------------------
   inline eos::IFileMD::id_t GetFid() const
   {
-    return mConversionInfo.fid;
+    assert(mFid == mConversionInfo.fid);
+    return mFid;
   }
 
 private:
@@ -184,6 +186,7 @@ private:
   //----------------------------------------------------------------------------
   std::string ConversionCGI(const ConversionInfo& info) const;
 
+  const eos::IFileMD::id_t mFid; ///< Conversion file id
   const ConversionInfo mConversionInfo; ///< Conversion details
   std::string mConversionPath; ///< Path of newly converted file
   std::atomic<Status> mStatus; ///< Conversion job status
