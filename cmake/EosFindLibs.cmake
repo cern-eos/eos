@@ -113,4 +113,8 @@ else()
     set(${HDRS} "${CMAKE_SOURCE_DIR}/common/Logging.hh" PARENT_SCOPE)
     return()
   endfunction()
+
+  # Fake targets
+  add_library(ZLIB::ZLIB        UNKNOWN IMPORTED)
+  add_library(ZLIB::ZLIB_STATIC UNKNOWN IMPORTED)
 endif()
