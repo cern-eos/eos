@@ -66,7 +66,14 @@ com_console(char* arg)
     }
   }
 
-  eos::mq::ErrorReportListener listener(serveruri.c_str(), getenv("HOSTNAME"));
+  char c_hostname[256] = {0};
+
+  if (gethostname(c_hostname, sizeof(c_hostname)) || strlen(c_hostname)) {
+    fprintf(stderr, "error: failed to retrieve hostname errno=%d", errno);
+    exit(-1);
+  }
+
+  eos::mq::ErrorReportListener listener(serveruri.c_str(), c_hostname);
 
   while (1) {
     std::string newmessage;
