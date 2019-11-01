@@ -75,8 +75,9 @@ XrdCl::PropertyList TpcProperties(uint64_t size) {
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ConversionJob::ConversionJob(const ConversionInfo& conversion_info) :
-  mConversionInfo(conversion_info), mStatus(Status::PENDING)
+ConversionJob::ConversionJob(const eos::IFileMD::id_t fid,
+                             const ConversionInfo& conversion_info) :
+  mFid(fid), mConversionInfo(conversion_info), mStatus(Status::PENDING)
 {
   mConversionPath =
     SSTR(gOFS->MgmProcConversionPath << "/" << mConversionInfo.ToString());
@@ -235,7 +236,7 @@ void ConversionJob::DoIt() noexcept
   }
 
   gOFS->MgmStats.Add("ConversionJobSuccessful", 0, 0, 1);
-  eos_info("msg=\"conversion successful\" conversion_id=%",
+  eos_info("msg=\"conversion successful\" conversion_id=%s",
            mConversionInfo.ToString().c_str());
   mStatus = Status::DONE;
 
