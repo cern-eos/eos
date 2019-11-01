@@ -117,7 +117,9 @@ set_target_properties(
   PROPERTIES
   POSITION_INDEPENDENT_CODE True)
 
-add_library(EosNsCommon SHARED $<TARGET_OBJECTS:EosNsCommon-Objects>)
+add_library(EosNsCommon SHARED
+  $<TARGET_OBJECTS:EosNsCommon-Objects>
+  $<TARGET_OBJECTS:EosCrc32c-Objects>)
 
 
 target_include_directories(
@@ -128,7 +130,6 @@ target_include_directories(
 
 target_link_libraries(
   EosNsCommon PUBLIC
-  EosCrc32c-Static
   EosCommon
   qclient
   rocksdb
@@ -151,7 +152,9 @@ install(
 # EosNsCommon-Static library
 #-------------------------------------------------------------------------------
 if (Linux)
-  add_library(EosNsCommon-Static STATIC $<TARGET_OBJECTS:EosNsCommon-Objects> )
+  add_library(EosNsCommon-Static STATIC
+    $<TARGET_OBJECTS:EosNsCommon-Objects>
+    $<TARGET_OBJECTS:EosCrc32c-Objects>)
 
   target_include_directories(
     EosNsCommon-Static PUBLIC
@@ -161,7 +164,6 @@ if (Linux)
 
   target_link_libraries(
     EosNsCommon-Static PUBLIC
-    EosCrc32c-Static
     EosCommon-Static
     fmt
     qclient

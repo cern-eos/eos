@@ -25,26 +25,22 @@ include_directories(${XROOTD_INCLUDE_DIRS})
 
 add_library(
   FuseCache-Objects OBJECT
-
   FuseWriteCache.cc             FuseWriteCache.hh
   CacheEntry.cc                 CacheEntry.hh
   FileAbstraction.cc            FileAbstraction.hh
   LayoutWrapper.cc              LayoutWrapper.hh
   ../GlobalInodeTranslator.cc   ../GlobalInodeTranslator.hh
-  ../xrdutils.cc                ../xrdutils.hh
-)
+  ../xrdutils.cc                ../xrdutils.hh)
 
 set_target_properties(
   FuseCache-Objects PROPERTIES
-  POSITION_INDEPENDENT_CODE TRUE
-)
+  POSITION_INDEPENDENT_CODE TRUE)
 
 add_dependencies(FuseCache-Objects EosFstIo)
 
 target_compile_definitions(
   FuseCache-Objects PUBLIC
-  -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
-)
+  -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
 #-------------------------------------------------------------------------------
 # FuseCache library
@@ -72,12 +68,8 @@ set_target_properties(
 if (Linux)
   add_library(FuseCache-Static STATIC $<TARGET_OBJECTS:FuseCache-Objects> )
 
-  target_link_libraries(
-    FuseCache-Static PUBLIC
-    EosFstIo-Static
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UTILS_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(FuseCache-Static
+    PUBLIC EosFstIo-Static)
 
   target_compile_definitions(
     FuseCache-Static PUBLIC

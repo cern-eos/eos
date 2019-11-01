@@ -23,7 +23,6 @@
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
-  ${ZMQ_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIRS}
   ${CPPUNIT_INCLUDE_DIRS})
 
@@ -36,23 +35,9 @@ add_library(
   $<TARGET_OBJECTS:EosConsoleHelpers-Objects>
   $<TARGET_OBJECTS:EosConsoleCommands-Objects>)
 
-target_link_libraries(
-  EosConsoleTests
-  EosFstIo-Static
-  ${CMAKE_THREAD_LIBS_INIT}
-  ${UUID_LIBRARIES}
-  ${XROOTD_SERVER_LIBRARY}
-  ${CPPUNIT_LIBRARIES}
-  ${Z_LIBRARY_STATIC}
-  ${ZMQ_LIBRARIES}
-  ${UUID_LIBRARIES}
-  ${NCURSES_LIBRARY}
-  ${READLINE_LIBRARY}
-  ${PROTOBUF_LIBRARY}
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_POSIX_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(EosConsoleTests PUBLIC
+  EosFstIo
+  ZMQ::ZMQ)
 
 install(
   TARGETS EosConsoleTests

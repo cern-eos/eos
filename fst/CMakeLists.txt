@@ -61,12 +61,11 @@ include_directories(
   ${SPARSEHASH_INCLUDE_DIRS}
   ${NCURSES_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIRS}
-  ${Z_INCLUDE_DIRS}
   ${XFS_INCLUDE_DIRS}
   ${JSONC_INCLUDE_DIR}
   ${DAVIX_INCLUDE_DIRS}
-  ${CMAKE_CURRENT_SOURCE_DIR}/layout/gf-complete/include
-  ${CMAKE_CURRENT_SOURCE_DIR}/layout/jerasure/include
+#  ${CMAKE_CURRENT_SOURCE_DIR}/layout/gf-complete/include
+#  ${CMAKE_CURRENT_SOURCE_DIR}/layout/jerasure/include
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
   ${FOLLY_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
@@ -90,48 +89,50 @@ if(BUILD_XRDCL_RAIN_PLUGIN)
 endif()
 
 #-------------------------------------------------------------------------------
-# gf-complete static library
+# Gfcomplete objects
 #-------------------------------------------------------------------------------
 set(GFCOMPLETE_SRCS
-  ./layout/gf-complete/src/gf.c
-  ./layout/gf-complete/src/gf_w128.c
-  ./layout/gf-complete/src/gf_rand.c
-  ./layout/gf-complete/src/gf_method.c
-  ./layout/gf-complete/src/gf_general.c
-  ./layout/gf-complete/src/gf_w16.c
-  ./layout/gf-complete/src/gf_w32.c
-  ./layout/gf-complete/src/gf_w8.c
-  ./layout/gf-complete/src/gf_w64.c
-  ./layout/gf-complete/src/gf_w4.c
-  ./layout/gf-complete/src/gf_wgen.c)
+  layout/gf-complete/src/gf.c
+  layout/gf-complete/src/gf_w128.c
+  layout/gf-complete/src/gf_rand.c
+  layout/gf-complete/src/gf_method.c
+  layout/gf-complete/src/gf_general.c
+  layout/gf-complete/src/gf_w16.c
+  layout/gf-complete/src/gf_w32.c
+  layout/gf-complete/src/gf_w8.c
+  layout/gf-complete/src/gf_w64.c
+  layout/gf-complete/src/gf_w4.c
+  layout/gf-complete/src/gf_wgen.c)
 
 set(GFCOMPLETE_HDRS
-  ./layout/gf-complete/include/gf_complete.h
-  ./layout/gf-complete/include/gf_rand.h
-  ./layout/gf-complete/include/gf_method.h
-  ./layout/gf-complete/include/gf_int.h
-  ./layout/gf-complete/include/gf_general.h
-  ./layout/gf-complete/include/gf_w8.h
-  ./layout/gf-complete/include/gf_w64.h
-  ./layout/gf-complete/include/gf_w4.h
-  ./layout/gf-complete/include/gf_w32.h
-  ./layout/gf-complete/include/gf_w16.h)
+  layout/gf-complete/include/gf_complete.h
+  layout/gf-complete/include/gf_rand.h
+  layout/gf-complete/include/gf_method.h
+  layout/gf-complete/include/gf_int.h
+  layout/gf-complete/include/gf_general.h
+  layout/gf-complete/include/gf_w8.h
+  layout/gf-complete/include/gf_w64.h
+  layout/gf-complete/include/gf_w4.h
+  layout/gf-complete/include/gf_w32.h
+  layout/gf-complete/include/gf_w16.h)
 
-add_library(gf-complete-static STATIC
+add_library(GfComplete-Objects OBJECT
   ${GFCOMPLETE_SRCS}
   ${GFCOMPLETE_HDRS})
 
-target_compile_definitions(gf-complete-static
-  PRIVATE -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
+target_compile_definitions(GfComplete-Objects
+  PUBLIC -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
-set_target_properties(gf-complete-static PROPERTIES
+target_include_directories(GfComplete-Objects PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/layout/gf-complete/include>)
+
+set_target_properties(GfComplete-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------
-# jerasure 2.0 static library
+# jerasure 2.0 objects
 #-------------------------------------------------------------------------------
 set(JERASURE_SRCS
-  layout/jerasure/src/cauchy_best_r6.c
   layout/jerasure/src/cauchy.c
   layout/jerasure/src/galois.c
   layout/jerasure/src/jerasure.c
@@ -147,17 +148,19 @@ set(JERASURE_HDRS
   layout/jerasure/include/reed_sol.h
   layout/jerasure/include/timing.h)
 
-add_library(jerasure-static STATIC
+add_library(Jerasure-Objects OBJECT
   ${JERASURE_SRCS}
   ${JERASURE_HDRS})
 
-target_compile_definitions(jerasure-static PRIVATE
-  -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
+target_include_directories(Jerasure-Objects PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/layout/jerasure/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/layout/gf-complete/include>)
 
-set_target_properties(jerasure-static PROPERTIES
+target_compile_definitions(Jerasure-Objects
+  PUBLIC -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
+
+set_target_properties(Jerasure-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
-
-target_link_libraries(jerasure-static PRIVATE gf-complete-static)
 
 #-------------------------------------------------------------------------------
 # EosFstIo-Objects library
@@ -192,17 +195,25 @@ add_library(EosFstIo-Objects OBJECT
 set_target_properties(EosFstIo-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
+target_include_directories(EosFstIo-Objects
+  PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+  PRIVATE
+  $<TARGET_PROPERTY:ZLIB::ZLIB,INTERFACE_INCLUDE_DIRECTORIES>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/layout/jerasure/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/layout/gf-complete/include>)
+
 target_compile_definitions(EosFstIo-Objects PUBLIC
   -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
 add_library(EosFstIo SHARED
-  $<TARGET_OBJECTS:EosFstIo-Objects>)
+  $<TARGET_OBJECTS:EosFstIo-Objects>
+  $<TARGET_OBJECTS:EosCrc32c-Objects>
+  $<TARGET_OBJECTS:Jerasure-Objects>
+  $<TARGET_OBJECTS:GfComplete-Objects>)
 
 target_link_libraries(EosFstIo PUBLIC
   EosCommon
-  EosCrc32c-Static
-  jerasure-static
-  ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
   ${GLIBC_RT_LIBRARY}
@@ -236,15 +247,15 @@ install(TARGETS EosFstIo
 add_library(EosFstIo-Static STATIC
   $<TARGET_OBJECTS:EosFstIo-Objects>
   $<TARGET_OBJECTS:EosFstProto-Objects>
-  $<TARGET_OBJECTS:EosCliProto-Objects>)
+  $<TARGET_OBJECTS:EosCliProto-Objects>
+  $<TARGET_OBJECTS:EosCrc32c-Objects>
+  $<TARGET_OBJECTS:Jerasure-Objects>
+  $<TARGET_OBJECTS:GfComplete-Objects>)
 
 target_link_libraries(EosFstIo-Static PUBLIC
   XrdMqClient-Static
-  EosCrc32c-Static
-  jerasure-static
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
-  ${Z_LIBRARY_STATIC}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${NCURSES_LIBRARY}
@@ -325,15 +336,14 @@ add_library(EosFstOss MODULE
   XrdFstOssFile.cc XrdFstOssFile.hh
   checksum/CheckSum.cc checksum/CheckSum.hh
   checksum/Adler.cc checksum/Adler.hh
-  ${CMAKE_SOURCE_DIR}/common/LayoutId.hh)
+  ${CMAKE_SOURCE_DIR}/common/LayoutId.hh
+  $<TARGET_OBJECTS:EosCrc32c-Objects>)
 
 target_link_libraries(EosFstOss PRIVATE
   EosCommon
-  EosCrc32c-Static
   ${LIBISALCRYPTO_LIBRARIES}
   ${LIBISAL_LIBRARIES}
   ${LIBXXHASH_LIBRARIES}
-  ${UUID_LIBRARIES}
   ${XROOTD_SERVER_LIBRARY})
 
 #-------------------------------------------------------------------------------
@@ -382,6 +392,10 @@ set(XRDEOSFST_SRCS
 
 add_library(XrdEosFst-Objects OBJECT ${XRDEOSFST_SRCS})
 
+target_include_directories(XrdEosFst-Objects PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/>
+  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/fst/)
+
 #-------------------------------------------------------------------------------
 # Add dependency to protobuf objects so we guarantee that the protocol
 # buffer files are generated when we try to build XrdEosFst
@@ -412,7 +426,7 @@ target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
   EosCommonServer
   EosFstIo
   EosNsCommon
-  ${Z_LIBRARY}
+  ZLIB::ZLIB
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
   ${GLIBC_RT_LIBRARY}
@@ -434,11 +448,13 @@ add_library(XrdEosFst-Static STATIC
 target_compile_definitions(XrdEosFst-Static PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
-target_link_libraries(XrdEosFst-Static PUBLIC
-  EosCommonServer-Static
-  EosFstIo-Static
-  EosNsCommon-Static
-  ${Z_LIBRARY}
+target_link_libraries(XrdEosFst-4 PRIVATE
+  EosCommon
+  EosCommonServer
+  EosFstIo
+  EosNsCommon
+  ZLIB::ZLIB
+  eosCapability-Static
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
   ${PROTOBUF_LIBRARY}

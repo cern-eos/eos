@@ -46,7 +46,6 @@ add_dependencies(EosNsQuarkdb EosNsQuarkdbProto-Objects)
 target_link_libraries(
   EosNsQuarkdb
   EosNsCommon
-  EosCrc32c-Static
   qclient
   rocksdb
   dl
@@ -76,7 +75,6 @@ target_link_libraries(eos-ns-convert
   jemalloc
   qclient
   EosCommon
-  EosCrc32c-Static
   EosNsInMemory-Static
   ${FOLLY_LIBRARIES})
 

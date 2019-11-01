@@ -22,18 +22,14 @@
 # ************************************************************************
 
 include_directories(
-  ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
-  ${Z_INCLUDE_DIRS}
   ${PROTOBUF_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
   ${JSONCPP_INCLUDE_DIR}
-  ${NCURSES_INCLUDE_DIRS}
   ${ZMQ_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIRS}
   ${LIBBFD_INCLUDE_DIRS}
-  ${CURL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include)
 
 #-------------------------------------------------------------------------------
@@ -52,13 +48,17 @@ set_source_files_properties(
   PROPERTIES GENERATED 1)
 
 #-------------------------------------------------------------------------------
-# EosCrc32c-Static library
+# EosCrc32c-Objects library
 #-------------------------------------------------------------------------------
-add_library(EosCrc32c-Static STATIC
+add_library(EosCrc32c-Objects OBJECT
   crc32c/crc32c.cc
   crc32c/crc32ctables.cc)
 
-set_target_properties(EosCrc32c-Static PROPERTIES
+target_include_directories(EosCrc32c-Objects
+  PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+
+set_target_properties(EosCrc32c-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------
@@ -104,6 +104,10 @@ target_compile_options(EosCommon-Objects PRIVATE -Wno-macro-redefined)
 set_target_properties(EosCommon-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
+target_include_directories(EosCommon-Objects
+  PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+  PRIVATE $<TARGET_PROPERTY:ZLIB::ZLIB,INTERFACE_INCLUDE_DIRECTORIES>)
+
 #-------------------------------------------------------------------------------
 # Add dependency to protobuf objects so we guarantee that the protocol
 # buffer files are generated when we try to build XrdEosFst
@@ -115,7 +119,6 @@ target_compile_definitions(EosCommon-Objects PUBLIC
 
 set(EOSCOMMON_LIBS
   fmt
-  ${Z_LIBRARY}
   ${CURL_LIBRARIES}
   ${GLIBC_DL_LIBRARY}
   ${GLIBC_RT_LIBRARY}
@@ -151,16 +154,18 @@ else ()
     $<TARGET_OBJECTS:EosFstProto-Objects>)
 endif ()
 
-target_link_libraries(EosCommon PUBLIC
-  ${EOSCOMMON_LIBS})
+target_link_libraries(EosCommon
+  PUBLIC
+  ${EOSCOMMON_LIBS}
+  ZLIB::ZLIB)
+
+target_compile_definitions(EosCommon-Objects PUBLIC
+  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 set_target_properties(EosCommon PROPERTIES
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
   MACOSX_RPATH TRUE)
-
-target_compile_definitions(EosCommon PUBLIC
-  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 if (GRPC_FOUND)
   add_library(EosCommon-Static STATIC
@@ -180,8 +185,10 @@ else ()
     $<TARGET_OBJECTS:EosFstProto-Objects>)
 endif ()
 
-target_link_libraries(EosCommon-Static PUBLIC
-  ${EOSCOMMON_LIBS})
+target_link_libraries(EosCommon-Static
+  PRIVATE
+  ${EOSCOMMON_LIBS}
+  ZLIB::ZLIB_STATIC)
 
 set_target_properties(EosCommon-Static PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
@@ -216,11 +223,13 @@ if (Linux)
     http/HttpRequest.cc
     http/HttpResponse.cc
     http/s3/S3Handler.cc
-    stringencoders/modp_numtoa.c
-   )
+    stringencoders/modp_numtoa.c)
 
   set_target_properties(EosCommonServer-Objects PROPERTIES
     POSITION_INDEPENDENT_CODE TRUE)
+
+  target_include_directories(EosCommonServer-Objects PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>)
 
   target_compile_definitions(EosCommonServer-Objects PUBLIC
     -DSQLITE_NO_SYNC=1)
@@ -228,7 +237,6 @@ if (Linux)
   set(EOSCOMMONSERVER_LIBS
     fmt
     qclient
-    ${Z_LIBRARY}
     ${ZMQ_LIBRARIES}
     ${UUID_LIBRARIES}
     ${ATTR_LIBRARIES}
@@ -286,7 +294,9 @@ endif()
 #-------------------------------------------------------------------------------
 if(NOT CLIENT AND Linux)
   add_executable(dbmaptestburn dbmaptest/DbMapTestBurn.cc)
-  add_executable(mutextest mutextest/RWMutexTest.cc RWMutex.cc PthreadRWMutex.cc StacktraceHere.cc)
+  add_executable(mutextest
+    mutextest/RWMutexTest.cc RWMutex.cc PthreadRWMutex.cc StacktraceHere.cc)
+
   add_executable(dbmaptestfunc
     dbmaptest/DbMapTestFunc.cc
     ${DBMAPTEST_SRCS}
@@ -297,12 +307,21 @@ if(NOT CLIENT AND Linux)
     EosCommonServer
     ${CMAKE_THREAD_LIBS_INIT})
 
+  target_include_directories(dbmaptestburn PRIVATE
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>)
+
   target_link_libraries(mutextest PRIVATE
     EosCommon-Static
     ${CMAKE_THREAD_LIBS_INIT})
+
+  target_include_directories(mutextest PRIVATE
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>)
 
   target_link_libraries(dbmaptestfunc PRIVATE
     EosCommon
     EosCommonServer
     ${CMAKE_THREAD_LIBS_INIT})
+
+  target_include_directories(dbmaptestfunc PRIVATE
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>)
 endif()

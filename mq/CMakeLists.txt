@@ -56,7 +56,6 @@ set_target_properties(XrdMqClient-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 set(XRD_MQ_CLIENT_LIBS
-  ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${NCURSES_LIBRARIES}
   ${XROOTD_CL_LIBRARY}
@@ -78,7 +77,8 @@ set_target_properties(
   SOVERSION ${VERSION_MAJOR}
   MACOSX_RPATH TRUE)
 
-add_library(XrdMqClient-Static STATIC $<TARGET_OBJECTS:XrdMqClient-Objects>)
+add_library(XrdMqClient-Static STATIC
+  $<TARGET_OBJECTS:XrdMqClient-Objects>)
 
 target_link_libraries(XrdMqClient-Static PUBLIC
   EosCommon-Static

@@ -41,10 +41,10 @@ add_library(
 
 target_link_libraries(
   EosNsInMemoryTests PUBLIC
+  EosNsInMemory
   ${FOLLY_LIBRARIES}
-  ${Z_LIBRARY}
-  ${CPPUNIT_LIBRARIES}
-  EosNsInMemory-Static)
+  ${CPPUNIT_LIBRARIES})
+
 
 set_target_properties(
   EosNsInMemoryTests
