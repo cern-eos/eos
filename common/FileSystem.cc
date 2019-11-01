@@ -271,7 +271,7 @@ bool GroupLocator::parseGroup(const std::string& description,
     out.mIndex = 0;
 
     if (description != "spare") {
-      eos_static_crit("Unable to parse group: %s, assuming index is zero",
+      eos_static_notice("Unable to parse group: %s, assuming index is zero",
                       description.c_str());
       return false;
     }
