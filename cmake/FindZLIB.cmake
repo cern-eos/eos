@@ -1,0 +1,51 @@
+# Try to find zlib
+# Once done, this will define
+#
+# ZLIB_FOUND          - system has zlib
+# ZLIB_INCLUDE_DIRS   - zlib include directories
+# ZLIB_LIBRARY        - zlib library
+# ZLIB_LIBRARY_STATIC - static zlib library
+include(FindPackageHandleStandardArgs)
+find_package(PkgConfig)
+pkg_check_modules(PC_ZLIB QUIET zlib)
+
+set(ZLIB_VERSION ${PC_ZLIB_VERSION})
+
+find_path(ZLIB_INCLUDE_DIR
+  NAMES zlib.h
+  PATHS ${ZLIB_ROOT_DIR} ${PC_ZLIB_INCLUDE_DIRS})
+
+find_library(ZLIB_LIBRARY
+  NAME z
+  PATHS ${ZLIB_ROOT_DIR} ${PC_ZLIB_LIBRARIES})
+
+if (MacOSX)
+  find_package_handle_standard_args(ZLIB
+    REQUIRED_VARS ZLIB_LIBRARY ZLIB_INCLUDE_DIR
+    VERSION_VAR ZLIB_VERSION)
+  mark_as_advanced(ZLIB_FOUND ZLIB_INCLUDE_DIR ZLIB_LIBRARY)
+else ()
+  find_library(ZLIB_LIBRARY_STATIC
+    NAMES libz.a
+    HINTS ${ZLIB_ROOT_DIR})
+
+  find_package_handle_standard_args(ZLIB
+    REQUIRED_VARS ZLIB_LIBRARY ZLIB_INCLUDE_DIR ZLIB_LIBRARY_STATIC
+    VERSION_VAR ZLIB_VERSION)
+  mark_as_advanced(ZLIB_FOUND ZLIB_INCLUDE_DIR ZLIB_LIBRARY ZLIB_LIBRARY_STATIC)
+endif ()
+
+if (ZLIB_FOUND AND NOT TARGET ZLIB::ZLIB AND NOT TARGET ZLIB::ZLIB_STATIC)
+  add_library(ZLIB::ZLIB UNKNOWN IMPORTED)
+  set_target_properties(ZLIB::ZLIB PROPERTIES
+    IMPORTED_LOCATION "${ZLIB_LIBRARY}"
+    INTERFACE_INCLUDE_DIRECTORIES "${ZLIB_INCLUDE_DIR}")
+
+  add_library(ZLIB::ZLIB_STATIC UNKNOWN IMPORTED)
+  set_target_properties(ZLIB::ZLIB_STATIC PROPERTIES
+    IMPORTED_LOCATION "${ZLIB_LIBRARY_STATIC}"
+    INTERFACE_INCLUDE_DIRECTORIES "${ZLIB_INCLUDE_DIR}")
+endif()
+
+set(ZLIB_INCLUDE_DIRS "${ZLIB_INCLUDE_DIR}")
+set(ZLIB_LIBRARIES "${ZLIB_LIBRARY}")
