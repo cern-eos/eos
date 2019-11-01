@@ -84,7 +84,6 @@ set(PROTO_HEADER ${PROTO_HEADER} PARENT_SCOPE)
 # Link libraries
 #-------------------------------------------------------------------------------
 set(EOSXD_COMMON_LINK_LIBRARIES
-  ${UUID_LIBRARIES}
   ${FUSE_LIBRARIES}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}

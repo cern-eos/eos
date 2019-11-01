@@ -80,7 +80,6 @@ target_link_libraries(
   EosNsCommon
   ${FOLLY_LIBRARIES}
   ${Z_LIBRARY}
-  ${UUID_LIBRARIES}
   ${XROOTD_UTILS_LIBRARY}
   ${GLIBC_RT_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
@@ -95,7 +94,6 @@ if (Linux)
     EosNsInMemory-Static PUBLIC
     EosNsCommon-Static
     ${FOLLY_LIBRARIES}
-    ${UUID_LIBRARIES}
     ${Z_LIBRARY_STATIC}
     ${XROOTD_UTILS_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})

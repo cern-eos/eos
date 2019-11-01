@@ -99,7 +99,7 @@ target_link_libraries(
 
 target_link_libraries(
   xrdstress.exe
-  ${UUID_LIBRARIES}
+  UUID::UUID
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_POSIX_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}

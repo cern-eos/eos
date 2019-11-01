@@ -192,6 +192,8 @@ add_library(EosFstIo-Objects OBJECT
   layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
   layout/ReedSLayout.cc          layout/ReedSLayout.hh)
 
+add_dependencies(EosFstIo-Objects EosFstProto-Objects)
+
 set_target_properties(EosFstIo-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
@@ -214,7 +216,6 @@ add_library(EosFstIo SHARED
 
 target_link_libraries(EosFstIo PUBLIC
   EosCommon
-  ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
   ${GLIBC_RT_LIBRARY}
   ${GLIBC_DL_LIBRARY}
@@ -254,7 +255,6 @@ add_library(EosFstIo-Static STATIC
 
 target_link_libraries(EosFstIo-Static PUBLIC
   XrdMqClient-Static
-  ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
@@ -427,7 +427,7 @@ target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
   EosFstIo
   EosNsCommon
   ZLIB::ZLIB
-  ${UUID_LIBRARIES}
+  eosCapability-Static
   ${ATTR_LIBRARIES}
   ${GLIBC_RT_LIBRARY}
   ${GLIBC_DL_LIBRARY}
@@ -455,7 +455,6 @@ target_link_libraries(XrdEosFst-4 PRIVATE
   EosNsCommon
   ZLIB::ZLIB
   eosCapability-Static
-  ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
   ${PROTOBUF_LIBRARY}
   ${NCURSES_LIBRARIES}

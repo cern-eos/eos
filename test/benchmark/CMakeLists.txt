@@ -26,8 +26,7 @@ include_directories(
  ${PROTOBUF_INCLUDE_DIRS}
  ${XROOTD_INCLUDE_DIRS}
  ${FOLLY_INCLUDE_DIRS}
- ${KINETICIO_INCLUDE_DIRS}
- ${UUID_INCLUDE_DIRS})
+ ${KINETICIO_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
 # Generate protocol buffer files
@@ -60,7 +59,6 @@ target_link_libraries(
   EosFstIo
   ${XROOTD_CL_LIBRARY}
   ${PROTOBUF_LIBRARY}
-  ${UUID_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(

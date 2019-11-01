@@ -3,30 +3,36 @@
 #
 # ZLIB_FOUND          - system has zlib
 # ZLIB_INCLUDE_DIRS   - zlib include directories
-# ZLIB_LIBRARY        - zlib library
+# ZLIB_LIBRARIES      - libraries needed to use zlib
 # ZLIB_LIBRARY_STATIC - static zlib library
-include(FindPackageHandleStandardArgs)
+#
+# and the following imported targets
+#
+# ZLIB::ZLIB
+# ZLIB::ZLIB_STATIC
+#
 find_package(PkgConfig)
 pkg_check_modules(PC_ZLIB QUIET zlib)
-
 set(ZLIB_VERSION ${PC_ZLIB_VERSION})
 
 find_path(ZLIB_INCLUDE_DIR
   NAMES zlib.h
-  PATHS ${ZLIB_ROOT_DIR} ${PC_ZLIB_INCLUDE_DIRS})
+  PATHS ${ZLIB_ROOT} ${PC_ZLIB_INCLUDEDIR} ${PC_ZLIB_INCLUDE_DIRS})
 
 find_library(ZLIB_LIBRARY
   NAME z
-  PATHS ${ZLIB_ROOT_DIR} ${PC_ZLIB_LIBRARIES})
+  HINTS ${ZLIB_ROOT} ${PC_ZLIB_LIBDIR} ${PC_ZLIB_LIBRARY_DIRS})
 
 find_library(ZLIB_LIBRARY_STATIC
   NAMES libz.a
-  PATHS ${ZLIB_ROOT_DIR}
+  PATHS ${ZLIB_ROOT} ${PC_ZLIB_LIBDIR} ${PC_ZLIB_LIBRARY_DIRS}
   PATH_SUFFIXES lib)
 
+include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(ZLIB
   REQUIRED_VARS ZLIB_LIBRARY ZLIB_INCLUDE_DIR ZLIB_LIBRARY_STATIC
   VERSION_VAR ZLIB_VERSION)
+
 mark_as_advanced(ZLIB_FOUND ZLIB_INCLUDE_DIR ZLIB_LIBRARY ZLIB_LIBRARY_STATIC)
 
 if (ZLIB_FOUND AND NOT TARGET ZLIB::ZLIB AND NOT TARGET ZLIB::ZLIB_STATIC)
@@ -41,5 +47,5 @@ if (ZLIB_FOUND AND NOT TARGET ZLIB::ZLIB AND NOT TARGET ZLIB::ZLIB_STATIC)
     INTERFACE_INCLUDE_DIRECTORIES "${ZLIB_INCLUDE_DIR}")
 endif()
 
-set(ZLIB_INCLUDE_DIRS "${ZLIB_INCLUDE_DIR}")
-set(ZLIB_LIBRARIES "${ZLIB_LIBRARY}")
+set(ZLIB_INCLUDE_DIRS ${ZLIB_INCLUDE_DIR})
+set(ZLIB_LIBRARIES ${ZLIB_LIBRARY})

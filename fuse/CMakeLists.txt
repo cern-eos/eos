@@ -55,7 +55,6 @@ if(MacOSX)
   target_link_libraries(
     eosd PRIVATE
     FuseCache
-    ${UUID_LIBRARIES}
     ${FUSE_LIBRARIES}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
@@ -67,7 +66,6 @@ else()
     eosd PRIVATE
     FuseCache-Static
     ${FUSE_LIBRARY}
-    ${UUID_LIBRARIES}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}
@@ -107,7 +105,6 @@ add_executable(
     eosd3 PRIVATE
     FuseCache-Static
     ${FUSE3_LIBRARY}
-    ${UUID_LIBRARIES}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}

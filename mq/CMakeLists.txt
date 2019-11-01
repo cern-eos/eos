@@ -31,8 +31,7 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src
   ${CMAKE_BINARY_DIR}
-  ${PROTOBUF_INCLUDE_DIRS}
-  )
+  ${PROTOBUF_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
 # XrdMqClient-Objects
@@ -56,7 +55,6 @@ set_target_properties(XrdMqClient-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 set(XRD_MQ_CLIENT_LIBS
-  ${UUID_LIBRARIES}
   ${NCURSES_LIBRARIES}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
@@ -101,7 +99,6 @@ target_link_libraries(
   XrdMqOfs-${PLUGIN_VERSION} PRIVATE
   EosCommon
   qclient
-  ${UUID_LIBRARIES}
   ${NCURSES_LIBRARIES}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}

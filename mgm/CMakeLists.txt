@@ -325,7 +325,6 @@ target_link_libraries(
   ${Z_LIBRARY}
   ${ZMQ_LIBRARIES}
   ${LDAP_LIBRARIES}
-  ${UUID_LIBRARIES}
   ${NCURSES_LIBRARY}
   ${GLIBC_DL_LIBRARY}
   ${XROOTD_CL_LIBRARY}
@@ -398,15 +397,13 @@ if(Linux)
     XrdEosMgm-Static PUBLIC
     -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
-  target_link_libraries(
-    XrdEosMgm-Static PUBLIC
+  target_link_libraries(XrdEosMgm-Static PUBLIC
     EosNsCommon-Static
     EosCommonServer-Static
     ${FOLLY_LIBRARIES}
     ${Z_LIBRARY}
     ${ZMQ_LIBRARIES}
     ${LDAP_LIBRARIES}
-    ${UUID_LIBRARIES}
     ${NCURSES_LIBRARY}
     ${GLIBC_DL_LIBRARY}
     ${XROOTD_CL_LIBRARY}

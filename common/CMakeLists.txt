@@ -123,7 +123,6 @@ set(EOSCOMMON_LIBS
   ${GLIBC_DL_LIBRARY}
   ${GLIBC_RT_LIBRARY}
   ${LIBBFD_LIBRARIES}
-  ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
   ${NCURSES_LIBRARY}
   ${JSONCPP_LIBRARIES}
@@ -156,8 +155,9 @@ endif ()
 
 target_link_libraries(EosCommon
   PUBLIC
-  ${EOSCOMMON_LIBS}
-  ZLIB::ZLIB)
+  ZLIB::ZLIB
+  UUID::UUID
+  ${EOSCOMMON_LIBS})
 
 target_compile_definitions(EosCommon-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
@@ -188,6 +188,7 @@ endif ()
 target_link_libraries(EosCommon-Static
   PRIVATE
   ${EOSCOMMON_LIBS}
+  UUID::UUID
   ZLIB::ZLIB_STATIC)
 
 set_target_properties(EosCommon-Static PROPERTIES
@@ -238,7 +239,6 @@ if (Linux)
     fmt
     qclient
     ${ZMQ_LIBRARIES}
-    ${UUID_LIBRARIES}
     ${ATTR_LIBRARIES}
     ${NCURSES_LIBRARY}
     ${JSONCPP_LIBRARIES}
@@ -257,6 +257,7 @@ if (Linux)
 
   target_link_libraries(EosCommonServer PUBLIC
     XrdMqClient
+    UUID::UUID
     ${EOSCOMMONSERVER_LIBS})
 
   set_target_properties(EosCommonServer PROPERTIES
@@ -275,6 +276,7 @@ if (Linux)
 
   target_link_libraries(EosCommonServer-Static PUBLIC
     XrdMqClient-Static
+    UUID::UUID
     ${EOSCOMMONSERVER_LIBS})
 
   target_compile_definitions(EosCommonServer-Static PUBLIC
