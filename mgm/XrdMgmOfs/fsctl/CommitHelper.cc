@@ -682,7 +682,10 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
         versiondir->addFile(versionfmd.get());
         versiondir->setMTimeNow();
         gOFS->eosView->updateFileStore(versionfmd.get());
+	gOFS->FuseXCastDeletion(dir->getIdentifier(), paths["atomic"].GetName());
+	gOFS->FuseXCastRefresh(versionfmd->getIdentifier(), versiondir->getIdentifier());
         gOFS->FuseXCastContainer(versiondir->getIdentifier());
+
         // Update the ownership and mode of the new file to the original
         // one
         fmd->setCUid(versionfmd->getCUid());
