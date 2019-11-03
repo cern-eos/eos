@@ -30,6 +30,7 @@
 #include "common/SymKeys.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/ICmdHelper.hh"
+#include "mgm/tgc/Constants.hh"
 
 extern int com_space(char*);
 void com_space_help();
@@ -419,6 +420,9 @@ void com_space_help()
       << "space config <space-name> space.drainperiod=<sec>                     : configure the default drain  period if not defined on a filesystem (see fs for details)\n"
       << "space config <space-name> space.graceperiod=<sec>                     : configure the default grace  period if not defined on a filesystem (see fs for details)\n"
       << "space config <space-name> space.filearchivedgc=on|off                 : enable/disable the 'file archived' garbage collector [ default=off ]\n"
+      << "space config <space-name> space." << eos::mgm::tgc::TGC_NAME_QRY_PERIOD_SECS << "=<#>                 : delay in seconds between queries from the tape-aware GC [ default=" << eos::mgm::tgc::TGC_DEFAULT_QRY_PERIOD_SECS << " ]\n"
+      << "space config <space-name> space." << eos::mgm::tgc::TGC_NAME_AVAIL_BYTES << "=<#>                    : configure the number of available bytes the space should have [ default=" << eos::mgm::tgc::TGC_DEFAULT_AVAIL_BYTES << " ] \n"
+      << "space config <space-name> space." << eos::mgm::tgc::TGC_NAME_TOTAL_BYTES << "=<#>                    : configure the total number of bytes the space should have before the tape-aware GC kicks in [ default=" << eos::mgm::tgc::TGC_DEFAULT_TOTAL_BYTES << " ] \n"
       << "space config <space-name> space.tracker=on|off                        : enable/disable the space layout creation tracker [ default=off ]\n"
       << "space config <space-name> space.inspector=on|off                      : enable/disable the file inspector [ default=off ]\n"
       << "space config <space-name> space.autorepair=on|off                     : enable auto-repair of faulty replica's/files (the converter has to be enabled too)\n"

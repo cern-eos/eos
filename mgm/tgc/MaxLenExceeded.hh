@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
-// File: Namespace.hh
-// Author: Andreas-Joachim Peters - CERN
+// File: MaxLenExceeded.hh
+// Author: Steven Murray - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -21,21 +21,29 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_NAMESPACE_HH__
-#define __EOSMGM_NAMESPACE_HH__
+#ifndef __EOSMGMTGC_MAXLENEXCEEDED_HH__
+#define __EOSMGMTGC_MAXLENEXCEEDED_HH__
 
-#define USE_EOSMGMNAMESPACE using namespace eos::mgm;
+#include "mgm/Namespace.hh"
 
-#define EOSMGMNAMESPACE_BEGIN namespace eos { namespace mgm {
-#define EOSMGMNAMESPACE_END }}
+#include <stdexcept>
 
+/**
+ * @file MaxLenExceeded.hh
+ *
+ * @brief Exception thrown when a maximum length has been exceeded
+ *
+ */
+/*----------------------------------------------------------------------------*/
+EOSTGCNAMESPACE_BEGIN
 
-#define USE_EOSFUSESERVERNAMESPACE using namespace eos::mgm::FuseServer;
+//------------------------------------------------------------------------------
+//! Thrown when a maximum length has been exceeded
+//------------------------------------------------------------------------------
+struct MaxLenExceeded: public std::runtime_error {
+  MaxLenExceeded(const std::string &msg);
+};
 
-#define EOSFUSESERVERNAMESPACE_BEGIN namespace eos { namespace mgm { namespace FuseServer {
-#define EOSFUSESERVERNAMESPACE_END }}}
-
-#define EOSTGCNAMESPACE_BEGIN namespace eos { namespace mgm { namespace tgc {
-#define EOSTGCNAMESPACE_END }}}
+EOSTGCNAMESPACE_END
 
 #endif

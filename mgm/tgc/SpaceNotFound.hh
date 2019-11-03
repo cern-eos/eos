@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
-// File: Namespace.hh
-// Author: Andreas-Joachim Peters - CERN
+// File: SpaceNotFound.hh
+// Author: Steven Murray - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -21,21 +21,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_NAMESPACE_HH__
-#define __EOSMGM_NAMESPACE_HH__
+#ifndef __EOSMGMTGC_SPACENOTFOUND_HH__
+#define __EOSMGMTGC_SPACENOTFOUND_HH__
 
-#define USE_EOSMGMNAMESPACE using namespace eos::mgm;
+#include <stdexcept>
 
-#define EOSMGMNAMESPACE_BEGIN namespace eos { namespace mgm {
-#define EOSMGMNAMESPACE_END }}
+/**
+ * @file TapeAwareGcSpaceNotFound.hh
+ *
+ * @brief Exception thrown when a given EOS space cannot be found
+ *
+ */
+/*----------------------------------------------------------------------------*/
+EOSTGCNAMESPACE_BEGIN
 
+//------------------------------------------------------------------------------
+//! Thrown when a given EOS space cannot be found
+//------------------------------------------------------------------------------
+struct SpaceNotFound: public std::runtime_error {
+  SpaceNotFound(const std::string &msg);
+};
 
-#define USE_EOSFUSESERVERNAMESPACE using namespace eos::mgm::FuseServer;
-
-#define EOSFUSESERVERNAMESPACE_BEGIN namespace eos { namespace mgm { namespace FuseServer {
-#define EOSFUSESERVERNAMESPACE_END }}}
-
-#define EOSTGCNAMESPACE_BEGIN namespace eos { namespace mgm { namespace tgc {
-#define EOSTGCNAMESPACE_END }}}
+EOSTGCNAMESPACE_END
 
 #endif

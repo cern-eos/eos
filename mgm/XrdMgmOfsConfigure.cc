@@ -50,6 +50,7 @@
 #include "mgm/Master.hh"
 #include "mgm/QdbMaster.hh"
 #include "mgm/Messaging.hh"
+#include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/inspector/FileInspector.hh"
 #include "common/StacktraceHere.hh"
@@ -444,6 +445,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     Eroute.Say("=====> mgmofs.managerid: ", ManagerId.c_str(), "");
   }
 
+  // EOS spaces for which tape-aware garbage collection should be enabled
+  std::list<std::string> tapeGcSpaces;
+
   if (!ConfigFN || !*ConfigFN) {
     Eroute.Emsg("Config", "Configuration file not specified.");
   } else {
@@ -694,6 +698,15 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             mPrepareDestSpace = val;
             Eroute.Say("=====> mgmofs.prepare.dest.space : ", mPrepareDestSpace.c_str());
           }
+        }
+
+        if (!strcmp("tgc.enablespace", var)) {
+          std::ostringstream tapeGcSpacesStream;
+          while ((val = Config.GetWord())) {
+            tapeGcSpaces.push_back(val);
+            tapeGcSpacesStream << " " << val;
+          }
+          Eroute.Say("=====> mgmofs.tgc.enablespace :", tapeGcSpacesStream.str().c_str());
         }
 
         if (!strcmp("authorize", var)) {
@@ -1995,6 +2008,23 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   mGeoTreeEngine->StartUpdater();
   // Start the drain engine
   mDrainEngine.Start();
+
+  if (mTapeEnabled) {
+    // Enable tape-aware garbage collection as configured
+    for(const auto &tapeGcSpace : tapeGcSpaces) {
+      mTapeGc->enable(tapeGcSpace);
+    }
+  } else if (!tapeGcSpaces.empty()) {
+    std::ostringstream tapeGcSpaceWarning;
+    tapeGcSpaceWarning << "msg=\"These spaces will not be enabled for the "
+      "tape-aware GC because mgmofs.tapeenabled=false:";
+    for(const auto &tapeGcSpace : tapeGcSpaces) {
+      tapeGcSpaceWarning << " " << tapeGcSpace;
+    }
+    tapeGcSpaceWarning << "\"";
+    eos_warning(tapeGcSpaceWarning.str().c_str());
+  }
+
   return NoGo;
 }
 /*----------------------------------------------------------------------------*/

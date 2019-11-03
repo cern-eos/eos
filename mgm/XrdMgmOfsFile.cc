@@ -46,6 +46,7 @@
 #include "mgm/Macros.hh"
 #include "mgm/ZMQ.hh"
 #include "mgm/Master.hh"
+#include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "namespace/utils/Attributes.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/Resolver.hh"
@@ -2556,6 +2557,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       } catch (eos::MDException& ex) {
       }
     }
+  }
+
+  if (nullptr != fmd && nullptr != space.c_str() && fmd->hasAttribute("sys.archive.file_id")) {
+    gOFS->mTapeGc->fileOpened(space.c_str(), path, fmd->getId());
   }
 
   // Also trigger synchronous create workflow event if it's defined

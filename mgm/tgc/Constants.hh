@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
-// File: Namespace.hh
-// Author: Andreas-Joachim Peters - CERN
+// File: Constants.hh
+// Author: Steven Murray - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -21,21 +21,46 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_NAMESPACE_HH__
-#define __EOSMGM_NAMESPACE_HH__
+#ifndef __EOSMGMTGC_CONSTANTS_HH__
+#define __EOSMGMTGC_CONSTANTS_HH__
 
-#define USE_EOSMGMNAMESPACE using namespace eos::mgm;
+#include "mgm/Namespace.hh"
 
-#define EOSMGMNAMESPACE_BEGIN namespace eos { namespace mgm {
-#define EOSMGMNAMESPACE_END }}
+#include <cstdint>
 
+/*----------------------------------------------------------------------------*/
+/**
+ * @file Constants.hh
+ *
+ * @brief Constants specific to the implementation of the tape aware garbage
+ * collector.
+ *
+ */
+/*----------------------------------------------------------------------------*/
+EOSTGCNAMESPACE_BEGIN
 
-#define USE_EOSFUSESERVERNAMESPACE using namespace eos::mgm::FuseServer;
+/// Default maximum age in seconds of a tape-ware garbage collector's
+/// cached configuration
+const std::uint64_t TGC_DEFAULT_MAX_CONFIG_CACHE_AGE_SECS = 10;
 
-#define EOSFUSESERVERNAMESPACE_BEGIN namespace eos { namespace mgm { namespace FuseServer {
-#define EOSFUSESERVERNAMESPACE_END }}}
+/// Name of a space configuration member
+constexpr const char * TGC_NAME_QRY_PERIOD_SECS = "tgc.qryperiodsecs";
 
-#define EOSTGCNAMESPACE_BEGIN namespace eos { namespace mgm { namespace tgc {
-#define EOSTGCNAMESPACE_END }}}
+/// Default delay in seconds between EOS space queries for the tape-aware GC
+const std::uint64_t TGC_DEFAULT_QRY_PERIOD_SECS = 310;
+
+/// Name of a space configuration member
+constexpr const char * TGC_NAME_AVAIL_BYTES = "tgc.availbytes";
+
+/// Default number of available bytes the garbage collector is targeting
+const std::uint64_t TGC_DEFAULT_AVAIL_BYTES = 0;
+
+/// Name of a space configuration member
+constexpr const char * TGC_NAME_TOTAL_BYTES = "tgc.totalbytes";
+
+/// Default total number of bytes before garbage collection can begin
+const std::uint64_t TGC_DEFAULT_TOTAL_BYTES = 1000000000000000000UL; // 1 Exabyte
+
+EOSTGCNAMESPACE_END
 
 #endif

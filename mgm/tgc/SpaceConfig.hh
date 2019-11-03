@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
-// File: Namespace.hh
-// Author: Andreas-Joachim Peters - CERN
+// File: SpaceConfig.hh
+// Author: Steven Murray - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -21,21 +21,42 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_NAMESPACE_HH__
-#define __EOSMGM_NAMESPACE_HH__
+#ifndef __EOSMGMTGC_SPACECONFIG_HH__
+#define __EOSMGMTGC_SPACECONFIG_HH__
 
-#define USE_EOSMGMNAMESPACE using namespace eos::mgm;
+#include "mgm/Namespace.hh"
+#include "mgm/tgc/Constants.hh"
 
-#define EOSMGMNAMESPACE_BEGIN namespace eos { namespace mgm {
-#define EOSMGMNAMESPACE_END }}
+#include <cstdint>
+#include <ctime>
 
+/*----------------------------------------------------------------------------*/
+/**
+ * @file SpaceConfig.hh
+ *
+ * @brief The configuration of a tape-aware garbage collector for a specific EOS
+ * space.
+ */
+/*----------------------------------------------------------------------------*/
+EOSTGCNAMESPACE_BEGIN
 
-#define USE_EOSFUSESERVERNAMESPACE using namespace eos::mgm::FuseServer;
+//------------------------------------------------------------------------------
+//! The configuration of a tape-aware garbage collector for a specific EOS
+//! space.
+//------------------------------------------------------------------------------
+struct SpaceConfig {
+  std::time_t queryPeriodSecs;
+  std::uint64_t availBytes;
+  std::uint64_t totalBytes;
 
-#define EOSFUSESERVERNAMESPACE_BEGIN namespace eos { namespace mgm { namespace FuseServer {
-#define EOSFUSESERVERNAMESPACE_END }}}
+  SpaceConfig():
+    queryPeriodSecs(TGC_DEFAULT_QRY_PERIOD_SECS),
+    availBytes(TGC_DEFAULT_AVAIL_BYTES),
+    totalBytes(TGC_DEFAULT_TOTAL_BYTES)
+  {
+  }
+};
 
-#define EOSTGCNAMESPACE_BEGIN namespace eos { namespace mgm { namespace tgc {
-#define EOSTGCNAMESPACE_END }}}
+EOSTGCNAMESPACE_END
 
 #endif

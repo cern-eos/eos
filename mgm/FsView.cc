@@ -33,6 +33,7 @@
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/config/ConfigParsing.hh"
 #include "mgm/config/IConfigEngine.hh"
+#include "mgm/tgc/Constants.hh"
 #include "mgm/ZMQ.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "common/StringConversion.hh"
@@ -979,6 +980,22 @@ FsSpace::FsSpace(const char* name)
     // Disable the 'file archived' garbage collector by default
     if (GetConfigMember("filearchivedgc").empty()) {
       SetConfigMember("filearchivedgc", "off");
+    }
+
+    // Set the default delay in seconds between queries from the tape-aware GC
+    if (GetConfigMember(tgc::TGC_NAME_QRY_PERIOD_SECS).empty()) {
+      SetConfigMember(tgc::TGC_NAME_QRY_PERIOD_SECS, std::to_string(tgc::TGC_DEFAULT_QRY_PERIOD_SECS));
+    }
+
+    // Set the default number of available bytes the garbage collector is targetting
+    if (GetConfigMember(tgc::TGC_NAME_AVAIL_BYTES).empty()) {
+      SetConfigMember(tgc::TGC_NAME_AVAIL_BYTES, std::to_string(tgc::TGC_DEFAULT_AVAIL_BYTES));
+    }
+
+    // Set the default total number of bytes that must be available before
+    // garbage collection can start
+    if (GetConfigMember(tgc::TGC_NAME_TOTAL_BYTES).empty()) {
+      SetConfigMember(tgc::TGC_NAME_TOTAL_BYTES, std::to_string(tgc::TGC_DEFAULT_TOTAL_BYTES));
     }
   }
 

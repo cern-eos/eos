@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
-// File: Namespace.hh
-// Author: Andreas-Joachim Peters - CERN
+// File: SpaceStats.hh
+// Author: Steven Murray - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -21,21 +21,34 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_NAMESPACE_HH__
-#define __EOSMGM_NAMESPACE_HH__
+#ifndef __EOSMGMTGC_SPACESTATS_HH__
+#define __EOSMGMTGC_SPACESTATS_HH__
 
-#define USE_EOSMGMNAMESPACE using namespace eos::mgm;
+#include "mgm/Namespace.hh"
 
-#define EOSMGMNAMESPACE_BEGIN namespace eos { namespace mgm {
-#define EOSMGMNAMESPACE_END }}
+#include <cstdint>
+#include <string>
 
+/*----------------------------------------------------------------------------*/
+/**
+ * @file FreeAndUsedBytes.hh
+ *
+ * @brief Structure to store statistics about an EOS space
+ *
+ */
+/*----------------------------------------------------------------------------*/
+EOSTGCNAMESPACE_BEGIN
 
-#define USE_EOSFUSESERVERNAMESPACE using namespace eos::mgm::FuseServer;
+/*----------------------------------------------------------------------------*/
+//! Structure to store the statistics about an EOS space
+/*----------------------------------------------------------------------------*/
+struct SpaceStats {
+  std::uint64_t totalBytes;
+  std::uint64_t availBytes;
 
-#define EOSFUSESERVERNAMESPACE_BEGIN namespace eos { namespace mgm { namespace FuseServer {
-#define EOSFUSESERVERNAMESPACE_END }}}
+  SpaceStats(): totalBytes(0), availBytes(0) {}
+};
 
-#define EOSTGCNAMESPACE_BEGIN namespace eos { namespace mgm { namespace tgc {
-#define EOSTGCNAMESPACE_END }}}
+EOSTGCNAMESPACE_END
 
 #endif

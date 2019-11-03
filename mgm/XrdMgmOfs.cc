@@ -73,6 +73,8 @@
 #include "mgm/WFE.hh"
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/Master.hh"
+#include "mgm/tgc/RealTapeGcMgm.hh"
+#include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/inspector/FileInspector.hh"
 #include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
@@ -311,6 +313,9 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
 
   EgroupRefresh.reset(new eos::mgm::Egroup());
   Recycler.reset(new eos::mgm::Recycle());
+
+  mTapeGcMgm.reset(new tgc::RealTapeGcMgm(*this));
+  mTapeGc.reset(new tgc::MultiSpaceTapeGc(*mTapeGcMgm));
 }
 
 //------------------------------------------------------------------------------

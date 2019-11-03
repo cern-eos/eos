@@ -110,3 +110,10 @@ mgmofs.nslib /usr/lib64/libEosNsInMemory.so
 
 #mgmofs.tapeenabled false
 #mgmofs.prepare.dest.space default
+
+#-------------------------------------------------------------------------------
+# Configuration for the tape aware garbage collector
+#-------------------------------------------------------------------------------
+
+# EOS spaces for which the tape aware garbage collector should be enabled
+#mgmofs.tgc.enablespace space1 space2 ...

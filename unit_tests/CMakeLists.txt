@@ -62,6 +62,12 @@ set(MGM_UT_SRCS
   mgm/RoutingTests.cc
   mgm/IdTrackerTests.cc
   mgm/FsckEntryTests.cc
+  mgm/tgc/CachedValueTests.cc
+  mgm/tgc/LruTests.cc
+  mgm/tgc/MultiSpaceTapeGcTests.cc
+  mgm/tgc/SpaceToTapeGcMapTests.cc
+  mgm/tgc/TapeGcTests.cc
+  mgm/tgc/UtilsTests.cc
   mgm/XrdMgmOfsTests.cc)
 
 set(COMMON_UT_SRCS

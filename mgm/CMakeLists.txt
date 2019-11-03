@@ -169,6 +169,17 @@ add_library(
   proc/user/Whoami.cc
   Quota.cc
   Scheduler.cc
+  tgc/MultiSpaceTapeGc.cc
+  tgc/SpaceToTapeGcMap.cc
+  tgc/DummyTapeGcMgm.cc
+  tgc/ITapeGcMgm.cc
+  tgc/Lru.cc
+  tgc/MaxLenExceeded.cc
+  tgc/RealTapeGcMgm.cc
+  tgc/SmartSpaceStats.cc
+  tgc/SpaceNotFound.cc
+  tgc/TapeGc.cc
+  tgc/Utils.cc
   Vid.cc
   FsView.cc
   XrdMgmOfsConfigure.cc

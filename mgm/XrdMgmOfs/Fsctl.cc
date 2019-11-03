@@ -394,20 +394,31 @@ XrdMgmOfs::dispatchSFS_FSCTL_PLUGIO(XrdSfsFSctl& args,
                                     eos::common::VirtualIdentity& vid,
                                     const XrdSecEntity* client)
 {
-  static const int maxArgLen = 1024;
-  const char * const arg1 = args.Arg1Len > 0 ? args.Arg1 : "";
   // args.Arg2 is always set to 0 by XrdXrootdProtocol::do_Qopaque(short qopt)
 
-  std::ostringstream errMsg;
-  errMsg << "Unable to execute cmd=SFS_FSCTL_PLUGIO arg1=";
   if (0 > args.Arg1Len) {
-    errMsg << "\"NEGATIVE NUMBER OF BYTES\"";
-  } else if (strnlen(arg1, args.Arg1Len) == (unsigned int)(args.Arg1Len)) {
-    errMsg << "\"NOT NULL TERMINATED\"";
-  } else if (args.Arg1Len > maxArgLen) {
+    error.setErrInfo(EINVAL, "Arg1Len of SFS_FSCTL_PLUGIO command is negative");
+    return SFS_ERROR;
+  }
+
+  if (strnlen(args.Arg1, args.Arg1Len) == (unsigned int)(args.Arg1Len)) {
+    error.setErrInfo(EINVAL, "Arg1 of SFS_FSCTL_PLUGIO command is not NULL terminated");
+    return SFS_ERROR;
+  }
+
+  if(!strcmp("tgc", args.Arg1)) {
+    return mTapeGc->handleFSCTL_PLUGIO_tgc(error, vid, client);
+  }
+
+  // Reaching this point means there was no handler for the SFS_FSCTL_PLUGIO
+  // request
+  static const int maxArgLen = 1024;
+  std::ostringstream errMsg;
+  errMsg << "Unable to execute cmd=SFS_FSCTL_PLUGIO Arg1=";
+  if (args.Arg1Len > maxArgLen) {
     errMsg << "\"LARGER THAN " << maxArgLen << " BYTES INCLUDING NULL TERMINATOR\"";
   } else {
-    errMsg << "\"" << arg1 << "\"";
+    errMsg << "\"" << args.Arg1 << "\"";
   }
   errMsg << " [EOPNOTSUPP]";
 
