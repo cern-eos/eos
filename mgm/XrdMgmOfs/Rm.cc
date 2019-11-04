@@ -233,9 +233,6 @@ XrdMgmOfs::_rem(const char* path,
                     "remove existing file - you are write-once user");
       }
 
-      eos_debug("vid.uid %d vid.gid %d CanotDelete %d CUid %d", vid.uid, vid.gid,
-                acl.CanNotDelete(), fmd->getCUid());
-
       // if there is a !d policy we cannot delete files which we don't own
       if (((vid.uid) && (vid.uid != 3) && (vid.gid != 4) && (acl.CanNotDelete())) &&
           ((fmd->getCUid() != vid.uid))) {
@@ -294,6 +291,11 @@ XrdMgmOfs::_rem(const char* path,
 
   if (!doRecycle) {
     try {
+      uint64_t cloneId;
+      if (!simulate && fmd->getCloneFST().empty() && (cloneId = fmd->getCloneId()) != 0) {
+        eos_info("Creating cow clone (delete) for %s fxid:%lx cloneId %lld", path, fmd->getId(), cloneId);
+        errno = XrdMgmOfsFile::create_cow(true, cloneId, container, fmd, vid, error);
+      }
       if (!simulate) {
         eos_info("unlinking from view %s", path);
         Workflow workflow;

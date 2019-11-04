@@ -389,6 +389,60 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found");
   }
 
+  char* sCloneFST = mCapOpaque->Get("mgm.cloneFST");
+
+  if (sCloneFST) {
+    std::string mc_fst_path = eos::common::FileId::FidPrefix2FullPath(sCloneFST,
+                              mLocalPrefix.c_str());
+    struct stat clone_stat;
+    int clonerc = ::stat(mc_fst_path.c_str(), &clone_stat) ? errno : 0;
+    eos_info("fstpath=%s clonepath=%s clonerc=%d len=%d", mFstPath.c_str(),
+             mc_fst_path.c_str(), clonerc, clonerc ? -1 : clone_stat.st_size);
+
+    /* clone handling:
+     * if read-write and clone does not exist, create it
+     * if read-only switch to clone if it exists    (note: if several clones were allowed, we'd might have to search!)
+     */
+    if (mIsRW && clonerc != 0) { /* for RW, only if clone not yet created */
+      if (open_mode & SFS_O_TRUNC) {
+        /* rename data file to clone, it will be re-created */
+        int rc = ::rename(mFstPath.c_str(), mc_fst_path.c_str()) ? errno : 0;
+        eos_info("copy-on-write: rename %s %s rc=%d", mFstPath.c_str(),
+                 mc_fst_path.c_str(), rc);
+      } else {
+        /* copy data file to clone before modyfying */
+        char sbuff[1024];
+        snprintf(sbuff, sizeof(sbuff),
+                 "cp --preserve=xattr,ownership,mode --reflink=auto %s %s",
+                 mFstPath.c_str(), mc_fst_path.c_str());
+        int rc = system(sbuff);
+        eos_info("copy-on-write: %s rc=%d", sbuff, rc);
+      }
+
+      /* Populate local DB (future reads need it) */
+      unsigned long long clFid = eos::common::FileId::Hex2Fid(sCloneFST);
+      auto lfmd = gFmdDbMapHandler.LocalGetFmd(clFid, mFsId, false, mIsRW,
+                  vid.uid, vid.gid, mLid);
+      lfmd->mProtoFmd.set_checksum(mFmd->mProtoFmd.checksum());
+      lfmd->mProtoFmd.set_diskchecksum(mFmd->mProtoFmd.diskchecksum());
+      lfmd->mProtoFmd.set_mgmchecksum(mFmd->mProtoFmd.mgmchecksum());
+
+      if (!gFmdDbMapHandler.Commit(lfmd.get())) {
+        eos_err("copy-on-write unable to commit meta data to local database");
+        (void) gOFS.Emsg(epname, this->error, EIO,
+                         "copy-on-write - unable to commit meta data", mNsPath.c_str());
+      }
+
+      eos_debug("fid %lld cs %s diskcs %s mgmcs %s", lfmd->mProtoFmd.fid(),
+                lfmd->mProtoFmd.checksum().c_str(), lfmd->mProtoFmd.diskchecksum().c_str(),
+                lfmd->mProtoFmd.mgmchecksum().c_str());
+    } else {
+      eos_debug("fid %lld cs %s diskcs %s mgmcs %s", mFmd->mProtoFmd.fid(),
+                mFmd->mProtoFmd.checksum().c_str(), mFmd->mProtoFmd.diskchecksum().c_str(),
+                mFmd->mProtoFmd.mgmchecksum().c_str());
+    }
+  }
+
   XrdOucString oss_opaque = "";
   oss_opaque += "&mgm.lid=";
   oss_opaque += std::to_string(mLid).c_str();
@@ -2972,7 +3026,7 @@ XrdFstOfsFile::VerifyChecksum()
         }
       }
     } else {
-      // This is a read with checksum check, compare with fMD
+      // This is a read with checksum check, compare with mFmd
       bool isopenforwrite = gOFS.openedForWriting.isOpen(mFsId, mFileId);
 
       if (isopenforwrite) {

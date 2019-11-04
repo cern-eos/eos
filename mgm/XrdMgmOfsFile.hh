@@ -87,6 +87,13 @@ public:
   virtual ~XrdMgmOfsFile();
 
   //----------------------------------------------------------------------------
+  // utility function: create copy-on-write clone
+  //----------------------------------------------------------------------------
+  static int create_cow(bool isDelete, uint64_t cloneId,
+          std::shared_ptr<eos::IContainerMD> dmd, std::shared_ptr<eos::IFileMD> fmd,
+          eos::common::VirtualIdentity& vid, XrdOucErrInfo& error);
+
+  //----------------------------------------------------------------------------
   // open a file
   //----------------------------------------------------------------------------
   int open(const char* fileName,

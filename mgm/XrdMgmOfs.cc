@@ -115,6 +115,9 @@ XrdSysError gMgmOfsEroute(0);
 XrdOucTrace gMgmOfsTrace(&gMgmOfsEroute);
 XrdMgmOfs* gOFS = 0;
 
+const char* k_mdino = "sys.eos.mdino";
+const char* k_nlink = "sys.eos.nlink";
+
 // Set the version information
 XrdVERSIONINFO(XrdSfsGetFileSystem, MgmOfs);
 XrdVERSIONINFO(XrdSfsGetFileSystem2, MgmOfs);

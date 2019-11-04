@@ -284,8 +284,8 @@ public:
     kOfsSimulatedIoError = 4 //! simulated IO error
   };
 
-  std::unique_ptr<eos::common::FmdHelper>
-  mFmd; ///< In-memory file meta data object
+///< In-memory file meta data object
+  std::unique_ptr<eos::common::FmdHelper> mFmd;
   std::unique_ptr<eos::fst::CheckSum> mCheckSum; ///< Checksum object
   // @todo(esindril) this is not properly enforced everywhere ...
   XrdSysMutex mChecksumMutex; ///< Mutex protecting the checksum class

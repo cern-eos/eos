@@ -1,0 +1,473 @@
+#!/usr/bin/env python3
+
+# Sample backup and restore utility that simply backs up EOS files iunder /eos/pathName
+# to local directories /BackupPrefix.something
+
+# eos-backup clone -B /BackupPrefix [-P <parentId>] /eos/pathName
+#   - performs the actual clone, based on parentId or full, creates catalogFile
+#     Outputs "cloneId <cloneId> catalog <catalogFile>"
+#
+# eos-backup backup -B /BackupPrefix [-F catalogFile] [-P <parentId>] /eos/pathName
+#   - unless specified with '-F' uses "clone" to produce a clone and catalogFile
+#     and then backs up files into /BackupPrefix/cloneId and deletes the clone.
+#     Outputs "cloneId <cloneId> backup media <backupDir>" followed by whatever
+#     the deletion of the clone says.
+#
+# eos-backup restore -F /inputCatalog1[,/inputCatalog2[,...]] /outputDirectory
+#   - performs a restore into outputDirectory based on 1 or more catalogFiles
+
+# for clone/backup the data are stored in /BackupPrefix/cloneId and /BackupPrefix/cloneId.catalog
+# the /eos pathnames are as seen by the MGM, not necessarily fuse-mounted paths in the local file system
+
+# environment:
+#   EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch must point to the MGM serving /eos/pathName
+
+# A primitive full_backup/make_changes/incremental_backup/restore example in bash:
+
+#   # full clone and backup in one go
+#   read xx cloneId1 xxx media1 <<<$(eos-backup backup -B /tmp/Backup /eos/dockertest/backuptest)
+#
+#   : make some changes, delete/add/modify files
+#
+#   # an incremental clone based on first backup
+#   read xx cloneId2 xxx cloneFile2 <<<$(eos-backup clone -B /tmp/Backup -P $cloneId1 /eos/dockertest/backuptest)
+#
+#   # back those files up
+#   read xx cloneId2 xxx media2 <<<$(eos-backup backup -B /tmp/Backup -F cloneFile2 /eos/dockertest/backuptest)
+#
+#   # restore the lot
+#   eos-backup restore -F $media1/catalog,$media2/catalog -B /tmp/Backup /tmp/Restore2
+
+   
+
+from __future__ import print_function
+
+import getopt, json, os, stat, subprocess, sys, tempfile
+import pdb
+
+try:
+    from XRootD import client
+    from XRootD.client.flags import MkDirFlags, OpenFlags
+    canXroot = True
+except:
+    canXroot = False
+    
+# options
+subcmd = sys.argv[1]
+opts, args = getopt.getopt(sys.argv[2:], "B:F:P:U:bS:")
+
+# default backupDirPrefix and parentId
+dflt = [('-B', "/tmp/backupDir"),('-P', 10),('-S',1024*1024*1024),('-b', None)]
+
+# resulting options
+opt = dict(dflt+opts)
+
+if '-P' in opt:
+    try:
+        parentId = int(opt['-P'])
+    except ValueError:
+            print("invalid parent Id")
+            sys.exit(22)
+
+opt['-S'] = int(opt['-S'])
+
+eos_instance = os.popen("eos version").readlines()[0].split('=')[1].rstrip()
+
+# create the clone, results in a catalogFile
+def do_clone(subcmd):
+    catalogFile = tempfile.mkstemp()
+    
+    if '-P' not in opt: opt['-P'] = 10
+    cmd = "eos find -j -x sys.clone=+%d %s > %s" % (int(opt['-P']), args[0], catalogFile[1])
+    try:
+      os.system(cmd)
+    except:
+      print("Unexpected error:", sys.exc_info()[0])
+      print("cmd:", cmd)
+      raise
+
+    line1 = open(catalogFile[1]).readline()
+
+    try:
+      xx = json.loads(line1)
+      cloneId = xx['c']
+    except Exception as e:
+      print(e, "catalogFile", catalogFile[1])
+      if hasattr(e, 'msg'): print(e.msg)
+      if hasattr(e, 'message'): print(e.message)
+      print("line #1: '%s'" % line1)
+      raise
+
+    tCatFile = "%s.%s.clone" % (catalogFile[1], cloneId)
+    os.rename(catalogFile[1], tCatFile)
+    if subcmd == "clone": print("cloneId %s catalog %s" % (cloneId, tCatFile))
+
+    return (cloneId, tCatFile)
+
+# perform a clone unless a catalogFile has been given, then back up files
+class Blob:                 # the files where data are stored in
+    def __init__(self, num, prefix):
+        self.blob_num = num
+        self.next_blob = num+1
+        self.prefix = prefix
+
+        self.blXroot = canXroot and prefix.startswith("root:")
+        if self.blXroot:
+            self.bfile = client.File()
+            self.bfile.open("%sb.%d" % (prefix, self.blob_num),OpenFlags.NEW)
+        else:
+            self.bfile = open("%sb.%d" % (prefix, self.blob_num), "wb")     # 'wb' or 'w' hardly matters, we don't write ourselves
+            os.lseek(self.bfile.fileno(), 0, 0)     # this may be implicit, but vital for the subprocess writes
+
+        self.size = 0
+
+    def getBlob(self, sz):
+        if sz > opt['-S']:
+            new_blob = Blob(self.next_blob, self.prefix)
+            self.next_blob = new_blob.next_blob
+            return (self, new_blob)
+        if self.size > opt['-S']:
+            new_blob = Blob(self.next_blob, self.prefix)
+            self.close()
+            return (new_blob, new_blob)
+        return (self, self)
+
+    def close(self):
+        self.bfile.close()
+
+
+def copy_xrdcp(path, cpath, blob):
+    startpos = blob.size        # blob.bfile.tell() would be useless, pertubated by subprocess writes
+    # try copy the clone first
+    p1 = subprocess.run(["xrdcp", "-s", "%s/%s" % (opt['-U'], cpath), "-"], stdout=blob.bfile.fileno(), stderr=subprocess.PIPE)
+    x1 = p1.stderr
+    rc = p1.returncode
+    if rc > 256: rc = rc >> 8		# recover xrdcp return code
+    if rc == 0:                     # 54 would mean clone not found
+        blob.size = os.lseek(blob.bfile.fileno(), 0, 1) # get current (new) position
+    else:
+        # copy the live file
+        p2 = subprocess.run(["xrdcp", "-s", "%s/%s" % (opt['-U'], path), "-"], stdout=blob.bfile.fileno(), stderr=subprocess.PIPE)
+        x2 = p2.stderr
+        rc = p2.returncode
+        if rc > 256: rc = rc >> 8	# recover xrdcp return code
+        copied_live = True
+        newpos = os.lseek(blob.bfile.fileno(), 0, 1)    # get current (new) position
+
+        # try the clone again
+        os.lseek(blob.bfile.fileno(), startpos, 0)      # rewind to previous pos
+        p3 = subprocess.run(["xrdcp", "-s", "%s/%s" % (opt['-U'], cpath), "-"], stdout=blob.bfile.fileno(), stderr=subprocess.PIPE)
+        x3 = p3.stderr
+        rc = p3.returncode
+        if rc > 256: rc = rc >> 8		                    # recover xrdcp return code
+        if rc > 0:                                          # clone still does not exist
+            os.lseek(blob.bfile.fileno(), newpos, 0)        # rewind to previous pos
+            blob.size = newpos
+        else:
+            copied_live = False                             # correction: copied the clone after all
+            blob.size = os.lseek(blob.bfile.fileno(), 0, 1) # new position
+            # truncate whatever the live copy may have written
+            if blob.size < newpos:
+                os.ftruncate(blob.bfile.fileno(), blob.size)
+
+    return rc
+
+
+def copy_xroot(path, cpath, blob, urlopts):
+    rc = 0
+
+    # try copy the clone first
+    oldSize = blob.size
+    bufsz = 1<<20               # 1 MB
+    src = client.File()
+    st, xx = src.open("%s/%s%s" % (opt['-U'], cpath, urlopts))
+
+    if not st.ok:       # copy live file
+        src = client.File()
+        st, xx = src.open("%s/%s%s" % (opt['-U'], path, urlopts))
+        offset = 0
+        while True:
+            try:
+                st, buff = src.read(offset=offset, size=bufsz)
+            except Exception as e:
+                print(f"error {e} reading {path} @{offset}:{bufsz}")
+                if hasattr(e, 'msg'): print(e.msg)
+                if hasattr(e, 'message'): print(e.message)
+                buff=b''
+
+            if len(buff) == 0: break
+            st, xx = blob.bfile.write(buff, offset=blob.size)
+            blob.size += len(buff)
+            offset += len(buff)
+
+        rc = st.errno
+        src.close()
+
+        # prepare to retry clone
+        src = client.File()
+        st, xx = src.open("%s/%s%s" % (opt['-U'], cpath, urlopts))
+
+    if st.ok:                   # copy the clone
+        blob.size = oldSize
+        blob.bfile.truncate(blob.size)
+        offset = 0
+        while True:
+            st2, buff = src.read(offset=offset, size=bufsz)
+            if len(buff) == 0: break
+            st2, xx = blob.bfile.write(buff, offset=blob.size)
+            blob.size += len(buff)
+            offset += len(buff)
+
+        src.close()
+        rc = st2.errno
+
+    return rc
+
+
+
+def do_backup():
+    b_Xroot = canXroot and opt['-B'].startswith("root:")
+
+    if '-U' not in opt and not b_Xroot:
+        try:
+            opt['-U'] = os.environ['EOS_MGM_URL']
+            if opt['-U'] == '': raise KeyError
+        except KeyError:
+            print("need to specify 'U' or define EOS_MGM_URL in the environment")
+            sys.exit(1)
+
+    if '-F' in opt:
+        catalogFile = opt['-F']
+    else:
+        cloneId, catalogFile = do_clone("backup")
+    
+    c_Xroot = canXroot and catalogFile.startswith("root:")
+    try:
+        if c_Xroot:
+            f = client.File()
+            f.open(catalogFile)
+        else:
+            f = open(catalogFile, "r")
+    except IOError as e:
+        print("cannot open catalog: %s" % e)
+        sys.exit(5)
+
+    #findOut = f.readlines()
+    line1 = f.readline()
+
+    jj = json.loads(line1)
+    cloneId = jj['c']
+    rootPath = jj['n']
+
+    backupDir = "%s/%s/" % (opt['-B'].rstrip('/'), cloneId)
+    if b_Xroot:
+        b_fs = client.FileSystem(backupDir)
+        b_fs.mkdir(backupDir, MkDirFlags.MAKEPATH)
+        newCatalog = client.File()
+        status, xxx = newCatalog.open(backupDir + "catalog", OpenFlags.NEW)
+        newCatalog.write(line1, offset=0)
+        newCatPos = len(line1)
+    else:
+        if not os.path.isdir(backupDir): os.mkdir(backupDir)
+
+        newCatalog = open(backupDir + "catalog", "w")
+        newCatalog.write(line1)
+
+    curr_blob = Blob(0, backupDir)
+
+    print("cloneId %s backup_media %s" % (cloneId, backupDir[:-1]))
+
+    cloneDir = "/eos/%s/proc/clone/" % (eos_instance[3:] if eos_instance.startswith("eos") else eos_instance)
+    while True:
+        l = f.readline()
+        if len(l) == 0: break
+
+        jj = json.loads(l)
+        fCloneId = jj['c']              # id of clone the file belongs to, might be from an earlier dump
+        path = jj['n']
+        if not path.endswith('/'): 		# this is a file
+            clonePath = "%s/%s" % (fCloneId, jj['p'])
+        stime = jj['t']
+
+# jj['st']: "(st_mode, st_ino, st_dev, st_nlink, st_uid, st_gid, st_size, st_atime, st_mtime, st_ctime)"
+
+        if '-b' in opt:                 # fill blobs
+            if path.endswith('/') or fCloneId != cloneId: # if a dir or a file unmodified in incremental dump
+                if b_Xroot:
+                    newCatalog.write(l, offset=newCatPos)
+                    newCatPos += len(l)
+                else:
+                    newCatalog.write(l)
+                continue	
+
+            # this is a plain file
+            st = eval(jj['st'])
+            curr_blob, blob = curr_blob.getBlob(st[stat.ST_SIZE])
+            cpath = cloneDir + clonePath
+
+            copied_live = False
+            startpos = blob.size        # blob.bfile.tell() would be useless, pertubated by subprocess writes
+
+            o_opt = ''
+            if 'H' in jj:               # problem encountered: cksum on git hard-links not (always?) updated ??
+                o_opt = "?eos.checksum=ignore"
+                print("Hard link %s copied with %s" % (path, o_opt), file=sys.stderr)
+
+            if blob.blXroot:
+                copy_xroot(path, cpath, blob, urlopts=o_opt)
+            else:
+                copy_xrdcp(path, cpath, blob)
+
+            jj['b'] = "%d:%d:%d" % (blob.blob_num, startpos, blob.size-startpos)
+            jxx=json.dumps(jj) + "\n"
+            if b_Xroot:
+                newCatalog.write(jxx, offset=newCatPos)
+                newCatPos += len(jxx)
+            else:
+                newCatalog.write(jxx)
+        else:
+            rpath = path[len(rootPath):]	# skip the "root" part
+
+            if path.endswith('/'): 		    # this is a directory
+                os.makedirs(backupDir + rpath)
+            else:				            # this is a file
+                if fCloneId != cloneId: continue		# file has not been modified in incremental dump
+                cpath = cloneDir + clonePath
+
+                # try copy the clone first
+                cmd1 = "xrdcp %s/%s %s%s 2>&1" % (opt['-U'], cpath, backupDir, rpath)
+                p1 = os.popen(cmd1)
+                x1 = p1.readlines()
+                rc = p1.close()
+                if rc is None: rc = 0
+                elif rc > 256: rc = rc >> 8		# recover xrdcp return code
+
+                if rc > 0:
+                    # copy the live file
+                    cmd2 = "xrdcp %s/%s %s%s 2>&1" % (opt['-U'], path, backupDir, rpath)
+                    p2 = os.popen(cmd2)
+                    x2 = p2.readlines()
+                    rc = p2.close()
+                    if rc is None: rc = 0
+                    elif rc > 256: rc = rc >> 8	# recover xrdcp return code
+
+                # retry the clone if created in the meantime
+                p1 = os.popen(cmd1)
+                x1 = p1.readlines()
+                rc = p1.close()
+                if rc is None: rc = 0
+                elif rc > 256: rc = rc >> 8		# recover xrdcp return code
+	    
+	    
+    f.close()
+    if '-b' in opt: newCatalog.close()
+
+    cmd = "eos find -f -x sys.clone=-%s %s > /dev/null" % (cloneId, args[0])
+    os.system(cmd)
+
+# perform a restore based on multiple catalogFiles
+def do_restore():
+    trg = args[0] + "/"
+    catalogFiles = opt['-F'].split(',')
+
+    cat = dict()
+    backupDirs = dict()
+
+    # build a dictionary of files to be restored, implementing the logic to select most recent files
+    for fn in catalogFiles:
+        lastCatFile = fn == catalogFiles[-1]
+
+        c_Xroot = canXroot and fn.startswith("root:")
+        if c_Xroot:
+            cFile = client.File()
+            cFile.open(fn)
+        else: cFile = open(fn, "r")
+
+        line1 = cFile.readline()
+        jj = json.loads(line1)
+        cloneId = jj['c']
+        rootPath = jj['n']
+        backupDirs[cloneId] = os.path.dirname(fn)
+
+        lineNum = 0
+        while True:
+            if lineNum > 0:            # next line (except 1st)
+                l = cFile.readline()
+                if len(l) == 0: break
+                try:
+                    jj = json.loads(l)
+                except Exception as e:
+                    print("error %r line %d ='%s'" % (e, lineNum, l), file=sys.stderr)
+                    pdb.set_trace()
+                    sys.exit(1)
+
+            lineNum += 1
+            path = jj['n']
+            stime = jj['t']
+
+            rpath = path[len(rootPath):]	# skip the "root" part
+            if rpath in cat and not path.endswith('/'):
+                if stime < cat[rpath]['stime'] or jj['c'] != cloneId:    # file exists but not part of this backup
+                    if lastCatFile: cat[rpath]['keep'] = True
+                    continue		# restore latest version
+            else: cat[rpath] = dict()
+
+            cat[rpath]['stime'] = stime
+            cat[rpath]['c'] = cloneId
+            if 'b' in jj: cat[rpath]['b'] = jj['b']
+            if lastCatFile: cat[rpath]['keep'] = True
+
+        cFile.close()
+
+
+    # restore files
+    for p in sorted(cat.keys()):	# sorted so that dirs come before their files
+        if "/...eos.ino..." in p: continue   # not a plain file: a deleted hard link target
+        if not 'keep' in cat[p]: continue
+        if p.endswith('/') or p == '':  # a directory
+            os.makedirs(trg + p)
+        else:
+          try:
+            bIndex, bOffset, bLen = map(int, cat[p]['b'].split(":"))
+            blobFn = "%s/b.%d" % (backupDirs[cat[p]['c']], bIndex)
+
+            bl_Xroot = canXroot and blobFn.startswith("root:")
+            if bl_Xroot:
+                blobFile = client.File()
+                st, xx = blobFile.open(blobFn)
+                blobOff = bOffset
+                fileOff = 0
+            else:
+                blobFile = open(blobFn, "rb")
+                blobFile.seek(bOffset, 0)
+
+            trgFile = open("%s/%s" % (trg, p), "wb")
+            bufsz = 1<<20           # 1 MB
+            while bLen > 0:
+                if bufsz > bLen: bufsz = bLen
+                bLen -= bufsz
+                if bl_Xroot:
+                    st, buff = blobFile.read(offset=blobOff, size=bufsz)
+                    trgFile.write(buff)
+                    blobOff += bufsz
+                    fileOff += bufsz
+                else:
+                    trgFile.write(blobFile.read(bufsz))
+            blobFile.close()
+            trgFile.close()
+          except Exception as e:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print("Exception %s in line %d:" % (type(e), exc_tb.tb_lineno))
+            print(p)
+            if p in cat: print(cat[p])
+
+# main
+if subcmd == 'clone':
+  do_clone(subcmd)
+elif subcmd == 'backup':
+  do_backup()
+elif subcmd == 'restore':
+  do_restore()
+else:
+  print("incorrect argument", subcmd)
+  sys.exit(1)

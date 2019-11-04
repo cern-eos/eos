@@ -335,7 +335,8 @@ ProcCommand::Find()
 
     if (gOFS->_find(spath.c_str(), *mError, stdErr, *pVid, (*found),
                     key.c_str(), val.c_str(), nofiles, 0, true, finddepth,
-                    filematch.length() ? filematch.c_str() : 0)) {
+                    filematch.length() ? filematch.c_str() : 0, true,
+                    option.find("j") != STR_NPOS, fstdout)) {
       fprintf(fstderr, "%s", stdErr.c_str());
       fprintf(fstderr, "error: unable to run find in directory");
       retc = errno;

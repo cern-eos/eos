@@ -86,8 +86,7 @@ public:
   //! @param file_svc file metadata service
   //! @param cont_svc container metadata service
   //----------------------------------------------------------------------------
-  ContainerMD(ContainerMD::id_t id, IFileMDSvc* file_svc,
-              IContainerMDSvc* cont_svc);
+  ContainerMD(ContainerMD::id_t id, IFileMDSvc* file_svc, IContainerMDSvc* cont_svc);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -129,8 +128,7 @@ public:
   //----------------------------------------------------------------------------
   //! Find sub container, asynchronous API
   //----------------------------------------------------------------------------
-  folly::Future<IContainerMDPtr> findContainerFut(const std::string& name)
-  override;
+  folly::Future<IContainerMDPtr> findContainerFut(const std::string& name) override;
 
   //----------------------------------------------------------------------------
   //! Find sub container
@@ -475,6 +473,35 @@ public:
   {
     std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     pMode = mode;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get cloneId (dummy)
+  //----------------------------------------------------------------------------
+  time_t getCloneId() const override
+  {
+    return 0;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set cloneId (dummy)
+  //----------------------------------------------------------------------------
+  void setCloneId(time_t id) override {
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get cloneFST (dummy)
+  //----------------------------------------------------------------------------
+  const std::string getCloneFST() const override
+  {
+    return std::string("");
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set cloneFST (dummy)
+  //----------------------------------------------------------------------------
+  void setCloneFST(const std::string& data) override
+  {
   }
 
   //----------------------------------------------------------------------------

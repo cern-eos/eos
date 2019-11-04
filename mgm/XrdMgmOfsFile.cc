@@ -46,6 +46,7 @@
 #include "mgm/Macros.hh"
 #include "mgm/ZMQ.hh"
 #include "mgm/Master.hh"
+#include "namespace/utils/Attributes.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/Resolver.hh"
 #include "authz/XrdCapability.hh"
@@ -66,6 +67,109 @@
 /******************************************************************************/
 /* MGM File Interface                                                         */
 /******************************************************************************/
+
+/* copied for "eos_static_..." */
+static int
+emsg(XrdOucErrInfo& error, int ec, const char *txt, const char *txt2) {
+
+  // Get the reason for the error
+  if (ec < 0) ec = -ec;
+
+  char *etext = strerror(ec);
+  char sbuff[1024];
+  char ebuff[64];
+
+  if (etext == NULL) {
+    etext = ebuff;
+    snprintf(ebuff, sizeof(ebuff), "error code %d", ec);
+  }
+
+  snprintf(sbuff, sizeof(sbuff), "create_cow: unable to %s %s: %s", txt, txt2, etext);
+  eos_static_err(sbuff);
+  error.setErrInfo(ec, sbuff);
+  return SFS_ERROR;
+}
+
+/*
+ * Auxiliary routine: creates the copy-on-write clone an intermediate directories
+ */
+
+int
+XrdMgmOfsFile::create_cow(bool isDelete, uint64_t cloneId,
+        std::shared_ptr<eos::IContainerMD> dmd, std::shared_ptr<eos::IFileMD> fmd,
+        eos::common::VirtualIdentity& vid, XrdOucErrInfo& error)
+{
+  char sbuff[1024];
+  snprintf(sbuff, sizeof(sbuff), "%s/clone/%ld", gOFS->MgmProcPath.c_str(), cloneId);
+  std::shared_ptr<eos::IContainerMD> cloneMd, dirMd;
+
+  try {
+    cloneMd = gOFS->eosView->getContainer(sbuff);
+  } catch (eos::MDException& e) {
+    eos_static_debug("caught exception %d %s path %s\n", e.getErrno(), e.getMessage().str().c_str(), sbuff);
+    return emsg(error, ENOENT /*EEXIST*/, "open file ()", sbuff);
+  }
+
+  if (!dmd) return emsg(error, ENOENT, "determine parent", fmd->getName().c_str());
+
+  /* set up directory for clone */
+  int tlen = strlen(sbuff);
+  snprintf(sbuff+tlen, sizeof(sbuff)-tlen, "/%lx", dmd->getId());
+  try {
+    dirMd = gOFS->eosView->getContainer(sbuff);
+  } catch (eos::MDException& e) {
+    dirMd = gOFS->eosView->createContainer(sbuff, true);
+    dirMd->setMode(dmd->getMode());
+
+    eos::IFileMD::XAttrMap xattrs = dmd->getAttributes();
+    for (const auto& a : xattrs) {
+      if (a.first == "sys.acl" || a.first == "user.acl" || a.first == "sys.eval.useracl") {
+        dirMd->setAttribute(a.first, a.second);
+      }
+    }
+  }
+
+  /* create the clone */
+  if (isDelete) {       /* effectively a "mv" */
+    dmd->removeFile(fmd->getName());
+    snprintf(sbuff, sizeof(sbuff), "%lx", fmd->getId());
+    fmd->setName(sbuff);
+    fmd->setCloneId(0); /* don't ever cow this again! */
+    dirMd->addFile(fmd.get());
+    gOFS->eosFileService->updateStore(fmd.get());
+  } else {              /* prepare a "cp --reflink" (to be performed on the FSTs) */
+    std::shared_ptr<eos::IFileMD> gmd;
+    eos::IFileMD::ctime_t ttime;
+    tlen = strlen(sbuff);
+    snprintf(sbuff+tlen, sizeof(sbuff)-tlen, "/%lx", fmd->getId());
+    gmd = gOFS->eosView->createFile(sbuff, vid.uid, vid.gid);
+    gmd->setAttribute("sys.clone.targetFid", sbuff+tlen+1);
+    fmd->getCTime(ttime);
+    gmd->setCTime(ttime);
+    fmd->getMTime(ttime);
+    gmd->setMTime(ttime);
+    gmd->setCUid(fmd->getCUid());
+    gmd->setCGid(fmd->getCGid());
+    gmd->setFlags(fmd->getFlags());
+    gmd->setLayoutId(fmd->getLayoutId());
+    gmd->setSize(fmd->getSize());
+    gmd->setChecksum(fmd->getChecksum());
+    gmd->setContainerId(dirMd->getId());
+    for (unsigned int i = 0; i < fmd->getNumLocation(); i++)
+      gmd->addLocation(fmd->getLocation(i));
+
+    gOFS->eosFileService->updateStore(gmd.get());
+    fmd->setCloneFST(eos::common::FileId::Fid2Hex(gmd->getId()));
+    gOFS->eosFileService->updateStore(fmd.get());
+  }
+
+  gOFS->eosDirectoryService->updateStore(dirMd.get());
+  gOFS->FuseXCastContainer(dirMd->getIdentifier());
+  gOFS->FuseXCastContainer(dirMd->getParentIdentifier());       /* cloneMd */
+  gOFS->FuseXCastRefresh(dirMd->getIdentifier(), dirMd->getParentIdentifier());
+  gOFS->FuseXCastRefresh(cloneMd->getIdentifier(), cloneMd->getParentIdentifier());
+  return 0;
+}
 
 /*----------------------------------------------------------------------------*/
 int
@@ -529,6 +633,23 @@ XrdMgmOfsFile::open(const char* inpath,
           }
 
           if (fmd) {
+
+            /* these should be picked up from XrdMgmOfs.cc ?? */
+            const char* k_mdino = "sys.eos.mdino";
+            // const char* k_nlink = "sys.eos.nlink";
+
+            /* in case of a hard link, may need to switch to target */
+            if (fmd->hasAttribute(k_mdino)) {        /* This is a hard link to another file */
+              std::shared_ptr<eos::IFileMD> gmd;
+
+              uint64_t mdino = std::stoll(fmd->getAttribute(k_mdino));
+              gmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(mdino));
+              eos_info("hlnk switched from %s (%#lx) to file %s (%#lx)",
+                      fmd->getName().c_str(), fmd->getId(), gmd->getName().c_str(), gmd->getId());
+                                          
+              fmd = gmd;
+            }
+
             uint64_t dmd_id = fmd->getContainerId();
 
             // if fmd is resolved via a symbolic link, we have to find the 'real' parent directory
@@ -661,7 +782,11 @@ XrdMgmOfsFile::open(const char* inpath,
     // ACL and permission check
     // -------------------------------------------------------------------------
     eos::IFileMD::XAttrMap attrmapF;
-    gOFS->_attr_ls(cPath.GetPath(), error, vid, 0, attrmapF, false);
+    if (fmd) {
+        eos::listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
+    } else {
+        gOFS->_attr_ls(cPath.GetPath(), error, vid, 0, attrmapF, false);
+    }
     acl.SetFromAttrMap(attrmap, vid, &attrmapF);
     eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
@@ -1032,6 +1157,19 @@ XrdMgmOfsFile::open(const char* inpath,
       } else {
         capability += "&mgm.access=create";
       }
+      uint64_t cloneId;
+      if (fmd && (cloneId = fmd->getCloneId()) != 0) {
+        char sbuff[1024];
+        std::string cloneFST = fmd->getCloneFST();
+
+        if (cloneFST == "") {      /* This triggers the copy-on-write */
+          if (int rc = create_cow(false, cloneId, dmd, fmd, vid, error)) return rc;
+        }
+
+        eos_debug("file %s cloneid %ld cloneFST %s trunc %d", path, fmd->getCloneId(), fmd->getCloneFST().c_str(), open_mode & SFS_O_TRUNC);
+        snprintf(sbuff, sizeof(sbuff), "&mgm.cloneid=%ld&mgm.cloneFST=%s", cloneId, fmd->getCloneFST().c_str());
+        capability += sbuff;
+      }
     } else {
       capability += "&mgm.access=read";
     }
@@ -1108,7 +1246,7 @@ XrdMgmOfsFile::open(const char* inpath,
     }
   }
 
-  if ((!isInjection) && (isCreation || ((open_mode == SFS_O_TRUNC)))) {
+  if ((!isInjection) && (isCreation || (open_mode == SFS_O_TRUNC))) {
     eos_info("blocksize=%llu lid=%x",
              eos::common::LayoutId::GetBlocksize(new_lid), new_lid);
     layoutId = new_lid;
@@ -1228,7 +1366,18 @@ XrdMgmOfsFile::open(const char* inpath,
   capability += "&mgm.manager=";
   capability += gOFS->ManagerId.c_str();
   capability += "&mgm.fid=";
-  const std::string hex_fid = eos::common::FileId::Fid2Hex(fileId);
+  std::string hex_fid;
+  if (!isRW) {
+    const char* val;
+    if ((val = openOpaque->Get("eos.clonefst")) && (strlen(val) < 32)) {
+      hex_fid = fmd->getCloneFST();
+      eos_debug("open read eos.clonefst %s hex_fid %s", val, hex_fid.c_str());
+      if (hex_fid != val) return Emsg(epname, error, EINVAL, "open - invalid clonefst argument", path);
+    }
+  }
+  if (hex_fid.empty()) {
+    hex_fid = eos::common::FileId::Fid2Hex(fileId);
+  }
   capability += hex_fid.c_str();
   XrdOucString sizestring;
   capability += "&mgm.cid=";
@@ -2398,7 +2547,7 @@ XrdMgmOfsFile::open(const char* inpath,
       }
     }
 
-    if (openOpaque->Get("eos.checksum")) {
+    if (openOpaque->Get("eos.checksum") || openOpaque->Get("eos.cloneid")) {
       redirectionhost += "&mgm.checksum=";
       redirectionhost += openOpaque->Get("eos.checksum");
     }

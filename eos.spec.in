@@ -991,7 +991,7 @@ Contains an example keytab file.
 Summary: The EOS archive daemon
 Group: Applications/File
 
-Requires: python-daemon python-zmq
+Requires: python-daemon python-zmq python3-fusepy
 
 # ----------------------
 # select xrootd package
@@ -1011,6 +1011,8 @@ Requires: xrootd-python >= %{xrootd_version_min}
 The EOS archive daemon.
 
 %files -n eos-archive
+%{_sbindir}/eos-backup
+%{_sbindir}/eos-backup-browser
 %defattr(-, eosarchi, c3, -)
 %{_bindir}/eosarchived.py
 %{_bindir}/eosarch_run.py

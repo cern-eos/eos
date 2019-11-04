@@ -1,0 +1,246 @@
+#!/usr/bin/env python3
+
+
+from __future__ import print_function
+
+import os, posix, re, stat, sys, time
+import pdb
+from errno import *
+from stat import *
+import fcntl, json
+
+import argparse
+
+import fuse
+from fuse import FUSE, FuseOSError, Operations, LoggingMixIn
+
+from XRootD import client
+from XRootD.client.flags import MkDirFlags, OpenFlags
+
+ctlg={}
+
+def flag2mode(flags):
+    md = {os.O_RDONLY: 'r', os.O_WRONLY: 'w', os.O_RDWR: 'w+'}
+    m = md[flags & (os.O_RDONLY | os.O_WRONLY | os.O_RDWR)]
+
+    if flags | os.O_APPEND:
+        m = m.replace('w', 'a', 1)
+
+    return m
+
+
+class Bck(LoggingMixIn, Operations):
+
+    def __init__(self, root="/"):
+
+        # do stuff to set up your filesystem here, if you want
+        #import thread
+        #thread.start_new_thread(self.mythread, ())
+        self.root = root
+        self.fhs = {}
+
+    def getattr(self, path, fh=None):
+        if path not in ctlg: path += "/"
+        print("path=%r" % path)
+        try:
+            st = ctlg[path]['s']
+            print(st)
+            return dict((k, getattr(st, k)) for k in ('st_atime', 'st_gid',
+                            'st_mode', 'st_mtime', 'st_size', 'st_uid'))
+        except Exception as e:
+            print("Exception %r" % e)
+
+    def readlink(self, path):
+        pdb.set_trace()
+        return os.readlink("." + path)
+
+    def readdir(self, path, offset):
+        if path != "/": path += "/"         # this is a dir
+        print("path=%r" % path)
+        for e in filter(lambda a: type(a) is str and a.startswith(path), ctlg.keys()):
+            print("e1='%s'" % e)
+            if len(e) > 0 and e[:len(path)] == path:
+                suffix = str(e[len(path):])
+                print("suffix='%s'" % suffix)
+                if len(suffix) == 0: continue
+                #if '/' not in suffix or suffix.find("/") == len(suffix)-1:
+                if '/' not in suffix:
+                    print("yield %r" % suffix)
+                    yield suffix
+                elif len(suffix) > 1 and suffix.find("/") == len(suffix)-1:
+                    print("yield %r" % suffix[:-1])
+                    yield suffix[:-1]
+
+
+    def access(self, path, mode):
+        return
+        pdb.set_trace()
+
+
+    def utimens(self, path, times=None):
+        return None
+
+    def get_fe(self, path, fh):
+        try:
+            fe = self.fhs[path]
+        except KeyError:
+            # garbage collect
+            kk = list(self.fhs.keys())
+            if len(kk) > 1:
+                now = time.time()
+                for k in kk:
+                    if now - self.fhs[k]['ts'] > 1:
+                        print("closing", self.fhs[k]['blobFn'])
+                        self.fhs[k]['blobFile'].close()
+                        del self.fhs[k]
+
+            fe = {}
+            self.fhs[path] = fe
+            
+            fe['bIndex'], fe['bOffset'], fe['bLen'] = map(int, ctlg[path]['b'].split(":"))
+            cloneId = ctlg[path]['c']
+            fe['blobFn'] = "%s/b.%d" % (ctlg[cloneId]['path'], fe['bIndex'])
+
+            fe['bl_Xroot'] = fe['blobFn'].startswith("root:")
+            if fe['bl_Xroot']:
+                fe['blobFile'] = client.File()
+                st, xx = fe['blobFile'].open(fe['blobFn'])
+            else:
+                fe['blobFile'] = open(fe['blobFn'], "rb")
+                fe['blobFile'].seek(fe['bOffset']+offset, 0)
+
+        fe['ts'] = time.time()
+        return fe
+
+    def read(self, path, length, offset, fh):
+        fe = self.get_fe(path, fh)
+        if offset+length > fe['bLen']:
+            length = fe['bLen'] - offset
+        if length > 0:
+            st, buff = fe['blobFile'].read(offset=fe['bOffset']+offset, size=length)
+            if st.ok:
+               return buff
+
+        return None
+
+
+def find_blobs(regs):
+    blobs = {}
+    
+    res = []
+    for regexp in regs:
+        print("check for '%s'" % regexp)
+        res.append(re.compile(regexp))
+
+    for k in ctlg.keys():
+        if type(k) is str and 'b' in ctlg[k]:
+            for rx in res:
+                if rx.search(k):
+                    bIndex, bOffset, bLen = map(int, ctlg[k]['b'].split(":"))
+                    cloneId = ctlg[k]['c']
+                    blobFn = "%s/b.%d" % (ctlg[cloneId]['path'], bIndex)
+                    try:
+                        blobs[blobFn] += 1
+                    except KeyError:
+                        blobs[blobFn] = 1
+
+    for k in blobs:
+        print(k, blobs[k])
+
+
+def parse_cat_files(s):
+    catFiles = []
+    for f in s.files:
+        catFiles += f.split(',')
+
+    # build a dictionary of files in the backup, implementing incremental logic
+    for fn in catFiles:
+        lastCatFile = fn == catFiles[-1]
+
+        ff = client.File()
+        st, xx = ff.open(fn)
+        line1 = ff.readline()
+        xx = json.loads(line1)
+        cloneId = int(xx['c'])                       # top dir has this dump's cloneId
+        rootPath = str(xx['n'])[:-1]                 # excluding final "/"
+        ctlg[cloneId] = dict(path=os.path.dirname(fn))
+
+        ff.close()
+        ff = client.File()
+        st, xx = ff.open(fn)
+
+        while True:
+            l = ff.readline()
+            if len(l) == 0: break
+
+            try:
+                xx = json.loads(l)
+            #except json.decoder.JSONDecodeError as e:          # python 3
+            except Exception as e:
+                pdb.set_trace()
+                print("json error %r l='%s'" % (e, l), file=sys.stderr)
+                sys.exit(1)
+
+            path = str(xx['n'])                      # bloody unicode
+            #if not path.endswith('/'): clonePath = "%s/%s" % (xx['c'], xx['p'])
+
+            rpath = path[len(rootPath):]	# skip the "root" part
+            if rpath in ctlg and not path.endswith('/'):        # this is a file which we've got already
+              try:
+                if cloneId != xx['c']:                          # file not part of this backup
+                    if lastCatFile: ctlg[rpath]['keep'] = True  # but it must survive
+                    continue                                 
+                if xx['t'] < ctlg[rpath]['t'] or xx['c'] == 0:    # ??? file exists but not part of this backup ?????
+                    if lastCatFile: ctlg[rpath]['keep'] = True
+                    continue		# restore latest version
+              except Exception as e:
+                  pdb.set_trace()
+                  print(e)
+            else: ctlg[rpath] = dict()
+
+            mode = 0o777
+            if len(rpath) == 0 or rpath.endswith("/"): mode |= stat.S_IFDIR
+            ctlg[rpath]['s'] = posix.stat_result(eval(xx['st']))
+            ctlg[rpath]['t'] = xx['t']                              # server sync time
+            if 'p' in xx:                                           # this is a file
+              ctlg[rpath]['cp'] = "%d/%s" % (xx['c'], str(xx['p'])) # clone path
+              ctlg[rpath]['b'] = xx['b']
+              ctlg[rpath]['c'] = xx['c']                            # cloneId needed for blob file path
+            if lastCatFile: ctlg[rpath]['keep'] = True
+
+
+    #pdb.set_trace()
+    # remove deleted files
+    for p in sorted(map(str,ctlg.keys())):	# sorted so that dirs come before their files
+        if not p.isnumeric() and not 'keep' in ctlg[p]: del ctlg[p]
+
+
+if __name__ == '__main__':
+    usage = """
+Mount a R/O file system based on a series of eos-backup catalogs
+
+""" 
+
+    parser = argparse.ArgumentParser(description="Mount a R/O file system based on a series of eos-backup catalogs")
+
+    parser.add_argument("mnt", metavar="mountpoint", default='/mnt', help="mount point for the simulated file system")
+
+    parser.add_argument("-F", "--files", metavar='cat', dest="files", nargs='*', help='list (optionally comma-separated) of eos-backup catalog files')
+    parser.add_argument("-L", "--locate", dest="locate", metavar='regexp', nargs='*', help='only display a list of backup media blobs needed for restoring files matched by a regexp')
+    s = parser.parse_args()
+
+# parse catalog Files
+    parse_cat_files(s)
+
+    if s.locate is not None:
+        find_blobs(s.locate)
+        sys.exit(0)
+
+    try:
+        os.chdir(s.mnt)
+    except OSError:
+        print("can't enter root of underlying filesystem", file=sys.stderr)
+        sys.exit(1)
+
+    print("Mounting fuse file system on %s, browse it in a different window and ctrl-C or kill this program when finished" % s.mnt)
+    fuse = FUSE(Bck(), s.mnt, foreground=True, nothreads=True)

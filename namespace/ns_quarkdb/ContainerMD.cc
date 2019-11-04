@@ -49,7 +49,6 @@ QuarkContainerMD::QuarkContainerMD(IContainerMD::id_t id, IFileMDSvc* file_svc,
   mCont.set_id(id);
   mCont.set_mode(040755);
   mClock = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-
   if (!cont_svc && !file_svc) {
     // "Standalone" ContainerMD, without associated container service.
     // Don't call functions which might modify metadata..
@@ -567,6 +566,11 @@ QuarkContainerMD::setTMTime(tmtime_t tmtime)
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   tmtime_t tmt;
   getTMTimeNoLock(tmt);
+  tmtime_t now;
+
+  clock_gettime(CLOCK_REALTIME, &now);
+
+  if (tmtime.tv_sec == 0 || tmtime.tv_sec > now.tv_sec) tmtime = now;
 
   if (((tmt.tv_sec == 0) && (tmt.tv_nsec == 0)) ||
       (tmtime.tv_sec > tmt.tv_sec) ||
@@ -586,14 +590,6 @@ void
 QuarkContainerMD::setTMTimeNow()
 {
   tmtime_t tmtime = {0};
-#ifdef __APPLE__
-  struct timeval tv;
-  gettimeofday(&tv, 0);
-  tmtime..tv_sec = tv.tv_sec;
-  tmtime.tv_nsec = tv.tv_usec * 1000;
-#else
-  clock_gettime(CLOCK_REALTIME, &tmtime);
-#endif
   setTMTime(tmtime);
 }
 
@@ -604,6 +600,8 @@ void
 QuarkContainerMD::getTMTimeNoLock(tmtime_t& tmtime)
 {
   (void) memcpy(&tmtime, mCont.stime().data(), sizeof(tmtime));
+  if (tmtime.tv_sec == 0)
+      (void) memcpy(&tmtime, mCont.mtime().data(), sizeof(tmtime));
 }
 
 //------------------------------------------------------------------------------
@@ -726,7 +724,7 @@ QuarkContainerMD::loadChildren()
 
   if (pQcl) {
     mFiles = MetadataFetcher::getFileMap(*pQcl,
-                                         ContainerIdentifier(mCont.id()));
+             ContainerIdentifier(mCont.id()));
     mSubcontainers = MetadataFetcher::getContainerMap(*pQcl,
                      ContainerIdentifier(mCont.id()));
   } else {

@@ -152,8 +152,7 @@ FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
   EXEC_TIMING_BEGIN("Eosxd::int::BcReleaseExt");
   // broad-cast release for a given inode
   eos::common::RWMutexReadLock lLock(*this);
-  eos_static_info("id=%lx ",
-                  id);
+  eos_static_info("id=%lx mInodeCaps.count=%d", id, mInodeCaps.count(id));
   std::vector<shared_cap> bccaps;
 
   if (mInodeCaps.count(id)) {
@@ -162,6 +161,7 @@ FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
       shared_cap cap;
 
       // loop over all caps for that inode
+eos_static_debug("mCaps.count=%d", mCaps.count(*it));
       if (mCaps.count(*it)) {
         cap = mCaps[*it];
       } else {
@@ -177,6 +177,7 @@ FuseServer::Caps::BroadcastReleaseFromExternal(uint64_t id)
   lLock.Release();
 
   for (auto it : bccaps) {
+eos_static_debug("ReleaseCAP id %#lx clientid %s", it->clientid().c_str());
     gOFS->zMQ->gFuseServer.Client().ReleaseCAP((uint64_t) it->id(),
         it->clientuuid(),
         it->clientid());

@@ -20,4 +20,8 @@ message FileMdProto {
   repeated uint32 locations = 13;
   repeated uint32 unlink_locations = 14;
   map<string, bytes> xattrs = 15;
+  bytes stime = 16; // server sync time
+
+  uint64 cloneid = 256;     // transient
+  bytes clonefst = 257;     // transient
 }

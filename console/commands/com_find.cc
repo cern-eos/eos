@@ -63,6 +63,11 @@ com_find_old(char* arg1)
   while ((s1 = subtokenizer.GetToken()).length() && (s1.beginswith("-"))) {
     valid = false;
 
+    if (s1 == "-j") {
+        option += "j";
+        continue;
+    }
+
     if (s1 == "-s") {
       option += "s";
       valid = true;
