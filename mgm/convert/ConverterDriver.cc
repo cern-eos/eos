@@ -203,7 +203,7 @@ ConverterDriver::QdbHelper::RetrieveJobsBatch()
     return jobs;
   }
 
-  if (ParseJobsFromReply(qclient::redisReplyPtr(reply->element[1]), jobs)) {
+  if (ParseJobsFromReply(reply->element[1], jobs)) {
     mJobsRetrieved = true;
   }
 
@@ -252,7 +252,7 @@ ConverterDriver::QdbHelper::AddFailedJob(const JobInfoT& jobinfo) const
 // and fill the given list with jobs info
 //--------------------------------------------------------------------------
 bool ConverterDriver::QdbHelper::ParseJobsFromReply(
-  const qclient::redisReplyPtr& reply, std::list<JobInfoT>& jobs) const
+  const qclient::Reply* const reply, std::list<JobInfoT>& jobs) const
 {
   if (reply->type != REDIS_REPLY_ARRAY) {
     eos_static_crit("msg=\"Unexpected response from QDB when parsing "
@@ -279,12 +279,12 @@ bool ConverterDriver::QdbHelper::ParseJobsFromReply(
 
 
   // Lambda function to parse a Redis reply element into a string value
-  auto parseElement = [](auto element) -> std::string {
-   qclient::StringParser parser(element);
+  auto parseElement = [](const qclient::Reply* reply) -> std::string {
+   qclient::StringParser parser(reply);
 
     if (!parser.ok() || parser.value().empty()) {
       eos_static_crit("msg=\"Unexpected response from QDB when parsing "
-                      "consersion job element\" parser_err=%s",
+                      "conversion job element\" parser_err=%s",
                       parser.err().c_str());
       return "";
     }
@@ -296,7 +296,7 @@ bool ConverterDriver::QdbHelper::ParseJobsFromReply(
 
   for (size_t i = 0; i < reply->elements; i+=3) {
     std::string parsed_element =
-      parseElement(qclient::redisReplyPtr(reply->element[i + 1]));
+      parseElement(reply->element[i + 1]);
 
     auto fid = 0ull;
     try {
@@ -304,7 +304,7 @@ bool ConverterDriver::QdbHelper::ParseJobsFromReply(
     } catch (...) {}
 
     std::string info =
-      parseElement(qclient::redisReplyPtr(reply->element[i + 2]));
+      parseElement(reply->element[i + 2]);
 
     if (!fid || !info.length()) {
       return false;
