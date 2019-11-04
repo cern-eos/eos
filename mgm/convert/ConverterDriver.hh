@@ -156,7 +156,7 @@ private:
     //! @param jobs the list of jobs info to fill
     //! @return true if parsing succeeded, false otherwise
     //--------------------------------------------------------------------------
-    bool ParseJobsFromReply(const qclient::redisReplyPtr& reply,
+    bool ParseJobsFromReply(const qclient::Reply* const reply,
                             std::list<JobInfoT>& jobs) const;
 
     std::unique_ptr<qclient::QClient> mQcl; ///< Internal QClient object
