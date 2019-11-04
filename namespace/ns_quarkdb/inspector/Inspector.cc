@@ -245,7 +245,7 @@ static std::string serializeLocations(const T& vec) {
 //------------------------------------------------------------------------------
 // Find files with layout = 1 replica
 //------------------------------------------------------------------------------
-int Inspector::oneReplicaLayout(std::ostream &out, std::ostream &err) {
+int Inspector::oneReplicaLayout(bool showName, std::ostream &out, std::ostream &err) {
   FileScanner fileScanner(mQcl);
 
   while(fileScanner.valid()) {
@@ -265,7 +265,10 @@ int Inspector::oneReplicaLayout(std::ostream &out, std::ostream &err) {
 
     if(expected == 1 && size != 0) {
       out << "id=" << proto.id();
-      out << " name=" << proto.name();
+
+      if(showName) {
+        out << " name=" << proto.name();
+      }
       out << " container=" << proto.cont_id() << " size=" << size << " actual-stripes=" << actual << " expected-stripes=" << expected << " unlinked-stripes=" << unlinked <<  " locations=" << serializeLocations(proto.locations()) << " unlinked-locations=" << serializeLocations(proto.unlink_locations());
       out << " mtime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.mtime()));
       out << " ctime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.ctime()));

@@ -142,6 +142,9 @@ int main(int argc, char* argv[]) {
   auto oneReplicaLayoutSubcommand = app.add_subcommand("one-replica-layout", "Find all files whose layout asks for a single replica");
   addClusterOptions(oneReplicaLayoutSubcommand, membersStr, memberValidator, password, passwordFile);
 
+  bool showName = false;
+  oneReplicaLayoutSubcommand->add_flag("--show-name", showName, "Show filenames");
+
   //----------------------------------------------------------------------------
   // Set-up scan-directories subcommand..
   //----------------------------------------------------------------------------
@@ -377,7 +380,7 @@ int main(int argc, char* argv[]) {
   }
 
   if(oneReplicaLayoutSubcommand->parsed()) {
-    return inspector.oneReplicaLayout(std::cout, std::cerr);
+    return inspector.oneReplicaLayout(showName, std::cout, std::cerr);
   }
 
   if(scanFilesSubcommand->parsed()) {
