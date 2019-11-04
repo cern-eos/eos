@@ -117,4 +117,8 @@ else()
   # Fake targets
   add_library(ZLIB::ZLIB        UNKNOWN IMPORTED)
   add_library(ZLIB::ZLIB_STATIC UNKNOWN IMPORTED)
+  add_library(UUID::UUID        UNKNOWN IMPORTED)
+  add_library(XROOTD::SERVER    UNKNOWN IMPORTED)
+  add_library(XROOTD::CL        UNKNOWN IMPORTED)
+  add_library(XROOTD::UTILS     UNKNOWN IMPORTED)
 endif()
