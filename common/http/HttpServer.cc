@@ -29,7 +29,6 @@
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdNet/XrdNet.hh"
-#include "XrdNet/XrdNetBuffer.hh"
 #include "XrdNet/XrdNetPeer.hh"
 #include <string>
 #include <map>

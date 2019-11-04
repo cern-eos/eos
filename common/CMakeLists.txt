@@ -24,7 +24,6 @@
 include_directories(
   ${CMAKE_BINARY_DIR}
   ${PROTOBUF_INCLUDE_DIRS}
-  ${XROOTD_INCLUDE_DIRS}
   ${JSONCPP_INCLUDE_DIR}
   ${ZMQ_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
@@ -106,7 +105,9 @@ set_target_properties(EosCommon-Objects PROPERTIES
 
 target_include_directories(EosCommon-Objects
   PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
-  PRIVATE $<TARGET_PROPERTY:ZLIB::ZLIB,INTERFACE_INCLUDE_DIRECTORIES>)
+  PRIVATE
+  $<TARGET_PROPERTY:ZLIB::ZLIB,INTERFACE_INCLUDE_DIRECTORIES>
+  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>)
 
 #-------------------------------------------------------------------------------
 # Add dependency to protobuf objects so we guarantee that the protocol
@@ -127,8 +128,6 @@ set(EOSCOMMON_LIBS
   ${NCURSES_LIBRARY}
   ${JSONCPP_LIBRARIES}
   ${PROTOBUF_LIBRARIES}
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
@@ -157,6 +156,8 @@ target_link_libraries(EosCommon
   PUBLIC
   ZLIB::ZLIB
   UUID::UUID
+  XROOTD::CL
+  XROOTD::UTILS
   ${EOSCOMMON_LIBS})
 
 target_compile_definitions(EosCommon-Objects PUBLIC
@@ -186,8 +187,10 @@ else ()
 endif ()
 
 target_link_libraries(EosCommon-Static
-  PRIVATE
+  PUBLIC
   ${EOSCOMMON_LIBS}
+  XROOTD::CL
+  XROOTD::UTILS
   UUID::UUID
   ZLIB::ZLIB_STATIC)
 
@@ -229,8 +232,12 @@ if (Linux)
   set_target_properties(EosCommonServer-Objects PROPERTIES
     POSITION_INDEPENDENT_CODE TRUE)
 
-  target_include_directories(EosCommonServer-Objects PUBLIC
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>)
+  target_include_directories(EosCommonServer-Objects
+    PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+    PRIVATE
+    $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>
+    ${XROOTD_PRIVATE_INCLUDE_DIR})
 
   target_compile_definitions(EosCommonServer-Objects PUBLIC
     -DSQLITE_NO_SYNC=1)
@@ -244,8 +251,6 @@ if (Linux)
     ${JSONCPP_LIBRARIES}
     ${LEVELDB_LIBRARIES}
     ${GLIBC_RT_LIBRARY}
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UTILS_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY})
 
   if(MICROHTTPD_FOUND)
@@ -258,6 +263,8 @@ if (Linux)
   target_link_libraries(EosCommonServer PUBLIC
     XrdMqClient
     UUID::UUID
+    XROOTD::CL
+    XROOTD::UTILS
     ${EOSCOMMONSERVER_LIBS})
 
   set_target_properties(EosCommonServer PROPERTIES
@@ -275,9 +282,11 @@ if (Linux)
     $<TARGET_OBJECTS:EosCommonServer-Objects>)
 
   target_link_libraries(EosCommonServer-Static PUBLIC
-    XrdMqClient-Static
     UUID::UUID
-    ${EOSCOMMONSERVER_LIBS})
+    XROOTD::CL
+    XROOTD::UTILS
+    ${EOSCOMMONSERVER_LIBS}
+    XrdMqClient-Static)
 
   target_compile_definitions(EosCommonServer-Static PUBLIC
     -DSQLITE_NO_SYNC=1)

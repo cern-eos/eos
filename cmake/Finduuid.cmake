@@ -4,6 +4,10 @@
 # UUID_FOUND        - system has uuid
 # UUID_INCLUDE_DIRS - uuid include directories
 # UUID_LIBRARIES    - libraries needed to use uuid
+#
+# and the following imported target
+#
+# UUID::UUID
 
 find_package(PkgConfig)
 pkg_check_modules(PC_uuid QUIET uuid)
@@ -17,7 +21,7 @@ find_path(UUID_INCLUDE_DIR
 find_library(UUID_LIBRARY
   NAMES uuid
   HINTS ${UUID_ROOT} ${PC_uuid_LIBDIR} ${PC_uuid_LIBRARY_DIRS}
-  PATH_SUFFIXES lib)
+  PATH_SUFFIXES ${LIBRARY_PATH_PREFIX})
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(uuid
