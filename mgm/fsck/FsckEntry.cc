@@ -643,6 +643,7 @@ FsckEntry::Repair()
     if (mMgmFmd.cont_id() == 0ull) {
       eos_info("msg=\"no repair action, file is being deleted\" fxid=%08llx",
                mFid);
+      UpdateMgmStats(true);
       return true;
     }
 
