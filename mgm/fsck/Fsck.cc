@@ -213,6 +213,7 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
   } else if (key == "max-thread-pool-size") {
     try {
       mMaxThreadPoolSize = std::stoul(value);
+      mThreadPool.SetMaxThreads(mMaxThreadPoolSize);
     } catch (...) {
       eos_err("msg=\"failed to convert max-thread-pool-size\" value=%s",
               value.c_str());
