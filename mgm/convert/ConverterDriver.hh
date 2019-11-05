@@ -109,7 +109,7 @@ private:
     //! Constructor
     //--------------------------------------------------------------------------
     QdbHelper(const eos::QdbContactDetails& qdb_details) :
-      mJobsRetrieved{false}, mTimestamp()
+      mCursor{"0"}, mReachedEnd{false}, mTimestamp()
     {
       mQcl = std::make_unique<qclient::QClient>(qdb_details.members,
                                                 qdb_details.constructOptions());
@@ -160,7 +160,8 @@ private:
                             std::list<JobInfoT>& jobs) const;
 
     std::unique_ptr<qclient::QClient> mQcl; ///< Internal QClient object
-    bool mJobsRetrieved; ///< Flag status of last request
+    std::string mCursor; ///< Cursor for QDB hash traversal
+    bool mReachedEnd; ///< Flag signaling end of iteration
     ///< Timestamp of last request
     std::chrono::steady_clock::time_point mTimestamp;
   };

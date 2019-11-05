@@ -172,19 +172,24 @@ ConverterDriver::QdbHelper::RetrieveJobsBatch()
 {
   std::list<ConverterDriver::JobInfoT> jobs;
 
-  // Avoid frequent retries in case previous request failed
-  if (!mJobsRetrieved) {
+  // Avoid frequent retries outside active iteration
+  if (mReachedEnd) {
     auto elapsed = std::chrono::steady_clock::now() - mTimestamp;
 
     if (elapsed <= std::chrono::seconds(cRequestIntervalTime)) {
       return jobs;
     }
+
+    mTimestamp = std::chrono::steady_clock::now();
+    mReachedEnd = false;
+    mCursor = "0";
   }
 
+  eos_static_debug("msg=\"retrieving conversion jobs from QDB\" cursor=%s",
+                   mCursor.c_str());
+
   auto reply = mQcl->exec("LHSCAN", kConversionPendingHashKey,
-                          "0", "COUNT", std::to_string(cBatchSize)).get();
-  mTimestamp = std::chrono::steady_clock::now();
-  mJobsRetrieved = false;
+                          mCursor, "COUNT", std::to_string(cBatchSize)).get();
 
   // Validate reply object
   if (!reply || reply->type != REDIS_REPLY_ARRAY) {
@@ -203,8 +208,23 @@ ConverterDriver::QdbHelper::RetrieveJobsBatch()
     return jobs;
   }
 
+  // Retrieve cursor
+  qclient::Reply* cursor = reply->element[0];
+
+  if (!cursor || cursor->type != REDIS_REPLY_STRING) {
+    eos_static_crit("msg=\"Invalid cursor encountered while retrieving "
+                    "conversion jobs\" reply_type=%s",
+                    qclient::describeRedisReply(cursor).c_str());
+    return jobs;
+  }
+
+  mCursor = std::string(cursor->str, cursor->len);
+  mReachedEnd = (mCursor == "0");
+
   if (ParseJobsFromReply(reply->element[1], jobs)) {
-    mJobsRetrieved = true;
+    eos_static_info("msg=\"conversion jobs retrieval done\" "
+                    "count=%d cursor=%s reached_end=%d",
+                    jobs.size(), mCursor.c_str(), mReachedEnd);
   }
 
   return jobs;
@@ -254,7 +274,7 @@ ConverterDriver::QdbHelper::AddFailedJob(const JobInfoT& jobinfo) const
 bool ConverterDriver::QdbHelper::ParseJobsFromReply(
   const qclient::Reply* const reply, std::list<JobInfoT>& jobs) const
 {
-  if (reply->type != REDIS_REPLY_ARRAY) {
+  if (!reply || reply->type != REDIS_REPLY_ARRAY) {
     eos_static_crit("msg=\"Unexpected response from QDB when parsing "
                     "conversion jobs\" reply_type=%s",
                      qclient::describeRedisReply(reply).c_str());
