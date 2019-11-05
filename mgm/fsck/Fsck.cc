@@ -54,7 +54,8 @@ Fsck::Fsck():
   mCollectRunning(false), mRepairRunning(false),
   mCollectInterval(std::chrono::minutes(30)),
   eTimeStamp(0),
-  mThreadPool(std::thread::hardware_concurrency(), 20, 10, 6, 5, "fsck"),
+  mThreadPool(std::thread::hardware_concurrency(), 2, mMaxThreadPoolSize,
+              6, 5, "fsck"),
   mIdTracker(std::chrono::minutes(10), std::chrono::hours(2)), mQcl(nullptr)
 {}
 
@@ -207,6 +208,13 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
       mMaxQueuedJobs = std::stoull(value);
     } catch (...) {
       eos_err("msg=\"failed to convert max-queued-jobs\" value=%s",
+              value.c_str());
+    }
+  } else if (key == "max-thread-pool-size") {
+    try {
+      mMaxThreadPoolSize = std::stoul(value);
+    } catch (...) {
+      eos_err("msg=\"failed to convert max-thread-pool-size\" value=%s",
               value.c_str());
     }
   } else {
@@ -409,20 +417,20 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
           mThreadPool.PushTask<void>([job]() {
             return job->Repair();
           });
-        }
 
-        while (mThreadPool.GetQueueSize() > mMaxQueuedJobs) {
-          assistant.wait_for(std::chrono::seconds(1));
+          while (mThreadPool.GetQueueSize() > mMaxQueuedJobs) {
+            assistant.wait_for(std::chrono::seconds(1));
 
-          if (assistant.terminationRequested()) {
-            // Wait that there are not more jobs in the queue
-            while (mThreadPool.GetQueueSize()) {
-              assistant.wait_for(std::chrono::seconds(1));
+            if (assistant.terminationRequested()) {
+              // Wait that there are not more jobs in the queue
+              while (mThreadPool.GetQueueSize()) {
+                assistant.wait_for(std::chrono::seconds(1));
+              }
+
+              eos_info("%s", "msg=\"stopped fsck repair thread\"");
+              mRepairRunning = false;
+              return;
             }
-
-            eos_info("%s", "msg=\"stopped fsck repair thread\"");
-            mRepairRunning = false;
-            return;
           }
         }
       }

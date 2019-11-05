@@ -208,6 +208,7 @@ private:
   std::map<eos::common::FileSystem::fsid_t, unsigned long long > eFsDark;
   time_t eTimeStamp; ///< Timestamp of collection
   uint64_t mMaxQueuedJobs {(uint64_t)1e3}; ///< Max number of queued jobs (1k)
+  uint32_t mMaxThreadPoolSize {20}; ///< Max number of threads in the pool
   eos::common::ThreadPool mThreadPool; ///< Thread pool for fsck repair jobs
   AssistedThread
   mRepairThread; ///< Thread repair submitting jobs to the thread pool
