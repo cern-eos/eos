@@ -25,7 +25,6 @@ include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
   ${PROTOBUF_INCLUDE_DIRS}
-  ${XROOTD_INCLUDE_DIRS}
   ${KINETICIO_INCLUDE_DIRS}
   ${ZMQ_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIRS}
@@ -45,8 +44,7 @@ add_library(
   commands/helpers/RecycleHelper.cc commands/helpers/RecycleHelper.hh
   commands/helpers/FsckHelper.cc    commands/helpers/FsckHelper.hh
   commands/helpers/NodeHelper.cc    commands/helpers/NodeHelper.hh
-  commands/helpers/TokenHelper.cc   commands/helpers/TokenHelper.hh
-)
+  commands/helpers/TokenHelper.cc   commands/helpers/TokenHelper.hh)
 
 add_library(
   EosConsoleCommands-Objects OBJECT
@@ -145,8 +143,14 @@ add_library(
 add_dependencies(EosConsoleHelpers-Objects EosFstProto-Objects)
 add_dependencies(EosConsoleCommands-Objects EosConsoleHelpers-Objects)
 
+target_include_directories(EosConsoleHelpers-Objects PRIVATE
+  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>)
+
 set_target_properties(EosConsoleHelpers-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
+
+target_include_directories(EosConsoleCommands-Objects PRIVATE
+  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>)
 
 set_target_properties(EosConsoleCommands-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
@@ -162,10 +166,10 @@ add_executable(eos
 #-------------------------------------------------------------------------------
 target_link_libraries(
   eos PUBLIC
-  EosFstIo-Static
-  ${ZMQ_LIBRARIES}
-  ${READLINE_LIBRARY}
-  ${XROOTD_POSIX_LIBRARY})
+  ZMQ::ZMQ
+  XROOTD::POSIX
+  REALDINE::READLINE
+  EosFstIo-Static)
 
 install(PROGRAMS eosadmin
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})

@@ -43,5 +43,8 @@ add_library(
   UserCredentialFactory.cc         UserCredentialFactory.hh
                                    UserCredentials.hh
   Utils.cc                         Utils.hh
-  UuidStore.cc                     UuidStore.hh
-)
+  UuidStore.cc                     UuidStore.hh)
+
+target_include_directories(EosFuseAuth PRIVATE
+  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>
+  $<TARGET_PROPERTY:XROOTD::PRIVATE,INTERFACE_INCLUDE_DIRECTORIES>)

@@ -21,35 +21,19 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(
-  ${CMAKE_SOURCE_DIR}
-  ${XROOTD_INCLUDE_DIRS}
-  ${CMAKE_BINARY_DIR})
-
 #-------------------------------------------------------------------------------
 # Create sync executables
 #-------------------------------------------------------------------------------
 add_executable(eosfilesync eosfilesync.cc)
 add_executable(eosdirsync eosdirsync.cc)
 
-target_link_libraries(
-  eosdirsync
-  EosCommon-Static
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY})
+target_link_libraries(eosdirsync PRIVATE EosCommon-Static)
+target_link_libraries(eosfilesync PRIVATE EosCommon-Static)
 
-target_link_libraries(
-  eosfilesync
-  EosCommon-Static
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY})
-
-install(
-  TARGETS eosfilesync eosdirsync
+install(TARGETS eosfilesync eosdirsync
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
-install(
-  PROGRAMS eossh-timeout
+install(PROGRAMS eossh-timeout
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})

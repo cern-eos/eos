@@ -25,8 +25,6 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
-  ${XROOTD_INCLUDE_DIRS}
-  ${XROOTD_PRIVATE_INCLUDE_DIR}
   ${FUSE_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
   ${KRB5_INCLUDE_DIR}
@@ -84,9 +82,9 @@ set(PROTO_HEADER ${PROTO_HEADER} PARENT_SCOPE)
 # Link libraries
 #-------------------------------------------------------------------------------
 set(EOSXD_COMMON_LINK_LIBRARIES
+  XROOTD::CL
+  XROOTD::UTILS
   ${FUSE_LIBRARIES}
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
   ${KRB5_LIBRARIES}
   ${OPENSSL_CRYPTO_LIBRARY}
@@ -133,6 +131,10 @@ add_library(eosxd-objects OBJECT
   submount/SubMount.cc submount/SubMount.hh
   ${PROTO_SRC} ${PROTO_HEADER})
 
+target_include_directories(eosxd-objects PRIVATE
+  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>
+  $<TARGET_PROPERTY:XROOTD::PRIVATE,INTERFACE_INCLUDE_DIRECTORIES>)
+
 set_target_properties(
   eosxd-objects
   PROPERTIES
@@ -155,54 +157,45 @@ add_executable(
   main.cc
   ${EOSXD_COMMON_SOURCES})
 
-if(MacOSX)
-  target_link_libraries(
-    eosxd
-    ${EOSXD_COMMON_LINK_LIBRARIES})
+target_include_directories(eosxd PRIVATE
+  $<TARGET_PROPERTY:XROOTD::PRIVATE,INTERFACE_INCLUDE_DIRECTORIES>)
 
-  set_target_properties(
-    eosxd
-    PROPERTIES
-    COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
+if(MacOSX)
+  target_link_libraries(eosxd
+    ${EOSXD_COMMON_LINK_LIBRARIES})
 else()
-  target_link_libraries(
-    eosxd
+  target_link_libraries(eosxd
     ${EOSXD_COMMON_LINK_LIBRARIES}
     jemalloc)
-
-  set_target_properties(
-    eosxd
-    PROPERTIES
-    COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
 endif()
+
+set_target_properties( eosxd
+  PROPERTIES COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
 
 install(
   TARGETS eosxd
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 
 if (FUSE3a_FOUND)
-  add_executable(
-    eosxd3
+  add_executable(eosxd3
     main.cc
     ${EOSXD_COMMON_SOURCES})
 
-  target_link_libraries(
-    eosxd3
+  target_link_libraries(eosxd3
     ${EOSXD_COMMON_LINK_LIBRARIES}
     jemalloc)
 
-  set_target_properties(
-    eosxd3
-    PROPERTIES
-    COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
+  target_include_directories(eosxd3 PRIVATE
+    $<TARGET_PROPERTY:XROOTD::PRIVATE,INTERFACE_INCLUDE_DIRECTORIES>)
 
-  install(
-    TARGETS eosxd3
+  set_target_properties(eosxd3
+    PROPERTIES COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
+
+  install(TARGETS eosxd3
     RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 endif()
 
 #-------------------------------------------------------------------------------
 # Tests
 #-------------------------------------------------------------------------------
-
 add_subdirectory(tests)

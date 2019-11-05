@@ -25,11 +25,8 @@ include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
   ${PROTOBUF_INCLUDE_DIRS}
-  ${XROOTD_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
   ${FOLLY_INCLUDE_DIRS}
-  ${CMAKE_SOURCE_DIR}/common/ulib/
-  ${KINETIC_INCLUDE_DIR}
   ${OPENSSL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
@@ -57,91 +54,68 @@ add_executable(eoshashbench EosHashBenchmark.cc)
 add_executable(eos-io-tool eos_io_tool.cc)
 add_executable(eos-open-trunc-update EosOpenTruncUpdate.cc)
 add_executable(eos-crypto-timing-test EosCryptoTimingTest.cc)
-
-add_executable(
-  testhmacsha256
+add_executable(testhmacsha256
   TestHmacSha256.cc
   ${CMAKE_SOURCE_DIR}/common/SymKeys.hh
   ${CMAKE_SOURCE_DIR}/common/SymKeys.cc)
-
-add_executable(
-  eoschecksumbench
+add_executable(eoschecksumbench
   EosChecksumBenchmark.cc
   ${CMAKE_SOURCE_DIR}/fst/checksum/Adler.cc
   ${CMAKE_SOURCE_DIR}/fst/checksum/CheckSum.cc)
 
-target_link_libraries(xrdcpabort ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
-target_link_libraries(xrdcprandom ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
-target_link_libraries(xrdcpextend ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
-target_link_libraries(xrdcpappend ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
-target_link_libraries(xrdcpholes ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
-target_link_libraries(xrdcpbackward ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
-target_link_libraries(xrdcpdownloadrandom ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
-target_link_libraries(xrdcpshrink ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
-target_link_libraries(xrdcptruncate ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
-target_link_libraries(xrdcpposixcache ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
-target_link_libraries(xrdcppartial ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
-target_link_libraries(xrdcpupdate ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
-target_link_libraries(xrdcpslowwriter ${XROOTD_CL_LIBRARY})
-target_link_libraries(eoshashbench EosCommon ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(testhmacsha256 EosCommon ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(eos-open-trunc-update ${XROOTD_CL_LIBRARY} ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
-target_link_libraries(eos-crypto-timing-test PRIVATE EosCommon)
-target_link_libraries(eos-udp-dumper)
+target_link_libraries(xrdcpabort PRIVATE XROOTD::POSIX XROOTD::UTILS)
+target_link_libraries(xrdcprandom PRIVATE XROOTD::POSIX XROOTD::UTILS)
+target_link_libraries(xrdcpextend PRIVATE XROOTD::POSIX XROOTD::UTILS)
+target_link_libraries(xrdcpappend PRIVATE XROOTD::POSIX XROOTD::UTILS)
+target_link_libraries(xrdcpholes PRIVATE XROOTD::POSIX XROOTD::UTILS)
+target_link_libraries(xrdcpbackward PRIVATE XROOTD::POSIX XROOTD::UTILS)
+target_link_libraries(xrdcpdownloadrandom PRIVATE XROOTD::POSIX XROOTD::UTILS)
+target_link_libraries(xrdcpshrink PRIVATE XROOTD::POSIX XROOTD::UTILS)
+target_link_libraries(xrdcptruncate PRIVATE XROOTD::POSIX XROOTD::UTILS)
+target_link_libraries(xrdcpposixcache PRIVATE XROOTD::POSIX XROOTD::UTILS)
+target_link_libraries(xrdcppartial PRIVATE XROOTD::POSIX XROOTD::UTILS)
+target_link_libraries(xrdcpupdate PRIVATE XROOTD::POSIX XROOTD::UTILS)
+target_link_libraries(xrdcpslowwriter PRIVATE XROOTD::CL)
+target_link_libraries(eoshashbench PRIVATE EosCommon ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(testhmacsha256 PRIVATE EosCommon ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(eos-open-trunc-update PRIVATE XROOTD::CL XROOTD::POSIX XROOTD::UTILS)
+target_link_libraries(eos-io-tool PRIVATE EosFstIo ${PROTOBUF_LIBRARY})
+target_link_libraries(xrdstress.exe PRIVATE UUID::UUID XROOTD::CL
+  XROOTD::UTILS XROOTD::POSIX ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(eoschecksumbench PRIVATE EosFstIo XROOTD::POSIX)
 
-target_link_libraries(
-  eos-io-tool
-  EosFstIo
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_SERVER_LIBRARY}
-  ${PROTOBUF_LIBRARY}
-  ${KINETIC_LIBRARIES})
-
-target_link_libraries(
-  xrdstress.exe
-  UUID::UUID
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_POSIX_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT})
-
-target_link_libraries(
-  eoschecksumbench
-  EosFstIo
-  ${XROOTD_POSIX_LIBRARY})
-
-set_target_properties(xrdstress.exe PROPERTIES COMPILE_FLAGS "-std=gnu++0x -D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcpabort PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcprandom PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcpextend PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcpappend PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcpholes PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcpbackward PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcpdownloadrandom PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcpshrink PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcptruncate PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcppartial PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcpupdate PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcpposixcache PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(eoshashbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(eoschecksumbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -msse4.2")
-set_target_properties(eos-open-trunc-update PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-
-install(
-  TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcpappend
-          xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial xrdcpupdate
-          xrdcpposixcache xrdcpslowwriter eoschecksumbench eos-udp-dumper eos-mmap eos-io-tool
-  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
-
-install(
-  PROGRAMS xrdstress eos-instance-test eos-instance-test-ci fuse/eos-fuse-test
-           eos-rain-test eoscp-rain-test eos-io-test eos-oc-test eos-drain-test
-           eos-http-upload-test eos-mq-tests eos-rename-test eos-grpc-test eos-fsck-test eos-token-test
-	       eos-backup eos-backup-browser
-  DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
-  PERMISSIONS OWNER_READ OWNER_EXECUTE
-              GROUP_READ GROUP_EXECUTE
-              WORLD_READ WORLD_EXECUTE)
+target_compile_definitions(xrdstress.exe PUBLIC -D_FILE_OFFSET_BITS=64)
+target_compile_definitions(xrdcpabort PUBLIC -D_FILE_OFFSET_BITS=64)
+target_compile_definitions(xrdcprandom PUBLIC -D_FILE_OFFSET_BITS=64)
+target_compile_definitions(xrdcpextend PUBLIC -D_FILE_OFFSET_BITS=64)
+target_compile_definitions(xrdcpappend PUBLIC -D_FILE_OFFSET_BITS=64)
+target_compile_definitions(xrdcpholes PUBLIC -D_FILE_OFFSET_BITS=64)
+target_compile_definitions(xrdcpbackward PUBLIC -D_FILE_OFFSET_BITS=64)
+target_compile_definitions(xrdcpdownloadrandom PUBLIC -D_FILE_OFFSET_BITS=64)
+target_compile_definitions(xrdcpshrink PUBLIC -D_FILE_OFFSET_BITS=64)
+target_compile_definitions(xrdcptruncate PUBLIC -D_FILE_OFFSET_BITS=64)
+target_compile_definitions(xrdcppartial PUBLIC -D_FILE_OFFSET_BITS=64)
+target_compile_definitions(xrdcpupdate PUBLIC -D_FILE_OFFSET_BITS=64)
+target_compile_definitions(xrdcpposixcache PUBLIC -D_FILE_OFFSET_BITS=64)
+target_compile_definitions(eoshashbench PUBLIC -D_FILE_OFFSET_BITS=64)
+target_compile_definitions(eoschecksumbench PUBLIC -D_FILE_OFFSET_BITS=64)
+target_compile_options(eoschecksumbench PRIVATE -msse4.2)
+target_compile_definitions(eos-open-trunc-update PUBLIC -D_FILE_OFFSET_BITS=64)
 
 add_executable(threadpooltest ThreadPoolTest.cc)
 target_link_libraries(threadpooltest PRIVATE EosCommon)
+
+install(TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcpappend
+  xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial xrdcpupdate
+  xrdcpposixcache xrdcpslowwriter eoschecksumbench eos-udp-dumper eos-mmap eos-io-tool
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
+
+install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci fuse/eos-fuse-test
+  eos-rain-test eoscp-rain-test eos-io-test eos-oc-test eos-drain-test
+  eos-http-upload-test eos-mq-tests eos-rename-test eos-grpc-test
+  eos-fsck-test eos-token-test eos-backup eos-backup-browser
+  DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
+  PERMISSIONS OWNER_READ OWNER_EXECUTE
+  GROUP_READ GROUP_EXECUTE
+  WORLD_READ WORLD_EXECUTE)
+

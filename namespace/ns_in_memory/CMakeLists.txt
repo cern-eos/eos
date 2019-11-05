@@ -23,9 +23,7 @@
 
 include_directories(
  ${CMAKE_SOURCE_DIR}
- ${CMAKE_SOURCE_DIR}/namespace/
- ${SPARSEHASH_INCLUDE_DIR}
- ${XROOTD_INCLUDE_DIR})
+ ${SPARSEHASH_INCLUDE_DIR})
 
 if(CPPUNIT_FOUND)
   add_subdirectory(tests)
@@ -62,25 +60,23 @@ add_library(
   ${CMAKE_SOURCE_DIR}/common/ShellCmd.cc
   ${CMAKE_SOURCE_DIR}/common/ShellExecutor.cc)
 
-target_compile_definitions(
-  EosNsInMemory-Objects PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
+target_include_directories(EosNsInMemory-Objects PRIVATE
+  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>)
 
-set_target_properties(
-  EosNsInMemory-Objects
-  PROPERTIES
-  POSITION_INDEPENDENT_CODE True)
+target_compile_definitions(EosNsInMemory-Objects
+  PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
+
+set_target_properties(EosNsInMemory-Objects
+  PROPERTIES POSITION_INDEPENDENT_CODE True)
 
 #-------------------------------------------------------------------------------
 # EosNsInMemory library
 #-------------------------------------------------------------------------------
 add_library(EosNsInMemory MODULE $<TARGET_OBJECTS:EosNsInMemory-Objects>)
 
-target_link_libraries(
-  EosNsInMemory
+target_link_libraries(EosNsInMemory PUBLIC
   EosNsCommon
   ${FOLLY_LIBRARIES}
-  ${Z_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
   ${GLIBC_RT_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
@@ -88,20 +84,16 @@ target_link_libraries(
 # EosNsInMemory-Static library
 #-------------------------------------------------------------------------------
 if (Linux)
-  add_library(EosNsInMemory-Static STATIC $<TARGET_OBJECTS:EosNsInMemory-Objects>)
+  add_library(EosNsInMemory-Static STATIC
+    $<TARGET_OBJECTS:EosNsInMemory-Objects>)
 
-  target_link_libraries(
-    EosNsInMemory-Static PUBLIC
+  target_link_libraries(EosNsInMemory-Static PUBLIC
     EosNsCommon-Static
     ${FOLLY_LIBRARIES}
-    ${Z_LIBRARY_STATIC}
-    ${XROOTD_UTILS_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})
 
-  set_target_properties(
-    EosNsInMemory-Static
-    PROPERTIES
-    POSITION_INDEPENDENT_CODE True)
+  set_target_properties(EosNsInMemory-Static
+    PROPERTIES POSITION_INDEPENDENT_CODE True)
 
   add_executable(eos-log-compact progs/EOSLogCompact.cc)
   add_executable(eos-log-repair  progs/EOSLogRepair.cc)

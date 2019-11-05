@@ -27,7 +27,6 @@
 include_directories(
   ${CMAKE_BINARY_DIR}
   ${CMAKE_SOURCE_DIR}
-  ${XROOTD_INCLUDE_DIR}
   ${PROTOBUF_INCLUDE_DIRS}
   ${JSONCPP_INCLUDE_DIRS}
   ${FOLLY_INCLUDE_DIRS}
@@ -109,6 +108,9 @@ add_library(
                                                           ns_quarkdb/LRU.hh
   ns_quarkdb/NamespaceGroup.cc                            ns_quarkdb/NamespaceGroup.hh
   ns_quarkdb/VersionEnforcement.cc                        ns_quarkdb/VersionEnforcement.hh)
+
+target_include_directories(EosNsCommon-Objects PRIVATE
+  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>)
 
 add_dependencies(EosNsCommon-Objects EosCliProto-Objects)
 

@@ -23,7 +23,6 @@
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
-  ${XROOTD_INCLUDE_DIRS}
   ${PROTOBUF_INCLUDE_DIRS}
   ${FOLLY_INCLUDE_DIRS}
   ${JSONCPP_INCLUDE_DIR}
@@ -115,21 +114,20 @@ set(UT_FST_SRCS
 #-------------------------------------------------------------------------------
 # eos-unit-tests executable
 #-------------------------------------------------------------------------------
-add_executable(
-  eos-unit-tests
+add_executable(eos-unit-tests
   ${UT_SRCS}
   $<TARGET_OBJECTS:EosConsoleHelpers-Objects>
   $<TARGET_OBJECTS:EosConsoleCommands-Objects>)
 
-target_link_libraries(
-  eos-unit-tests
+target_link_libraries(eos-unit-tests PRIVATE
   gtest_main
   gmock
   qclient
+  XROOTD::POSIX
+  XROOTD::SERVER
   XrdEosMgm-Static
   ${READLINE_LIBRARY}
-  ${JSONCPP_LIBRARIES}
-  ${XROOTD_SERVER_LIBRARY})
+  ${JSONCPP_LIBRARIES})
 
 install(TARGETS
   eos-unit-tests
@@ -140,8 +138,7 @@ install(TARGETS
 #-------------------------------------------------------------------------------
 add_executable(eos-fst-unit-tests ${UT_FST_SRCS})
 
-target_link_libraries(
-  eos-fst-unit-tests
+target_link_libraries(eos-fst-unit-tests PRIVATE
   gtest_main
   gmock
   qclient

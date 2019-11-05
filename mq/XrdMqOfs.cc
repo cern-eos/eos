@@ -23,7 +23,6 @@
 
 #include "XrdVersion.hh"
 #include "XrdOss/XrdOss.hh"
-#include "XrdOss/XrdOssApi.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"

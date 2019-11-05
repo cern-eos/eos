@@ -24,7 +24,7 @@
 #ifndef __XFTSOFS_NS_H__
 #define __XFTSOFS_NS_H__
 
-#include "XrdOfs/XrdOfs.hh"
+#include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucTrace.hh"

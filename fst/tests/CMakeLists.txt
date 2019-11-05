@@ -43,20 +43,17 @@ add_executable(
   ${CMAKE_SOURCE_DIR}/fst/checksum/CheckSum.cc
   ${CMAKE_SOURCE_DIR}/fst/checksum/CheckSum.hh)
 
-target_link_libraries(
-  eos-fst-test PRIVATE
+target_link_libraries(eos-fst-test PRIVATE
   gtest
   qclient
   gmock_main
-  EosFstIo-Static
-  ${XROOTD_SERVER_LIBRARY})
+  EosFstIo-Static)
 
 target_compile_definitions(
   eos-fst-test PRIVATE
   -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
-install(
-  TARGETS eos-fst-test
+install(TARGETS eos-fst-test
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   PERMISSIONS OWNER_READ OWNER_EXECUTE
   GROUP_READ GROUP_EXECUTE

@@ -24,7 +24,6 @@
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
-  ${XROOTD_INCLUDE_DIRS}
   ${FUSE_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
   ${PROTOBUF_INCLUDE_DIRS}
@@ -54,20 +53,20 @@ add_executable(
 if(MacOSX)
   target_link_libraries(
     eosd PRIVATE
-    FuseCache
+    XROOTD::CL
+    XROOTD::UTILS
+    FuseCache  
     ${FUSE_LIBRARIES}
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UTILS_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}
     ${KRB5_LIBRARIES}
     ${OPENSSL_CRYPTO_LIBRARY} )
 else()
   target_link_libraries(
     eosd PRIVATE
+    XROOTD::CL
+    XROOTD::UTILS
     FuseCache-Static
     ${FUSE_LIBRARY}
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UTILS_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}
     ${KRB5_LIBRARIES}
     ${OPENSSL_CRYPTO_LIBRARY})
@@ -103,10 +102,10 @@ add_executable(
 
   target_link_libraries(
     eosd3 PRIVATE
+    XROOTD::CL
+    XROOTD::UTILS
     FuseCache-Static
     ${FUSE3_LIBRARY}
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UTILS_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}
     ${KRB5_LIBRARIES}
     ${OPENSSL_CRYPTO_LIBRARY})

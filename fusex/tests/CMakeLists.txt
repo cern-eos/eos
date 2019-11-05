@@ -25,8 +25,6 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
-  ${XROOTD_INCLUDE_DIRS}
-  ${XROOTD_PRIVATE_INCLUDE_DIR}
   ${FUSE_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
   ${KRB5_INCLUDE_DIR}
@@ -39,9 +37,8 @@ include_directories(
 
 set(LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH
   gtest_main
+  EosCommon
   ${FUSE_LIBRARY}
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
   ${KRB5_LIBRARIES}
   ${OPENSSL_CRYPTO_LIBRARY}
@@ -50,12 +47,11 @@ set(LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH
   ${HIREDIS_LIBRARIES}
   ${LIBEVENT_LIBRARIES}
   ${LIBRARIES_IF_ROCKSDB_WAS_FOUND}
-  ${ZMQ_LIBRARIES}
-  EosCommon)
+  ${ZMQ_LIBRARIES})
 
 if (RICHACL_FOUND)
-	include_directories(${RICHACL_INCLUDE_DIRS})
-	LIST(APPEND LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH "${RICHACL_LIBRARIES}")
+  include_directories(${RICHACL_INCLUDE_DIRS})
+  LIST(APPEND LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH "${RICHACL_LIBRARIES}")
 endif()
 
 set(COMPILE_FLAGS_FOR_TEST_EXECUTABLES "${EOSXD_COMPILE_FLAGS} -fPIC")
@@ -71,23 +67,20 @@ add_executable(eos-fusex-tests
   auth/security-checker.cc
   auth/test-utils.cc
   auth/utils.cc
-  ${TEST_SOURCES_IF_ROCKSDB_WAS_FOUND}
   interval-tree.cc
   journal-cache.cc
   rb-tree.cc
-  ${EOSXD_COMMON_SOURCES}
-)
+  ${TEST_SOURCES_IF_ROCKSDB_WAS_FOUND}
+  ${EOSXD_COMMON_SOURCES})
 
-target_link_libraries(
-  eos-fusex-tests
-  ${LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH}
-)
+target_include_directories(eos-fusex-tests PRIVATE
+  $<TARGET_PROPERTY:XROOTD::PRIVATE,INTERFACE_INCLUDE_DIRECTORIES>)
 
-set_target_properties(
-  eos-fusex-tests
-  PROPERTIES
-  COMPILE_FLAGS ${COMPILE_FLAGS_FOR_TEST_EXECUTABLES}
-)
+target_link_libraries(eos-fusex-tests
+  ${LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH})
+
+set_target_properties(eos-fusex-tests
+  PROPERTIES COMPILE_FLAGS ${COMPILE_FLAGS_FOR_TEST_EXECUTABLES})
 
 add_executable(eos-fusex-stress-tests
   stress/xrdcl-proxy.cc
@@ -96,8 +89,7 @@ add_executable(eos-fusex-stress-tests
   ${CMAKE_SOURCE_DIR}/common/ShellCmd.cc
   ${CMAKE_SOURCE_DIR}/common/ShellExecutor.cc)
 
-target_link_libraries(
-  eos-fusex-stress-tests
+target_link_libraries( eos-fusex-stress-tests
   ${LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH})
 
 set_target_properties(
@@ -126,9 +118,8 @@ install(TARGETS
 	RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 install(
-  PROGRAMS eos-fusex-recovery
+  PROGRAMS eos-fusex-recovery eos-fusex-ioverify eos-fusex-tests
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   PERMISSIONS OWNER_READ OWNER_EXECUTE
               GROUP_READ GROUP_EXECUTE
               WORLD_READ WORLD_EXECUTE)
-

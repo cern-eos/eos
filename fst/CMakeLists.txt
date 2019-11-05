@@ -57,15 +57,12 @@ include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
   ${PROTOBUF_INCLUDE_DIRS}
-  ${XROOTD_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
   ${NCURSES_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIRS}
   ${XFS_INCLUDE_DIRS}
   ${JSONC_INCLUDE_DIR}
   ${DAVIX_INCLUDE_DIRS}
-#  ${CMAKE_CURRENT_SOURCE_DIR}/layout/gf-complete/include
-#  ${CMAKE_CURRENT_SOURCE_DIR}/layout/jerasure/include
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
   ${FOLLY_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
@@ -170,7 +167,6 @@ add_library(EosFstIo-Objects OBJECT
   io/FileIo.hh
   io/local/FsIo.cc               io/local/FsIo.hh
   ${DAVIX_SRC}                   ${DAVIX_HDR}
-  #  io/rados/RadosIo.cc         io/rados/RadosIo.hh
   io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
   io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
   io/ChunkHandler.cc             io/ChunkHandler.hh
@@ -194,19 +190,20 @@ add_library(EosFstIo-Objects OBJECT
 
 add_dependencies(EosFstIo-Objects EosFstProto-Objects)
 
-set_target_properties(EosFstIo-Objects PROPERTIES
-  POSITION_INDEPENDENT_CODE TRUE)
-
 target_include_directories(EosFstIo-Objects
   PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
-  PRIVATE
   $<TARGET_PROPERTY:ZLIB::ZLIB,INTERFACE_INCLUDE_DIRECTORIES>
+  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>
+  $<TARGET_PROPERTY:XROOTD::PRIVATE,INTERFACE_INCLUDE_DIRECTORIES>
+  PRIVATE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/layout/jerasure/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/layout/gf-complete/include>)
 
 target_compile_definitions(EosFstIo-Objects PUBLIC
   -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
+
+set_target_properties(EosFstIo-Objects PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
 
 add_library(EosFstIo SHARED
   $<TARGET_OBJECTS:EosFstIo-Objects>
@@ -214,15 +211,19 @@ add_library(EosFstIo SHARED
   $<TARGET_OBJECTS:Jerasure-Objects>
   $<TARGET_OBJECTS:GfComplete-Objects>)
 
+target_include_directories(EosFstIo
+  PUBLIC
+  $<TARGET_PROPERTY:ZLIB::ZLIB,INTERFACE_INCLUDE_DIRECTORIES>
+  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>
+  $<TARGET_PROPERTY:XROOTD::PRIVATE,INTERFACE_INCLUDE_DIRECTORIES>)
+
 target_link_libraries(EosFstIo PUBLIC
   EosCommon
+  XROOTD::SERVER
   ${ATTR_LIBRARIES}
   ${GLIBC_RT_LIBRARY}
   ${GLIBC_DL_LIBRARY}
   ${NCURSES_LIBRARIES}
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
-  ${XROOTD_SERVER_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${JSONC_LIBRARIES}
   ${DAVIX_LIBRARIES}
@@ -255,17 +256,22 @@ add_library(EosFstIo-Static STATIC
 
 target_link_libraries(EosFstIo-Static PUBLIC
   XrdMqClient-Static
+  XROOTD::SERVER
   ${ATTR_LIBRARIES}
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
-  ${NCURSES_LIBRARY}
-  ${OPENSSL_CRYPTO_LIBRARY}
+  ${NCURSES_LIBRARY_STATIC}
+  ${OPENSSL_CRYPTO_LIBRARY_STATIC}
   ${JSONC_LIBRARIES}
   ${DAVIX_LIBRARIES}
   ${LIBISALCRYPTO_LIBRARIES}
   ${LIBISAL_LIBRARIES}
   ${LIBXXHASH_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
+
+target_include_directories(EosFstIo-Static
+  PUBLIC
+  $<TARGET_PROPERTY:ZLIB::ZLIB,INTERFACE_INCLUDE_DIRECTORIES>
+  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>
+  $<TARGET_PROPERTY:XROOTD::PRIVATE,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_compile_definitions(EosFstIo-Static PRIVATE
   -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
@@ -291,7 +297,6 @@ set_target_properties(
   BUILD_WITH_INSTALL_RPATH TRUE
   INSTALL_RPATH_USE_LINK_PATH TRUE)
 
-
 install(TARGETS eoscp
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
@@ -301,29 +306,19 @@ if(NOT CLIENT)
 #-------------------------------------------------------------------------------
 # EosFstHttp library
 #-------------------------------------------------------------------------------
-
-add_library(
-  EosFstHttp-Objects OBJECT
+add_library(EosFstHttp MODULE
   http/xrdhttp/EosFstHttpHandler.hh
   http/xrdhttp/EosFstHttpHandler.cc)
 
-set_target_properties(
-  EosFstHttp-Objects
-  PROPERTIES
-  POSITION_INDEPENDENT_CODE TRUE)
+target_include_directories(EosFstHttp PRIVATE
+  $<TARGET_PROPERTY:XROOTD::PRIVATE,INTERFACE_INCLUDE_DIRECTORIES>)
 
-add_library(EosFstHttp MODULE
-  $<TARGET_OBJECTS:EosFstHttp-Objects>)
-
-
-target_link_libraries(
-  EosFstHttp PUBLIC
+target_link_libraries(EosFstHttp PUBLIC
   EosCommon
   EosCommonServer
-  ${XROOTD_HTTP_UTILS_LIBRARY})
+  XROOTD::HTTP)
 
-install(
-  TARGETS EosFstHttp
+install(TARGETS EosFstHttp
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
@@ -336,15 +331,11 @@ add_library(EosFstOss MODULE
   XrdFstOssFile.cc XrdFstOssFile.hh
   checksum/CheckSum.cc checksum/CheckSum.hh
   checksum/Adler.cc checksum/Adler.hh
-  ${CMAKE_SOURCE_DIR}/common/LayoutId.hh
   $<TARGET_OBJECTS:EosCrc32c-Objects>)
 
 target_link_libraries(EosFstOss PRIVATE
   EosCommon
-  ${LIBISALCRYPTO_LIBRARIES}
-  ${LIBISAL_LIBRARIES}
-  ${LIBXXHASH_LIBRARIES}
-  ${XROOTD_SERVER_LIBRARY})
+  XROOTD::HTTP)
 
 #-------------------------------------------------------------------------------
 # XrdEosFst library
@@ -393,8 +384,8 @@ set(XRDEOSFST_SRCS
 add_library(XrdEosFst-Objects OBJECT ${XRDEOSFST_SRCS})
 
 target_include_directories(XrdEosFst-Objects PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/>
-  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/fst/)
+  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>
+  $<TARGET_PROPERTY:XROOTD::PRIVATE,INTERFACE_INCLUDE_DIRECTORIES>)
 
 #-------------------------------------------------------------------------------
 # Add dependency to protobuf objects so we guarantee that the protocol
@@ -406,8 +397,7 @@ add_dependencies(XrdEosFst-Objects EosNsQuarkdbProto-Objects)
 add_dependencies(XrdEosFst-Objects XrdSsiPbEosCta-Objects)
 add_dependencies(XrdEosFst-Objects EosConsoleHelpers-Objects)
 
-set_target_properties(
-  XrdEosFst-Objects PROPERTIES
+set_target_properties(XrdEosFst-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 target_compile_definitions(XrdEosFst-Objects PUBLIC
@@ -427,15 +417,13 @@ target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
   EosFstIo
   EosNsCommon
   ZLIB::ZLIB
+  XROOTD::SSI
   eosCapability-Static
   ${ATTR_LIBRARIES}
   ${GLIBC_RT_LIBRARY}
   ${GLIBC_DL_LIBRARY}
   ${PROTOBUF_LIBRARY}
   ${NCURSES_LIBRARIES}
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
-  ${XROOTD_SSI_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${ZMQ_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
@@ -448,20 +436,18 @@ add_library(XrdEosFst-Static STATIC
 target_compile_definitions(XrdEosFst-Static PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
-target_link_libraries(XrdEosFst-4 PRIVATE
+
+target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
   EosCommon
   EosCommonServer
   EosFstIo
   EosNsCommon
   ZLIB::ZLIB
+  XROOTD::SSI
   eosCapability-Static
   ${ATTR_LIBRARIES}
   ${PROTOBUF_LIBRARY}
   ${NCURSES_LIBRARIES}
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
-  ${XROOTD_SERVER_LIBRARY}
-  ${XROOTD_SSI_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${ZMQ_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
@@ -524,17 +510,11 @@ add_executable(eos-ioping tools/IoPing.c)
 target_compile_options(eos-ioping PRIVATE -std=gnu99)
 target_link_libraries(eos-ioping PRIVATE ${GLIBC_M_LIBRARY} ${GLIBC_RT_LIBRARY})
 
-target_link_libraries(eos-check-blockxs PRIVATE
-  EosFstIo
-  ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(eos-check-blockxs PRIVATE EosFstIo)
 
-target_link_libraries(eos-compute-blockxs PRIVATE
-  EosFstIo
-  ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(eos-compute-blockxs PRIVATE EosFstIo)
 
-target_link_libraries(eos-adler32 PRIVATE
-  EosFstIo
-  ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries(eos-adler32 PRIVATE EosFstIo)
 
 target_link_libraries(eos-checksum PRIVATE
   EosFstIo

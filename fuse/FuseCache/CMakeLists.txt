@@ -21,10 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(${XROOTD_INCLUDE_DIRS})
-
-add_library(
-  FuseCache-Objects OBJECT
+add_library(FuseCache-Objects OBJECT
   FuseWriteCache.cc             FuseWriteCache.hh
   CacheEntry.cc                 CacheEntry.hh
   FileAbstraction.cc            FileAbstraction.hh
@@ -32,14 +29,17 @@ add_library(
   ../GlobalInodeTranslator.cc   ../GlobalInodeTranslator.hh
   ../xrdutils.cc                ../xrdutils.hh)
 
+target_include_directories(FuseCache-Objects PRIVATE
+  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>
+  $<TARGET_PROPERTY:XROOTD::PRIVATE,INTERFACE_INCLUDE_DIRECTORIES>)
+
 set_target_properties(
   FuseCache-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 add_dependencies(FuseCache-Objects EosFstIo)
 
-target_compile_definitions(
-  FuseCache-Objects PUBLIC
+target_compile_definitions(FuseCache-Objects PUBLIC
   -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
 #-------------------------------------------------------------------------------
@@ -50,17 +50,12 @@ add_library(FuseCache SHARED $<TARGET_OBJECTS:FuseCache-Objects>)
 target_link_libraries(
   FuseCache PUBLIC
   EosFstIo
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
-target_compile_definitions(
-  FuseCache PUBLIC
+target_compile_definitions(FuseCache PUBLIC
   -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
-set_target_properties(
-  FuseCache
-  PROPERTIES
+set_target_properties(FuseCache PROPERTIES
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
   MACOSX_RPATH TRUE)
@@ -68,15 +63,12 @@ set_target_properties(
 if (Linux)
   add_library(FuseCache-Static STATIC $<TARGET_OBJECTS:FuseCache-Objects> )
 
-  target_link_libraries(FuseCache-Static
-    PUBLIC EosFstIo-Static)
+  target_link_libraries(FuseCache-Static PUBLIC EosFstIo-Static)
 
-  target_compile_definitions(
-    FuseCache-Static PUBLIC
+  target_compile_definitions(FuseCache-Static PUBLIC
     -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
 
-  set_target_properties(
-    FuseCache-Static PROPERTIES
+  set_target_properties(FuseCache-Static PROPERTIES
     POSITION_INDEPENDENT_CODE TRUE)
 else()
 install(

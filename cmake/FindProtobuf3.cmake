@@ -2,8 +2,12 @@
 # Once done, this will define
 #
 # PROTOBUF_FOUND               - system has PROTOBUF
-# PROTOBUF_INCLUDE_DIR         - Protobuf include directories
+# PROTOBUF_INCLUDE_DIRs        - Protobuf include directories
 # PROTOBUF_LIBRARIES           - libraries needed to use Protobuf
+#
+# and the following imported targets
+#
+# PROTOBUF::PROTOBUF
 #
 # PROTOBUF_DIR may be defined as a hint for where to look
 

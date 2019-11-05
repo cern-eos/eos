@@ -21,25 +21,18 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-add_library(
-  EosRainClient MODULE
+add_library(EosRainClient MODULE
   RainPlugin.cc RainPlugin.hh
   RainFile.cc   RainFile.hh)
 
-target_link_libraries(
-  EosRainClient
-  EosFstIo
-  ${XROOTD_CL_LIBRARY})
+target_link_libraries(EosRainClient PUBLIC EosFstIo)
 
-set_target_properties(
-  EosRainClient
-  PROPERTIES
+set_target_properties(EosRainClient PROPERTIES
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
   MACOSX_RPATH TRUE)
 
-install(
-  TARGETS EosRainClient
+install(TARGETS EosRainClient
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

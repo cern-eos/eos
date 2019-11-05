@@ -29,7 +29,6 @@ include_directories(
  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src
  ${SPARSEHASH_INCLUDE_DIR}
  ${PROTOBUF_INCLUDE_DIRS}
- ${XROOTD_INCLUDE_DIR}
  ${FOLLY_INCLUDE_DIRS})
 
 add_subdirectory(tests)
@@ -43,21 +42,17 @@ add_library(
 
 add_dependencies(EosNsQuarkdb EosNsQuarkdbProto-Objects)
 
-target_link_libraries(
-  EosNsQuarkdb
+target_link_libraries(EosNsQuarkdb PUBLIC
   EosNsCommon
   qclient
   rocksdb
-  dl
   ${FOLLY_LIBRARIES}
-  ${Z_LIBRARY}
   ${BZ2_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
+  ${GLIBC_DL_LIBRARY}
   ${GLIBC_RT_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
-install(
-  TARGETS EosNsQuarkdb
+install(TARGETS EosNsQuarkdb
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
@@ -70,7 +65,7 @@ add_executable(eos-ns-convert
   persistency/RequestBuilder.cc      persistency/RequestBuilder.hh
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/BackendClient.cc)
 
-target_link_libraries(eos-ns-convert
+target_link_libraries(eos-ns-convert PRIVATE
   jemalloc
   qclient
   EosCommon
@@ -79,14 +74,13 @@ target_link_libraries(eos-ns-convert
 
 add_executable(eos-ns-convert-to-locality-hashes tools/EosConvertToLocalityHashes.cc)
 
-target_link_libraries(eos-ns-convert-to-locality-hashes
+target_link_libraries(eos-ns-convert-to-locality-hashes PRIVATE
   EosNsCommon-Static
   ${PROTOBUF_LIBRARY})
 
 add_executable(eos-ns-inspect tools/InspectionTool.cc)
 
-target_link_libraries(eos-ns-inspect
-  EosNsCommon-Static)
+target_link_libraries(eos-ns-inspect PRIVATE  EosNsCommon-Static)
 
 add_executable(eos-fid-to-path tools/Fid2PathTool.cc)
 

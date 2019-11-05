@@ -25,8 +25,7 @@ include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
   ${ZMQ_INCLUDE_DIRS}
-  ${PROTOBUF_INCLUDE_DIRS}
-  ${XROOTD_INCLUDE_DIRS})
+  ${PROTOBUF_INCLUDE_DIRS})
 
 if (CPPUNIT_FOUND)
   add_subdirectory(tests)
@@ -97,6 +96,10 @@ add_library(
   ProtoUtils.cc ProtoUtils.hh
   ${AUTH_PROTO_SRCS} ${AUTH_PROTO_HDRS})
 
+target_include_directories(EosAuthProto-Objects PRIVATE
+  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>
+  $<TARGET_PROPERTY:XROOTD::PRIVATE,INTERFACE_INCLUDE_DIRECTORIES>)
+
 set_target_properties(EosAuthProto-Objects
   PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
@@ -113,10 +116,9 @@ add_library(
 target_link_libraries(
   EosAuthOfs PRIVATE
   EosCommon
+  XROOTD::PRIVATE
   ${ZMQ_LIBRARIES}
-  ${XROOTD_CL_LIBRARY}
-  ${PROTOBUF_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY})
+  ${PROTOBUF_LIBRARY})
 
 install(
   TARGETS EosAuthOfs
