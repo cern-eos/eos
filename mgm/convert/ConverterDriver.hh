@@ -30,6 +30,7 @@
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/structures/QHash.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -49,7 +50,7 @@ public:
     mQdbHelper(qdb_details), mIsRunning(false),
     mThreadPool(std::thread::hardware_concurrency(), cDefaultMaxThreadPoolSize,
                 10, 6, 5, "converter_engine"),
-    mMaxThreadPoolSize(cDefaultMaxThreadPoolSize)
+    mMaxThreadPoolSize(cDefaultMaxThreadPoolSize), mTimestamp()
   {}
 
   //----------------------------------------------------------------------------
@@ -108,21 +109,23 @@ private:
     //--------------------------------------------------------------------------
     //! Constructor
     //--------------------------------------------------------------------------
-    QdbHelper(const eos::QdbContactDetails& qdb_details) :
-      mCursor{"0"}, mReachedEnd{false}, mTimestamp()
+    QdbHelper(const eos::QdbContactDetails& qdb_details)
     {
       mQcl = std::make_unique<qclient::QClient>(qdb_details.members,
                                                 qdb_details.constructOptions());
+      mQHashPending = qclient::QHash(*mQcl, kConversionPendingHashKey);
+      mQHashFailed = qclient::QHash(*mQcl, kConversionFailedHashKey);
     }
 
     //--------------------------------------------------------------------------
-    //! Retrieve the next batch of conversion jobs from QuarkDB.
-    //! In case of a failed attempt, avoid repeating the request
-    //! for cRequestIntervalTime seconds.
+    //! Returns a QuarkDB iterator for the pending jobs hash.
     //!
-    //! @return list of conversion job strings
+    //! @return the pending jobs hash iterator
     //--------------------------------------------------------------------------
-    std::list<JobInfoT> RetrieveJobsBatch();
+    inline qclient::QHash::Iterator PendingJobsIterator()
+    {
+      return mQHashPending.getIterator(cBatchSize, "0");
+    }
 
     //--------------------------------------------------------------------------
     //! Remove conversion job by id from the pending jobs queue in QuarkDB.
@@ -130,7 +133,7 @@ private:
     //! @param id the conversion job id to remove
     //! @return true if operation succeeded, false otherwise
     //--------------------------------------------------------------------------
-    bool RemovePendingJob(const eos::IFileMD::id_t& id) const;
+    bool RemovePendingJob(const eos::IFileMD::id_t& id);
 
     //--------------------------------------------------------------------------
     //! Add conversion job to the queue of failed jobs in QuarkDB.
@@ -138,32 +141,17 @@ private:
     //! @param jobinfo the failed conversion job details
     //! @return true if operation succeeded, false otherwise
     //--------------------------------------------------------------------------
-    bool AddFailedJob(const JobInfoT& jobinfo) const;
+    bool AddFailedJob(const JobInfoT& jobinfo);
 
     ///< QDB conversion hash keys
     const std::string kConversionPendingHashKey = "eos-conversion-jobs-pending";
     const std::string kConversionFailedHashKey = "eos-conversion-jobs-failed";
-    static constexpr unsigned int cBatchSize{50}; ///< Batch size constant
-    ///< Wait-time before repeating a request constant
-    static constexpr unsigned int cRequestIntervalTime{60};
+    static constexpr unsigned int cBatchSize{1000}; ///< Batch size constant
 
   private:
-    //--------------------------------------------------------------------------
-    //! Parse a Redis reply containing an array of conversion data
-    //! and fill the given list with jobs info
-    //!
-    //! @param reply the Redis reply object
-    //! @param jobs the list of jobs info to fill
-    //! @return true if parsing succeeded, false otherwise
-    //--------------------------------------------------------------------------
-    bool ParseJobsFromReply(const qclient::Reply* const reply,
-                            std::list<JobInfoT>& jobs) const;
-
     std::unique_ptr<qclient::QClient> mQcl; ///< Internal QClient object
-    std::string mCursor; ///< Cursor for QDB hash traversal
-    bool mReachedEnd; ///< Flag signaling end of iteration
-    ///< Timestamp of last request
-    std::chrono::steady_clock::time_point mTimestamp;
+    qclient::QHash mQHashPending; ///< QDB pending jobs hash object
+    qclient::QHash mQHashFailed; ///< QDB failed jobs hash object
   };
 
   //----------------------------------------------------------------------------
@@ -201,12 +189,34 @@ private:
     return mJobsFailed.size();
   }
 
+  //--------------------------------------------------------------------------
+  //! Returns true if a wait is needed before retrieving more jobs.
+  //!
+  //! @return true if client should wait, false otherwise
+  //--------------------------------------------------------------------------
+  inline bool ShouldWait()
+  {
+    auto elapsed = std::chrono::steady_clock::now() - mTimestamp;
+
+    if (elapsed <= std::chrono::seconds(cRequestIntervalTime)) {
+      return true;
+    }
+
+    mTimestamp = std::chrono::steady_clock::now();
+    return false;
+  }
+
+  ///< Wait-time between jobs requests constant
+  static constexpr unsigned int cRequestIntervalTime{60};
+  ///< Default maximum thread pool size constant
   static constexpr unsigned int cDefaultMaxThreadPoolSize{400};
   AssistedThread mThread; ///< Thread controller object
   QdbHelper mQdbHelper; ///< QuarkDB helper object
   std::atomic<bool> mIsRunning; ///< Mark if converter is running
   eos::common::ThreadPool mThreadPool; ///< Thread pool for conversion jobs
   std::atomic<unsigned int> mMaxThreadPoolSize; ///< Max threadpool size
+  ///< Timestamp of last jobs request
+  std::chrono::steady_clock::time_point mTimestamp;
   ///< Collection of running conversion jobs
   std::list<std::shared_ptr<ConversionJob>> mJobsRunning;
   ///< Collection of failed conversion jobs
