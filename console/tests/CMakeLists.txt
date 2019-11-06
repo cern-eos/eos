@@ -29,8 +29,7 @@ include_directories(
 #-------------------------------------------------------------------------------
 # EosConsoleTests library
 #-------------------------------------------------------------------------------
-add_library(
-  EosConsoleTests SHARED
+add_library(EosConsoleTests SHARED
   $<TARGET_OBJECTS:EosCliProto-Objects>
   $<TARGET_OBJECTS:EosConsoleHelpers-Objects>
   $<TARGET_OBJECTS:EosConsoleCommands-Objects>)

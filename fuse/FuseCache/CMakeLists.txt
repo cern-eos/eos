@@ -29,15 +29,15 @@ add_library(FuseCache-Objects OBJECT
   ../GlobalInodeTranslator.cc   ../GlobalInodeTranslator.hh
   ../xrdutils.cc                ../xrdutils.hh)
 
-target_include_directories(FuseCache-Objects PRIVATE
-  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>
-  $<TARGET_PROPERTY:XROOTD::PRIVATE,INTERFACE_INCLUDE_DIRECTORIES>)
+target_link_libraries(FuseCache-Objects PUBLIC
+  EosFstProto-Objects
+  EosFstIo-Objects
+  XROOTD::UTILS
+  XROOTD::PRIVATE)
 
 set_target_properties(
   FuseCache-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
-
-add_dependencies(FuseCache-Objects EosFstIo)
 
 target_compile_definitions(FuseCache-Objects PUBLIC
   -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)

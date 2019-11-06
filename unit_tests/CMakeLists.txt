@@ -23,7 +23,6 @@
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
-  ${PROTOBUF_INCLUDE_DIRS}
   ${FOLLY_INCLUDE_DIRS}
   ${JSONCPP_INCLUDE_DIR}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
@@ -88,8 +87,7 @@ set(COMMON_UT_SRCS
   common/VariousTests.cc
   common/XrdConnPoolTests.cc
   common/RateLimitTests.cc
-  common/EosTokenTests.cc
-)
+  common/EosTokenTests.cc)
 
 set(FST_UT_SRCS
   #fst/XrdFstOssFileTest.cc
@@ -114,19 +112,17 @@ set(UT_FST_SRCS
 #-------------------------------------------------------------------------------
 # eos-unit-tests executable
 #-------------------------------------------------------------------------------
-add_executable(eos-unit-tests
-  ${UT_SRCS}
-  $<TARGET_OBJECTS:EosConsoleHelpers-Objects>
-  $<TARGET_OBJECTS:EosConsoleCommands-Objects>)
+add_executable(eos-unit-tests ${UT_SRCS})
 
 target_link_libraries(eos-unit-tests PRIVATE
+  EosConsoleHelpers-Objects
+  EosConsoleCommands-Objects
   gtest_main
   gmock
   qclient
   XROOTD::POSIX
   XROOTD::SERVER
   XrdEosMgm-Static
-  ${READLINE_LIBRARY}
   ${JSONCPP_LIBRARIES})
 
 install(TARGETS

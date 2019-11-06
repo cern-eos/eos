@@ -27,7 +27,6 @@
 include_directories(
   ${CMAKE_BINARY_DIR}
   ${CMAKE_SOURCE_DIR}
-  ${PROTOBUF_INCLUDE_DIRS}
   ${JSONCPP_INCLUDE_DIRS}
   ${FOLLY_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include)
@@ -109,19 +108,14 @@ add_library(
   ns_quarkdb/NamespaceGroup.cc                            ns_quarkdb/NamespaceGroup.hh
   ns_quarkdb/VersionEnforcement.cc                        ns_quarkdb/VersionEnforcement.hh)
 
-target_include_directories(EosNsCommon-Objects PRIVATE
-  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>)
+target_link_libraries(EosNsCommon-Objects PUBLIC
+  EosCliProto-Objects
+  XROOTD::UTILS)
 
-add_dependencies(EosNsCommon-Objects EosCliProto-Objects)
+set_target_properties(EosNsCommon-Objects
+  PROPERTIES POSITION_INDEPENDENT_CODE True)
 
-set_target_properties(
-  EosNsCommon-Objects
-  PROPERTIES
-  POSITION_INDEPENDENT_CODE True)
-
-add_library(EosNsCommon SHARED
-  $<TARGET_OBJECTS:EosNsCommon-Objects>
-  $<TARGET_OBJECTS:EosCrc32c-Objects>)
+add_library(EosNsCommon SHARED $<TARGET_OBJECTS:EosNsCommon-Objects>)
 
 
 target_include_directories(
@@ -130,8 +124,9 @@ target_include_directories(
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/utils/fmt>
   $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(
-  EosNsCommon PUBLIC
+target_link_libraries(EosNsCommon PUBLIC
+  EosCliProto-Objects
+  EosCrc32c-Objects
   EosCommon
   qclient
   rocksdb

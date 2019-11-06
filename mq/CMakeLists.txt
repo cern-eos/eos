@@ -29,8 +29,7 @@ include_directories(
   ${SPARSEHASH_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src
-  ${CMAKE_BINARY_DIR}
-  ${PROTOBUF_INCLUDE_DIRS})
+  ${CMAKE_BINARY_DIR})
 
 #-------------------------------------------------------------------------------
 # XrdMqClient-Objects
@@ -50,25 +49,23 @@ add_library(XrdMqClient-Objects OBJECT
   XrdMqSharedObject.cc           XrdMqSharedObject.hh
 )
 
-target_include_directories(XrdMqClient-Objects
-  PRIVATE
-  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>)
+target_link_libraries(XrdMqClient-Objects PUBLIC
+  XROOTD::UTILS)
 
 set_target_properties(XrdMqClient-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-set(XRD_MQ_CLIENT_LIBS
-  ${NCURSES_LIBRARIES}
-  ${OPENSSL_CRYPTO_LIBRARY})
-
 #-------------------------------------------------------------------------------
 # XrdMqClient and XrdMqClient-Static library
 #-------------------------------------------------------------------------------
-add_library(XrdMqClient SHARED $<TARGET_OBJECTS:XrdMqClient-Objects>)
+add_library(XrdMqClient SHARED
+  $<TARGET_OBJECTS:XrdMqClient-Objects>)
 
 target_link_libraries(XrdMqClient PUBLIC
+  XrdMqClient-Objects
   EosCommon
-  ${XRD_MQ_CLIENT_LIBS})
+  ${NCURSES_LIBRARIES}
+  ${OPENSSL_CRYPTO_LIBRARY})
 
 set_target_properties(
   XrdMqClient PROPERTIES
@@ -80,11 +77,12 @@ add_library(XrdMqClient-Static STATIC
   $<TARGET_OBJECTS:XrdMqClient-Objects>)
 
 target_link_libraries(XrdMqClient-Static PUBLIC
-  EosCommon-Static
-  ${XRD_MQ_CLIENT_LIBS})
+  XrdMqClient-Objects
+  ${NCURSES_LIBRARIES}
+  ${OPENSSL_CRYPTO_LIBRARY}
+  EosCommon-Static)
 
-set_target_properties(
-  XrdMqClient-Static PROPERTIES
+set_target_properties(XrdMqClient-Static PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------

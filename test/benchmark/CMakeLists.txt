@@ -23,7 +23,6 @@
 
 include_directories(
  ${CMAKE_SOURCE_DIR}
- ${PROTOBUF_INCLUDE_DIRS}
  ${FOLLY_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
@@ -53,12 +52,10 @@ add_executable(eos-benchmark
 
 target_link_libraries(eos-benchmark PRIVATE
   EosFstIo
-  ${PROTOBUF_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
-target_compile_definitions(eos-benchmark
-  PUBLIC -D_LARGE_FILE_SOURCE -D_LARGE64_FILE_SOURCE -D_FILE_OFFSET_BITS=64)
+target_compile_definitions(eos-benchmark PUBLIC
+  -D_LARGE_FILE_SOURCE -D_LARGE64_FILE_SOURCE -D_FILE_OFFSET_BITS=64)
 
-install(
-  TARGETS eos-benchmark
+install(TARGETS eos-benchmark
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})

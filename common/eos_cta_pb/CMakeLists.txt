@@ -21,13 +21,11 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(${PROTOBUF3_INCLUDE_DIRS})
-set(PROTOBUF3_INCLUDE_PATH ${EOS_CTA_PB_DIR})
-
-PROTOBUF_GENERATE_CPP(CTA_ADMIN_SRCS CTA_ADMIN_HDRS ${PROTOBUF3_INCLUDE_PATH}/cta_admin.proto)
-PROTOBUF_GENERATE_CPP(CTA_COMMON_SRCS CTA_COMMON_HDRS ${PROTOBUF3_INCLUDE_PATH}/cta_common.proto)
-PROTOBUF_GENERATE_CPP(CTA_EOS_SRCS CTA_EOS_HDRS ${PROTOBUF3_INCLUDE_PATH}/cta_eos.proto)
-PROTOBUF_GENERATE_CPP(CTA_FRONTEND_SRCS CTA_FRONTEND_HDRS ${PROTOBUF3_INCLUDE_PATH}/cta_frontend.proto)
+set(EOS_CTA_PB_DIR ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/eos_cta/protobuf/)
+PROTOBUF_GENERATE_CPP(CTA_ADMIN_SRCS CTA_ADMIN_HDRS ${EOS_CTA_PB_DIR}/cta_admin.proto)
+PROTOBUF_GENERATE_CPP(CTA_COMMON_SRCS CTA_COMMON_HDRS ${EOS_CTA_PB_DIR}/cta_common.proto)
+PROTOBUF_GENERATE_CPP(CTA_EOS_SRCS CTA_EOS_HDRS ${EOS_CTA_PB_DIR}/cta_eos.proto)
+PROTOBUF_GENERATE_CPP(CTA_FRONTEND_SRCS CTA_FRONTEND_HDRS ${EOS_CTA_PB_DIR}/cta_frontend.proto)
 
 set(EOS_CTA_PB_SRCS
   ${CTA_ADMIN_SRCS} ${CTA_COMMON_SRCS} ${CTA_EOS_SRCS} ${CTA_FRONTEND_SRCS})
@@ -39,6 +37,14 @@ set_source_files_properties(
   ${EOS_CTA_PB_SRCS} ${EOS_CTA_PB_HDRS}
   PROPERTIES GENERATED 1)
 
-add_library (XrdSsiPbEosCta-Objects OBJECT
+add_library(XrdSsiPbEosCta-Objects OBJECT
   ${EOS_CTA_PB_SRCS})
-set_target_properties(XrdSsiPbEosCta-Objects PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+
+target_include_directories(XrdSsiPbEosCta-Objects PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
+
+target_link_libraries(XrdSsiPbEosCta-Objects PUBLIC
+  PROTOBUF::PROTOBUF)
+
+set_target_properties(XrdSsiPbEosCta-Objects PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)

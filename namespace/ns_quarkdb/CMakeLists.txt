@@ -28,7 +28,6 @@ include_directories(
  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src
  ${SPARSEHASH_INCLUDE_DIR}
- ${PROTOBUF_INCLUDE_DIRS}
  ${FOLLY_INCLUDE_DIRS})
 
 add_subdirectory(tests)
@@ -75,8 +74,7 @@ target_link_libraries(eos-ns-convert PRIVATE
 add_executable(eos-ns-convert-to-locality-hashes tools/EosConvertToLocalityHashes.cc)
 
 target_link_libraries(eos-ns-convert-to-locality-hashes PRIVATE
-  EosNsCommon-Static
-  ${PROTOBUF_LIBRARY})
+  EosNsCommon-Static)
 
 add_executable(eos-ns-inspect tools/InspectionTool.cc)
 

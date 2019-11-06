@@ -24,9 +24,12 @@
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
+<<<<<<< HEAD
   ${PROTOBUF_INCLUDE_DIRS}
   ${KINETICIO_INCLUDE_DIRS}
   ${ZMQ_INCLUDE_DIRS}
+=======
+>>>>>>> CMAKE: Update FindProtobuf3, Finduuid, Findncurses, Findreadline and propagate modifications throughout the code
   ${OPENSSL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
@@ -37,8 +40,7 @@ add_subdirectory(tests)
 #-------------------------------------------------------------------------------
 # eos executable
 #-------------------------------------------------------------------------------
-add_library(
-  EosConsoleHelpers-Objects OBJECT
+add_library(EosConsoleHelpers-Objects OBJECT
   commands/ICmdHelper.cc            commands/ICmdHelper.hh
   commands/helpers/FsHelper.cc      commands/helpers/FsHelper.hh
   commands/helpers/RecycleHelper.cc commands/helpers/RecycleHelper.hh
@@ -46,8 +48,16 @@ add_library(
   commands/helpers/NodeHelper.cc    commands/helpers/NodeHelper.hh
   commands/helpers/TokenHelper.cc   commands/helpers/TokenHelper.hh)
 
-add_library(
-  EosConsoleCommands-Objects OBJECT
+target_link_libraries(EosConsoleHelpers-Objects PUBLIC
+  EosFstProto-Objects)
+
+target_include_directories(EosConsoleHelpers-Objects PRIVATE
+  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>)
+
+set_target_properties(EosConsoleHelpers-Objects PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
+
+add_library(EosConsoleCommands-Objects OBJECT
   ConsoleMain.cc  ConsoleMain.hh
   ConsolePipe.cc  ConsolePipe.hh
   ConsoleCompletion.cc ConsoleCompletion.hh
@@ -140,25 +150,15 @@ add_library(
   commands/com_proto_access.cc
   commands/com_proto_fsck.cc)
 
-add_dependencies(EosConsoleHelpers-Objects EosFstProto-Objects)
-add_dependencies(EosConsoleCommands-Objects EosConsoleHelpers-Objects)
-
-target_include_directories(EosConsoleHelpers-Objects PRIVATE
-  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>)
-
-set_target_properties(EosConsoleHelpers-Objects PROPERTIES
-  POSITION_INDEPENDENT_CODE TRUE)
-
-target_include_directories(EosConsoleCommands-Objects PRIVATE
-  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>)
+target_link_libraries(EosConsoleCommands-Objects PUBLIC
+  EosConsoleHelpers-Objects
+  READLINE::READLINE
+  XROOTD::UTILS)
 
 set_target_properties(EosConsoleCommands-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-add_executable(eos
-  ConsoleMainExecutable.cc
-  $<TARGET_OBJECTS:EosConsoleHelpers-Objects>
-  $<TARGET_OBJECTS:EosConsoleCommands-Objects>)
+add_executable(eos ConsoleMainExecutable.cc)
 
 #-------------------------------------------------------------------------------
 # Add dependency which guarantees that the protocol buffer files are generated
@@ -166,9 +166,11 @@ add_executable(eos
 #-------------------------------------------------------------------------------
 target_link_libraries(
   eos PUBLIC
+  EosConsoleCommands-Objects
+  EosConsoleHelpers-Objects
   ZMQ::ZMQ
   XROOTD::POSIX
-  REALDINE::READLINE
+  READLINE::READLINE
   EosFstIo-Static)
 
 install(PROGRAMS eosadmin

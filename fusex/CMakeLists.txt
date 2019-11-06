@@ -29,7 +29,6 @@ include_directories(
   ${SPARSEHASH_INCLUDE_DIRS}
   ${KRB5_INCLUDE_DIR}
   ${OPENSSL_INCLUDE_DIR}
-  ${PROTOBUF_INCLUDE_DIRS}
   ${JSONCPP_INCLUDE_DIR}
   ${HIREDIS_INCLUDE_DIR}
   ${ZMQ_INCLUDE_DIRS}
@@ -88,7 +87,6 @@ set(EOSXD_COMMON_LINK_LIBRARIES
   ${CMAKE_THREAD_LIBS_INIT}
   ${KRB5_LIBRARIES}
   ${OPENSSL_CRYPTO_LIBRARY}
-  ${PROTOBUF_LIBRARY}
   ${JSONCPP_LIBRARIES}
   ${HIREDIS_LIBRARIES}
   ${LIBEVENT_LIBRARIES}
@@ -131,14 +129,13 @@ add_library(eosxd-objects OBJECT
   submount/SubMount.cc submount/SubMount.hh
   ${PROTO_SRC} ${PROTO_HEADER})
 
-target_include_directories(eosxd-objects PRIVATE
-  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>
-  $<TARGET_PROPERTY:XROOTD::PRIVATE,INTERFACE_INCLUDE_DIRECTORIES>)
+target_link_libraries(eosxd-objects PUBLIC
+  PROTOBUF::PROTOBUF
+  XROOTD::PRIVATE
+  XROOTD::UTILS)
 
-set_target_properties(
-  eosxd-objects
-  PROPERTIES
-  COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
+set_target_properties(eosxd-objects
+  PROPERTIES COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
 
 #-------------------------------------------------------------------------------
 # eosxd common sources for all executables. We have to do this to combine
@@ -152,24 +149,19 @@ set(EOSXD_COMMON_SOURCES
 #-------------------------------------------------------------------------------
 # eosxd executables
 #-------------------------------------------------------------------------------
-add_executable(
-  eosxd
+add_executable(eosxd
   main.cc
   ${EOSXD_COMMON_SOURCES})
 
-target_include_directories(eosxd PRIVATE
-  $<TARGET_PROPERTY:XROOTD::PRIVATE,INTERFACE_INCLUDE_DIRECTORIES>)
+target_link_libraries(eosxd PRIVATE
+  eosxd-objects
+  ${EOSXD_COMMON_LINK_LIBRARIES})
 
-if(MacOSX)
-  target_link_libraries(eosxd
-    ${EOSXD_COMMON_LINK_LIBRARIES})
-else()
-  target_link_libraries(eosxd
-    ${EOSXD_COMMON_LINK_LIBRARIES}
-    jemalloc)
+if(Linux)
+  target_link_libraries(eosxd PRIVATE jemalloc)
 endif()
 
-set_target_properties( eosxd
+set_target_properties(eosxd
   PROPERTIES COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
 
 install(
@@ -177,16 +169,14 @@ install(
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 
 if (FUSE3a_FOUND)
-  add_executable(eosxd3
+  add_executable(eosxd3 
     main.cc
     ${EOSXD_COMMON_SOURCES})
 
   target_link_libraries(eosxd3
+    eosxd-objects
     ${EOSXD_COMMON_LINK_LIBRARIES}
     jemalloc)
-
-  target_include_directories(eosxd3 PRIVATE
-    $<TARGET_PROPERTY:XROOTD::PRIVATE,INTERFACE_INCLUDE_DIRECTORIES>)
 
   set_target_properties(eosxd3
     PROPERTIES COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})

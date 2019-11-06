@@ -22,13 +22,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(
-  ${CMAKE_CURRENT_BINARY_DIR}
-  ${PROTOBUF_INCLUDE_DIRS})
-
-set (PROTOBUF_IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
-
-#-------------------------------------------------------------------------------
+##-------------------------------------------------------------------------------
 # Generate protobol buffer object for the Namespace
 #-------------------------------------------------------------------------------
 PROTOBUF_GENERATE_CPP(FMD_SRCS FMD_HDRS namespace/ns_quarkdb/FileMd.proto)
@@ -43,6 +37,12 @@ set_source_files_properties(
 add_library(EosNsQuarkdbProto-Objects OBJECT
   ${NS_PROTO_SRCS}  ${NS_PROTO_HDRS})
 
+target_link_libraries(EosNsQuarkdbProto-Objects PUBLIC
+  PROTOBUF::PROTOBUF)
+
+target_include_directories(EosNsQuarkdbProto-Objects PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
+
 set_target_properties(EosNsQuarkdbProto-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
@@ -54,6 +54,13 @@ PROTOBUF_GENERATE_CPP(FMDBASE_SRCS FMDBASE_HDRS fst/FmdBase.proto)
 add_library(EosFstProto-Objects OBJECT
   ${FMDBASE_SRCS}
   ${FMDBASE_HDRS})
+
+target_link_libraries(EosFstProto-Objects PUBLIC
+  PROTOBUF::PROTOBUF)
+
+target_include_directories(EosFstProto-Objects PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 
 set_target_properties(EosFstProto-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
@@ -103,6 +110,12 @@ set_source_files_properties(
 add_library(EosCliProto-Objects OBJECT
   ${CLI_PROTO_SRCS} ${CLI_PROTO_HDRS})
 
+target_link_libraries(EosCliProto-Objects PUBLIC
+  PROTOBUF::PROTOBUF)
+
+target_include_directories(EosCliProto-Objects PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
+
 set_target_properties(EosCliProto-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
@@ -130,9 +143,13 @@ if (GRPC_FOUND)
     ${GRPC_SVC_SRCS}
     ${GRPC_SVC_HDRS})
 
+  target_link_libraries(EosGrpcProto-Objects PUBLIC
+    EosCliProto-Objects
+    PROTOBUF::PROTOBUF)
+
+  target_include_directories(EosGrpcProto-Objects PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
+
   set_target_properties(EosGrpcProto-Objects PROPERTIES
     POSITION_INDEPENDENT_CODE TRUE)
-
-  add_dependencies(EosGrpcProto-Objects EosCliProto-Objects)
 endif()
-

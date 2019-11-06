@@ -24,75 +24,30 @@
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
-  ${PROTOBUF_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
 # eos executable
 #-------------------------------------------------------------------------------
-add_library(
-  EosGrpcClient-Objects OBJECT
+add_library(EosGrpcClient-Objects OBJECT
   grpc/GrpcClient.cc grpc/GrpcClient.hh)
 
-add_dependencies(EosGrpcClient-Objects EosGrpcProto-Objects)
+target_link_libraries(EosGrpcClient-Objects PUBLIC
+  EosGrpcProto-Objects)
 
-target_compile_definitions(
-  EosGrpcClient-Objects PUBLIC
+target_compile_definitions(EosGrpcClient-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
 
-set_target_properties(
-  EosGrpcClient-Objects
-  PROPERTIES
-  POSITION_INDEPENDENT_CODE TRUE)
+set_target_properties(EosGrpcClient-Objects
+  PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
-add_executable(
-  eos-grpc-ping
-  grpc/Ping.cc
-  $<TARGET_OBJECTS:EosGrpcProto-Objects>
-  $<TARGET_OBJECTS:EosGrpcClient-Objects>
-)
-
-add_executable(
-  eos-grpc-md
-  grpc/Md.cc
-  $<TARGET_OBJECTS:EosGrpcProto-Objects>
-  $<TARGET_OBJECTS:EosGrpcClient-Objects>
-)
-
-add_executable(
-  eos-grpc-find
-  grpc/Find.cc
-  $<TARGET_OBJECTS:EosGrpcProto-Objects>
-  $<TARGET_OBJECTS:EosGrpcClient-Objects>
-)
-
-add_executable(
-  eos-grpc-ns
-  grpc/Ns.cc
-  $<TARGET_OBJECTS:EosGrpcProto-Objects>
-  $<TARGET_OBJECTS:EosGrpcClient-Objects>
-)
-
-add_executable(
-  eos-grpc-insert
-  grpc/Insert.cc
-  $<TARGET_OBJECTS:EosGrpcProto-Objects>
-  $<TARGET_OBJECTS:EosGrpcClient-Objects>
-)
-
-add_executable(
-  eos-grpc-manila
-  grpc/Manila.cc
-  $<TARGET_OBJECTS:EosGrpcProto-Objects>
-  $<TARGET_OBJECTS:EosGrpcClient-Objects>
-)
-
-add_executable(
-  eos-grpc-ns-stat
-  grpc/NsStat.cc
-  $<TARGET_OBJECTS:EosGrpcProto-Objects>
-  $<TARGET_OBJECTS:EosGrpcClient-Objects>
-)
+add_executable(eos-grpc-ping grpc/Ping.cc)
+add_executable(eos-grpc-md grpc/Md.cc)
+add_executable(eos-grpc-find grpc/Find.cc)
+add_executable(eos-grpc-ns grpc/Ns.cc)
+add_executable(eos-grpc-insert grpc/Insert.cc)
+add_executable(eos-grpc-manila grpc/Manila.cc)
+add_executable(eos-grpc-ns-stat grpc/NsStat.cc)
 
 #-------------------------------------------------------------------------------
 # Add dependency which guarantees that the protocol buffer files are generated
@@ -100,83 +55,69 @@ add_executable(
 #-------------------------------------------------------------------------------
 target_link_libraries(
   eos-grpc-ping PUBLIC
+  EosGrpcProto-Objects
+  EosGrpcClient-Objects
   ${RT_LIBRARIES}
-  ${NCURSES_LIBRARY}
-  ${READLINE_LIBRARY}
-  ${PROTOBUF_LIBRARY}
   ${GRPC_LIBRARY}
   ${GRPC_GRPC++_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT}
   EosCommon )
 
 target_link_libraries(
   eos-grpc-md PUBLIC
+  EosGrpcProto-Objects
+  EosGrpcClient-Objects
   ${RT_LIBRARIES}
-  ${NCURSES_LIBRARY}
-  ${READLINE_LIBRARY}
-  ${PROTOBUF_LIBRARY}
   ${GRPC_LIBRARY}
   ${GRPC_GRPC++_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT}
-  EosCommon )
+  EosCommon)
 
 target_link_libraries(
   eos-grpc-find PUBLIC
+  EosGrpcProto-Objects
+  EosGrpcClient-Objects
   ${RT_LIBRARIES}
-  ${NCURSES_LIBRARY}
-  ${READLINE_LIBRARY}
-  ${PROTOBUF_LIBRARY}
   ${GRPC_LIBRARY}
   ${GRPC_GRPC++_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT}
   EosCommon )
 
 target_link_libraries(
   eos-grpc-ns PUBLIC
+  EosGrpcProto-Objects
+  EosGrpcClient-Objects
   ${RT_LIBRARIES}
-  ${NCURSES_LIBRARY}
-  ${READLINE_LIBRARY}
-  ${PROTOBUF_LIBRARY}
   ${GRPC_LIBRARY}
   ${GRPC_GRPC++_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT}
-  EosCommon )
+  EosCommon)
 
 target_link_libraries(
   eos-grpc-insert PUBLIC
+  EosGrpcProto-Objects
+  EosGrpcClient-Objects
   ${RT_LIBRARIES}
-  ${NCURSES_LIBRARY}
-  ${READLINE_LIBRARY}
-  ${PROTOBUF_LIBRARY}
   ${GRPC_LIBRARY}
   ${GRPC_GRPC++_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT}
   EosCommon )
 
 target_link_libraries(
   eos-grpc-manila PUBLIC
+  EosGrpcProto-Objects
+  EosGrpcClient-Objects
   ${RT_LIBRARIES}
-  ${NCURSES_LIBRARY}
-  ${READLINE_LIBRARY}
-  ${PROTOBUF_LIBRARY}
   ${GRPC_LIBRARY}
   ${GRPC_GRPC++_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT}
   EosCommon )
 
 target_link_libraries(
   eos-grpc-ns-stat PUBLIC
+  EosGrpcProto-Objects
+  EosGrpcClient-Objects
   ${RT_LIBRARIES}
-  ${NCURSES_LIBRARY}
-  ${PROTOBUF_LIBRARY}
   ${GRPC_LIBRARY}
   ${GRPC_GRPC++_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT}
-  EosCommon )
+  EosCommon)
 
-install(
-  TARGETS eos-grpc-ping eos-grpc-md eos-grpc-insert eos-grpc-manila
-          eos-grpc-ns eos-grpc-find eos-grpc-ns-stat
+install(TARGETS eos-grpc-ping eos-grpc-md eos-grpc-insert eos-grpc-manila
+  eos-grpc-ns eos-grpc-find eos-grpc-ns-stat
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

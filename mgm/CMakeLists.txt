@@ -26,12 +26,8 @@ include_directories(
   ${ZMQ_INCLUDE_DIRS}
   ${JSONCPP_INCLUDE_DIR}
   ${LDAP_INCLUDE_DIRS}
-  ${NCURSES_INCLUDE_DIRS}
-  ${PROTOBUF_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
   ${FOLLY_INCLUDE_DIRS}
-  ${CMAKE_BINARY_DIR}
-  ${CMAKE_BINARY_DIR}/auth_plugin/
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src
   ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include
@@ -52,12 +48,11 @@ set_source_files_properties(
   ${FUSEX_HDRS}
   PROPERTIES GENERATED 1)
 
-add_library(
-  EosMgmProto-Objects OBJECT
+add_library(EosMgmProto-Objects OBJECT
   ${FUSEX_SRCS} ${FUSEX_HDRS})
 
-target_sources(EosMgmProto-Objects PUBLIC
-  ${FUSEX_SRCS} ${FUSEX_HDRS})
+target_link_libraries(EosMgmProto-Objects PUBLIC
+  PROTOBUF::PROTOBUF)
 
 #-------------------------------------------------------------------------------
 # EosMgmHttp library
@@ -279,19 +274,17 @@ add_library(
   inspector/FileInspector.cc
   ${FUSEX_SRCS})
 
-# Add dependency to protobuf objects so we guarantee that the protocol
-# buffer files are generated when we try to build XrdEosMgm
-add_dependencies(XrdEosMgm-Objects EosCliProto-Objects)
-add_dependencies(XrdEosMgm-Objects EosAuthProto-Objects)
-add_dependencies(XrdEosMgm-Objects XrdSsiPbEosCta-Objects)
+target_link_libraries(XrdEosMgm-Objects PUBLIC
+  EosCliProto-Objects
+  EosAuthProto-Objects
+  XrdSsiPbEosCta-Objects
+  XROOTD::UTILS
+  XROOTD::PRIVATE)
 
 if (GRPC_FOUND)
-  add_dependencies(XrdEosMgm-Objects EosGrpcProto-Objects)
+  target_link_libaries(XrdEosMgm-Objects PUBLIC
+    EosGrpcProto-Objects)
 endif ()
-
-target_include_directories(XrdEosMgm-Objects PRIVATE
-  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>
-  $<TARGET_PROPERTY:XROOTD::PRIVATE,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_compile_definitions(XrdEosMgm-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
@@ -300,15 +293,9 @@ set_target_properties(XrdEosMgm-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 add_library(XrdEosMgm-${PLUGIN_VERSION} MODULE
-  $<TARGET_OBJECTS:EosAuthProto-Objects>
-  $<TARGET_OBJECTS:XrdEosMgm-Objects>
-  $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>)
+  $<TARGET_OBJECTS:XrdEosMgm-Objects>)
 
-target_include_directories(XrdEosMgm PRIVATE
-  $<TARGET_PROPERTY:XROOTD::PRIVATE,INTERFACE_INCLUDE_DIRECTORIES>)
-
-target_compile_definitions(
-  XrdEosMgm-${PLUGIN_VERSION} PUBLIC
+target_compile_definitions(XrdEosMgm-${PLUGIN_VERSION} PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 if (MICROHTTPD_FOUND)
@@ -316,13 +303,15 @@ if (MICROHTTPD_FOUND)
     XrdEosMgm-${PLUGIN_VERSION} PUBLIC -DEOS_MICRO_HTTPD=1)
 endif()
 
-target_link_libraries(
-  XrdEosMgm-${PLUGIN_VERSION} PUBLIC
-  XrdEosMgm PUBLIC
+target_link_libraries(XrdEosMgm-${PLUGIN_VERSION} PUBLIC
+  EosCliProto-Objects
+  EosAuthProto-Objects
+  XrdSsiPbEosCta-Objects
   ZLIB::ZLIB
   XROOTD::CL
   XROOTD::SSI
   XROOTD::UTILS
+  XROOTD::PRIVATE
   qclient
   EosCommon
   EosCommonServer
@@ -331,19 +320,11 @@ target_link_libraries(
   ${FOLLY_LIBRARIES}
   ${ZMQ_LIBRARIES}
   ${LDAP_LIBRARIES}
-  ${NCURSES_LIBRARY}
   ${GLIBC_DL_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
   ${JSONCPP_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
-
-if (GRPC_FOUND)
-  target_link_libraries(
-    XrdEosMgm-${PLUGIN_VERSION} PUBLIC
-    ${GRPC_LIBRARY}
-    ${GRPC_GRPC++_LIBRARY})
-endif()
 
 install(
   TARGETS XrdEosMgm-${PLUGIN_VERSION}
@@ -412,7 +393,6 @@ if(Linux)
     ${FOLLY_LIBRARIES}
     ${ZMQ_LIBRARIES}
     ${LDAP_LIBRARIES}
-    ${NCURSES_LIBRARY}
     ${GLIBC_DL_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}

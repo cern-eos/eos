@@ -24,7 +24,6 @@
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
-  ${PROTOBUF_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
   ${FOLLY_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIRS}
@@ -79,7 +78,7 @@ target_link_libraries(xrdcpslowwriter PRIVATE XROOTD::CL)
 target_link_libraries(eoshashbench PRIVATE EosCommon ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(testhmacsha256 PRIVATE EosCommon ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(eos-open-trunc-update PRIVATE XROOTD::CL XROOTD::POSIX XROOTD::UTILS)
-target_link_libraries(eos-io-tool PRIVATE EosFstIo ${PROTOBUF_LIBRARY})
+target_link_libraries(eos-io-tool PRIVATE EosFstIo)
 target_link_libraries(xrdstress.exe PRIVATE UUID::UUID XROOTD::CL
   XROOTD::UTILS XROOTD::POSIX ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(eoschecksumbench PRIVATE EosFstIo XROOTD::POSIX)

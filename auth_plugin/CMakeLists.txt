@@ -22,10 +22,7 @@
 # ************************************************************************
 
 include_directories(
-  ${CMAKE_SOURCE_DIR}
-  ${CMAKE_BINARY_DIR}
-  ${ZMQ_INCLUDE_DIRS}
-  ${PROTOBUF_INCLUDE_DIRS})
+  ${ZMQ_INCLUDE_DIRS})
 
 if (CPPUNIT_FOUND)
   add_subdirectory(tests)
@@ -63,8 +60,7 @@ PROTOBUF_GENERATE_CPP(FCLOSE_SRCS FCLOSE_HDRS proto/FileClose.proto)
 PROTOBUF_GENERATE_CPP(REQ_SRCS REQ_HDRS proto/Request.proto)
 PROTOBUF_GENERATE_CPP(RESP_SRCS RESP_HDRS proto/Response.proto)
 
-set(
-  AUTH_PROTO_SRCS
+set(AUTH_PROTO_SRCS
   ${XSE_SRCS}     ${XOEI_SRCS}     ${XSFS_SRCS}   ${STAT_SRCS}
   ${FSCTL1_SRCS}  ${FSCTL2_SRCS}   ${REQ_SRCS}    ${RESP_SRCS}
   ${CHMOD_SRCS}   ${CHKSUM_SRCS}   ${EXISTS_SRCS} ${MKDIR_SRCS}
@@ -73,8 +69,7 @@ set(
   ${DFNAME_SRCS}  ${DCLOSE_SRCS}   ${FOPEN_SRCS}  ${FCLOSE_SRCS}
   ${FFNAME_SRCS}  ${FSTAT_SRCS}    ${FREAD_SRCS}  ${FWRITE_SRCS})
 
-set(
-  AUTH_PROTO_HDRS
+set(AUTH_PROTO_HDRS
   ${XSE_HDRS}     ${XOEI_HDRS}     ${XSFS_HDRS}   ${STAT_HDRS}
   ${FSCTL1_HDRS}  ${FSCTL2_HDRS}   ${REQ_HDRS}    ${RESP_HDRS}
   ${CHMOD_HDRS}   ${CHKSUM_HDRS}   ${EXITS_HDRS}  ${MKDIR_HDRS}
@@ -91,14 +86,19 @@ set_source_files_properties(
 #-------------------------------------------------------------------------------
 # EosAuthProto-Objects
 #-------------------------------------------------------------------------------
-add_library(
-  EosAuthProto-Objects OBJECT
+add_library(EosAuthProto-Objects OBJECT
   ProtoUtils.cc ProtoUtils.hh
   ${AUTH_PROTO_SRCS} ${AUTH_PROTO_HDRS})
 
-target_include_directories(EosAuthProto-Objects PRIVATE
-  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>
-  $<TARGET_PROPERTY:XROOTD::PRIVATE,INTERFACE_INCLUDE_DIRECTORIES>)
+target_link_libraries(EosAuthProto-Objects PUBLIC
+  PROTOBUF::PROTOBUF
+  XROOTD::UTILS
+  XROOTD::PRIVATE)
+
+target_include_directories(EosAuthProto-Objects PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+  $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 
 set_target_properties(EosAuthProto-Objects
   PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
@@ -106,22 +106,19 @@ set_target_properties(EosAuthProto-Objects
 #-------------------------------------------------------------------------------
 # EosAuthOfs library
 #-------------------------------------------------------------------------------
-add_library(
-  EosAuthOfs MODULE
+add_library(EosAuthOfs MODULE
   EosAuthOfs.cc  EosAuthOfs.hh
   EosAuthOfsFile.cc EosAuthOfsFile.hh
-  EosAuthOfsDirectory.cc EosAuthOfsDirectory.hh
-  $<TARGET_OBJECTS:EosAuthProto-Objects>)
+  EosAuthOfsDirectory.cc EosAuthOfsDirectory.hh)
 
 target_link_libraries(
   EosAuthOfs PRIVATE
+  EosAuthProto-Objects
   EosCommon
   XROOTD::PRIVATE
-  ${ZMQ_LIBRARIES}
-  ${PROTOBUF_LIBRARY})
+  ${ZMQ_LIBRARIES})
 
-install(
-  TARGETS EosAuthOfs
+install(TARGETS EosAuthOfs
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
