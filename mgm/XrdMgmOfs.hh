@@ -394,13 +394,23 @@ public:
              ino_t* outino = 0);
 
   //----------------------------------------------------------------------------
-  //! Prepare a file (EOS does nothing, only stall/redirect if configured)
+  //! Prepare a file
   //!
-  //! @return always SFS_OK
+  //! @return SFS_OK   prepare request received, use request ID provided by XRootD framework
+  //! @return SFS_DATA prepare request received, use request ID set by the MGM
   //----------------------------------------------------------------------------
   int prepare(XrdSfsPrep& pargs,
               XrdOucErrInfo& out_error,
               const XrdSecEntity* client = 0) override;
+
+  //----------------------------------------------------------------------------
+  //! Query the status of a prepare request
+  //!
+  //! @return SFS_DATA success
+  //----------------------------------------------------------------------------
+  int query_prepare(XrdSfsPrep& pargs,
+                    XrdOucErrInfo& out_error,
+                    const XrdSecEntity* client = 0);
 
   // ---------------------------------------------------------------------------
   // delete file

@@ -644,6 +644,9 @@ int
 XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                    const XrdSecEntity* client)
 {
+  // Query Prepare is not a workflow event, handle it separately
+  if(pargs.opts & Prep_QUERY) return query_prepare(pargs, error, client);
+
   EXEC_TIMING_BEGIN("Prepare");
   eos_info("prepareOpts=\"%s\"", prepareOptsToString(pargs.opts).c_str());
   static const char* epname = "prepare";
@@ -673,8 +676,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   // Strip "quality of service" bits from pargs.opts so that only the action to
   // be taken is left
   const int pargsOptsQoS = Prep_PMASK | Prep_SENDAOK | Prep_SENDERR | Prep_SENDACK
-                           | Prep_WMODE | Prep_COLOC |
-                           Prep_FRESH;
+                           | Prep_WMODE | Prep_COLOC | Prep_FRESH;
   const int pargsOptsAction = pargs.opts & ~pargsOptsQoS;
 
   // The XRootD prepare actions are mutually exclusive
@@ -693,7 +695,6 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       // This is a placeholder. To use this feature, EOS should generate a unique ID here.
       reqid = "eos:" + reqid;
     }
-
     break;
 
   case Prep_CANCEL:
@@ -702,10 +703,6 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
   case Prep_EVICT:
     event = "sync::evict_prepare";
-    break;
-
-  case Prep_FRESH:
-    // Do not generate a workflow event for Prep_FRESH
     break;
 
   default:
@@ -891,6 +888,38 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   EXEC_TIMING_END("Prepare");
   return retc;
 }
+
+
+//-------------------------------------------------------------------------------------------
+// Query the status of a previous prepare request
+//-------------------------------------------------------------------------------------------
+int
+XrdMgmOfs::query_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity* client)
+{
+  EXEC_TIMING_BEGIN("QueryPrepare");
+
+  // ID of the original prepare request. We don't need this to look up the list of files in
+  // the request, as they are provided in the arguments. Anyway we return it in the reply
+  // as a convenience for the client to track which prepare request the query applies to.
+  XrdOucString reqid(pargs.reqid);
+
+  // Build a JSON reply : { request ID, [ array of response objects for each file ] }
+  std::stringstream json_ss;
+  json_ss << "{reqid:" << reqid << ",[";
+
+  for(XrdOucTList *pptr = pargs.paths; pptr; pptr = pptr->next) {
+    json_ss << "{path:\"" << pptr->text << "\"";
+    json_ss << (pptr->next ? "}," : "}");
+  }
+  json_ss << "]}";
+
+  // Send the reply
+  error.setErrInfo(json_ss.str().length() + 1, json_ss.str().c_str());
+
+  EXEC_TIMING_END("QueryPrepare");
+  return SFS_DATA;
+}
+
 
 //------------------------------------------------------------------------------
 //! Truncate a file (not supported in EOS, only via the file interface)
