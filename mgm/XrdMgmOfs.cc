@@ -637,6 +637,19 @@ XrdMgmOfs::getVersion()
   return FullVersion.c_str();
 }
 
+//------------------------------------------------------------------------------
+// Return sth enumber elemenst withi the specified XrdOucTList
+//------------------------------------------------------------------------------
+static unsigned int countNbElementsInXrdOucTList(const XrdOucTList * listPtr) {
+  int count = 0;
+
+  while(listPtr) {
+    count++;
+    listPtr = listPtr->next;
+  }
+
+  return count;
+}
 
 //-------------------------------------------------------------------------------------
 // Prepare a file or query the status of a previous prepare request
@@ -678,7 +691,10 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity*
     const char* ininfo = "";
     MAYREDIRECT;
   }
-  gOFS->MgmStats.Add("Prepare", vid.uid, vid.gid, 1);
+  {
+    const int nbFilesInPrepareRequest = countNbElementsInXrdOucTList(pargs.paths);
+    gOFS->MgmStats.Add("Prepare", vid.uid, vid.gid, nbFilesInPrepareRequest);
+  }
   std::string cmd = "mgm.pcmd=event";
   std::list<std::pair<char**, char**>> pathsWithPrepare;
   // Initialise the request ID for the Prepare request to the one provided by XRootD
