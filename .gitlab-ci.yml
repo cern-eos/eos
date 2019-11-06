@@ -1123,6 +1123,7 @@ clean_debian_artifacts:
 clean_k8s_cluster:
   stage: clean
   script:
+    - set +o pipefail
     - . /home/gitlab-runner/coe-cluster-config/st-gitlab-k8s-01/env_st-gitlab-k8s-01.sh # get access configs for the cluster
     - kubectl get pods --no-headers --all-namespaces | 
       grep -E 'ImagePullBackOff|ErrImagePull|Evicted' | 
@@ -1132,6 +1133,7 @@ clean_k8s_cluster:
       grep -v 'default\|kube-public\|kube-system' | 
       awk '$2 <= "'$( date --utc -d "3 days ago" +"%Y-%m-%dT%H:%M:%SZ" )'" { print $1 }' | 
       xargs --no-run-if-empty kubectl delete namespaces
+  dependencies: []
   tags:
     - shell-with-docker
     - k8s_node
