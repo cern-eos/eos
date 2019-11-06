@@ -74,6 +74,7 @@
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/inspector/FileInspector.hh"
 #include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
+#include "mgm/QueryPrepareResponse.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/Prefetcher.hh"
@@ -903,15 +904,29 @@ XrdMgmOfs::query_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEn
   // as a convenience for the client to track which prepare request the query applies to.
   XrdOucString reqid(pargs.reqid);
 
-  // Build a JSON reply : { request ID, [ array of response objects for each file ] }
-  std::stringstream json_ss;
-  json_ss << "{reqid:" << reqid << ",[";
+  std::vector<QueryPrepareResponse> response;
 
+  // Set the response for each file in the list
   for(XrdOucTList *pptr = pargs.paths; pptr; pptr = pptr->next) {
-    json_ss << "{path:\"" << pptr->text << "\"";
-    json_ss << (pptr->next ? "}," : "}");
+    if(!pptr->text) continue;
+    response.push_back(QueryPrepareResponse(pptr->text));
   }
-  json_ss << "]}";
+
+  // Build a JSON reply in the following format :
+  // { request ID, [ array of response objects, one for each file ] }
+  std::stringstream json_ss;
+  json_ss << "{"
+          << "\"request_id\":" << reqid << ","
+          << "[";
+
+  bool is_first(true);
+  for(auto &r : response) {
+    if(is_first) { is_first = false; } else { json_ss << ","; }
+    json_ss << r;
+  }
+
+  json_ss << "]"
+          << "}";
 
   // Send the reply
   error.setErrInfo(json_ss.str().length() + 1, json_ss.str().c_str());
