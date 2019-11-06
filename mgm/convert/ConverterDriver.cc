@@ -22,13 +22,11 @@
  ************************************************************************/
 
 #include "mgm/convert/ConverterDriver.hh"
-#include "namespace/ns_quarkdb/qclient/include/qclient/Reply.hh"
-#include "namespace/ns_quarkdb/qclient/include/qclient/ResponseParsing.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
+constexpr unsigned int ConverterDriver::cRequestIntervalTime;
 constexpr unsigned int ConverterDriver::QdbHelper::cBatchSize;
-constexpr unsigned int ConverterDriver::QdbHelper::cRequestIntervalTime;
 
 //----------------------------------------------------------------------------
 //! Start converter thread
@@ -56,17 +54,21 @@ void ConverterDriver::Stop()
 //----------------------------------------------------------------------------
 void ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
 {
-  eos_notice("msg=\"starting converter engine thread\"");
   gOFS->WaitUntilNamespaceIsBooted(assistant);
+  eos_notice("msg=\"starting converter engine thread\"");
 
   while (!assistant.terminationRequested()) {
-    auto batch = mQdbHelper.RetrieveJobsBatch();
+    if (ShouldWait()) {
+      HandleRunningJobs();
+      assistant.wait_for(std::chrono::seconds(5));
+      continue;
+    }
 
-    for (auto it = batch.begin();
-         it != batch.end() && !assistant.terminationRequested(); /**/ ) {
+    for (auto it = mQdbHelper.PendingJobsIterator();
+         it.valid() && !assistant.terminationRequested(); /**/) {
       if (NumRunningJobs() < GetMaxThreadPoolSize()) {
-        auto fid = it->first;
-        auto conversion_info = ConversionInfo::parseConversionString(it->second);
+        auto fid = std::strtoull(it.getKey().c_str(), 0, 10);
+        auto conversion_info = ConversionInfo::parseConversionString(it.getValue());
 
         if (conversion_info != nullptr) {
           auto job = std::make_shared<ConversionJob>(fid, *conversion_info.get());
@@ -79,20 +81,17 @@ void ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
           }
         } else {
           eos_err("msg=\"invalid conversion scheduled\" fxid=%08llx "
-                  "conversion_id=%s", fid, it->second.c_str());
+                  "conversion_id=%s", fid, it.getValue().c_str());
           mQdbHelper.RemovePendingJob(fid);
         }
 
-        ++it;
+        it.next();
       } else {
         assistant.wait_for(std::chrono::seconds(5));
-     }
+      }
 
       HandleRunningJobs();
     }
-
-    HandleRunningJobs();
-    assistant.wait_for(std::chrono::seconds(5));
   }
 
   JoinAllConversionJobs();
@@ -136,6 +135,7 @@ void ConverterDriver::HandleRunningJobs()
 void ConverterDriver::JoinAllConversionJobs()
 {
   eos_notice("msg=\"stopping all running conversion jobs\"");
+  HandleRunningJobs();
 
   {
     eos::common::RWMutexReadLock rlock(mJobsMutex);
@@ -162,179 +162,37 @@ void ConverterDriver::JoinAllConversionJobs()
 // QdbHelper class implementation
 //--------------------------------------------------------------------------
 
-//----------------------------------------------------------------------------
-// Retrieve the next batch of conversion jobs from QuarkDB.
-// In case of a failed attempt, avoid repeating the request
-// for cRequestIntervalTime seconds.
-//----------------------------------------------------------------------------
-std::list<ConverterDriver::JobInfoT>
-ConverterDriver::QdbHelper::RetrieveJobsBatch()
-{
-  std::list<ConverterDriver::JobInfoT> jobs;
-
-  // Avoid frequent retries outside active iteration
-  if (mReachedEnd) {
-    auto elapsed = std::chrono::steady_clock::now() - mTimestamp;
-
-    if (elapsed <= std::chrono::seconds(cRequestIntervalTime)) {
-      return jobs;
-    }
-
-    mTimestamp = std::chrono::steady_clock::now();
-    mReachedEnd = false;
-    mCursor = "0";
-  }
-
-  eos_static_debug("msg=\"retrieving conversion jobs from QDB\" cursor=%s",
-                   mCursor.c_str());
-
-  auto reply = mQcl->exec("LHSCAN", kConversionPendingHashKey,
-                          mCursor, "COUNT", std::to_string(cBatchSize)).get();
-
-  // Validate reply object
-  if (!reply || reply->type != REDIS_REPLY_ARRAY) {
-    eos_static_crit("msg=\"Unexpected response from QDB while retrieving "
-                    "conversion jobs\" reply_type=%s",
-                    qclient::describeRedisReply(reply).c_str());
-    return jobs;
-  }
-
-  // Validate received number of elements
-  if (reply->elements != 2) {
-    eos_static_crit("msg=\"Unexpected number of elements in QDB response while "
-                    "retrieving conversion jobs\" expected=2 received=%d "
-                    "reply_type=%s", reply->elements,
-                    qclient::describeRedisReply(reply).c_str());
-    return jobs;
-  }
-
-  // Retrieve cursor
-  qclient::Reply* cursor = reply->element[0];
-
-  if (!cursor || cursor->type != REDIS_REPLY_STRING) {
-    eos_static_crit("msg=\"Invalid cursor encountered while retrieving "
-                    "conversion jobs\" reply_type=%s",
-                    qclient::describeRedisReply(cursor).c_str());
-    return jobs;
-  }
-
-  mCursor = std::string(cursor->str, cursor->len);
-  mReachedEnd = (mCursor == "0");
-
-  if (ParseJobsFromReply(reply->element[1], jobs)) {
-    eos_static_info("msg=\"conversion jobs retrieval done\" "
-                    "count=%d cursor=%s reached_end=%d",
-                    jobs.size(), mCursor.c_str(), mReachedEnd);
-  }
-
-  return jobs;
-}
-
 //--------------------------------------------------------------------------
 // Remove conversion job by id from the pending jobs queue in QuarkDB.
 //--------------------------------------------------------------------------
 bool
-ConverterDriver::QdbHelper::RemovePendingJob(const eos::IFileMD::id_t& id) const
+ConverterDriver::QdbHelper::RemovePendingJob(const eos::IFileMD::id_t& id)
 {
-  auto reply = mQcl->exec("LHDEL", kConversionPendingHashKey,
-                          std::to_string(id)).get();
-
-  if (!reply || reply->type != REDIS_REPLY_INTEGER) {
-    eos_static_crit("msg=\"Error encountered while trying to delete pending "
-                    "conversion job\" fid=%llu", id);
-    return false;
+  try {
+    return mQHashPending.hdel(std::to_string(id));
+  } catch (const std::exception& e) {
+    eos_static_crit("msg=\"Error encountered while trying to delete "
+                    "pending conversion job\" emsg=\"%s\"", e.what());
   }
 
-  return (reply->integer == 1);
+  return false;
 }
 
 //--------------------------------------------------------------------------
 // Add conversion job to the queue of failed jobs in QuarkDB.
 //--------------------------------------------------------------------------
 bool
-ConverterDriver::QdbHelper::AddFailedJob(const JobInfoT& jobinfo) const
+ConverterDriver::QdbHelper::AddFailedJob(const JobInfoT& jobinfo)
 {
-  auto reply = mQcl->exec("HSET", kConversionFailedHashKey,
-                          std::to_string(jobinfo.first), jobinfo.second).get();
-
-  if (!reply || reply->type != REDIS_REPLY_INTEGER) {
+  try {
+    return mQHashFailed.hset(std::to_string(jobinfo.first), jobinfo.second);
+  } catch (const std::exception& e) {
     eos_static_crit("msg=\"Error encountered while trying to add failed "
-                    "conversion job\" fid=%llu conversion_id=%s",
-                    jobinfo.first, jobinfo.second.c_str());
-    return false;
+                    "conversion job\" emsg=\"%s\" conversion_id=%s",
+                    e.what(), jobinfo.second.c_str());
   }
 
-  return (reply->integer == 1);
-}
-
-//--------------------------------------------------------------------------
-// Parse a Redis reply containing an array of conversion data
-// and fill the given list with jobs info
-//--------------------------------------------------------------------------
-bool ConverterDriver::QdbHelper::ParseJobsFromReply(
-  const qclient::Reply* const reply, std::list<JobInfoT>& jobs) const
-{
-  if (!reply || reply->type != REDIS_REPLY_ARRAY) {
-    eos_static_crit("msg=\"Unexpected response from QDB when parsing "
-                    "conversion jobs\" reply_type=%s",
-                     qclient::describeRedisReply(reply).c_str());
-    return false;
-  }
-
-  // Empty reply - exit prematurely
-  if (reply->elements == 0) {
-    return false;
-  }
-
-  if ((reply->elements >  3 * cBatchSize) || (reply->elements % 3 != 0)) {
-    std::string expected = (reply->elements > 3 * cBatchSize) ?
-                           std::to_string(3 * cBatchSize) : "divisible-by-3";
-
-    eos_static_crit("msg=\"Unexpected number of elements in QDB response when "
-                    "parsing conversion jobs\" expected=%s received=%d "
-                    "reply_type=%s", expected.c_str(), reply->elements,
-                    qclient::describeRedisReply(reply).c_str());
-    return false;
-  }
-
-
-  // Lambda function to parse a Redis reply element into a string value
-  auto parseElement = [](const qclient::Reply* reply) -> std::string {
-   qclient::StringParser parser(reply);
-
-    if (!parser.ok() || parser.value().empty()) {
-      eos_static_crit("msg=\"Unexpected response from QDB when parsing "
-                      "conversion job element\" parser_err=%s",
-                      parser.err().c_str());
-      return "";
-    }
-
-    return parser.value();
-  };
-
-  std::list<ConverterDriver::JobInfoT> local_jobs;
-
-  for (size_t i = 0; i < reply->elements; i+=3) {
-    std::string parsed_element =
-      parseElement(reply->element[i + 1]);
-
-    auto fid = 0ull;
-    try {
-      fid = strtoull(parsed_element.c_str(), 0, 10);
-    } catch (...) {}
-
-    std::string info =
-      parseElement(reply->element[i + 2]);
-
-    if (!fid || !info.length()) {
-      return false;
-    }
-
-    local_jobs.emplace_back(fid, info);
-  }
-
-  std::swap(jobs, local_jobs);
-  return true;
+  return false;
 }
 
 EOSMGMNAMESPACE_END
