@@ -638,7 +638,7 @@ XrdMgmOfs::getVersion()
 }
 
 //------------------------------------------------------------------------------
-// Returns the number elemenst within the specified XrdOucTList
+// Returns the number of elements within the specified XrdOucTList
 //------------------------------------------------------------------------------
 static unsigned int countNbElementsInXrdOucTList(const XrdOucTList * listPtr) {
   int count = 0;
