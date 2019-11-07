@@ -89,9 +89,11 @@ ConversionJob::ConversionJob(const eos::IFileMD::id_t fid,
 void ConversionJob::DoIt() noexcept
 {
   using eos::common::FileId;
+  using eos::common::LayoutId;
   std::string source_path;
   std::string source_xs;
   std::string source_xs_postconversion;
+  bool overwrite_checksum;
   uint64_t source_size;
 
   gOFS->MgmStats.Add("ConversionJobStarted", 0, 0, 1);
@@ -113,6 +115,12 @@ void ConversionJob::DoIt() noexcept
     source_path = gOFS->eosView->getUri(fmd.get());
     source_size = fmd->getSize();
     eos::appendChecksumOnStringAsHex(fmd.get(), source_xs);
+
+    // Check if conversion requests a checksum rewrite
+    std::string file_checksum = LayoutId::GetChecksumString(fmd->getLayoutId());
+    std::string conversion_checksum =
+      LayoutId::GetChecksumString(mConversionInfo.lid);
+    overwrite_checksum = (file_checksum != conversion_checksum);
   } catch (eos::MDException& e) {
     HandleError("failed to retrieve file metadata",
                 SSTR("fxid=" << FileId::Fid2Hex(mConversionInfo.fid)
@@ -128,7 +136,7 @@ void ConversionJob::DoIt() noexcept
           << "&eos.app=eos/converter"
           << "&eos.targetsize=" << source_size;
 
-  if (source_xs.size()) {
+  if (source_xs.size() && !overwrite_checksum) {
     dst_cgi << "&eos.checksum=" << source_xs;
   }
 
