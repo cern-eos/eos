@@ -1459,3 +1459,17 @@ TEST_F(VariousTests, QuotanodeCorruption) {
   ASSERT_EQ(cont->getParentId(), 999);
   ASSERT_EQ(view()->getQuotaNode(cont.get()), nullptr);
 }
+
+TEST_F(VariousTests, UnlinkAllLocations) {
+  std::shared_ptr<eos::IFileMD> file1 = view()->createFile("/my-file.txt");
+  ASSERT_EQ(file1->getId(), 1);
+
+  file1->addLocation(13);
+  file1->unlinkLocation(13);
+  file1->addLocation(13);
+
+  file1->unlinkAllLocations();
+
+  ASSERT_EQ(file1->getLocations().size(), 0u);
+  ASSERT_EQ(file1->getUnlinkedLocations().size(), 1u);
+}
