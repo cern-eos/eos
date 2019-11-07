@@ -407,6 +407,7 @@ com_file(char* arg1)
     XrdOucString layout = fsid1;
     XrdOucString space = fsid2;
     XrdOucString plctplcty = fsid3;
+    XrdOucString checksum = subtokenizer.GetToken();
 
     if (!path.length()) {
       goto com_file_usage;
@@ -429,6 +430,11 @@ com_file(char* arg1)
     if (plctplcty.length()) {
       in += "&mgm.convert.placementpolicy=";
       in += plctplcty;
+    }
+
+    if (checksum.length()) {
+      in += "&mgm.convert.checksum=";
+      in += checksum;
     }
 
     if (option == "sync") {
@@ -954,7 +960,7 @@ com_file_usage:
   fprintf(stdout,
           "       - %%output                                                     :  prints lines with inconsistency information\n");
   fprintf(stdout,
-          "file convert [--sync|--rewrite] [<path>|fid:<fid-dec>|fxid:<fid-hex>] [<layout>:<stripes> | <layout-id> | <sys.attribute.name>] [target-space] [placement-policy]:\n");
+          "file convert [--sync|--rewrite] [<path>|fid:<fid-dec>|fxid:<fid-hex>] [<layout>:<stripes> | <layout-id> | <sys.attribute.name>] [target-space] [placement-policy] [checksum]:\n");
   fprintf(stdout,
           "                                                                         convert the layout of a file\n");
   fprintf(stdout,
@@ -967,6 +973,8 @@ com_file_usage:
           "        <target-space>       : optional name of the target space or group e.g. default or default.3\n");
   fprintf(stdout,
           "        <placement-policy>   : optional placement policy valid values are 'scattered','hybrid:<some_geotag>' and 'gathered:<some_geotag>'\n");
+  fprintf(stdout,
+          "        <checksum>           : optional target checksum name. E.g.: md5, adler, etc.\n");
   fprintf(stdout,
           "        --sync               : run conversion in synchronous mode (by default conversions are asynchronous) - not supported yet\n");
   fprintf(stdout,

@@ -1016,9 +1016,13 @@ ProcCommand::File()
         retc = EPERM;
       } else {
         while (1) {
+          using eos::common::LayoutId;
+          LayoutId::eChecksum echecksum{LayoutId::eChecksum::kNone};
+
           XrdOucString layout = pOpaque->Get("mgm.convert.layout");
           XrdOucString space = pOpaque->Get("mgm.convert.space");
           XrdOucString plctplcy = pOpaque->Get("mgm.convert.placementpolicy");
+          XrdOucString checksum = pOpaque->Get("mgm.convert.checksum");
           XrdOucString option = pOpaque->Get("mgm.option");
 
           //stdOut += ("Placement Policy is: " + plctplcy);
@@ -1040,6 +1044,14 @@ ProcCommand::File()
             plctplcy = "~" + plctplcy;
           } else {
             plctplcy = "";
+          }
+
+          if (checksum.length()) {
+            int xs = LayoutId::GetChecksumFromString(checksum.c_str());
+
+            if (xs != -1) {
+              echecksum = static_cast<LayoutId::eChecksum>(xs);
+            }
           }
 
           if (!space.length()) {
@@ -1163,17 +1175,26 @@ ProcCommand::File()
                     // ---------------------------------------------------------------
                     // add block checksumming and the default blocksize of 4 M
                     // ---------------------------------------------------------------
+
+                    // ---------------------------------------------------------------
+                    // unless explicitely stated, use the layout checksum
+                    // ---------------------------------------------------------------
+                    if (echecksum == eos::common::LayoutId::eChecksum::kNone) {
+                      echecksum = static_cast<eos::common::LayoutId::eChecksum>(
+                        eos::common::LayoutId::GetChecksum(layoutid));
+                    }
+
                     XrdOucEnv lLayoutEnv(lLayoutString.c_str());
                     layout_type =
                       eos::common::LayoutId::GetLayoutFromEnv(lLayoutEnv);
                     layout_stripes =
                       eos::common::LayoutId::GetStripeNumberFromEnv(lLayoutEnv);
                     // ---------------------------------------------------------------
-                    // re-create layout id by merging in the layout stripes & type
+                    // re-create layout id by merging in the layout stripes, type & checksum
                     // ---------------------------------------------------------------
                     layoutid =
                       eos::common::LayoutId::GetId(layout_type,
-                                                   eos::common::LayoutId::kAdler,
+                                                   echecksum,
                                                    layout_stripes,
                                                    eos::common::LayoutId::k4M,
                                                    eos::common::LayoutId::kCRC32C,
