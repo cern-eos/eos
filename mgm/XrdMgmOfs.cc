@@ -898,6 +898,15 @@ int
 XrdMgmOfs::query_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity* client)
 {
   EXEC_TIMING_BEGIN("QueryPrepare");
+  ACCESSMODE_R;
+
+  eos::common::VirtualIdentity vid;
+  {
+    const char* tident = error.getErrUser();
+    XrdOucTList *optr = pargs.oinfo;
+    std::string info(optr && optr->text ? optr->text : "");
+    eos::common::Mapping::IdMap(client, info.c_str(), tident, vid);
+  }
 
   // ID of the original prepare request. We don't need this to look up the list of files in
   // the request, as they are provided in the arguments. Anyway we return it in the reply
@@ -910,6 +919,67 @@ XrdMgmOfs::query_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEn
   for(XrdOucTList *pptr = pargs.paths; pptr; pptr = pptr->next) {
     if(!pptr->text) continue;
     response.push_back(QueryPrepareResponse(pptr->text));
+    auto &rsp = response.back();
+
+    // check if the file exists
+    XrdOucString prep_path;
+    {
+      const char* inpath = rsp.path.c_str();
+      const char* ininfo = "";
+      NAMESPACEMAP;
+      prep_path = path;
+    }
+    {
+      const char* path = rsp.path.c_str();
+      const char* ininfo = "";
+      MAYREDIRECT;
+    }
+    if(prep_path.length() == 0) {
+      rsp.error_text = "path empty or uses forbidden characters";
+      continue;
+    }
+    XrdSfsFileExistence check;
+    if(_exists(prep_path.c_str(), check, error, client, "") || check != XrdSfsFileExistIsFile) {
+      rsp.error_text = "file does not exist or is not accessible to you";
+      continue;
+    }
+    rsp.is_exists = true;
+
+    // Check if the file is on disk
+
+    // Check extended attributes
+    eos::IContainerMD::XAttrMap attributes;
+    XrdOucErrInfo xrd_error;
+    if(_attr_ls(eos::common::Path(prep_path.c_str()).GetPath(), xrd_error, vid, nullptr, attributes) == 0) {
+    } else {
+      rsp.error_text = xrd_error.getErrText();
+      continue;
+    }
+    //if (_attr_ls(eos::common::Path(prep_path.c_str()), error, vid, nullptr, attributes) == 0) {
+#if 0
+      bool foundPrepareTag = false;
+      std::string eventAttr = "sys.workflow." + event;
+
+      for (const auto& attrEntry : attributes) {
+        foundPrepareTag |= attrEntry.first.find(eventAttr) == 0;
+      }
+
+      if (foundPrepareTag) {
+        pathsWithPrepare.emplace_back(&(pptr->text),
+                                      optr != nullptr ? & (optr->text) : nullptr);
+      } else {
+        // don't do workflow if no such tag
+        pptr = pptr->next;
+
+        if (optr) {
+          optr = optr->next;
+        }
+
+        continue;
+      }
+    } else {
+      // don't do workflow if event not set or we can't check attributes
+#endif
   }
 
   // Build a JSON reply in the following format :
