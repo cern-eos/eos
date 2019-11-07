@@ -37,12 +37,13 @@ struct QueryPrepareResponse {
 
   friend std::ostream& operator<<(std::ostream& json, QueryPrepareResponse &qpr) {
     json << "{"
-         << "\"path\":\""         << qpr.path << "\","
-         << "\"exists\":"         << (qpr.is_exists    ? "true," : "false,")
-         << "\"online\":"         << (qpr.is_online    ? "true," : "false,")
-         << "\"requested\":"      << (qpr.is_requested ? "true," : "false,")
-         << "\"request_time\":\"" << qpr.request_time << "\","
-         << "\"error_text\":\""   << qpr.error_text << "\""
+         << "\"path\":\""       << qpr.path << "\","
+         << "\"exists\":"       << (qpr.is_exists        ? "true," : "false,")
+         << "\"online\":"       << (qpr.is_online        ? "true," : "false,")
+         << "\"requested\":"    << (qpr.is_requested     ? "true," : "false,")
+         << "\"has_reqid\":"    << (qpr.is_reqid_present ? "true," : "false,")
+         << "\"req_time\":\""   << qpr.request_time << "\","
+         << "\"error_text\":\"" << qpr.error_text << "\""
          << "}";
     return json;
   }
@@ -51,6 +52,7 @@ struct QueryPrepareResponse {
   bool is_exists;
   bool is_online;
   bool is_requested;
+  bool is_reqid_present;
   std::string request_time;
   std::string error_text;
 };

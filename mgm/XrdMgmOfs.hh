@@ -25,18 +25,18 @@
 /**
  * @file   XrdMgmOfs.hh
  *
- * @brief  XRootD OFS plugin implementing meta data handling of EOS
+ * @brief  XRootD OFS plugin implementing metadata handling of EOS
  *
- * This class is the OFS plugin which is implemented the meta data and
+ * This class is the OFS plugin which implements the metadata and
  * management server part. To understand the functionality of the MGM you start
  * here. The class implements three objects, the MgmOfs object for generic
- * meta data operations, configuration and EOS thread daemon startup,
+ * metadata operations, configuration and EOS thread daemon startup,
  * the MgmOfsFile class which implements operations on files - in the case of
  * an MGM this is mainly 'open' for redirection to an FST. There is one exception
  * the so called EOS 'proc' commands. Every EOS shell command is implemented as
  * an 'open for read', 'read', 'close' sequence where the open actually executes
  * an EOS shell command and the read streams the result back. For details of
- * this REST like request/response format look at the ProcInterface class and
+ * this REST-like request/response format look at the ProcInterface class and
  * the implementations in the mgm/proc directory. The XrdMgmDirectory class
  * is provided to implement the POSIX like 'open', 'readdir', 'closedir' syntax.
  * The MGM code uses mainly three global mutexes given in the order they have
@@ -394,7 +394,7 @@ public:
              ino_t* outino = 0);
 
   //----------------------------------------------------------------------------
-  //! Prepare a file
+  //! Prepare a file or query the status of a previous prepare request
   //!
   //! @return SFS_OK   prepare request received, use request ID provided by XRootD framework
   //! @return SFS_DATA prepare request received, use request ID set by the MGM
@@ -404,13 +404,23 @@ public:
               const XrdSecEntity* client = 0) override;
 
   //----------------------------------------------------------------------------
+  //! Prepare a file
+  //!
+  //! @return SFS_OK   prepare request received, use request ID provided by XRootD framework
+  //! @return SFS_DATA prepare request received, use request ID set by the MGM
+  //----------------------------------------------------------------------------
+  int _prepare(XrdSfsPrep& pargs,
+               XrdOucErrInfo& out_error,
+               const XrdSecEntity* client);
+
+  //----------------------------------------------------------------------------
   //! Query the status of a prepare request
   //!
   //! @return SFS_DATA success
   //----------------------------------------------------------------------------
-  int query_prepare(XrdSfsPrep& pargs,
-                    XrdOucErrInfo& out_error,
-                    const XrdSecEntity* client = 0);
+  int _prepare_query(XrdSfsPrep& pargs,
+                     XrdOucErrInfo& out_error,
+                     const XrdSecEntity* client);
 
   // ---------------------------------------------------------------------------
   // delete file

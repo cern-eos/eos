@@ -638,16 +638,28 @@ XrdMgmOfs::getVersion()
 }
 
 
-//------------------------------------------------------------------------------
-// Prepare a file (EOS will call a prepare workflow if defined)
-//------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------
+// Prepare a file or query the status of a previous prepare request
+//-------------------------------------------------------------------------------------
 int
-XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
-                   const XrdSecEntity* client)
+XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity* client)
 {
-  // Query Prepare is not a workflow event, handle it separately
-  if(pargs.opts & Prep_QUERY) return query_prepare(pargs, error, client);
+  if(pargs.opts & Prep_QUERY) {
+    return _prepare_query(pargs, error, client);
+  } else {
+    return _prepare(pargs, error, client);
+  }
+}
 
+
+//--------------------------------------------------------------------------------------
+// Prepare a file
+//
+// EOS will call a prepare workflow if defined
+//--------------------------------------------------------------------------------------
+int
+XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity* client)
+{
   EXEC_TIMING_BEGIN("Prepare");
   eos_info("prepareOpts=\"%s\"", prepareOptsToString(pargs.opts).c_str());
   static const char* epname = "prepare";
@@ -895,7 +907,7 @@ XrdMgmOfs::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 // Query the status of a previous prepare request
 //-------------------------------------------------------------------------------------------
 int
-XrdMgmOfs::query_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity* client)
+XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity* client)
 {
   EXEC_TIMING_BEGIN("QueryPrepare");
   ACCESSMODE_R;
@@ -945,41 +957,29 @@ XrdMgmOfs::query_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEn
     }
     rsp.is_exists = true;
 
-    // Check if the file is on disk
+    // Check file state (online/offline)
+    // TO DO
 
-    // Check extended attributes
-    eos::IContainerMD::XAttrMap attributes;
+    // Check file status in the extended attributes
+    eos::IFileMD::XAttrMap xattrs;
     XrdOucErrInfo xrd_error;
-    if(_attr_ls(eos::common::Path(prep_path.c_str()).GetPath(), xrd_error, vid, nullptr, attributes) == 0) {
+    if(_attr_ls(eos::common::Path(prep_path.c_str()).GetPath(), xrd_error, vid, nullptr, xattrs) == 0) {
+      auto xattr_it = xattrs.find(eos::common::RETRIEVE_REQID_ATTR_NAME);
+      if(xattr_it != xattrs.end()) {
+        // has file been requested? (not necessarily with this request ID)
+        rsp.is_requested = !xattr_it->second.empty();
+        // and is this specific request ID present in the request?
+        rsp.is_reqid_present = (xattr_it->second.find(reqid.c_str()) != string::npos);
+      }
+      xattr_it = xattrs.find(eos::common::RETRIEVE_REQTIME_ATTR_NAME);
+      if(xattr_it != xattrs.end()) rsp.request_time = xattr_it->second;
+      xattr_it = xattrs.find(eos::common::RETRIEVE_ERROR_ATTR_NAME);
+      if(xattr_it != xattrs.end()) rsp.error_text = xattr_it->second;
     } else {
+      // failed to read extended attributes
       rsp.error_text = xrd_error.getErrText();
       continue;
     }
-    //if (_attr_ls(eos::common::Path(prep_path.c_str()), error, vid, nullptr, attributes) == 0) {
-#if 0
-      bool foundPrepareTag = false;
-      std::string eventAttr = "sys.workflow." + event;
-
-      for (const auto& attrEntry : attributes) {
-        foundPrepareTag |= attrEntry.first.find(eventAttr) == 0;
-      }
-
-      if (foundPrepareTag) {
-        pathsWithPrepare.emplace_back(&(pptr->text),
-                                      optr != nullptr ? & (optr->text) : nullptr);
-      } else {
-        // don't do workflow if no such tag
-        pptr = pptr->next;
-
-        if (optr) {
-          optr = optr->next;
-        }
-
-        continue;
-      }
-    } else {
-      // don't do workflow if event not set or we can't check attributes
-#endif
   }
 
   // Build a JSON reply in the following format :
