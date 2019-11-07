@@ -919,6 +919,15 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecE
     std::string info(optr && optr->text ? optr->text : "");
     eos::common::Mapping::IdMap(client, info.c_str(), tident, vid);
   }
+  MAYSTALL;
+  {
+    const char* path = "/";
+    const char* ininfo = "";
+    MAYREDIRECT;
+  }
+  int path_cnt = 0;
+  for(XrdOucTList *pptr = pargs.paths; pptr; pptr = pptr->next) ++path_cnt;
+  gOFS->MgmStats.Add("QueryPrepare", vid.uid, vid.gid, path_cnt);
 
   // ID of the original prepare request. We don't need this to look up the list of files in
   // the request, as they are provided in the arguments. Anyway we return it in the reply
