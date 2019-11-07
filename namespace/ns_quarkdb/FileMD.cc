@@ -167,12 +167,12 @@ QuarkFileMD::unlinkLocation(location_t location)
   for (auto it = mFile.mutable_locations()->cbegin();
        it != mFile.mutable_locations()->cend(); ++it) {
     if (*it == location) {
+
       // If location is already unlink, skip adding it
-      if (hasUnlinkedLocationNoLock(location)) {
-        return;
+      if (!hasUnlinkedLocationNoLock(location)) {
+        mFile.add_unlink_locations(*it);
       }
 
-      mFile.add_unlink_locations(*it);
       it = mFile.mutable_locations()->erase(it);
       lock.unlock();
       IFileMDChangeListener::Event
