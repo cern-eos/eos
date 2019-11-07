@@ -967,11 +967,16 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecE
     rsp.is_exists = true;
 
     // Check file state (online/offline)
-    // TO DO
+    XrdOucErrInfo xrd_error;
+    struct stat buf;
+    if(_stat(rsp.path.c_str(), &buf, xrd_error, vid, nullptr, nullptr, false)) {
+      rsp.error_text = xrd_error.getErrText();
+      continue;
+    }
+    rsp.is_online = !(buf.st_rdev & XRDSFS_OFFLINE);
 
     // Check file status in the extended attributes
     eos::IFileMD::XAttrMap xattrs;
-    XrdOucErrInfo xrd_error;
     if(_attr_ls(eos::common::Path(prep_path.c_str()).GetPath(), xrd_error, vid, nullptr, xattrs) == 0) {
       auto xattr_it = xattrs.find(eos::common::RETRIEVE_REQID_ATTR_NAME);
       if(xattr_it != xattrs.end()) {
