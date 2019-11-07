@@ -916,8 +916,8 @@ XrdMgmOfs::query_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEn
   // { request ID, [ array of response objects, one for each file ] }
   std::stringstream json_ss;
   json_ss << "{"
-          << "\"request_id\":" << reqid << ","
-          << "[";
+          << "\"request_id\":\"" << reqid << "\","
+          << "\"responses\":[";
 
   bool is_first(true);
   for(auto &r : response) {
