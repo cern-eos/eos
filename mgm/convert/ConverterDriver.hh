@@ -72,6 +72,16 @@ public:
   void Stop();
 
   //----------------------------------------------------------------------------
+  //! Schedule a conversion job with the given ID and conversion info.
+  //!
+  //! @param id the job id
+  //! @param conversion_info the conversion info string
+  //! @return true if scheduling succeeded, false otherwise
+  //----------------------------------------------------------------------------
+  bool ScheduleJob(const eos::IFileMD::id_t& id,
+                   const std::string& conversion_info);
+
+  //----------------------------------------------------------------------------
   //! Get thread pool info
   //!
   //! @return string thread pool info
@@ -126,6 +136,14 @@ private:
     {
       return mQHashPending.getIterator(cBatchSize, "0");
     }
+
+    //--------------------------------------------------------------------------
+    //! Add conversion job to the queue of pending jobs in QuarkDB.
+    //!
+    //! @param jobinfo the pending conversion job details
+    //! @return true if operation succeeded, false otherwise
+    //--------------------------------------------------------------------------
+    bool AddPendingJob(const JobInfoT& jobinfo);
 
     //--------------------------------------------------------------------------
     //! Remove conversion job by id from the pending jobs queue in QuarkDB.

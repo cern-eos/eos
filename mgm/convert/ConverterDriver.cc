@@ -158,12 +158,38 @@ void ConverterDriver::JoinAllConversionJobs()
   mJobsRunning.clear();
 }
 
+//----------------------------------------------------------------------------
+// Schedule a conversion job with the given ID and conversion string
+//----------------------------------------------------------------------------
+bool
+ConverterDriver::ScheduleJob(const eos::IFileMD::id_t& id,
+                             const std::string& conversion_info)
+{
+  return mQdbHelper.AddPendingJob(std::make_pair(id, conversion_info));
+}
+
 //--------------------------------------------------------------------------
 // QdbHelper class implementation
 //--------------------------------------------------------------------------
 
 //--------------------------------------------------------------------------
-// Remove conversion job by id from the pending jobs queue in QuarkDB.
+// Add conversion job to the queue of pending jobs in QuarkDB
+//--------------------------------------------------------------------------
+bool ConverterDriver::QdbHelper::AddPendingJob(const JobInfoT& jobinfo)
+{
+  try {
+    return mQHashPending.hset(std::to_string(jobinfo.first), jobinfo.second);
+  } catch (const std::exception& e) {
+    eos_static_crit("msg=\"Error encountered while trying to add pending "
+                    "conversion job\" emsg=\"%s\" conversion_id=%s",
+                    e.what(), jobinfo.second.c_str());
+  }
+
+  return false;
+}
+
+//--------------------------------------------------------------------------
+// Remove conversion job by id from the pending jobs queue in QuarkDB
 //--------------------------------------------------------------------------
 bool
 ConverterDriver::QdbHelper::RemovePendingJob(const eos::IFileMD::id_t& id)
@@ -179,7 +205,7 @@ ConverterDriver::QdbHelper::RemovePendingJob(const eos::IFileMD::id_t& id)
 }
 
 //--------------------------------------------------------------------------
-// Add conversion job to the queue of failed jobs in QuarkDB.
+// Add conversion job to the queue of failed jobs in QuarkDB
 //--------------------------------------------------------------------------
 bool
 ConverterDriver::QdbHelper::AddFailedJob(const JobInfoT& jobinfo)
