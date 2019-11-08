@@ -1442,6 +1442,8 @@ main(int argc, char* argv[])
 
       if ((npos = opaque.find("?")) != STR_NPOS) {
         opaque.erase(0, npos);
+      } else {
+        opaque = "";
       }
 
       while ((pos = file_path.find("/", pos + 1)) != STR_NPOS) {
@@ -1514,8 +1516,11 @@ main(int argc, char* argv[])
         }
 
         if (mkdir_failed) {
-          fprintf(stderr, "error: cannot create destination sub-directory %s\n",
-                  subpath.c_str());
+          std::string errmsg = (status.IsOK()) ?
+            ("cannot create destination sub-directory " + subpath).c_str()
+            : status.GetErrorMessage();
+
+          fprintf(stderr, "error: %s\n", errmsg.c_str());
           exit(-EPERM);
         }
 
