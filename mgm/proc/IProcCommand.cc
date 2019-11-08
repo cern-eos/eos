@@ -28,6 +28,7 @@
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/Macros.hh"
 #include "namespace/interface/IView.hh"
+#include "json/json.h"
 #include <google/protobuf/util/json_util.h>
 
 EOSMGMNAMESPACE_BEGIN

@@ -28,12 +28,16 @@
 #include "proto/ConsoleReply.pb.h"
 #include "proto/ConsoleRequest.pb.h"
 #include "XrdSfs/XrdSfsInterface.hh"
-#include "json/json.h"
 #include <future>
 #include <sstream>
 
 //! Forward declarations
 class XrdOucErrInfo;
+
+namespace Json
+{
+class Value;
+}
 
 EOSMGMNAMESPACE_BEGIN
 

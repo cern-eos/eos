@@ -22,7 +22,6 @@
 # ************************************************************************
 
 include_directories(
-  ${JSONCPP_INCLUDE_DIR}
   ${ZMQ_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIRS}
@@ -89,6 +88,7 @@ target_link_libraries(EosCommon-Objects PUBLIC
   EosFstProto-Objects
   EosCliProto-Objects
   ZLIB::ZLIB
+  JSONCPP::JSONCPP
   XROOTD::UTILS)
 
 target_include_directories(EosCommon-Objects
@@ -106,7 +106,6 @@ set(EOSCOMMON_LIBS
   ${GLIBC_DL_LIBRARY}
   ${GLIBC_RT_LIBRARY}
   ${LIBBFD_LIBRARIES}
-  ${JSONCPP_LIBRARIES}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
@@ -212,7 +211,6 @@ if (Linux)
     fmt
     qclient
     ${ZMQ_LIBRARIES}
-    ${JSONCPP_LIBRARIES}
     ${LEVELDB_LIBRARIES}
     ${GLIBC_RT_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY})

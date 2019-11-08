@@ -28,6 +28,7 @@
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
+#include "json/json.h"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -37,9 +38,9 @@ ProcCommand::Accounting()
   static eos::common::ExpiryCache<std::string> accountingCache(
     std::chrono::seconds(600));
   static const auto generateAccountingJson = [](
-    eos::common::VirtualIdentity & vid) {
+  eos::common::VirtualIdentity & vid) {
     static const auto processAccountingAttribute = [](
-      std::pair<std::string, std::string> attr, Json::Value & storageShare) {
+    std::pair<std::string, std::string> attr, Json::Value & storageShare) {
       static auto accountingAttrPrefix = "sys.accounting";
 
       if (attr.first.find(accountingAttrPrefix) == 0) {
@@ -80,13 +81,10 @@ ProcCommand::Accounting()
         }
       }
     };
-
     Json::Value root;
-
     Json::Value storageShare;
     eos::IContainerMD::XAttrMap attributes;
     XrdOucErrInfo errInfo;
-
     // start with extended attributes so they can't overwrite fields
     gOFS->_attr_ls(gOFS->MgmProcPath.c_str(), errInfo, vid, nullptr,
                    attributes);
@@ -105,9 +103,9 @@ ProcCommand::Accounting()
     root["storageservice"]["implementation"] = "EOS";
     root["storageservice"]["implementationversion"] = version.str().c_str();
     root["storageservice"]["latestupdate"] = Json::Int64{std::time(nullptr)};
-
     auto capacityOnline = Json::UInt64{0};
     auto usedOnline = Json::UInt64{0};
+
     for (const auto& quota : Quota::GetAllGroupsLogicalQuotaValues()) {
       storageShare.clear();
       attributes.clear();
@@ -120,10 +118,8 @@ ProcCommand::Accounting()
 
       auto usedSizeofShare = Json::UInt64{std::get<0>(quota.second)};
       auto totalSizeofShare = Json::UInt64{std::get<1>(quota.second)};
-
       capacityOnline += totalSizeofShare;
       usedOnline += usedSizeofShare;
-
       storageShare["path"].append(quota.first);
       storageShare["usedsize"] = usedSizeofShare;
       storageShare["totalsize"] = totalSizeofShare;
@@ -132,18 +128,17 @@ ProcCommand::Accounting()
       root["storageservice"]["storageshares"].append(storageShare);
     }
 
-    root["storageservice"]["storagecapacity"]["online"]["totalsize"] = capacityOnline;
+    root["storageservice"]["storagecapacity"]["online"]["totalsize"] =
+      capacityOnline;
     root["storageservice"]["storagecapacity"]["online"]["usedsize"] = usedOnline;
     root["storageservice"]["storagecapacity"]["offline"]["totalsize"] = Json::UInt64{0};
     root["storageservice"]["storagecapacity"]["offline"]["usedsize"] = Json::UInt64{0};
-
     return new std::string(SSTR(root));
   };
-
   retc = SFS_OK;
 
   if (mSubCmd == "config") {
-    if(!pVid->sudoer) {
+    if (!pVid->sudoer) {
       stdErr += "error: only sudoers are allowed to change cache configuration";
       retc = EPERM;
       return retc;

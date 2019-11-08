@@ -58,9 +58,7 @@ include_directories(
   ${SPARSEHASH_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIRS}
   ${XFS_INCLUDE_DIRS}
-  ${JSONC_INCLUDE_DIR}
   ${DAVIX_INCLUDE_DIRS}
-  ${FOLLY_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include)
 
@@ -214,7 +212,6 @@ target_link_libraries(EosFstIo PUBLIC
   ${GLIBC_RT_LIBRARY}
   ${GLIBC_DL_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
-  ${JSONC_LIBRARIES}
   ${DAVIX_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
   ${LIBISALCRYPTO_LIBRARIES}
@@ -244,7 +241,6 @@ target_link_libraries(EosFstIo-Static PUBLIC
   EosCliProto-Objects
   EosCrc32c-Objects
   XROOTD::SERVER
-  ${JSONC_LIBRARIES}
   ${DAVIX_LIBRARIES}
   ${LIBISALCRYPTO_LIBRARIES}
   ${LIBISAL_LIBRARIES}
@@ -364,7 +360,8 @@ target_link_libraries(XrdEosFst-Objects PUBLIC
   XrdSsiPbEosCta-Objects
   EosConsoleHelpers-Objects
   XROOTD::UTILS
-  XROOTD::PRIVATE)
+  XROOTD::PRIVATE
+  FOLLY::FOLLY)
 
 set_target_properties(XrdEosFst-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
@@ -433,7 +430,8 @@ target_link_libraries(eos-rain-hd-dump
 add_executable(eos-leveldb-inspect
   tools/eos-leveldb-inspect.cc)
 
-target_link_libraries(eos-leveldb-inspect PRIVATE EosCommonServer)
+target_link_libraries(eos-leveldb-inspect PRIVATE
+  EosCommonServer FOLLY::FOLLY)
 
 add_executable(eos-check-blockxs
   tools/CheckBlockXS.cc
@@ -450,6 +448,7 @@ add_executable(eos-scan-fs
   ScanDir.cc             Load.cc
   FmdDbMap.cc
   checksum/Adler.cc      checksum/CheckSum.cc)
+
 target_compile_definitions(eos-scan-fs PUBLIC -D_NOOFS=1)
 
 add_executable(eos-fsck-fs
@@ -457,6 +456,7 @@ add_executable(eos-fsck-fs
   FmdDbMap.cc
   tools/Fsck.cc
   checksum/Adler.cc      checksum/CheckSum.cc)
+
 target_compile_definitions(eos-fsck-fs PUBLIC -D_NOOFS=1)
 
 add_executable(eos-adler32
@@ -487,14 +487,16 @@ target_link_libraries(eos-checksum PRIVATE
   ${CMAKE_THREAD_LIBS_INIT} )
 
 target_link_libraries(eos-scan-fs PRIVATE
-  EosCommonServer
   EosFstIo
-  EosNsCommon-Static)
+  EosCommonServer
+  EosNsCommon-Static
+  FOLLY::FOLLY)
 
 target_link_libraries(eos-fsck-fs PRIVATE
-  EosCommonServer
   EosFstIo
-  EosNsCommon-Static)
+  EosCommonServer
+  EosNsCommon-Static
+  FOLLY::FOLLY)
 
 install(PROGRAMS
   tools/eosfstregister

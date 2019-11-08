@@ -26,8 +26,7 @@ include_directories(${CPPUNIT_INCLUDE_DIRS})
 #-------------------------------------------------------------------------------
 # EosNsInMemoryTests library
 #-------------------------------------------------------------------------------
-add_library(
-  EosNsInMemoryTests SHARED
+add_library(EosNsInMemoryTests SHARED
   ChangeLogContainerMDSvcTest.cc
   ChangeLogFileMDSvcTest.cc
   ChangeLogTest.cc
@@ -39,12 +38,9 @@ add_library(
   ${CMAKE_SOURCE_DIR}/namespace/utils/TestHelpers.hh
   ${CMAKE_SOURCE_DIR}/namespace/utils/TestHelpers.cc)
 
-target_link_libraries(
-  EosNsInMemoryTests PUBLIC
+target_link_libraries(EosNsInMemoryTests PUBLIC
   EosNsInMemory
-  ${FOLLY_LIBRARIES}
   ${CPPUNIT_LIBRARIES})
-
 
 set_target_properties(
   EosNsInMemoryTests
@@ -64,9 +60,8 @@ endif()
 add_executable(ns-benchmark NSBenchmark.cc)
 target_link_libraries(ns-benchmark PRIVATE
   EosNsInMemory-Static
-  ${GLIBC_RT_LIBRARY}
-  ${FOLLY_LIBRARIES})
+  ${GLIBC_RT_LIBRARY})
 
 add_executable(eosnsbench_mem EosNamespaceBenchmark.cc)
-target_link_libraries(eosnsbench_mem EosCommon-Static EosNsInMemory-Static ${FOLLY_LIBRARIES})
+target_link_libraries(eosnsbench_mem EosCommon-Static EosNsInMemory-Static)
 set_target_properties(eosnsbench_mem PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")

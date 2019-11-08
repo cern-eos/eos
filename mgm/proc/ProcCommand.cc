@@ -28,6 +28,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMDSvc.hh"
+#include "json/json.h"
 
 EOSMGMNAMESPACE_BEGIN
 

@@ -21,9 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(
- ${CMAKE_SOURCE_DIR}
- ${FOLLY_INCLUDE_DIRS})
+include_directories(${CMAKE_SOURCE_DIR})
 
 #-------------------------------------------------------------------------------
 # Generate protocol buffer files

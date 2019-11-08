@@ -24,10 +24,8 @@
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${ZMQ_INCLUDE_DIRS}
-  ${JSONCPP_INCLUDE_DIR}
   ${LDAP_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
-  ${FOLLY_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src
   ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include
@@ -76,10 +74,9 @@ target_link_libraries(EosMgmHttp-${PLUGIN_VERSION} PUBLIC
   EosCommon
   EosCommonServer
   XROOTD::UTILS
-  XROOTD::HTTP)
-
-target_include_directories(EosMgmHttp PRIVATE
-  $<TARGET_PROPERTY:XROOTD::PRIVATE,INTERFACE_INCLUDE_DIRECTORIES>)
+  XROOTD::HTTP
+  XROOTD::PRIVATE
+  FOLLY::FOLLY)
 
 install(
   TARGETS EosMgmHttp-${PLUGIN_VERSION}
@@ -278,8 +275,10 @@ target_link_libraries(XrdEosMgm-Objects PUBLIC
   EosCliProto-Objects
   EosAuthProto-Objects
   XrdSsiPbEosCta-Objects
+  JSONCPP::JSONCPP
   XROOTD::UTILS
-  XROOTD::PRIVATE)
+  XROOTD::PRIVATE
+  FOLLY::FOLLY)
 
 if (GRPC_FOUND)
   target_link_libaries(XrdEosMgm-Objects PUBLIC
@@ -304,6 +303,7 @@ if (MICROHTTPD_FOUND)
 endif()
 
 target_link_libraries(XrdEosMgm-${PLUGIN_VERSION} PUBLIC
+  XrdEosMgm-Objects
   EosCliProto-Objects
   EosAuthProto-Objects
   XrdSsiPbEosCta-Objects
@@ -317,13 +317,11 @@ target_link_libraries(XrdEosMgm-${PLUGIN_VERSION} PUBLIC
   EosCommonServer
   EosNsCommon
   bfd
-  ${FOLLY_LIBRARIES}
   ${ZMQ_LIBRARIES}
   ${LDAP_LIBRARIES}
   ${GLIBC_DL_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
-  ${JSONCPP_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
 install(
@@ -372,31 +370,28 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 if(Linux)
   add_library(XrdEosMgm-Static STATIC
-    $<TARGET_OBJECTS:EosAuthProto-Objects>
-    $<TARGET_OBJECTS:XrdEosMgm-Objects>
-    $<TARGET_OBJECTS:XrdSsiPbEosCta-Objects>)
+    $<TARGET_OBJECTS:XrdEosMgm-Objects>)
 
-  target_include_directories(XrdEosMgm-Static PRIVATE
-    $<TARGET_PROPERTY:XROOTD::PRIVATE,INTERFACE_INCLUDE_DIRECTORIES>)
-
-  target_compile_definitions(
-    XrdEosMgm-Static PUBLIC
+  target_compile_definitions(XrdEosMgm-Static PUBLIC
     -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
   target_link_libraries(XrdEosMgm-Static PUBLIC
+    XrdEosMgm-Objects
+    EosAuthProto-Objects
+    XrdSsiPbEosCta-Objects
     ZLIB::ZLIB
     XROOTD::CL
     XROOTD::SSI
     XROOTD::UTILS
+    XROOTD::PRIVATE
     EosNsCommon-Static
     EosCommonServer-Static
-    ${FOLLY_LIBRARIES}
+    eosCapability-Static
     ${ZMQ_LIBRARIES}
     ${LDAP_LIBRARIES}
     ${GLIBC_DL_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}
-    ${JSONCPP_LIBRARIES}
     ${CMAKE_THREAD_LIBS_INIT})
 
   if (GRPC_FOUND)

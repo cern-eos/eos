@@ -27,8 +27,7 @@ include_directories(
  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb
  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src
- ${SPARSEHASH_INCLUDE_DIR}
- ${FOLLY_INCLUDE_DIRS})
+ ${SPARSEHASH_INCLUDE_DIR})
 
 add_subdirectory(tests)
 
@@ -45,7 +44,7 @@ target_link_libraries(EosNsQuarkdb PUBLIC
   EosNsCommon
   qclient
   rocksdb
-  ${FOLLY_LIBRARIES}
+  FOLLY::FOLLY
   ${BZ2_LIBRARY}
   ${GLIBC_DL_LIBRARY}
   ${GLIBC_RT_LIBRARY}
@@ -69,7 +68,7 @@ target_link_libraries(eos-ns-convert PRIVATE
   qclient
   EosCommon
   EosNsInMemory-Static
-  ${FOLLY_LIBRARIES})
+  FOLLY::FOLLY)
 
 add_executable(eos-ns-convert-to-locality-hashes tools/EosConvertToLocalityHashes.cc)
 
@@ -78,7 +77,7 @@ target_link_libraries(eos-ns-convert-to-locality-hashes PRIVATE
 
 add_executable(eos-ns-inspect tools/InspectionTool.cc)
 
-target_link_libraries(eos-ns-inspect PRIVATE  EosNsCommon-Static)
+target_link_libraries(eos-ns-inspect PRIVATE EosNsCommon-Static FOLLY::FOLLY)
 
 add_executable(eos-fid-to-path tools/Fid2PathTool.cc)
 

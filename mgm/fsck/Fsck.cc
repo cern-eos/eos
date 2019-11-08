@@ -35,6 +35,7 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/Prefetcher.cc"
+#include "json/json.h"
 
 EOSMGMNAMESPACE_BEGIN
 

@@ -22,10 +22,8 @@
 # ************************************************************************
 include_directories(
   ${CMAKE_SOURCE_DIR}
-  ${FOLLY_INCLUDE_DIRS}
   "${gtest_SOURCE_DIR}/include"
-  "${gmock_SOURCE_DIR}/include"
-)
+  "${gmock_SOURCE_DIR}/include")
 
 #-------------------------------------------------------------------------------
 # QuarkDB namespace unit tests
@@ -50,11 +48,9 @@ target_link_libraries(
   gtest
   gmock_main
   EosNsCommon-Static
-  ${CMAKE_THREAD_LIBS_INIT})
+  FOLLY::FOLLY)
 
-install(
-  TARGETS
-  eos-ns-quarkdb-tests
+install(TARGETS eos-ns-quarkdb-tests
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 #-------------------------------------------------------------------------------
@@ -63,7 +59,6 @@ install(
 add_executable(eosnsbench EosNamespaceBenchmark.cc)
 target_compile_options(eosnsbench PUBLIC -DFILE_OFFSET_BITS=64)
 target_link_libraries(eosnsbench PRIVATE EosNsCommon-Static)
-
 add_executable(eos-lru-benchmark LruBenchmark.cc)
 target_link_libraries(eos-lru-benchmark EosCommon)
 

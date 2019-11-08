@@ -23,8 +23,6 @@
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
-  ${FOLLY_INCLUDE_DIRS}
-  ${JSONCPP_INCLUDE_DIR}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_BINARY_DIR}/namespace/ns_quarkdb
@@ -122,8 +120,7 @@ target_link_libraries(eos-unit-tests PRIVATE
   qclient
   XROOTD::POSIX
   XROOTD::SERVER
-  XrdEosMgm-Static
-  ${JSONCPP_LIBRARIES})
+  XrdEosMgm-Static)
 
 install(TARGETS
   eos-unit-tests

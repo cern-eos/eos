@@ -26,7 +26,12 @@
 #include "IProcCommand.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include <iomanip>
-#include <json/json.h>
+
+//! Forward declaration
+namespace Json
+{
+class Value;
+}
 
 EOSMGMNAMESPACE_BEGIN
 

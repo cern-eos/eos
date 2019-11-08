@@ -60,8 +60,9 @@ add_library(
   ${CMAKE_SOURCE_DIR}/common/ShellCmd.cc
   ${CMAKE_SOURCE_DIR}/common/ShellExecutor.cc)
 
-target_include_directories(EosNsInMemory-Objects PRIVATE
-  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>)
+target_link_libraries(EosNsInMemory-Objects PUBLIC
+  XROOTD::UTILS
+  FOLLY::FOLLY)
 
 target_compile_definitions(EosNsInMemory-Objects
   PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
@@ -76,7 +77,7 @@ add_library(EosNsInMemory MODULE $<TARGET_OBJECTS:EosNsInMemory-Objects>)
 
 target_link_libraries(EosNsInMemory PUBLIC
   EosNsCommon
-  ${FOLLY_LIBRARIES}
+  FOLLY::FOLLY
   ${GLIBC_RT_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
@@ -89,7 +90,7 @@ if (Linux)
 
   target_link_libraries(EosNsInMemory-Static PUBLIC
     EosNsCommon-Static
-    ${FOLLY_LIBRARIES}
+    FOLLY::FOLLY
     ${CMAKE_THREAD_LIBS_INIT})
 
   set_target_properties(EosNsInMemory-Static
