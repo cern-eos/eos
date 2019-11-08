@@ -640,10 +640,11 @@ XrdMgmOfs::getVersion()
 //------------------------------------------------------------------------------
 // Returns the number of elements within the specified XrdOucTList
 //------------------------------------------------------------------------------
-static unsigned int countNbElementsInXrdOucTList(const XrdOucTList * listPtr) {
+static unsigned int countNbElementsInXrdOucTList(const XrdOucTList* listPtr)
+{
   int count = 0;
 
-  while(listPtr) {
+  while (listPtr) {
     count++;
     listPtr = listPtr->next;
   }
@@ -900,7 +901,8 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity*
 
     // Log errors but continue to process the rest of the files in the list
     if (ret_wfe != SFS_DATA) {
-      eos_err("Unable to prepare - synchronous prepare workflow error %s; %s", prep_path.c_str(), error.getErrText());
+      eos_err("Unable to prepare - synchronous prepare workflow error %s; %s",
+              prep_path.c_str(), error.getErrText());
     }
   }
 
@@ -1319,7 +1321,8 @@ XrdMgmOfs::FuseXCastRefresh(eos::FileIdentifier id,
                             eos::ContainerIdentifier parentid)
 {
   gOFS->zMQ->gFuseServer.Cap().BroadcastRefreshFromExternal(
-    eos::common::FileId::FidToInode(id.getUnderlyingUInt64()), parentid.getUnderlyingUInt64());
+    eos::common::FileId::FidToInode(id.getUnderlyingUInt64()),
+    parentid.getUnderlyingUInt64());
 }
 
 //----------------------------------------------------------------------------
@@ -1358,7 +1361,7 @@ XrdMgmOfs::WriteRmRecord(const std::shared_ptr<eos::IFileMD>& fmd)
   fmd->getCTime(ctime);
   fmd->getMTime(mtime);
   snprintf(report, sizeof(report) - 1,
-           "log=%s&host=%s&fid=%llu&fxid=%08llx&ruid=%u&rgid=%udc_ts=%lu&"
+           "log=%s&host=%s&fid=%llu&fxid=%08llx&ruid=%u&rgid=%u&dc_ts=%lu&"
            "dc_tns=%lu&dm_ts=%lu&dm_tns=%lu&dsize=%lu&sec.app=rm", this->logId,
            gOFS->ManagerId.c_str(), (unsigned long long)fmd->getId(),
            (unsigned long long)fmd->getId(), fmd->getCUid(), fmd->getCGid(),
