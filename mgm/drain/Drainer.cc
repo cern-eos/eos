@@ -34,8 +34,7 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 Drainer::Drainer():
   mIsRunning(false),
-  mThreadPool(std::thread::hardware_concurrency(), 400, 10, 6, 5,
-              "central_drain")
+  mThreadPool(10, 100, 10, 6, 5, "central_drain")
 {}
 
 //------------------------------------------------------------------------------

@@ -54,8 +54,7 @@ Fsck::Fsck():
   mCollectRunning(false), mRepairRunning(false),
   mCollectInterval(std::chrono::minutes(30)),
   eTimeStamp(0),
-  mThreadPool(std::thread::hardware_concurrency(), 2, mMaxThreadPoolSize,
-              6, 5, "fsck"),
+  mThreadPool(2, mMaxThreadPoolSize, 10, 6, 5, "fsck"),
   mIdTracker(std::chrono::minutes(10), std::chrono::hours(2)), mQcl(nullptr)
 {}
 
