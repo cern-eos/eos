@@ -82,7 +82,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  ContainerScanner(qclient::QClient &qcl, bool fullPaths = false);
+  ContainerScanner(qclient::QClient &qcl, bool fullPaths = false, bool counts = false);
 
   //----------------------------------------------------------------------------
   //! Is the iterator valid?
@@ -100,9 +100,26 @@ public:
   bool hasError(std::string &err) const;
 
   //----------------------------------------------------------------------------
+  //! Return type of getItem
+  //----------------------------------------------------------------------------
+  struct Item {
+    eos::ns::ContainerMdProto proto;
+    folly::Future<std::string> fullPath;
+    folly::Future<uint64_t> fileCount;
+    folly::Future<uint64_t> containerCount;
+
+    Item() : proto(), fullPath(""), fileCount(0), containerCount(0) {}
+
+    Item(eos::ns::ContainerMdProto &&pr, folly::Future<std::string> &&path,
+      folly::Future<uint64_t> &&filec, folly::Future<uint64_t> &&containerc)
+    : proto(std::move(pr)), fullPath(std::move(path)), fileCount(std::move(filec)),
+      containerCount(std::move(containerc)) {}
+  };
+
+  //----------------------------------------------------------------------------
   //! Get current element
   //----------------------------------------------------------------------------
-  bool getItem(eos::ns::ContainerMdProto &item, std::string *path = nullptr);
+  bool getItem(eos::ns::ContainerMdProto &proto, Item *item = nullptr);
 
   //----------------------------------------------------------------------------
   //! Get number of elements scanned so far
@@ -118,14 +135,8 @@ private:
   ContainerScannerPrimitive mScanner;
   qclient::QClient &mQcl;
   bool mFullPaths;
-
-  struct Item {
-    eos::ns::ContainerMdProto proto;
-    folly::Future<std::string> fullPath;
-
-    Item(eos::ns::ContainerMdProto &&pr, folly::Future<std::string> &&path)
-    : proto(std::move(pr)), fullPath(std::move(path)) {}
-  };
+  bool mCounts;
+  bool mActive;
 
   std::deque<Item> mItemDeque;
   uint64_t mScanned = 0;

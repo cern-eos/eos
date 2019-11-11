@@ -142,17 +142,49 @@ int Inspector::dump(const std::string& dumpPath, bool relative, bool rawPaths, b
 }
 
 //------------------------------------------------------------------------------
+// Fetch path or name from a combination of ContainerMdProto +
+// ContainerScanner::Item, return as much information as is available
+//------------------------------------------------------------------------------
+std::string fetchNameOrPath(const eos::ns::ContainerMdProto &proto, ContainerScanner::Item &item) {
+  item.fullPath.wait();
+  if(item.fullPath.hasException()) {
+    return proto.name();
+  }
+
+  std::string fullPath = item.fullPath.get();
+
+  if(fullPath.empty()) {
+    return proto.name();
+  }
+
+  return fullPath;
+}
+
+//------------------------------------------------------------------------------
+// Get count as string
+//------------------------------------------------------------------------------
+std::string countAsString(folly::Future<uint64_t> &fut) {
+  fut.wait();
+
+  if(fut.hasException()) {
+    return "N/A";
+  }
+
+  return SSTR(fut.get());
+}
+
+//------------------------------------------------------------------------------
 // Scan all directories in the namespace, and print out some information
 // about each one. (even potentially unreachable directories)
 //------------------------------------------------------------------------------
-int Inspector::scanDirs(bool onlyNoAttrs, bool fullPaths, std::ostream &out, std::ostream &err) {
-  ContainerScanner containerScanner(mQcl, fullPaths);
+int Inspector::scanDirs(bool onlyNoAttrs, bool fullPaths, bool countContents, std::ostream &out, std::ostream &err) {
+  ContainerScanner containerScanner(mQcl, fullPaths, countContents);
 
   while(containerScanner.valid()) {
     eos::ns::ContainerMdProto proto;
-    std::string path;
+    ContainerScanner::Item item;
 
-    if (!containerScanner.getItem(proto, &path)) {
+    if (!containerScanner.getItem(proto, &item)) {
       break;
     }
 
@@ -161,7 +193,14 @@ int Inspector::scanDirs(bool onlyNoAttrs, bool fullPaths, std::ostream &out, std
       continue;
     }
 
-    out << "cid=" << proto.id() << " name=" << path << " parent=" << proto.parent_id() << " uid=" << proto.uid() << std::endl;
+    out << "cid=" << proto.id() << " name=" << fetchNameOrPath(proto, item) << " parent=" << proto.parent_id() << " uid=" << proto.uid();
+
+    if(countContents) {
+      out << " file-count=" << countAsString(item.fileCount);
+      out << " container-count=" << countAsString(item.containerCount);
+    }
+
+    out << std::endl;
     containerScanner.next();
   }
 
@@ -263,12 +302,12 @@ int Inspector::oneReplicaLayout(bool showName, std::ostream &out, std::ostream &
       expected = 0;
     }
 
-    if(expected == 1 && size != 0) {
+    if(expected == 1 && size != 0 && proto.name().find(".sys.v#.") != std::string::npos) {
       out << "id=" << proto.id();
 
       if(showName) {
-        out << " name=" << proto.name();
-      }
+          out << " name=" << proto.name();
+        }
       out << " container=" << proto.cont_id() << " size=" << size << " actual-stripes=" << actual << " expected-stripes=" << expected << " unlinked-stripes=" << unlinked <<  " locations=" << serializeLocations(proto.locations()) << " unlinked-locations=" << serializeLocations(proto.unlink_locations());
       out << " mtime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.mtime()));
       out << " ctime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.ctime()));

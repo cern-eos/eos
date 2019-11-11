@@ -69,7 +69,7 @@ public:
   //! Scan all directories in the namespace, and print out some information
   //! about each one. (even potentially unreachable directories)
   //----------------------------------------------------------------------------
-  int scanDirs(bool onlyNoAttrs, bool fullPaths, std::ostream &out, std::ostream &err);
+  int scanDirs(bool onlyNoAttrs, bool fullPaths, bool countContents, std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
   //! Scan all file metadata in the namespace, and print out some information

@@ -153,9 +153,11 @@ int main(int argc, char* argv[]) {
 
   bool onlyNoAttrs = false;
   bool fullPaths = false;
+  bool countContents = false;
 
   scanDirsSubcommand->add_flag("--only-no-attrs", onlyNoAttrs, "Only show directories which have no extended attributes whatsoever");
   scanDirsSubcommand->add_flag("--full-paths", fullPaths, "Show full container paths, if possible");
+  scanDirsSubcommand->add_flag("--count-contents", countContents, "Count how many files and containers are in each directory (non-recursive)");
 
   //----------------------------------------------------------------------------
   // Set-up scan-files subcommand..
@@ -372,7 +374,7 @@ int main(int argc, char* argv[]) {
   }
 
   if(scanDirsSubcommand->parsed()) {
-    return inspector.scanDirs(onlyNoAttrs, fullPaths, std::cout, std::cerr);
+    return inspector.scanDirs(onlyNoAttrs, fullPaths, countContents, std::cout, std::cerr);
   }
 
   if(stripediffSubcommand->parsed()) {

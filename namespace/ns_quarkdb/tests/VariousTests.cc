@@ -348,7 +348,6 @@ TEST_F(VariousTests, FileMDGetEnv) {
 
   std::string output;
   file1->getEnv(output);
-  DBG(output);
 }
 
 TEST_F(VariousTests, MkdirOnBrokenSymlink) {
