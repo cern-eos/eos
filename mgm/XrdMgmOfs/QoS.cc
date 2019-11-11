@@ -709,9 +709,19 @@ XrdMgmOfs::_qos_set(const char* path, XrdOucErrInfo& error,
       gOFS->MgmProcConversionPath.c_str() << "/" << conversion_id);
     eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
 
-    if (gOFS->_touch(conversion_file.c_str(), error, rootvid, 0)) {
-      return Emsg(epname, error, errno, "create QoS conversion job",
-                  conversion_id.c_str());
+
+    if (gOFS->mConverterDriver) {
+      // Push conversion job to QuarkDB
+      if (!gOFS->mConverterDriver->ScheduleJob(fileid, conversion_id)) {
+        return Emsg(epname, error, errno, "schedule QoS conversion job to QuarkDB",
+                    conversion_id.c_str());
+      }
+    } else {
+      // Use namespace-based QoS
+      if (gOFS->_touch(conversion_file.c_str(), error, rootvid, 0)) {
+        return Emsg(epname, error, errno, "create QoS conversion job",
+                    conversion_id.c_str());
+      }
     }
 
     // Add the target QoS attribute
