@@ -1536,3 +1536,29 @@ TEST_F(VariousTests, UnlinkAllLocations) {
   ASSERT_EQ(file1->getLocations().size(), 0u);
   ASSERT_EQ(file1->getUnlinkedLocations().size(), 1u);
 }
+
+TEST_F(VariousTests, CountContents) {
+  eos::IContainerMDPtr cont1 = view()->createContainer("/dir-1/");
+  eos::IContainerMDPtr cont2 = view()->createContainer("/dir-2/");
+  ASSERT_EQ(cont1->getId(), 2);
+  ASSERT_EQ(cont2->getId(), 3);
+
+  eos::IFileMDPtr file1 = view()->createFile("/file-1");
+  eos::IFileMDPtr file2 = view()->createFile("/file-2");
+  eos::IFileMDPtr file3 = view()->createFile("/file-3");
+  eos::IFileMDPtr file4 = view()->createFile("/file-4");
+
+  ASSERT_EQ(file1->getId(), 1);
+  ASSERT_EQ(file2->getId(), 2);
+
+  mdFlusher()->synchronize();
+
+  std::pair<folly::Future<uint64_t>, folly::Future<uint64_t>> counts =
+    eos::MetadataFetcher::countContents(qcl(), ContainerIdentifier(1));
+  ASSERT_EQ(counts.first.get(), 4u);
+  ASSERT_EQ(counts.second.get(), 2u);
+
+  counts = eos::MetadataFetcher::countContents(qcl(), ContainerIdentifier(2));
+  ASSERT_EQ(counts.first.get(), 0u);
+  ASSERT_EQ(counts.second.get(), 0u);
+}

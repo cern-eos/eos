@@ -217,6 +217,12 @@ public:
   static folly::Future<FileOrContainerIdentifier>
   resolvePathToID(qclient::QClient& qcl, const std::string &path);
 
+  //----------------------------------------------------------------------------
+  //! Count how many files and containers are in the given directory
+  //----------------------------------------------------------------------------
+  static std::pair<folly::Future<uint64_t>, folly::Future<uint64_t>>
+  countContents(qclient::QClient& qcl, ContainerIdentifier containerID);
+
 private:
   //----------------------------------------------------------------------------
   //! Construct hmap key of subcontainers in container

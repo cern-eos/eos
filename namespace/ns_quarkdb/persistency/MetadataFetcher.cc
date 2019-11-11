@@ -89,6 +89,29 @@ MDStatus ensureBoolReply(redisReplyPtr& reply) {
 }
 
 //------------------------------------------------------------------------------
+// Helper method to check that a redis reply is uint64_t
+//------------------------------------------------------------------------------
+MDStatus ensureUInt64Reply(redisReplyPtr& reply) {
+  if(!reply) {
+    return MDStatus(EFAULT, "QuarkDB backend not available!");
+  }
+
+  if (reply->type != REDIS_REPLY_INTEGER) {
+    return MDStatus(EFAULT,
+                    SSTR("Received unexpected response, was expecting integer: "
+                         << qclient::describeRedisReply(reply)));
+  }
+
+  if(reply->integer < 0) {
+    return MDStatus(EFAULT,
+                    SSTR("Received unexpected value, was expecting a uint64_t: "
+                         << qclient::describeRedisReply(reply)));
+  }
+
+  return MDStatus();
+}
+
+//------------------------------------------------------------------------------
 //! Struct MapFetcherFileTrait
 //------------------------------------------------------------------------------
 struct MapFetcherFileTrait {
@@ -583,6 +606,14 @@ bool parseBoolResponse(redisReplyPtr reply) {
 }
 
 //------------------------------------------------------------------------------
+// Parse uint64_t response
+//------------------------------------------------------------------------------
+uint64_t parseUInt64Response(redisReplyPtr reply) {
+  ensureUInt64Reply(reply).throwIfNotOk("");
+  return reply->integer;
+}
+
+//------------------------------------------------------------------------------
 // Is the given location of a FileID contained in the FsView?
 //------------------------------------------------------------------------------
 folly::Future<bool>
@@ -816,6 +847,21 @@ folly::Future<FileOrContainerIdentifier>
 MetadataFetcher::resolvePathToID(qclient::QClient& qcl, const std::string &path) {
   ReversePathResolver *resolver = new ReversePathResolver(qcl, path);
   return resolver->initialize();
+}
+
+//------------------------------------------------------------------------------
+// Count how many files and containers are in the given directory
+//------------------------------------------------------------------------------
+std::pair<folly::Future<uint64_t>, folly::Future<uint64_t>>
+MetadataFetcher::countContents(qclient::QClient& qcl, ContainerIdentifier containerID) {
+  return std::make_pair<folly::Future<uint64_t>, folly::Future<uint64_t>>(
+    qcl.follyExec("HLEN", keySubFiles(containerID.getUnderlyingUInt64()))
+         .then(parseUInt64Response),
+
+    qcl.follyExec("HLEN", keySubContainers(containerID.getUnderlyingUInt64()))
+         .then(parseUInt64Response)
+
+  );
 }
 
 EOSNSNAMESPACE_END
