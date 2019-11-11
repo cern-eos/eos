@@ -22,7 +22,6 @@
 # ************************************************************************
 
 include_directories(
-  ${ZMQ_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include)
 
@@ -209,7 +208,6 @@ if (Linux)
   set(EOSCOMMONSERVER_LIBS
     fmt
     qclient
-    ${ZMQ_LIBRARIES}
     ${LEVELDB_LIBRARIES}
     ${GLIBC_RT_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY})

@@ -21,9 +21,6 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(
-  ${ZMQ_INCLUDE_DIRS})
-
 if (CPPUNIT_FOUND)
   add_subdirectory(tests)
 endif(CPPUNIT_FOUND)
@@ -116,7 +113,7 @@ target_link_libraries(
   EosAuthProto-Objects
   EosCommon
   XROOTD::PRIVATE
-  ${ZMQ_LIBRARIES})
+  ZMQ::ZMQ)
 
 install(TARGETS EosAuthOfs
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
