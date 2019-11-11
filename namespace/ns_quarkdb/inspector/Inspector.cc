@@ -170,14 +170,36 @@ std::string countAsString(folly::Future<uint64_t> &fut) {
     return "N/A";
   }
 
-  return SSTR(fut.get());
+  uint64_t val = fut.get();
+  fut = val;
+
+  return SSTR(val);
+}
+
+//------------------------------------------------------------------------------
+// Safe uint64_t get, without exceptions. Return 0 in case of exception.
+//------------------------------------------------------------------------------
+uint64_t safeGet(folly::Future<uint64_t> &fut) {
+  fut.wait();
+
+  if(fut.hasException()) {
+    return 0;
+  }
+
+  uint64_t val = fut.get();
+  fut = val;
+  return val;
 }
 
 //------------------------------------------------------------------------------
 // Scan all directories in the namespace, and print out some information
 // about each one. (even potentially unreachable directories)
 //------------------------------------------------------------------------------
-int Inspector::scanDirs(bool onlyNoAttrs, bool fullPaths, bool countContents, std::ostream &out, std::ostream &err) {
+int Inspector::scanDirs(bool onlyNoAttrs, bool fullPaths, bool countContents, size_t countThreshold, std::ostream &out, std::ostream &err) {
+  if(countThreshold > 0) {
+    countContents = true;
+  }
+
   ContainerScanner containerScanner(mQcl, fullPaths, countContents);
 
   while(containerScanner.valid()) {
@@ -189,6 +211,11 @@ int Inspector::scanDirs(bool onlyNoAttrs, bool fullPaths, bool countContents, st
     }
 
     if(onlyNoAttrs && !proto.xattrs().empty()) {
+      containerScanner.next();
+      continue;
+    }
+
+    if(countThreshold > 0 && (safeGet(item.fileCount) + safeGet(item.containerCount)) < countThreshold) {
       containerScanner.next();
       continue;
     }
