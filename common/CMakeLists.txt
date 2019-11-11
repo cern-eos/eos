@@ -23,7 +23,6 @@
 
 include_directories(
   ${ZMQ_INCLUDE_DIRS}
-  ${SPARSEHASH_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include)
 

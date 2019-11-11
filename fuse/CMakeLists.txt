@@ -22,9 +22,7 @@
 # ************************************************************************
 
 include_directories(
-#  ${CMAKE_SOURCE_DIR}
   ${FUSE_INCLUDE_DIRS}
-  ${SPARSEHASH_INCLUDE_DIRS}
   ${KRB5_INCLUDE_DIR}
   ${OPENSSL_INCLUDE_DIR}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include

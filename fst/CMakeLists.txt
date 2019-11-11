@@ -55,7 +55,6 @@ endif()
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
-  ${SPARSEHASH_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIRS}
   ${XFS_INCLUDE_DIRS}
   ${DAVIX_INCLUDE_DIRS}

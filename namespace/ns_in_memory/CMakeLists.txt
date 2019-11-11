@@ -21,10 +21,6 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(
- ${CMAKE_SOURCE_DIR}
- ${SPARSEHASH_INCLUDE_DIR})
-
 if(CPPUNIT_FOUND)
   add_subdirectory(tests)
 endif(CPPUNIT_FOUND)
@@ -62,7 +58,8 @@ add_library(
 
 target_link_libraries(EosNsInMemory-Objects PUBLIC
   XROOTD::UTILS
-  FOLLY::FOLLY)
+  FOLLY::FOLLY
+  GOOGLE::SPARSEHASH)
 
 target_compile_definitions(EosNsInMemory-Objects
   PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})

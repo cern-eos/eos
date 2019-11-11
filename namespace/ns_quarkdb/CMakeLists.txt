@@ -26,8 +26,7 @@ include_directories(
  ${CMAKE_SOURCE_DIR}
  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb
  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
- ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src
- ${SPARSEHASH_INCLUDE_DIR})
+ ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src)
 
 add_subdirectory(tests)
 

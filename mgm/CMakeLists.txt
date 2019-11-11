@@ -25,7 +25,6 @@ include_directories(
   ${CMAKE_SOURCE_DIR}
   ${ZMQ_INCLUDE_DIRS}
   ${LDAP_INCLUDE_DIRS}
-  ${SPARSEHASH_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src
   ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include
@@ -278,7 +277,8 @@ target_link_libraries(XrdEosMgm-Objects PUBLIC
   JSONCPP::JSONCPP
   XROOTD::UTILS
   XROOTD::PRIVATE
-  FOLLY::FOLLY)
+  FOLLY::FOLLY
+  GOOGLE::SPARSEHASH)
 
 if (GRPC_FOUND)
   target_link_libaries(XrdEosMgm-Objects PUBLIC
