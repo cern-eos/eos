@@ -14,9 +14,9 @@ pkg_check_modules(PC_JSONCPP QUIET jsoncpp)
 set(JSONCPP_VERSION ${PC_JSONCPP_VERSION})
 
 find_path(JSONCPP_INCLUDE_DIR
-  NAMES json.h
+  NAMES json/json.h
   HINTS ${JSONCPP_ROOT}
-  PATH_SUFFIXES jsoncpp/json )
+  PATH_SUFFIXES jsoncpp )
 
 find_library(JSONCPP_LIBRARY
   NAMES jsoncpp
