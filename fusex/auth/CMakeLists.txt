@@ -48,4 +48,5 @@ add_library(
 target_link_libraries(EosFuseAuth PUBLIC
   XROOTD::UTILS
   XROOTD::PRIVATE
+  KRB5::KRB5
   PROTOBUF::PROTOBUF)

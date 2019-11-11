@@ -26,7 +26,6 @@ include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
   ${FUSE_INCLUDE_DIRS}
-  ${KRB5_INCLUDE_DIR}
   ${OPENSSL_INCLUDE_DIR}
   ${HIREDIS_INCLUDE_DIR}
   ${ZMQ_INCLUDE_DIRS}
@@ -79,11 +78,11 @@ set(PROTO_HEADER ${PROTO_HEADER} PARENT_SCOPE)
 # Link libraries
 #-------------------------------------------------------------------------------
 set(EOSXD_COMMON_LINK_LIBRARIES
+  EosFuseAuth
   XROOTD::CL
   XROOTD::UTILS
   ${FUSE_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
-  ${KRB5_LIBRARIES}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${HIREDIS_LIBRARIES}
   ${LIBEVENT_LIBRARIES}
@@ -136,20 +135,9 @@ set_target_properties(eosxd-objects
   PROPERTIES COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
 
 #-------------------------------------------------------------------------------
-# eosxd common sources for all executables. We have to do this to combine
-# object libraries EosFuseAuth and eosxd-objects, since apparently, one object
-# library cannot nest another.
-#-------------------------------------------------------------------------------
-set(EOSXD_COMMON_SOURCES
-  $<TARGET_OBJECTS:EosFuseAuth>
-  $<TARGET_OBJECTS:eosxd-objects>)
-
-#-------------------------------------------------------------------------------
 # eosxd executables
 #-------------------------------------------------------------------------------
-add_executable(eosxd
-  main.cc
-  ${EOSXD_COMMON_SOURCES})
+add_executable(eosxd  main.cc)
 
 target_link_libraries(eosxd PRIVATE
   eosxd-objects
@@ -162,19 +150,16 @@ endif()
 set_target_properties(eosxd
   PROPERTIES COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
 
-install(
-  TARGETS eosxd
+install(TARGETS eosxd
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 
 if (FUSE3a_FOUND)
-  add_executable(eosxd3 
-    main.cc
-    ${EOSXD_COMMON_SOURCES})
+  add_executable(eosxd3 main.cc)
 
   target_link_libraries(eosxd3
     eosxd-objects
-    ${EOSXD_COMMON_LINK_LIBRARIES}
-    jemalloc)
+    jemalloc
+    ${EOSXD_COMMON_LINK_LIBRARIES})
 
   set_target_properties(eosxd3
     PROPERTIES COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})

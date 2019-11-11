@@ -26,7 +26,6 @@ include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
   ${FUSE_INCLUDE_DIRS}
-  ${KRB5_INCLUDE_DIR}
   ${OPENSSL_INCLUDE_DIR}  
   ${HIREDIS_INCLUDE_DIR}
   ${ZMQ_INCLUDE_DIRS}
@@ -37,7 +36,6 @@ set(LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH
   EosCommon
   ${FUSE_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
-  ${KRB5_LIBRARIES}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${HIREDIS_LIBRARIES}
   ${LIBEVENT_LIBRARIES}
@@ -70,6 +68,7 @@ add_executable(eos-fusex-tests
 
 target_link_libraries(eos-fusex-tests PRIVATE
   eosxd-objects
+  EosFuseAuth
   ${LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH})
 
 set_target_properties(eos-fusex-tests

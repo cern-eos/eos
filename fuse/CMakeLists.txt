@@ -23,7 +23,6 @@
 
 include_directories(
   ${FUSE_INCLUDE_DIRS}
-  ${KRB5_INCLUDE_DIR}
   ${OPENSSL_INCLUDE_DIR}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_BINARY_DIR}/namespace/ns_quarkdb)  # for the generated protobuf
@@ -45,43 +44,32 @@ add_executable(
   FuseCacheEntry.cc          FuseCacheEntry.hh
   AuthIdManager.cc           xrdutils.cc)
 
+target_link_libraries(eosd PRIVATE
+  XROOTD::CL
+  XROOTD::UTILS
+  KRB5::KRB5
+  ${FUSE_LIBRARY}
+  ${OPENSSL_CRYPTO_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT})
+
 if(MacOSX)
-  target_link_libraries(
-    eosd PRIVATE
-    XROOTD::CL
-    XROOTD::UTILS
-    FuseCache  
-    ${FUSE_LIBRARIES}
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${KRB5_LIBRARIES}
-    ${OPENSSL_CRYPTO_LIBRARY} )
+  target_link_libraries(eosd PRIVATE FuseCache)
 else()
-  target_link_libraries(
-    eosd PRIVATE
-    XROOTD::CL
-    XROOTD::UTILS
-    FuseCache-Static
-    ${FUSE_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${KRB5_LIBRARIES}
-    ${OPENSSL_CRYPTO_LIBRARY})
+  target_link_libraries(eosd PRIVATE FuseCache-Static)
 endif()
 
 
-target_compile_definitions(
-  eosd PRIVATE
+target_compile_definitions(eosd PRIVATE
   -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DVERSION=\"${VERSION}\")
 
-install(
-  TARGETS eosd
+install(TARGETS eosd
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 
-install(
-  FILES eosfusebind
+install(FILES eosfusebind
   DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
-	      GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ )
+              GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ )
 
 #-------------------------------------------------------------------------------
 # eosd3 if fuse3 is available
@@ -95,22 +83,19 @@ add_executable(
   FuseCacheEntry.cc  FuseCacheEntry.hh
   AuthIdManager.cc xrdutils.cc )
 
-  target_link_libraries(
-    eosd3 PRIVATE
+  target_link_libraries(eosd3 PRIVATE
     XROOTD::CL
     XROOTD::UTILS
+    KRB5::KRB5
     FuseCache-Static
     ${FUSE3_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}
-    ${KRB5_LIBRARIES}
     ${OPENSSL_CRYPTO_LIBRARY})
 
-  target_compile_definitions(
-    eosd3 PRIVATE
+  target_compile_definitions(eosd3 PRIVATE
     -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FUSE3 -D_FILE_OFFSET_BITS=64
     -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DVERSION=\\\"${VERSION}\\\")
 
-install(
-  TARGETS eosd3
+install(TARGETS eosd3
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 endif()
