@@ -30,10 +30,10 @@ EOSMGMNAMESPACE_BEGIN
 
 struct QueryPrepareResponse {
   QueryPrepareResponse() :
-    is_exists(false), is_online(false), is_requested(false) {}
+    is_exists(false), is_online(false), is_requested(false), is_reqid_present(false) {}
 
   QueryPrepareResponse(const std::string _path) :
-    path(_path), is_exists(false), is_online(false), is_requested(false) {}
+    path(_path), is_exists(false), is_online(false), is_requested(false), is_reqid_present(false) {}
 
   friend std::ostream& operator<<(std::ostream& json, QueryPrepareResponse &qpr) {
     json << "{"
