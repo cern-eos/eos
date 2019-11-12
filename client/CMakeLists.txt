@@ -32,7 +32,8 @@ add_library(EosGrpcClient-Objects OBJECT
   grpc/GrpcClient.cc grpc/GrpcClient.hh)
 
 target_link_libraries(EosGrpcClient-Objects PUBLIC
-  EosGrpcProto-Objects)
+  EosGrpcProto-Objects
+  XROOTD::UTILS)
 
 target_compile_definitions(EosGrpcClient-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
@@ -52,67 +53,46 @@ add_executable(eos-grpc-ns-stat grpc/NsStat.cc)
 # Add dependency which guarantees that the protocol buffer files are generated
 # when we build the "eos" executable.
 #-------------------------------------------------------------------------------
-target_link_libraries(
-  eos-grpc-ping PUBLIC
+target_link_libraries(eos-grpc-ping PUBLIC
   EosGrpcProto-Objects
   EosGrpcClient-Objects
   ${RT_LIBRARIES}
-  ${GRPC_LIBRARY}
-  ${GRPC_GRPC++_LIBRARY}
   EosCommon )
 
-target_link_libraries(
-  eos-grpc-md PUBLIC
+target_link_libraries(eos-grpc-md PUBLIC
   EosGrpcProto-Objects
   EosGrpcClient-Objects
   ${RT_LIBRARIES}
-  ${GRPC_LIBRARY}
-  ${GRPC_GRPC++_LIBRARY}
   EosCommon)
 
-target_link_libraries(
-  eos-grpc-find PUBLIC
+target_link_libraries(eos-grpc-find PUBLIC
   EosGrpcProto-Objects
   EosGrpcClient-Objects
   ${RT_LIBRARIES}
-  ${GRPC_LIBRARY}
-  ${GRPC_GRPC++_LIBRARY}
   EosCommon )
 
-target_link_libraries(
-  eos-grpc-ns PUBLIC
+target_link_libraries(eos-grpc-ns PUBLIC
   EosGrpcProto-Objects
   EosGrpcClient-Objects
   ${RT_LIBRARIES}
-  ${GRPC_LIBRARY}
-  ${GRPC_GRPC++_LIBRARY}
   EosCommon)
 
-target_link_libraries(
-  eos-grpc-insert PUBLIC
+target_link_libraries(eos-grpc-insert PUBLIC
   EosGrpcProto-Objects
   EosGrpcClient-Objects
   ${RT_LIBRARIES}
-  ${GRPC_LIBRARY}
-  ${GRPC_GRPC++_LIBRARY}
   EosCommon )
 
-target_link_libraries(
-  eos-grpc-manila PUBLIC
+target_link_libraries(eos-grpc-manila PUBLIC
   EosGrpcProto-Objects
   EosGrpcClient-Objects
   ${RT_LIBRARIES}
-  ${GRPC_LIBRARY}
-  ${GRPC_GRPC++_LIBRARY}
   EosCommon )
 
-target_link_libraries(
-  eos-grpc-ns-stat PUBLIC
+target_link_libraries(eos-grpc-ns-stat PUBLIC
   EosGrpcProto-Objects
   EosGrpcClient-Objects
   ${RT_LIBRARIES}
-  ${GRPC_LIBRARY}
-  ${GRPC_GRPC++_LIBRARY}
   EosCommon)
 
 install(TARGETS eos-grpc-ping eos-grpc-md eos-grpc-insert eos-grpc-manila

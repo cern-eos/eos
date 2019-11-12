@@ -110,12 +110,6 @@ set(EOSCOMMON_LIBS
 #-------------------------------------------------------------------------------
 add_library(EosCommon SHARED $<TARGET_OBJECTS:EosCommon-Objects>)
 
-if (GRPC_FOUND)
-  target_link_libraries(EosCommon PUBLIC
-    EosGrpcProto-Objects
-    ${GRPC_GRPC++_LIBRARY})
-endif ()
-
 target_link_libraries(EosCommon PUBLIC
   ${EOSCOMMON_LIBS}
   EosCommon-Objects
@@ -138,12 +132,6 @@ set_target_properties(EosCommon PROPERTIES
   MACOSX_RPATH TRUE)
 
 add_library(EosCommon-Static STATIC $<TARGET_OBJECTS:EosCommon-Objects>)
-
-if (GRPC_FOUND)
-  target_link_libraries(EosCommon-Static PRIVATE
-    EosGrpcProto-Objects
-    ${GRPC_GRPC++_LIBRARY_STATIC})
-endif ()
 
 target_link_libraries(EosCommon-Static PUBLIC
   ${EOSCOMMON_LIBS}
@@ -215,6 +203,7 @@ if (Linux)
 
   target_link_libraries(EosCommonServer PUBLIC
     EosCommonServer-Objects
+    XrdSsiPbEosCta-Objects
     XrdMqClient
     UUID::UUID
     XROOTD::CL
@@ -237,6 +226,7 @@ if (Linux)
 
   target_link_libraries(EosCommonServer-Static PUBLIC
     EosCommonServer-Objects
+    XrdSsiPbEosCta-Objects
     UUID::UUID
     XROOTD::CL
     XROOTD::UTILS

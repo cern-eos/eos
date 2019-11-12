@@ -84,43 +84,52 @@ find_path(GRPC_INCLUDE_DIR grpc/grpc.h)
 mark_as_advanced(GRPC_INCLUDE_DIR)
 
 # Find gRPC library
-find_library(GRPC_LIBRARY NAMES grpc)
-mark_as_advanced(GRPC_LIBRARY)
-add_library(gRPC::grpc UNKNOWN IMPORTED)
-set_target_properties(gRPC::grpc PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES ${GRPC_INCLUDE_DIR}
-    INTERFACE_LINK_LIBRARIES "-lpthread;-ldl"
-    IMPORTED_LOCATION ${GRPC_LIBRARY}
-)
+find_library(GRPC_LIBRARY
+  NAMES grpc)
 
 # Find gRPC C++ library
-find_library(GRPC_GRPC++_LIBRARY NAMES grpc++)
-mark_as_advanced(GRPC_GRPC++_LIBRARY)
-add_library(gRPC::grpc++ UNKNOWN IMPORTED)
-set_target_properties(gRPC::grpc++ PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES ${GRPC_INCLUDE_DIR}
-    INTERFACE_LINK_LIBRARIES gRPC::grpc
-    IMPORTED_LOCATION ${GRPC_GRPC++_LIBRARY}
-)
+find_library(GRPC_GRPC++_LIBRARY
+  NAMES grpc++)
 
 # Find gRPC C++ reflection library
-find_library(GRPC_GRPC++_REFLECTION_LIBRARY NAMES grpc++_reflection)
-mark_as_advanced(GRPC_GRPC++_REFLECTION_LIBRARY)
-add_library(gRPC::grpc++_reflection UNKNOWN IMPORTED)
-set_target_properties(gRPC::grpc++_reflection PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES ${GRPC_INCLUDE_DIR}
-    INTERFACE_LINK_LIBRARIES gRPC::grpc++
-    IMPORTED_LOCATION ${GRPC_GRPC++_REFLECTION_LIBRARY}
-)
+find_library(GRPC_GRPC++_REFLECTION_LIBRARY
+  NAMES grpc++_reflection)
 
 # Find gRPC CPP generator
-find_program(GRPC_CPP_PLUGIN NAMES grpc_cpp_plugin)
-mark_as_advanced(GRPC_CPP_PLUGIN)
-add_executable(gRPC::grpc_cpp_plugin IMPORTED)
-set_target_properties(gRPC::grpc_cpp_plugin PROPERTIES
-    IMPORTED_LOCATION ${GRPC_CPP_PLUGIN}
-)
+find_program(GRPC_CPP_PLUGIN
+  NAMES grpc_cpp_plugin)
 
-include(${CMAKE_ROOT}/Modules/FindPackageHandleStandardArgs.cmake)
-FIND_PACKAGE_HANDLE_STANDARD_ARGS(gRPC DEFAULT_MSG
-    GRPC_LIBRARY GRPC_INCLUDE_DIR GRPC_GRPC++_REFLECTION_LIBRARY GRPC_CPP_PLUGIN)
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(gRPC
+  REQUIRED_VARS GRPC_LIBRARY GRPC_INCLUDE_DIR GRPC_GRPC++_REFLECTION_LIBRARY GRPC_CPP_PLUGIN)
+
+mark_as_advanced(GRPC_LIBRARY GRPC_GRPC++_LIBRARY GRPC_GRPC++_REFLECTION_LIBRARY GRPC_CPP_PLUGIN)
+
+if (GRPC_FOUND AND NOT TARGET gRPC::grpc AND NOT TARGET gRPC::grpc++)
+  add_library(gRPC::grpc UNKNOWN IMPORTED)
+  set_target_properties(gRPC::grpc PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES ${GRPC_INCLUDE_DIR}
+    INTERFACE_LINK_LIBRARIES "-lpthread;-ldl"
+    IMPORTED_LOCATION ${GRPC_LIBRARY})
+
+  add_library(gRPC::grpc++ UNKNOWN IMPORTED)
+  set_target_properties(gRPC::grpc++ PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES ${GRPC_INCLUDE_DIR}
+    INTERFACE_LINK_LIBRARIES gRPC::grpc
+    IMPORTED_LOCATION ${GRPC_GRPC++_LIBRARY})
+
+  add_library(gRPC::grpc++_reflection UNKNOWN IMPORTED)
+  set_target_properties(gRPC::grpc++_reflection PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES ${GRPC_INCLUDE_DIR}
+    INTERFACE_LINK_LIBRARIES gRPC::grpc++
+    IMPORTED_LOCATION ${GRPC_GRPC++_REFLECTION_LIBRARY})
+
+  add_executable(gRPC::grpc_cpp_plugin IMPORTED)
+  set_target_properties(gRPC::grpc_cpp_plugin PROPERTIES
+    IMPORTED_LOCATION ${GRPC_CPP_PLUGIN})
+else()
+  add_library(gRPC::grpc INTERFACE IMPORTED)
+  add_library(gRPC::grpc++ INTERFACE IMPORTED)
+  add_library(gRPC::grpc++_reflection INTERFACE IMPORTED)
+  add_executable(gRPC::grpc_cpp_plugin IMPORTED)
+endif()

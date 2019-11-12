@@ -183,7 +183,6 @@ target_link_libraries(EosFstIo-Objects PUBLIC
   Jerasure-Objects
   EosFstProto-Objects
   EosConsoleHelpers-Objects
-  XrdSsiPbEosCta-Objects
   ZLIB::ZLIB
   XROOTD::UTILS
   XROOTD::PRIVATE)
@@ -360,7 +359,6 @@ target_compile_definitions(XrdEosFst-${PLUGIN_VERSION} PUBLIC
 
 target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
   XrdEosFst-Objects
-  XrdSsiPbEosCta-Objects
   EosConsoleHelpers-Objects
   EosCommon
   EosCommonServer
@@ -379,6 +377,8 @@ target_compile_definitions(XrdEosFst-Static PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
+  XrdEosFst-Objects
+  EosConsoleHelpers-Objects
   EosCommon
   EosCommonServer
   EosFstIo
@@ -404,10 +404,17 @@ add_library(EosFstHttp MODULE
 
 target_link_libraries(EosFstHttp PUBLIC
   XrdEosFst-Objects
+  EosFstIo
+  EosConsoleHelpers-Objects
   EosCommon
+  # @todo(gbitzes) move calculateEtag to common so that we don't have to couple
+  # the fst lib with the ns one
+  EosNsCommon
   EosCommonServer
+  XROOTD::SSI
   XROOTD::HTTP
-  XROOTD::PRIVATE)
+  XROOTD::PRIVATE
+  eosCapability-Static)
 
 install(TARGETS EosFstHttp
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
