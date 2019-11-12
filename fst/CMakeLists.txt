@@ -55,7 +55,6 @@ endif()
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
-  ${OPENSSL_INCLUDE_DIRS}
   ${XFS_INCLUDE_DIRS}
   ${DAVIX_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
@@ -210,7 +209,6 @@ target_link_libraries(EosFstIo PUBLIC
   XROOTD::SERVER
   ${GLIBC_RT_LIBRARY}
   ${GLIBC_DL_LIBRARY}
-  ${OPENSSL_CRYPTO_LIBRARY}
   ${DAVIX_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
   ${LIBISALCRYPTO_LIBRARIES}
@@ -244,6 +242,8 @@ target_link_libraries(EosFstIo-Static PUBLIC
   ${LIBISALCRYPTO_LIBRARIES}
   ${LIBISAL_LIBRARIES}
   ${LIBXXHASH_LIBRARIES}
+  ${CMAKE_THREAD_LIBS_INIT}
+  XrdMqClient-Static)
 
 target_compile_definitions(EosFstIo-Static PRIVATE
   -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
@@ -389,8 +389,6 @@ target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
   eosCapability-Static
   ${GLIBC_RT_LIBRARY}
   ${GLIBC_DL_LIBRARY}
-  ${OPENSSL_CRYPTO_LIBRARY}
-  ${ZMQ_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
 add_library(XrdEosFst-Static STATIC $<TARGET_OBJECTS:XrdEosFst-Objects>)
@@ -408,8 +406,6 @@ target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
   eosCapability-Static
   ${GLIBC_RT_LIBRARY}
   ${GLIBC_DL_LIBRARY}
-  ${OPENSSL_CRYPTO_LIBRARY}
-  ${ZMQ_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
 install(TARGETS EosFstOss XrdEosFst-${PLUGIN_VERSION}

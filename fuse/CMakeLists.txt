@@ -23,7 +23,6 @@
 
 include_directories(
   ${FUSE_INCLUDE_DIRS}
-  ${OPENSSL_INCLUDE_DIR}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_BINARY_DIR}/namespace/ns_quarkdb)  # for the generated protobuf
 
@@ -49,7 +48,6 @@ target_link_libraries(eosd PRIVATE
   XROOTD::UTILS
   KRB5::KRB5
   ${FUSE_LIBRARY}
-  ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
 if(MacOSX)
@@ -89,8 +87,7 @@ add_executable(
     KRB5::KRB5
     FuseCache-Static
     ${FUSE3_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${OPENSSL_CRYPTO_LIBRARY})
+    ${CMAKE_THREAD_LIBS_INIT})
 
   target_compile_definitions(eosd3 PRIVATE
     -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FUSE3 -D_FILE_OFFSET_BITS=64

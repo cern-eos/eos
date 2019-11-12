@@ -21,9 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(
-  ${OPENSSL_INCLUDE_DIRS}
-  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include)
+include_directories(${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include)
 
 #-------------------------------------------------------------------------------
 # CTA integration related operations
@@ -87,6 +85,7 @@ target_link_libraries(EosCommon-Objects PUBLIC
   EosCliProto-Objects
   ZLIB::ZLIB
   JSONCPP::JSONCPP
+  OPENSSL::OPENSSL
   XROOTD::UTILS)
 
 target_include_directories(EosCommon-Objects
@@ -104,7 +103,6 @@ set(EOSCOMMON_LIBS
   ${GLIBC_DL_LIBRARY}
   ${GLIBC_RT_LIBRARY}
   ${LIBBFD_LIBRARIES}
-  ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
 #-------------------------------------------------------------------------------
@@ -209,8 +207,7 @@ if (Linux)
     fmt
     qclient
     ${LEVELDB_LIBRARIES}
-    ${GLIBC_RT_LIBRARY}
-    ${OPENSSL_CRYPTO_LIBRARY})
+    ${GLIBC_RT_LIBRARY})
 
   if(MICROHTTPD_FOUND)
     LIST(APPEND EOSCOMMONSERVER_LIBS "${MICROHTTPD_LIBRARIES}")
