@@ -24,9 +24,7 @@
 include_directories(
  ${CMAKE_BINARY_DIR}
  ${CMAKE_SOURCE_DIR}
- ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb
- ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
- ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src)
+ ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include)
 
 add_subdirectory(tests)
 

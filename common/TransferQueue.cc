@@ -21,16 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/TransferQueue.hh"
 #include "mq/SharedQueueWrapper.hh"
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
-
-/*----------------------------------------------------------------------------*/
-
-
-EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -64,7 +56,7 @@ std::string TransferQueue::getQueuePath() const {
 /*----------------------------------------------------------------------------*/
 //! Destructor
 /*----------------------------------------------------------------------------*/
-TransferQueue::~TransferQueue ()
+TransferQueue::~TransferQueue()
 {
   if (mBroadcast) {
     Clear();
@@ -82,7 +74,7 @@ TransferQueue::~TransferQueue ()
 
 /*----------------------------------------------------------------------------*/
 bool
-TransferQueue::Add (eos::common::TransferJob* job)
+TransferQueue::Add(eos::common::TransferJob* job)
 {
   return eos::mq::SharedQueueWrapper(mRealm, mLocator, mBroadcast).push_back(job->GetSealed());
 }
@@ -97,7 +89,7 @@ TransferQueue::Add (eos::common::TransferJob* job)
 
 /*----------------------------------------------------------------------------*/
 std::unique_ptr<TransferJob>
-TransferQueue::Get ()
+TransferQueue::Get()
 {
   std::string item = eos::mq::SharedQueueWrapper(mRealm, mLocator, mBroadcast).getItem();
 
