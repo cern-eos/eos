@@ -23,17 +23,8 @@
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
-  ${LDAP_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
-  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/src
-  ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include
-  ${CMAKE_BINARY_DIR}/common/eos_cta_pb)
-
-# Hide Clang "inconsistent-missing-override" compiler warnings
-# XrdMgmOfs inherits XrdSfsFileSystem, leading to many warnings
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-inconsistent-missing-override")
-endif()
+  ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include)
 
 #-------------------------------------------------------------------------------
 # Generate protocol buffer files
@@ -273,12 +264,14 @@ target_link_libraries(XrdEosMgm-Objects PUBLIC
   EosCliProto-Objects
   EosAuthProto-Objects
   XrdSsiPbEosCta-Objects
+  LIBMICROHTTPD::LIBMICROHTTPD
+  GOOGLE::SPARSEHASH
   JSONCPP::JSONCPP
-  XROOTD::UTILS
   XROOTD::PRIVATE
+  XROOTD::UTILS
   FOLLY::FOLLY
-  ZMQ::ZMQ
-  GOOGLE::SPARSEHASH)
+  LDAP::LDAP
+  ZMQ::ZMQ)
 
 if (GRPC_FOUND)
   target_link_libaries(XrdEosMgm-Objects PUBLIC
@@ -297,11 +290,6 @@ add_library(XrdEosMgm-${PLUGIN_VERSION} MODULE
 target_compile_definitions(XrdEosMgm-${PLUGIN_VERSION} PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
-if (MICROHTTPD_FOUND)
-  target_compile_definitions(
-    XrdEosMgm-${PLUGIN_VERSION} PUBLIC -DEOS_MICRO_HTTPD=1)
-endif()
-
 target_link_libraries(XrdEosMgm-${PLUGIN_VERSION} PUBLIC
   XrdEosMgm-Objects
   EosCliProto-Objects
@@ -317,7 +305,6 @@ target_link_libraries(XrdEosMgm-${PLUGIN_VERSION} PUBLIC
   EosCommonServer
   EosNsCommon
   bfd
-  ${LDAP_LIBRARIES}
   ${GLIBC_DL_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
   ${CMAKE_THREAD_LIBS_INIT})
@@ -378,14 +365,11 @@ if(Linux)
     EosAuthProto-Objects
     XrdSsiPbEosCta-Objects
     ZLIB::ZLIB
-    XROOTD::CL
     XROOTD::SSI
-    XROOTD::UTILS
     XROOTD::PRIVATE
     EosNsCommon-Static
     EosCommonServer-Static
     eosCapability-Static
-    ${LDAP_LIBRARIES}
     ${GLIBC_DL_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})
 

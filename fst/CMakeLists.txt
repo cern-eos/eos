@@ -275,24 +275,6 @@ install(TARGETS eoscp
 
 if(NOT CLIENT)
 #-------------------------------------------------------------------------------
-# EosFstHttp library
-#-------------------------------------------------------------------------------
-add_library(EosFstHttp MODULE
-  http/xrdhttp/EosFstHttpHandler.hh
-  http/xrdhttp/EosFstHttpHandler.cc)
-
-target_link_libraries(EosFstHttp PUBLIC
-  EosCommon
-  EosCommonServer
-  XROOTD::HTTP
-  XROOTD::PRIVATE)
-
-install(TARGETS EosFstHttp
-  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
-
-#-------------------------------------------------------------------------------
 # EosFstOss library
 #-------------------------------------------------------------------------------
 add_library(EosFstOss MODULE
@@ -409,6 +391,25 @@ target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
   ${CMAKE_THREAD_LIBS_INIT})
 
 install(TARGETS EosFstOss XrdEosFst-${PLUGIN_VERSION}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+
+#-------------------------------------------------------------------------------
+# EosFstHttp library
+#-------------------------------------------------------------------------------
+add_library(EosFstHttp MODULE
+  http/xrdhttp/EosFstHttpHandler.hh
+  http/xrdhttp/EosFstHttpHandler.cc)
+
+target_link_libraries(EosFstHttp PUBLIC
+  XrdEosFst-Objects
+  EosCommon
+  EosCommonServer
+  XROOTD::HTTP
+  XROOTD::PRIVATE)
+
+install(TARGETS EosFstHttp
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

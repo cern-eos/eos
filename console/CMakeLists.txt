@@ -21,12 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(
-  ${CMAKE_SOURCE_DIR}
-  ${CMAKE_BINARY_DIR}
-  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
-  ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
-  ${CMAKE_BINARY_DIR}/namespace/ns_quarkdb)  # for the generated protobuf
+include_directories(${CMAKE_SOURCE_DIR})
 
 add_subdirectory(tests)
 
@@ -42,10 +37,8 @@ add_library(EosConsoleHelpers-Objects OBJECT
   commands/helpers/TokenHelper.cc   commands/helpers/TokenHelper.hh)
 
 target_link_libraries(EosConsoleHelpers-Objects PUBLIC
-  EosFstProto-Objects)
-
-target_include_directories(EosConsoleHelpers-Objects PRIVATE
-  $<TARGET_PROPERTY:XROOTD::UTILS,INTERFACE_INCLUDE_DIRECTORIES>)
+  EosFstProto-Objects
+  XROOTD::UTILS)
 
 set_target_properties(EosConsoleHelpers-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
