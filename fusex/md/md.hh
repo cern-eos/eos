@@ -66,7 +66,7 @@ public:
     // local operations
 
     enum md_op {
-      ADD, MV, UPDATE, RM, SETSIZE, LSTORE, NONE
+      ADD, UPDATE, RM, SETSIZE, LSTORE, NONE
     };
 
     mdx() : mSync(1)

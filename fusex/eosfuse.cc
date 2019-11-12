@@ -3257,6 +3257,12 @@ EROFS  pathname refers to a file on a read-only filesystem.
       md = Instance().mds.lookup(req, parent, name);
       XrdSysMutexHelper lLock(md->Locker());
 
+      if (!Instance().Config().options.rename_is_sync) {
+	if (Instance().mds.has_flush(md->id())) {
+	  Instance().mds.wait_flush(req, md);
+	}
+      }
+
       if (!md->id() || md->deleted()) {
         rc = ENOENT;
       }

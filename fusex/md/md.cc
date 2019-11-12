@@ -889,11 +889,9 @@ metad::wait_flush(fuse_req_t req, metad::shared_md md)
 
   while (1) {
     if (md->WaitSync(1)) {
-      if ((md->getop() != md->NONE)) {
-        if (has_flush(md->id())) {
-          // if a deletion was issued, OP state is md->RM not md->NONE hence we would never leave this loop
-          continue;
-        }
+      if (has_flush(md->id())) {
+	// if a deletion was issued, OP state is md->RM not md->NONE hence we would never leave this loop
+	continue;
       }
 
       break;
@@ -2162,13 +2160,6 @@ metad::mdcflush(ThreadAssistant& assistant)
               md->set_operation(md->DELETE);
             } else {
               md->set_operation(md->SET);
-            }
-
-            if ((op != metad::mdx::RM) && md->deleted()) {
-              // if the md was deleted in the meanwhile does not need to
-              // push it remote, since the response creates a race condition
-              md->Locker().UnLock();
-              continue;
             }
 
             if (((op == metad::mdx::ADD) ||
