@@ -1450,11 +1450,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       mKV.reset(new RedisKV());
 #ifdef ROCKSDB_FOUND
 
-      if (!config.mdcachedir.empty()) {	
+      if (!config.mdcachedir.empty()) {
         RocksKV* kv = new RocksKV();
-
-	// clean old stale DBs
-	kv->clean_stores(store_directory,config.clientuuid);
+        // clean old stale DBs
+        kv->clean_stores(store_directory, config.clientuuid);
 
         if (kv->connect(config.name, config.mdcachedir) != 0) {
           fprintf(stderr, "error: failed to open rocksdb KV cache - path=%s",
@@ -1472,7 +1471,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       mds.init(&mdbackend);
       caps.init(&mdbackend, &mds);
       datas.init();
-
 
       if (config.mqtargethost.length()) {
         if (mds.connect(config.mqtargethost, config.mqidentity, config.mqname,
@@ -1531,15 +1529,15 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       tCapFlush.reset(&cap::capflush, &caps);
 
       // wait that we get our heartbeat sent ...
-      for (size_t i=0; i<50; ++i) {
-	if (mds.is_visible()) {
-	  break;
-	} else {
-	  eos_static_notice("waiting for established heart-beat : %u", i);
+      for (size_t i = 0; i < 50; ++i) {
+        if (mds.is_visible()) {
+          break;
+        } else {
+          eos_static_notice("waiting for established heart-beat : %u", i);
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
-	}
+        }
       }
-      
+
       eos_static_warning("********************************************************************************");
       eos_static_warning("eosxd started version %s - FUSE protocol version %d",
                          VERSION, FUSE_USE_VERSION);
@@ -1687,7 +1685,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
 
       fuse_unmount(local_mount_dir, fusechan);
-
       mKV.reset();
 
       if (config.mdcachedir_unlink.length()) {
@@ -1848,10 +1845,7 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
     {
       std::lock_guard<std::mutex> lock(meminfo.mutex());
       XrdSysMutexHelper sLock(getFuseStat().Mutex);
-
-
       double blocked_ms = this->Tracker().blocked_ms(blocker);
-
       snprintf(ino_stat, sizeof(ino_stat),
                "ALL        threads             := %llu\n"
                "ALL        visze               := %s\n"
@@ -1925,8 +1919,8 @@ EosFuse::DumpStatistic(ThreadAssistant& assistant)
                EosFuse::Instance().config.clientuuid.c_str(),
                EosFuse::Instance().mds.server_version().c_str(),
                EosFuse::Instance().Config().options.automounted,
-	       blocked_ms,
-	       blocker.c_str()
+               blocked_ms,
+               blocker.c_str()
               );
     }
     sout += ino_stat;
@@ -2037,7 +2031,6 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
   cap::shared_cap pcap;
   metad::shared_md md;
   bool md_update_sync = false;     /* wait for MD update for return code */
-
   md = Instance().mds.get(req, ino);
   md->Locker().Lock();
 
@@ -2205,8 +2198,8 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
             Instance().mds.wait_flush(req, md);
           }
         }
-        md_update_sync = true;
 
+        md_update_sync = true;
         EXEC_TIMING_END("setattr:chown");
       }
 
@@ -2406,12 +2399,19 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
     if (Instance().mds.has_flush(md->id())) {
       Instance().mds.wait_flush(req, md);
     }
+
     md->setop_update();
     Instance().mds.update(req, md, pcap->authid());
+
     if (Instance().mds.has_flush(md->id())) {
       Instance().mds.wait_flush(req, md);
     }
-    if (EOS_LOGS_DEBUG) eos_static_debug("id %ld err %d op %d del %d", md->id(), md->err(), md->getop(), md->deleted());
+
+    if (EOS_LOGS_DEBUG) {
+      eos_static_debug("id %ld err %d op %d del %d", md->id(), md->err(), md->getop(),
+                       md->deleted());
+    }
+
     rc = md->deleted() ? ENOENT : md->err();
   }
 
@@ -2423,7 +2423,11 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
     memset(&e, 0, sizeof(e));
     md->convert(e, pcap->lifetime());
     eos_static_info("%s", md->dump(e).c_str());
-    if (!md_update_sync) Instance().mds.update(req, md, pcap->authid());
+
+    if (!md_update_sync) {
+      Instance().mds.update(req, md, pcap->authid());
+    }
+
     md->Locker().UnLock();
     fuse_reply_attr(req, &e.attr, e.attr_timeout);
   }
@@ -2453,7 +2457,6 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
     if (md->id() && !md->deleted()) {
       cap::shared_cap pcap = Instance().caps.acquire(req, parent,
                              R_OK);
-
       XrdSysMutexHelper mLock(md->Locker());
       md->set_pid(parent);
       eos_static_info("%s", md->dump(e).c_str());
@@ -2874,9 +2877,9 @@ EBADF  Invalid directory stream descriptor fi->fh
       metad::shared_md cmd = Instance().mds.get(req, cino, "", 0, 0, 0, true);
 
       if (!cmd) {
-	continue;
+        continue;
       }
-	
+
       eos_static_debug("list: %#lx %s (d=%d)", cino, it->first.c_str(),
                        cmd->deleted());
 
@@ -3257,6 +3260,12 @@ EROFS  pathname refers to a file on a read-only filesystem.
       md = Instance().mds.lookup(req, parent, name);
       XrdSysMutexHelper lLock(md->Locker());
 
+      if (!Instance().Config().options.rename_is_sync) {
+        if (Instance().mds.has_flush(md->id())) {
+          Instance().mds.wait_flush(req, md);
+        }
+      }
+
       if (!md->id() || md->deleted()) {
         rc = ENOENT;
       }
@@ -3285,21 +3294,23 @@ EROFS  pathname refers to a file on a read-only filesystem.
             tmd = Instance().mds.get(req, local_ino,
                                      pcap->authid()); /* the target of the link */
             hardlink_target_ino = tmd->id();
+            {
+              // if a hardlink is deleted, we should remove the local shadow entry
+              char nameBuf[256];
+              snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", hardlink_target_ino);
+              std::string newname = nameBuf;
+              XrdSysMutexHelper pLock(pmd->Locker());
 
-	    {
-	      // if a hardlink is deleted, we should remove the local shadow entry
-	      char nameBuf[256];
-	      snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", hardlink_target_ino);
-	      std::string newname = nameBuf;
-	      XrdSysMutexHelper pLock(pmd->Locker());
-	      if (pmd->local_children().count(eos::common::StringConversion::EncodeInvalidUTF8(newname))) {
-		pmd->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(newname));
-		pmd->set_nchildren(pmd->nchildren()-1);
-	      }
-	    }
+              if (pmd->local_children().count(
+                    eos::common::StringConversion::EncodeInvalidUTF8(newname))) {
+                pmd->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(
+                                              newname));
+                pmd->set_nchildren(pmd->nchildren() - 1);
+              }
+            }
           }
 
-	  freesize = md->size();
+          freesize = md->size();
 
           if (EOS_LOGS_DEBUG) {
             eos_static_debug("hlnk unlink %s new nlink %d %s", name, nlink,
@@ -3313,13 +3324,13 @@ EROFS  pathname refers to a file on a read-only filesystem.
             Instance().datas.unlink(req, md->id());
           }
 
-	  Instance().mds.remove(req, pmd, md, pcap->authid());
+          Instance().mds.remove(req, pmd, md, pcap->authid());
 
-	  if (attrMap.count(k_nlink)) {
-	    // this is a target for hardlinks and we want to invalidate in the kernel cache
-	    hardlink_target_ino = md->id();
-	    md->force_refresh();
-	  }
+          if (attrMap.count(k_nlink)) {
+            // this is a target for hardlinks and we want to invalidate in the kernel cache
+            hardlink_target_ino = md->id();
+            md->force_refresh();
+          }
         }
       }
     }
@@ -3330,11 +3341,12 @@ EROFS  pathname refers to a file on a read-only filesystem.
 
         if (del_ino) {
           Instance().mds.wait_deleted(req, del_ino);
-	  if (hardlink_target_ino) {
-	    // refetch a possible shadow inode and unmask the local deletion
-	    metad::shared_md smd = EosFuse::Instance().mds.get(req, del_ino, "");
-	    smd->setop_none();
-	  }
+
+          if (hardlink_target_ino) {
+            // refetch a possible shadow inode and unmask the local deletion
+            metad::shared_md smd = EosFuse::Instance().mds.get(req, del_ino, "");
+            smd->setop_none();
+          }
         }
       }
 
@@ -4193,7 +4205,7 @@ EosFuse::write(fuse_req_t req, fuse_ino_t ino, const char* buf, size_t size,
               if (Instance().Config().options.write_size_flush_interval) {
                 if (io->next_size_flush.load() && (io->next_size_flush.load() < now)) {
                   // if (io->cap_->valid()) // we want updates also after cap expiration
-		  Instance().mds.update(req, io->md, io->authid());
+                  Instance().mds.update(req, io->md, io->authid());
                   io->next_size_flush.store(now +
                                             Instance().Config().options.write_size_flush_interval,
                                             std::memory_order_seq_cst);

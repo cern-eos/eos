@@ -66,7 +66,7 @@ public:
     // local operations
 
     enum md_op {
-      ADD, MV, UPDATE, RM, SETSIZE, LSTORE, NONE
+      ADD, UPDATE, RM, SETSIZE, LSTORE, NONE
     };
 
     mdx() : mSync(1)
@@ -288,14 +288,14 @@ public:
       inline_size = inlinesize;
     }
 
-    void force_refresh()      
+    void force_refresh()
     {
       refresh.store(1, std::memory_order_seq_cst);
     }
 
     bool needs_refresh() const
     {
-      return refresh.load()?true:false;
+      return refresh.load() ? true : false;
     }
 
     void clear_refresh()
@@ -335,7 +335,7 @@ public:
     {
       rmrf = false;
     }
-    
+
     int state_serialize(std::string& out);
     int state_deserialize(std::string& out);
 
@@ -383,7 +383,7 @@ public:
     fuse_ino_t forward(fuse_ino_t lookup);
     fuse_ino_t backward(fuse_ino_t lookup);
 
-    void clear() 
+    void clear()
     {
       XrdSysMutexHelper mLock(mMutex);
       fwd_map.clear();
@@ -665,7 +665,8 @@ public:
     return inomap;
   }
 
-  void mdreset() {
+  void mdreset()
+  {
     XrdSysMutexHelper lock(mdmap);
     shared_md md1 = mdmap[1];
     md1->set_type(md1->MD);
@@ -674,7 +675,7 @@ public:
     mdmap[1] = md1;
     uint64_t i_root = inomap.backward(1);
     inomap.clear();
-    inomap.insert(i_root,1);
+    inomap.insert(i_root, 1);
   }
 
   void
@@ -768,7 +769,8 @@ public:
       return _fuse_id;
     }
 
-    void bind() {
+    void bind()
+    {
       _fuse_id.bind();
     }
 
