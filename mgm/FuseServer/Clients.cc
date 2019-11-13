@@ -326,7 +326,7 @@ FuseServer::Clients::Print(std::string& out, std::string options)
                it->second.heartbeat().version().c_str(),
                it->second.status[it->second.state()],
                eos::common::Timing::utctime(it->second.heartbeat().starttime()).c_str(),
-               tsnow.tv_sec - it->second.heartbeat().clock() +
+               (int64_t)tsnow.tv_sec - (int64_t)it->second.heartbeat().clock() +
                (((int64_t) tsnow.tv_nsec -
                  (int64_t) it->second.heartbeat().clock_ns()) * 1.0 / 1000000000.0),
                it->second.heartbeat().delta() * 1000,
@@ -442,7 +442,7 @@ FuseServer::Clients::Print(std::string& out, std::string options)
 	       it->second.heartbeat().version().c_str(),
 	       it->second.status[it->second.state()],
 	       eos::common::Timing::utctime(it->second.heartbeat().starttime()).c_str(),
-	       tsnow.tv_sec - it->second.heartbeat().clock() +
+	       (int64_t)tsnow.tv_sec - (int64_t)it->second.heartbeat().clock() +
 	       (((int64_t) tsnow.tv_nsec -
 		 (int64_t) it->second.heartbeat().clock_ns()) * 1.0 / 1000000000.0),
 	       it->second.heartbeat().delta() * 1000,
