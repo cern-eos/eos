@@ -248,12 +248,6 @@ XrdMgmOfs::Commit(const char* path,
         return Emsg(epname, error, errno, "commit filesize change", emsg.c_str());
       }
     }
-
-    if (option("update")) {
-      // broadcast file md 
-      gOFS->FuseXCastRefresh(fmd_id, cmd_id); 
-    }
-
     {
       eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
       // Path of a previous version existing before an atomic/versioning upload
