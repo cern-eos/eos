@@ -999,10 +999,8 @@ com_cp(char* argin)
     }
 
     safename = eos::common::Path(safename.c_str()).GetName();;
-
-    while (safename.replace("&", "#AND#")) {}
-
-    while (safename.replace("'", "\\'")) {}
+    safename.replace("&", "#AND#");
+    safename.replace("'", "\\'");
 
     //------------------------------------
     // Construct 'eoscp' command
@@ -1046,8 +1044,7 @@ com_cp(char* argin)
       cmdtext += "- ";
     } else {
       XrdOucString safesource = source.name.c_str();
-
-      while (safesource.replace("'", "\\'")) {}
+      safesource.replace("'", "\\'");
 
       cmdtext += "$'";
       cmdtext += safesource;
@@ -1058,8 +1055,7 @@ com_cp(char* argin)
       cmdtext += "-";
     } else {
       XrdOucString safedest = dest.c_str();
-
-      while (safedest.replace("'", "\\'")) {}
+      safedest.replace("'", "\\'");
 
       cmdtext += "$'";
       cmdtext += safedest;
