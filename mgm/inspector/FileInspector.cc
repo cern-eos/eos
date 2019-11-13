@@ -307,47 +307,47 @@ void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
       Process(fmd);
       nfiles_processed++;
       scanned_percent.store(100.0 * nfiles_processed / nfiles,
-			    std::memory_order_seq_cst);
+                            std::memory_order_seq_cst);
       time_t target_time = (1.0 * nfiles_processed / nfiles) * interval;
       time_t is_time = time(NULL) - s_time;
-      
+
       if (target_time > is_time) {
-	uint64_t p_time = target_time - is_time;
-	
-	if (p_time > 5) {
-	  p_time = 5;
-	}
-	
-	eos_static_debug("is:%lu target:%lu is_t:%lu target_t:%lu interval:%lu - pausing for %lu seconds\n",
-			 nfiles_processed, nfiles, is_time, target_time, interval, p_time);
-	// pause for the diff ...
-	std::this_thread::sleep_for(std::chrono::seconds(p_time));
+        uint64_t p_time = target_time - is_time;
+
+        if (p_time > 5) {
+          p_time = 5;
+        }
+
+        eos_static_debug("is:%lu target:%lu is_t:%lu target_t:%lu interval:%lu - pausing for %lu seconds\n",
+                         nfiles_processed, nfiles, is_time, target_time, interval, p_time);
+        // pause for the diff ...
+        std::this_thread::sleep_for(std::chrono::seconds(p_time));
       }
-      
+
       if (assistant.terminationRequested()) {
-	return;
+        return;
       }
-      
+
       if ((time(NULL) - c_time) > 60) {
-	c_time = time(NULL);
-	Options opts = getOptions();
-	interval = opts.interval.count();
-	
-	if (!opts.enabled) {
-	  // interrupt the scan
-	  break;
-	}
-	
-	if (!gOFS->mMaster->IsMaster()) {
-	  // interrupt the scan
-	  break;
-	}
+        c_time = time(NULL);
+        Options opts = getOptions();
+        interval = opts.interval.count();
+
+        if (!opts.enabled) {
+          // interrupt the scan
+          break;
+        }
+
+        if (!gOFS->mMaster->IsMaster()) {
+          // interrupt the scan
+          break;
+        }
       }
     }
 
     if (scanner.hasError(err)) {
       eos_static_err("msg=\"QDB scanner error - interrupting scan\" error=\"%s\"",
-		     err.c_str());
+                     err.c_str());
       break;
     }
   }
@@ -389,25 +389,23 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
 
   eos::IFileMD::LocationVector l;
   eos::IFileMD::LocationVector u_l;
-  {
-    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
-    for (auto const& fs : l) {
-      if (!FsView::gFsView.HasMapping(fs)) {
-        // shadow filesystem
-        currentScanStats[lid]["shadowlocation"]++;
-        currentFaultyFiles["shadowlocation"].insert(fmd->getId());
-      }
-    }
-
-    for (auto const& fs : u_l) {
-      if (!FsView::gFsView.HasMapping(fs)) {
-        // shadow filesystem
-        currentScanStats[lid]["shadowdeletion"]++;
-        currentFaultyFiles["shadowdeletion"].insert(fmd->getId());
-      }
+  for (auto const& fs : l) {
+    if (!FsView::gFsView.HasMapping(fs)) {
+      // shadow filesystem
+      currentScanStats[lid]["shadowlocation"]++;
+      currentFaultyFiles["shadowlocation"].insert(fmd->getId());
     }
   }
+
+  for (auto const& fs : u_l) {
+    if (!FsView::gFsView.HasMapping(fs)) {
+      // shadow filesystem
+      currentScanStats[lid]["shadowdeletion"]++;
+      currentFaultyFiles["shadowdeletion"].insert(fmd->getId());
+    }
+  }
+
   // unlinked locations
   currentScanStats[lid]["unlinkedlocations"] += fmd->getNumUnlinkedLocation();
   // linked locations
@@ -439,6 +437,7 @@ void
 FileInspector::Process(std::string& filepath)
 {
   eos_static_debug("inspector-file=\"%s\"", filepath.c_str());
+  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
   eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
   std::shared_ptr<eos::IFileMD> fmd;
 
