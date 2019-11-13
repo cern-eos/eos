@@ -387,8 +387,8 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
     currentFaultyFiles["nolocation"].insert(fmd->getId());
   }
 
-  eos::IFileMD::LocationVector l;
-  eos::IFileMD::LocationVector u_l;
+  eos::IFileMD::LocationVector l = fmd->getLocations();
+  eos::IFileMD::LocationVector u_l = fmd->getUnlinkedLocations();
 
   for (auto const& fs : l) {
     if (!FsView::gFsView.HasMapping(fs)) {
