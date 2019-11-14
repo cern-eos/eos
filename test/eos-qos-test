@@ -1,0 +1,176 @@
+#!/bin/bash
+set -e
+
+# ----------------------------------------------------------------------
+# File: eos-qos-test
+# Author: Mihai Patrascoiu - CERN
+# ----------------------------------------------------------------------
+
+# ******************************************************************************
+# EOS - the CERN Disk Storage System
+# Copyright (C) 2019 CERN/Switzerland
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# ******************************************************************************
+
+#------------------------------------------------------------------------------
+# Description: Script testing the QoS class functionality of EOS.
+#              The following requirements must be met:
+#              - MGM running with Converter Engine enabled
+#              - At least 3 FSTs should be available
+#              - "disk_plain" and "disk_replica" QoS classes
+#                are expected to be defined
+#
+# Usage: eos-qos-test <eos_instance_name> [<eos_mgm_hostname>]
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
+# Helper functions
+#------------------------------------------------------------------------------
+
+function usage() {
+  echo "Usage: $0 <eos_instance_name> [<eos_mgm_hostname>]"
+  echo "       <eos_instance_name> - the /eos/<instance_name>/ to access"
+  echo "       <eos_mgm_hostname>  - optional MGM hostname (will use EOS_MGM_URL env variable otherwise)"
+  echo ""
+
+  exit 1
+}
+
+function check_preconditions() {
+  NO_FSTS=$(eos fs ls | grep -c "online")
+
+  if (( NO_FSTS < 3 )); then
+    echo "error: not enough FSTs booted (should be at least 3)"
+    exit 1
+  fi
+
+  eos ns | grep "In-flight FileMD" &> /dev/null
+
+  if [[ $? -ne 0 ]]; then
+    echo "error: MGM not running with QuarkDB"
+    exit 1
+  fi
+
+  rc=$(eos -j qos list | jq '.name[0]' | grep "disk_plain" &> /dev/null && eos -j qos list | jq '.name[1]' | grep "disk_replica" &> /dev/null ; echo $?)
+
+  if [[ $rc -ne 0 ]]; then
+    echo "error: expected QoS classes [ \"disk_plain\", \"disk_replica\" ] are not defined"
+    exit 1
+  fi
+}
+
+function element_in_array() {
+  local element=$1
+  shift
+
+  for array_item in "$@"; do
+    [[ "$element" == "$array_item" ]] && return 0
+  done
+
+  return 1
+}
+
+function replicate_file() {
+  no_fsts=$(eos fs ls | grep -c "online")
+  file=$1
+  locations=($(eos -j fileinfo ${file} | jq '.locations[].fsid'))
+  target_fsid=0
+
+  for i in $(seq 1 ${no_fsts}); do
+    if ! element_in_array ${i} "${locations[@]}" ; then
+      target_fsid=${i}
+      break
+    fi
+  done
+
+  if [[ -z ${target_fsid} ]]; then
+    echo "error: failed to replicate ${file}"
+    exit 1
+  fi
+
+  eos file replicate ${file} ${locations[0]} ${target_fsid}
+  sleep 5
+}
+
+#------------------------------------------------------------------------------
+# Global setup
+#------------------------------------------------------------------------------
+
+if [[ $# -eq 0 || $# -gt 2 ]]; then
+  usage
+fi
+
+# Setup EOS instance variables
+EOS_INSTANCE_NAME=$1
+EOS_MGM_HOSTNAME=$2
+
+if [[ -z "$EOS_MGM_HOSTNAME" ]]; then
+  if [[ -n "$EOS_MGM_URL" ]]; then
+    EOS_MGM_HOSTNAME=${EOS_MGM_URL#root://}
+    EOS_MGM_HOSTNAME=${EOS_MGM_HOSTNAME%:1094/}
+  else
+    EOS_MGM_HOSTNAME=localhost
+  fi
+fi
+
+export EOS_MGM_URL=${EOS_MGM_HOSTNAME}
+echo "EOS_INSTANCE_NAME=${EOS_INSTANCE_NAME}"
+echo "EOS_MGM_HOSTNAME=${EOS_MGM_HOSTNAME}"
+check_preconditions
+
+# Create dummy test file
+TEST_FILE=/tmp/1mb.dat
+dd if=/dev/urandom of=${TEST_FILE} bs=1k count=1000 &> /dev/null
+
+# Setup EOS qos directory
+eos mkdir /eos/${EOS_INSTANCE_NAME}/qos/
+eos chmod 2777 /eos/${EOS_INSTANCE_NAME}/qos/ &> /dev/null
+eos attr set default=replica /eos/${EOS_INSTANCE_NAME}/qos/
+eos cp ${TEST_FILE} root://${EOS_MGM_HOSTNAME}:1094//eos/${EOS_INSTANCE_NAME}/qos/file.dat
+
+#------------------------------------------------------------------------------
+# Run QoS tests
+#------------------------------------------------------------------------------
+
+eos -j qos get /eos/${EOS_INSTANCE_NAME}/qos/file.dat | jq '"path=" + .path, "current_qos=" + .current_qos'
+eos -j qos get /eos/${EOS_INSTANCE_NAME}/qos/file.dat | jq '.current_qos' | grep "disk_replica" &> /dev/null
+
+# Replicate file to another file system
+replicate_file /eos/${EOS_INSTANCE_NAME}/qos/file.dat
+
+# Set new QoS class
+echo "" ; echo "Setting QoS class transition to: \"disk_plain\""
+eos -j qos set /eos/${EOS_INSTANCE_NAME}/qos/file.dat disk_plain
+eos -j qos get /eos/${EOS_INSTANCE_NAME}/qos/file.dat | jq '"current_qos=" + .current_qos, "target_qos=" + (.target_qos|tostring)'
+eos -j qos get /eos/${EOS_INSTANCE_NAME}/qos/file.dat | jq '.target_qos' | grep "disk_plain" &> /dev/null
+
+# Wait for conversion
+echo ""; echo "Waiting 75 seconds for conversion"
+sleep 75
+
+# Validate QoS class
+echo "Verify transition took place"
+eos -j qos get /eos/${EOS_INSTANCE_NAME}/qos/file.dat | jq '"current_qos=" + .current_qos, "target_qos=" + (.target_qos|tostring)'
+eos -j qos get /eos/${EOS_INSTANCE_NAME}/qos/file.dat | jq '.current_qos' | grep "disk_plain" &> /dev/null
+eos -j qos get /eos/${EOS_INSTANCE_NAME}/qos/file.dat | jq '.target_qos' | grep "null" &> /dev/null
+
+echo "QoS transition successful"
+
+# Perform clean-up
+eos rm -rf /eos/${EOS_INSTANCE_NAME}/qos/* &> /dev/null
+eos rmdir /eos/${EOS_INSTANCE_NAME}/qos/
+
+rm ${TEST_FILE}
+exit 0
