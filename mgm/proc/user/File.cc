@@ -1250,7 +1250,7 @@ ProcCommand::File()
           icreationsubgroup = atoi(pOpaque->Get("mgm.file.desiredsubgroup"));
         }
 
-        eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex);
+        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
         // Reference by fid+fsid
         if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
@@ -1288,7 +1288,7 @@ ProcCommand::File()
 
         if (fmd) {
           unsigned long long fid = fmd->getId();
-          viewReadLock.Release();
+          ns_rd_lock.Release();
           //-------------------------------------------
 
           // Check if that is a replica layout at all
@@ -1312,7 +1312,7 @@ ProcCommand::File()
                 continue;
               }
 
-              eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+              eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
               FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(*lociter);
 
               if (filesystem) {
@@ -1659,7 +1659,7 @@ ProcCommand::File()
             }
           }
         } else {
-          viewReadLock.Release();
+          ns_rd_lock.Release();
         }
       } else {
         retc = EPERM;
@@ -1688,7 +1688,8 @@ ProcCommand::File()
         std::shared_ptr<eos::IFileMD> fmd;
         //-------------------------------------------
         std::string ns_path {};
-        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+        eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
         try {
           if ((spath.beginswith("fid:") || (spath.beginswith("fxid:")))) {
@@ -1753,7 +1754,6 @@ ProcCommand::File()
               continue;
             }
 
-            eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
             eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(
                                                     *lociter);
 
