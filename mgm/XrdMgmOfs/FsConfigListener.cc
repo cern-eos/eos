@@ -30,7 +30,8 @@
 //------------------------------------------------------------------------------
 // Get key from MGM config queue
 //------------------------------------------------------------------------------
-bool XrdMgmOfs::getMGMConfigValue(const std::string &key, std::string &value) {
+bool XrdMgmOfs::getMGMConfigValue(const std::string& key, std::string& value)
+{
   return eos::mq::SharedHashWrapper::makeGlobalMgmHash().get(key, value);
 }
 
@@ -38,9 +39,11 @@ bool XrdMgmOfs::getMGMConfigValue(const std::string &key, std::string &value) {
 // Process incoming MGM configuration change
 //------------------------------------------------------------------------------
 void
-XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string &key) {
+XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string& key)
+{
   std::string tmpValue;
-  if(!getMGMConfigValue(key, tmpValue)) {
+
+  if (!getMGMConfigValue(key, tmpValue)) {
     return;
   }
 
@@ -51,14 +54,13 @@ XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string &key) {
     // Here we might get a change without the namespace, in this
     // case we add the global namespace
     if ((key.substr(0, 4) != "map:") &&
-      (key.substr(0, 3) != "fs:") &&
-      (key.substr(0, 6) != "quota:") &&
-      (key.substr(0, 4) != "vid:") &&
-      (key.substr(0, 7) != "policy:")) {
-
+        (key.substr(0, 3) != "fs:") &&
+        (key.substr(0, 6) != "quota:") &&
+        (key.substr(0, 4) != "vid:") &&
+        (key.substr(0, 7) != "policy:")) {
       XrdOucString skey = key.c_str();
       eos_info("msg=\"apply access config\" key=\"%s\" val=\"%s\"",
-      key.c_str(), value.c_str());
+               key.c_str(), value.c_str());
       Access::ApplyAccessConfig(false);
 
       if (skey.beginswith("iostat:")) {
@@ -69,7 +71,8 @@ XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string &key) {
         gOFS->FsCheck.ApplyFsckConfig();
       }
     } else {
-      eos_info("msg=\"set config value\" key=\"%s\" val=\"%s\"", key.c_str(), value.c_str());
+      eos_info("msg=\"set config value\" key=\"%s\" val=\"%s\"", key.c_str(),
+               value.c_str());
       gOFS->ConfEngine->SetConfigValue(0, key.c_str(), value.c_str(), false);
 
       // For file system modification we need to take the
@@ -88,89 +91,92 @@ XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string &key) {
 // Process geotag change on the specified filesystem
 //------------------------------------------------------------------------------
 void
-XrdMgmOfs::processGeotagChange(eos::common::FileSystem::fsid_t fsid,
-  const std::string &newgeotag) {
+XrdMgmOfs::ProcessGeotagChange(const std::string& queue)
+{
+  std::string newgeotag;
+  eos::common::FileSystem::fsid_t fsid = 0;
+  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+  FileSystem* fs = FsView::gFsView.mIdView.lookupByQueuePath(queue);
+
+  if (fs == nullptr) {
+    return;
+  }
+
+  fsid = (eos::common::FileSystem::fsid_t) fs->GetLongLong("id");
+  newgeotag = fs->GetString("stat.geotag");
+
+  if (fsid == 0 && newgeotag.empty()) {
+    return;
+  }
 
   std::string oldgeotag = newgeotag;
 
-  if (fsid == 0) {
-    return;
-  } else {
-    FsView::gFsView.ViewMutex.LockRead();
-    FileSystem* fs = FsView::gFsView.mIdView.lookupByID(fsid);
+  if (FsView::gFsView.mNodeView.count(fs->GetQueue())) {
+    // Check if the change notification is an actual change in the geotag
+    FsNode* node = FsView::gFsView.mNodeView[fs->GetQueue()];
+    static_cast<GeoTree*>(node)->getGeoTagInTree(fsid , oldgeotag);
+    oldgeotag.erase(0, 8); // to get rid of the "<ROOT>::" prefix
+  }
 
-    if (fs) {
-      if (FsView::gFsView.mNodeView.count(fs->GetQueue())) {
-        // check if the change notification is an actual change in the geotag
-        FsNode* node = FsView::gFsView.mNodeView[fs->GetQueue()];
-        static_cast<GeoTree*>(node)->getGeoTagInTree(fsid , oldgeotag);
-        oldgeotag.erase(0, 8); // to get rid of the "<ROOT>::" prefix
+  if (oldgeotag != newgeotag) {
+    eos_warning("msg=\"received geotag change\" fsid=%lu old_geotag=\"%s\" "
+                "new_geotag=\"%s\"", (unsigned long)fsid,
+                oldgeotag.c_str(), newgeotag.c_str());
+    // Release read lock and take write lock
+    fs_rd_lock.Release();
+    eos::common::RWMutexWriteLock fs_rw_lock(FsView::gFsView.ViewMutex);
+    eos::common::FileSystem::fs_snapshot_t snapshot;
+    fs->SnapShotFileSystem(snapshot);
+
+    // Update node view tree structure
+    if (FsView::gFsView.mNodeView.count(snapshot.mQueue)) {
+      FsNode* node = FsView::gFsView.mNodeView[snapshot.mQueue];
+      eos_debug("msg=\"update geotag of fsid=%lu in node=%s",
+                (unsigned long)fsid, node->mName.c_str());
+
+      if (!static_cast<GeoTree*>(node)->erase(fsid)) {
+        eos_err("msg=\"error removing fsid=%lu from node=%s\"",
+                (unsigned long)fsid, node->mName.c_str());
       }
 
-      if (oldgeotag != newgeotag) {
-        eos_warning("msg=\"received geotag change\" fsid=%lu old_geotag=\"%s\" "
-          "new_geotag=\"%s\"", (unsigned long)fsid,
-        oldgeotag.c_str(), newgeotag.c_str());
-        FsView::gFsView.ViewMutex.UnLockRead();
-        eos::common::RWMutexWriteLock fs_rw_lock(FsView::gFsView.ViewMutex);
-        eos::common::FileSystem::fs_snapshot_t snapshot;
-        fs->SnapShotFileSystem(snapshot);
-
-        // Update node view tree structure
-        if (FsView::gFsView.mNodeView.count(snapshot.mQueue)) {
-          FsNode* node = FsView::gFsView.mNodeView[snapshot.mQueue];
-          eos_debug("msg=\"update geotag of fsid=%lu in node=%s",
-            (unsigned long)fsid, node->mName.c_str());
-
-          if (!static_cast<GeoTree*>(node)->erase(fsid)) {
-            eos_err("msg=\"error removing fsid=%lu from node=%s\"",
-              (unsigned long)fsid, node->mName.c_str());
-          }
-
-          if (!static_cast<GeoTree*>(node)->insert(fsid)) {
-            eos_err("msg=\"error inserting fsid=%lu into node=%s\"",
-              (unsigned long)fsid, node->mName.c_str());
-          }
-        }
-
-        // Update group view tree structure
-        if (FsView::gFsView.mGroupView.count(snapshot.mGroup)) {
-          FsGroup* group = FsView::gFsView.mGroupView[snapshot.mGroup];
-          eos_debug("msg=\"updating geotag of fsid=%lu in group=%s\"",
-            (unsigned long)fsid, group->mName.c_str());
-
-          if (!static_cast<GeoTree*>(group)->erase(fsid)) {
-            eos_err("msg=\"error removing fsid=%lu from group=%s\"",
-              (unsigned long)fsid, group->mName.c_str());
-          }
-
-          if (!static_cast<GeoTree*>(group)->insert(fsid)) {
-            eos_err("msg=\"error inserting fsid=%lu into group=%s\"",
-              (unsigned long)fsid, group->mName.c_str());
-          }
-        }
-
-        // Update space view tree structure
-        if (FsView::gFsView.mSpaceView.count(snapshot.mSpace)) {
-          FsSpace* space = FsView::gFsView.mSpaceView[snapshot.mSpace];
-          eos_debug("msg=\"updating geotag of fsid=%lu in space=%s\"",
-            (unsigned long)fsid, space->mName.c_str());
-
-          if (!static_cast<GeoTree*>(space)->erase(fsid)) {
-            eos_err("msg=\"error removing fsid=%lu from space=%s\"",
-              (unsigned long)fsid, space->mName.c_str());
-          }
-
-          if (!static_cast<GeoTree*>(space)->insert(fsid)) {
-            eos_err("msg=\"error inserting fsid=%lu into space=%s\"",
-              (unsigned long)fsid, space->mName.c_str());
-          }
-        }
-      } else {
-        FsView::gFsView.ViewMutex.UnLockRead();
+      if (!static_cast<GeoTree*>(node)->insert(fsid)) {
+        eos_err("msg=\"error inserting fsid=%lu into node=%s\"",
+                (unsigned long)fsid, node->mName.c_str());
       }
-    } else {
-      FsView::gFsView.ViewMutex.UnLockRead();
+    }
+
+    // Update group view tree structure
+    if (FsView::gFsView.mGroupView.count(snapshot.mGroup)) {
+      FsGroup* group = FsView::gFsView.mGroupView[snapshot.mGroup];
+      eos_debug("msg=\"updating geotag of fsid=%lu in group=%s\"",
+                (unsigned long)fsid, group->mName.c_str());
+
+      if (!static_cast<GeoTree*>(group)->erase(fsid)) {
+        eos_err("msg=\"error removing fsid=%lu from group=%s\"",
+                (unsigned long)fsid, group->mName.c_str());
+      }
+
+      if (!static_cast<GeoTree*>(group)->insert(fsid)) {
+        eos_err("msg=\"error inserting fsid=%lu into group=%s\"",
+                (unsigned long)fsid, group->mName.c_str());
+      }
+    }
+
+    // Update space view tree structure
+    if (FsView::gFsView.mSpaceView.count(snapshot.mSpace)) {
+      FsSpace* space = FsView::gFsView.mSpaceView[snapshot.mSpace];
+      eos_debug("msg=\"updating geotag of fsid=%lu in space=%s\"",
+                (unsigned long)fsid, space->mName.c_str());
+
+      if (!static_cast<GeoTree*>(space)->erase(fsid)) {
+        eos_err("msg=\"error removing fsid=%lu from space=%s\"",
+                (unsigned long)fsid, space->mName.c_str());
+      }
+
+      if (!static_cast<GeoTree*>(space)->insert(fsid)) {
+        eos_err("msg=\"error inserting fsid=%lu into space=%s\"",
+                (unsigned long)fsid, space->mName.c_str());
+      }
     }
   }
 }
@@ -284,21 +290,8 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
             processIncomingMgmConfigurationChange(key.c_str());
           }
         } else if (key == watch_geotag) {
-          // Geotag update
-          eos::common::FileSystem::fsid_t fsid = 0;
-          std::string newgeotag;
-
-          FileSystem *fs = FsView::gFsView.mIdView.lookupByQueuePath(queue);
-          if(fs) {
-            fsid = (eos::common::FileSystem::fsid_t) fs->GetLongLong("id");
-            newgeotag = fs->GetString("stat.geotag");
-          }
-
-          if(fsid != 0 && !newgeotag.empty()) {
-            processGeotagChange(fsid, newgeotag);
-          }
-        }
-        else {
+          ProcessGeotagChange(queue);
+        } else {
           // This is a filesystem status error
           if (gOFS->mMaster->IsMaster()) {
             // only an MGM master needs to initiate draining
@@ -308,11 +301,11 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
             std::string bootstatus = "";
             eos::common::ConfigStatus cfgstatus = eos::common::ConfigStatus::kOff;
             eos::common::BootStatus bstatus = eos::common::BootStatus::kDown;
-
             // read the id from the hash and the current error value
             eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-            FileSystem *fs = FsView::gFsView.mIdView.lookupByQueuePath(queue);
-            if(fs) {
+            FileSystem* fs = FsView::gFsView.mIdView.lookupByQueuePath(queue);
+
+            if (fs) {
               fsid = (eos::common::FileSystem::fsid_t) fs->GetLongLong("id");
               errc = (int) fs->GetLongLong("stat.errc");
               configstatus = fs->GetString("configstatus");

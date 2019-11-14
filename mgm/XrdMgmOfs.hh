@@ -1282,10 +1282,11 @@ public:
   void processIncomingMgmConfigurationChange(const std::string& key);
 
   //----------------------------------------------------------------------------
-  // Process geotag change on the specified filesystem
+  //! Process geotag change on the specified filesystem
+  //!
+  //! @param queue file system queue path
   //----------------------------------------------------------------------------
-  void processGeotagChange(eos::common::FileSystem::fsid_t fsid,
-                           const std::string& newgeotag);
+  void ProcessGeotagChange(const std::string& queue);
 
   //------------------------------------------------------------------------------
   //! Add backup job to the queue to be picked up by the archive/backup submitter
