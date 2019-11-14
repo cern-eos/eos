@@ -1,0 +1,158 @@
+#!/bin/bash
+set -e
+
+# ----------------------------------------------------------------------
+# File: eos-convert-test
+# Author: Mihai Patrascoiu - CERN
+# ----------------------------------------------------------------------
+
+# ******************************************************************************
+# EOS - the CERN Disk Storage System
+# Copyright (C) 2019 CERN/Switzerland
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# ******************************************************************************
+
+#------------------------------------------------------------------------------
+# Description: Script testing the Converter engine of EOS.
+#              The following requirements must be met:
+#              - MGM running with QuarkDB instance
+#              - At least 6 FSTs should be available
+#
+# Usage: eos-convert-test <eos_instance_name> [<eos_mgm_hostname>]
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
+# Helper functions
+#------------------------------------------------------------------------------
+
+function usage() {
+  echo "Usage: $0 <eos_instance_name> [<eos_mgm_hostname>]"
+  echo "       <eos_instance_name> - the /eos/<instance_name>/ to access"
+  echo "       <eos_mgm_hostname>  - optional MGM hostname (will use EOS_MGM_URL env variable otherwise)"
+  echo ""
+
+  exit 1
+}
+
+function check_preconditions() {
+  NO_FSTS=$(eos fs ls | grep -c "online")
+
+  if (( NO_FSTS < 6 )); then
+    echo "error: not enough FSTs booted (should be at least 6)"
+    exit 1
+  fi
+
+  eos ns | grep "In-flight FileMD" &> /dev/null
+
+  if [[ $? -ne 0 ]]; then
+    echo "error: MGM not running with QuarkDB"
+    exit 1
+  fi
+}
+
+function upload_testfiles() {
+  for layout in "${LAYOUTS[@]}"; do
+    eos mkdir /eos/${EOS_INSTANCE_NAME}/convert/${layout}/
+    eos chmod 2777 /eos/${EOS_INSTANCE_NAME}/convert/${layout}/ &> /dev/null
+
+    for j in $(seq 1 100); do
+      xrdcp ${TEST_FILE} root://${EOS_MGM_HOSTNAME}//eos/${EOS_INSTANCE_NAME}/convert/${layout}/${j}.dat &> /dev/null
+    done
+
+    echo "Uploaded 100 files to /eos/${EOS_INSTANCE_NAME}/convert/${layout}/"
+  done
+}
+
+#------------------------------------------------------------------------------
+# Global setup
+#------------------------------------------------------------------------------
+
+if [[ $# -eq 0 || $# -gt 2 ]]; then
+  usage
+fi
+
+# Setup layout parameters
+LAYOUTS=(replica raiddp qrain)
+REPLICAS=(4 6 6)
+
+# Setup EOS instance variables
+EOS_INSTANCE_NAME=$1
+EOS_MGM_HOSTNAME=$2
+
+if [[ -z "$EOS_MGM_HOSTNAME" ]]; then
+  if [[ -n "$EOS_MGM_URL" ]]; then
+    EOS_MGM_HOSTNAME=$EOS_MGM_URL
+  else
+    EOS_MGM_HOSTNAME=localhost
+  fi
+fi
+
+export EOS_MGM_URL=${EOS_MGM_HOSTNAME}
+echo "EOS_INSTANCE_NAME=${EOS_INSTANCE_NAME}"
+echo "EOS_MGM_HOSTNAME=${EOS_MGM_HOSTNAME}"
+check_preconditions
+
+# Create dummy test file
+TEST_FILE=/tmp/1mb.dat
+dd if=/dev/urandom of=${TEST_FILE} bs=1k count=1000 &> /dev/null
+
+# Setup EOS convert directory
+eos mkdir /eos/${EOS_INSTANCE_NAME}/convert/
+eos chmod 2777 /eos/${EOS_INSTANCE_NAME}/convert/ &> /dev/null
+eos attr set default=replica /eos/${EOS_INSTANCE_NAME}/convert/
+eos attr set sys.forced.layout=replica /eos/${EOS_INSTANCE_NAME}/convert/
+eos attr set sys.forced.nstripes=1 /eos/${EOS_INSTANCE_NAME}/convert/
+
+# Setup test data
+upload_testfiles
+
+#------------------------------------------------------------------------------
+# Run conversion jobs
+#------------------------------------------------------------------------------
+
+N=$((${#LAYOUTS[@]} - 1))
+
+# Schedule the conversion jobs
+for i in $(seq 0 ${N}); do
+  layout=${LAYOUTS[${i}]}
+  replica=${REPLICAS[${i}]}
+
+  eos find -f /eos/${EOS_INSTANCE_NAME}/convert/${layout}/ | xargs -n1 -I{} eos file convert {} ${layout}:${replica} &> /dev/null
+  echo "Scheduled /eos/${EOS_INSTANCE_NAME}/convert/${layout}/ => ${layout}:${replica}"
+  (( i < N )) && sleep 20
+done
+
+echo "Waiting 90 seconds for conversion finish"
+sleep 90
+
+# Verify conversions were successful
+for i in $(seq 0 ${N}); do
+  layout=${LAYOUTS[${i}]}
+  replica=${REPLICAS[${i}]}
+
+  eos find -f /eos/${EOS_INSTANCE_NAME}/convert/${layout}/ | xargs -n1 -I{} eos -j fileinfo {} | jq '.layout + ":" + (.nstripes|tostring)' | grep "${layout}:${replica}" &> /dev/null
+done
+
+echo "Conversion successful"
+
+# Perform clean-up
+for layout in "${LAYOUTS[@]}"; do
+  eos rm -rf /eos/${EOS_INSTANCE_NAME}/convert/${layout}/* &> /dev/null
+  eos rmdir /eos/${EOS_INSTANCE_NAME}/convert/${layout}/
+done
+
+eos rmdir /eos/${EOS_INSTANCE_NAME}/convert/
+rm ${TEST_FILE}
+exit 0
