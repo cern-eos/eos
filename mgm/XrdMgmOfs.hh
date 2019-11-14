@@ -1306,10 +1306,11 @@ public:
   void processIncomingMgmConfigurationChange(const std::string& key);
 
   //----------------------------------------------------------------------------
-  // Process geotag change on the specified filesystem
+  //! Process geotag change on the specified filesystem
+  //!
+  //! @param queue file system queue path
   //----------------------------------------------------------------------------
-  void processGeotagChange(eos::common::FileSystem::fsid_t fsid,
-                           const std::string& newgeotag);
+  void ProcessGeotagChange(const std::string& queue);
 
   //------------------------------------------------------------------------------
   //! Add backup job to the queue to be picked up by the archive/backup submitter
@@ -1409,8 +1410,10 @@ public:
   //! is changed using third party copy)
   XrdOucString MgmProcConversionPath;
   XrdOucString MgmProcWorkflowPath; ///< Directory with workflows
-  XrdOucString MgmProcTrackerPath; ///< Directory with file creations which are not consistent (yet)
-  XrdOucString MgmProcTokenPath; ///< Directory storing the token generation as ext attribute and vouchers
+  XrdOucString
+  MgmProcTrackerPath; ///< Directory with file creations which are not consistent (yet)
+  XrdOucString
+  MgmProcTokenPath; ///< Directory storing the token generation as ext attribute and vouchers
   //! Full path to the master indication proc file
   XrdOucString MgmProcMasterPath;
   XrdOucString MgmProcArchivePath; ///< EOS directory where archive dir inodes
@@ -1461,7 +1464,8 @@ public:
   bool IsStall; ///< true if the Stall function should be called to send a wait
   bool mAuthorize; ///< Determine if the authorization should be applied or not
   std::string mAuthLib; ///< Path to authorization library
-  std::string mPrepareDestSpace; ///< Space to be used when retrieving files from tape
+  std::string
+  mPrepareDestSpace; ///< Space to be used when retrieving files from tape
   //!  Acts only as a redirector, disables many components in the MGM
   bool MgmRedirector;
   //! Mgm writes error log with cluster collected file into
