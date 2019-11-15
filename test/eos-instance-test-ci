@@ -18,21 +18,30 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # ******************************************************************************
 
-echo "Running MQ tests ..."
-eos-mq-tests eos-mq.eoscluster.cern.ch
+#------------------------------------------------------------------------------
+# Run a given test script and check the return code is successful.
+# Arguments: $1  - text description of the test
+#            $*  - the script to execute + arguments
+#------------------------------------------------------------------------------
+function run_test_script() {
+  local description=$1
+  shift
 
-if [[ $? -ne 0 ]]; then
-    echo "error: failed mq tests"
+  echo "Running ${description} tests"
+  eval "$@"
+
+  if [[ $? -ne 0 ]]; then
+    echo "error: failed ${description} tests"
     exit 1
-fi
+  fi
+}
 
-echo "Running drain tests ..."
-eos-drain-test localhost
+#------------------------------------------------------------------------------
+# Execute specific EOS testing scripts
+#------------------------------------------------------------------------------
 
-if [[ $? -ne 0 ]]; then
-    echo "error: failed drain test"
-    exit 1
-fi
+run_test_script "MQ" eos-mq-tests eos-mq.eoscluster.cern.ch
+run_test_script "drain" eos-drain-test localhost
 
 echo "Running instance tests ..."
 eos space quota default on
