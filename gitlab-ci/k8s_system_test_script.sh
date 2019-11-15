@@ -25,6 +25,11 @@ if [[ $1 = "--only-client" ]]; then
 	shift
 fi
 
+if [[ $1 = "--quarkdb" ]]; then
+  QUARKDB=$1
+  shift
+fi
+
 if [[ $# -ne 1 ]]; then
 	echo "Invalid number of arguments"
 	usage
@@ -45,7 +50,7 @@ fi
 # Execute full suite of instance tests if ONLY_CLIENT flag is not defined
 if [[ -z $ONLY_CLIENT ]]; then
 	kubectl exec --namespace=${NAMESPACE} $(get_podname eos-mgm1) \
-	-- eos-instance-test-ci
+	-- eos-instance-test-ci ${QUARKDB}
 fi
 
 kubectl exec --namespace=${NAMESPACE} $(get_podname eos-cli1) \
