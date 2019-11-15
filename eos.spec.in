@@ -1164,6 +1164,8 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-rain-test
 %{_sbindir}/eos-drain-test
 %{_sbindir}/eos-fsck-test
+%{_sbindir}/eos-convert-test
+%{_sbindir}/eos-qos-test
 %{_sbindir}/eos-rename-test
 %{_sbindir}/eos-grpc-test
 %{_sbindir}/eos-token-test
