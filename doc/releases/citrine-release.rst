@@ -15,6 +15,21 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.5.13 Citrine``
+===================
+
+2019-11-15
+
+Bug
+----
+
+* [EOS-3839] MGM: Fix lock inversion leading to deadlock when calling getmdlocation
+* [EOS-3729] FUSEX: fix bug in wait_flush method leading to a mix-up of rename/unlink records
+* MGM/FUSEX: Fix faulty assumption that getFile would raise an exception (had been
+  changed when Qdb was introduced) - fixes spurious EIO errors and 'Attempt to add
+  an existing file' messages.
+
+
 ``v4.5.12 Citrine``
 ===================
 
