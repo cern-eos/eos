@@ -296,10 +296,10 @@ QuarkHierarchicalView::getPathInternal(FileOrContainerMD state,
 
       if (pendingChunks.front() == "..") {
         pendingChunks.pop_front();
-        folly::Future<IContainerMDPtr> fut = pContainerSvc->getContainerMD(
+        folly::Future<IContainerMDPtr> fut = pContainerSvc->getContainerMDFut(
                                                state.container->getParentId());
 
-        if (!fut.isReady()) {
+        if (!fut.isReady() || fut.hasException()) {
           //--------------------------------------------------------------------
           // We're blocked, "pause" execution, unblock caller.
           //--------------------------------------------------------------------
@@ -322,7 +322,7 @@ QuarkHierarchicalView::getPathInternal(FileOrContainerMD state,
       // If we're lucky, the result is ready immediately. Update state, and
       // carry on.
       //------------------------------------------------------------------------
-      if (next.isReady()) {
+      if (next.isReady() && !next.hasException()) {
         state = next.get();
         continue;
       } else {
@@ -371,10 +371,10 @@ QuarkHierarchicalView::getPathInternal(FileOrContainerMD state,
         //----------------------------------------------------------------------
         // This is a relative symlink: State becomes symlink's parent container.
         //----------------------------------------------------------------------
-        folly::Future<IContainerMDPtr> fut = pContainerSvc->getContainerMD(
+        folly::Future<IContainerMDPtr> fut = pContainerSvc->getContainerMDFut(
                                                state.file->getContainerId());
 
-        if (!fut.isReady()) {
+        if (!fut.isReady() || fut.hasException()) {
           //--------------------------------------------------------------------
           // We're blocked, "pause" execution, unblock caller.
           //--------------------------------------------------------------------
