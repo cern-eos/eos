@@ -572,7 +572,7 @@ class ArchiveFile(object):
                         # Compensate for the removal fo the S_ISGID bit
                         mask_mode = int("02000", base=8)
                         val_mode = int(entry[4], base=8)
-                        val_mode ^= mask_mode
+                        val_mode |= mask_mode
                         entry[4] = "{0:o}".format(val_mode)
 
                     if not meta_info == entry:
