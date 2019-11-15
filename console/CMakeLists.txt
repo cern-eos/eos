@@ -38,6 +38,7 @@ add_library(EosConsoleHelpers-Objects OBJECT
 
 target_link_libraries(EosConsoleHelpers-Objects PUBLIC
   EosFstProto-Objects
+  OPENSSL::OPENSSL
   XROOTD::UTILS)
 
 set_target_properties(EosConsoleHelpers-Objects PROPERTIES

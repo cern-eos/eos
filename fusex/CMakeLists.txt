@@ -122,6 +122,7 @@ add_library(eosxd-objects OBJECT
   ${PROTO_SRC} ${PROTO_HEADER})
 
 target_link_libraries(eosxd-objects PUBLIC
+  OPENSSL::OPENSSL
   PROTOBUF::PROTOBUF
   JSONCPP::JSONCPP
   XROOTD::PRIVATE
