@@ -40,8 +40,18 @@ function run_test_script() {
 # Execute specific EOS testing scripts
 #------------------------------------------------------------------------------
 
+# Arguments setup
+if [[ "$1" == "--quarkdb" ]]; then
+  QUARKDB=true
+fi
+
 run_test_script "MQ" eos-mq-tests eos-mq.eoscluster.cern.ch
 run_test_script "drain" eos-drain-test localhost
+
+if [[ "$QUARKDB" = true ]]; then
+  run_test_script "converter" eos-convert-test dockertest
+  run_test_script "qos" eos-qos-test dockertest
+fi
 
 echo "Running instance tests ..."
 eos space quota default on
