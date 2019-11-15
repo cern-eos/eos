@@ -86,6 +86,7 @@ done
 
 # Start long running write operation which should select fsts 1 and 2 as destination
 xrdcpslowwriter root://${EOS_MGM_HOSTNAME}//eos/dockertest/drain_test/replica/slow_writer.dat &
+xrdcpslowwriter_pid=$!
 sleep 2
 
 # Put back the rest of the file systems in rw mode so that the draining can
@@ -121,6 +122,9 @@ if [[ $? -ne 0 ]]; then
       echo "error: failed to put file system in rw mode"
       exit 1
 fi
+
+# Wait for the slow writer to finish before clean-up
+wait ${xrdcpslowwriter_pid}
 
 # Remove all the files and directories
 eos rm -rF "/eos/dockertest/drain_test/replica/*"
