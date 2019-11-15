@@ -1959,9 +1959,14 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   // Start the Converter driver
   if (getenv("EOS_CONVERTER_DRIVER") != nullptr) {
-    eos_info("msg=\"starting Converter Engine\"");
-    mConverterDriver.reset(new eos::mgm::ConverterDriver(mQdbContactDetails));
-    mConverterDriver->Start();
+    if (!eosView->inMemory()) {
+      eos_info("msg=\"starting Converter Engine\"");
+      mConverterDriver.reset(new eos::mgm::ConverterDriver(mQdbContactDetails));
+      mConverterDriver->Start();
+    } else {
+      eos_notice("msg=\"Running with in-memory namespace. "
+                 "Will not start Converter Engine\"");
+    }
   }
 
   return NoGo;
