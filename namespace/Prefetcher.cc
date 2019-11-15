@@ -28,6 +28,7 @@
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/Prefetcher.hh"
 #include "common/FileId.hh"
+#include "common/Logging.hh"
 
 EOSNSNAMESPACE_BEGIN
 
@@ -102,7 +103,12 @@ void Prefetcher::stageFileMD(const std::string& path, bool follow)
     return;
   }
 
-  mFileMDs.emplace_back(pView->getFileFut(path, follow));
+  try {
+    mFileMDs.emplace_back(pView->getFileFut(path, follow));
+  }
+  catch(MDException &exc) {
+    eos_static_warning("Exception in Prefetcher while looking up FileMD path %s: %s, benign race condition?", path.c_str(), exc.getMessage().str().c_str());
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -126,7 +132,12 @@ void Prefetcher::stageContainerMD(const std::string& path, bool follow)
     return;
   }
 
-  mContainerMDs.emplace_back(pView->getContainerFut(path, follow));
+  try {
+    mContainerMDs.emplace_back(pView->getContainerFut(path, follow));
+  }
+  catch(MDException &exc) {
+    eos_static_warning("Exception in Prefetcher while looking up ContainerMD path %s: %s, benign race condition?", path.c_str(), exc.getMessage().str().c_str());
+  }
 }
 
 //------------------------------------------------------------------------------
