@@ -991,6 +991,7 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecE
       rsp.error_text = xrd_error.getErrText();
       continue;
     }
+    _stat_set_flags(&buf);
     rsp.is_online = !(buf.st_rdev & XRDSFS_OFFLINE);
 
     // Check file status in the extended attributes

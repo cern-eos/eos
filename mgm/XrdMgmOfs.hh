@@ -632,7 +632,10 @@ public:
             std::string* etag = 0,
             bool follow = true,
             std::string* uri = 0);
-
+  // ---------------------------------------------------------------------------
+  // set XRDSFS_OFFLINE and XRDSFS_HASBKUP flags
+  // ---------------------------------------------------------------------------
+  void _stat_set_flags(struct stat* buf);
 
   // ---------------------------------------------------------------------------
   // stat file to retrieve mode

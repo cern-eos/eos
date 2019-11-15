@@ -99,24 +99,41 @@ XrdMgmOfs::stat(const char* inpath,
       MAYSTALL_ENOENT;
     }
   } else {
-    bool onDisk = ((buf->st_mode & EOS_TAPE_MODE_T) ? buf->st_nlink - 1 :
-                   buf->st_nlink) > 0;
-
-    if (!onDisk) {
-      buf->st_rdev |= XRDSFS_OFFLINE;
-    } else {
-      buf->st_rdev &= ~XRDSFS_OFFLINE;
-    }
-    bool onTape = (buf->st_mode & EOS_TAPE_MODE_T) != 0;
-
-    if (onTape) {
-      buf->st_rdev |= XRDSFS_HASBKUP;
-    } else {
-      buf->st_rdev &= ~XRDSFS_HASBKUP;
-    }
+    _stat_set_flags(buf);
   }
 
   return rc;
+}
+
+/*----------------------------------------------------------------------------*/
+void
+XrdMgmOfs::_stat_set_flags(struct stat* buf)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief set XRDSFS_OFFLINE and XRDSFS_HASBKUP flags
+ *
+ * @param[in,out] buf    Stat structure
+ *
+ * XRDSFS_HASBKUP is set iff there is a tape copy for the file
+ * XRDSFS_OFFLINE is set iff there is no disk copy for the file
+ *                (i.e. only a tape copy exists)
+ */
+/*----------------------------------------------------------------------------*/
+{
+  // If EOS_TAPE_MODE_T is set, there is a copy on tape
+  if(buf->st_mode & EOS_TAPE_MODE_T) {
+    buf->st_rdev |= XRDSFS_HASBKUP;
+  } else {
+    buf->st_rdev &= ~XRDSFS_HASBKUP;
+  }
+
+  // Number of disk copies = total number of copies - 1 if there is a tape copy
+  auto numDiskCopies = buf->st_nlink - (buf->st_mode & EOS_TAPE_MODE_T ? 1 : 0);
+  if (numDiskCopies > 0) {
+    buf->st_rdev &= ~XRDSFS_OFFLINE;
+  } else {
+    buf->st_rdev |= XRDSFS_OFFLINE;
+  }
 }
 
 /*----------------------------------------------------------------------------*/
