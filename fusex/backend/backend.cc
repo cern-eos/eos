@@ -632,6 +632,7 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
     was_bound = true;
   }
 
+
   {
     // update host + port NOW
     XrdCl::URL lurl("root://" + hostport);
@@ -743,7 +744,9 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
             locker->Lock();
           }
 
-          md->set_md_ino(resp.ack_().md_ino());
+	  if (resp.ack_().md_ino()) {
+	    md->set_md_ino(resp.ack_().md_ino());
+	  }
           eos_static_debug("directory inode %lx => %lx/%lx tid=%lx error='%s'", md->id(),
                            md->md_ino(),
                            resp.ack_().md_ino(), resp.ack_().transactionid(),
