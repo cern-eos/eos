@@ -24,10 +24,14 @@ find_library(ZLIB_LIBRARY
   HINTS ${ZLIB_ROOT} ${PC_ZLIB_LIBDIR} ${PC_ZLIB_LIBRARY_DIRS}
   PATH_SUFFIXES ${LIBRARY_PATH_PREFIX})
 
-find_library(ZLIB_LIBRARY_STATIC
-  NAMES libz.a
-  PATHS ${ZLIB_ROOT} ${PC_ZLIB_LIBDIR} ${PC_ZLIB_LIBRARY_DIRS}
-  PATH_SUFFIXES ${LIBRARY_PATH_PREFIX})
+if (Linux)
+  find_library(ZLIB_LIBRARY_STATIC
+    NAMES libz.a
+    PATHS ${ZLIB_ROOT} ${PC_ZLIB_LIBDIR} ${PC_ZLIB_LIBRARY_DIRS}
+    PATH_SUFFIXES ${LIBRARY_PATH_PREFIX})
+else ()
+   set(ZLIB_LIBRARY_STATIC ${ZLIB_LIBRARY})
+endif ()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(ZLIB

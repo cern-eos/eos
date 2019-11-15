@@ -35,16 +35,16 @@ set(EOS_CTA_PB_HDRS
 
 set_source_files_properties(
   ${EOS_CTA_PB_SRCS} ${EOS_CTA_PB_HDRS}
-  PROPERTIES GENERATED 1)
+  PROPERTIES GENERATED TRUE)
 
 add_library(XrdSsiPbEosCta-Objects OBJECT
-  ${EOS_CTA_PB_SRCS})
-
-target_include_directories(XrdSsiPbEosCta-Objects PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
+  ${EOS_CTA_PB_SRCS} ${EOS_CTA_PB_HDRS})
 
 target_link_libraries(XrdSsiPbEosCta-Objects PUBLIC
   PROTOBUF::PROTOBUF)
+
+target_include_directories(XrdSsiPbEosCta-Objects PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 
 set_target_properties(XrdSsiPbEosCta-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
