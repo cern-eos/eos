@@ -1403,6 +1403,12 @@ Server::OpSetDirectory(const std::string& id,
       cmd = gOFS->eosDirectoryService->getContainerMD(md.md_ino());
       pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
 
+      if (!cmd && md.md_ino()) {
+	// directory existed but has been deleted
+	throw_mdexception(ENOENT, "No such directory : " << md.md_ino());
+      }
+
+
       if (cmd->getParentId() != md.md_pino()) {
         // this indicates a directory move
         {
@@ -1696,6 +1702,11 @@ Server::OpSetFile(const std::string& id,
       op = UPDATE;
       // dir update
       fmd = gOFS->eosFileService->getFileMD(fid);
+
+      if (!fmd && md_ino) {
+	// file existed but has been deleted
+	throw_mdexception(ENOENT, "No such file : " << md_ino);
+      }
 
       if (EOS_LOGS_DEBUG) eos_debug("updating %s => %s ",
                                       fmd->getName().c_str(),
@@ -2105,12 +2116,17 @@ Server::OpSetLink(const std::string& id,
     pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
     fmd = pcmd->findFile(md.name());
 
+    if (!fmd && md.md_ino()) {
+      // file existed but has been deleted
+      throw_mdexception(ENOENT, "No such file : " << md_ino);
+    }
+    
     if (fmd && exclusive) {
       return EEXIST;
     }
 
     if (fmd) {
-      // file update
+      // link update
       op = UPDATE;
     } else {
       op = CREATE;
