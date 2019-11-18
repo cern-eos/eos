@@ -15,6 +15,39 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.6.2 Citrine``
+===================
+
+2019-11-18
+
+Bug
+---
+
+* fix eosxd messaging for renames, commits, versioning
+* avoid spurious entries in quota map
+* EOS-3692 print critical messages when FUSEx throws runtime_errors
+* EOS-3793 prefix recycle restore keys with fxid: and pxid: to avoid ambiguities
+* EOS-3798 suppress atomic/versioning for 'verify --commit' workflows
+* EOS-3808 broadcast externally versioned files into fusex network
+* EOS-3822 avoid SEGV in FUSEx recovery
+* EOS-3823 avoid infinite loop unlinkAllLoctions
+* EOS-3829 parsing problem
+* EOS-3833 avoid SEGV when logfile is not opened
+* EOS_3834 console char replacement
+* EOS-3839 avoid deadlock in lock order violation
+* EOS-3845 create barrier in FST creation to avoid race condition under file creation from two clients
+* EOS-3848 store exception in future
+* EOS-3850 avoid SEGV in FUSEx deletion of non-existant objects
+
+New Feature
+
+* cta add-ons for multi-space usage
+* make fsck thread-pool configurable
+* json response format for xrdfs query prepare
+* stall logic for prepares
+* more options in eos-ns-inspect
+* decrease noserver FUSEx timeouts to 15/2 minutes (r/w)
+
 ``v4.6.1 Citrine``
 ===================
 
