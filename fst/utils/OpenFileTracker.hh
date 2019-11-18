@@ -50,6 +50,11 @@ public:
   void up(eos::common::FileSystem::fsid_t fsid, uint64_t fid);
 
   //----------------------------------------------------------------------------
+  //! Wait for an excl open of a file and count up
+  //----------------------------------------------------------------------------
+  void waitExclOpen(eos::common::FileSystem::fsid_t fsid, uint64_t fid);
+
+  //----------------------------------------------------------------------------
   //! Mark that the given file ID, on the given filesystem ID, was just closed
   //!
   //! Prints warning in the logs if the value was about to go negative - it will
@@ -106,6 +111,34 @@ public:
   };
 
   std::vector<HotEntry> getHotFiles(eos::common::FileSystem::fsid_t fsid, size_t maxEntries) const;
+
+  //----------------------------------------------------------------------------
+  //! Class acting as a barrier to avoid concurrent file creation interference
+  //----------------------------------------------------------------------------
+  class CreationBarrier {
+  public:
+    CreationBarrier(OpenFileTracker& tracker, 
+		    eos::common::FileSystem::fsid_t fsid, 
+		    uint64_t fid) : mTracker(tracker), mFsid(fsid), mFid(fid) , mReleased(false) {
+      mTracker.waitExclOpen(fsid, fid);
+    };
+    
+    ~CreationBarrier() {
+      Release();
+    }
+
+    void Release() {
+      if (!mReleased) {
+	mTracker.down(mFsid, mFid);
+      }
+      mReleased = true;
+    }
+  private:
+    OpenFileTracker& mTracker;
+    eos::common::FileSystem::fsid_t mFsid;
+    uint64_t mFid;
+    bool mReleased;
+  };
 
 private:
   mutable std::shared_timed_mutex mMutex;
