@@ -15,6 +15,24 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.5.14 Citrine``
+===================
+
+2019-11-18
+
+Bug
+---
+
+* [EOS-3692] FUSEX: print critical messages when runtime errors are thrown
+* [EOS-3793] MGM: prefix restore keys in recycle listings
+* [EOS-3798] MGM/FST: don't trigger atomic/versioning for 'file verify --commit'
+* [EOS-3808] MGM: broadcast externaly created files around in fusex network
+* [EOS-3822] FUSEX: avoid SEGV when journal is not attached
+* [EOS-3833] FUSEX: avoid SEGV when log file is not attached
+* [EOS-3845] FST: create a barrier around file creation to avoid race conditions
+* [EOS-3848] MGM: catch exceptions in future
+* [EOS-3850] MGM: avoid SEGV in FuseServer deletion
+
 ``v4.5.13 Citrine``
 ===================
 
