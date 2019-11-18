@@ -413,6 +413,9 @@ public:
 
   int truncateLogFile()
   {
+    if (!fstderr) {
+      return 0;
+    }
 
     fflush(fstderr);
     return ftruncate(fileno(fstderr), (off_t) 0);
@@ -421,6 +424,9 @@ public:
   size_t sizeLogFile()
   {
     struct stat buf;
+    if (!fstderr) {
+      return 0;
+    }
 
     if (!fstat(fileno(fstderr), &buf)) {
       return buf.st_size;
@@ -432,6 +438,9 @@ public:
 
   void shrinkLogFile()
   {
+    if (!fstderr) {
+      return ;
+    }
     const size_t maxsize = 4*1024ll*1024ll*1024ll; // 4G
     if ( sizeLogFile() > maxsize) {
       ftruncate(fileno(fstderr), maxsize/2);
