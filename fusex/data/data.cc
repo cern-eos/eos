@@ -313,6 +313,7 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
       if (mFile->journal()->reset()) {
         char msg[1024];
         snprintf(msg, sizeof(msg), "journal reset failed - ino=%#lx", id());
+	eos_crit("%s", msg);
         throw std::runtime_error(msg);
       }
 
@@ -350,6 +351,7 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
           if (mFile->journal()->reset()) {
             char msg[1024];
             snprintf(msg, sizeof(msg), "journal reset failed - ino=%#lx", id());
+	    eos_crit("%s", msg);
             throw std::runtime_error(msg);
           }
 
@@ -585,13 +587,16 @@ data::datax::attach(fuse_req_t freq, std::string& cookie, int flags)
 
   if (bcache < 0) {
     char msg[1024];
-    snprintf(msg, sizeof(msg), "attach to cache failed - ino=%#lx", id());
+
+    snprintf(msg, sizeof(msg), "attach to cache failed - ino=%#lx errno=%d", id(), errno);
+    eos_crit("%s", msg);
     throw std::runtime_error(msg);
   }
 
   if (jcache < 0) {
     char msg[1024];
-    snprintf(msg, sizeof(msg), "attach to journal failed - ino=%#lx", id());
+    snprintf(msg, sizeof(msg), "attach to journal failed - ino=%#lx errno=%d", id(), errno);
+    eos_crit("%s", msg);
     throw std::runtime_error(msg);
   }
 
