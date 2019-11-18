@@ -665,6 +665,13 @@ Recycle::Print(std::string& std_out, std::string& std_err,
             originode = origpath;
             originode.erase(0, origpath.length() - 16);
             origpath.erase(origpath.length() - 17);
+	    
+	    // put the key prefixes
+	    if (type == "file") {
+	      originode.insert("fxid:",0);
+	    } else {
+	      originode.insert("pxid:",0);
+	    }
 
             if (monitoring) {
               oss_out << "recycle=ls recycle-bin=" << Recycle::gRecyclingPrefix
@@ -683,7 +690,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
               if (count == 0) {
                 // print a header
                 snprintf(sline, sizeof(sline) - 1,
-                         "# %-24s %-8s %-8s %-12s %-13s %-16s %-64s\n", "Deletion Time", "UID", "GID",
+                         "# %-24s %-8s %-8s %-12s %-13s %-20s %-64s\n", "Deletion Time", "UID", "GID",
                          "SIZE", "TYPE", "RESTORE-KEY", "RESTORE-PATH");
                 oss_out << sline
                         << "# ================================================"
@@ -923,6 +930,13 @@ Recycle::PrintOld(std::string& std_out, std::string& std_err,
               originode = origpath;
               originode.erase(0, origpath.length() - 16);
               origpath.erase(origpath.length() - 17);
+	      
+	      // put the key prefixes
+	      if (type == "file") {
+		originode.insert("fxid:",0);
+	      } else {
+		originode.insert("pxid:",0);
+	      }
 
               if (monitoring) {
                 XrdOucString sizestring;
@@ -941,7 +955,7 @@ Recycle::PrintOld(std::string& std_out, std::string& std_err,
                 if (count == 0) {
                   // print a header
                   snprintf(sline, sizeof(sline) - 1,
-                           "# %-24s %-8s %-8s %-12s %-13s %-16s %-64s\n",
+                           "# %-24s %-8s %-8s %-12s %-13s %-20s %-64s\n",
                            "Deletion Time", "UID", "GID", "SIZE", "TYPE",
                            "RESTORE-KEY", "RESTORE-PATH");
                   oss_out << sline
@@ -953,7 +967,7 @@ Recycle::PrintOld(std::string& std_out, std::string& std_err,
                 char tdeltime[4096];
                 std::string deltime = ctime_r(&buf.st_ctime, tdeltime);
                 deltime.erase(deltime.length() - 1);
-                snprintf(sline, sizeof(sline) - 1, "%-26s %-8s %-8s %-12s %-13s %-16s %-64s",
+                snprintf(sline, sizeof(sline) - 1, "%-26s %-8s %-8s %-12s %-13s %-20s %-64s",
                          deltime.c_str(), uids.c_str(), gids.c_str(),
                          eos::common::StringConversion::GetSizeString(sizestring,
                              (unsigned long long) buf.st_size), type.c_str(), originode.c_str(),
