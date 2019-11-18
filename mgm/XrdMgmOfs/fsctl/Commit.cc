@@ -228,7 +228,12 @@ XrdMgmOfs::Commit(const char* path,
       paths["atomic"].Init(fmdname.c_str());
       paths["atomic"].DecodeAtomicPath(option["versioning"]);
       option["atomic"] = (paths["atomic"].GetName() != fmdname);
-
+      if (option["commitverify"]) {
+	// disable atomic and versioning functionality for commits originated by "verify --commitxyz"
+	option["atomic"] = false;
+	option["versioning"] = false;
+      }
+      
       if (option["update"] && mtime) {
         // Update the modification time only if the file contents changed and
         // mtime != 0

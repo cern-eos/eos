@@ -280,6 +280,8 @@ Storage::Verify()
             capOpaqueFile += "&mgm.commit.size=1";
           }
 
+	  capOpaqueFile += "&mgm.commit.verify=1";
+
           capOpaqueFile += "&mgm.mtime=";
           capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString,
                            (unsigned long long) fMd->mProtoFmd.mtime());
