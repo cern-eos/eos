@@ -138,6 +138,10 @@ CommitHelper::grab_cgi(XrdOucEnv& env, CommitHelper::cgi_t& cgi)
     cgi["commitchecksum"] = env.Get("mgm.commit.checksum");
   }
 
+  if (env.Get("mgm.commit.verify")) {
+    cgi["commitverify"] = env.Get("mgm.commit.verify");
+  }
+
   if (env.Get("mgm.verify.size")) {
     cgi["verifysize"] = env.Get("mgm.verify.size");
   }
@@ -230,6 +234,7 @@ CommitHelper::set_options(CommitHelper::option_t& option,
   option["verifychecksum"] = (cgi["verifychecksum"] == "1");
   option["commitchecksum"] = (cgi["commitchecksum"] == "1");
   option["commitsize"] = (cgi["commitsize"] == "1");
+  option["commitverify"] = (cgi["commitverify"] == "1");
   option["verifysize"] = (cgi["verifysize"] == "1");
   option["replication"] = (cgi["replication"] == "1");
   option["reconstruction"] = (cgi["reconstruction"] == "1");
@@ -275,6 +280,7 @@ CommitHelper::is_reconstruction(CommitHelper::option_t& option)
     option["verifychecksum"] = false;
     option["commitsize"] = false;
     option["commitchecksum"] = false;
+    option["commitverify"] = false;
     option["replication"] = false;
     return true;
   }
