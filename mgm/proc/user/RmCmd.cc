@@ -288,7 +288,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
             return reply;
           } else {
             outStream << "success: you can recycle this deletion using 'recycle restore "
-                      << std::setw(16) << std::setfill('0') << std::hex
+                      << "pxid:" << std::setw(16) << std::setfill('0') << std::hex
                       << buf.st_ino << "'" << std::endl;
             reply.set_std_out(outStream.str());
             reply.set_retc(SFS_OK);
