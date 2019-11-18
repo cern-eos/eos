@@ -362,6 +362,7 @@ public:
 
   eos::fst::OpenFileTracker openedForWriting;
   eos::fst::OpenFileTracker openedForReading;
+  eos::fst::OpenFileTracker runningCreation;
 
   //! Map to forbid deleteOnClose for creates if 1+X open had a successful close
   google::sparse_hash_map<eos::common::FileSystem::fsid_t,

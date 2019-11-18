@@ -266,6 +266,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   eos_info("ns_path=%s fst_path=%s", mNsPath.c_str(), mFstPath.c_str());
 
+
   if (mNsPath.beginswith("/replicate:")) {
     if (gOFS.openedForWriting.isOpen(mFsId, mFileId)) {
       eos_err("msg=\"forbid replica open, file %s opened in RW mode",
@@ -308,7 +309,10 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     eos_info("msg=kTpcSrcSetup return SFS_OK");
     return SFS_OK;
   }
+  
 
+  OpenFileTracker::CreationBarrier creationSerialization(gOFS.runningCreation, mFsId, mFileId);
+  
   if ((retc = layOut->GetFileIo()->fileExists())) {
     // We have to distinguish if an Exists call fails or return ENOENT, otherwise
     // we might trigger an automatic clean-up of a file !!!
@@ -341,6 +345,10 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     if (open_mode & SFS_O_CREAT) {
       open_mode -= SFS_O_CREAT;
     }
+  }
+
+  if (!isCreation) {
+    creationSerialization.Release();
   }
 
   // Capability access distinction
@@ -461,6 +469,10 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   eos_info("fst_path=%s open-mode=%x create-mode=%x layout-name=%s",
            mFstPath.c_str(), open_mode, create_mode, layOut->GetName());
   int rc = layOut->Open(open_mode, create_mode, oss_opaque.c_str());
+
+  if (isCreation) {
+    creationSerialization.Release();
+  }
 
   if (isReplication && !isCreation) {
     layOut->Stat(&updateStat);

@@ -40,6 +40,26 @@ void OpenFileTracker::up(eos::common::FileSystem::fsid_t fsid, uint64_t fid)
   mContents[fsid][fid]++;
 }
 
+//----------------------------------------------------------------------------                                               
+//! Wait for an excl open of a file and count up                                                                             
+//----------------------------------------------------------------------------                                               
+void OpenFileTracker::waitExclOpen(eos::common::FileSystem::fsid_t fsid, uint64_t fid)
+{
+  do {
+    bool busy = false;
+    {
+      std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+      busy = mContents[fsid][fid];
+      if (!busy) {
+	mContents[fsid][fid]++;
+	break;
+      }
+    }
+    // this is not starvation free, but considering the use-case it won't happen
+    std::this_thread::sleep_for(std::chrono::milliseconds(25));
+  } while (1);
+}
+
 //------------------------------------------------------------------------------
 // Mark that the given file ID, on the given filesystem ID, was just closed
 //
