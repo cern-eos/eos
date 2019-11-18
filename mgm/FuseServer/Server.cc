@@ -1417,7 +1417,6 @@ Server::OpSetDirectory(const std::string& id,
 	throw_mdexception(ENOENT, "No such directory : " << md.md_ino());
       }
 
-
       if (cmd->getParentId() != md.md_pino()) {
         // this indicates a directory move
         {
@@ -2309,6 +2308,11 @@ Server::OpDeleteDirectory(const std::string& id,
                                               md.md_ino()));
     }
 
+    if (!cmd) {
+      // directory does not exist
+      throw_mdexception(ENOENT, "No such directory : " << md.md_ino());
+    }
+
     pcmd->setMTime(mtime);
 
     // check if this directory is empty
@@ -2399,6 +2403,11 @@ Server::OpDeleteFile(const std::string& id,
     } else {
       fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(
                                               md.md_ino()));
+    }
+
+    if (!fmd) {
+      // file does not exist
+      throw_mdexception(ENOENT, "No such file : " << md.md_ino());
     }
 
     pcmd->setMTime(mtime);
@@ -2568,6 +2577,12 @@ Server::OpDeleteLink(const std::string& id,
       fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(
                                               md.md_ino()));
     }
+
+    if (!fmd) {
+      // no link 
+      throw_mdexception(ENOENT, "No such link : " << md.md_ino());
+    }
+
 
     pcmd->setMTime(mtime);
     eos_info("ino=%lx delete-link", (long) md.md_ino());
