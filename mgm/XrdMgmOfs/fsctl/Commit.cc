@@ -247,6 +247,11 @@ XrdMgmOfs::Commit(const char* path,
       if (!CommitHelper::commit_fmd(vid, cid, fmd, option, emsg)) {
         return Emsg(epname, error, errno, "commit filesize change", emsg.c_str());
       }
+
+      if (option["update"]) {
+	// broadcast file md 
+	gOFS->FuseXCastRefresh(fmd->getIdentifier(),eos::ContainerIdentifier(fmd->getContainerId()));
+      }
     }
     {
       eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
