@@ -1460,7 +1460,7 @@ data::datax::recover_write(fuse_req_t req)
     // we have to recover this from remote
     eos_debug("recover from remote file");
     recover_from_file_cache = false;
-    ssize_t truncate_size = mFile->journal()->get_truncatesize();
+    ssize_t truncate_size = mFile->journal()?mFile->journal()->get_truncatesize():-1;
     
     if (truncate_size == 0) {
       recover_truncate = true;
