@@ -402,6 +402,7 @@ target_link_libraries(XrdEosFst PRIVATE
   ${XROOTD_UTILS_LIBRARY}
   ${XROOTD_SSI_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
+  ${ZMQ_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(XrdEosFst-Static PUBLIC
@@ -419,6 +420,7 @@ target_link_libraries(XrdEosFst-Static PUBLIC
   ${XROOTD_SERVER_LIBRARY}
   ${XROOTD_SSI_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
+  ${ZMQ_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
 #-------------------------------------------------------------------------------
