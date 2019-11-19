@@ -764,6 +764,7 @@ data::datax::prefetch(fuse_req_t req, bool lock)
       // try to send an async read request
       mPrefetchHandler = proxy->ReadAsyncPrepare(0, prefetch_size, false);
 
+      bool nobuffer = false;
       if (mPrefetchHandler->valid()) {
         status = proxy->PreReadAsync(0, prefetch_size, mPrefetchHandler, 0);
       } else {
@@ -774,10 +775,13 @@ data::datax::prefetch(fuse_req_t req, bool lock)
                                       "no free read-ahead buffer"
                                      );
         status = newstatus;
+	nobuffer = true;
       }
 
       if (!status.IsOK()) {
-        eos_err("pre-fetch failed error=%s", status.ToStr().c_str());
+	if (!nobuffer) {
+	  eos_err("pre-fetch failed error=%s", status.ToStr().c_str());
+	}
         mPrefetchHandler = 0;
       } else {
         // instruct the read-ahead handler where to start
