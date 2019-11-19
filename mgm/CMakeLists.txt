@@ -208,6 +208,7 @@ add_library(
   drain/DrainTransferJob.cc
   drain/Drainer.cc
   Egroup.cc
+  AdminSocket.cc
   Acl.cc
   Stat.cc
   Iostat.cc

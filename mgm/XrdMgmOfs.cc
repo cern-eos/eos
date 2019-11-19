@@ -44,6 +44,7 @@
 #include "namespace/utils/Attributes.hh"
 #include "authz/XrdCapability.hh"
 #include "grpc/GrpcServer.hh"
+#include "mgm/AdminSocket.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"

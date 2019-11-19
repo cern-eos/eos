@@ -152,6 +152,7 @@ namespace eos
 {
 namespace mgm
 {
+class AdminSocket;
 class IConfigEngine;
 class HttpServer;
 class GrpcServer;
@@ -1677,6 +1678,9 @@ public:
   //! WFE object running the WFE engine
   std::unique_ptr<WFE> WFEPtr;
   WFE& WFEd;
+
+  //!  Admin socket
+  std::unique_ptr<AdminSocket> AdminSocketServer;
 
   //!  Egroup refresh object running asynchronous Egroup fetch thread
   std::unique_ptr<Egroup> EgroupRefresh;

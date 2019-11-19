@@ -28,6 +28,7 @@
 #include <sstream>
 #include "authz/XrdCapability.hh"
 #include "grpc/GrpcServer.hh"
+#include "mgm/AdminSocket.hh"
 #include "mgm/Stat.hh"
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -1776,6 +1777,14 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
 #endif
+  // start the Admin socket
+
+  {
+    std::string admin_socket_path = std::string(gOFS->MgmMetaLogDir.c_str()) + std::string("/.admin_socket:") + std::to_string(ManagerPort);
+    AdminSocketServer.reset(new eos::mgm::AdminSocket(admin_socket_path));
+  }
+
+
   // start the LRU daemon
   mLRUEngine->Start();
 

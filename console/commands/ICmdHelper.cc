@@ -27,6 +27,7 @@
 #include "XrdCl/XrdClFile.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include <sstream>
+#include <zmq.hpp>
 
 //------------------------------------------------------------------------------
 // Execute command and display any output information
@@ -126,36 +127,56 @@ ICmdHelper::RawExecute(const std::string& full_url)
   }
 
   std::ostringstream oss;
-  std::unique_ptr<XrdCl::File> client {new XrdCl::File()};
-  XrdCl::XRootDStatus status = client->Open(full_url.c_str(),
-                               XrdCl::OpenFlags::Read);
 
-  if (status.IsOK()) {
-    off_t offset = 0;
-    uint32_t nbytes = 0;
-    char buffer[4096 + 1];
-    status = client->Read(offset, 4096, buffer, nbytes);
-
-    while (status.IsOK() && (nbytes > 0)) {
-      buffer[nbytes] = 0;
-      oss << buffer;
-      offset += nbytes;
-      status = client->Read(offset, 4096, buffer, nbytes);
-    }
-
-    status = client->Close();
+  if (mGlobalOpts.mMgmUri.substr(0, 6) == "ipc://") {
+    // ZMQ connection
+    zmq::context_t context(1);
+    zmq::socket_t socket (context, ZMQ_REQ);
+    std::string path = full_url;
+    path.erase(0,mGlobalOpts.mMgmUri.length()+1);
+    socket.connect(mGlobalOpts.mMgmUri);
+    zmq::message_t request(path.length());
+    memcpy(request.data(), path.c_str(), path.length());
+    socket.send(request);
+    zmq::message_t response;
+    socket.recv(&response);
+    std::string sout;
+    sout.assign((char*)response.data(), response.size());
+    oss << sout;
   } else {
-    int retc = status.GetShellCode();
-
-    if (status.errNo) {
-      retc = status.errNo;
+    // XRootD connection
+    std::unique_ptr<XrdCl::File> client {new XrdCl::File()};
+    XrdCl::XRootDStatus status = client->Open(full_url.c_str(),
+					      XrdCl::OpenFlags::Read);
+    
+    if (status.IsOK()) {
+      off_t offset = 0;
+      uint32_t nbytes = 0;
+      char buffer[4096 + 1];
+      status = client->Read(offset, 4096, buffer, nbytes);
+      
+      while (status.IsOK() && (nbytes > 0)) {
+	buffer[nbytes] = 0;
+	oss << buffer;
+	offset += nbytes;
+	status = client->Read(offset, 4096, buffer, nbytes);
+      }
+      
+      status = client->Close();
+    } else {
+      int retc = status.GetShellCode();
+      
+      if (status.errNo) {
+	retc = status.errNo;
+      }
+      
+      oss << "mgm.proc.stdout="
+	  << "&mgm.proc.stderr=" << "error: errc=" << retc
+	  << " msg=\"" << status.ToString() << "\""
+	  << "&mgm.proc.retc=" << retc;
     }
-
-    oss << "mgm.proc.stdout="
-        << "&mgm.proc.stderr=" << "error: errc=" << retc
-        << " msg=\"" << status.ToString() << "\""
-        << "&mgm.proc.retc=" << retc;
   }
+
 
   return ProcessResponse(oss.str());
 }

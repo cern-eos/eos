@@ -27,6 +27,7 @@ include_directories(
   ${PROTOBUF_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
   ${KINETICIO_INCLUDE_DIRS}
+  ${ZMQ_INCLUDE_DIRS}
   ${OPENSSL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
@@ -161,6 +162,7 @@ add_executable(eos
 target_link_libraries(
   eos PUBLIC
   EosFstIo-Static
+  ${ZMQ_LIBRARIES}
   ${READLINE_LIBRARY}
   ${XROOTD_POSIX_LIBRARY})
 
