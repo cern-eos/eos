@@ -2183,7 +2183,7 @@ main(int argc, char* argv[])
         write_wait += wait_time;
 
         if (debug) {
-          fprintf(stderr, "[eoscp] write=%li\n", nwrite);
+          fprintf(stderr, "[eoscp] write=%lli\n", nwrite);
         }
       }
       break;
@@ -2206,7 +2206,7 @@ main(int argc, char* argv[])
         write_wait += wait_time;
 
         if (debug) {
-          fprintf(stderr, "[eoscp] write=%li\n", nwrite);
+          fprintf(stderr, "[eoscp] write=%lli\n", nwrite);
         }
       }
       break;
