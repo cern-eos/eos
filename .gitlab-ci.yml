@@ -225,7 +225,7 @@ build_c8:
     # @todo re-enable building against latest XRootD master commit when CMake allows using XRootD plugin version 5 libraries
     #- echo -e '\ndeb http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ '${EOS_ARCH}' master' >> /etc/apt/sources.list
     - echo -e '\ndeb http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ '${EOS_ARCH}' release' >> /etc/apt/sources.list
-    - wget -O - http://storage-ci.web.cern.ch/storage-ci/storageci.key | apt-key add -
+    - wget -O - http://storage-ci.web.cern.ch/storage-ci/storageci.key 2>/dev/null | apt-key add -
     - apt-get update -y
     - git submodule update --init --recursive
     # @todo once the XRootD deb repos are better structured we can point to a
