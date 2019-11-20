@@ -54,6 +54,12 @@
   %define cmake cmake
 %endif
 
+# On SLC6 we install a custom version of cmake that supports all the required
+# features needed by EOS i.e. >= 3.12. To be dropped together with SLC6 support.
+%if 0%{distribution} == 6
+  %define cmake cmake
+%endif
+
 %if %{?rhel:1}%{!?rhel:0}
   %if %{rhel} >= 7
     %define use_systemd 1
