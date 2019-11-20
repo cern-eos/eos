@@ -466,6 +466,11 @@ XrdCl::Proxy::OpenAsyncHandler::HandleResponseWithHosts(
       proxy()->set_state(FAILED, status);
     }
 
+    if (proxy()->WriteQueue().size()) {
+      // if an open failes we clean the write queue
+      proxy()->CleanWriteQueue();
+    }
+
     proxy()->OpenCondVar().Signal();
     delete hostList;
     delete status;

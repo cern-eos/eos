@@ -452,6 +452,7 @@ public:
     proxy->WriteQueue().clear();
   }
 
+
   // ---------------------------------------------------------------------- //
 
   static int status2errno(const XRootDStatus& status)
@@ -1110,6 +1111,12 @@ public:
   std::deque<write_handler>& WriteQueue()
   {
     return XWriteQueue;
+  }
+
+  void CleanWriteQueue() {
+    XWriteQueueDirectSubmission=0;
+    XWriteQueueScheduledSubmission=0;
+    WriteQueue().clear();
   }
 
   void inc_write_queue_direct_submissions()
