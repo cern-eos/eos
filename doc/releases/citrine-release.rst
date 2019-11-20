@@ -15,6 +15,24 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.6.3 Citrine``
+===================
+
+2019-11-20
+
+Bug
+---
+
+* [EOS-3717] FUSEX: fix lru_xyz SEGV in eosxd
+* [EOS-3853] NS: more options to filter with inspect command
+* FUSEX: fix WR buffer exhaustion triggered by out-of-quota writes
+
+New Feature
+-----------
+
+* allow IPC connections via ZMQ to bypass xrd-threadpool for admin commands - usage 'eos ipc:// ...' 
+
+
 ``v4.6.2 Citrine``
 ===================
 
@@ -40,6 +58,7 @@ Bug
 * [EOS-3850] avoid SEGV in FUSEx deletion of non-existant objects
 
 New Feature
+-----------
 
 * cta add-ons for multi-space usage
 * make fsck thread-pool configurable
