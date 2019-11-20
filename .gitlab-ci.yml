@@ -290,7 +290,7 @@ build_slc6:
   stage: build:rpm
   image: gitlab-registry.cern.ch/linuxsupport/slc6-base
   script:
-    - yum install --nogpg -y gcc-c++ make rpm-build which git yum-plugin-priorities tar ccache sl-release-scl
+    - yum install --nogpg -y gcc-c++ make cmake3 rpm-build which git yum-plugin-priorities tar ccache sl-release-scl
     - git submodule update --init --recursive
     # Install custom cmake version that has minimal support for features needed
     # by EOS i.e. anything >= 3.12 works fine. To be dropped together with SLC6
