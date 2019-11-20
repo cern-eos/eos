@@ -168,8 +168,8 @@ int main(int argc, char* argv[]) {
   addClusterOptions(scanFilesSubcommand, membersStr, memberValidator, password, passwordFile);
 
   bool onlySizes = false;
-
   scanFilesSubcommand->add_flag("--only-sizes", onlySizes, "Only print file sizes, once per line.");
+  scanFilesSubcommand->add_flag("--full-paths", fullPaths, "Show full file paths, if possible");
 
   //----------------------------------------------------------------------------
   // Set-up check-naming-conflicts subcommand..
@@ -388,7 +388,7 @@ int main(int argc, char* argv[]) {
   }
 
   if(scanFilesSubcommand->parsed()) {
-    return inspector.scanFileMetadata(onlySizes, std::cout, std::cerr);
+    return inspector.scanFileMetadata(onlySizes, fullPaths, std::cout, std::cerr);
   }
 
   if(checkOrphansSubcommand->parsed()) {

@@ -18,19 +18,20 @@
 
 #include "namespace/ns_quarkdb/inspector/FileScanner.hh"
 #include "namespace/ns_quarkdb/persistency/Serialization.hh"
+#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileScanner::FileScanner(qclient::QClient &qcl)
+FileScannerPrimitive::FileScannerPrimitive(qclient::QClient &qcl)
 : mIterator(&qcl, "eos-file-md") { }
 
 //------------------------------------------------------------------------------
 // Is the iterator valid?
 //------------------------------------------------------------------------------
-bool FileScanner::valid() const {
+bool FileScannerPrimitive::valid() const {
   if(!mError.empty()) {
     return false;
   }
@@ -41,14 +42,14 @@ bool FileScanner::valid() const {
 //----------------------------------------------------------------------------
 // Advance iterator - only call when valid() == true
 //----------------------------------------------------------------------------
-void FileScanner::next() {
+void FileScannerPrimitive::next() {
   mIterator.next();
 }
 
 //------------------------------------------------------------------------------
 // Is there an error?
 //------------------------------------------------------------------------------
-bool FileScanner::hasError(std::string &err) const {
+bool FileScannerPrimitive::hasError(std::string &err) const {
   if(!mError.empty()) {
     err = mError;
     return true;
@@ -60,7 +61,7 @@ bool FileScanner::hasError(std::string &err) const {
 //------------------------------------------------------------------------------
 // Get current element
 //------------------------------------------------------------------------------
-bool FileScanner::getItem(eos::ns::FileMdProto &item) {
+bool FileScannerPrimitive::getItem(eos::ns::FileMdProto &item) {
   if(!valid()) {
     return false;
   }
@@ -80,8 +81,124 @@ bool FileScanner::getItem(eos::ns::FileMdProto &item) {
 //------------------------------------------------------------------------------
 // Get number of elements scanned so far
 //------------------------------------------------------------------------------
-uint64_t FileScanner::getScannedSoFar() const {
+uint64_t FileScannerPrimitive::getScannedSoFar() const {
   return mScanned;
 }
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+FileScanner::FileScanner(qclient::QClient &qcl, bool fullPaths)
+: mScanner(qcl), mQcl(qcl), mFullPaths(fullPaths) {
+
+  mActive = mFullPaths;
+
+  if(mActive) {
+    ensureItemDequeFull();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Is the iterator valid?
+//------------------------------------------------------------------------------
+bool FileScanner::valid() const {
+  if(mActive) {
+    return !mItemDeque.empty();
+  }
+  else {
+    return mScanner.valid();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Advance iterator - only call when valid() == true
+//------------------------------------------------------------------------------
+void FileScanner::next() {
+  if(mActive) {
+    if(valid()) {
+      mItemDeque.pop_front();
+      ensureItemDequeFull();
+    }
+  }
+  else {
+    return mScanner.next();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Ensure our item deque contains a sufficient number of pending items
+//------------------------------------------------------------------------------
+void FileScanner::ensureItemDequeFull() {
+  if(!mActive) return;
+
+  while(mScanner.valid() && mItemDeque.size() < 500) {
+    eos::ns::FileMdProto item;
+    if(mScanner.getItem(item)) {
+
+      folly::Future<std::string> fullPath = "";
+
+      if(mFullPaths) {
+        fullPath = MetadataFetcher::resolveFullPath(mQcl, ContainerIdentifier(item.cont_id()));
+      }
+
+      mItemDeque.emplace_back(
+        std::move(item),
+        std::move(fullPath)
+      );
+    }
+
+    mScanner.next();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Is there an error?
+//------------------------------------------------------------------------------
+bool FileScanner::hasError(std::string &err) const {
+  if(mActive) {
+    return !mItemDeque.empty() && mScanner.hasError(err);
+  }
+  else {
+    return mScanner.hasError(err);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Get number of elements scanned so far
+//------------------------------------------------------------------------------
+uint64_t FileScanner::getScannedSoFar() const {
+  if(mActive) {
+    return mScanned;
+  }
+  else{
+    return mScanner.getScannedSoFar();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Get current element
+//------------------------------------------------------------------------------
+bool FileScanner::getItem(eos::ns::FileMdProto &proto, FileScanner::Item *item) {
+  if(mActive) {
+    if(!valid()) {
+      return false;
+    }
+
+    proto = mItemDeque.front().proto;
+
+    if(item != nullptr) {
+      *item = std::move(mItemDeque.front());
+    }
+
+    mScanned++;
+    return true;
+  }
+  else {
+    return mScanner.getItem(proto);
+  }
+}
+
+
+
 
 EOSNSNAMESPACE_END

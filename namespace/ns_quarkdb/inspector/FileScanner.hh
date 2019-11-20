@@ -25,6 +25,7 @@
 #include "namespace/Namespace.hh"
 #include "proto/FileMd.pb.h"
 #include <qclient/structures/QLocalityHash.hh>
+#include <folly/futures/Future.h>
 
 namespace qclient {
   class QClient;
@@ -33,14 +34,14 @@ namespace qclient {
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! FileScanner class
+//! FileScannerPrimitive class - no support for full paths
 //------------------------------------------------------------------------------
-class FileScanner {
+class FileScannerPrimitive {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  FileScanner(qclient::QClient &qcl);
+  FileScannerPrimitive(qclient::QClient &qcl);
 
   //----------------------------------------------------------------------------
   //! Is the iterator valid?
@@ -72,6 +73,71 @@ private:
   std::string mError;
   uint64_t mScanned = 0;
 };
+
+//------------------------------------------------------------------------------
+//! FileScanner class - optional support for full paths
+//------------------------------------------------------------------------------
+class FileScanner {
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  FileScanner(qclient::QClient &qcl, bool fullPaths = false);
+
+  //----------------------------------------------------------------------------
+  //! Is the iterator valid?
+  //----------------------------------------------------------------------------
+  bool valid() const;
+
+  //----------------------------------------------------------------------------
+  //! Advance iterator - only call when valid() == true
+  //----------------------------------------------------------------------------
+  void next();
+
+  //----------------------------------------------------------------------------
+  //! Is there an error?
+  //----------------------------------------------------------------------------
+  bool hasError(std::string &err) const;
+
+  //----------------------------------------------------------------------------
+  //! Return type of getItem
+  //----------------------------------------------------------------------------
+  struct Item {
+    eos::ns::FileMdProto proto;
+    folly::Future<std::string> fullPath;
+
+    Item() : proto(), fullPath("") {}
+
+    Item(eos::ns::FileMdProto &&pr, folly::Future<std::string> &&path)
+    : proto(std::move(pr)), fullPath(std::move(path)) {}
+  };
+
+  //----------------------------------------------------------------------------
+  //! Get current element
+  //----------------------------------------------------------------------------
+  bool getItem(eos::ns::FileMdProto &proto, Item *item = nullptr);
+
+  //----------------------------------------------------------------------------
+  //! Get number of elements scanned so far
+  //----------------------------------------------------------------------------
+  uint64_t getScannedSoFar() const;
+
+private:
+  //----------------------------------------------------------------------------
+  //! Ensure our item deque contanis a sufficient number of pending items
+  //----------------------------------------------------------------------------
+  void ensureItemDequeFull();
+
+  FileScannerPrimitive mScanner;
+  qclient::QClient &mQcl;
+  bool mFullPaths;
+  bool mActive;
+
+  std::deque<Item> mItemDeque;
+  uint64_t mScanned = 0;
+};
+
+
 
 
 

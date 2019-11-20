@@ -241,20 +241,41 @@ int Inspector::scanDirs(bool onlyNoAttrs, bool fullPaths, bool countContents, si
 }
 
 //------------------------------------------------------------------------------
+// Fetch path or name from a combination of FileMdProto +
+// FileScanner::Item, return as much information as is available
+//------------------------------------------------------------------------------
+std::string fetchNameOrPath(const eos::ns::FileMdProto &proto, FileScanner::Item &item) {
+  item.fullPath.wait();
+  if(item.fullPath.hasException()) {
+    return proto.name();
+  }
+
+  std::string fullPath = item.fullPath.get();
+
+  if(fullPath.empty()) {
+    return proto.name();
+  }
+
+  return SSTR(fullPath << proto.name());
+}
+
+//------------------------------------------------------------------------------
 // Scan all file metadata in the namespace, and print out some information
 // about each one. (even potentially unreachable ones)
 //------------------------------------------------------------------------------
-int Inspector::scanFileMetadata(bool onlySizes, std::ostream &out, std::ostream &err) {
-  FileScanner fileScanner(mQcl);
+int Inspector::scanFileMetadata(bool onlySizes, bool fullPaths, std::ostream &out, std::ostream &err) {
+  FileScanner fileScanner(mQcl, fullPaths);
 
   while(fileScanner.valid()) {
+    FileScanner::Item item;
     eos::ns::FileMdProto proto;
-    if (!fileScanner.getItem(proto)) {
+
+    if (!fileScanner.getItem(proto, &item)) {
       break;
     }
 
     if(!onlySizes) {
-      out << "fid=" << proto.id() << " name=" << proto.name() << " pid=" << proto.cont_id() << " uid=" << proto.uid() << " size=" << proto.size() << std::endl;
+      out << "fid=" << proto.id() << " name=" << fetchNameOrPath(proto, item) << " pid=" << proto.cont_id() << " uid=" << proto.uid() << " size=" << proto.size() << std::endl;
     }
     else {
       out << proto.size() << std::endl;
