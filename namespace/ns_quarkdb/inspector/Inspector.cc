@@ -376,6 +376,7 @@ bool shouldPrint(bool filterInternal, const std::string &fullPath) {
 //------------------------------------------------------------------------------
 int Inspector::oneReplicaLayout(bool showName, bool showPaths, bool filterInternal, std::ostream &out, std::ostream &err) {
   FileScanner fileScanner(mQcl, showPaths | filterInternal);
+  common::IntervalStopwatch stopwatch(std::chrono::seconds(10));
 
   while(fileScanner.valid()) {
     eos::ns::FileMdProto proto;
@@ -408,6 +409,10 @@ int Inspector::oneReplicaLayout(bool showName, bool showPaths, bool filterIntern
     }
 
     fileScanner.next();
+
+    if (stopwatch.restartIfExpired()) {
+      err << "Progress: Processed " << fileScanner.getScannedSoFar() << " files so far..." << std::endl;
+    }
   }
 
   std::string errorString;
