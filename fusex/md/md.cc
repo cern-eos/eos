@@ -2373,6 +2373,7 @@ metad::mdstackfree(ThreadAssistant& assistant)
             if (md) {
               eos_static_info("swap-out lru-removed ino=%#llx oldest=%#llx", inode_to_swap,
                               mdmap.lru_oldest());
+	      mdmap.lru_remove(inode_to_swap);
               mdmap[inode_to_swap] = 0;
 
               if (mdmap.swap_out(md)) {
