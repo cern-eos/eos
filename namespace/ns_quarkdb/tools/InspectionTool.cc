@@ -143,7 +143,12 @@ int main(int argc, char* argv[]) {
   addClusterOptions(oneReplicaLayoutSubcommand, membersStr, memberValidator, password, passwordFile);
 
   bool showName = false;
+  bool fullPaths = false;
+  bool filterInternal = false;
+
   oneReplicaLayoutSubcommand->add_flag("--show-name", showName, "Show filenames");
+  oneReplicaLayoutSubcommand->add_flag("--full-paths", fullPaths, "Show full paths, if possible");
+  oneReplicaLayoutSubcommand->add_flag("--filter-internal", filterInternal, "Filter internal entries, such as versioning, aborted atomic uploads, etc");
 
   //----------------------------------------------------------------------------
   // Set-up scan-directories subcommand..
@@ -152,7 +157,6 @@ int main(int argc, char* argv[]) {
   addClusterOptions(scanDirsSubcommand, membersStr, memberValidator, password, passwordFile);
 
   bool onlyNoAttrs = false;
-  bool fullPaths = false;
   bool countContents = false;
   size_t countThreshold = 0;
 
@@ -384,7 +388,7 @@ int main(int argc, char* argv[]) {
   }
 
   if(oneReplicaLayoutSubcommand->parsed()) {
-    return inspector.oneReplicaLayout(showName, std::cout, std::cerr);
+    return inspector.oneReplicaLayout(showName, fullPaths, filterInternal, std::cout, std::cerr);
   }
 
   if(scanFilesSubcommand->parsed()) {

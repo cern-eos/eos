@@ -117,7 +117,7 @@ public:
   //----------------------------------------------------------------------------
   // Find files with layout = 1 replica
   //----------------------------------------------------------------------------
-  int oneReplicaLayout(bool showName, std::ostream &out, std::ostream &err);
+  int oneReplicaLayout(bool showName, bool showPaths, bool filterInternal, std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
   //! Find files with non-nominal number of stripes (replicas)

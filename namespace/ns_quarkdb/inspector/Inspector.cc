@@ -34,6 +34,7 @@
 #include "common/IntervalStopwatch.hh"
 #include "common/InodeTranslator.hh"
 #include "common/ParseUtils.hh"
+#include "common/StringUtils.hh"
 #include <folly/executors/IOThreadPoolExecutor.h>
 #include <qclient/QClient.hh>
 #include <google/protobuf/util/json_util.h>
@@ -330,14 +331,57 @@ static std::string serializeLocations(const T& vec) {
 }
 
 //------------------------------------------------------------------------------
+// Check if we should print based on name and internal filter
+//------------------------------------------------------------------------------
+bool shouldPrint(bool filterInternal, const std::string &fullPath) {
+  if(!filterInternal) {
+    return true;
+  }
+
+  //----------------------------------------------------------------------------
+  // Filter out aborted atomic uploads..
+  //----------------------------------------------------------------------------
+  if(fullPath.find("/.sys.a#.") != std::string::npos) {
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
+  // Filter out files under proc..
+  //----------------------------------------------------------------------------
+  if(common::startsWith(fullPath, "/eos/")) {
+    std::string chopped = std::string(fullPath.c_str()+5, fullPath.size()-5);
+    size_t nextSlash = chopped.find("/");
+
+    if(nextSlash != std::string::npos) {
+      chopped = std::string(chopped.c_str()+nextSlash, chopped.size()-nextSlash);
+
+      if(common::startsWith(chopped, "/proc/")) {
+        return false;
+      }
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // Filter out versioned files..
+  //----------------------------------------------------------------------------
+  if(fullPath.find("/.sys.v#.") != std::string::npos) {
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
 // Find files with layout = 1 replica
 //------------------------------------------------------------------------------
-int Inspector::oneReplicaLayout(bool showName, std::ostream &out, std::ostream &err) {
-  FileScanner fileScanner(mQcl);
+int Inspector::oneReplicaLayout(bool showName, bool showPaths, bool filterInternal, std::ostream &out, std::ostream &err) {
+  FileScanner fileScanner(mQcl, showPaths | filterInternal);
 
   while(fileScanner.valid()) {
     eos::ns::FileMdProto proto;
-    if (!fileScanner.getItem(proto)) {
+    FileScanner::Item item;
+
+    if (!fileScanner.getItem(proto, &item)) {
       break;
     }
 
@@ -350,12 +394,13 @@ int Inspector::oneReplicaLayout(bool showName, std::ostream &out, std::ostream &
       expected = 0;
     }
 
-    if(expected == 1 && size != 0 && proto.name().find(".sys.v#.") != std::string::npos) {
+    if(expected == 1 && size != 0 && shouldPrint(filterInternal, fetchNameOrPath(proto, item))) {
       out << "id=" << proto.id();
 
-      if(showName) {
-          out << " name=" << proto.name();
-        }
+      if(showName || showPaths) {
+          out << " name=" << fetchNameOrPath(proto, item);
+      }
+
       out << " container=" << proto.cont_id() << " size=" << size << " actual-stripes=" << actual << " expected-stripes=" << expected << " unlinked-stripes=" << unlinked <<  " locations=" << serializeLocations(proto.locations()) << " unlinked-locations=" << serializeLocations(proto.unlink_locations());
       out << " mtime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.mtime()));
       out << " ctime=" << Printing::timespecToTimestamp(Printing::parseTimespec(proto.ctime()));
