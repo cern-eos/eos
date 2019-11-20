@@ -31,7 +31,7 @@ New Feature
 -----------
 
 * allow IPC connections via ZMQ to bypass xrd-threadpool for admin commands - usage 'eos ipc:// ...' 
-
+* make the maximum number of listable entries by eosxd configurable: EOS_MGM_FUSEX_MAX_CHILDREN=32768
 
 ``v4.6.2 Citrine``
 ===================
