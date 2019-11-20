@@ -269,9 +269,9 @@ SharedHashLocator::SharedHashLocator(Type type, const std::string& name)
 // than the rest.
 //------------------------------------------------------------------------------
 SharedHashLocator::SharedHashLocator(const FileSystemLocator& fsLocator,
-                                     bool bc2mgm)
+                                     bool bc2mgm):
+  mInitialized(true), mType(Type::kFilesystem)
 {
-  mInitialized = true;
   mMqSharedHashPath = fsLocator.getQueuePath();
   mBroadcastQueue = fsLocator.getFSTQueue();
 
