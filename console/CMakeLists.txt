@@ -38,6 +38,7 @@ add_library(EosConsoleHelpers-Objects OBJECT
 
 target_link_libraries(EosConsoleHelpers-Objects PUBLIC
   EosFstProto-Objects
+  ZMQ::ZMQ
   OPENSSL::OPENSSL
   XROOTD::UTILS)
 
