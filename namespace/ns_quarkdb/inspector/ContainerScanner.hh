@@ -61,7 +61,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get current element
   //----------------------------------------------------------------------------
-  bool getItem(eos::ns::ContainerMdProto &item, std::string *path = nullptr);
+  bool getItem(eos::ns::ContainerMdProto &item);
 
   //----------------------------------------------------------------------------
   //! Get number of elements scanned so far

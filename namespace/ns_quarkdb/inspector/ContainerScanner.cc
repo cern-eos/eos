@@ -62,7 +62,7 @@ bool ContainerScannerPrimitive::hasError(std::string &err) const {
 //------------------------------------------------------------------------------
 // Get current element
 //------------------------------------------------------------------------------
-bool ContainerScannerPrimitive::getItem(eos::ns::ContainerMdProto &item, std::string *path) {
+bool ContainerScannerPrimitive::getItem(eos::ns::ContainerMdProto &item) {
   if(!valid()) {
     return false;
   }
@@ -73,10 +73,6 @@ bool ContainerScannerPrimitive::getItem(eos::ns::ContainerMdProto &item, std::st
   if(!status.ok()) {
     mError = SSTR("Error while deserializing: " << status.getError());
     return false;
-  }
-
-  if(path) {
-    *path = item.name();
   }
 
   mScanned++;
