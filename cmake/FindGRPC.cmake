@@ -110,13 +110,15 @@ if (GRPC_FOUND AND NOT TARGET gRPC::grpc AND NOT TARGET gRPC::grpc++)
   set_target_properties(gRPC::grpc PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES ${GRPC_INCLUDE_DIR}
     INTERFACE_LINK_LIBRARIES "-lpthread;-ldl"
-    IMPORTED_LOCATION ${GRPC_LIBRARY})
+    IMPORTED_LOCATION ${GRPC_LIBRARY}
+    INTERFACE_COMPILE_DEFINITIONS EOS_GRPC=1)
 
   add_library(gRPC::grpc++ UNKNOWN IMPORTED)
   set_target_properties(gRPC::grpc++ PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES ${GRPC_INCLUDE_DIR}
     INTERFACE_LINK_LIBRARIES gRPC::grpc
-    IMPORTED_LOCATION ${GRPC_GRPC++_LIBRARY})
+    IMPORTED_LOCATION ${GRPC_GRPC++_LIBRARY}
+    INTERFACE_COMPILE_DEFINITIONS EOS_GRPC=1)
 
   add_library(gRPC::grpc++_reflection UNKNOWN IMPORTED)
   set_target_properties(gRPC::grpc++_reflection PROPERTIES
@@ -128,6 +130,7 @@ if (GRPC_FOUND AND NOT TARGET gRPC::grpc AND NOT TARGET gRPC::grpc++)
   set_target_properties(gRPC::grpc_cpp_plugin PROPERTIES
     IMPORTED_LOCATION ${GRPC_CPP_PLUGIN})
 else()
+  message ("Notice: gRPC not found, no gRPC access available")
   add_library(gRPC::grpc INTERFACE IMPORTED)
   add_library(gRPC::grpc++ INTERFACE IMPORTED)
   add_library(gRPC::grpc++_reflection INTERFACE IMPORTED)
