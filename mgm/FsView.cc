@@ -1088,9 +1088,9 @@ FsView::GetNodeFormat(std::string option)
     format += "sig=stat.disk.load:format=of|";
     format += "sum=stat.disk.readratemb:format=ol|";
     format += "sum=stat.disk.writeratemb:format=ol|";
-    format += "sum=stat.net.ethratemib:format=ol|";
-    format += "sum=stat.net.inratemib:format=ol|";
-    format += "sum=stat.net.outratemib:format=ol|";
+    format += "member=cfg.stat.net.ethratemib:format=ol|";
+    format += "member=cfg.stat.net.inratemib:format=ol|";
+    format += "member=cfg.stat.net.outratemib:format=ol|";
     format += "sum=stat.ropen:format=ol|";
     format += "sum=stat.wopen:format=ol|";
     format += "sum=stat.statfs.freebytes:format=ol|";
@@ -1124,9 +1124,9 @@ FsView::GetNodeFormat(std::string option)
     format += "avg=stat.disk.load:width=10:format=f:tag=diskload|";
     format += "sum=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|";
     format += "sum=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|";
-    format += "sum=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|";
-    format += "sum=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|";
-    format += "sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|";
+    format += "member=cfg.stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|";
+    format += "member=cfg.stat.net.inratemib:width=10:format=l:tag=ethi-MiB|";
+    format += "member=cfg.stat.net.outratemib:width=10:format=l:tag=etho-MiB|";
     format += "sum=stat.ropen:width=6:format=l:tag=ropen|";
     format += "sum=stat.wopen:width=6:format=l:tag=wopen|";
     format += "sum=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|";
@@ -2823,7 +2823,7 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
   }
 
   // apply a new token generation value
-  if (tokens[1]=="token.generation") {
+  if (tokens[1] == "token.generation") {
     eos_static_info("token-generation := %s", val.c_str());
     eos::common::EosTok::sTokenGeneration = strtoull(val.c_str(), 0, 10);
   }
@@ -2952,6 +2952,7 @@ BaseView::SumLongLong(const char* param, bool lock,
     }
   }
 
+  std::set<std::string> used_nodes;
   fsid_iterator it(subset, this);
 
   for (; it.valid(); it.next()) {
@@ -2973,38 +2974,29 @@ BaseView::SumLongLong(const char* param, bool lock,
         continue;
       }
 
-      long long v = fs->GetLongLong(sparam.c_str());
+      if (sparam.compare(0, 8, "stat.net") == 0) {
+        const std::string hostname = fs->getCoreParams().getHost();
 
-      if (isquery && v && (sparam == "stat.statfs.capacity")) {
-        // Correct the capacity(rw) value for headroom
-        v -= fs->GetLongLong("headroom");
-      }
+        if (used_nodes.find(hostname) == used_nodes.end()) {
+          used_nodes.insert(hostname);
+          const std::string fst_queue = fs->GetQueue();
+          auto it = FsView::gFsView.mNodeView.find(fst_queue);
 
-      sum += v;
-    }
-  }
+          if (it != FsView::gFsView.mNodeView.end()) {
+            try {
+              sum += std::stoll(it->second->GetConfigMember(sparam.c_str()));
+            } catch (...) {}
+          }
+        }
+      } else {
+        long long v = fs->GetLongLong(sparam.c_str());
 
-  // We have to rescale the stat.net parameters because they arrive for each filesystem
-  if (!sparam.compare(0, 8, "stat.net")) {
-    if (mType == "spaceview") {
-      // divide by the number of "cfg.groupmod"
-      std::string gsize = "";
-      long long groupmod = 1;
-      gsize = GetMember("cfg.groupmod");
+        if (isquery && v && (sparam == "stat.statfs.capacity")) {
+          // Correct the capacity(rw) value for headroom
+          v -= fs->GetLongLong("headroom");
+        }
 
-      if (gsize.length()) {
-        groupmod = strtoll(gsize.c_str(), 0, 10);
-      }
-
-      if (groupmod) {
-        sum /= groupmod;
-      }
-    }
-
-    if ((mType == "nodesview")) {
-      // divide by the number of entries we have summed
-      if (size()) {
-        sum /= size();
+        sum += v;
       }
     }
   }
