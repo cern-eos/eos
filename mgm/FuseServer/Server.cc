@@ -73,6 +73,10 @@ const char* Server::cident = "fxserver";
 Server::Server()
 {
   SetLogId(logId, "fxserver");
+  c_max_children = getenv("EOS_MGM_FUSEX_MAX_CHILDREN")?strtoull(getenv("EOS_MGM_FUSEX_MAX_CHILDREN"),0,10):32768;
+  if (!c_max_children) {
+    c_max_children = 32768;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -91,7 +95,7 @@ Server::~Server()
 void
 Server::start()
 {
-  eos_static_info("msg=\"starting fuse server\"");
+  eos_static_info("msg=\"starting fuse server\" max-children=%llu", c_max_children);
   std::thread monitorthread(&FuseServer::Clients::MonitorHeartBeat,
                             &(this->mClients));
   monitorthread.detach();
@@ -376,7 +380,7 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
 
     if (dir.operation() == dir.LS) {
       // we put a hard-coded listing limit for service protection
-      if (dir.nchildren() > 32768) {
+      if (dir.nchildren() > c_max_children) {
         // xrootd does not handle E2BIG ... sigh
         return ENAMETOOLONG;
       }

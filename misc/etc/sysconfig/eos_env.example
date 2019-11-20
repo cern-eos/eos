@@ -194,6 +194,9 @@ EOS_HTTP_CONNECTION_MEMORY_LIMIT=4194304
 # Listener port of the ZMQ server used by FUSEx)
 # EOS_MGM_FUSEX_PORT=1100
 
+# Maximum number of 'listable' children
+# EOS_MGM_FUSEX_MAX_CHILDREN=32768
+
 #-------------------------------------------------------------------------------
 # Federation Configuration
 #-------------------------------------------------------------------------------

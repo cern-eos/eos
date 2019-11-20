@@ -218,6 +218,7 @@ protected:
 
 private:
   std::atomic<bool> terminate_;
+  uint64_t c_max_children;
 
   //----------------------------------------------------------------------------
   //! Replaces the file's non-system attributes with client-supplied ones.
