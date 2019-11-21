@@ -10,17 +10,17 @@ Vcs-Browser: https://gitlab.cern.ch/dss/eos
 
 Package: eos-client
 Architecture: any
-Depends: ${shlibs:Depends}, systemd, xrootd-client
+Depends: ${shlibs:Depends}, systemd, xrootd-client (< 5)
 Description: EOS client package
 
 Package: eos-fuse
 Architecture: any
-Depends: ${shlibs:Depends}, eos-client (=${binary:Version}), fuse, systemd, xrootd-client
+Depends: ${shlibs:Depends}, eos-client (=${binary:Version}), fuse, systemd, xrootd-client (< 5)
 Description: EOS FUSE package
 
 Package: eos-fusex
 Architecture: any
-Depends: ${shlibs:Depends}, eos-client (=${binary:Version}), fuse, xrootd-client
+Depends: ${shlibs:Depends}, eos-client (=${binary:Version}), fuse, xrootd-client (< 5)
 Description: The new EOS fuse client bundle
 
 Package: eos-test
