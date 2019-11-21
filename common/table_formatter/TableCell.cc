@@ -23,6 +23,142 @@
 
 #include "TableCell.hh"
 
+static std::string getColorSequence(TableFormatterColor color) {
+
+  switch(color) {
+    case TableFormatterColor::NONE: {
+      return "";
+    }
+    case TableFormatterColor::DEFAULT: {
+      return "\33[0m";
+    }
+    case TableFormatterColor::RED: {
+      return "\33[0;31m";
+    }
+    case TableFormatterColor::GREEN: {
+      return "\33[0;32m";
+    }
+    case TableFormatterColor::YELLOW: {
+      return "\33[0;33m";
+    }
+    case TableFormatterColor::BLUE: {
+      return "\33[0;34m";
+    }
+    case TableFormatterColor::MARGARITA: {
+      return "\33[0;35m";
+    }
+    case TableFormatterColor::CYAN: {
+      return "\33[0;36m";
+    }
+    case TableFormatterColor::WHITE: {
+      return "\33[0;39m";
+    }
+    case TableFormatterColor::BOLD: {
+      return "\33[1m";
+    }
+    case TableFormatterColor::BRED: {
+      return "\33[1;31m";
+    }
+    case TableFormatterColor::BGREEN: {
+      return "\33[1;32m";
+    }
+    case TableFormatterColor::BYELLOW: {
+      return "\33[1;33m";
+    }
+    case TableFormatterColor::BBLUE: {
+      return "\33[1;34m";
+    }
+    case TableFormatterColor::BMARGARITA: {
+      return "\33[1;35m";
+    }
+    case TableFormatterColor::BCYAN: {
+      return "\33[1;36m";
+    }
+    case TableFormatterColor::BWHITE: {
+      return "\33[1;39m";
+    }
+    case TableFormatterColor::DARK: {
+      return "\33[2m";
+    }
+    case TableFormatterColor::DRED: {
+      return "\33[2;31m";
+    }
+    case TableFormatterColor::DGREEN: {
+      return "\33[2;32m";
+    }
+    case TableFormatterColor::DYELLOW: {
+      return "\33[2;33m";
+    }
+    case TableFormatterColor::DBLUE: {
+      return "\33[2;34m";
+    }
+    case TableFormatterColor::DMARGARITA: {
+      return "\33[2;35m";
+    }
+    case TableFormatterColor::DCYAN: {
+      return "\33[2;36m";
+    }
+    case TableFormatterColor::DWHITE: {
+      return "\33[2;39m";
+    }
+    case TableFormatterColor::BRED_BGWHITE: {
+      return "\33[1;31;47m";
+    }
+    case TableFormatterColor::BGREEN_BGWHITE: {
+      return "\33[1;32;47m";
+    }
+    case TableFormatterColor::BYELLOW_BGWHITE: {
+      return "\33[1;33;47m";
+    }
+    case TableFormatterColor::BBLUE_BGWHITE: {
+      return "\33[1;34;47m";
+    }
+    case TableFormatterColor::BMARGARITA_BGWHITE: {
+      return "\33[1;35;47m";
+    }
+    case TableFormatterColor::BCYAN_BGWHITE: {
+      return "\33[1;36;47m";
+    }
+    case TableFormatterColor::BWHITE_BGRED: {
+      return "\33[1;39;41m";
+    }
+    case TableFormatterColor::BWHITE_BGGREEN: {
+      return "\33[1;39;42m";
+    }
+    case TableFormatterColor::BWHITE_BGYELLOW: {
+      return "\33[1;39;43m";
+    }
+    case TableFormatterColor::BWHITE_BGBLUE: {
+      return "\33[1;39;44m";
+    }
+    case TableFormatterColor::BWHITE_BGMARGARITA: {
+      return "\33[1;39;45m";
+    }
+    case TableFormatterColor::BWHITE_BGCYAN: {
+      return "\33[1;39;46m";
+    }
+    case TableFormatterColor::BYELLOW_BGRED: {
+      return "\33[1;33;41m";
+    }
+    case TableFormatterColor::BYELLOW_BGGREEN: {
+      return "\33[1;33;42m";
+    }
+    case TableFormatterColor::BYELLOW_BGBLUE: {
+      return "\33[1;33;44m";
+    }
+    case TableFormatterColor::BYELLOW_BGMARGARITA: {
+      return "\33[1;33;45m";
+    }
+    case TableFormatterColor::BYELLOW_BGCYAN: {
+      return "\33[1;33;46m";
+    }
+    default: {
+      return "";
+    }
+  }
+
+}
+
 //------------------------------------------------------------------------------
 // Constructor for unsigned int data
 //------------------------------------------------------------------------------
@@ -420,7 +556,7 @@ void TableCell::Print(std::ostream& ostream, size_t width_left,
 
   // Color
   if (mFormat.find("o") == std::string::npos) {
-    ostream << sColorVector[mColor];
+    ostream << getColorSequence(mColor);
   }
 
   // Value
@@ -439,7 +575,7 @@ void TableCell::Print(std::ostream& ostream, size_t width_left,
   // Color (return color to default)
   if ((mFormat.find("o") == std::string::npos) &&
       (mColor != TableFormatterColor::NONE)) {
-    ostream << sColorVector[TableFormatterColor::DEFAULT];
+    ostream << getColorSequence(TableFormatterColor::DEFAULT);
   }
 
   // Postfix "."
