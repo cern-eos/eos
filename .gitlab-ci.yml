@@ -222,7 +222,7 @@ build_c8:
 .build_ubuntu-template: &build_ubuntu-template_definition
   stage: build:rpm
   script:
-    - apt-get update -y; apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core ccache gawk 
+    - apt-get update -y; apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core ccache gawk
     # @todo re-enable building against latest XRootD master commit when CMake allows using XRootD plugin version 5 libraries
     #- echo -e '\ndeb http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ '${EOS_ARCH}' master' >> /etc/apt/sources.list
     - echo -e '\ndeb http://storage-ci.web.cern.ch/storage-ci/debian/xrootd/ '${EOS_ARCH}' release' >> /etc/apt/sources.list
