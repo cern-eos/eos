@@ -450,7 +450,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     const int max_tag_size = 8;
     char* node_geotag_tmp = getenv("EOS_GEOTAG");
     // Copy to a different string as strtok is modifying the pointed string
-    char node_geotag [strlen(node_geotag_tmp)];
+    char node_geotag [strlen(node_geotag_tmp)+1];
     strcpy(node_geotag, node_geotag_tmp);
     char* gtag = strtok(node_geotag, "::");
 
