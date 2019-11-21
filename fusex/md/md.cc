@@ -136,6 +136,8 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
   while (1) {
     try {
       z_socket->connect(zmq_target);
+      int linger = 0;
+      z_socket->setsockopt( ZMQ_LINGER, &linger, sizeof(linger));
       eos_static_notice("connected to %s", zmq_target.c_str());
       break;
     } catch (zmq::error_t& e) {
