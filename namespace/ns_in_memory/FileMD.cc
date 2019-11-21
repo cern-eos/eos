@@ -71,6 +71,7 @@ FileMD::FileMD(const FileMD& other)
 FileMD&
 FileMD::operator = (const FileMD& other)
 {
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   pName        = other.pName;
   pId          = other.pId;
   pSize        = other.pSize;
@@ -95,11 +96,17 @@ FileMD::operator = (const FileMD& other)
 //------------------------------------------------------------------------------
 void FileMD::addLocation(location_t location)
 {
-  if (hasLocation(location)) {
+
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
+
+  if (hasLocationLocked(location)) {
     return;
   }
 
   pLocation.push_back(location);
+
+  lock.unlock();
+
   IFileMDChangeListener::Event e(this,
                                  IFileMDChangeListener::LocationAdded,
                                  location);
@@ -111,17 +118,24 @@ void FileMD::addLocation(location_t location)
 //------------------------------------------------------------------------------
 void FileMD::removeLocation(location_t location)
 {
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   std::vector<location_t>::iterator it;
 
+  bool removed = false;
   for (it = pUnlinkedLocation.begin(); it < pUnlinkedLocation.end(); ++it) {
     if (*it == location) {
       pUnlinkedLocation.erase(it);
-      IFileMDChangeListener::Event e(this,
-                                     IFileMDChangeListener::LocationRemoved,
-                                     location);
-      pFileMDSvc->notifyListeners(&e);
-      return;
+      removed = true;
+      break;
     }
+  }
+
+  if (removed) {
+    lock.unlock();
+    IFileMDChangeListener::Event e(this,
+				   IFileMDChangeListener::LocationRemoved,
+				   location);
+    pFileMDSvc->notifyListeners(&e);
   }
 }
 
@@ -130,13 +144,21 @@ void FileMD::removeLocation(location_t location)
 //------------------------------------------------------------------------------
 void FileMD::removeAllLocations()
 {
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   std::vector<location_t>::reverse_iterator it;
+  std::vector<location_t> remove_loc;
 
   while ((it = pUnlinkedLocation.rbegin()) != pUnlinkedLocation.rend()) {
     pUnlinkedLocation.pop_back();
+    remove_loc.push_back(*it);
+  }
+
+  lock.unlock();
+
+  for (auto const& loc: remove_loc) {
     IFileMDChangeListener::Event e(this,
                                    IFileMDChangeListener::LocationRemoved,
-                                   *it);
+                                   loc);
     pFileMDSvc->notifyListeners(&e);
   }
 }
@@ -146,18 +168,26 @@ void FileMD::removeAllLocations()
 //------------------------------------------------------------------------------
 void FileMD::unlinkLocation(location_t location)
 {
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   std::vector<location_t>::iterator it;
+
+  bool unlinked = false;
 
   for (it = pLocation.begin() ; it < pLocation.end(); it++) {
     if (*it == location) {
       pUnlinkedLocation.push_back(*it);
       pLocation.erase(it);
-      IFileMDChangeListener::Event e(this,
-                                     IFileMDChangeListener::LocationUnlinked,
-                                     location);
-      pFileMDSvc->notifyListeners(&e);
-      return;
+      unlinked = true;
+      break;     
     }
+  }
+
+  if (unlinked) {
+    lock.unlock();
+    IFileMDChangeListener::Event e(this,
+				   IFileMDChangeListener::LocationUnlinked,
+				   location);
+    pFileMDSvc->notifyListeners(&e);
   }
 }
 
@@ -166,14 +196,24 @@ void FileMD::unlinkLocation(location_t location)
 //------------------------------------------------------------------------------
 void FileMD::unlinkAllLocations()
 {
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   std::vector<location_t>::reverse_iterator it;
+
+  std::vector<location_t> unlink_loc;
 
   while ((it = pLocation.rbegin()) != pLocation.rend()) {
     location_t loc = *it;
-    if (!hasUnlinkedLocation(loc)) {
+    if (!hasUnlinkedLocationLocked(loc)) {
       pUnlinkedLocation.push_back(loc);
     }
     pLocation.pop_back();
+    unlink_loc.push_back(loc);
+  }
+
+  lock.unlock();
+
+  std::shared_lock<std::shared_timed_mutex> slock(mMutex);
+  for (auto const& loc: unlink_loc) {
     IFileMDChangeListener::Event e(this,
                                    IFileMDChangeListener::LocationUnlinked,
                                    loc);
@@ -186,6 +226,7 @@ void FileMD::unlinkAllLocations()
 //------------------------------------------------------------------------
 void FileMD::getEnv(std::string& env, bool escapeAnd)
 {
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   env = "";
   std::ostringstream o;
   std::string saveName = pName;
@@ -243,6 +284,7 @@ void FileMD::getEnv(std::string& env, bool escapeAnd)
 //------------------------------------------------------------------------------
 void FileMD::serialize(Buffer& buffer)
 {
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   if (!pFileMDSvc) {
     MDException ex(ENOTSUP);
     ex.getMessage() << "This was supposed to be a read only copy!";
@@ -314,6 +356,7 @@ void FileMD::serialize(Buffer& buffer)
 //------------------------------------------------------------------------------
 void FileMD::deserialize(const Buffer& buffer)
 {
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   uint16_t offset = 0;
   offset = buffer.grabData(offset, &pId,          sizeof(pId));
   offset = buffer.grabData(offset, &pCTime,       sizeof(pCTime));
@@ -386,6 +429,7 @@ void FileMD::deserialize(const Buffer& buffer)
 IFileMD::LocationVector
 FileMD::getLocations() const
 {
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   return pLocation;
 }
 
@@ -395,6 +439,7 @@ FileMD::getLocations() const
 IFileMD::LocationVector
 FileMD::getUnlinkedLocations() const
 {
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   return pUnlinkedLocation;
 }
 
@@ -404,6 +449,7 @@ FileMD::getUnlinkedLocations() const
 void
 FileMD::setSize(uint64_t size)
 {
+  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   int64_t sizeChange = (size & 0x0000ffffffffffff) - pSize;
   pSize = size & 0x0000ffffffffffff;
   IFileMDChangeListener::Event e(this,
@@ -418,6 +464,7 @@ FileMD::setSize(uint64_t size)
 eos::IFileMD::XAttrMap
 FileMD::getAttributes() const
 {
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   return pXAttrs;
 }
 
