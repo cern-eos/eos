@@ -58,7 +58,7 @@ XrdMgmOfs::Utimes(const char* path,
     tvp[1].tv_sec = strtol(tv2_sec, 0, 10);
     tvp[1].tv_nsec = strtol(tv2_nsec, 0, 10);
 
-    if (utimes(path, tvp, error, client, 0)) {
+    if (_utimes(path, tvp, error, vid, ininfo)) {
       retc = error.getErrInfo();
     }
   } else {
