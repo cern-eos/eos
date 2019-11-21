@@ -10,7 +10,7 @@ Vcs-Browser: https://gitlab.cern.ch/dss/eos
 
 Package: eos-client
 Architecture: any
-Depends: ${shlibs:Depends}, systemd, xrootd-client)
+Depends: ${shlibs:Depends}, systemd, xrootd-client
 Description: EOS client package
 
 Package: eos-fuse
