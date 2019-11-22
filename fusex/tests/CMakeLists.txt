@@ -22,15 +22,13 @@
 # ************************************************************************
 
 include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}
-  ${CMAKE_BINARY_DIR}
-  ${FUSE_INCLUDE_DIRS})
+  ${CMAKE_BINARY_DIR})
 
 set(LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH
   gtest_main
   EosCommon
-  ${FUSE_LIBRARY}
+  FUSE::FUSE
   ${CMAKE_THREAD_LIBS_INIT}
   ${LIBRARIES_IF_ROCKSDB_WAS_FOUND})
 

@@ -4,29 +4,33 @@
 # FUSE3_FOUND - system has fuse
 # FUSE3_INCLUDE_DIRS - the fuse include directories
 # FUSE3_LIBRARIES - fuse libraries directories
+#
+# and the following imported target
+#
+# FUSE3::FUSE3
 
-if(FUSE3_INCLUDE_DIRS AND FUSE3_LIBRARIES)
-set(FUSE3_FIND_QUIETLY TRUE)
-endif(FUSE3_INCLUDE_DIRS AND FUSE3_LIBRARIES)
+find_path(FUSE3_INCLUDE_DIR
+  NAMES fuse3/fuse_lowlevel.h
+  HINTS ${FUSE3_ROOT})
 
-find_path( FUSE3_INCLUDE_DIR fuse3/fuse_lowlevel.h
-  HINTS
-  /usr
-  ${FUSE3_DIR}
-  PATH_SUFFIXES include )
+find_library(FUSE3_LIBRARY
+  NAMES fuse3
+  HINTS ${FUSE3_ROOT}
+  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
-find_library( FUSE3_LIBRARY fuse3
-  HINTS
-  /usr
-  ${FUSE3_DIR}
-  PATH_SUFFIXES lib )
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(fuse3
+  REQUIRED_VARS FUSE3_LIBRARY FUSE3_INCLUDE_DIR)
+
+if (FUSE3_FOUND AND NOT TARGET FUSE3::FUSE3)
+  mark_as_advanced(FUSE3_INCLUDE_DIR FUSE3_LIBRARY)
+  add_library(FUSE3::FUSE3 UNKNOWN IMPORTED)
+  set_target_properties(FUSE3::FUSE3 PROPERTIES
+    IMPORTED_LOCATION "${FUSE3_LIBRARY}"
+    INTERFACE_INCLUDE_DIRECTORIES "${FUSE3_INCLUDE_DIR}")
+endif()
 
 set(FUSE3_INCLUDE_DIRS ${FUSE3_INCLUDE_DIR})
 set(FUSE3_LIBRARIES ${FUSE3_LIBRARY})
-
-# handle the QUIETLY and REQUIRED arguments and set FUSE3_FOUND to TRUE if
-# all listed variables are TRUE
-include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(fuse3 DEFAULT_MSG FUSE3_INCLUDE_DIR FUSE3_LIBRARY)
-
-mark_as_advanced(FUSE3_INCLUDE_DIR FUSE3_LIBRARY)
+unset(FUSE3_INCLUDE_DIR)
+unset(FUSE3_LIBRARY)

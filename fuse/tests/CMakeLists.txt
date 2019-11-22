@@ -23,7 +23,6 @@
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}
   ${CPPUNIT_INCLUDE_DIRS})
 
 link_directories(${CPPUNIT_LIBRARY})

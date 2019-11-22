@@ -22,7 +22,6 @@
 # ************************************************************************
 
 include_directories(
-  ${FUSE_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_BINARY_DIR}/namespace/ns_quarkdb)  # for the generated protobuf
 
@@ -35,8 +34,7 @@ add_subdirectory(FuseCache)
 #-------------------------------------------------------------------------------
 # eosd executables
 #-------------------------------------------------------------------------------
-add_executable(
-  eosd
+add_executable(eosd
   ProcCache.cc               ProcCache.hh
   main.cc eosfuse.cc         eosfuse.hh
   filesystem.cc              filesystem.hh
@@ -47,7 +45,7 @@ target_link_libraries(eosd PRIVATE
   XROOTD::CL
   XROOTD::UTILS
   KRB5::KRB5
-  ${FUSE_LIBRARY}
+  FUSE::FUSE
   ${CMAKE_THREAD_LIBS_INIT})
 
 if(MacOSX)
@@ -82,11 +80,11 @@ add_executable(
   AuthIdManager.cc xrdutils.cc )
 
   target_link_libraries(eosd3 PRIVATE
+    FUSE3::FUSE3
     XROOTD::CL
     XROOTD::UTILS
     KRB5::KRB5
     FuseCache-Static
-    ${FUSE3_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})
 
   target_compile_definitions(eosd3 PRIVATE

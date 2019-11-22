@@ -25,7 +25,6 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
-  ${FUSE_INCLUDE_DIRS}
   ${BZ2_INCLUDE_DIRS}
   ${LIBBFD_INCLUDE_DIRS})
 
@@ -54,7 +53,12 @@ set(EOSXD_COMPILE_FLAGS
 )
 
 #-------------------------------------------------------------------------------
-# auth subsystem
+# Add tests directory
+#-------------------------------------------------------------------------------
+add_subdirectory(tests)
+
+#-------------------------------------------------------------------------------
+# Add auth subsystem
 #-------------------------------------------------------------------------------
 add_subdirectory(auth)
 
@@ -75,14 +79,13 @@ set(PROTO_HEADER ${PROTO_HEADER} PARENT_SCOPE)
 #-------------------------------------------------------------------------------
 set(EOSXD_COMMON_LINK_LIBRARIES
   EosFuseAuth
+  EosCommon
   XROOTD::CL
   XROOTD::UTILS
-  ${FUSE_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT}
-  ${LIBRARIES_IF_ROCKSDB_WAS_FOUND}
   ${BZ2_LIBRARY}
   ${LIBBFD_LIBRARIES}
-  EosCommon)
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${LIBRARIES_IF_ROCKSDB_WAS_FOUND})
 
 if (RICHACL_FOUND)
   LIST(APPEND EOSXD_COMMON_LINK_LIBRARIES "${RICHACL_LIBRARIES}")
@@ -133,10 +136,11 @@ set_target_properties(eosxd-objects
 #-------------------------------------------------------------------------------
 # eosxd executables
 #-------------------------------------------------------------------------------
-add_executable(eosxd  main.cc)
+add_executable(eosxd main.cc)
 
 target_link_libraries(eosxd PRIVATE
   eosxd-objects
+  FUSE::FUSE
   ${EOSXD_COMMON_LINK_LIBRARIES})
 
 if(Linux)
@@ -149,12 +153,13 @@ set_target_properties(eosxd
 install(TARGETS eosxd
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 
-if (FUSE3a_FOUND)
+if (FUSE3_FOUND)
   add_executable(eosxd3 main.cc)
 
-  target_link_libraries(eosxd3
+  target_link_libraries(eosxd3 PUBLIC
     eosxd-objects
     jemalloc
+    FUSE3::FUSE3
     ${EOSXD_COMMON_LINK_LIBRARIES})
 
   set_target_properties(eosxd3
@@ -163,8 +168,3 @@ if (FUSE3a_FOUND)
   install(TARGETS eosxd3
     RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 endif()
-
-#-------------------------------------------------------------------------------
-# Tests
-#-------------------------------------------------------------------------------
-add_subdirectory(tests)
