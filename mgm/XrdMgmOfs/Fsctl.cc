@@ -73,30 +73,46 @@ XrdMgmOfs::fsctl(const int cmd,
     eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
 
     // Take the sum's from all file systems in 'default'
-    if (FsView::gFsView.mSpaceView.count("default")) {
-      std::string path = args;
+    std::string path = args;
+    std::string opaque = args;
+    if (path.find("?") != std::string::npos) {
+      path.erase(path.find("?"));
+      opaque.erase(0,opaque.find("?")+1);
+    }
+    
+    XrdOucEnv env(opaque.c_str());
+    bool query_space = false;
+    
+    if (env.Get("eos.space")) {
+      query_space = true;
+      space = env.Get("eos.space");
+    }
+    
+    eos_thread_info("path=%s cgi=%s", path.c_str(), opaque.c_str());
 
-      if (!getenv("EOS_MGM_STATVFS_ONLY_QUOTA") && ((path == "/") || (path == ""))) {
-        space = "default";
-        freebytes =
-          FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes",
-              false);
-        maxbytes =
-          FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity",
-              false);
-      } else {
-        if (path[path.length() - 1] != '/') {
-          path += '/';
-        }
-
+    if (query_space || 
+	(!getenv("EOS_MGM_STATVFS_ONLY_QUOTA") && ((path == "/") || (path == "")))) {
+      if (FsView::gFsView.mSpaceView.count(space.c_str())) {
+	freebytes =
+	  FsView::gFsView.mSpaceView[space.c_str()]->SumLongLong("stat.statfs.freebytes",
+								 false);
+	maxbytes =
+	  FsView::gFsView.mSpaceView[space.c_str()]->SumLongLong("stat.statfs.capacity",
+							       false);
+      }
+    } else {
+      if (path[path.length() - 1] != '/') {
+	path += '/';
+      }
+      
         // Get quota group values for path and id 0
-        auto map_quotas = Quota::GetGroupStatistics(path, 0);
-
-        if (!map_quotas.empty()) {
-          Quota::GetStatfs(path, maxbytes, freebytes);
-        }
+      auto map_quotas = Quota::GetGroupStatistics(path, 0);
+      
+      if (!map_quotas.empty()) {
+	Quota::GetStatfs(path, maxbytes, freebytes);
       }
     }
+
 
     static const char* Resp = "oss.cgroup=%s&oss.space=%lld&oss.free=%lld"
                               "&oss.maxf=%lld&oss.used=%lld&oss.quota=%lld";
