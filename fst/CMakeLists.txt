@@ -205,7 +205,6 @@ target_link_libraries(EosFstIo PUBLIC
   EosCrc32c-Objects
   EosCommon
   XROOTD::SERVER
-  ${GLIBC_RT_LIBRARY}
   ${GLIBC_DL_LIBRARY}
   ${DAVIX_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
@@ -367,7 +366,6 @@ target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
   ZLIB::ZLIB
   XROOTD::SSI
   eosCapability-Static
-  ${GLIBC_RT_LIBRARY}
   ${GLIBC_DL_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
@@ -386,7 +384,6 @@ target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
   ZLIB::ZLIB
   XROOTD::SSI
   eosCapability-Static
-  ${GLIBC_RT_LIBRARY}
   ${GLIBC_DL_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
@@ -477,7 +474,7 @@ set_target_properties(eos-fsck-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1)
 add_executable(eos-ioping tools/IoPing.c)
 target_compile_options(eos-ioping PRIVATE -std=gnu99)
 
-target_link_libraries(eos-ioping PRIVATE ${GLIBC_M_LIBRARY} ${GLIBC_RT_LIBRARY})
+target_link_libraries(eos-ioping PRIVATE ${GLIBC_M_LIBRARY})
 
 target_link_libraries(eos-check-blockxs PRIVATE EosFstIo)
 

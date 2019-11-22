@@ -83,6 +83,7 @@ set_target_properties(EosCommon-Objects PROPERTIES
 target_link_libraries(EosCommon-Objects PUBLIC
   EosFstProto-Objects
   EosCliProto-Objects
+  CURL::libcurl
   ZLIB::ZLIB
   JSONCPP::JSONCPP
   OPENSSL::OPENSSL
@@ -99,9 +100,7 @@ target_compile_definitions(EosCommon-Objects PUBLIC
 
 set(EOSCOMMON_LIBS
   fmt
-  ${CURL_LIBRARIES}
   ${GLIBC_DL_LIBRARY}
-  ${GLIBC_RT_LIBRARY}
   ${LIBBFD_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
@@ -116,6 +115,7 @@ target_link_libraries(EosCommon PUBLIC
   EosFstProto-Objects
   EosCliProto-Objects
   EosNsQuarkdbProto-Objects
+  CURL::libcurl
   NCURSES::NCURSES
   ZLIB::ZLIB
   UUID::UUID
@@ -193,8 +193,7 @@ if (Linux)
   set(EOSCOMMONSERVER_LIBS
     fmt
     qclient
-    ${LEVELDB_LIBRARIES}
-    ${GLIBC_RT_LIBRARY})
+    ${LEVELDB_LIBRARIES})
 
   add_library(EosCommonServer SHARED
     $<TARGET_OBJECTS:EosCommonServer-Objects>)

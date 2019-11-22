@@ -59,8 +59,7 @@ endif()
 #-------------------------------------------------------------------------------
 add_executable(ns-benchmark NSBenchmark.cc)
 target_link_libraries(ns-benchmark PRIVATE
-  EosNsInMemory-Static
-  ${GLIBC_RT_LIBRARY})
+  EosNsInMemory-Static)
 
 add_executable(eosnsbench_mem EosNamespaceBenchmark.cc)
 target_link_libraries(eosnsbench_mem EosCommon-Static EosNsInMemory-Static)

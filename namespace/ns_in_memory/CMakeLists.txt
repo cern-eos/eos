@@ -75,7 +75,6 @@ add_library(EosNsInMemory MODULE $<TARGET_OBJECTS:EosNsInMemory-Objects>)
 target_link_libraries(EosNsInMemory PUBLIC
   EosNsCommon
   FOLLY::FOLLY
-  ${GLIBC_RT_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
 #-------------------------------------------------------------------------------

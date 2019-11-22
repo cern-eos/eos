@@ -29,14 +29,8 @@ option(CLIENT "Build only client packages" OFF)
 option(BUILD_XRDCL_RAIN_PLUGIN "Enable XrdCl RAIN plugin" OFF)
 
 if(NOT PACKAGEONLY)
-  if(Linux)
-    find_package(glibc REQUIRED)
-    find_package(xfs REQUIRED)
-    find_package(libbfd REQUIRED)
-    find_package(richacl)
-    find_package(help2man)
-  endif()
   find_package(PythonSitePkg REQUIRED)
+  find_package(CURL REQUIRED)
   find_package(XRootD REQUIRED)
   find_package(fuse REQUIRED)
   find_package(fuse3)
@@ -46,7 +40,6 @@ if(NOT PACKAGEONLY)
   find_package(Threads REQUIRED)
   find_package(Zlib REQUIRED)
   find_package(readline REQUIRED)
-  find_package(CURL REQUIRED)
   find_package(uuid REQUIRED)
   find_package(openssl REQUIRED)
   find_package(ncurses REQUIRED)
@@ -54,14 +47,25 @@ if(NOT PACKAGEONLY)
   find_package(ZMQ REQUIRED)
   find_package(krb5 REQUIRED)
   find_package(SparseHash REQUIRED)
-  find_package(libevent REQUIRED)
   find_package(jsoncpp REQUIRED)
   find_package(hiredis REQUIRED)
+  find_package(libevent REQUIRED)
   find_package(bz2 REQUIRED)
   find_package(libmicrohttpd)
   find_package(Sphinx)
+  find_package(fuse3)
 
   if (Linux)
+    # Clang Linux build requires libatomic
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+      find_package(Atomic REQUIRED)
+    endif()
+
+    find_package(richacl)
+    find_package(help2man)
+    find_package(glibc REQUIRED)
+    find_package(xfs REQUIRED)
+    find_package(libbfd REQUIRED)
     find_package(Protobuf3 REQUIRED)
     # Protobuf3 needs to be added to the RPATH of the libraries and binaries
     # built since it's not installed in the usual system location
@@ -79,14 +83,9 @@ if(NOT PACKAGEONLY)
     if (PROTOBUF_FOUND)
       add_library(PROTOBUF::PROTOBUF UNKNOWN IMPORTED)
       set_target_properties(PROTOBUF::PROTOBUF PROPERTIES
-	IMPORTED_LOCATION "${PROTOBUF_LIBRARY}"
-	INTERFACE_INCLUDE_DIRECTORIES "${PROTOBUF_INCLUDE_DIR}")
+        IMPORTED_LOCATION "${PROTOBUF_LIBRARY}"
+        INTERFACE_INCLUDE_DIRECTORIES "${PROTOBUF_INCLUDE_DIR}")
     endif()
-  endif()
-
-  # Clang Linux build requires libatomic
-  if (Linux AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    find_package(atomic REQUIRED)
   endif()
 
   # The server build also requires

@@ -44,7 +44,6 @@ target_link_libraries(EosNsQuarkdb PUBLIC
   FOLLY::FOLLY
   ${BZ2_LIBRARY}
   ${GLIBC_DL_LIBRARY}
-  ${GLIBC_RT_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
 install(TARGETS EosNsQuarkdb
