@@ -1686,6 +1686,10 @@ public:
   std::unique_ptr<Egroup> EgroupRefresh;
   //!  Recycle object running the recycle bin deletion thread
   std::unique_ptr<Recycle> Recycler;
+
+  //!  Variable enforcing a globally applied recycle bin policy
+  std::atomic<bool> enforceRecycleBin;
+
   bool UTF8; ///< true if running in less restrictive character set mode
 
   std::string mArchiveEndpoint; ///< archive ZMQ connection endpoint

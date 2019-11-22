@@ -269,7 +269,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mBalancingTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
   mDrainTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
   mJeMallocHandler(new eos::common::JeMallocHandler()),
-  mDoneOrderlyShutdown(false)
+  enforceRecycleBin(false), mDoneOrderlyShutdown(false)
 {
   eDest = ep;
   ConfigFN = 0;

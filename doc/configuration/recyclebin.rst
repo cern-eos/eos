@@ -136,6 +136,23 @@ To remove the recycle bin policy in a subtree run:
 
    success: removed attribute 'sys.recycle' from directory /eos/dev/2rep/subnode/tree/
 
+Enforce globally usage of a recycle bin for all deletions
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+The global policy is enforced in the default space:
+
+.. code-block:: bash
+
+   # enable
+   EOS Console [root://localhost ]/ space config default space.policy.recycle=on 
+
+   # disable
+   EOS Console [root://localhost ]/ space config default space.policy.recycle=off
+
+   # remove policy
+   EOS Console [root://localhost ]/ space config default space.policy.recycle=remove
+
+
 List files in the recycle bin
 +++++++++++++++++++++++++++++++++++
 

@@ -698,6 +698,13 @@ ProcCommand::Space()
 		    if (( key == "token.generation" )) {
 		      eos::common::EosTok::sTokenGeneration = strtoull(value.c_str(), 0, 0);
 		    }
+		    if (( key == "policy.recycle" )) {
+		      if (value == "on") {
+			gOFS->enforceRecycleBin = true;
+		      } else {
+			gOFS->enforceRecycleBin = false;
+		      }
+		    }
                   } else {
                     retc = EINVAL;
                     stdErr = "error: value has to be a positiv number";

@@ -2828,6 +2828,17 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
     eos::common::EosTok::sTokenGeneration = strtoull(val.c_str(), 0, 10);
   }
 
+  if (tokens[1] == "policy.recycle") {
+    eos_static_info("policy-recycle := %s", val.c_str());
+	       
+    if (val == "on") {
+      gOFS->enforceRecycleBin = true;
+    } else {
+      gOFS->enforceRecycleBin = false;
+    }
+  }
+
+
   common::SharedHashLocator locator;
 
   if (!common::SharedHashLocator::fromConfigQueue(tokens[0], locator)) {

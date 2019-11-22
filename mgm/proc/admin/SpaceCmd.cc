@@ -643,6 +643,10 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         if (value == "remove") {
           applied = true;
 
+	  if (( key == "policy.recycle" )) {
+	    gOFS->enforceRecycleBin = false;
+	  }
+
           if (!FsView::gFsView.mSpaceView[config.mgmspace_name()]->DeleteConfigMember(
                 key)) {
             ret_c = ENOENT;
@@ -663,6 +667,14 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                         "' as " + key + "='" + value + "'\n");
             ret_c = 0;
           }
+
+	  if (( key == "policy.recycle" )) {
+	    if (value == "on") {
+	      gOFS->enforceRecycleBin = true;
+	    } else {
+	      gOFS->enforceRecycleBin = false;
+	    }
+	  }
         }
       } else {
         if ((key == "nominalsize") ||
