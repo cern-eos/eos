@@ -127,10 +127,10 @@ The recovery settings are defined in the following section:
    "recovery" : {
      "read-open" : 1,
      "read-open-noserver" : 1,
-     "read-open-noserver-retrywindow" : 900,
+     "read-open-noserver-retrywindow" : 15,
      "write-open" : 1,
      "write-open-noserver" : 1,
-     "write-open-noserver-retrywindow" : 120
+     "write-open-noserver-retrywindow" : 15
    }
 ```
 

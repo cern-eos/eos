@@ -732,7 +732,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
 
       if (!root["recovery"].isMember("read-open-noserver-retrywindow")) {
-        root["recovery"]["read-open-noserver-retrywindow"] = 900;
+        root["recovery"]["read-open-noserver-retrywindow"] = 15;
       }
 
       if (!root["recovery"].isMember("write")) {
@@ -748,7 +748,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       }
 
       if (!root["recovery"].isMember("write-open-noserver-retrywindow")) {
-        root["recovery"]["write-open-noserver-retrywindow"] = 120;
+        root["recovery"]["write-open-noserver-retrywindow"] = 15;
       }
 
       // fuzzing settings
