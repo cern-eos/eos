@@ -87,7 +87,8 @@ target_link_libraries(EosCommon-Objects PUBLIC
   ZLIB::ZLIB
   JSONCPP::JSONCPP
   OPENSSL::OPENSSL
-  XROOTD::UTILS)
+  XROOTD::UTILS
+  ${GLIBC_RT_LIBRARY})
 
 target_include_directories(EosCommon-Objects
   PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>)
