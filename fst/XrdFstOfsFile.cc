@@ -1688,7 +1688,7 @@ XrdFstOfsFile::_close()
           }
 
           error.setErrCode(EIO);
-          eos_info("Return code rc=i errc=%d", SFS_ERROR, error.getErrInfo());
+          eos_info("Return code rc=%i errc=%d", SFS_ERROR, error.getErrInfo());
           return SFS_ERROR;
         }
       }
