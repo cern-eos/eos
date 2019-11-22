@@ -97,7 +97,7 @@ set_target_properties(EosCommon-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 target_compile_definitions(EosCommon-Objects PUBLIC
-  -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
+  DAEMONUID=${DAEMONUID} DAEMONGID=${DAEMONGID})
 
 set(EOSCOMMON_LIBS
   fmt
@@ -180,6 +180,7 @@ if (Linux)
     XROOTD::UTILS
     XROOTD::PRIVATE
     PROTOBUF::PROTOBUF
+    LEVELDB::LEVELDB
     LIBMICROHTTPD::LIBMICROHTTPD)
 
   target_include_directories(EosCommonServer-Objects
@@ -193,8 +194,7 @@ if (Linux)
 
   set(EOSCOMMONSERVER_LIBS
     fmt
-    qclient
-    ${LEVELDB_LIBRARIES})
+    qclient)
 
   add_library(EosCommonServer SHARED
     $<TARGET_OBJECTS:EosCommonServer-Objects>)
@@ -216,9 +216,6 @@ if (Linux)
   target_compile_definitions(EosCommonServer PUBLIC
     -DSQLITE_NO_SYNC=1)
 
-  target_include_directories(
-    EosCommonServer PUBLIC ${LEVELDB_INCLUDE_DIRS})
-
   add_library(EosCommonServer-Static STATIC
     $<TARGET_OBJECTS:EosCommonServer-Objects>)
 
@@ -233,9 +230,6 @@ if (Linux)
 
   target_compile_definitions(EosCommonServer-Static PUBLIC
     -DSQLITE_NO_SYNC=1)
-
-  target_include_directories(
-    EosCommonServer-Static PUBLIC ${LEVELDB_INCLUDE_DIRS})
 
   install(TARGETS EosCommonServer
     LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
