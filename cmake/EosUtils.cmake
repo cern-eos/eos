@@ -21,11 +21,6 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-#-------------------------------------------------------------------------------
-# This value is used throughout the Find*.cmake modules
-#-------------------------------------------------------------------------------
-set(LIBRARY_PATH_PREFIX "lib")
-
 # This version must reflect the XRootD major version compiled against
 set(PLUGIN_VERSION 4)
 

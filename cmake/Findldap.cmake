@@ -17,7 +17,7 @@ find_path(LDAP_INCLUDE_DIR
 find_library(LDAP_LIBRARY
   NAMES ldap
   HINTS ${LDAP_ROOT}
-  PATH_SUFFIEX ${LIBRARY_PATH_PREFIX})
+  PATH_SUFFIEX ${CMAKE_INSTALL_LIBDIR})
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(ldap

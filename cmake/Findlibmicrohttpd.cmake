@@ -21,7 +21,7 @@ find_path(LIBMICROHTTPD_INCLUDE_DIR
 find_library(LIBMICROHTTPD_LIBRARY
   NAMES microhttpd
   HINTS ${MICROHTTPD_ROOT} ${PC_libmicrohttpd_LIBDIR} ${PC_libmicrohttpd_LIBRARY_DIRS}
-  PATH_SUFFIXES ${LIBRARY_PATH_PREFIX})
+  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(libmicrohttpd

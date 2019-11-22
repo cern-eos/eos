@@ -24,7 +24,7 @@ find_path(ZMQ_CPP_INCLUDE_DIR
 find_library(ZMQ_LIBRARY
   NAMES zmq
   HINTS ${ZMQ_ROOT}
-  PATH_SUFFIXES ${LIBRARY_PATH_PREFIX})
+  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(ZMQ

@@ -21,7 +21,7 @@ find_library(
   LIBEVENT_LIBRARY
   NAMES event2 event
   HINTS ${LIBEVENT_ROOT} ${PC_libevent_LIBDIR} ${PC_libevent_LIBRARY_DIRS}
-  PATH_SUFFIXES ${LIBRARY_PATH_PREFIX})
+  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(libevent

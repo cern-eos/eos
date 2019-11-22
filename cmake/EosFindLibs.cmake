@@ -142,6 +142,7 @@ else()
   add_library(FUSE::FUSE                   UNKNOWN IMPORTED)
   add_library(FUSE3::FUSE3                 UNKNOWN IMPORTED)
   add_library(LEVELDB::LEVELDB             UNKNOWN IMPORTED)
+  add_library(BZ2::BZ2                     UNKNOWN IMPORTED)
   add_library(XFS::XFS                     INTERFACE IMPORTED)
   add_library(GOOGLE::SPARSEHASH           INTERFACE IMPORTED)
   

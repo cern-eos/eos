@@ -21,7 +21,7 @@ find_path(JSONCPP_INCLUDE_DIR
 find_library(JSONCPP_LIBRARY
   NAMES jsoncpp
   HINTS ${JSONCPP_ROOT}
-  PATH_SUFFIXES ${LIBRARY_PATH_PREFIX})
+  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(jsoncpp

@@ -23,12 +23,12 @@ find_path(OPENSSL_INCLUDE_DIR
 find_library(OPENSSL_CRYPTO_LIBRARY
   NAMES crypto
   HINTS ${OPENSSL_ROOT} ${PC_openssl_LIBDIR} ${PC_openssl_LIBRARY_DIRS}
-  PATH_SUFFIXES ${LIBRARY_PATH_PREFIX})
+  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
 find_library(OPENSSL_CRYPTO_LIBRARY_STATIC
   NAMES libcrypto.a
   HINTS ${OPENSSL_ROOT} ${PC_openssl_LIBDIR} ${PC_openssl_LIBRARY_DIRS}
-  PATH_SUFFIXES ${LIBRARY_PATH_PREFIX})
+  PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(openssl
