@@ -129,6 +129,12 @@ target_link_libraries(eosxd-objects PUBLIC
   XROOTD::UTILS
   ZMQ::ZMQ)
 
+if (FUSE3_FOUND)
+  target_link_libraries(eosxd-objects PUBLIC FUSE3::FUSE3)
+else()
+  target_link_libraries(eosxd-objects PUBLIC FUSE::FUSE)
+endif()
+
 set_target_properties(eosxd-objects
   PROPERTIES COMPILE_FLAGS ${EOSXD_COMPILE_FLAGS})
 
@@ -139,7 +145,6 @@ add_executable(eosxd main.cc)
 
 target_link_libraries(eosxd PRIVATE
   eosxd-objects
-  FUSE::FUSE
   ${EOSXD_COMMON_LINK_LIBRARIES})
 
 if(Linux)
@@ -158,7 +163,6 @@ if (FUSE3_FOUND)
   target_link_libraries(eosxd3 PUBLIC
     eosxd-objects
     jemalloc
-    FUSE3::FUSE3
     ${EOSXD_COMMON_LINK_LIBRARIES})
 
   set_target_properties(eosxd3
