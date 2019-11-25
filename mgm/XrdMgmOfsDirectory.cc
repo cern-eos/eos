@@ -138,6 +138,9 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
   try {
     eos::IContainerMD::XAttrMap attrmap;
     dh = gOFS->eosView->getContainer(cPath.GetPath());
+
+    lock.Release();
+
     permok = dh->access(vid.uid, vid.gid, R_OK | X_OK);
 
     if (!permok) {

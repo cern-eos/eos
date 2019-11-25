@@ -40,6 +40,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
   std::vector< std::vector<std::string> > found_dirs;
   std::shared_ptr<eos::IContainerMD> cmd;
   std::string Path = path;
+
   EXEC_TIMING_BEGIN("Find");
 
   if (nscounter) {
@@ -64,6 +65,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
   uint64_t dirsfound = 0;
   bool limitresult = false;
   bool limited = false;
+  bool sub_cmd_take_lock = false;
 
   if ((vid.uid != 0) && (!vid.hasUid(3)) && (!vid.hasGid(4)) && (!vid.sudoer)) {
     limitresult = true;
@@ -102,6 +104,12 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
                   e.getErrno(), e.getMessage().str().c_str());
       }
 
+
+      if (take_lock) {
+        ns_rd_lock.Release();
+	sub_cmd_take_lock = true;
+      }
+
       if (!gOFS->allow_public_access(Path.c_str(), vid)) {
         stdErr += "error: public access level restriction - no access in  ";
         stdErr += Path.c_str();
@@ -138,7 +146,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
               eos::IContainerMD::XAttrMap attrmap;
 
               if (!gOFS->_attr_ls(fpath.c_str(), out_error, vid,
-                                  (const char*) 0, attrmap, !take_lock)) {
+                                  (const char*) 0, attrmap, sub_cmd_take_lock)) {
                 for (auto it = attrmap.begin(); it != attrmap.end(); it++) {
                   XrdOucString akey = it->first.c_str();
 
@@ -156,7 +164,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
               XrdOucString attr = "";
 
               if (!gOFS->_attr_get(fpath.c_str(), out_error, vid,
-                                   (const char*) 0, key, attr, !take_lock)) {
+                                   (const char*) 0, key, attr, sub_cmd_take_lock)) {
                 found_dirs[deepness + 1].push_back(fpath.c_str());
 
                 if ((val == std::string("*")) || (attr == val)) {
@@ -257,7 +265,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
       XrdSfsFileExistence file_exists;
 
       if (((_exists(Path.c_str(), file_exists, out_error, vid,
-                    0, take_lock)) == SFS_OK) &&
+                    0, sub_cmd_take_lock)) == SFS_OK) &&
           (file_exists == XrdSfsFileExistIsFile)) {
         eos::common::Path cPath(Path.c_str());
         found[cPath.GetParentPath()].insert(cPath.GetName());
@@ -270,7 +278,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
   XrdSfsFileExistence dir_exists;
 
   if (((_exists(found_dirs[0][0].c_str(), dir_exists, out_error, vid,
-                0, take_lock)) == SFS_OK)
+                0, sub_cmd_take_lock)) == SFS_OK)
       && (dir_exists == XrdSfsFileExistIsDirectory)) {
     eos::common::Path cPath(found_dirs[0][0].c_str());
     (void) found[found_dirs[0][0].c_str()].size();
