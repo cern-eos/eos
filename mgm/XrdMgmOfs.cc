@@ -269,11 +269,12 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mBalancingTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
   mDrainTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
   mJeMallocHandler(new eos::common::JeMallocHandler()),
-  enforceRecycleBin(false), mDoneOrderlyShutdown(false)
+  mDoneOrderlyShutdown(false)
 {
   eDest = ep;
   ConfigFN = 0;
-
+  enforceRecycleBin = false;
+    
   if (getenv("EOS_MGM_HTTP_PORT")) {
     mHttpdPort = strtol(getenv("EOS_MGM_HTTP_PORT"), 0, 10);
   }
