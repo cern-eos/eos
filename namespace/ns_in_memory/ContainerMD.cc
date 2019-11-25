@@ -234,7 +234,6 @@ void
 ContainerMD::removeFile(const std::string& name)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-
   auto it = mFiles.find(name);
 
   if (it != mFiles.cend()) {

@@ -39,6 +39,10 @@ public:
     : container(cont), iter(cont->filesBegin()) {}
 
   bool valid() const {
+    return iValid;
+  }
+
+  bool iterNotEnd() const {
     return iter != container->filesEnd();
   }
 
@@ -47,16 +51,31 @@ public:
   }
 
   std::string key() const {
-    return iter->first;
+    return iKey;
   }
 
   IFileMD::id_t value() const {
-    return iter->second;
+    return iValue;
   }
 
 private:
+
+  uint64_t generation() {
+    if (container->filesBegin() != container->filesEnd()) {
+      return (uint64_t) container->filesBegin()->first.c_str();
+    } else {
+      return 0;
+    }
+  }
+
   IContainerMDPtr container;
   eos::IContainerMD::FileMap::const_iterator iter;
+  std::set<std::string> iShown;
+  std::string iKey;
+  uint64_t iValue;
+  uint64_t iGeneration;
+  bool iResized;
+  bool iValid;
 };
 
 //------------------------------------------------------------------------------
@@ -68,6 +87,10 @@ public:
     : container(cont), iter(container->subcontainersBegin()) {}
 
   bool valid() const {
+    return iValid;
+  }
+
+  bool iterNotEnd() const {
     return iter != container->subcontainersEnd();
   }
 
@@ -76,16 +99,31 @@ public:
   }
 
   std::string key() const {
-    return iter->first;
+    return iKey;
   }
 
   IFileMD::id_t value() const {
-    return iter->second;
+    return iValue;
   }
 
 private:
+
+  uint64_t generation() {
+    if (container->subcontainersBegin() != container->subcontainersEnd()) {
+      return (uint64_t) container->subcontainersBegin()->first.c_str();
+    } else {
+      return 0;
+    }
+  }
+
   IContainerMDPtr container;
   eos::IContainerMD::ContainerMap::const_iterator iter;
+  std::set<std::string> iShown;
+  std::string iKey;
+  uint64_t iValue;
+  uint64_t iGeneration;
+  bool iResized;
+  bool iValid;
 };
 
 EOSNSNAMESPACE_END
