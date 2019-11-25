@@ -340,7 +340,6 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
 
   eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex, __FUNCTION__,
                                           __LINE__, __FILE__);
-
   try {
     cmd = gOFS->eosDirectoryService->getContainerMD(id, &clock);
     rd_ns_lock.Release();
@@ -455,7 +454,6 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
 
   eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex, __FUNCTION__,
                                           __LINE__, __FILE__);
-
   try {
     bool has_mdino = false;
     fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(inode),
@@ -463,6 +461,8 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
     eos_debug("clock=%llx", clock);
     file.set_name(fmd->getName());
     gmd = fmd;
+    rd_ns_lock.Release();
+
     rd_ns_lock.Release();
 
     if (fmd->hasAttribute(k_mdino)) {
