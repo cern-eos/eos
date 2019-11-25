@@ -32,6 +32,7 @@ add_library(FuseCache-Objects OBJECT
 target_link_libraries(FuseCache-Objects PUBLIC
   EosFstProto-Objects
   EosFstIo-Objects
+  FUSE::FUSE
   XROOTD::UTILS
   XROOTD::PRIVATE)
 
@@ -47,9 +48,9 @@ target_compile_definitions(FuseCache-Objects PUBLIC
 #-------------------------------------------------------------------------------
 add_library(FuseCache SHARED $<TARGET_OBJECTS:FuseCache-Objects>)
 
-target_link_libraries(
-  FuseCache PUBLIC
+target_link_libraries(FuseCache PUBLIC
   EosFstIo
+  FuseCache-Objects
   ${CMAKE_THREAD_LIBS_INIT})
 
 target_compile_definitions(FuseCache PUBLIC
