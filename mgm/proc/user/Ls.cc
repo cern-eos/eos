@@ -166,10 +166,12 @@ ProcCommand::Ls()
 
             if (gOFS->_stat(statpath.c_str(), &buf, *mError, *pVid, (const char*) 0, 0,
                             false)) {
-              stdErr += "error: unable to stat path ";
-              stdErr += statpath;
-              stdErr += "\n";
-              retc = errno;
+	      if (errno != ENOENT) {
+		stdErr += "error: unable to stat path ";
+		stdErr += statpath;
+		stdErr += "\n";
+		retc = errno;
+	      }
             } else {
               // TODO: convert virtual IDs back
               XrdOucString suid = "";
