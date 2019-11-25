@@ -36,17 +36,13 @@ EOSNSNAMESPACE_BEGIN
 class FileMapIterator {
 public:
   FileMapIterator(IContainerMDPtr cont)
-    : container(cont), mLock(cont->mMutex) {
-    std::shared_lock<std::shared_timed_mutex> lock(mLock);
-    iter = cont->filesBegin();
-  }
+  : container(cont), lock(cont->mMutex), iter(cont->filesBegin()) { }
 
   bool valid() const {
     return iter != container->filesEnd();
   }
 
   void next() {
-    std::shared_lock<std::shared_timed_mutex> lock (mLock);
     iter++;
   }
 
@@ -60,7 +56,7 @@ public:
 
 private:
   IContainerMDPtr container;
-  std::shared_timed_mutex &mLock;
+  std::shared_lock<std::shared_timed_mutex> lock;
   eos::IContainerMD::FileMap::const_iterator iter;
 };
 
@@ -70,17 +66,13 @@ private:
 class ContainerMapIterator {
 public:
   ContainerMapIterator(IContainerMDPtr cont)
-    : container(cont), mLock(cont->mMutex) { 
-    std::shared_lock<std::shared_timed_mutex> lock (mLock);
-    iter = cont->subcontainersBegin();
-  }
+  : container(cont), lock(cont->mMutex), iter(cont->subcontainersBegin()) { }
 
   bool valid() const {
     return iter != container->subcontainersEnd();
   }
 
   void next() {
-    std::shared_lock<std::shared_timed_mutex> lock (mLock);
     iter++;
   }
 
@@ -94,7 +86,7 @@ public:
 
 private:
   IContainerMDPtr container;
-  std::shared_timed_mutex &mLock;
+  std::shared_lock<std::shared_timed_mutex> lock;
   eos::IContainerMD::ContainerMap::const_iterator iter;
 };
 

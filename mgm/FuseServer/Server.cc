@@ -334,13 +334,8 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
     eos_debug("container-id=%llx", id);
   }
 
-
-  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
-
   try {
     cmd = gOFS->eosDirectoryService->getContainerMD(id, &clock);
-    rd_ns_lock.Release();
-
     cmd->getCTime(ctime);
     cmd->getMTime(mtime);
     cmd->getTMTime(tmtime);
@@ -385,7 +380,7 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
 
     if (dir.operation() == dir.LS) {
       // we put a hard-coded listing limit for service protection
-      if ((uint64_t)dir.nchildren() > c_max_children) {
+      if (dir.nchildren() > c_max_children) {
         // xrootd does not handle E2BIG ... sigh
         return ENAMETOOLONG;
       }
@@ -444,8 +439,6 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
   if (EOS_LOGS_DEBUG) eos_debug("file-inode=%llx file-id=%llx", inode,
                                   eos::common::FileId::InodeToFid(inode));
 
-  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
-
   try {
     bool has_mdino = false;
     fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(inode),
@@ -453,8 +446,6 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
     eos_debug("clock=%llx", clock);
     file.set_name(fmd->getName());
     gmd = fmd;
-
-    rd_ns_lock.Release();
 
     if (fmd->hasAttribute(k_mdino)) {
       has_mdino = true;
@@ -1139,6 +1130,8 @@ Server::OpGetLs(const std::string& id,
   }
 
   eos::fusex::container cont;
+  eos::common::RWMutexReadLock rd_fs_lock(eos::mgm::FsView::gFsView.ViewMutex);
+  eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
 
   if (!eos::common::FileId::IsFileInode(md.md_ino())) {
     eos_info("ino=%lx get-dir", (long) md.md_ino());
@@ -1179,12 +1172,21 @@ Server::OpGetLs(const std::string& id,
         auto map = (*parent)[md.md_ino()].children();
         auto it = map.begin();
         size_t n_caps = 0;
+        size_t items_per_lock_cycle = 128;
+        size_t items_cycled = 1;
         gOFS->MgmStats.Add("Eosxd::ext::LS-Entry", vid.uid, vid.gid, map.size());
 
         for (; it != map.end(); ++it) {
           // this is a map by inode
           (*parent)[it->second].set_md_ino(it->second);
           auto child_md = &((*parent)[it->second]);
+          items_cycled++;
+
+          if (!(items_cycled % items_per_lock_cycle)) {
+            // after <n> entries release the lock and grab again
+            rd_ns_lock.Release();
+            rd_ns_lock.Grab(gOFS->eosViewRWMutex);
+          }
 
           if (eos::common::FileId::IsFileInode(it->second)) {
             // this is a file
@@ -1209,6 +1211,7 @@ Server::OpGetLs(const std::string& id,
           }
         }
 
+        rd_ns_lock.Release();
         n_attached++;
 
         if (n_attached >= 128) {
@@ -1896,10 +1899,10 @@ Server::OpSetFile(const std::string& id,
       // prepare to broadcast the new hardlink around, need to create an md object with the hardlink
       eos::fusex::md g_md;
       uint64_t g_ino = eos::common::FileId::FidToInode(gmd->getId());
-      lock.Release();
       FillFileMD(g_ino, g_md, vid);
 
       // release the namespace lock before serialization/broadcasting
+      lock.Release();
       resp.SerializeToString(response);
       struct timespec pt_mtime;
       pt_mtime.tv_sec = md.mtime();
@@ -2633,6 +2636,9 @@ Server::OpGetCap(const std::string& id,
   cont.set_type(cont.CAP);
   eos::fusex::md lmd;
   {
+    eos::common::RWMutexReadLock rd_fs_lock(eos::mgm::FsView::gFsView.ViewMutex);
+    eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+
     // get the meta data
     if (eos::common::FileId::IsFileInode(md.md_ino())) {
       FillFileMD((uint64_t) md.md_ino(), lmd, vid);

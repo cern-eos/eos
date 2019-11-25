@@ -74,7 +74,6 @@ public:
   //----------------------------------------------------------------------------
   IFileMD::id_t getId() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return pId;
   }
 
@@ -83,7 +82,6 @@ public:
   //----------------------------------------------------------------------------
   FileIdentifier getIdentifier() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return FileIdentifier(pId);
   }
 
@@ -92,7 +90,6 @@ public:
   //----------------------------------------------------------------------------
   void getCTime(ctime_t& ctime) const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     ctime.tv_sec = pCTime.tv_sec;
     ctime.tv_nsec = pCTime.tv_nsec;
   }
@@ -102,7 +99,6 @@ public:
   //----------------------------------------------------------------------------
   void setCTime(ctime_t ctime) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     pCTime.tv_sec = ctime.tv_sec;
     pCTime.tv_nsec = ctime.tv_nsec;
   }
@@ -112,7 +108,6 @@ public:
   //----------------------------------------------------------------------------
   void setCTimeNow() override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
 #ifdef __APPLE__
     struct timeval tv;
     gettimeofday(&tv, 0);
@@ -128,7 +123,6 @@ public:
   //----------------------------------------------------------------------------
   void getMTime(ctime_t& mtime) const override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     mtime.tv_sec = pMTime.tv_sec;
     mtime.tv_nsec = pMTime.tv_nsec;
   }
@@ -138,7 +132,6 @@ public:
   //----------------------------------------------------------------------------
   void setMTime(ctime_t mtime) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     pMTime.tv_sec = mtime.tv_sec;
     pMTime.tv_nsec = mtime.tv_nsec;
   }
@@ -148,7 +141,6 @@ public:
   //----------------------------------------------------------------------------
   void setMTimeNow() override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
 #ifdef __APPLE__
     struct timeval tv;
     gettimeofday(&tv, 0);
@@ -164,7 +156,6 @@ public:
   //----------------------------------------------------------------------------
   uint64_t getSize() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return pSize;
   }
 
@@ -178,7 +169,6 @@ public:
   //----------------------------------------------------------------------------
   IContainerMD::id_t getContainerId() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return pContainerId;
   }
 
@@ -187,7 +177,6 @@ public:
   //----------------------------------------------------------------------------
   void setContainerId(IContainerMD::id_t containerId) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     pContainerId = containerId;
   }
 
@@ -196,7 +185,6 @@ public:
   //----------------------------------------------------------------------------
   const Buffer getChecksum() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return pChecksum;
   }
 
@@ -205,7 +193,6 @@ public:
   //----------------------------------------------------------------------------
   void setChecksum(const Buffer& checksum) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     pChecksum = checksum;
   }
 
@@ -214,7 +201,6 @@ public:
   //----------------------------------------------------------------------------
   void clearChecksum(uint8_t size = 20) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     char zero = 0;
 
     for (uint8_t i = 0; i < size; i++) {
@@ -230,7 +216,6 @@ public:
   //----------------------------------------------------------------------------
   void setChecksum(const void* checksum, uint8_t size) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     pChecksum.clear();
     pChecksum.putData(checksum, size);
   }
@@ -240,7 +225,6 @@ public:
   //----------------------------------------------------------------------------
   const std::string getName() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return pName;
   }
 
@@ -249,7 +233,6 @@ public:
   //----------------------------------------------------------------------------
   void setName(const std::string& name) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     pName = name;
   }
 
@@ -268,7 +251,6 @@ public:
   //----------------------------------------------------------------------------
   location_t getLocation(unsigned int index) override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     if (index < pLocation.size()) {
       return pLocation[index];
     }
@@ -306,7 +288,6 @@ public:
   //----------------------------------------------------------------------------
   void clearUnlinkedLocations() override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     pUnlinkedLocation.clear();
   }
 
@@ -314,12 +295,6 @@ public:
   //! Test the unlinkedlocation
   //----------------------------------------------------------------------------
   bool hasUnlinkedLocation(location_t location) override
-  {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return hasUnlinkedLocationLocked(location);
-  }
-
-  bool hasUnlinkedLocationLocked(location_t location) 
   {
     for (unsigned int i = 0; i < pUnlinkedLocation.size(); i++) {
       if (pUnlinkedLocation[i] == location) {
@@ -330,13 +305,11 @@ public:
     return false;
   }
 
-
   //----------------------------------------------------------------------------
   //! Get number of unlinked locations
   //----------------------------------------------------------------------------
   size_t getNumUnlinkedLocation() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return pUnlinkedLocation.size();
   }
 
@@ -345,7 +318,6 @@ public:
   //----------------------------------------------------------------------------
   void clearLocations() override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     pLocation.clear();
   }
 
@@ -353,12 +325,6 @@ public:
   //! Test the location
   //----------------------------------------------------------------------------
   bool hasLocation(location_t location) override
-  {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-    return hasLocationLocked(location);
-  }
-
-  bool hasLocationLocked(location_t location)
   {
     for (unsigned int i = 0; i < pLocation.size(); i++) {
       if (pLocation[i] == location) {
@@ -369,13 +335,11 @@ public:
     return false;
   }
 
-
   //----------------------------------------------------------------------------
   //! Get number of location
   //----------------------------------------------------------------------------
   size_t getNumLocation() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return pLocation.size();
   }
 
@@ -384,7 +348,6 @@ public:
   //----------------------------------------------------------------------------
   uid_t getCUid() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return pCUid;
   }
 
@@ -393,7 +356,6 @@ public:
   //----------------------------------------------------------------------------
   void setCUid(uid_t uid) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     pCUid = uid;
   }
 
@@ -402,7 +364,6 @@ public:
   //----------------------------------------------------------------------------
   gid_t getCGid() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return pCGid;
   }
 
@@ -411,7 +372,6 @@ public:
   //----------------------------------------------------------------------------
   void setCGid(gid_t gid) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     pCGid = gid;
   }
 
@@ -420,7 +380,6 @@ public:
   //----------------------------------------------------------------------------
   layoutId_t getLayoutId() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return pLayoutId;
   }
 
@@ -429,7 +388,6 @@ public:
   //----------------------------------------------------------------------------
   void setLayoutId(layoutId_t layoutId) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     pLayoutId = layoutId;
   }
 
@@ -438,7 +396,6 @@ public:
   //----------------------------------------------------------------------------
   uint16_t getFlags() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return pFlags;
   }
 
@@ -447,7 +404,6 @@ public:
   //----------------------------------------------------------------------------
   bool getFlag(uint8_t n) override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return pFlags & (0x0001 << n);
   }
 
@@ -456,7 +412,6 @@ public:
   //----------------------------------------------------------------------------
   void setFlags(uint16_t flags) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     pFlags = flags;
   }
 
@@ -465,7 +420,6 @@ public:
   //----------------------------------------------------------------------------
   void setFlag(uint8_t n, bool flag) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     if (flag) {
       pFlags |= (1 << n);
     } else {
@@ -483,7 +437,6 @@ public:
   //----------------------------------------------------------------------------
   void setFileMDSvc(IFileMDSvc* fileMDSvc) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     pFileMDSvc = fileMDSvc;
   }
 
@@ -492,7 +445,6 @@ public:
   //----------------------------------------------------------------------------
   virtual IFileMDSvc* getFileMDSvc() override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return pFileMDSvc;
   }
 
@@ -511,7 +463,6 @@ public:
   //----------------------------------------------------------------------------
   std::string getLink() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return pLinkName;
   }
 
@@ -520,7 +471,6 @@ public:
   //----------------------------------------------------------------------------
   void setLink(std::string link_name) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     pLinkName = link_name;
   }
 
@@ -529,7 +479,6 @@ public:
   //----------------------------------------------------------------------------
   bool isLink() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return pLinkName.length() ? true : false;
   }
 
@@ -538,7 +487,6 @@ public:
   //----------------------------------------------------------------------------
   void setAttribute(const std::string& name, const std::string& value) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     pXAttrs[name] = value;
   }
 
@@ -547,7 +495,6 @@ public:
   //----------------------------------------------------------------------------
   void removeAttribute(const std::string& name) override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     XAttrMap::iterator it = pXAttrs.find(name);
 
     if (it != pXAttrs.end()) {
@@ -560,7 +507,6 @@ public:
   //----------------------------------------------------------------------------
   void clearAttributes() override
   {
-    std::unique_lock<std::shared_timed_mutex> lock(mMutex);
     pXAttrs.clear();
   }
 
@@ -569,7 +515,6 @@ public:
   //----------------------------------------------------------------------------
   bool hasAttribute(const std::string& name) const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return pXAttrs.find(name) != pXAttrs.end();
   }
 
@@ -578,7 +523,6 @@ public:
   //----------------------------------------------------------------------------
   size_t numAttributes() const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     return pXAttrs.size();
   }
 
@@ -587,7 +531,6 @@ public:
   //----------------------------------------------------------------------------
   std::string getAttribute(const std::string& name) const override
   {
-    std::shared_lock<std::shared_timed_mutex> lock(mMutex);
     XAttrMap::const_iterator it = pXAttrs.find(name);
 
     if (it == pXAttrs.end()) {

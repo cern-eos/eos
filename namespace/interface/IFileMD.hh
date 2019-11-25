@@ -32,7 +32,6 @@
 #include <stdint.h>
 #include <string>
 #include <sys/time.h>
-#include <memory>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -365,7 +364,7 @@ public:
   //! Check if object is "deleted" - in the sense that it's not valid anymore
   //----------------------------------------------------------------------------
   virtual bool isDeleted() const
-  {    
+  {
     return mIsDeleted;
   }
 
@@ -401,12 +400,9 @@ public:
 
   IFileMD& operator=(const IFileMD& other) = delete;
 
-protected:
-  mutable std::shared_timed_mutex mMutex;
-
 private:
 
-  std::atomic<bool> mIsDeleted; ///< Mark if object is still in cache but it was deleted
+  bool mIsDeleted; ///< Mark if object is still in cache but it was deleted
 };
 
 using IFileMDPtr = std::shared_ptr<IFileMD>;
