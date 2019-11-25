@@ -60,6 +60,7 @@ void ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
   while (!assistant.terminationRequested()) {
     if (ShouldWait()) {
       HandleRunningJobs();
+      RemoveInflightJobs();
       assistant.wait_for(std::chrono::seconds(5));
       continue;
     }
@@ -92,6 +93,8 @@ void ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
 
       HandleRunningJobs();
     }
+
+    RemoveInflightJobs();
   }
 
   JoinAllConversionJobs();
@@ -110,7 +113,7 @@ void ConverterDriver::HandleRunningJobs()
       auto fid = (*it)->GetFid();
 
       if (mQdbHelper.RemovePendingJob(fid)) {
-        gOFS->mConvertingTracker.RemoveEntry(fid);
+        mJobsInflightDone.insert(fid);
       } else {
         eos_static_err("msg=\"Failed to remove conversion job from QuarkDB\" "
                        "fid=%llu", fid);
@@ -127,6 +130,20 @@ void ConverterDriver::HandleRunningJobs()
       ++it;
     }
   }
+}
+
+//----------------------------------------------------------------------------
+// Remove finished inflight jobs
+//----------------------------------------------------------------------------
+void ConverterDriver::RemoveInflightJobs()
+{
+  eos::common::RWMutexWriteLock wlock(mJobsMutex);
+
+  for (auto id: mJobsInflightDone) {
+    gOFS->mConvertingTracker.RemoveEntry(id);
+  }
+
+  mJobsInflightDone.clear();
 }
 
 //----------------------------------------------------------------------------

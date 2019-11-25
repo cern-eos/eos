@@ -185,6 +185,11 @@ private:
   void HandleRunningJobs();
 
   //----------------------------------------------------------------------------
+  //! Remove finished inflight jobs
+  //----------------------------------------------------------------------------
+  void RemoveInflightJobs();
+
+  //----------------------------------------------------------------------------
   //! Signal all conversion jobs to stop
   //----------------------------------------------------------------------------
   void JoinAllConversionJobs();
@@ -239,6 +244,8 @@ private:
   std::list<std::shared_ptr<ConversionJob>> mJobsRunning;
   ///< Collection of failed conversion jobs
   std::set<std::shared_ptr<ConversionJob>> mJobsFailed;
+  ///< Collection of in-flight jobs marked as finished
+  std::set<eos::IFileMD::id_t> mJobsInflightDone;
   ///< RWMutex protecting the jobs collections
   mutable eos::common::RWMutex mJobsMutex;
 };
