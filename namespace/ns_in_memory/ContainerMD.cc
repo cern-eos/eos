@@ -86,7 +86,6 @@ ContainerMD::ContainerMD(const ContainerMD& other)
 //------------------------------------------------------------------------------
 ContainerMD& ContainerMD::operator= (const ContainerMD& other)
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   pId       = other.pId;
   pParentId = other.pParentId;
   pFlags    = other.pFlags;
@@ -116,7 +115,6 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
 void
 ContainerMD::InheritChildren(const IContainerMD& other)
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   const ContainerMD& otherContainer = dynamic_cast<const ContainerMD&>(other);
   mFiles = otherContainer.mFiles;
   mSubcontainers = otherContainer.mSubcontainers;
@@ -129,7 +127,6 @@ ContainerMD::InheritChildren(const IContainerMD& other)
 folly::Future<IContainerMDPtr>
 ContainerMD::findContainerFut(const std::string& name)
 {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   return folly::makeFuture<IContainerMDPtr>(this->findContainer(name));
 }
 
@@ -139,7 +136,6 @@ ContainerMD::findContainerFut(const std::string& name)
 std::shared_ptr<IContainerMD>
 ContainerMD::findContainer(const std::string& name)
 {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   ContainerMap::iterator it = mSubcontainers.find(name);
 
   if (it == mSubcontainers.end()) {
@@ -155,7 +151,6 @@ ContainerMD::findContainer(const std::string& name)
 folly::Future<FileOrContainerMD>
 ContainerMD::findItem(const std::string &name)
 {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   FileOrContainerMD retval;
 
   // First, check if a file with such name exists.
@@ -176,7 +171,6 @@ ContainerMD::findItem(const std::string &name)
 void
 ContainerMD::removeContainer(const std::string& name)
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   mSubcontainers.erase(name);
   mSubcontainers.resize(0);
 }
@@ -187,7 +181,6 @@ ContainerMD::removeContainer(const std::string& name)
 void
 ContainerMD::addContainer(IContainerMD* container)
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   container->setParentId(pId);
   mSubcontainers[container->getName()] = container->getId();
 }
@@ -207,7 +200,6 @@ ContainerMD::findFileFut(const std::string& name)
 std::shared_ptr<IFileMD>
 ContainerMD::findFile(const std::string& name)
 {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   eos::IContainerMD::FileMap::iterator it = mFiles.find(name);
 
   if (it == mFiles.end()) {
@@ -223,12 +215,10 @@ ContainerMD::findFile(const std::string& name)
 void
 ContainerMD::addFile(IFileMD* file)
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   file->setContainerId(pId);
   mFiles[file->getName()] = file->getId();
   IFileMDChangeListener::Event e(file, IFileMDChangeListener::SizeChange,
                                  0, file->getSize());
-  lock.unlock();
   file->getFileMDSvc()->notifyListeners(&e);
 }
 
@@ -238,7 +228,6 @@ ContainerMD::addFile(IFileMD* file)
 void
 ContainerMD::removeFile(const std::string& name)
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   if (mFiles.count(name)) {
     std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(mFiles[name]);
     IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::SizeChange,
@@ -255,7 +244,6 @@ ContainerMD::removeFile(const std::string& name)
 void
 ContainerMD::serialize(Buffer& buffer)
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   buffer.putData(&pId,       sizeof(pId));
   buffer.putData(&pParentId, sizeof(pParentId));
   buffer.putData(&pFlags,    sizeof(pFlags));
@@ -311,7 +299,6 @@ ContainerMD::serialize(Buffer& buffer)
 void
 ContainerMD::deserialize(Buffer& buffer)
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   uint16_t offset = 0;
   offset = buffer.grabData(offset, &pId,       sizeof(pId));
   offset = buffer.grabData(offset, &pParentId, sizeof(pParentId));
@@ -362,7 +349,6 @@ ContainerMD::deserialize(Buffer& buffer)
 bool
 ContainerMD::access(uid_t uid, gid_t gid, int flags)
 {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   // root can do everything
   if (uid == 0) {
     return true;
@@ -400,7 +386,6 @@ ContainerMD::access(uid_t uid, gid_t gid, int flags)
 void
 ContainerMD::setMTime(mtime_t mtime)
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   pMTime.tv_sec = mtime.tv_sec;
   pMTime.tv_nsec = mtime.tv_nsec;
 }
@@ -410,7 +395,6 @@ ContainerMD::setMTime(mtime_t mtime)
 //------------------------------------------------------------------------------
 void ContainerMD::setMTimeNow()
 {
-  std::unique_lock<std::shared_timed_mutex> lock(mMutex);
 #ifdef __APPLE__
   struct timeval tv;
   gettimeofday(&tv, 0);
@@ -435,7 +419,6 @@ void ContainerMD::notifyMTimeChange(IContainerMDSvc* containerMDSvc)
 eos::IFileMD::XAttrMap
 ContainerMD::getAttributes() const
 {
-  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   return pXAttrs;
 }
 

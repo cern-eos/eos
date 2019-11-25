@@ -396,9 +396,6 @@ LRU::AgeExpire(const char* dir, const std::string& policy)
 
     try {
       cmd = gOFS->eosView->getContainer(dir);
-
-      lock.Release();
-
       std::shared_ptr<eos::IFileMD> fmd;
 
       // Loop through all file names
@@ -700,11 +697,8 @@ LRU::ConvertMatch(const char* dir,
 
     try {
       cmd = gOFS->eosView->getContainer(dir);
-
-      lock.Release();
-
       std::shared_ptr<eos::IFileMD> fmd;
-      
+
       for (auto fit = eos::FileMapIterator(cmd); fit.valid(); fit.next()) {
         fmd = cmd->findFile(fit.key());
         std::string fullpath = dir;
