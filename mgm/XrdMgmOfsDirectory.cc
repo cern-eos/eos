@@ -170,7 +170,6 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
     dh->getMTime(mtime);
 
     cacheentry = getCacheName(dh->getId(), mtime.tv_sec, mtime.tv_nsec, env.Get("ls.skip.files"), env.Get("ls.skip.directories"));
-
     lock.Release();
 
     permok = dh->access(vid.uid, vid.gid, R_OK | X_OK);

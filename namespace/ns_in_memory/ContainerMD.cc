@@ -140,7 +140,7 @@ std::shared_ptr<IContainerMD>
 ContainerMD::findContainer(const std::string& name)
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-  ContainerMap::const_iterator it = mSubcontainers.find(name);
+  ContainerMap::iterator it = mSubcontainers.find(name);
 
   if (it == mSubcontainers.end()) {
     return std::shared_ptr<IContainerMD>((IContainerMD*)0);
@@ -207,7 +207,7 @@ std::shared_ptr<IFileMD>
 ContainerMD::findFile(const std::string& name)
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-  eos::IContainerMD::FileMap::const_iterator it = mFiles.find(name);
+  eos::IContainerMD::FileMap::iterator it = mFiles.find(name);
 
   if (it == mFiles.end()) {
     return nullptr;
@@ -366,7 +366,6 @@ bool
 ContainerMD::access(uid_t uid, gid_t gid, int flags)
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-
   // root can do everything
   if (uid == 0) {
     return true;

@@ -118,7 +118,6 @@ void FileMD::removeLocation(location_t location)
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   std::vector<location_t>::iterator it;
   bool removed = false;
-
   for (it = pUnlinkedLocation.begin(); it < pUnlinkedLocation.end(); ++it) {
     if (*it == location) {
       pUnlinkedLocation.erase(it);
@@ -130,8 +129,8 @@ void FileMD::removeLocation(location_t location)
   if (removed) {
     lock.unlock();
     IFileMDChangeListener::Event e(this,
-                                   IFileMDChangeListener::LocationRemoved,
-                                   location);
+				   IFileMDChangeListener::LocationRemoved,
+				   location);
     pFileMDSvc->notifyListeners(&e);
   }
 }
@@ -198,7 +197,6 @@ void FileMD::unlinkAllLocations()
 
   while ((it = pLocation.rbegin()) != pLocation.rend()) {
     location_t loc = *it;
-
     if (!hasUnlinkedLocationLocked(loc)) {
       pUnlinkedLocation.push_back(loc);
     }
@@ -282,7 +280,6 @@ void FileMD::getEnv(std::string& env, bool escapeAnd)
 void FileMD::serialize(Buffer& buffer)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-
   if (!pFileMDSvc) {
     MDException ex(ENOTSUP);
     ex.getMessage() << "This was supposed to be a read only copy!";
