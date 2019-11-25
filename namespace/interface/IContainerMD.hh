@@ -424,6 +424,11 @@ protected:
   subcontainersEnd() = 0;
 
   //----------------------------------------------------------------------------
+  //! Get generation value to check interator validity
+  //----------------------------------------------------------------------------
+  virtual uint64_t getContainerMapGeneration() = 0;
+
+  //----------------------------------------------------------------------------
   //! Get iterator to the begining of the files map
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::FileMap::const_iterator
@@ -434,6 +439,11 @@ protected:
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::FileMap::const_iterator
   filesEnd() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get generation value to check interator validity
+  //----------------------------------------------------------------------------
+  virtual uint64_t getFileMapGeneration() = 0;
 
   mutable std::shared_timed_mutex mMutex;
 };

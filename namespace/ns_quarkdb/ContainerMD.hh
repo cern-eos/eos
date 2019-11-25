@@ -484,6 +484,13 @@ private:
   }
 
   //----------------------------------------------------------------------------
+  //! Get generation value to check iterator validity  
+  //----------------------------------------------------------------------------
+  virtual uint64_t getContainerMapGeneration() override {
+    return mSubcontainers->bucket_count();
+  }
+
+  //----------------------------------------------------------------------------
   //! Get iterator to the begining of the files map
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::FileMap::const_iterator
@@ -501,6 +508,13 @@ private:
   {
     // No lock here, only FileMapIterator can call us, which locks the mutex.
     return mFiles->end();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get generation value to check iterator validity  
+  //----------------------------------------------------------------------------
+  virtual uint64_t getFileMapGeneration() override {
+    return mFiles->bucket_count();
   }
 
   eos::ns::ContainerMdProto mCont;      ///< Protobuf container representation

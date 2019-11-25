@@ -128,11 +128,7 @@ public:
 private:
 
   uint64_t generation() {
-    if (container->filesBegin() != container->filesEnd()) {
-      return (uint64_t) container->filesBegin()->first.c_str();
-    } else {
-      return 0;
-    }
+    return container->getFileMapGeneration();
   }
 
   IContainerMDPtr container;
@@ -243,11 +239,7 @@ public:
 private:
 
   uint64_t generation() {
-    if (container->subcontainersBegin() != container->subcontainersEnd()) {
-      return (uint64_t) container->subcontainersBegin()->first.c_str();
-    } else {
-      return 0;
-    }
+    return container->getContainerMapGeneration();
   }
 
   IContainerMDPtr container;

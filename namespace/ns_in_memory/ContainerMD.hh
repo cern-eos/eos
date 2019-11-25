@@ -613,6 +613,13 @@ private:
     return mSubcontainers.end();
   }
 
+  //----------------------------------------------------------------------------  
+  //! Get generation value to check iterator validity                          
+  //----------------------------------------------------------------------------
+  virtual uint64_t getContainerMapGeneration() override {
+    return mSubcontainers.bucket_count();
+  }
+
   //----------------------------------------------------------------------------
   //! Get iterator to the begining of the files map
   //----------------------------------------------------------------------------
@@ -629,6 +636,13 @@ private:
   filesEnd() override
   {
     return mFiles.end();
+  }
+
+  //----------------------------------------------------------------------------  
+  //! Get generation value to check iterator validity                          
+  //----------------------------------------------------------------------------
+  virtual uint64_t getFileMapGeneration() override {
+    return mFiles.bucket_count();
   }
 
   // Non-presistent data members
