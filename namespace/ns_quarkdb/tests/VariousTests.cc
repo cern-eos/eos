@@ -844,7 +844,7 @@ TEST_F(FileMDFetching, FilemapToFutureVector)
     {"d2", 4}, {"d2-1", 11}, {"d2-2", 12}, {"d2-3", 13}
   };
 
-  for (auto it = containermap.cbegin(); it != containermap.cend(); ++it) {
+  for (auto it = containermap.begin(); it != containermap.end(); ++it) {
     sorted2[it->first] = it->second;
   }
 

@@ -32,12 +32,14 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-SearchNode::SearchNode(NamespaceExplorer &expl, ContainerIdentifier expectedP, ContainerIdentifier d, eos::SearchNode* prnt, folly::Executor* exec, bool ignoreF)
-  : explorer(expl), expectedParent(expectedP), id(d), qcl(explorer.qcl), parent(prnt), executor(exec), ignoreFiles(ignoreF),
+SearchNode::SearchNode(NamespaceExplorer& expl, ContainerIdentifier expectedP,
+                       ContainerIdentifier d, eos::SearchNode* prnt, folly::Executor* exec,
+                       bool ignoreF)
+  : explorer(expl), expectedParent(expectedP), id(d), qcl(explorer.qcl),
+    parent(prnt), executor(exec), ignoreFiles(ignoreF),
     containerMd(MetadataFetcher::getContainerFromId(qcl, id))
 {
-
-  if(!ignoreFiles) {
+  if (!ignoreFiles) {
     pendingFileMds = MetadataFetcher::getFileMDsInContainer(qcl, id, exec);
   }
 
@@ -49,10 +51,13 @@ SearchNode::SearchNode(NamespaceExplorer &expl, ContainerIdentifier expectedP, C
 // - No errors occurred while retrieving the container's metadata.
 // - Has not been visited already.
 //------------------------------------------------------------------------------
-bool SearchNode::canVisit() {
-  if(visited) return false;
+bool SearchNode::canVisit()
+{
+  if (visited) {
+    return false;
+  }
 
-  if(containerMd.hasException() || containerMap.hasException()) {
+  if (containerMd.hasException() || containerMap.hasException()) {
     return false;
   }
 
@@ -75,7 +80,7 @@ void SearchNode::handleAsync()
 //------------------------------------------------------------------------------
 std::unique_ptr<SearchNode> SearchNode::expand()
 {
-  if(containerMd.hasException()) {
+  if (containerMd.hasException()) {
     return {};
   }
 
@@ -83,16 +88,19 @@ std::unique_ptr<SearchNode> SearchNode::expand()
   nodeItem.isFile = false;
   nodeItem.containerMd = getContainerInfo();
   explorer.handleLinkedAttrs(nodeItem);
+  ExpansionDecider* decider = explorer.options.expansionDecider.get();
 
-  ExpansionDecider *decider = explorer.options.expansionDecider.get();
-  if(decider && !decider->shouldExpandContainer(getContainerInfo(), nodeItem.attrs)) {
+  if (decider &&
+      !decider->shouldExpandContainer(getContainerInfo(), nodeItem.attrs)) {
     return {}; // nope, this node is being filtered out
   }
 
-  if(nodeItem.containerMd.parent_id() != expectedParent.getUnderlyingUInt64()) {
-    std::cerr << "WARNING: Container #" << nodeItem.containerMd.id() << " was expected to have #" <<
-      expectedParent.getUnderlyingUInt64() << " as parent; instead it has #" << nodeItem.containerMd.parent_id()
-      << std::endl;
+  if (nodeItem.containerMd.parent_id() != expectedParent.getUnderlyingUInt64()) {
+    std::cerr << "WARNING: Container #" << nodeItem.containerMd.id() <<
+              " was expected to have #" <<
+              expectedParent.getUnderlyingUInt64() << " as parent; instead it has #" <<
+              nodeItem.containerMd.parent_id()
+              << std::endl;
   }
 
   stageChildren();
@@ -138,19 +146,21 @@ void SearchNode::stageChildren()
   childrenLoaded = true;
   // containerMap is hashmap, thus unsorted... must sort first by filename.. sigh.
   // storing into a vector and calling std::sort might be faster, TODO
-
 //  std::map<std::string, IContainerMD::id_t, FilesystemEntryComparator> sortedContainerMap; // Why not the std::less<string> comparator?
 //  for (auto it = containerMap->cbegin(); it != containerMap->cend(); ++it) {
 //    sortedContainerMap[it->first] = it->second;
 //  }
   std::vector<std::pair<std::string, IContainerMD::id_t>> v;
-  for (auto it = containerMap->cbegin(); it != containerMap->cend(); ++it) {
-    v.emplace_back(std::pair<std::string, IContainerMD::id_t>{it->first,it->second});
+
+  for (auto it = containerMap->begin(); it != containerMap->end(); ++it) {
+    v.emplace_back(std::pair<std::string, IContainerMD::id_t> {it->first, it->second});
   }
-  std::sort(v.begin(),v.end());
+
+  std::sort(v.begin(), v.end());
 
   for (auto it = v.begin(); it != v.end(); ++it) {
-    children.emplace_back(new SearchNode(explorer, id, ContainerIdentifier(it->second), this, executor, ignoreFiles));
+    children.emplace_back(new SearchNode(explorer, id,
+                                         ContainerIdentifier(it->second), this, executor, ignoreFiles));
   }
 }
 
@@ -159,11 +169,10 @@ void SearchNode::stageChildren()
 //------------------------------------------------------------------------------
 bool SearchNode::fetchChild(eos::ns::FileMdProto& output)
 {
-  while(true) {
+  while (true) {
     try {
       return pendingFileMds.fetchNext(output);
-    }
-    catch(MDException &exc) {}
+    } catch (MDException& exc) {}
   }
 
   return false;
@@ -180,11 +189,13 @@ eos::ns::ContainerMdProto& SearchNode::getContainerInfo()
 //------------------------------------------------------------------------------
 // Get file child count
 //------------------------------------------------------------------------------
-uint64_t SearchNode::getNumFiles() {
+uint64_t SearchNode::getNumFiles()
+{
   return pendingFileMds.size();
 }
 
-uint64_t SearchNode::getNumContainers() {
+uint64_t SearchNode::getNumContainers()
+{
   return containerMap->size();
 }
 
@@ -197,24 +208,28 @@ NamespaceExplorer::NamespaceExplorer(const std::string& pth,
                                      folly::Executor* exec)
   : path(pth), options(opts), qcl(qclient), executor(exec)
 {
-  if(options.populateLinkedAttributes && !opts.view) {
-    throw_mdexception(EINVAL, "NamespaceExplorer: asked to populate linked attrs, but view not provided");
+  if (options.populateLinkedAttributes && !opts.view) {
+    throw_mdexception(EINVAL,
+                      "NamespaceExplorer: asked to populate linked attrs, but view not provided");
   }
 
   std::vector<std::string> pathParts;
   eos::PathProcessor::splitPath(pathParts, path);
   // This part is synchronous by necessity.
-  staticPath.emplace_back(MetadataFetcher::getContainerFromId(qcl, ContainerIdentifier(1)).get());
+  staticPath.emplace_back(MetadataFetcher::getContainerFromId(qcl,
+                          ContainerIdentifier(1)).get());
 
   if (pathParts.empty()) {
     // We're running a search on the root node, expand.
-    dfsPath.emplace_back(new SearchNode(*this, ContainerIdentifier(1), ContainerIdentifier(1), nullptr, executor, opts.ignoreFiles));
+    dfsPath.emplace_back(new SearchNode(*this, ContainerIdentifier(1),
+                                        ContainerIdentifier(1), nullptr, executor, opts.ignoreFiles));
   }
 
   // TODO: This for loop looks like a useful primitive for MetadataFetcher,
   // maybe move there?
   ContainerIdentifier parentID {};
   ContainerIdentifier nextId {};
+
   for (size_t i = 0; i < pathParts.size(); i++) {
     // We don't know if the last chunk of pathParts is supposed to be a container
     // or name..
@@ -242,7 +257,7 @@ NamespaceExplorer::NamespaceExplorer(const std::string& pth,
       if (exc.getErrno() == ENOENT) {
         // This may throw again, propagate to caller if so
         FileIdentifier nextId = MetadataFetcher::getFileIDFromName(qcl, parentID,
-                      pathParts[i]).get();
+                                pathParts[i]).get();
         lastChunk = MetadataFetcher::getFileFromId(qcl, nextId).get();
         searchOnFile = true;
       }
@@ -253,7 +268,8 @@ NamespaceExplorer::NamespaceExplorer(const std::string& pth,
         staticPath.emplace_back(MetadataFetcher::getContainerFromId(qcl, nextId).get());
       } else {
         // Final node, expand
-        dfsPath.emplace_back(new SearchNode(*this, parentID, nextId, nullptr, executor, opts.ignoreFiles));
+        dfsPath.emplace_back(new SearchNode(*this, parentID, nextId, nullptr, executor,
+                                            opts.ignoreFiles));
       }
     }
   }
@@ -306,18 +322,17 @@ std::string NamespaceExplorer::buildDfsPath()
 //------------------------------------------------------------------------------
 // Handle linked attributes
 //------------------------------------------------------------------------------
-void NamespaceExplorer::handleLinkedAttrs(NamespaceItem& result) {
+void NamespaceExplorer::handleLinkedAttrs(NamespaceItem& result)
+{
   result.attrs.clear();
-
   //----------------------------------------------------------------------------
   // Retrieve reference to linked attribute map
   //----------------------------------------------------------------------------
   google::protobuf::Map<std::string, std::string> const* attrMap = nullptr;
 
-  if(result.isFile) {
+  if (result.isFile) {
     attrMap = &result.fileMd.xattrs();
-  }
-  else {
+  } else {
     attrMap = &result.containerMd.xattrs();
   }
 
@@ -329,9 +344,13 @@ void NamespaceExplorer::handleLinkedAttrs(NamespaceItem& result) {
   //----------------------------------------------------------------------------
   // Do we even have linked attrs?
   //----------------------------------------------------------------------------
-  if(!options.populateLinkedAttributes) return;
+  if (!options.populateLinkedAttributes) {
+    return;
+  }
+
   auto link = attrMap->find("sys.attr.link");
-  if(link == attrMap->end()) {
+
+  if (link == attrMap->end()) {
     //--------------------------------------------------------------------------
     // Nope, take fast path
     //--------------------------------------------------------------------------
@@ -342,7 +361,8 @@ void NamespaceExplorer::handleLinkedAttrs(NamespaceItem& result) {
   // Cached entry exists?
   //----------------------------------------------------------------------------
   auto cached = cachedAttrs.find(link->second);
-  if(cached != cachedAttrs.end()) {
+
+  if (cached != cachedAttrs.end()) {
     //--------------------------------------------------------------------------
     // Cache hit
     //--------------------------------------------------------------------------
@@ -358,14 +378,12 @@ void NamespaceExplorer::handleLinkedAttrs(NamespaceItem& result) {
   try {
     FileOrContainerMD item = options.view->getItem(link->second, true).get();
 
-    if(item.file) {
+    if (item.file) {
       toStoreIntoCache = item.file->getAttributes();
-    }
-    else {
+    } else {
       toStoreIntoCache = item.container->getAttributes();
     }
-  }
-  catch(eos::MDException &e) {
+  } catch (eos::MDException& e) {
     // toStoreIntoCache remains empty
   }
 
@@ -404,11 +422,11 @@ bool NamespaceExplorer::fetch(NamespaceItem& item)
       item.numContainers = dfsPath.back()->getNumContainers();
       handleLinkedAttrs(item);
 
-      if(!options.expansionDecider) {
+      if (!options.expansionDecider) {
         item.expansionFilteredOut = false;
-      }
-      else {
-        item.expansionFilteredOut = !options.expansionDecider->shouldExpandContainer(item.containerMd, item.attrs);
+      } else {
+        item.expansionFilteredOut = !options.expansionDecider->shouldExpandContainer(
+                                      item.containerMd, item.attrs);
       }
 
       dfsPath.back()->expansionFilteredOut = item.expansionFilteredOut;
@@ -416,7 +434,8 @@ bool NamespaceExplorer::fetch(NamespaceItem& item)
     }
 
     // Does the top node have any pending file children?
-    if (!dfsPath.back()->expansionFilteredOut && dfsPath.back()->fetchChild(item.fileMd)) {
+    if (!dfsPath.back()->expansionFilteredOut &&
+        dfsPath.back()->fetchChild(item.fileMd)) {
       item.isFile = true;
       item.fullPath = buildDfsPath() + item.fileMd.name();
       item.expansionFilteredOut = false;

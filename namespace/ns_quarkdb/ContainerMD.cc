@@ -164,7 +164,7 @@ QuarkContainerMD::findItem(const std::string& name)
   // a container with such name.
   auto iter = mSubcontainers->find(name);
 
-  if (iter != mSubcontainers->cend()) {
+  if (iter != mSubcontainers->end()) {
     // We have a hit, this is a ContainerMD. Retrieve result asynchronously
     // from container service.
     ContainerIdentifier target(iter->second);
@@ -185,7 +185,7 @@ QuarkContainerMD::findItem(const std::string& name)
   // This is not a ContainerMD.. maybe it's a FileMD?
   auto iter2 = mFiles->find(name);
 
-  if (iter2 != mFiles->cend()) {
+  if (iter2 != mFiles->end()) {
     // We have a hit, this is a FileMD. Retrieve result asynchronously
     // from file service.
     FileIdentifier target(iter2->second);
@@ -216,7 +216,7 @@ QuarkContainerMD::removeContainer(const std::string& name)
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   auto it = mSubcontainers->find(name);
 
-  if (it == mSubcontainers->cend()) {
+  if (it == mSubcontainers->end()) {
     MDException e(ENOENT);
     e.getMessage()  << __FUNCTION__ << " Container " << name << " not found";
     throw e;
@@ -245,7 +245,7 @@ QuarkContainerMD::addContainer(IContainerMD* container)
 
   auto containerConflict = mSubcontainers->find(container->getName());
 
-  if (containerConflict != mSubcontainers->cend() &&
+  if (containerConflict != mSubcontainers->end() &&
       containerConflict->second != container->getId()) {
     eos_static_crit(eos::common::getStacktrace().c_str());
     throw_mdexception(EEXIST, "Attempted to add container with name "
@@ -255,7 +255,7 @@ QuarkContainerMD::addContainer(IContainerMD* container)
 
   auto fileConflict = mFiles->find(container->getName());
 
-  if (fileConflict != mFiles->cend()) {
+  if (fileConflict != mFiles->end()) {
     eos_static_crit(eos::common::getStacktrace().c_str());
     throw_mdexception(EEXIST, "Attempted to add container with name "
                       << container->getName()
@@ -322,7 +322,7 @@ QuarkContainerMD::addFile(IFileMD* file)
 
   auto containerConflict = mSubcontainers->find(file->getName());
 
-  if (containerConflict != mSubcontainers->cend()) {
+  if (containerConflict != mSubcontainers->end()) {
     eos_static_crit(eos::common::getStacktrace().c_str());
     throw_mdexception(EEXIST,
                       "Attempted to add file with name " << file->getName() <<
@@ -331,7 +331,7 @@ QuarkContainerMD::addFile(IFileMD* file)
 
   auto fileConflict = mFiles->find(file->getName());
 
-  if (fileConflict != mFiles->cend() && fileConflict->second != file->getId()) {
+  if (fileConflict != mFiles->end() && fileConflict->second != file->getId()) {
     eos_static_crit(eos::common::getStacktrace().c_str());
     throw_mdexception(EEXIST,
                       "Attempted to add file with name " << file->getName() <<
@@ -359,7 +359,7 @@ QuarkContainerMD::removeFile(const std::string& name)
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   auto iter = mFiles->find(name);
 
-  if (iter != mFiles->cend()) {
+  if (iter != mFiles->end()) {
     IFileMD::id_t id = iter->second;
     mFiles->erase(iter);
     // mFiles->resize(0);
@@ -848,11 +848,11 @@ QuarkContainerMD::getEnv(std::string& env, bool escapeAnd)
 IContainerMD::ContainerMap
 QuarkContainerMD::copyContainerMap() const
 {
-  // std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+  //std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   IContainerMD::ContainerMap retval;
 
-  for (auto it = mSubcontainers->cbegin(); it != mSubcontainers->cend(); ++it) {
-    retval.insert_or_assign(it->first, it->second);
+  for (auto it = mSubcontainers->begin(); it != mSubcontainers->end(); ++it) {
+    retval.insert(std::make_pair(it->first, it->second));
   }
 
   return retval;
@@ -867,8 +867,8 @@ QuarkContainerMD::copyFileMap() const
   // std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   IContainerMD::FileMap retval;
 
-  for (auto it = mFiles->cbegin(); it != mFiles->cend(); ++it) {
-    retval.insert_or_assign(it->first, it->second);
+  for (auto it = mFiles->begin(); it != mFiles->end(); ++it) {
+    retval.insert(std::make_pair(it->first, it->second));
   }
 
   return retval;
