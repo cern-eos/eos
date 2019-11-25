@@ -260,7 +260,6 @@ void ConversionJob::HandleError(const std::string& emsg,
   gOFS->MgmStats.Add("ConversionJobFailed", 0, 0, 1);
   eos_err("msg=\"%s\" %s conversion_id=%s", emsg.c_str(), details.c_str(),
           mConversionInfo.ToString().c_str());
-  gOFS->mConvertingTracker.RemoveEntry(mConversionInfo.fid);
   mErrorString = (details.empty()) ? emsg : (emsg + " -- " + details);
   mStatus = Status::FAILED;
 }
