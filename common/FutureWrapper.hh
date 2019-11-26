@@ -115,6 +115,18 @@ public:
     return &mObj;
   }
 
+  const T* operator->() const
+  {
+    wait();
+
+    if (mException) {
+      std::rethrow_exception(mException);
+    }
+
+    return &mObj;
+  }
+
+
   //----------------------------------------------------------------------------
   //! Check if future is armed with an exception - will wait to receive result
   //----------------------------------------------------------------------------
@@ -126,7 +138,7 @@ public:
   //----------------------------------------------------------------------------
   //! Method that waits for the underlying future to return
   //----------------------------------------------------------------------------
-  void wait()
+  void wait() const
   {
     if (mArrived) {
       return;
@@ -144,10 +156,10 @@ public:
 private:
 
 
-  folly::Future<T> mFut;
-  bool mArrived = false;
-  std::exception_ptr mException;
-  T mObj;
+  mutable folly::Future<T> mFut;
+  mutable bool mArrived = false;
+  mutable std::exception_ptr mException;
+  mutable T mObj;
 };
 
 EOSCOMMONNAMESPACE_END

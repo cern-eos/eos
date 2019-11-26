@@ -39,11 +39,6 @@ ContainerMD::ContainerMD(ContainerMD::id_t id, IFileMDSvc* file_svc,
   pCGid(0), pMode(040755), pACLId(0), pFileSvc(file_svc),
   pContSvc(cont_svc)
 {
-  mSubcontainers.set_deleted_key("");
-  mFiles.set_deleted_key("");
-  mSubcontainers.set_empty_key("##_EMPTY_##");
-  mFiles.set_empty_key("##_EMPTY_##");
-
   pCTime.tv_sec = 0;
   pCTime.tv_nsec = 0;
   pMTime.tv_sec = 0;
@@ -118,8 +113,8 @@ ContainerMD::InheritChildren(const IContainerMD& other)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   const ContainerMD& otherContainer = dynamic_cast<const ContainerMD&>(other);
-  mFiles = otherContainer.mFiles;
-  mSubcontainers = otherContainer.mSubcontainers;
+  mFiles =  otherContainer.copyFileMap();
+  mSubcontainers = otherContainer.copyContainerMap();
   setTreeSize(otherContainer.getTreeSize());
 }
 
@@ -140,9 +135,9 @@ std::shared_ptr<IContainerMD>
 ContainerMD::findContainer(const std::string& name)
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-  ContainerMap::iterator it = mSubcontainers.find(name);
+  ContainerMap::const_iterator it = mSubcontainers.find(name);
 
-  if (it == mSubcontainers.end()) {
+  if (it == mSubcontainers.cend()) {
     return std::shared_ptr<IContainerMD>((IContainerMD*)0);
   }
 
@@ -178,7 +173,7 @@ ContainerMD::removeContainer(const std::string& name)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   mSubcontainers.erase(name);
-  mSubcontainers.resize(0);
+  // mSubcontainers.resize(0);
 }
 
 //------------------------------------------------------------------------------
@@ -189,7 +184,7 @@ ContainerMD::addContainer(IContainerMD* container)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   container->setParentId(pId);
-  mSubcontainers[container->getName()] = container->getId();
+  mSubcontainers.insert_or_assign(container->getName(), container->getId());
 }
 
 //------------------------------------------------------------------------------
@@ -208,9 +203,9 @@ std::shared_ptr<IFileMD>
 ContainerMD::findFile(const std::string& name)
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
-  eos::IContainerMD::FileMap::iterator it = mFiles.find(name);
+  eos::IContainerMD::FileMap::const_iterator it = mFiles.find(name);
 
-  if (it == mFiles.end()) {
+  if (it == mFiles.cend()) {
     return nullptr;
   }
 
@@ -225,7 +220,7 @@ ContainerMD::addFile(IFileMD* file)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   file->setContainerId(pId);
-  mFiles[file->getName()] = file->getId();
+  mFiles.insert_or_assign(file->getName(), file->getId());
   IFileMDChangeListener::Event e(file, IFileMDChangeListener::SizeChange,
                                  0, file->getSize());
   lock.unlock();
@@ -239,13 +234,16 @@ void
 ContainerMD::removeFile(const std::string& name)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
-  if (mFiles.count(name)) {
-    std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(mFiles[name]);
+
+  auto it = mFiles.find(name);
+
+  if (it != mFiles.cend()) {
+    std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(it->second);
     IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::SizeChange,
                                    0, -file->getSize());
     file->getFileMDSvc()->notifyListeners(&e);
     mFiles.erase(name);
-    mFiles.resize(0);
+    // mFiles.resize(0);
   }
 }
 
@@ -437,6 +435,38 @@ ContainerMD::getAttributes() const
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   return pXAttrs;
+}
+
+//------------------------------------------------------------------------------
+// Get a copy of ContainerMap
+//------------------------------------------------------------------------------
+IContainerMD::ContainerMap
+ContainerMD::copyContainerMap() const
+{
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+
+  IContainerMD::ContainerMap retval;
+  for(auto it = mSubcontainers.cbegin(); it != mSubcontainers.cend(); it++) {
+    retval.insert_or_assign(it->first, it->second);
+  }
+
+  return retval;
+}
+
+//------------------------------------------------------------------------------
+// Get a copy of FileMap
+//------------------------------------------------------------------------------
+IContainerMD::FileMap
+ContainerMD::copyFileMap() const
+{
+  std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+
+  IContainerMD::FileMap retval;
+  for(auto it = mFiles.cbegin(); it != mFiles.cend(); it++) {
+    retval.insert_or_assign(it->first, it->second);
+  }
+
+  return retval;
 }
 
 EOSNSNAMESPACE_END

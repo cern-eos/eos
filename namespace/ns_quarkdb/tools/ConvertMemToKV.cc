@@ -215,10 +215,10 @@ ConvertContainerMD::commitSubcontainers(qclient::AsyncHandler& ah,
   cmd.push_back("HMSET");
   cmd.push_back(pDirsKey);
 
-  for (const auto& elem : mSubcontainers) {
+  for (auto it = mSubcontainers.cbegin(); it != mSubcontainers.cend(); it++) {
     ++count;
-    cmd.push_back(elem.first);
-    cmd.push_back(stringify(elem.second));
+    cmd.push_back(it->first);
+    cmd.push_back(stringify(it->second));
 
     if (count == max_per_batch) {
       ah.Register(&qclient, cmd);
@@ -262,10 +262,10 @@ ConvertContainerMD::commitFiles(qclient::AsyncHandler& ah,
   cmd.push_back("HMSET");
   cmd.push_back(pFilesKey);
 
-  for (const auto& elem : mFiles) {
+  for (auto it = mFiles.cbegin(); it != mFiles.cend(); it++) {
     ++count;
-    cmd.push_back(elem.first);
-    cmd.push_back(stringify(elem.second));
+    cmd.push_back(it->first);
+    cmd.push_back(stringify(it->second));
 
     if (count == max_per_batch) {
       ah.Register(&qclient, cmd);

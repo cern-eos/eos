@@ -570,6 +570,16 @@ public:
     return;
   }
 
+  //----------------------------------------------------------------------------
+  //! Get a copy of ContainerMap
+  //----------------------------------------------------------------------------
+  IContainerMD::ContainerMap copyContainerMap() const override;
+
+  //----------------------------------------------------------------------------
+  //! Get a copy of FileMap
+  //----------------------------------------------------------------------------
+  IContainerMD::FileMap copyFileMap() const override;
+
 protected:
   ContainerMD::id_t   pId;
   ContainerMD::id_t   pParentId;
@@ -601,7 +611,7 @@ private:
   eos::IContainerMD::ContainerMap::const_iterator
   subcontainersBegin() override
   {
-    return mSubcontainers.begin();
+    return mSubcontainers.cbegin();
   }
 
   //----------------------------------------------------------------------------
@@ -610,14 +620,7 @@ private:
   virtual eos::IContainerMD::ContainerMap::const_iterator
   subcontainersEnd() override
   {
-    return mSubcontainers.end();
-  }
-
-  //----------------------------------------------------------------------------  
-  //! Get generation value to check iterator validity                          
-  //----------------------------------------------------------------------------
-  virtual uint64_t getContainerMapGeneration() override {
-    return mSubcontainers.bucket_count();
+    return mSubcontainers.cend();
   }
 
   //----------------------------------------------------------------------------
@@ -626,7 +629,7 @@ private:
   virtual eos::IContainerMD::FileMap::const_iterator
   filesBegin() override
   {
-    return mFiles.begin();
+    return mFiles.cbegin();
   }
 
   //----------------------------------------------------------------------------
@@ -635,14 +638,7 @@ private:
   virtual eos::IContainerMD::FileMap::const_iterator
   filesEnd() override
   {
-    return mFiles.end();
-  }
-
-  //----------------------------------------------------------------------------  
-  //! Get generation value to check iterator validity                          
-  //----------------------------------------------------------------------------
-  virtual uint64_t getFileMapGeneration() override {
-    return mFiles.bucket_count();
+    return mFiles.cend();
   }
 
   // Non-presistent data members

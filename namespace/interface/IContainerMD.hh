@@ -40,6 +40,7 @@
 #include <sys/time.h>
 #include <google/dense_hash_map>
 #include <folly/futures/Future.h>
+#include <folly/concurrency/ConcurrentHashMap.h>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -78,12 +79,9 @@ public:
   typedef struct timespec mtime_t;
   typedef struct timespec tmtime_t;
   typedef std::map<std::string, std::string> XAttrMap;
-  typedef google::dense_hash_map <
-  std::string, IContainerMD::id_t,
-      Murmur3::MurmurHasher<std::string> > ContainerMap;
-  typedef google::dense_hash_map <
-  std::string, IContainerMD::id_t,
-      Murmur3::MurmurHasher<std::string> > FileMap;
+
+  using ContainerMap = folly::ConcurrentHashMap<std::string, IContainerMD::id_t>;
+  using FileMap = folly::ConcurrentHashMap<std::string, IContainerMD::id_t>;
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -424,11 +422,6 @@ protected:
   subcontainersEnd() = 0;
 
   //----------------------------------------------------------------------------
-  //! Get generation value to check interator validity
-  //----------------------------------------------------------------------------
-  virtual uint64_t getContainerMapGeneration() = 0;
-
-  //----------------------------------------------------------------------------
   //! Get iterator to the begining of the files map
   //----------------------------------------------------------------------------
   virtual eos::IContainerMD::FileMap::const_iterator
@@ -441,9 +434,14 @@ protected:
   filesEnd() = 0;
 
   //----------------------------------------------------------------------------
-  //! Get generation value to check interator validity
+  //! Get a copy of ContainerMap
   //----------------------------------------------------------------------------
-  virtual uint64_t getFileMapGeneration() = 0;
+  virtual eos::IContainerMD::ContainerMap copyContainerMap() const = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get a copy of FileMap
+  //----------------------------------------------------------------------------
+  virtual eos::IContainerMD::FileMap copyFileMap() const = 0;
 
   mutable std::shared_timed_mutex mMutex;
 };

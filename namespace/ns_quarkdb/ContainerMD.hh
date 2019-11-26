@@ -445,6 +445,16 @@ public:
   //----------------------------------------------------------------------------
   void getEnv(std::string& env, bool escapeAnd = false) override;
 
+  //----------------------------------------------------------------------------
+  //! Get a copy of ContainerMap
+  //----------------------------------------------------------------------------
+  IContainerMD::ContainerMap copyContainerMap() const override;
+
+  //----------------------------------------------------------------------------
+  //! Get a copy of FileMap
+  //----------------------------------------------------------------------------
+  IContainerMD::FileMap copyFileMap() const override;
+
 private:
   FRIEND_TEST(VariousTests, EtagFormattingContainer);
 
@@ -470,7 +480,7 @@ private:
   subcontainersBegin() override
   {
     // No lock here, only ContainerMapIterator can call us, which locks the mutex.
-    return mSubcontainers->begin();
+    return mSubcontainers->cbegin();
   }
 
   //----------------------------------------------------------------------------
@@ -480,14 +490,7 @@ private:
   subcontainersEnd() override
   {
     // No lock here, only ContainerMapIterator can call us, which locks the mutex.
-    return mSubcontainers->end();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get generation value to check iterator validity  
-  //----------------------------------------------------------------------------
-  virtual uint64_t getContainerMapGeneration() override {
-    return mSubcontainers->bucket_count();
+    return mSubcontainers->cend();
   }
 
   //----------------------------------------------------------------------------
@@ -497,7 +500,7 @@ private:
   filesBegin() override
   {
     // No lock here, only FileMapIterator can call us, which locks the mutex.
-    return mFiles->begin();
+    return mFiles->cbegin();
   }
 
   //----------------------------------------------------------------------------
@@ -507,14 +510,7 @@ private:
   filesEnd() override
   {
     // No lock here, only FileMapIterator can call us, which locks the mutex.
-    return mFiles->end();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get generation value to check iterator validity  
-  //----------------------------------------------------------------------------
-  virtual uint64_t getFileMapGeneration() override {
-    return mFiles->bucket_count();
+    return mFiles->cend();
   }
 
   eos::ns::ContainerMdProto mCont;      ///< Protobuf container representation

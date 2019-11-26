@@ -1158,13 +1158,13 @@ int Inspector::printContainerMD(uint64_t cid, bool withParents, std::ostream& ou
 
   out << "------------------------------------------------" << std::endl;
   out << "FileMap:" << std::endl;
-  for(auto it = fileMap.begin(); it != fileMap.end(); it++) {
+  for(auto it = fileMap.cbegin(); it != fileMap.cend(); it++) {
     out << it->first << ": " << it->second << std::endl;
   }
 
   out << "------------------------------------------------" << std::endl;
   out << "ContainerMap:" << std::endl;
-  for(auto it = containerMap.begin(); it != containerMap.end(); it++) {
+  for(auto it = containerMap.cbegin(); it != containerMap.cend(); it++) {
     out << it->first << ": " << it->second << std::endl;
   }
 
@@ -1336,11 +1336,11 @@ int Inspector::fixShadowFile(bool dryRun, uint64_t fid, const std::string &desti
   //----------------------------------------------------------------------------
   bool cidExists = MetadataFetcher::doesContainerMdExist(mQcl, ContainerIdentifier(val.cont_id())).get();
   IContainerMD::FileMap cidFilemap = MetadataFetcher::getFileMap(mQcl, ContainerIdentifier(val.cont_id())).get();
-  bool filemapEntryExists = cidFilemap.find(val.name()) != cidFilemap.end();
+  bool filemapEntryExists = cidFilemap.find(val.name()) != cidFilemap.cend();
   bool filemapEntryValid = (cidFilemap[val.name()] == val.id());
 
   IContainerMD::ContainerMap cidContainermap = MetadataFetcher::getContainerMap(mQcl, ContainerIdentifier(val.cont_id())).get();
-  bool containerMapConflict = cidContainermap.find(val.name()) != cidContainermap.end();
+  bool containerMapConflict = cidContainermap.find(val.name()) != cidContainermap.cend();
 
   out << "Parent exists? " << toYesOrNo(cidExists) << std::endl;
   out << "Filemap entry exists? " << toYesOrNo(filemapEntryExists) << std::endl;
@@ -1509,7 +1509,7 @@ int Inspector::renameCid(bool dryRun, uint64_t cid, uint64_t newParent, const st
 
     parentExists = MetadataFetcher::doesContainerMdExist(mQcl, ContainerIdentifier(val.parent_id())).get();
     parentContainermap = MetadataFetcher::getContainerMap(mQcl, ContainerIdentifier(val.parent_id())).get();
-    containermapEntryExists = parentContainermap.find(val.name()) != parentContainermap.end();
+    containermapEntryExists = parentContainermap.find(val.name()) != parentContainermap.cend();
     containermapEntryValid = (parentContainermap[val.name()] == val.id());
     oldName = val.name();
     oldContainer = val.parent_id();
@@ -1577,7 +1577,7 @@ int Inspector::renameFid(bool dryRun, uint64_t fid, uint64_t newParent, const st
 
   bool cidExists = MetadataFetcher::doesContainerMdExist(mQcl, ContainerIdentifier(val.cont_id())).get();
   IContainerMD::FileMap cidFilemap = MetadataFetcher::getFileMap(mQcl, ContainerIdentifier(val.cont_id())).get();
-  bool filemapEntryExists = cidFilemap.find(val.name()) != cidFilemap.end();
+  bool filemapEntryExists = cidFilemap.find(val.name()) != cidFilemap.cend();
   bool filemapEntryValid = (cidFilemap[val.name()] == val.id());
   std::string oldName = val.name();
   uint64_t oldContainer = val.cont_id();

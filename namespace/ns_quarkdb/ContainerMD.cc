@@ -46,10 +46,6 @@ QuarkContainerMD::QuarkContainerMD(IContainerMD::id_t id, IFileMDSvc* file_svc,
     pFilesKey(stringify(id) + constants::sMapFilesSuffix),
     pDirsKey(stringify(id) + constants::sMapDirsSuffix)
 {
-  mSubcontainers->set_deleted_key("");
-  mFiles->set_deleted_key("");
-  mSubcontainers->set_empty_key("##_EMPTY_##");
-  mFiles->set_empty_key("##_EMPTY_##");
   mCont.set_id(id);
   mCont.set_mode(040755);
   mClock = std::chrono::high_resolution_clock::now().time_since_epoch().count();
@@ -120,8 +116,8 @@ QuarkContainerMD::InheritChildren(const IContainerMD& other)
 {
   QuarkContainerMD& otherContainer =
     dynamic_cast<QuarkContainerMD&>(const_cast<IContainerMD&>(other));
-  mFiles.get() = otherContainer.mFiles.get();
-  mSubcontainers.get() = otherContainer.mSubcontainers.get();
+  mFiles.get() = otherContainer.copyFileMap();
+  mSubcontainers.get() = otherContainer.copyContainerMap();
   setTreeSize(otherContainer.getTreeSize());
 }
 
@@ -168,7 +164,7 @@ QuarkContainerMD::findItem(const std::string& name)
   // a container with such name.
   auto iter = mSubcontainers->find(name);
 
-  if (iter != mSubcontainers->end()) {
+  if (iter != mSubcontainers->cend()) {
     // We have a hit, this is a ContainerMD. Retrieve result asynchronously
     // from container service.
     ContainerIdentifier target(iter->second);
@@ -189,7 +185,7 @@ QuarkContainerMD::findItem(const std::string& name)
   // This is not a ContainerMD.. maybe it's a FileMD?
   auto iter2 = mFiles->find(name);
 
-  if (iter2 != mFiles->end()) {
+  if (iter2 != mFiles->cend()) {
     // We have a hit, this is a FileMD. Retrieve result asynchronously
     // from file service.
     FileIdentifier target(iter2->second);
@@ -220,14 +216,14 @@ QuarkContainerMD::removeContainer(const std::string& name)
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   auto it = mSubcontainers->find(name);
 
-  if (it == mSubcontainers->end()) {
+  if (it == mSubcontainers->cend()) {
     MDException e(ENOENT);
     e.getMessage()  << __FUNCTION__ << " Container " << name << " not found";
     throw e;
   }
 
   mSubcontainers->erase(it);
-  mSubcontainers->resize(0);
+  // mSubcontainers->resize(0);
   // Delete container also from KV backend
   pFlusher->hdel(pDirsKey, name);
 }
@@ -249,7 +245,7 @@ QuarkContainerMD::addContainer(IContainerMD* container)
 
   auto containerConflict = mSubcontainers->find(container->getName());
 
-  if (containerConflict != mSubcontainers->end() &&
+  if (containerConflict != mSubcontainers->cend() &&
       containerConflict->second != container->getId()) {
     eos_static_crit(eos::common::getStacktrace().c_str());
     throw_mdexception(EEXIST, "Attempted to add container with name "
@@ -259,7 +255,7 @@ QuarkContainerMD::addContainer(IContainerMD* container)
 
   auto fileConflict = mFiles->find(container->getName());
 
-  if (fileConflict != mFiles->end()) {
+  if (fileConflict != mFiles->cend()) {
     eos_static_crit(eos::common::getStacktrace().c_str());
     throw_mdexception(EEXIST, "Attempted to add container with name "
                       << container->getName()
@@ -326,7 +322,7 @@ QuarkContainerMD::addFile(IFileMD* file)
 
   auto containerConflict = mSubcontainers->find(file->getName());
 
-  if (containerConflict != mSubcontainers->end()) {
+  if (containerConflict != mSubcontainers->cend()) {
     eos_static_crit(eos::common::getStacktrace().c_str());
     throw_mdexception(EEXIST,
                       "Attempted to add file with name " << file->getName() <<
@@ -335,7 +331,7 @@ QuarkContainerMD::addFile(IFileMD* file)
 
   auto fileConflict = mFiles->find(file->getName());
 
-  if (fileConflict != mFiles->end() && fileConflict->second != file->getId()) {
+  if (fileConflict != mFiles->cend() && fileConflict->second != file->getId()) {
     eos_static_crit(eos::common::getStacktrace().c_str());
     throw_mdexception(EEXIST,
                       "Attempted to add file with name " << file->getName() <<
@@ -363,10 +359,10 @@ QuarkContainerMD::removeFile(const std::string& name)
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   auto iter = mFiles->find(name);
 
-  if (iter != mFiles->end()) {
+  if (iter != mFiles->cend()) {
     IFileMD::id_t id = iter->second;
     mFiles->erase(iter);
-    mFiles->resize(0);
+    // mFiles->resize(0);
     pFlusher->hdel(pFilesKey, name);
 
     try {
@@ -840,6 +836,38 @@ QuarkContainerMD::getEnv(std::string& env, bool escapeAnd)
   }
 
   env += oss.str();
+}
+
+//------------------------------------------------------------------------------
+// Get a copy of ContainerMap
+//------------------------------------------------------------------------------
+IContainerMD::ContainerMap
+QuarkContainerMD::copyContainerMap() const
+{
+  // std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+
+  IContainerMD::ContainerMap retval;
+  for(auto it = mSubcontainers->cbegin(); it != mSubcontainers->cend(); it++) {
+    retval.insert_or_assign(it->first, it->second);
+  }
+
+  return retval;
+}
+
+//------------------------------------------------------------------------------
+// Get a copy of FileMap
+//------------------------------------------------------------------------------
+IContainerMD::FileMap
+QuarkContainerMD::copyFileMap() const
+{
+  // std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+
+  IContainerMD::FileMap retval;
+  for(auto it = mFiles->cbegin(); it != mFiles->cend(); it++) {
+    retval.insert_or_assign(it->first, it->second);
+  }
+
+  return retval;
 }
 
 EOSNSNAMESPACE_END

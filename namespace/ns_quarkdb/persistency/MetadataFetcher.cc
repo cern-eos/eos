@@ -162,8 +162,6 @@ public:
   {
     mQcl = &qcl;
     mTarget = trg;
-    mContents.set_deleted_key("");
-    mContents.set_empty_key("##_EMPTY_##");
     folly::Future<ContainerType> fut = mPromise.getFuture();
     // There's a particularly evil race condition here: From the point we call
     // execCB and onwards, we must assume that the callback has arrived,
@@ -221,7 +219,7 @@ public:
         return set_exception(st);
       }
 
-      mContents[filename] = value;
+      mContents.insert_or_assign(filename, value);
     }
 
     // Fire off next request?
@@ -446,7 +444,7 @@ MetadataFetcher::getFilesFromFilemap(qclient::QClient& qcl, const IContainerMD::
   // based on filename, though.
   std::map<std::string, IFileMD::id_t> sortedFileMap;
 
-  for (auto it = fileMap.begin(); it != fileMap.end(); it++) {
+  for (auto it = fileMap.cbegin(); it != fileMap.cend(); it++) {
     sortedFileMap[it->first] = it->second;
   }
 
@@ -480,13 +478,13 @@ MetadataFetcher::getContainersFromContainerMap(qclient::QClient& qcl,
   // sorted based on filename, though.
   std::map<std::string ,IContainerMD::id_t> sortedContainerMap;
 
-  for(auto it = containerMap.begin(); it != containerMap.end(); it++) {
+  for(auto it = containerMap.cbegin(); it != containerMap.cend(); it++) {
     sortedContainerMap[it->first] = it->second;
   }
 
   std::vector<folly::Future<eos::ns::ContainerMdProto>> retval;
 
-  for(auto it = sortedContainerMap.begin(); it != sortedContainerMap.end(); it++) {
+  for(auto it = sortedContainerMap.cbegin(); it != sortedContainerMap.cend(); it++) {
     retval.emplace_back(getContainerFromId(qcl, ContainerIdentifier(it->second)));
   }
 

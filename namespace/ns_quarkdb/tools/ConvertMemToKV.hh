@@ -185,7 +185,7 @@ public:
   //----------------------------------------------------------------------------
   void addContainer(IContainerMD* container) override
   {
-    mSubcontainers[container->getName()] = container->getId();
+    mSubcontainers.insert_or_assign(container->getName(), container->getId());
   }
 
   //----------------------------------------------------------------------------
@@ -194,7 +194,7 @@ public:
   void addFile(IFileMD* file) override
   {
     file->setContainerId(pId);
-    mFiles[file->getName()] = file->getId();
+    mFiles.insert_or_assign(file->getName(), file->getId());
   }
 
   //----------------------------------------------------------------------------
@@ -202,7 +202,7 @@ public:
   //----------------------------------------------------------------------------
   bool findFileName(const std::string& name)
   {
-    return (mFiles.find(name) != mFiles.end());
+    return (mFiles.find(name) != mFiles.cend());
   }
 
   //----------------------------------------------------------------------------

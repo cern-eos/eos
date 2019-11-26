@@ -134,12 +134,11 @@ void SearchNode::stageChildren()
   // storing into a vector and calling std::sort might be faster, TODO
   std::map<std::string, IContainerMD::id_t, FilesystemEntryComparator> sortedContainerMap;
 
-  for (auto it = containerMap->begin(); it != containerMap->end(); it++) {
+  for (auto it = containerMap->cbegin(); it != containerMap->cend(); it++) {
     sortedContainerMap[it->first] = it->second;
   }
 
-  for (auto it = sortedContainerMap.begin(); it != sortedContainerMap.end();
-       it++) {
+  for (auto it = sortedContainerMap.begin(); it != sortedContainerMap.end(); it++) {
     children.emplace_back(new SearchNode(explorer, ContainerIdentifier(it->second), this, executor, ignoreFiles));
   }
 }
