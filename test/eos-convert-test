@@ -38,12 +38,43 @@ set -e
 #------------------------------------------------------------------------------
 
 function usage() {
-  echo "Usage: $0 <eos_instance_name> [<eos_mgm_hostname>]"
+  echo "Usage: $0 <eos_instance_name> [<eos_mgm_hostname>] [--files <files>]"
   echo "       <eos_instance_name> - the /eos/<instance_name>/ to access"
   echo "       <eos_mgm_hostname>  - optional MGM hostname (will use EOS_MGM_URL env variable otherwise)"
+  echo "       <files>             - number of files to upload for each conversion layout"
   echo ""
 
   exit 1
+}
+
+function parse_arguments() {
+  EOS_INSTANCE_NAME=$1
+  shift
+
+  while [[ $# -gt 0 ]]
+  do
+    if [[ "$1" = "--files" ]]; then
+      if [[ $2 != +([0-9]) ]]; then
+        echo "error: <files> is not a positive integer"
+        exit 1
+      fi
+
+      N_FILES=$2
+      shift
+    else
+      EOS_MGM_HOSTNAME=$1
+    fi
+
+    shift
+  done
+
+  if [[ -z "$EOS_MGM_HOSTNAME" ]]; then
+    if [[ -n "$EOS_MGM_URL" ]]; then
+      EOS_MGM_HOSTNAME=$EOS_MGM_URL
+    else
+      EOS_MGM_HOSTNAME=localhost
+    fi
+  fi
 }
 
 function check_preconditions() {
@@ -67,11 +98,11 @@ function upload_testfiles() {
     eos mkdir /eos/${EOS_INSTANCE_NAME}/convert/${layout}/
     eos chmod 2777 /eos/${EOS_INSTANCE_NAME}/convert/${layout}/ &> /dev/null
 
-    for j in $(seq 1 100); do
+    for j in $(seq 1 ${N_FILES}); do
       xrdcp ${TEST_FILE} root://${EOS_MGM_HOSTNAME}//eos/${EOS_INSTANCE_NAME}/convert/${layout}/${j}.dat &> /dev/null
     done
 
-    echo "Uploaded 100 files to /eos/${EOS_INSTANCE_NAME}/convert/${layout}/"
+    echo "Uploaded ${N_FILES} files to /eos/${EOS_INSTANCE_NAME}/convert/${layout}/"
   done
 }
 
@@ -79,29 +110,22 @@ function upload_testfiles() {
 # Global setup
 #------------------------------------------------------------------------------
 
-if [[ $# -eq 0 || $# -gt 2 ]]; then
+if [[ $# -eq 0 || $# -gt 4 ]]; then
   usage
 fi
 
 # Setup layout parameters
 LAYOUTS=(replica raiddp qrain)
 REPLICAS=(4 6 6)
+N_FILES=100
 
-# Setup EOS instance variables
-EOS_INSTANCE_NAME=$1
-EOS_MGM_HOSTNAME=$2
-
-if [[ -z "$EOS_MGM_HOSTNAME" ]]; then
-  if [[ -n "$EOS_MGM_URL" ]]; then
-    EOS_MGM_HOSTNAME=$EOS_MGM_URL
-  else
-    EOS_MGM_HOSTNAME=localhost
-  fi
-fi
+# Setup EOS instance parameters
+parse_arguments "$@"
 
 export EOS_MGM_URL=${EOS_MGM_HOSTNAME}
 echo "EOS_INSTANCE_NAME=${EOS_INSTANCE_NAME}"
 echo "EOS_MGM_HOSTNAME=${EOS_MGM_HOSTNAME}"
+echo "N_FILES=${N_FILES}"
 
 N_FSTS_INITIAL=$(eos fs ls | grep "online" | grep -c "booted")
 check_preconditions ${N_FSTS_INITIAL}
