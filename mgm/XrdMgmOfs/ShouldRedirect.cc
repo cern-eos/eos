@@ -45,7 +45,7 @@ XrdMgmOfs::ShouldRedirect(const char* function, int __AccessMode__,
     }
   }
 
-  if (Access::gRedirectionRules.size()) {
+  if (!Access::gRedirectionRules.empty()) {
     bool c1 = Access::gRedirectionRules.count(std::string("*"));
     bool c3 = (IS_ACCESSMODE_R &&
                Access::gRedirectionRules.count(std::string("r:*")));
@@ -83,15 +83,13 @@ XrdMgmOfs::ShouldRedirect(const char* function, int __AccessMode__,
         }
       }
 
-      if (tokens.size() == 1) {
-        host = tokens[0].c_str();
-        port = 1094;
-      } else {
-        host = tokens[0].c_str();
-        port = atoi(tokens[1].c_str());
-
-        if (port == 0) {
+      if (!tokens.empty()) { // tokens should never be empty but @note fuzz tests showed it could be. Will have to dig deeper
+        if (tokens.size() == 1) {
+          host = tokens[0];
           port = 1094;
+        } else {
+          host = tokens[0];
+          port = ( strtol(tokens[1].c_str(), nullptr,10) == 0 ? 1094 : 0 );
         }
       }
 

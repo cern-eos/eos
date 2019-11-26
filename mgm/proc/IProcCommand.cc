@@ -556,7 +556,7 @@ IProcCommand::HasSlot()
         eos::console::RequestProto::kSpace,
         eos::console::RequestProto::kConfig,
         eos::console::RequestProto::kAccess,
-  }) {
+    }) {
       mCmdsExecuting.emplace(type, 0ull);
     }
   }
