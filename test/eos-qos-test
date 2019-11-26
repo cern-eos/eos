@@ -49,9 +49,9 @@ function usage() {
 }
 
 function check_preconditions() {
-  NO_FSTS=$(eos fs ls | grep -c "online")
+  local N_FSTS=$1
 
-  if (( NO_FSTS < 3 )); then
+  if (( N_FSTS < 3 )); then
     echo "error: not enough FSTs booted (should be at least 3)"
     exit 1
   fi
@@ -83,12 +83,12 @@ function element_in_array() {
 }
 
 function replicate_file() {
-  no_fsts=$(eos fs ls | grep -c "online")
+  n_fsts=$(eos fs ls | grep "online" | grep -c "booted")
   file=$1
   locations=($(eos -j fileinfo ${file} | jq '.locations[].fsid'))
   target_fsid=0
 
-  for i in $(seq 1 ${no_fsts}); do
+  for i in $(seq 1 ${n_fsts}); do
     if ! element_in_array ${i} "${locations[@]}" ; then
       target_fsid=${i}
       break
@@ -128,7 +128,9 @@ fi
 export EOS_MGM_URL=${EOS_MGM_HOSTNAME}
 echo "EOS_INSTANCE_NAME=${EOS_INSTANCE_NAME}"
 echo "EOS_MGM_HOSTNAME=${EOS_MGM_HOSTNAME}"
-check_preconditions
+
+N_FSTS_INITIAL=$(eos fs ls | grep "online" | grep -c "booted")
+check_preconditions ${N_FSTS_INITIAL}
 
 # Create dummy test file
 TEST_FILE=/tmp/1mb.dat
@@ -160,6 +162,19 @@ eos -j qos get /eos/${EOS_INSTANCE_NAME}/qos/file.dat | jq '.target_qos' | grep 
 echo ""; echo "Waiting 75 seconds for conversion"
 sleep 75
 
+#------------------------------------------------------------------------------
+# Perform validations
+#------------------------------------------------------------------------------
+
+# Check all FSTs are still online
+N_FSTS_FINAL=$(eos fs ls | grep "online" | grep -c "booted")
+
+if [ ${N_FSTS_INITIAL} != ${N_FSTS_FINAL} ]; then
+  echo "error: some FSTs are not online anymore"
+  eos fs ls
+  exit 1
+fi
+
 # Validate QoS class
 echo "Verify transition took place"
 eos -j qos get /eos/${EOS_INSTANCE_NAME}/qos/file.dat | jq '"current_qos=" + .current_qos, "target_qos=" + (.target_qos|tostring)'
@@ -168,7 +183,10 @@ eos -j qos get /eos/${EOS_INSTANCE_NAME}/qos/file.dat | jq '.target_qos' | grep 
 
 echo "QoS transition successful"
 
+#------------------------------------------------------------------------------
 # Perform clean-up
+#------------------------------------------------------------------------------
+
 eos rm -rf /eos/${EOS_INSTANCE_NAME}/qos/* &> /dev/null
 eos rmdir /eos/${EOS_INSTANCE_NAME}/qos/
 
