@@ -47,9 +47,9 @@ function usage() {
 }
 
 function check_preconditions() {
-  NO_FSTS=$(eos fs ls | grep -c "online")
+  local N_FSTS=$1
 
-  if (( NO_FSTS < 6 )); then
+  if (( N_FSTS < 6 )); then
     echo "error: not enough FSTs booted (should be at least 6)"
     exit 1
   fi
@@ -102,7 +102,9 @@ fi
 export EOS_MGM_URL=${EOS_MGM_HOSTNAME}
 echo "EOS_INSTANCE_NAME=${EOS_INSTANCE_NAME}"
 echo "EOS_MGM_HOSTNAME=${EOS_MGM_HOSTNAME}"
-check_preconditions
+
+N_FSTS_INITIAL=$(eos fs ls | grep "online" | grep -c "booted")
+check_preconditions ${N_FSTS_INITIAL}
 
 # Create dummy test file
 TEST_FILE=/tmp/1mb.dat
@@ -137,6 +139,19 @@ done
 echo "Waiting 90 seconds for conversion finish"
 sleep 90
 
+#------------------------------------------------------------------------------
+# Perform validations
+#------------------------------------------------------------------------------
+
+# Check all FSTs are still online
+N_FSTS_FINAL=$(eos fs ls | grep "online" | grep -c "booted")
+
+if [ ${N_FSTS_INITIAL} != ${N_FSTS_FINAL} ]; then
+  echo "error: some FSTs are not online anymore"
+  eos fs ls
+  exit 1
+fi
+
 # Verify conversions were successful
 for i in $(seq 0 ${N}); do
   layout=${LAYOUTS[${i}]}
@@ -147,7 +162,10 @@ done
 
 echo "Conversion successful"
 
+#------------------------------------------------------------------------------
 # Perform clean-up
+#------------------------------------------------------------------------------
+
 for layout in "${LAYOUTS[@]}"; do
   eos rm -rf /eos/${EOS_INSTANCE_NAME}/convert/${layout}/* &> /dev/null
   eos rmdir /eos/${EOS_INSTANCE_NAME}/convert/${layout}/
