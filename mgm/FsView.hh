@@ -741,11 +741,14 @@ public:
   //! Remove a filesystem
   //!
   //! @param fs file system object
-  //! @param unregisterInGeoTreeEngine'
+  //! @param unreg_from_geo_tree if true unregister from GeoTree
+  //! @param notify_fst if true delete the shared hash object corresponding
+  //!        to the current file system
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool UnRegister(FileSystem* fs, bool unregisterInGeoTreeEngine = true);
+  bool UnRegister(FileSystem* fs, bool unreg_from_geo_tree = true,
+                  bool notify_fst = false);
 
   //----------------------------------------------------------------------------
   //! Check's if a queue+path exists already

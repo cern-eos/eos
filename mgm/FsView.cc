@@ -1824,7 +1824,8 @@ FsView::MoveGroup(FileSystem* fs, std::string group)
 // Remove a file system
 //------------------------------------------------------------------------------
 bool
-FsView::UnRegister(FileSystem* fs, bool unregisterInGeoTreeEngine)
+FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
+                   bool notify_fst)
 {
   if (!fs) {
     return false;
@@ -1863,7 +1864,7 @@ FsView::UnRegister(FileSystem* fs, bool unregisterInGeoTreeEngine)
     if (mGroupView.count(snapshot.mGroup)) {
       FsGroup* group = mGroupView[snapshot.mGroup];
 
-      if (unregisterInGeoTreeEngine
+      if (unreg_from_geo_tree
           && !gGeoTreeEngine.removeFsFromGroup(fs, group, false)) {
         if (Register(fs, fs->getCoreParams(), false)) {
           eos_err("could not remove fs %u from GeoTreeEngine : fs was "
@@ -1904,6 +1905,12 @@ FsView::UnRegister(FileSystem* fs, bool unregisterInGeoTreeEngine)
 
     // Remove mapping
     RemoveMapping(snapshot.mId, snapshot.mUuid);
+
+    // Notify the FST to delete the fs object from local maps
+    if (notify_fst) {
+      fs->DeleteSharedHash();
+    }
+
     delete fs;
     return true;
   }
@@ -2830,14 +2837,13 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
 
   if (tokens[1] == "policy.recycle") {
     eos_static_info("policy-recycle := %s", val.c_str());
-	       
+
     if (val == "on") {
       gOFS->enforceRecycleBin = true;
     } else {
       gOFS->enforceRecycleBin = false;
     }
   }
-
 
   common::SharedHashLocator locator;
 

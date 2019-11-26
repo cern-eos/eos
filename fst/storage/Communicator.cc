@@ -476,7 +476,7 @@ Storage::Communicator(ThreadAssistant& assistant)
             (queue.beginswith(Config::gConfig.FstQueue) == false)) {
           continue;
         } else {
-          //UnregisterFileSystem(event.mSubject);
+          UnregisterFileSystem(event.mSubject);
         }
       } else if (event.mType == XrdMqSharedObjectManager::kMqSubjectModification) {
         // Handle subject modification, seperate <path> from <key>

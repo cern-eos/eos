@@ -471,7 +471,8 @@ void FileSystem::fs_snapshot_t::fillFromCoreParams(const FileSystemCoreParams&
 // Constructor
 //------------------------------------------------------------------------------
 FileSystem::FileSystem(const FileSystemLocator& locator,
-                       XrdMqSharedObjectManager* som, qclient::SharedManager* qsom, bool bc2mgm)
+                       XrdMqSharedObjectManager* som,
+                       qclient::SharedManager* qsom, bool bc2mgm)
   : mLocator(locator), mHashLocator(locator, bc2mgm)
 {
   mSharedManager = qsom;
@@ -508,12 +509,6 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
     mBalanceQueue = 0;
     mExternQueue = 0;
   }
-
-  if (bc2mgm) {
-    BroadCastDeletion = false;
-  } else {
-    BroadCastDeletion = true;
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -521,17 +516,24 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
 //------------------------------------------------------------------------------
 FileSystem::~FileSystem()
 {
-  // remove the shared hash of this file system
-  if (mSom) {
-    mSom->DeleteSharedHash(mLocator.getQueuePath().c_str(), BroadCastDeletion);
-  }
-
   if (mBalanceQueue) {
     delete mBalanceQueue;
   }
 
   if (mExternQueue) {
     delete mExternQueue;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Delete shared hash object corresponding to this file system and also
+// broadcast the message. This should be called only when an explicit removal
+// of the file system is request though "fs rm".
+//------------------------------------------------------------------------------
+void FileSystem::DeleteSharedHash()
+{
+  if (mSom) {
+    mSom->DeleteSharedHash(mLocator.getQueuePath().c_str());
   }
 }
 

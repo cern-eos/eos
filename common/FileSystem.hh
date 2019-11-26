@@ -542,7 +542,7 @@ public:
   //----------------------------------------------------------------------------
   FileSystem(const FileSystemLocator& locator,
              XrdMqSharedObjectManager* som, qclient::SharedManager* qsom,
-             bool bc2mgm = false);
+             bool b2mgm = false);
 
   //----------------------------------------------------------------------------
   // Destructor
@@ -864,8 +864,12 @@ public:
   //----------------------------------------------------------------------------
   bool hasHeartbeat() const;
 
-
-
+  //----------------------------------------------------------------------------
+  //! Delete shared hash object corresponding to this file system and also
+  //! broadcast the message. This should be called only when an explicit removal
+  //! of the file system is request though "fs rm"
+  //----------------------------------------------------------------------------
+  void DeleteSharedHash();
 };
 
 EOSCOMMONNAMESPACE_END;

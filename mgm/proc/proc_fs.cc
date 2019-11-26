@@ -1349,7 +1349,7 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
         stdErr += " ";
       }
 
-      if (!FsView::gFsView.UnRegister(fs)) {
+      if (!FsView::gFsView.UnRegister(fs, true, true)) {
         stdErr = "error: couldn't unregister the filesystem ";
         stdErr += nodename.c_str();
         stdErr += " ";
