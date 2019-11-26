@@ -49,7 +49,7 @@ run_test_script "MQ" eos-mq-tests eos-mq.eoscluster.cern.ch
 run_test_script "drain" eos-drain-test localhost
 
 if [[ "$QUARKDB" = true ]]; then
-  run_test_script "converter" eos-convert-test dockertest
+  run_test_script "converter" eos-convert-test dockertest --files 50
   run_test_script "qos" eos-qos-test dockertest
 fi
 
