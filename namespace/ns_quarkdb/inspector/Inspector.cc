@@ -221,7 +221,7 @@ int Inspector::scanDirs(bool onlyNoAttrs, bool fullPaths, bool countContents, si
       continue;
     }
 
-    out << "cid=" << proto.id() << " name=" << fetchNameOrPath(proto, item) << " parent=" << proto.parent_id() << " uid=" << proto.uid() << " mode=" << proto.mode();
+    out << "cid=" << proto.id() << " name=" << fetchNameOrPath(proto, item) << " parent=" << proto.parent_id() << " uid=" << proto.uid() << " mode=" << std::oct << proto.mode() << std::dec;
 
     if(countContents) {
       out << " file-count=" << countAsString(item.fileCount);
