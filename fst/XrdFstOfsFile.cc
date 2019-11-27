@@ -46,6 +46,17 @@ EOSFSTNAMESPACE_BEGIN
 
 const uint16_t XrdFstOfsFile::msDefaultTimeout = 300; // default timeout value
 
+static uint64_t findInode(uint64_t fid) {
+  uint64_t threshold = 34'000'000'000ull;
+
+  if(fid < threshold) {
+    return common::FileId::LegacyFidToInode(fid);
+  }
+  else {
+    return common::FileId::NewFidToInode(fid);
+  }
+}
+
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -1392,7 +1403,7 @@ XrdFstOfsFile::close()
           // use inode + checksum
           char setag[256];
           snprintf(setag, sizeof(setag) - 1, "\"%llu:%s\"",
-                   eos::common::FileId::LegacyFidToInode((unsigned long long) fMd->mProtoFmd.fid()),
+                   findInode((unsigned long long) fMd->mProtoFmd.fid()),
                    fMd->mProtoFmd.checksum().c_str());
           mEtag = setag;
         } else {
@@ -1405,7 +1416,7 @@ XrdFstOfsFile::close()
         // use inode + mtime
         char setag[256];
         snprintf(setag, sizeof(setag) - 1, "\"%llu:%llu\"",
-                 eos::common::FileId::LegacyFidToInode((unsigned long long) fMd->mProtoFmd.fid()),
+		 findInode((unsigned long long) fMd->mProtoFmd.fid()),
                  (unsigned long long) fMd->mProtoFmd.mtime());
         mEtag = setag;
       }
