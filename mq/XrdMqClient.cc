@@ -38,7 +38,6 @@
 /*                        X r d M q C l i e n t                               */
 /******************************************************************************/
 
-XrdSysMutex XrdMqClient::Mutex;
 XrdMqClient::DiscardResponseHandler XrdMqClient::gDiscardResponseHandler;
 
 //------------------------------------------------------------------------------
@@ -59,7 +58,6 @@ XrdMqClient::XrdMqClient(const char* clientid, const char* brokerurl,
                          const char* defaultreceiverid)
 {
   kInitOK = true;
-  kBrokerN = 0;
   kMessageBuffer = "";
   kRecvBuffer = nullptr;
   kRecvBufferAlloc = 0;
@@ -144,56 +142,13 @@ XrdMqClient::~XrdMqClient()
 }
 
 //------------------------------------------------------------------------------
-// Subscribe
-//------------------------------------------------------------------------------
-bool
-XrdMqClient::Subscribe()
-{
-  for (int i = 0; i < kBrokerN; i++) {
-    XrdCl::OpenFlags::Flags flags_xrdcl = XrdCl::OpenFlags::Read;
-    XrdCl::File* file = GetBrokerXrdClientReceiver(i);
-    XrdOucString* url = kBrokerUrls.Find(GetBrokerId(i).c_str());
-
-    if (file && file->Open(url->c_str(), flags_xrdcl).IsOK()) {
-      eos_static_info("msg=\"successfully subscribed to url: %s\"",
-                      url->c_str());
-    } else {
-      eos_static_err("msg=\"failed to subscribe to url: %s\"", url->c_str());
-    }
-  }
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
-// Unsubscribe
-//------------------------------------------------------------------------------
-bool
-XrdMqClient::Unsubscribe()
-{
-  for (int i = 0; i < kBrokerN; i++) {
-    XrdCl::File* file = GetBrokerXrdClientReceiver(i);
-
-    if (file) {
-      (void) file->Close(1);
-    }
-  }
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
 // Disconnect
 //------------------------------------------------------------------------------
 void
 XrdMqClient::Disconnect()
 {
-  for (int i = 0; i < kBrokerN; i++) {
-    delete GetBrokerXrdClientReceiver(i);
-  }
-
-  kBrokerN = 0;
-  return;
+  eos::common::RWMutexWriteLock wr_lock(mMutexMap);
+  mMapBrokerToChannels.clear();
 }
 
 //------------------------------------------------------------------------------
@@ -204,7 +159,6 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
                          bool encrypt, bool asynchronous)
 {
   bool rc = false;
-  XrdSysMutexHelper lock(Mutex);
   // Tag the sender
   msg.kMessageHeader.kSenderId = kClientId;
   // Tag the send time
@@ -240,47 +194,44 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
     return false;
   }
 
-  XrdCl::Buffer arg;
-  XrdCl::XRootDStatus status;
+  {
+    eos::common::RWMutexReadLock rd_lock(mMutexMap);
 
-  for (int i = 0; i < kBrokerN; i++) {
-    uint16_t timeout = (getenv("EOS_FST_OP_TIMEOUT") ?
-                        atoi(getenv("EOS_FST_OP_TIMEOUT")) : 0);
-    XrdCl::Buffer* response_raw {nullptr};
-    std::unique_ptr<XrdCl::Buffer> response {nullptr};
-    XrdCl::URL url(GetBrokerUrl(i)->c_str());
-    std::unique_ptr<XrdCl::FileSystem> fs {new XrdCl::FileSystem(url)};
+    for (const auto& broker : mMapBrokerToChannels) {
+      XrdCl::Buffer arg;
+      XrdCl::XRootDStatus status;
+      uint16_t timeout = (getenv("EOS_FST_OP_TIMEOUT") ?
+                          atoi(getenv("EOS_FST_OP_TIMEOUT")) : 0);
+      XrdCl::Buffer* response_raw {nullptr};
+      std::unique_ptr<XrdCl::Buffer> response {nullptr};
+      auto send_channel = broker.second.second;
+      arg.FromString(message.c_str());
 
-    if (!fs) {
-      eos_err("msg=\"failed to get new fs object\" url=\"%s\"", url.GetURL().c_str());
-      XrdMqMessage::Eroute.Emsg("SendMessage", EINVAL, "no broker available");
-      continue;
-    }
+      if (asynchronous) {
+        // Don't wait for responses if not required
+        status = send_channel->Query(XrdCl::QueryCode::OpaqueFile, arg,
+                                     &gDiscardResponseHandler, timeout);
+      } else {
+        status = send_channel->Query(XrdCl::QueryCode::OpaqueFile, arg,
+                                     response_raw, timeout);
+        response.reset(response_raw);
+        response_raw = nullptr;
+      }
 
-    arg.FromString(message.c_str());
+      rc = status.IsOK();
 
-    if (asynchronous) {
-      // Don't wait for responses if not required
-      status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg,
-                         &gDiscardResponseHandler, timeout);
-    } else {
-      status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response_raw,
-                         timeout);
-      response.reset(response_raw);
-      response_raw = nullptr;
-    }
-
-    rc = status.IsOK();
-
-    // We continue until any of the brokers accepts the message
-    if (!rc) {
-      eos_err("msg=\"failed to send message\" dst=\"%s\" msg=\"%s\"",
-              url.GetURL().c_str(), message.c_str());
-      XrdMqMessage::Eroute.Emsg("SendMessage", status.errNo,
-                                status.GetErrorMessage().c_str());
+      // We continue until any of the brokers accepts the message
+      if (!rc) {
+        UpdateBrokersEndpoints(true);
+        eos_err("msg=\"failed to send message\" dst=\"%s\" msg=\"%s\"",
+                broker.first.c_str(), message.c_str());
+        XrdMqMessage::Eroute.Emsg("SendMessage", status.errNo,
+                                  status.GetErrorMessage().c_str());
+      }
     }
   }
 
+  UpdateBrokersEndpoints();
   return rc;
 }
 
@@ -374,7 +325,16 @@ XrdMqClient::RecvFromInternalBuffer()
 XrdMqMessage*
 XrdMqClient::RecvMessage(ThreadAssistant* assistant)
 {
-  if (kBrokerN == 1) {
+  std::shared_ptr<XrdCl::File> recv_channel;
+  {
+    eos::common::RWMutexReadLock rd_lock(mMutexMap);
+
+    if (mMapBrokerToChannels.size() != 1) {
+      eos_static_err("msg=\"no support for multi-broker setup or no broker "
+                     "registered\" map_size=%i", mMapBrokerToChannels.size());
+      return nullptr;
+    }
+
     // Single broker case - check if there is still a buffered message
     XrdMqMessage* message;
     message = RecvFromInternalBuffer();
@@ -383,258 +343,248 @@ XrdMqClient::RecvMessage(ThreadAssistant* assistant)
       return message;
     }
 
-    XrdCl::File* file = GetBrokerXrdClientReceiver(0);
-
-    if (!file) {
-      // Fatal no client
-      XrdMqMessage::Eroute.Emsg("RecvMessage", EINVAL,
-                                "receive message - no client present");
-      return nullptr;
-    }
-
-    uint16_t timeout = (getenv("EOS_FST_OP_TIMEOUT") ?
-                        atoi(getenv("EOS_FST_OP_TIMEOUT")) : 0);
-    XrdCl::StatInfo* stinfo = nullptr;
-
-    while (!file->Stat(true, stinfo, timeout).IsOK()) {
-      ReNewBrokerXrdClientReceiver(0, assistant);
-      file = GetBrokerXrdClientReceiver(0);
-
-      if (assistant) {
-        assistant->wait_for(std::chrono::seconds(2));
-
-        if (assistant->terminationRequested()) {
-          return nullptr;
-        }
-      } else {
-        std::this_thread::sleep_for(std::chrono::seconds(2));
-      }
-    }
-
-    if (stinfo->GetSize() == 0) {
-      delete stinfo;
-      return 0;
-    }
-
-    // mantain a receiver buffer which fits the need
-    if (kRecvBufferAlloc < (int) stinfo->GetSize()) {
-      uint64_t allocsize = 1024 * 1024;
-
-      if (stinfo->GetSize() > allocsize) {
-        allocsize = stinfo->GetSize() + 1;
-      }
-
-      kRecvBuffer = static_cast<char*>(realloc(kRecvBuffer, allocsize));
-
-      if (!kRecvBuffer) {
-        // Fatal - we exit!
-        exit(-1);
-      }
-
-      kRecvBufferAlloc = allocsize;
-    }
-
-    // Read all messages
-    uint32_t nread = 0;
-    XrdCl::XRootDStatus status = file->Read(0, stinfo->GetSize(), kRecvBuffer,
-                                            nread);
-
-    if (status.IsOK() && (nread > 0)) {
-      kRecvBuffer[nread] = 0;
-      // Add to the internal message buffer
-      kInternalBufferPosition = 0;
-      kMessageBuffer = kRecvBuffer;
-    }
-
-    delete stinfo;
-    return RecvFromInternalBuffer();
-  } else {
-    // Multiple broker case
-    return nullptr;
+    recv_channel = mMapBrokerToChannels.begin()->second.first;
   }
-}
+  uint16_t timeout = (getenv("EOS_FST_OP_TIMEOUT") ?
+                      atoi(getenv("EOS_FST_OP_TIMEOUT")) : 0);
+  XrdCl::StatInfo* stinfo = nullptr;
 
-//------------------------------------------------------------------------------
-// GetBrokerUrl
-//------------------------------------------------------------------------------
-XrdOucString*
-XrdMqClient::GetBrokerUrl(int i)
-{
-  XrdOucString n = "";
-  n += i;
-  return kBrokerUrls.Find(n.c_str());
-}
+  while (!recv_channel->Stat(true, stinfo, timeout).IsOK()) {
+    UpdateBrokersEndpoints(true);
+    recv_channel = mMapBrokerToChannels.begin()->second.first;
 
-//------------------------------------------------------------------------------
-// GetBrokerId
-//------------------------------------------------------------------------------
-XrdOucString
-XrdMqClient::GetBrokerId(int i)
-{
-  XrdOucString brokern;
+    if (assistant) {
+      assistant->wait_for(std::chrono::seconds(2));
 
-  if (i == 0) {
-    brokern = "0";
-  } else {
-    brokern += kBrokerN;
-  }
-
-  return brokern;
-}
-
-//------------------------------------------------------------------------------
-// GetBrokerXrdClientReceiver
-//------------------------------------------------------------------------------
-XrdCl::File*
-XrdMqClient::GetBrokerXrdClientReceiver(int i)
-{
-  return kBrokerXrdClientReceiver.Find(GetBrokerId(i).c_str());
-}
-
-//------------------------------------------------------------------------------
-// ReNewBrokerXrdClientReceiver
-//------------------------------------------------------------------------------
-void
-XrdMqClient::ReNewBrokerXrdClientReceiver(int i, ThreadAssistant* assistant)
-{
-  std::string old_broker, new_broker;
-  auto old_file = kBrokerXrdClientReceiver.Find(GetBrokerId(i).c_str());
-
-  if (old_file) {
-    // Close old file with small timeout to avoid any hangs, below it will be
-    // automatically deleted, but before that save the broker hostname
-    (void) old_file->GetProperty("DataServer", old_broker);
-    (void) old_file->Close(1);
-  }
-
-  kBrokerXrdClientReceiver.Del(GetBrokerId(i).c_str());
-
-  while (true) {
-    auto file = new XrdCl::File();
-    uint16_t timeout = (getenv("EOS_FST_OP_TIMEOUT") ?
-                        atoi(getenv("EOS_FST_OP_TIMEOUT")) : 0);
-    std::string url {GetBrokerUrl(i)->c_str()};
-    XrdCl::XRootDStatus status = file->Open(url, XrdCl::OpenFlags::Read,
-                                            XrdCl::Access::None, timeout);
-
-    if (status.IsOK()) {
-      kBrokerXrdClientReceiver.Add(GetBrokerId(i).c_str(), file);
-      (void) file->GetProperty("DataServer", new_broker);
-
-      if (!old_broker.empty() && (old_broker != new_broker)) {
-        eos_static_info("msg=\"connected to a different mq broker\" "
-                        "old_broker=%s new_broker=%s", old_broker.c_str(),
-                        new_broker.c_str());
-        XrdOucString* broker_url = GetBrokerUrl(i);
-        XrdCl::URL url(broker_url->c_str());
-        int port = 1097;
-        size_t pos = new_broker.find(':');
-
-        // Extract hostname and port
-        if (pos != std::string::npos) {
-          try {
-            port = std::stoi(new_broker.substr(pos + 1));
-          } catch (...) {
-            // ignore any conversion errors
-          }
-
-          new_broker = new_broker.substr(0, pos);
-        }
-
-        url.SetHostPort(new_broker, port);
-        broker_url->assign(url.GetURL().c_str(), 0);
-        eos_static_info("msg=\"new broker url: %s\"", broker_url->c_str());
-        mNewMqBroker = true;
+      if (assistant->terminationRequested()) {
+        return nullptr;
       }
-
-      break;
     } else {
-      delete file;
-      eos_err("msg=\"reopening new alias failed\" url=%s, err_msg=\"%s\"",
-              url.c_str(), status.ToString().c_str());
-
-      if (assistant) {
-        assistant->wait_for(std::chrono::seconds(2));
-      } else {
-        std::this_thread::sleep_for(std::chrono::seconds(2));
-      }
-    }
-
-    if (assistant && assistant->terminationRequested()) {
-      break;
+      std::this_thread::sleep_for(std::chrono::seconds(2));
     }
   }
+
+  if (stinfo->GetSize() == 0) {
+    delete stinfo;
+    return 0;
+  }
+
+  // Mantain a receiver buffer which fits the need
+  if (kRecvBufferAlloc < (int) stinfo->GetSize()) {
+    uint64_t allocsize = 1024 * 1024;
+
+    if (stinfo->GetSize() > allocsize) {
+      allocsize = stinfo->GetSize() + 1;
+    }
+
+    kRecvBuffer = static_cast<char*>(realloc(kRecvBuffer, allocsize));
+
+    if (!kRecvBuffer) {
+      // Fatal - we exit!
+      exit(-1);
+    }
+
+    kRecvBufferAlloc = allocsize;
+  }
+
+  // Read all messages
+  uint32_t nread = 0;
+  XrdCl::XRootDStatus status = recv_channel->Read(0, stinfo->GetSize(),
+                               kRecvBuffer, nread);
+
+  if (status.IsOK() && (nread > 0)) {
+    kRecvBuffer[nread] = 0;
+    // Add to the internal message buffer
+    kInternalBufferPosition = 0;
+    kMessageBuffer = kRecvBuffer;
+  }
+
+  delete stinfo;
+  return RecvFromInternalBuffer();
 }
 
 //------------------------------------------------------------------------------
 // AddBroker
 //------------------------------------------------------------------------------
 bool
-XrdMqClient::AddBroker(const char* brokerurl, bool advisorystatus,
+XrdMqClient::AddBroker(const std::string& broker_url, bool advisorystatus,
                        bool advisoryquery, bool advisoryflushbacklog)
 {
-  if (!brokerurl) {
+  if (broker_url.empty()) {
     return false;
   }
 
-  XrdOucString newBrokerUrl = brokerurl;
+  std::ostringstream oss;
+  oss << broker_url;
 
-  if ((newBrokerUrl.find("?")) == STR_NPOS) {
-    newBrokerUrl += "?";
+  if (broker_url.find("?") == std::string::npos) {
+    oss << "?";
+  } else {
+    oss << "&";
   }
 
-  newBrokerUrl += "&";
-  newBrokerUrl += XMQCADVISORYSTATUS;
-  newBrokerUrl += "=";
-  newBrokerUrl += advisorystatus;
-  newBrokerUrl += "&";
-  newBrokerUrl += XMQCADVISORYQUERY;
-  newBrokerUrl += "=";
-  newBrokerUrl += advisoryquery;
-  newBrokerUrl += "&";
-  newBrokerUrl += XMQCADVISORYFLUSHBACKLOG;
-  newBrokerUrl += "=";
-  newBrokerUrl += advisoryflushbacklog;
-  eos_static_debug("msg=\"add broker\" url=\"%s\"", newBrokerUrl.c_str());
+  oss << XMQCADVISORYSTATUS << "=" << advisorystatus << "&"
+      << XMQCADVISORYQUERY << "=" << advisoryquery << "&"
+      << XMQCADVISORYFLUSHBACKLOG << "=" << advisoryflushbacklog;
+  std::string new_url = oss.str();
+  // Check validity of the new broker url
+  XrdCl::URL xrd_url(new_url);
 
-  for (int i = 0; i < kBrokerN; i++) {
-    XrdOucString* brk = GetBrokerUrl(i);
-
-    if (brk && ((*brk) == newBrokerUrl)) {
-      eos_static_err("msg=\"broker already exists\" url=\"%s\"",
-                     newBrokerUrl.c_str());
-      return false;
-    }
-  }
-
-  XrdCl::URL url(newBrokerUrl.c_str());
-
-  if (!url.IsValid()) {
-    eos_static_err("msg=\"invalid url\" url=\"%s\"", newBrokerUrl.c_str());
+  if (!xrd_url.IsValid()) {
+    eos_static_err("msg=\"invalid url\" url=\"%s\"", new_url.c_str());
     return false;
   }
 
-  XrdCl::FileSystem* fs = new XrdCl::FileSystem(url);
+  eos_static_info("msg=\"add broker\" url=\"%s\"", new_url.c_str());
+  eos::common::RWMutexWriteLock wr_lock(mMutexMap);
 
-  if (!fs) {
-    eos_static_err("msg=\"failed to create Fs object\" url=\"%s\"",
-                   url.GetURL().c_str());
-    XrdMqMessage::Eroute.Emsg("AddBroker", EPERM, "add and connect to broker:",
-                              newBrokerUrl.c_str());
+  if (mMapBrokerToChannels.find(new_url) != mMapBrokerToChannels.end()) {
+    eos_static_err("msg=\"broker already exists\" url=\"%s\"", new_url.c_str());
     return false;
   }
 
-  XrdOucString brokern = GetBrokerId(kBrokerN);
-  kBrokerUrls.Add(brokern.c_str(), new XrdOucString(newBrokerUrl.c_str()));
+  auto ret = mMapBrokerToChannels.emplace
+             (new_url, std::make_pair(std::make_shared<XrdCl::File>(),
+                                      std::make_shared<XrdCl::FileSystem>(xrd_url)));
 
-  try {
-    kBrokerXrdClientSender.Add(GetBrokerId(kBrokerN).c_str(), fs);
-    kBrokerXrdClientReceiver.Add(GetBrokerId(kBrokerN).c_str(), new XrdCl::File());
-    kBrokerN++;
-  } catch (int& err) {
-    eos_static_err("%s", "msg=\"out of memory while inserting into hash\"");
+  if (!ret.second) {
+    eos_static_err("msg=\"failed to create broker channels\" url=\"%s\"",
+                   new_url.c_str());
     return false;
   }
 
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Update the broker url if we get a redirect
+//------------------------------------------------------------------------------
+void
+XrdMqClient::UpdateBrokersEndpoints(bool force)
+{
+  using namespace std::chrono;
+  static auto last_ts = system_clock::now();
+  auto now = system_clock::now();
+
+  // Attempt endpoint update once every 5 seconds if not forced
+  if (!force && (duration_cast<seconds>(now - last_ts) < seconds(5))) {
+    return;
+  } else {
+    last_ts = now;
+  }
+
+  std::map<std::string, std::string> endpoint_replacements;
+  {
+    // Collect broker endpoints that need to be updated
+    eos::common::RWMutexReadLock rd_lock(mMutexMap);
+
+    for (const auto& broker : mMapBrokerToChannels) {
+      XrdCl::File file;
+      std::string new_brokerid;
+      XrdCl::URL url(broker.first);
+      XrdCl::XRootDStatus st = file.Open(broker.first, XrdCl::OpenFlags::Read);
+
+      // Skip if we can't contact or we couldn't get the propety
+      if ((st.IsOK() == false) ||
+          (file.GetProperty("DataServer", new_brokerid) == false)) {
+        continue;
+      }
+
+      if (url.GetHostId() != new_brokerid) {
+        // Build the new broker URL
+        std::string hostname {new_brokerid};
+        int port = 1097;
+        size_t pos = new_brokerid.find(':');
+
+        // Extract hostname and port
+        if (pos != std::string::npos) {
+          try {
+            port = std::stoi(new_brokerid.substr(pos + 1));
+          } catch (...) {
+            // ignore any conversion errors
+          }
+
+          hostname = new_brokerid.substr(0, pos);
+        }
+
+        url.SetHostPort(hostname, port);
+        eos_static_info("msg=\"broker endpoint update\", old_url=\"%s\" "
+                        "new_url=\"%s\"", broker.first.c_str(),
+                        url.GetURL().c_str());
+        endpoint_replacements.emplace(broker.first, url.GetURL());
+      }
+    }
+  }
+
+  if (endpoint_replacements.empty()) {
+    return;
+  }
+
+  eos::common::RWMutexWriteLock wr_lock(mMutexMap);
+
+  for (const auto& replace : endpoint_replacements) {
+    auto it_old = mMapBrokerToChannels.find(replace.first);
+
+    if (it_old == mMapBrokerToChannels.end()) {
+      continue;
+    }
+
+    // Close old receive channel with small timeout to avoid any hangs
+    auto recv_channel = it_old->second.first;
+    (void) recv_channel->Close(1);
+    mMapBrokerToChannels.erase(it_old);
+
+    if (mMapBrokerToChannels.find(replace.second) != mMapBrokerToChannels.end()) {
+      eos_static_err("msg=\"broker already exists\" url=\"%s\"",
+                     replace.second.c_str());
+      continue;
+    }
+
+    XrdCl::URL xrd_url(replace.second);
+    auto ret = mMapBrokerToChannels.emplace
+               (replace.second, std::make_pair(std::make_shared<XrdCl::File>(),
+                   std::make_shared<XrdCl::FileSystem>(xrd_url)));
+
+    if (!ret.second) {
+      eos_static_err("msg=\"failed to create broker channels\" url=\"%s\"",
+                     replace.second.c_str());
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Subscribe
+//------------------------------------------------------------------------------
+void
+XrdMqClient::Subscribe()
+{
+  eos::common::RWMutexReadLock rd_lock(mMutexMap);
+
+  for (const auto& broker : mMapBrokerToChannels) {
+    std::string url = broker.first;
+    auto recv_channel = broker.second.first;
+
+    if (recv_channel->Open(url.c_str(), XrdCl::OpenFlags::Read).IsOK()) {
+      eos_static_info("msg=\"successfully subscribed to broker\" url=\"%s\"",
+                      url.c_str());
+    } else {
+      eos_static_info("msg=\"failed to subscribe to broker\" url=\"%s\"",
+                      url.c_str());
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Unsubscribe
+//------------------------------------------------------------------------------
+void
+XrdMqClient::Unsubscribe()
+{
+  eos::common::RWMutexReadLock rd_lock(mMutexMap);
+
+  for (const auto& broker : mMapBrokerToChannels) {
+    auto recv_channel = broker.second.first;
+    auto st = recv_channel->Close(1);
+    (void) st;
+  }
 }

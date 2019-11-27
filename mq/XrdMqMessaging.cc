@@ -145,12 +145,7 @@ XrdMqMessaging::BroadCastAndCollect(XrdOucString broadcastresponsequeue,
   }
 
   MessageClient.SetDefaultReceiverQueue(broadcasttargetqueues.c_str());
-
-  if (!MessageClient.Subscribe()) {
-    fprintf(stderr, "failed to subscribe\n");
-    return false;
-  }
-
+  MessageClient.Subscribe();
   XrdMqMessage message;
   message.SetBody(msgbody.c_str());
   message.kMessageHeader.kDescription = "Broadcast and Collect";

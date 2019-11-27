@@ -55,20 +55,6 @@ public:
   ~XrdMqClient();
 
   //----------------------------------------------------------------------------
-  //! Subscribe to the brokers
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool Subscribe();
-
-  //----------------------------------------------------------------------------
-  //! Unsubscribe from brokers
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool Unsubscribe();
-
-  //----------------------------------------------------------------------------
   //! Send message
   //!
   //! @param msg
@@ -137,25 +123,26 @@ public:
 
   XrdMqMessage* RecvMessage(ThreadAssistant* assistant = nullptr);
 
-  XrdOucString* GetBrokerUrl(int i);
-
-  XrdOucString GetBrokerId(int i);
-
-  XrdCl::File* GetBrokerXrdClientReceiver(int i);
 
   bool IsInitOK() const
   {
     return kInitOK;
   }
 
-  void ReNewBrokerXrdClientReceiver(int i, ThreadAssistant* assistant = nullptr);
-
-  void CheckBrokerXrdClientReceiver(int i);
-
-  bool AddBroker(const char* brokerurl, bool advisorystatus = false,
-                 bool advisoryquery = false, bool advisoryflushbacklog = false);
-
   void Disconnect();
+
+  //----------------------------------------------------------------------------
+  //! Add broker to the list available to the current mq client
+  //!
+  //! @param broker_url root://host:port//path/?optional_opaque info
+  //! @param advisorystatus mark advisory status
+  //! @param advisoryquery mark advisory query
+  //! @param advisoryflusbacklog mark advisory flush backlog
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool AddBroker(const std::string& broker_url, bool advisorystatus = false,
+                 bool advisoryquery = false, bool advisoryflushbacklog = false);
 
   //----------------------------------------------------------------------------
   //! Get and reset the new mq broker flag
@@ -175,15 +162,29 @@ public:
     return (*this).SendMessage(msg);
   }
 
+  //----------------------------------------------------------------------------
+  //! Subscribe to all the brokers
+  //----------------------------------------------------------------------------
+  void Subscribe();
 
+  //----------------------------------------------------------------------------
+  //! Unsubscribe from all brokers
+  //----------------------------------------------------------------------------
+  void Unsubscribe();
+
+
+#ifdef IN_TEST_HARNESS
+public:
+#else
 private:
-  static XrdSysMutex Mutex;
-  XrdOucHash <XrdOucString> kBrokerUrls;
-  XrdOucHash <XrdCl::File> kBrokerXrdClientReceiver;
-  XrdOucHash <XrdCl::FileSystem> kBrokerXrdClientSender;
-
+#endif
+  //! Map of broker urls to channel objects i.e XrdCl::File object for receiving
+  //! messages and XrdCl::FileSystem for sending messages
+  std::map<std::string, std::pair<std::shared_ptr<XrdCl::File>,
+      std::shared_ptr<XrdCl::FileSystem>>>
+      mMapBrokerToChannels;
+  mutable eos::common::RWMutex mMutexMap;
   XrdOucString kMessageBuffer;
-  int kBrokerN;
   XrdOucString kClientId;
   XrdOucString kDefaultReceiverQueue;
   char* kRecvBuffer;
@@ -191,6 +192,14 @@ private:
   size_t kInternalBufferPosition;
   bool kInitOK;
   std::atomic<bool> mNewMqBroker {false};
+
+  //----------------------------------------------------------------------------
+  //! Update the broker url if we get a rediret when accessing them. Do this
+  //! once every 5 seconds unless force is set
+  //!
+  //! @param force if true then check all endpoints immediately
+  //----------------------------------------------------------------------------
+  void UpdateBrokersEndpoints(bool force = false);
 
   //----------------------------------------------------------------------------
   //! Response handler class to clean-up asynchronous callbacks which are
