@@ -99,15 +99,15 @@ else
 
     if [[ ${?} -eq 0 ]]; then
       TAG="$(git describe --tags --abbrev=0 --exact-match ${LASTCOMMITONBRANCH})"
-      EXP="[0-9]+\.[0-9]+\.[0-9]+(-[0-9])?$"
+      EXP="[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9]+)?$"
 
       # Check if tag respects the regular expression
       VERSION="$(echo "${TAG}" | grep -E "${EXP}")"
 
       if [[ ${?} -ne 0 ]]; then
-	echo "[!] Git tag \"${TAG}\" does not match the regex"
-	VERSION=""
-	exit 1
+        echo "[!] Git tag \"${TAG}\" does not match the regex"
+        VERSION=""
+        exit 1
       fi
 
     else
@@ -115,17 +115,17 @@ else
       LAST_TAG="$(git describe --tags --abbrev=0 --candidates=50 ${LASTCOMMITONBRANCH})"
 
       if [[ ${?} -ne 0 ]]; then
-	echo "[!] Can not find last tag to build the commit version"
-	VERSION=""
-	exit 1
+        echo "[!] Can not find last tag to build the commit version"
+        VERSION=""
+        exit 1
       fi
 
       # Get last commit date and hash used to build the rest of the version
       LOGINFO="$(git log -1 --format='%ai %h')"
 
       if [[ ${?} -ne 0 ]]; then
-	echo "[!] Can not get info about last commit"
-	exit 1
+        echo "[!] Can not get info about last commit"
+        exit 1
       fi
 
       VERSION="$(getVersionFromLog "$LAST_TAG" "$LOGINFO")"
