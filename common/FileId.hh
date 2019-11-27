@@ -61,6 +61,19 @@ public:
     }
   }
 
+  //------------------------------------------------------------------------------
+  // Compatibility hack: Use old inodes below 34B, and new above.
+  //------------------------------------------------------------------------------
+  static uint64_t etagInode(uint64_t fid) {
+    uint64_t threshold = 34'000'000'000ull;
+    if(fid < threshold) {
+      return FileId::LegacyFidToInode(fid);
+    }
+    else {
+      return FileId::NewFidToInode(fid);
+    }
+  }
+
   //----------------------------------------------------------------------------
   //! Determine which inode encoding to use
   //----------------------------------------------------------------------------

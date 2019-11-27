@@ -45,7 +45,7 @@ void calculateEtag(const eos::ns::FileMdProto &proto, std::string &out) {
   // Nope. Is there a checksum?
   //----------------------------------------------------------------------------
   size_t cxlen = eos::common::LayoutId::GetChecksumLen(proto.layout_id());
-  unsigned long long inodeNumber = eos::common::FileId::FidToInode(proto.id());
+  unsigned long long inodeNumber = eos::common::FileId::etagInode(proto.id());
 
   if(cxlen > 0) {
     //--------------------------------------------------------------------------
@@ -99,7 +99,7 @@ void calculateEtag(const IFileMD *const fmd, std::string &out) {
   // Nope. Is there a checksum?
   //----------------------------------------------------------------------------
   size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
-  unsigned long long inodeNumber = eos::common::FileId::FidToInode(fmd->getId());
+  unsigned long long inodeNumber = eos::common::FileId::etagInode(fmd->getId());
 
   if(cxlen > 0) {
     //--------------------------------------------------------------------------
