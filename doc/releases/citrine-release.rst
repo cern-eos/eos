@@ -15,6 +15,19 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.5.15 Citrine``
+===================
+
+2019-11-27
+
+Bug
+---
+
+* MGM/FST/FUSE/FUSEX: Use new inode encoding scheme to avoid container id
+  limitation to 28 bits. To enable this feature one needs to set the
+  following environment variable:
+  EOS_USE_NEW_INODES=1
+
 ``v4.5.14 Citrine``
 ===================
 
