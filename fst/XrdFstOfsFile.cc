@@ -1392,7 +1392,7 @@ XrdFstOfsFile::close()
           // use inode + checksum
           char setag[256];
           snprintf(setag, sizeof(setag) - 1, "\"%llu:%s\"",
-                   eos::common::FileId::FidToInode((unsigned long long) fMd->mProtoFmd.fid()),
+                   eos::common::FileId::LegacyFidToInode((unsigned long long) fMd->mProtoFmd.fid()),
                    fMd->mProtoFmd.checksum().c_str());
           mEtag = setag;
         } else {
@@ -1405,7 +1405,7 @@ XrdFstOfsFile::close()
         // use inode + mtime
         char setag[256];
         snprintf(setag, sizeof(setag) - 1, "\"%llu:%llu\"",
-                 eos::common::FileId::FidToInode((unsigned long long) fMd->mProtoFmd.fid()),
+                 eos::common::FileId::LegacyFidToInode((unsigned long long) fMd->mProtoFmd.fid()),
                  (unsigned long long) fMd->mProtoFmd.mtime());
         mEtag = setag;
       }
