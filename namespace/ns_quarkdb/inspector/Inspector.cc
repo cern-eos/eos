@@ -221,7 +221,7 @@ int Inspector::scanDirs(bool onlyNoAttrs, bool fullPaths, bool countContents, si
       continue;
     }
 
-    out << "cid=" << proto.id() << " name=" << fetchNameOrPath(proto, item) << " parent=" << proto.parent_id() << " uid=" << proto.uid();
+    out << "cid=" << proto.id() << " name=" << fetchNameOrPath(proto, item) << " parent=" << proto.parent_id() << " uid=" << proto.uid() << " mode=" << proto.mode();
 
     if(countContents) {
       out << " file-count=" << countAsString(item.fileCount);
@@ -276,7 +276,9 @@ int Inspector::scanFileMetadata(bool onlySizes, bool fullPaths, std::ostream &ou
     }
 
     if(!onlySizes) {
-      out << "fid=" << proto.id() << " name=" << fetchNameOrPath(proto, item) << " pid=" << proto.cont_id() << " uid=" << proto.uid() << " size=" << proto.size() << std::endl;
+      std::string xs;
+      eos::appendChecksumOnStringProtobuf(proto, xs);
+      out << "fid=" << proto.id() << " name=" << fetchNameOrPath(proto, item) << " pid=" << proto.cont_id() << " uid=" << proto.uid() << " size=" << proto.size() << " xs=" << xs << std::endl;
     }
     else {
       out << proto.size() << std::endl;
