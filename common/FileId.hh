@@ -38,7 +38,6 @@ class FileId
 {
 public:
   typedef unsigned long long fileid_t;
-  static bool newInodes = getenv("EOS_USE_NEW_INODES) != nullptr && getenv("EOS_USE_NEW_INODES)[0] == '1';
 
   //----------------------------------------------------------------------------
   //! Convert a fid into a hexadecimal string
@@ -66,7 +65,11 @@ public:
   //! Determine which inode encoding to use
   //----------------------------------------------------------------------------
   static bool useNewInodes() {
-    return newInodes;
+    if(getenv("EOS_USE_NEW_INODES") != nullptr && getenv("EOS_USE_NEW_INODES")[0] == '1') {
+      return true;
+    }
+
+    return false;
   }
 
   //----------------------------------------------------------------------------
