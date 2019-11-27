@@ -78,11 +78,17 @@ public:
   //! Determine which inode encoding to use
   //----------------------------------------------------------------------------
   static bool useNewInodes() {
-    if(getenv("EOS_USE_NEW_INODES") != nullptr && getenv("EOS_USE_NEW_INODES")[0] == '1') {
-      return true;
+    static bool initialized = false;
+    static bool useNew = false;
+
+    if(initialized) {
+        return useNew;
     }
 
-    return false;
+    useNew = getenv("EOS_USE_NEW_INODES") != nullptr && getenv("EOS_USE_NEW_INODES")[0] == '1';
+    initialized = true;
+
+    return useNew;
   }
 
   //----------------------------------------------------------------------------
@@ -109,6 +115,10 @@ public:
 
   static bool IsFileInode(unsigned long long ino)
   {
+    if(useNewInodes()) {
+      return NewIsFileInode(ino);
+    }
+
     return LegacyIsFileInode(ino);
   }
 

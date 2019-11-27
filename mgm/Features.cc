@@ -30,11 +30,19 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+static std::string checkInodeScheme() {
+  if(getenv("EOS_USE_NEW_INODES") != nullptr && getenv("EOS_USE_NEW_INODES")[0] == '1') {
+    return "1";
+  }
+
+  return "0";
+}
+
 std::map<std::string, std::string> Features::sMap =
 {
   { "eos.encodepath", "curl" },
   { "eos.lazyopen",   "true" },
-  { "eos.inodeencodingscheme", std::to_string( (int) common::FileId::useNewInodes()).c_str() }
+  { "eos.inodeencodingscheme", checkInodeScheme() }
 };
 
 EOSMGMNAMESPACE_END
