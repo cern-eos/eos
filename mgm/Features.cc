@@ -22,6 +22,7 @@
  ************************************************************************/
 /*----------------------------------------------------------------------------*/
 #include "mgm/Features.hh"
+#include "common/FileId.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
@@ -29,11 +30,11 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-const std::map< const std::string, const std::string> Features::sMap =
+std::map<std::string, std::string> Features::sMap =
 {
   { "eos.encodepath", "curl" },
   { "eos.lazyopen",   "true" },
-  { "eos.inodeencodingscheme", "0" }
+  { "eos.inodeencodingscheme", std::to_string( (int) common::FileId::useNewInodes()).c_str() }
 };
 
 EOSMGMNAMESPACE_END

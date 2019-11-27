@@ -60,6 +60,7 @@
 #include "common/PasswordHandler.hh"
 #include "common/ShellCmd.hh"
 #include "common/InstanceName.hh"
+#include "common/FileId.hh"
 #include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/interface/IView.hh"
@@ -1363,6 +1364,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   if (getenv("EOS_AUTOLOAD_CONFIG")) {
     MgmConfigAutoLoad = getenv("EOS_AUTOLOAD_CONFIG");
   }
+
+  eos_static_info("MGM configured to use new inodes? %d", eos::common::FileId::useNewInodes());
 
   XrdOucString instancepath = "/eos/";
   MgmProcPath = "/eos/";

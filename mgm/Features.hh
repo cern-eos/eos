@@ -37,7 +37,7 @@ EOSMGMNAMESPACE_BEGIN
 class Features
 {
 public:
-  static const std::map< const std::string, const std::string> sMap;
+  static std::map<std::string, std::string> sMap;
 };
 
 EOSMGMNAMESPACE_END
