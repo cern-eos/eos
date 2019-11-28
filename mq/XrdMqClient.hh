@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: XrdMqClient.hh
 // Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,20 +21,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __XMQCLIENT_H__
-#define __XMQCLIENT_H__
-
+#pragma once
 #define ENOTBLK 15
 
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucHash.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "common/AssistedThread.hh"
 #include "common/Logging.hh"
 #include "mq/XrdMqMessage.hh"
-
-class XrdMqMessage;
 
 //------------------------------------------------------------------------------
 //! Class XrdMqClient
@@ -42,7 +37,6 @@ class XrdMqMessage;
 class XrdMqClient: public eos::common::LogId
 {
 public:
-
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -53,6 +47,19 @@ public:
   //! Destructor
   //----------------------------------------------------------------------------
   ~XrdMqClient();
+
+  //----------------------------------------------------------------------------
+  //! Add broker to the list available to the current mq client
+  //!
+  //! @param broker_url root://host:port//path/?optional_opaque info
+  //! @param advisorystatus mark advisory status
+  //! @param advisoryquery mark advisory query
+  //! @param advisoryflusbacklog mark advisory flush backlog
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool AddBroker(const std::string& broker_url, bool advisorystatus = false,
+                 bool advisoryquery = false, bool advisoryflushbacklog = false);
 
   //----------------------------------------------------------------------------
   //! Send message
@@ -70,6 +77,22 @@ public:
                    bool asynchronous = false);
 
   //----------------------------------------------------------------------------
+  //! Try reading a message from the attached broker
+  //!
+  //! @param assistant thread assistant
+  //!
+  //! @return newly read message or nullptr
+  //----------------------------------------------------------------------------
+  XrdMqMessage* RecvMessage(ThreadAssistant* assistant = nullptr);
+
+  //----------------------------------------------------------------------------
+  //! Receive message from internal buffer
+  //!
+  //! @return message object or nullptr
+  //----------------------------------------------------------------------------
+  XrdMqMessage* RecvFromInternalBuffer();
+
+  //----------------------------------------------------------------------------
   //! Reply to a particular message
   //!
   //! @param replymsg
@@ -81,7 +104,6 @@ public:
   //----------------------------------------------------------------------------
   bool ReplyMessage(XrdMqMessage& replymsg, XrdMqMessage& inmsg,
                     bool sign = false, bool encrypt = false);
-
 
   //----------------------------------------------------------------------------
   //! Set the default receiver queue
@@ -96,7 +118,7 @@ public:
   //----------------------------------------------------------------------------
   //! Get default receiver queue
   //----------------------------------------------------------------------------
-  inline XrdOucString GetDefaultReceiverQueue()
+  inline XrdOucString GetDefaultReceiverQueue() const
   {
     return kDefaultReceiverQueue;
   }
@@ -114,35 +136,20 @@ public:
   //----------------------------------------------------------------------------
   //! Get client id
   //----------------------------------------------------------------------------
-  inline const char* GetClientId()
+  inline const char* GetClientId() const
   {
     return kClientId.c_str();
   }
 
-  XrdMqMessage* RecvFromInternalBuffer();
-
-  XrdMqMessage* RecvMessage(ThreadAssistant* assistant = nullptr);
-
-
-  bool IsInitOK() const
-  {
-    return kInitOK;
-  }
-
-  void Disconnect();
-
   //----------------------------------------------------------------------------
-  //! Add broker to the list available to the current mq client
-  //!
-  //! @param broker_url root://host:port//path/?optional_opaque info
-  //! @param advisorystatus mark advisory status
-  //! @param advisoryquery mark advisory query
-  //! @param advisoryflusbacklog mark advisory flush backlog
+  //! Check if initialization (construction) was successful
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool AddBroker(const std::string& broker_url, bool advisorystatus = false,
-                 bool advisoryquery = false, bool advisoryflushbacklog = false);
+  inline bool IsInitOK() const
+  {
+    return kInitOK;
+  }
 
   //----------------------------------------------------------------------------
   //! Get and reset the new mq broker flag
@@ -172,12 +179,13 @@ public:
   //----------------------------------------------------------------------------
   void Unsubscribe();
 
+  //----------------------------------------------------------------------------
+  //! Disconenct from all the brokers by clearing the map and destroying all
+  //! the in/ou-bound channels.
+  //----------------------------------------------------------------------------
+  void Disconnect();
 
-#ifdef IN_TEST_HARNESS
-public:
-#else
 private:
-#endif
   //! Map of broker urls to channel objects i.e XrdCl::File object for receiving
   //! messages and XrdCl::FileSystem for sending messages
   std::map<std::string, std::pair<std::shared_ptr<XrdCl::File>,
@@ -194,12 +202,9 @@ private:
   std::atomic<bool> mNewMqBroker {false};
 
   //----------------------------------------------------------------------------
-  //! Update the broker url if we get a rediret when accessing them. Do this
-  //! once every 5 seconds unless force is set
-  //!
-  //! @param force if true then check all endpoints immediately
+  //! Update the broker url if we get a rediret when accessing them
   //----------------------------------------------------------------------------
-  void UpdateBrokersEndpoints(bool force = false);
+  void UpdateBrokersEndpoints();
 
   //----------------------------------------------------------------------------
   //! Response handler class to clean-up asynchronous callbacks which are
@@ -241,6 +246,3 @@ private:
 
   static DiscardResponseHandler gDiscardResponseHandler;
 };
-
-
-#endif
