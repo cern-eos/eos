@@ -231,7 +231,6 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
     }
   }
 
-  UpdateBrokersEndpoints();
   return rc;
 }
 
@@ -351,7 +350,10 @@ XrdMqClient::RecvMessage(ThreadAssistant* assistant)
 
   while (!recv_channel->Stat(true, stinfo, timeout).IsOK()) {
     UpdateBrokersEndpoints(true);
-    recv_channel = mMapBrokerToChannels.begin()->second.first;
+    {
+      eos::common::RWMutexReadLock rd_lock(mMutexMap);
+      recv_channel = mMapBrokerToChannels.begin()->second.first;
+    }
 
     if (assistant) {
       assistant->wait_for(std::chrono::seconds(2));
@@ -481,8 +483,11 @@ XrdMqClient::UpdateBrokersEndpoints(bool force)
     for (const auto& broker : mMapBrokerToChannels) {
       XrdCl::File file;
       std::string new_brokerid;
-      XrdCl::URL url(broker.first);
-      XrdCl::XRootDStatus st = file.Open(broker.first, XrdCl::OpenFlags::Read);
+      // Create a new dummy url since the current one might be actually working
+      // and check if we get redirected
+      XrdCl::URL tmp_url(broker.first);
+      tmp_url.SetPath(tmp_url.GetPath() + "_upd_test");
+      XrdCl::XRootDStatus st = file.Open(tmp_url.GetURL(), XrdCl::OpenFlags::Read);
 
       // Skip if we can't contact or we couldn't get the propety
       if ((st.IsOK() == false) ||
@@ -490,7 +495,7 @@ XrdMqClient::UpdateBrokersEndpoints(bool force)
         continue;
       }
 
-      if (url.GetHostId() != new_brokerid) {
+      if (tmp_url.GetHostId() != new_brokerid) {
         // Build the new broker URL
         std::string hostname {new_brokerid};
         int port = 1097;
@@ -507,12 +512,15 @@ XrdMqClient::UpdateBrokersEndpoints(bool force)
           hostname = new_brokerid.substr(0, pos);
         }
 
+        XrdCl::URL url(broker.first);
         url.SetHostPort(hostname, port);
         eos_static_info("msg=\"broker endpoint update\", old_url=\"%s\" "
                         "new_url=\"%s\"", broker.first.c_str(),
                         url.GetURL().c_str());
         endpoint_replacements.emplace(broker.first, url.GetURL());
       }
+
+      (void) file.Close(1);
     }
   }
 
@@ -548,6 +556,21 @@ XrdMqClient::UpdateBrokersEndpoints(bool force)
     if (!ret.second) {
       eos_static_err("msg=\"failed to create broker channels\" url=\"%s\"",
                      replace.second.c_str());
+    } else {
+      eos_static_info("msg=\"successfully connected to new broker\" url=\"%s\"",
+                      xrd_url.GetURL().c_str());
+    }
+
+    // Subscribe receiving channel to the new broker
+    auto it_map = ret.first;
+    recv_channel = it_map->second.first;
+
+    if (recv_channel->Open(xrd_url.GetURL(), XrdCl::OpenFlags::Read).IsOK()) {
+      eos_static_info("msg=\"successfully subscribed to broker\" url=\"%s\"",
+                      xrd_url.GetURL().c_str());
+    } else {
+      eos_static_info("msg=\"failed to subscribe to broker\" url=\"%s\"",
+                      xrd_url.GetURL().c_str());
     }
   }
 }
