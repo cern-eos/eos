@@ -270,7 +270,7 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
   }
 
   if (!all_ok) {
-    UpdateBrokersEndpoints();
+    RefreshBrokersEndpoints();
   }
 
   return rc;
@@ -319,7 +319,8 @@ XrdMqClient::RecvMessage(ThreadAssistant* assistant)
   XrdCl::StatInfo* stinfo = nullptr;
 
   while (!recv_channel->Stat(true, stinfo, timeout).IsOK()) {
-    UpdateBrokersEndpoints();
+    // Any error on stat requires a refresh of the broker endpoints
+    RefreshBrokersEndpoints();
     {
       eos::common::RWMutexReadLock rd_lock(mMutexMap);
       recv_channel = mMapBrokerToChannels.begin()->second.first;
@@ -448,10 +449,10 @@ XrdMqClient::RecvFromInternalBuffer()
 }
 
 //------------------------------------------------------------------------------
-// Update the broker url if we get a redirect
+// Refresh the in/out-bound channels to all the brokers
 //------------------------------------------------------------------------------
 void
-XrdMqClient::UpdateBrokersEndpoints()
+XrdMqClient::RefreshBrokersEndpoints()
 {
   std::map<std::string, std::string> endpoint_replacements;
   {
@@ -471,9 +472,11 @@ XrdMqClient::UpdateBrokersEndpoints()
       if (!st.IsOK() || !file.GetProperty("DataServer", new_hostid)) {
         eos_static_err("msg=\"failed to contact broker\" url=\"%s\"",
                        tmp_url.GetURL().c_str());
+        (void) file.Close(1);
         continue;
       }
 
+      (void) file.Close(1);
       // Extract hostname and port from new_hostid
       size_t pos = new_hostid.find('@');
 
@@ -496,18 +499,12 @@ XrdMqClient::UpdateBrokersEndpoints()
         new_host = new_hostid.substr(0, pos);
       }
 
-      // If we got a redirect then we update the endpoint
-      if ((tmp_url.GetHostName() != new_host) ||
-          (tmp_url.GetPort() != new_port)) {
-        XrdCl::URL new_url(broker.first);
-        new_url.SetHostPort(new_host, new_port);
-        eos_static_info("msg=\"broker endpoint update\" old_url=\"%s\" "
-                        "new_url=\"%s\"", broker.first.c_str(),
-                        new_url.GetURL().c_str());
-        endpoint_replacements.emplace(broker.first, new_url.GetURL());
-      }
-
-      (void) file.Close(1);
+      XrdCl::URL new_url(broker.first);
+      new_url.SetHostPort(new_host, new_port);
+      eos_static_info("msg=\"refersh broker endpoint\" old_url=\"%s\" "
+                      "new_url=\"%s\"", broker.first.c_str(),
+                      new_url.GetURL().c_str());
+      endpoint_replacements.emplace(broker.first, new_url.GetURL());
     }
   }
 

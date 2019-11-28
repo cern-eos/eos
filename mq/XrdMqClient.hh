@@ -202,9 +202,10 @@ private:
   std::atomic<bool> mNewMqBroker {false};
 
   //----------------------------------------------------------------------------
-  //! Update the broker url if we get a rediret when accessing them
+  //! Refresh the in/out-bound channels to all the brokers even if we don't
+  //! get any redirect
   //----------------------------------------------------------------------------
-  void UpdateBrokersEndpoints();
+  void RefreshBrokersEndpoints();
 
   //----------------------------------------------------------------------------
   //! Response handler class to clean-up asynchronous callbacks which are
