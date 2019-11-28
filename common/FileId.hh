@@ -63,11 +63,32 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Determine which inode encoding to use
+  //----------------------------------------------------------------------------
+  static bool useNewInodes() {
+    static bool initialized = false;
+    static bool useNew = false;
+
+    if(initialized) {
+        return useNew;
+    }
+
+    useNew = getenv("EOS_USE_NEW_INODES") != nullptr && getenv("EOS_USE_NEW_INODES")[0] == '1';
+    initialized = true;
+
+    return useNew;
+  }
+
+  //----------------------------------------------------------------------------
   //! Convert an EOS file id into an inode number. Currently dispatches to the
   //! legacy implementation.
   //----------------------------------------------------------------------------
   static unsigned long long FidToInode(unsigned long long fid)
   {
+    if(useNewInodes()) {
+      return NewFidToInode(fid);
+    }
+
     return LegacyFidToInode(fid);
   }
 
@@ -82,6 +103,10 @@ public:
 
   static bool IsFileInode(unsigned long long ino)
   {
+    if(useNewInodes()) {
+      return NewIsFileInode(ino);
+    }
+
     return LegacyIsFileInode(ino);
   }
 
