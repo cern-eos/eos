@@ -15,21 +15,21 @@ else()
   find_path(
     LIBBFD_INCLUDE_DIR
     NAMES bfd.h
-    HINTS /opt/rh/devtoolset-6/root ${LIBBFD_ROOT_DIR}
+    HINTS /opt/rh/devtoolset-8/root ${LIBBFD_ROOT_DIR}
     PATH_SUFFIXES include
   )
 
   find_library(
     LIBBFD_LIBRARY
     NAMES libbfd.a
-    HINTS /opt/rh/devtoolset-6/root ${LIBBFD_ROOT_DIR}
+    HINTS /opt/rh/devtoolset-8/root ${LIBBFD_ROOT_DIR}
     PATH_SUFFIXES lib lib64
   )
 
   find_library(
     LIBIBERTY_LIBRARY
     NAMES libiberty.a
-    HINTS /opt/rh/devtoolset-6/root ${LIBBFD_ROOT_DIR}
+    HINTS /opt/rh/devtoolset-8/root ${LIBBFD_ROOT_DIR}
     PATH_SUFFIXES lib lib64
   )
 

@@ -28,7 +28,7 @@ echo "===================================================================="
 echo "--- ... working-dir = $PWD"
 ##################################################
 
-if [ "$1" = "1" ] || [ "$1" = "" ]; then 
+if [ "$1" = "1" ] || [ "$1" = "" ]; then
 time (
 if [ -e "/usr/sbin/fusex-benchmark" ]; then
 echo "===================================================================="
@@ -41,7 +41,7 @@ fi
 ) || exit 1
 fi
 ##################################################
-if [ "$1" = "2a" ] || [ "$1" = "" ]; then 
+if [ "$1" = "2a" ] || [ "$1" = "" ]; then
 time (
 echo "===================================================================="
 echo "002a ... rename-test"
@@ -51,7 +51,7 @@ for name in `seq 1 1000`; do unlink b 2>/dev/null && echo damn b exists; touch a
 ) || exit 2
 fi
 ##################################################
-if [ "$1" = "2b" ] || [ "$1" = "" ]; then 
+if [ "$1" = "2b" ] || [ "$1" = "" ]; then
 time (
 echo "===================================================================="
 echo "002b ... mkdir-rmdir-test"
@@ -61,23 +61,23 @@ for name in `seq 1 1000`; do  mkdir asdf || exit 2; rmdir asdf; done;  exit 0;
 ) || exit 2
 fi
 ##################################################
-if [ "$1" = "2c" ] || [ "$1" = "" ]; then 
+if [ "$1" = "2c" ] || [ "$1" = "" ]; then
 time (
 echo "===================================================================="
 echo "002c ... rename-overwrite-test"
 (
     mkdir 002-rename-overwrite
     cd 002-rename-overwrite
-    for name in `seq 1 1000`; do 
+    for name in `seq 1 1000`; do
 	echo $name
 	mkdir a  || exit 1
-	mkdir a/a 
+	mkdir a/a
 	mkdir b
-	mkdir b/b 
-	mv -T a/a b/b 
-	ls -la a/ 
-	ls -la b/ 
-	find b 
+	mkdir b/b
+	mv -T a/a b/b
+	ls -la a/
+	ls -la b/
+	find b
 	rm -rf a || exit 9
 	rm -rf b || exit 10
     done
@@ -85,7 +85,7 @@ echo "002c ... rename-overwrite-test"
 ) || exit 2
 fi
 ##################################################
-if [ "$1" = "3" ] || [ "$1" = "" ]; then 
+if [ "$1" = "3" ] || [ "$1" = "" ]; then
 time (
 echo "===================================================================="
 echo "003 ... git-clone-test"
@@ -98,7 +98,7 @@ cd ../../
 ) || exit 3
 fi
 ##################################################
-if [ "$1" = "4" ] || [ "$1" = "" ]; then 
+if [ "$1" = "4" ] || [ "$1" = "" ]; then
 time (
 echo "===================================================================="
 echo "004 ... xrootd-compilation"
@@ -114,7 +114,7 @@ cd ../../../
 ) || exit 4
 fi
 ##################################################
-if [ "$1" = "5" ] || [ "$1" = "" ]; then 
+if [ "$1" = "5" ] || [ "$1" = "" ]; then
 time (
 echo "===================================================================="
 echo "005 ... client-tests"
@@ -136,7 +136,7 @@ echo "005d... sqlite"
 ) || exit 5
 fi
 ##################################################
-if [ "$1" = "6" ] || [ "$1" = "" ]; then 
+if [ "$1" = "6" ] || [ "$1" = "" ]; then
 time (
 echo "===================================================================="
 echo "006 ... eos-rpm-test"
@@ -152,9 +152,9 @@ mkdir build
 cd build
 uname -a | grep ".el6." >& /dev/null
 if [ $? -eq 0 ] ; then
-    scl enable devtoolset-6 "cmake3 ../ -DPACKAGEONLY=1" >& /tmp/006-eos-rpm-test.log 2>&1 || exit 6
+    scl enable devtoolset-8 "cmake3 ../ -DPACKAGEONLY=1" >& /tmp/006-eos-rpm-test.log 2>&1 || exit 6
 else
-    scl enable devtoolset-6 "cmake3 ../ -DPACKAGEONLY=1" >& /tmp/006-eos-rpm-test.log 2>&1 || exit 6
+    scl enable devtoolset-8 "cmake3 ../ -DPACKAGEONLY=1" >& /tmp/006-eos-rpm-test.log 2>&1 || exit 6
 fi
 
 make srpm >& /tmp/006-eos-rpm-test.log 2>&1 || exit 6
@@ -165,7 +165,7 @@ rm -rf eos
 ) || exit 6
 fi
 ##################################################
-if [ "$1" = "7" ] || [ "$1" = "" ]; then 
+if [ "$1" = "7" ] || [ "$1" = "" ]; then
 time (
 echo "===================================================================="
 echo "007 ... eos-write-recovery-test"
@@ -182,7 +182,7 @@ rm -rf 512M.2\#err_sim_flusher\#
 ) || exit 7
 fi
 ##################################################
-if [ "$1" = "8" ] || [ "$1" = "" ]; then 
+if [ "$1" = "8" ] || [ "$1" = "" ]; then
 time (
 echo "===================================================================="
 echo "008 ... eos-hardlink-tests"
@@ -190,29 +190,29 @@ mkdir 008-eos-hardlink-tests
 cd 008-eos-hardlink-tests
 echo "008 ... create hardlinks"
 touch /tmp/008-eos-hardlink-tests
-cp /etc/passwd . 
-for name in `seq 2 128`; do 
+cp /etc/passwd .
+for name in `seq 2 128`; do
   ln passwd hardlink.$name >> /tmp/008-eos-hardlink-tests
   link_source=`stat -c %h passwd`;
-  link_target=`stat -c %h hardlink.$name`; 
+  link_target=`stat -c %h hardlink.$name`;
   ino_source=`stat -c %i passwd`;
-  ino_target=`stat -c %i hardlink.$name`; 
+  ino_target=`stat -c %i hardlink.$name`;
   test "$name" == "$link_source" || exit 8
   test "$name" == "$link_target" || exit 8
   test "$ino_source" == "$ino_target" || exit 8
   echo $name $link_source $link_target >> /tmp/008-eos-hardlink-tests
 done
 echo "008 ... remove hardlinks"
-for name in `seq 128 -1 2`; do 
+for name in `seq 128 -1 2`; do
   link_source=`stat -c %h passwd`;
-  link_target=`stat -c %h hardlink.$name`; 
+  link_target=`stat -c %h hardlink.$name`;
   echo $name $link_source $link_target >> /tmp/008-eos-hardlink-tests
   test "$name" == "$link_source" || exit 8
   test "$name" == "$link_target" || exit 8
   unlink hardlink.$name >> /tmp/008-eos-hardlink-tests
 done
 
-rm passwd   
+rm passwd
 ) || exit 8
 fi
 
@@ -249,8 +249,8 @@ date +%s >> inlined;
 getfattr --only-values -d -n system.eos.md inlined | grep sys.file.buf || exit 9
 echo ". 4"
 
-for name in `seq 1 400`; do 
-    date +%s >> inlined ; 
+for name in `seq 1 400`; do
+    date +%s >> inlined ;
 done
 getfattr --only-values -d -n system.eos.md inlined | grep sys.file.buf && exit 9
 echo ". 6"

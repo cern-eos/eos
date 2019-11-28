@@ -24,7 +24,7 @@
 #-------------------------------------------------------------------------------
 %define distribution %(/usr/lib/rpm/redhat/dist.sh --distnum)
 %if 0%{distribution} == 6 || 0%{distribution} == 7
-%global __strip /opt/rh/devtoolset-6/root/usr/bin/strip
+%global __strip /opt/rh/devtoolset-8/root/usr/bin/strip
 %endif
 
 #-------------------------------------------------------------------------------

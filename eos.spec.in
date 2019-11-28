@@ -3,7 +3,7 @@
 #-------------------------------------------------------------------------------
 %define _unpackaged_files_terminate_build 0
 %define distribution %(/usr/lib/rpm/redhat/dist.sh --distnum)
-%define devtoolset devtoolset-6
+%define devtoolset devtoolset-8
 %define cmake cmake3
 %define compiler gcc
 
@@ -894,7 +894,7 @@ fi
 
 
 #-------------------------------------------------------------------------------
-# Package eos-fusex-cern-autofs 
+# Package eos-fusex-cern-autofs
 #-------------------------------------------------------------------------------
 
 %package -n eos-fusex-cern-autofs
