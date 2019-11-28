@@ -194,6 +194,7 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
     return false;
   }
 
+  int all_ok = true;
   {
     eos::common::RWMutexReadLock rd_lock(mMutexMap);
 
@@ -222,13 +223,17 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
 
       // We continue until any of the brokers accepts the message
       if (!rc) {
-        UpdateBrokersEndpoints(true);
+        all_ok = false;
         eos_err("msg=\"failed to send message\" dst=\"%s\" msg=\"%s\"",
                 broker.first.c_str(), message.c_str());
         XrdMqMessage::Eroute.Emsg("SendMessage", status.errNo,
                                   status.GetErrorMessage().c_str());
       }
     }
+  }
+
+  if (!all_ok) {
+    UpdateBrokersEndpoints(true);
   }
 
   return rc;
@@ -556,6 +561,7 @@ XrdMqClient::UpdateBrokersEndpoints(bool force)
     if (!ret.second) {
       eos_static_err("msg=\"failed to create broker channels\" url=\"%s\"",
                      replace.second.c_str());
+      continue;
     } else {
       eos_static_info("msg=\"successfully connected to new broker\" url=\"%s\"",
                       xrd_url.GetURL().c_str());
