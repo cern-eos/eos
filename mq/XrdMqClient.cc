@@ -487,7 +487,7 @@ XrdMqClient::UpdateBrokersEndpoints(bool force)
 
     for (const auto& broker : mMapBrokerToChannels) {
       XrdCl::File file;
-      std::string new_brokerid;
+      std::string new_hostid;
       // Create a new dummy url since the current one might be actually working
       // and check if we get redirected
       XrdCl::URL tmp_url(broker.first);
@@ -496,25 +496,34 @@ XrdMqClient::UpdateBrokersEndpoints(bool force)
 
       // Skip if we can't contact or we couldn't get the propety
       if ((st.IsOK() == false) ||
-          (file.GetProperty("DataServer", new_brokerid) == false)) {
+          (file.GetProperty("DataServer", new_hostid) == false)) {
         continue;
       }
 
-      if (tmp_url.GetHostId() != new_brokerid) {
+      std::string old_host_port = tmp_url.GetHostName() + std::string("+") +
+                                  std::to_string(tmp_url.GetPort());
+
+      if (old_host_port != new_hostid) {
         // Build the new broker URL
-        std::string hostname {new_brokerid};
+        size_t pos = new_hostid.find('@');
+
+        if (pos != std::string::npos) {
+          new_hostid = new_hostid.substr(pos + 1);
+        }
+
+        std::string hostname {new_hostid};
         int port = 1097;
-        size_t pos = new_brokerid.find(':');
+        pos = new_hostid.find(':');
 
         // Extract hostname and port
         if (pos != std::string::npos) {
           try {
-            port = std::stoi(new_brokerid.substr(pos + 1));
+            port = std::stoi(new_hostid.substr(pos + 1));
           } catch (...) {
             // ignore any conversion errors
           }
 
-          hostname = new_brokerid.substr(0, pos);
+          hostname = new_hostid.substr(0, pos);
         }
 
         XrdCl::URL url(broker.first);
