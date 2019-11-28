@@ -128,6 +128,12 @@ int Inspector::dump(const std::string& dumpPath, bool relative, bool rawPaths, b
       out << item.fullPath;
     }
 
+    if(item.isFile) {
+      std::string xs;
+      eos::appendChecksumOnStringProtobuf(item.fileMd, xs);
+      out << " xs=" << xs;
+    }
+
     if(showSize && item.isFile) {
       out << " size=" << item.fileMd.size();
     }
