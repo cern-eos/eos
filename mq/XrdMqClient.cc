@@ -142,7 +142,7 @@ XrdMqClient::AddBroker(const std::string& broker_url, bool advisorystatus,
                        bool advisoryquery, bool advisoryflushbacklog)
 {
   if (broker_url.empty()) {
-    eos_static_err("%s", "msg=\cannot add empty broker url\"");
+    eos_static_err("%s", "msg=\"cannot add empty broker url\"");
     return false;
   }
 
@@ -501,7 +501,7 @@ XrdMqClient::UpdateBrokersEndpoints()
           (tmp_url.GetPort() != new_port)) {
         XrdCl::URL new_url(broker.first);
         new_url.SetHostPort(new_host, new_port);
-        eos_static_info("msg=\"broker endpoint update\", old_url=\"%s\" "
+        eos_static_info("msg=\"broker endpoint update\" old_url=\"%s\" "
                         "new_url=\"%s\"", broker.first.c_str(),
                         new_url.GetURL().c_str());
         endpoint_replacements.emplace(broker.first, new_url.GetURL());
