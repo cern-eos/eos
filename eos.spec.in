@@ -200,7 +200,7 @@ Requires: elfutils-devel
 
 BuildRequires: libuuid-devel, ncurses-static, openssl-static, zlib-static,
 BuildRequires: libcurl-devel libcurl, sparsehash-devel
-%if 0%{?rhel} == 6 || 0%{?el6} == 1 || (0%{?fedora} >= 18 && 0%{?fedora} <= 21)
+%if 0%{?rhel} == 6 || 0%{?el6} == 1
 BuildRequires: zeromq3, zeromq3-devel
 BuildRequires: libevent2, libevent2-devel
 %else
@@ -360,7 +360,7 @@ Requires: chkconfig
 Requires: initscripts
 Requires: sysvinit-tools
 %endif
-%if 0%{?rhel} == 6 || 0%{?el6} == 1 || (0%{?fedora} >= 18 && 0%{?fedora} <= 21)
+%if 0%{?rhel} == 6 || 0%{?el6} == 1
 BuildRequires: zeromq3, zeromq3-devel
 Requires: zeromq3
 %else
@@ -499,9 +499,7 @@ fi
 Summary: EOS namespace inspection tool for instance administrators
 Group: Applications/File
 
-# ----------------------
-# select xrootd package
-# ----------------------
+# Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
 %if 0%{?distribution} == 7
@@ -513,9 +511,8 @@ Requires: xrootd-client >= %{xrootd_version_min}
 Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 
-# -----------------------
-# select protobuf package
-# -----------------------
+# Select protobuf package
+
 %if ! %{without eos_protobuf3_rh}
 # Install eos-protobuf3
 %if 0%{?distribution} == 7
@@ -553,9 +550,13 @@ EOS namespace inspection tool for instance administrators
 Summary: The EOS shell client
 Group: Applications/File
 
-# ----------------------
-# select xrootd package
-# ----------------------
+%if 0%{?rhel} == 6 || 0%{?el6} == 1
+Requires: zeromq3
+%else
+Requires: zeromq
+%endif
+
+# Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
 %if 0%{?distribution} == 7
@@ -567,9 +568,7 @@ Requires: xrootd-client >= %{xrootd_version_min}
 Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 
-# -----------------------
-# select protobuf package
-# -----------------------
+# Select protobuf package
 %if ! %{without eos_protobuf3_rh}
 # Install eos-protobuf3
 %if 0%{?distribution} == 7
@@ -835,7 +834,7 @@ Requires: attr
 %if %{use_richacl}
 Requires: librichacl, richacl >= 1.12
 %endif
-%if 0%{?rhel} == 6 || 0%{?el6} == 1 || (0%{?fedora} >= 18 && 0%{?fedora} <= 21)
+%if 0%{?rhel} == 6 || 0%{?el6} == 1
 Requires: zeromq3
 %else
 Requires: zeromq
