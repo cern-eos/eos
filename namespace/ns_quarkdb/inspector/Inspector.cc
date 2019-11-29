@@ -158,7 +158,7 @@ std::string fetchNameOrPath(const eos::ns::ContainerMdProto &proto, ContainerSca
     return proto.name();
   }
 
-  std::string fullPath = item.fullPath.get();
+  std::string fullPath = std::move(item.fullPath).get();
 
   if(fullPath.empty()) {
     return proto.name();
@@ -177,7 +177,7 @@ std::string countAsString(folly::Future<uint64_t> &fut) {
     return "N/A";
   }
 
-  uint64_t val = fut.get();
+  uint64_t val = std::move(fut).get();
   fut = val;
 
   return SSTR(val);
@@ -193,7 +193,7 @@ uint64_t safeGet(folly::Future<uint64_t> &fut) {
     return 0;
   }
 
-  uint64_t val = fut.get();
+  uint64_t val = std::move(fut).get();
   fut = val;
   return val;
 }
@@ -257,7 +257,7 @@ std::string fetchNameOrPath(const eos::ns::FileMdProto &proto, FileScanner::Item
     return proto.name();
   }
 
-  std::string fullPath = item.fullPath.get();
+  std::string fullPath = std::move(item.fullPath).get();
 
   if(fullPath.empty()) {
     return proto.name();
@@ -685,7 +685,7 @@ void consumePendingEntries(std::deque<PendingFile> &futs, bool unconditional, st
     if(entry.validParent.hasException()) {
       out << "ERROR: Exception occurred when fetching container " << entry.proto.cont_id() << " as part of checking existence of parent of container " << entry.proto.id() << std::endl;
     }
-    else if(entry.validParent.get() == false) {
+    else if(std::move(entry.validParent).get() == false) {
       out << "file-id=" << entry.proto.id() << " invalid-parent-id=" << entry.proto.cont_id() << " size=" << entry.proto.size() << " locations=" << serializeLocations(entry.proto.locations()) << " unlinked-locations=" << serializeLocations(entry.proto.unlink_locations()) << std::endl;
     }
 
@@ -710,7 +710,7 @@ void consumePendingEntries(std::deque<PendingContainer> &futs, bool unconditiona
     if(entry.validParent.hasException()) {
       out << "ERROR: Exception occurred when fetching container " << entry.proto.parent_id() << " as part of checking existence of parent of container " << entry.proto.id() << std::endl;
     }
-    else if(entry.validParent.get() == false) {
+    else if(std::move(entry.validParent).get() == false) {
       out << "container-id=" << entry.proto.id() << " invalid-parent-id=" << entry.proto.parent_id() << std::endl;
     }
 
@@ -814,7 +814,7 @@ void consumeFsViewQueue(std::deque<FsViewItemExists> &futs, bool unconditional, 
     if(entry.valid.hasException()) {
       out << "ERROR: Exception occurred when checking validity of location " << entry.location << " (unlinked=" << entry.unlinked << ") of FileMD " << entry.proto.id() << std::endl;
     }
-    else if(entry.valid.get() == false) {
+    else if(std::move(entry.valid).get() == false) {
 
       if(entry.unlinked) {
         out << "id=" << entry.proto.id() << " parent-id=" << entry.proto.cont_id() << " size=" << entry.proto.size() << " locations=" << serializeLocations(entry.proto.locations()) << " unlinked-locations=" << serializeLocations(entry.proto.unlink_locations()) << " missing-unlinked-location=" << entry.location << std::endl;
@@ -894,7 +894,7 @@ void consumeFsViewQueue(std::deque<FsViewExpectInLocations> &futs, bool uncondit
       out << "ERROR: Exception occurred when fetching file with id " << entry.futureFid << std::endl;
     }
     else if(!entry.unlinked) {
-      eos::ns::FileMdProto proto = entry.proto.get();
+      eos::ns::FileMdProto proto = std::move(entry.proto).get();
 
       bool found = false;
       for(auto it = proto.locations().cbegin(); it != proto.locations().cend(); it++) {
@@ -909,7 +909,7 @@ void consumeFsViewQueue(std::deque<FsViewExpectInLocations> &futs, bool uncondit
       }
     }
     else {
-      eos::ns::FileMdProto proto = entry.proto.get();
+      eos::ns::FileMdProto proto = std::move(entry.proto).get();
 
       bool found = false;
       for(auto it = proto.unlink_locations().cbegin(); it != proto.unlink_locations().cend(); it++) {

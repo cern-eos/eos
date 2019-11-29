@@ -116,7 +116,7 @@ public:
     }
 
     futureVectorNext++;
-    out = futureVector[futureVectorNext-1].get();
+    out = std::move(futureVector[futureVectorNext-1]).get();
     return true;
   }
 
@@ -129,7 +129,7 @@ private:
       return;
     }
 
-    futureVector = mainFuture.get();
+    futureVector = std::move(mainFuture).get();
     futureVectorPopulated = true;
   }
 

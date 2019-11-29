@@ -169,6 +169,16 @@ public:
       IFsView* fsview, IFileMD::location_t location);
 
 private:
+  //----------------------------------------------------------------------------
+  //! Prefetch Uri of IFileMDPtr
+  //----------------------------------------------------------------------------
+  folly::Future<std::string> prefetchFileUri(IFileMDPtr file);
+
+  //----------------------------------------------------------------------------
+  //! Prefetch Uri of IContainerMDPtr
+  //----------------------------------------------------------------------------
+  folly::Future<std::string> prefetchContUri(IContainerMDPtr cont);
+
   IView*           pView;
   IFileMDSvc*      pFileMDSvc;
   IContainerMDSvc* pContainerMDSvc;

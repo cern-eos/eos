@@ -1136,7 +1136,7 @@ FmdDbMapHandler::ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
                   eos::FileIdentifier(fid));
 
   try {
-    NsFileProtoToFmd(file_fut.get(), ns_fmd);
+    NsFileProtoToFmd(std::move(file_fut).get(), ns_fmd);
   } catch (const eos::MDException& e) {
     eos_err("msg=\"failed to get metadata from QDB: %s\"", e.what());
   }
@@ -1236,7 +1236,7 @@ FmdDbMapHandler::ResyncAllFromQdb(const QdbContactDetails& contact_details,
     eos::common::FileId::fileid_t fid = files.front().first;
 
     try {
-      NsFileProtoToFmd(files.front().second.get(), ns_fmd);
+      NsFileProtoToFmd(std::move(files.front().second).get(), ns_fmd);
     } catch (const eos::MDException& e) {
       eos_err("msg=\"failed to get metadata from QDB: %s\"", e.what());
     }

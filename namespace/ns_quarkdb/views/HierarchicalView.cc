@@ -306,7 +306,7 @@ QuarkHierarchicalView::getPathInternal(FileOrContainerMD state,
           return getPathDeferred(std::move(fut), pendingChunks, follow, expendedEffort);
         }
 
-        state.container = fut.get();
+        state.container = std::move(fut).get();
         continue;
       }
 
@@ -381,7 +381,7 @@ QuarkHierarchicalView::getPathInternal(FileOrContainerMD state,
           return getPathDeferred(std::move(fut), pendingChunks, follow, expendedEffort);
         }
 
-        state.container = fut.get();
+        state.container = std::move(fut).get();
         state.file.reset();
       }
 
@@ -841,7 +841,7 @@ QuarkHierarchicalView::getUriInternal(std::deque<std::string> currentChunks,
       //------------------------------------------------------------------------
       // Cache hit, carry on.
       //------------------------------------------------------------------------
-      nextToLookup = pending.get();
+      nextToLookup = std::move(pending).get();
       continue;
     }
 
@@ -868,7 +868,7 @@ QuarkHierarchicalView::getUriInternalCid(std::deque<std::string> currentChunks,
     //--------------------------------------------------------------------------
     // Cache hit
     //--------------------------------------------------------------------------
-    return getUriInternal(currentChunks, pending.get());
+    return getUriInternal(currentChunks, std::move(pending).get());
   }
 
   //----------------------------------------------------------------------------
@@ -918,7 +918,7 @@ QuarkHierarchicalView::getUriInternalFid(FileIdentifier fid) const
     //--------------------------------------------------------------------------
     // Cache hit
     //--------------------------------------------------------------------------
-    return getUriInternalFmdPtr(pending.get());
+    return getUriInternalFmdPtr(std::move(pending).get());
   }
 
   //----------------------------------------------------------------------------

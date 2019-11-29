@@ -63,7 +63,7 @@ GrpcNsInterface::Filter(std::shared_ptr<eos::IFileMD> md,
   eos::IFileMD::ctime_t ctime;
   eos::IFileMD::ctime_t mtime;
   md->getCTime(ctime);
-  md->getMTime(mtime);  
+  md->getMTime(mtime);
 
   // empty file
   if (filter.size().zero()) {
@@ -73,7 +73,7 @@ GrpcNsInterface::Filter(std::shared_ptr<eos::IFileMD> md,
       return true;
     }
   } else {
-    if ( (filter.size().min() <= md->getSize()) && 
+    if ( (filter.size().min() <= md->getSize()) &&
 	 ( (md->getSize() <= filter.size().max()) || (!filter.size().max())) ) {
       // accepted
     } else {
@@ -171,7 +171,7 @@ GrpcNsInterface::Filter(std::shared_ptr<eos::IFileMD> md,
 	return true;
       }
     }
-  } 
+  }
 
   if (filter.layoutid()) {
     if (md->getLayoutId() != filter.layoutid()) {
@@ -249,11 +249,11 @@ GrpcNsInterface::Filter(std::shared_ptr<eos::IFileMD> md,
   return false;;
 }
 
-bool 
+bool
 GrpcNsInterface::Filter(std::shared_ptr<eos::IContainerMD> md,
 			const eos::rpc::MDSelection& filter)
 
-{    
+{
   errno = 0;
   // see if filtering is enabled
   if (!filter.select())
@@ -277,7 +277,7 @@ GrpcNsInterface::Filter(std::shared_ptr<eos::IContainerMD> md,
       return true;
     }
   } else {
-    if ( (filter.children().min() <= nchildren) && 
+    if ( (filter.children().min() <= nchildren) &&
 	 ((nchildren <= filter.children().max()) || (!filter.children().max())) ) {
       // accepted
     } else {
@@ -292,7 +292,7 @@ GrpcNsInterface::Filter(std::shared_ptr<eos::IContainerMD> md,
       return true;
     }
   } else {
-    if ( (filter.treesize().min() <= treesize) && 
+    if ( (filter.treesize().min() <= treesize) &&
 	 ((treesize <= filter.treesize().max()) || (!filter.treesize().max())) ) {
       // accepted
     } else {
@@ -375,7 +375,7 @@ GrpcNsInterface::Filter(std::shared_ptr<eos::IContainerMD> md,
 	return true;
       }
     }
-  } 
+  }
 
   if (filter.flags()) {
     if (md->getFlags() != filter.flags()) {
@@ -503,7 +503,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
       // short-cut for filtered MD
       return grpc::Status::OK;
     }
-    
+
     // create GRPC protobuf object
     eos::rpc::MDResponse gRPCResponse;
     gRPCResponse.set_type(eos::rpc::FILE);
@@ -646,7 +646,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
 }
 
 grpc::Status
-GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid, 
+GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
                          grpc::ServerWriter<eos::rpc::MDResponse>* writer,
                           const eos::rpc::MDRequest* request,
 			  bool streamparent,
@@ -981,7 +981,7 @@ GrpcNsInterface::FileInsert(eos::common::VirtualIdentity& vid,
     counter++;
     conflicts[counter].wait();
 
-    if (!conflicts[counter].hasException() && conflicts[counter].get() != nullptr) {
+    if (!conflicts[counter].hasException() && std::move(conflicts[counter]).get() != nullptr) {
       std::ostringstream ss;
       ss << "Attempted to create file with id=" << it.id() << ", which already exists";
 
@@ -1080,7 +1080,7 @@ GrpcNsInterface::ContainerInsert(eos::common::VirtualIdentity& vid,
     counter++;
     conflicts[counter].wait();
 
-    if (!conflicts[counter].hasException() && conflicts[counter].get() != nullptr) {
+    if (!conflicts[counter].hasException() && std::move(conflicts[counter]).get() != nullptr) {
       std::ostringstream ss;
       ss << "Attempted to create container with id=" << it.id() << ", which already exists";
       eos_static_err("%s", ss.str().c_str());
@@ -1703,7 +1703,7 @@ grpc::Status GrpcNsInterface::Version(eos::common::VirtualIdentity& vid,
   vpath += EOS_COMMON_PATH_VERSION_PREFIX;
   vpath += cPath.GetName();
   vpath += "/";
-  
+
   if ( request->cmd() == eos::rpc::NSRequest::VersionRequest::CREATE ) {
     // create a new version
     ProcCommand cmd;
@@ -1739,7 +1739,7 @@ grpc::Status GrpcNsInterface::Version(eos::common::VirtualIdentity& vid,
     if ( request->cmd() == eos::rpc::NSRequest::VersionRequest::PURGE) {
       // purge versions
       XrdOucErrInfo error;
-      int rc = gOFS->PurgeVersion(vpath.c_str(), 
+      int rc = gOFS->PurgeVersion(vpath.c_str(),
 				  error,
 				  request->maxversion());
       if (rc) {
@@ -1767,7 +1767,7 @@ grpc::Status GrpcNsInterface::Version(eos::common::VirtualIdentity& vid,
             if ((entryname == ".") || (entryname == "..")) {
               continue;
 	    }
-	    
+
 	    eos::rpc::NSResponse::VersionResponse::VersionInfo info;
 	    std::string smtime,sfid;
 	    eos::common::StringConversion::SplitKeyValue(entryname, smtime, sfid, ".");
@@ -1965,7 +1965,7 @@ GrpcNsInterface::Acl(eos::common::VirtualIdentity& vid,
 		     eos::rpc::NSResponse::AclResponse* reply,
 		     const eos::rpc::NSRequest::AclRequest* request)
 {
-  
+
 
   eos::console::RequestProto req;
 
@@ -2064,7 +2064,7 @@ GrpcNsInterface::Acl(eos::common::VirtualIdentity& vid,
 }
 
 
-grpc::Status 
+grpc::Status
 GrpcNsInterface::Token(eos::common::VirtualIdentity& vid,
 		       eos::rpc::NSResponse::ErrorResponse* reply,
 		       const eos::rpc::NSRequest::TokenRequest* request)

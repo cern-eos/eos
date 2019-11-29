@@ -30,6 +30,8 @@
 #include "common/FileId.hh"
 #include "common/Logging.hh"
 
+using std::placeholders::_1;
+
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
@@ -55,6 +57,28 @@ void Prefetcher::stageFileMD(IFileMD::id_t id)
 }
 
 //------------------------------------------------------------------------------
+// Prefetch Uri of IFileMDPtr
+//------------------------------------------------------------------------------
+folly::Future<std::string> Prefetcher::prefetchFileUri(IFileMDPtr file) {
+  if(file) {
+    return this->pView->getUriFut(file->getIdentifier());
+  }
+
+  return "";
+}
+
+//------------------------------------------------------------------------------
+// Prefetch Uri of IContainerMDPtr
+//------------------------------------------------------------------------------
+folly::Future<std::string> Prefetcher::prefetchContUri(IContainerMDPtr cont) {
+  if(cont) {
+    return this->pView->getUriFut(cont->getIdentifier());
+  }
+
+  return "";
+}
+
+//------------------------------------------------------------------------------
 // Declare an intent to access FileMD with the given id soon, along with
 // its parents
 //------------------------------------------------------------------------------
@@ -65,13 +89,7 @@ void Prefetcher::stageFileMDWithParents(IFileMD::id_t id)
   }
 
   folly::Future<IFileMDPtr> fut = pFileMDSvc->getFileMDFut(id);
-  mUris.emplace_back(fut.then([this](IFileMDPtr result) {
-    if(result) {
-      return this->pView->getUriFut(result->getIdentifier());
-    }
-
-    return folly::makeFuture<std::string>("");
-  }));
+  mUris.emplace_back(pFileMDSvc->getFileMDFut(id).then(std::bind(&Prefetcher::prefetchFileUri, this, _1)));
 }
 
 //------------------------------------------------------------------------------
@@ -85,13 +103,7 @@ void Prefetcher::stageContainerMDWithParents(IContainerMD::id_t id)
   }
 
   folly::Future<IContainerMDPtr> fut = pContainerMDSvc->getContainerMDFut(id);
-  mUris.emplace_back(fut.then([this](IContainerMDPtr result) {
-    if(result) {
-      return this->pView->getUriFut(result->getIdentifier());
-    }
-
-    return folly::makeFuture<std::string>("");
-  }));
+  mUris.emplace_back(pContainerMDSvc->getContainerMDFut(id).then(std::bind(&Prefetcher::prefetchContUri, this, _1)));
 }
 
 //----------------------------------------------------------------------------
@@ -248,7 +260,7 @@ void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView* view,
     return;
   }
 
-  IContainerMDPtr cmd = fut.get();
+  IContainerMDPtr cmd = std::move(fut).get();
   Prefetcher prefetcher(view);
   std::vector<std::string> paths;
 
@@ -326,7 +338,7 @@ void Prefetcher::prefetchContainerMDWithChildrenAndWait(IView* view,
     return;
   }
 
-  IContainerMDPtr cmd = fut.get();
+  IContainerMDPtr cmd = std::move(fut).get();
   Prefetcher prefetcher(view);
   std::vector<std::string> paths;
 

@@ -378,7 +378,7 @@ ScanDir::IsBeingDeleted(const eos::IFileMD::id_t fid) const
   auto file_fut = eos::MetadataFetcher::getFileFromId(*gOFS.mFsckQcl.get(),
                   eos::FileIdentifier(fid));
   // Throws an exception if file metadata object doesn't exist
-  eos::ns::FileMdProto fmd = file_fut.get();
+  eos::ns::FileMdProto fmd = std::move(file_fut).get();
   return (fmd.cont_id() == 0ull);
 }
 

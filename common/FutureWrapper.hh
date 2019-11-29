@@ -147,7 +147,7 @@ public:
     mArrived = true;
 
     try {
-      mObj = mFut.get();
+      mObj = std::move(mFut).get();
     } catch (...) {
       mException = std::current_exception();
     }

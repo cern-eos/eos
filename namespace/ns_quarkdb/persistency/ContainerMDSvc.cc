@@ -135,7 +135,7 @@ QuarkContainerMDSvc::SafetyCheck()
 
   for (size_t i = 0; i < futs.size(); i++) {
     try {
-      futs[i].get();
+      std::move(futs[i]).get();
     } catch (eos::MDException& qdb_err) {
       // All is good, we didn't find any container, as expected
       continue;
