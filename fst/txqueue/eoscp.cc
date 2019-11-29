@@ -526,7 +526,6 @@ main(int argc, char* argv[])
   int set_mode = 0;
   extern char* optarg;
   extern int optind;
-
   XrdCl::DefaultEnv::GetEnv()->PutInt("MetalinkProcessing", 0);
 
   while ((c = getopt(argc, argv,
@@ -1517,9 +1516,8 @@ main(int argc, char* argv[])
 
         if (mkdir_failed) {
           std::string errmsg = (status.IsOK()) ?
-            ("cannot create destination sub-directory " + subpath).c_str()
-            : status.GetErrorMessage();
-
+                               ("cannot create destination sub-directory " + subpath).c_str()
+                               : status.GetErrorMessage();
           fprintf(stderr, "error: %s\n", errmsg.c_str());
           exit(-EPERM);
         }
@@ -2183,7 +2181,7 @@ main(int argc, char* argv[])
         write_wait += wait_time;
 
         if (debug) {
-          fprintf(stderr, "[eoscp] write=%lli\n", nwrite);
+          fprintf(stderr, "[eoscp] write=%li\n", nwrite);
         }
       }
       break;
@@ -2206,7 +2204,7 @@ main(int argc, char* argv[])
         write_wait += wait_time;
 
         if (debug) {
-          fprintf(stderr, "[eoscp] write=%lli\n", nwrite);
+          fprintf(stderr, "[eoscp] write=%li\n", nwrite);
         }
       }
       break;
