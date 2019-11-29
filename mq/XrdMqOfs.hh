@@ -502,12 +502,6 @@ private:
   {
     return 0;
   }
-
-private:
-  //! During startup we don't need to wait for a master id and we just accept
-  //! any connection while during normal operations during a HA switch we need
-  //! to wait for a new master to get elected.
-  std::atomic<bool> mWaitForMaster;
 };
 
 #endif

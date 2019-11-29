@@ -330,8 +330,7 @@ XrdMqOfs::XrdMqOfs(XrdSysError* ep):
   myPort(1097), mDeliveredMessages(0ull), mFanOutMessages(0ull),
   mMaxQueueBacklog(MQOFSMAXQUEUEBACKLOG),
   mRejectQueueBacklog(MQOFSREJECTQUEUEBACKLOG), mQdbCluster(), mQdbPassword(),
-  mQdbContactDetails(), mQcl(nullptr), mMasterId(), mMgmId(),
-  mWaitForMaster(false)
+  mQdbContactDetails(), mQcl(nullptr), mMasterId(), mMgmId()
 {
   ConfigFN  = 0;
   StartupTime = time(0);
@@ -873,43 +872,12 @@ bool XrdMqOfs::ShouldRedirectQdb(XrdOucString& host, int& port)
   if (now - last_check > 5) {
     last_check = now;
     mMasterId = GetLeaseHolder();
-
-    // During startup we don't need to wait for a new master and we just accept
-    // connections like we're the master (i.e. don't redirect)
-    if (!mWaitForMaster && !mMasterId.empty()) {
-      mWaitForMaster = true;
-    }
   }
 
-  if (mMasterId == mMgmId) {
-    // We are the current master no need to redirect
+  // If we are the current master or there is no master then don't redirect
+  if ((mMasterId == mMgmId) || mMasterId.empty()) {
     return false;
   } else {
-    if (mMasterId.empty()) {
-      if (mWaitForMaster) {
-        auto now = steady_clock::now();
-        auto deadline = now + seconds(30);
-
-        while ((now < deadline) && mMasterId.empty()) {
-          std::this_thread::sleep_for(seconds(1));
-          mMasterId = GetLeaseHolder();
-          now = steady_clock::now();
-          eos_notice("%s", "msg=\"wait for master election\"");
-        }
-      }
-
-      if (mMasterId.empty()) {
-        eos_notice("msg=\"unset or unexpected master identity format\" "
-                   "mMasterId=\"%s\"", mMasterId.c_str());
-        return false;
-      }
-
-      // We are the current master no need to redirect
-      if (mMasterId == mMgmId) {
-        return false;
-      }
-    }
-
     size_t pos = mMasterId.find(':');
 
     try {
