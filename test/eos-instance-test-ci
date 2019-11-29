@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "Running MQ tests"
-eos-mq-tests eos-mq-test.eoscluster.cern.ch
+eos-mq-tests eos-mq.eoscluster.cern.ch
 
 if [[ $? -ne 0 ]]; then
     echo "error: failed mq tests"

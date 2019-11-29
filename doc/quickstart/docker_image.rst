@@ -55,7 +55,7 @@ To connect to EOS using the *eos* shell CLI running in the MGM container you can
 
 .. code-block:: bash
 
-   docker exec -i eos-mgm-test eos
+   docker exec -i eos-mgm1 eos
    EOS Console [root://localhost] |/> whoami
    whoami
    Virtual Identity: uid=0 (2,99,3,0) gid=0 (99,4,0) [authz:sss] sudo* host=localhost
@@ -75,23 +75,23 @@ To connect to EOS using the *eos* shell CLI running in the MGM container you can
    ┌──────────┬─────────────────────────────────────┬────────────────┬──────────┬────────────┬──────┬──────────┬────────┬────────┬────────────────┬─────┐
    │type      │                             hostport│          geotag│    status│      status│  txgw│ gw-queued│  gw-ntx│ gw-rate│  heartbeatdelta│ nofs│
    └──────────┴─────────────────────────────────────┴────────────────┴──────────┴────────────┴──────┴──────────┴────────┴────────┴────────────────┴─────┘
-    nodesview  eos-fst1-test.eoscluster.cern.ch:1095      docker-test     online           on    off          0       10      120                2     1 
-    nodesview  eos-fst2-test.eoscluster.cern.ch:1095      docker-test     online           on    off          0       10      120                2     1 
-    nodesview  eos-fst3-test.eoscluster.cern.ch:1095      docker-test     online           on    off          0       10      120                2     1 
-    nodesview  eos-fst4-test.eoscluster.cern.ch:1095      docker-test     online           on    off          0       10      120                2     1 
-    nodesview  eos-fst5-test.eoscluster.cern.ch:1095      docker-test     online           on    off          0       10      120                2     1 
-    nodesview  eos-fst6-test.eoscluster.cern.ch:1095      docker-test     online           on    off          0       10      120                2    
+    nodesview  eos-fst1.eoscluster.cern.ch:1095      docker-test     online           on    off          0       10      120                2     1
+    nodesview  eos-fst2.eoscluster.cern.ch:1095      docker-test     online           on    off          0       10      120                2     1
+    nodesview  eos-fst3.eoscluster.cern.ch:1095      docker-test     online           on    off          0       10      120                2     1
+    nodesview  eos-fst4.eoscluster.cern.ch:1095      docker-test     online           on    off          0       10      120                2     1
+    nodesview  eos-fst5.eoscluster.cern.ch:1095      docker-test     online           on    off          0       10      120                2     1
+    nodesview  eos-fst6.eoscluster.cern.ch:1095      docker-test     online           on    off          0       10      120                2
 
 You can mount EOS to the client container using FUSE and KRB5 authentication.
 
 .. code-block:: bash
 
-   docker exec -i eos-client-test env EOS_MGM_URL=root://eos-mgm-test.eoscluster.cern.ch eos fuse mount /eos
-   docker exec -it eos-client-test bash
+   docker exec -i eos-cli1 env EOS_MGM_URL=root://eos-mgm1.eoscluster.cern.ch eos fuse mount /eos
+   docker exec -it eos-cli1 bash
 
    .... trying to create ... /eos
    ===> Mountpoint   : /eos
-   ===> Fuse-Options : max_readahead=131072,max_write=4194304,fsname=eos-mgm-test.eoscluster.cern.ch,url=root://eos-mgm-test.eoscluster.cern.ch//eos/
+   ===> Fuse-Options : max_readahead=131072,max_write=4194304,fsname=eos-mgm1.eoscluster.cern.ch,url=root://eos-mgm1.eoscluster.cern.ch//eos/
    ===> fuse readahead        : 1
    ===> fuse readahead-window : 1048576
    ===> fuse debug            : 0
@@ -103,11 +103,11 @@ You can mount EOS to the client container using FUSE and KRB5 authentication.
    ===> fuse lazy-open-ro     : 0
    ===> fuse lazy-open-rw     : 1
    ==== fuse multi-threading  : true
-   info: successfully mounted EOS [root://eos-mgm-test.eoscluster.cern.ch] under /eos
+   info: successfully mounted EOS [root://eos-mgm1.eoscluster.cern.ch] under /eos
 
 .. code-block:: bash
 
-   [root@testmachine eos-docker]# docker exec -it eos-client-test bash 
+   [root@testmachine eos-docker]# docker exec -it eos-cli1 bash 
    ls -la /eos/
    total 4
    drwxrwxr-x.  1 root root    0 Jan  1  1970 .
@@ -118,7 +118,7 @@ Or by running the EOS instance testsuite
 
 .. code-block:: bash
 
-   docker exec -i eos-mgm-test eos-instance-test
+   docker exec -i eos-mgm1 eos-instance-test
 
 
 Delete and clean

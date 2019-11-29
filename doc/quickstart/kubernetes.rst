@@ -111,7 +111,7 @@ You can mount EOS to the client Pods using FUSE and KRB5 authentication:
 
    .... trying to create ... /eos
    ===> Mountpoint   : /eos
-   ===> Fuse-Options : max_readahead=131072,max_write=4194304,fsname=eos-mgm-test.eoscluster.cern.ch,url=root://eos-mgm-test.eoscluster.cern.ch//eos/
+   ===> Fuse-Options : max_readahead=131072,max_write=4194304,fsname=eos-mgm1.eoscluster.cern.ch,url=root://eos-mgm1.eoscluster.cern.ch//eos/
    ===> fuse readahead        : 1
    ===> fuse readahead-window : 1048576
    ===> fuse debug            : 0
@@ -123,7 +123,7 @@ You can mount EOS to the client Pods using FUSE and KRB5 authentication:
    ===> fuse lazy-open-ro     : 0
    ===> fuse lazy-open-rw     : 1
    ==== fuse multi-threading  : true
-   info: successfully mounted EOS [root://eos-mgm-test.eoscluster.cern.ch] under /eos
+   info: successfully mounted EOS [root://eos-mgm1.eoscluster.cern.ch] under /eos
 
 .. code-block:: bash
 
