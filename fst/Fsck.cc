@@ -515,7 +515,7 @@ Fsck::ScanMdQdb()
     eos::common::FmdHelper fMd;
 
     try {
-      FmdDbMapHandler::NsFileProtoToFmd(files.front().get(), fMd);
+      FmdDbMapHandler::NsFileProtoToFmd(std::move(files.front()).get(), fMd);
       CheckFile(fMd, nfiles);
       mMd[fMd.mProtoFmd.fid()] = fMd;
       files.pop_front();

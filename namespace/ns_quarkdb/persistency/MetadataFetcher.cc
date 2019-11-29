@@ -289,7 +289,7 @@ folly::Future<eos::ns::FileMdProto>
 MetadataFetcher::getFileFromId(qclient::QClient& qcl, FileIdentifier id)
 {
   return qcl.follyExec(RequestBuilder::readFileProto(id))
-         .then(std::bind(parseFileMdProtoResponse, _1, id));
+         .thenValue(std::bind(parseFileMdProtoResponse, _1, id));
 }
 
 //----------------------------------------------------------------------------
@@ -334,7 +334,7 @@ folly::Future<bool>
 MetadataFetcher::doesContainerMdExist(qclient::QClient& qcl, ContainerIdentifier id)
 {
   return qcl.follyExec(RequestBuilder::readContainerProto(id))
-         .then(std::bind(checkContainerMdProtoExistence, _1, id));
+         .thenValue(std::bind(checkContainerMdProtoExistence, _1, id));
 }
 
 //----------------------------------------------------------------------------
@@ -344,7 +344,7 @@ folly::Future<bool>
 MetadataFetcher::doesFileMdExist(qclient::QClient& qcl, FileIdentifier id)
 {
   return qcl.follyExec(RequestBuilder::readFileProto(id))
-         .then(std::bind(checkFileMdProtoExistence, _1, id));
+         .thenValue(std::bind(checkFileMdProtoExistence, _1, id));
 }
 
 //------------------------------------------------------------------------------
@@ -372,7 +372,7 @@ MetadataFetcher::getContainerFromId(qclient::QClient& qcl,
                                     ContainerIdentifier id)
 {
   return qcl.follyExec(RequestBuilder::readContainerProto(id))
-         .then(std::bind(parseContainerMdProtoResponse, _1, id));
+         .thenValue(std::bind(parseContainerMdProtoResponse, _1, id));
 }
 
 //------------------------------------------------------------------------------
@@ -416,7 +416,7 @@ MetadataFetcher::getFileMDsInContainer(qclient::QClient& qcl,
 {
   folly::Future<IContainerMD::FileMap> filemap = getFileMap(qcl, container);
   return filemap.via(executor)
-    .then(std::bind(MetadataFetcher::getFilesFromFilemapV, std::ref(qcl), _1));
+    .thenValue(std::bind(MetadataFetcher::getFilesFromFilemapV, std::ref(qcl), _1));
 }
 
 //----------------------------------------------------------------------------
@@ -430,7 +430,7 @@ MetadataFetcher::getContainerMDsInContainer(qclient::QClient& qcl,
     getContainerMap(qcl, container);
 
   return containerMap.via(executor)
-    .then(std::bind(MetadataFetcher::getContainersFromContainerMapV, std::ref(qcl), _1));
+    .thenValue(std::bind(MetadataFetcher::getContainersFromContainerMapV, std::ref(qcl), _1));
 }
 
 //------------------------------------------------------------------------------
@@ -555,8 +555,8 @@ MetadataFetcher::getFileIDFromName(qclient::QClient& qcl,
 {
   return qcl.follyExec("HGET",
                        SSTR(parent_id.getUnderlyingUInt64() << constants::sMapFilesSuffix), name)
-         .then(std::bind(parseIDFromNameResponse, _1, parent_id, name))
-         .then(convertInt64ToFileIdentifier);
+         .thenValue(std::bind(parseIDFromNameResponse, _1, parent_id, name))
+         .thenValue(convertInt64ToFileIdentifier);
 }
 
 //------------------------------------------------------------------------------
@@ -569,8 +569,8 @@ MetadataFetcher::getContainerIDFromName(qclient::QClient& qcl,
 {
   return qcl.follyExec("HGET",
                        SSTR(parent_id.getUnderlyingUInt64() << constants::sMapDirsSuffix), name)
-         .then(std::bind(parseIDFromNameResponse, _1, parent_id, name))
-         .then(convertInt64ToContainerIdentifier);
+         .thenValue(std::bind(parseIDFromNameResponse, _1, parent_id, name))
+         .thenValue(convertInt64ToContainerIdentifier);
 }
 
 //------------------------------------------------------------------------------
@@ -580,7 +580,7 @@ folly::Future<eos::ns::FileMdProto>
 MetadataFetcher::getFileFromName(qclient::QClient& qcl, ContainerIdentifier parent_id,
                                  const std::string& name) {
   return getFileIDFromName(qcl, parent_id, name)
-         .then(std::bind(getFileFromId, std::ref(qcl), _1));
+         .thenValue(std::bind(getFileFromId, std::ref(qcl), _1));
 }
 
 //----------------------------------------------------------------------------
@@ -590,7 +590,7 @@ folly::Future<eos::ns::ContainerMdProto>
 MetadataFetcher::getContainerFromName(qclient::QClient& qcl, ContainerIdentifier parent_id,
                                       const std::string& name) {
   return getContainerIDFromName(qcl, parent_id, name)
-         .then(std::bind(getContainerFromId, std::ref(qcl), _1));
+         .thenValue(std::bind(getContainerFromId, std::ref(qcl), _1));
 }
 
 //------------------------------------------------------------------------------
@@ -627,7 +627,7 @@ MetadataFetcher::locationExistsInFsView(qclient::QClient& qcl, FileIdentifier id
   }
 
   return qcl.follyExec("SISMEMBER",
-    key, SSTR(id.getUnderlyingUInt64())).then(parseBoolResponse);
+    key, SSTR(id.getUnderlyingUInt64())).thenValue(parseBoolResponse);
 }
 
 //------------------------------------------------------------------------------
@@ -791,8 +791,8 @@ public:
   void handleIncomingContainerError(ContainerIdentifier parent, const folly::exception_wrapper &e) {
     if(mPathStack.size() == 1) {
       MetadataFetcher::getFileFromName(mQcl, parent, mPathStack.front())
-      .then(std::bind(&ReversePathResolver::handleIncomingFile, this, _1))
-      .onError([this](const folly::exception_wrapper & e) {
+      .thenValue(std::bind(&ReversePathResolver::handleIncomingFile, this, _1))
+      .thenError([this](const folly::exception_wrapper & e) {
         handleIncomingFileError(e);
       });
       return;
@@ -826,8 +826,8 @@ private:
   //----------------------------------------------------------------------------
   void startNextRound(ContainerIdentifier parent) {
     MetadataFetcher::getContainerFromName(mQcl, parent, mPathStack.front())
-    .then(std::bind(&ReversePathResolver::handleIncomingContainer, this, _1))
-    .onError([this, parent](const folly::exception_wrapper & e) {
+    .thenValue(std::bind(&ReversePathResolver::handleIncomingContainer, this, _1))
+    .thenError([this, parent](const folly::exception_wrapper & e) {
       handleIncomingContainerError(parent, e);
     });
   }
@@ -854,10 +854,10 @@ std::pair<folly::Future<uint64_t>, folly::Future<uint64_t>>
 MetadataFetcher::countContents(qclient::QClient& qcl, ContainerIdentifier containerID) {
   return std::make_pair<folly::Future<uint64_t>, folly::Future<uint64_t>>(
     qcl.follyExec("HLEN", keySubFiles(containerID.getUnderlyingUInt64()))
-         .then(parseUInt64Response),
+         .thenValue(parseUInt64Response),
 
     qcl.follyExec("HLEN", keySubContainers(containerID.getUnderlyingUInt64()))
-         .then(parseUInt64Response)
+         .thenValue(parseUInt64Response)
 
   );
 }

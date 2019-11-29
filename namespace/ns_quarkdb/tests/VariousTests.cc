@@ -62,8 +62,8 @@ bool validateReply(qclient::redisReplyPtr reply) {
 }
 
 TEST_F(VariousTests, FollyWithGloriousContinuations) {
-  folly::Future<bool> ok = qcl().follyExec("PING", "ayy-lmao").then(validateReply);
-  ASSERT_TRUE(ok.get());
+  folly::Future<bool> ok = qcl().follyExec("PING", "ayy-lmao").thenValue(validateReply);
+  ASSERT_TRUE(std::move(ok).get());
 }
 
 TEST_F(VariousTests, FileCacheInvalidation) {
@@ -830,7 +830,7 @@ TEST_F(FileMDFetching, FilemapToFutureVector) {
     {"f1", 1}, {"f2", 2}, {"f3", 3}, {"f4", 4}, {"f5", 5}
   };
 
-  for(auto it = filemap.cbegin(); it != filemap.cend(); it++) {
+  for(auto it = filemap.cbegin(); it != filemap.cend(); ++it) {
     sorted[it->first] = it->second;
   }
 
@@ -847,17 +847,17 @@ TEST_F(FileMDFetching, FilemapToFutureVector) {
 
   ASSERT_EQ(mdvector3.size(), 5u);
 
-  eos::ns::FileMdProto f1 = mdvector[0].get();
-  eos::ns::FileMdProto f2 = mdvector[1].get();
-  eos::ns::FileMdProto f3 = mdvector[2].get();
-  eos::ns::FileMdProto f4 = mdvector[3].get();
-  eos::ns::FileMdProto f5 = mdvector[4].get();
+  eos::ns::FileMdProto f1 = std::move(mdvector[0]).get();
+  eos::ns::FileMdProto f2 = std::move(mdvector[1]).get();
+  eos::ns::FileMdProto f3 = std::move(mdvector[2]).get();
+  eos::ns::FileMdProto f4 = std::move(mdvector[3]).get();
+  eos::ns::FileMdProto f5 = std::move(mdvector[4]).get();
 
-  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(f1, mdvector3[0].get()));
-  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(f2, mdvector3[1].get()));
-  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(f3, mdvector3[2].get()));
-  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(f4, mdvector3[3].get()));
-  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(f5, mdvector3[4].get()));
+  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(f1, std::move(mdvector3[0]).get()));
+  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(f2, std::move(mdvector3[1]).get()));
+  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(f3, std::move(mdvector3[2]).get()));
+  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(f4, std::move(mdvector3[3]).get()));
+  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(f5, std::move(mdvector3[4]).get()));
 
   ASSERT_EQ(f1.name(), "f1");
   ASSERT_EQ(f1.id(), 1);
@@ -881,7 +881,7 @@ TEST_F(FileMDFetching, FilemapToFutureVector) {
     {"d2", 4}, {"d2-1", 11}, {"d2-2", 12}, {"d2-3", 13}
   };
 
-  for(auto it = containermap.cbegin(); it != containermap.cend(); it++) {
+  for(auto it = containermap.cbegin(); it != containermap.cend(); ++it) {
     sorted2[it->first] = it->second;
   }
 
@@ -896,15 +896,15 @@ TEST_F(FileMDFetching, FilemapToFutureVector) {
 
   ASSERT_EQ(mdvector5.size(), 4u);
 
-  eos::ns::ContainerMdProto d0 = mdvector2[0].get();
-  eos::ns::ContainerMdProto d1 = mdvector2[1].get();
-  eos::ns::ContainerMdProto d2 = mdvector2[2].get();
-  eos::ns::ContainerMdProto d3 = mdvector2[3].get();
+  eos::ns::ContainerMdProto d0 = std::move(mdvector2[0]).get();
+  eos::ns::ContainerMdProto d1 = std::move(mdvector2[1]).get();
+  eos::ns::ContainerMdProto d2 = std::move(mdvector2[2]).get();
+  eos::ns::ContainerMdProto d3 = std::move(mdvector2[3]).get();
 
-  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(d0, mdvector5[0].get()));
-  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(d1, mdvector5[1].get()));
-  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(d2, mdvector5[2].get()));
-  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(d3, mdvector5[3].get()));
+  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(d0, std::move(mdvector5[0]).get()));
+  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(d1, std::move(mdvector5[1]).get()));
+  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(d2, std::move(mdvector5[2]).get()));
+  ASSERT_TRUE(google::protobuf::util::MessageDifferencer::Equals(d3, std::move(mdvector5[3]).get()));
 
   ASSERT_EQ(d0.name(), "d2");
   ASSERT_EQ(d0.id(), 4);
@@ -1554,12 +1554,12 @@ TEST_F(VariousTests, CountContents) {
 
   std::pair<folly::Future<uint64_t>, folly::Future<uint64_t>> counts =
     eos::MetadataFetcher::countContents(qcl(), ContainerIdentifier(1));
-  ASSERT_EQ(counts.first.get(), 4u);
-  ASSERT_EQ(counts.second.get(), 2u);
+  ASSERT_EQ(std::move(counts.first).get(), 4u);
+  ASSERT_EQ(std::move(counts.second).get(), 2u);
 
   counts = eos::MetadataFetcher::countContents(qcl(), ContainerIdentifier(2));
-  ASSERT_EQ(counts.first.get(), 0u);
-  ASSERT_EQ(counts.second.get(), 0u);
+  ASSERT_EQ(std::move(counts.first).get(), 0u);
+  ASSERT_EQ(std::move(counts.second).get(), 0u);
 }
 
 TEST_F(NamespaceExplorerF, MissingFile) {

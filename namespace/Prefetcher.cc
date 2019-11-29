@@ -89,7 +89,7 @@ void Prefetcher::stageFileMDWithParents(IFileMD::id_t id)
   }
 
   folly::Future<IFileMDPtr> fut = pFileMDSvc->getFileMDFut(id);
-  mUris.emplace_back(pFileMDSvc->getFileMDFut(id).then(std::bind(&Prefetcher::prefetchFileUri, this, _1)));
+  mUris.emplace_back(pFileMDSvc->getFileMDFut(id).thenValue(std::bind(&Prefetcher::prefetchFileUri, this, _1)));
 }
 
 //------------------------------------------------------------------------------
@@ -103,7 +103,7 @@ void Prefetcher::stageContainerMDWithParents(IContainerMD::id_t id)
   }
 
   folly::Future<IContainerMDPtr> fut = pContainerMDSvc->getContainerMDFut(id);
-  mUris.emplace_back(pContainerMDSvc->getContainerMDFut(id).then(std::bind(&Prefetcher::prefetchContUri, this, _1)));
+  mUris.emplace_back(pContainerMDSvc->getContainerMDFut(id).thenValue(std::bind(&Prefetcher::prefetchContUri, this, _1)));
 }
 
 //----------------------------------------------------------------------------

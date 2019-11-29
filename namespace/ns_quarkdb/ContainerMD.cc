@@ -171,8 +171,8 @@ QuarkContainerMD::findItem(const std::string& name)
     lock.unlock();
     folly::Future<FileOrContainerMD> fut = pContSvc->getContainerMDFut(
         target.getUnderlyingUInt64())
-                                           .then(wrapContainerMD)
-    .onError([this, name](const folly::exception_wrapper & e) {
+                                           .thenValue(wrapContainerMD)
+    .thenError([this, name](const folly::exception_wrapper & e) {
       // Should not happen...
       eos_static_crit("Exception occurred while looking up container with "
                       "name %s in subcontainer with id %llu: %s", name.c_str(),
@@ -192,8 +192,8 @@ QuarkContainerMD::findItem(const std::string& name)
     lock.unlock();
     folly::Future<FileOrContainerMD> fut = pFileSvc->getFileMDFut(
         target.getUnderlyingUInt64())
-                                           .then(wrapFileMD)
-    .onError([this, name](const folly::exception_wrapper & e) {
+                                           .thenValue(wrapFileMD)
+    .thenError([this, name](const folly::exception_wrapper & e) {
       // Should not happen...
       eos_static_crit("Exception occurred while looking up file with name %s "
                       "in subcontainer with id %llu: %s", name.c_str(), getId(),
@@ -275,7 +275,7 @@ QuarkContainerMD::addContainer(IContainerMD* container)
 folly::Future<IFileMDPtr>
 QuarkContainerMD::findFileFut(const std::string& name)
 {
-  return this->findItem(name).then(extractFileMD);
+  return this->findItem(name).thenValue(extractFileMD);
 }
 
 //------------------------------------------------------------------------------
@@ -293,7 +293,7 @@ QuarkContainerMD::findFile(const std::string& name)
 folly::Future<IContainerMDPtr>
 QuarkContainerMD::findContainerFut(const std::string& name)
 {
-  return this->findItem(name).then(extractContainerMD);
+  return this->findItem(name).thenValue(extractContainerMD);
 }
 
 //------------------------------------------------------------------------------

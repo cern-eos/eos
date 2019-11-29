@@ -91,8 +91,8 @@ MetadataProviderShard::retrieveContainerMD(ContainerIdentifier id)
   folly::Future<IContainerMDPtr> fut =
     folly::collect(protoFut, fileMapFut, containerMapFut)
     .via(mExecutor)
-    .then(std::bind(&MetadataProviderShard::processIncomingContainerMD, this, id, _1))
-  .onError([this, id](const folly::exception_wrapper & e) {
+    .thenValue(std::bind(&MetadataProviderShard::processIncomingContainerMD, this, id, _1))
+  .thenError([this, id](const folly::exception_wrapper & e) {
     // If the operation failed, clear the in-flight cache.
     std::lock_guard<std::mutex> lock(mMutex);
     mInFlightContainers.erase(id);
@@ -150,8 +150,8 @@ MetadataProviderShard::retrieveFileMD(FileIdentifier id)
   // Nope, need to fetch, and insert into the in-flight staging area.
   folly::Future<IFileMDPtr> fut = MetadataFetcher::getFileFromId(*mQcl, id)
                                   .via(mExecutor)
-                                  .then(std::bind(&MetadataProviderShard::processIncomingFileMdProto, this, id, _1))
-  .onError([this, id](const folly::exception_wrapper & e) {
+                                  .thenValue(std::bind(&MetadataProviderShard::processIncomingFileMdProto, this, id, _1))
+  .thenError([this, id](const folly::exception_wrapper & e) {
     // If the operation failed, clear the in-flight cache.
     std::lock_guard<std::mutex> lock(mMutex);
     mInFlightFiles.erase(id);

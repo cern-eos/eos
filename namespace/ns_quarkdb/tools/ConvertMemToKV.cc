@@ -215,7 +215,7 @@ ConvertContainerMD::commitSubcontainers(qclient::AsyncHandler& ah,
   cmd.push_back("HMSET");
   cmd.push_back(pDirsKey);
 
-  for (auto it = mSubcontainers.cbegin(); it != mSubcontainers.cend(); it++) {
+  for (auto it = mSubcontainers.cbegin(); it != mSubcontainers.cend(); ++it) {
     ++count;
     cmd.push_back(it->first);
     cmd.push_back(stringify(it->second));
@@ -262,7 +262,7 @@ ConvertContainerMD::commitFiles(qclient::AsyncHandler& ah,
   cmd.push_back("HMSET");
   cmd.push_back(pFilesKey);
 
-  for (auto it = mFiles.cbegin(); it != mFiles.cend(); it++) {
+  for (auto it = mFiles.cbegin(); it != mFiles.cend(); ++it) {
     ++count;
     cmd.push_back(it->first);
     cmd.push_back(stringify(it->second));
