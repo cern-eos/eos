@@ -106,7 +106,7 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
   mBgThread(bgthread), mForcedScan(false), mClock(fake_clock)
 {
   long alignment = pathconf((mDirPath[0] != '/') ? "/" : mDirPath.c_str(),
-                              _PC_REC_XFER_ALIGN);
+                            _PC_REC_XFER_ALIGN);
 
   if (alignment > 0) {
     mBufferSize = 256 * alignment;
@@ -117,9 +117,10 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
       std::abort();
     }
   } else {
-    mBufferSize = 256*1024;
+    mBufferSize = 256 * 1024;
     mBuffer = (char*) malloc(mBufferSize);
-    fprintf(stderr, "error: OS does not provide alignment or path does not exist\n");
+    fprintf(stderr,
+            "error: OS does not provide alignment or path does not exist\n");
   }
 
   if (mBgThread) {
@@ -803,7 +804,7 @@ ScanDir::GetTimestampSmeared()
   long int smearing = (long int)((0.2 * 2 * mRescanIntervalSec * random() /
                                   RAND_MAX))
                       - ((long int)(0.2 * mRescanIntervalSec));
-  snprintf(buffer, size, "%lli", timestamp + smearing);
+  snprintf(buffer, size, "%lli", timestamp + smearing * 1000000);
   return std::string(buffer);
 }
 
