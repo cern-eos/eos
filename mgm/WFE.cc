@@ -2509,10 +2509,7 @@ WFE::CollectAttributes(const std::string& fullPath)
   if (gOFS->_attr_ls(fullPath.c_str(),
                      errInfo, rootvid, nullptr, fileAttributes, true, true) == 0) {
     for (const auto& fileAttrPair : fileAttributes) {
-      if (fileAttrPair.first.find("sys.") != 0 &&
-          fileAttrPair.first.find("user.") != 0) {
-        result.insert(fileAttrPair);
-      }
+      result.insert(fileAttrPair);
     }
   }
 
@@ -2521,10 +2518,7 @@ WFE::CollectAttributes(const std::string& fullPath)
   if (gOFS->_attr_ls(eos::common::Path{fullPath.c_str()} .GetParentPath(),
                      errInfo, rootvid, nullptr, parentDirAttributes, true, true) == 0) {
     for (const auto& dirAttrPair : parentDirAttributes) {
-      if (dirAttrPair.first.find("sys.") != 0 &&
-          dirAttrPair.first.find("user.") != 0) {
-        result.insert(dirAttrPair);
-      }
+      result.insert(dirAttrPair);
     }
   }
   return result;
