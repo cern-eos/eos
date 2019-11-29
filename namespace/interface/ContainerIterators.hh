@@ -43,7 +43,7 @@ public:
   }
 
   void next() {
-    iter++;
+    ++iter;
   }
 
   std::string key() const {
@@ -72,7 +72,7 @@ public:
   }
 
   void next() {
-    iter++;
+    ++iter;
   }
 
   std::string key() const {

@@ -444,7 +444,7 @@ MetadataFetcher::getFilesFromFilemap(qclient::QClient& qcl, const IContainerMD::
   // based on filename, though.
   std::map<std::string, IFileMD::id_t> sortedFileMap;
 
-  for (auto it = fileMap.cbegin(); it != fileMap.cend(); it++) {
+  for (auto it = fileMap.cbegin(); it != fileMap.cend(); ++it) {
     sortedFileMap[it->first] = it->second;
   }
 
@@ -478,7 +478,7 @@ MetadataFetcher::getContainersFromContainerMap(qclient::QClient& qcl,
   // sorted based on filename, though.
   std::map<std::string ,IContainerMD::id_t> sortedContainerMap;
 
-  for(auto it = containerMap.cbegin(); it != containerMap.cend(); it++) {
+  for(auto it = containerMap.cbegin(); it != containerMap.cend(); ++it) {
     sortedContainerMap[it->first] = it->second;
   }
 

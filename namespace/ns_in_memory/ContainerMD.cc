@@ -446,7 +446,7 @@ ContainerMD::copyContainerMap() const
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
 
   IContainerMD::ContainerMap retval;
-  for(auto it = mSubcontainers.cbegin(); it != mSubcontainers.cend(); it++) {
+  for(auto it = mSubcontainers.cbegin(); it != mSubcontainers.cend(); ++it) {
     retval.insert_or_assign(it->first, it->second);
   }
 
@@ -462,7 +462,7 @@ ContainerMD::copyFileMap() const
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
 
   IContainerMD::FileMap retval;
-  for(auto it = mFiles.cbegin(); it != mFiles.cend(); it++) {
+  for(auto it = mFiles.cbegin(); it != mFiles.cend(); ++it) {
     retval.insert_or_assign(it->first, it->second);
   }
 

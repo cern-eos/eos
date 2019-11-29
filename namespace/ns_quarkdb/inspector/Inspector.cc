@@ -1166,13 +1166,13 @@ int Inspector::printContainerMD(uint64_t cid, bool withParents, std::ostream& ou
 
   out << "------------------------------------------------" << std::endl;
   out << "FileMap:" << std::endl;
-  for(auto it = fileMap.cbegin(); it != fileMap.cend(); it++) {
+  for(auto it = fileMap.cbegin(); it != fileMap.cend(); ++it) {
     out << it->first << ": " << it->second << std::endl;
   }
 
   out << "------------------------------------------------" << std::endl;
   out << "ContainerMap:" << std::endl;
-  for(auto it = containerMap.cbegin(); it != containerMap.cend(); it++) {
+  for(auto it = containerMap.cbegin(); it != containerMap.cend(); ++it) {
     out << it->first << ": " << it->second << std::endl;
   }
 
