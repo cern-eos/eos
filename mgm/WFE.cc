@@ -2103,10 +2103,10 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string& event,
   {
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
-    hasXattrCtaArchiveFileId = fmd->hasAttribute("CTA_ArchiveFileId");
+    hasXattrCtaArchiveFileId = fmd->hasAttribute("sys.archive.file_id");
 
     if (hasXattrCtaArchiveFileId) {
-      xattrCtaArchiveFileId = fmd->getAttribute("CTA_ArchiveFileId");
+      xattrCtaArchiveFileId = fmd->getAttribute("sys.archive.file_id");
     }
   }
   bool onlyTapeCopy = false;
@@ -2125,16 +2125,16 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string& event,
     eos_static_info("File %s already has a tape copy. Ignoring request.",
                     fullPath.c_str());
   } else if (!hasXattrCtaArchiveFileId) {
-    eos_static_err("File %s does not have a CTA_ArchiveFileId attribute. Ignoring request.",
+    eos_static_err("File %s does not have the sys.archive.file_id attribute. Ignoring request.",
                    fullPath.c_str());
   } else if (xattrCtaArchiveFileId.empty()) {
-    eos_static_err("The CTA_ArchiveFileId attribute of file %s is an empty string. Ignoring request.",
+    eos_static_err("The sys.archive.file_id attribute of file %s is an empty string. Ignoring request.",
                    fullPath.c_str());
   } else if (nullptr == opaqueCtaArchiveFileId) {
     eos_static_err("The opaque data of the archived message for file %s does not contain cta_archive_file_id."
                    " Ignoring request.", fullPath.c_str());
   } else if (xattrCtaArchiveFileId != opaqueCtaArchiveFileId) {
-    eos_static_err("The CTA_ArchiveFileId attribute of file %s does not match cta_archive_file_id in the"
+    eos_static_err("The sys.archive.file_id attribute of file %s does not match cta_archive_file_id in the"
                    " opaque data of the archived message. xattrCtaArchiveFileId=%s opaqueCtaArchiveFileId=%s."
                    " Ignoring request.",
                    fullPath.c_str(), xattrCtaArchiveFileId.c_str(), opaqueCtaArchiveFileId);

@@ -3288,7 +3288,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const eos::common::FmdHelper& fmd,
         attrPair.second);
     notification->mutable_file()->mutable_xattr()->insert(attr);
 
-    if (attrPair.first == "CTA_ArchiveFileId") {
+    if (attrPair.first == "sys.archive.file_id") {
       ctaArchiveFileId = attrPair.second;
     }
   }
