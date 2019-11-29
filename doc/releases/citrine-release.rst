@@ -15,6 +15,19 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.5.16 Citrine``
+===================
+
+2019-11-29
+
+Bug
+---
+
+* FST: Fix rescan timestamp computation triggered by mismatch between second
+  and microsecond units. Due to this the scanner was scanning all the files
+  at each round.
+
+
 ``v4.5.15 Citrine``
 ===================
 
