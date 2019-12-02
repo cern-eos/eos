@@ -179,7 +179,7 @@ public:
                     struct fuse_file_info* fi,
                     struct flock* lock, int sleep);
   metad mds;
-  data datas;
+  ::data datas;
   cap caps;
   backend mdbackend;
 
@@ -242,7 +242,7 @@ public:
       enum eFLUSH_WAIT_OPEN
       {
         kWAIT_FLUSH_NEVER = 0, // if a file is updated/created - flush will not wait to open it
-        kWAIT_FLUSH_ON_UPDATE = 1, // if a file is updated - flush will wait to open it 
+        kWAIT_FLUSH_ON_UPDATE = 1, // if a file is updated - flush will wait to open it
         kWAIT_FLUSH_ON_CREATE = 2 // if a file is created - flush will wait to open it
       };
 
@@ -371,7 +371,7 @@ public:
         ptr = blob;
         size = 0;
       }
-      
+
       char* buffer()
       {
         return blob;
