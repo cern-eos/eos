@@ -582,9 +582,17 @@ ScanDir::DoRescan(const std::string& timestamp_us) const
     }
   }
 
-  system_clock::time_point old_ts(microseconds(std::stoull(timestamp_us)));
-  system_clock::time_point now_ts = system_clock::now();
-  uint64_t elapsed_sec = duration_cast<seconds>(now_ts - old_ts).count();
+  uint64_t elapsed_sec {0ull};
+
+  if (mClock.IsFake()) {
+    steady_clock::time_point old_ts(microseconds(std::stoull(timestamp_us)));
+    steady_clock::time_point now_ts(mClock.getTime());
+    elapsed_sec = duration_cast<seconds>(now_ts - old_ts).count();
+  } else {
+    system_clock::time_point old_ts(microseconds(std::stoull(timestamp_us)));
+    system_clock::time_point now_ts = system_clock::now();
+    elapsed_sec = duration_cast<seconds>(now_ts - old_ts).count();
+  }
 
   if (elapsed_sec < mRescanIntervalSec) {
     return false;
