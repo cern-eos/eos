@@ -148,7 +148,14 @@ void SearchNode::stageChildren()
 //------------------------------------------------------------------------------
 bool SearchNode::fetchChild(eos::ns::FileMdProto& output)
 {
-  return pendingFileMds.fetchNext(output);
+  while(true) {
+    try {
+      return pendingFileMds.fetchNext(output);
+    }
+    catch(MDException &exc) {}
+  }
+
+  return false;
 }
 
 //------------------------------------------------------------------------------

@@ -1561,3 +1561,52 @@ TEST_F(VariousTests, CountContents) {
   ASSERT_EQ(counts.first.get(), 0u);
   ASSERT_EQ(counts.second.get(), 0u);
 }
+
+TEST_F(NamespaceExplorerF, MissingFile) {
+  view()->createContainer("/dir-1/");
+  view()->createContainer("/dir-2/");
+  view()->createContainer("/dir-3/");
+  view()->createContainer("/dir-4/");
+
+  view()->createFile("/dir-1/file-1");
+  view()->createFile("/dir-1/file-2");
+
+  IFileMDPtr f = view()->createFile("/dir-1/file-3");
+  ASSERT_EQ(f->getId(), 3);
+
+  view()->createFile("/dir-1/file-4");
+  view()->createFile("/dir-1/file-5");
+
+  ASSERT_EQ(
+    qclient::describeRedisReply(qcl().exec("lhdel", "eos-file-md", "3").get()),
+    "(integer) 1"
+  );
+
+  mdFlusher()->synchronize();
+
+  ExplorationOptions options;
+  options.depthLimit = 999;
+
+  NamespaceExplorer explorer("/", options, qcl(), executor());
+
+  NamespaceItem item;
+
+  ASSERT_TRUE(explorer.fetch(item));
+  ASSERT_EQ(item.fullPath, "/");
+
+  ASSERT_TRUE(explorer.fetch(item));
+  ASSERT_EQ(item.fullPath, "/dir-1/");
+
+  ASSERT_TRUE(explorer.fetch(item));
+  ASSERT_EQ(item.fullPath, "/dir-1/file-1");
+
+  ASSERT_TRUE(explorer.fetch(item));
+  ASSERT_EQ(item.fullPath, "/dir-1/file-2");
+
+  ASSERT_TRUE(explorer.fetch(item));
+  ASSERT_EQ(item.fullPath, "/dir-1/file-4");
+
+  ASSERT_TRUE(explorer.fetch(item));
+  ASSERT_EQ(item.fullPath, "/dir-1/file-5");
+}
+
