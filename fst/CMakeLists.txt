@@ -315,7 +315,6 @@ set(XRDEOSFST_SRCS
   ScanDir.cc
   Messaging.cc
   io/FileIoPlugin-Server.cc
-  ${CMAKE_SOURCE_DIR}/common/LayoutId.hh
 
   # OFS layer implementation
   XrdFstOfs.cc                   XrdFstOfs.hh

@@ -472,11 +472,12 @@ XrdMqClient::RefreshBrokersEndpoints()
       if (!st.IsOK() || !file.GetProperty("DataServer", new_hostid)) {
         eos_static_err("msg=\"failed to contact broker\" url=\"%s\"",
                        tmp_url.GetURL().c_str());
-        (void) file.Close(1);
+        st = file.Close(1);
         continue;
       }
 
-      (void) file.Close(1);
+      st = file.Close(1);
+      (void) st;
       // Extract hostname and port from new_hostid
       size_t pos = new_hostid.find('@');
 
