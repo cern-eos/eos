@@ -558,7 +558,7 @@ ubuntu_bionic_docker_image_commit:
   allow_failure: true
 
 
-ubuntu_disco_docker_image_commit:
+.ubuntu_disco_docker_image_commit:
   stage: build:dockerimage
   tags:
     - docker-image-build
@@ -613,7 +613,7 @@ cc7_coverage_docker_image:
       - $COVERAGE_SCHEDULE
 
 
-cc7_docker_image_xrd_testing:
+.cc7_docker_image_xrd_testing:
   stage: build:dockerimage
   tags:
     - docker-image-build
@@ -667,7 +667,7 @@ ubuntu_bionic_docker_image_tag:
   allow_failure: true
 
 
-ubuntu_disco_docker_image_tag:
+.ubuntu_disco_docker_image_tag:
   stage: build:dockerimage
   tags:
     - docker-image-build
@@ -1067,7 +1067,7 @@ debian_artifacts:
     - docker_node
   dependencies:
     - build_ubuntu_bionic
-    - build_ubuntu_disco
+    # - build_ubuntu_disco     # Re-enable with Ubuntu Disco build
   only:
     - master
     - dev
