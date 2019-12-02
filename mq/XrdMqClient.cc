@@ -466,6 +466,12 @@ XrdMqClient::RefreshBrokersEndpoints()
       // and check if we get redirected
       XrdCl::URL tmp_url(broker.first);
       tmp_url.SetPath(tmp_url.GetPath() + "_mq_test");
+
+      if (!tmp_url.IsValid()) {
+        eos_static_err("msg=\"invalid url\" url=\"%s\"", tmp_url.GetURL().c_str());
+        std::abort();
+      }
+
       XrdCl::XRootDStatus st = file.Open(tmp_url.GetURL(), XrdCl::OpenFlags::Read);
 
       // Skip if we can't contact or we couldn't get the propety
@@ -505,6 +511,13 @@ XrdMqClient::RefreshBrokersEndpoints()
       eos_static_info("msg=\"refersh broker endpoint\" old_url=\"%s\" "
                       "new_url=\"%s\"", broker.first.c_str(),
                       new_url.GetURL().c_str());
+
+      if (!new_url.IsValid()) {
+        eos_static_err("msg=\"skip adding invalid new broker url\", "
+                       "new_url=\"%s\"", new_url.GetURL().c_str());
+        continue;
+      }
+
       endpoint_replacements.emplace(broker.first, new_url.GetURL());
     }
   }
