@@ -86,6 +86,14 @@ public:
              point.time_since_epoch());
   }
 
+  //----------------------------------------------------------------------------
+  //! Check if clock is set in fake mode
+  //----------------------------------------------------------------------------
+  inline bool IsFake() const
+  {
+    return fake;
+  }
+
 private:
   bool fake;
   mutable std::mutex mtx;
