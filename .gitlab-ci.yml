@@ -453,6 +453,11 @@ build_fedora_rawhide:
 
 build_ubuntu_bionic:
   image: ubuntu:bionic
+  before_script:
+    - apt-get update
+    - apt-get install -y apt-transport-https ca-certificates gnupg software-properties-common wget
+    - wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | apt-key add -
+    - apt-add-repository 'deb https://apt.kitware.com/ubuntu/ '${EOS_ARCH}' main'
   <<: *ubuntu_template_definition
   variables:
     EOS_ARCH: bionic
@@ -460,8 +465,8 @@ build_ubuntu_bionic:
     - docker_node
     - ubuntu
 
-
-build_ubuntu_disco:
+# Re-enable once CMake >=3.14 is available on Ubuntu Disco
+.build_ubuntu_disco:
   image: ubuntu:disco
   <<: *ubuntu_template_definition
   variables:
@@ -873,7 +878,7 @@ ubuntu_system_test:
   retry: 1
 
 
-ubuntu_disco_system_test:
+.ubuntu_disco_system_test:
   stage: test
   <<: *ubuntu_system_test_template_definition
   variables:
