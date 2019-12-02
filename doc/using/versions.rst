@@ -88,7 +88,7 @@ List existing versions
 
 
 Purging existing versions
------------------------
+-------------------------
 
 .. code-block:: bash
 

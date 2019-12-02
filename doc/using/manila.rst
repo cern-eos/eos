@@ -5,7 +5,7 @@
 Openstack Manila
 ================
 
-To manage manila shares from OpenStack you need to enable the EOS GRPC service. See see :doc:`grpc`
+To manage manila shares from OpenStack you need to enable the EOS GRPC service. See :ref:`grpc_reference`
 
 Once the GRPC service is up and running you have to configure accordingly an authorization key mapping to a sudoer account.
 

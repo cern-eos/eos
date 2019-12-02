@@ -3,7 +3,7 @@
 .. index::
    single: GRPC Server
 
-
+.. _grpc_reference:
 
 GRPC
 =====
@@ -18,7 +18,7 @@ Configuration
 
 The EOS MGM runs an embedded GRPC server if not disabled via sysconfig configuration.
 
-The server is configured via ``/etc/sysconfig/eos_env` and the following variables:
+The server is configured via `/etc/sysconfig/eos_env` and the following variables:
 
 .. code-block:: text
 
@@ -43,6 +43,7 @@ The vid interface allows to map requests to EOS virtual identities. If a GRPC cl
 is not explicitely declared as a GRPC gateway, all requests run as user ``nobody``.
 
 To allow a GRPC client to map to any other user than ``nobody`` add the IP as a gateway:
+
 .. code-block:: text
 
    vid add gateway grpc <IPV4-IP|IPV6-IP>
@@ -84,4 +85,3 @@ The xecutable ``eos-grpc-md`` is available to get individual meta data in a JSON
    usage: eos-grpc-md [ ... TLS parameters see above ] [--endpoint <host:port] [--token <auth-token>] [-l] <eos-path>
 
    e.g. eos-grpc-ping --key /etc/grid-security/daemon/privkey.pem --cert /etc/grid-security/daemon/host.cert --ca /etc/grid-security/daemon/ca.cert --endpoint foo.bar:50051 -l /eos/
-
