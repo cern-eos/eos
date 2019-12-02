@@ -327,8 +327,8 @@ build_cc7:
     - docker_node
     - cc7
 
-
-build_cc7_xrd_testing:
+# Re-enable xrd_testing jobs once project ugprades to XRootD 5
+.build_cc7_xrd_testing:
   before_script:
     - source gitlab-ci/export_branch.sh
     - echo "Exporting BRANCH=${BRANCH}"
@@ -721,7 +721,7 @@ k8s_system_qdb:
   retry: 1
 
 
-k8s_system_qdb_xt: # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
+.k8s_system_qdb_xt: # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
   stage: test
   <<: *k8s_system_test_script_template
   variables:
@@ -841,7 +841,7 @@ system_test_qdb:
   retry: 1
 
 
-system_test_qdb_xrd_testing:
+.system_test_qdb_xrd_testing:
   stage: test
   <<: *system_test_template_definition
   variables:
