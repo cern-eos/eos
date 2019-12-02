@@ -15,6 +15,19 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.5.17 Citrine``
+===================
+
+2019-12-02
+
+Bug
+---
+
+* FST: Use system_clock instead of steady_clock for actual measurement - this was
+  causing issue for the ScanDir which was always selecting every file.
+
+
 ``v4.5.16 Citrine``
 ===================
 
