@@ -26,9 +26,9 @@
 #-------------------------------------------------------------------------------
 include(CheckCXXCompilerFlag)
 
-check_cxx_compiler_flag(-std=c++14 HAVE_FLAG_STD_CXX14)
-if(NOT HAVE_FLAG_STD_CXX14)
-  message(FATAL_ERROR "A compiler with -std=c++14 support is required.")
+check_cxx_compiler_flag(-std=c++17 HAVE_FLAG_STD_CXX17)
+if(NOT HAVE_FLAG_STD_CXX17)
+  message(FATAL_ERROR "A compiler with -std=c++17 support is required.")
 endif()
 
 #-------------------------------------------------------------------------------
