@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <algorithm>
 #include <vector>
+#include <random>
 #include "gtest/gtest.h"
 
 class TestData
@@ -48,7 +49,9 @@ TEST(JournalCache, BasicSanity)
     offsets.push_back(i);
   }
 
-  std::random_shuffle(offsets.begin(), offsets.end());
+  std::random_device rng;
+  std::mt19937 urng(rng());
+  std::shuffle(offsets.begin(), offsets.end(), urng);
   cacheconfig config;
   config.journal = "/tmp/";
   config.location = "/tmp/";
@@ -109,7 +112,7 @@ TEST(JournalCache, BasicSanity)
     tmp.reserve(size);
     auto chunks = jc.get_chunks(offset, size);
 
-    for (auto &chunk : chunks) {
+    for (auto& chunk : chunks) {
       tmp += std::string(reinterpret_cast<const char*>(chunk.buff), chunk.size);
     }
 
