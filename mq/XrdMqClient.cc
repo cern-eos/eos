@@ -618,8 +618,7 @@ XrdMqClient::Unsubscribe()
   eos::common::RWMutexReadLock rd_lock(mMutexMap);
 
   for (const auto& broker : mMapBrokerToChannels) {
-    auto recv_channel = broker.second.first;
-    auto st = recv_channel->Close(1);
+    auto st = broker.second.first->Close(1);
     (void) st;
   }
 }

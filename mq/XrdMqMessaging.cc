@@ -53,8 +53,8 @@ XrdMqMessaging::XrdMqMessaging(const char* url,
     gMessageClient.SetClientId(clientid.c_str());
   }
 
-  gMessageClient.Subscribe();
   gMessageClient.SetDefaultReceiverQueue(defaultreceiverqueue);
+  gMessageClient.Subscribe();
 }
 
 //------------------------------------------------------------------------------
