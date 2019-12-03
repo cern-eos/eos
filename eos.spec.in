@@ -367,8 +367,8 @@ Requires: zeromq3
 BuildRequires: zeromq, zeromq-devel, cppzmq-devel
 Requires: zeromq
 %endif
-BuildRequires: eos-folly = 2017.09.18.00-4%{dist}
-Requires: eos-folly = 2017.09.18.00-4%{dist}
+BuildRequires: eos-folly = 2019.11.11.00-1%{dist}
+Requires: eos-folly = 2019.11.11.00-1%{dist}
 
 %description -n eos-server
 The EOS server installation containing MGM, FST & MQ service.
@@ -532,8 +532,8 @@ Requires: protobuf3 >= 3.3
 %endif
 %endif
 
-BuildRequires: eos-folly = 2017.09.18.00-4%{dist}
-Requires: eos-folly = 2017.09.18.00-4%{dist}
+BuildRequires: eos-folly = 2019.11.11.00-1%{dist}
+Requires: eos-folly = 2019.11.11.00-1%{dist}
 
 %description -n eos-ns-inspect
 EOS namespace inspection tool for instance administrators
