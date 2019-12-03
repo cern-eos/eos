@@ -15,6 +15,16 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.6.4 Citrine``
+===================
+
+2019-12-03
+
+Bug
+---
+
+* [EOS-3854] MISC: Version SELinux policy files for targeted platforms (SLC6 and CC7)
+
 ``v4.6.3 Citrine``
 ===================
 
