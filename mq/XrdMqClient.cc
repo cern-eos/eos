@@ -128,6 +128,9 @@ XrdMqClient::XrdMqClient(const char* clientid, const char* brokerurl,
 //------------------------------------------------------------------------------
 XrdMqClient::~XrdMqClient()
 {
+  Unsubscribe();
+  Disconnect();
+
   if (kRecvBuffer) {
     free(kRecvBuffer);
     kRecvBuffer = nullptr;
@@ -312,7 +315,12 @@ XrdMqClient::RecvMessage(ThreadAssistant* assistant)
       return message;
     }
 
-    recv_channel = mMapBrokerToChannels.begin()->second.first;
+    if (!mMapBrokerToChannels.empty()) {
+      recv_channel = mMapBrokerToChannels.begin()->second.first;
+    } else {
+      eos_static_err("%s", "msg=\"no broker registered\"");
+      return nullptr;
+    }
   }
   uint16_t timeout = (getenv("EOS_FST_OP_TIMEOUT") ?
                       atoi(getenv("EOS_FST_OP_TIMEOUT")) : 0);
@@ -323,7 +331,13 @@ XrdMqClient::RecvMessage(ThreadAssistant* assistant)
     RefreshBrokersEndpoints();
     {
       eos::common::RWMutexReadLock rd_lock(mMutexMap);
-      recv_channel = mMapBrokerToChannels.begin()->second.first;
+
+      if (!mMapBrokerToChannels.empty()) {
+        recv_channel = mMapBrokerToChannels.begin()->second.first;
+      } else {
+        eos_static_err("%s", "msg=\"no broker registered\"");
+        return nullptr;
+      }
     }
 
     if (assistant) {
@@ -339,7 +353,7 @@ XrdMqClient::RecvMessage(ThreadAssistant* assistant)
 
   if (stinfo->GetSize() == 0) {
     delete stinfo;
-    return 0;
+    return nullptr;
   }
 
   // Mantain a receiver buffer which fits the need
@@ -535,17 +549,16 @@ XrdMqClient::RefreshBrokersEndpoints()
       continue;
     }
 
-    // Close old receive channel with small timeout to avoid any hangs
-    auto recv_channel = it_old->second.first;
-    (void) recv_channel->Close(1);
-    mMapBrokerToChannels.erase(it_old);
-
     if (mMapBrokerToChannels.find(replace.second) != mMapBrokerToChannels.end()) {
       eos_static_err("msg=\"broker already exists\" url=\"%s\"",
                      replace.second.c_str());
       continue;
     }
 
+    // Close old receive channel with small timeout to avoid any hangs
+    auto recv_channel = it_old->second.first;
+    (void) recv_channel->Close(1);
+    mMapBrokerToChannels.erase(it_old);
     XrdCl::URL xrd_url(replace.second);
     auto ret = mMapBrokerToChannels.emplace
                (replace.second, std::make_pair(std::make_shared<XrdCl::File>(),
