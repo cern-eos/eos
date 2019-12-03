@@ -23,6 +23,7 @@
 #undef NDEBUG
 #include "mgm/geotree/SchedulingSlowTree.hh"
 #include "common/Logging.hh"
+#include "common/StringUtils.hh"
 
 #include <iostream>
 #include <iomanip>
@@ -56,28 +57,6 @@ size_t nAvailableFsRWAccess;
 size_t nUnavailFs;
 size_t nDisabledFs;
 
-// trim from start
-static inline std::string& ltrim(std::string& s)
-{
-  s.erase(s.begin(), std::find_if(s.begin(), s.end(),
-                                  std::not1(std::ptr_fun<int, int> (std::isspace))));
-  return s;
-}
-
-// trim from end
-static inline std::string& rtrim(std::string& s)
-{
-  s.erase(std::find_if(s.rbegin(), s.rend(),
-                       std::not1(std::ptr_fun<int, int> (std::isspace))).base(), s.end());
-  return s;
-}
-
-// trim from both ends
-static inline std::string& trim(std::string& s)
-{
-  return ltrim(rtrim(s));
-}
-
 int PopulateSchedGroupFromFile(const string& fileName, size_t groupSize,
                                size_t nFsPerBox,
                                vector<set<pair<string, string> > >& schedGroups)
@@ -105,7 +84,9 @@ int PopulateSchedGroupFromFile(const string& fileName, size_t groupSize,
       break;
     }
 
-    items[trim(host)] = trim(geotag);
+    eos::common::trim(host);
+    eos::common::trim(geotag);
+    items[host] = geotag;
   }
 
   size_t nHosts = items.size();
@@ -205,7 +186,6 @@ void functionalTestFastTree(FastTree<T1, T2>* fptree, FastTree<T3, T4>* fatree,
     //      it != repIdxs.end(); it++) {
     //   ftree2->incrementFreeSlot(*it);
     // }
-
     // ========= PLACEMENT/ACCESS ROUNDTRIP TEST =========
     // get all the replicas
     SchedTreeBase::tFastTreeIdx allreplicas[255], nr;
@@ -348,7 +328,6 @@ int main()
   GeoTag2NodeIdxMap* geomap = new GeoTag2NodeIdxMap();
   geomap->selfAllocate(255);
   st->buildFastStrcturesAccess(ft, ftmap, fti, geomap);
-
   std::cout << " AccessGeotagMapping is " << endl;
   unsigned geo_depth_max = 0;
   TableFormatterBase table_access;
@@ -359,8 +338,9 @@ int main()
   });
   // Set for tree: num of line, depth, prefix_1, prefix_2, fullGeotag, proxygroup/direct
   std::set<std::tuple<unsigned, unsigned, unsigned, unsigned, std::string, std::string>>
-    data_access;
+      data_access;
   st->displayAccess(data_access, geo_depth_max);
+
   for (auto it : data_access) {
     if (!std::get<5>(it).empty()) {
       TableData table_data;
@@ -371,8 +351,8 @@ int main()
       table_access.AddRows(table_data);
     }
   }
-  std::cout << table_access.GenerateTable(HEADER).c_str()<< endl;
 
+  std::cout << table_access.GenerateTable(HEADER).c_str() << endl;
   std::cout << " SlowTree is " << endl;
   TableFormatterBase table_tree;
   table_tree.SetHeader({
@@ -385,36 +365,43 @@ int main()
     std::make_tuple("status", 6, "s")
   });
   std::set<std::tuple<std::string, unsigned, unsigned, TableFormatterColor,
-              unsigned, unsigned, std::string, std::string,
-              int, int, std::string>> data_tree;
+      unsigned, unsigned, std::string, std::string,
+      int, int, std::string>> data_tree;
   st->display(data_tree, geo_depth_max, true);
+
   for (auto it : data_tree) {
     TableData table_data;
     table_data.emplace_back();
+
     if (std::get<2>(it) == 1) {
       table_tree.AddSeparator();
-      table_data.back().push_back(TableCell(std::get<0>(it), "s", "", false, std::get<3>(it)));
+      table_data.back().push_back(TableCell(std::get<0>(it), "s", "", false,
+                                            std::get<3>(it)));
       table_data.back().push_back(TableCell("", "s"));
       table_data.back().push_back(TableCell("", "s"));
       table_data.back().push_back(TableCell("", "s"));
     } else if (std::get<2>(it) == 2) {
       table_data.back().push_back(TableCell(std::get<5>(it), "t"));
-      table_data.back().push_back(TableCell(std::get<7>(it), "s", "", false, std::get<3>(it)));
+      table_data.back().push_back(TableCell(std::get<7>(it), "s", "", false,
+                                            std::get<3>(it)));
       table_data.back().push_back(TableCell("", "s"));
       table_data.back().push_back(TableCell("", "s"));
     } else if (std::get<2>(it) == 3) {
       table_data.back().push_back(TableCell(std::get<4>(it), "t"));
       table_data.back().push_back(TableCell(std::get<5>(it), "t"));
-      table_data.back().push_back(TableCell(std::get<6>(it), "l", "", false, std::get<3>(it)));
-      table_data.back().push_back(TableCell(std::get<7>(it), "s", "", false, std::get<3>(it)));
+      table_data.back().push_back(TableCell(std::get<6>(it), "l", "", false,
+                                            std::get<3>(it)));
+      table_data.back().push_back(TableCell(std::get<7>(it), "s", "", false,
+                                            std::get<3>(it)));
     }
+
     table_data.back().push_back(TableCell(std::get<8>(it), "l"));
     table_data.back().push_back(TableCell(std::get<9>(it), "l"));
     table_data.back().push_back(TableCell(std::get<10>(it), "s"));
     table_tree.AddRows(table_data);
   }
-  std::cout << table_tree.GenerateTable(HEADER).c_str()<< endl;
 
+  std::cout << table_tree.GenerateTable(HEADER).c_str() << endl;
   ft->checkConsistency(0);
   std::cout << " FastTree is " << endl << *ft << endl;
   std::vector<std::string> testv;
@@ -641,7 +628,8 @@ int mainFull()
     //std::cout<<trees[0]<<std::endl;
     assert(
       trees[idx].buildFastStrcturesSched(&fptrees[idx], &froatrees[idx],
-                                         &frwatrees[idx], &fdptrees[idx], &fdatrees[idx], &ftinfos[idx], &ftmaps[idx], &geomaps[idx]));
+                                         &frwatrees[idx], &fdptrees[idx], &fdatrees[idx], &ftinfos[idx], &ftmaps[idx],
+                                         &geomaps[idx]));
     // check the consistency of the FastTree
     fptrees[idx].checkConsistency(0);
     // check the consistency of the FastTree
@@ -702,7 +690,6 @@ int mainFull()
            std::endl;
       cout << "====== Illustrating the color display of a SlowTree ======" <<
            std::endl;
-
       unsigned geo_depth_max = 0;
       TableFormatterBase table_tree;
       table_tree.SetHeader({
@@ -715,36 +702,43 @@ int mainFull()
         std::make_tuple("status", 6, "s")
       });
       std::set<std::tuple<std::string, unsigned, unsigned, TableFormatterColor,
-                  unsigned, unsigned, std::string, std::string,
-                  int, int, std::string>> data_tree;
+          unsigned, unsigned, std::string, std::string,
+          int, int, std::string>> data_tree;
       trees[idx].display(data_tree, geo_depth_max, true);
+
       for (auto it : data_tree) {
         TableData table_data;
         table_data.emplace_back();
+
         if (std::get<2>(it) == 1) {
           table_tree.AddSeparator();
-          table_data.back().push_back(TableCell(std::get<0>(it), "s", "", false, std::get<3>(it)));
+          table_data.back().push_back(TableCell(std::get<0>(it), "s", "", false,
+                                                std::get<3>(it)));
           table_data.back().push_back(TableCell("", "s"));
           table_data.back().push_back(TableCell("", "s"));
           table_data.back().push_back(TableCell("", "s"));
         } else if (std::get<2>(it) == 2) {
           table_data.back().push_back(TableCell(std::get<5>(it), "t"));
-          table_data.back().push_back(TableCell(std::get<7>(it), "s", "", false, std::get<3>(it)));
+          table_data.back().push_back(TableCell(std::get<7>(it), "s", "", false,
+                                                std::get<3>(it)));
           table_data.back().push_back(TableCell("", "s"));
           table_data.back().push_back(TableCell("", "s"));
         } else if (std::get<2>(it) == 3) {
           table_data.back().push_back(TableCell(std::get<4>(it), "t"));
           table_data.back().push_back(TableCell(std::get<5>(it), "t"));
-          table_data.back().push_back(TableCell(std::get<6>(it), "l", "", false, std::get<3>(it)));
-          table_data.back().push_back(TableCell(std::get<7>(it), "s", "", false, std::get<3>(it)));
+          table_data.back().push_back(TableCell(std::get<6>(it), "l", "", false,
+                                                std::get<3>(it)));
+          table_data.back().push_back(TableCell(std::get<7>(it), "s", "", false,
+                                                std::get<3>(it)));
         }
+
         table_data.back().push_back(TableCell(std::get<8>(it), "l"));
         table_data.back().push_back(TableCell(std::get<9>(it), "l"));
         table_data.back().push_back(TableCell(std::get<10>(it), "s"));
         table_tree.AddRows(table_data);
       }
-      std::cout << table_tree.GenerateTable(HEADER).c_str()<< endl;
 
+      std::cout << table_tree.GenerateTable(HEADER).c_str() << endl;
       cout << endl;
       cout << "====================================================" << std::endl <<
            std::endl;
@@ -756,7 +750,6 @@ int mainFull()
            std::endl << std::endl;
       cout << "====== Illustrating the color display of a Placement FastTree ======"
            << std::endl;
-
       geo_depth_max = 0;
       TableFormatterBase table_snapshot;
       table_snapshot.SetHeader({
@@ -775,36 +768,46 @@ int mainFull()
         std::make_tuple("totS", 4, "+l")
       });
       std::set<std::tuple<std::string, unsigned, unsigned, TableFormatterColor,
-                  unsigned, unsigned, std::string, std::string, unsigned, std::string,
-                  int, int, int, std::string, int, int, int, double>> data_snapshot;
-      fptrees[idx].recursiveDisplay(data_snapshot, geo_depth_max, "test_operation", "test_op", true);
+          unsigned, unsigned, std::string, std::string, unsigned, std::string,
+          int, int, int, std::string, int, int, int, double>> data_snapshot;
+      fptrees[idx].recursiveDisplay(data_snapshot, geo_depth_max, "test_operation",
+                                    "test_op", true);
+
       for (auto it : data_snapshot) {
         TableData table_data;
         table_data.emplace_back();
+
         if (std::get<2>(it) == 1) { // depth=1
           if (std::get<1>(it) == 0) {
             table_snapshot.AddSeparator();
-            table_data.back().push_back(TableCell(std::get<0>(it), "s", "", false, std::get<3>(it)));
+            table_data.back().push_back(TableCell(std::get<0>(it), "s", "", false,
+                                                  std::get<3>(it)));
             table_data.emplace_back();
           }
+
           table_data.back().push_back(TableCell(2, "t"));
-          table_data.back().push_back(TableCell(std::get<6>(it), "s", "", false, std::get<3>(it)));
+          table_data.back().push_back(TableCell(std::get<6>(it), "s", "", false,
+                                                std::get<3>(it)));
           table_data.back().push_back(TableCell("", "s"));
           table_data.back().push_back(TableCell("", "s"));
           table_data.back().push_back(TableCell("", "s"));
         } else if (std::get<2>(it) == 2) { // depth=2
           table_data.back().push_back(TableCell(0, "t"));
           table_data.back().push_back(TableCell(std::get<5>(it), "t"));
-          table_data.back().push_back(TableCell(std::get<9>(it), "s", "", false, std::get<3>(it)));
+          table_data.back().push_back(TableCell(std::get<9>(it), "s", "", false,
+                                                std::get<3>(it)));
           table_data.back().push_back(TableCell("", "s"));
           table_data.back().push_back(TableCell("", "s"));
         } else if (std::get<2>(it) == 3) { // depth=3
           table_data.back().push_back(TableCell(0, "t"));
           table_data.back().push_back(TableCell(std::get<4>(it), "t"));
           table_data.back().push_back(TableCell(std::get<5>(it), "t"));
-          table_data.back().push_back(TableCell(std::get<8>(it), "l", "", false, std::get<3>(it)));
-          table_data.back().push_back(TableCell(std::get<9>(it), "s", "", false, std::get<3>(it)));
+          table_data.back().push_back(TableCell(std::get<8>(it), "l", "", false,
+                                                std::get<3>(it)));
+          table_data.back().push_back(TableCell(std::get<9>(it), "s", "", false,
+                                                std::get<3>(it)));
         }
+
         table_data.back().push_back(TableCell(std::get<10>(it), "l"));
         table_data.back().push_back(TableCell(std::get<11>(it), "l"));
         table_data.back().push_back(TableCell(std::get<12>(it), "l"));
@@ -815,8 +818,8 @@ int mainFull()
         table_data.back().push_back(TableCell(std::get<17>(it), "+l"));
         table_snapshot.AddRows(table_data);
       }
-      cout << table_snapshot.GenerateTable(HEADER).c_str();
 
+      cout << table_snapshot.GenerateTable(HEADER).c_str();
       cout << endl;
       cout << "==============================================================" <<
            std::endl << std::endl;
@@ -828,7 +831,6 @@ int mainFull()
            std::endl << std::endl;
       cout << "====== Illustrating the color display of an Access FastTree ======" <<
            std::endl;
-
       geo_depth_max = 0;
       TableFormatterBase table_snapshot2;
       table_snapshot2.SetHeader({
@@ -847,34 +849,44 @@ int mainFull()
         std::make_tuple("totS", 4, "+l")
       });
       data_snapshot.clear();
-      froatrees[idx].recursiveDisplay(data_snapshot, geo_depth_max, "test_operation", "test_op", true);
+      froatrees[idx].recursiveDisplay(data_snapshot, geo_depth_max, "test_operation",
+                                      "test_op", true);
+
       for (auto it : data_snapshot) {
         TableData table_data;
         table_data.emplace_back();
+
         if (std::get<2>(it) == 1) { // depth=1
           if (std::get<1>(it) == 0) {
             table_snapshot2.AddSeparator();
-            table_data.back().push_back(TableCell(std::get<0>(it), "s", "", false, std::get<3>(it)));
+            table_data.back().push_back(TableCell(std::get<0>(it), "s", "", false,
+                                                  std::get<3>(it)));
             table_data.emplace_back();
           }
+
           table_data.back().push_back(TableCell(2, "t"));
-          table_data.back().push_back(TableCell(std::get<6>(it), "s", "", false, std::get<3>(it)));
+          table_data.back().push_back(TableCell(std::get<6>(it), "s", "", false,
+                                                std::get<3>(it)));
           table_data.back().push_back(TableCell("", "s"));
           table_data.back().push_back(TableCell("", "s"));
           table_data.back().push_back(TableCell("", "s"));
         } else if (std::get<2>(it) == 2) { // depth=2
           table_data.back().push_back(TableCell(0, "t"));
           table_data.back().push_back(TableCell(std::get<5>(it), "t"));
-          table_data.back().push_back(TableCell(std::get<9>(it), "s", "", false, std::get<3>(it)));
+          table_data.back().push_back(TableCell(std::get<9>(it), "s", "", false,
+                                                std::get<3>(it)));
           table_data.back().push_back(TableCell("", "s"));
           table_data.back().push_back(TableCell("", "s"));
         } else if (std::get<2>(it) == 3) { // depth=3
           table_data.back().push_back(TableCell(0, "t"));
           table_data.back().push_back(TableCell(std::get<4>(it), "t"));
           table_data.back().push_back(TableCell(std::get<5>(it), "t"));
-          table_data.back().push_back(TableCell(std::get<8>(it), "l", "", false, std::get<3>(it)));
-          table_data.back().push_back(TableCell(std::get<9>(it), "s", "", false, std::get<3>(it)));
+          table_data.back().push_back(TableCell(std::get<8>(it), "l", "", false,
+                                                std::get<3>(it)));
+          table_data.back().push_back(TableCell(std::get<9>(it), "s", "", false,
+                                                std::get<3>(it)));
         }
+
         table_data.back().push_back(TableCell(std::get<10>(it), "l"));
         table_data.back().push_back(TableCell(std::get<11>(it), "l"));
         table_data.back().push_back(TableCell(std::get<12>(it), "l"));
@@ -885,8 +897,8 @@ int mainFull()
         table_data.back().push_back(TableCell(std::get<17>(it), "+l"));
         table_snapshot2.AddRows(table_data);
       }
-      cout << table_snapshot2.GenerateTable(HEADER).c_str();
 
+      cout << table_snapshot2.GenerateTable(HEADER).c_str();
       cout << endl;
       cout << "============================================================" <<
            std::endl << std::endl;
@@ -994,12 +1006,10 @@ int mainFull()
     SchedTreeBase::tFastTreeIdx closestNode = geomaps[i %
         schedGroups.size()].getClosestFastTreeNode(
           clientGeoString.c_str());
-
     // update the tree
     // for (int k = 0; k < 3; k++) {
     //   ftree->incrementFreeSlot(replicaIdxs[3 * (i % schedGroups.size()) + k]);
     // }
-
     // access the replicas
     SchedTreeBase::tFastTreeIdx repId;
     //ftree->findFreeSlot(closestNode,true,repId,false);
@@ -1020,12 +1030,10 @@ int mainFull()
     char buffer[bufferSize];
     assert(froatrees[i % schedGroups.size()].copyToBuffer(buffer, bufferSize) == 0);
     FastROAccessTree* ftree = (FastROAccessTree*) buffer;
-
     // update the tree
     // for (int k = 0; k < 3; k++) {
     //   ftree->incrementFreeSlot(replicaIdxs[3 * (i % schedGroups.size()) + k]);
     // }    // access the replicas
-
     SchedTreeBase::tFastTreeIdx repIdxs[3];
     ftree->findFreeSlotsAll(repIdxs, 3);
   }

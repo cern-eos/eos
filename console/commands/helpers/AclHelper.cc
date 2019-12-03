@@ -23,6 +23,7 @@
 
 #include "console/commands/helpers/AclHelper.hh"
 #include "common/StringTokenizer.hh"
+#include "common/StringUtils.hh"
 #include "console/ConsoleMain.hh"
 #include "proto/Acl.pb.h"
 #include <algorithm>
@@ -150,9 +151,7 @@ AclHelper::ParseCommand(const char* arg)
   while ((temp = tokenizer.GetToken(false)) != 0) {
     // Trimming
     token = std::string(temp);
-    token.erase(std::find_if(token.rbegin(), token.rend(),
-                             std::not1(std::ptr_fun<int, int> (std::isspace))).base(),
-                token.end());
+    eos::common::trim(token);
 
     if (token == "") {
       continue;
@@ -209,9 +208,7 @@ AclHelper::ParseCommand(const char* arg)
 
         if ((temp = tokenizer.GetToken(false)) != 0) {
           token = std::string(temp);
-          token.erase(std::find_if(token.rbegin(), token.rend(),
-                                   std::not1(std::ptr_fun<int, int> (std::isspace))).base(),
-                      token.end());
+          eos::common::trim(token);
 
           if (!SetPath(token)) {
             std::cerr << "error: failed to the the absolute path" << std::endl;

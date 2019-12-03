@@ -26,6 +26,7 @@
 #include "console/commands/helpers/NodeHelper.hh"
 #include "console/commands/helpers/FsHelper.hh"
 #include "common/StringTokenizer.hh"
+#include "common/StringUtils.hh"
 #include <algorithm>
 
 std::string HealthCommand::GetValueWrapper::GetValue(const std::string& key)
@@ -460,9 +461,7 @@ void HealthCommand::ParseCommand()
 
   while ((temp = m_subtokenizer.GetToken()) != nullptr) {
     token = std::string(temp);
-    token.erase(std::find_if(token.rbegin(), token.rend(),
-                             std::not1(std::ptr_fun<int, int> (std::isspace))).base(),
-                token.end());
+    eos::common::trim(token);
 
     if (token.empty()) {
       continue;
