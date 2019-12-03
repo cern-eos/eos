@@ -192,6 +192,7 @@ private:
       std::shared_ptr<XrdCl::FileSystem>>>
       mMapBrokerToChannels;
   mutable eos::common::RWMutex mMutexMap;
+  static XrdSysMutex mMutexSend;
   XrdOucString kMessageBuffer;
   XrdOucString kClientId;
   XrdOucString kDefaultReceiverQueue;

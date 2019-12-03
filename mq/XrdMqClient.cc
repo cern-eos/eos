@@ -31,6 +31,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+XrdSysMutex XrdMqClient::mMutexSend;
 XrdMqClient::DiscardResponseHandler XrdMqClient::gDiscardResponseHandler;
 
 //------------------------------------------------------------------------------
@@ -54,6 +55,7 @@ XrdMqClient::XrdMqClient(const char* clientid, const char* brokerurl,
   kMessageBuffer = "";
   kRecvBuffer = nullptr;
   kRecvBufferAlloc = 0;
+  kInternalBufferPosition = 0;
   // Install sigbus signal handler
   struct sigaction act;
   memset(&act, 0, sizeof(act));
@@ -119,8 +121,6 @@ XrdMqClient::XrdMqClient(const char* clientid, const char* brokerurl,
     kClientId += Domain;
     free(cfull_name);
   }
-
-  kInternalBufferPosition = 0;
 }
 
 //------------------------------------------------------------------------------
@@ -199,6 +199,7 @@ XrdMqClient::SendMessage(XrdMqMessage& msg, const char* receiverid, bool sign,
                          bool encrypt, bool asynchronous)
 {
   bool rc = false;
+  XrdSysMutexHelper lock(mMutexSend);
   // Tag the sender
   msg.kMessageHeader.kSenderId = kClientId;
   // Tag the send time
