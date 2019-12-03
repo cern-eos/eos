@@ -23,6 +23,7 @@
 
 #pragma once
 #include <string>
+#include <algorithm>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -73,10 +74,12 @@ static inline void trim(std::string& s)
 //------------------------------------------------------------------------------
 //! Bool to string
 //------------------------------------------------------------------------------
-static inline std::string boolToString(bool b) {
-  if(b) {
+static inline std::string boolToString(bool b)
+{
+  if (b) {
     return "true";
   }
+
   return "false";
 }
 
