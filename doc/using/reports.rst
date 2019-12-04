@@ -10,6 +10,12 @@ Report log files
 
 The EOS MGM writes report log files under `/var/eos/report/<YEAR>/<MONTH>/<YEAR><MONTH><DAY>.eosreport`
 
+On top of a few `xrd.cf.mgm` configuration variables, it must be enabled on the mgm:
+
+``EOS Console [root://localhost] |/eos/ctaatlaspps/archivetest/> io enable -r
+success: enabled IO report store``
+
+
 File creation/update records
 ----------------------------
 
