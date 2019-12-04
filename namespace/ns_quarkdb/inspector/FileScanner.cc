@@ -26,7 +26,7 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 FileScannerPrimitive::FileScannerPrimitive(qclient::QClient &qcl)
-: mIterator(&qcl, "eos-file-md", 1000000) { }
+: mIterator(&qcl, "eos-file-md") { }
 
 //------------------------------------------------------------------------------
 // Is the iterator valid?
