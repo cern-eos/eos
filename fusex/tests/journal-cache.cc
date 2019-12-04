@@ -56,7 +56,7 @@ TEST(JournalCache, BasicSanity)
   config.journal = "/tmp/";
   config.location = "/tmp/";
   config.per_file_journal_max_size = journalcache::sDefaultMaxSize;
-  ASSERT_EQ(cachehandler::instance().init(config), 0);
+  ASSERT_EQ(cachehandler::instance().init(config), EINVAL);
   journalcache::init(config);
   config.type = cache_t::MEMORY;
   ASSERT_EQ(cachehandler::instance().init(config), 0);
