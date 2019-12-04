@@ -426,6 +426,9 @@ build_fedora_stable:
   tags:
     - docker_node
     - fedora_stable
+  only:
+    - schedules
+    - tags
 
 build_fedora_30:
   image: fedora:30
