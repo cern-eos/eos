@@ -9,7 +9,6 @@ stages:
   - publish
   - clean
 
-
 default:
   before_script:
     - source gitlab-ci/export_branch.sh
