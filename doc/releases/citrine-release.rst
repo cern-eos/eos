@@ -15,6 +15,29 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+
+``v4.6.5 Citrine``
+===================
+
+2019-12-05
+
+Bug
+---
+
+* [EOS-3611] - MGM unresponsive, does not appear to recover on its own
+* [EOS-3715] - fst offline: Publisher cycle exceeded
+* [EOS-3827] - MGM Upgrade: After restarts prevent storage node heartbeats to increase
+* [EOS-3858] - ARCHIVE: Broken due to utimes silent error
+* [EOS-3864] - unable to boot filesystem after eos fs add
+
+Improvement
+------------
+* [EOS-3860] - Allow lock-free iteration over long directory listings
+* [EOS-3862] - eos client: hardcode RPM dependency on 'zeromq'
+* [EOS-3875] - Drop use of std::ptr_fun, std::not1
+* [EOS-3880] - RaftReplicator pipelines way too many pending batches inside QClient
+
+
 ``v4.6.4 Citrine``
 ===================
 
@@ -40,7 +63,7 @@ Bug
 New Feature
 -----------
 
-* allow IPC connections via ZMQ to bypass xrd-threadpool for admin commands - usage 'eos ipc:// ...' 
+* allow IPC connections via ZMQ to bypass xrd-threadpool for admin commands - usage 'eos ipc:// ...'
 * make the maximum number of listable entries by eosxd configurable: EOS_MGM_FUSEX_MAX_CHILDREN=32768
 
 ``v4.6.2 Citrine``
