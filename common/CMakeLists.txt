@@ -192,10 +192,6 @@ if (Linux)
   set_target_properties(EosCommonServer-Objects PROPERTIES
     POSITION_INDEPENDENT_CODE TRUE)
 
-  set(EOSCOMMONSERVER_LIBS
-    fmt
-    qclient)
-
   add_library(EosCommonServer SHARED
     $<TARGET_OBJECTS:EosCommonServer-Objects>)
 
@@ -205,8 +201,8 @@ if (Linux)
     XrdMqClient
     UUID::UUID
     XROOTD::CL
-    XROOTD::UTILS
-    ${EOSCOMMONSERVER_LIBS})
+    fmt
+    qclient)
 
   set_target_properties(EosCommonServer PROPERTIES
     VERSION ${VERSION}
@@ -224,9 +220,9 @@ if (Linux)
     XrdSsiPbEosCta-Objects
     UUID::UUID
     XROOTD::CL
-    XROOTD::UTILS
-    ${EOSCOMMONSERVER_LIBS}
-    XrdMqClient-Static)
+    XrdMqClient-Static
+    fmt
+    qclient)
 
   target_compile_definitions(EosCommonServer-Static PUBLIC
     -DSQLITE_NO_SYNC=1)

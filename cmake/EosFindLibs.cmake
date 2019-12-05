@@ -65,7 +65,7 @@ if(NOT PACKAGEONLY)
     find_package(help2man)
     find_package(glibc REQUIRED)
     find_package(xfs REQUIRED)
-    find_package(libbfd REQUIRED)
+    find_package(libbfd)
     find_package(Protobuf3 REQUIRED)
     # Protobuf3 needs to be added to the RPATH of the libraries and binaries
     # built since it's not installed in the usual system location

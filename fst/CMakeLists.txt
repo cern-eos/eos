@@ -359,14 +359,12 @@ target_compile_definitions(XrdEosFst-${PLUGIN_VERSION} PUBLIC
 target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
   XrdEosFst-Objects
   EosConsoleHelpers-Objects
-  EosCommon
   EosCommonServer
   EosFstIo
   EosNsCommon
   ZLIB::ZLIB
   XROOTD::SSI
   eosCapability-Static
-  ${GLIBC_DL_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
 add_library(XrdEosFst-Static STATIC $<TARGET_OBJECTS:XrdEosFst-Objects>)
@@ -377,14 +375,12 @@ target_compile_definitions(XrdEosFst-Static PUBLIC
 target_link_libraries(XrdEosFst-${PLUGIN_VERSION} PRIVATE
   XrdEosFst-Objects
   EosConsoleHelpers-Objects
-  EosCommon
   EosCommonServer
   EosFstIo
   EosNsCommon
   ZLIB::ZLIB
   XROOTD::SSI
   eosCapability-Static
-  ${GLIBC_DL_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
 install(TARGETS EosFstOss XrdEosFst-${PLUGIN_VERSION}
