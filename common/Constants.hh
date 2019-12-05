@@ -32,10 +32,13 @@ static constexpr auto TAPE_FS_ID = 65535u;
 static constexpr auto RETRIEVE_REQID_ATTR_NAME = "sys.retrieve.req_id";
 //! Last time the Prepare request was actioned
 static constexpr auto RETRIEVE_REQTIME_ATTR_NAME = "sys.retrieve.req_time";
-//!< Prepare request failure reason
+//! Prepare request failure reason
 static constexpr auto RETRIEVE_ERROR_ATTR_NAME = "sys.retrieve.error";
 //! Archive request failure reason
 static constexpr auto ARCHIVE_ERROR_ATTR_NAME = "sys.archive.error";
+//! CTA internal objectstore id for prepare requests
+static constexpr auto CTA_OBJECTSTORE_REQ_ID_NAME = "sys.cta.objectstore.id";
+// Workflow names
 static constexpr auto RETRIEVE_WRITTEN_WORKFLOW_NAME = "retrieve_written";
 static constexpr auto RETRIEVE_FAILED_WORKFLOW_NAME = "sync::retrieve_failed";
 static constexpr auto ARCHIVE_FAILED_WORKFLOW_NAME = "sync::archive_failed";

@@ -243,8 +243,7 @@ public:
     //! @param fullPath the full path of the file
     int HandleProtoMethodArchiveFailedEvent(const std::string &fullPath);
 
-    //! @brief Resets the extended attribute sys.retrieves to 0 and the extended
-    //! attribute sys.retrieve.error to an empty string
+    //! @brief Resets the extended attributes for tracking retrieve requests
     //! @param fullPath the full path of the file
     void resetRetrieveIdListAndErrorMsg(const std::string &fullPath);
 

@@ -2078,6 +2078,7 @@ WFE::Job::resetRetrieveIdListAndErrorMsg(const std::string& fullPath)
     fmd->setAttribute(RETRIEVE_REQID_ATTR_NAME, "");
     fmd->setAttribute(RETRIEVE_REQTIME_ATTR_NAME, "");
     fmd->setAttribute(RETRIEVE_ERROR_ATTR_NAME, "");
+    fmd->removeAttribute(CTA_OBJECTSTORE_REQ_ID_NAME);
     gOFS->eosView->updateFileStore(fmd.get());
     return;
   } catch (std::exception& se) {
@@ -2509,7 +2510,12 @@ WFE::CollectAttributes(const std::string& fullPath)
   if (gOFS->_attr_ls(fullPath.c_str(),
                      errInfo, rootvid, nullptr, fileAttributes, true, true) == 0) {
     for (const auto& fileAttrPair : fileAttributes) {
+      // sys.archive.file_id and sys.archive.storage_class are set in the MGM and need to be
+      // communicated to the CTA Frontend.
+      // sys.cta.* is set by the CTA Frontend for internal use, e.g. tracking requests in the
+      // objectstore.
       if (fileAttrPair.first.find("sys.archive.") == 0 ||
+          fileAttrPair.first.find("sys.cta.") == 0 ||
           fileAttrPair.first.find("CTA_") == 0) {
         result.insert(fileAttrPair);
       }
