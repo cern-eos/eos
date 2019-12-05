@@ -16,6 +16,17 @@ Introduction
 This release is based on XRootD V4 and IPV6 enabled.
 
 
+``v4.5.19 Citrine``
+===================
+
+2019-12-05
+
+Bug
+---
+
+* MGM: Fix access of FsView objects (FileSystem) outside the lock during geotag update processing
+
+
 ``v4.5.18 Citrine``
 ===================
 
