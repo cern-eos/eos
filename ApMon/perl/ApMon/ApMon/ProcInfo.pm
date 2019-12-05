@@ -614,14 +614,14 @@ sub readNetworkInfo {
 	    return;
 	}
 
-	if (open(DEVS, "-|", "ls --time-style=iso -g -o -A /sys/class/net | grep -v /virtual/")){
-	    while (my $line = <DEVS>){
-		if ($line =~ /l\w+\.?\s+\d+\s+\d+\s+\d+-\d+\s+\d+:\d+\s+(\w+)\s+.*/){
-		    $this->{NETWORKINTERFACES}->{$1} = $1;
+	if (opendir my $dh, "/sys/class/net"){
+	    my @things = grep {$_ ne '.' and $_ ne '..' } readdir $dh;
+	    foreach my $thing (@things) {
+		my $link = readlink("/sys/class/net/".$thing);
+		if (defined($link) && index($link, "/virtual/")<0){
+		    $this->{NETWORKINTERFACES}->{$thing} = $thing;
 		}
 	    }
-
-	    close DEVS;
 	}
 
 	my $total_traffic_in=0;
