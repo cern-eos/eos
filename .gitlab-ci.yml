@@ -219,7 +219,7 @@ before_script:
 
 .k8s_before_script_template: &k8s_before_script_template
   before_script:
-    - . /home/gitlab-runner/coe-cluster-config/st-gitlab-k8s-01/env_st-gitlab-k8s-01.sh # get access configs for the cluster
+    - . /home/gitlab-runner/coe-cluster-config/st-gitlab-k8s-02/env_st-gitlab-k8s-02.sh # get access configs for the cluster
     - NAMESPACE=$(echo ${CI_JOB_NAME}-${CI_JOB_ID}-${CI_PIPELINE_ID} | tr _ -)
     - if [[ "$CI_COMMIT_TAG" != "" ]]; then
         IMAGE_TAG="${BASETAG}${CI_COMMIT_TAG}";
@@ -231,7 +231,7 @@ before_script:
 
 .k8s_after_script_template: &k8s_after_script_template
   after_script:
-    - . /home/gitlab-runner/coe-cluster-config/st-gitlab-k8s-01/env_st-gitlab-k8s-01.sh # get access configs for the cluster
+    - . /home/gitlab-runner/coe-cluster-config/st-gitlab-k8s-02/env_st-gitlab-k8s-02.sh # get access configs for the cluster
     - NAMESPACE=$(echo ${CI_JOB_NAME}-${CI_JOB_ID}-${CI_PIPELINE_ID} | tr _ -) # must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character
     - ./eos-on-k8s/collect_logs.sh ${NAMESPACE} eos-logs/
     - ./eos-on-k8s/delete-all.sh ${NAMESPACE}
