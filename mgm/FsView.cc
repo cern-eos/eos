@@ -1376,6 +1376,7 @@ FsView::GetSpaceFormat(std::string option)
     format += "sum=stat.wopen:format=ol|";
     format += "sum=stat.statfs.usedbytes:format=ol|";
     format += "sum=stat.statfs.freebytes:format=ol|";
+    format += "sum=stat.statfs.freebytes?configstatus@rw:format=ol|";
     format += "sum=stat.statfs.capacity:format=ol|";
     format += "sum=stat.usedfiles:format=ol|";
     format += "sum=stat.statfs.ffiles:format=ol|";
