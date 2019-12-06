@@ -253,6 +253,11 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
         XrdCl::XRootDStatus status = it->second->WaitOpen();
 
         if (!status.IsOK()) {
+	  if ((status.errNo == kXR_overQuota)) {
+	    eos_crit("flush error errno=%d", XrdCl::Proxy::status2errno(status));
+	    return XrdCl::Proxy::status2errno(status);
+	  }
+	  
           journal_recovery = true;
           eos_err("file not open");
         }
