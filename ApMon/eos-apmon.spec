@@ -62,6 +62,9 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_sitearch}/ApMon/
 
 %changelog
+* Fri Dec  6 2019  Cristian Contescu <acontesc@cern.ch> - 1.1.9-1
+- add fix for interface detection (fix traffic reporting)
+
 * Wed Apr  2 2014 root <root@eosdevsrv1.cern.ch> - 1.1.4-1
 - add "_xrootd_" to the instance name
 - fix RPM version discovery for EOS and XRootD packages
