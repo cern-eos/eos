@@ -6,14 +6,16 @@
 .. _systemd:
 
 Report log files
-============================
+================
 
 The EOS MGM writes report log files under `/var/eos/report/<YEAR>/<MONTH>/<YEAR><MONTH><DAY>.eosreport`
 
 On top of a few `xrd.cf.mgm` configuration variables, it must be enabled on the mgm:
 
-``EOS Console [root://localhost] |/eos/ctaatlaspps/archivetest/> io enable -r
-success: enabled IO report store``
+.. code-block:: bash
+
+  EOS Console [root://localhost] |/eos/ctaatlaspps/archivetest/> io enable -r
+  success: enabled IO report store
 
 
 File creation/update records
@@ -53,7 +55,7 @@ Each FST sends for each file replica or piece it writes a record which looks lik
    rb_sigma             standard deviation of read bytes (non vector reads)  
    rv_op                number of vector operations
    rvb_min              smallest vector read in bytes
-   rvb_max              largets vector read in bytes
+   rvb_max              largest vector read in bytes
    rvb_sum              sum of all vector read bytes
    rvb_sigma            standard deviation of vector read bytes
    rs_op                number of single reads in vector operations
@@ -71,8 +73,8 @@ Each FST sends for each file replica or piece it writes a record which looks lik
    wb_sigma             standard deviation of write call in bytes
    sfwbd                forward seeked bytes 
    sbwbd                backward seeked bytes
-   sxlfwdb              forward seeked bytes moving atleast 128kb per seek
-   sxlbwdb              backward seekd bytes moveing atleast 128kb per seek
+   sxlfwdb              forward seeked bytes moving at least 128kb per seek
+   sxlbwdb              backward seekd bytes moving at least 128kb per seek
    nfwds                number of forward seeks
    nbwds                number of backward seeks
    nxlfwds              number of large forward seeks (>=128kb)
@@ -82,10 +84,10 @@ Each FST sends for each file replica or piece it writes a record which looks lik
    wt                   time spent in ms waiting for disk writes
    osize                size of the file when opening
    csize                size of the file when closing
-   sec.prot             security protocl e.g. krb5,gsi,sss,unix
+   sec.prot             security protocol e.g. krb5,gsi,sss,unix
    sec.name             mapped user name e.g. root/daemon
    sec.host             client host
-   sec.vorg             virtual organzation (only VOMS)
+   sec.vorg             virtual organisation (only VOMS)
    sec.grps             virtual group (only VOMS)
    sec.role             virtual role (only VOMS)
    sec.info             security information e.g. DN
@@ -108,6 +110,8 @@ Each FST sends for a deletion on disk a record which is tagged with application 
    host                 fst host name
    fid                  file id of the file deleted
    fsid                 filesystem id where the file is deleted
+   del_ts               timestamp when the deletion message was generated
+   del_tns              timestamp in ns when the deletion message was generated
    dc_ts                change timestamp of the deleted file
    dc_tns               change timestamp in ns of the deleted file
    dm_ts                modification timestamp of the deleted file
@@ -123,6 +127,7 @@ MGM deletion records
 
 The MGM sends for each final deletion a record which is tagged with application *rm* :
 `log=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx&host=test.cern.ch:1094&fid=1056331&ruid=0&rgid=0dc_ts=1525425819&dc_tns=354463329&dm_ts=1525425804&dm_tns=478169000&dsize=2202&sec.app=rm`
+
 The MGM sends for each deletion moving a file into the recycle bin a record tagged with application *recycle* :
 `log=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx&host=test.cern.ch:1094&fid=1056325&ruid=0&rgid=0dc_ts=1525425819&dc_tns=351463254&dm_ts=1525425804&dm_tns=182997000&dsize=2202&sec.app=recycle`
 
@@ -134,6 +139,8 @@ The MGM sends for each deletion moving a file into the recycle bin a record tagg
    log                  always: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
    host                 mgm host name
    fid                  file id
+   del_ts               timestamp when the deletion message was generated
+   del_tns              timestamp in ns when the deletion message was generated
    dc_ts                change timestamp of the deleted file
    dc_tns               change timestamp in ns of the deleted file
    dm_ts                modification timestamp of the deleted file

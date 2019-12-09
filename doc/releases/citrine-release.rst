@@ -44,9 +44,9 @@ Bug
 Improvement
 -----------
 
-[EOS-3879] - Adding a field that reports free writable bytes
-[EOS-3882] - eos report is not reporting deletion timestamp
-CONSOLE: Suppress routing information for 'quota ls -m' requests
+* [EOS-3879] - Adding a field that reports free writable bytes
+* [EOS-3882] - eos report is not reporting deletion timestamp
+* CONSOLE: Suppress routing information for 'quota ls -m' requests
 
 ``v4.6.5 Citrine``
 ===================
