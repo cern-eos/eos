@@ -1753,7 +1753,7 @@ Server::OpSetFile(const std::string& id,
 	    gOFS->WriteRecycleRecord(ofmd);
 	    gOFS->eosViewRWMutex.UnLockWrite();
 	    XrdOucErrInfo error;
-	    (void) gOFS->_rem(fullpath.c_str(), error, vid, "", false, false,
+	    (void) gOFS->_rem(fullpath.c_str(), error, vid, "", false, true,
 			      false, true, false);
 	    gOFS->eosViewRWMutex.LockWrite();
 	  } else {
