@@ -15,6 +15,18 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.6.6 Citrine``
+===================
+
+2019-12-09
+
+Bug
+---
+
+* FUSEX: avoid starvation due to no quota error during open in flush-nolock
+* APMON: bump to latest version
+* MGM:   Remove sys.cta.objectstore.id xattr on successful retrieve
+
 
 ``v4.6.5 Citrine``
 ===================
