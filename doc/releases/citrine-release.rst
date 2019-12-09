@@ -28,6 +28,13 @@ Bug
 * MGM:   Remove sys.cta.objectstore.id xattr on successful retrieve
 
 
+Improvement
+------------
+
+[EOS-3879] - Adding a field that reports free writable bytes
+[EOS-3882] - eos report is not reporting deletion timestamp
+
+
 ``v4.6.5 Citrine``
 ===================
 
@@ -44,6 +51,7 @@ Bug
 
 Improvement
 ------------
+
 * [EOS-3860] - Allow lock-free iteration over long directory listings
 * [EOS-3862] - eos client: hardcode RPM dependency on 'zeromq'
 * [EOS-3875] - Drop use of std::ptr_fun, std::not1
@@ -59,6 +67,7 @@ Bug
 ---
 
 * [EOS-3854] MISC: Version SELinux policy files for targeted platforms (SLC6 and CC7)
+
 
 ``v4.6.3 Citrine``
 ===================
@@ -77,6 +86,7 @@ New Feature
 
 * allow IPC connections via ZMQ to bypass xrd-threadpool for admin commands - usage 'eos ipc:// ...'
 * make the maximum number of listable entries by eosxd configurable: EOS_MGM_FUSEX_MAX_CHILDREN=32768
+
 
 ``v4.6.2 Citrine``
 ===================
@@ -111,6 +121,7 @@ New Feature
 * stall logic for prepares
 * more options in eos-ns-inspect
 * decrease noserver FUSEx timeouts to 15/2 minutes (r/w)
+
 
 ``v4.6.1 Citrine``
 ===================
