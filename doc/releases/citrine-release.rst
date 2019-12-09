@@ -25,15 +25,13 @@ Bug
 
 * FUSEX: avoid starvation due to no quota error during open in flush-nolock
 * APMON: bump to latest version
-* MGM:   Remove sys.cta.objectstore.id xattr on successful retrieve
-
 
 Improvement
 ------------
 
 [EOS-3879] - Adding a field that reports free writable bytes
 [EOS-3882] - eos report is not reporting deletion timestamp
-
+CONSOLE: Suppress routing information for 'quota ls -m' requests
 
 ``v4.6.5 Citrine``
 ===================
@@ -48,6 +46,7 @@ Bug
 * [EOS-3827] - MGM Upgrade: After restarts prevent storage node heartbeats to increase
 * [EOS-3858] - ARCHIVE: Broken due to utimes silent error
 * [EOS-3864] - unable to boot filesystem after eos fs add
+* MGM: Remove sys.cta.objectstore.id xattr on successful retrieve
 
 Improvement
 ------------
