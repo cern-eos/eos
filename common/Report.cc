@@ -138,7 +138,7 @@ Report::Report(XrdOucEnv& report)
 //! Dump the report contents into a string in human readable key=value format
 //!
 //! @param out string containing the report
-//! @param dumpsec if true dump alos sec info
+//! @param dumpsec if true dump also sec info
 //!
 //------------------------------------------------------------------------------
 void

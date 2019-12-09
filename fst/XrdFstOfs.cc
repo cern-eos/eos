@@ -37,6 +37,7 @@
 #include "common/Statfs.hh"
 #include "common/SyncAll.hh"
 #include "common/StackTrace.hh"
+#include "common/Timing.hh"
 #include "common/eos_cta_pb/EosCtaAlertHandler.hh"
 #include "common/Constants.hh"
 #include "common/StringConversion.hh"
@@ -1756,15 +1757,20 @@ XrdFstOfs::MakeDeletionReport(eos::common::FileSystem::fsid_t fsid,
                               struct stat& deletion_stat)
 {
   XrdOucString reportString;
+  struct timespec ts_now;
   char report[16384];
+  eos::common::Timing::GetTimeSpec(ts_now);
+
   snprintf(report, sizeof(report) - 1,
            "log=%s&"
            "host=%s&fid=%llu&fxid=%08llx&fsid=%u&"
+           "del_ts=%lu&del_tns=%lu&"
            "dc_ts=%lu&dc_tns=%lu&"
            "dm_ts=%lu&dm_tns=%lu&"
            "da_ts=%lu&da_tns=%lu&"
            "dsize=%li&sec.app=deletion"
            , this->logId, gOFS.mHostName, fid, fid, fsid
+           , ts_now.tv_sec, ts_now.tv_nsec
 #ifdef __APPLE__
            , deletion_stat.st_ctimespec.tv_sec
            , deletion_stat.st_ctimespec.tv_nsec

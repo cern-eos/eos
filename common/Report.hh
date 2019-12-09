@@ -66,7 +66,7 @@ public:
   std::string path;        //< logical path or replicate:<fid>
   uid_t uid;               //< user id
   gid_t gid;               //< group id
-  std::string td;          //< trace identifer
+  std::string td;          //< trace identifier
   std::string host;        //< server host
   std::string server_name; //< server name without domain
   std::string server_domain;//< server domain without server name
@@ -128,7 +128,7 @@ public:
   std::string sec_vorg;    //< auth vorg
   std::string sec_grps;    //< auth grps
   std::string sec_role;    //< auth role
-  std::string sec_info;    //< auth info (=dn if moninfo configuredin GSI plugin)
+  std::string sec_info;    //< auth info (=dn if moninfo configured in GSI plugin)
   std::string sec_app;     //< auth application
 
   // ---------------------------------------------------------------------------

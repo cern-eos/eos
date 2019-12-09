@@ -1358,18 +1358,25 @@ XrdMgmOfs::MacroStringError(int errcode)
 void
 XrdMgmOfs::WriteRmRecord(const std::shared_ptr<eos::IFileMD>& fmd)
 {
+  struct timespec ts_now;
   char report[16384];
   eos::IFileMD::ctime_t ctime;
   eos::IFileMD::ctime_t mtime;
   fmd->getCTime(ctime);
   fmd->getMTime(mtime);
+  eos::common::Timing::GetTimeSpec(ts_now);
   snprintf(report, sizeof(report) - 1,
-           "log=%s&host=%s&fid=%llu&fxid=%08llx&ruid=%u&rgid=%u&dc_ts=%lu&"
-           "dc_tns=%lu&dm_ts=%lu&dm_tns=%lu&dsize=%lu&sec.app=rm", this->logId,
-           gOFS->ManagerId.c_str(), (unsigned long long)fmd->getId(),
-           (unsigned long long)fmd->getId(), fmd->getCUid(), fmd->getCGid(),
-           ctime.tv_sec, ctime.tv_nsec, mtime.tv_sec, mtime.tv_nsec,
-           fmd->getSize());
+           "log=%s&"
+           "host=%s&fid=%llu&fxid=%08llx&"
+           "ruid=%u&rgid=%u&"
+           "del_ts=%lu&del_tns=%lu&"
+           "dc_ts=%lu&dc_tns=%lu&"
+           "dm_ts=%lu&dm_tns=%lu&"
+           "dsize=%lu&sec.app=rm",
+           this->logId, gOFS->ManagerId.c_str(), (unsigned long long) fmd->getId(),
+           (unsigned long long) fmd->getId(), fmd->getCUid(), fmd->getCGid(),
+           ts_now.tv_sec, ts_now.tv_nsec, ctime.tv_sec, ctime.tv_nsec,
+           mtime.tv_sec, mtime.tv_nsec, fmd->getSize());
   std::string record = report;
   IoStats->WriteRecord(record);
 }
@@ -1380,18 +1387,25 @@ XrdMgmOfs::WriteRmRecord(const std::shared_ptr<eos::IFileMD>& fmd)
 void
 XrdMgmOfs::WriteRecycleRecord(const std::shared_ptr<eos::IFileMD>& fmd)
 {
+  struct timespec ts_now;
   char report[16384];
   eos::IFileMD::ctime_t ctime;
   eos::IFileMD::ctime_t mtime;
   fmd->getCTime(ctime);
   fmd->getMTime(mtime);
+  eos::common::Timing::GetTimeSpec(ts_now);
   snprintf(report, sizeof(report) - 1,
-           "log=%s&host=%s&fid=%llu&fxid=%08llx&ruid=%u&rgid=%u&dc_ts=%lu&"
-           "dc_tns=%lu&dm_ts=%lu&dm_tns=%lu&dsize=%lu&sec.app=recycle",
-           this->logId, gOFS->ManagerId.c_str(), (unsigned long long)fmd->getId(),
-           (unsigned long long)fmd->getId(), fmd->getCUid(), fmd->getCGid(),
-           ctime.tv_sec, ctime.tv_nsec, mtime.tv_sec, mtime.tv_nsec,
-           fmd->getSize());
+           "log=%s&"
+           "host=%s&fid=%llu&fxid=%08llx&"
+           "ruid=%u&rgid=%u&"
+           "del_ts=%lu&del_tns=%lu&"
+           "dc_ts=%lu&dc_tns=%lu&"
+           "dm_ts=%lu&dm_tns=%lu&"
+           "dsize=%lu&sec.app=recycle",
+           this->logId, gOFS->ManagerId.c_str(), (unsigned long long) fmd->getId(),
+           (unsigned long long) fmd->getId(), fmd->getCUid(), fmd->getCGid(),
+           ts_now.tv_sec, ts_now.tv_nsec, ctime.tv_sec, ctime.tv_nsec,
+           mtime.tv_sec, mtime.tv_nsec, fmd->getSize());
   std::string record = report;
   IoStats->WriteRecord(record);
 }
