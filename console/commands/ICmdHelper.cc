@@ -355,7 +355,24 @@ void
 ICmdHelper::AddRouteInfo(std::string& cmd)
 {
   using eos::console::RequestProto;
-  const std::string default_route = DefaultRoute();
+  
+  bool verbose = true;
+
+  // suppress routing output for formatted quota command 
+  switch (mReq.command_case()) {
+  case RequestProto::kQuota:
+    if (mReq.quota().lsuser().format()) {
+      verbose = false;
+    }
+    if (mReq.quota().ls().format()) {
+      verbose = false;
+    }
+    break;
+  default:
+    break;
+  }
+  
+  const std::string default_route = DefaultRoute(verbose);
   std::ostringstream oss;
 
   switch (mReq.command_case()) {
