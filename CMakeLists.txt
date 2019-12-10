@@ -116,7 +116,7 @@ if (BUILD_MANPAGES AND HELP2MAN_FOUND)
 endif()
 
 #-------------------------------------------------------------------------------
-# Build the libfmt for fast convertions
+# Build the libfmt for fast conversions
 #-------------------------------------------------------------------------------
 if (NOT TARGET fmt)
   include_directories(common/fmt/include)
@@ -127,7 +127,7 @@ endif ()
 #-------------------------------------------------------------------------------
 # Build qclient static library
 #-------------------------------------------------------------------------------
-include_directories(${FOLLY_INCLUDE_DIRS})
+include_directories(SYSTEM ${FOLLY_INCLUDE_DIRS})
 add_subdirectory(namespace/ns_quarkdb/qclient)
 
 add_subdirectory(common)
