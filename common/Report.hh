@@ -120,7 +120,7 @@ public:
   unsigned long long da_ts;  //< timestamp of access time
   unsigned long long da_tns;  //< timestamp of access time
 
-
+  // SecEntity fields
   std::string sec_prot;    //< auth protocol
   std::string sec_name;    //< auth name
   std::string sec_host;    //< auth client host
@@ -130,6 +130,11 @@ public:
   std::string sec_role;    //< auth role
   std::string sec_info;    //< auth info (=dn if moninfo configured in GSI plugin)
   std::string sec_app;     //< auth application
+
+  // TPC fields
+  std::string tpc_src;      //< source of the TPC transfer
+  std::string tpc_dst;      //< destination of the TPC transfer
+  std::string tpc_src_lfn;  //< source logical file name
 
   // ---------------------------------------------------------------------------
   //! Constructor by report env
@@ -144,7 +149,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Dump the report contents into a string
   // ---------------------------------------------------------------------------
-  void Dump(XrdOucString &out, bool dumpsec=false);
+  void Dump(XrdOucString& out, bool dumpsec = false, bool dumptpc = false);
 };
 
 /*----------------------------------------------------------------------------*/

@@ -2422,6 +2422,7 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
     gOFS.TpcMap[mIsTpcDst][tpc_key].lfn = tpc_lfn;
     // Set tpc key expiration time to 1 minute
     gOFS.TpcMap[mIsTpcDst][tpc_key].expires = time(NULL) + 60;
+    mFstTpcInfo = gOFS.TpcMap[mIsTpcDst][tpc_key];
     mTpcKey = tpc_key;
 
     if (mTpcFlag == kTpcDstSetup) {
@@ -2526,10 +2527,10 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
       }
     }
 
-    eos_info("msg=\"tpc read\" key=%s, org=%s, path=%s expires=%llu",
+    eos_info("msg=\"tpc read\" key=%s, org=%s, dst=%s path=%s expires=%llu",
              gOFS.TpcMap[mIsTpcDst][tpc_key].key.c_str(),
              gOFS.TpcMap[mIsTpcDst][tpc_key].org.c_str(),
-             gOFS.TpcMap[mIsTpcDst][tpc_key].src.c_str(),
+             gOFS.TpcMap[mIsTpcDst][tpc_key].dst.c_str(),
              gOFS.TpcMap[mIsTpcDst][tpc_key].path.c_str(),
              gOFS.TpcMap[mIsTpcDst][tpc_key].expires);
     // Grab the open information and expire entry
@@ -2539,6 +2540,7 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
     gOFS.TpcMap[mIsTpcDst][tpc_key].expires = (now - 10);
     // Store the provided origin to compare with our local connection
     // gOFS.TpcMap[mIsTpcDst][tpc_key].org = tpc_org;
+    mFstTpcInfo = gOFS.TpcMap[mIsTpcDst][tpc_key];
     mTpcKey = tpc_key;
     // Save open opaque env
     mOpenOpaque.reset(new XrdOucEnv(opaque.c_str()));
@@ -2652,6 +2654,7 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
     ComputeStatistics(monReadvBytes, rvmin, rvmax, rvsum, rvsigma);
     ComputeStatistics(monReadSingleBytes, rsmin, rsmax, rssum, rssigma);
     ComputeStatistics(monReadvCount, rcmin, rcmax, rcsum, rcsigma);
+    bool sec_tpc = ((mTpcFlag == kTpcDstSetup) || (mTpcFlag == kTpcSrcRead));
     char report[16384];
 
     if (rmin == 0xffffffff) {
@@ -2706,9 +2709,23 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              , (unsigned long long) openSize
              , (unsigned long long) closeSize
              , eos::common::SecEntity::ToEnv(mSecString.c_str(),
-                 ((mTpcFlag == kTpcDstSetup) ||
-                  (mTpcFlag == kTpcSrcRead)) ? "tpc" : 0).c_str());
+                                             (sec_tpc ? "tpc" : 0)).c_str());
     reportString = report;
+  }
+
+  if ((mTpcFlag > kTpcNone) && (mTpcFlag != kTpcSrcCanDo)) {
+    XrdSysMutexHelper tpc_lock(gOFS.TpcMapMutex);
+    ostringstream sstpc;
+
+    if (mTpcFlag == kTpcDstSetup) {
+      sstpc << "&tpc.src=" << mFstTpcInfo.src
+            << "&tpc.src_lfn=" << mFstTpcInfo.lfn;
+    } else if ((mTpcFlag == kTpcSrcSetup) || (mTpcFlag == kTpcSrcRead)) {
+      sstpc << "&tpc.dst=" << mFstTpcInfo.dst
+            << "&tpc.src_lfn=" << mFstTpcInfo.path;
+    }
+
+    reportString += sstpc.str().c_str();
   }
 }
 

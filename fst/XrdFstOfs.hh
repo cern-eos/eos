@@ -369,7 +369,7 @@ public:
 
   XrdSysError* Eroute;
   eos::fst::Messaging* Messaging; ///< messaging interface class
-  eos::fst::Storage* Storage; ///< Meta data & filesytem store object
+  eos::fst::Storage* Storage; ///< Meta data & filesystem store object
   mutable XrdSysMutex OpenFidMutex;
 
   eos::fst::OpenFileTracker openedForWriting;
@@ -407,7 +407,7 @@ public:
   std::shared_ptr<qclient::QClient> mFsckQcl; ///< Qclient used for fsck
   bool mMqOnQdb; ///< Are we using QDB as an MQ?
   int mHttpdPort; ///< listening port of the http server
-  std::unique_ptr<HttpServer> mHttpd; //< Embedded http server if available
+  std::unique_ptr<HttpServer> mHttpd; ///< Embedded http server if available
 
 private:
 #ifdef IN_TEST_HARNESS

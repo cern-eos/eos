@@ -122,6 +122,11 @@ Report::Report(XrdOucEnv& report)
     sec_app.erase(sec_app.find('?'));
   }
 
+  // tpc extensions
+  tpc_src = report.Get("tpc.src") ? report.Get("tpc.src") : "";
+  tpc_dst = report.Get("tpc.dst") ? report.Get("tpc.dst") : "";
+  tpc_src_lfn = report.Get("tpc.src_lfn") ? report.Get("tpc.src_lfn") : "";
+
   // deletion specific entries
   dsize = strtoull(report.Get("dsize") ? report.Get("dsize") : "0", 0, 10);
   dc_tns = report.Get("dc_tns") ? strtoull(report.Get("dc_tns"), 0, 10) : 0;
@@ -142,7 +147,7 @@ Report::Report(XrdOucEnv& report)
 //!
 //------------------------------------------------------------------------------
 void
-Report::Dump(XrdOucString& out, bool dumpsec)
+Report::Dump(XrdOucString& out, bool dumpsec, bool dumptpc)
 {
   char dumpline[16384];
   snprintf(dumpline, sizeof(dumpline) - 1,
@@ -174,6 +179,13 @@ Report::Dump(XrdOucString& out, bool dumpsec)
              sec_prot.c_str(), sec_name.c_str(), sec_host.c_str(),
              sec_vorg.c_str(), sec_grps.c_str(), sec_role.c_str(),
              sec_info.c_str(), sec_app.c_str());
+    out += dumpline;
+  }
+
+  if (dumptpc) {
+    snprintf(dumpline, sizeof(dumpline) - 1,
+             " tpc_src=\"%s\" tpc_dst=\"%s\" tpc_src_lfn=\"%s\"",
+             tpc_src.c_str(), tpc_dst.c_str(), tpc_src_lfn.c_str());
     out += dumpline;
   }
 

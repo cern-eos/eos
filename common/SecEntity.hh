@@ -159,7 +159,7 @@ public:
         rs += tokens[7];
       }
     } else {
-      fprintf(stderr, "[eos::common::SecEntit::ToEnv] error: %s has illegal "
+      fprintf(stderr, "[eos::common::SecEntity::ToEnv] error: %s has illegal "
               "contents [%d]\n", s, (int)tokens.size());
     }
 

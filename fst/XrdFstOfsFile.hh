@@ -26,6 +26,7 @@
 #include "fst/Namespace.hh"
 #include "fst/storage/Storage.hh"
 #include "fst/checksum/CheckSum.hh"
+#include "fst/utils/TpcInfo.hh"
 #include "common/Fmd.hh"
 #include "common/FileId.hh"
 #include "XrdOfs/XrdOfs.hh"
@@ -236,12 +237,12 @@ public:
   unsigned long long mCid; //! container id
   unsigned long long mForcedMtime;
   unsigned long long mForcedMtime_ms;
-  bool mFusex; //! indicator that we are commiting from a fusex client
+  bool mFusex; //! indicator that we are committing from a fusex client
   bool mFusexIsUnlinked; //! indicator for an already unlinked file
   bool closed; //! indicator the file is closed
   bool mOpened; //! indicator that file is opened
   bool mHasWrite; //! indicator that file was written/modified
-  bool hasWriteError;// indicator for write errros to avoid message flooding
+  bool hasWriteError;// indicator for write errors to avoid message flooding
   bool hasReadError; //! indicator if a RAIN file could be reconstructed or not
   bool mIsRW; //! indicator that file is opened for rw
   bool mIsDevNull; ///< If true file act as a sink i.e. /dev/null
@@ -256,7 +257,7 @@ public:
   bool mIsOCchunk; //! indicator this is an OC chunk upload
   int writeErrorFlag; //! uses kOFSxx enums to specify an error condition
 
-  //! Indicator that this FST has to commmit after reconstruction
+  //! Indicator that this FST has to commit after reconstruction
   //! * if the reconstructed piece is not existing on disk we commit anyway
   //! since it is a creation.
   //! * if it does exist maybe from a previous movement where the replica was
@@ -357,7 +358,8 @@ public:
   TpcType_t mTpcFlag; ///< TPC access type
   XrdOfsTPCInfo mTpcInfo; ///< TPC info object used for callback
   XrdSysMutex mTpcJobMutex; ///< TPC job mutex
-  std::string mTpcKey; //! TPC key for a tpc file operation
+  std::string mTpcKey; ///< TPC key for a tpc file operation
+  TpcInfo mFstTpcInfo; ///< FST TPC info struct
   bool mIsTpcDst; ///< If true this is a TPC destination, otherwise a source
   int mTpcRetc; ///< TPC job return code
   std::atomic<bool> mTpcCancel; ///< Mark TPC cancellation request
@@ -373,7 +375,7 @@ public:
   //! @param tident xrootd like tident
   //! @param hostname output parameter holding the hostname
   //!
-  //! @return true if parsing succcessful and hostname stores the desired value,
+  //! @return true if parsing successful and hostname stores the desired value,
   //!         otherwise false
   //----------------------------------------------------------------------------
   static bool GetHostFromTident(const std::string& tident,
@@ -518,7 +520,7 @@ public:
   //! @param opaque opaque information
   //! @param client XrdSecEntity of client
   //!
-  //! @return SFS_OK if succcessful, otherwise SFS_ERROR
+  //! @return SFS_OK if successful, otherwise SFS_ERROR
   //----------------------------------------------------------------------------
   int ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client);
 
@@ -533,7 +535,7 @@ public:
 
   //----------------------------------------------------------------------------
   //! Process cap opaque information - decisions that need to be taken based
-  //! on the ecrypted opaque info
+  //! on the encrypted opaque info
   //!
   //! @param is_repair_read flag if this is a repair read
   //! @param vid client virtual identity
@@ -570,7 +572,7 @@ public:
   //! Compute general statistics on a set of input values
   //!
   //! @param vect input collection
-  //! @param min miniumum element
+  //! @param min minimum element
   //! @param max maximum element
   //! @param sum sum of the elements
   //! @param avg average value
