@@ -10,7 +10,7 @@ Report log files
 
 The EOS MGM writes report log files under `/var/eos/report/<YEAR>/<MONTH>/<YEAR><MONTH><DAY>.eosreport`
 
-On top of a few `xrd.cf.mgm` configuration variables, it must be enabled on the mgm:
+On top of a few `xrd.cf.mgm` configuration variables, it must be enabled on the MGM:
 
 .. code-block:: bash
 
@@ -92,8 +92,13 @@ Each FST sends for each file replica or piece it writes a record which looks lik
    sec.role             virtual role (only VOMS)
    sec.info             security information e.g. DN
    sec.app              application responsible for record e.g. balancing,gridftp,eoscp,fuse
+   tpc.src              TPC source hostname (only on TPC transfers)
+   tpc.dst              TPC destination hostname (only on TPC transfers)
+   tpc.src_lfn          TPC file path at source (only on TPC transfers)
    ==================== ==================================================================================================
 
+Note: In case of TPC transfers, only one of `tpc.src` or `tpc.dst` is available,
+depending on the type of TPC transfer
 
 FST deletion records
 ----------------------------
@@ -107,7 +112,7 @@ Each FST sends for a deletion on disk a record which is tagged with application 
    TAG                  Description
    ==================== ==================================================================================================
    log                  uuid to correlate log entries
-   host                 fst host name
+   host                 FST host name
    fid                  file id of the file deleted
    fsid                 filesystem id where the file is deleted
    del_ts               timestamp when the deletion message was generated
@@ -137,7 +142,7 @@ The MGM sends for each deletion moving a file into the recycle bin a record tagg
    TAG                  Description
    ==================== ==================================================================================================
    log                  always: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-   host                 mgm host name
+   host                 MGM host name
    fid                  file id
    del_ts               timestamp when the deletion message was generated
    del_tns              timestamp in ns when the deletion message was generated
