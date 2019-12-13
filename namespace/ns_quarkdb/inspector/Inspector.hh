@@ -141,6 +141,12 @@ public:
   int fixShadowFile(bool dryRun, uint64_t fid, const std::string &destinationPath, std::ostream &out, std::ostream &err);
 
   //----------------------------------------------------------------------------
+  //! Drop file currently stuck in deathrow. Please note that any pending
+  //! replicas, if they exist, are not deleted.
+  //----------------------------------------------------------------------------
+  int dropFromDeathrow(bool dryRun, uint64_t fid, std::ostream &out, std::ostream &err);
+
+  //----------------------------------------------------------------------------
   //! Change the given fid - USE WITH CAUTION
   //----------------------------------------------------------------------------
   int changeFid(bool dryRun, uint64_t id, uint64_t newParent, const std::string &newChecksum, int64_t newSize, std::ostream &out, std::ostream &err);

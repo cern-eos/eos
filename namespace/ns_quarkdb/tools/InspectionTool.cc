@@ -238,7 +238,7 @@ int main(int argc, char* argv[]) {
   idGroup2->require_option(1, 1);
 
   //----------------------------------------------------------------------------
-  // Set-up fix-naming-conflict subcommand..
+  // Set-up fix-shadow-file subcommand..
   //----------------------------------------------------------------------------
   auto fixShadowFileSubcommand = app.add_subcommand("fix-shadow-file", "[CAUTION] Attempt to fix a shadowed file.\nIf the given fid is indeed shadowed by a different fid / cid, it's moved to the given destination.");
   addClusterOptions(fixShadowFileSubcommand, membersStr, memberValidator, password, passwordFile);
@@ -248,6 +248,16 @@ int main(int argc, char* argv[]) {
     ->required();
 
   fixShadowFileSubcommand->add_option("--fid", fid, "Specify the suspected shadowed file")
+    ->required();
+
+  //----------------------------------------------------------------------------
+  // Set-up drop-from-deathrow subcommand..
+  //----------------------------------------------------------------------------
+  auto dropFromDeathrow = app.add_subcommand("drop-from-deathrow", "[CAUTION] Delete a FileMD which is currently on deathrow.\nAny pending replicas on the FSTs will not be touched, potentially resulting in dark data!");
+  addClusterOptions(dropFromDeathrow, membersStr, memberValidator, password, passwordFile);
+  addDryRun(dropFromDeathrow, noDryRun);
+
+  dropFromDeathrow->add_option("--fid", fid, "Specify which file to drop - it should currently be stuck on deathrow")
     ->required();
 
   //----------------------------------------------------------------------------
@@ -426,6 +436,10 @@ int main(int argc, char* argv[]) {
 
   if(fixShadowFileSubcommand->parsed()) {
     return inspector.fixShadowFile(dryRun, fid, destinationPath, std::cout, std::cerr);
+  }
+
+  if(dropFromDeathrow->parsed()) {
+    return inspector.dropFromDeathrow(dryRun, fid, std::cout, std::cerr);
   }
 
   if(changeFidSubcommand->parsed()) {

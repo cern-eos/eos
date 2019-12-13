@@ -30,6 +30,30 @@
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+//! File printing options
+//------------------------------------------------------------------------------
+struct FilePrintingOptions {
+  bool showId;
+  bool showName;
+  bool showParent;
+  bool showSize;
+  bool showMTime;
+  bool showCTime;
+
+};
+
+//------------------------------------------------------------------------------
+//! Container printing options
+//------------------------------------------------------------------------------
+struct ContainerPrintingOptions {
+  bool showId;
+  bool showName;
+  bool showParent;
+  bool showUid;
+  bool showMode;
+};
+
+//------------------------------------------------------------------------------
 //! Printing class
 //------------------------------------------------------------------------------
 class Printing {

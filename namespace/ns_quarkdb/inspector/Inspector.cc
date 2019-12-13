@@ -1431,6 +1431,38 @@ int Inspector::fixDetachedParentFile(bool dryRun, uint64_t fid, const std::strin
 }
 
 //------------------------------------------------------------------------------
+// Drop file currently stuck in deathrow. Please note that any pending
+// replicas, if they exist, are not deleted.
+//------------------------------------------------------------------------------
+int Inspector::dropFromDeathrow(bool dryRun, uint64_t fid, std::ostream &out, std::ostream &err) {
+  eos::ns::FileMdProto val;
+
+  try {
+    val = MetadataFetcher::getFileFromId(mQcl, FileIdentifier(fid)).get();
+  } catch(const MDException& e) {
+    err << "Error while fetching metadata for FileMD #" << fid << ": " << e.what()
+        << std::endl;
+    return 1;
+  }
+
+  Printing::printMultiline(val, out);
+
+  if(val.cont_id() != 0) {
+    err << "Parent is not 0 - the given file is not on deathrow, refusing to delete." << std::endl;
+    return 1;
+  }
+
+  std::vector<RedisRequest> requests;
+  requests.emplace_back(RequestBuilder::deleteFileProto(FileIdentifier(fid)));
+
+  CacheNotifications notifications;
+  notifications.fids.emplace_back(fid);
+
+  executeRequestBatch(requests, notifications, dryRun, out, err);
+  return 0;
+}
+
+//------------------------------------------------------------------------------
 // Change the given fid - USE WITH CAUTION
 //------------------------------------------------------------------------------
 int Inspector::changeFid(bool dryRun, uint64_t fid, uint64_t newParent, const std::string &newChecksum, int64_t newSize, std::ostream &out, std::ostream &err) {
