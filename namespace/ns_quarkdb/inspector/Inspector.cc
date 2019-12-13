@@ -129,6 +129,7 @@ int Inspector::dump(const std::string& dumpPath, bool relative, bool rawPaths, b
     }
 
     if(!rawPaths && item.isFile) {
+      out << " id=" << item.fileMd.id();
       std::string xs;
       eos::appendChecksumOnStringProtobuf(item.fileMd, xs);
       out << " xs=" << xs;
