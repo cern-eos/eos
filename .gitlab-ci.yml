@@ -328,11 +328,11 @@ build_cc7:
     - cc7
 
 # Re-enable xrd_testing jobs once project ugprades to XRootD 5
-.build_cc7_xrd_testing:
+build_cc7_xrd_testing:
   before_script:
     - source gitlab-ci/export_branch.sh
     - echo "Exporting BRANCH=${BRANCH}"
-    - echo -e '[xrootd-testing]\nname=XRootD Testing repository\nbaseurl=http://xrootd.org/binaries/testing/slc/7/$basearch http://xrootd.cern.ch/sw/repos/testing/slc/7/$basearch\ngpgcheck=0\nenabled=1\npriority=1\nprotect=0\ngpgkey=http://xrootd.cern.ch/sw/releases/RPM-GPG-KEY.txt\n' >> /etc/yum.repos.d/xrootd-testing.repo
+    - echo -e '[xrootd-testing]\nname=XRootD Testing repository\nbaseurl=http://xrootd.org/binaries/testing/slc/7/$basearch http://xrootd.cern.ch/sw/repos/testing/slc/7/$basearch\ngpgcheck=0\nenabled=1\npriority=1\nprotect=0\ngpgkey=http://xrootd.cern.ch/sw/releases/RPM-GPG-KEY.txt\nexclude=xrootd-*5.0.0*\n' >> /etc/yum.repos.d/xrootd-testing.repo
   <<: *cc7_template_definition
   variables:
     BUILD_NAME: cc7_xrd_testing
@@ -616,7 +616,7 @@ cc7_coverage_docker_image:
       - $COVERAGE_SCHEDULE
 
 
-.cc7_docker_image_xrd_testing:
+cc7_docker_image_xrd_testing:
   stage: build:dockerimage
   tags:
     - docker-image-build
@@ -729,7 +729,7 @@ k8s_system_qdb:
   retry: 1
 
 
-.k8s_system_qdb_xt: # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
+k8s_system_qdb_xt: # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX
   stage: test
   <<: *k8s_system_test_script_template
   variables:
@@ -849,7 +849,7 @@ system_test_qdb:
   retry: 1
 
 
-.system_test_qdb_xrd_testing:
+system_test_qdb_xrd_testing:
   stage: test
   <<: *system_test_template_definition
   variables:
