@@ -1473,6 +1473,7 @@ public:
   bool IsStall; ///< true if the Stall function should be called to send a wait
   bool mAuthorize; ///< Determine if the authorization should be applied or not
   std::string mAuthLib; ///< Path to authorization library
+  bool mTapeEnabled; ///< True if support for tape is enabled
   std::string
   mPrepareDestSpace; ///< Space to be used when retrieving files from tape
   //!  Acts only as a redirector, disables many components in the MGM

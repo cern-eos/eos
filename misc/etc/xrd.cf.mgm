@@ -105,6 +105,8 @@ mgmofs.nslib /usr/lib64/libEosNsInMemory.so
 #mgmofs.protowfresource /SSI_RESOURCE
 
 #-------------------------------------------------------------------------------
-# Configuration for prepare
+# Confguration parameters for tape
 #-------------------------------------------------------------------------------
+
+#mgmofs.tapeenabled false
 #mgmofs.prepare.dest.space default

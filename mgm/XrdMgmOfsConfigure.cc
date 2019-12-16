@@ -670,6 +670,20 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           Eroute.Say("=====> mgmofs.authlib : ", mAuthLib.c_str());
         }
 
+        if (!strcmp("tapeenabled", var)) {
+          if ((!(val = Config.GetWord())) ||
+              (strcmp("true", val) && strcmp("false", val) &&
+               strcmp("1", val) && strcmp("0", val))) {
+            Eroute.Emsg("Config", "argument for tapeenabled is invalid. "
+                        "Must be <true>, <false>, <1> or <0>!");
+          } else {
+            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
+              mTapeEnabled = true;
+            }
+            Eroute.Say("=====> mgmofs.tapeenabled : ", val);
+          }
+        }
+
         if (!strcmp("prepare.dest.space", var)) {
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config", "argument for prepare.dest.space is missing.");
