@@ -15,6 +15,21 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.6.7 Citrine``
+===================
+
+2019-12-16
+
+Bug
+---
+
+* [EOS-3854] - Fixed SELinux policy regression bug which installed wrong file on SLC6
+
+Improvement
+-----------
+
+* [EOS-3886] - Enrich eosreport in the context of TPC
+
 ``v4.6.6 Citrine``
 ===================
 
@@ -27,7 +42,7 @@ Bug
 * APMON: bump to latest version
 
 Improvement
-------------
+-----------
 
 [EOS-3879] - Adding a field that reports free writable bytes
 [EOS-3882] - eos report is not reporting deletion timestamp
