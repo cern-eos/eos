@@ -1019,6 +1019,10 @@ XrdMgmOfsFile::open(const char* inpath,
   // ---------------------------------------------------------------------------
   XrdOucString capability = "";
 
+  if(gOFS->mTapeEnabled) {
+    capability += "&tapeenabled=1";
+  }
+
   if (isPioReconstruct) {
     capability += "&mgm.access=update";
   } else {
