@@ -371,6 +371,12 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << gOFS->mDrainEngine.GetThreadPoolInfo() << std::endl
         << "uid=all gid=all "
         << gOFS->mFsckEngine->GetThreadPoolInfo() << std::endl;
+
+    // Only display the tape enabled state if it is set to true in order to
+    // simplify the disk-only use of EOS
+    if (gOFS->mTapeEnabled) {
+      oss << "uid=all gid=all ns.tapeenabled=true" << std::endl;
+    }
   } else {
     std::string line = "# ------------------------------------------------------"
                        "------------------------------";
@@ -490,6 +496,12 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "ALL      fsck info                        "
         << gOFS->mFsckEngine->GetThreadPoolInfo() << std::endl
         << line << std::endl;
+
+    // Only display the tape enabled state if it is set to true in order to
+    // simplify the disk-only use of EOS
+    if (gOFS->mTapeEnabled) {
+      oss << "ALL      tapeenabled                      true" << std::endl;
+    }
   }
 
   if (!stat.summary()) {
