@@ -26,6 +26,7 @@
 #include "common/ThreadPool.hh"
 #include "common/AssistedThread.hh"
 #include "common/FileSystem.hh"
+#include <list>
 
 EOSMGMNAMESPACE_BEGIN
 

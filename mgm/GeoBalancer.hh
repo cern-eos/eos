@@ -34,6 +34,7 @@
 #include "common/Logging.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
+#include "common/AssistedThread.hh"
 /* -------------------------------------------------------------------------- */
 #include "XrdSys/XrdSysPthread.hh"
 /* -------------------------------------------------------------------------- */

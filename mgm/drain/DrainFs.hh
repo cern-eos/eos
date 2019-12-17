@@ -27,6 +27,7 @@
 #include "common/Logging.hh"
 #include <thread>
 #include <future>
+#include <list>
 
 //! Forward declarations
 namespace eos

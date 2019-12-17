@@ -23,6 +23,7 @@
 
 #include "fst/utils/OpenFileTracker.hh"
 #include "common/Assert.hh"
+#include "common/Logging.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -40,9 +41,9 @@ void OpenFileTracker::up(eos::common::FileSystem::fsid_t fsid, uint64_t fid)
   mContents[fsid][fid]++;
 }
 
-//----------------------------------------------------------------------------                                               
-//! Wait for an excl open of a file and count up                                                                             
-//----------------------------------------------------------------------------                                               
+//------------------------------------------------------------------------------
+//! Wait for an excl open of a file and count up
+//------------------------------------------------------------------------------
 void OpenFileTracker::waitExclOpen(eos::common::FileSystem::fsid_t fsid, uint64_t fid)
 {
   do {
@@ -120,9 +121,9 @@ bool OpenFileTracker::isOpen(eos::common::FileSystem::fsid_t fsid,
   return getUseCount(fsid, fid) > 0;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Checks if the given file ID, on the given filesystem ID, is currently open
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int32_t OpenFileTracker::getUseCount(eos::common::FileSystem::fsid_t fsid,
                                      uint64_t fid) const
 {
@@ -151,9 +152,9 @@ bool OpenFileTracker::isAnyOpen() const
   return ! mContents.empty();
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Get open file IDs of a filesystem, sorted by usecount
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 std::map<size_t, std::set<uint64_t>> OpenFileTracker::getSortedByUsecount(
                                     eos::common::FileSystem::fsid_t fsid) const
 {
@@ -173,9 +174,9 @@ std::map<size_t, std::set<uint64_t>> OpenFileTracker::getSortedByUsecount(
   return contentsSortedByUsecount;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Get number of distinct open files by filesystem
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int32_t OpenFileTracker::getOpenOnFilesystem(eos::common::FileSystem::fsid_t
     fsid) const
 {

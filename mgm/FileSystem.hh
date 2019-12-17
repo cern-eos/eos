@@ -74,20 +74,6 @@ public:
   virtual ~FileSystem() = default;
 
   //----------------------------------------------------------------------------
-  //! @brief Return the current broadcasting setting
-  //!
-  //! @return true if broadcasting otherwise false
-  //----------------------------------------------------------------------------
-  bool ShouldBroadCast()
-  {
-    if (mSom) {
-      return mSom->ShouldBroadCast();
-    } else {
-      return false;
-    }
-  }
-
-  //----------------------------------------------------------------------------
   //! Set the configuration status of a file system. This can be used to trigger
   //! the draining.
   //! @note Must be called with a lock on FsView::ViewMutex
@@ -109,6 +95,15 @@ public:
   //! @return true if successful otherwise false
   //----------------------------------------------------------------------------
   bool SetString(const char* key, const char* str, bool broadcast = true);
+private:
+
+  //----------------------------------------------------------------------------
+  //! @brief Return the current broadcasting setting
+  //!
+  //! @return true if broadcasting otherwise false
+  //----------------------------------------------------------------------------
+  bool ShouldBroadCast();
+
 };
 
 EOSMGMNAMESPACE_END

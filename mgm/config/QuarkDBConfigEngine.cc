@@ -24,7 +24,6 @@
 #include "mgm/config/QuarkDBConfigEngine.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/IMaster.hh"
-#include "mq/XrdMqSharedObject.hh"
 #include <qclient/ResponseParsing.hh>
 #include <qclient/MultiBuilder.hh>
 #include "common/GlobalConfig.hh"
