@@ -85,11 +85,15 @@ bool GroupHelper::ParseCommand(const char* arg)
             !eos::common::StringTokenizer::IsUnsignedNumber(token)) {
           std::cerr << "error: geodepth was not provided or it does not have "
                     << "the correct value: geodepth should be a positive "
-                    << "integer" << std::endl;
+                    << "integer\n";
           return false;
         }
-
-        ls->set_outdepth(std::stoi(token));
+        try {
+          ls->set_outdepth(std::stoi(token));
+        } catch (const std::exception& e) {
+          std::cerr << "error: argument to geodepth (-g flag) needs to be a positive integer\n";
+          return false;
+        }
       } else if (token == "-b" || token == "--brief") {
         ls->set_outhost(true);
       } else if (token == "-m") {
