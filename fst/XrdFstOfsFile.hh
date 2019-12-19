@@ -634,10 +634,22 @@ public:
   bool VerifyChecksum();
 
   //----------------------------------------------------------------------------
+  //! Queue file for CTA archiving
+  //!
+  //! @param statinfo The file stat structure
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool QueueForArchiving(const struct stat& statinfo);
+
+  //----------------------------------------------------------------------------
   //! Notify the workflow protobuf endpoint that the user has closed a file that
   //! they were writing to
   //!
-  //! @param fmd The metadata of the file
+  //! @param file_id The id of the file
+  //! @param file_lid The layout id of the file
+  //! @param file_size The size of the file
+  //! @param file_checksum The checksum of the file
   //! @param ownerUid The user id of the file owner
   //! @param ownerGid The group id of the file owner
   //! @param requestorName Tha name of the user that closed the file
@@ -649,9 +661,11 @@ public:
   //! workflow protobuf endpoint
   //! @param errMsgBack Output parameter: Error message back from the workflow
   //! protobuf endpoint
-  //! @return
+  //! @return 0 if successful, error code otherwise
   //----------------------------------------------------------------------------
-  int NotifyProtoWfEndPointClosew(const eos::common::FmdHelper& fmd,
+  int NotifyProtoWfEndPointClosew(uint64_t file_id,
+                                  uint32_t file_lid, uint64_t file_size,
+                                  const std::string& file_checksum,
                                   uint32_t ownerUid, uint32_t ownerGid,
                                   const string& requestorName,
                                   const string& requestorGroupName,

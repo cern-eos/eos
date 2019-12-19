@@ -239,10 +239,9 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     eos_info("msg=kTpcSrcSetup return SFS_OK");
     return SFS_OK;
   }
-  
 
   OpenFileTracker::CreationBarrier creationSerialization(gOFS.runningCreation, mFsId, mFileId);
-  
+
   if ((retc = mLayout->GetFileIo()->fileExists())) {
     // We have to distinguish if an Exists call fails or return ENOENT, otherwise
     // we might trigger an automatic clean-up of a file !!!
@@ -1020,8 +1019,9 @@ XrdFstOfsFile::_close()
   int brc = 0; // return code before 'close' has been called
   bool checksumerror = false;
   bool targetsizeerror = false;
-  bool commited_to_mgm = false;
   bool minimumsizeerror = false;
+  bool queueingerror = false;
+  bool commited_to_mgm = false;
   bool consistencyerror = false;
   bool atomicoverlap = false;
 
@@ -1054,6 +1054,11 @@ XrdFstOfsFile::_close()
     eos_debug("msg=\"closing sink file i.e. /dev/null\"");
     closed = true;
     return SFS_OK;
+  }
+
+  // Set default workflow if nothing is specified
+  if (mEventWorkflow.length() == 0) {
+    mEventWorkflow = "default";
   }
 
   // We enter the close logic only once since there can be an explicit close or
@@ -1166,8 +1171,10 @@ XrdFstOfsFile::_close()
       }
 
       if (mIsRW && (checksumerror || targetsizeerror || minimumsizeerror)) {
-        // We have a checksum error if the checksum was preset and does not match!
-        // We have a target size error, if the target size was preset and does not match!
+        // Checksum error: checksum was preset and does not match
+        // Target size error: target size was preset and does not match
+        // Minimum size error: target minimum size was preset and does not match
+
         // Set the file to be deleted
         deleteOnClose = true;
         mLayout->Remove();
@@ -1188,17 +1195,14 @@ XrdFstOfsFile::_close()
       }
 
       // Store the entry server information before closing the layout
-      bool isEntryServer = false;
-
-      if (mLayout->IsEntryServer()) {
-        isEntryServer = true;
-      }
+      bool isEntryServer = mLayout->IsEntryServer();
 
       // First we assume that, if we have writes, we update it
       closeSize = openSize;
 
-      if ((!checksumerror) && (mHasWrite || isCreation || commitReconstruction) &&
-          (!minimumsizeerror) && (!mRainReconstruct || !hasReadError)) {
+      if ((!checksumerror) && (!minimumsizeerror) &&
+          (mHasWrite || isCreation || commitReconstruction) &&
+          (!mRainReconstruct || !hasReadError)) {
         // Commit meta data
         struct stat statinfo;
 
@@ -1208,7 +1212,32 @@ XrdFstOfsFile::_close()
         }
 
         if (!rc) {
-          if ((statinfo.st_size == 0) || mHasWrite) {
+          // Attempt archive queueing
+          if (isCreation && mSyncEventOnClose &&
+              mEventWorkflow != common::RETRIEVE_WRITTEN_WORKFLOW_NAME) {
+            // Queueing error: queueing for archive failed
+            queueingerror = !QueueForArchiving(statinfo);
+
+            if (queueingerror) {
+              deleteOnClose = true;
+              mLayout->Remove();
+
+              if (isEntryServer) {
+                capOpaqueString += "&mgm.dropall=1";
+              }
+
+              // Delete the replica in the MGM
+              XrdOucErrInfo lerror;
+
+              if (gOFS.CallManager(&lerror, mCapOpaque->Get("mgm.path"),
+                                   mCapOpaque->Get("mgm.manager"), capOpaqueString)) {
+                eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
+                            hex_fid.c_str(), mFmd->mProtoFmd.fid(), mCapOpaque->Get("mgm.manager"));
+              }
+            }
+          }
+
+          if (!queueingerror && ((statinfo.st_size == 0) || mHasWrite)) {
             // Update size
             closeSize = statinfo.st_size;
             mFmd->mProtoFmd.set_size(statinfo.st_size);
@@ -1655,54 +1684,10 @@ XrdFstOfsFile::_close()
       capOpaqueFile += mCapOpaque->Env(envlen);
       capOpaqueFile += "&mgm.pcmd=event";
 
-      // Set default workflow if nothing is specified
-      if (mEventWorkflow.length() == 0) {
-        mEventWorkflow = "default";
-      }
-
       if (mIsRW) {
         eventType = mSyncEventOnClose ? "sync::closew" : "closew";
       } else {
         eventType = "closer";
-      }
-
-      if (mSyncEventOnClose &&
-          mEventWorkflow != common::RETRIEVE_WRITTEN_WORKFLOW_NAME) {
-        std::string decodedAttributes;
-        eos::common::SymKey::Base64Decode(mEventAttributes.c_str(), decodedAttributes);
-        std::map<std::string, std::string> attributes;
-        eos::common::StringConversion::GetKeyValueMap(decodedAttributes.c_str(),
-            attributes,
-            eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS,
-            eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR, nullptr);
-        std::string errMsgBackFromWfEndpoint;
-        const int notifyRc = NotifyProtoWfEndPointClosew(*mFmd.get(),
-                             mEventOwnerUid,
-                             mEventOwnerGid,
-                             mEventRequestor,
-                             mEventRequestorGroup,
-                             mEventInstance,
-                             mCapOpaque->Get("mgm.path"),
-                             mCapOpaque->Get("mgm.manager"),
-                             attributes,
-                             errMsgBackFromWfEndpoint);
-
-        if (0 == notifyRc) {
-          error.setErrCode(0);
-          eos_info("Return code rc=%i errc=%d", SFS_OK, error.getErrInfo());
-          return SFS_OK;
-        } else {
-          if (SendArchiveFailedToManager(mFmd->mProtoFmd.fid(),
-                                         errMsgBackFromWfEndpoint)) {
-            eos_crit("msg=\"Failed to send archive failed event to manager\" "
-                     "errMsgBackFromWfEndpoint=\"%s\"",
-                     errMsgBackFromWfEndpoint.c_str());
-          }
-
-          error.setErrCode(EIO);
-          eos_info("Return code rc=%i errc=%d", SFS_ERROR, error.getErrInfo());
-          return SFS_ERROR;
-        }
       }
 
       capOpaqueFile += "&mgm.event=";
@@ -3000,6 +2985,51 @@ XrdFstOfsFile::VerifyChecksum()
   return checksumerror;
 }
 
+//------------------------------------------------------------------------------
+// Queue file for CTA archiving
+//------------------------------------------------------------------------------
+bool
+XrdFstOfsFile::QueueForArchiving(const struct stat& statinfo)
+{
+  std::string decodedAttributes;
+  eos::common::SymKey::Base64Decode(mEventAttributes.c_str(), decodedAttributes);
+  std::map<std::string, std::string> attributes;
+  eos::common::StringConversion::GetKeyValueMap(decodedAttributes.c_str(),
+                                                attributes,
+                                                eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS,
+                                                eos::common::WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR, nullptr);
+  std::string errMsgBackFromWfEndpoint;
+  const int notifyRc = NotifyProtoWfEndPointClosew(mFmd->mProtoFmd.fid(),
+                                                   mFmd->mProtoFmd.lid(),
+                                                   statinfo.st_size,
+                                                   mFmd->mProtoFmd.checksum(),
+                                                   mEventOwnerUid,
+                                                   mEventOwnerGid,
+                                                   mEventRequestor,
+                                                   mEventRequestorGroup,
+                                                   mEventInstance,
+                                                   mCapOpaque->Get("mgm.path"),
+                                                   mCapOpaque->Get("mgm.manager"),
+                                                   attributes,
+                                                   errMsgBackFromWfEndpoint);
+
+  // Note: error variable defined in XrdSfsFile interface
+  if (notifyRc == 0) {
+    error.setErrCode(0);
+    eos_info("Return code rc=%i errc=%d", SFS_OK, error.getErrInfo());
+    return true;
+  } else if (SendArchiveFailedToManager(mFmd->mProtoFmd.fid(),
+                                        errMsgBackFromWfEndpoint)) {
+    eos_crit("msg=\"Failed to send archive failed event to manager\" "
+             "errMsgBackFromWfEndpoint=\"%s\"",
+             errMsgBackFromWfEndpoint.c_str());
+  }
+
+  error.setErrCode(EIO);
+  eos_info("Return code rc=%i errc=%d", SFS_ERROR, error.getErrInfo());
+  return false;
+}
+
 //----------------------------------------------------------------------------
 // Static method used to start an asynchronous thread which is doing the TPC
 // transfer
@@ -3270,7 +3300,8 @@ XrdFstOfsFile::ExtractLogId(const char* opaque) const
 // Notify the workflow protobuf endpoint of closew event
 //------------------------------------------------------------------------------
 int
-XrdFstOfsFile::NotifyProtoWfEndPointClosew(const eos::common::FmdHelper& fmd,
+XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id, uint32_t file_lid,
+    uint64_t file_size, const std::string& file_checksum,
     uint32_t ownerUid, uint32_t ownerGid,
     const string& requestorName,
     const string& requestorGroupName,
@@ -3300,16 +3331,16 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(const eos::common::FmdHelper& fmd,
   notification->mutable_cli()->mutable_user()->set_groupname(requestorGroupName);
   notification->mutable_file()->mutable_owner()->set_uid(ownerUid);
   notification->mutable_file()->mutable_owner()->set_gid(ownerGid);
-  notification->mutable_file()->set_size(fmd.mProtoFmd.size());
+  notification->mutable_file()->set_size(file_size);
   // Insert a single checksum into the checksum blob
   CtaCommon::SetChecksum(notification->mutable_file()->mutable_csb()->add_cs(),
-                         fmd.mProtoFmd.lid(), fmd.mProtoFmd.checksum());
+                         file_lid, file_checksum);
   notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
   notification->mutable_wf()->mutable_instance()->set_name(instanceName);
   notification->mutable_file()->set_lpath(fullPath);
-  notification->mutable_file()->set_fid(fmd.mProtoFmd.fid());
+  notification->mutable_file()->set_fid(file_id);
   auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(
-                      fmd.mProtoFmd.fid());
+                      file_id);
   std::string ctaArchiveFileId = "none";
 
   for (const auto& attrPair : xattrs) {
