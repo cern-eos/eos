@@ -83,8 +83,6 @@ public:
 
   //----------------------------------------------------------------------------
   //! Get thread pool info
-  //!
-  //! @return string thread pool info
   //----------------------------------------------------------------------------
   inline std::string GetThreadPoolInfo() const
   {
@@ -93,12 +91,44 @@ public:
 
   //----------------------------------------------------------------------------
   //! Get thread pool max size
-  //!
-  //! @return thread pool max size
   //----------------------------------------------------------------------------
   inline uint32_t GetMaxThreadPoolSize() const
   {
     return mMaxThreadPoolSize.load();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get number of running jobs
+  //----------------------------------------------------------------------------
+  inline uint64_t NumRunningJobs() const
+  {
+    eos::common::RWMutexReadLock rlock(mJobsMutex);
+    return mJobsRunning.size();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get number of failed jobs
+  //----------------------------------------------------------------------------
+  inline uint64_t NumFailedJobs() const
+  {
+    eos::common::RWMutexReadLock rlock(mJobsMutex);
+    return mJobsFailed.size();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get number of pending jobs stored in QuarkDB
+  //----------------------------------------------------------------------------
+  inline uint64_t NumQdbPendingJobs()
+  {
+    return mQdbHelper.NumPendingJobs();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get number of failed jobs stored in QuarkDB
+  //----------------------------------------------------------------------------
+  inline uint64_t NumQdbFailedJobs()
+  {
+    return mQdbHelper.NumFailedJobs();
   }
 
   //----------------------------------------------------------------------------
@@ -146,6 +176,14 @@ private:
     bool AddPendingJob(const JobInfoT& jobinfo);
 
     //--------------------------------------------------------------------------
+    //! Add conversion job to the queue of failed jobs in QuarkDB.
+    //!
+    //! @param jobinfo the failed conversion job details
+    //! @return true if operation succeeded, false otherwise
+    //--------------------------------------------------------------------------
+    bool AddFailedJob(const JobInfoT& jobinfo);
+
+    //--------------------------------------------------------------------------
     //! Remove conversion job by id from the pending jobs queue in QuarkDB.
     //!
     //! @param id the conversion job id to remove
@@ -154,12 +192,14 @@ private:
     bool RemovePendingJob(const eos::IFileMD::id_t& id);
 
     //--------------------------------------------------------------------------
-    //! Add conversion job to the queue of failed jobs in QuarkDB.
-    //!
-    //! @param jobinfo the failed conversion job details
-    //! @return true if operation succeeded, false otherwise
+    //! Returns the number of pending jobs or -1 in case of failed operation
     //--------------------------------------------------------------------------
-    bool AddFailedJob(const JobInfoT& jobinfo);
+    int64_t NumPendingJobs();
+
+    //--------------------------------------------------------------------------
+    //! Returns the number of failed jobs or -1 in case of failed operation
+    //--------------------------------------------------------------------------
+    int64_t NumFailedJobs();
 
     ///< QDB conversion hash keys
     const std::string kConversionPendingHashKey = "eos-conversion-jobs-pending";
@@ -193,24 +233,6 @@ private:
   //! Signal all conversion jobs to stop
   //----------------------------------------------------------------------------
   void JoinAllConversionJobs();
-
-  //----------------------------------------------------------------------------
-  //! Get number of running jobs
-  //----------------------------------------------------------------------------
-  inline uint64_t NumRunningJobs() const
-  {
-    eos::common::RWMutexReadLock rlock(mJobsMutex);
-    return mJobsRunning.size();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get number of failed jobs
-  //----------------------------------------------------------------------------
-  inline uint64_t NumFailedJobs() const
-  {
-    eos::common::RWMutexReadLock rlock(mJobsMutex);
-    return mJobsFailed.size();
-  }
 
   //--------------------------------------------------------------------------
   //! Returns true if a wait is needed before retrieving more jobs.
