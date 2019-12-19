@@ -200,8 +200,10 @@ ProcCommand::Group()
             }
           }
 
-          common::SharedHashLocator groupLocator = common::SharedHashLocator::makeForGroup(groupname);
-          if (!mq::SharedHashWrapper(groupLocator).deleteHash()) {
+          std::string groupconfigname = common::SharedHashLocator::makeForGroup(groupname).getConfigQueue();
+
+          if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(
+                groupconfigname.c_str())) {
             stdErr = "error: unable to remove config of group '";
             stdErr += groupname.c_str();
             stdErr += "'";

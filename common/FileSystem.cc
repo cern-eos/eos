@@ -532,7 +532,9 @@ FileSystem::~FileSystem()
 //------------------------------------------------------------------------------
 void FileSystem::DeleteSharedHash()
 {
-  mq::SharedHashWrapper(mHashLocator).deleteHash();
+  if (mSom) {
+    mSom->DeleteSharedHash(mLocator.getQueuePath().c_str());
+  }
 }
 
 //------------------------------------------------------------------------------

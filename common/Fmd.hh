@@ -23,7 +23,6 @@
 #include "common/FileSystem.hh"
 #include "common/Logging.hh"
 #include "common/FileId.hh"
-#include "XrdOuc/XrdOucEnv.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
 

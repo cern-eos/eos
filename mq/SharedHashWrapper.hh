@@ -145,12 +145,6 @@ public:
   bool getContents(std::map<std::string, std::string>& out);
 
   //----------------------------------------------------------------------------
-  //! Entirely clear contents. For old MQ implementation, calls
-  //! DeleteSharedHash.
-  //----------------------------------------------------------------------------
-  bool deleteHash();
-
-  //----------------------------------------------------------------------------
   //! Initialize, set shared manager.
   //! Call this function before using any SharedHashWrapper!
   //----------------------------------------------------------------------------

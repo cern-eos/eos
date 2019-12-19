@@ -29,7 +29,6 @@
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
 #include "common/Fmd.hh"
-#include "XrdCl/XrdClFileSystem.hh"
 #include <functional>
 
 EOSMGMNAMESPACE_BEGIN

@@ -169,8 +169,10 @@ GroupCmd::RmSubcmd(const eos::console::GroupProto_RmProto& rm,
     }
   }
 
-  common::SharedHashLocator groupLocator = common::SharedHashLocator::makeForGroup(rm.group());
-  if (!mq::SharedHashWrapper(groupLocator).deleteHash()) {
+  std::string groupconfigname = common::SharedHashLocator::makeForGroup(rm.group()).getConfigQueue();
+
+  if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash
+      (groupconfigname.c_str())) {
     reply.set_std_err(("error: unable to remove config of group '" +
                        rm.group() + "'").c_str());
     reply.set_retc(EIO);

@@ -26,6 +26,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Master.hh"
 #include "mgm/FsView.hh"
+#include "mq/XrdMqMessage.hh"
 #include "common/GlobalConfig.hh"
 #include "common/LinuxStat.hh"
 #include <sstream>
