@@ -542,7 +542,7 @@ IProcCommand::HasSlot()
     init = true;
 
     for (const auto& type : {
-    eos::console::RequestProto::kAcl,
+        eos::console::RequestProto::kAcl,
         eos::console::RequestProto::kNs,
         eos::console::RequestProto::kDrain,
         eos::console::RequestProto::kFind,
@@ -559,7 +559,9 @@ IProcCommand::HasSlot()
         eos::console::RequestProto::kConfig,
         eos::console::RequestProto::kAccess,
         eos::console::RequestProto::kToken,
-  }) {
+        eos::console::RequestProto::kQos,
+        eos::console::RequestProto::kConvert
+    }) {
       mCmdsExecuting.emplace(type, 0ull);
     }
   }
