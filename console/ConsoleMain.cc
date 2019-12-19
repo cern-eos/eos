@@ -65,6 +65,7 @@ extern int com_chown(char*);
 extern int com_clear(char*);
 extern int com_protoconfig(char*);
 extern int com_console(char*);
+extern int com_convert(char*);
 extern int com_cp(char*);
 extern int com_protodebug(char*);
 extern int com_file(char*);
@@ -140,6 +141,7 @@ COMMAND commands[] = {
   { (char*) "chown", com_chown, (char*) "Chown Interface"},
   { (char*) "config", com_protoconfig, (char*) "Configuration System"},
   { (char*) "console", com_console, (char*) "Run Error Console"},
+  { (char*) "convert", com_convert, (char*) "Convert Interface"},
   { (char*) "cp", com_cp, (char*) "Cp command"},
   { (char*) "debug", com_protodebug, (char*) "Set debug level"},
   { (char*) "exit", com_quit, (char*) "Exit from EOS console"},

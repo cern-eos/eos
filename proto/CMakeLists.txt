@@ -29,7 +29,7 @@ include_directories(
 set (PROTOBUF_IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
 
 #-------------------------------------------------------------------------------
-# Generate protobol buffer object for the Namespace
+# Generate protocol buffer object for the Namespace
 #-------------------------------------------------------------------------------
 PROTOBUF_GENERATE_CPP(FMD_SRCS FMD_HDRS namespace/ns_quarkdb/FileMd.proto)
 PROTOBUF_GENERATE_CPP(CMD_SRCS CMD_HDRS namespace/ns_quarkdb/ContainerMd.proto)
@@ -47,7 +47,7 @@ set_target_properties(EosNsQuarkdbProto-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------
-# Generate protobol buffer object for FST
+# Generate protocol buffer object for FST
 #-------------------------------------------------------------------------------
 PROTOBUF_GENERATE_CPP(FMDBASE_SRCS FMDBASE_HDRS fst/FmdBase.proto)
 
@@ -59,7 +59,7 @@ set_target_properties(EosFstProto-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------
-# Generate protobol buffer object for the CLI
+# Generate protocol buffer object for the CLI
 #-------------------------------------------------------------------------------
 PROTOBUF_GENERATE_CPP(REQ_SRCS REQ_HDRS common/cli_proto/ConsoleRequest.proto)
 PROTOBUF_GENERATE_CPP(REP_SRCS REP_HDRS common/cli_proto/ConsoleReply.proto)
@@ -84,18 +84,19 @@ PROTOBUF_GENERATE_CPP(ACCESS_SRCS ACCESS_HDRS common/cli_proto/Access.proto)
 PROTOBUF_GENERATE_CPP(FSCK_SRCS FSCK_HDRS common/cli_proto/Fsck.proto)
 PROTOBUF_GENERATE_CPP(GRPC_SRCS GRPC_HDRS ${CMAKE_SOURCE_DIR}/common/grpc-proto/protobuf/Rpc.proto)
 PROTOBUF_GENERATE_CPP(QOS_SRCS QOS_HDRS common/cli_proto/QoS.proto)
+PROTOBUF_GENERATE_CPP(CONVERT_SRCS CONVERT_HDRS common/cli_proto/Convert.proto)
 
 set(CLI_PROTO_SRCS
   ${REQ_SRCS} ${REP_SRCS} ${RECY_SRCS} ${ACL_SRCS} ${NS_SRCS} ${DRAIN_SRCS} ${FIND_SRCS}
   ${FS_SRCS} ${RM_SRCS} ${TOKEN_SRCS} ${STAGER_RM_SRCS} ${ROUTE_SRCS} ${IO_SRCS} ${GROUP_SRCS}
   ${DEBUG_SRCS} ${NODE_SRCS} ${QUOTA_SRCS} ${SPACE_SRCS} ${CONFIG_SRCS} ${ACCESS_SRCS}
-  ${FSCK_SRCS} ${SHARE_SRCS} ${GRPC_SRCS} ${QOS_SRCS})
+  ${FSCK_SRCS} ${SHARE_SRCS} ${GRPC_SRCS} ${QOS_SRCS} ${CONVERT_SRCS})
 
 set(CLI_PROTO_HDRS
   ${REQ_HDRS} ${REP_HDRS} ${RECY_HDRS} ${ACL_HDRS} ${NS_HDRS} ${DRAIN_HDRS} ${FIND_HDRS}
   ${FS_HDRS} ${RM_HDRS} ${TOKEN_HDRS} ${STAGER_RM_HDRS} ${ROUTE_HDRS} ${IO_HDRS} ${GROUP_HDRS}
   ${DEBUG_HDRS} ${NODE_HDRS} ${QUOTA_HDRS} ${SPACE_HDRS} ${CONFIG_HDRS} ${ACCESS_HDRS}
-  ${FSCK_HDRS} ${SHARE_HDRS} ${GRPC_HDRS} ${QOS_HDRS})
+  ${FSCK_HDRS} ${SHARE_HDRS} ${GRPC_HDRS} ${QOS_HDRS} ${CONVERT_HDRS})
 
 set_source_files_properties(
   ${CLI_PROTO_SRCS} ${CLI_PROTO_HDRS}
@@ -108,7 +109,7 @@ set_target_properties(EosCliProto-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------
-# Generate protobol buffer object for GRPC
+# Generate protocol buffer object for GRPC
 #-------------------------------------------------------------------------------
 if (GRPC_FOUND)
   set(GRPC_PROTOS ${CMAKE_SOURCE_DIR}/common/grpc-proto/protobuf/Rpc.proto)
