@@ -206,6 +206,23 @@ bool ConverterDriver::QdbHelper::AddPendingJob(const JobInfoT& jobinfo)
 }
 
 //--------------------------------------------------------------------------
+// Add conversion job to the queue of failed jobs in QuarkDB
+//--------------------------------------------------------------------------
+bool
+ConverterDriver::QdbHelper::AddFailedJob(const JobInfoT& jobinfo)
+{
+  try {
+    return mQHashFailed.hset(std::to_string(jobinfo.first), jobinfo.second);
+  } catch (const std::exception& e) {
+    eos_static_crit("msg=\"Error encountered while trying to add failed "
+                    "conversion job\" emsg=\"%s\" conversion_id=%s",
+                    e.what(), jobinfo.second.c_str());
+  }
+
+  return false;
+}
+
+//--------------------------------------------------------------------------
 // Remove conversion job by id from the pending jobs queue in QuarkDB
 //--------------------------------------------------------------------------
 bool
@@ -222,20 +239,35 @@ ConverterDriver::QdbHelper::RemovePendingJob(const eos::IFileMD::id_t& id)
 }
 
 //--------------------------------------------------------------------------
-// Add conversion job to the queue of failed jobs in QuarkDB
+// Returns the number of pending jobs or -1 in case of failed operation
 //--------------------------------------------------------------------------
-bool
-ConverterDriver::QdbHelper::AddFailedJob(const JobInfoT& jobinfo)
+int64_t
+ConverterDriver::QdbHelper::NumPendingJobs()
 {
   try {
-    return mQHashFailed.hset(std::to_string(jobinfo.first), jobinfo.second);
+    return mQHashPending.hlen();
   } catch (const std::exception& e) {
-    eos_static_crit("msg=\"Error encountered while trying to add failed "
-                    "conversion job\" emsg=\"%s\" conversion_id=%s",
-                    e.what(), jobinfo.second.c_str());
+    eos_static_crit("msg=\"Error encountered while retrieving size of "
+                    "pending conversion jobs set\" emsg=\"%s\"", e.what());
   }
 
-  return false;
+  return -1;
+}
+
+//--------------------------------------------------------------------------
+// Returns the number of failed jobs or -1 in case of failed operation
+//--------------------------------------------------------------------------
+int64_t
+ConverterDriver::QdbHelper::NumFailedJobs()
+{
+  try {
+    return mQHashFailed.hlen();
+  } catch (const std::exception& e) {
+    eos_static_crit("msg=\"Error encountered while retrieving size of "
+                    "failed conversion jobs set\" emsg=\"%s\"", e.what());
+  }
+
+  return -1;
 }
 
 EOSMGMNAMESPACE_END
