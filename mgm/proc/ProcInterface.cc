@@ -25,22 +25,23 @@
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/FindCmd.hh"
 #include "mgm/proc/user/QoSCmd.hh"
-#include "mgm/proc/user/RmCmd.hh"
-#include "mgm/proc/user/TokenCmd.hh"
-#include "mgm/proc/user/RouteCmd.hh"
 #include "mgm/proc/user/RecycleCmd.hh"
-#include "mgm/proc/admin/FsCmd.hh"
-#include "mgm/proc/admin/NsCmd.hh"
-#include "mgm/proc/admin/StagerRmCmd.hh"
-#include "mgm/proc/admin/IoCmd.hh"
-#include "mgm/proc/admin/GroupCmd.hh"
+#include "mgm/proc/user/RmCmd.hh"
+#include "mgm/proc/user/RouteCmd.hh"
+#include "mgm/proc/user/TokenCmd.hh"
+#include "mgm/proc/admin/AccessCmd.hh"
+#include "mgm/proc/admin/ConfigCmd.hh"
+#include "mgm/proc/admin/ConvertCmd.hh"
 #include "mgm/proc/admin/DebugCmd.hh"
+#include "mgm/proc/admin/FsCmd.hh"
+#include "mgm/proc/admin/FsckCmd.hh"
+#include "mgm/proc/admin/GroupCmd.hh"
+#include "mgm/proc/admin/IoCmd.hh"
 #include "mgm/proc/admin/NodeCmd.hh"
+#include "mgm/proc/admin/NsCmd.hh"
 #include "mgm/proc/admin/QuotaCmd.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
-#include "mgm/proc/admin/ConfigCmd.hh"
-#include "mgm/proc/admin/AccessCmd.hh"
-#include "mgm/proc/admin/FsckCmd.hh"
+#include "mgm/proc/admin/StagerRmCmd.hh"
 #include <google/protobuf/util/json_util.h>
 #include "XrdOuc/XrdOucEnv.hh"
 
@@ -275,6 +276,10 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
 
   case RequestProto::kQos:
     cmd.reset(new QoSCmd(std::move(req), vid));
+    break;
+
+  case RequestProto::kConvert:
+    cmd.reset(new ConvertCmd(std::move(req), vid));
     break;
 
   default:
