@@ -877,11 +877,8 @@ ProcCommand::Space()
             }
           }
 
-          std::string spaceconfigname = common::SharedHashLocator::makeForSpace(
-                                          spacename).getConfigQueue();
-
-          if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(
-                spaceconfigname.c_str())) {
+          common::SharedHashLocator spaceLocator = common::SharedHashLocator::makeForSpace(spacename);
+          if (!mq::SharedHashWrapper::deleteHash(spaceLocator)) {
             stdErr = "error: unable to remove config of space '";
             stdErr += spacename.c_str();
             stdErr += "'";

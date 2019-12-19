@@ -258,15 +258,18 @@ void SharedHashWrapper::initialize(XrdMqSharedObjectManager* som)
 }
 
 //------------------------------------------------------------------------------
+// Delete a shared hash, without creating an object first
+//------------------------------------------------------------------------------
+bool SharedHashWrapper::deleteHash(const common::SharedHashLocator &locator) {
+  return mSom->DeleteSharedHash(locator.getConfigQueue().c_str(), true);
+}
+
+//------------------------------------------------------------------------------
 // Entirely clear contents. For old MQ implementation, call
 // DeleteSharedHash too.
 //------------------------------------------------------------------------------
 bool SharedHashWrapper::deleteHash() {
-  if(mSom) {
-    return mSom->DeleteSharedHash(mLocator.getConfigQueue().c_str(), true);
-  }
-
-  return false;
+  return mSom->DeleteSharedHash(mLocator.getConfigQueue().c_str(), true);
 }
 
 EOSMQNAMESPACE_END

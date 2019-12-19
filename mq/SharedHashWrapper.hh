@@ -151,6 +151,11 @@ public:
   bool deleteHash();
 
   //----------------------------------------------------------------------------
+  //! Delete a shared hash, without creating an object first
+  //----------------------------------------------------------------------------
+  static bool deleteHash(const common::SharedHashLocator &locator);
+
+  //----------------------------------------------------------------------------
   //! Initialize, set shared manager.
   //! Call this function before using any SharedHashWrapper!
   //----------------------------------------------------------------------------
