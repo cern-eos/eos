@@ -196,17 +196,7 @@ public:
     // Set the number of parity stripes depending on the layout type if not
     // already set explicitly
     if (redundancystripes == 0) {
-      if (layout == kRaid5) {
-        redundancystripes = 1;
-      } else if (layout == kRaidDP) {
-        redundancystripes = 2;
-      } else if (layout == kRaid6) {
-        redundancystripes = 2;
-      } else if (layout == kArchive) {
-        redundancystripes = 3;
-      } else if (layout == kQrain) {
-        redundancystripes = 4;
-      }
+      redundancystripes = GetRedundancyFromLayoutType(layout);
     }
 
     id |= ((redundancystripes & 0x7) << 28);
@@ -998,6 +988,39 @@ public:
     }
 
     return kPlain;
+  }
+
+  //--------------------------------------------------------------------------
+  //! Return layout redundancy stripe number from layout type
+  //--------------------------------------------------------------------------
+  static int
+  GetRedundancyFromLayoutType(unsigned long layout_type)
+  {
+    int redundancystripes = 0;
+
+    if (layout_type == kRaid5) {
+      redundancystripes = 1;
+    } else if (layout_type == kRaidDP) {
+      redundancystripes = 2;
+    } else if (layout_type == kRaid6) {
+      redundancystripes = 2;
+    } else if (layout_type == kArchive) {
+      redundancystripes = 3;
+    } else if (layout_type == kQrain) {
+      redundancystripes = 4;
+    }
+
+    return redundancystripes;
+  }
+
+  //--------------------------------------------------------------------------
+  //! Return layout redundancy stripe number from layout string
+  //--------------------------------------------------------------------------
+  static int
+  GetRedundancyFromLayoutString(const std::string& layout)
+  {
+    int layout_type = GetLayoutFromString(layout);
+    return GetRedundancyFromLayoutType(layout_type);
   }
 
   //--------------------------------------------------------------------------
