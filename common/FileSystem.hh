@@ -28,7 +28,6 @@
 #include "common/ParseUtils.hh"
 #include "common/Locators.hh"
 #include "mq/SharedHashWrapper.hh"
-#include "mq/XrdMqSharedObject.hh"
 #include <string>
 #include <stdint.h>
 #ifndef __APPLE__

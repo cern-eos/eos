@@ -28,8 +28,8 @@
 #include "common/StringUtils.hh"
 #include "common/ParseUtils.hh"
 #include "common/Assert.hh"
-#include <curl/curl.h>
 #include "common/Constants.hh"
+#include <curl/curl.h>
 
 EOSCOMMONNAMESPACE_BEGIN;
 
@@ -532,9 +532,7 @@ FileSystem::~FileSystem()
 //------------------------------------------------------------------------------
 void FileSystem::DeleteSharedHash()
 {
-  if (mSom) {
-    mSom->DeleteSharedHash(mLocator.getQueuePath().c_str());
-  }
+  mq::SharedHashWrapper(mHashLocator).deleteHash();
 }
 
 //------------------------------------------------------------------------------

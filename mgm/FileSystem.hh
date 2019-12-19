@@ -78,14 +78,7 @@ public:
   //!
   //! @return true if broadcasting otherwise false
   //----------------------------------------------------------------------------
-  bool ShouldBroadCast()
-  {
-    if (mSom) {
-      return mSom->ShouldBroadCast();
-    } else {
-      return false;
-    }
-  }
+  bool ShouldBroadCast();
 
   //----------------------------------------------------------------------------
   //! Set the configuration status of a file system. This can be used to trigger

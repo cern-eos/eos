@@ -23,6 +23,7 @@
 
 #include "mgm/utils/FilesystemUuidMapper.hh"
 #include "common/Assert.hh"
+#include "common/Logging.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

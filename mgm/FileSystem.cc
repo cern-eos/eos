@@ -43,7 +43,7 @@ FileSystem::SetConfigStatus(eos::common::ConfigStatus new_status)
   // Only master drains
   if (ShouldBroadCast()) {
     std::string out_msg;
-    
+
     if (drain_tx > 0) {
       if (!gOFS->mDrainEngine.StartFsDrain(this, 0, out_msg)) {
         eos_static_err("%s", out_msg.c_str());
@@ -112,6 +112,21 @@ FileSystem::IsDrainTransition(const eos::common::ConfigStatus old,
 
   // Not a drain transition
   return 0;
+}
+
+//------------------------------------------------------------------------------
+// @brief Return the current broadcasting setting
+//
+// @return true if broadcasting otherwise false
+//------------------------------------------------------------------------------
+bool
+FileSystem::ShouldBroadCast()
+{
+  if (mSom) {
+    return mSom->ShouldBroadCast();
+  } else {
+    return false;
+  }
 }
 
 EOSMGMNAMESPACE_END
