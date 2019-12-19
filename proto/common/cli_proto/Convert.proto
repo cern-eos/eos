@@ -1,0 +1,40 @@
+syntax="proto3";
+package eos.console;
+
+message ConvertProto {
+  message IdentifierProto {
+    oneof Identifier {
+      uint64 FileId = 1;
+      uint64 ContainerId = 2;
+      string Path = 3;
+    }
+  }
+
+  message ConversionProto {
+    string layout = 1;
+    uint32 replica = 2;
+    string space = 3;
+    string placement = 4;
+    string checksum = 5;
+  }
+
+  message StatusProto {
+
+  }
+
+  message FileProto {
+    IdentifierProto identifier = 1;
+    ConversionProto conversion = 2;
+  }
+
+  message RuleProto {
+    IdentifierProto identifier = 1;
+    ConversionProto conversion = 2;
+  }
+
+  oneof subcmd {
+    StatusProto status = 1;
+    FileProto file = 2;
+    RuleProto rule = 3;
+  }
+}
