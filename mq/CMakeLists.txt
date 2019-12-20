@@ -39,13 +39,15 @@ include_directories(
 #-------------------------------------------------------------------------------
 add_library(XrdMqClient-Objects OBJECT
   XrdMqTiming.hh
-  ErrorReportListener.cc   ErrorReportListener.hh
-  ReportListener.cc        ReportListener.hh
-  SharedHashWrapper.cc     SharedHashWrapper.hh
-  XrdMqClient.cc           XrdMqClient.hh
-  XrdMqMessage.cc          XrdMqMessage.hh
-  XrdMqMessaging.cc        XrdMqMessaging.hh
-  XrdMqSharedObject.cc     XrdMqSharedObject.hh)
+  ErrorReportListener.cc         ErrorReportListener.hh
+  FileSystemChangeListener.cc    FileSystemChangeListener.hh
+  ReportListener.cc              ReportListener.hh
+  SharedHashWrapper.cc           SharedHashWrapper.hh
+  XrdMqClient.cc                 XrdMqClient.hh
+  XrdMqMessage.cc                XrdMqMessage.hh
+  XrdMqMessaging.cc              XrdMqMessaging.hh
+  XrdMqSharedObject.cc           XrdMqSharedObject.hh
+)
 
 set_target_properties(XrdMqClient-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
