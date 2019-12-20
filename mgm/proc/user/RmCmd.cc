@@ -131,7 +131,13 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
       // Adding regex anchors for beginning and end of string
       XrdOucString filter_temp = "^";
       // Changing wildcard * into regex syntax
-      filter.replace("*", ".*");
+
+      // @note temporary patch while "xrootd issue 1094" is fixed. @todo check for further usages of XrcOucString::replace method
+      // filter.replace("*", ".*");
+      std::string sfilter {filter.c_str()};
+      sfilter.replace(sfilter.begin(), sfilter.end(),"*", ".*");
+      filter = sfilter.c_str();
+
       filter_temp += filter;
       filter_temp += "$";
       int reg_rc = regcomp(&(regex_filter), filter_temp.c_str(),
