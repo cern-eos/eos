@@ -209,11 +209,8 @@ void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm,
     }
   }
 
-  std::string nodeconfigname = common::SharedHashLocator::makeForNode(
-                                 nodename).getConfigQueue();
-
-  if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(
-        nodeconfigname.c_str())) {
+  common::SharedHashLocator nodeLocator = common::SharedHashLocator::makeForNode(nodename);
+  if (!mq::SharedHashWrapper::deleteHash(nodeLocator)) {
     reply.set_std_err("error: unable to remove config of node '" + nodename + "'");
     reply.set_retc(EIO);
   } else {
@@ -226,8 +223,8 @@ void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm,
 
   // Delete also the entry from the configuration
   eos_info("msg=\"delete from configuration\" node_name=%s",
-           nodeconfigname.c_str());
-  gOFS->ConfEngine->DeleteConfigValueByMatch("global", nodeconfigname.c_str());
+           nodeLocator.getConfigQueue().c_str());
+  gOFS->ConfEngine->DeleteConfigValueByMatch("global", nodeLocator.getConfigQueue().c_str());
   gOFS->ConfEngine->AutoSave();
 }
 
