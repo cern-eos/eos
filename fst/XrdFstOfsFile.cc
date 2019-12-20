@@ -3300,47 +3300,35 @@ XrdFstOfsFile::ExtractLogId(const char* opaque) const
 // Notify the workflow protobuf endpoint of closew event
 //------------------------------------------------------------------------------
 int
-XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id, uint32_t file_lid,
-    uint64_t file_size, const std::string& file_checksum,
-    uint32_t ownerUid, uint32_t ownerGid,
-    const string& requestorName,
-    const string& requestorGroupName,
-    const string& instanceName, const string& fullPath, const string& managerName,
-    const std::map<std::string, std::string>& xattrs, string& errMsgBack)
+XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
+                                           uint32_t file_lid, uint64_t file_size,
+                                           const std::string& file_checksum,
+                                           uint32_t owner_uid, uint32_t owner_gid,
+                                           const std::string& requestor_name,
+                                           const std::string& requestor_groupname,
+                                           const std::string& instance_name,
+                                           const std::string& fullpath,
+                                           const std::string& manager_name,
+                                           const std::map<std::string, std::string>& xattrs,
+                                           std::string& errmsg_wfe)
 {
   using namespace eos::common;
-  // Convert uid and gid to strings (DEPRECATED)
-  int errc = 0;
-  std::string ownerName = Mapping::UidToUserName(ownerUid, errc);
-
-  if (errc != 0) {
-    ownerName = "nobody";
-    errc = 0;
-  }
-
-  std::string ownerGroupName = Mapping::GidToGroupName(ownerGid, errc);
-
-  if (errc != 0) {
-    ownerGroupName = "nobody";
-    errc = 0;
-  }
-
   cta::xrd::Request request;
+
   auto notification = request.mutable_notification();
-  notification->mutable_cli()->mutable_user()->set_username(requestorName);
-  notification->mutable_cli()->mutable_user()->set_groupname(requestorGroupName);
-  notification->mutable_file()->mutable_owner()->set_uid(ownerUid);
-  notification->mutable_file()->mutable_owner()->set_gid(ownerGid);
+  notification->mutable_cli()->mutable_user()->set_username(requestor_name);
+  notification->mutable_cli()->mutable_user()->set_groupname(requestor_groupname);
+  notification->mutable_file()->mutable_owner()->set_uid(owner_uid);
+  notification->mutable_file()->mutable_owner()->set_gid(owner_gid);
   notification->mutable_file()->set_size(file_size);
   // Insert a single checksum into the checksum blob
   CtaCommon::SetChecksum(notification->mutable_file()->mutable_csb()->add_cs(),
                          file_lid, file_checksum);
   notification->mutable_wf()->set_event(cta::eos::Workflow::CLOSEW);
-  notification->mutable_wf()->mutable_instance()->set_name(instanceName);
-  notification->mutable_file()->set_lpath(fullPath);
+  notification->mutable_wf()->mutable_instance()->set_name(instance_name);
+  notification->mutable_file()->set_lpath(fullpath);
   notification->mutable_file()->set_fid(file_id);
-  auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(
-                      file_id);
+  auto fxidString = StringConversion::FastUnsignedToAsciiHex(file_id);
   std::string ctaArchiveFileId = "none";
 
   for (const auto& attrPair : xattrs) {
@@ -3353,18 +3341,22 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id, uint32_t file_lid,
     }
   }
 
+  // Build query strings
   std::ostringstream srcStream;
-  srcStream << "root://" << managerName << "/" << fullPath << "?eos.lfn=fxid:"
+  std::ostringstream reportStream;
+  std::ostringstream errorReportStream;
+
+  srcStream << "root://" << manager_name << "/" << fullpath << "?eos.lfn=fxid:"
             << fxidString;
   notification->mutable_wf()->mutable_instance()->set_url(srcStream.str());
-  std::ostringstream reportStream;
-  reportStream << "eosQuery://" << managerName
+
+  reportStream << "eosQuery://" << manager_name
                << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
                << "&mgm.logid=cta&mgm.event=sync::archived&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0"
                "&cta_archive_file_id=" << ctaArchiveFileId;
   notification->mutable_transport()->set_report_url(reportStream.str());
-  std::ostringstream errorReportStream;
-  errorReportStream << "eosQuery://" << managerName
+
+  errorReportStream << "eosQuery://" << manager_name
                     << "//eos/wfe/passwd?mgm.pcmd=event&mgm.fid=" << fxidString
                     << "&mgm.logid=cta&mgm.event=" << ARCHIVE_FAILED_WORKFLOW_NAME
                     << "&mgm.workflow=default&mgm.path=/dummy_path&mgm.ruid=0&mgm.rgid=0"
@@ -3372,6 +3364,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id, uint32_t file_lid,
                     << "&mgm.errmsg=";
   notification->mutable_transport()->set_error_report_url(
     errorReportStream.str());
+
   // Communication with service
   std::string endPoint;
   std::string resource;
@@ -3422,10 +3415,10 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id, uint32_t file_lid,
   case cta::xrd::Response::RSP_ERR_USER:
   case cta::xrd::Response::RSP_ERR_PROTOBUF:
   case cta::xrd::Response::RSP_INVALID:
-    errMsgBack = response.message_txt();
+    errmsg_wfe = response.message_txt();
     eos_static_err("%s for file %s. Reason: %s",
                    CtaCommon::ctaResponseCodeToString(response.type()).c_str(),
-                   fullPath.c_str(), response.message_txt().c_str());
+                   fullpath.c_str(), response.message_txt().c_str());
     return EPROTO;
 
   default:
@@ -3438,13 +3431,13 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id, uint32_t file_lid,
 // Send archive failed event to the manager
 //------------------------------------------------------------------------------
 int XrdFstOfsFile::SendArchiveFailedToManager(const uint64_t fid,
-    const std::string& errMsg)
+                                              const std::string& errmsg)
 {
   const auto fxidString = eos::common::StringConversion::FastUnsignedToAsciiHex(
                             fid);
   std::string encodedErrMsg;
 
-  if (!common::SymKey::Base64Encode(errMsg.c_str(), errMsg.length(),
+  if (!common::SymKey::Base64Encode(errmsg.c_str(), errmsg.length(),
                                     encodedErrMsg)) {
     // "Failed to encode message using base64" in base64 is
     // RmFpbGVkIHRvIGVuY29kZSBtZXNzYWdlIHVzaW5nIGJhc2U2NA==

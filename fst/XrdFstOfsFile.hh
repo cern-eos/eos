@@ -650,40 +650,42 @@ public:
   //! @param file_lid The layout id of the file
   //! @param file_size The size of the file
   //! @param file_checksum The checksum of the file
-  //! @param ownerUid The user id of the file owner
-  //! @param ownerGid The group id of the file owner
-  //! @param requestorName Tha name of the user that closed the file
-  //! @param requestorGroupName The name of the group that closed the file
-  //! @param instanceName Tha name of the EOS instance
-  //! @param fullPath the full path of the file
-  //! @param managerName The name of the EOS manager
+  //! @param owner_uid The user id of the file owner
+  //! @param owner_gid The group id of the file owner
+  //! @param requestor_name Tha name of the user that closed the file
+  //! @param requestor_groupname The name of the group that closed the file
+  //! @param instance_name Tha name of the EOS instance
+  //! @param fullpath The full path of the file
+  //! @param manager_name The name of the EOS manager
   //! @param xattrs The extended attributes of teh file to be passed to the
   //! workflow protobuf endpoint
-  //! @param errMsgBack Output parameter: Error message back from the workflow
+  //! @param errmsg_wfe Output parameter: Error message back from the workflow
   //! protobuf endpoint
+  //!
   //! @return 0 if successful, error code otherwise
   //----------------------------------------------------------------------------
   int NotifyProtoWfEndPointClosew(uint64_t file_id,
                                   uint32_t file_lid, uint64_t file_size,
                                   const std::string& file_checksum,
-                                  uint32_t ownerUid, uint32_t ownerGid,
-                                  const string& requestorName,
-                                  const string& requestorGroupName,
-                                  const string& instanceName,
-                                  const string& fullPath,
-                                  const string& managerName,
+                                  uint32_t owner_uid, uint32_t owner_gid,
+                                  const std::string& requestor_name,
+                                  const std::string& requestor_groupname,
+                                  const std::string& instance_name,
+                                  const std::string& fullpath,
+                                  const std::string& manager_name,
                                   const std::map<std::string, std::string>& xattrs,
-                                  string& errMsgBack);
+                                  std::string& errmsg_wfe);
 
   //----------------------------------------------------------------------------
   //! Send archive failed event to the manager
   //!
   //! @param fid The file identifier
-  //! @param errMsg The error message to enclosed in the archive failed event
+  //! @param errmsg The error message to enclosed in the archive failed event
+  //!
   //! @return SFS_OK if successful
   //----------------------------------------------------------------------------
   int SendArchiveFailedToManager(const uint64_t fid,
-                                 const std::string& errMsg);
+                                 const std::string& errmsg);
 };
 
 //------------------------------------------------------------------------------
