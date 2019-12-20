@@ -143,7 +143,15 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
                           eos::console::FsProto::BootProto::kUuid ?
                           bootProto.uuid() : "");
     bool forcemgmsync = bootProto.syncmgm();
-    eos::common::FileSystem::fsid_t fsid = std::stoi(sfsid);
+
+    // eos::common::FileSystem::fsid_t fsid = std::stoi(sfsid);
+    // @note it would be nicer if the method get refactored
+    eos::common::FileSystem::fsid_t fsid = 0;
+    try {
+      fsid = std::stoi(sfsid);
+    } catch (const std::exception& e) {
+      fsid = 0;
+    }
 
     if (node == "*") {
       // boot all filesystems
