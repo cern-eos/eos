@@ -22,13 +22,37 @@
  ************************************************************************/
 
 #include "mq/FileSystemChangeListener.hh"
+#include "mq/XrdMqSharedObject.hh"
 
 EOSMQNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileSystemChangeListener::FileSystemChangeListener(const std::string &name, XrdMqSharedObjectNotifier &notif)
+FileSystemChangeListener::FileSystemChangeListener(const std::string &name, XrdMqSharedObjectChangeNotifier &notif)
 : mNotifier(notif), mListenerName(name) {}
+
+//------------------------------------------------------------------------------
+// Subscribe to the given key, such as "stat.errc" or "stat.geotag"
+//------------------------------------------------------------------------------
+bool FileSystemChangeListener::subscribe(const std::string &key) {
+  return mNotifier.SubscribesToKey(mListenerName.c_str(), key,
+    XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+}
+
+//------------------------------------------------------------------------------
+// Start listening
+//------------------------------------------------------------------------------
+bool FileSystemChangeListener::startListening() {
+  mNotifier.BindCurrentThread(mListenerName);
+  return mNotifier.StartNotifyCurrentThread();
+}
+
+//------------------------------------------------------------------------------
+// Consume next event, block until there's one
+//------------------------------------------------------------------------------
+bool FileSystemChangeListener::fetch(Event &out, common::ThreadAssistant &assistant) {
+
+}
 
 EOSMQNAMESPACE_END

@@ -99,16 +99,6 @@ const map<string, int> GeoTreeEngine::gNotifKey2EnumSched = {
   make_pair("stat.publishtimestamp", sfgPubTmStmp),
 };
 
-const map<string, int> GeoTreeEngine::gNotifKey2EnumProxy = {
-  make_pair("stat.hostport", sfgHost),
-  make_pair("stat.geotag", sfgGeotag),
-  make_pair("stat.active", sfgActive),
-  make_pair("stat.net.ethratemib", sfgEthmib),
-  make_pair("stat.net.inratemib", sfgInratemib),
-  make_pair("stat.net.outratemib", sfgOutratemib),
-  make_pair("stat.publishtimestamp", sfgPubTmStmp),
-};
-
 map<string, int> GeoTreeEngine::gNotificationsBufferFs;
 map<string, int> GeoTreeEngine::gNotificationsBufferProxy;
 sem_t GeoTreeEngine::gUpdaterPauseSem;
@@ -2215,14 +2205,6 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
               (gNotificationsBufferFs)[queue] |= gNotifKey2EnumSched.at(key);
             } else {
               (gNotificationsBufferFs)[queue] = gNotifKey2EnumSched.at(key);
-            }
-          }
-
-          if (notifTypeIt->second & sntDataproxy) {
-            if (gNotificationsBufferProxy.count(queue)) {
-              (gNotificationsBufferProxy)[queue] |= gNotifKey2EnumProxy.at(key);
-            } else {
-              (gNotificationsBufferProxy)[queue] = gNotifKey2EnumProxy.at(key);
             }
           }
         }

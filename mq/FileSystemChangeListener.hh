@@ -27,13 +27,13 @@
 #include "mq/Namespace.hh"
 #include <string>
 
-namespace common {
+namespace eos::common {
   class ThreadAssistant;
 }
 
 class XrdMqSharedHash;
 class XrdMqSharedObjectManager;
-class XrdMqSharedObjectNotifier;
+class XrdMqSharedObjectChangeNotifier;
 
 EOSMQNAMESPACE_BEGIN
 
@@ -47,27 +47,32 @@ public:
   //! Event struct, containing things like FileSystem name, and key changed
   //----------------------------------------------------------------------------
   struct Event {
-
-
+    std::string fileSystemQueue;
+    std::string key;
   };
 
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  FileSystemChangeListener(const std::string &name, XrdMqSharedObjectNotifier &notifier);
+  FileSystemChangeListener(const std::string &name, XrdMqSharedObjectChangeNotifier &notifier);
 
   //----------------------------------------------------------------------------
-  //! Subscribe to the given key, such as "stat.errc" or "stat.geotab"
+  //! Subscribe to the given key, such as "stat.errc" or "stat.geotag"
   //----------------------------------------------------------------------------
-  void subscribe(const std::string &key);
+  bool subscribe(const std::string &key);
+
+  //----------------------------------------------------------------------------
+  //! Start listening - no more subscriptions from this point on
+  //----------------------------------------------------------------------------
+  bool startListening();
 
   //----------------------------------------------------------------------------
   //! Consume next event, block until there's one.
   //----------------------------------------------------------------------------
-  bool consume(Event &out, common::ThreadAssistant &assistant);
+  bool fetch(Event &out, common::ThreadAssistant &assistant);
 
 private:
-  XrdMqSharedObjectNotifier &mNotifier;
+  XrdMqSharedObjectChangeNotifier &mNotifier;
   std::string mListenerName;
 };
 
