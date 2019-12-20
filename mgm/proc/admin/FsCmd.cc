@@ -462,8 +462,15 @@ FsCmd::Rm(const eos::console::FsProto::RmProto& rmProto)
   if (rmProto.id_case() == eos::console::FsProto::RmProto::kNodeQueue) {
     const auto& hostmountpoint = rmProto.nodequeue();
     auto splitAt = hostmountpoint.find("/fst");
-    nodequeue = hostmountpoint.substr(0, splitAt + 4);
-    mountpoint = hostmountpoint.substr(splitAt + 4);
+    try { // @note quick patch against std::out_of_range, could be nicer
+      nodequeue = hostmountpoint.substr(0, splitAt + 4);
+      mountpoint = hostmountpoint.substr(splitAt + 4);
+    } catch (std::out_of_range& e) {
+      mOut = "";
+      mErr = "error: there is no such nodequeue (check format): '" + rmProto.nodequeue() + "' " + id + "\n";
+      retc = EINVAL;
+      return retc;
+    }
   }
 
   XrdOucString out, err;

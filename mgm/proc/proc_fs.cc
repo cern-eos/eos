@@ -1284,7 +1284,7 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
   eos::common::FileSystem::fsid_t fsid = 0;
 
   if (id.length()) {
-    fsid = atoi(id.c_str());
+    fsid = stoi(id);
   }
 
   FileSystem* fs = 0;
