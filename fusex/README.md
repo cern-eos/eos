@@ -60,7 +60,7 @@ This
     "shared-mount" : 1,
     "krb5" : 1,
     "gsi-first" : 0,
-    "sss" : 0,
+    "sss" : 1,
     "ssskeytab" : "/etc/eos/fuse.sss.keytab",
     "environ-deadlock-timeout" : 100,
     "forknoexec-heuristic" : 1

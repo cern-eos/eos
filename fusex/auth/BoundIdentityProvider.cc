@@ -137,17 +137,6 @@ BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
   std::shared_ptr<const BoundIdentity> output;
 
   //----------------------------------------------------------------------------
-  // Always use SSS if available.
-  //----------------------------------------------------------------------------
-  if (credConfig.use_user_sss) {
-    output = sssEnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
-
-    if (output) {
-      return output;
-    }
-  }
-
-  //----------------------------------------------------------------------------
   // No SSS.. should we try KRB5 first, or second?
   //----------------------------------------------------------------------------
   if (credConfig.tryKrb5First) {
@@ -170,6 +159,18 @@ BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
       }
     }
 
+    //----------------------------------------------------------------------------
+    // Try to use SSS if available.
+    //----------------------------------------------------------------------------
+    if (credConfig.use_user_sss) {
+      output = sssEnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
+      
+      if (output) {
+	return output;
+      }
+    }
+
+
     //--------------------------------------------------------------------------
     // Nothing, bail out
     //--------------------------------------------------------------------------
@@ -177,7 +178,7 @@ BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
   }
 
   //----------------------------------------------------------------------------
-  // No SSS, and we should try krb5 second.
+  // We should try krb5 second.
   //----------------------------------------------------------------------------
   if(credConfig.use_user_gsiproxy) {
     output = x509EnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
@@ -198,6 +199,17 @@ BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
     }
   }
 
+  //----------------------------------------------------------------------------
+  // Try to use SSS if available.
+  //----------------------------------------------------------------------------
+  if (credConfig.use_user_sss) {
+    output = sssEnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
+    
+    if (output) {
+      return output;
+    }
+  }
+  
   //--------------------------------------------------------------------------
   // Nothing, bail out
   //--------------------------------------------------------------------------

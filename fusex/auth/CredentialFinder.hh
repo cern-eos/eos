@@ -160,7 +160,7 @@ public:
     }
 
     if (uc.type == CredentialType::SSS) {
-      paramsMap["xrd.wantprot"] = "sss";
+      paramsMap["xrd.wantprot"] = "sss,unix";
       return;
     }
 
