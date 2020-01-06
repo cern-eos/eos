@@ -611,7 +611,7 @@ private:
   eos::IContainerMD::ContainerMap::const_iterator
   subcontainersBegin() override
   {
-    return mSubcontainers.cbegin();
+    return mSubcontainers.begin();
   }
 
   //----------------------------------------------------------------------------
@@ -620,7 +620,7 @@ private:
   virtual eos::IContainerMD::ContainerMap::const_iterator
   subcontainersEnd() override
   {
-    return mSubcontainers.cend();
+    return mSubcontainers.end();
   }
 
   //----------------------------------------------------------------------------
@@ -629,7 +629,7 @@ private:
   virtual eos::IContainerMD::FileMap::const_iterator
   filesBegin() override
   {
-    return mFiles.cbegin();
+    return mFiles.begin();
   }
 
   //----------------------------------------------------------------------------
@@ -638,7 +638,7 @@ private:
   virtual eos::IContainerMD::FileMap::const_iterator
   filesEnd() override
   {
-    return mFiles.cend();
+    return mFiles.end();
   }
 
   // Non-presistent data members

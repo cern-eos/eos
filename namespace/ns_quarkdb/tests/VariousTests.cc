@@ -830,7 +830,7 @@ TEST_F(FileMDFetching, FilemapToFutureVector) {
     {"f1", 1}, {"f2", 2}, {"f3", 3}, {"f4", 4}, {"f5", 5}
   };
 
-  for(auto it = filemap.cbegin(); it != filemap.cend(); ++it) {
+  for(auto it = filemap.begin(); it != filemap.end(); ++it) {
     sorted[it->first] = it->second;
   }
 
@@ -881,7 +881,7 @@ TEST_F(FileMDFetching, FilemapToFutureVector) {
     {"d2", 4}, {"d2-1", 11}, {"d2-2", 12}, {"d2-3", 13}
   };
 
-  for(auto it = containermap.cbegin(); it != containermap.cend(); ++it) {
+  for(auto it = containermap.begin(); it != containermap.end(); ++it) {
     sorted2[it->first] = it->second;
   }
 

@@ -39,6 +39,11 @@ ContainerMD::ContainerMD(ContainerMD::id_t id, IFileMDSvc* file_svc,
   pCGid(0), pMode(040755), pACLId(0), pFileSvc(file_svc),
   pContSvc(cont_svc)
 {
+  mSubcontainers.set_deleted_key("");
+  mFiles.set_deleted_key("");
+  mSubcontainers.set_empty_key("##_EMPTY_##");
+  mFiles.set_empty_key("##_EMPTY_##");
+
   pCTime.tv_sec = 0;
   pCTime.tv_nsec = 0;
   pMTime.tv_sec = 0;
@@ -137,7 +142,7 @@ ContainerMD::findContainer(const std::string& name)
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   ContainerMap::const_iterator it = mSubcontainers.find(name);
 
-  if (it == mSubcontainers.cend()) {
+  if (it == mSubcontainers.end()) {
     return std::shared_ptr<IContainerMD>((IContainerMD*)0);
   }
 
@@ -184,7 +189,7 @@ ContainerMD::addContainer(IContainerMD* container)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   container->setParentId(pId);
-  mSubcontainers.insert_or_assign(container->getName(), container->getId());
+  mSubcontainers[container->getName()] = container->getId();
 }
 
 //------------------------------------------------------------------------------
@@ -205,7 +210,7 @@ ContainerMD::findFile(const std::string& name)
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
   eos::IContainerMD::FileMap::const_iterator it = mFiles.find(name);
 
-  if (it == mFiles.cend()) {
+  if (it == mFiles.end()) {
     return nullptr;
   }
 
@@ -220,7 +225,7 @@ ContainerMD::addFile(IFileMD* file)
 {
   std::unique_lock<std::shared_timed_mutex> lock(mMutex);
   file->setContainerId(pId);
-  mFiles.insert_or_assign(file->getName(), file->getId());
+  mFiles[file->getName()] = file->getId();
   IFileMDChangeListener::Event e(file, IFileMDChangeListener::SizeChange,
                                  0, file->getSize());
   lock.unlock();
@@ -237,7 +242,7 @@ ContainerMD::removeFile(const std::string& name)
 
   auto it = mFiles.find(name);
 
-  if (it != mFiles.cend()) {
+  if (it != mFiles.end()) {
     std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(it->second);
     IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::SizeChange,
                                    0, -file->getSize());
@@ -444,13 +449,14 @@ IContainerMD::ContainerMap
 ContainerMD::copyContainerMap() const
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+  return mSubcontainers;
 
-  IContainerMD::ContainerMap retval;
-  for(auto it = mSubcontainers.cbegin(); it != mSubcontainers.cend(); ++it) {
-    retval.insert_or_assign(it->first, it->second);
-  }
+  // IContainerMD::ContainerMap retval;
+  // for(auto it = mSubcontainers.begin(); it != mSubcontainers.end(); ++it) {
+  //   retval.insert_or_assign(it->first, it->second);
+  // }
 
-  return retval;
+  // return retval;
 }
 
 //------------------------------------------------------------------------------
@@ -460,13 +466,14 @@ IContainerMD::FileMap
 ContainerMD::copyFileMap() const
 {
   std::shared_lock<std::shared_timed_mutex> lock(mMutex);
+  return mFiles;
 
-  IContainerMD::FileMap retval;
-  for(auto it = mFiles.cbegin(); it != mFiles.cend(); ++it) {
-    retval.insert_or_assign(it->first, it->second);
-  }
+  // IContainerMD::FileMap retval;
+  // for(auto it = mFiles.begin(); it != mFiles.end(); ++it) {
+  //   retval.insert_or_assign(it->first, it->second);
+  // }
 
-  return retval;
+  // return retval;
 }
 
 EOSNSNAMESPACE_END

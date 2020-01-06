@@ -80,8 +80,10 @@ public:
   typedef struct timespec tmtime_t;
   typedef std::map<std::string, std::string> XAttrMap;
 
-  using ContainerMap = folly::ConcurrentHashMap<std::string, IContainerMD::id_t>;
-  using FileMap = folly::ConcurrentHashMap<std::string, IContainerMD::id_t>;
+  using ContainerMap = google::dense_hash_map<std::string, IContainerMD::id_t,
+    Murmur3::MurmurHasher<std::string>>;
+  using FileMap = google::dense_hash_map<std::string, IContainerMD::id_t,
+    Murmur3::MurmurHasher<std::string>>;
 
   //----------------------------------------------------------------------------
   //! Constructor

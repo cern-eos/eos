@@ -480,7 +480,7 @@ private:
   subcontainersBegin() override
   {
     // No lock here, only ContainerMapIterator can call us, which locks the mutex.
-    return mSubcontainers->cbegin();
+    return mSubcontainers->begin();
   }
 
   //----------------------------------------------------------------------------
@@ -490,7 +490,7 @@ private:
   subcontainersEnd() override
   {
     // No lock here, only ContainerMapIterator can call us, which locks the mutex.
-    return mSubcontainers->cend();
+    return mSubcontainers->end();
   }
 
   //----------------------------------------------------------------------------
@@ -500,7 +500,7 @@ private:
   filesBegin() override
   {
     // No lock here, only FileMapIterator can call us, which locks the mutex.
-    return mFiles->cbegin();
+    return mFiles->begin();
   }
 
   //----------------------------------------------------------------------------
@@ -510,7 +510,7 @@ private:
   filesEnd() override
   {
     // No lock here, only FileMapIterator can call us, which locks the mutex.
-    return mFiles->cend();
+    return mFiles->end();
   }
 
   eos::ns::ContainerMdProto mCont;      ///< Protobuf container representation

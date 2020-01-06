@@ -36,7 +36,7 @@ EOSNSNAMESPACE_BEGIN
 class FileMapIterator {
 public:
   FileMapIterator(IContainerMDPtr cont)
-    : container(cont), iter(cont->filesBegin()) {}
+    : container(cont), lock(cont->mMutex), iter(cont->filesBegin()) {}
 
   bool valid() const {
     return iter != container->filesEnd();
@@ -56,6 +56,7 @@ public:
 
 private:
   IContainerMDPtr container;
+  std::shared_lock<std::shared_timed_mutex> lock;
   eos::IContainerMD::FileMap::const_iterator iter;
 };
 
@@ -65,7 +66,7 @@ private:
 class ContainerMapIterator {
 public:
   ContainerMapIterator(IContainerMDPtr cont)
-    : container(cont), iter(container->subcontainersBegin()) {}
+    : container(cont), lock(cont->mMutex), iter(container->subcontainersBegin()) {}
 
   bool valid() const {
     return iter != container->subcontainersEnd();
@@ -85,6 +86,7 @@ public:
 
 private:
   IContainerMDPtr container;
+  std::shared_lock<std::shared_timed_mutex> lock;
   eos::IContainerMD::ContainerMap::const_iterator iter;
 };
 

@@ -80,6 +80,25 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Get a const reference to the object itself. Unlike std::future::get, we only
+  //! return a reference, not a copy of the object, and you can call this
+  //! function as many times as you like.
+  //!
+  //! @note Beware of exceptions! They will be propagated from the underlying
+  //! future
+  //----------------------------------------------------------------------------
+  const T& get() const
+  {
+    wait();
+
+    if (mException) {
+      std::rethrow_exception(mException);
+    }
+
+    return mObj;
+  }
+
+  //----------------------------------------------------------------------------
   //! Get a reference to the object itself. Unlike std::future::get, we only
   //! return a reference, not a copy of the object, and you can call this
   //! function as many times as you like.
