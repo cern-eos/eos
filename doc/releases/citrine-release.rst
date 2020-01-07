@@ -15,6 +15,16 @@ Introduction
 ------------
 This release is based on XRootD V4 and IPV6 enabled.
 
+``v4.5.20 Citrine``
+===================
+
+2020-01-07
+
+Bug
+---
+
+* MGM: Potential fix for crash during TableCell construction
+
 
 ``v4.5.19 Citrine``
 ===================
