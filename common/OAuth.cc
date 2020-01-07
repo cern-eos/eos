@@ -60,7 +60,7 @@ OAuth::PurgeCache(time_t& now)
 {
   static time_t last_purge = time(NULL);
 
-  eos::common::RWMutexWriteLock lock(mOAuthMutex);
+  eos::common::RWMutexWriteLock lock(mOAuthCacheMutex);
 
   // purge every 5 min if we have more than 64k entries or every hour for less
   if ( ( ( mOAuthInfo.size() > 65336 ) && (now - last_purge) > 300 ) || 
@@ -102,7 +102,7 @@ OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken, const std
   PurgeCache(now);
 
   {
-    eos::common::RWMutexReadLock lock(mOAuthMutex);
+    eos::common::RWMutexReadLock lock(mOAuthCacheMutex);
     auto cache = mOAuthInfo.find(tokenhash);
     
     if (cache != mOAuthInfo.end()) {
@@ -185,7 +185,7 @@ OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken, const std
 	info["ctime"] = std::to_string(time(NULL));
 	info["etime"] = expires?std::to_string(expires):std::to_string(now + cache_validity_time);
 
-	eos::common::RWMutexWriteLock lock(mOAuthMutex);
+	eos::common::RWMutexWriteLock lock(mOAuthCacheMutex);
 	mOAuthInfo[tokenhash] = info;
 	return 0;
       } else {
