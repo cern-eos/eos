@@ -1541,7 +1541,7 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char* const ininfo)
                          mDescription.c_str());
           Move(mActions[0].mQueue, "g", storetime);
         }
-      } else if (method == "proto") {
+      } else if (gOFS->mTapeEnabled && method == "proto") {
         return HandleProtoMethodEvents(errorMsg, ininfo);
       } else {
         storetime = 0;
