@@ -1212,8 +1212,8 @@ XrdFstOfsFile::_close()
         }
 
         if (!rc) {
-          // Attempt archive queueing
-          if (isCreation && mSyncEventOnClose &&
+          // Attempt archive queueing if tape support enabled
+          if (mTapeEnabled && isCreation && mSyncEventOnClose &&
               mEventWorkflow != common::RETRIEVE_WRITTEN_WORKFLOW_NAME) {
             // Queueing error: queueing for archive failed
             queueingerror = !QueueForArchiving(statinfo);
