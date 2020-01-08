@@ -16,7 +16,7 @@ else()
     LIBBFD_INCLUDE_DIR
     NAMES bfd.h
     HINTS /opt/rh/devtoolset-8/root ${LIBBFD_ROOT_DIR}
-    PATH_SUFFIXES include
+    PATH_SUFFIXES include usr/include
   )
 
   find_library(
