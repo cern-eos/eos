@@ -52,6 +52,7 @@ SharedHashWrapper::SharedHashWrapper(const common::SharedHashLocator& locator,
     mReadLock.Grab(mSom->HashMutex);
     mHash = mSom->GetObject(mLocator.getConfigQueue().c_str(), "hash");
   } else if (mHash) {
+    std::unique_lock lock(mHash->mMutex);
     mHash->SetBroadCastQueue(mLocator.getBroadcastQueue().c_str());
   }
 }
@@ -91,6 +92,7 @@ bool SharedHashWrapper::set(const std::string& key, const std::string& value,
     return false;
   }
 
+  std::unique_lock lock(mHash->mMutex);
   return mHash->Set(key.c_str(), value.c_str(), broadcast);
 }
 
@@ -135,6 +137,8 @@ bool SharedHashWrapper::set(const Batch& batch)
   // to be available in the shared hash onec it receives an update for the fs id
   // This can only be achieved if we make sure the "id" is the last update the
   // FST receives after applying all the rest from the current batch.
+
+  std::unique_lock lock(mHash->mMutex);
   std::map<std::string, std::string>::const_iterator it_id;
   bool has_id_update = false;
   mHash->OpenTransaction();
@@ -178,6 +182,7 @@ std::string SharedHashWrapper::get(const std::string& key)
     return "";
   }
 
+  std::unique_lock lock(mHash->mMutex);
   return mHash->Get(key.c_str());
 }
 
@@ -206,6 +211,7 @@ bool SharedHashWrapper::get(const std::string& key, std::string& value)
     return false;
   }
 
+  std::unique_lock lock(mHash->mMutex);
   value = mHash->Get(key.c_str());
   return true;
 }
@@ -219,6 +225,7 @@ bool SharedHashWrapper::del(const std::string& key, bool broadcast)
     return false;
   }
 
+  std::unique_lock lock(mHash->mMutex);
   return mHash->Delete(key.c_str(), broadcast);
 }
 
@@ -231,6 +238,7 @@ bool SharedHashWrapper::getKeys(std::vector<std::string>& out)
     return false;
   }
 
+  std::unique_lock lock(mHash->mMutex);
   out = mHash->GetKeys();
   return true;
 }
@@ -244,6 +252,7 @@ bool SharedHashWrapper::getContents(std::map<std::string, std::string>& out)
     return false;
   }
 
+  std::unique_lock lock(mHash->mMutex);
   out = mHash->GetContents();
   return true;
 }

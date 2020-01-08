@@ -2547,6 +2547,7 @@ XrdMqSharedObjectManager::DumpSharedObjects(XrdOucString& out)
   RWMutexReadLock lock(HashMutex);
 
   for (auto it = mHashSubjects.begin(); it != mHashSubjects.end(); ++it) {
+    std::unique_lock lock(it->second->mMutex);
     out += "===================================================\n";
     out += it->first.c_str();
     out += " [ hash=>  ";

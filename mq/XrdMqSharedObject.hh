@@ -187,6 +187,10 @@ public:
   static std::atomic<unsigned long long>
   sGetCounter; ///< Counter for get operations
 
+  std::recursive_mutex mMutex; ///< Mutex locked by external accessors.
+                     ///< Temporary workaround until legacy MQ is removed
+                     ///< altogether.
+
   //----------------------------------------------------------------------------
   //! Constructor
   //!
