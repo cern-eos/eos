@@ -53,8 +53,8 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   mOpenOpaque(nullptr), mCapOpaque(nullptr), mFstPath(""), mBookingSize(0),
   mTargetSize(0), mMinSize(0), mMaxSize(0), viaDelete(false),
   mWrDelete(false), mRainSize(0), mNsPath(""), mLocalPrefix(""),
-  mRedirectManager(""), mSecString(""), mEtag(""), mFileId(0),
-  mFsId(0), mLid(0), mCid(0), mForcedMtime(1), mForcedMtime_ms(0),
+  mRedirectManager(""), mTapeEnabled(false), mSecString(""), mEtag(""),
+  mFileId(0), mFsId(0), mLid(0), mCid(0), mForcedMtime(1), mForcedMtime_ms(0),
   mFusex(false), mFusexIsUnlinked(false), closed(false), mOpened(false),
   mHasWrite(false), hasWriteError(false), hasReadError(false), mIsRW(false),
   mIsDevNull(false), isCreation(false), isReplication(false),
@@ -2159,6 +2159,11 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
   const char* secinfo = 0;
   const char* scid = 0;
   const char* smanager = 0;
+
+  // Determine whether or not support for tape is enabled in the MGM
+  if (mCapOpaque->Get("tapeenabled")) {
+    mTapeEnabled = true;
+  }
 
   // Handle file id info
   if (!(hexfid = mCapOpaque->Get("mgm.fid"))) {

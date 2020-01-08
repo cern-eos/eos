@@ -229,6 +229,7 @@ public:
   XrdOucString mNsPath; /// Logical file path (from the namespace)
   XrdOucString mLocalPrefix; ///< Prefix on the local storage
   XrdOucString mRedirectManager; ///< Manager host where we bounce back
+  bool mTapeEnabled; ///< True if tape support is enabled
   XrdOucString mSecString; ///< string containing security summary
   std::string mEtag; ///< Current and new ETag (recomputed in close)
   unsigned long long mFileId; //! file id
