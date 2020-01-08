@@ -41,6 +41,30 @@ class StackTrace
 {
 public:
   //----------------------------------------------------------------------------
+  //! Construct gdb command
+  //----------------------------------------------------------------------------
+  static std::string constructGdbCommand() {
+    struct stat statbuf;
+    if(stat("/usr/bin/scl", &statbuf) != 0) {
+      return "gdb";
+    }
+
+    if(stat("/opt/rh/devtoolset-8", &statbuf) == 0) {
+      return "scl enable devtoolset-8 gdb";
+    }
+
+    if(stat("/opt/rh/devtoolset-7", &statbuf) == 0) {
+      return "scl enable devtoolset-7 gdb";
+    }
+
+    if(stat("/opt/rh/devtoolset-6", &statbuf) == 0) {
+      return "scl enable devtoolset-6 gdb";
+    }
+
+    return "gdb";
+  }
+
+  //----------------------------------------------------------------------------
   //! Create a readable back trace using gdb
   //----------------------------------------------------------------------------
   static void GdbTrace(const char* executable, pid_t pid, const char* what, const char* file = "/var/eos/md/stacktrace", std::string* ret_dump=0)
@@ -67,8 +91,10 @@ public:
     fprintf(stderr, "#########################################################"
             "################\n");
 
-    XrdOucString  gdbline="ulimit -v 10000000000; gdb --quiet "; 
-    gdbline += exe.c_str(); 
+    XrdOucString  gdbline="ulimit -v 10000000000; ";
+    gdbline += constructGdbCommand().c_str();
+    gdbline += " --quiet ";
+    gdbline += exe.c_str();
     gdbline += " -p ";
     gdbline += (int) pid;
     gdbline += " <<< ";
@@ -79,7 +105,7 @@ public:
 
     eos::common::ShellCmd shelltrace(gdbline.c_str());
     shelltrace.wait(120);
-    std::string cat = "cat "; 
+    std::string cat = "cat ";
     cat += file;
     std::string gdbdump = StringConversion::StringFromShellCmd
       (cat.c_str());
