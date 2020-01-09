@@ -345,7 +345,7 @@ metad::mdx::convert(struct fuse_entry_param& e, double lifetime)
   e.attr.st_nlink = nlink();
 
   if (attrMap.count(k_mdino)) {
-    uint64_t mdino = std::stoll(attrMap[k_mdino]);
+    uint64_t mdino = std::stoull(attrMap[k_mdino]);
     uint64_t local_ino = EosFuse::Instance().mds.inomap.forward(mdino);
     shared_md tmd = EosFuse::Instance().mds.getlocal(NULL, local_ino);
 

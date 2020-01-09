@@ -366,7 +366,7 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
     eos::IFileMD::XAttrMap xattrs = cmd->getAttributes();
 
     for (const auto& elem : xattrs) {
-      if ( (elem.first) == "sys.vtrace") 
+      if ( (elem.first) == "sys.vtrace")
 	continue;
       if ( (elem.first) == "sys.utrace")
 	continue;
@@ -458,7 +458,7 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
 
     if (fmd->hasAttribute(k_mdino)) {
       has_mdino = true;
-      uint64_t mdino = std::stoll(fmd->getAttribute(k_mdino));
+      uint64_t mdino = std::stoull(fmd->getAttribute(k_mdino));
       fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(mdino),
                                             &clock);
       eos_debug("hlnk switched from %s to file %s (%#llx)",
@@ -510,11 +510,11 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
         continue;
       }
 
-      if ( (elem.first) == "sys.vtrace") 
+      if ( (elem.first) == "sys.vtrace")
 	continue;
       if ( (elem.first) == "sys.utrace")
 	continue;
-	  
+
       (*file.mutable_attr())[elem.first] = elem.second;
 
       if ((elem.first) == "sys.eos.btime") {
@@ -2131,7 +2131,7 @@ Server::OpSetLink(const std::string& id,
       // file existed but has been deleted
       throw_mdexception(ENOENT, "No such file : " << md_ino);
     }
-    
+
     if (fmd && exclusive) {
       return EEXIST;
     }
@@ -2444,7 +2444,7 @@ Server::OpDeleteFile(const std::string& id,
 
       if (fmd->hasAttribute(k_mdino)) {
         /* this is a hard link, update reference count on underlying file */
-        tgt_md_ino = std::stoll(fmd->getAttribute(k_mdino));
+        tgt_md_ino = std::stoull(fmd->getAttribute(k_mdino));
         uint64_t clock;
         /* gmd = the file holding the inode */
         std::shared_ptr<eos::IFileMD> gmd =
@@ -2580,7 +2580,7 @@ Server::OpDeleteLink(const std::string& id,
     }
 
     if (!fmd) {
-      // no link 
+      // no link
       throw_mdexception(ENOENT, "No such link : " << md.md_ino());
     }
 

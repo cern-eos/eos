@@ -1450,7 +1450,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       mKV.reset(new RedisKV());
 #ifdef ROCKSDB_FOUND
 
-      if (!config.mdcachedir.empty()) {	
+      if (!config.mdcachedir.empty()) {
         RocksKV* kv = new RocksKV();
 
 	// clean old stale DBs
@@ -1539,7 +1539,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
       }
-      
+
       eos_static_warning("********************************************************************************");
       eos_static_warning("eosxd started version %s - FUSE protocol version %d",
                          VERSION, FUSE_USE_VERSION);
@@ -2463,7 +2463,7 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
 
         // fetch necessary hardlink target
         if (attrMap.count(k_mdino)) {
-          uint64_t mdino = std::stoll(attrMap[k_mdino]);
+          uint64_t mdino = std::stoull(attrMap[k_mdino]);
           uint64_t local_ino = EosFuse::Instance().mds.vmaps().forward(mdino);
           metad::shared_md tmd = EosFuse::Instance().mds.get(req, local_ino, "");
         }
@@ -2876,7 +2876,7 @@ EBADF  Invalid directory stream descriptor fi->fh
       if (!cmd) {
 	continue;
       }
-	
+
       eos_static_debug("list: %#lx %s (d=%d)", cino, it->first.c_str(),
                        cmd->deleted());
 
@@ -2901,7 +2901,7 @@ EBADF  Invalid directory stream descriptor fi->fh
         auto attrMap = cmd->mutable_attr();
 
         if (attrMap->count(k_mdino)) {
-          uint64_t mdino = std::stoll((*attrMap)[k_mdino]);
+          uint64_t mdino = std::stoull((*attrMap)[k_mdino]);
           uint64_t local_ino = Instance().mds.vmaps().forward(mdino);
 
           if (EOS_LOGS_DEBUG) {
@@ -3286,7 +3286,7 @@ EROFS  pathname refers to a file on a read-only filesystem.
           pmd = Instance().mds.get(req, parent, pcap->authid());
 
           if (attrMap.count(k_mdino)) { /* This is a hard link */
-            uint64_t mdino = std::stoll(attrMap[k_mdino]);
+            uint64_t mdino = std::stoull(attrMap[k_mdino]);
             uint64_t local_ino = Instance().mds.vmaps().forward(mdino);
             tmd = Instance().mds.get(req, local_ino,
                                      pcap->authid()); /* the target of the link */
