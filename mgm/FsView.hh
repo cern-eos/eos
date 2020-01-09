@@ -503,7 +503,7 @@ protected:
   common::SharedHashLocator mLocator; ///< Locator for shared hash
 
 private:
-  time_t mHeartBeat; ///< Last heartbeat time
+  std::atomic<time_t> mHeartBeat; ///< Last heartbeat time
   std::string mStatus; ///< Status (meaning depends on inheritor)
   std::string mSize; ///< Size of base object (meaning depends on inheritor)
   size_t mInQueue; ///< Number of items in queue(meaning depends on inheritor)
