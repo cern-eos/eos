@@ -175,9 +175,9 @@ void ConversionJob::DoIt() noexcept
   XrdCl::XRootDStatus tpc_status = copy.Run(&mProgressHandler);
 
   if (!tpc_status.IsOK()) {
-    HandleError(SSTR("[tpc]: " << url_src.GetLocation()
-                     << " => " << url_dst.GetLocation()),
-                SSTR("status=failed tpc_err=" << tpc_status.ToStr()));
+    HandleError(tpc_status.ToStr(),
+                SSTR("tpc_src=" << url_src.GetLocation()
+                     << " tpc_dst=" << url_dst.GetLocation()));
     return;
   }
 
