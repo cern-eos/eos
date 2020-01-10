@@ -181,7 +181,7 @@ private:
     //! @param jobinfo the failed conversion job details
     //! @return true if operation succeeded, false otherwise
     //--------------------------------------------------------------------------
-    bool AddFailedJob(const JobInfoT& jobinfo);
+    bool AddFailedJob(const std::shared_ptr<ConversionJob>& job);
 
     //--------------------------------------------------------------------------
     //! Remove conversion job by id from the pending jobs queue in QuarkDB.

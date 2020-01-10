@@ -121,7 +121,7 @@ void ConverterDriver::HandleRunningJobs()
 
       if ((*it)->GetStatus() == ConversionJob::Status::FAILED) {
         auto conversion_string = (*it)->GetConversionString();
-        mQdbHelper.AddFailedJob(std::make_pair(fid, conversion_string));
+        mQdbHelper.AddFailedJob(*it);
         mJobsFailed.insert(*it);
       }
 
@@ -209,14 +209,15 @@ bool ConverterDriver::QdbHelper::AddPendingJob(const JobInfoT& jobinfo)
 // Add conversion job to the queue of failed jobs in QuarkDB
 //--------------------------------------------------------------------------
 bool
-ConverterDriver::QdbHelper::AddFailedJob(const JobInfoT& jobinfo)
+ConverterDriver::QdbHelper::AddFailedJob(
+  const std::shared_ptr<ConversionJob>& job)
 {
   try {
-    return mQHashFailed.hset(std::to_string(jobinfo.first), jobinfo.second);
+    return mQHashFailed.hset(job->GetConversionString(), job->GetErrorMsg());
   } catch (const std::exception& e) {
     eos_static_crit("msg=\"Error encountered while trying to add failed "
                     "conversion job\" emsg=\"%s\" conversion_id=%s",
-                    e.what(), jobinfo.second.c_str());
+                    e.what(), job->GetConversionString().c_str());
   }
 
   return false;
