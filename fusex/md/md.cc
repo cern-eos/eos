@@ -2987,6 +2987,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
                     eos_static_info("invalidate md cache for ino=%016lx", pino);
                     kernelcache::inval_entry(pino, md->name());
                     kernelcache::inval_inode(pino, false);
+		    XrdSysMutexHelper mLock(pmd->Locker());
                     pmd->local_enoent().erase(md->name());
                   }
                 } else {
