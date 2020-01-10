@@ -913,6 +913,7 @@ XrdMgmOfs::_prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecEntity*
 
   // If we generated our own request ID, return it to the client
   if (gOFS->IsFileSystem2 && (pargs.opts & Prep_STAGE)) {
+    // If we return SFS_DATA, the first parameter is the length of the buffer, not the error code
     error.setErrInfo(reqid.length() + 1, reqid.c_str());
     retc = SFS_DATA;
   }
@@ -1033,8 +1034,15 @@ XrdMgmOfs::_prepare_query(XrdSfsPrep& pargs, XrdOucErrInfo& error, const XrdSecE
   json_ss << "]"
           << "}";
 
-  // Send the reply
-  error.setErrInfo(json_ss.str().length() + 1, json_ss.str().c_str());
+  // Send the reply. XRootD requires that we put it into a buffer that can be released with free().
+  auto  json_len = json_ss.str().length();
+  char* json_buf = reinterpret_cast<char*>(malloc(json_len));
+  strncpy(json_buf, json_ss.str().c_str(), json_len);
+  // Ownership of this buffer is passed to xrd_buff which has a Recycle() method.
+  XrdOucBuffer* xrd_buff = new XrdOucBuffer(json_buf, json_len);
+  // Ownership of xrd_buff is passed to error. Note that as we are returning SFS_DATA, the first
+  // parameter is the buffer length rather than an error code.
+  error.setErrInfo(xrd_buff->BuffSize(), xrd_buff);
 
   EXEC_TIMING_END("QueryPrepare");
   return SFS_DATA;
