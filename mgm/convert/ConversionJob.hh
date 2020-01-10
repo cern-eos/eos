@@ -168,6 +168,14 @@ public:
     return mFid;
   }
 
+  //----------------------------------------------------------------------------
+  //! Get the conversion error message
+  //----------------------------------------------------------------------------
+  inline std::string GetErrorMsg() const
+  {
+    return mErrorString;
+  }
+
 private:
   //----------------------------------------------------------------------------
   //! Log the error message, store it and set the job as failed
