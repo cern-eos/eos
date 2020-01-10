@@ -375,14 +375,10 @@ build_cc7_asan:
 
 
 build_cc7_eos_xrd:
-  before_script:
-    - source gitlab-ci/export_branch.sh
-    - echo "Exporting BRANCH=${BRANCH}"
-    - echo -e '[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/'${BRANCH}'-depend/el-7/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n' >> /etc/yum.repos.d/eos-depend.repo
-    - yum install --nogpg -y eos-xrootd
   <<: *cc7_template_definition
   variables:
     BUILD_NAME: cc7_eos_xrd
+    CMAKE_OPTIONS: "-DEOS_XROOTD=1"
     RPMBUILD_OPTIONS: "--with eos_xrootd_rh"
   tags:
     - docker_node
