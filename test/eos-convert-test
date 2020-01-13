@@ -106,6 +106,32 @@ function upload_testfiles() {
   done
 }
 
+function wait_conversion() {
+  timeout=$1
+  interval=5
+  count=0
+  echo "Waiting ${timeout} seconds for conversion to finish"
+
+  while true;
+  do
+    pending=$(eos -j convert status | jq .pending)
+    running=$(eos -j convert status | jq .running)
+
+    if [[ ${pending} -eq "0" && ${running} -eq "0" ]]; then
+      echo "Conversion finished (${count}s)"
+      break
+    fi
+
+    sleep ${interval}
+    count=$((count + interval))
+
+    if [[ ${count} -eq ${timeout} ]]; then
+      echo "error: conversion timeout at ${timeout} seconds"
+      exit 1
+    fi
+  done
+}
+
 #------------------------------------------------------------------------------
 # Global setup
 #------------------------------------------------------------------------------
@@ -160,8 +186,7 @@ for i in $(seq 0 ${N}); do
   (( i < N )) && sleep 20
 done
 
-echo "Waiting 90 seconds for conversion finish"
-sleep 90
+wait_conversion 300
 
 #------------------------------------------------------------------------------
 # Perform validations
