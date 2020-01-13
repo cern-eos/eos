@@ -104,6 +104,32 @@ function replicate_file() {
   sleep 5
 }
 
+function wait_conversion() {
+  timeout=$1
+  interval=5
+  count=0
+  echo "Waiting ${timeout} seconds for conversion to finish"
+
+  while true;
+  do
+    pending=$(eos -j convert status | jq .pending)
+    running=$(eos -j convert status | jq .running)
+
+    if [[ ${pending} -eq "0" && ${running} -eq "0" ]]; then
+      echo "Conversion finished (${count}s)"
+      break
+    fi
+
+    sleep ${interval}
+    count=$((count + interval))
+
+    if [[ ${count} -eq ${timeout} ]]; then
+      echo "error: conversion timeout at ${timeout} seconds"
+      exit 1
+    fi
+  done
+}
+
 #------------------------------------------------------------------------------
 # Global setup
 #------------------------------------------------------------------------------
@@ -159,8 +185,7 @@ eos -j qos get /eos/${EOS_INSTANCE_NAME}/qos/file.dat | jq '"current_qos=" + .cu
 eos -j qos get /eos/${EOS_INSTANCE_NAME}/qos/file.dat | jq '.target_qos' | grep "disk_plain" &> /dev/null
 
 # Wait for conversion
-echo ""; echo "Waiting 75 seconds for conversion"
-sleep 75
+wait_conversion 120
 
 #------------------------------------------------------------------------------
 # Perform validations
