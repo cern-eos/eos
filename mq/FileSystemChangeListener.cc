@@ -52,7 +52,7 @@ bool FileSystemChangeListener::startListening() {
 // Consume next event, block until there's one
 //------------------------------------------------------------------------------
 bool FileSystemChangeListener::fetch(Event &out, common::ThreadAssistant &assistant) {
-
+  return false;
 }
 
 EOSMQNAMESPACE_END
