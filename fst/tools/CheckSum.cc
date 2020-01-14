@@ -26,11 +26,17 @@
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "common/LayoutId.hh"
 
+
+void usage() 
+{
+  fprintf(stderr,"usage: eos-checksum adler|crc32|crc32c|crc64|md5|sha|sha256|xxhash64 <path>|/dev/stdin\n");
+}
+
 int
 main(int argc, char* argv[])
 {
   if (argc != 3) {
-    fprintf(stderr, "error: you have to provide a checksum type and path name\n");
+    usage();
     exit(-1);
   }
 
