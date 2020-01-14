@@ -212,11 +212,15 @@ Requires: bzip2
 %endif
 
 # Use ISA-L[_crypto] on CC7
+%if %{?_with_server:1}%{!?_with_server:0}
 %if 0%{?distribution} == 7
 BuildRequires: libisa-l-devel
 BuildRequires: libisa-l_crypto-devel
+BuildRequires: xxhash-devel
 Requires: libisa-l
 Requires: libisa-l_crypto
+Requires: xxhash-devel
+%endif
 %endif
 
 # Install newer gcc on SLC6 + CC7
